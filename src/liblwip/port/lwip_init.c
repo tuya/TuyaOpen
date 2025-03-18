@@ -21,6 +21,7 @@
 #include "ethernetif.h"
 #include "lwip_init.h"
 #include "lwip/tcpip.h"
+#include "netif/ethernet.h"
 #ifdef TUYA_SDK_CLI_ADAPTER
 #include "tuya_cli_adapt.h"
 #endif
@@ -55,7 +56,7 @@ void TUYA_LwIP_Init(void)
     struct netif *pnetif = NULL;
 
     // The WiFi STATION/AP must correspond to LWIP's netif0/1
-    if ((NETIF_AP_IDX != WF_AP) || (NETIF_STA_IDX != WF_STATION)) {
+    if(((int)NETIF_AP_IDX != (int)WF_AP)||((int)NETIF_STA_IDX != (int)WF_STATION)){
         // os_printf(LM_APP, LL_INFO, "wifi station/ap does not match
         // netif0/1\n");
     }
@@ -81,12 +82,20 @@ void TUYA_LwIP_Init(void)
         IP4_ADDR(ip_2_ip4(&gw), 0, 0, 0, 0);
 #endif
         pnetif = tuya_ethernetif_get_netif_by_index(idx);
+#ifdef LWIP_DUAL_NET_SUPPORT
+        if (idx == NETIF_ETH_IDX) {
+            pnetif->name[0] = 'e';
+            pnetif->name[1] = 'n';
+            netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &ethernetif_init, &ethernet_input);
+        } else {
+#endif
         pnetif->name[0] = 'r';
         pnetif->name[1] = '0' + idx;
 
-        netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &tuya_ethernetif_init,
-                  &tcpip_input);
-
+        netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &tuya_ethernetif_init, &tcpip_input);
+#ifdef LWIP_DUAL_NET_SUPPORT
+        }
+#endif
         PR_DEBUG("interface %d is initialized", idx);
     }
 
@@ -100,6 +109,7 @@ void TUYA_LwIP_Init(void)
         pnetif = tuya_ethernetif_get_netif_by_index(idx);
         if (pnetif) {
             netif_set_up(pnetif);
+            netif_set_link_up(pnetif);
         }
     }
 }

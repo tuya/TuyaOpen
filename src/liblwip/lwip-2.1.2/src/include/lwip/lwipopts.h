@@ -61,6 +61,8 @@
 /* ---------IPv6 option--------- */
 //#define LWIP_IPV6                       0
 
+#define LWIP_IPV6_DHCP6 LWIP_IPV6
+
 /* ---------Socket options ---------*/
 #define LWIP_SOCKET                     1
 

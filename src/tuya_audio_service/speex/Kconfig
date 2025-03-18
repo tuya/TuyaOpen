@@ -1,5 +1,5 @@
 menuconfig ENABLE_BUILD_SPEEX
-    bool "enable build speex-1.2.0"
+    bool "ENABLE_BUILD_SPEEX: enable build speex-1.2.0"
     default n
 	help
 	  Speex is an Open Source/Free Software patent-free

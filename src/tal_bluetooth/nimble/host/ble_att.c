@@ -35,41 +35,41 @@ struct ble_att_rx_dispatch_entry {
 /** Dispatch table for incoming ATT commands.  Must be ordered by op code. */
 static const struct ble_att_rx_dispatch_entry ble_att_rx_dispatch[] = {
 #if (TY_HS_BLE_ROLE_CENTRAL)
-    {BLE_ATT_OP_ERROR_RSP, ble_att_clt_rx_error},
-    {BLE_ATT_OP_MTU_RSP, ble_att_clt_rx_mtu},
-    {BLE_ATT_OP_FIND_INFO_RSP, ble_att_clt_rx_find_info},
-    {BLE_ATT_OP_FIND_TYPE_VALUE_RSP, ble_att_clt_rx_find_type_value},
-    {BLE_ATT_OP_READ_TYPE_RSP, ble_att_clt_rx_read_type},
-    {BLE_ATT_OP_READ_RSP, ble_att_clt_rx_read},
-    {BLE_ATT_OP_READ_BLOB_RSP, ble_att_clt_rx_read_blob},
-    {BLE_ATT_OP_READ_MULT_RSP, ble_att_clt_rx_read_mult},
-    {BLE_ATT_OP_READ_GROUP_TYPE_RSP, ble_att_clt_rx_read_group_type},
-    {BLE_ATT_OP_WRITE_RSP, ble_att_clt_rx_write},
-    {BLE_ATT_OP_PREP_WRITE_RSP, ble_att_clt_rx_prep_write},
-    {BLE_ATT_OP_EXEC_WRITE_RSP, ble_att_clt_rx_exec_write},
-    {BLE_ATT_OP_INDICATE_RSP, ble_att_clt_rx_indicate},
+    { BLE_ATT_OP_ERROR_RSP,            ble_att_clt_rx_error },
+    { BLE_ATT_OP_MTU_RSP,              ble_att_clt_rx_mtu },
+    { BLE_ATT_OP_FIND_INFO_RSP,        ble_att_clt_rx_find_info },
+    { BLE_ATT_OP_FIND_TYPE_VALUE_RSP,  ble_att_clt_rx_find_type_value },
+    { BLE_ATT_OP_READ_TYPE_RSP,        ble_att_clt_rx_read_type },
+    { BLE_ATT_OP_READ_RSP,             ble_att_clt_rx_read },
+    { BLE_ATT_OP_READ_BLOB_RSP,        ble_att_clt_rx_read_blob },
+    { BLE_ATT_OP_READ_MULT_RSP,        ble_att_clt_rx_read_mult },
+    { BLE_ATT_OP_READ_GROUP_TYPE_RSP,  ble_att_clt_rx_read_group_type },
+    { BLE_ATT_OP_WRITE_RSP,            ble_att_clt_rx_write },
+    { BLE_ATT_OP_PREP_WRITE_RSP,       ble_att_clt_rx_prep_write },
+    { BLE_ATT_OP_EXEC_WRITE_RSP,       ble_att_clt_rx_exec_write },
+    { BLE_ATT_OP_INDICATE_RSP,         ble_att_clt_rx_indicate },
 #endif
 
-#if (TY_HS_BLE_ROLE_PERIPHERAL)
+#if  (TY_HS_BLE_ROLE_PERIPHERAL)
 
-#if !TY_HS_BLE_CUT_ATT
-
-    {BLE_ATT_OP_FIND_TYPE_VALUE_REQ, ble_att_svr_rx_find_type_value},
-    {BLE_ATT_OP_READ_MULT_REQ, ble_att_svr_rx_read_mult},
-    {BLE_ATT_OP_PREP_WRITE_REQ, ble_att_svr_rx_prep_write},
-    {BLE_ATT_OP_EXEC_WRITE_REQ, ble_att_svr_rx_exec_write},
+#if  !TY_HS_BLE_CUT_ATT
+    
+    { BLE_ATT_OP_FIND_TYPE_VALUE_REQ,  ble_att_svr_rx_find_type_value },
+    { BLE_ATT_OP_READ_MULT_REQ,        ble_att_svr_rx_read_mult },
+    { BLE_ATT_OP_PREP_WRITE_REQ,       ble_att_svr_rx_prep_write },
+    { BLE_ATT_OP_EXEC_WRITE_REQ,       ble_att_svr_rx_exec_write },
 #endif
-    {BLE_ATT_OP_MTU_REQ, ble_att_svr_rx_mtu},                         // 2
-    {BLE_ATT_OP_FIND_INFO_REQ, ble_att_svr_rx_find_info},             // 4
-    {BLE_ATT_OP_READ_TYPE_REQ, ble_att_svr_rx_read_type},             // 8
-    {BLE_ATT_OP_READ_REQ, ble_att_svr_rx_read},                       // a
-    {BLE_ATT_OP_READ_BLOB_REQ, ble_att_svr_rx_read_blob},             // c
-    {BLE_ATT_OP_READ_GROUP_TYPE_REQ, ble_att_svr_rx_read_group_type}, // 10
-    {BLE_ATT_OP_WRITE_REQ, ble_att_svr_rx_write},                     // 12
-    {BLE_ATT_OP_NOTIFY_REQ, ble_att_svr_rx_notify},                   // 1b
-    {BLE_ATT_OP_INDICATE_REQ, ble_att_svr_rx_indicate},               // 1d
-    {BLE_ATT_OP_INDICATE_RSP, ble_att_clt_rx_indicate},               // 1e
-    {BLE_ATT_OP_WRITE_CMD, ble_att_svr_rx_write_no_rsp},              // 52
+    { BLE_ATT_OP_MTU_REQ,              ble_att_svr_rx_mtu },//2
+    { BLE_ATT_OP_FIND_INFO_REQ,        ble_att_svr_rx_find_info },//4
+    { BLE_ATT_OP_READ_TYPE_REQ,        ble_att_svr_rx_read_type },//8
+    { BLE_ATT_OP_READ_REQ,             ble_att_svr_rx_read },// a    
+    { BLE_ATT_OP_READ_BLOB_REQ,        ble_att_svr_rx_read_blob },//c
+    { BLE_ATT_OP_READ_GROUP_TYPE_REQ,  ble_att_svr_rx_read_group_type },//10
+    { BLE_ATT_OP_WRITE_REQ,            ble_att_svr_rx_write },//12
+    { BLE_ATT_OP_NOTIFY_REQ,           ble_att_svr_rx_notify },//1b
+    { BLE_ATT_OP_INDICATE_REQ,         ble_att_svr_rx_indicate },//1d
+    { BLE_ATT_OP_INDICATE_RSP,         ble_att_clt_rx_indicate },//1e
+    { BLE_ATT_OP_WRITE_CMD,            ble_att_svr_rx_write_no_rsp },//52
 
 #endif
 };

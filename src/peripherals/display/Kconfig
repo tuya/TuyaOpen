@@ -1,0 +1,57 @@
+config ENABLE_DISPLAY_DRIVER
+    bool "enable display driver"
+    default n
+
+if (ENABLE_DISPLAY_DRIVER)
+    config DISPLAY_LCD_WIDTH
+        int "tft lcd width"
+        range 0 1000
+        default 320
+    config DISPLAY_LCD_HEIGHT
+        int "tft lcd height"
+        range 0 1000
+        default 480
+
+    config DISPLAY_LCD_BL_MODE
+        int "tft lcd blackbright mode 0:gpio 1:pwm"
+        range 0 1
+        default 0
+
+    config DISPLAY_LCD_BL_POLARITY_LEVEL
+        int "tft lcd backlight active level 0:low 1:high"
+        range 0 1
+        default 1
+
+    if (DISPLAY_LCD_BL_MODE=0)
+        config DISPLAY_LCD_BL_PIN
+        int "tft lcd bl pin"
+        range 0 64
+        default 9
+    endif
+
+    if (DISPLAY_LCD_BL_MODE=1)
+        config DISPLAY_LCD_BL_PWM_ID
+            int "tft lcd backlight pwm id"
+            range 0 4
+            default 0
+
+        config DISPLAY_LCD_BL_PWM_FREQ
+            int "tft lcd backlight pwm freq"
+            range 1000 100000
+            default 10000
+    endif
+
+    choice 
+        prompt "choose tft lcd interface type"
+        default ENABLE_DISPLAY_LCD_SPI
+
+        config ENABLE_DISPLAY_LCD_RGB
+            bool "lcd rgb interface"
+
+        config ENABLE_DISPLAY_LCD_SPI
+            bool "lcd spi interface"
+    endchoice
+endif
+
+rsource "tft_rgb/Kconfig"
+rsource "tft_spi/Kconfig"

@@ -299,15 +299,13 @@ typedef struct {
         TAL_BLE_ADV_REPORT_T adv_report;     /**< Receive Adv and Respond report */
         TAL_BLE_CONN_PARAM_EVT_T conn_param; /**< We will update connect parameters.This value can be used with
                                                 TAL_BLE_EVT_CONN_PARAM_REQ and TAL_BLE_EVT_CONN_PARAM_UPDATE */
-        TAL_BLE_EXCHANGE_MTU_EVT_T
-            exchange_mtu; /**< This value can be used with TAL_BLE_EVT_MTU_REQUEST and TAL_BLE_EVT_MTU_RSP */
+        TAL_BLE_EXCHANGE_MTU_EVT_T exchange_mtu; /**< This value can be used with TAL_BLE_EVT_MTU_REQUEST and TAL_BLE_EVT_MTU_RSP */
         TAL_BLE_CONN_RSSI_EVT_T link_rssi;     /**< Peer device RSSI value */
         TAL_BLE_NOTIFY_TX_EVT_T notify_result; /**< [Ble Peripheral] This value can be used with TAL_BLE_EVT_NOTIFY_TX
                                                   after Ble Peripheral send a notification to peer. */
         TAL_BLE_DATA_REPORT_T write_report;    /**< This value can be used with TAL_BLE_EVT_WRITE_REQ */
         TAL_BLE_DATA_REPORT_T data_report;     /**< This value can be used with TAL_BLE_EVT_NOTIFY_RX */
-        TAL_BLE_DATA_REPORT_T
-            data_read; /**< After we do read attr in central mode, we will get the callback from bluetooth Kernel */
+        TAL_BLE_DATA_REPORT_T data_read; /**< After we do read attr in central mode, we will get the callback from bluetooth Kernel */
         TAL_BLE_SUBSCRBE_EVT_T subscribe;  /**< used with TAL_BLE_EVT_SUBSCRIBE*/
         TAL_BLE_READ_CHAR_EVT_T char_read; /**< read char event, used with TAL_BLE_EVT_READ_CHAR*/
     } ble_event;

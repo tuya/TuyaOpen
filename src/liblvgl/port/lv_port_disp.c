@@ -14,24 +14,10 @@
 #include <stdbool.h>
 #include "tal_log.h"
 
+#include "tuya_lcd_device.h"
 #include "tkl_display.h"
+#include "tkl_memory.h"
 
-/*********************
- *      DEFINES
- *********************/
-#ifndef LV_DISP_HOR_RES
-#warning Please define or replace the macro MY_DISP_HOR_RES with the actual screen width, default value 320 is used for now.
-#define MY_DISP_HOR_RES 128
-#else
-#define MY_DISP_HOR_RES LV_DISP_HOR_RES
-#endif
-
-#ifndef LV_DISP_VER_RES
-#warning Please define or replace the macro MY_DISP_VER_RES with the actual screen height, default value 240 is used for now.
-#define MY_DISP_VER_RES 128
-#else
-#define MY_DISP_VER_RES LV_DISP_VER_RES
-#endif
 
 #define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565)) /*will be 2 for RGB565 */
 
@@ -42,91 +28,96 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-static void disp_init(void);
+static void disp_init(TKL_DISP_DEVICE_S *device);
 
 static void disp_flush(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map);
 
 /**********************
  *  STATIC VARIABLES
  **********************/
-static TKL_DISP_DEVICE_S lcd;
-static TKL_DISP_EVENT_HANDLER_S event_handle;
+static TKL_DISP_DEVICE_S sg_lcd;
+static TKL_DISP_INFO_S sg_lcd_info;
 static lv_display_t *disp_drv_backup = NULL;
 
 /**********************
  *      MACROS
  **********************/
 
+
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-
-void lv_port_disp_init(void)
+void lv_port_disp_init(TKL_DISP_DEVICE_S *device)
 {
     /*-------------------------
      * Initialize your display
      * -----------------------*/
-    disp_init();
+    disp_init(device);
 
     /*------------------------------------
      * Create a display and set a flush_cb
      * -----------------------------------*/
-    lv_display_t *disp = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
+    lv_display_t *disp = lv_display_create(sg_lcd_info.width, sg_lcd_info.height);
     lv_display_set_flush_cb(disp, disp_flush);
 
     /* Example 2
      * Two buffers for partial rendering
      * In flush_cb DMA or similar hardware should be used to update the display in the background.*/
-    LV_ATTRIBUTE_MEM_ALIGN
-    static uint8_t buf_2_1[MY_DISP_HOR_RES * MY_DISP_VER_RES * BYTE_PER_PIXEL / 20];
+    uint32_t buf_len = sg_lcd_info.width*sg_lcd_info.height*BYTE_PER_PIXEL / 10;
 
     LV_ATTRIBUTE_MEM_ALIGN
-    static uint8_t buf_2_2[MY_DISP_HOR_RES * MY_DISP_VER_RES * BYTE_PER_PIXEL / 20];
-    lv_display_set_buffers(disp, buf_2_1, buf_2_2, sizeof(buf_2_1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    static uint8_t *buf_2_1;
+    buf_2_1 = (uint8_t*)tkl_system_malloc(buf_len);
+    if(buf_2_1 == NULL) {
+        PR_ERR("malloc failed");
+        return;
+    }
+    memset(buf_2_1, 0x00, buf_len);
+
+    LV_ATTRIBUTE_MEM_ALIGN
+    static uint8_t *buf_2_2;
+    buf_2_2 = (uint8_t*)tkl_system_malloc(buf_len);
+    if(buf_2_2 == NULL) {
+        PR_ERR("malloc failed");
+        return;
+    }
+    memset(buf_2_2, 0x00, buf_len);
+
+    lv_display_set_buffers(disp, buf_2_1, buf_2_2, buf_len, LV_DISPLAY_RENDER_MODE_PARTIAL);
 }
 
 /**********************
  *   STATIC FUNCTIONS
  **********************/
-static void disp_flush_ready_cb(TKL_DISP_PORT_E port, int64_t timestamp)
-{
-    if (disp_drv_backup) {
-        lv_disp_flush_ready(disp_drv_backup);
-        disp_drv_backup = NULL;
-    }
-}
 
 /*Initialize your display and the required peripherals.*/
-static void disp_init(void)
+static void disp_init(TKL_DISP_DEVICE_S *device)
 {
     OPERATE_RET rt = OPRT_OK;
     TKL_DISP_RECT_S rect;
     TKL_DISP_COLOR_U color;
     int brightness;
 
-    memset(&lcd, 0, sizeof(lcd));
-    memset(&event_handle, 0, sizeof(event_handle));
+    memset(&sg_lcd, 0, sizeof(TKL_DISP_DEVICE_S));
+    memset(&sg_lcd_info, 0, sizeof(TKL_DISP_INFO_S));
 
-    event_handle.vsync_cb = disp_flush_ready_cb;
-    event_handle.hotplug_cb = NULL;
-    TUYA_CALL_ERR_RETURN(tkl_disp_init(&lcd, &event_handle));
+    sg_lcd.device_id   = device->device_id;
+    sg_lcd.device_port = device->device_port;
+    TUYA_CALL_ERR_RETURN(tkl_disp_init(&sg_lcd, NULL));
+    memcpy(device, &sg_lcd, sizeof(TKL_DISP_DEVICE_S));
+
+    TUYA_CALL_ERR_RETURN(tkl_disp_get_info(&sg_lcd, &sg_lcd_info));
 
     rect.x = 0;
     rect.y = 0;
-    rect.width = MY_DISP_HOR_RES - rect.x + 1;
-    rect.height = MY_DISP_VER_RES - rect.y + 1;
+    rect.width  = sg_lcd_info.width;
+    rect.height = sg_lcd_info.height;
 
-    color.full = 0x0000;
+    color.full = 0x00;
 
-    tkl_disp_fill(&lcd, &rect, color);
+    tkl_disp_fill(&sg_lcd, &rect, color);
 
-    if (tkl_disp_get_brightness(&lcd, &brightness) != OPRT_OK) {
-        brightness = 255;
-    }
-
-    if (brightness == 0)
-        brightness = 255;
-    tkl_disp_set_brightness(&lcd, brightness);
+    tkl_disp_set_brightness(&sg_lcd, 100);
 }
 
 volatile bool disp_flush_enabled = true;
@@ -155,7 +146,6 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
     TKL_DISP_FRAMEBUFFER_S buf;
     TKL_DISP_RECT_S rect;
     
-    disp_drv_backup = disp_drv;
     if (disp_flush_enabled) {
         buf.buffer = (void *)px_map;
         buf.format = TKL_DISP_PIXEL_FMT_RGB565;
@@ -164,10 +154,16 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
         rect.width = area->x2 - area->x1 + 1;
         rect.height = area->y2 - area->y1 + 1;
 
-        TUYA_CALL_ERR_RETURN(tkl_disp_blit(&lcd, &buf, &rect));
+        bk_printf("rect.x:%d rect.y:%d rect.width:%d rect.height:%d\r\n", rect.x, rect.y, rect.width, rect.height);
 
-        TUYA_CALL_ERR_RETURN(tkl_disp_flush(&lcd));   
+        tkl_disp_blit(&sg_lcd, &buf, &rect);
+
+        if (lv_disp_flush_is_last(disp_drv)) {
+            tkl_disp_flush(&sg_lcd);  
+        }
     }
+
+    lv_disp_flush_ready(disp_drv);
 }
 
 #else /*Enable this file at the top*/

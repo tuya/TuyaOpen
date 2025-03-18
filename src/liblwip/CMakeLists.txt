@@ -27,6 +27,7 @@ list(APPEND LIB_SRCS ${LWIP_SRCS})
 set(LIB_PUBLIC_INC 
     ${MODULE_PATH}/${LWIP}/src/include
     ${MODULE_PATH}/${LWIP}/src/include/lwip
+    ${MODULE_PATH}/${LWIP}/src/include/lwip/apps
     ${MODULE_PATH}/${LWIP}/src/include/compat
     )
 

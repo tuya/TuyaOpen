@@ -1110,7 +1110,11 @@
  * DNS_SERVER_ADDRESS(ipaddr), where 'ipaddr' is an 'ip_addr_t*'
  */
 #if !defined DNS_MAX_SERVERS || defined __DOXYGEN__
+#ifdef LWIP_DUAL_NET_SUPPORT
+#define DNS_MAX_SERVERS                 6
+#else
 #define DNS_MAX_SERVERS                 2
+#endif
 #endif
 
 /** DNS maximum number of retries when asking for a name, before "timeout". */

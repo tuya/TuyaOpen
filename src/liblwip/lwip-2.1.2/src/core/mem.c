@@ -165,7 +165,7 @@ mem_init(void)
  * C library malloc(): we can't free part of a pool element and the stack
  * support mem_trim() to return a different pointer
  */
-void *
+void*
 mem_trim(void *mem, mem_size_t size)
 {
   LWIP_UNUSED_ARG(size);
@@ -206,7 +206,7 @@ mem_trim(void *mem, mem_size_t size)
 void *
 mem_malloc(mem_size_t size)
 {
-  void *ret = mem_clib_malloc(size + MEM_LIBC_STATSHELPER_SIZE);
+  void* ret = mem_clib_malloc(size + MEM_LIBC_STATSHELPER_SIZE);
   if (ret == NULL) {
     MEM_STATS_INC_LOCKED(err);
   } else {

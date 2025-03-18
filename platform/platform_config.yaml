@@ -12,7 +12,7 @@ platforms:
   commit: platform_ubuntu
 
 - name: t5ai
-  repo: https://github.com/tuya/TuyaOpen-T5AI
+  repo: https://github.com/yingtao450/TuyaOpen-T5AI.git
   commit: master
 
 - name: esp32

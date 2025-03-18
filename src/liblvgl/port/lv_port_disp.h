@@ -22,6 +22,8 @@ extern "C" {
 #include "lvgl/lvgl.h"
 #endif
 
+#include "tkl_display.h"
+
 /*********************
  *      DEFINES
  *********************/
@@ -34,7 +36,7 @@ extern "C" {
  * GLOBAL PROTOTYPES
  **********************/
 /* Initialize low level display driver */
-void lv_port_disp_init(void);
+void lv_port_disp_init(TKL_DISP_DEVICE_S *device);
 
 /* Enable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */

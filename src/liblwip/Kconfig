@@ -228,12 +228,19 @@ menu "configure enable/disable liblwip"
 			config IN_ADDR_T_DEFINED
 				bool "IN_ADDR_T_DEFINED: Whether in_addr_t is already defined"
 				default n
-				config LWIP_NETCONN_FULLDUPLEX
-					int "LWIP_NETCONN_FULLDUPLEX: Network connection full duplex transmission and reception, supports multithreaded transmission and reception"
-					range 0 1
-					default 1	
-				config MEM_LIBC_MALLOC
-					bool "LWIP use LIBC MALLOC MEM"
-					default n
+			config LWIP_NETCONN_FULLDUPLEX
+				int "LWIP_NETCONN_FULLDUPLEX: Network connection full duplex transmission and reception, supports multithreaded transmission and reception"
+				range 0 1
+				default 1	
+			config MEM_LIBC_MALLOC
+				bool "LWIP use LIBC MALLOC MEM"
+				default n
+			config LWIP_DUAL_NET_SUPPORT
+				bool "LWIP_DUAL_NET_SUPPORT: support LAN and WiFi"
+				default n
+
+			config ENABLE_LWIP_DHCP
+				bool "ENABLE_LWIP_DHCP: enable tuya lwip dhcp"
+				default n
 		endif    
 endmenu

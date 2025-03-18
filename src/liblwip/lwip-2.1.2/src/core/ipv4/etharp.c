@@ -453,6 +453,9 @@ etharp_update_arp_entry(struct netif *netif, const ip4_addr_t *ipaddr, struct et
   {
     /* mark it stable */
     arp_table[i].state = ETHARP_STATE_STABLE;
+    if (ip4_addr_cmp(&arp_table[i].ipaddr, &netif->gw)) {
+        arp_table[i].state = ETHARP_STATE_STATIC;
+    }
   }
 
   /* record network interface */
@@ -547,6 +550,19 @@ etharp_remove_static_entry(const ip4_addr_t *ipaddr)
   /* entry found, free it */
   etharp_free_entry(i);
   return ERR_OK;
+}
+
+void
+etharp_remove_all_static(void)
+{
+  for (int i = 0; i < ARP_TABLE_SIZE; ++i) {
+    int state = arp_table[i].state;
+    if (state == ETHARP_STATE_STATIC) {
+        ip_addr_t *gw = &arp_table[i].netif->gw;
+        struct eth_addr *ethaddr = &arp_table[i].ethaddr;
+        etharp_free_entry(i);
+    }
+  }
 }
 #endif /* ETHARP_SUPPORT_STATIC_ENTRIES */
 

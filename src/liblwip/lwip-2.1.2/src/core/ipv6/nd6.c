@@ -1105,6 +1105,17 @@ nd6_tmr(void)
           netif_ip6_addr_set_valid_life(netif, i, 0);
           netif_ip6_addr_set_pref_life(netif, i, 0);
           netif_ip6_addr_set_state(netif, i, IP6_ADDR_INVALID);
+          if(i == 0) {
+            if(netif->dhcp_cb) {
+              netif->dhcp_cb(netif, 1, 0);
+            }
+            //linklocal
+          }else {
+            if(netif->dhcp_cb) {
+              netif->dhcp_cb(netif, 2, 0);
+            }
+            //global
+          }
         } else {
           if (!ip6_addr_life_isinfinite(life)) {
             life -= ND6_TMR_INTERVAL / 1000;
@@ -1142,6 +1153,17 @@ nd6_tmr(void)
           }
 #endif /* LWIP_IPV6_ADDRESS_LIFETIMES */
           netif_ip6_addr_set_state(netif, i, addr_state);
+          if(i == 0) {
+            if(netif->dhcp_cb) {
+              netif->dhcp_cb(netif, 1, 1);
+            }
+            //linklocal
+          }else {
+            if(netif->dhcp_cb) {
+              netif->dhcp_cb(netif, 2, 1);
+            }
+            //global
+          }
         } else if (netif_is_up(netif) && netif_is_link_up(netif)) {
           /* tentative: set next state by increasing by one */
           netif_ip6_addr_set_state(netif, i, addr_state + 1);

@@ -1,0 +1,33 @@
+if (ENABLE_DISPLAY_DRIVER)
+if (ENABLE_DISPLAY_LCD_RGB)
+    choice 
+        prompt "select tft lcd chip"
+        default ENABLE_LCD_RGB_ILI9488
+
+        config ENABLE_LCD_RGB_ILI9488
+            bool "ili9488"
+    endchoice
+
+    menu "configure tft lcd software spi"
+        config LCD_RGB_SW_SPI_RST_PIN
+            int "tft lcd spi rst pin"
+            range 0 64
+            default 53
+
+        config LCD_RGB_SW_SPI_CLK_PIN
+            int "tft lcd spi clk pin"
+            range 0 64
+            default 49
+
+        config LCD_RGB_SW_SPI_CSX_PIN
+            int "tft lcd spi cs pin"
+            range 0 64
+            default 48
+
+        config LCD_RGB_SW_SPI_SDA_PIN
+            int "tft lcd spi sda pin"
+            range 0 64
+            default 50
+    endmenu
+endif
+endif

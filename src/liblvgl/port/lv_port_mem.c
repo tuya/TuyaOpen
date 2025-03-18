@@ -6,7 +6,7 @@
  *      INCLUDES
  *********************/
 #include "lvgl.h"
-#include "tal_memory.h"
+#include "tkl_memory.h"
 
 /*********************
  *      DEFINES
@@ -59,17 +59,17 @@ void lv_mem_remove_pool(lv_mem_pool_t pool)
 
 void * lv_malloc_core(size_t size)
 {
-    return tal_malloc(size);
+    return tkl_system_psram_malloc(size);
 }
 
 void * lv_realloc_core(void * p, size_t new_size)
 {
-    return tal_realloc(p, new_size);
+    return tkl_system_psram_realloc(p, new_size);
 }
 
 void lv_free_core(void * p)
 {
-    tal_free(p);
+    tkl_system_psram_free(p);
 }
 
 void lv_mem_monitor_core(lv_mem_monitor_t * mon_p)

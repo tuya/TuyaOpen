@@ -280,6 +280,11 @@ function build_exec()
                 continue
             fi
         fi
+        APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
+        APP_DEFAULT_CONFIG_PLT="$PROJECT_ROOT/app_default.config.$PROJECT_PLATFORM"
+        if [ -f $APP_DEFAULT_CONFIG_PLT ]; then
+            cp $APP_DEFAULT_CONFIG_PLT $APP_DEFAULT_CONFIG
+        fi
 
         mkdir -p $PROJECT_ROOT/.build/$PROJ
         cd $PROJECT_ROOT/.build/$PROJ
@@ -365,6 +370,10 @@ function menuconfig_exec()
     HEADER_FILE="tuya_kconfig.h"
     HEADER_IN_PATH="${KCONFIG_TOOLS}/config.h.in"
     APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
+    APP_DEFAULT_CONFIG_PLT="$PROJECT_ROOT/app_default.config.$PROJECT_PLATFORM"
+    if [ -f $APP_DEFAULT_CONFIG_PLT ]; then
+        cp $APP_DEFAULT_CONFIG_PLT $APP_DEFAULT_CONFIG
+    fi
 
     mkdir -p ${DOT_CONFIG_DIR}
     cd ${DOT_CONFIG_DIR}

@@ -12,27 +12,35 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-set(LIB_SRCS ${MODULE_PATH}/tkl_display.c)
+if (CONFIG_ENABLE_DISPLAY_LCD_RGB STREQUAL "y")
 
-if (CONFIG_ENABLE_DISPLAY_SPI STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/tft_spi/disp_spi_driver.c)
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tft_rgb/disp_sw_spi_driver.c)
+
+if (CONFIG_ENABLE_LCD_RGB_ILI9488 STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tft_rgb/disp_rgb_ili9488.c)
+else()
+    message(FATAL_ERROR "Please select a display chip")
 endif()
 
-if (CONFIG_ENABLE_DISPLAY_SPI_ST7789 STREQUAL "y")
+endif()
+
+
+if (CONFIG_ENABLE_DISPLAY_LCD_SPI STREQUAL "y")
+
+if (CONFIG_ENABLE_LCD_SPI_ST7789 STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tft_spi/disp_spi_st7789.c)
-elseif(CONFIG_ENABLE_DISPLAY_SPI_GC9A01 STREQUAL "y")
+elseif(CONFIG_ENABLE_LCD_SPI_GC9A01 STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tft_spi/disp_spi_gc9a01.c)
-elseif(CONFIG_ENABLE_DISPLAY_SPI_ILI9341 STREQUAL "y")
+elseif(CONFIG_ENABLE_LCD_SPI_ILI9341 STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tft_spi/disp_spi_ili9341.c)
 else()
-    message(FATAL_ERROR "Please select a display driver")
+    message(FATAL_ERROR "Please select a display chip")
+endif()
+
 endif()
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC ${MODULE_PATH})
-if (CONFIG_ENABLE_DISPLAY_SPI STREQUAL "y")
-    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/tft_spi)
-endif()
+set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
 
 ########################################
 # Target Configure

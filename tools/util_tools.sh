@@ -56,4 +56,5 @@ function check_command_version()
 
     NOTE_OK="Check [$1]($VER) > [$2]: OK."
     show "${fore[green]}" "$NOTE_OK"
+    return 0
 }

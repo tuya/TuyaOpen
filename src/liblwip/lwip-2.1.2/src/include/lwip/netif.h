@@ -268,6 +268,7 @@ struct netif {
   ip_addr_t ip_addr;
   ip_addr_t netmask;
   ip_addr_t gw;
+  unsigned dns1;
 #endif /* LWIP_IPV4 */
 #if LWIP_IPV6
   /** Array of IPv6 addresses for this netif. */
@@ -345,7 +346,7 @@ struct netif {
   u8_t flags;
   /** descriptive abbreviation */
   char name[2];
-  /** number of this interface. Used for @ref if_api and @ref netifapi_netif, 
+  /** number of this interface. Used for @ref if_api and @ref netifapi_netif,
    * as well as for IPv6 zones */
   u8_t num;
 #if LWIP_IPV6_AUTOCONFIG
@@ -388,6 +389,7 @@ struct netif {
 #endif /* LWIP_LOOPBACK_MAX_PBUFS */
 #endif /* ENABLE_LOOPBACK */
     struct udp_pcb *dhcps_pcb;
+  void (*dhcp_cb)(struct netif*, u8_t event, u8_t isup); /* callback for dhcp event, add a parameter to show dhcp status if needed */
 };
 
 #if LWIP_CHECKSUM_CTRL_PER_NETIF
@@ -552,6 +554,15 @@ err_t netif_add_ip6_address(struct netif *netif, const ip6_addr_t *ip6addr, s8_t
 u8_t netif_name_to_index(const char *name);
 char * netif_index_to_name(u8_t idx, char *name);
 struct netif* netif_get_by_index(u8_t idx);
+
+
+/** Set callback for dhcp.
+ *
+ * 
+ * @param netif the netif from which to remove the struct dhcp
+ * @param cb    callback for dhcp
+ */
+void netif_set_dhcp_cb(struct netif *netif, void (*cb)(struct netif*, u8_t event, u8_t isup));
 
 /* Interface indexes always start at 1 per RFC 3493, section 4, num starts at 0 (internal index is 0..254)*/
 #define netif_get_index(netif)      ((u8_t)((netif)->num + 1))

@@ -8,14 +8,6 @@ if (ENABLE_LIBLVGL)
         bool "enable lvgl demo"
         default n
 
-    config LV_DISP_HOR_RES
-        int "screen width"
-        default 240
-
-    config LV_DISP_VER_RES
-        int "screen height"
-        default 240
-
     config LVGL_ENABLE_TOUCH
         bool "enable lvgl touch"
         select ENABLE_TOUCH_DRIVER
@@ -33,6 +25,6 @@ if (ENABLE_LIBLVGL)
 
     config LVGL_COLOR_16_SWAP
         bool "swap color bytes"
-        default y
+        default n
 
 endif
