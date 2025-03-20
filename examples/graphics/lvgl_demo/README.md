@@ -13,17 +13,24 @@ This project is a demo of the LVGL library, which is a lightweight graphics libr
 - SPI
     - [x] ST7789 
     - [x] ILI9341
-    - [x] ILIGC9A01
+    - [x] GC9A01
 
 - RGB
-    - [x] ST9488
+    - [x] ILI9488
 
 ### Touch
 - I2C
     - [x] GT911
     - [x] CST816
+    - [x] GT1511
 
 ### Rotary Encoder
+
+## Supported Development Board List
+| Development Board | Screen Interface and Driver | Touch Interface and Driver | Touch Pins | Notes |
+| -------- | -------- | -------- | -------- | -------- |
+| T5AI_Board | RGB565/ILI9488 | I2C/GT1511 | SCL(P13)/SDA(P15) | [https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) |
+
 
 > More driver adaptations and testing in progress...
 

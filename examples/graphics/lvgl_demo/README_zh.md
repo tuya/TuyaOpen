@@ -8,22 +8,30 @@
 - [x] T5AI：RGB/8080/SPI
 - [ ] ESP32
 
+
 ## 支持驱动
 ### 屏幕
 - SPI
     - [x] ST7789 
     - [x] ILI9341
-    - [x] ILIGC9A01
+    - [x] GC9A01
 
 - RGB
-    - [x] ST9488
+    - [x] ILI9488
 
 ### 触摸
 - I2C
     - [x] GT911
     - [x] CST816
+    - [x] GT1511
 
 ### 旋转编码器
+
+
+## 支持开发板列表
+| 开发板 | 屏幕接口及驱动 | 触摸接口及驱动 | 触摸管脚 | 备注 |
+| -------- | -------- | -------- | -------- | -------- |
+| T5AI_Board | RGB565/ILI9488 | I2C/GT1511 | SCL(P13)/SDA(P15) | [https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) |
 
 > 更多驱动适配、测试中...
 
