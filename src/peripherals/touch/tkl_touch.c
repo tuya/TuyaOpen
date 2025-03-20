@@ -50,6 +50,9 @@ OPERATE_RET tkl_touch_init(void)
 #if defined ENABLE_TOUCH_GT911
     if (gt911_i2c_init() != OPRT_OK)
         return OPRT_COM_ERROR;
+#elif defined(ENABLE_TOUCH_GT1151)
+    if (gt1151_i2c_init() != OPRT_OK)
+        return OPRT_COM_ERROR;
 #elif defined(ENABLE_TOUCH_CST816X)
     if (cst816x_i2c_init() != OPRT_OK)
         return OPRT_COM_ERROR;
@@ -82,6 +85,8 @@ OPERATE_RET tkl_touch_read(uint8_t *point_num, touch_point_t *point, uint8_t max
 
 #if defined ENABLE_TOUCH_GT911
     ret = gt911_i2c_read(point_num, point, max_num);
+#elif defined(ENABLE_TOUCH_GT1151)
+    ret = gt1151_i2c_read(point_num, point, max_num);
 #elif defined(ENABLE_TOUCH_CST816X)
     ret = cst816x_i2c_read(point_num, point, max_num);
 #else

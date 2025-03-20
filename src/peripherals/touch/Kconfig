@@ -17,6 +17,11 @@ if (ENABLE_TOUCH_DRIVER)
             depends on ENABLE_I2C
             select ENABLE_TOUCH_I2C
 
+        config ENABLE_TOUCH_GT1151
+            bool "gt1151"
+            depends on ENABLE_I2C
+            select ENABLE_TOUCH_I2C
+
         config ENABLE_TOUCH_CST816X
             bool "cst816x"
             depends on ENABLE_I2C
