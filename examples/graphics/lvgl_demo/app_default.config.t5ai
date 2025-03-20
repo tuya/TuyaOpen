@@ -21,6 +21,9 @@ CONFIG_TUYA_HS_BLE_HOST_TASK_PRIORITY=9
 CONFIG_TUYA_HS_BLE_HOST_STACK_SIZE=5120
 # end of configure tuya cloud service
 
+# CONFIG_ENABLE_AUDIO_SERVICE is not set
+# CONFIG_ENABLE_LIB_PROTOBUF_C is not set
+
 #
 # configure enable/disable liblwip
 #
@@ -75,12 +78,6 @@ CONFIG_LWIP_NETCONN_FULLDUPLEX=1
 # CONFIG_LWIP_DUAL_NET_SUPPORT is not set
 CONFIG_ENABLE_LWIP_DHCP=y
 # end of configure enable/disable liblwip
-
-#
-# configure enable/disable libtflm
-#
-# CONFIG_ENABLE_LIBTFLM is not set
-# end of configure enable/disable libtflm
 
 #
 # configure mbedtls
@@ -149,6 +146,7 @@ CONFIG_ENABLE_WATCHDOG=y
 CONFIG_ENABLE_UART=y
 CONFIG_ENABLE_FLASH=y
 CONFIG_TUYA_FLASH_TYPE_MAX_PARTITION_NUM=10
+CONFIG_ENABLE_EXT_RAM=y
 CONFIG_ENABLE_ADC=y
 CONFIG_ENABLE_PWM=y
 CONFIG_ENABLE_GPIO=y

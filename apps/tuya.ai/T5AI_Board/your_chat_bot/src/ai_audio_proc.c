@@ -221,7 +221,7 @@ static OPERATE_RET _audio_init(void)
     }
 
     // set mic volume
-    tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 100);
+    tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 50);
 
     // set spk volume
     tuya_audio_player_set_volume(audio_volume_get());

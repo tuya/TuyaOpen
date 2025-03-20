@@ -305,6 +305,8 @@ void user_main(void)
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
 
+    tuya_display_init();
+
     reset_netconfig_check();
 
     for (;;) {
@@ -346,7 +348,7 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {4096+1024, 4, "tuya_app_main"};
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

@@ -77,6 +77,16 @@
     #endif
 #endif  /*LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN*/
 
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
+#define LV_MEM_CUSTOM_MALLOC    tkl_system_psram_malloc
+#define LV_MEM_CUSTOM_FREE      tkl_system_psram_free
+#define LV_MEM_CUSTOM_REALLOC   tkl_system_psram_realloc
+#else 
+#define LV_MEM_CUSTOM_MALLOC    tkl_system_malloc
+#define LV_MEM_CUSTOM_FREE      tkl_system_free
+#define LV_MEM_CUSTOM_REALLOC   tkl_system_realloc
+#endif
+
 /*====================
    HAL SETTINGS
  *====================*/
@@ -864,7 +874,7 @@
 
     /*1: Show CPU usage and FPS count
      * Requires `LV_USE_SYSMON = 1`*/
-    #define LV_USE_PERF_MONITOR 1
+    #define LV_USE_PERF_MONITOR 0
     #if LV_USE_PERF_MONITOR
         #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_RIGHT
 

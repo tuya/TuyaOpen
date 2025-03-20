@@ -18,7 +18,6 @@
 #include "tkl_display.h"
 #include "tkl_memory.h"
 
-
 #define BYTE_PER_PIXEL (LV_COLOR_FORMAT_GET_SIZE(LV_COLOR_FORMAT_RGB565)) /*will be 2 for RGB565 */
 
 /**********************
@@ -63,11 +62,11 @@ void lv_port_disp_init(TKL_DISP_DEVICE_S *device)
     /* Example 2
      * Two buffers for partial rendering
      * In flush_cb DMA or similar hardware should be used to update the display in the background.*/
-    uint32_t buf_len = sg_lcd_info.width*sg_lcd_info.height*BYTE_PER_PIXEL / 10;
+    uint32_t buf_len = sg_lcd_info.width*sg_lcd_info.height*BYTE_PER_PIXEL / 20;
 
     LV_ATTRIBUTE_MEM_ALIGN
     static uint8_t *buf_2_1;
-    buf_2_1 = (uint8_t*)tkl_system_malloc(buf_len);
+    buf_2_1 = (uint8_t*)LV_MEM_CUSTOM_MALLOC(buf_len);
     if(buf_2_1 == NULL) {
         PR_ERR("malloc failed");
         return;
@@ -76,7 +75,7 @@ void lv_port_disp_init(TKL_DISP_DEVICE_S *device)
 
     LV_ATTRIBUTE_MEM_ALIGN
     static uint8_t *buf_2_2;
-    buf_2_2 = (uint8_t*)tkl_system_malloc(buf_len);
+    buf_2_2 = (uint8_t*)LV_MEM_CUSTOM_MALLOC(buf_len);
     if(buf_2_2 == NULL) {
         PR_ERR("malloc failed");
         return;
@@ -113,7 +112,7 @@ static void disp_init(TKL_DISP_DEVICE_S *device)
     rect.width  = sg_lcd_info.width;
     rect.height = sg_lcd_info.height;
 
-    color.full = 0x00;
+    color.full = 0xFFFFFFFF;
 
     tkl_disp_fill(&sg_lcd, &rect, color);
 
@@ -153,8 +152,6 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
         rect.y = area->y1;
         rect.width = area->x2 - area->x1 + 1;
         rect.height = area->y2 - area->y1 + 1;
-
-        bk_printf("rect.x:%d rect.y:%d rect.width:%d rect.height:%d\r\n", rect.x, rect.y, rect.width, rect.height);
 
         tkl_disp_blit(&sg_lcd, &buf, &rect);
 

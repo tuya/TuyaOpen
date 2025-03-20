@@ -32,6 +32,8 @@
 #include "speex_encode.h"
 #include "wav_encode.h"
 
+#include "tuya_display.h"
+
 typedef struct {
     TUYA_AUDIO_RECORDER_CONFIG_T config;
     BOOL_T is_running;
@@ -140,6 +142,22 @@ static void _tuya_voice_custom(char *type, cJSON *json)
             // If response is empty, it indicates an empty voice, play a prompt tone.
             tuya_audio_player_play_alert(AUDIO_ALART_TYPE_PLEASE_AGAIN, TRUE);
         }
+
+         // syncDialogText without id
+        if (strcmp(type, "syncDialogText") == 0 && cJSON_GetObjectItem(json, "id") == NULL) {
+            cJSON *node = cJSON_GetObjectItem(json, "text");
+            cJSON *text = cJSON_GetObjectItem(json, "text");
+            if (text && text->valuestring && strlen(text->valuestring)) {
+                tuya_display_send_msg(TY_DISPLAY_TP_HUMAN_CHAT, text->valuestring, strlen(text->valuestring));
+            }
+        } else if (strcmp(type, "playTts") == 0) {
+            PR_DEBUG("playTts");
+            cJSON *text = cJSON_GetObjectItem(json, "text");
+            if (text && text->valuestring && strlen(text->valuestring)) {
+                tuya_display_send_msg(TY_DISPLAY_TP_AI_CHAT, text->valuestring, strlen(text->valuestring));
+            }
+        }
+
     }
     tal_mutex_unlock(s_mutex);
     return;
@@ -239,6 +257,8 @@ static void _tuya_voice_stream_player(TUYA_VOICE_STREAM_E type, uint8_t *data, i
 
 void _tuya_voice_text_stream(TUYA_VOICE_STREAM_E type, uint8_t *data, int len)
 {
+
+
     switch (type) {
     case TUYA_VOICE_STREAM_START: {
     } break;
