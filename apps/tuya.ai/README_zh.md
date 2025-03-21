@@ -1,3 +1,5 @@
+[English](./README.md) | 简体中文
+
 # tuya.ai
 通过 tuya.ai 提供的 AI ，连接涂鸦云 和 AI 服务，实现 AI 语音交互、音频/视频多模态 AI 交互、智能化控制等功能。
 

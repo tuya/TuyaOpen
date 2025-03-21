@@ -1,3 +1,4 @@
+English | [简体中文](./README_zh.md)
 # tuya.ai
 
 By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI voice interaction, audio/video multimodal AI interaction, intelligent control, and other functions.
