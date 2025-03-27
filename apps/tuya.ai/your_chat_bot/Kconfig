@@ -1,0 +1,18 @@
+menu "configure app (your_chat_bot) "
+
+config SPEAKER_EN_PIN
+    int "the pin for enabling the voice module"
+    range 0 64
+    default 28
+
+config CHAT_BUTTON_PIN
+    int "the pin of the dialogue button"
+    range 0 64
+    default 12
+
+config CHAT_INDICATE_LED_PIN
+    int "the pin of the led, indicate whether it is in the process of a dialogue."
+    range 0 64
+    default 1
+
+endmenu
