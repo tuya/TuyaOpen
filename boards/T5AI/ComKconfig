@@ -6,132 +6,133 @@ config LITTLE_END
         1       /* little endian */
 
 config ENABLE_FILE_SYSTEM
-    bool "ENABLE_FILE_SYSTEM --- support filesystem"
-    default y if OPERATING_SYSTEM = 100
-    default n if OPERATING_SYSTEM = 98
+    bool
+    default n
 
 config ENABLE_WIFI
-    bool "ENABLE_WIFI --- support wifi"
-    default n
+    bool
+    default y
 
 config ENABLE_WIRED
-    bool "ENABLE_WIRED --- support wired"
+    bool
+    default n
+
+config ENABLE_BLUETOOTH
+    bool
     default y
 
-menuconfig ENABLE_BLUETOOTH
-    bool "ENABLE_BLUETOOTH --- support BLE"
-    default n
-    if (ENABLE_BLUETOOTH)
-        config ENABLE_HCI
-            bool "ENABLE_HCI --- support BLE hci"
-            default n
-    endif
+config ENABLE_HCI
+    bool
+    default y
+
 config ENABLE_RTC
-    bool "ENABLE_RTC --- support rtc"
-    default n
+    bool
+    default y
 
 config ENABLE_WATCHDOG
-    bool "ENABLE_WATCHDOG --- support watchdog"
-    default n
+    bool
+    default y
 
 config ENABLE_UART
-    bool "ENABLE_UART --- support uart"
+    bool
     default y
 
-menuconfig ENABLE_FLASH
-    bool "ENABLE_FLASH --- support flash"
+config ENABLE_FLASH
+    bool
     default y
 
-    if (ENABLE_FLASH)
-        config TUYA_FLASH_TYPE_MAX_PARTITION_NUM
-            int "TUYA_FLASH_TYPE_MAX_PARTITION_NUM --- max support flash parttion number"
-            default 10
-    endif
+config TUYA_FLASH_TYPE_MAX_PARTITION_NUM
+    int
+    default 10
 
 config ENABLE_EXT_RAM
-    bool "ENABLE_EXT_RAM --- support psram"
+    bool
     default y
 
 config ENABLE_ADC
-    bool "ENABLE_ADC --- support adc"
-    default n
+    bool
+    default y
 
 config ENABLE_PWM
-    bool "ENABLE_PWM --- support pwm"
-    default n
+    bool
+    default y
 
 config ENABLE_GPIO
-    bool "ENABLE_GPIO --- support gpio"
+    bool
     default y
 
 config ENABLE_I2C
-    bool "ENABLE_I2C --- support i2c"
-    default n
+    bool
+    default y
 
 config ENABLE_SPI
-    bool "ENABLE_SPI --- support spi"
-    default n
+    bool
+    default y
 
 config ENABLE_TIMER
-    bool "ENABLE_TIMER --- support hw timer"
-    default n
+    bool
+    default y
 
 config ENABLE_DISPLAY
-    bool "ENABLE_DISPLAY --- support GUI display"
-    default n
+    bool
+    default y
 
 config ENABLE_MEDIA
-    bool "ENABLE_MEDIA --- support media"
-    default n
+    bool
+    default y
 
 config ENABLE_PM
-    bool "ENABLE_PM --- support power manager"
-    default n
+    bool
+    default y
 
 config ENABLE_STORAGE
-    bool "ENABLE_STORAGE --- support storage such as SDCard"
+    bool
     default n
 
 config ENABLE_DAC
-    bool "ENABLE_DAC --- support dac"
+    bool
     default n
 
 config ENABLE_I2S
-    bool "ENABLE_I2S --- support i2s"
+    bool
     default n
 
 config ENABLE_WAKEUP
-    bool "ENABLE_WAKEUP --- support lowpower wakeup"
-    default n
+    bool
+    default y
 
 config ENABLE_REGISTER
-    bool "ENABLE_REGISTER --- support register"
+    bool
     default n
 
 config ENABLE_PINMUX
-    bool "ENABLE_PINMUX --- support pinmux"
-    default n
+    bool
+    default y
+ 
+config ENABLE_PIN2FUNC
+    bool
+    default y    
 
 config ENABLE_PLATFORM_AES
-    bool "ENABLE_PLATFORM_AES --- support hw AES"
+    bool
     default n
 
 config ENABLE_PLATFORM_SHA256
-    bool "ENABLE_PLATFORM_SHA256 --- support hw sha256"
+    bool
     default n
 
 config ENABLE_PLATFORM_MD5
-    bool "ENABLE_PLATFORM_MD5 --- support hw md5"
+    bool
     default n
 
 config ENABLE_PLATFORM_SHA1
-    bool "ENABLE_PLATFORM_SHA1 --- support hw sha1"
+    bool
     default n
 
 config ENABLE_PLATFORM_RSA
-    bool "ENABLE_PLATFORM_RSA --- support hw rsa"
+    bool
     default n
 
 config ENABLE_PLATFORM_ECC
-    bool "ENABLE_PLATFORM_ECC --- support hw ecc"
+    bool
     default n
