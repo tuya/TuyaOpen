@@ -15,18 +15,18 @@ config OPERATING_SYSTEM
         98      /* RTOS */
 
 choice
-    prompt "Choice a module"
+    prompt "Choice a board"
 
-    config MODULE_CHOICE_T5_E1
-        bool "T5-E1"
-    if (MODULE_CHOICE_T5_E1)
-    rsource "./T5-E1/Kconfig"
+    config BOARD_CHOICE_TUYA_T5AI_BOARD
+        bool "TUYA_T5AI_BOARD"
+    if (BOARD_CHOICE_TUYA_T5AI_BOARD)
+    rsource "./TUYA_T5AI_BOARD/Kconfig"
     endif
 
-    config MODULE_CHOICE_T5_E1_IPEX
-        bool "T5-E1_IPEX"
-    if (MODULE_CHOICE_T5_E1_IPEX)
-    rsource "./T5-E1-IPEX/Kconfig"
+    config BOARD_CHOICE_TUYA_T5AI_EVB
+        bool "TUYA_T5AI_EVB"
+    if (BOARD_CHOICE_T5AI_EVB)
+    rsource "./TUYA_T5AI_EVB/Kconfig"
     endif
 
 endchoice
