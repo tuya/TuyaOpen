@@ -1,47 +1,42 @@
 /**
- * @file tuya_display_lvgl.c
- * @version 0.1
- * @date 2025-03-19
+ * @file display_gui_main.c
+ * @brief Implementation of the GUI for WeChat-like chat interface
+ *
+ * This source file provides the implementation for initializing and managing
+ * the GUI components of a WeChat-like chat interface. It includes functions
+ * to initialize the display, create the chat frame, handle chat messages,
+ * and manage various display states such as listening, speaking, and network
+ * status.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
-#include "tkl_display.h"
-#include "tkl_queue.h"
-#include "tkl_memory.h"
-#include "tal_system.h"
-#include "tal_thread.h"
-#include "tal_mutex.h"
-#include "tal_log.h"
-
 #include "lvgl.h"
-#include "lv_port_disp.h"
 #include "font_awesome_symbols.h"
-#include "tuya_display.h"
-#include "tuya_lcd_device.h"
+#include "display_gui.h"
+#include "tuya_lvgl.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
 
-/***********************************************************
-***********************typedef define***********************
-***********************************************************/
 
 /***********************************************************
-********************extern  declaration********************
+***********************extern define************************
 ***********************************************************/
 extern const lv_img_dsc_t TuyaOpen_img;
 extern const lv_img_dsc_t LISTEN_icon;
+
+/***********************************************************
+***********************const declaration********************
+***********************************************************/
+const char *POWER_TEXT   = "你好啊，我来了，让我们一起玩耍吧";
+const char *NET_OK_TEXT  = "我已联网，让我们开始对话吧";
+const char *NET_CFG_TEXT = "我已进入配网状态，你能帮我用涂鸦智能app配网嘛";
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static MUTEX_HANDLE sg_lvgl_mutex_hdl = NULL;
-static THREAD_HANDLE sg_lvgl_thrd_hdl = NULL;
-
-static TKL_DISP_DEVICE_S sg_display_device = {
-    .device_id = 0,
-    .device_port = TKL_DISP_LCD,
-    .device_info = NULL,
-};
-
-/****lvgl****/
 static lv_style_t style_avatar;
 static lv_style_t style_ai_bubble;
 static lv_style_t style_user_bubble;
@@ -50,22 +45,18 @@ static lv_obj_t *sg_title_bar;
 static lv_obj_t *sg_title_text;
 static lv_obj_t *sg_msg_container;
 
-static inline uint32_t calc_bubble_width()
-{
-    return DISPLAY_LCD_WIDTH - 85;
-}
-
 LV_FONT_DECLARE(FONT_SY_20);
 LV_FONT_DECLARE(font_awesome_30_4);
+
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static uint32_t lv_tick_get_cb(void)
+static inline uint32_t calc_bubble_width()
 {
-    return (uint32_t)tkl_system_get_millisecond();
+    return LV_PCT(75);
 }
 
-static void __init_styles(void)
+static void __gui_lv_styles_init(void)
 {
     lv_style_init(&style_avatar);
     lv_style_set_radius(&style_avatar, LV_RADIUS_CIRCLE);
@@ -89,15 +80,16 @@ static void __init_styles(void)
     lv_style_set_shadow_color(&style_user_bubble, lv_palette_darken(LV_PALETTE_GREEN, 2));
 }
 
-static void __create_ai_chat_ui(void)
+static void __gui_ai_chat_frame_init(void)
 {
-    __init_styles();
+    __gui_lv_styles_init();
 
     lv_obj_t *main_cont = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(main_cont, DISPLAY_LCD_WIDTH, DISPLAY_LCD_HEIGHT);
+    // lv_obj_set_size(main_cont, DISPLAY_LCD_WIDTH, DISPLAY_LCD_HEIGHT);
+    lv_obj_set_size(main_cont,  LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(main_cont, lv_color_hex(0xF0F0F0), 0);
     lv_obj_set_style_pad_all(main_cont, 0, 0);
-    // lv_obj_set_flex_flow(main_cont, LV_FLEX_FLOW_COLUMN);
+
     lv_obj_set_style_text_font(main_cont, &FONT_SY_20, 0);
     lv_obj_set_style_text_color(main_cont, lv_color_black(), 0);
     lv_obj_set_scrollbar_mode(main_cont, LV_SCROLLBAR_MODE_OFF);
@@ -113,7 +105,7 @@ static void __create_ai_chat_ui(void)
     lv_obj_center(sg_title_text);
 
     sg_msg_container = lv_obj_create(main_cont);
-    lv_obj_set_size(sg_msg_container, DISPLAY_LCD_WIDTH, DISPLAY_LCD_HEIGHT - 40);
+    lv_obj_set_size(sg_msg_container, LV_PCT(100), LV_PCT(92));
     lv_obj_set_flex_flow(sg_msg_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_ver(sg_msg_container, 8, 0);
     lv_obj_set_style_pad_hor(sg_msg_container, 10, 0);
@@ -125,13 +117,9 @@ static void __create_ai_chat_ui(void)
     lv_obj_set_style_bg_opa(sg_msg_container, LV_OPA_TRANSP, 0);
 }
 
-static void __add_wifi_state(bool is_connected)
+static void __gui_add_wifi_icon(bool is_connected)
 {
     static lv_obj_t *icon = NULL;
-
-    if (NULL == sg_title_bar) {
-        return;
-    }
 
     if (icon == NULL) {
         icon = lv_label_create(sg_title_bar);
@@ -142,19 +130,14 @@ static void __add_wifi_state(bool is_connected)
     lv_obj_align(icon, LV_ALIGN_RIGHT_MID, 0, 0);
 };
 
-static void __add_listen_icon(is_listen)
+static void __gui_show_listen_icon(bool is_listen)
 {
     static lv_obj_t *listen_icon = NULL;
-
-    if (NULL == sg_title_bar) {
-        PR_ERR("sg_title_bar is null");
-        return;
-    }
 
     if (listen_icon == NULL) {
         listen_icon = lv_image_create(sg_title_bar);
         lv_image_set_src(listen_icon, &LISTEN_icon);
-        lv_obj_align(listen_icon, LV_ALIGN_LEFT_MID, 60, 0);
+        lv_obj_align(listen_icon, LV_ALIGN_LEFT_MID, LV_PCT(20), 0);
     }
 
     if (is_listen) {
@@ -166,13 +149,8 @@ static void __add_listen_icon(is_listen)
     }
 };
 
-static void __create_message(const char *text, bool is_ai)
+static void __gui_create_message(const char *text, bool is_ai)
 {
-    if (sg_msg_container == NULL) {
-        PR_ERR("msg container is NULL");
-        return;
-    }
-
     lv_obj_t *msg_cont = lv_obj_create(sg_msg_container);
     lv_obj_remove_style_all(msg_cont);
     lv_obj_set_size(msg_cont, LV_PCT(100), LV_SIZE_CONTENT);
@@ -189,7 +167,7 @@ static void __create_message(const char *text, bool is_ai)
     lv_obj_center(icon);
 
     lv_obj_t *bubble = lv_obj_create(msg_cont);
-    lv_obj_set_width(bubble, calc_bubble_width());
+    lv_obj_set_width(bubble, LV_PCT(75));
     lv_obj_set_height(bubble, LV_SIZE_CONTENT);
     lv_obj_add_style(bubble, is_ai ? &style_ai_bubble : &style_user_bubble, 0);
 
@@ -203,113 +181,102 @@ static void __create_message(const char *text, bool is_ai)
 
     lv_obj_t *label = lv_label_create(text_cont);
     lv_label_set_text(label, text);
-    lv_obj_set_width(label, calc_bubble_width() - 24);
+    lv_obj_set_width(label, LV_PCT(100));
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
 
     lv_obj_scroll_to_view(msg_cont, LV_ANIM_ON);
     lv_obj_update_layout(sg_msg_container);
 }
 
-static void __create_homepage(void)
+/**
+ * @brief Initialize the GUI display
+ * 
+ * @param None
+ * @return OPERATE_RET Initialization result, OPRT_OK indicates success
+ */
+OPERATE_RET display_gui_init(void)
 {
-    lv_obj_t *img = lv_image_create(lv_scr_act());
-    lv_image_set_src(img, &TuyaOpen_img);
-
-    lv_obj_center(img);
+    return tuya_lvgl_init();
 }
 
-static void __lvgl_task(void *args)
+/**
+ * @brief Display the homepage of the GUI
+ * 
+ * @param None
+ * @return None
+ */
+void display_gui_homepage(void)
 {
-    uint32_t sleep_time = 0;
+    tuya_lvgl_mutex_lock();
 
-    while (1) {
-        tal_mutex_lock(sg_lvgl_mutex_hdl);
+    lv_obj_t *homepage_img = lv_image_create(lv_scr_act());
+    lv_image_set_src(homepage_img, &TuyaOpen_img);
 
-        sleep_time = lv_timer_handler();
+    lv_obj_center(homepage_img);
 
-        tal_mutex_unlock(sg_lvgl_mutex_hdl);
+    tuya_lvgl_mutex_unlock();
 
-        if (sleep_time > 500) {
-            sleep_time = 500;
-        } else if (sleep_time < 4) {
-            sleep_time = 4;
+    tal_system_sleep(2000);
+}
+
+/**
+ * @brief Initialize the chat frame in the GUI
+ * 
+ * @param None
+ * @return None
+ */
+void display_gui_chat_frame_init(void)
+{
+    tuya_lvgl_mutex_lock();
+    
+    __gui_ai_chat_frame_init();
+
+    tuya_lvgl_mutex_unlock();
+}
+
+/**
+ * @brief Handle display messages for the GUI
+ * 
+ * @param msg Pointer to the chat message structure
+ * @return None
+ */
+void display_gui_chat_msg_handle(DISP_CHAT_MSG_T *msg)
+{
+    if(NULL == msg) {
+        return;
+    }
+
+    tuya_lvgl_mutex_lock();
+
+    switch(msg->type) {
+        case TY_DISPLAY_TP_HUMAN_CHAT:
+            __gui_create_message(msg->data, false);
+            break;
+        case TY_DISPLAY_TP_AI_CHAT:
+            __gui_create_message(msg->data, true);
+            break;
+        case TY_DISPLAY_TP_STAT_LISTEN:
+            __gui_show_listen_icon(true);
+            break;
+        case TY_DISPLAY_TP_STAT_SPEAK:
+            break;
+        case TY_DISPLAY_TP_STAT_IDLE:
+            __gui_show_listen_icon(false);
+            break;
+        case TY_DISPLAY_TP_STAT_NETCFG:
+            __gui_add_wifi_icon(false);
+            __gui_create_message(NET_CFG_TEXT, true);
+            break;
+        case TY_DISPLAY_TP_STAT_POWERON:
+            __gui_create_message(POWER_TEXT, true);
+            break;
+        case TY_DISPLAY_TP_STAT_ONLINE:
+            __gui_add_wifi_icon(true);
+            __gui_create_message(NET_OK_TEXT, true);
+            break;
+        default:
+            break;
         }
 
-        tal_system_sleep(sleep_time);
-    }
-}
-
-OPERATE_RET tuya_display_lvgl_init(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    // register lcd device
-    TUYA_CALL_ERR_RETURN(tuya_lcd_device_register(sg_display_device.device_id));
-
-    /*lvgl init*/
-    lv_init();
-    lv_tick_set_cb(lv_tick_get_cb);
-    lv_port_disp_init(&sg_display_device);
-#ifdef LVGL_ENABLE_TOUCH
-    lv_port_indev_init();
-#endif
-
-    TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_lvgl_mutex_hdl));
-
-    THREAD_CFG_T cfg = {
-        .thrdname = "lvgl",
-        .priority = THREAD_PRIO_1,
-        .stackDepth = 1024 * 4,
-    };
-
-    TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&sg_lvgl_thrd_hdl, NULL, NULL, __lvgl_task, NULL, &cfg));
-
-    return OPRT_OK;
-}
-
-void tuya_display_lv_homepage(void)
-{
-    tal_mutex_lock(sg_lvgl_mutex_hdl);
-    __create_homepage();
-    tal_mutex_unlock(sg_lvgl_mutex_hdl);
-}
-
-void tuya_display_lv_chat_ui(void)
-{
-    tal_mutex_lock(sg_lvgl_mutex_hdl);
-    __create_ai_chat_ui();
-    tal_mutex_unlock(sg_lvgl_mutex_hdl);
-}
-
-void tuya_display_lv_chat_message(const char *text, bool is_ai)
-{
-    static bool is_create_ui = false;
-
-    tal_mutex_lock(sg_lvgl_mutex_hdl);
-
-    __create_message(text, is_ai);
-
-    tal_mutex_unlock(sg_lvgl_mutex_hdl);
-}
-
-void tuya_display_lv_wifi_state(bool is_connected)
-{
-    static bool is_create_ui = false;
-
-    tal_mutex_lock(sg_lvgl_mutex_hdl);
-
-    __add_wifi_state(is_connected);
-
-    tal_mutex_unlock(sg_lvgl_mutex_hdl);
-}
-
-void tuya_display_lv_listen_state(bool is_listen)
-{
-    static bool is_create_ui = false;
-
-    tal_mutex_lock(sg_lvgl_mutex_hdl);
-
-    __add_listen_icon(is_listen);
-
-    tal_mutex_unlock(sg_lvgl_mutex_hdl);
+    tuya_lvgl_mutex_unlock();
 }

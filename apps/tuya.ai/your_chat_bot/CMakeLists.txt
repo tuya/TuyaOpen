@@ -12,11 +12,8 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-file(GLOB_RECURSE display_srcs "${APP_PATH}/src/display/*.c")
-list(APPEND APP_SRCS ${display_srcs})
-
-
 set(APP_INC ${APP_PATH}/include)
+
 ########################################
 # Target Configure
 ########################################
@@ -31,3 +28,10 @@ target_include_directories(${EXAMPLE_LIB}
     PRIVATE
         ${APP_INC}
     )
+
+########################################
+# Add subdirectory
+########################################
+if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
+add_subdirectory(${APP_PATH}/src/display)
+endif()
