@@ -12,24 +12,49 @@ if (ENABLE_DISPLAY_DRIVER)
         range 0 1000
         default 480
 
-    config DISPLAY_LCD_BL_MODE
-        int "tft lcd blackbright mode 0:gpio 1:pwm"
-        range 0 1
-        default 0
+    config ENABLE_LCD_POWER_CTRL
+        bool "it requires controlling the power supply pin of the lcd"
+        default n
 
-    config DISPLAY_LCD_BL_POLARITY_LEVEL
-        int "tft lcd backlight active level 0:low 1:high"
-        range 0 1
-        default 1
+        if(ENABLE_LCD_POWER_CTRL) 
+            config DISPLAY_LCD_POWER_PIN
+            int "tft lcd power pin"
+            range 0 64
+            default 7
 
-    if (DISPLAY_LCD_BL_MODE=0)
+            config DISPLAY_LCD_POWER_POLARITY_LEVEL
+            int "tft lcd power active level 0:low 1:high"
+            range 0 1
+            default 1
+        endif
+
+    choice 
+        prompt "choose lcd blackbright mode"
+        default ENABLE_LCD_BL_MODE_GPIO
+
+        config ENABLE_LCD_BL_MODE_GPIO
+            bool "gpio pin control the backlight"
+
+        config ENABLE_LCD_BL_MODE_PWM
+            bool "pwm control the backlight"
+
+        config ENABLE_LCD_BL_MODE_NONE
+            bool "controlling the backlight is not supported"
+    endchoice
+
+    if (ENABLE_LCD_BL_MODE_GPIO)
         config DISPLAY_LCD_BL_PIN
         int "tft lcd bl pin"
         range 0 64
         default 9
+
+        config DISPLAY_LCD_BL_POLARITY_LEVEL
+        int "tft lcd backlight active level 0:low 1:high"
+        range 0 1
+        default 1
     endif
 
-    if (DISPLAY_LCD_BL_MODE=1)
+    if (ENABLE_LCD_BL_MODE_PWM)
         config DISPLAY_LCD_BL_PWM_ID
             int "tft lcd backlight pwm id"
             range 0 4
@@ -39,6 +64,11 @@ if (ENABLE_DISPLAY_DRIVER)
             int "tft lcd backlight pwm freq"
             range 1000 100000
             default 10000
+
+        config DISPLAY_LCD_BL_POLARITY_LEVEL
+            int "tft lcd backlight active level 0:low 1:high"
+            range 0 1
+            default 1
     endif
 
     choice 

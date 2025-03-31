@@ -22,22 +22,23 @@ const uint8_t cST7789_INIT_SEQ[] = {
     1,    50,   ST7789_SLPOUT,                                  // Exit sleep mode
     2,    10,   ST7789_COLMOD,    0x55,                         // Set colour mode to 16 bit
     2,    0,    ST7789_VCMOFSET,  0x1a,                         // VCOM
-    6,    0,    ST7789_PORCTRL,   0x05, 0x05, 0x00, 0x33, 0x33, // Porch Setting
-    2,    0,    ST7789_GCTRL,     0x05,                         // Gate Control
-    2,    0,    ST7789_VCOMS,     0x3f,                         // VCOMS setting
+    6,    0,    ST7789_PORCTRL,   0x0c, 0x0c, 0x00, 0x33, 0x33, // Porch Setting
+    1,    0,    ST7789_INVOFF, 
+    2,    0,    ST7789_GCTRL,     0x56,                         // Gate Control
+    2,    0,    ST7789_VCOMS,     0x18,                         // VCOMS setting
     2,    0,    ST7789_LCMCTRL,   0x2c,                         // LCM control
     2,    0,    ST7789_VDVVRHEN,  0x01,                         // VDV and VRH command enable
-    2,    0,    ST7789_VRHS,      0x0f,                         // VRH set
+    2,    0,    ST7789_VRHS,      0x1f,                         // VRH set
     2,    0,    ST7789_VDVSET,    0x20,                         // VDV setting
-    2,    0,    ST7789_FRCTR2,    0x01,                         // FR Control 2
-    3,    0,    ST7789_PWCTRL1,   0xa4, 0xa1,                   // Power control 1
+    2,    0,    ST7789_FRCTR2,    0x0f,                         // FR Control 2
+    3,    0,    ST7789_PWCTRL1,   0xa6, 0xa1,                   // Power control 1
     2,    0,    ST7789_PWCTRL2,   0x03,                         // Power control 2
-    4,    0,    ST7789_EQCTRL,    0x09, 0x09, 0x08,             // Equalize time control
 
     2,    0,    ST7789_MADCTL,    0x00, // Set MADCTL: row then column, refresh is bottom to top
-    15,   0,    ST7789_PVGAMCTRL, 0xd0, 0x05, 0x09, 0x09, 0x08, 0x14, 0x28, 0x33, 0x3f, 0x07, 0x13, 0x14, 0x28, 0x30, // Positive voltage gamma control
-    15,   0,    ST7789_NVGAMCTRL, 0xd0, 0x05, 0x09, 0x09, 0x08, 0x03, 0x24, 0x32, 0x32, 0x3b, 0x14, 0x13, 0x28, 0x2f, // Negative voltage gamma control
-    1,    10,   ST7789_NORON,  // Normal display on, then 10 ms delay
+    15,   0,    ST7789_PVGAMCTRL, 0xd0, 0x0d, 0x14, 0x0b, 0x0b, 0x07, 0x3a, 0x44, 0x50, 0x08, 0x13, 0x13, 0x2d, 0x32, // Positive voltage gamma control
+    15,   0,    ST7789_NVGAMCTRL, 0xd0, 0x0d, 0x14, 0x0b, 0x0b, 0x07, 0x3a, 0x44, 0x50, 0x08, 0x13, 0x13, 0x2d, 0x32, // Negative voltage gamma control
+    1,    0,    ST7789_SPI2EN, 
+    1,    10,   ST7789_INVON, 
     1,    10,   ST7789_DISPON, // Main screen turn on, then wait 500 ms
     0                          // Terminate list
 };
@@ -86,17 +87,25 @@ OPERATE_RET tuya_lcd_device_register(int dev_id)
     lcd_device.lcd_tp  = TUYA_LCD_TYPE_SPI;
     lcd_device.p_spi   = &cST7789_CFG;
 
-    lcd_device.bl.mode = DISPLAY_LCD_BL_MODE;
+#if defined(ENABLE_LCD_POWER_CTRL) && (ENABLE_LCD_POWER_CTRL == 1)
+    lcd_device.power_io        = DISPLAY_LCD_POWER_PIN;
+    lcd_device.power_active_lv = DISPLAY_LCD_POWER_POLARITY_LEVEL;
+#else
+    lcd_device.power_io = INVALID_GPIO_PIN;
+#endif
 
-    #if (DISPLAY_LCD_BL_MODE == TUYA_DISP_BL_GPIO)
+#if defined(ENABLE_LCD_BL_MODE_GPIO) && (ENABLE_LCD_BL_MODE_GPIO == 1)
+    lcd_device.bl.mode           = TUYA_DISP_BL_GPIO;
     lcd_device.bl.gpio.io        = DISPLAY_LCD_BL_PIN;
     lcd_device.bl.gpio.active_lv = DISPLAY_LCD_BL_POLARITY_LEVEL;
-    #else 
+#elif defined(ENABLE_LCD_BL_MODE_PWM) && (ENABLE_LCD_BL_MODE_PWM == 1)
+    lcd_device.bl.mode              = TUYA_DISP_BL_PWM;
     lcd_device.bl.pwm.id            = DISPLAY_LCD_BL_PWM_ID;
     lcd_device.bl.pwm.cfg.polarity  = DISPLAY_LCD_BL_POLARITY_LEVEL;
     lcd_device.bl.pwm.cfg.frequency = DISPLAY_LCD_BL_PWM_FREQ;
-    #endif
-
+#else 
+    lcd_device.bl.mode = TUYA_DISP_BL_NOT_EXIST;
+#endif
     ret = tkl_disp_register_lcd_dev(&lcd_device);
     if(ret != OPRT_OK) {
          PR_ERR("tkl_disp_register_lcd_dev error:%d", ret);

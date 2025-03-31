@@ -15,4 +15,11 @@ config CHAT_INDICATE_LED_PIN
     range 0 64
     default 1
 
+config ENABLE_CHAT_DISPLAY
+    bool "enable the display module"
+    default n
+    
+    if (ENABLE_CHAT_DISPLAY)
+        rsource "./src/display/Kconfig"
+    endif
 endmenu

@@ -112,16 +112,25 @@ OPERATE_RET tuya_lcd_device_register(int dev_id)
     lcd_device.lcd_tp  = TUYA_LCD_TYPE_SPI;
     lcd_device.p_spi   = &cGC9A01_CFG;
 
-    lcd_device.bl.mode = DISPLAY_LCD_BL_MODE;
+#if defined(ENABLE_LCD_POWER_CTRL) && (ENABLE_LCD_POWER_CTRL == 1)
+    lcd_device.power_io        = DISPLAY_LCD_POWER_PIN;
+    lcd_device.power_active_lv = DISPLAY_LCD_POWER_POLARITY_LEVEL;
+#else
+    lcd_device.power_io = INVALID_GPIO_PIN;
+#endif
 
-    #if (DISPLAY_LCD_BL_MODE == TUYA_DISP_BL_GPIO)
+#if defined(ENABLE_LCD_BL_MODE_GPIO) && (ENABLE_LCD_BL_MODE_GPIO == 1)
+    lcd_device.bl.mode           = TUYA_DISP_BL_GPIO;
     lcd_device.bl.gpio.io        = DISPLAY_LCD_BL_PIN;
     lcd_device.bl.gpio.active_lv = DISPLAY_LCD_BL_POLARITY_LEVEL;
-    #else 
+#elif defined(ENABLE_LCD_BL_MODE_PWM) && (ENABLE_LCD_BL_MODE_PWM == 1)
+    lcd_device.bl.mode              = TUYA_DISP_BL_PWM;
     lcd_device.bl.pwm.id            = DISPLAY_LCD_BL_PWM_ID;
     lcd_device.bl.pwm.cfg.polarity  = DISPLAY_LCD_BL_POLARITY_LEVEL;
     lcd_device.bl.pwm.cfg.frequency = DISPLAY_LCD_BL_PWM_FREQ;
-    #endif
+#else 
+    lcd_device.bl.mode = TUYA_DISP_BL_NOT_EXIST;
+#endif
     
     ret = tkl_disp_register_lcd_dev(&lcd_device);
     if(ret != OPRT_OK) {

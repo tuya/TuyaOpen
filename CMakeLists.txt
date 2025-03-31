@@ -161,7 +161,7 @@ add_custom_target(platform_clean
     COMMAND
     ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "clean" "${PLATFORM_CHIP}"
+    "${EXECUTABLE_OUTPUT_PATH}" "clean" "${PLATFORM_CHIP}" | tee /dev/tty
 
     COMMENT
     "[TOP] Platform clean."

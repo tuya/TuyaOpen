@@ -458,6 +458,7 @@ function flash_exec()
         DEVICE=$CONFIG_CHIP_CHOICE
     fi
     BIN_FILE=$PROJECT_ROOT/.build/bin/${CONFIG_PROJECT_NAME}_QIO_${CONFIG_PROJECT_VERSION}.bin
+    show "${fore[green]}" "${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}"
     ${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}
 }
 
