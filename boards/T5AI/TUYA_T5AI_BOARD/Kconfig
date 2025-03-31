@@ -1,3 +1,0 @@
-menu "configure board"
-    rsource "../ComKconfig"
-endmenu

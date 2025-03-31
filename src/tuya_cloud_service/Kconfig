@@ -5,9 +5,10 @@ menu "configure tuya cloud service"
         default "tuya_tls_config.h"
 
     config TUYA_SECURITY_LEVEL
-        int "TUYA_SECURITY_LEVEL: set tuya security level"
+        int
         range 0 3
-        default 0
+        default 1
+
         ---help---
                 0       /* security level 0,Applies to: Resource-constrained devices;Feature: Can only access Tuya Cloud */
                 1       /* security level 1,Applies to: Resource-constrained devices;Feature: One-way authentication */
