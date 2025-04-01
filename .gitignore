@@ -13,6 +13,7 @@ CMakeCache.txt
 /platform/*/
 __pycache__
 .build
+*.using_config
 
 /arduino-tuyaopen
 /examples

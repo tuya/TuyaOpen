@@ -206,6 +206,44 @@ function new_exec()
     show "${fore[green]}" "$NOTE"
 }
 
+function check_platform_change()
+{
+    if [ ! -f $PROJECT_INI ]; then
+        return 0
+    fi
+    OLD_PROJECT_INI=$PROJECT_ROOT/.using_config
+    if [ ! -f $OLD_PROJECT_INI ]; then
+        cp $PROJECT_INI $OLD_PROJECT_INI
+        return 0
+    fi
+    NOW_PLATFORM=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_PLATFORM_CHOICE=").*(?="$)')
+    OLD_PLATFORM=$(cat $OLD_PROJECT_INI | grep -oP '(?<=CONFIG_PLATFORM_CHOICE=").*(?="$)')
+    NOW_CHIP=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_CHIP_CHOICE=").*(?="$)')
+    OLD_CHIP=$(cat $OLD_PROJECT_INI | grep -oP '(?<=CONFIG_CHIP_CHOICE=").*(?="$)')
+    if [ -z "$NOW_PLATFORM" ] || [ -z "$OLD_PLATFORM" ]; then
+        NOTE="Can't found [CONFIG_PLATFORM_CHOICE]."
+        show "${fore[yellow]}" "$NOTE"
+        return 1
+    fi
+    if [ "$NOW_PLATFORM" != "$OLD_PLATFORM" ] || [ x"$NOW_CHIP" != x"$OLD_CHIP" ]; then
+        show "" "Platform: [$OLD_PLATFORM] -> [$NOW_PLATFORM]"
+        show "" "Chip: [$OLD_CHIP] -> [$NOW_CHIP]"
+        NOTE="Platform or chip changed."
+        show "${fore[yellow]}" "$NOTE"
+        NOTE="The platform or chip has been modified and needs to be cleared."
+        show "${fore[yellow]}" "$NOTE"
+        NOW_PROJECT_INI_TMP=$PROJECT_ROOT/.using_config.tmp
+        cp "$PROJECT_INI" "$NOW_PROJECT_INI_TMP"
+        cp "$OLD_PROJECT_INI" "$PROJECT_INI"
+        fullclean_exec
+
+        DOT_CONFIG_DIR=$(dirname $PROJECT_INI)
+        mkdir -p ${DOT_CONFIG_DIR}
+        mv "$NOW_PROJECT_INI_TMP" "$PROJECT_INI"
+        cp $PROJECT_INI $OLD_PROJECT_INI
+    fi
+}
+
 function using_config()
 {
     DOT_CONFIG_DIR=$(dirname $PROJECT_INI)
@@ -217,7 +255,7 @@ function using_config()
     cd ${DOT_CONFIG_DIR}
     python3 $KCONFIG_TOOLS/set_catalog_config.py -b $BOARDS_DIR -s $OPEN_SDK_ROOT/src -a $PROJECT_ROOT -o $KCONFIG_CATALOG
 
-    if [ ! -f $DOT_CONFIG ]; then
+    if [ ! -f $DOT_CONFIG ] || [ x"$1" = x"force" ]; then
         APP_DEFAULT_CONFIG="$KCONFIG_TOOLS/app_default.config"
         if [ -f "$PROJECT_ROOT/app_default.config" ]; then
             APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
@@ -281,6 +319,10 @@ function build_exec()
         $PLATFORM_PATH/build_setup.sh "${PROJ}" "${PROJECT_PLATFORM}" "${PROJECT_FRAMEWORK}" "${PROJECT_CHIP}"
     fi
     cmake -G Ninja $CMAKE_VERBOSE $OPEN_SDK_ROOT -DTOS_PROJECT_NAME=$PROJ -DTOS_PROJECT_ROOT=$PROJECT_ROOT -DTOS_PROJECT_PLATFORM=$PROJECT_PLATFORM -DTOS_FRAMEWORK=$PROJECT_FRAMEWORK -DTOS_PROJECT_CHIP=$PROJECT_CHIP
+    if [ -f "$PROJECT_INI" ]; then
+        OLD_PROJECT_INI=$PROJECT_ROOT/.using_config
+        cp $PROJECT_INI $OLD_PROJECT_INI
+    fi
     ninja example $VERBOSE
     if [ "0" != "$?" ]; then
         return 1
@@ -309,6 +351,7 @@ function fullclean_exec()
 {
     clean_exec
     rm -rf $PROJECT_ROOT/.build
+    rm -f $PROJECT_ROOT/.using_config
     NOTE="Fullclean success."
     show "${fore[green]}" "$NOTE"
 }
@@ -337,6 +380,8 @@ function menuconfig_exec()
     mkdir -p $DOT_CONFIG_DIR
     cd $DOT_CONFIG_DIR
     bash ${KCONFIG_TOOLS}/run_menuconfig.sh "${KCONFIG_CATALOG}" "$DOT_CONFIG"
+    check_platform_change
+    cd $DOT_CONFIG_DIR
     python3 ${KCONFIG_TOOLS}/conf2cmake.py -c "${DOT_CONFIG_DIR}/${DOT_CONFIG}" -o "${CMAKE_CONFIG}"
 
     mkdir -p ${HEADER_DIR}
@@ -376,8 +421,23 @@ function config_choice_exec()
 
     APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
     CONFIG_DIR="$PROJECT_ROOT/config"
-    CONFIG_CHOICE=$(ls "$CONFIG_DIR" | bash $LISTMENU "Configs" 20 60 13)
-    cp "$CONFIG_DIR/$CONFIG_CHOICE" "$APP_DEFAULT_CONFIG"
+    if [ ! -d "$CONFIG_DIR" ] || [ -z "$(find "$CONFIG_DIR" -mindepth 1 -name "*.config" -print -quit)" ]; then
+        show "${fore[yellow]}" "[$CONFIG_DIR] is empty."
+        show "${fore[yellow]}" "Using boards default config file."
+        TARGET_CONFIG=$(bash $OPEN_SDK_ROOT/tools/multi_config_choice.sh "$OPEN_SDK_ROOT/boards")
+    else
+        CONFIG_CHOICE=$(find "$CONFIG_DIR" -maxdepth 1 -name "*.config" -exec basename {} \; | bash $LISTMENU "Configs" 20 60 13)
+        TARGET_CONFIG=$CONFIG_DIR/$CONFIG_CHOICE
+    fi
+
+    if [ -n "$TARGET_CONFIG" ] && [ -f "$TARGET_CONFIG" ]; then
+        cp "$TARGET_CONFIG" "$APP_DEFAULT_CONFIG"
+        using_config "force"
+        check_platform_change
+        show "${fore[green]}" "Use [$TARGET_CONFIG]."
+    else
+        show "${fore[red]}" "Failed to select the configuration file."
+    fi
 }
 
 function set_example_exec()
