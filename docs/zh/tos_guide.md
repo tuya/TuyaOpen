@@ -1,7 +1,7 @@
 # tos 使用指南
-tos 命令是 tuyaopen 构建工具，支持创建、编译、配置等多种功能。
+tos 命令是 TuyaOpen 构建工具，支持创建、编译、配置等多种功能。
 
-tos 命令位于 [tuyaopen](https://github.com/tuya/tuyaopen.git) 根目录下，使用 shell 脚本实现，使用前先将 tuyaopen 路径添加到系统环境变量中。
+tos 命令位于 [TuyaOpen](https://github.com/tuya/TuyaOpen.git) 根目录下，使用 shell 脚本实现，使用前先将 TuyaOpen 路径添加到系统环境变量中。
 
 ## 命令列表
 可通过 `tos help` 查看命令列表。

@@ -2,30 +2,34 @@
 <img src="docs/images/TuyaOpen.png" width="60%" >
 </p>
 
-[English](https://github.com/tuya/tuyaopen/blob/master/README.md) | 简体中文
+[English](https://github.com/tuya/TuyaOpen/blob/master/README.md) | 简体中文
 
 ## 简介
-tuyaopen 是一款跨芯片平台、操作系统的 AI+IoT 开发框架。它基于通用南向接口设计，支持 Bluetooth、Wi-Fi、Ethernet 等通信协议，提供了物联网开发的核心功能，包括配网，激活，控制，升级等；它具备强大的安全合规能力，包括设备认证、数据加密、通信加密等，满足全球各个国家和地区的数据合规需求。
+TuyaOpen 是一款跨芯片平台、操作系统的 AI+IoT 开发框架。它基于通用南向接口设计，支持 Bluetooth、Wi-Fi、Ethernet 等通信协议，提供了物联网开发的核心功能，包括配网，激活，控制，升级等；它具备强大的安全合规能力，包括设备认证、数据加密、通信加密等，满足全球各个国家和地区的数据合规需求。
 
-基于 tuyaopen 开发的 AI+IoT 产品，如果使用 tuya_cloud_service 组件的功能，就可以使用涂鸦APP、云服务提供的强大生态能力，并与 Power By Tuya 设备互联互通。
+基于 TuyaOpen 开发的 AI+IoT 产品，如果使用 tuya_cloud_service 组件的功能，就可以使用涂鸦APP、云服务提供的强大生态能力，并与 Power By Tuya 设备互联互通。
 
-同时 tuyaopen 将不断拓展，提供更多云平台接入功能，及语音、视频、人脸识别等功能。
+同时 TuyaOpen 将不断拓展，提供更多云平台接入功能，及语音、视频、人脸识别等功能。
 
 ## 开始体验
 
 ### 安装依赖
-Ubuntu and Debian
+- buntu and Debian
 
 ```sh
 $ sudo apt-get install lcov cmake-curses-gui build-essential ninja-build wget git python3 python3-pip python3-venv libc6-i386 libsystemd-dev
 ```
+
+- macOS
+
+请运行 `tos check` 检查系统依赖，并根据提示安装依赖。
 
 > 注：v1.1.0 版本之后，我们采用了 ninja 作为构建工具来加快编译速度，如遇到编译错误请安装 ninja。
 
 ### 克隆仓库
 
 ```sh
-$ git clone https://github.com/tuya/tuyaopen.git
+$ git clone https://github.com/tuya/TuyaOpen.git
 ```
 
 tuyeopen 仓库中包含多个子模块，tos 工具会在编译前检查并自动下载子模块，也可以使用 `git submodule update --init` 命令手工下载。
@@ -34,29 +38,29 @@ tuyeopen 仓库中包含多个子模块，tos 工具会在编译前检查并自�
 
 ### step1. 设置环境变量
 ```sh
-$ cd tuyaopen
+$ cd TuyaOpen
 $ export PATH=$PATH:$PWD
 ```
-或将 tuyaopen 路径添加到系统环境变量中。
+或将 TuyaOpen 路径添加到系统环境变量中。
 
-tuyaopen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 tuyaopen 仓库，并执行对应操作。
+TuyaOpen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 TuyaOpen 仓库，并执行对应操作。
 
 tos 命令的详细使用方法，请参考 [tos 命令](./docs/zh/tos_guide.md)。
 
-### step2. 选择对应的example
-使用命令`tos set_example`，根据平台完成选择，目录`examples`会修改为对应平台的示例。
+### step2. 选择待编译项目
+选择当前编译项目，如 [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) 项目，或使用命令`tos set_example`，根据平台完成选择，目录 `examples` 会修改为对应平台的示例。
 
 ### step3. 编译
 选择当前编译的 examples 或 apps 对应工程，运行如下命令编译：
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos build
 ```
-编译完成后目标文件位于当前编译项目 `.build/<project>/bin` 目录下，如 `examples/get-started/sample_project/.build/sample_project_t2/bin` 目录。
+编译完成后目标文件位于当前编译项目 `.build/<project>/bin` 目录下，如 `apps/tuya_cloud/switch_demo/.build/bin` 目录。
 编译后的目标文件包括：
-- sample_project_t2_QIO_1.0.0.bin：包括 boot 在内的完整固件，用于烧录。
-- sample_project_t2_UA_1.0.0.bin：未包括 boot 的应用固件，使用该文件需根据不同的 platform/chip 烧录该 bin 至对应的地址，否则可能无法正常运行。
-- sample_project_t2_UG_1.0.0.bin：用于 OTA 升级的 bin 文件，无法直接烧录后运行。
+- switch_demo_QIO_1.0.0.bin：包括 boot 在内的完整固件，用于烧录。
+- switch_demo_UA_1.0.0.bin：未包括 boot 的应用固件，使用该文件需根据不同的 platform/chip 烧录该 bin 至对应的地址，否则可能无法正常运行。
+- switch_demo_UG_1.0.0.bin：用于 OTA 升级的 bin 文件，无法直接烧录后运行。
 
 
 项目名称默认为目录名称，项目版本默认为 `1.0.0`，可通过 `tos menuconfig` 配置中修改。
@@ -64,15 +68,16 @@ $ tos build
 ### step4. menuconfig 配置 
 选择需配置的 examples 或 apps 对应工程，在对应工程目录下运行如下命令进行菜单化配置：
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos menuconfig
 ```
+
 配置当前工程，配置完成后保存退出，编译工程。
 
 ## 烧录
 ### GUI 工具烧录
 tyutool gui 烧录工具已支持 T2/T3/T5AI/BK7231N/LN882H/ESP32 等多种芯片串口烧录，支持 windows/Linux/macOS 等操作系统，请根据运行操作系统选择对应的 GUI 烧录工具。
-- windows：[tyutool_win](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/win_tyutool_gui.tar.gz)
+- windows：[tyutool_win](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/win_tyutool_gui.zip)
 - Linux：[tyutool_linux.tar](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/tyutool_gui.tar.gz)
 - macOS_x86：[tyutool_mac_x86](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_x86_tyutool_gui.tar.gz)
 - macOS_arm64：[tyutool_mac_arm64.zip](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_arm64_tyutool_gui.tar.gz)
@@ -85,9 +90,11 @@ tyutool gui 烧录工具已支持 T2/T3/T5AI/BK7231N/LN882H/ESP32 等多种芯�
 $ sudo usermod -aG dialout $USER
 ```
 
-2. 在需要编译完成后的项目中运行 tos flash 命令一键烧录，tos flash 会根据当前运行的环境自动下载对应的 tyutool 工具，并自动烧录。
+设置完成后需重启系统方可生效。
+
+2. 在需要编译完成后的项目中运行 `tos flash` 命令一键烧录，`tos flash` 会根据当前运行的环境自动下载对应的 tyutool 工具，并自动烧录。
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos flash
 tyutool params:
 [INFO]: tyut_logger init done.
@@ -96,40 +103,10 @@ tyutool params:
 [INFO]: Use default start address: [0x00]
 --------------------
 1. /dev/ttyS0
-2. /dev/ttyS1
-3. /dev/ttyS2
-4. /dev/ttyS3
-5. /dev/ttyS4
-6. /dev/ttyS5
-7. /dev/ttyS6
-8. /dev/ttyS7
-9. /dev/ttyS8
-10. /dev/ttyS9
-11. /dev/ttyS10
-12. /dev/ttyS11
-13. /dev/ttyS12
-14. /dev/ttyS13
-15. /dev/ttyS14
-16. /dev/ttyS15
-17. /dev/ttyS16
-18. /dev/ttyS17
-19. /dev/ttyS18
-20. /dev/ttyS19
-21. /dev/ttyS20
-22. /dev/ttyS21
-23. /dev/ttyS22
-24. /dev/ttyS23
-25. /dev/ttyS24
-26. /dev/ttyS25
-27. /dev/ttyS26
-28. /dev/ttyS27
-29. /dev/ttyS28
-30. /dev/ttyS29
-31. /dev/ttyS30
-32. /dev/ttyS31
-33. /dev/ttyUSB0
+2. /dev/ttyACM0
+3. /dev/ttyACM1
 ^^^^^^^^^^^^^^^^^^^^
-Select serial port: 33                              ## 选择正确的串口
+Select serial port: 3                              ## 选择正确的串口
 [INFO]: Waiting Reset ...
 [INFO]: unprotect flash OK.
 [INFO]: sync baudrate 921600 success
@@ -157,7 +134,7 @@ v1.8.0 之前版本需要手工运行以下升级命令升级：
 $ tos flash upgrade
 ```
 
-### 支持 platform 列表
+## 支持 platform 列表
 | 名称 | 支持状态 | 介绍 | 调试日志串口 |
 | ---- | ---- | ---- | ---- |
 | Ubuntu | 支持 | 可在 ubuntu 等 Linux 主机上直接运行 | |
@@ -171,21 +148,37 @@ $ tos flash upgrade
 
 
 ## 示例工程
-tuyaopen 提供了丰富的示例工程，方便开发者快速上手，了解 tuyaopen 的使用。
+
+不同的芯片都会对应的示例，需在 TuyaOpen 根目录下通过 `tos set_example` 命令设置示例工程，可点击 [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/zh/tos_guide.md#%E8%AE%BE%E7%BD%AE%E7%A4%BA%E4%BE%8B) 了解详情。
 
 ```sh
-$ tuyaopen
-├── ai
-│   └── llm_demo
+$ tos set_example
+Now used: None
+========================
+Platforms
+  1. T2
+  2. T3
+  3. Ubuntu
+  4. T5AI
+  5. ESP32
+  6. LN882H
+  7. BK7231X
+------------------------
+Please select: 4
+------------------------
+Set [T5AI] example success.
+```
+
+> 注：通过 `tos set_example` 命令设置后的 examples 目录为软链接，指向 platform 对应目录下的芯片。
+
+TuyaOpen 提供了丰富的示例工程，方便开发者快速上手，了解 TuyaOpen 的使用。
+```sh
+$ examples
 ├── ble
 │   ├── ble_central
 │   └── ble_peripher
 ├── get-started
 │   └── sample_project
-├── graphics
-│   └── lvgl_demo
-├── multimedia
-│   ├── audio
 ├── peripherals
 │   ├── adc
 │   ├── gpio
@@ -217,6 +210,7 @@ $ tuyaopen
 
 每个示例工程下对应有 README.md 文件，详细介绍了示例工程的配置、编译、运行等操作。
 
+
 ## AI 应用
 tuya.ai 是一个综合性的 AI 服务平台,提供以下核心能力:
 
@@ -228,22 +222,22 @@ tuya.ai 是一个综合性的 AI 服务平台,提供以下核心能力:
 
 ## 云连接应用
 
-tuyaopen 提供了丰富的云连接应用示例，相关应用位于 apps 目录下，可点击 [云连接应用](apps/tuya_cloud/README_zh.md)。
+TuyaOpen 提供了丰富的云连接应用示例，相关应用位于 apps 目录下，可点击 [云连接应用](apps/tuya_cloud/README_zh.md)。
 
 ## platform 新增与适配
 
-tuyaopen 支持新增与适配新的 platform，具体操作请参考 [platform 新增与适配](./docs/zh/new_platform.md)。
+TuyaOpen 支持新增与适配新的 platform，具体操作请参考 [platform 新增与适配](./docs/zh/new_platform.md)。
 
 ## FAQ
-1. tuyaopen 支持的 platform 通过子仓库动态下载，更新 tuyaopen 仓库不会主动更新子仓库，如遇到问题无法正常编译，请至 platform 文件夹下对应的目录下使用 `git pull` 命令更新，或删除 platform 文件夹下对应目录后再次下载。
+1. TuyaOpen 支持的 platform 通过子仓库动态下载，更新 TuyaOpen 仓库不会主动更新子仓库，如遇到问题无法正常编译，请至 platform 文件夹下对应的目录下使用 `git pull` 命令更新，或删除 platform 文件夹下对应目录后再次下载。
 
-2. tuyaopen 连提供了丰富的云连接应用示例，如发现无法正常连接或无法正常激活设备，请参考 [云连接应用](apps/tuya_cloud/README_zh.md)。
+2. TuyaOpen 连提供了丰富的云连接应用示例，如发现无法正常连接或无法正常激活设备，请参考 [云连接应用](apps/tuya_cloud/README_zh.md)。
 
 ## License
 本项目的分发遵循 Apache License 版本 2.0。有关更多信息，请参见 LICENSE 文件。
 
 ## 贡献代码
-如果您对 tuyaopen 感兴趣，并希望参与 tuyaopen 的开发并成为代码贡献者，请先参阅 [贡献指南](./docs/zh/contribute_guide.md)。
+如果您对 TuyaOpen 感兴趣，并希望参与 TuyaOpen 的开发并成为代码贡献者，请先参阅 [贡献指南](./docs/zh/contribute_guide.md)。
 
 ## 免责与责任条款
 
@@ -252,5 +246,5 @@ tuyaopen 支持新增与适配新的 platform，具体操作请参考 [platform 
 若用户决定将本项目用于商业目的，应充分认识到其中可能涉及的功能性和安全性风险。在此情况下，用户应对产品的所有功能性和安全性问题承担全部责任，应进行全面的功能和安全测试，以确保其满足特定的商业需求。本公司不对因用户使用本项目或其子模块而造成的任何直接、间接、特殊、偶然或惩罚性损害承担责任。
 
 ## 相关链接
-- Arduino 版 tuyaopen：[https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen)
-- Luanode 版 tuyaopen：[https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen)
+- Arduino 版 TuyaOpen：[https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+- Luanode 版 TuyaOpen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)

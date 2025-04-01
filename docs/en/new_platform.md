@@ -1,20 +1,20 @@
 # Platform Addition and Adaptation
 
 ## Introduction
-[tuyaopen](https://github.com/tuya/tuyaopen) uses the `platform_config.yaml` file to manage platforms. The `platform/platform_config.yaml` file contains information about platform repositories that have implemented generic interfaces. You can configure `platform` and `chip` (if the current platform supports multiple chips, you need to configure chip information) in the `project_build.ini` file in the project directory. After running the tos compilation, the target platform will automatically download the corresponding platform repository and associate it with the `tuyaopen` project.
+[TuyaOpen](https://github.com/tuya/TuyaOpen) uses the `platform_config.yaml` file to manage platforms. The `platform/platform_config.yaml` file contains information about platform repositories that have implemented generic interfaces. You can configure `platform` and `chip` (if the current platform supports multiple chips, you need to configure chip information) in the `project_build.ini` file in the project directory. After running the tos compilation, the target platform will automatically download the corresponding platform repository and associate it with the `TuyaOpen` project.
 
-If you want to port `tuyaopen` to your own chip, you need to perform porting adaptation.
+If you want to port `TuyaOpen` to your own chip, you need to perform porting adaptation.
 
 ## Porting and Adapting the Platform
 ### Generate a New Platform Directory
-1. Download and enter the `tuyaopen` directory and set the environment variables:
+1. Download and enter the `TuyaOpen` directory and set the environment variables:
 ```sh
-$ cd tuyaopen
+$ cd TuyaOpen
 $ export PATH=$PATH:$PWD
 ```
-Or add the tuyaopen path to the system environment variables.
+Or add the TuyaOpen path to the system environment variables.
 
-Tuyaopen uses the tos command for compilation, debugging, etc. The tos command will search for the tuyaopen repository based on the path set in the environment variables and execute the corresponding operations.
+Tuyaopen uses the tos command for compilation, debugging, etc. The tos command will search for the TuyaOpen repository based on the path set in the environment variables and execute the corresponding operations.
 
 For detailed usage of the tos command, please refer to [tos command](tos_guide.md).
 
@@ -28,7 +28,7 @@ When creating a new `platform`, the command will automatically pop up a `menucon
 ```shell
 $ tos new_platform <new-platform-name>
 (1.0.0) PROJECT_VERSION (NEW)
-    configure tuyaopen  --->
+    configure TuyaOpen  --->
         configure tuya cloud service  --->
         configure enable/disable liblwip  --->
         configure enable/disable libtflm  --->
@@ -67,7 +67,7 @@ $ tos new_platform <new-platform-name>
         [ ] ENABLE_PLATFORM_RSA --- support hw rsa (NEW)
         [ ] ENABLE_PLATFORM_ECC --- support hw ecc (NEW)
 ```
-- In `tuyaopen`, configure the default software features for the newly added platform based on the software feature configuration.
+- In `TuyaOpen`, configure the default software features for the newly added platform based on the software feature configuration.
 - In `configure board <your-board-name>`, configure the default hardware features for the newly added platform based on the hardware feature support.
 
 After completing the configuration, save the configuration [Shortcut `S`], exit [Shortcut `Q`], and the default feature configuration `default.config` will be automatically generated.
@@ -115,7 +115,7 @@ After completion, a new directory as follows will be obtained under the platform
         - Kconfig                   # Expected configurable items, can be modified
         - default.config            # Platform default supported features, can be modified
         - platform_config.cmake     # Adaptation layer source code path
-        - toolchain_file.cmake      # tuyaopen compilation tool path and options
+        - toolchain_file.cmake      # TuyaOpen compilation tool path and options
         - build_example.sh          # Compilation script  
 ```
 
@@ -135,18 +135,18 @@ menu "configure board <your-board-name>"
 ```
 
 ### platform_config.cmake:
-This file is the tuyaopen compilation dependency platform-related adaptation file and header file path, generally does not need to be modified.
+This file is the TuyaOpen compilation dependency platform-related adaptation file and header file path, generally does not need to be modified.
 ```bash
 list_subdirectories(PLATFORM_PUBINC ${PLATFORM_PATH}/tuyaos/tuyaos_adapter)
 ```
 
-Tuyaopen uses cmake for compilation, the `list_subdirectories` function will add all subdirectories in the specified directory to the PLATFORM_PUBINC variable for use during tuyaopen compilation.
+Tuyaopen uses cmake for compilation, the `list_subdirectories` function will add all subdirectories in the specified directory to the PLATFORM_PUBINC variable for use during TuyaOpen compilation.
 
 If you need to add other paths, you can refer to the following method:
 ```bash
 list_subdirectories(PLATFORM_PUBINC_1 ${PLATFORM_PATH}/tuyaos/tuyaos_adapter)
 set(PLATFORM_PUBINC_2 
-    ${PLATFORM_PATH}/tuyaopen/build/config
+    ${PLATFORM_PATH}/TuyaOpen/build/config
 )
 
 set(PLATFORM_PUBINC 
@@ -162,7 +162,7 @@ set(TOOLCHAIN_DIR "${PLATFORM_PATH}/toolchain/<your-toolchain-name>")
 set(TOOLCHAIN_PRE "<your-toolchain-prefix>")
 ```
 
-2. According to the compilation parameters of the newly added platform, correctly set the tuyaopen compilation options.
+2. According to the compilation parameters of the newly added platform, correctly set the TuyaOpen compilation options.
 ```bash
 set(CMAKE_C_FLAGS "<your-compiler-c-flags>")
 ```
@@ -177,7 +177,7 @@ Add a `<new-platform-name>` in the `platform/platform_config.yaml` file. If the 
 The format is as follows:
 ```bash
 - name: t3
-  repo: https://github.com/tuya/tuyaopen-platform-t3
+  repo: https://github.com/tuya/TuyaOpen-platform-t3
   commit: master
 ```
 
@@ -214,30 +214,30 @@ Normally, after completing the compilation adaptation, it can be compiled direct
 ### Modify default.config Default Values
 default.config is the default configuration generated based on the selection when generating the porting template, used for the default configuration of the first project compilation.
 
-default.config and Kconfig together form the tuyaopen menu configuration function, and automatically generate `using.config`, `using.cmake`, `tuya_kconfig.h` files, which are used in tuyaopen compilation and source code.
+default.config and Kconfig together form the TuyaOpen menu configuration function, and automatically generate `using.config`, `using.cmake`, `tuya_kconfig.h` files, which are used in TuyaOpen compilation and source code.
 
 If you need to modify the default configuration, please execute `make menuconfig` in the corresponding project directory to modify the feature configuration, and manually merge the relevant modifications into default.config.
 
 ## Complete Interface Adaptation
 When generating the porting template, some empty functions are generated in the `tuyaos/tuyaos_adapter/src/` directory, which need to be implemented to ensure the normal operation of the functions.
 
-Because `tuyaopen` uses the same underlying interface as `TuyaOS`, you can port it in the same way as `TuyaOS`, or you can refer to the files in the existing `t2` and `ubuntu` directories.
+Because `TuyaOpen` uses the same underlying interface as `TuyaOS`, you can port it in the same way as `TuyaOS`, or you can refer to the files in the existing `t2` and `ubuntu` directories.
 
 [Port to Linux System Chip](https://developer.tuya.com/cn/docs/iot-device-dev/TuyaOS-translation_linux?id=Kcrwrf72ciez5#title-1-%E9%80%82%E9%85%8D%20RTC)
 
 [Port to RTOS System Chip](https://developer.tuya.com/cn/docs/iot-device-dev/TuyaOS-translation_rtos?id=Kcrwraf21847l#title-1-%E9%80%82%E9%85%8D%E7%A8%8B%E5%BA%8F%E5%85%A5%E5%8F%A3)
 
-For specific interface introductions, please refer to the documents in the `./tools/porting/docs/` directory of the `tuyaopen` directory.
-> Note 1: Peripheral interfaces are not mandatory to adapt, developers can completely use the original factory interfaces; in order to facilitate developers to use more tuyaopen related functions, it is recommended to adapt.
+For specific interface introductions, please refer to the documents in the `./tools/porting/docs/` directory of the `TuyaOpen` directory.
+> Note 1: Peripheral interfaces are not mandatory to adapt, developers can completely use the original factory interfaces; in order to facilitate developers to use more TuyaOpen related functions, it is recommended to adapt.
 
 > Note 2: For network-related interfaces, if it is an external network card structure, you need to implement the network card driver yourself, implement socket related operations, and related `wifi`, `wired` operations:
 
 
 ## Sample Programs
-After completing the adaptation, you can compile and debug with sample programs. `tuyaopen` provides rich sample programs that can be compiled through the `tos` command, and then burned and run through your own burning tool for debugging.
+After completing the adaptation, you can compile and debug with sample programs. `TuyaOpen` provides rich sample programs that can be compiled through the `tos` command, and then burned and run through your own burning tool for debugging.
 
 ```shell
-$ tuyaopen
+$ TuyaOpen
 ├── ai
 │   └── llm_demo
 │   └── tflm
@@ -283,7 +283,7 @@ Please test according to the following test cases, and also conduct full coverag
 [https://drive.weixin.qq.com/s?k=AGQAugfWAAkb5lIvFsAEgAwQZJALE](https://drive.weixin.qq.com/s?k=AGQAugfWAAkb5lIvFsAEgAwQZJALE)
 
 ## Submission
-After completing the adaptation and passing the test, you are welcome to submit Push Requests to submit code, submit the `platform_config.yaml` corresponding to the newly adapted platform to the [https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen) repository for other developers to use.
+After completing the adaptation and passing the test, you are welcome to submit Push Requests to submit code, submit the `platform_config.yaml` corresponding to the newly adapted platform to the [https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen) repository for other developers to use.
 
 - Push Requests process can refer to [Contribution Guide](contribute_guide.md)
 - Programming specifications can refer to [Coding Style Guide](code_style_guide.md)

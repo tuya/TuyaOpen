@@ -14,9 +14,9 @@
 2. 确认 TuyaOpen 授权码：
 
 Tuyaopen Framework 包括：
-- C 版 TuyaOpen：[https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen)
-- Arduino 版 TuyaOpen：[https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen)
-- Luanode 版 TuyaOpen：[https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen)
+- C 版 TuyaOpen：[https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen)
+- Arduino 版 TuyaOpen：[https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+- Luanode 版 TuyaOpen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
 
 均采用 TuyaOpen 专用授权码，使用其他授权码无法正常连接涂鸦云。
 
@@ -27,7 +27,7 @@ Tuyaopen Framework 包括：
 
 可通过以下方式获取 TuyaOpen 专用授权码：
 
-- 方式1：购买已烧录 TuyaOpen 授权码模块。该授权码已经在出厂时烧录在对应模组中，且不会丢失。tuyaopen 在启动时通过 `tuya_iot_license_read()` 接口读取授权码。请确认当前设备是否为烧录了 TuyaOpen 授权码。
+- 方式1：购买已烧录 TuyaOpen 授权码模块。该授权码已经在出厂时烧录在对应模组中，且不会丢失。TuyaOpen 在启动时通过 `tuya_iot_license_read()` 接口读取授权码。请确认当前设备是否为烧录了 TuyaOpen 授权码。
 
 - 方式2：如当前模组未烧录 TuyaOpen 授权码，可通过 [https://platform.tuya.com/purchase/index?type=6](https://platform.tuya.com/purchase/index?type=6) 页面购买 ** TuyaOpen 授权码**，然后将 [apps/tuya_cloud/switch_demo/src/tuya_config.h](./src/tuya_config.h) 文件中 `TUYA_DEVICE_UUID` 和 `TUYA_DEVICE_AUTHKEY` 替换为购买成功后获取到的 `uuid` 和 `authkey`。
 
@@ -47,7 +47,7 @@ Tuyaopen Framework 包括：
 
 ## 免费赠送 TuyaOpen 授权码活动
 
-为了让开发者们可以自由体验 Tuyaopen Framework，现在只要在 GitHub 上给 Tuyaopen Framework 开发框架仓库，包括 [https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen) 、[https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen) 和 [https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen) 仓库加 star，凭 github 账号和截图，发送邮件至 `chenyisong@tuya.com` 或 加入 QQ 群 `796221529` 向群主免费领取一个 TuyaOpen Framework 专用授权码。
+为了让开发者们可以自由体验 Tuyaopen Framework，现在只要在 GitHub 上给 Tuyaopen Framework 开发框架仓库，包括 [https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen) 、[https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen) 和 [https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen) 仓库加 star，凭 github 账号和截图，发送邮件至 `chenyisong@tuya.com` 或 加入 QQ 群 `796221529` 向群主免费领取一个 TuyaOpen Framework 专用授权码。
 
 限量 500 个，先到先得，送完即止，赶紧扫码加群来领👇：
 
