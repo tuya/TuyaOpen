@@ -14,38 +14,41 @@ config OPERATING_SYSTEM
         100     /* LINUX */
         98      /* RTOS */
 
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
 choice
     prompt "Choice a module"
 
     config MODULE_CHOICE_T3_2S
         bool "T3-2S"
-    if (MODULE_CHOICE_T3_2S)
-    rsource "./T3-2S/Kconfig"
-    endif
+        if (MODULE_CHOICE_T3_2S)
+            rsource "./T3-2S/Kconfig"
+        endif
 
     config MODULE_CHOICE_T3_3S
         bool "T3-3S"
-    if (MODULE_CHOICE_T3_3S)
-    rsource "./T3-3S/Kconfig"
-    endif
+        if (MODULE_CHOICE_T3_3S)
+            rsource "./T3-3S/Kconfig"
+        endif
 
     config MODULE_CHOICE_T3_E2
         bool "T3-E2"
-    if (MODULE_CHOICE_T3_E2)
-    rsource "./T3-E2/Kconfig"
-    endif
+        if (MODULE_CHOICE_T3_E2)
+            rsource "./T3-E2/Kconfig"
+        endif
 
     config MODULE_CHOICE_T3_M
         bool "T3-M"
-    if (MODULE_CHOICE_T3_M)
-    rsource "./T3-M/Kconfig"
-    endif
+        if (MODULE_CHOICE_T3_M)
+            rsource "./T3-M/Kconfig"
+        endif
 
     config MODULE_CHOICE_T3_U
         bool "T3-U"
-    if (MODULE_CHOICE_T3_U)
-    rsource "./T3-U/Kconfig"
-    endif
+        if (MODULE_CHOICE_T3_U)
+            rsource "./T3-U/Kconfig"
+        endif
 
 endchoice
 

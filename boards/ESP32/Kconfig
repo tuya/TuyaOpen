@@ -19,25 +19,28 @@ config OPERATING_SYSTEM
         98      /* RTOS */
         3       /* Non-OS */
 
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
 choice
     prompt "Choice a module"
 
     config MODULE_CHOICE_ESP32
         bool "ESP32"
-    if (MODULE_CHOICE_ESP32)
-    rsource "./ESP32/Kconfig"
-    endif
+        if (MODULE_CHOICE_ESP32)
+            rsource "./ESP32/Kconfig"
+        endif
 
     config MODULE_CHOICE_ESP32_C3
         bool "ESP32-C3"
-    if (MODULE_CHOICE_ESP32_C3)
-    rsource "./ESP32-C3/Kconfig"
-    endif
+        if (MODULE_CHOICE_ESP32_C3)
+            rsource "./ESP32-C3/Kconfig"
+        endif
 
     config MODULE_CHOICE_ESP32_S3
         bool "ESP32-S3"
-    if (MODULE_CHOICE_ESP32_S3)
-    rsource "./ESP32-S3/Kconfig"
-    endif
+        if (MODULE_CHOICE_ESP32_S3)
+            rsource "./ESP32-S3/Kconfig"
+        endif
 
 endchoice

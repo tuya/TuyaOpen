@@ -1,4 +1,0 @@
-menu "configure module"
-    rsource "../ComKconfig"
-endmenu
-

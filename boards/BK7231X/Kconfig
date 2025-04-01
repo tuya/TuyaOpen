@@ -15,14 +15,17 @@ config OPERATING_SYSTEM
         98      /* RTOS */
         3       /* Non-OS */
 
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
 choice
     prompt "Choice a module"
 
     config MODULE_CHOICE_WB2S
         bool "WB2S"
-    if (MODULE_CHOICE_WB2S)
-    rsource "./WB2S/Kconfig"
-    endif
+        if (MODULE_CHOICE_WB2S)
+            rsource "./WB2S/Kconfig"
+        endif
 
 endchoice
 

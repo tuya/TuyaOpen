@@ -15,13 +15,16 @@ config OPERATING_SYSTEM
         98      /* RTOS */
         3       /* Non-OS */
 
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
 choice
     prompt "Choice a module"
 
     config MODULE_CHOICE_T2_U
         bool "T2-U"
-    if (MODULE_CHOICE_T2_U)
-    rsource "./T2-U/Kconfig"
-    endif
+        if (MODULE_CHOICE_T2_U)
+            rsource "./T2-U/Kconfig"
+        endif
 
 endchoice

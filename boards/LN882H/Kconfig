@@ -12,8 +12,8 @@ choice
 
     config MODULE_CHOICE_WL2H_U
         bool "WL2H-U"
-    if (MODULE_CHOICE_WL2H_U)
-    rsource "./WL2H-U/Kconfig"
-    endif
+        if (MODULE_CHOICE_WL2H_U)
+            rsource "./WL2H-U/Kconfig"
+        endif
 
 endchoice

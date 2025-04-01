@@ -1,0 +1,4 @@
+config MBEDTLS_CONFIG_FILE
+    string
+    default "mbedtls/esp_config.h"
+    

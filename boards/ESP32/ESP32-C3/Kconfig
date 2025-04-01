@@ -1,7 +1,0 @@
-config CHIP_CHOICE
-    string
-    default "esp32c3"
-
-menu "configure module"
-    rsource "../ComKconfig"
-endmenu
