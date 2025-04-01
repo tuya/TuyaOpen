@@ -1,0 +1,63 @@
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
+config ENABLE_WIFI
+    bool
+    default y
+
+menuconfig ENABLE_BLUETOOTH
+    bool
+    default y
+
+config ENABLE_HCI
+    bool
+    default y
+
+config ENABLE_RTC
+    bool
+    default y
+
+config ENABLE_WATCHDOG
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+menuconfig ENABLE_FLASH
+    bool
+    default y
+
+config TUYA_FLASH_TYPE_MAX_PARTITION_NUM
+    int
+    default 10
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_SPI
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+

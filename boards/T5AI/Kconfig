@@ -24,13 +24,13 @@ choice
     config BOARD_CHOICE_TUYA_T5AI_BOARD
         bool "TUYA_T5AI_BOARD"
         if (BOARD_CHOICE_TUYA_T5AI_BOARD)
-        rsource "./TUYA_T5AI_BOARD/Kconfig"
+            rsource "./TUYA_T5AI_BOARD/Kconfig"
         endif
 
     config BOARD_CHOICE_TUYA_T5AI_EVB
         bool "TUYA_T5AI_EVB"
         if (BOARD_CHOICE_T5AI_EVB)
-        rsource "./TUYA_T5AI_EVB/Kconfig"
+            rsource "./TUYA_T5AI_EVB/Kconfig"
         endif
 
 endchoice

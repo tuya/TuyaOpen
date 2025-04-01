@@ -1,0 +1,4 @@
+config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"
+    

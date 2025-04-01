@@ -1,8 +1,0 @@
-config CHIP_CHOICE
-    string
-    default "bk7231n"
-
-menu "configure module"
-    rsource "../ComKconfig"
-endmenu
-
