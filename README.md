@@ -15,13 +15,17 @@ At the same time, the TuyaOpen will continuously expand, providing more cloud pl
 ## Getting Start
 
 ### Prerequisites
-Ubuntu and Debian
+- Ubuntu and Debian
 
 ```sh
 $ sudo apt-get install lcov cmake-curses-gui build-essential ninja-build wget git python3 python3-pip python3-venv libc6-i386 libsystemd-dev
 ```
 
 > Note: After version v1.1.0, we adopted ninja as the build tool to speed up compilation. If you encounter compilation errors, please install ninja.
+
+- macOS
+
+Please run `tos check` to check the system dependencies and install them according to the prompts.
 
 ### Clone the repository
 
@@ -39,26 +43,33 @@ $ export PATH=$PATH:$PWD
 ```
 Or add the TuyaOpen path to your system environment variables.
 
-
 TuyaOpen can be compiled and debugged using the tos command, which will search for the TuyaOpen repository based on the path set in the environment variables and execute the corresponding operations.
 
 For detailed usage of the tos command, please refer to [tos command](./docs/en/tos_guide.md).
 
-### step2. Select the corresponding example
-Use the command `tos set_example` to complete the selection according to the platform, and the directory `examples` will be modified to the corresponding platform's examples.
+### Step2. Select the project to be compiled
+
+Select the current compilation project, such as the [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) project, or use the `tos set_example` command to select based on the platform. The `examples` directory will be modified to the corresponding platform's example.
 
 ### step3. Compilation
 Select the corresponding project for the current compilation in examples or apps, and then run the following command to compile:
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos build
 ```
-After compilation, the target files will be located in the `examples/get-started/sample_project/.build/t2/bin/t2_1.0.0` directory.
+After compilation, the target files will be located in the `apps/tuya_cloud/switch_demo/.build/bin` directory.
 
-### Configuration 
+The compiled target files include:
+- `switch_demo_QIO_1.0.0.bin`: Complete firmware including boot, used for flashing.
+- `switch_demo_UA_1.0.0.bin`: Application firmware without boot. This file needs to be flashed to the corresponding address based on different platforms/chips; otherwise, it may not run properly.
+- `switch_demo_UG_1.0.0.bin`: BIN file for OTA upgrade, cannot be directly flashed and run.
+
+The project name defaults to the directory name, and the project version defaults to `1.0.0`. These can be modified in the `tos menuconfig` configuration.
+
+### step4. Configuration 
 To configure the selected examples or apps project, run the following command in the corresponding project directory for menu-driven configuration:
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos menuconfig
 ```
 Configure the current project, save and exit after configuration, and then compile the project.
@@ -79,7 +90,7 @@ Configure the current project, save and exit after configuration, and then compi
 
 ### GUI Tool Flashing
 The `tyutool gui` flashing tool supports serial port flashing for multiple chips such as T2/T3/T5AI/BK7231N/LN882H/ESP32, and is compatible with Windows/Linux/macOS operating systems. Please choose the corresponding GUI flashing tool based on your operating system.
-- Windows: [tyutool_win](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/win_tyutool_gui.tar.gz)
+- Windows: [tyutool_win](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/win_tyutool_gui.zip)
 - Linux: [tyutool_linux.tar](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/tyutool_gui.tar.gz)
 - macOS x86: [tyutool_mac_x86](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_x86_tyutool_gui.tar.gz)
 - macOS arm64: [tyutool_mac_arm64.zip](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_arm64_tyutool_gui.tar.gz)
@@ -92,9 +103,11 @@ You can flash the device with a single command using `tos flash`.
 $ sudo usermod -aG dialout $USER
 ```
 
+After completing the settings, you need to restart the system for them to take effect.
+
 2. Run the `tos flash` command in the directory of the compiled project for one-click flashing. The `tos flash` command will automatically download the corresponding `tyutool` tool based on the current running environment and proceed with the flashing process.
 ```sh
-$ cd examples/get-started/sample_project
+$ cd apps/tuya_cloud/switch_demo
 $ tos flash
 tyutool params:
 [INFO]: tyut_logger init done.
@@ -103,40 +116,10 @@ tyutool params:
 [INFO]: Use default start address: [0x00]
 --------------------
 1. /dev/ttyS0
-2. /dev/ttyS1
-3. /dev/ttyS2
-4. /dev/ttyS3
-5. /dev/ttyS4
-6. /dev/ttyS5
-7. /dev/ttyS6
-8. /dev/ttyS7
-9. /dev/ttyS8
-10. /dev/ttyS9
-11. /dev/ttyS10
-12. /dev/ttyS11
-13. /dev/ttyS12
-14. /dev/ttyS13
-15. /dev/ttyS14
-16. /dev/ttyS15
-17. /dev/ttyS16
-18. /dev/ttyS17
-19. /dev/ttyS18
-20. /dev/ttyS19
-21. /dev/ttyS20
-22. /dev/ttyS21
-23. /dev/ttyS22
-24. /dev/ttyS23
-25. /dev/ttyS24
-26. /dev/ttyS25
-27. /dev/ttyS26
-28. /dev/ttyS27
-29. /dev/ttyS28
-30. /dev/ttyS29
-31. /dev/ttyS30
-32. /dev/ttyS31
-33. /dev/ttyUSB0
+2. /dev/ttyACM0
+3. /dev/ttyACM1
 ^^^^^^^^^^^^^^^^^^^^
-Select serial port: 33                              ## Select the correct serial port
+Select serial port: 3                              ## Select the correct serial port
 [INFO]: Waiting Reset ...
 [INFO]: unprotect flash OK.
 [INFO]: sync baudrate 921600 success
@@ -166,12 +149,32 @@ $ tos flash upgrade
 ```
 
 ## Sample Projects
+Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. Click [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/en/tos_guide.md#setting-example) to learn more details.
+
+```sh
+$ tos set_example
+Now used: None
+========================
+Platforms
+  1. T2
+  2. T3
+  3. Ubuntu
+  4. T5AI
+  5. ESP32
+  6. LN882H
+  7. BK7231X
+------------------------
+Please select: 4
+------------------------
+Set [T5AI] example success.
+```
+
+> Note: After setting with the `tos set_example` command, the `examples` directory is a symbolic link pointing to the chip in the corresponding directory under the platform.
+
 The TuyaOpen provides a variety of sample projects to facilitate developers in quickly getting started and understanding the usage of the TuyaOpen.
 
 ```sh
-$ TuyaOpen
-├── ai
-│   └── llm_demo
+$ examples
 ├── ble
 │   ├── ble_central
 │   └── ble_peripher
@@ -212,7 +215,6 @@ $ TuyaOpen
 
 Each sample project includes a README.md file that provides detailed instructions on configuring, compiling, and running the project.
 
-Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. Click [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/en/tos_guide.md#setting-example) to learn more details.
 
 ## AI Applications
 
