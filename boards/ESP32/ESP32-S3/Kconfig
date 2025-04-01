@@ -1,0 +1,4 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
