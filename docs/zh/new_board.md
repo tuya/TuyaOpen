@@ -27,7 +27,7 @@
 
 ### 新增 board 
 
-请先阅读 tuyaopen 根目录下的 [README](../../README_zh.md) ，先了解基础操作并保证所需的环境已被正确安装。
+请先阅读 TuyaOpen 根目录下的 [README](../../README_zh.md) ，先了解基础操作并保证所需的环境已被正确安装。
 
 #### 新建文件夹
 
@@ -143,4 +143,4 @@ tos config_choice
 
 ### 贡献代码
 
-可参考 [贡献代码指导](contribute_guide.md) 将新增的板子合到 tuyaopen 的主分支上，让更多的开发者可以用到你的开发板。
+可参考 [贡献代码指导](contribute_guide.md) 将新增的板子合到 TuyaOpen 的主分支上，让更多的开发者可以用到你的开发板。

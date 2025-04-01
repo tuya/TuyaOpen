@@ -1,8 +1,8 @@
 # tos Guide
 
-The tos command is a build tool for tuyaopen, supporting various functions such as creating, compiling, and configuring.
+The tos command is a build tool for TuyaOpen, supporting various functions such as creating, compiling, and configuring.
 
-The tos command is located in the root directory of [tuyaopen](https://github.com/tuya/tuyaopen.git) and is implemented using shell scripts. Before using it, you need to add the path of tuyaopen to the system environment variable.
+The tos command is located in the root directory of [TuyaOpen](https://github.com/tuya/TuyaOpen.git) and is implemented using shell scripts. Before using it, you need to add the path of TuyaOpen to the system environment variable.
 
 ## Command List
 You can view the command list by running `tos help`.
@@ -131,7 +131,7 @@ $ tos set_example
 
 This command is used to display examples for different chip platforms, changing the contents of the directory `examples`.
 
-### Update tuyaopen
+### Update TuyaOpen
 
 Run the following command:
 

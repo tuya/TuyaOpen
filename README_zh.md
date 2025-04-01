@@ -2,14 +2,14 @@
 <img src="docs/images/TuyaOpen.png" width="60%" >
 </p>
 
-[English](https://github.com/tuya/tuyaopen/blob/master/README.md) | 简体中文
+[English](https://github.com/tuya/TuyaOpen/blob/master/README.md) | 简体中文
 
 ## 简介
-tuyaopen 是一款跨芯片平台、操作系统的 AI+IoT 开发框架。它基于通用南向接口设计，支持 Bluetooth、Wi-Fi、Ethernet 等通信协议，提供了物联网开发的核心功能，包括配网，激活，控制，升级等；它具备强大的安全合规能力，包括设备认证、数据加密、通信加密等，满足全球各个国家和地区的数据合规需求。
+TuyaOpen 是一款跨芯片平台、操作系统的 AI+IoT 开发框架。它基于通用南向接口设计，支持 Bluetooth、Wi-Fi、Ethernet 等通信协议，提供了物联网开发的核心功能，包括配网，激活，控制，升级等；它具备强大的安全合规能力，包括设备认证、数据加密、通信加密等，满足全球各个国家和地区的数据合规需求。
 
-基于 tuyaopen 开发的 AI+IoT 产品，如果使用 tuya_cloud_service 组件的功能，就可以使用涂鸦APP、云服务提供的强大生态能力，并与 Power By Tuya 设备互联互通。
+基于 TuyaOpen 开发的 AI+IoT 产品，如果使用 tuya_cloud_service 组件的功能，就可以使用涂鸦APP、云服务提供的强大生态能力，并与 Power By Tuya 设备互联互通。
 
-同时 tuyaopen 将不断拓展，提供更多云平台接入功能，及语音、视频、人脸识别等功能。
+同时 TuyaOpen 将不断拓展，提供更多云平台接入功能，及语音、视频、人脸识别等功能。
 
 ## 开始体验
 
@@ -25,7 +25,7 @@ $ sudo apt-get install lcov cmake-curses-gui build-essential ninja-build wget gi
 ### 克隆仓库
 
 ```sh
-$ git clone https://github.com/tuya/tuyaopen.git
+$ git clone https://github.com/tuya/TuyaOpen.git
 ```
 
 tuyeopen 仓库中包含多个子模块，tos 工具会在编译前检查并自动下载子模块，也可以使用 `git submodule update --init` 命令手工下载。
@@ -34,12 +34,12 @@ tuyeopen 仓库中包含多个子模块，tos 工具会在编译前检查并自�
 
 ### step1. 设置环境变量
 ```sh
-$ cd tuyaopen
+$ cd TuyaOpen
 $ export PATH=$PATH:$PWD
 ```
-或将 tuyaopen 路径添加到系统环境变量中。
+或将 TuyaOpen 路径添加到系统环境变量中。
 
-tuyaopen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 tuyaopen 仓库，并执行对应操作。
+TuyaOpen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 TuyaOpen 仓库，并执行对应操作。
 
 tos 命令的详细使用方法，请参考 [tos 命令](./docs/zh/tos_guide.md)。
 
@@ -171,10 +171,10 @@ $ tos flash upgrade
 
 
 ## 示例工程
-tuyaopen 提供了丰富的示例工程，方便开发者快速上手，了解 tuyaopen 的使用。
+TuyaOpen 提供了丰富的示例工程，方便开发者快速上手，了解 TuyaOpen 的使用。
 
 ```sh
-$ tuyaopen
+$ TuyaOpen
 ├── ai
 │   └── llm_demo
 ├── ble
@@ -217,6 +217,8 @@ $ tuyaopen
 
 每个示例工程下对应有 README.md 文件，详细介绍了示例工程的配置、编译、运行等操作。
 
+每个不同的芯片都会示例，可通过 `tos set_example` 命令设置示例工程，可点击 [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/zh/tos_guide.md#%E8%AE%BE%E7%BD%AE%E7%A4%BA%E4%BE%8B) 了解详情。
+
 ## AI 应用
 tuya.ai 是一个综合性的 AI 服务平台,提供以下核心能力:
 
@@ -228,22 +230,22 @@ tuya.ai 是一个综合性的 AI 服务平台,提供以下核心能力:
 
 ## 云连接应用
 
-tuyaopen 提供了丰富的云连接应用示例，相关应用位于 apps 目录下，可点击 [云连接应用](apps/tuya_cloud/README_zh.md)。
+TuyaOpen 提供了丰富的云连接应用示例，相关应用位于 apps 目录下，可点击 [云连接应用](apps/tuya_cloud/README_zh.md)。
 
 ## platform 新增与适配
 
-tuyaopen 支持新增与适配新的 platform，具体操作请参考 [platform 新增与适配](./docs/zh/new_platform.md)。
+TuyaOpen 支持新增与适配新的 platform，具体操作请参考 [platform 新增与适配](./docs/zh/new_platform.md)。
 
 ## FAQ
-1. tuyaopen 支持的 platform 通过子仓库动态下载，更新 tuyaopen 仓库不会主动更新子仓库，如遇到问题无法正常编译，请至 platform 文件夹下对应的目录下使用 `git pull` 命令更新，或删除 platform 文件夹下对应目录后再次下载。
+1. TuyaOpen 支持的 platform 通过子仓库动态下载，更新 TuyaOpen 仓库不会主动更新子仓库，如遇到问题无法正常编译，请至 platform 文件夹下对应的目录下使用 `git pull` 命令更新，或删除 platform 文件夹下对应目录后再次下载。
 
-2. tuyaopen 连提供了丰富的云连接应用示例，如发现无法正常连接或无法正常激活设备，请参考 [云连接应用](apps/tuya_cloud/README_zh.md)。
+2. TuyaOpen 连提供了丰富的云连接应用示例，如发现无法正常连接或无法正常激活设备，请参考 [云连接应用](apps/tuya_cloud/README_zh.md)。
 
 ## License
 本项目的分发遵循 Apache License 版本 2.0。有关更多信息，请参见 LICENSE 文件。
 
 ## 贡献代码
-如果您对 tuyaopen 感兴趣，并希望参与 tuyaopen 的开发并成为代码贡献者，请先参阅 [贡献指南](./docs/zh/contribute_guide.md)。
+如果您对 TuyaOpen 感兴趣，并希望参与 TuyaOpen 的开发并成为代码贡献者，请先参阅 [贡献指南](./docs/zh/contribute_guide.md)。
 
 ## 免责与责任条款
 
@@ -252,5 +254,5 @@ tuyaopen 支持新增与适配新的 platform，具体操作请参考 [platform 
 若用户决定将本项目用于商业目的，应充分认识到其中可能涉及的功能性和安全性风险。在此情况下，用户应对产品的所有功能性和安全性问题承担全部责任，应进行全面的功能和安全测试，以确保其满足特定的商业需求。本公司不对因用户使用本项目或其子模块而造成的任何直接、间接、特殊、偶然或惩罚性损害承担责任。
 
 ## 相关链接
-- Arduino 版 tuyaopen：[https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen)
-- Luanode 版 tuyaopen：[https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen)
+- Arduino 版 tuyaopen：[https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+- Luanode 版 tuyaopen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)

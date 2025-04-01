@@ -1,8 +1,8 @@
 # 编码风格指南
 
-本风格指南目的是鼓励 tuyaopen 开发人员使用统一的编码风格，提高代码的可读性和可维护性。
+本风格指南目的是鼓励 TuyaOpen 开发人员使用统一的编码风格，提高代码的可读性和可维护性。
 
-tuyaopen 编码 以 `Linux kernel coding style` [https://www.kernel.org/doc/html/latest/process/coding-style.html](https://www.kernel.org/doc/html/latest/process/coding-style.html) 为基础，对部分规范进行了调整或者删除。
+TuyaOpen 编码 以 `Linux kernel coding style` [https://www.kernel.org/doc/html/latest/process/coding-style.html](https://www.kernel.org/doc/html/latest/process/coding-style.html) 为基础，对部分规范进行了调整或者删除。
 
 ## 1. 目录与文件
 目录与文件命名均采用小写字母，命名应能够正确反映对应内容的含义；有多个不同含义组合的命令以下划线  "_"  连接，建议目录与文件名不超过 3 个以上组合。
@@ -254,7 +254,7 @@ typedef enum {
 ```
 
 ## 5. 格式化代码
-tuyaopen 支持 clang-format 格式化代码，请安装 clang-format 14 及以上版本，可手动格式化或自动格式化当前修改的代码。
+TuyaOpen 支持 clang-format 格式化代码，请安装 clang-format 14 及以上版本，可手动格式化或自动格式化当前修改的代码。
 
 - 手工格式化:
 ```shell
@@ -264,6 +264,6 @@ $ clang-format -style=file -i <file>
 
 - 自动格式化：
 
-tuyaopen 目录 tools/hooks/pre-commit 文件会在编译时自动复制至 .git/hooks 目录。
+TuyaOpen 目录 tools/hooks/pre-commit 文件会在编译时自动复制至 .git/hooks 目录。
 
 通过 `git commit` 命令提交代码时，pre-commit 命令会自动调用 clang-format 格式化当前已经通过 `git add` 命令添加的文件。

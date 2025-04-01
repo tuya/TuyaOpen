@@ -5,12 +5,12 @@
 English | [简体中文](README_zh.md)
 
 ## Overview
-tuyaopen is an open source AI+IoT development framework that supports cross-chip platforms and operating systems. It is designed based on a universal southbound interface and supports communication protocols such as Bluetooth, Wi-Fi, and Ethernet. It provides core functionalities for AI+IoT development, including pairing, activation, control, and upgrading.
+TuyaOpen is an open source AI+IoT development framework that supports cross-chip platforms and operating systems. It is designed based on a universal southbound interface and supports communication protocols such as Bluetooth, Wi-Fi, and Ethernet. It provides core functionalities for AI+IoT development, including pairing, activation, control, and upgrading.
 The sdk has robust security and compliance capabilities, including device authentication, data encryption, and communication encryption, meeting data compliance requirements in various countries and regions worldwide.
 
-AI+IoT products developed using the tuyaopen, if utilizing the functionality of the tuya_cloud_service component, can make use of the powerful ecosystem provided by the Tuya APP and cloud services, and achieve interoperability with Power By Tuya devices.
+AI+IoT products developed using the TuyaOpen, if utilizing the functionality of the tuya_cloud_service component, can make use of the powerful ecosystem provided by the Tuya APP and cloud services, and achieve interoperability with Power By Tuya devices.
 
-At the same time, the tuyaopen will continuously expand, providing more cloud platform integration features, as well as voice, video, and facial recognition capabilities.
+At the same time, the TuyaOpen will continuously expand, providing more cloud platform integration features, as well as voice, video, and facial recognition capabilities.
 
 ## Getting Start
 
@@ -26,7 +26,7 @@ $ sudo apt-get install lcov cmake-curses-gui build-essential ninja-build wget gi
 ### Clone the repository
 
 ```sh
-$ git clone https://github.com/tuya/tuyaopen.git
+$ git clone https://github.com/tuya/TuyaOpen.git
 ```
 The tuyeopen repository contains multiple submodules. The tos tool will check and automatically download the submodules before compilation, or you can manually download them using the command `git submodule update --init`.
 
@@ -34,13 +34,13 @@ The tuyeopen repository contains multiple submodules. The tos tool will check an
 
 ### step1. Setting Environment Variables
 ```sh
-$ cd tuyaopen
+$ cd TuyaOpen
 $ export PATH=$PATH:$PWD
 ```
-Or add the tuyaopen path to your system environment variables.
+Or add the TuyaOpen path to your system environment variables.
 
 
-tuyaopen can be compiled and debugged using the tos command, which will search for the tuyaopen repository based on the path set in the environment variables and execute the corresponding operations.
+TuyaOpen can be compiled and debugged using the tos command, which will search for the TuyaOpen repository based on the path set in the environment variables and execute the corresponding operations.
 
 For detailed usage of the tos command, please refer to [tos command](./docs/en/tos_guide.md).
 
@@ -166,10 +166,10 @@ $ tos flash upgrade
 ```
 
 ## Sample Projects
-The tuyaopen provides a variety of sample projects to facilitate developers in quickly getting started and understanding the usage of the tuyaopen.
+The TuyaOpen provides a variety of sample projects to facilitate developers in quickly getting started and understanding the usage of the TuyaOpen.
 
 ```sh
-$ tuyaopen
+$ TuyaOpen
 ├── ai
 │   └── llm_demo
 ├── ble
@@ -212,6 +212,7 @@ $ tuyaopen
 
 Each sample project includes a README.md file that provides detailed instructions on configuring, compiling, and running the project.
 
+Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. Click [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/en/tos_guide.md#setting-example) to learn more details.
 
 ## AI Applications
 
@@ -225,24 +226,24 @@ For detailed usage instructions, please refer to the [Tuya.ai Documentation](app
 
 ## Cloud Connectivity Applications
 
-tuyaopen provides a wealth of cloud connectivity application examples, which can be found in the apps directory. You can click [Cloud Connectivity Applications](apps/tuya_cloud/README.md) for more information.
+TuyaOpen provides a wealth of cloud connectivity application examples, which can be found in the apps directory. You can click [Cloud Connectivity Applications](apps/tuya_cloud/README.md) for more information.
 
 
 ## Adding and Adapting New Platforms
 
-tuyaopen supports adding and adapting new platforms. For specific operations, please refer to [Adding and Adapting New Platforms](./docs/en/new_platform.md).
+TuyaOpen supports adding and adapting new platforms. For specific operations, please refer to [Adding and Adapting New Platforms](./docs/en/new_platform.md).
 
 ## FAQ
-1. The supported platform for tuyaopen are dynamically downloaded through subrepositories. Updating the tuyaopen repository itself will not automatically update the subrepositories. If you encounter any issues with compilation, please navigate to the corresponding directory in the "platform" folder and use the `git pull` command to update, or delete the corresponding directory in the "platform" folder and download it again.
+1. The supported platform for TuyaOpen are dynamically downloaded through subrepositories. Updating the TuyaOpen repository itself will not automatically update the subrepositories. If you encounter any issues with compilation, please navigate to the corresponding directory in the "platform" folder and use the `git pull` command to update, or delete the corresponding directory in the "platform" folder and download it again.
 
 
-2. tuyaopen provides a wealth of cloud connectivity application examples. If you encounter issues such as being unable to connect or activate devices properly, please refer to [Cloud Connectivity Applications](apps/tuya_cloud/README.md).
+2. TuyaOpen provides a wealth of cloud connectivity application examples. If you encounter issues such as being unable to connect or activate devices properly, please refer to [Cloud Connectivity Applications](apps/tuya_cloud/README.md).
 
 ## License
 Distributed under the Apache License Version 2.0. For more information, see `LICENSE`.
 
 ## Contribute Code
-If you are interested in the tuyaopen and wish to contribute to its development and become a code contributor, please first read the [Contribution Guide](./docs/en/contribute_guide.md).
+If you are interested in the TuyaOpen and wish to contribute to its development and become a code contributor, please first read the [Contribution Guide](./docs/en/contribute_guide.md).
 
 ## Disclaimer and Liability Clause
 
@@ -251,5 +252,5 @@ Users should be clearly aware that this project may contain submodules developed
 If users decide to use this project for commercial purposes, they should fully recognize the potential functional and security risks involved. In this case, users should bear all responsibility for any functional and security issues, perform comprehensive functional and safety tests to ensure that it meets specific business needs. Our company does not accept any liability for direct, indirect, special, incidental, or punitive damages caused by the user's use of this project or its submodules.
 
 ## Related Links
-- Arduino for tuyaopen: [https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen)
-- Luanode for tuyaopen：[https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen)
+- Arduino for TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+- Luanode for tuyaopen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)

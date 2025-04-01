@@ -13,9 +13,9 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 2. **Confirm TuyaOpen License Code**
 
     Tuyaopen Framework includes:
-    - C Version TuyaOpen: [https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen)
-    - Arduino Version TuyaOpen: [https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen)
-    - Luanode Version TuyaOpen: [https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen)
+    - C Version TuyaOpen: [https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen)
+    - Arduino Version TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+    - Luanode Version TuyaOpen: [https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
 
     All use TuyaOpen specific license codes. Using other license codes will not allow normal connection to the Tuya Cloud.
 
@@ -69,7 +69,7 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 
 ## Free TuyaOpen License Code Activity
 
-To allow developers to freely experience the Tuyaopen Framework, you can now star the Tuyaopen Framework development framework repositories on GitHub, including [https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen), [https://github.com/tuya/arduino-tuyaopen](https://github.com/tuya/arduino-tuyaopen), and [https://github.com/tuya/luanode-tuyaopen](https://github.com/tuya/luanode-tuyaopen), and send an email to `chenyisong@tuya.com` or join the QQ group `796221529` (the group owner will be sent the link) to receive a free TuyaOpen Framework specific license code.
+To allow developers to freely experience the Tuyaopen Framework, you can now star the Tuyaopen Framework development framework repositories on GitHub, including [https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen), [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen), and [https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen), and send an email to `chenyisong@tuya.com` or join the QQ group `796221529` (the group owner will be sent the link) to receive a free TuyaOpen Framework specific license code.
 
 Limited to 500 units, first come, first served. Hurry and scan the QR code to join the group👇:
 

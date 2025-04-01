@@ -1,20 +1,20 @@
 # platform 新增与适配
 
 ## 简介
- [tuyaopen](https://github.com/tuya/tuyaopen) 采用 `platform_config.yaml` 文件管理 platform。`platform/platform_config.yaml` 文件包含了已经实现了通用接口的 platform 仓库信息。可在项目目录下的 `project_build.ini` 文件中配置 `platform` 及 `chip`(如当前 platform 支持多个芯片，则需配置芯片信息)，运行 tos 编译后，目标 platform 会自动下载对应的 platform 仓库，关联到 `tuyaopen` 项目中。
+ [TuyaOpen](https://github.com/tuya/TuyaOpen) 采用 `platform_config.yaml` 文件管理 platform。`platform/platform_config.yaml` 文件包含了已经实现了通用接口的 platform 仓库信息。可在项目目录下的 `project_build.ini` 文件中配置 `platform` 及 `chip`(如当前 platform 支持多个芯片，则需配置芯片信息)，运行 tos 编译后，目标 platform 会自动下载对应的 platform 仓库，关联到 `TuyaOpen` 项目中。
 
-如果你希望将`tuyaopen`移植到自己的芯片上，则需要进行移植适配。
+如果你希望将`TuyaOpen`移植到自己的芯片上，则需要进行移植适配。
 
 ## 移植适配 platform
 ### 生成新 platform 目录
-1. 下载并进入`tuyaopen` 目录，并设置环境变量：
+1. 下载并进入`TuyaOpen` 目录，并设置环境变量：
 ```sh
-$ cd tuyaopen
+$ cd TuyaOpen
 $ export PATH=$PATH:$PWD
 ```
-或将 tuyaopen 路径添加到系统环境变量中。
+或将 TuyaOpen 路径添加到系统环境变量中。
 
-tuyaopen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 tuyaopen 仓库，并执行对应操作。
+TuyaOpen 通过 tos 命令进行编译、调试等操作，tos 命令会根据环境变量中设置的路径查找 TuyaOpen 仓库，并执行对应操作。
 
 tos 命令的详细使用方法，请参考 [tos 命令](tos_guide.md)。
 
@@ -30,7 +30,7 @@ $ tos new_platform <new-platform-name>
 ```shell
 $ tos new_platform <new-platform-name>
 (1.0.0) PROJECT_VERSION (NEW)
-    configure tuyaopen  --->
+    configure TuyaOpen  --->
         configure tuya cloud service  --->
         configure enable/disable liblwip  --->
         configure enable/disable libtflm  --->
@@ -69,7 +69,7 @@ $ tos new_platform <new-platform-name>
         [ ] ENABLE_PLATFORM_RSA --- support hw rsa (NEW)
         [ ] ENABLE_PLATFORM_ECC --- support hw ecc (NEW)
 ```
-- 在 `tuyaopen` 中根据新添加 platform 支持软件功能配置进行 tuyaopen 默认软件功能配置。
+- 在 `TuyaOpen` 中根据新添加 platform 支持软件功能配置进行 TuyaOpen 默认软件功能配置。
 - 在 `configure board <your-board-name>` 中根据新添加 platform 支持的硬件功能进行默认硬件功能配置。
 
 在完成配置之后，保存配置【快捷键`S`】、退出【快捷键`Q`】，将自动生成默认的功能配置 `default.config`。
@@ -119,7 +119,7 @@ generate code finished!
         - Kconfig                   # 期望支持的可配置项，可以修改
         - default.config            # platform 默认支持的功能，可以修改
         - platform_config.cmake     # 适配层源码路径
-        - toolchain_file.cmake      # tuyaopen 编译工具路径和编译选项
+        - toolchain_file.cmake      # TuyaOpen 编译工具路径和编译选项
         - build_example.sh          # 编译脚本  
 ```
 
@@ -139,18 +139,18 @@ menu "configure board <your-board-name>"
 ```
 
 ### platform_config.cmake：
-该文件为 tuyaopen 编译依赖 platform 相关适配文件及头文件路径，一般不需要修改。
+该文件为 TuyaOpen 编译依赖 platform 相关适配文件及头文件路径，一般不需要修改。
 ```bash
 list_subdirectories(PLATFORM_PUBINC ${PLATFORM_PATH}/tuyaos/tuyaos_adapter)
 ```
 
-tuyaopen 采用 cmake 编译，`list_subdirectories` 函数会将指定目录下所有子目录添加到 PLATFORM_PUBINC 变量中，供 tuyaopen 编译时使用。
+TuyaOpen 采用 cmake 编译，`list_subdirectories` 函数会将指定目录下所有子目录添加到 PLATFORM_PUBINC 变量中，供 TuyaOpen 编译时使用。
 
 如需要添加其他路径，可参考如下方式：
 ```bash
 list_subdirectories(PLATFORM_PUBINC_1 ${PLATFORM_PATH}/tuyaos/tuyaos_adapter)
 set(PLATFORM_PUBINC_2 
-    ${PLATFORM_PATH}/tuyaopen/build/config
+    ${PLATFORM_PATH}/TuyaOpen/build/config
 )
 
 set(PLATFORM_PUBINC 
@@ -166,7 +166,7 @@ set(TOOLCHAIN_DIR "${PLATFORM_PATH}/toolchain/<your-toolchain-name>")
 set(TOOLCHAIN_PRE "<your-toolchain-prefix>")
 ```
 
-2. 根据新增 platform 编译参数，正确设置 tuyaopen 编译选项。
+2. 根据新增 platform 编译参数，正确设置 TuyaOpen 编译选项。
 ```bash
 set(CMAKE_C_FLAGS "<your-compiler-c-flags>")
 ```
@@ -182,7 +182,7 @@ set(CMAKE_C_FLAGS "<your-compiler-c-flags>")
 格式如下：
 ```bash
 - name: t3
-  repo: https://github.com/tuya/tuyaopen-platform-t3
+  repo: https://github.com/tuya/TuyaOpen-platform-t3
   commit: master
 ```
 
@@ -219,30 +219,30 @@ $ tos build
 ### 修改 default.config 默认值
 default.config 是生成移植模版的时候，根据选择生成的默认配置，用于项目首次编译默认配置，。
 
-default.config 和 Kconfig 一起配合组成 tuyaopen 菜单化配置功能，并自动生成 `using.config` 、`using.cmake`、 `tuya_kconfig.h` 文件，在 tuyaopen 编译和源代码中被使用。
+default.config 和 Kconfig 一起配合组成 TuyaOpen 菜单化配置功能，并自动生成 `using.config` 、`using.cmake`、 `tuya_kconfig.h` 文件，在 TuyaOpen 编译和源代码中被使用。
 
 如需修改默认配置，请在对应项目目录下执行 `make menuconfig` 修改功能配置，并将相关修改手工合并至 default.config。
 
 ## 完成接口适配
 生成移植模版的时候，在 `tuyaos/tuyaos_adapter/src/` 目录下生成了一些空函数，需要对这些空函数进行实现，才能保证功能正常运行。
 
-因为`tuyaopen` 使用的和 `TuyaOS` 完全一致的底层接口，可以按照 `TuyaOS` 移植的方式进行，也可以参考现有的 `t2` 和 `ubuntu` 目录下的文件。
+因为`TuyaOpen` 使用的和 `TuyaOS` 完全一致的底层接口，可以按照 `TuyaOS` 移植的方式进行，也可以参考现有的 `t2` 和 `ubuntu` 目录下的文件。
 
 [移植到Linux系统芯片](https://developer.tuya.com/cn/docs/iot-device-dev/TuyaOS-translation_linux?id=Kcrwrf72ciez5#title-1-%E9%80%82%E9%85%8D%20RTC)
 
 [移植到RTOS系统芯片](https://developer.tuya.com/cn/docs/iot-device-dev/TuyaOS-translation_rtos?id=Kcrwraf21847l#title-1-%E9%80%82%E9%85%8D%E7%A8%8B%E5%BA%8F%E5%85%A5%E5%8F%A3)
 
-具体接口的介绍请参考 `tuyaopen`目录`./tools/porting/docs/`目录下的文档。
-> 注意1：外设的接口不是必须要适配的，开发者完全可以使用原厂的接口；为方便开发者使用更多 tuyaopen 相关的功能，建议适配。
+具体接口的介绍请参考 `TuyaOpen`目录`./tools/porting/docs/`目录下的文档。
+> 注意1：外设的接口不是必须要适配的，开发者完全可以使用原厂的接口；为方便开发者使用更多 TuyaOpen 相关的功能，建议适配。
 
 > 注意2：网络相关的接口，如果是外接网卡结构的，需要自行实现网卡驱动，实现 socket 相关操作以及相关 `wifi`、`wired` 操作：
 
 
 ## 示例程序
-完成适配之后，可以结合示例程序进行编译、调试。`tuyaopen` 提供了丰富的示例程序，可以通过 `tos` 命令进行、编译，通过自己的烧录工具烧录、运行，调试功能。
+完成适配之后，可以结合示例程序进行编译、调试。`TuyaOpen` 提供了丰富的示例程序，可以通过 `tos` 命令进行、编译，通过自己的烧录工具烧录、运行，调试功能。
 
 ```shell
-$ tuyaopen
+$ TuyaOpen
 ├── ai
 │   └── llm_demo
 │   └── tflm
@@ -288,7 +288,7 @@ $ tuyaopen
 [https://drive.weixin.qq.com/s?k=AGQAugfWAAkb5lIvFsAEgAwQZJALE](https://drive.weixin.qq.com/s?k=AGQAugfWAAkb5lIvFsAEgAwQZJALE)
 
 ## 提交
-完成适配并通过测试后，欢迎提交 Push Requests 提交代码，将新适配的 platform 对应的 `platform_config.yaml` 提交至 [https://github.com/tuya/tuyaopen](https://github.com/tuya/tuyaopen) 仓库，方便其他开发者使用。
+完成适配并通过测试后，欢迎提交 Push Requests 提交代码，将新适配的 platform 对应的 `platform_config.yaml` 提交至 [https://github.com/tuya/TuyaOpen](https://github.com/tuya/TuyaOpen) 仓库，方便其他开发者使用。
 
 - Push Requests 流程可参考 [贡献指南](contribute_guide.md)
 - 编程规范可参考 [编码风格指南](code_style_guide.md)
