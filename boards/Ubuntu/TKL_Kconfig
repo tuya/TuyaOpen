@@ -1,0 +1,33 @@
+config ENABLE_WIFI
+    default n
+
+config WLAN_DEV
+    string
+    default "wlan0"
+
+config WLAN_AP
+    string
+    default "wlan1"
+
+config NL80211
+    bool
+    default n
+
+config WIFI_DB_PATH
+    string
+    default "./tuya_db_files"
+
+config ENABLE_WIRED
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */

@@ -1,3 +1,10 @@
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
 config ENABLE_WIFI
     bool
     default y
@@ -33,11 +40,3 @@ config ENABLE_TIMER
 config ENABLE_WATCHDOG
     bool
     default y
-
-config LITTLE_END
-    int
-    default 1
-    ---help---
-        0       /* big endian */
-        1       /* little endian */
-

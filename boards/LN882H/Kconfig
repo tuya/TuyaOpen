@@ -7,6 +7,17 @@ config PLATFORM_LN882H
     bool
     default y
 
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
 choice
     prompt "Choice a module"
 

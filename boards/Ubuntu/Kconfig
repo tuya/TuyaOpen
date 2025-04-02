@@ -3,50 +3,13 @@ config PLATFORM_CHOICE
     string
     default "Ubuntu"
 
-menu "configure linux-ubuntu-6.2.0_64Bit"
-    config OPERATING_SYSTEM
-        int "OPERATING_SYSTEM --- mandatory for board"
-        default 100
-        ---help---
-            100     /* LINUX */
-            98      /* RTOS */
-            3       /* Non-OS */
+config OPERATING_SYSTEM
+    int 
+    default 100
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
 
-    menuconfig ENABLE_WIFI
-        bool "ENABLE_WIFI --- use wifi to connect"
-        default n
-
-        if (ENABLE_WIFI)
-            config WLAN_DEV
-                string "wifi main devices name"
-                default "wlan0"
-
-            config WLAN_AP
-                string "wifi concurrent device name"
-                default "wlan1"
-
-            config NL80211
-                bool "wifi is NL80211"
-                default n
-
-            config WIFI_DB_PATH
-                string "wifi db ptah"
-                default "./tuya_db_files"
-        endif
-
-    menuconfig ENABLE_WIRED
-        bool "ENABLE_WIRED --- use wired to connect"
-        default y
-
-    config ENABLE_BLUETOOTH
-        bool "ENABLE_BLUETOOTH --- use bluetooth to connect"
-        default n
-
-    config LITTLE_END
-        int "LITTLE_END --- mandatory for board"
-        default 1
-        ---help---
-            0       /* big endian */
-            1       /* little endian */
-
-    endmenu
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"

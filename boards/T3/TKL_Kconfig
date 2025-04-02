@@ -9,7 +9,7 @@ config ENABLE_WIFI
     bool
     default y
 
-menuconfig ENABLE_BLUETOOTH
+config ENABLE_BLUETOOTH
     bool
     default y
 
@@ -29,7 +29,7 @@ config ENABLE_UART
     bool
     default y
 
-menuconfig ENABLE_FLASH
+config ENABLE_FLASH
     bool
     default y
 
@@ -61,3 +61,38 @@ config ENABLE_TIMER
     bool
     default y
 
+config ENABLE_PM
+    bool
+    default y
+
+config ENABLE_WAKEUP
+    bool
+    default y
+
+config ENABLE_PINMUX
+    bool
+    default y    
+
+config ENABLE_PLATFORM_AES
+    bool
+    default n
+
+config ENABLE_PLATFORM_SHA256
+    bool
+    default n
+
+config ENABLE_PLATFORM_MD5
+    bool
+    default n
+
+config ENABLE_PLATFORM_SHA1
+    bool
+    default n
+
+config ENABLE_PLATFORM_RSA
+    bool
+    default n
+
+config ENABLE_PLATFORM_ECC
+    bool
+    default n
