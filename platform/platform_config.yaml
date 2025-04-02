@@ -32,4 +32,4 @@ platforms:
 - name: BK7231X
   repo: https://github.com/tuya/TuyaOpen-bk7231x
   branch: master
-  commit: 84a1eb939cd3034a190803f6a1d12add5b29c7b0
+  commit: 00c95e3dd3fdf823c983ba3b9ea3d02120924eb4
