@@ -3,6 +3,8 @@ English | [简体中文](./RAEDME_zh.md)
 # your_chat_bot
 [your_chat_bot](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_chat_bot) is an open-source large model intelligent chatbot based on tuya.ai. It collects voice through a microphone, performs speech recognition, and enables conversation, interaction, and banter. You can also see real-time chat content on the screen.
 
+**Note: Switching between TUYA AI V1.0 and V2.0 requires removing the device and clearing the data on the APP before use.**
+
 ## Supported Features
 
 1. Intelligent Conversation

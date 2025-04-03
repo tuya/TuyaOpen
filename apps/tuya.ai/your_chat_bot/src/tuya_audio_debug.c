@@ -20,15 +20,15 @@
 
 #if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
 
-#define TUYA_AUDIO_DEBUG_MAX_CONNECTIONS 4
+#define TUYA_AUDIO_DEBUG_MAX_CONNECTIONS 1
 
-#define TCP_SERVER_IP   "192.168.28.30"
+#define TCP_SERVER_IP   "192.168.1.238"
 #define TCP_SERVER_PORT 5055
 
 static TUYA_IP_ADDR_T server_ip;
 static TUYA_ERRNO net_errno = 0;
-static TUYA_RINGBUFF_T audio_ringbufs[_DEBUG_UPLOAD_STREAM_TYPE_MAX];
-static int sock_fds[_DEBUG_UPLOAD_STREAM_TYPE_MAX] = {-1, -1, -1, -1};
+static TUYA_RINGBUFF_T audio_ringbufs[DEBUG_UPLOAD_STREAM_TYPE_MAX];
+static int sock_fds[DEBUG_UPLOAD_STREAM_TYPE_MAX] = {-1, -1, -1, -1};
 static uint8_t *audio_buf;
 static MUTEX_HANDLE s_ringbuf_mutex;
 

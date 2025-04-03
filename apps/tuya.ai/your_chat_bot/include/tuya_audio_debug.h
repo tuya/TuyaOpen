@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-#define TUYA_AUDIO_DEBUG 0
+#define TUYA_AUDIO_DEBUG 1
 
 typedef struct {
     uint8_t *buf;
@@ -34,10 +34,8 @@ typedef enum {
     DEBUG_UPLOAD_STREAM_TYPE_MIC = 1,
     DEBUG_UPLOAD_STREAM_TYPE_REF = 2,
     DEBUG_UPLOAD_STREAM_TYPE_AEC = 3,
-    DEBUG_UPLOAD_STREAM_TYPE_MAX,
+    DEBUG_UPLOAD_STREAM_TYPE_MAX = 4,
 } DEBUG_UPLOAD_STREAM_TYPE;
-
-#define DEBUG_UPLOAD_STREAM_TYPE_MAX (DEBUG_UPLOAD_STREAM_TYPE_MAX - 1)
 
 /**
  * @brief Initialize the audio debug module.

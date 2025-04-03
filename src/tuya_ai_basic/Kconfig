@@ -1,0 +1,48 @@
+menu "AI Protocol Config"
+    config AI_MAX_FRAGMENT_LENGTH
+        int "AI_MAX_FRAGMENT_LENGTH: max fragment length"
+        range 4096 512000
+        default 8192
+
+    config ENABLE_AI_PROTO_DEBUG
+        bool "ENABLE_AI_PROTO_DEBUG: enable ai protocol debug"
+        default n
+
+    config AI_BIZ_TASK_DELAY
+        int "AI_BIZ_TASK_DELAY: biz send task delay,unit(ms)"
+        range 1 10000
+        default 10
+
+    config AI_SESSION_MAX_NUM
+        int "AI_SESSION_MAX_NUM: ai session max num"
+        range 3 15
+        default 6
+
+    config AI_MAX_SESSION_ID_NUM
+        int "AI_MAX_SESSION_ID_NUM: ai max session id num"
+        range 5 10
+        default 5
+
+    config AI_MAX_ATTR_NUM
+        int "AI_MAX_ATTR_NUM: ai attribute max num"
+        range 5 20
+        default 10
+
+    config AI_PACKET_SECURITY_LEVEL
+        int "AI_PACKET_SECURITY_LEVEL: ai packet security level"
+        range 2 4
+        default 4
+
+    config AI_CLIENT_STACK_SIZE
+        int "AI_CLIENT_STACK_SIZE: ai client task size"
+        range 2048 16384
+        default 4096
+
+    config AI_READ_SOCKET_BUF_SIZE
+        int "AI_READ_SOCKET_BUF_SIZE: ai server read socket size"
+        default 0
+
+    config AI_WRITE_SOCKET_BUF_SIZE
+        int "AI_WRITE_SOCKET_BUF_SIZE: ai server write socket size"
+        default 0
+endmenu

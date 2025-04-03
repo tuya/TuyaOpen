@@ -10,6 +10,12 @@ config ENABLE_CHAT_BOT
     select ENABLE_SPEAKER_UPLOAD_SERVICE_OPUS_ENCODE
     select ENABLE_SPEAKER_UPLOAD_SERVICE_SPEEX_ENCODE
 
+config ENABLE_TUYA_AI_V2_0
+    bool "enable tuya ai v2.0"
+    default y
+    help
+        enable tuya ai v2.0, default is 1
+        if you want to use tuya ai v1.0, please set it to 0
 
 config SPEAKER_EN_PIN
     int "the pin for enabling the voice module"
