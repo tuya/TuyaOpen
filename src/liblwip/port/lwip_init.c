@@ -109,7 +109,7 @@ void TUYA_LwIP_Init(void)
         pnetif = tuya_ethernetif_get_netif_by_index(idx);
         if (pnetif) {
             netif_set_up(pnetif);
-            netif_set_link_up(pnetif);
+            netif_set_flags(pnetif, NETIF_FLAG_LINK_UP);
         }
     }
 }

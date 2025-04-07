@@ -2,7 +2,7 @@ platforms:
 - name: T2
   repo: https://github.com/tuya/TuyaOpen-T2
   branch: master
-  commit: 8978e4b9f9d3b46700fb49801c715cc84f34571d
+  commit: e92138977effa3c76940417e6d6eb9ba6f2c3c2c
 
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
@@ -27,9 +27,9 @@ platforms:
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h
   branch: master
-  commit: 74e0f72f98f7ba33d9bf82e0ce795ffe273b4e9f
+  commit: 598321a8cd871f38d455e0e7e50c5bba9907359e
 
 - name: BK7231X
   repo: https://github.com/tuya/TuyaOpen-bk7231x
   branch: master
-  commit: 00c95e3dd3fdf823c983ba3b9ea3d02120924eb4
+  commit: 39e9dfa066b69b948026f7bb3e3fdbb72169e7c9
