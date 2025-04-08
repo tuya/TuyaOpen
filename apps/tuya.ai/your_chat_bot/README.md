@@ -13,7 +13,17 @@ English | [简体中文](./RAEDME_zh.md)
 
 ![](../../../docs/images/apps/your_chat_bot.png)
 
+## Hardware Dependencies
+1. Audio capture
+2. Audio playback
+
 ## Supported Hardware
 | Model | Description | Reset Method |
 | --- | --- | --- |
 | TUYA T5AI_Board Development Board | [https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) | Reset by restarting 3 times |
+| TUYA T5AI_EVB Board | [https://oshwhub.com/flyingcys/t5ai_evb](https://oshwhub.com/flyingcys/t5ai_evb) | Reset by restarting 3 times |
+
+## Compilation
+1. Run the `tos config_choice` command to select the current development board in use.
+2. If you need to modify the configuration, run the `tso menuconfig` command to make changes.
+3. Run the `tso build` command to compile the project.

@@ -48,7 +48,40 @@ TuyaOpen 通过 tos 命令进行编译、调试等操作，tos 命令会根据�
 tos 命令的详细使用方法，请参考 [tos 命令](./docs/zh/tos_guide.md)。
 
 ### step2. 选择待编译项目
-选择当前编译项目，如 [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) 项目，或使用命令`tos set_example`，根据平台完成选择，目录 `examples` 会修改为对应平台的示例。
+1. 编译 example
+
+选择待编译 example，可使用命令`tos set_example`，根据平台完成选择，目录 `examples` 会修改为对应平台的示例。
+
+更多 example 信息点击 [示例工程](#example) 
+
+2. 编译 app
+选择待编译 app，如 [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) , 并切换至对应目录。
+
+使用 `tos config_choice` 命令选择编译目标平台或目标板。
+
+```sh
+$ cd apps/tuya_cloud/switch_demo
+$ tos config_choice
+[TuyaOpen/apps/tuya_cloud/switch_demo/config] is empty.
+Using boards default config file.
+========================
+Configs
+  1. BK7231X.config
+  2. ESP32-C3.config
+  3. ESP32.config
+  4. ESP32-S3.config
+  5. LN882H.config
+  6. T2.config
+  7. T3.config
+  8. T5AI.config
+  9. Ubuntu.config
+------------------------
+Please select: 
+```
+
+`tos config_choice` 命令读取项目下 `config` 目录中的配置文件，并会生成当前工程的配置文件 `app_default.config`。
+
+> 运行 `tos config_choice` 切换 config 后，tos 命令会自动清除当前工程下已经编译生成的编译中间文件
 
 ### step3. 编译
 选择当前编译的 examples 或 apps 对应工程，运行如下命令编译：
@@ -66,13 +99,15 @@ $ tos build
 项目名称默认为目录名称，项目版本默认为 `1.0.0`，可通过 `tos menuconfig` 配置中修改。
 
 ### step4. menuconfig 配置 
-选择需配置的 examples 或 apps 对应工程，在对应工程目录下运行如下命令进行菜单化配置：
+如需要修改项目的配置，选择需配置的 examples 或 apps 对应工程，在对应工程目录下运行如下命令进行菜单化配置：
 ```sh
 $ cd apps/tuya_cloud/switch_demo
 $ tos menuconfig
 ```
 
 配置当前工程，配置完成后保存退出，编译工程。
+
+> 运行 `tos menuconfig` 切换芯片或开发板后，tos 命令会自动清除当前工程下已经编译生成的编译中间文件
 
 ## 烧录
 ### GUI 工具烧录
@@ -147,7 +182,7 @@ $ tos flash upgrade
 | raspberry pico-w | 开发中，将在 2024-11 发布 | | |
 
 
-## 示例工程
+## 示例工程 <span id="example"></span>
 
 不同的芯片都会对应的示例，需在 TuyaOpen 根目录下通过 `tos set_example` 命令设置示例工程，可点击 [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/zh/tos_guide.md#%E8%AE%BE%E7%BD%AE%E7%A4%BA%E4%BE%8B) 了解详情。
 

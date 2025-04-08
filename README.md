@@ -49,7 +49,41 @@ For detailed usage of the tos command, please refer to [tos command](./docs/en/t
 
 ### Step2. Select the project to be compiled
 
-Select the current compilation project, such as the [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) project, or use the `tos set_example` command to select based on the platform. The `examples` directory will be modified to the corresponding platform's example.
+1. Compile Example
+
+To select the example to be compiled, use the `tos set_example` command to choose based on the platform. The `examples` directory will be modified to match the selected platform's example.
+
+For more information about examples, click [Example Project](#example).
+
+2. Compile App
+
+Select the app to be compiled, such as [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo), and switch to the corresponding directory.
+
+Use the `tos config_choice` command to select the target platform or board for compilation.
+
+```sh
+$ cd apps/tuya_cloud/switch_demo
+$ tos config_choice
+[TuyaOpen/apps/tuya_cloud/switch_demo/config] is empty.
+Using boards default config file.
+========================
+Configs
+  1. BK7231X.config
+  2. ESP32-C3.config
+  3. ESP32.config
+  4. ESP32-S3.config
+  5. LN882H.config
+  6. T2.config
+  7. T3.config
+  8. T5AI.config
+  9. Ubuntu.config
+------------------------
+Please select: 
+```
+
+The `tos config_choice` command reads the configuration files in the `config` directory of the project and generates the configuration file `app_default.config` for the current project.
+
+> After running `tos config_choice` to switch configurations, the `tos` command will automatically clear the previously compiled intermediate files in the current project.
 
 ### step3. Compilation
 Select the corresponding project for the current compilation in examples or apps, and then run the following command to compile:
@@ -67,12 +101,16 @@ The compiled target files include:
 The project name defaults to the directory name, and the project version defaults to `1.0.0`. These can be modified in the `tos menuconfig` configuration.
 
 ### step4. Configuration 
-To configure the selected examples or apps project, run the following command in the corresponding project directory for menu-driven configuration:
+If you need to modify the project configuration, select the corresponding example or app project that needs to be configured, and run the following command for menu-based configuration in the corresponding project directory:
+
 ```sh
 $ cd apps/tuya_cloud/switch_demo
 $ tos menuconfig
 ```
+
 Configure the current project, save and exit after configuration, and then compile the project.
+
+> When you run `tos menuconfig` to switch the chip or development board, the `tos` command will automatically clear the compiled intermediate files in the current project.
 
 ### Supported platform list
 | Name  | Support Status | Introduction | Debug log serial port |
@@ -148,7 +186,7 @@ For versions prior to v1.8.0, you need to manually run the following command to 
 $ tos flash upgrade
 ```
 
-## Sample Projects
+## Example Projects <span id="example"></span>
 Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. Click [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/en/tos_guide.md#setting-example) to learn more details.
 
 ```sh

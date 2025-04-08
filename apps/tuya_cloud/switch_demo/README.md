@@ -27,4 +27,5 @@ A simple, cross-platform, cross-system, and multi-connection switch example. By 
 * tuya_config.h: the tuya PID and license, to get the license, you need create a product on Tuya AI+IoT Platfrom following [TuyaOS quickstart](https://developer.tuya.com/en/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc)
 
 
-
+## Supported Hardware  
+The current project can run on all currently supported chips and development boards.

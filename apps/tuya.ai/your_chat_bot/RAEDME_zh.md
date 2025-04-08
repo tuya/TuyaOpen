@@ -14,7 +14,19 @@
 
 ![](../../../docs/images/apps/your_chat_bot.png)
 
+## 依赖硬件能力
+1. 音频采集
+2. 音频播放
+
 ## 已支持硬件
 |  型号  | 说明 | 重置方式 |
 | --- | --- | --- | 
 | TUYA T5AI_Board 开发板 | [https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) | 重启(按 RST 按钮) 3 次重置 |
+| TUYA T5AI_EVB 开发板 | [https://oshwhub.com/flyingcys/t5ai_evb](https://oshwhub.com/flyingcys/t5ai_evb) | 重启(按 RST 按钮) 3 次重置 |
+
+
+## 编译
+1. 运行 `tos config_choice` 命令， 选择当前运行的开发板。
+2. 如需修改配置，请先运行 `tso menuconfig` 命令修改配置。
+3. 运行 `tso build` 命令，编译工程。
+  
