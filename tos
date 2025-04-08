@@ -677,11 +677,13 @@ function _build_all_configs_exec()
         BIN_FILE=$PROJECT_ROOT/.build/bin/${PROJ_NAME}_QIO_${PROJ_VERSION}.bin
         build_exec > /dev/null 2>&1
         if [ x"$?" = x"0" ] && [ -f "$BIN_FILE" ]; then
-            BUILD_LOG+="\033[32mBuild Success [${CONFIG}].\033[0m\n"
+            LOG="\033[32mBuild Success [${CONFIG}].\033[0m\n"
         else
             BUILD_RET=1
-            BUILD_LOG+="\033[31mBuild Failed  [${CONFIG}].\033[0m\n"
+            LOG="\033[31mBuild Failed  [${CONFIG}].\033[0m\n"
         fi
+        printf "${LOG}"
+        BUILD_LOG+=${LOG}
         fullclean_exec
     done
 
