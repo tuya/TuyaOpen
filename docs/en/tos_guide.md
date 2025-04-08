@@ -23,7 +23,7 @@ Commands:
     savedef    - Saves minimal configuration file (app_default.config)
     set_example  - Set examples from platform
     new_platform - New platform [platform_name]
-    upgrade    - Upgrade framework and platforms
+    update     - Update the platforms according to the platform_config.yaml
     help       - Help information
 ```
 
@@ -136,5 +136,5 @@ This command is used to display examples for different chip platforms, changing 
 Run the following command:
 
 ```shell
-$ tos upgrade
+$ tos update
 ```

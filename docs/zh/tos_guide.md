@@ -21,7 +21,7 @@ Commands:
     savedef    - Saves minimal configuration file (app_default.config)
     set_example  - Set examples from platform
     new_platform - New platform [platform_name]
-    upgrade    - Upgrade framework and platforms
+    update     - Update the platforms according to the platform_config.yaml
     help       - Help information
 ```
 
@@ -133,5 +133,5 @@ $ tos set_example
 ### 更新tuyaopen
 执行以下命令：
 ```shell
-$ tos upgrade
+$ tos update
 ```

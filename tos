@@ -83,7 +83,9 @@ function check_arduino()
 
 function version_exec()
 {
-    show "" "2.0.0"
+    cd $OPEN_SDK_ROOT
+    VERSION=$(git describe --tags)
+    show "${fore[green]}" "$VERSION"
 }
 
 function check_base_tool()
@@ -416,12 +418,14 @@ function config_choice_exec()
     if [ ! -f "$PROJECT_FILE" ]; then
         NOTE="Can't found [CMakeLists.txt]."
         show "${fore[red]}" "$NOTE"
-        return 1
+        exit 1
     fi
 
     APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
     CONFIG_DIR="$PROJECT_ROOT/config"
-    if [ ! -d "$CONFIG_DIR" ] || [ -z "$(find "$CONFIG_DIR" -mindepth 1 -name "*.config" -print -quit)" ]; then
+    if [ -n "$1" ]; then
+        TARGET_CONFIG="$1"
+    elif [ ! -d "$CONFIG_DIR" ] || [ -z "$(find "$CONFIG_DIR" -mindepth 1 -name "*.config" -print -quit)" ]; then
         show "${fore[yellow]}" "[$CONFIG_DIR] is empty."
         show "${fore[yellow]}" "Using boards default config file."
         TARGET_CONFIG=$(bash $OPEN_SDK_ROOT/tools/multi_config_choice.sh "$OPEN_SDK_ROOT/boards")
@@ -437,11 +441,13 @@ function config_choice_exec()
         show "${fore[green]}" "Use [$TARGET_CONFIG]."
     else
         show "${fore[red]}" "Failed to select the configuration file."
+        exit 1
     fi
 }
 
 function set_example_exec()
 {
+    PLATFORM_NAME=$1
     NOW_PLATFORM_FILE=$OPEN_SDK_ROOT/.set_example
     NOW_PLATFORM="None"
     if [ -f $NOW_PLATFORM_FILE ]; then
@@ -449,9 +455,11 @@ function set_example_exec()
     fi
     show "${fore[green]}" "Now used: $NOW_PLATFORM"
     PLATFORMS_DIR=$OPEN_SDK_ROOT/platform
-    PLATFORM_YAML=$PLATFORMS_DIR/platform_config.yaml
-    PLATFORM_NAMES=$(cat $PLATFORM_YAML | grep -oP '(?<=^- name: ).*(?=$)')
-    PLATFORM_NAME=$(echo "$PLATFORM_NAMES" | bash $LISTMENU "Platforms" 20 60 13)
+    if [ -z "$PLATFORM_NAME" ]; then
+        PLATFORM_YAML=$PLATFORMS_DIR/platform_config.yaml
+        PLATFORM_NAMES=$(cat $PLATFORM_YAML | grep -oP '(?<=^- name: ).*(?=$)')
+        PLATFORM_NAME=$(echo "$PLATFORM_NAMES" | bash $LISTMENU "Platforms" 20 60 13)
+    fi
     if [ -z "$PLATFORM_NAME" ]; then
         assert_non_null "$PLATFORM_NAME" "Can't find the [platform name]."
     fi
@@ -522,18 +530,9 @@ function flash_exec()
     ${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}
 }
 
-function upgrade_exec()
+function update_exec()
 {
-    show "" "Upgrading framework ..."
-    cd $OPEN_SDK_ROOT
-    git pull
-    if [ "$?" = "0" ]; then
-        show "${fore[green]}" "Framework success."
-    else
-        show "${fore[red]}" "Framework failed."
-    fi
-
-    show "" "Upgrading platform ..."
+    show "" "Updating platform ..."
     PLATFORMS_DIR=$OPEN_SDK_ROOT/platform
     PLATFORM_YAML=$PLATFORMS_DIR/platform_config.yaml
     PLATFORM_NAMES=$(cat $PLATFORM_YAML | grep -oP '(?<=^- name: ).*(?=$)')
@@ -575,7 +574,7 @@ Commands:
     config_choice  - Select the file in the config directory instead of app_defalut.config
     set_example  - Set examples from platform
     new_platform - New platform [platform_name]
-    upgrade    - Upgrade framework and platforms
+    update     - Update the platforms according to the platform_config.yaml
     help       - Help information
     "
     show "" "$NOTE"
@@ -627,7 +626,7 @@ function _build_all()
         PROJECT_NAME=$(basename $PROJECT_ROOT)
         show "" "Building [$PROJECT_NAME] ..."
         build_exec > /dev/null 2>&1
-        if [ "0" = "$?" ]; then
+        if [ x"0" = x"$?" ]; then
             BUILD_INFORMATION+="\033[32mBuild Success [${PROJECT_NAME}].\033[0m\n"
         else
             BUILD_INFORMATION+="\033[31mBuild Failed  [${PROJECT_NAME}].\033[0m\n"
@@ -652,6 +651,44 @@ function _check_example_build_exec()
     printf "${BUILD_INFORMATION}"
 }
 
+function _build_all_configs_exec()
+{
+    PROJECT_FILE="$PROJECT_ROOT/CMakeLists.txt"
+    if [ ! -f "$PROJECT_FILE" ]; then
+        NOTE="Can't found [CMakeLists.txt]."
+        show "${fore[red]}" "$NOTE"
+        return 1
+    fi
+
+    CONFIG_DIR="$PROJECT_ROOT/config"
+    if [ ! -d "$CONFIG_DIR" ] || [ -z "$(find "$CONFIG_DIR" -mindepth 1 -name "*.config" -print -quit)" ]; then
+        show "${fore[yellow]}" "Using boards default config file."
+        CONFIG_LIST=$(find $OPEN_SDK_ROOT/boards/*/config -name "*.config")
+    else
+        CONFIG_LIST=$(find "$CONFIG_DIR" -maxdepth 1 -name "*.config")
+    fi
+
+    BUILD_RET=0
+    BUILD_LOG="\n----------Build All Configs Result----------\n"
+    for CONFIG in $CONFIG_LIST; do
+        config_choice_exec $CONFIG
+        PROJ_NAME=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_PROJECT_NAME=").*(?="$)')
+        PROJ_VERSION=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_PROJECT_VERSION=").*(?="$)')
+        BIN_FILE=$PROJECT_ROOT/.build/bin/${PROJ_NAME}_QIO_${PROJ_VERSION}.bin
+        build_exec > /dev/null 2>&1
+        if [ x"$?" = x"0" ] && [ -f "$BIN_FILE" ]; then
+            BUILD_LOG+="\033[32mBuild Success [${CONFIG}].\033[0m\n"
+        else
+            BUILD_RET=1
+            BUILD_LOG+="\033[31mBuild Failed  [${CONFIG}].\033[0m\n"
+        fi
+        fullclean_exec
+    done
+
+    printf "${BUILD_LOG}"
+    exit $BUILD_RET
+}
+
 function dev_exec()
 {
     CMD=$1
@@ -660,12 +697,15 @@ function dev_exec()
         _save_platform_config_exec
     elif [ "$CMD" = "ceb" ]; then
         _check_example_build_exec
+    elif [ "$CMD" = "bac" ]; then
+        _build_all_configs_exec
     else
         NOTE="
 Usage: $OPEN_BUILD dev COMMAND [ARGS]...
 Commands:
     scp - Save platforms config
     ceb - Check examples build
+    bac - Build All configs
         "
         show "" "$NOTE"
     fi
@@ -697,10 +737,10 @@ case $1 in
         savedef_exec
         ;;
     config_choice)
-        config_choice_exec
+        config_choice_exec $2
         ;;
     set_example)
-        set_example_exec
+        set_example_exec $2
         ;;
     new_platform)
         new_platform_exec $2
@@ -708,8 +748,8 @@ case $1 in
     flash)
         flash_exec $@
         ;;
-    upgrade)
-        upgrade_exec $@
+    update)
+        update_exec
         ;;
     help)
         help_exec
