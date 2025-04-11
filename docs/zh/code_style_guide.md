@@ -4,7 +4,7 @@
 
 TuyaOpen 编码 以 `Linux kernel coding style` [https://www.kernel.org/doc/html/latest/process/coding-style.html](https://www.kernel.org/doc/html/latest/process/coding-style.html) 为基础，对部分规范进行了调整或者删除。
 
-## 1. 目录与文件
+## 目录与文件
 目录与文件命名均采用小写字母，命名应能够正确反映对应内容的含义；有多个不同含义组合的命令以下划线  "_"  连接，建议目录与文件名不超过 3 个以上组合。
 
 ###  头文件
@@ -68,7 +68,7 @@ extern "C" {
 ```
 
 
-## 2. 函数
+## 函数
 
 ### 函数名
 函数命名由小写字母和下划线组成，单词之间使用 "_" 连接。命令采用动宾结构的方式，如 `set_xxx`，get_xxx。
@@ -145,7 +145,7 @@ static OPERATE_RET function(void)
 4. @return + 枚举返回值 + 返回值的意思，若返回值为数据，则直接介绍数据的功能。
 5. @warning + 函数使用注意要点。在函数使用时，描述需要注意的事项，如使用环境、使用方式等。每句话首字母大写，句尾加英文句号。
 
-## 3. 缩进
+## 缩进
 我们采用 K&R 缩进风格。
 
 ### 空格与括号
@@ -222,7 +222,7 @@ default:
 ```
 
 
-## 4. 宏与枚举
+## 宏与枚举
 定义常量的宏名称和枚举中的标签均使用大写字母，单词之间使用 "_" 连接。
 ```c
 #define CONSTANT 0x12345
@@ -253,7 +253,7 @@ typedef enum {
 } tuya_run_state_t;
 ```
 
-## 5. 格式化代码
+## 格式化代码
 TuyaOpen 支持 clang-format 格式化代码，请安装 clang-format 14 及以上版本，可手动格式化或自动格式化当前修改的代码。
 
 - 手工格式化:

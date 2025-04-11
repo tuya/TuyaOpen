@@ -1,4 +1,3 @@
-```markdown
 # I2S Driver
 
 ## Brief Description
@@ -194,4 +193,3 @@ OPERATE_RET tkl_i2s_deinit(TUYA_I2S_NUM_E i2s_num);
 
 - Return Value:
   - OPRT_OK for success, others please refer to the `OS_ADAPTER_I2S` section in the file `tuya_error_code.h`.
-```
