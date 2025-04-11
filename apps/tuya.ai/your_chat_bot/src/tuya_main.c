@@ -193,7 +193,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
     case TUYA_EVENT_RESET:
         PR_INFO("Device Reset:%d", event->value.asInteger);
-        tal_event_publish(EVENT_RESET, NULL);
 
         _need_reset = 1;
         break;
