@@ -16,6 +16,8 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "tuya_cloud_types.h"
 #include "tuya_config_defaults.h"
 #include "tuya_endpoint.h"
@@ -27,8 +29,6 @@
 #include "http_client_interface.h"
 #include "tuya_register_center.h"
 #include "mix_method.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 #define IOTDNS_REQUEST_FMT                                                                                             \
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
