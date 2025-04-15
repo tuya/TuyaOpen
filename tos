@@ -502,7 +502,7 @@ function new_platform_exec()
     ${OPEN_SDK_ROOT}/tools/kernel_porting.sh ${PLATFORM_NAME}
 }
 
-function flash_exec()
+function _download_tyutool()
 {
     DOWNLOAD_SCRIPT=${OPEN_SDK_ROOT}/tools/tyutool/download_tyutool.sh
     TYUTOOL_DIR="${OPEN_SDK_ROOT}/tools/tyutool"
@@ -512,10 +512,16 @@ function flash_exec()
         show "${fore[red]}" "Error: Download tyutool failed."
         exit 1
     fi
+}
+
+function flash_exec()
+{
+    _download_tyutool
     shift
     show "" "tyutool params: $*"
     if [ -n "$*" ]; then
-        ${TYUTOOL} $@
+        show "${fore[green]}" "${TYUTOOL} $*"
+        ${TYUTOOL} $*
         exit 0
     fi
 
@@ -528,6 +534,27 @@ function flash_exec()
     BIN_FILE=$PROJECT_ROOT/.build/bin/${CONFIG_PROJECT_NAME}_QIO_${CONFIG_PROJECT_VERSION}.bin
     show "${fore[green]}" "${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}"
     ${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}
+}
+
+function monitor_exec()
+{
+    _download_tyutool
+    shift
+    show "" "tyutool params: $*"
+    if [ -n "$*" ]; then
+        show "${fore[green]}" "${TYUTOOL} monitor $*"
+        ${TYUTOOL} monitor $*
+        exit 0
+    fi
+
+    check_ini
+    . $PROJECT_ROOT/.build/cache/using.config
+    DEVICE=$CONFIG_PLATFORM_CHOICE
+    if [ -n "$CONFIG_CHIP_CHOICE" ]; then
+        DEVICE=$CONFIG_CHIP_CHOICE
+    fi
+    show "${fore[green]}" "${TYUTOOL} monitor -d ${DEVICE}"
+    ${TYUTOOL} monitor -d ${DEVICE}
 }
 
 function update_exec()
@@ -567,6 +594,8 @@ Commands:
     check      - Check command and version
     new        - New project [base(default) / auduino]
     build      - Build project
+    flash      - Flash project
+    monitor    - Display serial log
     clean      - Clean project
     fullclean  - Clean project and delete build path
     menuconfig - Configuration project features
@@ -749,6 +778,9 @@ case $1 in
         ;;
     flash)
         flash_exec $@
+        ;;
+    monitor)
+        monitor_exec $@
         ;;
     update)
         update_exec

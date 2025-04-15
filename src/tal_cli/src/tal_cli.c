@@ -59,6 +59,7 @@ typedef enum {
     CLI_NULL_KEY = '\0',
     CLI_ESC_KEY = 0x1b,
     CLI_ENTER_KEY = '\r',
+    CLI_ENTER2_KEY = '\n',
     CLI_BACKSPACE_KEY = '\b',
     CLI_BACKSPACE2_KEY = '\177',
     CLI_TABLE_KEY = '\t',
@@ -375,7 +376,7 @@ static int cli_key_detect(TUYA_UART_NUM_E port_id, char *data, cli_key_t *key)
         switch (state) {
 
         case CHECK_KEY:
-            if (CLI_ENTER_KEY == ch || CLI_BACKSPACE_KEY == ch || CLI_BACKSPACE2_KEY == ch || CLI_TABLE_KEY == ch) {
+            if (CLI_ENTER_KEY == ch || CLI_ENTER2_KEY == ch || CLI_BACKSPACE_KEY == ch || CLI_BACKSPACE2_KEY == ch || CLI_TABLE_KEY == ch) {
                 *key = ch;
                 return OPRT_OK;
             } else if (CLI_ESC_KEY == ch) {
@@ -612,6 +613,7 @@ static void cli_key_app(cli_t *cli, cli_key_t key)
         break;
 
     case CLI_ENTER_KEY:
+    case CLI_ENTER2_KEY:
         cli_enter_key(cli);
         break;
 
@@ -710,6 +712,19 @@ static int cli_cmd_register(cli_cmd_t *cmd, uint8_t num)
 }
 
 /**
+ * @brief cli echo string
+ *
+ * @param[in] string context
+ *
+ * @return None
+ *
+ */
+void tal_cli_echo(char *string)
+{
+    cli_print_string(s_cli_handle, string);
+}
+
+/**
  * @brief Registers a command in the CLI command table.
  *
  * This function registers a command in the CLI command table.
@@ -766,7 +781,7 @@ int tal_cli_init_with_uart(uint8_t uart_num)
     THREAD_CFG_T param;
 
     param.priority = THREAD_PRIO_3;
-    param.stackDepth = 2048;
+    param.stackDepth = 3072;
     param.thrdname = "cli";
 
     result = tal_thread_create_and_start(&s_cli_handle->thread, NULL, NULL, cli_task, s_cli_handle, &param);
