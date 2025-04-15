@@ -1,6 +1,7 @@
 # Ktuyaconf
 menu "configure tuyaopen"
     rsource "tuya_cloud_service/Kconfig"
+    rsource "tuya_ai_basic/Kconfig"
     rsource "tuya_audio_service/Kconfig"
     rsource "libprotobuf-c/Kconfig"
     rsource "liblwip/Kconfig"
