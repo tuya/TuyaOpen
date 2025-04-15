@@ -182,14 +182,14 @@ int tuya_ble_adv_id_encrypt(uint8_t *key, uint8_t *in_buf, uint8_t in_len, uint8
     hex2str(aes_buf, in_buf, in_len);
     pkcslen = ble_add_pkcs(aes_buf, in_len * 2 + 1);
     if (pkcslen > bufsize * 2) {
-        tal_free(aes_buf);
+        tal_free((void *)aes_buf);
         return OPRT_COM_ERROR;
     }
     int rt = tal_aes128_ecb_encode_raw(aes_buf, pkcslen, &aes_buf[bufsize], aes_key);
     if (OPRT_OK == rt) {
         memcpy(out_buf, &aes_buf[bufsize], MAX_LENGTH_SECKEY);
     }
-    tal_free(aes_buf);
+    tal_free((void *)aes_buf);
 
     return rt;
 }

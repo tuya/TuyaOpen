@@ -66,7 +66,6 @@ static mbedtls_ctr_drbg_context ty_ctr_drbg;
 
 static void __tuya_tls_event_cb(tuya_tls_event_t event, void *p_args)
 {
-    OPERATE_RET rt = OPRT_OK;
     const char *p_url = (char *)p_args;
     if (NULL == p_url) {
         PR_ERR("url was NULL");
@@ -128,7 +127,7 @@ static int __tuya_tls_mutex_unlock(mbedtls_threading_mutex_t *mutex)
 /* -------------------------------------------------------------------------- */
 /*                                   Calloc                                   */
 /* -------------------------------------------------------------------------- */
-static void *__tuya_tls_calloc(size_t nmemb, size_t size)
+static __attribute__((unused)) void *__tuya_tls_calloc(size_t nmemb, size_t size)
 {
     size_t mem_size = nmemb * size;
     void *ptr = tal_malloc(mem_size);

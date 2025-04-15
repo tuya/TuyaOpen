@@ -15,7 +15,7 @@
  *
  */
 
- #include <stdio.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "speaker_encode.h"
@@ -29,16 +29,16 @@
 #include "tuya_cloud_types.h"
 
 #ifndef SYS_TIME
-#define SYS_TIME                    tal_time_get_posix
-#define SPEAKER_TIME_UP(start_tm, interval) ((SYS_TIME() > start_tm) && (SYS_TIME() - start_tm > interval))
-#define SYS_TIME_MS                 tal_time_get_posix_ms
+#define SYS_TIME                               tal_time_get_posix
+#define SPEAKER_TIME_UP(start_tm, interval)    ((SYS_TIME() > start_tm) && (SYS_TIME() - start_tm > interval))
+#define SYS_TIME_MS                            tal_time_get_posix_ms
 #define SPEAKER_TIME_MS_UP(start_tm, interval) ((SYS_TIME_MS() > start_tm) && (SYS_TIME_MS() - start_tm > interval))
 #endif
 
 #define tal_mutex_create_init(handle) tal_mutex_create_init(handle)
-#define tal_mutex_lock(handle) tal_mutex_lock(handle)
-#define tal_mutex_unlock(handle) tal_mutex_unlock(handle)
-#define tal_mutex_release(handle) tal_mutex_release(handle)
+#define tal_mutex_lock(handle)        tal_mutex_lock(handle)
+#define tal_mutex_unlock(handle)      tal_mutex_unlock(handle)
+#define tal_mutex_release(handle)     tal_mutex_release(handle)
 
 static MEDIA_UPLOAD_MGR_S upload_mgr = {0x0};
 
@@ -75,14 +75,14 @@ OPERATE_RET speaker_intf_upload_media_start(const char *session_id)
     MEDIA_UPLOAD_TASK_S *p_task = &upload_mgr.task;
 
     if (p_task->ctx && (upload_mgr.is_encoding || upload_mgr.is_uploading)) {
-        PR_WARN("context %p, encoding -> %s, uploading -> %s, force stop, will do restart",
-                p_task->ctx, upload_mgr.is_encoding ? "yes" : "no", upload_mgr.is_uploading ? "yes" : "no");
+        PR_WARN("context %p, encoding -> %s, uploading -> %s, force stop, will do restart", p_task->ctx,
+                upload_mgr.is_encoding ? "yes" : "no", upload_mgr.is_uploading ? "yes" : "no");
         speaker_intf_upload_media_stop(TRUE);
     }
 
     tal_mutex_lock(upload_mgr.mutex);
     memset(p_task, 0x0, sizeof(MEDIA_UPLOAD_TASK_S));
-    SPEAKER_ENCODE_INFO_S param = { 0 };
+    SPEAKER_ENCODE_INFO_S param = {0};
     param.encode_type = upload_mgr.config.params.encode_type,
     memcpy(&param.info, &upload_mgr.config.params.info, sizeof(param.info));
 
@@ -94,9 +94,9 @@ OPERATE_RET speaker_intf_upload_media_start(const char *session_id)
     upload_mgr.is_encoding = TRUE;
 
     ret = tuya_voice_upload_start(&p_task->ctx, param.encode_type, TUYA_VOICE_UPLOAD_TARGET_SPEECH, (char *)session_id,
-                                          p_task->encoder.p_start_data, p_task->encoder.start_data_len);
-    p_task->stat_manage.start_tm        = SYS_TIME();
-    p_task->stat_manage.last_upload_tm  = SYS_TIME();
+                                  p_task->encoder.p_start_data, p_task->encoder.start_data_len);
+    p_task->stat_manage.start_tm = SYS_TIME();
+    p_task->stat_manage.last_upload_tm = SYS_TIME();
     p_task->upload_stat = UPLOAD_TASK_START;
     if (OPRT_OK != ret) {
         PR_ERR("tuya_voice_upload_start error:%d", ret);
@@ -170,7 +170,7 @@ OPERATE_RET speaker_intf_upload_media_stop(BOOL_T is_force_stop)
         // p_task->upload_stat = (OPRT_GW_MQ_OFFLILNE == ret) ? UPLOAD_TASK_NET_ERR : UPLOAD_TASK_ERR;
     }
     p_task->ctx = NULL; ///< XXX: maybe do nothing!
-    upload_mgr.is_encoding  = FALSE;
+    upload_mgr.is_encoding = FALSE;
     upload_mgr.is_uploading = FALSE;
     tal_mutex_unlock(upload_mgr.mutex);
 
@@ -201,19 +201,20 @@ OPERATE_RET speaker_intf_upload_media_get_message_id(char *buffer, int len)
     return ret;
 }
 
-static void speaker_upload_check_task_stat(void)
-{    
+static void speaker_upload_check_task_stat(TIMER_ID timer_id, void *arg)
+{
     static TIME_T last_check_task_tm = 0;
     SPEAKER_UPLOAD_STAT_E stat = SPEAKER_UP_STAT_ERR;
-    
+
     if (SPEAKER_TIME_UP(last_check_task_tm, TY_UPLOAD_CHECK_TASK_INTR)) {
         last_check_task_tm = SYS_TIME();
-        //check upload task
+        // check upload task
         MEDIA_UPLOAD_TASK_S *p_upload = &upload_mgr.task;
 
-        if (!p_upload->stat_manage.net_alarm_flag && 
-            (UPLOAD_TASK_ERR == p_upload->upload_stat || UPLOAD_TASK_NET_ERR == p_upload->upload_stat || 
-             (UPLOAD_TASK_START == p_upload->upload_stat && SPEAKER_TIME_UP(p_upload->stat_manage.last_upload_tm, TY_UPLOAD_TASK_TIMEOUT)))) {
+        if (!p_upload->stat_manage.net_alarm_flag &&
+            (UPLOAD_TASK_ERR == p_upload->upload_stat || UPLOAD_TASK_NET_ERR == p_upload->upload_stat ||
+             (UPLOAD_TASK_START == p_upload->upload_stat &&
+              SPEAKER_TIME_UP(p_upload->stat_manage.last_upload_tm, TY_UPLOAD_TASK_TIMEOUT)))) {
             if (UPLOAD_TASK_NET_ERR == p_upload->upload_stat) {
                 stat = SPEAKER_UP_STAT_NET_ERR;
             }

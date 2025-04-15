@@ -494,7 +494,10 @@ int tal_fgetsize(const char *filepath)
  *
  * @return 0 success,-1 failed
  */
-int tal_faccess(const char *filepath, int mode) {}
+int tal_faccess(const char *filepath, int mode)
+{
+    return -1;
+}
 
 /**
  * @brief read the next character from stream

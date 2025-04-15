@@ -189,7 +189,7 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
 
     pMgr->thrdRunSta = THREAD_STATE_EMPTY;
     pMgr->pThrdFunc = func;
-    pMgr->pThrdFuncArg = func_args;
+    pMgr->pThrdFuncArg = (void *)func_args;
     pMgr->enter = enter;
     pMgr->exit = exit;
     strncpy(pMgr->thread_name, cfg->thrdname, TAL_THREAD_MAX_NAME_LEN - 1);

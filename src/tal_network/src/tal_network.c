@@ -111,10 +111,10 @@ const NETWORK_ERRNO_TRANS_S unw_errno_trans[] = {{EINTR, UNW_EINTR},
  */
 TUYA_ERRNO tal_net_get_errno(void)
 {
-    int i = 0;
     int sys_err;
 
 #if NET_USING_POSIX
+    int i = 0;
     sys_err = errno;
 
     for (i = 0; i < sizeof(unw_errno_trans) / sizeof(unw_errno_trans[0]); i++) {

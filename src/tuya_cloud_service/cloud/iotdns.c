@@ -27,6 +27,8 @@
 #include "http_client_interface.h"
 #include "tuya_register_center.h"
 #include "mix_method.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #define IOTDNS_REQUEST_FMT                                                                                             \
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
@@ -324,10 +326,8 @@ int tuya_iotdns_query_domain_certs(char *url, uint8_t **cacert, uint16_t *cacert
     char *p_search_head = p_tmp_url;
     char *p_tmp = strstr(p_search_head, "://");
 
-    char *p_schema = NULL;
     if (p_tmp != NULL) {
         *p_tmp = 0;
-        p_schema = p_search_head;
         p_search_head = p_tmp + strlen("://");
     }
     p_tmp = strstr(p_search_head, "/");

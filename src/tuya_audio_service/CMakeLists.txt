@@ -2,7 +2,7 @@
 # @file CMakeLists.txt
 # @brief 
 #/
-if(CONFIG_ENABLE_LIB_PROTOBUF_C STREQUAL "y")
+if(CONFIG_ENABLE_AUDIO_SERVICE STREQUAL "y")
 
 # MODULE_PATH
 

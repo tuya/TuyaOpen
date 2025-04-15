@@ -24,6 +24,7 @@
 #include "tal_api.h"
 #include "cJSON.h"
 #include "mix_method.h"
+#include <stdio.h>
 
 /**
  * Serializes the key-value pairs in the given database into a JSON-formatted

@@ -845,7 +845,7 @@ static void lan_tcp_client_sock_err(int fd)
     return;
 }
 
-static void lan_tcp_client_sock_read(int fd)
+static void lan_tcp_client_sock_read(int32_t fd)
 {
     int ret = 0;
     uint8_t *frame_buffer = NULL;
@@ -1000,7 +1000,7 @@ recv_again:
     return;
 }
 
-static void lan_tcp_serv_sock_read(int fd)
+static void lan_tcp_serv_sock_read(int32_t fd)
 {
     int ret = OPRT_OK;
     TUYA_IP_ADDR_T addr = 0;
@@ -1083,7 +1083,7 @@ BOOL_T __udp_serv_is_in_packet_vaild(uint8_t *frame_buffer, uint32_t recv_datale
     return true;
 }
 
-static void lan_udp_serv_sock_read(int fd)
+static void lan_udp_serv_sock_read(int32_t fd)
 {
     int op_ret = OPRT_OK;
     int recv_datalen = 0;

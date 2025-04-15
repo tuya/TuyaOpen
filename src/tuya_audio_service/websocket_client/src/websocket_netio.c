@@ -80,7 +80,7 @@ static int __websocket_recv_raw(WEBSOCKET_S *ws, uint8_t *buf, size_t size, int 
          * in frame recv stage
          */
 
-#define WEBSOCKET_SELECT_TIMEOUT    (1000 * 10) //ms
+#define WEBSOCKET_SELECT_TIMEOUT (1000 * 10) // ms
         while (1) {
             rt = websocket_netio_select_read(ws, WEBSOCKET_SELECT_TIMEOUT);
             if (rt < 0) {
@@ -93,9 +93,9 @@ static int __websocket_recv_raw(WEBSOCKET_S *ws, uint8_t *buf, size_t size, int 
             }
             break;
         }
-#define RETRY_TIMEOUT   (100) /** unit ms */
+#define RETRY_TIMEOUT (100) /** unit ms */
         int retry_times = 0;
-RECV_RETRY:
+    RECV_RETRY:
         rt = tal_net_recv(ws->sockfd, buf, size);
         if (rt < 0) {
             err_no = tal_net_get_errno();
@@ -104,10 +104,10 @@ RECV_RETRY:
                 tal_system_sleep(10);
 
                 /** NOTE: retry timeout */
-                retry_times ++;
+                retry_times++;
                 if (retry_times >= (RETRY_TIMEOUT / 10)) {
-                    PR_ERR("websocket %p tal_net_recv, fd: %d, rt:%d, err_no:%d, retry times %d",
-                           ws, ws->sockfd, rt, err_no, retry_times);
+                    PR_ERR("websocket %p tal_net_recv, fd: %d, rt:%d, err_no:%d, retry times %d", ws, ws->sockfd, rt,
+                           err_no, retry_times);
                     return OPRT_COM_ERROR;
                 }
 
@@ -122,15 +122,14 @@ RECV_RETRY:
     return OPRT_OK;
 }
 
-
-static int __websocket_tls_send_cb(void *ctx, uint8_t *buf, size_t len)
+static int __websocket_tls_send_cb(void *ctx, const uint8_t *buf, size_t len)
 {
     WEBSOCKET_S *ws = (WEBSOCKET_S *)ctx;
     WS_CHECK_NULL_RET_VAL(ws, -1);
 
     WS_DEBUG("websocket %p, TLS write", ws);
 
-    return __websocket_send_raw(ws->sockfd, buf, len);
+    return __websocket_send_raw(ws->sockfd, (uint8_t *)buf, len);
 }
 
 static int __websocket_tls_recv_cb(void *ctx, uint8_t *buf, size_t len)
@@ -152,12 +151,12 @@ static int __websocket_tls_recv_cb(void *ctx, uint8_t *buf, size_t len)
 
 /**
  * @brief Create and initialize a websocket network connection
- * 
+ *
  * This function creates a TCP socket and configures it with appropriate settings for websocket communication.
  * It sets up socket options including port reuse, disabling Nagle algorithm, blocking mode, and keepalive if specified.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK Success
  * @retval OPRT_SOCK_ERR Socket creation failed
@@ -190,9 +189,10 @@ OPERATE_RET websocket_netio_open(WEBSOCKET_S *ws)
         PR_ERR("websocket %p tuya_hal_net_set_block error, err_no: %d", ws, tal_net_get_errno());
         return OPRT_SET_SOCK_ERR;
     }
-    
+
     if (ws->handshake_recv_timeout) {
-        if (UNW_SUCCESS !=tal_net_set_keepalive(ws->sockfd,TRUE,ws->keep_alive_time+ws->handshake_recv_timeout,5,1)){
+        if (UNW_SUCCESS !=
+            tal_net_set_keepalive(ws->sockfd, TRUE, ws->keep_alive_time + ws->handshake_recv_timeout, 5, 1)) {
             PR_WARN("websocket %p tal_net_set_keepalive error, err_no: %d", ws, tal_net_get_errno());
         }
     }
@@ -200,16 +200,15 @@ OPERATE_RET websocket_netio_open(WEBSOCKET_S *ws)
     return OPRT_OK;
 }
 
-
 /**
  * @brief Establish a websocket network connection
- * 
+ *
  * This function establishes a network connection for the websocket. It first creates a TCP connection
  * to the specified host and port. If TLS is enabled, it will also establish a secure TLS connection
  * with the appropriate security configuration based on the TUYA_SECURITY_LEVEL.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure containing connection parameters
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK Connection established successfully
  * @retval OPRT_SOCK_CONN_ERR Connection failed (either TCP or TLS)
@@ -222,14 +221,16 @@ OPERATE_RET websocket_netio_conn(WEBSOCKET_S *ws)
     tal_net_set_timeout(ws->sockfd, 3000, TRANS_SEND);
     /** socket connect */
     if (tal_net_connect(ws->sockfd, ws->hostaddr, ws->port) < 0) {
-        PR_ERR("websocket %p tal_net_connect error, fd: %d, %d.%d.%d.%d:%d, err_no: %d", ws, ws->sockfd, (ws->hostaddr>>24)&0xff, (ws->hostaddr>>16)&0xff, (ws->hostaddr>>8)&0xff, ws->hostaddr&0xff, ws->port, tal_net_get_errno());
+        PR_ERR("websocket %p tal_net_connect error, fd: %d, %d.%d.%d.%d:%d, err_no: %d", ws, ws->sockfd,
+               (ws->hostaddr >> 24) & 0xff, (ws->hostaddr >> 16) & 0xff, (ws->hostaddr >> 8) & 0xff,
+               ws->hostaddr & 0xff, ws->port, tal_net_get_errno());
         return OPRT_SOCK_CONN_ERR;
     }
     WS_DEBUG("websocket %p raw connect success", ws);
 
     /** TLS connect */
     tuya_tls_config_t tls_config;
-    memset(&tls_config,0,sizeof(tls_config));
+    memset(&tls_config, 0, sizeof(tls_config));
     if (ws->tls_enable) {
 
         if (ws->tls_hander) {
@@ -240,41 +241,43 @@ OPERATE_RET websocket_netio_conn(WEBSOCKET_S *ws)
         ws->tls_hander = tuya_tls_connect_create();
         tls_config.f_recv = __websocket_tls_recv_cb;
         tls_config.f_send = __websocket_tls_send_cb;
-        tls_config.user_data =ws;
+        tls_config.user_data = ws;
 #if (TUYA_SECURITY_LEVEL == TUYA_SL_0)
-    const client_psk_info_t* tuya_psk = tuya_client_psk_get();
-    if (tuya_psk) {
-        tls_config.mode = TUYA_TLS_PSK_MODE;
-        tls_config.psk_id = tuya_psk->psk_id;
-        tls_config.psk_id_size = tuya_psk->psk_id_size;
-        tls_config.psk_key = tuya_psk->psk_key;
-        tls_config.psk_key_size = tuya_psk->psk_key_size;
-    } else {
-        tls_config.mode = TUYA_TLS_PSK_MODE;
-    }
+        const client_psk_info_t *tuya_psk = tuya_client_psk_get();
+        if (tuya_psk) {
+            tls_config.mode = TUYA_TLS_PSK_MODE;
+            tls_config.psk_id = tuya_psk->psk_id;
+            tls_config.psk_id_size = tuya_psk->psk_id_size;
+            tls_config.psk_key = tuya_psk->psk_key;
+            tls_config.psk_key_size = tuya_psk->psk_key_size;
+        } else {
+            tls_config.mode = TUYA_TLS_PSK_MODE;
+        }
 #elif (TUYA_SECURITY_LEVEL == TUYA_SL_1)
 
-    /* HTTPS cert */
-    tls_config.mode = TUYA_TLS_SERVER_CERT_MODE;
-    tls_config.verify = true;
-    TUYA_CALL_ERR_GOTO(tuya_iotdns_query_domain_certs(ws->uri, (uint8_t**)&tls_config.ca_cert, (uint16_t*)&tls_config.ca_cert_size), err_exit);
+        /* HTTPS cert */
+        tls_config.mode = TUYA_TLS_SERVER_CERT_MODE;
+        tls_config.verify = true;
+        TUYA_CALL_ERR_GOTO(tuya_iotdns_query_domain_certs(ws->uri, (uint8_t **)&tls_config.ca_cert,
+                                                          (uint16_t *)&tls_config.ca_cert_size),
+                           err_exit);
 
 #elif (TUYA_SECURITY_LEVEL == TUYA_SL_2)
-    const client_cert_info_t* cert = tuya_client_cert_get();
-    tls_config.mode = TUYA_TLS_MUTUAL_CERT_MODE;
-    tls_config.verify = true;
-    tls_config.client_cert = (char *)cert->cert;
-    tls_config.client_cert_size = cert->cert_len;
-    tls_config.client_pkey = (char *)cert->private_key;
-    tls_config.client_pkey_size = cert->private_key_len;
-    tls_config.exception_cb = tuya_cert_get_tls_event_cb();
+        const client_cert_info_t *cert = tuya_client_cert_get();
+        tls_config.mode = TUYA_TLS_MUTUAL_CERT_MODE;
+        tls_config.verify = true;
+        tls_config.client_cert = (char *)cert->cert;
+        tls_config.client_cert_size = cert->cert_len;
+        tls_config.client_pkey = (char *)cert->private_key;
+        tls_config.client_pkey_size = cert->private_key_len;
+        tls_config.exception_cb = tuya_cert_get_tls_event_cb();
 #endif
-        tuya_tls_config_set(ws->tls_hander,&tls_config);
-        WS_DEBUG("tls_config.mode=%d",tuya_tls_config_get(ws->tls_hander)->mode);
+        tuya_tls_config_set(ws->tls_hander, &tls_config);
+        WS_DEBUG("tls_config.mode=%d", tuya_tls_config_get(ws->tls_hander)->mode);
         rt = tuya_tls_connect(ws->tls_hander, ws->host, ws->port, ws->sockfd, ws->handshake_conn_timeout);
         if (OPRT_OK != rt || NULL == ws->tls_hander) {
-            PR_ERR("websocket %p tuya_tls_connect %p error, fd: %d, rt:%d, err_no:%d",
-                   ws, ws->tls_hander, ws->sockfd, rt, tal_net_get_errno());
+            PR_ERR("websocket %p tuya_tls_connect %p error, fd: %d, rt:%d, err_no:%d", ws, ws->tls_hander, ws->sockfd,
+                   rt, tal_net_get_errno());
             rt = OPRT_SOCK_CONN_ERR;
             goto err_exit;
         }
@@ -291,16 +294,15 @@ err_exit:
     return rt;
 }
 
-
 /**
  * @brief Monitor websocket socket for read events
- * 
+ *
  * This function uses select() to monitor the websocket socket for read events.
  * It waits for data to be available for reading within the specified timeout period.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[in] timeout_ms Timeout value in milliseconds
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK Select operation successful
  * @retval OPRT_SOCK_ERR Invalid socket
@@ -322,14 +324,14 @@ OPERATE_RET websocket_netio_select_read(WEBSOCKET_S *ws, uint32_t timeout_ms)
 
 /**
  * @brief Send data through websocket connection
- * 
+ *
  * This function sends data through the websocket connection. If TLS is enabled,
  * it will use TLS write operation; otherwise, it will use raw socket send.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[in] buf Buffer containing data to send
  * @param[in] len Length of data to send
- * 
+ *
  * @return OPERATE_RET
  * @retval >0 Number of bytes sent
  * @retval <=0 Send operation failed
@@ -353,14 +355,14 @@ OPERATE_RET websocket_netio_send(WEBSOCKET_S *ws, uint8_t *buf, size_t len)
 
 /**
  * @brief Extended send function to ensure complete data transmission
- * 
+ *
  * This function ensures that all data is sent by repeatedly calling websocket_netio_send
  * until all bytes are transmitted or an error occurs.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[in] data Buffer containing data to send
  * @param[in] len Length of data to send
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK All data sent successfully
  * @retval OPRT_SEND_ERR Send operation failed
@@ -376,8 +378,7 @@ OPERATE_RET websocket_netio_send_ext(WEBSOCKET_S *ws, void *data, size_t len)
     while (sended_len != len) {
         rt = websocket_netio_send(ws, buffer + sended_len, len - sended_len);
         if (rt <= 0) {
-            PR_ERR("websocket %p websocket_netio_send failed, rt:%d, err_no:%d",
-                   ws, rt, tal_net_get_errno());
+            PR_ERR("websocket %p websocket_netio_send failed, rt:%d, err_no:%d", ws, rt, tal_net_get_errno());
             return OPRT_SEND_ERR;
         }
         sended_len = sended_len + rt;
@@ -388,14 +389,14 @@ OPERATE_RET websocket_netio_send_ext(WEBSOCKET_S *ws, void *data, size_t len)
 
 /**
  * @brief Thread-safe send function with mutex protection
- * 
+ *
  * This function provides a thread-safe way to send data by using mutex locking.
  * It also checks connection status before sending data.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[in] data Buffer containing data to send
  * @param[in] len Length of data to send
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK Send operation successful
  * @retval OPRT_SOCK_CONN_ERR Connection lost
@@ -421,15 +422,15 @@ OPERATE_RET websocket_netio_send_lock(WEBSOCKET_S *ws, void *data, size_t len)
 
 /**
  * @brief Receive data from websocket connection
- * 
+ *
  * This function receives data from the websocket connection. If TLS is enabled,
  * it will use TLS read operation; otherwise, it will use raw socket receive.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[out] buf Buffer to store received data
  * @param[in] size Size of the buffer
  * @param[out] recv_len Pointer to store the number of bytes received
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK Receive operation successful
  * @retval OPRT_COM_ERROR TLS read error
@@ -464,14 +465,14 @@ OPERATE_RET websocket_netio_recv(WEBSOCKET_S *ws, uint8_t *buf, size_t size, siz
 
 /**
  * @brief Extended receive function to ensure complete data reception
- * 
+ *
  * This function ensures that the specified amount of data is received by repeatedly
  * calling websocket_netio_recv until all bytes are received or an error occurs.
- * 
+ *
  * @param[in] ws Pointer to the websocket structure
  * @param[out] buf Buffer to store received data
  * @param[in] len Expected length of data to receive
- * 
+ *
  * @return OPERATE_RET
  * @retval OPRT_OK All data received successfully
  * @retval OPRT_RECV_ERR Receive operation failed
@@ -484,8 +485,7 @@ OPERATE_RET websocket_netio_recv_ext(WEBSOCKET_S *ws, uint8_t *buf, size_t len)
     WS_CHECK_NULL_RET(buf);
 
     while (total_recv_len != len) {
-        rt = websocket_netio_recv(ws, buf + total_recv_len,
-                                  len - total_recv_len, &once_recv_len);
+        rt = websocket_netio_recv(ws, buf + total_recv_len, len - total_recv_len, &once_recv_len);
         if (OPRT_OK != rt) {
             PR_ERR("websocket %p websocket_netio_recv error, rt:%d", ws, rt);
             return OPRT_RECV_ERR;
@@ -523,7 +523,7 @@ OPERATE_RET websocket_netio_close(WEBSOCKET_S *ws)
     WS_CHECK_NULL_RET(ws);
 
     if (ws->sockfd > 0) {
-#if defined(SHUTDOWN_MODE) && (SHUTDOWN_MODE==1)
+#if defined(SHUTDOWN_MODE) && (SHUTDOWN_MODE == 1)
         PR_WARN("websocket %p fd %d shutdown", ws, ws->sockfd);
         tuya_hal_net_shutdown(ws->sockfd, UNW_SHUT_RDWR);
 #endif
@@ -534,4 +534,3 @@ OPERATE_RET websocket_netio_close(WEBSOCKET_S *ws)
 
     return OPRT_OK;
 }
-

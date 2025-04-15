@@ -183,7 +183,8 @@ dp_node_t *dp_node_find_by_devid(char *devid, int id)
     return dpnode;
 }
 
-static OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num, dp_cmd_type_t cmd_tp)
+static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num,
+                                                             dp_cmd_type_t cmd_tp)
 {
     if (NULL == schema || 0 == num) {
         PR_ERR("para err");
