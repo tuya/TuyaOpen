@@ -2,3 +2,16 @@ config CHIP_CHOICE
     string
     default "esp32"
 
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 53
+    default 1
+    ---help---
+        esp32    default 1
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 53
+    default 3
+    ---help---
+        esp32    default 3
