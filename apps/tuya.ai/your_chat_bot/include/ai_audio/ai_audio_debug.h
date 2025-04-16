@@ -1,5 +1,5 @@
 /**
- * @file tuya_audio_debug.h
+ * @file ai_audio_debug.h
  * @brief Implements audio debugging functionality for network communication
  *
  * This source file provides the implementation of audio debugging functionalities
@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef __TUYA_AUDIO_DEBUG_H__
-#define __TUYA_AUDIO_DEBUG_H__
+#ifndef __AI_AUDIO_DEBUG_H__
+#define __AI_AUDIO_DEBUG_H__
 
 #include "tuya_cloud_types.h"
 
@@ -22,12 +22,12 @@
 extern "C" {
 #endif
 
-#define TUYA_AUDIO_DEBUG 0
+#define AI_AUDIO_DEBUG 0
 
 typedef struct {
     uint8_t *buf;
     uint32_t len;
-} TY_AI_AUDIO_FRAME_T;
+} AI_AUDIO_DEBUG_FRAME_T;
 
 typedef enum {
     DEBUG_UPLOAD_STREAM_TYPE_RAW = 0,
@@ -38,37 +38,37 @@ typedef enum {
 } DEBUG_UPLOAD_STREAM_TYPE;
 
 /**
- * @brief Initialize the audio debug module.
- *
- * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ * @brief Initializes the audio debug module.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK if initialization is successful, otherwise an error code.
  */
-OPERATE_RET tuya_audio_debug_init(void);
+OPERATE_RET ai_audio_debug_init(void);
 
 /**
- * @brief Callback function to start audio debugging.
- *
- * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ * @brief Starts audio debugging by establishing TCP connections.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK if the connections are successfully established, otherwise an error code.
  */
-OPERATE_RET tuya_audio_debug_start_cb(void);
+
+OPERATE_RET ai_audio_debug_start(void);
 
 /**
- * @brief Callback function to handle data for audio debugging.
- *
- * @param buf Pointer to the data buffer.
- * @param len The length of the data buffer.
+ * @brief Handles and uploads audio data for debugging.
+ * @param buf Pointer to the data buffer containing audio data.
+ * @param len The length of the data buffer in bytes.
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-OPERATE_RET tuya_audio_debug_data_cb(char *buf, uint32_t len);
+OPERATE_RET ai_audio_debug_data(char *buf, uint32_t len);
 
 /**
- * @brief Callback function to stop audio debugging.
- *
+ * @brief Stops audio debugging by closing all TCP connections.
+ * @param None
  * @return OPERATE_RET - OPRT_OK on success.
  */
-OPERATE_RET tuya_audio_debug_stop_cb(void);
+OPERATE_RET ai_audio_debug_stop(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TUYA_AUDIO_DEBUG_H__ */
+#endif /* __AI_AUDIO_DEBUG_H__ */

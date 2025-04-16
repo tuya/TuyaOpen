@@ -25,7 +25,7 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET app_audio_button_init(TUYA_GPIO_NUM_E pin, TUYA_GPIO_LEVEL_E active_level);
+OPERATE_RET app_button_init(TUYA_GPIO_NUM_E pin, TUYA_GPIO_LEVEL_E active_level);
 
 #ifdef __cplusplus
 }

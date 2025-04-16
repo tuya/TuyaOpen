@@ -16,13 +16,13 @@
 #include <stdio.h>
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
-#include "tuya_audio_debug.h"
+#include "ai_audio_debug.h"
 
-#if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
+#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
 
 #define TUYA_AUDIO_DEBUG_MAX_CONNECTIONS 1
 
-#define TCP_SERVER_IP   "192.168.1.238"
+#define TCP_SERVER_IP   "192.168.28.244"
 #define TCP_SERVER_PORT 5055
 
 static TUYA_IP_ADDR_T server_ip;
@@ -40,7 +40,7 @@ static MUTEX_HANDLE s_ringbuf_mutex;
  * @param len The length of the data to write in bytes.
  * @return int - The number of bytes written on success, or OPRT_COM_ERROR on failure.
  */
-static int tuya_audio_debug_stream_write(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
+static int __ai_audio_debug_stream_write(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
 {
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
         return len;
@@ -68,7 +68,7 @@ static int tuya_audio_debug_stream_write(DEBUG_UPLOAD_STREAM_TYPE type, char *bu
  * @param len The maximum number of bytes to read.
  * @return int - The number of bytes read on success, or OPRT_COM_ERROR on failure.
  */
-static int tuya_audio_debug_stream_read(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
+static int __ai_audio_debug_stream_read(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
 {
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
         return len;
@@ -96,7 +96,7 @@ static int tuya_audio_debug_stream_read(DEBUG_UPLOAD_STREAM_TYPE type, char *buf
  * @param len The maximum number of bytes to peek.
  * @return int - The number of bytes peeked on success, or OPRT_COM_ERROR on failure.
  */
-static int tuya_audio_debug_stream_peek(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
+static int __ai_audio_debug_stream_peek(DEBUG_UPLOAD_STREAM_TYPE type, char *buf, uint32_t len)
 {
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
         return len;
@@ -122,7 +122,7 @@ static int tuya_audio_debug_stream_peek(DEBUG_UPLOAD_STREAM_TYPE type, char *buf
  * @param type The type of the debug stream to clear.
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-static OPERATE_RET tuya_audio_debug_stream_clear(DEBUG_UPLOAD_STREAM_TYPE type)
+static OPERATE_RET __ai_audio_debug_stream_clear(DEBUG_UPLOAD_STREAM_TYPE type)
 {
     OPERATE_RET ret;
     TUYA_RINGBUFF_T audio_ringbuf = audio_ringbufs[type];
@@ -138,7 +138,7 @@ static OPERATE_RET tuya_audio_debug_stream_clear(DEBUG_UPLOAD_STREAM_TYPE type)
  * @param type The type of the debug stream.
  * @return int - The size of the stream in bytes.
  */
-static int tuya_audio_debug_stream_get_size(DEBUG_UPLOAD_STREAM_TYPE type)
+static int __ai_audio_debug_stream_get_size(DEBUG_UPLOAD_STREAM_TYPE type)
 {
     int size = 0;
     TUYA_RINGBUFF_T audio_ringbuf = audio_ringbufs[type];
@@ -187,7 +187,7 @@ static OPERATE_RET _tcp_connect_by_port(int *fd, const char *ip_addr, uint16_t p
  *
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-static OPERATE_RET tuya_audio_debug_tcp_connect(void)
+static OPERATE_RET __ai_audio_debug_tcp_connect(void)
 {
     OPERATE_RET rt = OPRT_OK;
     int sock_fd = -1;
@@ -212,7 +212,7 @@ static OPERATE_RET tuya_audio_debug_tcp_connect(void)
  * @param len The length of the data to send in bytes.
  * @return int - The number of bytes sent on success, or -1 on failure.
  */
-static int tuya_audio_debug_tcp_send(int type, char *data, int len)
+static int __ai_audio_debug_tcp_send(int type, char *data, int len)
 {
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
         return -1;
@@ -233,7 +233,7 @@ static int tuya_audio_debug_tcp_send(int type, char *data, int len)
  *
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-static OPERATE_RET tuya_audio_debug_tcp_close_all(void)
+static OPERATE_RET __ai_audio_debug_tcp_close_all(void)
 {
     OPERATE_RET rt = OPRT_OK;
     int i = 0;
@@ -252,7 +252,7 @@ static OPERATE_RET tuya_audio_debug_tcp_close_all(void)
  * @param type The type of the debug stream.
  * @return OPERATE_RET - OPRT_OK on success, or OPRT_OK if the connection was already closed.
  */
-static OPERATE_RET tuya_audio_debug_tcp_close(int type)
+static OPERATE_RET __ai_audio_debug_tcp_close(int type)
 {
     OPERATE_RET rt = OPRT_OK;
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
@@ -263,11 +263,11 @@ static OPERATE_RET tuya_audio_debug_tcp_close(int type)
 }
 
 /**
- * @brief Initialize the audio debug module.
- *
- * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ * @brief Initializes the audio debug module.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK if initialization is successful, otherwise an error code.
  */
-OPERATE_RET tuya_audio_debug_init(void)
+OPERATE_RET ai_audio_debug_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&s_ringbuf_mutex));
@@ -288,11 +288,11 @@ OPERATE_RET tuya_audio_debug_init(void)
 }
 
 /**
- * @brief Callback function to start audio debugging.
- *
- * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ * @brief Starts audio debugging by establishing TCP connections.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK if the connections are successfully established, otherwise an error code.
  */
-OPERATE_RET tuya_audio_debug_start_cb(void)
+OPERATE_RET ai_audio_debug_start(void)
 {
     OPERATE_RET rt = OPRT_OK;
     int i = 0;
@@ -318,29 +318,28 @@ OPERATE_RET tuya_audio_debug_start_cb(void)
 }
 
 /**
- * @brief Callback function to handle data for audio debugging.
- *
- * @param buf Pointer to the data buffer.
- * @param len The length of the data buffer.
+ * @brief Handles and uploads audio data for debugging.
+ * @param buf Pointer to the data buffer containing audio data.
+ * @param len The length of the data buffer in bytes.
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-OPERATE_RET tuya_audio_debug_data_cb(char *buf, uint32_t len)
+OPERATE_RET ai_audio_debug_data(char *buf, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
     int i = 0;
 
     // upload buf to the first tcp connection
-    rt = tuya_audio_debug_tcp_send(DEBUG_UPLOAD_STREAM_TYPE_RAW, buf, len);
+    rt = __ai_audio_debug_tcp_send(DEBUG_UPLOAD_STREAM_TYPE_RAW, buf, len);
 
     for (i = DEBUG_UPLOAD_STREAM_TYPE_MIC; i < TUYA_AUDIO_DEBUG_MAX_CONNECTIONS; i++) {
         if (sock_fds[i] >= 0) {
             // read from ringbuf
-            int read_size = tuya_audio_debug_stream_read(i, audio_buf, len);
+            int read_size = __ai_audio_debug_stream_read(i, audio_buf, len);
             if (read_size <= 0) {
                 PR_ERR("tuya_audio_debug_stream_read failed, ret=%d", read_size);
                 return OPRT_COM_ERROR;
             }
-            rt = tuya_audio_debug_tcp_send(i, audio_buf, read_size);
+            rt = __ai_audio_debug_tcp_send(i, audio_buf, read_size);
             if (rt < 0) {
                 PR_ERR("send fail, exit");
                 return rt;
@@ -352,14 +351,14 @@ OPERATE_RET tuya_audio_debug_data_cb(char *buf, uint32_t len)
 }
 
 /**
- * @brief Callback function to stop audio debugging.
- *
+ * @brief Stops audio debugging by closing all TCP connections.
+ * @param None
  * @return OPERATE_RET - OPRT_OK on success.
  */
-OPERATE_RET tuya_audio_debug_stop_cb(void)
+OPERATE_RET ai_audio_debug_stop(void)
 {
     // close all tcp connections
-    tuya_audio_debug_tcp_close_all();
+    __ai_audio_debug_tcp_close_all();
     return OPRT_OK;
 }
 

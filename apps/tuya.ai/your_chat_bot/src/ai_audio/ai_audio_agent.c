@@ -1,29 +1,29 @@
 /**
- * @file app_ai.c
- * @brief app_ai module is used to
- * @version 0.1
- * @date 2025-03-26
+ * @file app_ai_service.c
+ * @brief Provides functions for initializing, starting, uploading, and stopping AI services.
+ *
+ * This file contains the implementation of functions that manage the AI service module,
+ * including initialization, starting the upload process, uploading audio data, and stopping
+ * the upload process. It handles AI sessions, event subscriptions, and data transmission
+ * to the AI server.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
-
-#include "app_ai.h"
-
-#if (ENABLE_TUYA_AI_V2_0 == 1)
-
-#include "app_player.h"
-#include "app_chat_bot.h"
-#include "tuya_audio_debug.h"
+#include "tkl_memory.h"
+#include "tal_api.h"
 
 #include "tuya_ai_biz.h"
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_event.h"
 
-#include "tal_api.h"
-
+#include "ai_audio_debug.h"
+#include "ai_audio_agent.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define APP_AI_NLG_TEXT_MAX_LEN (4 * 1024)
+#define AI_AGENT_NLG_TEXT_MAX_LEN (4 * 1024)
 
 #define TY_BIZCODE_AI_CHAT     0x00010001 // 聊天场景可支持打断
 #define TY_AI_CHAT_ID_DS_CNT   4
@@ -43,11 +43,11 @@ typedef struct {
     char session_id[AI_UUID_V4_LEN];
     char event_id[AI_UUID_V4_LEN];
     char stream_event_id[AI_UUID_V4_LEN];
-    APP_AI_MSG_CB msg_cb;
+    AI_AGENT_MSG_CB msg_cb;
 
     char *nlg_text;
     uint32_t nlg_text_offset;
-} APP_AI_SESSION_T;
+} AI_AGENT_SESSION_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -56,16 +56,13 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static APP_AI_SESSION_T sg_ai = {0};
+static AI_AGENT_SESSION_T sg_ai = {0};
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
-static OPERATE_RET __app_ai_chat_audio_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data,
-                                            void *usr_data)
+static OPERATE_RET __ai_agent_audio_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data)
 {
-    OPERATE_RET rt = OPRT_OK;
 
     if (!head || !attr || !data) {
         PR_ERR("invalid param");
@@ -81,26 +78,26 @@ static OPERATE_RET __app_ai_chat_audio_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEA
 
     switch (head->stream_flag) {
     case AI_STREAM_START: {
-        APP_AI_MSG_T ai_msg = {
-            .type = APP_AI_MSG_TYPE_AUDIO_START,
+        AI_AGENT_MSG_T ai_msg = {
+            .type = AI_AGENT_MSG_TP_AUDIO_START,
             .data_len = len,
-            .data = data,
+            .data = (uint8_t *)data,
         };
         sg_ai.msg_cb(&ai_msg);
     } break;
     case AI_STREAM_ING: {
-        APP_AI_MSG_T ai_msg = {
-            .type = APP_AI_MSG_TYPE_AUDIO_DATA,
+        AI_AGENT_MSG_T ai_msg = {
+            .type = AI_AGENT_MSG_TP_AUDIO_DATA,
             .data_len = len,
-            .data = data,
+            .data = (uint8_t *)data,
         };
         sg_ai.msg_cb(&ai_msg);
     } break;
     case AI_STREAM_END: {
-        APP_AI_MSG_T ai_msg = {
-            .type = APP_AI_MSG_TYPE_AUDIO_STOP,
+        AI_AGENT_MSG_T ai_msg = {
+            .type = AI_AGENT_MSG_TP_AUDIO_STOP,
             .data_len = len,
-            .data = data,
+            .data = (uint8_t *)data,
         };
         sg_ai.msg_cb(&ai_msg);
     } break;
@@ -112,8 +109,7 @@ static OPERATE_RET __app_ai_chat_audio_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEA
     return OPRT_OK;
 }
 
-static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data,
-                                          void *usr_data)
+static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data)
 {
     cJSON *json, *node;
 
@@ -138,15 +134,15 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
         const char *text = cJSON_GetStringValue(node);
         PR_DEBUG("ASR text: %s", text);
 
-        APP_AI_MSG_T ai_msg = {0};
-        ai_msg.type = APP_AI_MSG_TYPE_TEXT_ASR;
+        AI_AGENT_MSG_T ai_msg = {0};
+        ai_msg.type = AI_AGENT_MSG_TP_TEXT_ASR;
 
         if (text == NULL || text[0] == '\0') {
             PR_DEBUG("ASR empty");
             ai_msg.data = NULL;
             ai_msg.data_len = 0;
         } else {
-            ai_msg.data = text;
+            ai_msg.data = (uint8_t *)text;
             ai_msg.data_len = strlen(text);
         }
         sg_ai.msg_cb(&ai_msg);
@@ -157,18 +153,18 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
         // PR_DEBUG("NLG eof: %d, content: %s", eof, content);
 
         if (NULL == sg_ai.nlg_text) {
-            sg_ai.nlg_text = tkl_system_psram_malloc(APP_AI_NLG_TEXT_MAX_LEN);
+            sg_ai.nlg_text = (char *)tkl_system_psram_malloc(AI_AGENT_NLG_TEXT_MAX_LEN);
             if (NULL == sg_ai.nlg_text) {
                 PR_ERR("malloc nlg text failed");
             } else {
-                memset(sg_ai.nlg_text, 0, APP_AI_NLG_TEXT_MAX_LEN);
+                memset(sg_ai.nlg_text, 0, AI_AGENT_NLG_TEXT_MAX_LEN);
                 sg_ai.nlg_text_offset = 0;
             }
         }
 
         if (NULL != sg_ai.nlg_text && content != NULL) {
             uint32_t len = strlen(content);
-            if (sg_ai.nlg_text_offset + len < APP_AI_NLG_TEXT_MAX_LEN - 1) { // -1 for '\0'
+            if (sg_ai.nlg_text_offset + len < AI_AGENT_NLG_TEXT_MAX_LEN - 1) { // -1 for '\0'
                 memcpy(sg_ai.nlg_text + sg_ai.nlg_text_offset, content, len);
                 sg_ai.nlg_text_offset += len;
             } else {
@@ -180,10 +176,10 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
             if (sg_ai.nlg_text != NULL && sg_ai.nlg_text_offset > 0) {
                 PR_DEBUG("NLG text: %s", sg_ai.nlg_text);
 
-                APP_AI_MSG_T ai_msg = {
-                    .type = APP_AI_MSG_TYPE_TEXT_NLG,
+                AI_AGENT_MSG_T ai_msg = {
+                    .type = AI_AGENT_MSG_TP_TEXT_NLG,
                     .data_len = sg_ai.nlg_text_offset,
-                    .data = sg_ai.nlg_text,
+                    .data = (uint8_t *)sg_ai.nlg_text,
                 };
                 sg_ai.msg_cb(&ai_msg);
 
@@ -197,7 +193,7 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
         // {"bizId":"xxx","bizType":"SKILL","eof":1,"data":{"code":"emo","skillContent":{"emotion":["NEUTRAL"],"text":["😐"]}}}
         node = cJSON_GetObjectItem(json, "data");
         cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
-        cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
+        // cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
         cJSON *emo_text = cJSON_GetObjectItem(skillContent, "text");
         emo_text = cJSON_GetArrayItem(emo_text, 0);
         if (NULL == emo_text) {
@@ -206,10 +202,10 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
             PR_DEBUG("emo text: %s", emo_text->valuestring);
         }
 
-        APP_AI_MSG_T ai_msg = {
-            .type = APP_AI_MSG_TYPE_EMOTION,
+        AI_AGENT_MSG_T ai_msg = {
+            .type = AI_AGENT_MSG_TP_EMOTION,
             .data_len = strlen(emo_text->valuestring),
-            .data = emo_text->valuestring,
+            .data = (uint8_t *)emo_text->valuestring,
         };
         sg_ai.msg_cb(&ai_msg);
     }
@@ -218,8 +214,8 @@ static OPERATE_RET __app_ai_chat_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
     return OPRT_OK;
 }
 
-static OPERATE_RET __app_ai_chat_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID session_id, AI_EVENT_ID event_id,
-                                            uint8_t *attr, uint32_t attr_len)
+static OPERATE_RET __ai_agent_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID session_id, AI_EVENT_ID event_id,
+                                         uint8_t *attr, uint32_t attr_len)
 {
     PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s, attr: %s", type, session_id, event_id, attr);
 
@@ -239,7 +235,7 @@ static OPERATE_RET __app_ai_chat_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID se
     return OPRT_OK;
 }
 
-static OPERATE_RET __app_ai_chat_session_create(void)
+static OPERATE_RET __ai_agent_session_create(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -265,12 +261,12 @@ static OPERATE_RET __app_ai_chat_session_create(void)
     cfg.send[3].free_cb = NULL;
     cfg.recv_num = TY_AI_CHAT_ID_US_CNT;
     cfg.recv[1].id = TY_AI_CHAT_ID_US_AUDIO;
-    cfg.recv[1].cb = __app_ai_chat_audio_recv;
+    cfg.recv[1].cb = __ai_agent_audio_recv;
     cfg.recv[1].usr_data = NULL;
     cfg.recv[0].id = TY_AI_CHAT_ID_US_TEXT;
-    cfg.recv[0].cb = __app_ai_chat_txt_recv;
+    cfg.recv[0].cb = __ai_agent_txt_recv;
     cfg.recv[0].usr_data = NULL;
-    cfg.event_cb = __app_ai_chat_event_recv;
+    cfg.event_cb = __ai_agent_event_recv;
 
     // 支持的tts格式
     char attr_tts_order[128] = {0};
@@ -292,7 +288,7 @@ static OPERATE_RET __app_ai_chat_session_create(void)
                               }};
     uint8_t *out = NULL;
     uint32_t out_len = 0;
-    tuya_pack_user_attrs(&attr, CNTSOF(attr), &out, &out_len);
+    tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
 
     memset(sg_ai.session_id, 0, AI_UUID_V4_LEN);
     rt = tuya_ai_biz_crt_session(TY_BIZCODE_AI_CHAT, &cfg, out, out_len, sg_ai.session_id);
@@ -305,23 +301,21 @@ static OPERATE_RET __app_ai_chat_session_create(void)
     return OPRT_OK;
 }
 
-static int __app_ai_session_new(void *data)
+static int __ai_agent_session_new(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
 
     PR_DEBUG("ai session is ready...");
 
-    TUYA_CALL_ERR_RETURN(__app_ai_chat_session_create());
+    TUYA_CALL_ERR_RETURN(__ai_agent_session_create());
 
     sg_ai.is_online = TRUE;
 
     return OPRT_OK;
 }
 
-static int __app_ai_session_close(void *data)
+static int __ai_agent_session_close(void *data)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     PR_DEBUG("ai session close...session id = %s", sg_ai.session_id);
 
     sg_ai.is_online = FALSE;
@@ -329,33 +323,60 @@ static int __app_ai_session_close(void *data)
     return OPRT_OK;
 }
 
-static OPERATE_RET __app_ai_init(void *data)
+static OPERATE_RET __ai_agent_init(void *data)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     PR_DEBUG("%s...", __func__);
 
-#if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
-    tuya_audio_debug_init();
+#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
+    ai_audio_debug_init();
 #endif
 
-    tal_event_subscribe(EVENT_AI_SESSION_NEW, "ai_session_new", __app_ai_session_new, SUBSCRIBE_TYPE_NORMAL);
-    tal_event_subscribe(EVENT_AI_SESSION_CLOSE, "ai_session_close", __app_ai_session_close, SUBSCRIBE_TYPE_NORMAL);
+    tal_event_subscribe(EVENT_AI_SESSION_NEW, "ai_session_new", __ai_agent_session_new, SUBSCRIBE_TYPE_NORMAL);
+    tal_event_subscribe(EVENT_AI_SESSION_CLOSE, "ai_session_close", __ai_agent_session_close, SUBSCRIBE_TYPE_NORMAL);
 
     return tuya_ai_client_init();
 }
 
-OPERATE_RET app_ai_upload_start(uint8_t int_enable)
+/**
+ * @brief Initializes the AI service module.
+ * @param msg_cb Callback function for handling AI messages.
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_init(AI_AGENT_MSG_CB msg_cb)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    memset(&sg_ai, 0, sizeof(AI_AGENT_SESSION_T));
+
+    if (NULL == msg_cb) {
+        PR_ERR("msg_cb is NULL");
+        return OPRT_INVALID_PARM;
+    }
+    sg_ai.msg_cb = msg_cb;
+
+    PR_DEBUG("ai session wait for mqtt connected...");
+
+    tal_event_subscribe(EVENT_MQTT_CONNECTED, "ai_agent_init", __ai_agent_init, SUBSCRIBE_TYPE_ONETIME);
+
+    return rt;
+}
+
+/**
+ * @brief Starts the AI upload process.
+ * @param int_enable_interrupt Flag to enable interrupt processing.
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_start(uint8_t int_enable_interrupt)
 {
     OPERATE_RET rt = OPRT_OK;
 
     if (FALSE == sg_ai.is_online) {
-        PR_ERR("ai is online, can't start again");
+        PR_ERR("ai is not online");
         return OPRT_COM_ERROR;
     }
 
-#if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
-    tuya_audio_debug_start_cb();
+#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
+    ai_audio_debug_start();
 #endif
 
     PR_DEBUG("tuya ai upload start...");
@@ -364,7 +385,7 @@ OPERATE_RET app_ai_upload_start(uint8_t int_enable)
     memset(sg_ai.event_id, 0, AI_UUID_V4_LEN);
 
     char attr_asr_enable_vad[64] = {0};
-    if (int_enable) {
+    if (int_enable_interrupt) {
         snprintf(attr_asr_enable_vad, sizeof(attr_asr_enable_vad),
                  "{\"asr.enableVad\":true,\"processing.interrupt\":true}");
     } else {
@@ -379,7 +400,7 @@ OPERATE_RET app_ai_upload_start(uint8_t int_enable)
     }};
     uint8_t *out = NULL;
     uint32_t out_len = 0;
-    tuya_pack_user_attrs(&attr, CNTSOF(attr), &out, &out_len);
+    tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
     rt = tuya_ai_event_start(sg_ai.session_id, sg_ai.event_id, out, out_len);
     tal_free(out);
     if (rt) {
@@ -390,8 +411,14 @@ OPERATE_RET app_ai_upload_start(uint8_t int_enable)
 
     return rt;
 }
-
-OPERATE_RET app_ai_upload_data(uint8_t is_first, uint8_t *data, uint32_t len)
+/**
+ * @brief Uploads audio data to the AI service.
+ * @param is_first Flag indicating if this is the first chunk of data.
+ * @param data Pointer to the audio data buffer.
+ * @param len Length of the audio data in bytes.
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_data(uint8_t is_first, uint8_t *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -400,8 +427,13 @@ OPERATE_RET app_ai_upload_data(uint8_t is_first, uint8_t *data, uint32_t len)
         return OPRT_INVALID_PARM;
     }
 
-#if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
-    tuya_audio_debug_data_cb(data, len);
+    if (FALSE == sg_ai.is_online) {
+        PR_ERR("ai is not online");
+        return OPRT_COM_ERROR;
+    }
+
+#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
+    ai_audio_debug_data((char *)data, len);
 #endif
 
     // send data use tuya_ai_send_biz_pkt, pcm
@@ -436,19 +468,29 @@ OPERATE_RET app_ai_upload_data(uint8_t is_first, uint8_t *data, uint32_t len)
 
     PR_DEBUG("tuya ai upload data[%d][%d]...", head.stream_flag, len);
 
-    TUYA_CALL_ERR_RETURN(tuya_ai_send_biz_pkt(TY_AI_CHAT_ID_DS_AUDIO, &attr, AI_PT_AUDIO, &head, data));
+    TUYA_CALL_ERR_RETURN(tuya_ai_send_biz_pkt(TY_AI_CHAT_ID_DS_AUDIO, &attr, AI_PT_AUDIO, &head, (char *)data));
 
     return rt;
 }
 
-OPERATE_RET app_ai_upload_stop(void)
+/**
+ * @brief Stops the AI upload process.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_stop(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
+    if (FALSE == sg_ai.is_online) {
+        PR_ERR("ai is not online");
+        return OPRT_COM_ERROR;
+    }
+
     PR_DEBUG("tuya ai upload stop...");
 
-#if defined(TUYA_AUDIO_DEBUG) && (TUYA_AUDIO_DEBUG == 1)
-    tuya_audio_debug_stop_cb();
+#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
+    ai_audio_debug_stop();
 #endif
 
     AI_BIZ_ATTR_INFO_T biz_attr = {
@@ -486,7 +528,7 @@ OPERATE_RET app_ai_upload_stop(void)
     }};
     uint8_t *out = NULL;
     uint32_t out_len = 0;
-    tuya_pack_user_attrs(&attr, CNTSOF(attr), &out, &out_len);
+    tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
     rt = tuya_ai_event_payloads_end(sg_ai.session_id, sg_ai.event_id, out, out_len);
     tal_free(out);
     if (rt != OPRT_OK) {
@@ -498,24 +540,3 @@ OPERATE_RET app_ai_upload_stop(void)
 
     return rt;
 }
-
-OPERATE_RET app_ai_init(APP_AI_MSG_CB msg_cb)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    memset(&sg_ai, 0, sizeof(APP_AI_SESSION_T));
-
-    if (NULL == msg_cb) {
-        PR_ERR("msg_cb is NULL");
-        return OPRT_INVALID_PARM;
-    }
-    sg_ai.msg_cb = msg_cb;
-
-    PR_DEBUG("ai session wait for mqtt connected...");
-
-    tal_event_subscribe(EVENT_MQTT_CONNECTED, "app_ai_init", __app_ai_init, SUBSCRIBE_TYPE_ONETIME);
-
-    return rt;
-}
-
-#endif

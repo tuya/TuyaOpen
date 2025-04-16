@@ -34,7 +34,8 @@
 
 #include "tuya_display.h"
 #include "app_chat_bot.h"
-#include "app_player.h"
+#include "ai_audio.h"
+#include "reset_netcfg.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
@@ -86,7 +87,7 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
-            app_chat_bot_volume_set(volume);
+            ai_audio_set_volume(volume);
             break;
         }
         default:
@@ -99,11 +100,10 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
 
 OPERATE_RET ai_audio_status_upload(void)
 {
-    OPERATE_RET rt = OPRT_OK;
     tuya_iot_client_t *client = tuya_iot_client_get();
     dp_obj_t dp_obj = {0};
 
-    uint8_t volume = app_chat_bot_volume_get();
+    uint8_t volume = ai_audio_get_volume();
 
     dp_obj.id = DPID_VOLUME;
     dp_obj.type = PROP_VALUE;
@@ -131,7 +131,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         PR_INFO("Device Bind Start!");
         // 软重启，未配网，播报配网提示
         tuya_display_send_msg(TY_DISPLAY_TP_STAT_NETCFG, NULL, 0);
-        app_player_play_alert(APP_ALERT_TYPE_NETWORK_CFG);
+        ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
 
     /* MQTT with tuya cloud is connected, device online */
@@ -143,7 +143,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         if (first) {
             first = 0;
             tuya_display_send_msg(TY_DISPLAY_TP_STAT_ONLINE, NULL, 0);
-            app_player_play_alert(APP_ALERT_TYPE_NETWORK_CONNECTED);
+            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
             ai_audio_status_upload();
         }
         break;

@@ -6,9 +6,7 @@
  */
 
 #include "app_button.h"
-#include "app_recorder.h"
 #include "app_chat_bot.h"
-#include "app_player.h"
 
 #include "netmgr.h"
 
@@ -16,6 +14,7 @@
 #include "tdd_button_gpio.h"
 #include "tdl_button_manage.h"
 
+#include "ai_audio_player.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -48,10 +47,10 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
     netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status);
     if (status == NETMGR_LINK_DOWN) {
         PR_DEBUG("network is down, ignore button event");
-        if (app_player_is_playing()) {
+        if (ai_audio_player_is_playing()) {
             return;
         }
-        app_player_play_alert(APP_ALERT_TYPE_NOT_ACTIVE);
+        ai_audio_player_play_alert(AI_AUDIO_ALERT_NOT_ACTIVE);
         return;
     }
 
@@ -62,13 +61,11 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
         if (work_mode == APP_CHAT_BOT_WORK_MODE_HOLD) {
             PR_DEBUG("button press down, chat bot enable");
             app_chat_bot_enable_set(1);
-            app_recorder_stat_post(VOICE_STATE_IN_START);
         }
     } break;
     case TDL_BUTTON_PRESS_UP: {
         if (work_mode == APP_CHAT_BOT_WORK_MODE_HOLD) {
             PR_DEBUG("button press up, chat bot disable");
-            app_recorder_stat_post(VOICE_STATE_IN_STOP);
             app_chat_bot_enable_set(0);
         }
     } break;

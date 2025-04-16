@@ -20,8 +20,9 @@ extern "C" {
 typedef uint8_t APP_WORK_MODE_E;
 #define APP_CHAT_BOT_WORK_MODE_HOLD     0
 #define APP_CHAT_BOT_WORK_MODE_ONE_SHOT 1
+#define APP_CHAT_BOT_WORK_MODE_WAKEUP   2
 // TODO: wait add
-#define APP_CHAT_BOT_WORK_MODE_FREE 2
+#define APP_CHAT_BOT_WORK_MODE_FREE 3
 
 /***********************************************************
 ***********************typedef define***********************
@@ -32,10 +33,6 @@ typedef uint8_t APP_WORK_MODE_E;
 ***********************************************************/
 
 OPERATE_RET app_chat_bot_init(void);
-
-OPERATE_RET app_chat_bot_volume_set(uint8_t volume);
-
-uint8_t app_chat_bot_volume_get(void);
 
 APP_WORK_MODE_E app_chat_bot_get_work_mode(void);
 
