@@ -59,13 +59,12 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 | ----------------| ---------------- |
 | [T5](https://developer.tuya.com/en/docs/iot/wifibt-dual-mode-chip?id=Ke3voh7uu0htz) | [T5-E1](https://developer.tuya.com/en/docs/iot/T5-E1-Module-Datasheet?id=Kdar6hf0kzmfi) [T5-E1-IPEX](https://developer.tuya.com/en/docs/iot/T5-E1-IPEX-Module-Datasheet?id=Kdskxvxe835tq) |
 
-
 2. Supported Development Board List
 
 | Development Board | Description |
 | ----------- | ------------- |
 | T5AI_Board | [https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/en/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) |
-
+| T5AI_EVB | [https://oshwhub.com/flyingcys/t5ai_evb](https://oshwhub.com/flyingcys/t5ai_evb) |
 
 ## Free TuyaOpen License Code Activity
 

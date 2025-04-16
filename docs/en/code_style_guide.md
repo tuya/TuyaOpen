@@ -4,7 +4,7 @@ The purpose of this style guide is to encourage TuyaOpen developers to use a con
 
 The TuyaOpen coding style is based on the `Linux kernel coding style` [https://www.kernel.org/doc/html/latest/process/coding-style.html](https://www.kernel.org/doc/html/latest/process/coding-style.html), with some adjustments or deletions to specific guidelines.
 
-## 1. Directories and Files
+## Directories and Files
 Both directories and files should be named in lowercase, with names reflecting the content they represent. For commands combining multiple meanings, use an underscore "_" to connect them. It is recommended that directory and file names do not exceed three combined components.
 
 ### Header Files
@@ -67,7 +67,7 @@ File headers should include descriptive comments describing the file's descripti
  */
 ```
 
-## 2. Functions
+## Functions
 
 ### Function Names
 Function names should be composed of lowercase letters and underscores, with words connected by "_". Commands should follow the subject-verb structure, such as `set_xxx`, `get_xxx`.
@@ -143,7 +143,7 @@ Where:
 4. @return + Enumerate return values + describe the meaning of the return value. If the return value is data, directly introduce the function of the data.
 5. @warning + Points to note when using the function. In the use of the function, describe the points to note, such as the use environment and use method. Each sentence starts with a capital letter and ends with an English period.
 
-## 3. Indentation
+## Indentation
 We use the K&R indentation style.
 
 ### Spaces and Parentheses
@@ -219,7 +219,7 @@ default:
 }
 ```
 
-## 4. Macros and Enums
+## Macros and Enums
 Macro names and labels in enums should all be in uppercase letters, with words connected by "_".
 ```c
 #define CONSTANT 0x12345
@@ -250,7 +250,7 @@ typedef enum {
 } tuya_run_state_t;
 ```
 
-## 5. Code Formatting
+## Code Formatting
 TuyaOpen supports code formatting with clang-format. Please install clang-format 14 or above, and manually or automatically format the code currently modified.
 
 - Manual formatting:

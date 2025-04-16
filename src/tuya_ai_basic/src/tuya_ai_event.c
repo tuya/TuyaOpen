@@ -1,22 +1,27 @@
 /**
  * @file tuya_ai_event.c
- * @brief ai event
- * @version 0.1
- * @date 2025-03-06
+ * @brief This file contains the implementation of Tuya AI event management,
+ * including event generation, processing and session event handling.
  *
- * @copyright Copyright (c) 2023 Tuya Inc. All Rights Reserved.
+ * The Tuya AI event module provides core functionalities for AI event lifecycle
+ * management, including event validation, memory allocation and event data
+ * packaging. It implements thread-safe event operations with mutex protection.
  *
- * Permission is hereby granted, to any person obtaining a copy of this software and
- * associated documentation files (the "Software"), Under the premise of complying
- * with the license of the third-party open source software contained in the software,
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software.
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
+ * Key features include:
+ * - Event parameter validation and error handling
+ * - Dynamic memory allocation for event data
+ * - Event header structure (AI_EVENT_HEAD_T) handling
+ * - Integration with Tuya AI protocol and client layers
+ * - Thread-safe operations using mutex mechanisms
+ * - Detailed error logging through tal_log system
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
+
 #include <stdio.h>
+#include "tuya_cloud_types.h"
+#include "tal_api.h"
 #include "tal_system.h"
 #include "tal_thread.h"
 #include "tal_mutex.h"
@@ -35,7 +40,7 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
         return OPRT_INVALID_PARM;
     }
 
-    uint32_t data_len = SIZEOF(AI_EVENT_HEAD_T);
+    uint32_t data_len = sizeof(AI_EVENT_HEAD_T);
     char *event_data = Malloc(data_len);
     if (event_data == NULL) {
         PR_ERR("malloc failed");
@@ -58,6 +63,21 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
     return rt;
 }
 
+/**
+ * @brief Start a new AI event session
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[out] eid Generated event ID (must be pre-allocated buffer)
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Generates a unique UUID for the event
+ *       2. Initiates the event with AI_EVENT_START type
+ *       3. Logs the generated event ID
+ */
 OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -75,21 +95,61 @@ OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *att
     return rt;
 }
 
+/**
+ * @brief Signal payloads end for an AI event
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID to end payloads for
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_PAYLOADS_END, sid, eid, attr, len);
 }
 
+/**
+ * @brief End an AI event session
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID to end
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_END, sid, eid, attr, len);
 }
 
+/**
+ * @brief Signal a chat break event
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID for the chat break
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_CHAT_BREAK, sid, eid, attr, len);
 }
 
+/**
+ * @brief Trigger a one-shot AI event
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID for the one-shot event
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_ONE_SHOT, sid, eid, attr, len);

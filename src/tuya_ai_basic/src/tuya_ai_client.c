@@ -1,22 +1,26 @@
 /**
  * @file tuya_ai_client.c
- * @brief ai client
- * @version 0.1
- * @date 2025-03-02
+ * @brief This file contains the implementation of Tuya AI client core functionality,
+ * including connection management, network communication and protocol handling.
  *
- * @copyright Copyright (c) 2023 Tuya Inc. All Rights Reserved.
+ * The Tuya AI client module provides the underlying communication framework for AI services,
+ * handling network connections, data transmission and protocol processing. It implements
+ * automatic reconnection mechanisms and ping-pong keepalive for stable connections.
  *
- * Permission is hereby granted, to any person obtaining a copy of this software and
- * associated documentation files (the "Software"), Under the premise of complying
- * with the license of the third-party open source software contained in the software,
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software.
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
+ * Key features include:
+ * - Configurable reconnection attempts (AI_RECONN_TIME_NUM)
+ * - Customizable ping timeout settings (AT_PING_TIMEOUT)
+ * - Thread stack size configuration (AI_CLIENT_STACK_SIZE)
+ * - Secure communication through tal_security integration
+ * - Asynchronous task processing via work queue service
+ * - Network state management with netmgr integration
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
-// #include "gw_intf.h"
+
+#include "tuya_cloud_types.h"
+#include "tal_api.h"
 #include "tal_log.h"
 #include "tal_event.h"
 #include "uni_random.h"
@@ -25,11 +29,9 @@
 #include "tal_thread.h"
 #include "tal_security.h"
 #include "tal_sw_timer.h"
-// #include "tuya_svc_netmgr.h"
 #include "tal_workq_service.h"
 #include "tal_memory.h"
 #include "tuya_ai_client.h"
-// #include "base_event_info.h"
 #include "tuya_ai_biz.h"
 #include "netmgr.h"
 
@@ -85,7 +87,7 @@ static void __ai_client_set_state(AI_CLIENT_STATE_E state)
     ai_basic_client->state = state;
 }
 
-static OPERATE_RET __ai_connect()
+static OPERATE_RET __ai_connect(void)
 {
     OPERATE_RET rt = OPRT_OK;
     rt = tuya_ai_basic_connect();
@@ -98,7 +100,7 @@ static OPERATE_RET __ai_connect()
     return rt;
 }
 
-static OPERATE_RET __ai_client_hello()
+static OPERATE_RET __ai_client_hello(void)
 {
     OPERATE_RET rt = OPRT_OK;
     rt = tuya_ai_basic_client_hello();
@@ -152,7 +154,7 @@ static OPERATE_RET __ai_conn_close(void)
     return rt;
 }
 
-static void __ai_client_handle_err()
+static void __ai_client_handle_err(void)
 {
     if (ai_basic_client->state == AI_STATE_CONNECT) {
         uint32_t sleep_random = 0;
@@ -178,14 +180,14 @@ static void __ai_client_handle_err()
     }
 }
 
-static void __ai_stop_alive_time()
+static void __ai_stop_alive_time(void)
 {
     ai_basic_client->heartbeat_lost_cnt = 0;
     tal_sw_timer_stop(ai_basic_client->alive_timeout_timer);
     return;
 }
 
-static void __ai_start_expire_tid()
+static void __ai_start_expire_tid(void)
 {
     uint64_t expire = tuya_ai_basic_get_atop_cfg()->expire;
     uint64_t current = tal_time_get_posix();
@@ -208,9 +210,9 @@ static void __ai_handle_refresh_resp(char *data, uint32_t len)
     }
 
     uint32_t attr_len = 0;
-    memcpy(&attr_len, data + SIZEOF(AI_PAYLOAD_HEAD_T), SIZEOF(attr_len));
+    memcpy(&attr_len, data + sizeof(AI_PAYLOAD_HEAD_T), sizeof(attr_len));
     attr_len = UNI_NTOHL(attr_len);
-    uint32_t offset = SIZEOF(AI_PAYLOAD_HEAD_T) + SIZEOF(attr_len);
+    uint32_t offset = sizeof(AI_PAYLOAD_HEAD_T) + sizeof(attr_len);
     rt = tuya_ai_refresh_resp(data + offset, attr_len);
     if (OPRT_OK != rt) {
         PR_ERR("refresh resp failed, rt:%d", rt);
@@ -231,9 +233,9 @@ static void __ai_handle_conn_close(char *data, uint32_t len)
     }
 
     uint32_t attr_len = 0;
-    memcpy(&attr_len, data + SIZEOF(AI_PAYLOAD_HEAD_T), SIZEOF(attr_len));
+    memcpy(&attr_len, data + sizeof(AI_PAYLOAD_HEAD_T), sizeof(attr_len));
     attr_len = UNI_NTOHL(attr_len);
-    uint32_t offset = SIZEOF(AI_PAYLOAD_HEAD_T) + SIZEOF(attr_len);
+    uint32_t offset = sizeof(AI_PAYLOAD_HEAD_T) + sizeof(attr_len);
     tuya_ai_parse_conn_close(data + offset, attr_len);
     __ai_client_set_state(AI_STATE_SETUP);
     return;
@@ -279,13 +281,13 @@ static OPERATE_RET __ai_running(void)
     return rt;
 }
 
-static OPERATE_RET __ai_idle()
+static OPERATE_RET __ai_idle(void)
 {
     __ai_client_set_state(AI_STATE_SETUP);
     return OPRT_OK;
 }
 
-static OPERATE_RET __ai_setup()
+static OPERATE_RET __ai_setup(void)
 {
     OPERATE_RET rt = OPRT_OK;
     netmgr_status_e status = NETMGR_LINK_DOWN;
@@ -404,6 +406,14 @@ static void __ai_alive_timeout(TIMER_ID timer_id, void *data)
     }
 }
 
+/**
+ * @brief Register a callback function for AI client data handling
+ *
+ * @param[in] cb Callback function pointer of type AI_BASIC_DATA_HANDLE
+ *
+ * @note This function registers the callback that will be invoked when AI data is received.
+ *       The callback will only be registered if the AI client is initialized.
+ */
 void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb)
 {
     if (ai_basic_client) {
@@ -412,6 +422,12 @@ void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb)
     }
 }
 
+/**
+ * @brief Check if the AI client is ready and running
+ *
+ * @return uint8_t Returns true (1) if client is initialized and in RUNNING state,
+ *                 false (0) otherwise
+ */
 uint8_t tuya_ai_client_is_ready(void)
 {
     if (ai_basic_client) {
@@ -422,20 +438,37 @@ uint8_t tuya_ai_client_is_ready(void)
     return false;
 }
 
+/**
+ * @brief Initialize the AI client subsystem
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function performs the following initialization steps:
+ *       1. Allocates memory for client structure
+ *       2. Sets default heartbeat interval (30s)
+ *       3. Configures reconnection timing parameters
+ *       4. Initializes AI business layer
+ *       5. Creates various timers and work queues
+ *
+ * @warning If initialization fails at any point, all resources will be cleaned up
+ *          and an error code will be returned.
+ *
+ * @see AI_RECONN_TIME_T for reconnection timing structure
+ */
 OPERATE_RET tuya_ai_client_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     if (ai_basic_client) {
         return OPRT_OK;
     }
-    ai_basic_client = Malloc(SIZEOF(AI_BASIC_CLIENT_T));
+    ai_basic_client = Malloc(sizeof(AI_BASIC_CLIENT_T));
     TUYA_CHECK_NULL_RETURN(ai_basic_client, OPRT_MALLOC_FAILED);
 
-    memset(ai_basic_client, 0, SIZEOF(AI_BASIC_CLIENT_T));
+    memset(ai_basic_client, 0, sizeof(AI_BASIC_CLIENT_T));
     ai_basic_client->heartbeat_interval = 30;
     AI_RECONN_TIME_T reconn[AI_RECONN_TIME_NUM] = {{5, 10},   {10, 20},   {20, 40},  {40, 80},
                                                    {80, 160}, {160, 320}, {320, 640}};
-    memcpy(ai_basic_client->reconn, reconn, SIZEOF(reconn));
+    memcpy(ai_basic_client->reconn, reconn, sizeof(reconn));
     tuya_ai_biz_init();
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(__ai_conn_refresh, NULL, &ai_basic_client->tid), EXIT);
     TUYA_CALL_ERR_GOTO(__ai_client_create_task(), EXIT);

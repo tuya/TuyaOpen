@@ -191,7 +191,7 @@ int tuya_http_client_post_simple(char *url, char *body, http_client_header_t *he
     if (purl.field_set & 1 << UF_PORT) {
         request.port = purl.port;
     }
-    request.body = body;
+    request.body = (const uint8_t *)body;
     request.body_length = body ? strlen(body) : 0;
     request.method = "POST";
     request.headers = headers;
@@ -202,8 +202,8 @@ int tuya_http_client_post_simple(char *url, char *body, http_client_header_t *he
         rt = OPRT_MALLOC_FAILED;
         goto __exit;
     }
-    memcpy(request.host, url + purl.field_data[UF_HOST].off, purl.field_data[UF_HOST].len);
-    memcpy(request.path, url + purl.field_data[UF_PATH].off, strlen(url) - purl.field_data[UF_PATH].off);
+    memcpy((void *)request.host, url + purl.field_data[UF_HOST].off, purl.field_data[UF_HOST].len);
+    memcpy((void *)request.path, url + purl.field_data[UF_PATH].off, strlen(url) - purl.field_data[UF_PATH].off);
     PR_DEBUG("path %s", request.path);
     //! cert load
     if (is_ssl) {
@@ -220,10 +220,10 @@ int tuya_http_client_post_simple(char *url, char *body, http_client_header_t *he
 
 __exit:
     if (request.host) {
-        tal_free(request.host);
+        tal_free((void *)request.host);
     }
     if (request.path) {
-        tal_free(request.path);
+        tal_free((void *)request.path);
     }
 
     return rt;

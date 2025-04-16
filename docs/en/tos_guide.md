@@ -23,7 +23,7 @@ Commands:
     savedef    - Saves minimal configuration file (app_default.config)
     set_example  - Set examples from platform
     new_platform - New platform [platform_name]
-    upgrade    - Upgrade framework and platforms
+    update     - Update the platforms according to the platform_config.yaml
     help       - Help information
 ```
 
@@ -118,7 +118,7 @@ This command saves the difference between the menuconfig result and the default 
 
 ### Select the configuration
 ```shell
-$ tos conifg_choice
+$ tos config_choice
 ```
 
 This command selects the configuration file in the config directory instead of the app_defalut.config file.
@@ -136,5 +136,5 @@ This command is used to display examples for different chip platforms, changing 
 Run the following command:
 
 ```shell
-$ tos upgrade
+$ tos update
 ```

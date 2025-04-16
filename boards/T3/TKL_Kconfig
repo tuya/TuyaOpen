@@ -71,7 +71,11 @@ config ENABLE_WAKEUP
 
 config ENABLE_PINMUX
     bool
-    default y    
+    default y
+
+config ENABLE_DISPLAY
+    bool
+    default y
 
 config ENABLE_PLATFORM_AES
     bool

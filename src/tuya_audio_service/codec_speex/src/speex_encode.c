@@ -28,11 +28,11 @@
 #include "tal_log.h"
 
 #define SPEEX_MODEID_WB_RATE        16000
-#define SPEEX_FRAME_SIZE            320                 //need use SPEEX_GET_FRAME_SIZE
-#define SPEEX_FRAME_BYTE            (SPEEX_FRAME_SIZE * sizeof(short))  //16 bits/sample
+#define SPEEX_FRAME_SIZE            320                                // need use SPEEX_GET_FRAME_SIZE
+#define SPEEX_FRAME_BYTE            (SPEEX_FRAME_SIZE * sizeof(short)) // 16 bits/sample
 #define SPEEX_MAX_FRAME_BYTES       200
 #define SPEEX_VER_STRING_LEN        16
-#define SPEEX_QUALITY_DEF           5                   //Set the quality to 5(16k rate: 8-->27.8kbps 5-->16.8kbps)
+#define SPEEX_QUALITY_DEF           5 // Set the quality to 5(16k rate: 8-->27.8kbps 5-->16.8kbps)
 #define MODE_1_QUALITY_5_FRAME_SIZE 42
 #define MODE_1_QUALITY_8_FRAME_SIZE 70
 #define SPEEX_ENCODE_BUFFER_LEN     (MODE_1_QUALITY_5_FRAME_SIZE * 5)
@@ -47,26 +47,26 @@
  */
 
 typedef struct {
-    void               *state;                      ///< speex encode state
-    SpeexBits           bits;                       ///< speex encode bits
-    short               buffer[SPEEX_FRAME_SIZE];   ///< speex encode buffer
-    uint32_t              buffer_offset;              ///< speex encode buffer offset
+    void *state;                    ///< speex encode state
+    SpeexBits bits;                 ///< speex encode bits
+    short buffer[SPEEX_FRAME_SIZE]; ///< speex encode buffer
+    uint32_t buffer_offset;         ///< speex encode buffer offset
 
 #if defined(ENABLE_VOICE_PROTOCOL_STREAM_GW)
-    TUYA_VOICE_WS_START_PARAMS_S    *p_head;                     ///< speex encode head 
+    TUYA_VOICE_WS_START_PARAMS_S *p_head; ///< speex encode head
 #else
     struct {
-        uint8_t  ver_id;
-        char  ver_string[SPEEX_VER_STRING_LEN];
-        uint8_t  mode;
-        uint8_t  mode_bit_stream_ver;
-        uint32_t  rate;
-        uint8_t  channels;
-        uint32_t  bit_rate;
-        uint32_t  frame_size;
-        uint8_t  vbr;
-        uint8_t  encode_frame_size;
-    } PACKED SPEEX_HEAD_S, *p_head;                 ///< speex encode head 
+        uint8_t ver_id;
+        char ver_string[SPEEX_VER_STRING_LEN];
+        uint8_t mode;
+        uint8_t mode_bit_stream_ver;
+        uint32_t rate;
+        uint8_t channels;
+        uint32_t bit_rate;
+        uint32_t frame_size;
+        uint8_t vbr;
+        uint8_t encode_frame_size;
+    } PACKED SPEEX_HEAD_S, *p_head; ///< speex encode head
 #endif /** ENABLE_VOICE_PROTOCOL_STREAM_GW */
 } SPEEX_ENCODE_S;
 
@@ -95,8 +95,8 @@ static OPERATE_RET speex_encode_free(SPEAKER_MEDIA_ENCODER_S *p_encoder)
     return OPRT_OK;
 }
 
-static unsigned int speex_data_encode(SPEAKER_MEDIA_ENCODER_S *p_encoder,
-                                      void *private_data, const unsigned char *buffer, unsigned int size)
+static unsigned int speex_data_encode(SPEAKER_MEDIA_ENCODER_S *p_encoder, void *private_data,
+                                      const unsigned char *buffer, unsigned int size)
 {
     SPEEX_ENCODE_S *p_speex = NULL;
     OPERATE_RET ret = OPRT_OK;
@@ -105,17 +105,17 @@ static unsigned int speex_data_encode(SPEAKER_MEDIA_ENCODER_S *p_encoder,
     char cbits[SPEEX_MAX_FRAME_BYTES] = {0x0};
     int nbBytes = 0, i = 0;
 
-    if (NULL == p_encoder || NULL == buffer
-            || NULL == p_encoder->p_encode_info
-            || NULL == p_encoder->encoder_data_callback) {
+    if (NULL == p_encoder || NULL == buffer || NULL == p_encoder->p_encode_info ||
+        NULL == p_encoder->encoder_data_callback) {
         PR_ERR("%p %p %p", p_encoder, buffer, p_encoder->p_encode_info);
         return OPRT_INVALID_PARM;
     }
 
     p_speex = (SPEEX_ENCODE_S *)p_encoder->p_encode_info;
     while (1) {
-        cp_len = (p_speex->buffer_offset + (size - encode_len) < SPEEX_FRAME_BYTE) ?
-                 (size - encode_len) : (SPEEX_FRAME_BYTE - p_speex->buffer_offset);
+        cp_len = (p_speex->buffer_offset + (size - encode_len) < SPEEX_FRAME_BYTE)
+                     ? (size - encode_len)
+                     : (SPEEX_FRAME_BYTE - p_speex->buffer_offset);
 
         memcpy((uint8_t *)p_speex->buffer + p_speex->buffer_offset, buffer + encode_len, cp_len);
         p_speex->buffer_offset += cp_len;
@@ -130,7 +130,7 @@ static unsigned int speex_data_encode(SPEAKER_MEDIA_ENCODER_S *p_encoder,
             }
 
             speex_bits_reset(&p_speex->bits);
-            speex_encode(p_speex->state, input, &p_speex->bits);    //dump
+            speex_encode(p_speex->state, input, &p_speex->bits); // dump
             nbBytes = speex_bits_write(&p_speex->bits, cbits, SPEEX_MAX_FRAME_BYTES);
 
             /** FIXME: do write data to upload, but impl inside! */
@@ -206,31 +206,31 @@ static void *__speex_encoder_init(SPEAKER_MEDIA_ENCODER_S *encoder)
     speex_encoder_ctl(p_speex->state, SPEEX_GET_VBR, &vbr_enabled);
 
     /** FIXME: filling some data from external */
-    p_encoder->p_start_data     = (uint8_t *)p_speex->p_head;
-    p_encoder->start_data_len   = sizeof(*p_speex->p_head);
+    p_encoder->p_start_data = (uint8_t *)p_speex->p_head;
+    p_encoder->start_data_len = sizeof(*p_speex->p_head);
 
 #if defined(ENABLE_VOICE_PROTOCOL_STREAM_GW)
-    strcpy(p_speex->p_head->ver_string,     speex_version);
-    p_speex->p_head->ver_id                 = 1;
-    p_speex->p_head->mode                   = SPEEX_MODEID_WB;
-    p_speex->p_head->mode_bit_stream_ver    = mode->bitstream_version;
-    p_speex->p_head->rate                   = p_encoder->param.info.rate;
-    p_speex->p_head->channels               = p_encoder->param.info.channels;
-    p_speex->p_head->bit_rate               = bitrate;
-    p_speex->p_head->frame_size             = frame_size;
-    p_speex->p_head->vbr                    = vbr_enabled;
-    p_speex->p_head->encode_frame_size      = MODE_1_QUALITY_5_FRAME_SIZE;
+    strcpy(p_speex->p_head->ver_string, speex_version);
+    p_speex->p_head->ver_id = 1;
+    p_speex->p_head->mode = SPEEX_MODEID_WB;
+    p_speex->p_head->mode_bit_stream_ver = mode->bitstream_version;
+    p_speex->p_head->rate = p_encoder->param.info.rate;
+    p_speex->p_head->channels = p_encoder->param.info.channels;
+    p_speex->p_head->bit_rate = bitrate;
+    p_speex->p_head->frame_size = frame_size;
+    p_speex->p_head->vbr = vbr_enabled;
+    p_speex->p_head->encode_frame_size = MODE_1_QUALITY_5_FRAME_SIZE;
 #else
-    strcpy(p_speex->p_head->ver_string,     speex_version);
-    p_speex->p_head->ver_id                 = 1;
-    p_speex->p_head->mode                   = SPEEX_MODEID_WB;
-    p_speex->p_head->mode_bit_stream_ver    = mode->bitstream_version;
-    p_speex->p_head->rate                   = UNI_HTONL(p_encoder->param.info.rate);
-    p_speex->p_head->channels               = p_encoder->param.info.channels;
-    p_speex->p_head->bit_rate               = UNI_HTONL(bitrate);
-    p_speex->p_head->frame_size             = UNI_HTONL(frame_size);
-    p_speex->p_head->vbr                    = vbr_enabled;
-    p_speex->p_head->encode_frame_size      = MODE_1_QUALITY_5_FRAME_SIZE;
+    strcpy(p_speex->p_head->ver_string, speex_version);
+    p_speex->p_head->ver_id = 1;
+    p_speex->p_head->mode = SPEEX_MODEID_WB;
+    p_speex->p_head->mode_bit_stream_ver = mode->bitstream_version;
+    p_speex->p_head->rate = UNI_HTONL(p_encoder->param.info.rate);
+    p_speex->p_head->channels = p_encoder->param.info.channels;
+    p_speex->p_head->bit_rate = UNI_HTONL(bitrate);
+    p_speex->p_head->frame_size = UNI_HTONL(frame_size);
+    p_speex->p_head->vbr = vbr_enabled;
+    p_speex->p_head->encode_frame_size = MODE_1_QUALITY_5_FRAME_SIZE;
 #endif /** ENABLE_VOICE_PROTOCOL_STREAM_GW */
 
     PR_DEBUG("speex encode init successful. sample rate:%d bitrate:%d frame_size:%d encode_frame_size:%d",
@@ -244,8 +244,8 @@ static OPERATE_RET __speex_encoder_deinit(SPEAKER_MEDIA_ENCODER_S *encoder)
     return speex_encode_free(encoder);
 }
 
-static uint32_t __speex_encoder_encode(SPEAKER_MEDIA_ENCODER_S *encoder,
-                                     void *private_data, IN const uint8_t *buffer, IN uint32_t size)
+static uint32_t __speex_encoder_encode(SPEAKER_MEDIA_ENCODER_S *encoder, void *private_data, const uint8_t *buffer,
+                                       uint32_t size)
 {
     return speex_data_encode(encoder, private_data, buffer, size);
 }
@@ -255,30 +255,32 @@ static OPERATE_RET __speex_encoder_free(SPEAKER_MEDIA_ENCODER_S *encoder)
     return speex_encode_free(encoder);
 }
 
-static OPERATE_RET __speex_encoder_data_callback(SPEAKER_MEDIA_ENCODER_S *encoder,
-        void *private_data, IN const uint8_t *buffer, IN uint32_t size)
+static OPERATE_RET __speex_encoder_data_callback(SPEAKER_MEDIA_ENCODER_S *encoder, void *private_data,
+                                                 const uint8_t *buffer, uint32_t size)
 {
     /** FIXME: don't worry, impl inside! */
     return OPRT_OK;
 }
 
 SPEAKER_MEDIA_ENCODER_S global_tuya_speex_encoder = {
-    .handle                     = &global_tuya_speex_encoder,
-    .name                       = "global_tuya_speex_encoder",
+    .handle = &global_tuya_speex_encoder,
+    .name = "global_tuya_speex_encoder",
 
-    .encode_buffer_max          = SPEEX_ENCODE_BUFFER_LEN,
-    .param = {
-        .encode_type            = TUYA_VOICE_AUDIO_FORMAT_SPEEX,
-        .info = {
-            .channels           = 1,
-            .rate               = 16000,
-            .bits_per_sample    = 16,
+    .encode_buffer_max = SPEEX_ENCODE_BUFFER_LEN,
+    .param =
+        {
+            .encode_type = TUYA_VOICE_AUDIO_FORMAT_SPEEX,
+            .info =
+                {
+                    .channels = 1,
+                    .rate = 16000,
+                    .bits_per_sample = 16,
+                },
         },
-    },
 
-    .encoder_init               = __speex_encoder_init,
-    .encoder_deinit             = __speex_encoder_deinit,
-    .encoder_encode             = __speex_encoder_encode,
-    .encoder_free               = __speex_encoder_free,
-    .encoder_data_callback      = __speex_encoder_data_callback,
+    .encoder_init = __speex_encoder_init,
+    .encoder_deinit = __speex_encoder_deinit,
+    .encoder_encode = __speex_encoder_encode,
+    .encoder_free = __speex_encoder_free,
+    .encoder_data_callback = __speex_encoder_data_callback,
 };

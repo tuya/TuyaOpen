@@ -18,6 +18,8 @@
  *
  */
 
+#include <string.h>
+#include <strings.h>
 #include "atop_base.h"
 #include "tuya_config_defaults.h"
 #include "tal_log.h"

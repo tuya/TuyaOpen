@@ -46,6 +46,8 @@ tuya_iot_client_t ai_client;
 
 #define DPID_VOLUME 3
 
+static uint8_t _need_reset = 0;
+
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
  *
@@ -129,6 +131,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
+        if (_need_reset == 1) {
+            PR_INFO("Device Reset!");
+            tal_system_reset();
+        }
         // 软重启，未配网，播报配网提示
         tuya_display_send_msg(TY_DISPLAY_TP_STAT_NETCFG, NULL, 0);
         ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
@@ -167,7 +173,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
     case TUYA_EVENT_RESET:
         PR_INFO("Device Reset:%d", event->value.asInteger);
-        tal_event_publish(EVENT_RESET, NULL);
+
+        _need_reset = 1;
         break;
 
     /* RECV OBJ DP */

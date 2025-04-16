@@ -64,7 +64,7 @@
 | 开发板 | 描述 |
 | ----------- | ------------- |
 | T5AI_Board | [https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj](https://developer.tuya.com/cn/docs/iot-device-dev/T5-E1-IPEX-development-board?id=Ke9xehig1cabj) |
-
+| T5AI_EVB | [https://oshwhub.com/flyingcys/t5ai_evb](https://oshwhub.com/flyingcys/t5ai_evb) |
 
 ## 免费赠送 TuyaOpen 授权码活动
 

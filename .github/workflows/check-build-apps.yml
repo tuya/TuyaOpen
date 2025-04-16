@@ -1,0 +1,33 @@
+name: TuyaOpen Check Build
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on:
+  pull_request:
+    branches:
+      - master  # 当分支有提交时执行此工作流
+jobs:
+  Build-Switch-Demo:
+    runs-on: self-hosted
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 Running on a ${{ runner.os }}, branch is ${{ github.ref }} !"
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Check Base Tools
+        run: |
+          cd ${{ github.workspace }}
+          export PATH=$PATH:$(pwd)
+          tos version
+          tos check
+      - name: Check [switch_demo] Build
+        run: |
+          cd ${{ github.workspace }}
+          export PATH=$PATH:$(pwd)
+          cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
+          tos dev bac
+      - name: Check [your_chat_bot] Build
+        run: |
+          cd ${{ github.workspace }}
+          export PATH=$PATH:$(pwd)
+          cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
+          tos dev bac
+      - run: echo "💡 This job's status is ${{ job.status }}."

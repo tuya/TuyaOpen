@@ -1,21 +1,24 @@
 /**
  * @file tuya_ai_event.h
- * @brief ai event
- * @version 0.1
- * @date 2025-03-06
+ * @brief This file contains the implementation of Tuya AI event management,
+ * including event generation, processing and session event handling.
  *
- * @copyright Copyright (c) 2023 Tuya Inc. All Rights Reserved.
+ * The Tuya AI event module provides core functionalities for AI event lifecycle
+ * management, including event validation, memory allocation and event data
+ * packaging. It implements thread-safe event operations with mutex protection.
  *
- * Permission is hereby granted, to any person obtaining a copy of this software and
- * associated documentation files (the "Software"), Under the premise of complying
- * with the license of the third-party open source software contained in the software,
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software.
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
+ * Key features include:
+ * - Event parameter validation and error handling
+ * - Dynamic memory allocation for event data
+ * - Event header structure (AI_EVENT_HEAD_T) handling
+ * - Integration with Tuya AI protocol and client layers
+ * - Thread-safe operations using mutex mechanisms
+ * - Detailed error logging through tal_log system
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
+
 #ifndef __TUYA_AI_EVENT_H__
 #define __TUYA_AI_EVENT_H__
 
@@ -23,76 +26,71 @@
 #include "tuya_cloud_types.h"
 #include "tuya_ai_protocol.h"
 
-/**
- * @brief recv event cb
- *
- * @param[in] type event type
- * @param[in] sid session id
- * @param[in] eid event id
- * @param[in] attr user attr
- * @param[in] len user len
- *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
- */
 typedef OPERATE_RET (*AI_EVENT_CB)(AI_EVENT_TYPE type, AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
 
 /**
- * @brief event start
+ * @brief Start a new AI event session
  *
- * @param[in] sid session id
- * @param[out] eid event id
- * @param[in] attr attr user data
- * @param[in] len attr user len
+ * @param[in] sid Session ID associated with the event
+ * @param[out] eid Generated event ID (must be pre-allocated buffer)
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
  *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Generates a unique UUID for the event
+ *       2. Initiates the event with AI_EVENT_START type
+ *       3. Logs the generated event ID
  */
 OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
 
 /**
- * @brief event end
+ * @brief Signal payloads end for an AI event
  *
- * @param[in] sid session id
- * @param[in] eid event id
- * @param[in] attr attr user data
- * @param[in] len attr user len
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID to end payloads for
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
  *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
- */
-OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
-
-/**
- * @brief event payloads end
- *
- * @param[in] sid session id
- * @param[in] eid event id
- * @param[in] attr attr user data
- * @param[in] len attr user len
- *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
  */
 OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
 
 /**
- * @brief event chat break
+ * @brief End an AI event session
  *
- * @param[in] sid session id
- * @param[in] eid event id
- * @param[in] attr attr user data
- * @param[in] len attr user len
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID to end
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
  *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ */
+OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+
+/**
+ * @brief Signal a chat break event
+ *
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID for the chat break
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
  */
 OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
 
 /**
- * @brief event one shot
+ * @brief Trigger a one-shot AI event
  *
- * @param[in] sid session id
- * @param[in] eid event id
- * @param[in] attr attr user data
- * @param[in] len attr user len
+ * @param[in] sid Session ID associated with the event
+ * @param[in] eid Event ID for the one-shot event
+ * @param[in] attr Optional event attributes data
+ * @param[in] len Length of event attributes data
  *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
  */
 OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
-#endif
+
+#endif /* __TUYA_AI_EVENT_H__ */

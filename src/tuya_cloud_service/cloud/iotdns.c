@@ -16,6 +16,8 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "tuya_cloud_types.h"
 #include "tuya_config_defaults.h"
 #include "tuya_endpoint.h"
@@ -324,10 +326,8 @@ int tuya_iotdns_query_domain_certs(char *url, uint8_t **cacert, uint16_t *cacert
     char *p_search_head = p_tmp_url;
     char *p_tmp = strstr(p_search_head, "://");
 
-    char *p_schema = NULL;
     if (p_tmp != NULL) {
         *p_tmp = 0;
-        p_schema = p_search_head;
         p_search_head = p_tmp + strlen("://");
     }
     p_tmp = strstr(p_search_head, "/");

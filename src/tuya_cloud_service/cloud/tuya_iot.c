@@ -198,20 +198,6 @@ static int activate_response_parse(atop_base_response_t *response)
         return OPRT_KVS_WR_FAIL;
     }
 
-    if (cJSON_GetObjectItem(result_root, "resetFactory") != NULL) {
-        BOOL_T cloud_reset_factory =
-            (cJSON_GetObjectItem(result_root, "resetFactory")->type == cJSON_True) ? TRUE : FALSE;
-        PR_DEBUG("cloud_reset:%d", cloud_reset_factory);
-
-        if (cloud_reset_factory == TRUE) {
-            PR_DEBUG("remote is reset factory and local is not,reset factory "
-                     "again.");
-            client->event.id = TUYA_EVENT_RESET;
-            client->event.value.asInteger = TUYA_RESET_TYPE_DATA_FACTORY;
-            iot_dispatch_event(client);
-        }
-    }
-
     return OPRT_OK;
 }
 

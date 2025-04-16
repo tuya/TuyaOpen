@@ -25,5 +25,7 @@
 * tuya_main.c: switch_demo 的主要功能
 * tuya_config.h: 涂鸦PID和授权信息，在涂鸦IoT平台上创建并获取，可以参考文档 [TuyaOS quickstart](https://developer.tuya.com/en/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc)
 
+## 支持硬件
+当前工程可在所有当前已支持的芯片和开发板上运行
 
 

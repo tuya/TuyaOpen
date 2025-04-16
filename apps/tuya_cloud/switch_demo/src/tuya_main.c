@@ -26,6 +26,8 @@
 #include "lwip_init.h"
 #endif
 
+#include "reset_netcfg.h"
+
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
 #endif
@@ -212,6 +214,8 @@ void user_main()
     tal_cli_init();
     tuya_app_cli_init();
 
+    reset_netconfig_start();
+
     tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_iot_license_read(&license)) {
@@ -253,6 +257,8 @@ void user_main()
     PR_DEBUG("tuya_iot_init success");
     /* Start tuya iot task */
     tuya_iot_start(&client);
+
+    reset_netconfig_check();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
