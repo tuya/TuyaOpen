@@ -16,24 +16,45 @@ AI+IoT products developed using the TuyaOpen, if utilizing the functionality of 
 
 At the same time, the TuyaOpen will continuously expand, providing more cloud platform integration features, as well as voice, video, and facial recognition capabilities.
 
-============
+====================================
+Supported Platform List
+====================================
++------------------------+------------------------+
+| Platform               | Support status         |
++========================+========================+
+| Ubuntu                 | Supported              | 
++------------------------+------------------------+
+| T2                     | Supported              |  
++------------------------+------------------------+
+| T3                     | Supported              |  
++------------------------+------------------------+
+| T5AI                   | Supported              |  
++------------------------+------------------------+
+| ESP32/ESP32C3/ESP32S3  | Supported              |  
++------------------------+------------------------+
+| LN882H                 | Supported              |  
++------------------------+------------------------+
+| BK7231N                | Supported              |  
++------------------------+------------------------+
+
+========================
 Contribute Code
-============
+========================
 
 If you are interested in the TuyaOpen and wish to contribute to its development and become a code contributor, please first read the `Contribution Guide <https://github.com/tuya/TuyaOpen/blob/master/docs/en/contribute_guide.md>`_.
 
 
-============
+====================================
 Related Links of TuyaOpen
-============
+====================================
 
 - C for TuyaOpen: `https://github.com/tuya/TuyaOpen <https://github.com/tuya/TuyaOpen>`_
 - Arduino for TuyaOpen: `https://github.com/tuya/arduino-TuyaOpen <https://github.com/tuya/arduino-TuyaOpen>`_
 - Luanode for TuyaOpen: `https://github.com/tuya/luanode-TuyaOpen <https://github.com/tuya/luanode-TuyaOpen>`_
 
-------------
+----------------
 gitee Mirrors
-------------
+----------------
 - C for TuyaOpen: `https://gitee.com/tuya-open/TuyaOpen <https://gitee.com/tuya-open/TuyaOpen>`_
 - Arduino for TuyaOpen: `https://gitee.com/tuya-open/arduino-TuyaOpen <https://gitee.com/tuya-open/arduino-TuyaOpen>`_
 - Luanode for TuyaOpen: `https://gitee.com/tuya-open/luanode-TuyaOpen <https://gitee.com/tuya-open/luanode-TuyaOpen>`_

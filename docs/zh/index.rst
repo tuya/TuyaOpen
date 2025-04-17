@@ -15,22 +15,43 @@ TuyaOpen 是一款跨芯片平台、操作系统的 AI+IoT 开发框架。它基
 
 同时 TuyaOpen 将不断拓展，提供更多云平台接入功能，及语音、视频、人脸识别等功能。
 
-============
+========================
+支持 Platform 列表
+========================
++------------------------+------------------------+
+| Platform               | Support status         |
++========================+========================+
+| Ubuntu                 | Supported              | 
++------------------------+------------------------+
+| T2                     | Supported              |  
++------------------------+------------------------+
+| T3                     | Supported              |  
++------------------------+------------------------+
+| T5AI                   | Supported              |  
++------------------------+------------------------+
+| ESP32/ESP32C3/ESP32S3  | Supported              |  
++------------------------+------------------------+
+| LN882H                 | Supported              |  
++------------------------+------------------------+
+| BK7231N                | Supported              |  
++------------------------+------------------------+
+
+========================
 贡献代码
-============
+========================
 
 如果您对 TuyaOpen 感兴趣，并希望参与 TuyaOpen 的开发并成为代码贡献者，请先参阅 `贡献指南 <https://github.com/tuya/TuyaOpen/blob/master/docs/zh/contribute_guide.md>`_。
 
-============
+========================
 TuyaOpen 相关链接
-============
+========================
 - C 版 TuyaOpen: `https://github.com/tuya/TuyaOpen <https://github.com/tuya/TuyaOpen>`_
 - Arduino 版 TuyaOpen: `https://github.com/tuya/arduino-TuyaOpen <https://github.com/tuya/arduino-TuyaOpen>`_
 - Luanode 版 TuyaOpen: `https://github.com/tuya/luanode-TuyaOpen <https://github.com/tuya/luanode-TuyaOpen>`_
 
-------------
+----------------
 gitee 镜像
-------------
+----------------
 - C 版 TuyaOpen: `https://gitee.com/tuya-open/TuyaOpen <https://gitee.com/tuya-open/TuyaOpen>`_
 - Arduino 版 TuyaOpen: `https://gitee.com/tuya-open/arduino-TuyaOpen <https://gitee.com/tuya-open/arduino-TuyaOpen>`_
 - Luanode 版 TuyaOpen: `https://gitee.com/tuya-open/luanode-TuyaOpen <https://gitee.com/tuya-open/luanode-TuyaOpen>`_
