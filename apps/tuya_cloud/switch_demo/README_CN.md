@@ -7,7 +7,7 @@
 
 
 ## 目录结构
-```
+```sh
 +- switch_demo
     +- libqrencode
     +- src

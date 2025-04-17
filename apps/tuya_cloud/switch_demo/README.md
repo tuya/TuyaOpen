@@ -8,7 +8,7 @@ A simple, cross-platform, cross-system, and multi-connection switch example. By 
 
 
 ## Directory
-```
+```sh
 +- switch_demo
     +- libqrencode
     +- src
