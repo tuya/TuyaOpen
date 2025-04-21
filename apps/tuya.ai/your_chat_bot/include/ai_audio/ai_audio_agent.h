@@ -74,6 +74,13 @@ OPERATE_RET ai_audio_agent_upload_data(uint8_t is_first, uint8_t *data, uint32_t
  */
 OPERATE_RET ai_audio_agent_upload_stop(void);
 
+/**
+ * @brief Intrrupt the AI upload process.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_intrrupt(void);
+
 #ifdef __cplusplus
 }
 #endif

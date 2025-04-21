@@ -7,6 +7,7 @@
 
 #include "app_led.h"
 
+#include "tkl_gpio.h"
 #include "tal_api.h"
 
 /***********************************************************

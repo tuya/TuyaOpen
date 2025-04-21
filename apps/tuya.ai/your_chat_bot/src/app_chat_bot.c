@@ -34,19 +34,59 @@ typedef struct {
 } APP_CB_HW_CONFIG_S;
 
 typedef struct {
-    // hardware config
-    APP_CB_HW_CONFIG_S config;
-    // work mode
-    APP_WORK_MODE_E work_mode;
+    APP_WORK_MODE_E        mode;
+    AI_AUDIO_WORK_MODE_E   auido_mode;
+    AI_AUDIO_ALERT_TYPE_E  mode_alert;
+    bool                   is_open;
+}CHAT_WORK_MODE_INFO_T;
 
-    uint8_t is_enable;
+typedef struct {
+      uint8_t                       is_enable;
 
-    MUTEX_HANDLE enable_mutex;
+      APP_CB_HW_CONFIG_S            config;
+      const CHAT_WORK_MODE_INFO_T  *work;
+
+      MUTEX_HANDLE                 enable_mutex;
 } APP_CHAT_BOT_S;
 
+
 /***********************************************************
-********************function declaration********************
+***********************const declaration********************
 ***********************************************************/
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_HOLD ={
+    .mode = APP_CHAT_BOT_WORK_MODE_HOLD,
+    .auido_mode = AI_AUDIO_WORK_MODE_HOLD,
+    .mode_alert = AI_AUDIO_ALERT_LONG_KEY_TALK,
+    .is_open = false, 
+};
+
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_ONE_SHOT ={
+    .mode = APP_CHAT_BOT_WORK_MODE_ONE_SHOT,
+    .auido_mode = AI_AUDIO_WORK_MODE_TRIGGER,
+    .mode_alert = AI_AUDIO_ALERT_KEY_TALK,
+    .is_open = false,
+};
+
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP ={
+    .mode = APP_CHAT_BOT_WORK_MODE_WAKEUP,
+    .auido_mode = AI_AUDIO_WORK_MODE_WAKEUP,
+    .mode_alert = AI_AUDIO_ALERT_WAKEUP_TALK,
+    .is_open = true,
+};
+
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_FREE ={
+    .mode = APP_CHAT_BOT_WORK_MODE_FREE,
+    .auido_mode = AI_AUDIO_WORK_MODE_FREE,
+    .mode_alert = AI_AUDIO_ALERT_FREE_TALK,
+    .is_open = true,
+};
+
+const CHAT_WORK_MODE_INFO_T *cWORK_MODE_INFO_LIST[] = {
+    &cAPP_WORK_HOLD,
+    &cAPP_WORK_ONE_SHOT,
+    &cAPP_WORK_WAKEUP,
+    &cAPP_WORK_FREE,
+};
 
 /***********************************************************
 ***********************variable define**********************
@@ -65,7 +105,7 @@ static APP_CHAT_BOT_S sg_chat_bot = {
                     .active_level = TUYA_GPIO_LEVEL_HIGH,
                 },
         },
-    .work_mode = APP_CHAT_BOT_WORK_MODE_ONE_SHOT,
+    .work = &cAPP_WORK_HOLD,
 };
 
 /***********************************************************
@@ -80,24 +120,19 @@ static void __app_ai_msg_cb(AI_AGENT_MSG_T *msg)
 
     switch (msg->type) {
     case AI_AGENT_MSG_TP_TEXT_ASR: {
-        PR_DEBUG("---> AI_MSG_TYPE_TEXT_ASR");
         if (msg->data_len > 0) {
             // send asr text to display
             tuya_display_send_msg(TY_DISPLAY_TP_HUMAN_CHAT, (char *)msg->data, msg->data_len);
         }
     } break;
     case AI_AGENT_MSG_TP_TEXT_NLG: {
-        PR_DEBUG("---> AI_MSG_TYPE_TEXT_NLG");
         tuya_display_send_msg(TY_DISPLAY_TP_AI_CHAT, (char *)msg->data, msg->data_len);
     } break;
     case AI_AGENT_MSG_TP_AUDIO_START: {
-        PR_DEBUG("---> AI_MSG_TYPE_AUDIO_START");
     } break;
     case AI_AGENT_MSG_TP_AUDIO_DATA: {
-        PR_DEBUG("---> AI_MSG_TYPE_AUDIO_DATA, len: %d", msg->data_len);
     } break;
     case AI_AGENT_MSG_TP_AUDIO_STOP: {
-        PR_DEBUG("---> AI_MSG_TYPE_AUDIO_STOP");
     } break;
     case AI_AGENT_MSG_TP_EMOTION: {
         PR_DEBUG("---> AI_MSG_TYPE_EMOTION");
@@ -119,7 +154,7 @@ static void __app_ai_msg_cb(AI_AGENT_MSG_T *msg)
 
 APP_WORK_MODE_E app_chat_bot_get_work_mode(void)
 {
-    return sg_chat_bot.work_mode;
+    return sg_chat_bot.work->mode;
 }
 
 OPERATE_RET app_chat_bot_enable_set(uint8_t enable)
@@ -140,11 +175,7 @@ OPERATE_RET app_chat_bot_enable_set(uint8_t enable)
     sg_chat_bot.is_enable = enable;
     tal_mutex_unlock(sg_chat_bot.enable_mutex);
 
-    if (enable) {
-        ai_audio_set_silent(false);
-    } else {
-        ai_audio_set_silent(true);
-    }
+    ai_audio_set_open(enable);
 
     // set led, display, etc.
     app_led_set(enable);
@@ -166,7 +197,6 @@ void app_chat_bot_config_dump(void)
     PR_DEBUG("chat bot config:");
     PR_DEBUG("btn: pin=%d, active_level=%d", sg_chat_bot.config.btn.pin, sg_chat_bot.config.btn.active_level);
     PR_DEBUG("led: pin=%d, active_level=%d", sg_chat_bot.config.led.pin, sg_chat_bot.config.led.active_level);
-    PR_DEBUG("work_mode: %s", sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_HOLD ? "hold" : "one shot");
 }
 
 OPERATE_RET app_chat_bot_init(void)
@@ -179,28 +209,9 @@ OPERATE_RET app_chat_bot_init(void)
     // enable mutex
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_chat_bot.enable_mutex));
 
+    ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
     ai_audio_cfg.agent_msg_cb = __app_ai_msg_cb;
-    if (sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_HOLD) {
-        ai_audio_cfg.is_enable_interrupt = 0;
-        ai_audio_cfg.is_open_asr = 0;
-        ai_audio_cfg.is_open_vad = 0;
-        ai_audio_cfg.wakeup_timeout = 0;
-    } else if (sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_ONE_SHOT) {
-        ai_audio_cfg.is_enable_interrupt = 0;
-        ai_audio_cfg.is_open_asr = 0;
-        ai_audio_cfg.is_open_vad = 1;
-        ai_audio_cfg.wakeup_timeout = 0;
-    } else if (sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_WAKEUP) {
-        ai_audio_cfg.is_enable_interrupt = 0;
-        ai_audio_cfg.is_open_asr = 0;
-        ai_audio_cfg.is_open_vad = 1;
-        ai_audio_cfg.wakeup_timeout = AI_WAKEUP_TIMEOUT_MS;
-    } else {
-        ai_audio_cfg.is_enable_interrupt = 0;
-        ai_audio_cfg.is_open_asr = 0;
-        ai_audio_cfg.is_open_vad = 1;
-        ai_audio_cfg.wakeup_timeout = AI_WAKEUP_TIMEOUT_MS;
-    }
+
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
 
     // button init
@@ -208,12 +219,39 @@ OPERATE_RET app_chat_bot_init(void)
     // led init
     TUYA_CALL_ERR_RETURN(app_led_init(sg_chat_bot.config.led.pin, sg_chat_bot.config.led.active_level));
 
-    if (sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_WAKEUP ||
-        sg_chat_bot.work_mode == APP_CHAT_BOT_WORK_MODE_FREE) {
-        TUYA_CALL_ERR_LOG(app_chat_bot_enable_set(1));
-    } else {
-        TUYA_CALL_ERR_LOG(app_chat_bot_enable_set(0));
+    app_chat_bot_enable_set(sg_chat_bot.work->is_open);
+
+    return OPRT_OK;
+}
+
+OPERATE_RET app_chat_bot_set_work_mode(APP_WORK_MODE_E work_mode)
+{ 
+    const CHAT_WORK_MODE_INFO_T *p_work = NULL;
+
+    if (work_mode >= APP_CHAT_BOT_WORK_MODE_MAX) {
+        PR_ERR("work mode:%d is invalid", work_mode);
+        return OPRT_INVALID_PARM;
     }
+
+    p_work = cWORK_MODE_INFO_LIST[work_mode];
+
+    app_chat_bot_enable_set(0);
+    ai_audio_set_work_mode(p_work->auido_mode);
+    ai_audio_player_play_alert(p_work->mode_alert);
+    app_chat_bot_enable_set(p_work->is_open);
+
+    sg_chat_bot.work = p_work;
+
+    return OPRT_OK;
+}
+
+OPERATE_RET app_chat_bot_set_next_mode(void)
+{
+    uint8_t mode = sg_chat_bot.work->mode;
+
+    mode = (mode + 1) % APP_CHAT_BOT_WORK_MODE_MAX;
+
+    app_chat_bot_set_work_mode(mode);
 
     return OPRT_OK;
 }

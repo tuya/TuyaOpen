@@ -12,6 +12,7 @@
 #define MINIMP3_IMPLEMENTATION
 #include "minimp3_ex.h"
 
+#include "tkl_system.h"
 #include "tkl_audio.h"
 #include "tkl_memory.h"
 #include "tkl_thread.h"
@@ -478,8 +479,7 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
         rt = ai_audio_player_data_write((uint8_t *)media_src_network_fail, sizeof(media_src_network_fail), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
-        rt = ai_audio_player_data_write((uint8_t *)media_src_network_disconnect, sizeof(media_src_network_disconnect),
-                                        1);
+        rt = ai_audio_player_data_write((uint8_t *)media_src_network_disconnect, sizeof(media_src_network_disconnect), 1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
         rt = ai_audio_player_data_write((uint8_t *)media_src_battery_low, sizeof(media_src_battery_low), 1);
@@ -490,6 +490,18 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
     case AI_AUDIO_ALERT_WAKEUP: {
         rt = ai_audio_player_data_write((uint8_t *)media_src_wakeup, sizeof(media_src_wakeup), 1);
     } break;
+    case AI_AUDIO_ALERT_LONG_KEY_TALK: {
+        rt = ai_audio_player_data_write((uint8_t *)media_src_long_press_dialogue, sizeof(media_src_long_press_dialogue), 1);
+    } break;
+    case AI_AUDIO_ALERT_KEY_TALK: {
+        rt = ai_audio_player_data_write((uint8_t *)media_src_key_dialogue, sizeof(media_src_key_dialogue), 1);
+    } break;
+    case AI_AUDIO_ALERT_WAKEUP_TALK: {
+        rt = ai_audio_player_data_write((uint8_t *)media_src_wake_dialogue, sizeof(media_src_wake_dialogue), 1);
+    } break;
+    case AI_AUDIO_ALERT_FREE_TALK: {
+        rt = ai_audio_player_data_write((uint8_t *)media_src_free_dialogue, sizeof(media_src_free_dialogue), 1);
+    } break;
     default:
         break;
     }
@@ -497,6 +509,22 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
     tal_mutex_unlock(sg_player.alert_mutex);
 
     return rt;
+}
+
+/**
+ * @brief Plays an alert sound synchronously based on the specified alert type.
+ * @param type The type of alert to play, defined by the AI_AUDIO_ALERT_TYPE_E enum.
+ * @return OPERATE_RET - OPRT_OK if the alert sound is successfully played, otherwise an error code.
+ */
+OPERATE_RET ai_audio_player_play_alert_syn(AI_AUDIO_ALERT_TYPE_E type)
+{
+    ai_audio_player_play_alert(type);
+
+    while (ai_audio_player_is_playing()) {
+        tkl_system_sleep(5);
+    }
+
+    return OPRT_OK;
 }
 
 /**

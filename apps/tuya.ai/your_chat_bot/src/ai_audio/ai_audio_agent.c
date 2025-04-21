@@ -117,7 +117,7 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
         return OPRT_OK;
     }
 
-    PR_DEBUG("content: %s", data);
+    // PR_DEBUG("content: %s", data);
 
     // parse bizType
     node = cJSON_GetObjectItem(json, "bizType");
@@ -150,7 +150,7 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
         node = cJSON_GetObjectItem(json, "data");
         node = cJSON_GetObjectItem(node, "content");
         const char *content = cJSON_GetStringValue(node);
-        PR_DEBUG("NLG eof: %d, content: %s", eof, content);
+        // PR_DEBUG("NLG eof: %d, content: %s", eof, content);
 
         if (NULL == sg_ai.nlg_text) {
             sg_ai.nlg_text = (char *)tkl_system_psram_malloc(AI_AGENT_NLG_TEXT_MAX_LEN);
@@ -192,29 +192,22 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
     } else if (eof && strcmp(bizType, "SKILL") == 0) {
         // {"bizId":"xxx","bizType":"SKILL","eof":1,"data":{"code":"emo","skillContent":{"emotion":["NEUTRAL"],"text":["😐"]}}}
         node = cJSON_GetObjectItem(json, "data");
-        if (node != NULL) {
-            if (strcmp(cJSON_GetObjectItem(node, "code")->valuestring, "emo") == 0) {
-                ;
-                cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
-                // cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
-                cJSON *emo_text = cJSON_GetObjectItem(skillContent, "text");
-                emo_text = cJSON_GetArrayItem(emo_text, 0);
-                if (NULL == emo_text) {
-                    PR_ERR("emo text is NULL");
-                } else {
-                    PR_DEBUG("emo text: %s", emo_text->valuestring);
-                }
-
-                AI_AGENT_MSG_T ai_msg = {
-                    .type = AI_AGENT_MSG_TP_EMOTION,
-                    .data_len = strlen(emo_text->valuestring),
-                    .data = (uint8_t *)emo_text->valuestring,
-                };
-                sg_ai.msg_cb(&ai_msg);
-            } else {
-                PR_ERR("unknow skill code: %s", cJSON_GetObjectItem(node, "code")->valuestring);
-            }
+        cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
+        // cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
+        cJSON *emo_text = cJSON_GetObjectItem(skillContent, "text");
+        emo_text = cJSON_GetArrayItem(emo_text, 0);
+        if (NULL == emo_text) {
+            PR_ERR("emo text is NULL");
+        } else {
+            PR_DEBUG("emo text: %s", emo_text->valuestring);
         }
+
+        AI_AGENT_MSG_T ai_msg = {
+            .type = AI_AGENT_MSG_TP_EMOTION,
+            .data_len = strlen(emo_text->valuestring),
+            .data = (uint8_t *)emo_text->valuestring,
+        };
+        sg_ai.msg_cb(&ai_msg);
     }
 
     cJSON_Delete(json);
@@ -251,28 +244,30 @@ static OPERATE_RET __ai_agent_session_create(void)
     memset(&cfg, 0, sizeof(AI_SESSION_CFG_T));
     cfg.send_num = TY_AI_CHAT_ID_DS_CNT;
     cfg.send[0].type = AI_PT_AUDIO;
-    cfg.send[0].id = TY_AI_CHAT_ID_DS_AUDIO;
+    cfg.send[0].id = tuya_ai_biz_get_send_id();
     cfg.send[0].get_cb = NULL;
     cfg.send[0].free_cb = NULL;
     cfg.send[1].type = AI_PT_VIDEO;
-    cfg.send[1].id = TY_AI_CHAT_ID_DS_VIDEO;
+    cfg.send[1].id = tuya_ai_biz_get_send_id();
     cfg.send[1].get_cb = NULL;
     cfg.send[1].free_cb = NULL;
     cfg.send[2].type = AI_PT_TEXT;
-    cfg.send[2].id = TY_AI_CHAT_ID_DS_TEXT;
+    cfg.send[2].id = tuya_ai_biz_get_send_id();
     cfg.send[2].get_cb = NULL;
     cfg.send[2].free_cb = NULL;
     cfg.send[3].type = AI_PT_IMAGE;
-    cfg.send[3].id = TY_AI_CHAT_ID_DS_IMAGE;
+    cfg.send[3].id = tuya_ai_biz_get_send_id();
     cfg.send[3].get_cb = NULL;
     cfg.send[3].free_cb = NULL;
+
     cfg.recv_num = TY_AI_CHAT_ID_US_CNT;
-    cfg.recv[1].id = TY_AI_CHAT_ID_US_AUDIO;
+    cfg.recv[1].id = tuya_ai_biz_get_recv_id();
     cfg.recv[1].cb = __ai_agent_audio_recv;
     cfg.recv[1].usr_data = NULL;
-    cfg.recv[0].id = TY_AI_CHAT_ID_US_TEXT;
+    cfg.recv[0].id = tuya_ai_biz_get_recv_id();
     cfg.recv[0].cb = __ai_agent_txt_recv;
     cfg.recv[0].usr_data = NULL;
+
     cfg.event_cb = __ai_agent_event_recv;
 
     // 支持的tts格式
@@ -544,6 +539,20 @@ OPERATE_RET ai_audio_agent_upload_stop(void)
     }
 
     TUYA_CALL_ERR_RETURN(tuya_ai_event_end(sg_ai.session_id, sg_ai.event_id, NULL, 0));
+
+    return rt;
+}
+
+/**
+ * @brief Intrrupt the AI upload process.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_intrrupt(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_RETURN(tuya_ai_event_chat_break(sg_ai.session_id, sg_ai.event_id, NULL, 0));
 
     return rt;
 }

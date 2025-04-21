@@ -1,7 +1,12 @@
 /**
  * @file ai_audio_main.c
- * @version 0.1
- * @date 2025-04-15
+ * @brief Main implementation file for the audio module, which handles audio initialization, 
+ *        volume control, open/close operations, and work mode settings.
+ *
+ * This file contains the core functions for initializing and managing the audio module, 
+ * including setting up input handling, volume management, and different work modes.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "tuya_cloud_types.h"
@@ -9,6 +14,7 @@
 #include "tkl_queue.h"
 #include "tkl_memory.h"
 #include "tkl_thread.h"
+#include "tkl_asr.h"
 
 #include "tal_api.h"
 #include "ai_audio.h"
@@ -17,6 +23,13 @@
 ************************macro define************************
 ***********************************************************/
 #define AI_AUDIO_SPEAK_VOLUME_KEY "spk_volume"
+
+#define AI_AUDIO_INPUT_EVT_CHANGE(last_evt, new_evt)                                                                \
+    do {                                                                                                            \
+        if(last_evt != new_evt) {                                                                                   \
+            PR_DEBUG("ai audio event changed: %d->%d", last_evt, new_evt);                                          \
+        }                                                                                                           \
+    } while (0)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -33,22 +46,16 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static bool sg_ai_audio_is_silent = true;
-static bool sg_is_support_interrupt = 0;
-static THREAD_HANDLE sg_ai_audio_thrd_hdl = NULL;
-static QUEUE_HANDLE sg_ai_audio_frame_queue = NULL;
+static bool sg_ai_audio_is_work = false;
 static AI_AGENT_MSG_CB sg_ai_agent_msg_cb = NULL;
+static AI_AUDIO_WORK_MODE_E sg_ai_audio_work_mode = AI_AUDIO_WORK_MODE_HOLD;
+static bool sg_is_ai_speaking = false;
+static bool sg_is_enable_intrrupt = false;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void __ai_audio_silent_cb(void)
-{
-    ai_audio_set_silent(true);
-}
-
 static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
 {
-
     switch (msg->type) {
     case AI_AGENT_MSG_TP_TEXT_ASR: {
         if (msg->data_len > 0) {
@@ -60,17 +67,21 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
             ai_audio_player_start();
         }
 
-        if (AI_CLOUD_ASR_STATE_WAIT_ASR == ai_audio_cloud_asr_get_state()) {
-            PR_DEBUG("get cloud asr, set idle");
-            ai_audio_cloud_asr_reset();
-        }
-
+        ai_audio_cloud_stop_wait_asr();
     } break;
     case AI_AGENT_MSG_TP_AUDIO_DATA: {
+        sg_is_ai_speaking = true;
         ai_audio_player_data_write(msg->data, msg->data_len, 0);
     } break;
     case AI_AGENT_MSG_TP_AUDIO_STOP: {
         ai_audio_player_data_write(msg->data, msg->data_len, 1);
+
+        if (AI_AUDIO_WORK_MODE_WAKEUP == sg_ai_audio_work_mode) {
+            ai_audio_input_restart_asr_detect_wakeup_word();
+        }else if(AI_AUDIO_WORK_MODE_FREE == sg_ai_audio_work_mode) {
+            ai_audio_input_trigger_asr_awake();
+        }
+        sg_is_ai_speaking = false;
     } break;
     default:
         break;
@@ -81,157 +92,118 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
     }
 }
 
-static int __ai_audio_get_frame_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
+static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
-    AI_AUDIO_FRAME_MSG_T msg;
-    OPERATE_RET rt = OPRT_OK;
+    static AI_AUDIO_INPUT_EVENT_E last_evt = 0xFF;
 
-    if (true == sg_ai_audio_is_silent) {
-        return 0;
-    }
+    AI_AUDIO_INPUT_EVT_CHANGE(last_evt, event);
 
-    if (false == sg_is_support_interrupt) {
-        if (true == ai_audio_player_is_playing()) {
-            return 0;
-        }
-    }
-
-#if 0
-     msg.frame_len = pframe->used_size;
-     msg.frame = tkl_system_psram_malloc(pframe->used_size);
-     if(NULL == msg.frame) {
-         PR_ERR("malloc failed");
-         return 1;
-     }
-     memcpy(msg.frame, pframe->pbuf, pframe->used_size);
- 
-     rt = tal_queue_post(sg_ai_audio_frame_queue, &msg, 0);
-     if(rt !=  OPRT_OK) {
-         PR_ERR("tal_queue_post failed:%d", rt);
-         return 1;
-     }
-#else
-    AI_AUDIO_WAKEUP_EVENT_E wakeup_evt = AI_AUDIO_WAKEUP_EVT_NONE;
-
-    ai_audio_wakeup_feed(pframe->pbuf, pframe->used_size);
-
-    wakeup_evt = ai_audio_wakeup_detect_event();
-
-    if (true == ai_audio_is_awake()) {
-        ai_audio_cloud_asr_input(pframe->pbuf, pframe->used_size);
-    } else {
-        ai_audio_cloud_asr_vad_input(pframe->pbuf, pframe->used_size);
-    }
-
-    if (AI_AUDIO_WAKEUP_EVT_ENTER_IDLE == wakeup_evt) {
+    switch (event) {    
+    case AI_AUDIO_INPUT_EVT_IDLE:
+        ai_audio_cloud_asr_rb_reset();
         ai_audio_cloud_asr_stop();
-    } else if (AI_AUDIO_WAKEUP_EVT_WAKEUP == wakeup_evt) {
+        break;
+    case AI_AUDIO_INPUT_EVT_ENTER_DETECT:
+        ai_audio_cloud_asr_input(data, len);
+        ai_audio_cloud_asr_stop();
+        break;
+    case AI_AUDIO_INPUT_EVT_DETECTING:
+        ai_audio_cloud_asr_vad_input(data, len);
+        break;
+    case AI_AUDIO_INPUT_EVT_ASR_WORD:
+        if (sg_is_ai_speaking) {
+            PR_NOTICE("intrrupt");
+            ai_audio_agent_upload_intrrupt();
+        }
+
+        ai_audio_player_play_alert_syn(AI_AUDIO_ALERT_WAKEUP);
+        break;
+    case AI_AUDIO_INPUT_EVT_WAKEUP: {
+        if (sg_is_ai_speaking) {
+            PR_NOTICE("wakeup intrrupt");
+            ai_audio_agent_upload_intrrupt();
+        }
+
+        ai_audio_cloud_asr_input(data, len);
         ai_audio_cloud_asr_start();
+    } break;
+    case AI_AUDIO_INPUT_EVT_AWAKE:
+        if (sg_is_ai_speaking) {
+            if(sg_ai_audio_work_mode == AI_AUDIO_WORK_MODE_FREE) {
+                PR_NOTICE("awake intrrupt");
+                ai_audio_agent_upload_intrrupt();
+
+                ai_audio_cloud_asr_input(data, len);
+                ai_audio_cloud_asr_start();
+            }else {
+                break;
+            }
+        }else {
+            ai_audio_cloud_asr_input(data, len);
+        }
+
+        break;
+     }
+
+     last_evt = event;
+}
+
+static AI_AUDIO_INPUT_WAKEUP_TP_E __get_input_wakeup_type(AI_AUDIO_WORK_MODE_E work_mode)
+{
+    AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp = 0;
+
+    if(work_mode == AI_AUDIO_WORK_MODE_HOLD) {
+        wakeup_tp = AI_AUDIO_INPUT_WAKEUP_MANUAL;
+    }else if(work_mode == AI_AUDIO_WORK_MODE_TRIGGER){
+        wakeup_tp = AI_AUDIO_INPUT_WAKEUP_VAD;
+    }else {
+        wakeup_tp = AI_AUDIO_INPUT_WAKEUP_ASR;
     }
 
-#endif
-
-    return rt;
+    return wakeup_tp;
 }
 
-static void __ai_audio_handle_frame_task(void *arg)
-{
-    AI_AUDIO_FRAME_MSG_T msg;
-    AI_AUDIO_WAKEUP_EVENT_E wakeup_evt = AI_AUDIO_WAKEUP_EVT_NONE;
-
-    for (;;) {
-        tal_queue_fetch(sg_ai_audio_frame_queue, &msg, TKL_QUEUE_WAIT_FROEVER);
-
-        ai_audio_wakeup_feed(msg.frame, msg.frame_len);
-
-        wakeup_evt = ai_audio_wakeup_detect_event();
-
-        if (true == ai_audio_is_awake()) {
-            ai_audio_cloud_asr_input(msg.frame, msg.frame_len);
-        } else {
-            ai_audio_cloud_asr_vad_input(msg.frame, msg.frame_len);
-        }
-
-        if (AI_AUDIO_WAKEUP_EVT_ENTER_IDLE == wakeup_evt) {
-            ai_audio_cloud_asr_stop();
-        } else if (AI_AUDIO_WAKEUP_EVT_WAKEUP == wakeup_evt) {
-            ai_audio_cloud_asr_start();
-        }
-
-        if (msg.frame) {
-            tkl_system_psram_free(msg.frame);
-        }
-    }
-}
-
-static OPERATE_RET __ai_audio_hardware_init(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    PR_DEBUG("tkl_audio_init...");
-
-    TKL_AUDIO_CONFIG_T config;
-    memset(&config, 0, sizeof(TKL_AUDIO_CONFIG_T));
-
-    config.ai_chn = TKL_AI_0;
-    config.sample = TKL_AUDIO_SAMPLE_16K;
-    config.datebits = TKL_AUDIO_DATABITS_16;
-    config.channel = TKL_AUDIO_CHANNEL_MONO;
-    config.codectype = TKL_CODEC_AUDIO_PCM;
-    config.card = TKL_AUDIO_TYPE_BOARD;
-    config.put_cb = __ai_audio_get_frame_cb;
-
-    config.spk_sample = TKL_AUDIO_SAMPLE_16K;
-    config.spk_gpio = SPEAKER_EN_PIN;
-    config.spk_gpio_polarity = TUYA_GPIO_LEVEL_LOW;
-
-    TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 0));
-    TUYA_CALL_ERR_RETURN(tkl_ai_start(0, 0));
-    TUYA_CALL_ERR_RETURN(tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 80));
-
-    TUYA_CALL_ERR_RETURN(tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, ai_audio_get_volume()));
-
-    PR_DEBUG("tkl_audio_init success");
-
-    return OPRT_OK;
-}
-
+/**
+ * @brief Initializes the audio module with the provided configuration.
+ * @param cfg Pointer to the configuration structure for the audio module.
+ * @return OPERATE_RET - OPRT_OK if initialization is successful, otherwise an error code.
+ */
 OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
+    AI_AUDIO_INPUT_CFG_T input_cfg;
 
     if (NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
-    if (cfg->is_open_vad) {
-        TUYA_CALL_ERR_RETURN(ai_audio_wakeup_open_vad());
-        if (cfg->is_open_asr) {
-            TUYA_CALL_ERR_RETURN(ai_audio_wakeup_open_asr());
-        }
+    input_cfg.wakeup_tp = __get_input_wakeup_type(cfg->work_mode);
+    sg_ai_audio_work_mode = cfg->work_mode;
+
+    if(cfg->work_mode == AI_AUDIO_WORK_MODE_WAKEUP ||\
+       cfg->work_mode == AI_AUDIO_WORK_MODE_FREE ) {
+        sg_is_enable_intrrupt = true;
     }
 
-    sg_is_support_interrupt = cfg->is_enable_interrupt;
+    TUYA_CALL_ERR_RETURN(ai_audio_input_init(&input_cfg, __ai_audio_input_inform_handle));
 
-    TUYA_CALL_ERR_RETURN(ai_audio_wakeup_init(cfg->wakeup_timeout, __ai_audio_silent_cb));
+    TUYA_CALL_ERR_RETURN(tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, ai_audio_get_volume()));
 
-    TUYA_CALL_ERR_RETURN(ai_audio_cloud_asr_init(cfg->is_enable_interrupt));
+    TUYA_CALL_ERR_RETURN(ai_audio_cloud_asr_init(sg_is_enable_intrrupt));
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
 
     TUYA_CALL_ERR_RETURN(ai_audio_agent_init(__ai_audio_agent_msg_cb));
     sg_ai_agent_msg_cb = cfg->agent_msg_cb;
 
-    TUYA_CALL_ERR_RETURN(__ai_audio_hardware_init());
-
-    //  TUYA_CALL_ERR_RETURN(tal_queue_create_init(&sg_ai_audio_frame_queue, sizeof(AI_AUDIO_FRAME_MSG_T), 50));
-
-    //  TUYA_CALL_ERR_RETURN(tkl_thread_create_in_psram(&sg_ai_audio_thrd_hdl, "ai_audio", 1024 * 4, THREAD_PRIO_2,
-    //                                                   __ai_audio_handle_frame_task, NULL));
-
     return OPRT_OK;
 }
 
+/**
+ * @brief Sets the volume for the audio module.
+ * @param volume The volume level to set.
+ * @return OPERATE_RET - OPRT_OK if the volume is set successfully, otherwise an error code.
+ */
 OPERATE_RET ai_audio_set_volume(uint8_t volume)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -243,6 +215,11 @@ OPERATE_RET ai_audio_set_volume(uint8_t volume)
     return rt;
 }
 
+/**
+ * @brief Retrieves the current volume setting for the audio module.
+ * @param None
+ * @return uint8_t - The current volume level.
+ */
 uint8_t ai_audio_get_volume(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -270,22 +247,60 @@ uint8_t ai_audio_get_volume(void)
     return volume;
 }
 
-OPERATE_RET ai_audio_set_silent(bool is_silent)
+/**
+ * @brief Sets the open state of the audio module.
+ * @param is_open Boolean value indicating whether to open (true) or close (false) the audio module.
+ * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
+ */
+OPERATE_RET ai_audio_set_open(bool is_open)
 {
-    if (true == is_silent) {
-        ai_audio_set_wakeup_manual(false);
-        ai_audio_player_stop();
-        ai_audio_cloud_asr_stop();
-    } else {
-        ai_audio_set_wakeup_manual(true);
+    if(sg_ai_audio_is_work == is_open){
+        PR_NOTICE("ai audio is already %d", is_open);
+        return OPRT_OK;
     }
 
-    sg_ai_audio_is_silent = is_silent;
+    if(is_open) {
+        ai_audio_input_enable_detect_wakeup();
+    }else {
+        if (ai_audio_player_is_playing()) {
+            ai_audio_player_stop();
+        }
+
+        ai_audio_input_disable_detect_wakeup();
+    }
+
+    sg_is_ai_speaking = false;
+    sg_ai_audio_is_work = is_open;
 
     return OPRT_OK;
 }
 
-bool ai_audio_is_silent(void)
+/**
+ * @brief Sets the work mode of the audio module.
+ * @param work_mode The work mode to set for the audio module.
+ * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
+ */
+OPERATE_RET ai_audio_set_work_mode(AI_AUDIO_WORK_MODE_E work_mode)
 {
-    return sg_ai_audio_is_silent;
+    if(true == sg_ai_audio_is_work) {
+        PR_ERR("audio module is open please close it first");
+        return OPRT_COM_ERROR;
+    }
+
+    ai_audio_cloud_asr_idle();
+    ai_audio_cloud_asr_rb_reset();
+
+    ai_audio_input_set_wakeup_tp(__get_input_wakeup_type(work_mode));
+
+    if(work_mode == AI_AUDIO_WORK_MODE_WAKEUP ||\
+       work_mode == AI_AUDIO_WORK_MODE_FREE ) {
+        sg_is_enable_intrrupt = true;
+    }else {
+        sg_is_enable_intrrupt = false;
+    }
+    ai_audio_cloud_asr_enable_intrrupt(sg_is_enable_intrrupt);
+
+    sg_ai_audio_work_mode = work_mode;
+
+    return OPRT_OK;
 }

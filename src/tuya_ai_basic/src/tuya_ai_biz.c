@@ -986,9 +986,7 @@ OPERATE_RET tuya_ai_biz_del_session(AI_SESSION_ID id, AI_STATUS_CODE code)
     return __ai_biz_session_destory(id, code, true);
 }
 
-#if 0 // test
-
-static int tuya_ai_biz_get_send_id(void)
+int tuya_ai_biz_get_send_id(void)
 {
     static int odd_number = 1;
     int id = odd_number;
@@ -996,7 +994,7 @@ static int tuya_ai_biz_get_send_id(void)
     return id;
 }
 
-static int tuya_ai_biz_get_recv_id(void)
+int tuya_ai_biz_get_recv_id(void)
 {
     static int even_number = 2;
     int id = even_number;
@@ -1004,6 +1002,7 @@ static int tuya_ai_biz_get_recv_id(void)
     return id;
 }
 
+#if 0 // test
 OPERATE_RET ai_send_get_audio_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char **data)
 {
     static int flag = 0;

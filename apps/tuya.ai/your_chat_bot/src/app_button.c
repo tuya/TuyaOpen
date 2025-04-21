@@ -77,6 +77,9 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
             PR_DEBUG("button single click, chat bot %s", is_enable ? "enable" : "disable");
         }
     } break;
+    case TDL_BUTTON_PRESS_DOUBLE_CLICK: {
+        app_chat_bot_set_next_mode();
+    } break;
     default:
         break;
     }
@@ -103,12 +106,13 @@ OPERATE_RET app_button_init(TUYA_GPIO_NUM_E pin, TUYA_GPIO_LEVEL_E active_level)
                                    .long_keep_timer = 1000,
                                    .button_debounce_time = 50,
                                    .button_repeat_valid_count = 2,
-                                   .button_repeat_valid_time = 50};
+                                   .button_repeat_valid_time = 500};
     TUYA_CALL_ERR_RETURN(tdl_button_create(APP_BUTTON_NAME, &button_cfg, &sg_button_hdl));
 
     tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_DOWN, __app_button_function_cb);
     tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_UP, __app_button_function_cb);
     tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_SINGLE_CLICK, __app_button_function_cb);
+    tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_DOUBLE_CLICK, __app_button_function_cb);
 
     return rt;
 }

@@ -12,6 +12,7 @@
  *
  */
 #include "lvgl.h"
+#include "tal_api.h"
 #include "font_awesome_symbols.h"
 #include "display_gui.h"
 #include "tuya_lvgl.h"
@@ -44,7 +45,7 @@ static lv_obj_t *sg_title_bar;
 static lv_obj_t *sg_title_text;
 static lv_obj_t *sg_msg_container;
 
-LV_FONT_DECLARE(FONT_SY_20);
+LV_FONT_DECLARE(font_puhui_18_2);
 LV_FONT_DECLARE(font_awesome_30_4);
 
 /***********************************************************
@@ -89,7 +90,7 @@ static void __gui_ai_chat_frame_init(void)
     lv_obj_set_style_bg_color(main_cont, lv_color_hex(0xF0F0F0), 0);
     lv_obj_set_style_pad_all(main_cont, 0, 0);
 
-    lv_obj_set_style_text_font(main_cont, &FONT_SY_20, 0);
+    lv_obj_set_style_text_font(main_cont, &font_puhui_18_2, 0);
     lv_obj_set_style_text_color(main_cont, lv_color_black(), 0);
     lv_obj_set_scrollbar_mode(main_cont, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(main_cont, LV_DIR_NONE);

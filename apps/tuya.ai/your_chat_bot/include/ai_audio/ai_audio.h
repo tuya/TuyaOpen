@@ -8,21 +8,23 @@
 #include "ai_audio_agent.h"
 #include "ai_audio_cloud_asr.h"
 #include "ai_audio_player.h"
-#include "ai_audio_wakeup.h"
+#include "ai_audio_input.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+typedef uint8_t  AI_AUDIO_WORK_MODE_E;
+#define AI_AUDIO_WORK_MODE_HOLD         1
+#define AI_AUDIO_WORK_MODE_TRIGGER      2
+#define AI_AUDIO_WORK_MODE_WAKEUP       3
+#define AI_AUDIO_WORK_MODE_FREE         4
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef struct {
-    uint8_t is_open_vad;
-    uint8_t is_open_asr;
-    uint8_t is_enable_interrupt;
-    uint32_t wakeup_timeout;
 
-    AI_AGENT_MSG_CB agent_msg_cb;
+typedef struct {
+    AI_AUDIO_WORK_MODE_E    work_mode;
+    AI_AGENT_MSG_CB         agent_msg_cb;
 } AI_AUDIO_CONFIG_T;
 
 /***********************************************************
@@ -36,12 +38,37 @@ typedef struct {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Initializes the audio module with the provided configuration.
+ * @param cfg Pointer to the configuration structure for the audio module.
+ * @return OPERATE_RET - OPRT_OK if initialization is successful, otherwise an error code.
+ */
 OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg);
 
+/**
+ * @brief Sets the volume for the audio module.
+ * @param volume The volume level to set.
+ * @return OPERATE_RET - OPRT_OK if the volume is set successfully, otherwise an error code.
+ */
 OPERATE_RET ai_audio_set_volume(uint8_t volume);
 
+/**
+ * @brief Retrieves the current volume setting for the audio module.
+ * @param None
+ * @return uint8_t - The current volume level.
+ */
 uint8_t ai_audio_get_volume(void);
 
-OPERATE_RET ai_audio_set_silent(bool is_silent);
+/**
+ * @brief Sets the open state of the audio module.
+ * @param is_open Boolean value indicating whether to open (true) or close (false) the audio module.
+ * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
+ */
+OPERATE_RET ai_audio_set_open(bool is_open);
 
-bool ai_audio_is_silent(void);
+/**
+ * @brief Sets the work mode of the audio module.
+ * @param work_mode The work mode to set for the audio module.
+ * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
+ */
+OPERATE_RET ai_audio_set_work_mode(AI_AUDIO_WORK_MODE_E work_mode);
