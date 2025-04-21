@@ -421,7 +421,12 @@ static OPERATE_RET __ai_audio_input_hardware_init(void)
     config.codectype = TKL_CODEC_AUDIO_PCM;
     config.card = TKL_AUDIO_TYPE_BOARD;
     config.put_cb = __ai_audio_get_input_frame;
+
+#if defined(ENABLE_MIC2) && (ENABLE_MIC2 == 1)
     config.enable = 1;
+#else
+    config.enable = 0;
+#endif
 
     config.spk_sample = TKL_AUDIO_SAMPLE_16K;
     config.spk_gpio = SPEAKER_EN_PIN;
@@ -629,4 +634,9 @@ OPERATE_RET ai_audio_input_set_wakeup_tp(AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp)
     __ai_audio_input_set_wakeup_tp(wakeup_tp);
 
     return OPRT_OK;
+}
+
+OPERATE_RET ai_audio_input_rb_reset(void)
+{
+    return __ai_audio_input_rb_reset();
 }
