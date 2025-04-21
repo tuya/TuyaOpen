@@ -120,8 +120,13 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, uint8_t
         break;
     case AI_AUDIO_INPUT_EVT_WAKEUP: {
         if (sg_is_ai_speaking) {
-            PR_NOTICE("wakeup intrrupt");
-            ai_audio_agent_upload_intrrupt();
+            if(sg_ai_audio_work_mode == AI_AUDIO_WORK_MODE_FREE) {
+                PR_NOTICE("awake intrrupt");
+                ai_audio_agent_upload_intrrupt();
+
+            }else {
+                break;
+            }
         }
 
         ai_audio_cloud_asr_input(data, len);

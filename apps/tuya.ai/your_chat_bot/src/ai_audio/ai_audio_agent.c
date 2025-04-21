@@ -190,22 +190,38 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
         }
 
     } else if (eof && strcmp(bizType, "SKILL") == 0) {
+        AI_AGENT_EMOTION_T ai_emotion = {
+            .name = NULL,
+            .text = NULL,
+        };
+
         // {"bizId":"xxx","bizType":"SKILL","eof":1,"data":{"code":"emo","skillContent":{"emotion":["NEUTRAL"],"text":["😐"]}}}
         node = cJSON_GetObjectItem(json, "data");
         cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
-        // cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
+        cJSON *emotion = cJSON_GetObjectItem(skillContent, "emotion");
+        cJSON *emotion_name = cJSON_GetArrayItem(emotion, 0);
+        if (NULL == emotion_name) {
+            PR_ERR("emotion is NULL");
+            ai_emotion.name = NULL;
+        } else {
+            PR_DEBUG("emotion name: %s", emotion_name->valuestring);
+            ai_emotion.name = emotion_name->valuestring;
+        }
+
         cJSON *emo_text = cJSON_GetObjectItem(skillContent, "text");
         emo_text = cJSON_GetArrayItem(emo_text, 0);
         if (NULL == emo_text) {
             PR_ERR("emo text is NULL");
+            ai_emotion.text = NULL;
         } else {
             PR_DEBUG("emo text: %s", emo_text->valuestring);
+            ai_emotion.text = emo_text->valuestring;
         }
 
         AI_AGENT_MSG_T ai_msg = {
             .type = AI_AGENT_MSG_TP_EMOTION,
-            .data_len = strlen(emo_text->valuestring),
-            .data = (uint8_t *)emo_text->valuestring,
+            .data_len = sizeof(AI_AGENT_EMOTION_T),
+            .data = (uint8_t *)&ai_emotion,
         };
         sg_ai.msg_cb(&ai_msg);
     }

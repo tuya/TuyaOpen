@@ -298,16 +298,12 @@ OPERATE_RET ai_audio_cloud_asr_start(void)
 
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
 
-    if(true == sg_ai_cloud_asr.is_enable_interrupt) {
-        if (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
-            __ai_audio_cloud_asr_post_state(AI_CLOUD_ASR_STATE_UPLOAD_INTERUPT);
-        }
+    if (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
+        __ai_audio_cloud_asr_post_state(AI_CLOUD_ASR_STATE_UPLOAD_INTERUPT);
+    }
 
+    if (sg_ai_cloud_asr.state == AI_CLOUD_ASR_STATE_IDLE) {
         __ai_audio_cloud_asr_post_state(AI_CLOUD_ASR_STATE_UPLOAD_START);
-    }else {
-        if (sg_ai_cloud_asr.state == AI_CLOUD_ASR_STATE_IDLE) {
-            __ai_audio_cloud_asr_post_state(AI_CLOUD_ASR_STATE_UPLOAD_START);
-        }
     }
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);

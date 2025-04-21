@@ -36,6 +36,11 @@ typedef struct {
     uint8_t *data;
 } AI_AGENT_MSG_T;
 
+typedef struct {
+    char      *name;
+    char      *text;
+} AI_AGENT_EMOTION_T;
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/

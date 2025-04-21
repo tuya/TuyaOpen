@@ -128,20 +128,17 @@ static void __app_ai_msg_cb(AI_AGENT_MSG_T *msg)
     case AI_AGENT_MSG_TP_TEXT_NLG: {
         tuya_display_send_msg(TY_DISPLAY_TP_AI_CHAT, (char *)msg->data, msg->data_len);
     } break;
-    case AI_AGENT_MSG_TP_AUDIO_START: {
-    } break;
-    case AI_AGENT_MSG_TP_AUDIO_DATA: {
-    } break;
-    case AI_AGENT_MSG_TP_AUDIO_STOP: {
-    } break;
     case AI_AGENT_MSG_TP_EMOTION: {
+        AI_AGENT_EMOTION_T *emo;
         PR_DEBUG("---> AI_MSG_TYPE_EMOTION");
-        PR_DEBUG("emotion len: %d", msg->data_len);
-        if (msg->data_len > 0) {
-            // send emotion text to display
-            PR_DEBUG("emotion data: %s", msg->data);
-            for (int i = 0; i < msg->data_len; i++) {
-                PR_DEBUG("emotion data[%d]: 0x%x", i, msg->data[i]);
+        emo = (AI_AGENT_EMOTION_T *)msg->data;
+        if(emo) {
+            if(emo->name){
+                PR_DEBUG("emotion:%s", emo->name);
+            }
+
+            if(emo->text){
+                PR_DEBUG("emotion text:%s", emo->text);
             }
         }
     } break;

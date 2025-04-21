@@ -421,7 +421,7 @@ static OPERATE_RET __ai_audio_input_hardware_init(void)
     config.codectype = TKL_CODEC_AUDIO_PCM;
     config.card = TKL_AUDIO_TYPE_BOARD;
     config.put_cb = __ai_audio_get_input_frame;
-    config.enable = 1;
+    config.enable = 0;
 
     config.spk_sample = TKL_AUDIO_SAMPLE_16K;
     config.spk_gpio = SPEAKER_EN_PIN;
