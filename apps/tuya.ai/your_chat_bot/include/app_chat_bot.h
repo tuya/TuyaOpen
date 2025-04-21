@@ -18,10 +18,17 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 typedef uint8_t APP_WORK_MODE_E;
-#define APP_CHAT_BOT_WORK_MODE_HOLD     0
-#define APP_CHAT_BOT_WORK_MODE_ONE_SHOT 1
-#define APP_CHAT_BOT_WORK_MODE_WAKEUP   2
+// Press and hold button to talk.
+#define APP_CHAT_BOT_WORK_MODE_HOLD     0  
+// Press the button once to start or stop the free conversation.
+#define APP_CHAT_BOT_WORK_MODE_ONE_SHOT 1 
+/*Say the wake-up word to initiate a single conversation, similar to a smart speaker. 
+ *If no conversation is detected within 20 seconds, you need to say the wake-up word again*/
+#define APP_CHAT_BOT_WORK_MODE_WAKEUP   2 
+/*Saying the wake-up word, you can have a free conversation.
+ *If no conversation is detected within 20 seconds, you need to say the wake-up word again*/
 #define APP_CHAT_BOT_WORK_MODE_FREE     3
+
 #define APP_CHAT_BOT_WORK_MODE_MAX      4
 /***********************************************************
 ***********************typedef define***********************

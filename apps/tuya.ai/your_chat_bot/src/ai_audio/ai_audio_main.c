@@ -116,20 +116,29 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, uint8_t
             ai_audio_agent_upload_intrrupt();
         }
 
+        ai_audio_input_stop_wakeup_feed(true);
         ai_audio_player_play_alert_syn(AI_AUDIO_ALERT_WAKEUP);
+        ai_audio_input_stop_wakeup_feed(false);
+
+#if defined(ENABLE_ECHO_CANCELLATION) && (ENABLE_ECHO_CANCELLATION == 1)
+        ai_audio_input_rb_reset();
+#endif
+        ai_audio_cloud_asr_rb_reset();
         break;
     case AI_AUDIO_INPUT_EVT_WAKEUP: {
         if (sg_is_ai_speaking) {
             if(sg_ai_audio_work_mode == AI_AUDIO_WORK_MODE_FREE) {
                 PR_NOTICE("awake intrrupt");
                 ai_audio_agent_upload_intrrupt();
-
             }else {
                 break;
             }
         }
 
+#if defined(ENABLE_MIC2) && (ENABLE_MIC2 == 1)
+#else 
         ai_audio_cloud_asr_input(data, len);
+#endif
         ai_audio_cloud_asr_start();
     } break;
     case AI_AUDIO_INPUT_EVT_AWAKE:

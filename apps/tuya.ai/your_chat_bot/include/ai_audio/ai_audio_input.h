@@ -107,6 +107,20 @@ OPERATE_RET ai_audio_input_trigger_asr_awake(void);
  */
 OPERATE_RET ai_audio_input_set_wakeup_tp(AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp);
 
+/**
+ * @brief Resets the audio input ring buffer.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_input_rb_reset(void);
+
+/**
+ * @brief Stops or starts the wakeup feed based on the provided flag.
+ * @param is_enable Boolean flag to stop (true) or start (false) the wakeup feed.
+ * @return None
+ */
+void ai_audio_input_stop_wakeup_feed(bool is_enable);
+
 #ifdef __cplusplus
 }
 #endif

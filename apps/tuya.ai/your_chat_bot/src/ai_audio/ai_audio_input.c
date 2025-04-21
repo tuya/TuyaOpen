@@ -37,6 +37,7 @@ typedef struct {
     uint8_t  is_init;
     uint8_t  is_enable_workup_detect;
     uint8_t  is_enable_interrupt;
+    uint8_t  is_stop_feed;
 
     AI_AUDIO_INPUT_STATE_E     state;
     AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp;
@@ -232,6 +233,11 @@ static TKL_ASR_WAKEUP_WORD_E __asr_recognize_wakeup_keyword(void)
 
 static void __ai_audio_wakeup_feed(uint8_t *data, uint32_t len)
 {
+
+    if(true == sg_audio_input.is_stop_feed) {
+        return;
+    }
+
     if (AI_AUDIO_INPUT_WAKEUP_VAD == sg_audio_input.wakeup_tp) {
         tkl_vad_feed(data, len);
     } else if (AI_AUDIO_INPUT_WAKEUP_ASR == sg_audio_input.wakeup_tp) {
@@ -289,9 +295,9 @@ TKL_ASR_WAKEUP_WORD_E __ai_audio_input_update_new_state(void)
                 sg_audio_input.state = AI_AUDIO_INPUT_STATE_DETECTED_WORD;
                 __ai_audio_asr_wakeup_timer_start();
             } else {
-                if(AI_AUDIO_INPUT_STATE_DETECTED_WORD == sg_audio_input.state) {
-                    break;  //waiting the vad stop
-                }
+                // if(AI_AUDIO_INPUT_STATE_DETECTED_WORD == sg_audio_input.state) {
+                //     break;  //waiting the vad stop
+                // }
 
                 if (true == sg_audio_input.is_asr_wakeup_alive) {
                     sg_audio_input.state = AI_AUDIO_INPUT_STATE_AWAKE;
@@ -636,7 +642,29 @@ OPERATE_RET ai_audio_input_set_wakeup_tp(AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp)
     return OPRT_OK;
 }
 
+/**
+ * @brief Resets the audio input ring buffer.
+ * @param None
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
 OPERATE_RET ai_audio_input_rb_reset(void)
 {
     return __ai_audio_input_rb_reset();
+}
+
+/**
+ * @brief Stops or starts the wakeup feed based on the provided flag.
+ * @param is_enable Boolean flag to stop (true) or start (false) the wakeup feed.
+ * @return None
+ */
+void ai_audio_input_stop_wakeup_feed(bool is_enable)
+{
+    sg_audio_input.is_stop_feed = is_enable;
+
+    if(sg_audio_input.is_stop_feed) {
+        tkl_vad_stop();
+    }else {
+        tkl_vad_start();
+    }
+
 }

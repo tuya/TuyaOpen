@@ -10,8 +10,8 @@ config ENABLE_CHAT_BOT
     select ENABLE_SPEAKER_UPLOAD_SERVICE_OPUS_ENCODE
     select ENABLE_SPEAKER_UPLOAD_SERVICE_SPEEX_ENCODE
 
-config ENABLE_MIC2
-    bool "hardware support mic2"
+config ENABLE_ECHO_CANCELLATION
+    bool "support echo cancellation"
     default n
 
 config SPEAKER_EN_PIN
