@@ -21,11 +21,9 @@
  * work.
  *
  */
-#if ENABLE_TUYA_AI_V2_0
-#define TUYA_PRODUCT_KEY "nalglwlujowktmte"
-#else
-#define TUYA_PRODUCT_KEY "tsqwarw3fkyzzgbf"
-#endif
+
+#define TUYA_PRODUCT_KEY "e3jrgtmuqsljru1t"
+
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
 #define TUYA_OPENSDK_AUTHKEY "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey
