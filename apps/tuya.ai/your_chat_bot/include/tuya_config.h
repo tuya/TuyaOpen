@@ -6,6 +6,8 @@
 #ifndef TUYA_CONFIG_H_
 #define TUYA_CONFIG_H_
 
+#include "tuya_cloud_types.h"
+
 /**
  * @brief configure the product information
  *
@@ -19,11 +21,12 @@
  * work.
  *
  */
-#define TUYA_PRODUCT_KEY     "tsqwarw3fkyzzgbf"                 // Please change your product key
+
+#define TUYA_PRODUCT_KEY "e3jrgtmuqsljru1t"
+
+
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
 #define TUYA_OPENSDK_AUTHKEY "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey
-
-// #define TUYA_DEVICE_FIRMWAREKEY "keye4hayh88sx34q"
 
 /**
  * @brief PINCODE for AP provisioning

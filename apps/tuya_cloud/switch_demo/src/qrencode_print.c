@@ -64,7 +64,7 @@ static QRcode *encode(const unsigned char *intext, int length)
     return code;
 }
 
-static void writeUTF8_margin(FILE *fp, int realwidth, const char *white, const char *reset, const char *full)
+static void writeUTF8_margin(int realwidth, const char *white, const char *reset, const char *full)
 {
     int x, y;
 
@@ -79,7 +79,6 @@ static void writeUTF8_margin(FILE *fp, int realwidth, const char *white, const c
 
 static int writeUTF8(const QRcode *qrcode, const char *outfile, int use_ansi, int invert)
 {
-    FILE *fp;
     int x, y;
     int realwidth;
     const char *white, *reset;
@@ -117,7 +116,7 @@ static int writeUTF8(const QRcode *qrcode, const char *outfile, int use_ansi, in
     realwidth = (qrcode->width + margin * 2);
 
     /* top margin */
-    writeUTF8_margin(fp, realwidth, white, reset, full);
+    writeUTF8_margin(realwidth, white, reset, full);
 
     /* data */
     for (y = 0; y < qrcode->width; y += 2) {
@@ -153,7 +152,7 @@ static int writeUTF8(const QRcode *qrcode, const char *outfile, int use_ansi, in
     }
 
     /* bottom margin */
-    writeUTF8_margin(fp, realwidth, white, reset, full);
+    writeUTF8_margin(realwidth, white, reset, full);
 
     return 0;
 }

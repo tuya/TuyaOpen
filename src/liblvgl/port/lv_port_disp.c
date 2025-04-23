@@ -42,7 +42,6 @@ static lv_display_t *disp_drv_backup = NULL;
  *      MACROS
  **********************/
 
-
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
@@ -62,12 +61,12 @@ void lv_port_disp_init(TKL_DISP_DEVICE_S *device)
     /* Example 2
      * Two buffers for partial rendering
      * In flush_cb DMA or similar hardware should be used to update the display in the background.*/
-    uint32_t buf_len = sg_lcd_info.width*sg_lcd_info.height*BYTE_PER_PIXEL / 20;
+    uint32_t buf_len = sg_lcd_info.width * sg_lcd_info.height * BYTE_PER_PIXEL / 20;
 
     LV_ATTRIBUTE_MEM_ALIGN
     static uint8_t *buf_2_1;
-    buf_2_1 = (uint8_t*)LV_MEM_CUSTOM_MALLOC(buf_len);
-    if(buf_2_1 == NULL) {
+    buf_2_1 = (uint8_t *)LV_MEM_CUSTOM_MALLOC(buf_len);
+    if (buf_2_1 == NULL) {
         PR_ERR("malloc failed");
         return;
     }
@@ -75,8 +74,8 @@ void lv_port_disp_init(TKL_DISP_DEVICE_S *device)
 
     LV_ATTRIBUTE_MEM_ALIGN
     static uint8_t *buf_2_2;
-    buf_2_2 = (uint8_t*)LV_MEM_CUSTOM_MALLOC(buf_len);
-    if(buf_2_2 == NULL) {
+    buf_2_2 = (uint8_t *)LV_MEM_CUSTOM_MALLOC(buf_len);
+    if (buf_2_2 == NULL) {
         PR_ERR("malloc failed");
         return;
     }
@@ -100,7 +99,7 @@ static void disp_init(TKL_DISP_DEVICE_S *device)
     memset(&sg_lcd, 0, sizeof(TKL_DISP_DEVICE_S));
     memset(&sg_lcd_info, 0, sizeof(TKL_DISP_INFO_S));
 
-    sg_lcd.device_id   = device->device_id;
+    sg_lcd.device_id = device->device_id;
     sg_lcd.device_port = device->device_port;
     TUYA_CALL_ERR_RETURN(tkl_disp_init(&sg_lcd, NULL));
     memcpy(device, &sg_lcd, sizeof(TKL_DISP_DEVICE_S));
@@ -109,7 +108,7 @@ static void disp_init(TKL_DISP_DEVICE_S *device)
 
     rect.x = 0;
     rect.y = 0;
-    rect.width  = sg_lcd_info.width;
+    rect.width = sg_lcd_info.width;
     rect.height = sg_lcd_info.height;
 
     color.full = 0xFFFFFFFF;
@@ -144,7 +143,7 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
     OPERATE_RET rt = OPRT_OK;
     TKL_DISP_FRAMEBUFFER_S buf;
     TKL_DISP_RECT_S rect;
-    
+
     if (disp_flush_enabled) {
         buf.buffer = (void *)px_map;
         buf.format = TKL_DISP_PIXEL_FMT_RGB565;
@@ -157,7 +156,7 @@ static void disp_flush(lv_display_t *disp_drv, const lv_area_t *area, uint8_t *p
         tkl_disp_blit(&sg_lcd, &buf, &rect);
 
         if (lv_disp_flush_is_last(disp_drv)) {
-            tkl_disp_flush(&sg_lcd);  
+            tkl_disp_flush(&sg_lcd);
         }
     }
 

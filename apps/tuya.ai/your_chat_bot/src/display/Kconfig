@@ -5,19 +5,9 @@ choice
 
     config ENABLE_GUI_WECHAT
         bool "WeChat-like chat interface"
+
+    config ENABLE_GUI_CHATBOT
+        bool "Chatbot interface"
 endchoice
 
-if(ENABLE_GUI_WECHAT)
-    choice 
-        prompt "choose wechat gui size specification"
-        default ENABLE_GUI_WECHAT_SZ_320_480
-
-        config ENABLE_GUI_WECHAT_SZ_320_480
-            bool "the size is 320 in width and 480 in height"
-
-        config ENABLE_GUI_WECHAT_SZ_240_240
-            bool "the size is 240 in width and 240 in height"
-
-    endchoice
-endif
 endif

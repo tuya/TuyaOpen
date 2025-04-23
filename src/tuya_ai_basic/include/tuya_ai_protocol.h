@@ -1,0 +1,796 @@
+/**
+ * @file tuya_ai_protocol.h
+ * @brief This file contains the implementation of Tuya AI protocol processing,
+ * including encryption/decryption, message packaging and cloud communication.
+ *
+ * The Tuya AI protocol module provides core cryptographic functionalities for
+ * secure AI service communication, implementing mbedTLS-based encryption (HKDF,
+ * ChaCha20) and custom protocol message handling with JSON payload support.
+ *
+ * Key features include:
+ * - Secure communication using mbedTLS cryptographic primitives
+ * - Configurable timeout settings (AI_DEFAULT_TIMEOUT_MS)
+ * - Cloud service configuration (AI_ATOP_THING_CONFIG_INFO)
+ * - Protocol buffer management (AI_ADD_PKT_LEN)
+ * - Default business tag handling (AI_DEFAULT_BIZ_TAG)
+ * - Socket buffer size configuration (AI_READ_SOCKET_BUF_SIZE)
+ * - Integration with Tuya transporter and IoT core services
+ * - Cross-platform cipher operations through cipher_wrapper
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
+
+#ifndef __TUYA_AI_PROTOCOL_H__
+#define __TUYA_AI_PROTOCOL_H__
+
+#include <stdint.h>
+
+#include "tuya_cloud_com_defs.h"
+#include "tuya_cloud_types.h"
+#include "tuya_iot_config.h"
+
+#if defined ENABLE_AI_PROTO_DEBUG && (ENABLE_AI_PROTO_DEBUG == 1)
+#define AI_PROTO_D(...) PR_DEBUG(__VA_ARGS__)
+#else
+#define AI_PROTO_D(...) PR_TRACE(__VA_ARGS__)
+#endif
+
+/**
+ *
+ * packet: AI_PACKET_HEAD_T+(iv)+len+payload+sign
+ * len:payload+sign
+ * payload: AI_PAYLOAD_HEAD_T+(attr_len+AI_ATTRIBUTE_T)+data
+ *
+ **/
+
+#ifndef AI_MAX_ATTR_NUM
+#define AI_MAX_ATTR_NUM 10
+#endif
+
+#define AI_KEY_LEN     32
+#define AI_RANDOM_LEN  32
+#define AI_IV_LEN      16
+#define AI_SIGN_LEN    32
+#define AI_GCM_TAG_LEN 16
+#define AI_UUID_V4_LEN 38
+
+#ifndef AI_MAX_FRAGMENT_LENGTH
+#define AI_MAX_FRAGMENT_LENGTH (20 * 1024)
+#endif
+
+typedef uint8_t AI_PACKET_SL;
+#define AI_PACKET_SL0 0x00 // not encrypted
+#define AI_PACKET_SL1 0x01 // not used
+#define AI_PACKET_SL2 0x02 // CHACHA20
+#define AI_PACKET_SL3 0x03 // CBC
+#define AI_PACKET_SL4 0x04 // GCM
+#define AI_PACKET_SL5 0x05 // not used
+
+#ifndef AI_PACKET_SECURITY_LEVEL
+#define AI_PACKET_SECURITY_LEVEL AI_PACKET_SL4
+#endif
+
+typedef uint8_t AI_FRAG_FLAG;
+#define AI_PACKET_NO_FRAG    0x00
+#define AI_PACKET_FRAG_START 0x01
+#define AI_PACKET_FRAG_ING   0x02
+#define AI_PACKET_FRAG_END   0x03
+
+typedef uint8_t AI_ATTR_PT;
+#define ATTR_PT_U8    0x01
+#define ATTR_PT_U16   0x02
+#define ATTR_PT_U32   0x03
+#define ATTR_PT_U64   0x04
+#define ATTR_PT_BYTES 0x05
+#define ATTR_PT_STR   0x06
+
+typedef uint8_t AI_PACKET_PT;
+#define AI_PT_CLIENT_HELLO      1
+#define AI_PT_AUTH_REQ          2
+#define AI_PT_AUTH_RESP         3
+#define AI_PT_PING              4
+#define AI_PT_PONG              5
+#define AI_PT_CONN_CLOSE        6
+#define AI_PT_SESSION_NEW       7
+#define AI_PT_SESSION_CLOSE     8
+#define AI_PT_CONN_REFRESH_REQ  9
+#define AI_PT_CONN_REFRESH_RESP 10
+#define AI_PT_VIDEO             30
+#define AI_PT_AUDIO             31
+#define AI_PT_IMAGE             32
+#define AI_PT_FILE              33
+#define AI_PT_TEXT              34
+#define AI_PT_EVENT             35
+
+typedef uint16_t AI_ATTR_TYPE;
+#define AI_ATTR_CLIENT_TYPE            11
+#define AI_ATTR_CLIENT_ID              12
+#define AI_ATTR_ENCRYPT_RANDOM         13
+#define AI_ATTR_SIGN_RANDOM            14
+#define AI_ATTR_MAX_FRAGMENT_LEN       15
+#define AI_ATTR_READ_BUFFER_SIZE       16
+#define AI_ATTR_WRITE_BUFFER_SIZE      17
+#define AI_ATTR_DERIVED_ALGORITHM      18
+#define AI_ATTR_DERIVED_IV             19
+#define AI_ATTR_USER_NAME              21
+#define AI_ATTR_PASSWORD               22
+#define AI_ATTR_CONNECTION_ID          23
+#define AI_ATTR_CONNECT_STATUS_CODE    24
+#define AI_ATTR_LAST_EXPIRE_TS         25
+#define AI_ATTR_CONNECT_CLOSE_ERR_CODE 31
+#define AI_ATTR_BIZ_CODE               41
+#define AI_ATTR_BIZ_TAG                42
+#define AI_ATTR_SESSION_ID             43
+#define AI_ATTR_SESSION_STATUS_CODE    44
+#define AI_ATTR_SESSION_CLOSE_ERR_CODE 51
+#define AI_ATTR_EVENT_ID               61
+#define AI_ATTR_EVENT_TS               62
+#define AI_ATTR_STREAM_START_TS        63
+#define AI_ATTR_VIDEO_CODEC_TYPE       71
+#define AI_ATTR_VIDEO_SAMPLE_RATE      72
+#define AI_ATTR_VIDEO_WIDTH            73
+#define AI_ATTR_VIDEO_HEIGHT           74
+#define AI_ATTR_VIDEO_FPS              75
+#define AI_ATTR_AUDIO_CODEC_TYPE       81
+#define AI_ATTR_AUDIO_SAMPLE_RATE      82
+#define AI_ATTR_AUDIO_CHANNELS         83
+#define AI_ATTR_AUDIO_DEPTH            84
+#define AI_ATTR_IMAGE_FORMAT           91
+#define AI_ATTR_IMAGE_WIDTH            92
+#define AI_ATTR_IMAGE_HEIGHT           93
+#define AI_ATTR_FILE_FORMAT            101
+#define AI_ATTR_FILE_NAME              102
+#define AI_ATTR_USER_DATA              111
+#define AI_ATTR_SESSION_ID_LIST        112
+#define AI_ATTR_CLIENT_TS              113
+#define AI_ATTR_SERVER_TS              114
+
+typedef uint8_t ATTR_CLIENT_TYPE;
+#define ATTR_CLIENT_TYPE_DEVICE 0x01
+#define ATTR_CLIENT_TYPE_APP    0x02
+
+typedef uint8_t AI_ATTR_FLAG;
+#define AI_NO_ATTR  0x00
+#define AI_HAS_ATTR 0x01
+
+typedef uint16_t AI_STATUS_CODE;
+#define AI_CODE_OK                  200
+#define AI_CODE_BAD_REQUEST         400
+#define AI_CODE_UN_AUTHENTICATED    401
+#define AI_CODE_NOT_FOUND           404
+#define AI_CODE_REQUEST_TIMEOUT     408
+#define AI_CODE_INTERNAL_SERVER_ERR 500
+#define AI_CODE_GW_TIMEOUT          504
+#define AI_CODE_CLOSE_BY_CLIENT     601
+#define AI_CODE_CLOSE_BY_REUSE      602
+#define AI_CODE_CLOSE_BY_IO         603
+#define AI_CODE_CLOSE_BY_KEEP_ALIVE 604
+#define AI_CODE_CLOSE_BY_EXPIRE     605
+
+typedef uint16_t AI_VIDEO_CODEC_TYPE;
+#define VIDEO_CODEC_MPEG4  0
+#define VIDEO_CODEC_H263   1
+#define VIDEO_CODEC_H264   2
+#define VIDEO_CODEC_MJPEG  3
+#define VIDEO_CODEC_H265   4
+#define VIDEO_CODEC_YUV420 5
+#define VIDEO_CODEC_YUV422 6
+#define VIDEO_CODEC_MAX    99
+
+typedef uint16_t AI_AUDIO_CODEC_TYPE;
+#define AUDIO_CODEC_ADPCM   100
+#define AUDIO_CODEC_PCM     101
+#define AUDIO_CODEC_AACRAW  102
+#define AUDIO_CODEC_AACADTS 103
+#define AUDIO_CODEC_AACLATM 104
+#define AUDIO_CODEC_G711U   105
+#define AUDIO_CODEC_G711A   106
+#define AUDIO_CODEC_G726    107
+#define AUDIO_CODEC_SPEEX   108
+#define AUDIO_CODEC_MP3     109
+#define AUDIO_CODEC_G722    110
+#define AUDIO_CODEC_OPUS    111
+#define AUDIO_CODEC_MAX     199
+#define AUDIO_CODEC_INVALID 200
+
+typedef uint16_t AI_AUDIO_CHANNELS;
+#define AUDIO_CHANNELS_MONO   1
+#define AUDIO_CHANNELS_STEREO 2
+
+typedef uint8_t AI_IMAGE_FORMAT;
+#define IMAGE_FORMAT_JPEG 1
+#define IMAGE_FORMAT_PNG  2
+
+typedef uint8_t AI_FILE_FORMAT;
+#define FILE_FORMAT_MP4         1
+#define FILE_FORMAT_OGG_OPUS    2
+#define FILE_FORMAT_PDF         3
+#define FILE_FORMAT_JSON        4
+#define FILE_FORMAT_MONITOR_LOG 5
+#define FILE_FORMAT_MAP         6
+
+typedef uint16_t AI_EVENT_TYPE;
+#define AI_EVENT_START        0x00
+#define AI_EVENT_PAYLOADS_END 0x01
+#define AI_EVENT_END          0x02
+#define AI_EVENT_ONE_SHOT     0x03
+#define AI_EVENT_CHAT_BREAK   0x04
+#define AI_EVENT_SERVER_VAD   0x05
+
+typedef uint8_t AI_STREAM_TYPE;
+#define AI_STREAM_ONE   0x00
+#define AI_STREAM_START 0x01
+#define AI_STREAM_ING   0x02
+#define AI_STREAM_END   0x03
+
+typedef char *AI_SESSION_ID;
+typedef char *AI_EVENT_ID;
+
+#pragma pack(1)
+typedef struct {
+    uint32_t tcp_port;
+    uint32_t udp_port;
+    uint64_t expire; // unit:s
+    uint32_t biz_code;
+    char *username;
+    char *credential;
+    char *client_id;
+    char *derived_algorithm;
+    char *derived_iv;
+    uint32_t host_num;
+    char **hosts;
+} AI_ATOP_CFG_INFO_T;
+
+typedef union {
+    uint8_t u8;
+    uint16_t u16;
+    uint32_t u32;
+    uint64_t u64;
+    uint8_t *bytes;
+    char *str;
+} AI_ATTR_VALUE;
+
+typedef struct {
+    AI_ATTR_TYPE type;
+    AI_ATTR_PT payload_type;
+    uint32_t length;
+    AI_ATTR_VALUE value;
+} AI_ATTRIBUTE_T;
+
+typedef struct {
+    AI_ATTR_FLAG attribute_flag : 1;
+    AI_PACKET_PT type : 7;
+} AI_PAYLOAD_HEAD_T;
+
+typedef struct {
+    uint8_t version;
+    uint16_t sequence;
+    uint8_t iv_flag : 1;
+    AI_PACKET_SL security_level : 5;
+    AI_FRAG_FLAG frag_flag : 2;
+    uint8_t reserve;
+} AI_PACKET_HEAD_T;
+
+typedef struct {
+    AI_PACKET_PT type;
+    uint32_t count;
+    AI_ATTRIBUTE_T *attrs[AI_MAX_ATTR_NUM];
+    uint32_t len;
+    char *data;
+} AI_SEND_PACKET_T;
+
+typedef struct {
+    uint32_t biz_code;
+    char *id;
+    uint32_t user_len;
+    uint8_t *user_data;
+} AI_SESSION_NEW_ATTR_T;
+
+typedef struct {
+    char *id;
+    AI_STATUS_CODE code;
+} AI_SESSION_CLOSE_ATTR_T;
+
+typedef struct {
+    uint32_t user_len;
+    uint8_t *user_data;
+    char *session_id_list;
+} AI_ATTR_OPTION_T;
+
+typedef struct {
+    AI_VIDEO_CODEC_TYPE codec_type;
+    uint32_t sample_rate; // unit: Hz
+    uint16_t width;
+    uint16_t height;
+    uint16_t fps;
+} AI_VIDEO_ATTR_BASE_T;
+typedef struct {
+    AI_VIDEO_ATTR_BASE_T base;
+    AI_ATTR_OPTION_T option;
+} AI_VIDEO_ATTR_T;
+
+typedef struct {
+    AI_AUDIO_CODEC_TYPE codec_type;
+    uint32_t sample_rate; // unit: Hz
+    AI_AUDIO_CHANNELS channels;
+    uint16_t bit_depth;
+} AI_AUDIO_ATTR_BASE_T;
+typedef struct {
+    AI_AUDIO_ATTR_BASE_T base;
+    AI_ATTR_OPTION_T option;
+} AI_AUDIO_ATTR_T;
+
+typedef struct {
+    AI_IMAGE_FORMAT format;
+    uint16_t width;
+    uint16_t height;
+} AI_IMAGE_ATTR_BASE_T;
+typedef struct {
+    AI_IMAGE_ATTR_BASE_T base;
+    AI_ATTR_OPTION_T option;
+} AI_IMAGE_ATTR_T;
+
+typedef struct {
+    AI_FILE_FORMAT format;
+    char file_name[128];
+} AI_FILE_ATTR_BASE_T;
+typedef struct {
+    AI_FILE_ATTR_BASE_T base;
+    AI_ATTR_OPTION_T option;
+    ;
+} AI_FILE_ATTR_T;
+
+typedef struct {
+    char *session_id_list;
+} AI_TEXT_ATTR_T;
+
+typedef struct {
+    char *session_id;
+    char *event_id;
+    uint64_t end_ts; // unit:ms, used only when event type is AI_EVENT_END
+    uint32_t user_len;
+    uint8_t *user_data;
+} AI_EVENT_ATTR_T;
+
+typedef struct {
+    uint16_t id;
+    uint8_t reserve : 6;
+    AI_STREAM_TYPE stream_flag : 2;
+    uint64_t timestamp;
+    uint64_t pts;
+    uint32_t length;
+} AI_VIDEO_HEAD_T, AI_AUDIO_HEAD_T;
+
+typedef struct {
+    uint16_t id;
+    uint8_t reserve : 6;
+    AI_STREAM_TYPE stream_flag : 2;
+    uint64_t timestamp;
+    uint32_t length;
+} AI_IMAGE_HEAD_T;
+
+typedef struct {
+    uint16_t id;
+    uint8_t reserve : 6;
+    AI_STREAM_TYPE stream_flag : 2;
+    uint32_t length;
+} AI_FILE_HEAD_T, AI_TEXT_HEAD_T;
+
+typedef struct {
+    AI_EVENT_TYPE type;
+    uint16_t length;
+} AI_EVENT_HEAD_T;
+
+typedef struct {
+    uint16_t send_ids_length;
+    uint16_t *assign_data_ids;
+} AI_EVENT_PAYLOADS_END_T;
+
+typedef struct {
+    uint8_t *paylaod;
+} AI_EVENT_ONE_SHOT_T;
+#pragma pack()
+
+/**
+ * @brief Get the current ATOP configuration information
+ *
+ * @return AI_ATOP_CFG_INFO_T* Pointer to the ATOP configuration structure
+ *
+ * @note The returned pointer provides read-only access to the current
+ *       protocol configuration. The caller should NOT modify or free this memory.
+ *
+ * @warning The returned pointer becomes invalid after protocol deinitialization.
+ */
+AI_ATOP_CFG_INFO_T *tuya_ai_basic_get_atop_cfg(void);
+
+/**
+ * @brief Request and update ATOP configuration from the server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function performs the following operations:
+ *       1. Initializes protocol resources if needed
+ *       2. Prepares and sends ATOP request with current timestamp
+ *       3. Processes server response to update configuration including:
+ *          - Connection endpoints (hosts and ports)
+ *          - Authentication credentials
+ *          - Session parameters (expiry, client ID)
+ *          - Cryptographic parameters
+ *       4. Validates all required configuration fields
+ *
+ * @warning On failure, all allocated resources are automatically cleaned up.
+ *
+ * @see AI_ATOP_CFG_INFO_T for the complete configuration structure
+ */
+OPERATE_RET tuya_ai_basic_atop_req(void);
+
+/**
+ * @brief Parse and extract an attribute value from a binary buffer
+ *
+ * @param[in] de_buf Pointer to the binary buffer containing attribute data
+ * @param[in,out] offset Pointer to current offset in buffer (updated after parsing)
+ * @param[out] attr Pointer to AI_ATTRIBUTE_T structure to populate with parsed data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Reads attribute type, payload type, and length from buffer
+ *       2. Extracts value based on payload type (handling network byte order)
+ *       3. Supports multiple data types:
+ *          - Unsigned integers (8/16/32/64-bit)
+ *          - Raw byte arrays
+ *          - String values
+ *       4. Performs validation on the extracted attribute
+ *       5. Updates the offset to point to next attribute
+ *
+ * @warning The buffer pointers in the output structure (bytes/str) point directly
+ *          into the input buffer. The caller must ensure the input buffer remains
+ *          valid while these pointers are in use.
+ *
+ * @see AI_ATTRIBUTE_T for the complete attribute structure definition
+ * @see AI_ATTR_PT for supported payload types
+ */
+OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_T *attr);
+
+/**
+ * @brief Send a connection refresh request to the AI server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Creates a refresh request packet (AI_PT_CONN_REFRESH_REQ)
+ *       2. Populates required attributes
+ *       3. Sends the packet to server
+ */
+OPERATE_RET tuya_ai_basic_refresh_req(void);
+
+/**
+ * @brief Handle a PONG response from the AI server
+ *
+ * @param[in] data Pointer to received PONG data
+ * @param[in] len Length of received data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Validates packet attributes
+ *       2. Extracts client and server timestamps
+ *       3. Logs timing information for debugging
+ */
+OPERATE_RET tuya_ai_pong(char *data, uint32_t len);
+
+/**
+ * @brief Process a connection refresh response from server
+ *
+ * @param[in] de_buf Pointer to received attribute data buffer
+ * @param[in] attr_len Length of attribute data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Parses server response attributes
+ *       2. Validates connection status
+ *       3. Updates expiration timestamp if provided
+ */
+OPERATE_RET tuya_ai_refresh_resp(char *de_buf, uint32_t attr_len);
+
+/**
+ * @brief Send CLIENT_HELLO message to initiate connection
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This is the first message in the connection handshake sequence
+ */
+OPERATE_RET tuya_ai_basic_client_hello(void);
+
+/**
+ * @brief Send authentication request to the AI server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Creates an auth request packet (AI_PT_AUTH_REQ)
+ *       2. Populates authentication attributes
+ *       3. Sends the packet to server
+ */
+OPERATE_RET tuya_ai_basic_auth_req(void);
+
+/**
+ * @brief Clean up protocol resources and disconnect
+ *
+ * @note This function performs complete teardown of protocol resources
+ *       and connection state. Should be called when disconnecting.
+ */
+void tuya_ai_basic_disconnect(void);
+
+/**
+ * @brief Send graceful connection close notification
+ *
+ * @param[in] code Status code indicating reason for closure
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Creates a connection close packet (AI_PT_CONN_CLOSE)
+ *       2. Includes the specified status code
+ *       3. Sends notification to server
+ *       4. Does NOT automatically disconnect (call tuya_ai_basic_disconnect separately)
+ */
+OPERATE_RET tuya_ai_basic_conn_close(AI_STATUS_CODE code);
+
+/**
+ * @brief Free packet data memory
+ *
+ * @param[in] data Pointer to packet data to free
+ *
+ * @note Handles special case for fragmented packet data stored in frag_mng
+ */
+void tuya_ai_basic_pkt_free(char *data);
+
+/**
+ * @brief Read and process an incoming AI protocol packet
+ *
+ * @param[out] out Pointer to receive allocated packet data
+ * @param[out] out_len Pointer to receive packet data length
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Reads packet header and validates basic structure
+ *       2. Handles packet fragmentation (START/ING/END)
+ *       3. Verifies packet signature
+ *       4. Decrypts payload data
+ *       5. Manages sequence numbers
+ *
+ * @warning Caller must free output buffer using tuya_ai_basic_pkt_free()
+ */
+OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len);
+
+/**
+ * @brief Parse a buffer of user attributes into structured format
+ *
+ * @param[in] in Input buffer containing serialized attributes
+ * @param[in] attr_len Length of attribute data in buffer
+ * @param[out] attr_out Pointer to receive allocated attribute array
+ * @param[out] attr_num Pointer to receive number of parsed attributes
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Caller must free the output attribute array using Free()
+ */
+OPERATE_RET tuya_parse_user_attrs(char *in, uint32_t attr_len, AI_ATTRIBUTE_T **attr_out, uint32_t *attr_num);
+
+/**
+ * @brief Parse authentication response attributes
+ *
+ * @param[in] de_buf Decrypted buffer containing attributes
+ * @param[in] attr_len Length of attribute data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Validates required attributes:
+ *       - Connection status code
+ *       - Connection ID
+ */
+OPERATE_RET __ai_parse_auth_resp(char *de_buf, uint32_t attr_len);
+
+/**
+ * @brief Parse connection close notification
+ *
+ * @param[in] de_buf Decrypted buffer containing attributes
+ * @param[in] attr_len Length of attribute data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Extracts and logs connection close error code
+ */
+OPERATE_RET tuya_ai_parse_conn_close(char *de_buf, uint32_t attr_len);
+
+/**
+ * @brief Handle authentication response from server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Reads response packet
+ *       2. Routes to appropriate parser based on packet type
+ *       3. Handles both auth response and connection close cases
+ */
+OPERATE_RET tuya_ai_auth_resp(void);
+
+/**
+ * @brief Send a PING packet to the AI server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Creates a PING packet (AI_PT_PING)
+ *       2. Populates required attributes
+ *       3. Sends the packet to maintain connection
+ */
+OPERATE_RET tuya_ai_basic_ping(void);
+
+/**
+ * @brief Establish connection to AI server
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Creates TCP transporter instance
+ *       2. Attempts connection to each configured host
+ *       3. Sets connected flag on success
+ *
+ * @warning Requires valid configuration from tuya_ai_basic_atop_req() first
+ */
+OPERATE_RET tuya_ai_basic_connect(void);
+
+/**
+ * @brief Determine packet type from received buffer
+ *
+ * @param[in] buf Pointer to received packet data
+ *
+ * @return AI_PACKET_PT The packet type identifier
+ *
+ * @note Extracts type from packet header without full parsing
+ */
+AI_PACKET_PT tuya_ai_basic_get_pkt_type(char *buf);
+
+/**
+ * @brief Serialize multiple attributes into binary format
+ *
+ * @param[in] attr Array of attributes to serialize
+ * @param[in] attr_num Number of attributes in array
+ * @param[out] out Pointer to receive allocated buffer
+ * @param[out] out_len Pointer to receive buffer length
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note This function:
+ *       1. Calculates total required buffer size
+ *       2. Handles network byte order conversion
+ *       3. Supports all attribute payload types:
+ *          - Numeric types (with proper byte ordering)
+ *          - Byte arrays
+ *          - Strings
+ *
+ * @warning Caller must free the output buffer using Free()
+ */
+OPERATE_RET tuya_pack_user_attrs(AI_ATTRIBUTE_T *attr, uint32_t attr_num, uint8_t **out, uint32_t *out_len);
+
+/**
+ * @brief Create and send a new AI session
+ *
+ * @param[in] session Session attributes to include
+ * @param[in] data Session data payload
+ * @param[in] len Length of session data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_SESSION_NEW packet with specified attributes
+ */
+OPERATE_RET tuya_ai_basic_session_new(AI_SESSION_NEW_ATTR_T *session, char *data, uint32_t len);
+
+/**
+ * @brief Close an existing AI session
+ *
+ * @param[in] session_id ID of session to close
+ * @param[in] code Status code for closure reason
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_SESSION_CLOSE packet with termination details
+ */
+OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code);
+
+/**
+ * @brief Send video data through AI protocol
+ *
+ * @param[in] video Video attributes (may be NULL)
+ * @param[in] data Video frame data
+ * @param[in] len Length of video data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_VIDEO packet with optional attributes
+ */
+OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len);
+
+/**
+ * @brief Send audio data through AI protocol
+ *
+ * @param[in] audio Audio attributes (may be NULL)
+ * @param[in] data Audio frame data
+ * @param[in] len Length of audio data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_AUDIO packet with optional attributes
+ */
+OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len);
+
+/**
+ * @brief Send image data through AI protocol
+ *
+ * @param[in] image Image attributes (may be NULL)
+ * @param[in] data Image data
+ * @param[in] len Length of image data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_IMAGE packet with optional attributes
+ */
+OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len);
+
+/**
+ * @brief Send file data through AI protocol
+ *
+ * @param[in] file File attributes (may be NULL)
+ * @param[in] data File contents
+ * @param[in] len Length of file data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_FILE packet with optional attributes
+ */
+OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len);
+
+/**
+ * @brief Send text data through AI protocol
+ *
+ * @param[in] text Text attributes (may be NULL)
+ * @param[in] data Text content
+ * @param[in] len Length of text data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_TEXT packet with optional attributes
+ */
+OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len);
+
+/**
+ * @brief Send event notification through AI protocol
+ *
+ * @param[in] event Event attributes (may be NULL)
+ * @param[in] data Event data including header
+ * @param[in] len Length of event data
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Creates AI_PT_EVENT packet with network byte order conversion
+ */
+OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len);
+
+/**
+ * @brief Generate a random UUID v4 string
+ *
+ * @param[out] uuid_str Buffer to receive UUID string (must be AI_UUID_V4_LEN bytes)
+ *
+ * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ *
+ * @note Formats output as f47ac10b-58cc-42d5-0136-4067a8e7d6b3 hex digits with dashes
+ * @warning Caller must provide buffer of sufficient size
+ */
+OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str);
+
+#endif /* __TUYA_AI_PROTOCOL_H__ */

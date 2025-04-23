@@ -11,20 +11,16 @@
  *
  */
 
- #include "tkl_display.h"
- #include "tal_system.h"
- #include "tal_thread.h"
- #include "tal_mutex.h"
- #include "tal_log.h"
- 
- #include "lvgl.h"
- #include "lv_port_disp.h"
- #include "tuya_lcd_device.h"
- #include "tuya_lvgl.h"
+#include "tkl_display.h"
+#include "tal_api.h"
+
+#include "lvgl.h"
+#include "lv_port_disp.h"
+#include "tuya_lcd_device.h"
+#include "tuya_lvgl.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************typedef define***********************
@@ -33,7 +29,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static MUTEX_HANDLE  sg_lvgl_mutex_hdl = NULL;
+static MUTEX_HANDLE sg_lvgl_mutex_hdl = NULL;
 static THREAD_HANDLE sg_lvgl_thrd_hdl = NULL;
 
 static TKL_DISP_DEVICE_S sg_display_device = {
@@ -47,7 +43,7 @@ static TKL_DISP_DEVICE_S sg_display_device = {
 ***********************************************************/
 static uint32_t lv_tick_get_cb(void)
 {
-    return (uint32_t)tkl_system_get_millisecond();
+    return (uint32_t)tal_system_get_millisecond();
 }
 
 static void __lvgl_task(void *args)
@@ -73,7 +69,7 @@ static void __lvgl_task(void *args)
 
 /**
  * @brief Initialize LVGL library and related devices and threads
- * 
+ *
  * @param None
  * @return OPERATE_RET Initialization result, OPRT_OK indicates success
  */
@@ -107,13 +103,13 @@ OPERATE_RET tuya_lvgl_init(void)
 
 /**
  * @brief Lock the LVGL mutex
- * 
+ *
  * @param None
  * @return OPERATE_RET Lock result, OPRT_OK indicates success
  */
 OPERATE_RET tuya_lvgl_mutex_lock(void)
 {
-    if(NULL == sg_lvgl_mutex_hdl) {
+    if (NULL == sg_lvgl_mutex_hdl) {
         return OPRT_INVALID_PARM;
     }
 
@@ -122,13 +118,13 @@ OPERATE_RET tuya_lvgl_mutex_lock(void)
 
 /**
  * @brief Unlock the LVGL mutex
- * 
+ *
  * @param None
  * @return OPERATE_RET Lock result, OPRT_OK indicates success
  */
 OPERATE_RET tuya_lvgl_mutex_unlock(void)
 {
-    if(NULL == sg_lvgl_mutex_hdl) {
+    if (NULL == sg_lvgl_mutex_hdl) {
         return OPRT_INVALID_PARM;
     }
 

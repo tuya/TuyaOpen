@@ -66,7 +66,6 @@ static mbedtls_ctr_drbg_context ty_ctr_drbg;
 
 static void __tuya_tls_event_cb(tuya_tls_event_t event, void *p_args)
 {
-    OPERATE_RET rt = OPRT_OK;
     const char *p_url = (char *)p_args;
     if (NULL == p_url) {
         PR_ERR("url was NULL");

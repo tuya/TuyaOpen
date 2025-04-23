@@ -211,5 +211,5 @@ TUYA_RESET_REASON_E tal_system_get_reset_reason(char **describe)
  */
 OPERATE_RET tal_system_get_cpu_info(TUYA_CPU_INFO_T **cpu_ary, int32_t *cpu_cnt)
 {
-    return tkl_system_get_cpu_info(cpu_ary, cpu_cnt);
+    return tkl_system_get_cpu_info(cpu_ary, (int *)cpu_cnt);
 }

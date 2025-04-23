@@ -15,7 +15,7 @@
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  */
 #include "tuya_cloud_types.h"
-
+#include "tal_api.h"
 #include "tkl_gpio.h"
 #include "tkl_system.h"
 
@@ -163,7 +163,7 @@ static void disp_sw_spi_lcd_write_cmd(uint8_t *cmd, uint8_t data_count)
 {
 	uint32_t i = 0;
 
-    if(NULL == cmd) {;
+    if(NULL == cmd) {
         return;
     }
 

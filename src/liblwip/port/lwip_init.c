@@ -10,7 +10,7 @@
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
-//#include "oshal.h"
+// #include "oshal.h"
 
 #include "lwip/mem.h"
 #include "lwip/memp.h"
@@ -56,7 +56,7 @@ void TUYA_LwIP_Init(void)
     struct netif *pnetif = NULL;
 
     // The WiFi STATION/AP must correspond to LWIP's netif0/1
-    if(((int)NETIF_AP_IDX != (int)WF_AP)||((int)NETIF_STA_IDX != (int)WF_STATION)){
+    if (((int)NETIF_AP_IDX != (int)WF_AP) || ((int)NETIF_STA_IDX != (int)WF_STATION)) {
         // os_printf(LM_APP, LL_INFO, "wifi station/ap does not match
         // netif0/1\n");
     }
@@ -86,13 +86,15 @@ void TUYA_LwIP_Init(void)
         if (idx == NETIF_ETH_IDX) {
             pnetif->name[0] = 'e';
             pnetif->name[1] = 'n';
-            netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &ethernetif_init, &ethernet_input);
+            netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &ethernetif_init,
+                      &ethernet_input);
         } else {
 #endif
-        pnetif->name[0] = 'r';
-        pnetif->name[1] = '0' + idx;
+            pnetif->name[0] = 'r';
+            pnetif->name[1] = '0' + idx;
 
-        netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &tuya_ethernetif_init, &tcpip_input);
+            netif_add(pnetif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, &tuya_ethernetif_init,
+                      &tcpip_input);
 #ifdef LWIP_DUAL_NET_SUPPORT
         }
 #endif

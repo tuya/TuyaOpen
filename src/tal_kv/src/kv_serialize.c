@@ -18,7 +18,7 @@
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
-
+#include <stdio.h>
 #include "tuya_cloud_types.h"
 #include "tal_kv.h"
 #include "tal_api.h"

@@ -11,9 +11,9 @@
 #include "tuya_voice_protocol.h"
 #include "tuya_iot.h"
 
-#define WS_PSK_PORT                     1443
-#define TY_KEY_VOICE_GW_DOMAIN          "voice_gw_domain_name"
-#define TY_ATOP_GET_VOICE_GW_DOMAIN     "tuya.device.aispeech.gateway.ws.domain"
+#define WS_PSK_PORT                 1443
+#define TY_KEY_VOICE_GW_DOMAIN      "voice_gw_domain_name"
+#define TY_ATOP_GET_VOICE_GW_DOMAIN "tuya.device.aispeech.gateway.ws.domain"
 
 struct domain_name_timer {
     TIMER_ID tm_msg;
@@ -21,21 +21,21 @@ struct domain_name_timer {
 };
 
 typedef struct {
-    TUYA_SPEAKER_WS_CB  bin_cb;
-    TUYA_SPEAKER_WS_CB  text_cb;
+    TUYA_SPEAKER_WS_CB bin_cb;
+    TUYA_SPEAKER_WS_CB text_cb;
 } TUYA_SPEAKER_WS_CBS_S;
 
 static struct domain_name_timer *p_domain_name_tm = NULL;
-static char s_domain_name_value[HTTP_URL_LMT+1] = {0};
-static WEBSOCKET_HANDLE_T  s_ws_hdl = NULL;
-static TUYA_SPEAKER_WS_CBS_S  s_ws_cbs = {0};
-static uint32_t   s_ws_keepalive = 0;
+static char s_domain_name_value[HTTP_URL_LMT + 1] = {0};
+static WEBSOCKET_HANDLE_T s_ws_hdl = NULL;
+static TUYA_SPEAKER_WS_CBS_S s_ws_cbs = {0};
+static uint32_t s_ws_keepalive = 0;
 
 static OPERATE_RET __generate_tid(char *tid, int len)
 {
     tuya_iot_client_t *iot_client = tuya_iot_client_get();
     uint8_t i = 0, random[6] = {0};
-    TUYA_CHECK_NULL_RETURN(tid,OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(tid, OPRT_INVALID_PARM);
     if (iot_client == NULL || strlen(iot_client->config.uuid) == 0) {
         PR_ERR("gw uuid is invalid");
         return OPRT_COM_ERROR;
@@ -48,8 +48,8 @@ static OPERATE_RET __generate_tid(char *tid, int len)
     for (i = 0; i < sizeof(random); i++) {
         random[i] = (uint8_t)tal_system_get_random(0xFF);
     }
-    int written = snprintf(tid, len, "%s-%02x-%02x-%02x%02x-%02x%02x",
-            iot_client->config.uuid, random[0], random[1], random[2], random[3], random[4], random[5]);
+    int written = snprintf(tid, len, "%s-%02x-%02x-%02x%02x-%02x%02x", iot_client->config.uuid, random[0], random[1],
+                           random[2], random[3], random[4], random[5]);
     if (written >= len) {
         PR_ERR("tid buffer is too small");
         return OPRT_BUFFER_NOT_ENOUGH;
@@ -63,8 +63,8 @@ static OPERATE_RET __generate_signature(uint8_t *signature)
     size_t local_key_len = 0, virtual_id_len = 0;
     tuya_iot_client_t *iot_client = tuya_iot_client_get();
 
-    TUYA_CHECK_NULL_RETURN(signature,OPRT_INVALID_PARM);
-    TUYA_CHECK_NULL_RETURN(iot_client,OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(signature, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(iot_client, OPRT_INVALID_PARM);
 
     local_key_len = strlen(iot_client->activate.localkey);
     virtual_id_len = strlen(iot_client->activate.devid);
@@ -73,8 +73,8 @@ static OPERATE_RET __generate_signature(uint8_t *signature)
         return OPRT_COM_ERROR;
     }
 
-    tal_sha256_mac((uint8_t *)iot_client->activate.localkey, local_key_len,
-              (uint8_t *)iot_client->activate.devid, virtual_id_len, hmac);
+    tal_sha256_mac((uint8_t *)iot_client->activate.localkey, local_key_len, (uint8_t *)iot_client->activate.devid,
+                   virtual_id_len, hmac);
     byte2str(signature, hmac, sizeof(hmac), 0);
 
     return OPRT_OK;
@@ -83,7 +83,7 @@ static OPERATE_RET __generate_signature(uint8_t *signature)
 static char *__generate_uri(char *uri, int len)
 {
     OPERATE_RET rt = OPRT_OK;
-    char tid[36+1] = {0};
+    char tid[36 + 1] = {0};
     uint8_t signature[128] = {0};
     TUYA_CHECK_NULL_RETURN(uri, NULL);
 
@@ -92,11 +92,10 @@ static char *__generate_uri(char *uri, int len)
     TUYA_CALL_ERR_RETURN_VAL(__generate_signature(signature), NULL);
     if (s_ws_keepalive) {
         snprintf(uri, len, "wss://%s/AISpeech?role=device&username=%s&authorization=%s&version=0.1&tid=%s&keepalive=%d",
-             s_domain_name_value, iot_client->activate.devid, signature, tid,s_ws_keepalive);
-    }
-    else {
+                 s_domain_name_value, iot_client->activate.devid, signature, tid, s_ws_keepalive);
+    } else {
         snprintf(uri, len, "wss://%s/AISpeech?role=device&username=%s&authorization=%s&version=0.1&tid=%s",
-                s_domain_name_value, iot_client->activate.devid, signature, tid);
+                 s_domain_name_value, iot_client->activate.devid, signature, tid);
     }
 
     PR_DEBUG("stream gateway uri is: %s", uri);
@@ -110,20 +109,20 @@ static OPERATE_RET __speaker_ws_client_start(void)
     WEBSOCKET_CLIENT_CFG_S ws_cfg = {0};
     OPERATE_RET rt = OPRT_OK;
 
-    memset(&ws_cfg,0,sizeof(ws_cfg));
+    memset(&ws_cfg, 0, sizeof(ws_cfg));
     ws_cfg.uri = __generate_uri(uri, sizeof(uri));
     ws_cfg.handshake_conn_timeout = VOICE_PROTOCOL_STREAM_GW_HANDSHAKE_CONN_TIMEOUT;
     ws_cfg.handshake_recv_timeout = VOICE_PROTOCOL_STREAM_GW_HANDSHAKE_RECV_TIMEOUT;
     ws_cfg.reconnect_wait_time = VOICE_PROTOCOL_STREAM_GW_RECONNECT_WAIT_TIME;
     ws_cfg.recv_bin_cb = s_ws_cbs.bin_cb;
     ws_cfg.recv_text_cb = s_ws_cbs.text_cb;
-    ws_cfg.keep_alive_time = s_ws_keepalive*1000;
+    ws_cfg.keep_alive_time = s_ws_keepalive * 1000;
 
     PR_DEBUG("websocket client %p previous", s_ws_hdl);
     // if (NULL != s_ws_hdl) {
     //     websocket_client_destory(s_ws_hdl);
     // }
-    PR_DEBUG("websocket_client_init ws_cfg.uri=%s",ws_cfg.uri);
+    PR_DEBUG("websocket_client_init ws_cfg.uri=%s", ws_cfg.uri);
 
     TUYA_CALL_ERR_RETURN(websocket_client_create(&s_ws_hdl, &ws_cfg));
     PR_DEBUG("websocket_client_start");
@@ -165,12 +164,10 @@ static OPERATE_RET __write_domain_name(void)
 static OPERATE_RET __delete_domain_name(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    BOOL_T exist = FALSE;
     memset(s_domain_name_value, 0, sizeof(s_domain_name_value));
-    // rt = wd_common_exist(TY_KEY_VOICE_GW_DOMAIN, &exist);
-    // if (OPRT_OK == rt && TRUE == exist) {
-        TUYA_CALL_ERR_RETURN(tal_kv_del(TY_KEY_VOICE_GW_DOMAIN));
-    // }
+
+    TUYA_CALL_ERR_RETURN(tal_kv_del(TY_KEY_VOICE_GW_DOMAIN));
+
     return OPRT_OK;
 }
 
@@ -199,18 +196,16 @@ static OPERATE_RET __get_voice_gw_domain_name(void)
     }
     /* "stream-cn.wgine.com" */
     memset(s_domain_name_value, 0, sizeof(s_domain_name_value));
-    size_t domain_name_len = strlen(p_domain_name)-2;
+    size_t domain_name_len = strlen(p_domain_name) - 2;
     if (domain_name_len > (sizeof(s_domain_name_value) - 1) || domain_name_len <= 0) {
         PR_WARN("get domain_name_len[%d] is invalid", domain_name_len);
         return OPRT_COM_ERROR;
     }
     if (TUYA_SECURITY_LEVEL == 0) {
-        snprintf(s_domain_name_value,sizeof(s_domain_name_value),"%s:%d",(p_domain_name+1),WS_PSK_PORT);
+        snprintf(s_domain_name_value, sizeof(s_domain_name_value), "%s:%d", (p_domain_name + 1), WS_PSK_PORT);
+    } else {
+        strncpy(s_domain_name_value, p_domain_name + 1, domain_name_len);
     }
-    else {
-        strncpy(s_domain_name_value, p_domain_name+1, domain_name_len);
-    }
-
 
     TUYA_CALL_ERR_RETURN(__write_domain_name());
     SAFE_FREE(p_domain_name);
@@ -227,12 +222,12 @@ static void __get_domain_name_timer_cb(TIMER_ID timer_id, void *arg)
     OPERATE_RET rt = OPRT_OK;
 
     do {
-        if(!tuya_iot_is_connected()) {
+        if (!tuya_iot_is_connected()) {
             p_domain_name_tm->tm_val = 50;
             break;
         }
         if (OPRT_OK != __get_voice_gw_domain_name()) {
-            p_domain_name_tm->tm_val = 2*1000;
+            p_domain_name_tm->tm_val = 2 * 1000;
             break;
         }
         // TUYA_CALL_ERR_LOG(gw_thread_pool_release_tm_msg(p_domain_name_tm->hdl, p_domain_name_tm->tm_msg));
@@ -256,8 +251,8 @@ static OPERATE_RET __get_domain_name_timer_start(void)
     SAFE_MALLOC(p_domain_name_tm, sizeof(struct domain_name_timer));
     p_domain_name_tm->tm_val = 10;
     p_domain_name_tm->tm_msg = NULL;
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__get_domain_name_timer_cb,NULL, &p_domain_name_tm->tm_msg));
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_start(p_domain_name_tm->tm_msg,p_domain_name_tm->tm_val, TAL_TIMER_ONCE));
+    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__get_domain_name_timer_cb, NULL, &p_domain_name_tm->tm_msg));
+    TUYA_CALL_ERR_RETURN(tal_sw_timer_start(p_domain_name_tm->tm_msg, p_domain_name_tm->tm_val, TAL_TIMER_ONCE));
     return OPRT_OK;
 }
 
@@ -291,7 +286,7 @@ OPERATE_RET tuya_speaker_ws_client_stop(void)
 {
     PR_DEBUG("websocket client %p destory", s_ws_hdl);
 
-    TUYA_CHECK_NULL_RETURN(s_ws_hdl,OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(s_ws_hdl, OPRT_INVALID_PARM);
     websocket_client_destory(s_ws_hdl);
     s_ws_hdl = NULL;
 
@@ -302,14 +297,14 @@ OPERATE_RET tuya_speaker_ws_send_bin(uint8_t *data, uint32_t len)
 {
     if (!tuya_speaker_ws_is_online())
         return OPRT_COM_ERROR;
-    return websocket_client_send_bin(s_ws_hdl, (uint8_t*)data, len);
+    return websocket_client_send_bin(s_ws_hdl, (uint8_t *)data, len);
 }
 
 OPERATE_RET tuya_speaker_ws_send_text(uint8_t *data, uint32_t len)
 {
     if (!tuya_speaker_ws_is_online())
         return OPRT_COM_ERROR;
-    return websocket_client_send_text(s_ws_hdl, (uint8_t*)data, len);
+    return websocket_client_send_text(s_ws_hdl, (uint8_t *)data, len);
 }
 
 static char *__dump_ws_connect_status(WS_CONN_STATE_T status)
@@ -345,10 +340,9 @@ void tuya_speaker_ws_disconnect(void)
 void tuya_speaker_ws_set_keepalive(uint32_t sec)
 {
     if (sec > 600) {
-        PR_WARN("keepalive time %d is over than max 300seconds,force to set 600 seconds",sec);
+        PR_WARN("keepalive time %d is over than max 300seconds,force to set 600 seconds", sec);
         s_ws_keepalive = 600;
-    }
-    else {
-        s_ws_keepalive  = sec;
+    } else {
+        s_ws_keepalive = sec;
     }
 }

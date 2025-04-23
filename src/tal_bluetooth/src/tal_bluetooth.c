@@ -52,7 +52,7 @@ static TAL_BLE_EVT_FUNC_CB tal_ble_event_callback;
 static TAL_BLE_PEER_INFO_T tal_ble_peer = {0};
 #endif
 
-static uint16_t tal_ble_uuid16_convert(TKL_BLE_UUID_T *p_uuid)
+static __attribute__((unused)) uint16_t tal_ble_uuid16_convert(TKL_BLE_UUID_T *p_uuid)
 {
     uint16_t uuid16 = 0xFFFF;
 
