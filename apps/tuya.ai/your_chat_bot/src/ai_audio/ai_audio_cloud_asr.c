@@ -200,7 +200,7 @@ OPERATE_RET ai_audio_cloud_asr_init(bool is_enable_interrupt)
     TUYA_CALL_ERR_GOTO(tal_queue_create_init(&sg_ai_cloud_asr.stat_queue, sizeof(AI_CLOUD_ASR_STATE_E), 10), __ERR);
 
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_ai_cloud_asr.mutex), __ERR);
-    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_ai_cloud_asr.thrd_hdl, "audio_cloud_asr", 1024*8, THREAD_PRIO_2,
+    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_ai_cloud_asr.thrd_hdl, "audio_cloud_asr", 1024*4, THREAD_PRIO_2,
                                                   __ai_audio_cloud_asr_task, NULL),
                        __ERR);
 
