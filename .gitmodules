@@ -13,6 +13,3 @@
 [submodule "apps/tuya_cloud/switch_demo/libqrencode"]
 	path = apps/tuya_cloud/switch_demo/libqrencode
 	url = https://github.com/fukuchi/libqrencode.git
-[submodule "apps/tuya.ai/your_chat_bot/src/minimp3"]
-	path = apps/tuya.ai/your_chat_bot/src/minimp3
-	url = https://github.com/lieff/minimp3

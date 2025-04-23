@@ -10,7 +10,6 @@
  *
  */
 #define MINIMP3_IMPLEMENTATION
-#include "minimp3_ex.h"
 
 #include "tkl_system.h"
 #include "tkl_audio.h"
@@ -21,6 +20,7 @@
 #include "tuya_ringbuf.h"
 
 #include "ai_media_alert.h"
+#include "minimp3_ex.h"
 #include "ai_audio.h"
 /***********************************************************
 ************************macro define************************
@@ -323,7 +323,7 @@ OPERATE_RET ai_audio_player_init(void)
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_player.spk_rb_mutex), __ERR);
 
     // thread init
-    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_player.thrd_hdl, "ai_player", 1024 * 20, THREAD_PRIO_2,
+    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_player.thrd_hdl, "ai_player", 1024 * 2, THREAD_PRIO_2,
                                                   __ai_audio_player_task, NULL),
                        __ERR);
 
@@ -479,7 +479,8 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
         rt = ai_audio_player_data_write((uint8_t *)media_src_network_fail, sizeof(media_src_network_fail), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
-        rt = ai_audio_player_data_write((uint8_t *)media_src_network_disconnect, sizeof(media_src_network_disconnect), 1);
+        rt = ai_audio_player_data_write((uint8_t *)media_src_network_disconnect, sizeof(media_src_network_disconnect),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
         rt = ai_audio_player_data_write((uint8_t *)media_src_battery_low, sizeof(media_src_battery_low), 1);
@@ -491,7 +492,8 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
         rt = ai_audio_player_data_write((uint8_t *)media_src_wakeup, sizeof(media_src_wakeup), 1);
     } break;
     case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write((uint8_t *)media_src_long_press_dialogue, sizeof(media_src_long_press_dialogue), 1);
+        rt = ai_audio_player_data_write((uint8_t *)media_src_long_press_dialogue, sizeof(media_src_long_press_dialogue),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_KEY_TALK: {
         rt = ai_audio_player_data_write((uint8_t *)media_src_key_dialogue, sizeof(media_src_key_dialogue), 1);
