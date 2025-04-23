@@ -32,6 +32,7 @@
 #include "tuya_ai_client.h"
 #include "tuya_ai_biz.h"
 #include "tal_event.h"
+#include "tuya_ai_private.h"
 
 #ifndef AI_SESSION_MAX_NUM
 #define AI_SESSION_MAX_NUM 6
@@ -52,23 +53,6 @@ typedef struct {
 } AI_BASIC_BIZ_T;
 AI_BASIC_BIZ_T *ai_basic_biz;
 
-/**
- * @brief Send a business packet with specified attributes and payload
- *
- * @param[in] id The packet identifier
- * @param[in] attr Pointer to the attribute information structure (AI_BIZ_ATTR_INFO_T)
- * @param[in] type The packet type (AI_PACKET_PT enumeration)
- * @param[in] head Pointer to the packet header information (AI_BIZ_HEAD_INFO_T)
- * @param[in] payload Pointer to the payload data
- *
- * @return OPERATE_RET Returns OPRT_OK on success, error code otherwise
- *
- * @note This function handles different packet types (VIDEO/AUDIO/IMAGE/FILE/TEXT)
- *       by creating appropriate headers and managing memory allocation.
- *       It performs network byte order conversion (UNI_HTONS/UNI_HTONL/UNI_HTONLL)
- *       for cross-platform compatibility.
- *       Memory is allocated and freed for each packet type internally.
- */
 OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKET_PT type, AI_BIZ_HEAD_INFO_T *head,
                                  char *payload)
 {
@@ -106,7 +90,6 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         char *audio = Malloc(payload_len);
         TUYA_CHECK_NULL_RETURN(audio, OPRT_MALLOC_FAILED);
         memset(audio, 0, payload_len);
-
         AI_AUDIO_HEAD_T *audio_head = (AI_AUDIO_HEAD_T *)audio;
         audio_head->id = UNI_HTONS(id);
         audio_head->stream_flag = head->stream_flag;
@@ -306,7 +289,7 @@ static void __ai_biz_deinit(void)
     }
 }
 
-static OPERATE_RET __ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VIDEO_ATTR_T *video)
+OPERATE_RET __ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VIDEO_ATTR_T *video)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -342,7 +325,7 @@ static OPERATE_RET __ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VID
     return rt;
 }
 
-static OPERATE_RET __ai_parse_audio_attr(char *de_buf, uint32_t attr_len, AI_AUDIO_ATTR_T *audio)
+OPERATE_RET __ai_parse_audio_attr(char *de_buf, uint32_t attr_len, AI_AUDIO_ATTR_T *audio)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -376,7 +359,7 @@ static OPERATE_RET __ai_parse_audio_attr(char *de_buf, uint32_t attr_len, AI_AUD
     return rt;
 }
 
-static OPERATE_RET __ai_parse_image_attr(char *de_buf, uint32_t attr_len, AI_IMAGE_ATTR_T *image)
+OPERATE_RET __ai_parse_image_attr(char *de_buf, uint32_t attr_len, AI_IMAGE_ATTR_T *image)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -408,7 +391,7 @@ static OPERATE_RET __ai_parse_image_attr(char *de_buf, uint32_t attr_len, AI_IMA
     return rt;
 }
 
-static OPERATE_RET __ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE_ATTR_T *file)
+OPERATE_RET __ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE_ATTR_T *file)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -446,7 +429,7 @@ static OPERATE_RET __ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE
     return rt;
 }
 
-static OPERATE_RET __ai_parse_text_attr(char *de_buf, uint32_t attr_len, AI_TEXT_ATTR_T *text)
+OPERATE_RET __ai_parse_text_attr(char *de_buf, uint32_t attr_len, AI_TEXT_ATTR_T *text)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -469,7 +452,7 @@ static OPERATE_RET __ai_parse_text_attr(char *de_buf, uint32_t attr_len, AI_TEXT
     return rt;
 }
 
-static OPERATE_RET __ai_parse_event_attr(char *de_buf, uint32_t attr_len, AI_EVENT_ATTR_T *event)
+OPERATE_RET __ai_parse_event_attr(char *de_buf, uint32_t attr_len, AI_EVENT_ATTR_T *event)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -506,7 +489,7 @@ static OPERATE_RET __ai_parse_event_attr(char *de_buf, uint32_t attr_len, AI_EVE
     return rt;
 }
 
-static OPERATE_RET __ai_parse_session_close_attr(char *de_buf, uint32_t attr_len, AI_SESSION_CLOSE_ATTR_T *close)
+OPERATE_RET __ai_parse_session_close_attr(char *de_buf, uint32_t attr_len, AI_SESSION_CLOSE_ATTR_T *close)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0;
@@ -713,7 +696,7 @@ static OPERATE_RET __ai_biz_session_destory(AI_SESSION_ID id, AI_STATUS_CODE cod
     return rt;
 }
 
-static OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len)
+OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
     char *payload = NULL, *attr_buf = NULL;
@@ -844,23 +827,6 @@ EXIT:
     return rt;
 }
 
-/**
- * @brief Initialize the AI business module by subscribing to client events
- *
- * @return OPERATE_RET Returns OPRT_OK on successful initialization
- *
- * @details This function performs the following initialization tasks:
- *          - Subscribes to AI client run event (EVENT_AI_CLIENT_RUN) with callback __ai_clt_run_evt
- *          - Subscribes to AI client close event (EVENT_AI_CLIENT_CLOSE) with callback __ai_clt_close_evt
- *          - Both subscriptions use normal priority (SUBSCRIBE_TYPE_NORMAL)
- *
- * @note The subscription names ("ai.biz") identify this module in event notifications.
- *       This initialization should be called once during system startup.
- *
- * @see EVENT_AI_CLIENT_RUN
- * @see EVENT_AI_CLIENT_CLOSE
- * @see SUBSCRIBE_TYPE_NORMAL
- */
 OPERATE_RET tuya_ai_biz_init(void)
 {
     tal_event_subscribe(EVENT_AI_CLIENT_RUN, "ai.biz", __ai_clt_run_evt, SUBSCRIBE_TYPE_NORMAL);
@@ -906,25 +872,6 @@ static OPERATE_RET __ai_pack_session_data(AI_SESSION_CFG_T *cfg, AI_SESSION_NEW_
     return rt;
 }
 
-/**
- * @brief Create a new AI session with the specified configuration
- *
- * @param[in] bizCode The business code identifying the type of AI session
- * @param[in] cfg Pointer to the AI session configuration structure
- * @param[in] attr Pointer to session attributes data (can be NULL)
- * @param[in] attr_len Length of the session attributes data
- * @param[out] id Output parameter for the generated session ID (must be pre-allocated)
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function will:
- *       1. Generate a unique session ID
- *       2. Pack the session data
- *       3. Store the session in the session table
- *       4. Create a task if needed
- *
- * @warning The caller must ensure the id buffer has sufficient space (minimum UUID length)
- */
 OPERATE_RET tuya_ai_biz_crt_session(uint32_t bizCode, AI_SESSION_CFG_T *cfg, uint8_t *attr, uint32_t attr_len,
                                     AI_SESSION_ID id)
 {
@@ -971,16 +918,6 @@ OPERATE_RET tuya_ai_biz_crt_session(uint32_t bizCode, AI_SESSION_CFG_T *cfg, uin
     return rt;
 }
 
-/**
- * @brief Delete an existing AI session
- *
- * @param[in] id The session ID to delete
- * @param[in] code Status code indicating reason for deletion
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This is a wrapper for the internal session destruction function
- */
 OPERATE_RET tuya_ai_biz_del_session(AI_SESSION_ID id, AI_STATUS_CODE code)
 {
     return __ai_biz_session_destory(id, code, true);

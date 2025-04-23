@@ -63,21 +63,6 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
     return rt;
 }
 
-/**
- * @brief Start a new AI event session
- *
- * @param[in] sid Session ID associated with the event
- * @param[out] eid Generated event ID (must be pre-allocated buffer)
- * @param[in] attr Optional event attributes data
- * @param[in] len Length of event attributes data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Generates a unique UUID for the event
- *       2. Initiates the event with AI_EVENT_START type
- *       3. Logs the generated event ID
- */
 OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -95,61 +80,21 @@ OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *att
     return rt;
 }
 
-/**
- * @brief Signal payloads end for an AI event
- *
- * @param[in] sid Session ID associated with the event
- * @param[in] eid Event ID to end payloads for
- * @param[in] attr Optional event attributes data
- * @param[in] len Length of event attributes data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- */
 OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_PAYLOADS_END, sid, eid, attr, len);
 }
 
-/**
- * @brief End an AI event session
- *
- * @param[in] sid Session ID associated with the event
- * @param[in] eid Event ID to end
- * @param[in] attr Optional event attributes data
- * @param[in] len Length of event attributes data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- */
 OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_END, sid, eid, attr, len);
 }
 
-/**
- * @brief Signal a chat break event
- *
- * @param[in] sid Session ID associated with the event
- * @param[in] eid Event ID for the chat break
- * @param[in] attr Optional event attributes data
- * @param[in] len Length of event attributes data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- */
 OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_CHAT_BREAK, sid, eid, attr, len);
 }
 
-/**
- * @brief Trigger a one-shot AI event
- *
- * @param[in] sid Session ID associated with the event
- * @param[in] eid Event ID for the one-shot event
- * @param[in] attr Optional event attributes data
- * @param[in] len Length of event attributes data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- */
 OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     return __ai_event(AI_EVENT_ONE_SHOT, sid, eid, attr, len);

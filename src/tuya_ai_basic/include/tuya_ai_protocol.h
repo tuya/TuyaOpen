@@ -338,7 +338,6 @@ typedef struct {
 typedef struct {
     AI_FILE_ATTR_BASE_T base;
     AI_ATTR_OPTION_T option;
-    ;
 } AI_FILE_ATTR_T;
 
 typedef struct {
@@ -393,404 +392,276 @@ typedef struct {
 #pragma pack()
 
 /**
- * @brief Get the current ATOP configuration information
+ * @brief send ai client hello
  *
- * @return AI_ATOP_CFG_INFO_T* Pointer to the ATOP configuration structure
- *
- * @note The returned pointer provides read-only access to the current
- *       protocol configuration. The caller should NOT modify or free this memory.
- *
- * @warning The returned pointer becomes invalid after protocol deinitialization.
- */
-AI_ATOP_CFG_INFO_T *tuya_ai_basic_get_atop_cfg(void);
-
-/**
- * @brief Request and update ATOP configuration from the server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function performs the following operations:
- *       1. Initializes protocol resources if needed
- *       2. Prepares and sends ATOP request with current timestamp
- *       3. Processes server response to update configuration including:
- *          - Connection endpoints (hosts and ports)
- *          - Authentication credentials
- *          - Session parameters (expiry, client ID)
- *          - Cryptographic parameters
- *       4. Validates all required configuration fields
- *
- * @warning On failure, all allocated resources are automatically cleaned up.
- *
- * @see AI_ATOP_CFG_INFO_T for the complete configuration structure
- */
-OPERATE_RET tuya_ai_basic_atop_req(void);
-
-/**
- * @brief Parse and extract an attribute value from a binary buffer
- *
- * @param[in] de_buf Pointer to the binary buffer containing attribute data
- * @param[in,out] offset Pointer to current offset in buffer (updated after parsing)
- * @param[out] attr Pointer to AI_ATTRIBUTE_T structure to populate with parsed data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads attribute type, payload type, and length from buffer
- *       2. Extracts value based on payload type (handling network byte order)
- *       3. Supports multiple data types:
- *          - Unsigned integers (8/16/32/64-bit)
- *          - Raw byte arrays
- *          - String values
- *       4. Performs validation on the extracted attribute
- *       5. Updates the offset to point to next attribute
- *
- * @warning The buffer pointers in the output structure (bytes/str) point directly
- *          into the input buffer. The caller must ensure the input buffer remains
- *          valid while these pointers are in use.
- *
- * @see AI_ATTRIBUTE_T for the complete attribute structure definition
- * @see AI_ATTR_PT for supported payload types
- */
-OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_T *attr);
-
-/**
- * @brief Send a connection refresh request to the AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a refresh request packet (AI_PT_CONN_REFRESH_REQ)
- *       2. Populates required attributes
- *       3. Sends the packet to server
- */
-OPERATE_RET tuya_ai_basic_refresh_req(void);
-
-/**
- * @brief Handle a PONG response from the AI server
- *
- * @param[in] data Pointer to received PONG data
- * @param[in] len Length of received data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Validates packet attributes
- *       2. Extracts client and server timestamps
- *       3. Logs timing information for debugging
- */
-OPERATE_RET tuya_ai_pong(char *data, uint32_t len);
-
-/**
- * @brief Process a connection refresh response from server
- *
- * @param[in] de_buf Pointer to received attribute data buffer
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Parses server response attributes
- *       2. Validates connection status
- *       3. Updates expiration timestamp if provided
- */
-OPERATE_RET tuya_ai_refresh_resp(char *de_buf, uint32_t attr_len);
-
-/**
- * @brief Send CLIENT_HELLO message to initiate connection
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This is the first message in the connection handshake sequence
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_client_hello(void);
 
 /**
- * @brief Send authentication request to the AI server
+ * @brief send ai auth req
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates an auth request packet (AI_PT_AUTH_REQ)
- *       2. Populates authentication attributes
- *       3. Sends the packet to server
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_auth_req(void);
 
 /**
- * @brief Clean up protocol resources and disconnect
+ * @brief send ai conn close
  *
- * @note This function performs complete teardown of protocol resources
- *       and connection state. Should be called when disconnecting.
- */
-void tuya_ai_basic_disconnect(void);
-
-/**
- * @brief Send graceful connection close notification
+ * @param[in] code close code
  *
- * @param[in] code Status code indicating reason for closure
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a connection close packet (AI_PT_CONN_CLOSE)
- *       2. Includes the specified status code
- *       3. Sends notification to server
- *       4. Does NOT automatically disconnect (call tuya_ai_basic_disconnect separately)
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_conn_close(AI_STATUS_CODE code);
 
 /**
- * @brief Free packet data memory
+ * @brief read ai packet
  *
- * @param[in] data Pointer to packet data to free
+ * @param[out] out packet data
+ * @param[out] out_len packet data length
  *
- * @note Handles special case for fragmented packet data stored in frag_mng
- */
-void tuya_ai_basic_pkt_free(char *data);
-
-/**
- * @brief Read and process an incoming AI protocol packet
- *
- * @param[out] out Pointer to receive allocated packet data
- * @param[out] out_len Pointer to receive packet data length
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads packet header and validates basic structure
- *       2. Handles packet fragmentation (START/ING/END)
- *       3. Verifies packet signature
- *       4. Decrypts payload data
- *       5. Manages sequence numbers
- *
- * @warning Caller must free output buffer using tuya_ai_basic_pkt_free()
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len);
 
 /**
- * @brief Parse a buffer of user attributes into structured format
+ * @brief send ai ping
  *
- * @param[in] in Input buffer containing serialized attributes
- * @param[in] attr_len Length of attribute data in buffer
- * @param[out] attr_out Pointer to receive allocated attribute array
- * @param[out] attr_num Pointer to receive number of parsed attributes
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Caller must free the output attribute array using Free()
- */
-OPERATE_RET tuya_parse_user_attrs(char *in, uint32_t attr_len, AI_ATTRIBUTE_T **attr_out, uint32_t *attr_num);
-
-/**
- * @brief Parse authentication response attributes
- *
- * @param[in] de_buf Decrypted buffer containing attributes
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Validates required attributes:
- *       - Connection status code
- *       - Connection ID
- */
-OPERATE_RET __ai_parse_auth_resp(char *de_buf, uint32_t attr_len);
-
-/**
- * @brief Parse connection close notification
- *
- * @param[in] de_buf Decrypted buffer containing attributes
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Extracts and logs connection close error code
- */
-OPERATE_RET tuya_ai_parse_conn_close(char *de_buf, uint32_t attr_len);
-
-/**
- * @brief Handle authentication response from server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads response packet
- *       2. Routes to appropriate parser based on packet type
- *       3. Handles both auth response and connection close cases
- */
-OPERATE_RET tuya_ai_auth_resp(void);
-
-/**
- * @brief Send a PING packet to the AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a PING packet (AI_PT_PING)
- *       2. Populates required attributes
- *       3. Sends the packet to maintain connection
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_ping(void);
 
 /**
- * @brief Establish connection to AI server
+ * @brief send ai packet
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ * @param[in] info packet info
  *
- * @note This function:
- *       1. Creates TCP transporter instance
- *       2. Attempts connection to each configured host
- *       3. Sets connected flag on success
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_basic_pkt_send(AI_SEND_PACKET_T *info);
+
+/**
+ * @brief request atop info
  *
- * @warning Requires valid configuration from tuya_ai_basic_atop_req() first
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_basic_atop_req(void);
+
+/**
+ * @brief get atop cfg info
+ *
+ * @return atop cfg info
+ */
+AI_ATOP_CFG_INFO_T *tuya_ai_basic_get_atop_cfg(void);
+
+/**
+ * @brief ai basic connect
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_connect(void);
 
 /**
- * @brief Determine packet type from received buffer
+ * @brief ai basic disconnect
  *
- * @param[in] buf Pointer to received packet data
+ */
+void tuya_ai_basic_disconnect(void);
+
+/**
+ * @brief ai basic refresh req
  *
- * @return AI_PACKET_PT The packet type identifier
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_basic_refresh_req(void);
+
+/**
+ * @brief ai auth resp
  *
- * @note Extracts type from packet header without full parsing
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_auth_resp(void);
+
+/**
+ * @brief ai get pkt type
+ *
+ * @return pkt type
  */
 AI_PACKET_PT tuya_ai_basic_get_pkt_type(char *buf);
 
 /**
- * @brief Serialize multiple attributes into binary format
+ * @brief session new
  *
- * @param[in] attr Array of attributes to serialize
- * @param[in] attr_num Number of attributes in array
- * @param[out] out Pointer to receive allocated buffer
- * @param[out] out_len Pointer to receive buffer length
+ * @param[in] session session attr
+ * @param[in] data session data
+ * @param[in] len session data length
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Calculates total required buffer size
- *       2. Handles network byte order conversion
- *       3. Supports all attribute payload types:
- *          - Numeric types (with proper byte ordering)
- *          - Byte arrays
- *          - Strings
- *
- * @warning Caller must free the output buffer using Free()
- */
-OPERATE_RET tuya_pack_user_attrs(AI_ATTRIBUTE_T *attr, uint32_t attr_num, uint8_t **out, uint32_t *out_len);
-
-/**
- * @brief Create and send a new AI session
- *
- * @param[in] session Session attributes to include
- * @param[in] data Session data payload
- * @param[in] len Length of session data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_SESSION_NEW packet with specified attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_session_new(AI_SESSION_NEW_ATTR_T *session, char *data, uint32_t len);
 
 /**
- * @brief Close an existing AI session
+ * @brief session close
  *
- * @param[in] session_id ID of session to close
- * @param[in] code Status code for closure reason
+ * @param[in] session_id session id
+ * @param[in] code close code
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_SESSION_CLOSE packet with termination details
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code);
 
 /**
- * @brief Send video data through AI protocol
+ * @brief video packet
  *
- * @param[in] video Video attributes (may be NULL)
- * @param[in] data Video frame data
- * @param[in] len Length of video data
+ * @param[in] video video attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_VIDEO packet with optional attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len);
 
 /**
- * @brief Send audio data through AI protocol
+ * @brief audio packet
  *
- * @param[in] audio Audio attributes (may be NULL)
- * @param[in] data Audio frame data
- * @param[in] len Length of audio data
+ * @param[in] audio audio attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_AUDIO packet with optional attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len);
 
 /**
- * @brief Send image data through AI protocol
+ * @brief image packet
  *
- * @param[in] image Image attributes (may be NULL)
- * @param[in] data Image data
- * @param[in] len Length of image data
+ * @param[in] image image attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_IMAGE packet with optional attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len);
 
 /**
- * @brief Send file data through AI protocol
+ * @brief file packet
  *
- * @param[in] file File attributes (may be NULL)
- * @param[in] data File contents
- * @param[in] len Length of file data
+ * @param[in] file file attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_FILE packet with optional attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len);
 
 /**
- * @brief Send text data through AI protocol
+ * @brief text packet
  *
- * @param[in] text Text attributes (may be NULL)
- * @param[in] data Text content
- * @param[in] len Length of text data
+ * @param[in] text text attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_TEXT packet with optional attributes
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len);
 
 /**
- * @brief Send event notification through AI protocol
+ * @brief event packet
  *
- * @param[in] event Event attributes (may be NULL)
- * @param[in] data Event data including header
- * @param[in] len Length of event data
+ * @param[in] event event attr
+ * @param[in] data data
+ * @param[in] len len
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_EVENT packet with network byte order conversion
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len);
 
 /**
- * @brief Generate a random UUID v4 string
+ * @brief get attr value
  *
- * @param[out] uuid_str Buffer to receive UUID string (must be AI_UUID_V4_LEN bytes)
+ * @param[in] de_buf data buffer
+ * @param[inout] offset data offset
+ * @param[out] attr attribute
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_T *attr);
+
+/**
+ * @brief connect refresh resp parse
  *
- * @note Formats output as f47ac10b-58cc-42d5-0136-4067a8e7d6b3 hex digits with dashes
- * @warning Caller must provide buffer of sufficient size
+ * @param[in] de_buf attr buf
+ * @param[in] attr_len attr len
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_refresh_resp(char *de_buf, uint32_t attr_len);
+
+/**
+ * @brief create user attrs
+ *
+ * @param[in] attr attribute
+ * @param[in] attr_num attribute number
+ * @param[out] out out data
+ * @param[out] out_len out data length
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_pack_user_attrs(AI_ATTRIBUTE_T *attr, uint32_t attr_num, uint8_t **out, uint32_t *out_len);
+
+/**
+ * @brief parse user attrs
+ *
+ * @param[in] in in data
+ * @param[in] attr_len attr length
+ * @param[out] attr_out out attr
+ * @param[out] attr_num out attr number
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_parse_user_attrs(char *in, uint32_t attr_len, AI_ATTRIBUTE_T **attr_out, uint32_t *attr_num);
+
+/**
+ * @brief get uuid v4
+ *
+ * @param[out] uuid_str uuid string
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str);
 
-#endif /* __TUYA_AI_PROTOCOL_H__ */
+/**
+ * @brief is need attr
+ *
+ * @param[in] frag_flag fragment flag
+ *
+ * @return true on need. false on not need
+ */
+uint8_t tuya_ai_is_need_attr(AI_FRAG_FLAG frag_flag);
+
+/**
+ * @brief parse conn close
+ *
+ * @param[in] de_buf data buffer
+ * @param[in] attr_len attribute length
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_conn_close(char *de_buf, uint32_t attr_len);
+
+/**
+ * @brief parse pong
+ *
+ * @param[in] data data buffer
+ * @param[in] len data length
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_pong(char *data, uint32_t len);
+
+/**
+ * @brief pkt data free
+ *
+ * @param[in] data data buffer
+ */
+void tuya_ai_basic_pkt_free(char *data);
+#endif

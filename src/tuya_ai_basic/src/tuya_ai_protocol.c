@@ -39,6 +39,7 @@
 #include "tal_security.h"
 #include "tal_memory.h"
 #include "tuya_ai_protocol.h"
+#include "tuya_ai_private.h"
 
 #define AI_DEFAULT_TIMEOUT_MS     5000
 #define AI_ATOP_THING_CONFIG_INFO "thing.aigc.basic.server.config.info"
@@ -106,7 +107,12 @@ static void __ai_atop_cfg_free(void)
     memset(&ai_basic_proto->config, 0, sizeof(AI_ATOP_CFG_INFO_T));
 }
 
-static OPERATE_RET __ai_generate_crypt_key(void)
+AI_ATOP_CFG_INFO_T *tuya_ai_basic_get_atop_cfg(void)
+{
+    return &(ai_basic_proto->config);
+}
+
+static OPERATE_RET __ai_generate_crypt_key()
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -115,7 +121,6 @@ static OPERATE_RET __ai_generate_crypt_key(void)
     char *slat = ai_basic_proto->crypt_random;
     size_t salt_len = AI_RANDOM_LEN;
 
-    // char* ikm = get_gw_cntl()->gw_actv.local_key;
     char *ikm = tuya_iot_client_get()->activate.localkey;
     size_t ikm_len = strlen(ikm);
 
@@ -193,11 +198,40 @@ static void __ai_basic_proto_deinit(void)
     return;
 }
 
+static void __ai_basic_proto_reinit(void)
+{
+    tal_mutex_lock(ai_basic_proto->mutex);
+    if (ai_basic_proto->transporter) {
+        tuya_transporter_close(ai_basic_proto->transporter);
+        tuya_transporter_destroy(ai_basic_proto->transporter);
+        ai_basic_proto->transporter = NULL;
+    }
+    __ai_atop_cfg_free();
+    if (ai_basic_proto->connection_id) {
+        OS_FREE(ai_basic_proto->connection_id);
+        ai_basic_proto->connection_id = NULL;
+    }
+    __ai_generate_crypt_key();
+    __ai_generate_sign_key();
+    ai_basic_proto->connected = FALSE;
+    ai_basic_proto->sequence_in = 0;
+    ai_basic_proto->sequence_out = 1;
+    memset(ai_basic_proto->recv_buf, 0, sizeof(ai_basic_proto->recv_buf));
+    memset(ai_basic_proto->encrypt_iv, 0, AI_IV_LEN);
+    uni_random_string(ai_basic_proto->encrypt_iv, AI_IV_LEN);
+    ai_basic_proto->sl = AI_PACKET_SECURITY_LEVEL;
+    memset(ai_basic_proto->decrypt_iv, 0, AI_IV_LEN);
+    memset(&ai_basic_proto->frag_mng, 0, sizeof(ai_basic_proto->frag_mng));
+    tal_mutex_unlock(ai_basic_proto->mutex);
+    PR_NOTICE("ai proto reinit success");
+    return;
+}
+
 static OPERATE_RET __ai_basic_proto_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     if (ai_basic_proto) {
-        __ai_basic_proto_deinit();
+        __ai_basic_proto_reinit();
     }
     ai_basic_proto = Malloc(sizeof(AI_BASIC_PROTO_T));
     TUYA_CHECK_NULL_RETURN(ai_basic_proto, OPRT_MALLOC_FAILED);
@@ -217,40 +251,6 @@ EXIT:
     return OPRT_COM_ERROR;
 }
 
-/**
- * @brief Get the current ATOP configuration information
- *
- * @return AI_ATOP_CFG_INFO_T* Pointer to the ATOP configuration structure
- *
- * @note The returned pointer provides read-only access to the current
- *       protocol configuration. The caller should NOT modify or free this memory.
- *
- * @warning The returned pointer becomes invalid after protocol deinitialization.
- */
-AI_ATOP_CFG_INFO_T *tuya_ai_basic_get_atop_cfg(void)
-{
-    return &(ai_basic_proto->config);
-}
-
-/**
- * @brief Request and update ATOP configuration from the server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function performs the following operations:
- *       1. Initializes protocol resources if needed
- *       2. Prepares and sends ATOP request with current timestamp
- *       3. Processes server response to update configuration including:
- *          - Connection endpoints (hosts and ports)
- *          - Authentication credentials
- *          - Session parameters (expiry, client ID)
- *          - Cryptographic parameters
- *       4. Validates all required configuration fields
- *
- * @warning On failure, all allocated resources are automatically cleaned up.
- *
- * @see AI_ATOP_CFG_INFO_T for the complete configuration structure
- */
 OPERATE_RET tuya_ai_basic_atop_req(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -431,7 +431,7 @@ static OPERATE_RET __ai_packet_sign(char *buf, uint8_t *signature)
     return rt;
 }
 
-static uint32_t __ai_get_send_attr_len(AI_SEND_PACKET_T *info)
+uint32_t __ai_get_send_attr_len(AI_SEND_PACKET_T *info)
 {
     uint32_t len = 0, idx = 0;
     if ((info->count != 0) && (info->attrs)) {
@@ -444,7 +444,7 @@ static uint32_t __ai_get_send_attr_len(AI_SEND_PACKET_T *info)
     return len;
 }
 
-static uint8_t tuya_ai_is_need_attr(AI_FRAG_FLAG frag_flag)
+uint8_t tuya_ai_is_need_attr(AI_FRAG_FLAG frag_flag)
 {
     if ((frag_flag == AI_PACKET_NO_FRAG) || (frag_flag == AI_PACKET_FRAG_START)) {
         return true;
@@ -452,7 +452,7 @@ static uint8_t tuya_ai_is_need_attr(AI_FRAG_FLAG frag_flag)
     return false;
 }
 
-static uint32_t __ai_get_send_payload_len(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag_flag)
+uint32_t __ai_get_send_payload_len(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag_flag)
 {
     uint32_t len = 0;
     if (tuya_ai_is_need_attr(frag_flag)) {
@@ -769,7 +769,7 @@ static uint8_t __ai_check_attr_vaild(AI_ATTRIBUTE_T *attr)
     return true;
 }
 
-static uint32_t tuya_ai_get_attr_num(char *de_buf, uint32_t attr_len)
+uint32_t tuya_ai_get_attr_num(char *de_buf, uint32_t attr_len)
 {
     uint32_t offset = 0, idx = 0, length = 0;
     while (offset < attr_len) {
@@ -783,32 +783,6 @@ static uint32_t tuya_ai_get_attr_num(char *de_buf, uint32_t attr_len)
     return idx;
 }
 
-/**
- * @brief Parse and extract an attribute value from a binary buffer
- *
- * @param[in] de_buf Pointer to the binary buffer containing attribute data
- * @param[in,out] offset Pointer to current offset in buffer (updated after parsing)
- * @param[out] attr Pointer to AI_ATTRIBUTE_T structure to populate with parsed data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads attribute type, payload type, and length from buffer
- *       2. Extracts value based on payload type (handling network byte order)
- *       3. Supports multiple data types:
- *          - Unsigned integers (8/16/32/64-bit)
- *          - Raw byte arrays
- *          - String values
- *       4. Performs validation on the extracted attribute
- *       5. Updates the offset to point to next attribute
- *
- * @warning The buffer pointers in the output structure (bytes/str) point directly
- *          into the input buffer. The caller must ensure the input buffer remains
- *          valid while these pointers are in use.
- *
- * @see AI_ATTRIBUTE_T for the complete attribute structure definition
- * @see AI_ATTR_PT for supported payload types
- */
 OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_T *attr)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -925,7 +899,9 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
 
     AI_PROTO_D("send total len:%d, send_len:%d", offset, uncrypt_len);
     // tuya_debug_hex_dump("send_pkt_buf", 64, (uint8_t *)send_pkt_buf, offset);
-    rt = tuya_transporter_write(ai_basic_proto->transporter, (uint8_t *)send_pkt_buf, offset, 0);
+    if (ai_basic_proto->transporter) {
+        rt = tuya_transporter_write(ai_basic_proto->transporter, (uint8_t *)send_pkt_buf, offset, 0);
+    }
     if (rt != offset) {
         PR_ERR("send to cloud failed, rt:%d, len:%d", rt, offset);
     } else {
@@ -937,7 +913,7 @@ EXIT:
     return rt;
 }
 
-static void tuya_ai_free_attribute(AI_ATTRIBUTE_T *attr)
+void tuya_ai_free_attribute(AI_ATTRIBUTE_T *attr)
 {
     if (!attr) {
         return;
@@ -959,7 +935,7 @@ static void tuya_ai_free_attribute(AI_ATTRIBUTE_T *attr)
     Free(attr);
 }
 
-static void tuya_ai_free_attrs(AI_SEND_PACKET_T *pkt)
+void tuya_ai_free_attrs(AI_SEND_PACKET_T *pkt)
 {
     uint32_t attr_idx = 0;
     for (attr_idx = 0; attr_idx < pkt->count; attr_idx++) {
@@ -969,7 +945,7 @@ static void tuya_ai_free_attrs(AI_SEND_PACKET_T *pkt)
     }
 }
 
-static OPERATE_RET tuya_ai_basic_pkt_send(AI_SEND_PACKET_T *info)
+OPERATE_RET tuya_ai_basic_pkt_send(AI_SEND_PACKET_T *info)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t offset = 0, frag_len = 0, attr_len = 0;
@@ -979,13 +955,19 @@ static OPERATE_RET tuya_ai_basic_pkt_send(AI_SEND_PACKET_T *info)
     char *origin_data = info->data;
     // AI_PROTO_D("send payload len:%d", payload_len);
 
-    if (!ai_basic_proto || (!ai_basic_proto->connected)) {
+    if (!ai_basic_proto) {
         tuya_ai_free_attrs(info);
-        PR_ERR("ai proto not connected");
+        PR_ERR("ai basic proto was null");
         return OPRT_COM_ERROR;
     }
 
     tal_mutex_lock(ai_basic_proto->mutex);
+    if (!ai_basic_proto->connected) {
+        tuya_ai_free_attrs(info);
+        tal_mutex_unlock(ai_basic_proto->mutex);
+        PR_ERR("ai proto not connected");
+        return OPRT_COM_ERROR;
+    }
 
     uint32_t send_pkt_len = __ai_get_send_pkt_len(info, AI_PACKET_NO_FRAG);
     if (send_pkt_len <= AI_MAX_FRAGMENT_LENGTH) {
@@ -1171,16 +1153,6 @@ static OPERATE_RET __create_refresh_req_attrs(AI_SEND_PACKET_T *pkt)
     return OPRT_OK;
 }
 
-/**
- * @brief Send a connection refresh request to the AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a refresh request packet (AI_PT_CONN_REFRESH_REQ)
- *       2. Populates required attributes
- *       3. Sends the packet to server
- */
 OPERATE_RET tuya_ai_basic_refresh_req(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1194,19 +1166,6 @@ OPERATE_RET tuya_ai_basic_refresh_req(void)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Handle a PONG response from the AI server
- *
- * @param[in] data Pointer to received PONG data
- * @param[in] len Length of received data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Validates packet attributes
- *       2. Extracts client and server timestamps
- *       3. Logs timing information for debugging
- */
 OPERATE_RET tuya_ai_pong(char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1248,19 +1207,6 @@ OPERATE_RET tuya_ai_pong(char *data, uint32_t len)
     return rt;
 }
 
-/**
- * @brief Process a connection refresh response from server
- *
- * @param[in] de_buf Pointer to received attribute data buffer
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Parses server response attributes
- *       2. Validates connection status
- *       3. Updates expiration timestamp if provided
- */
 OPERATE_RET tuya_ai_refresh_resp(char *de_buf, uint32_t attr_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1292,13 +1238,6 @@ OPERATE_RET tuya_ai_refresh_resp(char *de_buf, uint32_t attr_len)
     return rt;
 }
 
-/**
- * @brief Send CLIENT_HELLO message to initiate connection
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This is the first message in the connection handshake sequence
- */
 OPERATE_RET tuya_ai_basic_client_hello(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1312,16 +1251,6 @@ OPERATE_RET tuya_ai_basic_client_hello(void)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send authentication request to the AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates an auth request packet (AI_PT_AUTH_REQ)
- *       2. Populates authentication attributes
- *       3. Sends the packet to server
- */
 OPERATE_RET tuya_ai_basic_auth_req(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1335,30 +1264,11 @@ OPERATE_RET tuya_ai_basic_auth_req(void)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Clean up protocol resources and disconnect
- *
- * @note This function performs complete teardown of protocol resources
- *       and connection state. Should be called when disconnecting.
- */
 void tuya_ai_basic_disconnect(void)
 {
     __ai_basic_proto_deinit();
 }
 
-/**
- * @brief Send graceful connection close notification
- *
- * @param[in] code Status code indicating reason for closure
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a connection close packet (AI_PT_CONN_CLOSE)
- *       2. Includes the specified status code
- *       3. Sends notification to server
- *       4. Does NOT automatically disconnect (call tuya_ai_basic_disconnect separately)
- */
 OPERATE_RET tuya_ai_basic_conn_close(AI_STATUS_CODE code)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1369,6 +1279,7 @@ OPERATE_RET tuya_ai_basic_conn_close(AI_STATUS_CODE code)
         return rt;
     }
     rt = tuya_ai_basic_pkt_send(&pkt);
+    ai_basic_proto->connected = false;
     // tuya_ai_basic_disconnect();
     return rt;
 }
@@ -1426,13 +1337,6 @@ static int __ai_baisc_read_pkt_head(char *recv_buf)
     return offset;
 }
 
-/**
- * @brief Free packet data memory
- *
- * @param[in] data Pointer to packet data to free
- *
- * @note Handles special case for fragmented packet data stored in frag_mng
- */
 void tuya_ai_basic_pkt_free(char *data)
 {
     if (data == ai_basic_proto->frag_mng.data) {
@@ -1444,23 +1348,6 @@ void tuya_ai_basic_pkt_free(char *data)
     }
 }
 
-/**
- * @brief Read and process an incoming AI protocol packet
- *
- * @param[out] out Pointer to receive allocated packet data
- * @param[out] out_len Pointer to receive packet data length
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads packet header and validates basic structure
- *       2. Handles packet fragmentation (START/ING/END)
- *       3. Verifies packet signature
- *       4. Decrypts payload data
- *       5. Manages sequence numbers
- *
- * @warning Caller must free output buffer using tuya_ai_basic_pkt_free()
- */
 OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1496,14 +1383,15 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len)
     }
 
     uint16_t sequence = UNI_NTOHS(head->sequence);
-    if (sequence >= 0xFFFF) {
-        ai_basic_proto->sequence_in = 0;
-    }
     if (sequence <= ai_basic_proto->sequence_in) {
         PR_ERR("sequence error, in:%d, pre:%d", sequence, ai_basic_proto->sequence_in);
         goto EXIT;
     }
+
     ai_basic_proto->sequence_in = sequence;
+    if (sequence >= 0xFFFF) {
+        ai_basic_proto->sequence_in = 0;
+    }
 
     uint32_t continue_recv_len = 0;
     int offset = recv_len;
@@ -1640,18 +1528,6 @@ EXIT:
     return recv_len;
 }
 
-/**
- * @brief Parse a buffer of user attributes into structured format
- *
- * @param[in] in Input buffer containing serialized attributes
- * @param[in] attr_len Length of attribute data in buffer
- * @param[out] attr_out Pointer to receive allocated attribute array
- * @param[out] attr_num Pointer to receive number of parsed attributes
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Caller must free the output attribute array using Free()
- */
 OPERATE_RET tuya_parse_user_attrs(char *in, uint32_t attr_len, AI_ATTRIBUTE_T **attr_out, uint32_t *attr_num)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1680,18 +1556,6 @@ OPERATE_RET tuya_parse_user_attrs(char *in, uint32_t attr_len, AI_ATTRIBUTE_T **
     return rt;
 }
 
-/**
- * @brief Parse authentication response attributes
- *
- * @param[in] de_buf Decrypted buffer containing attributes
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Validates required attributes:
- *       - Connection status code
- *       - Connection ID
- */
 OPERATE_RET __ai_parse_auth_resp(char *de_buf, uint32_t attr_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1742,16 +1606,6 @@ EXIT:
     return rt;
 }
 
-/**
- * @brief Parse connection close notification
- *
- * @param[in] de_buf Decrypted buffer containing attributes
- * @param[in] attr_len Length of attribute data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Extracts and logs connection close error code
- */
 OPERATE_RET tuya_ai_parse_conn_close(char *de_buf, uint32_t attr_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1777,16 +1631,6 @@ OPERATE_RET tuya_ai_parse_conn_close(char *de_buf, uint32_t attr_len)
     return rt;
 }
 
-/**
- * @brief Handle authentication response from server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Reads response packet
- *       2. Routes to appropriate parser based on packet type
- *       3. Handles both auth response and connection close cases
- */
 OPERATE_RET tuya_ai_auth_resp(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1834,16 +1678,6 @@ static OPERATE_RET __create_ping_attrs(AI_SEND_PACKET_T *pkt)
     return OPRT_OK;
 }
 
-/**
- * @brief Send a PING packet to the AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates a PING packet (AI_PT_PING)
- *       2. Populates required attributes
- *       3. Sends the packet to maintain connection
- */
 OPERATE_RET tuya_ai_basic_ping(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1853,23 +1687,11 @@ OPERATE_RET tuya_ai_basic_ping(void)
     if (OPRT_OK != rt) {
         return rt;
     }
-    AI_PROTO_D("send ai ping");
+    PR_NOTICE("send ai ping");
     rt = tuya_ai_basic_pkt_send(&pkt);
     return rt;
 }
 
-/**
- * @brief Establish connection to AI server
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Creates TCP transporter instance
- *       2. Attempts connection to each configured host
- *       3. Sets connected flag on success
- *
- * @warning Requires valid configuration from tuya_ai_basic_atop_req() first
- */
 OPERATE_RET tuya_ai_basic_connect(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1891,41 +1713,12 @@ OPERATE_RET tuya_ai_basic_connect(void)
     return rt;
 }
 
-/**
- * @brief Determine packet type from received buffer
- *
- * @param[in] buf Pointer to received packet data
- *
- * @return AI_PACKET_PT The packet type identifier
- *
- * @note Extracts type from packet header without full parsing
- */
 AI_PACKET_PT tuya_ai_basic_get_pkt_type(char *buf)
 {
     AI_PAYLOAD_HEAD_T *payload = (AI_PAYLOAD_HEAD_T *)buf;
     return payload->type;
 }
 
-/**
- * @brief Serialize multiple attributes into binary format
- *
- * @param[in] attr Array of attributes to serialize
- * @param[in] attr_num Number of attributes in array
- * @param[out] out Pointer to receive allocated buffer
- * @param[out] out_len Pointer to receive buffer length
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function:
- *       1. Calculates total required buffer size
- *       2. Handles network byte order conversion
- *       3. Supports all attribute payload types:
- *          - Numeric types (with proper byte ordering)
- *          - Byte arrays
- *          - Strings
- *
- * @warning Caller must free the output buffer using Free()
- */
 OPERATE_RET tuya_pack_user_attrs(AI_ATTRIBUTE_T *attr, uint32_t attr_num, uint8_t **out, uint32_t *out_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2157,17 +1950,6 @@ static OPERATE_RET __create_event_attrs(AI_SEND_PACKET_T *pkt, AI_EVENT_ATTR_T *
     return OPRT_OK;
 }
 
-/**
- * @brief Create and send a new AI session
- *
- * @param[in] session Session attributes to include
- * @param[in] data Session data payload
- * @param[in] len Length of session data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_SESSION_NEW packet with specified attributes
- */
 OPERATE_RET tuya_ai_basic_session_new(AI_SESSION_NEW_ATTR_T *session, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2183,16 +1965,6 @@ OPERATE_RET tuya_ai_basic_session_new(AI_SESSION_NEW_ATTR_T *session, char *data
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Close an existing AI session
- *
- * @param[in] session_id ID of session to close
- * @param[in] code Status code for closure reason
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_SESSION_CLOSE packet with termination details
- */
 OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2206,17 +1978,6 @@ OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send video data through AI protocol
- *
- * @param[in] video Video attributes (may be NULL)
- * @param[in] data Video frame data
- * @param[in] len Length of video data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_VIDEO packet with optional attributes
- */
 OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2234,17 +1995,6 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send audio data through AI protocol
- *
- * @param[in] audio Audio attributes (may be NULL)
- * @param[in] data Audio frame data
- * @param[in] len Length of audio data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_AUDIO packet with optional attributes
- */
 OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2262,17 +2012,6 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send image data through AI protocol
- *
- * @param[in] image Image attributes (may be NULL)
- * @param[in] data Image data
- * @param[in] len Length of image data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_IMAGE packet with optional attributes
- */
 OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2290,17 +2029,6 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send file data through AI protocol
- *
- * @param[in] file File attributes (may be NULL)
- * @param[in] data File contents
- * @param[in] len Length of file data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_FILE packet with optional attributes
- */
 OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2318,17 +2046,6 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send text data through AI protocol
- *
- * @param[in] text Text attributes (may be NULL)
- * @param[in] data Text content
- * @param[in] len Length of text data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_TEXT packet with optional attributes
- */
 OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2346,17 +2063,6 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Send event notification through AI protocol
- *
- * @param[in] event Event attributes (may be NULL)
- * @param[in] data Event data including header
- * @param[in] len Length of event data
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Creates AI_PT_EVENT packet with network byte order conversion
- */
 OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -2379,16 +2085,7 @@ OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-/**
- * @brief Generate a random UUID v4 string
- *
- * @param[out] uuid_str Buffer to receive UUID string (must be AI_UUID_V4_LEN bytes)
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note Formats output as f47ac10b-58cc-42d5-0136-4067a8e7d6b3 hex digits with dashes
- * @warning Caller must provide buffer of sufficient size
- */
+// such as f47ac10b-58cc-42d5-0136-4067a8e7d6b3
 OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str)
 {
     if (NULL == uuid_str) {

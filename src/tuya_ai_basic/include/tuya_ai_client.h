@@ -29,43 +29,34 @@
 #define EVENT_AI_CLIENT_RUN   "ai.client.run"
 #define EVENT_AI_CLIENT_CLOSE "ai.client.close"
 
+/**
+ * @brief data handle cb
+ *
+ * @param[in] data data
+ * @param[in] len data length
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
 typedef OPERATE_RET (*AI_BASIC_DATA_HANDLE)(char *data, uint32_t len);
 
 /**
- * @brief Register a callback function for AI client data handling
+ * @brief register data handle cb
  *
- * @param[in] cb Callback function pointer of type AI_BASIC_DATA_HANDLE
- *
- * @note This function registers the callback that will be invoked when AI data is received.
- *       The callback will only be registered if the AI client is initialized.
+ * @param[in] cb data handle cb
  */
 void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb);
 
 /**
- * @brief Check if the AI client is ready and running
+ * @brief ai client init
  *
- * @return uint8_t Returns true (1) if client is initialized and in RUNNING state,
- *                 false (0) otherwise
- */
-uint8_t tuya_ai_client_is_ready(void);
-
-/**
- * @brief Initialize the AI client subsystem
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function performs the following initialization steps:
- *       1. Allocates memory for client structure
- *       2. Sets default heartbeat interval (30s)
- *       3. Configures reconnection timing parameters
- *       4. Initializes AI business layer
- *       5. Creates various timers and work queues
- *
- * @warning If initialization fails at any point, all resources will be cleaned up
- *          and an error code will be returned.
- *
- * @see AI_RECONN_TIME_T for reconnection timing structure
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_client_init(void);
 
-#endif /* __TUYA_AI_CLIENT_H__ */
+/**
+ * @brief is ai client ready
+ *
+ * @return true is ready, false is not ready
+ */
+uint8_t tuya_ai_client_is_ready(void);
+#endif

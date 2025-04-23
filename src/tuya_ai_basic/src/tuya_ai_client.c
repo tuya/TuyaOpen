@@ -22,7 +22,6 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tal_log.h"
-#include "tal_event.h"
 #include "uni_random.h"
 #include "tal_system.h"
 #include "tal_hash.h"
@@ -87,7 +86,7 @@ static void __ai_client_set_state(AI_CLIENT_STATE_E state)
     ai_basic_client->state = state;
 }
 
-static OPERATE_RET __ai_connect(void)
+static OPERATE_RET __ai_connect()
 {
     OPERATE_RET rt = OPRT_OK;
     rt = tuya_ai_basic_connect();
@@ -100,7 +99,7 @@ static OPERATE_RET __ai_connect(void)
     return rt;
 }
 
-static OPERATE_RET __ai_client_hello(void)
+static OPERATE_RET __ai_client_hello()
 {
     OPERATE_RET rt = OPRT_OK;
     rt = tuya_ai_basic_client_hello();
@@ -154,7 +153,7 @@ static OPERATE_RET __ai_conn_close(void)
     return rt;
 }
 
-static void __ai_client_handle_err(void)
+static void __ai_client_handle_err()
 {
     if (ai_basic_client->state == AI_STATE_CONNECT) {
         uint32_t sleep_random = 0;
@@ -168,36 +167,35 @@ static void __ai_client_handle_err(void)
         } else {
             ai_basic_client->reconn_cnt++;
         }
-        __ai_client_set_state(AI_STATE_SETUP);
-    } else if (ai_basic_client->state == AI_STATE_AUTH_RESP) {
-        tal_system_sleep(5000);
+    } else if ((ai_basic_client->state == AI_STATE_CONNECT) || (ai_basic_client->state == AI_STATE_AUTH_RESP)) {
+        tal_system_sleep(1000);
         __ai_client_set_state(AI_STATE_SETUP);
     } else if (ai_basic_client->state == AI_STATE_RUNNING) {
         PR_NOTICE("ai client running error, reconnect");
         __ai_conn_close();
     } else {
-        tal_system_sleep(5000);
+        tal_system_sleep(1000);
     }
 }
 
-static void __ai_stop_alive_time(void)
+static void __ai_stop_alive_time()
 {
     ai_basic_client->heartbeat_lost_cnt = 0;
     tal_sw_timer_stop(ai_basic_client->alive_timeout_timer);
     return;
 }
 
-static void __ai_start_expire_tid(void)
+static void __ai_start_expire_tid()
 {
     uint64_t expire = tuya_ai_basic_get_atop_cfg()->expire;
     uint64_t current = tal_time_get_posix();
     if (expire <= current) {
-        PR_ERR("expire time is invalid, expire:%lld, current:%lld", expire, current);
+        PR_ERR("expire time is invalid, expire:%llu, current:%llu", expire, current);
         return;
     }
     tal_sw_timer_stop(ai_basic_client->tid);
     tal_sw_timer_start(ai_basic_client->tid, (expire - current - 10) * 1000, TAL_TIMER_ONCE); // 10s before expire
-    PR_NOTICE("connect refresh success, next %d s", expire - current - 10);
+    PR_NOTICE("connect refresh success,expire:%llu current:%llu next %d s", expire, current, expire - current - 10);
 }
 
 static void __ai_handle_refresh_resp(char *data, uint32_t len)
@@ -237,6 +235,7 @@ static void __ai_handle_conn_close(char *data, uint32_t len)
     attr_len = UNI_NTOHL(attr_len);
     uint32_t offset = sizeof(AI_PAYLOAD_HEAD_T) + sizeof(attr_len);
     tuya_ai_parse_conn_close(data + offset, attr_len);
+    tal_event_publish(EVENT_AI_CLIENT_CLOSE, NULL);
     __ai_client_set_state(AI_STATE_SETUP);
     return;
 }
@@ -245,7 +244,7 @@ static void __ai_handle_pong(char *data, uint32_t len)
 {
     tuya_ai_pong(data, len);
     tal_workq_start_delayed(ai_basic_client->alive_work, (ai_basic_client->heartbeat_interval * 1000), LOOP_ONCE);
-    AI_PROTO_D("recv pong from cloud");
+    PR_NOTICE("recv ai pong");
 }
 
 static OPERATE_RET __ai_running(void)
@@ -258,12 +257,12 @@ static OPERATE_RET __ai_running(void)
     if (OPRT_RESOURCE_NOT_READY == rt) {
         return OPRT_OK;
     } else if ((OPRT_OK != rt) || (de_buf == NULL)) {
-        PR_ERR("recv and parse data failed, rt:%d", rt);
+        AI_PROTO_D("recv and parse data failed, rt:%d", rt);
         return rt;
     }
 
     AI_PACKET_PT pkt_type = tuya_ai_basic_get_pkt_type(de_buf);
-    // PR_NOTICE("ai recv data type:%d, %d", pkt_type, de_len);
+    AI_PROTO_D("ai recv data type:%d, %d", pkt_type, de_len);
     __ai_stop_alive_time();
     if (pkt_type == AI_PT_PONG) {
         __ai_handle_pong(de_buf, de_len);
@@ -281,21 +280,21 @@ static OPERATE_RET __ai_running(void)
     return rt;
 }
 
-static OPERATE_RET __ai_idle(void)
+static OPERATE_RET __ai_idle()
 {
-    __ai_client_set_state(AI_STATE_SETUP);
-    return OPRT_OK;
-}
-
-static OPERATE_RET __ai_setup(void)
-{
-    OPERATE_RET rt = OPRT_OK;
     netmgr_status_e status = NETMGR_LINK_DOWN;
     netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status);
     if (status != NETMGR_LINK_UP) {
         return OPRT_COM_ERROR;
     }
 
+    __ai_client_set_state(AI_STATE_SETUP);
+    return OPRT_OK;
+}
+
+static OPERATE_RET __ai_setup()
+{
+    OPERATE_RET rt = OPRT_OK;
     rt = tuya_ai_basic_atop_req();
     if (OPRT_OK != rt) {
         return rt;
@@ -406,14 +405,6 @@ static void __ai_alive_timeout(TIMER_ID timer_id, void *data)
     }
 }
 
-/**
- * @brief Register a callback function for AI client data handling
- *
- * @param[in] cb Callback function pointer of type AI_BASIC_DATA_HANDLE
- *
- * @note This function registers the callback that will be invoked when AI data is received.
- *       The callback will only be registered if the AI client is initialized.
- */
 void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb)
 {
     if (ai_basic_client) {
@@ -422,12 +413,6 @@ void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb)
     }
 }
 
-/**
- * @brief Check if the AI client is ready and running
- *
- * @return uint8_t Returns true (1) if client is initialized and in RUNNING state,
- *                 false (0) otherwise
- */
 uint8_t tuya_ai_client_is_ready(void)
 {
     if (ai_basic_client) {
@@ -438,23 +423,6 @@ uint8_t tuya_ai_client_is_ready(void)
     return false;
 }
 
-/**
- * @brief Initialize the AI client subsystem
- *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function performs the following initialization steps:
- *       1. Allocates memory for client structure
- *       2. Sets default heartbeat interval (30s)
- *       3. Configures reconnection timing parameters
- *       4. Initializes AI business layer
- *       5. Creates various timers and work queues
- *
- * @warning If initialization fails at any point, all resources will be cleaned up
- *          and an error code will be returned.
- *
- * @see AI_RECONN_TIME_T for reconnection timing structure
- */
 OPERATE_RET tuya_ai_client_init(void)
 {
     OPERATE_RET rt = OPRT_OK;

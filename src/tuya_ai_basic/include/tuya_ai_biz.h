@@ -89,10 +89,35 @@ typedef struct {
     uint32_t len;
 } AI_BIZ_HEAD_INFO_T;
 
+/**
+ * @brief get biz data to send
+ *
+ * @param[out] attr attribute
+ * @param[out] head data head
+ * @param[out] data data
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
 typedef OPERATE_RET (*AI_BIZ_SEND_GET_CB)(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char **data);
 
+/**
+ * @brief send free
+ *
+ * @param[in] data data
+ *
+ */
 typedef void (*AI_BIZ_SEND_FREE_CB)(char *data);
 
+/**
+ * @brief recv biz data
+ *
+ * @param[in] attr attribute
+ * @param[in] head data head
+ * @param[in] data data
+ * @param[in] usr_data user data
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
 typedef OPERATE_RET (*AI_BIZ_RECV_CB)(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data);
 
 typedef struct {
@@ -129,79 +154,61 @@ typedef struct {
 } AI_SESSION_CFG_T;
 
 /**
- * @brief Create a new AI session with the specified configuration
+ * @brief create session
  *
- * @param[in] bizCode The business code identifying the type of AI session
- * @param[in] cfg Pointer to the AI session configuration structure
- * @param[in] attr Pointer to session attributes data (can be NULL)
- * @param[in] attr_len Length of the session attributes data
- * @param[out] id Output parameter for the generated session ID (must be pre-allocated)
+ * @param[in] bizCode biz code
+ * @param[in] cfg session cfg
+ * @param[in] attr user attr
+ * @param[in] attr_len user attr len
+ * @param[out] id session id
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This function will:
- *       1. Generate a unique session ID
- *       2. Pack the session data
- *       3. Store the session in the session table
- *       4. Create a task if needed
- *
- * @warning The caller must ensure the id buffer has sufficient space (minimum UUID length)
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_biz_crt_session(uint32_t bizCode, AI_SESSION_CFG_T *cfg, uint8_t *attr, uint32_t attr_len,
                                     AI_SESSION_ID id);
+
 /**
- * @brief Delete an existing AI session
+ * @brief delete session
  *
- * @param[in] id The session ID to delete
- * @param[in] code Status code indicating reason for deletion
+ * @param[in] id session id
+ * @param[in] code close code
  *
- * @return OPERATE_RET OPRT_OK on success, error code otherwise
- *
- * @note This is a wrapper for the internal session destruction function
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_biz_del_session(AI_SESSION_ID id, AI_STATUS_CODE code);
 
 /**
- * @brief Send a business packet with specified attributes and payload
+ * @brief send ai biz packet
  *
- * @param[in] id The packet identifier
- * @param[in] attr Pointer to the attribute information structure (AI_BIZ_ATTR_INFO_T)
- * @param[in] type The packet type (AI_PACKET_PT enumeration)
- * @param[in] head Pointer to the packet header information (AI_BIZ_HEAD_INFO_T)
- * @param[in] payload Pointer to the payload data
+ * @param[in] id channel id
+ * @param[in] attr attribute
+ * @param[in] type packet type
+ * @param[in] head data head
+ * @param[in] payload data
  *
- * @return OPERATE_RET Returns OPRT_OK on success, error code otherwise
- *
- * @note This function handles different packet types (VIDEO/AUDIO/IMAGE/FILE/TEXT)
- *       by creating appropriate headers and managing memory allocation.
- *       It performs network byte order conversion (UNI_HTONS/UNI_HTONL/UNI_HTONLL)
- *       for cross-platform compatibility.
- *       Memory is allocated and freed for each packet type internally.
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKET_PT type, AI_BIZ_HEAD_INFO_T *head,
                                  char *payload);
 
 /**
- * @brief Initialize the AI business module by subscribing to client events
+ * @brief get send id
  *
- * @return OPERATE_RET Returns OPRT_OK on successful initialization
- *
- * @details This function performs the following initialization tasks:
- *          - Subscribes to AI client run event (EVENT_AI_CLIENT_RUN) with callback __ai_clt_run_evt
- *          - Subscribes to AI client close event (EVENT_AI_CLIENT_CLOSE) with callback __ai_clt_close_evt
- *          - Both subscriptions use normal priority (SUBSCRIBE_TYPE_NORMAL)
- *
- * @note The subscription names ("ai.biz") identify this module in event notifications.
- *       This initialization should be called once during system startup.
- *
- * @see EVENT_AI_CLIENT_RUN
- * @see EVENT_AI_CLIENT_CLOSE
- * @see SUBSCRIBE_TYPE_NORMAL
+ * @return send id
  */
-OPERATE_RET tuya_ai_biz_init(void);
-
 int tuya_ai_biz_get_send_id(void);
 
+/**
+ * @brief get recv id
+ *
+ * @return recv id
+ */
 int tuya_ai_biz_get_recv_id(void);
 
-#endif /* __TUYA_AI_BIZ_H__ */
+/**
+ * @brief init ai biz
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_biz_init(void);
+#endif
