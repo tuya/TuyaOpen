@@ -3,16 +3,15 @@
 # your_chat_bot
  [your_chat_bot](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_chat_bot) 是基于 tuya.ai 开源的大模型智能聊天机器人。通过麦克风采集语音，语音识别，实现对话、互动、调侃，还能通过屏幕看到实时聊天内容。
 
-**注意：TUYA AI V1.0 和 V2.0 切换需要在 APP 上移除设备并清除数据才可使用。**
-
 
 ## 支持功能
 
-1. 智能对话
-2. 按键唤醒, 回合制对话
-3. 支持 LCD 显示实时聊天内容、支持 APP 端实时查看聊天内容
-4. 蓝牙配网快捷连接路由器
-5. APP 端实时切换 AI 智能体角色
+1. AI 智能对话
+2. 按键唤醒/语音唤醒, 回合制对话，支持语音打断（需硬件支持）
+3. 表情显示
+4. 支持 LCD 显示实时聊天内容、支持 APP 端实时查看聊天内容
+5. 蓝牙配网快捷连接路由器
+6. APP 端实时切换 AI 智能体角色
 
 ![](../../../docs/images/apps/your_chat_bot.png)
 

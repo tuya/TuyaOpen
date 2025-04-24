@@ -7,11 +7,13 @@ English | [简体中文](./RAEDME_zh.md)
 
 ## Supported Features
 
-1. Intelligent Conversation
-2. Button Wake-up, Turn-based Conversation
-3. Real-time display of chat content on LCD, real-time viewing of chat content on the APP
-4. Quick connection to the router via Bluetooth
-5. Real-time switching of AI character roles on the APP
+1. AI intelligent conversation
+2. Button wake-up/Voice wake-up, turn-based dialogue, supports voice interruption (hardware support required)
+3. Expression display
+4. Supports LCD for displaying real-time chat content and supports viewing chat content in real-time on the APP side
+5. Quick Bluetooth network connection to the router
+6. Real-time switching of AI entity roles on the APP side
+
 
 ![](../../../docs/images/apps/your_chat_bot.png)
 
