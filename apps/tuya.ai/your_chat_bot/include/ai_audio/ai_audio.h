@@ -12,9 +12,9 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-typedef uint8_t  AI_AUDIO_WORK_MODE_E;
-#define AI_AUDIO_MODE_MANUAL_SINGLE_TALK      1
-#define AI_AUDIO_WORK_MANUAL_FREE_TALK        2
+typedef uint8_t AI_AUDIO_WORK_MODE_E;
+#define AI_AUDIO_MODE_MANUAL_SINGLE_TALK 1
+#define AI_AUDIO_WORK_MANUAL_FREE_TALK   2
 
 typedef enum {
     AI_AUDIO_EVT_NONE,
@@ -22,21 +22,21 @@ typedef enum {
     AI_AUDIO_EVT_AI_REPLIES_TEXT,
     AI_AUDIO_EVT_AI_REPLIES_EMO,
     AI_AUDIO_EVT_WAKEUP,
-}AI_AUDIO_EVENT_E;
- 
+} AI_AUDIO_EVENT_E;
+
 typedef struct {
-    char      *name;
-    char      *text;
+    char *name;
+    char *text;
 } AI_AUDIO_EMOTION_T;
 
-typedef void (*AI_AUDIO_INFORM_CB)(AI_AUDIO_EVENT_E event,  uint8_t *data, uint32_t len, void *arg);
+typedef void (*AI_AUDIO_INFORM_CB)(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg);
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
 typedef struct {
-    AI_AUDIO_WORK_MODE_E    work_mode;
-    AI_AUDIO_INFORM_CB      inform_cb;
+    AI_AUDIO_WORK_MODE_E work_mode;
+    AI_AUDIO_INFORM_CB inform_cb;
 } AI_AUDIO_CONFIG_T;
 
 /***********************************************************

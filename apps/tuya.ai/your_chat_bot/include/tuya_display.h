@@ -28,20 +28,20 @@ extern "C" {
 ***********************************************************/
 typedef enum {
     TY_DISPLAY_TP_HUMAN_CHAT,
-    TY_DISPLAY_TP_AI_CHAT,    
+    TY_DISPLAY_TP_AI_CHAT,
     TY_DISPLAY_TP_AI_THINKING,
-    
+
     TY_DISPLAY_TP_STAT_LISTEN,
-    TY_DISPLAY_TP_STAT_SPEAK, 
+    TY_DISPLAY_TP_STAT_SPEAK,
     TY_DISPLAY_TP_STAT_IDLE,
 
     TY_DISPLAY_TP_STAT_NETCFG,
     TY_DISPLAY_TP_STAT_POWERON,
     TY_DISPLAY_TP_STAT_ONLINE,
 
-    TY_DISPLAY_TP_STAT_SLEEP, 
-    TY_DISPLAY_TP_STAT_WAKEUP, 
-    TY_DISPLAY_TP_MAX,  
+    TY_DISPLAY_TP_STAT_SLEEP,
+    TY_DISPLAY_TP_STAT_WAKEUP,
+    TY_DISPLAY_TP_MAX,
 } TY_DISPLAY_TYPE_E;
 
 /***********************************************************
@@ -49,7 +49,7 @@ typedef enum {
 ***********************************************************/
 /**
  * @brief Initialize the display system
- * 
+ *
  * @param None
  * @return OPERATE_RET Initialization result, OPRT_OK indicates success
  */
@@ -57,7 +57,7 @@ OPERATE_RET tuya_display_init(void);
 
 /**
  * @brief Send display message to the display system
- * 
+ *
  * @param tp Type of the display message
  * @param data Pointer to the message data
  * @param len Length of the message data

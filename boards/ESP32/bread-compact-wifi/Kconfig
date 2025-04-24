@@ -6,6 +6,10 @@ config BOARD_CHOICE
     string
     default "bread-compact-wifi"
 
+config AUDIO_DRIVER_NAME
+    string "the name of the audio driver"
+    default "audio_driver"
+
 choice
     prompt "OLED choice"
     default OLED_128x32

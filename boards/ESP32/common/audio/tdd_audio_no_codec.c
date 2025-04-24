@@ -155,7 +155,7 @@ static OPERATE_RET __tdd_audio_no_codec_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDI
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "esp32_i2s_read",
-        .stackDepth = 8 * 1024,
+        .stackDepth = 4 * 1024,
         .priority = THREAD_PRIO_1,
     };
     PR_DEBUG("I2S read task args: %p", hdl);

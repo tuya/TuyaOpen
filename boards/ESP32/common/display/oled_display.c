@@ -54,7 +54,8 @@ typedef struct {
     lv_obj_t *battery_label;
     lv_obj_t *status_label;
     lv_obj_t *chat_message_label;
-
+    lv_obj_t *content_left;
+    lv_obj_t *content_right;
     lv_anim_t msg_anim;
 } OLED_DISPLAY_UI_HANDLE_T;
 
@@ -70,8 +71,8 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static lv_font_t *text_font = &font_puhui_14_1;
-static lv_font_t *icon_font = &font_awesome_14_1;
+static const lv_font_t *text_font = &font_puhui_14_1;
+static const lv_font_t *icon_font = &font_awesome_14_1;
 static lv_font_t *emoji_font = NULL;
 
 static OLED_DISPLAY_UI_HANDLE_T ui_hdl = {0};
@@ -273,6 +274,99 @@ void oled_setup_ui_128x32(void)
 
 void oled_setup_ui_128x64(void)
 {
+    lvgl_port_lock(0);
+
+    lv_obj_t *screen = lv_screen_active();
+    lv_obj_set_style_text_font(screen, &font_puhui_14_1, 0);
+    lv_obj_set_style_text_color(screen, lv_color_black(), 0);
+
+    /* Container */
+    ui_hdl.container = lv_obj_create(screen);
+    lv_obj_set_size(ui_hdl.container, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_flex_flow(ui_hdl.container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(ui_hdl.container, 0, 0);
+    lv_obj_set_style_border_width(ui_hdl.container, 0, 0);
+    lv_obj_set_style_pad_row(ui_hdl.container, 0, 0);
+
+    /* Status bar */
+    ui_hdl.status_bar = lv_obj_create(ui_hdl.container);
+    lv_obj_set_size(ui_hdl.status_bar, LV_HOR_RES, 16);
+    lv_obj_set_style_border_width(ui_hdl.status_bar, 0, 0);
+    lv_obj_set_style_pad_all(ui_hdl.status_bar, 0, 0);
+    lv_obj_set_style_radius(ui_hdl.status_bar, 0, 0);
+
+    /* Content */
+    ui_hdl.content = lv_obj_create(ui_hdl.container);
+    lv_obj_set_scrollbar_mode(ui_hdl.content, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_radius(ui_hdl.content, 0, 0);
+    lv_obj_set_style_pad_all(ui_hdl.content, 0, 0);
+    lv_obj_set_width(ui_hdl.content, LV_HOR_RES);
+    lv_obj_set_flex_grow(ui_hdl.content, 1);
+    lv_obj_set_flex_flow(ui_hdl.content, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_flex_main_place(ui_hdl.content, LV_FLEX_ALIGN_CENTER, 0);
+
+    ui_hdl.content_left = lv_obj_create(ui_hdl.content);
+    lv_obj_set_size(ui_hdl.content_left, 32, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_all(ui_hdl.content_left, 0, 0);
+    lv_obj_set_style_border_width(ui_hdl.content_left, 0, 0);
+
+    ui_hdl.emotion_label = lv_label_create(ui_hdl.content_left);
+    lv_obj_set_style_text_font(ui_hdl.emotion_label, &font_awesome_30_1, 0);
+    lv_label_set_text(ui_hdl.emotion_label, FONT_AWESOME_AI_CHIP);
+    lv_obj_center(ui_hdl.emotion_label);
+    lv_obj_set_style_pad_top(ui_hdl.emotion_label, 8, 0);
+
+    ui_hdl.content_right = lv_obj_create(ui_hdl.content);
+    lv_obj_set_size(ui_hdl.content_right, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_all(ui_hdl.content_right, 0, 0);
+    lv_obj_set_style_border_width(ui_hdl.content_right, 0, 0);
+    lv_obj_set_flex_grow(ui_hdl.content_right, 1);
+    lv_obj_add_flag(ui_hdl.content_right, LV_OBJ_FLAG_HIDDEN);
+
+    ui_hdl.chat_message_label = lv_label_create(ui_hdl.content_right);
+    lv_label_set_text(ui_hdl.chat_message_label, "");
+    lv_label_set_long_mode(ui_hdl.chat_message_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_style_text_align(ui_hdl.chat_message_label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_width(ui_hdl.chat_message_label, LV_HOR_RES - 32);
+    lv_obj_set_style_pad_top(ui_hdl.chat_message_label, 14, 0);
+
+    lv_anim_init(&ui_hdl.msg_anim);
+    lv_anim_set_delay(&ui_hdl.msg_anim, 1000);
+    lv_anim_set_repeat_count(&ui_hdl.msg_anim, LV_ANIM_REPEAT_INFINITE);
+    lv_obj_set_style_anim(ui_hdl.chat_message_label, &ui_hdl.msg_anim, LV_PART_MAIN);
+    lv_obj_set_style_anim_duration(ui_hdl.chat_message_label, lv_anim_speed_clamped(60, 300, 60000), LV_PART_MAIN);
+
+    /* Status bar */
+    lv_obj_set_flex_flow(ui_hdl.status_bar, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_all(ui_hdl.status_bar, 0, 0);
+    lv_obj_set_style_border_width(ui_hdl.status_bar, 0, 0);
+    lv_obj_set_style_pad_column(ui_hdl.status_bar, 0, 0);
+
+    ui_hdl.network_label = lv_label_create(ui_hdl.status_bar);
+    lv_label_set_text(ui_hdl.network_label, "");
+    lv_obj_set_style_text_font(ui_hdl.network_label, icon_font, 0);
+
+    ui_hdl.notification_label = lv_label_create(ui_hdl.status_bar);
+    lv_obj_set_flex_grow(ui_hdl.notification_label, 1);
+    lv_obj_set_style_text_align(ui_hdl.notification_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(ui_hdl.notification_label, "");
+    lv_obj_add_flag(ui_hdl.notification_label, LV_OBJ_FLAG_HIDDEN);
+
+    ui_hdl.status_label = lv_label_create(ui_hdl.status_bar);
+    lv_obj_set_flex_grow(ui_hdl.status_label, 1);
+    lv_label_set_text(ui_hdl.status_label, "正在初始化...");
+    lv_obj_set_style_text_align(ui_hdl.status_label, LV_TEXT_ALIGN_CENTER, 0);
+
+    ui_hdl.mute_label = lv_label_create(ui_hdl.status_bar);
+    lv_label_set_text(ui_hdl.mute_label, "");
+    lv_obj_set_style_text_font(ui_hdl.mute_label, icon_font, 0);
+
+    ui_hdl.battery_label = lv_label_create(ui_hdl.status_bar);
+    lv_label_set_text(ui_hdl.battery_label, "");
+    lv_obj_set_style_text_font(ui_hdl.battery_label, icon_font, 0);
+
+    lvgl_port_unlock();
+
     return;
 }
 
@@ -304,6 +398,8 @@ void oled_show_notification(const char *notification)
     lv_label_set_text(ui_hdl.notification_label, notification);
     lv_obj_clear_flag(ui_hdl.notification_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ui_hdl.status_label, LV_OBJ_FLAG_HIDDEN);
+
+    lvgl_port_unlock();
 
     // TODO sw timer
 

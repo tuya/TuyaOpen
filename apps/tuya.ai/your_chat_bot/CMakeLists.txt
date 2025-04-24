@@ -36,6 +36,10 @@ target_include_directories(${EXAMPLE_LIB}
 ########################################
 # Add subdirectory
 ########################################
-if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
-    add_subdirectory(${APP_PATH}/src/display)
+
+if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "ESP32")
+    # esp32 use idf lvgl
+    if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
+            add_subdirectory(${APP_PATH}/src/display)
+    endif()
 endif()

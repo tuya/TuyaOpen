@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-#define AI_AUDIO_DEBUG 1
+#define AI_AUDIO_DEBUG 0
 
 typedef struct {
     uint8_t *buf;

@@ -11,7 +11,7 @@ config ENABLE_CHAT_BOT
     select ENABLE_SPEAKER_UPLOAD_SERVICE_SPEEX_ENCODE
 
 config ENABLE_AEC
-    bool "support echo cancellation"
+    bool "support AEC"
     default n
 
 config SPEAKER_EN_PIN
@@ -32,7 +32,6 @@ config CHAT_INDICATE_LED_PIN
 config ENABLE_CHAT_DISPLAY
     bool "enable the display module"
     default n
-    select ENABLE_LIBLVGL
 
     if (ENABLE_CHAT_DISPLAY)
         rsource "./src/display/Kconfig"

@@ -14,6 +14,8 @@
  *
  */
 
+#include "tuya_cloud_types.h"
+
 #include <assert.h>
 #include "cJSON.h"
 #include "tal_api.h"
@@ -34,7 +36,10 @@
 #include "lwip_init.h"
 #endif
 
-#include "tuya_display.h"
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+#include "app_board_api.h"
+#endif
+
 #include "app_chat_bot.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
@@ -137,8 +142,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_INFO("Device Reset!");
             tal_system_reset();
         }
-        // 软重启，未配网，播报配网提示
-        tuya_display_send_msg(TY_DISPLAY_TP_STAT_NETCFG, NULL, 0);
+// 软重启，未配网，播报配网提示
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        app_display_set_chat_massage(CHAT_ROLE_SYSTEM, "Device Bind Start");
+#endif
         ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
 
@@ -150,7 +157,11 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         static uint8_t first = 1;
         if (first) {
             first = 0;
-            tuya_display_send_msg(TY_DISPLAY_TP_STAT_ONLINE, NULL, 0);
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+            app_display_set_emotion("NATURAL");
+            app_display_set_chat_massage(CHAT_ROLE_SYSTEM, "Device Online");
+            app_display_set_chat_massage(CHAT_ROLE_SYSTEM, "");
+#endif
             ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
             ai_audio_status_upload();
         }
@@ -293,10 +304,11 @@ void user_main(void)
     ret = app_chat_bot_init();
     if (ret != OPRT_OK) {
         PR_ERR("tuya_audio_recorde_init failed");
-        return;
     }
 
-    tuya_display_init();
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+    app_display_init();
+#endif
 
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
