@@ -56,8 +56,9 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 1. Supported Chip List
 
 | Chip | Module |
-| ----------------| ---------------- |
+| ---------------- | ---------------- |
 | [T5](https://developer.tuya.com/en/docs/iot/wifibt-dual-mode-chip?id=Ke3voh7uu0htz) | [T5-E1](https://developer.tuya.com/en/docs/iot/T5-E1-Module-Datasheet?id=Kdar6hf0kzmfi) [T5-E1-IPEX](https://developer.tuya.com/en/docs/iot/T5-E1-IPEX-Module-Datasheet?id=Kdskxvxe835tq) |
+| ESP32S3 |  |
 
 2. Supported Development Board List
 

@@ -90,7 +90,7 @@ static void __gui_ai_chat_frame_init(void)
     lv_obj_set_style_bg_color(main_cont, lv_color_hex(0xF0F0F0), 0);
     lv_obj_set_style_pad_all(main_cont, 0, 0);
 
-    lv_obj_set_style_text_font(main_cont, &font_puhui_18_2, 0);
+    lv_obj_set_style_text_font(main_cont, &font_puhui_14_1, 0);
     lv_obj_set_style_text_color(main_cont, lv_color_black(), 0);
     lv_obj_set_scrollbar_mode(main_cont, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(main_cont, LV_DIR_NONE);
