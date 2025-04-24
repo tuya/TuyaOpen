@@ -6,6 +6,7 @@
  */
 #include "netmgr.h"
 
+#include "tkl_gpio.h"
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
 

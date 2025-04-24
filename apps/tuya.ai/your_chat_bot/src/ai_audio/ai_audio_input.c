@@ -25,7 +25,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define INPUT_RINGBUFF_LEN         (1024 * 4)
+#define AI_AUDIO_INPUT_RB_TIME_MS (10 * 1000)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -127,16 +127,15 @@ AI_AUDIO_INPUT_EVENT_E __ai_audio_input_get_event(AI_AUDIO_INPUT_STATE_E curr_st
         event = AI_AUDIO_INPUT_EVT_NONE;
         break;
     case AI_AUDIO_INPUT_STATE_DETECTING:
-        if (AI_AUDIO_INPUT_STATE_DETECTING == last_state ||\
-            AI_AUDIO_INPUT_STATE_IDLE == last_state) {
-            event = AI_AUDIO_INPUT_EVT_DETECTING;
-        } else {
-            event = AI_AUDIO_INPUT_EVT_ENTER_DETECT;
+        if(AI_AUDIO_INPUT_STATE_AWAKE == last_state) {
+            event = AI_AUDIO_INPUT_EVT_AWAKE_STOP;
+        }else {
+            event = AI_AUDIO_INPUT_EVT_NONE;
         }
         break;
     case AI_AUDIO_INPUT_STATE_AWAKE:
         if (AI_AUDIO_INPUT_STATE_AWAKE == last_state) {
-            event = AI_AUDIO_INPUT_EVT_AWAKE;
+            event = AI_AUDIO_INPUT_EVT_NONE;
         } else {
             event = AI_AUDIO_INPUT_EVT_WAKEUP;
         }
@@ -153,13 +152,16 @@ static int __ai_audio_get_input_frame(TKL_AUDIO_FRAME_INFO_T *pframe)
         return;
     }
 
+#if defined(ENABLE_AEC) && (ENABLE_AEC == 1)
+
+#else
     if(true == ai_audio_player_is_playing()) {
         tkl_vad_stop();
         return;
     }else {
         tkl_vad_start();
     }
-
+#endif
 
     if(true == sg_audio_input.is_enable_wakeup) {
         __ai_audio_wakeup_feed(sg_audio_input.wakeup_tp, (uint8_t *)pframe->pbuf, pframe->used_size);
@@ -186,17 +188,6 @@ static void __ai_audio_handle_frame_task(void *arg)
             continue;
         }
 
-        p_buff = tkl_system_psram_malloc(rb_used_sz);
-        if (NULL == p_buff) {
-            PR_ERR("malloc failed");
-            tkl_system_sleep(100);
-            continue;
-        }
-
-        tal_mutex_lock(sg_audio_input.rb_mutex);
-        tuya_ring_buff_read(sg_audio_input.ringbuff_hdl, p_buff, rb_used_sz);
-        tal_mutex_unlock(sg_audio_input.rb_mutex);
-
         last_state = sg_audio_input.state;
         sg_audio_input.state = __ai_audio_input_get_new_state(sg_audio_input.is_enable_wakeup, sg_audio_input.wakeup_tp);
         event = __ai_audio_input_get_event(sg_audio_input.state, last_state);
@@ -204,11 +195,8 @@ static void __ai_audio_handle_frame_task(void *arg)
         // PR_DEBUG("last state:%d state :%d event:%d, wakeup_word:%d \r\n",last_state, sg_audio_input.state, event, wakeup_word);
 
         if ((event != AI_AUDIO_INPUT_EVT_NONE) && sg_audio_input_inform_cb) {
-            sg_audio_input_inform_cb(event, p_buff, rb_used_sz, NULL);
+            sg_audio_input_inform_cb(event, NULL);
         }
-
-        tkl_system_psram_free(p_buff);
-        p_buff = NULL;
 
         tal_system_sleep(5);
     }
@@ -270,7 +258,8 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg, AI_AUDIO_INOUT_INFORM
 
     sg_audio_input.is_enable = true;
 
-    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(INPUT_RINGBUFF_LEN, OVERFLOW_PSRAM_STOP_TYPE,\
+    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_INPUT_RB_TIME_MS),\
+                                               OVERFLOW_PSRAM_STOP_TYPE,\
                                                &sg_audio_input.ringbuff_hdl));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_audio_input.rb_mutex));
 
@@ -336,28 +325,38 @@ OPERATE_RET ai_audio_input_manual_set_wakeup(bool is_wakeup)
     return OPRT_OK;
 }
 
-OPERATE_RET ai_audio_input_enable(bool is_enable)
+uint32_t ai_audio_get_input_data(uint8_t *buff, uint32_t buff_len)
 {
-    if(is_enable == sg_audio_input.is_enable) {
-        // PR_NOTICE("input already enable/disable :%d wakeup", is_enable);
-        return OPRT_OK;
+    uint32_t rb_used_size = 0;
+    uint32_t read_len = 0;
+
+    if(NULL == buff || 0 == buff_len) {
+        return 0;
     }
 
-    sg_audio_input.is_enable = is_enable;
+    tal_mutex_lock(sg_audio_input.rb_mutex);
+    rb_used_size = tuya_ring_buff_used_size_get(sg_audio_input.ringbuff_hdl);
+    read_len = (buff_len <= rb_used_size) ? buff_len : rb_used_size;
+    tuya_ring_buff_read(sg_audio_input.ringbuff_hdl, buff, read_len);
+    tal_mutex_unlock(sg_audio_input.rb_mutex);
 
-    if(AI_AUDIO_INPUT_WAKEUP_VAD == sg_audio_input.wakeup_tp) {
-        if(true == is_enable) {
-            tkl_vad_start();
-        }else {
-            tkl_vad_stop();
-            __ai_audio_input_rb_reset();
-            if (sg_audio_input_inform_cb) {
-                sg_audio_input_inform_cb(AI_AUDIO_INPUT_EVT_IDLE, NULL, 0, NULL);
-            }
-        }
-    }
+    return read_len;
+}
 
-    PR_NOTICE("input enable/disable :%d", is_enable);
+uint32_t ai_audio_get_input_data_size(void)
+{
+    uint32_t rb_used_size = 0;
 
-    return OPRT_OK;
+    tal_mutex_lock(sg_audio_input.rb_mutex);
+    rb_used_size = tuya_ring_buff_used_size_get(sg_audio_input.ringbuff_hdl);
+    tal_mutex_unlock(sg_audio_input.rb_mutex);
+
+    return rb_used_size;
+}
+
+void ai_audio_discard_input_data(uint32_t discard_size)
+{
+    tal_mutex_lock(sg_audio_input.rb_mutex);
+    tuya_ring_buff_discard(sg_audio_input.ringbuff_hdl, discard_size);
+    tal_mutex_unlock(sg_audio_input.rb_mutex);
 }

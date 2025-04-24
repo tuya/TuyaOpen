@@ -39,11 +39,8 @@ typedef enum {
 
 typedef enum {
     AI_AUDIO_INPUT_EVT_NONE,
-    AI_AUDIO_INPUT_EVT_IDLE,
-    AI_AUDIO_INPUT_EVT_ENTER_DETECT,
-    AI_AUDIO_INPUT_EVT_DETECTING,
     AI_AUDIO_INPUT_EVT_WAKEUP,
-    AI_AUDIO_INPUT_EVT_AWAKE,
+    AI_AUDIO_INPUT_EVT_AWAKE_STOP,
 } AI_AUDIO_INPUT_EVENT_E;
 
 typedef enum {
@@ -56,7 +53,7 @@ typedef struct {
     AI_AUDIO_INPUT_WAKEUP_TP_E wakeup_tp;
 } AI_AUDIO_INPUT_CFG_T;
 
-typedef void (*AI_AUDIO_INOUT_INFORM_CB)(AI_AUDIO_INPUT_EVENT_E event, uint8_t *data, uint32_t len, void *arg);
+typedef void (*AI_AUDIO_INOUT_INFORM_CB)(AI_AUDIO_INPUT_EVENT_E event, void *arg);
 
 /***********************************************************
 ********************function declaration********************
@@ -83,8 +80,12 @@ OPERATE_RET ai_audio_input_enable_wakeup(bool is_enable);
  */
 OPERATE_RET ai_audio_input_manual_set_wakeup(bool is_wakeup);
 
-OPERATE_RET ai_audio_input_enable(bool is_enable);
 
+uint32_t ai_audio_get_input_data(uint8_t *buff, uint32_t buff_len);
+
+uint32_t ai_audio_get_input_data_size(void);
+
+void ai_audio_discard_input_data(uint32_t discard_size);
 
 #ifdef __cplusplus
 }
