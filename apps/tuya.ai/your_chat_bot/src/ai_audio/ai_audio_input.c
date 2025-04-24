@@ -217,7 +217,7 @@ static OPERATE_RET __ai_audio_input_hardware_init(void)
     config.card = TKL_AUDIO_TYPE_BOARD;
     config.put_cb = __ai_audio_get_input_frame;
 
-#if defined(ENABLE_MIC2) && (ENABLE_MIC2 == 1)
+#if defined(ENABLE_AEC) && (ENABLE_AEC == 1)
     config.enable = 1;
 #else
     config.enable = 0;
