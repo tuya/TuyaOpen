@@ -24,6 +24,10 @@ config ENABLE_I2C
     bool
     default y
 
+config ENABLE_I2S
+    bool
+    default y
+
 config ENABLE_SPI
     bool
     default y

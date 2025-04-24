@@ -1,0 +1,22 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "bread-compact-wifi"
+
+choice
+    prompt "OLED choice"
+    default OLED_128x32
+
+    config OLED_128x32
+        bool "OLED 128x32"
+        help
+            OLED 128x32
+
+    config OLED_128x64
+        bool "OLED 128x64"
+        help
+            OLED 128x64
+endchoice

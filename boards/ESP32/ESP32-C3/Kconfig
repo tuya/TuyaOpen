@@ -2,6 +2,10 @@ config CHIP_CHOICE
     string
     default "esp32c3"
 
+config BOARD_CHOICE
+    string
+    default "ESP32-C3"
+
 config UART_NUM0_TX_PIN
     int "UART_NUM0_TX_PIN"
     range 0 21

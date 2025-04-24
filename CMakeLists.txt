@@ -46,8 +46,16 @@ message(STATUS "[TOP] Using framework [${TOS_FRAMEWORK}].")
 if(DEFINED TOS_PROJECT_PLATFORM)
     set(PLATFORM_NAME ${TOS_PROJECT_PLATFORM})
     set(PLATFORM_CHIP ${TOS_PROJECT_CHIP})
+    set(PLATFORM_BOARD ${TOS_PROJECT_BOARD})
     set(PLATFORM_PATH "${TOP_SOURCE_DIR}/platform/${TOS_PROJECT_PLATFORM}")
 endif()
+if("${PLATFORM_CHIP}" STREQUAL "")
+    set(PLATFORM_CHIP "NONE")
+endif()
+if("${PLATFORM_BOARD}" STREQUAL "")
+    set(PLATFORM_BOARD "NONE")
+endif()
+
 set(DEFAULT_CONFIG_NAME "default.config")
 set(PRE_CONFIG_DIR "${TOS_PROJECT_ROOT}/pre_config")
 
@@ -84,6 +92,10 @@ foreach(comp ${COMPONENT_LIST})
     # message(STATUS "comp: ${comp}")
     add_subdirectory("${TOP_SOURCE_DIR}/src/${comp}")
 endforeach(comp)
+# add board
+if(EXISTS "${TOP_SOURCE_DIR}/boards/${TOS_PROJECT_PLATFORM}/${TOS_PROJECT_BOARD}/CMakeLists.txt")
+    add_subdirectory("${TOP_SOURCE_DIR}/boards/${TOS_PROJECT_PLATFORM}/${TOS_PROJECT_BOARD}")
+endif()
 
 # add arduino src
 if(TOS_FRAMEWORK STREQUAL "arduino")
@@ -94,6 +106,7 @@ endif()
 # copy_public_include("${COMPONENT_PUBINC}" "${HEADER_DIR}")
 list(APPEND HEADER_DIR ${PLATFORM_PUBINC})
 list(APPEND HEADER_DIR ${COMPONENT_PUBINC})
+
 # message(STATUS "[TOP] HEADER_DIR: ${HEADER_DIR}")
 deal_with_components("${COMPONENT_LIBS}" "${HEADER_DIR}")
 
@@ -147,7 +160,7 @@ add_custom_command(
     COMMAND
     ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "build" "${PLATFORM_CHIP}" | tee /dev/tty
+    "${EXECUTABLE_OUTPUT_PATH}" "build" "${PLATFORM_CHIP}" "${PLATFORM_BOARD}" | tee /dev/tty
 
     COMMENT
     "[EXAMPLE] Generate execute file [${EXAMPLE_NAME}]"
@@ -161,7 +174,7 @@ add_custom_target(platform_clean
     COMMAND
     ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
     "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "clean" "${PLATFORM_CHIP}" | tee /dev/tty
+    "${EXECUTABLE_OUTPUT_PATH}" "clean" "${PLATFORM_CHIP}" "${PLATFORM_BOARD}" | tee /dev/tty
 
     COMMENT
     "[TOP] Platform clean."

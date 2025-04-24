@@ -300,6 +300,7 @@ function build_exec()
         return 1
     fi
     PROJECT_CHIP=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_CHIP_CHOICE=").*(?="$)')
+    PROJECT_BOARD=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_BOARD_CHOICE=").*(?="$)')
 
     if [ "$PROJECT_FRAMEWORK" = "arduino" ]; then
         check_arduino
@@ -320,7 +321,7 @@ function build_exec()
     if [ -f "$PLATFORM_PATH/build_setup.sh" ]; then
         $PLATFORM_PATH/build_setup.sh "${PROJ}" "${PROJECT_PLATFORM}" "${PROJECT_FRAMEWORK}" "${PROJECT_CHIP}"
     fi
-    cmake -G Ninja $CMAKE_VERBOSE $OPEN_SDK_ROOT -DTOS_PROJECT_NAME=$PROJ -DTOS_PROJECT_ROOT=$PROJECT_ROOT -DTOS_PROJECT_PLATFORM=$PROJECT_PLATFORM -DTOS_FRAMEWORK=$PROJECT_FRAMEWORK -DTOS_PROJECT_CHIP=$PROJECT_CHIP
+    cmake -G Ninja $CMAKE_VERBOSE $OPEN_SDK_ROOT -DTOS_PROJECT_NAME=$PROJ -DTOS_PROJECT_ROOT=$PROJECT_ROOT -DTOS_PROJECT_PLATFORM=$PROJECT_PLATFORM -DTOS_FRAMEWORK=$PROJECT_FRAMEWORK -DTOS_PROJECT_CHIP=$PROJECT_CHIP -DTOS_PROJECT_BOARD=$PROJECT_BOARD
     if [ -f "$PROJECT_INI" ]; then
         OLD_PROJECT_INI=$PROJECT_ROOT/.using_config
         cp $PROJECT_INI $OLD_PROJECT_INI
@@ -528,12 +529,20 @@ function flash_exec()
     check_ini
     . $PROJECT_ROOT/.build/cache/using.config
     DEVICE=$CONFIG_PLATFORM_CHOICE
+    PLATFORM=$CONFIG_PLATFORM_CHOICE
+    BOARD=$CONFIG_BOARD_CHOICE
     if [ -n "$CONFIG_CHIP_CHOICE" ]; then
         DEVICE=$CONFIG_CHIP_CHOICE
     fi
+    if [ -f "$OPEN_SDK_ROOT/boards/$PLATFORM/$BOARD/tyutool.cfg" ]; then
+        . $OPEN_SDK_ROOT/boards/$PLATFORM/$BOARD/tyutool.cfg
+        if [ x"${flash_baudrate}" != x"" ]; then
+            BAUDRATE_CFG="-b $flash_baudrate"
+        fi
+    fi
     BIN_FILE=$PROJECT_ROOT/.build/bin/${CONFIG_PROJECT_NAME}_QIO_${CONFIG_PROJECT_VERSION}.bin
-    show "${fore[green]}" "${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}"
-    ${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE}
+    show "${fore[green]}" "${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE} ${BAUDRATE_CFG}"
+    ${TYUTOOL} write -d ${DEVICE} -f ${BIN_FILE} ${BAUDRATE_CFG}
 }
 
 function monitor_exec()
@@ -550,11 +559,19 @@ function monitor_exec()
     check_ini
     . $PROJECT_ROOT/.build/cache/using.config
     DEVICE=$CONFIG_PLATFORM_CHOICE
+    PLATFORM=$CONFIG_PLATFORM_CHOICE
+    BOARD=$CONFIG_BOARD_CHOICE
     if [ -n "$CONFIG_CHIP_CHOICE" ]; then
         DEVICE=$CONFIG_CHIP_CHOICE
     fi
-    show "${fore[green]}" "${TYUTOOL} monitor -d ${DEVICE}"
-    ${TYUTOOL} monitor -d ${DEVICE}
+    if [ -f "$OPEN_SDK_ROOT/boards/$PLATFORM/$BOARD/tyutool.cfg" ]; then
+        . $OPEN_SDK_ROOT/boards/$PLATFORM/$BOARD/tyutool.cfg
+        if [ x"${monitor_baudrate}" != x"" ]; then
+            BAUDRATE_CFG="-b $monitor_baudrate"
+        fi
+    fi
+    show "${fore[green]}" "${TYUTOOL} monitor -d ${DEVICE} ${BAUDRATE_CFG}"
+    ${TYUTOOL} monitor -d ${DEVICE} ${BAUDRATE_CFG}
 }
 
 function update_exec()

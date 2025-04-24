@@ -232,7 +232,7 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
 static OPERATE_RET __ai_agent_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID session_id, AI_EVENT_ID event_id,
                                          uint8_t *attr, uint32_t attr_len)
 {
-    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s, attr: %s", type, session_id, event_id, attr);
+    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s", type, session_id, event_id);
 
     // event type: 0-chat start, 1-chat stop, 2-data finish
     if (type == 0) {
@@ -259,27 +259,27 @@ static OPERATE_RET __ai_agent_session_create(void)
     memset(&cfg, 0, sizeof(AI_SESSION_CFG_T));
     cfg.send_num = TY_AI_CHAT_ID_DS_CNT;
     cfg.send[0].type = AI_PT_AUDIO;
-    cfg.send[0].id = tuya_ai_biz_get_send_id();
+    cfg.send[0].id = TY_AI_CHAT_ID_DS_AUDIO;
     cfg.send[0].get_cb = NULL;
     cfg.send[0].free_cb = NULL;
     cfg.send[1].type = AI_PT_VIDEO;
-    cfg.send[1].id = tuya_ai_biz_get_send_id();
+    cfg.send[1].id = TY_AI_CHAT_ID_DS_VIDEO;
     cfg.send[1].get_cb = NULL;
     cfg.send[1].free_cb = NULL;
     cfg.send[2].type = AI_PT_TEXT;
-    cfg.send[2].id = tuya_ai_biz_get_send_id();
+    cfg.send[2].id = TY_AI_CHAT_ID_DS_TEXT;
     cfg.send[2].get_cb = NULL;
     cfg.send[2].free_cb = NULL;
     cfg.send[3].type = AI_PT_IMAGE;
-    cfg.send[3].id = tuya_ai_biz_get_send_id();
+    cfg.send[3].id = TY_AI_CHAT_ID_DS_IMAGE;
     cfg.send[3].get_cb = NULL;
     cfg.send[3].free_cb = NULL;
 
     cfg.recv_num = TY_AI_CHAT_ID_US_CNT;
-    cfg.recv[1].id = tuya_ai_biz_get_recv_id();
+    cfg.recv[1].id = TY_AI_CHAT_ID_US_AUDIO;
     cfg.recv[1].cb = __ai_agent_audio_recv;
     cfg.recv[1].usr_data = NULL;
-    cfg.recv[0].id = tuya_ai_biz_get_recv_id();
+    cfg.recv[0].id = TY_AI_CHAT_ID_US_TEXT;
     cfg.recv[0].cb = __ai_agent_txt_recv;
     cfg.recv[0].usr_data = NULL;
 

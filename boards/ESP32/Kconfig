@@ -43,4 +43,10 @@ choice
             rsource "./ESP32-S3/Kconfig"
         endif
 
+    config MODULE_CHOICE_BREAD_COMPACT_WIFI
+        bool "bread-compact-wifi"
+        if (MODULE_CHOICE_BREAD_COMPACT_WIFI)
+            rsource "./bread-compact-wifi/Kconfig"
+        endif
+
 endchoice
