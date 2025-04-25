@@ -48,10 +48,6 @@ if (ENABLE_DISPLAY_DRIVER)
         range 0 64
         default 9
 
-        config DISPLAY_LCD_BL_POLARITY_LEVEL
-        int "tft lcd backlight active level 0:low 1:high"
-        range 0 1
-        default 1
     endif
 
     if (ENABLE_LCD_BL_MODE_PWM)
@@ -64,12 +60,13 @@ if (ENABLE_DISPLAY_DRIVER)
             int "tft lcd backlight pwm freq"
             range 1000 100000
             default 10000
-
-        config DISPLAY_LCD_BL_POLARITY_LEVEL
-            int "tft lcd backlight active level 0:low 1:high"
-            range 0 1
-            default 1
     endif
+
+    config DISPLAY_LCD_BL_POLARITY_LEVEL
+    depends on ENABLE_LCD_BL_MODE_GPIO || ENABLE_LCD_BL_MODE_PWM
+    int "tft lcd backlight active level 0:low 1:high"
+    range 0 1
+    default 1
 
     choice 
         prompt "choose tft lcd interface type"

@@ -1,0 +1,11 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "TUYA_T5AI_EVB"
+
+config AUDIO_DRIVER_NAME
+    string "the name of the audio driver"
+    default "audio_driver"

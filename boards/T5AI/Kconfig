@@ -29,7 +29,7 @@ choice
 
     config BOARD_CHOICE_TUYA_T5AI_EVB
         bool "TUYA_T5AI_EVB"
-        if (BOARD_CHOICE_T5AI_EVB)
+        if (BOARD_CHOICE_TUYA_T5AI_EVB)
             rsource "./TUYA_T5AI_EVB/Kconfig"
         endif
 
