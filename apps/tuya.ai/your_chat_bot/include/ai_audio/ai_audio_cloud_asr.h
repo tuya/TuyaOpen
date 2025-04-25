@@ -2,9 +2,9 @@
  * @file ai_audio_cloud_asr.h
  * @brief Header file for the audio cloud ASR module, which handles audio recording, buffering, and uploading.
  *
- * This header file declares the functions and types necessary for initializing and managing the audio recording process,
- * including setting up buffers, timers, and threads. It also provides functions to write audio data, reset the buffer,
- * post new states, and retrieve the current state.
+ * This header file declares the functions and types necessary for initializing and managing the audio recording
+ * process, including setting up buffers, timers, and threads. It also provides functions to write audio data, reset the
+ * buffer, post new states, and retrieve the current state.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -42,7 +42,6 @@ typedef enum {
  */
 OPERATE_RET ai_audio_cloud_asr_init(void);
 
-
 OPERATE_RET ai_audio_cloud_asr_update_vad_data(void);
 
 /**
@@ -50,7 +49,7 @@ OPERATE_RET ai_audio_cloud_asr_update_vad_data(void);
  * @param None
  * @return OPERATE_RET - OPRT_OK if the start operation is successful, otherwise an error code.
  */
-OPERATE_RET ai_audio_cloud_asr_start(void);
+OPERATE_RET ai_audio_cloud_asr_start(bool is_forced_intrrupt);
 
 /**
  * @brief Stops the audio cloud ASR process.
@@ -71,7 +70,7 @@ OPERATE_RET ai_audio_cloud_stop_wait_asr(void);
  * @param None
  * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
  */
-OPERATE_RET ai_audio_cloud_asr_set_idle(void);
+OPERATE_RET ai_audio_cloud_asr_set_idle(bool is_forced_intrrupt);
 
 /**
  * @brief Get the current state of the audio could asr process.

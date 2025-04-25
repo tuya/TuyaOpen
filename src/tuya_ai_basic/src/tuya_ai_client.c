@@ -155,7 +155,7 @@ static OPERATE_RET __ai_conn_close(void)
 
 static void __ai_client_handle_err()
 {
-    if (ai_basic_client->state == AI_STATE_CONNECT) {
+    if (ai_basic_client->state == AI_STATE_SETUP) {
         uint32_t sleep_random = 0;
         uint32_t size = AI_RECONN_TIME_NUM - 1;
         sleep_random = __ai_get_random_value(ai_basic_client->reconn[ai_basic_client->reconn_cnt].min,
@@ -295,6 +295,7 @@ static OPERATE_RET __ai_idle()
 static OPERATE_RET __ai_setup()
 {
     OPERATE_RET rt = OPRT_OK;
+
     rt = tuya_ai_basic_atop_req();
     if (OPRT_OK != rt) {
         return rt;

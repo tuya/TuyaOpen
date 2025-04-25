@@ -44,12 +44,14 @@ typedef struct {
     THREAD_HANDLE thrd_hdl;
     AI_CLOUD_ASR_STATE_E state;
     TIMER_ID asr_timer_id;
+    bool is_need_interrupt;
 
     AI_CLOUD_ASR_UPLOAD_STATE_E upload_state;
     bool is_first_frame;
     TIMER_ID upload_timer_id;
     uint8_t *upload_buffer;
     uint32_t upload_buffer_len;
+
 } AI_AUDIO_CLOUD_ASR_T;
 // clang-format on
 /***********************************************************
@@ -93,7 +95,7 @@ static AI_CLOUD_ASR_STATE_E __ai_audio_cloud_asr_proc_upload(void)
     case AI_CLOUD_ASR_UPLOAD_STATE_UPLOADING: {
         if (ai_audio_get_input_data_size() < sg_ai_cloud_asr.upload_buffer_len) {
             // wait receive data
-            return true;
+            break;
         }
 
         ai_audio_get_input_data(sg_ai_cloud_asr.upload_buffer, sg_ai_cloud_asr.upload_buffer_len);
@@ -106,6 +108,8 @@ static AI_CLOUD_ASR_STATE_E __ai_audio_cloud_asr_proc_upload(void)
         uint32_t input_data_size = 0;
 
         input_data_size = ai_audio_get_input_data_size();
+
+        PR_NOTICE("AI_CLOUD_ASR_UPLOAD_STATE_STOP size:%d", input_data_size);
 
         while (input_data_size) {
             upload_size = GET_MIN_LEN(input_data_size, sg_ai_cloud_asr.upload_buffer_len);
@@ -129,6 +133,12 @@ static void __ai_audio_cloud_asr_task(void *arg)
 
     for (;;) {
         tal_mutex_lock(sg_ai_cloud_asr.mutex);
+
+        if (sg_ai_cloud_asr.is_need_interrupt) {
+            ai_audio_agent_chat_intrrupt();
+            sg_ai_cloud_asr.is_need_interrupt = false;
+        }
+
         switch (sg_ai_cloud_asr.state) {
         case AI_CLOUD_ASR_STATE_IDLE: {
             uint32_t discard_size = 0;
@@ -145,6 +155,10 @@ static void __ai_audio_cloud_asr_task(void *arg)
             }
         } break;
         case AI_CLOUD_ASR_STATE_UPLOAD: {
+            if (tal_sw_timer_is_running(sg_ai_cloud_asr.asr_timer_id)) {
+                tal_sw_timer_stop(sg_ai_cloud_asr.asr_timer_id);
+            }
+
             sg_ai_cloud_asr.state = __ai_audio_cloud_asr_proc_upload();
         } break;
         case AI_CLOUD_ASR_STATE_WAIT_ASR:
@@ -155,7 +169,7 @@ static void __ai_audio_cloud_asr_task(void *arg)
         }
         tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 
-        tal_system_sleep(30);
+        tal_system_sleep(10);
     }
 }
 
@@ -225,16 +239,16 @@ OPERATE_RET ai_audio_cloud_asr_update_vad_data(void)
  * @param None
  * @return OPERATE_RET - OPRT_OK if the start operation is successful, otherwise an error code.
  */
-OPERATE_RET ai_audio_cloud_asr_start(void)
+OPERATE_RET ai_audio_cloud_asr_start(bool is_forced_intrrupt)
 {
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
 
-    if (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
-        ai_audio_agent_upload_intrrupt();
+    if (true == is_forced_intrrupt) {
+        sg_ai_cloud_asr.is_need_interrupt = true;
     }
 
-    if (tal_sw_timer_is_running(sg_ai_cloud_asr.asr_timer_id)) {
-        tal_sw_timer_stop(sg_ai_cloud_asr.asr_timer_id);
+    if (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
+        sg_ai_cloud_asr.is_need_interrupt = true;
     }
 
     sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_UPLOAD;
@@ -294,20 +308,20 @@ OPERATE_RET ai_audio_cloud_stop_wait_asr(void)
  * @param None
  * @return OPERATE_RET - OPRT_OK if the operation is successful, otherwise an error code.
  */
-OPERATE_RET ai_audio_cloud_asr_set_idle(void)
+OPERATE_RET ai_audio_cloud_asr_set_idle(bool is_forced_intrrupt)
 {
     OPERATE_RET rt = OPRT_OK;
 
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
 
-    if (sg_ai_cloud_asr.state == AI_CLOUD_ASR_STATE_IDLE) {
-        tal_mutex_unlock(sg_ai_cloud_asr.mutex);
-        return OPRT_OK;
+    if (true == is_forced_intrrupt) {
+        sg_ai_cloud_asr.is_need_interrupt = true;
     }
 
-    ai_audio_agent_upload_intrrupt();
-
-    sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_IDLE;
+    if (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
+        sg_ai_cloud_asr.is_need_interrupt = true;
+        sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_IDLE;
+    }
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 

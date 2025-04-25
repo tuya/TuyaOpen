@@ -563,9 +563,11 @@ OPERATE_RET ai_audio_agent_upload_stop(void)
  * @param None
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-OPERATE_RET ai_audio_agent_upload_intrrupt(void)
+OPERATE_RET ai_audio_agent_chat_intrrupt(void)
 {
     OPERATE_RET rt = OPRT_OK;
+
+    PR_DEBUG("tuya ai chat stop...");
 
     TUYA_CALL_ERR_RETURN(tuya_ai_event_chat_break(sg_ai.session_id, sg_ai.event_id, NULL, 0));
 
