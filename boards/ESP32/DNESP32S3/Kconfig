@@ -1,0 +1,11 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "DNESP32S3"
+
+config AUDIO_DRIVER_NAME
+    string "the name of the audio driver"
+    default "audio_driver"

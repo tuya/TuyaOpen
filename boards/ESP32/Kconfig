@@ -60,4 +60,10 @@ choice
         if (MODULE_CHOICE_DNESP32S3_BOX)
             rsource "./DNESP32S3-BOX/Kconfig"
         endif
+
+    config MODULE_CHOICE_DNESP32S3
+        bool "DNESP32S3"
+        if (MODULE_CHOICE_DNESP32S3)
+            rsource "./DNESP32S3/Kconfig"
+        endif
 endchoice
