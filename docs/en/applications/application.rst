@@ -50,9 +50,9 @@ The dedicated authorization code for TuyaOpen can be obtained through the follow
 If the `tuya_iot_license_read()` interface returns OPRT_OK, it indicates that the current device has a TuyaOpen authorization code pre-burned. Otherwise, it indicates that the current module is not pre-burned with a TuyaOpen authorization code.
 
 
-========================
+========================================================================
 Build and Flash
-========================
+========================================================================
 - Run the `tos config_choice` command to select the current development board in use.
 - If you need to modify the configuration, run the `tso menuconfig` command to make changes.
 - Run the `tos build` command to compile the project.
@@ -60,16 +60,16 @@ Build and Flash
 
 For more details about tos, please refer to `tos Guide <../tos_guide.md>`_.
 
-========================
+========================================================================
 Network Configuration and Device Activation
-========================
+========================================================================
 
 Use the Tuya APP to configure the network via Bluetooth or Wi-Fi AP mode and activate the device.
 
 
-========================
+========================================================================
 Typical Applications of TuyaOpen
-========================
+========================================================================
 
 .. toctree::
    :maxdepth: 1
