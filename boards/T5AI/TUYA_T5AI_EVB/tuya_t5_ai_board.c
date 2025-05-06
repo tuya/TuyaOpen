@@ -7,8 +7,6 @@
 
 #include "tuya_cloud_types.h"
 
-#include "app_board_api.h"
-
 #include "tdd_audio_t5ai.h"
 
 #include "tkl_audio.h"
@@ -32,7 +30,7 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
+#if defined(SPEAKER_EN_PIN)
 int app_audio_driver_init(const char *name)
 {
     TDD_AUDIO_T5AI_T cfg = {0};
@@ -55,3 +53,4 @@ int app_audio_driver_init(const char *name)
 
     return tdd_audio_t5ai_register(name, cfg);
 }
+#endif
