@@ -1,9 +1,3 @@
-Sphinx
-sphinx-sitemap
-sphinxcontrib-jsmath
-sphinx-design
-sphinx-reredirects
-typing-extensions
 sphinx-markdown-tables>=0.0.17
 sphinx-rtd-theme>=2.0.0
 recommonmark>=0.7.1

@@ -8,7 +8,32 @@
     background: #fcfcfc;  /* 设置内容区域背景颜色 */
 }
 
-/* 修改标题栏背景色为白色 */
-.wy-side-nav-search, .wy-nav-top {
-    background-color: rgb(245, 245, 245) !important;
+/* 版本选择器样式 */
+.smv-current-version {
+    background-color: #f5f5f5;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.smv-current-version a {
+    color: #333;
+}
+
+.smv-other-versions {
+    margin-top: 10px;
+}
+
+.smv-other-versions ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.smv-other-versions li {
+    margin-bottom: 5px;
+}
+
+.smv-other-versions a {
+    color: #2980b9;
 }

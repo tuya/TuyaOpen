@@ -170,7 +170,7 @@ v1.8.0 之前版本需要手工运行以下升级命令升级：
 $ tos flash upgrade
 ```
 
-更多 TuyaOpen 相关文档请参考 [TuyaOpen 开发指南](https://docs.tuyaopen.io/zh)。
+更多 TuyaOpen 相关文档请参考 [TuyaOpen 开发指南](https://tuyaopen.readthedocs.io/zh-cn/latest)。
 
 ## 支持 platform 列表
 | 名称 | 支持状态 | 介绍 | 调试日志串口 |

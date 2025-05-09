@@ -3,22 +3,11 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-   TuyaOpen Development Guide
+TuyaOpen Development Guide
 ===============================
-
-.. raw:: html
-
-    <p style="text-align: left;">
-        <a class="reference external" href="https://docs.tuyaopen.io/zh/index.html">
-            [&#x04E2D;&#x02F42;]
-        </a>
-    </p>
-
-.. _lvgl_landing_page:
 
 
 .. figure:: ../images/TuyaOpen.png
-
 
 This open-source framework for AIoT development, built on the proven TuyaOS IoT system, delivers cross-platform architecture, component-based design, and enterprise-grade security validated by 100M+ global devices. Its on-device AI inference engine with cloud-edge multimodal AI capabilities enables developers to access compliant Chinese LLMs (DeepSeek/Qwen/Doubao) or integrate global AI services (ChatGPT/Claude/Gemini) through unified API toolkits for text/voice interactions and image/video generation.
 
