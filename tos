@@ -37,6 +37,7 @@ function enable_mirror()
             exit 1
         fi
 
+        pip install -r ${OPEN_SDK_ROOT}/tools/requirements.txt
         MIRROR=$(${PYTHON_CMD} ${OPEN_SDK_ROOT}/tools/get_conutry.py)
         echo "MIRROR=${MIRROR}"
 
