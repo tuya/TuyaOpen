@@ -27,7 +27,7 @@ def conf2cmake(conf, cmake):
         if cl.startswith("CONFIG_"):
             ori_key = cl.split('=', 1)[0]
             ori_value = cl.split('=', 1)[1].strip("\"")
-            ans = f'set({ori_key} \"{ori_value}\" PARENT_SCOPE)'
+            ans = f'set({ori_key} \"{ori_value}\")'
         else:
             ans = cl
         context += f'{ans}\n'

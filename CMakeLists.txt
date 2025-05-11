@@ -56,24 +56,27 @@ if("${PLATFORM_BOARD}" STREQUAL "")
     set(PLATFORM_BOARD "NONE")
 endif()
 
-set(DEFAULT_CONFIG_NAME "default.config")
-set(PRE_CONFIG_DIR "${TOS_PROJECT_ROOT}/pre_config")
 
-
+########################################
 # use Kconfig
+########################################
+set(KCONFIG_TOOLS ${TOP_SOURCE_DIR}/tools/kconfiglib)
 set(DOT_CONFIG_DIR "${TOP_BINARY_DIR}/cache")
 set(DOT_CONFIG "using.config")
 set(CMAKE_CONFIG "using.cmake")
 set(HEADER_DIR "${TOP_BINARY_DIR}/include")
-set(PLATFORM_NEED_HDIR "${TOP_BINARY_DIR}/include")
 set(HEADER_FILE "tuya_kconfig.h")
 set(HEADER_IN_PATH "${TOP_SOURCE_DIR}/tools/kconfiglib/config.h.in")
 set(KCONFIG_CATALOG "${DOT_CONFIG_DIR}/CatalogKconfig")
 set(APP_DEFAULT_CONFIG "${TOS_PROJECT_ROOT}/app_default.config")
 add_subdirectory("${TOP_SOURCE_DIR}/tools/kconfiglib")
+include(${DOT_CONFIG_DIR}/${CMAKE_CONFIG})
 
 
+########################################
 # toolchain cmake
+########################################
+set(PLATFORM_NEED_HDIR "${TOP_BINARY_DIR}/include")
 include("${PLATFORM_PATH}/toolchain_file.cmake")
 message(STATUS "[TOP] Using toolchain file [${CMAKE_TOOLCHAIN_FILE}].")
 
@@ -84,7 +87,9 @@ project(opensdk)
 include("${PLATFORM_PATH}/platform_config.cmake")
 
 
+########################################
 # add src
+########################################
 set(COMPONENT_LIBS "")
 set(COMPONENT_PUBINC "")
 list_components(COMPONENT_LIST "${TOP_SOURCE_DIR}/src")
@@ -119,7 +124,9 @@ endforeach(c)
 add_library(${COMPONENTS_ALL_LIB} STATIC ${all_need})
 
 
+########################################
 # add example
+########################################
 set(EXAMPLE_NAME "${TOS_PROJECT_NAME}")
 message(STATUS "[TOP] Using example [${EXAMPLE_NAME}].")
 if(NOT DEFINED CONFIG_PROJECT_VERSION)
@@ -142,6 +149,25 @@ target_include_directories(${EXAMPLE_LIB}
     )
 target_link_libraries(${EXAMPLE_LIB} ${COMPONENTS_ALL_LIB})
 
+########################################
+# Generate build parameters file
+########################################
+# KEY:::"VALUE"***
+set(BUILD_PARAM_LIST "
+OPEN_HEADER_DIR:::\"${PLATFORM_NEED_HDIR}\"***
+OPEN_LIBS_DIR:::\"${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}\"***
+PLATFORM_NEED_LIBS:::\"${PLATFORM_NEED_LIBS}\"***
+BIN_OUTPUT_DIR:::\"${EXECUTABLE_OUTPUT_PATH}\"***
+PLATFORM_CHIP:::\"${PLATFORM_CHIP}\"***
+PLATFORM_BOARD:::\"${PLATFORM_BOARD}\"***
+")
+set(BUILD_PARAM_DIR "${TOP_BINARY_DIR}/build")
+set(BUILD_PARAM_FILE_NAME "build_param")
+include("${TOP_SOURCE_DIR}/tools/kconfiglib/gen_build_param.cmake")
+
+########################################
+# build commands
+########################################
 add_custom_target(example
     DEPENDS
     build_example_exe
@@ -158,9 +184,7 @@ add_custom_command(
     ${PLATFORM_PATH}
 
     COMMAND
-    ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
-    "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "build" "${PLATFORM_CHIP}" "${PLATFORM_BOARD}" | tee /dev/tty
+    ./build_example.sh "${BUILD_PARAM_DIR}" "build" | tee /dev/tty
 
     COMMENT
     "[EXAMPLE] Generate execute file [${EXAMPLE_NAME}]"
@@ -172,9 +196,7 @@ add_custom_target(platform_clean
     ${PLATFORM_PATH}
 
     COMMAND
-    ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
-    "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "clean" "${PLATFORM_CHIP}" "${PLATFORM_BOARD}" | tee /dev/tty
+    ./build_example.sh "${BUILD_PARAM_DIR}" "clean" | tee /dev/tty
 
     COMMENT
     "[TOP] Platform clean."
@@ -185,9 +207,7 @@ add_custom_target(platform_menuconfig
     ${PLATFORM_PATH}
 
     COMMAND
-    ./build_example.sh "${EXAMPLE_NAME}" "${CONFIG_PROJECT_VERSION}" "${PLATFORM_NEED_HDIR}"
-    "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}" "${PLATFORM_NEED_LIBS}"
-    "${EXECUTABLE_OUTPUT_PATH}" "menuconfig" "${PLATFORM_CHIP}"
+    ./build_example.sh "${BUILD_PARAM_DIR}" "menuconfig" | tee /dev/tty
 
     COMMENT
     "[TOP] Platform menuconfig."
@@ -200,12 +220,16 @@ add_custom_target(clean_all
     COMMAND ${CMAKE_BUILD_TOOL} clean
 )
 
+########################################
 # add UT
+########################################
 enable_testing()
 add_subdirectory("${TOP_SOURCE_DIR}/tools/ut")
 
 
+########################################
 # prompt
+########################################
 message(STATUS "[TOP] If you want to build example
         ${Cyan}[tos build]${ColourReset}.
 ")

@@ -815,7 +815,7 @@ function dev_exec()
         NOTE="
 Usage: $OPEN_BUILD dev COMMAND [ARGS]...
 Commands:
-    scp - Save platforms config
+    spc - Save platforms config
     ceb - Check examples build
     bac - Build All configs
         "

@@ -21,8 +21,6 @@ set(LIB_PRIVATE_SRC
     ${MODULE_PATH}/tdl_audio/src/tdl_audio_manage.c
 )
 
-message(STATUS "----> LIB_PRIVATE_SRC: ${LIB_PRIVATE_SRC}")
-
 ########################################
 # Target Configure
 ########################################
