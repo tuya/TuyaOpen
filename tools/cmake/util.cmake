@@ -86,3 +86,80 @@ function(list_subdirectories RETURN DIR)
     # message(STATUS "[UTIL] non_hidden_subdirectories:[${non_hidden_subdirectories}]")
     set(${RETURN} ${non_hidden_subdirectories} PARENT_SCOPE)
 endfunction()
+
+
+function(get_latest_git_commit target_path result_var)
+    # only for .git
+    if(NOT EXISTS "${target_path}/.git")
+        set(${result_var} "NONE" PARENT_SCOPE)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND git -C "${target_path}" rev-parse --is-inside-work-tree
+        RESULT_VARIABLE is_git_repo_result
+        OUTPUT_VARIABLE is_git_repo_output
+        ERROR_VARIABLE git_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT is_git_repo_result EQUAL 0 OR NOT is_git_repo_output STREQUAL "true")
+        set(${result_var} "NONE" PARENT_SCOPE)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND git -C "${target_path}" rev-parse HEAD
+        RESULT_VARIABLE commit_result
+        OUTPUT_VARIABLE commit_hash
+        ERROR_VARIABLE git_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT commit_result EQUAL 0)
+        set(${result_var} "NONE" PARENT_SCOPE)
+        return()
+    endif()
+
+    set(${result_var} "${commit_hash}" PARENT_SCOPE)
+endfunction()
+
+
+function(get_latest_git_tag target_path result_var)
+    # only for .git
+    if(NOT EXISTS "${target_path}/.git")
+        set(${result_var} "NONE" PARENT_SCOPE)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND git -C "${target_path}" rev-parse --is-inside-work-tree
+        RESULT_VARIABLE is_git_repo_result
+        OUTPUT_VARIABLE is_git_repo_output
+        ERROR_VARIABLE git_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT is_git_repo_result EQUAL 0 OR NOT is_git_repo_output STREQUAL "true")
+        set(${result_var} "NONE" PARENT_SCOPE)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND git -C "${target_path}" describe --tags --abbrev=0
+        RESULT_VARIABLE tag_result
+        OUTPUT_VARIABLE latest_tag
+        ERROR_VARIABLE git_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT tag_result EQUAL 0)
+        set(${result_var} "NONE" PARENT_SCOPE)
+    endif()
+
+    set(${result_var} "${latest_tag}" PARENT_SCOPE)
+endfunction()

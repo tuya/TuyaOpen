@@ -60,6 +60,17 @@ endif()
 ########################################
 # use Kconfig
 ########################################
+get_latest_git_tag("${TOP_SOURCE_DIR}" OPEN_VERSION)
+get_latest_git_commit("${TOP_SOURCE_DIR}" OPEN_COMMIT)
+get_latest_git_commit("${PLATFORM_PATH}" PLATFORM_COMMIT)
+set(HEADER_PARAM_LIST "
+OPEN_VERSION:::\"${OPEN_VERSION}\"***
+OPEN_COMMIT:::\"${OPEN_COMMIT}\"***
+PLATFORM_NAME:::\"${PLATFORM_NAME}\"***
+PLATFORM_COMMIT:::\"${PLATFORM_COMMIT}\"***
+PLATFORM_CHIP:::\"${PLATFORM_CHIP}\"***
+PLATFORM_BOARD:::\"${PLATFORM_BOARD}\"***
+")
 set(KCONFIG_TOOLS ${TOP_SOURCE_DIR}/tools/kconfiglib)
 set(DOT_CONFIG_DIR "${TOP_BINARY_DIR}/cache")
 set(DOT_CONFIG "using.config")
