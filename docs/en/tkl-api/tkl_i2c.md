@@ -99,17 +99,17 @@ OPERATE_RET tkl_i2c_irq_init(TUYA_I2C_NUM_E port, TUYA_I2C_IRQ_CB cb);
 
     The I2C callback event enumeration type TUYA_I2C_IRQ_EVT_E is defined as follows:
 
-    | Name                               | Definition                                | Remarks |
-    | :--------------------------------- | :---------------------------------- | :--- |
-    | TUYA_IIC_EVENT_TRANSFER_DONE       | Transfer Complete Event                        |      |
-    | TUYA_IIC_EVENT_TRANSFER_INCOMPLETE | Transfer Incomplete Event                      |      |
-    | TUYA_IIC_EVENT_SLAVE_TRANSMIT      | Slave Transmit Operation Request Event              |      |
-    | TUYA_IIC_EVENT_SLAVE_RECEIVE       | Slave Receive Operation Request Event              |      |
-    | TUYA_IIC_EVENT_ADDRESS_NACK        | Address Not Acknowledged Event                      |      |
-    | TUYA_IIC_EVENT_GENERAL_CALL        | Indicates Received General Call (Address is 0) Event |      |
-    | TUYA_IIC_EVENT_ARBITRATION_LOST    | Master Arbitration Lost Event                    |      |
-    | TUYA_IIC_EVENT_BUS_ERROR           | Bus Error Event                        |      |
-    | TUYA_IIC_EVENT_BUS_CLEAR           | Bus Clear Complete Event                    |      |
+| Name                               | Definition                                | Remarks |
+|:-----------------------------------|:------------------------------------------|:------|
+| TUYA_IIC_EVENT_TRANSFER_DONE       | Transfer Complete Event                        |      |
+| TUYA_IIC_EVENT_TRANSFER_INCOMPLETE | Transfer Incomplete Event                      |      |
+| TUYA_IIC_EVENT_SLAVE_TRANSMIT      | Slave Transmit Operation Request Event              |      |
+| TUYA_IIC_EVENT_SLAVE_RECEIVE       | Slave Receive Operation Request Event              |      |
+| TUYA_IIC_EVENT_ADDRESS_NACK        | Address Not Acknowledged Event                      |      |
+| TUYA_IIC_EVENT_GENERAL_CALL        | Indicates Received General Call (Address is 0) Event |      |
+| TUYA_IIC_EVENT_ARBITRATION_LOST    | Master Arbitration Lost Event                    |      |
+| TUYA_IIC_EVENT_BUS_ERROR           | Bus Error Event                        |      |
+| TUYA_IIC_EVENT_BUS_CLEAR           | Bus Clear Complete Event                    |      |
 
 - Return Value:
   - OPRT_OK for success, others please refer to the `OS_ADAPTER_I2C` section in the file `tuya_error_code.h`.

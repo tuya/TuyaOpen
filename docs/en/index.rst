@@ -6,19 +6,8 @@
 TuyaOpen Development Guide
 ===============================
 
-.. raw:: html
-
-    <p style="text-align: left;">
-        <a class="reference external" href="https://docs.tuyaopen.io/zh/index.html">
-            [&#x04E2D;&#x02F42;]
-        </a>
-    </p>
-
-.. _lvgl_landing_page:
-
 
 .. figure:: ../images/TuyaOpen.png
-
 
 This open-source framework for AIoT development, built on the proven TuyaOS IoT system, delivers cross-platform architecture, component-based design, and enterprise-grade security validated by 100M+ global devices. Its on-device AI inference engine with cloud-edge multimodal AI capabilities enables developers to access compliant Chinese LLMs (DeepSeek/Qwen/Doubao) or integrate global AI services (ChatGPT/Claude/Gemini) through unified API toolkits for text/voice interactions and image/video generation.
 
@@ -71,13 +60,13 @@ gitee Mirrors
    :maxdepth: 1
    :glob:
 
-   quick_start.md
-   tos_guide.md
+   quick_start.rst
+   tos_guide.rst
    examples/examples.rst
+   tkl-api/tkl-api.rst
    applications/application.rst
    peripherals/peripherals.rst
-   new_platform.md
-   new_board.md
-   contribute_guide.md
-   code_style_guide.md
-   faq/faq.rst
+   new_platform.rst
+   new_board.rst
+   contribute_guide.rst
+   code_style_guide.rst

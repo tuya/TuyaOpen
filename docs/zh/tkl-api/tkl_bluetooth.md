@@ -1,6 +1,6 @@
 # BLUETOOTH
 
-# API 描述
+## API 描述
 
 ### tkl_ble_stack_init
 

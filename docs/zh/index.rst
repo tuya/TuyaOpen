@@ -3,22 +3,11 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
 TuyaOpen 开发指南
 ===============================
 
-.. raw:: html
-
-    <p style="text-align: left;">
-        <a class="reference external" href="https://docs.tuyaopen.io/en/index.html">
-            [English]
-        </a>
-    </p>
-
-.. _lvgl_landing_page:
 
 .. figure:: ../images/TuyaOpen.png
-
 
 TuyaOpen 是一个面向 AIoT 行业的开源、开放的开发框架，基于成熟的商业级 IoT 系统 TuyaOS 构建而成。它继承了跨平台、跨系统、组件化和安全合规等核心特性，并经过全球亿级设备和百万级用户的验证。
 
@@ -71,13 +60,14 @@ gitee 镜像
    :maxdepth: 1
    :glob:
 
-   quick_start.md
-   tos_guide.md
+   quick_start.rst
+   tos_guide.rst
    examples/examples.rst
+   tkl-api/tkl-api.rst
    applications/application.rst
    peripherals/peripherals.rst
-   new_platform.md
-   new_board.md
-   contribute_guide.md
-   code_style_guide.md
-   faq/faq.rst
+   new_platform.rst
+   new_board.rst
+   contribute_guide.rst
+   code_style_guide.rst
+

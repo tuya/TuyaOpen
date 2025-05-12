@@ -1,6 +1,6 @@
 # WATCHDOG 驱动
 
-# 简要说明
+## 简要说明
 
 看门狗是一个定时器电路，负责在程序跑飞或硬件停滞的情况下对处理器进行复位操作，使程序能从头执行。
 
@@ -66,9 +66,9 @@ OPERATE_RET tkl_watchdog_refresh(void);
 
   - OPRT_OK 成功，其他请参考文件 `tuya_error_code.h` 定义部分。
 
-# 示例
+## 示例
 
-## WATCHDOG 示例
+### WATCHDOG 示例
 
 ```c
 /*初始化看门狗*/

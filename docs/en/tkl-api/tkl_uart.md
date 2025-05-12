@@ -40,39 +40,39 @@ OPERATE_RET tkl_uart_init(TUYA_UART_NUM_E port_id, TUYA_UART_BASE_CFG_T *cfg);
     } TUYA_UART_BASE_CFG_T;
     ```
   
-    #### TUYA_UART_PARITY_TYPE_E:
+#### TUYA_UART_PARITY_TYPE_E:
 
-    | Name                 | Definition        | Remarks |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_PARITY_TYPE_NONE | 0x0 (No parity bit) |    |
-    | TUYA_UART_PARITY_TYPE_ODD  | 0x1 (Odd parity bit) |    |
-    | TUYA_UART_PARITY_TYPE_EVEN | 0x2 (Even parity bit) |    |
+| Name                 | Definition        | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_PARITY_TYPE_NONE | 0x0 (No parity bit) |    |
+| TUYA_UART_PARITY_TYPE_ODD  | 0x1 (Odd parity bit) |    |
+| TUYA_UART_PARITY_TYPE_EVEN | 0x2 (Even parity bit) |    |
 
-    #### TUYA_UART_DATA_LEN_E:
+#### TUYA_UART_DATA_LEN_E:
 
-    | Name                    | Definition                | Remarks |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_DATA_LEN_5BIT | 0x5 (5-bit data length) |     |
-    | TUYA_UART_DATA_LEN_6BIT | 0x6 (6-bit data length) |     |
-    | TUYA_UART_DATA_LEN_7BIT | 0x7 (7-bit data length) |     |
-    | TUYA_UART_DATA_LEN_8BIT | 0x8 (8-bit data length) |     |
+| Name                    | Definition                | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_DATA_LEN_5BIT | 0x5 (5-bit data length) |     |
+| TUYA_UART_DATA_LEN_6BIT | 0x6 (6-bit data length) |     |
+| TUYA_UART_DATA_LEN_7BIT | 0x7 (7-bit data length) |     |
+| TUYA_UART_DATA_LEN_8BIT | 0x8 (8-bit data length) |     |
 
-    #### TUYA_UART_STOP_LEN_E:
+#### TUYA_UART_STOP_LEN_E:
 
-    | Name                    | Definition               | Remarks |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_STOP_LEN_1BIT    | 0x1 (1-bit stop bit) |      |
-    | TUYA_UART_STOP_LEN_1_5BIT1 | 0x2 (1.5-bit stop bit) |    |
-    | TUYA_UART_STOP_LEN_2BIT    | 0x3 (2-bit stop bit) |    |
+| Name                    | Definition               | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_STOP_LEN_1BIT    | 0x1 (1-bit stop bit) |      |
+| TUYA_UART_STOP_LEN_1_5BIT1 | 0x2 (1.5-bit stop bit) |    |
+| TUYA_UART_STOP_LEN_2BIT    | 0x3 (2-bit stop bit) |    |
 
-    #### TUYA_UART_FLOWCTRL_TYPE_E:
+#### TUYA_UART_FLOWCTRL_TYPE_E:
 
-    | Name                    | Definition               | Remarks |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_FLOWCTRL_NONE | 0x0 (No flow control) |    |
-    | TUYA_UART_FLOWCTRL_RTSCTS  | 0x1 (Request/Clear to Send) |    |
-    | TUYA_UART_FLOWCTRL_XONXOFF | 0x2 (Transmit/Receive On/Off) |    |
-    | TUYA_UART_FLOWCTRL_DTRDSR |  0x3 (Data Terminal Ready/Data Set Ready) |    |
+| Name                    | Definition               | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_FLOWCTRL_NONE | 0x0 (No flow control) |    |
+| TUYA_UART_FLOWCTRL_RTSCTS  | 0x1 (Request/Clear to Send) |    |
+| TUYA_UART_FLOWCTRL_XONXOFF | 0x2 (Transmit/Receive On/Off) |    |
+| TUYA_UART_FLOWCTRL_DTRDSR |  0x3 (Data Terminal Ready/Data Set Ready) |    |
 
 - Return Value:
   - OPRT_OK Success, others please refer to the file `tuya_error_code.h`, UART type definition section.
@@ -344,13 +344,13 @@ OPERATE_RET tkl_uart_ioctl(TUYA_UART_NUM_E port_id, uint32_t cmd, void *arg);
 
     #### TUYA_UART_IOCTL_CMD_E：
 
-    | Name                    | Definition               | Remarks |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_SUSPEND_CMD  | 0x0 (Suspend UART)        |    |
-    | TUYA_UART_RESUME_CMD   | 0x1 (Resume UART)     |    |
-    | TUYA_UART_FLUSH_CMD    | 0x2 (Flush UART buffer)    |    |
-    | TUYA_UART_RECONFIG_CMD | 0x3 (Reinitialize UART)  |    |
-    | TUYA_UART_USER_CMD     | 0x4 (User-defined command)  |    |
+| Name                    | Definition               | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_SUSPEND_CMD  | 0x0 (Suspend UART)        |    |
+| TUYA_UART_RESUME_CMD   | 0x1 (Resume UART)     |    |
+| TUYA_UART_FLUSH_CMD    | 0x2 (Flush UART buffer)    |    |
+| TUYA_UART_RECONFIG_CMD | 0x3 (Reinitialize UART)  |    |
+| TUYA_UART_USER_CMD     | 0x4 (User-defined command)  |    |
 
   - `arg`: Parameters corresponding to the control command
   

@@ -1,3 +1,5 @@
+.. _examples:
+
 示例工程
 ===========================
 
@@ -75,5 +77,102 @@ TuyaOpen 提供了丰富的示例工程，方便开发者快速上手，了解 T
 编译示例
 ========================
 1. 运行 `tos config_choice` 命令， 选择当前运行的开发板或 platform。
-2. 如需修改配置，请先运行 `tos menuconfig` 命令修改配置。
+2. 如需修改配置，请先运行 `tso menuconfig` 命令修改配置。
 3. 运行 `tos build` 命令，编译工程。
+4. 运行 `tos flash` 或者GUI烧录工具烧录代码
+
+========================
+典型例程
+========================
+
+-------------------------
+get-started
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   get-started/sample_project.md
+
+
+-------------------------
+peripherals
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   peripherals/peripherals_gpio.md
+   peripherals/peripherals_button.md
+   peripherals/peripherals_adc.md
+   peripherals/peripherals_timer.md
+   peripherals/peripherals_pwm.md
+   peripherals/peripherals_i2c.md
+   peripherals/peripherals_spi.md
+   peripherals/peripherals_watchdog.md
+
+-------------------------
+system
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   system/os_event.md
+   system/os_kv.md
+   system/os_mutex.md
+   system/os_queue.md
+   system/os_semaphore.md
+   system/os_sw_timer.md
+   system/os_thread.md
+   
+-------------------------
+ble
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   ble/ble_central.md
+   ble/ble_peripher.md
+
+-------------------------
+wifi
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   wifi/sta.md
+   wifi/ap.md
+   wifi/scan.md
+   wifi/low_power.md
+
+-------------------------
+protocols
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   protocols/http_client.md
+   protocols/mqtt_client.md
+
+-------------------------
+multimedia
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   multimedia/audio_recorder.md
+   multimedia/audio_speaker.md
+
+-------------------------
+graphics
+-------------------------
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   graphics/lvgl_demo.md

@@ -54,12 +54,12 @@ OPERATE_RET tkl_i2s_init(TUYA_I2S_NUM_E i2s_num, const TUYA_I2S_BASE_CFG_T *i2s_
 
     #### TUYA_I2S_MODE_E：
 
-    | 名字                 | 定义     | 备注 |
-    | :------------------- | :------- | :--- |
-    | TUYA_I2S_MODE_MASTER | 主机模式 |      |
-    | TUYA_I2S_MODE_SLAVE  | 从机模式 |      |
-    | TUYA_I2S_MODE_TX     | 发送模式 |      |
-    | TUYA_I2S_MODE_RX     | 接收模式 |      |
+| 名字                 | 定义     | 备注 |
+|:---------------- ----|:---------------------|:------|
+| TUYA_I2S_MODE_MASTER | 主机模式 |      |
+| TUYA_I2S_MODE_SLAVE  | 从机模式 |      |
+| TUYA_I2S_MODE_TX     | 发送模式 |      |
+| TUYA_I2S_MODE_RX     | 接收模式 |      |
 
     用户可使用四种模式组合，分别是:
     - TUYA_I2S_MODE_MASTER|TUYA_I2S_MODE_TX
@@ -73,31 +73,31 @@ OPERATE_RET tkl_i2s_init(TUYA_I2S_NUM_E i2s_num, const TUYA_I2S_BASE_CFG_T *i2s_
 
     #### TUYA_I2S_BITS_PER_SAMP_E：
 
-    | 名字                           | 定义       | 备注 |
-    | :----------------------------- | :--------- | :--- |
-    | TUYA_I2S_BITS_PER_SAMPLE_8BIT  | 数据位宽8  |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_16BIT | 数据位宽16 |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_24BIT | 数据位宽24 |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_32BIT | 数据位宽32 |      |
+| 名字                           | 定义       | 备注 |
+|:-------------------------------|:---------------------|:------|
+| TUYA_I2S_BITS_PER_SAMPLE_8BIT  | 数据位宽8  |      |
+| TUYA_I2S_BITS_PER_SAMPLE_16BIT | 数据位宽16 |      |
+| TUYA_I2S_BITS_PER_SAMPLE_24BIT | 数据位宽24 |      |
+| TUYA_I2S_BITS_PER_SAMPLE_32BIT | 数据位宽32 |      |
 
-    #### TUYA_I2S_CHANNEL_FMT_E：
+#### TUYA_I2S_CHANNEL_FMT_E：
 
-    | 名字                            | 定义                     | 备注       |
-    | :------------------------------ | :----------------------- | :--------- |
-    | TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT | 左右通道分开             |            |
-    | TUYA_I2S_CHANNEL_FMT_ALL_RIGHT  | 加载右声道数据到两个通道 |            |
-    | TUYA_I2S_CHANNEL_FMT_ALL_LEFT   | 加载左声道数据到两个通道 |            |
-    | TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT | 仅加载右声道数据         | 单声道模式 |
-    | TUYA_I2S_CHANNEL_FMT_ONLY_LEFT  | 仅加载左声道数据         | 单声道模式 |
+| 名字                            | 定义                     | 备注       |
+|:--------------------------------|:---------------------|:------|
+| TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT | 左右通道分开             |            |
+| TUYA_I2S_CHANNEL_FMT_ALL_RIGHT  | 加载右声道数据到两个通道 |            |
+| TUYA_I2S_CHANNEL_FMT_ALL_LEFT   | 加载左声道数据到两个通道 |            |
+| TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT | 仅加载右声道数据         | 单声道模式 |
+| TUYA_I2S_CHANNEL_FMT_ONLY_LEFT  | 仅加载左声道数据         | 单声道模式 |
 
-    #### TUYA_I2S_COMM_FORMAT_E:
+#### TUYA_I2S_COMM_FORMAT_E:
 
-    | 名字                            | 定义                                                         | 备注 |
-    | :------------------------------ | :----------------------------------------------------------- | :--- |
-    | I2S_COMM_FORMAT_STAND_I2S       | Philips标准，数据在第二个BCK传输                             |      |
-    | I2S_COMM_FORMAT_STAND_MSB       | MSB(左对齐)标准，数据在第一个BCK传输                         |      |
-    | I2S_COMM_FORMAT_STAND_PCM_SHORT | PCM短标准，也称为DSP模式。 同步信号(WS)的周期为1个BCK周期 。 |      |
-    | I2S_COMM_FORMAT_STAND_PCM_LONG  | PCM长标准，同步信号(WS)的周期为channel_bit个BCK周期          |      |
+| 名字                            | 定义                                                         | 备注 |
+|:--------------------------------|:---------------------|:------|
+| I2S_COMM_FORMAT_STAND_I2S       | Philips标准，数据在第二个BCK传输                             |      |
+| I2S_COMM_FORMAT_STAND_MSB       | MSB(左对齐)标准，数据在第一个BCK传输                         |      |
+| I2S_COMM_FORMAT_STAND_PCM_SHORT | PCM短标准，也称为DSP模式。 同步信号(WS)的周期为1个BCK周期 。 |      |
+| I2S_COMM_FORMAT_STAND_PCM_LONG  | PCM长标准，同步信号(WS)的周期为channel_bit个BCK周期          |      |
 
 - 返回值:
   - NULL: 初始化失败。

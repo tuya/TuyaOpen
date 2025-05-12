@@ -100,17 +100,17 @@ OPERATE_RET tkl_i2c_irq_init(TUYA_I2C_NUM_E port, TUYA_I2C_IRQ_CB cb);
 
     I2C 回调事件枚举类型 TUYA_I2C_IRQ_EVT_E 定义如下：
 
-    | 名字                               | 定义                                | 备注 |
-    | :--------------------------------- | :---------------------------------- | :--- |
-    | TUYA_IIC_EVENT_TRANSFER_DONE       | 传输完成事件                        |      |
-    | TUYA_IIC_EVENT_TRANSFER_INCOMPLETE | 传输未完成事件                      |      |
-    | TUYA_IIC_EVENT_SLAVE_TRANSMIT      | 从设备发送操作请求事件              |      |
-    | TUYA_IIC_EVENT_SLAVE_RECEIVE       | 从设备接收操作请求事件              |      |
-    | TUYA_IIC_EVENT_ADDRESS_NACK        | 地址未应答事件                      |      |
-    | TUYA_IIC_EVENT_GENERAL_CALL        | 指示收到 general call（地址为0）事件 |      |
-    | TUYA_IIC_EVENT_ARBITRATION_LOST    | 主机仲裁丢失事件                    |      |
-    | TUYA_IIC_EVENT_BUS_ERROR           | 总线错误事件                        |      |
-    | TUYA_IIC_EVENT_BUS_CLEAR           | 总线清除完成事件                    |      |
+| 名字                               | 定义                                | 备注 |
+|:-----------------------------------|:-----------------------------------|:------|
+| TUYA_IIC_EVENT_TRANSFER_DONE       | 传输完成事件                        |      |
+| TUYA_IIC_EVENT_TRANSFER_INCOMPLETE | 传输未完成事件                      |      |
+| TUYA_IIC_EVENT_SLAVE_TRANSMIT      | 从设备发送操作请求事件              |      |
+| TUYA_IIC_EVENT_SLAVE_RECEIVE       | 从设备接收操作请求事件              |      |
+| TUYA_IIC_EVENT_ADDRESS_NACK        | 地址未应答事件                      |      |
+| TUYA_IIC_EVENT_GENERAL_CALL        | 指示收到 general call（地址为0）事件 |      |
+| TUYA_IIC_EVENT_ARBITRATION_LOST    | 主机仲裁丢失事件                    |      |
+| TUYA_IIC_EVENT_BUS_ERROR           | 总线错误事件                        |      |
+| TUYA_IIC_EVENT_BUS_CLEAR           | 总线清除完成事件                    |      |
 
 - 返回值:
 

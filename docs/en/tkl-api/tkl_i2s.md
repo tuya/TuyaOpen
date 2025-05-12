@@ -54,12 +54,12 @@ OPERATE_RET tkl_i2s_init(TUYA_I2S_NUM_E i2s_num, const TUYA_I2S_BASE_CFG_T *i2s_
 
     #### TUYA_I2S_MODE_E:
 
-    | Name                 | Definition | Remarks |
-    | :------------------- | :------- | :--- |
-    | TUYA_I2S_MODE_MASTER | Master Mode |      |
-    | TUYA_I2S_MODE_SLAVE  | Slave Mode |      |
-    | TUYA_I2S_MODE_TX     | Transmit Mode |      |
-    | TUYA_I2S_MODE_RX     | Receive Mode |      |
+| Name                 | Definition | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_I2S_MODE_MASTER | Master Mode |      |
+| TUYA_I2S_MODE_SLAVE  | Slave Mode |      |
+| TUYA_I2S_MODE_TX     | Transmit Mode |      |
+| TUYA_I2S_MODE_RX     | Receive Mode |      |
 
     Users can use four combinations of modes, which are:
     - TUYA_I2S_MODE_MASTER|TUYA_I2S_MODE_TX
@@ -71,33 +71,33 @@ OPERATE_RET tkl_i2s_init(TUYA_I2S_NUM_E i2s_num, const TUYA_I2S_BASE_CFG_T *i2s_
 
     `mclk`: Master clock, usually 256 or 384 times the sample rate.
 
-    #### TUYA_I2S_BITS_PER_SAMP_E:
+#### TUYA_I2S_BITS_PER_SAMP_E:
 
-    | Name                           | Definition       | Remarks |
-    | :----------------------------- | :--------- | :--- |
-    | TUYA_I2S_BITS_PER_SAMPLE_8BIT  | 8-bit data width |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_16BIT | 16-bit data width |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_24BIT | 24-bit data width |      |
-    | TUYA_I2S_BITS_PER_SAMPLE_32BIT | 32-bit data width |      |
+| Name                           | Definition       | Remarks |
+|:-------------------------|:---------------------|:------|
+| TUYA_I2S_BITS_PER_SAMPLE_8BIT  | 8-bit data width |      |
+| TUYA_I2S_BITS_PER_SAMPLE_16BIT | 16-bit data width |      |
+| TUYA_I2S_BITS_PER_SAMPLE_24BIT | 24-bit data width |      |
+| TUYA_I2S_BITS_PER_SAMPLE_32BIT | 32-bit data width |      |
 
-    #### TUYA_I2S_CHANNEL_FMT_E:
+#### TUYA_I2S_CHANNEL_FMT_E:
 
-    | Name                            | Definition                     | Remarks       |
-    | :------------------------------ | :----------------------- | :--------- |
-    | TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT | Separate left and right channels |            |
-    | TUYA_I2S_CHANNEL_FMT_ALL_RIGHT  | Load right channel data to both channels |            |
-    | TUYA_I2S_CHANNEL_FMT_ALL_LEFT   | Load left channel data to both channels |            |
-    | TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT | Load only right channel data         | Mono mode |
-    | TUYA_I2S_CHANNEL_FMT_ONLY_LEFT  | Load only left channel data         | Mono mode |
+| Name                            | Definition                     | Remarks       |
+|:-------------------------|:---------------------|:------|
+| TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT | Separate left and right channels |            |
+| TUYA_I2S_CHANNEL_FMT_ALL_RIGHT  | Load right channel data to both channels |            |
+| TUYA_I2S_CHANNEL_FMT_ALL_LEFT   | Load left channel data to both channels |            |
+| TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT | Load only right channel data         | Mono mode |
+| TUYA_I2S_CHANNEL_FMT_ONLY_LEFT  | Load only left channel data         | Mono mode |
 
-    #### TUYA_I2S_COMM_FORMAT_E:
+#### TUYA_I2S_COMM_FORMAT_E:
 
-    | Name                            | Definition                                                         | Remarks |
-    | :------------------------------ | :----------------------------------------------------------- | :--- |
-    | I2S_COMM_FORMAT_STAND_I2S       | Philips standard, data is transmitted on the second BCK             |      |
-    | I2S_COMM_FORMAT_STAND_MSB       | MSB (left-aligned) standard, data is transmitted on the first BCK |      |
-    | I2S_COMM_FORMAT_STAND_PCM_SHORT | PCM short standard, also known as DSP mode. The synchronization signal (WS) period is one BCK period. |      |
-    | I2S_COMM_FORMAT_STAND_PCM_LONG  | PCM long standard, the synchronization signal (WS) period is channel_bit BCK periods |      |
+| Name                            | Definition                                                         | Remarks |
+|:--------------------------------|:-------------------------------------------------------------------|:---------|
+| I2S_COMM_FORMAT_STAND_I2S       | Philips standard, data is transmitted on the second BCK             |      |
+| I2S_COMM_FORMAT_STAND_MSB       | MSB (left-aligned) standard, data is transmitted on the first BCK |      |
+| I2S_COMM_FORMAT_STAND_PCM_SHORT | PCM short standard, also known as DSP mode. The synchronization signal (WS) period is one BCK period. |      |
+| I2S_COMM_FORMAT_STAND_PCM_LONG  | PCM long standard, the synchronization signal (WS) period is channel_bit BCK periods |      |
 
 - Return Value:
   - NULL: Initialization failed.

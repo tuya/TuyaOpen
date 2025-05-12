@@ -1,4 +1,4 @@
-## RTC 驱动
+# RTC 驱动
 
 ## 简要说明
 
@@ -79,9 +79,9 @@ OPERATE_RET tkl_rtc_time_get(TIME_T *time_sec);
   
   - OPRT_OK 成功，其他请参考文件 `tuya_error_code.h` 定义部分。
 
-# 示例
+## 示例
 
-## RTC 示例
+### RTC 示例
 
 ```c
 /*初始化RTC*/

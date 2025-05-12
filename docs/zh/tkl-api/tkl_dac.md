@@ -146,9 +146,9 @@ OPERATE_RET  tkl_dac_fifo_reset (TUYA_DAC_NUM_E port_num);
 - 返回值:
   - 错误码，OPRT_OK 成功，其他请参考文件 `tuya_error_code.h` 定义部分。
 
-# 示例
+## 示例
 
-## 1.dac示例一
+### 1.dac示例一
 
 ```c
 /*初始化第0个dac外设*/

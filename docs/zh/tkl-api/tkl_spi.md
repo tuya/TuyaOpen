@@ -250,9 +250,9 @@ int32_t tkl_spi_get_data_count(TUYA_SPI_NUM_E port);
 - 返回值:
   - <0,err。>= 0,上次传输的字节长度。可以是 `tkl_spi_send`, `tkl_spi_recv` 和 `tkl_spi_transfer` 任一个的操作。
 
-# 示例
+## 示例
 
-## 1. spi 示例一
+### 1. spi 示例一
 
 ```c
 void tuya_spi_test1(void)

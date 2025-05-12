@@ -40,39 +40,39 @@ OPERATE_RET tkl_uart_init(TUYA_UART_NUM_E port_id, TUYA_UART_BASE_CFG_T *cfg);
     } TUYA_UART_BASE_CFG_T;
     ```
   
-    #### TUYA_UART_PARITY_TYPE_E:
+#### TUYA_UART_PARITY_TYPE_E:
 
-    | 名字                 | 定义        | 备注 |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_PARITY_TYPE_NONE | 0x0 (没有校验位) |    |
-    | TUYA_UART_PARITY_TYPE_ODD  | 0x1 (奇数校验位) |    |
-    | TUYA_UART_PARITY_TYPE_EVEN | 0x2 (偶数校验位) |    |
+| 名字                 | 定义        | 备注 |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_PARITY_TYPE_NONE | 0x0 (没有校验位) |    |
+| TUYA_UART_PARITY_TYPE_ODD  | 0x1 (奇数校验位) |    |
+| TUYA_UART_PARITY_TYPE_EVEN | 0x2 (偶数校验位) |    |
 
-    #### TUYA_UART_DATA_LEN_E:
+#### TUYA_UART_DATA_LEN_E:
 
-    | 名字                    | 定义                | 备注 |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_DATA_LEN_5BIT | 0x5 (5位数据长度) |     |
-    | TUYA_UART_DATA_LEN_6BIT | 0x6 (6位数据长度) |     |
-    | TUYA_UART_DATA_LEN_7BIT | 0x7 (7位数据长度) |     |
-    | TUYA_UART_DATA_LEN_8BIT | 0x8 (8位数据长度) |     |
+| 名字                    | 定义                | 备注 |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_DATA_LEN_5BIT | 0x5 (5位数据长度)   |      |
+| TUYA_UART_DATA_LEN_6BIT | 0x6 (6位数据长度)   |      |
+| TUYA_UART_DATA_LEN_7BIT | 0x7 (7位数据长度)   |      |
+| TUYA_UART_DATA_LEN_8BIT | 0x8 (8位数据长度)   |      |
 
-    #### TUYA_UART_STOP_LEN_E:
+#### TUYA_UART_STOP_LEN_E:
 
-    | 名字                    | 定义               | 备注 |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_STOP_LEN_1BIT    | 0x1 (1位停止位) |      |
-    | TUYA_UART_STOP_LEN_1_5BIT1 | 0x2 (1.5位停止位) |    |
-    | TUYA_UART_STOP_LEN_2BIT    | 0x3 (2位停止位) |    |
+| 名字                    | 定义               | 备注 |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_STOP_LEN_1BIT    | 0x1 (1位停止位) |      |
+| TUYA_UART_STOP_LEN_1_5BIT1 | 0x2 (1.5位停止位) |    |
+| TUYA_UART_STOP_LEN_2BIT    | 0x3 (2位停止位) |    |
 
-    #### TUYA_UART_FLOWCTRL_TYPE_E:
+#### TUYA_UART_FLOWCTRL_TYPE_E:
 
-    | 名字                    | 定义               | 备注 |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_FLOWCTRL_NONE | 0x0 (没有进行流控制) |    |
-    | TUYA_UART_FLOWCTRL_RTSCTS  | 0x1 (请求/清除发送) |    |
-    | TUYA_UART_FLOWCTRL_XONXOFF | 0x2 (暂停传输/回复传输) |    |
-    | TUYA_UART_FLOWCTRL_DTRDSR |  0x3 (数据终端准备好/数据准备好) |    |
+| 名字                    | 定义               | 备注 |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_FLOWCTRL_NONE | 0x0 (没有进行流控制) |    |
+| TUYA_UART_FLOWCTRL_RTSCTS  | 0x1 (请求/清除发送) |    |
+| TUYA_UART_FLOWCTRL_XONXOFF | 0x2 (暂停传输/回复传输) |    |
+| TUYA_UART_FLOWCTRL_DTRDSR |  0x3 (数据终端准备好/数据准备好) |    |
 
 - 返回值：
   - OPRT_OK 成功，其他请参考文件 `tuya_error_code.h`，uart type 定义部分。
@@ -344,22 +344,22 @@ OPERATE_RET tkl_uart_ioctl(TUYA_UART_NUM_E port_id, uint32_t cmd, void *arg);
 
     #### TUYA_UART_IOCTL_CMD_E：
 
-    | 名字                    | 定义               | 备注 |
-    | :------------------- | :---------- | :--- |
-    | TUYA_UART_SUSPEND_CMD  | 0x0 (暂停 UART)        |    |
-    | TUYA_UART_RESUME_CMD   | 0x1 (恢复 UART)     |    |
-    | TUYA_UART_FLUSH_CMD    | 0x2 (刷新 UART 缓冲)    |    |
-    | TUYA_UART_RECONFIG_CMD | 0x3 (重新初始化 UART)  |    |
-    | TUYA_UART_USER_CMD     | 0x4 (用户自定义命令)  |    |
+| 名字                    | 定义               | 备注 |
+|:-------------------------|:---------------------|:------|
+| TUYA_UART_SUSPEND_CMD  | 0x0 (暂停 UART)        |    |
+| TUYA_UART_RESUME_CMD   | 0x1 (恢复 UART)     |    |
+| TUYA_UART_FLUSH_CMD    | 0x2 (刷新 UART 缓冲)    |    |
+| TUYA_UART_RECONFIG_CMD | 0x3 (重新初始化 UART)  |    |
+| TUYA_UART_USER_CMD     | 0x4 (用户自定义命令)  |    |
 
   - `arg`: 对应控制命令的参数
   
 - 返回值：
   - OPRT_OK 成功，其他请参考文件 `tuya_error_code.h`。
 
-# 示例 
+## 示例 
 
-## 1.uart 示例一
+### 1.uart 示例一
 
 ```c
 int uart_loopback_test(void)
@@ -431,7 +431,7 @@ int uart_loopback_test(void)
 
 ```
 
-## 2.uart 示例二
+### 2.uart 示例二
 
 ```c
 static int sg_rx_flag = 0;
