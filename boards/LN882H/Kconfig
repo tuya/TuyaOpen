@@ -27,4 +27,9 @@ choice
             rsource "./WL2H-U/Kconfig"
         endif
 
+    config BOARD_CHOICE_EWT103_W15
+        bool "EWT103-W15"
+        if (BOARD_CHOICE_EWT103_W15)
+            rsource "./EWT103-W15/Kconfig"
+        endif
 endchoice
