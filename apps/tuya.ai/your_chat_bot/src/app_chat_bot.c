@@ -8,6 +8,7 @@
 
 #include "tkl_wifi.h"
 #include "tkl_gpio.h"
+#include "tkl_memory.h"
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
 
@@ -21,43 +22,43 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define APP_BUTTON_NAME "app_button"
+#define APP_BUTTON_NAME        "app_button"
 #define AI_AUDIO_TEXT_BUFF_LEN (1024)
-#define AI_AUDIO_TEXT_SHOW_LEN (80*3)
+#define AI_AUDIO_TEXT_SHOW_LEN (80 * 3)
 
 typedef uint8_t APP_CHAT_MODE_E;
 /*Press and hold button to start a single conversation.*/
 #define APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE 0
 /*Press the button once to start or stop the free conversation.*/
-#define APP_CHAT_MODE_KEY_TRIG_VAD_FREE     1
-/*Say the wake-up word to start a single conversation, similar to a smart speaker. 
+#define APP_CHAT_MODE_KEY_TRIG_VAD_FREE 1
+/*Say the wake-up word to start a single conversation, similar to a smart speaker.
  *If no conversation is detected within 20 seconds, you need to say the wake-up word again*/
-#define APP_CHAT_MODE_ASR_WAKEUP_SINGLE     2 
+#define APP_CHAT_MODE_ASR_WAKEUP_SINGLE 2
 /*Saying the wake-up word, you can have a free conversation.
  *If no conversation is detected within 20 seconds, you need to say the wake-up word again*/
-#define APP_CHAT_MODE_ASR_WAKEUP_FREE       3
+#define APP_CHAT_MODE_ASR_WAKEUP_FREE 3
 
-#define APP_CHAT_MODE_MAX                   4
+#define APP_CHAT_MODE_MAX 4
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    APP_CHAT_MODE_E       mode;
-    AI_AUDIO_WORK_MODE_E  auido_mode;
+    APP_CHAT_MODE_E mode;
+    AI_AUDIO_WORK_MODE_E auido_mode;
     AI_AUDIO_ALERT_TYPE_E mode_alert;
-    bool                  is_open;
+    bool is_open;
 } CHAT_WORK_MODE_INFO_T;
 
 typedef struct {
-    TUYA_GPIO_NUM_E       led_pin;
-    TUYA_GPIO_LEVEL_E     active_level;
-    uint8_t               status;
+    TUYA_GPIO_NUM_E led_pin;
+    TUYA_GPIO_LEVEL_E active_level;
+    uint8_t status;
 } INDICATE_LED_T;
 
 typedef struct {
-    uint8_t                      is_enable;
+    uint8_t is_enable;
     const CHAT_WORK_MODE_INFO_T *work;
-    INDICATE_LED_T               led;
+    INDICATE_LED_T led;
 } APP_CHAT_BOT_S;
 
 /***********************************************************
@@ -77,14 +78,14 @@ const CHAT_WORK_MODE_INFO_T cAPP_WORK_TRIG_VAD = {
     .is_open = false,
 };
 
-const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_SINGLE ={
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_SINGLE = {
     .mode = APP_CHAT_MODE_ASR_WAKEUP_SINGLE,
     .auido_mode = AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK,
     .mode_alert = AI_AUDIO_ALERT_WAKEUP_TALK,
     .is_open = true,
 };
 
-const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_FREE ={
+const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_FREE = {
     .mode = APP_CHAT_MODE_ASR_WAKEUP_FREE,
     .auido_mode = AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK,
     .mode_alert = AI_AUDIO_ALERT_FREE_TALK,
@@ -175,10 +176,10 @@ static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_START, data, len);
-#else 
-        if(NULL == p_ai_text) {
+#else
+        if (NULL == p_ai_text) {
             p_ai_text = tkl_system_psram_malloc(AI_AUDIO_TEXT_BUFF_LEN);
-            if(NULL == p_ai_text) {
+            if (NULL == p_ai_text) {
                 return;
             }
         }
@@ -187,7 +188,7 @@ static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint
 #endif
 #endif
     } break;
-    case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA:{
+    case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_DATA, data, len);
@@ -206,11 +207,11 @@ static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END, data, len);
-#else 
+#else
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG, p_ai_text, ai_text_len);
         ai_text_len = 0;
 #endif
-#endif    
+#endif
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_EMO: {
         AI_AUDIO_EMOTION_T *emo;
