@@ -9,7 +9,6 @@
 #define __APP_BOARD_API_H__
 
 #include "tuya_cloud_types.h"
-#include "display_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,19 +26,13 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 
-int app_audio_driver_init(const char *name);
-
-void app_display_init(void);
-
-void app_display_set_status(const char *status);
-
-void app_display_show_notification(const char *notification);
-
-void app_display_set_emotion(const char *emotion);
-
-void app_display_set_chat_massage(CHAT_ROLE_E role, const char *content);
-
-void app_display_set_wifi_status(DIS_WIFI_STATUS_E status);
+/**
+ * @brief Initialize the audio driver
+ *
+ * @param name Name of the audio driver
+ * @return OPERATE_RET Initialization result, OPRT_OK indicates success
+ */
+OPERATE_RET app_audio_driver_init(const char *name);
 
 #ifdef __cplusplus
 }

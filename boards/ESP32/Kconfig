@@ -43,15 +43,15 @@ choice
             rsource "./ESP32-S3/Kconfig"
         endif
 
-    config MODULE_CHOICE_BREAD_COMPACT_WIFI
+    config BOARD_CHOICE_BREAD_COMPACT_WIFI
         bool "bread-compact-wifi"
-        if (MODULE_CHOICE_BREAD_COMPACT_WIFI)
+        if (BOARD_CHOICE_BREAD_COMPACT_WIFI)
             rsource "./bread-compact-wifi/Kconfig"
         endif
 
-    config MODULE_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
+    config BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
         bool "Waveshare-ESP32-S3-Touch-AMOLED-1.8"
-        if (MODULE_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
+        if (BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
             rsource "./Waveshare-ESP32-S3-Touch-AMOLED-1.8/Kconfig"
         endif
 

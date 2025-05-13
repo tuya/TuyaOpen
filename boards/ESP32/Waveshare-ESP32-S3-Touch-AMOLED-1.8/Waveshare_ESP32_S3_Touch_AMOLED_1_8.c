@@ -7,12 +7,15 @@
 
 #include "tuya_cloud_types.h"
 
-#include "app_board_api.h"
+#include "tal_log.h"
+#include "tal_system.h"
 
 #include "board_config.h"
-#include "oled_display.h"
 
 #include "tdd_audio_8311_codec.h"
+
+#include "tca9554.h"
+#include "lcd_sh8601.h"
 
 /***********************************************************
 ************************macro define************************
@@ -57,32 +60,53 @@ int app_audio_driver_init(const char *name)
     return tdd_audio_8311_codec_register(name, cfg);
 }
 
-void app_display_init(void)
+int board_display_init(void)
 {
-    return;
+    int rt = 0;
+
+    rt = tca9554_init();
+    if (rt != 0) {
+        PR_ERR("tca9554_init failed");
+        return rt;
+    }
+    uint32_t in_pin_mask = (1ULL << 0);   // io_0
+    in_pin_mask |= (1ULL << 1);           // io_1
+    in_pin_mask |= (1ULL << 2);           // io_2
+    rt = tca9554_set_dir(in_pin_mask, 0); // set io_0, io_1, io_2 as output
+    if (rt != 0) {
+        PR_ERR("tca9554_set_dir failed");
+        return rt;
+    }
+    uint32_t out_pin_mask = (1ULL << 4);
+    rt = tca9554_set_dir(out_pin_mask, 1); // set io_4 as input
+    if (rt != 0) {
+        PR_ERR("tca9554_set_dir failed");
+        return rt;
+    }
+
+    tca9554_set_level(in_pin_mask, 1); // set io_0, io_1, io_2 as high
+    tal_system_sleep(100);
+    tca9554_set_level(in_pin_mask, 0); // set io_0, io_1, io_2 as low
+    tal_system_sleep(300);
+    tca9554_set_level(in_pin_mask, 1); // set io_0, io_1, io_2 as high
+
+    PR_DEBUG("tca9554_init success");
+
+    rt = lcd_sh8601_init();
+    if (rt != 0) {
+        PR_ERR("lcd_sh8601_init failed");
+        return rt;
+    }
+
+    return 0;
 }
 
-void app_display_set_status(const char *status)
+void *board_display_get_panel_io_handle(void)
 {
-    return;
+    return lcd_sh8601_get_panel_io_handle();
 }
 
-void app_display_show_notification(const char *notification)
+void *board_display_get_panel_handle(void)
 {
-    return;
-}
-
-void app_display_set_emotion(const char *emotion)
-{
-    return;
-}
-
-void app_display_set_chat_massage(CHAT_ROLE_E role, const char *content)
-{
-    return;
-}
-
-void app_display_set_wifi_status(DIS_WIFI_STATUS_E status)
-{
-    return;
+    return lcd_sh8601_get_panel_handle();
 }
