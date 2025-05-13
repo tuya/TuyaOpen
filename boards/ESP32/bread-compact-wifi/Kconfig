@@ -9,18 +9,3 @@ config BOARD_CHOICE
 config AUDIO_DRIVER_NAME
     string "the name of the audio driver"
     default "audio_driver"
-
-choice
-    prompt "OLED choice"
-    default OLED_128x32
-
-    config OLED_128x32
-        bool "OLED 128x32"
-        help
-            OLED 128x32
-
-    config OLED_128x64
-        bool "OLED 128x64"
-        help
-            OLED 128x64
-endchoice

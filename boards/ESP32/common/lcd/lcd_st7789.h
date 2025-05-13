@@ -1,12 +1,12 @@
 /**
- * @file app_board_api.h
- * @brief app_board_api module is used to
+ * @file lcd_st7789.h
+ * @brief lcd_st7789 module is used to
  * @version 0.1
- * @date 2025-04-23
+ * @date 2025-05-13
  */
 
-#ifndef __APP_BOARD_API_H__
-#define __APP_BOARD_API_H__
+#ifndef __LCD_ST7789_H__
+#define __LCD_ST7789_H__
 
 #include "tuya_cloud_types.h"
 
@@ -26,16 +26,14 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 
-/**
- * @brief Initialize the audio driver
- *
- * @param name Name of the audio driver
- * @return OPERATE_RET Initialization result, OPRT_OK indicates success
- */
-OPERATE_RET app_audio_driver_init(const char *name);
+int lcd_st7789_init(void);
+
+void *lcd_st7789_get_panel_io_handle(void);
+
+void *lcd_st7789_get_panel_handle(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __APP_BOARD_API_H__ */
+#endif /* __LCD_ST7789_H__ */

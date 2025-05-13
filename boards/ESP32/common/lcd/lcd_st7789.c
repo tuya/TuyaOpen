@@ -1,21 +1,23 @@
 /**
- * @file bread_compact_wifi.c
- * @brief bread_compact_wifi module is used to
+ * @file lcd_st7789.c
+ * @brief lcd_st7789 module is used to
  * @version 0.1
- * @date 2025-04-23
+ * @date 2025-05-13
  */
 
-#include "tuya_cloud_types.h"
-
-#include "app_board_api.h"
+#include "lcd_st7789.h"
 
 #include "board_config.h"
 
-#include "tdd_audio_no_codec.h"
+#include "esp_err.h"
+#include "esp_log.h"
 
-#include "tkl_memory.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_vendor.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lvgl_port.h"
 
-#include "oled_ssd1306.h"
+#include <driver/gpio.h>
 
 /***********************************************************
 ************************macro define************************
@@ -24,6 +26,10 @@
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+typedef struct {
+    esp_lcd_panel_io_handle_t panel_io;
+    esp_lcd_panel_handle_t panel;
+} LCD_CONFIG_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -32,32 +38,23 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+static LCD_CONFIG_T lcd_config = {0};
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
-OPERATE_RET app_audio_driver_init(const char *name)
+int lcd_st7789_init(void)
 {
-    TDD_AUDIO_NO_CODEC_T cfg = {0};
-    cfg.i2s_id = 0;
-    cfg.mic_sample_rate = 16000;
-    cfg.spk_sample_rate = 16000;
-
-    return tdd_audio_no_codec_register(name, cfg);
+    return 0;
 }
 
-int board_display_init(void)
+void *lcd_st7789_get_panel_io_handle(void)
 {
-    return oled_ssd1306_init();
+    return lcd_config.panel_io;
 }
 
-void *board_display_get_panel_io_handle(void)
+void *lcd_st7789_get_panel_handle(void)
 {
-    return oled_ssd1306_get_panel_io_handle();
-}
-
-void *board_display_get_panel_handle(void)
-{
-    return oled_ssd1306_get_panel_handle();
+    return lcd_config.panel;
 }
