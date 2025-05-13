@@ -37,15 +37,13 @@
 #endif
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-#include "tuya_display.h"
-#include "app_board_api.h"
+#include "app_display.h"
 #endif
 
 #include "app_chat_bot.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
 #include "app_system_info.h"
-#include "lang_config.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;

@@ -17,11 +17,15 @@ file(GLOB_RECURSE media_srcs "${APP_PATH}/src/ai_audio/media/*.c")
 list(APPEND APP_SRCS ${ai_audio_srcs} ${media_srcs})
 
 set(APP_INC 
-            ${APP_PATH}/assets
             ${APP_PATH}/include
             ${APP_PATH}/include/ai_audio
             ${APP_PATH}/include/ai_audio/media
 )
+
+# ESP32 cannot use app header files
+if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "ESP32")
+    list(APPEND APP_INC "${APP_PATH}/assets")
+endif()
 
 list(APPEND APP_INC "${APP_PATH}/src/minimp3")
 ########################################

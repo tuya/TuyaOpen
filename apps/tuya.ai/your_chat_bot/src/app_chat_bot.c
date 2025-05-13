@@ -14,10 +14,9 @@
 #include "tdd_button_gpio.h"
 #include "tdl_button_manage.h"
 
-#include "app_board_api.h"
+#include "app_display.h"
 #include "ai_audio.h"
 #include "app_chat_bot.h"
-#include "tuya_display.h"
 
 /***********************************************************
 ************************macro define************************

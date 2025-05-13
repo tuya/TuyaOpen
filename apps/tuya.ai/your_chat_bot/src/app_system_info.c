@@ -7,13 +7,9 @@
 
 #include "app_system_info.h"
 #include "ai_audio_player.h"
-#include "lang_config.h"
 
+#include "app_display.h"
 #include "app_chat_bot.h"
-
-#include "tuya_display.h"
-
-#include "app_board_api.h"
 
 #include "tal_api.h"
 #include "tuya_iot.h"
