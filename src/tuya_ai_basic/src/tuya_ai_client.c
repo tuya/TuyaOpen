@@ -445,7 +445,7 @@ void tuya_ai_client_start_ping(void)
     __ai_ping(NULL);
 }
 
-OPERATE_RET tuya_ai_client_init(VOID)
+OPERATE_RET tuya_ai_client_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     if (ai_basic_client) {

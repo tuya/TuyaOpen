@@ -257,7 +257,7 @@ static OPERATE_RET __ai_biz_create_task(void)
     return rt;
 }
 
-STATIC VOID __ai_biz_deinit(VOID)
+static void __ai_biz_deinit(void)
 {
     if (ai_basic_biz) {
         if (ai_basic_biz->thread) {
@@ -604,9 +604,8 @@ static OPERATE_RET __ai_parse_biz_head(AI_PACKET_PT type, char *payload, AI_BIZ_
 
 static uint8_t __ai_is_biz_pkt_vaild(AI_PACKET_PT type)
 {
-    if ((type != AI_PT_AUDIO) && (type != AI_PT_VIDEO) && (type != AI_PT_IMAGE) &&
-        (type != AI_PT_FILE) && (type != AI_PT_TEXT) && (type != AI_PT_EVENT) &&
-        (type != AI_PT_SESSION_CLOSE)) {
+    if ((type != AI_PT_AUDIO) && (type != AI_PT_VIDEO) && (type != AI_PT_IMAGE) && (type != AI_PT_FILE) &&
+        (type != AI_PT_TEXT) && (type != AI_PT_EVENT) && (type != AI_PT_SESSION_CLOSE)) {
         PR_ERR("recv data type error %d", type);
         return false;
     }
@@ -693,8 +692,8 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
         AI_PAYLOAD_HEAD_T *head = (AI_PAYLOAD_HEAD_T *)data;
         AI_PACKET_PT type = head->type;
         AI_ATTR_FLAG attr_flag = head->attribute_flag;
-    	uint32_t idx = 0, attr_len = 0;
-    	uint32_t offset = sizeof(AI_PAYLOAD_HEAD_T);
+        uint32_t idx = 0, attr_len = 0;
+        uint32_t offset = sizeof(AI_PAYLOAD_HEAD_T);
         ai_basic_biz->cb = NULL;
 
         if (!__ai_is_biz_pkt_vaild(type)) {
@@ -702,13 +701,13 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
         }
 
         AI_BIZ_ATTR_INFO_T attr_info;
-    	memset(&attr_info, 0, sizeof(AI_BIZ_ATTR_INFO_T));
+        memset(&attr_info, 0, sizeof(AI_BIZ_ATTR_INFO_T));
         attr_info.flag = attr_flag;
         attr_info.type = type;
         if (attr_flag == AI_HAS_ATTR) {
-        	memcpy(&attr_len, data + offset, sizeof(attr_len));
+            memcpy(&attr_len, data + offset, sizeof(attr_len));
             attr_len = UNI_NTOHL(attr_len);
-        	offset += sizeof(attr_len);
+            offset += sizeof(attr_len);
             attr_buf = data + offset;
             rt = __ai_parse_biz_attr(type, attr_buf, attr_len, &attr_info);
             if (OPRT_OK != rt) {
@@ -719,10 +718,10 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
 
         if (type == AI_PT_SESSION_CLOSE) {
             AI_SESSION_CLOSE_ATTR_T *close = &attr_info.value.close;
-        	return __ai_biz_session_destory(close->id, close->code, false);
+            return __ai_biz_session_destory(close->id, close->code, false);
         }
 
-    	offset += sizeof(uint32_t);
+        offset += sizeof(uint32_t);
         payload = data + offset;
 
         if (type == AI_PT_EVENT) {
@@ -735,8 +734,8 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
             return rt;
         }
 
-    uint16_t recv_id = 0;
-    memcpy(&recv_id, payload, sizeof(uint16_t));
+        uint16_t recv_id = 0;
+        memcpy(&recv_id, payload, sizeof(uint16_t));
         recv_id = UNI_NTOHS(recv_id);
         AI_PROTO_D("recv data id:%d", recv_id);
 

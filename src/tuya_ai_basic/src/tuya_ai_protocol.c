@@ -142,10 +142,8 @@ static OPERATE_RET __ai_generate_crypt_key()
     char *info = NULL;
     size_t info_len = 0;
 
-    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                      (const unsigned char *)slat, salt_len,
-                      (const unsigned char *)ikm, ikm_len,
-                      (const unsigned char *)info, info_len,
+    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), (const unsigned char *)slat, salt_len,
+                      (const unsigned char *)ikm, ikm_len, (const unsigned char *)info, info_len,
                       (unsigned char *)ai_basic_proto->crypt_key, AI_KEY_LEN);
     return rt;
 }
@@ -170,10 +168,8 @@ static OPERATE_RET __ai_generate_sign_key()
     char *info = NULL;
     size_t info_len = 0;
 
-    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                      (const unsigned char *)slat, salt_len,
-                      (const unsigned char *)ikm, ikm_len,
-                      (const unsigned char *)info, info_len,
+    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), (const unsigned char *)slat, salt_len,
+                      (const unsigned char *)ikm, ikm_len, (const unsigned char *)info, info_len,
                       (unsigned char *)ai_basic_proto->sign_key, AI_KEY_LEN);
     return rt;
 }
@@ -252,9 +248,9 @@ static OPERATE_RET __ai_basic_proto_init(void)
     if (ai_basic_proto) {
         __ai_basic_proto_reinit();
     } else {
-	    ai_basic_proto = Malloc(sizeof(AI_BASIC_PROTO_T));
+        ai_basic_proto = Malloc(sizeof(AI_BASIC_PROTO_T));
         TUYA_CHECK_NULL_RETURN(ai_basic_proto, OPRT_MALLOC_FAILED);
-	    memset(ai_basic_proto, 0, sizeof(AI_BASIC_PROTO_T));
+        memset(ai_basic_proto, 0, sizeof(AI_BASIC_PROTO_T));
         TUYA_CALL_ERR_GOTO(__ai_generate_crypt_key(), EXIT);
         TUYA_CALL_ERR_GOTO(__ai_generate_sign_key(), EXIT);
         TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&ai_basic_proto->mutex), EXIT);
@@ -965,19 +961,20 @@ void tuya_ai_free_attrs(AI_SEND_PACKET_T *pkt)
     }
 }
 
-STATIC VOID __ai_basic_reset_send_frag(AI_PACKET_PT type)
+static void __ai_basic_reset_send_frag(AI_PACKET_PT type)
 {
     if (AI_PT_IMAGE == type) {
         ai_basic_proto->send_frag_mng[0].offset = 0;
     } else if (AI_PT_FILE == type) {
-        ai_basic_proto->send_frag_mng[1].offset = 0;;
+        ai_basic_proto->send_frag_mng[1].offset = 0;
+        ;
     } else {
         PR_ERR("reset unknow type:%d", type);
         return;
     }
 }
 
-STATIC VOID __ai_basic_get_send_frag(AI_PACKET_PT type, UINT_T frag_len, UINT_T total_len, AI_FRAG_FLAG *frag_flag)
+static void __ai_basic_get_send_frag(AI_PACKET_PT type, uint32_t frag_len, uint32_t total_len, AI_FRAG_FLAG *frag_flag)
 {
     uint32_t *offset = NULL;
     uint32_t actual_frag_len = 0;
@@ -1005,7 +1002,8 @@ STATIC VOID __ai_basic_get_send_frag(AI_PACKET_PT type, UINT_T frag_len, UINT_T 
         *offset = 0;
         return;
     }
-    AI_PROTO_D("send packet offset:%d, frag_len:%d, frag:%d, total_len:%d", *offset, actual_frag_len, *frag_flag, total_len);
+    AI_PROTO_D("send packet offset:%d, frag_len:%d, frag:%d, total_len:%d", *offset, actual_frag_len, *frag_flag,
+               total_len);
     return;
 }
 
@@ -1527,8 +1525,8 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
     memcpy(packet_sign, payload + payload_len, AI_SIGN_LEN);
     if (memcmp(calc_sign, packet_sign, sizeof(calc_sign))) {
         PR_ERR("packet sign error");
-        //tuya_debug_hex_dump("calc_sign", AI_SIGN_LEN, calc_sign, AI_SIGN_LEN);
-        //tuya_debug_hex_dump("packet_sign", AI_SIGN_LEN, packet_sign, AI_SIGN_LEN);
+        // tuya_debug_hex_dump("calc_sign", AI_SIGN_LEN, calc_sign, AI_SIGN_LEN);
+        // tuya_debug_hex_dump("packet_sign", AI_SIGN_LEN, packet_sign, AI_SIGN_LEN);
         recv_len = OPRT_RESOURCE_NOT_READY;
         goto EXIT;
     }
@@ -1556,22 +1554,22 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
         }
 
         AI_PROTO_D("frag flag:%d", head->frag_flag);
-   	    AI_PROTO_D("frag mng info, flag:%d, offset:%d", ai_basic_proto->recv_frag_mng.frag_flag,
+        AI_PROTO_D("frag mng info, flag:%d, offset:%d", ai_basic_proto->recv_frag_mng.frag_flag,
                    ai_basic_proto->recv_frag_mng.offset);
         if (current_frag_flag == AI_PACKET_FRAG_START) {
-        	uint32_t origin_len = 0, frag_offset = 0, attr_len = 0, frag_total_len = 0;
+            uint32_t origin_len = 0, frag_offset = 0, attr_len = 0, frag_total_len = 0;
             AI_PAYLOAD_HEAD_T *pkt_head = (AI_PAYLOAD_HEAD_T *)decrypt_buf;
             if (pkt_head->attribute_flag == AI_HAS_ATTR) {
-            	frag_offset = sizeof(AI_PAYLOAD_HEAD_T);
-            	memcpy(&attr_len, decrypt_buf + frag_offset, sizeof(attr_len));
-            	frag_offset += sizeof(attr_len);
+                frag_offset = sizeof(AI_PAYLOAD_HEAD_T);
+                memcpy(&attr_len, decrypt_buf + frag_offset, sizeof(attr_len));
+                frag_offset += sizeof(attr_len);
                 attr_len = UNI_NTOHL(attr_len);
                 frag_offset += attr_len;
-            	memcpy(&origin_len, decrypt_buf + frag_offset, sizeof(origin_len));
+                memcpy(&origin_len, decrypt_buf + frag_offset, sizeof(origin_len));
                 origin_len = UNI_NTOHL(origin_len);
                 AI_PROTO_D("recv start frag packet with attr, origin len:%d", origin_len);
             } else {
-            	memcpy(&origin_len, decrypt_buf + sizeof(AI_PAYLOAD_HEAD_T), sizeof(origin_len));
+                memcpy(&origin_len, decrypt_buf + sizeof(AI_PAYLOAD_HEAD_T), sizeof(origin_len));
                 origin_len = UNI_NTOHL(origin_len);
                 AI_PROTO_D("recv start frag packet, origin len:%d", origin_len);
             }
@@ -1579,11 +1577,11 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
                 PR_ERR("origin len error, origin len:%d, decrypt len:%d", origin_len, decrypt_len);
                 goto EXIT;
             }
-        	memset(&ai_basic_proto->recv_frag_mng, 0, sizeof(AI_RECV_FRAG_MNG_T));
+            memset(&ai_basic_proto->recv_frag_mng, 0, sizeof(AI_RECV_FRAG_MNG_T));
             ai_basic_proto->recv_frag_mng.frag_flag = current_frag_flag;
             frag_total_len = origin_len + frag_offset + AI_ADD_PKT_LEN;
             AI_PROTO_D("frag_total_len %d", frag_total_len);
-        	ai_basic_proto->recv_frag_mng.data = Malloc(frag_total_len);
+            ai_basic_proto->recv_frag_mng.data = Malloc(frag_total_len);
             if (!ai_basic_proto->recv_frag_mng.data) {
                 PR_ERR("malloc origin data failed len:%d", decrypt_len);
                 goto EXIT;
@@ -1592,7 +1590,7 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
             memset(ai_basic_proto->recv_frag_mng.data, 0, frag_total_len);
             memcpy(ai_basic_proto->recv_frag_mng.data, decrypt_buf, decrypt_len);
             ai_basic_proto->recv_frag_mng.offset = decrypt_len;
-        	Free(decrypt_buf);
+            Free(decrypt_buf);
             decrypt_buf = NULL;
             rt = tuya_ai_basic_pkt_read(out, out_len, out_frag);
             if (rt != OPRT_OK) {
@@ -1603,7 +1601,7 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
             memcpy(ai_basic_proto->recv_frag_mng.data + ai_basic_proto->recv_frag_mng.offset, decrypt_buf, decrypt_len);
             ai_basic_proto->recv_frag_mng.frag_flag = current_frag_flag;
             ai_basic_proto->recv_frag_mng.offset += decrypt_len;
-        	Free(decrypt_buf);
+            Free(decrypt_buf);
             decrypt_buf = NULL;
             rt = tuya_ai_basic_pkt_read(out, out_len, out_frag);
             if (rt != OPRT_OK) {
@@ -1614,7 +1612,7 @@ OPERATE_RET tuya_ai_basic_pkt_read(char **out, uint32_t *out_len, AI_FRAG_FLAG *
             memcpy(ai_basic_proto->recv_frag_mng.data + ai_basic_proto->recv_frag_mng.offset, decrypt_buf, decrypt_len);
             ai_basic_proto->recv_frag_mng.frag_flag = current_frag_flag;
             ai_basic_proto->recv_frag_mng.offset += decrypt_len;
-        	Free(decrypt_buf);
+            Free(decrypt_buf);
             decrypt_buf = NULL;
             *out = ai_basic_proto->recv_frag_mng.data;
             *out_len = ai_basic_proto->recv_frag_mng.offset;
@@ -2225,8 +2223,8 @@ OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str)
     uni_random_bytes(uuid, 16);
     uuid[6] = (uuid[6] & 0x0F) | 0x40;
     uuid[8] = (uuid[8] & 0x3F) | 0x80;
-    snprintf(uuid_str, AI_UUID_V4_LEN, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x",
-             uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7],
-             uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]);
+    snprintf(uuid_str, AI_UUID_V4_LEN, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x", uuid[0],
+             uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11],
+             uuid[12], uuid[13], uuid[14], uuid[15]);
     return OPRT_OK;
 }
