@@ -11,22 +11,19 @@
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
+
 #include "tuya_cloud_types.h"
-#include "tal_api.h"
 
-#include "app_ui.h"
+#if defined(ENABLE_GUI_CHATBOT) && (ENABLE_GUI_CHATBOT == 1)
 
-#include "lang_config.h"
+#include "ui_display.h"
 
 #include "font_awesome_symbols.h"
-#include "tuya_lvgl.h"
 #include "lvgl.h"
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-LV_FONT_DECLARE(font_puhui_18_2);
-LV_FONT_DECLARE(font_awesome_16_4);
 
 /***********************************************************
 ***********************typedef define***********************
@@ -57,23 +54,13 @@ typedef struct {
 } APP_UI_T;
 
 typedef struct {
-    lv_font_t *text;
-    lv_font_t *icon;
-    lv_font_t *emoji;
-} APP_UI_FONT_T;
-
-typedef struct {
-    APP_THEME_COLORS_T theme;
     APP_UI_T ui;
-    APP_UI_FONT_T font;
+    APP_THEME_COLORS_T theme;
 
-    TIMER_ID notification_tm_id;
+    UI_FONT_T font;
+
+    lv_timer_t *notification_tm;
 } APP_CHATBOT_UI_T;
-
-typedef struct {
-    char emo_text[32];
-    char *emo_icon;
-} UI_EMOJI_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -82,21 +69,7 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
 static APP_CHATBOT_UI_T sg_ui = {0};
-
-// emoji list
-static UI_EMOJI_T sg_awesome_emo_list[] = {
-    {"SAD", FONT_AWESOME_EMOJI_SAD},           {"ANGRY", FONT_AWESOME_EMOJI_ANGRY},
-    {"NEUTRAL", FONT_AWESOME_EMOJI_NEUTRAL},   {"SURPRISE", FONT_AWESOME_EMOJI_SURPRISED},
-    {"CONFUSED", FONT_AWESOME_EMOJI_CONFUSED}, {"THINKING", FONT_AWESOME_EMOJI_THINKING},
-    {"HAPPY", FONT_AWESOME_EMOJI_HAPPY},
-};
-
-static UI_EMOJI_T sg_emo_list[] = {
-    {"SAD", "😔"},      {"ANGRY", "😠"},    {"NEUTRAL", "😶"}, {"SURPRISE", "😯"},
-    {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
-};
 
 /***********************************************************
 ***********************function define**********************
@@ -135,36 +108,36 @@ static void __ui_dark_theme_init(APP_THEME_COLORS_T *theme)
     theme->low_battery = lv_color_hex(0x333333);
 }
 
-static void __ui_font_init(APP_UI_FONT_T *font)
+int __ui_font_init(UI_FONT_T *ui_font)
 {
-    if (font == NULL) {
-        return;
+    if (ui_font == NULL) {
+        return -1;
     }
 
-    font->text = &font_puhui_18_2;
-    font->icon = &font_awesome_16_4;
+    sg_ui.font.text = ui_font->text;
+    sg_ui.font.icon = ui_font->icon;
+    sg_ui.font.emoji = ui_font->emoji;
+    sg_ui.font.emoji_list = ui_font->emoji_list;
 
-    extern const lv_font_t *font_emoji_64_init(void);
-    font->emoji = font_emoji_64_init();
-
-    if (NULL == font->emoji) {
-        PR_ERR("font_emoji_64_init failed");
-    }
+    return 0;
 }
 
-static void __ui_notification_timeout_cb(TIMER_ID timer_id, void *arg)
+static void __ui_notification_timeout_cb(lv_timer_t *timer)
 {
+    lv_timer_del(sg_ui.notification_tm);
+    sg_ui.notification_tm = NULL;
+
     lv_obj_add_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.ui.status_label, LV_OBJ_FLAG_HIDDEN);
 }
 
-void ui_frame_init(void)
+int ui_init(UI_FONT_T *ui_font)
 {
     // Theme init
     __ui_light_theme_init(&sg_ui.theme);
 
     // Font init
-    __ui_font_init(&sg_ui.font);
+    __ui_font_init(ui_font);
 
     lv_obj_t *screen = lv_screen_active();
     lv_obj_set_style_text_font(screen, sg_ui.font.text, 0);
@@ -228,7 +201,6 @@ void ui_frame_init(void)
     lv_obj_set_style_text_color(sg_ui.ui.notification_label, sg_ui.theme.text, 0);
     lv_label_set_text(sg_ui.ui.notification_label, "");
     lv_obj_add_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
-    tal_sw_timer_create(__ui_notification_timeout_cb, NULL, &sg_ui.notification_tm_id);
 
     // Status label
     sg_ui.ui.status_label = lv_label_create(sg_ui.ui.status_bar);
@@ -243,6 +215,8 @@ void ui_frame_init(void)
     lv_label_set_text(sg_ui.ui.mute_label, "");
     lv_obj_set_style_text_font(sg_ui.ui.mute_label, sg_ui.font.icon, 0);
     lv_obj_set_style_text_color(sg_ui.ui.mute_label, sg_ui.theme.text, 0);
+
+    return 0;
 }
 
 void ui_set_user_msg(const char *text)
@@ -284,14 +258,15 @@ void ui_set_emotion(const char *emotion)
         return;
     }
 
-    char *emo_icon = "😶";
-    for (int i = 0; i < sizeof(sg_emo_list) / sizeof(UI_EMOJI_T); i++) {
-        if (strcmp(emotion, sg_emo_list[i].emo_text) == 0) {
-            emo_icon = sg_emo_list[i].emo_icon;
+    char *emo_icon = sg_ui.font.emoji_list[0].emo_icon;
+    for (int i = 0; i < EMO_ICON_MAX_NUM; i++) {
+        if (strcmp(emotion, sg_ui.font.emoji_list[i].emo_text) == 0) {
+            emo_icon = sg_ui.font.emoji_list[i].emo_icon;
             break;
         }
     }
 
+    lv_obj_set_style_text_font(sg_ui.ui.emotion_label, sg_ui.font.emoji, 0);
     lv_label_set_text(sg_ui.ui.emotion_label, emo_icon);
 }
 
@@ -313,37 +288,32 @@ void ui_set_notification(const char *notification)
     }
 
     lv_label_set_text(sg_ui.ui.notification_label, notification);
-    lv_obj_set_style_text_color(sg_ui.ui.notification_label, sg_ui.theme.text, 0);
     lv_obj_add_flag(sg_ui.ui.status_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
-    tal_sw_timer_start(sg_ui.notification_tm_id, 3 * 1000, TAL_TIMER_ONCE);
+    if (NULL == sg_ui.notification_tm) {
+        sg_ui.notification_tm = lv_timer_create(__ui_notification_timeout_cb, 3000, NULL);
+    } else {
+        lv_timer_reset(sg_ui.notification_tm);
+    }
 }
 
-void ui_set_network(DIS_WIFI_STATUS_E status)
+void ui_set_network(char *wifi_icon)
 {
-    char *wifi_icon = NULL;
-
-    if (sg_ui.ui.network_label == NULL) {
+    if (sg_ui.ui.network_label == NULL || wifi_icon == NULL) {
         return;
-    }
-
-    switch (status) {
-    case DIS_WIFI_STATUS_DISCONNECTED:
-        wifi_icon = FONT_AWESOME_WIFI_OFF;
-        break;
-    case DIS_WIFI_STATUS_GOOD:
-        wifi_icon = FONT_AWESOME_WIFI;
-        break;
-    case DIS_WIFI_STATUS_FAIR:
-        wifi_icon = FONT_AWESOME_WIFI_FAIR;
-        break;
-    case DIS_WIFI_STATUS_WEAK:
-        wifi_icon = FONT_AWESOME_WIFI_WEAK;
-        break;
-    default:
-        wifi_icon = FONT_AWESOME_WIFI_OFF;
-        break;
     }
 
     lv_label_set_text(sg_ui.ui.network_label, wifi_icon);
 }
+
+void ui_set_status_bar_pad(int32_t value)
+{
+    if (sg_ui.ui.status_bar == NULL) {
+        return;
+    }
+
+    lv_obj_set_style_pad_left(sg_ui.ui.status_bar, value, 0);
+    lv_obj_set_style_pad_right(sg_ui.ui.status_bar, value, 0);
+}
+
+#endif

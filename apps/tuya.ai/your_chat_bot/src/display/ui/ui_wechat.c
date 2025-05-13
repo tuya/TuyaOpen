@@ -13,17 +13,17 @@
  */
 
 #include "tuya_cloud_types.h"
-#include "tal_api.h"
 
-#include "app_ui.h"
+#if defined(ENABLE_GUI_WECHAT) && (ENABLE_GUI_WECHAT == 1)
 
-#include "lang_config.h"
+#include "ui_display.h"
 
 #include "font_awesome_symbols.h"
-#include "tuya_lvgl.h"
 #include "lvgl.h"
 
 #include "tuya_ringbuf.h"
+#include "tkl_mutex.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -31,9 +31,6 @@
 #define STREAM_BUFF_MAX_LEN  1024
 #define STREAM_TEXT_SHOW_WORD_NUM 5
 #define ONE_WORD_MAX_LEN 4
-
-LV_FONT_DECLARE(font_puhui_18_2);
-LV_FONT_DECLARE(font_awesome_16_4);
 
 /***********************************************************
 ***********************typedef define***********************
@@ -56,35 +53,24 @@ typedef struct {
 
 typedef struct {
     bool              is_start;
-    MUTEX_HANDLE      rb_mutex;
+    TKL_MUTEX_HANDLE  rb_mutex;
     TUYA_RINGBUFF_T   text_ringbuff;
 
     lv_obj_t         *msg_cont;
     lv_obj_t         *bubble;
     lv_obj_t         *label;
 
-    lv_timer_t       *timer;      
-} APP_UI_STREAM_T;    
-
-
-typedef struct {
-    lv_font_t *text;
-    lv_font_t *icon;
-    lv_font_t *emoji;
-} APP_UI_FONT_T;
+    lv_timer_t       *timer;
+} APP_UI_STREAM_T;
 
 typedef struct {
-    APP_UI_T         ui;
-    APP_UI_FONT_T    font;
-    APP_UI_STREAM_T  stream;
+    APP_UI_T ui;
 
-    TIMER_ID         notification_tm_id;
+    UI_FONT_T font;
+	APP_UI_STREAM_T  stream;
+
+    lv_timer_t *notification_tm;
 } APP_CHATBOT_UI_T;
-
-typedef struct {
-    char emo_text[32];
-    char *emo_icon;
-} UI_EMOJI_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -95,38 +81,22 @@ typedef struct {
 ***********************************************************/
 static APP_CHATBOT_UI_T sg_ui = {0};
 
-// emoji list
-static UI_EMOJI_T sg_awesome_emo_list[] = {
-    {"SAD", FONT_AWESOME_EMOJI_SAD},           {"ANGRY", FONT_AWESOME_EMOJI_ANGRY},
-    {"NEUTRAL", FONT_AWESOME_EMOJI_NEUTRAL},   {"SURPRISE", FONT_AWESOME_EMOJI_SURPRISED},
-    {"CONFUSED", FONT_AWESOME_EMOJI_CONFUSED}, {"THINKING", FONT_AWESOME_EMOJI_THINKING},
-    {"HAPPY", FONT_AWESOME_EMOJI_HAPPY},
-};
-
-static UI_EMOJI_T sg_emo_list[] = {
-    {"SAD", "😔"},      {"ANGRY", "😠"},    {"NEUTRAL", "😶"}, {"SURPRISE", "😯"},
-    {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
-};
-
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
-static void __ui_font_init(APP_UI_FONT_T *font)
+int __ui_font_init(UI_FONT_T *ui_font)
 {
-    if (font == NULL) {
-        return;
+    if (ui_font == NULL) {
+        return -1;
     }
 
-    font->text = &font_puhui_18_2;
-    font->icon = &font_awesome_16_4;
+    sg_ui.font.text = ui_font->text;
+    sg_ui.font.icon = ui_font->icon;
+    sg_ui.font.emoji = ui_font->emoji;
+    sg_ui.font.emoji_list = ui_font->emoji_list;
 
-    extern const lv_font_t *font_emoji_32_init(void);
-    font->emoji = font_emoji_32_init();
-
-    if (NULL == font->emoji) {
-        PR_ERR("font_emoji_32_init failed");
-    }
+    return 0;
 }
 
 static void __ui_styles_init(void)
@@ -153,19 +123,22 @@ static void __ui_styles_init(void)
     lv_style_set_shadow_color(&sg_ui.ui.style_user_bubble, lv_palette_darken(LV_PALETTE_GREEN, 2));
 }
 
-static void __ui_notification_timeout_cb(TIMER_ID timer_id, void *arg)
+static void __ui_notification_timeout_cb(lv_timer_t *timer)
 {
+    lv_timer_del(sg_ui.notification_tm);
+    sg_ui.notification_tm = NULL;
+
     lv_obj_add_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.ui.status_label, LV_OBJ_FLAG_HIDDEN);
 }
 
-void ui_frame_init(void)
+int ui_init(UI_FONT_T *ui_font)
 {
     // Style init
     __ui_styles_init();
 
     // Font init
-    __ui_font_init(&sg_ui.font);
+    __ui_font_init(ui_font);
 
     lv_obj_t *screen = lv_obj_create(lv_scr_act());
     lv_obj_set_size(screen, LV_HOR_RES, LV_VER_RES);
@@ -208,7 +181,6 @@ void ui_frame_init(void)
     lv_obj_center(sg_ui.ui.notification_label);
     lv_label_set_text(sg_ui.ui.notification_label, "");
     lv_obj_add_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
-    tal_sw_timer_create(__ui_notification_timeout_cb, NULL, &sg_ui.notification_tm_id);
 
     // Emotion
     sg_ui.ui.emotion_label = lv_label_create(sg_ui.ui.status_bar);
@@ -229,7 +201,7 @@ void ui_frame_init(void)
     lv_obj_set_scrollbar_mode(sg_ui.ui.content, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_bg_opa(sg_ui.ui.content, LV_OPA_TRANSP, 0);
 
-    return;
+    return 0;
 }
 
 void ui_set_user_msg(const char *text)
@@ -346,18 +318,18 @@ static uint8_t __get_one_word_from_stream_ringbuff(APP_UI_STREAM_T *stream, char
     uint8_t get_word_num = 0, word_len = 0;
     char tmp = 0;
 
-    tal_mutex_lock(stream->rb_mutex);
+    tkl_mutex_lock(stream->rb_mutex);
     rb_used_size = tuya_ring_buff_used_size_get(stream->text_ringbuff);
-    tal_mutex_unlock(stream->rb_mutex);
+    tkl_mutex_unlock(stream->rb_mutex);
     if (0 == rb_used_size) {
         return 0;
     }
 
     //get word len
     do {
-        tal_mutex_lock(stream->rb_mutex);
+        tkl_mutex_lock(stream->rb_mutex);
         read_len = tuya_ring_buff_read(stream->text_ringbuff, &tmp, 1);
-        tal_mutex_unlock(stream->rb_mutex);
+        tkl_mutex_unlock(stream->rb_mutex);
 
         if((tmp & 0xC0) != 0x80) {
             if ((tmp & 0xE0) == 0xC0) {
@@ -383,9 +355,9 @@ static uint8_t __get_one_word_from_stream_ringbuff(APP_UI_STREAM_T *stream, char
     result[0] = tmp;
             
     if(word_len-1) {
-        tal_mutex_lock(stream->rb_mutex);
+        tkl_mutex_lock(stream->rb_mutex);
         tuya_ring_buff_read(stream->text_ringbuff, &result[1], word_len-1);
-        tal_mutex_unlock(stream->rb_mutex);  
+        tkl_mutex_unlock(stream->rb_mutex);  
     }
 
     return word_len;
@@ -420,7 +392,6 @@ static void __stream_timer_cb(lv_timer_t *lv_timer)
     word_num = __get_words_from_stream_ringbuff(stream, STREAM_TEXT_SHOW_WORD_NUM, text);
     if (0 == word_num) {
         if(false == stream->is_start) {
-            PR_NOTICE("stream stop");
             lv_timer_del(stream->timer);
             stream->timer = NULL;
         }
@@ -449,8 +420,6 @@ void ui_set_assistant_msg_stream_start(void)
         return;
     }
 
-    PR_DEBUG("ui stream start->");
-
     if(sg_ui.stream.timer) {
         lv_timer_del(sg_ui.stream.timer);
         sg_ui.stream.timer = NULL;
@@ -461,7 +430,6 @@ void ui_set_assistant_msg_stream_start(void)
     if (child_count >= MAX_MASSAGE_NUM) {
         lv_obj_t *first_child = lv_obj_get_child(sg_ui.ui.content, 0);
         if (first_child) {
-            PR_DEBUG("del child obj");
             lv_obj_del(first_child);
         }
     }    
@@ -505,7 +473,6 @@ void ui_set_assistant_msg_stream_start(void)
     if(NULL == sg_ui.stream.text_ringbuff) {
         rt = tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, OVERFLOW_PSRAM_STOP_TYPE, &sg_ui.stream.text_ringbuff);
         if(rt != OPRT_OK) {
-            PR_ERR("create ring buff failed");
             return;
         }
     }
@@ -513,22 +480,18 @@ void ui_set_assistant_msg_stream_start(void)
     tuya_ring_buff_reset(sg_ui.stream.text_ringbuff);
 
     if(sg_ui.stream.rb_mutex) {
-        rt = tal_mutex_create_init(&sg_ui.stream.rb_mutex);
+        rt = tkl_mutex_create_init(&sg_ui.stream.rb_mutex);
         if(rt != OPRT_OK) {
-            PR_ERR("create mutex failed");
             return;
         }
     }
 
     sg_ui.stream.timer = lv_timer_create(__stream_timer_cb, 1000, &sg_ui.stream);
     if(NULL == sg_ui.stream.timer) {
-        PR_ERR("Failed to create stream timer");
         return;
     }
 
     sg_ui.stream.is_start = true;
-
-    PR_DEBUG("ui stream start<-");
 }
 
 void ui_set_assistant_msg_stream_data(const char *text)
@@ -537,17 +500,15 @@ void ui_set_assistant_msg_stream_data(const char *text)
         return;
     }
 
-    tal_mutex_lock(sg_ui.stream.rb_mutex);
+    tkl_mutex_lock(sg_ui.stream.rb_mutex);
     tuya_ring_buff_write(sg_ui.stream.text_ringbuff, text, strlen(text));
-    tal_mutex_unlock(sg_ui.stream.rb_mutex);
+    tkl_mutex_unlock(sg_ui.stream.rb_mutex);
 }
 
 void ui_set_assistant_msg_stream_end(void)
 {
-    PR_DEBUG("stream write end");
     sg_ui.stream.is_start = false;
 }
-
 void ui_set_system_msg(const char *text)
 {
     if (sg_ui.ui.content == NULL) {
@@ -561,13 +522,14 @@ void ui_set_emotion(const char *emotion)
         return;
     }
 
-    char *emo_icon = "😶";
-    for (int i = 0; i < sizeof(sg_emo_list) / sizeof(UI_EMOJI_T); i++) {
-        if (strcmp(emotion, sg_emo_list[i].emo_text) == 0) {
-            emo_icon = sg_emo_list[i].emo_icon;
+    char *emo_icon = sg_ui.font.emoji_list[0].emo_icon;
+    for (int i = 0; i < EMO_ICON_MAX_NUM; i++) {
+        if (strcmp(emotion, sg_ui.font.emoji_list[i].emo_text) == 0) {
+            emo_icon = sg_ui.font.emoji_list[i].emo_icon;
             break;
         }
     }
+
     lv_obj_set_style_text_font(sg_ui.ui.emotion_label, sg_ui.font.emoji, 0);
     lv_label_set_text(sg_ui.ui.emotion_label, emo_icon);
 }
@@ -591,34 +553,30 @@ void ui_set_notification(const char *notification)
     lv_label_set_text(sg_ui.ui.notification_label, notification);
     lv_obj_add_flag(sg_ui.ui.status_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.ui.notification_label, LV_OBJ_FLAG_HIDDEN);
-    tal_sw_timer_start(sg_ui.notification_tm_id, 3 * 1000, TAL_TIMER_ONCE);
+    if (NULL == sg_ui.notification_tm) {
+        sg_ui.notification_tm = lv_timer_create(__ui_notification_timeout_cb, 3000, NULL);
+    } else {
+        lv_timer_reset(sg_ui.notification_tm);
+    }
 }
 
-void ui_set_network(DIS_WIFI_STATUS_E status)
+void ui_set_network(char *wifi_icon)
 {
-    char *wifi_icon = NULL;
-
-    if (sg_ui.ui.network_label == NULL) {
+    if (sg_ui.ui.network_label == NULL || wifi_icon == NULL) {
         return;
-    }
-
-    switch (status) {
-    case DIS_WIFI_STATUS_DISCONNECTED:
-        wifi_icon = FONT_AWESOME_WIFI_OFF;
-        break;
-    case DIS_WIFI_STATUS_GOOD:
-        wifi_icon = FONT_AWESOME_WIFI;
-        break;
-    case DIS_WIFI_STATUS_FAIR:
-        wifi_icon = FONT_AWESOME_WIFI_FAIR;
-        break;
-    case DIS_WIFI_STATUS_WEAK:
-        wifi_icon = FONT_AWESOME_WIFI_WEAK;
-        break;
-    default:
-        wifi_icon = FONT_AWESOME_WIFI_OFF;
-        break;
     }
 
     lv_label_set_text(sg_ui.ui.network_label, wifi_icon);
 }
+
+void ui_set_status_bar_pad(int32_t value)
+{
+    if (sg_ui.ui.status_bar == NULL) {
+        return;
+    }
+
+    lv_obj_set_style_pad_left(sg_ui.ui.status_bar, value, 0);
+    lv_obj_set_style_pad_right(sg_ui.ui.status_bar, value, 0);
+}
+
+#endif

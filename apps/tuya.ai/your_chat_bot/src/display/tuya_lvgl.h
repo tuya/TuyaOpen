@@ -13,7 +13,7 @@
 #ifndef __TUYA_LVGL_H__
 #define __TUYA_LVGL_H__
 
-#include "tuya_display.h"
+#include "tuya_cloud_types.h"
 
 #ifdef __cplusplus
 extern "C" {

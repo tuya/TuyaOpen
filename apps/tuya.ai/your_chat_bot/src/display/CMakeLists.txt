@@ -4,50 +4,36 @@
 #/
 if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
 
-set(APP_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+set(APP_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
-aux_source_directory(${APP_MODULE_PATH} APP_MODULE_SCRS)
+aux_source_directory(${APP_MODULE_PATH} APP_MODULE_SRCS)
+aux_source_directory(${APP_MODULE_PATH}/font FONT_SRCS)
+aux_source_directory(${APP_MODULE_PATH}/font/emoji EMOJI_SRCS)
+aux_source_directory(${APP_MODULE_PATH}/ui UI_SRCS)
 
-set(APP_MODULE_INC ${APP_MODULE_PATH})
+set(IMAGE_SRCS ${APP_MODULE_PATH}/image/TuyaOpen_img_320_480.c)
 
-list(APPEND APP_MODULE_INC ${APP_MODULE_PATH}/material)
-    
-if (CONFIG_ENABLE_GUI_WECHAT STREQUAL "y")
-    set(GUI_INC ${APP_MODULE_PATH}/gui_wechat)
-
-    aux_source_directory(${APP_MODULE_PATH}/gui_wechat GUI_SRC)
-else()
-    set(GUI_INC ${APP_MODULE_PATH}/gui_chatbot)
-
-    aux_source_directory(${APP_MODULE_PATH}/gui_chatbot GUI_SRC)
-endif()
-
-list(APPEND APP_MODULE_INC ${GUI_INC})
-list(APPEND APP_MODULE_SCRS ${GUI_SRC})
-
-aux_source_directory(${APP_MODULE_PATH}/material/emoji EMOJI_SCRS)
-
-list(APPEND APP_MODULE_SCRS
-    ${EMOJI_SCRS}
-    ${APP_MODULE_PATH}/material/font_awesome_16_4.c
-    ${APP_MODULE_PATH}/material/font_puhui_18_2.c
-    ${APP_MODULE_PATH}/material/icon_listen.c
+list(APPEND APP_MODULE_SRCS
+    ${FONT_SRCS}
+    ${EMOJI_SRCS}
+    ${IMAGE_SRCS}
+    ${UI_SRCS}
 )
 
-if (CONFIG_DISPLAY_LCD_WIDTH STREQUAL "320" AND CONFIG_DISPLAY_LCD_HEIGHT STREQUAL "480")
-    list(APPEND APP_MODULE_SCRS ${APP_MODULE_PATH}/material/TuyaOpen_img_320_480.c)
-elseif(CONFIG_DISPLAY_LCD_WIDTH STREQUAL "240" AND CONFIG_DISPLAY_LCD_HEIGHT STREQUAL "240")
-    list(APPEND APP_MODULE_SCRS ${APP_MODULE_PATH}/material/TuyaOpen_img_240_240.c)
-else()
-    message(FATAL_ERROR "Please select display gui size")
-endif()
+set(APP_MODULE_INC 
+    ${APP_MODULE_PATH}
+    ${APP_MODULE_PATH}/font
+    ${APP_MODULE_PATH}/ui
+)
+
+# message(FATAL_ERROR "APP_MODULE_SRCS: ${APP_MODULE_SRCS}")
 
 ########################################
 # Target Configure
 ########################################
 target_sources(${EXAMPLE_LIB}
     PRIVATE
-        ${APP_MODULE_SCRS}
+        ${APP_MODULE_SRCS}
     )
 
 target_include_directories(${EXAMPLE_LIB}
