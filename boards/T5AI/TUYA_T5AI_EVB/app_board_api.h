@@ -10,8 +10,6 @@
 
 #include "tuya_cloud_types.h"
 
-#include "app_display.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,12 +17,6 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-// display network status
-typedef uint8_t UI_WIFI_STATUS_E;
-#define UI_WIFI_STATUS_DISCONNECTED 0
-#define UI_WIFI_STATUS_GOOD         1
-#define UI_WIFI_STATUS_FAIR         2
-#define UI_WIFI_STATUS_WEAK         3
 
 /***********************************************************
 ***********************typedef define***********************
