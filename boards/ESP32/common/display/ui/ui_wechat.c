@@ -21,10 +21,16 @@
 #include "font_awesome_symbols.h"
 #include "lvgl.h"
 
+#include "tuya_ringbuf.h"
+#include "tkl_mutex.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define MAX_MASSAGE_NUM 20
+#define MAX_MASSAGE_NUM           20
+#define STREAM_BUFF_MAX_LEN       1024
+#define STREAM_TEXT_SHOW_WORD_NUM 5
+#define ONE_WORD_MAX_LEN          4
 
 /***********************************************************
 ***********************typedef define***********************
@@ -46,9 +52,22 @@ typedef struct {
 } APP_UI_T;
 
 typedef struct {
+    bool is_start;
+    TKL_MUTEX_HANDLE rb_mutex;
+    TUYA_RINGBUFF_T text_ringbuff;
+
+    lv_obj_t *msg_cont;
+    lv_obj_t *bubble;
+    lv_obj_t *label;
+
+    lv_timer_t *timer;
+} APP_UI_STREAM_T;
+
+typedef struct {
     APP_UI_T ui;
 
     UI_FONT_T font;
+    APP_UI_STREAM_T stream;
 
     lv_timer_t *notification_tm;
 } APP_CHATBOT_UI_T;
@@ -129,7 +148,7 @@ int ui_init(UI_FONT_T *ui_font)
     lv_obj_set_style_text_font(screen, sg_ui.font.text, 0);
     lv_obj_set_style_text_color(screen, lv_color_black(), 0);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_scroll_dir(screen, LV_DIR_NONE);
+    lv_obj_set_scroll_dir(screen, LV_DIR_VER);
 
     // Container
     sg_ui.ui.container = lv_obj_create(screen);
@@ -293,6 +312,201 @@ void ui_set_assistant_msg(const char *text)
     lv_obj_update_layout(sg_ui.ui.content);
 }
 
+static uint8_t __get_one_word_from_stream_ringbuff(APP_UI_STREAM_T *stream, char *result)
+{
+    uint32_t rb_used_size = 0, read_len = 0;
+    uint8_t get_word_num = 0, word_len = 0;
+    char tmp = 0;
+
+    tkl_mutex_lock(stream->rb_mutex);
+    rb_used_size = tuya_ring_buff_used_size_get(stream->text_ringbuff);
+    tkl_mutex_unlock(stream->rb_mutex);
+    if (0 == rb_used_size) {
+        return 0;
+    }
+
+    // get word len
+    do {
+        tkl_mutex_lock(stream->rb_mutex);
+        read_len = tuya_ring_buff_read(stream->text_ringbuff, &tmp, 1);
+        tkl_mutex_unlock(stream->rb_mutex);
+
+        if ((tmp & 0xC0) != 0x80) {
+            if ((tmp & 0xE0) == 0xC0) {
+                word_len = 2;
+            } else if ((tmp & 0xF0) == 0xE0) {
+                word_len = 3;
+            } else if ((tmp & 0xF8) == 0xF0) {
+                word_len = 4;
+            } else {
+                word_len = 1;
+            }
+            break;
+        }
+
+        tmp = 0;
+    } while (read_len);
+
+    if (0 == word_len) {
+        return 0;
+    }
+
+    // get word
+    result[0] = tmp;
+
+    if (word_len - 1) {
+        tkl_mutex_lock(stream->rb_mutex);
+        tuya_ring_buff_read(stream->text_ringbuff, &result[1], word_len - 1);
+        tkl_mutex_unlock(stream->rb_mutex);
+    }
+
+    return word_len;
+}
+
+static uint8_t __get_words_from_stream_ringbuff(APP_UI_STREAM_T *stream, uint8_t word_num, char *result)
+{
+    uint8_t word_len = 0, i = 0, get_num = 0;
+    uint32_t result_len = 0;
+
+    for (i = 0; i < word_num; i++) {
+        word_len = __get_one_word_from_stream_ringbuff(stream, &result[result_len]);
+        if (0 == word_len) {
+            break;
+        }
+        result_len += word_len;
+        get_num++;
+    }
+
+    result[result_len] = '\0';
+
+    return get_num;
+}
+
+static void __stream_timer_cb(lv_timer_t *lv_timer)
+{
+    uint8_t word_num = 0;
+    char text[STREAM_TEXT_SHOW_WORD_NUM * ONE_WORD_MAX_LEN + 1] = {0};
+    APP_UI_STREAM_T *stream = (APP_UI_STREAM_T *)lv_timer_get_user_data(lv_timer);
+
+    word_num = __get_words_from_stream_ringbuff(stream, STREAM_TEXT_SHOW_WORD_NUM, text);
+    if (0 == word_num) {
+        if (false == stream->is_start) {
+            lv_timer_del(stream->timer);
+            stream->timer = NULL;
+        }
+        return;
+    }
+
+    lv_label_ins_text(stream->label, LV_LABEL_POS_LAST, text);
+
+    lv_coord_t content_height = lv_obj_get_height(stream->msg_cont);
+    lv_coord_t height = lv_obj_get_height(sg_ui.ui.content);
+    lv_coord_t y_position = content_height;
+
+    if (content_height > height) {
+        lv_obj_scroll_to_y(sg_ui.ui.content, y_position, LV_ANIM_OFF);
+    } else {
+        lv_obj_scroll_to_view_recursive(stream->msg_cont, LV_ANIM_OFF);
+    }
+
+    lv_obj_update_layout(sg_ui.ui.content);
+}
+
+void ui_set_assistant_msg_stream_start(void)
+{
+    if (sg_ui.ui.content == NULL) {
+        return;
+    }
+
+    if (sg_ui.stream.timer) {
+        lv_timer_del(sg_ui.stream.timer);
+        sg_ui.stream.timer = NULL;
+    }
+
+    // Check if the number of messages exceeds the limit
+    uint32_t child_count = lv_obj_get_child_cnt(sg_ui.ui.content);
+    if (child_count >= MAX_MASSAGE_NUM) {
+        lv_obj_t *first_child = lv_obj_get_child(sg_ui.ui.content, 0);
+        if (first_child) {
+            lv_obj_del(first_child);
+        }
+    }
+
+    sg_ui.stream.msg_cont = lv_obj_create(sg_ui.ui.content);
+    lv_obj_remove_style_all(sg_ui.stream.msg_cont);
+    lv_obj_set_size(sg_ui.stream.msg_cont, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_ver(sg_ui.stream.msg_cont, 6, 0);
+    lv_obj_set_style_pad_column(sg_ui.stream.msg_cont, 10, 0);
+
+    lv_obj_t *avatar = lv_obj_create(sg_ui.stream.msg_cont);
+    lv_obj_set_style_text_font(avatar, sg_ui.font.icon, 0);
+    lv_obj_add_style(avatar, &sg_ui.ui.style_avatar, 0);
+    lv_obj_set_size(avatar, 40, 40);
+    lv_obj_align(avatar, LV_ALIGN_TOP_LEFT, 0, 0);
+
+    lv_obj_t *icon = lv_label_create(avatar);
+    lv_label_set_text(icon, FONT_AWESOME_USER_ROBOT);
+    lv_obj_center(icon);
+
+    sg_ui.stream.bubble = lv_obj_create(sg_ui.stream.msg_cont);
+    lv_obj_set_width(sg_ui.stream.bubble, LV_PCT(75));
+    lv_obj_set_height(sg_ui.stream.bubble, LV_SIZE_CONTENT);
+    lv_obj_add_style(sg_ui.stream.bubble, &sg_ui.ui.style_ai_bubble, 0);
+    lv_obj_align_to(sg_ui.stream.bubble, avatar, LV_ALIGN_OUT_RIGHT_TOP, 10, 0);
+
+    lv_obj_set_scrollbar_mode(sg_ui.stream.bubble, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(sg_ui.stream.bubble, LV_DIR_VER);
+
+    lv_obj_t *text_cont = lv_obj_create(sg_ui.stream.bubble);
+    lv_obj_remove_style_all(text_cont);
+    lv_obj_set_size(text_cont, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(text_cont, LV_FLEX_FLOW_COLUMN);
+
+    sg_ui.stream.label = lv_label_create(text_cont);
+    lv_label_set_text(sg_ui.stream.label, "");
+    lv_obj_set_width(sg_ui.stream.label, LV_PCT(100));
+    lv_label_set_long_mode(sg_ui.stream.label, LV_LABEL_LONG_WRAP);
+
+    OPERATE_RET rt = OPRT_OK;
+    if (NULL == sg_ui.stream.text_ringbuff) {
+        rt = tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, OVERFLOW_PSRAM_STOP_TYPE, &sg_ui.stream.text_ringbuff);
+        if (rt != OPRT_OK) {
+            return;
+        }
+    }
+
+    tuya_ring_buff_reset(sg_ui.stream.text_ringbuff);
+
+    if (sg_ui.stream.rb_mutex) {
+        rt = tkl_mutex_create_init(&sg_ui.stream.rb_mutex);
+        if (rt != OPRT_OK) {
+            return;
+        }
+    }
+
+    sg_ui.stream.timer = lv_timer_create(__stream_timer_cb, 1000, &sg_ui.stream);
+    if (NULL == sg_ui.stream.timer) {
+        return;
+    }
+
+    sg_ui.stream.is_start = true;
+}
+
+void ui_set_assistant_msg_stream_data(const char *text)
+{
+    if (false == sg_ui.stream.is_start) {
+        return;
+    }
+
+    tkl_mutex_lock(sg_ui.stream.rb_mutex);
+    tuya_ring_buff_write(sg_ui.stream.text_ringbuff, text, strlen(text));
+    tkl_mutex_unlock(sg_ui.stream.rb_mutex);
+}
+
+void ui_set_assistant_msg_stream_end(void)
+{
+    sg_ui.stream.is_start = false;
+}
 void ui_set_system_msg(const char *text)
 {
     if (sg_ui.ui.content == NULL) {
