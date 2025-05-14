@@ -19,6 +19,19 @@ config OPERATING_SYSTEM
         98      /* RTOS */
         3       /* Non-OS */
 
+config PLATFORM_FLASHSIZE_4M
+    bool
+    default n
+
+config PLATFORM_FLASHSIZE_8M
+    bool
+    default n
+
+config PLATFORM_FLASHSIZE_16M
+    bool
+    default n
+
+
 rsource "./TKL_Kconfig"
 rsource "./OS_SERVICE_Kconfig"
 

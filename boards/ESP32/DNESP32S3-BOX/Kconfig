@@ -6,6 +6,13 @@ config BOARD_CHOICE
     string
     default "DNESP32S3-BOX"
 
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO
+    select ENABLE_DISPLAY
+    select PLATFORM_FLASHSIZE_16M
+
 config AUDIO_DRIVER_NAME
     string "the name of the audio driver"
     default "audio_driver"

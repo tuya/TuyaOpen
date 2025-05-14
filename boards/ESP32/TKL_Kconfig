@@ -40,6 +40,18 @@ config ENABLE_WATCHDOG
     bool
     default y
 
+config ENABLE_AUDIO
+    bool
+    default n
+
+config ENABLE_VIDEO
+    bool
+    default n
+
+config ENABLE_DISPLAY
+    bool
+    default n
+
 config LITTLE_END
     int
     default 1
