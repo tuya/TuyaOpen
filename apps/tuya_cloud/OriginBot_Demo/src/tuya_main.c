@@ -18,6 +18,13 @@
 #include "tal_cli.h"
 #include "tuya_authorize.h"
 #include <assert.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define SOCKET_PATH "/tmp/f_value_socket"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
 #endif
@@ -33,7 +40,27 @@
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
 #endif
+void send_f_value(int f) {
+    int sockfd;
+    struct sockaddr_un addr;
 
+    
+    if ((sockfd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
+        perror("socket error");
+        return;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
+
+    // 发送 f 的值
+    if (sendto(sockfd, &f, sizeof(f), 0, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+        perror("sendto error");
+    }
+
+    close(sockfd);
+}
 /* for string to QRCode translate and print */
 extern void example_qrcode_string(const char *string, void (*fputs)(const char *str), int invert);
 
@@ -84,6 +111,7 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
  * @param event the event info
  * @return void
  */
+int f=0;
 void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 {
     PR_DEBUG("Tuya Event ID:%d(%s)", event->id, EVENT_ID2STR(event->id));
@@ -131,12 +159,71 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         for (index = 0; index < dpobj->dpscnt; index++) {
             dp_obj_t *dp = dpobj->dps + index;
             PR_DEBUG("idx:%d dpid:%d type:%d ts:%u", index, dp->id, dp->type, dp->time_stamp);
+            /*
+            if (dp->id == 105) { //此段代码注释掉了
+                f=1;
+                send_f_value(f);
+            }
+
+            if (dp->id == 108) {
+                f=0;
+                send_f_value(f);
+            }
+            if (dp->id == 109) {
+                f=-1;
+                send_f_value(f);
+            }
+            */
+            if (dp->id == 5 && dp->type == PROP_ENUM) { 
+              PR_INFO("Processing DPID 5 (Enum), received enum value: %u", dp->value.dp_enum);
+              switch (dp->value.dp_enum) {
+                  case 0: 
+            
+                      f = 2; 
+                      send_f_value(f);
+                      PR_INFO("DPID 5, Enum Value 0 ('up') -> Sent f=%d (Backward/Stop)", f);
+                      break;
+                  case 1: 
+                      f = 1;
+                      send_f_value(f);
+                      PR_INFO("DPID 5, Enum Value 1 ('down') -> Sent f=1 (Forward)");
+                      break;
+                  case 2: 
+                      f = 3; 
+                      send_f_value(f);
+                      PR_INFO("DPID 5, Enum Value 2 ('left') -> Sent f=3 (Turn Left)");
+                      break;
+                  case 3: 
+                      f = 4; 
+                      send_f_value(f);
+                      PR_INFO("DPID 5, Enum Value 3 ('right') -> Sent f=4 (Turn Right)");
+                      break;
+                  case 4: 
+                      f = 0; 
+                      send_f_value(f);
+                      PR_INFO("DPID 5, Enum Value 4 ('lens_return') -> Sent f=0 (Stop/Return)");
+                      break;
+                  default:
+                      PR_WARN("DPID 5: Received unhandled enum value: %u. Sending Stop.", dp->value.dp_enum);
+                      f = 0; // 对于未明确处理的枚举值，发送停止指令
+                      send_f_value(f);
+                      break;
+                    }
+
+            }
+            else if (dp->id == 14 && dp->type == PROP_BOOL) {
+              PR_INFO("Processing DPID 14 (Bool) for Autonomous Mode Toggle, received bool value: %d", dp->value.dp_bool);
+              send_f_value(10); 
+              PR_INFO("DPID 14 value changed -> Sent f=10 (Toggle Autonomous Mode)");
+            }
+
             switch (dp->type) {
             case PROP_BOOL: {
                 PR_DEBUG("bool value:%d", dp->value.dp_bool);
                 break;
             }
             case PROP_VALUE: {
+
                 PR_DEBUG("int value:%d", dp->value.dp_value);
                 break;
             }
@@ -156,9 +243,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
                 PR_ERR("idx:%d dpid:%d type:%d ts:%u is invalid", index, dp->id, dp->type, dp->time_stamp);
                 break;
             }
-            } // end of switch
+          } // end of switch
         }
-
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
 
     } break;
@@ -239,7 +325,6 @@ void user_main()
                                      .network_check = user_network_check,
                                  });
     assert(ret == OPRT_OK);
-
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

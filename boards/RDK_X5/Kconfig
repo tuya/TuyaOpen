@@ -1,0 +1,10 @@
+choice
+    prompt "选择一个基于 RDK_X5 的版型"
+
+    config BOARD_CHOICE_RDK_X5_ORIGINBOT
+        bool "RDK_X5_ORIGINBOT - 用于 OriginBot 的 RDK_X5 版型"  
+
+        if BOARD_CHOICE_RDK_X5_ORIGINBOT
+
+            rsource "./RDK_X5_ORIGINBOT/Kconfig" 
+endchoice
