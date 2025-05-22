@@ -12,7 +12,7 @@ config ENABLE_CHAT_BOT
 
 choice 
     prompt "choose chat mode"
-    default ENABLE_CHAT_MODE_KEY_TRIG_VAD_FREE
+    default ENABLE_CHAT_MODE_ASR_WAKEUP_FREE
 
     config ENABLE_CHAT_MODE_KEY_PRESS_HOLD_SINGEL
     bool "press and hold button to start a single conversation."   

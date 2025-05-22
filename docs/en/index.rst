@@ -9,7 +9,7 @@ TuyaOpen Development Guide
 .. raw:: html
 
     <p style="text-align: left;">
-        <a class="reference external" href="https://docs.tuyaopen.io/zh/index.html">
+        <a class="reference external" href="https://docs.tuyaopen.io/zh/master/index.html">
             [&#x04E2D;&#x02F42;]
         </a>
     </p>

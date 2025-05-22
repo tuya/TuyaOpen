@@ -10,7 +10,7 @@ TuyaOpen 开发指南
 .. raw:: html
 
     <p style="text-align: left;">
-        <a class="reference external" href="https://docs.tuyaopen.io/en/index.html">
+        <a class="reference external" href="https://docs.tuyaopen.io/en/master/index.html">
             [English]
         </a>
     </p>
