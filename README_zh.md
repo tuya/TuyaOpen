@@ -289,3 +289,6 @@ TuyaOpen 支持新增与适配新的 board，具体操作请参考 [board 新增
 ## 相关链接
 - Arduino 版 TuyaOpen：[https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
 - Luanode 版 TuyaOpen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
+
+### AWS Community Day(05/25) - 实践文档 🚀
+参加实验活动的朋友们，可以参照文档： [AWS Community Day X TuyaOpen 快速指南 / Quick Guide](https://github.com/tuya/TuyaOpen/tree/master/docs/aws-event-docs/aws-event-hands-on-guide.md).
