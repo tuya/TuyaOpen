@@ -18,6 +18,7 @@ else
     VERBOSE=""
 fi
 
+source $OPEN_SDK_ROOT/tools/completion/tos.sh
 
 # ==============================================================================
 # executing define
