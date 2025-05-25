@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 OPEN_SDK_ROOT=$(cd "$(dirname "$0")" && pwd)
-PROJECT_ROOT=$(pwd)
+PROJECT_ROOT=$(pwd -P)
 . $OPEN_SDK_ROOT/tools/util_tools.sh
 LISTMENU=$OPEN_SDK_ROOT/tools/listmenu.sh
 
