@@ -138,7 +138,7 @@ void app_system_info(void)
     // Set the initial network status
     system_info.last_net_status = UI_WIFI_STATUS_DISCONNECTED;
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_send_msg(TY_DISPLAY_TP_NETWORK, (char *)&system_info.last_net_status,
+    app_display_send_msg(TY_DISPLAY_TP_NETWORK, &system_info.last_net_status,
                          sizeof(system_info.last_net_status));
 #endif
 

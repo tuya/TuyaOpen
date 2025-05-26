@@ -282,7 +282,7 @@ OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
     TUYA_CALL_ERR_RETURN(ai_audio_input_init(&input_cfg, __ai_audio_input_inform_handle));
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
-    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_DRIVER_NAME, &audio_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_volume_set(audio_hdl, ai_audio_get_volume()));
 
     TUYA_CALL_ERR_RETURN(ai_audio_cloud_asr_init());
@@ -313,7 +313,7 @@ OPERATE_RET ai_audio_set_volume(uint8_t volume)
     TUYA_CALL_ERR_LOG(tal_kv_set(AI_AUDIO_SPEAK_VOLUME_KEY, &volume, sizeof(volume)));
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
-    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_DRIVER_NAME, &audio_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
     TUYA_CALL_ERR_LOG(tdl_audio_volume_set(audio_hdl, volume));
 
     return rt;

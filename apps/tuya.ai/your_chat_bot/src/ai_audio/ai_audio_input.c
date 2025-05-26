@@ -18,7 +18,6 @@
 #include "tkl_thread.h"
 #include "tkl_mutex.h"
 
-#include "app_board_api.h"
 #include "tdl_audio_manage.h"
 
 #include "tal_api.h"
@@ -369,7 +368,7 @@ AI_AUDIO_INPUT_EVENT_E __ai_audio_input_get_event(AI_AUDIO_INPUT_STATE_E curr_st
 static void __ai_audio_get_input_frame(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_STATUS_E status, uint8_t *data,
                                        uint32_t len)
 {
-#if defined(ENABLE_AEC) && (ENABLE_AEC == 1)
+#if defined(ENABLE_AUDIO_AEC) && (ENABLE_AUDIO_AEC == 1)
 
 #else
     if (true == ai_audio_player_is_playing()) {
@@ -434,14 +433,13 @@ static void __ai_audio_handle_frame_task(void *arg)
     }
 }
 
-static OPERATE_RET __ai_audio_input_hardware_init(void)
+static OPERATE_RET __ai_audio_input_open(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
 
-    app_audio_driver_init(AUDIO_DRIVER_NAME);
-    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_DRIVER_NAME, &audio_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_open(audio_hdl, __ai_audio_get_input_frame));
 
     PR_DEBUG("__ai_audio_input_hardware_init success");
@@ -496,7 +494,7 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg, AI_AUDIO_INOUT_INFORM
 
     TUYA_CALL_ERR_RETURN(__ai_audio_input_set_method(cfg->get_valid_data_method));
 
-    TUYA_CALL_ERR_RETURN(__ai_audio_input_hardware_init());
+    TUYA_CALL_ERR_RETURN(__ai_audio_input_open());
 
     sg_audio_input_inform_cb = cb;
 

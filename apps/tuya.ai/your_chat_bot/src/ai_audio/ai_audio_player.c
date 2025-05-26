@@ -293,7 +293,7 @@ OPERATE_RET ai_audio_player_init(void)
 
     PR_DEBUG("app player init...");
 
-    TUYA_CALL_ERR_GOTO(tdl_audio_find(AUDIO_DRIVER_NAME, &sg_player.audio_hdl), __ERR);
+    TUYA_CALL_ERR_GOTO(tdl_audio_find(AUDIO_CODEC_NAME, &sg_player.audio_hdl), __ERR);
 
     // create mutex
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_player.mutex), __ERR);
