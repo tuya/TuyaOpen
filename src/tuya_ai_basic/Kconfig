@@ -44,7 +44,7 @@ menu "AI Protocol Config"
 
     config AI_WRITE_SOCKET_BUF_SIZE
         int "AI_WRITE_SOCKET_BUF_SIZE: ai server write socket size"
-        default 0
+        default 8192
 
     config AI_HEAP_IN_PSRAM
         bool "AI_HEAP_IN_PSRAM: use psram for heap"
