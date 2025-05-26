@@ -163,7 +163,7 @@ static OPERATE_RET __app_led_init(TUYA_GPIO_NUM_E pin, TUYA_GPIO_LEVEL_E active_
     return rt;
 }
 
-static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
+static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
     static uint8_t *p_ai_text = NULL;
     static uint32_t ai_text_len = 0;
@@ -235,6 +235,7 @@ static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint
             }
         }
     } break;
+#if 0
     case AI_AUDIO_EVT_ASR_WAKEUP: {
         __app_led_set_state(1);
 
@@ -242,15 +243,45 @@ static void __app_ai_audio_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END, data, len);
 #endif
     } break;
-    case AI_AUDIO_EVT_ASR_WAKEUP_END: {
-        __app_led_set_state(0);
-    } break;
+#endif
     default:
         break;
     }
 
     return;
 }
+
+static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
+{
+
+    PR_DEBUG("ai audio state: %d", state);
+
+    switch(state) {
+    case AI_AUDIO_STATE_STANDBY:
+        __app_led_set_state(0);
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"NATURAL", strlen("NATURAL"));
+        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
+#endif
+    break;
+    case AI_AUDIO_STATE_LISTEN:
+    case AI_AUDIO_STATE_UPLOAD:
+        __app_led_set_state(1);
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)LISTENING, strlen(LISTENING));
+#endif
+    break;
+    case AI_AUDIO_STATE_AI_SPEAK:
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
+#endif
+
+    break;    
+    }
+
+
+}
+
 
 static OPERATE_RET __app_chat_bot_enable(uint8_t enable)
 {
@@ -306,16 +337,17 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
         }
     } break;
     case TDL_BUTTON_PRESS_SINGLE_CLICK: {
-        if (work_mode == APP_CHAT_MODE_KEY_TRIG_VAD_FREE) {
-            if (sg_chat_bot.is_enable) {
-                __app_chat_bot_enable(false);
-                __app_led_set_state(0);
-            } else {
-                __app_chat_bot_enable(true);
-                __app_led_set_state(1);
-            }
-            PR_DEBUG("button single click, chat bot %s", sg_chat_bot.is_enable ? "enable" : "disable");
+        if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
+            break;
         }
+
+        if (sg_chat_bot.is_enable) {
+            ai_audio_set_wakeup();
+        } else {
+            __app_chat_bot_enable(true);
+            __app_led_set_state(1);
+        }
+        PR_DEBUG("button single click");
     } break;
     default:
         break;
@@ -370,13 +402,15 @@ OPERATE_RET app_chat_bot_init(void)
     app_display_init();
 #endif
 
-    ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
-    ai_audio_cfg.inform_cb = __app_ai_audio_inform_cb;
+    ai_audio_cfg.work_mode       = sg_chat_bot.work->auido_mode;
+    ai_audio_cfg.evt_inform_cb   = __app_ai_audio_evt_inform_cb;
+    ai_audio_cfg.state_inform_cb = __app_ai_audio_state_inform_cb;
 
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
 
     // button init
     TUYA_CALL_ERR_RETURN(__app_button_init(CHAT_BUTTON_PIN, TUYA_GPIO_LEVEL_LOW));
+
     // led init
 #if !defined(PLATFORM_ESP32)
     TUYA_CALL_ERR_RETURN(__app_led_init(CHAT_INDICATE_LED_PIN, TUYA_GPIO_LEVEL_HIGH));

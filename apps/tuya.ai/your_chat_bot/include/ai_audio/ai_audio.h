@@ -28,22 +28,31 @@ typedef enum {
     AI_AUDIO_EVT_AI_REPLIES_TEXT_END,
     AI_AUDIO_EVT_AI_REPLIES_EMO,
     AI_AUDIO_EVT_ASR_WAKEUP,
-    AI_AUDIO_EVT_ASR_WAKEUP_END,
 } AI_AUDIO_EVENT_E;
+
+typedef enum {
+    AI_AUDIO_STATE_STANDBY,
+    AI_AUDIO_STATE_LISTEN,
+    AI_AUDIO_STATE_UPLOAD,
+    AI_AUDIO_STATE_AI_SPEAK,
+} AI_AUDIO_STATE_E;
 
 typedef struct {
     char *name;
     char *text;
 } AI_AUDIO_EMOTION_T;
 
-typedef void (*AI_AUDIO_INFORM_CB)(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg);
+typedef void (*AI_AUDIO_EVT_INFORM_CB)(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg);
+typedef void (*AI_AUDIO_STATE_INFORM_CB)(AI_AUDIO_STATE_E state);
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
 typedef struct {
-    AI_AUDIO_WORK_MODE_E work_mode;
-    AI_AUDIO_INFORM_CB inform_cb;
+    AI_AUDIO_WORK_MODE_E      work_mode;
+    AI_AUDIO_EVT_INFORM_CB    evt_inform_cb;
+    AI_AUDIO_STATE_INFORM_CB  state_inform_cb;
 } AI_AUDIO_CONFIG_T;
 
 /***********************************************************
@@ -88,3 +97,7 @@ OPERATE_RET ai_audio_set_open(bool is_open);
 OPERATE_RET ai_audio_manual_start_single_talk(void);
 
 OPERATE_RET ai_audio_manual_stop_single_talk(void);
+
+OPERATE_RET ai_audio_set_wakeup(void);
+
+AI_AUDIO_STATE_E ai_audio_get_state(void);

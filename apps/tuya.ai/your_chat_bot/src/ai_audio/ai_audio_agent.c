@@ -247,8 +247,6 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
         return OPRT_OK;
     }
 
-    // PR_DEBUG("content: %s", data);
-
     // parse bizType
     node = cJSON_GetObjectItem(json, "bizType");
     const char *bizType = cJSON_GetStringValue(node);

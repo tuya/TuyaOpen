@@ -594,12 +594,9 @@ OPERATE_RET ai_audio_input_restart_asr_awake_timer(void)
         return OPRT_NOT_SUPPORTED;
     }
 
-    if (false == sg_audio_input.asr.is_wakeup) {
-        PR_ERR("asr wakeup is already timeout");
-        return OPRT_COM_ERROR;
-    }
-
     tal_sw_timer_start(sg_audio_input.asr.wakeup_timer_id, ASR_WAKEUP_TIMEOUT_MS, TAL_TIMER_ONCE);
+
+    sg_audio_input.asr.is_wakeup = true;
 
     return OPRT_OK;
 }

@@ -115,70 +115,15 @@ static void __app_display_status_time_update(uint8_t force_update)
 
 static void __app_display_status_tm_cb(TIMER_ID timer_id, void *arg)
 {
-    static uint32_t display_status_cnt = 0;
     static uint32_t net_status_cnt = 0;
     static uint8_t tm_force_update = 0;
 
-    char sw_version[32] = {0};
-
     // Update the network status every 10 minutes
-    if ((net_status_cnt * DISPLAY_STATUS_TM) >= 10 * 60 * 1000 || net_status_cnt == 0) {
+    if ((net_status_cnt * DISPLAY_STATUS_TM) >=  1000 || net_status_cnt == 0) {
         __app_display_net_status_update();
         net_status_cnt = 0;
     }
     net_status_cnt++;
-
-    switch (system_info.display_status) {
-    case DISPLAY_STATUS_VERSION: {
-        snprintf(sw_version, sizeof(sw_version), "%s%s", VERSION, PROJECT_VERSION);
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)sw_version, strlen(sw_version));
-#endif
-        if (display_status_cnt * DISPLAY_STATUS_TM >= 3 * 1000) {
-            display_status_cnt = 0;
-            // After 3 seconds, switch to standby
-            system_info.display_status = DISPLAY_STATUS_STANDBY;
-        }
-    } break;
-
-    case DISPLAY_STATUS_STANDBY: {
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
-#endif
-        // After 3 seconds, switch to time
-        if (display_status_cnt * DISPLAY_STATUS_TM >= 3 * 1000) {
-            display_status_cnt = 0;
-            system_info.display_status = DISPLAY_STATUS_TIME;
-        }
-    } break;
-
-    case DISPLAY_STATUS_TIME: {
-        if (app_chat_bot_get_enable()) {
-            tm_force_update = 1;
-
-            // If the chat bot is enabled, do not update the time
-            uint8_t is_playing = ai_audio_player_is_playing();
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            if (is_playing) {
-                app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
-            } else {
-                app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)LISTENING, strlen(LISTENING));
-            }
-#endif
-        } else {
-            __app_display_status_time_update(tm_force_update);
-            if (tm_force_update) {
-                tm_force_update = 0;
-            }
-        }
-
-    } break;
-
-    default:
-        break;
-    }
-
-    display_status_cnt++;
 }
 
 void app_system_info(void)
@@ -202,9 +147,6 @@ void app_system_info(void)
     app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)INITIALIZING, strlen(INITIALIZING));
     app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"NATURAL", strlen("NATURAL"));
 #endif
-}
 
-void app_system_info_loop_start(void)
-{
     tal_sw_timer_start(system_info.display_status_tm, DISPLAY_STATUS_TM, TAL_TIMER_CYCLE);
 }
