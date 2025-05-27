@@ -7,7 +7,10 @@ file(GLOB_RECURSE AUDIO_SRCS "${COMMON_PATH}/audio/*.c")
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
 
 # add io_expander source files
-file(GLOB IO_EXPANDER_SRCS "${COMMON_PATH}/io_expander/*.c")
+file(GLOB_RECURSE IO_EXPANDER_SRCS "${COMMON_PATH}/io_expander/*.c")
+
+# add touch source files
+file(GLOB_RECURSE TOUCH_SRCS "${COMMON_PATH}/touch/*.c")
 
 set(BOARD_SRC "")
 set(BOARD_INC "${COMMON_PATH}")
@@ -17,11 +20,13 @@ if (CONFIG_ENABLE_DISPLAY)
         "${COMMON_PATH}/display/board_lvgl.c"
         "${LCD_SRCS}"
         "${IO_EXPANDER_SRCS}"
+        "${TOUCH_SRCS}"
     )
-    
+
     list(APPEND BOARD_INC
         "${COMMON_PATH}/lcd"
         "${COMMON_PATH}/io_expander"
+        "${COMMON_PATH}/touch"
     )
 endif()
 

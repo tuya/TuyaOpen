@@ -16,6 +16,7 @@
 #include "board_config.h"
 #include "tca9554.h"
 #include "lcd_sh8601.h"
+#include "touch_ft5x06.h"
 
 /***********************************************************
 ************************macro define************************
@@ -67,7 +68,7 @@ static OPERATE_RET __board_register_audio(void)
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void)
@@ -117,6 +118,14 @@ int board_display_init(void)
         return rt;
     }
 
+#if defined(LVGL_ENABLE_TOUCH) && LVGL_ENABLE_TOUCH
+    rt = touch_ft5x06_init();
+    if (rt != 0) {
+        PR_ERR("touch_ft5x06_init failed");
+        return rt;
+    }
+#endif // LVGL_ENABLE_TOUCH
+
     return 0;
 }
 
@@ -128,4 +137,9 @@ void *board_display_get_panel_io_handle(void)
 void *board_display_get_panel_handle(void)
 {
     return lcd_sh8601_get_panel_handle();
+}
+
+void *board_touch_get_handle(void)
+{
+    return touch_ft5x06_get_handle();
 }

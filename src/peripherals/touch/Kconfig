@@ -1,5 +1,6 @@
 
 config ENABLE_TOUCH_DRIVER
+    depends on !ENABLE_PLATFORM_LVGL
     bool "enable touch driver"
     default n
 

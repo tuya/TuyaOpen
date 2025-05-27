@@ -4,14 +4,13 @@ config ENABLE_LIBLVGL
     default n
 
 if (ENABLE_LIBLVGL)
+    config LVGL_ENABLE_TOUCH
+        bool "enable lvgl touch"
+        default n
+
     if (!ENABLE_PLATFORM_LVGL)
         config ENABLE_LVGL_DEMO
             bool "enable lvgl demo"
-            default n
-
-        config LVGL_ENABLE_TOUCH
-            bool "enable lvgl touch"
-            select ENABLE_TOUCH_DRIVER
             default n
 
         config LVGL_ENABLE_ENCODER

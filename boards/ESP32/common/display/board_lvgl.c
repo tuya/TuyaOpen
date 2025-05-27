@@ -11,6 +11,7 @@
  *
  */
 
+#include "tuya_cloud_types.h"
 #include "board_config.h"
 
 #include "esp_err.h"
@@ -65,6 +66,7 @@ OPERATE_RET tuya_lvgl_init(void)
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
 
     lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    port_cfg.task_stack = 8 * 1024;
     port_cfg.task_priority = 1;
     port_cfg.timer_period_ms = 50;
     lvgl_port_init(&port_cfg);
@@ -89,7 +91,7 @@ OPERATE_RET tuya_lvgl_init(void)
         .flags =
             {
                 .buff_dma = DISPLAY_BUFF_DMA,
-                .buff_spiram = 0,
+                .buff_spiram = DISPLAY_BUFF_SPIRAM,
                 .sw_rotate = 0,
                 .swap_bytes = DISPLAY_SWAP_BYTES,
                 .full_refresh = 0,
@@ -102,6 +104,21 @@ OPERATE_RET tuya_lvgl_init(void)
         return OPRT_COM_ERROR;
     }
     ESP_LOGI(TAG, "LVGL display added successfully");
+
+#if defined(LVGL_ENABLE_TOUCH) && LVGL_ENABLE_TOUCH
+    esp_lcd_touch_handle_t tp_handle = (esp_lcd_touch_handle_t)board_touch_get_handle();
+    if (NULL == tp_handle) {
+        ESP_LOGE(TAG, "Failed to get touch handle");
+        return OPRT_COM_ERROR;
+    }
+
+    const lvgl_port_touch_cfg_t touch_cfg = {
+        .disp = lv_display_get_default(),
+        .handle = tp_handle,
+    };
+    lvgl_port_add_touch(&touch_cfg);
+    ESP_LOGI(TAG, "Touch panel initialized successfully");
+#endif // LVGL_ENABLE_TOUCH
 
     return rt;
 }
