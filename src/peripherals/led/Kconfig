@@ -1,0 +1,29 @@
+config ENABLE_LED
+    bool "enable led"
+    default n
+
+if (ENABLE_LED)
+    config LED_NUM
+        int "the num of led"
+        range 1 4
+        default 1
+
+    config LED_NAME
+        string "the name of led 1"
+        default "led"
+
+    config LED_NAME_2
+        string "the name of led 2"
+        default "led2"
+        depends on (LED_NUM > 1) 
+
+    config LED_NAME_3
+        string "the name of led 3"
+        default "led3"
+        depends on (LED_NUM > 2)  
+        
+    config LED_NAME_2
+        string "the name of led 4"
+        default "led4"
+        depends on (LED_NUM > 3)           
+endif

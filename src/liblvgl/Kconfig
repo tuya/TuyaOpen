@@ -1,5 +1,6 @@
 config ENABLE_LIBLVGL
     bool "configure lvgl"
+    select ENABLE_DISPLAY_DRIVER if (!ENABLE_PLATFORM_LVGL)
     default n
 
 if (ENABLE_LIBLVGL)

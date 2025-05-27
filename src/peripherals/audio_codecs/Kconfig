@@ -1,0 +1,19 @@
+config ENABLE_AUDIO_CODECS
+    bool "enable audio codecs"
+    default n
+
+if (ENABLE_AUDIO_CODECS)
+    config AUDIO_CODECS_NUM
+        int "the num of audio codecs"
+        range 1 1
+        default 1   
+
+    config AUDIO_CODEC_NAME
+        string "the name of audio codec"
+        default "audio_codec"
+
+    config ENABLE_AUDIO_AEC
+        bool "audio support AEC"
+        default n
+
+endif

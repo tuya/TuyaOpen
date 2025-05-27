@@ -1,4 +1,7 @@
 menu "configure device driver"
+    rsource "button/Kconfig"
+    rsource "led/Kconfig"
+    rsource "audio_codecs/Kconfig"
     rsource "display/Kconfig"
     rsource "touch/Kconfig"
     rsource "encoder/Kconfig"

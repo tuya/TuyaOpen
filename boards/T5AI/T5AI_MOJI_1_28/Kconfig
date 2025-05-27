@@ -4,12 +4,12 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "TUYA_T5AI_EVB"
+    default "T5AI_MOJI_1_28"
 
 config BOARD_CONFIG
     bool
     default y
     select ENABLE_AUDIO_CODECS
-    select ENABLE_AUDIO_AEC
     select ENABLE_LED
     select ENABLE_BUTTON
+

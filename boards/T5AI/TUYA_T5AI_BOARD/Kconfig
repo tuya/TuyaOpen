@@ -6,6 +6,10 @@ config BOARD_CHOICE
     string
     default "TUYA_T5AI_BOARD"
 
-config AUDIO_DRIVER_NAME
-    string "the name of the audio driver"
-    default "audio_driver"
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_LED
+    select ENABLE_BUTTON
+
