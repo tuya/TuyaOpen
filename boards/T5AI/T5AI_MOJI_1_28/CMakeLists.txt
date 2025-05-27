@@ -3,23 +3,17 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_LEDS_PIXEL_DRIVER STREQUAL "y")
 # MODULE_PATH
-set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-file(GLOB_RECURSE LIB_SRCS 
-    "${MODULE_PATH}/tdd_leds_pixel/src/*.c"
-    "${MODULE_PATH}/tdl_leds_pixel/src/*.c")
+aux_source_directory(${MODULE_PATH} LIB_SRCS)
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC 
-        ${MODULE_PATH}/tdd_leds_pixel/include
-        ${MODULE_PATH}/tdl_leds_pixel/include
-    )
+set(LIB_PUBLIC_INC ${MODULE_PATH})
 
 
 ########################################
@@ -48,5 +42,3 @@ list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
-
-endif()

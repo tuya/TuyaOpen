@@ -36,53 +36,53 @@ rsource "./TKL_Kconfig"
 rsource "./OS_SERVICE_Kconfig"
 
 choice
-    prompt "Choice a module"
+    prompt "Choice a board"
 
-    config MODULE_CHOICE_ESP32
+    config BOARD_CHOICE_ESP32_MODULE
         bool "ESP32"
-        if (MODULE_CHOICE_ESP32)
+        if (BOARD_CHOICE_ESP32_MODULE)
             rsource "./ESP32/Kconfig"
         endif
 
-    config MODULE_CHOICE_ESP32_C3
+    config BOARD_CHOICE_ESP32_C3
         bool "ESP32-C3"
-        if (MODULE_CHOICE_ESP32_C3)
+        if (BOARD_CHOICE_ESP32_C3)
             rsource "./ESP32-C3/Kconfig"
         endif
 
-    config MODULE_CHOICE_ESP32_S3
+    config BOARD_CHOICE_ESP32_S3
         bool "ESP32-S3"
-        if (MODULE_CHOICE_ESP32_S3)
+        if (BOARD_CHOICE_ESP32_S3)
             rsource "./ESP32-S3/Kconfig"
         endif
 
     config BOARD_CHOICE_BREAD_COMPACT_WIFI
-        bool "bread-compact-wifi"
+        bool "ESP32S3_BREAD_COMPACT_WIFI"
         if (BOARD_CHOICE_BREAD_COMPACT_WIFI)
-            rsource "./bread-compact-wifi/Kconfig"
+            rsource "./ESP32S3_BREAD_COMPACT_WIFI/Kconfig"
         endif
 
     config BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI
-        bool "Xingzhi-Cube-0.96-OLED-WiFi"
+        bool "XINGZHI-CUDE-0.96-OLED-WIFI"
         if (BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
-            rsource "./xingzhi-cube-0.96oled-wifi/Kconfig"
+            rsource "./XINGZHI-CUDE-0.96-OLED-WIFI/Kconfig"
         endif
 
     config BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
-        bool "Waveshare-ESP32-S3-Touch-AMOLED-1.8"
+        bool "WAVESHARE-ESP32-S3-Touch-AMOLED-1.8"
         if (BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
-            rsource "./Waveshare-ESP32-S3-Touch-AMOLED-1.8/Kconfig"
+            rsource "./WAVESHARE-ESP32-S3-Touch-AMOLED-1.8/Kconfig"
         endif
 
-    config MODULE_CHOICE_DNESP32S3_BOX
+    config BOARD_CHOICE_DNESP32S3_BOX
         bool "DNESP32S3-BOX"
-        if (MODULE_CHOICE_DNESP32S3_BOX)
+        if (BOARD_CHOICE_DNESP32S3_BOX)
             rsource "./DNESP32S3-BOX/Kconfig"
         endif
 
-    config MODULE_CHOICE_DNESP32S3
+    config BOARD_CHOICE_DNESP32S3
         bool "DNESP32S3"
-        if (MODULE_CHOICE_DNESP32S3)
+        if (BOARD_CHOICE_DNESP32S3)
             rsource "./DNESP32S3/Kconfig"
         endif
 endchoice

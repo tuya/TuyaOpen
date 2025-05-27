@@ -38,4 +38,10 @@ choice
         if (BOARD_CHOICE_TUYA_T5AI_MINI)
             rsource "./TUYA_T5AI_MINI/Kconfig"
         endif
+
+    config BOARD_CHOICE_T5AI_MOJI_1_28
+        bool "T5AI_MOJI_1_28"
+        if (BOARD_CHOICE_T5AI_MOJI_1_28)
+            rsource "./T5AI_MOJI_1_28/Kconfig"
+        endif
 endchoice

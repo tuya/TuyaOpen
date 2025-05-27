@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_LEDS_PIXEL_DRIVER STREQUAL "y")
+if (CONFIG_ENABLE_LED STREQUAL "y")
 # MODULE_PATH
 set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -12,15 +12,18 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
 file(GLOB_RECURSE LIB_SRCS 
-    "${MODULE_PATH}/tdd_leds_pixel/src/*.c"
-    "${MODULE_PATH}/tdl_leds_pixel/src/*.c")
+    "${MODULE_PATH}/tdl_led/src/*.c")
+
+if (CONFIG_ENABLE_GPIO STREQUAL "y")    
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_led/src/tdd_led_gpio.c)
+endif() 
+
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
-        ${MODULE_PATH}/tdd_leds_pixel/include
-        ${MODULE_PATH}/tdl_leds_pixel/include
+    ${MODULE_PATH}/tdl_led/include
+    ${MODULE_PATH}/tdd_led/include
     )
-
 
 ########################################
 # Target Configure
