@@ -16,7 +16,8 @@ Through this engaging 15-minute hands-on session, you will learn how to empower 
 
 ## 步骤指南 / Step-by-Step Guide
 ## Step 1：打开 TuyaOpen 仓库 Open the TuyaOpen Repository
-- 访问仓库，克隆仓库 Clone this repository: [https://github.com/tuya/TuyaOpen/](https://github.com/tuya/TuyaOpen/)
+
+- 访问仓库地址 Visit the repository: [https://tinyurl.com/mbdbe7zb](https://tinyurl.com/mbdbe7zb)
 
 ## Step 2：阅读操作手册 Follow through the Manual
 
