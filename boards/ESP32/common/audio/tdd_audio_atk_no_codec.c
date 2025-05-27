@@ -58,7 +58,8 @@ static i2c_master_dev_handle_t i2c_device_ = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void InitializeCodecI2c(const TDD_AUDIO_ATK_NO_CODEC_T *i2s_config) {
+static void InitializeCodecI2c(const TDD_AUDIO_ATK_NO_CODEC_T *i2s_config)
+{
     // Initialize I2C peripheral
     i2c_master_bus_config_t i2c_bus_cfg = {
         .i2c_port = i2s_config->i2c_id,
@@ -68,25 +69,29 @@ static void InitializeCodecI2c(const TDD_AUDIO_ATK_NO_CODEC_T *i2s_config) {
         .glitch_ignore_cnt = 7,
         .intr_priority = 0,
         .trans_queue_depth = 0,
-        .flags = {
-            .enable_internal_pullup = 1,
-        },
+        .flags =
+            {
+                .enable_internal_pullup = 1,
+            },
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &codec_i2c_bus_));
 }
 
-static void __WriteReg(uint8_t reg, uint8_t value) {
+static void __WriteReg(uint8_t reg, uint8_t value)
+{
     uint8_t buffer[2] = {reg, value};
     ESP_ERROR_CHECK(i2c_master_transmit(i2c_device_, buffer, 2, 100));
 }
 
-static uint8_t __ReadReg(uint8_t reg) {
+static uint8_t __ReadReg(uint8_t reg)
+{
     uint8_t buffer[1];
     ESP_ERROR_CHECK(i2c_master_transmit_receive(i2c_device_, &reg, 1, buffer, 1, 100));
     return buffer[0];
 }
 
-static void __SetOutputState(uint8_t bit, uint8_t level) {
+static void __SetOutputState(uint8_t bit, uint8_t level)
+{
     uint16_t data;
     if (bit < 8) {
         data = __ReadReg(0x02);
@@ -111,9 +116,10 @@ static void xl9555_in_setup(i2c_master_bus_handle_t i2c_bus, uint8_t addr)
         .device_address = addr,
         .scl_speed_hz = 400 * 1000,
         .scl_wait_us = 0,
-        .flags = {
-            .disable_ack_check = 0,
-        },
+        .flags =
+            {
+                .disable_ack_check = 0,
+            },
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus, &i2c_device_cfg, &i2c_device_));
     assert(i2c_device_ != NULL);
@@ -128,13 +134,13 @@ static void xl9555_in_setup(i2c_master_bus_handle_t i2c_bus, uint8_t addr)
     __SetOutputState(7, 1);
 }
 
-static void SetOutputVolume(int volume) {
+static void SetOutputVolume(int volume)
+{
     output_volume_ = volume;
 }
 
-static void CreateDuplexChannels(
-    gpio_num_t mclk, gpio_num_t bclk, gpio_num_t ws,
-    gpio_num_t dout, gpio_num_t din, uint32_t dma_desc_num, uint32_t dma_frame_num)
+static void CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gpio_num_t ws, gpio_num_t dout, gpio_num_t din,
+                                 uint32_t dma_desc_num, uint32_t dma_frame_num)
 {
     i2s_chan_config_t chan_cfg = {
         .id = I2S_NUM_0,
@@ -147,42 +153,34 @@ static void CreateDuplexChannels(
     };
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_handle_, &rx_handle_));
 
-    i2s_std_config_t std_cfg = {
-        .clk_cfg = {
-            .sample_rate_hz = (uint32_t)output_sample_rate_,
-            .clk_src = I2S_CLK_SRC_DEFAULT,
-            .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-			#ifdef   I2S_HW_VERSION_2
-				.ext_clk_freq_hz = 0,
-			#endif
-        },
-        .slot_cfg = {
-            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
-            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
-            .slot_mode = I2S_SLOT_MODE_STEREO,
-            .slot_mask = I2S_STD_SLOT_BOTH,
-            .ws_width = I2S_DATA_BIT_WIDTH_16BIT,
-            .ws_pol = false,
-            .bit_shift = true,
-            #ifdef   I2S_HW_VERSION_2
-                .left_align = true,
-                .big_endian = false,
-                .bit_order_lsb = false
-            #endif
-        },
-        .gpio_cfg = {
-            .mclk = mclk,
-            .bclk = bclk,
-            .ws = ws,
-            .dout = dout,
-            .din = din,
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv = false
-            }
-        }
-    };
+    i2s_std_config_t std_cfg = {.clk_cfg =
+                                    {
+                                        .sample_rate_hz = (uint32_t)output_sample_rate_,
+                                        .clk_src = I2S_CLK_SRC_DEFAULT,
+                                        .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+#ifdef I2S_HW_VERSION_2
+                                        .ext_clk_freq_hz = 0,
+#endif
+                                    },
+                                .slot_cfg = {.data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+                                             .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+                                             .slot_mode = I2S_SLOT_MODE_STEREO,
+                                             .slot_mask = I2S_STD_SLOT_BOTH,
+                                             .ws_width = I2S_DATA_BIT_WIDTH_16BIT,
+                                             .ws_pol = false,
+                                             .bit_shift = true,
+#ifdef I2S_HW_VERSION_2
+                                             .left_align = true,
+                                             .big_endian = false,
+                                             .bit_order_lsb = false
+#endif
+                                },
+                                .gpio_cfg = {.mclk = mclk,
+                                             .bclk = bclk,
+                                             .ws = ws,
+                                             .dout = dout,
+                                             .din = din,
+                                             .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false}}};
 
     esp_err_t esp_rt = i2s_channel_init_std_mode(tx_handle_, &std_cfg);
     if ((esp_rt != ESP_OK) || (NULL == tx_handle_)) {
@@ -216,18 +214,15 @@ OPERATE_RET atk_no_codec_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_ATK_NO_COD
 
     InitializeCodecI2c(i2s_config);
     xl9555_in_setup(codec_i2c_bus_, 0x20);
-    CreateDuplexChannels(
-        i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io,
-        i2s_config->i2s_do_io, i2s_config->i2s_di_io,
-        i2s_config->dma_desc_num, i2s_config->dma_frame_num
-    );
+    CreateDuplexChannels(i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io, i2s_config->i2s_do_io,
+                         i2s_config->i2s_di_io, i2s_config->dma_desc_num, i2s_config->dma_frame_num);
 
     ESP_ERROR_CHECK(i2s_channel_enable(tx_handle_));
     ESP_ERROR_CHECK(i2s_channel_enable(rx_handle_));
     return rt;
 }
 
-static int atk_no_codec_write(const int16_t* data, int samples)
+static int atk_no_codec_write(const int16_t *data, int samples)
 {
     if (NULL == tx_handle_) {
         PR_ERR("atk_no_codec has not been initialized yet.");
@@ -264,7 +259,8 @@ static int atk_no_codec_write(const int16_t* data, int samples)
     return bytes_written / sizeof(int32_t);
 }
 
-static int atk_no_codec_read(int16_t* dest, int samples) {
+static int atk_no_codec_read(int16_t *dest, int samples)
+{
     if (NULL == rx_handle_) {
         PR_ERR("atk_no_codec has not been initialized yet.");
         return 0;
@@ -302,7 +298,7 @@ static void atk_no_codec_read_task(void *args)
     for (;;) {
         // Read data from I2S
         uint32_t recv_len = hdl->data_buf_len / sizeof(int16_t);
-        int data_len = atk_no_codec_read((int16_t*)(hdl->data_buf), recv_len);
+        int data_len = atk_no_codec_read((int16_t *)(hdl->data_buf), recv_len);
         if (data_len <= 0) {
             PR_ERR("I2S read failed");
             tal_system_sleep(I2S_READ_TIME_MS);
@@ -312,8 +308,7 @@ static void atk_no_codec_read_task(void *args)
         if (hdl->mic_cb) {
             // Call the callback function with the read data
             int bytes_read = data_len * sizeof(int16_t);
-            hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf,
-                        bytes_read);
+            hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, bytes_read);
         }
 
         tal_system_sleep(I2S_READ_TIME_MS);
@@ -355,7 +350,7 @@ static OPERATE_RET __tdd_atk_no_codec_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "atk_no_codec_read",
-        .stackDepth = 8 * 1024,
+        .stackDepth = 3 * 1024,
         .priority = THREAD_PRIO_1,
     };
     PR_DEBUG("I2S read task args: %p", hdl);
@@ -383,7 +378,7 @@ static OPERATE_RET __tdd_atk_no_codec_play(TDD_AUDIO_HANDLE_T handle, uint8_t *d
 
     uint32_t send_len = len / sizeof(int16_t);
 
-    int write_len = atk_no_codec_write((const int16_t*)data, send_len);
+    int write_len = atk_no_codec_write((const int16_t *)data, send_len);
 
     tal_mutex_unlock(hdl->mutex_play);
 
@@ -462,5 +457,3 @@ __ERR:
 
     return rt;
 }
-
-

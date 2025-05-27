@@ -48,7 +48,7 @@ static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 
-static audio_codec_gpio_if_t* gpio_if_ = NULL;
+static audio_codec_gpio_if_t *gpio_if_ = NULL;
 
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
@@ -57,8 +57,8 @@ static esp_codec_dev_handle_t input_dev_ = NULL;
 ***********************function define**********************
 ***********************************************************/
 
-
-static void enable_input_device(bool enable) {
+static void enable_input_device(bool enable)
+{
     if (enable) {
         esp_codec_dev_sample_info_t fs = {
             .bits_per_sample = 16,
@@ -74,7 +74,8 @@ static void enable_input_device(bool enable) {
     }
 }
 
-static void set_output_volume(int volume) {
+static void set_output_volume(int volume)
+{
     ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, volume));
 }
 
@@ -122,7 +123,7 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
         .rx_handle = cfg->i2s_rx_handle,
         .tx_handle = cfg->i2s_tx_handle,
     };
-    const audio_codec_data_if_t* data_if = audio_codec_new_i2s_data(&i2s_cfg);
+    const audio_codec_data_if_t *data_if = audio_codec_new_i2s_data(&i2s_cfg);
     assert(data_if != NULL);
 
     audio_codec_i2c_cfg_t i2c_cfg = {
@@ -130,7 +131,7 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
         .addr = cfg->es8388_addr,
         .bus_handle = cfg->i2c_handle,
     };
-    const audio_codec_ctrl_if_t* ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
+    const audio_codec_ctrl_if_t *ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
     assert(ctrl_if != NULL);
 
     audio_codec_gpio_if_t *gpio_if = NULL;
@@ -177,7 +178,7 @@ static OPERATE_RET tkl_i2s_es8388_send(void *buff, uint32_t len)
 {
     // len -> data len
     esp_err_t ret = ESP_OK;
-    ret = esp_codec_dev_write(output_dev_, (void*)buff, len);
+    ret = esp_codec_dev_write(output_dev_, (void *)buff, len);
     if (ret != ESP_OK) {
         PR_ERR("i2s write failed: %d", ret);
         return OPRT_COM_ERROR;
@@ -190,7 +191,7 @@ static int tkl_i2s_es8388_recv(void *buff, uint32_t len)
 {
     // len -> data len
     esp_err_t ret = ESP_OK;
-    ret = esp_codec_dev_read(input_dev_, (void*)buff, len);
+    ret = esp_codec_dev_read(input_dev_, (void *)buff, len);
     if (ret != ESP_OK) {
         PR_ERR("i2s read failed: %d", ret);
         return 0;
@@ -217,8 +218,7 @@ static void esp32_i2s_es8388_read_task(void *args)
 
         if (hdl->mic_cb) {
             // Call the callback function with the read data
-            hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf,
-                data_len);
+            hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, data_len);
         }
 
         tal_system_sleep(I2S_READ_TIME_MS);
@@ -260,7 +260,7 @@ static OPERATE_RET __tdd_audio_esp_i2s_es8388_open(TDD_AUDIO_HANDLE_T handle, TD
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "esp32_i2s_es8388_read",
-        .stackDepth = 8 * 1024,
+        .stackDepth = 3 * 1024,
         .priority = THREAD_PRIO_1,
     };
     PR_DEBUG("I2S es8388 read task args: %p", hdl);

@@ -362,7 +362,7 @@ static OPERATE_RET __tdd_audio_esp_i2s_8311_open(TDD_AUDIO_HANDLE_T handle, TDL_
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "esp32_i2s_8311_read",
-        .stackDepth = 8 * 1024,
+        .stackDepth = 3 * 1024,
         .priority = THREAD_PRIO_1,
     };
     PR_DEBUG("I2S 8311 read task args: %p", hdl);
