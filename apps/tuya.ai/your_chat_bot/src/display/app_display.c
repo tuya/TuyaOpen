@@ -93,30 +93,34 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
 #if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
      defined(BOARD_CHOICE_DNESP32S3_BOX))
 #if defined(ENABLE_GUI_WECHAT)
-    ui_font->text  = (lv_font_t *)&font_puhui_18_2;
-    ui_font->icon  = (lv_font_t *)&font_awesome_16_4;
+    ui_font->text = (lv_font_t *)&font_puhui_18_2;
+    ui_font->icon = (lv_font_t *)&font_awesome_16_4;
     ui_font->emoji = (lv_font_t *)font_emoji_32_init();
     ui_font->emoji_list = sg_emo_list;
 #elif defined(ENABLE_GUI_CHATBOT)
-    ui_font->text  = (lv_font_t *)&font_puhui_18_2;
-    ui_font->icon  = (lv_font_t *)&font_awesome_16_4;
+    ui_font->text = (lv_font_t *)&font_puhui_18_2;
+    ui_font->icon = (lv_font_t *)&font_awesome_16_4;
     ui_font->emoji = (lv_font_t *)font_emoji_64_init();
     ui_font->emoji_list = sg_emo_list;
 #endif
 #elif defined(BOARD_CHOICE_BREAD_COMPACT_WIFI)
-    ui_font->text  = (lv_font_t *)&font_puhui_14_1;
-    ui_font->icon  = (lv_font_t *)&font_awesome_14_1;
+    ui_font->text = (lv_font_t *)&font_puhui_14_1;
+    ui_font->icon = (lv_font_t *)&font_awesome_14_1;
     ui_font->emoji = (lv_font_t *)&font_awesome_30_1;
     ui_font->emoji_list = sg_awesome_emo_list;
 #elif defined(BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
-    ui_font->text  = (lv_font_t *)&font_puhui_14_1;
-    ui_font->icon  = (lv_font_t *)&font_awesome_14_1;
+    ui_font->text = (lv_font_t *)&font_puhui_14_1;
+    ui_font->icon = (lv_font_t *)&font_awesome_14_1;
     ui_font->emoji = (lv_font_t *)&font_awesome_30_1;
     ui_font->emoji_list = sg_awesome_emo_list;
 #elif defined(BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
-    ui_font->text  = (lv_font_t *)&font_puhui_30_4;
-    ui_font->icon  = (lv_font_t *)&font_awesome_30_4;
-    ui_font->emoji = (lv_font_t *)font_emoji_64_init();
+    ui_font->text = (lv_font_t *)&font_puhui_30_4;
+    ui_font->icon = (lv_font_t *)&font_awesome_30_4;
+#if defined(ENABLE_GUI_WECHAT)
+    ui_font->emoji = font_emoji_32_init();
+#else
+    ui_font->emoji = font_emoji_64_init();
+#endif
     ui_font->emoji_list = sg_emo_list;
 #else
 #error "Please define the font for your board"

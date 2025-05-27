@@ -5,7 +5,6 @@
  * @date 2025-05-12
  */
 
-
 #include "board_config.h"
 
 #if defined(BOARD_DISPLAY_TYPE) && (BOARD_DISPLAY_TYPE == DISPLAY_TYPE_LCD_SH8601)
@@ -74,7 +73,7 @@ static int __lcd_spi_init(void)
     buscfg.data1_io_num = SPI_MISO_IO;
     buscfg.data2_io_num = SPI_DATA2_IO;
     buscfg.data3_io_num = SPI_DATA3_IO;
-    // buscfg.max_transfer_sz = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t);
+    buscfg.max_transfer_sz = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t);
     buscfg.flags = SPICOMMON_BUSFLAG_QUAD;
 
     esp_rt = spi_bus_initialize(SPI_NUM, &buscfg, SPI_DMA_CH_AUTO);

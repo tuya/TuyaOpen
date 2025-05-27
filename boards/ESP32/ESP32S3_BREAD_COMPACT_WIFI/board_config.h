@@ -25,26 +25,14 @@ extern "C" {
 #define OLED_I2C_SCL (42)
 #define OLED_I2C_SDA (41)
 
-#if defined(OLED_SSD1306_128X64) && (OLED_SSD1306_128X64 == 1)
-#define OLED_WIDTH  (128)
-#define OLED_HEIGHT (64)
-#else
 #define OLED_WIDTH  (128)
 #define OLED_HEIGHT (32)
-#endif
-
 /* display */
 #define DISPLAY_TYPE_UNKNOWN      0
 #define DISPLAY_TYPE_OLED_SSD1306 1
 #define DISPLAY_TYPE_LCD_SH8601   2
 
 #define BOARD_DISPLAY_TYPE DISPLAY_TYPE_OLED_SSD1306
-
-/* io expander */
-#define IO_EXPANDER_TYPE_UNKNOWN 0
-#define IO_EXPANDER_TYPE_TCA9554 1
-
-#define BOARD_IO_EXPANDER_TYPE IO_EXPANDER_TYPE_UNKNOWN
 
 #define DISPLAY_WIDTH  OLED_WIDTH
 #define DISPLAY_HEIGHT OLED_HEIGHT
@@ -61,7 +49,10 @@ extern "C" {
 
 #define DISPLAY_COLOR_FORMAT LV_COLOR_FORMAT_UNKNOWN
 
-#define DISPLAY_BUFF_DMA   1
+// Only one of DISPLAY_BUFF_SPIRAM and DISPLAY_BUFF_DMA can be selected
+#define DISPLAY_BUFF_SPIRAM 0
+#define DISPLAY_BUFF_DMA    1
+
 #define DISPLAY_SWAP_BYTES 0
 
 /***********************************************************

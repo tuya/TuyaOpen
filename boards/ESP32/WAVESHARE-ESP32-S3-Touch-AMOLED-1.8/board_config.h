@@ -25,6 +25,16 @@ extern "C" {
 
 #define BOARD_DISPLAY_TYPE DISPLAY_TYPE_LCD_SH8601
 
+/* touch start */
+#define TOUCH_TYPE_UNKNOWN 0
+#define TOUCH_TYPE_FT5X06  1
+
+#define BOARD_TOUCH_TYPE TOUCH_TYPE_FT5X06
+
+#define TOUCH_INT_IO (21)
+
+/* touch end */
+
 /* io expander */
 #define IO_EXPANDER_TYPE_UNKNOWN 0
 #define IO_EXPANDER_TYPE_TCA9554 1
@@ -74,7 +84,7 @@ extern "C" {
 #define DISPLAY_HEIGHT 448
 
 /* lvgl config */
-#define DISPLAY_BUFFER_SIZE (DISPLAY_WIDTH * 10)
+#define DISPLAY_BUFFER_SIZE (DISPLAY_WIDTH * 20)
 
 #define DISPLAY_MONOCHROME false
 
@@ -85,7 +95,10 @@ extern "C" {
 
 #define DISPLAY_COLOR_FORMAT LV_COLOR_FORMAT_RGB565
 
-#define DISPLAY_BUFF_DMA   1
+// Only one of DISPLAY_BUFF_SPIRAM and DISPLAY_BUFF_DMA can be selected
+#define DISPLAY_BUFF_SPIRAM 0
+#define DISPLAY_BUFF_DMA    1
+
 #define DISPLAY_SWAP_BYTES 1
 
 /***********************************************************
@@ -101,6 +114,8 @@ int board_display_init(void);
 void *board_display_get_panel_io_handle(void);
 
 void *board_display_get_panel_handle(void);
+
+void *board_touch_get_handle(void);
 
 #ifdef __cplusplus
 }
