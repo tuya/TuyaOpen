@@ -298,7 +298,3 @@ If users decide to use this project for commercial purposes, they should fully r
 ## Related Links
 - Arduino for TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
 - Luanode for tuyaopen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
-
-
-### AWS Community Day(05/25) - Guided Lab 🚀
-For a step-by-step guide, see [AWS Community Day X TuyaOpen 快速指南 / Quick Guide](https://github.com/tuya/TuyaOpen/tree/master/docs/aws-event-docs/aws-event-hands-on-guide.md).
