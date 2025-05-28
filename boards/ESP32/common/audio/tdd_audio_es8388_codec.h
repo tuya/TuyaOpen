@@ -27,7 +27,7 @@ typedef struct {
     uint32_t spk_sample_rate;
     uint8_t es8388_addr;
     int pa_pin;
-    int defaule_volume;
+    int default_volume;
 } TDD_AUDIO_ES8388_CODEC_T;
 
 /***********************************************************

@@ -202,7 +202,7 @@ OPERATE_RET atk_no_codec_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_ATK_NO_COD
     OPERATE_RET rt = OPRT_OK;
     input_sample_rate_ = i2s_config->mic_sample_rate;
     output_sample_rate_ = i2s_config->spk_sample_rate;
-    output_volume_ = i2s_config->defaule_volume;
+    output_volume_ = i2s_config->default_volume;
 
     // ESP_LOGI(TAG, ">>>>>>>>mclk=%d, bclk=%d, ws=%d, dout=%d, din=%d",
     //          i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io,

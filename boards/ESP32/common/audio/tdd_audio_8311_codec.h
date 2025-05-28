@@ -35,7 +35,7 @@ typedef struct {
     uint8_t es8311_addr;
     uint32_t dma_desc_num;
     uint32_t dma_frame_num;
-    int defaule_volume;
+    int default_volume;
 } TDD_AUDIO_8311_CODEC_T;
 
 /***********************************************************

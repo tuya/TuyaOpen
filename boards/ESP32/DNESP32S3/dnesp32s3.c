@@ -73,8 +73,8 @@ static OPERATE_RET __board_register_audio(void)
         .mic_sample_rate = I2S_INPUT_SAMPLE_RATE,
         .spk_sample_rate = I2S_OUTPUT_SAMPLE_RATE,
         .es8388_addr = AUDIO_CODEC_ES8388_ADDR,
-        .pa_pin = -1, /* Speaker power is controled by XL9555 */
-        .defaule_volume = 80,
+        .pa_pin = -1, /* The speaker power is controlled by XL9555. */
+        .default_volume = 80,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_audio_es8388_codec_register(AUDIO_CODEC_NAME, codec));
@@ -97,3 +97,19 @@ OPERATE_RET board_register_hardware(void)
     return rt;
 }
 
+int board_display_init(void)
+{
+    return 0;
+}
+
+void *board_display_get_panel_io_handle(void)
+{
+    // return lcd_sh8601_get_panel_io_handle();
+    return NULL;
+}
+
+void *board_display_get_panel_handle(void)
+{
+    // return lcd_sh8601_get_panel_handle();
+    return NULL;
+}

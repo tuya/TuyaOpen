@@ -58,7 +58,7 @@ static OPERATE_RET __board_register_audio(void)
     cfg.es8311_addr = AUDIO_CODEC_ES8311_ADDR;
     cfg.dma_desc_num = AUDIO_CODEC_DMA_DESC_NUM;
     cfg.dma_frame_num = AUDIO_CODEC_DMA_FRAME_NUM;
-    cfg.defaule_volume = 80;
+    cfg.default_volume = 80;
 
     TUYA_CALL_ERR_RETURN(tdd_audio_8311_codec_register(AUDIO_CODEC_NAME, cfg));
 #endif

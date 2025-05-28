@@ -110,7 +110,7 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
     pa_pin_ = cfg->pa_pin;
     input_sample_rate_ = cfg->mic_sample_rate;
     output_sample_rate_ = cfg->spk_sample_rate;
-    output_volume_ = cfg->defaule_volume;
+    output_volume_ = cfg->default_volume;
 
     if (cfg->i2c_handle == NULL || cfg->i2s_tx_handle == NULL || cfg->i2s_rx_handle == NULL) {
         PR_ERR("i2c_handle/i2s_tx_handle/i2s_rx_handle is NULL");
