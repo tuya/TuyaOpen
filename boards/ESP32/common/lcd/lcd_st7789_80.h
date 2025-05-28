@@ -1,12 +1,12 @@
 /**
- * @file lcd_st7789.h
+ * @file lcd_st7789_80.h
  * @brief lcd_st7789 module is used to
  * @version 0.1
  * @date 2025-05-13
  */
 
-#ifndef __LCD_ST7789_H__
-#define __LCD_ST7789_H__
+#ifndef __LCD_ST7789_80_H__
+#define __LCD_ST7789_80_H__
 
 #include "tuya_cloud_types.h"
 
@@ -26,14 +26,14 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 
-int lcd_st7789_init(void);
+int lcd_st7789_80_init(void);
 
-void *lcd_st7789_get_panel_io_handle(void);
+void *lcd_st7789_80_get_panel_io_handle(void);
 
-void *lcd_st7789_get_panel_handle(void);
+void *lcd_st7789_80_get_panel_handle(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __LCD_ST7789_H__ */
+#endif /* __LCD_ST7789_80_H__ */

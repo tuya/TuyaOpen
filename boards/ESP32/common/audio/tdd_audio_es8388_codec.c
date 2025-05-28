@@ -49,7 +49,8 @@ static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 
 static audio_codec_gpio_if_t *gpio_if_ = NULL;
-
+static audio_codec_ctrl_if_t *ctrl_if = NULL;
+static audio_codec_data_if_t *data_if = NULL;
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
 
@@ -95,6 +96,12 @@ static void enable_output_device(bool enable)
         if (pa_pin_ != GPIO_NUM_NC) {
             gpio_set_level(pa_pin_, 1);
         }
+        // Set analog output volume to 0dB, default is -45dB
+        uint8_t reg_val = 30;              // 0dB
+        uint8_t regs[] = {46, 47, 48, 49}; // HP_LVOL, HP_RVOL, SPK_LVOL, SPK_RVOL
+        for (int i = 0; i < sizeof(regs); i++) {
+            ctrl_if->write_reg(ctrl_if, regs[i], 1, &reg_val, 1);
+        }
     } else {
         ESP_ERROR_CHECK(esp_codec_dev_close(output_dev_));
         if (pa_pin_ != GPIO_NUM_NC) {
@@ -123,7 +130,7 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
         .rx_handle = cfg->i2s_rx_handle,
         .tx_handle = cfg->i2s_tx_handle,
     };
-    const audio_codec_data_if_t *data_if = audio_codec_new_i2s_data(&i2s_cfg);
+    data_if = audio_codec_new_i2s_data(&i2s_cfg);
     assert(data_if != NULL);
 
     audio_codec_i2c_cfg_t i2c_cfg = {
@@ -131,7 +138,7 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
         .addr = cfg->es8388_addr,
         .bus_handle = cfg->i2c_handle,
     };
-    const audio_codec_ctrl_if_t *ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
+    ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
     assert(ctrl_if != NULL);
 
     audio_codec_gpio_if_t *gpio_if = NULL;

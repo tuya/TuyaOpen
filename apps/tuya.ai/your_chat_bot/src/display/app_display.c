@@ -52,9 +52,11 @@ typedef struct {
 ***********************************************************/
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_puhui_18_2);
+LV_FONT_DECLARE(font_puhui_20_4);
 LV_FONT_DECLARE(font_puhui_30_4);
 LV_FONT_DECLARE(font_awesome_14_1);
 LV_FONT_DECLARE(font_awesome_16_4);
+LV_FONT_DECLARE(font_awesome_20_4);
 LV_FONT_DECLARE(font_awesome_30_1);
 LV_FONT_DECLARE(font_awesome_30_4);
 
@@ -116,6 +118,15 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
 #elif defined(BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
     ui_font->text = (lv_font_t *)&font_puhui_30_4;
     ui_font->icon = (lv_font_t *)&font_awesome_30_4;
+#if defined(ENABLE_GUI_WECHAT)
+    ui_font->emoji = font_emoji_32_init();
+#else
+    ui_font->emoji = font_emoji_64_init();
+#endif
+    ui_font->emoji_list = sg_emo_list;
+#elif defined(BOARD_CHOICE_DNESP32S3)
+    ui_font->text = (lv_font_t *)&font_puhui_20_4;
+    ui_font->icon = (lv_font_t *)&font_awesome_20_4;
 #if defined(ENABLE_GUI_WECHAT)
     ui_font->emoji = font_emoji_32_init();
 #else

@@ -6,9 +6,9 @@
  */
 #include "board_config.h"
 
-#if defined(BOARD_DISPLAY_TYPE) && (BOARD_DISPLAY_TYPE == DISPLAY_TYPE_LCD_ST7789)
+#if defined(BOARD_DISPLAY_TYPE) && (BOARD_DISPLAY_TYPE == DISPLAY_TYPE_LCD_ST7789_80)
 
-#include "lcd_st7789.h"
+#include "lcd_st7789_80.h"
 
 #include <driver/gpio.h>
 
@@ -48,7 +48,7 @@ static LCD_CONFIG_T lcd_config = {0};
 ***********************function define**********************
 ***********************************************************/
 
-int lcd_st7789_init(void)
+int lcd_st7789_80_init(void)
 {
     gpio_config_t gpio_init_struct;
     gpio_init_struct.intr_type = GPIO_INTR_DISABLE;
@@ -64,18 +64,19 @@ int lcd_st7789_init(void)
         .dc_gpio_num = LCD_I80_DC,
         .wr_gpio_num = LCD_I80_WR,
         .clk_src = LCD_CLK_SRC_DEFAULT,
-        .data_gpio_nums = {
-            LCD_I80_D0,
-            LCD_I80_D1,
-            LCD_I80_D2,
-            LCD_I80_D3,
-            LCD_I80_D4,
-            LCD_I80_D5,
-            LCD_I80_D6,
-            LCD_I80_D7,
-        },
+        .data_gpio_nums =
+            {
+                LCD_I80_D0,
+                LCD_I80_D1,
+                LCD_I80_D2,
+                LCD_I80_D3,
+                LCD_I80_D4,
+                LCD_I80_D5,
+                LCD_I80_D6,
+                LCD_I80_D7,
+            },
         .bus_width = 8,
-        .max_transfer_bytes = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t), 
+        .max_transfer_bytes = DISPLAY_WIDTH * DISPLAY_HEIGHT * sizeof(uint16_t),
         .psram_trans_align = 64,
         .sram_trans_align = 4,
     };
@@ -89,15 +90,17 @@ int lcd_st7789_init(void)
         .user_ctx = NULL,
         .lcd_cmd_bits = 8,
         .lcd_param_bits = 8,
-        .dc_levels = {
-            .dc_idle_level = 0,
-            .dc_cmd_level = 0,
-            .dc_dummy_level = 0,
-            .dc_data_level = 1,
-        },
-        .flags = {
-            .swap_color_bytes = 0,
-        },
+        .dc_levels =
+            {
+                .dc_idle_level = 0,
+                .dc_cmd_level = 0,
+                .dc_dummy_level = 0,
+                .dc_data_level = 1,
+            },
+        .flags =
+            {
+                .swap_color_bytes = 0,
+            },
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_i80(i80_bus, &io_config, &lcd_config.panel_io));
 
@@ -122,12 +125,12 @@ int lcd_st7789_init(void)
     return 0;
 }
 
-void *lcd_st7789_get_panel_io_handle(void)
+void *lcd_st7789_80_get_panel_io_handle(void)
 {
     return lcd_config.panel_io;
 }
 
-void *lcd_st7789_get_panel_handle(void)
+void *lcd_st7789_80_get_panel_handle(void)
 {
     return lcd_config.panel;
 }

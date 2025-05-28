@@ -1,13 +1,27 @@
 #include "esp_check.h"
 
+#include "esp_err.h"
+#include "esp_log.h"
+
 #include "driver/i2c_master.h"
 #include "driver/i2s_std.h"
 
 #include "tdd_audio_codec_bus.h"
 
+#define TAG "TDD_AUDIO_CODEC_BUS"
+
 OPERATE_RET tdd_audio_codec_bus_i2c_new(TDD_AUDIO_CODEC_BUS_CFG_T cfg, TDD_AUDIO_I2C_HANDLE *handle)
 {
     i2c_master_bus_handle_t i2c_bus_handle = NULL;
+    esp_err_t esp_rt = ESP_OK;
+
+    // retrieve i2c bus handle
+    esp_rt = i2c_master_get_bus_handle(cfg.i2c_id, &i2c_bus_handle);
+    if (esp_rt == ESP_OK && i2c_bus_handle) {
+        ESP_LOGI(TAG, "I2C bus handle retrieved successfully");
+        *handle = (TDD_AUDIO_I2C_HANDLE)i2c_bus_handle;
+        return OPRT_OK;
+    }
 
     // Initialize I2C bus
     i2c_master_bus_config_t i2c_bus_cfg = {
@@ -18,18 +32,21 @@ OPERATE_RET tdd_audio_codec_bus_i2c_new(TDD_AUDIO_CODEC_BUS_CFG_T cfg, TDD_AUDIO
         .glitch_ignore_cnt = 7,
         .intr_priority = 0,
         .trans_queue_depth = 0,
-        .flags = {
-            .enable_internal_pullup = 1,
-        },
+        .flags =
+            {
+                .enable_internal_pullup = 1,
+            },
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_handle));
+    ESP_LOGI(TAG, "I2C bus initialized successfully on port %d", cfg.i2c_id);
 
     *handle = (TDD_AUDIO_I2C_HANDLE)i2c_bus_handle;
 
     return OPRT_OK;
 }
 
-OPERATE_RET tdd_audio_codec_bus_i2s_new(TDD_AUDIO_CODEC_BUS_CFG_T cfg, TDD_AUDIO_I2S_TX_HANDLE *tx_handle, TDD_AUDIO_I2S_RX_HANDLE *rx_handle)
+OPERATE_RET tdd_audio_codec_bus_i2s_new(TDD_AUDIO_CODEC_BUS_CFG_T cfg, TDD_AUDIO_I2S_TX_HANDLE *tx_handle,
+                                        TDD_AUDIO_I2S_RX_HANDLE *rx_handle)
 {
     i2s_chan_handle_t i2s_tx_handle = NULL;
     i2s_chan_handle_t i2s_rx_handle = NULL;
@@ -46,37 +63,28 @@ OPERATE_RET tdd_audio_codec_bus_i2s_new(TDD_AUDIO_CODEC_BUS_CFG_T cfg, TDD_AUDIO
     };
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &i2s_tx_handle, &i2s_rx_handle));
 
-    i2s_std_config_t std_cfg = {
-        .clk_cfg = {
-            .sample_rate_hz = cfg.sample_rate,
-            .clk_src = I2S_CLK_SRC_DEFAULT,
-            .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-        },
-        .slot_cfg = {
-            .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
-            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
-            .slot_mode = I2S_SLOT_MODE_MONO,
-            .slot_mask = I2S_STD_SLOT_BOTH,
-            .ws_width = I2S_DATA_BIT_WIDTH_16BIT,
-            .ws_pol = false,
-            .bit_shift = true,
-            .left_align = true,
-            .big_endian = false,
-            .bit_order_lsb = false
-        },
-        .gpio_cfg = {
-            .mclk = cfg.i2s_mck_io,
-            .bclk = cfg.i2s_bck_io,
-            .ws = cfg.i2s_ws_io,
-            .dout = cfg.i2s_do_io,
-            .din = cfg.i2s_di_io,
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv = false
-            }
-        }
-    };
+    i2s_std_config_t std_cfg = {.clk_cfg =
+                                    {
+                                        .sample_rate_hz = cfg.sample_rate,
+                                        .clk_src = I2S_CLK_SRC_DEFAULT,
+                                        .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+                                    },
+                                .slot_cfg = {.data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
+                                             .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+                                             .slot_mode = I2S_SLOT_MODE_MONO,
+                                             .slot_mask = I2S_STD_SLOT_BOTH,
+                                             .ws_width = I2S_DATA_BIT_WIDTH_16BIT,
+                                             .ws_pol = false,
+                                             .bit_shift = true,
+                                             .left_align = true,
+                                             .big_endian = false,
+                                             .bit_order_lsb = false},
+                                .gpio_cfg = {.mclk = cfg.i2s_mck_io,
+                                             .bclk = cfg.i2s_bck_io,
+                                             .ws = cfg.i2s_ws_io,
+                                             .dout = cfg.i2s_do_io,
+                                             .din = cfg.i2s_di_io,
+                                             .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false}}};
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(i2s_tx_handle, &std_cfg));
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(i2s_rx_handle, &std_cfg));
 
