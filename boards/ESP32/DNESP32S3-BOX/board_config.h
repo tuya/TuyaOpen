@@ -84,7 +84,10 @@ extern "C" {
 
 #define DISPLAY_COLOR_FORMAT LV_COLOR_FORMAT_RGB565
 
-#define DISPLAY_BUFF_DMA   1
+// Only one of DISPLAY_BUFF_SPIRAM and DISPLAY_BUFF_DMA can be selected
+#define DISPLAY_BUFF_SPIRAM 0
+#define DISPLAY_BUFF_DMA    1
+
 #define DISPLAY_SWAP_BYTES 1
 
 /***********************************************************
