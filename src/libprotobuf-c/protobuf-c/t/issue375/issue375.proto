@@ -1,7 +1,0 @@
-syntax = "proto2";
-
-package issue375;
-
-message TestMessage {
-  repeated int32 nums = 1;
-}
