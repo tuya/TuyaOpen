@@ -54,13 +54,12 @@
 #endif
 
 /**
-*
-* packet: AI_PACKET_HEAD_T+(iv)+len+payload+sign
-* len:payload+sign
-* payload: AI_PAYLOAD_HEAD_T+(attr_len+AI_ATTRIBUTE_T)+data
-*
-https://registry.code.tuya-inc.top/TuyaBEMiddleWare/steam/-/issues/1
-**/
+ *
+ * packet: AI_PACKET_HEAD_T+(iv)+len+payload+sign
+ * len:payload+sign
+ * payload: AI_PAYLOAD_HEAD_T+(attr_len+AI_ATTRIBUTE_T)+data
+ *
+ **/
 
 typedef struct {
     AI_FRAG_FLAG frag_flag;
