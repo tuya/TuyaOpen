@@ -74,7 +74,7 @@ static UI_EMOJI_LIST_T sg_awesome_emo_list[EMO_ICON_MAX_NUM] = {
 };
 
 static UI_EMOJI_LIST_T sg_emo_list[EMO_ICON_MAX_NUM] = {
-    {"NEUTRAL", "😶"},  {"SAD", "😔"},      {"ANGRY", "😠"}, {"SURPRISE", "😯"},
+    {"NEUTRAL", "😶"},  {"SAD", "😔"},         {"ANGRY", "😠"},    {"SURPRISE", "😯"},
     {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
 };
 
@@ -93,7 +93,7 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
     }
 
 #if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
-     defined(BOARD_CHOICE_DNESP32S3_BOX))
+     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_DNESP32S3_BOX))
 #if defined(ENABLE_GUI_WECHAT)
     ui_font->text = (lv_font_t *)&font_puhui_18_2;
     ui_font->icon = (lv_font_t *)&font_awesome_16_4;
