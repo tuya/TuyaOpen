@@ -19,6 +19,7 @@
  *
  */
 #include <stdio.h>
+#include <inttypes.h>
 #include "tuya_cloud_types.h"
 #include "tal_kv.h"
 #include "tal_api.h"
@@ -93,7 +94,7 @@ int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *
             offset += sprintf(buf + offset, "%d", *((uint16_t *)(db[i].val)));
         } break;
         case KV_INT: {
-            offset += sprintf(buf + offset, "%d", *((int32_t *)(db[i].val)));
+            offset += sprintf(buf + offset, "%" PRId32, *((int32_t *)(db[i].val)));
         } break;
         case KV_BOOL: {
             if (FALSE == *((BOOL_T *)(db[i].val))) {

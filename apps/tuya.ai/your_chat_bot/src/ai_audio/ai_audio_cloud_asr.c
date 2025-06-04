@@ -18,24 +18,24 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define AI_AUDIO_UPLOAD_VAD_TM_MS   (300+300)   
+#define AI_AUDIO_UPLOAD_VAD_TM_MS (300 + 300)
 
 #define AI_AUDIO_RB_TIME_MS          (10 * 1000)
 #define AI_AUDIO_UPLOAD_MIN_TIME_MS  (100)
 #define AI_AUDIO_UPLOAD_BUFF_TIME_MS (100)
 #define AI_AUDIO_WAIT_ASR_TM_MS      (10 * 1000)
 
-#define AI_CLOUD_ASR_EVENT(event)                                                         \
-    do {                                                                                  \
-        PR_DEBUG("ai cloud asr event: %d", event);                                        \
-    } while (0)                                                                           \
+#define AI_CLOUD_ASR_EVENT(event)                                                                                      \
+    do {                                                                                                               \
+        PR_DEBUG("ai cloud asr event: %d", event);                                                                     \
+    } while (0)
 
-#define AI_CLOUD_ASR_STAT_CHANGE(last_stat,new_stat)                                                                   \
+#define AI_CLOUD_ASR_STAT_CHANGE(last_stat, new_stat)                                                                  \
     do {                                                                                                               \
         if (last_stat != new_stat) {                                                                                   \
             PR_DEBUG("ai cloud asr stat changed: %d->%d", last_stat, new_stat);                                        \
         }                                                                                                              \
-    } while (0)                                                                                                        \
+    } while (0)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -117,36 +117,34 @@ static void __ai_audio_cloud_asr_task(void *arg)
         rt = tal_queue_fetch(sg_ai_cloud_asr.queue, &msg, 20);
         if (OPRT_OK != rt) {
             // wait event timeout
-            if(true == sg_ai_cloud_asr.is_uploading) {
+            if (true == sg_ai_cloud_asr.is_uploading) {
                 msg.event = AI_CLOUD_ASR_EVT_UPLOADING;
                 msg.is_force_interrupt = false;
-            }else {
+            } else {
                 msg.event = AI_CLOUD_ASR_EVT_UPDATE_VAD;
                 msg.is_force_interrupt = false;
             }
-        }else {
+        } else {
             AI_CLOUD_ASR_EVENT(msg.event);
         }
 
-        if(true == msg.is_force_interrupt) {
-             ai_audio_agent_chat_intrrupt();
+        if (true == msg.is_force_interrupt) {
+            ai_audio_agent_chat_intrrupt();
         }
 
         switch (msg.event) {
         case AI_CLOUD_ASR_EVT_ENTER_IDLE: {
-            uint32_t discard_size = 0;
 
             if (tal_sw_timer_is_running(sg_ai_cloud_asr.asr_timer_id)) {
                 tal_sw_timer_stop(sg_ai_cloud_asr.asr_timer_id);
             }
-            
+
             sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_IDLE;
 
             send_msg.event = AI_CLOUD_ASR_EVT_UPDATE_VAD;
             send_msg.is_force_interrupt = false;
             tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
-        } 
-        break;
+        } break;
         case AI_CLOUD_ASR_EVT_UPDATE_VAD: {
             uint32_t discard_size = 0;
 
@@ -156,8 +154,7 @@ static void __ai_audio_cloud_asr_task(void *arg)
                 discard_size = ai_audio_get_input_data_size() - AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_UPLOAD_VAD_TM_MS);
                 ai_audio_discard_input_data(discard_size);
             }
-        }
-        break;
+        } break;
         case AI_CLOUD_ASR_EVT_START: {
             OPERATE_RET rt = OPRT_OK;
             AI_CLOUD_ASR_MSG_T send_msg;
@@ -178,13 +175,12 @@ static void __ai_audio_cloud_asr_task(void *arg)
                 send_msg.is_force_interrupt = false;
                 tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
             }
-        } 
-        break;
+        } break;
         case AI_CLOUD_ASR_EVT_UPLOADING: {
             uint32_t upload_len = 0;
             uint32_t input_data_size = ai_audio_get_input_data_size();
 
-            if(false == sg_ai_cloud_asr.is_uploading) {
+            if (false == sg_ai_cloud_asr.is_uploading) {
                 break;
             }
 
@@ -195,13 +191,12 @@ static void __ai_audio_cloud_asr_task(void *arg)
 
             upload_len = ai_audio_get_input_data(sg_ai_cloud_asr.upload_buffer, sg_ai_cloud_asr.upload_buffer_len);
             TUYA_CALL_ERR_LOG(ai_audio_agent_upload_data(sg_ai_cloud_asr.upload_buffer, upload_len));
-        }
-        break;
+        } break;
         case AI_CLOUD_ASR_EVT_STOP: {
             uint32_t upload_len = 0;
             uint32_t input_data_size = 0;
 
-            if(false == sg_ai_cloud_asr.is_uploading) {
+            if (false == sg_ai_cloud_asr.is_uploading) {
                 break;
             }
 
@@ -210,17 +205,17 @@ static void __ai_audio_cloud_asr_task(void *arg)
             PR_NOTICE("AI_CLOUD_ASR_UPLOAD_STATE_STOP size:%d", input_data_size);
 
             while (input_data_size) {
-                if(false == sg_ai_cloud_asr.is_uploading) {
+                if (false == sg_ai_cloud_asr.is_uploading) {
                     break;
                 }
 
                 upload_len = ai_audio_get_input_data(sg_ai_cloud_asr.upload_buffer, sg_ai_cloud_asr.upload_buffer_len);
-                if(0 == upload_len) {
+                if (0 == upload_len) {
                     break;
                 }
 
                 TUYA_CALL_ERR_LOG(ai_audio_agent_upload_data(sg_ai_cloud_asr.upload_buffer, upload_len));
-                if(input_data_size <= upload_len) {
+                if (input_data_size <= upload_len) {
                     break;
                 }
 
@@ -232,12 +227,11 @@ static void __ai_audio_cloud_asr_task(void *arg)
             tal_sw_timer_start(sg_ai_cloud_asr.asr_timer_id, AI_AUDIO_WAIT_ASR_TM_MS, TAL_TIMER_ONCE);
             sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_WAIT_ASR;
             sg_ai_cloud_asr.is_uploading = false;
-        }
-        break;
+        } break;
 
-        AI_CLOUD_ASR_STAT_CHANGE(last_state, sg_ai_cloud_asr.state);
+            AI_CLOUD_ASR_STAT_CHANGE(last_state, sg_ai_cloud_asr.state);
 
-        last_state = sg_ai_cloud_asr.state;
+            last_state = sg_ai_cloud_asr.state;
         }
     }
 }
@@ -395,7 +389,7 @@ OPERATE_RET ai_audio_cloud_asr_set_idle(bool is_force)
 
     if (true == is_force || sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
         send_msg.is_force_interrupt = true;
-    }else {
+    } else {
         send_msg.is_force_interrupt = false;
     }
 

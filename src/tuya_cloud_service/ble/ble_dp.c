@@ -423,7 +423,7 @@ OPERATE_RET ty_bt_dp_data_report(klv_node_s *p_node, uint32_t time_stamp)
     return ret;
 }
 
-static klv_node_s *__get_response_query_dp_data(const uint8_t *dpid, const uint8_t num)
+static __attribute__((unused)) klv_node_s *__get_response_query_dp_data(const uint8_t *dpid, const uint8_t num)
 {
     uint16_t i;
     klv_node_s *p_node = NULL;

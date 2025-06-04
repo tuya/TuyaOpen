@@ -125,7 +125,7 @@ static APP_CHAT_BOT_S sg_chat_bot = {
 };
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
-static  TDL_LED_HANDLE_T sg_led_hdl = NULL;
+static TDL_LED_HANDLE_T sg_led_hdl = NULL;
 #endif
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
@@ -138,7 +138,9 @@ static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
     static uint8_t *p_ai_text = NULL;
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
     static uint32_t ai_text_len = 0;
+#endif
 
     switch (event) {
     case AI_AUDIO_EVT_HUMAN_ASR_TEXT: {
@@ -209,15 +211,15 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
     } break;
     case AI_AUDIO_EVT_ASR_WAKEUP: {
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
-            TDL_LED_BLINK_CFG_T blink_cfg = {
-                .cnt = 2,
-                .start_stat = TDL_LED_ON,
-                .end_stat  = TDL_LED_OFF,
-                .first_half_cycle_time = 100,
-                .latter_half_cycle_time = 100,
-            };
+        TDL_LED_BLINK_CFG_T blink_cfg = {
+            .cnt = 2,
+            .start_stat = TDL_LED_ON,
+            .end_stat = TDL_LED_OFF,
+            .first_half_cycle_time = 100,
+            .latter_half_cycle_time = 100,
+        };
 
-            tdl_led_blink(sg_led_hdl, &blink_cfg);
+        tdl_led_blink(sg_led_hdl, &blink_cfg);
 #endif
 
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
@@ -237,21 +239,21 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 
     PR_DEBUG("ai audio state: %d", state);
 
-    switch(state) {
+    switch (state) {
     case AI_AUDIO_STATE_STANDBY:
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
-            tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+        tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
 #endif
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"NATURAL", strlen("NATURAL"));
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
 #endif
-    break;
+        break;
     case AI_AUDIO_STATE_LISTEN:
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
-            tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
+        tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
 #endif
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
@@ -259,18 +261,15 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 #endif
     case AI_AUDIO_STATE_UPLOAD:
 
-    break;
+        break;
     case AI_AUDIO_STATE_AI_SPEAK:
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
 #endif
 
-    break;    
+        break;
     }
-
-
 }
-
 
 static OPERATE_RET __app_chat_bot_enable(uint8_t enable)
 {
@@ -323,7 +322,7 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
     } break;
     case TDL_BUTTON_PRESS_UP: {
         if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
-            PR_DEBUG("button press up, listen end");  
+            PR_DEBUG("button press up, listen end");
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
             tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
 #endif
@@ -339,7 +338,6 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
             ai_audio_set_wakeup();
         } else {
             __app_chat_bot_enable(true);
-
         }
         PR_DEBUG("button single click");
     } break;
@@ -377,8 +375,8 @@ OPERATE_RET app_chat_bot_init(void)
     app_display_init();
 #endif
 
-    ai_audio_cfg.work_mode       = sg_chat_bot.work->auido_mode;
-    ai_audio_cfg.evt_inform_cb   = __app_ai_audio_evt_inform_cb;
+    ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
+    ai_audio_cfg.evt_inform_cb = __app_ai_audio_evt_inform_cb;
     ai_audio_cfg.state_inform_cb = __app_ai_audio_state_inform_cb;
 
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
@@ -394,10 +392,11 @@ OPERATE_RET app_chat_bot_init(void)
 
     __app_chat_bot_enable(sg_chat_bot.work->is_open);
 
-    PR_NOTICE("work:%s",  sg_chat_bot.work->display_text);
+    PR_NOTICE("work:%s", sg_chat_bot.work->display_text);
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_send_msg(TY_DISPLAY_TP_CHAT_MODE, (uint8_t *)sg_chat_bot.work->display_text, strlen(sg_chat_bot.work->display_text));
+    app_display_send_msg(TY_DISPLAY_TP_CHAT_MODE, (uint8_t *)sg_chat_bot.work->display_text,
+                         strlen(sg_chat_bot.work->display_text));
 #endif
     return OPRT_OK;
 }

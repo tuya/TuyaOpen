@@ -41,7 +41,7 @@ typedef struct {
     lv_font_t *text;
     lv_font_t *icon;
 
-    lv_font_t *emoji;
+    const lv_font_t *emoji;
     UI_EMOJI_LIST_T *emoji_list;
 } UI_FONT_T;
 

@@ -12,6 +12,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "tuya_cloud_types.h"
 #include "dp_schema.h"
 #include "cJSON.h"
@@ -183,7 +184,8 @@ dp_node_t *dp_node_find_by_devid(char *devid, int id)
     return dpnode;
 }
 
-static OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num, dp_cmd_type_t cmd_tp)
+static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num,
+                                                             dp_cmd_type_t cmd_tp)
 {
     if (NULL == schema || 0 == num) {
         PR_ERR("para err");
@@ -904,7 +906,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         }
 
         case PROP_BITMAP: {
-            offset += sprintf(dpstr + offset, "\"%d\":%d,", dp->id, dp->value.dp_bitmap);
+            offset += sprintf(dpstr + offset, "\"%d\":%" PRIu32 ",", dp->id, dp->value.dp_bitmap);
             break;
         }
 

@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <ctype.h>
 #include "tal_log.h"
 #include "tuya_list.h"
@@ -82,14 +83,13 @@ typedef struct {
 const char *sLevelStr[] = {"E", "W", "N", "I", "D", "T"};
 P_LOG_MANAGE pLogManage = NULL;
 
-const LOG_TEXT_STYLE_S sDefaultStyle[LOG_LEVEL_MAX+1] = {
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_RED,      TAL_LOG_BACKGROUND_COLOR_DEFAULT},
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_YELLOW,   TAL_LOG_BACKGROUND_COLOR_DEFAULT},
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_BLUE,     TAL_LOG_BACKGROUND_COLOR_DEFAULT},
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_CYAN,     TAL_LOG_BACKGROUND_COLOR_DEFAULT},
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_GREEN,    TAL_LOG_BACKGROUND_COLOR_DEFAULT},
-    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_WHITE,    TAL_LOG_BACKGROUND_COLOR_DEFAULT}
-};
+const LOG_TEXT_STYLE_S sDefaultStyle[LOG_LEVEL_MAX + 1] = {
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_RED, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_YELLOW, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_BLUE, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_CYAN, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_GREEN, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_WHITE, TAL_LOG_BACKGROUND_COLOR_DEFAULT}};
 
 /***********************************************************
 *************************function define********************
@@ -416,16 +416,16 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, char *pFmt
     if (pLogManage->ms_level == FALSE) {
         tal_time_get_local_time_custom(0, &tm);
         cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len,
-                       "[%02d-%02d %02d:%02d:%02d %s %s][%s:%d] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
-                       tm.tm_sec, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
+                       "[%02d-%02d %02d:%02d:%02d %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+                       tm.tm_min, tm.tm_sec, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     } else {
         SYS_TICK_T time_ms = tal_time_get_posix_ms();
         TIME_T sec = (TIME_T)(time_ms / 1000);
         uint32_t ms = (uint32_t)(time_ms % 1000);
         tal_time_get_local_time_custom(sec, &tm);
         cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len + len,
-                       "[%02d-%02d %02d:%02d:%02d:%d %s %s][%s:%d] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
-                       tm.tm_sec, ms, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
+                       "[%02d-%02d %02d:%02d:%02d:%d %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+                       tm.tm_min, tm.tm_sec, ms, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     }
     if (cnt <= 0) {
         goto ERR_EXIT;

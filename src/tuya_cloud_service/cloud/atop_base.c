@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <strings.h>
+#include <inttypes.h>
 #include "atop_base.h"
 #include "tuya_config_defaults.h"
 #include "tal_log.h"
@@ -329,7 +330,7 @@ int atop_base_request(const atop_base_request_t *request, atop_base_response_t *
     params[idx++].value = "3";
 
     char ts_str[11];
-    sprintf(ts_str, "%d", request->timestamp);
+    sprintf(ts_str, "%" PRIu32, request->timestamp);
     params[idx].key = "t";
     params[idx++].value = ts_str;
 

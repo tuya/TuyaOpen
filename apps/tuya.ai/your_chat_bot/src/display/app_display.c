@@ -66,15 +66,17 @@ extern const lv_font_t *font_emoji_64_init(void);
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if defined(BOARD_CHOICE_BREAD_COMPACT_WIFI) || defined(BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
 static UI_EMOJI_LIST_T sg_awesome_emo_list[EMO_ICON_MAX_NUM] = {
     {"NEUTRAL", FONT_AWESOME_EMOJI_NEUTRAL},   {"SAD", FONT_AWESOME_EMOJI_SAD},
     {"ANGRY", FONT_AWESOME_EMOJI_ANGRY},       {"SURPRISE", FONT_AWESOME_EMOJI_SURPRISED},
     {"CONFUSED", FONT_AWESOME_EMOJI_CONFUSED}, {"THINKING", FONT_AWESOME_EMOJI_THINKING},
     {"HAPPY", FONT_AWESOME_EMOJI_HAPPY},
 };
+#endif
 
 static UI_EMOJI_LIST_T sg_emo_list[EMO_ICON_MAX_NUM] = {
-    {"NEUTRAL", "😶"},  {"SAD", "😔"},      {"ANGRY", "😠"}, {"SURPRISE", "😯"},
+    {"NEUTRAL", "😶"},  {"SAD", "😔"},         {"ANGRY", "😠"},    {"SURPRISE", "😯"},
     {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
 };
 

@@ -168,10 +168,10 @@ static void __ai_audio_asr_feed(void *data, uint32_t len)
             uint32_t discard_size = rb_used_size - AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_VAD_ACITVE_TM_MS);
             tuya_ring_buff_discard(sg_audio_input.asr.feed_ringbuff, discard_size);
         }
-    } 
-    
+    }
+
     tuya_ring_buff_write(sg_audio_input.asr.feed_ringbuff, data, len);
-    
+
     tal_mutex_unlock(sg_audio_input.asr.rb_mutex);
 
     return;
@@ -275,9 +275,8 @@ AI_AUDIO_INPUT_STATE_E __ai_audio_input_get_new_state(AI_AUDIO_INPUT_VALID_METHO
 
     switch (method) {
     case AI_AUDIO_INPUT_VALID_METHOD_MANUAL:
-        state = sg_audio_input.is_manual_get_valid_data ? \
-                AI_AUDIO_INPUT_STATE_GET_VALID_DATA : \
-                AI_AUDIO_INPUT_STATE_DETECTING;
+        state = sg_audio_input.is_manual_get_valid_data ? AI_AUDIO_INPUT_STATE_GET_VALID_DATA
+                                                        : AI_AUDIO_INPUT_STATE_DETECTING;
         break;
     case AI_AUDIO_INPUT_VALID_METHOD_VAD:
         if (TKL_VAD_STATUS_SPEECH == tkl_vad_get_status()) {
@@ -418,8 +417,8 @@ static void __ai_audio_handle_frame_task(void *arg)
             sg_audio_input.asr.is_need_inform_wakeup_stop = false;
         }
 
-        if(AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD == event) {
-            //restart vad detection
+        if (AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD == event) {
+            // restart vad detection
             tkl_vad_stop();
             __ai_audio_input_rb_reset();
             tkl_vad_start();
@@ -488,7 +487,7 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg, AI_AUDIO_INOUT_INFORM
         return OPRT_OK;
     }
 
-    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_INPUT_RB_TIME_MS)+1,
+    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_INPUT_RB_TIME_MS) + 1,
                                                OVERFLOW_PSRAM_STOP_TYPE, &sg_audio_input.ringbuff_hdl));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_audio_input.rb_mutex));
 
@@ -556,8 +555,6 @@ OPERATE_RET ai_audio_input_manual_open_get_valid_data(bool is_open)
 
 OPERATE_RET ai_audio_input_stop_asr_awake(void)
 {
-    AI_AUDIO_INPUT_EVENT_E event = 0;
-
     if (false == sg_audio_input.is_enable_get_valid_data) {
         PR_ERR("input is not allowed get valid data, please enable it first");
         return OPRT_COM_ERROR;
