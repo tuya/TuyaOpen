@@ -13,6 +13,9 @@
 #include "tkl_memory.h"
 #include "tal_api.h"
 
+#include "tuya_iot.h"
+#include "tuya_iot_dp.h"
+
 #include "tuya_ai_biz.h"
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_client.h"
@@ -215,6 +218,34 @@ static OPERATE_RET _parse_skill_emo(cJSON *json)
     if (sg_ai.cbs.ai_agent_msg_cb) {
         sg_ai.cbs.ai_agent_msg_cb(&ai_msg);
     }
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET _parse_skill_device_control(cJSON *json)
+{
+    cJSON *dps = NULL, *action = NULL;
+
+    tuya_iot_client_t *client = tuya_iot_client_get();
+    if (client == NULL) {
+        PR_ERR("tuya_iot_client_get failed");
+        return OPRT_COM_ERROR;
+    }
+
+    action = cJSON_GetObjectItem(json, "action");
+    dps = cJSON_GetObjectItem(json, "data");
+
+    if (dps == NULL || action == NULL) {
+        PR_ERR("skill device control parse failed, dps or action is NULL");
+        return OPRT_CJSON_PARSE_ERR;
+    }
+
+    if (action->valuestring && strcmp(action->valuestring, "set") == 0) {
+        dps = cJSON_Duplicate(dps, TRUE);
+        return tuya_iot_dp_parse(client, DP_CMD_AI_SKILL, dps);
+    }
+
+    return OPRT_NOT_SUPPORTED;
 }
 
 static OPERATE_RET _parse_skill(cJSON *json)
@@ -230,10 +261,13 @@ static OPERATE_RET _parse_skill(cJSON *json)
         return OPRT_OK;
 
     PR_DEBUG("skill code: %s", code_str);
-    cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
 
     if (strcmp(code_str, "emo") == 0) {
+        cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
         _parse_skill_emo(skillContent);
+    } else if (strcmp(code_str, "DeviceControl") == 0) {
+        cJSON *general = cJSON_GetObjectItem(node, "general");
+        _parse_skill_device_control(general);
     }
 
     return OPRT_OK;

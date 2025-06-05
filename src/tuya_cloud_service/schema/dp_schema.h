@@ -45,6 +45,7 @@ typedef uint8_t dp_cmd_type_t;
 #define DP_CMD_LAN 0 // cmd from LAN
 #define DP_CMD_MQ  1 // cmd from MQTT
 #define DP_CMD_BT  5 // cmd from BT
+#define DP_CMD_AI_SKILL 9 // cmd from AI skill
 
 /**
  * @brief  Definition of dp report type
