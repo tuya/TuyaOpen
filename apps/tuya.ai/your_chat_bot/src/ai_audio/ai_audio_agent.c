@@ -189,6 +189,11 @@ static OPERATE_RET _parse_skill_emo(cJSON *json)
         .text = NULL,
     };
 
+    if (json == NULL) {
+        PR_ERR("skill emo parse failed, json is NULL");
+        return OPRT_CJSON_PARSE_ERR;
+    }
+
     cJSON *emotion = cJSON_GetObjectItem(json, "emotion");
     cJSON *emotion_name = cJSON_GetArrayItem(emotion, 0);
     if (NULL == emotion_name) {
@@ -226,6 +231,11 @@ static OPERATE_RET _parse_skill_device_control(cJSON *json)
 {
     cJSON *dps = NULL, *action = NULL;
 
+    if (json == NULL) {
+        PR_ERR("skill device control parse failed, json is NULL");
+        return OPRT_CJSON_PARSE_ERR;
+    }
+
     tuya_iot_client_t *client = tuya_iot_client_get();
     if (client == NULL) {
         PR_ERR("tuya_iot_client_get failed");
@@ -250,6 +260,8 @@ static OPERATE_RET _parse_skill_device_control(cJSON *json)
 
 static OPERATE_RET _parse_skill(cJSON *json)
 {
+    OPERATE_RET rt = OPRT_OK;
+
     cJSON *node, *code;
     const char *code_str;
 
@@ -264,13 +276,13 @@ static OPERATE_RET _parse_skill(cJSON *json)
 
     if (strcmp(code_str, "emo") == 0) {
         cJSON *skillContent = cJSON_GetObjectItem(node, "skillContent");
-        _parse_skill_emo(skillContent);
+        rt = _parse_skill_emo(skillContent);
     } else if (strcmp(code_str, "DeviceControl") == 0) {
         cJSON *general = cJSON_GetObjectItem(node, "general");
-        _parse_skill_device_control(general);
+        rt = _parse_skill_device_control(general);
     }
 
-    return OPRT_OK;
+    return rt;
 }
 
 static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data)
