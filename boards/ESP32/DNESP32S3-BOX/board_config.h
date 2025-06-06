@@ -18,9 +18,6 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-/* Example configurations */
-#define USE_8311 (0) // 1-ES8311 0-NS4168
-
 #define I2S_INPUT_SAMPLE_RATE  (16000)
 #define I2S_OUTPUT_SAMPLE_RATE (16000)
 
@@ -62,6 +59,35 @@ extern "C" {
 
 #define DISPLAY_WIDTH  320
 #define DISPLAY_HEIGHT 240
+
+/* io expander start */
+#define IO_EXPANDER_TYPE_UNKNOWN 0
+#define IO_EXPANDER_TYPE_TCA9554 1
+#define IO_EXPANDER_TYPE_XL9555  2
+
+#define BOARD_IO_EXPANDER_TYPE IO_EXPANDER_TYPE_XL9555
+
+#define IO_EXPANDER_XL9555_ADDR_000 (0x20)
+#define IO_EXPANDER_XL9555_ADDR     IO_EXPANDER_XL9555_ADDR_000
+
+#define EX_IO_AP_INT   (0x0001 << 0)
+#define EX_IO_QMA_INT  (0x0001 << 1)
+#define EX_IO_BEEP     (0x0001 << 2)
+#define EX_IO_KEY_1    (0x0001 << 3)
+#define EX_IO_KEY_0    (0x0001 << 4)
+#define EX_IO_SPK_CTRL (0x0001 << 5)
+#define EX_IO_CTP_RST  (0x0001 << 6)
+#define EX_IO_LCD_BL   (0x0001 << 7)
+#define EX_IO_LED_R    (0x0001 << 8)
+#define EX_IO_CTP_INT  (0x0001 << 9)
+#define EX_IO_1_2      (0x0001 << 10)
+#define EX_IO_1_3      (0x0001 << 11)
+#define EX_IO_1_4      (0x0001 << 12)
+#define EX_IO_1_5      (0x0001 << 13)
+#define EX_IO_1_6      (0x0001 << 14)
+#define EX_IO_1_7      (0x0001 << 15)
+
+/* io expander end */
 
 /* display */
 #define DISPLAY_TYPE_UNKNOWN        0
