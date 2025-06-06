@@ -51,15 +51,7 @@ For detailed usage of the tos command, please refer to [tos command](docs/en/tos
 
 ### Step2. Select the project to be compiled
 
-- Method 1: Compile Example
-
-To select the example to be compiled, use the `tos set_example` command to choose based on the platform. The `examples` directory will be modified to match the selected platform's example.
-
-For more information about examples, click [Example Project](#example).
-
-- Method 2: Compile App
-
-Select the app to be compiled, such as [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo), and switch to the corresponding directory.
+Select the app or example to be compiled, such as [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo), and switch to the corresponding directory.
 
 Use the `tos config_choice` command to select the target platform or board for compilation.
 
@@ -190,27 +182,6 @@ $ tos flash upgrade
 ```
 
 ## Example Projects <span id="example"></span>
-Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. Click [tos set_example](https://github.com/tuya/TuyaOpen/blob/master/docs/en/tos_guide.md#setting-example) to learn more details.
-
-```sh
-$ tos set_example
-Now used: None
-========================
-Platforms
-  1. T2
-  2. T3
-  3. Ubuntu
-  4. T5AI
-  5. ESP32
-  6. LN882H
-  7. BK7231X
-------------------------
-Please select: 4
-------------------------
-Set [T5AI] example success.
-```
-
-> Note: After setting with the `tos set_example` command, the `examples` directory is a symbolic link pointing to the chip in the corresponding directory under the platform.
 
 The TuyaOpen provides a variety of sample projects to facilitate developers in quickly getting started and understanding the usage of the TuyaOpen.
 
@@ -255,6 +226,8 @@ $ examples
 ```
 
 Each sample project includes a README.md file that provides detailed instructions on configuring, compiling, and running the project.
+
+The compilation method for the example is the same as the app compilation method. Use the `tos config_choice` command to select the target platform or board, and then use `tos build` to compile.  
 
 
 ## AI Applications

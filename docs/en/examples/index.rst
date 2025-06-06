@@ -43,30 +43,8 @@ The TuyaOpen provides a variety of sample projects to facilitate developers in q
 Select the project to be compiled
 ================================================
 
-Each different chip has corresponding examples, and you can set the example project through the `tos set_example` command. 
+The compilation method for examples is consistent with that of apps. Use the `tos config_choice` command to select the target platform or board, then compile with `tos build`.  
 
-To select the example to be compiled, use the `tos set_example` command to choose based on the platform. The `examples` directory will be modified to match the selected platform's example.
-
-.. code-block:: bash
-
-    $ tos set_example
-    Now used: None
-    ========================
-    Platforms
-    1. T2
-    2. T3
-    3. Ubuntu
-    4. T5AI
-    5. ESP32
-    6. LN882H
-    7. BK7231X
-    ------------------------
-    Please select: 4
-    ------------------------
-    Set [T5AI] example success.
-
-
-Note: After setting with the `tos set_example` command, the `examples` directory is a symbolic link pointing to the chip in the corresponding directory under the platform.
 
 Each sample project includes a README.md file that provides detailed instructions on configuring, compiling, and running the project.
 

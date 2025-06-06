@@ -50,15 +50,8 @@ TuyaOpen 通过 tos 命令进行编译、调试等操作，tos 命令会根据�
 tos 命令的详细使用方法，请参考 [tos 命令](docs/zh/tos_guide/index.rst)。
 
 ### step2. 选择待编译项目
-- 方式1：编译 example
 
-选择待编译 example，可使用命令`tos set_example`，根据平台完成选择，目录 `examples` 会修改为对应平台的示例。
-
-更多 example 信息点击 [示例工程](#example) 
-
-- 方式2：编译 app
-
-选择待编译 app，如 [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) , 并切换至对应目录。
+选择待编译 app 或 example，如 [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo) , 并切换至对应目录。
 
 使用 `tos config_choice` 命令选择编译目标平台或目标板。
 
@@ -188,28 +181,6 @@ $ tos flash upgrade
 
 ## 示例工程 <span id="example"></span>
 
-不同的芯片都会对应的示例，需在 TuyaOpen 根目录下通过 `tos set_example` 命令设置示例工程，可点击 [tos set_example](docs/zh/tos_guide/index.rst#%E9%85%8D%E7%BD%AE%E7%AE%A1%E7%90%86) 了解详情。
-
-```sh
-$ tos set_example
-Now used: None
-========================
-Platforms
-  1. T2
-  2. T3
-  3. Ubuntu
-  4. T5AI
-  5. ESP32
-  6. LN882H
-  7. BK7231X
-------------------------
-Please select: 4
-------------------------
-Set [T5AI] example success.
-```
-
-> 注：通过 `tos set_example` 命令设置后的 examples 目录为软链接，指向 platform 对应目录下的芯片。
-
 TuyaOpen 提供了丰富的示例工程，方便开发者快速上手，了解 TuyaOpen 的使用。
 ```sh
 $ examples
@@ -249,6 +220,7 @@ $ examples
 
 每个示例工程下对应有 README.md 文件，详细介绍了示例工程的配置、编译、运行等操作。
 
+example 编译方式与 app 编译方式一致，使用 `tos config_choice` 命令选择编译目标平台或目标板，然后使用 `tos build` 编译。
 
 ## AI 应用
 tuya.ai 是一个综合性的 AI 服务平台,提供以下核心能力:

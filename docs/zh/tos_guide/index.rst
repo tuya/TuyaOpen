@@ -32,7 +32,6 @@ tos 命令是 TuyaOpen 构建工具，支持创建、编译、配置等多种功
         fullclean  - Clean project and delete build path
         menuconfig - Configuration project features
         savedef    - Saves minimal configuration file (app_default.config)
-        set_example  - Set examples from platform
         new_platform - New platform [platform_name]
         update     - Update the platforms according to the platform_config.yaml
         help       - Help information
@@ -137,9 +136,6 @@ tos 命令是 TuyaOpen 构建工具，支持创建、编译、配置等多种功
 +----------------------+------------------------------------------+
 | ``tos config_choice``| 该命令会选择 config 目录中的配置文件     |
 |                      | 代替 app_defalut.config 文件             |
-+----------------------+------------------------------------------+
-| ``tos set_example``  | 该命令用来设置不同芯片平台的示例展示     |
-|                      | 会改变目录 `examples` 的内容             |
 +----------------------+------------------------------------------+
 | ``tos update``       | 更新 tos 工具                            |
 +----------------------+------------------------------------------+

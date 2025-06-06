@@ -43,30 +43,7 @@ TuyaOpen 提供了丰富的示例工程，方便开发者快速上手，了解 T
 选择待编译项目
 ========================
 
-不同的芯片都会对应的示例，需在 TuyaOpen 根目录下通过 `tos set_example` 命令设置示例工程.
-
-选择待编译 example，可使用命令 `tos set_example`，根据平台完成选择，目录 `examples` 会修改为对应平台的示例。
-
-.. code-block:: bash
-
-    $ tos set_example
-    Now used: None
-    ========================
-    Platforms
-    1. T2
-    2. T3
-    3. Ubuntu
-    4. T5AI
-    5. ESP32
-    6. LN882H
-    7. BK7231X
-    ------------------------
-    Please select: 4
-    ------------------------
-    Set [T5AI] example success.
-
-
-注：通过 `tos set_example` 命令设置后的 examples 目录为软链接，指向 platform 对应目录下的芯片。
+example 编译方式与 app 编译方式一致，使用 `tos config_choice` 命令选择编译目标平台或目标板，然后使用 `tos build` 编译。
 
 
 每个示例工程下对应有 README.md 文件，详细介绍了示例工程的配置、编译、运行等操作。

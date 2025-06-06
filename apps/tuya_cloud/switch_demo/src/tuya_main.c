@@ -210,6 +210,17 @@ void user_main()
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+
+    PR_NOTICE("Application information:");
+    PR_NOTICE("Project name:        %s", PROJECT_NAME);
+    PR_NOTICE("App version:         %s", PROJECT_VERSION);
+    PR_NOTICE("Compile time:        %s", __DATE__);
+    PR_NOTICE("TuyaOpen version:    %s", OPEN_VERSION);
+    PR_NOTICE("TuyaOpen commit-id:  %s", OPEN_COMMIT);
+    PR_NOTICE("Platform chip:       %s", PLATFORM_CHIP);
+    PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
+    PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
+
     tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
         .key = "dflfuap134ddlduq",
