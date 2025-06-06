@@ -200,7 +200,6 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
     void *i2c_master_handle = NULL;
     i2c_port_t i2c_port = (i2c_port_t)(i2s_config->i2c_id);
     uint8_t es8311_addr = i2s_config->es8311_addr;
-    bool use_mclk = true;
     pa_pin_ = i2s_config->gpio_output_pa;
     input_sample_rate_ = i2s_config->mic_sample_rate;
     output_sample_rate_ = i2s_config->spk_sample_rate;
@@ -247,7 +246,7 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
     es8311_cfg.gpio_if = gpio_if_;
     es8311_cfg.codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH;
     es8311_cfg.pa_pin = pa_pin_;
-    es8311_cfg.use_mclk = use_mclk;
+    es8311_cfg.use_mclk = ((i2s_config->i2s_mck_io != -1) ? true : false);
     es8311_cfg.hw_gain.pa_voltage = 5.0;
     es8311_cfg.hw_gain.codec_dac_voltage = 3.3;
     codec_if_ = es8311_codec_new(&es8311_cfg);
