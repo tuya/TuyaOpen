@@ -505,51 +505,6 @@ function config_choice_exec()
     fi
 }
 
-function set_example_exec()
-{
-    PLATFORM_NAME=$1
-    NOW_PLATFORM_FILE=$OPEN_SDK_ROOT/.set_example
-    NOW_PLATFORM="None"
-    if [ -f $NOW_PLATFORM_FILE ]; then
-        NOW_PLATFORM=`cat $NOW_PLATFORM_FILE`
-    fi
-    show "${fore[green]}" "Now used: $NOW_PLATFORM"
-    PLATFORMS_DIR=$OPEN_SDK_ROOT/platform
-    if [ -z "$PLATFORM_NAME" ]; then
-        PLATFORM_YAML=$PLATFORMS_DIR/platform_config.yaml
-        PLATFORM_NAMES=$(cat $PLATFORM_YAML | grep -oP '(?<=^- name: ).*(?=$)')
-        PLATFORM_NAME=$(echo "$PLATFORM_NAMES" | bash $LISTMENU "Platforms" 20 60 13)
-    fi
-    if [ -z "$PLATFORM_NAME" ]; then
-        assert_non_null "$PLATFORM_NAME" "Can't find the [platform name]."
-    fi
-    PLATFORM_PATH="${PLATFORMS_DIR}/${PLATFORM_NAME}"
-    if [ ! -d "$PLATFORM_PATH" ]; then
-        download_platform_by_name $PLATFORM_NAME
-        if [ "0" != "$?" ]; then
-            NOTE="Download platform [$PLATFORM_NAME] failed."
-            show "${fore[red]}" "$NOTE"
-            exit 1
-        fi
-    fi
-    ROOT_EXAMPLE_DIR=$OPEN_SDK_ROOT/examples
-    PLATFORM_EXAMPLE_DIR=$PLATFORM_PATH/examples
-    rm -rf $ROOT_EXAMPLE_DIR
-    if [ ! -d "$PLATFORM_EXAMPLE_DIR" ]; then
-        NOTE="[$PLATFORM_NAME] has no examples."
-        show "${fore[red]}" "$NOTE"
-        exit 1
-    fi
-    ln -s $PLATFORM_EXAMPLE_DIR $ROOT_EXAMPLE_DIR
-
-    NOTE="
-Set [$PLATFORM_NAME] example success.
-Please check $ROOT_EXAMPLE_DIR
-"
-    show "${fore[green]}" "$NOTE"
-    echo $PLATFORM_NAME > $NOW_PLATFORM_FILE
-}
-
 function new_platform_exec()
 {
     PLATFORM_NAME=$1
@@ -677,7 +632,6 @@ Commands:
     menuconfig - Configuration project features
     savedef    - Saves minimal configuration file (app_default.config)
     config_choice  - Select the file in the config directory instead of app_defalut.config
-    set_example  - Set examples from platform
     new_platform - New platform [platform_name]
     update     - Update the platforms according to the platform_config.yaml
     help       - Help information
@@ -850,9 +804,6 @@ case $1 in
         ;;
     config_choice)
         config_choice_exec $2
-        ;;
-    set_example)
-        set_example_exec $2
         ;;
     new_platform)
         new_platform_exec $2

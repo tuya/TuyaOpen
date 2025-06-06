@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 _tos_get_commands() {
-    echo "version check new build flash monitor clean fullclean menuconfig savedef config_choice set_example new_platform update help dev"
+    echo "version check new build flash monitor clean fullclean menuconfig savedef config_choice new_platform update help dev"
 }
 
 _tos_get_templates() {
@@ -30,7 +30,7 @@ if [ -n "$BASH_VERSION" ] && [ -z "$POSIXLY_CORRECT" ]; then
             COMPREPLY=()
 
             case ${prev} in
-                version|check|build|clean|fullclean|menuconfig|savedef|update|set_example|help)
+                version|check|build|clean|fullclean|menuconfig|savedef|update|help)
                     return 0
                     ;;
                 new)

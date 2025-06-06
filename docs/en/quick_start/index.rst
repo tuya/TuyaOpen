@@ -61,20 +61,8 @@ For detailed usage of tos command, please refer to :doc:`tos command </tos_guide
 
 step2. Select Project to Compile
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-- **Method 1**: Compile example
 
-Select an example to compile using::
-
-    cd TuyaOpen
-    tos set_example
-
-After platform selection, the ``examples`` directory will be updated with platform-specific examples.
-
-More example information: :doc:`Example Projects </examples/index>`.
-
-- **Method 2**: Compile app
-
-Select an app to compile (e.g. `apps/tuya_cloud/switch_demo <https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo>`_) and navigate to its directory.
+Select an app or example to compile (e.g. `apps/tuya_cloud/switch_demo <https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo>`_) and navigate to its directory.
 
 Use::
 
@@ -104,6 +92,8 @@ The ``tos config_choice`` command reads configuration files in the project's ``c
 
 .. important::
     After switching config with ``tos config_choice``, tos will automatically clean previously generated intermediate files.
+
+    More example information: :doc:`Example Projects </examples/index>`.
 
 step3. Compile
 ^^^^^^^^^^^^^^

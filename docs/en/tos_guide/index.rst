@@ -31,7 +31,6 @@ View complete command list via `tos help`.
         fullclean  - Clean project and delete build path
         menuconfig - Configuration project features
         savedef    - Saves minimal configuration file (app_default.config)
-        set_example  - Set examples from platform
         new_platform - New platform [platform_name]
         update     - Update the platforms according to the platform_config.yaml
         help       - Help information
@@ -139,9 +138,6 @@ Configuration Management
 +----------------------+---------------------------------------------------+
 | ``tos config_choice``| Selects config files from config                  |
 |                      | directory to replace app_default.config           |
-+----------------------+---------------------------------------------------+
-| ``tos set_example``  | Sets example demonstrations for different         |
-|                      | chip platforms (modifies `examples` directory)    |
 +----------------------+---------------------------------------------------+
 | ``tos update``       | Update tos tool                                   |
 +----------------------+---------------------------------------------------+
