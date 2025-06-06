@@ -25,8 +25,8 @@
 //#define TUYA_PRODUCT_KEY "e3jrgtmuqsljru1t"
 #define TUYA_PRODUCT_KEY "pnax3fya1ctl5pst"//"roxam5enkouvqubk"//机器人pid
 
-#define TUYA_OPENSDK_UUID    "uuid3c9ee88e3e517c52"            // Please change the correct uuid
-#define TUYA_OPENSDK_AUTHKEY "JJpyXSEwaq5NztK7fbZH1viPTGOwnOHG" // Please change the correct authkey
+#define TUYA_OPENSDK_UUID    "****************************"            // Please change the correct uuid
+#define TUYA_OPENSDK_AUTHKEY "***************************" // Please change the correct authkey
 
 /**
  * @brief PINCODE for AP provisioning
