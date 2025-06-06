@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char* TAG = "OttoMovements";
 
 static Otto_t g_otto;
 

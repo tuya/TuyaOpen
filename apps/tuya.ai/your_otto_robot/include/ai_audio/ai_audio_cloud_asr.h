@@ -44,7 +44,7 @@ OPERATE_RET ai_audio_cloud_asr_init(void);
 
 /**
  * @brief Starts the audio cloud ASR process.
- * @param None
+ * @param none
  * @return OPERATE_RET - OPRT_OK if the start operation is successful, otherwise an error code.
  */
 OPERATE_RET ai_audio_cloud_asr_start(void);

@@ -44,7 +44,7 @@ typedef struct {
     QUEUE_HANDLE queue_hdl;
     THREAD_HANDLE thrd_hdl;
 
-    UI_FONT_T ui_font
+    UI_FONT_T ui_font;
 } TUYA_DISPLAY_T;
 
 /***********************************************************
@@ -52,9 +52,11 @@ typedef struct {
 ***********************************************************/
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_puhui_18_2);
+LV_FONT_DECLARE(font_puhui_20_4);
 LV_FONT_DECLARE(font_puhui_30_4);
 LV_FONT_DECLARE(font_awesome_14_1);
 LV_FONT_DECLARE(font_awesome_16_4);
+LV_FONT_DECLARE(font_awesome_20_4);
 LV_FONT_DECLARE(font_awesome_30_1);
 LV_FONT_DECLARE(font_awesome_30_4);
 
@@ -64,15 +66,17 @@ extern const lv_font_t *font_emoji_64_init(void);
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if defined(BOARD_CHOICE_BREAD_COMPACT_WIFI) || defined(BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
 static UI_EMOJI_LIST_T sg_awesome_emo_list[EMO_ICON_MAX_NUM] = {
     {"NEUTRAL", FONT_AWESOME_EMOJI_NEUTRAL},   {"SAD", FONT_AWESOME_EMOJI_SAD},
     {"ANGRY", FONT_AWESOME_EMOJI_ANGRY},       {"SURPRISE", FONT_AWESOME_EMOJI_SURPRISED},
     {"CONFUSED", FONT_AWESOME_EMOJI_CONFUSED}, {"THINKING", FONT_AWESOME_EMOJI_THINKING},
     {"HAPPY", FONT_AWESOME_EMOJI_HAPPY},
 };
+#endif
 
 static UI_EMOJI_LIST_T sg_emo_list[EMO_ICON_MAX_NUM] = {
-    {"NEUTRAL", "😶"},  {"SAD", "😔"},      {"ANGRY", "😠"}, {"SURPRISE", "😯"},
+    {"NEUTRAL", "😶"},  {"SAD", "😔"},         {"ANGRY", "😠"},    {"SURPRISE", "😯"},
     {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
 };
 
@@ -90,39 +94,46 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
         return OPRT_INVALID_PARM;
     }
 
-#if defined(BOARD_CHOICE_TUYA_T5AI_BOARD)
+#if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
+     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_DNESP32S3_BOX) || defined(BOARD_CHOICE_TUYA_T5AI_MINI))
 #if defined(ENABLE_GUI_WECHAT)
-    ui_font->text = &font_puhui_18_2;
-    ui_font->icon = &font_awesome_16_4;
-    ui_font->emoji = font_emoji_32_init();
+    ui_font->text = (lv_font_t *)&font_puhui_18_2;
+    ui_font->icon = (lv_font_t *)&font_awesome_16_4;
+    ui_font->emoji = (lv_font_t *)font_emoji_32_init();
     ui_font->emoji_list = sg_emo_list;
 #elif defined(ENABLE_GUI_CHATBOT)
-    ui_font->text = &font_puhui_18_2;
-    ui_font->icon = &font_awesome_16_4;
-    ui_font->emoji = font_emoji_64_init();
-    ui_font->emoji_list = sg_emo_list;
-#endif
-#elif defined(BOARD_CHOICE_TUYA_T5AI_EVB)
-#if defined(ENABLE_GUI_WECHAT)
-    ui_font->text = &font_puhui_18_2;
-    ui_font->icon = &font_awesome_16_4;
-    ui_font->emoji = font_emoji_32_init();
-    ui_font->emoji_list = sg_emo_list;
-#elif defined(ENABLE_GUI_CHATBOT)
-    ui_font->text = &font_puhui_18_2;
-    ui_font->icon = &font_awesome_16_4;
-    ui_font->emoji = font_emoji_64_init();
+    ui_font->text = (lv_font_t *)&font_puhui_18_2;
+    ui_font->icon = (lv_font_t *)&font_awesome_16_4;
+    ui_font->emoji = (lv_font_t *)font_emoji_64_init();
     ui_font->emoji_list = sg_emo_list;
 #endif
 #elif defined(BOARD_CHOICE_BREAD_COMPACT_WIFI)
-    ui_font->text = &font_puhui_14_1;
-    ui_font->icon = &font_awesome_14_1;
-    ui_font->emoji = &font_awesome_30_1;
+    ui_font->text = (lv_font_t *)&font_puhui_14_1;
+    ui_font->icon = (lv_font_t *)&font_awesome_14_1;
+    ui_font->emoji = (lv_font_t *)&font_awesome_30_1;
+    ui_font->emoji_list = sg_awesome_emo_list;
+#elif defined(BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
+    ui_font->text = (lv_font_t *)&font_puhui_14_1;
+    ui_font->icon = (lv_font_t *)&font_awesome_14_1;
+    ui_font->emoji = (lv_font_t *)&font_awesome_30_1;
     ui_font->emoji_list = sg_awesome_emo_list;
 #elif defined(BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
-    ui_font->text = &font_puhui_30_4;
-    ui_font->icon = &font_awesome_30_4;
+    ui_font->text = (lv_font_t *)&font_puhui_30_4;
+    ui_font->icon = (lv_font_t *)&font_awesome_30_4;
+#if defined(ENABLE_GUI_WECHAT)
+    ui_font->emoji = font_emoji_32_init();
+#else
     ui_font->emoji = font_emoji_64_init();
+#endif
+    ui_font->emoji_list = sg_emo_list;
+#elif defined(BOARD_CHOICE_DNESP32S3)
+    ui_font->text = (lv_font_t *)&font_puhui_20_4;
+    ui_font->icon = (lv_font_t *)&font_awesome_20_4;
+#if defined(ENABLE_GUI_WECHAT)
+    ui_font->emoji = font_emoji_32_init();
+#else
+    ui_font->emoji = font_emoji_64_init();
+#endif
     ui_font->emoji_list = sg_emo_list;
 #else
 #error "Please define the font for your board"
@@ -279,7 +290,7 @@ OPERATE_RET app_display_init(void)
  * @param len Length of the message data
  * @return OPERATE_RET Result of sending the message, OPRT_OK indicates success
  */
-OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, char *data, int len)
+OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, uint8_t *data, int len)
 {
     DISPLAY_MSG_T msg_data;
 

@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include "tal_api.h"
+#include "tal_network.h"
 #include "tuya_ringbuf.h"
 #include "ai_audio_debug.h"
 
@@ -22,7 +23,7 @@
 
 #define TUYA_AUDIO_DEBUG_MAX_CONNECTIONS 1
 
-#define TCP_SERVER_IP   "192.168.28.244"
+#define TCP_SERVER_IP   "192.168.1.238"
 #define TCP_SERVER_PORT 5055
 
 static TUYA_IP_ADDR_T server_ip;
@@ -219,10 +220,10 @@ static int __ai_audio_debug_tcp_send(int type, char *data, int len)
     }
 
     int rt = 0;
-    rt = tkl_net_send(sock_fds[type], data, len);
+    rt = tal_net_send(sock_fds[type], data, len);
     if (rt < 0) {
         PR_ERR("send fail, exit");
-        tkl_net_close(sock_fds[type]);
+        tal_net_close(sock_fds[type]);
         return -1;
     }
     return rt;
@@ -239,7 +240,7 @@ static OPERATE_RET __ai_audio_debug_tcp_close_all(void)
     int i = 0;
     for (i = 0; i < TUYA_AUDIO_DEBUG_MAX_CONNECTIONS; i++) {
         if (sock_fds[i] >= 0) {
-            tkl_net_close(sock_fds[i]);
+            tal_net_close(sock_fds[i]);
             sock_fds[i] = -1;
         }
     }
@@ -258,7 +259,7 @@ static OPERATE_RET __ai_audio_debug_tcp_close(int type)
     if (type >= TUYA_AUDIO_DEBUG_MAX_CONNECTIONS || sock_fds[type] < 0) {
         return rt;
     }
-    tkl_net_close(sock_fds[type]);
+    tal_net_close(sock_fds[type]);
     return rt;
 }
 
@@ -300,7 +301,7 @@ OPERATE_RET ai_audio_debug_start(void)
     // close all tcp connections if exist
     for (i = 0; i < TUYA_AUDIO_DEBUG_MAX_CONNECTIONS; i++) {
         if (sock_fds[i] >= 0) {
-            tkl_net_close(sock_fds[i]);
+            tal_net_close(sock_fds[i]);
             sock_fds[i] = -1;
         }
     }
@@ -328,7 +329,7 @@ OPERATE_RET ai_audio_debug_data(char *buf, uint32_t len)
     OPERATE_RET rt = OPRT_OK;
     int i = 0;
 
-    if(NULL == buf || 0 == len) {
+    if (NULL == buf || 0 == len) {
         return OPRT_INVALID_PARM;
     }
 

@@ -81,8 +81,7 @@ static void __ui_notification_timeout_cb(lv_timer_t *timer)
     lv_obj_clear_flag(sg_ui.ui.status_label, LV_OBJ_FLAG_HIDDEN);
 }
 
-#if defined(OLED_SSD1306_128X32) && (OLED_SSD1306_128X32 == 1)
-int ui_init(UI_FONT_T *ui_font)
+static int ui_init_128X32(UI_FONT_T *ui_font)
 {
     // Font init
     __ui_font_init(ui_font);
@@ -160,10 +159,8 @@ int ui_init(UI_FONT_T *ui_font)
 
     return 0;
 }
-#endif
 
-#if defined(OLED_SSD1306_128X64) && (OLED_SSD1306_128X64 == 1)
-int ui_init(UI_FONT_T *ui_font)
+static int ui_init_128X64(UI_FONT_T *ui_font)
 {
     // Font init
     __ui_font_init(ui_font);
@@ -251,7 +248,17 @@ int ui_init(UI_FONT_T *ui_font)
 
     return 0;
 }
-#endif
+
+int ui_init(UI_FONT_T *ui_font)
+{
+    if (LV_HOR_RES == 128 && LV_VER_RES == 32) {
+        return ui_init_128X32(ui_font);
+    } else if (LV_HOR_RES == 128 && LV_VER_RES == 64) {
+        return ui_init_128X64(ui_font);
+    } else {
+        return -1; // Unsupported resolution
+    }
+}
 
 void ui_set_user_msg(const char *text)
 {

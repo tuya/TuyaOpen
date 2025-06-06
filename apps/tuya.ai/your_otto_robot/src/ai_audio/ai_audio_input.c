@@ -18,7 +18,6 @@
 #include "tkl_thread.h"
 #include "tkl_mutex.h"
 
-#include "app_board_api.h"
 #include "tdl_audio_manage.h"
 
 #include "tal_api.h"
@@ -49,6 +48,7 @@ typedef struct {
 typedef struct {
     bool                          is_init;
     bool                          is_enable_get_valid_data;
+    bool                          is_manual_get_valid_data;
 
     AI_AUDIO_INPUT_STATE_E         state;
     AI_AUDIO_INPUT_VALID_METHOD_E  method;
@@ -168,10 +168,10 @@ static void __ai_audio_asr_feed(void *data, uint32_t len)
             uint32_t discard_size = rb_used_size - AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_VAD_ACITVE_TM_MS);
             tuya_ring_buff_discard(sg_audio_input.asr.feed_ringbuff, discard_size);
         }
-    } 
-    
+    }
+
     tuya_ring_buff_write(sg_audio_input.asr.feed_ringbuff, data, len);
-    
+
     tal_mutex_unlock(sg_audio_input.asr.rb_mutex);
 
     return;
@@ -275,7 +275,8 @@ AI_AUDIO_INPUT_STATE_E __ai_audio_input_get_new_state(AI_AUDIO_INPUT_VALID_METHO
 
     switch (method) {
     case AI_AUDIO_INPUT_VALID_METHOD_MANUAL:
-        // the state is manually controlled from the outside.
+        state = sg_audio_input.is_manual_get_valid_data ? AI_AUDIO_INPUT_STATE_GET_VALID_DATA
+                                                        : AI_AUDIO_INPUT_STATE_DETECTING;
         break;
     case AI_AUDIO_INPUT_VALID_METHOD_VAD:
         if (TKL_VAD_STATUS_SPEECH == tkl_vad_get_status()) {
@@ -366,7 +367,7 @@ AI_AUDIO_INPUT_EVENT_E __ai_audio_input_get_event(AI_AUDIO_INPUT_STATE_E curr_st
 static void __ai_audio_get_input_frame(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_STATUS_E status, uint8_t *data,
                                        uint32_t len)
 {
-#if defined(ENABLE_AEC) && (ENABLE_AEC == 1)
+#if defined(ENABLE_AUDIO_AEC) && (ENABLE_AUDIO_AEC == 1)
 
 #else
     if (true == ai_audio_player_is_playing()) {
@@ -416,8 +417,8 @@ static void __ai_audio_handle_frame_task(void *arg)
             sg_audio_input.asr.is_need_inform_wakeup_stop = false;
         }
 
-        if(AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD == event) {
-            //restart vad detection
+        if (AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD == event) {
+            // restart vad detection
             tkl_vad_stop();
             __ai_audio_input_rb_reset();
             tkl_vad_start();
@@ -431,14 +432,13 @@ static void __ai_audio_handle_frame_task(void *arg)
     }
 }
 
-static OPERATE_RET __ai_audio_input_hardware_init(void)
+static OPERATE_RET __ai_audio_input_open(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
 
-    app_audio_driver_init(AUDIO_DRIVER_NAME);
-    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_DRIVER_NAME, &audio_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_open(audio_hdl, __ai_audio_get_input_frame));
 
     PR_DEBUG("__ai_audio_input_hardware_init success");
@@ -487,13 +487,13 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg, AI_AUDIO_INOUT_INFORM
         return OPRT_OK;
     }
 
-    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_INPUT_RB_TIME_MS)+1,
+    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_AUDIO_VOICE_FRAME_LEN_GET(AI_AUDIO_INPUT_RB_TIME_MS) + 1,
                                                OVERFLOW_PSRAM_STOP_TYPE, &sg_audio_input.ringbuff_hdl));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_audio_input.rb_mutex));
 
     TUYA_CALL_ERR_RETURN(__ai_audio_input_set_method(cfg->get_valid_data_method));
 
-    TUYA_CALL_ERR_RETURN(__ai_audio_input_hardware_init());
+    TUYA_CALL_ERR_RETURN(__ai_audio_input_open());
 
     sg_audio_input_inform_cb = cb;
 
@@ -548,15 +548,13 @@ OPERATE_RET ai_audio_input_manual_open_get_valid_data(bool is_open)
         return OPRT_NOT_SUPPORTED;
     }
 
-    sg_audio_input.state = is_open ? AI_AUDIO_INPUT_STATE_GET_VALID_DATA : AI_AUDIO_INPUT_STATE_DETECTING;
+    sg_audio_input.is_manual_get_valid_data = is_open;
 
     return OPRT_OK;
 }
 
 OPERATE_RET ai_audio_input_stop_asr_awake(void)
 {
-    AI_AUDIO_INPUT_EVENT_E event = 0;
-
     if (false == sg_audio_input.is_enable_get_valid_data) {
         PR_ERR("input is not allowed get valid data, please enable it first");
         return OPRT_COM_ERROR;
@@ -591,12 +589,9 @@ OPERATE_RET ai_audio_input_restart_asr_awake_timer(void)
         return OPRT_NOT_SUPPORTED;
     }
 
-    if (false == sg_audio_input.asr.is_wakeup) {
-        PR_ERR("asr wakeup is already timeout");
-        return OPRT_COM_ERROR;
-    }
-
     tal_sw_timer_start(sg_audio_input.asr.wakeup_timer_id, ASR_WAKEUP_TIMEOUT_MS, TAL_TIMER_ONCE);
+
+    sg_audio_input.asr.is_wakeup = true;
 
     return OPRT_OK;
 }

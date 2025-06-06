@@ -40,6 +40,8 @@
 #include "app_display.h"
 #endif
 
+#include "board_com_api.h"
+
 #include "app_chat_bot.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
@@ -52,7 +54,7 @@ tuya_iot_client_t ai_client;
 #define PROJECT_VERSION "1.0.0"
 #endif
 
-#define DPID_VOLUME 6
+#define DPID_VOLUME 3
 #define DPID_MOVE 5
 
 static uint8_t _need_reset = 0;
@@ -90,7 +92,7 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
     PR_INFO("HTTPS URL: %s", cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
 }
 
-OPERATE_RET dp_obj_proc(dp_obj_recv_t *dpobj)
+OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
@@ -125,7 +127,7 @@ OPERATE_RET dp_obj_proc(dp_obj_recv_t *dpobj)
     return OPRT_OK;
 }
 
-OPERATE_RET ai_audio_status_upload(void)
+OPERATE_RET ai_audio_volume_upload(void)
 {
     tuya_iot_client_t *client = tuya_iot_client_get();
     dp_obj_t dp_obj = {0};
@@ -160,18 +162,11 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_INFO("Device Reset!");
             tal_system_reset();
         }
-// 软重启，未配网，播报配网提示
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)ENTERING_WIFI_CONFIG_MODE,
-                             strlen(ENTERING_WIFI_CONFIG_MODE));
-#endif
+
         ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
 
     case TUYA_EVENT_BIND_TOKEN_ON:
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)CONNECT_SERVER, strlen(CONNECT_SERVER));
-#endif
         break;
 
     /* MQTT with tuya cloud is connected, device online */
@@ -182,12 +177,14 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         static uint8_t first = 1;
         if (first) {
             first = 0;
+
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)CONNECTED_TO, strlen(CONNECTED_TO));
-            app_system_info_loop_start();
+            UI_WIFI_STATUS_E wifi_status = UI_WIFI_STATUS_GOOD;
+            app_display_send_msg(TY_DISPLAY_TP_NETWORK, (uint8_t *)&wifi_status, sizeof(UI_WIFI_STATUS_E));
 #endif
+
             ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
-            ai_audio_status_upload();
+            ai_audio_volume_upload();
         }
         break;
 
@@ -222,7 +219,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpobj->devid);
         }
 
-        dp_obj_proc(dpobj);
+        audio_dp_obj_proc(dpobj);
 
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
 
@@ -287,8 +284,8 @@ void user_main(void)
     tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
-        license.uuid = "uuid2a21110927442623";
-        license.authkey = "i6A9AHxMBgdni9QXtybNMOMkWSv78mW7";
+        license.uuid = TUYA_OPENSDK_UUID;
+        license.authkey = TUYA_OPENSDK_AUTHKEY;
         PR_WARN("Replace the TUYA_OPENSDK_UUID and TUYA_OPENSDK_AUTHKEY contents, otherwise the demo cannot work.\n \
                 Visit https://platform.tuya.com/purchase/index?type=6 to get the open-sdk uuid and authkey.");
     }
@@ -324,10 +321,11 @@ void user_main(void)
 #endif
 
     PR_DEBUG("tuya_iot_init success");
-    
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_init();
-#endif
+
+    ret = board_register_hardware();
+    if (ret != OPRT_OK) {
+        PR_ERR("board_register_hardware failed");
+    }
 
     ret = app_chat_bot_init();
     if (ret != OPRT_OK) {
@@ -339,7 +337,7 @@ void user_main(void)
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
 
-    tkl_wifi_set_lp_mode(0,0);
+    tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
     extern void otto_power_on();

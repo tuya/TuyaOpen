@@ -11,6 +11,10 @@
  *
  */
 
+#include "tuya_cloud_types.h"
+
+#if defined(PLATFORM_T5)
+
 #include "tkl_display.h"
 #include "tal_api.h"
 
@@ -130,3 +134,5 @@ OPERATE_RET tuya_lvgl_mutex_unlock(void)
 
     return tal_mutex_unlock(sg_lvgl_mutex_hdl);
 }
+
+#endif // PLATFORM_T5

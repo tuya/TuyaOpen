@@ -72,7 +72,7 @@ OPERATE_RET app_display_init(void);
  * @param len Length of the message data
  * @return OPERATE_RET Result of sending the message, OPRT_OK indicates success
  */
-OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, char *data, int len);
+OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, uint8_t *data, int len);
 
 #ifdef __cplusplus
 }

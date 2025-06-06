@@ -1,5 +1,5 @@
 /**
- * @file tuya_t5ai_mini.c
+ * @file tuya_t5ai_board.c
  * @author Tuya Inc.
  * @brief Implementation of common board-level hardware registration APIs for audio, button, and LED peripherals.
  *
@@ -18,7 +18,7 @@
 ***********************************************************/
 #define BOARD_SPEAKER_EN_PIN         TUYA_GPIO_NUM_27
 
-#define BOARD_BUTTON_PIN             TUYA_GPIO_NUM_33
+#define BOARD_BUTTON_PIN             TUYA_GPIO_NUM_15
 #define BOARD_BUTTON_ACTIVE_LV       TUYA_GPIO_LEVEL_LOW
 
 #define BOARD_LED_PIN                TUYA_GPIO_NUM_1
