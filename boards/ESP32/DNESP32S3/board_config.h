@@ -40,23 +40,33 @@ extern "C" {
 #define AUDIO_CODEC_DMA_FRAME_NUM (240)
 #define AUDIO_CODEC_ES8388_ADDR   (0x20)
 
-/* XL9555 Extended IO */
-#define SPK_EN_IO   0x0004 /* Speaker enable IO pin */
-#define BEEP_IO     0x0008
-#define AP_INT_IO   0x0001
-#define QMA_INT_IO  0x0002
-#define OV_PWDN_IO  0x0010
-#define OV_RESET_IO 0x0020
-#define GBC_LED_IO  0x0040
-#define GBC_KEY_IO  0x0080
-#define LCD_BL_IO   0x0100
-#define CT_RST_IO   0x0200
-#define SLCD_RST_IO 0x0400
-#define SLCD_PWR_IO 0x0800
-#define KEY3_IO     0x1000
-#define KEY2_IO     0x2000
-#define KEY1_IO     0x4000
-#define KEY0_IO     0x8000
+/* io expander start */
+#define IO_EXPANDER_TYPE_UNKNOWN 0
+#define IO_EXPANDER_TYPE_TCA9554 1
+#define IO_EXPANDER_TYPE_XL9555  2
+
+#define BOARD_IO_EXPANDER_TYPE IO_EXPANDER_TYPE_XL9555
+
+#define IO_EXPANDER_XL9555_ADDR_000 (0x20)
+#define IO_EXPANDER_XL9555_ADDR     IO_EXPANDER_XL9555_ADDR_000
+
+#define EX_IO_AP_INT   (0x0001 << 0)
+#define EX_IO_QMA_INT  (0x0001 << 1)
+#define EX_IO_SPK_EN   (0x0001 << 2)
+#define EX_IO_BEEP     (0x0001 << 3)
+#define EX_IO_OV_PWDN  (0x0001 << 4)
+#define EX_IO_OV_RESET (0x0001 << 5)
+#define EX_IO_GBC_LED  (0x0001 << 6)
+#define EX_IO_GBC_KEY  (0x0001 << 7)
+#define EX_IO_LCD_BL   (0x0001 << 8)
+#define EX_IO_CTP_RST  (0x0001 << 9)
+#define EX_IO_SLCD_RST (0x0001 << 10)
+#define EX_IO_SLCD_PWR (0x0001 << 11)
+#define EX_IO_KEY_3    (0x0001 << 12)
+#define EX_IO_KEY_2    (0x0001 << 13)
+#define EX_IO_KEY_1    (0x0001 << 14)
+#define EX_IO_KEY_0    (0x0001 << 15)
+/* io expander end */
 
 /* display */
 #define DISPLAY_TYPE_UNKNOWN        0

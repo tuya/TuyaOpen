@@ -60,6 +60,15 @@ static i2c_master_dev_handle_t i2c_device_ = NULL;
 ***********************************************************/
 static void InitializeCodecI2c(const TDD_AUDIO_ATK_NO_CODEC_T *i2s_config)
 {
+    esp_err_t esp_rt = ESP_OK;
+
+    // retrieve i2c bus handle
+    esp_rt = i2c_master_get_bus_handle(i2s_config->i2c_id, &codec_i2c_bus_);
+    if (esp_rt == ESP_OK && codec_i2c_bus_) {
+        ESP_LOGI(TAG, "I2C bus handle retrieved successfully");
+        return;
+    }
+
     // Initialize I2C peripheral
     i2c_master_bus_config_t i2c_bus_cfg = {
         .i2c_port = i2s_config->i2c_id,
@@ -75,63 +84,6 @@ static void InitializeCodecI2c(const TDD_AUDIO_ATK_NO_CODEC_T *i2s_config)
             },
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &codec_i2c_bus_));
-}
-
-static void __WriteReg(uint8_t reg, uint8_t value)
-{
-    uint8_t buffer[2] = {reg, value};
-    ESP_ERROR_CHECK(i2c_master_transmit(i2c_device_, buffer, 2, 100));
-}
-
-static uint8_t __ReadReg(uint8_t reg)
-{
-    uint8_t buffer[1];
-    ESP_ERROR_CHECK(i2c_master_transmit_receive(i2c_device_, &reg, 1, buffer, 1, 100));
-    return buffer[0];
-}
-
-static void __SetOutputState(uint8_t bit, uint8_t level)
-{
-    uint16_t data;
-    if (bit < 8) {
-        data = __ReadReg(0x02);
-    } else {
-        data = __ReadReg(0x03);
-        bit -= 8;
-    }
-
-    data = (data & ~(1 << bit)) | (level << bit);
-
-    if (bit < 8) {
-        __WriteReg(0x02, data);
-    } else {
-        __WriteReg(0x03, data);
-    }
-}
-
-static void xl9555_in_setup(i2c_master_bus_handle_t i2c_bus, uint8_t addr)
-{
-    i2c_device_config_t i2c_device_cfg = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = addr,
-        .scl_speed_hz = 400 * 1000,
-        .scl_wait_us = 0,
-        .flags =
-            {
-                .disable_ack_check = 0,
-            },
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus, &i2c_device_cfg, &i2c_device_));
-    assert(i2c_device_ != NULL);
-
-    __WriteReg(0x06, 0x3B);
-    __WriteReg(0x07, 0xFE);
-
-    __WriteReg(0x06, 0x1B);
-    __WriteReg(0x07, 0xFE);
-
-    __SetOutputState(5, 1);
-    __SetOutputState(7, 1);
 }
 
 static void SetOutputVolume(int volume)
@@ -213,7 +165,6 @@ OPERATE_RET atk_no_codec_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_ATK_NO_COD
     //          i2s_config->dma_desc_num, i2s_config->dma_frame_num);
 
     InitializeCodecI2c(i2s_config);
-    xl9555_in_setup(codec_i2c_bus_, 0x20);
     CreateDuplexChannels(i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io, i2s_config->i2s_do_io,
                          i2s_config->i2s_di_io, i2s_config->dma_desc_num, i2s_config->dma_frame_num);
 
