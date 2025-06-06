@@ -12,10 +12,11 @@
 
 #include "tdd_audio_codec_bus.h"
 #include "tdd_audio_es8388_codec.h"
-#include "tdd_xl9555_io.h"
 
 #include "lcd_st7789_spi.h"
 #include "board_com_api.h"
+
+#include "xl9555.h"
 
 /***********************************************************
 ************************macro define************************
@@ -35,6 +36,42 @@ static TDD_AUDIO_I2S_RX_HANDLE i2s_rx_handle = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static OPERATE_RET __io_expander_init(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    rt = xl9555_init();
+    if (rt != OPRT_OK) {
+        PR_ERR("xl9555_init failed: %d", rt);
+        return rt;
+    }
+
+    uint32_t pin_out_mask = 0;
+    pin_out_mask |= EX_IO_SPK_EN;
+    pin_out_mask |= EX_IO_BEEP;
+    pin_out_mask |= EX_IO_OV_PWDN;
+    pin_out_mask |= EX_IO_OV_RESET;
+    pin_out_mask |= EX_IO_GBC_LED;
+    pin_out_mask |= EX_IO_GBC_KEY;
+    pin_out_mask |= EX_IO_LCD_BL;
+    pin_out_mask |= EX_IO_CTP_RST;
+    pin_out_mask |= EX_IO_SLCD_RST;
+    pin_out_mask |= EX_IO_SLCD_PWR;
+    rt = xl9555_set_dir(pin_out_mask, 0); // Set output direction
+    if (rt != OPRT_OK) {
+        PR_ERR("xl9555_set_dir out failed: %d", rt);
+        return rt;
+    }
+    uint32_t pin_in_mask = ~pin_out_mask;
+    rt = xl9555_set_dir(pin_in_mask, 1); // Set input direction
+    if (rt != OPRT_OK) {
+        PR_ERR("xl9555_set_dir in failed: %d", rt);
+        return rt;
+    }
+
+    return OPRT_OK;
+}
+
 static OPERATE_RET __board_register_audio(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -58,14 +95,6 @@ static OPERATE_RET __board_register_audio(void)
     tdd_audio_codec_bus_i2c_new(bus_cfg, &i2c_bus_handle);
     tdd_audio_codec_bus_i2s_new(bus_cfg, &i2s_tx_handle, &i2s_rx_handle);
 
-    /* P10, P11, P12, P13, and P14 are inputs, other pins are outputs --> 0001 1111 0000 0000 Note: 0 is output, 1 is
-     * input */
-    tdd_xl9555_io_init(i2c_bus_handle, 0xF003);
-    /* Turn off buzzer */
-    tdd_xl9555_io_set(BEEP_IO, 1);
-    /* Turn on Speaker */
-    tdd_xl9555_io_set(SPK_EN_IO, 0);
-
     TDD_AUDIO_ES8388_CODEC_T codec = {
         .i2c_id = I2C_NUM,
         .i2c_handle = i2c_bus_handle,
@@ -78,8 +107,10 @@ static OPERATE_RET __board_register_audio(void)
         .pa_pin = -1, /* The speaker power is controlled by XL9555. */
         .default_volume = 80,
     };
-
     TUYA_CALL_ERR_RETURN(tdd_audio_es8388_codec_register(AUDIO_CODEC_NAME, codec));
+
+    xl9555_set_dir(EX_IO_SPK_EN, 0);
+    xl9555_set_level(EX_IO_SPK_EN, 0); // Enable speaker
 #endif
 
     return rt;
@@ -93,6 +124,8 @@ static OPERATE_RET __board_register_audio(void)
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__io_expander_init());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
 
