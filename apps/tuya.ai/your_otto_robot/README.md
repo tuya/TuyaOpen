@@ -66,24 +66,8 @@ Otto Robot 是一个开源的人形机器人平台，支持多种功能扩展。
 - **UUID获取**：访问 [Tuya Open 仓库](https://github.com/tuya/TuyaOpen/tree/master) 点击 右上角"Star" 后进群获取 UUID
 - **配置T5 mini开发板引脚：**在apps/tuya.ai/your_otto_robot/ 使用命令**：**tos menuconfig 按下图操作选择
 
-![img](./imgs/project-select.png)
-![img](./imgs/speaker-pin.png)
-
-
-- **选择st7789屏幕**：在apps/tuya.ai/your_otto_robot/ 使用命令：tos menuconfig 按下图操作选择
-
-按照下图的0-5操作后保存
-
-![img](https://cdn.nlark.com/yuque/0/2025/png/55332580/1747995263104-5007fddf-5d51-423e-bf40-3e034b331536.png)
-
-![img](https://cdn.nlark.com/yuque/0/2025/png/55332580/1747994787340-9af0f6bf-638e-4656-bded-c11809341b37.png)
-
-![img](https://cdn.nlark.com/yuque/0/2025/png/55332580/1747995102423-a50c81bc-a75f-4ad6-bcce-9fde9c43ef9a.png)
-
-![img](https://cdn.nlark.com/yuque/0/2025/png/55332580/1747995133265-bdd2800a-c8bc-415d-b9e9-1e17d64d21c7.png)
-
 ### 屏幕转向 90度 修改
-![img](./imgs/speaker-pin.png)
+![img](./imgs/screen-rotate.png)
 
 ### 以上配置完成后保存：再tos build哦
 编译完成后才会下拉platform/T5AI/tuyaos/tuyaos_adapter/src/driver/tkl_pwm.c文件
