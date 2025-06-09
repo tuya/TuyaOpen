@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master  # 当分支有提交时执行此工作流
+      - dev
 jobs:
   Build-Switch-Demo:
     runs-on: self-hosted
@@ -29,5 +30,11 @@ jobs:
           cd ${{ github.workspace }}
           export PATH=$PATH:$(pwd)
           cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
+          tos dev bac
+      - name: Check [your_otto_robot] Build
+        run: |
+          cd ${{ github.workspace }}
+          export PATH=$PATH:$(pwd)
+          cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
           tos dev bac
       - run: echo "💡 This job's status is ${{ job.status }}."
