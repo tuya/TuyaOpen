@@ -53,10 +53,10 @@ static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 static i2c_master_bus_handle_t codec_i2c_bus_ = NULL;
-static audio_codec_data_if_t *data_if_ = NULL;
-static audio_codec_ctrl_if_t *ctrl_if_ = NULL;
-static audio_codec_gpio_if_t *gpio_if_ = NULL;
-static audio_codec_if_t *codec_if_ = NULL;
+static const audio_codec_data_if_t *data_if_;
+static const audio_codec_ctrl_if_t *ctrl_if_;
+static const audio_codec_gpio_if_t *gpio_if_;
+static const audio_codec_if_t *codec_if_;
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
 
@@ -300,8 +300,6 @@ static int tkl_i2s_8311_recv(TUYA_I2S_NUM_E i2s_num, void *buff, uint32_t len)
 
 static void esp32_i2s_8311_read_task(void *args)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     ESP_I2S_8311_HANDLE_T *hdl = (ESP_I2S_8311_HANDLE_T *)args;
     if (NULL == hdl) {
         PR_ERR("I2S 8311 read task args is NULL");

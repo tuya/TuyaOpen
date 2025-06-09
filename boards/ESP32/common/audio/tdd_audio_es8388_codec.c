@@ -48,9 +48,9 @@ static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 
-static audio_codec_gpio_if_t *gpio_if_ = NULL;
-static audio_codec_ctrl_if_t *ctrl_if = NULL;
-static audio_codec_data_if_t *data_if = NULL;
+static const audio_codec_gpio_if_t *gpio_if_;
+static const audio_codec_ctrl_if_t *ctrl_if_;
+static const audio_codec_data_if_t *data_if_;
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
 
@@ -100,7 +100,7 @@ static void enable_output_device(bool enable)
         uint8_t reg_val = 30;              // 0dB
         uint8_t regs[] = {46, 47, 48, 49}; // HP_LVOL, HP_RVOL, SPK_LVOL, SPK_RVOL
         for (int i = 0; i < sizeof(regs); i++) {
-            ctrl_if->write_reg(ctrl_if, regs[i], 1, &reg_val, 1);
+            ctrl_if_->write_reg(ctrl_if_, regs[i], 1, &reg_val, 1);
         }
     } else {
         ESP_ERROR_CHECK(esp_codec_dev_close(output_dev_));
@@ -112,8 +112,6 @@ static void enable_output_device(bool enable)
 
 OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
 {
-    audio_codec_if_t *codec_if = NULL;
-
     pa_pin_ = cfg->pa_pin;
     input_sample_rate_ = cfg->mic_sample_rate;
     output_sample_rate_ = cfg->spk_sample_rate;
@@ -130,37 +128,36 @@ OPERATE_RET codec_es8388_init(TDD_AUDIO_ES8388_CODEC_T *cfg)
         .rx_handle = cfg->i2s_rx_handle,
         .tx_handle = cfg->i2s_tx_handle,
     };
-    data_if = audio_codec_new_i2s_data(&i2s_cfg);
-    assert(data_if != NULL);
+    data_if_ = audio_codec_new_i2s_data(&i2s_cfg);
+    assert(data_if_ != NULL);
 
     audio_codec_i2c_cfg_t i2c_cfg = {
         .port = cfg->i2c_id,
         .addr = cfg->es8388_addr,
         .bus_handle = cfg->i2c_handle,
     };
-    ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
-    assert(ctrl_if != NULL);
+    ctrl_if_ = audio_codec_new_i2c_ctrl(&i2c_cfg);
+    assert(ctrl_if_ != NULL);
 
-    audio_codec_gpio_if_t *gpio_if = NULL;
     if (cfg->pa_pin != GPIO_NUM_NC) {
         gpio_if_ = audio_codec_new_gpio();
         assert(gpio_if_ != NULL);
     }
     es8388_codec_cfg_t es8388_cfg = {};
-    es8388_cfg.ctrl_if = ctrl_if;
-    es8388_cfg.gpio_if = gpio_if;
+    es8388_cfg.ctrl_if = ctrl_if_;
+    es8388_cfg.gpio_if = gpio_if_;
     es8388_cfg.pa_pin = cfg->pa_pin;
     es8388_cfg.codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH;
     es8388_cfg.hw_gain.pa_voltage = 5.0;
     es8388_cfg.hw_gain.codec_dac_voltage = 3.3;
-    codec_if = es8388_codec_new(&es8388_cfg);
+    const audio_codec_if_t *codec_if = es8388_codec_new(&es8388_cfg);
     assert(codec_if != NULL);
 
     // Output device
     esp_codec_dev_cfg_t dev_cfg = {
         .dev_type = ESP_CODEC_DEV_TYPE_OUT,
         .codec_if = codec_if,
-        .data_if = data_if,
+        .data_if = data_if_,
     };
     output_dev_ = esp_codec_dev_new(&dev_cfg);
     assert(output_dev_ != NULL);

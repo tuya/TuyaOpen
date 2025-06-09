@@ -53,7 +53,6 @@ static int input_sample_rate_ = 0;
 static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static i2c_master_bus_handle_t codec_i2c_bus_ = NULL;
-static i2c_master_dev_handle_t i2c_device_ = NULL;
 
 /***********************************************************
 ***********************function define**********************

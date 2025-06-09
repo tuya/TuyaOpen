@@ -60,8 +60,6 @@ typedef struct {
 
 static void esp32_i2s_read_task(void *args)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     ESP_I2S_HANDLE_T *hdl = (ESP_I2S_HANDLE_T *)args;
     if (NULL == hdl) {
         PR_ERR("I2S read task args is NULL");
@@ -242,7 +240,9 @@ static OPERATE_RET __tdd_audio_no_codec_config(TDD_AUDIO_HANDLE_T handle, TDD_AU
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CHECK_NULL_RETURN(handle, OPRT_COM_ERROR);
+
     ESP_I2S_HANDLE_T *hdl = (ESP_I2S_HANDLE_T *)handle;
+    (void)hdl;
 
     switch (cmd) {
     case TDD_AUDIO_CMD_SET_VOLUME:
