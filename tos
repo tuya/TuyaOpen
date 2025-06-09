@@ -432,23 +432,11 @@ function menuconfig_exec()
     DOT_CONFIG_DIR="$PROJECT_ROOT/.build/cache"
     KCONFIG_CATALOG="CatalogKconfig"
     DOT_CONFIG="using.config"
-    CMAKE_CONFIG="using.cmake"
-    HEADER_DIR="$PROJECT_ROOT/.build/include"
-    HEADER_FILE="tuya_kconfig.h"
-    HEADER_IN_PATH="${KCONFIG_TOOLS}/config.h.in"
-    APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
-    BOARDS_DIR="$OPEN_SDK_ROOT/boards"
 
     mkdir -p $DOT_CONFIG_DIR
     cd $DOT_CONFIG_DIR
     bash ${KCONFIG_TOOLS}/run_menuconfig.sh "${KCONFIG_CATALOG}" "$DOT_CONFIG"
     check_platform_change
-    cd $DOT_CONFIG_DIR
-    python3 ${KCONFIG_TOOLS}/conf2cmake.py -c "${DOT_CONFIG_DIR}/${DOT_CONFIG}" -o "${CMAKE_CONFIG}"
-
-    mkdir -p ${HEADER_DIR}
-    cd ${HEADER_DIR}
-    python3 ${KCONFIG_TOOLS}/conf2h.py -c "${DOT_CONFIG_DIR}/${DOT_CONFIG}" -o "${HEADER_FILE}" -i "${HEADER_IN_PATH}"
     cd - > /dev/null
 }
 
