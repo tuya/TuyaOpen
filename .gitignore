@@ -1,10 +1,12 @@
 __pycache__
 .vscode
 .tags
+.env.json
 
 CMakeCache.txt
 /CMakeFiles
 
+/.venv
 /tmp
 /.cache
 /cache
