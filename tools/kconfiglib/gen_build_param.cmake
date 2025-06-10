@@ -9,5 +9,5 @@ execute_process(
     ${CMAKE_COMMAND} -E make_directory ${BUILD_PARAM_DIR}
 
     COMMAND
-    python3 ${KCONFIG_TOOLS}/conf2param.py -c "${DOT_CONFIG_DIR}/${DOT_CONFIG}" -p "${BUILD_PARAM_LIST}" -o "${BUILD_PARAM_DIR}/${BUILD_PARAM_FILE_NAME}"
+    python ${KCONFIG_TOOLS}/conf2param.py -c "${DOT_CONFIG_DIR}/${DOT_CONFIG}" -p "${BUILD_PARAM_LIST}" -o "${BUILD_PARAM_DIR}/${BUILD_PARAM_FILE_NAME}"
 )

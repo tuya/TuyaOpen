@@ -10,6 +10,8 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
 
+MESSAGE(STATUS "#################### TuyaOpen CMakeLists.txt Start ####################")
+
 # include cmake
 set(TOP_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(TOP_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -28,7 +30,6 @@ if(${TOP_SOURCE_DIR} STREQUAL ${TOP_BINARY_DIR})
     ")
 endif()
 
-MESSAGE(STATUS "###################################")
 IF (WIN32)
 	MESSAGE(STATUS "Now is windows")
 ELSEIF (APPLE)
@@ -180,6 +181,11 @@ include("${TOP_SOURCE_DIR}/tools/kconfiglib/gen_build_param.cmake")
 ########################################
 # build commands
 ########################################
+set(BUILD_COMMAND "./build_example.sh")
+if(EXISTS "${TOP_SOURCE_DIR}/platform/${TOS_PROJECT_PLATFORM}/build_example.py")
+    set(BUILD_COMMAND python -u ./build_example.py)
+endif()
+
 add_custom_target(example
     DEPENDS
     build_example_exe
@@ -196,10 +202,12 @@ add_custom_command(
     ${PLATFORM_PATH}
 
     COMMAND
-    ./build_example.sh "${BUILD_PARAM_DIR}" "build" | tee /dev/tty
+    ${BUILD_COMMAND} "${BUILD_PARAM_DIR}" "build"
 
     COMMENT
-    "[EXAMPLE] Generate execute file [${EXAMPLE_NAME}]"
+    "[EXAMPLE] Generate execute file [${EXAMPLE_NAME}]:"
+
+    USES_TERMINAL
     )
 
 # clean
@@ -208,21 +216,12 @@ add_custom_target(platform_clean
     ${PLATFORM_PATH}
 
     COMMAND
-    ./build_example.sh "${BUILD_PARAM_DIR}" "clean" | tee /dev/tty
+    ${BUILD_COMMAND} "${BUILD_PARAM_DIR}" "clean"
 
     COMMENT
-    "[TOP] Platform clean."
-    )
+    "[TOP] Platform [${PLATFORM_NAME}] clean:"
 
-add_custom_target(platform_menuconfig
-    WORKING_DIRECTORY
-    ${PLATFORM_PATH}
-
-    COMMAND
-    ./build_example.sh "${BUILD_PARAM_DIR}" "menuconfig" | tee /dev/tty
-
-    COMMENT
-    "[TOP] Platform menuconfig."
+    USES_TERMINAL
     )
 
 add_custom_target(clean_all
@@ -233,18 +232,6 @@ add_custom_target(clean_all
 )
 
 ########################################
-# add UT
-########################################
-enable_testing()
-add_subdirectory("${TOP_SOURCE_DIR}/tools/ut")
-
-
-########################################
 # prompt
 ########################################
-message(STATUS "[TOP] If you want to build example
-        ${Cyan}[tos build]${ColourReset}.
-")
-message(STATUS "[TOP] If you want to clean project
-        ${Cyan}[tos clean]${ColourReset}.
-")
+MESSAGE(STATUS "${Cyan}#################### TuyaOpen CMakeLists.txt End ####################${ColourReset}")

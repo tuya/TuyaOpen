@@ -7,15 +7,16 @@
 #/
 
 function(list_components RETURN DIR)
-    execute_process(COMMAND "find" ${DIR} "-maxdepth" "2" "-name" "CMakeLists.txt"
-        OUTPUT_VARIABLE find_dir)
-    string(REPLACE "\n" ";" sub_split ${find_dir})
-    foreach(s ${sub_split})
-        get_filename_component(sub_dir ${s} DIRECTORY)
-        get_filename_component(comp_name ${sub_dir} NAME)
-        list(APPEND ans ${comp_name})
-    endforeach(s)
-    set(${RETURN} "${ans}" PARENT_SCOPE)
+  set(COMPONENTS)
+  if(EXISTS "${DIR}" AND IS_DIRECTORY "${DIR}")
+    file(GLOB children RELATIVE "${DIR}" "${DIR}/*")
+    foreach(child ${children})
+      if(IS_DIRECTORY "${DIR}/${child}" AND EXISTS "${DIR}/${child}/CMakeLists.txt")
+        list(APPEND COMPONENTS "${child}")
+      endif()
+    endforeach()
+  endif()
+  set(${RETURN} ${COMPONENTS} PARENT_SCOPE)
 endfunction()
 
 
