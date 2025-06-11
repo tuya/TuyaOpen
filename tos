@@ -267,44 +267,6 @@ function new_exec()
     show "${fore[green]}" "$NOTE"
 }
 
-function check_platform_change()
-{
-    if [ ! -f $PROJECT_INI ]; then
-        return 0
-    fi
-    OLD_PROJECT_INI=$PROJECT_ROOT/.using_config
-    if [ ! -f $OLD_PROJECT_INI ]; then
-        cp $PROJECT_INI $OLD_PROJECT_INI
-        return 0
-    fi
-    NOW_PLATFORM=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_PLATFORM_CHOICE=").*(?="$)')
-    OLD_PLATFORM=$(cat $OLD_PROJECT_INI | grep -oP '(?<=CONFIG_PLATFORM_CHOICE=").*(?="$)')
-    NOW_CHIP=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_CHIP_CHOICE=").*(?="$)')
-    OLD_CHIP=$(cat $OLD_PROJECT_INI | grep -oP '(?<=CONFIG_CHIP_CHOICE=").*(?="$)')
-    if [ -z "$NOW_PLATFORM" ] || [ -z "$OLD_PLATFORM" ]; then
-        NOTE="Can't found [CONFIG_PLATFORM_CHOICE]."
-        show "${fore[yellow]}" "$NOTE"
-        return 1
-    fi
-    if [ "$NOW_PLATFORM" != "$OLD_PLATFORM" ] || [ x"$NOW_CHIP" != x"$OLD_CHIP" ]; then
-        show "" "Platform: [$OLD_PLATFORM] -> [$NOW_PLATFORM]"
-        show "" "Chip: [$OLD_CHIP] -> [$NOW_CHIP]"
-        NOTE="Platform or chip changed."
-        show "${fore[yellow]}" "$NOTE"
-        NOTE="The platform or chip has been modified and needs to be cleared."
-        show "${fore[yellow]}" "$NOTE"
-        NOW_PROJECT_INI_TMP=$PROJECT_ROOT/.using_config.tmp
-        cp "$PROJECT_INI" "$NOW_PROJECT_INI_TMP"
-        cp "$OLD_PROJECT_INI" "$PROJECT_INI"
-        fullclean_exec
-
-        DOT_CONFIG_DIR=$(dirname $PROJECT_INI)
-        mkdir -p ${DOT_CONFIG_DIR}
-        mv "$NOW_PROJECT_INI_TMP" "$PROJECT_INI"
-        cp $PROJECT_INI $OLD_PROJECT_INI
-    fi
-}
-
 function using_config()
 {
     DOT_CONFIG_DIR=$(dirname $PROJECT_INI)
@@ -381,10 +343,6 @@ function build_exec()
         $PLATFORM_PATH/build_setup.sh "${PROJ}" "${PROJECT_PLATFORM}" "${PROJECT_FRAMEWORK}" "${PROJECT_CHIP}"
     fi
     cmake -G Ninja $CMAKE_VERBOSE $OPEN_SDK_ROOT -DTOS_PROJECT_NAME=$PROJ -DTOS_PROJECT_ROOT=$PROJECT_ROOT -DTOS_PROJECT_PLATFORM=$PROJECT_PLATFORM -DTOS_FRAMEWORK=$PROJECT_FRAMEWORK -DTOS_PROJECT_CHIP=$PROJECT_CHIP -DTOS_PROJECT_BOARD=$PROJECT_BOARD
-    if [ -f "$PROJECT_INI" ]; then
-        OLD_PROJECT_INI=$PROJECT_ROOT/.using_config
-        cp $PROJECT_INI $OLD_PROJECT_INI
-    fi
     ninja example $VERBOSE
     if [ "0" != "$?" ]; then
         return 1
@@ -427,16 +385,18 @@ function menuconfig_exec()
         return 1
     fi
 
+    fullclean_exec
     using_config
 
     DOT_CONFIG_DIR="$PROJECT_ROOT/.build/cache"
     KCONFIG_CATALOG="CatalogKconfig"
     DOT_CONFIG="using.config"
+    APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
 
     mkdir -p $DOT_CONFIG_DIR
     cd $DOT_CONFIG_DIR
     bash ${KCONFIG_TOOLS}/run_menuconfig.sh "${KCONFIG_CATALOG}" "$DOT_CONFIG"
-    check_platform_change
+    python3 $KCONFIG_TOOLS/savedefconfig.py --kconfig "${KCONFIG_CATALOG}" --out "${APP_DEFAULT_CONFIG}" --dconfig "${DOT_CONFIG}"
     cd - > /dev/null
 }
 
@@ -469,6 +429,8 @@ function config_choice_exec()
         exit 1
     fi
 
+    fullclean_exec
+
     APP_DEFAULT_CONFIG="$PROJECT_ROOT/app_default.config"
     CONFIG_DIR="$PROJECT_ROOT/config"
     if [ -n "$1" ]; then
@@ -484,13 +446,13 @@ function config_choice_exec()
 
     if [ -n "$TARGET_CONFIG" ] && [ -f "$TARGET_CONFIG" ]; then
         cp "$TARGET_CONFIG" "$APP_DEFAULT_CONFIG"
-        using_config "force"
-        check_platform_change
         show "${fore[green]}" "Use [$TARGET_CONFIG]."
     else
         show "${fore[red]}" "Failed to select the configuration file."
         exit 1
     fi
+
+    using_config "force"
 }
 
 function new_platform_exec()
