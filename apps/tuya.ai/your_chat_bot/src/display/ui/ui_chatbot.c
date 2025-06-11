@@ -172,7 +172,7 @@ int ui_init(UI_FONT_T *ui_font)
     // Emotion
     sg_ui.ui.emotion_label = lv_label_create(sg_ui.ui.content);
     lv_obj_set_style_text_font(sg_ui.ui.emotion_label, sg_ui.font.emoji, 0);
-    // lv_label_set_text(sg_ui.ui.emotion_label, FONT_AWESOME_AI_CHIP);
+    lv_label_set_text(sg_ui.ui.emotion_label, sg_ui.font.emoji_list[0].emo_icon);
 
     // Chat message
     sg_ui.ui.chat_message_label = lv_label_create(sg_ui.ui.content);
