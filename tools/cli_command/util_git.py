@@ -29,6 +29,11 @@ MIRROR_LIST = [
 
 def set_repo_mirro(unset=False):
     logger = get_logger()
+    if unset:
+        logger.debug("Unset mirror repo.")
+    else:
+        logger.debug("Set mirror repo.")
+
     g = Git()
     for target in MIRROR_LIST:
         repo_name = target.split('/')[1]

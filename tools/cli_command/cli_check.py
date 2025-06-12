@@ -98,14 +98,14 @@ def check_base_tools():
 def update_submodules():
     params = get_global_params()
     open_root = params["open_root"]
-    logger = get_logger()
     code = get_country_code()
     if code == "China":
-        logger.debug("Set mirror repo.")
         set_repo_mirro(unset=False)
+
     ret = download_submoudules(open_root)
-    logger.debug("Unset mirror repo.")
-    set_repo_mirro(unset=True)
+
+    if code == "China":
+        set_repo_mirro(unset=True)
     return ret
 
 

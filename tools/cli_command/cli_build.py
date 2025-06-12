@@ -8,7 +8,7 @@ import click
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
     env_read, env_write, parse_config_file, parse_yaml,
-    do_subprocess
+    do_subprocess, get_country_code
 )
 from tools.cli_command.util_git import (
     git_clone, git_checkout, set_repo_mirro, git_get_commit)
@@ -77,11 +77,16 @@ def download_platform(platform):
 
     logger.info(f"Downloading platform [{platform}] ...")
 
-    set_repo_mirro(unset=False)
+    code = get_country_code()
+    if code == "China":
+        set_repo_mirro(unset=False)
+
     if not git_clone(repo, platform_root) \
             or not git_checkout(platform_root, commit):
         ret = False
-    set_repo_mirro(unset=True)
+
+    if code == "China":
+        set_repo_mirro(unset=True)
 
     return ret
 
