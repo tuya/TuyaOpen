@@ -51,7 +51,7 @@ def init_using_config(force=False):
     force: Forced using.config file update
     '''
     logger = get_logger()
-    logger.info("Intialing using.config ...")
+    logger.info("Initialing using.config ...")
     params = get_global_params()
     board_path = params["boards_root"]
     src_path = params["src_root"]
@@ -72,7 +72,7 @@ def init_using_config(force=False):
     pass
 
 
-def _get_board_config_dir(board_path):
+def get_board_config_dir(board_path):
     ret = []
     for entry in os.scandir(board_path):
         if entry.is_dir():
@@ -91,10 +91,11 @@ def config_choice_exec(default):
     Choice config file
     from app config or board default config
     '''
-    # get congi files
     logger = get_logger()
     params = get_global_params()
     full_clean_project()
+
+    # get config files
     app_configs_path = params["app_configs_path"]
     if (not default) and os.path.exists(app_configs_path):
         logger.debug("Choice from app config")
@@ -102,7 +103,7 @@ def config_choice_exec(default):
     else:
         logger.debug("Choice from board config")
         board_path = params["boards_root"]
-        config_dir = _get_board_config_dir(board_path)
+        config_dir = get_board_config_dir(board_path)
         config_list = get_files_from_path(".config", config_dir, 0)
 
     # choice config file

@@ -11,7 +11,7 @@ from tools.cli_command.util import (
     do_subprocess
 )
 from tools.cli_command.util_git import (
-    git_clone, git_checkout, set_repo_mirro)
+    git_clone, git_checkout, set_repo_mirro, git_get_commit)
 from tools.cli_command.cli_check import update_submodules
 from tools.cli_command.cli_config import init_using_config
 
@@ -39,6 +39,23 @@ def get_platform_info(platform):
         return {}
 
 
+def check_platform_commit(repo_path, commit):
+    logger = get_logger()
+    if not os.path.exists(repo_path):
+        logger.error(f"Not found {repo_path}")
+        return False
+
+    real_commit = git_get_commit(repo_path)
+    if real_commit != commit:
+        logger.warning(f"The commit required by the platform is {commit},")
+        logger.warning(f"but currently {real_commit} is being used.")
+        logger.info("*** The command [tos.py update] can be executed. ***")
+        logger.info("*** Or use the git tool to checkout to the target commit. ***")
+        return False
+
+    return True
+
+
 def download_platform(platform):
     '''
     When the platform path does not exist,
@@ -49,14 +66,16 @@ def download_platform(platform):
     params = get_global_params()
     platforms_root = params["platforms_root"]
     platform_root = os.path.join(platforms_root, platform)
-    if os.path.exists(platform_root):
-        logger.info(f"Platform [{platform}] is exists.")
-        return ret
-
-    logger.info(f"Downloading platform [{platform}] ...")
     platform_info = get_platform_info(platform)
     repo = platform_info["repo"]
     commit = platform_info["commit"]
+
+    if os.path.exists(platform_root):
+        logger.info(f"Platform [{platform}] is exists.")
+        check_platform_commit(platform_root, commit)
+        return ret
+
+    logger.info(f"Downloading platform [{platform}] ...")
 
     set_repo_mirro(unset=False)
     if not git_clone(repo, platform_root) \
@@ -171,6 +190,54 @@ def ninja_build(build_path, verbose=False):
     return True
 
 
+def build_project(verbose=False):
+    logger = get_logger()
+    check_proj_dir()
+
+    if not env_check():
+        logger.error("Env check error.")
+        return False
+
+    init_using_config(force=False)
+    params = get_global_params()
+    using_config = params["using_config"]
+    using_data = parse_config_file(using_config)
+    platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
+    if not platform_name:
+        logger.error("Not fount platform name.")
+        return False
+
+    if not download_platform(platform_name):
+        logger.error("Download platform error.")
+        return False
+    logger.info(f"Platform [{platform_name}] downloaded successfully.")
+
+    chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
+    if not prepare_platform(platform_name, chip_name):
+        logger.error("Prepare platform error.")
+        return False
+    logger.info(f"Platform [{platform_name}] prepared successfully.")
+
+    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
+    if not build_setup(platform_name, project_name, framework, chip_name):
+        logger.error("Build setup error.")
+        return False
+    logger.info(f"Build setup for [{project_name}] success.")
+
+    if not cmake_configure(verbose):
+        logger.error("Cmake configure error.")
+        return False
+    logger.info("Cmake configure success.")
+
+    build_path = params["app_build_path"]
+    if not ninja_build(build_path, verbose):
+        logger.error("Build error.")
+        return False
+
+    return True
+
+
 ##
 # @brief tos.py build
 #
@@ -180,43 +247,7 @@ def ninja_build(build_path, verbose=False):
               help="Show verbose message.")
 def cli(verbose):
     logger = get_logger()
-    check_proj_dir()
-    env_check()
-    init_using_config(force=False)
-    params = get_global_params()
-    using_config = params["using_config"]
-    using_data = parse_config_file(using_config)
-    platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
-    if not platform_name:
-        logger.error("Not fount platform name.")
-        sys.exit(1)
-
-    if not download_platform(platform_name):
-        logger.error("Download platform error.")
-        sys.exit(1)
-    logger.info(f"Platform [{platform_name}] downloaded successfully.")
-
-    chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
-    if not prepare_platform(platform_name, chip_name):
-        logger.error("Prepare platform error.")
-        sys.exit(1)
-    logger.info(f"Platform [{platform_name}] prepared successfully.")
-
-    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
-    framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
-    if not build_setup(platform_name, project_name, framework, chip_name):
-        logger.error("Build setup error.")
-        sys.exit(1)
-    logger.info(f"Build setup for [{project_name}] success.")
-
-    if not cmake_configure(verbose):
-        logger.error("Cmake configure error.")
-        sys.exit(1)
-    logger.info("Cmake configure success.")
-
-    build_path = params["app_build_path"]
-    if not ninja_build(build_path, verbose):
-        logger.error("Build error.")
+    if not build_project(verbose):
         sys.exit(1)
 
     logger.info("******************************")
