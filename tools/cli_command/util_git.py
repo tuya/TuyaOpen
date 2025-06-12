@@ -59,13 +59,27 @@ def set_repo_mirro(unset=False):
 
 
 def get_git_tag_describe(repo_path):
-    cmd = f"git -C {repo_path} describe --tags"
+    logger = get_logger()
+
+    # Check if repository path exists
+    if not os.path.exists(repo_path):
+        logger.error(f"Repository path not found: {repo_path}")
+        return ""
+
     try:
         repo = Repo(repo_path)
+        if repo.bare:
+            logger.warning(f"[{repo_path}] is bare repository.")
+            return ""
+        tags = list(repo.tags)
+        if not tags:
+            logger.debug(f"No tags found in repository: {repo_path}")
+            return ""
         describe_output = repo.git.describe('--tags')
         return describe_output
     except Exception as e:
-        get_logger().error(f"[{cmd}]: {e}")
+        cmd = f"git -C {repo_path} describe --tags"
+        logger.error(f"[{cmd}]: {e}")
         return ""
 
 
@@ -158,6 +172,8 @@ target: {target}")
         return False
 
     try:
+        origin = repo.remote(name="origin")
+        origin.fetch()
         repo.git.checkout(target)
         logger.info(f"Git checkout {target}.")
         return True
