@@ -302,7 +302,7 @@ def do_subprocess(cmd: str) -> int:
         logger.warning("Subprocess cmd is empty.")
         return 0
 
-    logger.info(f"do subprocess: {cmd}")
+    logger.info(f"[do subprocess]: {cmd}")
 
     ret = 1  # 0: success
     try:

@@ -7,7 +7,7 @@ from git import Repo, Git
 from git.exc import GitCommandError
 from git import RemoteProgress
 
-from tools.cli_command.util import get_logger
+from tools.cli_command.util import get_logger, do_subprocess
 
 
 MIRROR_LIST = [
@@ -209,16 +209,11 @@ def download_submoudules(repo_path):
         logger.warning("Not found submodules.")
         return True
 
-    ret = True
     logger.info("Downloading submoudules ...")
-    for submodule in submodules:
-        try:
-            logger.debug(f">>>{submodule.name}")
-            submodule.update(init=True, recursive=True, progress=None)
-        except GitCommandError as e:
-            logger.error(f"Download [{submodule.name}]: {e}")
-            ret = False
-            continue
-    if ret:
-        logger.info("Download submoudules successfully.")
-    return ret
+    cmd = f"cd {repo_path} && git submodule update --init"
+    if 0 != do_subprocess(cmd):
+        logger.error("Download submoudules failed.")
+        return False
+
+    logger.info("Download submoudules successfully.")
+    return True
