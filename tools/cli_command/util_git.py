@@ -30,10 +30,11 @@ MIRROR_LIST = [
 def set_repo_mirro(unset=False):
     logger = get_logger()
     g = Git()
-    try:
-        for target in MIRROR_LIST:
-            repo_name = target.split('/')[1]
-            gitee = f"https://gitee.com/tuya-open/{repo_name}"
+    for target in MIRROR_LIST:
+        repo_name = target.split('/')[1]
+        gitee = f"https://gitee.com/tuya-open/{repo_name}"
+        github = f"https://github.com/{target}"
+        try:
             if unset:
                 g.config(
                     "--global",
@@ -44,7 +45,6 @@ def set_repo_mirro(unset=False):
                     "--unset",
                     f"url.{gitee}.git.insteadOf")
             else:
-                github = f"https://github.com/{target}"
                 g.config(
                     "--global",
                     f"url.{gitee}.insteadOf",
@@ -53,8 +53,8 @@ def set_repo_mirro(unset=False):
                     "--global",
                     f"url.{gitee}.git.insteadOf",
                     f"{github}")
-    except Exception as e:
-        logger.warning(f"Set repo mirro error: {e}")
+        except Exception as e:
+            logger.warning(f"Set repo mirro error: {e}")
     pass
 
 
@@ -164,6 +164,16 @@ target: {target}")
     except Exception as e:
         logger.error(f"Git checkout erorr: {str(e)}.")
         return False
+        
+
+def git_get_commit(repo_path):
+    logger = get_logger()
+    repo = Repo(repo_path)
+    if repo.bare:
+        logger.error(f"[{repo_path}] is bare repository.")
+        return ""
+
+    return repo.head.commit.hexsha
 
 
 def download_submoudules(repo_path):

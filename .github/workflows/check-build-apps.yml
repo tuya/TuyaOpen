@@ -16,25 +16,25 @@ jobs:
       - name: Check Base Tools
         run: |
           cd ${{ github.workspace }}
-          export PATH=$PATH:$(pwd)
-          tos_ version
-          tos_ check
+          . ./export.sh
+          tos.py version
+          tos.py check
       - name: Check [switch_demo] Build
         run: |
           cd ${{ github.workspace }}
-          export PATH=$PATH:$(pwd)
+          . ./export.sh
           cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
-          tos_ dev bac
+          tos.py dev bac
       - name: Check [your_chat_bot] Build
         run: |
           cd ${{ github.workspace }}
-          export PATH=$PATH:$(pwd)
+          . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
-          tos_ dev bac
+          tos.py dev bac
       - name: Check [your_otto_robot] Build
         run: |
           cd ${{ github.workspace }}
-          export PATH=$PATH:$(pwd)
+          . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
-          tos_ dev bac
+          tos.py dev bac
       - run: echo "💡 This job's status is ${{ job.status }}."
