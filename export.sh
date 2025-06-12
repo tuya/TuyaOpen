@@ -3,30 +3,33 @@
 # Usage: . ./export.sh
 #
 
-# Function to get the real script directory
-get_script_dir() {
-    local script_path="$0"
-
-    # Handle symbolic links
-    if command -v readlink >/dev/null 2>&1; then
-        # Try to resolve symbolic links
-        while [ -L "$script_path" ]; do
-            script_path=$(readlink "$script_path")
+# Function to find the project root directory
+find_project_root() {
+    local current_dir="$(pwd)"
+    local search_dir="$current_dir"
+    
+    # Look for project identifier files
+    local identifiers=("export.sh" "requirements.txt" "tos.py" ".git")
+    
+    while [ "$search_dir" != "/" ]; do
+        # Check if any identifier file exists in current directory
+        for identifier in "${identifiers[@]}"; do
+            if [ -e "$search_dir/$identifier" ]; then
+                echo "$search_dir"
+                return 0
+            fi
         done
-    fi
-
-    # Get the directory
-    local script_dir=$(cd "$(dirname "$script_path")" && pwd)
-
-    # Fallback: if script_dir doesn't contain this script file, use current directory
-    local script_name=$(basename "$0")
-    if [ ! -f "$script_dir/$script_name" ] && [ -f "./$script_name" ]; then
-        script_dir=$(pwd)
-    fi
-    echo "$script_dir"
+        
+        # Move up one directory
+        search_dir=$(dirname "$search_dir")
+    done
+    
+    # Fallback to current directory if no identifiers found
+    echo "$current_dir"
+    return 1
 }
 
-OPEN_SDK_ROOT=$(get_script_dir)
+OPEN_SDK_ROOT=$(find_project_root)
 
 # Debug information
 echo "OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
@@ -34,10 +37,20 @@ echo "Current root = $(pwd)"
 echo "Script name: $(basename "$0")"
 echo "Script path: $0"
 
-# Verify the script location
-if [ ! -f "$OPEN_SDK_ROOT/$(basename "$0")" ]; then
-    echo "Warning: Script not found at calculated OPEN_SDK_ROOT, using current directory"
-    OPEN_SDK_ROOT=$(pwd)
+# Additional verification - check for expected project files
+echo "Project files check:"
+for file in "export.sh" "requirements.txt" "tos.py"; do
+    if [ -f "$OPEN_SDK_ROOT/$file" ]; then
+        echo "  ✓ Found $file"
+    else
+        echo "  ✗ Missing $file"
+    fi
+done
+
+# If we're not in the project root and export.sh exists in current directory, use current directory
+if [ "$OPEN_SDK_ROOT" != "$(pwd)" ] && [ -f "./export.sh" ]; then
+    echo "Found export.sh in current directory, using current directory as project root"
+    OPEN_SDK_ROOT="$(pwd)"
     echo "Updated OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
 fi
 
