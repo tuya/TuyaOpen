@@ -722,6 +722,7 @@ function _build_all_configs_exec()
 
     BUILD_RET=0
     BUILD_LOG="\n----------Build All Configs Result----------\n"
+    mkdir -p $PROJECT_ROOT/dist
     for CONFIG in $CONFIG_LIST; do
         config_choice_exec $CONFIG
         PROJ_NAME=$(cat $PROJECT_INI | grep -oP '(?<=CONFIG_PROJECT_NAME=").*(?="$)')
@@ -729,6 +730,7 @@ function _build_all_configs_exec()
         BIN_FILE=$PROJECT_ROOT/.build/bin/${PROJ_NAME}_QIO_${PROJ_VERSION}.bin
         build_exec > /dev/null 2>&1
         if [ x"$?" = x"0" ] && [ -f "$BIN_FILE" ]; then
+            cp -r $PROJECT_ROOT/.build/bin $PROJECT_ROOT/dist/$(basename ${CONFIG})
             LOG="\033[32mBuild Success [${CONFIG}].\033[0m\n"
         else
             BUILD_RET=1
