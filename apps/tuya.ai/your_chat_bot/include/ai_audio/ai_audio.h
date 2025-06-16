@@ -15,10 +15,10 @@
 #define GET_MIN_LEN(a, b) ((a) < (b) ? (a) : (b))
 
 typedef uint8_t AI_AUDIO_WORK_MODE_E;
-#define AI_AUDIO_MODE_MANUAL_SINGLE_TALK       1
-#define AI_AUDIO_WORK_VAD_FREE_TALK            2
-#define AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK   3
-#define AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK     4
+#define AI_AUDIO_MODE_MANUAL_SINGLE_TALK     1
+#define AI_AUDIO_WORK_VAD_FREE_TALK          2
+#define AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK 3
+#define AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK   4
 
 typedef enum {
     AI_AUDIO_EVT_NONE,
@@ -35,6 +35,7 @@ typedef enum {
     AI_AUDIO_STATE_LISTEN,
     AI_AUDIO_STATE_UPLOAD,
     AI_AUDIO_STATE_AI_SPEAK,
+    AI_AUDIO_STATE_MAX = 0xFF,
 } AI_AUDIO_STATE_E;
 
 typedef struct {
@@ -50,9 +51,9 @@ typedef void (*AI_AUDIO_STATE_INFORM_CB)(AI_AUDIO_STATE_E state);
 ***********************************************************/
 
 typedef struct {
-    AI_AUDIO_WORK_MODE_E      work_mode;
-    AI_AUDIO_EVT_INFORM_CB    evt_inform_cb;
-    AI_AUDIO_STATE_INFORM_CB  state_inform_cb;
+    AI_AUDIO_WORK_MODE_E work_mode;
+    AI_AUDIO_EVT_INFORM_CB evt_inform_cb;
+    AI_AUDIO_STATE_INFORM_CB state_inform_cb;
 } AI_AUDIO_CONFIG_T;
 
 /***********************************************************

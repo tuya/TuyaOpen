@@ -414,7 +414,7 @@ static OPERATE_RET __ai_agent_session_create(void)
     return OPRT_OK;
 }
 
-static OPERATE_RET __ai_agent_session_destroy(void)
+static __attribute__((unused)) OPERATE_RET __ai_agent_session_destroy(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

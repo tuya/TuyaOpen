@@ -139,7 +139,7 @@ __ASR_INIT_ERR:
     return rt;
 }
 
-static OPERATE_RET __ai_audio_asr_deinit(void)
+static __attribute__((unused)) OPERATE_RET __ai_audio_asr_deinit(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -238,7 +238,7 @@ static OPERATE_RET __ai_audio_vad_init(void)
     return OPRT_OK;
 }
 
-static OPERATE_RET __ai_audio_vad_deinit(void)
+static __attribute__((unused)) OPERATE_RET __ai_audio_vad_deinit(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
