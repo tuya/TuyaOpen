@@ -423,9 +423,9 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, char *pFmt
         TIME_T sec = (TIME_T)(time_ms / 1000);
         uint32_t ms = (uint32_t)(time_ms % 1000);
         tal_time_get_local_time_custom(sec, &tm);
-        cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len + len,
-                       "[%02d-%02d %02d:%02d:%02d:%d %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
-                       tm.tm_min, tm.tm_sec, ms, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
+        cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len,
+                       "[%02d-%02d %02d:%02d:%02d:%" PRIu32 " %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday,
+                       tm.tm_hour, tm.tm_min, tm.tm_sec, ms, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     }
     if (cnt <= 0) {
         goto ERR_EXIT;

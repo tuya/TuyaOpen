@@ -116,7 +116,10 @@ static int network_read(NetworkContext_t *pNetwork, unsigned char *pMsg, size_t 
 
     return result;
 }
-
+static uint32_t __mqtt_client_get_current_time(void)
+{
+    return (uint32_t)tal_system_get_millisecond();
+}
 mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *config)
 {
     mqtt_client_context_t *context = (mqtt_client_context_t *)client;
@@ -164,7 +167,7 @@ mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *
     network_buffer.pBuffer = context->mqttbuffer;
 
     /* Initialize MQTT library. */
-    mqtt_status = MQTT_Init(&context->mqclient, &transport, (MQTTGetCurrentTimeFunc_t)tal_system_get_millisecond,
+    mqtt_status = MQTT_Init(&context->mqclient, &transport, (MQTTGetCurrentTimeFunc_t)__mqtt_client_get_current_time,
                             core_mqtt_library_callback, &network_buffer, context);
 
     if (mqtt_status != MQTTSuccess) {
