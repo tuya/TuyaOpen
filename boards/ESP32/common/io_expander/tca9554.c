@@ -137,7 +137,7 @@ int tca9554_set_level(uint32_t pin_num_mask, int level)
 
     esp_rt = esp_io_expander_set_level(tca9554_config.io_expander, pin_num_mask, level);
 
-    return 0;
+    return esp_rt;
 }
 
 #endif /* defined(BOARD_IO_EXPANDER_TYPE) && (BOARD_IO_EXPANDER_TYPE == IO_EXPANDER_TYPE_TCA9554) */

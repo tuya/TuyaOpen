@@ -363,7 +363,7 @@ OPERATE_RET tal_log_get_level(TAL_LOG_LEVEL_E *level)
  *     - OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED if there was an error formatting
  * the log message.
  */
-OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, char *pFmt, va_list ap)
+OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char *pFmt, va_list ap)
 {
     int len = 0;
     int cnt = 0;
@@ -478,7 +478,7 @@ ERR_EXIT:
  * message.
  * @return The result of the log printing operation.
  */
-OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, char *fmt, ...)
+OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...)
 {
     OPERATE_RET opRet = 0;
     va_list ap;

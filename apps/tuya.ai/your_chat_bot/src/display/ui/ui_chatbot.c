@@ -92,7 +92,7 @@ static void __ui_light_theme_init(APP_THEME_COLORS_T *theme)
     theme->low_battery = lv_color_black();
 }
 
-static void __ui_dark_theme_init(APP_THEME_COLORS_T *theme)
+static __attribute__((unused)) void __ui_dark_theme_init(APP_THEME_COLORS_T *theme)
 {
     if (theme == NULL) {
         return;
