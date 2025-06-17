@@ -241,9 +241,6 @@ static OPERATE_RET __tdd_audio_no_codec_config(TDD_AUDIO_HANDLE_T handle, TDD_AU
 
     TUYA_CHECK_NULL_RETURN(handle, OPRT_COM_ERROR);
 
-    ESP_I2S_HANDLE_T *hdl = (ESP_I2S_HANDLE_T *)handle;
-    (void)hdl;
-
     switch (cmd) {
     case TDD_AUDIO_CMD_SET_VOLUME:
         // Set volume here

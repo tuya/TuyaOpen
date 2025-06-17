@@ -47,7 +47,7 @@ static int __tkl_audio_frame_put(TKL_AUDIO_FRAME_INFO_T *pframe)
     }
 
     if (g_tdd_audio_hdl->mic_cb) {
-        g_tdd_audio_hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, pframe->pbuf,
+        g_tdd_audio_hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, (uint8_t *)pframe->pbuf,
                                 pframe->used_size);
     }
 
@@ -110,11 +110,9 @@ static OPERATE_RET __tdd_audio_play(TDD_AUDIO_HANDLE_T handle, uint8_t *data, ui
     // tal_mutex_lock(hdl->mutex_play);
 
     TKL_AUDIO_FRAME_INFO_T frame;
-    frame.pbuf = data;
+    frame.pbuf = (char *)data;
     frame.used_size = len;
     tkl_ao_put_frame(0, 0, NULL, &frame);
-
-__EXIT:
 
     // tal_mutex_unlock(hdl->mutex_play);
 
@@ -145,7 +143,6 @@ static OPERATE_RET __tdd_audio_config(TDD_AUDIO_HANDLE_T handle, TDD_AUDIO_CMD_E
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CHECK_NULL_RETURN(handle, OPRT_COM_ERROR);
-    TDD_AUDIO_DATA_HANDLE_T *hdl = (TDD_AUDIO_DATA_HANDLE_T *)handle;
 
     switch (cmd) {
     case TDD_AUDIO_CMD_SET_VOLUME: {

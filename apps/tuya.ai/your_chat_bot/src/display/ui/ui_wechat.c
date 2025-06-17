@@ -52,22 +52,22 @@ typedef struct {
 } APP_UI_T;
 
 typedef struct {
-    bool              is_start;
-    TKL_MUTEX_HANDLE  rb_mutex;
-    TUYA_RINGBUFF_T   text_ringbuff;
+    bool is_start;
+    TKL_MUTEX_HANDLE rb_mutex;
+    TUYA_RINGBUFF_T text_ringbuff;
 
-    lv_obj_t         *msg_cont;
-    lv_obj_t         *bubble;
-    lv_obj_t         *label;
+    lv_obj_t *msg_cont;
+    lv_obj_t *bubble;
+    lv_obj_t *label;
 
-    lv_timer_t       *timer;
+    lv_timer_t *timer;
 } APP_UI_STREAM_T;
 
 typedef struct {
     APP_UI_T ui;
 
     UI_FONT_T font;
-	APP_UI_STREAM_T  stream;
+    APP_UI_STREAM_T stream;
 
     lv_timer_t *notification_tm;
 } APP_CHATBOT_UI_T;
@@ -315,7 +315,7 @@ void ui_set_assistant_msg(const char *text)
 static uint8_t __get_one_word_from_stream_ringbuff(APP_UI_STREAM_T *stream, char *result)
 {
     uint32_t rb_used_size = 0, read_len = 0;
-    uint8_t get_word_num = 0, word_len = 0;
+    uint8_t word_len = 0;
     char tmp = 0;
 
     tkl_mutex_lock(stream->rb_mutex);
@@ -325,39 +325,39 @@ static uint8_t __get_one_word_from_stream_ringbuff(APP_UI_STREAM_T *stream, char
         return 0;
     }
 
-    //get word len
+    // get word len
     do {
         tkl_mutex_lock(stream->rb_mutex);
         read_len = tuya_ring_buff_read(stream->text_ringbuff, &tmp, 1);
         tkl_mutex_unlock(stream->rb_mutex);
 
-        if((tmp & 0xC0) != 0x80) {
+        if ((tmp & 0xC0) != 0x80) {
             if ((tmp & 0xE0) == 0xC0) {
-                word_len = 2; 
+                word_len = 2;
             } else if ((tmp & 0xF0) == 0xE0) {
-                word_len = 3; 
+                word_len = 3;
             } else if ((tmp & 0xF8) == 0xF0) {
-                word_len = 4; 
-            }else {
+                word_len = 4;
+            } else {
                 word_len = 1;
             }
             break;
         }
 
         tmp = 0;
-    }while(read_len);
+    } while (read_len);
 
-    if(0 == word_len) {
+    if (0 == word_len) {
         return 0;
     }
 
-    //get word
+    // get word
     result[0] = tmp;
-            
-    if(word_len-1) {
+
+    if (word_len - 1) {
         tkl_mutex_lock(stream->rb_mutex);
-        tuya_ring_buff_read(stream->text_ringbuff, &result[1], word_len-1);
-        tkl_mutex_unlock(stream->rb_mutex);  
+        tuya_ring_buff_read(stream->text_ringbuff, &result[1], word_len - 1);
+        tkl_mutex_unlock(stream->rb_mutex);
     }
 
     return word_len;
@@ -368,9 +368,9 @@ static uint8_t __get_words_from_stream_ringbuff(APP_UI_STREAM_T *stream, uint8_t
     uint8_t word_len = 0, i = 0, get_num = 0;
     uint32_t result_len = 0;
 
-    for(i = 0; i < word_num; i++) {
+    for (i = 0; i < word_num; i++) {
         word_len = __get_one_word_from_stream_ringbuff(stream, &result[result_len]);
-        if(0 == word_len) {
+        if (0 == word_len) {
             break;
         }
         result_len += word_len;
@@ -384,16 +384,16 @@ static uint8_t __get_words_from_stream_ringbuff(APP_UI_STREAM_T *stream, uint8_t
 static void __stream_timer_cb(lv_timer_t *lv_timer)
 {
     uint8_t word_num = 0;
-    char text[STREAM_TEXT_SHOW_WORD_NUM * ONE_WORD_MAX_LEN +1] = {0};
-    APP_UI_STREAM_T *stream = (APP_UI_STREAM_T *)lv_timer_get_user_data(lv_timer) ;
+    char text[STREAM_TEXT_SHOW_WORD_NUM * ONE_WORD_MAX_LEN + 1] = {0};
+    APP_UI_STREAM_T *stream = (APP_UI_STREAM_T *)lv_timer_get_user_data(lv_timer);
 
     word_num = __get_words_from_stream_ringbuff(stream, STREAM_TEXT_SHOW_WORD_NUM, text);
     if (0 == word_num) {
-        if(false == stream->is_start) {
+        if (false == stream->is_start) {
             lv_timer_del(stream->timer);
             stream->timer = NULL;
         }
-        return; 
+        return;
     }
 
     lv_label_ins_text(stream->label, LV_LABEL_POS_LAST, text);
@@ -401,19 +401,18 @@ static void __stream_timer_cb(lv_timer_t *lv_timer)
     lv_coord_t content_height = lv_obj_get_height(stream->msg_cont);
     lv_coord_t height = lv_obj_get_height(sg_ui.ui.content);
 
-    if(content_height > height) {
+    if (content_height > height) {
         lv_coord_t offset = 0;
         offset = lv_obj_get_scroll_bottom(sg_ui.ui.content);
-        if(offset > 0) {
+        if (offset > 0) {
             lv_obj_scroll_by_bounded(sg_ui.ui.content, 0, -offset, LV_ANIM_OFF);
         }
-    }else {
-        lv_obj_scroll_to_view_recursive(stream->msg_cont, LV_ANIM_OFF);   
+    } else {
+        lv_obj_scroll_to_view_recursive(stream->msg_cont, LV_ANIM_OFF);
     }
 
     lv_obj_update_layout(sg_ui.ui.content);
 }
-
 
 void ui_set_assistant_msg_stream_start(void)
 {
@@ -421,19 +420,19 @@ void ui_set_assistant_msg_stream_start(void)
         return;
     }
 
-    if(sg_ui.stream.timer) {
+    if (sg_ui.stream.timer) {
         lv_timer_del(sg_ui.stream.timer);
         sg_ui.stream.timer = NULL;
     }
 
-    //Check if the number of messages exceeds the limit
+    // Check if the number of messages exceeds the limit
     uint32_t child_count = lv_obj_get_child_cnt(sg_ui.ui.content);
     if (child_count >= MAX_MASSAGE_NUM) {
         lv_obj_t *first_child = lv_obj_get_child(sg_ui.ui.content, 0);
         if (first_child) {
             lv_obj_del(first_child);
         }
-    }    
+    }
 
     sg_ui.stream.msg_cont = lv_obj_create(sg_ui.ui.content);
     lv_obj_remove_style_all(sg_ui.stream.msg_cont);
@@ -471,24 +470,24 @@ void ui_set_assistant_msg_stream_start(void)
     lv_label_set_long_mode(sg_ui.stream.label, LV_LABEL_LONG_WRAP);
 
     OPERATE_RET rt = OPRT_OK;
-    if(NULL == sg_ui.stream.text_ringbuff) {
+    if (NULL == sg_ui.stream.text_ringbuff) {
         rt = tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, OVERFLOW_PSRAM_STOP_TYPE, &sg_ui.stream.text_ringbuff);
-        if(rt != OPRT_OK) {
+        if (rt != OPRT_OK) {
             return;
         }
     }
 
     tuya_ring_buff_reset(sg_ui.stream.text_ringbuff);
 
-    if(sg_ui.stream.rb_mutex) {
+    if (sg_ui.stream.rb_mutex) {
         rt = tkl_mutex_create_init(&sg_ui.stream.rb_mutex);
-        if(rt != OPRT_OK) {
+        if (rt != OPRT_OK) {
             return;
         }
     }
 
     sg_ui.stream.timer = lv_timer_create(__stream_timer_cb, 1000, &sg_ui.stream);
-    if(NULL == sg_ui.stream.timer) {
+    if (NULL == sg_ui.stream.timer) {
         return;
     }
 
@@ -497,7 +496,7 @@ void ui_set_assistant_msg_stream_start(void)
 
 void ui_set_assistant_msg_stream_data(const char *text)
 {
-    if(false == sg_ui.stream.is_start) {
+    if (false == sg_ui.stream.is_start) {
         return;
     }
 

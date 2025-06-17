@@ -53,10 +53,10 @@ static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 static i2c_master_bus_handle_t codec_i2c_bus_ = NULL;
-static const audio_codec_data_if_t *data_if_;
-static const audio_codec_ctrl_if_t *ctrl_if_;
-static const audio_codec_gpio_if_t *gpio_if_;
-static const audio_codec_if_t *codec_if_;
+static const audio_codec_data_if_t *data_if_ = NULL;
+static const audio_codec_ctrl_if_t *ctrl_if_ = NULL;
+static const audio_codec_gpio_if_t *gpio_if_ = NULL;
+static const audio_codec_if_t *codec_if_ = NULL;
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
 

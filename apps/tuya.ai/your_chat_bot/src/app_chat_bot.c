@@ -137,9 +137,11 @@ static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 ***********************************************************/
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
-    static uint8_t *p_ai_text = NULL;
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+#if !defined(ENABLE_GUI_STREAM_AI_TEXT) || (ENABLE_GUI_STREAM_AI_TEXT != 1)
+    static uint8_t *p_ai_text = NULL;
     static uint32_t ai_text_len = 0;
+#endif
 #endif
 
     switch (event) {
@@ -267,6 +269,9 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
 #endif
 
+        break;
+
+    default:
         break;
     }
 }

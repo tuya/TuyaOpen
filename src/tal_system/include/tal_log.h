@@ -39,33 +39,33 @@ extern "C" {
  * @brief Definition of log style
  */
 typedef uint8_t TAL_LOG_DISPLAY_MODE_E;
-#define TAL_LOG_DISPLAY_MODE_DEFAULT        (0)
-#define TAL_LOG_DISPLAY_MODE_HIGH_LIGHT     (1)
-#define TAL_LOG_DISPLAY_MODE_UNDER_LINE     (4)
-#define TAL_LOG_DISPLAY_MODE_FLASH          (5)
-#define TAL_LOG_DISPLAY_MODE_REVERSE        (7)
+#define TAL_LOG_DISPLAY_MODE_DEFAULT    (0)
+#define TAL_LOG_DISPLAY_MODE_HIGH_LIGHT (1)
+#define TAL_LOG_DISPLAY_MODE_UNDER_LINE (4)
+#define TAL_LOG_DISPLAY_MODE_FLASH      (5)
+#define TAL_LOG_DISPLAY_MODE_REVERSE    (7)
 
 typedef uint8_t TAL_LOG_FONT_COLOR_E;
-#define TAL_LOG_FONT_COLOR_BLACK            (30)
-#define TAL_LOG_FONT_COLOR_RED              (31)
-#define TAL_LOG_FONT_COLOR_GREEN            (32)
-#define TAL_LOG_FONT_COLOR_YELLOW           (33)
-#define TAL_LOG_FONT_COLOR_BLUE             (34)
-#define TAL_LOG_FONT_COLOR_PURPLE           (35)
-#define TAL_LOG_FONT_COLOR_CYAN             (36)
-#define TAL_LOG_FONT_COLOR_WHITE            (37)
-#define TAL_LOG_FONT_COLOR_DEFAULT          (39)
+#define TAL_LOG_FONT_COLOR_BLACK   (30)
+#define TAL_LOG_FONT_COLOR_RED     (31)
+#define TAL_LOG_FONT_COLOR_GREEN   (32)
+#define TAL_LOG_FONT_COLOR_YELLOW  (33)
+#define TAL_LOG_FONT_COLOR_BLUE    (34)
+#define TAL_LOG_FONT_COLOR_PURPLE  (35)
+#define TAL_LOG_FONT_COLOR_CYAN    (36)
+#define TAL_LOG_FONT_COLOR_WHITE   (37)
+#define TAL_LOG_FONT_COLOR_DEFAULT (39)
 
 typedef uint8_t TAL_LOG_BACKGROUND_COLOR_E;
-#define TAL_LOG_BACKGROUND_COLOR_BLACK      (40)
-#define TAL_LOG_BACKGROUND_COLOR_RED        (41)
-#define TAL_LOG_BACKGROUND_COLOR_GREEN      (42)
-#define TAL_LOG_BACKGROUND_COLOR_YELLOW     (43)
-#define TAL_LOG_BACKGROUND_COLOR_BLUE       (44)
-#define TAL_LOG_BACKGROUND_COLOR_PURPLE     (45)
-#define TAL_LOG_BACKGROUND_COLOR_CYAN       (46)
-#define TAL_LOG_BACKGROUND_COLOR_WHITE      (47)
-#define TAL_LOG_BACKGROUND_COLOR_DEFAULT    (49)
+#define TAL_LOG_BACKGROUND_COLOR_BLACK   (40)
+#define TAL_LOG_BACKGROUND_COLOR_RED     (41)
+#define TAL_LOG_BACKGROUND_COLOR_GREEN   (42)
+#define TAL_LOG_BACKGROUND_COLOR_YELLOW  (43)
+#define TAL_LOG_BACKGROUND_COLOR_BLUE    (44)
+#define TAL_LOG_BACKGROUND_COLOR_PURPLE  (45)
+#define TAL_LOG_BACKGROUND_COLOR_CYAN    (46)
+#define TAL_LOG_BACKGROUND_COLOR_WHITE   (47)
+#define TAL_LOG_BACKGROUND_COLOR_DEFAULT (49)
 
 /**
  * @brief Definition of log level
@@ -94,7 +94,7 @@ typedef TAL_LOG_LEVEL_E LOG_LEVEL;
 #endif
 
 PRINTF_CHECK(4, 5)
-OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, char *fmt, ...);
+OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...);
 
 // file name maybe define from complie parameter
 #ifndef _THIS_FILE_NAME_
