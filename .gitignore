@@ -23,3 +23,4 @@ __pycache__
 /tools/tyutool/*tyutool_*
 /tools/tyutool/cache/
 /.set_example
+/dist

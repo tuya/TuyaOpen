@@ -19,22 +19,23 @@ jobs:
           . ./export.sh
           tos.py version
           tos.py check
+          rm -rf ${{ github.workspace }}/dist
       - name: Check [switch_demo] Build
         run: |
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
-          tos.py dev bac
+          tos.py dev bac -d ${{ github.workspace }}/dist
       - name: Check [your_chat_bot] Build
         run: |
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
-          tos.py dev bac
+          tos.py dev bac -d ${{ github.workspace }}/dist
       - name: Check [your_otto_robot] Build
         run: |
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
-          tos.py dev bac
+          tos.py dev bac -d ${{ github.workspace }}/dist
       - run: echo "💡 This job's status is ${{ job.status }}."
