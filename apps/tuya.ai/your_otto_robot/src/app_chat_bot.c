@@ -268,6 +268,9 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 #endif
 
         break;
+
+    default:
+        break;
     }
 }
 

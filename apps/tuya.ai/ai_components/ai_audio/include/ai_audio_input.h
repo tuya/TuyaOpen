@@ -1,10 +1,10 @@
 /**
  * @file ai_audio_input.h
- * @brief Header file for audio input handling functions including initialization, 
+ * @brief Header file for audio input handling functions including initialization,
  *        enabling/disabling detection, and setting wakeup types.
  *
- * This header file declares the functions and data structures required for managing audio input operations 
- * such as initializing the audio system, enabling and disabling audio detection, 
+ * This header file declares the functions and data structures required for managing audio input operations
+ * such as initializing the audio system, enabling and disabling audio detection,
  * and setting the type of wakeup mechanism (e.g., VAD, ASR).
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
@@ -32,7 +32,7 @@ extern "C" {
 ***********************************************************/
 typedef enum {
     AI_AUDIO_INPUT_STATE_IDLE,
-    AI_AUDIO_INPUT_STATE_DETECTING,   
+    AI_AUDIO_INPUT_STATE_DETECTING,
     AI_AUDIO_INPUT_STATE_GET_VALID_DATA,
     AI_AUDIO_INPUT_STATE_ASR_WAKEUP_WORD,
 } AI_AUDIO_INPUT_STATE_E;
@@ -42,15 +42,17 @@ typedef enum {
     AI_AUDIO_INPUT_EVT_GET_VALID_VOICE_START,
     AI_AUDIO_INPUT_EVT_GET_VALID_VOICE_STOP,
     AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD,
-    AI_AUDIO_INPUT_EVT_ASR_WAKEUP_STOP, // Valid audio data can only be retained after the wake-up word is recognized again.
+    AI_AUDIO_INPUT_EVT_ASR_WAKEUP_STOP, // Valid audio data can only be retained after the wake-up word is recognized
+                                        // again.
 } AI_AUDIO_INPUT_EVENT_E;
 
 typedef enum {
     AI_AUDIO_INPUT_VALID_METHOD_MANUAL, // Manually control whether to retain valid audio data.
-    AI_AUDIO_INPUT_VALID_METHOD_VAD,    // Valid audio data can only be retained after the VAD (Voice Activity Detection) detects human voices.
-    AI_AUDIO_INPUT_VALID_METHOD_ASR,    // Valid audio data can only be retained after the wake-up word is recognized
+    AI_AUDIO_INPUT_VALID_METHOD_VAD, // Valid audio data can only be retained after the VAD (Voice Activity Detection)
+                                     // detects human voices.
+    AI_AUDIO_INPUT_VALID_METHOD_ASR, // Valid audio data can only be retained after the wake-up word is recognized
     AI_AUDIO_INPUT_VALID_METHOD_MAX,
-}AI_AUDIO_INPUT_VALID_METHOD_E;
+} AI_AUDIO_INPUT_VALID_METHOD_E;
 
 typedef struct {
     AI_AUDIO_INPUT_VALID_METHOD_E get_valid_data_method;

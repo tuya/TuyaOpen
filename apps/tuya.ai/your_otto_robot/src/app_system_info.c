@@ -96,23 +96,6 @@ static void __app_display_net_status_update(void)
     }
 }
 
-static void __app_display_status_time_update(uint8_t force_update)
-{
-    POSIX_TM_S tm = {0};
-    tal_time_get_local_time_custom(0, &tm);
-
-    if (tm.tm_hour != system_info.hour || tm.tm_min != system_info.min || force_update) {
-        system_info.hour = tm.tm_hour;
-        system_info.min = tm.tm_min;
-
-        char tm_str[10] = {0};
-        snprintf(tm_str, sizeof(tm_str), "%02d:%02d", system_info.hour, system_info.min);
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)tm_str, strlen(tm_str));
-#endif
-    }
-}
-
 static void __app_display_status_tm_cb(TIMER_ID timer_id, void *arg)
 {
     static uint32_t net_status_cnt = 0;

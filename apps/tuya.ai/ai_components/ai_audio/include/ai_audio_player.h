@@ -69,21 +69,21 @@ OPERATE_RET ai_audio_player_init(void);
  * @brief Starts the audio player with the specified identifier.
  *
  *
- * @param id        The identifier for the current playback session. 
+ * @param id        The identifier for the current playback session.
  *                  If NULL, no specific ID is set.
- * 
+ *
  * @return          Returns OPRT_OK if the player is successfully started.
  */
 OPERATE_RET ai_audio_player_start(char *id);
 
 /**
  * @brief Writes audio data to the ring buffer and sets the end-of-file flag if necessary.
- * 
+ *
  * @param id        The identifier to validate against the current player's ID.
  * @param data      Pointer to the audio data to be written into the buffer.
  * @param len       Length of the audio data to be written.
  * @param is_eof    Flag indicating whether this block of data is the end of the stream (1 for true, 0 for false).
- * 
+ *
  * @return          Returns OPRT_OK if the data was successfully written to the buffer, otherwise returns an error code.
  */
 OPERATE_RET ai_audio_player_data_write(char *id, uint8_t *data, uint32_t len, uint8_t is_eof);
