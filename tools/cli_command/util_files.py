@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import os
+import json
 import shutil
 from typing import Union, List
 
@@ -81,3 +82,17 @@ def get_files_from_path(types: Union[str, List[str]],
             rst = _find_files(tp, dir, maxdepth)
             result += rst
     return result
+
+
+def parser_para_file(json_file):
+    if not os.path.isfile(json_file):
+        print(f"Error: Not found [{json_file}].")
+        return {}
+    try:
+        f = open(json_file, 'r', encoding='utf-8')
+        json_data = json.load(f)
+        f.close()
+    except Exception as e:
+        print(f"Parser json error:  [{str(e)}].")
+        return {}
+    return json_data

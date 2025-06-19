@@ -1,0 +1,3 @@
+config BOARD_CHOICE
+    string
+    default "T2-U"

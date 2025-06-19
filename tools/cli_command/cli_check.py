@@ -85,6 +85,7 @@ def check_base_tools():
     command_list = [
         ("git", "--version", "2.0.0"),
         ("cmake", "--version", "3.28.0"),
+        ("make", "--version", "3.0.0"),
         ("ninja", "--version", "1.6.0"),
     ]
 

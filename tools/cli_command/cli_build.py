@@ -12,6 +12,7 @@ from tools.cli_command.util import (
 )
 from tools.cli_command.util_git import (
     git_clone, git_checkout, set_repo_mirro, git_get_commit)
+from tools.cli_command.util_files import parser_para_file
 from tools.cli_command.cli_check import update_submodules
 from tools.cli_command.cli_config import init_using_config
 
@@ -50,7 +51,8 @@ def check_platform_commit(repo_path, commit):
         logger.warning(f"The commit required by the platform is {commit},")
         logger.warning(f"but currently {real_commit} is being used.")
         logger.info("*** The command [tos.py update] can be executed. ***")
-        logger.info("*** Or use the git tool to checkout to the target commit. ***")
+        logger.info("*** Or use the git tool to checkout to \
+the target commit. ***")
         return False
 
     return True
@@ -195,6 +197,32 @@ def ninja_build(build_path, verbose=False):
     return True
 
 
+def check_bin_file():
+    logger = get_logger()
+    params = get_global_params()
+    build_param_root = params["build_param_root"]
+    build_param_file = os.path.join(
+        build_param_root, "build_param.json")
+
+    if not os.path.exists(build_param_file):
+        logger.error(f"Not found {build_param_file}")
+        return False
+
+    param_data = parser_para_file(build_param_file)
+    app_name = param_data["CONFIG_PROJECT_NAME"]
+    app_ver = param_data["CONFIG_PROJECT_VERSION"]
+    app_bin_path = params["app_bin_path"]
+
+    app_bin_file = os.path.join(app_bin_path, f"{app_name}_QIO_{app_ver}.bin")
+    if not os.path.exists(app_bin_file):
+        logger.error(f"Not found {app_bin_file}")
+        return False
+
+    logger.info("******************************")
+    logger.info(f"{app_bin_file}")
+    return True
+
+
 def build_project(verbose=False):
     logger = get_logger()
     check_proj_dir()
@@ -238,6 +266,9 @@ def build_project(verbose=False):
     build_path = params["app_build_path"]
     if not ninja_build(build_path, verbose):
         logger.error("Build error.")
+        return False
+
+    if not check_bin_file():
         return False
 
     return True

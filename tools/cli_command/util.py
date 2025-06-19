@@ -96,6 +96,9 @@ def set_global_params():
     GLOBAL_PARAMS["env_json"] = os.path.join(
         open_root, ".env.json")
 
+    GLOBAL_PARAMS["build_param_root"] = os.path.join(
+        build_path, "build")
+
     platforms_root = os.path.join(open_root, "platform")
     GLOBAL_PARAMS["platforms_root"] = platforms_root
     GLOBAL_PARAMS["platforms_yaml"] = os.path.join(

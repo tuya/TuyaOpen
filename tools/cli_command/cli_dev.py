@@ -9,14 +9,39 @@ from tools.cli_command.util import (
     set_clis, get_logger, get_global_params
 )
 from tools.cli_command.cli_config import get_board_config_dir
-from tools.cli_command.util_files import get_files_from_path, copy_file
+from tools.cli_command.util_files import (
+    get_files_from_path, copy_file, rm_rf,
+    copy_directory
+)
 from tools.cli_command.cli_build import build_project
 from tools.cli_command.cli_clean import full_clean_project
 
-@click.command(help="Build all config.")
-def build_all_config_exec():
+
+def _save_product(dist, config_file):
     logger = get_logger()
     params = get_global_params()
+    app_root = params["app_root"]
+    app_root_basename = os.path.basename(app_root)
+    config_basename = os.path.basename(config_file)
+    app_dist = os.path.join(dist, app_root_basename)
+    os.makedirs(app_dist, exist_ok=True)
+    bin_dist = os.path.join(app_dist, config_basename)
+    if os.path.exists(bin_dist):
+        rm_rf(bin_dist)
+    app_bin_path = params["app_bin_path"]
+    logger.info(f"Save product to {bin_dist}.")
+    copy_directory(app_bin_path, bin_dist)
+    pass
+
+
+@click.command(help="Build all config.")
+@click.option('-d', '--dist',
+              type=str, default="",
+              help="Save product path.")
+def build_all_config_exec(dist):
+    logger = get_logger()
+    params = get_global_params()
+    dist_abs = os.path.abspath(dist)
 
     # get config files
     app_configs_path = params["app_configs_path"]
@@ -39,6 +64,8 @@ def build_all_config_exec():
         copy_file(config, app_default_config)
         if build_project():
             build_result_list.append(f"{config} build success.")
+            if dist:
+                _save_product(dist_abs, config)
         else:
             build_result_list.append(f"{config} build failed.")
             exit_flag = 1
