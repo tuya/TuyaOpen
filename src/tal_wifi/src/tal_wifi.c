@@ -114,7 +114,7 @@ OPERATE_RET tal_wifi_assign_ap_scan(int8_t *ssid, AP_IF_S **ap)
 #if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
     op_ret = tuya_wpa_supp_scan((char *)ssid, ap, &num);
 #else
-    op_ret = tkl_wifi_scan_ap(ssid, ap, &num);
+    op_ret = tkl_wifi_scan_ap((int8_t *)ssid, ap, &num);
 #endif
     //! find better rssi for ssid
     if (OPRT_OK == op_ret && num > 1 && *ap) {
@@ -373,7 +373,7 @@ OPERATE_RET tal_wifi_station_connect(int8_t *ssid, int8_t *passwd)
     tuya_wpa_supp_stop();
     return tuya_wpas_sta_connect((char *)ssid, (char *)passwd);
 #else
-    return tkl_wifi_station_connect(ssid, passwd);
+    return tkl_wifi_station_connect((int8_t *)ssid, (int8_t *)passwd);
 #endif
 }
 

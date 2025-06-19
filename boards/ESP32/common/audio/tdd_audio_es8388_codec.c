@@ -48,9 +48,9 @@ static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
 
-static const audio_codec_gpio_if_t *gpio_if_;
-static const audio_codec_ctrl_if_t *ctrl_if_;
-static const audio_codec_data_if_t *data_if_;
+static const audio_codec_gpio_if_t *gpio_if_ = NULL;
+static const audio_codec_ctrl_if_t *ctrl_if_ = NULL;
+static const audio_codec_data_if_t *data_if_ = NULL;
 static esp_codec_dev_handle_t output_dev_ = NULL;
 static esp_codec_dev_handle_t input_dev_ = NULL;
 

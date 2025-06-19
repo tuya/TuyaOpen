@@ -662,7 +662,7 @@ int tuya_lan_dp_report(char *dpstr)
     int i = 0;
 
     for (i = 0; i < lan->cfg->client_num; i++) {
-        if (session[i].active && session[i].fault == false && session[i].secret_key != NULL) {
+        if (session[i].active && session[i].fault == false && session[i].secret_key[0] != '\0') {
             op_ret = lan_send(&session[i], 0, FRM_TP_STAT_REPORT, 0, out, out_len, false);
             if (OPRT_OK != op_ret) {
                 PR_ERR("tcp_send op_ret:%d", op_ret);

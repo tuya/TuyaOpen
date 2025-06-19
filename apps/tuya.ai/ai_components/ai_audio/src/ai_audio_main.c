@@ -25,7 +25,7 @@
 ************************macro define************************
 ***********************************************************/
 #define AI_AUDIO_SPEAK_VOLUME_KEY "spk_volume"
-#define AI_AUDIO_GET_STATE_IME_MS  (500)
+#define AI_AUDIO_GET_STATE_IME_MS (500)
 
 #define AI_AUDIO_INPUT_EVT_CHANGE(last_evt, new_evt)                                                                   \
     do {                                                                                                               \
@@ -38,22 +38,22 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    bool                      is_open;
-    AI_AUDIO_WORK_MODE_E      work_mode;
-    AI_AUDIO_STATE_E          state;
-    TIMER_ID                  state_tm;
-    AI_AUDIO_EVT_INFORM_CB    evt_inform_cb;
-    AI_AUDIO_STATE_INFORM_CB  state_inform_cb;
-}AI_AUDIO_INFO_T;
+    bool is_open;
+    AI_AUDIO_WORK_MODE_E work_mode;
+    AI_AUDIO_STATE_E state;
+    TIMER_ID state_tm;
+    AI_AUDIO_EVT_INFORM_CB evt_inform_cb;
+    AI_AUDIO_STATE_INFORM_CB state_inform_cb;
+} AI_AUDIO_INFO_T;
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-AI_AUDIO_INFO_T sg_ai_audio =  {
-    .is_open         = false,
-    .work_mode       = AI_AUDIO_MODE_MANUAL_SINGLE_TALK,
-    .state           = AI_AUDIO_STATE_STANDBY,
-    .evt_inform_cb   = NULL,
+AI_AUDIO_INFO_T sg_ai_audio = {
+    .is_open = false,
+    .work_mode = AI_AUDIO_MODE_MANUAL_SINGLE_TALK,
+    .state = AI_AUDIO_STATE_STANDBY,
+    .evt_inform_cb = NULL,
     .state_inform_cb = NULL,
 };
 
@@ -66,17 +66,16 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
 
     switch (event) {
     case AI_EVENT_START:
-    break;
+        break;
     case AI_EVENT_END:
-    break;
+        break;
     case AI_EVENT_CHAT_BREAK:
     case AI_EVENT_SERVER_VAD: {
         PR_DEBUG("server vad");
         if (ai_audio_player_is_playing()) {
             ai_audio_player_stop();
         }
-    }
-    break;
+    } break;
     }
 
     return;
@@ -94,12 +93,12 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
 
             event = AI_AUDIO_EVT_HUMAN_ASR_TEXT;
 
-            if(AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
+            if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
                 ai_audio_input_restart_asr_awake_timer();
             }
-        }else {
-            if(AI_AUDIO_MODE_MANUAL_SINGLE_TALK == sg_ai_audio.work_mode ||\
-               AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK == sg_ai_audio.work_mode) {
+        } else {
+            if (AI_AUDIO_MODE_MANUAL_SINGLE_TALK == sg_ai_audio.work_mode ||
+                AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK == sg_ai_audio.work_mode) {
                 ai_audio_cloud_asr_set_idle(true);
                 sg_ai_audio.state = AI_AUDIO_STATE_STANDBY;
             }
@@ -111,13 +110,13 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
             PR_DEBUG("player is playing, stop it first");
             ai_audio_player_stop();
         }
-        if(event_id) {
+        if (event_id) {
             tkl_system_free(event_id);
             event_id = NULL;
         }
 
-        event_id = tkl_system_malloc(msg->data_len+1);
-        if(event_id) {
+        event_id = tkl_system_malloc(msg->data_len + 1);
+        if (event_id) {
             memcpy(event_id, msg->data, msg->data_len);
             event_id[msg->data_len] = '\0';
         }
@@ -129,18 +128,18 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
     case AI_AGENT_MSG_TP_AUDIO_DATA: {
         ai_audio_player_data_write(event_id, msg->data, msg->data_len, 0);
 
-        if(AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
+        if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
             ai_audio_input_restart_asr_awake_timer();
         }
     } break;
     case AI_AGENT_MSG_TP_AUDIO_STOP: {
         ai_audio_player_data_write(event_id, msg->data, msg->data_len, 1);
 
-        if(AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
+        if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
             ai_audio_input_restart_asr_awake_timer();
         }
 
-        if(event_id) {
+        if (event_id) {
             tkl_system_free(event_id);
             event_id = NULL;
         }
@@ -178,7 +177,7 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *a
     switch (event) {
     case AI_AUDIO_INPUT_EVT_GET_VALID_VOICE_START: {
         rt = ai_audio_cloud_asr_start();
-        if(rt == OPRT_OK) {
+        if (rt == OPRT_OK) {
             sg_ai_audio.state = AI_AUDIO_STATE_UPLOAD;
         }
     } break;
@@ -188,30 +187,26 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *a
         if (AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK == sg_ai_audio.work_mode) {
             ai_audio_input_stop_asr_awake();
         }
-    }
-    break;
+    } break;
     case AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD: {
         ai_audio_player_stop();
         ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
 
-        if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state ||\
-            AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
+        if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state || AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
             ai_audio_cloud_asr_set_idle(true);
         }
 
         sg_ai_audio.state = AI_AUDIO_STATE_LISTEN;
 
-        if(sg_ai_audio.evt_inform_cb) {
-            sg_ai_audio.evt_inform_cb(AI_AUDIO_EVT_ASR_WAKEUP, NULL , 0, NULL);
+        if (sg_ai_audio.evt_inform_cb) {
+            sg_ai_audio.evt_inform_cb(AI_AUDIO_EVT_ASR_WAKEUP, NULL, 0, NULL);
         }
-    }
-    break;
+    } break;
     case AI_AUDIO_INPUT_EVT_ASR_WAKEUP_STOP: {
-        if(AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
+        if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
             sg_ai_audio.state = AI_AUDIO_STATE_STANDBY;
         }
-    }
-    break;
+    } break;
     default:
         break;
     }
@@ -219,22 +214,22 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *a
 
 static void __inform_state_tm_cb(TIMER_ID timer_id, void *arg)
 {
-    static AI_AUDIO_STATE_E s_last_state = 0xFFFFFFFF;
+    static AI_AUDIO_STATE_E s_last_state = AI_AUDIO_STATE_MAX;
 
-    if(AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
-        if(false == ai_audio_player_is_playing()) {
-            if(sg_ai_audio.work_mode == AI_AUDIO_WORK_VAD_FREE_TALK ||\
-               sg_ai_audio.work_mode == AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK) {
+    if (AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
+        if (false == ai_audio_player_is_playing()) {
+            if (sg_ai_audio.work_mode == AI_AUDIO_WORK_VAD_FREE_TALK ||
+                sg_ai_audio.work_mode == AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK) {
                 sg_ai_audio.state = AI_AUDIO_STATE_LISTEN;
-            }else {
+            } else {
                 sg_ai_audio.state = AI_AUDIO_STATE_STANDBY;
             }
         }
     }
 
-    if(s_last_state != sg_ai_audio.state) {
+    if (s_last_state != sg_ai_audio.state) {
         s_last_state = sg_ai_audio.state;
-        if(sg_ai_audio.state_inform_cb) {
+        if (sg_ai_audio.state_inform_cb) {
             sg_ai_audio.state_inform_cb(sg_ai_audio.state);
         }
     }
@@ -248,9 +243,9 @@ static AI_AUDIO_INPUT_VALID_METHOD_E __get_input_get_valid_data_method(AI_AUDIO_
         method = AI_AUDIO_INPUT_VALID_METHOD_MANUAL;
     } else if (work_mode == AI_AUDIO_WORK_VAD_FREE_TALK) {
         method = AI_AUDIO_INPUT_VALID_METHOD_VAD;
-    } else if(work_mode == AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK){
+    } else if (work_mode == AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK) {
         method = AI_AUDIO_INPUT_VALID_METHOD_ASR;
-    }else if(work_mode == AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK){
+    } else if (work_mode == AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK) {
         method = AI_AUDIO_INPUT_VALID_METHOD_ASR;
     } else {
         method = AI_AUDIO_INPUT_VALID_METHOD_VAD;
@@ -275,8 +270,8 @@ OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
     }
 
     input_cfg.get_valid_data_method = __get_input_get_valid_data_method(cfg->work_mode);
-    sg_ai_audio.work_mode       = cfg->work_mode;
-    sg_ai_audio.evt_inform_cb   = cfg->evt_inform_cb;
+    sg_ai_audio.work_mode = cfg->work_mode;
+    sg_ai_audio.evt_inform_cb = cfg->evt_inform_cb;
     sg_ai_audio.state_inform_cb = cfg->state_inform_cb;
 
     TUYA_CALL_ERR_RETURN(ai_audio_input_init(&input_cfg, __ai_audio_input_inform_handle));
@@ -289,7 +284,7 @@ OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
 
-    agent_cbs.ai_agent_msg_cb   = __ai_audio_agent_msg_cb;
+    agent_cbs.ai_agent_msg_cb = __ai_audio_agent_msg_cb;
     agent_cbs.ai_agent_event_cb = __ai_audio_agent_event_cb;
 
     TUYA_CALL_ERR_RETURN(ai_audio_agent_init(&agent_cbs));
@@ -353,7 +348,7 @@ uint8_t ai_audio_get_volume(void)
 
 OPERATE_RET ai_audio_set_open(bool is_open)
 {
-    if(is_open == sg_ai_audio.is_open) {
+    if (is_open == sg_ai_audio.is_open) {
         PR_DEBUG("ai audio is open: %d", is_open);
         return OPRT_OK;
     }
@@ -361,9 +356,9 @@ OPERATE_RET ai_audio_set_open(bool is_open)
     if (true == is_open) {
         ai_audio_input_enable_get_valid_data(true);
 
-        if(sg_ai_audio.work_mode == AI_AUDIO_WORK_VAD_FREE_TALK) {
+        if (sg_ai_audio.work_mode == AI_AUDIO_WORK_VAD_FREE_TALK) {
             sg_ai_audio.state = AI_AUDIO_STATE_LISTEN;
-        } 
+        }
     } else {
         ai_audio_input_enable_get_valid_data(false);
 
@@ -384,8 +379,7 @@ OPERATE_RET ai_audio_set_open(bool is_open)
 
 OPERATE_RET ai_audio_manual_start_single_talk(void)
 {
-    if (false == sg_ai_audio.is_open || \
-        sg_ai_audio.work_mode != AI_AUDIO_MODE_MANUAL_SINGLE_TALK) {
+    if (false == sg_ai_audio.is_open || sg_ai_audio.work_mode != AI_AUDIO_MODE_MANUAL_SINGLE_TALK) {
         return OPRT_COM_ERROR;
     }
 
@@ -398,8 +392,7 @@ OPERATE_RET ai_audio_manual_start_single_talk(void)
 
 OPERATE_RET ai_audio_manual_stop_single_talk(void)
 {
-    if (false == sg_ai_audio.is_open || \
-        sg_ai_audio.work_mode != AI_AUDIO_MODE_MANUAL_SINGLE_TALK) {
+    if (false == sg_ai_audio.is_open || sg_ai_audio.work_mode != AI_AUDIO_MODE_MANUAL_SINGLE_TALK) {
         return OPRT_COM_ERROR;
     }
 
@@ -417,13 +410,12 @@ OPERATE_RET ai_audio_set_wakeup(void)
     ai_audio_player_stop();
     ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
 
-    if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state ||\
-        AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
+    if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state || AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
         ai_audio_cloud_asr_set_idle(true);
     }
 
-    if(AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK == sg_ai_audio.work_mode ||\
-       AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode){
+    if (AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK == sg_ai_audio.work_mode ||
+        AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
         ai_audio_input_restart_asr_awake_timer();
     }
 

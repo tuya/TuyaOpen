@@ -36,9 +36,9 @@ static OPERATE_RET __tdd_led_gpio_set(TDD_LED_HANDLE_T handle, bool is_on)
         return OPRT_INVALID_PARM;
     }
 
-    if(true == is_on) {
+    if (true == is_on) {
         level = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
-    }else {
+    } else {
         level = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
     }
 
@@ -57,9 +57,9 @@ static OPERATE_RET __tdd_led_gpio_open(TDD_LED_HANDLE_T handle)
     }
 
     gpio_cfg.direct = TUYA_GPIO_OUTPUT;
-    gpio_cfg.mode   = led_cfg->mode;
-    gpio_cfg.level  = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
- 
+    gpio_cfg.mode = led_cfg->mode;
+    gpio_cfg.level = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
+
     return tkl_gpio_init(led_cfg->pin, &gpio_cfg);
 }
 
@@ -70,25 +70,24 @@ static OPERATE_RET __tdd_led_gpio_close(TDD_LED_HANDLE_T handle)
     if (NULL == handle) {
         return OPRT_INVALID_PARM;
     }
- 
+
     return tkl_gpio_deinit(led_cfg->pin);
 }
 
 /**
  * @brief Registers a GPIO-based LED device
- * 
+ *
  * @param dev_name The name of the LED device to register.
  * @param led_cfg A pointer to the TDD_LED_GPIO_CFG_T structure containing GPIO configuration.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET tdd_led_gpio_register(char *dev_name, TDD_LED_GPIO_CFG_T *led_cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
-    TDD_LED_GPIO_CFG_T *tdd_led_cfg  = NULL;
+    TDD_LED_GPIO_CFG_T *tdd_led_cfg = NULL;
     TDD_LED_INTFS_T intfs;
 
-    if(NULL == dev_name || NULL == led_cfg) {
+    if (NULL == dev_name || NULL == led_cfg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -97,8 +96,8 @@ OPERATE_RET tdd_led_gpio_register(char *dev_name, TDD_LED_GPIO_CFG_T *led_cfg)
     memcpy(tdd_led_cfg, led_cfg, sizeof(TDD_LED_GPIO_CFG_T));
 
     memset(&intfs, 0x00, sizeof(TDD_LED_INTFS_T));
-    intfs.led_open  = __tdd_led_gpio_open;
-    intfs.led_set   = __tdd_led_gpio_set;
+    intfs.led_open = __tdd_led_gpio_open;
+    intfs.led_set = __tdd_led_gpio_set;
     intfs.led_close = __tdd_led_gpio_close;
 
     return tdl_led_driver_register(dev_name, (TDD_LED_HANDLE_T)tdd_led_cfg, &intfs);

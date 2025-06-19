@@ -96,7 +96,7 @@ static void __app_display_net_status_update(void)
     }
 }
 
-static void __app_display_status_time_update(uint8_t force_update)
+static __attribute__((unused)) void __app_display_status_time_update(uint8_t force_update)
 {
     POSIX_TM_S tm = {0};
     tal_time_get_local_time_custom(0, &tm);

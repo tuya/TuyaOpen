@@ -28,18 +28,18 @@ typedef enum {
     AI_AGENT_CHAT_STREAM_DATA,
     AI_AGENT_CHAT_STREAM_STOP,
     AI_AGENT_CHAT_STREAM_ABORT,
-}AI_AGENT_CHAT_STREAM_E;
+} AI_AGENT_CHAT_STREAM_E;
 
 typedef enum {
-    AI_AGENT_MSG_TP_TEXT_ASR,       
-    AI_AGENT_MSG_TP_TEXT_NLG_START, 
-    AI_AGENT_MSG_TP_TEXT_NLG_DATA,  
-    AI_AGENT_MSG_TP_TEXT_NLG_STOP,  
-    AI_AGENT_MSG_TP_AUDIO_START,    
-    AI_AGENT_MSG_TP_AUDIO_DATA,     
-    AI_AGENT_MSG_TP_AUDIO_STOP,     
-    AI_AGENT_MSG_TP_EMOTION,        
-}AI_AGENT_MSG_TYPE_E;
+    AI_AGENT_MSG_TP_TEXT_ASR,
+    AI_AGENT_MSG_TP_TEXT_NLG_START,
+    AI_AGENT_MSG_TP_TEXT_NLG_DATA,
+    AI_AGENT_MSG_TP_TEXT_NLG_STOP,
+    AI_AGENT_MSG_TP_AUDIO_START,
+    AI_AGENT_MSG_TP_AUDIO_DATA,
+    AI_AGENT_MSG_TP_AUDIO_STOP,
+    AI_AGENT_MSG_TP_EMOTION,
+} AI_AGENT_MSG_TYPE_E;
 
 typedef struct {
     AI_AGENT_MSG_TYPE_E type;
@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
     void (*ai_agent_msg_cb)(AI_AGENT_MSG_T *msg);
     void (*ai_agent_event_cb)(AI_EVENT_TYPE event, AI_EVENT_ID event_id);
-}AI_AGENT_CBS_T;
+} AI_AGENT_CBS_T;
 
 /***********************************************************
 ********************function declaration********************
