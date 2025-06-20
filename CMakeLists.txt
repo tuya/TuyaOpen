@@ -38,6 +38,19 @@ ELSEIF (UNIX)
 	MESSAGE(STATUS "Now is UNIX-like OS's.")
 ENDIF ()
 
+execute_process(
+    COMMAND python ${TOP_SOURCE_DIR}/tools/cmake/get_system_processor.py
+    OUTPUT_VARIABLE OPEN_SYSTEM_PROCESSOR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
+if(NOT OPEN_SYSTEM_PROCESSOR)
+    set(OPEN_SYSTEM_PROCESSOR "Unknown")
+endif()
+
+message(STATUS "[TOP] System processor: ${OPEN_SYSTEM_PROCESSOR}")
+
 include(${TOP_SOURCE_DIR}/tools/cmake/colors.cmake)
 include(${TOP_SOURCE_DIR}/tools/cmake/util.cmake)
 if(NOT DEFINED TOS_FRAMEWORK)
