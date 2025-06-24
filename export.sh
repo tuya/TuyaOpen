@@ -134,6 +134,9 @@ pip install -r ${OPEN_SDK_ROOT}/requirements.txt
 # remove .env.json
 rm -f ${OPEN_SDK_ROOT}/.env.json
 
+# complete
+eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
+
 echo "****************************************"
 echo "Exit use: deactivate"
 echo "****************************************"
