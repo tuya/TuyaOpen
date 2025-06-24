@@ -1,6 +1,9 @@
 #ifndef __TUYA_AUTHORIZE_H__
 #define __TUYA_AUTHORIZE_H__
 
+#include "tuya_cloud_types.h"
+#include "tuya_iot.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
