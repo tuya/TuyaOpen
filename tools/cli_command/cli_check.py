@@ -77,7 +77,7 @@ def check_command_version(tool_name, min_version, ver_cmd="--version"):
         logger.warning(
             f"[{tool_name}] ({tool_ver} < {min_version}) need update.")
         return False
-    logger.info(f"[{tool_name}] ({tool_ver} >= {min_version}) is ok.")
+    logger.note(f"[{tool_name}] ({tool_ver} >= {min_version}) is ok.")
     return True
 
 

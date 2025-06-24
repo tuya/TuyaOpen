@@ -33,7 +33,7 @@ def update_platform():
             logger.error(f"Update platform [{name}] failed.")
             continue
 
-        logger.info(f"Update platform [{name}] success.")
+        logger.note(f"Update platform [{name}] success.")
         pass
 
 
