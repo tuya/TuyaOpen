@@ -55,7 +55,7 @@ tuya_iot_client_t ai_client;
 #endif
 
 #define DPID_VOLUME 3
-#define DPID_MOVE 5
+#define DPID_MOVE   5
 
 static uint8_t _need_reset = 0;
 
@@ -304,7 +304,7 @@ void user_main(void)
     /* Initialize Tuya device configuration */
     ret = tuya_iot_init(&ai_client, &(const tuya_iot_config_t){
                                         .software_ver = PROJECT_VERSION,
-                                        .productkey = TUYA_PRODUCT_KEY,
+                                        .productkey = TUYA_PRODUCT_ID,
                                         .uuid = license.uuid,
                                         .authkey = license.authkey,
                                         // .firmware_key      = TUYA_DEVICE_FIRMWAREKEY,
