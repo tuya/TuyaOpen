@@ -96,7 +96,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* Print the QRCode for Tuya APP bind */
     case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
         char buffer[255];
-        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_KEY, license.uuid);
+        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
         example_qrcode_string(buffer, user_log_output_cb, 0);
     } break;
 
@@ -243,7 +243,7 @@ void user_main()
     /* Initialize Tuya device configuration */
     ret = tuya_iot_init(&client, &(const tuya_iot_config_t){
                                      .software_ver = PROJECT_VERSION,
-                                     .productkey = TUYA_PRODUCT_KEY,
+                                     .productkey = TUYA_PRODUCT_ID,
                                      .uuid = license.uuid,
                                      .authkey = license.authkey,
                                      .event_handler = user_event_handler_on,
