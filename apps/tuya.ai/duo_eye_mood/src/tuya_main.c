@@ -45,7 +45,6 @@
 #include "app_chat_bot.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
-#include "app_system_info.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
@@ -326,8 +325,6 @@ void user_main(void)
     if (ret != OPRT_OK) {
         PR_ERR("tuya_audio_recorde_init failed");
     }
-
-    app_system_info();
 
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
