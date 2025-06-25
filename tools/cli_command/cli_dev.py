@@ -63,17 +63,20 @@ def build_all_config_exec(dist):
         logger.info(f"Build with: {config}")
         copy_file(config, app_default_config)
         if build_project():
-            build_result_list.append(f"{config} build success.")
+            build_result_list.append(f"{config} build success")
             if dist:
                 _save_product(dist_abs, config)
         else:
-            build_result_list.append(f"{config} build failed.")
+            build_result_list.append(f"{config} build failed")
             exit_flag = 1
         full_clean_project()
 
     # print build result
     for result in build_result_list:
-        logger.info(result)
+        if result.endswith("success"):
+            logger.note(result)
+        else:
+            logger.error(result)
 
     sys.exit(exit_flag)
 
