@@ -15,6 +15,7 @@ list(APPEND APP_MODULE_SRCS
 aux_source_directory(${APP_MODULE_PATH}/font FONT_SRCS)
 aux_source_directory(${APP_MODULE_PATH}/font/emoji EMOJI_SRCS)
 aux_source_directory(${APP_MODULE_PATH}/ui UI_SRCS)
+aux_source_directory(${APP_MODULE_PATH}/image/eyes128 IMAG_EYES_SRCS)
 
 set(IMAGE_SRCS ${APP_MODULE_PATH}/image/TuyaOpen_img_320_480.c)
 
@@ -23,6 +24,7 @@ list(APPEND APP_MODULE_SRCS
     ${EMOJI_SRCS}
     ${IMAGE_SRCS}
     ${UI_SRCS}
+    ${IMAG_EYES_SRCS}
 )
 
 set(APP_MODULE_INC 

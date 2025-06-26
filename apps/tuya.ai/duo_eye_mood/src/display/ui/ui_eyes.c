@@ -7,7 +7,6 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 
-#if defined(ENABLE_GUI_EYES) && (ENABLE_GUI_EYES == 1)
 #include "ui_display.h"
 
 #include "lvgl.h"
@@ -15,7 +14,6 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************typedef define***********************
@@ -40,16 +38,11 @@ LV_IMG_DECLARE(Confused128);
 LV_IMG_DECLARE(Disappointed128);
 
 static const UI_EYES_EMOJI_T cEYES_EMOJI_LIST[] = {
-    {EMOJI_NEUTRAL,      &Nature128},
-    {EMOJI_SURPRISE,     &Surprise128},
-    {EMOJI_ANGRY,        &Angry128},
-    {EMOJI_FEARFUL,      &Fearful128},
-    {EMOJI_TOUCH,        &Touch128},
-    {EMOJI_SAD,          &Sad128},
-    {EMOJI_THINKING,     &Think128},
-    {EMOJI_HAPPY,        &Happy128},
-    {EMOJI_CONFUSED,     &Confused128},
-    {EMOJI_DISAPPOINTED, &Disappointed128},
+    {EMOJI_NEUTRAL, &Nature128},    {EMOJI_SURPRISE, &Surprise128},
+    {EMOJI_ANGRY, &Angry128},       {EMOJI_FEARFUL, &Fearful128},
+    {EMOJI_TOUCH, &Touch128},       {EMOJI_SAD, &Sad128},
+    {EMOJI_THINKING, &Think128},    {EMOJI_HAPPY, &Happy128},
+    {EMOJI_CONFUSED, &Confused128}, {EMOJI_DISAPPOINTED, &Disappointed128},
 };
 
 static lv_obj_t *sg_eyes_gif;
@@ -76,7 +69,7 @@ int ui_init(UI_FONT_T *ui_font)
 
     sg_eyes_gif = lv_gif_create(lv_scr_act());
     img = __ui_eyes_get_img(EMOJI_NEUTRAL);
-    if(NULL == img) {
+    if (NULL == img) {
         PR_ERR("invalid emotion: %s", EMOJI_NEUTRAL);
         return OPRT_INVALID_PARM;
     }
@@ -90,9 +83,9 @@ int ui_init(UI_FONT_T *ui_font)
 void ui_set_emotion(const char *emotion)
 {
     lv_img_dsc_t *img = NULL;
-    
+
     img = __ui_eyes_get_img((char *)emotion);
-    if(NULL == img) {
+    if (NULL == img) {
         PR_ERR("invalid emotion: %s", emotion);
         return;
     }
@@ -101,7 +94,6 @@ void ui_set_emotion(const char *emotion)
 
     return;
 }
-
 
 void ui_set_user_msg(const char *text)
 {
@@ -142,5 +134,3 @@ void ui_set_status_bar_pad(int32_t value)
 {
     return;
 }
-
-#endif

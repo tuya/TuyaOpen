@@ -66,7 +66,7 @@ const CHAT_WORK_MODE_INFO_T cAPP_WORK_HOLD = {
     .mode = APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE,
     .auido_mode = AI_AUDIO_MODE_MANUAL_SINGLE_TALK,
     .mode_alert = AI_AUDIO_ALERT_LONG_KEY_TALK,
-    .display_text = HOLD_TALK,
+    .display_text = NULL,
     .is_open = true,
 };
 
@@ -74,7 +74,7 @@ const CHAT_WORK_MODE_INFO_T cAPP_WORK_TRIG_VAD = {
     .mode = APP_CHAT_MODE_KEY_TRIG_VAD_FREE,
     .auido_mode = AI_AUDIO_WORK_VAD_FREE_TALK,
     .mode_alert = AI_AUDIO_ALERT_KEY_TALK,
-    .display_text = TRIG_TALK,
+    .display_text = NULL,
     .is_open = false,
 };
 
@@ -82,7 +82,7 @@ const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_SINGLE = {
     .mode = APP_CHAT_MODE_ASR_WAKEUP_SINGLE,
     .auido_mode = AI_AUDIO_WORK_ASR_WAKEUP_SINGLE_TALK,
     .mode_alert = AI_AUDIO_ALERT_WAKEUP_TALK,
-    .display_text = WAKEUP_TALK,
+    .display_text = NULL,
     .is_open = true,
 };
 
@@ -90,7 +90,7 @@ const CHAT_WORK_MODE_INFO_T cAPP_WORK_WAKEUP_FREE = {
     .mode = APP_CHAT_MODE_ASR_WAKEUP_FREE,
     .auido_mode = AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK,
     .mode_alert = AI_AUDIO_ALERT_FREE_TALK,
-    .display_text = FREE_TALK,
+    .display_text = NULL,
     .is_open = true,
 };
 
@@ -247,29 +247,16 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
         tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
 #endif
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)EMOJI_NEUTRAL, strlen(EMOJI_NEUTRAL));
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
-#endif
         break;
     case AI_AUDIO_STATE_LISTEN:
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
         tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
-#endif
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)LISTENING, strlen(LISTENING));
 #endif
         break;
     case AI_AUDIO_STATE_UPLOAD:
 
         break;
     case AI_AUDIO_STATE_AI_SPEAK:
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
-#endif
-
         break;
 
     default:
@@ -398,11 +385,5 @@ OPERATE_RET app_chat_bot_init(void)
 
     __app_chat_bot_enable(sg_chat_bot.work->is_open);
 
-    PR_NOTICE("work:%s", sg_chat_bot.work->display_text);
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_send_msg(TY_DISPLAY_TP_CHAT_MODE, (uint8_t *)sg_chat_bot.work->display_text,
-                         strlen(sg_chat_bot.work->display_text));
-#endif
     return OPRT_OK;
 }

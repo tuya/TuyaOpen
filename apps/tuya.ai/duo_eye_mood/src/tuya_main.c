@@ -45,7 +45,6 @@
 #include "app_chat_bot.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
-#include "app_system_info.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
@@ -100,11 +99,7 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
             ai_audio_set_volume(volume);
-            char volume_str[20] = {0};
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
-            app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
-#endif
+
             break;
         }
         default:
@@ -330,8 +325,6 @@ void user_main(void)
     if (ret != OPRT_OK) {
         PR_ERR("tuya_audio_recorde_init failed");
     }
-
-    app_system_info();
 
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
