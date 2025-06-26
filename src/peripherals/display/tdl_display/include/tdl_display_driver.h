@@ -121,6 +121,16 @@ OPERATE_RET tdl_disp_rgb_device_register(char *name, TDD_DISP_RGB_CFG_T *rgb);
 
 #if defined(ENABLE_SPI) && (ENABLE_SPI==1)   
 OPERATE_RET tdl_disp_spi_device_register(char *name, TDD_DISP_SPI_CFG_T *spi);
+
+OPERATE_RET tdl_disp_spi_init(DISP_SPI_BASE_CFG_T *p_cfg);
+
+OPERATE_RET tdl_disp_spi_send_cmd(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t cmd);
+
+OPERATE_RET tdl_disp_spi_send_data(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t *data, uint32_t data_len);
+
+void tdl_disp_spi_init_seq(DISP_SPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq);
+
+void tdl_disp_modify_init_seq_param(uint8_t *init_seq, uint8_t init_cmd, uint8_t param, uint8_t idx);
 #endif
 
 #if defined(ENABLE_QSPI) && (ENABLE_QSPI==1)   

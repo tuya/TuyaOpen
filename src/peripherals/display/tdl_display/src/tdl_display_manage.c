@@ -89,9 +89,9 @@ static void __tdl_blacklight_init(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
         tkl_pwm_init(bl_cfg->pwm.id, &bl_cfg->pwm.cfg);
 #endif
     }else if(bl_cfg->type == TUYA_DISP_BL_TP_NONE){
-        PR_NOTICE("There is no backlight control pin on the board.\r\n");
+        PR_NOTICE("There is no backlight control pin on the board");
     }else {
-        PR_NOTICE("not support bl type:%d\r\n", bl_cfg->type);
+        PR_NOTICE("not support bl type:%d", bl_cfg->type);
     }
 
     return;
@@ -101,7 +101,7 @@ static void __tdl_power_ctrl_io_init(TUYA_DISPLAY_IO_CTRL_T *power)
 {
     TUYA_GPIO_BASE_CFG_T cfg;
 
-    if(NULL == power) {
+    if(NULL == power || power->pin >= TUYA_GPIO_NUM_MAX) {
         return;
     }
 
@@ -134,9 +134,9 @@ static void __tdl_blacklight_deinit(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
         tkl_pwm_deinit(bl_cfg->pwm.id);
 #endif
     }else if(bl_cfg->type == TUYA_DISP_BL_TP_NONE){
-        PR_NOTICE("There is no backlight control pin on the board.\r\n");
+        PR_NOTICE("There is no backlight control pin on the board");
     }else {
-        PR_NOTICE("not support bl type:%d\r\n", bl_cfg->type);
+        PR_NOTICE("not support bl type:%d", bl_cfg->type);
     }
 
     return;
@@ -245,7 +245,7 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
         }
 #endif
     }else if(display_dev->bl.type == TUYA_DISP_BL_TP_NONE) {
-        PR_NOTICE("There is no backlight control pin on the board.\r\n");
+        PR_NOTICE("There is no backlight control pin on the board");
     }else {
         return OPRT_NOT_SUPPORTED;
     }
