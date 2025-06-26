@@ -115,8 +115,9 @@ def config_choice_exec(default):
     app_default_config = params["app_default_config"]
     copy_file(choice_config, app_default_config)
     init_using_config(force=True)
-    logger.info(f"Choice config: {choice_config}")
+    logger.note(f"Choice config: {choice_config}")
     sys.exit(0)
+
 
 @click.command(help="Menuconfig.")
 def config_menu_exec():
@@ -158,7 +159,7 @@ def config_save_exec():
     app_configs_path = params["app_configs_path"]
     saveconfig = os.path.join(app_configs_path, saveconfig_name)
     copy_file(app_default_config, saveconfig)
-    logger.info(f"Success save [{saveconfig}].")
+    logger.note(f"Success save: {saveconfig}")
     sys.exit(0)
 
 

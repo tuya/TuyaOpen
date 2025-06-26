@@ -32,5 +32,5 @@ def open_version():
 def cli():
     logger = get_logger()
     version = open_version()
-    logger.info(version)
+    logger.note(version)
     pass

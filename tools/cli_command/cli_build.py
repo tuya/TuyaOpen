@@ -12,7 +12,6 @@ from tools.cli_command.util import (
 )
 from tools.cli_command.util_git import (
     git_clone, git_checkout, set_repo_mirro, git_get_commit)
-from tools.cli_command.util_files import parser_para_file
 from tools.cli_command.cli_check import update_submodules
 from tools.cli_command.cli_config import init_using_config
 
@@ -138,7 +137,7 @@ def build_setup(platform, project_name, framework, chip=""):
     return True
 
 
-def cmake_configure(verbose=False):
+def cmake_configure(using_data, verbose=False):
     '''
     cmake -G Ninja $CMAKE_VERBOSE $OPEN_SDK_ROOT
     -DTOS_PROJECT_NAME=$PROJ
@@ -154,8 +153,6 @@ def cmake_configure(verbose=False):
     if verbose:
         cmd += "-DCMAKE_VERBOSE_MAKEFILE=ON "
 
-    using_config = params["using_config"]
-    using_data = parse_config_file(using_config)
     project_name = using_data.get("CONFIG_PROJECT_NAME", "")
     app_root = params["app_root"]
     platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
@@ -197,29 +194,38 @@ def ninja_build(build_path, verbose=False):
     return True
 
 
-def check_bin_file():
+def check_bin_file(using_data,):
     logger = get_logger()
     params = get_global_params()
-    build_param_root = params["build_param_root"]
-    build_param_file = os.path.join(
-        build_param_root, "build_param.json")
 
-    if not os.path.exists(build_param_file):
-        logger.error(f"Not found {build_param_file}")
-        return False
-
-    param_data = parser_para_file(build_param_file)
-    app_name = param_data["CONFIG_PROJECT_NAME"]
-    app_ver = param_data["CONFIG_PROJECT_VERSION"]
     app_bin_path = params["app_bin_path"]
 
-    app_bin_file = os.path.join(app_bin_path, f"{app_name}_QIO_{app_ver}.bin")
+    app_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    app_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
+
+    bin_name = f"{app_name}_QIO_{app_ver}.bin"
+    app_bin_file = os.path.join(app_bin_path, bin_name)
     if not os.path.exists(app_bin_file):
         logger.error(f"Not found {app_bin_file}")
         return False
 
-    logger.info("******************************")
-    logger.info(f"{app_bin_file}")
+    platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
+    framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
+    chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
+    board_name = using_data.get("CONFIG_BOARD_CHOICE", "")
+
+    build_info = f'''
+====================[ BUILD SUCCESS ]===================
+ Target    : {bin_name}
+ Output    : {app_bin_path}
+ Platform  : {platform_name}
+ Chip      : {chip_name}
+ Board     : {board_name}
+ Framework : {framework}
+========================================================
+    '''
+
+    logger.note(f"{build_info}")
     return True
 
 
@@ -258,7 +264,7 @@ def build_project(verbose=False):
         return False
     logger.info(f"Build setup for [{project_name}] success.")
 
-    if not cmake_configure(verbose):
+    if not cmake_configure(using_data, verbose):
         logger.error("Cmake configure error.")
         return False
     logger.info("Cmake configure success.")
@@ -268,7 +274,7 @@ def build_project(verbose=False):
         logger.error("Build error.")
         return False
 
-    if not check_bin_file():
+    if not check_bin_file(using_data,):
         return False
 
     return True
@@ -282,11 +288,6 @@ def build_project(verbose=False):
               is_flag=True, default=False,
               help="Show verbose message.")
 def cli(verbose):
-    logger = get_logger()
     if not build_project(verbose):
         sys.exit(1)
-
-    logger.info("******************************")
-    logger.info("******* Build Success ********")
-    logger.info("******************************")
     sys.exit(0)

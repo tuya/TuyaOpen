@@ -185,7 +185,7 @@ target: {target}")
     except Exception as e:
         logger.error(f"Git checkout erorr: {str(e)}.")
         return False
-        
+
 
 def git_get_commit(repo_path):
     logger = get_logger()
@@ -220,5 +220,5 @@ def download_submoudules(repo_path):
         logger.error("Download submoudules failed.")
         return False
 
-    logger.info("Download submoudules successfully.")
+    logger.note("Download submoudules successfully.")
     return True
