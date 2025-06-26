@@ -19,11 +19,6 @@ if (ENABLE_LIBLVGL)
             select ENABLE_ENCODER
             default n
 
-        config LVGL_COLOR_DEPTH
-            int "color depth"
-            range 1 32
-            default 16
-
         config LVGL_COLOR_16_SWAP
             bool "swap color bytes"
             default n
