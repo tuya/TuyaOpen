@@ -28,5 +28,10 @@ choice TUYA_T5AI_BOARD_EX_MODULE
     config TUYA_T5AI_BOARD_EX_MODULE_EYES
         bool "two circle 1.28 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
-        select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL) 
+        select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)
+
+    config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
+        bool "2.9 inch 168x384 E-Ink screen"
+        select ENABLE_DISPLAY
+
 endchoice
