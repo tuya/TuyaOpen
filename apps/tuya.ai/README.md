@@ -8,7 +8,7 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 1. **Create a Product and Obtain the Product PID**
    - Refer to the documentation [https://developer.tuya.com/en/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc](https://developer.tuya.com/en/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc) to create a product on [https://iot.tuya.com](https://iot.tuya.com) and obtain the created product's PID.
 
-   Then replace the `TUYA_PRODUCT_KEY` macro in the corresponding project directory's `tuya_config.h` file with the respective PIDs.
+   Then replace the `TUYA_PRODUCT_ID` macro in the corresponding project directory's `tuya_config.h` file with the respective PIDs.
 
 2. **Confirm TuyaOpen License Code**
 

@@ -24,6 +24,40 @@ def set_clis(clis):
     return CLIClass
 
 
+NOTE = 25  # INFO(20)  WARNING(30)
+logging.addLevelName(NOTE, "NOTE")
+
+
+def note(self, message, *args, **kws):
+    if self.isEnabledFor(NOTE):
+        self._log(NOTE, message, args, **kws)
+
+
+logging.Logger.note = note
+
+
+class CustomFormatter(logging.Formatter):
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    RESET = '\033[0m'
+    # 配置格式
+    default_format = "[%(levelname)s]: %(message)s"
+
+    FORMATS = {
+        NOTE: GREEN + default_format + RESET,
+        logging.WARNING: YELLOW + default_format + RESET,
+        logging.ERROR: RED + default_format + RESET,
+        logging.DEBUG: default_format,
+        logging.INFO: default_format,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno, self.default_format)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
 OPEN_LOGGER = None
 OPEN_LOGGER_H = None
 GLOBAL_PARAMS = {}
@@ -32,17 +66,13 @@ GLOBAL_PARAMS = {}
 def set_logger(level=logging.WARNING):
     global OPEN_LOGGER
     global OPEN_LOGGER_H
-    LOG_FORMAT = "[%(levelname)s]: %(message)s"
-    # if level == logging.DEBUG:
-    #     LOG_FORMAT = "[%(levelname)s][%(filename)s:%(lineno)d]: %(message)s"
-    lf = logging.Formatter(fmt=LOG_FORMAT)
 
     logger = logging.getLogger("open_logger")
     logger.setLevel(level)
     # 输出重定向需要和GUI中使用的一致
     # 使用stderr的好处，可以将运行时的报错也输出到GUI页面中
     lh = logging.StreamHandler(stream=sys.stderr)
-    lh.setFormatter(lf)
+    lh.setFormatter(CustomFormatter())
     logger.addHandler(lh)
     logger.debug("open_logger init done.")
 
@@ -178,7 +208,7 @@ def set_country_code():
 
         COUNTRY_CODE = country
     except requests.exceptions.RequestException as e:
-        logger.error(f"country code error: {e}")
+        logger.warn(f"country code error: {e}")
 
     return COUNTRY_CODE
 
@@ -305,7 +335,7 @@ def do_subprocess(cmd: str) -> int:
         logger.warning("Subprocess cmd is empty.")
         return 0
 
-    logger.info(f"[do subprocess]: {cmd}")
+    logger.info(f">>> subprocess >>>\n{cmd}")
 
     ret = 1  # 0: success
     try:

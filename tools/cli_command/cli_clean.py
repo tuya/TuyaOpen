@@ -28,7 +28,7 @@ def clean_project():
         logger.error("Clean error.")
         return False
 
-    logger.info("Clean success.")
+    logger.note("Clean success.")
     return True
 
 
@@ -38,7 +38,7 @@ def full_clean_project():
     params = get_global_params()
     build_path = params["app_build_path"]
     rm_rf(build_path)
-    logger.info("Fullclean success.")
+    logger.note("Fullclean success.")
     pass
 
 

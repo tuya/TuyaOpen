@@ -11,19 +11,19 @@
 /**
  * @brief configure the product information
  *
- * TUYA_PRODUCT_KEY: PID, create on the Tuya IoT platform
+ * TUYA_PRODUCT_ID: PID, create on the Tuya IoT platform
  * TUYA_DEVICE_UUID: UUID, the unique ID of the device, you can get 2 free from Tuya IoT platform
  * TUYA_DEVICE_AUTHKEY: AUTHKEY, the private key of the device, you can get 2 free from Tuya IoT platform
  *
  * detail please refer to: https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc
  *
- * warning: please replace these production information with your product key and license, otherwise the demo cannot
+ * warning: please replace these production information with your product id and license, otherwise the demo cannot
  * work.
  *
  */
 
-#ifndef TUYA_PRODUCT_KEY
-#define TUYA_PRODUCT_KEY "p320pepzvmm1ghse"
+#ifndef TUYA_PRODUCT_ID
+#define TUYA_PRODUCT_ID "p320pepzvmm1ghse"
 #endif
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
