@@ -1402,6 +1402,7 @@ typedef enum {
 	TUYA_PIXEL_FMT_RGB565,  
     TUYA_PIXEL_FMT_RGB666,  
 	TUYA_PIXEL_FMT_RGB888,
+    TUYA_PIXEL_FMT_MONOCHROME, /* binary pixel format, 1bit per pixel, 0 is black, 1 is white */     
 } TUYA_DISPLAY_PIXEL_FMT_E;
 
 typedef enum {

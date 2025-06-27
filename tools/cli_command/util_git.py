@@ -186,7 +186,6 @@ target: {target}")
         logger.error(f"Git checkout erorr: {str(e)}.")
         return False
 
-
 def git_get_commit(repo_path):
     logger = get_logger()
     repo = Repo(repo_path)

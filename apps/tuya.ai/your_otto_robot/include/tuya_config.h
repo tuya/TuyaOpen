@@ -11,22 +11,22 @@
 /**
  * @brief configure the product information
  *
- * TUYA_PRODUCT_KEY: PID, create on the Tuya IoT platform
+ * TUYA_PRODUCT_ID: PID, create on the Tuya IoT platform
  * TUYA_DEVICE_UUID: UUID, the unique ID of the device, you can get 2 free from Tuya IoT platform
  * TUYA_DEVICE_AUTHKEY: AUTHKEY, the private key of the device, you can get 2 free from Tuya IoT platform
  *
  * detail please refer to: https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc
  *
- * warning: please replace these production information with your product key and license, otherwise the demo cannot
+ * warning: please replace these production information with your product id and license, otherwise the demo cannot
  * work.
  *
  */
 
-//#define TUYA_PRODUCT_KEY "e3jrgtmuqsljru1t"
-#define TUYA_PRODUCT_KEY "pnax3fya1ctl5pst"//"roxam5enkouvqubk"//机器人pid
+//#define TUYA_PRODUCT_ID "e3jrgtmuqsljru1t"
+#define TUYA_PRODUCT_ID "pnax3fya1ctl5pst" //"roxam5enkouvqubk"//机器人pid
 
-#define TUYA_OPENSDK_UUID    "****************************"            // Please change the correct uuid
-#define TUYA_OPENSDK_AUTHKEY "***************************" // Please change the correct authkey
+#define TUYA_OPENSDK_UUID    "****************************" // Please change the correct uuid
+#define TUYA_OPENSDK_AUTHKEY "***************************"  // Please change the correct authkey
 
 /**
  * @brief PINCODE for AP provisioning

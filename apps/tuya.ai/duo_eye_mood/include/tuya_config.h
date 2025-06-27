@@ -23,7 +23,7 @@
  */
 
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID "p320pepzvmm1ghse"
+#define TUYA_PRODUCT_ID "8ixyalzpn0jrun9y"
 #endif
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
