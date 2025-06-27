@@ -11,6 +11,10 @@ choice
 
     config ENABLE_GUI_OLED
         bool "Use OLED ui"
+
+    config ENABLE_GUI_EYES
+        bool "Use Eyes ui"
+
 endchoice
 
 config ENABLE_GUI_STREAM_AI_TEXT
