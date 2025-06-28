@@ -97,8 +97,11 @@ if errorlevel 1 (
     echo Warning: Some dependencies may not have been installed correctly.
 )
 
-:: remove .env.json
-if exist "%OPEN_SDK_ROOT%\.env.json" del /F /Q "%OPEN_SDK_ROOT%\.env.json"
+:: remove cache files
+set CACHE_PATH=%OPEN_SDK_ROOT%\.cache
+mkdir /p %CACHE_PATH%
+if exist "%CACHE_PATH%\.env.json" del /F /Q "%CACHE_PATH%\.env.json"
+if exist "%CACHE_PATH%\.dont_prompt_update_platform" del /F /Q "%CACHE_PATH%\.dont_prompt_update_platform"
 
 echo ****************************************
 echo Exit use: exit

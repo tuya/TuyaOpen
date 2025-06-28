@@ -31,14 +31,14 @@ $versionMatch = $pythonVersion -match "Python (\d+)\.(\d+)"
 if ($versionMatch) {
     $major = [int]$matches[1]
     $minor = [int]$matches[2]
-    
+
     if ($major -lt 3) {
         Write-Host "Error: Python version $pythonVersion is too old!"
         Write-Host "Please install Python 3.6.0 or higher."
         Read-Host "Press any key to continue"
         exit 1
     }
-    
+
     if ($major -eq 3 -and $minor -lt 6) {
         Write-Host "Error: Python version $pythonVersion is too old!"
         Write-Host "Please install Python 3.6.0 or higher."
@@ -115,10 +115,16 @@ if (Test-Path $requirementsPath) {
     Write-Host "Warning: requirements.txt file not found."
 }
 
-# Remove .env.json file
-$envJsonPath = Join-Path $OPEN_SDK_ROOT ".env.json"
+# Remove cache files
+$cachePath = Join-Path $OPEN_SDK_ROOT ".cache"
+New-Item -ItemType Directory -Path $cachePath
+$envJsonPath = Join-Path $cachePath ".env.json"
 if (Test-Path $envJsonPath) {
     Remove-Item $envJsonPath -Force
+}
+$dontUpdatePlatform = Join-Path $cachePath ".dont_prompt_update_platform"
+if (Test-Path $dontUpdatePlatform) {
+    Remove-Item $dontUpdatePlatform -Force
 }
 
 Write-Host "****************************************"

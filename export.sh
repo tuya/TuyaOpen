@@ -131,8 +131,11 @@ echo "Virtual environment activated successfully: $VIRTUAL_ENV"
 # install dependencies
 pip install -r ${OPEN_SDK_ROOT}/requirements.txt
 
-# remove .env.json
-rm -f ${OPEN_SDK_ROOT}/.env.json
+# remove cache files
+CACHE_PATH=${OPEN_SDK_ROOT}/.cache
+mkdir -p ${CACHE_PATH}
+rm -f ${CACHE_PATH}/.env.json
+rm -f ${CACHE_PATH}/.dont_prompt_update_platform
 
 # complete
 eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
