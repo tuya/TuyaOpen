@@ -49,6 +49,33 @@ def copy_directory(source, target) -> bool:
     pass
 
 
+def move_directory(source, target, force=False) -> bool:
+    logger = get_logger()
+    if os.path.exists(target) and not force:
+        logger.error(f"Can't move to {target}, because it already exists.")
+        return False
+
+    try:
+        rm_rf(target)
+        shutil.move(source, target)
+    except Exception as e:
+        logger.error(f"Move error: {str(e)}.")
+        return False
+
+    return True
+
+
+def create_directory(target) -> bool:
+    logger = get_logger()
+    try:
+        os.makedirs(target, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Create {target}: {str(e)}.")
+        return False
+
+    return True
+
+
 def _find_files(file_type: str, target_dir: str, max_depth: int) -> List[str]:
     result = []
 

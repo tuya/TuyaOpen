@@ -53,7 +53,7 @@ def check_platform_commit(repo_path, commit):
         logger.warning(f"The commit required by the platform is {commit},")
         logger.warning(f"but currently {real_commit} is being used.")
         logger.info("Update the platform to the required commit?")
-        logger.note("Y(es) / N(o) / D(on't prompt again)")
+        logger.note("y(es) / n(o) / d(on't prompt again)")
         ret = input("input: ").upper()
         if ret == "Y":
             if not git_checkout(repo_path, commit):

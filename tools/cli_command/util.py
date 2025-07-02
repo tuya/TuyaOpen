@@ -145,6 +145,9 @@ def set_global_params():
         tyutool_cli += ".exe"
     GLOBAL_PARAMS["tyutool_cli"] = tyutool_cli
 
+    porting_root = os.path.join(tools_root, "porting")
+    GLOBAL_PARAMS["porting_root"] = porting_root
+
     pass
 
 
