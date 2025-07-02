@@ -1,32 +1,42 @@
-config ENABLE_WIFI
-    default n
-
-config WLAN_DEV
-    string
-    default "wlan0"
-
-config WLAN_AP
-    string
-    default "wlan1"
-
-config NL80211
-    bool
-    default n
-
-config WIFI_DB_PATH
-    string
-    default "./tuya_db_files"
+config COMPILE_PREX
+    string "Compile prefix"
+    default ""
+    help
+        The prefix of the compile command.
+        For example, if you want to compile the project with the prefix "arm-none-eabi-", you can set it to "arm-none-eabi-".
 
 config ENABLE_WIRED
-    bool
+    bool "Enable Wired"
     default y
 
+config ENABLE_WIFI
+    bool "Enable WiFi"
+    default n
+
+if (ENABLE_WIFI)
+    config WLAN_DEV
+        string "WiFi main devices name"
+        default "wlan0"
+
+    config WLAN_AP
+        string "WiFi concurrent device name"
+        default "wlan1"
+
+    config NL80211
+        bool "Enable nl80211"
+        default n
+
+    config WIFI_DB_PATH
+        string "WiFi db path"
+        default "./tuya_db_files"
+endif
+
 config ENABLE_BLUETOOTH
-    bool
+    bool "Enable Bluetooth"
     default n
 
 config LITTLE_END
-    int
+    int "Little endian"
     default 1
     ---help---
         0       /* big endian */
