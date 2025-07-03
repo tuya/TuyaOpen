@@ -66,7 +66,7 @@ OPERATE_RET tkl_8080_ppi_set(uint16_t width, uint16_t height);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tkl_8080_pixel_mode_set(TUYA_DISPLAY_PIXEL_FMT_E mode);//input mode set
+OPERATE_RET tkl_8080_pixel_mode_set(TUYA_DISPLAY_PIXEL_FMT_E mode);
 
 /**
  * @brief 8080 base addr set

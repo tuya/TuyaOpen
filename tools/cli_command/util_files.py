@@ -112,8 +112,9 @@ def get_files_from_path(types: Union[str, List[str]],
 
 
 def parser_para_file(json_file):
+    logger = get_logger()
     if not os.path.isfile(json_file):
-        print(f"Error: Not found [{json_file}].")
+        logger.error(f"Error: Not found [{json_file}].")
         return {}
     try:
         f = open(json_file, 'r', encoding='utf-8')
@@ -123,3 +124,25 @@ def parser_para_file(json_file):
         print(f"Parser json error:  [{str(e)}].")
         return {}
     return json_data
+
+
+def replace_string_in_file(file_path, old_str, new_str) -> bool:
+    logger = get_logger()
+    if not os.path.isfile(file_path):
+        logger.error(f"Error: Not found [{file_path}].")
+        return False
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+
+        modified_content = content.replace(old_str, new_str)
+
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(modified_content)
+
+        logger.debug(f"replace [{old_str}] to [{new_str}] in [{file_path}].")
+    except Exception as e:
+        print(f"Replace string in {file_path} error:  [{str(e)}].")
+        return False
+
+    return True

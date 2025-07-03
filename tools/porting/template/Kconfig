@@ -1,4 +1,4 @@
-menu "configure platfomr <your-platform-name>"
+menu "configure platform <your-platform-name>"
 
     choice
         prompt "OPERATING_SYSTEM"
@@ -48,7 +48,7 @@ menu "configure platfomr <your-platform-name>"
         default n
         if (ENABLE_BLUETOOTH)
             config ENABLE_HCI
-                bool "ENABLE_HCI --- support BLE hci "
+                bool "ENABLE_HCI --- support BLE hci"
                 default n
         endif
     config ENABLE_RTC
@@ -83,38 +83,38 @@ menu "configure platfomr <your-platform-name>"
     config ENABLE_GPIO
         bool "ENABLE_GPIO --- support gpio"
         default y
-    
+
     config ENABLE_I2C
         bool "ENABLE_I2C --- support i2c"
         default n
-        
+
     config ENABLE_TIMER
         bool "ENABLE_TIMER --- support hw timer"
-        default n     
+        default n
 
     config ENABLE_SPI
         bool "ENABLE_SPI --- support spi"
-        default n    
-        
+        default n
+
     config ENABLE_QSPI
         bool "ENABLE_QSPI --- support qspi"
-        default n                                      
-                        
+        default n
+
     config ENABLE_RGB
         bool "ENABLE_RGB --- support LCD rgb interface"
-        default n   
-        
+        default n
+
     config ENABLE_MCU8080
         bool "ENABLE_MCU8080 --- support LCD mcu8080 interface"
-        default n  
+        default n
 
     config ENABLE_MEDIA
         bool "ENABLE_MEDIA --- support media"
-        default n   
-        
+        default n
+
     config ENABLE_VAD
         bool "ENABLE_VAD --- support voice activity detection"
-        default n  
+        default n
 
     config ENABLE_ASR
         bool "ENABLE_ASR --- support automatic speech recognition"
@@ -122,54 +122,54 @@ menu "configure platfomr <your-platform-name>"
 
     config ENABLE_STORAGE
         bool "ENABLE_STORAGE --- support storage such as SDCard"
-        default n                               
+        default n
 
     config ENABLE_EXT_RAM
         bool "ENABLE_EXT_RAM --- support external ram ex: PSRAM"
-        default n   
+        default n
 
     config ENABLE_DAC
         bool "ENABLE_DAC --- support dac"
-        default n   
+        default n
 
     config ENABLE_I2S
         bool "ENABLE_I2S --- support i2s"
-        default n   
+        default n
 
     config ENABLE_WAKEUP
         bool "ENABLE_WAKEUP --- support lowpower wakeup"
-        default n 
+        default n
 
     config ENABLE_REGISTER
         bool "ENABLE_REGISTER --- support register"
-        default n   
+        default n
 
     config ENABLE_PINMUX
         bool "ENABLE_PINMUX --- support pinmux"
-        default n   
+        default n
 
     config ENABLE_PLATFORM_AES
         bool "ENABLE_PLATFORM_AES --- support hw AES"
-        default n   
+        default n
 
     config ENABLE_PLATFORM_SHA256
         bool "ENABLE_PLATFORM_SHA256 --- support hw sha256"
-        default n   
+        default n
 
     config ENABLE_PLATFORM_MD5
         bool "ENABLE_PLATFORM_MD5 --- support hw md5"
-        default n            
-        
+        default n
+
     config ENABLE_PLATFORM_SHA1
         bool "ENABLE_PLATFORM_SHA1 --- support hw sha1"
-        default n            
+        default n
 
     config ENABLE_PLATFORM_RSA
         bool "ENABLE_PLATFORM_RSA --- support hw rsa"
-        default n            
+        default n
 
     config ENABLE_PLATFORM_ECC
         bool "ENABLE_PLATFORM_ECC --- support hw ecc"
-        default n            
+        default n
 
     endmenu
