@@ -165,6 +165,9 @@ def create_new_platform_path(new_platform_path, new_platform_name):
 
     create_directory(os.path.join(new_platform_path, "tuyaos"))
     porting_root = params["porting_root"]
+    source_kconfig = os.path.join(porting_root, ".gitignore")
+    target_kconfig = os.path.join(new_platform_path, ".gitignore")
+    copy_file(source_kconfig, target_kconfig, force=True)
     source_kconfig = os.path.join(porting_root, "template", "Kconfig")
     target_kconfig = os.path.join(new_platform_path, "Kconfig")
     copy_file(source_kconfig, target_kconfig, force=True)
@@ -312,7 +315,7 @@ def new_platform_exec():
 
     # platform is exists
     if os.path.exists(new_platform_path):
-        logger.warn(f"[{new_platform_name}] is exists: {new_platform_path}")
+        logger.warn(f"[{new_platform_name}] is exists: {new_platform_path}.")
         logger.warn("Do you want to update: y(es) / n(o)")
         update_input = input("input: ").upper()
         if update_input != "Y":
@@ -339,8 +342,27 @@ def new_board_exec():
 
 
 @click.command(help="New project.")
-def new_project_exec():
-    pass
+@click.option('-f', '--framework',
+              type=click.Choice(["base", "arduino"]),
+              default="base",
+              help="Framework.")
+def new_project_exec(framework):
+    logger = get_logger()
+    params = get_global_params()
+    logger.note("Input new project name.")
+    new_project_name = input("input: ")
+    work_root = params["app_root"]
+    new_project_path = os.path.join(work_root, new_project_name)
+
+    # platform is exists
+    if os.path.exists(new_project_path):
+        logger.error(f"[{new_project_name}] is exists: {new_project_path}.")
+        sys.exit(1)
+
+    app_template_root = params["app_template_root"]
+    template_path = os.path.join(app_template_root, framework)
+    copy_directory(template_path, new_project_path)
+    sys.exit(0)
 
 
 CLIS = {

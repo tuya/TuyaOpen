@@ -148,6 +148,9 @@ def set_global_params():
     porting_root = os.path.join(tools_root, "porting")
     GLOBAL_PARAMS["porting_root"] = porting_root
 
+    app_template_root = os.path.join(tools_root, "app_template")
+    GLOBAL_PARAMS["app_template_root"] = app_template_root
+
     pass
 
 
