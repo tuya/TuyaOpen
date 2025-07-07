@@ -264,7 +264,7 @@ def _copy_config_components(template_root,
         rm_rf(f_path)
 
     # CONFIG_OPERATING_SYSTEM
-    value = config_data.get("CONFIG_OPERATING_SYSTEM", 0)
+    value = config_data.get("CONFIG_OPERATING_SYSTEM", 3)
     if type(value) is int and value == 100:
         f_path = os.path.join(adapter_include_root,
                               "init/src/tkl_init_network.c")
@@ -470,11 +470,6 @@ def new_platform_exec():
     sys.exit(0)
 
 
-@click.command(help="New board.")
-def new_board_exec():
-    pass
-
-
 @click.command(help="New project.")
 @click.option('-f', '--framework',
               type=click.Choice(["base", "arduino"]),
@@ -501,7 +496,6 @@ def new_project_exec(framework):
 
 CLIS = {
     "platform": new_platform_exec,
-    "board": new_board_exec,
     "project": new_project_exec
 }
 
