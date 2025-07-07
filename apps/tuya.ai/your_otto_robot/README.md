@@ -57,14 +57,6 @@ Otto Robot 是一个开源的人形机器人平台，支持多种功能扩展。
 
 - **文档地址**：[Tuya 开发文档](https://www.tuyaopen.io/en/master/)（先仔细阅读文档哦）
 
-### 3. 配置修改
-
-- **PID修改**：在文件 `apps/tuya.ai/your_otto_robot/include/tuya_config.h` 中
-
-​    将 PID 修改为 `**pnax3fya1ctl5pst**`
-
-- **UUID获取**：访问 [Tuya Open 仓库](https://github.com/tuya/TuyaOpen/tree/master) 点击 右上角"Star" 后进群获取 UUID
-- **配置T5 mini开发板引脚：**在apps/tuya.ai/your_otto_robot/ 使用命令**：**tos menuconfig 按下图操作选择
 
 ### 屏幕转向 90度 修改
 ![img](./imgs/screen-rotate.png)

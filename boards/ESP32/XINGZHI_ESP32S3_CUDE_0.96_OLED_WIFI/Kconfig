@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "XINGZHI-CUDE-0.96-OLED-WIFI"
+    default "XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI"
 
 config BOARD_CONFIG
     bool

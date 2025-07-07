@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "DNESP32S3-BOX"
+    default "DNESP32S3_BOX"
 
 config BOARD_CONFIG
     bool

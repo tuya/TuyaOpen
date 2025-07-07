@@ -63,21 +63,21 @@ choice
         endif
 
     config BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI
-        bool "XINGZHI-CUDE-0.96-OLED-WIFI"
+        bool "XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI"
         if (BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
-            rsource "./XINGZHI-CUDE-0.96-OLED-WIFI/Kconfig"
+            rsource "./XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI/Kconfig"
         endif
 
     config BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
-        bool "WAVESHARE-ESP32-S3-Touch-AMOLED-1.8"
+        bool "WAVESHARE_ESP32S3_Touch_AMOLED_1.8"
         if (BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
-            rsource "./WAVESHARE-ESP32-S3-Touch-AMOLED-1.8/Kconfig"
+            rsource "./WAVESHARE_ESP32S3_Touch_AMOLED_1.8/Kconfig"
         endif
 
     config BOARD_CHOICE_DNESP32S3_BOX
-        bool "DNESP32S3-BOX"
+        bool "DNESP32S3_BOX"
         if (BOARD_CHOICE_DNESP32S3_BOX)
-            rsource "./DNESP32S3-BOX/Kconfig"
+            rsource "./DNESP32S3_BOX/Kconfig"
         endif
 
     config BOARD_CHOICE_DNESP32S3

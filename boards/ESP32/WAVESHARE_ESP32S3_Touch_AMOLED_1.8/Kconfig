@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "WAVESHARE-ESP32-S3-Touch-AMOLED-1.8"
+    default "WAVESHARE_ESP32S3_Touch_AMOLED_1.8"
 
 config BOARD_CONFIG
     bool

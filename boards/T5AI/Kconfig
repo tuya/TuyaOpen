@@ -33,10 +33,10 @@ choice
             rsource "./TUYA_T5AI_EVB/Kconfig"
         endif
 
-    config BOARD_CHOICE_TUYA_T5AI_MINI
-        bool "TUYA_T5AI_MINI"
-        if (BOARD_CHOICE_TUYA_T5AI_MINI)
-            rsource "./TUYA_T5AI_MINI/Kconfig"
+    config BOARD_CHOICE_T5AI_MINI
+        bool "T5AI_MINI"
+        if (BOARD_CHOICE_T5AI_MINI)
+            rsource "./T5AI_MINI/Kconfig"
         endif
 
     config BOARD_CHOICE_T5AI_MOJI_1_28

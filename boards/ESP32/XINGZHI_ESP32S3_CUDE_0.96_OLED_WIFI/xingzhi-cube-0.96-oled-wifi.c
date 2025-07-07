@@ -48,7 +48,7 @@ static OPERATE_RET __board_register_audio(void)
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void)

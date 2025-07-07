@@ -22,8 +22,9 @@
  *
  */
 
-//#define TUYA_PRODUCT_ID "e3jrgtmuqsljru1t"
-#define TUYA_PRODUCT_ID "pnax3fya1ctl5pst" //"roxam5enkouvqubk"//机器人pid
+#ifndef TUYA_PRODUCT_ID
+#define TUYA_PRODUCT_ID "jzwn39csuk66cp7a"
+#endif
 
 #define TUYA_OPENSDK_UUID    "****************************" // Please change the correct uuid
 #define TUYA_OPENSDK_AUTHKEY "***************************"  // Please change the correct authkey
