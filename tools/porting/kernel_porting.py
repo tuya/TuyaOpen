@@ -161,7 +161,6 @@ class porting(object):
 
             for f in files:
                 nfile = porting_new_file.parse_new_file(os.path.join(root, f)).load_file()
-                # ofile = porting_old_file.parse_old_file(self.target_tuyaos_adapter_path + "src/" + re.sub(r"\.h", ".c", f)).load_file()
                 ofile = porting_old_file.parse_old_file(
                     os.path.join(self.target_tuyaos_adapter_path, "src", re.sub(r"\.h", ".c", f))
                 ).load_file()
@@ -216,20 +215,20 @@ class porting(object):
                 os.path.join(self.target_path, "Kconfig")
             )
 
-        # Linux first use template build.sh and makefile
-        # print(self.abilitys)
-        if not os.path.exists(os.path.join(self.target_path, "build_example.sh")):
-            print("    cp build_example.sh template")
+        # build_example.py
+        if not os.path.exists(os.path.join(self.target_path, "build_example.py")):
+            print("    cp build_example.py template")
             shutil.copy(
-                os.path.join(self.porting_template_path, "build_example.sh"),
-                os.path.join(self.target_path, "build_example.sh")
+                os.path.join(self.porting_template_path, "build_example.py"),
+                os.path.join(self.target_path, "build_example.py")
             )
 
-        if self.abilitys['OPERATING_SYSTEM'] == '100':
-            print("    cp makefile")
+        # CMakeLists.txt
+        if not os.path.exists(os.path.join(self.target_path, "CMakeLists.txt")):
+            print("    cp CMakeLists.txt")
             shutil.copy(
-                os.path.join(self.porting_template_linux_path, "Makefile"),
-                os.path.join(self.target_path, "Makefile")
+                os.path.join(self.porting_template_path, "CMakeLists.txt"),
+                os.path.join(self.target_path, "CMakeLists.txt")
             )
 
     def __gen_adapter_default(self):
@@ -249,18 +248,15 @@ class porting(object):
             print("    create src dir")
             os.makedirs(os.path.join(self.target_tuyaos_adapter_path, "src"), exist_ok=True)
 
-        # # Must update: local.mk & tkl_adapter.h/c
-        # if not os.path.exists(self.target_tuyaos_adapter_path + "local.mk"):
-        #     print("    update file: local.mk")
-        #     if self.template:
-        #         if self.template == 'bsp':
-        #             shutil.copy(self.porting_template_bsp_path + "local.mk", self.target_tuyaos_adapter_path + "/local.mk")
-        #             shutil.copy(self.porting_template_bsp_path + "tkl_adapter.h", self.target_tuyaos_adapter_path + "/include/tkl_adapter.h")
-        #             shutil.copy(self.porting_template_bsp_path + "tkl_adapter.c", self.target_tuyaos_adapter_path + "/src/tkl_adapter.c")
-        #         else:
-        #             shutil.copy(self.porting_template_path + "local.mk.template", self.target_tuyaos_adapter_path + "/local.mk")
-        #     else:
-        #         shutil.copy(self.porting_template_path + "local.mk.template", self.target_tuyaos_adapter_path + "/local.mk")
+        # main.c
+        if self.abilitys['OPERATING_SYSTEM'] == '98':
+            if not os.path.exists(os.path.join(self.target_tuyaos_adapter_path, "src", "main.c")):
+                print("    cp main.c")
+                shutil.copy(
+                    os.path.join(self.porting_template_path, "main.c"),
+                    os.path.join(self.target_tuyaos_adapter_path, "src", "main.c")
+                )
+            pass
 
     def __gen_adapter(self):
         print("start to generate tuyaos adapter")

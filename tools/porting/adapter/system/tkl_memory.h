@@ -89,40 +89,16 @@ void *tkl_system_realloc(void *ptr, size_t size);
  */
 int tkl_system_get_free_heap_size(void);
 
-int tkl_system_memcmp(const void *str1, const void *str2, size_t n);
-
-
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
 /**
-* @brief Alloc psram memory of system
-*
-* @param[in] size: memory size
-*
-* @note ENABLE_EXT_RAM neeed define in tuyaos_kernel.config.
-*
-* @return the memory address malloced
-*/
-void *tkl_system_psram_malloc(size_t size);
-
-/**
-* @brief Free psram memory of system
-*
-* @param[in] ptr: memory point
-*
-* @note ENABLE_EXT_RAM neeed define in tuyaos_kernel.config.
-*
-* @return void
-*/
-void tkl_system_psram_free(void* ptr);
-
-/**
- * @brief Re-allocate the memory
+ * @brief Compare two pieces of memory
  *
- * @param[in]       nitems      source memory address
- * @param[in]       size        the size after re-allocate
+ * @param[in]       str1        memory 1
+ * @param[in]       str2        memory 2
+ * @param[in]       n           number of comparisons
+ *
+ * @return 0 means that the two pieces of memory are the same
  */
-void *tkl_system_psram_realloc(void* ptr, size_t size);
-#endif
+int tkl_system_memcmp(const void *str1, const void *str2, size_t n);
 
 #ifdef __cplusplus
 }

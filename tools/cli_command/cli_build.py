@@ -46,8 +46,8 @@ def check_platform_commit(repo_path, commit):
         logger.error(f"Not found {repo_path}")
         return False
 
-    # Maybe a newly created platform
     if not commit:
+        # Maybe a newly created platform
         return True
 
     dont_update_platform = params["dont_update_platform"]

@@ -4,6 +4,7 @@
 import sys
 import os
 import json
+import re
 import click
 from kconfiglib import Kconfig
 from menuconfig import menuconfig
@@ -193,6 +194,11 @@ def gen_default_config(new_platform_path, default_config):
     os.environ['KCONFIG_CONFIG'] = default_config
     kconf = Kconfig(filename=allconfig)
     menuconfig(kconf)
+
+    if not os.path.exists(default_config):
+        logger.error(f"Platform config not foun: {default_config}.")
+        return False
+
     return True
 
 
@@ -217,9 +223,16 @@ def _copy_base_components(template_root,
 
 def _copy_config_components(template_root,
                             adapter_include_root,
-                            config_data):
+                            config_data,
+                            tuya_root):
+    '''
+    Copy the template of the configurable component
+    and generate the [TKL_Kconfig] file
+    '''
     logger = get_logger()
+    tkl_kconfig_content = ""
     logger.info("Processing config component ...")
+
     for ability in ABILITY_CONFIG:
         name = ability["ability"]
         value = config_data.get(name, False)
@@ -233,6 +246,7 @@ def _copy_config_components(template_root,
         # enable: copy template
         if value:
             logger.debug(f"process: {name} enable.")
+            tkl_kconfig_content += f"config {name[7:]}\n\tdefault y\n\n"
             copy_directory(temp_path, target_path)
             continue
 
@@ -258,23 +272,16 @@ def _copy_config_components(template_root,
         f_path = os.path.join(adapter_include_root,
                               "network")
         rm_rf(f_path)
+
+    # generate TKL_Kconfig
+    tkl_kconfig = os.path.join(tuya_root, "TKL_Kconfig")
+    with open(tkl_kconfig, 'w', encoding='utf-8') as f:
+        f.write(tkl_kconfig_content)
     pass
 
 
-def update_platform_by_config(new_platform_path, default_config):
-    logger = get_logger()
+def update_platform_by_config(new_platform_path, config_data):
     params = get_global_params()
-    if not os.path.exists(default_config):
-        logger.error(f"Platform config not foun: {default_config}.")
-        return False
-
-    conf_file_list = [default_config]
-    params_data = {}
-    parmas_json = os.path.join(new_platform_path, "default.json")
-    conf2param(conf_file_list, params_data)
-    param2json(params_data, parmas_json)
-    with open(parmas_json, 'r', encoding='utf-8') as f:
-        config_data = json.load(f)
 
     tuya_root = os.path.join(new_platform_path, "tuyaos")
     adapter_root = os.path.join(tuya_root, "tuyaos_adapter")
@@ -285,7 +292,8 @@ def update_platform_by_config(new_platform_path, default_config):
                           adapter_include_root)
     _copy_config_components(template_root,
                             adapter_include_root,
-                            config_data)
+                            config_data,
+                            tuya_root)
     return True
 
 
@@ -301,6 +309,118 @@ def porting_platform(new_platform_path, new_platform_name):
     ret = do_subprocess(cmd)
     if 0 != ret:
         return False
+    return True
+
+
+def create_new_board_path(new_board_path,
+                          new_platform_path,
+                          new_platform_name,
+                          config_data):
+    '''
+    If the old directory exists, save the old directory first
+    '''
+    logger = get_logger()
+    logger.info("Generating platform root ...")
+
+    # copy to bak
+    if os.path.exists(new_board_path):
+        bak_path_base = f"{new_board_path}_bak"
+        for i in range(1, 100):
+            bak_path = f"{bak_path_base}_{i}"
+            if not os.path.exists(bak_path):
+                break
+        logger.note(f"Save old board to: {bak_path}.")
+        rm_rf(bak_path)
+        copy_directory(new_board_path, bak_path)
+
+    create_directory(new_board_path)
+
+    operating_system = config_data.get("CONFIG_OPERATING_SYSTEM", 3)
+    kconfig = os.path.join(new_board_path, "Kconfig")
+    kconfig_content = f'''# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "{new_platform_name}"
+
+config OPERATING_SYSTEM
+    int
+    default {operating_system}
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+'''
+    with open(kconfig, 'w', encoding='utf-8') as f:
+        f.write(kconfig_content)
+
+    os_kconfig = os.path.join(new_board_path, "OS_SERVICE_Kconfig")
+    os_kconfig_content = '''config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"
+'''
+    with open(os_kconfig, 'w', encoding='utf-8') as f:
+        f.write(os_kconfig_content)
+
+    tkl_kconfig = os.path.join(new_board_path, "TKL_Kconfig")
+    tkl_kconfig_template = os.path.join(new_platform_path,
+                                        "tuyaos", "TKL_Kconfig")
+    copy_file(tkl_kconfig_template, tkl_kconfig, force=True)
+    pass
+
+
+def modify_board_kconfig(board_kconfig, new_platform_name):
+    platform_name = new_platform_name.upper()
+    board_enable_string = f"BOARD_ENABLE_{platform_name}"
+
+    with open(board_kconfig, 'r', encoding='utf-8') as f:
+        content = f.read()
+        pattern = r'\b' + board_enable_string + r'\b'
+        match = re.search(pattern, content)
+        if match is not None:
+            return
+
+    enable_line = "# <new-board-enable: \
+This line cannot be deleted or modified>"
+    enable_content = f'''config {board_enable_string}
+    bool
+    default y
+
+{enable_line}
+'''
+    replace_string_in_file(board_kconfig, enable_line, enable_content)
+
+    board_choice_string = f"BOARD_CHOICE_{platform_name}"
+    kconfig_line = "# <new-board-kconfig: \
+This line cannot be deleted or modified>"
+    kconfig_content = f'''if ({board_enable_string})
+    config {board_choice_string}
+        bool "{new_platform_name}"
+    if ({board_choice_string})
+    rsource "./{new_platform_name}/Kconfig"
+    endif
+endif
+
+{kconfig_line}'''
+    replace_string_in_file(board_kconfig, kconfig_line, kconfig_content)
+    pass
+
+
+def initialization_board(boards_root,
+                         new_platform_path,
+                         new_platform_name,
+                         config_data):
+    new_board_path = os.path.join(boards_root, new_platform_name)
+    create_new_board_path(new_board_path,
+                          new_platform_path,
+                          new_platform_name,
+                          config_data)
+
+    board_kconfig = os.path.join(boards_root, "Kconfig")
+    modify_board_kconfig(board_kconfig, new_platform_name)
+
     return True
 
 
@@ -327,12 +447,26 @@ def new_platform_exec():
     if not gen_default_config(new_platform_path, default_config):
         sys.exit(1)
 
-    if not update_platform_by_config(new_platform_path, default_config):
+    conf_file_list = [default_config]
+    params_data = {}
+    parmas_json = os.path.join(new_platform_path, "default.json")
+    conf2param(conf_file_list, params_data)
+    param2json(params_data, parmas_json)
+    with open(parmas_json, 'r', encoding='utf-8') as f:
+        config_data = json.load(f)
+
+    if not update_platform_by_config(new_platform_path, config_data):
         sys.exit(1)
 
     if not porting_platform(new_platform_path, new_platform_name):
         sys.exit(1)
 
+    boards_root = params["boards_root"]
+    if not initialization_board(boards_root,
+                                new_platform_path,
+                                new_platform_name,
+                                config_data):
+        sys.exit(1)
     sys.exit(0)
 
 
