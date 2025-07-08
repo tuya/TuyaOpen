@@ -1,0 +1,33 @@
+config ENABLE_JOYSTICK
+    bool "enable joystick"
+    default n
+
+if (ENABLE_JOYSTICK)
+    config JOYSTICK_BUTTON_NUM
+        int "the num of joystick button"
+        range 0 36
+        default 7   
+
+    config JOYSTICK_STICK_NUM1
+        int "the num of joystick stick 1"
+        range 0 36
+        default 22
+
+    config JOYSTICK_STICK_NUM2
+        int "the num of joystick stick 2"
+        range 0 36
+        default 24
+
+    config JOYSTICK_NAME
+        string "the name of joystick button"
+        default "joystick"
+
+    config STICK_NAME1
+        string "the name of stick 1"
+        default "stick1"
+
+    config STICK_NAME2
+        string "the name of stick 2"
+        default "stick2"
+
+endif
