@@ -1,13 +1,15 @@
 /**
  * @file tdd_disp_qspi_st7735s.c
- * @brief Implementation of GC9A01 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for GC9A01 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @brief Implementation file for the ST7735S TFT LCD display driver using QSPI interface.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the initialization sequence and hardware-specific control functions 
+ * for driving ST7735S series TFT displays via the QSPI communication protocol. It includes 
+ * configuration of display parameters, command/data handling, and integration with the 
+ * display driver framework.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
+
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
@@ -52,6 +54,18 @@ static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7735S TFT display device using the QSPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7735S series of TFT LCDs 
+ * using the QSPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7735S.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the QSPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_qspi_st7735s_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {

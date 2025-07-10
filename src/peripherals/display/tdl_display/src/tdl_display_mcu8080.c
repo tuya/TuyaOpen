@@ -1,7 +1,13 @@
 /**
  * @file tdl_display_mcu8080.c
- * @version 0.1
- * @date 2025-05-27
+ * @brief Implementation file for the MCU8080 display interface module.
+ *
+ * This file provides the implementation of functions required to manage and control 
+ * displays using the MCU8080 parallel interface. It includes initialization, frame buffer 
+ * flushing, window setting, GPIO and interrupt handling, as well as integration with the 
+ * display management framework.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "tal_api.h"
@@ -255,6 +261,17 @@ static OPERATE_RET __tdd_display_mcu8080_close(TDD_DISP_DEV_HANDLE_T device)
     return rt;
 }
 
+/**
+ * @brief Registers an MCU8080 display device with the display management system.
+ *
+ * This function creates and initializes a new MCU8080 display device instance, 
+ * configures its interface functions, and registers it under the specified name.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param mcu8080 Pointer to the MCU8080 display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdl_disp_mcu8080_device_register(char *name, TDD_DISP_MCU8080_CFG_T *mcu8080)
 {
     OPERATE_RET rt = OPRT_OK;

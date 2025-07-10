@@ -1,8 +1,13 @@
 /**
  * @file tdl_display_rgb.c
- * @brief tdl_display_rgb module is used to control RGB display
- * @version 0.1
- * @date 2025-05-27
+ * @brief Implementation file for the RGB display interface module.
+ *
+ * This file contains the implementation of functions required to manage and control 
+ * RGB displays. It includes frame buffer handling, display refresh synchronization, 
+ * interrupt service routines, task scheduling for frame updates, and integration with 
+ * the display management framework.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "tal_api.h"
@@ -219,6 +224,17 @@ static OPERATE_RET __tdd_display_rgb_close(TDD_DISP_DEV_HANDLE_T device)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief Registers an RGB display device with the display management system.
+ *
+ * This function creates and initializes a new RGB display device instance, 
+ * configures its interface functions, and registers it under the specified name.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param rgb Pointer to the RGB display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdl_disp_rgb_device_register(char *name, TDD_DISP_RGB_CFG_T *rgb)
 {
     OPERATE_RET rt = OPRT_OK;

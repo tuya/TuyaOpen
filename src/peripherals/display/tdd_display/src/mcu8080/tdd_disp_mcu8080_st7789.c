@@ -1,13 +1,15 @@
 /**
  * @file tdd_disp_mcu8080_st7789.c
- * @brief Implementation of ST7789 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for ST7789 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @brief Implementation file for the ST7789 TFT LCD display driver using MCU8080 interface.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the initialization sequence and hardware-specific control functions 
+ * for driving ST7789 series TFT displays via the MCU8080 parallel interface. It includes 
+ * configuration of display parameters, command/data handling, and integration with the 
+ * display driver framework.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
+
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
@@ -54,6 +56,18 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7789 TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {

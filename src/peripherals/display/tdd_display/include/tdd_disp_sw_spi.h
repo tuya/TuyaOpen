@@ -1,7 +1,11 @@
 /**
- * @file tdd_disp_sw_spi.h 
- * @version 0.1
- * @date 2025-05-27
+ * @file tdd_disp_sw_spi.h
+ * @brief Header file for the software SPI interface driver used in display modules.
+ *
+ * This file contains the type definitions and function declarations required 
+ * for initializing and controlling a display using a software-based SPI interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __TDD_DISP_SW_SPI_H__

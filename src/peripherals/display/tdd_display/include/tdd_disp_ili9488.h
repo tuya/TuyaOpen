@@ -1,7 +1,11 @@
 /**
  * @file tdd_disp_ili9488.h
- * @version 0.1
- * @date 2025-03-12
+ * @brief ILI9488 display driver interface definitions.
+ *
+ * This header provides macro definitions and function declarations for
+ * controlling the ILI9488 display via RGB interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __TDD_DISP_ILI9488_H__
@@ -80,7 +84,18 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
+/**
+ * @brief Registers an ILI9488 RGB LCD display device with the display management system.
+ *
+ * This function configures and registers a display device for the ILI9488 series of RGB LCDs 
+ * using software SPI. It copies configuration parameters from the provided device configuration 
+ * and sets up the initialization sequence specific to ILI9488.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the RGB display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus
