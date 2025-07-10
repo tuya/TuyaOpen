@@ -257,30 +257,30 @@ typedef enum {
  * @brief adc mode
  */
 typedef enum {
-    TUYA_ADC_SINGLE = 0, ///< Single conversion mode --- select one channel to convert at a time.
-    TUYA_ADC_CONTINUOUS, ///< Continuous conversion mode --- select a channel to convert in a specific times.
-    TUYA_ADC_SCAN,       ///< Scan mode --- select a group channel to convert at a time.
+    TUYA_ADC_SINGLE = 0,       ///< Single conversion mode --- select one channel to convert at a time.
+    TUYA_ADC_CONTINUOUS,       ///< Continuous conversion mode --- select a channel to convert in a specific times.
+    TUYA_ADC_SCAN,             ///< Scan mode --- select a group channel to convert at a time.
 } TUYA_ADC_MODE_E;
 
 typedef struct {
-    uint32_t ch_0 : 1;
-    uint32_t ch_1 : 1;
-    uint32_t ch_2 : 1;
-    uint32_t ch_3 : 1;
-    uint32_t ch_4 : 1;
-    uint32_t ch_5 : 1;
-    uint32_t ch_6 : 1;
-    uint32_t ch_7 : 1;
-    uint32_t ch_8 : 1;
-    uint32_t ch_9 : 1;
-    uint32_t ch_10 : 1;
-    uint32_t ch_11 : 1;
-    uint32_t ch_12 : 1;
-    uint32_t ch_13 : 1;
-    uint32_t ch_14 : 1;
-    uint32_t ch_15 : 1;
-    uint32_t rsv : 16;
-} TUYA_AD_DA_CH_LIST_BIT_T;
+    uint32_t ch_0             : 1;
+    uint32_t ch_1             : 1;
+    uint32_t ch_2             : 1;
+    uint32_t ch_3             : 1;
+    uint32_t ch_4             : 1;
+    uint32_t ch_5             : 1;
+    uint32_t ch_6             : 1;
+    uint32_t ch_7             : 1;
+    uint32_t ch_8             : 1;
+    uint32_t ch_9             : 1;
+    uint32_t ch_10            : 1;
+    uint32_t ch_11            : 1;
+    uint32_t ch_12            : 1;
+    uint32_t ch_13            : 1;
+    uint32_t ch_14            : 1;
+    uint32_t ch_15            : 1;
+    uint32_t rsv              :16;
+}TUYA_AD_DA_CH_LIST_BIT_T;
 
 typedef union {
     TUYA_AD_DA_CH_LIST_BIT_T bits;
@@ -1334,43 +1334,12 @@ typedef struct {
     uint32_t interval_ms;
 } TUYA_WDOG_BASE_CFG_T;
 
-typedef enum  {
-    TUYA_DISPLAY_RGB = 0,
-    TUYA_DISPLAY_8080,
-    TUYA_DISPLAY_QSPI,
-    TUYA_DISPLAY_SPI,
-}TUYA_DISPLAY_TYPE_E;
-
 typedef enum{
     TUYA_DISPLAY_ROTATION_0,
     TUYA_DISPLAY_ROTATION_90,
     TUYA_DISPLAY_ROTATION_180,
     TUYA_DISPLAY_ROTATION_270,
 }TUYA_DISPLAY_ROTATION_E;
-
-typedef struct {
-    TUYA_GPIO_NUM_E   pin;
-    TUYA_GPIO_LEVEL_E active_level;
-} TUYA_DISPLAY_IO_CTRL_T;
-
-typedef struct {
-    TUYA_PWM_NUM_E       id;
-    TUYA_PWM_BASE_CFG_T  cfg;
-} TUYA_DISPLAY_PWM_CTRL_T;
-
-typedef enum  {
-    TUYA_DISP_BL_TP_NONE,
-    TUYA_DISP_BL_TP_GPIO,
-    TUYA_DISP_BL_TP_PWM,
-}TUYA_DISPLAY_BL_TYPE_E;
-
-typedef struct {
-    TUYA_DISPLAY_BL_TYPE_E    type;
-    union {
-        TUYA_DISPLAY_IO_CTRL_T   gpio;
-        TUYA_DISPLAY_PWM_CTRL_T  pwm;
-    };
-} TUYA_DISPLAY_BL_CTRL_T;
 
 typedef enum  {
     TUYA_DISP_INIT_RST = 0,
@@ -1402,7 +1371,8 @@ typedef enum {
 	TUYA_PIXEL_FMT_RGB565,  
     TUYA_PIXEL_FMT_RGB666,  
 	TUYA_PIXEL_FMT_RGB888,
-    TUYA_PIXEL_FMT_MONOCHROME, /* binary pixel format, 1bit per pixel, 0 is black, 1 is white */     
+    TUYA_PIXEL_FMT_MONOCHROME, /* binary pixel format, 1bit per pixel, 0 is black, 1 is white */    
+    TUYA_PIXEL_FMT_I2,
 } TUYA_DISPLAY_PIXEL_FMT_E;
 
 typedef enum {
