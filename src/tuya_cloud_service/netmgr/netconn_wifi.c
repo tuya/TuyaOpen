@@ -35,8 +35,9 @@ typedef struct {
     netmgr_conn_wifi_t *handle;
 } netmgr_wifi_msg_t;
 
-netmgr_conn_wifi_t s_netmgr_wifi = {.base = {.pri = 0,
+netmgr_conn_wifi_t s_netmgr_wifi = {.base = {.pri = 1,
                                              .type = NETCONN_WIFI,
+                                             .status = NETMGR_LINK_DOWN,
                                              .open = netconn_wifi_open,
                                              .close = netconn_wifi_close,
                                              .get = netconn_wifi_get,

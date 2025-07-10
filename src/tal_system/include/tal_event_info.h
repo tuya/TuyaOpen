@@ -42,6 +42,7 @@ extern "C" {
 #define EVENT_RSC_UPDATE        "rsc.update"    // register center changed
 #define EVENT_HEALTH_ALERT      "health.alert"  // health alert
 #define EVENT_LINK_STATUS_CHG   "link.status"   // link status change
+#define EVENT_LINK_TYPE_CHG     "link.type"     // link conn change
 #define EVENT_RESET             "dev.reset"     // device reset
 #define EVENT_MQTT_CONNECTED    "mqtt.con"      // mqtt connect
 #define EVENT_MQTT_DISCONNECTED "mqtt.disc"     // mqtt disconnect

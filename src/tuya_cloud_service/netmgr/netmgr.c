@@ -41,6 +41,11 @@ extern netmgr_conn_wifi_t s_netmgr_wifi;
 extern netmgr_conn_wired_t s_netmgr_wired;
 #endif
 
+#ifdef ENABLE_CELLULAR
+#include "netconn_cellular.h"
+extern netmgr_conn_cellular_t s_netmgr_cellular;
+#endif
+
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
 #endif
@@ -107,6 +112,7 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
                      s_netmgr.active, s_netmgr.status);
             s_netmgr.status = active_status;
             s_netmgr.active = active_conn;
+            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
             tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
         } else if (active_conn == s_netmgr.active) {
             // active_status changed
@@ -117,6 +123,7 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             // active_conn changed
             PR_DEBUG("netmgr active changed to %d, old %d, status %d", active_conn, s_netmgr.active, s_netmgr.status);
             s_netmgr.active = active_conn;
+            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
         }
     }
 
@@ -149,6 +156,12 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 #ifdef ENABLE_WIRED
     if (type & NETCONN_WIRED) {
         __netmgr_conn_register(NETCONN_WIRED, (netmgr_conn_base_t *)&s_netmgr_wired);
+    }
+#endif
+
+#ifdef ENABLE_CELLULAR
+    if (type & NETCONN_CELLULAR) {
+        __netmgr_conn_register(NETCONN_CELLULAR, (netmgr_conn_base_t *)&s_netmgr_cellular);
     }
 #endif
 
@@ -220,9 +233,22 @@ OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
     PR_TRACE("netmgr conn %d get %d para %p", type, cmd, param);
     OPERATE_RET rt = OPRT_OK;
     if (NETCONN_AUTO == type) {
-        TUYA_CALL_ERR_RETURN(s_netmgr.conn[s_netmgr.active]->get(cmd, param));
-    } else if (s_netmgr.type & type) {
-        TUYA_CALL_ERR_RETURN(s_netmgr.conn[type]->get(cmd, param));
+        // get the active connection
+        type = s_netmgr.active;
+    }
+
+    while (cur_conn) {
+        if (cur_conn->type == type) {
+            TUYA_CHECK_NULL_RETURN(cur_conn->get, OPRT_INVALID_PARM);
+
+            rt = cur_conn->get(cmd, param);
+            if (OPRT_OK != rt) {
+                PR_ERR("netmgr conn %s get failed, cmd %d, rt = %d", NETMGR_TYPE_TO_STR(type), cmd, rt);
+                return rt;
+            }
+            break;
+        }
+        cur_conn = cur_conn->next;
     }
 
     return rt;

@@ -14,10 +14,14 @@
  *
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
+ * 2025-07-10   yangjie     Support multiple network interfaces
+ *
  */
 
-#include "tuya_error_code.h"
+#include "tuya_cloud_types.h"
+#include "netmgr.h"
 #include "tal_api.h"
+#include "tal_network.h"
 #include "tuya_transporter.h"
 #include "tcp_transporter.h"
 #include "tal_network.h"
@@ -26,7 +30,7 @@ typedef struct tcp_transporter_inter_t {
     struct tuya_transporter_inter_t base;
     tuya_tcp_config_t config;
     int socket_fd;
-} * tuya_tcp_transporter_t;
+} *tuya_tcp_transporter_t;
 
 /**
  * @brief Connects to a TCP server using the Tuya transporter.
@@ -93,6 +97,10 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
     }
 
     // socket bind random port
+    NW_IP_S nw_ip = {0};
+    netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip);
+    tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+
     if ((tcp_transporter->config.bindPort || tcp_transporter->config.bindAddr) &&
         (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, tcp_transporter->config.bindAddr,
                                  tcp_transporter->config.bindPort))) { // socket bind port
