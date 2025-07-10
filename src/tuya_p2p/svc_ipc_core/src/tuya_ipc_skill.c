@@ -42,7 +42,7 @@ STATIC tuya_ipc_skill_info_s g_skill_info = {0};
 STATIC BOOL_T sg_uploaded = FALSE;
 
 #define SKILL_PARAM_LEN 1024
-//强制HTTPS POST 4.1
+// Force HTTPS POST 4.1
 #define TI_DEV_SKILL_UPDATE            "tuya.device.skill.update"
 #define TI_DEV_SKILL_MULTIMEDIA_UPDATE "tuya.device.skill.multimedia.update"
 extern VOID_T *tkl_system_psram_malloc(CONST SIZE_T size);
@@ -93,7 +93,7 @@ OPERATE_RET httpc_dev_update_skill_v10(IN CONST CHAR_T *gw_id, IN CONST CHAR_T *
         TIME_T timestamp = 0;
         timestamp = tal_time_get_posix();
         snprintf(post_data, buffer_len, "{\"skill\":\"%s\",\"t\":\"%d\"}", skill,
-                 timestamp); //注意：tuya-open要在这里加个时间戳
+                 timestamp); // Note: tuya-open needs to add a timestamp here
     } else {
         snprintf(post_data, buffer_len, "{\"subId\":\"%s\",\"skill\":\"%s\"}", sub_id, skill);
     }

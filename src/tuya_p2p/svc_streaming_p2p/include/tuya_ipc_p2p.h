@@ -66,7 +66,7 @@ typedef struct {
     tuya_p2p_rtc_get_frame_cb_t on_get_audio_frame_callback;
 } TUYA_IPC_P2P_VAR_T;
 
-//////////////////////////////对外接口////////////////////////////////////////////
+//////////////////////////////external interface////////////////////////////////////////////
 OPERATE_RET p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var);
 OPERATE_RET p2p_rtc_listen_start();
 OPERATE_RET p2p_rtc_listen_stop();

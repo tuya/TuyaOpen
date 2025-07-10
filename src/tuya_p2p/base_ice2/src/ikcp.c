@@ -448,13 +448,13 @@ int ikcp_recv2(ikcpcb *kcp, char *buf, int len)
 
     seg_ret = iqueue_entry(kcp->rcv_queue.next, IKCPSEG, node);
     if (len >= seg_ret->len) {
-        // 当前窗口是否为0窗口，如果为0窗口，则标记需要告知对端窗口更新
+        // Whether current window is 0 window, if it is 0 window, mark need to tell peer window update
         if (kcp->nrcv_que >= kcp->rcv_wnd) {
             kcp->probe |= IKCP_ASK_TELL;
         }
 
         ret = seg_ret->len;
-        // 不存在分片，直接取下来
+        // No fragmentation exists, take it directly
         iqueue_del(&seg_ret->node);
         kcp->nrcv_que--;
         // kcp->wait_rcv_bytes -= seg_ret->len;
@@ -463,10 +463,10 @@ int ikcp_recv2(ikcpcb *kcp, char *buf, int len)
         memcpy(buf, seg_ret->data + seg_ret->prepend, seg_ret->len);
         // tuya_mbuf_free(seg_ret->user1);
     } else {
-        /* 这种情况很少见，就做一点麻烦处理 */
+        /* This situation is rare, just do some troublesome handling */
         ret = len;
         memcpy(buf, seg_ret->data + seg_ret->prepend, len);
-        /* 将剩余部分buf往前移动 */
+        /* Move the remaining part of buf forward */
         seg_ret->len -= len;
         seg_ret->prepend += len;
 

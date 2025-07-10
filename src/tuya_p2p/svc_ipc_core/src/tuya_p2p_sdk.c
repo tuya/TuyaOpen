@@ -25,7 +25,7 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
 {
     OPERATE_RET ret = OPRT_OK;
 
-    //设置激活的skill参数并上报
+    // Set activation skill parameters and report
     TUYA_IPC_SKILL_PARAM_U skill_param = {.value = 0};
     skill_param.value = tuya_p2p_rtc_get_skill();
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_P2P, &skill_param);
@@ -33,7 +33,7 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOWPOWER, &skill_param);
     tuya_ipc_upload_skills();
 
-    //初始化P2P组件
+    // Initialize P2P component
     MEDIA_STREAM_VAR_T stream_var = {0};
     stream_var.max_client_num = 1;
     stream_var.def_live_mode = TRANS_DEFAULT_STANDARD;
@@ -74,10 +74,10 @@ OPERATE_RET TUYA_APP_End()
 OPERATE_RET OnIotInited()
 {
     OPERATE_RET rt = OPRT_OK;
-    //使能skill
+    // Enable skill
     TUYA_IPC_SKILL_PARAM_U skill_param = {.value = 1};
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOWPOWER, &skill_param);
-    //设置激活的skill参数
+    // Set activation skill parameters
     CHAR_T *ipc_skills = NULL;
 #if defined(HARDWARE_INFO_CHECK) && (HARDWARE_INFO_CHECK == 1)
     int len = 4096;
@@ -90,7 +90,7 @@ OPERATE_RET OnIotInited()
     if (ipc_skills) {
         // strcpy(ipc_skills, "\"skillParam\":\"");
         snprintf(ipc_skills + strlen(ipc_skills), len - strlen(ipc_skills),
-                 "{\\\"type\\\":%d,\\\"skill\\\":", TUYA_P2P); // p2p类型
+                 "{\\\"type\\\":%d,\\\"skill\\\":", TUYA_P2P); // P2P type
         tuya_ipc_http_fill_skills_cb(ipc_skills);
 #if defined(HARDWARE_INFO_CHECK) && (HARDWARE_INFO_CHECK == 1)
         TUYA_IPC_SENSOR_INFO_T sensor_info = {0};
@@ -172,7 +172,7 @@ OPERATE_RET __p2p_v3_login_init(INT_T preconnect, INT_T max_client, INT_T bitrat
     memcpy(strOpt.local_id, /*gw_cntl->gw_if.id*/ dev_id, /*sizeof(gw_cntl->gw_if.id)*/ strlen(dev_id));
 
     strOpt.preconnect_enable = preconnect;
-    strOpt.fragement_len = /*RTP_MTU_LEN*/ 1100 + 100; // 预留100字节，用于RTP头部和私有头
+    strOpt.fragement_len = /*RTP_MTU_LEN*/ 1100 + 100; // Reserve 100 bytes for RTP header and private header
     // strOpt.cb.on_moto_signaling = tuya_p2p_rtc_moto_signaling_cb;
     strOpt.cb.on_signaling = tuya_p2p_rtc_signaling_cb;
     // strOpt.cb.on_lan_signaling  = tuya_p2p_lan_signaling_cb;
@@ -182,7 +182,8 @@ OPERATE_RET __p2p_v3_login_init(INT_T preconnect, INT_T max_client, INT_T bitrat
     strOpt.max_channel_number = /*TUYA_CHANNEL_MAX*/ 6;
     strOpt.max_session_number = max_client;
     strOpt.max_pre_session_number = max_client;
-    strOpt.video_bitrate_kbps = bitrate; //当前video_bitrate_kbps参数用于p2p库内部设定webrtc通道内存大小使用
+    strOpt.video_bitrate_kbps =
+        bitrate; // Current video_bitrate_kbps parameter is used for setting webrtc channel memory size in p2p library
     strOpt.send_buf_size[TUYA_CMD_CHANNEL] = 4096;
     strOpt.recv_buf_size[TUYA_CMD_CHANNEL] = 4096;
     strOpt.send_buf_size[TUYA_VDATA_CHANNEL] = (300 * 1024) * 1.1;
@@ -203,7 +204,7 @@ OPERATE_RET __p2p_v3_login_init(INT_T preconnect, INT_T max_client, INT_T bitrat
 
 VOID tuya_p2p_rtc_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len)
 {
-    //发送answer信令
+    // Send answer signaling
     tuya_iot_client_t *pIotClient = tuya_iot_client_get();
     char *dev_id = pIotClient->activate.devid;
 

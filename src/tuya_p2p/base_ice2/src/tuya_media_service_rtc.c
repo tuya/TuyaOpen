@@ -49,7 +49,7 @@
 #define SRTP_MASTER_LENGTH            (SRTP_MASTER_KEY_LENGTH + SRTP_MASTER_SALT_LENGTH)
 #define ENCRYPT_MD5_LEN               16
 
-// CMD 以 kcp 的通道号字段进行传输，而 kcp 使用小端序
+// CMD is transmitted using kcp's channel number field, and kcp uses little endian
 #define RTC_CHANNEL_CMD   (0x010000F3)
 #define RTC_CMD_SIGNALING (0x0001)
 
@@ -192,7 +192,7 @@ typedef struct tuya_p2p_rtc_session_cfg {
 } rtc_session_cfg_t;
 
 typedef struct tuya_p2p_rtc_session {
-    tuya_p2p_rtc_cb_t cb; // 回调接口
+    tuya_p2p_rtc_cb_t cb; // Callback interface
 
     rtc_sdp_t local_sdp;
     rtc_sdp_t remote_sdp;
@@ -249,7 +249,7 @@ tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e s
 void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc);
 int ctx_session_channel_process_data(struct rtc_channel *chan, char *data, int len);
 int ctx_session_channel_process_pkt(void *user, int length, const char *input, char *output);
-int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg); //比如发送Answer SDP
+int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg); // For example, send Answer SDP
 int ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *cand_str);
 int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *remote_sdp, char *candidate);
 int ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error);
@@ -272,7 +272,7 @@ int32_t tuya_p2p_rtc_init(tuya_p2p_rtc_options_t *opt)
 {
     sync_cond_init(&g_syncCond);
     memcpy(&g_options, opt, sizeof(tuya_p2p_rtc_options_t));
-    g_options.preconnect_enable = false; //关闭预连接的使用
+    g_options.preconnect_enable = false; // Disable the use of pre-connection
     // g_pRtcSession->cb = opt->cb;
 
     // int i;
@@ -402,7 +402,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
                 char *token_str = cJSON_PrintUnformatted(el_token);
                 if (token_str != NULL) {
                     snprintf(cfg.ice_server_tokens, sizeof(cfg.ice_server_tokens), "%s",
-                             token_str); //解析从云端发来的ICE服务器信息
+                             token_str); // Parse ICE server information from cloud
                     cJSON_free(token_str);
                 }
             }
@@ -520,7 +520,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         char *buf = el_sdp->valuestring;
         tuya_p2p_rtc_sdp_decode(&g_pRtcSession->remote_sdp, buf);
         tuya_p2p_rtc_sdp_negotiate(&g_pRtcSession->local_sdp, &g_pRtcSession->remote_sdp, type);
-        ctx_session_send_sdp(g_pRtcSession, &cfg); //向Peer端发送Answer_SDP
+        ctx_session_send_sdp(g_pRtcSession, &cfg); // Send Answer_SDP to peer
     } else if ((strcmp(type, "answer") == 0)) {
         if (!cJSON_IsString(el_sdp)) {
             tuya_p2p_log_debug("invalid signaling: type: sdp\n");
@@ -676,7 +676,7 @@ int32_t tuya_p2p_rtc_set_signaling(char *remote_id, char *msg, uint32_t msglen)
         // }
     }
 
-    //无论收到的type字段是"offer"还是"candidate"，都进行以下函数处理
+    // Regardless of whether the received type field is "offer" or "candidate", process with the following function
     int ret = tuya_p2p_process_signal_msg(msg, msglen);
     if (ret < 0) {
         goto finish;
@@ -699,7 +699,7 @@ int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *rem
     tuya_p2p_rtc_sdp_add_candidate(remote_sdp, candidate);
     pj_str_t pjstrCand = pj_str(candidate);
     if (*(candidate + iCandidateLen - 2) == '\r' && *(candidate + iCandidateLen - 1) == '\n') {
-        pjstrCand.slen -= 2; //去除尾部的\r\n字符长度
+        pjstrCand.slen -= 2; // Remove trailing \r\n character length
     }
     pj_ice_sess_cand cand;
     if (parse_cand(NULL, &pjstrCand, &cand) !=
@@ -933,7 +933,7 @@ void ice_on_ice_complete(pj_ice_strans *ice_st, pj_ice_strans_op op, pj_status_t
         if (status == PJ_SUCCESS) {
             char szLCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
             char szRCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
-            unsigned comp_id = 1; // Component起始ID号是1
+            unsigned comp_id = 1; // Component starting ID number is 1
             const pj_ice_sess_check *pIceSessCheck = pj_ice_strans_get_valid_pair(ice_st, comp_id);
             pj_sockaddr_print(&pIceSessCheck->lcand->addr, szLCandAddr, sizeof(szLCandAddr), 3);
             pj_sockaddr_print(&pIceSessCheck->rcand->addr, szRCandAddr, sizeof(szRCandAddr), 3);
@@ -1213,7 +1213,7 @@ int ctx_session_channel_process_pkt(void *user, int length, const char *input, c
         ret = rtc_crypt_decrypt_aes_128_cbc(rtc, chan->aes_ctx_dec, msg_size, (unsigned char *)iv,
                                             (const unsigned char *)(encrypted + iv_size), (unsigned char *)decrypted);
 
-        // 减去GCM签名长度
+        // Subtract GCM signature length
         if (rtc->cfg.security_level == TUYA_P2P_SECURITY_LEVEL_4) {
             if (msg_size <= 16) {
                 return -1;
@@ -1322,17 +1322,18 @@ void tuya_p2p_rtc_channels_destroy(tuya_p2p_rtc_session_t *rtc)
 
 void *rtc_worker_thread(void *arg)
 {
-    //在同一个线程里执行KCP的发送和接收
+    // Execute KCP sending and receiving in the same thread
     pj_thread_register2();
     tuya_p2p_rtc_session_t *rtc = (tuya_p2p_rtc_session_t *)arg;
     while (!rtc->bQuitKCPThread) {
-        pj_ice_session_handle_events(rtc->pIce, 50, NULL); //驱动ICE状态更新，执行KCP接收操作
+        pj_ice_session_handle_events(rtc->pIce, 50, NULL); // Drive ICE state update and execute KCP receive operation
         for (int i = 0; i < 3; ++i)                        //(rtc->cfg.channel_number + 1)
         {
             rtc_channel_t *channel = &rtc->channels[i];
-            ikcp_update(channel->kcp, tuya_p2p_misc_get_timestamp_ms()); //驱动KCP状态更新，执行KCP发送操作
+            ikcp_update(channel->kcp,
+                        tuya_p2p_misc_get_timestamp_ms()); // Drive KCP state update and execute KCP send operation
         }
-        usleep(5 * 1000); // 5ms间隔
+        usleep(5 * 1000); // 5ms interval
     }
     return NULL;
 }
@@ -1340,7 +1341,7 @@ void *rtc_worker_thread(void *arg)
 int32_t tuya_p2p_rtc_listen()
 {
     sync_cond_wait(&g_syncCond);
-    return 123456; //暂时随便返回个整数值，后期待改
+    return 123456; // Temporarily return a random integer value, to be changed later
 }
 
 int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_id, char *buf, int32_t len,
@@ -1398,7 +1399,7 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
         int sign_size = 0;
         unsigned char padding_size = keylen;
         int reserve_len_forkcp = sizeof(struct IKCPSEG) + IKCP_PACKET_HEADER_SIZE;
-        /* 60个字节为后面的签名作准备 */
+        /* 60 bytes prepared for signature */
         int reserve_len = sizeof(struct IKCPSEG) + IKCP_PACKET_HEADER_SIZE + sizeof(rtc->iv) + 60;
         int buflen;
 
@@ -1410,12 +1411,12 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
 
         buflen += padding_size;
 
-        /* 预留长度为kcp挂链需要的控制头和kcp报文头 */
+        /* Reserved length for control header and kcp packet header needed for kcp chaining */
         // tuya_mbuf_t *mbuf_encrypted = tuya_mbuf_alloc(chan->send_queue, buflen + reserve_len, reserve_len_forkcp);
         // if (NULL == mbuf_encrypted) {
         //     pthread_mutex_unlock(&rtc->channel_lock);
-        //     /* 这步不会失败，除非没内存，这步失败也意味这链接异常，因为刚取下来的这个包没有被加入kcp的队列 */
-        //     break;
+        //     /* This step will not fail unless out of memory, this step failure also means connection abnormal,
+        //     because the packet just taken down has not been added to the kcp queue */ break;
         // } else {
         //     encrypted = TUYA_MBUF_MTOD(mbuf_encrypted);
         // }
@@ -1427,7 +1428,7 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
         int ret = rtc_crypt_encrypt_aes_128_cbc(rtc, chan->aes_ctx_enc, buflen, (unsigned char *)tmp_iv,
                                                 (const unsigned char *)decrypted, (unsigned char *)encrypted + iv_size);
 
-        // GCM加密自动生成16字节签名
+        // GCM encryption automatically generates 16-byte signature
         if (rtc->cfg.security_level == TUYA_P2P_SECURITY_LEVEL_4) {
             sign_size = 16;
         }

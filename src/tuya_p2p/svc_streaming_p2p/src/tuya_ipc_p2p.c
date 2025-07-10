@@ -4,15 +4,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
-//#include "uni_log.h"
 #include "tal_log.h"
 #include "tal_hash.h"
 #include "tal_mutex.h"
 #include "tal_system.h"
 #include "tal_memory.h"
 #include "tal_thread.h"
-//#include "tal_audio.h"
-//#include "tal_video_enc.h"
 #include "tuya_ipc_p2p.h"
 #include "tuya_ipc_p2p_error.h"
 #include "tuya_ipc_p2p_inner.h"
@@ -20,9 +17,9 @@
 #include "tuya_media_service_rtc.h"
 #include "rtp-payload.h"
 
-#define TUYA_CMD_CHANNEL        (0) //信令通道，信令模式参照P2P_CMD_E
-#define TUYA_VDATA_CHANNEL      (1) //视频数据通道
-#define TUYA_ADATA_CHANNEL      (2) //音频数据通道
+#define TUYA_CMD_CHANNEL        (0) // Signaling channel, signal mode refer to P2P_CMD_E
+#define TUYA_VDATA_CHANNEL      (1) // Video data channel
+#define TUYA_ADATA_CHANNEL      (2) // Audio data channel
 #define TUYA_P2P_CMD_CHECK(cmd) (cmd == P2P_LIVE || cmd == P2P_PLAYBACK || cmd == P2P_PAUSE)
 #define TUYA_P2P_CHN_CHECK(cmd) (cmd == TUYA_CMD_CHANNEL || cmd == TUYA_VDATA_CHANNEL || cmd == TUYA_ADATA_CHANNEL)
 
@@ -32,22 +29,22 @@
 #define P2P_SESSION_INITING (3)
 
 #define TUYA_IPC_P2P_DEFAULT_CAMERA (0)
-#define P2P_RTP_PACK_LEN            (1100 + 128) // rtp包缓冲区大小
+#define P2P_RTP_PACK_LEN            (1100 + 128) // RTP packet buffer size
 #define P2P_RECV_TIMEOUT            (30)
 
 #define P2P_CHECK_USER_TIMES (10000) // 10s
-//密码同步结构体
+// Password synchronization structure
 typedef struct P2P_CMD_PASSWD_ {
-    int mark;        //自定义识别标识
-    int reqId;       //客户端定义的请求ID，用做唯一标识
-    char user[32];   //用户名
-    char passwd[64]; //密码
+    int mark;        // Custom identification mark
+    int reqId;       // Client-defined request ID, used as unique identifier
+    char user[32];   // Username
+    char passwd[64]; // Password
 } P2P_CMD_PASSWD_T;
 
-//控制信令头部结构体
+// Control signal header structure
 typedef struct P2P_CMD_PARSE_ {
-    int mark;  //自定义识别标识
-    int reqId; //客户端定义的请求ID，用做唯一标识
+    int mark;  // Custom identification mark
+    int reqId; // Client-defined request ID, used as unique identifier
     C2C_CMD_FIXED_HEADER_T str_header;
 } P2P_CMD_PARSE_T;
 
@@ -57,15 +54,15 @@ typedef struct P2P_CMD_PARSE_ {
 #define MAX_PAYLOAD_SIZE (1100) /**MAX PAYLOAD SIZE*/
 #define RTP_MTU_LEN      MAX_PAYLOAD_SIZE
 #define RTP_SPLIT_LEN    RTP_MTU_LEN
-#define TUYA_RTP_HEAD    0x12345678    //自定义rtp识别包头
-#define P2P_CMD_MARK     TUYA_RTP_HEAD //暂时与rtp复用
+#define TUYA_RTP_HEAD    0x12345678    // Custom RTP identification packet header
+#define P2P_CMD_MARK     TUYA_RTP_HEAD // Temporarily reuse with RTP
 
-#define READ_HEADER_PART  0 //读取头部分
-#define READ_PAYLOAD_PART 1 //读取内容体
+#define READ_HEADER_PART  0 // Read header part
+#define READ_PAYLOAD_PART 1 // Read payload part
 
 #define EXT_PROTOCOL_V0_LEN (12)
 #define P2P_EXT_HEAD_MAX_LEN                                                                                           \
-    (sizeof(C2C_AV_TRANS_FIXED_HEADER) + EXT_PROTOCOL_V0_LEN) //拓展视频头协议 V0 head+ext(8+4)+rtp_len
+    (sizeof(C2C_AV_TRANS_FIXED_HEADER) + EXT_PROTOCOL_V0_LEN) // Extended video header protocol V0 head+ext(8+4)+rtp_len
 
 #define OFFSET(TYPE, MEMBER) ((SIZE_T)(&(((TYPE *)0)->MEMBER)))
 
@@ -79,25 +76,25 @@ typedef struct P2P_CMD_PARSE_ {
 typedef struct {
     INT_T client;
     INT_T channel;
-    CHAR_T *p_rtp_buff;                         // rtp数据buffer，参考大小 MTU+100
-    INT_T fix_len;                              //补充私有头部数据
-    CHAR_T ext_head_buff[P2P_EXT_HEAD_MAX_LEN]; //根据拓展视频头协议head+ext(8)+rtp_len
+    CHAR_T *p_rtp_buff;                         // RTP data buffer, reference size MTU+100
+    INT_T fix_len;                              // Supplementary private header data
+    CHAR_T ext_head_buff[P2P_EXT_HEAD_MAX_LEN]; // According to extended video header protocol head+ext(8)+rtp_len
 } RTP_PACK_NAL_ARG_T;
 
 typedef enum {
     P2P_IDLE = 0,
-    P2P_VIDEO = 0x1, //开始直播请求
+    P2P_VIDEO = 0x1, // Start live stream request
     P2P_AUDIO = 0x2,
-    P2P_PB_VIDEO = 0x4, //开始回放请求
+    P2P_PB_VIDEO = 0x4, // Start playback request
     P2P_PB_AUDIO = 0x8,
-    P2P_PB_PAUSE = 0x10, //暂停视频请求
-    P2P_SPEAKER = 0x20,  //对讲请求
+    P2P_PB_PAUSE = 0x10, // Pause video request
+    P2P_SPEAKER = 0x20,  // Intercom request
 } P2P_CMD_E;
 
 typedef struct {
     INT_T read_size; // init P2P_CMD_HEAD_LEN;
     CHAR_T read_buff[P2P_CMD_PARSE_MAX_SIZE_V2];
-    INT_T cur_read; //当前读取长度
+    INT_T cur_read; // Current read length
     INT_T flag;     // READ_HEADER_PART/READ_PAYLOAD_PART
 } P2P_DATA_PARSE_T;
 
@@ -105,31 +102,31 @@ typedef struct {
     MUTEX_HANDLE cmutex;
     TUYA_IPC_P2P_AUTH_T str_P2p_auth;
     /*******client*******/
-    INT_T session; //保存会话号
-    INT_T status;  // session状态  0 未启动
+    INT_T session; // Save session number
+    INT_T status;  // Session status  0 not started
     /*******p2p server*******/
-    P2P_CMD_E cmd; //信令状态信息
+    P2P_CMD_E cmd; // Signal status information
     P2P_CMD_PARSE_T pb_resp_head;
-    CHAR_T *p_video_rtp_buff; //视频rtp数据buffer，参考大小 MTU+100
-    CHAR_T *p_audio_rtp_buff; //音频rtp数据buffer，参考大小 MTU+100
-    USHORT_T video_seq_num;   //视频的RTP包序列号
-    USHORT_T audio_seq_num;   //音频的RTP包序列号
+    CHAR_T *p_video_rtp_buff; // Video RTP data buffer, reference size MTU+100
+    CHAR_T *p_audio_rtp_buff; // Audio RTP data buffer, reference size MTU+100
+    USHORT_T video_seq_num;   // Video RTP packet sequence number
+    USHORT_T audio_seq_num;   // Audio RTP packet sequence number
     BOOL_T key_frame;
-    UINT64_T v_pts;                                  //视频pts
-    UINT64_T v_timestamp;                            //视频绝对时间(ms)
-    UINT64_T a_pts;                                  //音频pts
-    UINT64_T a_timestamp;                            //音频绝对时间(ms)
-    INT_T video_req_id;                              //视频的请求ID,预览、回放等业务均使用
-    INT_T audio_req_id;                              //音频的请求ID
-    TRANSFER_VIDEO_CLARITY_TYPE_INNER_E cur_clarity; //当前的视频清晰度类型
+    UINT64_T v_pts;                                  // Video PTS
+    UINT64_T v_timestamp;                            // Video absolute time (ms)
+    UINT64_T a_pts;                                  // Audio PTS
+    UINT64_T a_timestamp;                            // Audio absolute time (ms)
+    INT_T video_req_id;                              // Video request ID, used for preview, playback and other services
+    INT_T audio_req_id;                              // Audio request ID
+    TRANSFER_VIDEO_CLARITY_TYPE_INNER_E cur_clarity; // Current video clarity type
     P2P_DATA_PARSE_T proto_parse;
-    TRANS_IPC_AV_INFO_T av_Info; // TOOD 目前视频参数必须一致
+    TRANS_IPC_AV_INFO_T av_Info; // TODO currently video parameters must be consistent
 
     tuya_p2p_rtc_disconnect_cb_t on_disconnect_callback;
     tuya_p2p_rtc_get_frame_cb_t on_get_video_frame_callback;
     tuya_p2p_rtc_get_frame_cb_t on_get_audio_frame_callback;
-    THREAD_HANDLE cmd_recv_proc_thread;   //命令接收线程句柄
-    THREAD_HANDLE video_send_proc_thread; //视频发送线程句柄
+    THREAD_HANDLE cmd_recv_proc_thread;   // Command receive thread handle
+    THREAD_HANDLE video_send_proc_thread; // Video send thread handle
     // TAL_VENC_FRAME_T tal_video_frame;
     // TAL_AUDIO_FRAME_INFO_T tal_audio_frame;
     MEDIA_FRAME media_frame;
@@ -138,8 +135,8 @@ typedef struct {
 } P2P_SESSION_T;
 
 STATIC P2P_SESSION_T *sg_p2p_session = NULL;
-INT_T g_listen_start = 0;               //控制监听线程启动或关闭的标志变量
-THREAD_HANDLE g_listen_thrd_hdl = NULL; //监听线程句柄
+INT_T g_listen_start = 0;               // Flag variable to control listen thread start or stop
+THREAD_HANDLE g_listen_thrd_hdl = NULL; // Listen thread handle
 
 OPERATE_RET p2p_deal_with_listen(INT_T session);
 OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType);
@@ -227,25 +224,25 @@ OPERATE_RET p2p_deal_with_listen(INT_T session)
     OPERATE_RET ret = OPRT_OK;
     BOOL_T userCheckEnable = FALSE;
 
-    //优先检验用户信息，不合格关闭对应的session
+    // First verify user information, close corresponding session if not qualified
     if (OPRT_OK != p2p_get_userinfo(session, 1)) {
         PR_ERR("check userinfo error");
         //__p2p_rtc_close(session, RTC_CLOSE_REASON_AUTH_FAIL, NULL);
         PR_ERR("Close session[%d] \n", session);
         if (FALSE == userCheckEnable) {
             PR_ERR("resend p2p passwd to service");
-            //重新发送一次passwd
+            // Resend passwd once
             if (OPRT_OK == tuya_ipc_p2p_update_pw(sg_p2p_session->str_P2p_auth.p2p_passwd)) {
                 userCheckEnable = TRUE;
             }
         }
         return OPRT_COM_ERROR;
     } else {
-        //只要校验成功一次，则不再做鉴权异常处理
+        // Once verification is successful, no more authentication exception handling
         userCheckEnable = TRUE;
     }
 
-    // 申请会话相关资源
+    // Request session-related resources
     if (OPRT_OK != (ret = p2p_prepare_video_send_resource(sg_p2p_session))) {
         goto RET;
     }
@@ -253,7 +250,7 @@ OPERATE_RET p2p_deal_with_listen(INT_T session)
         goto RET;
     }
 
-    //连接信息保存
+    // Save connection information
     sg_p2p_session->session = session;
     sg_p2p_session->status = P2P_SESSION_RUNNING;
 
@@ -265,8 +262,8 @@ RET:
 
 /***********************************************************
  *  Function: __p2p_get_passwd
- *  Note:会话监听线程，有会话链接则启动相应的会话线程
- *  Input: session会话号
+ *  Note:Session listening thread, start corresponding session thread when there is session connection
+ *  Input: session session number
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -290,22 +287,23 @@ OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType)
         tmpSize = read_size;
         ret = tuya_p2p_rtc_recv_data(session, TUYA_CMD_CHANNEL, read_buff + cur_read, &read_size, timeout);
         if ((ret < 0) && (ERROR_P2P_TIME_OUT != ret)) {
-            //异常处理
+            // Exception handling
             if (ERROR_P2P_SESSION_CLOSED_REMOTE == ret || ERROR_P2P_SESSION_CLOSED_TIMEOUT == ret ||
                 ERROR_P2P_SESSION_CLOSED_CALLED == ret) {
-                // session被客户端断开，需要关闭session
+                // Session was closed by client, need to close session
                 PR_ERR("session[%d] was close by client ret[%d]", session, ret);
                 return OPRT_COM_ERROR;
             } else {
-                //其他异常后续补充
+                // Other exceptions to be supplemented later
             }
-            //未读取，值还原
+            // Not read, restore value
             read_size = tmpSize;
         } else {
             if (sizeof(P2P_CMD_PASSWD_T) == (read_size + cur_read)) {
-                //完整获取到用户信息，做简单的mark检验
+                // Complete user information obtained, perform simple mark verification
                 if (P2P_CMD_MARK != ((P2P_CMD_PASSWD_T *)read_buff)->mark) {
-                    //头部解析异常，异常处理后续完成(不太可能走到这个条件)
+                    // Header parsing exception, exception handling to be completed later (unlikely to reach this
+                    // condition)
                     PR_ERR("session[%d] read data error mark[0x%x]", session, ((P2P_CMD_PASSWD_T *)read_buff)->mark);
                     return OPRT_COM_ERROR;
                 }
@@ -508,7 +506,7 @@ OPERATE_RET p2p_send_rtp_data(INT_T client, INT_T channel, CHAR_T *buff, INT_T l
         return OPRT_INVALID_PARM;
     }
     INT_T ret = 0;
-    //发送数据
+    // Send data
     if ((0 == (P2P_VIDEO & sg_p2p_session->cmd)) && (0 == (P2P_PB_VIDEO & sg_p2p_session->cmd)) &&
         (0 == (P2P_AUDIO & sg_p2p_session->cmd)) && (0 == (P2P_PB_AUDIO & sg_p2p_session->cmd))) {
         return OPRT_OK;
@@ -522,9 +520,9 @@ OPERATE_RET p2p_send_rtp_data(INT_T client, INT_T channel, CHAR_T *buff, INT_T l
 
 /***********************************************************
  *  Function: __p2p_ext_protocol_pack
- *  Note:传输拓展协议组包
- *  Input: client 通道号,pResult结果缓冲 type类型0/1视频/音频
- *  Output: pResultLen结果缓存大小
+ *  Note:Transport extension protocol packet assembly
+ *  Input: client channel number, pResult result buffer, type 0/1 video/audio
+ *  Output: pResultLen result buffer size
  *  Return:
  ***********************************************************/
 STATIC VOID __p2p_ext_protocol_pack(INT_T client, INT_T type, CHAR_T *p_result, INT_T *p_result_len)
@@ -534,7 +532,7 @@ STATIC VOID __p2p_ext_protocol_pack(INT_T client, INT_T type, CHAR_T *p_result, 
         return;
     }
 
-    INT_T fix_len = 0; // 20180428补充头部数据
+    INT_T fix_len = 0; // 20180428 supplementary header data
     UINT64_T tmpTime;
     INT_T ipcChan = client;
     IPC_STREAM_E curClirtyChn = p2p_get_chn_idx(sg_p2p_session->cur_clarity);
@@ -588,9 +586,9 @@ STATIC OPERATE_RET __p2p_check_free_buffer_size(INT_T client, INT_T channel, INT
     }
 
     INT_T rtp_cnt = len / RTP_MTU_LEN + 1;
-    INT_T need_size = rtp_cnt * 1600; // kcp发送，一个片占用1600字节
+    INT_T need_size = rtp_cnt * 1600; // kcp send, one segment occupies 1600 bytes
     if (need_size > sendFreeSize) {
-        STATIC INT_T retry_sum = 0; //总计缓存满时重试次数
+        STATIC INT_T retry_sum = 0; // Total retry count when buffer is full
         if (retry_sum % 100 == 0) {
             PR_ERR("Check_Buffer not enough writeSize[%d] sendFreeSize[%d] len[%d] session[%d] channel[%d]", writeSize,
                    sendFreeSize, len, sg_p2p_session->session, channel);
@@ -603,8 +601,8 @@ STATIC OPERATE_RET __p2p_check_free_buffer_size(INT_T client, INT_T channel, INT
 
 /***********************************************************
  *  Function: __p2p_pack_h265_rtp_and_send
- *  Note:ipc码流数据组装rtp并发送
- *  Input: pData数据头地址，    len数据长度 client 通道号
+ *  Note:IPC stream data assembly RTP and send
+ *  Input: pData data header address, len data length, client channel number
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -653,8 +651,8 @@ STATIC OPERATE_RET __p2p_pack_h265_rtp_and_send(INT_T client, CHAR_T *pData, INT
 
 /***********************************************************
  *  Function: __p2p_pack_h264_rtp_and_send
- *  Note:ipc码流数据组装rtp并发送
- *  Input: pData数据头地址，    len数据长度 client 通道号
+ *  Note:IPC stream data assembly RTP and send
+ *  Input: pData data header address, len data length, client channel number
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -710,8 +708,8 @@ STATIC OPERATE_RET __p2p_pack_h264_rtp_and_send(INT_T client, CHAR_T *pData, INT
 
 /***********************************************************
  *  Function: __p2p_pack_aac_rtp_and_send
- *  Note:ipc码流数据组装rtp并发送
- *  Input: pData数据头地址，    len数据长度 client通道号
+ *  Note:IPC stream data assembly RTP and send
+ *  Input: pData data header address, len data length, client channel number
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -721,7 +719,7 @@ STATIC OPERATE_RET __p2p_pack_h264_rtp_and_send(INT_T client, CHAR_T *pData, INT
 //         PR_ERR("data[%p] client num [%d]",pData, client);
 //         return OPRT_INVALID_PARM;
 //     }
-//     //按照1-n帧处理
+//     //Process according to 1-n frames
 //     INT_T i;
 //     OPERATE_RET ret = OPRT_OK;
 //     ADTS_HEADER strAdts = {0};
@@ -739,20 +737,21 @@ STATIC OPERATE_RET __p2p_pack_h264_rtp_and_send(INT_T client, CHAR_T *pData, INT
 //         return OPRT_INVALID_PARM;
 //     }
 
-//     INT_T fix_len = 0; //20180428补充头部数据
-//     CHAR_T ext_head_buff[P2P_EXT_HEAD_MAX_LEN] = {0};    //根据拓展视频头协议head+ext(8)+rtp_len
+//     INT_T fix_len = 0; //20180428 Added header data
+//     CHAR_T ext_head_buff[P2P_EXT_HEAD_MAX_LEN] = {0};    //Based on extended video header protocol
+//     head+ext(8)+rtp_len
 
 //     __p2p_ext_protocol_pack(client, 1, ext_head_buff, &fix_len);
 
 //     for (i = 0; i < len;) {
-//         //adts头部解析
+//         //ADTS header parsing
 //         if (OPRT_OK != tuya_ipc_parse_adts_header((UCHAR_T * )&pData[i], &strAdts)) {
 //             i++;
 //             continue;
 //         }
 //         tuya_ipc_show_adts_info(&strAdts);
 //         PR_TRACE("parse aac frame length = %d len[%d]",strAdts.aac_frame_length,len);
-//         //长度校验
+//         //Length verification
 //         if (i + strAdts.aac_frame_length > len) {
 //             PR_ERR("calc len error parse index[%d]aac_len[%d]len[%d]",i, strAdts.aac_frame_length, len);
 //             return OPRT_COM_ERROR;
@@ -780,8 +779,8 @@ STATIC OPERATE_RET __p2p_pack_h264_rtp_and_send(INT_T client, CHAR_T *pData, INT
 
 /***********************************************************
  *  Function: __p2p_pack_g711_rtp_and_send
- *  Note:ipc音频数据组装rtp并发送
- *  Input: pData数据头地址，    len数据长度 client通道号 mode g711模式
+ *  Note:IPC audio data assembly RTP and send
+ *  Input: pData data header address, len data length, client channel number, mode g711 mode
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -880,8 +879,8 @@ OPERATE_RET tuya_p2p_rtc_register_get_audio_frame_cb(tuya_p2p_rtc_get_frame_cb_t
 
 /***********************************************************
  *  Function: __p2p_session_trans_start
- *  Note:开启p2p传输,传输需求资源申请
- *  Input:pSession 会话管理接口
+ *  Note:Start p2p transmission, request transmission resources
+ *  Input:pSession session management interface
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -891,7 +890,7 @@ STATIC INT_T __p2p_session_trans_video_start(P2P_SESSION_T *pSession)
         PR_ERR("param error or video started");
         return OPRT_INVALID_PARM;
     }
-    //等待前面数据发送结束
+    // Wait for previous data transmission to end
     PR_DEBUG("session[%d]video video_start wait_concurr_idle", pSession->session);
     pSession->cmd |= P2P_VIDEO;
     PR_DEBUG("session[%d] video start success", pSession->session);
@@ -900,8 +899,8 @@ STATIC INT_T __p2p_session_trans_video_start(P2P_SESSION_T *pSession)
 
 /***********************************************************
  *  Function: __p2p_session_trans_stop
- *  Note:关闭传输
- *  Input:pSession 会话管理
+ *  Note:Close transmission
+ *  Input:pSession Session management
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -918,8 +917,8 @@ STATIC INT_T __p2p_session_trans_video_stop(P2P_SESSION_T *pSession)
 
 /***********************************************************
  *  Function: __p2p_session_trans_audio_start
- *  Note:开启p2p音频传输,传输需求资源申请
- *  Input:pSession 会话管理接口
+ *  Note:Start p2p audio transmission, apply for transmission resources
+ *  Input:pSession session management interface
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -938,8 +937,8 @@ STATIC INT_T __p2p_session_trans_audio_start(P2P_SESSION_T *pSession)
 
 /***********************************************************
  *  Function: __p2p_session_trans_audio_stop
- *  Note:关闭传输
- *  Input:pSession 会话管理
+ *  Note:Close transmission
+ *  Input:pSession Session management
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -956,8 +955,8 @@ STATIC INT_T __p2p_session_trans_audio_stop(P2P_SESSION_T *pSession)
 
 /***********************************************************
  *  Function: __p2p_session_pack_resp
- *  Note:应答app查询
- *  Input:pSrc  接收到的数据， pPayLoad查询到的负载部分数据
+ *  Note:Response to app query
+ *  Input:pSrc  Received data, pPayLoad Queried payload data
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -984,8 +983,8 @@ STATIC INT_T __p2p_session_pack_resp(P2P_SESSION_T *pSession, IN VOID *pSrc, IN 
     ((P2P_CMD_PARSE_T *)sendBuff)->str_header.length = len;
     memcpy(sendBuff + P2P_CMD_HEAD_LEN, pPayLoad, len);
 
-    //发送数据
-    //   PR_DEBUG("p2p Write data session[%d] chn[%d] len[%d]",pSession->session, TUYA_CMD_CHANNEL, packLen);
+    // Send data
+    //    PR_DEBUG("p2p Write data session[%d] chn[%d] len[%d]",pSession->session, TUYA_CMD_CHANNEL, packLen);
     ret = tuya_p2p_rtc_send_data(pSession->session, TUYA_CMD_CHANNEL, sendBuff, packLen, -1);
     if (ret < 0) {
         PR_ERR("p2p Write failed ret = %d", ret);
@@ -1012,9 +1011,9 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
 
     switch (pFixedHead->high_cmd) {
     case TY_C2C_CMD_QUERY_AUDIO_PARAMS: {
-        //查询音频参数(复用为app查询对讲需要的音频类型)
-        //将查询结果发送给客户端
-        // PR_DEBUG("recv session[%d] query audio params",pSession->session);
+        // Query audio parameters (reused for app to query audio types needed for intercom)
+        // Send query results to client
+        //  PR_DEBUG("recv session[%d] query audio params",pSession->session);
         C2C_TRANS_QUERY_AUDIO_PARAM_RESP_E *pAudioResp = NULL;
         C2C_TRANS_QUERY_AUDIO_PARAM_REQ_T *pAudioReq;
         pAudioReq = (C2C_TRANS_QUERY_AUDIO_PARAM_REQ_T *)pPayload;
@@ -1030,7 +1029,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
             __p2p_session_pack_resp(pSession, pData, pAudioResp, respLen);
             Free(pAudioResp);
         } else {
-            //发送失败消息给app
+            // Send failure message to app
             C2C_CMD_IO_CTRL_COM_RESP_T comResp;
             memset(&comResp, 0x00, sizeof(comResp));
             comResp.channel = pAudioReq->channel;
@@ -1040,9 +1039,9 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
         break;
     }
     case TY_C2C_CMD_QUERY_VIDEO_STREAM_PARAMS: {
-        //查询视频参数
-        //查询结果发送客户端
-        // PR_DEBUG("recv session[%d] query video params",pSession->session);
+        // Query video parameters
+        // Send query results to client
+        //  PR_DEBUG("recv session[%d] query video params",pSession->session);
         C2C_TRANS_QUERY_VIDEO_PARAM_RESP_T *pVideoResp = NULL;
         C2C_TRANS_QUERY_VIDEO_PARAM_REQ_T *pVideoReq;
         pVideoReq = (C2C_TRANS_QUERY_VIDEO_PARAM_REQ_T *)pPayload;
@@ -1053,7 +1052,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
                                         pVideoResp->count * sizeof(VIDEO_PARAM_T));
             Free(pVideoResp);
         } else {
-            //发送失败消息给app
+            // Send failure message to app
             C2C_CMD_IO_CTRL_COM_RESP_T comResp;
             memset(&comResp, 0x00, sizeof(comResp));
             comResp.channel = pVideoReq->channel;
@@ -1063,15 +1062,16 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
         break;
     }
     case TY_C2C_CMD_QUERY_VIDEO_CLARITY: {
-        //清晰度查询
-        //清晰度反馈
+        // Video clarity query
+        // Video clarity feedback
         PR_DEBUG("recv session[%d] query video clarity", pSession->session);
         C2C_TRANS_QUERY_VIDEO_CLARITY_RESP_T ClarityResp = {0};
         C2C_TRANS_QUERY_VIDEO_CLARITY_REQ_T *clarityReq;
         clarityReq = (C2C_TRANS_QUERY_VIDEO_CLARITY_REQ_T *)pPayload;
 
         ClarityResp.channel = clarityReq->channel;
-        ClarityResp.sp_mode = TY_VIDEO_CLARITY_INNER_STANDARD | TY_VIDEO_CLARITY_INNER_HIGH; //目前sdk支持固定格式
+        ClarityResp.sp_mode =
+            TY_VIDEO_CLARITY_INNER_STANDARD | TY_VIDEO_CLARITY_INNER_HIGH; // Currently SDK supports fixed format
         // p2p_get_clarity(&ClarityResp.sp_mode);
         PR_DEBUG("get support clarity[%u]", ClarityResp.sp_mode);
         ClarityResp.cur_mode = pSession->cur_clarity;
@@ -1088,7 +1088,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
         __p2p_session_pack_resp(pSession, pData, &comResp, sizeof(C2C_CMD_IO_CTRL_COM_RESP_T));
         switch (parm->operation) {
         case TY_CMD_IO_CTRL_VIDEO_PLAY: {
-            //请求视频时，保存reqId，需要回传
+            // When requesting video, save reqId for response
             pSession->video_req_id = pCmd->reqId;
             //   PR_DEBUG("CTRL VIDEO START session[%d] chn[%d]
             //   op[%d]",pSession->session,parm->channel,parm->operation);
@@ -1128,7 +1128,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
     }
     case TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY: {
         C2C_TRANS_CTRL_VIDEO_CLARITY_T *parm = (C2C_TRANS_CTRL_VIDEO_CLARITY_T *)pPayload;
-        //下发设备处理
+        // Send to device for processing
         C2C_TRANS_LIVE_CLARITY_PARAM_S outParm = {0};
         outParm.clarity =
             (parm->mode == TY_VIDEO_CLARITY_INNER_HIGH) ? TY_VIDEO_CLARITY_HIGH : TY_VIDEO_CLARITY_STANDARD;
@@ -1137,7 +1137,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
                  parm->mode, outParm.clarity);
 // tuya_ipc_media_stream_event_call(0, 0, MEDIA_STREAM_LIVE_VIDEO_CLARITY_SET, (VOID *)&outParm);
 #if 0
-            //更新reqId,用于app区分不同的视频文件
+            //Update reqId for app to distinguish different video files
             pSession->video_req_id = pCmd->reqId;
             pSession->cur_clarity = parm->mode;
 #endif
@@ -1151,7 +1151,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
     case TY_C2C_CMD_PROTOCOL_VERSION: {
         // C2C_CMD_PROTOCOL_VERSION_T *parm = (C2C_CMD_PROTOCOL_VERSION_T *)pPayload;
         //  PR_DEBUG("session[%d] recv pro_ver[%d][%d]",pSession->session,parm->version >> 16,parm->version&0xff);
-        //版本校验处理部分后续完善
+        // Version verification processing to be improved later
         C2C_CMD_PROTOCOL_VERSION_T proVerRsp = {0};
         proVerRsp.version = (C2C_MAJOR_VERSION << 16) | C2C_MINOR_VERSION;
         __p2p_session_pack_resp(pSession, pData, &proVerRsp, sizeof(C2C_CMD_PROTOCOL_VERSION_T));
@@ -1173,7 +1173,7 @@ STATIC INT_T __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, VOID *pData
 
 /***********************************************************
  *  Function: __p2p_session_cmd_parse
- *  Note:会话cmd解析
+ *  Note:Session command parsing
  *  Input:
  *  Output: none
  *  Return:
@@ -1192,10 +1192,10 @@ STATIC INT_T __p2p_session_cmd_parse(P2P_SESSION_T *pSession, VOID *pData)
     pFixedHead = &pCmd->str_header;
 
     if (0 == pFixedHead->type) {
-        //接收命令请求，本机做server
+        // Receive command request, this machine acts as server
         return __p2p_session_cmd_parse_server(pSession, pData);
     } else if (1 == pFixedHead->type) {
-        // 接收回应包，本机做client
+        // Receive response packet, this machine acts as client
         // return __p2p_session_cmd_parse_client(pSession, pData);
     } else {
         PR_ERR("pFixedHead->type error %d", pFixedHead->type);
@@ -1213,39 +1213,41 @@ STATIC INT_T __p2p_read_cmd(P2P_SESSION_T *pSession)
     ret = tuya_p2p_rtc_recv_data(pSession->session, TUYA_CMD_CHANNEL, pDataParse->read_buff + pDataParse->cur_read,
                                  &pDataParse->read_size, P2P_RECV_TIMEOUT);
     if ((ret < 0) && (ERROR_P2P_TIME_OUT != ret)) {
-        //异常处理
+        // Exception handling
         if (ERROR_P2P_SESSION_CLOSED_REMOTE == ret || ERROR_P2P_SESSION_CLOSED_TIMEOUT == ret ||
             ERROR_P2P_SESSION_CLOSED_CALLED == ret || ERROR_P2P_NOT_INITIALIZED == ret ||
             ERROR_P2P_INVALID_SESSION_HANDLE == ret || ERROR_P2P_INVALID_PARAMETER == ret) {
-            // session被客户端断开，需要关闭session
+            // Session was disconnected by client, need to close session
             PR_ERR("session[%d] was close by client ret[%d]", pSession->session, ret);
             return -1;
         } else {
-            //其他异常后续补充
+            // Other exceptions to be added later
             PR_ERR("session[%d] ###### error ret = [%d]", pSession->session, ret);
             return -2;
         }
     } else {
         // PR_DEBUG("recv cmd size[%d] cur_read[%d]
-        // flag[%d]",pDataParse->read_size,pDataParse->cur_read,pDataParse->flag); 接收数据解析，确认接收数据完整
+        // flag[%d]",pDataParse->read_size,pDataParse->cur_read,pDataParse->flag); Receive data parsing, confirm data
+        // integrity
         if (READ_HEADER_PART == pDataParse->flag) {
             if (P2P_CMD_HEAD_LEN == (pDataParse->read_size + pDataParse->cur_read)) {
-                //头部信息读取成功，简单解析
+                // Header information read successfully, simple parsing
                 if (P2P_CMD_MARK != pReadBuff->mark) {
-                    //头部解析异常，异常处理后续完成(不太可能走到这个条件)
+                    // Header parsing exception, exception handling to be completed later (unlikely to reach this
+                    // condition)
                     PR_ERR("session[%d] read data error mark[0x%x]", pSession->session, pReadBuff->mark);
                 }
-                //取出数据部分
+                // Extract data portion
                 pFixedHeader = &(pReadBuff->str_header);
                 pDataParse->read_size = pFixedHeader->length;
                 pDataParse->cur_read = P2P_CMD_HEAD_LEN;
                 pDataParse->flag = READ_PAYLOAD_PART;
                 // PR_DEBUG("recv session[%d] cmd size[%d]",pSession->session,pDataParse->read_size);
             } else {
-                //继续取出数据，保证保证头部信息完整
+                // Continue extracting data to ensure header information is complete
                 if (P2P_CMD_HEAD_LEN < (pDataParse->read_size + pDataParse->cur_read)) {
                     PR_ERR("session[%d] read data error", pSession->session);
-                    // note 异常处理
+                    // note Exception handling
                     // end
                     return -3;
                 }
@@ -1255,8 +1257,8 @@ STATIC INT_T __p2p_read_cmd(P2P_SESSION_T *pSession)
         } else {
             pFixedHeader = &(pReadBuff->str_header);
             if (pDataParse->read_size + pDataParse->cur_read == pFixedHeader->length + P2P_CMD_HEAD_LEN) {
-                //数据接收完整，进入解析入口
-                // PR_DEBUG("session[%d] read data succsess len[%d]",pSession->session,read_size + cur_read);
+                // Data reception complete, enter parsing entry
+                //  PR_DEBUG("session[%d] read data succsess len[%d]",pSession->session,read_size + cur_read);
                 __p2p_session_cmd_parse(pSession, pDataParse->read_buff);
                 memset(pDataParse->read_buff, 0x00, SIZEOF(pDataParse->read_buff));
                 pDataParse->read_size = P2P_CMD_HEAD_LEN;
@@ -1267,7 +1269,7 @@ STATIC INT_T __p2p_read_cmd(P2P_SESSION_T *pSession)
                 pDataParse->read_size = pFixedHeader->length + P2P_CMD_HEAD_LEN - pDataParse->cur_read;
             } else {
                 PR_ERR("session[%d] read data error", pSession->session);
-                // note 异常处理
+                // note Exception handling
                 // end
                 return -4;
             }
@@ -1315,7 +1317,7 @@ STATIC void __p2p_cmd_recv_proc(PVOID_T pArg)
 
 /***********************************************************
  *  Function: __p2p_video_send_proc
- *  Note:发送视频数据线程
+ *  Note:Video data transmission thread
  *  Input:
  *  Output: none
  *  Return:
@@ -1358,8 +1360,9 @@ STATIC void __p2p_media_send_proc(PVOID_T pArg)
             continue;
         }
 
-        // 判断两者都没打开时要放到最后，否则会出现：用户同时关闭音视频，但是不释放资源的情况
-        // 该判断也不能省略，否则会出现线程空转的情况
+        // The judgment when both are not opened should be placed at the end, otherwise it will appear: users close
+        // audio and video at the same time, but do not release resources This judgment cannot be omitted, otherwise
+        // thread idle running will occur
         if (!(P2P_VIDEO & cmd) && !(P2P_AUDIO & cmd)) {
             // pSession->p2p_buff_stat.live_video = P2P_BUFF_IDLE;
             // pSession->p2p_buff_stat.live_audio = P2P_BUFF_IDLE;
@@ -1390,7 +1393,7 @@ STATIC void __p2p_media_send_proc(PVOID_T pArg)
                     op_ret = __p2p_pack_h265_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size);
                 }
             } else {
-                //缓存还没数据
+                // Buffer has no data yet
                 tal_system_sleep(10);
             }
         }
@@ -1411,7 +1414,7 @@ STATIC void __p2p_media_send_proc(PVOID_T pArg)
                     op_ret = __p2p_pack_g711_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size, type);
                 }
             } else {
-                //缓存还没数据
+                // Buffer has no data yet
                 tal_system_sleep(10);
             }
         }
@@ -1429,8 +1432,8 @@ INT_T __p2p_session_clear(P2P_SESSION_T *pSession)
 
 /***********************************************************
  *  Function: __p2p_session_all_stop
- *  Note:关闭所有已开启功能
- *  Input:pSession 会话管理
+ *  Note:Close all enabled functions
+ *  Input:pSession Session management
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -1454,7 +1457,7 @@ INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession)
 
 INT_T __p2p_session_release_va(P2P_SESSION_T *pSession)
 {
-    //功能全部关闭
+    // All functions closed
     PR_DEBUG("release va session[%d]", pSession->session);
     tal_mutex_lock(pSession->cmutex);
     if (pSession->p_video_rtp_buff) {
@@ -1465,8 +1468,8 @@ INT_T __p2p_session_release_va(P2P_SESSION_T *pSession)
         Free(pSession->p_audio_rtp_buff);
         pSession->p_audio_rtp_buff = NULL;
     }
-    // memset(&pSession->session, 0x00, sizeof(P2P_SESSION_T) - OFFSET(P2P_SESSION_T, session));//清除锁之外的变量
-    // memset(&pSession->str_P2p_auth, 0, sizeof(pSession->str_P2p_auth));
+    // memset(&pSession->session, 0x00, sizeof(P2P_SESSION_T) - OFFSET(P2P_SESSION_T, session));//Clear variables
+    // outside the lock memset(&pSession->str_P2p_auth, 0, sizeof(pSession->str_P2p_auth));
     pSession->cur_clarity = TY_VIDEO_CLARITY_INNER_HIGH;
     pSession->status = P2P_SESSION_IDLE;
     pSession->cmd = P2P_IDLE;
@@ -1483,7 +1486,7 @@ INT_T __p2p_session_release_va(P2P_SESSION_T *pSession)
     memset(&pSession->proto_parse, 0, sizeof(pSession->proto_parse));
     memset(&pSession->av_Info, 0, sizeof(pSession->av_Info));
     if (pSession->on_disconnect_callback)
-        pSession->on_disconnect_callback(); //接收到云端type为disconnect的信令时，通知顶层
+        pSession->on_disconnect_callback(); // Notify upper layer when receiving disconnect signal from cloud
     tal_mutex_unlock(pSession->cmutex);
     return 0;
 }
@@ -1492,21 +1495,21 @@ OPERATE_RET p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var)
 {
     OPERATE_RET ret = OPRT_OK;
 
-    //初始化会话信息
+    // Initialize session information
     sg_p2p_session = (P2P_SESSION_T *)Malloc(sizeof(P2P_SESSION_T));
     if (NULL == sg_p2p_session) {
         PR_ERR("malloc p2p session failed");
         return OPRT_MALLOC_FAILED;
     }
     memset(sg_p2p_session, 0, sizeof(P2P_SESSION_T));
-    //获取密码等校验信息
+    // Get password and other verification information
     memset(&(sg_p2p_session->str_P2p_auth), 0x00, sizeof(TUYA_IPC_P2P_AUTH_T));
     tuya_ipc_get_p2p_auth(&(sg_p2p_session->str_P2p_auth));
     tuya_ipc_check_p2p_auth_update();
 
     sg_p2p_session->cur_clarity = TY_VIDEO_CLARITY_INNER_HIGH;
 
-    //开启媒体相关线程
+    // Start media-related threads
     THREAD_CFG_T thrd_param = {STACK_SIZE_P2P_MEDIA_RECV, THREAD_PRIO_2, NULL};
     thrd_param.stackDepth = STACK_SIZE_P2P_CMD_RECV;
     thrd_param.thrdname = (char *)"p2p_cmd_recv";
@@ -1525,7 +1528,7 @@ OPERATE_RET p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var)
         goto RET;
     }
 
-    //初始化
+    // Initialize
     int bufSize = 300 * 1024; // MAX_MEDIA_FRAME_SIZE
     // memset(&sg_p2p_session->tal_video_frame, 0, sizeof(sg_p2p_session->tal_video_frame));
     // sg_p2p_session->tal_video_frame.pbuf = (char*)malloc(bufSize);

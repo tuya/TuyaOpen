@@ -9,9 +9,9 @@ extern "C" {
 
 /**************************enum define***************************************/
 
-// 媒体流相关事件
+// Media stream related events
 typedef enum {
-    // 枚举 0~29 留给与硬件相关的事件
+    // Enum 0~29 reserved for hardware related events
     MEDIA_STREAM_NULL = 0,
     MEDIA_STREAM_SPEAKER_START = 1,
     MEDIA_STREAM_SPEAKER_STOP = 2,
@@ -45,13 +45,13 @@ typedef enum {
     MEDIA_STREAM_PLAYBACK_QUERY_DAY_TS_WITH_ENCRYPT = 53, /* query storage info of day */
     MEDIA_STREAM_DOWNLOAD_START_WITH_ENCRYPT = 54,
 
-    /*与互联互通相关*/
-    MEDIA_STREAM_LIVE_VIDEO_SEND_START = 60,  //对端请求被拉视频流
-    MEDIA_STREAM_LIVE_VIDEO_SEND_STOP = 61,   //对端请求停止被拉视频流
-    MEDIA_STREAM_LIVE_AUDIO_SEND_START = 62,  //对端请求被拉音频流
-    MEDIA_STREAM_LIVE_AUDIO_SEND_STOP = 63,   //对端请求停止被拉音频流
-    MEDIA_STREAM_LIVE_VIDEO_SEND_PAUSE = 64,  //对端暂停视频发送
-    MEDIA_STREAM_LIVE_VIDEO_SEND_RESUME = 65, //对端恢复视频发送
+    /*Related to interconnection*/
+    MEDIA_STREAM_LIVE_VIDEO_SEND_START = 60,  // Remote requests to pull video stream
+    MEDIA_STREAM_LIVE_VIDEO_SEND_STOP = 61,   // Remote requests to stop pulling video stream
+    MEDIA_STREAM_LIVE_AUDIO_SEND_START = 62,  // Remote requests to pull audio stream
+    MEDIA_STREAM_LIVE_AUDIO_SEND_STOP = 63,   // Remote requests to stop pulling audio stream
+    MEDIA_STREAM_LIVE_VIDEO_SEND_PAUSE = 64,  // Remote pauses video sending
+    MEDIA_STREAM_LIVE_VIDEO_SEND_RESUME = 65, // Remote resumes video sending
 
     MEDIA_STREAM_STREAMING_VIDEO_START = 100,
     MEDIA_STREAM_STREAMING_VIDEO_STOP = 101,
@@ -64,35 +64,35 @@ typedef enum {
     MEDIA_STREAM_ALBUM_DELETE = 206,
     MEDIA_STREAM_ALBUM_PLAY_CTRL = 207,
 
-    // xvr相关
-    MEDIA_STREAM_VIDEO_START_GW = 300,             /**< 直播开始视频，参数为C2C_TRANS_CTRL_VIDEO_START*/
-    MEDIA_STREAM_VIDEO_STOP_GW,                    /**< 直播结束视频，参数为C2C_TRANS_CTRL_VIDEO_STOP*/
-    MEDIA_STREAM_AUDIO_START_GW,                   /**< 直播开始音频，参数为C2C_TRANS_CTRL_AUDIO_START*/
-    MEDIA_STREAM_AUDIO_STOP_GW,                    /**< 直播结束音频，参数为C2C_TRANS_CTRL_AUDIO_STOP*/
-    MEDIA_STREAM_VIDEO_CLARITY_SET_GW,             /**< 设置视频直播清晰度 ，参数为*/
-    MEDIA_STREAM_VIDEO_CLARITY_QUERY_GW,           /**< 查询视频直播清晰度 ，参数为*/
-    MEDIA_STREAM_LOAD_ADJUST_GW,                   /**< 直播负载变更 ，参数为*/
-    MEDIA_STREAM_PLAYBACK_LOAD_ADJUST_GW,          /**< 开始回放 ，参数为*/
-    MEDIA_STREAM_PLAYBACK_QUERY_MONTH_SIMPLIFY_GW, /* 按月查询本地视频信息，参数为  */
-    MEDIA_STREAM_PLAYBACK_QUERY_DAY_TS_GW,         /* 按天查询本地视频信息，参数为  */
+    // XVR related
+    MEDIA_STREAM_VIDEO_START_GW = 300,             /**< Live video start, parameter is C2C_TRANS_CTRL_VIDEO_START*/
+    MEDIA_STREAM_VIDEO_STOP_GW,                    /**< Live video stop, parameter is C2C_TRANS_CTRL_VIDEO_STOP*/
+    MEDIA_STREAM_AUDIO_START_GW,                   /**< Live audio start, parameter is C2C_TRANS_CTRL_AUDIO_START*/
+    MEDIA_STREAM_AUDIO_STOP_GW,                    /**< Live audio stop, parameter is C2C_TRANS_CTRL_AUDIO_STOP*/
+    MEDIA_STREAM_VIDEO_CLARITY_SET_GW,             /**< Set video live clarity, parameter is*/
+    MEDIA_STREAM_VIDEO_CLARITY_QUERY_GW,           /**< Query video live clarity, parameter is*/
+    MEDIA_STREAM_LOAD_ADJUST_GW,                   /**< Live load change, parameter is*/
+    MEDIA_STREAM_PLAYBACK_LOAD_ADJUST_GW,          /**< Start playback, parameter is*/
+    MEDIA_STREAM_PLAYBACK_QUERY_MONTH_SIMPLIFY_GW, /* Query local video info by month, parameter is  */
+    MEDIA_STREAM_PLAYBACK_QUERY_DAY_TS_GW,         /* Query local video info by day, parameter is  */
 
-    MEDIA_STREAM_PLAYBACK_START_TS_GW, /* 开始回放视频，参数为  */
-    MEDIA_STREAM_PLAYBACK_PAUSE_GW,    /**< 暂停回放视频，参数为  */
-    MEDIA_STREAM_PLAYBACK_RESUME_GW,   /**< 继续回放视频，参数为  */
-    MEDIA_STREAM_PLAYBACK_MUTE_GW,     /**< 静音，参数为  */
-    MEDIA_STREAM_PLAYBACK_UNMUTE_GW,   /**< 取消静音，参数为  */
-    MEDIA_STREAM_PLAYBACK_STOP_GW,     /**< 停止回放视频，参数为  */
+    MEDIA_STREAM_PLAYBACK_START_TS_GW, /* Start playback video, parameter is  */
+    MEDIA_STREAM_PLAYBACK_PAUSE_GW,    /**< Pause playback video, parameter is  */
+    MEDIA_STREAM_PLAYBACK_RESUME_GW,   /**< Resume playback video, parameter is  */
+    MEDIA_STREAM_PLAYBACK_MUTE_GW,     /**< Mute, parameter is  */
+    MEDIA_STREAM_PLAYBACK_UNMUTE_GW,   /**< Unmute, parameter is  */
+    MEDIA_STREAM_PLAYBACK_STOP_GW,     /**< Stop playback video, parameter is  */
 
-    MEDIA_STREAM_PLAYBACK_SPEED_GW,  /**< 设置回放倍速，参数为  */
-    MEDIA_STREAM_DOWNLOAD_START_GW,  /**< 下载开始*/
-    MEDIA_STREAM_DOWNLOAD_PAUSE_GW,  /**< 下载暂停  */
-    MEDIA_STREAM_DOWNLOAD_RESUME_GW, /**< 下载恢复*/
-    MEDIA_STREAM_DOWNLOAD_CANCLE_GW, /**< 下载停止*/
+    MEDIA_STREAM_PLAYBACK_SPEED_GW,  /**< Set playback speed, parameter is  */
+    MEDIA_STREAM_DOWNLOAD_START_GW,  /**< Download start*/
+    MEDIA_STREAM_DOWNLOAD_PAUSE_GW,  /**< Download pause  */
+    MEDIA_STREAM_DOWNLOAD_RESUME_GW, /**< Download resume*/
+    MEDIA_STREAM_DOWNLOAD_CANCLE_GW, /**< Download stop*/
 
-    MEDIA_STREAM_SPEAKER_START_GW,   /**< 开始对讲，无参数 */
-    MEDIA_STREAM_SPEAKER_STOP_GW,    /**< 停止对讲，无参数 */
-    MEDIA_STREAM_ABILITY_QUERY_GW,   /**< 能力查询 C2C_MEDIA_STREAM_QUERY_FIXED_ABI_REQ*/
-    MEDIA_STREAM_CONN_START_GW,      /**< 开启连接 */
+    MEDIA_STREAM_SPEAKER_START_GW,   /**< Start intercom, no parameters */
+    MEDIA_STREAM_SPEAKER_STOP_GW,    /**< Stop intercom, no parameters */
+    MEDIA_STREAM_ABILITY_QUERY_GW,   /**< Ability query C2C_MEDIA_STREAM_QUERY_FIXED_ABI_REQ*/
+    MEDIA_STREAM_CONN_START_GW,      /**< Start connection */
     MEDIA_STREAM_PLAYBACK_DELETE_GW, /* delete video */
 
     // for page mode play back enum
@@ -102,10 +102,10 @@ typedef enum {
 } MEDIA_STREAM_EVENT_E;
 
 typedef enum {
-    TRANS_EVENT_SUCCESS = 0,             /* 返回成功 */
-    TRANS_EVENT_SPEAKER_ISUSED = 10,     /* speker 已被使用，不同的TRANSFER_SOURCE_TYPE_E */
-    TRANS_EVENT_SPEAKER_REPSTART = 11,   /* speker 重复开启，同一个TRANSFER_SOURCE_TYPE_E */
-    TRANS_EVENT_SPEAKER_STOPFAILED = 12, /* speker stop 失败*/
+    TRANS_EVENT_SUCCESS = 0,             /* Return success */
+    TRANS_EVENT_SPEAKER_ISUSED = 10,     /* Speaker already in use, different TRANSFER_SOURCE_TYPE_E */
+    TRANS_EVENT_SPEAKER_REPSTART = 11,   /* Speaker repeatedly started, same TRANSFER_SOURCE_TYPE_E */
+    TRANS_EVENT_SPEAKER_STOPFAILED = 12, /* Speaker stop failed*/
     TRANS_EVENT_SPEAKER_INVALID = 99
 } TRANSFER_EVENT_RETURN_E;
 
@@ -155,7 +155,7 @@ typedef struct {
 
 typedef struct tagC2C_TRANS_CTRL_LIVE_VIDEO {
     unsigned int channel;
-    unsigned int type; //拉流类型
+    unsigned int type; // Stream type
 } C2C_TRANS_CTRL_VIDEO_START, C2C_TRANS_CTRL_VIDEO_STOP;
 
 typedef struct tagC2C_TRANS_CTRL_LIVE_AUDIO {
@@ -168,7 +168,7 @@ typedef struct {
 } PLAYBACK_TIME_S;
 
 typedef struct tagPLAY_BACK_ALARM_FRAGMENT {
-    unsigned short video_type; ///< 0:常规录像 1:AOV录像
+    unsigned short video_type; ///< 0: Regular recording, 1: AOV recording
     unsigned short type;       ///< event type
     PLAYBACK_TIME_S time_sect;
 } PLAY_BACK_ALARM_FRAGMENT;
@@ -180,7 +180,7 @@ typedef struct {
 
 #pragma pack(4)
 typedef struct tagPLAY_BACK_FILE_INFOS_WITH_ENCRYPT {
-    unsigned short video_type; ///< 0:常规录像 1:AOV录像
+    unsigned short video_type; ///< 0: Regular recording, 1: AOV recording
     unsigned short type;       ///< event type
     char uuid[32];
     PLAYBACK_TIME_S time_sect;
@@ -220,21 +220,21 @@ typedef struct {
     PLAY_BACK_ALARM_INFO_WITH_ENCRYPT_ARR *alarm_arr;
 } C2C_TRANS_QUERY_PB_DAY_WITH_ENCRYPT_RESP;
 
-// 回放数据删除 按天request
+// Playback data deletion by day request
 typedef struct tagC2C_TRANS_CTRL_PB_DELDATA_BYDAY_REQ {
     unsigned int channel;
-    unsigned int year;  // 要删除的年份
-    unsigned int month; // 要删除的月份
-    unsigned int day;   // 要删除的天数
+    unsigned int year;  // Year to delete
+    unsigned int month; // Month to delete
+    unsigned int day;   // Day to delete
 } C2C_TRANS_CTRL_PB_DELDATA_BYDAY_REQ;
 
 typedef struct tagC2C_TRANS_CTRL_PB_DOWNLOAD_IMAGE_S {
     unsigned int channel;
-    PLAYBACK_TIME_S time_sect; // 开始下载时间点
+    PLAYBACK_TIME_S time_sect; // Start download time point
     char reserved[32];
-    int result;             // 结果，可以扩展错误码TY_C2C_CMD_IO_CTRL_STATUS_CODE
-    int image_fileLength;   //  文件长度 后面紧跟着h文件内容过来
-    unsigned char *pBuffer; // 文件内容
+    int result;             // Result, can extend error code TY_C2C_CMD_IO_CTRL_STATUS_CODE
+    int image_fileLength;   // File length followed by h file content
+    unsigned char *pBuffer; // File content
 } C2C_TRANS_CTRL_PB_DOWNLOAD_IMAGE_PARAM_S;
 
 // query playback data by month
@@ -325,7 +325,7 @@ typedef struct tagC2C_TRANS_CTRL_DL_ENCRYPT_START {
     unsigned int fileNum;
     unsigned int downloadStartTime;
     unsigned int downloadEndTime;
-    int allow_encrypt; // 是否允许加密数据
+    int allow_encrypt; // Whether to allow encrypted data
     int reqId;         // request ID, need by send frame api
     PLAYBACK_TIME_S *pFileInfo;
 } C2C_TRANS_CTRL_DL_ENCRYPT_START;
@@ -356,10 +356,10 @@ typedef struct {
 } TRANSFER_IPC_AUDIO_INFO_S;
 
 typedef struct {
-    INT_T encrypt;        // 是否加密
-    INT_T security_level; // 安全等级
-    CHAR_T uuid[32];      // 设备UUID
-    BYTE_T iv[16];        // 加密向量
+    INT_T encrypt;        // Whether to encrypt
+    INT_T security_level; // Security level
+    CHAR_T uuid[32];      // Device UUID
+    BYTE_T iv[16];        // Encryption vector
 } TRANSFER_MEDIA_ENCRYPT_INFO_T;
 
 typedef struct {
@@ -374,7 +374,7 @@ typedef struct {
     } media;
 
     TRANSFER_MEDIA_ENCRYPT_INFO_T encrypt_info;
-} TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T; // 回放使用
+} TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T; // Used for playback
 
 typedef struct {
     INT_T type; // MEDIA_FRAME_TYPE_E
@@ -389,7 +389,7 @@ typedef struct {
 } TUYA_DOWNLOAD_FRAME_HEAD_ENCRYPT_T;
 
 typedef struct {
-    INT_T type; // 参见 MEDIA_FRAME_TYPE_E
+    INT_T type; // See MEDIA_FRAME_TYPE_E
     UINT_T size;
     UINT64_T timestamp;
     UINT64_T pts;
@@ -405,116 +405,117 @@ typedef struct {
 #define TUYA_ALBUM_APP_FILE_NAME_MAX_LEN (48)
 #define IPC_SWEEPER_ROBOT                "ipc_sweeper_robot"
 typedef struct {
-    unsigned int channel; // 目前不需要，保留
+    unsigned int channel; // Currently not needed, reserved
     char albumName[48];
     int fileLen;
     void *pIndexFile;
-} C2C_QUERY_ALBUM_REQ; // 查询请求头
+} C2C_QUERY_ALBUM_REQ; // Query request header
 typedef struct tagC2C_ALBUM_INDEX_ITEM {
-    int idx;           // 设备提供并保证唯一性
+    int idx;           // Provided by device and guaranteed uniqueness
     char valid;        // 0 invalid, 1 valid
-    char channel;      // 0  1通道号
-    char type;         // 0 保留，1 pic 2 mp4 3全景拼接图(文件夹) 4二进制文件 5流文件
+    char channel;      // 0  1 Channel number
+    char type;         // 0 Reserved, 1 pic, 2 mp4, 3 panoramic image (folder), 4 binary file, 5 stream file
     char dir;          // 0 file 1 dir
     char filename[48]; // 123456789_1.mp4 123456789_1.jpg  xxx.xxx
-    int createTime;    // 文件创建时间
-    short duration;    // 视频文件时长
+    int createTime;    // File creation time
+    short duration;    // Video file duration
     char reserved[18];
-} C2C_ALBUM_INDEX_ITEM; // 索引Item
+} C2C_ALBUM_INDEX_ITEM; // Index Item
 typedef struct {
     unsigned int crc;
-    int version; // 相册功能版本(>2 支持文件在线播放)
+    int version; // Album function version (>2 supports online file playback)
     char magic[16];
     unsigned long long min_idx;
     unsigned long long max_idx;
     char reserved[512 - 44];
     int itemCount; // include invalid items
     C2C_ALBUM_INDEX_ITEM itemArr[0];
-} C2C_ALBUM_INDEX_HEAD; //查询返回:520 = 8 + 512,索引文件头+item
+} C2C_ALBUM_INDEX_HEAD; // Query return: 520 = 8 + 512, index file header + item
 
 typedef struct {
-    unsigned int channel;   // 目前业务不需要，保留
-    int result;             // 查询返回结果
-    char reserved[512 - 4]; // 保留,共512
+    unsigned int channel;   // Currently not needed for business, reserved
+    int result;             // Query return result
+    char reserved[512 - 4]; // Reserved, total 512
     int itemCount;          // include invalid items
     C2C_ALBUM_INDEX_ITEM itemArr[0];
-} C2C_CMD_IO_CTRL_ALBUM_QUERY_RESP; //查询返回:520 = 8 + 512,索引文件头+item
+} C2C_CMD_IO_CTRL_ALBUM_QUERY_RESP; // Query return: 520 = 8 + 512, index file header + item
 
 typedef struct tagC2C_CMD_IO_CTRL_ALBUM_fileInfo {
-    char filename[48]; //文件名，不带绝对路径
+    char filename[48]; // File name, without absolute path
 } C2C_CMD_IO_CTRL_ALBUM_fileInfo;
 typedef struct tagC2C_CMD_IO_CTRL_ALBUM_DOWNLOAD_START {
-    unsigned int channel; //暂无用保留
-    int operation;        // 参见 TY_CMD_IO_CTRL_DOWNLOAD_OP
+    unsigned int channel; // Currently unused, reserved
+    int operation;        // See TY_CMD_IO_CTRL_DOWNLOAD_OP
     char albumName[48];
-    int thumbnail;    // 0 原图 ，1 缩略图
+    int thumbnail;    // 0 Original image, 1 Thumbnail
     int fileTotalCnt; // max 50
     C2C_CMD_IO_CTRL_ALBUM_fileInfo pFileInfoArr[0];
 } C2C_CMD_IO_CTRL_ALBUM_DOWNLOAD_START;
 typedef struct tagC2C_ALBUM_DOWNLOAD_CANCEL {
-    unsigned int channel; //暂无用保留
+    unsigned int channel; // Currently unused, reserved
     char albumName[48];
 } C2C_ALBUM_DOWNLOAD_CANCEL;
 
 typedef struct tagC2C_CMD_IO_CTRL_ALBUM_DELETE {
     unsigned int channel;
     char albumName[48];
-    int fileNum; // -1 全部，其他：文件个数
+    int fileNum; // -1 All, others: number of files
     char res[64];
     C2C_CMD_IO_CTRL_ALBUM_fileInfo pFileInfoArr[0];
-} C2C_CMD_IO_CTRL_ALBUM_DELETE; //删除文件
+} C2C_CMD_IO_CTRL_ALBUM_DELETE; // Delete files
 
 typedef struct {
     int reqId;
     int fileIndex;         // start from 0
     int fileCnt;           // max 50
-    char fileName[48];     // 文件名
-    int packageSize;       // 当前文件片段的实际数据长度
-    int fileSize;          // 文件大小
-    int fileEnd;           // 文件结束标志,最后一个片段10KB
-} C2C_DOWNLOAD_ALBUM_HEAD; //下载数据头
+    char fileName[48];     // File name
+    int packageSize;       // Actual data length of current file segment
+    int fileSize;          // File size
+    int fileEnd;           // File end flag, last segment 10KB
+} C2C_DOWNLOAD_ALBUM_HEAD; // Download data header
 
 typedef struct {
     unsigned int channel;
-    int result;    // 参见TY_C2C_CMD_IO_CTRL_STATUS_CODE_E
-    int operation; // 参见TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E,文件在线播放结束后为TY_CMD_IO_CTRL_ALBUM_PLAY_OVER
+    int result;    // See TY_C2C_CMD_IO_CTRL_STATUS_CODE_E
+    int operation; // See TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E, after online file playback ends it becomes
+                   // TY_CMD_IO_CTRL_ALBUM_PLAY_OVER
 } C2C_CMD_IO_CTRL_ALBUM_PLAY_RESULT_RESP_T;
 
 typedef enum {
-    TY_CMD_IO_CTRL_ALBUM_PLAY_START = 0, // 开始播放
-    TY_CMD_IO_CTRL_ALBUM_PLAY_STOP,      // 结束
-    TY_CMD_IO_CTRL_ALBUM_PLAY_PAUSE,     // 暂停
-    TY_CMD_IO_CTRL_ALBUM_PLAY_RESUME,    // 恢复
-    TY_CMD_IO_CTRL_ALBUM_PLAY_CANCEL,    // 取消
-    TY_CMD_IO_CTRL_ALBUM_PLAY_OVER,      // 播放结束,设备SDK主动发送
+    TY_CMD_IO_CTRL_ALBUM_PLAY_START = 0, // Start playback
+    TY_CMD_IO_CTRL_ALBUM_PLAY_STOP,      // Stop
+    TY_CMD_IO_CTRL_ALBUM_PLAY_PAUSE,     // Pause
+    TY_CMD_IO_CTRL_ALBUM_PLAY_RESUME,    // Resume
+    TY_CMD_IO_CTRL_ALBUM_PLAY_CANCEL,    // Cancel
+    TY_CMD_IO_CTRL_ALBUM_PLAY_OVER,      // Playback ended, device SDK actively sends
 } TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E;
 
 typedef struct {
-    unsigned int channel;                              // 暂无用保留
-    int operation;                                     // 参见 TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E
-    int thumbnail;                                     // 0 原图 ，1 缩略图
-    unsigned int start_time;                           // 起始播放时间, 单位: s
-    char album_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN]; // 相册名称
-    char file_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN];  // 需要播放的文件名，不带绝对路径
+    unsigned int channel;                              // Currently unused, reserved
+    int operation;                                     // See TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E
+    int thumbnail;                                     // 0 Original image, 1 Thumbnail
+    unsigned int start_time;                           // Start playback time, unit: s
+    char album_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN]; // Album name
+    char file_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN];  // File name to play, without absolute path
 } C2C_CMD_IO_CTRL_ALBUM_PLAY_CTRL_REQ_T;
 
 typedef struct {
-    unsigned int channel; // 暂无用保留(多目相机通道)
+    unsigned int channel; // Currently unused, reserved (multi-camera channel)
     int user_idx;
     int req_id;
-    int operation;                                     // 参见 TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E
-    int thumbnail;                                     // 0 原图 ，1 缩略图
-    unsigned int start_time;                           // 起始播放时间, 单位: s
-    char album_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN]; // 相册名称
-    char file_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN];  // 需要播放的文件名，不带绝对路径
+    int operation;                                     // See TY_CMD_IO_CTRL_ALBUM_PLAY_OP_E
+    int thumbnail;                                     // 0 Original image, 1 Thumbnail
+    unsigned int start_time;                           // Start playback time, unit: s
+    char album_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN]; // Album name
+    char file_name[TUYA_ALBUM_APP_FILE_NAME_MAX_LEN];  // File name to play, without absolute path
 } C2C_CMD_IO_CTRL_ALBUM_PLAY_CTRL_T;
 
 typedef enum {
-    E_FILE_TYPE_2_APP_PANORAMA = 1, //全景拼接图
+    E_FILE_TYPE_2_APP_PANORAMA = 1, // Panoramic image
 } FILE_TYPE_2_APP_E;
 typedef struct {
     FILE_TYPE_2_APP_E fileType;
-    int param; // 全景拼接图时，为子图总数
+    int param; // For panoramic images, total number of sub-images
 } TUYA_IPC_BRIEF_FILE_INFO_4_APP;
 
 /**
@@ -534,7 +535,7 @@ OPERATE_RET tuya_ipc_start_send_file_to_app(IN CONST TUYA_IPC_BRIEF_FILE_INFO_4_
 OPERATE_RET tuya_ipc_stop_send_file_to_app(IN CONST INT_T handle);
 
 typedef struct {
-    CHAR_T *fileName; //最长48字节，若为null，采用SDK内部命名
+    CHAR_T *fileName; // Maximum 48 bytes, if null, use SDK internal naming
     INT_T len;
     CHAR_T *buff;
 } TUYA_IPC_FILE_INFO_4_APP;
@@ -563,17 +564,17 @@ typedef enum {
     SWEEPER_ALBUM_STREAM_NAVPATH = 5,
     SWEEPER_ALBUM_STREAM_TYPE_MAX = SWEEPER_ALBUM_STREAM_NAVPATH,
 
-    SWEEPER_ALBUM_FILE_ALL_TYPE_MAX = SWEEPER_ALBUM_STREAM_TYPE_MAX, //最大值 5
-    SWEEPER_ALBUM_FILE_ALL_TYPE_COUNT,                               //个数 6
+    SWEEPER_ALBUM_FILE_ALL_TYPE_MAX = SWEEPER_ALBUM_STREAM_TYPE_MAX, // Maximum value 5
+    SWEEPER_ALBUM_FILE_ALL_TYPE_COUNT,                               // Count 6
 } SWEEPER_ALBUM_FILE_TYPE_E;
 
 typedef enum {
     SWEEPER_TRANS_NULL,
-    SWEEPER_TRANS_FILE,   //文件传输
-    SWEEPER_TRANS_STREAM, //文件流传输
+    SWEEPER_TRANS_FILE,   // File transfer
+    SWEEPER_TRANS_STREAM, // File stream transfer
 } SWEEPER_TRANS_MODE_E;
 
-// 文件传输的状态
+// File transfer status
 typedef enum {
     TY_DATA_TRANSFER_IDLE,
     TY_DATA_TRANSFER_START,
@@ -591,47 +592,46 @@ typedef struct {
     unsigned int channel;
     unsigned int idx;
     char subdid[64];
-    unsigned int year;  // 要查询的年份
-    unsigned int month; // 要查询的月份
-    unsigned int day;   // 要查询的天数
+    unsigned int year;  // Year to query
+    unsigned int month; // Month to query
+    unsigned int day;   // Day to query
 } C2C_TRANS_QUERY_GW_PB_DAY_REQ;
 
 typedef struct {
     unsigned int channel;
-    unsigned int idx; //会话的索引。
+    unsigned int idx; // Session index
     unsigned int map_chan_index;
-    ; //一个绘话中，绑定的通道。用户透传回来即可。
+    ; // Channel bound in a session. Users can pass through transparently.
     char subdid[64];
-    unsigned int year;                   // 要查询的年份
-    unsigned int month;                  // 要查询的月份
-    unsigned int day;                    // 要查询的天数
-    PLAY_BACK_ALARM_INFO_ARR *alarm_arr; // 用户返回的查询结果
+    unsigned int year;                   // Year to query
+    unsigned int month;                  // Month to query
+    unsigned int day;                    // Day to query
+    PLAY_BACK_ALARM_INFO_ARR *alarm_arr; // Query result returned by user
 } C2C_TRANS_QUERY_GW_PB_DAY_RESP;
 
 /**
-UINT一共有32位，每1位表示对应天数是否有数据，最右边一位表示第0天。
-比如 day = 26496 = B0110 0111 1000 0000
-那么表示第7,8,9,10,13,14天有回放数据。
+UINT has 32 bits in total, each bit indicates whether the corresponding day has data, the rightmost bit represents day
+0. For example, day = 26496 = B0110 0111 1000 0000 This indicates that days 7, 8, 9, 10, 13, 14 have playback data.
  */
-// 按月查询有回放数据的天 request, response
+// Query days with playback data by month request, response
 typedef struct tagC2CCmdQueryGWPlaybackInfoByMonth {
     unsigned int channel;
-    unsigned int idx;            //会话的索引。
-    unsigned int map_chan_index; //绘话中，绑定的通道。用户透传回来即可。
+    unsigned int idx;            // Session index
+    unsigned int map_chan_index; // Channel bound in session. Users can pass through transparently.
     char subdid[64];
-    unsigned int year;  // 要查询的年份
-    unsigned int month; // 要查询的月份
-    unsigned int day;   // 有回放数据的天
+    unsigned int year;  // Year to query
+    unsigned int month; // Month to query
+    unsigned int day;   // Day with playback data
 } C2C_TRANS_QUERY_GW_PB_MONTH_REQ, C2C_TRANS_QUERY_GW_PB_MONTH_RESP;
 
 // request
-//回放相关操作结构体
+// Playback-related operation structure
 typedef struct tagC2C_TRANS_CTRL_GW_PB_START {
     unsigned int channel;
     unsigned int idx;
     char subdid[64];
     PLAYBACK_TIME_S time_sect;
-    UINT_T playTime; /**< 实际回放开始时间戳（以秒为单位） */
+    UINT_T playTime; /**< Actual playback start timestamp (in seconds) */
 } C2C_TRANS_CTRL_GW_PB_START;
 
 typedef struct tagC2C_TRANS_CTRL_GW_PB_STOP {
@@ -652,28 +652,28 @@ typedef struct tagC2C_TRANS_CTRL_GW_PB_MUTE {
     char subdid[64];
 } C2C_TRANS_CTRL_GW_PB_MUTE, C2C_TRANS_CTRL_GW_PB_UNMUTE;
 
-// 能力集查询 C2C_CMD_QUERY_FIXED_ABILITY
+// Capability set query C2C_CMD_QUERY_FIXED_ABILITY
 // request, response
 typedef struct tagC2CCmdQueryGWFixedAbility {
     unsigned int channel;
     unsigned int idx;
     char subdid[64];
-    unsigned int ability_mask; //能力结果按位赋值
+    unsigned int ability_mask; // Capability result bit assignment
 } C2C_TRANS_QUERY_GW_FIXED_ABI_REQ, C2C_TRANS_QUERY_GW_FIXED_ABI_RESP;
 
 /**
- * \brief 直播模式下申请修改或者查询清晰度回调参数结构体
+ * \brief Parameter structure for requesting modification or querying clarity callback in live mode
  * \struct C2C_TRANS_LIVE_CLARITY_PARAM_S
  */
 typedef struct {
     unsigned int channel;
     unsigned int idx;
     char subdid[64];
-    TRANSFER_VIDEO_CLARITY_TYPE_E clarity; /**< 视频清晰度 */
+    TRANSFER_VIDEO_CLARITY_TYPE_E clarity; /**< Video clarity */
     VOID *pReserved;
 } C2C_TRANS_LIVE_GW_CLARITY_PARAM_S;
 
-//预览相关操作结构体
+// Preview-related operation structure
 typedef struct tagC2C_TRANS_CTRL_GW_LIVE_VIDEO {
     unsigned int channel;
     unsigned int idx;
@@ -704,17 +704,17 @@ typedef struct tagC2C_TRANS_CTRL_PB_SET_SPEED_GW {
     unsigned int speed;
 } C2C_TRANS_CTRL_PB_SET_SPEED_GW;
 
-// 回放数据删除 按天request
+// Playback data deletion by day request
 typedef struct tagC2C_TRANS_CTRL_PB_DELDATA_BYDAY_GW_REQ {
     char subdid[64];
     unsigned int channel;
-    unsigned int year;  // 要删除的年份
-    unsigned int month; // 要删除的月份
-    unsigned int day;   // 要删除的天数
+    unsigned int year;  // Year to delete
+    unsigned int month; // Month to delete
+    unsigned int day;   // Day to delete
 } C2C_TRANS_CTRL_PB_DELDATA_BYDAY_GW_REQ;
 
 typedef struct tagC2C_CMD_PROTOCOL_VERSION {
-    unsigned int version; //高位主版本号，低16位次版本号
+    unsigned int version; // High bit main version number, low 16 bits sub-version number
 } C2C_CMD_PROTOCOL_VERSION;
 typedef struct {
     char subid[64];
@@ -735,12 +735,12 @@ typedef struct {
     int total_cnt;
     int page_size;
     PLAY_BACK_ALARM_INFO_ARR *alarm_arr;
-    int idx; //会话索引
+    int idx; // Session index
 } C2C_TRANS_QUERY_PB_DAY_V2_RESP;
 typedef struct {
     unsigned int start_timestamp; /* start timestamp in second of playback */
     unsigned int end_timestamp;
-    unsigned short video_type; ///< 0:常规录像 1:AOV录像
+    unsigned short video_type; ///< 0: Regular recording, 1: AOV recording
     unsigned short type;       ///< event type
     char pic_id[20];
 } C2C_PB_EVENT_INFO_S;

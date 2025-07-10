@@ -21,33 +21,33 @@ void sync_cond_notify(sync_cond_t *pSyncCond)
 {
     pthread_mutex_lock(&pSyncCond->mutex);
 
-    // 设置条件为真
+    // Set condition to true
     pSyncCond->condition_met = 1;
 
-    // 通知等待的线程（可以选择以下其中一种方式）
-    pthread_cond_signal(&pSyncCond->cond); // 唤醒至少一个等待线程
-    // pthread_cond_broadcast(&pSyncCond->cond); // 唤醒所有等待线程
+    // Notify waiting threads (you can choose one of the following methods)
+    pthread_cond_signal(&pSyncCond->cond); // Wake up at least one waiting thread
+    // pthread_cond_broadcast(&pSyncCond->cond); // Wake up all waiting threads
 
     pthread_mutex_unlock(&pSyncCond->mutex);
 }
 
-// 等待条件函数
+// Wait condition function
 void sync_cond_wait(sync_cond_t *pSyncCond)
 {
     pthread_mutex_lock(&pSyncCond->mutex);
 
     while (pSyncCond->condition_met == 0) {
-        // 等待条件变量，会自动释放互斥锁并在返回时重新获取
+        // Wait for condition variable, will automatically release mutex and reacquire on return
         pthread_cond_wait(&pSyncCond->cond, &pSyncCond->mutex);
     }
 
-    // 重置条件标志（如果需要）
+    // Reset condition flag (if needed)
     pSyncCond->condition_met = 0;
 
     pthread_mutex_unlock(&pSyncCond->mutex);
 }
 
-// 清理函数
+// Cleanup function
 void sync_cond_clean(sync_cond_t *pSyncCond)
 {
     pthread_mutex_destroy(&pSyncCond->mutex);

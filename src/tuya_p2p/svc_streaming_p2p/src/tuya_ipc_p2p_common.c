@@ -20,9 +20,9 @@
 
 #define P2P_AUTH_INFO_UPDATE_RETRY_CNT (20)
 
-//强制HTTPS POST 2.0
+// Force HTTPS POST 2.0
 #define TI_IPC_P2P_CONFIG_GET "tuya.device.ipc.p2p.config.get"
-//强制HTTPS POST 1.0
+// Force HTTPS POST 1.0
 #define TI_IPC_PASSWORD_UPDATE "tuya.device.ipc.password.update"
 
 STATIC BOOL_T sg_p2p_passwd_update_flag = FALSE;
@@ -106,7 +106,7 @@ OPERATE_RET httpc_ipc_p2p_passwd_update(IN CONST CHAR_T *p2p_passwd, OUT cJSON *
 
 /***********************************************************
  *  Function: tuya_ipc_p2p_update_pw
- *  Note:强制更新passwd到服务端
+ *  Note:Force update passwd to server
  *  Input:
  *  Output: none
  *  Return:
@@ -128,7 +128,7 @@ OPERATE_RET tuya_ipc_p2p_update_pw(INOUT CHAR_T p2p_pw[])
 
 /***********************************************************
  *  Function: tuya_ipc_p2p_get_pw
- *  Note:获取p2p_pw
+ *  Note:Get p2p_pw
  *  Input:
  *  Output: none
  *  Return:
@@ -146,7 +146,7 @@ OPERATE_RET tuya_ipc_p2p_get_pw(INOUT CHAR_T p2p_pw[])
         if (sg_p2p_passwd_update_flag == FALSE) {
             sg_p2p_passwd_update_flag = TRUE;
 
-            //循环获取pw
+            // Loop to get pw
             while (rtyCnt < P2P_AUTH_INFO_UPDATE_RETRY_CNT) {
                 TIME_T curtime = tal_time_get_posix();
                 memset(new_pwd, 0x00, P2P_PASSWD_LEN + 1);
@@ -197,7 +197,7 @@ OPERATE_RET tuya_ipc_p2p_get_pw(INOUT CHAR_T p2p_pw[])
 
 /***********************************************************
  *  Function: tuya_ipc_p2p_get_lk
- *  Note:获取p2p local_key
+ *  Note:Get p2p local_key
  *  Input:
  *  Output: none
  *  Return:
@@ -225,8 +225,8 @@ VOID tuya_ipc_p2p_get_name(INOUT CHAR_T p2p_name[])
 
 /***********************************************************
  *  Function: tuya_ipc_p2p_get_id
- *  Note:获取p2p_id值，tutk只需要id值，为tutk单独封装接口
- *  Input: p_auth_param p2p信息结构体地址
+ *  Note:Get p2p_id value, tutk only needs id value, separate interface for tutk
+ *  Input: p_auth_param p2p info structure address
  *  Output: none
  *  Return:
  ***********************************************************/
@@ -305,7 +305,7 @@ OPERATE_RET tuya_ipc_get_p2p_auth_proc()
 }
 /***********************************************************
  *  Function: tuya_ipc_check_p2p_auth_update
- *  Note:检查p2p是否需要更新
+ *  Note:Check if p2p needs update
  *  Input:
  *  Output: none
  *  Return:
@@ -313,7 +313,8 @@ OPERATE_RET tuya_ipc_get_p2p_auth_proc()
 OPERATE_RET tuya_ipc_check_p2p_auth_update(VOID)
 {
     PR_DEBUG("check p2p auth update or not");
-    //重新上电，优先判断p2p信息是否需要更新,判断条件（配置中是否有p2p相关信息）
+    // After power-on, first check if p2p info needs update, judgment condition (whether there is p2p related info in
+    // configuration)
 
     BYTE_T *p_auth_str = NULL;
     UINT_T auth_param_len = 0;
@@ -333,7 +334,7 @@ OPERATE_RET tuya_ipc_check_p2p_auth_update(VOID)
         if ((0 == p_auth_str[0]) || (0 == p_type[0])) {
             isNeedReLoad = TRUE;
         } else {
-            //兼容TUYA_P2P的老的字段
+            // Compatible with old fields of TUYA_P2P
             if (0 == strcmp((char *)p_type, "tutk")) {
                 p2p_type = 1;
             } else if (0 == strcmp((char *)p_type, "ppcs")) {
@@ -384,7 +385,7 @@ OPERATE_RET tuya_ipc_check_p2p_auth_update(VOID)
 INT_T iot_gw_reset_cb(VOID *rst_tp)
 {
     PR_DEBUG("__begin");
-    //清空p2p_auth_info信息
+    // Clear p2p_auth_info information
 
     CHAR_T new_auth[P2P_ID_LEN + 1];
     memset(new_auth, 0x00, sizeof(new_auth));
@@ -405,7 +406,7 @@ INT_T iot_gw_reset_cb(VOID *rst_tp)
     return OPRT_OK;
 }
 
-//被调度频度比较高,增加变量控制
+// Called frequently, add variable control
 STATIC BOOL_T sg_p2p_passwd_flag = FALSE;
 BOOL_T iot_permit_mqtt_connect_cb(VOID)
 {

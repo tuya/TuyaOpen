@@ -13,23 +13,23 @@ extern "C" {
 #define P2P_IPC_CHAN_NUM 1
 #endif
 
-#define TUYA_CMD_CHANNEL    (0) //信令通道，信令模式参照P2P_CMD_E
-#define TUYA_VDATA_CHANNEL  (1) //视频数据通道
-#define TUYA_ADATA_CHANNEL  (2) //音频数据通道
-#define TUYA_TRANS_CHANNEL  (3) //录像下载
-#define TUYA_TRANS_CHANNEL4 (4) //弃用，因APP端被天视通占用
-#define TUYA_TRANS_CHANNEL5 (5) //相册功能下载
+#define TUYA_CMD_CHANNEL    (0) // Signaling channel, signal mode refer to P2P_CMD_E
+#define TUYA_VDATA_CHANNEL  (1) // Video data channel
+#define TUYA_ADATA_CHANNEL  (2) // Audio data channel
+#define TUYA_TRANS_CHANNEL  (3) // Video download
+#define TUYA_TRANS_CHANNEL4 (4) // Deprecated, occupied by TianShiTong on APP side
+#define TUYA_TRANS_CHANNEL5 (5) // Album function download
 
 #if defined(ENABLE_IPC_P2P)
-#define TUYA_CHANNEL_MAX (6) // NOTICE：内存不足时可裁剪
+#define TUYA_CHANNEL_MAX (6) // NOTICE: Can be reduced when memory is insufficient
 #elif defined(ENABLE_XVR_P2P)
-#define TUYA_CHANNEL_MAX (200) // NOTICE：内存不足时可裁剪
+#define TUYA_CHANNEL_MAX (200) // NOTICE: Can be reduced when memory is insufficient
 #else
-#define TUYA_CHANNEL_MAX (6) // NOTICE：内存不足时可裁剪
+#define TUYA_CHANNEL_MAX (6) // NOTICE: Can be reduced when memory is insufficient
 #endif
 
-#define P2P_WR_BF_MAX_SIZE      (128 * 1024) //读写缓冲区最大大小，超过对应阈值，则不发送数据
-#define P2P_SEND_REDUNDANCE_LEN (1250 + 100) //冗余长度
+#define P2P_WR_BF_MAX_SIZE      (128 * 1024) // Maximum size of read/write buffer, no data sent when exceeding threshold
+#define P2P_SEND_REDUNDANCE_LEN (1250 + 100) // Redundant length
 
 #ifdef __cplusplus
 }

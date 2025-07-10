@@ -17,7 +17,7 @@ typedef struct pj_ice_cb {
 
 typedef struct pj_ice_session_cfg {
     pj_ice_cb_t cb;
-    unsigned rolechar; //数值：字符o表示Controlling角色，其他值表示Controlled角色
+    unsigned rolechar; // Value: character 'o' represents Controlling role, other values represent Controlled role
     char *local_ufrag;
     char *local_passwd;
     char server_tokens[2048];

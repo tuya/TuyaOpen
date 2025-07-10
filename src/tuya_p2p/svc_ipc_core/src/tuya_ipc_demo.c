@@ -147,7 +147,7 @@ int __read_one_frame_from_demo_video_file(unsigned char *pVideoBuf, unsigned int
     return 0;
 }
 
-// 获取ms 时间
+// Get time in milliseconds
 static unsigned long __get_time_ms()
 {
     struct timeval tv;
@@ -199,7 +199,7 @@ INT_T Demo_OnGetVideoFrameCallback(MEDIA_FRAME *pMediaFrame)
         pMediaFrame->type = eVideoPBFrame;
     }
 
-    usleep(66 * 1000); //根据实际帧率进行休眠，这里待改
+    usleep(66 * 1000); // Sleep according to actual frame rate, needs to be modified
 
     return 0;
 }

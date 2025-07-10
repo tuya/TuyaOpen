@@ -49,11 +49,11 @@ typedef enum {
  * @brief tuya ipc local ai skill enum
  */
 typedef enum {
-    TUYA_IPC_LOCAL_AI_SKILL_HUMAN = 1 << 0,   // 人形检测
-    TUYA_IPC_LOCAL_AI_SKILL_CAT = 1 << 1,     // 宠物检测
-    TUYA_IPC_LOCAL_AI_SKILL_CAR = 1 << 2,     // 车辆检测
-    TUYA_IPC_LOCAL_AI_SKILL_FACE = 1 << 3,    // 人脸检测
-    TUYA_IPC_LOCAL_AI_SKILL_PACKAGE = 1 << 4, // 包裹检测
+    TUYA_IPC_LOCAL_AI_SKILL_HUMAN = 1 << 0,   // Human detection
+    TUYA_IPC_LOCAL_AI_SKILL_CAT = 1 << 1,     // Pet detection
+    TUYA_IPC_LOCAL_AI_SKILL_CAR = 1 << 2,     // Vehicle detection
+    TUYA_IPC_LOCAL_AI_SKILL_FACE = 1 << 3,    // Face detection
+    TUYA_IPC_LOCAL_AI_SKILL_PACKAGE = 1 << 4, // Package detection
 } TUYA_IPC_LOCAL_AI_SKILL_E;
 
 /**

@@ -53,7 +53,7 @@ bool is_ipv4(char *ip_str)
     pj_str_t ip = pj_str(ip_str);
     pj_sockaddr addr;
     if (pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &ip, &addr) != PJ_SUCCESS) {
-        // 不是有效的IP地址
+        // Not a valid IP address
         return false;
     }
     return (addr.addr.sa_family == pj_AF_INET());
@@ -64,7 +64,7 @@ bool is_ipv6(char *ip_str)
     pj_str_t ip = pj_str(ip_str);
     pj_sockaddr addr;
     if (pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &ip, &addr) != PJ_SUCCESS) {
-        // 不是有效的IP地址
+        // Not a valid IP address
         return false;
     }
     return (addr.addr.sa_family == pj_AF_INET6());
@@ -412,7 +412,7 @@ bool pj_ice_session_init(pj_ice_session_t *pIceSession, pj_ice_session_cfg_t *pC
 
     pj_ice_strans_cfg *pIceCfg = &pIceSession->iceCfg;
 
-    //获取云服务器发来的STUN服务器或TURN服务器信息
+    // Get STUN server or TURN server information from cloud server
     char *paddr = NULL;
     size_t addrlen = 0;
     uint16_t server_port = 0;
@@ -566,7 +566,7 @@ bool pj_ice_session_sendto(pj_ice_session_t *pIceSession, void *pkt, uint32_t le
     pj_ice_strans *ice_st = pIceSession->pIceSTransport;
     char szLCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
     char szRCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
-    unsigned comp_id = 1; // Component起始ID号是1
+    unsigned comp_id = 1; // Component starts with ID 1
     const pj_ice_sess_check *pIceSessCheck = pj_ice_strans_get_valid_pair(ice_st, comp_id);
     pj_sockaddr_print(&pIceSessCheck->lcand->addr, szLCandAddr, sizeof(szLCandAddr), 3);
     pj_sockaddr_print(&pIceSessCheck->rcand->addr, szRCandAddr, sizeof(szRCandAddr), 3);

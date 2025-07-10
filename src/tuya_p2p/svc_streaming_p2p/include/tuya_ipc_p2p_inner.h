@@ -35,11 +35,11 @@ extern "C" {
 #define C2C_MAJOR_VERSION 1
 #define C2C_MINOR_VERSION 2
 
-// 涂鸦固定协议头
+// Tuya fixed protocol header
 typedef struct {
-    unsigned int type;       //请求类型 (0: request, 1:response)
-    unsigned short high_cmd; //主命令参见 TY_MAIN_CMD_TYPE_E;
-    unsigned short low_cmd;  //后2字节: 子命令
+    unsigned int type;       // Request type (0: request, 1:response)
+    unsigned short high_cmd; // Main command refer to TY_MAIN_CMD_TYPE_E;
+    unsigned short low_cmd;  // Last 2 bytes: sub-command
     unsigned int length;
 } C2C_CMD_FIXED_HEADER_T;
 
@@ -56,52 +56,52 @@ typedef enum {
     TY_EXT_AUDIO_PARAM = 0x02,
 } TY_AV_EXTENSION_TYPE_T;
 
-// 视频播放命令[回放、直播]
+// Video playback commands [playback, live]
 // https://wiki.tuya-inc.com:7799/page/74675515
 typedef enum {
-    TY_CMD_IO_CTRL_VIDEO_PLAY,      // 0 开始
-    TY_CMD_IO_CTRL_VIDEO_PAUSE,     // 1 暂停
-    TY_CMD_IO_CTRL_VIDEO_RESUME,    // 2 继续回放，直播不用
-    TY_CMD_IO_CTRL_VIDEO_STOP,      // 3 停止
-    TY_CMD_IO_CTRL_AUDIO_MIC_START, // 4 IPC -> APP，开始伴音
-    TY_CMD_IO_CTRL_AUDIO_MIC_STOP,  // 5 IPC -> APP，结束伴音
+    TY_CMD_IO_CTRL_VIDEO_PLAY,      // 0 Start
+    TY_CMD_IO_CTRL_VIDEO_PAUSE,     // 1 Pause
+    TY_CMD_IO_CTRL_VIDEO_RESUME,    // 2 Resume playback, not used for live
+    TY_CMD_IO_CTRL_VIDEO_STOP,      // 3 Stop
+    TY_CMD_IO_CTRL_AUDIO_MIC_START, // 4 IPC -> APP, start audio accompaniment
+    TY_CMD_IO_CTRL_AUDIO_MIC_STOP,  // 5 IPC -> APP, end audio accompaniment
 
-    TY_CMD_IO_CTRL_VIDEO_PLAY_V2 = 20,            // 20 开始
-    TY_CMD_IO_CTRL_PLAYBACK_START_WITH_MODE = 21, // 21 回放开始支持播放模式
-    TY_CMD_IO_CTRL_VIDEO_SEND_START = 50,         // 50 视频准备好发送
-    TY_CMD_IO_CTRL_VIDEO_SEND_STOP = 51,          // 51 视频停止发送
-    TY_CMD_IO_CTRL_AUDIO_SEND_START = 52,         // 52 音频准备好发送
-    TY_CMD_IO_CTRL_AUDIO_SEND_STOP = 53,          // 53 音频停止发送
-    TY_CMD_IO_CTRL_VIDEO_SEND_PAUSE = 54,         // 54 发送端暂停发送视频
-    TY_CMD_IO_CTRL_VIDEO_SEND_RESUME = 55,        // 55 发送端恢复发送视频
+    TY_CMD_IO_CTRL_VIDEO_PLAY_V2 = 20,            // 20 Start
+    TY_CMD_IO_CTRL_PLAYBACK_START_WITH_MODE = 21, // 21 Playback start supports playback mode
+    TY_CMD_IO_CTRL_VIDEO_SEND_START = 50,         // 50 Video ready to send
+    TY_CMD_IO_CTRL_VIDEO_SEND_STOP = 51,          // 51 Video stop sending
+    TY_CMD_IO_CTRL_AUDIO_SEND_START = 52,         // 52 Audio ready to send
+    TY_CMD_IO_CTRL_AUDIO_SEND_STOP = 53,          // 53 Audio stop sending
+    TY_CMD_IO_CTRL_VIDEO_SEND_PAUSE = 54,         // 54 Sender pauses video sending
+    TY_CMD_IO_CTRL_VIDEO_SEND_RESUME = 55,        // 55 Sender resumes video sending
 } TY_CMD_IO_CTRL_VIDEO_E;
 
 typedef struct {
     unsigned int channel;
-    unsigned int operation; // 参见 TY_CMD_IO_CTRL_VIDEO_E
+    unsigned int operation; // Refer to TY_CMD_IO_CTRL_VIDEO_E
 } C2C_TRANS_CTRL_VIDEO_REQ_T;
 
 typedef struct {
     unsigned int channel;
-    unsigned int operation; // 参见 TY_CMD_IO_CTRL_AUDIO_OP_E
+    unsigned int operation; // Refer to TY_CMD_IO_CTRL_AUDIO_OP_E
 } C2C_TRANS_CTRL_AUDIO_REQ_T;
 
 typedef enum {
-    TY_C2C_CMD_IO_CTRL_COMMAND_INVALID, // 0无效命令
-    TY_C2C_CMD_IO_CTRL_COMMAND_RECV,    // 1命令已收到
-    TY_C2C_CMD_IO_CTRL_COMMAND_FAILED,  // 2命令执行失败 (通话对讲：camera被其他人占据)
-    TY_C2C_CMD_IO_CTRL_COMMAND_SUCCESS, // 3 命令已完成
-    TY_C2C_CMD_IO_CTRL_COMMAND_BUSY, /* 4命令已完成，通话对讲：操作错误 自己本来就处于对讲状态
-                                        设备端更新reqid，app端重新开启mic  */
+    TY_C2C_CMD_IO_CTRL_COMMAND_INVALID, // 0 Invalid command
+    TY_C2C_CMD_IO_CTRL_COMMAND_RECV,    // 1 Command received
+    TY_C2C_CMD_IO_CTRL_COMMAND_FAILED,  // 2 Command execution failed (intercom: camera occupied by others)
+    TY_C2C_CMD_IO_CTRL_COMMAND_SUCCESS, // 3 Command completed
+    TY_C2C_CMD_IO_CTRL_COMMAND_BUSY,    /* 4 Command completed, intercom: operation error, already in intercom state
+                                           Device side updates reqid, app side restarts mic  */
 } TY_C2C_CMD_IO_CTRL_STATUS_CODE_E;
 
-//通用回复结构体
+// General response structure
 typedef struct {
     unsigned int channel;
-    int result; // 参见 TY_C2C_CMD_IO_CTRL_STATUS_CODE_E
+    int result; // Refer to TY_C2C_CMD_IO_CTRL_STATUS_CODE_E
 } C2C_CMD_IO_CTRL_COM_RESP_T;
 
-// 音频 C2C_CMD_QUERY_AUDIO_PARAMS
+// Audio C2C_CMD_QUERY_AUDIO_PARAMS
 // request
 typedef struct {
     unsigned int channel;
@@ -109,10 +109,10 @@ typedef struct {
 
 // response
 typedef struct {
-    unsigned int type;        // 参见 TY_AV_CODEC_ID
-    unsigned int sample_rate; // 参见 TRANSFER_AUDIO_SAMPLE_E
-    unsigned int bitwidth;    // 参见 TRANSFER_AUDIO_DATABITS_E
-    unsigned int channel_num; // 参见 TRANSFER_AUDIO_CHANNEL_E
+    unsigned int type;        // Refer to TY_AV_CODEC_ID
+    unsigned int sample_rate; // Refer to TRANSFER_AUDIO_SAMPLE_E
+    unsigned int bitwidth;    // Refer to TRANSFER_AUDIO_DATABITS_E
+    unsigned int channel_num; // Refer to TRANSFER_AUDIO_CHANNEL_E
 } AUDIO_PARAM_T;
 
 typedef struct {
@@ -122,11 +122,11 @@ typedef struct {
 } C2C_TRANS_QUERY_AUDIO_PARAM_RESP_E;
 
 typedef enum {
-    TY_VIDEO_CLARITY_INNER_PROFLOW = 0x1,  /**< 省流量 */
-    TY_VIDEO_CLARITY_INNER_STANDARD = 0x2, /**< 标清 */
-    TY_VIDEO_CLARITY_INNER_HIGH = 0x4,     /**< 高清 */
-    TY_VIDEO_CLARITY_S_INNER_HIGH = 0x8,   /**< 超清 */
-    TY_VIDEO_CLARITY_SS_INNER_HIGH = 0x10, /**< 超超清 */
+    TY_VIDEO_CLARITY_INNER_PROFLOW = 0x1,  /**< Data saving */
+    TY_VIDEO_CLARITY_INNER_STANDARD = 0x2, /**< Standard definition */
+    TY_VIDEO_CLARITY_INNER_HIGH = 0x4,     /**< High definition */
+    TY_VIDEO_CLARITY_S_INNER_HIGH = 0x8,   /**< Ultra high definition */
+    TY_VIDEO_CLARITY_SS_INNER_HIGH = 0x10, /**< Super ultra high definition */
 } TRANSFER_VIDEO_CLARITY_TYPE_INNER_E;
 
 typedef enum {
@@ -152,21 +152,21 @@ typedef enum {
 } TY_AV_CODEC_ID;
 
 typedef struct {
-    //视频部分参数
+    // Video part parameters
     TY_AV_CODEC_ID video_codec[8];
     UINT_T fps[8];
     UINT_T gop[8];
     UINT_T bitrate[8]; // kbps
     UINT_T width[8];
     UINT_T height[8];
-    //音频部分参数
+    // Audio part parameters
     TY_AV_CODEC_ID audio_codec;
     TRANSFER_AUDIO_SAMPLE_E audio_sample;
     TRANSFER_AUDIO_DATABITS_E audio_databits;
     TRANSFER_AUDIO_CHANNEL_E audio_channel;
 } TRANS_IPC_AV_INFO_T;
 
-// request 视频清晰度查询
+// request Video clarity query
 typedef struct {
     unsigned int channel;
 } C2C_TRANS_QUERY_VIDEO_CLARITY_REQ_T;
@@ -174,17 +174,17 @@ typedef struct {
 // response
 typedef struct {
     unsigned int channel;
-    unsigned int sp_mode;  //支持的清晰度模式
-    unsigned int cur_mode; //当前清晰度，参见TRANSFER_VIDEO_CLARITY_TYPE_INNER_E
+    unsigned int sp_mode;  // Supported clarity mode
+    unsigned int cur_mode; // Current clarity, refer to TRANSFER_VIDEO_CLARITY_TYPE_INNER_E
 } C2C_TRANS_QUERY_VIDEO_CLARITY_RESP_T;
 
-// 设置清晰度
+// Set clarity
 typedef struct {
     unsigned int channel;
-    unsigned int mode; //清晰度，参见TRANSFER_VIDEO_CLARITY_TYPE_INNER_E
+    unsigned int mode; // Clarity, refer to TRANSFER_VIDEO_CLARITY_TYPE_INNER_E
 } C2C_TRANS_CTRL_VIDEO_CLARITY_T;
 
-// 视频流信息参数 C2C_CMD_QUERY_VIDEO_STREAM_PARAMS
+// Video stream info parameters C2C_CMD_QUERY_VIDEO_STREAM_PARAMS
 // request
 typedef struct {
     unsigned int channel;
@@ -192,7 +192,7 @@ typedef struct {
 
 // response
 typedef struct {
-    unsigned int codec_type; // 参见 TY_AV_CODEC_ID
+    unsigned int codec_type; // Refer to TY_AV_CODEC_ID
     unsigned int width;
     unsigned int height;
     unsigned int frame_rate;
@@ -205,48 +205,52 @@ typedef struct {
 } C2C_TRANS_QUERY_VIDEO_PARAM_RESP_T;
 
 typedef struct {
-    unsigned int version; //高位主版本号，低16位次版本号
+    unsigned int version; // High bits major version, low 16 bits minor version
 } C2C_CMD_PROTOCOL_VERSION_T;
 
 typedef enum {
-    // 透传
-    TY_C2C_CMD_QUERY_TEXT, // 客户端向设备端透传字符串. [拓展某些功能时，避免重编sdk]
+    // Transparent transmission
+    TY_C2C_CMD_QUERY_TEXT, // Client transparently transmits string to device. [Avoid recompiling SDK when extending
+                           // certain functions]
 
-    // 查询类
-    TY_C2C_CMD_QUERY_FIXED_ABILITY, // 1, 查询设备能力集，子类型见 TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
-    TY_C2C_CMD_QUERY_AUDIO_PARAMS,  // 2, 查询音频参数，音频信息类型见 TY_CMD_QUERY_AUDIO_PARAMS
-    TY_C2C_CMD_QUERY_PLAYBACK_INFO, // 3, 查询SD卡回放信息，参数见
-    TY_C2C_CMD_QUERY_VIDEO_STREAM_PARAMS, // 4, 查询视频模式信息 { [通道号,高清/标准/流畅,宽高,编码类型],
-                                          // [通道号,高清/标准/流畅,宽高,编码类型],
-                                          // [通道号,高清/标准/流畅,宽高,编码类型] }
-    TY_C2C_CMD_QUERY_VIDEO_CLARITY, // 5, 查询清晰度
+    // Query class
+    TY_C2C_CMD_QUERY_FIXED_ABILITY,       // 1, Query device capability set, sub-type see
+                                          // TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
+    TY_C2C_CMD_QUERY_AUDIO_PARAMS,        // 2, Query audio parameters, audio info type see TY_CMD_QUERY_AUDIO_PARAMS
+    TY_C2C_CMD_QUERY_PLAYBACK_INFO,       // 3, Query SD card playback info, parameters see
+    TY_C2C_CMD_QUERY_VIDEO_STREAM_PARAMS, // 4, Query video mode info { [channel, HD/standard/smooth, width/height,
+                                          // encoding type], [channel, HD/standard/smooth, width/height, encoding type],
+                                          // [channel, HD/standard/smooth, width/height, encoding type] }
+    TY_C2C_CMD_QUERY_VIDEO_CLARITY, // 5, Query clarity
 
-    // IO控制类
-    TY_C2C_CMD_IO_CTRL_VIDEO,         // 6, 直播命令，子类型见 TY_CMD_IO_CTRL_VIDEO_E
-    TY_C2C_CMD_IO_CTRL_PLAYBACK,      // 7, 回放命令，子类型见 TY_CMD_IO_CTRL_VIDEO_E
-    TY_C2C_CMD_IO_CTRL_AUDIO,         // 8, 音频命令，子类型见 TY_CMD_IO_CTRL_AUDIO
-    TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY, // 9, 设置清晰度
+    // IO control class
+    TY_C2C_CMD_IO_CTRL_VIDEO,         // 6, Live command, sub-type see TY_CMD_IO_CTRL_VIDEO_E
+    TY_C2C_CMD_IO_CTRL_PLAYBACK,      // 7, Playback command, sub-type see TY_CMD_IO_CTRL_VIDEO_E
+    TY_C2C_CMD_IO_CTRL_AUDIO,         // 8, Audio command, sub-type see TY_CMD_IO_CTRL_AUDIO
+    TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY, // 9, Set clarity
 
-    TY_C2C_CMD_PROTOCOL_VERSION, // 10, 协议版本
+    TY_C2C_CMD_PROTOCOL_VERSION, // 10, Protocol version
     // for download for feit
-    TY_C2C_CMD_IO_CTRL_PLAYBACK_DOWNLOAD, // 11 下载命令，子类型见 TY_CMD_IO_CTRL_DOWNLOAD_OP_E
+    TY_C2C_CMD_IO_CTRL_PLAYBACK_DOWNLOAD, // 11 Download command, sub-type see TY_CMD_IO_CTRL_DOWNLOAD_OP_E
 
     // for camera of GW
-    TY_C2C_CMD_QUERY_AUDIO_PARAMS_GW, // 12, 查询音频参数，音频信息类型见 TY_CMD_QUERY_AUDIO_PARAMS .for camera of GW
-    TY_C2C_CMD_QUERY_PLAYBACK_INFO_GW, // 13, 查询SD卡回放信息，参数见
-    TY_C2C_CMD_QUERY_VIDEO_STREAM_PARAMS_GW, // 14, 查询视频模式信息 { [通道号,高清/标准/流畅,宽高,编码类型],
-                                             // [通道号,高清/标准/流畅,宽高,编码类型],
-                                             // [通道号,高清/标准/流畅,宽高,编码类型] }
-    TY_C2C_CMD_QUERY_VIDEO_CLARITY_GW,   // 15, 查询清
-    TY_C2C_CMD_IO_CTRL_VIDEO_GW,         // 16, 直播命令，子类型见 TY_CMD_IO_CTRL_VIDEO_E
-    TY_C2C_CMD_IO_CTRL_PLAYBACK_GW,      // 17, 回放命令，子类型见 TY_CMD_IO_CTRL_VIDEO_E
-    TY_C2C_CMD_IO_CTRL_AUDIO_GW,         // 18, 音频命令，子类型见 TY_CMD_IO_CTRL_AUDIO
-    TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY_GW, // 19, 设置清晰度
-    TY_C2C_CMD_QUERY_FIXED_ABILITY_GW, // 20, 查询设备能力集，子类型见 TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
+    TY_C2C_CMD_QUERY_AUDIO_PARAMS_GW,  // 12, Query audio parameters, audio info type see TY_CMD_QUERY_AUDIO_PARAMS .for
+                                       // camera of GW
+    TY_C2C_CMD_QUERY_PLAYBACK_INFO_GW, // 13, Query SD card playback info, parameters see
+    TY_C2C_CMD_QUERY_VIDEO_STREAM_PARAMS_GW, // 14, Query video mode info { [channel, HD/standard/smooth, width/height,
+                                             // encoding type], [channel, HD/standard/smooth, width/height, encoding
+                                             // type], [channel, HD/standard/smooth, width/height, encoding type] }
+    TY_C2C_CMD_QUERY_VIDEO_CLARITY_GW,   // 15, Query clarity
+    TY_C2C_CMD_IO_CTRL_VIDEO_GW,         // 16, Live command, sub-type see TY_CMD_IO_CTRL_VIDEO_E
+    TY_C2C_CMD_IO_CTRL_PLAYBACK_GW,      // 17, Playback command, sub-type see TY_CMD_IO_CTRL_VIDEO_E
+    TY_C2C_CMD_IO_CTRL_AUDIO_GW,         // 18, Audio command, sub-type see TY_CMD_IO_CTRL_AUDIO
+    TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY_GW, // 19, Set clarity
+    TY_C2C_CMD_QUERY_FIXED_ABILITY_GW,   // 20, Query device capability set, sub-type see
+                                         // TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
 
-    TY_C2C_CMD_CHAN_SWITCH = 51,               // 51 一路多通道设备设置通道
-    TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 = 100,    // 100 回放速度控制 扩展
-    TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0 = 101, // 101 回放速度控制  扩展基站
+    TY_C2C_CMD_CHAN_SWITCH = 51,               // 51 Single-channel multi-channel device channel setting
+    TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 = 100,    // 100 Playback speed control extension
+    TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0 = 101, // 101 Playback speed control extension gateway
     // for p2p new authorization
     TY_C2C_CMD_AUTHORIZATION = 250,
     TY_C2C_CMD_SUB_BINDS_INFO = 300,

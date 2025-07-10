@@ -4,8 +4,6 @@
  *
  *FILE description:
  *
- *  Created on: 2022年5月23日
- *      Author: kuiba
  */
 
 #ifndef INCLUDE_COMPONENTS_SVC_STREAMING_P2P_INCLUDE_TUYA_P2P_API_H_

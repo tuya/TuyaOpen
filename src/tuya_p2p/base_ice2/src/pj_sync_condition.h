@@ -7,7 +7,7 @@
 typedef struct tagSyncCondition {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    int condition_met; // 条件标志
+    int condition_met; // Condition flag
 } sync_cond_t;
 
 int sync_cond_init(sync_cond_t *pSyncCond);
