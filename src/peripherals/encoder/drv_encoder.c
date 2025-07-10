@@ -1,11 +1,26 @@
 /**
  * @file drv_encoder.c
- * @brief Implementation of encoder driver for various types of encoders. This file
- *        offers initialization functions, data acquisition, and control operations
- *        for different kinds of encoders used in the system, enabling accurate
- *        position and speed feedback.
+ * @brief Implementation of rotary encoder driver for Tuya IoT devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file implements the rotary encoder functionality for Tuya IoT devices.
+ * It provides a complete driver implementation for quadrature encoders with
+ * button functionality, including interrupt-driven angle tracking and thread-safe
+ * operations. The implementation uses GPIO interrupts to detect encoder state
+ * changes and maintains an internal angle counter.
+ *
+ * Key features implemented:
+ * - Quadrature encoder decoding with direction detection
+ * - Interrupt-driven encoder signal processing
+ * - Thread-safe angle tracking using mutex protection
+ * - Debounced button input detection
+ * - Semaphore-based event handling for responsive input processing
+ * - GPIO interrupt callbacks for efficient signal processing
+ *
+ * The driver uses a dedicated thread to process encoder events, ensuring
+ * reliable operation even under high interrupt loads. The implementation
+ * provides accurate position tracking and button state detection.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "drv_encoder.h"

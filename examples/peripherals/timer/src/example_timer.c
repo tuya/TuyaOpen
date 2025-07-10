@@ -13,7 +13,7 @@
  *
  * @note This example is designed for educational purposes and may need to be adapted for production environments.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -51,7 +51,7 @@ static char sg_count = 0;
  */
 static void __timer_callback(void *args)
 {
-    /* TAL_PR_ , PR_ ，这两种打印里面有锁，不要在中断里使用 */
+    /* TAL_PR_ , PR_ , these two types of prints have locks inside, do not use them in interrupts */
     PR_NOTICE("\r\n------------- Timer Callback --------------\r\n");
     sg_count++;
 

@@ -1,11 +1,26 @@
 /**
  * @file tdl_button_manage.h
- * @author franky.lin@tuya.com
- * @brief tdl_button_manage, base timer、semaphore、task
- * @version 1.0
- * @date 2022-03-20
- * @copyright Copyright (c) tuya.inc 2022
- * button trigger management component
+ * @brief Tuya Driver Layer button management interface.
+ *
+ * This file provides the high-level button management interface for the Tuya
+ * Driver Layer (TDL). It defines structures and functions for creating, configuring,
+ * and managing button devices with advanced event detection capabilities. The
+ * interface supports various button events including single click, double click,
+ * multiple clicks, and long press with configurable timing parameters.
+ *
+ * Key features:
+ * - Multiple button event types (press, release, clicks, long press)
+ * - Configurable debouncing and timing parameters
+ * - Event callback mechanism for button state changes
+ * - Button lifecycle management (create, delete, enable, disable)
+ * - Support for both interrupt and polling-based implementations
+ *
+ * The TDL button management layer provides sophisticated button event detection
+ * built on top of the basic button driver interface, enabling rich user
+ * interaction patterns in Tuya IoT devices.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef _TDL_BUTTON_MANAGE_H_
@@ -27,24 +42,25 @@ typedef void *TDL_BUTTON_HANDLE;
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    TDL_BUTTON_PRESS_DOWN = 0,     // 按下触发
-    TDL_BUTTON_PRESS_UP,           // 松开触发
-    TDL_BUTTON_PRESS_SINGLE_CLICK, // 单击触发
-    TDL_BUTTON_PRESS_DOUBLE_CLICK, // 双击触发
-    TDL_BUTTON_PRESS_REPEAT,       // 多击触发
-    TDL_BUTTON_LONG_PRESS_START,   // 长按开始触发
-    TDL_BUTTON_LONG_PRESS_HOLD,    // 长按保持触发
-    TDL_BUTTON_RECOVER_PRESS_UP,   // 上电如果一直保持有效电平恢复后触发
-    TDL_BUTTON_PRESS_MAX,          // 无
-    TDL_BUTTON_PRESS_NONE,         // 无
-} TDL_BUTTON_TOUCH_EVENT_E;        // 按键触发事件
+    TDL_BUTTON_PRESS_DOWN = 0,     // Press down trigger
+    TDL_BUTTON_PRESS_UP,           // Release trigger
+    TDL_BUTTON_PRESS_SINGLE_CLICK, // Single click trigger
+    TDL_BUTTON_PRESS_DOUBLE_CLICK, // Double click trigger
+    TDL_BUTTON_PRESS_REPEAT,       // Multiple click trigger
+    TDL_BUTTON_LONG_PRESS_START,   // Long press start trigger
+    TDL_BUTTON_LONG_PRESS_HOLD,    // Long press hold trigger
+    TDL_BUTTON_RECOVER_PRESS_UP,   // Triggered when the effective level is maintained after power-on and then restored
+    TDL_BUTTON_PRESS_MAX,          // None
+    TDL_BUTTON_PRESS_NONE,         // None
+} TDL_BUTTON_TOUCH_EVENT_E;        // Button trigger event
 
 typedef struct {
-    uint16_t long_start_valid_time;    // 按键长按开始有效时间(ms)：e.g  3000-长按3s触发
-    uint16_t long_keep_timer;          // 按键长按持续触发时间(ms)：e.g 100ms-长按时每100ms触发一次
-    uint16_t button_debounce_time;     // 消抖时间(ms)
-    uint8_t button_repeat_valid_count; // 多击触发次数,大于2触发多击事件
-    uint16_t button_repeat_valid_time; // 双击、多击触发有效间隔时间(ms)，为0双击事件无效
+    uint16_t long_start_valid_time; // Long press start valid time (ms): e.g., 3000 - triggers after 3s long press
+    uint16_t long_keep_timer; // Long press hold trigger time (ms): e.g., 100ms - triggers every 100ms during long press
+    uint16_t button_debounce_time; // Debounce time (ms)
+    uint8_t
+        button_repeat_valid_count; // Number of multiple clicks to trigger, triggers multi-click event if greater than 2
+    uint16_t button_repeat_valid_time; // Valid interval for double/multiple clicks (ms), double-click is invalid if 0
 } TDL_BUTTON_CFG_T;
 
 /***********************************************************

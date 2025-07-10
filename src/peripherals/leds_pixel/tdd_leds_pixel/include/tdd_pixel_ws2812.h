@@ -1,11 +1,13 @@
 /**
  * @file tdd_pixel_ws2812.h
- * @author www.tuya.com
- * @brief tdd_pixel_ws2812 module is used to
- * @version 0.1
- * @date 2022-03-03
+ * @brief TDD layer driver for WS2812 RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the interface for the WS2812 LED pixel controller driver.
+ * WS2812 is a popular 3-channel RGB LED controller that supports individual pixel control
+ * with built-in PWM generation and daisy-chain connectivity. The driver implements the
+ * TDD (Tuya Device Driver) layer interface for registering and managing WS2812 LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 

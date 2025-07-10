@@ -1,3 +1,27 @@
+/**
+ * @file tdl_button_driver.h
+ * @brief Tuya Driver Layer button driver interface definitions.
+ *
+ * This file defines the driver interface for the Tuya Driver Layer (TDL) button
+ * subsystem. It provides the core structures, types, and function prototypes
+ * that button device drivers must implement to integrate with the TDL button
+ * management system. The interface supports both timer-based scanning and
+ * interrupt-driven button detection modes.
+ *
+ * Key features:
+ * - Support for multiple button operation modes (timer scan and interrupt)
+ * - Device handle abstraction for hardware independence
+ * - Callback mechanism for interrupt-driven button events
+ * - Driver registration interface for different button implementations
+ * - Unified control interface for button operations
+ *
+ * This layer acts as an abstraction between hardware-specific button implementations
+ * (TDD layer) and higher-level button event processing in applications.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
+
 #ifndef _TDL_BUTTON_DRIVER_H_
 #define _TDL_BUTTON_DRIVER_H_
 
@@ -31,7 +55,7 @@ typedef struct {
     TDL_BUTTON_MODE_E mode;
 } TDL_BUTTON_DEVICE_INFO_T;
 
-// 按键软件配置
+// Button software configuration
 OPERATE_RET tdl_button_register(char *name, TDL_BUTTON_CTRL_INFO *button_ctrl_info,
                                 TDL_BUTTON_DEVICE_INFO_T *button_cfg_info);
 

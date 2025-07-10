@@ -1,5 +1,5 @@
 /**
- * @file example_http.c
+ * @file example_http_client.c
  * @brief Demonstrates HTTP client usage in Tuya SDK applications.
  *
  * This file provides an example of how to use the HTTP client interface provided by the Tuya SDK to send HTTP requests
@@ -16,7 +16,7 @@
  * This example is intended for developers looking to integrate HTTP communication into their Tuya SDK-based IoT
  * applications, providing a foundation for building applications that interact with web services.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -131,7 +131,6 @@ void user_main()
     tal_workq_init();
     tal_event_subscribe(EVENT_LINK_STATUS_CHG, "http_client", __link_status_cb, SUBSCRIBE_TYPE_NORMAL);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

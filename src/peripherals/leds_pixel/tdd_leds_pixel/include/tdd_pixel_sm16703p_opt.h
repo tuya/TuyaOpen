@@ -1,11 +1,13 @@
 /**
- * @file tdd_pixel_sm16703p.h
- * @author www.tuya.com
- * @brief tdd_pixel_sm16703p module is used to driving sm16703p chip
- * @version 0.1
- * @date 2022-03-08
+ * @file tdd_pixel_sm16703p_opt.h
+ * @brief TDD layer optimized driver for SM16703P RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the optimized interface for the SM16703P LED pixel controller driver.
+ * This optimized version provides enhanced performance for SM16703P RGB LED controllers
+ * with additional PWM configuration options. The driver implements the TDD (Tuya Device Driver)
+ * layer interface for registering and managing SM16703P LED strips with optimized timing.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -30,11 +32,12 @@ extern "C" {
 *********************************************************************/
 /**
  * @function:tdd_sm16703p_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
+ * @brief: Register device
+ * @param[in]: *driver_name -> Device name
  * @return: success -> OPRT_OK
  */
-OPERATE_RET tdd_sm16703p_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param, PIXEL_PWM_CFG_T *pwm_cfg);
+OPERATE_RET tdd_sm16703p_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param,
+                                             PIXEL_PWM_CFG_T *pwm_cfg);
 
 #ifdef __cplusplus
 }

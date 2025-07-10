@@ -1,11 +1,14 @@
 /**
  * @file tdd_pixel_ws2814.c
- * @author www.tuya.com
- * @brief tdd_pixel_ws2814 module is used to driving ws2814 chip
- * @version 0.1
- * @date 2022-03-08
+ * @brief TDD layer implementation for WS2814 RGBW LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This source file implements the TDD layer driver for WS2814 RGBW LED pixel controllers.
+ * WS2814 is a 4-channel RGBW LED controller that supports individual pixel control
+ * with built-in PWM generation and daisy-chain connectivity. The implementation provides
+ * device registration, initialization, data transmission, and control functions through
+ * SPI interface for driving WS2814 LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include <string.h>
@@ -22,13 +25,13 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-#define DRV_SPI_SPEED 8000000 /* SPI波特率 */
+#define DRV_SPI_SPEED 6600000 /* SPI baud rate */
 
-#define DRVICE_DATA_0 0XC0 /* SPI 0、1码对应的数据 */
-#define DRVICE_DATA_1 0XFE
+#define DRVICE_DATA_0 0XC0 /* Data corresponding to SPI 0 and 1 codes */
+#define DRVICE_DATA_1 0XF8
 
-#define COLOR_PRIMARY_NUM 4 // 4路
-#define COLOR_RESOLUTION  255
+#define COLOR_PRIMARY_NUM 3
+#define COLOR_RESOLUTION  65535
 
 /*********************************************************************
 ****************************variable define***************************
@@ -40,10 +43,9 @@ static PIXEL_DRIVER_CONFIG_T driver_info;
 
 /**
  * @function:tdd_ws2814_driver_open
- * @brief: 打开（初始化）设备
- * @param[in]: inform_cb -> spi码流发送完成回调
- * @param[in]: pixel_num -> 像素点数
- * @param[out]: *handle  -> 设备句柄
+ * @brief: Open (initialize) the device
+ * @param[in]: pixel_num -> Number of pixels
+ * @param[out]: *handle  -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_ws2814_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short pixel_num)
@@ -83,10 +85,10 @@ OPERATE_RET tdd_ws2814_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short p
 
 /**
  * @function: tdd_ws2814_driver_send_data
- * @brief: 将颜色数据（RGBCW）转换为当前芯片的线序并转换为SPI码流, 通过SPI发送
- * @param[in]: handle -> 设备句柄
- * @param[in]: *data_buf -> 颜色数据
- * @param[in]: buf_len -> 颜色数据长度
+ * @brief: Convert color data (RGBCW) to the line sequence of the current chip and convert to SPI stream, send via SPI
+ * @param[in]: handle -> Device handle
+ * @param[in]: *data_buf -> Color data
+ * @param[in]: buf_len -> Color data length
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_ws2814_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf, unsigned int buf_len)
@@ -118,8 +120,8 @@ OPERATE_RET tdd_ws2814_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *
 }
 /**
  * @function: tdd_ws2814_driver_close
- * @brief: 关闭设备（资源释放）
- * @param[in]: *handle -> 设备句柄
+ * @brief: Close the device (release resources)
+ * @param[in]: *handle -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_ws2814_driver_close(DRIVER_HANDLE_T *handle)
@@ -141,33 +143,34 @@ OPERATE_RET tdd_ws2814_driver_close(DRIVER_HANDLE_T *handle)
     *handle = NULL;
 
     return ret;
-// }
+    // }
 
-/**
- * @function:tdd_ws2814_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
- * @return: success -> OPRT_OK
- */
-OPERATE_RET tdd_ws2814_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param)
-{
-    OPERATE_RET ret = OPRT_OK;
-    PIXEL_DRIVER_INTFS_T intfs = {0};
-    PIXEL_ATTR_T arrt = {0};
+    /**
+     * @function:tdd_ws2814_driver_register
+     * @brief: Register device
+     * @param[in]: *driver_name -> Device name
+     * @param[in]: *init_param -> init param
+     * @return: success -> OPRT_OK
+     */
+    OPERATE_RET tdd_ws2814_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param)
+    {
+        OPERATE_RET ret = OPRT_OK;
+        PIXEL_DRIVER_INTFS_T intfs = {0};
+        PIXEL_ATTR_T arrt = {0};
 
-    intfs.open = tdd_ws2814_driver_open;
-    intfs.output = tdd_ws2814_driver_send_data;
-    intfs.close = tdd_ws2814_driver_close;
+        intfs.open = tdd_ws2814_driver_open;
+        intfs.output = tdd_ws2814_driver_send_data;
+        intfs.close = tdd_ws2814_driver_close;
 
-    arrt.color_tp = PIXEL_COLOR_TP_RGBW;
-    arrt.color_maximum = COLOR_RESOLUTION;
+        arrt.color_tp = PIXEL_COLOR_TP_RGBW;
+        arrt.color_maximum = COLOR_RESOLUTION;
 
-    ret = tdl_pixel_driver_register(driver_name, &intfs, &arrt, NULL);
-    if (ret != OPRT_OK) {
-        TAL_PR_ERR("pixel drv init err:%d", ret);
-        return ret;
+        ret = tdl_pixel_driver_register(driver_name, &intfs, &arrt, NULL);
+        if (ret != OPRT_OK) {
+            TAL_PR_ERR("pixel drv init err:%d", ret);
+            return ret;
+        }
+        memcpy(&driver_info, init_param, sizeof(PIXEL_DRIVER_CONFIG_T));
+        return OPRT_OK;
     }
-    memcpy(&driver_info, init_param, sizeof(PIXEL_DRIVER_CONFIG_T));
-    return OPRT_OK;
-}
 #endif

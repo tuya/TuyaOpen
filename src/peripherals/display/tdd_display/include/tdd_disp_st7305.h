@@ -1,7 +1,14 @@
 /**
  * @file tdd_disp_st7305.h
- * @version 0.1
- * @date 2025-03-12
+ * @brief ST7305 monochrome LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the ST7305 LCD display controller. The ST7305 is a monochrome
+ * display controller designed for small-size LCDs, commonly used in industrial
+ * and embedded applications with SPI interface support.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_ST7305_H__
@@ -14,13 +21,12 @@
 ***********************macro define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************type define***********************
 ***********************************************************/
-#define ST7305_CASET     0x2A // Column Address Set
-#define ST7305_RASET     0x2B // Row Address Set
-#define ST7305_RAMWR     0x2C
+#define ST7305_CASET 0x2A // Column Address Set
+#define ST7305_RASET 0x2B // Row Address Set
+#define ST7305_RAMWR 0x2C
 
 /***********************************************************
 ***********************function declare**********************

@@ -1,7 +1,14 @@
 /**
  * @file tdl_touch_manage.h
- * @version 0.1
- * @date 2025-06-09
+ * @brief Touch device management layer interface definitions
+ *
+ * This header file defines the TDL (Tuya Device Library) layer interface for touch
+ * device management. It provides high-level API definitions for touch device operations
+ * including device discovery, opening, reading touch coordinates, and closing operations.
+ * This layer abstracts the underlying TDD drivers and provides a unified interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDL_TOUCH_MANAGE_H__
@@ -16,7 +23,7 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-typedef void*  TDL_TOUCH_HANDLE_T;
+typedef void *TDL_TOUCH_HANDLE_T;
 
 /***********************************************************
 ***********************typedef define***********************
@@ -24,8 +31,7 @@ typedef void*  TDL_TOUCH_HANDLE_T;
 typedef struct {
     uint16_t x;
     uint16_t y;
-}TDL_TOUCH_POS_T;
-
+} TDL_TOUCH_POS_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -34,8 +40,8 @@ TDL_TOUCH_HANDLE_T tdl_touch_find_dev(char *name);
 
 OPERATE_RET tdl_touch_dev_open(TDL_TOUCH_HANDLE_T touch_hdl);
 
-OPERATE_RET tdl_touch_dev_read(TDL_TOUCH_HANDLE_T touch_hdl, uint8_t max_num,\
-                               TDL_TOUCH_POS_T *point, uint8_t *point_num);
+OPERATE_RET tdl_touch_dev_read(TDL_TOUCH_HANDLE_T touch_hdl, uint8_t max_num, TDL_TOUCH_POS_T *point,
+                               uint8_t *point_num);
 
 OPERATE_RET tdl_touch_dev_close(TDL_TOUCH_HANDLE_T touch_hdl);
 

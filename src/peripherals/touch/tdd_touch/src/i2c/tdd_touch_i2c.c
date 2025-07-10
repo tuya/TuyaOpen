@@ -1,7 +1,13 @@
 /**
  * @file tdd_touch_i2c.c
- * @version 0.1
- * @date 2025-06-09
+ * @brief I2C communication utilities for touch controller devices
+ *
+ * This file provides I2C communication functions for touch controller devices
+ * in the TDD (Tuya Device Driver) layer. It includes pin multiplexing configuration,
+ * I2C read/write operations with register address support for various touch ICs.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tal_api.h"
 #include "tkl_i2c.h"
@@ -11,7 +17,6 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -19,7 +24,6 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************function define**********************
@@ -31,7 +35,7 @@ void tdd_touch_i2c_pinmux_config(TDD_TOUCH_I2C_CFG_T *cfg)
     }
 
     if (cfg->scl_pin < TUYA_IO_PIN_MAX) {
-        if(cfg->port == TUYA_I2C_NUM_0) {
+        if (cfg->port == TUYA_I2C_NUM_0) {
             tkl_io_pinmux_config(cfg->scl_pin, TUYA_IIC0_SCL);
         } else if (cfg->port == TUYA_I2C_NUM_1) {
             tkl_io_pinmux_config(cfg->scl_pin, TUYA_IIC1_SCL);
@@ -43,7 +47,7 @@ void tdd_touch_i2c_pinmux_config(TDD_TOUCH_I2C_CFG_T *cfg)
     }
 
     if (cfg->sda_pin < TUYA_IO_PIN_MAX) {
-        if(cfg->port == TUYA_I2C_NUM_0) {
+        if (cfg->port == TUYA_I2C_NUM_0) {
             tkl_io_pinmux_config(cfg->sda_pin, TUYA_IIC0_SDA);
         } else if (cfg->port == TUYA_I2C_NUM_1) {
             tkl_io_pinmux_config(cfg->sda_pin, TUYA_IIC1_SDA);
@@ -57,19 +61,18 @@ void tdd_touch_i2c_pinmux_config(TDD_TOUCH_I2C_CFG_T *cfg)
     return;
 }
 
-OPERATE_RET tdd_touch_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, \
-                                    uint16_t reg_addr, uint8_t reg_addr_len,\
+OPERATE_RET tdd_touch_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
                                     uint8_t *data, uint8_t data_len)
 {
     OPERATE_RET ret = OPRT_OK;
     uint8_t cmd_bytes[2];
 
-    if(1 == reg_addr_len) {
+    if (1 == reg_addr_len) {
         cmd_bytes[0] = (uint8_t)(reg_addr & 0xFF);
-    }else if(2 == reg_addr_len) {
+    } else if (2 == reg_addr_len) {
         cmd_bytes[0] = (uint8_t)(reg_addr >> 8);
         cmd_bytes[1] = (uint8_t)(reg_addr & 0xFF);
-    }else {
+    } else {
         return OPRT_INVALID_PARM;
     }
 
@@ -87,8 +90,7 @@ OPERATE_RET tdd_touch_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, \
     return ret;
 }
 
-OPERATE_RET tdd_touch_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr,\
-                                     uint16_t reg_addr, uint8_t reg_addr_len,\
+OPERATE_RET tdd_touch_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
                                      uint8_t *data, uint8_t data_len)
 {
     OPERATE_RET ret = OPRT_OK;
@@ -99,14 +101,14 @@ OPERATE_RET tdd_touch_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr,\
         return OPRT_MALLOC_FAILED;
     }
 
-    if(1 == reg_addr_len) {
+    if (1 == reg_addr_len) {
         buf[0] = (uint8_t)(reg_addr & 0xFF);
         memcpy(&buf[1], data, data_len);
-    }else if(2 == reg_addr_len) {
+    } else if (2 == reg_addr_len) {
         buf[0] = (uint8_t)(reg_addr >> 8);
         buf[1] = (uint8_t)(reg_addr & 0xFF);
         memcpy(&buf[2], data, data_len);
-    }else {
+    } else {
         tal_free(buf);
         return OPRT_INVALID_PARM;
     }
@@ -114,6 +116,6 @@ OPERATE_RET tdd_touch_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr,\
     ret = tkl_i2c_master_send(port, dev_addr, buf, data_len + reg_addr_len, FALSE);
 
     tal_free(buf);
-    
+
     return ret;
 }

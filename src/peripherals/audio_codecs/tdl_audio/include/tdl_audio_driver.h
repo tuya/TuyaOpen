@@ -1,8 +1,25 @@
 /**
  * @file tdl_audio_driver.h
- * @brief tdl_audio_driver module is used to
- * @version 0.1
- * @date 2025-04-08
+ * @brief Tuya Driver Layer audio driver interface definitions.
+ *
+ * This file defines the driver interface for the Tuya Driver Layer (TDL) audio
+ * subsystem. It provides the core structures, types, and function prototypes
+ * that audio device drivers must implement to integrate with the TDL audio
+ * management system. The interface supports various audio formats, status
+ * notifications, and control commands.
+ *
+ * Key features:
+ * - Support for multiple audio frame formats (PCM, SPEEX, OPUS, MP3)
+ * - Audio status notifications for voice activity detection (VAD)
+ * - Driver registration mechanism for different audio hardware
+ * - Callback-based microphone data handling
+ * - Playback and configuration control interfaces
+ *
+ * This layer acts as an abstraction between hardware-specific implementations
+ * (TDD layer) and higher-level audio applications.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDL_AUDIO_DRIVER_H__
@@ -27,7 +44,7 @@ typedef uint8_t TDL_AUDIO_FRAME_FORMAT_E;
 #define TDL_AUDIO_FRAME_FORMAT_OPUS  2
 #define TDL_AUDIO_FRAME_FORMAT_MP3   3
 
-// 音频采样状态
+// Audio sampling status
 typedef uint8_t TDL_AUDIO_STATUS_E;
 #define TDL_AUDIO_STATUS_UNKNOWN     0
 #define TDL_AUDIO_STATUS_VAD_START   1

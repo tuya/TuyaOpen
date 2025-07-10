@@ -1,8 +1,12 @@
 /**
  * @file wav_encode.c
- * @brief wav_encode module is used to
- * @version 0.1
- * @date 2025-02-21
+ * @brief WAV file encoding utilities for audio recording
+ *
+ * This file contains functions for generating WAV file headers and encoding PCM audio data
+ * into the WAV format. It provides utilities for creating proper WAV headers with specified
+ * audio parameters including sample rate, bit depth, and channel configuration.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "wav_encode.h"

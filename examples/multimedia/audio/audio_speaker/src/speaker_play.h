@@ -1,8 +1,12 @@
 /**
  * @file speaker_play.h
- * @brief speaker_play module is used to
- * @version 0.1
- * @date 2025-02-17
+ * @brief Audio speaker playback example header file
+ *
+ * This header file provides declarations for MP3 audio playback functionality.
+ * It defines the interface for the speaker playback example that demonstrates
+ * MP3 decoding and audio output using the Tuya SDK.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __SPEAKER_PLAY_H__

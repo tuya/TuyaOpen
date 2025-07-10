@@ -1,3 +1,15 @@
+/**
+ * @file tdl_led_manage.c
+ * @brief LED management implementation for TDL layer
+ *
+ * This file implements the LED management functions for the TDL (Tuya Device Library) layer.
+ * It provides device registration, discovery, state management, timer-based blinking/flashing,
+ * and thread-safe operations for controlling LED devices through a unified interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
+
 #include "tal_api.h"
 #include "tdl_led_driver.h"
 #include "tdl_led_manage.h"

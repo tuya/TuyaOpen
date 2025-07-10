@@ -1,7 +1,25 @@
 /**
- * @file tdd_audio_tkl.c
- * @version 0.1
- * @date 2025-04-24
+ * @file tdd_audio.c
+ * @brief Implementation of Tuya Device Driver layer audio interface for T5AI platform.
+ *
+ * This file implements the device driver interface for audio functionality on the T5AI
+ * platform. It provides the implementation for audio device initialization, configuration,
+ * volume control, and audio data handling. The driver supports both audio input (microphone)
+ * and output (speaker) operations with configurable parameters such as sample rates,
+ * data bits, and channels.
+ *
+ * Key functionalities include:
+ * - Audio device registration and initialization
+ * - Microphone data capture with callback mechanism
+ * - Speaker playback with volume control
+ * - Support for acoustic echo cancellation (AEC)
+ * - Frame-based audio data processing
+ *
+ * This implementation bridges the TKL (Tuya Kernel Layer) audio APIs with the higher-level
+ * TDL (Tuya Driver Layer) audio management system.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tuya_cloud_types.h"

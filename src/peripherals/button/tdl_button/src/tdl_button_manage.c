@@ -1,12 +1,31 @@
 
 /**
  * @file tdl_button_manage.c
- * @author franky.lin@tuya.com
- * @brief tdl_button_manage, base timer、semaphore、task
- * @version 1.0
- * @date 2022-03-20
- * @copyright Copyright (c) tuya.inc 2022
- * button trigger management component
+ * @brief Implementation of Tuya Driver Layer button management system.
+ *
+ * This file implements the button management functionality for the Tuya Driver
+ * Layer (TDL). It provides a sophisticated button event detection system that
+ * supports various button interaction patterns including single click, double
+ * click, multiple clicks, and long press detection. The implementation uses
+ * timer-based scanning and interrupt handling to detect button state changes
+ * with configurable debouncing and timing parameters.
+ *
+ * Key features implemented:
+ * - State machine-based button event detection
+ * - Configurable debouncing for reliable button state reading
+ * - Support for both timer-based scanning and interrupt-driven modes
+ * - Multiple simultaneous button management using linked lists
+ * - Thread-safe operation with mutex protection
+ * - Event callback system for button state notifications
+ * - Power-on button state recovery detection
+ * - Efficient resource management with dynamic allocation
+ *
+ * The implementation creates dedicated tasks for button scanning and provides
+ * a unified interface for various button hardware implementations through the
+ * TDD (Tuya Device Driver) layer abstraction.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 // sdk
@@ -41,7 +60,7 @@
 #define TDL_BUTTON_IRQ_SCAN_TIME   10000 // ms
 #define TDL_BUTTON_SCAN_TIME       10    // 10ms
 #define TDL_BUTTON_IRQ_SCAN_CNT    (TDL_BUTTON_IRQ_SCAN_TIME / tdl_button_scan_time)
-#define TOUCH_DELAY                500 // 间隔时间500ms  用于单双击识别区分
+#define TOUCH_DELAY                500 // Interval time 500ms for single/double click recognition
 #define PUT_EVENT_CB(btn, name, ev, arg)                                                                               \
     do {                                                                                                               \
         if (btn.list_cb[ev])                                                                                           \
@@ -57,23 +76,23 @@ typedef struct {
 } TDL_BUTTON_LIST_HEAD_T;
 
 typedef struct {
-    TDL_BUTTON_MODE_E button_mode; // 按键驱动模式：扫描 中断
+    TDL_BUTTON_MODE_E button_mode; // Button driver mode: scan, interrupt
 } TDL_BUTTON_HARDWARE_CFG_T;
 
 typedef struct {
-    uint8_t pre_event : 4; // 上一次的事件
-    uint8_t now_event : 4; // 当前生成的事件
-    uint8_t flag : 3;      // 按键处理流程状态
-    uint8_t debounce_cnt;  // 消抖时间转化的次数
-    uint16_t ticks;        // 按下保持计数
-    uint8_t status;        // 按键实际状态
-    uint8_t repeat;        // 重复按下计数
-    uint8_t ready;         // 标识按键上电是否ready
-    uint8_t init_flag;     // 按键初始化成功
+    uint8_t pre_event : 4; // Previous event
+    uint8_t now_event : 4; // Currently generated event
+    uint8_t flag : 3;      // Button processing flow state
+    uint8_t debounce_cnt;  // Debounce count
+    uint16_t ticks;        // Press and hold count
+    uint8_t status;        // Actual button status
+    uint8_t repeat;        // Repeat press count
+    uint8_t ready;         // Flag indicating if the button is ready after power-on
+    uint8_t init_flag;     // Button initialized successfully
 
-    TDL_BUTTON_CTRL_INFO ctrl_info;    // 驱动挂载的信息
-    DEVICE_BUTTON_HANDLE dev_handle;   // 驱动句柄
-    TDL_BUTTON_HARDWARE_CFG_T dev_cfg; // 硬件配置
+    TDL_BUTTON_CTRL_INFO ctrl_info;    // Driver mount information
+    DEVICE_BUTTON_HANDLE dev_handle;   // Driver handle
+    TDL_BUTTON_HARDWARE_CFG_T dev_cfg; // Hardware configuration
 } BUTTON_DRIVER_DATA_T;
 
 typedef struct {
@@ -87,24 +106,24 @@ typedef struct {
     MUTEX_HANDLE button_mutex;
     BUTTON_USER_DATA_T user_data;     /* user data */
     BUTTON_DRIVER_DATA_T device_data; /* driver data */
-} TDL_BUTTON_LIST_NODE_T;             // 单个按键节点
+} TDL_BUTTON_LIST_NODE_T;             // Single button node
 
 #if (COMBINE_BUTTON_ENABLE == 1)
 typedef struct {
     LIST_HEAD hdr;                 /* list node */
     char *name;                    /* node name */
     TDL_BUTTON_FUNC_CB combine_cb; /*combine button cb*/
-} TDL_BUTTON_COMBINE_LIST_NODE_T;  // 组合按键节点
+} TDL_BUTTON_COMBINE_LIST_NODE_T;  // Combination button node
 #endif
 
 typedef struct {
-    uint8_t scan_task_flag;   /*扫描线程标志*/
-    uint8_t irq_task_flag;    /*中断线程标志*/
-    uint8_t task_mode;        /*线程类型*/
-    SEM_HANDLE irq_semaphore; /*中断信号量*/
-    uint32_t irq_scan_cnt;    /*中断线程断开计数*/
-    MUTEX_HANDLE mutex;       /*锁*/
-} TDL_BUTTON_LOCAL_T;         // TDL本地参数
+    uint8_t scan_task_flag;   /*Scan thread flag*/
+    uint8_t irq_task_flag;    /*Interrupt thread flag*/
+    uint8_t task_mode;        /*Thread type*/
+    SEM_HANDLE irq_semaphore; /*Interrupt semaphore*/
+    uint32_t irq_scan_cnt;    /*Interrupt thread disconnection count*/
+    MUTEX_HANDLE mutex;       /*Mutex lock*/
+} TDL_BUTTON_LOCAL_T;         // TDL local parameters
 
 /***********************************************************
 ***********************variable define**********************
@@ -116,14 +135,14 @@ TDL_BUTTON_LOCAL_T tdl_button_local = {.irq_task_flag = FALSE,
                                        .irq_scan_cnt = TDL_BUTTON_IRQ_SCAN_TIME / TDL_BUTTON_SCAN_TIME,
                                        .mutex = NULL};
 
-THREAD_HANDLE scan_thread_handle = NULL; // 扫描线程句柄
-THREAD_HANDLE irq_thread_handle = NULL;  // 中断扫描线程句柄
+THREAD_HANDLE scan_thread_handle = NULL; // Scan thread handle
+THREAD_HANDLE irq_thread_handle = NULL;  // Interrupt scan thread handle
 
-TDL_BUTTON_LIST_HEAD_T *p_button_list = NULL; // 单个按键链表头
-// TDL_BUTTON_LIST_HEAD_T *p_combine_button_list = NULL;//组合按键链表头
+TDL_BUTTON_LIST_HEAD_T *p_button_list = NULL; // Single button list head
+// TDL_BUTTON_LIST_HEAD_T *p_combine_button_list = NULL;//Combination button list head
 
-static uint8_t g_tdl_button_list_exist = FALSE; // 单个按键链表头初始化标志
-// static uint8_t g_tdl_combine_button_list_exist = FALSE;//组合按键链表头初始化标志
+static uint8_t g_tdl_button_list_exist = FALSE; // Single button list head initialization flag
+// static uint8_t g_tdl_combine_button_list_exist = FALSE;//Combination button list head initialization flag
 static uint8_t g_tdl_button_scan_mode_exist = 0xFF;
 static uint32_t sg_bt_task_stack_size = TDL_BUTTON_TASK_STACK_SIZE;
 static uint8_t tdl_button_scan_time = TDL_BUTTON_SCAN_TIME;
@@ -135,7 +154,7 @@ static OPERATE_RET __tdl_get_operate_info(TDL_BUTTON_LIST_NODE_T *p_node, TDL_BU
 static OPERATE_RET __tdl_button_scan_task(uint8_t enable);
 static OPERATE_RET __tdl_button_irq_task(uint8_t enable);
 
-// 单个按键链表头生成
+// Generate single button list head
 static OPERATE_RET __tdl_button_list_init(void)
 {
     if (g_tdl_button_list_exist == FALSE) {
@@ -162,7 +181,7 @@ static OPERATE_RET __tdl_button_list_init(void)
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 组合键链表头生成
+// Generate combination button list head
 static OPERATE_RET __tdl_button_combine_list_init(void)
 {
     if (g_tdl_combine_button_list_exist == FALSE) {
@@ -179,7 +198,7 @@ static OPERATE_RET __tdl_button_combine_list_init(void)
 }
 #endif
 
-// 根据句柄查找按键节点
+// Find button node by handle
 static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node(TDL_BUTTON_HANDLE handle)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
@@ -194,7 +213,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node(TDL_BUTTON_HANDLE handle)
     {
         p_node = tuya_list_entry(pos, TDL_BUTTON_LIST_NODE_T, hdr);
         if (p_node == handle) {
-            // 地址比对成功
+            // Address comparison successful
             return p_node;
         }
     }
@@ -202,7 +221,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node(TDL_BUTTON_HANDLE handle)
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 根据句柄查找组合键节点
+// Find combination button node by handle
 static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_combine_node(TDL_BUTTON_HANDLE handle)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_combine_button_list;
@@ -217,7 +236,7 @@ static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_combine_node(TDL_BUTTON
     {
         p_node = tuya_list_entry(pos, TDL_BUTTON_COMBINE_LIST_NODE_T, hdr);
         if (p_node == handle) {
-            // 地址比对成功
+            // Address comparison successful
             return p_node;
         }
     }
@@ -225,7 +244,7 @@ static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_combine_node(TDL_BUTTON
 }
 #endif
 
-// 根据名字查找按键节点
+// Find button node by name
 static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node_name(char *name)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
@@ -240,7 +259,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node_name(char *name)
     {
         p_node = tuya_list_entry(pos, TDL_BUTTON_LIST_NODE_T, hdr);
         if (strcmp(name, p_node->name) == 0) {
-            // 名称比对成功
+            // Name comparison successful
             return p_node;
         }
     }
@@ -248,7 +267,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node_name(char *name)
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 根据名字查找组合键节点
+// Find combination button node by name
 static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_node_combine_name(char *name)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_combine_button_list;
@@ -263,7 +282,7 @@ static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_node_combine_name(char 
     {
         p_node = tuya_list_entry(pos, TDL_BUTTON_COMBINE_LIST_NODE_T, hdr);
         if (strcmp(name, p_node->name) == 0) {
-            // 名称比对成功
+            // Name comparison successful
             return p_node;
         }
     }
@@ -271,7 +290,7 @@ static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_node_combine_name(char 
 }
 #endif
 
-// 添加新节点：创建节点，并存储驱动控制信息
+// Add a new node: create a node and store driver control information
 static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL_INFO *info,
                                                      TDL_BUTTON_DEVICE_INFO_T *cfg)
 {
@@ -292,20 +311,20 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL
         return NULL; // return OPRT_INVALID_PARM;
     }
 
-    // 比对名称是否存在
+    // Check if the name exists
     if (__tdl_button_find_node_name(name) != NULL) {
         PR_NOTICE("button name existence");
         return NULL; // return OPRT_COM_ERROR;
     }
 
-    // 创建新节点
+    // Create new node
     p_node = (TDL_BUTTON_LIST_NODE_T *)tal_malloc(sizeof(TDL_BUTTON_LIST_NODE_T));
     if (NULL == p_node) {
         return NULL; // return OPRT_MALLOC_FAILED;
     }
     memset(p_node, 0, sizeof(TDL_BUTTON_LIST_NODE_T));
 
-    // 创建新名称
+    // Create new name
     p_node->name = (char *)tal_malloc(TDL_BUTTON_NAME_LEN);
     if (NULL == p_node->name) {
         tal_free(p_node);
@@ -314,7 +333,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL
     }
     memset(p_node->name, 0, TDL_BUTTON_NAME_LEN);
 
-    // 存入名称
+    // Store the name
     name_len = strlen(name);
     if (name_len >= TDL_BUTTON_NAME_LEN) {
         name_len = TDL_BUTTON_NAME_LEN;
@@ -325,7 +344,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL
     p_node->device_data.dev_cfg.button_mode = cfg->mode;
     p_node->device_data.dev_handle = cfg->dev_handle;
 
-    // 添加新节点
+    // Add new node
     tal_mutex_lock(tdl_button_local.mutex);
     tuya_list_add(&p_node->hdr, &p_head->hdr);
     tal_mutex_unlock(tdl_button_local.mutex);
@@ -333,12 +352,12 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL
     return p_node;
 }
 
-// 更新节点用户数据：数据内容固定为用户数据
+// Update node user data: data content is fixed as user data
 static TDL_BUTTON_LIST_NODE_T *__button_updata_userdata(char *name, TDL_BUTTON_CFG_T *button_cfg)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
 
-    // 比对名称是否存在
+    // Check if the name exists
     p_node = __tdl_button_find_node_name(name);
     if (NULL == p_node) {
         PR_NOTICE("button no existence");
@@ -364,7 +383,7 @@ static TDL_BUTTON_LIST_NODE_T *__button_updata_userdata(char *name, TDL_BUTTON_C
     return p_node;
 }
 
-// 按键扫描状态机：生成按键触发事件
+// Button scan state machine: generates button trigger events
 static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
 {
     uint16_t hold_tick = 0;
@@ -380,7 +399,8 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             if (p_node->device_data.dev_cfg.button_mode == BUTTON_IRQ_MODE) {
                 tdl_button_local.irq_scan_cnt = 0;
             }
-            /*触发按下事件*/
+            /*Trigger press down event*/
+            /*Trigger press down event*/
             p_node->device_data.ticks = 0;
             p_node->device_data.repeat = 1;
             p_node->device_data.flag = 1;
@@ -391,7 +411,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
 
         } else {
             p_node->device_data.pre_event = p_node->device_data.now_event;
-            p_node->device_data.now_event = TDL_BUTTON_PRESS_NONE; // 默认状态无,不用执行回调
+            p_node->device_data.now_event = TDL_BUTTON_PRESS_NONE; // Default state is no, no callback execution
         }
     } break;
 
@@ -402,11 +422,12 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 tdl_button_local.irq_scan_cnt = 0;
             }
             if (p_node->user_data.button_cfg.long_start_valid_time == 0) {
-                // 长按有效时间0,不执行长按
+                // Long press valid time is 0, do not execute long press
+                // Long press valid time is 0, do not execute long press
                 p_node->device_data.pre_event = p_node->device_data.now_event;
             } else if (p_node->device_data.ticks >
                        (p_node->user_data.button_cfg.long_start_valid_time / tdl_button_scan_time)) {
-                /*触发开始长按事件*/
+                /*Trigger long press start event*/
                 // PR_NOTICE("long tick =%d",p_node->device_data.ticks);
                 p_node->device_data.pre_event = p_node->device_data.now_event;
                 p_node->device_data.now_event = TDL_BUTTON_LONG_PRESS_START;
@@ -414,11 +435,14 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                              (void *)((uint32_t)p_node->device_data.ticks * tdl_button_scan_time));
                 p_node->device_data.flag = 5;
             } else {
-                // 第一次按下，持续按着，未达到开始长按的事件，及时更新前后状态
+                // First press, holding, has not reached the long press start event, update the front and back status in
+                // time First press, holding, has not reached the long press start event, update the front and back
+                // status in time
                 p_node->device_data.pre_event = p_node->device_data.now_event;
             }
         } else {
-            /*触发弹起事件*/
+            /*Trigger release event*/
+            /*Trigger release event*/
             p_node->device_data.pre_event = p_node->device_data.now_event;
             p_node->device_data.now_event = TDL_BUTTON_PRESS_UP;
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
@@ -445,14 +469,16 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             /*release timeout*/
             if (p_node->device_data.ticks >=
                 (p_node->user_data.button_cfg.button_repeat_valid_time / tdl_button_scan_time)) {
-                /*释放超时触发单击*/
+                /*Release timeout triggers single click*/
+                /*Release timeout triggers single click*/
                 if (p_node->device_data.repeat == 1) {
                     p_node->device_data.pre_event = p_node->device_data.now_event;
                     p_node->device_data.now_event = TDL_BUTTON_PRESS_SINGLE_CLICK;
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_SINGLE_CLICK,
                                  (void *)((uint32_t)p_node->device_data.repeat));
                 } else if (p_node->device_data.repeat == 2) {
-                    /*释放触发双击事件*/
+                    /*Release triggers double click event*/
+                    /*Release triggers double click event*/
                     p_node->device_data.pre_event = p_node->device_data.now_event;
                     p_node->device_data.now_event = TDL_BUTTON_PRESS_DOUBLE_CLICK;
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_DOUBLE_CLICK,
@@ -467,7 +493,8 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 }
                 p_node->device_data.flag = 0;
             } else {
-                // 释放后未超时，及时更新前后状态
+                // Not timed out after release, update front and back status in time
+                // Not timed out after release, update front and back status in time
                 p_node->device_data.pre_event = p_node->device_data.now_event;
             }
         }
@@ -477,7 +504,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
         uint16_t repeat_tick = 0;
         // PR_NOTICE("case3:tick=%d",p_node->device_data.ticks);
         /*repeat up*/
-        // 大于一次按下之后的释放
+        // Released after more than one press
         if (p_node->device_data.status == 0) {
             p_node->device_data.pre_event = p_node->device_data.now_event;
             p_node->device_data.now_event = TDL_BUTTON_PRESS_UP;
@@ -485,8 +512,9 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                          (void *)((uint32_t)p_node->device_data.repeat));
             repeat_tick = p_node->user_data.button_cfg.button_repeat_valid_time / tdl_button_scan_time;
             if (p_node->device_data.ticks >= repeat_tick) {
-                // 释放后超时,双击按默认间隔时间,多击使用用户配置的间隔时间
-                // PR_NOTICE("3: tick=%d",p_node->device_data.ticks);
+                // Timeout after release, double-click uses default interval, multiple-click uses user-configured
+                // interval Timeout after release, double-click uses default interval, multiple-click uses
+                // user-configured interval PR_NOTICE("3: tick=%d",p_node->device_data.ticks);
                 // PR_NOTICE("%d",repeat_tick);
                 p_node->device_data.flag = 0;
             } else {
@@ -494,7 +522,8 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 p_node->device_data.ticks = 0;
             }
         } else {
-            // 大于一次按下，持续按着，及时更新前后状态
+            // More than one press, holding, update front and back status in time
+            // More than one press, holding, update front and back status in time
             p_node->device_data.pre_event = p_node->device_data.now_event;
         }
 
@@ -502,7 +531,8 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
 
     case 5: {
         if (p_node->device_data.status != 0) {
-            /*触发长按保持事件*/
+            /*Trigger long press hold event*/
+            /*Trigger long press hold event*/
             if (p_node->device_data.dev_cfg.button_mode == BUTTON_IRQ_MODE) {
                 tdl_button_local.irq_scan_cnt = 0;
             }
@@ -511,17 +541,20 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 hold_tick = 1;
             }
             if (p_node->device_data.ticks >= hold_tick) {
-                // 大于hold计数立即刷新状态
+                // If the count is greater than the hold count, refresh the status immediately
+                // If the count is greater than the hold count, refresh the status immediately
                 p_node->device_data.pre_event = p_node->device_data.now_event;
                 p_node->device_data.now_event = TDL_BUTTON_LONG_PRESS_HOLD;
                 if (p_node->device_data.ticks % hold_tick == 0) {
-                    // 确认达到hold整数倍才执行
+                    // Execute only when it is confirmed that it is an integer multiple of hold
+                    // Execute only when it is confirmed that it is an integer multiple of hold
                     // PR_NOTICE("hold,tick=%d",hold_tick);
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_LONG_PRESS_HOLD,
                                  (void *)((uint32_t)p_node->device_data.ticks * tdl_button_scan_time));
                 }
             }
         } else {
+            /*hold release*/
             /*hold release*/
             p_node->device_data.pre_event = p_node->device_data.now_event;
             p_node->device_data.now_event = TDL_BUTTON_PRESS_UP;
@@ -532,6 +565,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
         }
     } break;
     case 6: {
+        /*If the power is continuously maintained at an effective level and triggered after recovery*/
         /*If the power is continuously maintained at an effective level and triggered after recovery*/
         PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_RECOVER_PRESS_UP, NULL);
         p_node->device_data.ticks = 0;
@@ -544,7 +578,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
     return;
 }
 
-// 按键中断回调函数
+// Button interrupt callback function
 static void __tdl_button_irq_cb(void *arg)
 {
     if (tdl_button_local.irq_scan_cnt >= TDL_BUTTON_IRQ_SCAN_CNT) {
@@ -553,7 +587,7 @@ static void __tdl_button_irq_cb(void *arg)
     return;
 }
 
-// 获取传给TDD层的信息
+// Get the information to be passed to the TDD layer
 static OPERATE_RET __tdl_get_operate_info(TDL_BUTTON_LIST_NODE_T *p_node, TDL_BUTTON_OPRT_INFO *oprt_info)
 {
     if (NULL == oprt_info) {
@@ -571,7 +605,7 @@ static OPERATE_RET __tdl_get_operate_info(TDL_BUTTON_LIST_NODE_T *p_node, TDL_BU
     return OPRT_OK;
 }
 
-// 创建单个按键,返回句柄给用户使用
+// Create a single button and return the handle for user use
 OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTTON_HANDLE *p_handle)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
@@ -588,7 +622,7 @@ OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTT
         return OPRT_INVALID_PARM;
     }
 
-    // 更新某节点的用户数据
+    // Update user data of a node
     p_node = __button_updata_userdata(name, button_cfg);
     if (NULL != p_node) {
         // PR_NOTICE("tdl create updata OK");
@@ -624,7 +658,8 @@ OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTT
         tdl_button_local.task_mode |= BUTTON_SCAN_TASK;
     }
 
-    // 传出句柄
+    // Pass out the handle
+    // Pass out the handle
     *p_handle = (TDL_BUTTON_HANDLE)p_node;
     if ((g_tdl_button_scan_mode_exist != p_node->device_data.dev_cfg.button_mode) &&
         (g_tdl_button_scan_mode_exist != 0xFF)) {
@@ -651,7 +686,7 @@ OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTT
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 创建组合键：返回句柄给用户使用
+// Create a combination key: return a handle for user use
 OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
@@ -675,14 +710,16 @@ OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
         return OPRT_OK;
     }
 
-    // 创建新节点
+    // Create new node
+    // Create new node
     p_node = (TDL_BUTTON_COMBINE_LIST_NODE_T *)tal_malloc(sizeof(TDL_BUTTON_COMBINE_LIST_NODE_T));
     if (NULL == p_node) {
         return OPRT_MALLOC_FAILED;
     }
     memset(p_node, 0, sizeof(TDL_BUTTON_COMBINE_LIST_NODE_T));
 
-    // 创建新名称
+    // Create new name
+    // Create new name
     p_node->name = (char *)tal_malloc(TDL_BUTTON_NAME_LEN);
     if (NULL == p_node->name) {
         tal_free(p_node);
@@ -691,14 +728,16 @@ OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
     }
     memset(p_node->name, 0, TDL_BUTTON_NAME_LEN);
 
-    // 存入名称
+    // Store the name
+    // Store the name
     name_len = strlen(name);
     if (name_len >= TDL_BUTTON_NAME_LEN) {
         name_len = TDL_BUTTON_NAME_LEN;
     }
     memcpy(p_node->name, name, name_len);
 
-    // 添加新节点
+    // Add new node
+    // Add new node
     tal_mutex_lock(tdl_button_local.mutex);
     tuya_list_add(&(p_node->hdr), &(p_combine_button_list->hdr));
     tal_mutex_unlock(tdl_button_local.mutex);
@@ -709,7 +748,7 @@ OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
 }
 #endif
 
-// 删除单个按键：给用户删除
+// Delete a single button: for user deletion
 OPERATE_RET tdl_button_delete(TDL_BUTTON_HANDLE p_handle)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
@@ -740,7 +779,7 @@ OPERATE_RET tdl_button_delete(TDL_BUTTON_HANDLE p_handle)
         tuya_list_del(&p_node->hdr);
         tal_mutex_unlock(tdl_button_local.mutex);
 
-        tal_free(p_node); // 释放节点
+        tal_free(p_node); // Release node
         p_node = NULL;
         return OPRT_OK;
     }
@@ -776,7 +815,7 @@ OPERATE_RET tdl_button_delete_without_hardware(TDL_BUTTON_HANDLE handle)
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 删除组合按键
+// Delete combination key
 OPERATE_RET tdl_combine_button_delete(TDL_BUTTON_HANDLE p_handle)
 {
     TDL_BUTTON_COMBINE_LIST_NODE_T *p_node = NULL;
@@ -794,7 +833,7 @@ OPERATE_RET tdl_combine_button_delete(TDL_BUTTON_HANDLE p_handle)
         tuya_list_del(&p_node->hdr);
         tal_mutex_unlock(tdl_button_local.mutex);
 
-        tal_free(p_node); // 释放节点
+        tal_free(p_node); // Release node
         p_node = NULL;
         return OPRT_OK;
     }
@@ -802,7 +841,7 @@ OPERATE_RET tdl_combine_button_delete(TDL_BUTTON_HANDLE p_handle)
 }
 #endif
 
-// 按键流程：进行读取,消抖，生成事件
+// Button flow: read, debounce, generate event
 static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
@@ -821,7 +860,8 @@ static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
         return;
     }
 
-    // 处理扫描模式下，长按按键时上电会触发短按，增加ready状态防止。中断模式下不会有问题,中断模式下不需要使用ready状态
+    // In scan mode, a long press at power-on may trigger a short press. Added a 'ready' state to prevent this. This is
+    // not an issue in interrupt mode, so the 'ready' state is not needed.
     if ((p_node->device_data.dev_cfg.button_mode == BUTTON_TIMER_SCAN_MODE) && (p_node->device_data.ready == FALSE)) {
         if (status) {
             return;
@@ -836,7 +876,7 @@ static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
         p_node->device_data.ticks++;
     }
 
-    if (status != p_node->device_data.status) { // 按键状态发生改变，进行消抖
+    if (status != p_node->device_data.status) { // Button status changed, perform debouncing
         if (++(p_node->device_data.debounce_cnt) >=
             (p_node->user_data.button_cfg.button_debounce_time / tdl_button_scan_time)) {
             p_node->device_data.status = status;
@@ -849,7 +889,7 @@ static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
     return;
 }
 
-// 按键扫描任务：单个按键、组合键
+// Button scan task: single button, combination button
 static void __tdl_button_scan_thread(void *arg)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
@@ -869,7 +909,7 @@ static void __tdl_button_scan_thread(void *arg)
             }
         }
 #if (COMBINE_BUTTON_ENABLE == 1)
-        // 组合键回调执行
+        // Combination key callback execution
         tuya_list_for_each(pos2, &p_combine_head->hdr)
         {
             p_combine_node = tuya_list_entry(pos2, TDL_BUTTON_COMBINE_LIST_NODE_T, hdr);
@@ -882,7 +922,7 @@ static void __tdl_button_scan_thread(void *arg)
     }
 }
 
-// 按键中断扫描任务
+// Button interrupt scan task
 static void __tdl_button_irq_thread(void *arg)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
@@ -908,7 +948,7 @@ static void __tdl_button_irq_thread(void *arg)
                 }
             }
 #if (COMBINE_BUTTON_ENABLE == 1)
-            // 组合键回调执行
+            // Combination key callback execution
             if (tdl_button_local.scan_task_flag == FALSE) {
                 tuya_list_for_each(pos2, &p_combine_head->hdr)
                 {
@@ -919,7 +959,7 @@ static void __tdl_button_irq_thread(void *arg)
                 }
             }
 #endif
-            // 中断断开计数判断
+            // Interrupt disconnection count check
             if (++tdl_button_local.irq_scan_cnt >= TDL_BUTTON_IRQ_SCAN_CNT) {
                 break;
             } else {
@@ -929,14 +969,14 @@ static void __tdl_button_irq_thread(void *arg)
     }
 }
 
-// 按键扫描任务开启与关闭
+// Enable and disable button scan task
 static OPERATE_RET __tdl_button_scan_task(uint8_t enable)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
 
     if (tdl_button_local.task_mode & BUTTON_SCAN_TASK) {
         if (enable != 0) {
-            // 建立扫描任务
+            // Create scan task
             if (tdl_button_local.scan_task_flag == FALSE) {
 
                 THREAD_CFG_T thrd_param = {0};
@@ -956,7 +996,7 @@ static OPERATE_RET __tdl_button_scan_task(uint8_t enable)
                 PR_DEBUG("button_scan task stack size:%d", sg_bt_task_stack_size);
             }
         } else {
-            // 关闭扫描
+            // Close scan
             tal_thread_delete(scan_thread_handle);
             tdl_button_local.scan_task_flag = FALSE;
         }
@@ -964,13 +1004,13 @@ static OPERATE_RET __tdl_button_scan_task(uint8_t enable)
     return OPRT_OK;
 }
 
-// 按键扫描任务开启与关闭
+// Enable and disable button scan task
 static OPERATE_RET __tdl_button_irq_task(uint8_t enable)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
     if (tdl_button_local.task_mode & BUTTON_IRQ_TASK) {
         if (enable != 0) {
-            // 建立中断扫描任务
+            // Create interrupt scan task
             if (tdl_button_local.irq_task_flag == FALSE) {
                 THREAD_CFG_T thrd_param = {0};
 
@@ -991,7 +1031,7 @@ static OPERATE_RET __tdl_button_irq_task(uint8_t enable)
                 PR_WARN("button irq tast have already creat");
             }
         } else {
-            // 关闭中断扫描
+            // Close interrupt scan
             tal_thread_delete(irq_thread_handle);
             tdl_button_local.irq_task_flag = FALSE;
         }
@@ -1018,7 +1058,8 @@ OPERATE_RET tdl_button_deep_sleep_ctrl(uint8_t enable)
 }
 
 #if 0
-// 设置按键长按开始有效时间  OK
+// Set button long press start valid time  OK
+// Set button long press start valid time  OK
 void tdl_button_set_long_valid_time(TDL_BUTTON_HANDLE handle, uint16_t long_start_time)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
@@ -1030,7 +1071,8 @@ void tdl_button_set_long_valid_time(TDL_BUTTON_HANDLE handle, uint16_t long_star
     return;
 }
 
-// 获取当前长按时间  OK
+// Get current long press time  OK
+// Get current long press time  OK
 void tdl_button_get_current_long_press_time(TDL_BUTTON_HANDLE handle, uint16_t *long_start_time)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
@@ -1042,7 +1084,8 @@ void tdl_button_get_current_long_press_time(TDL_BUTTON_HANDLE handle, uint16_t *
     return;
 }
 
-// 设置按键多击次数  OK
+// Set button repeat count  OK
+// Set button repeat count  OK
 void tdl_button_set_repeat_cnt(TDL_BUTTON_HANDLE handle, uint8_t count)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
@@ -1054,7 +1097,8 @@ void tdl_button_set_repeat_cnt(TDL_BUTTON_HANDLE handle, uint8_t count)
     return;
 }
 
-// 获取按键当前多击次数  OK
+// Get button current repeat count  OK
+// Get button current repeat count  OK
 void tdl_button_get_repeat_cnt(TDL_BUTTON_HANDLE handle, uint8_t *count)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
@@ -1067,7 +1111,8 @@ void tdl_button_get_repeat_cnt(TDL_BUTTON_HANDLE handle, uint8_t *count)
 }
 #endif
 
-// 设置单个按键回调函数  OK
+// Set single button event callback  OK
+// Set single button event callback  OK
 void tdl_button_event_register(TDL_BUTTON_HANDLE handle, TDL_BUTTON_TOUCH_EVENT_E event, TDL_BUTTON_EVENT_CB cb)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
@@ -1085,7 +1130,8 @@ void tdl_button_event_register(TDL_BUTTON_HANDLE handle, TDL_BUTTON_TOUCH_EVENT_
 }
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 设置组合按键回调函数  OK
+// Set combination button callback  OK
+// Set combination button callback  OK
 void tdl_button_set_combine_cb(TDL_BUTTON_HANDLE handle, TDL_BUTTON_FUNC_CB cb)
 {
     TDL_BUTTON_COMBINE_LIST_NODE_T *p_node = NULL;
@@ -1099,7 +1145,8 @@ void tdl_button_set_combine_cb(TDL_BUTTON_HANDLE handle, TDL_BUTTON_FUNC_CB cb)
 #endif
 
 #if (COMBINE_BUTTON_ENABLE == 1)
-// 获取按键触发事件 OK
+// Get button trigger event OK
+// Get button trigger event OK
 void tdl_button_get_event(TDL_BUTTON_HANDLE handle, TDL_BUTTON_TOUCH_EVENT_E *pre_event,
                           TDL_BUTTON_TOUCH_EVENT_E *now_event)
 {
@@ -1114,7 +1161,7 @@ void tdl_button_get_event(TDL_BUTTON_HANDLE handle, TDL_BUTTON_TOUCH_EVENT_E *pr
 }
 #endif
 
-// 按键控制参数的注册
+// Button control parameter registration
 OPERATE_RET tdl_button_register(char *name, TDL_BUTTON_CTRL_INFO *button_ctrl_info,
                                 TDL_BUTTON_DEVICE_INFO_T *button_cfg_info)
 {
@@ -1169,7 +1216,7 @@ OPERATE_RET tdl_button_set_ready_flag(char *name, uint8_t status)
 {
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
 
-    // 比对名称是否存在
+    // Check if the name exists
     p_node = __tdl_button_find_node_name(name);
     if (NULL == p_node) {
         PR_NOTICE("button no existence");

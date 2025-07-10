@@ -1,11 +1,18 @@
 /**
  * @file tdl_display_spi.c
- * @version 0.1
- * @date 2025-05-27
+ * @brief TDL display SPI interface implementation
+ *
+ * This file implements the SPI interface functionality for the TDL display system.
+ * It provides hardware abstraction for displays using SPI interface, including SPI
+ * initialization, data transmission, command handling, and display controller communication.
+ * The implementation supports various SPI configurations and timing parameters.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tal_api.h"
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI==1)
+#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
 #include "tkl_spi.h"
 #include "tkl_gpio.h"
 #include "tdl_display_manage.h"
@@ -23,14 +30,13 @@ typedef struct {
 } DISP_SPI_SYNC_T;
 
 typedef struct {
-    DISP_SPI_BASE_CFG_T       cfg;
-    const uint8_t            *init_seq;
-}DISP_SPI_DEV_T;
+    DISP_SPI_BASE_CFG_T cfg;
+    const uint8_t *init_seq;
+} DISP_SPI_DEV_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************variable define**********************
@@ -42,11 +48,11 @@ static DISP_SPI_SYNC_T sg_disp_spi_sync[TUYA_SPI_NUM_MAX] = {0};
 ***********************************************************/
 static void __disp_spi_isr_cb(TUYA_SPI_NUM_E port, TUYA_SPI_IRQ_EVT_E event)
 {
-    if(event == TUYA_SPI_EVENT_TX_COMPLETE) {
-        if(sg_disp_spi_sync[port].tx_sem) {
+    if (event == TUYA_SPI_EVENT_TX_COMPLETE) {
+        if (sg_disp_spi_sync[port].tx_sem) {
             tal_semaphore_post(sg_disp_spi_sync[port].tx_sem);
         }
-   }
+    }
 }
 
 static OPERATE_RET __disp_spi_gpio_init(DISP_SPI_BASE_CFG_T *p_cfg)
@@ -54,13 +60,13 @@ static OPERATE_RET __disp_spi_gpio_init(DISP_SPI_BASE_CFG_T *p_cfg)
     TUYA_GPIO_BASE_CFG_T pin_cfg;
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == p_cfg) {
+    if (NULL == p_cfg) {
         return OPRT_INVALID_PARM;
     }
 
-    pin_cfg.mode   = TUYA_GPIO_PUSH_PULL;
+    pin_cfg.mode = TUYA_GPIO_PUSH_PULL;
     pin_cfg.direct = TUYA_GPIO_OUTPUT;
-    pin_cfg.level  = TUYA_GPIO_LEVEL_LOW;
+    pin_cfg.level = TUYA_GPIO_LEVEL_LOW;
 
     TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->cs_pin, &pin_cfg));
     TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->dc_pin, &pin_cfg));
@@ -107,7 +113,7 @@ static OPERATE_RET __disp_spi_send(TUYA_SPI_NUM_E port, uint8_t *data, uint32_t 
     uint32_t left_len = size, send_len = 0;
     uint32_t dma_max_size = tkl_spi_get_max_dma_data_length();
 
-    while(left_len > 0) {
+    while (left_len > 0) {
         send_len = (left_len > dma_max_size) ? dma_max_size : (left_len);
         TUYA_CALL_ERR_RETURN(tkl_spi_send(port, data + size - left_len, send_len));
 
@@ -123,7 +129,7 @@ static void __disp_spi_set_window(DISP_SPI_BASE_CFG_T *p_cfg)
 {
     uint8_t lcd_data[4];
 
-    if(NULL == p_cfg) {
+    if (NULL == p_cfg) {
         return;
     }
 
@@ -147,12 +153,12 @@ OPERATE_RET tdl_disp_spi_init(DISP_SPI_BASE_CFG_T *p_cfg)
     OPERATE_RET rt = OPRT_OK;
     DISP_SPI_SYNC_T *spi_sync = NULL;
 
-    if(NULL == p_cfg) {
+    if (NULL == p_cfg) {
         return OPRT_INVALID_PARM;
     }
 
     spi_sync = &sg_disp_spi_sync[p_cfg->port];
-    if(NULL == spi_sync->tx_sem) {
+    if (NULL == spi_sync->tx_sem) {
         TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&(spi_sync->tx_sem), 0, 1));
     }
 
@@ -168,7 +174,7 @@ OPERATE_RET tdl_disp_spi_send_cmd(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t cmd)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == p_cfg) {
+    if (NULL == p_cfg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -186,7 +192,7 @@ OPERATE_RET tdl_disp_spi_send_data(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t *data, ui
 {
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == p_cfg || NULL == data || data_len == 0) {
+    if (NULL == p_cfg || NULL == data || data_len == 0) {
         return OPRT_INVALID_PARM;
     }
 
@@ -202,24 +208,24 @@ OPERATE_RET tdl_disp_spi_send_data(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t *data, ui
 
 void tdl_disp_spi_init_seq(DISP_SPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq)
 {
-	uint8_t *init_line = (uint8_t *)init_seq, *p_data = NULL;
+    uint8_t *init_line = (uint8_t *)init_seq, *p_data = NULL;
     uint8_t data_len = 0, sleep_time = 0, cmd = 0;
 
     __disp_device_reset(p_cfg->rst_pin);
 
     while (*init_line) {
-        data_len   = init_line[0] - 1;
+        data_len = init_line[0] - 1;
         sleep_time = init_line[1];
-        cmd        = init_line[2];
+        cmd = init_line[2];
 
-        if(data_len) {
+        if (data_len) {
             p_data = &init_line[3];
-        }else {
+        } else {
             p_data = NULL;
         }
 
         tdl_disp_spi_send_cmd(p_cfg, cmd);
-	    tdl_disp_spi_send_data(p_cfg, p_data, data_len);
+        tdl_disp_spi_send_data(p_cfg, p_data, data_len);
 
         tal_system_sleep(sleep_time);
         init_line += init_line[0] + 2;
@@ -230,21 +236,21 @@ void tdl_disp_spi_init_seq(DISP_SPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq)
 
 void tdl_disp_modify_init_seq_param(uint8_t *init_seq, uint8_t init_cmd, uint8_t param, uint8_t idx)
 {
-	uint8_t *init_line = init_seq;
+    uint8_t *init_line = init_seq;
     uint8_t data_len = 0, cmd = 0;
 
-    if(NULL == init_seq) {
+    if (NULL == init_seq) {
         return;
     }
 
     while (*init_line) {
-        data_len   = init_line[0] - 1;
-        cmd        = init_line[2];
+        data_len = init_line[0] - 1;
+        cmd = init_line[2];
 
-        if(init_cmd == cmd) {
-            if(idx < data_len) {
+        if (init_cmd == cmd) {
+            if (idx < data_len) {
                 init_line[3 + idx] = param;
-            }else {
+            } else {
                 PR_ERR("Index %d out of bounds for command 0x%02X with param length %d", idx, init_cmd, data_len);
             }
             return;
@@ -258,7 +264,7 @@ static OPERATE_RET __tdl_display_spi_open(TDD_DISP_DEV_HANDLE_T device)
 {
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
 
-    if(NULL == device) {
+    if (NULL == device) {
         return OPRT_INVALID_PARM;
     }
     disp_spi_dev = (DISP_SPI_DEV_T *)device;
@@ -275,7 +281,7 @@ static OPERATE_RET __tdl_display_spi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
     OPERATE_RET rt = OPRT_OK;
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
 
-    if(NULL == device || NULL == frame_buff) {
+    if (NULL == device || NULL == frame_buff) {
         return OPRT_INVALID_PARM;
     }
 
@@ -300,37 +306,37 @@ OPERATE_RET tdl_disp_spi_device_register(char *name, TDD_DISP_SPI_CFG_T *spi)
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
     TDD_DISP_DEV_INFO_T disp_spi_dev_info;
 
-    if(NULL == name || NULL == spi) {
+    if (NULL == name || NULL == spi) {
         return OPRT_INVALID_PARM;
     }
 
     disp_spi_dev = tal_malloc(sizeof(DISP_SPI_DEV_T));
-    if(NULL == disp_spi_dev) {
+    if (NULL == disp_spi_dev) {
         return OPRT_MALLOC_FAILED;
     }
-    memset(disp_spi_dev, 0x00,sizeof(DISP_SPI_DEV_T));
+    memset(disp_spi_dev, 0x00, sizeof(DISP_SPI_DEV_T));
 
     memcpy(&disp_spi_dev->cfg, &spi->cfg, sizeof(DISP_SPI_BASE_CFG_T));
 
     disp_spi_dev->init_seq = spi->init_seq;
 
-    disp_spi_dev_info.type       = TUYA_DISPLAY_SPI;
-    disp_spi_dev_info.width      = spi->cfg.width;
-    disp_spi_dev_info.height     = spi->cfg.height;
-    disp_spi_dev_info.fmt        = spi->cfg.pixel_fmt;
-    disp_spi_dev_info.rotation   = spi->rotation;
+    disp_spi_dev_info.type = TUYA_DISPLAY_SPI;
+    disp_spi_dev_info.width = spi->cfg.width;
+    disp_spi_dev_info.height = spi->cfg.height;
+    disp_spi_dev_info.fmt = spi->cfg.pixel_fmt;
+    disp_spi_dev_info.rotation = spi->rotation;
 
     memcpy(&disp_spi_dev_info.bl, &spi->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&disp_spi_dev_info.power, &spi->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
 
     TDD_DISP_INTFS_T disp_spi_intfs = {
-        .open  = __tdl_display_spi_open,
+        .open = __tdl_display_spi_open,
         .flush = __tdl_display_spi_flush,
         .close = __tdl_display_spi_close,
     };
 
-    TUYA_CALL_ERR_RETURN(tdl_disp_device_register(name, (TDD_DISP_DEV_HANDLE_T)disp_spi_dev,
-                                                  &disp_spi_intfs, &disp_spi_dev_info));
+    TUYA_CALL_ERR_RETURN(
+        tdl_disp_device_register(name, (TDD_DISP_DEV_HANDLE_T)disp_spi_dev, &disp_spi_intfs, &disp_spi_dev_info));
 
     return OPRT_OK;
 }

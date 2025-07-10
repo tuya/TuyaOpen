@@ -1,7 +1,13 @@
 /**
  * @file tdd_disp_gc9a01.h
- * @version 0.1
- * @date 2025-03-13
+ * @brief GC9A01 LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the GC9A01 LCD display controller. The GC9A01 is a single-chip
+ * solution for 240x240 resolution displays with 262K colors, supporting SPI interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_GC9A01_H__
@@ -97,7 +103,6 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ********************function declaration********************

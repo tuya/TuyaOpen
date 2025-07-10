@@ -1,9 +1,13 @@
 /**
  * @file tdd_led_gpio.c
- * @author Tuya Inc.
- * @brief Implementation of GPIO-based LED driver functions for controlling LEDs via GPIO pins.
+ * @brief GPIO-based LED driver implementation
+ *
+ * This file implements the GPIO-based LED driver functions for controlling LEDs via GPIO pins.
+ * It provides the TDD layer implementation including device registration, GPIO initialization,
+ * LED control operations (on/off), and proper resource management for GPIO-controlled LEDs.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tdd_led_gpio.h"
