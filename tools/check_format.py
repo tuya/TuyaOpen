@@ -227,19 +227,7 @@ class FormatChecker:
                     if start_year != self.current_year:
                         header_errors.append(f"Copyright year should include current year {self.current_year}")
             
-            # Check for modification history before the closing */
-            # Look for pattern like: * YYYY-MM-DD     AuthorName   description
-            mod_pattern = r'\*\s+(\d{4}-\d{2}-\d{2})\s+(\w+)\s+(.+)'
-            
-            # Check lines before the last */ line
-            modification_found = False
-            for line in header_lines[:-1]:  # Exclude the closing */ line
-                if re.search(mod_pattern, line):
-                    modification_found = True
-                    break
-            
-            if not modification_found:
-                header_warnings.append("Missing modification history (format: * YYYY-MM-DD AuthorName description)")
+
             
             return header_errors, header_warnings
             
@@ -262,8 +250,6 @@ class FormatChecker:
             print(" * Detailed description...")
             print(" *")
             print(f" * @copyright Copyright (c) 2021-{self.current_year} Tuya Inc. All Rights Reserved.")
-            print(" *")
-            print(" * YYYY-MM-DD     AuthorName   modification description")
             print(" */")
             print("=" * 60)
             return True
@@ -276,8 +262,6 @@ class FormatChecker:
             print("~" * 60)
             for warning in header_warnings:
                 print(f"  ⚠️  {warning}")
-            print("\nSuggested addition:")
-            print(" * YYYY-MM-DD     AuthorName   modification description")
             print("~" * 60)
             return True
         return False
@@ -364,8 +348,6 @@ class FormatChecker:
             print(f"\n⚠️  Found {len(header_warnings)} files with header suggestions:")
             for file_path in header_warnings:
                 print(f"  - {file_path}")
-            print("\nConsider adding modification history for better documentation:")
-            print("* YYYY-MM-DD     AuthorName   modification description")
         
         if not has_errors and not header_warnings:
             print("\n✅ All modified files conform to format standards, contain no Chinese characters, and have proper headers!")
