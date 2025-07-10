@@ -145,40 +145,6 @@ typedef struct {
 }TDD_DISP_MCU8080_CFG_T;
 #endif
 
-typedef void (*TDD_DISP_SPI_SET_WINDOW_CB)(DISP_SPI_BASE_CFG_T *p_cfg, uint16_t x_start, uint16_t y_start,\
-                                           uint16_t x_end, uint16_t y_end);
-
-typedef struct {
-    DISP_SPI_BASE_CFG_T cfg;
-    TUYA_DISPLAY_BL_CTRL_T bl;
-    TUYA_DISPLAY_IO_CTRL_T power;
-    TUYA_DISPLAY_ROTATION_E rotation;
-    const uint8_t *init_seq; // Initialization commands for the display
-    TDD_DISP_SPI_SET_WINDOW_CB set_window_cb; // Callback to set the display window
-} TDD_DISP_SPI_CFG_T;
-
-typedef struct {
-    DISP_QSPI_BASE_CFG_T cfg;
-    TUYA_DISPLAY_BL_CTRL_T bl;
-    TUYA_DISPLAY_IO_CTRL_T power;
-    TUYA_DISPLAY_ROTATION_E rotation;
-    const uint8_t *init_seq; // Initialization commands for the display
-} TDD_DISP_QSPI_CFG_T;
-
-typedef struct {
-    TUYA_8080_BASE_CFG_T cfg;
-    TUYA_DISPLAY_BL_CTRL_T bl;
-    TUYA_DISPLAY_IO_CTRL_T power;
-    TUYA_DISPLAY_ROTATION_E rotation;
-    TUYA_GPIO_NUM_E te_pin;
-    TUYA_GPIO_IRQ_E te_mode;
-    uint8_t cmd_caset;
-    uint8_t cmd_raset;
-    uint8_t cmd_ramwr;
-    uint8_t cmd_ramwrc;
-    const uint32_t *init_seq; // Initialization commands for the display
-} TDD_DISP_MCU8080_CFG_T;
-
 typedef struct {
     OPERATE_RET (*open)(TDD_DISP_DEV_HANDLE_T device);
     OPERATE_RET (*flush)(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff);
