@@ -9,6 +9,7 @@
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
@@ -77,14 +78,16 @@ static void __tdd_st7305_convert(uint32_t width, uint32_t height, uint8_t *in_bu
 {
     uint16_t k = 0, i = 0, j = 0, y = 0;
     uint8_t b1 = 0, b2 = 0, mix = 0;
-    uint32_t width_bytes = 0;
+    uint32_t width_bytes = 0, offset = 0;
 
     if (NULL == in_buf || NULL == out_buf) {
         return;
     }
 
+    offset = GET_ROUND_UP_TO_MULTI_OF_3((width + 3) / 4) - (width/4);
     width_bytes = width / 8;
     for (i = 0; i < height; i += 2) {
+        k += offset;
         for (j = 0; j < width_bytes; j += 3) {
             for (y = 0; y < 3; y++) {
                 if ((j + y) >= width_bytes) {
@@ -137,7 +140,7 @@ static OPERATE_RET __tdd_disp_spi_st7305_open(TDD_DISP_DEV_HANDLE_T device)
     }
     disp_spi_dev = (DISP_ST7305_DEV_T *)device;
 
-    gate_line = disp_spi_dev->cfg.height / 4;
+    gate_line = (disp_spi_dev->cfg.height + 3) / 4;
 
     tdl_disp_modify_init_seq_param(ST7305_INIT_SEQ, 0xB0, gate_line, 0); // Set gate line count
 
@@ -177,6 +180,18 @@ static OPERATE_RET __tdd_disp_spi_st7305_close(TDD_DISP_DEV_HANDLE_T device)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief Registers an ST7305 monochrome display device using the SPI interface with the display management system.
+ *
+ * This function creates and initializes a new ST7305 display device instance, 
+ * configures its frame buffer and hardware-specific settings, and registers it under the specified name.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ * @param caset_xs Column address start value used in display window configuration.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg, uint8_t caset_xs)
 {
     OPERATE_RET rt = OPRT_OK;

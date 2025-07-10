@@ -148,11 +148,29 @@ static void __tdl_blacklight_deinit(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
     return;
 }
 
+
+/**
+ * @brief Finds a registered display device by its name.
+ *
+ * @param name The name of the display device to find.
+ *
+ * @return Returns a handle to the found display device, or NULL if no matching device is found.
+ */
 TDL_DISP_HANDLE_T tdl_disp_find_dev(char *name)
 {
     return (TDL_DISP_HANDLE_T)__find_display_device(name);
 }
 
+/**
+ * @brief Opens and initializes a display device.
+ *
+ * This function prepares the specified display device for operation by initializing 
+ * its power control, mutex, and invoking the device-specific open function if available.
+ *
+ * @param disp_hdl Handle to the display device to be opened.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if opening the device fails.
+ */
 OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -185,6 +203,17 @@ OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl)
     return OPRT_OK;
 }
 
+/**
+ * @brief Flushes the frame buffer to the display device.
+ *
+ * This function sends the contents of the provided frame buffer to the display device 
+ * for rendering. It checks if the device is open and if the flush interface is available.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param frame_buff Pointer to the frame buffer containing pixel data to be displayed.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if flushing fails.
+ */
 OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -207,6 +236,17 @@ OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T
     return OPRT_OK;
 }
 
+/**
+ * @brief Retrieves information about a registered display device.
+ *
+ * This function copies the display device's information, such as type, width, height, 
+ * pixel format, and rotation, into the provided output structure.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param dev_info Pointer to the structure where display information will be stored.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if the operation fails.
+ */
 OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_T *dev_info)
 {
     DISPLAY_DEVICE_T *display_dev = NULL;
@@ -222,6 +262,17 @@ OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_
     return OPRT_OK;
 }
 
+/**
+ * @brief Sets the brightness level of the display's backlight.
+ *
+ * This function controls the backlight of the specified display device using either 
+ * GPIO or PWM, depending on the configured backlight type.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param brightness The desired brightness level (0 for off, non-zero for on).
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if setting the brightness fails.
+ */
 OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightness)
 {
     DISPLAY_DEVICE_T *display_dev = NULL;
@@ -259,6 +310,16 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
     return OPRT_OK;
 }
 
+/**
+ * @brief Closes and deinitializes a display device.
+ *
+ * This function shuts down the specified display device by invoking the device-specific 
+ * close function (if available), deinitializing backlight control, and power control GPIOs.
+ *
+ * @param disp_hdl Handle to the display device to be closed.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if closing the device fails.
+ */
 OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -287,6 +348,18 @@ OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl)
     return OPRT_OK;
 }
 
+/**
+ * @brief Creates and initializes a frame buffer for display operations.
+ *
+ * This function allocates memory for a frame buffer based on the specified type and length. 
+ * It also ensures proper memory alignment for efficient data processing.
+ *
+ * @param type Type of memory to allocate (e.g., SRAM or PSRAM).
+ * @param len Length of the frame buffer data in bytes.
+ *
+ * @return Returns a pointer to the allocated `TDL_DISP_FRAME_BUFF_T` structure on success, 
+ *         or NULL if memory allocation fails.
+ */
 TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_t len)
 {
     TDL_DISP_FRAME_BUFF_T *fb = NULL;
@@ -325,6 +398,16 @@ TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_
     return fb;
 }
 
+/**
+ * @brief Frees a previously allocated frame buffer.
+ *
+ * This function releases the memory associated with the specified frame buffer, 
+ * taking into account the type of memory (SRAM or PSRAM) used for allocation.
+ *
+ * @param frame_buff Pointer to the frame buffer to be freed.
+ *
+ * @return None.
+ */
 void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
     if (frame_buff) {
@@ -340,8 +423,22 @@ void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff)
     }
 }
 
-OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, TDD_DISP_INTFS_T *intfs,
-                                     TDD_DISP_DEV_INFO_T *dev_info)
+/**
+ * @brief Registers a display device with the display management system.
+ *
+ * This function creates and initializes a new display device entry in the internal 
+ * device list, binding it with the provided name, hardware interfaces, callbacks, 
+ * and device information.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param tdd_hdl Handle to the low-level display driver instance.
+ * @param intfs Pointer to the display interface functions (open, flush, close, etc.).
+ * @param dev_info Pointer to the display device information structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
+OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, \
+                                     TDD_DISP_INTFS_T *intfs, TDD_DISP_DEV_INFO_T *dev_info)
 {
     DISPLAY_DEVICE_T *display_dev = NULL;
 

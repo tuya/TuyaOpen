@@ -590,10 +590,10 @@ static void summary_create(void)
 
     /* csv log */
     LV_LOG("Benchmark Summary (%"LV_PRIu32".%"LV_PRIu32".%"LV_PRIu32" %s)\r\n",
-           LVGL_VERSION_MAJOR,
-           LVGL_VERSION_MINOR,
-           LVGL_VERSION_PATCH,
-           LVGL_VERSION_INFO);
+            (unsigned long)LVGL_VERSION_MAJOR,
+            (unsigned long)LVGL_VERSION_MINOR,
+            (unsigned long)LVGL_VERSION_PATCH,
+                           LVGL_VERSION_INFO);
     LV_LOG("Name, Avg. CPU, Avg. FPS, Avg. time, render time, flush time\r\n");
 
     lv_obj_update_layout(table);

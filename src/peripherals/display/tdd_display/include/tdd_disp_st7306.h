@@ -1,18 +1,16 @@
 /**
- * @file tdd_disp_st7305.h
- * @brief ST7305 monochrome LCD display driver header file
+ * @file tdd_disp_st7306.h
+ * @brief ST7306 display driver interface definitions.
  *
- * This file contains the register definitions, command definitions, and function
- * declarations for the ST7305 LCD display controller. The ST7305 is a monochrome
- * display controller designed for small-size LCDs, commonly used in industrial
- * and embedded applications with SPI interface support.
+ * This header provides macro definitions and function declarations for
+ * controlling the ST7306 display via SPI interface.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
- 
-#ifndef __TDD_DISP_ST7305_H__
-#define __TDD_DISP_ST7305_H__
+
+#ifndef __TDD_DISP_ST7306_H__
+#define __TDD_DISP_ST7306_H__
 
 #include "tuya_cloud_types.h"
 #include "tdd_disp_type.h"
@@ -21,20 +19,21 @@
 ***********************macro define***********************
 ***********************************************************/
 
+
 /***********************************************************
 ***********************type define***********************
 ***********************************************************/
-#define ST7305_CASET 0x2A // Column Address Set
-#define ST7305_RASET 0x2B // Row Address Set
-#define ST7305_RAMWR 0x2C
+#define ST7306_CASET     0x2A // Column Address Set
+#define ST7306_RASET     0x2B // Row Address Set
+#define ST7306_RAMWR     0x2C
 
 /***********************************************************
 ***********************function declare**********************
 ***********************************************************/
 /**
- * @brief Registers an ST7305 monochrome display device using the SPI interface with the display management system.
+ * @brief Registers an ST7306 display device using I2 pixel format over SPI with the display management system.
  *
- * This function creates and initializes a new ST7305 display device instance, 
+ * This function creates and initializes a new ST7306 display device instance with I2 pixel format, 
  * configures its frame buffer and hardware-specific settings, and registers it under the specified name.
  *
  * @param name Name of the display device (used for identification).
@@ -43,6 +42,6 @@
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
-OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg, uint8_t caset_xs);
+OPERATE_RET tdd_disp_spi_i2_st7306_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg, uint8_t caset_xs);
 
-#endif // __TDD_DISP_SPI_ST7305_H__
+#endif // __TDD_DISP_SPI_ST7306_H__

@@ -14,14 +14,7 @@
 #include "tdd_led_gpio.h"
 #include "tdd_button_gpio.h"
 
-#if defined (TUYA_T5AI_BOARD_EX_MODULE_35565LCD) && (TUYA_T5AI_BOARD_EX_MODULE_35565LCD ==1)
-#include "tdd_disp_ili9488.h"
-#include "tdd_touch_gt1151.h"
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
-#include "tdd_disp_st7735s.h"
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
-#include "tdd_disp_st7305.h"
-#endif
+#include "tuya_t5ai_ex_module.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -76,10 +69,10 @@
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
 #define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_NONE 
 
-#define BOARD_LCD_WIDTH              168
-#define BOARD_LCD_HEIGHT             384
-#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_0
-#define BOARD_LCD_CASET_XS           0x17
+#define BOARD_LCD_WIDTH              300
+#define BOARD_LCD_HEIGHT             400
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_90
+#define BOARD_LCD_CASET_XS           0x05
 
 #define BOARD_LCD_SPI_PORT           TUYA_SPI_NUM_0
 #define BOARD_LCD_SPI_CLK            48000000
@@ -156,7 +149,6 @@ static OPERATE_RET __board_register_led(void)
 { 
     OPERATE_RET rt = OPRT_OK;
 
-
 #if defined(LED_NAME) 
     TDD_LED_GPIO_CFG_T led_gpio;
 
@@ -169,117 +161,6 @@ static OPERATE_RET __board_register_led(void)
 
     return rt;
 }
-
-#if defined (TUYA_T5AI_BOARD_EX_MODULE_35565LCD) && (TUYA_T5AI_BOARD_EX_MODULE_35565LCD ==1)
-static OPERATE_RET __board_register_display(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-#if defined(DISPLAY_NAME)
-    DISP_RGB_DEVICE_CFG_T display_cfg;
-
-    memset(&display_cfg, 0, sizeof(DISP_RGB_DEVICE_CFG_T));
-
-    display_cfg.sw_spi_cfg.spi_clk = BOARD_LCD_SW_SPI_CLK_PIN;
-    display_cfg.sw_spi_cfg.spi_sda = BOARD_LCD_SW_SPI_SDA_PIN;
-    display_cfg.sw_spi_cfg.spi_csx = BOARD_LCD_SW_SPI_CSX_PIN;
-    display_cfg.sw_spi_cfg.spi_dc  = BOARD_LCD_SW_SPI_DC_PIN;
-    display_cfg.sw_spi_cfg.spi_rst = BOARD_LCD_SW_SPI_RST_PIN;
-
-    display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
-    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
-    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
-
-    display_cfg.width     = BOARD_LCD_WIDTH;
-    display_cfg.height    = BOARD_LCD_HEIGHT;
-    display_cfg.pixel_fmt = BOARD_LCD_PIXELS_FMT;
-    display_cfg.rotation  = BOARD_LCD_ROTATION;
-
-    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
-
-    TUYA_CALL_ERR_RETURN(tdd_disp_rgb_ili9488_register(DISPLAY_NAME, &display_cfg));
-
-    TDD_TOUCH_I2C_CFG_T touch_cfg = {
-        .port    = BOARD_TOUCH_I2C_PORT,
-        .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
-        .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
-    };
-
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_gt1151_register(DISPLAY_NAME, &touch_cfg));
-#endif
-
-    return rt;
-}
-
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
-static OPERATE_RET __board_register_display(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-#if defined(DISPLAY_NAME)
-    DISP_QSPI_DEVICE_CFG_T display_cfg;
-
-    memset(&display_cfg, 0, sizeof(DISP_QSPI_DEVICE_CFG_T));
-
-    display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
-    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
-    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
-
-    display_cfg.width     = BOARD_LCD_WIDTH;
-    display_cfg.height    = BOARD_LCD_HEIGHT;
-    display_cfg.pixel_fmt = BOARD_LCD_PIXELS_FMT;
-    display_cfg.rotation  = BOARD_LCD_ROTATION;
-
-    display_cfg.port      = BOARD_LCD_QSPI_PORT;
-    display_cfg.spi_clk   = BOARD_LCD_QSPI_CLK;
-    display_cfg.cs_pin    = BOARD_LCD_QSPI_CS_PIN;
-    display_cfg.dc_pin    = BOARD_LCD_QSPI_DC_PIN;
-    display_cfg.rst_pin   = BOARD_LCD_QSPI_RST_PIN;
-
-    display_cfg.power.pin          = BOARD_LCD_POWER_PIN;
-
-    TUYA_CALL_ERR_RETURN(tdd_disp_qspi_st7735s_register(DISPLAY_NAME, &display_cfg));
-#endif
-
-    return rt;
-}
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
-static OPERATE_RET __board_register_display(void)   
-{
-    OPERATE_RET rt = OPRT_OK;
-
-#if defined(DISPLAY_NAME)
-    DISP_SPI_DEVICE_CFG_T display_cfg;
-
-    memset(&display_cfg, 0, sizeof(DISP_SPI_DEVICE_CFG_T));
-
-    display_cfg.bl.type   = BOARD_LCD_BL_TYPE;
-
-    display_cfg.width     = BOARD_LCD_WIDTH;
-    display_cfg.height    = BOARD_LCD_HEIGHT;
-    display_cfg.rotation  = BOARD_LCD_ROTATION;
-
-    display_cfg.port      = BOARD_LCD_SPI_PORT;
-    display_cfg.spi_clk   = BOARD_LCD_SPI_CLK;
-    display_cfg.cs_pin    = BOARD_LCD_SPI_CS_PIN;
-    display_cfg.dc_pin    = BOARD_LCD_SPI_DC_PIN;
-    display_cfg.rst_pin   = BOARD_LCD_SPI_RST_PIN;
-
-    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
-
-    TUYA_CALL_ERR_RETURN(tdd_disp_spi_mono_st7305_register(DISPLAY_NAME, &display_cfg, BOARD_LCD_CASET_XS));
-#endif
-
-    return rt;
-}
-#else 
-
-static OPERATE_RET __board_register_display(void)
-{
-    return OPRT_OK;
-}
-
-#endif
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
@@ -296,7 +177,7 @@ OPERATE_RET board_register_hardware(void)
 
     TUYA_CALL_ERR_LOG(__board_register_led());
 
-    TUYA_CALL_ERR_LOG(__board_register_display());
+    TUYA_CALL_ERR_LOG(board_register_ex_module());
 
     return rt;
 }
