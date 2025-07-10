@@ -3,6 +3,10 @@
 Code format checker script
 Used to check if modified C/C++ files in PR comply with clang-format standards,
 detect Chinese characters in code, and validate file headers
+
+Support modes:
+- PR mode (default): Check files modified in PR relative to base branch
+- Debug mode: Check specified local files or directories for development
 """
 
 import os
@@ -13,11 +17,13 @@ import argparse
 import re
 from pathlib import Path
 from datetime import datetime
+import glob
 
 
 class FormatChecker:
-    def __init__(self, base_ref="master"):
+    def __init__(self, base_ref="master", debug_mode=False):
         self.base_ref = base_ref
+        self.debug_mode = debug_mode
         self.project_root = self._find_project_root()
         self.clang_format_ignore = self._load_ignore_patterns()
         self.current_year = datetime.now().year
@@ -81,6 +87,52 @@ class FormatChecker:
             print(f"Error: Failed to execute git command: {e}")
             return []
     
+    def _get_local_files(self, file_patterns=None, directories=None):
+        """Get local C/C++ files for debug mode"""
+        files = []
+        c_cpp_extensions = ('.c', '.cpp', '.h', '.hpp', '.cc', '.cxx')
+        
+        # Process specified files
+        if file_patterns:
+            for pattern in file_patterns:
+                # Support glob patterns
+                matched_files = glob.glob(pattern, recursive=True)
+                for file_path in matched_files:
+                    path_obj = Path(file_path)
+                    if path_obj.is_file() and path_obj.suffix in c_cpp_extensions:
+                        rel_path = path_obj.relative_to(self.project_root) if path_obj.is_absolute() else path_obj
+                        if not self._should_ignore_file(str(rel_path)):
+                            files.append(str(rel_path))
+        
+        # Process specified directories
+        if directories:
+            for directory in directories:
+                dir_path = Path(directory)
+                if not dir_path.exists():
+                    print(f"Warning: Directory does not exist: {directory}")
+                    continue
+                
+                # Find all C/C++ files in directory recursively
+                for ext in c_cpp_extensions:
+                    pattern = f"**/*{ext}"
+                    for file_path in dir_path.glob(pattern):
+                        rel_path = file_path.relative_to(self.project_root) if file_path.is_absolute() else file_path
+                        if not self._should_ignore_file(str(rel_path)):
+                            files.append(str(rel_path))
+        
+        # If no files or directories specified, scan current directory
+        if not file_patterns and not directories:
+            current_dir = Path.cwd()
+            for ext in c_cpp_extensions:
+                pattern = f"**/*{ext}"
+                for file_path in current_dir.glob(pattern):
+                    rel_path = file_path.relative_to(self.project_root) if file_path.is_absolute() else file_path
+                    if not self._should_ignore_file(str(rel_path)):
+                        files.append(str(rel_path))
+        
+        # Remove duplicates and return sorted list
+        return sorted(list(set(files)))
+    
     def _check_clang_format_available(self):
         """Check if clang-format is available"""
         try:
@@ -125,10 +177,7 @@ class FormatChecker:
         
         diff_content = ''.join(diff)
         if diff_content:
-            print(f"\nFile {file_path} does not conform to format:")
-            print("=" * 60)
-            print(diff_content)
-            print("=" * 60)
+            print(f"❌ File {file_path} does not conform to format standards")
             return True
         return False
     
@@ -163,12 +212,7 @@ class FormatChecker:
     def _show_chinese_errors(self, file_path, chinese_errors):
         """Show Chinese character errors for file"""
         if chinese_errors:
-            print(f"\nFile {file_path} contains Chinese characters:")
-            print("=" * 60)
-            for error in chinese_errors:
-                print(f"Line {error['line']}, Column {error['column']}: '{error['character']}'")
-                print(f"  Context: {error['context']}")
-            print("=" * 60)
+            print(f"❌ File {file_path} contains Chinese characters")
             return True
         return False
     
@@ -238,49 +282,38 @@ class FormatChecker:
     def _show_header_errors(self, file_path, header_errors):
         """Show file header errors"""
         if header_errors:
-            print(f"\nFile {file_path} has header issues:")
-            print("=" * 60)
-            for error in header_errors:
-                print(f"  - {error}")
-            print("\nExpected header format:")
-            print("/**")
-            print(" * @file filename.c")
-            print(" * @brief Brief description of the file")
-            print(" *")
-            print(" * Detailed description...")
-            print(" *")
-            print(f" * @copyright Copyright (c) 2021-{self.current_year} Tuya Inc. All Rights Reserved.")
-            print(" */")
-            print("=" * 60)
+            print(f"❌ File {file_path} has invalid header format")
             return True
         return False
     
     def _show_header_warnings(self, file_path, header_warnings):
         """Show file header warnings"""
         if header_warnings:
-            print(f"\nFile {file_path} has header suggestions:")
-            print("~" * 60)
-            for warning in header_warnings:
-                print(f"  ⚠️  {warning}")
-            print("~" * 60)
+            print(f"⚠️  File {file_path} has header suggestions")
             return True
         return False
     
-    def check_format(self):
+    def check_format(self, file_patterns=None, directories=None):
         """Check code format, Chinese characters, and file headers"""
         if not self._check_clang_format_available():
             print("Error: clang-format is not installed or not in PATH")
             print("Please install clang-format (recommended version 14)")
             return False
         
-        print(f"Checking files modified relative to {self.base_ref} branch...")
+        if self.debug_mode:
+            print("🔧 Debug mode: Checking local files...")
+            changed_files = self._get_local_files(file_patterns, directories)
+            if not changed_files:
+                print("❌ No C/C++ files found matching the criteria")
+                return True
+        else:
+            print(f"📋 PR mode: Checking files modified relative to {self.base_ref} branch...")
+            changed_files = self._get_changed_files()
+            if not changed_files:
+                print("✅ No C/C++ files need to be checked")
+                return True
         
-        changed_files = self._get_changed_files()
-        if not changed_files:
-            print("No C/C++ files need to be checked")
-            return True
-        
-        print(f"Found {len(changed_files)} modified C/C++ files:")
+        print(f"📁 Found {len(changed_files)} C/C++ file(s) to check:")
         for file_path in changed_files:
             print(f"  - {file_path}")
         
@@ -289,7 +322,6 @@ class FormatChecker:
         header_errors = []
         header_warnings = []
         
-        print("\n--- Checking code format ---")
         for file_path in changed_files:
             full_path = self.project_root / file_path
             original, formatted = self._format_file_content(full_path)
@@ -298,7 +330,6 @@ class FormatChecker:
                 if self._show_diff(file_path, original, formatted):
                     format_errors.append(file_path)
         
-        print("\n--- Checking Chinese characters ---")
         for file_path in changed_files:
             full_path = self.project_root / file_path
             chinese_issues = self._check_chinese_characters(full_path)
@@ -307,7 +338,6 @@ class FormatChecker:
                 if self._show_chinese_errors(file_path, chinese_issues):
                     chinese_errors.append(file_path)
         
-        print("\n--- Checking file headers ---")
         for file_path in changed_files:
             full_path = self.project_root / file_path
             errors, warnings = self._check_file_header(full_path)
@@ -323,56 +353,87 @@ class FormatChecker:
         has_errors = format_errors or chinese_errors or header_errors
         
         if format_errors:
-            print(f"\n❌ Found {len(format_errors)} files that do not conform to format:")
+            print(f"\n❌ Found {len(format_errors)} file(s) that do not conform to format:")
             for file_path in format_errors:
                 print(f"  - {file_path}")
-            print("\nPlease run the following command to fix format issues:")
-            print("clang-format -style=file -i " + " ".join(format_errors))
         
         if chinese_errors:
-            print(f"\n❌ Found {len(chinese_errors)} files containing Chinese characters:")
+            print(f"\n❌ Found {len(chinese_errors)} file(s) containing Chinese characters:")
             for file_path in chinese_errors:
                 print(f"  - {file_path}")
-            print("\nPlease remove all Chinese characters from the code.")
-            print("Chinese comments and text are not allowed in the codebase.")
         
         if header_errors:
-            print(f"\n❌ Found {len(header_errors)} files with header issues:")
+            print(f"\n❌ Found {len(header_errors)} file(s) with header issues:")
             for file_path in header_errors:
                 print(f"  - {file_path}")
-            print(f"\nPlease update file headers to include:")
-            print("- Proper @file, @brief, and @copyright tags")
-            print(f"- Copyright year ending with {self.current_year}")
         
         if header_warnings:
-            print(f"\n⚠️  Found {len(header_warnings)} files with header suggestions:")
+            print(f"\n⚠️  Found {len(header_warnings)} file(s) with header suggestions:")
             for file_path in header_warnings:
                 print(f"  - {file_path}")
         
         if not has_errors and not header_warnings:
-            print("\n✅ All modified files conform to format standards, contain no Chinese characters, and have proper headers!")
+            print("\n✅ All files conform to format standards, contain no Chinese characters, and have proper headers!")
         elif not has_errors:
-            print("\n✅ All modified files pass required checks! (Some suggestions above)")
+            print("\n✅ All files pass required checks! (Some suggestions above)")
         
         return not has_errors
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Check if code format complies with clang-format standards, detect Chinese characters, and validate file headers")
+    parser = argparse.ArgumentParser(
+        description="Check if code format complies with clang-format standards, detect Chinese characters, and validate file headers",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    
+    # Mode selection
+    parser.add_argument("--debug", "--local", action="store_true",
+                       help="Enable debug mode to check local specified files instead of PR files")
+    
+    # PR mode options
     parser.add_argument("--base", default="master", 
                        help="Base branch name (default: master)")
+    
+    # Debug mode options
+    parser.add_argument("--files", nargs="+", metavar="FILE",
+                       help="Debug mode: Specify files to check (supports wildcards)")
+    parser.add_argument("--dir", "--directories", nargs="+", metavar="DIR",
+                       help="Debug mode: Specify directories to check (recursive)")
+    
+    # General options
     parser.add_argument("--verbose", "-v", action="store_true",
                        help="Show verbose information")
     
     args = parser.parse_args()
     
+    # Validation
+    if args.debug and (args.files or args.dir):
+        pass  # Valid: debug mode with specified files/dirs
+    elif args.debug:
+        pass  # Valid: debug mode scanning current directory
+    elif not args.debug and (args.files or args.dir):
+        print("Error: --files and --dir arguments can only be used in debug mode (--debug)")
+        sys.exit(1)
+    
     if args.verbose:
         print(f"Project root: {Path.cwd()}")
-        print(f"Base branch: {args.base}")
+        if args.debug:
+            print("Run mode: Debug mode")
+            if args.files:
+                print(f"Specified files: {args.files}")
+            if args.dir:
+                print(f"Specified directories: {args.dir}")
+        else:
+            print("Run mode: PR check mode")
+            print(f"Base branch: {args.base}")
         print(f"Current year: {datetime.now().year}")
     
-    checker = FormatChecker(base_ref=args.base)
-    success = checker.check_format()
+    checker = FormatChecker(base_ref=args.base, debug_mode=args.debug)
+    
+    if args.debug:
+        success = checker.check_format(file_patterns=args.files, directories=args.dir)
+    else:
+        success = checker.check_format()
     
     sys.exit(0 if success else 1)
 
