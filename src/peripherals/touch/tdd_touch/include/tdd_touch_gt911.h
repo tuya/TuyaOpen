@@ -1,7 +1,14 @@
 /**
  * @file tdd_touch_gt911.h
- * @version 0.1
- * @date 2025-06-09
+ * @brief GT911 capacitive touch controller driver interface definitions
+ *
+ * This header file defines the interface for the GT911 capacitive touch controller
+ * driver in the TDD layer. It includes register definitions, configuration parameters,
+ * and function prototypes for GT911 touch controller operations including multi-point
+ * touch detection and device registration.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_TOUCH_GT911_H__
@@ -42,7 +49,6 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ********************function declaration********************

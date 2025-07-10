@@ -1,11 +1,14 @@
 /**
  * @file tdd_pixel_ws2812_opt.c
- * @author www.tuya.com
- * @brief tdd_pixel_ws2812 module is used to
- * @version 0.1
- * @date 2022-08-03
+ * @brief TDD layer optimized implementation for WS2812 RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This source file implements the optimized TDD layer driver for WS2812 RGB LED pixel controllers.
+ * This optimized version provides enhanced performance for WS2812 RGB LED controllers
+ * with additional PWM configuration options and 4-bit encoding optimizations. The implementation
+ * provides device registration, initialization, data transmission, and control functions
+ * through SPI interface for driving WS2812 LED strips with improved timing and performance.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -25,13 +28,13 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-/* SPI波特率 */
+/* SPI baud rate */
 #define DRV_SPI_SPEED 2887500
 
 #define COLOR_PRIMARY_NUM 3
 #define COLOR_RESOLUTION  10000
 
-// V2.0归零码4bit版
+// V2.0 return-to-zero code 4bit version
 #define LED_DRVICE_IC_DATA_00 0X88 // 00
 #define LED_DRVICE_IC_DATA_01 0X8e // 01
 #define LED_DRVICE_IC_DATA_10 0Xe8 // 10
@@ -51,14 +54,11 @@ static PIXEL_PWM_CFG_T *g_pwm_cfg = NULL;
 ****************************function define***************************
 *********************************************************************/
 /**
- * @brief       rgb转成spi数据 4bit为单位
- *
- * @param[in]   color_data          颜色数据
- * @param[in]   chip_ic_0           0码
- * @param[in]   chip_ic_1           1码
- * @param[out]  spi_data_buf        转化后的spi数据
- *
- * @return none
+ * @function: __tdd_2812_4bit_rgb_transform_spi_data
+ * @brief: 4bit spi stream conversion
+ * @param[in]   color_data          Color data
+ * @param[out]  spi_data_buf        Converted SPI data
+ * @return: none
  */
 static void __tdd_2812_4bit_rgb_transform_spi_data(unsigned char color_data, unsigned char *spi_data_buf)
 {
@@ -88,10 +88,10 @@ static void __tdd_2812_4bit_rgb_transform_spi_data(unsigned char color_data, uns
 }
 
 /**
- * @function:__tdd_2812_driver_open
- * @brief: 打开（初始化）设备
- * @param[in]: pixel_num -> 像素点数
- * @param[out]: *handle  -> 设备句柄
+ * @function: __tdd_2812_driver_open
+ * @brief: Open (initialize) the device
+ * @param[in]: pixel_num -> Number of pixels
+ * @param[out]: *handle  -> Device handle
  * @return: success -> 0  fail -> else
  */
 static OPERATE_RET __tdd_2812_driver_open(DRIVER_HANDLE_T *handle, unsigned short pixel_num)
@@ -125,10 +125,10 @@ static OPERATE_RET __tdd_2812_driver_open(DRIVER_HANDLE_T *handle, unsigned shor
     }
 
     if (NULL != g_pwm_cfg) {
-      op_ret = tdd_pixel_pwm_open(g_pwm_cfg);
-      if (op_ret != OPRT_OK) {
-        return op_ret;
-      }
+        op_ret = tdd_pixel_pwm_open(g_pwm_cfg);
+        if (op_ret != OPRT_OK) {
+            return op_ret;
+        }
     }
 
     *handle = pixels_send;
@@ -138,14 +138,13 @@ static OPERATE_RET __tdd_2812_driver_open(DRIVER_HANDLE_T *handle, unsigned shor
 
 /**
  * @function: __tdd_ws2812_driver_send_data
- * @brief: 将颜色数据（RGBCW）转换为当前芯片的线序并转换为SPI码流, 通过SPI发送
- * @param[in]: handle -> 设备句柄
- * @param[in]: *data_buf -> 颜色数据
- * @param[in]: buf_len -> 颜色数据长度
+ * @brief: Convert color data (RGBCW) to the line sequence of the current chip and convert to SPI stream, send via SPI
+ * @param[in]: handle -> Device handle
+ * @param[in]: *data_buf -> Color data
+ * @param[in]: buf_len -> Color data length
  * @return: success -> 0  fail -> else
  */
-static OPERATE_RET __tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf,
-                                                 unsigned int buf_len)
+static OPERATE_RET __tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf, unsigned int buf_len)
 {
     OPERATE_RET ret = OPRT_OK;
     DRV_PIXEL_TX_CTRL_T *tx_ctrl = NULL;
@@ -164,10 +163,10 @@ static OPERATE_RET __tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigne
         if (g_pwm_cfg->pwm_ch_arr[PIXEL_PWM_CH_IDX_WARM] != PIXEL_PWM_ID_INVALID) {
             color_nums++;
         }
-        LIGHT_RGBCW_U color = {.array = {0,0,0,0,0}};
+        LIGHT_RGBCW_U color = {.array = {0, 0, 0, 0, 0}};
         color.s.cold = data_buf[3];
         color.s.warm = data_buf[4];
-        tdd_pixel_pwm_output(g_pwm_cfg ,&color);
+        tdd_pixel_pwm_output(g_pwm_cfg, &color);
     }
 
     tx_ctrl = (DRV_PIXEL_TX_CTRL_T *)handle;
@@ -175,7 +174,8 @@ static OPERATE_RET __tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigne
         memset(swap_buf, 0, sizeof(swap_buf));
         tdd_rgb_line_seq_transform(&data_buf[j * color_nums], swap_buf, driver_info.line_seq);
         for (i = 0; i < COLOR_PRIMARY_NUM; i++) {
-            __tdd_2812_4bit_rgb_transform_spi_data((unsigned char)(swap_buf[i] * 255 / COLOR_RESOLUTION), &tx_ctrl->tx_buffer[idx]);
+            __tdd_2812_4bit_rgb_transform_spi_data((unsigned char)(swap_buf[i] * 255 / COLOR_RESOLUTION),
+                                                   &tx_ctrl->tx_buffer[idx]);
             idx += ONE_BYTE_LEN_4BIT;
         }
     }
@@ -187,8 +187,8 @@ static OPERATE_RET __tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigne
 
 /**
  * @function: __tdd_ws2812_driver_close
- * @brief: 关闭设备（资源释放）
- * @param[in]: *handle -> 设备句柄
+ * @brief: Close the device (release resources)
+ * @param[in]: *handle -> Device handle
  * @return: success -> 0  fail -> else
  */
 static OPERATE_RET __tdd_ws2812_driver_close(DRIVER_HANDLE_T *handle)
@@ -213,37 +213,44 @@ static OPERATE_RET __tdd_ws2812_driver_close(DRIVER_HANDLE_T *handle)
 
     return ret;
 }
-
+/**
+ * @function: __tdd_ws2812_driver_config
+ * @brief: tdd layer config interface
+ * @param[in]: handle -> Device handle
+ * @param[in]: cmd  -> config command
+ * @param[in]: arg  -> config argument
+ * @return: success -> 0  fail -> else
+ */
 OPERATE_RET __tdd_ws2812_driver_config(DRIVER_HANDLE_T handle, unsigned char cmd, void *arg)
 {
     if (NULL == handle) {
         return OPRT_INVALID_PARM;
     }
-    
-    switch(cmd) {
-        case DRV_CMD_GET_PWM_HARDWARE_CFG: {
-            if (NULL == arg) {
-                return OPRT_INVALID_PARM;
-            }
-            if (NULL == g_pwm_cfg) {
-                return OPRT_NOT_SUPPORTED;
-            }
-            PIXEL_PWM_CFG_T *pwm_cfg = (PIXEL_PWM_CFG_T *)arg;
-            pwm_cfg->active_level = g_pwm_cfg->active_level;
-            pwm_cfg->pwm_freq = g_pwm_cfg->pwm_freq;
-            memcpy((uint8_t *)pwm_cfg->pwm_ch_arr, (uint8_t *)g_pwm_cfg->pwm_ch_arr, SIZEOF(g_pwm_cfg->pwm_ch_arr));
-            memcpy((uint8_t *)pwm_cfg->pwm_pin_arr, (uint8_t *)g_pwm_cfg->pwm_pin_arr, SIZEOF(g_pwm_cfg->pwm_pin_arr));
-            break;
+
+    switch (cmd) {
+    case DRV_CMD_GET_PWM_HARDWARE_CFG: {
+        if (NULL == arg) {
+            return OPRT_INVALID_PARM;
         }
-        case DRV_CMD_SET_RGB_ORDER_CFG: {
-            if (NULL == arg) {
-                return OPRT_INVALID_PARM;
-            }
-            RGB_ORDER_MODE_E *new_rgb_order = (RGB_ORDER_MODE_E *)arg;
-            driver_info.line_seq = *new_rgb_order;
-            break;
+        if (NULL == g_pwm_cfg) {
+            return OPRT_NOT_SUPPORTED;
         }
-        default:
+        PIXEL_PWM_CFG_T *pwm_cfg = (PIXEL_PWM_CFG_T *)arg;
+        pwm_cfg->active_level = g_pwm_cfg->active_level;
+        pwm_cfg->pwm_freq = g_pwm_cfg->pwm_freq;
+        memcpy((uint8_t *)pwm_cfg->pwm_ch_arr, (uint8_t *)g_pwm_cfg->pwm_ch_arr, SIZEOF(g_pwm_cfg->pwm_ch_arr));
+        memcpy((uint8_t *)pwm_cfg->pwm_pin_arr, (uint8_t *)g_pwm_cfg->pwm_pin_arr, SIZEOF(g_pwm_cfg->pwm_pin_arr));
+        break;
+    }
+    case DRV_CMD_SET_RGB_ORDER_CFG: {
+        if (NULL == arg) {
+            return OPRT_INVALID_PARM;
+        }
+        RGB_ORDER_MODE_E *new_rgb_order = (RGB_ORDER_MODE_E *)arg;
+        driver_info.line_seq = *new_rgb_order;
+        break;
+    }
+    default:
         return OPRT_NOT_SUPPORTED;
     }
 
@@ -251,12 +258,14 @@ OPERATE_RET __tdd_ws2812_driver_config(DRIVER_HANDLE_T handle, unsigned char cmd
 }
 
 /**
- * @function:tdd_ws2812_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
+ * @function:tdd_ws2812_opt_driver_register
+ * @brief: Register device
+ * @param[in]: *driver_name -> Device name
+ * @param[in]: *init_param -> init param
  * @return: success -> OPRT_OK
  */
-OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param, PIXEL_PWM_CFG_T *pwm_cfg)
+OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param,
+                                           PIXEL_PWM_CFG_T *pwm_cfg)
 {
     OPERATE_RET ret = OPRT_OK;
     PIXEL_DRIVER_INTFS_T intfs = {0};
@@ -272,7 +281,7 @@ OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFI
     arrt.white_color_control = FALSE;
 
     if (NULL != pwm_cfg) {
-        g_pwm_cfg = (PIXEL_PWM_CFG_T *) tal_malloc(SIZEOF(PIXEL_PWM_CFG_T));
+        g_pwm_cfg = (PIXEL_PWM_CFG_T *)tal_malloc(SIZEOF(PIXEL_PWM_CFG_T));
         g_pwm_cfg->active_level = pwm_cfg->active_level;
         g_pwm_cfg->pwm_freq = pwm_cfg->pwm_freq;
         memcpy((uint8_t *)g_pwm_cfg->pwm_ch_arr, (uint8_t *)pwm_cfg->pwm_ch_arr, SIZEOF(pwm_cfg->pwm_ch_arr));
@@ -284,7 +293,7 @@ OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFI
             arrt.color_tp |= COLOR_W_BIT;
         }
         arrt.white_color_control = TRUE;
-    } 
+    }
 
     ret = tdl_pixel_driver_register(driver_name, &intfs, &arrt, NULL);
     if (ret != OPRT_OK) {

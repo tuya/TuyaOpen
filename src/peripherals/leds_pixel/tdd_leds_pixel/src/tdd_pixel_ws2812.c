@@ -1,11 +1,14 @@
 /**
  * @file tdd_pixel_ws2812.c
- * @author www.tuya.com
- * @brief tdd_pixel_ws2812 module is used to
- * @version 0.1
- * @date 2022-03-03
+ * @brief TDD layer implementation for WS2812 RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This source file implements the TDD layer driver for WS2812 RGB LED pixel controllers.
+ * WS2812 is a popular 3-channel RGB LED controller that supports individual pixel control
+ * with built-in PWM generation and daisy-chain connectivity. The implementation provides
+ * device registration, initialization, data transmission, and control functions through
+ * SPI interface for driving WS2812 LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "string.h"
@@ -21,12 +24,12 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-/* SPI波特率 */
+/* SPI baud rate */
 #define DRV_SPI_SPEED 6600000
 
-/* SPI 0、1码对应的数据 */
-#define DRVICE_DATA_0 0XC0   //11000000
-#define DRVICE_DATA_1 0XF0   //11110000
+/* Data corresponding to SPI 0 and 1 codes */
+#define DRVICE_DATA_0 0XC0 // 11000000
+#define DRVICE_DATA_1 0XF0 // 11110000
 
 #define COLOR_PRIMARY_NUM 3
 #define COLOR_RESOLUTION  255
@@ -44,9 +47,9 @@ static PIXEL_DRIVER_CONFIG_T driver_info;
 *********************************************************************/
 /**
  * @function:tdd_2812_driver_open
- * @brief: 打开（初始化）设备
- * @param[in]: pixel_num -> 像素点数
- * @param[out]: *handle  -> 设备句柄
+ * @brief: Open (initialize) the device
+ * @param[in]: pixel_num -> Number of pixels
+ * @param[out]: *handle  -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_2812_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short pixel_num)
@@ -86,10 +89,10 @@ OPERATE_RET tdd_2812_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short pix
 
 /**
  * @function: tdd_ws2812_driver_send_data
- * @brief: 将颜色数据（RGBCW）转换为当前芯片的线序并转换为SPI码流, 通过SPI发送
- * @param[in]: handle -> 设备句柄
- * @param[in]: *data_buf -> 颜色数据
- * @param[in]: buf_len -> 颜色数据长度
+ * @brief: Convert color data (RGBCW) to the line sequence of the current chip and convert to SPI stream, send via SPI
+ * @param[in]: handle -> Device handle
+ * @param[in]: *data_buf -> Color data
+ * @param[in]: buf_len -> Color data length
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf, unsigned int buf_len)
@@ -122,8 +125,8 @@ OPERATE_RET tdd_ws2812_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *
 
 /**
  * @function: tdd_ws2812_driver_close
- * @brief: 关闭设备（资源释放）
- * @param[in]: *handle -> 设备句柄
+ * @brief: Close the device (release resources)
+ * @param[in]: *handle -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_ws2812_driver_close(DRIVER_HANDLE_T *handle)
@@ -149,8 +152,8 @@ OPERATE_RET tdd_ws2812_driver_close(DRIVER_HANDLE_T *handle)
 
 /**
  * @function:tdd_ws2812_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
+ * @brief: Register device
+ * @param[in]: *driver_name -> Device name
  * @return: success -> OPRT_OK
  */
 OPERATE_RET tdd_ws2812_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param)

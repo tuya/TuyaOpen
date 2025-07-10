@@ -1,9 +1,29 @@
 /**
  * @file tuya_authorize.c
- * @date 2025-04-11
- * @brief
+ * @brief Implementation of Tuya device authorization and license management.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file implements the core functionality for managing device authorization
+ * and licensing in Tuya IoT cloud services. It provides secure storage and
+ * retrieval of device credentials including UUID and authentication keys using
+ * both Key-Value (KV) storage and One-Time Programmable (OTP) memory. The
+ * implementation includes CLI commands for interactive credential management
+ * during development and testing.
+ *
+ * Key features implemented:
+ * - Secure credential storage using KV and OTP memory systems
+ * - Device UUID and authentication key validation and management
+ * - Fallback mechanism from KV storage to OTP for credential retrieval
+ * - CLI interface for interactive authorization management
+ * - Credential reset functionality for device reprovisioning
+ * - Error handling and logging for authorization operations
+ *
+ * The authorization system ensures that devices can securely authenticate with
+ * Tuya's cloud infrastructure by maintaining proper credential management and
+ * providing reliable access to device identity information. The implementation
+ * supports both development scenarios (using KV storage) and production
+ * deployment (using OTP memory) for maximum flexibility.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 

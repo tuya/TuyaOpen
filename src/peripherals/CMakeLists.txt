@@ -10,6 +10,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/touch)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/encoder)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/button)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/led)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/joystick)
 
 ########################################
 # Layer Configure

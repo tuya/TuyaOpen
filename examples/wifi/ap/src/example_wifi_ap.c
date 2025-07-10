@@ -14,7 +14,7 @@
  *
  * @note This example is designed for educational purposes and may need to be adapted for production environments.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -106,7 +106,6 @@ void user_main()
     tal_sw_timer_init();
     tal_workq_init();
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

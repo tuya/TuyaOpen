@@ -23,11 +23,11 @@
  */
 
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID "jzwn39csuk66cp7a"
+#define TUYA_PRODUCT_ID "c8ccmpnhz35w5va7"
 #endif
 
-#define TUYA_OPENSDK_UUID    "****************************" // Please change the correct uuid
-#define TUYA_OPENSDK_AUTHKEY "***************************"  // Please change the correct authkey
+#define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
+#define TUYA_OPENSDK_AUTHKEY "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey
 
 /**
  * @brief PINCODE for AP provisioning

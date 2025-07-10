@@ -301,7 +301,6 @@ void user_main(void)
                                     });
     assert(ret == OPRT_OK);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

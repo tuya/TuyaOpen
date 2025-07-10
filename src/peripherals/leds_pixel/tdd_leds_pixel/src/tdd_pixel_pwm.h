@@ -1,11 +1,14 @@
 /**
- * @file tdd_pixel_basic.h
- * @author www.tuya.com
- * @brief tdd_pixel_basic module is used to provid chip basic driver api
- * @version 0.1
- * @date 2022-07-14
+ * @file tdd_pixel_pwm.h
+ * @brief TDD layer PWM support header for LED pixel controllers
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file declares PWM functionality for LED pixel controllers that require
+ * additional PWM channels for features like color temperature control or brightness
+ * adjustment. The module provides interfaces for PWM initialization, control, and
+ * output operations for LED strips that combine addressable pixels with traditional
+ * PWM-controlled lighting elements.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -25,12 +28,11 @@ extern "C" {
 /**
  * @brief pwm duty limit
  */
-#define PIXEL_PWM_DUTY_MAX                10000  // max: 100%
+#define PIXEL_PWM_DUTY_MAX 10000 // max: 100%
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ********************function declaration********************

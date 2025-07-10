@@ -1,11 +1,13 @@
 /**
  * @file tdd_pixel_ws2814.h
- * @author www.tuya.com
- * @brief tdd_pixel_ws2814 module is used to driving ws2814 chip
- * @version 0.1
- * @date 2022-03-08
+ * @brief TDD layer driver for WS2814 RGBW LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the interface for the WS2814 LED pixel controller driver.
+ * WS2814 is a 4-channel RGBW LED controller that supports individual pixel control
+ * with built-in PWM generation and daisy-chain connectivity. The driver implements the
+ * TDD (Tuya Device Driver) layer interface for registering and managing WS2814 LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 

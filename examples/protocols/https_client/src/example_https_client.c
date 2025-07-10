@@ -16,7 +16,7 @@
  * This example is intended for developers looking to integrate HTTPS communication into their Tuya SDK-based IoT
  * applications, providing a foundation for building applications that interact with web services.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -141,7 +141,6 @@ void user_main()
     tuya_register_center_init();
     tal_event_subscribe(EVENT_LINK_STATUS_CHG, "https_client", __link_status_cb, SUBSCRIBE_TYPE_NORMAL);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

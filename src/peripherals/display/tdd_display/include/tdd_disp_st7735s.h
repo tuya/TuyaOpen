@@ -1,7 +1,14 @@
 /**
  * @file tdd_disp_st7735s.h
- * @version 0.1
- * @date 2025-03-12
+ * @brief ST7735S LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the ST7735S LCD display controller. The ST7735S is a single-chip
+ * controller/driver for 262K-color graphic TFT-LCD, supporting resolutions up to
+ * 132x162, with QSPI interface for high-speed data transfer.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_ST7789_H__
@@ -17,14 +24,13 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define ST7735S_CASET     0x2A // Column Address Set
-#define ST7735S_RASET     0x2B // Row Address Set
-#define ST7735S_RAMWR     0x2C
+#define ST7735S_CASET 0x2A // Column Address Set
+#define ST7735S_RASET 0x2B // Row Address Set
+#define ST7735S_RAMWR 0x2C
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ********************function declaration********************

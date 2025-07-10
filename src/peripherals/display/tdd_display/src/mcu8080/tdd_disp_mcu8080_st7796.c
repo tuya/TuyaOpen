@@ -1,11 +1,13 @@
 /**
- * @file tdd_disp_mcu8080_st7789.c
- * @brief Implementation of ST7789 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for ST7789 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @file tdd_disp_mcu8080_st7796.c
+ * @brief ST7796S LCD driver implementation with MCU 8080 parallel interface
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation for ST7796S TFT LCD displays using MCU 8080
+ * parallel interface. It includes the initialization sequence, display control
+ * functions, and hardware-specific configurations for ST7796S displays connected
+ * via 8080 parallel bus, optimized for high-resolution displays up to 320x480.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "tuya_cloud_types.h"
@@ -18,26 +20,12 @@
 ***********************const define**********************
 ***********************************************************/
 const uint32_t cST7796S_INIT_SEQ[] = {
-    1,    0,    0x01, 
-    1,    120,  0x28, 
-    2,    0,    0xF0, 0xC3,
-    2,    0,    0xF0, 0x96,
-    2,    0,    0x35, 0x00,
-    3,    0,    0x44, 0x00, 0x01,
-    3,    0,    0xb1, 0x60, 0x11,  
-    2,    0,    0x36, 0x98,
-    2,    0,    0x3A, 0x55,
-    2,    0,    0xB4, 0x01,
-    2,    0,    0xB7, 0xC6,
-    9,    0,    0xE8, 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xa5, 0x33,
-    2,    0,    0xC2, 0xA7,
-    2,    0,    0xC5, 0x2B,
-    15,   0,    0xE0, 0xF0, 0x09, 0x13, 0x12, 0x12, 0x2B, 0x3C, 0x44, 0x4B, 0x1B, 0x18, 0x17, 0x1D, 0x21,
-    15,   0,    0xE1, 0xF0, 0x09, 0x13, 0x0C, 0x0D, 0x27, 0x3B, 0x44, 0x4D, 0x0B, 0x17, 0x17, 0x1D, 0x21,
-    2,    0,    0xF0, 0x3C,
-    2,    0,    0xF0, 0x96,
-    1,    150,    0x11, 
-    1,    0,    0x29, 
+    1,    0,    0x01, 1,    120,  0x28, 2,    0,    0xF0, 0xC3, 2,    0,    0xF0, 0x96, 2,    0,    0x35, 0x00, 3,
+    0,    0x44, 0x00, 0x01, 3,    0,    0xb1, 0x60, 0x11, 2,    0,    0x36, 0x98, 2,    0,    0x3A, 0x55, 2,    0,
+    0xB4, 0x01, 2,    0,    0xB7, 0xC6, 9,    0,    0xE8, 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xa5, 0x33, 2,    0,
+    0xC2, 0xA7, 2,    0,    0xC5, 0x2B, 15,   0,    0xE0, 0xF0, 0x09, 0x13, 0x12, 0x12, 0x2B, 0x3C, 0x44, 0x4B, 0x1B,
+    0x18, 0x17, 0x1D, 0x21, 15,   0,    0xE1, 0xF0, 0x09, 0x13, 0x0C, 0x0D, 0x27, 0x3B, 0x44, 0x4D, 0x0B, 0x17, 0x17,
+    0x1D, 0x21, 2,    0,    0xF0, 0x3C, 2,    0,    0xF0, 0x96, 1,    150,  0x11, 1,    0,    0x29,
     0 // Terminate list
 };
 
@@ -60,14 +48,14 @@ OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CF
 
     PR_NOTICE("tdd_disp_mcu8080_st7796s_register: %s", name);
 
-    sg_disp_mcu8080_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_mcu8080_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_mcu8080_cfg.cfg.width = dev_cfg->width;
+    sg_disp_mcu8080_cfg.cfg.height = dev_cfg->height;
     sg_disp_mcu8080_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_mcu8080_cfg.cfg.clk       = dev_cfg->clk;
+    sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
-    sg_disp_mcu8080_cfg.rotation  = dev_cfg->rotation;
-    sg_disp_mcu8080_cfg.te_pin  = dev_cfg->te_pin;
+    sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
+    sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
     sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;
 
     memcpy(&sg_disp_mcu8080_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));

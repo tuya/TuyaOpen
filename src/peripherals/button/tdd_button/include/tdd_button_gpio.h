@@ -1,10 +1,24 @@
 /**
  * @file tdd_button_gpio.h
- * @brief tdd_button_gpio, irq
- * @version 1.0
- * @date 2022-03-20
- * @copyright Copyright (c) tuya.inc 2022
- * GPIO button adaptation
+ * @brief Tuya Device Driver layer GPIO button interface.
+ *
+ * This file defines the device driver interface for GPIO-based button implementation
+ * in Tuya IoT devices. It provides structures and functions for configuring and
+ * managing buttons connected to GPIO pins, supporting both timer-based scanning
+ * and interrupt-driven detection modes.
+ *
+ * Key features:
+ * - Support for both polling (timer scan) and interrupt-driven button detection
+ * - Configurable GPIO pin parameters including pull-up/pull-down and edge detection
+ * - Active level configuration for different button hardware implementations
+ * - Dynamic button registration and configuration updates
+ *
+ * The TDD (Tuya Device Driver) GPIO button implementation serves as a hardware
+ * abstraction layer between the physical GPIO pins and the higher-level TDL
+ * (Tuya Driver Layer) button management system.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef _TDD_GPIO_BUTTON_H_
