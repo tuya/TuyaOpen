@@ -117,7 +117,7 @@ if (Test-Path $requirementsPath) {
 
 # Remove cache files
 $cachePath = Join-Path $OPEN_SDK_ROOT ".cache"
-New-Item -ItemType Directory -Path $cachePath
+New-Item -ItemType Directory -Path $cachePath -Force -ErrorAction SilentlyContinue | Out-Null
 $envJsonPath = Join-Path $cachePath ".env.json"
 if (Test-Path $envJsonPath) {
     Remove-Item $envJsonPath -Force
