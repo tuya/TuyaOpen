@@ -242,5 +242,11 @@ menu "configure enable/disable liblwip"
 			config ENABLE_LWIP_DHCP
 				bool "ENABLE_LWIP_DHCP: enable tuya lwip dhcp"
 				default n
-		endif    
+
+			config ENABLE_LWIP_PPP_SUPPORT
+				bool "ENABLE_LWIP_PPP_SUPPORT: enable tuya lwip Point-to-Point Protocol over Ethernet"
+				default n
+				help
+					For T5AI, this configuration only affects the lwip in the directory, not the platform lwip configuration
+		endif
 endmenu
