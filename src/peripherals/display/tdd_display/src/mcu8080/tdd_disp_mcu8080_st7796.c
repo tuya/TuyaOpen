@@ -9,7 +9,9 @@
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
+
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
@@ -20,12 +22,26 @@
 ***********************const define**********************
 ***********************************************************/
 const uint32_t cST7796S_INIT_SEQ[] = {
-    1,    0,    0x01, 1,    120,  0x28, 2,    0,    0xF0, 0xC3, 2,    0,    0xF0, 0x96, 2,    0,    0x35, 0x00, 3,
-    0,    0x44, 0x00, 0x01, 3,    0,    0xb1, 0x60, 0x11, 2,    0,    0x36, 0x98, 2,    0,    0x3A, 0x55, 2,    0,
-    0xB4, 0x01, 2,    0,    0xB7, 0xC6, 9,    0,    0xE8, 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xa5, 0x33, 2,    0,
-    0xC2, 0xA7, 2,    0,    0xC5, 0x2B, 15,   0,    0xE0, 0xF0, 0x09, 0x13, 0x12, 0x12, 0x2B, 0x3C, 0x44, 0x4B, 0x1B,
-    0x18, 0x17, 0x1D, 0x21, 15,   0,    0xE1, 0xF0, 0x09, 0x13, 0x0C, 0x0D, 0x27, 0x3B, 0x44, 0x4D, 0x0B, 0x17, 0x17,
-    0x1D, 0x21, 2,    0,    0xF0, 0x3C, 2,    0,    0xF0, 0x96, 1,    150,  0x11, 1,    0,    0x29,
+    1,    0,    0x01, 
+    1,    120,  0x28, 
+    2,    0,    0xF0, 0xC3,
+    2,    0,    0xF0, 0x96,
+    2,    0,    0x35, 0x00,
+    3,    0,    0x44, 0x00, 0x01,
+    3,    0,    0xb1, 0x60, 0x11,  
+    2,    0,    0x36, 0x98,
+    2,    0,    0x3A, 0x55,
+    2,    0,    0xB4, 0x01,
+    2,    0,    0xB7, 0xC6,
+    9,    0,    0xE8, 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xa5, 0x33,
+    2,    0,    0xC2, 0xA7,
+    2,    0,    0xC5, 0x2B,
+    15,   0,    0xE0, 0xF0, 0x09, 0x13, 0x12, 0x12, 0x2B, 0x3C, 0x44, 0x4B, 0x1B, 0x18, 0x17, 0x1D, 0x21,
+    15,   0,    0xE1, 0xF0, 0x09, 0x13, 0x0C, 0x0D, 0x27, 0x3B, 0x44, 0x4D, 0x0B, 0x17, 0x17, 0x1D, 0x21,
+    2,    0,    0xF0, 0x3C,
+    2,    0,    0xF0, 0x96,
+    1,    150,    0x11, 
+    1,    0,    0x29, 
     0 // Terminate list
 };
 
@@ -40,6 +56,18 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7796S TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7796S series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7796S.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {

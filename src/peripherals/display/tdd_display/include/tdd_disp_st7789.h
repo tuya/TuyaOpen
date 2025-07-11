@@ -107,8 +107,32 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7789 TFT display device using the SPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
 
+/**
+ * @brief Registers an ST7789 TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus

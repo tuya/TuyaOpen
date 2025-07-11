@@ -22,7 +22,7 @@ choice T5AI_MINI_EX_MODULE
         bool "no expansion module"
 
     config T5AI_MINI_EX_MODULE_13565LCD
-        bool "1.3 inch 240x240 spi LCD"
+        bool "1.54 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
         select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)
 endchoice

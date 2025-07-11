@@ -223,6 +223,17 @@ static OPERATE_RET __tdd_display_rgb_close(TDD_DISP_DEV_HANDLE_T device)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief Registers an RGB display device with the display management system.
+ *
+ * This function creates and initializes a new RGB display device instance, 
+ * configures its interface functions, and registers it under the specified name.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param rgb Pointer to the RGB display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdl_disp_rgb_device_register(char *name, TDD_DISP_RGB_CFG_T *rgb)
 {
     OPERATE_RET rt = OPRT_OK;

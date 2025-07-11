@@ -16,6 +16,7 @@
 
 #include "tuya_cloud_types.h"
 #include "tdd_disp_sw_spi.h"
+#include "tdl_display_driver.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -78,6 +79,17 @@ typedef struct {
     TUYA_DISPLAY_BL_CTRL_T bl;
     TUYA_DISPLAY_IO_CTRL_T power;
 } DISP_MCU8080_DEVICE_CFG_T;
+
+typedef struct {
+    uint16_t                 width;      // Display width
+    uint16_t                 height;     // Display height
+    TUYA_DISPLAY_ROTATION_E  rotation;   // Display rotation
+    TUYA_I2C_NUM_E           port;       // I2C port number
+    uint8_t                  addr;       // I2C slave address
+    TUYA_DISPLAY_BL_CTRL_T   bl;         // Backlight control configuration
+    TUYA_DISPLAY_IO_CTRL_T   power;      // Power control configuration
+}DISP_I2C_OLED_DEVICE_CFG_T;
+
 
 /***********************************************************
 ********************function declaration********************

@@ -260,6 +260,17 @@ static OPERATE_RET __tdd_display_mcu8080_close(TDD_DISP_DEV_HANDLE_T device)
     return rt;
 }
 
+/**
+ * @brief Registers an MCU8080 display device with the display management system.
+ *
+ * This function creates and initializes a new MCU8080 display device instance, 
+ * configures its interface functions, and registers it under the specified name.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param mcu8080 Pointer to the MCU8080 display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdl_disp_mcu8080_device_register(char *name, TDD_DISP_MCU8080_CFG_T *mcu8080)
 {
     OPERATE_RET rt = OPRT_OK;

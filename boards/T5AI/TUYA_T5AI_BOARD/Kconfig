@@ -33,5 +33,8 @@ choice TUYA_T5AI_BOARD_EX_MODULE
     config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
         bool "2.9 inch 168x384 E-Ink screen"
         select ENABLE_DISPLAY
-
+    
+    config TUYA_T5AI_BOARD_EX_MODULE_096_OLED
+        bool "0.96 inch 128x64 I2C OLED"
+        select ENABLE_DISPLAY
 endchoice
