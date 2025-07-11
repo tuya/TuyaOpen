@@ -1,11 +1,13 @@
 /**
  * @file tuya_main.c
+ * @brief tuya_main module is used to manage the Tuya device application.
  *
- * @brief a simple switch demo show how to use tuya-open-sdk-for-device to
- * develop a simple switch. 1, download, compile, run in ubuntu according the
- * README.md 2, binding the device use tuya APP accoring scan QRCode 3, on/off
- * the switch in tuya APP 4, "switch on/off" use cli
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation of the tuya_main module,
+ * which is responsible for managing the Tuya device application.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Add cellular network support.
  */
 
 #include "cJSON.h"

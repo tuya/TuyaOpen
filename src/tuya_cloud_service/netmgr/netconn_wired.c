@@ -13,7 +13,9 @@
  * Ethernet connectivity, ensuring reliable and stable network communication for
  * Tuya IoT devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Adjust WiFi priority
  *
  */
 

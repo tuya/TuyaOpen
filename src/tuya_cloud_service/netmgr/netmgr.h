@@ -11,7 +11,9 @@
  * network connectivity for Tuya devices, facilitating seamless communication
  * with Tuya cloud services and supporting device control and data exchange.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Add types to string conversion macros
  *
  */
 

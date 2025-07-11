@@ -1,18 +1,12 @@
 /**
  * @file tcp_transporter.c
- * @brief Implementation of TCP transporter for Tuya devices.
+ * @brief Implementation of TCP transporter for Tuya Cloud service.
  *
- * This file contains the implementation of the TCP transporter interface for
- * Tuya devices, providing functionalities for establishing TCP connections,
- * sending and receiving data over TCP, and handling TCP connection errors. The
- * TCP transporter is a crucial component for enabling reliable communication
- * between Tuya devices and the Tuya cloud platform or other networked services.
+ * This file provides the implementation of TCP transporter functions,
+ * including connection management, data transmission, and configuration
+ * for Tuya Cloud communication over TCP.
  *
- * The implementation includes support for configuring TCP connection
- * parameters, managing TCP connection lifecycle, and ensuring data integrity
- * and security during TCP communication.
- *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  * 2025-07-10   yangjie     Support multiple network interfaces
  *

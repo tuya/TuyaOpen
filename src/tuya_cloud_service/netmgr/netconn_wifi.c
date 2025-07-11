@@ -1,15 +1,13 @@
 /**
  * @file netconn_wifi.c
- * @brief Implementation of WiFi connection management functions.
+ * @brief Implementation of WiFi network connection management for Tuya IoT devices.
  *
- * This file provides the functionality to manage WiFi connections including
- * connecting to a WiFi network, disconnecting, handling connection events,
- * and managing WiFi network configurations.
+ * This file provides functions and structures to manage WiFi network connections,
+ * including connection, disconnection, configuration, and event handling.
  *
- * The implementation includes managing WiFi connection states, handling
- * WiFi events, and storing/retrieving WiFi network information.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * 2025-07-11   yangjie     Adjust WiFi priority
  *
  */
 

@@ -20,7 +20,9 @@
  * maintain a stable and reliable connection to the Tuya cloud services,
  * facilitating device control and data exchange.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Refactored network manager to support management of multiple network connection types
  *
  */
 

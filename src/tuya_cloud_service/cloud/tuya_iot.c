@@ -1,14 +1,14 @@
 /**
  * @file tuya_iot.c
- * @brief Core implementation of Tuya IoT SDK functionalities.
+ * @brief Implementation of Tuya IoT client core logic and state machine.
  *
- * This file contains the implementation of the core functionalities of the Tuya
- * IoT SDK. It includes device initialization, state management, network
- * management, and data point (DP) handling. The SDK provides a framework for
- * connecting devices to the Tuya IoT platform, enabling device management, data
- * reporting, and remote control capabilities.
+ * This file contains the main logic for initializing, starting, stopping,
+ * and managing the Tuya IoT client, including MQTT communication, activation,
+ * event dispatching, and device data reporting.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     support link type change
  *
  */
 
