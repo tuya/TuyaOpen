@@ -15,7 +15,10 @@ def rm_rf(file_path):
     if not os.path.exists(file_path):
         return True
     if "windows" == get_running_env():
-        cmd = f"rmdir /S /Q \"{file_path}\""
+        if os.path.isfile(file_path):
+            cmd = f"del /F /Q \"{file_path}\""
+        else:
+            cmd = f"rmdir /S /Q \"{file_path}\""
     else:
         cmd = f"rm -rf \"{file_path}\""
     ret = do_subprocess(cmd)
