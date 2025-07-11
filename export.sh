@@ -4,28 +4,19 @@
 #
 
 # Function to find the project root directory
+pwd_dir="$(pwd)"
+script_dir=$(realpath $(dirname "$0"))
 find_project_root() {
-    local current_dir="$(pwd)"
-    local search_dir="$current_dir"
-    
-    # Look for project identifier files
-    local identifiers=("export.sh" "requirements.txt" "tos.py" ".git")
-    
-    while [ "$search_dir" != "/" ]; do
-        # Check if any identifier file exists in current directory
-        for identifier in "${identifiers[@]}"; do
-            if [ -e "$search_dir/$identifier" ]; then
-                echo "$search_dir"
-                return 0
-            fi
-        done
-        
-        # Move up one directory
-        search_dir=$(dirname "$search_dir")
-    done
-    
-    # Fallback to current directory if no identifiers found
-    echo "$current_dir"
+    if [ -e "$script_dir/export.sh" ] && [ -e "$script_dir/requirements.txt" ]; then
+        echo "$script_dir"
+        return 0
+    fi
+
+    if [ -e "$pwd_dir/export.sh" ] && [ -e "$pwd_dir/requirements.txt" ]; then
+        echo "$pwd_dir"
+        return 0
+    fi
+
     return 1
 }
 
@@ -39,13 +30,20 @@ echo "Script path: $0"
 
 # Additional verification - check for expected project files
 echo "Project files check:"
+EXIT_FLAG=0
 for file in "export.sh" "requirements.txt" "tos.py"; do
     if [ -f "$OPEN_SDK_ROOT/$file" ]; then
         echo "  ✓ Found $file"
     else
         echo "  ✗ Missing $file"
+        EXIT_FLAG=1
     fi
 done
+
+if [ x"1" = x"$EXIT_FLAG" ]; then
+    echo "Erorr: Can't export!"
+    return 1
+fi
 
 # If we're not in the project root and export.sh exists in current directory, use current directory
 if [ "$OPEN_SDK_ROOT" != "$(pwd)" ] && [ -f "./export.sh" ]; then
@@ -131,8 +129,11 @@ echo "Virtual environment activated successfully: $VIRTUAL_ENV"
 # install dependencies
 pip install -r ${OPEN_SDK_ROOT}/requirements.txt
 
-# remove .env.json
-rm -f ${OPEN_SDK_ROOT}/.env.json
+# remove cache files
+CACHE_PATH=${OPEN_SDK_ROOT}/.cache
+mkdir -p ${CACHE_PATH}
+rm -f ${CACHE_PATH}/.env.json
+rm -f ${CACHE_PATH}/.dont_prompt_update_platform
 
 # complete
 eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"

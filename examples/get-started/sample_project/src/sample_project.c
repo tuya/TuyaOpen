@@ -1,9 +1,9 @@
 
 /**
- * @file hello_world.c
- * @brief Simple demonstration of a "Hello World" program for SDK.
+ * @file sample_project.c
+ * @brief Simple demonstration of a basic project template for the Tuya SDK.
  *
- * This file contains the implementation of a basic "Hello World" program
+ * This file contains the implementation of a basic project template
  * designed for Tuya IoT projects. It demonstrates the initialization of the
  * Tuya Abstract Layer (TAL) logging system, a simple loop to print debug
  * messages, and the use of a task thread for executing the main logic. The
@@ -19,7 +19,7 @@
  * @note This example is designed for educational purposes and may need to be
  * adapted for production environments.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "tal_api.h"

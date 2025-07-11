@@ -1,13 +1,17 @@
 /**
  * @file tdd_disp_qspi_st7735s.c
- * @brief Implementation of GC9A01 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for GC9A01 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @brief ST7735S LCD driver implementation with QSPI interface
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation for ST7735S TFT LCD displays using QSPI
+ * (Quad SPI) interface. It includes the initialization sequence, display control
+ * functions, and hardware-specific configurations for ST7735S displays, enabling
+ * high-speed data transfer through quad SPI communication.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
+
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
@@ -40,18 +44,31 @@ const uint8_t cST7735S_INIT_SEQ[] = {
 };
 
 static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
-    .cfg = {
-        .cmd_caset = ST7735S_CASET,
-        .cmd_raset = ST7735S_RASET,
-        .cmd_ramwr = ST7735S_RAMWR,
-    },
-    
+    .cfg =
+        {
+            .cmd_caset = ST7735S_CASET,
+            .cmd_raset = ST7735S_RASET,
+            .cmd_ramwr = ST7735S_RAMWR,
+        },
+
     .init_seq = cST7735S_INIT_SEQ,
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7735S TFT display device using the QSPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7735S series of TFT LCDs 
+ * using the QSPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7735S.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the QSPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_qspi_st7735s_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -60,15 +77,15 @@ OPERATE_RET tdd_disp_qspi_st7735s_register(char *name, DISP_QSPI_DEVICE_CFG_T *d
 
     PR_NOTICE("tdd_disp_qspi_st7735s_register: %s", name);
 
-    sg_disp_qspi_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_qspi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_qspi_cfg.cfg.width = dev_cfg->width;
+    sg_disp_qspi_cfg.cfg.height = dev_cfg->height;
     sg_disp_qspi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_qspi_cfg.cfg.port      = dev_cfg->port;
-    sg_disp_qspi_cfg.cfg.spi_clk   = dev_cfg->spi_clk;
-    sg_disp_qspi_cfg.cfg.cs_pin    = dev_cfg->cs_pin;
-    sg_disp_qspi_cfg.cfg.dc_pin    = dev_cfg->dc_pin;
-    sg_disp_qspi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
-    sg_disp_qspi_cfg.rotation      = dev_cfg->rotation;
+    sg_disp_qspi_cfg.cfg.port = dev_cfg->port;
+    sg_disp_qspi_cfg.cfg.spi_clk = dev_cfg->spi_clk;
+    sg_disp_qspi_cfg.cfg.cs_pin = dev_cfg->cs_pin;
+    sg_disp_qspi_cfg.cfg.dc_pin = dev_cfg->dc_pin;
+    sg_disp_qspi_cfg.cfg.rst_pin = dev_cfg->rst_pin;
+    sg_disp_qspi_cfg.rotation = dev_cfg->rotation;
 
     memcpy(&sg_disp_qspi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_qspi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

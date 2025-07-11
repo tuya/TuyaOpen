@@ -1,7 +1,13 @@
 /**
  * @file tdd_disp_gc9a01.h
- * @version 0.1
- * @date 2025-03-13
+ * @brief GC9A01 LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the GC9A01 LCD display controller. The GC9A01 is a single-chip
+ * solution for 240x240 resolution displays with 262K colors, supporting SPI interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_GC9A01_H__
@@ -98,10 +104,21 @@ extern "C" {
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Registers a GC9A01 TFT display device using the SPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the GC9A01 series of TFT LCDs 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to GC9A01.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_gc9a01_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus

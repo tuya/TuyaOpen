@@ -1,11 +1,13 @@
 /**
  * @file tdd_disp_spi_ili9341.c
- * @brief Implementation of ILI9341 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for ILI9341 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @brief ILI9341 LCD driver implementation with SPI interface
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation for ILI9341 TFT LCD displays using SPI interface.
+ * It includes the initialization sequence, display control functions, and hardware-specific
+ * configurations for ILI9341 displays. The ILI9341 supports 240x320 resolution with
+ * 262K colors and is widely used in embedded display applications.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "tuya_cloud_types.h"
@@ -28,13 +30,15 @@ const uint8_t cILI9341_INIT_SEQ[] = {
 };
 
 static TDD_DISP_SPI_CFG_T sg_disp_spi_cfg = {
-    .cfg = {
-        .cmd_caset = ILI9341_CASET,
-        .cmd_raset = ILI9341_RASET,
-        .cmd_ramwr = ILI9341_RAMWR,
-    },
-    
+    .cfg =
+        {
+            .cmd_caset = ILI9341_CASET,
+            .cmd_raset = ILI9341_RASET,
+            .cmd_ramwr = ILI9341_RAMWR,
+        },
+
     .init_seq = cILI9341_INIT_SEQ,
+    .set_window_cb = NULL, // Default callback to set window
 };
 
 /***********************************************************
@@ -44,6 +48,18 @@ static TDD_DISP_SPI_CFG_T sg_disp_spi_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ILI9341 TFT display device using the SPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ILI9341 series of TFT LCDs 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ILI9341.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_ili9341_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -52,15 +68,15 @@ OPERATE_RET tdd_disp_spi_ili9341_register(char *name, DISP_SPI_DEVICE_CFG_T *dev
 
     PR_NOTICE("tdd_disp_spi_ili9341_register: %s", name);
 
-    sg_disp_spi_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_spi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_spi_cfg.cfg.width = dev_cfg->width;
+    sg_disp_spi_cfg.cfg.height = dev_cfg->height;
     sg_disp_spi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_spi_cfg.cfg.port      = dev_cfg->port;
-    sg_disp_spi_cfg.cfg.spi_clk   = dev_cfg->spi_clk;
-    sg_disp_spi_cfg.cfg.cs_pin    = dev_cfg->cs_pin;
-    sg_disp_spi_cfg.cfg.dc_pin    = dev_cfg->dc_pin;
-    sg_disp_spi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
-    sg_disp_spi_cfg.rotation      = dev_cfg->rotation;
+    sg_disp_spi_cfg.cfg.port = dev_cfg->port;
+    sg_disp_spi_cfg.cfg.spi_clk = dev_cfg->spi_clk;
+    sg_disp_spi_cfg.cfg.cs_pin = dev_cfg->cs_pin;
+    sg_disp_spi_cfg.cfg.dc_pin = dev_cfg->dc_pin;
+    sg_disp_spi_cfg.cfg.rst_pin = dev_cfg->rst_pin;
+    sg_disp_spi_cfg.rotation = dev_cfg->rotation;
 
     memcpy(&sg_disp_spi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_spi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

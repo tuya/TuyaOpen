@@ -1,7 +1,14 @@
 /**
  * @file tdd_touch_cst816x.h
- * @version 0.1
- * @date 2025-06-09
+ * @brief CST816X series capacitive touch controller driver interface definitions
+ *
+ * This header file defines the interface for the CST816X series capacitive touch
+ * controller drivers in the TDD layer. It includes register definitions, configuration
+ * parameters, and function prototypes for CST816X family touch controllers (CST816S,
+ * CST816D, CST816T, CST820, CST716) with single-point touch and gesture support.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_TOUCH_CST816X_H__
@@ -30,7 +37,7 @@ extern "C" {
 #define REG_IRQ_CTL       0xFA
 #define REG_DIS_AUTOSLEEP 0xFE
 
-#define IRQ_EN_MOTION     0x70
+#define IRQ_EN_MOTION 0x70
 
 /***********************************************************
 ***********************typedef define***********************

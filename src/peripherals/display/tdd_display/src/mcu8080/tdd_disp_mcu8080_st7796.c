@@ -1,13 +1,17 @@
 /**
- * @file tdd_disp_mcu8080_st7789.c
- * @brief Implementation of ST7789 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for ST7789 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @file tdd_disp_mcu8080_st7796.c
+ * @brief ST7796S LCD driver implementation with MCU 8080 parallel interface
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation for ST7796S TFT LCD displays using MCU 8080
+ * parallel interface. It includes the initialization sequence, display control
+ * functions, and hardware-specific configurations for ST7796S displays connected
+ * via 8080 parallel bus, optimized for high-resolution displays up to 320x480.
  *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
+
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
@@ -52,6 +56,18 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7796S TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7796S series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7796S.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -60,14 +76,14 @@ OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CF
 
     PR_NOTICE("tdd_disp_mcu8080_st7796s_register: %s", name);
 
-    sg_disp_mcu8080_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_mcu8080_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_mcu8080_cfg.cfg.width = dev_cfg->width;
+    sg_disp_mcu8080_cfg.cfg.height = dev_cfg->height;
     sg_disp_mcu8080_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_mcu8080_cfg.cfg.clk       = dev_cfg->clk;
+    sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
-    sg_disp_mcu8080_cfg.rotation  = dev_cfg->rotation;
-    sg_disp_mcu8080_cfg.te_pin  = dev_cfg->te_pin;
+    sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
+    sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
     sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;
 
     memcpy(&sg_disp_mcu8080_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));

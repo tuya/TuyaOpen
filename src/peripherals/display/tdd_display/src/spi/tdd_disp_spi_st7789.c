@@ -1,11 +1,13 @@
 /**
  * @file tdd_disp_spi_st7789.c
- * @brief Implementation of ST7789 TFT LCD driver with SPI interface. This file
- *        provides hardware-specific control functions for ST7789 series TFT
- *        displays, including initialization sequence, pixel data transfer,
- *        and display control commands through SPI communication.
+ * @brief ST7789 LCD driver implementation with SPI interface
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the implementation for ST7789 TFT LCD displays using SPI interface.
+ * It includes the initialization sequence, display control functions, and hardware-specific
+ * configurations for ST7789 displays. The ST7789 supports up to 240x320 resolution with
+ * 262K colors and is optimized for high-performance display applications.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include "tuya_cloud_types.h"
@@ -33,7 +35,6 @@ const uint8_t cST7789_INIT_SEQ[] = {
     2,    0,    ST7789_FRCTR2,    0x0f,                         // FR Control 2
     3,    0,    ST7789_PWCTRL1,   0xa6, 0xa1,                   // Power control 1
     2,    0,    ST7789_PWCTRL2,   0x03,                         // Power control 2
-
     2,    0,    ST7789_MADCTL,    0x00, // Set MADCTL: row then column, refresh is bottom to top
     15,   0,    ST7789_PVGAMCTRL, 0xd0, 0x0d, 0x14, 0x0b, 0x0b, 0x07, 0x3a, 0x44, 0x50, 0x08, 0x13, 0x13, 0x2d, 0x32, // Positive voltage gamma control
     15,   0,    ST7789_NVGAMCTRL, 0xd0, 0x0d, 0x14, 0x0b, 0x0b, 0x07, 0x3a, 0x44, 0x50, 0x08, 0x13, 0x13, 0x2d, 0x32, // Negative voltage gamma control
@@ -44,18 +45,32 @@ const uint8_t cST7789_INIT_SEQ[] = {
 };
 
 static TDD_DISP_SPI_CFG_T sg_disp_spi_cfg = {
-    .cfg = {
-        .cmd_caset = ST7789_CASET,
-        .cmd_raset = ST7789_RASET,
-        .cmd_ramwr = ST7789_RAMWR,
-    },
-    
+    .cfg =
+        {
+            .cmd_caset = ST7789_CASET,
+            .cmd_raset = ST7789_RASET,
+            .cmd_ramwr = ST7789_RAMWR,
+        },
+
     .init_seq = cST7789_INIT_SEQ,
+    .set_window_cb = NULL, // Default callback to set window
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7789 TFT display device using the SPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -64,15 +79,15 @@ OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_
 
     PR_NOTICE("tdd_disp_spi_st7789_register: %s", name);
 
-    sg_disp_spi_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_spi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_spi_cfg.cfg.width = dev_cfg->width;
+    sg_disp_spi_cfg.cfg.height = dev_cfg->height;
     sg_disp_spi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_spi_cfg.cfg.port      = dev_cfg->port;
-    sg_disp_spi_cfg.cfg.spi_clk   = dev_cfg->spi_clk;
-    sg_disp_spi_cfg.cfg.cs_pin    = dev_cfg->cs_pin;
-    sg_disp_spi_cfg.cfg.dc_pin    = dev_cfg->dc_pin;
-    sg_disp_spi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
-    sg_disp_spi_cfg.rotation      = dev_cfg->rotation;
+    sg_disp_spi_cfg.cfg.port = dev_cfg->port;
+    sg_disp_spi_cfg.cfg.spi_clk = dev_cfg->spi_clk;
+    sg_disp_spi_cfg.cfg.cs_pin = dev_cfg->cs_pin;
+    sg_disp_spi_cfg.cfg.dc_pin = dev_cfg->dc_pin;
+    sg_disp_spi_cfg.cfg.rst_pin = dev_cfg->rst_pin;
+    sg_disp_spi_cfg.rotation = dev_cfg->rotation;
 
     memcpy(&sg_disp_spi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_spi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

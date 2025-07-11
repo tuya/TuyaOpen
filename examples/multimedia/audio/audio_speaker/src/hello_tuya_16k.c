@@ -1,3 +1,15 @@
+/**
+ * @file hello_tuya_16k.c
+ * @brief Audio media data file containing embedded "Hello Tuya" audio sample
+ *
+ * This file contains a pre-encoded audio sample at 16kHz sample rate stored as a C array.
+ * The audio data is embedded directly in the application and used for speaker playback
+ * demonstration purposes. The data is in MP3 format and represents a "Hello Tuya" audio message.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
+
 #include "app_media.h"
 
 // hello_tuya_16k

@@ -1,16 +1,14 @@
 /**
  * @file tdd_disp_rgb_ili9488.c
- * @brief ILI9488 LCD Display Driver Implementation
- * 
- * This file contains the implementation for driving the ILI9488 LCD display using software SPI.
- * It includes the initialization sequence, configuration settings, and functions to register
- * the LCD device with the display driver framework.
- * 
- * @details The file defines constants for the ILI9488 display configuration and initialization
- * sequence. It also provides a function to register the LCD device, which initializes the
- * display with the specified configuration and registers it with the display driver system.
- * 
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @brief ILI9488 LCD driver implementation with RGB interface
+ *
+ * This file provides the implementation for ILI9488 TFT LCD displays using RGB interface.
+ * It includes the initialization sequence, display control functions, and hardware-specific
+ * configurations for ILI9488 displays connected via RGB parallel interface, optimized for
+ * high-resolution displays up to 320x480 with 16.7M colors.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
@@ -45,19 +43,19 @@ const uint8_t cILI9488_INIT_SEQ[] = {
     0,
 };
 
-
 static TDD_DISP_RGB_CFG_T sg_disp_rgb = {
-    .cfg = {
-        .clk               = 15000000,
-        .out_data_clk_edge = TUYA_RGB_DATA_IN_RISING_EDGE,
-        .pixel_fmt         = TUYA_PIXEL_FMT_RGB565,
-        .hsync_back_porch  = 80,
-        .hsync_front_porch = 80,
-        .vsync_back_porch  = 8,
-        .vsync_front_porch = 8,
-        .hsync_pulse_width = 20,
-        .vsync_pulse_width = 4,
-    },
+    .cfg =
+        {
+            .clk = 15000000,
+            .out_data_clk_edge = TUYA_RGB_DATA_IN_RISING_EDGE,
+            .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
+            .hsync_back_porch = 80,
+            .hsync_front_porch = 80,
+            .vsync_back_porch = 8,
+            .vsync_front_porch = 8,
+            .hsync_pulse_width = 20,
+            .vsync_pulse_width = 4,
+        },
 };
 
 static TDD_DISP_SW_SPI_CFG_T sg_sw_spi_cfg;
@@ -75,6 +73,18 @@ static OPERATE_RET __tdd_disp_ili9488_seq_init(void)
     return rt;
 }
 
+/**
+ * @brief Registers an ILI9488 RGB LCD display device with the display management system.
+ *
+ * This function configures and registers a display device for the ILI9488 series of RGB LCDs 
+ * using software SPI. It copies configuration parameters from the provided device configuration 
+ * and sets up the initialization sequence specific to ILI9488.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the RGB display device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -85,10 +95,10 @@ OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev
 
     sg_disp_rgb.init_cb = __tdd_disp_ili9488_seq_init;
 
-    sg_disp_rgb.cfg.width     = dev_cfg->width;
-    sg_disp_rgb.cfg.height    = dev_cfg->height;
+    sg_disp_rgb.cfg.width = dev_cfg->width;
+    sg_disp_rgb.cfg.height = dev_cfg->height;
     sg_disp_rgb.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_rgb.rotation      = dev_cfg->rotation;
+    sg_disp_rgb.rotation = dev_cfg->rotation;
 
     memcpy(&sg_disp_rgb.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_rgb.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

@@ -1,16 +1,16 @@
 /**
  * @file example_button.c
- * @brief button example for SDK.
+ * @brief Button input handling example for the Tuya SDK
  *
- * This file provides an example implementation of an ADC (Analog-to-Digital Converter) driver using the Tuya SDK.
- * It demonstrates the configuration and usage of an ADC channel to read analog values and convert them to digital
- * format. The example focuses on setting up a single ADC channel, configuring its properties such as sampling width and
- * mode, and initializing the ADC with these settings for continuous data conversion.
+ * This file provides an example implementation of button input handling using the Tuya SDK.
+ * It demonstrates the configuration and usage of button peripherals for detecting user interactions
+ * including single clicks, long presses, and other button events. The example shows how to register
+ * button drivers, configure button properties, and handle button events through callback functions.
  *
- * The ADC driver example is designed to help developers understand how to integrate ADC functionality into their
- * Tuya-based IoT projects, ensuring accurate analog signal measurement and conversion for various applications.
+ * The button example is designed to help developers understand how to integrate button functionality
+ * into their Tuya-based IoT projects for user interface and control applications.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 

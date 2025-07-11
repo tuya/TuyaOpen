@@ -1,7 +1,18 @@
 /**
- * @file tdd_audio_tkl.h
- * @version 0.1
- * @date 2025-04-24
+ * @file tdd_audio.h
+ * @brief Tuya Device Driver layer audio interface for T5AI platform.
+ *
+ * This file defines the device driver interface for audio functionality on the T5AI
+ * platform. It provides structures and functions for configuring and registering
+ * audio devices with support for various audio parameters including sample rates,
+ * data bits, channels, and speaker configuration. The interface also includes
+ * support for acoustic echo cancellation (AEC) functionality.
+ *
+ * The TDD (Tuya Device Driver) layer acts as an abstraction between the hardware-specific
+ * implementations and the higher-level TDL (Tuya Driver Layer) audio management system.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_AUDIO_T5AI_H__

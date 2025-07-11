@@ -1,7 +1,14 @@
 /**
- * @file tdd_disp_st7735s.h
- * @version 0.1
- * @date 2025-03-12
+ * @file tdd_disp_st7796s.h
+ * @brief ST7796S LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the ST7796S LCD display controller. The ST7796S is a single-chip
+ * controller/driver for 262K-color graphic TFT-LCD, supporting resolutions up to
+ * 320x480, with MCU 8080 parallel interface for fast data transfer.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_ST7789_H__
@@ -17,18 +24,29 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define ST7796S_CASET     0x2A // Column Address Set
-#define ST7796S_RASET     0x2B // Row Address Set
-#define ST7796S_RAMWR     0x2C
-#define ST7796S_RAMWRC    0x3C
+#define ST7796S_CASET  0x2A // Column Address Set
+#define ST7796S_RASET  0x2B // Row Address Set
+#define ST7796S_RAMWR  0x2C
+#define ST7796S_RAMWRC 0x3C
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7796S TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7796S series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7796S.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus

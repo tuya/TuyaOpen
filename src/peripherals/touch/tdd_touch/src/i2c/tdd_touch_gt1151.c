@@ -1,7 +1,14 @@
 /**
  * @file tdd_touch_gt1151.c
- * @version 0.1
- * @date 2025-06-09
+ * @brief GT1151 capacitive touch controller driver implementation
+ *
+ * This file implements the TDD (Tuya Device Driver) layer for the GT1151 capacitive
+ * touch controller. It provides initialization, multi-point touch reading, and
+ * device registration functions for the GT1151 IC, supporting configurable number
+ * of touch points with I2C communication interface.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -13,13 +20,12 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
     TDD_TOUCH_I2C_CFG_T i2c_cfg;
-}TDD_TOUCH_INFO_T;
+} TDD_TOUCH_INFO_T;
 
 /***********************************************************
 ***********************variable define**********************
@@ -49,16 +55,15 @@ static OPERATE_RET __tdd_i2c_gt1151_open(TDD_TOUCH_DEV_HANDLE_T device)
 
     TUYA_CALL_ERR_RETURN(tkl_i2c_init(info->i2c_cfg.port, &cfg));
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_read(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR,\
-                                                 GT1151_PRODUCT_ID, 2,\
-                                                (uint8_t *)&product_id, sizeof(product_id)));
+    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_read(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR, GT1151_PRODUCT_ID, 2,
+                                                 (uint8_t *)&product_id, sizeof(product_id)));
     PR_DEBUG("Touch Product id: 0x%08x\r\n", product_id);
 
     return OPRT_OK;
 }
 
-static OPERATE_RET __tdd_i2c_gt1151_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t max_num,\
-                                         TDL_TOUCH_POS_T *point, uint8_t *point_num)
+static OPERATE_RET __tdd_i2c_gt1151_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t max_num, TDL_TOUCH_POS_T *point,
+                                         uint8_t *point_num)
 {
     OPERATE_RET rt = OPRT_OK;
     TDD_TOUCH_INFO_T *info = (TDD_TOUCH_INFO_T *)device;
@@ -72,19 +77,17 @@ static OPERATE_RET __tdd_i2c_gt1151_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t 
 
     *point_num = 0;
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_read(info->i2c_cfg.port, \
-                                                 GT1151_I2C_SLAVE_ADDR, GT1151_STATUS, \
-                                                 2, &status, 1));
+    TUYA_CALL_ERR_RETURN(
+        tdd_touch_i2c_port_read(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR, GT1151_STATUS, 2, &status, 1));
     if (status == 0 || (status & 0x80) == 0) {
         /* no touch */
         return 0;
-    } 
+    }
 
     read_num = MIN(read_num, (status & 0x0f));
     memset(sg_point_data, 0, sizeof(sg_point_data));
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_read(info->i2c_cfg.port, \
-                                                 GT1151_I2C_SLAVE_ADDR, GT1151_POINT1_REG, \
-                                                 2, sg_point_data, sizeof(sg_point_data)));
+    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_read(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR, GT1151_POINT1_REG, 2,
+                                                 sg_point_data, sizeof(sg_point_data)));
 
     /* get point coordinates */
     for (uint8_t i = 0; i < read_num; i++) {
@@ -97,8 +100,8 @@ static OPERATE_RET __tdd_i2c_gt1151_read(TDD_TOUCH_DEV_HANDLE_T device, uint8_t 
 
     // clear status
     sg_point_data[0] = 0;
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_port_write(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR,\
-                                                  GT1151_STATUS, 2, &sg_point_data[0], 1));
+    TUYA_CALL_ERR_RETURN(
+        tdd_touch_i2c_port_write(info->i2c_cfg.port, GT1151_I2C_SLAVE_ADDR, GT1151_STATUS, 2, &sg_point_data[0], 1));
 
     return OPRT_OK;
 }
@@ -127,16 +130,15 @@ OPERATE_RET tdd_touch_i2c_gt1151_register(char *name, TDD_TOUCH_I2C_CFG_T *cfg)
     }
 
     tdd_info = (TDD_TOUCH_INFO_T *)tal_malloc(sizeof(TDD_TOUCH_INFO_T));
-    if(NULL == tdd_info) {
+    if (NULL == tdd_info) {
         return OPRT_MALLOC_FAILED;
     }
     memset(tdd_info, 0, sizeof(TDD_TOUCH_INFO_T));
     tdd_info->i2c_cfg = *cfg;
 
-
     memset(&infs, 0, sizeof(TDD_TOUCH_INTFS_T));
-    infs.open  = __tdd_i2c_gt1151_open;
-    infs.read  = __tdd_i2c_gt1151_read;
+    infs.open = __tdd_i2c_gt1151_open;
+    infs.read = __tdd_i2c_gt1151_read;
     infs.close = __tdd_i2c_gt1151_close;
 
     return tdl_touch_device_register(name, tdd_info, &infs);

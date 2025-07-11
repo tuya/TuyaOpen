@@ -1,11 +1,13 @@
 /**
  * @file tdd_pixel_sk6812.h
- * @author www.tuya.com
- * @brief tdd_pixel_sk6812 module is used to driving sk6812 chip
- * @version 0.1
- * @date 2022-03-08
+ * @brief TDD layer driver for SK6812 RGBW LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the interface for the SK6812 LED pixel controller driver.
+ * SK6812 is a 4-channel (RGBW) LED controller that supports individual pixel control
+ * with built-in PWM generation. The driver implements the TDD (Tuya Device Driver)
+ * layer interface for registering and managing SK6812 LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -30,7 +32,7 @@ extern "C" {
 *********************************************************************/
 /**
  * @function: tdd_sk6812_driver_register
- * @brief: 注册设备
+ * @brief: Register device
  * @param[in] driver_name
  * @param[in] order_mode
  * @return: success -> OPRT_OK

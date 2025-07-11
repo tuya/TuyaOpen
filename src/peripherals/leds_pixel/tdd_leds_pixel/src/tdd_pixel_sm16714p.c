@@ -1,11 +1,14 @@
 /**
  * @file tdd_pixel_sm16714p.c
- * @author www.tuya.com
- * @brief tdd_pixel_sm16714p module is used to driving sm16714p chip
- * @version 0.1
- * @date 2022-03-08
+ * @brief TDD layer implementation for SM16714P RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This source file implements the TDD layer driver for SM16714P RGB LED pixel controllers.
+ * SM16714P is a 3-channel RGB LED controller that supports individual pixel control
+ * with built-in PWM generation. The implementation provides device registration,
+ * initialization, data transmission, and control functions through SPI interface
+ * for driving SM16714P LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 #include <string.h>
@@ -30,13 +33,13 @@
 #define ELE_GAIN_BLUE      15
 #define ELE_GAIN_WARM      15
 
-#define DRV_SPI_SPEED 8000000 /* SPI波特率 */
+#define DRV_SPI_SPEED 2500000 /* SPI baud rate */
 
-#define DRVICE_DATA_0 0XC0 /* SPI 0、1码对应的数据 */
-#define DRVICE_DATA_1 0XFE
+#define DRVICE_DATA_0 0XC0 /* Data corresponding to SPI 0 and 1 codes */
+#define DRVICE_DATA_1 0XFC
 
-#define COLOR_PRIMARY_NUM 4 // 4路
-#define COLOR_RESOLUTION  255
+#define COLOR_PRIMARY_NUM 5
+#define COLOR_RESOLUTION  1023
 /*********************************************************************
 ****************************typedef define****************************
 *********************************************************************/
@@ -62,7 +65,7 @@ static void __tdd_sm16714p_ele_gain_transform(unsigned char *spi_data)
     for (i = 0; i < COLOR_PRIMARY_NUM; i++) {
         gain_data = g_gain_arr[i];
 
-        for (j = 0; j < ONE_COLOR_GAIN_LEN; j++) { // sm16714p 一个通道的颜色增益用5bit表示
+        for (j = 0; j < ONE_COLOR_GAIN_LEN; j++) { // sm16714p: the color gain of one channel is represented by 5 bits
             spi_data[0] = (gain_data & 0x10) ? DRVICE_DATA_1 : DRVICE_DATA_0;
             gain_data <<= 1;
             spi_data++;
@@ -74,10 +77,9 @@ static void __tdd_sm16714p_ele_gain_transform(unsigned char *spi_data)
 
 /**
  * @function:tdd_sm16714p_driver_open
- * @brief: 打开（初始化）设备
- * @param[in]: inform_cb -> spi码流发送完成回调
- * @param[in]: pixel_num -> 像素点数
- * @param[out]: *handle  -> 设备句柄
+ * @brief: Open (initialize) the device
+ * @param[in]: pixel_num -> Number of pixels
+ * @param[out]: *handle  -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_sm16714p_driver_open(DRIVER_HANDLE_T *handle, unsigned short pixel_num)
@@ -104,7 +106,7 @@ OPERATE_RET tdd_sm16714p_driver_open(DRIVER_HANDLE_T *handle, unsigned short pix
         TAL_PR_ERR("tkl_spi_init fail op_ret:%d", op_ret);
         return op_ret;
     }
-    // 32bytes固定电流增益字节 + 实际像素点数所占字节
+    // 32bytes fixed current gain byte + actual pixel point bytes
     tx_buf_len = ONE_BYTE_LEN * (COLOR_PRIMARY_NUM * pixel_num + COLOR_PRIMARY_NUM * ONE_COLOR_GAIN_LEN);
     op_ret = tdd_pixel_create_tx_ctrl(tx_buf_len, &pixels_send);
     if (op_ret != OPRT_OK) {
@@ -118,14 +120,13 @@ OPERATE_RET tdd_sm16714p_driver_open(DRIVER_HANDLE_T *handle, unsigned short pix
 
 /**
  * @function: tdd_sm16714p_driver_send_data
- * @brief: 将颜色数据（RGBCW）转换为当前芯片的线序并转换为SPI码流, 通过SPI发送
- * @param[in]: handle -> 设备句柄
- * @param[in]: *data_buf -> 颜色数据
- * @param[in]: buf_len -> 颜色数据长度
+ * @brief: Convert color data (RGBCW) to the line sequence of the current chip and convert to SPI stream, send via SPI
+ * @param[in]: handle -> Device handle
+ * @param[in]: *data_buf -> Color data
+ * @param[in]: buf_len -> Color data length
  * @return: success -> 0  fail -> else
  */
-OPERATE_RET tdd_sm16714p_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf,
-                                          unsigned int buf_len)
+OPERATE_RET tdd_sm16714p_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf, unsigned int buf_len)
 {
     OPERATE_RET ret = OPRT_OK;
     DRV_PIXEL_TX_CTRL_T *tx_ctrl = NULL;
@@ -147,7 +148,7 @@ OPERATE_RET tdd_sm16714p_driver_send_data(DRIVER_HANDLE_T handle, unsigned short
             idx += ONE_BYTE_LEN;
         }
     }
-    //添加增益
+    // Add gain
     __tdd_sm16714p_ele_gain_transform(&tx_ctrl->tx_buffer[idx]);
 
     ret = tkl_spi_send(driver_info.port, tx_ctrl->tx_buffer, tx_ctrl->tx_buffer_len);
@@ -155,8 +156,8 @@ OPERATE_RET tdd_sm16714p_driver_send_data(DRIVER_HANDLE_T handle, unsigned short
 }
 /**
  * @function: tdd_sm16714p_driver_close
- * @brief: 关闭设备（资源释放）
- * @param[in]: *handle -> 设备句柄
+ * @brief: Close the device (release resources)
+ * @param[in]: *handle -> Device handle
  * @return: success -> 0  fail -> else
  */
 OPERATE_RET tdd_sm16714p_driver_close(DRIVER_HANDLE_T *handle)
@@ -182,8 +183,9 @@ OPERATE_RET tdd_sm16714p_driver_close(DRIVER_HANDLE_T *handle)
 
 /**
  * @function:tdd_sm16714p_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
+ * @brief: Register device
+ * @param[in]: *driver_name -> Device name
+ * @param[in]: *init_param  -> init param
  * @return: success -> OPRT_OK
  */
 OPERATE_RET tdd_sm16714p_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param)

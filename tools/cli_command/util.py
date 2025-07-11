@@ -123,8 +123,12 @@ def set_global_params():
         cache_path, "CatalogKconfig")
     GLOBAL_PARAMS["using_config"] = os.path.join(
         cache_path, "using.config")
+
+    open_cache_path = os.path.join(open_root, ".cache")
     GLOBAL_PARAMS["env_json"] = os.path.join(
-        open_root, ".env.json")
+        open_cache_path, ".env.json")
+    GLOBAL_PARAMS["dont_update_platform"] = os.path.join(
+        open_cache_path, ".dont_prompt_update_platform")
 
     GLOBAL_PARAMS["build_param_root"] = os.path.join(
         build_path, "build")
@@ -140,6 +144,12 @@ def set_global_params():
     if get_running_env() == "windows":
         tyutool_cli += ".exe"
     GLOBAL_PARAMS["tyutool_cli"] = tyutool_cli
+
+    porting_root = os.path.join(tools_root, "porting")
+    GLOBAL_PARAMS["porting_root"] = porting_root
+
+    app_template_root = os.path.join(tools_root, "app_template")
+    GLOBAL_PARAMS["app_template_root"] = app_template_root
 
     pass
 
@@ -198,7 +208,7 @@ def set_country_code():
         return COUNTRY_CODE
 
     try:
-        response = requests.get('http://www.ip-api.com/json', timeout=5)
+        response = requests.get('http://www.ip-api.com/json', timeout=2)
         response.raise_for_status()
         logger.debug(response.elapsed)
 

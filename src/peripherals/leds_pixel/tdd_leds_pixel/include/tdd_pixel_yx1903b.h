@@ -1,11 +1,13 @@
 /**
  * @file tdd_pixel_yx1903b.h
- * @author www.tuya.com
- * @brief tdd_pixel_yx1903b module is used to driving yx1903b chip
- * @version 0.1
- * @date 2022-03-22
+ * @brief TDD layer driver for YX1903B RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the interface for the YX1903B LED pixel controller driver.
+ * YX1903B is a 3-channel RGB LED controller that supports individual pixel control
+ * with built-in PWM generation. The driver implements the TDD (Tuya Device Driver)
+ * layer interface for registering and managing YX1903B LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 

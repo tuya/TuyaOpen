@@ -1,7 +1,14 @@
 /**
  * @file tdd_disp_st7789.h
- * @version 0.1
- * @date 2025-03-12
+ * @brief ST7789 LCD display driver header file
+ *
+ * This file contains the register definitions, command definitions, and function
+ * declarations for the ST7789 LCD display controller. The ST7789 is a single-chip
+ * controller/driver for 262K-color graphic TFT-LCD, supporting resolutions up to
+ * 240x320, with both SPI and MCU 8080 parallel interface options.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_DISP_ST7789_H__
@@ -18,10 +25,10 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 /* ST7789 commands */
-#define ST7789_NOP        0x00
-#define ST7789_SWRESET    0x01
-#define ST7789_RDDID      0x04
-#define ST7789_RDDST      0x09
+#define ST7789_NOP     0x00
+#define ST7789_SWRESET 0x01
+#define ST7789_RDDID   0x04
+#define ST7789_RDDST   0x09
 
 #define ST7789_RDDPM      0x0A // Read display power mode
 #define ST7789_RDD_MADCTL 0x0B // Read display MADCTL
@@ -30,32 +37,32 @@ extern "C" {
 #define ST7789_RDDSM      0x0E // Read display signal mode
 #define ST7789_RDDSR      0x0F // Read display self-diagnostic result (ST7789V)
 
-#define ST7789_SLPIN     0x10 // Enter Sleep Mode
-#define ST7789_SLPOUT    0x11 // Sleep out
-#define ST7789_PTLON     0x12
-#define ST7789_NORON     0x13
+#define ST7789_SLPIN  0x10 // Enter Sleep Mode
+#define ST7789_SLPOUT 0x11 // Sleep out
+#define ST7789_PTLON  0x12
+#define ST7789_NORON  0x13
 
-#define ST7789_INVOFF    0x20
-#define ST7789_INVON     0x21
-#define ST7789_GAMSET    0x26 // Gamma set
-#define ST7789_DISPOFF   0x28
-#define ST7789_DISPON    0x29
-#define ST7789_CASET     0x2A // Column Address Set
-#define ST7789_RASET     0x2B // Row Address Set
-#define ST7789_RAMWR     0x2C
-#define ST7789_RGBSET    0x2D // Color setting for 4096, 64K and 262K colors
-#define ST7789_RAMRD     0x2E
+#define ST7789_INVOFF  0x20
+#define ST7789_INVON   0x21
+#define ST7789_GAMSET  0x26 // Gamma set
+#define ST7789_DISPOFF 0x28
+#define ST7789_DISPON  0x29
+#define ST7789_CASET   0x2A // Column Address Set
+#define ST7789_RASET   0x2B // Row Address Set
+#define ST7789_RAMWR   0x2C
+#define ST7789_RGBSET  0x2D // Color setting for 4096, 64K and 262K colors
+#define ST7789_RAMRD   0x2E
 
-#define ST7789_PTLAR     0x30
-#define ST7789_VSCRDEF   0x33 // Vertical scrolling definition (ST7789V)
-#define ST7789_TEOFF     0x34 // Tearing effect line off
-#define ST7789_TEON      0x35 // Tearing effect line on
-#define ST7789_MADCTL    0x36 // Memory lcd_data access control
-#define ST7789_IDMOFF    0x38 // Idle mode off
-#define ST7789_IDMON     0x39 // Idle mode on
-#define ST7789_COLMOD    0x3A
-#define ST7789_RAMWRC    0x3C // Memory write continue (ST7789V)
-#define ST7789_RAMRDC    0x3E // Memory read continue (ST7789V)
+#define ST7789_PTLAR   0x30
+#define ST7789_VSCRDEF 0x33 // Vertical scrolling definition (ST7789V)
+#define ST7789_TEOFF   0x34 // Tearing effect line off
+#define ST7789_TEON    0x35 // Tearing effect line on
+#define ST7789_MADCTL  0x36 // Memory lcd_data access control
+#define ST7789_IDMOFF  0x38 // Idle mode off
+#define ST7789_IDMON   0x39 // Idle mode on
+#define ST7789_COLMOD  0x3A
+#define ST7789_RAMWRC  0x3C // Memory write continue (ST7789V)
+#define ST7789_RAMRDC  0x3E // Memory read continue (ST7789V)
 
 #define ST7789_RAMCTRL   0xB0 // RAM control
 #define ST7789_RGBCTRL   0xB1 // RGB control
@@ -93,17 +100,39 @@ extern "C" {
 #define ST7789_NVMSET    0xFC // NVM setting
 #define ST7789_PROMACT   0xFE // Program action
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Registers an ST7789 TFT display device using the SPI interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the SPI device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
 
+/**
+ * @brief Registers an ST7789 TFT display device using the MCU8080 interface with the display management system.
+ *
+ * This function configures and registers a display device for the ST7789 series of TFT LCDs 
+ * using the MCU8080 parallel interface. It copies configuration parameters from the provided 
+ * device configuration and uses a predefined initialization sequence specific to ST7789.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
 OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus

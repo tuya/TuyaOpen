@@ -1,8 +1,13 @@
 /**
  * @file speaker_play.c
- * @brief speaker_play module is used to
- * @version 0.1
- * @date 2025-02-17
+ * @brief Audio speaker playback example for MP3 audio playback
+ *
+ * This file demonstrates MP3 audio playback functionality using the Tuya SDK.
+ * It includes MP3 decoding, audio output configuration, and playback control.
+ * The example supports multiple audio sources including embedded C arrays,
+ * internal flash storage, and SD card files.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "speaker_play.h"
@@ -21,7 +26,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-// MP3 文件来源，内部flash， C array， SD卡
+// MP3 file source: internal flash, C array, SD card
 #define USE_INTERNAL_FLASH 0
 #define USE_C_ARRAY        1
 #define USE_SD_CARD        2
@@ -44,9 +49,9 @@ struct speaker_mp3_ctx {
     HMP3Decoder decode_hdl;
     MP3FrameInfo frame_info;
     unsigned char *read_buf;
-    uint32_t read_size; // read_buf 中有效数据大小
+    uint32_t read_size; // valid data size in read_buf
 
-    uint32_t mp3_offset; // 当前 mp3 读取位置
+    uint32_t mp3_offset; // current mp3 read position
 
     short *pcm_buf;
 };
@@ -198,16 +203,16 @@ static void app_speaker_play(void)
 
     do {
         // 1. read mp3 data
-        // 音频文件的频率应和设置的 spk_sample 一致
-        // 可以使用 https://convertio.co/zh/ 网站在线进行音频格式和频率转换
+        // Audio file frequency should match the configured spk_sample
+        // You can use https://convertio.co/zh/ website for online audio format and frequency conversion
         if (mp3_frame_head != NULL && decode_size_remain > 0) {
             memmove(sg_mp3_ctx.read_buf, mp3_frame_head, decode_size_remain);
             sg_mp3_ctx.read_size = decode_size_remain;
         }
 
 #if MP3_FILE_SOURCE == USE_C_ARRAY
-        if (sg_mp3_ctx.mp3_offset >= sizeof(MP3_FILE_ARRAY)) { // mp3 文件读取完毕
-            if (decode_size_remain == 0) {                     // 最后一帧数据解码播放完毕
+        if (sg_mp3_ctx.mp3_offset >= sizeof(MP3_FILE_ARRAY)) { // mp3 file reading completed
+            if (decode_size_remain == 0) {                     // last frame data decoding and playback completed
                 PR_NOTICE("mp3 play finish!");
                 break;
             } else {
@@ -217,7 +222,8 @@ static void app_speaker_play(void)
 
         read_size_remain = MAINBUF_SIZE - sg_mp3_ctx.read_size;
         if (read_size_remain > sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset) {
-            read_size_remain = sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset; // 剩余数据小于 read_buf 大小
+            read_size_remain =
+                sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset; // remaining data is less than read_buf size
         }
         if (read_size_remain > 0) {
             memcpy(sg_mp3_ctx.read_buf + sg_mp3_ctx.read_size, MP3_FILE_ARRAY + sg_mp3_ctx.mp3_offset,
@@ -229,7 +235,7 @@ static void app_speaker_play(void)
         read_size_remain = MAINBUF_SIZE - sg_mp3_ctx.read_size;
         int fs_read_len = tkl_fread(sg_mp3_ctx.read_buf + sg_mp3_ctx.read_size, read_size_remain, mp3_file);
         if (fs_read_len <= 0) {
-            if (decode_size_remain == 0) { // 最后一帧数据解码播放完毕
+            if (decode_size_remain == 0) { // last frame data decoding and playback completed
                 PR_NOTICE("mp3 play finish!");
                 break;
             } else {
