@@ -4,16 +4,16 @@
 import os
 import sys
 import click
-import urllib
-import tarfile
 
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
-    get_running_env, parse_config_file, do_subprocess,
+    parse_config_file, do_subprocess, get_country_code
 )
+from tools.cli_command.util_files import rm_rf
 
 
 def check_bin_file(using_data) -> bool:
+    logger = get_logger()
     params = get_global_params()
 
     bin_path = params["app_bin_path"]
@@ -23,6 +23,7 @@ def check_bin_file(using_data) -> bool:
         bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
     if not os.path.isfile(bin_file):
+        logger.error("Not found bin file, please use [tos.py build].")
         return False
     return True
 
@@ -30,32 +31,34 @@ def check_bin_file(using_data) -> bool:
 def download_tyutool():
     logger = get_logger()
     params = get_global_params()
+    tyutool_root = params["tyutool_root"]
     tyutool_cli = params["tyutool_cli"]
     if os.path.exists(tyutool_cli):
         logger.debug("tyutool_cli is exists.")
         return True
 
-    host = "https://images.tuyacn.com/smart/embed/\
-package/vscode/data/ide_serial"
-    running_env = get_running_env()
-    if running_env == "linux":
-        package = "tyutool_cli.tar.gz"
-    elif running_env == "windows":
-        package = "win_tyutool_cli.tar.gz"
-    else:
-        package = f"{running_env}_tyutool_cli.tar.gz"
-
-    tyutool_root = params["tyutool_root"]
-    download_file = os.path.join(tyutool_root, package)
-    download_url = f"{host}/{package}"
-
     logger.info("Downloading tyutool_cli ...")
-    urllib.request.urlretrieve(download_url, download_file)
-    with tarfile.open(download_file, 'r:gz') as tar:
-        tar.extractall(path=tyutool_root)
+    github_host = "https://github.com/tuya/tyutool"
+    gitee_host = "https://gitee.com/tuya-open/tyutool"
 
-    if not os.path.exists(download_file):
+    if "China" in get_country_code():
+        host = gitee_host
+    else:
+        host = github_host
+
+    rm_rf(tyutool_root)
+    cmd = f"git clone {host} {tyutool_root} --depth=1"
+    ret = do_subprocess(cmd)
+    if ret != 0:
+        logger.error("Git clone tyutool_cli error.")
         return False
+
+    cmd = f"cd {tyutool_root} && pip install -r requirements.txt"
+    ret = do_subprocess(cmd)
+    if ret != 0:
+        logger.error("Install requirements error.")
+        return False
+
     return True
 
 
@@ -90,7 +93,7 @@ def get_flash_cmd(using_data,
     '''
     params = get_global_params()
     tyutool_cli = params["tyutool_cli"]
-    cmd = tyutool_cli
+    cmd = f"python {tyutool_cli}"
 
     if debug:
         cmd = f"{cmd} --debug"
@@ -139,11 +142,9 @@ def cli(debug, port, baud):
     using_data = parse_config_file(using_config)
 
     if not check_bin_file(using_data):
-        logger.error("Not found bin file, please use [tos.py build].")
         sys.exit(1)
 
     if not download_tyutool():
-        logger.error("Download tyutool_cli error.")
         sys.exit(1)
 
     baudrate = get_configure_baudrate(

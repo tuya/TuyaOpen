@@ -107,6 +107,7 @@ def config_choice_exec(default):
         config_list = get_files_from_path(".config", config_dir, 0)
 
     # choice config file
+    config_list.sort()
     show_list = [os.path.basename(conf) for conf in config_list]
     _, index = list_menu("Choice config file", show_list)
     choice_config = config_list[index]
