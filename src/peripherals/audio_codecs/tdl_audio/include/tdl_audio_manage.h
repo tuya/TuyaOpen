@@ -1,8 +1,26 @@
 /**
  * @file tdl_audio_manage.h
- * @brief tdl_audio_manage module is used to
- * @version 0.1
- * @date 2025-04-08
+ * @brief Tuya Driver Layer audio management interface.
+ *
+ * This file provides the high-level audio management interface for the Tuya
+ * Driver Layer (TDL). It defines functions for discovering, opening, controlling,
+ * and managing audio devices within the TDL framework. This interface allows
+ * applications to interact with registered audio drivers in a unified manner,
+ * regardless of the underlying hardware implementation.
+ *
+ * Key functionalities:
+ * - Audio device discovery by name
+ * - Opening audio devices with microphone callback support
+ * - Audio playback control
+ * - Volume adjustment
+ * - Device lifecycle management
+ *
+ * The TDL audio management layer provides a simplified API that abstracts
+ * the complexity of individual audio drivers while maintaining flexibility
+ * for various audio use cases in Tuya IoT devices.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDL_AUDIO_MANAGE_H__

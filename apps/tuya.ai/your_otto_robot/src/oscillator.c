@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-// 声明全局oscillator结构体
+
 Oscillator_t g_oscillators[MAX_OSCILLATORS];
 static uint8_t g_oscillator_count = 0;
 
@@ -21,11 +21,11 @@ static unsigned long millis()
     return tal_system_get_millisecond();
 }
 
-// 创建新的oscillator并返回索引
+
 int oscillator_create(int trim)
 {
     if (g_oscillator_count >= MAX_OSCILLATORS) {
-        PR_ERR("超出最大Oscillator数量");
+        PR_ERR("Oscillator count exceeded");
         return -1;
     }
 
@@ -99,9 +99,9 @@ void oscillator_attach(int idx, int pin, bool rev)
 
     osc->pin = pin;
     osc->rev = rev;
-    osc->pwm_channel = (TUYA_PWM_NUM_E)pin; // 假设PWM通道与引脚对应
+    osc->pwm_channel = (TUYA_PWM_NUM_E)pin; 
 
-    // 配置PWM参数
+   
     TUYA_PWM_BASE_CFG_T pwm_cfg = {
         .duty = 0,
         .frequency = 50, // 50Hz for servos
@@ -110,7 +110,7 @@ void oscillator_attach(int idx, int pin, bool rev)
 
     tkl_pwm_init(osc->pwm_channel, &pwm_cfg);
 
-    // 初始位置
+  
     osc->previous_servo_command_millis = millis();
     osc->is_attached = true;
 }
@@ -234,7 +234,7 @@ void oscillator_refresh(int idx)
 
     if (oscillator_next_sample(idx)) {
         if (!osc->stop) {
-            // 根据sin函数计算当前位置
+
             double sinVal = sin(osc->phase + osc->phase0);
             int pos = (int)round(osc->amplitude * sinVal + osc->offset);
             if (osc->rev)
@@ -271,12 +271,10 @@ void oscillator_write(int idx, int position)
     osc->previous_servo_command_millis = currentMillis;
 
     int angle = osc->pos + osc->trim;
-    // 限制角度范围
+
     angle = MIN(MAX(angle, 0), 180);
 
-    // 计算占空比：0-10000范围，0表示0%，10000表示100%
-    // 标准舵机：0.5ms~2.5ms脉冲对应0°~180°，周期20ms
-    // 占空比计算：(0.5 + 角度/180 * 2.0) / 20 * 10000
+
     uint32_t duty = (uint32_t)((0.5 + angle / 180.0 * 2.0) * 10000 / 20);
 
     tkl_pwm_duty_set(osc->pwm_channel, duty);

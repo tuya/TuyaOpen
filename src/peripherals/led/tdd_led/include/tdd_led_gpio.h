@@ -1,8 +1,13 @@
 /**
  * @file tdd_led_gpio.h
- * @brief Header file defining the GPIO-based LED driver interface.
+ * @brief GPIO-based LED driver interface header file
+ *
+ * This header file defines the GPIO-based LED driver interface for the TDD (Tuya Device Driver) layer.
+ * It provides structures and functions for registering GPIO-controlled LED devices with configurable
+ * pin, mode, and active level settings.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_LED_GPIO_H__
@@ -36,10 +41,10 @@ typedef struct {
 ***********************************************************/
 /**
  * @brief Registers a GPIO-based LED device
- * 
+ *
  * @param dev_name The name of the LED device to register.
  * @param led_cfg A pointer to the TDD_LED_GPIO_CFG_T structure containing GPIO configuration.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET tdd_led_gpio_register(char *dev_name, TDD_LED_GPIO_CFG_T *led_cfg);

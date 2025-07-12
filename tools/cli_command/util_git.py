@@ -4,7 +4,6 @@
 
 import os
 from git import Repo, Git
-from git.exc import GitCommandError
 from git import RemoteProgress
 
 from tools.cli_command.util import get_logger, do_subprocess
@@ -185,6 +184,7 @@ target: {target}")
     except Exception as e:
         logger.error(f"Git checkout erorr: {str(e)}.")
         return False
+
 
 def git_get_commit(repo_path):
     logger = get_logger()

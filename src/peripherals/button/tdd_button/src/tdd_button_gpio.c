@@ -1,10 +1,26 @@
 /**
  * @file tdd_button_gpio.c
- * @brief tdd_button_gpio, irq
- * @version 1.0
- * @date 2022-03-20
- * @copyright Copyright (c) tuya.inc 2022
- * GPIO button adaptation
+ * @brief Implementation of Tuya Device Driver layer GPIO button functionality.
+ *
+ * This file implements the GPIO-based button driver for Tuya IoT devices. It provides
+ * the low-level hardware interface for button detection using GPIO pins, supporting
+ * both timer-based polling and interrupt-driven detection mechanisms. The implementation
+ * handles GPIO initialization, state reading, interrupt configuration, and integrates
+ * with the TDL (Tuya Driver Layer) button management system.
+ *
+ * Key functionalities implemented:
+ * - GPIO pin configuration for button input
+ * - Timer-based button state scanning with debouncing
+ * - Interrupt-driven button detection for low-power applications
+ * - Dynamic button registration and memory management
+ * - Hardware abstraction for different GPIO configurations
+ * - Integration with TKL (Tuya Kernel Layer) GPIO APIs
+ *
+ * The driver supports various button hardware configurations including different
+ * pull-up/pull-down resistor settings and active level configurations.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "string.h"
@@ -18,7 +34,7 @@
 
 #include "tkl_gpio.h"
 
-// 添加按键并存入数据
+// Add a new button and save its data
 static OPERATE_RET __add_new_button(char *name, BUTTON_GPIO_CFG_T *data, DEVICE_BUTTON_HANDLE *handle)
 {
     BUTTON_GPIO_CFG_T *p_gpio_local_cfg = NULL;
@@ -30,7 +46,7 @@ static OPERATE_RET __add_new_button(char *name, BUTTON_GPIO_CFG_T *data, DEVICE_
         return OPRT_INVALID_PARM;
     }
 
-    // 申请存储空间
+    // Allocate storage space
     p_gpio_local_cfg = (BUTTON_GPIO_CFG_T *)tal_malloc(sizeof(BUTTON_GPIO_CFG_T));
     if (NULL == p_gpio_local_cfg) {
         PR_ERR("tdd gpio malloc fail");
@@ -44,7 +60,7 @@ static OPERATE_RET __add_new_button(char *name, BUTTON_GPIO_CFG_T *data, DEVICE_
     return OPRT_OK;
 }
 
-// 按键硬件初始化
+// Button hardware initialization
 static OPERATE_RET __tdd_create_gpio_button(TDL_BUTTON_OPRT_INFO *dev)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
@@ -62,7 +78,7 @@ static OPERATE_RET __tdd_create_gpio_button(TDL_BUTTON_OPRT_INFO *dev)
 
     p_gpio_local = (BUTTON_GPIO_CFG_T *)(dev->dev_handle);
 
-    // GPIO硬件初始化
+    // GPIO hardware initialization
     if (p_gpio_local->mode == BUTTON_TIMER_SCAN_MODE) {
         TUYA_GPIO_BASE_CFG_T gpio_cfg;
         gpio_cfg.direct = TUYA_GPIO_INPUT;
@@ -105,7 +121,7 @@ static OPERATE_RET __tdd_create_gpio_button(TDL_BUTTON_OPRT_INFO *dev)
     return OPRT_OK;
 }
 
-// 删除一个按键
+// Delete a button
 static OPERATE_RET __tdd_delete_gpio_button(TDL_BUTTON_OPRT_INFO *dev)
 {
     if (NULL == dev) {
@@ -121,7 +137,8 @@ static OPERATE_RET __tdd_delete_gpio_button(TDL_BUTTON_OPRT_INFO *dev)
     return OPRT_OK;
 }
 
-// 获取参数:已经做完高低有效电平处理,与有效电平一致返回1,不同返回0
+// Get parameters: After processing the high and low active levels, return 1 if consistent with the active level,
+// otherwise return 0
 static OPERATE_RET __tdd_read_gpio_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *value)
 {
     OPERATE_RET ret = -1;
@@ -142,7 +159,7 @@ static OPERATE_RET __tdd_read_gpio_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *val
     ret = tkl_gpio_read(p_local_cfg->pin, &result);
     if (OPRT_OK == ret) {
         // PR_NOTICE("pin=%d,result=%d",p_local_cfg->pin, result);
-        // 处理有效电平逻辑
+        // Handle active level logic
         if (p_local_cfg->level == result) {
             result = 1;
         } else {
@@ -168,7 +185,7 @@ OPERATE_RET tdd_gpio_button_register(char *name, BUTTON_GPIO_CFG_T *gpio_cfg)
     ctrl_info.button_delete = __tdd_delete_gpio_button;
     ctrl_info.read_value = __tdd_read_gpio_value;
 
-    // 添加新按键并载入数据,生成句柄
+    // Add a new button, load data, and generate a handle
     ret = __add_new_button(name, gpio_cfg, &handle);
     if (OPRT_OK != ret) {
         PR_ERR("gpio add err");
@@ -190,7 +207,7 @@ OPERATE_RET tdd_gpio_button_register(char *name, BUTTON_GPIO_CFG_T *gpio_cfg)
     return ret;
 }
 
-// 更新按键配置的有效电平
+// Update the effective level of the button configuration
 OPERATE_RET tdd_gpio_button_update_level(DEVICE_BUTTON_HANDLE handle, TUYA_GPIO_LEVEL_E level)
 {
     BUTTON_GPIO_CFG_T *p_gpio_cfg = NULL;

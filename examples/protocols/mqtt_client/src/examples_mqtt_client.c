@@ -1,5 +1,5 @@
 /**
- * @file example_mqtt_client.c
+ * @file examples_mqtt_client.c
  * @brief Demonstrates mqtt client usage in Tuya SDK applications.
  *
  * This file provides an example of how to use the mqtt client interface provided by the Tuya SDK to connect to mqtt
@@ -16,7 +16,7 @@
  * - Cleanup and resource management.
  *
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -190,7 +190,6 @@ void user_main()
     tal_workq_init();
     tal_event_subscribe(EVENT_LINK_STATUS_CHG, "mqtt_client", __link_status_cb, SUBSCRIBE_TYPE_NORMAL);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif

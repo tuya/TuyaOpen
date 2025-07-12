@@ -13,6 +13,10 @@ config ENABLE_WIFI
     bool
     default y
 
+config ENABLE_CELLULAR
+    bool
+    default n
+
 config ENABLE_WIRED
     bool
     default n

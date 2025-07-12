@@ -1,14 +1,14 @@
 /**
  * @file tuya_iot.c
- * @brief Core implementation of Tuya IoT SDK functionalities.
+ * @brief Implementation of Tuya IoT client core logic and state machine.
  *
- * This file contains the implementation of the core functionalities of the Tuya
- * IoT SDK. It includes device initialization, state management, network
- * management, and data point (DP) handling. The SDK provides a framework for
- * connecting devices to the Tuya IoT platform, enabling device management, data
- * reporting, and remote control capabilities.
+ * This file contains the main logic for initializing, starting, stopping,
+ * and managing the Tuya IoT client, including MQTT communication, activation,
+ * event dispatching, and device data reporting.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     support link type change
  *
  */
 
@@ -739,6 +739,25 @@ int tuya_iot_token_get_pending(tuya_iot_client_t *client)
     return client->token_get.result;
 }
 
+static OPERATE_RET __tuya_iot_link_type_change_cb(void *data)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    netmgr_type_e netmgr_type;
+
+    netmgr_type = (netmgr_type_e)data;
+
+    PR_DEBUG("netmgr_type: %s", NETMGR_TYPE_TO_STR(netmgr_type));
+
+    tuya_iot_client_t *p_client = tuya_iot_client_get();
+    if (p_client) {
+        PR_NOTICE("Tuya iot client reconnect");
+        tuya_iot_reconnect(p_client);
+    }
+
+    return rt;
+}
+
 /**
  * @brief Yields control to the Tuya IoT client for processing incoming messages
  * and events.
@@ -756,7 +775,7 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         return OPRT_INVALID_PARM;
     }
 
-    int ret = OPRT_OK;
+    int rt = OPRT_OK;
     client->state = client->nextstate;
 
     switch (client->state) {
@@ -779,6 +798,8 @@ int tuya_iot_yield(tuya_iot_client_t *client)
             client->nextstate = STATE_DATA_LOAD;
             client->status = TUYA_STATUS_UNACTIVE;
         }
+        TUYA_CALL_ERR_LOG(
+            tal_event_subscribe(EVENT_LINK_TYPE_CHG, "iot", __tuya_iot_link_type_change_cb, SUBSCRIBE_TYPE_NORMAL));
         break;
 
     case STATE_DATA_LOAD:
@@ -839,10 +860,10 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         break;
 
     case STATE_ENDPOINT_GET:
-        ret = tuya_endpoint_cert_get((tuya_endpoint_t *)tuya_endpoint_get());
-        ret |= tuya_endpoint_domain_get((tuya_endpoint_t *)tuya_endpoint_get());
-        if (OPRT_OK != ret) {
-            PR_WARN("tuya endpoint get error %d; need update", ret);
+        rt = tuya_endpoint_cert_get((tuya_endpoint_t *)tuya_endpoint_get());
+        rt |= tuya_endpoint_domain_get((tuya_endpoint_t *)tuya_endpoint_get());
+        if (OPRT_OK != rt) {
+            PR_WARN("tuya endpoint get error %d; need update", rt);
             client->nextstate = STATE_ENDPOINT_UPDATE;
         } else {
             client->nextstate = STATE_STARTUP_UPDATE;
@@ -850,16 +871,16 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         break;
 
     case STATE_ENDPOINT_UPDATE:
-        ret = tuya_endpoint_update();
-        if (ret != OPRT_OK) {
+        rt = tuya_endpoint_update();
+        if (rt != OPRT_OK) {
             tal_system_sleep(1000);
             break;
         }
         if (client->is_activated) {
-            ret = tuya_endpoint_cert_set((tuya_endpoint_t *)tuya_endpoint_get());
-            ret |= tuya_endpoint_domain_set((tuya_endpoint_t *)tuya_endpoint_get());
-            if (OPRT_OK != ret) {
-                PR_WARN("tuya endpoint set error %d; need restart update", ret);
+            rt = tuya_endpoint_cert_set((tuya_endpoint_t *)tuya_endpoint_get());
+            rt |= tuya_endpoint_domain_set((tuya_endpoint_t *)tuya_endpoint_get());
+            if (OPRT_OK != rt) {
+                PR_WARN("tuya endpoint set error %d; need restart update", rt);
             }
             client->nextstate = STATE_STARTUP_UPDATE;
         } else {
@@ -868,8 +889,8 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         break;
 
     case STATE_ACTIVATING:
-        ret = client_activate_process(client, client->binding->token);
-        if (ret != OPRT_OK) {
+        rt = client_activate_process(client, client->binding->token);
+        if (rt != OPRT_OK) {
             tal_system_sleep(1000);
             break;
         }
@@ -886,10 +907,10 @@ int tuya_iot_yield(tuya_iot_client_t *client)
             client->nextstate = STATE_RESET;
             break;
         }
-        ret = tuya_endpoint_cert_set((tuya_endpoint_t *)tuya_endpoint_get());
-        ret |= tuya_endpoint_domain_set((tuya_endpoint_t *)tuya_endpoint_get());
-        if (OPRT_OK != ret) {
-            PR_WARN("tuya endpoint set error %d; need restart update", ret);
+        rt = tuya_endpoint_cert_set((tuya_endpoint_t *)tuya_endpoint_get());
+        rt |= tuya_endpoint_domain_set((tuya_endpoint_t *)tuya_endpoint_get());
+        if (OPRT_OK != rt) {
+            PR_WARN("tuya endpoint set error %d; need restart update", rt);
         }
         client->is_activated = true;
 
@@ -966,7 +987,7 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         break;
     }
 
-    return ret;
+    return rt;
 }
 
 /**

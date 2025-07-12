@@ -17,6 +17,7 @@ from tools.cli_command.cli_clean import cli as clean_exec
 from tools.cli_command.cli_flash import cli as flash_exec
 from tools.cli_command.cli_monitor import cli as monitor_exec
 from tools.cli_command.cli_update import cli as update_exec
+from tools.cli_command.cli_new import cli as new_exec
 from tools.cli_command.cli_dev import cli as dev_exec
 
 click_completion_init()
@@ -30,6 +31,7 @@ CLIS = {
     "flash": flash_exec,
     "monitor": monitor_exec,
     "update": update_exec,
+    "new": new_exec,
     "dev": dev_exec,
 }
 

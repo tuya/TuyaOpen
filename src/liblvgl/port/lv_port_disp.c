@@ -164,7 +164,9 @@ static void disp_init(char *device)
 
     if(sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME) {
         frame_len = (sg_display_info.width + 7) / 8 * sg_display_info.height;
-    } else {
+    } else if(sg_display_info.fmt == TUYA_PIXEL_FMT_I2){
+        frame_len = (sg_display_info.width + 3) / 4 * sg_display_info.height;
+    }else {
         per_pixel_byte = __disp_get_pixels_size_bytes(sg_display_info.fmt);
         frame_len = sg_display_info.width * sg_display_info.height * per_pixel_byte;
     }
@@ -207,7 +209,8 @@ static lv_color_format_t __disp_get_lv_color_format(TUYA_DISPLAY_PIXEL_FMT_E pix
         case TUYA_PIXEL_FMT_RGB888:
             return LV_COLOR_FORMAT_RGB888;
         case TUYA_PIXEL_FMT_MONOCHROME:
-            return LV_COLOR_FORMAT_RGB565; // LVGL does not support monochrome directly, use RGB565 as a workaround
+        case TUYA_PIXEL_FMT_I2:
+            return LV_COLOR_FORMAT_RGB565; // LVGL does not support monochrome/I2 directly, use RGB565 as a workaround
         default:
             return LV_COLOR_FORMAT_RGB565;
     }
@@ -244,6 +247,20 @@ static void __disp_mono_write_point(uint32_t x, uint32_t y, bool enable, TDL_DIS
     }
 }
 
+static void __disp_i2_write_point(uint32_t x, uint32_t y, uint8_t color, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    if(NULL == fb || x >= fb->width || y >= fb->height) {
+        PR_ERR("Point (%d, %d) out of bounds", x, y);
+        return;
+    }
+
+    uint32_t write_byte_index = y * (fb->width/4) + x/4;
+    uint8_t write_bit = (x%4)*2;
+    uint8_t cleared = fb->frame[write_byte_index] & (~(0x03 << write_bit)); // Clear the bits we are going to write
+
+    fb->frame[write_byte_index] = cleared | ((color & 0x03) << write_bit);
+}
+
 static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px_map, \
                                             lv_color_format_t cf, TDL_DISP_FRAME_BUFF_T *fb)
 {
@@ -266,6 +283,16 @@ static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px
                 uint16_t *px_map_u16 = (uint16_t *)px_map;
                 bool enable = (px_map_u16[offset++]> 0x8FFF) ? false : true;
                 __disp_mono_write_point(x, y, enable, fb);
+            }
+        }
+    }else if(fb->fmt == TUYA_PIXEL_FMT_I2) { 
+        for(y = area->y1 ; y <= area->y2; y++) {
+            for(x = area->x1; x <= area->x2; x++) {
+                lv_color16_t *px_map_color16 = (lv_color16_t *)px_map;
+                uint8_t grey2 = ~((px_map_color16[offset].red + px_map_color16[offset].green*2 +\
+                                 px_map_color16[offset].blue) >> 2);
+                offset++;
+                __disp_i2_write_point(x, y, grey2, fb);
             }
         }
     }else {

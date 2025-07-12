@@ -1,11 +1,13 @@
 /**
  * @file tdd_pixel_sm16703p.h
- * @author www.tuya.com
- * @brief tdd_pixel_sm16703p module is used to driving sm16703p chip
- * @version 0.1
- * @date 2022-03-08
+ * @brief TDD layer driver for SM16703P RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the interface for the SM16703P LED pixel controller driver.
+ * SM16703P is a 3-channel RGB LED controller that supports individual pixel control
+ * with built-in PWM generation. The driver implements the TDD (Tuya Device Driver)
+ * layer interface for registering and managing SM16703P LED strips.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -30,8 +32,8 @@ extern "C" {
 *********************************************************************/
 /**
  * @function:tdd_sm16703p_driver_register
- * @brief: 注册设备
- * @param[in]: *driver_name -> 设备名
+ * @brief: Register device
+ * @param[in]: *driver_name -> Device name
  * @return: success -> OPRT_OK
  */
 OPERATE_RET tdd_sm16703p_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param);

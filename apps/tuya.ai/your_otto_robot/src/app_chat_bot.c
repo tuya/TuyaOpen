@@ -137,8 +137,9 @@ static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 ***********************************************************/
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
-    static uint8_t *p_ai_text = NULL;
+    
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+    static uint8_t *p_ai_text = NULL;
     static uint32_t ai_text_len = 0;
 #endif
 

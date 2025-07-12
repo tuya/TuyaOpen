@@ -1,14 +1,8 @@
 menu "configure app (your_otto_robot) "
 
-config ENABLE_CHAT_BOT
-    bool
-    default y
-    select ENABLE_AUDIO_SERVICE
-    select ENABLE_VOICE_PROTOCOL_STREAM_GW
-    select ENABLE_VOICE_STREAM_GW_MID_PROTOBUF
-    select ENABLE_VOICE_STREAM_GW_MID_WEBSOCKET_CLIENT
-    select ENABLE_SPEAKER_UPLOAD_SERVICE_OPUS_ENCODE
-    select ENABLE_SPEAKER_UPLOAD_SERVICE_SPEEX_ENCODE
+config TUYA_PRODUCT_ID
+    string "product ID of project"
+    default "c8ccmpnhz35w5va7"
 
 choice 
     prompt "choose chat mode"

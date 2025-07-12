@@ -92,7 +92,7 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
     PR_INFO("HTTPS URL: %s", cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
 }
 
-OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
+OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
@@ -104,8 +104,9 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
             ai_audio_set_volume(volume);
-            char volume_str[20] = {0};
+            
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+            char volume_str[20] = {0};
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
             app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
 #endif
@@ -219,7 +220,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpobj->devid);
         }
 
-        audio_dp_obj_proc(dpobj);
+        user_dp_obj_proc(dpobj);
 
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
 

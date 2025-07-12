@@ -1,30 +1,30 @@
 ##
 # @file toolchain_file.cmake
-# @brief 
 #/
 
+####################################################
+# Modify the content of this file
+# according to the actual situation
+# and configure the actual path of the compilation tool
+####################################################
+
+set(COMPILE_PREX "")
+
+message(STATUS "Using cross compile prefix: ${COMPILE_PREX}")
+
+set(CMAKE_C_COMPILER ${COMPILE_PREX}gcc)
+set(CMAKE_CXX_COMPILER ${COMPILE_PREX}g++)
+set(CMAKE_ASM_COMPILER ${COMPILE_PREX}gcc)
+set(CMAKE_AR ${COMPILE_PREX}ar)
+set(CMAKE_RANLIB ${COMPILE_PREX}ranlib)
+set(CMAKE_STRIP ${COMPILE_PREX}strip)
+
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR Linux)
 
-set(TOOLCHAIN_DIR "${PLATFORM_PATH}/toolchain/<your-toolchain-name>")
-set(TOOLCHAIN_PRE "<your-toolchain-prefix>")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
-# set(TOOLCHAIN_INCLUDE
-#     ${TOOLCHAIN_DIR}/include
-#     )
-# set(TOOLCHAIN_LIB
-#     ${TOOLCHAIN_DIR}/lib/gcc
-#     )
-
-message(STATUS "[TOP] PLATFORM_PATH: ${PLATFORM_PATH}")
-
-set(CMAKE_AR "${TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PRE}ar")
-set(CMAKE_C_COMPILER "${TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PRE}gcc")
-set(CMAKE_CXX_COMPILER "${TOOLCHAIN_DIR}/bin/${TOOLCHAIN_PRE}g++")
-
-SET (CMAKE_C_COMPILER_WORKS 1)
-SET (CMAKE_CXX_COMPILER_WORKS 1)
-
-set(CMAKE_FIND_ROOT_PATH ${TOOLCHAIN_DIR}/bin)
-
-set(CMAKE_C_FLAGS "<your-compiler-c-flags>")
+# -fsanitize=address -fno-omit-frame-pointer
+set(CMAKE_C_FLAGS " -g")

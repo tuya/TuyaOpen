@@ -26,6 +26,7 @@ config BOARD_ENABLE_BK7231X
     bool
     default y
 
+# <new-board-enable: This line cannot be deleted or modified>
 
 
 choice
@@ -86,5 +87,7 @@ if (BOARD_ENABLE_BK7231X)
     rsource "./BK7231X/Kconfig"
     endif
 endif
+
+# <new-board-kconfig: This line cannot be deleted or modified>
 
 endchoice

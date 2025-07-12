@@ -1,11 +1,24 @@
 /**
  * @file drv_encoder.h
- * @brief Implementation of encoder driver for various types of encoders. This file
- *        offers initialization functions, data acquisition, and control operations
- *        for different kinds of encoders used in the system, enabling accurate
- *        position and speed feedback.
+ * @brief Rotary encoder driver interface for Tuya IoT devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * This file provides the interface for rotary encoder functionality in Tuya IoT
+ * devices. It supports quadrature encoders with button functionality, enabling
+ * accurate position tracking and user input detection. The driver provides
+ * thread-safe operations for reading encoder angle values and button states.
+ *
+ * Key features:
+ * - Quadrature encoder angle tracking with interrupt-driven detection
+ * - Built-in button support for encoder switches
+ * - Thread-safe operations using mutex protection
+ * - GPIO-based implementation with configurable pins
+ * - Semaphore-based event handling for responsive input processing
+ *
+ * The driver abstracts the low-level GPIO operations and interrupt handling,
+ * providing a simple interface for applications to read encoder position
+ * and button states.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -44,7 +57,6 @@ int32_t encoder_get_angle(void);
  * @return The current angle value of the encoder, in degrees.
  */
 int32_t encoder_get_angle(void);
-
 
 /**
  * @brief Check if the encoder button is pressed.

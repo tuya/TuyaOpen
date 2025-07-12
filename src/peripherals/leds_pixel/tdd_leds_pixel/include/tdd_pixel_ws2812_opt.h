@@ -1,11 +1,14 @@
 /**
- * @file tdd_pixel_ws2812_4bit.h
- * @author www.tuya.com
- * @brief tdd_pixel_ws2812 module is used to
- * @version 0.1
- * @date 2022-08-03
+ * @file tdd_pixel_ws2812_opt.h
+ * @brief TDD layer optimized driver for WS2812 RGB LED pixel controller
  *
- * @copyright Copyright (c) tuya.inc 2022
+ * This header file provides the optimized interface for the WS2812 LED pixel controller driver.
+ * This optimized version provides enhanced performance for WS2812 RGB LED controllers
+ * with additional PWM configuration options and 4-bit encoding optimizations. The driver
+ * implements the TDD (Tuya Device Driver) layer interface for registering and managing
+ * WS2812 LED strips with optimized timing and performance.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -39,7 +42,8 @@ extern "C" {
  * @param[in] order_mode
  * @return
  */
-OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param, PIXEL_PWM_CFG_T *pwm_cfg);
+OPERATE_RET tdd_ws2812_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param,
+                                           PIXEL_PWM_CFG_T *pwm_cfg);
 
 #ifdef __cplusplus
 }

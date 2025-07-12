@@ -16,7 +16,7 @@
  * This example is intended for developers looking to understand the basics of queue management in Tuya's IoT
  * applications, providing a foundation for building robust and efficient multi-threaded applications.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -159,7 +159,8 @@ void example_queue_stop()
         TUYA_CALL_ERR_LOG(tal_thread_delete(post_thrd_hdl));
     }
 
-    /* 等待线程删除完成，然后在释放队列资源。避免线程还未删除，队列已被释放出现错误 */
+    /* Wait for thread deletion to complete, then release queue resources. Avoid errors where threads are not yet
+     * deleted but queue is already released */
     while (NULL != post_thrd_hdl || NULL != fetch_thrd_hdl) {
         tal_system_sleep(500);
     }

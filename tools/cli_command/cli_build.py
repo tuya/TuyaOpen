@@ -41,18 +41,35 @@ def get_platform_info(platform):
 
 def check_platform_commit(repo_path, commit):
     logger = get_logger()
+    params = get_global_params()
     if not os.path.exists(repo_path):
         logger.error(f"Not found {repo_path}")
         return False
 
+    if not commit:
+        # Maybe a newly created platform
+        return True
+
+    dont_update_platform = params["dont_update_platform"]
+    need_prompt = not os.path.exists(dont_update_platform)
+
     real_commit = git_get_commit(repo_path)
-    if real_commit != commit:
+    if need_prompt and real_commit != commit:
         logger.warning(f"The commit required by the platform is {commit},")
         logger.warning(f"but currently {real_commit} is being used.")
-        logger.info("*** The command [tos.py update] can be executed. ***")
-        logger.info("*** Or use the git tool to checkout to \
-the target commit. ***")
-        return False
+        logger.info("Update the platform to the required commit?")
+        logger.note("y(es) / n(o) / d(on't prompt again)")
+        ret = input("input: ").upper()
+        if ret == "Y":
+            if not git_checkout(repo_path, commit):
+                logger.error("Update platform error. Please try again.")
+                return False
+            logger.note("Platform updated successfully.")
+        elif ret == "N":
+            logger.info("Use command [tos.py update] to update the platform.")
+        elif ret == "D":
+            with open(dont_update_platform, 'w') as f:
+                f.write("1")
 
     return True
 
@@ -62,19 +79,19 @@ def download_platform(platform):
     When the platform path does not exist,
     git clone the repository and switch to the commit
     '''
-    ret = True
     logger = get_logger()
     params = get_global_params()
     platforms_root = params["platforms_root"]
     platform_root = os.path.join(platforms_root, platform)
     platform_info = get_platform_info(platform)
-    repo = platform_info["repo"]
-    commit = platform_info["commit"]
+    repo = platform_info.get("repo", "")
+    commit = platform_info.get("commit", "")
 
     if os.path.exists(platform_root):
         logger.info(f"Platform [{platform}] is exists.")
-        check_platform_commit(platform_root, commit)
-        return ret
+        if not check_platform_commit(platform_root, commit):
+            return False
+        return True
 
     logger.info(f"Downloading platform [{platform}] ...")
 
@@ -84,12 +101,12 @@ def download_platform(platform):
 
     if not git_clone(repo, platform_root) \
             or not git_checkout(platform_root, commit):
-        ret = False
+        return False
 
     if code == "China":
         set_repo_mirro(unset=True)
 
-    return ret
+    return True
 
 
 def prepare_platform(platform, chip=""):

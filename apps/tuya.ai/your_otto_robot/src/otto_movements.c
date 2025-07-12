@@ -5,6 +5,7 @@
 //-- Original work (c) Juan Gonzalez-Gomez (Obijuan), Dec 2011
 //-- GPL license
 //-- Ported to Tuya AI development board by [txp666], 2025
+//-- Extended with arm support - Otto with 6 servos
 //--------------------------------------------------------------
 
 #include "otto_movements.h"
@@ -13,21 +14,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 static Otto_t g_otto;
 
-static unsigned long millis() {
+static unsigned long millis()
+{
     return tal_system_get_millisecond();
 }
 
-// 初始化Otto
-void otto_init(int left_leg, int right_leg, int left_foot, int right_foot) {
+
+void otto_init(int left_leg, int right_leg, int left_foot, int right_foot, int left_hand, int right_hand)
+{
     g_otto.servo_pins[LEFT_LEG] = left_leg;
     g_otto.servo_pins[RIGHT_LEG] = right_leg;
     g_otto.servo_pins[LEFT_FOOT] = left_foot;
     g_otto.servo_pins[RIGHT_FOOT] = right_foot;
+    g_otto.servo_pins[LEFT_HAND] = left_hand;
+    g_otto.servo_pins[RIGHT_HAND] = right_hand;
 
-    // 初始化所有舵机
+
+    g_otto.has_hands = (left_hand != -1 && right_hand != -1);
+
+ 
     for (int i = 0; i < SERVO_COUNT; i++) {
         g_otto.servo_trim[i] = 0;
         if (g_otto.servo_pins[i] != -1) {
@@ -44,7 +51,8 @@ void otto_init(int left_leg, int right_leg, int left_foot, int right_foot) {
 ///////////////////////////////////////////////////////////////////
 //-- ATTACH & DETACH FUNCTIONS ----------------------------------//
 ///////////////////////////////////////////////////////////////////
-void otto_attach_servos() {
+void otto_attach_servos()
+{
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.servo_pins[i] != -1 && g_otto.oscillator_indices[i] != -1) {
             oscillator_attach(g_otto.oscillator_indices[i], g_otto.servo_pins[i], false);
@@ -52,7 +60,8 @@ void otto_attach_servos() {
     }
 }
 
-void otto_detach_servos() {
+void otto_detach_servos()
+{
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.oscillator_indices[i] != -1) {
             oscillator_detach(g_otto.oscillator_indices[i]);
@@ -63,11 +72,17 @@ void otto_detach_servos() {
 ///////////////////////////////////////////////////////////////////
 //-- OSCILLATORS TRIMS ------------------------------------------//
 ///////////////////////////////////////////////////////////////////
-void otto_set_trims(int left_leg, int right_leg, int left_foot, int right_foot) {
+void otto_set_trims(int left_leg, int right_leg, int left_foot, int right_foot, int left_hand, int right_hand)
+{
     g_otto.servo_trim[LEFT_LEG] = left_leg;
     g_otto.servo_trim[RIGHT_LEG] = right_leg;
     g_otto.servo_trim[LEFT_FOOT] = left_foot;
     g_otto.servo_trim[RIGHT_FOOT] = right_foot;
+
+    if (g_otto.has_hands) {
+        g_otto.servo_trim[LEFT_HAND] = left_hand;
+        g_otto.servo_trim[RIGHT_HAND] = right_hand;
+    }
 
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.oscillator_indices[i] != -1) {
@@ -79,7 +94,8 @@ void otto_set_trims(int left_leg, int right_leg, int left_foot, int right_foot) 
 ///////////////////////////////////////////////////////////////////
 //-- BASIC MOTION FUNCTIONS -------------------------------------//
 ///////////////////////////////////////////////////////////////////
-void otto_move_servos(int time, int servo_target[]) {
+void otto_move_servos(int time, int servo_target[])
+{
     if (g_otto.is_otto_resting == true) {
         g_otto.is_otto_resting = false;
     }
@@ -88,7 +104,8 @@ void otto_move_servos(int time, int servo_target[]) {
     if (time > 10) {
         for (int i = 0; i < SERVO_COUNT; i++) {
             if (g_otto.oscillator_indices[i] != -1) {
-                g_otto.increment[i] = (servo_target[i] - oscillator_get_position(g_otto.oscillator_indices[i])) / (time / 10.0);
+                g_otto.increment[i] =
+                    (servo_target[i] - oscillator_get_position(g_otto.oscillator_indices[i])) / (time / 10.0);
             }
         }
 
@@ -96,8 +113,9 @@ void otto_move_servos(int time, int servo_target[]) {
             g_otto.partial_time = millis() + 10;
             for (int i = 0; i < SERVO_COUNT; i++) {
                 if (g_otto.oscillator_indices[i] != -1) {
-                    oscillator_set_position(g_otto.oscillator_indices[i], 
-                                           oscillator_get_position(g_otto.oscillator_indices[i]) + g_otto.increment[i]);
+                    oscillator_set_position(g_otto.oscillator_indices[i],
+                                            oscillator_get_position(g_otto.oscillator_indices[i]) +
+                                                g_otto.increment[i]);
                 }
             }
             tal_system_sleep(10);
@@ -117,7 +135,7 @@ void otto_move_servos(int time, int servo_target[]) {
     while (f && adjustment_count < 10) {
         f = false;
         for (int i = 0; i < SERVO_COUNT; i++) {
-            if (g_otto.oscillator_indices[i] != -1 && 
+            if (g_otto.oscillator_indices[i] != -1 &&
                 servo_target[i] != oscillator_get_position(g_otto.oscillator_indices[i])) {
                 f = true;
                 break;
@@ -135,7 +153,8 @@ void otto_move_servos(int time, int servo_target[]) {
     }
 }
 
-void otto_move_single(int position, int servo_number) {
+void otto_move_single(int position, int servo_number)
+{
     if (position > 180)
         position = 90;
     if (position < 0)
@@ -145,14 +164,14 @@ void otto_move_single(int position, int servo_number) {
         g_otto.is_otto_resting = false;
     }
 
-    if (servo_number >= 0 && servo_number < SERVO_COUNT && 
-        g_otto.oscillator_indices[servo_number] != -1) {
+    if (servo_number >= 0 && servo_number < SERVO_COUNT && g_otto.oscillator_indices[servo_number] != -1) {
         oscillator_set_position(g_otto.oscillator_indices[servo_number], position);
     }
 }
 
 void otto_oscillate_servos(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int period,
-                         double phase_diff[SERVO_COUNT], float cycle) {
+                           double phase_diff[SERVO_COUNT], float cycle)
+{
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.oscillator_indices[i] != -1) {
             oscillator_set_o(g_otto.oscillator_indices[i], offset[i]);
@@ -176,8 +195,9 @@ void otto_oscillate_servos(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], 
     tal_system_sleep(10);
 }
 
-void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int period,
-                 double phase_diff[SERVO_COUNT], float steps) {
+void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int period, double phase_diff[SERVO_COUNT],
+                  float steps)
+{
     if (g_otto.is_otto_resting == true) {
         g_otto.is_otto_resting = false;
     }
@@ -197,28 +217,48 @@ void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int perio
 ///////////////////////////////////////////////////////////////////
 //-- HOME = Otto at rest position -------------------------------//
 ///////////////////////////////////////////////////////////////////
-void otto_home() {
-    // if (g_otto.is_otto_resting == false) {  // Go to rest position only if necessary
-        // 为所有舵机准备初始位置值
+void otto_home(bool hands_down)
+{
+    if (g_otto.is_otto_resting == false) { // Go to rest position only if necessary
+
         int homes[SERVO_COUNT];
         for (int i = 0; i < SERVO_COUNT; i++) {
-            // 腿部和脚部舵机始终复位
-            homes[i] = 90;
+            if (i == LEFT_HAND || i == RIGHT_HAND) {
+                if (hands_down) {
+                   
+                    if (i == LEFT_HAND) {
+                        homes[i] = HAND_HOME_POSITION;
+                    } else {                                 // RIGHT_HAND
+                        homes[i] = 180 - HAND_HOME_POSITION; 
+                    }
+                } else {
+                    
+                    if (g_otto.oscillator_indices[i] != -1) {
+                        homes[i] = oscillator_get_position(g_otto.oscillator_indices[i]);
+                    } else {
+                        homes[i] = 90;
+                    }
+                }
+            } else {
+                
+                homes[i] = 90;
+            }
         }
 
-        //otto_move_servos(500, homes);  // Move the servos in half a second
-        otto_move_servos(250, homes);  // Move the servos in one second
-        // g_otto.is_otto_resting = true;
-    // }
+        otto_move_servos(500, homes);
+        g_otto.is_otto_resting = true;
+    }
 
-    tal_system_sleep(100);
+    tal_system_sleep(200);
 }
 
-bool otto_get_rest_state() {
+bool otto_get_rest_state()
+{
     return g_otto.is_otto_resting;
 }
 
-void otto_set_rest_state(bool state) {
+void otto_set_rest_state(bool state)
+{
     g_otto.is_otto_resting = state;
 }
 
@@ -230,10 +270,11 @@ void otto_set_rest_state(bool state) {
 //--    steps: Number of steps
 //--    T: Period
 //---------------------------------------------------------
-void otto_jump(float steps, int period) {
-    int up[SERVO_COUNT] = {90, 90, 150, 30};
+void otto_jump(float steps, int period)
+{
+    int up[SERVO_COUNT] = {90, 90, 150, 30, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
     otto_move_servos(period, up);
-    int down[SERVO_COUNT] = {90, 90, 90, 90};
+    int down[SERVO_COUNT] = {90, 90, 90, 90, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
     otto_move_servos(period, down);
 }
 
@@ -244,7 +285,8 @@ void otto_jump(float steps, int period) {
 //--    * T : Period
 //--    * Dir: Direction: FORWARD / BACKWARD
 //---------------------------------------------------------
-void otto_walk(float steps, int period, int dir) {
+void otto_walk(float steps, int period, int dir, int amount)
+{
     //-- Oscillator parameters for walking
     //-- Hip sevos are in phase
     //-- Feet servos are in phase
@@ -252,9 +294,22 @@ void otto_walk(float steps, int period, int dir) {
     //--      -90 : Walk forward
     //--       90 : Walk backward
     //-- Feet servos also have the same offset (for tiptoe a little bit)
-    int A[SERVO_COUNT] = {30, 30, 30, 30};
-    int O[SERVO_COUNT] = {0, 0, 5, -5};
-    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(dir * -90), DEG2RAD(dir * -90)};
+    int A[SERVO_COUNT] = {30, 30, 30, 30, 0, 0};
+    int O[SERVO_COUNT] = {0, 0, 5, -5, HAND_HOME_POSITION - 90, HAND_HOME_POSITION};
+    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(dir * -90), DEG2RAD(dir * -90), 0, 0};
+
+    if (amount > 0 && g_otto.has_hands) {
+        
+        A[LEFT_HAND] = amount;
+        A[RIGHT_HAND] = amount;
+
+        
+        phase_diff[LEFT_HAND] = phase_diff[RIGHT_LEG]; 
+        phase_diff[RIGHT_HAND] = phase_diff[LEFT_LEG]; 
+    } else {
+        A[LEFT_HAND] = 0;
+        A[RIGHT_HAND] = 0;
+    }
 
     //-- Let's oscillate the servos!
     otto_execute(A, O, period, phase_diff, steps);
@@ -267,22 +322,37 @@ void otto_walk(float steps, int period, int dir) {
 //--   * T: Period
 //--   * Dir: Direction: LEFT / RIGHT
 //---------------------------------------------------------
-void otto_turn(float steps, int period, int dir) {
+void otto_turn(float steps, int period, int dir, int amount)
+{
     //-- Same coordination than for walking (see Otto::walk)
     //-- The Amplitudes of the hip's oscillators are not igual
     //-- When the right hip servo amplitude is higher, the steps taken by
     //--   the right leg are bigger than the left. So, the robot describes an
     //--   left arc
-    int A[SERVO_COUNT] = {30, 30, 30, 30};
-    int O[SERVO_COUNT] = {0, 0, 5, -5};
-    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(-90), DEG2RAD(-90)};
+    int A[SERVO_COUNT] = {30, 30, 30, 30, 0, 0};
+    int O[SERVO_COUNT] = {0, 0, 5, -5, HAND_HOME_POSITION - 90, HAND_HOME_POSITION};
+    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(-90), DEG2RAD(-90), 0, 0};
 
     if (dir == LEFT) {
-        A[0] = 30;  //-- Left hip servo
-        A[1] = 0;   //-- Right hip servo
+        A[0] = 30; //-- Left hip servo
+        A[1] = 0;  //-- Right hip servo
     } else {
         A[0] = 0;
         A[1] = 30;
+    }
+
+
+    if (amount > 0 && g_otto.has_hands) {
+     
+        A[LEFT_HAND] = amount;
+        A[RIGHT_HAND] = amount;
+
+        
+        phase_diff[LEFT_HAND] = phase_diff[LEFT_LEG];   
+        phase_diff[RIGHT_HAND] = phase_diff[RIGHT_LEG]; 
+    } else {
+        A[LEFT_HAND] = 0;
+        A[RIGHT_HAND] = 0;
     }
 
     //-- Let's oscillate the servos!
@@ -296,18 +366,19 @@ void otto_turn(float steps, int period, int dir) {
 //--    T: Period of one bend
 //--    dir: RIGHT=Right bend LEFT=Left bend
 //---------------------------------------------------------
-void otto_bend(int steps, int period, int dir) {
+void otto_bend(int steps, int period, int dir)
+{
     // Parameters of all the movements. Default: Left bend
-    int bend1[SERVO_COUNT] = {90, 90, 62, 35};
-    int bend2[SERVO_COUNT] = {90, 90, 62, 105};
-    int homes[SERVO_COUNT] = {90, 90, 90, 90};
+    int bend1[SERVO_COUNT] = {90, 90, 62, 35, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    int bend2[SERVO_COUNT] = {90, 90, 62, 105, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    int homes[SERVO_COUNT] = {90, 90, 90, 90, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
 
     // Time of one bend, constrained in order to avoid movements too fast.
     // T=max(T, 600);
     // Changes in the parameters if right direction is chosen
     if (dir == -1) {
         bend1[2] = 180 - 35;
-        bend1[3] = 180 - 60;  // Not 65. Otto is unbalanced
+        bend1[3] = 180 - 60; // Not 65. Otto is unbalanced
         bend2[2] = 180 - 105;
         bend2[3] = 180 - 60;
     }
@@ -331,15 +402,16 @@ void otto_bend(int steps, int period, int dir) {
 //--    T: Period of one shake
 //--    dir: RIGHT=Right leg LEFT=Left leg
 //---------------------------------------------------------
-void otto_shake_leg(int steps, int period, int dir) {
+void otto_shake_leg(int steps, int period, int dir)
+{
     // This variable change the amount of shakes
     int numberLegMoves = 2;
 
     // Parameters of all the movements. Default: Right leg
-    int shake_leg1[SERVO_COUNT] = {90, 90, 58, 35};
-    int shake_leg2[SERVO_COUNT] = {90, 90, 58, 120};
-    int shake_leg3[SERVO_COUNT] = {90, 90, 58, 60};
-    int homes[SERVO_COUNT] = {90, 90, 90, 90};
+    int shake_leg1[SERVO_COUNT] = {90, 90, 58, 35, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    int shake_leg2[SERVO_COUNT] = {90, 90, 58, 120, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    int shake_leg3[SERVO_COUNT] = {90, 90, 58, 60, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    int homes[SERVO_COUNT] = {90, 90, 90, 90, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
 
     // Changes in the parameters if left leg is chosen
     if (dir == -1) {
@@ -367,7 +439,7 @@ void otto_shake_leg(int steps, int period, int dir) {
             otto_move_servos(period / (2 * numberLegMoves), shake_leg3);
             otto_move_servos(period / (2 * numberLegMoves), shake_leg2);
         }
-        otto_move_servos(500, homes);  // Return to home position
+        otto_move_servos(500, homes); // Return to home position
     }
 
     tal_system_sleep(period);
@@ -381,14 +453,15 @@ void otto_shake_leg(int steps, int period, int dir) {
 //--    * h: Jump height: SMALL / MEDIUM / BIG
 //--              (or a number in degrees 0 - 90)
 //---------------------------------------------------------
-void otto_up_down(float steps, int period, int height) {
+void otto_up_down(float steps, int period, int height)
+{
     //-- Both feet are 180 degrees out of phase
     //-- Feet amplitude and offset are the same
     //-- Initial phase for the right foot is -90, so that it starts
     //--   in one extreme position (not in the middle)
-    int A[SERVO_COUNT] = {0, 0, height, height};
-    int O[SERVO_COUNT] = {0, 0, height, -height};
-    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(-90), DEG2RAD(90)};
+    int A[SERVO_COUNT] = {0, 0, height, height, 0, 0};
+    int O[SERVO_COUNT] = {0, 0, height, -height, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+    double phase_diff[SERVO_COUNT] = {0, 0, DEG2RAD(-90), DEG2RAD(90), 0, 0};
 
     //-- Let's oscillate the servos!
     otto_execute(A, O, period, phase_diff, steps);
@@ -401,7 +474,8 @@ void otto_up_down(float steps, int period, int height) {
 //--     T : Period
 //--     h : Amount of swing (from 0 to 50 aprox)
 //---------------------------------------------------------
-void otto_swing(float steps, int period, int height) {
+void otto_swing(float steps, int period, int height)
+{
     //-- Both feets are in phase. The offset is half the amplitude
     //-- It causes the robot to swing from side to side
     int A[SERVO_COUNT] = {0, 0, height, height};
@@ -419,7 +493,8 @@ void otto_swing(float steps, int period, int height) {
 //--     T : Period
 //--     h : Amount of swing (from 0 to 50 aprox)
 //---------------------------------------------------------
-void otto_tiptoe_swing(float steps, int period, int height) {
+void otto_tiptoe_swing(float steps, int period, int height)
+{
     //-- Both feets are in phase. The offset is not half the amplitude in order to tiptoe
     //-- It causes the robot to swing from side to side
     int A[SERVO_COUNT] = {0, 0, height, height};
@@ -437,7 +512,8 @@ void otto_tiptoe_swing(float steps, int period, int height) {
 //--    T: Period of one jitter
 //--    h: height (Values between 5 - 25)
 //---------------------------------------------------------
-void otto_jitter(float steps, int period, int height) {
+void otto_jitter(float steps, int period, int height)
+{
     //-- Both feet are 180 degrees out of phase
     //-- Feet amplitude and offset are the same
     //-- Initial phase for the right foot is -90, so that it starts
@@ -459,7 +535,8 @@ void otto_jitter(float steps, int period, int height) {
 //--    T: Period of one bend
 //--    h: height (Values between 5 - 15)
 //---------------------------------------------------------
-void otto_ascending_turn(float steps, int period, int height) {
+void otto_ascending_turn(float steps, int period, int height)
+{
     //-- Both feet and legs are 180 degrees out of phase
     //-- Initial phase for the right foot is -90, so that it starts
     //--   in one extreme position (not in the middle)
@@ -481,7 +558,8 @@ void otto_ascending_turn(float steps, int period, int height) {
 //--    h: Height. Typical valures between 15 and 40
 //--    dir: Direction: LEFT / RIGHT
 //---------------------------------------------------------
-void otto_moonwalker(float steps, int period, int height, int dir) {
+void otto_moonwalker(float steps, int period, int height, int dir)
+{
     //-- This motion is similar to that of the caterpillar robots: A travelling
     //-- wave moving from one side to another
     //-- The two Otto's feet are equivalent to a minimal configuration. It is known
@@ -509,7 +587,8 @@ void otto_moonwalker(float steps, int period, int height, int dir) {
 //--     h: height (Values between 20 - 50)
 //--     dir:  Direction: LEFT / RIGHT
 //-----------------------------------------------------------
-void otto_crusaito(float steps, int period, int height, int dir) {
+void otto_crusaito(float steps, int period, int height, int dir)
+{
     int A[SERVO_COUNT] = {25, 25, height, height};
     int O[SERVO_COUNT] = {0, 0, height / 2 + 4, -height / 2 - 4};
     double phase_diff[SERVO_COUNT] = {90, 90, DEG2RAD(0), DEG2RAD(-60 * dir)};
@@ -526,7 +605,8 @@ void otto_crusaito(float steps, int period, int height, int dir) {
 //--    h: height (Values between 10 - 30)
 //--    dir: direction: FOREWARD, BACKWARD
 //---------------------------------------------------------
-void otto_flapping(float steps, int period, int height, int dir) {
+void otto_flapping(float steps, int period, int height, int dir)
+{
     int A[SERVO_COUNT] = {12, 12, height, height};
     int O[SERVO_COUNT] = {0, 0, height - 10, -height + 10};
     double phase_diff[SERVO_COUNT] = {DEG2RAD(0), DEG2RAD(180), DEG2RAD(-90 * dir), DEG2RAD(90 * dir)};
@@ -535,7 +615,8 @@ void otto_flapping(float steps, int period, int height, int dir) {
     otto_execute(A, O, period, phase_diff, steps);
 }
 
-void otto_enable_servo_limit(int diff_limit) {
+void otto_enable_servo_limit(int diff_limit)
+{
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.oscillator_indices[i] != -1) {
             oscillator_set_limiter(g_otto.oscillator_indices[i], diff_limit);
@@ -543,10 +624,138 @@ void otto_enable_servo_limit(int diff_limit) {
     }
 }
 
-void otto_disable_servo_limit() {
+void otto_disable_servo_limit()
+{
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (g_otto.oscillator_indices[i] != -1) {
             oscillator_disable_limiter(g_otto.oscillator_indices[i]);
         }
     }
-} 
+}
+
+///////////////////////////////////////////////////////////////////
+//-- hand wave --------------------------------------------------// -------------------------------------------//
+///////////////////////////////////////////////////////////////////
+
+//---------------------------------------------------------
+//-- hand wave: hand up
+//--  Parameters:
+//--    period:  time period of each cycle
+//--    dir: 方向 1=left, -1=right, 0=both
+//---------------------------------------------------------
+void otto_hands_up(int period, int dir)
+{
+    if (!g_otto.has_hands) {
+        return;
+    }
+
+    int target[SERVO_COUNT] = {90, 90, 90, 90, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+
+    if (dir == 0) {
+        target[LEFT_HAND] = 170;
+        target[RIGHT_HAND] = 10;
+    } else if (dir == 1) {
+        target[LEFT_HAND] = 170;
+        if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+            target[RIGHT_HAND] = oscillator_get_position(g_otto.oscillator_indices[RIGHT_HAND]);
+        }
+    } else if (dir == -1) {
+        target[RIGHT_HAND] = 10;
+        if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+            target[LEFT_HAND] = oscillator_get_position(g_otto.oscillator_indices[LEFT_HAND]);
+        }
+    }
+
+    otto_move_servos(period, target);
+}
+
+//---------------------------------------------------------
+//--   Hands Wave Down
+//--  Parameters:
+//--    period:  time period of each cycle
+//--    dir: 方向 1=left, -1=right, 0=both
+//---------------------------------------------------------
+void otto_hands_down(int period, int dir)
+{
+    if (!g_otto.has_hands) {
+        return;
+    }
+
+    int target[SERVO_COUNT] = {90, 90, 90, 90, HAND_HOME_POSITION, 180 - HAND_HOME_POSITION};
+
+    if (dir == 1) {
+        if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+            target[RIGHT_HAND] = oscillator_get_position(g_otto.oscillator_indices[RIGHT_HAND]);
+        }
+    } else if (dir == -1) {
+        if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+            target[LEFT_HAND] = oscillator_get_position(g_otto.oscillator_indices[LEFT_HAND]);
+        }
+    }
+
+    otto_move_servos(period, target);
+}
+
+//---------------------------------------------------------
+//-- otto_hand_wave: wave
+//--  Parameters:
+//--    period:  time period of each cycle
+//--    dir: 方向 1=left, -1=right, 0=both
+//---------------------------------------------------------
+void otto_hand_wave(int period, int dir)
+{
+    if (!g_otto.has_hands) {
+        return;
+    }
+
+    
+    const int wave_amplitude = 30;     
+    const int wave_cycles = 5;         
+    const int raise_time = 300;        
+    const int wave_time = period / 10; 
+
+   
+    const int left_raised = 170;
+    const int right_raised = 10;
+
+   
+    int positions[SERVO_COUNT];
+    for (int i = 0; i < SERVO_COUNT; i++) {
+        positions[i] =
+            (g_otto.oscillator_indices[i] != -1) ? oscillator_get_position(g_otto.oscillator_indices[i]) : 90;
+    }
+
+
+    bool wave_left = (dir == LEFT || dir == BOTH);
+    bool wave_right = (dir == RIGHT || dir == BOTH);
+
+  
+    if (wave_left)
+        positions[LEFT_HAND] = left_raised;
+    if (wave_right)
+        positions[RIGHT_HAND] = right_raised;
+    otto_move_servos(raise_time, positions);
+
+
+    for (int cycle = 0; cycle < wave_cycles; cycle++) {
+
+        if (wave_left)
+            positions[LEFT_HAND] = left_raised - wave_amplitude;
+        if (wave_right)
+            positions[RIGHT_HAND] = right_raised + wave_amplitude;
+        otto_move_servos(wave_time, positions);
+
+
+        if (wave_left)
+            positions[LEFT_HAND] = left_raised + wave_amplitude;
+        if (wave_right)
+            positions[RIGHT_HAND] = right_raised - wave_amplitude;
+        otto_move_servos(wave_time, positions);
+    }
+
+    if (wave_left)
+        positions[LEFT_HAND] = HAND_HOME_POSITION;
+    if (wave_right)
+        positions[RIGHT_HAND] = 180 - HAND_HOME_POSITION;
+    otto_move_servos(raise_time, positions);
+}

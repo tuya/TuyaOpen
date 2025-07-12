@@ -49,6 +49,33 @@ def copy_directory(source, target) -> bool:
     pass
 
 
+def move_directory(source, target, force=False) -> bool:
+    logger = get_logger()
+    if os.path.exists(target) and not force:
+        logger.error(f"Can't move to {target}, because it already exists.")
+        return False
+
+    try:
+        rm_rf(target)
+        shutil.move(source, target)
+    except Exception as e:
+        logger.error(f"Move error: {str(e)}.")
+        return False
+
+    return True
+
+
+def create_directory(target) -> bool:
+    logger = get_logger()
+    try:
+        os.makedirs(target, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Create {target}: {str(e)}.")
+        return False
+
+    return True
+
+
 def _find_files(file_type: str, target_dir: str, max_depth: int) -> List[str]:
     result = []
 
@@ -85,8 +112,9 @@ def get_files_from_path(types: Union[str, List[str]],
 
 
 def parser_para_file(json_file):
+    logger = get_logger()
     if not os.path.isfile(json_file):
-        print(f"Error: Not found [{json_file}].")
+        logger.error(f"Error: Not found [{json_file}].")
         return {}
     try:
         f = open(json_file, 'r', encoding='utf-8')
@@ -96,3 +124,25 @@ def parser_para_file(json_file):
         print(f"Parser json error:  [{str(e)}].")
         return {}
     return json_data
+
+
+def replace_string_in_file(file_path, old_str, new_str) -> bool:
+    logger = get_logger()
+    if not os.path.isfile(file_path):
+        logger.error(f"Error: Not found [{file_path}].")
+        return False
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+
+        modified_content = content.replace(old_str, new_str)
+
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(modified_content)
+
+        logger.debug(f"replace [{old_str}] to [{new_str}] in [{file_path}].")
+    except Exception as e:
+        print(f"Replace string in {file_path} error:  [{str(e)}].")
+        return False
+
+    return True
