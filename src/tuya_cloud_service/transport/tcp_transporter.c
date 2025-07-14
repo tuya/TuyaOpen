@@ -1,23 +1,21 @@
 /**
  * @file tcp_transporter.c
- * @brief Implementation of TCP transporter for Tuya devices.
+ * @brief Implementation of TCP transporter for Tuya Cloud service.
  *
- * This file contains the implementation of the TCP transporter interface for
- * Tuya devices, providing functionalities for establishing TCP connections,
- * sending and receiving data over TCP, and handling TCP connection errors. The
- * TCP transporter is a crucial component for enabling reliable communication
- * between Tuya devices and the Tuya cloud platform or other networked services.
+ * This file provides the implementation of TCP transporter functions,
+ * including connection management, data transmission, and configuration
+ * for Tuya Cloud communication over TCP.
  *
- * The implementation includes support for configuring TCP connection
- * parameters, managing TCP connection lifecycle, and ensuring data integrity
- * and security during TCP communication.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * 2025-07-10   yangjie     Support multiple network interfaces
  *
  */
 
-#include "tuya_error_code.h"
+#include "tuya_cloud_types.h"
+#include "netmgr.h"
 #include "tal_api.h"
+#include "tal_network.h"
 #include "tuya_transporter.h"
 #include "tcp_transporter.h"
 #include "tal_network.h"
@@ -26,7 +24,7 @@ typedef struct tcp_transporter_inter_t {
     struct tuya_transporter_inter_t base;
     tuya_tcp_config_t config;
     int socket_fd;
-} * tuya_tcp_transporter_t;
+} *tuya_tcp_transporter_t;
 
 /**
  * @brief Connects to a TCP server using the Tuya transporter.
@@ -93,6 +91,10 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
     }
 
     // socket bind random port
+    NW_IP_S nw_ip = {0};
+    netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip);
+    tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+
     if ((tcp_transporter->config.bindPort || tcp_transporter->config.bindAddr) &&
         (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, tcp_transporter->config.bindAddr,
                                  tcp_transporter->config.bindPort))) { // socket bind port

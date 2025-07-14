@@ -33,6 +33,8 @@
 #define PIN_RIGHT_LEG  TUYA_PWM_NUM_1
 #define PIN_LEFT_FOOT  TUYA_PWM_NUM_2
 #define PIN_RIGHT_FOOT TUYA_PWM_NUM_3
+#define PIN_LEFT_HAND  TUYA_PWM_NUM_4
+#define PIN_RIGHT_HAND TUYA_PWM_NUM_5
 
 #define TASK_PWM_PRIORITY THREAD_PRIO_2
 #define TASK_PWM_SIZE     4096
@@ -51,22 +53,21 @@
 
 void otto_power_on()
 {
-    PR_DEBUG("开始初始化Otto机器人...");
+    PR_DEBUG("Otto initializing...");
 
-    // 初始化Otto机器人
-    otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT);
+    otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, PIN_LEFT_HAND, PIN_RIGHT_HAND);
 
-    // 设置舵机微调值 (如果舵机零位不准确，可以在这里调整)
-    otto_set_trims(0, 0, 0, 0);
 
-    // 启用舵机速度限制，防止舵机运动过快
+    otto_set_trims(0, 0, 0, 0, 0, 0);
+
+ 
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
 
-    // 回到初始位置
-    otto_home();
+
+    otto_home(true);
     // tal_system_sleep(1000);
 
-    PR_DEBUG("Otto初始化完成");
+    PR_DEBUG("Otto initialized.");
 }
 /**
  * @brief otto_Show
@@ -75,49 +76,46 @@ void otto_power_on()
  */
 static void otto_Show()
 {
-    PR_DEBUG("开始初始化Otto机器人...");
+    PR_DEBUG("intializing otto_Show robot...");
 
-    // 初始化Otto机器人
-    otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT);
 
-    // 设置舵机微调值 (如果舵机零位不准确，可以在这里调整)
-    otto_set_trims(0, 0, 0, 0);
+    otto_set_trims(0, 0, 0, 0, 0, 0);
 
-    // 启用舵机速度限制，防止舵机运动过快
+ 
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
 
-    // 回到初始位置
-    otto_home();
+    
+    otto_home(true);
     tal_system_sleep(1000);
 
     PR_DEBUG("Otto initialized,starting to show...");
 
-    // 演示一系列动作
+    
     PR_DEBUG("otto_walk");
-    otto_walk(4, 1000, FORWARD); // 向前走4步
+    otto_walk(4, 1000, FORWARD, 20); 
     tal_system_sleep(500);
 
     PR_DEBUG("otto_turn");
-    otto_turn(4, 1000, LEFT); // 向左转4步
+    otto_turn(4, 1000, LEFT, 25); 
     tal_system_sleep(500);
 
     PR_DEBUG("otto_swing");
-    otto_swing(4, 1000, 20); // 左右摇摆4次
+    otto_swing(4, 1000, 20); 
     tal_system_sleep(500);
 
     PR_DEBUG("otto_up_down");
-    otto_up_down(4, 1000, 20); // 上下运动4次
+    otto_up_down(4, 1000, 20); 
     tal_system_sleep(500);
 
     PR_DEBUG("otto_bend");
-    otto_bend(2, 1000, LEFT); // 向左弯腰2次
+    otto_bend(2, 1000, LEFT); 
     tal_system_sleep(500);
 
     PR_DEBUG("otto_jitter");
-    otto_jitter(4, 500, 20); // 颤抖4次
+    otto_jitter(4, 500, 20); 
     tal_system_sleep(500);
 
-    // 演示其他动作
+  
     PR_DEBUG("otto_moonwalker");
     otto_moonwalker(4, 1000, 20, LEFT);
     tal_system_sleep(500);
@@ -126,15 +124,17 @@ static void otto_Show()
     otto_jump(2, 1000);
     tal_system_sleep(500);
 
-    // PR_DEBUG("演示舵机自由移动");
-    //  通过MoveServos可以直接控制所有舵机到指定位置
+
+    PR_DEBUG("otto hand wave");
+    otto_hand_wave(1000, 0);
+
     // int positions[SERVO_COUNT] = {110, 70, 120, 60};
     // otto_move_servos(1000, positions);
     tal_system_sleep(1000);
 
-    // 回到初始位置
+
     PR_DEBUG("otto_home");
-    otto_home();
+    otto_home(true);
     tal_system_sleep(1000);
 
     PR_DEBUG("oto_show complete.");
@@ -155,6 +155,7 @@ enum ActionType {
     ACTION_MOONWALKER = 9,
     ACTION_JUMP = 10,
     ACTION_SHOW = 11,
+    ACTION_HAND_WAVE = 12,
 };
 
 void otto_robot_dp_proc(uint32_t move_type)
@@ -162,22 +163,22 @@ void otto_robot_dp_proc(uint32_t move_type)
     switch (move_type) {
     case ACTION_WALK_F:
         PR_DEBUG("Walking forward");
-        otto_walk(2, 1000, FORWARD); // Walk forward 1 step
+        otto_walk(2, 1000, FORWARD, 20); // Walk forward 1 step
         break;
 
     case ACTION_WALK_B:
         PR_DEBUG("Walking backward");
-        otto_walk(2, 1000, BACKWARD); // Walk backward 1 step
+        otto_walk(2, 1000, BACKWARD, 15); // Walk backward 1 step
         break;
 
     case ACTION_WALK_L:
         PR_DEBUG("Walking left");
-        otto_turn(2, 1000, LEFT); // Turn left 1 step
+        otto_turn(2, 1000, LEFT, 25); // Turn left 1 step
         break;
 
     case ACTION_WALK_R:
         PR_DEBUG("Walking right");
-        otto_turn(2, 1000, RIGHT); // Turn right 1 step
+        otto_turn(2, 1000, RIGHT, 25); // Turn right 1 step
         break;
 
     case ACTION_SWING:
@@ -214,18 +215,27 @@ void otto_robot_dp_proc(uint32_t move_type)
         PR_DEBUG("Performing Show");
         otto_Show();
         break;
+        
+    case ACTION_HAND_WAVE:
+        PR_DEBUG("otto hand wave");
+        otto_hand_wave(1000, 0);
+        break;
 
-    case ACTION_NONE:
-        // 设置舵机微调值 (如果舵机零位不准确，可以在这里调整)
-        otto_set_trims(0, 0, 0, 0);
-        otto_home();
-        // tal_system_sleep(1000);
+    case ACTION_NONE:    
+        otto_set_trims(0, 0, 0, 0, 0, 0);
+        otto_home(true);
+        PR_DEBUG("otto_home");
+        break;
+
+    default:
+        PR_DEBUG("Invalid action type");
+        otto_home(true);
         PR_DEBUG("otto_home");
         break;
     }
-    // 设置舵机微调值 (如果舵机零位不准确，可以在这里调整)
-    otto_set_trims(0, 0, 0, 0);
-    otto_home();
+    
+    otto_set_trims(0, 0, 0, 0, 0, 0);
+    otto_home(true);
     // tal_system_sleep(1000);
     PR_DEBUG("otto_home");
 }

@@ -13,7 +13,9 @@
  * Ethernet connectivity, ensuring reliable and stable network communication for
  * Tuya IoT devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Adjust WiFi priority
  *
  */
 
@@ -22,8 +24,9 @@
 #include "tal_wired.h"
 #include "mqtt_bind.h"
 
-netmgr_conn_wired_t s_netmgr_wired = {.base = {.pri = 1,
+netmgr_conn_wired_t s_netmgr_wired = {.base = {.pri = 2,
                                                .type = NETCONN_WIRED,
+                                               .status = NETMGR_LINK_DOWN,
                                                .open = netconn_wired_open,
                                                .close = netconn_wired_close,
                                                .get = netconn_wired_get,

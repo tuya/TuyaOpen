@@ -140,9 +140,7 @@ def set_global_params():
 
     tyutool_root = os.path.join(tools_root, "tyutool")
     GLOBAL_PARAMS["tyutool_root"] = tyutool_root
-    tyutool_cli = os.path.join(tyutool_root, "tyutool_cli")
-    if get_running_env() == "windows":
-        tyutool_cli += ".exe"
+    tyutool_cli = os.path.join(tyutool_root, "tyutool_cli.py")
     GLOBAL_PARAMS["tyutool_cli"] = tyutool_cli
 
     porting_root = os.path.join(tools_root, "porting")
@@ -208,7 +206,7 @@ def set_country_code():
         return COUNTRY_CODE
 
     try:
-        response = requests.get('http://www.ip-api.com/json', timeout=2)
+        response = requests.get('http://www.ip-api.com/json', timeout=5)
         response.raise_for_status()
         logger.debug(response.elapsed)
 
@@ -218,7 +216,7 @@ def set_country_code():
 
         COUNTRY_CODE = country
     except requests.exceptions.RequestException as e:
-        logger.warn(f"country code error: {e}")
+        logger.warning(f"country code error: {e}")
 
     return COUNTRY_CODE
 
@@ -251,8 +249,8 @@ def get_running_env():
     linux/darwin_x86/darwin_arm64/windows
     '''
     global RUNNING_ENV
-    if len(COUNTRY_CODE):
-        return COUNTRY_CODE
+    if len(RUNNING_ENV):
+        return RUNNING_ENV
     return set_running_env()
 
 

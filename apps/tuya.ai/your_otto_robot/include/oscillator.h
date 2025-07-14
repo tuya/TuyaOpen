@@ -20,17 +20,17 @@
 #define DEG2RAD(g) ((g) * M_PI) / 180
 #endif
 
-#define SERVO_MIN_PULSEWIDTH_US 500           // 最小脉宽（微秒）
-#define SERVO_MAX_PULSEWIDTH_US 2500          // 最大脉宽（微秒）
-#define SERVO_MIN_DEGREE -90                  // 最小角度
-#define SERVO_MAX_DEGREE 90                   // 最大角度
-#define SERVO_TIMEBASE_RESOLUTION_HZ 1000000  // 1MHz, 1us per tick
-#define SERVO_TIMEBASE_PERIOD 20000           // 20000 ticks, 20ms
+#define SERVO_MIN_PULSEWIDTH_US 500           
+#define SERVO_MAX_PULSEWIDTH_US 2500          
+#define SERVO_MIN_DEGREE -90                  
+#define SERVO_MAX_DEGREE 90                   
+#define SERVO_TIMEBASE_RESOLUTION_HZ 1000000  
+#define SERVO_TIMEBASE_PERIOD 20000           
 
-// 定义最大oscillator数量
+
 #define MAX_OSCILLATORS 8
 
-// Oscillator结构体定义
+
 typedef struct {
     bool is_attached;
 
@@ -64,7 +64,7 @@ typedef struct {
     TUYA_PWM_NUM_E pwm_channel;
 } Oscillator_t;
 
-// Oscillator函数声明
+// Oscillator
 int oscillator_create(int trim);
 void oscillator_destroy(int idx);
 void oscillator_attach(int idx, int pin, bool rev);

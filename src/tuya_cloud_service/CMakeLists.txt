@@ -44,6 +44,12 @@ if(CONFIG_ENABLE_WIRED STREQUAL "y")
     list(APPEND LIB_SRCS ${WIRED_SRCS})
 endif()
 
+if (CONFIG_ENABLE_CELLULAR STREQUAL "y")
+    file(GLOB_RECURSE WIRED_SRCS 
+        "${MODULE_PATH}/netmgr/netconn_cellular.c")
+    list(APPEND LIB_SRCS ${WIRED_SRCS})
+endif()
+
 if(CONFIG_ENABLE_BLUETOOTH STREQUAL "y")
     file(GLOB_RECURSE BLE_SRCS  
         "${MODULE_PATH}/ble/*.c")

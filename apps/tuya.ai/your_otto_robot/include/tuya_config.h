@@ -21,7 +21,7 @@
  * work.
  *
  */
-
+	
 #ifndef TUYA_PRODUCT_ID
 #define TUYA_PRODUCT_ID "c8ccmpnhz35w5va7"
 #endif

@@ -11,7 +11,9 @@
  * network connectivity for Tuya devices, facilitating seamless communication
  * with Tuya cloud services and supporting device control and data exchange.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ * 2025-07-11   yangjie     Add types to string conversion macros
  *
  */
 
@@ -28,16 +30,30 @@ extern "C" {
  * @brief network connection type
  *
  */
+#define NETMGR_TYPE_TO_STR(type)                                                                                       \
+    ((type) == NETCONN_WIFI       ? "wifi"                                                                             \
+     : (type) == NETCONN_WIRED    ? "wired"                                                                            \
+     : (type) == NETCONN_CELLULAR ? "cellular"                                                                         \
+     : (type) == NETCONN_AUTO     ? "auto"                                                                             \
+                                  : "unknown")
+
 typedef enum {
-    NETCONN_WIFI = 1 << 0,
-    NETCONN_WIRED = 1 << 1,
-    NETCONN_AUTO = 1 << 2,
+    NETCONN_AUTO = 1 << 0,
+    NETCONN_WIFI = 1 << 1,
+    NETCONN_WIRED = 1 << 2,
+    NETCONN_CELLULAR = 1 << 3,
 } netmgr_type_e;
 
 /**
  * @brief the network link event
  *
  */
+#define NETMGR_STATUS_TO_STR(status)                                                                                   \
+    ((status) == NETMGR_LINK_DOWN       ? "link_down"                                                                  \
+     : (status) == NETMGR_LINK_UP       ? "link_up"                                                                    \
+     : (status) == NETMGR_LINK_UP_SWITH ? "link_up_switch"                                                             \
+                                        : "unknown")
+
 typedef enum {
     NETMGR_LINK_DOWN,     // network was disconnected
     NETMGR_LINK_UP,       // network was connected
@@ -62,7 +78,7 @@ typedef enum {
  * @brief the device network config
  *
  */
-typedef struct {
+typedef struct netmgr_conn_base {
     uint8_t pri;
     netmgr_type_e type;
     netmgr_status_e status;
@@ -72,6 +88,8 @@ typedef struct {
     OPERATE_RET (*set)(netmgr_conn_config_type_e cmd, void *param);
     OPERATE_RET (*get)(netmgr_conn_config_type_e cmd, void *param);
     void (*event_cb)(netmgr_type_e type, netmgr_status_e event);
+
+    struct netmgr_conn_base *next; // for linked list
 } netmgr_conn_base_t;
 
 /**

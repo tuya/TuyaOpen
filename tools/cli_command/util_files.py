@@ -6,14 +6,24 @@ import json
 import shutil
 from typing import Union, List
 
-from tools.cli_command.util import get_logger
+from tools.cli_command.util import (
+    get_logger, get_running_env, do_subprocess
+)
 
 
 def rm_rf(file_path):
-    if os.path.isfile(file_path):
-        os.remove(file_path)
-    elif os.path.isdir(file_path):
-        shutil.rmtree(file_path)
+    if not os.path.exists(file_path):
+        return True
+    if "windows" == get_running_env():
+        if os.path.isfile(file_path):
+            cmd = f"del /F /Q \"{file_path}\""
+        else:
+            cmd = f"rmdir /S /Q \"{file_path}\""
+    else:
+        cmd = f"rm -rf \"{file_path}\""
+    ret = do_subprocess(cmd)
+    if ret != 0:
+        return False
     return True
 
 
