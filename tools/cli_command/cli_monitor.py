@@ -21,7 +21,7 @@ def get_monitor_cmd(using_data,
     '''
     params = get_global_params()
     tyutool_cli = params["tyutool_cli"]
-    cmd = tyutool_cli
+    cmd = f"python {tyutool_cli}"
 
     cmd = f"{cmd} monitor"
 
