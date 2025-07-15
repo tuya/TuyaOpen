@@ -26,5 +26,7 @@ choice
             rsource "./T3_LCD_DEVKIT/Kconfig"
         endif
 
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice
 

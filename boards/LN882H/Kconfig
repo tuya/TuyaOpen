@@ -32,4 +32,7 @@ choice
         if (BOARD_CHOICE_EWT103_W15)
             rsource "./EWT103-W15/Kconfig"
         endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice
