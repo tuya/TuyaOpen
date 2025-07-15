@@ -7,3 +7,4 @@ src/libhttp/coreHTTP
 src/libmqtt/coreMQTT
 examples/switch_demo/libqrencode
 apps/tuya.ai/your_chat_bot/src/display/material
+src/common/qrcode

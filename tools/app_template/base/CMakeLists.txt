@@ -16,8 +16,6 @@ aux_source_directory(${APP_PATH}/src APP_SRC)
 set(APP_INC ${APP_PATH}/include)
 
 # APP_OPTIONS
-set(APP_OPTIONS "-W")
-list(APPEND APP_OPTIONS "-Wall")
 
 ########################################
 # Target Configure
