@@ -13,9 +13,6 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-add_definitions(-DSTATIC_IN_RELEASE=static)
-add_definitions(-DMAJOR_VERSION=4 -DMINOR_VERSION=1 -DMICRO_VERSION=1 -DVERSION=\"4.1.1\")
-
 ########################################
 # Target Configure
 ########################################
