@@ -27,4 +27,6 @@ choice
             rsource "./T2-U/Kconfig"
         endif
 
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice

@@ -85,4 +85,7 @@ choice
         if (BOARD_CHOICE_DNESP32S3)
             rsource "./DNESP32S3/Kconfig"
         endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice

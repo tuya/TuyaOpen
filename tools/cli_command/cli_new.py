@@ -11,11 +11,12 @@ from menuconfig import menuconfig
 
 from tools.cli_command.util import (
     set_clis, get_logger, get_global_params,
-    do_subprocess
+    do_subprocess, list_menu
 )
 from tools.cli_command.util_files import (
     rm_rf, copy_directory, create_directory,
-    copy_file, replace_string_in_file
+    copy_file, replace_string_in_file, get_subdir_from_path,
+    check_text_in_file
 )
 from tools.kconfiglib.set_catalog_config import set_catalog_config
 from tools.kconfiglib.conf2param import conf2param, param2json
@@ -382,26 +383,15 @@ def modify_board_kconfig(board_kconfig, new_platform_name):
         if match is not None:
             return
 
-    enable_line = "# <new-board-enable: \
-This line cannot be deleted or modified>"
-    enable_content = f'''config {board_enable_string}
-    bool
-    default y
-
-{enable_line}
-'''
-    replace_string_in_file(board_kconfig, enable_line, enable_content)
-
     board_choice_string = f"BOARD_CHOICE_{platform_name}"
     kconfig_line = "# <new-board-kconfig: \
 This line cannot be deleted or modified>"
-    kconfig_content = f'''if ({board_enable_string})
+    kconfig_content = f'''
     config {board_choice_string}
         bool "{new_platform_name}"
     if ({board_choice_string})
     rsource "./{new_platform_name}/Kconfig"
     endif
-endif
 
 {kconfig_line}'''
     replace_string_in_file(board_kconfig, kconfig_line, kconfig_content)
@@ -494,9 +484,82 @@ def new_project_exec(framework):
     sys.exit(0)
 
 
+def _add_board_kconfig(board_kconfig, new_board_name, add_line):
+    add_board_context = f'''
+    config BOARD_CHOICE_{new_board_name}
+        bool "{new_board_name}"
+        if (BOARD_CHOICE_{new_board_name})
+            rsource "./{new_board_name}/Kconfig"
+        endif
+
+{add_line}'''
+
+    replace_string_in_file(board_kconfig, add_line, add_board_context)
+    pass
+
+
+def _new_board_kconfig(board_kconfig, new_board_name, add_line):
+    new_board_context = f'''
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_{new_board_name}
+        bool "{new_board_name}"
+        if (BOARD_CHOICE_{new_board_name})
+            rsource "./{new_board_name}/Kconfig"
+        endif
+
+{add_line}
+
+endchoice
+'''
+
+    with open(board_kconfig, 'a', encoding='utf-8') as f:
+        f.write(new_board_context)
+    pass
+
+
+@click.command(help="New board.")
+def new_board_exec():
+    logger = get_logger()
+    params = get_global_params()
+
+    boards_root = params["boards_root"]
+    boards = get_subdir_from_path(boards_root)
+    boards.sort()
+    logger.debug(f"sub boards: {boards}")
+
+    platform, _ = list_menu("Choice platform", boards)
+    logger.note("Input new board name.")
+    new_board_name = input("input: ")
+
+    board_path = os.path.join(boards_root, platform)
+    new_board_path = os.path.join(board_path, new_board_name)
+    if os.path.exists(new_board_path):
+        logger.error(f"Directory already exists: {new_board_path}.")
+        sys.exit(1)
+
+    board_kconfig = os.path.join(board_path, "Kconfig")
+    add_line = "# <new-board-add: This line cannot be deleted or modified>"
+    if check_text_in_file(board_kconfig, add_line):
+        _add_board_kconfig(board_kconfig, new_board_name, add_line)
+    else:
+        _new_board_kconfig(board_kconfig, new_board_name, add_line)
+
+    board_template_root = params["board_template_root"]
+    copy_directory(board_template_root, new_board_path)
+
+    new_board_kconfig = os.path.join(new_board_path, "Kconfig")
+    replace_string_in_file(new_board_kconfig, "<platform-name>", platform)
+    replace_string_in_file(new_board_kconfig, "<board-name>", new_board_name)
+
+    sys.exit(0)
+
+
 CLIS = {
     "platform": new_platform_exec,
-    "project": new_project_exec
+    "project": new_project_exec,
+    "board": new_board_exec,
 }
 
 

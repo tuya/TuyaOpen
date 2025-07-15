@@ -48,4 +48,7 @@ choice
         if (BOARD_CHOICE_T5AI_MOJI_1_28)
             rsource "./T5AI_MOJI_1_28/Kconfig"
         endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice
