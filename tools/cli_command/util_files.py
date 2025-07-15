@@ -121,6 +121,18 @@ def get_files_from_path(types: Union[str, List[str]],
     return result
 
 
+def get_subdir_from_path(target_path):
+    ans = []
+    if not os.path.isdir(target_path):
+        return ans
+
+    for entry in os.scandir(target_path):
+        if entry.is_dir():
+            ans.append(entry.name)
+
+    return ans
+
+
 def parser_para_file(json_file):
     logger = get_logger()
     if not os.path.isfile(json_file):
@@ -156,3 +168,25 @@ def replace_string_in_file(file_path, old_str, new_str) -> bool:
         return False
 
     return True
+
+
+def check_text_in_file(file_path, target_text):
+    logger = get_logger()
+
+    if not os.path.isfile(file_path):
+        logger.warning(f"Not a file: {file_path}.")
+        return False
+
+    if len(target_text) == 0:
+        logger.warning("Text is empty.")
+        return False
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                if target_text in line:
+                    return True
+        return False
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        return False

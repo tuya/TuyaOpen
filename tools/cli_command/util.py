@@ -149,6 +149,9 @@ def set_global_params():
     app_template_root = os.path.join(tools_root, "app_template")
     GLOBAL_PARAMS["app_template_root"] = app_template_root
 
+    board_template_root = os.path.join(tools_root, "board_template")
+    GLOBAL_PARAMS["board_template_root"] = board_template_root
+
     pass
 
 

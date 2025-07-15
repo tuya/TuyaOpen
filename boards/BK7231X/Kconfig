@@ -27,5 +27,7 @@ choice
             rsource "./WB2S/Kconfig"
         endif
 
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice
 
