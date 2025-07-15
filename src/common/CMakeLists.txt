@@ -27,6 +27,10 @@ set(LIB_PUBLIC_INC
     ${MODULE_PATH}/backoffAlgorithm/source/include
     ${MODULE_PATH}/utilities)
 
+if (CONFIG_ENABLE_QRCODE STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/qrcode/qrcodegen.c ${MODULE_PATH}/qrcode/qrencode_print.c)
+    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/qrcode)
+endif()
 
 ########################################
 # Target Configure

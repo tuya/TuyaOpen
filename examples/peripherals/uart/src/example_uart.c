@@ -39,7 +39,7 @@ static char sg_read_buffer[READ_BUFFER_SIZE];
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     int read_len = 0;

@@ -113,7 +113,7 @@ static void __ble_central_event_callback(TAL_BLE_EVT_PARAMS_T *p_event)
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TAL_BLE_SCAN_PARAMS_T scan_cfg;

@@ -138,7 +138,7 @@ static void __ble_peripheral_event_callback(TAL_BLE_EVT_PARAMS_T *p_event)
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

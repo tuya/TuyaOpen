@@ -10,6 +10,3 @@
 [submodule "src/common/backoffAlgorithm"]
 	path = src/common/backoffAlgorithm
 	url = https://github.com/FreeRTOS/backoffAlgorithm.git
-[submodule "apps/tuya_cloud/switch_demo/libqrencode"]
-	path = apps/tuya_cloud/switch_demo/libqrencode
-	url = https://github.com/fukuchi/libqrencode.git

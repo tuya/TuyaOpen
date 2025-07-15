@@ -171,7 +171,7 @@ void example_semaphore_stop()
  *
  * @return void
  */
-void user_main()
+void user_main(void)
 {
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
