@@ -88,7 +88,7 @@ static void wifi_event_callback(WF_EVENT_E event, void *arg)
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     char connect_ssid[] = "your-ssid-xxx"; // connect wifi ssid

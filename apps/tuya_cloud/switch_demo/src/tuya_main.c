@@ -206,7 +206,7 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
-void user_main()
+void user_main(void)
 {
     int ret = OPRT_OK;
 

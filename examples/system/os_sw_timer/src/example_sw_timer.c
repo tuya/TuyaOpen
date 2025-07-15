@@ -72,7 +72,7 @@ static void __timer_cb(TIMER_ID timer_id, void *arg)
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

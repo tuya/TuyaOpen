@@ -123,7 +123,7 @@ static void __example_i2c_task(void *param)
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

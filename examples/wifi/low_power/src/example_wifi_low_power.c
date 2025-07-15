@@ -72,7 +72,7 @@ static void __wifi_low_power_task2(void *arg)
     tal_thread_delete(__wifi_lp_hdl2);
 }
 
-void user_main()
+void user_main(void)
 {
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 

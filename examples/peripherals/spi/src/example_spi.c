@@ -49,7 +49,7 @@
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     uint8_t send_buff[] = {"Hello Tuya"};

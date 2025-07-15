@@ -44,7 +44,7 @@
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     AP_IF_S *ap_info;

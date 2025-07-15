@@ -129,7 +129,7 @@ static void __example_gpio_task(void *param)
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

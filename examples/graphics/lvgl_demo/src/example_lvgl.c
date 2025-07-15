@@ -51,7 +51,7 @@
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 4096, (TAL_LOG_OUTPUT_CB)tkl_log_output);

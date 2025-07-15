@@ -106,7 +106,7 @@ err_exit:
  *
  * @return void
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

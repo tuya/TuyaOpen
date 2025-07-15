@@ -46,7 +46,7 @@ static uint32_t g_wd_refresh_cnt = 0;
  *
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

@@ -83,7 +83,7 @@ void udp_broadcast_func(TIMER_ID timer_id, void *arg)
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

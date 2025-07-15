@@ -72,7 +72,7 @@ static void __button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, voi
  * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 

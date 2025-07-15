@@ -165,7 +165,7 @@ OPERATE_RET __link_status_cb(void *data)
  *
  * @return void
  */
-void user_main()
+void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
