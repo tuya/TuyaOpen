@@ -20,6 +20,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tkl_output.h"
+#include "tkl_i2c.h"
 
 /***********************************************************
 *************************micro define***********************
@@ -112,7 +113,19 @@ static OPERATE_RET __sht4x_read_data(const uint8_t port, const uint16_t len, uin
  */
 static OPERATE_RET __sht4x_write_cmd(const uint8_t port, const uint16_t cmd)
 {
-    return tkl_i2c_master_send(port, SR_I2C_ADDR_SHT4X_A, cmd, 1, FALSE);
+    uint8_t cmd_bytes[2];
+
+    // Check if it is a 16-bit command (high byte is non-zero)
+    if (cmd > 0xFF) {
+        // 16-bit command, send 2 bytes
+        cmd_bytes[0] = (uint8_t)(cmd >> 8);
+        cmd_bytes[1] = (uint8_t)(cmd & 0x00FF);
+        return tkl_i2c_master_send(port, SR_I2C_ADDR_SHT4X_A, cmd_bytes, 2, FALSE);
+    } else {
+        // 8-bit command, only send 1 byte
+        cmd_bytes[0] = (uint8_t)cmd;
+        return tkl_i2c_master_send(port, SR_I2C_ADDR_SHT4X_A, cmd_bytes, 1, FALSE);
+    }
 }
 
 /**
@@ -133,7 +146,7 @@ OPERATE_RET __sht4x_read_serial_number(int port, uint32_t *serial_nbr)
         return ret;
     }
 
-    __sht4x_delay_ms(20);
+    tal_system_sleep(20);
 
     ret = __sht4x_read_data(port, 6, buf);
     if (ret != OPRT_OK) {

@@ -20,6 +20,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tkl_output.h"
+#include "tkl_i2c.h"
 
 /***********************************************************
 *************************micro define***********************
