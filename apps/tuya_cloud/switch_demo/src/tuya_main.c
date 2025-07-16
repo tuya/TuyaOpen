@@ -34,7 +34,10 @@
 #endif
 
 #include "reset_netcfg.h"
+
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
 #include "qrencode_print.h"
+#endif
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
@@ -98,9 +101,11 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
     /* Print the QRCode for Tuya APP bind */
     case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
         char buffer[255];
         sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
         qrcode_string_output(buffer, user_log_output_cb, 0);
+#endif
     } break;
 
     /* MQTT with tuya cloud is connected, device online */
