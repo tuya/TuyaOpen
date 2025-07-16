@@ -113,17 +113,26 @@ def prepare_platform(platform, chip=""):
     '''
     Execute:
     python ./platform/xxx/platform_prepare.py $CHIP
+    or
+    ./platform_prepare.sh $CHIP
     '''
     logger = get_logger()
     params = get_global_params()
     platforms_root = params["platforms_root"]
     platform_root = os.path.join(platforms_root, platform)
     prepare_py = os.path.join(platform_root, "platform_prepare.py")
-    if not os.path.exists(prepare_py):
+    prepare_sh = os.path.join(platform_root, "platform_prepare.sh")
+    if not os.path.exists(prepare_py) and not os.path.exists(prepare_sh):
         logger.debug("no need platform prepare.")
         return True
+
+    if os.path.exists(prepare_py):
+        parpare_cmd = "python platform_prepare.py"
+    else:
+        parpare_cmd = "./platform_prepare.sh"
+
     logger.info(f"Preparing platform [{platform}] ...")
-    cmd = f"cd {platform_root} && python platform_prepare.py {chip}"
+    cmd = f"cd {platform_root} && {parpare_cmd} {chip}"
     ret = do_subprocess(cmd)
     if 0 != ret:
         return False
@@ -135,19 +144,27 @@ def build_setup(platform, project_name, framework, chip=""):
     Execute:
     python ./platform/xxx/build_setup.py
     $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP
+    or
+    ./build_setup.sh $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP
     '''
     logger = get_logger()
     params = get_global_params()
     platforms_root = params["platforms_root"]
     platform_root = os.path.join(platforms_root, platform)
     setup_py = os.path.join(platform_root, "build_setup.py")
-    if not os.path.exists(setup_py):
+    setup_sh = os.path.join(platform_root, "build_setup.sh")
+    if not os.path.exists(setup_py) and not os.path.exists(setup_sh):
         logger.debug("no need build setup.")
         return True
+
+    if os.path.exists(setup_py):
+        setup_cmd = "python build_setup.py"
+    else:
+        setup_cmd = "./build_setup.sh"
+
     logger.info("Build setup ...")
-    cmd = f"cd {platform_root} && "
-    cmd += f"python build_setup.py \
-{project_name} {platform} {framework} {chip}"
+    cmd = f"cd {platform_root} && {setup_cmd} "
+    cmd += f"{project_name} {platform} {framework} {chip}"
     ret = do_subprocess(cmd)
     if 0 != ret:
         return False

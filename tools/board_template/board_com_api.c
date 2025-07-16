@@ -1,5 +1,5 @@
 /**
- * @file tuya_t5ai_mini.c
+ * @file board_com_api.c
  * @author Tuya Inc.
  * @brief Implementation of common board-level hardware registration APIs for audio, button, and LED peripherals.
  *

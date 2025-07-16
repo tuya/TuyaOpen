@@ -215,6 +215,14 @@ class porting(object):
                 os.path.join(self.target_path, "Kconfig")
             )
 
+        # platform_prepare.py
+        if not os.path.exists(os.path.join(self.target_path, "platform_prepare.py")):
+            print("    cp platform_prepare.py template")
+            shutil.copy(
+                os.path.join(self.porting_template_path, "platform_prepare.py"),
+                os.path.join(self.target_path, "platform_prepare.py")
+            )
+
         # build_example.py
         if not os.path.exists(os.path.join(self.target_path, "build_example.py")):
             print("    cp build_example.py template")

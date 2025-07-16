@@ -374,6 +374,7 @@ rsource "./OS_SERVICE_Kconfig"
 
 def modify_board_kconfig(board_kconfig, new_platform_name):
     platform_name = new_platform_name.upper()
+    platform_name_ = platform_name.replace('-', '_')
     board_enable_string = f"BOARD_ENABLE_{platform_name}"
 
     with open(board_kconfig, 'r', encoding='utf-8') as f:
@@ -383,7 +384,7 @@ def modify_board_kconfig(board_kconfig, new_platform_name):
         if match is not None:
             return
 
-    board_choice_string = f"BOARD_CHOICE_{platform_name}"
+    board_choice_string = f"BOARD_CHOICE_{platform_name_}"
     kconfig_line = "# <new-board-kconfig: \
 This line cannot be deleted or modified>"
     kconfig_content = f'''
@@ -485,10 +486,11 @@ def new_project_exec(framework):
 
 
 def _add_board_kconfig(board_kconfig, new_board_name, add_line):
+    new_board_name_ = new_board_name.replace('-', '_')
     add_board_context = f'''
-    config BOARD_CHOICE_{new_board_name}
+    config BOARD_CHOICE_{new_board_name_}
         bool "{new_board_name}"
-        if (BOARD_CHOICE_{new_board_name})
+        if (BOARD_CHOICE_{new_board_name_})
             rsource "./{new_board_name}/Kconfig"
         endif
 
@@ -499,13 +501,14 @@ def _add_board_kconfig(board_kconfig, new_board_name, add_line):
 
 
 def _new_board_kconfig(board_kconfig, new_board_name, add_line):
+    new_board_name_ = new_board_name.replace('-', '_')
     new_board_context = f'''
 choice
     prompt "Choice a board"
 
-    config BOARD_CHOICE_{new_board_name}
+    config BOARD_CHOICE_{new_board_name_}
         bool "{new_board_name}"
-        if (BOARD_CHOICE_{new_board_name})
+        if (BOARD_CHOICE_{new_board_name_})
             rsource "./{new_board_name}/Kconfig"
         endif
 
