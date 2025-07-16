@@ -56,7 +56,7 @@ void *video_thread(void *arg)
     strcat(path, "/demo_video.264");
     fp = fopen(path, "rb");
     if (fp == NULL) {
-        printf("cant not read aov file %s\n", path);
+        printf("==============cant not read aov file %s\n", path);
         pthread_exit(0);
     }
     fseek(fp, 0, SEEK_END);

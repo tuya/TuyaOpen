@@ -1,0 +1,4 @@
+config CAMERA_DEMO
+    bool
+    default y
+    select ENABLE_TUYA_P2P
