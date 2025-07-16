@@ -3,7 +3,7 @@
 ## Overview
 A simple, cross-platform, cross-system, and multi-connection switch example. By using the Tuya App and Tuya Cloud Services, you can pair, activate, upgrade, remotely pull a video stream to watch (when away), local area pull a video stream to watch (within the same LAN)for this camera.
 
-![](https://images.tuyacn.com/fe-static/docs/img/0e155d73-1042-4d9f-8886-024d89ad16b2.png)
+![](https://images.tuyacn.com/fe-static/docs/img/74af5009-43f6-439e-8089-fca2b0edbe96.jpg)
 
 
 
