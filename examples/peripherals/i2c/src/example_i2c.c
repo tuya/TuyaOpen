@@ -97,7 +97,7 @@ static void __example_i2c_task(void *param)
         uint16_t humi = 0;
         extern OPERATE_RET sht3x_read_temp_humi(int port, uint16_t *temp, uint16_t *humi);
 
-        op_ret = sht3x_read_temp_humi(NULL, &temp, &humi);
+        op_ret = sht3x_read_temp_humi(TUYA_I2C_NUM_0, &temp, &humi);
         if (op_ret != OPRT_OK) {
             PR_ERR("sht3x read fail, err<%d>!", op_ret);
             continue;
@@ -108,7 +108,7 @@ static void __example_i2c_task(void *param)
         uint16_t humi = 0;
         extern OPERATE_RET sht4x_read_temp_humi(int port, uint16_t *temp, uint16_t *humi);
 
-        op_ret = sht4x_read_temp_humi(NULL, &temp, &humi);
+        op_ret = sht4x_read_temp_humi(TUYA_I2C_NUM_0, &temp, &humi);
         if (op_ret != OPRT_OK) {
             PR_ERR("sht3x read fail, err<%d>!", op_ret);
             continue;
