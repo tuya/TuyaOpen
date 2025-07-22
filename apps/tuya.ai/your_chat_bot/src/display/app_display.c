@@ -1,5 +1,6 @@
 /**
  * @file app_display.c
+ * @author Tuya Inc.
  * @brief Handle display initialization and message processing
  *
  * This source file provides the implementation for initializing the display system,

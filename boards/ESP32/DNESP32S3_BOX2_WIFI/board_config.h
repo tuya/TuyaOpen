@@ -1,8 +1,9 @@
 /**
  * @file board_config.h
- * @brief board_config module is used to
- * @version 0.1
- * @date 2025-07-22
+ * @author Tuya Inc.
+ * @brief The hardware configuration header file of the DNESP32S3_BOX2_WIFI board
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __BOARD_CONFIG_H__

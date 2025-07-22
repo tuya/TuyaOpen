@@ -1,3 +1,11 @@
+/**
+ * @file tdd_audio_es8389_codec.c
+ * @author Tuya Inc.
+ * @brief ES8389 audio codec driver implementation for ESP32
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include "sdkconfig.h"
