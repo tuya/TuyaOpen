@@ -86,6 +86,13 @@ choice
             rsource "./DNESP32S3/Kconfig"
         endif
 
+
+    config BOARD_CHOICE_DNESP32S3_BOX2_WIFI
+        bool "DNESP32S3_BOX2_WIFI"
+        if (BOARD_CHOICE_DNESP32S3_BOX2_WIFI)
+            rsource "./DNESP32S3_BOX2_WIFI/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
