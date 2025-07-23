@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  sync:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout GitHub code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史记录
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "Github Action"  # 保留，不需要修改
+          git config --global user.email "action@github.com"  # 保留，不需要修改
+
+      - name: Add Gitee Remote
+        run: |
+          git remote add gitee https://flyingcys:${{ secrets.GITEE_TOKEN }}@gitee.com/${{ secrets.GITEE_REPO }}.git  # token from flyingcys
+
+      - name: Push to Gitee
+        run: git push gitee --tags --force
+
+  gen-artifact:
+    runs-on: self-hosted
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Check Base Tools
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          tos.py version
+          tos.py check
+          rm -rf ${{ github.workspace }}/dist
+      - name: Check [switch_demo] Build
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
+          tos.py dev bac -d ${{ github.workspace }}/dist
+      - name: Check [your_chat_bot] Build
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
+          tos.py dev bac -d ${{ github.workspace }}/dist
+      - name: Check [your_otto_robot] Build
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
+          tos.py dev bac -d ${{ github.workspace }}/dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: ${{ github.workspace }}/dist/*.zip
+
+  release:
+    runs-on: self-hosted
+    needs: [sync, gen-artifacts]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/build-artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-release-to-gitee:
+    runs-on: self-hosted
+    needs: [release]
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Gitee Release
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+
+          RELEASE_INFO=$(curl -X POST 'https://gitee.com/api/v5/repos/${{ secrets.GITEE_REPO }}/releases' \
+          -H 'Content-Type: application/json' \
+          -H 'Authorization: token ${{ secrets.GITEE_TOKEN }}' \
+          -d '{
+            "tag_name": "${{ github.ref_name }}",
+            "target_commitish": "master",
+            "name": "Release ${{ github.ref_name }}",
+            "body": "${{ github.ref_name }}",
+            "draft": false,
+            "prerelease": false
+          }')
+          # echo $RELEASE_INFO
+
+          RELEASE_ID=$(echo "$RELEASE_INFO" | jq -r '.id')
+          # echo $RELEASE_ID
+
+          find artifacts -type f | while read -r file_path; do
+              echo "| $file_path"
+              curl -X POST "https://gitee.com/api/v5/repos/${{ secrets.GITEE_REPO }}/releases/$RELEASE_ID/attach_files" \
+          -H "Authorization: token ${{ secrets.GITEE_TOKEN }}" \
+          -F "file=@$file_path"
+          done
