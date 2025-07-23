@@ -82,18 +82,19 @@ def build_all_config_exec(dist):
     app_default_config = params["app_default_config"]
     build_result_list = []
     exit_flag = 0
-    # full_clean_project()
-    # for config in config_list:
-    #     logger.info(f"Build with: {config}")
-    #     copy_file(config, app_default_config)
-    #     if build_project():
-    #         build_result_list.append(f"{config} build success")
-    #         if dist:
-    #             _save_product(dist_abs, config)
-    #     else:
-    #         build_result_list.append(f"{config} build failed")
-    #         exit_flag = 1
-    #     full_clean_project()
+    full_clean_project()
+
+    for config in config_list:
+        logger.info(f"Build with: {config}")
+        copy_file(config, app_default_config)
+        if build_project():
+            build_result_list.append(f"{config} build success")
+            if dist:
+                _save_product(dist_abs, config)
+        else:
+            build_result_list.append(f"{config} build failed")
+            exit_flag = 1
+        full_clean_project()
 
     _zip_product(dist)
 
