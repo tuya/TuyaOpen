@@ -4,6 +4,7 @@
 import os
 import sys
 import click
+import zipfile
 
 from tools.cli_command.util import (
     set_clis, get_logger, get_global_params
@@ -23,6 +24,8 @@ def _save_product(dist, config_file):
     app_root = params["app_root"]
     app_root_basename = os.path.basename(app_root)
     config_basename = os.path.basename(config_file)
+    if config_basename.endswith(".config"):
+        config_basename = config_basename[:-7]
     app_dist = os.path.join(dist, app_root_basename)
     os.makedirs(app_dist, exist_ok=True)
     bin_dist = os.path.join(app_dist, config_basename)
@@ -31,6 +34,27 @@ def _save_product(dist, config_file):
     app_bin_path = params["app_bin_path"]
     logger.info(f"Save product to {bin_dist}.")
     copy_directory(app_bin_path, bin_dist)
+
+    pass
+
+
+def _zip_product(dist):
+    logger = get_logger()
+    params = get_global_params()
+    app_root = params["app_root"]
+    app_root_basename = os.path.basename(app_root)
+    app_dist = os.path.join(dist, app_root_basename)
+    output_zip = os.path.join(dist, app_root_basename+".zip")
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        file_list = []
+        for root, dirs, files in os.walk(app_dist):
+            for file in files:
+                file_list.append(os.path.join(root, file))
+
+        for file_path in file_list:
+            arcname = os.path.relpath(file_path, dist)
+            zipf.write(file_path, arcname)
+    logger.info(f"Zip product to {output_zip}.")
     pass
 
 
@@ -59,6 +83,7 @@ def build_all_config_exec(dist):
     build_result_list = []
     exit_flag = 0
     full_clean_project()
+
     for config in config_list:
         logger.info(f"Build with: {config}")
         copy_file(config, app_default_config)
@@ -70,6 +95,8 @@ def build_all_config_exec(dist):
             build_result_list.append(f"{config} build failed")
             exit_flag = 1
         full_clean_project()
+
+    _zip_product(dist)
 
     # print build result
     for result in build_result_list:

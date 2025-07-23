@@ -289,6 +289,7 @@ def env_write(key: str, value):
 
     env_data[key] = value
     json_str = json.dumps(env_data, indent=4, ensure_ascii=False)
+    os.makedirs(os.path.dirname(env_json), exist_ok=True)
     with open(env_json, 'w') as f:
         f.write(json_str)
     pass
