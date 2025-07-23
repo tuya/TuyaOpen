@@ -415,7 +415,8 @@ def initialization_board(boards_root,
     return True
 
 
-@click.command(help="New platform.")
+@click.command(help="Generating chip platform \
+migration support package.")
 def new_platform_exec():
     logger = get_logger()
     params = get_global_params()
@@ -461,7 +462,8 @@ def new_platform_exec():
     sys.exit(0)
 
 
-@click.command(help="New project.")
+@click.command(help="New hello_world template \
+app project + CMake configs for rapid setup.")
 @click.option('-f', '--framework',
               type=click.Choice(["base", "arduino"]),
               default="base",
@@ -522,7 +524,8 @@ endchoice
     pass
 
 
-@click.command(help="New board.")
+@click.command(help="Creating board-specific BSP \
+(Board Support Package) with hardware drivers.")
 def new_board_exec():
     logger = get_logger()
     params = get_global_params()
