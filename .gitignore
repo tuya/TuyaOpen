@@ -23,3 +23,4 @@ __pycache__
 /tools/tyutool/
 /.set_example
 /dist
+*monitor.log
