@@ -84,6 +84,8 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey)
     if ((OPRT_OK == tal_kv_set(KVKEY_TYOPEN_UUID, (const uint8_t *)uuid, UUID_LENGTH)) &&
         (OPRT_OK == tal_kv_set(KVKEY_TYOPEN_AUTHKEY, (const uint8_t *)authkey, AUTHKEY_LENGTH))) {
         PR_INFO("Authorization write succeeds.");
+
+        tal_system_reset();
         return OPRT_OK;
     } else {
         PR_ERR("Authorization write failure.");

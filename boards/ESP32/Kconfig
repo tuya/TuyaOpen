@@ -31,6 +31,9 @@ config PLATFORM_FLASHSIZE_16M
     bool
     default n
 
+config ENABLE_ESP32S3_USB_JTAG_ONLY
+    bool
+    default n
 
 rsource "./TKL_Kconfig"
 rsource "./OS_SERVICE_Kconfig"
