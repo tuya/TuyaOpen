@@ -1,287 +1,83 @@
 <p align="center">
-<img src="https://images.tuyacn.com/fe-static/docs/img/412f2712-273c-4da6-89e9-2969060a291a.png" width="60%" >
+<img src="https://images.tuyacn.com/fe-static/docs/img/c128362b-eb25-4512-b5f2-ad14aae2395c.jpg" width="100%" >
+</p>
+
+<p align="center">
+  <a href="https://tuyaopen.ai/docs/quick_start/enviroment-setup">Quick Start</a> ·
+  <a href="https://developer.tuya.com/en/docs/iot/ai-agent-management?id=Kdxr4v7uv4fud">Tuya AI Agent</a> ·
+  <a href="https://tuyaopen.ai/docs/about-tuyaopen">Documentation</a> ·
+  <a href="https://tuyaopen.ai/docs/hardware-specific/t5-ai-board/overview-t5-ai-board">Hardware Resource</a>
+</p>
+
+<p align="center">
+    <a href="https://tuyaopen.ai" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Product-F04438"></a>
+    <a href="https://tuyaopen.ai/pricing" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/free-pricing?logo=free&color=%20%23155EEF&label=pricing&labelColor=%20%23528bff"></a>
+    <a href="https://discord.gg/cbGrBjx7" target="_blank">
+        <img src="https://img.shields.io/discord/1082486657678311454?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb"
+            alt="chat on Discord"></a>
+    <a href="https://www.youtube.com/@tuya2023" target="_blank">
+        <img src="https://img.shields.io/badge/YouTube-Subscribe-red?logo=youtube&labelColor=white"
+            alt="Subscribe on YouTube"></a>
+    <a href="https://x.com/tuyasmart" target="_blank">
+        <img src="https://img.shields.io/twitter/follow/tuyasmart?logo=X&color=%20%23f5f5f5"
+            alt="follow on X(Twitter)"></a>
+    <a href="https://www.linkedin.com/company/tuya-smart/" target="_blank">
+        <img src="https://custom-icon-badges.demolab.com/badge/LinkedIn-0A66C2?logo=linkedin-white&logoColor=fff"
+            alt="follow on LinkedIn"></a>
+    <a href="https://github.com/tuya/tuyaopen/graphs/commit-activity?branch=dev" target="_blank">
+        <img alt="Commits last month (dev branch)" src="https://img.shields.io/github/commit-activity/m/tuya/tuyaopen/dev?labelColor=%2332b583&color=%2312b76a"></a>
+    <a href="https://github.com/langgenius/dify/" target="_blank">
+        <img alt="Issues closed" src="https://img.shields.io/github/issues-search?query=repo%3Atuya%2Ftuyaopen%20is%3Aclosed&label=issues%20closed&labelColor=%20%237d89b0&color=%20%235d6b98"></a>
 </p>
 
 
-English | [简体中文](README_zh.md)
+
+<p align="center">
+  <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-d9d9d9"></a>
+  <a href="./README_zh.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
+</p>
+
 
 ## Overview
 
-TuyaOpen is an open source AI+IoT development framework that supports cross-chip platforms and operating systems. It is designed based on a universal southbound interface and supports communication protocols such as Bluetooth, Wi-Fi, and Ethernet. It provides core functionalities for AI+IoT development, including pairing, activation, control, and upgrading.
-The sdk has robust security and compliance capabilities, including device authentication, data encryption, and communication encryption, meeting data compliance requirements in various countries and regions worldwide.
+TuyaOpen is an open source AI+IoT development framework designed for rapid creation of intelligent, connected devices. It supports multiple chip platforms and RTOS-like operating systems, enabling seamless integration of multimodal AI capabilities—including audio, video, and sensor data processing.
 
-AI+IoT products developed using the TuyaOpen, if utilizing the functionality of the tuya_cloud_service component, can make use of the powerful ecosystem provided by the Tuya APP and cloud services, and achieve interoperability with Power By Tuya devices.
+### 🚀 With TuyaOpen, you can:
+- Develop hardware products featuring speech technologies such as `ASR` (Automatic Speech Recognition), `KWS` (Keyword Spotting), `TTS` (Text-to-Speech), and `STT` (Speech-to-Text)
+- Integrate with leading LLMs and AI platforms, including `Deepseek`, `ChatGPT`, `Claude`, `Gemini`, and more.
+- Build smart devices with `advanced multimodal AI capabilities`, including voice, vision, and sensor-based features
+- Create custom products and seamlessly connect them to Tuya Cloud for `remote control`, `monitoring`, and `OTA updates`
+- Develop devices compatible with `Google Home` and `Amazon Alexa`
+- Design custom `Powered by Tuya` hardware
+- Target a wide range of hardware applications using `Bluetooth`, `Wi-Fi`, `Ethernet`, and more
+- Benefit from robust built-in `security`, `device authentication`, and `data encryption`
 
-At the same time, the TuyaOpen will continuously expand, providing more cloud platform integration features, as well as voice, video, and facial recognition capabilities.
 
-## Getting Start
+Whether you’re creating smart home products, industrial IoT solutions, or custom AI applications, TuyaOpen provides the tools and examples to get started quickly and scale your ideas across platforms.
 
-### Prerequisites
+> For more TuyaOpen-related documentation, please refer to the [TuyaOpen Developer Guide](https://tuyaopen.ai/docs/about-tuyaopen).
 
-- Ubuntu and Debian
+### TuyaOpen SDK Framework
+<p align="center">
+<img src="https://images.tuyacn.com/fe-static/docs/img/25713212-9840-4cf5-889c-6f55476a59f9.jpg" width="80%" >
+</p>
 
-```sh
-$ sudo apt-get install lcov cmake-curses-gui build-essential ninja-build wget git python3 python3-pip python3-venv libc6-i386 libsystemd-dev
-```
+---
 
-> Note: After version v1.1.0, we adopted ninja as the build tool to speed up compilation. If you encounter compilation errors, please install ninja.
 
-- macOS
-
-Please run `tos.py check` to check the system dependencies and install them according to the prompts.
-
-### Clone the repository
-
-```sh
-$ git clone https://github.com/tuya/TuyaOpen.git
-```
-
-The tuyeopen repository contains multiple submodules. The tos tool will check and automatically download the submodules before compilation, or you can manually download them using the command `git submodule update --init`.
-
-## Setup and Compilation
-
-### step1. Activate `tos.py`
-
-```sh
-$ cd TuyaOpen
-$ . ./export.sh
-```
-
-Verification: Use the commands `tos.py version` and `tos.py check`, and the following information will appear:
-
-```sh
-❯ tos.py version
-[INFO]: Running tos.py ...
-[INFO]: v1.3.0
-
-❯ tos.py check
-[INFO]: Running tos.py ...
-[INFO]: [git] (2.43.0 >= 2.0.0) is ok.
-[INFO]: [cmake] (4.0.2 >= 3.28.0) is ok.
-[INFO]: [make] (4.3 >= 3.0.0) is ok.
-[INFO]: [ninja] (1.11.1 >= 1.6.0) is ok.
-[INFO]: Downloading submoudules ...
-[INFO]: [do subprocess]: cd /home/huatuo/work/open/TuyaOpen && git submodule update --init
-[INFO]: Download submoudules successfully.
-```
-
-To deactivate the `tos.py` environment, use the following command:
-
-```sh
-deactivate
-```
-
-TuyaOpen can be compiled and debugged using the `tos.py` command, which will search for the TuyaOpen repository based on the path set in the environment variables and execute the corresponding operations.
-
-For detailed usage of the `tos.py` command, please refer to [tos.py command](https://tuyaopen.ai/docs/quick_start/tos-guide).
-
-### Step2. Select the project to be compiled
-
-Select the app or example to be compiled, such as [apps/tuya_cloud/switch_demo](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya_cloud/switch_demo), and switch to the corresponding directory.
-
-Use the `tos.py config choice` command to select the target platform or board for compilation.
-
-```sh
-$ cd apps/tuya_cloud/switch_demo
-$ tos.py config choice
-[TuyaOpen/apps/tuya_cloud/switch_demo/config] is empty.
-Using boards default config file.
-========================
-Configs
-  1. BK7231X.config
-  2. ESP32-C3.config
-  3. ESP32.config
-  4. ESP32-S3.config
-  5. LN882H.config
-  6. T2.config
-  7. T3.config
-  8. T5AI.config
-  9. Ubuntu.config
-------------------------
-Please select: 
-```
-
-The `tos.py config choice` command reads the configuration files in the `config` directory of the project and generates the configuration file `app_default.config` for the current project.
-
-> After running `tos.py config choice` to switch configurations, the `tos.py` command will automatically clear the previously compiled intermediate files in the current project.
-
-### step3. Compilation
-
-Select the corresponding project for the current compilation in examples or apps, and then run the following command to compile:
-
-```sh
-$ cd apps/tuya_cloud/switch_demo
-$ tos.py build
-```
-
-After compilation, the target files will be located in the `apps/tuya_cloud/switch_demo/.build/bin` directory.
-
-The compiled target files include:
-
-- `switch_demo_QIO_1.0.0.bin`: Complete firmware including boot, used for flashing.
-- `switch_demo_UA_1.0.0.bin`: Application firmware without boot. This file needs to be flashed to the corresponding address based on different platforms/chips; otherwise, it may not run properly.
-- `switch_demo_UG_1.0.0.bin`: BIN file for OTA upgrade, cannot be directly flashed and run.
-
-The project name defaults to the directory name, and the project version defaults to `1.0.0`. These can be modified in the `tos.py config menu` configuration.
-
-### step4. Configuration 
-
-If you need to modify the project configuration, select the corresponding example or app project that needs to be configured, and run the following command for menu-based configuration in the corresponding project directory:
-
-```sh
-$ cd apps/tuya_cloud/switch_demo
-$ tos.py config menu
-```
-
-Configure the current project, save and exit after configuration, and then compile the project.
-
-> When you run `tos.py config menu` to switch the chip or development board, the `tos.py` command will automatically clear the compiled intermediate files in the current project.
-
-For more TuyaOpen-related documentation, please refer to the [TuyaOpen Developer Guide](https://tuyaopen.ai/docs/about-tuyaopen).
-
-### Supported platform list
-
+### Supported Target Platforms
 | Name                  | Support Status | Introduction                                                 | Debug log serial port |
 | --------------------- | -------------- | ------------------------------------------------------------ | --------------------- |
 | Ubuntu                | Supported      | Can be run directly on Linux hosts such as ubuntu.           |                       |
-| T2                    | Supported      | Supported Module List: [T2-U](https://developer.tuya.com/en/docs/iot/T2-U-module-datasheet?id=Kce1tncb80ldq) | Uart2/115200          |
-| T3                    | Supported      | Supported Module List: [T3-U](https://developer.tuya.com/en/docs/iot/T3-U-Module-Datasheet?id=Kdd4pzscwf0il) [T3-U-IPEX](https://developer.tuya.com/en/docs/iot/T3-U-IPEX-Module-Datasheet?id=Kdn8r7wgc24pt) [T3-2S](https://developer.tuya.com/en/docs/iot/T3-2S-Module-Datasheet?id=Ke4h1uh9ect1s) [T3-3S](https://developer.tuya.com/en/docs/iot/T3-3S-Module-Datasheet?id=Kdhkyow9fuplc) [T3-E2](https://developer.tuya.com/en/docs/iot/T3-E2-Module-Datasheet?id=Kdirs4kx3uotg) etc. | Uart1/460800          |
-| T5AI                  | Supported      | Supported Module List: [T5-E1](https://developer.tuya.com/en/docs/iot/T5-E1-Module-Datasheet?id=Kdar6hf0kzmfi) [T5-E1-IPEX](https://developer.tuya.com/en/docs/iot/T5-E1-IPEX-Module-Datasheet?id=Kdskxvxe835tq) etc. | Uart1/460800          |
+| Tuya T2                    | Supported      | Supported Module List: [T2-U](https://developer.tuya.com/en/docs/iot/T2-U-module-datasheet?id=Kce1tncb80ldq) | Uart2/115200          |
+| Tuya T3                    | Supported      | Supported Module List: [T3-U](https://developer.tuya.com/en/docs/iot/T3-U-Module-Datasheet?id=Kdd4pzscwf0il) [T3-U-IPEX](https://developer.tuya.com/en/docs/iot/T3-U-IPEX-Module-Datasheet?id=Kdn8r7wgc24pt) [T3-2S](https://developer.tuya.com/en/docs/iot/T3-2S-Module-Datasheet?id=Ke4h1uh9ect1s) [T3-3S](https://developer.tuya.com/en/docs/iot/T3-3S-Module-Datasheet?id=Kdhkyow9fuplc) [T3-E2](https://developer.tuya.com/en/docs/iot/T3-E2-Module-Datasheet?id=Kdirs4kx3uotg) etc. | Uart1/460800          |
+| Tuya T5                  | Supported      | Supported Module List: [T5-E1](https://developer.tuya.com/en/docs/iot/T5-E1-Module-Datasheet?id=Kdar6hf0kzmfi) [T5-E1-IPEX](https://developer.tuya.com/en/docs/iot/T5-E1-IPEX-Module-Datasheet?id=Kdskxvxe835tq) etc. | Uart1/460800          |
 | ESP32/ESP32C3/ESP32S3 | Supported      |                                                              | Uart0/115200          |
 | LN882H                | Supported      |                                                              | Uart1/921600          |
 | BK7231N               | Supported      | Supported Module List:  [CBU](https://developer.tuya.com/en/docs/iot/cbu-module-datasheet?id=Ka07pykl5dk4u)  [CB3S](https://developer.tuya.com/en/docs/iot/cb3s?id=Kai94mec0s076) [CB3L](https://developer.tuya.com/en/docs/iot/cb3l-module-datasheet?id=Kai51ngmrh3qm) [CB3SE](https://developer.tuya.com/en/docs/iot/CB3SE-Module-Datasheet?id=Kanoiluul7nl2) [CB2S](https://developer.tuya.com/en/docs/iot/cb2s-module-datasheet?id=Kafgfsa2aaypq) [CB2L](https://developer.tuya.com/en/docs/iot/cb2l-module-datasheet?id=Kai2eku1m3pyl) [CB1S](https://developer.tuya.com/en/docs/iot/cb1s-module-datasheet?id=Kaij1abmwyjq2) [CBLC5](https://developer.tuya.com/en/docs/iot/cblc5-module-datasheet?id=Ka07iqyusq1wm) [CBLC9](https://developer.tuya.com/en/docs/iot/cblc9-module-datasheet?id=Ka42cqnj9r0i5) [CB8P](https://developer.tuya.com/en/docs/iot/cb8p-module-datasheet?id=Kahvig14r1yk9) etc. | Uart2/115200          |
 
-## Flashing
-
-### GUI Tool Flashing
-
-The `tyutool gui` flashing tool supports serial port flashing for multiple chips such as T2/T3/T5AI/BK7231N/LN882H/ESP32, and is compatible with Windows/Linux/macOS operating systems. Please choose the corresponding GUI flashing tool based on your operating system.
-
-- Windows: [tyutool_win](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/win_tyutool_gui.zip)
-- Linux: [tyutool_linux.tar](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/tyutool_gui.tar.gz)
-- macOS x86: [tyutool_mac_x86](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_x86_tyutool_gui.tar.gz)
-- macOS arm64: [tyutool_mac_arm64.zip](https://images.tuyacn.com/smart/embed/package/vscode/data/ide_serial/darwin_arm64_tyutool_gui.tar.gz)
-
-### Command Line Flashing
-
-You can flash the device with a single command using `tos.py flash`.
-
-1. In environments like Linux, you need to set the serial port permissions first using the following command; otherwise, an error will occur during execution.
-
-```sh
-$ sudo usermod -aG dialout $USER
-```
-
-After completing the settings, you need to restart the system for them to take effect.
-
-2. Run the `tos.py flash` command in the directory of the compiled project for one-click flashing. The `tos.py flash` command will automatically download the corresponding `tyutool` tool based on the current running environment and proceed with the flashing process.
-
-```sh
-$ cd apps/tuya_cloud/switch_demo
-$ tos.py flash
-tyutool params:
-[INFO]: tyut_logger init done.
-[INFO]: Run Tuya Uart Tool.
-[INFO]: Use default baudrate: [921600]
-[INFO]: Use default start address: [0x00]
---------------------
-1. /dev/ttyS0
-2. /dev/ttyACM0
-3. /dev/ttyACM1
-^^^^^^^^^^^^^^^^^^^^
-Select serial port: 3                              ## Select the correct serial port
-[INFO]: Waiting Reset ...
-[INFO]: unprotect flash OK.
-[INFO]: sync baudrate 921600 success
-Erasing: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 4 bytes/s   0:00:04 / 0:00:00
-[INFO]: Erase flash success
-Writing: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 16 bytes/s   0:00:18 / 0:00:00
-[INFO]: Write flash success
-[INFO]: CRC check success
-[INFO]: Reboot done
-[INFO]: Flash write success.
-```
-
-> Note: During the flashing process, you need to enter the boot mode according to the actual situation of the chip before performing serial port flashing.
-> If there is no response from the serial port during the flashing process, please check whether the serial port is correctly selected or if it is being used by another program.
-
-## Example Projects <span id="example"></span>
-
-The TuyaOpen provides a variety of sample projects to facilitate developers in quickly getting started and understanding the usage of the TuyaOpen.
-
-```sh
-$ examples
-├── ble
-│   ├── ble_central
-│   └── ble_peripher
-├── get-started
-│   └── sample_project
-├── graphics
-│   └── lvgl_demo
-├── multimedia
-│   ├── audio
-├── peripherals
-│   ├── adc
-│   ├── gpio
-│   ├── i2c
-│   ├── pwm
-│   ├── spi
-│   ├── timer
-│   └── watchdog
-├── protocols
-│   ├── http_client
-│   ├── https_client
-│   ├── mqtt
-│   ├── tcp_client
-│   └── tcp_server
-├── system
-│   ├── os_event
-│   ├── os_kv
-│   ├── os_mutex
-│   ├── os_queue
-│   ├── os_semaphore
-│   ├── os_sw_timer
-│   └── os_thread
-└── wifi
-    ├── ap
-    ├── low_power
-    ├── scan
-    └── sta
-```
-
-Each sample project includes a README.md file that provides detailed instructions on configuring, compiling, and running the project.
-
-The compilation method for the example is the same as the app compilation method. Use the `tos.py config choice` command to select the target platform or board, and then use `tos.py build` to compile.  
-
-
-## AI Applications
-
-Tuya.ai is a comprehensive AI service platform that provides the following core capabilities:
-
-- Audio processing services
-- Video processing services
-- Multimodal AI services
-
-For detailed usage instructions, please refer to the [Tuya.ai Documentation](apps/tuya.ai/README.md).
-
-## Cloud Connectivity Applications
-
-TuyaOpen provides a wealth of cloud connectivity application examples, which can be found in the apps directory. You can click [Cloud Connectivity Applications](apps/tuya_cloud/README.md) for more information.
-
-## Adding and Adapting New Platforms
-
-TuyaOpen supports adding and adapting new platforms. For specific operations, please refer to [Adding and Adapting New Platforms](https://tuyaopen.ai/docs/new_hardware/adding-new-chip-platform-support).
-
-## Adding and Adapting New Boards
-
-TuyaOpen supports adding and adapting new boards. For specific operations, please refer to [Adding and Adapting New Boards](https://tuyaopen.ai/docs/new_hardware/adding-new-board-support).
-
-## FAQ
-
-1. The supported platform for TuyaOpen are dynamically downloaded through subrepositories. Updating the TuyaOpen repository itself will not automatically update the subrepositories. If you encounter any issues with compilation, please navigate to the corresponding directory in the "platform" folder and use the `git pull` command to update, or delete the corresponding directory in the "platform" folder and download it again.
-
-
-2. TuyaOpen provides a wealth of cloud connectivity application examples. If you encounter issues such as being unable to connect or activate devices properly, please refer to [Cloud Connectivity Applications](apps/tuya_cloud/README.md).
 
 ## License
 
@@ -301,4 +97,3 @@ If users decide to use this project for commercial purposes, they should fully r
 
 - Arduino for TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
 - Luanode for tuyaopen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
-- 
