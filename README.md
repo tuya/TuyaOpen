@@ -57,7 +57,6 @@ TuyaOpen is an open source AI+IoT development framework designed for rapid creat
 
 Whether you’re creating smart home products, industrial IoT solutions, or custom AI applications, TuyaOpen provides the tools and examples to get started quickly and scale your ideas across platforms.
 
-> For more TuyaOpen-related documentation, please refer to the [TuyaOpen Developer Guide](https://tuyaopen.ai/docs/about-tuyaopen).
 
 ### TuyaOpen SDK Framework
 <p align="center">
@@ -78,6 +77,9 @@ Whether you’re creating smart home products, industrial IoT solutions, or cust
 | LN882H                | Supported      |                                                              | Uart1/921600          |
 | BK7231N               | Supported      | Supported Module List:  [CBU](https://developer.tuya.com/en/docs/iot/cbu-module-datasheet?id=Ka07pykl5dk4u)  [CB3S](https://developer.tuya.com/en/docs/iot/cb3s?id=Kai94mec0s076) [CB3L](https://developer.tuya.com/en/docs/iot/cb3l-module-datasheet?id=Kai51ngmrh3qm) [CB3SE](https://developer.tuya.com/en/docs/iot/CB3SE-Module-Datasheet?id=Kanoiluul7nl2) [CB2S](https://developer.tuya.com/en/docs/iot/cb2s-module-datasheet?id=Kafgfsa2aaypq) [CB2L](https://developer.tuya.com/en/docs/iot/cb2l-module-datasheet?id=Kai2eku1m3pyl) [CB1S](https://developer.tuya.com/en/docs/iot/cb1s-module-datasheet?id=Kaij1abmwyjq2) [CBLC5](https://developer.tuya.com/en/docs/iot/cblc5-module-datasheet?id=Ka07iqyusq1wm) [CBLC9](https://developer.tuya.com/en/docs/iot/cblc9-module-datasheet?id=Ka42cqnj9r0i5) [CB8P](https://developer.tuya.com/en/docs/iot/cb8p-module-datasheet?id=Kahvig14r1yk9) etc. | Uart2/115200          |
 
+# Documentation
+
+For more TuyaOpen-related documentation, please refer to the [TuyaOpen Developer Guide](https://tuyaopen.ai/docs/about-tuyaopen).
 
 ## License
 
