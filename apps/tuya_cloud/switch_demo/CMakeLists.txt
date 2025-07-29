@@ -12,6 +12,11 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
+# APP_INC
+set(APP_INC
+    ${APP_PATH}/src
+)
+
 ########################################
 # Target Configure
 ########################################
