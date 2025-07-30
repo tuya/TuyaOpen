@@ -12,7 +12,7 @@
 <p align="center">
     <a href="https://tuyaopen.ai" target="_blank">
         <img alt="Static Badge" src="https://img.shields.io/badge/Product-F04438"></a>
-    <a href="https://tuyaopen.ai/docs/pricing" target="_blank">
+    <a href="https://tuyaopen.ai/pricing" target="_blank">
         <img alt="Static Badge" src="https://img.shields.io/badge/free-pricing?logo=free&color=%20%23155EEF&label=pricing&labelColor=%20%23528bff"></a>
     <a href="https://discord.gg/cbGrBjx7" target="_blank">
         <img src="https://img.shields.io/badge/Discord-Join%20Chat-5462eb?logo=discord&labelColor=%235462eb&logoColor=%23f5f5f5&color=%235462eb"
