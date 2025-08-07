@@ -16,6 +16,8 @@
 #include "cJSON.h"
 #include "ap_netcfg.h"
 
+#include "tal_network_register.h"
+
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
 #include "ble_netcfg.h"
@@ -33,15 +35,29 @@ typedef struct {
     netmgr_conn_wifi_t *handle;
 } netmgr_wifi_msg_t;
 
-netmgr_conn_wifi_t s_netmgr_wifi = {.base = {.pri = 1,
-                                             .type = NETCONN_WIFI,
-                                             .status = NETMGR_LINK_DOWN,
-                                             .open = netconn_wifi_open,
-                                             .close = netconn_wifi_close,
-                                             .get = netconn_wifi_get,
-                                             .set = netconn_wifi_set},
-                                    .ccode = {"CN"},
-                                    .conn = {.table_size = NETCONN_WIFI_CONN_TABLE, .table = {1, 3, 5, 10, 15, 20}}};
+netmgr_conn_wifi_t s_netmgr_wifi = {
+    .base =
+        {
+            .pri = 1,
+            .type = NETCONN_WIFI,
+            .status = NETMGR_LINK_DOWN,
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+            .card_type = TAL_NET_TYPE_POSIX,
+#else
+            .card_type = TAL_NET_TYPE_PLATFORM,
+#endif
+            .open = netconn_wifi_open,
+            .close = netconn_wifi_close,
+            .get = netconn_wifi_get,
+            .set = netconn_wifi_set,
+        },
+    .ccode = {"CN"},
+    .conn =
+        {
+            .table_size = NETCONN_WIFI_CONN_TABLE,
+            .table = {1, 3, 5, 10, 15, 20},
+        },
+};
 
 static void __netconn_wifi_connect_process(void *msg)
 {
@@ -262,7 +278,8 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
 
     // init netcfg
     netcfg_init();
-    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP) {
+    TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
+    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM) {
         ap_netcfg_init(&netmgr_wifi->netcfg);
         netcfg_start(NETCFG_TUYA_WIFI_AP, __netconn_wifi_netcfg_finish, NULL);
     }

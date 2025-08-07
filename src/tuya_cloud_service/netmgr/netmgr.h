@@ -22,6 +22,8 @@
 
 #include "tuya_cloud_types.h"
 
+#include "tal_network_register.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,6 +36,7 @@ extern "C" {
     ((type) == NETCONN_WIFI       ? "wifi"                                                                             \
      : (type) == NETCONN_WIRED    ? "wired"                                                                            \
      : (type) == NETCONN_CELLULAR ? "cellular"                                                                         \
+     : (type) == NETCONN_AT_MODEM ? "at_modem"                                                                         \
      : (type) == NETCONN_AUTO     ? "auto"                                                                             \
                                   : "unknown")
 
@@ -42,6 +45,7 @@ typedef enum {
     NETCONN_WIFI = 1 << 1,
     NETCONN_WIRED = 1 << 2,
     NETCONN_CELLULAR = 1 << 3,
+    NETCONN_AT_MODEM = 1 << 4,
 } netmgr_type_e;
 
 /**
@@ -82,6 +86,7 @@ typedef struct netmgr_conn_base {
     uint8_t pri;
     netmgr_type_e type;
     netmgr_status_e status;
+    TAL_NETWORK_CARD_TYPE_E card_type;
 
     OPERATE_RET (*open)(void *config);
     OPERATE_RET (*close)(void);
