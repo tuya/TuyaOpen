@@ -43,6 +43,7 @@
 #include "app_pocket.h"
 #include "ai_audio.h"
 #include "reset_netcfg.h"
+#include "game_pet.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
@@ -323,6 +324,8 @@ void user_main(void)
     tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
+
+    game_pet_init();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */

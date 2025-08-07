@@ -1,6 +1,16 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: Check if already in virtual environment by checking if current Python is in .venv
+for /f %%i in ('where python 2^>nul') do set CURRENT_PYTHON=%%i
+if defined CURRENT_PYTHON (
+    echo !CURRENT_PYTHON! | findstr /C:".venv" >nul
+    if not errorlevel 1 (
+        echo Virtual environment is already activated.
+        exit /b 0
+    )
+)
+
 set OPEN_SDK_ROOT=%~dp0
 set OPEN_SDK_ROOT=%OPEN_SDK_ROOT:~0,-1%
 
@@ -89,6 +99,7 @@ set OPEN_SDK_PYTHON=%OPEN_SDK_ROOT%\.venv\Scripts\python.exe
 set OPEN_SDK_PIP=%OPEN_SDK_ROOT%\.venv\Scripts\pip.exe
 set PATH=%PATH%;%OPEN_SDK_ROOT%
 DOSKEY tos.py=%OPEN_SDK_PYTHON% %OPEN_SDK_ROOT%\tos.py $*
+DOSKEY exit=echo Exiting TuyaOpen environment... $T set OPEN_SDK_PYTHON= $T set OPEN_SDK_PIP= $T set OPEN_SDK_ROOT= $T echo TuyaOpen environment deactivated. $T exit
 
 :: install dependencies
 echo Installing dependencies...
