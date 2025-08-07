@@ -213,7 +213,7 @@ bool user_network_check(void)
 
 void user_main(void)
 {
-    int ret = OPRT_OK;
+    int rt = OPRT_OK;
 
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
@@ -236,7 +236,7 @@ void user_main(void)
     tal_sw_timer_init();
     tal_workq_init();
 
-#if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
+#if (!defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)) && (!(defined(ENABLE_AT_MODEM) && (ENABLE_AT_MODEM == 1)))
     tal_cli_init();
     tuya_authorize_init();
     tuya_app_cli_init();
@@ -252,15 +252,15 @@ void user_main(void)
     }
     // PR_DEBUG("uuid %s, authkey %s", license.uuid, license.authkey);
     /* Initialize Tuya device configuration */
-    ret = tuya_iot_init(&client, &(const tuya_iot_config_t){
-                                     .software_ver = PROJECT_VERSION,
-                                     .productkey = TUYA_PRODUCT_ID,
-                                     .uuid = license.uuid,
-                                     .authkey = license.authkey,
-                                     .event_handler = user_event_handler_on,
-                                     .network_check = user_network_check,
-                                 });
-    assert(ret == OPRT_OK);
+    rt = tuya_iot_init(&client, &(const tuya_iot_config_t){
+                                    .software_ver = PROJECT_VERSION,
+                                    .productkey = TUYA_PRODUCT_ID,
+                                    .uuid = license.uuid,
+                                    .authkey = license.authkey,
+                                    .event_handler = user_event_handler_on,
+                                    .network_check = user_network_check,
+                                });
+    assert(rt == OPRT_OK);
 
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
@@ -276,6 +276,24 @@ void user_main(void)
 #endif
 #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
     type |= NETCONN_CELLULAR;
+#endif
+#if defined(ENABLE_AT_MODEM) && (ENABLE_AT_MODEM == 1)
+    type |= NETCONN_AT_MODEM;
+// Initialize the AT modem connection here
+#include "tdd_transport_uart.h"
+    TDD_TRANSPORT_UART_CFG_T uart_cfg = {
+        .port_id = TUYA_UART_NUM_0,
+        .cfg.rx_buffer_size = 10 * 1024,
+        .cfg.open_mode = O_BLOCK,
+        .cfg.base_cfg =
+            {
+                .baudrate = 921600,
+                .databits = TUYA_UART_DATA_LEN_8BIT,
+                .parity = TUYA_UART_PARITY_TYPE_NONE,
+                .stopbits = TUYA_UART_STOP_LEN_1BIT,
+            },
+    };
+    TUYA_CALL_ERR_LOG(tdd_transport_uart_register(AT_TRANSPORT_NAME, uart_cfg));
 #endif
     netmgr_init(type);
 
