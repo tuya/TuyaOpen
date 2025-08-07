@@ -1,0 +1,10 @@
+menu "AT modem"
+	menuconfig ENABLE_AT_MODEM
+		bool "ENABLE_AT_MODEM: enable liblwip instead of lwip in board"
+		default n
+		if (ENABLE_AT_MODEM)
+			config AT_TRANSPORT_NAME
+			string "AT transport name"
+			default "AT_TRANSPORT"
+		endif
+endmenu
