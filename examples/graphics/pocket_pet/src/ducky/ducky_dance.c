@@ -17,11 +17,11 @@
 #define LV_ATTRIBUTE_MEM_ALIGN
 #endif
 
-#ifndef LV_ATTRIBUTE_IMG_DUCKY_STANDARD
-#define LV_ATTRIBUTE_IMG_DUCKY_STANDARD
+#ifndef LV_ATTRIBUTE_IMG_DUCKY_dance
+#define LV_ATTRIBUTE_IMG_DUCKY_dance
 #endif
 
-const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_DUCKY_STANDARD uint8_t ducky_standard_map[] = {
+const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_DUCKY_dance uint8_t ducky_dance_map[] = {
     0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x9f, 0x00, 0xa4, 0x00, 0xf6, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x16, 0x16, 0x16, 0x1b, 0x1b, 0x1b, 0x1e, 0x1e, 0x1e, 0x22,
     0x22, 0x22, 0x24, 0x24, 0x24, 0x28, 0x28, 0x28, 0x2e, 0x2e, 0x2e, 0x32, 0x32,
@@ -852,12 +852,9 @@ const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_DUCKY_STA
     0xdd, 0xee, 0x7a, 0xf7, 0xbb, 0xc4, 0x08, 0x04, 0x00, 0x3b
 };
 
-const lv_img_dsc_t ducky_standard = {
-//  .header.cf = LV_IMG_CF_RAW_CHROMA_KEYED,
-//  .header.always_zero = 0,
-//  .header.reserved = 0,
+const lv_img_dsc_t ducky_dance = {
   .header.w = 159,
   .header.h = 164,
   .data_size = 10761,
-  .data = ducky_standard_map,
+  .data = ducky_dance_map,
 };

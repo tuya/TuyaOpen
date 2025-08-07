@@ -35,7 +35,7 @@
 #define TDL_LONG_KEEP_TIMER        100     // ms
 #define TDL_JOYSTICK_DEBOUNCE_TIME   60    // ms
 #define TDL_JOYSTICK_IRQ_SCAN_TIME   10000 // ms
-#define TDL_JOYSTICK_SCAN_TIME       10    // 10ms
+#define TDL_JOYSTICK_SCAN_TIME       3    // 10ms
 #define TDL_JOYSTICK_IRQ_SCAN_CNT    (TDL_JOYSTICK_IRQ_SCAN_TIME / TDL_JOYSTICK_SCAN_TIME)
 #define TOUCH_DELAY                500     // Click interval for single/double click differentiation
 #define TDL_JOYSTICK_TASK_STACK_SIZE (2048)
@@ -54,6 +54,9 @@ typedef struct {
 
 typedef struct {
     TDL_JOYSTICK_MODE_E stick_mode;     /* button working mode */
+    TUYA_ADC_NUM_E      adc_num;             /* adc num */
+    uint8_t             adc_ch_x;        
+    uint8_t             adc_ch_y;
 } TDL_JOYSTICK_HARDWARE_CFG_T;
 
 typedef struct {
@@ -120,7 +123,7 @@ static uint8_t tdl_joystick_scan_time = TDL_JOYSTICK_SCAN_TIME;                 
 static OPERATE_RET __tdl_get_operate_info(TDL_JOYSTICK_LIST_NODE_T *p_node, TDL_JOYSTICK_OPRT_INFO *oprt_info);
 static OPERATE_RET __tdl_joystick_scan_task(uint8_t enable);
 static OPERATE_RET __tdl_joystick_irq_task(uint8_t enable);
-void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
+void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y);
 void tdl_joystick_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
 
 /**
@@ -270,7 +273,10 @@ static TDL_JOYSTICK_LIST_NODE_T *__tdl_joystick_add_node(char *name, TDL_JOYSTIC
     memcpy(p_node->name, name, name_len);
     memcpy(&(p_node->device_data.ctrl_info), info, sizeof(TDL_JOYSTICK_CTRL_INFO));
     p_node->device_data.dev_cfg.stick_mode = cfg->mode;
-    p_node->device_data.dev_handle = cfg->dev_handle;
+    p_node->device_data.dev_cfg.adc_num    = cfg->adc_num;
+    p_node->device_data.dev_cfg.adc_ch_x   = cfg->adc_ch_x;
+    p_node->device_data.dev_cfg.adc_ch_y   = cfg->adc_ch_y;
+    p_node->device_data.dev_handle         = cfg->dev_handle;
 
     // Add new node
     tal_mutex_lock(tdl_joystick_local.mutex);
@@ -313,8 +319,6 @@ static TDL_JOYSTICK_LIST_NODE_T *__tdl_joystick_updata_userdata(char *name, TDL_
         p_node->user_data.joystick_cfg.adc_cfg.adc_min_val = joystick_cfg->adc_cfg.adc_min_val;
         p_node->user_data.joystick_cfg.adc_cfg.normalized_range = joystick_cfg->adc_cfg.normalized_range;
         p_node->user_data.joystick_cfg.adc_cfg.sensitivity = joystick_cfg->adc_cfg.sensitivity;
-        p_node->user_data.joystick_cfg.adc_cfg.channel_x = joystick_cfg->adc_cfg.channel_x;
-        p_node->user_data.joystick_cfg.adc_cfg.channel_y = joystick_cfg->adc_cfg.channel_y;
     }
 
 
@@ -325,7 +329,7 @@ static TDL_JOYSTICK_LIST_NODE_T *__tdl_joystick_updata_userdata(char *name, TDL_
     return p_node;
 }
 
-void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y)
+void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle)
 {
     TDL_JOYSTICK_LIST_NODE_T *p_node = NULL;
     int x = 0, y = 0;
@@ -338,7 +342,7 @@ void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle, int channel_x
         return;
     }
     
-    tdl_joystick_calibrated_xy(handle, channel_x, channel_y, &x, &y);
+    tdl_joystick_calibrated_xy(handle, &x, &y);
 
     threshold = p_node->user_data.joystick_cfg.adc_cfg.sensitivity;
     if (x <  -threshold) {
@@ -560,7 +564,7 @@ static void __tdl_joystick_state_handle(TDL_JOYSTICK_LIST_NODE_T *p_node)
     }
 
     // stick scan
-    tdl_joystick_direction_event_proc(p_node, p_node->user_data.joystick_cfg.adc_cfg.channel_x, p_node->user_data.joystick_cfg.adc_cfg.channel_y);
+    tdl_joystick_direction_event_proc(p_node);
     return;
 }
 
@@ -1165,12 +1169,10 @@ OPERATE_RET tdl_joystick_register(char *name, TDL_JOYSTICK_CTRL_INFO *joystick_c
 /**
  * @brief Get the raw joystick data from ADC channels.
  * @param[in] handle Joystick handle.
- * @param[in] channel_x ADC channel for X-axis.
- * @param[in] channel_y ADC channel for Y-axis.
  * @param[out] x Pointer to store X-axis value.
  * @param[out] y Pointer to store Y-axis value.
  */
-void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y)
+void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y)
 {
     TDL_JOYSTICK_LIST_NODE_T *p_node = NULL;
     int adc_value[2] = {0};
@@ -1182,8 +1184,10 @@ void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int chan
     }
     
     // Read the ADC values for the specified channels
-    tkl_adc_read_single_channel(TUYA_ADC_NUM_0, channel_x, adc_value);
-    tkl_adc_read_single_channel(TUYA_ADC_NUM_0, channel_y, adc_value + 1);
+    tkl_adc_read_single_channel(p_node->device_data.dev_cfg.adc_num,\
+                                p_node->device_data.dev_cfg.adc_ch_x, (int32_t*)adc_value);
+    tkl_adc_read_single_channel(p_node->device_data.dev_cfg.adc_num,\
+                                p_node->device_data.dev_cfg.adc_ch_y, (int32_t*)adc_value + 1);
 
     // Get the raw joystick values
     *x = adc_value[0];
@@ -1195,12 +1199,10 @@ void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int chan
  * @brief Get the calibrated joystick data from ADC channels.
  * This function normalizes the joystick values based on the configured ADC range.
  * @param[in] handle Joystick handle.
- * @param[in] channel_x ADC channel for X-axis.
- * @param[in] channel_y ADC channel for Y-axis.
  * @param[out] x Pointer to store normalized X-axis value.
  * @param[out] y Pointer to store normalized Y-axis value.
  */
-void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y)
+void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y)
 {
     TDL_JOYSTICK_LIST_NODE_T *p_node = NULL;
     int mid_value = 1;
@@ -1216,7 +1218,7 @@ void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int c
     mid_value /= 2;
 
     int adc_value[2] = {0};
-    tdl_joystick_get_raw_xy(handle, channel_x, channel_y, adc_value, adc_value + 1);
+    tdl_joystick_get_raw_xy(handle, adc_value, adc_value + 1);
 
     *y = adc_value[0];
     *x = adc_value[1];

@@ -35,13 +35,19 @@ if(CONFIG_ENABLE_WIFI STREQUAL "y")
         "${MODULE_PATH}/netmgr/netconn_wifi.c" 
         "${MODULE_PATH}/netcfg/*.c")
     list(APPEND LIB_SRCS ${WIFI_SRCS})
-    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)    
+    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)
 endif()
 
 if(CONFIG_ENABLE_WIRED STREQUAL "y")
     file(GLOB_RECURSE WIRED_SRCS 
         "${MODULE_PATH}/netmgr/netconn_wired.c")
     list(APPEND LIB_SRCS ${WIRED_SRCS})
+endif()
+
+if (CONFIG_ENABLE_AT_MODEM STREQUAL "y")
+    file(GLOB_RECURSE AT_MODEM_SRCS 
+        "${MODULE_PATH}/netmgr/netconn_at_modem.c")
+    list(APPEND LIB_SRCS ${AT_MODEM_SRCS})
 endif()
 
 if (CONFIG_ENABLE_CELLULAR STREQUAL "y")

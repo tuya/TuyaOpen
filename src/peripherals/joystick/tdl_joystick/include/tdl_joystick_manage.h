@@ -52,8 +52,6 @@ typedef struct {
     uint16_t adc_min_val;                   /* adc min value */
     uint16_t normalized_range;              /* adc normalized range */
     uint8_t sensitivity;                    /* joystick sensitivity */
-    uint8_t channel_x;                      /* adc channel x */
-    uint8_t channel_y;                      /* adc channel y */
 } TDL_ADC_CFG_T;
 
 typedef struct {
@@ -163,24 +161,20 @@ OPERATE_RET tdl_joystick_set_scan_time(uint8_t time_ms);
 /** 
  * @brief get joystick raw data
  * @param[in] handle joystick handle
- * @param[in] channel_x x axis adc channel
- * @param[in] channel_y y axis adc channel
  * @param[out] x x axis data
  * @param[out] y y axis data
  */
-void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
+void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y);
 
 /**
  * @brief get joystick normalized data
  * @param[in] handle joystick handle
- * @param[in] channel_x x axis adc channel
- * @param[in] channel_y y axis adc channel
  * @param[out] x x axis data
  * @param[out] y y axis data
  * 
  * @return OPRT_OK if successful
  */
-void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
+void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y);
 
 #ifdef __cplusplus
 }

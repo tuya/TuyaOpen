@@ -17,4 +17,5 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_3
     select ENABLE_BUTTON_4
     select ENABLE_DISPLAY
+    select ENABLE_JOYSTICK
     select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)

@@ -46,24 +46,6 @@ typedef uint8_t UI_WIFI_STATUS_E;
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef enum {
-    TY_DISPLAY_TP_USER_MSG,
-    TY_DISPLAY_TP_ASSISTANT_MSG,
-    TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_START,
-    TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_DATA,
-    TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END,
-    TY_DISPLAY_TP_SYSTEM_MSG,
-
-    TY_DISPLAY_TP_EMOTION,
-
-    // status bar
-    TY_DISPLAY_TP_STATUS,
-    TY_DISPLAY_TP_NOTIFICATION,
-    TY_DISPLAY_TP_NETWORK,
-    TY_DISPLAY_TP_CHAT_MODE,
-
-    TY_DISPLAY_TP_MAX
-} TY_DISPLAY_TYPE_E;
 
 /***********************************************************
 ********************function declaration********************
@@ -76,15 +58,6 @@ typedef enum {
  */
 OPERATE_RET app_display_init(void);
 
-/**
- * @brief Send display message to the display system
- *
- * @param tp Type of the display message
- * @param data Pointer to the message data
- * @param len Length of the message data
- * @return OPERATE_RET Result of sending the message, OPRT_OK indicates success
- */
-OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, uint8_t *data, int len);
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,11 @@ extern netmgr_conn_wifi_t s_netmgr_wifi;
 extern netmgr_conn_wired_t s_netmgr_wired;
 #endif
 
+#ifdef ENABLE_AT_MODEM
+#include "netconn_at_modem.h"
+extern netmgr_conn_at_modem_t s_netmgr_at_modem;
+#endif
+
 #ifdef ENABLE_CELLULAR
 #include "netconn_cellular.h"
 extern netmgr_conn_cellular_t s_netmgr_cellular;
@@ -181,6 +186,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
                      active_status);
             s_netmgr.status = active_status;
             s_netmgr.active = active_conn;
+            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
+            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
             tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
         } else if (active_status != s_netmgr.status) {
@@ -194,6 +201,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
                      NETMGR_TYPE_TO_STR(active_conn));
             s_netmgr.active = active_conn;
+            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
+            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
         }
     }
@@ -285,6 +294,8 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 {
     OPERATE_RET rt = OPRT_OK;
 
+    TUYA_CALL_ERR_RETURN(tal_network_card_init());
+
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&s_netmgr.lock));
     s_netmgr.status = NETMGR_LINK_DOWN;
     s_netmgr.type = type;
@@ -301,6 +312,12 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
     }
 #endif
 
+#ifdef ENABLE_AT_MODEM
+    if (type & NETCONN_AT_MODEM) {
+        __netmgr_conn_register(NETCONN_AT_MODEM, (netmgr_conn_base_t *)&s_netmgr_at_modem);
+    }
+#endif
+
 #ifdef ENABLE_WIFI
     if (type & NETCONN_WIFI) {
         __netmgr_conn_register(NETCONN_WIFI, (netmgr_conn_base_t *)&s_netmgr_wifi);
@@ -311,10 +328,10 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
         PR_ERR("No connection available, please check your configuration");
         return OPRT_INVALID_PARM;
     }
+    tal_network_card_set_active(__get_conn_by_type(s_netmgr.active)->card_type);
 
     s_netmgr.inited = TRUE;
-
-    if (type & NETCONN_WIFI || type & NETCONN_WIRED) {
+    if ((type & NETCONN_WIFI || type & NETCONN_WIRED) && (!(type & NETCONN_AT_MODEM))) {
         tuya_lan_init(tuya_iot_client_get());
     }
 
@@ -386,8 +403,6 @@ OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
     if (!s_netmgr.inited) {
         return OPRT_RESOURCE_NOT_READY;
     }
-
-    // PR_DEBUG("netmgr conn %s get %d", NETMGR_TYPE_TO_STR(type), cmd);
 
     if (NETCONN_AUTO == type) {
         // get the active connection

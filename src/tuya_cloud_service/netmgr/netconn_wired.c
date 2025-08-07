@@ -24,13 +24,16 @@
 #include "tal_wired.h"
 #include "mqtt_bind.h"
 
-netmgr_conn_wired_t s_netmgr_wired = {.base = {.pri = 2,
-                                               .type = NETCONN_WIRED,
-                                               .status = NETMGR_LINK_DOWN,
-                                               .open = netconn_wired_open,
-                                               .close = netconn_wired_close,
-                                               .get = netconn_wired_get,
-                                               .set = netconn_wired_set}};
+netmgr_conn_wired_t s_netmgr_wired = {
+    .base = {.pri = 2,
+             .type = NETCONN_WIRED,
+             .status = NETMGR_LINK_DOWN,
+             .card_type = TAL_NET_TYPE_POSIX,
+             .open = netconn_wired_open,
+             .close = netconn_wired_close,
+             .get = netconn_wired_get,
+             .set = netconn_wired_set},
+};
 
 /**
  * @brief a callback used to process the lowlayer event

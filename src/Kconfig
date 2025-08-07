@@ -8,4 +8,5 @@ menu "configure tuyaopen"
     rsource "tal_system/Kconfig"
     rsource "liblvgl/Kconfig"
     rsource "peripherals/Kconfig"
+    rsource "tal_at_modem/Kconfig"
 endmenu

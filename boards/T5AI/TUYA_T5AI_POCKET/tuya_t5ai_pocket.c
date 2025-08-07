@@ -15,10 +15,10 @@
 #include "tdd_led_gpio.h"
 #include "tdd_button_gpio.h"
 #include "tdd_disp_st7305.h"     // Add LCD driver header
+#include "tdd_joystick.h"
 #include "board_audio_mux_api.h" // Add audio mux API header
 #include "board_bmi270_api.h"    // Add BMI270 sensor API header
 #include "board_axp2101_api.h"   // Add AXP2101 power management API header
-
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -61,6 +61,13 @@
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
 
+#define BOARD_JOYSTICK_PIN           TUYA_GPIO_NUM_9
+#define BOARD_JOYSTICK_ADC_NUM       TUYA_ADC_NUM_0
+#define BOARD_JOYSTICK_ADC_WIDTH     12
+#define BOARD_JOYSTICK_ADC_CH_NUM    2
+#define BOARD_JOYSTICK_ADC_CH_X      15
+#define BOARD_JOYSTICK_ADC_CH_Y      14
+#define BOARD_JOYSTICK_MODE          JOYSTICK_TIMER_SCAN_MODE
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -198,6 +205,35 @@ static OPERATE_RET __board_register_display(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_joystick(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(JOYSTICK_NAME)
+    JOYSTICK_GPIO_CFG_T joystick_hw_cfg = {
+        .btn_pin            = BOARD_JOYSTICK_PIN,
+        .mode               = BOARD_JOYSTICK_MODE,
+        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+        .level              = TUYA_GPIO_LEVEL_LOW,
+        .adc_num            = BOARD_JOYSTICK_ADC_NUM,
+        .adc_ch_x           = BOARD_JOYSTICK_ADC_CH_X,
+        .adc_ch_y           = BOARD_JOYSTICK_ADC_CH_Y,
+        .adc_cfg ={
+            .ch_list.data = (1 << BOARD_JOYSTICK_ADC_CH_X) | (1 << BOARD_JOYSTICK_ADC_CH_Y),
+            .ch_nums      = BOARD_JOYSTICK_ADC_CH_NUM, /* adc Number of channel lists */
+            .width        = BOARD_JOYSTICK_ADC_WIDTH,
+            .mode         = TUYA_ADC_CONTINUOUS,
+            .type         = TUYA_ADC_INNER_SAMPLE_VOL,
+            .conv_cnt     = 1,
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_joystick_register(JOYSTICK_NAME, &joystick_hw_cfg));
+
+#endif 
+
+    return rt;
+}
 
 static OPERATE_RET __board_register_audio_mux_router(void)
 {
@@ -279,8 +315,10 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_led());
     TUYA_CALL_ERR_LOG(__board_register_display());
+    TUYA_CALL_ERR_LOG(__board_register_joystick());
     TUYA_CALL_ERR_LOG(__board_register_audio_mux_router());
     TUYA_CALL_ERR_LOG(__board_register_bmi270_sensor());
+
 
     return rt;
 }

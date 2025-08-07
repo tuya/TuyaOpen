@@ -63,7 +63,8 @@ void user_main(void)
 
 // lv_example_gif_1();
 
-    lv_demo_widgets();
+    // lv_demo_widgets();
+    lv_demo_benchmark();
 
     lv_vendor_start();
 }
