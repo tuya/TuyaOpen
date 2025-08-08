@@ -419,6 +419,7 @@ void menu_system_init_pet_stats(pet_stats_t *stats)
 {
     stats->health = 85;
     stats->hungry = 60;
+    stats->clean = 70;
     stats->happy = 90;
     stats->age_days = 15;
     stats->weight_kg = 1.2f;
@@ -426,6 +427,34 @@ void menu_system_init_pet_stats(pet_stats_t *stats)
 
     // Also initialize in our data
     g_menu_system_data.pet_stats = *stats;
+}
+
+uint8_t menu_system_update_pet_stats(pet_stats_t *stats)
+{
+    if (NULL == stats) {
+        return 1;
+    }
+
+    if (stats->health <= 100) {
+        g_menu_system_data.pet_stats.health = stats->health;
+    }
+    if (stats->hungry <= 100) {
+        g_menu_system_data.pet_stats.hungry = stats->hungry;
+    }
+    if (stats->clean <= 100) {
+        g_menu_system_data.pet_stats.clean = stats->clean;
+    }
+    if (stats->happy <= 100) {
+        g_menu_system_data.pet_stats.happy = stats->happy;
+    }
+    if (stats->age_days <= 999) {
+        g_menu_system_data.pet_stats.age_days = stats->age_days;
+    }
+    if (stats->weight_kg <= 999.9) {
+        g_menu_system_data.pet_stats.weight_kg = stats->weight_kg;
+    }
+
+    return 0;
 }
 
 pet_stats_t* menu_system_get_pet_stats(void)
@@ -643,6 +672,7 @@ static void create_pet_stats_displays(menu_system_data_t *data)
 
     create_stat_icon_bar(data->sub_menu_list, "Health:", data->pet_stats.health);
     create_stat_icon_bar(data->sub_menu_list, "Hungry:", data->pet_stats.hungry);
+    create_stat_icon_bar(data->sub_menu_list, "Clean:", data->pet_stats.happy);
     create_stat_icon_bar(data->sub_menu_list, "Happy:", data->pet_stats.happy);
 
     char value_str[16];

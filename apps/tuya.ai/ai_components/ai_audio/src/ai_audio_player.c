@@ -23,6 +23,7 @@
 #include "ai_media_alert.h"
 #include "minimp3_ex.h"
 #include "ai_audio.h"
+#include "media_src.h"
 
 /***********************************************************
 ************************macro define************************
@@ -542,6 +543,36 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
     case AI_AUDIO_ALERT_FREE_TALK: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_dialogue, sizeof(media_src_free_dialogue),
                                         1);
+    } break;
+    case AI_AUDIO_ALERT_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_bi_tone_alert, sizeof(media_src_bi_tone_alert),
+                                        1);
+    } break;
+    case AI_AUDIO_CANCEL_FAIL_TRI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_cancel_fail_tri_tone,
+                                        sizeof(media_src_cancel_fail_tri_tone), 1);
+    } break;
+    case AI_AUDIO_CONFIRM: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_comfirm, sizeof(media_src_comfirm), 1);
+    } break;
+    case AI_AUDIO_DOWNWARD_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_downward_bi_tone,
+                                        sizeof(media_src_downward_bi_tone), 1);
+    } break;
+    case AI_AUDIO_FAIL_CANCEL_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_fail_cancel_bi_tone,
+                                        sizeof(media_src_fail_cancel_bi_tone), 1);
+    } break;
+    case AI_AUDIO_LOADING_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_loading_tone, sizeof(media_src_loading_tone), 1);
+    } break;
+    case AI_AUDIO_SHORT_SELECT_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_short_select_tone,
+                                        sizeof(media_src_short_select_tone), 1);
+    } break;
+    case AI_AUDIO_THREE_STAGE_UP_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_three_stage_up_tone,
+                                        sizeof(media_src_three_stage_up_tone), 1);
     } break;
     default:
         break;

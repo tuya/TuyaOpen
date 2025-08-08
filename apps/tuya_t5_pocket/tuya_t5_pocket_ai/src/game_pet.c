@@ -5,21 +5,6 @@
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
- 
- // Pet event types for menu actions
-typedef enum {
-    PET_EVENT_FEED_HAMBURGER,
-    PET_EVENT_DRINK_WATER,
-    PET_EVENT_TOILET,
-    PET_EVENT_TAKE_BATH,
-    PET_EVENT_SEE_DOCTOR,
-    PET_EVENT_SLEEP,
-    PET_EVENT_WAKE_UP,
-    PET_EVENT_COUNT
-} pet_event_type_t;
-
-// Pet event callback function type
-typedef void (*pet_event_callback_t)(pet_event_type_t event_type, void *user_data);
 
 /*============================ INCLUDES ======================================*/
 #include "tuya_cloud_types.h"
@@ -29,6 +14,7 @@ typedef void (*pet_event_callback_t)(pet_event_type_t event_type, void *user_dat
 #include "tuya_iot.h"
 #include "tuya_iot_dp.h"
 #include "tal_sw_timer.h"
+#include "ai_audio_player.h"
 #include "game_pet.h"
 
 #define PET_DEBUG_ENABLE 1
@@ -44,25 +30,34 @@ typedef void (*pet_event_callback_t)(pet_event_type_t event_type, void *user_dat
 #define DPID_CLEANNESS 103
 #define DPID_HEALTH 104
 #define DPID_ENERGY 105
-#define PET_EVENT_TIMER (PET_EVENT_COUNT)
-#define PET_OPT_TOTAL (PET_EVENT_COUNT+1)
+#define DPID_MOOD 107
+#define PET_EVENT_TIMER 14
+#define PET_OPT_TOTAL (PET_EVENT_TIMER+1)
+#define PET_TIMER_ONCE_MS (3000)  // 1000 * 3
 
 #if defined(PET_DEBUG_ENABLE) && (PET_DEBUG_ENABLE == 1)
-#define TAL_TIMER_CYCLE_MS (60000)  // 1000 * 60
+#define PET_TIMER_CYCLE_MS (60000)  // 1000 * 60
 #else
-#define TAL_TIMER_CYCLE_MS (1200000)  // 1000 * 60 * 20
+#define PET_TIMER_CYCLE_MS (1200000)  // 1000 * 60 * 20
 #endif
 
 /*============================ LOCAL VARIABLES ===============================*/
 static const int s_pet_opt_values[PET_OPT_TOTAL][PET_STATE_TOTAL] = {
     //                        health, energy, cleaness, happiness
-    [PET_EVENT_FEED_HAMBURGER] = { 2,    10,    -1,     0},
-    [PET_EVENT_DRINK_WATER]    = { 1,     5,    -2,     1},
+    [PET_EVENT_FEED_HAMBURGER] = {-1,     8,    -1,     0},
+    [PET_EVENT_DRINK_WATER]    = { 1,     2,    -2,     1},
+    [PET_EVENT_FEED_PIZZA]     = {-1,     6,    -3,     2},
+    [PET_EVENT_FEED_APPLE]     = { 1,     1,     0,     1},
+    [PET_EVENT_FEED_FISH]      = { 1,     3,    -1,     0},
+    [PET_EVENT_FEED_CARROT]    = { 2,     1,     0,    -2},
+    [PET_EVENT_FEED_ICE_CREAM] = { 0,     3,    -2,     3},
+    [PET_EVENT_FEED_COOKIE]    = { 0,     3,    -2,     0},
     [PET_EVENT_TOILET]         = { 0,    -1,    -3,     1},
     [PET_EVENT_TAKE_BATH]      = { 0,    -2,    10,     3},
     [PET_EVENT_SEE_DOCTOR]     = {10,    -1,    -2,    -5},
     [PET_EVENT_SLEEP]          = { 3,    10,     0,     1},
     [PET_EVENT_WAKE_UP]        = { 1,    10,    -2,     2},
+    [PET_STAT_RANDOMIZE]       = { 0,     0,     0,     0},
     [PET_EVENT_TIMER]          = {-1,    -3,    -2,    -4}
 };
 
@@ -73,14 +68,44 @@ static const int s_pet_dp_values[PET_STATE_TOTAL] = {
     [PET_S_HAPPINESS_INDEX]  = DPID_HAPPINESS
 };
 
-static TIMER_ID sw_timer_id = NULL;
+static TIMER_ID s_pet_timer_cycle_id = NULL;
+static TIMER_ID s_pet_timer_once_id = NULL;
 static int *s_pet_state = NULL;
+static pet_mood_dp_value_t s_pet_mood_dp_value = MODE_DP_HAPPY;
 
 #if defined(PET_DEBUG_ENABLE) && (PET_DEBUG_ENABLE == 1)
 static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 #endif
 
 /*============================ IMPLEMENTATION ================================*/
+// display pet state on lvgl
+void _display_pet_state(ai_pet_state_t pet_state)
+{
+    switch (pet_state) {
+        case AI_PET_STATE_EAT: {
+            ai_audio_player_play_alert(AI_AUDIO_LOADING_TONE);
+        } break;
+        case AI_PET_STATE_BATH: {
+            ai_audio_player_play_alert(AI_AUDIO_CANCEL_FAIL_TRI_TONE);
+        } break;
+        case AI_PET_STATE_TOILET: {
+            ai_audio_player_play_alert(AI_AUDIO_CONFIRM);
+        } break;
+        case PET_EVENT_TAKE_BATH: {
+            ai_audio_player_play_alert(AI_AUDIO_DOWNWARD_BI_TONE);
+        } break;
+        case AI_PET_STATE_SLEEP: {
+            ai_audio_player_play_alert(AI_AUDIO_FAIL_CANCEL_BI_TONE);
+        } break;
+        default:
+            break;
+    }
+
+    lv_vendor_disp_lock();
+    pet_area_set_animation(pet_state);
+    lv_vendor_disp_unlock();
+}
+
 // show
 OPERATE_RET game_pet_show(int *state)
 {
@@ -92,46 +117,67 @@ OPERATE_RET game_pet_show(int *state)
             state[PET_S_HEALTH_INDEX], state[PET_S_ENERGY_INDEX],
             state[PET_S_CLEAN_INDEX], state[PET_S_HAPPINESS_INDEX]);
 
-    int health = state[PET_S_HEALTH_INDEX];
-    if (health < 10) {
-        PR_DEBUG("Pet deadth.");
-        return OPRT_OK;
-    } else if (health < 30) {
-        PR_DEBUG("Pet is ill.");
-        return OPRT_OK;
-    }
+    ai_pet_state_t pet_state = AI_PET_STATE_NORMAL;
+    s_pet_mood_dp_value = MODE_DP_HAPPY;
 
-    int energy = state[PET_S_ENERGY_INDEX];
-    if (energy < 30) {
-        PR_DEBUG("Pet is hungry.");
-        return OPRT_OK;
-    } else if (energy > 80) {
-        PR_DEBUG("Pet need exercise.");
-        return OPRT_OK;
+    int happiness = state[PET_S_HAPPINESS_INDEX];
+    if (happiness < 10) {
+        PR_DEBUG("Pet is hopelessness.");
+        pet_state = AI_PET_STATE_CRY;
+        s_pet_mood_dp_value = MODE_DP_SAD;
+    } else if (happiness < 50) {
+        PR_DEBUG("Pet is sad.");
+        pet_state = AI_PET_STATE_ANGRY;
+        s_pet_mood_dp_value = MODE_DP_BORED;
+    } else if (happiness > 80) {
+        PR_DEBUG("Pet is very happy.");
+        pet_state = AI_PET_STATE_DANCE;
+        s_pet_mood_dp_value = MODE_DP_EXCITED;
     }
 
     int clean = state[PET_S_CLEAN_INDEX];
     if (clean < 20) {
         PR_DEBUG("Pet is dirty.");
-        return OPRT_OK;
+        pet_state = AI_PET_STATE_ANGRY;
+        s_pet_mood_dp_value = MODE_DP_SAD;
     } else if (clean < 60) {
         PR_DEBUG("Pet need shower.");
-        return OPRT_OK;
+        pet_state = AI_PET_STATE_CRY;
+        s_pet_mood_dp_value = MODE_DP_BORED;
     }
 
-    int happiness = state[PET_S_HAPPINESS_INDEX];
-    if (happiness < 10) {
-        PR_DEBUG("Pet is hopelessness.");
-        return OPRT_OK;
-    } else if (happiness < 50) {
-        PR_DEBUG("Pet is sad.");
-        return OPRT_OK;
-    } else if (happiness > 80) {
-        PR_DEBUG("Pet is very happy.");
-        return OPRT_OK;
-    } 
+    int energy = state[PET_S_ENERGY_INDEX];
+    if (energy < 30) {
+        PR_DEBUG("Pet is hungry.");
+        pet_state = AI_PET_STATE_SICK;
+        s_pet_mood_dp_value = MODE_DP_BORED;
+    } else if (energy > 80) {
+        PR_DEBUG("Pet need exercise.");
+        pet_state = AI_PET_STATE_ANGRY;
+    }
 
-    PR_DEBUG("Pet is normal.");
+    int health = state[PET_S_HEALTH_INDEX];
+    if (health < 10) {
+        PR_DEBUG("Pet deadth.");
+        pet_state = AI_PET_STATE_SICK;
+        s_pet_mood_dp_value = MODE_DP_ILL;
+    } else if (health < 30) {
+        PR_DEBUG("Pet is ill.");
+        pet_state = AI_PET_STATE_CRY;
+        s_pet_mood_dp_value = MODE_DP_ILL;
+    }
+
+    _display_pet_state(pet_state);
+
+    // report mood dp
+    dp_obj_t dps = {
+        .id = DPID_MOOD,
+        .type = PROP_ENUM,
+        .value = (dp_value_t)(uint32_t)s_pet_mood_dp_value
+    };
+    tuya_iot_client_t *client = tuya_iot_client_get();
+    const char *devid = tuya_iot_devid_get(client);
+    tuya_iot_dp_obj_report(client, devid, &dps, 1, 0);
     return OPRT_OK;
 }
 
@@ -151,7 +197,7 @@ OPERATE_RET game_pet_data_report(int *state)
     if (state == NULL) {
         return OPRT_INVALID_PARM;
     }
-    
+
     int i = 0;
     tuya_iot_client_t *client = tuya_iot_client_get();
     const char *devid = tuya_iot_devid_get(client);
@@ -173,6 +219,22 @@ OPERATE_RET game_pet_data_report(int *state)
     return OPRT_OK;
 }
 
+// dp report
+OPERATE_RET game_pet_update_state_to_menu(int *state)
+{
+    pet_stats_t menu_state = {
+        .health = state[PET_S_HEALTH_INDEX],
+        .hungry = state[PET_S_ENERGY_INDEX],
+        .clean = state[PET_S_CLEAN_INDEX],
+        .happy = state[PET_S_HAPPINESS_INDEX],
+        .age_days = 1000,
+        .weight_kg = 1000.0
+    };
+
+    menu_system_update_pet_stats(&menu_state);
+    return OPRT_OK;
+}
+
 // set data
 OPERATE_RET game_pet_data_add(game_pet_state_id_t idx, int value)
 {
@@ -185,14 +247,15 @@ OPERATE_RET game_pet_data_add(game_pet_state_id_t idx, int value)
     s_pet_state[idx] = new_value;
 
     game_pet_data_save(s_pet_state);
-    game_pet_show(s_pet_state);
+    game_pet_update_state_to_menu(s_pet_state);
     game_pet_data_report(s_pet_state);
+    game_pet_show(s_pet_state);
 
     return OPRT_OK;
 }
 
 // pet operation
-OPERATE_RET game_pet_operation(game_pet_opt_id_t idx)
+OPERATE_RET game_pet_operation(pet_event_type_t idx, bool show_now)
 {
     if (s_pet_state == NULL || idx < 0 || idx >= PET_OPT_TOTAL) {
         return OPRT_INVALID_PARM;
@@ -207,8 +270,13 @@ OPERATE_RET game_pet_operation(game_pet_opt_id_t idx)
     }
 
     game_pet_data_save(s_pet_state);
-    game_pet_show(s_pet_state);
+    game_pet_update_state_to_menu(s_pet_state);
     game_pet_data_report(s_pet_state);
+    if (show_now) {
+        game_pet_show(s_pet_state);
+    } else {
+        tal_sw_timer_start(s_pet_timer_once_id, PET_TIMER_ONCE_MS, TAL_TIMER_ONCE);
+    }
 
     return OPRT_OK;
 }
@@ -227,8 +295,9 @@ OPERATE_RET game_pet_reset(void)
 
     PR_DEBUG("Reset game pet state to default values: %d.", DEFAULT_STATE_VALUE);
     game_pet_data_save(s_pet_state);
-    game_pet_show(s_pet_state);
+    game_pet_update_state_to_menu(s_pet_state);
     game_pet_data_report(s_pet_state);
+    game_pet_show(s_pet_state);
 
     return OPRT_OK;
 }
@@ -248,10 +317,68 @@ OPERATE_RET game_pet_random_state(void)
     return OPRT_OK;
 }
 
+ static void pet_event_callback(pet_event_type_t event_type, void *user_data)
+ {
+    if (event_type < 0 || event_type >= PET_EVENT_MAX) {
+        PR_ERR("Invalid pet event type: %d", event_type);
+        return;
+    }
+
+    PR_DEBUG("Pet event callback triggered: %d", event_type);
+
+    if (PET_STAT_RANDOMIZE == event_type) {
+        game_pet_random_state();
+        return;
+    }
+
+    ai_pet_state_t pet_state = AI_PET_STATE_NORMAL;
+    switch (event_type) {
+        case PET_EVENT_FEED_HAMBURGER:
+        case PET_EVENT_DRINK_WATER:
+        case PET_EVENT_FEED_PIZZA:
+        case PET_EVENT_FEED_APPLE:
+        case PET_EVENT_FEED_FISH:
+        case PET_EVENT_FEED_CARROT:
+        case PET_EVENT_FEED_ICE_CREAM:
+        case PET_EVENT_FEED_COOKIE:
+            pet_state = AI_PET_STATE_EAT;
+            break;
+        case PET_EVENT_TOILET:
+            pet_state = AI_PET_STATE_TOILET;
+            break;
+        case PET_EVENT_TAKE_BATH:
+            pet_state = AI_PET_STATE_BATH;
+            break;
+        case PET_EVENT_SEE_DOCTOR:
+            pet_state = AI_PET_STATE_CRY;
+            break;
+        case PET_EVENT_SLEEP:
+            pet_state = AI_PET_STATE_SLEEP;
+            break;
+        case PET_EVENT_WAKE_UP:
+            pet_state = AI_PET_STATE_DANCE;
+            break;
+        default:
+            PR_ERR("Unhandled pet event type: %d", event_type);
+            return;
+    }
+
+    // Update pet area animation based on event type
+    _display_pet_state(pet_state);
+
+    game_pet_operation(event_type, false);
+ }
+
+
 static void __timer_cb(TIMER_ID timer_id, void *arg)
 {
-    PR_NOTICE("--- pet timer callback");
-    game_pet_operation(PET_EVENT_TIMER);
+    if (s_pet_timer_once_id == timer_id) {
+        PR_NOTICE("pet timer once callback");
+        game_pet_show(s_pet_state);
+    } else if (s_pet_timer_cycle_id == timer_id) {
+        PR_NOTICE("pet timer cycle callback");
+        game_pet_operation(PET_EVENT_TIMER, true);
+    }
 }
 
 #if defined(PET_DEBUG_ENABLE) && (PET_DEBUG_ENABLE == 1)
@@ -281,7 +408,7 @@ static OPERATE_RET __app_open_button(void)
                                    .button_repeat_valid_time = 500};
     TUYA_CALL_ERR_RETURN(tdl_button_create(BUTTON_NAME_4, &button_cfg, &sg_button_hdl));
 
-    tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_SINGLE_CLICK, __app_button_function_cb);
+    // tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_SINGLE_CLICK, __app_button_function_cb);
     tdl_button_event_register(sg_button_hdl, TDL_BUTTON_LONG_PRESS_START, __app_button_function_cb);
 
     return rt;
@@ -300,6 +427,7 @@ OPERATE_RET game_pet_init(void)
         return OPRT_MALLOC_FAILED;
     }
 
+    // initialize state from KV storage or set to default values
     if ((OPRT_OK == tal_kv_get(KVKEY_GAME_PET_STATE, (uint8_t **)&s_pet_state, &readlen))
         && (readlen == sizeof(int) * PET_STATE_TOTAL)) {
         PR_INFO("Game pet initialized with KV state.");
@@ -308,10 +436,13 @@ OPERATE_RET game_pet_init(void)
         PR_WARN("Game pet initialized with default state.");
     }
 
-    /* sw timer init & start */
+    // initialize timer
     TUYA_CALL_ERR_RETURN(tal_sw_timer_init());
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__timer_cb, NULL, &sw_timer_id));
-    TUYA_CALL_ERR_LOG(tal_sw_timer_start(sw_timer_id, TAL_TIMER_CYCLE_MS, TAL_TIMER_CYCLE));
+    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_once_id));
+    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_cycle_id));
+    TUYA_CALL_ERR_LOG(tal_sw_timer_start(s_pet_timer_cycle_id, PET_TIMER_CYCLE_MS, TAL_TIMER_CYCLE));
+
+    menu_system_register_pet_event_callback(pet_event_callback, NULL);
 
 #if defined(PET_DEBUG_ENABLE) && (PET_DEBUG_ENABLE == 1)
     TUYA_CALL_ERR_RETURN(__app_open_button());

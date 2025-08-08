@@ -69,7 +69,7 @@ void pocket_pet_button_init(void)
                                    .button_repeat_valid_count = 2,
                                    .button_repeat_valid_time = 500};
     TDL_BUTTON_HANDLE button_hdl = NULL;
-
+    tdl_button_set_task_stack_size(4096);  // debug by huatuo, set button task stack size to 4K
     for(uint32_t i=0; i<CNTSOF(button_code_map); i++) {
         tdl_button_create(button_code_map[i].name, &button_cfg, &button_hdl);
 

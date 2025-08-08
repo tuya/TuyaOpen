@@ -1,6 +1,10 @@
 #ifndef __GAME_PET_H__
 #define __GAME_PET_H__
 
+#include "lv_vendor.h"
+#include "pet_area.h"
+#include "menu_system.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -14,14 +18,13 @@ typedef enum {
 } game_pet_state_id_t;
 
 typedef enum {
-    PET_O_PLAY_INDEX = 0,
-    PET_O_EAT_INDEX,
-    PET_O_SHOWER_INDEX,
-    PET_O_SLEEP_INDEX,
-    PET_O_HEALING_INDEX,
-    PET_O_TIMER_INDEX,
-    PET_OPT_TOTAL,
-} game_pet_opt_id_t;
+    MODE_DP_HAPPY = 0,
+    MODE_DP_SAD,
+    MODE_DP_EXCITED,
+    MODE_DP_BORED,
+    MODE_DP_ILL,
+    MODE_DP_TOTAL,
+} pet_mood_dp_value_t;
 
 /**
  * @brief game pet operation function
@@ -30,7 +33,7 @@ typedef enum {
  * tuya_error_code.h
  *
  */
-OPERATE_RET game_pet_operation(game_pet_opt_id_t idx);
+OPERATE_RET game_pet_operation(pet_event_type_t idx, bool show_now);
 
 /**
  * @brief game pet init function

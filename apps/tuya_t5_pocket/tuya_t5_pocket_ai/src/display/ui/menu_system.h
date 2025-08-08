@@ -35,8 +35,8 @@ typedef enum {
     PET_EVENT_SEE_DOCTOR,
     PET_EVENT_SLEEP,
     PET_EVENT_WAKE_UP,
-    PET_EVENT_COUNT,
-    PET_STAT_RANDOMIZE
+    PET_STAT_RANDOMIZE,
+    PET_EVENT_MAX
 } pet_event_type_t;
 
 // Pet event callback function type
@@ -45,6 +45,7 @@ typedef void (*pet_event_callback_t)(pet_event_type_t event_type, void *user_dat
 typedef struct {
     uint8_t health;    // 0-100
     uint8_t hungry;    // 0-100
+    uint8_t clean;    // 0-100
     uint8_t happy;     // 0-100
     uint16_t age_days; // Age in days
     float weight_kg;   // Weight in kg (decimal)
@@ -113,6 +114,12 @@ uint8_t menu_system_get_selected_button(void);
  * @param stats Pointer to pet stats structure
  */
 void menu_system_init_pet_stats(pet_stats_t *stats);
+
+/**
+ * Update pet statistics
+ * @param stats Pointer to pet stats structure
+ */
+uint8_t menu_system_update_pet_stats(pet_stats_t *stats);
 
 /**
  * Get pet statistics
