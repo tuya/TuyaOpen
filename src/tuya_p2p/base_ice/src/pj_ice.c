@@ -154,7 +154,7 @@ int ice_worker_thread(void *pParam)
         return -1;
     }
     while (!pThis->bThreadQuitFlag) {
-        pj_ice_session_handle_events(pThis->pIceSession, 50, NULL);
+        pj_ice_session_handle_events(pThis->pIceSession, 10, NULL);
     }
     return 0;
 }
@@ -331,6 +331,7 @@ bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceS
     pj_init();
     pjlib_util_init();
     pjnath_init();
+    pj_log_set_level(0);
 
     pj_ice_session_t *pIceSession = malloc(sizeof(pj_ice_session_t));
     pIceSession->pPool = NULL;

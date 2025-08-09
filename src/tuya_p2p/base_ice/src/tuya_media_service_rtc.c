@@ -27,6 +27,7 @@
 #include "pj_ice.h"
 #include "pj_sync_condition.h"
 #include <pjmedia/sdp.h>
+#include "tal_log.h"
 
 #define IKCP_PACKET_HEADER_SIZE       24
 #define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
@@ -184,6 +185,11 @@ typedef struct tuya_p2p_rtc_session_cfg {
 typedef struct tuya_p2p_rtc_session {
     tuya_p2p_rtc_cb_t cb; // Callback interface
 
+    int ref_cnt;
+    pthread_mutex_t ref_lock;
+
+    sync_cond_t syncCondExit;
+
     rtc_sdp_t local_sdp;
     rtc_sdp_t remote_sdp;
     pjmedia_sdp_session *pLocalSdp;
@@ -259,6 +265,10 @@ int rtc_crypt_decrypt_aes_128_cbc(struct tuya_p2p_rtc_session *rtc, void *ctx, s
 int rtc_channel_aes_uninit(struct rtc_channel *chan);
 
 void *rtc_worker_thread(void *arg);
+
+void rtc_ref_cnt_add(tuya_p2p_rtc_session_t *rtc);
+void rtc_ref_cnt_del(tuya_p2p_rtc_session_t *rtc);
+int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc);
 
 int32_t tuya_p2p_rtc_init(tuya_p2p_rtc_options_t *opt)
 {
@@ -534,10 +544,10 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         int close_reason =
             cJSON_IsNumber(jclose_reason) ? jclose_reason->valueint : 99 /*RTC_SESSION_CLOSE_REASON_UNDEFINED*/;
         int close_reason_local = cJSON_IsNumber(jclose_reason_local) ? jclose_reason_local->valueint : 0;
-        tal_mutex_lock(g_p2p_session_mutex);
+        //tal_mutex_lock(g_p2p_session_mutex);
         ctx_session_destroy(g_pRtcSession);
         g_pRtcSession = NULL;
-        tal_mutex_unlock(g_p2p_session_mutex);
+        //tal_mutex_unlock(g_p2p_session_mutex);
         tal_mutex_release(g_p2p_session_mutex);
         g_p2p_session_mutex = NULL;
     } else if (strcmp(type, "activate") == 0) {
@@ -1104,6 +1114,26 @@ static int on_kcp_output(const char *buf, int len, ikcpcb *kcp, void *user_data)
     return len;
 }
 
+void rtc_ref_cnt_add(tuya_p2p_rtc_session_t *rtc) {
+    pthread_mutex_lock(&rtc->ref_lock);
+    rtc->ref_cnt++;
+    pthread_mutex_unlock(&rtc->ref_lock);
+}
+
+void rtc_ref_cnt_del(tuya_p2p_rtc_session_t *rtc) {
+    pthread_mutex_lock(&rtc->ref_lock);
+    rtc->ref_cnt--;
+    pthread_mutex_unlock(&rtc->ref_lock);
+}
+
+int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc) {
+    int ref_cnt;
+    pthread_mutex_lock(&rtc->ref_lock);
+    ref_cnt = rtc->ref_cnt;
+    pthread_mutex_unlock(&rtc->ref_lock);
+    return ref_cnt;
+}
+
 tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e state, int32_t *err_code)
 {
     tuya_p2p_rtc_session_t *rtc = NULL;
@@ -1115,12 +1145,16 @@ tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e s
     memset(rtc, 0, sizeof(tuya_p2p_rtc_session_t));
     memcpy(&rtc->cfg, cfg, sizeof(rtc->cfg));
     // rtc->pool = NULL;
+    rtc->ref_cnt = 0;
+    pthread_mutex_init(&rtc->ref_lock, NULL);
     pthread_mutex_init(&rtc->channel_lock, NULL);
     rtc->cfg.channel_number = 3;
     rtc->active_handle = 0;
     rtc->local_cmd_seq = 0;
     rtc->tid = -1;
     rtc->bQuitKCPThread = false;
+
+    sync_cond_init(&rtc->syncCondExit);
 
     if (tuya_p2p_rtc_channels_init(rtc) != 0) {
         *err_code = TUYA_P2P_ERROR_CHANNEL_INIT_FAILED;
@@ -1143,6 +1177,7 @@ tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e s
         *err_code = TUYA_P2P_ERROR_SDP_INIT_FAILED;
         goto finish;
     }
+    rtc_ref_cnt_add(rtc);
     return rtc;
 
 finish:
@@ -1154,7 +1189,9 @@ finish:
 
 void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
 {
+    tal_mutex_lock(g_p2p_session_mutex);
     if (rtc == NULL) {
+        tal_mutex_unlock(g_p2p_session_mutex);
         return;
     }
     if (rtc->tid != -1) {
@@ -1167,11 +1204,20 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
         pj_ice_session_destroy(rtc->pIce);
         rtc->pIce = NULL;
     }
+    tal_mutex_unlock(g_p2p_session_mutex);
+
+    sync_cond_wait(&rtc->syncCondExit);
+    sync_cond_clean(&rtc->syncCondExit);
+
+    tal_mutex_lock(g_p2p_session_mutex);
     tuya_p2p_rtc_sdp_deinit(&rtc->local_sdp);
     tuya_p2p_rtc_sdp_deinit(&rtc->remote_sdp);
     mbedtls_md_free(&rtc->md_ctx);
+    pthread_mutex_destroy(&rtc->ref_lock);
+    pthread_mutex_destroy(&rtc->channel_lock);
     free(rtc);
     rtc = NULL;
+    tal_mutex_unlock(g_p2p_session_mutex);
     return;
 }
 
@@ -1283,8 +1329,8 @@ int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc)
         }
 
         ikcp_setoutput(chan->kcp, on_kcp_output);
-        ikcp_wndsize(chan->kcp, send_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/,
-                     recv_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/);
+        ikcp_wndsize(chan->kcp, send_buf_size / 16  /*TUYA_MBUF_HUGE_SIZE*/,
+                     recv_buf_size / 16 /*TUYA_MBUF_HUGE_SIZE*/);
         ikcp_nodelay(chan->kcp, 0, 10, 20, 1);
         ikcp_setmtu(chan->kcp, 1400);
         ikcp_setprocesspkt(chan->kcp, ctx_session_channel_process_pkt);
@@ -1335,14 +1381,13 @@ void *rtc_worker_thread(void *arg)
     pj_thread_register2();
     tuya_p2p_rtc_session_t *rtc = (tuya_p2p_rtc_session_t *)arg;
     while (!rtc->bQuitKCPThread) {
-        pj_ice_session_handle_events(rtc->pIce, 50, NULL); // Drive ICE state update and execute KCP receive operation
+        pj_ice_session_handle_events(rtc->pIce, 5, NULL); // Drive ICE state update and execute KCP receive operation
         for (int i = 0; i < 3; ++i)                        //(rtc->cfg.channel_number + 1)
         {
             rtc_channel_t *channel = &rtc->channels[i];
             ikcp_update(channel->kcp,
                         tuya_p2p_misc_get_timestamp_ms()); // Drive KCP state update and execute KCP send operation
         }
-        usleep(5 * 1000); // 5ms interval
     }
     return NULL;
 }
@@ -1448,6 +1493,7 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
             remain -= current;
             already += current;
             chan->write_bytes += current;
+            free(encrypted);
         } else {
             pthread_mutex_unlock(&rtc->channel_lock);
             tuya_p2p_log_error("aes encrypt failed, ret = %d\n", ret);
@@ -1596,6 +1642,7 @@ int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, i
         tuya_p2p_log_error("rtc session %08x recv data: invalid session\n", handle);
         return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
     }
+    tal_mutex_unlock(g_p2p_session_mutex);
     // int error = rtc_session_get_error(rtc);
     // if (error != TUYA_P2P_ERROR_SUCCESSFUL)
     // {
@@ -1608,7 +1655,7 @@ int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, i
     //     return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
     // }
     if (channel_id < 0 || channel_id >= rtc->cfg.channel_number) {
-        tal_mutex_unlock(g_p2p_session_mutex);
+        //tal_mutex_unlock(g_p2p_session_mutex);
         tuya_p2p_log_error("rtc session %08x recv data: invalid channel number: %d/%d\n", handle, channel_id,
                            rtc->cfg.channel_number);
         // ctx_session_release(g_ctx, rtc);
@@ -1617,12 +1664,19 @@ int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, i
 
     *len = buflen;
     int32_t ret = tuya_p2p_rtc_dorecv_data2(rtc, channel_id, buf, len, timeout_ms);
-    tal_mutex_unlock(g_p2p_session_mutex);
     // rtc_channel_t *chan = &rtc->channels[channel_id];
     // ctx_session_channel_process_pkt(chan, *len, buf, buf);
 
     // ctx_session_release(g_ctx, rtc);
     return ret;
+}
+
+void tuya_p2p_rtc_notify_exit()
+{
+    //tal_mutex_lock(g_p2p_session_mutex);
+    sync_cond_notify(&g_pRtcSession->syncCondExit);
+    //tal_mutex_unlock(g_p2p_session_mutex);
+    return;
 }
 
 int32_t tuya_p2p_rtc_check(int32_t handle)
@@ -1634,12 +1688,14 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
                                   uint32_t *send_free_size)
 {
     int ret = 0;
+    //printf("tuya_p2p_rtc_check_buffer1\n");
     tal_mutex_lock(g_p2p_session_mutex);
     if (g_pRtcSession == NULL) {
         tal_mutex_unlock(g_p2p_session_mutex);
         return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
     }
     tuya_p2p_rtc_session_t *rtc = g_pRtcSession;
+    //printf("tuya_p2p_rtc_check_buffer2\n");
     pthread_mutex_lock(&rtc->channel_lock);
     if (rtc->channels != NULL) {
         rtc_channel_t *chan = &rtc->channels[channel_id];

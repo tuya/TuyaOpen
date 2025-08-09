@@ -6,7 +6,7 @@
 # MODULE_PATH
 if (CONFIG_ENABLE_TUYA_P2P STREQUAL "y")
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base_ice2)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base_ice)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib_rtp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pjproject)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_ipc_core)

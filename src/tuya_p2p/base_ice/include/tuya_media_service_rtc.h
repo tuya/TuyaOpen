@@ -411,6 +411,7 @@ int32_t tuya_p2p_rtc_send_data(int32_t handle, uint32_t channel_id, char *buf, i
 // TUYA_P2P_ERROR_TIME_OUT: receive timeout
 // others: receive failed, and connection has been disconnected
 int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, int32_t *len, int32_t timeout_ms);
+void tuya_p2p_rtc_notify_exit();
 // Check the current send/receive buffer status of a connection:
 // handle: connection handle
 // channel_id: channel number

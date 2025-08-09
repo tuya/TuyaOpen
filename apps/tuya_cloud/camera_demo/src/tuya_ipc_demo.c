@@ -6,6 +6,9 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include "tuya_cloud_types.h"
+#include "tal_log.h"
+
+#define TKL_VENC_MAIN_FPS      30
 
 char path[512] = {0};
 unsigned char *video_buf = NULL;
@@ -200,18 +203,14 @@ INT_T Demo_OnGetVideoFrameCallback(MEDIA_FRAME *pMediaFrame)
         pMediaFrame->type = eVideoPBFrame;
     }
 
-    usleep(66 * 1000); // Sleep according to actual frame rate, needs to be modified
-
+    unsigned int sleep_time = 0;
+    sleep_time = 1000 *1000 / TKL_VENC_MAIN_FPS;
+    usleep(sleep_time); // Sleep according to actual frame rate, needs to be modified
     return 0;
 }
 
 INT_T Demo_OnGetAudioFrameCallback(MEDIA_FRAME *pMediaFrame)
 {
-    // TAL_AUDIO_FRAME_INFO_T *pTalAudioFrame = &sg_p2p_session->tal_audio_frame;
-    // if (tal_ai_get_frame(0, 0, pTalAudioFrame) != 0)
-    // {
-    //     return -1;
-    // }
     // memcpy(pMediaFrame->data, pTalAudioFrame->pbuf, pTalAudioFrame->used_size);
     // pMediaFrame->size = pTalAudioFrame->used_size;
     // pMediaFrame->pts = pTalAudioFrame->pts;

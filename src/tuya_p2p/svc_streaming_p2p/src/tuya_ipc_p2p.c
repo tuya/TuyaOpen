@@ -277,7 +277,7 @@ OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType)
     INT_T tmpSize = 0;
     BOOL_T flag = FALSE;
     INT_T timeout = P2P_RECV_TIMEOUT; // ms
-    INT_T retry = P2P_CHECK_USER_TIMES / timeout;
+    INT_T retry = P2P_CHECK_USER_TIMES * 6 / timeout;
 
     memset(&strUserInfo, 0x00, sizeof(P2P_CMD_PASSWD_T));
     read_buff = (CHAR_T *)&strUserInfo;
@@ -1293,13 +1293,17 @@ STATIC void __p2p_cmd_recv_proc(PVOID_T pArg)
             continue;
         }
         pSession = sg_p2p_session;
+        tal_mutex_lock(pSession->cmutex);
         if (P2P_SESSION_CLOSING == pSession->status) {
+            tal_mutex_unlock(pSession->cmutex);
             tal_system_sleep(5);
             continue;
         }
         if (P2P_SESSION_RUNNING != pSession->status) {
+            tal_mutex_unlock(pSession->cmutex);
             continue;
         }
+        tal_mutex_unlock(pSession->cmutex);
 
         ret = __p2p_read_cmd(pSession);
         if (0 != ret) {
@@ -1307,6 +1311,8 @@ STATIC void __p2p_cmd_recv_proc(PVOID_T pArg)
             __p2p_session_clear(pSession);
             //__p2p_wait_concurr_idle(pSession, WAIT_ALL_BUF);
             __p2p_session_release_va(pSession);
+            tuya_p2p_rtc_notify_exit();
+            printf("pSession->cmd: %d\n", sg_p2p_session->cmd);
         }
     }
 
@@ -1389,6 +1395,7 @@ STATIC void __p2p_media_send_proc(PVOID_T pArg)
                 }
                 if (TY_AV_CODEC_VIDEO_H265 != sg_p2p_session->av_Info.video_codec[0]) {
                     op_ret = __p2p_pack_h264_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size);
+                    //PR_ERR("__p2p_pack_h264_rtp_and_send frame size: [%d]", pMediaFrame->size);
                 } else {
                     op_ret = __p2p_pack_h265_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size);
                 }
@@ -1439,8 +1446,10 @@ INT_T __p2p_session_clear(P2P_SESSION_T *pSession)
  ***********************************************************/
 INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession)
 {
+    tal_mutex_lock(pSession->cmutex);
     if (NULL == pSession) {
         PR_ERR("param error");
+        tal_mutex_unlock(pSession->cmutex);
         return OPRT_INVALID_PARM;
     }
     if (P2P_VIDEO & pSession->cmd) {
@@ -1452,6 +1461,7 @@ INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession)
     if ((P2P_PB_VIDEO & pSession->cmd) || (P2P_PB_PAUSE & pSession->cmd)) {
         pSession->cmd &= ~P2P_PB_VIDEO;
     }
+    tal_mutex_unlock(pSession->cmutex);
     return OPRT_OK;
 }
 
@@ -1502,6 +1512,7 @@ OPERATE_RET p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var)
         return OPRT_MALLOC_FAILED;
     }
     memset(sg_p2p_session, 0, sizeof(P2P_SESSION_T));
+    tal_mutex_create_init(sg_p2p_session->cmutex);
     // Get password and other verification information
     memset(&(sg_p2p_session->str_P2p_auth), 0x00, sizeof(TUYA_IPC_P2P_AUTH_T));
     tuya_ipc_get_p2p_auth(&(sg_p2p_session->str_P2p_auth));
@@ -1679,6 +1690,7 @@ void rtp_free(void *param, void *packet)
 
 int rtp_pack_packet_handler(void *param, const void *packet, int bytes, uint32_t timestamp, int flags)
 {
+    //return 0;
     CHAR_T *buf = (CHAR_T *)packet;
     INT_T len = bytes;
     RTP_PACK_NAL_ARG_T *nal_arg = (RTP_PACK_NAL_ARG_T *)param;

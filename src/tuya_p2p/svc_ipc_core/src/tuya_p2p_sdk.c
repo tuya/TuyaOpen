@@ -74,6 +74,8 @@ OPERATE_RET TUYA_APP_End()
 OPERATE_RET OnIotInited()
 {
     OPERATE_RET rt = OPRT_OK;
+    //mqtt extra init cb
+    //tuya_ipc_mqtt_register_cb_init();
     // Enable skill
     TUYA_IPC_SKILL_PARAM_U skill_param = {.value = 1};
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOWPOWER, &skill_param);
