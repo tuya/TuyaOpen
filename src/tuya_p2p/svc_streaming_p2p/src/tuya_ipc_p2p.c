@@ -1492,6 +1492,16 @@ INT_T __p2p_session_release_va(P2P_SESSION_T *pSession)
     pSession->a_timestamp = 0;
     pSession->video_req_id = 0;
     pSession->audio_req_id = 0;
+    // if (pSession->media_frame.data != NULL) {
+    //     free(pSession->media_frame.data);
+    //     pSession->media_frame.data = NULL;
+    // }
+    // memset(&pSession->media_frame, 0, sizeof(pSession->media_frame));
+    // if (pSession->media_audio_frame.data != NULL) {
+    //     free(pSession->media_audio_frame.data);
+    //     pSession->media_audio_frame.data = NULL;
+    // }
+    // memset(&pSession->media_audio_frame, 0, sizeof(pSession->media_audio_frame));
     memset(&pSession->proto_parse, 0, sizeof(pSession->proto_parse));
     memset(&pSession->av_Info, 0, sizeof(pSession->av_Info));
     if (pSession->on_disconnect_callback)

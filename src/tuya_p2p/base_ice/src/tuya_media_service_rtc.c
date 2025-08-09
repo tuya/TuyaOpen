@@ -332,6 +332,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     cJSON *el_header = cJSON_GetObjectItemCaseSensitive(root, "header");
     if (!cJSON_IsObject(el_header)) {
         printf("invalid signaling: invalid json, no header field\n");
+        if (root != NULL) {
+            cJSON_Delete(root);
+        }
         return -1;
     }
     cJSON *el_from = cJSON_GetObjectItemCaseSensitive(el_header, "from");
@@ -348,6 +351,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     if ((!cJSON_IsString(el_from)) || (!cJSON_IsString(el_to)) || (!cJSON_IsString(el_sessionid)) ||
         (!(cJSON_IsString(el_type)))) {
         printf("invalid signaling: invalid header\n");
+        if (root != NULL) {
+            cJSON_Delete(root);
+        }
         return -1;
     }
     char *remote_id = el_from->valuestring;
@@ -365,6 +371,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     cJSON *el_msg = cJSON_GetObjectItemCaseSensitive(root, "msg");
     if (!cJSON_IsObject(el_msg)) {
         printf("invalid signaling: invalid json, no msg field\n");
+        if (root != NULL) {
+            cJSON_Delete(root);
+        }
         return -1;
     }
     cJSON *el_replay = cJSON_GetObjectItemCaseSensitive(el_msg, "replay");
@@ -506,12 +515,18 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
 
     if (g_pRtcSession == NULL) {
         tuya_p2p_log_info("can not find rtc session\n");
+        if (root != NULL) {
+            cJSON_Delete(root);
+        }
         return -1;
     }
 
     if (strcmp(type, "candidate") == 0) {
         if (!cJSON_IsString(el_candidate)) {
             printf("invalid signaling: type: candidate\n");
+            if (root != NULL) {
+                cJSON_Delete(root);
+            }
             return -1;
         }
         tal_mutex_lock(g_p2p_session_mutex);
@@ -520,6 +535,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     } else if (strcmp(type, "offer") == 0) {
         if (!cJSON_IsString(el_sdp)) {
             printf("invalid signaling: type: sdp\n");
+            if (root != NULL) {
+                cJSON_Delete(root);
+            }
             return -1;
         }
         char *buf = el_sdp->valuestring;
@@ -531,6 +549,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     } else if ((strcmp(type, "answer") == 0)) {
         if (!cJSON_IsString(el_sdp)) {
             tuya_p2p_log_debug("invalid signaling: type: sdp\n");
+            if (root != NULL) {
+                cJSON_Delete(root);
+            }
             return -1;
         }
         char *buf = el_sdp->valuestring;
@@ -555,6 +576,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         cJSON *el_seq = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
         if (!cJSON_IsNumber(el_handle) || !cJSON_IsNumber(el_seq)) {
             tuya_p2p_log_debug("invalid signaling: type: handle or seq\n");
+            if (root != NULL) {
+                cJSON_Delete(root);
+            }
             return -1;
         }
         //     int active_handle = el_handle->valueint;
@@ -613,6 +637,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         cJSON *el_seq = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
         if (!cJSON_IsNumber(el_handle) || !cJSON_IsNumber(el_reason) || !cJSON_IsNumber(el_seq)) {
             tuya_p2p_log_debug("invalid signaling: type: handle or seq\n");
+            if (root != NULL) {
+                cJSON_Delete(root);
+            }
             return -1;
         }
         int active_handle = el_handle->valueint;
@@ -632,7 +659,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         ctx_session_send_suspend_resp(rtc, TUYA_P2P_ERROR_SUCCESSFUL);
         tal_mutex_unlock(g_p2p_session_mutex);
     }
-
+    if (root != NULL) {
+        cJSON_Delete(root);
+    }
     return 0;
 }
 
@@ -1356,6 +1385,7 @@ void tuya_p2p_rtc_channels_destroy(tuya_p2p_rtc_session_t *rtc)
                 ikcp_release(chan->kcp);
                 chan->kcp = NULL;
             }
+            rtc_channel_aes_uninit(chan);
             // if (chan->send_queue != NULL) {
             //     tuya_mbuf_queue_destroy(chan->send_queue);
             // }
