@@ -126,8 +126,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_RTC_REQ:
     {
         cJSON *root_json = event->value.asJSON;
-        char* pRootJson = cJSON_PrintUnformatted(root_json);
-        printf("%s\n", pRootJson);
+        //char* pRootJson = cJSON_PrintUnformatted(root_json);
+        //printf("%s\n", pRootJson);
+        //free(pRootJson);
         gw_p2p_mqtt_data_cb(root_json);
         break;
     }

@@ -1395,7 +1395,6 @@ STATIC void __p2p_media_send_proc(PVOID_T pArg)
                 }
                 if (TY_AV_CODEC_VIDEO_H265 != sg_p2p_session->av_Info.video_codec[0]) {
                     op_ret = __p2p_pack_h264_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size);
-                    //PR_ERR("__p2p_pack_h264_rtp_and_send frame size: [%d]", pMediaFrame->size);
                 } else {
                     op_ret = __p2p_pack_h265_rtp_and_send(index, (CHAR_T *)pMediaFrame->data, pMediaFrame->size);
                 }
