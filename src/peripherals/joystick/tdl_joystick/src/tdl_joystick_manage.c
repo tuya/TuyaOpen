@@ -35,7 +35,7 @@
 #define TDL_LONG_KEEP_TIMER          100   // ms
 #define TDL_JOYSTICK_DEBOUNCE_TIME   60    // ms
 #define TDL_JOYSTICK_IRQ_SCAN_TIME   10000 // ms
-#define TDL_JOYSTICK_SCAN_TIME       3     // 10ms
+#define TDL_JOYSTICK_SCAN_TIME       10    // 10ms
 #define TDL_JOYSTICK_IRQ_SCAN_CNT    (TDL_JOYSTICK_IRQ_SCAN_TIME / TDL_JOYSTICK_SCAN_TIME)
 #define TOUCH_DELAY                  500 // Click interval for single/double click differentiation
 #define TDL_JOYSTICK_TASK_STACK_SIZE (4096)
@@ -363,15 +363,13 @@ void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle)
 
     if (current_direction != p_node->device_data.last_direction) {
         if (p_node->device_data.last_direction != TDL_JOYSTICK_TOUCH_EVENT_NONE) {
-            if (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time / 10 < joystick_ticks &&
+            if (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time / 30 < joystick_ticks &&
                 joystick_ticks < (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time)) {
-                PR_DEBUG("joystick adcx: %d, adcy: %d", x, y);
                 PUT_EVENT_CB(p_node->user_data, p_node->name, p_node->device_data.last_direction, NULL);
             }
         }
-
-        p_node->device_data.last_direction = current_direction;
         joystick_ticks = 0;
+        p_node->device_data.last_direction = current_direction;
     } else {
         if (current_direction != TDL_JOYSTICK_TOUCH_EVENT_NONE) {
             joystick_ticks++;
@@ -397,9 +395,6 @@ void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle)
                 if (long_event != TDL_JOYSTICK_TOUCH_EVENT_NONE) {
                     PUT_EVENT_CB(p_node->user_data, p_node->name, long_event, NULL);
                 }
-            } else if (joystick_ticks > (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time) &&
-                       (joystick_ticks % (TDL_LONG_KEEP_TIMER / tdl_joystick_scan_time)) == 0) {
-                // PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_JOYSTICK_BUTTON_LONG_PRESS_HOLD, NULL);
             }
         } else {
             joystick_ticks = 0;
