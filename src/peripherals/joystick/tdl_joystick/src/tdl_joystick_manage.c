@@ -363,8 +363,9 @@ void tdl_joystick_direction_event_proc(TDL_JOYSTICK_HANDLE handle)
 
     if (current_direction != p_node->device_data.last_direction) {
         if (p_node->device_data.last_direction != TDL_JOYSTICK_TOUCH_EVENT_NONE) {
-            if (joystick_ticks < (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time)) {
-
+            if (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time / 10 < joystick_ticks &&
+                joystick_ticks < (TDL_LONG_START_VAILD_TIMER / tdl_joystick_scan_time)) {
+                PR_DEBUG("joystick adcx: %d, adcy: %d", x, y);
                 PUT_EVENT_CB(p_node->user_data, p_node->name, p_node->device_data.last_direction, NULL);
             }
         }
