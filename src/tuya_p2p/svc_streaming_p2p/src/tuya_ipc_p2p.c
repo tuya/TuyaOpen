@@ -149,6 +149,8 @@ INT_T p2p_release_audio_send_resource(P2P_SESSION_T *pSession);
 INT_T __p2p_session_clear(P2P_SESSION_T *pSession);
 INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession);
 INT_T __p2p_session_release_va(P2P_SESSION_T *pSession);
+VOID __p2p_thread_exit(THREAD_HANDLE thread);
+VOID __p2p_rtc_close(INT_T rtc_session, INT_T reason, P2P_SESSION_T* p2p_session);
 
 void *rtp_alloc(void *param, int bytes);
 void rtp_free(void *param, void *packet);
@@ -236,6 +238,9 @@ OPERATE_RET p2p_deal_with_listen(INT_T session)
                 userCheckEnable = TRUE;
             }
         }
+        __p2p_rtc_close(session, RTC_CLOSE_REASON_AUTH_FAIL, NULL);
+        tuya_p2p_rtc_notify_exit();
+        tuya_p2p_rtc_deinit();
         return OPRT_COM_ERROR;
     } else {
         // Once verification is successful, no more authentication exception handling
@@ -375,11 +380,17 @@ OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-STATIC VOID __p2p_thread_exit(THREAD_HANDLE thread)
+VOID __p2p_thread_exit(THREAD_HANDLE thread)
 {
     if (NULL != thread) {
         tal_thread_delete(thread);
     }
+    return;
+}
+
+VOID __p2p_rtc_close(INT_T rtc_session, INT_T reason, P2P_SESSION_T* p2p_session)
+{
+    tuya_p2p_rtc_close(rtc_session, reason);
     return;
 }
 

@@ -372,6 +372,7 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
     pj_status_t status = PJ_SUCCESS;
     g_bInited = false;
 
+    pj_thread_register2();
     pIceSession->pIceThreadParam->bThreadQuitFlag = true;
     if (pIceSession->pThread != NULL) {
         pj_thread_join(pIceSession->pThread);

@@ -53,6 +53,32 @@
 
 #define P2P_DEFAULT_FRAGEMENT_LEN 1300
 
+typedef enum rtc_session_close_reason {
+    RTC_SESSION_CLOSE_REASON_OK = 0,
+    RTC_SESSION_CLOSE_REASON_ICE_FAILED = 1,
+    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_FAILED = 2,
+    RTC_SESSION_CLOSE_REASON_LOCAL_CANCEL = 3,
+    RTC_SESSION_CLOSE_REASON_LOCAL_CLOSE = 4,
+    RTC_SESSION_CLOSE_REASON_REMOTE_CLOSE = 5,
+    RTC_SESSION_CLOSE_REASON_KEEPALIVE_TIMEOUT = 6,
+    RTC_SESSION_CLOSE_REASON_AUTH_FAILED = 7,
+    RTC_SESSION_CLOSE_REASON_MEMORY_ALLOC = 8,
+    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_FAILED_FINGERPRINT = 9,
+    RTC_SESSION_CLOSE_REASON_ICE_UDP_TCP_ALL_FAILED = 10,
+    RTC_SESSION_CLOSE_REASON_RESET = 11,
+    RTC_SESSION_CLOSE_REASON_REFUSED = 12,
+    RTC_SESSION_CLOSE_REASON_PRE_CMD_TIMEOUT = 13,
+    RTC_SESSION_CLOSE_REASON_GET_TOKEN_TIMEOUT = 14,
+    RTC_SESSION_CLOSE_REASON_RESERVE_TIMEOUT = 15,
+    RTC_SESSION_CLOSE_REASON_PRECONNECT_UNSUPPORTED = 16,
+    RTC_SESSION_CLOSE_REASON_HTTP_FAILED = 17,
+    RTC_SESSION_CLOSE_REASON_PRE_MESS = 18,
+    RTC_SESSION_CLOSE_REASON_SECURITY_NEGOTIATE_FAIL = 19,
+    RTC_SESSION_CLOSE_REASON_INIT_MBEDTLS_MD_AND_AES = 20,
+    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_TIMEOUT = 21,
+    RTC_SESSION_CLOSE_REASON_UNDEFINED = 99
+} rtc_session_close_reason_e;
+
 typedef struct tagTuyaBuf {
     char *base;
     size_t len;
@@ -251,6 +277,9 @@ int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg); /
 int ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *cand_str);
 int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *remote_sdp, char *candidate);
 int ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error);
+int ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local, rtc_session_close_reason_e close_reason);
+int ctx_session_send_signaling(tuya_p2p_rtc_session_t *rtc, char *signaling);
+char *ctx_signaling_add_path(char *signaling, char *path);
 int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc);
 void tuya_p2p_rtc_channels_destroy(tuya_p2p_rtc_session_t *rtc);
 
@@ -316,6 +345,17 @@ int32_t tuya_p2p_rtc_init(tuya_p2p_rtc_options_t *opt)
     //     ctx->opt.video_bitrate_kbps = TUYA_P2P_VIDEO_BITRATE_MAX;
     // }
 
+    return 0;
+}
+
+int32_t tuya_p2p_rtc_close(int32_t handle, int32_t reason)
+{
+    if (g_pRtcSession == NULL) {
+        return TUYA_P2P_ERROR_NOT_INITIALIZED;
+    }
+    tuya_p2p_log_info("rtc session %08x close\n", handle);
+    ctx_session_send_disconnect(g_pRtcSession, reason, RTC_SESSION_CLOSE_REASON_LOCAL_CLOSE);
+    tuya_p2p_log_info("rtc session %08x close over\n", handle);
     return 0;
 }
 
@@ -963,6 +1003,100 @@ finish:
         cJSON_Delete(jsignaling);
     }
     return 0;
+}
+
+int ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local, rtc_session_close_reason_e close_reason)
+{
+    char *type = "disconnect";
+    char *signaling = NULL;
+    cJSON *jsignaling = NULL;
+
+    cJSON *jfrom = cJSON_CreateString(rtc->cfg.local_id);
+    cJSON *jto = cJSON_CreateString(rtc->cfg.remote_id);
+    cJSON *jnode_id = cJSON_CreateString(rtc->cfg.node_id);
+    cJSON *jsession_id = cJSON_CreateString(rtc->cfg.session_id);
+    cJSON *jmoto_id = cJSON_CreateString(rtc->cfg.moto_id);
+    cJSON *jtype = cJSON_CreateString(type);
+    cJSON *jtrace_id = cJSON_CreateString(rtc->cfg.trace_id);
+    cJSON *jclose_reason_local = cJSON_CreateNumber(close_reason_local);
+    cJSON *jclose_reason = cJSON_CreateNumber(close_reason);
+    cJSON *jheader = cJSON_CreateObject();
+    if (jfrom == NULL || jto == NULL || jsession_id == NULL || jnode_id == NULL || jmoto_id == NULL ||
+        jtype == NULL || jtrace_id == NULL || jheader == NULL || jclose_reason_local == NULL ||
+        jclose_reason == NULL) {
+        goto finish;
+    }
+    cJSON_AddItemToObject(jheader, "from", jfrom);
+    cJSON_AddItemToObject(jheader, "to", jto);
+    cJSON_AddItemToObject(jheader, "sub_dev_id", jnode_id);
+    cJSON_AddItemToObject(jheader, "sessionid", jsession_id);
+    cJSON_AddItemToObject(jheader, "moto_id", jmoto_id);
+    cJSON_AddItemToObject(jheader, "type", jtype);
+    cJSON_AddItemToObject(jheader, "trace_id", jtrace_id);
+
+    cJSON *jmsg = cJSON_CreateObject();
+    if (jmsg == NULL) {
+        goto finish;
+    }
+
+    jsignaling = cJSON_CreateObject();
+    if (jsignaling == NULL) {
+        goto finish;
+    }
+    cJSON_AddItemToObject(jsignaling, "header", jheader);
+    cJSON_AddItemToObject(jmsg, "close_reason_local", jclose_reason_local);
+    cJSON_AddItemToObject(jmsg, "close_reason", jclose_reason);
+    cJSON_AddItemToObject(jsignaling, "msg", jmsg);
+
+    signaling = cJSON_PrintUnformatted(jsignaling);
+    if (signaling == NULL) {
+        goto finish;
+    }
+    ctx_session_send_signaling(rtc, signaling);
+
+finish:
+    if (signaling != NULL) {
+        cJSON_free(signaling);
+    }
+    if (jsignaling != NULL) {
+        cJSON_Delete(jsignaling);
+    }
+    return 0;
+}
+
+int ctx_session_send_signaling(tuya_p2p_rtc_session_t *rtc, char *signaling)
+{
+    if (g_pRtcSession->cb.on_signaling != NULL) {
+        g_pRtcSession->cb.on_signaling(rtc->cfg.remote_id, signaling, strlen(signaling));
+    }
+    return 0;
+}
+
+char *ctx_signaling_add_path(char *signaling, char *path) {
+    char *new_signaling = NULL;
+    cJSON *jsignaling = cJSON_Parse(signaling);
+    if (!cJSON_IsObject(jsignaling)) {
+        goto finish;
+    }
+
+    cJSON *jheader = cJSON_GetObjectItemCaseSensitive(jsignaling, "header");
+    if (!cJSON_IsObject(jheader)) {
+        goto finish;
+    }
+
+    cJSON *jpath = cJSON_CreateString(path);
+    if (jpath == NULL) {
+        goto finish;
+    }
+
+    cJSON_AddItemToObject(jheader, "path", jpath);
+    new_signaling = cJSON_PrintUnformatted(jsignaling);
+
+finish:
+    if (jsignaling != NULL) {
+        cJSON_Delete(jsignaling);
+    }
+    return new_signaling;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1856,6 +1990,15 @@ uint32_t tuya_p2p_rtc_get_skill()
 
 int32_t tuya_p2p_rtc_deinit()
 {
+    if (g_pRtcSession == NULL) {
+        return TUYA_P2P_ERROR_NOT_INITIALIZED;
+    }
+    //tal_mutex_lock(g_p2p_session_mutex);
+    ctx_session_destroy(g_pRtcSession);
+    g_pRtcSession = NULL;
+    //tal_mutex_unlock(g_p2p_session_mutex);
+    tal_mutex_release(g_p2p_session_mutex);
+    g_p2p_session_mutex = NULL;
     return 0;
 }
 
@@ -1876,10 +2019,10 @@ int32_t tuya_p2p_rtc_get_session_info(int32_t handle, tuya_p2p_rtc_session_info_
     return 0;
 }
 
-int32_t tuya_p2p_rtc_close(int32_t handle, int32_t reason)
-{
-    return 0;
-}
+// int32_t tuya_p2p_rtc_close(int32_t handle, int32_t reason)
+// {
+//     return 0;
+// }
 
 int32_t tuya_p2p_rtc_send_frame(int32_t handle, tuya_p2p_rtc_frame_t *frame)
 {

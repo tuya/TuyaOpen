@@ -302,6 +302,7 @@ uint32_t tuya_p2p_rtc_get_version();
 uint32_t tuya_p2p_rtc_get_skill();
 // p2p sdk initialization
 int32_t tuya_p2p_rtc_init(tuya_p2p_rtc_options_t *opt);
+int32_t tuya_p2p_rtc_close(int32_t handle, int32_t reason);
 // p2p sdk deinitialization
 int32_t tuya_p2p_rtc_deinit();
 int32_t tuya_p2p_rtc_reset(tuya_p2p_rtc_options_t *opt);
