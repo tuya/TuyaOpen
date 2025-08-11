@@ -808,6 +808,7 @@ void ikcp_parse_data(ikcpcb *kcp, IKCPSEG *newseg, const char *data, int len)
 //---------------------------------------------------------------------
 int ikcp_input(ikcpcb *kcp, const char *data, long size)
 {
+    //printf("kcp->snd_una: %d\n", kcp->snd_una);
     IUINT32 prev_una = kcp->snd_una;
     IUINT32 maxack = 0, latest_ts = 0;
     int flag = 0;
@@ -1097,6 +1098,7 @@ void ikcp_flush(ikcpcb *kcp)
         newseg->rto = kcp->rx_rto;
         newseg->fastack = 0;
         newseg->xmit = 0;
+        //printf("newseg->sn: %d\n", newseg->sn);
     }
 
     // calculate resent

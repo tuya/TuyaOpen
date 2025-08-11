@@ -149,6 +149,8 @@ INT_T p2p_release_audio_send_resource(P2P_SESSION_T *pSession);
 INT_T __p2p_session_clear(P2P_SESSION_T *pSession);
 INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession);
 INT_T __p2p_session_release_va(P2P_SESSION_T *pSession);
+VOID __p2p_thread_exit(THREAD_HANDLE thread);
+VOID __p2p_rtc_close(INT_T rtc_session, INT_T reason, P2P_SESSION_T* p2p_session);
 
 void *rtp_alloc(void *param, int bytes);
 void rtp_free(void *param, void *packet);
@@ -236,6 +238,9 @@ OPERATE_RET p2p_deal_with_listen(INT_T session)
                 userCheckEnable = TRUE;
             }
         }
+        __p2p_rtc_close(session, RTC_CLOSE_REASON_AUTH_FAIL, NULL);
+        tuya_p2p_rtc_notify_exit();
+        tuya_p2p_rtc_deinit();
         return OPRT_COM_ERROR;
     } else {
         // Once verification is successful, no more authentication exception handling
@@ -277,7 +282,7 @@ OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType)
     INT_T tmpSize = 0;
     BOOL_T flag = FALSE;
     INT_T timeout = P2P_RECV_TIMEOUT; // ms
-    INT_T retry = P2P_CHECK_USER_TIMES / timeout;
+    INT_T retry = P2P_CHECK_USER_TIMES * 6 / timeout;
 
     memset(&strUserInfo, 0x00, sizeof(P2P_CMD_PASSWD_T));
     read_buff = (CHAR_T *)&strUserInfo;
@@ -375,11 +380,17 @@ OPERATE_RET p2p_get_userinfo(INT_T session, INT_T p2pType)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-STATIC VOID __p2p_thread_exit(THREAD_HANDLE thread)
+VOID __p2p_thread_exit(THREAD_HANDLE thread)
 {
     if (NULL != thread) {
         tal_thread_delete(thread);
     }
+    return;
+}
+
+VOID __p2p_rtc_close(INT_T rtc_session, INT_T reason, P2P_SESSION_T* p2p_session)
+{
+    tuya_p2p_rtc_close(rtc_session, reason);
     return;
 }
 
@@ -1293,13 +1304,17 @@ STATIC void __p2p_cmd_recv_proc(PVOID_T pArg)
             continue;
         }
         pSession = sg_p2p_session;
+        tal_mutex_lock(pSession->cmutex);
         if (P2P_SESSION_CLOSING == pSession->status) {
+            tal_mutex_unlock(pSession->cmutex);
             tal_system_sleep(5);
             continue;
         }
         if (P2P_SESSION_RUNNING != pSession->status) {
+            tal_mutex_unlock(pSession->cmutex);
             continue;
         }
+        tal_mutex_unlock(pSession->cmutex);
 
         ret = __p2p_read_cmd(pSession);
         if (0 != ret) {
@@ -1307,6 +1322,8 @@ STATIC void __p2p_cmd_recv_proc(PVOID_T pArg)
             __p2p_session_clear(pSession);
             //__p2p_wait_concurr_idle(pSession, WAIT_ALL_BUF);
             __p2p_session_release_va(pSession);
+            tuya_p2p_rtc_notify_exit();
+            printf("pSession->cmd: %d\n", sg_p2p_session->cmd);
         }
     }
 
@@ -1439,8 +1456,10 @@ INT_T __p2p_session_clear(P2P_SESSION_T *pSession)
  ***********************************************************/
 INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession)
 {
+    tal_mutex_lock(pSession->cmutex);
     if (NULL == pSession) {
         PR_ERR("param error");
+        tal_mutex_unlock(pSession->cmutex);
         return OPRT_INVALID_PARM;
     }
     if (P2P_VIDEO & pSession->cmd) {
@@ -1452,6 +1471,7 @@ INT_T __p2p_session_all_stop(P2P_SESSION_T *pSession)
     if ((P2P_PB_VIDEO & pSession->cmd) || (P2P_PB_PAUSE & pSession->cmd)) {
         pSession->cmd &= ~P2P_PB_VIDEO;
     }
+    tal_mutex_unlock(pSession->cmutex);
     return OPRT_OK;
 }
 
@@ -1483,6 +1503,16 @@ INT_T __p2p_session_release_va(P2P_SESSION_T *pSession)
     pSession->a_timestamp = 0;
     pSession->video_req_id = 0;
     pSession->audio_req_id = 0;
+    // if (pSession->media_frame.data != NULL) {
+    //     free(pSession->media_frame.data);
+    //     pSession->media_frame.data = NULL;
+    // }
+    // memset(&pSession->media_frame, 0, sizeof(pSession->media_frame));
+    // if (pSession->media_audio_frame.data != NULL) {
+    //     free(pSession->media_audio_frame.data);
+    //     pSession->media_audio_frame.data = NULL;
+    // }
+    // memset(&pSession->media_audio_frame, 0, sizeof(pSession->media_audio_frame));
     memset(&pSession->proto_parse, 0, sizeof(pSession->proto_parse));
     memset(&pSession->av_Info, 0, sizeof(pSession->av_Info));
     if (pSession->on_disconnect_callback)
@@ -1502,6 +1532,7 @@ OPERATE_RET p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var)
         return OPRT_MALLOC_FAILED;
     }
     memset(sg_p2p_session, 0, sizeof(P2P_SESSION_T));
+    tal_mutex_create_init(sg_p2p_session->cmutex);
     // Get password and other verification information
     memset(&(sg_p2p_session->str_P2p_auth), 0x00, sizeof(TUYA_IPC_P2P_AUTH_T));
     tuya_ipc_get_p2p_auth(&(sg_p2p_session->str_P2p_auth));
@@ -1679,6 +1710,7 @@ void rtp_free(void *param, void *packet)
 
 int rtp_pack_packet_handler(void *param, const void *packet, int bytes, uint32_t timestamp, int flags)
 {
+    //return 0;
     CHAR_T *buf = (CHAR_T *)packet;
     INT_T len = bytes;
     RTP_PACK_NAL_ARG_T *nal_arg = (RTP_PACK_NAL_ARG_T *)param;

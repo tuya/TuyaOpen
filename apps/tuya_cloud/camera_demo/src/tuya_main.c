@@ -42,6 +42,9 @@
 #define PROJECT_VERSION "1.0.0"
 #endif
 
+static THREAD_HANDLE hIpcDemoHandle = NULL;
+static void tuya_ipc_demo_thread(void *arg);
+
 /* for cli command register */
 extern void tuya_app_cli_init(void);
 
@@ -111,18 +114,21 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_MQTT_CONNECTED:
     {
         PR_INFO("Device MQTT Connected!");
-        TUYA_IPC_SDK_VAR_S sdkVar = {0};
-        sdkVar.OnGetVideoFrameCallback = Demo_OnGetVideoFrameCallback;
-        sdkVar.OnGetAudioFrameCallback = NULL;
-        TUYA_APP_Start(&sdkVar);
-        tuya_ipc_demo_start();
+        // TUYA_IPC_SDK_VAR_S sdkVar = {0};
+        // sdkVar.OnGetVideoFrameCallback = Demo_OnGetVideoFrameCallback;
+        // sdkVar.OnGetAudioFrameCallback = NULL;
+        // TUYA_APP_Start(&sdkVar);
+        // tuya_ipc_demo_start();
+        THREAD_CFG_T thrd_param = {4096*5, 4, "tuya_ipc_demo_thread"};
+        tal_thread_create_and_start(&hIpcDemoHandle, NULL, NULL, tuya_ipc_demo_thread, NULL, &thrd_param);
         break;
     }
     case TUYA_EVENT_RTC_REQ:
     {
         cJSON *root_json = event->value.asJSON;
-        char* pRootJson = cJSON_PrintUnformatted(root_json);
-        printf("%s\n", pRootJson);
+        //char* pRootJson = cJSON_PrintUnformatted(root_json);
+        //printf("%s\n", pRootJson);
+        //free(pRootJson);
         gw_p2p_mqtt_data_cb(root_json);
         break;
     }
@@ -344,3 +350,14 @@ void tuya_app_main(void)
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif
+
+static void tuya_ipc_demo_thread(void *arg)
+{
+    TUYA_IPC_SDK_VAR_S sdkVar = {0};
+    sdkVar.OnGetVideoFrameCallback = Demo_OnGetVideoFrameCallback;
+    sdkVar.OnGetAudioFrameCallback = NULL;
+    TUYA_APP_Start(&sdkVar);
+    tuya_ipc_demo_start();
+    return;
+}
+
