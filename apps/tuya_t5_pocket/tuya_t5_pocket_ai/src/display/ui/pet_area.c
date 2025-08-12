@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-// Pet animation
+// Normal state animation declarations
 LV_IMG_DECLARE(ducky_walk);
 LV_IMG_DECLARE(ducky_walk_to_left);
 LV_IMG_DECLARE(ducky_blink);
@@ -61,8 +61,17 @@ typedef struct {
     lv_obj_t *pet_image_stand;
     lv_obj_t *current_normal_image; // Points to the currently active normal state image
 
-    // Single special animation slot (simple and reliable)
-    lv_obj_t *pet_special_animation;
+    // Special state animation objects (pre-loaded to prevent black screen)
+    lv_obj_t *pet_image_sleep;
+    lv_obj_t *pet_image_dance;
+    lv_obj_t *pet_image_eat;
+    lv_obj_t *pet_image_bath;
+    lv_obj_t *pet_image_toilet;
+    lv_obj_t *pet_image_sick;
+    lv_obj_t *pet_image_happy;
+    lv_obj_t *pet_image_angry;
+    lv_obj_t *pet_image_cry;
+    lv_obj_t *current_special_image; // Points to the currently active special state image
     ai_pet_state_t current_animation_state;
 
     lv_timer_t *pet_animation_timer;
@@ -88,7 +97,6 @@ static void pet_movement_cb(lv_timer_t *timer);
 static void switch_pet_animation(lv_obj_t *new_animation);
 static void switch_to_special_animation(ai_pet_state_t state);
 static void switch_to_normal_animation(void);
-static const lv_img_dsc_t* get_animation_source(ai_pet_state_t state);
 
 /**********************
  *  STATIC VARIABLES
@@ -158,17 +166,81 @@ lv_obj_t* pet_area_create(lv_obj_t *parent)
     lv_obj_set_size(data->pet_image_stand, 159, 164);
     lv_obj_set_style_bg_opa(data->pet_image_stand, LV_OPA_TRANSP, 0);
 
-    // Create single special animation slot (simple approach)
-    data->pet_special_animation = lv_gif_create(gif_container);
-    lv_obj_align(data->pet_special_animation, LV_ALIGN_CENTER, 0, -5); // Move upward by 5 px
-    lv_obj_clear_flag(data->pet_special_animation, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_size(data->pet_special_animation, 159, 164); // Same size as normal animations
-    lv_obj_set_style_bg_opa(data->pet_special_animation, LV_OPA_TRANSP, 0);
+    // Create special state animation objects (pre-loaded to prevent black screen)
+    data->pet_image_sleep = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_sleep, &ducky_sleep);
+    lv_obj_align(data->pet_image_sleep, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_sleep, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_sleep, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_sleep, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
 
-    // Ensure special animation is on top layer
-    lv_obj_move_foreground(data->pet_special_animation);
+    data->pet_image_dance = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_dance, &ducky_dance);
+    lv_obj_align(data->pet_image_dance, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_dance, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_dance, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_dance, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_dance, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_add_flag(data->pet_special_animation, LV_OBJ_FLAG_HIDDEN);
+    data->pet_image_eat = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_eat, &ducky_eat);
+    lv_obj_align(data->pet_image_eat, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_eat, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_eat, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_eat, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_bath = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_bath, &ducky_bath);
+    lv_obj_align(data->pet_image_bath, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_bath, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_bath, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_bath, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_toilet = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_toilet, &ducky_toilet);
+    lv_obj_align(data->pet_image_toilet, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_toilet, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_toilet, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_toilet, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_sick = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_sick, &ducky_sick);
+    lv_obj_align(data->pet_image_sick, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_sick, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_sick, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_sick, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_happy = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_happy, &ducky_emotion_happy);
+    lv_obj_align(data->pet_image_happy, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_happy, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_happy, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_happy, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_angry = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_angry, &ducky_emotion_angry);
+    lv_obj_align(data->pet_image_angry, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_angry, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_angry, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_angry, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+
+    data->pet_image_cry = lv_gif_create(gif_container);
+    lv_gif_set_src(data->pet_image_cry, &ducky_emotion_cry);
+    lv_obj_align(data->pet_image_cry, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(data->pet_image_cry, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(data->pet_image_cry, 159, 164);
+    lv_obj_set_style_bg_opa(data->pet_image_cry, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(data->pet_image_cry, LV_OBJ_FLAG_HIDDEN);
+
+    // Initialize current special image pointer
+    data->current_special_image = NULL;
 
     // No additional initialization needed
 
@@ -366,8 +438,8 @@ static void pet_movement_cb(lv_timer_t *timer)
     lv_obj_t *gif_container = NULL;
     if (data->current_animation_state == AI_PET_STATE_NORMAL) {
         gif_container = lv_obj_get_parent(data->current_normal_image);
-    } else {
-        gif_container = lv_obj_get_parent(data->pet_special_animation);
+    } else if (data->current_special_image != NULL) {
+        gif_container = lv_obj_get_parent(data->current_special_image);
     }
 
     if (gif_container) {
@@ -398,10 +470,42 @@ static void switch_to_special_animation(ai_pet_state_t state)
 {
     pet_area_data_t *data = &g_pet_area_data;
 
-    // Get the animation source for this state
-    const lv_img_dsc_t *anim_src = get_animation_source(state);
-    if (anim_src == NULL) {
-        return; // Invalid state, stay in current animation
+    // Get the appropriate special animation widget for this state
+    lv_obj_t *target_special_image = NULL;
+    switch (state) {
+        case AI_PET_STATE_SLEEP:
+            target_special_image = data->pet_image_sleep;
+            break;
+        case AI_PET_STATE_DANCE:
+            target_special_image = data->pet_image_dance;
+            break;
+        case AI_PET_STATE_EAT:
+            target_special_image = data->pet_image_eat;
+            break;
+        case AI_PET_STATE_BATH:
+            target_special_image = data->pet_image_bath;
+            break;
+        case AI_PET_STATE_TOILET:
+            target_special_image = data->pet_image_toilet;
+            break;
+        case AI_PET_STATE_SICK:
+            target_special_image = data->pet_image_sick;
+            break;
+        case AI_PET_STATE_HAPPY:
+            target_special_image = data->pet_image_happy;
+            break;
+        case AI_PET_STATE_ANGRY:
+            target_special_image = data->pet_image_angry;
+            break;
+        case AI_PET_STATE_CRY:
+            target_special_image = data->pet_image_cry;
+            break;
+        default:
+            return; // Invalid state, stay in current animation
+    }
+
+    if (target_special_image == NULL) {
+        return; // Fail silently if object is invalid
     }
 
     // Hide all normal animations
@@ -410,58 +514,45 @@ static void switch_to_special_animation(ai_pet_state_t state)
     lv_obj_add_flag(data->pet_image_blink, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(data->pet_image_stand, LV_OBJ_FLAG_HIDDEN);
 
-        // Load and show special animation immediately
-    if (data->pet_special_animation == NULL) {
-        return; // Fail silently if object is invalid
-    }
+    // Hide all special animations
+    lv_obj_add_flag(data->pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_cry, LV_OBJ_FLAG_HIDDEN);
 
-    // Set the special animation source
-    lv_gif_set_src(data->pet_special_animation, anim_src);
-    lv_refr_now(NULL);
-    // Bring to front and show (no forced refresh to avoid slowdown)
-    lv_obj_move_foreground(data->pet_special_animation);
-    lv_obj_clear_flag(data->pet_special_animation, LV_OBJ_FLAG_HIDDEN);
+    // Show the target special animation
+    lv_obj_clear_flag(target_special_image, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(target_special_image);
 
     // Update state
     data->current_animation_state = state;
+    data->current_special_image = target_special_image;
 }
 
 static void switch_to_normal_animation(void)
 {
     pet_area_data_t *data = &g_pet_area_data;
 
-    // Hide special animation
-    lv_obj_add_flag(data->pet_special_animation, LV_OBJ_FLAG_HIDDEN);
+    // Hide all special animations
+    lv_obj_add_flag(data->pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(data->pet_image_cry, LV_OBJ_FLAG_HIDDEN);
 
     // Show the appropriate normal animation based on current state
     lv_obj_clear_flag(data->current_normal_image, LV_OBJ_FLAG_HIDDEN);
 
     // Update state
     data->current_animation_state = AI_PET_STATE_NORMAL;
-}
-
-static const lv_img_dsc_t* get_animation_source(ai_pet_state_t state)
-{
-    switch (state) {
-        case AI_PET_STATE_SLEEP:
-            return &ducky_sleep;
-        case AI_PET_STATE_DANCE:
-            return &ducky_dance;
-        case AI_PET_STATE_EAT:
-            return &ducky_eat;
-        case AI_PET_STATE_BATH:
-            return &ducky_bath;
-        case AI_PET_STATE_TOILET:
-            return &ducky_toilet;
-        case AI_PET_STATE_SICK:
-            return &ducky_sick;
-        case AI_PET_STATE_HAPPY:
-            return &ducky_emotion_happy;
-        case AI_PET_STATE_ANGRY:
-            return &ducky_emotion_angry;
-        case AI_PET_STATE_CRY:
-            return &ducky_emotion_cry;
-        default:
-            return NULL; // Invalid or normal state
-    }
+    data->current_special_image = NULL;
 }

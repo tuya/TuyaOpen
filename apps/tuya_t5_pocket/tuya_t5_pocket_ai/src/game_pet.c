@@ -77,16 +77,19 @@ void _display_pet_state(ai_pet_state_t pet_state)
 {
     switch (pet_state) {
         case AI_PET_STATE_SLEEP: {
-            ai_audio_player_play_alert(AI_AUDIO_LOADING_TONE);
+            // ai_audio_player_play_alert(AI_AUDIO_LOADING_TONE);
+            ai_audio_player_play_alert(AI_AUDIO_CANCEL_FAIL_TRI_TONE);
         } break;
         case AI_PET_STATE_DANCE: {
             ai_audio_player_play_alert(AI_AUDIO_CANCEL_FAIL_TRI_TONE);
         } break;
         case AI_PET_STATE_EAT: {
-            ai_audio_player_play_alert(AI_AUDIO_CONFIRM);
+            // ai_audio_player_play_alert(AI_AUDIO_CONFIRM);
+            ai_audio_player_play_alert(AI_AUDIO_SHORT_SELECT_TONE);
         } break;
         case AI_PET_STATE_BATH: {
-            ai_audio_player_play_alert(AI_AUDIO_DOWNWARD_BI_TONE);
+            // ai_audio_player_play_alert(AI_AUDIO_DOWNWARD_BI_TONE);
+            ai_audio_player_play_alert(AI_AUDIO_FAIL_CANCEL_BI_TONE);
         } break;
         case AI_PET_STATE_TOILET: {
             ai_audio_player_play_alert(AI_AUDIO_FAIL_CANCEL_BI_TONE);
