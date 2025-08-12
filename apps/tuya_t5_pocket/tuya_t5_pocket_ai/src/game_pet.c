@@ -244,7 +244,7 @@ OPERATE_RET game_pet_update_state_to_menu(int *state)
 // set data
 OPERATE_RET game_pet_data_add(game_pet_state_id_t idx, int value)
 {
-    if (s_pet_state == NULL || idx < 0 || idx >= PET_STATE_TOTAL) {
+    if (s_pet_state == NULL || (int)idx < 0 || idx >= PET_STATE_TOTAL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -263,7 +263,7 @@ OPERATE_RET game_pet_data_add(game_pet_state_id_t idx, int value)
 // pet operation
 OPERATE_RET game_pet_operation(pet_event_type_t idx, bool show_now)
 {
-    if (s_pet_state == NULL || idx < 0 || idx >= PET_OPT_TOTAL) {
+    if (s_pet_state == NULL || (int)idx < 0 || idx >= PET_OPT_TOTAL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -311,21 +311,25 @@ OPERATE_RET game_pet_reset(void)
 // debug
 OPERATE_RET game_pet_random_state(void)
 {
-    int rand_value =  tal_system_get_random(50);
-    int rand_state = rand_value % PET_STATE_TOTAL;
-    int rand_operation = rand_value % 2; // 0-add, 1-subtract
-    rand_value = (rand_operation == 0) ? rand_value : -rand_value;
+    uint32_t rand_value = tal_system_get_random(50);
+    if (rand_value == 0) {
+        rand_value = 1;
+    }
 
-    PR_DEBUG("Random state [%d] updated: %d.", rand_state, rand_value);
+    int rand_state = (int)(rand_value % PET_STATE_TOTAL);
+    int rand_operation = (int)(rand_value % 2);
+    int final_value = (rand_operation == 0) ? (int)rand_value : -(int)rand_value;
 
-    game_pet_data_add(rand_state, rand_value);
+    PR_DEBUG("Random state [%d] updated: %d.", rand_state, final_value);
+
+    game_pet_data_add((game_pet_state_id_t)rand_state, final_value);
 
     return OPRT_OK;
 }
 
  static void pet_event_callback(pet_event_type_t event_type, void *user_data)
  {
-    if (event_type < 0 || event_type >= PET_EVENT_MAX) {
+    if ((int)event_type < 0 || event_type >= PET_EVENT_MAX) {
         PR_ERR("Invalid pet event type: %d", event_type);
         return;
     }
@@ -378,6 +382,11 @@ OPERATE_RET game_pet_random_state(void)
 
 static void __timer_cb(TIMER_ID timer_id, void *arg)
 {
+    if (s_pet_state == NULL) {
+        PR_ERR("Pet state not initialized, ignoring timer callback");
+        return;
+    }
+
     if (s_pet_timer_once_id == timer_id) {
         PR_NOTICE("pet timer once callback");
         game_pet_show(s_pet_state);
@@ -400,19 +409,49 @@ OPERATE_RET game_pet_init(void)
     }
 
     // initialize state from KV storage or set to default values
-    if ((OPRT_OK == tal_kv_get(KVKEY_GAME_PET_STATE, (uint8_t **)&s_pet_state, &readlen))
-        && (readlen == sizeof(int) * PET_STATE_TOTAL)) {
+    uint8_t *temp_buf = NULL;
+    if ((OPRT_OK == tal_kv_get(KVKEY_GAME_PET_STATE, &temp_buf, &readlen))
+        && (readlen == sizeof(int) * PET_STATE_TOTAL) && (temp_buf != NULL)) {
+        memcpy(s_pet_state, temp_buf, readlen);
+        tal_free(temp_buf);
         PR_INFO("Game pet initialized with KV state.");
     } else {
+        if (temp_buf != NULL) {
+            tal_free(temp_buf);
+        }
         game_pet_reset();
         PR_WARN("Game pet initialized with default state.");
     }
 
     // initialize timer
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_init());
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_once_id));
-    TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_cycle_id));
-    TUYA_CALL_ERR_LOG(tal_sw_timer_start(s_pet_timer_cycle_id, PET_TIMER_CYCLE_MS, TAL_TIMER_CYCLE));
+    rt = tal_sw_timer_init();
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to initialize timer: %d", rt);
+        tal_free(s_pet_state);
+        s_pet_state = NULL;
+        return rt;
+    }
+
+    rt = tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_once_id);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to create once timer: %d", rt);
+        tal_free(s_pet_state);
+        s_pet_state = NULL;
+        return rt;
+    }
+
+    rt = tal_sw_timer_create(__timer_cb, NULL, &s_pet_timer_cycle_id);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to create cycle timer: %d", rt);
+        tal_free(s_pet_state);
+        s_pet_state = NULL;
+        return rt;
+    }
+
+    rt = tal_sw_timer_start(s_pet_timer_cycle_id, PET_TIMER_CYCLE_MS, TAL_TIMER_CYCLE);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to start cycle timer: %d", rt);
+    }
 
     menu_system_register_pet_event_callback(pet_event_callback, NULL);
 
