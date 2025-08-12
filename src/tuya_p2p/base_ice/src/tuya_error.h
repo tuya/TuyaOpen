@@ -3,8 +3,8 @@
 #ifndef __TUYA_ERROR_H__
 #define __TUYA_ERROR_H__
 
-#include "uv.h"
-//#include "tuya_config.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #define TUYA_P2P_SUCCESS 0
 
