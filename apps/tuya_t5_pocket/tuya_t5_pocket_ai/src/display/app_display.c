@@ -21,6 +21,7 @@
 #include "lv_vendor.h"
 
 #include "ai_pocket_pet_app.h"
+#include "axp2101_driver.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -64,45 +65,43 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case POCKET_DISP_TP_MENU_LEFT:
         lv_demo_ai_pocket_pet_handle_input(KEY_LEFT);
         break;
-   case POCKET_DISP_TP_MENU_ENTER:
+    case POCKET_DISP_TP_MENU_ENTER:
         lv_demo_ai_pocket_pet_handle_input(KEY_ENTER);
         break;
-   case POCKET_DISP_TP_MENU_ESC:
+    case POCKET_DISP_TP_MENU_ESC:
         lv_demo_ai_pocket_pet_handle_input(KEY_ESC);
         break;
-   case POCKET_DISP_TP_AI:
+    case POCKET_DISP_TP_AI:
         lv_demo_ai_pocket_pet_handle_input(KEY_AI);
         break;
-   case POCKET_DISP_TP_EMOJ_HAPPY:
+    case POCKET_DISP_TP_EMOJ_HAPPY:
         lv_demo_ai_pocket_pet_show_toast("Pet: Happy", 1000);
         break;
-   case POCKET_DISP_TP_EMOJ_ANGRY:
+    case POCKET_DISP_TP_EMOJ_ANGRY:
         lv_demo_ai_pocket_pet_show_toast("Pet: Angry", 1000);
         break;
-   case POCKET_DISP_TP_EMOJ_CRY:
+    case POCKET_DISP_TP_EMOJ_CRY:
         lv_demo_ai_pocket_pet_show_toast("Pet: Crying", 1000);
         break;
-   case POCKET_DISP_TP_WIFI_OFF:
+    case POCKET_DISP_TP_WIFI_OFF:
         status_bar_set_wifi_strength(0);
         break;
-   case POCKET_DISP_TP_WIFI_CONNECTED: 
+    case POCKET_DISP_TP_WIFI_CONNECTED:
         status_bar_set_wifi_strength(3);
         break;
-   case POCKET_DISP_TP_WIFI_FIND:
+    case POCKET_DISP_TP_WIFI_FIND:
         status_bar_set_wifi_strength(4);
         break;
-   case POCKET_DISP_TP_WIFI_ADD: 
+    case POCKET_DISP_TP_WIFI_ADD:
         status_bar_set_wifi_strength(5);
         break;
-   case POCKET_DISP_TP_BATTERY_STATUS:{
-        uint8_t level = 1;
-        lv_demo_ai_pocket_pet_set_battery_status(level, lv_demo_ai_pocket_pet_get_battery_charging());
-        }
-        break;
-   case POCKET_DISP_TP_BATTERY_CHARGING:{
+    case POCKET_DISP_TP_BATTERY_STATUS: {
+        lv_demo_ai_pocket_pet_set_battery_status((uint8_t)(axp2101_getBatteryPercent() / 100.0f * 7),
+                                                 axp2101_isCharging());
+    } break;
+    case POCKET_DISP_TP_BATTERY_CHARGING: {
         lv_demo_ai_pocket_pet_set_battery_status(lv_demo_ai_pocket_pet_get_battery_level(), true);
-        }
-        break;
+    } break;
 
     default:
         break;
@@ -129,7 +128,6 @@ static void __disp_pet_task(void *args)
         msg_data.data = NULL;
     }
 }
-
 
 /**
  * @brief Initialize the display system

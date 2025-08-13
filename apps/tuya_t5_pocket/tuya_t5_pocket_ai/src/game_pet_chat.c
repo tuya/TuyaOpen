@@ -62,7 +62,7 @@ typedef struct {
 } APP_CHAT_BOT_S;
 
 typedef struct {
-    char  *emoj_name;
+    char *emoj_name;
     POCKET_DISP_TP_E disp_tp;
 } AI_EMOJ_DISP_MAP_T;
 
@@ -108,10 +108,10 @@ const CHAT_WORK_MODE_INFO_T *cWORK_MODE_INFO_LIST[] = {
 #endif
 
 const AI_EMOJ_DISP_MAP_T cAI_EMOJI_DISP_LIST[] = {
-    {"HAPPY",    POCKET_DISP_TP_EMOJ_HAPPY},
-    {"ANGRY",    POCKET_DISP_TP_EMOJ_ANGRY},
-    {"FEARFUL",  POCKET_DISP_TP_EMOJ_CRY},
-    {"SAD",      POCKET_DISP_TP_EMOJ_CRY},
+    {"HAPPY", POCKET_DISP_TP_EMOJ_HAPPY},
+    {"ANGRY", POCKET_DISP_TP_EMOJ_ANGRY},
+    {"FEARFUL", POCKET_DISP_TP_EMOJ_CRY},
+    {"SAD", POCKET_DISP_TP_EMOJ_CRY},
 };
 /***********************************************************
 ***********************variable define**********************
@@ -139,11 +139,17 @@ static APP_CHAT_BOT_S sg_chat_bot = {
 static TDL_LED_HANDLE_T sg_led_hdl = NULL;
 #endif
 
- static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
-
+static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
+static TIMER_ID sg_battery_update_timer = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+
+static void __battery_update_timer_cb(TIMER_ID timer_id, void *param)
+{
+    app_display_send_msg(POCKET_DISP_TP_BATTERY_STATUS, NULL, 0);
+}
+
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
 
@@ -167,8 +173,8 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
                 PR_DEBUG("emotion name:%s", emo->name);
             }
 
-            for(int i=0; i<CNTSOF(cAI_EMOJI_DISP_LIST); i++) {
-                if(strcmp(emo->name, cAI_EMOJI_DISP_LIST[i].emoj_name) == 0) {
+            for (int i = 0; i < CNTSOF(cAI_EMOJI_DISP_LIST); i++) {
+                if (strcmp(emo->name, cAI_EMOJI_DISP_LIST[i].emoj_name) == 0) {
                     app_display_send_msg(cAI_EMOJI_DISP_LIST[i].disp_tp, NULL, 0);
                     break;
                 }
@@ -324,6 +330,9 @@ OPERATE_RET app_pocket_init(void)
     AI_AUDIO_CONFIG_T ai_audio_cfg;
 
     app_display_init();
+
+    tal_sw_timer_create(__battery_update_timer_cb, NULL, &sg_battery_update_timer);
+    tal_sw_timer_start(sg_battery_update_timer, 1000, 1);
 
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
     ai_audio_cfg.evt_inform_cb = __app_ai_audio_evt_inform_cb;

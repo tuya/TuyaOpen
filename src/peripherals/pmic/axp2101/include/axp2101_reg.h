@@ -1,5 +1,12 @@
-#ifndef __BOARD_AXP2101_REG_H__
-#define __BOARD_AXP2101_REG_H__
+/**
+ * @file axp2101_reg.h
+ * @author Tuya Inc.
+ * @brief axp2101 register definitions
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ */
+#ifndef __AXP2101_REG_H__
+#define __AXP2101_REG_H__
 
 #pragma once
 
