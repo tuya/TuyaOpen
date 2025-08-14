@@ -15,20 +15,12 @@ config ENABLE_WIFI
 
 if (ENABLE_WIFI)
     config WLAN_DEV
-        string "WiFi main devices name"
+        string "WiFi station device name"
         default "wlan0"
 
     config WLAN_AP
-        string "WiFi concurrent device name"
-        default "wlan1"
-
-    config NL80211
-        bool "Enable nl80211"
-        default n
-
-    config WIFI_DB_PATH
-        string "WiFi db path"
-        default "./tuya_db_files"
+        string "WiFi AP device name"
+        default "wlan0"
 endif
 
 config ENABLE_BLUETOOTH
@@ -41,3 +33,7 @@ config LITTLE_END
     ---help---
         0       /* big endian */
         1       /* little endian */
+
+config FLASH_FILE_PATH
+    string "flash file path"
+    default "./tuyadb"

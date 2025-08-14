@@ -314,7 +314,7 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 
     s_netmgr.inited = TRUE;
 
-    if (type & NETCONN_WIFI || type & NETCONN_WIRED) {
+    if (type & NETCONN_WIRED) {
         tuya_lan_init(tuya_iot_client_get());
     }
 
