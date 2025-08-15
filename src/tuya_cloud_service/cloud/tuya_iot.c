@@ -441,6 +441,18 @@ static void check_auto_upgrade_timeout_on(TIMER_ID timer, void *user_data)
     tal_sw_timer_start(timer, AUTO_UPGRADE_CHECK_INTERVAL, TAL_TIMER_ONCE);
 }
 
+static void mqtt_rtc_req_notify_cb(tuya_protocol_event_t *ev)
+{
+    tuya_iot_client_t *client = ev->user_data;
+    cJSON *data = (cJSON *)(ev->data);
+    char* pRootJson = cJSON_PrintUnformatted(data);
+    client->event.id = TUYA_EVENT_RTC_REQ;
+    client->event.type = TUYA_DATE_TYPE_JSON;
+    client->event.value.asJSON = data;
+    iot_dispatch_event(client);
+    return;
+}
+
 /* -------------------------------------------------------------------------- */
 /*                       Internal machine state process                       */
 /* -------------------------------------------------------------------------- */
@@ -485,7 +497,8 @@ static int run_state_mqtt_connect_start(tuya_iot_client_t *client)
     tuya_mqtt_protocol_register(&client->mqctx, PRO_GW_RESET, mqtt_service_reset_cmd_on, client);
     tuya_mqtt_protocol_register(&client->mqctx, PRO_UPGD_REQ, mqtt_service_upgrade_notify_on, client);
     tuya_mqtt_protocol_register(&client->mqctx, PRO_MQ_DPCACHE_NOTIFY, mqtt_atop_dp_cache_notify_cb, client);
-
+    tuya_mqtt_protocol_register(&client->mqctx, PRO_RTC_REQ, mqtt_rtc_req_notify_cb, client);
+    
     return rt;
 }
 

@@ -73,6 +73,7 @@ typedef enum {
     TUYA_EVENT_DPCACHE_NOTIFY,
     TUYA_EVENT_BINDED_NOTIFY,
     TUYA_EVENT_DIRECT_MQTT_CONNECTED,
+    TUYA_EVENT_RTC_REQ,
 } tuya_event_id_t;
 
 #define EVENT_ID2STR(S)                                                                                                                                \
