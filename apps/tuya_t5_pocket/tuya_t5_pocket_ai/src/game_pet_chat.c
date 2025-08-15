@@ -271,6 +271,10 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
     switch (event) {
     case TDL_BUTTON_PRESS_DOWN: {
         if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
+            ai_audio_player_stop();
+            if (AI_AUDIO_STATE_UPLOAD == ai_audio_get_state() || AI_AUDIO_STATE_AI_SPEAK == ai_audio_get_state()) {
+                ai_audio_cloud_asr_set_idle(true);
+            }
             PR_DEBUG("button press down, listen start");
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
             tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
