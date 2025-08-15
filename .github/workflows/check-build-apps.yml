@@ -38,4 +38,10 @@ jobs:
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
           tos.py dev bac -d ${{ github.workspace }}/dist
+      - name: Check [weather_get_demo] Build
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya_cloud/weather_get_demo
+          tos.py dev bac -d ${{ github.workspace }}/dist
       - run: echo "💡 This job's status is ${{ job.status }}."
