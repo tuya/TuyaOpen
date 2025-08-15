@@ -15,6 +15,7 @@
 #include "tal_api.h"
 #include "cJSON.h"
 #include "ap_netcfg.h"
+#include "tuya_lan.h"
 
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
