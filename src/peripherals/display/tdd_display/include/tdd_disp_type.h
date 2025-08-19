@@ -59,6 +59,7 @@ typedef struct {
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
     TUYA_GPIO_NUM_E cs_pin;
+    TUYA_GPIO_NUM_E te_pin;
     TUYA_GPIO_NUM_E dc_pin;
     TUYA_GPIO_NUM_E rst_pin;
     TUYA_QSPI_NUM_E port;

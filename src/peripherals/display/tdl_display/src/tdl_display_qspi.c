@@ -57,9 +57,11 @@ static OPERATE_RET __disp_qspi_gpio_init(DISP_QSPI_BASE_CFG_T *p_cfg)
     pin_cfg.level = TUYA_GPIO_LEVEL_LOW;
 
     TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->cs_pin, &pin_cfg));
-    TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->dc_pin, &pin_cfg));
+    TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->te_pin, &pin_cfg));
     TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->rst_pin, &pin_cfg));
 
+    tkl_gpio_write(p_cfg->te_pin, TUYA_GPIO_LEVEL_HIGH);
+    PR_DEBUG("__disp_qspi_gpio_init");
     return rt;
 }
 
@@ -90,7 +92,7 @@ static OPERATE_RET __disp_qspi_send_cmd(DISP_QSPI_BASE_CFG_T *p_cfg, uint8_t cmd
     }
 
     tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
-    tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_LOW);
+    // tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_LOW);
 
     tkl_qspi_send_cmd(p_cfg->port, cmd);
 
@@ -108,7 +110,7 @@ static OPERATE_RET __disp_qspi_send_data(DISP_QSPI_BASE_CFG_T *p_cfg, uint8_t *d
     }
 
     tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
-    tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_HIGH);
+    // tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_HIGH);
 
     tkl_qspi_send_data_indirect_mode(p_cfg->port, data, data_len);
 
@@ -154,6 +156,7 @@ static void __tdd_disp_reset(TUYA_GPIO_NUM_E rst_pin)
 
     tkl_gpio_write(rst_pin, TUYA_GPIO_LEVEL_HIGH);
     tal_system_sleep(100);
+    PR_DEBUG("__tdd_disp_reset");
 }
 
 static void __tdd_disp_init_seq(DISP_QSPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq)
@@ -258,8 +261,8 @@ OPERATE_RET tdl_disp_qspi_device_register(char *name, TDD_DISP_QSPI_CFG_T *spi)
     disp_qspi_dev_info.fmt = spi->cfg.pixel_fmt;
     disp_qspi_dev_info.rotation = spi->rotation;
 
-    memcpy(&disp_qspi_dev_info.bl, &spi->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
-    memcpy(&disp_qspi_dev_info.power, &spi->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
+    // memcpy(&disp_qspi_dev_info.bl, &spi->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
+    // memcpy(&disp_qspi_dev_info.power, &spi->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
 
     TDD_DISP_INTFS_T disp_qspi_intfs = {
         .open = __tdd_display_qspi_open,

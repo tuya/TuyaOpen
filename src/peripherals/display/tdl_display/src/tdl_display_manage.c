@@ -39,8 +39,8 @@ typedef struct {
     MUTEX_HANDLE mutex;
 
     TDL_DISP_DEV_INFO_T info;
-    TUYA_DISPLAY_BL_CTRL_T bl;
-    TUYA_DISPLAY_IO_CTRL_T power;
+    // TUYA_DISPLAY_BL_CTRL_T bl;
+    // TUYA_DISPLAY_IO_CTRL_T power;
 
     TDD_DISP_DEV_HANDLE_T tdd_hdl;
     TDD_DISP_INTFS_T intfs;
@@ -78,75 +78,75 @@ static DISPLAY_DEVICE_T *__find_display_device(char *name)
     return NULL;
 }
 
-static void __tdl_blacklight_init(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
-{
-    TUYA_GPIO_BASE_CFG_T cfg;
+// static void __tdl_blacklight_init(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
+// {
+//     TUYA_GPIO_BASE_CFG_T cfg;
 
-    if (NULL == bl_cfg) {
-        return;
-    }
+//     if (NULL == bl_cfg) {
+//         return;
+//     }
 
-    if (bl_cfg->type == TUYA_DISP_BL_TP_GPIO) {
-        cfg.mode = TUYA_GPIO_PUSH_PULL;
-        cfg.direct = TUYA_GPIO_OUTPUT;
-        cfg.level = (bl_cfg->gpio.active_level == TUYA_GPIO_LEVEL_LOW) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
-        tkl_gpio_init(bl_cfg->gpio.pin, &cfg);
-    } else if (bl_cfg->type == TUYA_DISP_BL_TP_PWM) {
-#if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
-        tkl_pwm_init(bl_cfg->pwm.id, &bl_cfg->pwm.cfg);
-#endif
-    } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
-        PR_NOTICE("There is no backlight control pin on the board");
-    } else {
-        PR_NOTICE("not support bl type:%d", bl_cfg->type);
-    }
+//     if (bl_cfg->type == TUYA_DISP_BL_TP_GPIO) {
+//         cfg.mode = TUYA_GPIO_PUSH_PULL;
+//         cfg.direct = TUYA_GPIO_OUTPUT;
+//         cfg.level = (bl_cfg->gpio.active_level == TUYA_GPIO_LEVEL_LOW) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
+//         tkl_gpio_init(bl_cfg->gpio.pin, &cfg);
+//     } else if (bl_cfg->type == TUYA_DISP_BL_TP_PWM) {
+// #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
+//         tkl_pwm_init(bl_cfg->pwm.id, &bl_cfg->pwm.cfg);
+// #endif
+//     } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
+//         PR_NOTICE("There is no backlight control pin on the board");
+//     } else {
+//         PR_NOTICE("not support bl type:%d", bl_cfg->type);
+//     }
 
-    return;
-}
+//     return;
+// }
 
-static void __tdl_power_ctrl_io_init(TUYA_DISPLAY_IO_CTRL_T *power)
-{
-    TUYA_GPIO_BASE_CFG_T cfg;
+// static void __tdl_power_ctrl_io_init(TUYA_DISPLAY_IO_CTRL_T *power)
+// {
+//     TUYA_GPIO_BASE_CFG_T cfg;
 
-    if (NULL == power || power->pin >= TUYA_GPIO_NUM_MAX) {
-        return;
-    }
+//     if (NULL == power || power->pin >= TUYA_GPIO_NUM_MAX) {
+//         return;
+//     }
 
-    cfg.mode = TUYA_GPIO_PUSH_PULL;
-    cfg.direct = TUYA_GPIO_OUTPUT;
-    cfg.level = power->active_level;
-    tkl_gpio_init(power->pin, &cfg);
-}
+//     cfg.mode = TUYA_GPIO_PUSH_PULL;
+//     cfg.direct = TUYA_GPIO_OUTPUT;
+//     cfg.level = power->active_level;
+//     tkl_gpio_init(power->pin, &cfg);
+// }
 
-static void __tdl_power_ctrl_io_deinit(TUYA_DISPLAY_IO_CTRL_T *power)
-{
-    if (NULL == power) {
-        return;
-    }
+// static void __tdl_power_ctrl_io_deinit(TUYA_DISPLAY_IO_CTRL_T *power)
+// {
+//     if (NULL == power) {
+//         return;
+//     }
 
-    tkl_gpio_deinit(power->pin);
-}
+//     tkl_gpio_deinit(power->pin);
+// }
 
-static void __tdl_blacklight_deinit(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
-{
-    if (NULL == bl_cfg) {
-        return;
-    }
+// static void __tdl_blacklight_deinit(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
+// {
+//     if (NULL == bl_cfg) {
+//         return;
+//     }
 
-    if (bl_cfg->type == TUYA_DISP_BL_TP_GPIO) {
-        tkl_gpio_deinit(bl_cfg->gpio.pin);
-    } else if (bl_cfg->type == TUYA_DISP_BL_TP_PWM) {
-#if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
-        tkl_pwm_deinit(bl_cfg->pwm.id);
-#endif
-    } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
-        PR_NOTICE("There is no backlight control pin on the board");
-    } else {
-        PR_NOTICE("not support bl type:%d", bl_cfg->type);
-    }
+//     if (bl_cfg->type == TUYA_DISP_BL_TP_GPIO) {
+//         tkl_gpio_deinit(bl_cfg->gpio.pin);
+//     } else if (bl_cfg->type == TUYA_DISP_BL_TP_PWM) {
+// #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
+//         tkl_pwm_deinit(bl_cfg->pwm.id);
+// #endif
+//     } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
+//         PR_NOTICE("There is no backlight control pin on the board");
+//     } else {
+//         PR_NOTICE("not support bl type:%d", bl_cfg->type);
+//     }
 
-    return;
-}
+//     return;
+// }
 
 
 /**
@@ -190,13 +190,13 @@ OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl)
         TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&display_dev->mutex));
     }
 
-    __tdl_power_ctrl_io_init(&display_dev->power);
+    // __tdl_power_ctrl_io_init(&display_dev->power);
 
     if (display_dev->intfs.open) {
         TUYA_CALL_ERR_RETURN(display_dev->intfs.open(display_dev->tdd_hdl));
     }
 
-    __tdl_blacklight_init(&display_dev->bl);
+    // __tdl_blacklight_init(&display_dev->bl);
 
     display_dev->is_open = true;
 
@@ -273,42 +273,42 @@ OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if setting the brightness fails.
  */
-OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightness)
-{
-    DISPLAY_DEVICE_T *display_dev = NULL;
+// OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightness)
+// {
+//     DISPLAY_DEVICE_T *display_dev = NULL;
 
-    if (NULL == disp_hdl) {
-        return OPRT_INVALID_PARM;
-    }
+//     if (NULL == disp_hdl) {
+//         return OPRT_INVALID_PARM;
+//     }
 
-    display_dev = (DISPLAY_DEVICE_T *)disp_hdl;
+//     display_dev = (DISPLAY_DEVICE_T *)disp_hdl;
 
-    if (display_dev->bl.type == TUYA_DISP_BL_TP_GPIO) {
-        if (brightness) {
-            tkl_gpio_write(display_dev->bl.gpio.pin, display_dev->bl.gpio.active_level);
-        } else {
-            tkl_gpio_write(display_dev->bl.gpio.pin, (display_dev->bl.gpio.active_level == TUYA_GPIO_LEVEL_HIGH)
-                                                         ? TUYA_GPIO_LEVEL_LOW
-                                                         : TUYA_GPIO_LEVEL_HIGH);
-        }
-    } else if (display_dev->bl.type == TUYA_DISP_BL_TP_PWM) {
-#if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
-        if (brightness) {
-            display_dev->bl.pwm.cfg.duty = brightness * 100;
-            tkl_pwm_info_set(display_dev->bl.pwm.id, &display_dev->bl.pwm.cfg);
-            tkl_pwm_start(display_dev->bl.pwm.id);
-        } else {
-            tkl_pwm_stop(display_dev->bl.pwm.id);
-        }
-#endif
-    } else if (display_dev->bl.type == TUYA_DISP_BL_TP_NONE) {
-        PR_NOTICE("There is no backlight control pin on the board");
-    } else {
-        return OPRT_NOT_SUPPORTED;
-    }
+//     if (display_dev->bl.type == TUYA_DISP_BL_TP_GPIO) {
+//         if (brightness) {
+//             tkl_gpio_write(display_dev->bl.gpio.pin, display_dev->bl.gpio.active_level);
+//         } else {
+//             tkl_gpio_write(display_dev->bl.gpio.pin, (display_dev->bl.gpio.active_level == TUYA_GPIO_LEVEL_HIGH)
+//                                                          ? TUYA_GPIO_LEVEL_LOW
+//                                                          : TUYA_GPIO_LEVEL_HIGH);
+//         }
+//     } else if (display_dev->bl.type == TUYA_DISP_BL_TP_PWM) {
+// #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
+//         if (brightness) {
+//             display_dev->bl.pwm.cfg.duty = brightness * 100;
+//             tkl_pwm_info_set(display_dev->bl.pwm.id, &display_dev->bl.pwm.cfg);
+//             tkl_pwm_start(display_dev->bl.pwm.id);
+//         } else {
+//             tkl_pwm_stop(display_dev->bl.pwm.id);
+//         }
+// #endif
+//     } else if (display_dev->bl.type == TUYA_DISP_BL_TP_NONE) {
+//         PR_NOTICE("There is no backlight control pin on the board");
+//     } else {
+//         return OPRT_NOT_SUPPORTED;
+//     }
 
-    return OPRT_OK;
-}
+//     return OPRT_OK;
+// }
 
 /**
  * @brief Closes and deinitializes a display device.
@@ -339,9 +339,9 @@ OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl)
         TUYA_CALL_ERR_RETURN(display_dev->intfs.close(display_dev->tdd_hdl));
     }
 
-    __tdl_blacklight_deinit(&display_dev->bl);
+    // __tdl_blacklight_deinit(&display_dev->bl);
 
-    __tdl_power_ctrl_io_deinit(&display_dev->power);
+    // __tdl_power_ctrl_io_deinit(&display_dev->power);
 
     display_dev->is_open = false;
 
@@ -460,8 +460,8 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
     display_dev->info.fmt = dev_info->fmt;
     display_dev->info.rotation = dev_info->rotation;
 
-    memcpy(&display_dev->bl, &dev_info->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
-    memcpy(&display_dev->power, &dev_info->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
+    // memcpy(&display_dev->bl, &dev_info->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
+    // memcpy(&display_dev->power, &dev_info->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
 
     display_dev->tdd_hdl = tdd_hdl;
 
