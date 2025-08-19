@@ -875,6 +875,9 @@ static int ap_netcfg_stop(int type)
     TUYA_CALL_ERR_LOG(tal_wifi_set_work_mode(WWM_STATION));
     ap_netcfg_t *ap = ap_netcfg_get();
     if (ap) {
+        if (ap->broadcast_timer) {
+            tal_sw_timer_stop(ap->broadcast_timer);
+        }
         ap->thread_exit_flag = TRUE;
     }
 
