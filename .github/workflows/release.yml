@@ -26,7 +26,7 @@ jobs:
       - name: Push to Gitee
         run: git push gitee --tags --force
 
-  gen-artifact:
+  gen-artifacts:
     runs-on: self-hosted
     steps:
       - name: Check out repository code
