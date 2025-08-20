@@ -25,14 +25,17 @@
  */
 
 #include "tal_kv.h"
-#include "lfs_config.h"
-#include "tkl_flash.h"
+
+// #include "lfs_config.h"
+// #include "tkl_flash.h"
 #include "tal_api.h"
 #include "tal_security.h"
+#include "tal_fs.h"
+#include "stdio.h"
 
 // variables used by the filesystem
-static lfs_t lfs;
-static lfs_size_t lfs_flash_addr;
+// static lfs_t lfs;
+// static lfs_size_t lfs_flash_addr;
 static tal_kv_cfg_t lfs_kv_cfg;
 static MUTEX_HANDLE lfs_mutex;
 
@@ -53,16 +56,17 @@ extern int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt);
  * @return Returns LFS_ERR_OK if the read operation is successful, otherwise
  * returns LFS_ERR_IO.
  */
-int user_provided_block_device_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer,
-                                    lfs_size_t size)
-{
+// int user_provided_block_device_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer,
+//                                     lfs_size_t size)
+// {
 
-    OPERATE_RET ret = tkl_flash_read(lfs_flash_addr + c->block_size * block + off, buffer, size);
-    if (OPRT_OK != ret) {
-        return LFS_ERR_IO;
-    }
-    return LFS_ERR_OK;
-}
+//     // OPERATE_RET ret = tkl_flash_read(lfs_flash_addr + c->block_size * block + off, buffer, size);
+//     // if (OPRT_OK != ret) {
+//     //     return LFS_ERR_IO;
+//     // }
+//     // return LFS_ERR_OK;
+//     return OPRT_OK;
+// }
 
 /**
  * @brief Writes data to a block device at a specific location.
@@ -79,16 +83,17 @@ int user_provided_block_device_read(const struct lfs_config *c, lfs_block_t bloc
  * @return          Returns LFS_ERR_OK if the write operation is successful,
  *                  or LFS_ERR_IO if an error occurs during the write operation.
  */
-int user_provided_block_device_prog(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, const void *buffer,
-                                    lfs_size_t size)
-{
+// int user_provided_block_device_prog(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, const void *buffer,
+//                                     lfs_size_t size)
+// {
 
-    OPERATE_RET ret = tkl_flash_write(lfs_flash_addr + c->block_size * block + off, buffer, size);
-    if (OPRT_OK != ret) {
-        return LFS_ERR_IO;
-    }
-    return LFS_ERR_OK;
-}
+//     // OPERATE_RET ret = tkl_flash_write(lfs_flash_addr + c->block_size * block + off, buffer, size);
+//     // if (OPRT_OK != ret) {
+//     //     return LFS_ERR_IO;
+//     // }
+//     // return LFS_ERR_OK;
+//     return OPRT_OK;
+// }
 
 /**
  * Erases a block on the user-provided block device.
@@ -101,15 +106,16 @@ int user_provided_block_device_prog(const struct lfs_config *c, lfs_block_t bloc
  * @return Returns LFS_ERR_OK if the block erase operation is successful,
  * otherwise returns LFS_ERR_IO.
  */
-int user_provided_block_device_erase(const struct lfs_config *c, lfs_block_t block)
-{
+// int user_provided_block_device_erase(const struct lfs_config *c, lfs_block_t block)
+// {
 
-    OPERATE_RET ret = tkl_flash_erase(lfs_flash_addr + c->block_size * block, c->block_size);
-    if (OPRT_OK != ret) {
-        return LFS_ERR_IO;
-    }
-    return LFS_ERR_OK;
-}
+//     // OPERATE_RET ret = tkl_flash_erase(lfs_flash_addr + c->block_size * block, c->block_size);
+//     // if (OPRT_OK != ret) {
+//     //     return LFS_ERR_IO;
+//     // }
+//     // return LFS_ERR_OK;
+//     return OPRT_OK;
+// }
 
 /**
  * @brief User-provided block device sync function.
@@ -121,10 +127,11 @@ int user_provided_block_device_erase(const struct lfs_config *c, lfs_block_t blo
  * @param c Pointer to the LittleFS configuration struct.
  * @return Returns LFS_ERR_OK if the synchronization is successful.
  */
-int user_provided_block_device_sync(const struct lfs_config *c)
-{
-    return LFS_ERR_OK;
-}
+// int user_provided_block_device_sync(const struct lfs_config *c)
+// {
+//     // return LFS_ERR_OK;
+//     return OPRT_OK;
+// }
 
 /**
  * @brief Initializes the TAL Key-Value (KV) module.
@@ -148,6 +155,7 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
 
     tal_mutex_create_init(&lfs_mutex);
 
+#if 0
     TUYA_FLASH_BASE_INFO_T info;
     tkl_flash_get_one_type_info(TUYA_FLASH_TYPE_UF, &info);
     lfs_flash_addr = info.partition[0].start_addr;
@@ -179,6 +187,9 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
     }
 
     return err;
+#else
+    return OPRT_OK;
+#endif
 }
 
 /**
@@ -196,6 +207,7 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
  */
 int tal_kv_set(const char *key, const uint8_t *value, size_t length)
 {
+#if 0
     int result;
     lfs_file_t file;
 
@@ -236,6 +248,51 @@ int tal_kv_set(const char *key, const uint8_t *value, size_t length)
     }
 
     return OPRT_OK;
+#else
+    int result;
+    TUYA_FILE file;
+
+    PR_DEBUG("key:%s, len %d", key, length);
+
+    if (NULL == key || NULL == value || 0 == length) {
+        return OPRT_INVALID_PARM;
+    }
+
+    char path[128];
+    memset(path, 0, sizeof(path));
+    snprintf(path, sizeof(path), "./%s", key);
+
+    tal_mutex_lock(lfs_mutex);
+    file = tal_fopen(path, "w+");
+    if(file == NULL) {
+        tal_mutex_unlock(lfs_mutex);
+        PR_ERR("lfs open %s err", key);
+        return OPRT_FILE_OPEN_FAILED;
+    }
+    uint8_t *ec_data = NULL;
+    uint32_t ec_len = 0;
+    uint8_t iv[16];
+
+    memcpy(iv, lfs_kv_cfg.seed, 16);
+    result = tal_aes128_cbc_encode((uint8_t *)value, length, (uint8_t *)lfs_kv_cfg.key, iv, &ec_data, (uint32_t *)&ec_len);
+    if (OPRT_OK != result) {
+        tal_fclose(file);
+        tal_mutex_unlock(lfs_mutex);
+        PR_DEBUG("key %s encrypt failed", key);
+        return result;
+    }
+    tal_fseek(file, 0, 0);
+    result = tal_fwrite(ec_data, ec_len, file);
+    tal_fclose(file);
+    tal_aes_free_data(ec_data);
+    tal_mutex_unlock(lfs_mutex);
+    if (result != ec_len) {
+        PR_ERR("kv write fail %d", result);
+        return OPRT_KVS_WR_FAIL;
+    }
+
+    return OPRT_OK;
+#endif
 }
 
 /**
@@ -256,6 +313,7 @@ int tal_kv_set(const char *key, const uint8_t *value, size_t length)
  */
 int tal_kv_get(const char *key, uint8_t **value, size_t *length)
 {
+#if 0
     int result;
     lfs_file_t file;
 
@@ -306,6 +364,61 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
     dec_data[dec_len] = 0;
 
     return OPRT_OK;
+#else
+    int result;
+    TUYA_FILE file;
+
+    if (NULL == key || NULL == value || NULL == length) {
+        return OPRT_INVALID_PARM;
+    }
+
+    char path[128];
+    memset(path, 0, sizeof(path));
+    snprintf(path, sizeof(path), "./%s", key);
+    tal_mutex_lock(lfs_mutex);
+    file = tal_fopen(path, "r");
+    if(file == NULL) {
+        tal_mutex_unlock(lfs_mutex);
+        PR_ERR("lfs open %s err", key);
+        return OPRT_FILE_OPEN_FAILED;
+    }
+
+    uint8_t *ec_data = NULL;
+    uint32_t ec_len = tal_fgetsize(path); 
+    ec_data = tal_malloc(ec_len + 1);
+    if (NULL == ec_data) {
+        result = OPRT_MALLOC_FAILED;
+        tal_mutex_unlock(lfs_mutex);
+        return result;
+    }
+    PR_DEBUG("key:%s, len:%d", key, ec_len);
+    result = tal_fread(ec_data, ec_len, file);
+    tal_fclose(file);
+    tal_mutex_unlock(lfs_mutex);
+    if (result <= 0) {
+        *length = 0;
+        tal_free(ec_data);
+        PR_ERR("kv read error %d", result);
+        return OPRT_KVS_RD_FAIL;
+    }
+    uint8_t *dec_data = NULL;
+    uint32_t dec_len = 0;
+    uint8_t iv[16];
+
+    memcpy(iv, lfs_kv_cfg.seed, 16);
+    result = tal_aes128_cbc_decode(ec_data, ec_len, (uint8_t *)lfs_kv_cfg.key, iv, &dec_data, (uint32_t *)&dec_len);
+    dec_len = tal_aes_get_actual_length(dec_data, dec_len);
+    tal_free(ec_data);
+    if (OPRT_OK != result || dec_len > ec_len) {
+        PR_ERR("key %s decrypt failed %d, %d-%d", key, result, dec_len, ec_len);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    *value = dec_data;
+    *length = (size_t)dec_len;
+    dec_data[dec_len] = 0;
+
+    return OPRT_OK;
+#endif
 }
 
 /**
@@ -319,6 +432,7 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
  */
 int tal_kv_del(const char *key)
 {
+#if 0
     PR_DEBUG("key:%s", key);
 
     tal_mutex_lock(lfs_mutex);
@@ -330,8 +444,23 @@ int tal_kv_del(const char *key)
     }
 
     PR_DEBUG("Deleted failed %d", result);
-
     return OPRT_COM_ERROR;
+#else 
+    PR_DEBUG("key:%s", key);
+    char path[128];
+    memset(path, 0, sizeof(path));
+    snprintf(path, sizeof(path), "./%s", key);
+
+    tal_mutex_lock(lfs_mutex);
+    int result = tal_fs_remove(path);
+    tal_mutex_unlock(lfs_mutex);
+    if (OPRT_OK == result) {
+        PR_DEBUG("Deleted successfully");
+        return OPRT_OK;
+    }
+    PR_DEBUG("Deleted failed %d", result);
+    return OPRT_COM_ERROR;
+#endif 
 }
 
 /**
@@ -381,14 +510,14 @@ void tal_kv_cmd(int argc, char *argv[])
     } else if (0 == strcmp("del", argv[1])) {
         tal_kv_del(argv[2]);
     } else if (0 == strcmp("list", argv[1])) {
-        lfs_dir_t dir;
-        lfs_dir_open(&lfs, &dir, argv[2]);
-        struct lfs_info info;
-        while (lfs_dir_read(&lfs, &dir, &info) > 0) {
-            PR_DEBUG_RAW("%s  ", info.name);
-        }
-        PR_DEBUG_RAW("\r\n", info.name);
-        lfs_dir_close(&lfs, &dir);
+        // lfs_dir_t dir;
+        // lfs_dir_open(&lfs, &dir, argv[2]);
+        // struct lfs_info info;
+        // while (lfs_dir_read(&lfs, &dir, &info) > 0) {
+        //     PR_DEBUG_RAW("%s  ", info.name);
+        // }
+        // PR_DEBUG_RAW("\r\n", info.name);
+        // lfs_dir_close(&lfs, &dir);
     }
 }
 
@@ -472,7 +601,8 @@ int tal_kv_serialize_get(const char *key, kv_db_t *db, size_t dbcnt)
  *
  * @return lfs_t *
  */
-lfs_t *tal_lfs_get()
-{
-    return &lfs;
-}
+// lfs_t *tal_lfs_get()
+// {
+//     // return &lfs;
+//     return NULL;
+// }

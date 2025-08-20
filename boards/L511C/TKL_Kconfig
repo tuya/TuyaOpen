@@ -1,0 +1,24 @@
+config ENABLE_FILE_SYSTEM
+	default y
+
+config ENABLE_ADC
+	default y
+
+config ENABLE_CELLULAR
+	default y
+
+config ENABLE_GPIO
+	default y
+
+config ENABLE_I2C
+	default y
+
+config ENABLE_PWM
+	default y
+
+config ENABLE_TIMER
+	default y
+
+config ENABLE_UART
+	default y
+

@@ -23,6 +23,7 @@
 #include "crc32i.h"
 #include "mix_method.h"
 #include "uni_random.h"
+#include <inttypes.h>
 
 /***********************************************************
 *************************micro define***********************

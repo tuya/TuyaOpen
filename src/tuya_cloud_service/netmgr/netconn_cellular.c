@@ -15,7 +15,8 @@
 #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
 #include "tal_log.h"
 #include "netmgr.h"
-#include "tal_cellular.h"
+#include "tal_cellular_base.h"
+#include "tal_cellular_mds.h"
 
 /***********************************************************
 ************************macro define************************
@@ -65,30 +66,27 @@ static void __netconn_cellular_event(CELLULAR_STAT_E event)
     return;
 }
 
+static void __dev_cellular_pdp_cb(uint8_t sim_id,TUYA_CELLULAR_MDS_NET_STATUS_E st)
+{ 
+    __netconn_cellular_event(st);
+}
+
 OPERATE_RET netconn_cellular_open(void *config)
 {
     OPERATE_RET rt = OPRT_OK;
-
     netmgr_conn_cellular_t *netmgr_cellular = &s_netmgr_cellular;
-
-    // init
-    TAL_CELLULAR_BASE_CFG_T cfg;
-    memset(&cfg, 0, sizeof(cfg));
-    strcpy(cfg.apn, "");
-    tal_cellular_init(&cfg);
-
+    char *apn = (char *)config; 
+    tal_cellular_base_init(NULL);
+    tal_cellular_mds_init(tal_cellular_base_get_default_simid());
+    tal_cellular_mds_pdp_active(tal_cellular_base_get_default_simid(), apn, NULL, NULL);
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;
-    TUYA_CALL_ERR_RETURN(tal_cellular_set_status_cb(__netconn_cellular_event));
-
-    // Not supported get token from cellular connection
-
+    TUYA_CALL_ERR_RETURN(tal_cellular_mds_register_state_notify(tal_cellular_base_get_default_simid(), (TKL_MDS_NOTIFY)__dev_cellular_pdp_cb));
     return rt;
 }
 
 OPERATE_RET netconn_cellular_close(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
     return rt;
 }
 
@@ -125,10 +123,7 @@ OPERATE_RET netconn_cellular_get(netmgr_conn_config_type_e cmd, void *param)
         *(netmgr_status_e *)param = netmgr_cellular->base.status;
     } break;
     case NETCONN_CMD_IP: {
-        TUYA_CALL_ERR_RETURN(tal_cellular_get_ip((NW_IP_S *)param));
-    } break;
-    case NETCONN_CMD_MAC: {
-        rt = OPRT_NOT_SUPPORTED;
+        TUYA_CALL_ERR_RETURN(tkl_cellular_mds_get_ip(tkl_cellular_base_get_default_simid(), (NW_IP_S *)param));
     } break;
     default: {
         rt = OPRT_NOT_SUPPORTED;

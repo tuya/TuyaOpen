@@ -43,6 +43,33 @@ menu "configure platform <your-platform-name>"
         bool "ENABLE_WIRED --- support wired"
         default y
 
+    menuconfig ENABLE_CELLULAR
+        bool "ENABLE_CELLULAR --- support cellular"
+        default n
+        if (ENABLE_CELLULAR)
+            config ENABLE_CELLULAR_PLUGIN
+                bool "enable cellular plugin"
+                default n
+            config ENABLE_CELLULAR_SMS
+                bool "eneble cellular sms"
+                default n
+            config ENABLE_CELLULAR_CALL
+                bool "enable cellular volte"
+                default n
+            config ENABLE_CELLULAR_WIFI_SCAN
+                bool "enable cellular wifi scan"
+                default n
+            config ENABLE_CELLULAR_GPS_INSIDE
+                bool "enable cellular gps inside"
+                default n
+            config ENABLE_CELLULAR_VABT
+                bool "enable cellular vbat"
+                default n
+            config ENABLE_CELLULAR_KEYPAD
+                bool "enable cellular keypad"
+                default n
+        endif
+
     menuconfig ENABLE_BLUETOOTH
         bool "ENABLE_BLUETOOTH --- support BLE"
         default n

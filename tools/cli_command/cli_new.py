@@ -36,6 +36,10 @@ ABILITY_CONFIG = [
         "template": "bluetooth",
     },
     {
+        "ability": "CONFIG_ENABLE_CELLULAR",
+        "template": "cellular",
+    },
+    {
         "ability": "CONFIG_ENABLE_DAC",
         "template": "dac",
     },

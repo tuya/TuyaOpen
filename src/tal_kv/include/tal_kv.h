@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 #include "tuya_cloud_types.h"
-#include "lfs.h"
+// #include "lfs.h"
 /**
  * @brief tuya key-value database type define, used for serialize/deserialize
  * data to json format
@@ -169,7 +169,7 @@ void tal_kv_cmd(int argc, char *argv[]);
  *
  * @return lfs_t *
  */
-lfs_t *tal_lfs_get();
+// lfs_t *tal_lfs_get();
 
 #ifdef __cplusplus
 }

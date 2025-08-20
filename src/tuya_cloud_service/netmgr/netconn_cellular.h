@@ -15,7 +15,6 @@
 
 #include "tuya_cloud_types.h"
 #include "netmgr.h"
-#include "tal_cellular.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +23,10 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+typedef enum {
+    TAL_CELLULAR_LINK_DOWN = 0, ///< the network cable is unplugged
+    TAL_CELLULAR_LINK_UP,       ///< the network cable is plugged and IP is got
+} TAL_CELLULAR_STAT_E;
 #define CELLULAR_STAT_E TAL_CELLULAR_STAT_E
 
 /***********************************************************

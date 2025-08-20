@@ -1,0 +1,28 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "L511C"
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_L511C_EVB
+        bool "L511C_EVB"
+        if (BOARD_CHOICE_L511C_EVB)
+            rsource "./L511C_EVB/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice

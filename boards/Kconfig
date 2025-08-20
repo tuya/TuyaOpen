@@ -26,6 +26,10 @@ config BOARD_ENABLE_BK7231X
     bool
     default y
 
+config BOARD_ENABLE_L511C
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -85,6 +89,14 @@ if (BOARD_ENABLE_BK7231X)
         bool "BK7231X"
     if (BOARD_CHOICE_BK7231X)
     rsource "./BK7231X/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_L511C)
+    config BOARD_CHOICE_L511C
+        bool "L511C"
+    if (BOARD_CHOICE_L511C)
+    rsource "./L511C/Kconfig"
     endif
 endif
 

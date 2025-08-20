@@ -1,0 +1,11 @@
+config CHIP_CHOICE
+    string
+    default "L511C"
+
+config BOARD_CHOICE
+    string
+    default "L511C_EVB"
+
+config BOARD_CONFIG
+    bool
+    default y
