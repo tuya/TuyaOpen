@@ -94,6 +94,20 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey)
 }
 
 /**
+ * @brief tuya_iot_license_read
+ *
+ * @param[in] license: iot license struct pointer
+ *
+ * @note This API is used for read license .
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+__attribute__((weak)) int tuya_iot_license_read(tuya_iot_license_t *license)
+{
+    return OPRT_NOT_SUPPORTED;
+}
+
+/**
  * @brief Read authorization information from KV and OTP
  *
  * @param[out] license: uuid and authkey

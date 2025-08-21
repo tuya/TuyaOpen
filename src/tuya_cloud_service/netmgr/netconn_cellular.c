@@ -14,6 +14,7 @@
 
 #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
 #include "tal_log.h"
+#include "mqtt_bind.h"
 #include "netmgr.h"
 #include "tal_cellular_base.h"
 #include "tal_cellular_mds.h"
@@ -66,8 +67,8 @@ static void __netconn_cellular_event(CELLULAR_STAT_E event)
     return;
 }
 
-static void __dev_cellular_pdp_cb(uint8_t sim_id,TUYA_CELLULAR_MDS_NET_STATUS_E st)
-{ 
+static void __dev_cellular_pdp_cb(uint8_t sim_id, TUYA_CELLULAR_MDS_NET_STATUS_E st)
+{
     __netconn_cellular_event(st);
 }
 
@@ -75,12 +76,16 @@ OPERATE_RET netconn_cellular_open(void *config)
 {
     OPERATE_RET rt = OPRT_OK;
     netmgr_conn_cellular_t *netmgr_cellular = &s_netmgr_cellular;
-    char *apn = (char *)config; 
+    char *apn = (char *)config;
     tal_cellular_base_init(NULL);
     tal_cellular_mds_init(tal_cellular_base_get_default_simid());
     tal_cellular_mds_pdp_active(tal_cellular_base_get_default_simid(), apn, NULL, NULL);
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;
-    TUYA_CALL_ERR_RETURN(tal_cellular_mds_register_state_notify(tal_cellular_base_get_default_simid(), (TKL_MDS_NOTIFY)__dev_cellular_pdp_cb));
+    TUYA_CALL_ERR_RETURN(tal_cellular_mds_register_state_notify(tal_cellular_base_get_default_simid(),
+                                                                (TKL_MDS_NOTIFY)__dev_cellular_pdp_cb));
+
+    tuya_iot_token_get_port_register(tuya_iot_client_get(), mqtt_bind_token_get);
+
     return rt;
 }
 
