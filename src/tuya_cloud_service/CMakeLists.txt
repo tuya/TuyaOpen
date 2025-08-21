@@ -18,7 +18,8 @@ file(GLOB_RECURSE LIB_SRCS
     "${MODULE_PATH}/cloud/*.c"
     "${MODULE_PATH}/tls/*.c"
     "${MODULE_PATH}/transport/*.c"
-    "${MODULE_PATH}/authorize/*.c")
+    "${MODULE_PATH}/authorize/*.c"
+    "${MODULE_PATH}/weather/*.c")
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/cloud)
@@ -29,6 +30,7 @@ list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/tls)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netmgr)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/transport)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/authorize)
+list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/weather)
 
 if(CONFIG_ENABLE_WIFI STREQUAL "y")
     file(GLOB_RECURSE WIFI_SRCS 
