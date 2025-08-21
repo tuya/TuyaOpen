@@ -445,7 +445,6 @@ static void mqtt_rtc_req_notify_cb(tuya_protocol_event_t *ev)
 {
     tuya_iot_client_t *client = ev->user_data;
     cJSON *data = (cJSON *)(ev->data);
-    char* pRootJson = cJSON_PrintUnformatted(data);
     client->event.id = TUYA_EVENT_RTC_REQ;
     client->event.type = TUYA_DATE_TYPE_JSON;
     client->event.value.asJSON = data;
