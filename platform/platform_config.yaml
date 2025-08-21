@@ -33,3 +33,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-bk7231x
   branch: master
   commit: 53b61a46c27406623cdf7e727a2958aca98a1cda
+
+- name: L511C
+  repo: https://github.com/shiliu-yang/TuyaOpen-L511C
+  branch: dev
+  commit: fe6907228fd65d37f1272801d15c636ae5bbea8f
