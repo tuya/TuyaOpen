@@ -115,7 +115,13 @@ target_path: {target_path}")
     logger.info(f"Git clone {repo_url} {target_path}")
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     try:
-        Repo.clone_from(repo_url, target_path, progress=GitProgress())
+        # Check if we're in a CI environment
+        is_ci = os.getenv('CI') or os.getenv('GITHUB_ACTIONS') or os.getenv('CONTINUOUS_INTEGRATION')
+
+        if is_ci:
+            Repo.clone_from(repo_url, target_path)
+        else:
+            Repo.clone_from(repo_url, target_path, progress=GitProgress())
         print("Success.")
         return True
     except Exception as e:
