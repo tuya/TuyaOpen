@@ -298,7 +298,7 @@ OPERATE_RET tal_net_posix_set_block(const int fd, const BOOL_T block)
         ret = -1;
     }
 
-    return 0;
+    return ret;
 }
 
 /**
