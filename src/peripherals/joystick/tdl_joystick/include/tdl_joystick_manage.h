@@ -20,7 +20,7 @@ extern "C" {
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-typedef void *TDL_JOYSTICK_HANDLE;          
+typedef void *TDL_JOYSTICK_HANDLE;
 
 /***********************************************************
 ***********************typedef define***********************
@@ -35,30 +35,28 @@ typedef enum {
     TDL_JOYSTICK_BUTTON_LONG_PRESS_HOLD,    /* long press hold */
     TDL_JOYSTICK_BUTTON_RECOVER_PRESS_UP,   /* recover press up */
 
-    TDL_JOYSTICK_UP,                        /* joystick up */
-    TDL_JOYSTICK_DOWN,                      /* joystick down */
-    TDL_JOYSTICK_LEFT,                      /* joystick left */
-    TDL_JOYSTICK_RIGHT,                     /* joystick right */
-    TDL_JOYSTICK_LONG_UP,                   /* joystick long up */
-    TDL_JOYSTICK_LONG_DOWN,                 /* joystick long down */
-    TDL_JOYSTICK_LONG_LEFT,                 /* joystick long left */
-    TDL_JOYSTICK_LONG_RIGHT,                /* joystick long right */
-    TDL_JOYSTICK_TOUCH_EVENT_MAX,           /* joystick touch event max */
-    TDL_JOYSTICK_TOUCH_EVENT_NONE,          /* joystick touch event none */
-} TDL_JOYSTICK_TOUCH_EVENT_E;               /* joystick touch event enum */
+    TDL_JOYSTICK_UP,               /* joystick up */
+    TDL_JOYSTICK_DOWN,             /* joystick down */
+    TDL_JOYSTICK_LEFT,             /* joystick left */
+    TDL_JOYSTICK_RIGHT,            /* joystick right */
+    TDL_JOYSTICK_LONG_UP,          /* joystick long up */
+    TDL_JOYSTICK_LONG_DOWN,        /* joystick long down */
+    TDL_JOYSTICK_LONG_LEFT,        /* joystick long left */
+    TDL_JOYSTICK_LONG_RIGHT,       /* joystick long right */
+    TDL_JOYSTICK_TOUCH_EVENT_MAX,  /* joystick touch event max */
+    TDL_JOYSTICK_TOUCH_EVENT_NONE, /* joystick touch event none */
+} TDL_JOYSTICK_TOUCH_EVENT_E;      /* joystick touch event enum */
 
 typedef struct {
-    uint16_t adc_max_val;                   /* adc max value */
-    uint16_t adc_min_val;                   /* adc min value */
-    uint16_t normalized_range;              /* adc normalized range */
-    uint8_t sensitivity;                    /* joystick sensitivity */
-    uint8_t channel_x;                      /* adc channel x */
-    uint8_t channel_y;                      /* adc channel y */
+    uint16_t adc_max_val;      /* adc max value */
+    uint16_t adc_min_val;      /* adc min value */
+    uint16_t normalized_range; /* adc normalized range */
+    uint8_t sensitivity;       /* joystick sensitivity */
 } TDL_ADC_CFG_T;
 
 typedef struct {
-    TDL_BUTTON_CFG_T button_cfg;            /* joystick button configuration */
-    TDL_ADC_CFG_T adc_cfg;                  /* joystick adc configuration */
+    TDL_BUTTON_CFG_T button_cfg; /* joystick button configuration */
+    TDL_ADC_CFG_T adc_cfg;       /* joystick adc configuration */
 } TDL_JOYSTICK_CFG_T;
 
 /***********************************************************
@@ -107,7 +105,8 @@ OPERATE_RET tdl_joystick_delete_without_hardware(TDL_JOYSTICK_HANDLE handle);
  * @param[in] cb The function corresponding to the joystick event
  * @return none
  */
-void tdl_joystick_event_register(TDL_JOYSTICK_HANDLE handle, TDL_JOYSTICK_TOUCH_EVENT_E event, TDL_JOYSTICK_EVENT_CB cb);
+void tdl_joystick_event_register(TDL_JOYSTICK_HANDLE handle, TDL_JOYSTICK_TOUCH_EVENT_E event,
+                                 TDL_JOYSTICK_EVENT_CB cb);
 
 /**
  * @brief Turn joystick function off or on
@@ -160,27 +159,23 @@ OPERATE_RET tdl_joystick_set_level(TDL_JOYSTICK_HANDLE handle, TUYA_GPIO_LEVEL_E
  */
 OPERATE_RET tdl_joystick_set_scan_time(uint8_t time_ms);
 
-/** 
+/**
  * @brief get joystick raw data
  * @param[in] handle joystick handle
- * @param[in] channel_x x axis adc channel
- * @param[in] channel_y y axis adc channel
  * @param[out] x x axis data
  * @param[out] y y axis data
  */
-void tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
+OPERATE_RET tdl_joystick_get_raw_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y);
 
 /**
  * @brief get joystick normalized data
  * @param[in] handle joystick handle
- * @param[in] channel_x x axis adc channel
- * @param[in] channel_y y axis adc channel
  * @param[out] x x axis data
  * @param[out] y y axis data
- * 
+ *
  * @return OPRT_OK if successful
  */
-void tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int channel_x, int channel_y, int *x, int *y);
+OPERATE_RET tdl_joystick_calibrated_xy(TDL_JOYSTICK_HANDLE handle, int *x, int *y);
 
 #ifdef __cplusplus
 }

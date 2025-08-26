@@ -24,6 +24,8 @@ typedef struct {
     TDL_JOYSTICK_MODE_E mode;       /* joystick mode */
 
     TUYA_ADC_NUM_E adc_num;         /* adc num */
+    uint8_t        adc_ch_x;
+    uint8_t        adc_ch_y;
     TUYA_ADC_BASE_CFG_T adc_cfg;    /* adc cfg */
 } JOYSTICK_GPIO_CFG_T;
 
@@ -31,16 +33,6 @@ typedef struct {
  * @brief gpio joystick register
  * @param[in] name  joystick name
  * @param[in] gpio_cfg  joystick hardware configuration
- * @return Function Operation Result  OPRT_OK is ok other is fail
- */
-OPERATE_RET tdd_joystick_register(char *name, JOYSTICK_GPIO_CFG_T *gpio_cfg);
-
-/**
- * @brief Update joystick configuration level
- * @param[in] handle  joystick handle
- * @param[in] level  level
- * @return Function Operation Result  OPRT_OK is ok other is fail
- *
  * @return Function Operation Result  OPRT_OK is ok other is fail
  */
 OPERATE_RET tdd_joystick_register(char *name, JOYSTICK_GPIO_CFG_T *gpio_cfg);
