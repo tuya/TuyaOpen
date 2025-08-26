@@ -31,10 +31,20 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+extern TAL_NETWORK_CARD_T tal_network_card_posix;
+#else
+extern TAL_NETWORK_CARD_T tal_network_card_platform;
+#endif
 
 TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
-    .active_card_type = DEFAULT_NETWORK_CARD_TYPE,
-    .active_card = {NULL},
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+    .active_card[TAL_NET_TYPE_POSIX] = &tal_network_card_posix,
+    .active_card_type = TAL_NET_TYPE_POSIX,
+#else
+    .active_card[TAL_NET_TYPE_PLATFORM] = &tal_network_card_platform,
+    .active_card_type = TAL_NET_TYPE_PLATFORM,
+#endif
 };
 
 /***********************************************************
