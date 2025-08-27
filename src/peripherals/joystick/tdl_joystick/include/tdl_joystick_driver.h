@@ -37,6 +37,9 @@ typedef struct {
 typedef struct {
     void *dev_handle;                        /* joystick device handle */
     TDL_JOYSTICK_MODE_E mode;                /* joystick mode */
+    TUYA_ADC_NUM_E      adc_num;             /* adc num */
+    uint8_t             adc_ch_x;        
+    uint8_t             adc_ch_y;
 } TDL_JOYSTICK_DEVICE_INFO_T;
 
 /**

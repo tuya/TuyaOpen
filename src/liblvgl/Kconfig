@@ -12,15 +12,16 @@ if (ENABLE_LIBLVGL)
     if (!ENABLE_PLATFORM_LVGL)
         config ENABLE_LVGL_DEMO
             bool "enable lvgl demo"
+            select ENABLE_LVGL_MONITOR
+            default n
+
+        config ENABLE_LVGL_MONITOR
+            bool "enable lvgl monitor"
             default n
 
         config LVGL_ENABLE_ENCODER
             bool "enable lvgl encoder"
             select ENABLE_ENCODER
-            default n
-
-        config LVGL_COLOR_16_SWAP
-            bool "swap color bytes"
             default n
 
         choice

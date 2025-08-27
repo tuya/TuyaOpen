@@ -657,7 +657,11 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
             case PROP_STR: {
                 new_type = DT_STRING;
                 new_data = dpnode->prop.prop_str.value;
-                new_len = strlen(dpnode->prop.prop_str.value);
+                if(dpnode->prop.prop_str.value) {
+                    new_len = strlen(dpnode->prop.prop_str.value);
+                }else {
+                    new_len = 0;
+                }
             } break;
             case PROP_ENUM: {
                 new_type = DT_ENUM;

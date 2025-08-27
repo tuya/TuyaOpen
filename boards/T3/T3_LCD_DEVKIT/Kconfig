@@ -11,4 +11,3 @@ config BOARD_CONFIG
     default y
     select ENABLE_DISPLAY
     select ENABLE_TOUCH
-    select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)

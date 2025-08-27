@@ -89,6 +89,10 @@ struct _lv_indev_t {
         lv_point_t gesture_sum; /*Count the gesture pixels to check LV_INDEV_DEF_GESTURE_LIMIT*/
         int32_t diff;
 
+        // Modified by TUYA Start
+        lv_point_t start_point;
+        // Modified by TUYA End
+
         /*Flags*/
         lv_dir_t scroll_dir : 4;
         lv_dir_t gesture_dir : 4;

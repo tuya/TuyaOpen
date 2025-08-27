@@ -22,6 +22,8 @@
 
 #include "tuya_cloud_types.h"
 
+#include "tal_network_register.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -82,6 +84,7 @@ typedef struct netmgr_conn_base {
     uint8_t pri;
     netmgr_type_e type;
     netmgr_status_e status;
+    TAL_NETWORK_CARD_TYPE_E card_type;
 
     OPERATE_RET (*open)(void *config);
     OPERATE_RET (*close)(void);

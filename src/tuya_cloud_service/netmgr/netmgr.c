@@ -101,7 +101,6 @@ static netmgr_type_e __get_active_conn()
     return active_type;
 }
 
-// static int __tuya_lan_init_cb(void *data)
 void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
 {
     if (s_netmgr.status != NETMGR_LINK_UP) {
@@ -202,6 +201,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
                      active_status);
             s_netmgr.status = active_status;
             s_netmgr.active = active_conn;
+            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
+            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
             tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
         } else if (active_status != s_netmgr.status) {
@@ -215,6 +216,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
                      NETMGR_TYPE_TO_STR(active_conn));
             s_netmgr.active = active_conn;
+            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
+            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
         }
     }
@@ -305,6 +308,8 @@ __EXIT:
 OPERATE_RET netmgr_init(netmgr_type_e type)
 {
     OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_RETURN(tal_network_card_init());
 
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&s_netmgr.lock));
     s_netmgr.status = NETMGR_LINK_DOWN;
@@ -406,8 +411,6 @@ OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
     if (!s_netmgr.inited) {
         return OPRT_RESOURCE_NOT_READY;
     }
-
-    // PR_DEBUG("netmgr conn %s get %d", NETMGR_TYPE_TO_STR(type), cmd);
 
     if (NETCONN_AUTO == type) {
         // get the active connection

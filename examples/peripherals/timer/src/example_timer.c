@@ -35,7 +35,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-#define TIMER_ID TUYA_TIMER_NUM_0
+#define TIMER_ID TUYA_TIMER_NUM_3
 
 static char sg_count = 0;
 
@@ -52,7 +52,7 @@ static char sg_count = 0;
 static void __timer_callback(void *args)
 {
     /* TAL_PR_ , PR_ , these two types of prints have locks inside, do not use them in interrupts */
-    PR_NOTICE("\r\n------------- Timer Callback --------------\r\n");
+    tkl_log_output("\r\n------------- Timer Callback --------------\r\n");
     sg_count++;
 
     if (sg_count >= 5) {
@@ -94,6 +94,10 @@ void user_main(void)
     /*start timer*/
     TUYA_CALL_ERR_GOTO(tkl_timer_start(TIMER_ID, DELAY_TIME), __EXIT);
     PR_NOTICE("timer %d is start", TIMER_ID);
+
+    while (1) {
+        tal_system_sleep(1000);
+    }
 
 __EXIT:
     return;

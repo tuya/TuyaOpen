@@ -304,6 +304,7 @@ OPERATE_RET tdd_disp_i2c_oled_ssd1306_register(char *name, DISP_I2C_OLED_DEVICE_
     disp_spi_dev->disp_info.width      = dev_cfg->width;
     disp_spi_dev->disp_info.height     = dev_cfg->height;
     disp_spi_dev->disp_info.rotation   = dev_cfg->rotation;
+    disp_spi_dev->disp_info.is_swap    = false;
 
     memcpy(&disp_spi_dev->disp_info.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&disp_spi_dev->disp_info.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

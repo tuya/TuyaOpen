@@ -62,6 +62,7 @@ typedef struct {
     uint16_t width;
     uint16_t height;
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
+    bool                     is_swap;
 } TDL_DISP_DEV_INFO_T;
 
 /***********************************************************
@@ -77,31 +78,6 @@ typedef struct {
 TDL_DISP_HANDLE_T tdl_disp_find_dev(char *name);
 
 /**
- * @brief Opens and initializes a display device.
- *
- * This function prepares the specified display device for operation by initializing 
- * its power control, mutex, and invoking the device-specific open function if available.
- *
- * @param disp_hdl Handle to the display device to be opened.
- *
- * @return Returns OPRT_OK on success, or an appropriate error code if opening the device fails.
- */
-OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl);
-
-/**
- * @brief Flushes the frame buffer to the display device.
- *
- * This function sends the contents of the provided frame buffer to the display device 
- * for rendering. It checks if the device is open and if the flush interface is available.
- *
- * @param disp_hdl Handle to the display device.
- * @param frame_buff Pointer to the frame buffer containing pixel data to be displayed.
- *
- * @return Returns OPRT_OK on success, or an appropriate error code if flushing fails.
- */
-OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T *frame_buff);
-
-/**
  * @brief Retrieves information about a registered display device.
  *
  * This function copies the display device's information, such as type, width, height, 
@@ -115,6 +91,18 @@ OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T
 OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_T *dev_info);
 
 /**
+ * @brief Opens and initializes a display device.
+ *
+ * This function prepares the specified display device for operation by initializing 
+ * its power control, mutex, and invoking the device-specific open function if available.
+ *
+ * @param disp_hdl Handle to the display device to be opened.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if opening the device fails.
+ */
+OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl);
+
+/**
  * @brief Sets the brightness level of the display's backlight.
  *
  * This function controls the backlight of the specified display device using either 
@@ -126,18 +114,6 @@ OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_
  * @return Returns OPRT_OK on success, or an appropriate error code if setting the brightness fails.
  */
 OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightness);
-
-/**
- * @brief Closes and deinitializes a display device.
- *
- * This function shuts down the specified display device by invoking the device-specific 
- * close function (if available), deinitializing backlight control, and power control GPIOs.
- *
- * @param disp_hdl Handle to the display device to be closed.
- *
- * @return Returns OPRT_OK on success, or an appropriate error code if closing the device fails.
- */
-OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl);
 
 /**
  * @brief Creates and initializes a frame buffer for display operations.
@@ -164,6 +140,32 @@ TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_
  * @return None.
  */
 void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff);
+
+/**
+ * @brief Flushes the frame buffer to the display device.
+ *
+ * This function sends the contents of the provided frame buffer to the display device 
+ * for rendering. It checks if the device is open and if the flush interface is available.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param frame_buff Pointer to the frame buffer containing pixel data to be displayed.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if flushing fails.
+ */
+OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T *frame_buff);
+
+/**
+ * @brief Closes and deinitializes a display device.
+ *
+ * This function shuts down the specified display device by invoking the device-specific 
+ * close function (if available), deinitializing backlight control, and power control GPIOs.
+ *
+ * @param disp_hdl Handle to the display device to be closed.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if closing the device fails.
+ */
+OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl);
+
 
 #ifdef __cplusplus
 }

@@ -20,9 +20,10 @@
 
 #include "tdl_audio_manage.h"
 
-#include "ai_media_alert.h"
+#include "media_src_en.h"
 #include "minimp3_ex.h"
 #include "ai_audio.h"
+#include "media_src.h"
 
 /***********************************************************
 ************************macro define************************
@@ -250,7 +251,7 @@ static void __ai_audio_player_task(void *arg)
 
         tal_mutex_unlock(sg_player.mutex);
 
-        tal_system_sleep(10);
+        tal_system_sleep(3);
     }
 }
 
@@ -309,9 +310,8 @@ OPERATE_RET ai_audio_player_init(void)
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_player.spk_rb_mutex), __ERR);
 
     // thread init
-    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_player.thrd_hdl, "ai_player", 1024 * 4, THREAD_PRIO_1,
-                                                  __ai_audio_player_task, NULL),
-                       __ERR);
+    TUYA_CALL_ERR_GOTO(tkl_thread_create(&sg_player.thrd_hdl, "ai_player", 1024 * 4, THREAD_PRIO_0,
+                                        __ai_audio_player_task, NULL), __ERR);
 
     PR_DEBUG("app player init success");
 
@@ -501,48 +501,78 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
 
     switch (type) {
     case AI_AUDIO_ALERT_POWER_ON: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_power_on, sizeof(media_src_power_on), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_prologue_en, sizeof(media_src_prologue_en), 1);
     } break;
     case AI_AUDIO_ALERT_NOT_ACTIVE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_not_active, sizeof(media_src_not_active), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_en, sizeof(media_src_network_conn_en), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CFG: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_netcfg_mode, sizeof(media_src_netcfg_mode), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_en, sizeof(media_src_network_config_en), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CONNECTED: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conencted,
-                                        sizeof(media_src_network_conencted), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_success_en,
+                                        sizeof(media_src_network_conn_success_en), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_FAIL: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_fail, sizeof(media_src_network_fail), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_en, sizeof(media_src_network_conn_failed_en), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_disconnect,
-                                        sizeof(media_src_network_disconnect), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_reconfigure_en,
+                                        sizeof(media_src_network_reconfigure_en), 1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_battery_low, sizeof(media_src_battery_low), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_en, sizeof(media_src_low_battery_en), 1);
     } break;
     case AI_AUDIO_ALERT_PLEASE_AGAIN: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again, sizeof(media_src_please_again), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_en, sizeof(media_src_please_again_en), 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup, sizeof(media_src_wakeup), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_ai_en, sizeof(media_src_ai_en), 1);
     } break;
     case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_dialogue,
-                                        sizeof(media_src_long_press_dialogue), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_en,
+                                        sizeof(media_src_long_press_en), 1);
     } break;
     case AI_AUDIO_ALERT_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_key_dialogue, sizeof(media_src_key_dialogue), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_en, sizeof(media_src_press_talk_en), 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wake_dialogue, sizeof(media_src_wake_dialogue),
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup_chat_en, sizeof(media_src_wakeup_chat_en),
                                         1);
     } break;
     case AI_AUDIO_ALERT_FREE_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_dialogue, sizeof(media_src_free_dialogue),
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_en, sizeof(media_src_free_chat_en),
                                         1);
+    } break;
+    case AI_AUDIO_ALERT_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_bi_tone_alert, sizeof(media_src_bi_tone_alert),
+                                        1);
+    } break;
+    case AI_AUDIO_CANCEL_FAIL_TRI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_cancel_fail_tri_tone,
+                                        sizeof(media_src_cancel_fail_tri_tone), 1);
+    } break;
+    case AI_AUDIO_CONFIRM: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_comfirm, sizeof(media_src_comfirm), 1);
+    } break;
+    case AI_AUDIO_DOWNWARD_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_downward_bi_tone,
+                                        sizeof(media_src_downward_bi_tone), 1);
+    } break;
+    case AI_AUDIO_FAIL_CANCEL_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_fail_cancel_bi_tone,
+                                        sizeof(media_src_fail_cancel_bi_tone), 1);
+    } break;
+    case AI_AUDIO_LOADING_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_loading_tone, sizeof(media_src_loading_tone), 1);
+    } break;
+    case AI_AUDIO_SHORT_SELECT_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_short_select_tone,
+                                        sizeof(media_src_short_select_tone), 1);
+    } break;
+    case AI_AUDIO_THREE_STAGE_UP_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_three_stage_up_tone,
+                                        sizeof(media_src_three_stage_up_tone), 1);
     } break;
     default:
         break;

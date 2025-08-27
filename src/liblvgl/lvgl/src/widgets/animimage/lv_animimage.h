@@ -81,6 +81,14 @@ void lv_animimg_set_src(lv_obj_t * img, const void * dsc[], size_t num);
  */
 void lv_animimg_start(lv_obj_t * obj);
 
+// Modified by TUYA Start
+/**
+ * Delete the image animation.
+ * @param obj pointer to an animation image object
+ */
+bool lv_animimg_del(lv_obj_t * obj);
+// Modified by TUYA End
+
 /**
  * Set the image animation duration time. unit:ms
  * @param img       pointer to an animation image object
@@ -94,6 +102,36 @@ void lv_animimg_set_duration(lv_obj_t * img, uint32_t duration);
  * @param count     the number of times to repeat the animation
  */
 void lv_animimg_set_repeat_count(lv_obj_t * img, uint32_t count);
+
+// Modified by TUYA Start
+/**
+ * Make the image animation to play back to when the forward direction is ready.
+ * @param img pointer to an animation image object
+ * @param duration the duration of the playback image animation in milliseconds. 0: disable playback
+ */
+void lv_animimg_set_playback_time(lv_obj_t * img, uint16_t duration);
+
+/**
+ * Make the image animation to play back to when the forward direction is ready.
+ * @param img pointer to an animation image object
+ * @param duration delay in milliseconds before starting the playback image animation.
+ */
+void lv_animimg_set_playback_delay(lv_obj_t * img, uint16_t duration);
+
+/**
+ * Set a function call when the animation image really starts (considering `delay`)
+ * @param img pointer to an animation image object
+ * @param start_cb  a function call when the animation is start
+ */
+void lv_animimg_set_start_cb(lv_obj_t * img, lv_anim_start_cb_t start_cb);
+
+/**
+ * Set a function call when the animation is ready
+ * @param img pointer to an animation image object
+ * @param ready_cb  a function call when the animation is ready
+ */
+void lv_animimg_set_completed_cb(lv_obj_t * img, lv_anim_completed_cb_t completed_cb);
+// Modified by TUYA End
 
 /*=====================
  * Getter functions

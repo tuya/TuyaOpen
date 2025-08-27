@@ -154,13 +154,28 @@ lv_result_t lv_mem_test(void)
         return LV_RESULT_INVALID;
     }
 
-    return lv_mem_test_core();
+#if LV_USE_STDLIB_MALLOC != LV_STDLIB_CUSTOM
+    if(lv_tlsf_check(tlsf)) {
+        LV_LOG_WARN("failed");
+        return LV_RESULT_INVALID;
+    }
+
+    if(lv_tlsf_check_pool(lv_tlsf_get_pool(tlsf))) {
+        LV_LOG_WARN("pool failed");
+        return LV_RESULT_INVALID;
+    }
+#endif
+    LV_TRACE_MEM("passed");
+    return LV_RESULT_OK;
 }
 
 void lv_mem_monitor(lv_mem_monitor_t * mon_p)
 {
     lv_memzero(mon_p, sizeof(lv_mem_monitor_t));
+
+#if LV_USE_STDLIB_MALLOC != LV_STDLIB_CUSTOM
     lv_mem_monitor_core(mon_p);
+#endif
 }
 
 /**********************

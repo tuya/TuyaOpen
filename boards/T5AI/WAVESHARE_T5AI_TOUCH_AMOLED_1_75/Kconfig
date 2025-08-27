@@ -1,0 +1,16 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "WAVESHARE_T5AI_TOUCH_AMOLED_1_75"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_AUDIO_AEC
+    select ENABLE_BUTTON
+    select ENABLE_DISPLAY
+    select ENABLE_TOUCH

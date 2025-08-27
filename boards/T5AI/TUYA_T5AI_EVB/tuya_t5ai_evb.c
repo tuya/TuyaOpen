@@ -22,8 +22,8 @@
 #define BOARD_BUTTON_PIN             TUYA_GPIO_NUM_4
 #define BOARD_BUTTON_ACTIVE_LV       TUYA_GPIO_LEVEL_LOW
 
-#define BOARD_BUTTON_2_PIN           TUYA_GPIO_NUM_12
-#define BOARD_BUTTON_2_ACTIVE_LV     TUYA_GPIO_LEVEL_LOW
+#define BOARD_BUTTON2_PIN            TUYA_GPIO_NUM_12
+#define BOARD_BUTTON2_ACTIVE_LV      TUYA_GPIO_LEVEL_LOW
 
 #define BOARD_LED_PIN                TUYA_GPIO_NUM_8
 #define BOARD_LED_ACTIVE_LV          TUYA_GPIO_LEVEL_HIGH
@@ -89,25 +89,24 @@ OPERATE_RET __board_register_audio(void)
 static OPERATE_RET __board_register_button(void)
 {
     OPERATE_RET rt = OPRT_OK;
+    BUTTON_GPIO_CFG_T button_hw_cfg;
+
+    memset(&button_hw_cfg, 0, sizeof(BUTTON_GPIO_CFG_T));
 
 #if defined(BUTTON_NAME)
-    BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin   = BOARD_BUTTON_PIN,
-        .level = BOARD_BUTTON_ACTIVE_LV,
-        .mode  = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-    };
+    button_hw_cfg.pin   = BOARD_BUTTON_PIN;
+    button_hw_cfg.level = BOARD_BUTTON_ACTIVE_LV;
+    button_hw_cfg.mode  = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
 #endif
 
 #if defined(BUTTON_NAME_2)
-    BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin   = BOARD_BUTTON_2_PIN,
-        .level = BOARD_BUTTON_2_ACTIVE_LV,
-        .mode  = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-    };
+    button_hw_cfg.pin   = BOARD_BUTTON2_PIN;
+    button_hw_cfg.level = BOARD_BUTTON2_ACTIVE_LV;
+    button_hw_cfg.mode  = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_2, &button_hw_cfg));
 #endif
@@ -140,7 +139,7 @@ static OPERATE_RET __board_register_display(void)
 #if defined(DISPLAY_NAME)
     DISP_SPI_DEVICE_CFG_T display_cfg;
 
-    memset(&display_cfg, 0, sizeof(DISP_RGB_DEVICE_CFG_T));
+    memset(&display_cfg, 0, sizeof(DISP_SPI_DEVICE_CFG_T));
 
     display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
     display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;

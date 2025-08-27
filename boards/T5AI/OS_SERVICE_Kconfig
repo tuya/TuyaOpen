@@ -5,9 +5,6 @@ config ENABLE_T5AI_OS_SERVICE
     select ENABLE_BT_NETCFG
     select ENABLE_BT_CTRL
     select ENABLE_NIMBLE
-    select ENABLE_LIBLWIP
-    select ENABLE_LWIP_DHCP
-    select ENABLE_LWIP_PPP_SUPPORT
 
 config MBEDTLS_CONFIG_FILE
     string

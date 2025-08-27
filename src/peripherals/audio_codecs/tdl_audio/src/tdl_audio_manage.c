@@ -130,7 +130,6 @@ OPERATE_RET tdl_audio_open(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB mic_cb)
     TDL_AUDIO_NODE_T *node = (TDL_AUDIO_NODE_T *)handle;
 
     TUYA_CHECK_NULL_RETURN(node, OPRT_INVALID_PARM);
-    TUYA_CHECK_NULL_RETURN(mic_cb, OPRT_INVALID_PARM);
 
     if (NULL == node->tdd_hdl) {
         PR_ERR("audio driver %s not register", node->name);

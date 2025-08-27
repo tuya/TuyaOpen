@@ -82,6 +82,15 @@ void lv_animimg_start(lv_obj_t * obj)
     lv_anim_start(&animimg->anim);
 }
 
+// Modified by TUYA Start
+bool lv_animimg_del(lv_obj_t * obj)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    return lv_anim_delete(animimg, NULL);
+}
+// Modified by TUYA End
+
 /*=====================
  * Setter functions
  *====================*/
@@ -93,6 +102,36 @@ void lv_animimg_set_duration(lv_obj_t * obj, uint32_t duration)
     lv_anim_set_duration(&animimg->anim, duration);
     lv_anim_set_playback_delay(&animimg->anim, duration);
 }
+
+// Modified by TUYA Start
+void lv_animimg_set_playback_time(lv_obj_t * obj, uint16_t duration)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    lv_anim_set_playback_time(&animimg->anim, duration);
+}
+
+void lv_animimg_set_playback_delay(lv_obj_t * obj, uint16_t duration)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    lv_anim_set_playback_delay(&animimg->anim, duration);
+}
+
+void lv_animimg_set_start_cb(lv_obj_t * obj, lv_anim_start_cb_t start_cb)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    lv_anim_set_start_cb(&animimg->anim, start_cb);
+}
+
+void lv_animimg_set_completed_cb(lv_obj_t * obj, lv_anim_completed_cb_t completed_cb)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    lv_anim_set_completed_cb(&animimg->anim, completed_cb);
+}
+// Modified by TUYA End
 
 void lv_animimg_set_repeat_count(lv_obj_t * obj, uint32_t count)
 {

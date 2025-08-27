@@ -1,5 +1,5 @@
 #include "../../../lvgl.h"
-#if LV_USE_FS_LITTLEFS
+#if 0	//LV_USE_FS_LITTLEFS
 
 #include "lfs.h"
 #include "../../core/lv_global.h"

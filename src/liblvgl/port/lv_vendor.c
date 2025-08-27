@@ -86,7 +86,10 @@ static void lv_tast_entry(void *arg)
         #endif
 
         tkl_system_sleep(sleep_time);
-
+        // Modified by TUYA Start
+        extern void tuya_app_gui_feed_watchdog(void);
+        tuya_app_gui_feed_watchdog();
+        // Modified by TUYA End
     }
 
     tkl_semaphore_post(lvgl_sem);
@@ -95,17 +98,22 @@ static void lv_tast_entry(void *arg)
     g_disp_thread_handle = NULL;
 }
 
-void lv_vendor_start(void)
+void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
 {
     if (lvgl_task_state == STATE_RUNNING) {
         LV_LOG_INFO("%s already start\n", __func__);
         return;
     }
 
-    if(OPRT_OK != tkl_thread_create(&g_disp_thread_handle, "lvgl_v9", (1024 * 4), 4, lv_tast_entry, NULL)) {
+    if(OPRT_OK != tkl_thread_smp_create(&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri/*最高优先级*/, lv_tast_entry, NULL)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
+
+    // if(OPRT_OK != tkl_thread_create(&g_disp_thread_handle, "lvgl_v9", (1024 * 4), 5, lv_tast_entry, NULL)) {
+    //     LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
+    //     return;
+    // }
 
     tkl_semaphore_wait(lvgl_sem, TKL_SEM_WAIT_FOREVER);
 
@@ -123,7 +131,26 @@ void lv_vendor_stop(void)
 
     tkl_semaphore_wait(lvgl_sem, TKL_SEM_WAIT_FOREVER);
 
-
     LV_LOG_INFO("%s complete\n", __func__);
 }
 
+
+
+// Modified by TUYA Start
+void __attribute__((weak)) tuya_app_gui_feed_watchdog(void)
+{
+
+}
+
+void __attribute__((weak)) lvMsgHandle(void)
+{
+}
+
+void __attribute__((weak)) lvMsgEventReg(lv_obj_t *obj, lv_event_code_t eventCode)
+{
+}
+
+void __attribute__((weak)) lvMsgEventDel(lv_obj_t *obj)
+{
+}
+// Modified by TUYA End

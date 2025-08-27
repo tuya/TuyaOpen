@@ -97,6 +97,11 @@ lv_event_dsc_t * lv_obj_add_event_cb(lv_obj_t * obj, lv_event_cb_t event_cb, lv_
     LV_ASSERT_OBJ(obj, MY_CLASS);
     lv_obj_allocate_spec_attr(obj);
 
+	// Modified by TUYA Start
+    void lvMsgEventReg(lv_obj_t *obj, lv_event_code_t eventCode);
+    lvMsgEventReg(obj, filter);
+	// Modified by TUYA End
+
     return lv_event_add(&obj->spec_attr->event_list, event_cb, filter, user_data);
 }
 

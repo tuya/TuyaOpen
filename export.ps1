@@ -1,3 +1,14 @@
+# Check if already in virtual environment by checking if current Python is in .venv
+try {
+    $currentPython = (Get-Command python -ErrorAction SilentlyContinue).Source
+    if ($currentPython -and $currentPython.Contains(".venv")) {
+        Write-Host "Virtual environment is already activated."
+        exit 0
+    }
+} catch {
+    # Python not found, continue with setup
+}
+
 # Set script root directory
 $OPEN_SDK_ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -151,6 +162,21 @@ function prompt {
 # Create tos.py function
 function tos.py {
     & `$env:OPEN_SDK_PYTHON '$OPEN_SDK_ROOT\tos.py' `$args
+}
+
+# Create exit function to clean up environment
+function exit {
+    Write-Host "Exiting TuyaOpen environment..."
+
+    # Clean up environment variables
+    Remove-Item Env:OPEN_SDK_PYTHON -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_PIP -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_ROOT -ErrorAction SilentlyContinue
+
+    Write-Host "TuyaOpen environment deactivated."
+
+    # Exit PowerShell
+    [Environment]::Exit(0)
 }
 
 "@

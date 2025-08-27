@@ -230,6 +230,9 @@ OPERATE_RET tdd_joystick_register(char *name, JOYSTICK_GPIO_CFG_T *gpio_cfg)
     if (NULL != handle) {
         device_info.dev_handle = handle;
         device_info.mode = gpio_cfg->mode;
+        device_info.adc_num  = gpio_cfg->adc_num;
+        device_info.adc_ch_x = gpio_cfg->adc_ch_x;
+        device_info.adc_ch_y = gpio_cfg->adc_ch_y;
     }
 
     ret = tdl_joystick_register(name, &ctrl_info, &device_info);

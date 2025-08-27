@@ -15,6 +15,9 @@ extern "C" {
  *********************/
 
 #include "misc/lv_types.h"
+// Modified by TUYA Start
+#include "display/lv_display_private.h"
+// Modified by TUYA End
 
 /*********************
  *      DEFINES
@@ -263,11 +266,22 @@ static inline void lv_obj_move_background(lv_obj_t * obj)
 #define lv_image_decoder_built_in_open      lv_bin_decoder_open
 #define lv_image_decoder_built_in_close     lv_bin_decoder_close
 
+// Modified by TUYA Start
+#define LV_IMG_ZOOM_NONE                        LV_SCALE_NONE
+#define LV_IMG_CF_TRUE_COLOR_ALPHA              LV_COLOR_FORMAT_NATIVE_WITH_ALPHA
+#define LV_IMG_CF_TRUE_COLOR                    LV_COLOR_FORMAT_NATIVE
+#define lv_img_cache_invalidate_src             lv_image_cache_drop
+#define lv_mem_alloc                            lv_malloc_zeroed
+#define lv_mem_free                             lv_free
+// Modified by TUYA End
+
 /**********************
  *      MACROS
  **********************/
 /** Use this macro to declare an image in a C file*/
-#define LV_IMG_DECLARE(var_name) extern const lv_image_dsc_t var_name;
+// Modified by TUYA Start
+#define LV_IMG_DECLARE(var_name) extern lv_image_dsc_t var_name;
+// Modified by TUYA End
 
 /**********************
  * DEPRECATED FUNCTIONS

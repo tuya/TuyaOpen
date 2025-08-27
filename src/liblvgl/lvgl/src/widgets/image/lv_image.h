@@ -334,7 +334,9 @@ const lv_image_dsc_t * lv_image_get_bitmap_map_src(lv_obj_t * obj);
  **********************/
 
 /** Use this macro to declare an image in a C file*/
-#define LV_IMAGE_DECLARE(var_name) extern const lv_image_dsc_t var_name
+// Modified by TUYA Start
+#define LV_IMAGE_DECLARE(var_name) extern lv_image_dsc_t var_name
+// Modified by TUYA End
 
 #endif /*LV_USE_IMAGE*/
 

@@ -36,18 +36,18 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
- * @brief Registers an ST7735S TFT display device using the QSPI interface with the display management system.
+ * @brief Registers an ST7735S TFT display device using the SPI interface with the display management system.
  *
  * This function configures and registers a display device for the ST7735S series of TFT LCDs 
- * using the QSPI communication protocol. It copies configuration parameters from the provided 
+ * using the SPI communication protocol. It copies configuration parameters from the provided 
  * device configuration and uses a predefined initialization sequence specific to ST7735S.
  *
  * @param name Name of the display device (used for identification).
- * @param dev_cfg Pointer to the QSPI device configuration structure.
+ * @param dev_cfg Pointer to the SPI device configuration structure.
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
-OPERATE_RET tdd_disp_qspi_st7735s_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg);
+OPERATE_RET tdd_disp_spi_st7735s_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus
 }

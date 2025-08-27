@@ -141,7 +141,11 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, const void * src, 
         }
 
         /*Save the data in the header*/
+    #if LV_COLOR_DEPTH == 24 || LV_COLOR_DEPTH == 32
         header->cf = LV_COLOR_FORMAT_RGB888;
+    #else
+        header->cf = LV_COLOR_FORMAT_NATIVE;
+    #endif
         header->w = (orientation % 180) ? height : width;
         header->h = (orientation % 180) ? width : height;
 
@@ -273,6 +277,7 @@ static lv_draw_buf_t * decode_jpeg_file(const char * filename)
      * struct, to avoid dangling-pointer problems.
      */
     error_mgr_t jerr;
+    lv_color_format_t cf = LV_COLOR_FORMAT_NATIVE;
 
     /* More stuff */
     JSAMPARRAY buffer;  /* Output row buffer */
@@ -341,8 +346,16 @@ static lv_draw_buf_t * decode_jpeg_file(const char * filename)
 
     /* set parameters for decompression */
 
+#if LV_COLOR_DEPTH == 24 || LV_COLOR_DEPTH == 32
     cinfo.out_color_space = JCS_EXT_BGR;
-
+    cf = LV_COLOR_FORMAT_RGB888;
+#elif LV_COLOR_DEPTH == 16
+    cinfo.out_color_space = JCS_RGB565;
+#elif LV_COLOR_DEPTH == 8
+    cinfo.out_color_space = JCS_GRAYSCALE;
+#else
+    #error "unknown color depth"
+#endif
     /* In this example, we don't need to change any of the defaults set by
      * jpeg_read_header(), so we do nothing here.
      */
@@ -368,7 +381,7 @@ static lv_draw_buf_t * decode_jpeg_file(const char * filename)
              ((j_common_ptr) &cinfo, JPOOL_IMAGE, row_stride, 1);
     uint32_t buf_width = (image_angle % 180) ? cinfo.output_height : cinfo.output_width;
     uint32_t buf_height = (image_angle % 180) ? cinfo.output_width : cinfo.output_height;
-    decoded = lv_draw_buf_create(buf_width, buf_height, LV_COLOR_FORMAT_RGB888, LV_STRIDE_AUTO);
+    decoded = lv_draw_buf_create(buf_width, buf_height, cf, LV_STRIDE_AUTO);
     if(decoded != NULL) {
         uint32_t line_index = 0;
         /* while (scan lines remain to be read) */

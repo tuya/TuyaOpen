@@ -3,6 +3,12 @@
 # Usage: . ./export.sh
 #
 
+# Check if virtual environment is already activated
+if [ -n "$VIRTUAL_ENV" ] && [ "$VIRTUAL_ENV" = "$OPEN_SDK_ROOT/.venv" ]; then
+    echo "Virtual environment is already activated."
+    return 0
+fi
+
 # Function to find the project root directory
 pwd_dir="$(pwd)"
 script_dir=$(realpath $(dirname "$0"))
@@ -112,12 +118,42 @@ if [ ! -f "$OPEN_SDK_ROOT/.venv/bin/activate" ]; then
 fi
 
 
+# Define custom exit function for TuyaOpen environment
+exit() {
+    # Check if we're in TuyaOpen virtual environment
+    if [ -n "$OPEN_SDK_ROOT" ]; then
+        echo "Exiting TuyaOpen environment..."
+
+        # Call the original deactivate function
+        if type deactivate >/dev/null 2>&1; then
+            deactivate
+        fi
+
+        # Clean up TuyaOpen specific environment variables
+        unset OPEN_SDK_PYTHON
+        unset OPEN_SDK_PIP
+        unset OPEN_SDK_ROOT
+
+        # Remove our custom exit function
+        unset -f exit
+
+        echo "TuyaOpen environment deactivated."
+    else
+        # If not in TuyaOpen environment, call the original exit
+        command exit "$@"
+    fi
+}
+
 # activate
 echo "DEBUG: Activating virtual environment from $OPEN_SDK_ROOT/.venv/bin/activate"
 . ${OPEN_SDK_ROOT}/.venv/bin/activate
 export PATH=$PATH:${OPEN_SDK_ROOT}
 export OPEN_SDK_PYTHON=${OPEN_SDK_ROOT}/.venv/bin/python
 export OPEN_SDK_PIP=${OPEN_SDK_ROOT}/.venv/bin/pip
+export OPEN_SDK_ROOT=$OPEN_SDK_ROOT
+
+# Export the exit function
+export -f exit
 
 # Verify activation worked
 if [ -z "$VIRTUAL_ENV" ]; then
@@ -139,5 +175,5 @@ rm -f ${CACHE_PATH}/.dont_prompt_update_platform
 eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
 
 echo "****************************************"
-echo "Exit use: deactivate"
+echo "Exit use: exit"
 echo "****************************************"

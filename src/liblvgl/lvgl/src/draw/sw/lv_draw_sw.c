@@ -134,6 +134,7 @@ void lv_draw_sw_init(void)
     lv_draw_sw_mask_init();
 #endif
 
+	
     uint32_t i;
     for(i = 0; i < LV_DRAW_SW_DRAW_UNIT_CNT; i++) {
         lv_draw_sw_unit_t * draw_sw_unit = lv_draw_create_unit(sizeof(lv_draw_sw_unit_t));
@@ -143,7 +144,7 @@ void lv_draw_sw_init(void)
         draw_sw_unit->base_unit.delete_cb = LV_USE_OS ? lv_draw_sw_delete : NULL;
 
 #if LV_USE_OS
-        lv_thread_init(&draw_sw_unit->thread, LV_THREAD_PRIO_HIGH, render_thread_cb, 8 * 1024, draw_sw_unit);
+        lv_thread_init(&draw_sw_unit->thread, LV_THREAD_PRIO_HIGHEST, render_thread_cb, LV_DRAW_THREAD_STACK_SIZE, draw_sw_unit);
 #endif
     }
 

@@ -64,6 +64,11 @@ LV_ATTRIBUTE_TIMER_HANDLER uint32_t lv_timer_handler(void)
 {
     LV_TRACE_TIMER("begin");
 
+    // Modified by TUYA Start
+    void lvMsgHandle(void);
+    lvMsgHandle();
+    // Modified by TUYA End
+
     lv_timer_state_t * state_p = &state;
     /*Avoid concurrent running of the timer handler*/
     if(state_p->already_running) {

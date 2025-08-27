@@ -1,0 +1,8 @@
+menu "Application config"
+
+config EXAMPLE_AUDIO_SPEAKER_PIN
+    int "audio speaker pin"
+    default 28
+    range 0 63
+
+endmenu

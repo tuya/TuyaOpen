@@ -37,7 +37,7 @@ if(CONFIG_ENABLE_WIFI STREQUAL "y")
         "${MODULE_PATH}/netmgr/netconn_wifi.c" 
         "${MODULE_PATH}/netcfg/*.c")
     list(APPEND LIB_SRCS ${WIFI_SRCS})
-    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)    
+    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)
 endif()
 
 if(CONFIG_ENABLE_WIRED STREQUAL "y")

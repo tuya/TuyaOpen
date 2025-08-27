@@ -236,6 +236,20 @@ void lv_indev_set_button_points(lv_indev_t * indev, const lv_point_t points[]);
  */
 void lv_indev_get_point(const lv_indev_t * indev, lv_point_t * point);
 
+// Modified by TUYA Start
+int32_t lv_indev_get_point_x(const lv_indev_t * indev);
+int32_t lv_indev_get_point_y(const lv_indev_t * indev);
+
+/**
+* Get the indev start_point
+* @param indev pointer to an input device
+* @return current start_point, just support gesture now
+*/
+int32_t lv_indev_get_start_point_x(const lv_indev_t * indev);
+int32_t lv_indev_get_start_point_y(const lv_indev_t * indev);
+
+// Modified by TUYA End
+
 /**
 * Get the current gesture direct
 * @param indev pointer to an input device

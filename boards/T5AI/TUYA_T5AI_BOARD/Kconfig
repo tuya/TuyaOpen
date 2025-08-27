@@ -13,9 +13,23 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_BUTTON
 
+choice TUYA_T5AI_BOARD_VERSION
+    prompt "choose TUYA_T5AI_BOARD version"
+    default TUYA_T5AI_BOARD_VERSION_102
+    help
+        Select the version of the TUYA T5AI board you are using.
+        
+    config TUYA_T5AI_BOARD_VERSION_101
+        bool "T5AI_BOARD_V101"
+
+    config TUYA_T5AI_BOARD_VERSION_102
+        bool "T5AI_BOARD_V102"
+        select ENABLE_AUDIO_AEC
+endchoice
+
 choice TUYA_T5AI_BOARD_EX_MODULE
     prompt "choose expansion module for TUYA_T5AI_BOARD"
-    default TUYA_T5AI_BOARD_EX_MODULE_35565LCD
+    default TUYA_T5AI_BOARD_EX_MODULE_NONE
 
     config TUYA_T5AI_BOARD_EX_MODULE_NONE
         bool "no expansion module"
@@ -28,7 +42,6 @@ choice TUYA_T5AI_BOARD_EX_MODULE
     config TUYA_T5AI_BOARD_EX_MODULE_EYES
         bool "two circle 1.28 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
-        select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)
 
     config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
         bool "2.9 inch 168x384 E-Ink screen"

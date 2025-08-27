@@ -115,6 +115,11 @@ typedef enum {
 
     _LV_EVENT_LAST,                 /** Number of default events*/
 
+// Modified by TUYA Start
+    /*Customer define events*/
+    LV_EVENT_GESTURE_RELEASED,
+// Modified by TUYA End
+
     LV_EVENT_PREPROCESS = 0x8000,   /** This is a flag that can be set with an event so it's processed
                                       before the class default event processing */
 } lv_event_code_t;
