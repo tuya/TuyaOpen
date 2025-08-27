@@ -16,6 +16,7 @@
 
 #include "tuya_cloud_types.h"
 #include "tdl_touch_manage.h"
+#include "tdd_touch_i2c.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,10 +27,24 @@ extern "C" {
 ***********************************************************/
 #define TOUCH_DEV_NAME_MAX_LEN 32
 
+typedef uint8_t TDD_TOUCH_DRIVER_TYPE_T;
+#define TDD_TOUCH_DRIVER_TYPE_I2C 0x01
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef void *TDD_TOUCH_DEV_HANDLE_T;
+
+typedef struct {
+    uint16_t x_max;
+    uint16_t y_max;
+
+    struct {
+        uint32_t swap_xy : 1;
+        uint32_t mirror_x : 1;
+        uint32_t mirror_y : 1;
+    } flags;
+} TDL_TOUCH_CONFIG_T;
 
 typedef struct {
     OPERATE_RET (*open)(TDD_TOUCH_DEV_HANDLE_T device);
@@ -40,7 +55,8 @@ typedef struct {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl, TDD_TOUCH_INTFS_T *intfs);
+OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl, TDL_TOUCH_CONFIG_T *tp_cfg,
+                                      TDD_TOUCH_INTFS_T *intfs);
 
 #ifdef __cplusplus
 }

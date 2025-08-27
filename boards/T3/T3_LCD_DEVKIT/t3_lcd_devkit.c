@@ -81,10 +81,24 @@ static OPERATE_RET __board_register_display(void)
 
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_gc9a01_register(DISPLAY_NAME, &display_cfg));
 
-    TDD_TOUCH_I2C_CFG_T touch_cfg = {
-        .port    = BOARD_TOUCH_I2C_PORT,
-        .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
-        .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+    TDD_TOUCH_CST816X_INFO_T touch_cfg = {
+        .i2c_cfg =
+            {
+                .port = BOARD_TOUCH_I2C_PORT,
+                .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
+                .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+            },
+        .tp_cfg =
+            {
+                .x_max = BOARD_LCD_WIDTH,
+                .y_max = BOARD_LCD_HEIGHT,
+                .flags =
+                    {
+                        .mirror_x = 0,
+                        .mirror_y = 0,
+                        .swap_xy = 0,
+                    },
+            },
     };
 
     TUYA_CALL_ERR_RETURN(tdd_touch_i2c_cst816x_register(DISPLAY_NAME, &touch_cfg));
