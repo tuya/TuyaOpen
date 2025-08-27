@@ -5,7 +5,7 @@ config CHIP_CHOICE
 config BOARD_CHOICE
     string
     default "DNESP32S3_BOX2_WIFI"
-
+111
 config BOARD_CONFIG
     bool
     default y
