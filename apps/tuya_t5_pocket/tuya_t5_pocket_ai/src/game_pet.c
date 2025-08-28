@@ -16,6 +16,7 @@
 #include "tal_sw_timer.h"
 #include "ai_audio_player.h"
 #include "game_pet.h"
+#include "media_src.h"
 
 #define PET_DEBUG_ENABLE 0
 
@@ -77,34 +78,34 @@ void _display_pet_state(ai_pet_state_t pet_state)
 {
     switch (pet_state) {
         case AI_PET_STATE_SLEEP: {
-            // ai_audio_player_play_alert(AI_AUDIO_LOADING_TONE);
-            ai_audio_player_play_alert(AI_AUDIO_CANCEL_FAIL_TRI_TONE);
+            // game_pet_play_alert(AI_AUDIO_LOADING_TONE);
+            game_pet_play_alert(PET_ALERT_CANCEL_FAIL_TRI_TONE);
         } break;
         case AI_PET_STATE_DANCE: {
-            ai_audio_player_play_alert(AI_AUDIO_CANCEL_FAIL_TRI_TONE);
+            game_pet_play_alert(PET_ALERT_CANCEL_FAIL_TRI_TONE);
         } break;
         case AI_PET_STATE_EAT: {
-            // ai_audio_player_play_alert(AI_AUDIO_CONFIRM);
-            ai_audio_player_play_alert(AI_AUDIO_SHORT_SELECT_TONE);
+            // game_pet_play_alert(AI_AUDIO_CONFIRM);
+            game_pet_play_alert(PET_ALERT_SHORT_SELECT_TONE);
         } break;
         case AI_PET_STATE_BATH: {
-            // ai_audio_player_play_alert(AI_AUDIO_DOWNWARD_BI_TONE);
-            ai_audio_player_play_alert(AI_AUDIO_FAIL_CANCEL_BI_TONE);
+            // game_pet_play_alert(AI_AUDIO_DOWNWARD_BI_TONE);
+            game_pet_play_alert(PET_ALERT_FAIL_CANCEL_BI_TONE);
         } break;
         case AI_PET_STATE_TOILET: {
-            ai_audio_player_play_alert(AI_AUDIO_FAIL_CANCEL_BI_TONE);
+            game_pet_play_alert(PET_ALERT_FAIL_CANCEL_BI_TONE);
         } break;
         case AI_PET_STATE_SICK: {
-            ai_audio_player_play_alert(AI_AUDIO_LOADING_TONE);
+            game_pet_play_alert(PET_ALERT_LOADING_TONE);
         } break;
         case AI_PET_STATE_HAPPY: {
-            ai_audio_player_play_alert(AI_AUDIO_SHORT_SELECT_TONE);
+            game_pet_play_alert(PET_ALERT_SHORT_SELECT_TONE);
         } break;
         case AI_PET_STATE_ANGRY: {
-            ai_audio_player_play_alert(AI_AUDIO_THREE_STAGE_UP_TONE);
+            game_pet_play_alert(PET_ALERT_THREE_STAGE_UP_TONE);
         } break;
         case AI_PET_STATE_CRY: {
-            ai_audio_player_play_alert(AI_AUDIO_THREE_STAGE_UP_TONE);
+            game_pet_play_alert(PET_ALERT_THREE_STAGE_UP_TONE);
         } break;
         default:
             break;
@@ -461,4 +462,51 @@ OPERATE_RET game_pet_init(void)
     pocket_game_pet_indev_init();
 
     return OPRT_OK;
+}
+
+OPERATE_RET game_pet_play_alert(PET_ALERT_TYPE_E type)
+{
+    OPERATE_RET rt = OPRT_OK;
+    char alert_id[64] = {0};
+
+    snprintf(alert_id, sizeof(alert_id), "alert_pet_%d", type);
+
+    ai_audio_player_start(alert_id);
+
+    switch(type) {
+    case PET_ALERT_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_bi_tone_alert, sizeof(media_src_bi_tone_alert),
+                                        1);
+    } break;
+    case PET_ALERT_CANCEL_FAIL_TRI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_cancel_fail_tri_tone,
+                                        sizeof(media_src_cancel_fail_tri_tone), 1);
+    } break;
+    case PET_ALERT_CONFIRM: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_comfirm, sizeof(media_src_comfirm), 1);
+    } break;
+    case PET_ALERT_DOWNWARD_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_downward_bi_tone,
+                                        sizeof(media_src_downward_bi_tone), 1);
+    } break;
+    case PET_ALERT_FAIL_CANCEL_BI_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_fail_cancel_bi_tone,
+                                        sizeof(media_src_fail_cancel_bi_tone), 1);
+    } break;
+    case PET_ALERT_LOADING_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_loading_tone, sizeof(media_src_loading_tone), 1);
+    } break;
+    case PET_ALERT_SHORT_SELECT_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_short_select_tone,
+                                        sizeof(media_src_short_select_tone), 1);
+    } break;
+    case PET_ALERT_THREE_STAGE_UP_TONE: {
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_three_stage_up_tone,
+                                        sizeof(media_src_three_stage_up_tone), 1);
+    } break;
+    default:
+        break;
+    }
+
+    return rt;
 }

@@ -26,6 +26,19 @@ typedef enum {
     MODE_DP_TOTAL,
 } pet_mood_dp_value_t;
 
+
+typedef enum {
+    PET_ALERT_BI_TONE,
+    PET_ALERT_CANCEL_FAIL_TRI_TONE,
+    PET_ALERT_CONFIRM,
+    PET_ALERT_DOWNWARD_BI_TONE,
+    PET_ALERT_FAIL_CANCEL_BI_TONE,
+    PET_ALERT_LOADING_TONE,
+    PET_ALERT_SHORT_SELECT_TONE,
+    PET_ALERT_THREE_STAGE_UP_TONE,
+} PET_ALERT_TYPE_E;
+
+
 /**
  * @brief game pet operation function
  *
@@ -45,6 +58,8 @@ OPERATE_RET game_pet_operation(pet_event_type_t idx, bool show_now);
 OPERATE_RET game_pet_init(void);
 
 OPERATE_RET game_pet_reset(void);
+
+OPERATE_RET game_pet_play_alert(PET_ALERT_TYPE_E type);
 
 #ifdef __cplusplus
 }
