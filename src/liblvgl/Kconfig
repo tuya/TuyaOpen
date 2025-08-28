@@ -4,6 +4,10 @@ config ENABLE_LIBLVGL
     default n
 
 if (ENABLE_LIBLVGL)
+    config ENABLE_LVGL_OS_FREERTOS
+        bool "enable lvgl os freertos"
+        default n
+
     config LVGL_ENABLE_TOUCH
         bool "enable lvgl touch"
         select ENABLE_TOUCH if (!ENABLE_PLATFORM_LVGL)
@@ -12,6 +16,11 @@ if (ENABLE_LIBLVGL)
     if (!ENABLE_PLATFORM_LVGL)
         config ENABLE_LVGL_DEMO
             bool "enable lvgl demo"
+            select ENABLE_LVGL_MONITOR
+            default n
+
+        config ENABLE_LVGL_MONITOR
+            bool "enable lvgl monitor"
             default n
 
         config LVGL_ENABLE_ENCODER
@@ -19,8 +28,8 @@ if (ENABLE_LIBLVGL)
             select ENABLE_ENCODER
             default n
 
-        config LVGL_COLOR_16_SWAP
-            bool "swap color bytes"
+        config ENABLE_LVGL_LODEPNG
+            bool "enable lvgl LODEPNG decoder library"
             default n
 
         choice

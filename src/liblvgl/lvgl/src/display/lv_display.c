@@ -956,7 +956,6 @@ void lv_display_rotate_area(lv_display_t * disp, lv_area_t * area)
     }
 }
 // Modified by TUYA End
-
 /**********************
  *   STATIC FUNCTIONS
  **********************/

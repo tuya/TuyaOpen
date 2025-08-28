@@ -23,6 +23,13 @@ extern "C" {
 
 #if LV_USE_OS == LV_OS_FREERTOS
 
+#define TUYA_TKL_THREAD
+
+#ifdef TUYA_TKL_THREAD
+#include "tkl_thread.h"
+#include "tkl_mutex.h"
+#include "tkl_semaphore.h"
+#else
 #if (ESP_PLATFORM)
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -32,7 +39,7 @@ extern "C" {
 #include "task.h"
 #include "semphr.h"
 #endif
-
+#endif
 /*********************
  *      DEFINES
  *********************/
@@ -48,7 +55,31 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+#ifdef TUYA_TKL_THREAD
+typedef struct {
+    void (*pvStartRoutine)(void *);       /**< Application thread function. */
+    void * xTaskArg;                      /**< Arguments for application thread function. */
+    TKL_THREAD_HANDLE xTaskHandle;             /**< FreeRTOS task handle. */
+} lv_thread_t;
 
+typedef struct {
+    BOOL_T xIsInitialized;            /**< Set to pdTRUE if this mutex is initialized, pdFALSE otherwise. */
+    TKL_MUTEX_HANDLE xMutex;             /**< FreeRTOS mutex. */
+} lv_mutex_t;
+
+typedef struct {
+    BOOL_T xIsInitialized;                       /**< Set to pdTRUE if this condition variable is initialized, pdFALSE otherwise. */
+    BOOL_T xSyncSignal;               /**< Set to pdTRUE if the thread is signaled, pdFALSE otherwise. */
+#if USE_FREERTOS_TASK_NOTIFY
+    TKL_THREAD_HANDLE xTaskToNotify;
+#else
+    TKL_SEM_HANDLE xCondWaitSemaphore; /**< Threads block on this semaphore in lv_thread_sync_wait. */
+    UINT32_T ulWaitingThreads;            /**< The number of threads currently waiting on this condition variable. */
+    TKL_MUTEX_HANDLE xSyncMutex;         /**< Threads take this mutex before accessing the condition variable. */
+#endif
+} lv_thread_sync_t;
+
+#else
 typedef struct {
     void (*pvStartRoutine)(void *);       /**< Application thread function. */
     void * xTaskArg;                      /**< Arguments for application thread function. */
@@ -72,7 +103,7 @@ typedef struct {
     BaseType_t xSyncSignal;               /**< Set to pdTRUE if the thread is signaled, pdFALSE otherwise. */
 #endif
 } lv_thread_sync_t;
-
+#endif      //TUYA_TKL_THREAD
 /**********************
  * GLOBAL PROTOTYPES
  **********************/

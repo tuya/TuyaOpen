@@ -77,6 +77,21 @@ uint32_t tuya_ring_buff_used_size_get(TUYA_RINGBUFF_T ringbuff);
 uint32_t tuya_ring_buff_read(TUYA_RINGBUFF_T ringbuff, void *data, uint32_t len);
 
 /**
+ * @brief Discards a specified number of bytes from the ring buffer.
+ *
+ * This function removes a specified length of data from the ring buffer,
+ * effectively advancing the read pointer by the given length. The discarded
+ * data is no longer accessible after this operation.
+ *
+ * @param[in] ringbuff The ring buffer instance to operate on.
+ * @param[in] len      The number of bytes to discard from the ring buffer.
+ *
+ * @return The actual number of bytes discarded. This may be less than the
+ *         requested length if the ring buffer contains fewer bytes than `len`.
+ */
+uint32_t tuya_ring_buff_discard(TUYA_RINGBUFF_T ringbuff, uint32_t len);
+
+/**
  * @brief ringbuff data peek
  * this API read data but not output position
  *

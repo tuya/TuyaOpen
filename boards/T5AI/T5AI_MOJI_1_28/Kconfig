@@ -14,4 +14,3 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_BUTTON
     select ENABLE_DISPLAY
-    select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)

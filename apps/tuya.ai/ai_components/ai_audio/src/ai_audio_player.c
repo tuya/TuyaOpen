@@ -20,7 +20,6 @@
 
 #include "tdl_audio_manage.h"
 
-#include "ai_media_alert.h"
 #include "minimp3_ex.h"
 #include "ai_audio.h"
 
@@ -250,7 +249,7 @@ static void __ai_audio_player_task(void *arg)
 
         tal_mutex_unlock(sg_player.mutex);
 
-        tal_system_sleep(10);
+        tal_system_sleep(3);
     }
 }
 
@@ -309,9 +308,8 @@ OPERATE_RET ai_audio_player_init(void)
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_player.spk_rb_mutex), __ERR);
 
     // thread init
-    TUYA_CALL_ERR_GOTO(tkl_thread_create_in_psram(&sg_player.thrd_hdl, "ai_player", 1024 * 4, THREAD_PRIO_1,
-                                                  __ai_audio_player_task, NULL),
-                       __ERR);
+    TUYA_CALL_ERR_GOTO(tkl_thread_create(&sg_player.thrd_hdl, "ai_player", 1024 * 4, THREAD_PRIO_0,
+                                        __ai_audio_player_task, NULL), __ERR);
 
     PR_DEBUG("app player init success");
 
@@ -484,88 +482,6 @@ OPERATE_RET ai_audio_player_stop(void)
     return rt;
 }
 
-/**
- * @brief Plays an alert sound based on the specified alert type.
- *
- * @param type - The type of alert to play, defined by the APP_ALERT_TYPE_E enum.
- * @return OPERATE_RET - Returns OPRT_OK if the alert sound is successfully played, otherwise returns an error code.
- */
-OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
-{
-    OPERATE_RET rt = OPRT_OK;
-    char alert_id[64] = {0};
-
-    snprintf(alert_id, sizeof(alert_id), "alert_%d", type);
-
-    ai_audio_player_start(alert_id);
-
-    switch (type) {
-    case AI_AUDIO_ALERT_POWER_ON: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_power_on, sizeof(media_src_power_on), 1);
-    } break;
-    case AI_AUDIO_ALERT_NOT_ACTIVE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_not_active, sizeof(media_src_not_active), 1);
-    } break;
-    case AI_AUDIO_ALERT_NETWORK_CFG: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_netcfg_mode, sizeof(media_src_netcfg_mode), 1);
-    } break;
-    case AI_AUDIO_ALERT_NETWORK_CONNECTED: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conencted,
-                                        sizeof(media_src_network_conencted), 1);
-    } break;
-    case AI_AUDIO_ALERT_NETWORK_FAIL: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_fail, sizeof(media_src_network_fail), 1);
-    } break;
-    case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_disconnect,
-                                        sizeof(media_src_network_disconnect), 1);
-    } break;
-    case AI_AUDIO_ALERT_BATTERY_LOW: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_battery_low, sizeof(media_src_battery_low), 1);
-    } break;
-    case AI_AUDIO_ALERT_PLEASE_AGAIN: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again, sizeof(media_src_please_again), 1);
-    } break;
-    case AI_AUDIO_ALERT_WAKEUP: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup, sizeof(media_src_wakeup), 1);
-    } break;
-    case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_dialogue,
-                                        sizeof(media_src_long_press_dialogue), 1);
-    } break;
-    case AI_AUDIO_ALERT_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_key_dialogue, sizeof(media_src_key_dialogue), 1);
-    } break;
-    case AI_AUDIO_ALERT_WAKEUP_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wake_dialogue, sizeof(media_src_wake_dialogue),
-                                        1);
-    } break;
-    case AI_AUDIO_ALERT_FREE_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_dialogue, sizeof(media_src_free_dialogue),
-                                        1);
-    } break;
-    default:
-        break;
-    }
-
-    return rt;
-}
-
-/**
- * @brief Plays an alert sound synchronously based on the specified alert type.
- * @param type The type of alert to play, defined by the AI_AUDIO_ALERT_TYPE_E enum.
- * @return OPERATE_RET - OPRT_OK if the alert sound is successfully played, otherwise an error code.
- */
-OPERATE_RET ai_audio_player_play_alert_syn(AI_AUDIO_ALERT_TYPE_E type)
-{
-    ai_audio_player_play_alert(type);
-
-    while (ai_audio_player_is_playing()) {
-        tal_system_sleep(10);
-    }
-
-    return OPRT_OK;
-}
 
 /**
  * @brief Checks if the audio player is currently playing audio.

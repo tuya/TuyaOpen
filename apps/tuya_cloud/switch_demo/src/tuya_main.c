@@ -213,7 +213,7 @@ bool user_network_check(void)
 
 void user_main(void)
 {
-    int ret = OPRT_OK;
+    int rt = OPRT_OK;
 
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
@@ -252,15 +252,15 @@ void user_main(void)
     }
     // PR_DEBUG("uuid %s, authkey %s", license.uuid, license.authkey);
     /* Initialize Tuya device configuration */
-    ret = tuya_iot_init(&client, &(const tuya_iot_config_t){
-                                     .software_ver = PROJECT_VERSION,
-                                     .productkey = TUYA_PRODUCT_ID,
-                                     .uuid = license.uuid,
-                                     .authkey = license.authkey,
-                                     .event_handler = user_event_handler_on,
-                                     .network_check = user_network_check,
-                                 });
-    assert(ret == OPRT_OK);
+    rt = tuya_iot_init(&client, &(const tuya_iot_config_t){
+                                    .software_ver = PROJECT_VERSION,
+                                    .productkey = TUYA_PRODUCT_ID,
+                                    .uuid = license.uuid,
+                                    .authkey = license.authkey,
+                                    .event_handler = user_event_handler_on,
+                                    .network_check = user_network_check,
+                                });
+    assert(rt == OPRT_OK);
 
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();

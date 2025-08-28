@@ -15,27 +15,15 @@
  */
 
 #include "tuya_cloud_types.h"
-
-#include "tdd_button_gpio.h"
-#include "tdl_button_manage.h"
-
+#include "tkl_output.h"
 #include "tal_api.h"
 
-#include "tkl_output.h"
+#include "tdl_button_manage.h"
 
+#include "board_com_api.h"
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define APP_BUTTON_NAME "app_button"
-
-// T2 board button pin
-// #define APP_BUTTON_PIN          TUYA_GPIO_NUM_7
-
-// T5 board button pin
-#define APP_BUTTON_PIN TUYA_GPIO_NUM_12
-
-// #define APP_BUTTON_MODE_IRQ     1
-#define APP_BUTTON_MODE_SCAN 1
 
 /***********************************************************
 ***********************typedef define***********************
@@ -44,7 +32,6 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 
 /***********************************************************
 ***********************function define**********************
@@ -89,31 +76,48 @@ void user_main(void)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    // button register
-    BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin = APP_BUTTON_PIN,
-#if (defined(APP_BUTTON_MODE_SCAN) && APP_BUTTON_MODE_SCAN)
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-        .level = TUYA_GPIO_LEVEL_LOW,
-#elif (defined(APP_BUTTON_MODE_IRQ) && APP_BUTTON_MODE_IRQ)
-        .mode = BUTTON_IRQ_MODE,
-        .level = TUYA_GPIO_LEVEL_HIGH,
-        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
-#endif
-    };
-    TUYA_CALL_ERR_GOTO(tdd_gpio_button_register(APP_BUTTON_NAME, &button_hw_cfg), __EXIT);
+    /*hardware register*/
+    board_register_hardware();
 
     // button create
     TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time = 3000,
                                    .long_keep_timer = 1000,
                                    .button_debounce_time = 50,
                                    .button_repeat_valid_count = 2,
-                                   .button_repeat_valid_time = 50};
-    TUYA_CALL_ERR_GOTO(tdl_button_create(APP_BUTTON_NAME, &button_cfg, &sg_button_hdl), __EXIT);
+                                   .button_repeat_valid_time = 500};
+    TDL_BUTTON_HANDLE button_hdl = NULL;
 
-    tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
-    tdl_button_event_register(sg_button_hdl, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+    TUYA_CALL_ERR_GOTO(tdl_button_create(BUTTON_NAME, &button_cfg, &button_hdl), __EXIT);
+
+    tdl_button_event_register(button_hdl, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+
+#if defined(BUTTON_NAME_2)
+    TDL_BUTTON_HANDLE button_hdl_2 = NULL;
+
+    TUYA_CALL_ERR_GOTO(tdl_button_create(BUTTON_NAME_2, &button_cfg, &button_hdl_2), __EXIT);
+
+    tdl_button_event_register(button_hdl_2, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl_2, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+#endif
+
+#if defined(BUTTON_NAME_3)
+    TDL_BUTTON_HANDLE button_hdl_3 = NULL;
+
+    TUYA_CALL_ERR_GOTO(tdl_button_create(BUTTON_NAME_3, &button_cfg, &button_hdl_3), __EXIT);
+
+    tdl_button_event_register(button_hdl_3, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl_3, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+#endif
+
+#if defined(BUTTON_NAME_4)
+    TDL_BUTTON_HANDLE button_hdl_4 = NULL;
+
+    TUYA_CALL_ERR_GOTO(tdl_button_create(BUTTON_NAME_4, &button_cfg, &button_hdl_4), __EXIT);
+
+    tdl_button_event_register(button_hdl_4, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl_4, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+#endif
 
 __EXIT:
     return;

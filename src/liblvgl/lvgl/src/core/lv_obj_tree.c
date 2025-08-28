@@ -544,6 +544,12 @@ static void obj_delete_core(lv_obj_t * obj)
         async_cancel_res = lv_async_call_cancel(lv_obj_delete_async_cb, obj);
     }
 
+    // Modified by TUYA Start
+    //del self event obj
+    void lvMsgEventDel(lv_obj_t *obj);
+    lvMsgEventDel(obj);
+    // Modified by TUYA End
+
     /*All children deleted. Now clean up the object specific data*/
     _lv_obj_destruct(obj);
 

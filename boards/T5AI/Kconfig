@@ -55,6 +55,26 @@ choice
             rsource "./T5AI_MOJI_1_28/Kconfig"
         endif
 
+    config BOARD_CHOICE_TUYA_T5AI_POCKET
+        bool "TUYA_T5AI_POCKET"
+        if (BOARD_CHOICE_TUYA_T5AI_POCKET)
+            rsource "./TUYA_T5AI_POCKET/Kconfig"
+        endif
+
+
+    config BOARD_CHOICE_ATK_T5AI_MINI_BOARD
+        bool "ATK_T5AI_MINI_BOARD"
+        if (BOARD_CHOICE_ATK_T5AI_MINI_BOARD)
+            rsource "./ATK_T5AI_MINI_BOARD/Kconfig"
+        endif
+
+
+    config BOARD_CHOICE_WAVESHARE_T5AI_TOUCH_AMOLED_1_75
+        bool "WAVESHARE_T5AI_TOUCH_AMOLED_1_75"
+        if (BOARD_CHOICE_WAVESHARE_T5AI_TOUCH_AMOLED_1_75)
+            rsource "./WAVESHARE_T5AI_TOUCH_AMOLED_1_75/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

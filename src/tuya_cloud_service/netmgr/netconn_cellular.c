@@ -38,6 +38,11 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
         {
             .pri = 0,
             .type = NETCONN_CELLULAR,
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+            .card_type = TAL_NET_TYPE_POSIX,
+#else
+            .card_type = TAL_NET_TYPE_PLATFORM,
+#endif
             .status = NETMGR_LINK_DOWN,
             .open = netconn_cellular_open,
             .close = netconn_cellular_close,

@@ -1,53 +1,35 @@
 /**
  * @file example_joystick.c
- * @brief joystick example for SDK.
- *
- * This file provides an example implementation of a joystick driver using the Tuya SDK.
- * It demonstrates the configuration and usage of joystick inputs to read directional values
- * and button states. The example focuses on setting up the joystick, configuring its properties,
- * and initializing the joystick with these settings for continuous data reading.
- *
- * The joystick driver example is designed to help developers understand how to integrate joystick
- * functionality into their Tuya-based IoT projects, ensuring accurate input detection and
- * response for various applications.
- *
+ * @version 0.1
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
- *
  */
 
 #include "tuya_cloud_types.h"
-
-#include "tdd_joystick.h"
-#include "tdl_joystick_manage.h"
+#include "tkl_output.h"
 #include "tal_api.h"
 
-#include "tkl_output.h"
+#include "tdl_joystick_manage.h"
+
+#include "board_com_api.h"
 
 /***********************************************************
-*************************micro define***********************
+************************macro define************************
 ***********************************************************/
-#define APP_JOYSTICK_NAME "app_joystick"
 
-// T5 board joystick pin
-#define APP_JOYSTICK_PIN TUYA_GPIO_NUM_7
-#define ADC_CHANNEL_X    2
-#define ADC_CHANNEL_Y    5
-// #define APP_JOYSTICK_MODE_IRQ     1
-#define APP_JOYSTICK_MODE_SCAN 1
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDL_JOYSTICK_HANDLE sg_joystick_hdl = NULL;
+
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
 static void __stick_function_cb(char *name, TDL_JOYSTICK_TOUCH_EVENT_E event, void *argc)
 {
     switch (event) {
@@ -99,13 +81,10 @@ static void __stick_function_cb(char *name, TDL_JOYSTICK_TOUCH_EVENT_E event, vo
 /**
  * @brief user_main
  *
- * @param[in] param:Task parameters
  * @return none
  */
-void user_main()
+void user_main(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-    int adc_value[2] = {0}; /* adc value array, x and y */
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
@@ -119,30 +98,9 @@ void user_main()
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    /* joystick register */
-    JOYSTICK_GPIO_CFG_T joystick_hw_cfg = {
-        .btn_pin = APP_JOYSTICK_PIN,
-#if (defined(APP_JOYSTICK_MODE_SCAN) && APP_JOYSTICK_MODE_SCAN)
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-        .level = TUYA_GPIO_LEVEL_LOW,
-#elif (defined(APP_JOYSTICK_MODE_IRQ) && APP_JOYSTICK_MODE_IRQ)
-        .mode = BUTTON_IRQ_MODE,
-        .level = TUYA_GPIO_LEVEL_HIGH,
-        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
-#endif
-        .adc_num = TUYA_ADC_NUM_0,
-        .adc_cfg =
-            {
-                .ch_list.data = (1 << ADC_CHANNEL_X) | (1 << ADC_CHANNEL_Y),
-                .ch_nums = 2, /* adc Number of channel lists */
-                .width = 12,
-                .mode = TUYA_ADC_CONTINUOUS,
-                .type = TUYA_ADC_INNER_SAMPLE_VOL,
-                .conv_cnt = 1,
-            },
-    };
-    TUYA_CALL_ERR_GOTO(tdd_joystick_register(APP_JOYSTICK_NAME, &joystick_hw_cfg), __EXIT);
+    /*hardware register*/
+    board_register_hardware();
+
     TDL_JOYSTICK_CFG_T joystick_cfg = {
         .button_cfg = {.long_start_valid_time = 3000,
                        .long_keep_timer = 1000,
@@ -155,12 +113,12 @@ void user_main()
                 .adc_min_val = 0,           /* adc min value */
                 .normalized_range = 10,     /* normalized range ±10 */
                 .sensitivity = 2,           /* sensitivity should < normalized range */
-                .channel_x = ADC_CHANNEL_X, /* adc channel x */
-                .channel_y = ADC_CHANNEL_Y, /* adc channel y */
             },
     };
 
-    TUYA_CALL_ERR_GOTO(tdl_joystick_create(APP_JOYSTICK_NAME, &joystick_cfg, &sg_joystick_hdl), __EXIT);
+    TDL_JOYSTICK_HANDLE sg_joystick_hdl = NULL;
+
+    tdl_joystick_create(JOYSTICK_NAME, &joystick_cfg, &sg_joystick_hdl);
 
     tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_BUTTON_PRESS_DOWN, __stick_function_cb);
     tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_BUTTON_LONG_PRESS_HOLD, __stick_function_cb);
@@ -173,15 +131,17 @@ void user_main()
     tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_LONG_LEFT, __stick_function_cb);
     tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_LONG_RIGHT, __stick_function_cb);
 
-    while (1) {
-        tdl_joystick_get_raw_xy(sg_joystick_hdl, ADC_CHANNEL_X, ADC_CHANNEL_Y, &adc_value[0], &adc_value[1]);
-        PR_DEBUG("raw  ADC%d value_X = %d, value_Y = %d", TUYA_ADC_NUM_0, adc_value[0], adc_value[1]);
-        tdl_joystick_calibrated_xy(sg_joystick_hdl, ADC_CHANNEL_X, ADC_CHANNEL_Y, &adc_value[0], &adc_value[1]);
-        PR_DEBUG("cali ADC%d value_X = %d, value_Y = %d", TUYA_ADC_NUM_0, adc_value[0], adc_value[1]);
+    // int adc_value[2] = {0}; /* adc value array, x and y */
+
+    while(1) {
+        // tdl_joystick_get_raw_xy(sg_joystick_hdl, &adc_value[0], &adc_value[1]);
+        // PR_DEBUG("raw value_X = %d, value_Y = %d", adc_value[0], adc_value[1]);
+        // tdl_joystick_calibrated_xy(sg_joystick_hdl,  &adc_value[0], &adc_value[1]);
+        // PR_DEBUG("cali  value_X = %d, value_Y = %d", adc_value[0], adc_value[1]);
         tal_system_sleep(1000);
     }
 
-__EXIT:
+
     return;
 }
 

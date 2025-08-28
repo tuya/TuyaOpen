@@ -104,9 +104,12 @@ static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB 
 
     TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 0));
     TUYA_CALL_ERR_RETURN(tkl_ai_start(0, 0));
+    TUYA_CALL_ERR_RETURN(tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 80));
 
     uint8_t volume = hdl->play_volume;
-    TUYA_CALL_ERR_RETURN(tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, volume));
+    if(volume) {
+        TUYA_CALL_ERR_RETURN(tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, volume));
+    }
 
     return rt;
 }
@@ -118,21 +121,17 @@ static OPERATE_RET __tdd_audio_play(TDD_AUDIO_HANDLE_T handle, uint8_t *data, ui
     TDD_AUDIO_DATA_HANDLE_T *hdl = (TDD_AUDIO_DATA_HANDLE_T *)handle;
 
     TUYA_CHECK_NULL_RETURN(hdl, OPRT_COM_ERROR);
-    // TUYA_CHECK_NULL_RETURN(hdl->mutex_play, OPRT_COM_ERROR);
 
     if (NULL == data || len == 0) {
         PR_ERR("Play data is NULL");
         return OPRT_COM_ERROR;
     }
 
-    // tal_mutex_lock(hdl->mutex_play);
-
     TKL_AUDIO_FRAME_INFO_T frame;
     frame.pbuf = (char *)data;
     frame.used_size = len;
     tkl_ao_put_frame(0, 0, NULL, &frame);
 
-    // tal_mutex_unlock(hdl->mutex_play);
 
     return rt;
 }

@@ -175,6 +175,25 @@ lv_font_t * lv_freetype_font_create(const char * pathname, lv_freetype_font_rend
     return font;
 }
 
+// Modified by TUYA Start
+lv_font_t * lv_freetype_font_create_from_memory(
+    const uint8_t * ttf_data,
+    size_t ttf_size,
+    lv_freetype_font_render_mode_t render_mode,
+    uint32_t size,
+    lv_freetype_font_style_t style
+)
+{
+    /* 生成唯一内存标识符 */
+    static char mem_font_id[64];
+    lv_memzero(mem_font_id, sizeof(mem_font_id));
+    lv_snprintf(mem_font_id, sizeof(mem_font_id), "%s%p:%zu", LV_FREETYPE_MEM_PREFIX, ttf_data, ttf_size);
+
+    /* 调用原有函数，传递内存标识符 */
+    return lv_freetype_font_create(mem_font_id, render_mode, size, style);
+}
+// Modified by TUYA End
+
 void lv_freetype_font_delete(lv_font_t * font)
 {
     LV_ASSERT_NULL(font);
@@ -353,9 +372,30 @@ static bool cache_node_cache_create_cb(lv_freetype_cache_node_t * node, void * u
     LV_UNUSED(user_data);
     lv_freetype_context_t * ctx = lv_freetype_get_context();
 
+// Modified by TUYA Start
+    /* 判断是否为内存字体 */
+    const char * pathname = node->pathname;
+    int is_mem_font = (strncmp(pathname, LV_FREETYPE_MEM_PREFIX, strlen(LV_FREETYPE_MEM_PREFIX)) == 0);
+// Modified by TUYA End
+
     /* Cache miss, load face */
     FT_Face face;
-    FT_Error error = FT_New_Face(ctx->library, node->pathname, 0, &face);
+    FT_Error error;
+
+    if (is_mem_font) {
+// Modified by TUYA Start
+        /* 解析内存地址和大小 */
+        lv_freetype_mem_font_t mem_font;
+        const char* ptr_str = pathname + strlen(LV_FREETYPE_MEM_PREFIX);
+        sscanf(ptr_str, "%p:%zu", (void**)&mem_font.data, &mem_font.size);
+        error = FT_New_Memory_Face(ctx->library, mem_font.data, mem_font.size, 0, &face);
+// Modified by TUYA End
+    }
+    else {
+        /* 默认文件加载 */
+        error = FT_New_Face(ctx->library, node->pathname, 0, &face);
+    }
+
     if(error) {
         FT_ERROR_MSG("FT_New_Face", error);
         return false;

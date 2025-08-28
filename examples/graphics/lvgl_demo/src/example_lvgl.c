@@ -61,11 +61,10 @@ void user_main(void)
 
     lv_vendor_init(DISPLAY_NAME);
 
-// lv_example_gif_1();
-
     lv_demo_widgets();
+    // lv_demo_benchmark();
 
-    lv_vendor_start();
+    lv_vendor_start(5, 1024*8);
 }
 
 /**

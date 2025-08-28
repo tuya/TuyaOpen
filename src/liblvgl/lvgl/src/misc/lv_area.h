@@ -355,7 +355,9 @@ static inline void lv_point_precise_swap(lv_point_precise_t * p1, lv_point_preci
 LV_EXPORT_CONST_INT(LV_SIZE_CONTENT);
 
 /*Max coordinate value*/
-#define LV_COORD_MAX            ((1 << _LV_COORD_TYPE_SHIFT) - 1)
+// Modified by TUYA Start
+#define LV_COORD_MAX            (3*(1 << _LV_COORD_TYPE_SHIFT) - 1)
+// Modified by TUYA End
 #define LV_COORD_MIN            (-LV_COORD_MAX)
 
 LV_EXPORT_CONST_INT(LV_COORD_MAX);

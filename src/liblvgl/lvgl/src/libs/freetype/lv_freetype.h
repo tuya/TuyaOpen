@@ -33,6 +33,14 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+    /* 内存字体标识符前缀 */
+#define LV_FREETYPE_MEM_PREFIX    "mem://"
+
+/* 内存字体描述结构体 */
+typedef struct {
+    const uint8_t * data;  // 字体数据指针
+    size_t size;           // 字体数据大小
+} lv_freetype_mem_font_t;
 
 enum {
     LV_FREETYPE_FONT_STYLE_NORMAL = 0,
@@ -98,6 +106,14 @@ void lv_freetype_uninit(void);
  */
 lv_font_t * lv_freetype_font_create(const char * pathname, lv_freetype_font_render_mode_t render_mode, uint32_t size,
                                     lv_freetype_font_style_t style);
+
+lv_font_t * lv_freetype_font_create_from_memory(
+    const uint8_t * ttf_data,
+    size_t ttf_size,
+    lv_freetype_font_render_mode_t render_mode,
+    uint32_t size,
+    lv_freetype_font_style_t style
+);
 
 /**
  * Delete a freetype font.

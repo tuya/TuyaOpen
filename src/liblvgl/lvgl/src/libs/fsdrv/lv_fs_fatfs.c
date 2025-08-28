@@ -9,9 +9,10 @@
 #include "../../../lvgl.h"
 
 #if LV_USE_FS_FATFS
-#include "ff.h"
+//#include "ff.h"
 
 #include "../../core/lv_global.h"
+#include "tkl_fs.h"
 /*********************
  *      DEFINES
  *********************/
@@ -76,9 +77,9 @@ void lv_fs_fatfs_init(void)
     fs_drv_p->seek_cb = fs_seek;
     fs_drv_p->tell_cb = fs_tell;
 
-    fs_drv_p->dir_close_cb = fs_dir_close;
-    fs_drv_p->dir_open_cb = fs_dir_open;
-    fs_drv_p->dir_read_cb = fs_dir_read;
+    fs_drv_p->dir_close_cb = NULL;
+    fs_drv_p->dir_open_cb = NULL;
+    fs_drv_p->dir_read_cb = NULL;
 
     lv_fs_drv_register(fs_drv_p);
 }
@@ -104,23 +105,15 @@ static void fs_init(void)
 static void * fs_open(lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mode)
 {
     LV_UNUSED(drv);
-    uint8_t flags = 0;
+    char *flags = NULL;
 
-    if(mode == LV_FS_MODE_WR) flags = FA_WRITE | FA_OPEN_ALWAYS;
-    else if(mode == LV_FS_MODE_RD) flags = FA_READ;
-    else if(mode == (LV_FS_MODE_WR | LV_FS_MODE_RD)) flags = FA_READ | FA_WRITE | FA_OPEN_ALWAYS;
+    if(mode == LV_FS_MODE_WR) flags = "w";
+    else if(mode == LV_FS_MODE_RD) flags = "r";
+    else if(mode == (LV_FS_MODE_WR | LV_FS_MODE_RD)) flags = "r+";
 
-    FIL * f = lv_malloc(sizeof(FIL));
-    if(f == NULL) return NULL;
+    TUYA_FILE lf = tkl_fopen(path, flags);
 
-    FRESULT res = f_open(f, path, flags);
-    if(res == FR_OK) {
-        return f;
-    }
-    else {
-        lv_free(f);
-        return NULL;
-    }
+    return (void *)lf;
 }
 
 /**
@@ -133,8 +126,10 @@ static void * fs_open(lv_fs_drv_t * drv, const char * path, lv_fs_mode_t mode)
 static lv_fs_res_t fs_close(lv_fs_drv_t * drv, void * file_p)
 {
     LV_UNUSED(drv);
-    f_close(file_p);
-    lv_free(file_p);
+    TUYA_FILE lf = (TUYA_FILE )file_p;
+    tkl_fclose(lf);
+    //lv_free(lf);
+
     return LV_FS_RES_OK;
 }
 
@@ -151,9 +146,11 @@ static lv_fs_res_t fs_close(lv_fs_drv_t * drv, void * file_p)
 static lv_fs_res_t fs_read(lv_fs_drv_t * drv, void * file_p, void * buf, uint32_t btr, uint32_t * br)
 {
     LV_UNUSED(drv);
-    FRESULT res = f_read(file_p, buf, btr, (UINT *)br);
-    if(res == FR_OK) return LV_FS_RES_OK;
-    else return LV_FS_RES_UNKNOWN;
+    TUYA_FILE lf = (TUYA_FILE)file_p;
+
+    *br = tkl_fread((uint8_t *)buf, btr, lf);
+
+    return (int32_t)(*br) < 0 ? LV_FS_RES_UNKNOWN : LV_FS_RES_OK;
 }
 
 /**
@@ -168,9 +165,11 @@ static lv_fs_res_t fs_read(lv_fs_drv_t * drv, void * file_p, void * buf, uint32_
 static lv_fs_res_t fs_write(lv_fs_drv_t * drv, void * file_p, const void * buf, uint32_t btw, uint32_t * bw)
 {
     LV_UNUSED(drv);
-    FRESULT res = f_write(file_p, buf, btw, (UINT *)bw);
-    if(res == FR_OK) return LV_FS_RES_OK;
-    else return LV_FS_RES_UNKNOWN;
+    TUYA_FILE lf = (TUYA_FILE)file_p;
+
+    *bw = tkl_fwrite((uint8_t *)buf, btw, lf);
+
+    return (int32_t)(*bw) < 0 ? LV_FS_RES_UNKNOWN : LV_FS_RES_OK;
 }
 
 /**
@@ -185,20 +184,9 @@ static lv_fs_res_t fs_write(lv_fs_drv_t * drv, void * file_p, const void * buf, 
 static lv_fs_res_t fs_seek(lv_fs_drv_t * drv, void * file_p, uint32_t pos, lv_fs_whence_t whence)
 {
     LV_UNUSED(drv);
-    switch(whence) {
-        case LV_FS_SEEK_SET:
-            f_lseek(file_p, pos);
-            break;
-        case LV_FS_SEEK_CUR:
-            f_lseek(file_p, f_tell((FIL *)file_p) + pos);
-            break;
-        case LV_FS_SEEK_END:
-            f_lseek(file_p, f_size((FIL *)file_p) + pos);
-            break;
-        default:
-            break;
-    }
-    return LV_FS_RES_OK;
+    TUYA_FILE lf = (TUYA_FILE)file_p;
+    int rc = tkl_fseek(lf, pos, whence);
+    return rc < 0 ? LV_FS_RES_UNKNOWN : LV_FS_RES_OK;
 }
 
 /**
@@ -212,74 +200,11 @@ static lv_fs_res_t fs_seek(lv_fs_drv_t * drv, void * file_p, uint32_t pos, lv_fs
 static lv_fs_res_t fs_tell(lv_fs_drv_t * drv, void * file_p, uint32_t * pos_p)
 {
     LV_UNUSED(drv);
-    *pos_p = f_tell((FIL *)file_p);
-    return LV_FS_RES_OK;
-}
+    TUYA_FILE lf = (TUYA_FILE)file_p;
 
-/**
- * Initialize a 'DIR' variable for directory reading
- * @param drv   pointer to a driver where this function belongs
- * @param path  path to a directory
- * @return pointer to an initialized 'DIR' variable
- */
-static void * fs_dir_open(lv_fs_drv_t * drv, const char * path)
-{
-    LV_UNUSED(drv);
-    DIR * d = lv_malloc(sizeof(DIR));
-    if(d == NULL) return NULL;
+    *pos_p = tkl_ftell(lf);
 
-    FRESULT res = f_opendir(d, path);
-    if(res != FR_OK) {
-        lv_free(d);
-        d = NULL;
-    }
-    return d;
-}
-
-/**
- * Read the next filename from a directory.
- * The name of the directories will begin with '/'
- * @param drv       pointer to a driver where this function belongs
- * @param dir_p     pointer to an initialized 'DIR' variable
- * @param fn        pointer to a buffer to store the filename
- * @param fn_len    length of the buffer to store the filename
- * @return LV_FS_RES_OK or any error from lv_fs_res_t enum
- */
-static lv_fs_res_t fs_dir_read(lv_fs_drv_t * drv, void * dir_p, char * fn, uint32_t fn_len)
-{
-    LV_UNUSED(drv);
-    FRESULT res;
-    FILINFO fno;
-    fn[0] = '\0';
-
-    do {
-        res = f_readdir(dir_p, &fno);
-        if(res != FR_OK) return LV_FS_RES_UNKNOWN;
-
-        if(fno.fname[0] == 0) break; /* End of the directory */
-
-        if(fno.fattrib & AM_DIR) {
-            lv_snprintf(fn, fn_len, "/%s", fno.fname);
-        }
-        else lv_strncpy(fn, fno.fname, fn_len);
-
-    } while(lv_strcmp(fn, "/.") == 0 || lv_strcmp(fn, "/..") == 0);
-
-    return LV_FS_RES_OK;
-}
-
-/**
- * Close the directory reading
- * @param drv   pointer to a driver where this function belongs
- * @param dir_p pointer to an initialized 'DIR' variable
- * @return LV_FS_RES_OK or any error from lv_fs_res_t enum
- */
-static lv_fs_res_t fs_dir_close(lv_fs_drv_t * drv, void * dir_p)
-{
-    LV_UNUSED(drv);
-    f_closedir(dir_p);
-    lv_free(dir_p);
-    return LV_FS_RES_OK;
+    return (int32_t)(*pos_p) < 0 ? LV_FS_RES_UNKNOWN : LV_FS_RES_OK;
 }
 
 #else /*LV_USE_FS_FATFS == 0*/

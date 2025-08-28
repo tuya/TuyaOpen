@@ -89,6 +89,10 @@ config ENABLE_MEDIA
     bool
     default y
 
+config ENABLE_DMA2D
+    bool
+    default y
+
 config ENABLE_RGB
     bool
     default y

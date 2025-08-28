@@ -1,0 +1,28 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "ATK_T5AI_MINI_BOARD"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_AUDIO_AEC
+    select ENABLE_LED
+    select ENABLE_BUTTON
+
+choice ATK_T5AI_MINI_BOARD_EX_MODULE
+    prompt "choose expansion module for ATK_T5AI_MINI_BOARD"
+    default ATK_T5AI_MINI_BOARD_EX_MODULE_NONE
+
+    config ATK_T5AI_MINI_BOARD_EX_MODULE_NONE
+        bool "no expansion module"
+
+    config ATK_T5AI_MINI_BOARD_EX_MODULE_LCD
+        bool "support LCD expansion module"
+        select ENABLE_DISPLAY
+        select ENABLE_TOUCH
+endchoice

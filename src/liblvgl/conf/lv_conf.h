@@ -83,9 +83,12 @@
 /*Default display refresh, input device read and animation step period.*/
 #define LV_DEF_REFR_PERIOD  10      /*[ms]*/
 
+#define LV_INDEV_REFR_PERIOD  30    /*[ms]*/
+
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
  *(Not so important, you can adjust it to modify default sizes and spaces)*/
 #define LV_DPI_DEF 130     /*[px/inch]*/
+#define LV_DRAW_THREAD_STACK_SIZE    (8 * 1024)   /*[bytes]*/
 
 /*=================
  * OPERATING SYSTEM
@@ -98,7 +101,11 @@
  * - LV_OS_RTTHREAD
  * - LV_OS_WINDOWS
  * - LV_OS_CUSTOM */
+#if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
+#define LV_USE_OS   LV_OS_FREERTOS
+#else
 #define LV_USE_OS   LV_OS_NONE
+#endif
 
 #if LV_USE_OS == LV_OS_CUSTOM
     #define LV_OS_CUSTOM_INCLUDE <stdint.h>
@@ -127,7 +134,11 @@
 	/* Set the number of draw unit.
      * > 1 requires an operating system enabled in `LV_USE_OS`
      * > 1 means multiply threads will render the screen in parallel */
+#if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
+    #define LV_DRAW_SW_DRAW_UNIT_CNT    2
+#else
     #define LV_DRAW_SW_DRAW_UNIT_CNT    1
+#endif
 
     /* Use Arm-2D to accelerate the sw render */
     #define LV_USE_DRAW_ARM2D_SYNC      0
@@ -167,9 +178,9 @@
     #define LV_USE_VGLITE_BLIT_SPLIT 0
 
     #if LV_USE_OS
-            /* Enable VGLite draw async. Queue multiple tasks and flash them once to the GPU. */
-            #define LV_USE_VGLITE_DRAW_ASYNC 1
-        #endif
+        /* Enable VGLite draw async. Queue multiple tasks and flash them once to the GPU. */
+        #define LV_USE_VGLITE_DRAW_ASYNC 1
+    #endif
 
     /* Enable VGLite asserts. */
     #define LV_USE_VGLITE_ASSERT 0
@@ -193,23 +204,23 @@
 #define LV_USE_DRAW_VG_LITE 0
 
 #if LV_USE_DRAW_VG_LITE
-    /* Enable VG-Lite custom external 'gpu_init()' function */
-    #define LV_VG_LITE_USE_GPU_INIT 0
+/* Enable VG-Lite custom external 'gpu_init()' function */
+#define LV_VG_LITE_USE_GPU_INIT 0
 
-    /* Enable VG-Lite assert. */
-    #define LV_VG_LITE_USE_ASSERT 0
+/* Enable VG-Lite assert. */
+#define LV_VG_LITE_USE_ASSERT 0
 
-    /* VG-Lite flush commit trigger threshold. GPU will try to batch these many draw tasks. */
-    #define LV_VG_LITE_FLUSH_MAX_COUNT 8
+/* VG-Lite flush commit trigger threshold. GPU will try to batch these many draw tasks. */
+#define LV_VG_LITE_FLUSH_MAX_COUNT 8
 
-    /* Enable border to simulate shadow
-     * NOTE: which usually improves performance,
-     * but does not guarantee the same rendering quality as the software. */
-    #define LV_VG_LITE_USE_BOX_SHADOW 0
+/* Enable border to simulate shadow
+ * NOTE: which usually improves performance,
+ * but does not guarantee the same rendering quality as the software. */
+#define LV_VG_LITE_USE_BOX_SHADOW 0
 
 /* VG-Lite gradient image maximum cache number.
-     * NOTE: The memory usage of a single gradient image is 4K bytes.
-     */
+ * NOTE: The memory usage of a single gradient image is 4K bytes.
+ */
 #define LV_VG_LITE_GRAD_CACHE_SIZE 32
 
 #endif
@@ -223,7 +234,7 @@
  *-----------*/
 
 /*Enable the log module*/
-#define LV_USE_LOG 1
+#define LV_USE_LOG 0
 #if LV_USE_LOG
 
     /*How important log should be added:
@@ -274,7 +285,7 @@
 
 /*Add a custom handler when assert happens e.g. to restart the MCU*/
 #define LV_ASSERT_HANDLER_INCLUDE <stdint.h>
-#define LV_ASSERT_HANDLER while(1);   /*Halt by default*/
+//#define LV_ASSERT_HANDLER BK_ASSERT(0);   /*Halt by default*/
 
 /*-------------
  * Debug
@@ -375,16 +386,13 @@
 
 /*Will be added where memories needs to be aligned (with -Os data might not be aligned to boundary by default).
  * E.g. __attribute__((aligned(4)))*/
-#define LV_ATTRIBUTE_MEM_ALIGN
+#define LV_ATTRIBUTE_MEM_ALIGN __attribute__((aligned(4)))
 
 /*Attribute to mark large constant arrays for example font's bitmaps*/
 #define LV_ATTRIBUTE_LARGE_CONST
 
 /*Compiler prefix for a big array declaration in RAM*/
 #define LV_ATTRIBUTE_LARGE_RAM_ARRAY
-
-/*Place performance critical functions into a faster memory (e.g RAM)*/
-#define LV_ATTRIBUTE_FAST_MEM
 
 /*Export integer constant to binding. This macro is used with constants in the form of LV_<CONST> that
  *should also appear on LVGL binding API such as Micropython.*/
@@ -427,7 +435,6 @@
 /*Demonstrate special features*/
 #define LV_FONT_MONTSERRAT_28_COMPRESSED 0  /*bpp = 3*/
 #define LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0  /*Hebrew, Arabic, Persian letters and all their forms*/
-#define LV_FONT_SIMSUN_14_CJK            0  /*1000 most common CJK radicals*/
 #define LV_FONT_SIMSUN_16_CJK            0  /*1000 most common CJK radicals*/
 
 /*Pixel perfect monospace fonts*/
@@ -448,7 +455,7 @@
 #define LV_FONT_FMT_TXT_LARGE 1
 
 /*Enables/disables support for compressed fonts.*/
-#define LV_USE_FONT_COMPRESSED 0
+#define LV_USE_FONT_COMPRESSED 1
 
 /*Enable drawing placeholders when glyph dsc is not found*/
 #define LV_USE_FONT_PLACEHOLDER 1
@@ -658,8 +665,9 @@
 /*API for FATFS (needs to be added separately). Uses f_open, f_read, etc*/
 #define LV_USE_FS_FATFS 0
 #if LV_USE_FS_FATFS
-    #define LV_FS_FATFS_LETTER '\0'     /*Set an upper cased letter on which the drive will accessible (e.g. 'A')*/
+    #define LV_FS_FATFS_LETTER '/'      /*Set an upper cased letter on which the drive will accessible (e.g. 'A')*/
     #define LV_FS_FATFS_CACHE_SIZE 0    /*>0 to cache this number of bytes in lv_fs_read()*/
+    #define LV_FS_FATFS_DISK_NUM 3      /* 0: RAM, 1: SDIO_SD, 2: UDISK, 3: FLASH. */
 #endif
 
 /*API for memory-mapped file access. */
@@ -674,8 +682,20 @@
     #define LV_FS_LITTLEFS_LETTER '\0'     /*Set an upper cased letter on which the drive will accessible (e.g. 'A')*/
 #endif
 
+/*PNG decoder library*/
+// Modified by TUYA Start
+#define LV_USE_PNG 1
+#if LV_USE_PNG
+    #define LV_PNG_USE_PSRAM 1          /* 0: use default sram memory, 1: use psram memory. */
+#endif
+// Modified by TUYA End
+
 /*LODEPNG decoder library*/
+#ifdef ENABLE_LVGL_LODEPNG
+#define LV_USE_LODEPNG ENABLE_LVGL_LODEPNG
+#else
 #define LV_USE_LODEPNG 0
+#endif
 
 /*PNG decoder(libpng) library*/
 #define LV_USE_LIBPNG 0
@@ -694,8 +714,8 @@
 /*GIF decoder library*/
 #define LV_USE_GIF 1
 #if LV_USE_GIF
-    /*GIF decoder accelerate*/
-    #define LV_GIF_CACHE_DECODE_DATA 0
+/*GIF decoder accelerate*/
+#define LV_GIF_CACHE_DECODE_DATA 0
 #endif
 
 
@@ -768,7 +788,7 @@
 #endif
 
 /*1: Enable system monitor component*/
-#define LV_USE_SYSMON   0
+#define LV_USE_SYSMON   1
 #if LV_USE_SYSMON
     /*Get the idle percentage. E.g. uint32_t my_get_idle(void);*/
     #define LV_SYSMON_GET_IDLE lv_timer_get_idle
@@ -873,7 +893,6 @@
     #define LV_SDL_INCLUDE_PATH     <SDL2/SDL.h>
     #define LV_SDL_RENDER_MODE      LV_DISPLAY_RENDER_MODE_DIRECT   /*LV_DISPLAY_RENDER_MODE_DIRECT is recommended for best performance*/
     #define LV_SDL_BUF_COUNT        1    /*1 or 2*/
-    #define LV_SDL_ACCELERATED      1    /*1: Use hardware acceleration*/
     #define LV_SDL_FULLSCREEN       0    /*1: Make the window full screen by default*/
     #define LV_SDL_DIRECT_EXIT      1    /*1: Exit the application when all SDL windows are closed*/
     #define LV_SDL_MOUSEWHEEL_MODE  LV_SDL_MOUSEWHEEL_MODE_ENCODER  /*LV_SDL_MOUSEWHEEL_MODE_ENCODER/CROWN*/
@@ -888,13 +907,6 @@
     #define LV_X11_RENDER_MODE_PARTIAL 1  /*Partial render mode (preferred)*/
     #define LV_X11_RENDER_MODE_DIRECT  0  /*direct render mode*/
     #define LV_X11_RENDER_MODE_FULL    0  /*Full render mode*/
-#endif
-
-/*Use Wayland to open a window and handle input on Linux or BSD desktops */
-#define LV_USE_WAYLAND          0
-#if LV_USE_WAYLAND
-    #define LV_WAYLAND_WINDOW_DECORATIONS   0    /*Draw client side window decorations only necessary on Mutter/GNOME*/
-    #define LV_WAYLAND_WL_SHELL             0    /*Use the legacy wl_shell protocol instead of the default XDG shell*/
 #endif
 
 /*Driver for /dev/fb*/

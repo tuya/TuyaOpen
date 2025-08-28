@@ -13,7 +13,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tdd_disp_ili9488.h"
-#include "tdl_display_driver.h"
+#include "tdd_display_rgb.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -99,9 +99,10 @@ OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev
     sg_disp_rgb.cfg.height = dev_cfg->height;
     sg_disp_rgb.cfg.pixel_fmt = dev_cfg->pixel_fmt;
     sg_disp_rgb.rotation = dev_cfg->rotation;
+    sg_disp_rgb.is_swap = false;
 
     memcpy(&sg_disp_rgb.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_rgb.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
 
-    return tdl_disp_rgb_device_register(name, &sg_disp_rgb);
+    return tdd_disp_rgb_device_register(name, &sg_disp_rgb);
 }

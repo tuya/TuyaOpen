@@ -126,7 +126,7 @@ static OPERATE_RET __board_register_display(void)
 #if defined(DISPLAY_NAME)
     DISP_SPI_DEVICE_CFG_T display_cfg;
 
-    memset(&display_cfg, 0, sizeof(DISP_RGB_DEVICE_CFG_T));
+    memset(&display_cfg, 0, sizeof(DISP_SPI_DEVICE_CFG_T));
 
     display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
     display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;

@@ -77,6 +77,12 @@ static void indev_read_core(lv_indev_t * indev, lv_indev_data_t * data);
 static void indev_reset_core(lv_indev_t * indev, lv_obj_t * obj);
 static lv_result_t send_event(lv_event_code_t code, void * param);
 
+// Modified by TUYA Start
+#ifdef CONFIG_TUYA_PAGE_TILEVIEW
+static int indev_obj_is_hidden(lv_obj_t *obj);
+#endif
+// Modified by TUYA End
+
 static void indev_scroll_throw_anim_start(lv_indev_t * indev);
 static void indev_scroll_throw_anim_cb(void * var, int32_t v);
 static void indev_scroll_throw_anim_completed_cb(lv_anim_t * anim);
@@ -123,7 +129,7 @@ lv_indev_t * lv_indev_create(void)
     indev->reset_query  = 1;
     indev->enabled = 1;
 
-    indev->read_timer = lv_timer_create(lv_indev_read_timer_cb, LV_DEF_REFR_PERIOD, indev);
+    indev->read_timer = lv_timer_create(lv_indev_read_timer_cb, LV_INDEV_REFR_PERIOD, indev);
 
     indev->disp                 = lv_display_get_default();
     indev->type                 = LV_INDEV_TYPE_NONE;
@@ -429,6 +435,39 @@ void lv_indev_get_point(const lv_indev_t * indev, lv_point_t * point)
     }
 }
 
+// Modified by TUYA Start
+int32_t lv_indev_get_point_x(const lv_indev_t * indev)
+{
+    lv_point_t point = {0x0};
+    lv_indev_get_point(indev, &point);
+    if(indev_obj_act) {
+        if (LV_BASE_DIR_RTL == lv_obj_get_style_base_dir(indev_obj_act, 0)) {
+            point.x = LV_HOR_RES - point.x;
+        }
+    }
+
+    return point.x;
+}
+
+int32_t lv_indev_get_point_y(const lv_indev_t * indev)
+{
+    lv_point_t point = {0x0};
+    lv_indev_get_point(indev, &point);
+    return point.y;
+}
+
+int32_t lv_indev_get_start_point_x(const lv_indev_t * indev)
+{
+    return indev->pointer.start_point.x;
+}
+
+int32_t lv_indev_get_start_point_y(const lv_indev_t * indev)
+{
+    return indev->pointer.start_point.y;
+}
+
+// Modified by TUYA End
+
 lv_dir_t lv_indev_get_gesture_dir(const lv_indev_t * indev)
 {
     return indev->pointer.gesture_dir;
@@ -670,11 +709,32 @@ static void indev_pointer_proc(lv_indev_t * i, lv_indev_data_t * data)
     /*Process the diff first as scrolling will be processed in indev_proc_release*/
     indev_proc_pointer_diff(i);
 
+    // Modified by TUYA Start
+    static bool pressed = false;
+    // Modified by TUYA End
+
     if(i->state == LV_INDEV_STATE_PRESSED) {
         indev_proc_press(i);
+        // Modified by TUYA Start
+        pressed = true;
+        // Modified by TUYA End
     }
     else {
+        // Modified by TUYA Start
+        lv_obj_t * scroll_obj = i->pointer.scroll_obj;
+        if(true == pressed && NULL == scroll_obj)
+        {
+        #ifdef CONFIG_TUYA_PAGE_TILEVIEW
+            indev_proc_press(i);
+        #endif
+        }
+        // Modified by TUYA End
+
         indev_proc_release(i);
+
+        // Modified by TUYA Start
+        pressed = false;
+        // Modified by TUYA End
     }
 
     i->pointer.last_point.x = i->pointer.act_point.x;
@@ -1241,6 +1301,26 @@ static void indev_proc_press(lv_indev_t * indev)
     }
 }
 
+// Modified by TUYA Start
+#ifdef CONFIG_TUYA_PAGE_TILEVIEW
+static int indev_obj_is_hidden(lv_obj_t *obj)
+{
+    int hide = false;
+    lv_obj_t *par = obj;
+    while(par != NULL) {
+        if(lv_obj_has_flag(par, LV_OBJ_FLAG_HIDDEN)) {
+            hide = true;
+            break;
+        }
+
+        par = lv_obj_get_parent(par);
+    }
+
+    return hide;
+}
+#endif
+// Modified by TUYA End
+
 /**
  * Process the released state of LV_INDEV_TYPE_POINTER input devices
  * @param proc pointer to an input device 'proc'
@@ -1270,11 +1350,24 @@ static void indev_proc_release(lv_indev_t * indev)
         const bool is_enabled = !lv_obj_has_state(indev_obj_act, LV_STATE_DISABLED);
 
         if(is_enabled) {
+            // Modified by TUYA Start
+            #ifdef CONFIG_TUYA_PAGE_TILEVIEW
+            lv_obj_send_event(lv_scr_act(), LV_EVENT_GESTURE_RELEASED, NULL);
+            if(indev_reset_check(proc)) return;
+            #endif
+            // Modified by TUYA End
+
             if(send_event(LV_EVENT_RELEASED, indev_act) == LV_RESULT_INVALID) return;
         }
 
         if(is_enabled) {
+            // Modified by TUYA Start
+            #ifdef CONFIG_TUYA_PAGE_TILEVIEW
+            if(scroll_obj == NULL && !indev_obj_is_hidden(indev_obj_act)) {
+            #else
             if(scroll_obj == NULL) {
+            #endif
+            // Modified by TUYA End
                 if(indev->long_pr_sent == 0) {
                     if(send_event(LV_EVENT_SHORT_CLICKED, indev_act) == LV_RESULT_INVALID) return;
                 }
@@ -1476,7 +1569,11 @@ static void indev_click_focus(lv_indev_t * indev)
 */
 void indev_gesture(lv_indev_t * indev)
 {
+	// Modified by TUYA Start
+#ifndef CONFIG_TUYA_PAGE_TILEVIEW
     if(indev->pointer.scroll_obj) return;
+#endif
+	// Modified by TUYA End
     if(indev->pointer.gesture_sent) return;
 
     lv_obj_t * gesture_obj = indev->pointer.act_obj;
@@ -1492,11 +1589,20 @@ void indev_gesture(lv_indev_t * indev)
        (LV_ABS(indev->pointer.vect.y) < indev_act->gesture_min_velocity)) {
         indev->pointer.gesture_sum.x = 0;
         indev->pointer.gesture_sum.y = 0;
+        // Modified by TUYA Start
+        lv_memset(&indev->pointer.start_point, 0x0, sizeof(lv_point_t));
+        // Modified by TUYA End
     }
 
     /*Count the movement by gesture*/
     indev->pointer.gesture_sum.x += indev->pointer.vect.x;
     indev->pointer.gesture_sum.y += indev->pointer.vect.y;
+
+    // Modified by TUYA Start
+    if (!indev->pointer.start_point.x && !indev->pointer.start_point.y) {
+        lv_memcpy(&indev->pointer.start_point, &indev->pointer.act_point, sizeof(lv_point_t));
+    }
+    // Modified by TUYA End
 
     if((LV_ABS(indev->pointer.gesture_sum.x) > indev_act->gesture_limit) ||
        (LV_ABS(indev->pointer.gesture_sum.y) > indev_act->gesture_limit)) {

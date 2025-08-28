@@ -16,6 +16,11 @@
 #include "tkl_memory.h"
 #include "tal_api.h"
 #include "tdl_display_manage.h"
+
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+#include "tkl_dma2d.h"
+#endif
+
 /*********************
  *      DEFINES
  *********************/
@@ -49,12 +54,19 @@ static lv_color_format_t __disp_get_lv_color_format(TUYA_DISPLAY_PIXEL_FMT_E pix
 
 static uint8_t __disp_get_pixels_size_bytes(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt);
 
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+static void __disp_dma2d_init(void);
+#endif
+
+
 /**********************
  *  STATIC VARIABLES
  **********************/
 static TDL_DISP_HANDLE_T sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T sg_display_info;
-static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
+static TDL_DISP_FRAME_BUFF_T sg_display_fb;
+static uint8_t *sg_frame_1 = NULL;
+static uint8_t *sg_frame_2 = NULL;
 static uint8_t *sg_rotate_buf = NULL;
 /**********************
  *      MACROS
@@ -63,7 +75,6 @@ static uint8_t *sg_rotate_buf = NULL;
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-
 void lv_port_disp_init(char *device)
 {
     uint8_t per_pixel_byte = 0;
@@ -87,7 +98,8 @@ void lv_port_disp_init(char *device)
      * Two buffers for partial rendering
      * In flush_cb DMA or similar hardware should be used to update the display in the background.*/
     per_pixel_byte = lv_color_format_get_size(color_format);
-    uint32_t buf_len = sg_display_info.width * sg_display_info.height / LV_DRAW_BUF_PARTS * per_pixel_byte;
+
+    uint32_t buf_len = (sg_display_info.height / LV_DRAW_BUF_PARTS) * sg_display_info.width * per_pixel_byte;
 
     static uint8_t *buf_2_1;
     buf_2_1 = __disp_draw_buf_align_alloc(buf_len);
@@ -132,6 +144,132 @@ void lv_port_disp_deinit(void)
 /**********************
  *   STATIC FUNCTIONS
  **********************/
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+static SEM_HANDLE sg_dma2d_finish_sem = NULL;
+static bool sg_is_wait_dma2d = false;
+static void __disp_dma2d_event_cb(TUYA_DMA2D_IRQ_E type, VOID_T *args)
+{
+    tal_semaphore_post(sg_dma2d_finish_sem);
+}
+
+static void __disp_dma2d_init(void)
+{
+    tal_semaphore_create_init(&sg_dma2d_finish_sem, 0, 1);
+
+    TUYA_DMA2D_BASE_CFG_T cfg = {
+        .cb = __disp_dma2d_event_cb,
+    };
+
+    tkl_dma2d_init(&cfg);
+}
+
+static void __wait_dma2d_trans_finish(void)
+{
+    OPERATE_RET ret = OPRT_OK;
+
+    if(sg_dma2d_finish_sem && sg_is_wait_dma2d) {
+        ret = tal_semaphore_wait(sg_dma2d_finish_sem, 1000);
+        if(ret != OPRT_OK) {
+            PR_ERR("wait dma2d finish failed, rt: %d", ret);
+        }
+        sg_is_wait_dma2d = false;
+    }
+}
+
+static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t * area, uint8_t * px_map, \
+                                          lv_color_format_t cf, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
+    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
+
+    if (area == NULL || px_map == NULL || fb == NULL) {
+        PR_ERR("Invalid parameter");
+        return;
+    }
+
+    // Perform memory copy based on color format
+    switch (cf) {
+        case LV_COLOR_FORMAT_RGB565:
+            in_frame.type  = TUYA_FRAME_FMT_RGB565;
+            out_frame.type = TUYA_FRAME_FMT_RGB565;
+            break;
+        case LV_COLOR_FORMAT_RGB888:
+            in_frame.type  = TUYA_FRAME_FMT_RGB888;
+            out_frame.type = TUYA_FRAME_FMT_RGB888;
+            break;
+        default:
+            PR_ERR("Unsupported color format");
+            return;
+    }
+
+    in_frame.width  = area->x2 - area->x1 + 1;
+    in_frame.height = area->y2 - area->y1 + 1;
+    in_frame.pbuf   = px_map;
+    in_frame.axis.x_axis   = 0;
+    in_frame.axis.y_axis   = 0;
+    in_frame.width_cp      = 0;
+    in_frame.height_cp     = 0;
+
+    out_frame.width  = fb->width;
+    out_frame.height = fb->height;
+    out_frame.pbuf   = fb->frame;
+    out_frame.axis.x_axis   = area->x1;
+    out_frame.axis.y_axis   = area->y1;
+
+    tkl_dma2d_memcpy(&in_frame, &out_frame);
+
+    sg_is_wait_dma2d = true;
+
+    __wait_dma2d_trans_finish();
+}
+
+static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
+                                             uint8_t *dst_frame,\
+                                             uint8_t *src_frame)
+{
+    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
+    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
+
+    switch (dev_info->fmt) {
+        case TUYA_PIXEL_FMT_RGB565:
+            in_frame.type  = TUYA_FRAME_FMT_RGB565;
+            out_frame.type = TUYA_FRAME_FMT_RGB565;
+            break;
+        case TUYA_PIXEL_FMT_RGB888:
+            in_frame.type  = TUYA_FRAME_FMT_RGB888;
+            out_frame.type = TUYA_FRAME_FMT_RGB888;
+            break;
+        default:
+            PR_ERR("Unsupported color format");
+            return;
+    }
+
+
+    in_frame.type  = TUYA_FRAME_FMT_RGB565;
+    in_frame.width  = dev_info->width;
+    in_frame.height = dev_info->height;
+    in_frame.pbuf   = src_frame;
+    in_frame.axis.x_axis   = 0;
+    in_frame.axis.y_axis   = 0;
+    in_frame.width_cp      = 0;
+    in_frame.height_cp     = 0;
+    
+    out_frame.type = TUYA_FRAME_FMT_RGB565;
+    out_frame.width  = dev_info->width;
+    out_frame.height = dev_info->height;
+    out_frame.pbuf   = dst_frame;
+    out_frame.axis.x_axis   = 0;
+    out_frame.axis.y_axis   = 0;
+    out_frame.width_cp      = 0;
+    out_frame.height_cp     = 0;
+
+    tkl_dma2d_memcpy(&in_frame, &out_frame);
+
+    sg_is_wait_dma2d = true;
+}
+
+#endif
+
 
 /*Initialize your display and the required peripherals.*/
 static void disp_init(char *device)
@@ -171,15 +309,32 @@ static void disp_init(char *device)
         frame_len = sg_display_info.width * sg_display_info.height * per_pixel_byte;
     }
 
-    sg_p_display_fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
-    if(NULL == sg_p_display_fb) {
-        PR_ERR("create display frame buff failed");
+    sg_display_fb.fmt    = sg_display_info.fmt;
+    sg_display_fb.width  = sg_display_info.width;
+    sg_display_fb.height = sg_display_info.height;
+    sg_display_fb.len    = frame_len;
+
+    sg_frame_1 = __disp_draw_buf_align_alloc(frame_len);
+    if(NULL == sg_frame_1) {
+        PR_ERR("create display frame buff 1 failed");
         return;
     }
+    sg_display_fb.frame  = sg_frame_1;
 
-    sg_p_display_fb->fmt    = sg_display_info.fmt;
-    sg_p_display_fb->width  = sg_display_info.width;
-    sg_p_display_fb->height = sg_display_info.height;
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+    if(sg_display_info.fmt == TUYA_PIXEL_FMT_RGB565 ||\
+       sg_display_info.fmt == TUYA_PIXEL_FMT_RGB888) {
+
+        sg_frame_2 = __disp_draw_buf_align_alloc(frame_len);
+        if(NULL == sg_frame_2) {
+            PR_ERR("create display frame buff 2 failed");
+            return;
+        }
+    }
+
+    __disp_dma2d_init();
+#endif
+
 }
 
 static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
@@ -189,7 +344,6 @@ static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
     size_bytes += LV_DRAW_BUF_ALIGN - 1;
     buf_u8 = (uint8_t *)LV_MEM_CUSTOM_ALLOC(size_bytes);
     if (buf_u8) {
-        memset(buf_u8, 0x00, size_bytes);
         buf_u8 += LV_DRAW_BUF_ALIGN - 1;
         buf_u8 = (uint8_t *)((uint32_t) buf_u8 & ~(LV_DRAW_BUF_ALIGN - 1));
     }
@@ -265,17 +419,11 @@ static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px
                                             lv_color_format_t cf, TDL_DISP_FRAME_BUFF_T *fb)
 {
     uint32_t offset = 0, x = 0, y = 0;
-    uint8_t *disp_buf = NULL;
-    int32_t width = 0;
 
     if(NULL == area || NULL == px_map || NULL == fb) {
         PR_ERR("Invalid parameters: area or px_map or fb is NULL");
         return;
     }
-
-    width = lv_area_get_width(area);
-
-    disp_buf = fb->frame;
     
     if(fb->fmt == TUYA_PIXEL_FMT_MONOCHROME) {
         for(y = area->y1 ; y <= area->y2; y++) {
@@ -297,20 +445,27 @@ static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px
         }
     }else {
         if(LV_COLOR_FORMAT_RGB565 == cf) {
-            #if defined(LVGL_COLOR_16_SWAP) && (LVGL_COLOR_16_SWAP == 1)
-            lv_draw_sw_rgb565_swap(px_map, lv_area_get_width(area) * lv_area_get_height(area));
-            #endif
+            if(sg_display_info.is_swap) {
+                lv_draw_sw_rgb565_swap(px_map, lv_area_get_width(area) * lv_area_get_height(area));
+            }
         }
 
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+        __wait_dma2d_trans_finish();
+
+        __dma2d_drawbuffer_memcpy_syn(area, px_map, cf, fb);
+#else
         uint8_t *color_ptr = px_map;
         uint8_t per_pixel_byte = __disp_get_pixels_size_bytes(fb->fmt);
+        int32_t width = lv_area_get_width(area);
 
         offset = (area->y1 * fb->width + area->x1) * per_pixel_byte;
         for (y = area->y1; y <= area->y2 && y < fb->height; y++) {
-            memcpy(disp_buf + offset, color_ptr, width * per_pixel_byte);
+            memcpy(fb->frame + offset, color_ptr, width * per_pixel_byte);
             offset += fb->width * per_pixel_byte; // Move to the next line in the display buffer
             color_ptr += width * per_pixel_byte;
         }
+#endif
     }
 }
 
@@ -376,14 +531,27 @@ static void disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px
             target_area = &rotated_area;
         }
 
-        __disp_fill_display_framebuffer(target_area, color_ptr, cf, sg_p_display_fb);
+        __disp_fill_display_framebuffer(target_area, color_ptr, cf, &sg_display_fb);
 
-        if (lv_disp_flush_is_last(disp)) {
-            tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
+        if (lv_display_flush_is_last(disp)) {
+            tdl_disp_dev_flush(sg_tdl_disp_hdl, &sg_display_fb);
+
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+            if(sg_display_info.fmt == TUYA_PIXEL_FMT_RGB565 ||\
+               sg_display_info.fmt == TUYA_PIXEL_FMT_RGB888) {
+
+                uint8_t *next_frame = (sg_display_fb.frame == sg_frame_1) ? \
+                                                sg_frame_2 : sg_frame_1;
+                if(next_frame) {
+                    __dma2d_framebuffer_memcpy_async(&sg_display_info, next_frame, sg_display_fb.frame);
+                    sg_display_fb.frame = next_frame;
+                }
+            }
+#endif
         }
     }
 
-    lv_disp_flush_ready(disp);
+    lv_display_flush_ready(disp);
 }
 
 #else /*Enable this file at the top*/
