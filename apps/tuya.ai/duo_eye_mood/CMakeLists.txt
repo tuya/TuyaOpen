@@ -12,11 +12,14 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-list(APPEND APP_SRCS ${ai_audio_srcs} ${media_srcs})
+list(APPEND media_srcs "${APP_PATH}/src/media")
+
+list(APPEND APP_SRCS ${media_srcs})
 
 set(APP_INC 
             ${APP_PATH}/assets
             ${APP_PATH}/include
+            ${APP_PATH}/include/media
 )
 
 list(APPEND APP_INC "${APP_PATH}/assets")

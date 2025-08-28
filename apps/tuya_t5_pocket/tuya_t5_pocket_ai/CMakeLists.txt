@@ -18,7 +18,7 @@ list(APPEND APP_SRCS ${ai_audio_srcs} ${media_srcs} ${media_alert})
 set(APP_INC 
             ${APP_PATH}/assets
             ${APP_PATH}/include
-            ${APP_PATH}/src/media
+            ${APP_PATH}/include/media
 )
 
 list(APPEND APP_INC "${APP_PATH}/assets")

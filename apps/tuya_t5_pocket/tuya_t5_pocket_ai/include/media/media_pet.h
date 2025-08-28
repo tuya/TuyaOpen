@@ -1,5 +1,5 @@
-#ifndef __MEDIA_SRC_H__
-#define __MEDIA_SRC_H__
+#ifndef __MEDIA_PET_H__
+#define __MEDIA_PET_H__
 
 #include "tuya_cloud_types.h"
 
@@ -12,4 +12,5 @@ extern const char media_src_loading_tone[25029];
 extern const char media_src_short_select_tone[2822];
 extern const char media_src_three_stage_up_tone[3076];
 
-#endif // __MEDIA_SRC_H__
+
+#endif // __MEDIA_PET_H__

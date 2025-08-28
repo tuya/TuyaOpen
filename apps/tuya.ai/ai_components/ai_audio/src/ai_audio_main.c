@@ -189,8 +189,6 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *a
         }
     } break;
     case AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD: {
-        ai_audio_player_stop();
-        ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
 
         if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state || AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
             ai_audio_cloud_asr_set_idle(true);
@@ -406,9 +404,6 @@ OPERATE_RET ai_audio_set_wakeup(void)
     if (false == sg_ai_audio.is_open) {
         return OPRT_COM_ERROR;
     }
-
-    ai_audio_player_stop();
-    ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
 
     if (AI_AUDIO_STATE_UPLOAD == sg_ai_audio.state || AI_AUDIO_STATE_AI_SPEAK == sg_ai_audio.state) {
         ai_audio_cloud_asr_set_idle(true);

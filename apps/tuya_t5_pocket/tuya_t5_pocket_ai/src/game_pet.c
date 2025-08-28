@@ -16,7 +16,7 @@
 #include "tal_sw_timer.h"
 #include "ai_audio_player.h"
 #include "game_pet.h"
-#include "media_src.h"
+#include "media_pet.h"
 
 #define PET_DEBUG_ENABLE 0
 
