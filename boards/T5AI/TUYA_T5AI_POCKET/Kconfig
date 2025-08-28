@@ -18,3 +18,5 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_4
     select ENABLE_DISPLAY
     select ENABLE_JOYSTICK
+    select ENABLE_PMIC
+    select ENABLE_PMIC_AXP2101

@@ -68,7 +68,6 @@ typedef struct {
     TUYA_DISPLAY_IO_CTRL_T    power;
 } TDD_DISP_DEV_INFO_T;
 
-#if defined(ENABLE_RGB) && (ENABLE_RGB==1)
 typedef struct {
     OPERATE_RET (*open)(TDD_DISP_DEV_HANDLE_T device);
     OPERATE_RET (*flush)(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff);

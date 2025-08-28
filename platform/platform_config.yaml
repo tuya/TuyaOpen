@@ -12,12 +12,12 @@ platforms:
 - name: Ubuntu
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 5ec7f1b9687ccf0fd104fcc8372fac74c9676788
+  commit: 90141766b9a1aa03cded820703c5d7f3e1d86f34
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
   branch: feature/smp
-  commit: 60192a6d448bcecc9ca0375ce24ba69562991f2a
+  commit: 1e629fede502a57df100b7ed68978da61bb2147f
 
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
