@@ -174,6 +174,15 @@ rm -f ${CACHE_PATH}/.dont_prompt_update_platform
 # complete
 eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
 
+# hello tuya
+HELLO_TUYA='
+ ______                 ____
+/_  __/_ ____ _____ _  / __ \___  ___ ___
+ / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
+/_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
+         /___/            /_/
+'
 echo "****************************************"
+echo $HELLO_TUYA
 echo "Exit use: exit"
 echo "****************************************"
