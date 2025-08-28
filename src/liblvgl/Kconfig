@@ -28,6 +28,10 @@ if (ENABLE_LIBLVGL)
             select ENABLE_ENCODER
             default n
 
+        config ENABLE_LVGL_LODEPNG
+            bool "enable lvgl LODEPNG decoder library"
+            default n
+
         choice
             prompt "the proportion of the draw buffer size"
 

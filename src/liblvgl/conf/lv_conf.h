@@ -691,7 +691,11 @@
 // Modified by TUYA End
 
 /*LODEPNG decoder library*/
+#ifdef ENABLE_LVGL_LODEPNG
+#define LV_USE_LODEPNG ENABLE_LVGL_LODEPNG
+#else
 #define LV_USE_LODEPNG 0
+#endif
 
 /*PNG decoder(libpng) library*/
 #define LV_USE_LIBPNG 0
