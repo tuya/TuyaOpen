@@ -101,7 +101,11 @@
  * - LV_OS_RTTHREAD
  * - LV_OS_WINDOWS
  * - LV_OS_CUSTOM */
+#if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
 #define LV_USE_OS   LV_OS_FREERTOS
+#else
+#define LV_USE_OS   LV_OS_NONE
+#endif
 
 #if LV_USE_OS == LV_OS_CUSTOM
     #define LV_OS_CUSTOM_INCLUDE <stdint.h>
@@ -130,7 +134,11 @@
 	/* Set the number of draw unit.
      * > 1 requires an operating system enabled in `LV_USE_OS`
      * > 1 means multiply threads will render the screen in parallel */
-    #define LV_DRAW_SW_DRAW_UNIT_CNT    2       
+#if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
+    #define LV_DRAW_SW_DRAW_UNIT_CNT    2
+#else
+    #define LV_DRAW_SW_DRAW_UNIT_CNT    1
+#endif
 
     /* Use Arm-2D to accelerate the sw render */
     #define LV_USE_DRAW_ARM2D_SYNC      0
@@ -444,7 +452,7 @@
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.
  *Compiler error will be triggered if a font needs it.*/
-#define LV_FONT_FMT_TXT_LARGE 0
+#define LV_FONT_FMT_TXT_LARGE 1
 
 /*Enables/disables support for compressed fonts.*/
 #define LV_USE_FONT_COMPRESSED 1
