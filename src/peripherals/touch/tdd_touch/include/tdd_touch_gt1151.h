@@ -15,6 +15,7 @@
 #define __TDD_TOUCH_GT1151_H__
 
 #include "tuya_cloud_types.h"
+#include "tdl_touch_driver.h"
 #include "tdd_touch_i2c.h"
 
 #ifdef __cplusplus
@@ -75,11 +76,15 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+typedef struct {
+    TDD_TOUCH_I2C_CFG_T i2c_cfg;
+    TDL_TOUCH_CONFIG_T tp_cfg;
+} TDD_TOUCH_GT1151_INFO_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdd_touch_i2c_gt1151_register(char *name, TDD_TOUCH_I2C_CFG_T *cfg);
+OPERATE_RET tdd_touch_i2c_gt1151_register(char *name, TDD_TOUCH_GT1151_INFO_T *cfg);
 
 #ifdef __cplusplus
 }

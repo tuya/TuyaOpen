@@ -121,7 +121,7 @@ static OPERATE_RET __tdd_i2c_cst816x_close(TDD_TOUCH_DEV_HANDLE_T device)
     return OPRT_OK;
 }
 
-OPERATE_RET tdd_touch_i2c_cst816x_register(char *name, TDD_TOUCH_I2C_CFG_T *cfg)
+OPERATE_RET tdd_touch_i2c_cst816x_register(char *name, TDD_TOUCH_CST816X_INFO_T *cfg)
 {
     TDD_TOUCH_INFO_T *tdd_info = NULL;
     TDD_TOUCH_INTFS_T infs;
@@ -135,12 +135,12 @@ OPERATE_RET tdd_touch_i2c_cst816x_register(char *name, TDD_TOUCH_I2C_CFG_T *cfg)
         return OPRT_MALLOC_FAILED;
     }
     memset(tdd_info, 0, sizeof(TDD_TOUCH_INFO_T));
-    tdd_info->i2c_cfg = *cfg;
+    memcpy(&tdd_info->i2c_cfg, &cfg->i2c_cfg, sizeof(TDD_TOUCH_I2C_CFG_T));
 
     memset(&infs, 0, sizeof(TDD_TOUCH_INTFS_T));
     infs.open = __tdd_i2c_cst816x_open;
     infs.read = __tdd_i2c_cst816x_read;
     infs.close = __tdd_i2c_cst816x_close;
 
-    return tdl_touch_device_register(name, tdd_info, &infs);
+    return tdl_touch_device_register(name, tdd_info, &cfg->tp_cfg, &infs);
 }

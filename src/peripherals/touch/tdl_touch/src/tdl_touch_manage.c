@@ -35,6 +35,8 @@ typedef struct {
 
     TDD_TOUCH_DEV_HANDLE_T tdd_hdl;
     TDD_TOUCH_INTFS_T intfs;
+
+    TDL_TOUCH_CONFIG_T config;
 } TOUCH_DEVICE_T;
 
 /***********************************************************
@@ -119,10 +121,34 @@ OPERATE_RET tdl_touch_dev_read(TDL_TOUCH_HANDLE_T touch_hdl, uint8_t max_num, TD
     }
 
     if (touch_dev->intfs.read) {
-        TUYA_CALL_ERR_RETURN(touch_dev->intfs.read(touch_dev->tdd_hdl, max_num, point, point_num));
+        tal_mutex_lock(touch_dev->mutex);
+        rt = touch_dev->intfs.read(touch_dev->tdd_hdl, max_num, point, point_num);
+
+        uint32_t adj_flags = ((touch_dev->config.flags.swap_xy) || (touch_dev->config.flags.mirror_x) ||
+                              (touch_dev->config.flags.mirror_y));
+        if (adj_flags) {
+            // Apply adjustments to the touch points
+            for (uint8_t i = 0; i < *point_num; i++) {
+                if (touch_dev->config.flags.swap_xy) {
+                    uint16_t temp = point[i].x;
+                    point[i].x = point[i].y;
+                    point[i].y = temp;
+                }
+                if (touch_dev->config.flags.mirror_x) {
+                    point[i].x = touch_dev->config.x_max - point[i].x;
+                }
+                if (touch_dev->config.flags.mirror_y) {
+                    point[i].y = touch_dev->config.y_max - point[i].y;
+                }
+            }
+        }
+        tal_mutex_unlock(touch_dev->mutex);
+        if (OPRT_OK != rt) {
+            PR_ERR("Failed to read touch data: %d", rt);
+        }
     }
 
-    return OPRT_OK;
+    return rt;
 }
 
 OPERATE_RET tdl_touch_dev_close(TDL_TOUCH_HANDLE_T touch_hdl)
@@ -149,11 +175,12 @@ OPERATE_RET tdl_touch_dev_close(TDL_TOUCH_HANDLE_T touch_hdl)
     return OPRT_OK;
 }
 
-OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl, TDD_TOUCH_INTFS_T *intfs)
+OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl, TDL_TOUCH_CONFIG_T *tp_cfg,
+                                      TDD_TOUCH_INTFS_T *intfs)
 {
     TOUCH_DEVICE_T *touch_dev = NULL;
 
-    if (NULL == name || NULL == tdd_hdl || NULL == intfs) {
+    if (NULL == name || NULL == tdd_hdl || NULL == tp_cfg || NULL == intfs) {
         return OPRT_INVALID_PARM;
     }
 
@@ -167,6 +194,7 @@ OPERATE_RET tdl_touch_device_register(char *name, TDD_TOUCH_DEV_HANDLE_T tdd_hdl
 
     touch_dev->tdd_hdl = tdd_hdl;
 
+    memcpy(&touch_dev->config, tp_cfg, sizeof(TDL_TOUCH_CONFIG_T));
     memcpy(&touch_dev->intfs, intfs, sizeof(TDD_TOUCH_INTFS_T));
 
     tuya_list_add(&touch_dev->node, &sg_touch_list);
