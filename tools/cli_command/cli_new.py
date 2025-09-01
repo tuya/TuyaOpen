@@ -556,7 +556,9 @@ def new_board_exec():
     copy_directory(board_template_root, new_board_path)
 
     new_board_kconfig = os.path.join(new_board_path, "Kconfig")
-    replace_string_in_file(new_board_kconfig, "<platform-name>", platform)
+    # Esp32 also has a layer of chip concept that needs special processing
+    chip_name = "esp32s3" if platform == "ESP32" else platform
+    replace_string_in_file(new_board_kconfig, "<platform-name>", chip_name)
     replace_string_in_file(new_board_kconfig, "<board-name>", new_board_name)
 
     sys.exit(0)

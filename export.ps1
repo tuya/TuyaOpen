@@ -138,7 +138,16 @@ if (Test-Path $dontUpdatePlatform) {
     Remove-Item $dontUpdatePlatform -Force
 }
 
+# hello tuya
+$HELLO_TUYA = '
+ ______                 ____
+/_  __/_ ____ _____ _  / __ \___  ___ ___
+ / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
+/_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
+         /___/            /_/
+'
 Write-Host "****************************************"
+Write-Host $HELLO_TUYA
 Write-Host "Exit use: exit"
 Write-Host "****************************************"
 

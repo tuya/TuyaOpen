@@ -40,6 +40,7 @@ def download_tyutool():
     logger.info("Downloading tyutool_cli ...")
     github_host = "https://github.com/tuya/tyutool"
     gitee_host = "https://gitee.com/tuya-open/tyutool"
+    branch = "open_cli"
 
     if "China" in get_country_code():
         host = gitee_host
@@ -47,7 +48,7 @@ def download_tyutool():
         host = github_host
 
     rm_rf(tyutool_root)
-    cmd = f"git clone {host} {tyutool_root} --depth=1"
+    cmd = f"git clone {host} {tyutool_root} -b {branch} --depth=1"
     ret = do_subprocess(cmd)
     if ret != 0:
         logger.error("Git clone tyutool_cli error.")

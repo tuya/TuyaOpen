@@ -110,11 +110,17 @@ if errorlevel 1 (
 
 :: remove cache files
 set CACHE_PATH=%OPEN_SDK_ROOT%\.cache
-mkdir /p %CACHE_PATH%
+mkdir %CACHE_PATH% 2>nul
 if exist "%CACHE_PATH%\.env.json" del /F /Q "%CACHE_PATH%\.env.json"
 if exist "%CACHE_PATH%\.dont_prompt_update_platform" del /F /Q "%CACHE_PATH%\.dont_prompt_update_platform"
 
+:: hello tuya
 echo ****************************************
+echo  ______                 ____
+echo /_  __/_ ____ _____ _  / __ \___  ___ ___
+echo  / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
+echo /_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
+echo          /___/            /_/
 echo Exit use: exit
 echo ****************************************
 
