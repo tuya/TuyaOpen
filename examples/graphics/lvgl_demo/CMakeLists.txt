@@ -17,7 +17,7 @@ set(APP_INC ${APP_PATH}/include)
 
 # APP_OPTIONS
 set(APP_OPTIONS "-W")
-list(APPEND APP_OPTIONS "-Wall")
+list(APPEND APP_OPTIONS "-Wall" "-DLV_LVGL_H_INCLUDE_SIMPLE")
 
 ########################################
 # Target Configure

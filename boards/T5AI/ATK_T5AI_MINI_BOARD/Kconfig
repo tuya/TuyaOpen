@@ -25,4 +25,5 @@ choice ATK_T5AI_MINI_BOARD_EX_MODULE
         bool "support LCD expansion module"
         select ENABLE_DISPLAY
         select ENABLE_TOUCH
+        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
 endchoice

@@ -83,14 +83,8 @@ lv_result_t lv_thread_init(lv_thread_t * pxThread, lv_thread_prio_t xSchedPriori
     pxThread->pvStartRoutine = pvStartRoutine;
 
     OPERATE_RET ret = OPRT_OK;
-    // #ifdef TUYA_APP_MULTI_CORE_IPC      //双核
-    //     ret = tkl_thread_create(&pxThread->xTaskHandle,
-    //                             pcTASK_NAME,
-    //                             usStackSize,
-    //                             xSchedPriority,
-    //                             prvRunThread,
-    //                             (void *)pxThread);
-    // #else
+
+#if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
         static uint32_t coreID = 0;
         ret = tkl_thread_smp_create(&pxThread->xTaskHandle,
                                 coreID,
@@ -101,7 +95,15 @@ lv_result_t lv_thread_init(lv_thread_t * pxThread, lv_thread_prio_t xSchedPriori
                                 (void *)pxThread);
         if (coreID < (LV_DRAW_SW_DRAW_UNIT_CNT - 1))
             coreID++;
-    // #endif
+#else 
+        ret = tkl_thread_create(&pxThread->xTaskHandle,
+                                pcTASK_NAME,
+                                usStackSize,
+                                xSchedPriority,
+                                prvRunThread,
+                                (void *)pxThread);
+
+#endif
 
     /* Ensure that the FreeRTOS task was successfully created. */
     if(ret != OPRT_OK) {

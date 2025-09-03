@@ -102,18 +102,20 @@ void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
 {
     if (lvgl_task_state == STATE_RUNNING) {
         LV_LOG_INFO("%s already start\n", __func__);
-        return;
+        return; 
     }
 
-    if(OPRT_OK != tkl_thread_smp_create(&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri/*最高优先级*/, lv_tast_entry, NULL)) {
+#if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
+    if(OPRT_OK != tkl_thread_smp_create(&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
-
-    // if(OPRT_OK != tkl_thread_create(&g_disp_thread_handle, "lvgl_v9", (1024 * 4), 5, lv_tast_entry, NULL)) {
-    //     LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
-    //     return;
-    // }
+#else 
+    if(OPRT_OK != tkl_thread_create(&g_disp_thread_handle, "lvgl_v9", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
+        LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
+        return;
+    }
+#endif
 
     tkl_semaphore_wait(lvgl_sem, TKL_SEM_WAIT_FOREVER);
 
