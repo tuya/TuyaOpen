@@ -73,7 +73,7 @@ static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
     if (sg_display_rgb.pingpong_frame != NULL) {
         if (sg_display_rgb.display_frame != NULL) {
 
-            // TKL_ENTER_CRITICAL();
+            TKL_ENTER_CRITICAL();
 
             if (sg_display_rgb.pingpong_frame != sg_display_rgb.display_frame) {
                 if (sg_display_rgb.display_frame->width != sg_display_rgb.pingpong_frame->width ||
@@ -92,9 +92,8 @@ static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
             sg_display_rgb.display_frame = sg_display_rgb.pingpong_frame;
             sg_display_rgb.pingpong_frame = NULL;
             tkl_rgb_base_addr_set((uint32_t)sg_display_rgb.display_frame->frame);
-
-            // TKL_EXIT_CRITICAL();
-
+            
+            TKL_EXIT_CRITICAL();
             tal_semaphore_post(sg_display_rgb.flush_sem);
         } else {
             sg_display_rgb.display_frame = sg_display_rgb.pingpong_frame;

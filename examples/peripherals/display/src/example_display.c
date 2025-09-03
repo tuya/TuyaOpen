@@ -28,7 +28,6 @@
 static TDL_DISP_HANDLE_T      sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T    sg_display_info;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
-
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -49,7 +48,6 @@ static uint8_t __disp_get_bpp(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt)
             return 0;
     }
 }
-
 static uint32_t __disp_get_random_color(uint32_t range)
 {
     return tal_system_get_random(range);
@@ -57,8 +55,8 @@ static uint32_t __disp_get_random_color(uint32_t range)
 
 static void __disp_fill_color(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, bool is_swap)
 {
-    uint8_t bytes_per_pixel = 0, pixels_per_byte = 0, bpp = 0;
-    uint32_t pixel_count =0, i=0;
+    uint8_t bpp = 0;
+    uint32_t pixel_count =0;
 
     if (fb == NULL || fb->frame == NULL) {
         return;
@@ -72,16 +70,7 @@ static void __disp_fill_color(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, bool is
         return;
     }
 
-    if(bpp < 8) {
-        pixels_per_byte = 8 / bpp; // Calculate pixels per byte
-        for(i = 0; i < pixel_count; i++) {
-            ((uint8_t *)fb->frame)[i / pixels_per_byte] |= ((color & 0x01) << (i % pixels_per_byte));
-        }
-    } else {
-        bytes_per_pixel = (bpp + 7) / 8; // Calculate bytes per pixel
-        pixel_count = fb->width * fb->height * bytes_per_pixel;
-    }
-
+    pixel_count = fb->width * fb->height;
 
     for (uint32_t i = 0; i < pixel_count; i++) {
         if (bpp == 16) {
@@ -100,7 +89,6 @@ static void __disp_fill_color(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, bool is
         }
     }
 }
-
 
 /**
  * @brief user_main
@@ -170,7 +158,7 @@ void user_main(void)
 
         tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
 
-        tal_system_sleep(500);
+        tal_system_sleep(1000);
     }
 
 

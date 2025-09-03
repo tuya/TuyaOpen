@@ -28,7 +28,7 @@ static void touchpad_init(void *device);
 static void touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 #endif
 
-#ifdef LVGL_ENABLE_ENCODER
+#ifdef ENABLE_LVGL_ENCODER
 static void encoder_init(void);
 static void encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void encoder_handler(void);
@@ -81,7 +81,7 @@ void lv_port_indev_init(void *device)
     /*------------------
      * Encoder
      * -----------------*/
-#ifdef LVGL_ENABLE_ENCODER
+#ifdef ENABLE_LVGL_ENCODER
     /*Initialize your encoder if you have*/
     encoder_init();
 
@@ -147,7 +147,7 @@ static void touchpad_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
 /*------------------
  * Encoder
  * -----------------*/
-#ifdef LVGL_ENABLE_ENCODER
+#ifdef ENABLE_LVGL_ENCODER
 int32_t encoder_diff = 0;
 lv_indev_state_t encoder_state;
 /*Initialize your encoder*/

@@ -14,3 +14,4 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_BUTTON
     select ENABLE_DISPLAY
+    select ENABLE_LVGL_OS_FREERTOS if (ENABLE_LIBLVGL)
