@@ -25,5 +25,4 @@ choice T5AI_MINI_EX_MODULE
         bool "1.54 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
         select ENABLE_LVGL_OS_FREERTOS if (ENABLE_LIBLVGL)
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
 endchoice

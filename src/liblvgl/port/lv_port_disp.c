@@ -235,6 +235,7 @@ static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t * area, uint8_t * px_m
     __wait_dma2d_trans_finish();
 }
 
+#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
 static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
                                              uint8_t *dst_frame,\
                                              uint8_t *src_frame)
@@ -279,7 +280,7 @@ static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
 
     sg_is_wait_dma2d = true;
 }
-
+#endif
 #endif
 
 
