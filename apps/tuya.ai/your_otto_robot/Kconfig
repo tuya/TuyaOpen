@@ -47,4 +47,16 @@ config ENABLE_CHAT_DISPLAY
     if (ENABLE_CHAT_DISPLAY)
         rsource "./src/display/Kconfig"
     endif
+
+choice 
+    prompt "choose Otto robot board type"
+    default OTTO_BOARD_DEFAULT_TXP
+
+    config OTTO_BOARD_DEFAULT_TXP
+    bool "board default txp - standard pin configuration"   
+
+    config OTTO_BOARD_DREAM
+    bool "board dream - custom pin configuration"
+endchoice
+
 endmenu

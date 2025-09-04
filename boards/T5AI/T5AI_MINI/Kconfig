@@ -26,6 +26,6 @@ choice T5AI_MINI_EX_MODULE
         select ENABLE_DISPLAY
 
     config T5AI_MINI_EX_MODULE_ST7735S_XLT
-        bool "ST7735S XLT spi LCD"
+        bool "ST7735S XLT 160x80 spi LCD"
         select ENABLE_DISPLAY
 endchoice
