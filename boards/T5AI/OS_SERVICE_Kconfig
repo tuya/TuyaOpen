@@ -6,7 +6,6 @@ config ENABLE_T5AI_OS_SERVICE
     select ENABLE_BT_CTRL
     select ENABLE_NIMBLE
 
-
 config MBEDTLS_CONFIG_FILE
     string
     default "tuya_tls_config.h"

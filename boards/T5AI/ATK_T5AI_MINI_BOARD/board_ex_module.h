@@ -60,7 +60,7 @@ extern "C" {
 #define ATK_MD0430R_800480_VBP       8//32
 #define ATK_MD0430R_800480_VFP       8//13
 #define ATK_MD0430R_800480_CLK      (26*1000000)
-#define ATK_MD0430R_800480_CLK_EDGE TUYA_RGB_DATA_IN_RISING_EDGE
+#define ATK_MD0430R_800480_CLK_EDGE  TUYA_RGB_DATA_IN_FALLING_EDGE
 #endif
 
 /***********************************************************
