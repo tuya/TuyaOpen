@@ -74,11 +74,12 @@ static UI_EMOJI_LIST_T sg_awesome_emo_list[] = {
     {"HAPPY", FONT_AWESOME_EMOJI_HAPPY},
 };
 #endif
-
+#if defined(ENABLE_GUI_CHATBOT) 
 static UI_EMOJI_LIST_T sg_emo_list[] = {
     {"NEUTRAL", "😶"},  {"SAD", "😔"},         {"ANGRY", "😠"},    {"SURPRISE", "😯"},
     {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
 };
+#endif
 
 static TUYA_DISPLAY_T sg_display = {0};
 
