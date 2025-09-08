@@ -8,4 +8,5 @@ menu "configure device driver"
     rsource "joystick/Kconfig"
     rsource "pmic/Kconfig"
     rsource "camera/Kconfig"
+    rsource "ir/Kconfig"
 endmenu
