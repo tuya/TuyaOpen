@@ -7,4 +7,5 @@ menu "configure device driver"
     rsource "encoder/Kconfig"
     rsource "joystick/Kconfig"
     rsource "pmic/Kconfig"
+    rsource "ir/Kconfig"
 endmenu
