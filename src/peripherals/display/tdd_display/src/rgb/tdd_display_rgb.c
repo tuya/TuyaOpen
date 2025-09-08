@@ -73,7 +73,7 @@ static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
     if (sg_display_rgb.pingpong_frame != NULL) {
         if (sg_display_rgb.display_frame != NULL) {
 
-            TKL_ENTER_CRITICAL();
+            // TKL_ENTER_CRITICAL();
 
             if (sg_display_rgb.pingpong_frame != sg_display_rgb.display_frame) {
                 if (sg_display_rgb.display_frame->width != sg_display_rgb.pingpong_frame->width ||
@@ -93,7 +93,7 @@ static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
             sg_display_rgb.pingpong_frame = NULL;
             tkl_rgb_base_addr_set((uint32_t)sg_display_rgb.display_frame->frame);
             
-            TKL_EXIT_CRITICAL();
+            // TKL_EXIT_CRITICAL();
             tal_semaphore_post(sg_display_rgb.flush_sem);
         } else {
             sg_display_rgb.display_frame = sg_display_rgb.pingpong_frame;
@@ -191,8 +191,9 @@ static OPERATE_RET __tdd_display_rgb_open(TDD_DISP_DEV_HANDLE_T device)
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_display_rgb.mutex));
 
     THREAD_CFG_T thread_cfg = {4096, THREAD_PRIO_1, "rgb_task"};
-    TUYA_CALL_ERR_RETURN(
-        tal_thread_create_and_start(&(sg_display_rgb.task), NULL, NULL, __rgb_task, NULL, &thread_cfg));
+    TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_display_rgb.task), \
+                                                     NULL, NULL, __rgb_task, \
+                                                     NULL, &thread_cfg));
 
     if (tdd_rgb->init_cb) {
         tdd_rgb->init_cb();
@@ -215,12 +216,12 @@ static OPERATE_RET __tdd_display_rgb_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
 
     tal_mutex_lock(sg_display_rgb.mutex);
 
-    // if (sg_display_rgb.is_task_running) {
-    //     TDL_DISP_RGB_MSG_T msg = {TDL_RGB_FRAME_REQUEST, (uint32_t)frame_buff};
-    //     tal_queue_post(sg_display_rgb.queue, &msg, SEM_WAIT_FOREVER);
-    // }
+    if (sg_display_rgb.is_task_running) {
+        TDL_DISP_RGB_MSG_T msg = {TDL_RGB_FRAME_REQUEST, (uint32_t)frame_buff};
+        tal_queue_post(sg_display_rgb.queue, &msg, SEM_WAIT_FOREVER);
+    }
 
-    __rgb_display_frame(frame_buff);
+    // __rgb_display_frame(frame_buff);
 
 
     tal_mutex_unlock(sg_display_rgb.mutex);
