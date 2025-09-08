@@ -185,11 +185,47 @@ static OPERATE_RET __board_register_display(void)
 
 #endif
 
+
+#if defined (ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA ==1)
+static OPERATE_RET __board_register_camera(void)
+{
+#if defined(CAMERA_NAME)
+    OPERATE_RET rt = OPRT_OK;
+    DVP_GC2145_CFG_T camera_cfg = {
+        .pwr = {
+            .pin = BOARD_CAMERA_POWER_PIN,
+        },
+        .rst = {
+            .pin = BOARD_CAMERA_RST_PIN,
+            .active_level = BOARD_CAMERA_RST_ACTIVE_LV,
+        },
+        .i2c ={
+            .port = BOARD_CAMERA_I2C_PORT,
+            .clk  = BOARD_CAMERA_I2C_SCL,
+            .sda  = BOARD_CAMERA_I2C_SDA,
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdl_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+#endif
+
+    return OPRT_OK;
+}
+#else 
+static OPERATE_RET __board_register_camera(void)
+{
+    return OPRT_OK;
+}
+#endif
+
+
 OPERATE_RET board_register_ex_module(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CALL_ERR_RETURN(__board_register_display());
+
+    TUYA_CALL_ERR_RETURN(__board_register_camera());
 
     return rt;
 }

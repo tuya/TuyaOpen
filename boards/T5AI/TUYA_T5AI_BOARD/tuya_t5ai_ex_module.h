@@ -18,7 +18,10 @@
 #include "tdd_disp_st7305.h"
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_096_OLED) && (TUYA_T5AI_BOARD_EX_MODULE_096_OLED ==1)
 #include "tdd_disp_ssd1306.h"
+#endif
 
+#if defined (ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA ==1)
+#include "tdd_camera_dvp_gc2145.h"
 #endif
 
 #ifdef __cplusplus
@@ -98,6 +101,17 @@ extern "C" {
 #define BOARD_LCD_I2C_SLAVER_ADDR    SSD1306_I2C_ADDR
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
+#endif
+
+#if defined (ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA ==1)
+#define BOARD_CAMERA_I2C_PORT        TUYA_I2C_NUM_0
+#define BOARD_CAMERA_I2C_SCL         TUYA_GPIO_NUM_13
+#define BOARD_CAMERA_I2C_SDA         TUYA_GPIO_NUM_15
+
+#define BOARD_CAMERA_RST_PIN         TUYA_GPIO_NUM_51
+#define BOARD_CAMERA_RST_ACTIVE_LV   TUYA_GPIO_LEVEL_LOW
+
+#define BOARD_CAMERA_POWER_PIN       TUYA_GPIO_NUM_MAX
 #endif
 
 /***********************************************************
