@@ -61,6 +61,8 @@ void ui_set_system_msg(const char *text);
 
 void ui_set_emotion(const char *emotion);
 
+void ui_set_emotion_by_mood(const char *mood);
+
 void ui_set_status(const char *status);
 
 void ui_set_notification(const char *notification);

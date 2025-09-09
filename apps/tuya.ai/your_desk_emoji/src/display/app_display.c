@@ -198,9 +198,14 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case TY_DISPLAY_TP_SYSTEM_MSG: {
         ui_set_system_msg(msg_data->data);
     } break;
+#if defined(ENABLE_GUI_EMOJI) && (ENABLE_GUI_EMOJI == 1)
     case TY_DISPLAY_TP_EMOTION: {
         ui_set_emotion(msg_data->data);
     } break;
+    case TY_DISPLAY_TP_EMOTION_MOOD: {
+        ui_set_emotion_by_mood(msg_data->data);
+    } break;
+#endif
     case TY_DISPLAY_TP_STATUS: {
         ui_set_status(msg_data->data);
     } break;

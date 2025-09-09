@@ -23,16 +23,26 @@
 
 #define PAJ7620_VAL(val, maskbit)		( val << maskbit )
 
-#define GES_LEFT_FLAG                   PAJ7620_VAL(1,0)
-#define GES_RIGHT_FLAG                  PAJ7620_VAL(1,1)
-#define GES_UP_FLAG                     PAJ7620_VAL(1,2)
-#define GES_DOWN_FLAG                   PAJ7620_VAL(1,3)
-#define GES_FORWARD_FLAG                PAJ7620_VAL(1,4)
-#define GES_BACKWARD_FLAG               PAJ7620_VAL(1,5)
-#define GES_CLOCKWISE_FLAG              PAJ7620_VAL(1,6)
-#define GES_COUNT_CLOCKWISE_FLAG        PAJ7620_VAL(1,7)
-#define GES_WAVE_FLAG                   PAJ7620_VAL(1,0)
+// #define GES_LEFT_FLAG                   PAJ7620_VAL(1,0)
+// #define GES_RIGHT_FLAG                  PAJ7620_VAL(1,1)
+// #define GES_UP_FLAG                     PAJ7620_VAL(1,2)
+// #define GES_DOWN_FLAG                   PAJ7620_VAL(1,3)
+// #define GES_FORWARD_FLAG                PAJ7620_VAL(1,4)
+// #define GES_BACKWARD_FLAG               PAJ7620_VAL(1,5)
+// #define GES_CLOCKWISE_FLAG              PAJ7620_VAL(1,6)
+// #define GES_COUNT_CLOCKWISE_FLAG        PAJ7620_VAL(1,7)
+// #define GES_WAVE_FLAG                   PAJ7620_VAL(1,0)
 
+// position change
+#define     GES_DOWN_FLAG                   PAJ7620_VAL(1,0)
+#define     GES_UP_FLAG                     PAJ7620_VAL(1,1)
+#define     GES_LEFT_FLAG                   PAJ7620_VAL(1,2)
+#define     GES_RIGHT_FLAG                  PAJ7620_VAL(1,3)
+#define     GES_FORWARD_FLAG                PAJ7620_VAL(1,4)
+#define     GES_BACKWARD_FLAG               PAJ7620_VAL(1,5)
+#define     GES_CLOCKWISE_FLAG              PAJ7620_VAL(1,6)
+#define     GES_COUNT_CLOCKWISE_FLAG        PAJ7620_VAL(1,7)
+#define     GES_WAVE_FLAG                   PAJ7620_VAL(1,0)
 STATIC GESTURE_CB_T s_gesture_cb = NULL;
 
 STATIC THREAD_HANDLE s_gesture_thread_handle = NULL;

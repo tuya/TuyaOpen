@@ -96,6 +96,33 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 static void __servo_control_wk_cb(void *data)
 {
     PR_DEBUG("Servo action: %d", _s_servo_action);
+    
+    // Trigger corresponding emoji expression for servo movement
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+    switch (_s_servo_action) {
+    case SERVO_UP:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"happy", 5);
+        break;
+    case SERVO_DOWN:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"sad", 3);
+        break;
+    case SERVO_LEFT:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"left", 4);
+        break;
+    case SERVO_RIGHT:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"right", 5);
+        break;
+    case SERVO_CENTER:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"center", 6);
+        break;
+    case SERVO_NOD:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wakeup", 6);
+        break;
+    default:
+        break;
+    }
+#endif
+    
     _s_servo_busy = TRUE;
     app_servo_move(_s_servo_action);
     _s_servo_busy = FALSE;
@@ -105,6 +132,49 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
 {
     PR_DEBUG("Gesture detected: %d", gesture);
 
+    // Trigger corresponding emoji expression
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+    switch (gesture) {
+    case GESTURE_RIGHT:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"right", 5);
+        _s_servo_action = SERVO_RIGHT;
+        break;
+    case GESTURE_LEFT:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"left", 4);
+        _s_servo_action = SERVO_LEFT;
+        break;
+    case GESTURE_UP:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"happy", 5);
+        _s_servo_action = SERVO_UP;
+        break;
+    case GESTURE_DOWN:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"sad", 3);
+        _s_servo_action = SERVO_DOWN;
+        break;
+    case GESTURE_CLOCKWISE:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"surprise", 8);
+        _s_servo_action = SERVO_LEFT; // TODO: GESTURE_CLOCKWISE adjust SERVO_LEFT
+        break;
+    case GESTURE_ANTICLOCKWISE:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"anger", 5);
+        _s_servo_action = SERVO_RIGHT; // TODO: GESTURE_ANTICLOCKWISE adjust SERVO_RIGHT
+        break;
+    case GESTURE_FORWARD:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wakeup", 6);
+        _s_servo_action = SERVO_NOD;
+        break;
+    case GESTURE_BACKWARD:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION_MOOD, (uint8_t *)"sleepy", 6);
+        _s_servo_action = SERVO_CENTER;
+        break;
+    // Add fun expressions for special gestures
+    case GESTURE_WAVE:
+        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wink", 4);
+        break;
+    default:
+        return;
+    }
+#else
     switch (gesture) {
     case GESTURE_RIGHT:
         _s_servo_action = SERVO_RIGHT;
@@ -133,6 +203,7 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
     default:
         return;
     }
+#endif
 
     if (!_s_servo_busy) {
         tal_workq_schedule(WORKQ_SYSTEM, __servo_control_wk_cb, NULL);
