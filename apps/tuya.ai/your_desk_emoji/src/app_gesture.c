@@ -51,8 +51,20 @@ STATIC SEM_HANDLE s_gesture_sem = NULL;
 static uint8_t __gesture_i2c_read_uint8(uint8_t reg)
 {
     uint8_t value = 0;
-    tkl_i2c_master_send(TUYA_I2C_NUM_0, GESTURE_I2C_ADDR, &reg, 1, TRUE);
-    tkl_i2c_master_receive(TUYA_I2C_NUM_0, GESTURE_I2C_ADDR, &value, 1, FALSE);
+    OPERATE_RET ret;
+    
+    ret = tkl_i2c_master_send(TUYA_I2C_NUM_0, GESTURE_I2C_ADDR, &reg, 1, TRUE);
+    if (ret != OPRT_OK) {
+        PR_ERR("I2C send failed: %d", ret);
+        return 0;
+    }
+    
+    ret = tkl_i2c_master_receive(TUYA_I2C_NUM_0, GESTURE_I2C_ADDR, &value, 1, FALSE);
+    if (ret != OPRT_OK) {
+        PR_ERR("I2C receive failed: %d", ret);
+        return 0;
+    }
+    
     PR_TRACE("read reg: %02x, value: %02x", reg, value);
     return value;
 }
@@ -61,8 +73,13 @@ static int __gesture_i2c_write_uint8(uint8_t reg, uint8_t value)
 {
     OPERATE_RET rt = OPRT_OK;
     uint8_t data[2] = {reg, value};
+    
     rt = tkl_i2c_master_send(TUYA_I2C_NUM_0, GESTURE_I2C_ADDR, data, 2, FALSE);
-    PR_DEBUG("write reg: %02x, value: %02x", reg, value);
+    if (rt != OPRT_OK) {
+        PR_ERR("I2C write failed: %d, reg: %02x, value: %02x", rt, reg, value);
+    } else {
+        PR_DEBUG("write reg: %02x, value: %02x", reg, value);
+    }
     return rt;
 }
 
@@ -71,11 +88,21 @@ STATIC VOID __gesture_thread_process(VOID *arg)
     uint8_t data = 0, data1 = 0;
     GESTURE_TYPE_E gesture = GESTURE_NONE;
 
+    PR_DEBUG("Gesture monitor thread started");
+
     while (1) {
-        tal_semaphore_wait(s_gesture_sem, SEM_WAIT_FOREVER);
+        // Wait for gesture interrupt
+        if (tal_semaphore_wait(s_gesture_sem, SEM_WAIT_FOREVER) != OPRT_OK) {
+            PR_ERR("Semaphore wait failed");
+            continue;
+        }
+        
         PR_DEBUG("read gesture value");
         gesture = GESTURE_NONE;
+        
+        // Read gesture data with error checking
         data = __gesture_i2c_read_uint8(PAJ7620_REG_INT_FLAG_1);
+        
         switch (data) {
         case GES_RIGHT_FLAG:
             PR_DEBUG("Right");
@@ -110,6 +137,7 @@ STATIC VOID __gesture_thread_process(VOID *arg)
             gesture = GESTURE_ANTICLOCKWISE;
             break;
         default:
+            // Check second register for wave gesture
             data1 = __gesture_i2c_read_uint8(PAJ7620_REG_INT_FLAG_2);
             if (data1 == GES_WAVE_FLAG) {
                 PR_DEBUG("Wave");
@@ -118,9 +146,13 @@ STATIC VOID __gesture_thread_process(VOID *arg)
             break;
         }
 
+        // Call callback if gesture detected and callback is set
         if (s_gesture_cb && gesture != GESTURE_NONE) {
             s_gesture_cb(gesture);
         }
+        
+        // Small delay to prevent excessive CPU usage
+        tal_system_sleep(10);
     }
 }
 
@@ -142,7 +174,7 @@ OPERATE_RET app_gesture_init(GESTURE_CB_T cb)
     THREAD_CFG_T thrd_param = {0};
     thrd_param.thrdname = "gesture_monitor";
     thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.stackDepth = 1024;
+    thrd_param.stackDepth = 4096;  // Increase stack size to prevent overflow
 
     TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&s_gesture_sem, 0, 1));
 

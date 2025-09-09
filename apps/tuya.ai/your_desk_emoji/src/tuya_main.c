@@ -153,11 +153,11 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
         break;
     case GESTURE_CLOCKWISE:
         app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"surprise", 8);
-        _s_servo_action = SERVO_LEFT; // TODO: GESTURE_CLOCKWISE adjust SERVO_LEFT
+        _s_servo_action = SERVO_CLOCKWISE; // 手势顺时针 -> 舵机顺时针
         break;
     case GESTURE_ANTICLOCKWISE:
         app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"anger", 5);
-        _s_servo_action = SERVO_RIGHT; // TODO: GESTURE_ANTICLOCKWISE adjust SERVO_RIGHT
+        _s_servo_action = SERVO_ANTICLOCKWISE; // 手势逆时针 -> 舵机逆时针
         break;
     case GESTURE_FORWARD:
         app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wakeup", 6);
@@ -189,10 +189,10 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
         _s_servo_action = SERVO_DOWN;
         break;
     case GESTURE_CLOCKWISE:
-        _s_servo_action = SERVO_LEFT; // TODO: GESTURE_CLOCKWISE adjust SERVO_LEFT
+        _s_servo_action = SERVO_CLOCKWISE; // 手势顺时针 -> 舵机顺时针
         break;
     case GESTURE_ANTICLOCKWISE:
-        _s_servo_action = SERVO_RIGHT; // TODO: GESTURE_ANTICLOCKWISE adjust SERVO_RIGHT
+        _s_servo_action = SERVO_ANTICLOCKWISE; // 手势逆时针 -> 舵机逆时针
         break;
     case GESTURE_FORWARD:
         _s_servo_action = SERVO_NOD;

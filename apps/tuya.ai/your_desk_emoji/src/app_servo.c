@@ -51,6 +51,16 @@ STATIC FLOAT_T ease_in_out_cubic(FLOAT_T t)
 // Optimized: Add parameters to control horizontal and vertical channel angles separately
 STATIC VOID app_servo_move_to(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, INT_T target_angle)
 {
+    // Add safety checks
+    if (p_angle == NULL) {
+        PR_ERR("p_angle is NULL");
+        return;
+    }
+    
+    // Clamp target angle to valid range
+    if (target_angle < 0) target_angle = 0;
+    if (target_angle > 180) target_angle = 180;
+    
     INT_T start_angle = *p_angle;
     INT_T delta = target_angle - start_angle;
     INT_T abs_delta = delta > 0 ? delta : -delta;
@@ -65,14 +75,25 @@ STATIC VOID app_servo_move_to(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, INT_T targe
 
     UINT_T steps = total_time / (SERVO_MOVE_TIME_MS / SERVO_STEP_COUNT);
     if (steps == 0) steps = 1;
+    if (steps > 1000) steps = 1000; // Prevent excessive steps
     UINT_T step_delay = total_time / steps;
+    if (step_delay == 0) step_delay = 1; // Prevent zero delay
+
+    PR_DEBUG("Moving servo from %d to %d, steps: %d, delay: %d", start_angle, target_angle, steps, step_delay);
 
     for (UINT_T i = 1; i <= steps; ++i) {
         FLOAT_T t = (FLOAT_T)i / steps;
         FLOAT_T ease = ease_in_out_cubic(t);
         INT_T cur_angle = start_angle + (INT_T)(delta * ease + 0.5f);
         UINT32_T duty = angle_to_duty(cur_angle);
-        tkl_pwm_duty_set(ch_id, duty);
+        
+        // Add error checking for PWM
+        OPERATE_RET ret = tkl_pwm_duty_set(ch_id, duty);
+        if (ret != OPRT_OK) {
+            PR_ERR("PWM duty set failed: %d", ret);
+            break;
+        }
+        
         tal_system_sleep(step_delay);
     }
     *p_angle = target_angle;
@@ -103,51 +124,71 @@ STATIC VOID app_servo_nod(VOID)
 // Clockwise action: center->simultaneously left and down->up alone->right alone->down alone->center
 STATIC VOID app_servo_clockwise(VOID)
 {
-    // Center
+    PR_DEBUG("Starting clockwise rotation");
+    
+    // Center position
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_CENTER_VERT);
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_CENTER_HORI);
+    tal_system_sleep(200);
 
-    // Simultaneously left and down
-    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_DOWN);
-    app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_LEFT);
-
-    // Up alone
-    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_UP);
-
-    // Right alone
+    // Clockwise sequence: Right -> Down -> Left -> Up -> Right
+    PR_DEBUG("Clockwise: Right");
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_RIGHT);
+    tal_system_sleep(300);
 
-    // Down alone
+    PR_DEBUG("Clockwise: Down");
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_DOWN);
+    tal_system_sleep(300);
 
-    // Center
+    PR_DEBUG("Clockwise: Left");
+    app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_LEFT);
+    tal_system_sleep(300);
+
+    PR_DEBUG("Clockwise: Up");
+    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_UP);
+    tal_system_sleep(300);
+
+    // Return to center
+    PR_DEBUG("Clockwise: Return to center");
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_CENTER_VERT);
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_CENTER_HORI);
+    
+    PR_DEBUG("Clockwise rotation completed");
 }
 
-// Counter-clockwise action: center->simultaneously right and up->down alone->left alone->up alone->center
+// Counter-clockwise action: Left -> Up -> Right -> Down -> Left
 STATIC VOID app_servo_anticlockwise(VOID)
 {
-    // Center
+    PR_DEBUG("Starting anticlockwise rotation");
+    
+    // Center position
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_CENTER_VERT);
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_CENTER_HORI);
+    tal_system_sleep(200);
 
-    // Simultaneously right and up
-    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_UP);
-    app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_RIGHT);
-
-    // Down alone
-    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_DOWN);
-
-    // Left alone
+    // Counter-clockwise sequence: Left -> Up -> Right -> Down -> Left
+    PR_DEBUG("Anticlockwise: Left");
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_LEFT);
+    tal_system_sleep(300);
 
-    // Up alone
+    PR_DEBUG("Anticlockwise: Up");
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_UP);
+    tal_system_sleep(300);
 
-    // Center
+    PR_DEBUG("Anticlockwise: Right");
+    app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_RIGHT);
+    tal_system_sleep(300);
+
+    PR_DEBUG("Anticlockwise: Down");
+    app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_DOWN);
+    tal_system_sleep(300);
+
+    // Return to center
+    PR_DEBUG("Anticlockwise: Return to center");
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_CENTER_VERT);
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_CENTER_HORI);
+    
+    PR_DEBUG("Anticlockwise rotation completed");
 }
 
 OPERATE_RET app_servo_init(VOID)
@@ -176,7 +217,7 @@ OPERATE_RET app_servo_init(VOID)
     PR_DEBUG("Servo initialized on channels %d (horizontal) and %d (vertical) with frequency %dHz", 
         SERVO_PWM_HORIZONTAL, SERVO_PWM_VERTICAL, SERVO_PWM_FREQ);
 
-    s_servo_horizontal_angle = SERVO_ANGLE_CENTER_VERT;
+    s_servo_horizontal_angle = SERVO_ANGLE_CENTER_HORI;
     s_servo_vertical_angle = SERVO_ANGLE_CENTER_VERT;
 
     return OPRT_OK;
@@ -186,33 +227,49 @@ VOID app_servo_move(SERVO_ACTION_E action)
 {
     PR_DEBUG("servo action: %d", action);
 
+    // Add bounds checking
+    if (action >= SERVO_MAX) {
+        PR_ERR("Invalid servo action: %d (max: %d)", action, SERVO_MAX - 1);
+        return;
+    }
+
     switch (action) {
         case SERVO_UP:
+            PR_DEBUG("Moving servo UP to angle %d", SERVO_ANGLE_UP);
             app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_UP);
             break;
         case SERVO_DOWN:
+            PR_DEBUG("Moving servo DOWN to angle %d", SERVO_ANGLE_DOWN);
             app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_DOWN);
             break;
         case SERVO_LEFT:
+            PR_DEBUG("Moving servo LEFT to angle %d", SERVO_ANGLE_LEFT);
             app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_LEFT);
             break;
         case SERVO_RIGHT:
+            PR_DEBUG("Moving servo RIGHT to angle %d", SERVO_ANGLE_RIGHT);
             app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_RIGHT);
             break;
         case SERVO_NOD:
+            PR_DEBUG("Moving servo NOD");
             app_servo_nod();
             break;
         case SERVO_CLOCKWISE:
+            PR_DEBUG("Moving servo CLOCKWISE");
             app_servo_clockwise();
             break;
         case SERVO_ANTICLOCKWISE:
+            PR_DEBUG("Moving servo ANTICLOCKWISE");
             app_servo_anticlockwise();
             break;
         case SERVO_CENTER:
+            PR_DEBUG("Moving servo CENTER");
             app_servo_center();
             break;
         default:
             PR_ERR("Unsupported servo action: %d", action);
             break;
     }
+    
+    PR_DEBUG("Servo action %d completed", action);
 }
