@@ -111,11 +111,11 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
             ai_audio_player_stop();
         }
         if (event_id) {
-            tkl_system_free(event_id);
+            tkl_system_psram_free(event_id);
             event_id = NULL;
         }
 
-        event_id = tkl_system_malloc(msg->data_len + 1);
+        event_id = tkl_system_psram_malloc(msg->data_len + 1);
         if (event_id) {
             memcpy(event_id, msg->data, msg->data_len);
             event_id[msg->data_len] = '\0';

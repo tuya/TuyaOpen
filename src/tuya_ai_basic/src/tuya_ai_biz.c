@@ -66,7 +66,7 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
     AI_PROTO_D("biz len:%d", head->len);
     if (type == AI_PT_VIDEO) {
         payload_len = sizeof(AI_VIDEO_HEAD_T) + head->len;
-        char *video = Malloc(payload_len);
+        char *video = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(video, OPRT_MALLOC_FAILED);
         memset(video, 0, payload_len);
         AI_VIDEO_HEAD_T *video_head = (AI_VIDEO_HEAD_T *)video;
@@ -85,10 +85,10 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         } else {
             rt = tuya_ai_basic_video(NULL, video, payload_len);
         }
-        Free(video);
+        OS_FREE(video);
     } else if (type == AI_PT_AUDIO) {
         payload_len = sizeof(AI_AUDIO_HEAD_T) + head->len;
-        char *audio = Malloc(payload_len);
+        char *audio = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(audio, OPRT_MALLOC_FAILED);
         memset(audio, 0, payload_len);
         AI_AUDIO_HEAD_T *audio_head = (AI_AUDIO_HEAD_T *)audio;
@@ -107,10 +107,10 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         } else {
             rt = tuya_ai_basic_audio(NULL, audio, payload_len);
         }
-        Free(audio);
+        OS_FREE(audio);
     } else if (type == AI_PT_IMAGE) {
         payload_len = sizeof(AI_IMAGE_HEAD_T) + head->len;
-        char *image = Malloc(payload_len);
+        char *image = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(image, OPRT_MALLOC_FAILED);
         memset(image, 0, payload_len);
         AI_IMAGE_HEAD_T *image_head = (AI_IMAGE_HEAD_T *)image;
@@ -123,10 +123,10 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
             memcpy(image + sizeof(AI_IMAGE_HEAD_T), payload, head->len);
         }
         rt = tuya_ai_basic_image(&(attr->value.image), image, payload_len);
-        Free(image);
+        OS_FREE(image);
     } else if (type == AI_PT_FILE) {
         payload_len = sizeof(AI_FILE_HEAD_T) + head->len;
-        char *file = Malloc(payload_len);
+        char *file = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(file, OPRT_MALLOC_FAILED);
         memset(file, 0, payload_len);
         AI_FILE_HEAD_T *file_head = (AI_FILE_HEAD_T *)file;
@@ -137,10 +137,10 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
             memcpy(file + sizeof(AI_FILE_HEAD_T), payload, head->len);
         }
         rt = tuya_ai_basic_file(&(attr->value.file), file, payload_len);
-        Free(file);
+        OS_FREE(file);
     } else if (type == AI_PT_TEXT) {
         payload_len = sizeof(AI_TEXT_HEAD_T) + head->len;
-        char *text = Malloc(payload_len);
+        char *text = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(text, OPRT_MALLOC_FAILED);
         memset(text, 0, payload_len);
         AI_TEXT_HEAD_T *text_head = (AI_TEXT_HEAD_T *)text;
@@ -155,7 +155,7 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         } else {
             rt = tuya_ai_basic_text(NULL, text, payload_len);
         }
-        Free(text);
+        OS_FREE(text);
     } else {
         PR_ERR("unknow type:%d", type);
         rt = OPRT_COM_ERROR;
@@ -268,7 +268,7 @@ static void __ai_biz_deinit(void)
             tal_mutex_release(ai_basic_biz->mutex);
             ai_basic_biz->mutex = NULL;
         }
-        Free(ai_basic_biz);
+        OS_FREE(ai_basic_biz);
         ai_basic_biz = NULL;
     }
 }
@@ -808,7 +808,7 @@ static OPERATE_RET __ai_clt_run_evt(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
     if (NULL == ai_basic_biz) {
-        ai_basic_biz = (AI_BASIC_BIZ_T *)Malloc(sizeof(AI_BASIC_BIZ_T));
+        ai_basic_biz = (AI_BASIC_BIZ_T *)OS_MALLOC(sizeof(AI_BASIC_BIZ_T));
         TUYA_CHECK_NULL_RETURN(ai_basic_biz, OPRT_MALLOC_FAILED);
         memset(ai_basic_biz, 0, sizeof(AI_BASIC_BIZ_T));
         TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&ai_basic_biz->mutex), EXIT);
@@ -837,7 +837,7 @@ static OPERATE_RET __ai_pack_session_data(AI_SESSION_CFG_T *cfg, AI_SESSION_NEW_
     uint16_t send_ids_len = cfg->send_num * sizeof(uint16_t);
     uint16_t recv_ids_len = cfg->recv_num * sizeof(uint16_t);
     uint32_t data_len = sizeof(send_ids_len) + send_ids_len + sizeof(recv_ids_len) + recv_ids_len;
-    char *data = Malloc(data_len);
+    char *data = OS_MALLOC(data_len);
     TUYA_CHECK_NULL_RETURN(data, OPRT_MALLOC_FAILED);
     memset(data, 0, data_len);
 
@@ -865,7 +865,7 @@ static OPERATE_RET __ai_pack_session_data(AI_SESSION_CFG_T *cfg, AI_SESSION_NEW_
     if (OPRT_OK != rt) {
         PR_ERR("create session failed, rt:%d", rt);
     }
-    Free(data);
+    OS_FREE(data);
     return rt;
 }
 

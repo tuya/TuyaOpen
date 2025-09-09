@@ -32,6 +32,7 @@
 #include "tal_memory.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_biz.h"
+#include "tuya_ai_private.h"
 #include "netmgr.h"
 
 #define AI_RECONN_TIME_NUM 7
@@ -329,7 +330,7 @@ static void __ai_basic_client_deinit(void)
     if (ai_basic_client->alive_work) {
         tal_workq_stop_delayed(ai_basic_client->alive_work);
     }
-    Free(ai_basic_client);
+    OS_FREE(ai_basic_client);
     ai_basic_client = NULL;
     return;
 }
@@ -451,7 +452,7 @@ OPERATE_RET tuya_ai_client_init(void)
     if (ai_basic_client) {
         return OPRT_OK;
     }
-    ai_basic_client = Malloc(sizeof(AI_BASIC_CLIENT_T));
+    ai_basic_client = OS_MALLOC(sizeof(AI_BASIC_CLIENT_T));
     TUYA_CHECK_NULL_RETURN(ai_basic_client, OPRT_MALLOC_FAILED);
 
     memset(ai_basic_client, 0, sizeof(AI_BASIC_CLIENT_T));

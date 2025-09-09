@@ -31,6 +31,7 @@
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_event.h"
+#include "tuya_ai_private.h"
 
 static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
@@ -41,7 +42,7 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
     }
 
     uint32_t data_len = sizeof(AI_EVENT_HEAD_T);
-    char *event_data = Malloc(data_len);
+    char *event_data = OS_MALLOC(data_len);
     if (event_data == NULL) {
         PR_ERR("malloc failed");
         return OPRT_MALLOC_FAILED;
@@ -58,7 +59,7 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
     event.user_len = len;
 
     rt = tuya_ai_basic_event(&event, event_data, data_len);
-    Free(event_data);
+    OS_FREE(event_data);
     PR_DEBUG("send event rt:%d, type:%d", rt, tp);
     return rt;
 }

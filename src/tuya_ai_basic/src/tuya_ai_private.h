@@ -1,6 +1,5 @@
 /**
  * @file tuya_ai_private.h
- * @author aoding.xia@tuya.com
  * @brief ai private header
  * @version 0.1
  * @date 2025-04-04
@@ -25,12 +24,13 @@
 
 #include "tal_memory.h"
 #include "tal_thread.h"
+#include "tkl_memory.h"
 
 #if defined(AI_HEAP_IN_PSRAM) && (AI_HEAP_IN_PSRAM == 1)
-#define OS_MALLOC(size)       tal_psram_malloc(size)
-#define OS_FREE(ptr)          tal_psram_free(ptr)
-#define OS_CALLOC(num, size)  tal_psram_calloc(num, size)
-#define OS_REALLOC(ptr, size) tal_psram_realloc(ptr, size)
+#define OS_MALLOC(size)       tkl_system_psram_malloc(size)
+#define OS_FREE(ptr)          tkl_system_psram_free(ptr)
+#define OS_CALLOC(num, size)  tkl_system_psram_calloc(num, size)
+#define OS_REALLOC(ptr, size) tkl_system_psram_realloc(ptr, size)
 #else
 #define OS_MALLOC(size)       tal_malloc(size)
 #define OS_FREE(ptr)          tal_free(ptr)
