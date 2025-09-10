@@ -19,7 +19,8 @@
 #include "tkl_memory.h"
 #include "tkl_audio.h"
 
-#include "mp3dec.h"
+#define MINIMP3_IMPLEMENTATION
+#include "minimp3_ex.h"
 
 #include "app_media.h"
 
@@ -32,14 +33,18 @@
 #define USE_SD_CARD        2
 #define MP3_FILE_SOURCE    USE_C_ARRAY
 
-#define AUDIO_INPUT_CH     TKL_AI_1
-#define AUDIO_CH_NUM       TKL_AUDIO_CHANNEL_MONO 
-#define AUDIO_TYPE         TKL_AUDIO_TYPE_BOARD 
-#define AUDIO_CODEC_TYPE   TKL_CODEC_AUDIO_PCM
-#define AUDIO_SAMPLE_RATE  TKL_AUDIO_SAMPLE_16K
-#define AUDIO_SAMPLE_BITS  16
+#define AUDIO_INPUT_CH    TKL_AI_1
+#define AUDIO_CH_NUM      TKL_AUDIO_CHANNEL_MONO
+#define AUDIO_TYPE        TKL_AUDIO_TYPE_BOARD
+#define AUDIO_CODEC_TYPE  TKL_CODEC_AUDIO_PCM
+#define AUDIO_SAMPLE_RATE TKL_AUDIO_SAMPLE_16K
+#define AUDIO_SAMPLE_BITS 16
 
-#define MP3_DATA_BUF_SIZE  1940
+#define MP3_DATA_BUF_SIZE 1940
+
+#define MAX_NGRAN 2   /* max granules */
+#define MAX_NCHAN 2   /* max channels */
+#define MAX_NSAMP 576 /* max samples per channel, per granule */
 
 #define PCM_SIZE_MAX (MAX_NSAMP * MAX_NCHAN * MAX_NGRAN)
 
@@ -53,8 +58,9 @@
 ***********************typedef define***********************
 ***********************************************************/
 struct speaker_mp3_ctx {
-    HMP3Decoder decode_hdl;
-    MP3FrameInfo frame_info;
+    mp3dec_t *mp3_dec;
+    mp3dec_frame_info_t mp3_frame_info;
+
     unsigned char *read_buf;
     uint32_t read_size; // valid data size in read_buf
 
@@ -73,7 +79,7 @@ struct speaker_mp3_ctx {
 static THREAD_HANDLE speaker_hdl = NULL;
 
 static struct speaker_mp3_ctx sg_mp3_ctx = {
-    .decode_hdl = NULL,
+    .mp3_dec = NULL,
     .read_buf = NULL,
     .read_size = 0,
     .mp3_offset = 0,
@@ -87,12 +93,14 @@ static void app_fs_init(void)
 {
 
 #if MP3_FILE_SOURCE == USE_INTERNAL_FLASH
+    OPERATE_RET rt = OPRT_OK;
     rt = tkl_fs_mount("/", DEV_INNER_FLASH);
     if (rt != OPRT_OK) {
         PR_ERR("mount fs failed ");
         return;
     }
 #elif MP3_FILE_SOURCE == USE_SD_CARD
+    OPERATE_RET rt = OPRT_OK;
     rt = tkl_fs_mount("/sdcard", DEV_SDCARD);
     if (rt != OPRT_OK) {
         PR_ERR("mount fs failed ");
@@ -107,7 +115,7 @@ static void app_fs_init(void)
 
 static void app_mp3_decode_init(void)
 {
-    sg_mp3_ctx.read_buf = tkl_system_psram_malloc(MAINBUF_SIZE);
+    sg_mp3_ctx.read_buf = tkl_system_psram_malloc(MP3_DATA_BUF_SIZE);
     if (sg_mp3_ctx.read_buf == NULL) {
         PR_ERR("mp3 read buf malloc failed!");
         return;
@@ -119,15 +127,12 @@ static void app_mp3_decode_init(void)
         return;
     }
 
-    sg_mp3_ctx.decode_hdl = MP3InitDecoder();
-    if (sg_mp3_ctx.decode_hdl == NULL) {
-        tkl_system_psram_free(sg_mp3_ctx.read_buf);
-        sg_mp3_ctx.read_buf = NULL;
-        tkl_system_psram_free(sg_mp3_ctx.pcm_buf);
-        sg_mp3_ctx.pcm_buf = NULL;
-        PR_ERR("MP3Decoder init failed!");
+    sg_mp3_ctx.mp3_dec = (mp3dec_t *)tkl_system_psram_malloc(sizeof(mp3dec_t));
+    if (NULL == sg_mp3_ctx.mp3_dec) {
+        PR_ERR("malloc mp3dec_t failed");
         return;
     }
+    mp3dec_init(sg_mp3_ctx.mp3_dec);
 
     return;
 }
@@ -140,26 +145,24 @@ static int _audio_frame_put(TKL_AUDIO_FRAME_INFO_T *pframe)
 static OPERATE_RET app_speaker_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    TKL_AUDIO_CONFIG_T config ={0};
+    TKL_AUDIO_CONFIG_T config = {0};
 
-    config.enable    = true;
-    config.card      = AUDIO_TYPE;
-    config.ai_chn    = AUDIO_INPUT_CH;
-    config.sample    = AUDIO_SAMPLE_RATE;    
-    config.datebits  = AUDIO_SAMPLE_BITS;  
-    config.channel   = AUDIO_CH_NUM; 
+    config.enable = true;
+    config.card = AUDIO_TYPE;
+    config.ai_chn = AUDIO_INPUT_CH;
+    config.sample = AUDIO_SAMPLE_RATE;
+    config.datebits = AUDIO_SAMPLE_BITS;
+    config.channel = AUDIO_CH_NUM;
     config.codectype = AUDIO_CODEC_TYPE;
-    config.put_cb    = _audio_frame_put;
+    config.put_cb = _audio_frame_put;
 
-    config.fps = 25;                            // frame per second，suggest 25
+    config.fps = 25; // frame per second，suggest 25
     config.mic_volume = 0x2d;
     config.spk_volume = 0x2d;
 
     config.spk_gpio_polarity = 0;
     config.spk_sample = AUDIO_SAMPLE_RATE;
-    config.spk_gpio   = SPEAKER_ENABLE_PIN;
-
-    PR_NOTICE("TODO ... %s %d\r\n", __func__, __LINE__);
+    config.spk_gpio = SPEAKER_ENABLE_PIN;
 
     TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 1));
 
@@ -174,18 +177,16 @@ static OPERATE_RET app_speaker_init(void)
 
 static void app_speaker_play(void)
 {
-    int rt = 0;
-    uint32_t head_offset = 0;
     unsigned char *mp3_frame_head = NULL;
     uint32_t decode_size_remain = 0;
     uint32_t read_size_remain = 0;
 
-    if (sg_mp3_ctx.decode_hdl == NULL || sg_mp3_ctx.read_buf == NULL || sg_mp3_ctx.pcm_buf == NULL) {
+    if (sg_mp3_ctx.mp3_dec == NULL || sg_mp3_ctx.read_buf == NULL || sg_mp3_ctx.pcm_buf == NULL) {
         PR_ERR("MP3Decoder init fail!");
         return;
     }
 
-    memset(sg_mp3_ctx.read_buf, 0, MAINBUF_SIZE);
+    memset(sg_mp3_ctx.read_buf, 0, MP3_DATA_BUF_SIZE);
     memset(sg_mp3_ctx.pcm_buf, 0, PCM_SIZE_MAX * 2);
     sg_mp3_ctx.read_size = 0;
     sg_mp3_ctx.mp3_offset = 0;
@@ -234,7 +235,7 @@ static void app_speaker_play(void)
             }
         }
 
-        read_size_remain = MAINBUF_SIZE - sg_mp3_ctx.read_size;
+        read_size_remain = MP3_DATA_BUF_SIZE - sg_mp3_ctx.read_size;
         if (read_size_remain > sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset) {
             read_size_remain =
                 sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset; // remaining data is less than read_buf size
@@ -246,7 +247,7 @@ static void app_speaker_play(void)
             sg_mp3_ctx.mp3_offset += read_size_remain;
         }
 #elif (MP3_FILE_SOURCE == USE_INTERNAL_FLASH) || (MP3_FILE_SOURCE == USE_SD_CARD)
-        read_size_remain = MAINBUF_SIZE - sg_mp3_ctx.read_size;
+        read_size_remain = MP3_DATA_BUF_SIZE - sg_mp3_ctx.read_size;
         int fs_read_len = tkl_fread(sg_mp3_ctx.read_buf + sg_mp3_ctx.read_size, read_size_remain, mp3_file);
         if (fs_read_len <= 0) {
             if (decode_size_remain == 0) { // last frame data decoding and playback completed
@@ -262,27 +263,22 @@ static void app_speaker_play(void)
 
     __MP3_DECODE:
         // 2. decode mp3 data
-        head_offset = MP3FindSyncWord(sg_mp3_ctx.read_buf, sg_mp3_ctx.read_size);
-        if (head_offset < 0) {
-            PR_ERR("MP3FindSyncWord not find!");
+        mp3_frame_head = sg_mp3_ctx.read_buf;
+        int samples = mp3dec_decode_frame(sg_mp3_ctx.mp3_dec, mp3_frame_head, sg_mp3_ctx.read_size, sg_mp3_ctx.pcm_buf,
+                                          &sg_mp3_ctx.mp3_frame_info);
+
+        if (samples == 0) {
+            decode_size_remain += 64;
+            PR_ERR("mp3dec_decode_frame failed!");
             break;
         }
-
-        mp3_frame_head = sg_mp3_ctx.read_buf + head_offset;
-        decode_size_remain = sg_mp3_ctx.read_size - head_offset;
-        rt = MP3Decode(sg_mp3_ctx.decode_hdl, &mp3_frame_head, (int *)&decode_size_remain, sg_mp3_ctx.pcm_buf, 0);
-        if (rt != ERR_MP3_NONE) {
-            PR_ERR("MP3Decode failed, code is %d", rt);
-            break;
-        }
-
-        memset(&sg_mp3_ctx.frame_info, 0, sizeof(MP3FrameInfo));
-        MP3GetLastFrameInfo(sg_mp3_ctx.decode_hdl, &sg_mp3_ctx.frame_info);
+        mp3_frame_head += sg_mp3_ctx.mp3_frame_info.frame_bytes;
+        decode_size_remain = sg_mp3_ctx.read_size - sg_mp3_ctx.mp3_frame_info.frame_bytes;
 
         // 3. play pcm data
         TKL_AUDIO_FRAME_INFO_T frame;
         frame.pbuf = (char *)sg_mp3_ctx.pcm_buf;
-        frame.used_size = sg_mp3_ctx.frame_info.outputSamps * 2;
+        frame.used_size = samples * 2;
         tkl_ao_put_frame(0, 0, NULL, &frame);
     } while (1);
 
@@ -303,7 +299,6 @@ static void app_speaker_thread(void *arg)
     app_speaker_init();
 
     for (;;) {
-
         app_speaker_play();
         tal_system_sleep(3 * 1000);
     }
