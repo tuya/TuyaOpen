@@ -22,7 +22,6 @@
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -40,12 +39,13 @@ static void __example_sd_test(void)
     snprintf(sg_write_buf, sizeof(sg_write_buf), "random value: %d", random_value);
 
     TUYA_FILE file_hdl = tkl_fopen(RANDOM_FILE_PATH, "w");
-    if(NULL == file_hdl) {
+    if (NULL == file_hdl) {
         PR_ERR("Open file %s failed", RANDOM_FILE_PATH);
         return;
     }
 
     uint32_t write_len = strlen(sg_write_buf);
+    PR_NOTICE("Write file content: %s", sg_write_buf);
     uint32_t ret_len = tkl_fwrite(sg_write_buf, write_len, file_hdl);
     if (ret_len != write_len) {
         PR_ERR("Write file %s failed: %d", RANDOM_FILE_PATH, ret_len);
@@ -70,7 +70,7 @@ static void __example_sd_test(void)
     // compare file
     if (strncmp(sg_write_buf, sg_read_buf, read_len) != 0) {
         PR_ERR("---> fail: compare file failed");
-    }else {
+    } else {
         PR_NOTICE("---> success: compare file success");
     }
 
@@ -81,8 +81,6 @@ __EXIT:
 
     return;
 }
-
-
 
 /**
  * @brief sd task
@@ -95,20 +93,18 @@ static void __example_sd_task(void *param)
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CALL_ERR_LOG(tkl_fs_mount(SDCARD_MOUNT_PATH, DEV_SDCARD));
-    if(rt != OPRT_OK) {
+    if (rt != OPRT_OK) {
         PR_ERR("Mount SD card failed: %d", rt);
         tal_thread_delete(sg_sd_thrd_hdl);
         sg_sd_thrd_hdl = NULL;
         return;
     }
 
-    while(1) {
+    while (1) {
         __example_sd_test();
-        tal_system_sleep(3*1000);
+        tal_system_sleep(3 * 1000);
     }
 }
-
-
 
 /**
  * @brief user_main
