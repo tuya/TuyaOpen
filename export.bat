@@ -83,6 +83,9 @@ if not exist "%OPEN_SDK_ROOT%\.venv\Scripts\pip.exe" (
     exit /b 1
 )
 
+:: Copy python.exe to python3.exe for compatibility
+if not exist "%OPEN_SDK_ROOT%\.venv\Scripts\python3.exe" copy "%OPEN_SDK_ROOT%\.venv\Scripts\python.exe" "%OPEN_SDK_ROOT%\.venv\Scripts\python3.exe"
+
 :: activate (set PATH to use virtual environment)
 echo DEBUG: Activating virtual environment from %OPEN_SDK_ROOT%\.venv\Scripts
 set PATH=%OPEN_SDK_ROOT%\.venv\Scripts;%PATH%

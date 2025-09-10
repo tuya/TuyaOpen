@@ -83,6 +83,7 @@ if (-not (Test-Path $venvPath)) {
 
 # Verify virtual environment was created properly
 $pythonExe = Join-Path $venvPath "Scripts\python.exe"
+$python3Exe = Join-Path $venvPath "Scripts\python3.exe"
 $pipExe = Join-Path $venvPath "Scripts\pip.exe"
 
 if (-not (Test-Path $pythonExe)) {
@@ -95,6 +96,11 @@ if (-not (Test-Path $pipExe)) {
     Write-Host "Error: Virtual environment pip executable not found: $pipExe"
     Read-Host "Press any key to continue"
     exit 1
+}
+
+# Copy python.exe to python3.exe for compatibility
+if (-not (Test-Path $python3Exe)) {
+    Copy-Item $pythonExe $python3Exe
 }
 
 # Activate virtual environment (set PATH to use virtual environment)
