@@ -191,7 +191,7 @@ static OPERATE_RET __board_register_camera(void)
 {
 #if defined(CAMERA_NAME)
     OPERATE_RET rt = OPRT_OK;
-    DVP_GC2145_CFG_T camera_cfg = {
+    TDD_DVP_SR_USR_CFG_T camera_cfg = {
         .pwr = {
             .pin = BOARD_CAMERA_POWER_PIN,
         },

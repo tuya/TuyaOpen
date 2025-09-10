@@ -60,15 +60,6 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E f
     return dvp_frame;
 }
 
-static void __tdd_dvp_frame_manage_free(TUYA_DVP_FRAME_MANAGE_T *dvp_frame)
-{
-    if(NULL == dvp_frame) {
-        return;
-    }
-
-    tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, (TDD_CAMERA_FRAME_T *)dvp_frame->arg);
-}
-
 static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_frame)
 {
     if(NULL == dvp_frame) {
@@ -81,23 +72,23 @@ static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_fra
 static OPERATE_RET __tdd_camera_dvp_init(uint32_t clk, TDD_CAMERA_OPEN_CFG_T *cfg) 
 {
     OPERATE_RET rt = OPRT_OK;
-    TUYA_DVP_BASE_CFG_T dvp_base_cfg;
+    TUYA_DVP_CFG_T dvp_base_cfg;
 
     switch(cfg->out_fmt) {
         case TDL_CAMERA_FMT_YUV422:
-            dvp_base_cfg.output_mode = TUYA_DVP_OUTPUT_YUV422;
+            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_YUV422;
         break;
         case TDL_CAMERA_FMT_JPEG:
-            dvp_base_cfg.output_mode = TUYA_DVP_OUTPUT_JPEG;
+            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG;
         break;
         case TDL_CAMERA_FMT_H264:
-            dvp_base_cfg.output_mode = TUYA_DVP_OUTPUT_H264;
+            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264;
         break;
         case TDL_CAMERA_FMT_JPEG_YUV422_BOTH:
-            dvp_base_cfg.output_mode = TUYA_DVP_OUTPUT_JPEG_YUV422_BOTH;
+            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH;
         break;
         case TDL_CAMERA_FMT_H264_YUV422_BOTH:
-            dvp_base_cfg.output_mode = TUYA_DVP_OUTPUT_H264_YUV422_BOTH;
+            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH;
         break;
         default:
             PR_ERR("unsupported frame format: %d", cfg->out_fmt);
@@ -118,40 +109,41 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
     OPERATE_RET rt = OPRT_OK;
     CAMERA_DVP_DEV_T *dvp_dev = (CAMERA_DVP_DEV_T *)device;
     TUYA_GPIO_BASE_CFG_T gpio_cfg = {.direct = TUYA_GPIO_OUTPUT};
+    TDD_DVP_SR_USR_CFG_T *p_usr_cfg = NULL;
 
-    if (NULL == device || NULL == cfg) {
+    if(NULL == device || NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
     sg_dvp_dev = dvp_dev;
+    p_usr_cfg  = &(dvp_dev->sensor.usr_cfg);
 
     tkl_dvp_frame_assign_cb_register(__tdd_dvp_frame_manage_malloc);
-	tkl_dvp_frame_unassign_cb_register(__tdd_dvp_frame_manage_free);
 	tkl_dvp_frame_post_cb_register(__tdd_dvp_frame_post_handler);
 
-    if(dvp_dev->sensor.i2c.port < TUYA_I2C_NUM_MAX) {
-        TUYA_CALL_ERR_RETURN(tdd_dvp_i2c_init(&dvp_dev->sensor.i2c));
+    if(p_usr_cfg->i2c.port < TUYA_I2C_NUM_MAX) {
+        TUYA_CALL_ERR_RETURN(tdd_dvp_i2c_init(&p_usr_cfg->i2c));
     }
 
-	if (dvp_dev->sensor.pwr.pin < TUYA_GPIO_NUM_MAX) {
-		gpio_cfg.level = dvp_dev->sensor.pwr.active_level;
-		tkl_gpio_init(dvp_dev->sensor.pwr.pin, &gpio_cfg);
-        PR_NOTICE("dvp pwr on:%d", dvp_dev->sensor.pwr.pin);
+	if (p_usr_cfg->pwr.pin < TUYA_GPIO_NUM_MAX) {
+		gpio_cfg.level = p_usr_cfg->pwr.active_level;
+		tkl_gpio_init(p_usr_cfg->pwr.pin, &gpio_cfg);
+        PR_NOTICE("dvp pwr on:%d", p_usr_cfg->pwr.pin);
 	}
 
     if(dvp_dev->intfs.rst) {
-        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.rst(&dvp_dev->sensor.rst, dvp_dev->intfs.arg));
+        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.rst(&p_usr_cfg->rst, dvp_dev->intfs.arg));
     }
     
     TUYA_CALL_ERR_RETURN(__tdd_camera_dvp_init(dvp_dev->sensor.clk, cfg));
 
     if(dvp_dev->intfs.init) {
-        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.init(&dvp_dev->sensor.i2c, dvp_dev->intfs.arg));
+        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.init(&p_usr_cfg->i2c, dvp_dev->intfs.arg));
     }
 
     if(dvp_dev->intfs.set_ppi) {
         TUYA_CAMERA_PPI_E ppi = (TUYA_CAMERA_PPI_E)((cfg->width << 16) | cfg->height);
-        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.set_ppi(&dvp_dev->sensor.i2c, ppi, cfg->fps, dvp_dev->intfs.arg));
+        TUYA_CALL_ERR_RETURN(dvp_dev->intfs.set_ppi(&p_usr_cfg->i2c, ppi, cfg->fps, dvp_dev->intfs.arg));
     }
 
     return rt;

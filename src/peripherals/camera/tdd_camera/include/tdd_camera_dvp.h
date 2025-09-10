@@ -27,6 +27,10 @@ typedef struct {
     TUYA_CAMERA_IO_CTRL_T pwr;
     TUYA_CAMERA_IO_CTRL_T rst;
     DVP_I2C_CFG_T         i2c;
+}TDD_DVP_SR_USR_CFG_T;
+
+typedef struct {
+    TDD_DVP_SR_USR_CFG_T  usr_cfg;
     uint32_t              clk;
     uint16_t              max_fps;
     uint32_t              max_width;

@@ -1,11 +1,11 @@
 /**
- * @file dvp_gc2145_init_seq.h
+ * @file tdd_camera_gc2145_init_seq.h
  * @version 0.1
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
-#ifndef __DVP_GC2145_INIT_SEQ_H__
-#define __DVP_GC2145_INIT_SEQ_H__
+#ifndef __TDD_CAMERA_GC2145_INIT_SEQ_H__
+#define __TDD_CAMERA_GC2145_INIT_SEQ_H__
 
 #include "tuya_cloud_types.h"
 
@@ -322,4 +322,4 @@ const uint8_t cGC2145_800_480_TAB[][2] = {
 }
 #endif
 
-#endif /* __DVP_GC2145_INIT_SEQ_H__ */
+#endif /* __TDD_CAMERA_GC2145_INIT_SEQ_H__ */
