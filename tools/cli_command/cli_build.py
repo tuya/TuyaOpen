@@ -4,6 +4,7 @@
 import os
 import sys
 import click
+import shutil
 
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
@@ -11,7 +12,9 @@ from tools.cli_command.util import (
     do_subprocess, get_country_code
 )
 from tools.cli_command.util_git import (
-    git_clone, git_checkout, set_repo_mirro, git_get_commit)
+    git_clone, git_checkout, set_repo_mirro, git_get_commit
+)
+from tools.cli_command.util_files import rm_rf
 from tools.cli_command.cli_check import update_submodules
 from tools.cli_command.cli_config import init_using_config
 
@@ -229,10 +232,15 @@ def ninja_build(build_path, verbose=False):
 
 
 def check_bin_file(using_data,):
+    '''
+    check bin file exists
+    and copy to dist
+    '''
     logger = get_logger()
     params = get_global_params()
 
     app_bin_path = params["app_bin_path"]
+    dist_root = params["dist_root"]
 
     app_name = using_data.get("CONFIG_PROJECT_NAME", "")
     app_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
@@ -243,6 +251,11 @@ def check_bin_file(using_data,):
         logger.error(f"Not found {app_bin_file}")
         return False
 
+    dist_path = os.path.join(dist_root, f"{app_name}_{app_ver}")
+    os.makedirs(dist_root, exist_ok=True)
+    rm_rf(dist_path)
+    shutil.copytree(app_bin_path, dist_path)
+
     platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
     chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
@@ -251,7 +264,7 @@ def check_bin_file(using_data,):
     build_info = f'''
 ====================[ BUILD SUCCESS ]===================
  Target    : {bin_name}
- Output    : {app_bin_path}
+ Output    : {dist_path}
  Platform  : {platform_name}
  Chip      : {chip_name}
  Board     : {board_name}
