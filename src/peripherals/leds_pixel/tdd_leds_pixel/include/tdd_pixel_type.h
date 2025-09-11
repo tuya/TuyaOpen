@@ -23,11 +23,17 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define PIXEL_PWM_NUM_MAX    2u
-#define PIXEL_PWM_ID_INVALID 0xFE
+#define PIXEL_PWM_NUM_MAX                  2u
+#define PIXEL_PWM_ID_INVALID               0xFE
 
-#define PIXEL_PWM_CH_IDX_COLD 0 // cct: bright
-#define PIXEL_PWM_CH_IDX_WARM 1 // cct: temper
+
+#define PIXEL_PWM_CH_IDX_COLD              0  //cct: bright
+#define PIXEL_PWM_CH_IDX_WARM              1  //cct: temper
+
+#define PIXLE_PWM_DRV_TP_CW     0x00        // CW : cw & ww
+#define PIXLE_PWM_DRV_TP_CCT    0x01        // CCT: not support
+#define PIXLE_PWM_DRV_TP_CW_NC  0x02        // CW : cw & ww, non-complementary
+#define PIXLE_PWM_DRV_TP_UNUSED 0x03        // invalid
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -47,6 +53,7 @@ typedef struct {
 typedef struct {
     uint32_t pwm_freq;                            // pwm frequency (Hz)
     BOOL_T active_level;                          // true means active high, false means active low
+    uint8_t pwm_tp;         					  //PIXLE_PWM_DRV_TP_CW or PIXLE_PWM_DRV_TP_CW_NC
     uint8_t pwm_pin_arr[PIXEL_PWM_NUM_MAX];       // pwm pin of each channel
     TUYA_PWM_NUM_E pwm_ch_arr[PIXEL_PWM_NUM_MAX]; // pwm id of each channel
 } PIXEL_PWM_CFG_T;

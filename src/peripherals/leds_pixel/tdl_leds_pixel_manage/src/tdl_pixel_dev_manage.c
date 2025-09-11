@@ -75,14 +75,14 @@ static int __tdl_pixel_dev_register(IN char *driver_name, IN PIXEL_DRIVER_INTFS_
     PIXEL_DEV_NODE_T *device = NULL, *last_node = NULL;
 
     if (NULL != __tdl_pixel_dev_node_find(&g_pixel_dev_list_head, driver_name)) {
-        TAL_PR_ERR("the dev:%s is already exist", driver_name);
+        PR_ERR("the dev:%s is already exist", driver_name);
         return OPRT_COM_ERROR;
     }
 
     // new device
     device = (PIXEL_DEV_NODE_T *)tal_malloc(sizeof(PIXEL_DEV_NODE_T));
     if (NULL == device) {
-        TAL_PR_ERR("malloc failed");
+        PR_ERR("malloc failed");
         return OPRT_MALLOC_FAILED;
     }
     memset(device, 0x00, sizeof(PIXEL_DEV_NODE_T));
@@ -106,7 +106,7 @@ static int __tdl_pixel_dev_register(IN char *driver_name, IN PIXEL_DRIVER_INTFS_
     // semphore
     op_ret = tal_semaphore_create_init(&device->send_sem, 0, 1);
     if (op_ret != OPRT_OK) {
-        TAL_PR_ERR("tal_semaphore_create_init err !!!");
+        PR_ERR("tal_semaphore_create_init err !!!");
         return op_ret;
     }
 
@@ -127,7 +127,7 @@ static int __tdl_pixel_dev_open(PIXEL_DEV_NODE_T *device, PIXEL_DEV_CONFIG_T *co
     int op_ret = 0;
 
     if (device->flag.is_start == 1) {
-        TAL_PR_DEBUG("pixel dev init already !");
+        PR_DEBUG("pixel dev init already !");
         return OPRT_OK;
     }
 
@@ -145,35 +145,47 @@ static int __tdl_pixel_dev_open(PIXEL_DEV_NODE_T *device, PIXEL_DEV_CONFIG_T *co
             &device->drv_handle,
             device->pixel_num); // Original: &device->pixel_drv_handle changed to &device->drv_handle
         if (op_ret != 0) {
-            TAL_PR_ERR("device:%s open failed :%d", device->name, op_ret);
+            PR_ERR("device:%s open failed :%d", device->name, op_ret);
             return OPRT_COM_ERROR;
         }
     }
 
     // prepare pixel buffer
-    device->pixel_buffer = (USHORT_T *)tal_malloc(device->color_num * device->pixel_num * sizeof(USHORT_T));
+    device->pixel_buffer = (uint16_t *)tal_malloc(device->color_num * device->pixel_num * sizeof(uint16_t));
     device->pixel_buffer_len = device->color_num * device->pixel_num;
     if (NULL == device->pixel_buffer) {
-        TAL_PR_ERR("tx_buffer malloc err 1!!!");
+        PR_ERR("tx_buffer malloc err 1!!!");
         return OPRT_COM_ERROR;
     }
-    memset(device->pixel_buffer, 0, device->color_num * device->pixel_num * sizeof(USHORT_T));
+    memset(device->pixel_buffer, 0, device->color_num * device->pixel_num * sizeof(uint16_t));
 
     device->flag.is_start = 1;
 
-    TAL_PR_DEBUG("pixel dev open succ");
+    PR_DEBUG("pixel dev open succ");
 
     return OPRT_OK;
 }
 
 static int __tdl_pixel_refresh(PIXEL_DEV_NODE_T *device)
 {
-    // The interval between ws2812 frames is required to be >50us. To ensure the portability of the delay code, the
-    // system interface is called here to set it.
-    if (p_node->basic_info.drive_mode == TDD_PIXEL_DRIVE_SPI) {
-        tal_system_sleep(1);
+    int op_ret =OPRT_OK;
+
+    if(device->intfs->output != NULL){
+        op_ret = device->intfs->output(device->drv_handle, device->pixel_buffer, device->pixel_buffer_len);    
+        if(op_ret != 0) {
+            PR_ERR("device:%s output is fail:%d!", device->name, op_ret);
+        }
     }
-    return device->intfs->output(device->drv_handle, device->pixel_buffer, device->pixel_num * device->color_num);
+
+    /* Prevent two frames from being sent too close together, causing continuous packets to be 
+        recognized by hardware as one frame, add delay processing. WS2812 requires frame interval 
+        >50us. To ensure portability of delay code, system interface is called here. Due to BK 
+        platform system heartbeat being 2ms, 1ms setting is invalid, so 4ms delay is set here. 
+        2ms cannot solve the problem due to task scheduling and other reasons.
+    */
+    tal_system_sleep(4);
+
+    return op_ret;
 }
 
 static int __tdl_pixel_dev_close(PIXEL_DEV_NODE_T *device)
@@ -181,7 +193,7 @@ static int __tdl_pixel_dev_close(PIXEL_DEV_NODE_T *device)
     int op_ret = 0;
 
     if (0 == device->flag.is_start) {
-        TAL_PR_ERR("device is not open");
+        PR_ERR("device is not open");
         return OPRT_COM_ERROR;
     }
 
@@ -239,13 +251,20 @@ int tdl_pixel_dev_find(char *name, OUT PIXEL_HANDLE_T *handle)
  */
 int tdl_pixel_dev_open(PIXEL_HANDLE_T handle, PIXEL_DEV_CONFIG_T *config)
 {
-    PIXEL_DEV_NODE_T *device = (PIXEL_DEV_NODE_T *)handle;
+    PIXEL_DEV_NODE_T *device = NULL;
+    int op_ret = 0;
 
-    if (NULL == device) {
+    if(NULL == handle || NULL == config) {
         return OPRT_INVALID_PARM;
     }
 
-    return __tdl_pixel_dev_open(device, config);
+    device = (PIXEL_DEV_NODE_T *)handle;
+
+    tal_mutex_lock(device->mutex);
+    op_ret = __tdl_pixel_dev_open(device, config);
+    tal_mutex_unlock(device->mutex);
+
+    return op_ret;
 }
 
 /**
@@ -284,12 +303,12 @@ static OPERATE_RET __tdl_pixel_dev_num_set(PIXEL_HANDLE_T *handle, uint16_t num)
     OPERATE_RET ret = OPRT_OK;
 
     if ((NULL == handle) || (0 == num)) {
-        TAL_PR_ERR("handle is null/num is :%d. set pixel num failed!", num);
+        PR_ERR("handle is null/num is :%d. set pixel num failed!", num);
         return OPRT_INVALID_PARM;
     }
 
     if (device->pixel_num == num) {
-        TAL_PR_NOTICE("dev pixel num:%d is same", num);
+        PR_NOTICE("dev pixel num:%d is same", num);
         return OPRT_OK;
     }
     device->pixel_num = num;
@@ -297,12 +316,12 @@ static OPERATE_RET __tdl_pixel_dev_num_set(PIXEL_HANDLE_T *handle, uint16_t num)
     /* tdd resource re-apply */
     ret = device->intfs->close(&device->drv_handle);
     if (ret != 0) {
-        TAL_PR_ERR("device:%s close failed :%d", device->name, ret);
+        PR_ERR("device:%s close failed :%d", device->name, ret);
         return OPRT_COM_ERROR;
     }
     ret = device->intfs->open(&device->drv_handle, num);
     if (ret != 0) {
-        TAL_PR_ERR("device:%s open failed :%d", device->name, ret);
+        PR_ERR("device:%s open failed :%d", device->name, ret);
         return OPRT_COM_ERROR;
     }
 
@@ -312,9 +331,9 @@ static OPERATE_RET __tdl_pixel_dev_num_set(PIXEL_HANDLE_T *handle, uint16_t num)
         device->pixel_buffer = NULL;
     }
 
-    device->pixel_buffer = (USHORT_T *)tal_malloc((device->color_num) * device->pixel_num * sizeof(USHORT_T));
+    device->pixel_buffer = (uint16_t *)tal_malloc((device->color_num) * device->pixel_num * sizeof(uint16_t));
     device->pixel_buffer_len = (device->color_num) * device->pixel_num;
-    memset(device->pixel_buffer, 0, ((device->color_num) * device->pixel_num * sizeof(USHORT_T))); // Clear data
+    memset(device->pixel_buffer, 0, ((device->color_num) * device->pixel_num * sizeof(uint16_t))); // Clear data
 
     return OPRT_OK;
 }
