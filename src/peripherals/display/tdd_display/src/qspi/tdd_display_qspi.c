@@ -104,6 +104,7 @@ static OPERATE_RET __disp_qspi_init(TUYA_SPI_NUM_E port, uint32_t freq_hz)
         .type = TUYA_QSPI_TYPE_LCD,
         .freq_hz = freq_hz,
         .use_dma = true,
+        .dma_data_lines = TUYA_QSPI_4WIRE,
     };
 
     PR_NOTICE("spi init %d\r\n", qspi_cfg.freq_hz);

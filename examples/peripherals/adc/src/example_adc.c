@@ -54,7 +54,7 @@ static TUYA_ADC_BASE_CFG_T sg_adc_cfg = {
 void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    int adc_value = 0;
+    int32_t adc_value = 0;
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);

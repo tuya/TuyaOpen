@@ -21,7 +21,7 @@
 #endif
 
 #if defined (ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA ==1)
-#include "tdd_camera_dvp_gc2145.h"
+#include "tdd_camera_gc2145.h"
 #endif
 
 #ifdef __cplusplus
