@@ -27,18 +27,14 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-#define DRV_SPI_SPEED 2887500 /* SPI baud rate */
+#define DRV_SPI_SPEED 6500000 /* SPI speed */
+
+#define DRVICE_DATA_0 0xC0 /* SPI data for 0 and 1 bits */
+#define DRVICE_DATA_1 0xFE
 
 #define COLOR_PRIMARY_NUM 3 // 3 channels
-#define COLOR_RESOLUTION  10000
+#define COLOR_RESOLUTION  255
 
-// V2.0 return-to-zero code 4bit version
-#define LED_DRVICE_IC_DATA_00 0X88 // 00
-#define LED_DRVICE_IC_DATA_01 0X8e // 01
-#define LED_DRVICE_IC_DATA_10 0Xe8 // 10
-#define LED_DRVICE_IC_DATA_11 0Xee // 11
-
-#define ONE_BYTE_LEN_4BIT 4
 /************************************************************
 ****************************typedef define****************************
 *********************************************************************/
@@ -51,34 +47,14 @@ static PIXEL_PWM_CFG_T *g_pwm_cfg = NULL;
 /*********************************************************************
 ****************************function define***************************
 *********************************************************************/
-
-static void __tdd_16703_4bit_rgb_transform_spi_data(unsigned char color_data, unsigned char *spi_data_buf)
-{
-    unsigned char i = 0;
-
-    for (i = 0; i < ONE_BYTE_LEN_4BIT; i++) {
-        if ((color_data & 0xc0) == 0) {
-            spi_data_buf[i] = LED_DRVICE_IC_DATA_00;
-
-        } else if ((color_data & 0xc0) == 0x40) {
-            spi_data_buf[i] = LED_DRVICE_IC_DATA_01;
-
-        } else if ((color_data & 0xc0) == 0x80) {
-            spi_data_buf[i] = LED_DRVICE_IC_DATA_10;
-
-        } else if ((color_data & 0xc0) == 0xc0) {
-            spi_data_buf[i] = LED_DRVICE_IC_DATA_11;
-
-        } else {
-            TAL_PR_ERR("SPI Send 1/0 Bit error\r\n");
-        }
-
-        color_data = color_data << 2;
-    }
-
-    return;
-}
-
+/**
+ * @function:tdd_sm16703p_driver_open
+ * @brief: Open and initialize driver device
+ * @param[in]: inform_cb -> SPI transmission completion callback
+ * @param[in]: pixel_num -> Number of pixels
+ * @param[out]: *handle  -> Device handle
+ * @return: success -> 0  fail -> else
+ */
 OPERATE_RET tdd_sm16703p_opt_driver_open(DRIVER_HANDLE_T *handle, unsigned short pixel_num)
 {
     OPERATE_RET op_ret = OPRT_OK;
@@ -99,21 +75,21 @@ OPERATE_RET tdd_sm16703p_opt_driver_open(DRIVER_HANDLE_T *handle, unsigned short
     spi_cfg.spi_dma_flags = TRUE;
     op_ret = tkl_spi_init(driver_info.port, &spi_cfg);
     if (op_ret != OPRT_OK) {
-        TAL_PR_ERR("tkl_spi_init fail op_ret:%d", op_ret);
+        PR_ERR("tkl_spi_init fail op_ret:%d", op_ret);
         return op_ret;
     }
 
-    tx_buf_len = ONE_BYTE_LEN_4BIT * COLOR_PRIMARY_NUM * pixel_num;
+    tx_buf_len = ONE_BYTE_LEN * COLOR_PRIMARY_NUM * pixel_num;
     op_ret = tdd_pixel_create_tx_ctrl(tx_buf_len, &pixels_send);
     if (op_ret != OPRT_OK) {
         return op_ret;
     }
 
     if (NULL != g_pwm_cfg) {
-        op_ret = tdd_pixel_pwm_open(g_pwm_cfg);
-        if (op_ret != OPRT_OK) {
-            return op_ret;
-        }
+      op_ret = tdd_pixel_pwm_open(g_pwm_cfg);
+      if (op_ret != OPRT_OK) {
+        return op_ret;
+      }
     }
 
     *handle = pixels_send;
@@ -121,6 +97,14 @@ OPERATE_RET tdd_sm16703p_opt_driver_open(DRIVER_HANDLE_T *handle, unsigned short
     return OPRT_OK;
 }
 
+/**
+ * @function: tdd_sm16703p_driver_send_data
+ * @brief: Receive color data, convert RGBCW data to current chip data, convert to SPI data, and send via SPI
+ * @param[in]: handle -> Device handle
+ * @param[in]: *data_buf -> Color data
+ * @param[in]: buf_len -> Color data length
+ * @return: success -> 0  fail -> else
+ */
 OPERATE_RET tdd_sm16703p_opt_driver_send_data(DRIVER_HANDLE_T handle, unsigned short *data_buf, unsigned int buf_len)
 {
     OPERATE_RET ret = OPRT_OK;
@@ -142,10 +126,10 @@ OPERATE_RET tdd_sm16703p_opt_driver_send_data(DRIVER_HANDLE_T handle, unsigned s
         if (g_pwm_cfg->pwm_ch_arr[PIXEL_PWM_CH_IDX_WARM] != PIXEL_PWM_ID_INVALID) {
             color_nums++;
         }
-        LIGHT_RGBCW_U color = {.array = {0, 0, 0, 0, 0}};
+        LIGHT_RGBCW_U color = {.array = {0,0,0,0,0}};
         color.s.cold = data_buf[3];
         color.s.warm = data_buf[4];
-        tdd_pixel_pwm_output(g_pwm_cfg, &color);
+        tdd_pixel_pwm_output(g_pwm_cfg ,&color);
     }
 
     tx_ctrl = (DRV_PIXEL_TX_CTRL_T *)handle;
@@ -153,9 +137,9 @@ OPERATE_RET tdd_sm16703p_opt_driver_send_data(DRIVER_HANDLE_T handle, unsigned s
         memset(swap_buf, 0, sizeof(swap_buf));
         tdd_rgb_line_seq_transform(&data_buf[j * color_nums], swap_buf, driver_info.line_seq);
         for (i = 0; i < COLOR_PRIMARY_NUM; i++) {
-            __tdd_16703_4bit_rgb_transform_spi_data((unsigned char)(swap_buf[i] * 255 / COLOR_RESOLUTION),
-                                                    &tx_ctrl->tx_buffer[idx]);
-            idx += ONE_BYTE_LEN_4BIT;
+            tdd_rgb_transform_spi_data((unsigned char)swap_buf[i], DRVICE_DATA_0, DRVICE_DATA_1,
+                                       &tx_ctrl->tx_buffer[idx]);
+            idx += ONE_BYTE_LEN;
         }
     }
 
@@ -163,7 +147,12 @@ OPERATE_RET tdd_sm16703p_opt_driver_send_data(DRIVER_HANDLE_T handle, unsigned s
 
     return ret;
 }
-
+/**
+ * @function: tdd_sm16703p_driver_close
+ * @brief: Close device and release resources
+ * @param[in]: *handle -> Device handle
+ * @return: success -> 0  fail -> else
+ */
 OPERATE_RET tdd_sm16703p_opt_driver_close(DRIVER_HANDLE_T *handle)
 {
     OPERATE_RET ret = OPRT_OK;
@@ -177,7 +166,7 @@ OPERATE_RET tdd_sm16703p_opt_driver_close(DRIVER_HANDLE_T *handle)
 
     ret = tkl_spi_deinit(driver_info.port);
     if (ret != OPRT_OK) {
-        TAL_PR_ERR("spi deinit err:%d", ret);
+        PR_ERR("spi deinit err:%d", ret);
     }
     ret = tdd_pixel_tx_ctrl_release(tx_ctrl);
 
@@ -223,6 +212,17 @@ OPERATE_RET tdd_sm16703p_opt_driver_config(DRIVER_HANDLE_T handle, unsigned char
     return OPRT_OK;
 }
 
+/**
+ * @brief  tdd_sm16703p_driver_register
+ *
+ * @param[in] driver_name
+ * 
+ * @param[in] pixel_info
+ * 
+ * @param[in] pwm_cfg
+ * 
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
 OPERATE_RET tdd_sm16703p_opt_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T *init_param,
                                              PIXEL_PWM_CFG_T *pwm_cfg)
 {
@@ -256,7 +256,7 @@ OPERATE_RET tdd_sm16703p_opt_driver_register(char *driver_name, PIXEL_DRIVER_CON
 
     ret = tdl_pixel_driver_register(driver_name, &intfs, &arrt, NULL);
     if (ret != OPRT_OK) {
-        TAL_PR_ERR("pixel drv init err:%d", ret);
+        PR_ERR("pixel drv init err:%d", ret);
         return ret;
     }
     memcpy(&driver_info, init_param, sizeof(PIXEL_DRIVER_CONFIG_T));

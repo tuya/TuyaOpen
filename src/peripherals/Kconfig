@@ -9,4 +9,5 @@ menu "configure device driver"
     rsource "pmic/Kconfig"
     rsource "camera/Kconfig"
     rsource "ir/Kconfig"
+    rsource "leds_pixel/Kconfig"
 endmenu

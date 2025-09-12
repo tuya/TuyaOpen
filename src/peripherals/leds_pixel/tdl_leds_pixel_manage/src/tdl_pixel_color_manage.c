@@ -30,14 +30,14 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void_T __tdl_pixel_only_set_cw(PIXEL_HANDLE_T handle, USHORT_T *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
-                                      index, PIXEL_COLOR_T *color)
+static void __tdl_pixel_only_set_cw(PIXEL_HANDLE_T handle, uint16_t *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
+                                    uint32_t index, PIXEL_COLOR_T *color)
 {
     uint32_t pos = 0;
     PIXEL_DEV_NODE_T *device = (PIXEL_DEV_NODE_T *)handle;
 
     if (NULL == buff) {
-        TAL_PR_ERR("buff is null");
+        PR_ERR("buff is null");
         return;
     }
 
@@ -65,14 +65,14 @@ static void_T __tdl_pixel_only_set_cw(PIXEL_HANDLE_T handle, USHORT_T *buff, PIX
     return;
 }
 
-static void_T __tdl_pixel_set_color(PIXEL_HANDLE_T handle, USHORT_T *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
+static void __tdl_pixel_set_color(PIXEL_HANDLE_T handle, uint16_t *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
                                     uint32_t index, PIXEL_COLOR_T *color)
 {
     uint32_t pos = 0;
     PIXEL_DEV_NODE_T *device = (PIXEL_DEV_NODE_T *)handle;
 
     if (NULL == buff) {
-        TAL_PR_ERR("buff is null");
+        PR_ERR("buff is null");
         return;
     }
 
@@ -116,14 +116,14 @@ static void_T __tdl_pixel_set_color(PIXEL_HANDLE_T handle, USHORT_T *buff, PIXEL
     return;
 }
 
-static void_T __tdl_pixel_get_color(PIXEL_HANDLE_T handle, USHORT_T *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
+static void __tdl_pixel_get_color(PIXEL_HANDLE_T handle, uint16_t *buff, PIXEL_COLOR_TP_E tp, uint8_t color_num,
                                     uint32_t index, PIXEL_COLOR_T *color)
 {
     uint32_t pos = 0;
     PIXEL_DEV_NODE_T *device = (PIXEL_DEV_NODE_T *)handle;
 
     if (NULL == buff) {
-        TAL_PR_ERR("buff is null");
+        PR_ERR("buff is null");
         return;
     }
 
@@ -161,10 +161,10 @@ static void_T __tdl_pixel_get_color(PIXEL_HANDLE_T handle, USHORT_T *buff, PIXEL
     return;
 }
 
-static OPERATE_RET __tdl_pixel_right_shift(USHORT_T *buff, uint8_t color_num, int32_t start, int32_t end, int32_t step)
+static OPERATE_RET __tdl_pixel_right_shift(uint16_t *buff, uint8_t color_num, int32_t start, int32_t end, int32_t step)
 {
     int32_t i, temp_len = 0, rang_size = 0;
-    USHORT_T *temp = NULL;
+    uint16_t *temp = NULL;
 
     if (NULL == buff || end < start || step > end - start) {
         return OPRT_INVALID_PARM;
@@ -174,10 +174,10 @@ static OPERATE_RET __tdl_pixel_right_shift(USHORT_T *buff, uint8_t color_num, in
         return OPRT_OK;
     }
 
-    temp_len = step * color_num * sizeof(USHORT_T);
-    temp = (USHORT_T *)tal_malloc(temp_len);
+    temp_len = step * color_num * sizeof(uint16_t);
+    temp = (uint16_t *)tal_malloc(temp_len);
     if (temp == NULL) {
-        TAL_PR_ERR("malloc failed !");
+        PR_ERR("malloc failed !");
 
         return OPRT_MALLOC_FAILED;
     }
@@ -185,7 +185,7 @@ static OPERATE_RET __tdl_pixel_right_shift(USHORT_T *buff, uint8_t color_num, in
 
     rang_size = end - start + 1;
     for (i = 0; i < rang_size - step; i++) {
-        memmove(buff + color_num * (end - i), buff + color_num * (end - step - i), color_num * sizeof(USHORT_T));
+        memmove(buff + color_num * (end - i), buff + color_num * (end - step - i), color_num * sizeof(uint16_t));
     }
     memcpy(buff + color_num * start, temp, temp_len);
 
@@ -194,10 +194,10 @@ static OPERATE_RET __tdl_pixel_right_shift(USHORT_T *buff, uint8_t color_num, in
     return OPRT_OK;
 }
 
-static OPERATE_RET __tdl_pixel_left_shift(USHORT_T *buff, uint8_t color_num, int32_t start, int32_t end, int32_t step)
+static OPERATE_RET __tdl_pixel_left_shift(uint16_t *buff, uint8_t color_num, int32_t start, int32_t end, int32_t step)
 {
     int32_t i, temp_len = 0, rang_size = 0;
-    USHORT_T *temp = NULL;
+    uint16_t *temp = NULL;
 
     if (NULL == buff || end < start || step > end - start) {
         return OPRT_INVALID_PARM;
@@ -207,17 +207,17 @@ static OPERATE_RET __tdl_pixel_left_shift(USHORT_T *buff, uint8_t color_num, int
         return OPRT_OK;
     }
 
-    temp_len = step * color_num * sizeof(USHORT_T);
-    temp = (USHORT_T *)tal_malloc(temp_len);
+    temp_len = step * color_num * sizeof(uint16_t);
+    temp = (uint16_t *)tal_malloc(temp_len);
     if (temp == NULL) {
-        TAL_PR_ERR("malloc failed !");
+        PR_ERR("malloc failed !");
         return OPRT_MALLOC_FAILED;
     }
     memcpy(temp, buff + color_num * start, temp_len);
 
     rang_size = end - start + 1;
     for (i = 0; i < rang_size - step; i++) {
-        memmove(buff + color_num * (start + i), buff + color_num * (start + i + step), color_num * sizeof(USHORT_T));
+        memmove(buff + color_num * (start + i), buff + color_num * (start + i + step), color_num * sizeof(uint16_t));
     }
     memcpy(buff + color_num * (end - step + 1), temp, temp_len);
 
@@ -242,6 +242,7 @@ int tdl_pixel_set_single_color(PIXEL_HANDLE_T handle, uint32_t index_start, uint
     PIXEL_DEV_NODE_T *device = (PIXEL_DEV_NODE_T *)handle;
 
     if (NULL == handle || NULL == color) {
+        PR_ERR("param err <handle:%p, color:%p>", handle, color);
         return OPRT_INVALID_PARM;
     }
 
@@ -250,6 +251,7 @@ int tdl_pixel_set_single_color(PIXEL_HANDLE_T handle, uint32_t index_start, uint
     }
 
     if (index_start >= device->pixel_num || index_start + pixel_num > device->pixel_num) {
+        PR_ERR("param err <index_start:%u, pixel_num:%u, device->pixel_num:%u>", index_start, pixel_num, device->pixel_num);
         return OPRT_INVALID_PARM;
     }
 
@@ -569,7 +571,7 @@ int tdl_pixel_copy_color(PIXEL_HANDLE_T handle, uint32_t dst_idx, uint32_t src_i
         return OPRT_INVALID_PARM;
     }
 
-    copy_len = device->color_num * sizeof(USHORT_T) * len;
+    copy_len = device->color_num * sizeof(uint16_t) * len;
 
     memmove((unsigned char *)&device->pixel_buffer[dst_idx * device->color_num],
             (unsigned char *)&device->pixel_buffer[src_idx * device->color_num], copy_len);

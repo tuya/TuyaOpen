@@ -25,11 +25,11 @@
 ******************************macro define****************************
 *********************************************************************/
 /* SPI baud rate */
-#define DRV_SPI_SPEED 6600000
+#define DRV_SPI_SPEED 6500000
 
 /* Data corresponding to SPI 0 and 1 codes */
-#define DRVICE_DATA_0 0XC0 // 11000000
-#define DRVICE_DATA_1 0XF0 // 11110000
+#define DRVICE_DATA_0 0xC0 // 11000000
+#define DRVICE_DATA_1 0xF0 // 11110000
 
 #define COLOR_PRIMARY_NUM 3
 #define COLOR_RESOLUTION  255
@@ -72,7 +72,7 @@ OPERATE_RET tdd_2812_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short pix
     spi_cfg.spi_dma_flags = TRUE;
     op_ret = tkl_spi_init(driver_info.port, &spi_cfg);
     if (op_ret != OPRT_OK) {
-        TAL_PR_ERR("tkl_spi_init fail op_ret:%d", op_ret);
+        PR_ERR("tkl_spi_init fail op_ret:%d", op_ret);
         return op_ret;
     }
 
@@ -142,7 +142,7 @@ OPERATE_RET tdd_ws2812_driver_close(DRIVER_HANDLE_T *handle)
 
     ret = tkl_spi_deinit(driver_info.port);
     if (ret != OPRT_OK) {
-        TAL_PR_ERR("spi deinit err:%d", ret);
+        PR_ERR("spi deinit err:%d", ret);
     }
     ret = tdd_pixel_tx_ctrl_release(tx_ctrl);
     *handle = NULL;
@@ -171,7 +171,7 @@ OPERATE_RET tdd_ws2812_driver_register(char *driver_name, PIXEL_DRIVER_CONFIG_T 
 
     ret = tdl_pixel_driver_register(driver_name, &intfs, &arrt, NULL);
     if (ret != OPRT_OK) {
-        TAL_PR_ERR("pixel drv init err:%d", ret);
+        PR_ERR("pixel drv init err:%d", ret);
         return ret;
     }
     memcpy(&driver_info, init_param, sizeof(PIXEL_DRIVER_CONFIG_T));

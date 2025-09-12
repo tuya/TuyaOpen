@@ -43,8 +43,8 @@ typedef struct pixel_dev_list {
     PIXEL_FLAG_T flag;
 
     uint32_t pixel_num;
-    USHORT_T pixel_resolution;
-    USHORT_T *pixel_buffer;    // Pixel buffer
+    uint16_t pixel_resolution;
+    uint16_t *pixel_buffer;    // Pixel buffer
     uint32_t pixel_buffer_len; // Pixel buffer size
 
     SEM_HANDLE send_sem;

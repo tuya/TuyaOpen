@@ -13,12 +13,13 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 # LIB_SRCS
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/tdd_leds_pixel/src/*.c"
-    "${MODULE_PATH}/tdl_leds_pixel/src/*.c")
+    "${MODULE_PATH}/tdl_leds_pixel_manage/src/*.c"
+    )
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
-        ${MODULE_PATH}/tdd_leds_pixel/include
-        ${MODULE_PATH}/tdl_leds_pixel/include
+    "${MODULE_PATH}/tdd_leds_pixel/include"
+    "${MODULE_PATH}/tdl_leds_pixel_manage/include"
     )
 
 

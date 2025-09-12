@@ -1,5 +1,3 @@
 config ENABLE_LEDS_PIXEL
     bool "enable leds pixel driver"
     default n
-    depend on ENABLE_SPI
-
