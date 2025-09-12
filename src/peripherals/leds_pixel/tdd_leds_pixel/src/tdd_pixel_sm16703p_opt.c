@@ -27,7 +27,7 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-#define DRV_SPI_SPEED 6600000 /* SPI speed */
+#define DRV_SPI_SPEED 6500000 /* SPI speed */
 
 #define DRVICE_DATA_0 0xC0 /* SPI data for 0 and 1 bits */
 #define DRVICE_DATA_1 0xFE

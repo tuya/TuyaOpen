@@ -25,7 +25,7 @@
 /*********************************************************************
 ******************************macro define****************************
 *********************************************************************/
-#define DRV_SPI_SPEED 6600000 /* SPI baud rate */
+#define DRV_SPI_SPEED 6500000 /* SPI baud rate */
 
 #define DRVICE_DATA_0 0xC0 /* Data corresponding to SPI 0 and 1 codes */
 #define DRVICE_DATA_1 0xFC
