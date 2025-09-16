@@ -85,6 +85,8 @@ typedef struct {
     AI_STREAM_TYPE stream_flag;
     /** head data */
     AI_BIZ_HD_T value;
+    /** data total length */
+    uint32_t total_len;
     /** data length */
     uint32_t len;
 } AI_BIZ_HEAD_INFO_T;
@@ -119,6 +121,20 @@ typedef void (*AI_BIZ_SEND_FREE_CB)(char *data);
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 typedef OPERATE_RET (*AI_BIZ_RECV_CB)(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data);
+
+/**
+ * @brief monitor callback for biz data
+ *
+ * @param[in] id channel id
+ * @param[in] attr attribute
+ * @param[in] head data head
+ * @param[in] payload data
+ * @param[in] usr_data user data
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+typedef OPERATE_RET (*AI_BIZ_MONITOR_CB)(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data,
+                                         void *usr_data);
 
 typedef struct {
     /** send packet type */
@@ -192,6 +208,21 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
                                  char *payload);
 
 /**
+ * @brief send ai biz packet with custom writer
+ *
+ * @param[in] id channel id
+ * @param[in] attr attribute
+ * @param[in] type packet type
+ * @param[in] head data head
+ * @param[in] payload data
+ * @param[in] writer custom writer, can be NULL
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_send_biz_pkt_custom(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKET_PT type,
+                                        AI_BIZ_HEAD_INFO_T *head, char *payload, AI_PACKET_WRITER_T *writer);
+
+/**
  * @brief get send id
  *
  * @return send id
@@ -211,4 +242,97 @@ int tuya_ai_biz_get_recv_id(void);
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_biz_init(void);
+
+/**
+ * @brief deinit ai biz
+ *
+ */
+void tuya_ai_biz_deinit(void);
+
+/**
+ * @brief get session cfg
+ *
+ * @param[in] id session id
+ *
+ * @return session cfg
+ */
+AI_SESSION_CFG_T *tuya_ai_biz_get_session_cfg(AI_SESSION_ID id);
+
+/**
+ * @brief parse video attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] video pointer to AI_VIDEO_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VIDEO_ATTR_T *video);
+
+/**
+ * @brief parse audio attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] audio pointer to AI_AUDIO_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_audio_attr(char *de_buf, uint32_t attr_len, AI_AUDIO_ATTR_T *audio);
+
+/**
+ * @brief parse image attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] image pointer to AI_IMAGE_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_image_attr(char *de_buf, uint32_t attr_len, AI_IMAGE_ATTR_T *image);
+
+/**
+ * @brief parse file attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] file pointer to AI_FILE_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE_ATTR_T *file);
+
+/**
+ * @brief parse text attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] text pointer to AI_TEXT_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_text_attr(char *de_buf, uint32_t attr_len, AI_TEXT_ATTR_T *text);
+
+/**
+ * @brief parse event attribute
+ *
+ * @param[in] de_buf decrypted buffer
+ * @param[in] attr_len length of the attribute
+ * @param[out] event pointer to AI_EVENT_ATTR_T structure to fill in
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_parse_event_attr(char *de_buf, uint32_t attr_len, AI_EVENT_ATTR_T *event);
+
+/**
+ * @brief set monitor callback
+ *
+ * @param[in] recv_cb receive callback
+ * @param[in] send_cb send callback
+ * @param[in] usr_data user data
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_biz_monitor_register(AI_BIZ_MONITOR_CB recv_cb, AI_BIZ_MONITOR_CB send_cb, void *usr_data);
+
 #endif

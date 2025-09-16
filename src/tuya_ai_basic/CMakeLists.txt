@@ -17,6 +17,18 @@ file(GLOB_RECURSE LIB_SRCS
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
 
+if (CONFIG_ENABLE_AI_MONITOR STREQUAL "y")
+    set(AI_MONITOR_SRC 
+        ${MODULE_PATH}/monitor/tuya_ai_monitor.c
+        )
+    set(AI_MONITOR_INC
+        ${MODULE_PATH}/monitor
+        )
+
+    list(APPEND LIB_SRCS ${AI_MONITOR_SRC})
+    list(APPEND LIB_PUBLIC_INC ${AI_MONITOR_INC})
+endif()
+
 ########################################
 # Target Configure
 ########################################

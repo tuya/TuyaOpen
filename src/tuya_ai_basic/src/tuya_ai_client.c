@@ -443,7 +443,7 @@ void tuya_ai_client_stop_ping(void)
 
 void tuya_ai_client_start_ping(void)
 {
-    __ai_ping(NULL);
+    tal_workq_start_delayed(ai_basic_client->alive_work, (ai_basic_client->heartbeat_interval * 1000), LOOP_ONCE);
 }
 
 OPERATE_RET tuya_ai_client_init(void)

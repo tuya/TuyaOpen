@@ -20,6 +20,9 @@
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_event.h"
+#if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
+#include "tuya_ai_monitor.h"
+#endif
 
 #include "ai_audio.h"
 #include "ai_audio_debug.h"
@@ -460,6 +463,12 @@ static OPERATE_RET __ai_agent_init(void *data)
 
 #if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
     ai_audio_debug_init();
+#endif
+
+#if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
+    OPERATE_RET rt = OPRT_OK;
+    ai_monitor_config_t monitor_cfg = AI_MONITOR_CFG_DEFAULT;
+    TUYA_CALL_ERR_RETURN(tuya_ai_monitor_init(&monitor_cfg));
 #endif
 
     tal_event_subscribe(EVENT_AI_SESSION_NEW, "ai_session_new", __ai_agent_session_new, SUBSCRIBE_TYPE_NORMAL);
