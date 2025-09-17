@@ -21,7 +21,7 @@
 /***********************************************************
 ***********************const define**********************
 ***********************************************************/
-const uint32_t cST7796S_INIT_SEQ[] = {
+static const uint32_t cST7796S_INIT_SEQ[] = {
     1,    0,    0x01, 
     1,    120,  0x28, 
     2,    0,    0xF0, 0xC3,
@@ -46,10 +46,10 @@ const uint32_t cST7796S_INIT_SEQ[] = {
 };
 
 static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
-    .cmd_caset = ST7796S_CASET,
-    .cmd_raset = ST7796S_RASET,
-    .cmd_ramwr = ST7796S_RAMWR,
-    .cmd_ramwr = ST7796S_RAMWRC,
+    .cmd_caset  = ST7796S_CASET,
+    .cmd_raset  = ST7796S_RASET,
+    .cmd_ramwr  = ST7796S_RAMWR,
+    .cmd_ramwrc = ST7796S_RAMWRC,
     .init_seq = cST7796S_INIT_SEQ,
 };
 

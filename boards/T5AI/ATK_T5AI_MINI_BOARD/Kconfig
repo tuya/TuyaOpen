@@ -14,16 +14,38 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_BUTTON
 
-choice ATK_T5AI_MINI_BOARD_EX_MODULE
-    prompt "choose expansion module for ATK_T5AI_MINI_BOARD"
-    default ATK_T5AI_MINI_BOARD_EX_MODULE_NONE
+choice ATK_T5AI_MINI_BOARD_EX_LCD_MODULE
+    prompt "choose expansion lcd module for ATK_T5AI_MINI_BOARD"
+    default ATK_T5AI_MINI_BOARD_LCD_MD0240_SPI
 
-    config ATK_T5AI_MINI_BOARD_EX_MODULE_NONE
-        bool "no expansion module"
-
-    config ATK_T5AI_MINI_BOARD_EX_MODULE_LCD
-        bool "support LCD expansion module"
+    config ATK_T5AI_MINI_BOARD_LCD_MD0240_SPI
+        bool "support 2.4 inch spi LCD module"
         select ENABLE_DISPLAY
-        select ENABLE_TOUCH
-        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+
+    config ATK_T5AI_MINI_BOARD_LCD_MD0240_8080
+        bool "support 2.4 inch mcu8080 LCD module"
+        select ENABLE_DISPLAY
+        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+
+    config ATK_T5AI_MINI_BOARD_LCD_NONE
+        bool "no expansion lcd module"
+endchoice
+
+choice ATK_T5AI_MINI_BOARD_EX_CAMERA_MODULE
+    prompt "choose expansion camera module for ATK_T5AI_MINI_BOARD"
+    default ATK_T5AI_MINI_BOARD_CAMERA_OV2640
+
+    config ATK_T5AI_MINI_BOARD_CAMERA_OV2640
+        bool "support OV2640 camera module"
+        select ENABLE_CAMERA
+
+    config ATK_T5AI_MINI_BOARD_CAMERA_OV5640
+        bool "support OV5640 camera module"
+        select ENABLE_CAMERA
+
+    config ATK_T5AI_MINI_BOARD_CAMERA_NONE
+        bool "no expansion camera module"
 endchoice

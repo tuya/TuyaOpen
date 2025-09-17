@@ -11,8 +11,8 @@
  *
  */
 
-#ifndef __TDD_DISP_ST7789_H__
-#define __TDD_DISP_ST7789_H__
+#ifndef __TDD_DISP_ST7796_H__
+#define __TDD_DISP_ST7796_H__
 
 #include "tuya_cloud_types.h"
 #include "tdd_disp_type.h"
@@ -53,4 +53,4 @@ OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CF
 }
 #endif
 
-#endif /* __TDD_DISP_ST7735S_H__ */
+#endif /* __TDD_DISP_ST7796S_H__ */

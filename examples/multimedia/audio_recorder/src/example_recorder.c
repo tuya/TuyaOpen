@@ -30,8 +30,6 @@
 #include "tkl_audio.h"
 #include "tkl_gpio.h"
 
-#include "mp3dec.h"
-
 #include "wav_encode.h"
 
 /***********************************************************
@@ -83,35 +81,6 @@ struct recorder_ctx {
     // Recording file handle
     TUYA_FILE file_hdl;
 };
-
-#include <modules/mp3dec.h>
-
-extern const char media_src_hello_tuya_16k[9009];
-
-#define PCM_SIZE_MAX (MAX_NSAMP * MAX_NCHAN * MAX_NGRAN)
-#define MP3_FILE_ARRAY          media_src_hello_tuya_16k
-
-
-
-struct speaker_mp3_ctx {
-    HMP3Decoder decode_hdl;
-    MP3FrameInfo frame_info;
-    unsigned char *read_buf;
-    uint32_t read_size; // valid data size in read_buf
-
-    uint32_t mp3_offset; // current mp3 read position
-
-    short *pcm_buf;
-};
-
-static struct speaker_mp3_ctx sg_mp3_ctx = {
-    .decode_hdl = NULL,
-    .read_buf = NULL,
-    .read_size = 0,
-    .mp3_offset = 0,
-    .pcm_buf = NULL,
-};
-
 
 /***********************************************************
 ********************function declaration********************
@@ -195,111 +164,6 @@ static void app_audio_init(void)
 
     return;
 }
-
-static void app_mp3_decode_init(void)
-{
-    sg_mp3_ctx.read_buf = tkl_system_psram_malloc(MAINBUF_SIZE);
-    if (sg_mp3_ctx.read_buf == NULL) {
-        PR_ERR("mp3 read buf malloc failed!");
-        return;
-    }
-
-    sg_mp3_ctx.pcm_buf = tkl_system_psram_malloc(PCM_SIZE_MAX * 2);
-    if (sg_mp3_ctx.pcm_buf == NULL) {
-        PR_ERR("pcm_buf malloc failed!");
-        return;
-    }
-
-    sg_mp3_ctx.decode_hdl = MP3InitDecoder();
-    if (sg_mp3_ctx.decode_hdl == NULL) {
-        tkl_system_psram_free(sg_mp3_ctx.read_buf);
-        sg_mp3_ctx.read_buf = NULL;
-        tkl_system_psram_free(sg_mp3_ctx.pcm_buf);
-        sg_mp3_ctx.pcm_buf = NULL;
-        PR_ERR("MP3Decoder init failed!");
-        return;
-    }
-
-    return;
-}
-
-static void app_speaker_play(void)
-{
-    int rt = 0;
-    uint32_t head_offset = 0;
-    unsigned char *mp3_frame_head = NULL;
-    uint32_t decode_size_remain = 0;
-    uint32_t read_size_remain = 0;
-
-    if (sg_mp3_ctx.decode_hdl == NULL || sg_mp3_ctx.read_buf == NULL || sg_mp3_ctx.pcm_buf == NULL) {
-        PR_ERR("MP3Decoder init fail!");
-        return;
-    }
-
-    memset(sg_mp3_ctx.read_buf, 0, MAINBUF_SIZE);
-    memset(sg_mp3_ctx.pcm_buf, 0, PCM_SIZE_MAX * 2);
-    sg_mp3_ctx.read_size = 0;
-    sg_mp3_ctx.mp3_offset = 0;
-
-    do {
-        // 1. read mp3 data
-        // Audio file frequency should match the configured spk_sample
-        // You can use https://convertio.co/zh/ website for online audio format and frequency conversion
-        if (mp3_frame_head != NULL && decode_size_remain > 0) {
-            memmove(sg_mp3_ctx.read_buf, mp3_frame_head, decode_size_remain);
-            sg_mp3_ctx.read_size = decode_size_remain;
-        }
-
-        if (sg_mp3_ctx.mp3_offset >= sizeof(MP3_FILE_ARRAY)) { // mp3 file reading completed
-            if (decode_size_remain == 0) {                     // last frame data decoding and playback completed
-                PR_NOTICE("mp3 play finish!");
-                break;
-            } else {
-                goto __MP3_DECODE;
-            }
-        }
-
-        read_size_remain = MAINBUF_SIZE - sg_mp3_ctx.read_size;
-        if (read_size_remain > sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset) {
-            read_size_remain =
-                sizeof(MP3_FILE_ARRAY) - sg_mp3_ctx.mp3_offset; // remaining data is less than read_buf size
-        }
-        if (read_size_remain > 0) {
-            memcpy(sg_mp3_ctx.read_buf + sg_mp3_ctx.read_size, MP3_FILE_ARRAY + sg_mp3_ctx.mp3_offset,
-                   read_size_remain);
-            sg_mp3_ctx.read_size += read_size_remain;
-            sg_mp3_ctx.mp3_offset += read_size_remain;
-        }
-
-    __MP3_DECODE:
-        // 2. decode mp3 data
-        head_offset = MP3FindSyncWord(sg_mp3_ctx.read_buf, sg_mp3_ctx.read_size);
-        if (head_offset < 0) {
-            PR_ERR("MP3FindSyncWord not find!");
-            break;
-        }
-
-        mp3_frame_head = sg_mp3_ctx.read_buf + head_offset;
-        decode_size_remain = sg_mp3_ctx.read_size - head_offset;
-        rt = MP3Decode(sg_mp3_ctx.decode_hdl, &mp3_frame_head, (int *)&decode_size_remain, sg_mp3_ctx.pcm_buf, 0);
-        if (rt != ERR_MP3_NONE) {
-            PR_ERR("MP3Decode failed, code is %d", rt);
-            break;
-        }
-
-        memset(&sg_mp3_ctx.frame_info, 0, sizeof(MP3FrameInfo));
-        MP3GetLastFrameInfo(sg_mp3_ctx.decode_hdl, &sg_mp3_ctx.frame_info);
-
-        // 3. play pcm data
-        TKL_AUDIO_FRAME_INFO_T frame;
-        frame.pbuf = (char *)sg_mp3_ctx.pcm_buf;
-        frame.used_size = sg_mp3_ctx.frame_info.outputSamps * 2;
-        tkl_ao_put_frame(0, 0, NULL, &frame);
-    } while (1);
-
-    return;
-}
-
 
 static void app_mic_record(void)
 {
@@ -546,10 +410,7 @@ __EXIT:
 static void app_recorder_thread(void *arg)
 {
     app_audio_trigger_pin_init();
-    app_mp3_decode_init();
     app_audio_init();
-
-    app_speaker_play();
 
     for (;;) {
         app_mic_record();
