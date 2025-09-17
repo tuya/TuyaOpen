@@ -8,6 +8,8 @@ on:
 jobs:
   Build-Switch-Demo:
     runs-on: self-hosted
+    env:
+      OPEN_COUNTRY_CODE: "NONE"
     steps:
       - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
       - run: echo "🐧 Running on a ${{ runner.os }}, branch is ${{ github.ref }} !"

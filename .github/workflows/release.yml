@@ -28,6 +28,8 @@ jobs:
 
   gen-artifacts:
     runs-on: self-hosted
+    env:
+      OPEN_COUNTRY_CODE: "NONE"
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
