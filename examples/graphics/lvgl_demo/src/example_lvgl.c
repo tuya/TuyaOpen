@@ -47,11 +47,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static uint32_t lv_tick_get_callback(void)
-{
-    return (uint32_t)tkl_system_get_millisecond();
-}
-#define DISPLAY_NAME "display"
+
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -69,29 +65,14 @@ void user_main(void)
     /*hardware register*/
     board_register_hardware();
 
-    extern OPERATE_RET tuya_lvgl_init(void);
-    tuya_lvgl_init();
-
-    lv_tick_set_cb(lv_tick_get_callback);
-
-    extern OPERATE_RET tuya_lvgl_mutex_lock(void);
-    tuya_lvgl_mutex_lock();
-
-    lv_demo_widgets();
-    // lv_demo_benchmark();
-
-    extern OPERATE_RET tuya_lvgl_mutex_unlock(void);
-    tuya_lvgl_mutex_unlock();
-
-    while(1) {
-        PR_NOTICE("lvgl running...");
-        tal_system_sleep(1000);
-    }
-
     lv_vendor_init(DISPLAY_NAME);
 
+    lv_vendor_disp_lock();
+
     lv_demo_widgets();
     // lv_demo_benchmark();
+    
+    lv_vendor_disp_unlock();
 
     lv_vendor_start(5, 1024*8);
 }

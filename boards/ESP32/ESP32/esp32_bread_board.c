@@ -1,5 +1,5 @@
 /**
- * @file dnesp32s3.c
+ * @file esp32_bread_board.c
  * @brief Implementation of common board-level hardware registration APIs for peripherals.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
@@ -9,9 +9,6 @@
 #include "board_config.h"
 
 #include "tal_api.h"
-
-// #include "tdd_audio_codec_bus.h"
-// #include "tdd_audio_es8388_codec.h"
 
 #include "lcd_st7789_spi.h"
 #include "board_com_api.h"
@@ -30,9 +27,6 @@
 ***********************variable define**********************
 ***********************************************************/
 
-// static TDD_AUDIO_I2C_HANDLE i2c_bus_handle = NULL;
-// static TDD_AUDIO_I2S_TX_HANDLE i2s_tx_handle = NULL;
-// static TDD_AUDIO_I2S_RX_HANDLE i2s_rx_handle = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/

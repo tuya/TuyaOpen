@@ -3,6 +3,9 @@ set(COMMON_PATH ${CMAKE_CURRENT_LIST_DIR})
 # add audio source files
 file(GLOB_RECURSE AUDIO_SRCS "${COMMON_PATH}/audio/*.c")
 
+# add display source files
+file(GLOB_RECURSE DISPLAY_SRCS "${COMMON_PATH}/display/*.c")
+
 # add lcd source files
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
 
@@ -17,7 +20,8 @@ set(BOARD_INC "${COMMON_PATH}")
 
 if (CONFIG_ENABLE_ESP_DISPLAY)
     list(APPEND BOARD_SRC
-        "${COMMON_PATH}/display/board_lvgl.c"
+        "${COMMON_PATH}"
+        "${DISPLAY_SRCS}"
         "${LCD_SRCS}"
         "${IO_EXPANDER_SRCS}"
         "${TOUCH_SRCS}"
@@ -27,7 +31,11 @@ if (CONFIG_ENABLE_ESP_DISPLAY)
         "${COMMON_PATH}/lcd"
         "${COMMON_PATH}/io_expander"
         "${COMMON_PATH}/touch"
+        "${COMMON_PATH}/display"
     )
+    
+    set_property(SOURCE ${DISPLAY_SRCS}
+                 APPEND PROPERTY COMPILE_DEFINITIONS LV_LVGL_H_INCLUDE_SIMPLE)
 endif()
 
 if (CONFIG_ENABLE_AUDIO)

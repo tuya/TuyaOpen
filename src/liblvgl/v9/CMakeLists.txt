@@ -16,19 +16,13 @@ if (CONFIG_ENABLE_PLATFORM_LVGL STREQUAL "y")
     set(LIB_PRIVATE_INC)
     set(LIB_PUBLIC_INC 
             ${MODULE_PATH}/conf
-            ${MODULE_PATH}/port
     )
 
     # add log port
     list(APPEND LIB_SRCS 
             "${MODULE_PATH}/port/lv_port_log.c"
             "${MODULE_PATH}/port/lv_port_mem.c"
-            "${MODULE_PATH}/port/lv_vendor.c"
     )
-
-    # # LIB_SRCS
-    # file(GLOB_RECURSE  LIB_SRCS
-    # "${MODULE_PATH}/port/.c")
 
 else ()
 
