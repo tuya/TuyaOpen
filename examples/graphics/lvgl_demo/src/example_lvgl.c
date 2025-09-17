@@ -20,16 +20,9 @@
 #include "tuya_cloud_types.h"
 
 #include "tal_api.h"
-// #include "tkl_output.h"
-// #include "tkl_spi.h"
-// #include "tkl_system.h"
-#include "tal_log.h"
-#include "tal_thread.h"
-#include "tal_system.h"
 #include "tkl_output.h"
 #include "tkl_spi.h"
 #include "tkl_system.h"
-#include "tkl_watchdog.h"
 
 #include "lvgl.h"
 #include "demos/lv_demos.h"
