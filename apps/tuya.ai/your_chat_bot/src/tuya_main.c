@@ -275,6 +275,7 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
+    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
 
