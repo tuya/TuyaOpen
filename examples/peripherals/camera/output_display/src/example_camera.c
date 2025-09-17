@@ -93,6 +93,10 @@ OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME
 
     tal_semaphore_wait_forever(sg_convert_sem);
 
+    if(sg_display_info.is_swap) {
+        tdl_disp_dev_rgb565_swap((uint16_t *)sg_p_display_fb->frame, sg_p_display_fb->len/2);
+    }
+
     tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
 #endif
 
