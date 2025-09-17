@@ -201,7 +201,8 @@ def list_menu(tittle: str, contexts: List[str]) -> (str, int):
     pass
 
 
-COUNTRY_CODE = ""  # "China" or other
+# "China" or other
+COUNTRY_CODE = os.environ.get('OPEN_COUNTRY_CODE', "")
 
 
 def set_country_code():
