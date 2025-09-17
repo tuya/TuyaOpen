@@ -525,6 +525,10 @@ OPERATE_RET ai_audio_agent_upload_start(uint8_t enable_vad)
     uint8_t *out = NULL;
     uint32_t out_len = 0;
     tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
+    if (out == NULL || out_len == 0) {
+        PR_ERR("pack user attrs failed");
+        return OPRT_MALLOC_FAILED;
+    }
     rt = tuya_ai_event_start(sg_ai.session_id, sg_ai.event_id, out, out_len);
     tal_free(out);
     if (rt) {
