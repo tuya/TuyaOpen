@@ -14,6 +14,9 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/src/*.c")
 
+set(LIB_PRIVATE_INC 
+    ${MODULE_PATH}/src)
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
 
