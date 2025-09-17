@@ -53,7 +53,9 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDD_DISP_8080_MANAGE_T sg_display_8080 = {0};
+static TDD_DISP_8080_MANAGE_T sg_display_8080 = {
+    .fmt = 0xFF,
+};
 
 /***********************************************************
 ***********************function define**********************
@@ -147,15 +149,17 @@ static void __disp_8080_set_window(DISP_8080_DEV_T *p_cfg, uint32_t width, uint3
 
     lcd_data[0] = 0;
     lcd_data[1] = 0;
-    lcd_data[2] = (width >> 8) & 0xFF;
-    lcd_data[3] = (width & 0xFF) - 1;
+    lcd_data[2] = ((width-1) >> 8) & 0xFF;
+    lcd_data[3] = ((width-1) & 0xFF);
     tkl_8080_cmd_send_with_param(p_cfg->cmd_caset, lcd_data, 4);
 
     lcd_data[0] = 0;
     lcd_data[1] = 0;
-    lcd_data[2] = (height >> 8) & 0xFF;
-    lcd_data[3] = (height & 0xFF) - 1;
+    lcd_data[2] = ((height-1) >> 8) & 0xFF;
+    lcd_data[3] = ((height-1) & 0xFF);
     tkl_8080_cmd_send_with_param(p_cfg->cmd_raset, lcd_data, 4);
+
+    PR_DEBUG("set window: width=%d, height=%d", width, height);
 }
 
 static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
@@ -222,6 +226,7 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
         __disp_8080_set_window(tdd_8080, sg_display_8080.width, sg_display_8080.height);
 
         tkl_8080_cmd_send(tdd_8080->cmd_ramwr);
+        sg_display_8080.has_flushed_flag = true;
     } else {
         tkl_8080_cmd_send(tdd_8080->cmd_ramwrc);
     }
