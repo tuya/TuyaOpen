@@ -94,6 +94,13 @@ typedef struct {
 
 static AI_BASIC_PROTO_T *ai_basic_proto = NULL;
 
+static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len);
+
+static AI_PACKET_WRITER_T s_default_packet_writer = {
+    .write = __default_write,
+    .user_data = NULL,
+};
+
 static void __ai_atop_cfg_free(void)
 {
     uint32_t idx = 0;
@@ -178,12 +185,17 @@ static char *__ai_get_sign_key(void)
     return ai_basic_proto->sign_key;
 }
 
-static AI_PACKET_SL __ai_get_sl(AI_PACKET_PT type, uint8_t is_decrypt)
+static AI_PACKET_SL __ai_get_sl(AI_SEND_PACKET_T *info, uint8_t is_decrypt)
 {
+    if (info && info->writer) {
+        // FIXME: fixed to AI_PACKET_SL0 for now, need to support other security level
+        return AI_PACKET_SL0;
+    }
+
     if (is_decrypt) {
         return ai_basic_proto->sl;
     } else {
-        if (type == AI_PT_CLIENT_HELLO) {
+        if (info->type == AI_PT_CLIENT_HELLO) {
             return AI_PACKET_SL0;
         }
         return ai_basic_proto->sl;
@@ -200,6 +212,7 @@ static void __ai_basic_proto_deinit(void)
         }
         if (ai_basic_proto->mutex) {
             tal_mutex_release(ai_basic_proto->mutex);
+            ai_basic_proto->mutex = NULL;
         }
         __ai_atop_cfg_free();
         if (ai_basic_proto->connection_id) {
@@ -449,7 +462,7 @@ static OPERATE_RET __ai_packet_sign(char *buf, uint8_t *signature)
 uint32_t __ai_get_send_attr_len(AI_SEND_PACKET_T *info)
 {
     uint32_t len = 0, idx = 0;
-    if (info->count != 0) {
+    if ((info->count != 0)) {
         len += sizeof(len);
         for (idx = 0; idx < info->count; idx++) {
             len += OFFSOF(AI_ATTRIBUTE_T, value) + info->attrs[idx]->length;
@@ -480,20 +493,25 @@ uint32_t __ai_get_send_payload_len(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag_fla
     return len;
 }
 
-static uint8_t __ai_is_need_iv(AI_PACKET_PT type, AI_FRAG_FLAG frag_flag)
+static uint8_t __ai_is_need_iv(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag_flag)
 {
-    if ((AI_PT_CLIENT_HELLO == type) || (AI_PACKET_FRAG_ING == frag_flag) || (AI_PACKET_FRAG_END == frag_flag)) {
-        return false;
+    if (info->writer) {
+        // FIXME: fixed to AI_PACKET_SL0 for now, need to support other security level
+        return FALSE;
     }
-    return true;
+
+    if ((AI_PT_CLIENT_HELLO == info->type) || (AI_PACKET_FRAG_ING == frag_flag) || (AI_PACKET_FRAG_END == frag_flag)) {
+        return FALSE;
+    }
+    return TRUE;
 }
 
 static uint32_t __ai_get_send_pkt_len(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag_flag)
 {
     uint32_t len = 0;
-    AI_PACKET_PT type = __ai_get_sl(info->type, false);
+    AI_PACKET_PT type = __ai_get_sl(info, false);
     len = sizeof(AI_PACKET_HEAD_T);
-    if (__ai_is_need_iv(info->type, frag_flag)) {
+    if (__ai_is_need_iv(info, frag_flag)) {
         len += AI_IV_LEN;
     }
     len += sizeof(len);
@@ -526,14 +544,14 @@ static int __ai_encrypt_add_pkcs(char *p, uint32_t len)
     return (len + cz);
 }
 
-static OPERATE_RET __ai_encrypt_packet(AI_PACKET_PT type, char *data, uint32_t len, char *output, uint32_t *en_len)
+static OPERATE_RET __ai_encrypt_packet(AI_SEND_PACKET_T *info, char *data, uint32_t len, char *output, uint32_t *en_len)
 {
     OPERATE_RET rt = OPRT_OK;
     int data_out_len = 0;
     char *key = __ai_get_crypt_key();
     TUYA_CHECK_NULL_RETURN(key, OPRT_COM_ERROR);
 
-    AI_PACKET_SL sl = __ai_get_sl(type, false);
+    AI_PACKET_SL sl = __ai_get_sl(info, false);
     if (sl == AI_PACKET_SL2) {
 #if (AI_PACKET_SECURITY_LEVEL == AI_PACKET_SL2)
         memcpy(output, data, len);
@@ -602,7 +620,7 @@ static OPERATE_RET __ai_decrypt_packet(char *data, uint32_t len, char *output, u
     char *key = __ai_get_crypt_key();
     TUYA_CHECK_NULL_RETURN(key, OPRT_COM_ERROR);
 
-    AI_PACKET_SL sl = __ai_get_sl(0, true);
+    AI_PACKET_SL sl = __ai_get_sl(NULL, true);
     if (sl == AI_PACKET_SL2) {
 #if (AI_PACKET_SECURITY_LEVEL == AI_PACKET_SL2)
         char nonce[12] = {0};
@@ -733,7 +751,7 @@ static OPERATE_RET __ai_pack_payload(AI_SEND_PACKET_T *info, char *payload_buf, 
     AI_PROTO_D("payload len:%d, offset:%d", packet_len, offset);
 
     // tuya_debug_hex_dump("payload_uncrypt", 64, (uint8_t *)buf, packet_len);
-    rt = __ai_encrypt_packet(info->type, buf, packet_len, payload_buf, payload_len);
+    rt = __ai_encrypt_packet(info, buf, packet_len, payload_buf, payload_len);
     if (OPRT_OK != rt) {
         PR_ERR("encrypt packet failed, rt:%d", rt);
     }
@@ -851,12 +869,22 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t payload_len = 0, offset = 0;
-    AI_PACKET_SL sl = __ai_get_sl(info->type, false);
+    AI_PACKET_SL sl = __ai_get_sl(info, false);
     uint8_t signature[AI_SIGN_LEN] = {0};
-    if (ai_basic_proto->sequence_out >= 0xFFFF) {
-        ai_basic_proto->sequence_out = 1;
+    uint16_t sequence;
+    if (info->writer && info->writer->update) {
+        rt = info->writer->update(AI_STAGE_PRE_WRITE, NULL, info);
+        if (OPRT_OK != rt) {
+            PR_ERR("pre write failed, rt:%d", rt);
+            return rt;
+        }
+        info->writer->update(AI_STAGE_GET_SEQUENCE, &sequence, info);
+    } else {
+        sequence = ai_basic_proto->sequence_out++;
+        if (ai_basic_proto->sequence_out == 0) {
+            ai_basic_proto->sequence_out = 1;
+        }
     }
-    uint16_t sequence = ai_basic_proto->sequence_out++;
     AI_PROTO_D("send packet sequence:%d, frag:%d", sequence, frag);
 
     uint32_t uncrypt_len = __ai_get_send_pkt_len(info, frag);
@@ -876,7 +904,7 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
     head.sequence = UNI_HTONS(sequence);
     head.frag_flag = frag;
     head.security_level = sl;
-    head.iv_flag = __ai_is_need_iv(info->type, frag);
+    head.iv_flag = __ai_is_need_iv(info, frag);
 
     memcpy(send_pkt_buf, &head, head_len);
     offset += head_len;
@@ -914,14 +942,22 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
 
     AI_PROTO_D("send total len:%d, send_len:%d", offset, uncrypt_len);
     // tuya_debug_hex_dump("send_pkt_buf", 64, (uint8_t *)send_pkt_buf, offset);
+#if 0
     if (ai_basic_proto->transporter) {
         rt = tuya_transporter_write(ai_basic_proto->transporter, (uint8_t *)send_pkt_buf, offset, 0);
     }
-    if (rt != offset) {
-        PR_ERR("send to cloud failed, rt:%d, len:%d", rt, offset);
-    } else {
-        rt = OPRT_OK;
+#else
+    AI_PACKET_WRITER_T *writer = info->writer;
+    if (!writer) {
+        writer = &s_default_packet_writer;
+        writer->user_data = ai_basic_proto->transporter;
     }
+    rt = writer->write(writer, send_pkt_buf, offset);
+    if (OPRT_OK != rt) {
+        PR_ERR("write packet failed, rt:%d", rt);
+        goto EXIT;
+    }
+#endif
 
 EXIT:
     OS_FREE(send_pkt_buf);
@@ -962,47 +998,71 @@ void tuya_ai_free_attrs(AI_SEND_PACKET_T *pkt)
 
 static void __ai_basic_reset_send_frag(AI_PACKET_PT type)
 {
-    if (AI_PT_IMAGE == type) {
-        ai_basic_proto->send_frag_mng[0].offset = 0;
-    } else if (AI_PT_FILE == type) {
-        ai_basic_proto->send_frag_mng[1].offset = 0;
-        ;
-    } else {
-        PR_ERR("reset unknow type:%d", type);
-        return;
-    }
+    uint8_t idx = type - AI_PT_VIDEO;
+    ai_basic_proto->send_frag_mng[idx].offset = 0;
 }
 
-static void __ai_basic_get_send_frag(AI_PACKET_PT type, uint32_t frag_len, uint32_t total_len, AI_FRAG_FLAG *frag_flag)
+static void __ai_basic_get_send_frag(AI_SEND_PACKET_T *info, AI_FRAG_FLAG *frag_flag)
 {
     uint32_t *offset = NULL;
-    uint32_t actual_frag_len = 0;
-    if (AI_PT_IMAGE == type) {
-        offset = &(ai_basic_proto->send_frag_mng[0].offset);
-        actual_frag_len = frag_len - SIZEOF(AI_IMAGE_HEAD_T);
-    } else if (AI_PT_FILE == type) {
-        offset = &(ai_basic_proto->send_frag_mng[1].offset);
-        actual_frag_len = frag_len - SIZEOF(AI_FILE_HEAD_T);
-    } else {
-        PR_ERR("get unknow type:%d", type);
+    AI_PACKET_PT type = info->type;
+    uint32_t frag_len = info->len;
+    uint32_t total_len = info->total_len;
+    uint32_t biz_head_len = 0;
+    uint8_t idx = type - AI_PT_VIDEO;
+    uint32_t actual_len = 0, actual_total_len = 0;
+    if (idx >= SIZEOF(ai_basic_proto->send_frag_mng)) {
+        PR_ERR("send frag mng idx err, type:%d", type);
         return;
     }
+    AI_PROTO_D("type:%d, idx:%d", type, idx);
+    if (type == AI_PT_VIDEO) {
+        biz_head_len = SIZEOF(AI_VIDEO_HEAD_T);
+        actual_len = frag_len - biz_head_len;
+        actual_total_len = total_len - biz_head_len;
+    } else if (type == AI_PT_AUDIO) {
+        biz_head_len = SIZEOF(AI_AUDIO_HEAD_T);
+        actual_len = frag_len - biz_head_len;
+        actual_total_len = total_len - biz_head_len;
+    } else if (type == AI_PT_IMAGE) {
+        biz_head_len = SIZEOF(AI_IMAGE_HEAD_T);
+        actual_len = frag_len - biz_head_len;
+        actual_total_len = total_len - biz_head_len;
+    } else if (type == AI_PT_FILE) {
+        biz_head_len = SIZEOF(AI_FILE_HEAD_T);
+        actual_len = frag_len - biz_head_len;
+        actual_total_len = total_len - biz_head_len;
+    } else if (type == AI_PT_TEXT) {
+        biz_head_len = SIZEOF(AI_TEXT_HEAD_T);
+        actual_len = frag_len - biz_head_len;
+        actual_total_len = total_len - biz_head_len;
+    }
+
+    if (info->writer && info->writer->update) {
+        info->writer->update(AI_STAGE_GET_FRAG_OFFSET, &offset, info);
+    }
+
+    offset = &(ai_basic_proto->send_frag_mng[idx].offset);
     if (*offset == 0) {
-        *offset += actual_frag_len;
+        *offset += actual_len;
         *frag_flag = AI_PACKET_FRAG_START;
-    } else if ((*offset + actual_frag_len) == total_len) {
+    } else if ((*offset + actual_len) == actual_total_len) {
         *offset = 0;
         *frag_flag = AI_PACKET_FRAG_END;
-    } else if ((*offset + actual_frag_len) < total_len) {
-        *offset += actual_frag_len;
+        info->data += biz_head_len;
+        info->len -= biz_head_len;
+    } else if ((*offset + actual_len) < actual_total_len) {
+        *offset += actual_len;
         *frag_flag = AI_PACKET_FRAG_ING;
+        info->data += biz_head_len;
+        info->len -= biz_head_len;
     } else {
-        PR_ERR("send packet err, offset:%d, frag_len:%d, total_len:%d", *offset, actual_frag_len, total_len);
+        PR_ERR("send packet err, offset:%d, frag_len:%d, total_len:%d", *offset, actual_len, actual_total_len);
         *offset = 0;
         return;
     }
-    AI_PROTO_D("send packet offset:%d, frag_len:%d, frag:%d, total_len:%d", *offset, actual_frag_len, *frag_flag,
-               total_len);
+    AI_PROTO_D("send packet offset:%d, frag_len:%d, frag:%d, total_len:%d", *offset, actual_len, *frag_flag,
+               actual_total_len);
     return;
 }
 
@@ -1026,8 +1086,11 @@ OPERATE_RET tuya_ai_basic_pkt_frag_send(AI_SEND_PACKET_T *info)
         return OPRT_COM_ERROR;
     }
 
-    __ai_basic_get_send_frag(info->type, info->len, info->total_len, &frag_flag);
+    __ai_basic_get_send_frag(info, &frag_flag);
     rt = __ai_packet_write(info, frag_flag, info->total_len);
+    if (rt != OPRT_OK) {
+        __ai_basic_reset_send_frag(info->type);
+    }
 
     tuya_ai_free_attrs(info);
     tal_mutex_unlock(ai_basic_proto->mutex);
@@ -2092,10 +2155,12 @@ OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code)
     return tuya_ai_basic_pkt_send(&pkt);
 }
 
-OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_VIDEO;
     if (video) {
         rt = __create_video_attrs(&pkt, video);
@@ -2103,16 +2168,23 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
             return rt;
         }
     }
+    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send video");
-    return tuya_ai_basic_pkt_send(&pkt);
+    if (pkt.len == pkt.total_len) {
+        return tuya_ai_basic_pkt_send(&pkt);
+    } else {
+        return tuya_ai_basic_pkt_frag_send(&pkt);
+    }
 }
 
-OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_AUDIO;
     if (audio) {
         rt = __create_audio_attrs(&pkt, audio);
@@ -2120,16 +2192,23 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
             return rt;
         }
     }
+    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
-    rt = tuya_ai_basic_pkt_send(&pkt);
-    return rt;
+    AI_PROTO_D("send audio");
+    if (pkt.len == pkt.total_len) {
+        return tuya_ai_basic_pkt_send(&pkt);
+    } else {
+        return tuya_ai_basic_pkt_frag_send(&pkt);
+    }
 }
 
-OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_IMAGE;
     if (image) {
         rt = __create_image_attrs(&pkt, image);
@@ -2137,7 +2216,7 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
             return rt;
         }
     }
-    pkt.total_len = image->base.len;
+    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send image");
@@ -2148,10 +2227,12 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
     }
 }
 
-OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len, uint32_t total_len,
+                               AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_FILE;
     if (file) {
         rt = __create_file_attrs(&pkt, file);
@@ -2159,7 +2240,7 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len)
             return rt;
         }
     }
-    pkt.total_len = file->base.len;
+    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send file");
@@ -2170,10 +2251,12 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len)
     }
 }
 
-OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len, uint32_t total_len,
+                               AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_TEXT;
     if (text) {
         rt = __create_text_attrs(&pkt, text);
@@ -2181,16 +2264,22 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len)
             return rt;
         }
     }
+    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send text");
-    return tuya_ai_basic_pkt_send(&pkt);
+    if (pkt.len == pkt.total_len) {
+        return tuya_ai_basic_pkt_send(&pkt);
+    } else {
+        return tuya_ai_basic_pkt_frag_send(&pkt);
+    }
 }
 
-OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len)
+OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len, AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
+    pkt.writer = writer;
     pkt.type = AI_PT_EVENT;
 
     AI_EVENT_HEAD_T head = {0};
@@ -2225,5 +2314,37 @@ OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str)
     snprintf(uuid_str, AI_UUID_V4_LEN, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x", uuid[0],
              uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11],
              uuid[12], uuid[13], uuid[14], uuid[15]);
+    return OPRT_OK;
+}
+
+static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len)
+{
+    OPERATE_RET rt = OPRT_OK;
+    tuya_transporter_t transporter = (tuya_transporter_t)writer->user_data;
+    if ((!transporter) || (!buf) || (buf_len == 0)) {
+        PR_ERR("invalid parameter, transporter:%p, buf:%p, buf_len:%d", transporter, buf, buf_len);
+        return OPRT_INVALID_PARM;
+    }
+    uint32_t bytes_sent = 0;
+    uint8_t *current_buf_ptr = (uint8_t *)buf;
+    uint32_t remaining_len = buf_len;
+
+    while (remaining_len > 0) {
+        rt = tuya_transporter_write(transporter, current_buf_ptr, remaining_len, 0);
+        if (rt > 0) {
+            bytes_sent += rt;
+            current_buf_ptr += rt;
+            remaining_len -= rt;
+            if (remaining_len > 0) {
+                PR_DEBUG("partial send, sent:%d, total_sent:%d, remaining:%d, err:%d", rt, bytes_sent, remaining_len,
+                         tal_net_get_errno());
+                tal_system_sleep(100);
+            }
+        } else {
+            PR_ERR("send to cloud failed, rt:%d, len:%d, err:%d", rt, remaining_len, tal_net_get_errno());
+            return OPRT_COM_ERROR;
+        }
+    }
+    // PR_DEBUG("send success, total bytes sent: %d, sequence %d", bytes_sent, ai_basic_proto->sequence_out);
     return OPRT_OK;
 }

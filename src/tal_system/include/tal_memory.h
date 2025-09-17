@@ -93,6 +93,16 @@ void *tal_calloc(size_t nitems, size_t size);
  */
 void *tal_realloc(void *ptr, size_t size);
 
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+void *tal_psram_malloc(size_t size);
+
+void tal_psram_free(void *ptr);
+
+void *tal_psram_calloc(size_t nitems, size_t size);
+
+void *tal_psram_realloc(void *ptr, size_t size);
+#endif
+
 /**
  * @brief Get system free heap size
  *
