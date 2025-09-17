@@ -36,11 +36,9 @@ typedef struct {
 }CAMERA_FPS_INIT_TAB_T;
 
 const CAMERA_PPI_INIT_TAB_T cPPI_INIT_SEQ_LIST[] = {
-    {TUYA_CAMERA_PPI_480X480,  (uint8_t *)sensor_dvp_ov2640_480X480_talbe,  CNTSOF(sensor_dvp_ov2640_480X480_talbe)},
-    {TUYA_CAMERA_PPI_1280X720, (uint8_t *)sensor_dvp_ov2640_1280X720_talbe, CNTSOF(sensor_dvp_ov2640_1280X720_talbe)},
+    {TUYA_CAMERA_PPI_480X480,  (uint8_t *)cOV2640_480_480_TAB,  CNTSOF(cOV2640_480_480_TAB)},
+    {TUYA_CAMERA_PPI_1280X720, (uint8_t *)cOV2640_1280_720_TAB, CNTSOF(cOV2640_1280_720_TAB)},
 };
-
-
 
 /***********************************************************
 ***********************variable define**********************
@@ -110,7 +108,7 @@ static OPERATE_RET __dvp_ov2640_init(DVP_I2C_CFG_T *i2c, void *arg)
 
     (void)arg;
 
-    __dvp_ov2640_update_reg(i2c->port, sensor_dvp_ov2640_init_talbe, CNTSOF(sensor_dvp_ov2640_init_talbe));
+    __dvp_ov2640_update_reg(i2c->port, cOV2640_INIT_TAB, CNTSOF(cOV2640_INIT_TAB));
 
     PR_NOTICE("__dvp_ov2640_init");
 

@@ -273,13 +273,31 @@ typedef struct {
     uint8_t reserve;
 } AI_PACKET_HEAD_T;
 
-typedef struct {
+typedef enum {
+    AI_STAGE_GET_FRAG_OFFSET,
+    AI_STAGE_GET_SEQUENCE,
+    AI_STAGE_PRE_WRITE,
+} AI_STAGE_E;
+
+struct ai_send_packet_t;
+struct ai_packet_writer_t;
+typedef OPERATE_RET (*AI_PACKET_DATA_UPDATE_CB)(AI_STAGE_E stage, void *data, struct ai_send_packet_t *info);
+typedef OPERATE_RET (*AI_PACKET_WRITE_CB)(struct ai_packet_writer_t *writer, void *buf, uint32_t buf_len);
+
+typedef struct ai_packet_writer_t {
+    AI_PACKET_DATA_UPDATE_CB update; // callback to update internal data
+    AI_PACKET_WRITE_CB write;        // callback to write packet data
+    void *user_data;                 // user data to pass to the writer callback
+} AI_PACKET_WRITER_T;
+
+typedef struct ai_send_packet_t {
     AI_PACKET_PT type;
     uint32_t count;
     AI_ATTRIBUTE_T *attrs[AI_MAX_ATTR_NUM];
-	uint32_t total_len;
+    uint32_t total_len;
     uint32_t len;
     char *data;
+    AI_PACKET_WRITER_T *writer;
 } AI_SEND_PACKET_T;
 
 typedef struct {
@@ -324,7 +342,7 @@ typedef struct {
 } AI_AUDIO_ATTR_T;
 
 typedef struct {
-	uint32_t len;
+    uint32_t len;
     AI_IMAGE_FORMAT format;
     uint16_t width;
     uint16_t height;
@@ -335,7 +353,7 @@ typedef struct {
 } AI_IMAGE_ATTR_T;
 
 typedef struct {
-	uint32_t len;
+    uint32_t len;
     AI_FILE_FORMAT format;
     char file_name[128];
 } AI_FILE_ATTR_BASE_T;
@@ -455,6 +473,18 @@ OPERATE_RET tuya_ai_basic_pkt_send(AI_SEND_PACKET_T *info);
 OPERATE_RET tuya_ai_basic_pkt_frag_send(AI_SEND_PACKET_T *info);
 
 /**
+ * @brief create user attrs
+ *
+ * @param[in] in in data
+ * @param[in] attr_len attr length
+ * @param[out] attr_out out attr
+ * @param[out] attr_num out attr number
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+AI_ATTRIBUTE_T *tuya_ai_create_attribute(AI_ATTR_TYPE type, AI_ATTR_PT payload_type, void *value, uint32_t len);
+
+/**
  * @brief request atop info
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
@@ -532,7 +562,8 @@ OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief audio packet
@@ -543,7 +574,8 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief image packet
@@ -554,7 +586,8 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len, uint32_t total_len,
+                                AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief file packet
@@ -565,7 +598,8 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len, uint32_t total_len,
+                               AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief text packet
@@ -576,7 +610,8 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len, uint32_t total_len,
+                               AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief event packet
@@ -587,7 +622,7 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len);
+OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len, AI_PACKET_WRITER_T *writer);
 
 /**
  * @brief get attr value

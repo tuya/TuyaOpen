@@ -47,25 +47,70 @@ typedef struct {
 } AI_SESSION_T;
 
 typedef struct {
+    AI_BIZ_MONITOR_CB recv_cb;
+    AI_BIZ_MONITOR_CB send_cb;
+    void *usr_data;
+} AI_BASIC_BIZ_MONITOR_T;
+
+typedef struct {
     THREAD_HANDLE thread;
+    BOOL_T terminate;
     MUTEX_HANDLE mutex;
     AI_SESSION_T session[AI_SESSION_MAX_NUM];
     AI_BIZ_RECV_CB cb;
+    AI_BASIC_BIZ_MONITOR_T *monitor;
 } AI_BASIC_BIZ_T;
+
+AI_BASIC_BIZ_MONITOR_T ai_monitor;
+
 AI_BASIC_BIZ_T *ai_basic_biz;
 
 OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKET_PT type, AI_BIZ_HEAD_INFO_T *head,
                                  char *payload)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t payload_len = 0;
+
     if (ai_basic_biz == NULL) {
         PR_ERR("ai biz is null");
         return OPRT_COM_ERROR;
     }
-    AI_PROTO_D("biz len:%d", head->len);
+
+    if (ai_basic_biz->monitor && ai_basic_biz->monitor->send_cb) {
+        if (attr == NULL) {
+            AI_BIZ_ATTR_INFO_T tmp_attr = {
+                .flag = AI_NO_ATTR,
+                .type = type,
+            };
+            rt = ai_basic_biz->monitor->send_cb(id, &tmp_attr, head, payload, ai_basic_biz->monitor->usr_data);
+        } else {
+            rt = ai_basic_biz->monitor->send_cb(id, attr, head, payload, ai_basic_biz->monitor->usr_data);
+        }
+        if (OPRT_OK != rt) {
+            PR_ERR("send cb failed, rt:%d", rt);
+            return rt;
+        }
+    }
+
+    return tuya_ai_send_biz_pkt_custom(id, attr, type, head, payload, NULL);
+}
+
+OPERATE_RET tuya_ai_send_biz_pkt_custom(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKET_PT type,
+                                        AI_BIZ_HEAD_INFO_T *head, char *payload, AI_PACKET_WRITER_T *writer)
+{
+    OPERATE_RET rt = OPRT_OK;
+    uint32_t payload_len = 0, total_len = 0;
+    if (ai_basic_biz == NULL) {
+        PR_ERR("ai biz is null");
+        return OPRT_COM_ERROR;
+    }
+    if (head->total_len == 0) {
+        head->total_len = head->len;
+    }
+    AI_PROTO_D("biz len:%d, total len:%d", head->len, head->total_len);
+    tuya_ai_client_start_ping();
     if (type == AI_PT_VIDEO) {
-        payload_len = sizeof(AI_VIDEO_HEAD_T) + head->len;
+        payload_len = SIZEOF(AI_VIDEO_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_VIDEO_HEAD_T) + head->total_len;
         char *video = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(video, OPRT_MALLOC_FAILED);
         memset(video, 0, payload_len);
@@ -76,18 +121,19 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         video_head->pts = head->value.video.pts;
         UNI_HTONLL(video_head->timestamp);
         UNI_HTONLL(video_head->pts);
-        video_head->length = UNI_HTONL(head->len);
+        video_head->length = UNI_HTONL(head->total_len);
         if (payload && head->len) {
-            memcpy(video + sizeof(AI_VIDEO_HEAD_T), payload, head->len);
+            memcpy(video + SIZEOF(AI_VIDEO_HEAD_T), payload, head->len);
         }
         if (attr && (attr->flag == AI_HAS_ATTR)) {
-            rt = tuya_ai_basic_video(&(attr->value.video), video, payload_len);
+            rt = tuya_ai_basic_video(&(attr->value.video), video, payload_len, total_len, writer);
         } else {
-            rt = tuya_ai_basic_video(NULL, video, payload_len);
+            rt = tuya_ai_basic_video(NULL, video, payload_len, total_len, writer);
         }
         OS_FREE(video);
     } else if (type == AI_PT_AUDIO) {
-        payload_len = sizeof(AI_AUDIO_HEAD_T) + head->len;
+        payload_len = SIZEOF(AI_AUDIO_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_AUDIO_HEAD_T) + head->total_len;
         char *audio = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(audio, OPRT_MALLOC_FAILED);
         memset(audio, 0, payload_len);
@@ -98,18 +144,19 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         audio_head->pts = head->value.audio.pts;
         UNI_HTONLL(audio_head->timestamp);
         UNI_HTONLL(audio_head->pts);
-        audio_head->length = UNI_HTONL(head->len);
+        audio_head->length = UNI_HTONL(head->total_len);
         if (payload && head->len) {
-            memcpy(audio + sizeof(AI_AUDIO_HEAD_T), payload, head->len);
+            memcpy(audio + SIZEOF(AI_AUDIO_HEAD_T), payload, head->len);
         }
         if (attr && (attr->flag == AI_HAS_ATTR)) {
-            rt = tuya_ai_basic_audio(&(attr->value.audio), audio, payload_len);
+            rt = tuya_ai_basic_audio(&(attr->value.audio), audio, payload_len, total_len, writer);
         } else {
-            rt = tuya_ai_basic_audio(NULL, audio, payload_len);
+            rt = tuya_ai_basic_audio(NULL, audio, payload_len, total_len, writer);
         }
         OS_FREE(audio);
     } else if (type == AI_PT_IMAGE) {
-        payload_len = sizeof(AI_IMAGE_HEAD_T) + head->len;
+        payload_len = SIZEOF(AI_IMAGE_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_IMAGE_HEAD_T) + head->total_len;
         char *image = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(image, OPRT_MALLOC_FAILED);
         memset(image, 0, payload_len);
@@ -118,44 +165,72 @@ OPERATE_RET tuya_ai_send_biz_pkt(uint16_t id, AI_BIZ_ATTR_INFO_T *attr, AI_PACKE
         image_head->stream_flag = head->stream_flag;
         image_head->timestamp = head->value.image.timestamp;
         UNI_HTONLL(image_head->timestamp);
-        image_head->length = UNI_HTONL(head->len);
+        image_head->length = UNI_HTONL(head->total_len);
         if (payload && head->len) {
-            memcpy(image + sizeof(AI_IMAGE_HEAD_T), payload, head->len);
+            memcpy(image + SIZEOF(AI_IMAGE_HEAD_T), payload, head->len);
         }
-        rt = tuya_ai_basic_image(&(attr->value.image), image, payload_len);
+        if (attr && (attr->flag == AI_HAS_ATTR)) {
+            rt = tuya_ai_basic_image(&(attr->value.image), image, payload_len, total_len, writer);
+        } else {
+            rt = tuya_ai_basic_image(NULL, image, payload_len, total_len, writer);
+        }
         OS_FREE(image);
     } else if (type == AI_PT_FILE) {
-        payload_len = sizeof(AI_FILE_HEAD_T) + head->len;
+        payload_len = SIZEOF(AI_FILE_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_FILE_HEAD_T) + head->total_len;
         char *file = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(file, OPRT_MALLOC_FAILED);
         memset(file, 0, payload_len);
         AI_FILE_HEAD_T *file_head = (AI_FILE_HEAD_T *)file;
         file_head->id = UNI_HTONS(id);
         file_head->stream_flag = head->stream_flag;
-        file_head->length = UNI_HTONL(head->len);
+        file_head->length = UNI_HTONL(head->total_len);
         if (payload && head->len) {
-            memcpy(file + sizeof(AI_FILE_HEAD_T), payload, head->len);
+            memcpy(file + SIZEOF(AI_FILE_HEAD_T), payload, head->len);
         }
-        rt = tuya_ai_basic_file(&(attr->value.file), file, payload_len);
+        if (attr && (attr->flag == AI_HAS_ATTR)) {
+            rt = tuya_ai_basic_file(&(attr->value.file), file, payload_len, total_len, writer);
+        } else {
+            rt = tuya_ai_basic_file(NULL, file, payload_len, total_len, writer);
+        }
         OS_FREE(file);
     } else if (type == AI_PT_TEXT) {
-        payload_len = sizeof(AI_TEXT_HEAD_T) + head->len;
+        payload_len = SIZEOF(AI_TEXT_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_TEXT_HEAD_T) + head->total_len;
         char *text = OS_MALLOC(payload_len);
         TUYA_CHECK_NULL_RETURN(text, OPRT_MALLOC_FAILED);
         memset(text, 0, payload_len);
         AI_TEXT_HEAD_T *text_head = (AI_TEXT_HEAD_T *)text;
         text_head->id = UNI_HTONS(id);
         text_head->stream_flag = head->stream_flag;
-        text_head->length = UNI_HTONL(head->len);
+        text_head->length = UNI_HTONL(head->total_len);
         if (payload && head->len) {
-            memcpy(text + sizeof(AI_TEXT_HEAD_T), payload, head->len);
+            memcpy(text + SIZEOF(AI_TEXT_HEAD_T), payload, head->len);
         }
         if (attr && (attr->flag == AI_HAS_ATTR)) {
-            rt = tuya_ai_basic_text(&(attr->value.text), text, payload_len);
+            rt = tuya_ai_basic_text(&(attr->value.text), text, payload_len, total_len, writer);
         } else {
-            rt = tuya_ai_basic_text(NULL, text, payload_len);
+            rt = tuya_ai_basic_text(NULL, text, payload_len, total_len, writer);
         }
         OS_FREE(text);
+    } else if (type == AI_PT_EVENT) {
+        payload_len = SIZEOF(AI_EVENT_HEAD_T) + head->len;
+        total_len = SIZEOF(AI_EVENT_HEAD_T) + head->total_len;
+        char *event = OS_MALLOC(payload_len);
+        TUYA_CHECK_NULL_RETURN(event, OPRT_MALLOC_FAILED);
+        memset(event, 0, payload_len);
+        AI_EVENT_HEAD_T *event_head = (AI_EVENT_HEAD_T *)event;
+        event_head->type = UNI_HTONS(id);
+        event_head->length = UNI_HTONL(head->total_len);
+        if (payload && head->len) {
+            memcpy(event + SIZEOF(AI_EVENT_HEAD_T), payload, head->len);
+        }
+        if (attr && (attr->flag == AI_HAS_ATTR)) {
+            rt = tuya_ai_basic_event(&(attr->value.event), event, payload_len, writer);
+        } else {
+            rt = tuya_ai_basic_event(NULL, event, payload_len, writer);
+        }
+        OS_FREE(event);
     } else {
         PR_ERR("unknow type:%d", type);
         rt = OPRT_COM_ERROR;
@@ -171,7 +246,7 @@ static void __ai_biz_thread_cb(void *args)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t idx = 0, sidx = 0, kdx = 0;
-    while (tal_thread_get_state(ai_basic_biz->thread) == THREAD_STATE_RUNNING) {
+    while (!ai_basic_biz->terminate && tal_thread_get_state(ai_basic_biz->thread) == THREAD_STATE_RUNNING) {
         if (!tuya_ai_client_is_ready()) {
             tal_system_sleep(200);
             continue;
@@ -725,6 +800,15 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
         payload = data + offset;
 
         if (type == AI_PT_EVENT) {
+            AI_EVENT_HEAD_T *head = (AI_EVENT_HEAD_T *)payload;
+            AI_EVENT_TYPE event_type = UNI_NTOHS(head->type);
+            if (ai_basic_biz->monitor && ai_basic_biz->monitor->recv_cb) {
+                rt = ai_basic_biz->monitor->recv_cb(event_type, &attr_info, &biz_head, payload + offset,
+                                                    ai_basic_biz->monitor->usr_data);
+                if (OPRT_OK != rt) {
+                    PR_ERR("recv cb failed, rt:%d", rt);
+                }
+            }
             rt = __ai_biz_recv_event(&attr_info.value.event, payload);
             return rt;
         }
@@ -759,6 +843,13 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
             }
         }
         tal_mutex_unlock(ai_basic_biz->mutex);
+        if (ai_basic_biz->monitor && ai_basic_biz->monitor->recv_cb) {
+            rt = ai_basic_biz->monitor->recv_cb(recv_id, &attr_info, &biz_head, payload + offset,
+                                                ai_basic_biz->monitor->usr_data);
+            if (OPRT_OK != rt) {
+                PR_ERR("recv cb failed, rt:%d", rt);
+            }
+        }
         if (cb) {
             AI_PROTO_D("recv data id:%d, call cb: %p", recv_id, cb);
             rt = cb(&attr_info, &biz_head, payload + offset, usr_data);
@@ -774,6 +865,12 @@ OPERATE_RET __ai_biz_recv_handle(char *data, uint32_t len, AI_FRAG_FLAG frag)
     } else {
         biz_head.len = len;
         biz_head.stream_flag = AI_STREAM_ING;
+        if (ai_basic_biz->monitor && ai_basic_biz->monitor->recv_cb) {
+            rt = ai_basic_biz->monitor->recv_cb(0, NULL, &biz_head, data, ai_basic_biz->monitor->usr_data);
+            if (OPRT_OK != rt) {
+                PR_ERR("recv cb failed, rt:%d", rt);
+            }
+        }
         if (ai_basic_biz->cb) {
             rt = ai_basic_biz->cb(NULL, &biz_head, data, usr_data);
             if (rt != OPRT_OK) {
@@ -811,6 +908,7 @@ static OPERATE_RET __ai_clt_run_evt(void *data)
         ai_basic_biz = (AI_BASIC_BIZ_T *)OS_MALLOC(sizeof(AI_BASIC_BIZ_T));
         TUYA_CHECK_NULL_RETURN(ai_basic_biz, OPRT_MALLOC_FAILED);
         memset(ai_basic_biz, 0, sizeof(AI_BASIC_BIZ_T));
+        ai_basic_biz->monitor = &ai_monitor;
         TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&ai_basic_biz->mutex), EXIT);
         tuya_ai_client_reg_cb(__ai_biz_recv_handle);
         PR_NOTICE("ai biz init success");
@@ -829,6 +927,25 @@ OPERATE_RET tuya_ai_biz_init(void)
     tal_event_subscribe(EVENT_AI_CLIENT_RUN, "ai.biz", __ai_clt_run_evt, SUBSCRIBE_TYPE_NORMAL);
     tal_event_subscribe(EVENT_AI_CLIENT_CLOSE, "ai.biz", __ai_clt_close_evt, SUBSCRIBE_TYPE_NORMAL);
     return OPRT_OK;
+}
+
+void tuya_ai_biz_deinit(void)
+{
+    if (ai_basic_biz) {
+        if (ai_basic_biz->thread) {
+            ai_basic_biz->terminate = TRUE;
+        } else {
+            if (ai_basic_biz->mutex) {
+                tal_mutex_release(ai_basic_biz->mutex);
+                ai_basic_biz->mutex = NULL;
+            }
+            OS_FREE(ai_basic_biz);
+            ai_basic_biz = NULL;
+        }
+        tal_event_unsubscribe(EVENT_AI_CLIENT_RUN, "ai.biz", __ai_clt_run_evt);
+        tal_event_unsubscribe(EVENT_AI_CLIENT_CLOSE, "ai.biz", __ai_clt_close_evt);
+        PR_DEBUG("ai biz deinit");
+    }
 }
 
 static OPERATE_RET __ai_pack_session_data(AI_SESSION_CFG_T *cfg, AI_SESSION_NEW_ATTR_T *attr)
@@ -934,4 +1051,65 @@ int tuya_ai_biz_get_recv_id(void)
     int id = even_number;
     even_number += 2;
     return id;
+}
+
+AI_SESSION_CFG_T *tuya_ai_biz_get_session_cfg(AI_SESSION_ID id)
+{
+    uint32_t idx = 0;
+    AI_SESSION_CFG_T *cfg = NULL;
+    if (ai_basic_biz) {
+        tal_mutex_lock(ai_basic_biz->mutex);
+        if (NULL == id) {
+            cfg = &ai_basic_biz->session[0].cfg;
+        } else {
+            for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+                if (ai_basic_biz->session[idx].id[0] != 0) {
+                    if (!strcmp(ai_basic_biz->session[idx].id, id)) {
+                        cfg = &ai_basic_biz->session[idx].cfg;
+                        break;
+                    }
+                }
+            }
+        }
+        tal_mutex_unlock(ai_basic_biz->mutex);
+    }
+    return cfg;
+}
+
+OPERATE_RET tuya_ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VIDEO_ATTR_T *video)
+{
+    return __ai_parse_video_attr(de_buf, attr_len, video);
+}
+
+OPERATE_RET tuya_ai_parse_audio_attr(char *de_buf, uint32_t attr_len, AI_AUDIO_ATTR_T *audio)
+{
+    return __ai_parse_audio_attr(de_buf, attr_len, audio);
+}
+
+OPERATE_RET tuya_ai_parse_image_attr(char *de_buf, uint32_t attr_len, AI_IMAGE_ATTR_T *image)
+{
+    return __ai_parse_image_attr(de_buf, attr_len, image);
+}
+
+OPERATE_RET tuya_ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE_ATTR_T *file)
+{
+    return __ai_parse_file_attr(de_buf, attr_len, file);
+}
+
+OPERATE_RET tuya_ai_parse_text_attr(char *de_buf, uint32_t attr_len, AI_TEXT_ATTR_T *text)
+{
+    return __ai_parse_text_attr(de_buf, attr_len, text);
+}
+
+OPERATE_RET tuya_ai_parse_event_attr(char *de_buf, uint32_t attr_len, AI_EVENT_ATTR_T *event)
+{
+    return __ai_parse_event_attr(de_buf, attr_len, event);
+}
+
+OPERATE_RET tuya_ai_biz_monitor_register(AI_BIZ_MONITOR_CB recv_cb, AI_BIZ_MONITOR_CB send_cb, void *usr_data)
+{
+    ai_monitor.recv_cb = recv_cb;
+    ai_monitor.send_cb = send_cb;
+    ai_monitor.usr_data = usr_data;
+    return OPRT_OK;
 }

@@ -58,7 +58,7 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
     event.user_data = attr;
     event.user_len = len;
 
-    rt = tuya_ai_basic_event(&event, event_data, data_len);
+    rt = tuya_ai_basic_event(&event, event_data, data_len, NULL);
     OS_FREE(event_data);
     PR_DEBUG("send event rt:%d, type:%d", rt, tp);
     return rt;

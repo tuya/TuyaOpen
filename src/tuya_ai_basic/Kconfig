@@ -53,4 +53,8 @@ menu "AI Protocol Config"
     config AI_STACK_IN_PSRAM
         bool "AI_STACK_IN_PSRAM: use psram for stack"
         default n
+
+    config ENABLE_AI_MONITOR
+        bool "ENABLE_AI_MONITOR: enable ai monitor"
+        default n
 endmenu

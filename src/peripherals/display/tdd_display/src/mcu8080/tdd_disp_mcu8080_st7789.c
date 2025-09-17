@@ -24,7 +24,7 @@
 const uint32_t cST7789_INIT_SEQ[] = {
     1,    100,  ST7789_SWRESET,                                 // Software reset
     1,    50,   ST7789_SLPOUT,                                  // Exit sleep mode
-    2,    10,   ST7789_COLMOD,    0x55,                         // Set colour mode to 16 bit
+    2,    10,   ST7789_COLMOD,    0x05,                         // Set colour mode to 16 bit
     2,    0,    ST7789_VCMOFSET,  0x1a,                         // VCOM
     6,    0,    ST7789_PORCTRL,   0x0c, 0x0c, 0x00, 0x33, 0x33, // Porch Setting
     1,    0,    ST7789_INVOFF, 
@@ -50,7 +50,7 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
     .cmd_caset = ST7789_CASET,
     .cmd_raset = ST7789_RASET,
     .cmd_ramwr = ST7789_RAMWR,
-    .cmd_ramwr = ST7789_RAMWRC,
+    .cmd_ramwrc = ST7789_RAMWRC,
     .init_seq = cST7789_INIT_SEQ,
 };
 

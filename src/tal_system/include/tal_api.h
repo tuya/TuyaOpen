@@ -50,6 +50,7 @@
 #include "tal_sleep.h"
 #include "tal_system.h"
 #include "tal_thread.h"
+#include "tal_network.h"
 #include "tal_workqueue.h"
 #include "tal_cli.h"
 #include "tal_uart.h"

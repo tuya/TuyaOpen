@@ -20,9 +20,11 @@
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_event.h"
+#if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
+#include "tuya_ai_monitor.h"
+#endif
 
 #include "ai_audio.h"
-#include "ai_audio_debug.h"
 
 /***********************************************************
 ************************macro define************************
@@ -458,8 +460,10 @@ static OPERATE_RET __ai_agent_init(void *data)
 {
     PR_DEBUG("%s...", __func__);
 
-#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
-    ai_audio_debug_init();
+#if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
+    OPERATE_RET rt = OPRT_OK;
+    ai_monitor_config_t monitor_cfg = AI_MONITOR_CFG_DEFAULT;
+    TUYA_CALL_ERR_RETURN(tuya_ai_monitor_init(&monitor_cfg));
 #endif
 
     tal_event_subscribe(EVENT_AI_SESSION_NEW, "ai_session_new", __ai_agent_session_new, SUBSCRIBE_TYPE_NORMAL);
@@ -498,10 +502,6 @@ OPERATE_RET ai_audio_agent_init(AI_AGENT_CBS_T *cbs)
 OPERATE_RET ai_audio_agent_upload_start(uint8_t enable_vad)
 {
     OPERATE_RET rt = OPRT_OK;
-
-#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
-    ai_audio_debug_start();
-#endif
 
     PR_DEBUG("tuya ai upload start...");
 
@@ -547,10 +547,6 @@ OPERATE_RET ai_audio_agent_upload_start(uint8_t enable_vad)
 OPERATE_RET ai_audio_agent_upload_data(uint8_t *data, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
-
-#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
-    ai_audio_debug_data((char *)data, len);
-#endif
 
     // send data use tuya_ai_send_biz_pkt, pcm
     AI_BIZ_ATTR_INFO_T attr = {
@@ -603,10 +599,6 @@ OPERATE_RET ai_audio_agent_upload_stop(void)
     OPERATE_RET rt = OPRT_OK;
 
     PR_DEBUG("tuya ai upload stop...");
-
-#if defined(AI_AUDIO_DEBUG) && (AI_AUDIO_DEBUG == 1)
-    ai_audio_debug_stop();
-#endif
 
     TUYA_CALL_ERR_RETURN(ai_audio_agent_upload_data(NULL, 0));
 
