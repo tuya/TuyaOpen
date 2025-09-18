@@ -509,6 +509,18 @@ void ui_set_assistant_msg_stream_end(void)
 {
     sg_ui.stream.is_start = false;
 }
+
+void ui_set_assistant_msg_stream_interrupt(void)
+{
+    if (sg_ui.stream.text_ringbuff) {
+        tkl_mutex_lock(sg_ui.stream.rb_mutex);
+        tuya_ring_buff_reset(sg_ui.stream.text_ringbuff);
+        tkl_mutex_unlock(sg_ui.stream.rb_mutex);
+    }
+
+    sg_ui.stream.is_start = false;
+}
+
 void ui_set_system_msg(const char *text)
 {
     if (sg_ui.ui.content == NULL) {

@@ -26,7 +26,9 @@ extern "C" {
 #define AI_AUDIO_PCM_FRAME_TM_MS (10)
 #define AI_AUDIO_PCM_FRAME_SIZE  (320)
 
-#define AI_AUDIO_VOICE_FRAME_LEN_GET(tm_ms) ((tm_ms) / AI_AUDIO_PCM_FRAME_TM_MS * AI_AUDIO_PCM_FRAME_SIZE)
+#define AI_AUDIO_VOICE_FRAME_LEN_GET(tm_ms)                                                                            \
+    (((tm_ms > AI_AUDIO_PCM_FRAME_TM_MS) ? (tm_ms) : AI_AUDIO_PCM_FRAME_TM_MS) / AI_AUDIO_PCM_FRAME_TM_MS *            \
+     AI_AUDIO_PCM_FRAME_SIZE)
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/

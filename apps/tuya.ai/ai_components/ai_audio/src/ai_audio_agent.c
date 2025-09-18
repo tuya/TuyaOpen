@@ -319,7 +319,7 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
 static OPERATE_RET __ai_agent_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID session_id, AI_EVENT_ID event_id,
                                          uint8_t *attr, uint32_t attr_len)
 {
-    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s", type, session_id, event_id);
+    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s, attr_len: %d", type, session_id, event_id, attr_len);
 
     // event type: 0-chat start, 1-chat stop, 2-data finish
     if (type == AI_EVENT_START) {
@@ -525,6 +525,10 @@ OPERATE_RET ai_audio_agent_upload_start(uint8_t enable_vad)
     uint8_t *out = NULL;
     uint32_t out_len = 0;
     tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
+    if (out == NULL || out_len == 0) {
+        PR_ERR("pack user attrs failed");
+        return OPRT_MALLOC_FAILED;
+    }
     rt = tuya_ai_event_start(sg_ai.session_id, sg_ai.event_id, out, out_len);
     tal_free(out);
     if (rt) {

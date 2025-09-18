@@ -118,6 +118,11 @@ int mbedtls_cipher_auth_decrypt_wrapper(const cipher_params_t *input, unsigned c
 
     /* https://github.com/Mbed-TLS/mbedtls/issues/3665 */
     dec_tmpbuf = tal_malloc(input->data_len + tag_len);
+    if (dec_tmpbuf == NULL) {
+        PR_ERR("malloc dec_tmpbuf failed");
+        ret = OPRT_MALLOC_FAILED;
+        goto EXIT;
+    }
     memcpy(dec_tmpbuf, input->data, input->data_len);
     memcpy(dec_tmpbuf + input->data_len, tag, tag_len);
 

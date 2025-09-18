@@ -24,6 +24,8 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+#define PLAYER_ID_LEN_MAX (32)
+
 #define AI_AUDIO_SPEAK_VOLUME_KEY "spk_volume"
 #define AI_AUDIO_GET_STATE_IME_MS (500)
 
@@ -75,6 +77,12 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
         if (ai_audio_player_is_playing()) {
             ai_audio_player_stop();
         }
+        // stop UI streaming display
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        if (sg_ai_audio.evt_inform_cb) {
+            sg_ai_audio.evt_inform_cb(AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT, NULL, 0, NULL);
+        }
+#endif
     } break;
     }
 
@@ -84,7 +92,7 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
 static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
 {
     AI_AUDIO_EVENT_E event = AI_AUDIO_EVT_NONE;
-    static char *event_id = NULL;
+    static char event_id[PLAYER_ID_LEN_MAX] = {0};
 
     switch (msg->type) {
     case AI_AGENT_MSG_TP_TEXT_ASR: {
@@ -110,16 +118,10 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
             PR_DEBUG("player is playing, stop it first");
             ai_audio_player_stop();
         }
-        if (event_id) {
-            tkl_system_psram_free(event_id);
-            event_id = NULL;
-        }
 
-        event_id = tkl_system_psram_malloc(msg->data_len + 1);
-        if (event_id) {
-            memcpy(event_id, msg->data, msg->data_len);
-            event_id[msg->data_len] = '\0';
-        }
+        memset(event_id, 0, PLAYER_ID_LEN_MAX);
+
+        snprintf(event_id, PLAYER_ID_LEN_MAX, "NLG_%u", tal_time_get_posix());
 
         ai_audio_player_start(event_id);
 
@@ -139,10 +141,7 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
             ai_audio_input_restart_asr_awake_timer();
         }
 
-        if (event_id) {
-            tkl_system_free(event_id);
-            event_id = NULL;
-        }
+        memset(event_id, 0, PLAYER_ID_LEN_MAX);
     } break;
     case AI_AGENT_MSG_TP_TEXT_NLG_START: {
         event = AI_AUDIO_EVT_AI_REPLIES_TEXT_START;

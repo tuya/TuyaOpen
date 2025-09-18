@@ -11,13 +11,7 @@
 #include "tuya_ai_monitor.h"
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_biz.h"
-// #include "tuya_svc_netmgr.h"
-// #include "tuya_svc_devos.h"
-// #include "tuya_ai_biz.h"
-// #include "tuya_lan_sock.h"
-// #include "gw_intf.h"
-// #include "uni_random.h"
-// #include "uni_log.h"
+#include "tuya_ai_private.h"
 
 #include "tal_api.h"
 
@@ -26,13 +20,6 @@
 #include "tuya_lan.h"
 #include "lan_sock.h"
 
-// #include "tal_memory.h"
-// #include "tal_network.h"
-// #include "tal_system.h"
-// #include "tal_sw_timer.h"
-// #include "tal_network.h"
-// #include "tal_mutex.h"
-// #include "tal_queue.h"
 #include <string.h>
 
 #define AI_MONITOR_MAX_CLIENTS_MIN 1
@@ -151,11 +138,7 @@ static OPERATE_RET __init_client(ai_monitor_client_t *client, int fd, TUYA_IP_AD
     client->sequence = 0;
     client->recv_buf_size = g_ai_monitor_server.config.recv_buf_size;
 
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    client->recv_buf = tal_psram_malloc(client->recv_buf_size);
-#else
-    client->recv_buf = tal_malloc(client->recv_buf_size);
-#endif
+    client->recv_buf = OS_MALLOC(client->recv_buf_size);
     if (!client->recv_buf) {
         PR_ERR("malloc recv buffer failed");
         return OPRT_MALLOC_FAILED;
@@ -178,11 +161,7 @@ static void __cleanup_client(ai_monitor_client_t *client)
     }
 
     if (client->recv_buf) {
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-        tal_psram_free(client->recv_buf);
-#else
-        tal_free(client->recv_buf);
-#endif
+        OS_FREE(client->recv_buf);
         client->recv_buf = NULL;
     }
 
@@ -921,11 +900,7 @@ OPERATE_RET tuya_ai_monitor_init(const ai_monitor_config_t *config)
     memcpy(&g_ai_monitor_server.config, config, sizeof(ai_monitor_config_t));
 
     // Allocate client array
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    g_ai_monitor_server.clients = tal_psram_malloc(sizeof(ai_monitor_client_t) * config->max_clients);
-#else
-    g_ai_monitor_server.clients = tal_malloc(sizeof(ai_monitor_client_t) * config->max_clients);
-#endif
+    g_ai_monitor_server.clients = OS_MALLOC(sizeof(ai_monitor_client_t) * config->max_clients);
     if (!g_ai_monitor_server.clients) {
         PR_ERR("malloc clients failed");
         return OPRT_MALLOC_FAILED;
@@ -942,11 +917,7 @@ OPERATE_RET tuya_ai_monitor_init(const ai_monitor_config_t *config)
     rt = tal_mutex_create_init(&g_ai_monitor_server.mutex);
     if (rt != OPRT_OK) {
         PR_ERR("create mutex failed: %d", rt);
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-        tal_psram_free(g_ai_monitor_server.clients);
-#else
-        tal_free(g_ai_monitor_server.clients);
-#endif
+        OS_FREE(g_ai_monitor_server.clients);
         g_ai_monitor_server.clients = NULL;
         return rt;
     }
@@ -955,11 +926,7 @@ OPERATE_RET tuya_ai_monitor_init(const ai_monitor_config_t *config)
     rt = tal_sw_timer_create(__monitor_tm_cb, NULL, &g_ai_monitor_server.timer);
     if (rt != OPRT_OK) {
         PR_ERR("create timer failed: %d", rt);
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-        tal_psram_free(g_ai_monitor_server.clients);
-#else
-        tal_free(g_ai_monitor_server.clients);
-#endif
+        OS_FREE(g_ai_monitor_server.clients);
         g_ai_monitor_server.clients = NULL;
         tal_mutex_release(g_ai_monitor_server.mutex);
         g_ai_monitor_server.mutex = NULL;
@@ -1040,11 +1007,7 @@ OPERATE_RET tuya_ai_monitor_deinit(void)
 
     // Free resources
     if (g_ai_monitor_server.clients) {
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-        tal_psram_free(g_ai_monitor_server.clients);
-#else
-        tal_free(g_ai_monitor_server.clients);
-#endif
+        OS_FREE(g_ai_monitor_server.clients);
         g_ai_monitor_server.clients = NULL;
     }
 

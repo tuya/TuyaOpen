@@ -91,7 +91,7 @@ static AI_AUDIO_CLOUD_ASR_T sg_ai_cloud_asr = {0};
 static void __ai_audio_wait_cloud_asr_tm_cb(TIMER_ID timer_id, void *arg)
 {
     AI_CLOUD_ASR_MSG_T send_msg;
-    PR_ERR("wait asr timeout");
+    PR_WARN("wait asr timeout");
 
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
 
@@ -157,7 +157,6 @@ static void __ai_audio_cloud_asr_task(void *arg)
         } break;
         case AI_CLOUD_ASR_EVT_START: {
             OPERATE_RET rt = OPRT_OK;
-            AI_CLOUD_ASR_MSG_T send_msg;
 
             if (tal_sw_timer_is_running(sg_ai_cloud_asr.asr_timer_id)) {
                 tal_sw_timer_stop(sg_ai_cloud_asr.asr_timer_id);
@@ -165,15 +164,17 @@ static void __ai_audio_cloud_asr_task(void *arg)
 
             rt = ai_audio_agent_upload_start(true);
             if (OPRT_OK == rt) {
+                sg_ai_cloud_asr.is_uploading = true;
+
                 sg_ai_cloud_asr.state = AI_CLOUD_ASR_STATE_UPLOAD;
                 send_msg.event = AI_CLOUD_ASR_EVT_UPLOADING;
                 send_msg.is_force_interrupt = false;
-                tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
+                TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
             } else {
                 PR_NOTICE("upload start fail");
                 send_msg.event = AI_CLOUD_ASR_EVT_ENTER_IDLE;
                 send_msg.is_force_interrupt = false;
-                tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
+                TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
             }
         } break;
         case AI_CLOUD_ASR_EVT_UPLOADING: {
@@ -190,6 +191,9 @@ static void __ai_audio_cloud_asr_task(void *arg)
             }
 
             upload_len = ai_audio_get_input_data(sg_ai_cloud_asr.upload_buffer, sg_ai_cloud_asr.upload_buffer_len);
+            if (0 == upload_len) {
+                break;
+            }
             TUYA_CALL_ERR_LOG(ai_audio_agent_upload_data(sg_ai_cloud_asr.upload_buffer, upload_len));
         } break;
         case AI_CLOUD_ASR_EVT_STOP: {
@@ -249,7 +253,7 @@ OPERATE_RET ai_audio_cloud_asr_init(void)
     sg_ai_cloud_asr.upload_buffer = (uint8_t *)tkl_system_psram_malloc(sg_ai_cloud_asr.upload_buffer_len);
     TUYA_CHECK_NULL_GOTO(sg_ai_cloud_asr.upload_buffer, __ERR);
 
-    TUYA_CALL_ERR_GOTO(tal_queue_create_init(&sg_ai_cloud_asr.queue, sizeof(AI_CLOUD_ASR_MSG_T), 8), __ERR);
+    TUYA_CALL_ERR_GOTO(tal_queue_create_init(&sg_ai_cloud_asr.queue, sizeof(AI_CLOUD_ASR_MSG_T), 16), __ERR);
 
     // wait asr timer init
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(__ai_audio_wait_cloud_asr_tm_cb, NULL, &sg_ai_cloud_asr.asr_timer_id),
@@ -312,7 +316,10 @@ OPERATE_RET ai_audio_cloud_asr_start(void)
     send_msg.event = AI_CLOUD_ASR_EVT_START;
     TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
 
-    sg_ai_cloud_asr.is_uploading = true;
+    // wait is_uploading true
+    while (false == sg_ai_cloud_asr.is_uploading) {
+        tal_system_sleep(10);
+    }
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 
@@ -328,6 +335,7 @@ OPERATE_RET ai_audio_cloud_asr_start(void)
  */
 OPERATE_RET ai_audio_cloud_asr_stop(void)
 {
+    OPERATE_RET rt = OPRT_OK;
     AI_CLOUD_ASR_MSG_T send_msg;
 
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
@@ -340,7 +348,12 @@ OPERATE_RET ai_audio_cloud_asr_stop(void)
 
     send_msg.event = AI_CLOUD_ASR_EVT_STOP;
     send_msg.is_force_interrupt = false;
-    tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
+    TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
+
+    // wait is_uploading false
+    while (true == sg_ai_cloud_asr.is_uploading) {
+        tal_system_sleep(10);
+    }
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 
@@ -356,6 +369,7 @@ OPERATE_RET ai_audio_cloud_asr_stop(void)
  */
 OPERATE_RET ai_audio_cloud_stop_wait_asr(void)
 {
+    OPERATE_RET rt = OPRT_OK;
     AI_CLOUD_ASR_MSG_T send_msg;
 
     tal_mutex_lock(sg_ai_cloud_asr.mutex);
@@ -368,7 +382,7 @@ OPERATE_RET ai_audio_cloud_stop_wait_asr(void)
 
     send_msg.event = AI_CLOUD_ASR_EVT_ENTER_IDLE;
     send_msg.is_force_interrupt = false;
-    tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
+    TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 
@@ -394,9 +408,16 @@ OPERATE_RET ai_audio_cloud_asr_set_idle(bool is_force)
     }
 
     send_msg.event = AI_CLOUD_ASR_EVT_ENTER_IDLE;
-    tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0);
+    TUYA_CALL_ERR_LOG(tal_queue_post(sg_ai_cloud_asr.queue, &send_msg, 0));
 
-    sg_ai_cloud_asr.is_uploading = false;
+    // wait state is idle
+    while (sg_ai_cloud_asr.state != AI_CLOUD_ASR_STATE_IDLE) {
+        tal_system_sleep(10);
+    }
+
+    if (sg_ai_cloud_asr.is_uploading) {
+        sg_ai_cloud_asr.is_uploading = false;
+    }
 
     tal_mutex_unlock(sg_ai_cloud_asr.mutex);
 
