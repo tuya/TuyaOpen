@@ -51,6 +51,12 @@ config ENABLE_VIDEO
 config ENABLE_ESP_DISPLAY
     bool
     default n
+    
+if (ENABLE_ESP_DISPLAY)
+    config DISPLAY_NAME
+        string "the name of display 1"
+        default "display"
+endif
 
 config LITTLE_END
     int
