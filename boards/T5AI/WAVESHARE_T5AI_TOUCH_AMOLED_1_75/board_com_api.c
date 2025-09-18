@@ -7,10 +7,12 @@
  */
 
 #include "tuya_cloud_types.h"
+#include "tkl_gpio.h"
 #include "tal_api.h"
 
 #include "tdd_audio.h"
 #include "tdd_button_gpio.h"
+#include "tdl_button_manage.h"
 
 #include "tdd_disp_co5300.h"
 #include "tdd_touch_cst92xx.h"
@@ -18,6 +20,12 @@
 /***********************************************************
 ***********************macro define***********************
 ***********************************************************/
+#define BOARD_PWR_EN_PIN       TUYA_GPIO_NUM_19
+#define BOARD_PWR_EN_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
+
+#define BOARD_BUTTON_PWR_PIN       TUYA_GPIO_NUM_18
+#define BOARD_BUTTON_PWR_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+
 #define BOARD_SPEAKER_EN_PIN TUYA_GPIO_NUM_28
 
 #define BOARD_BUTTON_PIN       TUYA_GPIO_NUM_12
@@ -71,6 +79,23 @@ OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
+static void __button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc)
+{
+    switch (event) {
+    case TDL_BUTTON_PRESS_DOWN: {
+        PR_NOTICE("%s: single click", name);
+    } break;
+
+    case TDL_BUTTON_LONG_PRESS_START: {
+        PR_NOTICE("%s: long press", name);
+        tkl_gpio_write(BOARD_PWR_EN_PIN, TUYA_GPIO_LEVEL_LOW);
+    } break;
+
+    default:
+        break;
+    }
+}
+
 static OPERATE_RET __board_register_button(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -79,11 +104,40 @@ static OPERATE_RET __board_register_button(void)
     BUTTON_GPIO_CFG_T button_hw_cfg = {
         .pin = BOARD_BUTTON_PIN,
         .level = BOARD_BUTTON_ACTIVE_LV,
-        .mode = BUTTON_IRQ_MODE,
+        .mode = BUTTON_TIMER_SCAN_MODE,
         .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
+#endif
+
+#if defined(BUTTON_NAME_2)
+    TUYA_GPIO_BASE_CFG_T pin_cfg;
+    pin_cfg.mode = TUYA_GPIO_PUSH_PULL;
+    pin_cfg.direct = TUYA_GPIO_OUTPUT;
+    pin_cfg.level = BOARD_PWR_EN_ACTIVE_LV;
+    TUYA_CALL_ERR_RETURN(tkl_gpio_init(BOARD_PWR_EN_PIN, &pin_cfg));
+
+    BUTTON_GPIO_CFG_T button_2_hw_cfg = {
+        .pin = BOARD_BUTTON_PWR_PIN,
+        .level = BOARD_BUTTON_PWR_ACTIVE_LV,
+        .mode = BUTTON_TIMER_SCAN_MODE,
+        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_2, &button_2_hw_cfg));
+    // button create
+    TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time = 3000,
+                                   .long_keep_timer = 1000,
+                                   .button_debounce_time = 50,
+                                   .button_repeat_valid_count = 2,
+                                   .button_repeat_valid_time = 500};
+    TDL_BUTTON_HANDLE button_hdl = NULL;
+
+    TUYA_CALL_ERR_RETURN(tdl_button_create(BUTTON_NAME_2, &button_cfg, &button_hdl));
+    tdl_button_event_register(button_hdl, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
+    tdl_button_event_register(button_hdl, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+
 #endif
 
     return rt;
