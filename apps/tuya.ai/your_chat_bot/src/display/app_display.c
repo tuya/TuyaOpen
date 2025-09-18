@@ -194,6 +194,9 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END: {
         ui_set_assistant_msg_stream_end();
     } break;
+    case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT: {
+        ui_set_assistant_msg_stream_interrupt();
+    } break;
 #endif
     case TY_DISPLAY_TP_SYSTEM_MSG: {
         ui_set_system_msg(msg_data->data);

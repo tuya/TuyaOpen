@@ -319,7 +319,7 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
 static OPERATE_RET __ai_agent_event_recv(AI_EVENT_TYPE type, AI_SESSION_ID session_id, AI_EVENT_ID event_id,
                                          uint8_t *attr, uint32_t attr_len)
 {
-    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s", type, session_id, event_id);
+    PR_DEBUG("recv event type:%d, session_id:%s, event_id:%s, attr_len: %d", type, session_id, event_id, attr_len);
 
     // event type: 0-chat start, 1-chat stop, 2-data finish
     if (type == AI_EVENT_START) {

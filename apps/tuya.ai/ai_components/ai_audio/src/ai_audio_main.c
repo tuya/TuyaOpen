@@ -77,6 +77,12 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
         if (ai_audio_player_is_playing()) {
             ai_audio_player_stop();
         }
+        // stop UI streaming display
+#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+        if (sg_ai_audio.evt_inform_cb) {
+            sg_ai_audio.evt_inform_cb(AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT, NULL, 0, NULL);
+        }
+#endif
     } break;
     }
 
