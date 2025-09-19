@@ -58,7 +58,6 @@ static OPERATE_RET __io_expander_init(void)
     pin_out_mask |= EX_IO_VBUS_EN;
     pin_out_mask |= EX_IO_4G_EN;
     pin_out_mask |= EX_IO_3V3A_EN;
-    pin_out_mask |= EX_IO_CHG_CTRL;
     pin_out_mask |= EX_IO_USB_SEL;
     rt = xl9555_set_dir(pin_out_mask, 0); // Set output direction
     if (rt != OPRT_OK) {
@@ -76,6 +75,8 @@ static OPERATE_RET __io_expander_init(void)
     xl9555_set_level(EX_IO_SPK_EN, 1); // Enable speaker (active high)
     xl9555_set_dir(EX_IO_3V3A_EN, 0);
     xl9555_set_level(EX_IO_3V3A_EN, 1); // Enable 3.3A (for codec power)
+    xl9555_set_dir(EX_IO_VBUS_EN, 0);
+    xl9555_set_level(EX_IO_VBUS_EN, 1); // Enable VBUS
     // xl9555_set_dir(EX_IO_4G_EN, 0);
     // xl9555_set_level(EX_IO_4G_EN, 1); // Enable 4G
     // xl9555_set_dir(EX_IO_USB_SEL, 0);
