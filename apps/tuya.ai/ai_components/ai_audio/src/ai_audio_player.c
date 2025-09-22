@@ -267,7 +267,7 @@ static void __app_playing_tm_cb(TIMER_ID timer_id, void *arg)
 
 static bool __app_player_compare_id(char *id_1, char *id_2)
 {
-    if (NULL == id_1 && NULL == id_1) {
+    if (NULL == id_1 && NULL == id_2) {
         return true;
     }
 
