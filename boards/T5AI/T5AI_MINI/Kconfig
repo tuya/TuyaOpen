@@ -11,8 +11,7 @@ config BOARD_CONFIG
     default y
     select ENABLE_AUDIO_CODECS
     select ENABLE_AUDIO_AEC
-    select ENABLE_LED
-    select ENABLE_BUTTON
+
 
 choice T5AI_MINI_EX_MODULE
     prompt "choose expansion module for T5AI_MINI"

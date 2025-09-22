@@ -11,8 +11,12 @@
  #include "tal_api.h"
  
  #include "tdd_audio.h"
+ #if defined(LED_NAME)
  #include "tdd_led_gpio.h"
+ #endif
+ #if defined(BUTTON_NAME)
  #include "tdd_button_gpio.h"
+ #endif
  
  #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1)
  #include "tdd_disp_st7789.h"
