@@ -63,24 +63,62 @@ static const gif_emotion_t gif_emotion[] = {
     {&rainbow,  "rainbow" },
 };
 
+// Cloud emotion to local emotion mapping
+static const char* __map_cloud_emotion(const char *cloud_emotion)
+{
+    if (cloud_emotion == NULL) return "happy";
+    
+    // Direct mapping for cloud emotions
+    if (strcasecmp(cloud_emotion, "HAPPY") == 0) return "happy";
+    if (strcasecmp(cloud_emotion, "SAD") == 0) return "sad";
+    if (strcasecmp(cloud_emotion, "ANGRY") == 0) return "anger";
+    if (strcasecmp(cloud_emotion, "SURPRISE") == 0) return "surprise";
+    if (strcasecmp(cloud_emotion, "NEUTRAL") == 0) return "center";
+    if (strcasecmp(cloud_emotion, "CONFUSED") == 0) return "surprise";
+    if (strcasecmp(cloud_emotion, "THINKING") == 0) return "center";
+    if (strcasecmp(cloud_emotion, "TOUCH") == 0) return "heart_eyes";
+    if (strcasecmp(cloud_emotion, "FEARFUL") == 0) return "sad";
+    if (strcasecmp(cloud_emotion, "DISAPPOINTED") == 0) return "sad";
+    if (strcasecmp(cloud_emotion, "ANNOYED") == 0) return "anger";
+    if (strcasecmp(cloud_emotion, "SLEEP") == 0) return "sleep";
+    if (strcasecmp(cloud_emotion, "WAKEUP") == 0) return "wakeup";
+    if (strcasecmp(cloud_emotion, "LEFT") == 0) return "left";
+    if (strcasecmp(cloud_emotion, "RIGHT") == 0) return "right";
+    if (strcasecmp(cloud_emotion, "WINK") == 0) return "wink";
+    
+    // If not found, try direct match with local emotions
+    for (int i = 0; i < sizeof(gif_emotion)/sizeof(gif_emotion[0]); i++) {
+        if (strcasecmp(cloud_emotion, gif_emotion[i].text) == 0) {
+            return gif_emotion[i].text;
+        }
+    }
+    
+    // Default fallback
+    return "happy";
+}
+
 static uint8_t __emotion_get(char *emotion)
 {
     uint8_t which = 0;
 
     PR_DEBUG("Looking for emotion: '%s'", emotion ? emotion : "NULL");
     
+    // Map cloud emotion to local emotion
+    const char *mapped_emotion = __map_cloud_emotion(emotion);
+    PR_DEBUG("Mapped emotion: '%s' -> '%s'", emotion ? emotion : "NULL", mapped_emotion);
+    
     int i = 0;
     for (i = 0; i < sizeof(gif_emotion)/sizeof(gif_emotion[0]); i++) {
         PR_DEBUG("Comparing with: '%s'", gif_emotion[i].text);
-        if (0 == strcasecmp(gif_emotion[i].text, emotion)) {
+        if (0 == strcasecmp(gif_emotion[i].text, mapped_emotion)) {
             which = i;
-            PR_DEBUG("Found emotion '%s' at index %d", emotion, i);
+            PR_DEBUG("Found emotion '%s' at index %d", mapped_emotion, i);
             break;
         }
     }
 
-    if (which == 0 && (emotion == NULL || strcasecmp(gif_emotion[0].text, emotion) != 0)) {
-        PR_ERR("Emotion '%s' not found, using default (happy)", emotion ? emotion : "NULL");
+    if (which == 0 && (mapped_emotion == NULL || strcasecmp(gif_emotion[0].text, mapped_emotion) != 0)) {
+        PR_ERR("Emotion '%s' not found, using default (happy)", mapped_emotion ? mapped_emotion : "NULL");
     }
 
     return which;

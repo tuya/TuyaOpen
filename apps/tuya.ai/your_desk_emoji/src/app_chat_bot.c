@@ -207,6 +207,12 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
             if (emo->name) {
                 PR_DEBUG("emotion name:%s", emo->name);
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+                
+                PR_DEBUG("Hiding weather clock and showing emoji UI for AI emotion");
+                app_display_send_msg(TY_DISPLAY_TP_WEATHER_CLOCK_HIDE, NULL, 0);
+                
+                
+                PR_DEBUG("Setting AI emotion: %s", emo->name);
                 app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)emo->name, strlen(emo->name));
 #endif
             }

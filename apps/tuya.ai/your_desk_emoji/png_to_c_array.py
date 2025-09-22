@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-PNG图片转C数组工具
-将PNG图片转换为C语言数组格式，用于嵌入式系统显示
+PNG to C Array Tool
+Convert PNG images to C language array format for embedded system display
 """
 
 import os
@@ -12,33 +12,33 @@ import argparse
 
 def png_to_c_array(png_path, output_path, array_name, target_size=None):
     """
-    将PNG图片转换为C数组
+    Convert PNG image to C array
     
     Args:
-        png_path: PNG图片路径
-        output_path: 输出的C文件路径
-        array_name: C数组名称
-        target_size: 目标尺寸 (width, height)，如果为None则保持原尺寸
+        png_path: PNG image path
+        output_path: Output C file path
+        array_name: C array name
+        target_size: Target size (width, height), if None then keep original size
     """
     try:
-        # 打开PNG图片
+        # Open PNG image
         img = Image.open(png_path)
         
-        # 转换为RGB模式（如果不是的话）
+        # Convert to RGB mode (if not already)
         if img.mode != 'RGB':
             img = img.convert('RGB')
         
-        # 如果指定了目标尺寸，则调整图片大小
+        # If target size is specified, resize the image
         if target_size:
             img = img.resize(target_size, Image.Resampling.LANCZOS)
         
-        # 获取图片尺寸
+        # Get image dimensions
         width, height = img.size
         
-        # 获取像素数据
+        # Get pixel data
         pixels = list(img.getdata())
         
-        # 生成C数组
+        # Generate C array
         c_code = f"""#ifdef __has_include
 #if __has_include("lvgl.h")
 #ifndef LV_LVGL_H_INCLUDE_SIMPLE
@@ -65,30 +65,30 @@ const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMAGE_{array_
     {array_name}_map[] = {{
 """
         
-        # 转换像素为RAW_CHROMA_KEYED格式 (RGB565)
+        # Convert pixels to RAW_CHROMA_KEYED format (RGB565)
         raw_data = []
         for pixel in pixels:
             r, g, b = pixel
             
-            # 转换为RGB565格式 (5-6-5)
-            r = (r >> 3) & 0x1F  # 5位
-            g = (g >> 2) & 0x3F  # 6位
-            b = (b >> 3) & 0x1F  # 5位
+            # Convert to RGB565 format (5-6-5)
+            r = (r >> 3) & 0x1F  # 5 bits
+            g = (g >> 2) & 0x3F  # 6 bits
+            b = (b >> 3) & 0x1F  # 5 bits
             
-            # 组合为16位RGB565
+            # Combine into 16-bit RGB565
             rgb565 = (r << 11) | (g << 5) | b
             
-            # 存储为2字节: RGB565 (小端序)
+            # Store as 2 bytes: RGB565 (little-endian)
             raw_data.extend([rgb565 & 0xFF, (rgb565 >> 8) & 0xFF])
         
-        # 每行16个字节 (8个像素 * 2字节)
+        # 16 bytes per line (8 pixels * 2 bytes)
         for i in range(0, len(raw_data), 16):
             line_data = raw_data[i:i+16]
             c_code += "    " + ", ".join([f"0x{x:02X}" for x in line_data]) + ",\n"
         
         c_code += "};\n\n"
         
-        # 添加图片描述符
+        # Add image descriptor
         c_code += f"""const lv_image_dsc_t {array_name} = {{
     .header.cf = LV_COLOR_FORMAT_RGB565,
     .header.magic = LV_IMAGE_HEADER_MAGIC,
@@ -98,62 +98,62 @@ const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMAGE_{array_
     .data = {array_name}_map,
 }};\n"""
         
-        # 写入文件
+        # Write to file
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(c_code)
         
-        print(f"转换成功: {png_path} -> {output_path}")
-        print(f"图片尺寸: {width}x{height}")
-        print(f"数据大小: {len(raw_data)} 字节 ({len(raw_data)//2} 个像素)")
+        print(f"Conversion successful: {png_path} -> {output_path}")
+        print(f"Image size: {width}x{height}")
+        print(f"Data size: {len(raw_data)} bytes ({len(raw_data)//2} pixels)")
         
     except Exception as e:
-        print(f"转换失败: {e}")
+        print(f"Conversion failed: {e}")
         return False
     
     return True
 
 def main():
-    parser = argparse.ArgumentParser(description='PNG图片转C数组工具')
-    parser.add_argument('input_dir', help='输入PNG图片目录')
-    parser.add_argument('output_dir', help='输出C文件目录')
-    parser.add_argument('--size', help='目标尺寸，格式为 WxH，例如 64x64')
+    parser = argparse.ArgumentParser(description='PNG to C Array Tool')
+    parser.add_argument('input_dir', help='Input PNG image directory')
+    parser.add_argument('output_dir', help='Output C file directory')
+    parser.add_argument('--size', help='Target size, format WxH, e.g. 64x64')
     
     args = parser.parse_args()
     
-    # 解析尺寸参数
+    # Parse size parameter
     target_size = None
     if args.size:
         try:
             width, height = map(int, args.size.split('x'))
             target_size = (width, height)
         except ValueError:
-            print("错误：尺寸格式应为 WxH，例如 64x64")
+            print("Error: Size format should be WxH, e.g. 64x64")
             return
     
-    # 确保输出目录存在
+    # Ensure output directory exists
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # 处理目录中的所有PNG文件
+    # Process all PNG files in directory
     png_files = [f for f in os.listdir(args.input_dir) if f.lower().endswith('.png')]
     
     if not png_files:
-        print("未找到PNG文件")
+        print("No PNG files found")
         return
     
-    print(f"找到 {len(png_files)} 个PNG文件")
+    print(f"Found {len(png_files)} PNG files")
     
     for png_file in png_files:
         png_path = os.path.join(args.input_dir, png_file)
         
-        # 生成数组名称（去掉扩展名，转换为下划线格式）
+        # Generate array name (remove extension, convert to underscore format)
         base_name = os.path.splitext(png_file)[0]
         array_name = f"img_{base_name}"
         
-        # 生成输出文件路径
+        # Generate output file path
         output_file = f"{base_name}.c"
         output_path = os.path.join(args.output_dir, output_file)
         
-        # 转换图片
+        # Convert image
         png_to_c_array(png_path, output_path, array_name, target_size)
 
 if __name__ == "__main__":
