@@ -34,10 +34,10 @@ typedef enum { RCS_APP, RCS_MF, RCS_CODE, RCS_MAX } RCS_E;
 typedef struct {
     RCS_E source;
     BOOL_T pub;
-    CHAR_T *code;
-    CHAR_T *url0;
-    CHAR_T *urlx;
-    BYTE_T *ca_cert;
+    char *code;
+    char *url0;
+    char *urlx;
+    uint8_t *ca_cert;
     uint32_t ca_cert_len;
 } register_center_t;
 
@@ -71,7 +71,7 @@ OPERATE_RET tuya_register_center_get(register_center_t *rcs);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_register_center_update(BYTE_T *ca_cert, uint32_t ca_cert_len);
+OPERATE_RET tuya_register_center_update(uint8_t *ca_cert, uint32_t ca_cert_len);
 
 /**
  * @brief Reset register center
@@ -86,7 +86,7 @@ OPERATE_RET tuya_register_center_reset(void);
  *
  * @return url address
  */
-CHAR_T *tuya_register_center_get_url(void);
+char *tuya_register_center_get_url(void);
 
 #ifdef __cplusplus
 }

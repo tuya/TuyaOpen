@@ -124,7 +124,7 @@ SYS_TIME_T tal_system_get_millisecond(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int32_t tal_system_get_random(uint32_t range);
+int tal_system_get_random(uint32_t range);
 
 /**
  * @brief tal_system_get_reset_reason
@@ -134,7 +134,7 @@ int32_t tal_system_get_random(uint32_t range);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-TUYA_RESET_REASON_E tal_system_get_reset_reason(CHAR_T **describe);
+TUYA_RESET_REASON_E tal_system_get_reset_reason(char **describe);
 
 /**
  * @brief This API is used for system delay.

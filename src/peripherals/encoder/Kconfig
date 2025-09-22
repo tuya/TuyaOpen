@@ -1,0 +1,23 @@
+
+config ENABLE_ENCODER
+    bool "enable encoder driver"
+    default n
+
+if (ENABLE_ENCODER)
+
+        config DECODER_INPUT_A
+            int "clockwise rotation detection pin"
+            range 0 63
+            default 36
+
+        config DECODER_INPUT_B
+            int "counterclockwise rotation detection pin"
+            range 0 63
+            default 18
+        
+        config DECODER_INPUT_P
+            int "press detection pin"
+            range 0 63
+            default 24
+
+endif

@@ -314,7 +314,7 @@ uint32_t tal_pkcs7padding_buffer(uint8_t *p_buffer, uint32_t length);
  * @param dec_data_len Length of the decrypted data.
  * @return The actual length of the decrypted data after AES decryption.
  */
-int32_t tal_aes_get_actual_length(IN uint8_t *dec_data, IN uint32_t dec_data_len);
+int32_t tal_aes_get_actual_length(uint8_t *dec_data, uint32_t dec_data_len);
 
 /**
  * @brief Encrypts data using AES-128 ECB mode.
@@ -331,8 +331,7 @@ int32_t tal_aes_get_actual_length(IN uint8_t *dec_data, IN uint32_t dec_data_len
  * @param key The encryption key.
  * @return OPERATE_RET Returns the status of the encryption operation.
  */
-OPERATE_RET tal_aes128_ecb_encode(IN uint8_t *data, IN uint32_t len, OUT uint8_t **ec_data, OUT uint32_t *ec_len,
-                                  IN uint8_t *key);
+OPERATE_RET tal_aes128_ecb_encode(uint8_t *data, uint32_t len, uint8_t **ec_data, uint32_t *ec_len, uint8_t *key);
 
 /**
  * @brief Decrypts data using AES-128 ECB mode.
@@ -351,8 +350,7 @@ OPERATE_RET tal_aes128_ecb_encode(IN uint8_t *data, IN uint32_t len, OUT uint8_t
  * @return OPERATE_RET Returns OPRT_OK if the decryption is successful, or an
  * error code if an error occurs.
  */
-OPERATE_RET tal_aes128_ecb_decode(IN uint8_t *data, IN uint32_t len, OUT uint8_t **dec_data, OUT uint32_t *dec_len,
-                                  IN uint8_t *key);
+OPERATE_RET tal_aes128_ecb_decode(uint8_t *data, uint32_t len, uint8_t **dec_data, uint32_t *dec_len, uint8_t *key);
 
 /**
  * @brief Performs AES-128 CBC encryption on the input data using the provided
@@ -372,8 +370,8 @@ OPERATE_RET tal_aes128_ecb_decode(IN uint8_t *data, IN uint32_t len, OUT uint8_t
  * @return The operation result. Possible return values are defined by the
  * `OPERATE_RET` enum.
  */
-OPERATE_RET tal_aes128_cbc_encode(IN uint8_t *data, IN uint32_t len, IN uint8_t *key, IN uint8_t *iv,
-                                  OUT uint8_t **ec_data, OUT uint32_t *ec_len);
+OPERATE_RET tal_aes128_cbc_encode(uint8_t *data, uint32_t len, uint8_t *key, uint8_t *iv, uint8_t **ec_data,
+                                  uint32_t *ec_len);
 
 /**
  * @brief Decrypts data using AES-128 in CBC mode.
@@ -394,8 +392,8 @@ OPERATE_RET tal_aes128_cbc_encode(IN uint8_t *data, IN uint32_t len, IN uint8_t 
  *         - OPRT_OK: Operation successful.
  *         - Other error codes indicating failure.
  */
-OPERATE_RET tal_aes128_cbc_decode(IN uint8_t *data, IN uint32_t len, IN uint8_t *key, IN uint8_t *iv,
-                                  OUT uint8_t **dec_data, OUT uint32_t *dec_len);
+OPERATE_RET tal_aes128_cbc_decode(uint8_t *data, uint32_t len, uint8_t *key, uint8_t *iv, uint8_t **dec_data,
+                                  uint32_t *dec_len);
 
 /**
  * @brief Frees the memory allocated for AES data.
@@ -406,7 +404,7 @@ OPERATE_RET tal_aes128_cbc_decode(IN uint8_t *data, IN uint32_t len, IN uint8_t 
  * @return OPERATE_RET Returns OPERATE_RET_OK if the memory is successfully
  * freed, otherwise returns an error code.
  */
-OPERATE_RET tal_aes_free_data(IN uint8_t *data);
+OPERATE_RET tal_aes_free_data(uint8_t *data);
 
 /**
  * @brief Performs a self-test for the AES encryption algorithm.

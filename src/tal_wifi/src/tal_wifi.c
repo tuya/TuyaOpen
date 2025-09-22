@@ -91,7 +91,7 @@ OPERATE_RET tal_wifi_all_ap_scan(AP_IF_S **ap_ary, uint32_t *num)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_assign_ap_scan(SCHAR_T *ssid, AP_IF_S **ap)
+OPERATE_RET tal_wifi_assign_ap_scan(int8_t *ssid, AP_IF_S **ap)
 {
     OPERATE_RET op_ret = OPRT_OK;
 
@@ -114,7 +114,7 @@ OPERATE_RET tal_wifi_assign_ap_scan(SCHAR_T *ssid, AP_IF_S **ap)
 #if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
     op_ret = tuya_wpa_supp_scan((char *)ssid, ap, &num);
 #else
-    op_ret = tkl_wifi_scan_ap(ssid, ap, &num);
+    op_ret = tkl_wifi_scan_ap((int8_t *)ssid, ap, &num);
 #endif
     //! find better rssi for ssid
     if (OPRT_OK == op_ret && num > 1 && *ap) {
@@ -169,7 +169,7 @@ OPERATE_RET tal_wifi_release_ap(AP_IF_S *ap)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_set_cur_channel(UCHAR_T chan)
+OPERATE_RET tal_wifi_set_cur_channel(uint8_t chan)
 {
     return tkl_wifi_set_cur_channel(chan);
 }
@@ -180,7 +180,7 @@ OPERATE_RET tal_wifi_set_cur_channel(UCHAR_T chan)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_get_cur_channel(UCHAR_T *chan)
+OPERATE_RET tal_wifi_get_cur_channel(uint8_t *chan)
 {
     TAL_WIFI_CHECK_PARM(chan);
 
@@ -210,6 +210,24 @@ OPERATE_RET tal_wifi_sniffer_set(BOOL_T en, SNIFFER_CALLBACK cb)
     }
 
     return op_ret;
+}
+
+/**
+ * @brief set wifi ip info.when wifi works in
+ *        ap+station mode, wifi has two ips.
+ *
+ * @param[in]       wf     wifi function type
+ * @param[in]       ip     the ip addr info
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_wifi_set_ip(WF_IF_E wf, NW_IP_S *ip)
+{
+    TAL_WIFI_CHECK_PARM(ip);
+#if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
+    return tuya_wpas_set_ip(wf, ip);
+#else
+    return tkl_wifi_set_ip(wf, ip);
+#endif
 }
 
 /**
@@ -347,7 +365,7 @@ OPERATE_RET tal_fast_station_connect(FAST_WF_CONNECTED_AP_INFO_T *fast_ap_info)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_station_connect(SCHAR_T *ssid, SCHAR_T *passwd)
+OPERATE_RET tal_wifi_station_connect(int8_t *ssid, int8_t *passwd)
 {
     TAL_WIFI_CHECK_PARM(ssid);
 
@@ -355,7 +373,7 @@ OPERATE_RET tal_wifi_station_connect(SCHAR_T *ssid, SCHAR_T *passwd)
     tuya_wpa_supp_stop();
     return tuya_wpas_sta_connect((char *)ssid, (char *)passwd);
 #else
-    return tkl_wifi_station_connect(ssid, passwd);
+    return tkl_wifi_station_connect((int8_t *)ssid, (int8_t *)passwd);
 #endif
 }
 
@@ -381,7 +399,7 @@ OPERATE_RET tal_wifi_station_disconnect(void)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_station_get_conn_ap_rssi(SCHAR_T *rssi)
+OPERATE_RET tal_wifi_station_get_conn_ap_rssi(int8_t *rssi)
 {
     TAL_WIFI_CHECK_PARM(rssi);
 
@@ -399,12 +417,12 @@ OPERATE_RET tal_wifi_station_get_conn_ap_rssi(SCHAR_T *rssi)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_get_bssid(UCHAR_T *mac)
+OPERATE_RET tal_wifi_get_bssid(uint8_t *mac)
 {
     TAL_WIFI_CHECK_PARM(mac);
 
 #if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
-    return tuya_wpa_supp_get_bssid((UCHAR_T *)mac);
+    return tuya_wpa_supp_get_bssid((uint8_t *)mac);
 #else
     return tkl_wifi_get_bssid(mac);
 #endif
@@ -468,12 +486,12 @@ OPERATE_RET tal_wifi_ap_stop(void)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_get_ap_mac(UCHAR_T *mac)
+OPERATE_RET tal_wifi_get_ap_mac(uint8_t *mac)
 {
     TAL_WIFI_CHECK_PARM(mac);
 
 #if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
-    return tuya_wpa_supp_get_bssid((UCHAR_T *)mac);
+    return tuya_wpa_supp_get_bssid((uint8_t *)mac);
 #else
     return tkl_wifi_get_bssid(mac);
 #endif
@@ -486,11 +504,11 @@ OPERATE_RET tal_wifi_get_ap_mac(UCHAR_T *mac)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_set_country_code(CHAR_T *country_code)
+OPERATE_RET tal_wifi_set_country_code(char *country_code)
 {
-    int32_t i;
+    int i;
     COUNTRY_CODE_E index = COUNTRY_CODE_CN;
-    CHAR_T *map[] = {"CN", "US", "JP", "EU"};
+    char *map[] = {"CN", "US", "JP", "EU"};
 
     for (i = 0; country_code && i < CNTSOF(map); i++) {
         if (0 == strcmp(map[i], country_code)) {
@@ -510,7 +528,7 @@ OPERATE_RET tal_wifi_set_country_code(CHAR_T *country_code)
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_send_mgnt(UCHAR_T *buf, uint32_t len)
+OPERATE_RET tal_wifi_send_mgnt(uint8_t *buf, uint32_t len)
 {
     TAL_WIFI_CHECK_PARM(buf);
 

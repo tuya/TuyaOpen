@@ -219,7 +219,7 @@ OPERATE_RET tuya_x509_get_fingerprint(uint8_t *buf, uint32_t buflen, X509_finger
     return rt;
 }
 #if defined(TUYA_X509_SELF_TEST) && (TUYA_X509_SELF_TEST == 1)
-static INT8_T iot_pem[] = "-----BEGIN "
+static int8_t iot_pem[] = "-----BEGIN "
                           "CERTIFICATE-----\nMIIB+DCCAZ+gAwIBAgIRAec/"
                           "XlHx+"
                           "NGcZ85xtEk1Q24wCgYIKoZIzj0EAwIwYDEPMA0GA1UEAwwG\nVGVzdENBMQ0wCwYDVQQKDARUd"
@@ -292,8 +292,7 @@ OPERATE_RET tuya_x509_self_test(void)
     }
 
     outlen = sizeof(fingerprint);
-    //  ret = tuya_x509_get_fingerprint( iot_der, sizeof(iot_der),
-    //  X509_fingerprint_SHA1,fingerprint , &outlen );
+    //  ret = tuya_x509_get_fingerprint( iot_der, sizeof(iot_der), X509_fingerprint_SHA1,fingerprint , &outlen );
     ret = tuya_x509_get_fingerprint(iot_pem, sizeof(iot_pem), X509_fingerprint_SHA1, fingerprint, &outlen);
     if (ret != OPRT_OK) {
         PR_ERR("get cert fingerprint fail ret = %d", ret);

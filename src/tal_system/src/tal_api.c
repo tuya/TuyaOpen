@@ -93,7 +93,7 @@ OPERATE_RET tal_ota_end_notify(BOOL_T reset)
 }
 
 //! queue
-OPERATE_RET tal_queue_create_init(QUEUE_HANDLE *queue, int32_t msgsize, int32_t msgcount)
+OPERATE_RET tal_queue_create_init(QUEUE_HANDLE *queue, int msgsize, int msgcount)
 {
     return tkl_queue_create_init(queue, msgsize, msgcount);
 }

@@ -344,9 +344,8 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
             SYS_ARCH_DBG("%s: mbox fetch wait timeout %d\n", __func__, timeout);
         }
     } else {
-        while (tal_queue_fetch(*mbox, &(*msg), TY_LWIP_WAIT_FOREVER) != ERR_OK)
-            ;
-        EndTime = tal_system_get_millisecond();
+        while(tal_queue_fetch(*mbox, &(*msg), TY_LWIP_WAIT_FOREVER) != ERR_OK);
+		EndTime = tal_system_get_millisecond();
         Elapsed = EndTime - StartTime;
 
         if (Elapsed == 0) {

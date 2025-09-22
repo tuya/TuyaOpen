@@ -186,13 +186,13 @@ int tal_Buf_Convert_Pk(const char *in_buf, int intput_mode, int input_format, mb
 //     PR_ERR("tuya gen key is fail ,ret = %d",ret );
 
 //     memset(output_buf, 0, 16000);
-//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PRIVATE
-//     ,OUTPUT_FORMAT_PEM,output_buf ); PR_DEBUG("ecc private
-//     key:%s",output_buf);
+//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PRIVATE ,OUTPUT_FORMAT_PEM,output_buf );
+//     PR_DEBUG("ecc private key:%s",output_buf);
 
 //     memset(output_buf, 0, 16000);
-//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PUBLIC ,OUTPUT_FORMAT_PEM,output_buf
-//     ); PR_DEBUG("ecc public key:%s",output_buf); mbedtls_pk_free( &key );
+//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PUBLIC ,OUTPUT_FORMAT_PEM,output_buf );
+//     PR_DEBUG("ecc public key:%s",output_buf);
+//     mbedtls_pk_free( &key );
 
 //     //gen rsa 2048 keypair
 //     ret = tal_gen_key(MBEDTLS_PK_RSA,MBEDTLS_ECP_DP_NONE,2048,&key);
@@ -200,11 +200,11 @@ int tal_Buf_Convert_Pk(const char *in_buf, int intput_mode, int input_format, mb
 //     PR_ERR("tuya gen key is fail ,ret = %d",ret );
 
 //     memset(output_buf, 0, 16000);
-//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PRIVATE
-//     ,OUTPUT_FORMAT_PEM,output_buf ); PR_DEBUG("rsa private
-//     key:%s",output_buf);
+//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PRIVATE ,OUTPUT_FORMAT_PEM,output_buf );
+//     PR_DEBUG("rsa private key:%s",output_buf);
 
 //     memset(output_buf, 0, 16000);
-//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PUBLIC ,OUTPUT_FORMAT_PEM,output_buf
-//     ); PR_DEBUG("rsa public key:%s",output_buf); mbedtls_pk_free( &key );
+//     tal_Pk_Convert_Buf( &key,OUTPUT_MODE_PUBLIC ,OUTPUT_FORMAT_PEM,output_buf );
+//     PR_DEBUG("rsa public key:%s",output_buf);
+//     mbedtls_pk_free( &key );
 // }

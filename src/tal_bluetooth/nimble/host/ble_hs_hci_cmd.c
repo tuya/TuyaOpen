@@ -30,26 +30,24 @@
 #include "ble_monitor_priv.h"
 #include "tal_log.h"
 
-static int
-ble_hs_hci_cmd_transport(struct ble_hci_cmd *cmd)
+static int ble_hs_hci_cmd_transport(struct ble_hci_cmd *cmd)
 {
     int rc;
 
 #if BLE_MONITOR
-    ble_monitor_send(BLE_MONITOR_OPCODE_COMMAND_PKT, cmd,
-                     cmd->length + sizeof(*cmd));
+    ble_monitor_send(BLE_MONITOR_OPCODE_COMMAND_PKT, cmd, cmd->length + sizeof(*cmd));
 #else
-		//BLE_HS_LOG_DEBUG("Transport data into LL layer, Opcode = 0x%02x\n", cmd->opcode);
-		//BLE_HS_DUMP_LOG(cmd->data, cmd->length);
+    // BLE_HS_LOG_DEBUG("Transport data into LL layer, Opcode = 0x%02x\n", cmd->opcode);
+    // BLE_HS_DUMP_LOG(cmd->data, cmd->length);
 #endif
-    extern OPERATE_RET tkl_hci_cmd_packet_send(UCHAR_T *p_buf, USHORT_T buf_len);
-    rc = tkl_hci_cmd_packet_send((uint8_t *) cmd, cmd->length + sizeof(*cmd));
-#if defined(TUYA_USE_DYNA_RAM) && (TUYA_USE_DYNA_RAM==0)
+    extern OPERATE_RET tkl_hci_cmd_packet_send(uint8_t * p_buf, uint16_t buf_len);
+    rc = tkl_hci_cmd_packet_send((uint8_t *)cmd, cmd->length + sizeof(*cmd));
+#if defined(TUYA_USE_DYNA_RAM) && (TUYA_USE_DYNA_RAM == 0)
     tuya_ble_hci_buf_free((uint8_t *)cmd);
 #else
     tuya_ble_hci_buf_free(TUYA_BLE_HCI_BUF_CMD, (uint8_t *)cmd);
 #endif
-    //BLE_HS_LOG_DEBUG("HCI Transport ret = %d", rc);
+    // BLE_HS_LOG_DEBUG("HCI Transport ret = %d", rc);
     switch (rc) {
     case 0:
         return 0;
@@ -62,13 +60,12 @@ ble_hs_hci_cmd_transport(struct ble_hci_cmd *cmd)
     }
 }
 
-static int
-ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
+static int ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
 {
     struct ble_hci_cmd *cmd;
     int rc;
 
-    cmd = (void *) tuya_ble_hci_buf_alloc(TUYA_BLE_HCI_BUF_CMD);
+    cmd = (void *)tuya_ble_hci_buf_alloc(TUYA_BLE_HCI_BUF_CMD);
     BLE_HS_DBG_ASSERT(cmd != NULL);
 
     cmd->opcode = htole16(opcode);
@@ -88,8 +85,7 @@ ble_hs_hci_cmd_send(uint16_t opcode, uint8_t len, const void *cmddata)
     return rc;
 }
 
-int
-ble_hs_hci_cmd_send_buf(uint16_t opcode, const void *buf, uint8_t buf_len)
+int ble_hs_hci_cmd_send_buf(uint16_t opcode, const void *buf, uint8_t buf_len)
 {
     switch (ble_hs_sync_state) {
     case BLE_HS_SYNC_STATE_BAD:

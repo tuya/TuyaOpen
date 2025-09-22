@@ -357,6 +357,31 @@ dns_init(void)
  * @param numdns the index of the DNS server to set must be < DNS_MAX_SERVERS
  * @param dnsserver IP address of the DNS server to set
  */
+#ifdef LWIP_DUAL_NET_SUPPORT
+void
+dns_setserver(u8_t numdns, const ip_addr_t *dnsserver)
+{
+    int i, j;
+    ip_addr_t  tmp_dns_servers[DNS_MAX_SERVERS] = { 0 };
+	
+    if (dnsserver == NULL) {
+      return;
+    }
+
+    for (i = 0; i < DNS_MAX_SERVERS; i++) {
+        if (dnsserver->addr == dns_servers[i].addr) {
+          return;
+        }
+    }
+
+    memcpy(tmp_dns_servers, dns_servers, sizeof(tmp_dns_servers));
+	
+    for (i = 0, j = 1; i < (DNS_MAX_SERVERS - 1); i++, j++) {
+      dns_servers[j] = tmp_dns_servers[i];
+    }
+    dns_servers[0] = (*dnsserver);
+}
+#else
 void
 dns_setserver(u8_t numdns, const ip_addr_t *dnsserver)
 {
@@ -368,6 +393,7 @@ dns_setserver(u8_t numdns, const ip_addr_t *dnsserver)
     }
   }
 }
+#endif /* LWIP_DUAL_NET_SUPPORT */
 
 /**
  * @ingroup dns
@@ -394,7 +420,6 @@ dns_getserver(u8_t numdns)
 void
 dns_tmr(void)
 {
-  LWIP_DEBUGF(DNS_DEBUG, ("dns_tmr: dns_check_entries\n"));
   dns_check_entries();
 }
 
@@ -477,6 +502,7 @@ err_t
 dns_local_lookup(const char *hostname, ip_addr_t *addr, u8_t dns_addrtype)
 {
   LWIP_UNUSED_ARG(dns_addrtype);
+  printf("dns_local_lookup==1\n");
   return dns_lookup_local(hostname, addr LWIP_DNS_ADDRTYPE_ARG(dns_addrtype));
 }
 
@@ -564,6 +590,7 @@ dns_local_addhost(const char *hostname, const ip_addr_t *addr)
   struct local_hostlist_entry *entry;
   size_t namelen;
   char *entry_name;
+  printf("dns_local_addhost==1\n");
   LWIP_ASSERT("invalid host name (NULL)", hostname != NULL);
   namelen = strlen(hostname);
   LWIP_ASSERT("namelen <= DNS_LOCAL_HOSTLIST_MAX_NAMELEN", namelen <= DNS_LOCAL_HOSTLIST_MAX_NAMELEN);
@@ -1115,6 +1142,7 @@ dns_check_entry(u8_t i)
       LWIP_ASSERT("unknown dns_table entry state:", 0);
       break;
   }
+
 }
 
 /**

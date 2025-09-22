@@ -1,0 +1,101 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "ESP32"
+
+config PLATFORM_ESP32
+    bool
+    default y
+
+config ENABLE_PLATFORM_MBEDTLS
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+config PLATFORM_FLASHSIZE_4M
+    bool
+    default n
+
+config PLATFORM_FLASHSIZE_8M
+    bool
+    default n
+
+config PLATFORM_FLASHSIZE_16M
+    bool
+    default n
+
+config ENABLE_ESP32S3_USB_JTAG_ONLY
+    bool
+    default n
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_ESP32_MODULE
+        bool "ESP32"
+        if (BOARD_CHOICE_ESP32_MODULE)
+            rsource "./ESP32/Kconfig"
+        endif
+
+    config BOARD_CHOICE_ESP32_C3
+        bool "ESP32-C3"
+        if (BOARD_CHOICE_ESP32_C3)
+            rsource "./ESP32-C3/Kconfig"
+        endif
+
+    config BOARD_CHOICE_ESP32_S3
+        bool "ESP32-S3"
+        if (BOARD_CHOICE_ESP32_S3)
+            rsource "./ESP32-S3/Kconfig"
+        endif
+
+    config BOARD_CHOICE_BREAD_COMPACT_WIFI
+        bool "ESP32S3_BREAD_COMPACT_WIFI"
+        if (BOARD_CHOICE_BREAD_COMPACT_WIFI)
+            rsource "./ESP32S3_BREAD_COMPACT_WIFI/Kconfig"
+        endif
+
+    config BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI
+        bool "XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI"
+        if (BOARD_CHOICE_XINGZHI_CUBE_0_96_OLED_WIFI)
+            rsource "./XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI/Kconfig"
+        endif
+
+    config BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8
+        bool "WAVESHARE_ESP32S3_Touch_AMOLED_1.8"
+        if (BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
+            rsource "./WAVESHARE_ESP32S3_Touch_AMOLED_1.8/Kconfig"
+        endif
+
+    config BOARD_CHOICE_DNESP32S3_BOX
+        bool "DNESP32S3_BOX"
+        if (BOARD_CHOICE_DNESP32S3_BOX)
+            rsource "./DNESP32S3_BOX/Kconfig"
+        endif
+
+    config BOARD_CHOICE_DNESP32S3
+        bool "DNESP32S3"
+        if (BOARD_CHOICE_DNESP32S3)
+            rsource "./DNESP32S3/Kconfig"
+        endif
+
+
+    config BOARD_CHOICE_DNESP32S3_BOX2_WIFI
+        bool "DNESP32S3_BOX2_WIFI"
+        if (BOARD_CHOICE_DNESP32S3_BOX2_WIFI)
+            rsource "./DNESP32S3_BOX2_WIFI/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice

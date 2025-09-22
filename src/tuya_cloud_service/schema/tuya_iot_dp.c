@@ -213,7 +213,7 @@ int tuya_iot_dp_parse(tuya_iot_client_t *client, dp_cmd_type_t cmd_tp, cJSON *cm
  * @return The result of the operation. Returns 0 on success, or a negative
  * error code on failure.
  */
-int tuya_iot_dp_obj_report(tuya_iot_client_t *client, char *devid, dp_obj_t *dps, uint16_t dpscnt, int flags)
+int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_t *dps, uint16_t dpscnt, int flags)
 {
     int ret = OPRT_OK;
 
@@ -367,6 +367,12 @@ int tuya_iot_dp_stat_local_dump(tuya_iot_client_t *client, dp_rept_valid_t *dpva
     return OPRT_OK;
 }
 
+static void dp_raw_async_cb(int result, void *user_data)
+{
+    PR_DEBUG("mqtt raw dp send result %d", result);
+    //! TODO: event report
+}
+
 /**
  * @brief Reports raw data points to the Tuya IoT platform.
  *
@@ -381,7 +387,7 @@ int tuya_iot_dp_stat_local_dump(tuya_iot_client_t *client, dp_rept_valid_t *dpva
  *         - 0: Success.
  *         - Other values: Error codes.
  */
-int tuya_iot_dp_raw_report(tuya_iot_client_t *client, char *devid, dp_raw_t *dp, uint32_t timeout)
+int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_t *dp, uint32_t timeout)
 {
     int ret = OPRT_OK;
 
@@ -430,7 +436,7 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, char *devid, dp_raw_t *dp,
         ret = tuya_lan_dp_report(out);
         tal_free(out);
     } else if (tuya_iot_is_connected()) {
-        ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, NULL, NULL, 5000);
+        ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, dp_raw_async_cb, NULL, timeout);
     } else {
         PR_ERR("no channel for connect");
     }

@@ -42,7 +42,7 @@ OPERATE_RET tal_ble_mesh_init(TAL_BLE_ROLE_E role, const TAL_MESH_EVT_FUNC_CB me
  * @return  SUCCESS             Successfully mesh reset procedure.
  *          ERROR
  * */
-OPERATE_RET tal_ble_mesh_stack_reset(UCHAR_T config_reset);
+OPERATE_RET tal_ble_mesh_stack_reset(uint8_t config_reset);
 
 /**
  * @brief   We need to set mesh info, include netkey and appkey
@@ -59,7 +59,7 @@ OPERATE_RET tal_ble_mesh_info_set(TAL_MESH_LOCAL_INFO_T local_info);
  * @return  SUCCESS             Successfully set scanning procedure.
  *          ERROR
  * */
-OPERATE_RET tal_ble_mesh_scan_set(UCHAR_T enable, uint32_t timeout);
+OPERATE_RET tal_ble_mesh_scan_set(uint8_t enable, uint32_t timeout);
 
 /**
  * @brief   [Mesh Provisioner] Start to invite one mesh device into
@@ -115,7 +115,7 @@ OPERATE_RET tal_ble_mesh_device_set_seq(uint32_t seq);
  *@return   SUCCESS
  *          ERROR
  */
-OPERATE_RET tal_ble_mesh_device_update_iv_info(uint32_t iv_index, UCHAR_T flags);
+OPERATE_RET tal_ble_mesh_device_update_iv_info(uint32_t iv_index, uint8_t flags);
 
 /**
  *@brief    Set ttl for local node
@@ -123,7 +123,7 @@ OPERATE_RET tal_ble_mesh_device_update_iv_info(uint32_t iv_index, UCHAR_T flags)
  *@return   SUCCESS
  *          ERROR
  */
-OPERATE_RET tal_ble_mesh_local_node_set_ttl(UCHAR_T ttl);
+OPERATE_RET tal_ble_mesh_local_node_set_ttl(uint8_t ttl);
 
 /**
  *@brief    set local provisioner network transmit parameters.
@@ -135,7 +135,7 @@ OPERATE_RET tal_ble_mesh_local_node_set_ttl(UCHAR_T ttl);
  *@return   SUCCESS
  *          ERROR
  */
-OPERATE_RET tal_ble_mesh_local_network_transmit_set(UCHAR_T count, UCHAR_T interval_steps);
+OPERATE_RET tal_ble_mesh_local_network_transmit_set(uint8_t count, uint8_t interval_steps);
 
 /**
  * @brief   [Mesh Provisioner] Send data to mesh node

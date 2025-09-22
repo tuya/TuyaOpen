@@ -26,7 +26,6 @@
 
 #include "tal_kv.h"
 #include "lfs_config.h"
-#include "lfs.h"
 #include "tkl_flash.h"
 #include "tal_api.h"
 #include "tal_security.h"
@@ -37,8 +36,8 @@ static lfs_size_t lfs_flash_addr;
 static tal_kv_cfg_t lfs_kv_cfg;
 static MUTEX_HANDLE lfs_mutex;
 
-extern int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out, OUT uint32_t *out_len);
-extern int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbcnt);
+extern int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *out_len);
+extern int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt);
 
 /**
  * Reads data from a user-provided block device.
@@ -267,7 +266,7 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
     tal_mutex_lock(lfs_mutex);
     result = lfs_file_open(&lfs, &file, key, LFS_O_RDONLY);
     if (LFS_ERR_OK != result) {
-        PR_ERR("lfs open %s err", key, result);
+        PR_ERR("lfs open %s %d err", key, result);
         tal_mutex_unlock(lfs_mutex);
         return result;
     }
@@ -411,7 +410,7 @@ int tal_kv_serialize_set(const char *key, kv_db_t *db, size_t dbcnt)
         return OPRT_INVALID_PARM;
     }
 
-    CHAR_T *buf = NULL;
+    char *buf = NULL;
     uint32_t len = 0;
     int ret = OPRT_OK;
 
@@ -459,11 +458,21 @@ int tal_kv_serialize_get(const char *key, kv_db_t *db, size_t dbcnt)
         PR_ERR("kv_get fails %s %d", key, ret);
         return ret;
     }
-    ret = kv_deserialize((CHAR_T *)buf, db, dbcnt);
+    ret = kv_deserialize((char *)buf, db, dbcnt);
     tal_free(buf);
     if (OPRT_OK != ret) {
         PR_ERR("kv_deserialize fail. %d", ret);
     }
 
     return ret;
+}
+
+/**
+ * @brief Get the LFS handle, can be used for file system opeation
+ *
+ * @return lfs_t *
+ */
+lfs_t *tal_lfs_get()
+{
+    return &lfs;
 }

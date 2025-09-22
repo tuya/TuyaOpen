@@ -40,13 +40,13 @@
 #include "tal_system.h"
 typedef struct {
     THREAD_HANDLE thrdID;
-    int32_t thrdRunSta;
+    int thrdRunSta;
     THREAD_FUNC_CB pThrdFunc;
     void *pThrdFuncArg;
     uint32_t stackDepth;
     THREAD_ENTER_CB enter;
     THREAD_EXIT_CB exit;
-    CHAR_T thread_name[TAL_THREAD_MAX_NAME_LEN];
+    char thread_name[TAL_THREAD_MAX_NAME_LEN];
     LIST_HEAD node;
 } THRD_MANAGE, *P_THRD_MANAGE;
 
@@ -58,8 +58,8 @@ typedef struct {
 static DEL_THRD_MAG_S *s_del_thrd_mag = NULL;
 static LIST_HEAD s_all_thrd_mag;
 
-static void __WrapRunFunc(IN void *pArg);
-static void __inner_del_thread(IN THREAD_HANDLE thrdID);
+static void __WrapRunFunc(void *pArg);
+static void __inner_del_thread(THREAD_HANDLE thrdID);
 
 static OPERATE_RET __cr_and_init_del_thrd_mag(void)
 {
@@ -98,7 +98,7 @@ static void __add_del_thrd_node(THRD_MANAGE *thrd)
 }
 
 // need to port in different os
-static void __inner_del_thread(IN THREAD_HANDLE thrdID)
+static void __inner_del_thread(THREAD_HANDLE thrdID)
 {
     PR_DEBUG("real delete thread:%p", thrdID);
     // delete thread process
@@ -189,7 +189,7 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
 
     pMgr->thrdRunSta = THREAD_STATE_EMPTY;
     pMgr->pThrdFunc = func;
-    pMgr->pThrdFuncArg = func_args;
+    pMgr->pThrdFuncArg = (void *)func_args;
     pMgr->enter = enter;
     pMgr->exit = exit;
     strncpy(pMgr->thread_name, cfg->thrdname, TAL_THREAD_MAX_NAME_LEN - 1);
@@ -200,7 +200,7 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
     tuya_list_add_tail(&(pMgr->node), &s_all_thrd_mag);
     tal_mutex_unlock(s_del_thrd_mag->mutex);
 
-    int32_t opRet;
+    int opRet;
     opRet = tkl_thread_create(&(pMgr->thrdID), cfg->thrdname, cfg->stackDepth, cfg->priority, __WrapRunFunc, pMgr);
     if (opRet != 0) {
         PR_ERR("Create Thrd Fail:%d", opRet);
@@ -212,7 +212,7 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
         return OPRT_OS_ADAPTER_THRD_CREAT_FAILED;
     }
 
-    static int32_t stack_cnt = 0;
+    static int stack_cnt = 0;
     stack_cnt += cfg->stackDepth;
     PR_INFO("thread_create name:%s,stackDepth:%d,totalstackDepth:%d,priority:%d", cfg->thrdname, cfg->stackDepth,
             stack_cnt, cfg->priority);
@@ -220,7 +220,7 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
     return OPRT_OK;
 }
 
-static void __WrapRunFunc(IN void *pArg)
+static void __WrapRunFunc(void *pArg)
 {
     __free_all_del_thrd_node();
 
@@ -384,7 +384,7 @@ void tal_thread_dump_watermark(void)
     LIST_HEAD *pos = NULL;
     THRD_MANAGE *tmp_node = NULL;
     uint32_t watermark = 0;
-    int32_t op_ret;
+    int op_ret;
 
     tal_mutex_lock(s_del_thrd_mag->mutex);
     tuya_list_for_each(pos, &s_all_thrd_mag)

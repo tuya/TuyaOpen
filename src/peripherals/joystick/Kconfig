@@ -1,0 +1,9 @@
+config ENABLE_JOYSTICK
+    bool "enable joystick"
+    default n
+
+if (ENABLE_JOYSTICK)
+    config JOYSTICK_NAME
+        string "the name of joystick"
+        default "joystick"
+endif

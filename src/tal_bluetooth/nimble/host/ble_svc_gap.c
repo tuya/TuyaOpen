@@ -25,70 +25,67 @@
 #include "ble_endian.h"
 #include "tuya_hs_port.h"
 
-#define PPCP_ENABLED \
-    (TY_HS_BLE_ROLE_PERIPHERAL) && \
-    ((TY_HS_BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL) || \
-     (TY_HS_BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL) || \
-     (TY_HS_BLE_SVC_GAP_PPCP_SLAVE_LATENCY) || \
-     (TY_HS_BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
+#define PPCP_ENABLED                                                                                                   \
+    (TY_HS_BLE_ROLE_PERIPHERAL) &&                                                                                     \
+        ((TY_HS_BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL) || (TY_HS_BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL) ||                   \
+         (TY_HS_BLE_SVC_GAP_PPCP_SLAVE_LATENCY) || (TY_HS_BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
 
-#define BLE_SVC_GAP_NAME_MAX_LEN \
-    (TY_HS_BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH)
+#define BLE_SVC_GAP_NAME_MAX_LEN (TY_HS_BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH)
 
 static ble_svc_gap_chr_changed_fn *ble_svc_gap_chr_changed_cb_fn;
 
-static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] =
-        (TY_HS_BLE_SVC_GAP_DEVICE_NAME);
+static char ble_svc_gap_name[BLE_SVC_GAP_NAME_MAX_LEN + 1] = (TY_HS_BLE_SVC_GAP_DEVICE_NAME);
 static uint16_t ble_svc_gap_appearance = (TY_HS_BLE_SVC_GAP_APPEARANCE);
 
 #if TY_HS_BLE_CONNECT
-static int
-ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
-                   struct ble_gatt_access_ctxt *ctxt, void *arg);
+static int ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
+static __attribute__((unused)) const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
     {
         /*** Service: GAP. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_UUID16),
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            /*** Characteristic: Device Name. */
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ |
+        .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    /*** Characteristic: Device Name. */
+                    .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_DEVICE_NAME),
+                    .access_cb = ble_svc_gap_access,
+                    .flags = BLE_GATT_CHR_F_READ |
 #if (TY_HS_BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) >= 0
-                     BLE_GATT_CHR_F_WRITE |
-                     (TY_HS_BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) |
+                             BLE_GATT_CHR_F_WRITE | (TY_HS_BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) |
 #endif
-                     0,
-        }, {
-            /*** Characteristic: Appearance. */
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ |
+                             0,
+                },
+                {
+                    /*** Characteristic: Appearance. */
+                    .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_APPEARANCE),
+                    .access_cb = ble_svc_gap_access,
+                    .flags = BLE_GATT_CHR_F_READ |
 #if (TY_HS_BLE_SVC_GAP_APPEARANCE_WRITE_PERM) >= 0
-                     BLE_GATT_CHR_F_WRITE |
-                     (TY_HS_BLE_SVC_GAP_APPEARANCE_WRITE_PERM) |
+                             BLE_GATT_CHR_F_WRITE | (TY_HS_BLE_SVC_GAP_APPEARANCE_WRITE_PERM) |
 #endif
-                     0,
-        }, {
+                             0,
+                },
+                {
 #if PPCP_ENABLED
-            /*** Characteristic: Peripheral Preferred Connection Parameters. */
-            .uuid =
-                BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
+                    /*** Characteristic: Peripheral Preferred Connection Parameters. */
+                    .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_PERIPH_PREF_CONN_PARAMS),
+                    .access_cb = ble_svc_gap_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                },
+                {
 #endif
 #if (TY_HS_BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
-            /*** Characteristic: Central Address Resolution. */
-            .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION),
-            .access_cb = ble_svc_gap_access,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
+                    /*** Characteristic: Central Address Resolution. */
+                    .uuid = BLE_UUID16_DECLARE(BLE_SVC_GAP_CHR_UUID16_CENTRAL_ADDRESS_RESOLUTION),
+                    .access_cb = ble_svc_gap_access,
+                    .flags = BLE_GATT_CHR_F_READ,
+                },
+                {
 #endif
-            0, /* No more characteristics in this service. */
-        } },
+                    0, /* No more characteristics in this service. */
+                }},
     },
 
     {
@@ -96,8 +93,7 @@ static const struct ble_gatt_svc_def ble_svc_gap_defs[] = {
     },
 };
 
-static int
-ble_svc_gap_device_name_read_access(struct ble_gatt_access_ctxt *ctxt)
+static int ble_svc_gap_device_name_read_access(struct ble_gatt_access_ctxt *ctxt)
 {
     int rc;
 
@@ -106,8 +102,7 @@ ble_svc_gap_device_name_read_access(struct ble_gatt_access_ctxt *ctxt)
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-static int
-ble_svc_gap_device_name_write_access(struct ble_gatt_access_ctxt *ctxt)
+static int ble_svc_gap_device_name_write_access(struct ble_gatt_access_ctxt *ctxt)
 {
 #if (TY_HS_BLE_SVC_GAP_DEVICE_NAME_WRITE_PERM) < 0
     TUYA_HS_ASSERT(0);
@@ -136,8 +131,7 @@ ble_svc_gap_device_name_write_access(struct ble_gatt_access_ctxt *ctxt)
 #endif
 }
 
-static int
-ble_svc_gap_appearance_read_access(struct ble_gatt_access_ctxt *ctxt)
+static int ble_svc_gap_appearance_read_access(struct ble_gatt_access_ctxt *ctxt)
 {
     uint16_t appearance = htole16(ble_svc_gap_appearance);
     int rc;
@@ -147,8 +141,7 @@ ble_svc_gap_appearance_read_access(struct ble_gatt_access_ctxt *ctxt)
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-static int
-ble_svc_gap_appearance_write_access(struct ble_gatt_access_ctxt *ctxt)
+static int ble_svc_gap_appearance_write_access(struct ble_gatt_access_ctxt *ctxt)
 {
 #if (TY_HS_BLE_SVC_GAP_APPEARANCE_WRITE_PERM) < 0
     TUYA_HS_ASSERT(0);
@@ -180,9 +173,7 @@ ble_svc_gap_appearance_write_access(struct ble_gatt_access_ctxt *ctxt)
 #endif
 }
 
-static int
-ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
-                   struct ble_gatt_access_ctxt *ctxt, void *arg)
+static int ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle, struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
 #if (TY_HS_BLE_SVC_GAP_CENTRAL_ADDRESS_RESOLUTION) >= 0
@@ -190,11 +181,8 @@ ble_svc_gap_access(uint16_t conn_handle, uint16_t attr_handle,
 #endif
 #if PPCP_ENABLED
     uint16_t ppcp[4] = {
-        htole16((TY_HS_BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL)),
-        htole16((TY_HS_BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL)),
-        htole16((TY_HS_BLE_SVC_GAP_PPCP_SLAVE_LATENCY)),
-        htole16((TY_HS_BLE_SVC_GAP_PPCP_SUPERVISION_TMO))
-    };
+        htole16((TY_HS_BLE_SVC_GAP_PPCP_MIN_CONN_INTERVAL)), htole16((TY_HS_BLE_SVC_GAP_PPCP_MAX_CONN_INTERVAL)),
+        htole16((TY_HS_BLE_SVC_GAP_PPCP_SLAVE_LATENCY)), htole16((TY_HS_BLE_SVC_GAP_PPCP_SUPERVISION_TMO))};
 #endif
     int rc;
 
@@ -267,7 +255,7 @@ int ble_svc_gap_device_name_set(const char *name)
 
 uint16_t ble_svc_gap_device_appearance(void)
 {
-  return ble_svc_gap_appearance;
+    return ble_svc_gap_appearance;
 }
 
 int ble_svc_gap_device_appearance_set(uint16_t appearance)
@@ -284,7 +272,7 @@ void ble_svc_gap_set_chr_changed_cb(ble_svc_gap_chr_changed_fn *cb)
 
 void ble_svc_gap_init(void)
 {
-#if 0//clost tuyaos default config
+#if 0 // clost tuyaos default config
 #if TY_HS_BLE_CONNECT
     int rc;
 #endif

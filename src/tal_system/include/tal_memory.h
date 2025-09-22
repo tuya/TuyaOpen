@@ -61,7 +61,7 @@ extern "C" {
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-void *tal_malloc(SIZE_T size);
+void *tal_malloc(size_t size);
 
 /**
  * @brief This API is used to free memory of system.
@@ -81,7 +81,7 @@ void tal_free(void *ptr);
  *
  * @return the memory address calloced
  */
-void *tal_calloc(SIZE_T nitems, SIZE_T size);
+void *tal_calloc(size_t nitems, size_t size);
 
 /**
  * @brief Re-allocate the memory
@@ -91,7 +91,17 @@ void *tal_calloc(SIZE_T nitems, SIZE_T size);
  *
  * @return void
  */
-void *tal_realloc(void *ptr, SIZE_T size);
+void *tal_realloc(void *ptr, size_t size);
+
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+void *tal_psram_malloc(size_t size);
+
+void tal_psram_free(void *ptr);
+
+void *tal_psram_calloc(size_t nitems, size_t size);
+
+void *tal_psram_realloc(void *ptr, size_t size);
+#endif
 
 /**
  * @brief Get system free heap size
@@ -101,7 +111,7 @@ void *tal_realloc(void *ptr, SIZE_T size);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int32_t tal_system_get_free_heap_size(void);
+int tal_system_get_free_heap_size(void);
 
 #ifdef __cplusplus
 }

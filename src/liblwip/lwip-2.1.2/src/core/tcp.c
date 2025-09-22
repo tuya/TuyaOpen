@@ -1293,8 +1293,10 @@ tcp_slowtmr_start:
              * connect to somebody (i.e., we are in SYN_SENT). */
             if (pcb->state != SYN_SENT) {
               u8_t backoff_idx = LWIP_MIN(pcb->nrtx, sizeof(tcp_backoff) - 1);
-              int calc_rto = ((pcb->sa >> 3) + pcb->sv) << tcp_backoff[backoff_idx];
+              // int calc_rto = ((pcb->sa >> 3) + pcb->sv) << tcp_backoff[backoff_idx];
+              int calc_rto = pcb->rto +2;
               pcb->rto = (s16_t)LWIP_MIN(calc_rto, 0x7FFF);
+              printf("%d rto %d\r\n", __LINE__, pcb->rto);
             }
 
             /* Reset the retransmission timer. */

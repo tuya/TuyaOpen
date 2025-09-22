@@ -89,6 +89,14 @@ struct lwip_sock {
 #define LWIP_SOCK_FD_FREE_TCP  1
 #define LWIP_SOCK_FD_FREE_FREE 2
 #endif
+
+#if SOCK_API_SYNC
+	/* closing is 0, when the socket is created. It is 1, when the function "close" is called, */
+	/* and then send / recv function is not able to be called  */
+	int closing;
+	sys_mutex_t mutex_recv;
+	sys_mutex_t mutex_send;
+#endif
 };
 
 #ifndef set_errno

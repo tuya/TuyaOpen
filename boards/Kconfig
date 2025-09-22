@@ -1,0 +1,93 @@
+config BOARD_ENABLE_UBUNTU
+    bool
+    default y
+
+config BOARD_ENABLE_T2
+    bool
+    default y
+
+config BOARD_ENABLE_T3
+    bool
+    default y
+
+config BOARD_ENABLE_T5AI
+    bool
+    default y
+
+config BOARD_ENABLE_ESP32
+    bool
+    default y
+
+config BOARD_ENABLE_LN882H
+    bool
+    default y
+
+config BOARD_ENABLE_BK7231X
+    bool
+    default y
+
+# <new-board-enable: This line cannot be deleted or modified>
+
+
+choice
+    prompt "Choice a board"
+
+if (BOARD_ENABLE_UBUNTU)
+    config BOARD_CHOICE_UBUNTU
+        bool "Ubuntu"
+    if (BOARD_CHOICE_UBUNTU)
+    rsource "./Ubuntu/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_T2)
+    config BOARD_CHOICE_T2
+        bool "T2"
+    if (BOARD_CHOICE_T2)
+    rsource "./T2/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_T3)
+    config BOARD_CHOICE_T3
+        bool "T3"
+    if (BOARD_CHOICE_T3)
+    rsource "./T3/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_T5AI)
+    config BOARD_CHOICE_T5AI
+        bool "T5AI"
+    if (BOARD_CHOICE_T5AI)
+    rsource "./T5AI/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_ESP32)
+    config BOARD_CHOICE_ESP32
+        bool "ESP32"
+    if (BOARD_CHOICE_ESP32)
+    rsource "./ESP32/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_LN882H)
+    config BOARD_CHOICE_LN882H
+        bool "LN882H"
+    if (BOARD_CHOICE_LN882H)
+    rsource "./LN882H/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_BK7231X)
+    config BOARD_CHOICE_BK7231X
+        bool "BK7231X"
+    if (BOARD_CHOICE_BK7231X)
+    rsource "./BK7231X/Kconfig"
+    endif
+endif
+
+# <new-board-kconfig: This line cannot be deleted or modified>
+
+endchoice

@@ -18,6 +18,9 @@
  *
  */
 
+#include <string.h>
+#include <strings.h>
+#include <inttypes.h>
 #include "atop_base.h"
 #include "tuya_config_defaults.h"
 #include "tal_log.h"
@@ -176,7 +179,7 @@ static int atop_response_data_decode(const char *key, const uint8_t *input, size
     char *value;
     size_t value_length;
 
-    cJSON *root = cJSON_Parse((CHAR_T *)input);
+    cJSON *root = cJSON_Parse((char *)input);
     if (NULL == root) {
         return OPRT_CJSON_PARSE_ERR;
     }
@@ -327,7 +330,7 @@ int atop_base_request(const atop_base_request_t *request, atop_base_response_t *
     params[idx++].value = "3";
 
     char ts_str[11];
-    sprintf(ts_str, "%d", request->timestamp);
+    sprintf(ts_str, "%" PRIu32, request->timestamp);
     params[idx].key = "t";
     params[idx++].value = ts_str;
 

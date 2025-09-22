@@ -42,9 +42,10 @@ typedef uint8_t dp_prop_tp_t;
  * @brief tuya sdk dp cmd type
  */
 typedef uint8_t dp_cmd_type_t;
-#define DP_CMD_LAN 0 // cmd from LAN
-#define DP_CMD_MQ  1 // cmd from MQTT
-#define DP_CMD_BT  5 // cmd from BT
+#define DP_CMD_LAN      0 // cmd from LAN
+#define DP_CMD_MQ       1 // cmd from MQTT
+#define DP_CMD_BT       5 // cmd from BT
+#define DP_CMD_AI_SKILL 9 // cmd from AI skill
 
 /**
  * @brief  Definition of dp report type
@@ -133,7 +134,7 @@ typedef uint8_t dp_pv_stat_t;
 typedef union {
     int dp_value;       // valid when dp type is value
     uint32_t dp_enum;   // valid when dp type is enum
-    CHAR_T *dp_str;     // valid when dp type is str
+    char *dp_str;       // valid when dp type is str
     bool dp_bool;       // valid when dp type is bool
     uint32_t dp_bitmap; // valid when dp type is bitmap
 } dp_value_t;
@@ -252,7 +253,7 @@ typedef struct {
     /** mutex */
     void *dp_str_mutex;
     /** dp value */
-    CHAR_T *value;
+    char *value;
 } dp_prop_str_t;
 
 /**
@@ -413,7 +414,7 @@ dp_node_t *dp_node_find_by_devid(char *devid, int id);
  * @return A pointer to the `dp_schema_t` structure representing the data point
  * schema, or `NULL` if not found.
  */
-dp_schema_t *dp_schema_find(char *devid);
+dp_schema_t *dp_schema_find(const char *devid);
 
 /**
  * @brief Sets the PV (Property Value) status for a specific ID in the given

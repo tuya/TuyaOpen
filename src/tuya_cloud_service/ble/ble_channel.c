@@ -113,7 +113,7 @@ static void ble_channel_process(void *data)
     }
 }
 
-uint32_t __extract_packet_len(IN uint8_t *raw_data, OUT uint32_t *pNum)
+uint32_t __extract_packet_len(uint8_t *raw_data, uint32_t *pNum)
 {
     uint8_t i = 0;
     uint32_t multiplier = 1;

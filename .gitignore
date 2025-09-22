@@ -1,14 +1,27 @@
 __pycache__
 .vscode
 .tags
+.env.json
 
 CMakeCache.txt
 /CMakeFiles
 
+/.venv
 /tmp
 /.cache
 /cache
 /output
 /build
-/board/*/
-/docs
+tuyadb/
+/platform/*/
+__pycache__
+.build
+*.using_config
+.mirror
+dist
+
+/arduino-tuyaopen
+/tools/tyutool/
+/.set_example
+/dist
+*monitor.log

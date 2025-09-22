@@ -34,7 +34,7 @@
 #define SEQ_OFFSET_22_32      (CRC_OFFSET_22_32 + sizeof(uint32_t))
 #define CMD_FROM_OFFSET_22_32 (SEQ_OFFSET_22_32 + sizeof(uint32_t))
 #define DATA_OFFSET_22_32                                                                                              \
-    (CMD_FROM_OFFSET_22_32 + sizeof(uint32_t)) // PV/LPV(CHAR_T[3]) + CRC(uint32_t) + SEQ(uint32_t) +
+    (CMD_FROM_OFFSET_22_32 + sizeof(uint32_t)) // PV/LPV(char[3]) + CRC(uint32_t) + SEQ(uint32_t) +
                                                // CMD_FROM(uint32_t)
 
 // PV 2.3
@@ -71,8 +71,8 @@ uint32_t tuya_pack_protocol_serial_no(void)
     return serial_no;
 }
 
-static OPERATE_RET __parse_data_with_pv23(IN const DP_CMD_TYPE_E cmd, IN const BYTE_T *data, IN const uint32_t len,
-                                          IN const BYTE_T *key, OUT CHAR_T **out_data)
+static OPERATE_RET __parse_data_with_pv23(const DP_CMD_TYPE_E cmd, const uint8_t *data, const uint32_t len,
+                                          const uint8_t *key, char **out_data)
 {
     OPERATE_RET op_ret = OPRT_OK;
     if (memcmp(data, TUYA_PV23, PV23_VERSION_LEN) != 0) {
@@ -89,16 +89,16 @@ static OPERATE_RET __parse_data_with_pv23(IN const DP_CMD_TYPE_E cmd, IN const B
     cmd_from = UNI_NTOHL(cmd_from);
 
     // reserve_field must clean zore
-    BYTE_T reserve_field = 0;
+    uint8_t reserve_field = 0;
     if (memcmp(data + PV23_RESERVE_OFFSET, &reserve_field, PV23_RESERVE_LEN) != 0) {
         PR_ERR("reserve_field must clean zore");
         return OPRT_VERSION_FMT_ERR;
     }
 
-    BYTE_T *ad_data = (BYTE_T *)(data + 0);
+    uint8_t *ad_data = (uint8_t *)(data + 0);
     uint32_t data_len = len - PV23_EXCEPT_DATA_LEN;
     size_t ec_len = 0;
-    BYTE_T *ec_data = tal_malloc(data_len + 1);
+    uint8_t *ec_data = tal_malloc(data_len + 1);
     TUYA_CHECK_NULL_RETURN(ec_data, OPRT_MALLOC_FAILED);
 
     // decrypt data
@@ -122,15 +122,15 @@ static OPERATE_RET __parse_data_with_pv23(IN const DP_CMD_TYPE_E cmd, IN const B
 
     ec_data[ec_len] = 0;
 
-    *out_data = (CHAR_T *)ec_data;
+    *out_data = (char *)ec_data;
 
     return OPRT_OK;
 }
 
-static OPERATE_RET __parse_data_with_lpv35(IN const DP_CMD_TYPE_E cmd, IN const BYTE_T *data, IN const uint32_t len,
-                                           IN const BYTE_T *key, OUT CHAR_T **out_data)
+static OPERATE_RET __parse_data_with_lpv35(const DP_CMD_TYPE_E cmd, const uint8_t *data, const uint32_t len,
+                                           const uint8_t *key, char **out_data)
 {
-    CHAR_T pv_buf[4];
+    char pv_buf[4];
     memset(pv_buf, 0, sizeof(pv_buf));
     memcpy(pv_buf, data + PV_OFFSET_22_32, PV_LEN_22_32);
 
@@ -142,7 +142,7 @@ static OPERATE_RET __parse_data_with_lpv35(IN const DP_CMD_TYPE_E cmd, IN const 
     memcpy(&cmd_from, (data + CMD_FROM_OFFSET_22_32), sizeof(uint32_t));
     cmd_from = UNI_NTOHL(cmd_from);
 
-    BYTE_T *ec_data = NULL;
+    uint8_t *ec_data = NULL;
     uint32_t ec_len = len - DATA_OFFSET_22_32;
 
     ec_data = tal_malloc(ec_len + 1);
@@ -151,7 +151,7 @@ static OPERATE_RET __parse_data_with_lpv35(IN const DP_CMD_TYPE_E cmd, IN const 
 
     ec_data[ec_len] = 0;
 
-    *out_data = (CHAR_T *)ec_data;
+    *out_data = (char *)ec_data;
 
     return OPRT_OK;
 }
@@ -175,8 +175,8 @@ static OPERATE_RET __parse_data_with_lpv35(IN const DP_CMD_TYPE_E cmd, IN const 
  *         - OPRT_MALLOC_FAILED: Memory allocation failed.
  *         - OPRT_PARSE_FAILED: Parsing of the protocol data failed.
  */
-OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data, IN const int32_t len,
-                                     IN const CHAR_T *key, OUT CHAR_T **out_data)
+OPERATE_RET tuya_parse_protocol_data(const DP_CMD_TYPE_E cmd, uint8_t *data, const int len, const char *key,
+                                     char **out_data)
 {
     if ((NULL == data) || (len < DATA_OFFSET_22_32)) {
         PR_ERR("data is NULL OR Len Invalid %d", len);
@@ -185,7 +185,7 @@ OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data
 
     OPERATE_RET op_ret = OPRT_OK;
 
-    CHAR_T *pv = NULL;
+    char *pv = NULL;
 
     if (DP_CMD_LAN == cmd) {
         pv = TUYA_LPV35;
@@ -196,7 +196,7 @@ OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data
     if (DP_CMD_LAN == cmd) {
         if (0 == strcmp(pv, "3.5")) {
             PR_TRACE("Data From LAN AND V=3.5");
-            op_ret = __parse_data_with_lpv35(cmd, data, len, (BYTE_T *)key, out_data);
+            op_ret = __parse_data_with_lpv35(cmd, data, len, (uint8_t *)key, out_data);
         } else {
             PR_ERR("Data From LAN But No Match Parse %s", pv);
             return OPRT_COM_ERROR;
@@ -204,7 +204,7 @@ OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data
     } else if (DP_CMD_MQ == cmd) {
         if (0 == strcmp(pv, "2.3")) {
             PR_TRACE("Data From MQTT AND V=2.3");
-            op_ret = __parse_data_with_pv23(cmd, data, len, (BYTE_T *)key, out_data);
+            op_ret = __parse_data_with_pv23(cmd, data, len, (uint8_t *)key, out_data);
         } else {
             PR_ERR("Data From MQTT But No Match Parse %s", pv);
             return OPRT_COM_ERROR;
@@ -217,12 +217,12 @@ OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data
     return op_ret;
 }
 
-static OPERATE_RET __pack_data_with_cmd_pv23(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T *pv, IN const CHAR_T *src,
-                                             IN const uint32_t pro, IN const uint32_t num, IN const BYTE_T *key,
-                                             OUT BYTE_T **pack_out, OUT uint32_t *out_len)
+static OPERATE_RET __pack_data_with_cmd_pv23(const DP_CMD_TYPE_E cmd, const char *pv, const char *src,
+                                             const uint32_t pro, const uint32_t num, const uint8_t *key,
+                                             uint8_t **pack_out, uint32_t *out_len)
 {
     OPERATE_RET op_ret = OPRT_OK;
-    CHAR_T *out = NULL;
+    char *out = NULL;
     int offset = 0;
 
     PR_TRACE("To:%d src:%s pro:%d num:%d", cmd, src, pro, num);
@@ -234,14 +234,18 @@ static OPERATE_RET __pack_data_with_cmd_pv23(IN const DP_CMD_TYPE_E cmd, IN cons
         return OPRT_MALLOC_FAILED;
     }
 
-    offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(), src);
+    // offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(),
+    // src);
+    offset += sprintf(out + offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
+                      (uint32_t)tal_time_get_posix(), src);
+
     out[offset++] = '}';
     out[offset] = 0;
 
     PR_TRACE("After Pack:%s offset:%d", out, offset);
 
     // make pack data
-    BYTE_T *buf = tal_malloc(offset + PV23_EXCEPT_DATA_LEN);
+    uint8_t *buf = tal_malloc(offset + PV23_EXCEPT_DATA_LEN);
     if (buf == NULL) {
         tal_free(out);
         return OPRT_MALLOC_FAILED;
@@ -254,11 +258,11 @@ static OPERATE_RET __pack_data_with_cmd_pv23(IN const DP_CMD_TYPE_E cmd, IN cons
 
     // seq
     uint32_t tmp = UNI_HTONL(num);
-    memcpy(buf + PV23_SEQ_OFFSET, (BYTE_T *)(&tmp), sizeof(uint32_t));
+    memcpy(buf + PV23_SEQ_OFFSET, (uint8_t *)(&tmp), sizeof(uint32_t));
 
     // cmd from
     tmp = UNI_HTONL(0x00000001);
-    memcpy(buf + PV23_CMD_FROM_OFFSET, (BYTE_T *)(&tmp), sizeof(uint32_t));
+    memcpy(buf + PV23_CMD_FROM_OFFSET, (uint8_t *)(&tmp), sizeof(uint32_t));
 
     // reserve
     memset(buf + PV23_RESERVE_OFFSET, 0, 1);
@@ -292,11 +296,11 @@ static OPERATE_RET __pack_data_with_cmd_pv23(IN const DP_CMD_TYPE_E cmd, IN cons
     return OPRT_OK;
 }
 
-static OPERATE_RET __pack_data_with_cmd_lpv35(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T *pv, IN const CHAR_T *src,
-                                              IN const uint32_t pro, IN const uint32_t num, IN const BYTE_T *key,
-                                              OUT BYTE_T **pack_out, OUT uint32_t *out_len)
+static OPERATE_RET __pack_data_with_cmd_lpv35(const DP_CMD_TYPE_E cmd, const char *pv, const char *src,
+                                              const uint32_t pro, const uint32_t num, const uint8_t *key,
+                                              uint8_t **pack_out, uint32_t *out_len)
 {
-    CHAR_T *out = NULL;
+    char *out = NULL;
     int offset = 0;
 
     PR_TRACE("To:%d src:%s pro:%d num:%d", cmd, src, pro, num);
@@ -309,14 +313,18 @@ static OPERATE_RET __pack_data_with_cmd_lpv35(IN const DP_CMD_TYPE_E cmd, IN con
         return OPRT_MALLOC_FAILED;
     }
 
-    offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(), src);
+    // offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(),
+    // src);
+    offset += sprintf(out + offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
+                      (uint32_t)tal_time_get_posix(), src);
+
     out[offset++] = '}';
     out[offset] = 0;
 
     PR_TRACE("After Pack:%s offset:%d", out, offset);
 
     // make pack data
-    BYTE_T *buf = tal_malloc(DATA_OFFSET_22_32 + offset + 16);
+    uint8_t *buf = tal_malloc(DATA_OFFSET_22_32 + offset + 16);
     if (buf == NULL) {
         tal_free(out);
         return OPRT_MALLOC_FAILED;
@@ -334,13 +342,13 @@ static OPERATE_RET __pack_data_with_cmd_lpv35(IN const DP_CMD_TYPE_E cmd, IN con
     memcpy(buf + PV_OFFSET_22_32, pv, PV_LEN_22_32);
 
     uint32_t tmp = UNI_HTONL(0x00000000);
-    memcpy(buf + CRC_OFFSET_22_32, (BYTE_T *)(&tmp), sizeof(uint32_t));
+    memcpy(buf + CRC_OFFSET_22_32, (uint8_t *)(&tmp), sizeof(uint32_t));
 
     tmp = UNI_HTONL(num);
-    memcpy(buf + SEQ_OFFSET_22_32, (BYTE_T *)(&tmp), sizeof(uint32_t));
+    memcpy(buf + SEQ_OFFSET_22_32, (uint8_t *)(&tmp), sizeof(uint32_t));
 
     tmp = UNI_HTONL(0x00000001);
-    memcpy(buf + CMD_FROM_OFFSET_22_32, (BYTE_T *)(&tmp), sizeof(uint32_t));
+    memcpy(buf + CMD_FROM_OFFSET_22_32, (uint8_t *)(&tmp), sizeof(uint32_t));
 
     return OPRT_OK;
 }
@@ -362,8 +370,8 @@ static OPERATE_RET __pack_data_with_cmd_lpv35(IN const DP_CMD_TYPE_E cmd, IN con
  *     - OPRT_OK: Operation successful.
  *     - Other error codes: Operation failed.
  */
-OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T *src, IN const uint32_t pro,
-                                    IN BYTE_T *key, OUT CHAR_T **out, OUT uint32_t *out_len)
+OPERATE_RET tuya_pack_protocol_data(const DP_CMD_TYPE_E cmd, const char *src, const uint32_t pro, uint8_t *key,
+                                    char **out, uint32_t *out_len)
 {
     if ((NULL == src) || NULL == out) {
         PR_ERR("Invalid Param");
@@ -372,7 +380,7 @@ OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T 
 
     OPERATE_RET op_ret = OPRT_OK;
 
-    CHAR_T *pv = NULL;
+    char *pv = NULL;
 
     if (DP_CMD_LAN == cmd) {
         pv = TUYA_LPV35;
@@ -384,7 +392,7 @@ OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T 
     if (DP_CMD_LAN == cmd) {
         if (0 == strcmp(pv, "3.5")) {
             PR_TRACE("Data To LAN AND V=3.5");
-            op_ret = __pack_data_with_cmd_lpv35(cmd, pv, src, pro, num, (BYTE_T *)key, (BYTE_T **)out, out_len);
+            op_ret = __pack_data_with_cmd_lpv35(cmd, pv, src, pro, num, (uint8_t *)key, (uint8_t **)out, out_len);
         } else {
             PR_ERR("Data To LAN But No Match Parse %s", pv);
             return OPRT_COM_ERROR;
@@ -392,7 +400,7 @@ OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T 
     } else if (DP_CMD_MQ == cmd) {
         if (0 == strcmp(pv, "2.3")) {
             PR_TRACE("Data To MQTT AND V=2.3");
-            op_ret = __pack_data_with_cmd_pv23(cmd, pv, src, pro, num, key, (BYTE_T **)out, out_len);
+            op_ret = __pack_data_with_cmd_pv23(cmd, pv, src, pro, num, key, (uint8_t **)out, out_len);
         } else {
             PR_ERR("Data To MQTT But No Match Parse %s", pv);
             return OPRT_COM_ERROR;
@@ -414,7 +422,7 @@ OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T 
  * @param frame_obj Pointer to the LPV35 frame object.
  * @return The size of the frame buffer in bytes.
  */
-int32_t lpv35_frame_buffer_size_get(lpv35_frame_object_t *frame_obj)
+int lpv35_frame_buffer_size_get(lpv35_frame_object_t *frame_obj)
 {
     return (LPV35_FRAME_HEAD_SIZE + sizeof(lpv35_additional_data_t) + LPV35_FRAME_NONCE_SIZE + frame_obj->data_len +
             LPV35_FRAME_TAG_SIZE + LPV35_FRAME_TAIL_SIZE);
@@ -436,8 +444,8 @@ int32_t lpv35_frame_buffer_size_get(lpv35_frame_object_t *frame_obj)
  * @return OPERATE_RET Returns an OPERATE_RET value indicating the success or
  * failure of the serialization process.
  */
-OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv35_frame_object_t *input, BYTE_T *output,
-                                  int32_t *olen)
+OPERATE_RET lpv35_frame_serialize(const uint8_t *key, int key_len, const lpv35_frame_object_t *input, uint8_t *output,
+                                  int *olen)
 {
     if (key == NULL || key_len == 0 || input == NULL || output == NULL || olen == NULL) {
         PR_ERR("PARAM ERROR");
@@ -445,7 +453,7 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
     }
 
     OPERATE_RET op_ret = OPRT_OK;
-    int32_t offset = 0;
+    int offset = 0;
 
     // HEAD
     memcpy(output, LPV35_FRAME_HEAD, LPV35_FRAME_HEAD_SIZE);
@@ -456,12 +464,12 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
                                   .sequence = UNI_HTONL(input->sequence),
                                   .type = UNI_HTONL(input->type),
                                   .length = UNI_HTONL(LPV35_FRAME_NONCE_SIZE + input->data_len + LPV35_FRAME_TAG_SIZE)};
-    memcpy(output + offset, (BYTE_T *)&ad, sizeof(lpv35_additional_data_t));
+    memcpy(output + offset, (uint8_t *)&ad, sizeof(lpv35_additional_data_t));
     offset += sizeof(lpv35_additional_data_t);
 
     //  tmp nonce
-    BYTE_T i = 0;
-    BYTE_T nonce[LPV35_FRAME_NONCE_SIZE];
+    uint8_t i = 0;
+    uint8_t nonce[LPV35_FRAME_NONCE_SIZE];
     for (i = 0; i < LPV35_FRAME_NONCE_SIZE; i++) {
         nonce[i] = uni_random_range(0xFF);
     }
@@ -469,7 +477,7 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
     offset += LPV35_FRAME_NONCE_SIZE;
 
     // TAG buffer
-    BYTE_T tag[LPV35_FRAME_TAG_SIZE] = {0};
+    uint8_t tag[LPV35_FRAME_TAG_SIZE] = {0};
 
     // AES GCM encrypt
     size_t encrypt_olen = 0;
@@ -478,7 +486,7 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
                                                                           .key_len = key_len,
                                                                           .nonce = nonce,
                                                                           .nonce_len = LPV35_FRAME_NONCE_SIZE,
-                                                                          .ad = (BYTE_T *)(&ad),
+                                                                          .ad = (uint8_t *)(&ad),
                                                                           .ad_len = sizeof(lpv35_additional_data_t),
                                                                           .data = input->data,
                                                                           .data_len = input->data_len},
@@ -522,11 +530,11 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
  *         - OPRT_INVALID_PARM: Invalid parameters were provided.
  *         - OPRT_PARSE_FRAME_ERR: Error occurred while parsing the LPV35 frame.
  */
-OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *input, int32_t ilen,
+OPERATE_RET lpv35_frame_parse(const uint8_t *key, int key_len, const uint8_t *input, int ilen,
                               lpv35_frame_object_t *output)
 {
     OPERATE_RET op_ret = OPRT_OK;
-    int32_t offset = 0;
+    int offset = 0;
 
     if (key == NULL || key_len == 0 || input == NULL || ilen == 0 || output == NULL) {
         PR_ERR("PARAM ERROR");
@@ -542,7 +550,7 @@ OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *
     offset += LPV35_FRAME_HEAD_SIZE;
 
     // version
-    // BYTE_T version = *(input + offset) & 0x0f;
+    // uint8_t version = *(input + offset) & 0x0f;
     // PR_DEBUG("version:%d", version);
     offset += LPV35_FRAME_VERSION_SIZE;
 
@@ -575,19 +583,19 @@ OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *
     }
 
     // nonce
-    BYTE_T nonce[LPV35_FRAME_NONCE_SIZE];
+    uint8_t nonce[LPV35_FRAME_NONCE_SIZE];
     memcpy(nonce, input + offset, LPV35_FRAME_NONCE_SIZE);
     // tuya_debug_hex_dump("nonce", LPV35_FRAME_NONCE_SIZE, nonce,
     // LPV35_FRAME_NONCE_SIZE);
     offset += LPV35_FRAME_NONCE_SIZE;
 
     // encryption data
-    BYTE_T *data = (BYTE_T *)(input + offset);
+    uint8_t *data = (uint8_t *)(input + offset);
     output->data_len = length - LPV35_FRAME_NONCE_SIZE - LPV35_FRAME_TAG_SIZE;
     offset += output->data_len;
 
     // tag
-    BYTE_T tag[LPV35_FRAME_TAG_SIZE];
+    uint8_t tag[LPV35_FRAME_TAG_SIZE];
     memcpy(tag, input + offset, LPV35_FRAME_TAG_SIZE);
 
     // AD
@@ -604,7 +612,7 @@ OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *
                                                                           .key_len = key_len,
                                                                           .nonce = nonce,
                                                                           .nonce_len = LPV35_FRAME_NONCE_SIZE,
-                                                                          .ad = (BYTE_T *)(&ad),
+                                                                          .ad = (uint8_t *)(&ad),
                                                                           .ad_len = sizeof(lpv35_additional_data_t),
                                                                           .data = data,
                                                                           .data_len = output->data_len},

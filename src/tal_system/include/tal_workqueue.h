@@ -50,7 +50,7 @@ typedef BOOL_T (*WORKQUEUE_TRAVERSE_CB)(WORK_ITEM_T *item, void *ctx);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_workqueue_create(const UINT16_T queue_len, THREAD_CFG_T *thread_cfg, WORKQUEUE_HANDLE *handle);
+OPERATE_RET tal_workqueue_create(const uint16_t queue_len, THREAD_CFG_T *thread_cfg, WORKQUEUE_HANDLE *handle);
 
 /**
  * @brief put work task in workqueue
@@ -107,7 +107,7 @@ OPERATE_RET tal_workqueue_traverse(WORKQUEUE_HANDLE handle, WORKQUEUE_TRAVERSE_C
  *
  * @return the current item counts
  */
-UINT16_T tal_workqueue_get_num(WORKQUEUE_HANDLE handle);
+uint16_t tal_workqueue_get_num(WORKQUEUE_HANDLE handle);
 
 /**
  * @brief release the workqueue

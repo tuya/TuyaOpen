@@ -22,9 +22,6 @@
 extern "C" {
 #endif
 
-/**
- * The platform specific timer header that defines the Timer struct
- */
 #include <stdint.h>
 #include <stddef.h>
 
@@ -36,4 +33,4 @@ extern "C" {
 }
 #endif
 
-#endif //__TIMER_INTERFACE_H_
+#endif //__STORAGE_INTERFACE_H_

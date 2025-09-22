@@ -36,6 +36,38 @@ extern "C" {
  ********************* constant ( macro and enum ) *********************
  **********************************************************************/
 /**
+ * @brief Definition of log style
+ */
+typedef uint8_t TAL_LOG_DISPLAY_MODE_E;
+#define TAL_LOG_DISPLAY_MODE_DEFAULT    (0)
+#define TAL_LOG_DISPLAY_MODE_HIGH_LIGHT (1)
+#define TAL_LOG_DISPLAY_MODE_UNDER_LINE (4)
+#define TAL_LOG_DISPLAY_MODE_FLASH      (5)
+#define TAL_LOG_DISPLAY_MODE_REVERSE    (7)
+
+typedef uint8_t TAL_LOG_FONT_COLOR_E;
+#define TAL_LOG_FONT_COLOR_BLACK   (30)
+#define TAL_LOG_FONT_COLOR_RED     (31)
+#define TAL_LOG_FONT_COLOR_GREEN   (32)
+#define TAL_LOG_FONT_COLOR_YELLOW  (33)
+#define TAL_LOG_FONT_COLOR_BLUE    (34)
+#define TAL_LOG_FONT_COLOR_PURPLE  (35)
+#define TAL_LOG_FONT_COLOR_CYAN    (36)
+#define TAL_LOG_FONT_COLOR_WHITE   (37)
+#define TAL_LOG_FONT_COLOR_DEFAULT (39)
+
+typedef uint8_t TAL_LOG_BACKGROUND_COLOR_E;
+#define TAL_LOG_BACKGROUND_COLOR_BLACK   (40)
+#define TAL_LOG_BACKGROUND_COLOR_RED     (41)
+#define TAL_LOG_BACKGROUND_COLOR_GREEN   (42)
+#define TAL_LOG_BACKGROUND_COLOR_YELLOW  (43)
+#define TAL_LOG_BACKGROUND_COLOR_BLUE    (44)
+#define TAL_LOG_BACKGROUND_COLOR_PURPLE  (45)
+#define TAL_LOG_BACKGROUND_COLOR_CYAN    (46)
+#define TAL_LOG_BACKGROUND_COLOR_WHITE   (47)
+#define TAL_LOG_BACKGROUND_COLOR_DEFAULT (49)
+
+/**
  * @brief Definition of log level
  */
 typedef enum {
@@ -62,7 +94,7 @@ typedef TAL_LOG_LEVEL_E LOG_LEVEL;
 #endif
 
 PRINTF_CHECK(4, 5)
-OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const int32_t line, CHAR_T *fmt, ...);
+OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...);
 
 // file name maybe define from complie parameter
 #ifndef _THIS_FILE_NAME_
@@ -77,17 +109,17 @@ OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const
 #define PR_TRACE(fmt, ...)  tal_log_print(TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
 
 #define PR_HEXDUMP_ERR(title, buf, size)                                                                               \
-    tal_log_hex_dump(TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_WARN(title, buf, size)                                                                              \
-    tal_log_hex_dump(TAL_LOG_LEVEL_WARN, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_WARN, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_NOTICE(title, buf, size)                                                                            \
-    tal_log_hex_dump(TAL_LOG_LEVEL_NOTICE, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_NOTICE, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_INFO(title, buf, size)                                                                              \
-    tal_log_hex_dump(TAL_LOG_LEVEL_INFO, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_INFO, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_DEBUG(title, buf, size)                                                                             \
-    tal_log_hex_dump(TAL_LOG_LEVEL_DEBUG, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_DEBUG, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_TRACE(title, buf, size)                                                                             \
-    tal_log_hex_dump(TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, title, 64, buf, size)
+    tal_log_hex_dump(TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEX_DUMP(title, width, buf, size)                                                                           \
     tal_log_hex_dump(TAL_LOG_LEVEL_NOTICE, __FILE__, __LINE__, title, width, buf, size)
 
@@ -99,7 +131,7 @@ OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const
  ********************* struct ******************************************
  **********************************************************************/
 // prototype of log output function
-typedef void (*TAL_LOG_OUTPUT_CB)(IN const CHAR_T *str);
+typedef void (*TAL_LOG_OUTPUT_CB)(const char *str);
 
 /***********************************************************************
  ********************* variable ****************************************
@@ -121,7 +153,7 @@ typedef void (*TAL_LOG_OUTPUT_CB)(IN const CHAR_T *str);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int32_t buf_len, const TAL_LOG_OUTPUT_CB output);
+OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const TAL_LOG_OUTPUT_CB output);
 
 /**
  * @brief add one output terminal.
@@ -134,7 +166,7 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int32_t buf_len, con
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_add_output_term(const CHAR_T *name, const TAL_LOG_OUTPUT_CB term);
+OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB term);
 
 /**
  * @brief delete one output terminal.
@@ -145,7 +177,7 @@ OPERATE_RET tal_log_add_output_term(const CHAR_T *name, const TAL_LOG_OUTPUT_CB 
  *
  * @return NONE
  */
-void tal_log_del_output_term(const CHAR_T *name);
+void tal_log_del_output_term(const char *name);
 
 /**
  * @brief set global log level.
@@ -194,7 +226,7 @@ OPERATE_RET tal_log_get_level(TAL_LOG_LEVEL_E *level);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_add_module_level(const PCHAR_T module_name, const TAL_LOG_LEVEL_E level);
+OPERATE_RET tal_log_add_module_level(const char *module_name, const TAL_LOG_LEVEL_E level);
 
 /**
  * @brief This API is used for adding one module's log level.
@@ -205,7 +237,7 @@ OPERATE_RET tal_log_add_module_level(const PCHAR_T module_name, const TAL_LOG_LE
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_set_module_level(const PCHAR_T module_name, TAL_LOG_LEVEL_E level);
+OPERATE_RET tal_log_set_module_level(const char *module_name, TAL_LOG_LEVEL_E level);
 /**
  * @brief get one module's log level
  *
@@ -217,7 +249,7 @@ OPERATE_RET tal_log_set_module_level(const PCHAR_T module_name, TAL_LOG_LEVEL_E 
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_get_module_level(const PCHAR_T module_name, TAL_LOG_LEVEL_E *level);
+OPERATE_RET tal_log_get_module_level(const char *module_name, TAL_LOG_LEVEL_E *level);
 
 /**
  * @brief delete one module's log level
@@ -229,7 +261,7 @@ OPERATE_RET tal_log_get_module_level(const PCHAR_T module_name, TAL_LOG_LEVEL_E 
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_delete_module_level(const PCHAR_T module_name);
+OPERATE_RET tal_log_delete_module_level(const char *module_name);
 
 PRINTF_CHECK(1, 2)
 
@@ -242,7 +274,7 @@ PRINTF_CHECK(1, 2)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_log_print_raw(const PCHAR_T pFmt, ...);
+OPERATE_RET tal_log_print_raw(const char *pFmt, ...);
 
 /**
  * @brief destroy log management
@@ -268,8 +300,55 @@ void tal_log_release(void);
  *
  * @return NONE
  */
-void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const int32_t line, const CHAR_T *title,
-                      uint8_t width, uint8_t *buf, UINT16_T size);
+void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *title, uint8_t width,
+                      uint8_t *buf, uint16_t size);
+
+/**
+ * @brief Sets the enable status of log color.
+ *
+ * This function sets the enable status of log color. If the enable parameter is set to TRUE,
+ * log color will be enabled. If the enable parameter is set to FALSE, log color will be disabled.
+ *
+ * @param enable The enable status of log color. Set to TRUE to enable log color, FALSE to disable log color.
+ *
+ * @return NONE
+ */
+void tal_log_color_enable_set(BOOL_T enable);
+
+/**
+ * @brief Sets the color configuration for a specific log level.
+ *
+ * This function sets the color configuration for a specific log level, including the display mode, font color, and
+ * background color.
+ *
+ * @param level The log level to set the color configuration for.
+ * @param display_mode The display mode to set for the log level.
+ * @param font_color The font color to set for the log level.
+ * @param background_color The background color to set for the log level.
+ *
+ * @return NONE
+ */
+void tal_log_color_set(const TAL_LOG_LEVEL_E level, TAL_LOG_DISPLAY_MODE_E display_mode,
+                       TAL_LOG_FONT_COLOR_E font_color, TAL_LOG_BACKGROUND_COLOR_E background_color);
+
+/**
+ * @brief Prints a colored log message with the specified display mode, font color, and background color.
+ *
+ * This function prints a log message with the specified display mode, font color, and background color.
+ * The log message is formatted using a format string and optional arguments, similar to the printf function.
+ *
+ * @param display_mode The display mode of the log message.
+ * @param font_color The font color of the log message.
+ * @param background_color The background color of the log message.
+ * @param pFmt The format string for the log message.
+ * @param ... Optional arguments for the format string.
+ *
+ * @return The result of the operation. Returns OPRT_INVALID_PARM if pLogManage is NULL,
+ *         OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED if the format string failed to be formatted,
+ *         or the number of characters written to the log buffer otherwise.
+ */
+OPERATE_RET tal_log_color_print_raw(TAL_LOG_DISPLAY_MODE_E display_mode, TAL_LOG_FONT_COLOR_E font_color,
+                                    TAL_LOG_BACKGROUND_COLOR_E background_color, const char *pFmt, ...);
 
 #ifdef __cplusplus
 }

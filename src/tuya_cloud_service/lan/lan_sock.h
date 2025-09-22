@@ -49,7 +49,7 @@ typedef void (*sloop_sock_pre_select)();
  * @param[in] sock_ctx user data
  *
  */
-typedef void (*sloop_sock_err)(int32_t sock);
+typedef void (*sloop_sock_err)(int sock);
 
 /**
  * @brief sock loop thread quit handler
@@ -62,7 +62,7 @@ typedef void (*sloop_sock_quit)();
  *
  */
 typedef struct sloop_sock_t {
-    int32_t sock;
+    int sock;
     sloop_sock_pre_select pre_select;
     sloop_sock_read read;
     sloop_sock_err err;
@@ -89,7 +89,7 @@ OPERATE_RET tuya_reg_lan_sock(sloop_sock_t sock_info);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_unreg_lan_sock(int32_t sock);
+OPERATE_RET tuya_unreg_lan_sock(int sock);
 
 /**
  * @brief set sock loop disable
@@ -103,7 +103,7 @@ void tuya_sock_loop_disable();
  * @return terminate value
  *
  */
-BOOL_T tuya_get_sock_loop_terminate();
+int tuya_get_sock_loop_terminate();
 
 /**
  * @brief dump lan sock info

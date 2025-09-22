@@ -46,13 +46,13 @@ enum {
 };
 
 typedef struct {
-    USHORT_T category;
-    USHORT_T ele_addr;
+    uint16_t category;
+    uint16_t ele_addr;
 } dev_info_get_t;
 
 typedef struct {
-    UCHAR_T mac[6];
-    USHORT_T category;
+    uint8_t mac[6];
+    uint16_t category;
 } fast_prov_info_st;
 
 typedef struct {
@@ -61,25 +61,25 @@ typedef struct {
 } fast_prov_net_info_t;
 
 typedef struct {
-    USHORT_T ele_addr;
-    UCHAR_T bind_kind;
-    UCHAR_T mesh_pid[8];
-    USHORT_T dev_ver;
-    //  UCHAR_T extra_info;
+    uint16_t ele_addr;
+    uint8_t bind_kind;
+    uint8_t mesh_pid[8];
+    uint16_t dev_ver;
+    //  uint8_t extra_info;
 } _PACKED_ fast_prov_mac_st;
 
 typedef struct {
-    UCHAR_T err_type;
-    UCHAR_T err_rfu;
+    uint8_t err_type;
+    uint8_t err_rfu;
 } fast_prov_mac_err_st;
 
 typedef struct {
-    UCHAR_T get_mac_en;
+    uint8_t get_mac_en;
     uint32_t rcv_op;
-    UCHAR_T cur_sts;
-    UCHAR_T last_sts;
-    UCHAR_T pending;
-    USHORT_T delay;
+    uint8_t cur_sts;
+    uint8_t last_sts;
+    uint8_t pending;
+    uint16_t delay;
     uint32_t start_tick;
     uint32_t revert_tick;
     TKL_NET_PROV_DATA_T net_info;
@@ -88,8 +88,8 @@ typedef struct {
 
 void ty_mesh_fast_prov_init();
 void ty_mesh_fast_prov_proc(void);
-UCHAR_T tal_get_fast_prov_en_state(void);
-void mesh_fast_prov_recv_callback(USHORT_T src_addr, USHORT_T dst_addr, uint32_t opcode, UCHAR_T *par, int par_len);
+uint8_t tal_get_fast_prov_en_state(void);
+void mesh_fast_prov_recv_callback(uint16_t src_addr, uint16_t dst_addr, uint32_t opcode, uint8_t *par, int par_len);
 
 void tal_uuid_update(void);
 

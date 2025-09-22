@@ -332,9 +332,9 @@ static u8_t *add_offer_options(u8_t *optptr)
         ty_netif_ip_info_s if_ip;
         memset(&if_ip , 0x00, sizeof(ty_netif_ip_info_s));
         if (NULL != dhcps_netif) {
-            if_ip.ip.addr = dhcps_netif->ip_addr.addr;
-            if_ip.netmask.addr = dhcps_netif->netmask.addr;
-            if_ip.gw.addr = dhcps_netif->gw.addr;
+            if_ip.ip.addr = ip_addr_get_ip4_u32(&dhcps_netif->ip_addr);
+            if_ip.netmask.addr = ip_addr_get_ip4_u32(&dhcps_netif->netmask);
+            if_ip.gw.addr = ip_addr_get_ip4_u32(&dhcps_netif->gw);
         }
         
         ip4_addr_t* gw_ip = (ip4_addr_t*)&if_ip.gw;

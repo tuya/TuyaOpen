@@ -1,0 +1,9 @@
+config ENABLE_PMIC
+    bool "Enable PMIC"
+    default n
+
+if (ENABLE_PMIC)
+    config ENABLE_PMIC_AXP2101
+        bool "Enable axp2101"
+        default y
+endif

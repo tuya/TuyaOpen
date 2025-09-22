@@ -1,0 +1,20 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "Ubuntu"
+
+config PLATFORM_UBUNTU
+    bool
+    default y
+    select ENABLE_QRCODE
+
+config OPERATING_SYSTEM
+    int 
+    default 100
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"

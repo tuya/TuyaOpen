@@ -93,7 +93,7 @@ int tuya_lan_enable(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-// int tuya_lan_dp_report(IN void *data, IN const uint32_t len);
+// int tuya_lan_dp_report(IN void *data, const uint32_t len);
 
 /**
  * @brief distribute data to all connections
@@ -106,7 +106,7 @@ int tuya_lan_enable(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int tuya_lan_data_report(uint32_t fr_type, uint32_t ret_code, BYTE_T *data, uint32_t len);
+int tuya_lan_data_report(uint32_t fr_type, uint32_t ret_code, uint8_t *data, uint32_t len);
 
 /**
  * @brief disconnect all connections
@@ -125,7 +125,7 @@ int tuya_lan_disconnect_all(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-typedef int (*lan_cmd_handler_cb)(IN const BYTE_T *data, OUT BYTE_T **out);
+typedef int (*lan_cmd_handler_cb)(const uint8_t *data, uint8_t **out);
 
 /**
  * @brief register callback
@@ -156,8 +156,8 @@ int tuya_lan_unregister_cb(uint32_t frame_type);
 uint32_t tuya_lan_get_client_num(void);
 int tuya_lan_get_connect_client_num(void);
 
-int tuya_lan_data_com_send(IN const int32_t socket, IN const uint32_t fr_num, IN const uint32_t fr_type,
-                           IN const uint32_t ret_code, IN const BYTE_T *data, IN const uint32_t len);
+int tuya_lan_data_com_send(const int32_t socket, const uint32_t fr_num, const uint32_t fr_type, const uint32_t ret_code,
+                           const uint8_t *data, const uint32_t len);
 
 int tuya_lan_dp_report(char *dpstr);
 

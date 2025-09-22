@@ -313,7 +313,7 @@ static void __health_memory_notify(void)
 
 static bool __health_workq_check(void)
 {
-    UINT16_T workq_num = tal_workq_get_num(WORKQ_SYSTEM);
+    uint16_t workq_num = tal_workq_get_num(WORKQ_SYSTEM);
     PR_NOTICE("cur workq system num: %d", workq_num);
     if (workq_num > HEALTH_WORKQ_THRESHOLD) {
         return TRUE;
@@ -329,7 +329,7 @@ static void __health_workq_notify(void)
 
 static bool __health_msgq_check(void)
 {
-    UINT16_T workq_num = tal_workq_get_num(WORKQ_HIGHTPRI);
+    uint16_t workq_num = tal_workq_get_num(WORKQ_HIGHTPRI);
     PR_NOTICE("cur workq highpri num: %d", workq_num);
     if (workq_num > HEALTH_MSGQ_THRESHOLD) {
         return TRUE;
@@ -378,8 +378,7 @@ static void __health_foreach_item(void)
                 if ((health_node->item.cnt >= health_node->item.policy.threshold) &&
                     (health_node->item.policy.notify_cb)) {
                     PR_TRACE("do notify");
-                    tal_workq_schedule(WORKQ_SYSTEM, (WORKQUEUE_CB)health_node->item.policy.notify_cb,
-                                       NULL);
+                    tal_workq_schedule(WORKQ_SYSTEM, (WORKQUEUE_CB)health_node->item.policy.notify_cb, NULL);
                     health_node->item.cnt = 0;
                     health_node->item.ts = 0;
                 }

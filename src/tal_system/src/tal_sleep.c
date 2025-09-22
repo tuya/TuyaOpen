@@ -35,7 +35,7 @@
 
 typedef struct {
     BOOL_T lp_enable;
-    BYTE_T lp_mode_cnt;
+    uint8_t lp_mode_cnt;
     MUTEX_HANDLE lp_mutex;
     uint32_t lp_disable_cnt;
 } TAL_CPU_T;

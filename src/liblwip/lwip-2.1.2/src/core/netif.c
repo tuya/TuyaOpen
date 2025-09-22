@@ -1729,6 +1729,24 @@ netif_find(const char *name)
   return NULL;
 }
 
+
+
+/** Set callback for dhcp.
+ *
+ * 
+ * @param netif the netif from which to remove the struct dhcp
+ * @param cb    callback for dhcp
+ */
+void netif_set_dhcp_cb(struct netif *netif, void (*cb)(struct netif*, u8_t event, u8_t isup))
+{
+  LWIP_ASSERT("netif != NULL", netif != NULL);
+
+  if (netif != NULL) {
+    netif->dhcp_cb = cb;
+  }
+}
+/* Tuya add end. */
+
 #if LWIP_NETIF_EXT_STATUS_CALLBACK
 /**
  * @ingroup netif

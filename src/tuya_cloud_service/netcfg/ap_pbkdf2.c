@@ -48,8 +48,6 @@ int pbkdf2_sha256(const char *passphrase, size_t passphrase_len, const char *sal
                   uint32_t key_length, unsigned char *buf, size_t buflen)
 
 {
-    mbedtls_md_context_t sha_ctx;
-    const mbedtls_md_info_t *info_sha;
     int ret;
 
     if (NULL == passphrase || NULL == salt) {
@@ -60,6 +58,9 @@ int pbkdf2_sha256(const char *passphrase, size_t passphrase_len, const char *sal
         return -1;
     }
 
+#if (MBEDTLS_VERSION_NUMBER <= 0x03010000)
+    mbedtls_md_context_t sha_ctx;
+    const mbedtls_md_info_t *info_sha;
     mbedtls_md_init(&sha_ctx);
 
     info_sha = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
@@ -82,6 +83,10 @@ int pbkdf2_sha256(const char *passphrase, size_t passphrase_len, const char *sal
 
 exit:
     mbedtls_md_free(&sha_ctx);
+#else
+    ret = mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, (const unsigned char *)passphrase, passphrase_len,
+                                        (const unsigned char *)salt, salt_len, iterations, key_length, buf);
+#endif
 
     return ret;
 }

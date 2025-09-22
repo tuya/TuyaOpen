@@ -22,6 +22,10 @@ if [ "config" != ${NEW_CONFIG_NAME##*.} ]; then
     NEW_CONFIG_NAME=$NEW_CONFIG_NAME.config
 fi
 
+if [ ! -d "$2" ]; then
+    mkdir -p "$2"
+fi
+
 cp ${1} ${2}/${NEW_CONFIG_NAME}
 echo "[KCONFIG] Save new config [${NEW_CONFIG_NAME}]"
 

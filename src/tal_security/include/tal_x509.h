@@ -40,8 +40,6 @@ typedef enum {
     X509_fingerprint_SHA256 = 1,
 } X509_fingerprint;
 
-typedef void *tuya_x509_struct;
-
 /**
  * @brief Checks if the given buffer contains a CA (Certificate Authority) in
  * PEM format.

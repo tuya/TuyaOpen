@@ -25,8 +25,7 @@
 #include "ethernetif.h"
 #include "lwip_init.h"
 #include "lwip/ethip6.h" //Add for ipv6
-//#include "tal_network.h"
-//#include "tuya_os_adapter_errcode.h"
+#include "lwip/dns.h"
 #include "tkl_lwip.h"
 
 /***********************************************************
@@ -42,7 +41,7 @@
 *************************variable define********************
 ***********************************************************/
 /* network interface structure */
-struct netif xnetif[NETIF_NUM];
+//struct netif xnetif[NETIF_NUM];
 
 #if LWIP_TUYA_PACKET_PRINT
 /***********************************************************
@@ -65,7 +64,7 @@ static void tuya_ethernetif_packet_print(struct pbuf *p)
     second = (timeout / 1000) % 60;
     msecond = timeout % 1000;
     printf("+---------+---------------+----------+\r\n");
-    printf("%02d:%02d:%02d,%d,000   ETHER\r\n", hour, minute, second, msecond);
+    printf("%02d:%02d:%02d,%d,000   ETHER\r\n", hour, minute , second, msecond);
     printf("|0   |");
     for (q = p; q != NULL; q = q->next) {
         for (i = 0; i < q->len; i++) {
@@ -88,83 +87,73 @@ struct netif *tuya_ethernetif_get_netif_by_index(const TUYA_NETIF_TYPE net_if_id
         return NULL;
     }
 
-    return &xnetif[net_if_idx];
-}
-
-/**
- * @brief netif broadcast enable/disable
- *
- * @param[in]      enable    (1:enable the broadcast  0:disable the broadcast)
- * @return  void
- */
-void tuya_ethernetif_broadcast_set(const TUYA_NETIF_TYPE net_if_idx, BOOL_T enable)
-{
-    struct netif *pnetif = NULL;
-
-    pnetif = tuya_ethernetif_get_netif_by_index(net_if_idx);
-
-    if (enable == TRUE) {
-        pnetif->flags |= NETIF_FLAG_BROADCAST;
-    } else {
-        pnetif->flags &= ~NETIF_FLAG_BROADCAST;
-    }
-}
-
-/**
- * @brief set netif ipaddr from lwip
- *
- * @param[in]       net_if_idx    index of netif
- * @param[out]      ip            ip of netif(ip gateway mask)
- * @return  void
- */
-void tuya_ethernetif_set_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_S *ip)
-{
-    struct netif *pnetif = NULL;
-    u32_t ip_addr = 0;
-    u32_t gw = 0;
-    u32_t mask = 0;
-
-    pnetif = tuya_ethernetif_get_netif_by_index(net_if_idx);
-
-    ip_addr = inet_addr(ip->ip);
-    gw = inet_addr(ip->gw);
-    mask = inet_addr(ip->mask);
-
-    IP4_ADDR(&pnetif->ip_addr, ip_addr & 0xff, (ip_addr >> 8) & 0xff, (ip_addr >> 16) & 0xff, (ip_addr >> 24) & 0xff);
-    IP4_ADDR(&pnetif->gw, gw & 0xff, (gw >> 8) & 0xff, (gw >> 16) & 0xff, (gw >> 24) & 0xff);
-    IP4_ADDR(&pnetif->netmask, mask & 0xff, (mask >> 8) & 0xff, (mask >> 16) & 0xff, (mask >> 24) & 0xff);
+    return tkl_lwip_get_netif_by_index(net_if_idx);
 }
 
 /**
  * @brief get netif ipaddr from lwip
  *
  * @param[in]       net_if_idx    index of netif
+ * @param[in]       type          ip type
  * @param[out]      ip            ip of netif(ip gateway mask)
- * @return  void
+ * @return  0 on success
  */
-void tuya_ethernetif_get_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_S *ip)
+int tuya_ethernetif_get_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_TYPE type, NW_IP_S *ip)
 {
-    u32_t ip_address = 0;
-    struct netif *pnetif = NULL;
+#if 0
+    struct netif *pnetif = tuya_ethernetif_get_netif_by_index(net_if_idx);
+    if(NULL == pnetif) {
+        return -1;
+    }
+#if LWIP_IPV6
+    int i = 0;
+#endif
 
-    pnetif = tuya_ethernetif_get_netif_by_index(net_if_idx);
+    if(type == NW_IPV4) {
+        if(!ip_addr_isany_val(pnetif->ip_addr)) {
+            ip->type = (IP_ADDR_TYPE)TY_AF_INET;
+            ip->addr.ip4.islinklocal = 0;
 
-    // ip
-    ip_address = pnetif->ip_addr.addr;
-    sprintf(ip->ip, "%d.%d.%d.%d", (unsigned char)(ip_address), (unsigned char)(ip_address >> 8),
-            (unsigned char)(ip_address >> 16), (unsigned char)(ip_address >> 24));
+            ip4addr_ntoa_r(ip_2_ip4(&pnetif->ip_addr), ip->addr.ip4.ip, 16);
+            ip4addr_ntoa_r(ip_2_ip4(&pnetif->gw), ip->addr.ip4.gw, 16);
+            ip4addr_ntoa_r(ip_2_ip4(&pnetif->netmask), ip->addr.ip4.mask, 16);
 
-    // gw
-    ip_address = pnetif->gw.addr;
-    sprintf(ip->gw, "%d.%d.%d.%d", (unsigned char)(ip_address), (unsigned char)(ip_address >> 8),
-            (unsigned char)(ip_address >> 16), (unsigned char)(ip_address >> 24));
+            if((ip_addr_get_ip4_u32(&pnetif->ip_addr)  & 0xffff0000) == 0xA96FE0000) {
+                ip->addr.ip4.islinklocal = 1;
+            }
 
-    // submask
-    ip_address = pnetif->netmask.addr;
-    sprintf(ip->mask, "%d.%d.%d.%d", (unsigned char)(ip_address), (unsigned char)(ip_address >> 8),
-            (unsigned char)(ip_address >> 16), (unsigned char)(ip_address >> 24));
+            return 0;
+        }
+    }
+    #if LWIP_IPV6
+    else if(type == NW_IPV6_LL) {
+        for (i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
+          if (ip6_addr_isvalid(netif_ip6_addr_state(pnetif, i)) &&
+              ip6_addr_islinklocal(netif_ip6_addr(pnetif, i))) {
+            ip->type = (IP_ADDR_TYPE)TY_AF_INET6;
+            ip6addr_ntoa_r(netif_ip6_addr(pnetif, i), ip->addr.ip6.ip, 40);
+            ip->addr.ip6.islinklocal = 1;
+
+            return 0;
+          }
+        }
+    }else if(type == NW_IPV6) {
+        for (i = 0; i < LWIP_IPV6_NUM_ADDRESSES; i++) {
+          if (ip6_addr_isvalid(netif_ip6_addr_state(pnetif, i)) &&
+              !ip6_addr_islinklocal(netif_ip6_addr(pnetif, i))) {
+            ip->type = (IP_ADDR_TYPE)TY_AF_INET6;
+            ip6addr_ntoa_r(netif_ip6_addr(pnetif, i), ip->addr.ip6.ip, 40);
+            ip->addr.ip6.islinklocal = 0;
+
+            return 0;
+          }
+        }
+    }
+    #endif
+#endif
+
+    return -1;
 }
-
 /**
  * @brief set netif's mac
  *
@@ -177,7 +166,7 @@ int tuya_ethernetif_mac_set(const TUYA_NETIF_TYPE net_if_idx, NW_MAC_S *mac)
     struct netif *pnetif = NULL;
     u32_t i = 0;
 
-    if (MAC_ADDR_LEN != NETIF_MAX_HWADDR_LEN) {
+    if(MAC_ADDR_LEN != NETIF_MAX_HWADDR_LEN){
         return OPRT_OS_ADAPTER_NOT_SUPPORTED;
     }
 
@@ -202,7 +191,7 @@ int tuya_ethernetif_mac_get(const TUYA_NETIF_TYPE net_if_idx, NW_MAC_S *mac)
     struct netif *pnetif = NULL;
     u32_t i = 0;
 
-    if (MAC_ADDR_LEN != NETIF_MAX_HWADDR_LEN) {
+    if(MAC_ADDR_LEN != NETIF_MAX_HWADDR_LEN){
         return OPRT_OS_ADAPTER_NOT_SUPPORTED;
     }
 
@@ -263,6 +252,10 @@ static void tuya_ethernet_init(struct netif *netif)
     netif->flags |= NETIF_FLAG_IGMP;
 #endif
 
+#if LWIP_IPV6 && LWIP_IPV6_MLD
+    netif->flags |= NETIF_FLAG_MLD6;
+#endif
+
     /* Wlan interface is initialized later */
     tkl_ethernetif_init(netif);
 }
@@ -271,8 +264,7 @@ static void tuya_ethernet_init(struct netif *netif)
  * @brief ethernet interface sendout the pbuf packet
  *
  * @param[in]      netif     the netif to which to be inited
- * @return  err_t  SEE "err_enum_t" in "lwip/err.h" to see the lwip err(ERR_OK:
- * SUCCESS other:fail)
+ * @return  err_t  SEE "err_enum_t" in "lwip/err.h" to see the lwip err(ERR_OK: SUCCESS other:fail)
  */
 err_t tuya_ethernetif_init(struct netif *netif)
 {
@@ -290,8 +282,8 @@ err_t tuya_ethernetif_init(struct netif *netif)
 #if LWIP_IPV6
     netif->output_ip6 = ethip6_output;
 #endif
-    // netif->linkoutput = tuya_ethernetif_output;
-    netif->linkoutput = (netif_linkoutput_fn)tkl_ethernetif_output;
+    //netif->linkoutput = tuya_ethernetif_output;
+    netif->linkoutput = tkl_ethernetif_output;
 
     /* initialize the hardware */
     tuya_ethernet_init(netif);
@@ -311,7 +303,7 @@ int tuya_ethernetif_get_ifindex_by_mac(NW_MAC_S *mac, TUYA_NETIF_TYPE *net_if_id
     }
 
     for (i = 0; i < NETIF_NUM; i++) {
-        netif = &xnetif[i];
+        netif = tuya_ethernetif_get_netif_by_index(i);
         if (NULL == netif) {
             continue;
         }
@@ -322,5 +314,27 @@ int tuya_ethernetif_get_ifindex_by_mac(NW_MAC_S *mac, TUYA_NETIF_TYPE *net_if_id
         }
     }
 
+    return 0;
+}
+
+/**
+ * @brief get DNS server from lwip
+ *
+ * @param[in]       net_if_idx    index of netif
+ * @param[in]       type          DNS server type
+ * @param[out]      ip            IP address of DNS server
+ * @return  0 on success
+ */
+int tuya_ethernetif_get_dns_srv(NW_IP_TYPE type, NW_IP_S *ip)
+{
+    ip_addr_t *dns_srv;
+
+    for (int i = 0; i < DNS_MAX_SERVERS; i++) {
+        dns_srv = (ip_addr_t *)dns_getserver(i);
+        if (IPADDR_TYPE_V4 == IP_GET_TYPE(dns_srv)) {
+            ip4addr_ntoa_r(ip_2_ip4(dns_srv), ip->ip, 16);
+            break;
+        }
+    }
     return 0;
 }

@@ -18,7 +18,8 @@
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
-
+#include <stdio.h>
+#include <inttypes.h>
 #include "tuya_cloud_types.h"
 #include "tal_kv.h"
 #include "tal_api.h"
@@ -36,9 +37,9 @@
  * @return Returns OPRT_OK if serialization is successful, otherwise returns an
  * error code.
  */
-int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out, OUT uint32_t *out_len)
+int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *out_len)
 {
-    int32_t i = 0;
+    int i = 0;
     // conut need buf size
     uint32_t len = 0;
     for (i = 0; i < dbcnt; i++) {
@@ -48,7 +49,7 @@ int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out
         } else if (db[i].tp == KV_BOOL) {
             len += 6 + 6;
         } else if (db[i].tp == KV_STRING) {
-            CHAR_T *tmp = (CHAR_T *)db[i].val;
+            char *tmp = (char *)db[i].val;
             if (0 == tmp[0]) {
                 len += db[i].len + 4 + 4; //"id":null,
             } else {
@@ -67,7 +68,7 @@ int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out
     len += 3; // 3 == {}\0
 
     uint32_t offset = 0;
-    CHAR_T *buf = tal_malloc(len);
+    char *buf = tal_malloc(len);
     if (NULL == buf) {
         PR_ERR("maloc fails %d", len);
         return OPRT_MALLOC_FAILED;
@@ -81,19 +82,19 @@ int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out
         // add value
         switch (db[i].tp) {
         case KV_CHAR: {
-            offset += sprintf(buf + offset, "%d", *((CHAR_T *)(db[i].val)));
+            offset += sprintf(buf + offset, "%d", *((char *)(db[i].val)));
         } break;
         case KV_BYTE: {
-            offset += sprintf(buf + offset, "%d", *((BYTE_T *)(db[i].val)));
+            offset += sprintf(buf + offset, "%d", *((uint8_t *)(db[i].val)));
         } break;
         case KV_SHORT: {
-            offset += sprintf(buf + offset, "%d", *((SHORT_T *)(db[i].val)));
+            offset += sprintf(buf + offset, "%d", *((int16_t *)(db[i].val)));
         } break;
         case KV_USHORT: {
-            offset += sprintf(buf + offset, "%d", *((USHORT_T *)(db[i].val)));
+            offset += sprintf(buf + offset, "%d", *((uint16_t *)(db[i].val)));
         } break;
         case KV_INT: {
-            offset += sprintf(buf + offset, "%d", *((int32_t *)(db[i].val)));
+            offset += sprintf(buf + offset, "%" PRId32, *((int32_t *)(db[i].val)));
         } break;
         case KV_BOOL: {
             if (FALSE == *((BOOL_T *)(db[i].val))) {
@@ -104,11 +105,11 @@ int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out
         } break;
 
         case KV_STRING: {
-            CHAR_T *tmp = (CHAR_T *)db[i].val;
+            char *tmp = (char *)db[i].val;
             if (0 == tmp[0]) {
                 offset += sprintf(buf + offset, "null");
             } else {
-                offset += sprintf(buf + offset, "\"%s\"", (CHAR_T *)db[i].val);
+                offset += sprintf(buf + offset, "\"%s\"", (char *)db[i].val);
             }
         } break;
 
@@ -164,7 +165,7 @@ int kv_serialize(IN const kv_db_t *db, IN const uint32_t dbcnt, OUT CHAR_T **out
  * @return Returns OPRT_OK if the deserialization is successful. Otherwise, it
  * returns an error code indicating the failure reason.
  */
-int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbcnt)
+int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt)
 {
     cJSON *root = cJSON_Parse(in);
     if (NULL == root) {
@@ -173,7 +174,7 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
     }
 
     int op_ret = OPRT_OK;
-    int32_t i = 0;
+    int i = 0;
     cJSON *json = NULL;
     for (i = 0; i < dbcnt; i++) {
         json = cJSON_GetObjectItem(root, db[i].key);
@@ -200,7 +201,7 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
                 op_ret = OPRT_COM_ERROR;
                 goto ERR_EXIT;
             }
-            *((CHAR_T *)db[i].val) = json->valueint;
+            *((char *)db[i].val) = json->valueint;
         } break;
 
         case KV_BYTE: {
@@ -208,7 +209,7 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
                 op_ret = OPRT_COM_ERROR;
                 goto ERR_EXIT;
             }
-            *((BYTE_T *)db[i].val) = json->valueint;
+            *((uint8_t *)db[i].val) = json->valueint;
         } break;
 
         case KV_SHORT: {
@@ -216,7 +217,7 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
                 op_ret = OPRT_COM_ERROR;
                 goto ERR_EXIT;
             }
-            *((SHORT_T *)db[i].val) = json->valueint;
+            *((int16_t *)db[i].val) = json->valueint;
         } break;
 
         case KV_USHORT: {
@@ -224,11 +225,11 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
                 op_ret = OPRT_COM_ERROR;
                 goto ERR_EXIT;
             }
-            *((USHORT_T *)db[i].val) = json->valueint;
+            *((uint16_t *)db[i].val) = json->valueint;
         } break;
 
         case KV_INT: {
-            *((int32_t *)db[i].val) = json->valueint;
+            *((int *)db[i].val) = json->valueint;
         } break;
 
         case KV_BOOL: {
@@ -237,7 +238,7 @@ int kv_deserialize(IN const CHAR_T *in, INOUT kv_db_t *db, IN const uint32_t dbc
 
         case KV_STRING: {
             if (json->type == cJSON_NULL) {
-                CHAR_T *tmp = (CHAR_T *)db[i].val;
+                char *tmp = (char *)db[i].val;
                 tmp[0] = 0;
             } else {
                 uint32_t len = strlen(json->valuestring) + 1;

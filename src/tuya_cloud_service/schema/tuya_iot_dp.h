@@ -53,7 +53,7 @@ int tuya_iot_dp_schema_create(char *devid, char *schema_json, dp_schema_t **dp_s
  * @param flags
  * @return int
  */
-int tuya_iot_dp_obj_report(tuya_iot_client_t *client, char *devid, dp_obj_t *dps, uint16_t dpscnt, int flags);
+int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_t *dps, uint16_t dpscnt, int flags);
 
 /**
  * @brief
@@ -64,7 +64,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, char *devid, dp_obj_t *dps
  * @param timeout
  * @return int
  */
-int tuya_iot_dp_raw_report(tuya_iot_client_t *client, char *devid, dp_raw_t *dp, uint32_t timeout);
+int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_t *dp, uint32_t timeout);
 
 /**
  * @brief

@@ -108,7 +108,7 @@ static BOOL_T __work_cancel_traverse(void *item, void *ctx)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_workqueue_create(const UINT16_T queue_len, THREAD_CFG_T *thread_cfg, WORKQUEUE_HANDLE *handle)
+OPERATE_RET tal_workqueue_create(const uint16_t queue_len, THREAD_CFG_T *thread_cfg, WORKQUEUE_HANDLE *handle)
 {
     OPERATE_RET op_ret = OPRT_OK;
     TAL_WORKQUEUE_T *workqueue = NULL;
@@ -254,7 +254,7 @@ OPERATE_RET tal_workqueue_traverse(WORKQUEUE_HANDLE handle, WORKQUEUE_TRAVERSE_C
  *
  * @return the current item counts
  */
-UINT16_T tal_workqueue_get_num(WORKQUEUE_HANDLE handle)
+uint16_t tal_workqueue_get_num(WORKQUEUE_HANDLE handle)
 {
     if (NULL == handle) {
         return OPRT_INVALID_PARM;

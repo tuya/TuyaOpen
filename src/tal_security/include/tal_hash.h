@@ -243,7 +243,7 @@ OPERATE_RET tal_sha1_update_ret(TKL_HASH_HANDLE ctx, const uint8_t *input, size_
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_sha1_finish_ret(TKL_HASH_HANDLE ctx, uint8_t output[16]);
+OPERATE_RET tal_sha1_finish_ret(TKL_HASH_HANDLE ctx, uint8_t output[20]);
 /**
  * @brief          This function calculates the SHA-224 or SHA-256
  *                 checksum of a buffer.

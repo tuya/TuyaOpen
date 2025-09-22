@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 脚本来源： https://github.com/felixqin/zbuild/blob/master/sh/listmenu.sh
+# From: https://github.com/felixqin/zbuild/blob/master/sh/listmenu.sh
 
 # $1: title
 # $2: height

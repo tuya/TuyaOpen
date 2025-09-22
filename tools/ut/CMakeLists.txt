@@ -15,13 +15,18 @@ endif()
 option(UT_ENABLE "Enable UT" OFF)
 
 if(NOT UT_ENABLE)
-    message(STATUS "[UT] Disable UT.
-    If you want to use UT,
-    ${Cyan}[${CCMAKE} ..]${ColourReset} and turn on ${Cyan}[UT_ENABLE]${ColourReset},
-    ${Cyan}[cmake ..]${ColourReset} again.
-    ")
+    message(STATUS "[UT] Disable UT.")
     return()
 endif()
+
+# if(NOT UT_ENABLE)
+#     message(STATUS "[UT] Disable UT.
+#     If you want to use UT,
+#     ${Cyan}[ccmake ..]${ColourReset} and turn on ${Cyan}[UT_ENABLE]${ColourReset},
+#     ${Cyan}[cmake ..]${ColourReset} again.
+#     ")
+#     return()
+# endif()
 
 message(STATUS "[UT] Enable UT.
         If you want to use UT,

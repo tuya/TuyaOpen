@@ -1,0 +1,16 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "XINGZHI_ESP32S3_CUDE_0.96_OLED_WIFI"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO
+    select ENABLE_ESP_DISPLAY
+    select PLATFORM_FLASHSIZE_16M
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_ESP32S3_USB_JTAG_ONLY

@@ -18,7 +18,7 @@ typedef struct {
     TAL_TIMER_CB cb;
     void *data;
 
-    UINT64_T expire_time;
+    uint64_t expire_time;
     TIME_MS interval;
     BOOL_T is_running;
     TIMER_ID timer_id;
@@ -29,8 +29,8 @@ typedef struct {
     LIST_HEAD list_active;
     LIST_HEAD list_standby;
     MUTEX_HANDLE mutex;
-    UINT16_T total_cnt;
-    UINT16_T running_cnt;
+    uint16_t total_cnt;
+    uint16_t running_cnt;
 
     BOOL_T inited;
     THREAD_HANDLE thread;
@@ -93,7 +93,7 @@ static void __timer_dump(void)
         if (timer->data) {
             timer_id = timer->data;
             if (*timer_id == timer->timer_id) {
-                cb = (TAL_TIMER_CB *)((CHAR_T *)timer->data + sizeof(TIMER_ID));
+                cb = (TAL_TIMER_CB *)((char *)timer->data + sizeof(TIMER_ID));
             }
         }
         PR_NOTICE("%08x %d %d %p", timer->timer_id, timer->type, timer->interval, *cb);
@@ -107,7 +107,7 @@ static void __timer_dump(void)
         if (timer->data) {
             timer_id = timer->data;
             if (*timer_id == timer->timer_id) {
-                cb = (TAL_TIMER_CB *)((CHAR_T *)timer->data + sizeof(TIMER_ID));
+                cb = (TAL_TIMER_CB *)((char *)timer->data + sizeof(TIMER_ID));
             }
         }
         PR_NOTICE("%08x %d %d %p", timer->timer_id, timer->type, timer->interval, *cb);
@@ -120,7 +120,7 @@ static void __timer_dispatch(SYS_TIME_T *next_expired)
 {
     TIME_S nowSecTime = 0;
     TIME_MS nowMsTime = 0;
-    UINT64_T nowMS = 0;
+    uint64_t nowMS = 0;
     TIMER_T *timer = NULL;
     TAL_TIMER_CB timer_cb = NULL;
     struct tuya_list_head *p = NULL;
@@ -129,7 +129,7 @@ static void __timer_dispatch(SYS_TIME_T *next_expired)
 
     do {
         tal_time_get_system_time(&nowSecTime, &nowMsTime);
-        nowMS = (UINT64_T)nowSecTime * 1000 + (UINT64_T)nowMsTime;
+        nowMS = (uint64_t)nowSecTime * 1000 + (uint64_t)nowMsTime;
 
         tal_mutex_lock(s_timer_mgr.mutex);
 
@@ -354,11 +354,11 @@ OPERATE_RET tal_sw_timer_remain_time_get(TIMER_ID timer_id, uint32_t *remain_tim
         return OPRT_INVALID_PARM;
     }
 
-    UINT64_T nowMS = 0;
+    uint64_t nowMS = 0;
     TIME_S secTime = 0;
     TIME_MS msTime = 0;
     tal_time_get_system_time(&secTime, &msTime);
-    nowMS = (UINT64_T)secTime * 1000 + (UINT64_T)msTime;
+    nowMS = (uint64_t)secTime * 1000 + (uint64_t)msTime;
 
     TIMER_T *timer = (TIMER_T *)timer_id;
     if (!timer->is_running) {
@@ -412,7 +412,7 @@ OPERATE_RET tal_sw_timer_start(TIMER_ID timer_id, TIME_MS time_ms, TIMER_TYPE ti
     }
 
     timer->type = timer_type;
-    timer->expire_time = (UINT64_T)secTime * 1000 + (UINT64_T)msTime + timer->interval;
+    timer->expire_time = (uint64_t)secTime * 1000 + (uint64_t)msTime + timer->interval;
     __timer_attach(timer);
 
     tal_mutex_unlock(s_timer_mgr.mutex);
@@ -477,7 +477,7 @@ OPERATE_RET tal_sw_timer_release(void)
  *
  * @return the timer node count.
  */
-int32_t tal_sw_timer_get_num(void)
+int tal_sw_timer_get_num(void)
 {
     if (s_timer_mgr.last_cb) {
         PR_NOTICE("last_cb %p", s_timer_mgr.last_cb);

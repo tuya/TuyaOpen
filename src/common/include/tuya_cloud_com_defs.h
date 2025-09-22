@@ -78,19 +78,19 @@ extern "C" {
 #define M_SCE_ERR_OTHER   5 // other failure
 
 // Product Function Specification
-typedef BYTE_T GW_ABI;
+typedef uint8_t GW_ABI;
 #define GW_VIRTUAL         0x00 // product doesn't have subdevices functions,it only has device function. For example: SOC or MCU
 #define GW_ENTITY_ATTH_DEV 0x01 // Product has subdevices functions and it also has device function.
 #define GW_ENTITY          0x02 // Product only has subdevices functions.
 
 // Product Network Connection
-typedef BYTE_T GW_NW_STAT_T;
+typedef uint8_t GW_NW_STAT_T;
 #define GNS_UNVALID   0 // product is offline in LAN and WAN
 #define GNS_LAN_VALID 1 // product is online in LAN but offline in WAN
 #define GNS_WAN_VALID 2 // product is online in LAN and WAN
 
 // Product Extend State
-typedef BYTE_T GW_EXT_STAT_T;
+typedef uint8_t GW_EXT_STAT_T;
 #define EXT_UNAUTH         0 // UNAUTH
 #define EXT_PROD_TEST      1 // PROD_TEST
 #define EXT_NORMAL_S       2 // NORMAL_S
@@ -108,7 +108,7 @@ typedef BYTE_T GW_EXT_STAT_T;
  * @note 0~9 are consistent among all TUYA devices
  * 10~19 are customized by device itself
  */
-typedef BYTE_T DEV_TYPE_T;
+typedef uint8_t DEV_TYPE_T;
 #define DEV_NM_ATH_SNGL     0  // main netlink module
 #define DEV_BLE_SNGL        1  // ble
 #define DEV_ZB_SNGL         3  // ZigBee
@@ -130,7 +130,7 @@ typedef uint32_t USER_DEV_DTL_DEF_T; // user detial type define
 /**
  * @brief Definition of all attache types
  */
-typedef BYTE_T GW_PERMIT_DEV_TP_T;
+typedef uint8_t GW_PERMIT_DEV_TP_T;
 #define GP_DEV_DEF    0xFF                // default device type
 #define GP_DEV_ZB     DEV_ZB_SNGL         // zigbee
 #define GP_DEV_BLE    DEV_BLE_SNGL        // ble
@@ -148,7 +148,7 @@ typedef BYTE_T GW_PERMIT_DEV_TP_T;
 
 #define GP_DEV_SUPPORT_MAX GP_DEV_ATH_10 // max attach id
 
-typedef BYTE_T TY_DP_REPT_CHAN_TP_T;
+typedef uint8_t TY_DP_REPT_CHAN_TP_T;
 #define TY_DP_REPT_CHAN_LAN       0
 #define TY_DP_REPT_CHAN_MQTT      1
 #define TY_DP_REPT_CHAN_HTTP      2

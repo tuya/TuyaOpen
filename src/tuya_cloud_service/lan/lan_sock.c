@@ -34,9 +34,9 @@
 
 #define LAN_UDP_READER_CNT 5
 typedef struct LAN_SLOOP_S {
-    int32_t max_sock;
+    int max_sock;
     THREAD_HANDLE thread;
-    int32_t cnt;
+    int cnt;
     sloop_sock_t *readers;
     BOOL_T terminate;
     QUEUE_HANDLE queue;
@@ -57,7 +57,7 @@ static uint32_t __ty_sock_get_reader_num(void)
 
 static void __sock_table_set_fds(TUYA_FD_SET_T *rfds, TUYA_FD_SET_T *efds)
 {
-    int32_t idx;
+    int idx;
     for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
         if (g_sloop->readers[idx].sock >= 0) {
             tal_net_fd_set(g_sloop->readers[idx].sock, rfds);
@@ -68,7 +68,7 @@ static void __sock_table_set_fds(TUYA_FD_SET_T *rfds, TUYA_FD_SET_T *efds)
 
 static void __sock_select_err_handle()
 {
-    int32_t idx;
+    int idx;
     for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
         if (g_sloop->readers[idx].sock >= 0) {
             if (g_sloop->readers[idx].err) {
@@ -85,7 +85,7 @@ void __ty_sock_loop_deinit(void)
         return;
     }
 
-    UCHAR_T idx = 0;
+    uint8_t idx = 0;
     if (g_sloop->readers) {
         for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
             if (g_sloop->readers[idx].sock != -1) {
@@ -120,7 +120,7 @@ void __ty_add_sock_reader(sloop_sock_t sock_info)
         g_sloop->max_sock = sock_info.sock;
     }
 
-    UCHAR_T idx = 0;
+    uint8_t idx = 0;
     for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
         if ((sock_info.sock == g_sloop->readers[idx].sock) && (g_sloop->readers[idx].read == sock_info.read)) {
             PR_DEBUG("update lan sock %d,read:%p", sock_info.sock, sock_info.read);
@@ -150,9 +150,9 @@ void __ty_add_sock_reader(sloop_sock_t sock_info)
     return;
 }
 
-void __ty_del_sock_reader(int32_t sock)
+void __ty_del_sock_reader(int sock)
 {
-    UCHAR_T idx = 0;
+    uint8_t idx = 0;
     for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
         if (g_sloop->readers[idx].sock == sock) {
             PR_DEBUG("unreg lan sock %d and close it", sock);
@@ -177,8 +177,8 @@ void __ty_del_sock_reader(int32_t sock)
 
 void tuya_sock_loop_run(void *data)
 {
-    int32_t actv_cnt = 0;
-    int32_t idx = 0;
+    int actv_cnt = 0;
+    int idx = 0;
     TUYA_FD_SET_T *rfds, *efds;
     sloop_sock_t queue_data = {0};
 
@@ -295,7 +295,7 @@ Err:
 OPERATE_RET tuya_sock_loop_init(void)
 {
     OPERATE_RET op_ret = OPRT_OK;
-    UCHAR_T idx = 0;
+    uint8_t idx = 0;
     if (g_sloop) {
         return OPRT_OK;
     }
@@ -375,7 +375,7 @@ OPERATE_RET tuya_reg_lan_sock(sloop_sock_t sock_info)
  *         - OPRT_OK: The LAN socket was successfully unregistered.
  *         - Other error codes indicating the failure reason.
  */
-OPERATE_RET tuya_unreg_lan_sock(int32_t sock)
+OPERATE_RET tuya_unreg_lan_sock(int sock)
 {
     OPERATE_RET op_ret = OPRT_OK;
     sloop_sock_t sock_info = {0};
@@ -430,7 +430,7 @@ BOOL_T tuya_get_sock_loop_terminate(void)
  */
 void tuya_dump_lan_sock_reader(void)
 {
-    UCHAR_T idx = 0;
+    uint8_t idx = 0;
     if (NULL == g_sloop) {
         return;
     }

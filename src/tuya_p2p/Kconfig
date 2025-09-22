@@ -1,0 +1,6 @@
+# Ktuyaconf
+config ENABLE_TUYA_P2P
+	bool "Enable Tuya P2P"
+	default n
+	help 
+		Enable Tuya P2P

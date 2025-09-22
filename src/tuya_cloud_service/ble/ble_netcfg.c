@@ -49,9 +49,9 @@ static void __handle_net_cfg(void *data, void *user_data)
         goto __exit;
     }
 
-    CHAR_T *ssid = cJSON_GetObjectItem(json, "ssid")->valuestring;
-    CHAR_T *token = cJSON_GetObjectItem(json, "token")->valuestring;
-    CHAR_T *passwd = NULL;
+    char *ssid = cJSON_GetObjectItem(json, "ssid")->valuestring;
+    char *token = cJSON_GetObjectItem(json, "token")->valuestring;
+    char *passwd = NULL;
     if (cJSON_GetObjectItem(json, "pwd") != NULL) {
         passwd = cJSON_GetObjectItem(json, "pwd")->valuestring;
     }

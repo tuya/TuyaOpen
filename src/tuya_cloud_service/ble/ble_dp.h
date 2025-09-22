@@ -34,7 +34,7 @@ extern "C" {
  *     - 0: Success
  *     - Other values: Error codes
  */
-int tuya_ble_dp_report(IN dp_rept_in_t *dpin);
+int tuya_ble_dp_report(dp_rept_in_t *dpin);
 
 /**
  * @brief Processes the BLE session data point (DP) packet.

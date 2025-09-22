@@ -2,15 +2,14 @@
 # -*- coding: utf-8 -*-
 ##
 # @file cong2h.py
-# @brief 将.config转成.cmake
+# @brief .config to .cmake
 # @author Tuya
 # @version 1.0.0
 # @date 2023-04-11
-#/
+#
 
 
 import os
-import sys
 import argparse
 
 
@@ -22,15 +21,15 @@ def conf2cmake(conf, cmake):
         conf_lines += conf_f.readlines()
         conf_f.close()
 
-    for l in conf_lines:
-        l = l.strip()
+    for cl in conf_lines:
+        cl = cl.strip()
         ans = ""
-        if l.startswith("CONFIG_"):
-            ori_key = l.split('=', 1)[0]
-            ori_value = l.split('=', 1)[1].strip("\"")
-            ans = f'set({ori_key} \"{ori_value}\" PARENT_SCOPE)'
+        if cl.startswith("CONFIG_"):
+            ori_key = cl.split('=', 1)[0]
+            ori_value = cl.split('=', 1)[1].strip("\"")
+            ans = f'set({ori_key} \"{ori_value}\")'
         else:
-            ans = l
+            ans = cl
         context += f'{ans}\n'
 
     cmake_f = open(cmake, 'w', encoding="utf-8")
@@ -40,10 +39,17 @@ def conf2cmake(conf, cmake):
 
 
 if __name__ == "__main__":
-    parse = argparse.ArgumentParser(usage="-c \"a.config b.config\" -o config.cmake", \
+    parse = argparse.ArgumentParser(
+        usage="-c \"a.config b.config\" -o config.cmake",
         description="Translate .config to .h")
-    parse.add_argument('-c', '--config', type=str, default=".config", help="Input config file. [.config]", metavar="")
-    parse.add_argument('-o', '--output', type=str, default="config.h", help="Output header file. [config.cmake]", metavar="")
+    parse.add_argument('-c', '--config', type=str,
+                       default=".config",
+                       help="Input config file. [.config]",
+                       metavar="")
+    parse.add_argument('-o', '--output', type=str,
+                       default="config.h",
+                       help="Output header file. [config.cmake]",
+                       metavar="")
     args = parse.parse_args()
 
     conf_file = args.config

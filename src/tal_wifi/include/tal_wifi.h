@@ -219,7 +219,7 @@ OPERATE_RET tal_wifi_all_ap_scan(AP_IF_S **ap_ary, uint32_t *num);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_assign_ap_scan(SCHAR_T *ssid, AP_IF_S **ap);
+OPERATE_RET tal_wifi_assign_ap_scan(int8_t *ssid, AP_IF_S **ap);
 
 /**
  * @brief release the memory malloced in <tuya_hal_wifi_all_ap_scan>
@@ -239,7 +239,7 @@ OPERATE_RET tal_wifi_release_ap(AP_IF_S *ap);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_set_cur_channel(UCHAR_T chan);
+OPERATE_RET tal_wifi_set_cur_channel(uint8_t chan);
 
 /**
  * @brief get wifi interface work channel
@@ -248,7 +248,7 @@ OPERATE_RET tal_wifi_set_cur_channel(UCHAR_T chan);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_get_cur_channel(UCHAR_T *chan);
+OPERATE_RET tal_wifi_get_cur_channel(uint8_t *chan);
 
 /**
  * @brief enable / disable wifi sniffer mode.
@@ -273,6 +273,17 @@ OPERATE_RET tal_wifi_sniffer_set(BOOL_T en, SNIFFER_CALLBACK cb);
  * tuya_error_code.h
  */
 OPERATE_RET tal_wifi_get_ip(WF_IF_E wf, NW_IP_S *ip);
+
+/**
+ * @brief set wifi ip info set ip.when wifi works in
+ *        ap+station mode, wifi has two ips.
+ *
+ * @param[in]       wf     wifi function type
+ * @param[in]       ip     the ip addr info
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+
+OPERATE_RET tal_wifi_set_ip(WF_IF_E wf, NW_IP_S *ip);
 
 /**
  * @brief set wifi mac info.when wifi works in
@@ -356,7 +367,7 @@ OPERATE_RET tal_fast_station_connect(FAST_WF_CONNECTED_AP_INFO_T *fast_ap_info);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_station_connect(SCHAR_T *ssid, SCHAR_T *passwd);
+OPERATE_RET tal_wifi_station_connect(int8_t *ssid, int8_t *passwd);
 
 /**
  * @brief disconnect wifi from connect ap
@@ -373,7 +384,7 @@ OPERATE_RET tal_wifi_station_disconnect(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_station_get_conn_ap_rssi(SCHAR_T *rssi);
+OPERATE_RET tal_wifi_station_get_conn_ap_rssi(int8_t *rssi);
 
 /**
  * @brief get wifi bssid
@@ -382,7 +393,7 @@ OPERATE_RET tal_wifi_station_get_conn_ap_rssi(SCHAR_T *rssi);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_get_bssid(UCHAR_T *mac);
+OPERATE_RET tal_wifi_get_bssid(uint8_t *mac);
 
 /**
  * @brief get wifi station work status
@@ -409,7 +420,7 @@ OPERATE_RET tal_wifi_station_get_err_stat(WF_STATION_STAT_E *stat);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_set_country_code(CHAR_T *country_code);
+OPERATE_RET tal_wifi_set_country_code(char *country_code);
 
 /**
  * @brief send wifi management
@@ -419,7 +430,7 @@ OPERATE_RET tal_wifi_set_country_code(CHAR_T *country_code);
  * @return  OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_wifi_send_mgnt(UCHAR_T *buf, uint32_t len);
+OPERATE_RET tal_wifi_send_mgnt(uint8_t *buf, uint32_t len);
 
 /**
  * @brief register receive wifi management callback

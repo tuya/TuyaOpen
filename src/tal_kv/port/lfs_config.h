@@ -197,7 +197,7 @@ static inline uint32_t lfs_tobe32(uint32_t a)
 }
 
 // Calculate CRC-32 with polynomial = 0x04c11db7
-static uint32_t lfs_crc(uint32_t crc, const void *buffer, size_t size)
+static __attribute__((unused)) uint32_t lfs_crc(uint32_t crc, const void *buffer, size_t size)
 {
     static const uint32_t rtable[16] = {
         0x00000000, 0x1db71064, 0x3b6e20c8, 0x26d930ac, 0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,

@@ -1,0 +1,32 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "T3"
+
+config PLATFORM_T3
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_T3_LCD_DEVKIT
+        bool "T3_LCD_DEVKIT"
+        if (BOARD_CHOICE_T3_LCD_DEVKIT)
+            rsource "./T3_LCD_DEVKIT/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice
+

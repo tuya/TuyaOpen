@@ -73,6 +73,7 @@ typedef enum {
     TUYA_EVENT_DPCACHE_NOTIFY,
     TUYA_EVENT_BINDED_NOTIFY,
     TUYA_EVENT_DIRECT_MQTT_CONNECTED,
+    TUYA_EVENT_RTC_REQ,
 } tuya_event_id_t;
 
 #define EVENT_ID2STR(S)                                                                                                                                \
@@ -91,27 +92,11 @@ typedef enum {
                                             : ((S) == TUYA_EVENT_DP_RECEIVE                                                                            \
                                                    ? "TUYA_EVENT_DP_RECEIVE"                                                                           \
                                                    : ((S) == TUYA_EVENT_DP_RECEIVE_CJSON                                                               \
-                                                          ? "TUYA_EVENT_DP_"                                                                           \
-                                                            "RECEIVE_CJSON"                                                                            \
+                                                          ? "TUYA_EVENT_DP_RECEIVE_CJSON"                                                              \
                                                           : ((S) == TUYA_EVENT_UPGRADE_NOTIFY                                                          \
-                                                                 ? "TUYA_"                                                                             \
-                                                                   "EVENT_"                                                                            \
-                                                                   "UPGRADE_"                                                                          \
-                                                                   "NOTIFY"                                                                            \
+                                                                 ? "TUYA_EVENT_UPGRADE_NOTIFY"                                                         \
                                                                  : ((S) == TUYA_EVENT_RESET_COMPLETE                                                   \
-                                                                        ? "TU"                                                                         \
-                                                                          "YA"                                                                         \
-                                                                          "_E"                                                                         \
-                                                                          "VE"                                                                         \
-                                                                          "NT"                                                                         \
-                                                                          "_R"                                                                         \
-                                                                          "ES"                                                                         \
-                                                                          "ET"                                                                         \
-                                                                          "_C"                                                                         \
-                                                                          "OM"                                                                         \
-                                                                          "PL"                                                                         \
-                                                                          "ET"                                                                         \
-                                                                          "E"                                                                          \
+                                                                        ? "TUYA_EVENT_RESET_COMPLETE"                                                  \
                                                                         : ((S) == TUYA_EVENT_TIMESTAMP_SYNC                                            \
                                                                                ? "TUYA_EVENT_TIMESTAMP_SYNC"                                           \
                                                                                : ((S) == TUYA_EVENT_DPCACHE_NOTIFY                                     \
@@ -131,6 +116,7 @@ typedef enum {
                                                                                                            : ((S) == TUYA_EVENT_DIRECT_MQTT_CONNECTED  \
                                                                                                                   ? "TUYA_EVENT_DIRECT_MQTT_CONNECTED" \
                                                                                                                   : "Unknown"))))))))))))))))
+// clang-format on
 
 typedef enum {
     TUYA_STATUS_UNACTIVE = 0,
@@ -183,6 +169,11 @@ typedef struct tuya_iot_client_handle tuya_iot_client_t;
 typedef void (*event_handle_cb_t)(tuya_iot_client_t *client, tuya_event_msg_t *event);
 
 typedef bool (*network_check_cb_t)(void);
+
+typedef struct {
+    char *uuid;
+    char *authkey;
+} tuya_iot_license_t;
 
 typedef struct {
     const char *productkey;
@@ -242,6 +233,14 @@ struct tuya_iot_client_handle {
     /** device manage */
     dp_schema_t *schema;
 };
+
+/**
+ * @brief Read cloud activation license from chip
+ *
+ * @param[out] license -  cloud activation license
+ * @return int - OPRT_OK successful or error code.
+ */
+int tuya_iot_license_read(tuya_iot_license_t *license);
 
 /**
  * @brief Initialize the Tuya client implementation

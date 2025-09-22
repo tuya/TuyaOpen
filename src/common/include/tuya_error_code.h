@@ -75,7 +75,10 @@ extern "C" {
 #define OPRT_AUTHENTICATION_FAIL      (-0x0022) //-34, Authentication failed
 #define OPRT_MSG_OUT_OF_LIMIT         (-0x0023) //-35, Message out of limit
 #define OPRT_VERSION_FMT_ERR          (-0x0024) //-36, Version format error
-#define OPRT_GLOBAL_ERRCODE_MAX_CNT   37
+#define OPRT_DIR_OPEN_FAILED          (-0x0025) //-37, DIR open failed
+#define OPRT_DIR_READ_FAILED          (-0x0026) //-38, DIR read failed
+#define OPRT_EOD                      (-0x0027) //-39, DIR END
+#define OPRT_GLOBAL_ERRCODE_MAX_CNT   40
 
 /****************************************************************************
             the error code marco define for module BASE_OS_ADAPTER

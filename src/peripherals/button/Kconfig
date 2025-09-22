@@ -1,0 +1,38 @@
+config ENABLE_BUTTON
+    bool "enable button"
+    default n
+
+if (ENABLE_BUTTON)  
+    config BUTTON_NAME
+        string "the name of button 1"
+        default "button1"
+
+    config ENABLE_BUTTON_2
+        bool "enable button 2"
+        default n
+
+    config BUTTON_NAME_2
+        string "the name of button 2"
+        default "button2"
+        depends on ENABLE_BUTTON_2
+
+    config ENABLE_BUTTON_3
+        bool "enable button 3"
+        default n
+        depends on ENABLE_BUTTON_2
+
+    config BUTTON_NAME_3
+        string "the name of button 3"
+        default "button3"
+        depends on ENABLE_BUTTON_3
+
+    config ENABLE_BUTTON_4
+        bool "enable button 4"
+        default n
+        depends on ENABLE_BUTTON_3
+
+    config BUTTON_NAME_4
+        string "the name of button 4"
+        default "button4"
+        depends on ENABLE_BUTTON_4
+endif

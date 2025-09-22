@@ -1,0 +1,28 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "T5AI_MINI"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_AUDIO_AEC
+    select ENABLE_LED
+    select ENABLE_BUTTON
+
+choice T5AI_MINI_EX_MODULE
+    prompt "choose expansion module for T5AI_MINI"
+    default T5AI_MINI_EX_MODULE_NONE
+
+    config T5AI_MINI_EX_MODULE_NONE
+        bool "no expansion module"
+
+    config T5AI_MINI_EX_MODULE_13565LCD
+        bool "1.54 inch 240x240 spi LCD"
+        select ENABLE_DISPLAY
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+endchoice

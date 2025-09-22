@@ -327,7 +327,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
     packet->data = NULL;
     packet->encrypt_mode = packet_recv->raw_buf[0];
     if (0 != packet->len) {
-        packet->data = (BYTE_T *)tal_malloc(packet->len);
+        packet->data = (uint8_t *)tal_malloc(packet->len);
         if (packet->data == NULL) {
             PR_DEBUG("ble packet malloc err");
             return OPRT_MALLOC_FAILED;
@@ -805,7 +805,7 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
 
     // Gets the Bluetooth subcontract length from the protocol
-    UINT16_T pkg_len = (req->data[0] << 8 & 0xff00) + (req->data[1] & 0xff);
+    uint16_t pkg_len = (req->data[0] << 8 & 0xff00) + (req->data[1] & 0xff);
     ble_frame_packet_len_set(pkg_len);
     ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
     if (trsmitr->subpkg) {
@@ -953,6 +953,11 @@ static void tal_ble_event_callback(void *data)
     default:
         break;
     }
+
+    if (data) {
+        tal_free(data);
+        data = NULL;
+    }
 }
 
 /**
@@ -1025,6 +1030,14 @@ static void tal_ble_event_on_worq(TAL_BLE_EVT_PARAMS_T *msg)
 int tuya_ble_init(tuya_ble_cfg_t *cfg)
 {
     int rt = OPRT_OK;
+
+    if (cfg == NULL) {
+        return OPRT_INVALID_PARM;
+    };
+
+    if (cfg->client == NULL) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (s_ble_mgr) {
         return OPRT_OK;

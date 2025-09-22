@@ -229,7 +229,8 @@ int http_file_download(http_download_config_t *config)
         TUYA_CALL_ERR_GOTO(tuya_transporter_ctrl(network, TUYA_TRANSPORTER_SET_TLS_CONFIG, &tls_config), __exit);
     }
     /* http client TransportInterface */
-    ctx->transport.pNetworkContext = (NetworkContext_t *)&network, ctx->transport.send = NetworkTransportSend;
+    ctx->transport.pNetworkContext = (NetworkContext_t *)&network;
+    ctx->transport.send = NetworkTransportSend;
     ctx->transport.recv = NetworkTransportRecv;
 
     ctx->state = DL_STATE_NETWORK_CONNECT;

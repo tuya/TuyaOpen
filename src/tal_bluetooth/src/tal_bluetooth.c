@@ -43,7 +43,7 @@ static TKL_BLE_GATTS_PARAMS_T tkl_ble_gatt_service = {0};
 static TKL_BLE_SERVICE_PARAMS_T *ptkl_ble_service = NULL;
 static TKL_BLE_CHAR_PARAMS_T *ptkl_ble_service_char = NULL;
 
-static USHORT_T tkl_ble_common_connect_handle = TKL_BLE_GATT_INVALID_HANDLE;
+static uint16_t tkl_ble_common_connect_handle = TKL_BLE_GATT_INVALID_HANDLE;
 
 /**< Use TAL Definitions, TAL Only Support One GATT Link at one time, follow
  * Bluetooth Spec. */
@@ -52,9 +52,9 @@ static TAL_BLE_EVT_FUNC_CB tal_ble_event_callback;
 static TAL_BLE_PEER_INFO_T tal_ble_peer = {0};
 #endif
 
-static USHORT_T tal_ble_uuid16_convert(TKL_BLE_UUID_T *p_uuid)
+static __attribute__((unused)) uint16_t tal_ble_uuid16_convert(TKL_BLE_UUID_T *p_uuid)
 {
-    USHORT_T uuid16 = 0xFFFF;
+    uint16_t uuid16 = 0xFFFF;
 
     if (p_uuid->uuid_type == TKL_BLE_UUID_TYPE_16) {
         return p_uuid->uuid.uuid16;
@@ -146,7 +146,7 @@ static void tkl_ble_kernel_gap_event_callback(TKL_BLE_GAP_PARAMS_EVT_T *p_event)
     case TKL_BLE_GAP_EVT_ADV_REPORT: {
         tal_event.type = TAL_BLE_EVT_ADV_REPORT;
         tal_event.ble_event.adv_report.rssi = p_event->gap_event.adv_report.rssi;
-        tal_event.ble_event.adv_report.data_len = (UCHAR_T)p_event->gap_event.adv_report.data.length;
+        tal_event.ble_event.adv_report.data_len = (uint8_t)p_event->gap_event.adv_report.data.length;
         tal_event.ble_event.adv_report.p_data = p_event->gap_event.adv_report.data.p_data;
         memcpy(tal_event.ble_event.adv_report.peer_addr.addr, p_event->gap_event.adv_report.peer_addr.addr, 6);
 
@@ -226,13 +226,13 @@ static void tkl_ble_kernel_gatt_event_callback(TKL_BLE_GATT_PARAMS_EVT_T *p_even
 
     case TKL_BLE_GATT_EVT_PRIM_SEV_DISCOVERY: {
         TKL_BLE_GATT_SVC_DISC_TYPE_T *p_svc_disc = &p_event->gatt_event.svc_disc;
-        int32_t svc_result = OPRT_INVALID_PARM;
+        int svc_result = OPRT_INVALID_PARM;
 
         tal_event.type = TAL_BLE_EVT_CENTRAL_CONNECT_DISCOVERY;
         if (p_event->result == OPRT_OK) {
 
             /**< Find the All Characteristic. */
-            UCHAR_T i = 0;
+            uint8_t i = 0;
             for (i = 0; i < p_svc_disc->svc_num; i++) {
                 if (tal_ble_uuid16_convert(&p_svc_disc->services[i].uuid) == TAL_BLE_CMD_SERVICE_UUID_V1 ||
                     tal_ble_uuid16_convert(&p_svc_disc->services[i].uuid) == TAL_BLE_CMD_SERVICE_UUID_V2) {
@@ -255,11 +255,11 @@ static void tkl_ble_kernel_gatt_event_callback(TKL_BLE_GATT_PARAMS_EVT_T *p_even
     case TKL_BLE_GATT_EVT_CHAR_DISCOVERY: {
 
         TKL_BLE_GATT_CHAR_DISC_TYPE_T *p_char_disc = &p_event->gatt_event.char_disc;
-        int32_t char_result = OPRT_INVALID_PARM;
+        int char_result = OPRT_INVALID_PARM;
 
         tal_event.type = TAL_BLE_EVT_CENTRAL_CONNECT_DISCOVERY;
         if (p_event->result == OPRT_OK) {
-            UCHAR_T i = 0;
+            uint8_t i = 0;
             for (i = 0; i < p_char_disc->char_num; i++) {
                 if (tal_ble_uuid16_convert(&p_char_disc->characteristics[i].uuid) == TAL_BLE_CMD_WRITE_CHAR_UUID_V1 ||
                     tal_ble_uuid16_convert(&p_char_disc->characteristics[i].uuid) == TAL_BLE_CMD_WRITE_CHAR_UUID_V2) {
@@ -299,8 +299,8 @@ static void tkl_ble_kernel_gatt_event_callback(TKL_BLE_GATT_PARAMS_EVT_T *p_even
 
     case TKL_BLE_GATT_EVT_CHAR_DESC_DISCOVERY: {
         TKL_BLE_GATT_DESC_DISC_TYPE_T *p_desc_disc = &p_event->gatt_event.desc_disc;
-        UCHAR_T cccd_enable[2] = {0x01, 0x00};
-        int32_t desc_result;
+        uint8_t cccd_enable[2] = {0x01, 0x00};
+        int desc_result;
 
         tal_event.type = TAL_BLE_EVT_CENTRAL_CONNECT_DISCOVERY;
         if (p_event->result == OPRT_OK) {
@@ -394,7 +394,7 @@ static void tkl_ble_kernel_gatt_event_callback(TKL_BLE_GATT_PARAMS_EVT_T *p_even
  * */
 OPERATE_RET tal_ble_bt_init(TAL_BLE_ROLE_E role, const TAL_BLE_EVT_FUNC_CB ble_event)
 {
-    UCHAR_T ble_stack_role = 0; // TKL_BLE_ROLE_SERVER;
+    uint8_t ble_stack_role = 0; // TKL_BLE_ROLE_SERVER;
 
     if (ble_event != NULL) {
         /**<  Get the TAL Event Callback. */
@@ -598,7 +598,7 @@ OPERATE_RET tal_ble_address_get(TAL_BLE_ADDR_T *p_addr)
  * @return  SUCCESS
  *          ERROR
  * */
-OPERATE_RET tal_ble_bt_link_max(USHORT_T *p_maxlink)
+OPERATE_RET tal_ble_bt_link_max(uint16_t *p_maxlink)
 {
     if (p_maxlink == NULL) {
         return OPRT_INVALID_PARM;
@@ -757,7 +757,7 @@ OPERATE_RET tal_ble_scan_stop(void)
  * */
 OPERATE_RET tal_ble_rssi_get(const TAL_BLE_PEER_INFO_T peer)
 {
-    USHORT_T conn_handle = peer.conn_handle;
+    uint16_t conn_handle = peer.conn_handle;
 
     return tkl_ble_gap_rssi_get(conn_handle);
 }
@@ -778,7 +778,7 @@ OPERATE_RET tal_ble_rssi_get(const TAL_BLE_PEER_INFO_T peer)
 OPERATE_RET
 tal_ble_conn_param_update(const TAL_BLE_PEER_INFO_T peer, TAL_BLE_CONN_PARAMS_T const *p_conn_params)
 {
-    USHORT_T conn_handle = peer.conn_handle;
+    uint16_t conn_handle = peer.conn_handle;
     TKL_BLE_GAP_CONN_PARAMS_T param = {0};
 
     if (p_conn_params == NULL) {
@@ -860,7 +860,7 @@ tal_ble_connect_and_discovery(const TAL_BLE_PEER_INFO_T peer, TAL_BLE_CONN_PARAM
  * */
 OPERATE_RET tal_ble_disconnect(const TAL_BLE_PEER_INFO_T peer)
 {
-    USHORT_T conn_handle = peer.conn_handle;
+    uint16_t conn_handle = peer.conn_handle;
     return tkl_ble_gap_disconnect(conn_handle, TKL_BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
 }
 
@@ -871,7 +871,7 @@ OPERATE_RET tal_ble_disconnect(const TAL_BLE_PEER_INFO_T peer)
  * @return  SUCCESS
  *          ERROR Refer to platform error code
  * */
-OPERATE_RET tal_ble_server_common_notify(USHORT_T index, TAL_BLE_DATA_T *p_data)
+OPERATE_RET tal_ble_server_common_notify(uint16_t index, TAL_BLE_DATA_T *p_data)
 {
     if (p_data == NULL) {
         return OPRT_INVALID_PARM;
@@ -917,7 +917,7 @@ OPERATE_RET tal_ble_server_common_send(TAL_BLE_DATA_T *p_data)
  * @return  SUCCESS
  *          ERROR Refer to platform error code
  * */
-OPERATE_RET tal_ble_server_common_read_update_ext(USHORT_T index, TAL_BLE_DATA_T *p_data)
+OPERATE_RET tal_ble_server_common_read_update_ext(uint16_t index, TAL_BLE_DATA_T *p_data)
 {
     if (p_data == NULL) {
         return OPRT_INVALID_PARM;
@@ -1002,9 +1002,9 @@ OPERATE_RET tal_ble_client_common_read(const TAL_BLE_PEER_INFO_T peer)
  *          The MTU negotiation is given through TAL_BLE_EVT_MTU_REQUEST event
  * !!!!!!
  * */
-OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, USHORT_T server_mtu)
+OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, uint16_t server_mtu)
 {
-    USHORT_T conn_handle = peer.conn_handle;
+    uint16_t conn_handle = peer.conn_handle;
 
     if (server_mtu < 23 || server_mtu > 247) {
         return OPRT_INVALID_PARM;
@@ -1024,9 +1024,9 @@ OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, US
  *          ERROR_INVALID_STATE Invalid connection state or an ATT_MTU exchange
  * was already requested once.
  * */
-OPERATE_RET tal_ble_client_exchange_mtu_request(const TAL_BLE_PEER_INFO_T peer, USHORT_T client_mtu)
+OPERATE_RET tal_ble_client_exchange_mtu_request(const TAL_BLE_PEER_INFO_T peer, uint16_t client_mtu)
 {
-    USHORT_T conn_handle = peer.conn_handle;
+    uint16_t conn_handle = peer.conn_handle;
 
     if (client_mtu < 23 || client_mtu > 247) {
         return OPRT_INVALID_PARM;

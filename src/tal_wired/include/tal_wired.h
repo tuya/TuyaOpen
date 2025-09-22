@@ -47,6 +47,16 @@ OPERATE_RET tal_wired_get_status(WIRED_STAT_E *stat);
 OPERATE_RET tal_wired_set_status_cb(TAL_WIRED_STATUS_CHANGE_CB cb);
 
 /**
+ * @brief  set the ip address of the wired link
+ *
+ * @param[in]   ip: the ip address
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tal_wired_set_ip(NW_IP_S *ip);
+
+/**
  * @brief  get the ip address of the wired link
  *
  * @param[in]   ip: the ip address

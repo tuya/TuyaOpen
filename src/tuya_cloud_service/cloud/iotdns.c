@@ -16,6 +16,8 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "tuya_cloud_types.h"
 #include "tuya_config_defaults.h"
 #include "tuya_endpoint.h"
@@ -31,6 +33,7 @@
 #define IOTDNS_REQUEST_FMT                                                                                             \
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
     "\"mqttsSelfUrl\",\"need_ca\":true}],\"region\":\"%s\",\"env\":\"%s\"}"
+
 #define IOTDNS_REQUEST_FMT_NOREGION                                                                                    \
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
     "\"mqttsSelfUrl\",\"need_ca\":true}],\"env\":\"%s\"}"
@@ -221,7 +224,7 @@ static int iotdns_query_domain_certs_parser(const uint8_t *input, uint8_t **cace
 {
     int rt = OPRT_OK;
 
-    cJSON *root = cJSON_Parse((CHAR_T *)input);
+    cJSON *root = cJSON_Parse((char *)input);
     if (NULL == root) {
         PR_ERR("json parse fail. Rev:%s", input);
         return OPRT_CJSON_PARSE_ERR;
@@ -323,10 +326,8 @@ int tuya_iotdns_query_domain_certs(char *url, uint8_t **cacert, uint16_t *cacert
     char *p_search_head = p_tmp_url;
     char *p_tmp = strstr(p_search_head, "://");
 
-    char *p_schema = NULL;
     if (p_tmp != NULL) {
         *p_tmp = 0;
-        p_schema = p_search_head;
         p_search_head = p_tmp + strlen("://");
     }
     p_tmp = strstr(p_search_head, "/");

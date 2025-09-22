@@ -32,13 +32,13 @@ int mbedtls_cipher_auth_encrypt_wrapper(const cipher_params_t *input, unsigned c
         goto EXIT;
     }
 
-    if (input->key_len * 8 != cipher_info->MBEDTLS_PRIVATE(key_bitlen)) {
-        PR_ERR("key_len:%d", input->key_len * 8);
+    if ((input->key_len * 8) != mbedtls_cipher_info_get_key_bitlen(cipher_info)) {
+        PR_ERR("key_len:%d mbedtls_key_bitlen:%d", input->key_len * 8, mbedtls_cipher_info_get_key_bitlen(cipher_info));
         ret = OPRT_INVALID_PARM;
         goto EXIT;
     }
 
-    if ((ret = mbedtls_cipher_setkey(&cipher_ctx, input->key, cipher_info->MBEDTLS_PRIVATE(key_bitlen),
+    if ((ret = mbedtls_cipher_setkey(&cipher_ctx, input->key, mbedtls_cipher_info_get_key_bitlen(cipher_info),
                                      MBEDTLS_ENCRYPT)) != 0) {
         PR_ERR("mbedtls_cipher_setkey() returned error\n");
         goto EXIT;
@@ -110,14 +110,19 @@ int mbedtls_cipher_auth_decrypt_wrapper(const cipher_params_t *input, unsigned c
         goto EXIT;
     }
 
-    if (mbedtls_cipher_setkey(&cipher_ctx, input->key, cipher_info->MBEDTLS_PRIVATE(key_bitlen), MBEDTLS_DECRYPT) !=
-        0) {
+    if (mbedtls_cipher_setkey(&cipher_ctx, input->key, mbedtls_cipher_info_get_key_bitlen(cipher_info),
+                              MBEDTLS_DECRYPT) != 0) {
         PR_ERR("mbedtls_cipher_setkey() returned error\n");
         goto EXIT;
     }
 
     /* https://github.com/Mbed-TLS/mbedtls/issues/3665 */
     dec_tmpbuf = tal_malloc(input->data_len + tag_len);
+    if (dec_tmpbuf == NULL) {
+        PR_ERR("malloc dec_tmpbuf failed");
+        ret = OPRT_MALLOC_FAILED;
+        goto EXIT;
+    }
     memcpy(dec_tmpbuf, input->data, input->data_len);
     memcpy(dec_tmpbuf + input->data_len, tag, tag_len);
 

@@ -54,7 +54,7 @@ extern "C" {
  * @brief subscriber type
  *
  */
-typedef BYTE_T SUBSCRIBE_TYPE_E;
+typedef uint8_t SUBSCRIBE_TYPE_E;
 #define SUBSCRIBE_TYPE_NORMAL    0 // normal type, dispatch by the subscribe order, remove when unsubscribe
 #define SUBSCRIBE_TYPE_EMERGENCY 1 // emergency type, dispatch first, remove when unsubscribe
 #define SUBSCRIBE_TYPE_ONETIME                                                                                         \
@@ -66,28 +66,27 @@ typedef BYTE_T SUBSCRIBE_TYPE_E;
  *
  */
 typedef struct {
-    int32_t type;    // the data type
-    int32_t len;     // the data length
-    CHAR_T value[0]; // the data content
+    int type;      // the data type
+    int len;       // the data length
+    char value[0]; // the data content
 } EVENT_RAW_DATA_T;
 
 /**
  * @brief event subscribe callback function type
  *
  */
-typedef int32_t (*EVENT_SUBSCRIBE_CB)(void *data);
+typedef int (*EVENT_SUBSCRIBE_CB)(void *data);
 
 /**
  * @brief the subscirbe node
  *
  */
 typedef struct {
-    CHAR_T
-    name[EVENT_NAME_MAX_LEN + 1];        // name, used to record the the event info
-    CHAR_T desc[EVENT_DESC_MAX_LEN + 1]; // description, used to record the subscribe info
-    SUBSCRIBE_TYPE_E type;               // the subscribe type
-    EVENT_SUBSCRIBE_CB cb;               // the subscribe callback function
-    struct tuya_list_head node;          // list node, used to attch to the event node
+    char name[EVENT_NAME_MAX_LEN + 1]; // name, used to record the the event info
+    char desc[EVENT_DESC_MAX_LEN + 1]; // description, used to record the subscribe info
+    SUBSCRIBE_TYPE_E type;             // the subscribe type
+    EVENT_SUBSCRIBE_CB cb;             // the subscribe callback function
+    struct tuya_list_head node;        // list node, used to attch to the event node
 } SUBSCRIBE_NODE_T;
 
 /**
@@ -97,7 +96,7 @@ typedef struct {
 typedef struct {
     MUTEX_HANDLE mutex; // mutex, protection the event publish and subscribe
 
-    CHAR_T name[EVENT_NAME_MAX_LEN + 1];  // name, the event name
+    char name[EVENT_NAME_MAX_LEN + 1];    // name, the event name
     struct tuya_list_head node;           // list node, used to attach to the event manage module
     struct tuya_list_head subscribe_root; // subscibe root, used to manage the subscriber
 } EVENT_NODE_T;
@@ -107,9 +106,9 @@ typedef struct {
  *
  */
 typedef struct {
-    int32_t inited;
+    int inited;
     MUTEX_HANDLE mutex;                        // mutex, used to protection event manage node
-    int32_t event_cnt;                         // current event number
+    int event_cnt;                             // current event number
     struct tuya_list_head event_root;          // event root, used to manage the event
     struct tuya_list_head free_subscribe_root; // free subscriber list, used to manage the
                                                // subscribe which not found the event
@@ -131,7 +130,7 @@ OPERATE_RET tal_event_init(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_event_publish(const CHAR_T *name, void *data);
+OPERATE_RET tal_event_publish(const char *name, void *data);
 
 /**
  * @brief: subscribe event
@@ -143,8 +142,7 @@ OPERATE_RET tal_event_publish(const CHAR_T *name, void *data);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_event_subscribe(const CHAR_T *name, const CHAR_T *desc, const EVENT_SUBSCRIBE_CB cb,
-                                SUBSCRIBE_TYPE_E type);
+OPERATE_RET tal_event_subscribe(const char *name, const char *desc, const EVENT_SUBSCRIBE_CB cb, SUBSCRIBE_TYPE_E type);
 
 /**
  * @brief: unsubscribe event
@@ -155,7 +153,7 @@ OPERATE_RET tal_event_subscribe(const CHAR_T *name, const CHAR_T *desc, const EV
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_event_unsubscribe(const CHAR_T *name, const CHAR_T *desc, EVENT_SUBSCRIBE_CB cb);
+OPERATE_RET tal_event_unsubscribe(const char *name, const char *desc, EVENT_SUBSCRIBE_CB cb);
 
 #ifdef __cplusplus
 }

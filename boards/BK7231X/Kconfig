@@ -1,0 +1,33 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "BK7231X"
+
+config PLATFORM_bk7231x
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_WB2S
+        bool "WB2S"
+        if (BOARD_CHOICE_WB2S)
+            rsource "./WB2S/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice
+

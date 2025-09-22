@@ -77,7 +77,7 @@ static register_center_t s_def_rcs = {.source = RCS_CODE,
                                       .code = NULL,
                                       .url0 = DEF_RCS_URL0,
                                       .urlx = DEF_RCS_URLX,
-                                      .ca_cert = (BYTE_T *)DEF_RCS_CA,
+                                      .ca_cert = (uint8_t *)DEF_RCS_CA,
                                       .ca_cert_len = sizeof(DEF_RCS_CA)};
 
 #define TO_STRING(x)  #x
@@ -93,7 +93,7 @@ static register_center_t s_tuya_rcs = {0};
  * |type|length|value|
  * | 1B |  2B  | ... |
  */
-static OPERATE_RET __rcs_serialize(register_center_t *rcs, BYTE_T **data, USHORT_T *length)
+static OPERATE_RET __rcs_serialize(register_center_t *rcs, uint8_t **data, uint16_t *length)
 {
     uint32_t total = 4 * TLV_MAX + 1 + 1 + strlen(rcs->url0) + 1;
 
@@ -115,7 +115,7 @@ static OPERATE_RET __rcs_serialize(register_center_t *rcs, BYTE_T **data, USHORT
     total += strlen(rcs->urlx);
 #endif
 
-    BYTE_T *buf = tal_malloc(total);
+    uint8_t *buf = tal_malloc(total);
     if (NULL == buf) {
         PR_ERR("tal_malloc err");
         return OPRT_MALLOC_FAILED;
@@ -123,8 +123,8 @@ static OPERATE_RET __rcs_serialize(register_center_t *rcs, BYTE_T **data, USHORT
 
     memset(buf, 0, total);
 
-    USHORT_T offset = 0;
-    USHORT_T len = 0;
+    uint16_t offset = 0;
+    uint16_t len = 0;
 
     len = 1;
     buf[offset++] = TLV_SRC;
@@ -177,12 +177,12 @@ static OPERATE_RET __rcs_serialize(register_center_t *rcs, BYTE_T **data, USHORT
     return OPRT_OK;
 }
 
-static OPERATE_RET __rcs_deserialize(BYTE_T *data, USHORT_T length, register_center_t *rcs)
+static OPERATE_RET __rcs_deserialize(uint8_t *data, uint16_t length, register_center_t *rcs)
 {
-    USHORT_T offset = 0;
-    USHORT_T len = 0;
+    uint16_t offset = 0;
+    uint16_t len = 0;
     RCS_TLV_E type = 0;
-    BYTE_T *buf = NULL;
+    uint8_t *buf = NULL;
     // tuya_debug_hex_dump("data", 16, data, length);
     while ((offset + 3) < length) {
         type = data[offset++];
@@ -209,11 +209,11 @@ static OPERATE_RET __rcs_deserialize(BYTE_T *data, USHORT_T length, register_cen
             memcpy(buf, &(data[offset]), len);
 
             if (TLV_CODE == type) {
-                rcs->code = (CHAR_T *)buf;
+                rcs->code = (char *)buf;
             } else if (TLV_URL0 == type) {
-                rcs->url0 = (CHAR_T *)buf;
+                rcs->url0 = (char *)buf;
             } else if (TLV_URLX == type) {
-                rcs->urlx = (CHAR_T *)buf;
+                rcs->urlx = (char *)buf;
             } else if (TLV_CA == type) {
                 rcs->ca_cert = buf;
                 rcs->ca_cert_len = len;
@@ -236,14 +236,14 @@ static OPERATE_RET __rcs_reset_cb(void *data)
     return OPRT_OK;
 }
 
-static OPERATE_RET __rcs_restore(CHAR_T *data, register_center_t *rcs)
+static OPERATE_RET __rcs_restore(char *data, register_center_t *rcs)
 {
     OPERATE_RET rt = OPRT_OK;
     cJSON *root = NULL;
 
     memset(rcs, 0, sizeof(register_center_t));
 
-    root = cJSON_Parse((CHAR_T *)data);
+    root = cJSON_Parse((char *)data);
     if (NULL == root) {
         rt = OPRT_CJSON_PARSE_ERR;
         goto EXIT;
@@ -278,7 +278,7 @@ static OPERATE_RET __rcs_restore(CHAR_T *data, register_center_t *rcs)
 
 #if (TUYA_SECURITY_LEVEL != TUYA_SL_0)
     rcs->urlx = mm_strdup(p_urlx->valuestring);
-    rcs->ca_cert = (BYTE_T *)mm_strdup(p_ca->valuestring);
+    rcs->ca_cert = (uint8_t *)mm_strdup(p_ca->valuestring);
     rcs->ca_cert_len = strlen(p_ca->valuestring) + 1;
     if (!rcs->urlx || !rcs->ca_cert) {
         rt = OPRT_MALLOC_FAILED;
@@ -333,7 +333,7 @@ static void __rcs_update(register_center_t *rcs)
 OPERATE_RET tuya_register_center_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    BYTE_T *data = NULL;
+    uint8_t *data = NULL;
     size_t len = 0;
 
     if (s_tuya_rcs.url0) {
@@ -371,9 +371,9 @@ EXIT:
 OPERATE_RET tuya_register_center_save(RCS_E source, cJSON *rcs)
 {
     OPERATE_RET rt = OPRT_OK;
-    CHAR_T *key = NULL;
-    CHAR_T *data = NULL;
-    USHORT_T length = 0;
+    char *key = NULL;
+    char *data = NULL;
+    uint16_t length = 0;
 
     if (!rcs) {
         return OPRT_INVALID_PARM;
@@ -395,7 +395,7 @@ OPERATE_RET tuya_register_center_save(RCS_E source, cJSON *rcs)
     tal_free(data);
 
     data = NULL;
-    rt = __rcs_serialize(&tmp_rcs, (BYTE_T **)&data, &length);
+    rt = __rcs_serialize(&tmp_rcs, (uint8_t **)&data, &length);
     if (OPRT_OK != rt) {
         return OPRT_CR_CJSON_ERR;
     }
@@ -406,7 +406,7 @@ OPERATE_RET tuya_register_center_save(RCS_E source, cJSON *rcs)
         key = RCS_KV_ACTIVE;
     }
 
-    rt = tal_kv_set(key, (BYTE_T *)data, length);
+    rt = tal_kv_set(key, (uint8_t *)data, length);
     if (OPRT_OK == rt) {
         __rcs_update(&tmp_rcs);
     }
@@ -434,7 +434,7 @@ OPERATE_RET tuya_register_center_get(register_center_t *rcs)
  *
  * @return url address
  */
-CHAR_T *tuya_register_center_get_url(void)
+char *tuya_register_center_get_url(void)
 {
     if (s_tuya_rcs.urlx) {
         PR_DEBUG("rcs.urlx:%s", s_tuya_rcs.urlx);
@@ -451,7 +451,7 @@ CHAR_T *tuya_register_center_get_url(void)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_register_center_update(BYTE_T *ca_cert, uint32_t ca_cert_len)
+OPERATE_RET tuya_register_center_update(uint8_t *ca_cert, uint32_t ca_cert_len)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -472,7 +472,7 @@ OPERATE_RET tuya_register_center_update(BYTE_T *ca_cert, uint32_t ca_cert_len)
         cJSON_AddNullToObject(rcs, "code");
     }
 
-    cJSON_AddStringToObject(rcs, "ca", (CHAR_T *)ca_cert);
+    cJSON_AddStringToObject(rcs, "ca", (char *)ca_cert);
     if (s_tuya_rcs.urlx) {
         cJSON_AddStringToObject(rcs, RCS_URLX(TUYA_SECURITY_LEVEL), s_tuya_rcs.urlx);
     } else {

@@ -1,5 +1,5 @@
 menu "configure mbedtls"
-    # 使能DEBUG
+
     config ENABLE_MBEDTLS_DEBUG
         bool "Enable mbedTLS debugging"
         default n
@@ -17,7 +17,6 @@ menu "configure mbedtls"
             depends on ENABLE_MBEDTLS_DEBUG
             default 1
 
-    #使能自定义配置
     menuconfig ENABLE_CUSTOM_CONFIG
         bool "Enable user custom"
         default n

@@ -364,7 +364,7 @@ OPERATE_RET tal_event_init(void)
  * @return The operation result. Returns OPRT_OK on success, or an error code on
  * failure.
  */
-OPERATE_RET tal_event_publish(const CHAR_T *name, void *data)
+OPERATE_RET tal_event_publish(const char *name, void *data)
 {
     if (g_event_manager.inited != TRUE) {
         tal_event_init();
@@ -409,8 +409,7 @@ OPERATE_RET tal_event_publish(const CHAR_T *name, void *data)
  *         - OPRT_BASE_EVENT_INVALID_EVENT_DESC: Invalid event description.
  *         - OPRT_BASE_EVENT_INVALID_EVENT_NAME: Invalid event name.
  */
-OPERATE_RET tal_event_subscribe(const CHAR_T *name, const CHAR_T *desc, const EVENT_SUBSCRIBE_CB cb,
-                                SUBSCRIBE_TYPE_E type)
+OPERATE_RET tal_event_subscribe(const char *name, const char *desc, const EVENT_SUBSCRIBE_CB cb, SUBSCRIBE_TYPE_E type)
 {
     if (g_event_manager.inited != TRUE) {
         tal_event_init();
@@ -466,7 +465,7 @@ OPERATE_RET tal_event_subscribe(const CHAR_T *name, const CHAR_T *desc, const EV
  * @return OPERATE_RET Returns OPRT_OK on success. Returns an error code if the
  * event description or name is invalid.
  */
-OPERATE_RET tal_event_unsubscribe(const CHAR_T *name, const CHAR_T *desc, EVENT_SUBSCRIBE_CB cb)
+OPERATE_RET tal_event_unsubscribe(const char *name, const char *desc, EVENT_SUBSCRIBE_CB cb)
 {
     if (g_event_manager.inited != TRUE) {
         tal_event_init();

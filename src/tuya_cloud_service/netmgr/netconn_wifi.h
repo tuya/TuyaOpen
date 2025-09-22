@@ -72,8 +72,8 @@ typedef enum {
 #define NETCONN_WIFI_CONN_TABLE 6
 #define WIFI_CONN_TIMEOUT_MAX   20
 typedef struct {
-    CHAR_T ssid[WIFI_SSID_LEN + 1];   // wifi ap ssid
-    CHAR_T pswd[WIFI_PASSWD_LEN + 1]; // wifi passwd
+    char ssid[WIFI_SSID_LEN + 1];   // wifi ap ssid
+    char pswd[WIFI_PASSWD_LEN + 1]; // wifi passwd
 } netconn_wifi_info_t;
 
 /**
@@ -96,7 +96,7 @@ typedef struct {
 typedef struct {
     netmgr_conn_base_t base; // connection base, keep first
 
-    CHAR_T ccode[COUNTRY_CODE_LEN + 1];
+    char ccode[COUNTRY_CODE_LEN + 1];
 
     netcfg_args_t netcfg;     // wifi netcfg configure
     netconn_wifi_conn_t conn; // wifi connect/reconnect configure

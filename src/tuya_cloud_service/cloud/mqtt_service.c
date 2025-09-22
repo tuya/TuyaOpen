@@ -221,8 +221,8 @@ static int tuya_protocol_message_parse_process(tuya_mqtt_context_t *context, con
     int ret = OPRT_OK;
 
     char *jsonstr = NULL;
-    ret = tuya_parse_protocol_data(DP_CMD_MQ, (BYTE_T *)payload, payload_len, context->signature.cipherkey,
-                                   (CHAR_T **)&jsonstr);
+    ret = tuya_parse_protocol_data(DP_CMD_MQ, (uint8_t *)payload, payload_len, context->signature.cipherkey,
+                                   (char **)&jsonstr);
     if (OPRT_OK != ret) {
         PR_ERR("Cmd Parse Fail:%d", ret);
         return OPRT_COM_ERROR;
@@ -720,10 +720,10 @@ int tuya_mqtt_protocol_data_publish_with_topic_common(tuya_mqtt_context_t *conte
 
     int ret = OPRT_OK;
 
-    CHAR_T *buffer = NULL;
+    char *buffer = NULL;
     uint32_t buffer_len = 0;
 
-    ret = tuya_pack_protocol_data(DP_CMD_MQ, (const CHAR_T *)data, protocol_id, (BYTE_T *)context->signature.cipherkey,
+    ret = tuya_pack_protocol_data(DP_CMD_MQ, (const char *)data, protocol_id, (uint8_t *)context->signature.cipherkey,
                                   &buffer, &buffer_len);
     if (ret != OPRT_OK) {
         PR_ERR("tuya_pack_protocol_data error:%d", ret);

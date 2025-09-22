@@ -114,6 +114,17 @@ struct thread_sem
 };
 
 struct thread_sem *thread_sem_list = NULL;
+sys_mutex_t pt_mutex = NULL;
+#define PT_MUTEX_LOCK() { \
+                        if(!pt_mutex) sys_mutex_new(&pt_mutex); \
+                        if(pt_mutex)  sys_mutex_lock(pt_mutex); \
+                      }
+
+#define PT_MUTEX_UNLOCK() { \
+                          if(!pt_mutex) sys_mutex_new(&pt_mutex); \
+                          if(pt_mutex) sys_mutex_unlock(pt_mutex); \
+                        }
+
 
 extern void *sys_get_task_handle(void);
 
@@ -131,10 +142,12 @@ err_t LWIP_NETCONN_THREAD_SEM_ALLOC(void *thread)
         return ERR_VAL;
     }
 
+    PT_MUTEX_LOCK()
     if(thread_sem_list == NULL) {
         thread_sem_list = (struct thread_sem *)tal_malloc(sizeof(struct thread_sem));
         if(NULL == thread_sem_list) {
-            return ERR_MEM;
+          PT_MUTEX_UNLOCK()
+          return ERR_MEM;
         }
         memset((unsigned char *)thread_sem_list, 0x00, sizeof(struct thread_sem));
         thread_sem_list->taskhandle = pxTCB;
@@ -144,6 +157,7 @@ err_t LWIP_NETCONN_THREAD_SEM_ALLOC(void *thread)
             tal_free(thread_sem_list);
             thread_sem_list = NULL;
             PR_ERR("LWIP_NETCONN_THREAD_SEM_ALLOC:sys_sem_new failed!!!!!!\n");
+            PT_MUTEX_UNLOCK()
             return err;
         }
     }else {
@@ -157,7 +171,8 @@ err_t LWIP_NETCONN_THREAD_SEM_ALLOC(void *thread)
         
         temp->next = (struct thread_sem *)tal_malloc(sizeof(struct thread_sem));
         if(NULL == temp->next) {
-            return ERR_MEM;
+          PT_MUTEX_UNLOCK()
+          return ERR_MEM;
         }
 
         memset((unsigned char *)(temp->next) , 0x00, sizeof(struct thread_sem));
@@ -169,9 +184,11 @@ err_t LWIP_NETCONN_THREAD_SEM_ALLOC(void *thread)
             tal_free(temp->next);
             temp->next = NULL;
             PR_ERR("LWIP_NETCONN_THREAD_SEM_ALLOC:sys_sem_new failed!!!!!!\n");
+            PT_MUTEX_UNLOCK()
             return err;
         }
     }
+    PT_MUTEX_UNLOCK()
 
     return err;
 }
@@ -187,6 +204,7 @@ err_t LWIP_NETCONN_THREAD_SEM_FREE(void *thread)
         return ERR_VAL;
     }
 
+    PT_MUTEX_LOCK()
     if(thread_sem_list != NULL) {
         struct thread_sem *temp = thread_sem_list;
         struct thread_sem *bkup = NULL;
@@ -214,6 +232,7 @@ err_t LWIP_NETCONN_THREAD_SEM_FREE(void *thread)
         }
     }
 
+    PT_MUTEX_UNLOCK()
     return err;
 }
 
@@ -225,22 +244,29 @@ sys_sem_t* LWIP_NETCONN_THREAD_SEM_GET(void)
         return NULL;
     }
 
+    PT_MUTEX_LOCK()
     if(thread_sem_list == NULL) {
         PR_ERR("LWIP_NETCONN_THREAD_SEM_GET:thread_sem_list is null\n");
+        PT_MUTEX_UNLOCK()
         return NULL;
     }else {
         struct thread_sem *temp = thread_sem_list;
         while(1) {
             if(temp->taskhandle == pxTCB) {
-                return &temp->sem;
+              PT_MUTEX_UNLOCK()
+              return &temp->sem;
             }
             
-            if(temp->next == NULL)
-                return NULL;
+            if(temp->next == NULL) {
+              PT_MUTEX_UNLOCK()
+              return NULL;
+            }
+                
                 
             temp = temp->next;
         }
     }
+    PT_MUTEX_UNLOCK()
 }
 #endif
 
@@ -735,7 +761,9 @@ netconn_recv_data(struct netconn *conn, void **new_buf, u8_t apiflags)
     return ERR_CONN;
   }
 
+#if 0 
   NETCONN_MBOX_WAITING_INC(conn);
+#endif  
   if (netconn_is_nonblocking(conn) || (apiflags & NETCONN_DONTBLOCK) ||
       (conn->flags & NETCONN_FLAG_MBOXCLOSED) || (conn->pending_err != ERR_OK)) {
     if (sys_arch_mbox_tryfetch(&conn->recvmbox, &buf) == SYS_ARCH_TIMEOUT) {

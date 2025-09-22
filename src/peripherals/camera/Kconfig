@@ -1,0 +1,9 @@
+config ENABLE_CAMERA
+    bool "enable camera"
+    default n
+
+if (ENABLE_CAMERA)
+    config CAMERA_NAME
+        string "the name of camera"
+        default "camera"
+endif

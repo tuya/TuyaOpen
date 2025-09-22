@@ -99,7 +99,7 @@ OPERATE_RET tal_workq_cancel(WORKQ_SERVICE_E service, WORKQUEUE_CB cb, void *dat
  *
  * @return current work number in the work queue
  */
-UINT16_T tal_workq_get_num(WORKQ_SERVICE_E service);
+uint16_t tal_workq_get_num(WORKQ_SERVICE_E service);
 
 /**
  * @brief dump all work in work queue.

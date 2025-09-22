@@ -1,0 +1,9 @@
+config BOARD_CHOICE
+    string
+    default "T2-U"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_LED
+    select ENABLE_BUTTON

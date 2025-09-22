@@ -12,6 +12,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "tuya_cloud_types.h"
 #include "dp_schema.h"
 #include "cJSON.h"
@@ -135,7 +136,7 @@ dp_node_t *dp_node_find(dp_schema_t *schema, int id)
  * @param devid The device ID to search for.
  * @return A pointer to the data point schema if found, or NULL if not found.
  */
-dp_schema_t *dp_schema_find(char *devid)
+dp_schema_t *dp_schema_find(const char *devid)
 {
     int i = 0;
 
@@ -183,7 +184,8 @@ dp_node_t *dp_node_find_by_devid(char *devid, int id)
     return dpnode;
 }
 
-static OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num, dp_cmd_type_t cmd_tp)
+static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema, uint8_t *dpid, uint8_t num,
+                                                             dp_cmd_type_t cmd_tp)
 {
     if (NULL == schema || 0 == num) {
         PR_ERR("para err");
@@ -757,7 +759,8 @@ int dp_rept_valid_check(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
             return OPRT_SVC_DP_TP_NOT_MATCH;
         }
 
-        // Only the reported interface needs to be checked. Retransmission does not require verification and flow control
+        // Only the reported interface needs to be checked. Retransmission does not require verification and flow
+        // control
         if (dpin->rept_type != T_RE_TRANS_REPT) {
             if (FALSE == dp_type_check(dpin->rept_type, dp, dpnode)) {
                 continue;
@@ -903,7 +906,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         }
 
         case PROP_BITMAP: {
-            offset += sprintf(dpstr + offset, "\"%d\":%d,", dp->id, dp->value.dp_bitmap);
+            offset += sprintf(dpstr + offset, "\"%d\":%" PRIu32 ",", dp->id, dp->value.dp_bitmap);
             break;
         }
 
@@ -994,7 +997,7 @@ static int dp_obj_json_create(cJSON *root, dp_node_t *dpnode)
 {
     int length = 0;
 
-    CHAR_T dpid[10] = {0};
+    char dpid[10] = {0};
     snprintf(dpid, 10, "%d", dpnode->desc.id);
 
     switch (dpnode->desc.prop_tp) {
@@ -1021,7 +1024,7 @@ static int dp_obj_json_create(cJSON *root, dp_node_t *dpnode)
     }
 
     case PROP_ENUM: {
-        int32_t value = dpnode->prop.prop_enum.value;
+        int value = dpnode->prop.prop_enum.value;
         length += (10 + strlen(dpnode->prop.prop_enum.pp_enum[value]));
         cJSON_AddStringToObject(root, dpid, dpnode->prop.prop_enum.pp_enum[value]);
         break;
@@ -1199,14 +1202,14 @@ char *dp_obj_dump_all_json(char *devid, int flags)
         return NULL;
     }
 
-    CHAR_T *tmp = cJSON_PrintUnformatted(cjson);
+    char *tmp = cJSON_PrintUnformatted(cjson);
     cJSON_Delete(cjson);
     if (NULL == tmp) {
         PR_ERR("Json err");
         return NULL;
     }
 
-    CHAR_T *out = tmp;
+    char *out = tmp;
 
     if (flags & DP_APPEND_HEADER_FLAG) {
         dp_rept_json_append(schema, out, NULL, NULL, 0, &out);
@@ -1392,7 +1395,7 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
         } else if (!strcmp(child->valuestring, "value")) {
             dp_desc->prop_tp = PROP_VALUE;
             char *str[] = {"max", "min", "scale"};
-            int32_t i;
+            int i;
             for (i = 0; i < CNTSOF(str); i++) {
                 child = cJSON_GetObjectItem(item, str[i]);
                 if (NULL == child && (i != CNTSOF(str) - 1)) {
@@ -1440,7 +1443,7 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
                 op_ret = OPRT_CJSON_GET_ERR;
                 goto __exit;
             }
-            int32_t i, num;
+            int i, num;
             num = cJSON_GetArraySize(child);
             if (num == 0) {
                 PR_ERR("get array size null");

@@ -91,18 +91,18 @@ void mqtt_client_free(void *client)
     tal_free(client);
 }
 
-static int network_tls_write(NetworkContext_t *pNetwork, const unsigned char *pMsg, size_t len)
+static int network_write(NetworkContext_t *pNetwork, const unsigned char *pMsg, size_t len)
 {
     tuya_transporter_t transporter = *pNetwork;
 
     return tuya_transporter_write(transporter, (uint8_t *)pMsg, len, 0);
 }
 
-static int network_tls_read(NetworkContext_t *pNetwork, unsigned char *pMsg, size_t len)
+static int network_read(NetworkContext_t *pNetwork, unsigned char *pMsg, size_t len)
 {
     tuya_transporter_t transporter = *pNetwork;
 
-    tuya_tls_config_t *tls_config;
+    tuya_tls_config_t *tls_config = NULL;
 
     tuya_transporter_ctrl(transporter, TUYA_TRANSPORTER_GET_TLS_CONFIG, &tls_config);
 
@@ -116,7 +116,10 @@ static int network_tls_read(NetworkContext_t *pNetwork, unsigned char *pMsg, siz
 
     return result;
 }
-
+static uint32_t __mqtt_client_get_current_time(void)
+{
+    return (uint32_t)tal_system_get_millisecond();
+}
 mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *config)
 {
     mqtt_client_context_t *context = (mqtt_client_context_t *)client;
@@ -126,27 +129,28 @@ mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *
     memset(context, 0, sizeof(mqtt_client_context_t));
 
     /* Setting data */
+    TUYA_TRANSPORT_TYPE_E transport_type = (config->cacert == NULL) ? TRANSPORT_TYPE_TCP : TRANSPORT_TYPE_TLS;
     context->config = *config;
-
-    context->network = tuya_transporter_create(TRANSPORT_TYPE_TLS, NULL);
+    context->network = tuya_transporter_create(transport_type, NULL);
     if (NULL == context->network) {
         return MQTT_STATUS_NETWORK_INIT_FAILED;
     }
+    if (transport_type == TRANSPORT_TYPE_TLS) {
+        tuya_tls_config_t tls_config = {
+            .ca_cert = (char *)context->config.cacert,
+            .ca_cert_size = context->config.cacert_len,
+            .hostname = (char *)context->config.host,
+            .port = context->config.port,
+            .timeout = context->config.timeout_ms,
+            .mode = TUYA_TLS_SERVER_CERT_MODE,
+            .verify = true,
+        };
 
-    tuya_tls_config_t tls_config = {
-        .ca_cert = (char *)context->config.cacert,
-        .ca_cert_size = context->config.cacert_len,
-        .hostname = (char *)context->config.host,
-        .port = context->config.port,
-        .timeout = context->config.timeout_ms,
-        .mode = TUYA_TLS_SERVER_CERT_MODE,
-        .verify = true,
-    };
-
-    int ret = tuya_transporter_ctrl(context->network, TUYA_TRANSPORTER_SET_TLS_CONFIG, &tls_config);
-    if (OPRT_OK != ret) {
-        log_error("network_tls_init fail:%d", ret);
-        return MQTT_STATUS_NETWORK_INIT_FAILED;
+        int ret = tuya_transporter_ctrl(context->network, TUYA_TRANSPORTER_SET_TLS_CONFIG, &tls_config);
+        if (OPRT_OK != ret) {
+            log_error("network_tls_init fail:%d", ret);
+            return MQTT_STATUS_NETWORK_INIT_FAILED;
+        }
     }
 
     /* Fill in TransportInterface send and receive function pointers.
@@ -154,8 +158,8 @@ mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *
      * from network. Network context is SSL context for OpenSSL.*/
     TransportInterface_t transport;
     transport.pNetworkContext = &context->network;
-    transport.send = (TransportSend_t)network_tls_write;
-    transport.recv = (TransportRecv_t)network_tls_read;
+    transport.send = (TransportSend_t)network_write;
+    transport.recv = (TransportRecv_t)network_read;
 
     /* Fill the values for network buffer. */
     MQTTFixedBuffer_t network_buffer;
@@ -163,7 +167,7 @@ mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *
     network_buffer.pBuffer = context->mqttbuffer;
 
     /* Initialize MQTT library. */
-    mqtt_status = MQTT_Init(&context->mqclient, &transport, (MQTTGetCurrentTimeFunc_t)tal_system_get_millisecond,
+    mqtt_status = MQTT_Init(&context->mqclient, &transport, (MQTTGetCurrentTimeFunc_t)__mqtt_client_get_current_time,
                             core_mqtt_library_callback, &network_buffer, context);
 
     if (mqtt_status != MQTTSuccess) {
@@ -196,8 +200,6 @@ mqtt_client_status_t mqtt_client_connect(void *client)
         tuya_transporter_close(context->network);
         return MQTT_STATUS_NETWORK_CONNECT_FAILED;
     }
-
-    log_debug("TLS connected.");
 
     bool pSessionPresent = false;
 

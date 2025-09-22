@@ -194,14 +194,14 @@
 #define TAL_MESH_OPCODE_BYTE(pbuffer, mesh_opcode)                                                                     \
     do {                                                                                                               \
         if (TAL_MESH_OPCODE_SIZE(mesh_opcode) == 1) {                                                                  \
-            *((UCHAR_T *)(pbuffer)) = (mesh_opcode)&0xff;                                                              \
+            *((uint8_t *)(pbuffer)) = (mesh_opcode)&0xff;                                                              \
         } else if (TAL_MESH_OPCODE_SIZE(mesh_opcode) == 2) {                                                           \
-            *((UCHAR_T *)(pbuffer)) = ((mesh_opcode) >> 8) & 0xff;                                                     \
-            *((UCHAR_T *)(pbuffer) + 1) = (mesh_opcode)&0xff;                                                          \
+            *((uint8_t *)(pbuffer)) = ((mesh_opcode) >> 8) & 0xff;                                                     \
+            *((uint8_t *)(pbuffer) + 1) = (mesh_opcode)&0xff;                                                          \
         } else {                                                                                                       \
-            *((UCHAR_T *)(pbuffer)) = ((mesh_opcode) >> 16) & 0xff;                                                    \
-            *((UCHAR_T *)(pbuffer) + 1) = ((mesh_opcode) >> 8) & 0xff;                                                 \
-            *((UCHAR_T *)(pbuffer) + 2) = (mesh_opcode)&0xff;                                                          \
+            *((uint8_t *)(pbuffer)) = ((mesh_opcode) >> 16) & 0xff;                                                    \
+            *((uint8_t *)(pbuffer) + 1) = ((mesh_opcode) >> 8) & 0xff;                                                 \
+            *((uint8_t *)(pbuffer) + 2) = (mesh_opcode)&0xff;                                                          \
         }                                                                                                              \
     } while (0)
 
@@ -238,8 +238,7 @@
 typedef enum {
     TAL_MESH_STACK_INIT = 0x01, /**< Init mesh stack event*/
 
-    TAL_MESH_EVT_UNPROV_BEACON_REPORT, /**< Receive Mesh Unprovisioned Beacon
-                                          Data */
+    TAL_MESH_EVT_UNPROV_BEACON_REPORT, /**< Receive Mesh Unprovisioned Beacon Data */
 
     TAL_MESH_EVT_PRIVATE_BEACON_REPORT, /**< Receive Tuya-Private Beacon Data */
 
@@ -251,76 +250,69 @@ typedef enum {
 } TAL_MESH_EVT_TYPE_E;
 
 typedef struct {
-    UCHAR_T peer_addr[6];  /**< Mesh Device Mac Address */
-    UCHAR_T peer_uuid[16]; /**< Mesh Device UUID */
+    uint8_t peer_addr[6];  /**< Mesh Device Mac Address */
+    uint8_t peer_uuid[16]; /**< Mesh Device UUID */
 
-    USHORT_T node_addr;      /**< Mesh Node Address */
-    UCHAR_T node_devkey[16]; /**< Mesh Device key */
+    uint16_t node_addr;      /**< Mesh Node Address */
+    uint8_t node_devkey[16]; /**< Mesh Device key */
 } TAL_MESH_DEVICE_INFO_T;
 
 typedef struct {
-    USHORT_T local_addr; /**< Mesh Provisioner Local Address */
+    uint16_t local_addr; /**< Mesh Provisioner Local Address */
 
-    UCHAR_T netkey[16]; /**< Mesh Provisioner Local Netkey */
-    UCHAR_T appkey[16]; /**< Mesh Provisioner Local Appkey */
+    uint8_t netkey[16]; /**< Mesh Provisioner Local Netkey */
+    uint8_t appkey[16]; /**< Mesh Provisioner Local Appkey */
 } TAL_MESH_LOCAL_INFO_T;
 
 typedef struct {
-    UCHAR_T mac[6];    /**< Mesh Provisioner Scan Adv Mac Address */
-    UCHAR_T uuid[16];  /**< Mesh Provisioner Scan Mesh Device UUID */
-    USHORT_T oob;      /**< Mesh Provisioner Scan Mesh Device OOB */
+    uint8_t mac[6];    /**< Mesh Provisioner Scan Adv Mac Address */
+    uint8_t uuid[16];  /**< Mesh Provisioner Scan Mesh Device UUID */
+    uint16_t oob;      /**< Mesh Provisioner Scan Mesh Device OOB */
     uint32_t uri_hash; /**< Mesh Provisioner Scan Mesh Device URI Hash */
-    CHAR_T rssi;       /**< Mesh Provisioner Scan Mesh Device Rssi */
+    char rssi;         /**< Mesh Provisioner Scan Mesh Device Rssi */
 } TAL_MESH_UNPROV_BEACON_T;
 
 typedef struct {
-    UCHAR_T
-    mac[6];          /**< Beacon Central Scan Adv Mac Address while in mesh mode*/
-    UCHAR_T length;  /**< Beacon Central Scan advertising data length*/
-    UCHAR_T *p_data; /**< Beacon Central Scan advertising data */
-    CHAR_T rssi;     /**< Beacon Central Scan advertising Rssi */
+    uint8_t mac[6];  /**< Beacon Central Scan Adv Mac Address while in mesh mode*/
+    uint8_t length;  /**< Beacon Central Scan advertising data length*/
+    uint8_t *p_data; /**< Beacon Central Scan advertising data */
+    char rssi;       /**< Beacon Central Scan advertising Rssi */
 } TAL_PRIVATE_BEACON_T;
 
 typedef struct {
     uint32_t opcode;        /**< Mesh opcode. Indicate the mesh data with opcode */
-    UCHAR_T count;          /**< The number of transmissions is the Transmit Count + 1 */
-    UCHAR_T interval_steps; /**< Transmission interval = (Network Retransmit
-                               Interval Steps + 1) * 10 */
-    UCHAR_T len;            /**< Data length for p_data. */
-    UCHAR_T *p_data;        /**< Data Pointer. Mesh Data should follow Mesh Profile or
-                               Mesh Model Spec */
+    uint8_t count;          /**< The number of transmissions is the Transmit Count + 1 */
+    uint8_t interval_steps; /**< Transmission interval = (Network Retransmit Interval Steps + 1) * 10 */
+    uint8_t len;            /**< Data length for p_data. */
+    uint8_t *p_data;        /**< Data Pointer. Mesh Data should follow Mesh Profile or Mesh Model Spec */
 } TAL_MESH_DATA_T;
 
 typedef struct {
     uint32_t opcode;    /**< Mesh opcode. Point the mesh opcode while receiving data. */
-    USHORT_T node_addr; /**< Mesh Node Address */
-    UCHAR_T len;        /**< Data length for p_data. */
-    UCHAR_T *p_data;    /**< Data Pointer. Mesh Data should follow Mesh Profile or
-                           Mesh Model Spec */
+    uint16_t node_addr; /**< Mesh Node Address */
+    uint8_t len;        /**< Data length for p_data. */
+    uint8_t *p_data;    /**< Data Pointer. Mesh Data should follow Mesh Profile or Mesh Model Spec */
 } TAL_MESH_DATA_RECEIVE_T;
 
 typedef struct {
-    USHORT_T node_addr; /**< Mesh Node Address */
-    UCHAR_T devkey[16]; /**< After finsih provision, we can get mesh dev-key */
+    uint16_t node_addr; /**< Mesh Node Address */
+    uint8_t devkey[16]; /**< After finsih provision, we can get mesh dev-key */
 } TAL_MESH_PROV_T;
 
 typedef struct {
     TAL_MESH_EVT_TYPE_E type; /**< Receive Mesh Event Type */
-    int32_t state;            /**< Receive Mesh Event State */
+    int state;                /**< Receive Mesh Event State */
 
     union {
         TAL_MESH_UNPROV_BEACON_T unprov_report; /**< Receive Mesh Adv report */
 
-        TAL_PRIVATE_BEACON_T
-        beacon_report; /**< Receive Tuya-Private beacon report */
+        TAL_PRIVATE_BEACON_T beacon_report; /**< Receive Tuya-Private beacon report */
 
         TAL_MESH_PROV_T prov; /**< Provision Callback State */
 
-        TAL_MESH_DATA_RECEIVE_T
-        config_report; /**< Report Mesh Model Configuration Data */
+        TAL_MESH_DATA_RECEIVE_T config_report; /**< Report Mesh Model Configuration Data */
 
-        TAL_MESH_DATA_RECEIVE_T
-        model_report; /**< Report Mesh Model Message Data */
+        TAL_MESH_DATA_RECEIVE_T model_report; /**< Report Mesh Model Message Data */
     } mesh_event;
 } TAL_MESH_EVT_PARAMS_T;
 
@@ -331,73 +323,72 @@ typedef void (*TAL_MESH_EVT_FUNC_CB)(TAL_MESH_EVT_PARAMS_T *p_event);
  * Parameters!!!!*/
 /**< [Mesh Profile] 4.3.2.4 Config Composition Data Get */
 typedef struct {
-    UCHAR_T page;
+    uint8_t page;
 } PACKED TAL_MESH_COMPO_DATA_GET_T;
 
 /**< [Mesh Profile] 4.3.2.5 Config Composition Data Status */
 typedef struct {
-    UCHAR_T page;
-    UCHAR_T *p_data;
+    uint8_t page;
+    uint8_t *p_data;
 } PACKED TAL_MESH_COMPO_DATA_STATUS_T;
 
 /**< [Mesh Profile] 4.3.2.19-21 Config Model Subscription or Delete*/
 typedef struct {
-    USHORT_T element_addr;
-    USHORT_T addr;
+    uint16_t element_addr;
+    uint16_t addr;
     uint32_t model_id; /**<  2 bytes or 4 bytes */
 } PACKED TAL_MESH_MODEL_SUB_ADD_T, TAL_MESH_MODEL_SUB_DELETE_T;
 
 /**< [Mesh Profile] 4.3.2.26 Config Model Subscription Status */
 typedef struct {
-    UCHAR_T status;
-    USHORT_T element_addr;
-    USHORT_T addr;
+    uint8_t status;
+    uint16_t element_addr;
+    uint16_t addr;
     uint32_t model_id; /**<  2 bytes or 4 bytes */
 } PACKED TAL_MESH_MODEL_SUB_STATUS_T;
 
 /**< [Mesh Profile] 4.3.2.31~33 Config NetKey Add Delete Update*/
 typedef struct {
-    USHORT_T netkey_index;
-    UCHAR_T netkey[16]; // While doing delete netkey, we dont need netkey
+    uint16_t netkey_index;
+    uint8_t netkey[16]; // While doing delete netkey, we dont need netkey
 } PACKED TAL_MESH_NETKEY_ADD_T, TAL_MESH_NETKEY_DELETE_T, TAL_MESH_NETKEY_UPDATE_T;
 
 /**< [Mesh Profile] 4.3.2.34 Config NetKey Status */
 typedef struct {
-    UCHAR_T status;
-    USHORT_T netkey_index;
+    uint8_t status;
+    uint16_t netkey_index;
 } PACKED TAL_MESH_NETKEY_STATUS_T;
 
 /**< [Mesh Profile] 4.3.2.38~40 Config AppKey Delete Update*/
 typedef struct {
-    UCHAR_T keyindex[3];
-    UCHAR_T appkey[16]; // While doing delete appkey, we dont need appkey
+    uint8_t keyindex[3];
+    uint8_t appkey[16]; // While doing delete appkey, we dont need appkey
 } PACKED TAL_MESH_APPKEY_ADD_T, TAL_MESH_APPKEY_UPDATE_T, TAL_MESH_APPKEY_DELETE_T;
 
 /**< [Mesh Profile] 4.3.2.40 Config AppKey Status */
 typedef struct {
-    UCHAR_T status;
-    UCHAR_T keyindex[3];
+    uint8_t status;
+    uint8_t keyindex[3];
 } PACKED TAL_MESH_APPKEY_STATUS_T;
 
 /**< [Mesh Profile] 4.3.2.46-47 Config Model App Bind Unbind*/
 typedef struct {
-    USHORT_T element_addr;
-    USHORT_T appkey_index;
+    uint16_t element_addr;
+    uint16_t appkey_index;
     uint32_t model_id; /**<  2 bytes or 4 bytes */
 } PACKED TAL_MESH_MODEL_APPKEY_BIND_T, TAL_MESH_MODEL_APPKEY_UNBIND_T;
 
 /**< [Mesh Profile] 4.3.2.48 Config Model App Status*/
 typedef struct {
-    UCHAR_T status;
-    USHORT_T element_addr;
-    USHORT_T appkey_index;
+    uint8_t status;
+    uint16_t element_addr;
+    uint16_t appkey_index;
     uint32_t model_id; /**<  2 bytes or 4 bytes */
 } PACKED TAL_MESH_MODEL_APPKEY_STATUS_T;
 
-/**< [Mesh Profile] 4.3.2.70 Config Network Transmit Set, 4.3.2.71 Config
- * Network Transmit Status */
+/**< [Mesh Profile] 4.3.2.70 Config Network Transmit Set, 4.3.2.71 Config Network Transmit Status */
 typedef struct {
-    UCHAR_T count : 3, steps : 5;
+    uint8_t count : 3, steps : 5;
 } PACKED TAL_MESH_NET_TRANSMIT_SET_T, TAL_MESH_NET_TRANSMIT_STATUS_T;
 
 /****************************************************** Mesh Device
@@ -405,42 +396,35 @@ typedef struct {
 /**< Define parameters for mesh device */
 typedef struct {
     uint32_t opcode;   /**< Mesh opcode. */
-    UCHAR_T *data;     /**< Mesh data. */
-    USHORT_T data_len; /**< Mesh data lenth. */
+    uint8_t *data;     /**< Mesh data. */
+    uint16_t data_len; /**< Mesh data lenth. */
 } TAL_MESH_ACCESS_MSG_T;
 
 typedef struct {
-    USHORT_T src_addr;      /**< Source unicast address. */
-    USHORT_T dst_addr;      /**< Destination  unicast address. */
+    uint16_t src_addr;      /**< Source unicast address. */
+    uint16_t dst_addr;      /**< Destination  unicast address. */
     uint32_t seq;           /**< Sequence num of this msg. */
-    UCHAR_T ttl;            /**< Time To Live. */
-    USHORT_T app_key_index; /**< The appkey index of this msg ues. */
-    USHORT_T net_key_index; /**< The networkkey index of this msg ues. */
-    CHAR_T rssi;            /**< used when rx in adv bearer. */
+    uint8_t ttl;            /**< Time To Live. */
+    uint16_t app_key_index; /**< The appkey index of this msg ues. */
+    uint16_t net_key_index; /**< The networkkey index of this msg ues. */
+    char rssi;              /**< used when rx in adv bearer. */
 } TAL_MESH_NET_PARAM_T;
 
 typedef enum {
-    MESH_PB_GATT = 0x00,     /**< Enable PB-GATT, device can be provisioned by GATT
-                                connect(mobile phone use). */
-    MESH_PB_ADV,             /**< Enable PB-ADV, device can be provisioned by ADV(Gateway
+    MESH_PB_GATT = 0x00,     /**< Enable PB-GATT, device can be provisioned by GATT connect(mobile phone use). */
+    MESH_PB_ADV,             /**< Enable PB-ADV, device can be provisioned by ADV(Gateway use). */
+    MESH_PB_GATT_AND_PB_ADV, /**< Enable PB-ADV and PB_ADV, device can be provisioned by ADV and GATT connect(Gateway
                                 use). */
-    MESH_PB_GATT_AND_PB_ADV, /**< Enable PB-ADV and PB_ADV, device can be
-                                provisioned by ADV and GATT connect(Gateway
-                                use). */
-    MESH_PROVISION_DISABLE,  /**< Disapble provision, close the unprovision
-                                beacon and gatt unprovision adv. */
+    MESH_PROVISION_DISABLE,  /**< Disapble provision, close the unprovision beacon and gatt unprovision adv. */
 } MESH_PROVISION_TYPE_T;
 
 typedef enum {
-    MESH_NETWORK_RESET = 0x00,       /**< Kick out, mesh node will be unprovision state, and it will
-                                        clear the mesh provision data in ram and flash */
-    MESH_NETWORK_RESET_WITH_RECOVER, /**< Node reset in tam, mesh node will be
-                                        unprovision state, and it will clear the
-                                        mesh provision data in ram. The
-                                        provision data still store in flash */
-    MESH_NETWORK_RECOVER,            /**< Revcover the network, mesh node will be provision
-                                        state, it will restore the provision data from
-                                        flash into ram */
+    MESH_NETWORK_RESET = 0x00, /**< Kick out, mesh node will be unprovision state, and it will clear the mesh provision
+                                  data in ram and flash */
+    MESH_NETWORK_RESET_WITH_RECOVER, /**< Node reset in tam, mesh node will be unprovision state, and it will clear the
+                                        mesh provision data in ram. The provision data still store in flash */
+    MESH_NETWORK_RECOVER, /**< Revcover the network, mesh node will be provision state, it will restore the provision
+                             data from flash into ram */
 } MESH_NETWORK_STATE_SET_T;
 
 /**< Defin mesh message callback for mesh*/
@@ -448,113 +432,89 @@ typedef OPERATE_RET (*tal_mesh_msg_recv_cb)(TAL_MESH_ACCESS_MSG_T *msg_raw, TAL_
 
 /**< Define parameters for mesh model */
 typedef struct {
-    UCHAR_T present; /**< The present value of the Generic OnOff state. */
-    UCHAR_T
-    target;           /**< The target value of the Generic OnOff state(optional). */
-    UCHAR_T remain_t; /**< If the target field is present, the Remaining Time
-                         field shall also be present; otherwise these fields
-                         shall not be present. */
+    uint8_t present;  /**< The present value of the Generic OnOff state. */
+    uint8_t target;   /**< The target value of the Generic OnOff state(optional). */
+    uint8_t remain_t; /**< If the target field is present, the Remaining Time field shall also be present; otherwise
+                         these fields shall not be present. */
 } TAL_MESH_GENERIC_ONOFF_STATUS_T;
 
 typedef struct {
-    UCHAR_T onoff;     /**< The target value of the Generic OnOff state. */
-    UCHAR_T tid;       /**< Transaction Identifier */
-    UCHAR_T transit_t; /**< Generic Default Transition Time(optional). */
-    UCHAR_T delay;     /**< If the transit_t field is present, the Delay field shall
-                          also be present; otherwise these fields shall not be
-                          present. */
+    uint8_t onoff;     /**< The target value of the Generic OnOff state. */
+    uint8_t tid;       /**< Transaction Identifier */
+    uint8_t transit_t; /**< Generic Default Transition Time(optional). */
+    uint8_t delay; /**< If the transit_t field is present, the Delay field shall also be present; otherwise these fields
+                      shall not be present. */
 } TAL_MESH_GENERIC_ONOFF_SET_T;
 
 typedef struct {
-    USHORT_T
-    present;          /**< The present value of the Light Lightness Actual state. */
-    USHORT_T target;  /**< The target value of the Light Lightness Actual state.
-                         (Optional) */
-    UCHAR_T remain_t; /**< If the target field is present, the Remaining Time
-                         field shall also be present; otherwise these fields
-                         shall not be present */
+    uint16_t present; /**< The present value of the Light Lightness Actual state. */
+    uint16_t target;  /**< The target value of the Light Lightness Actual state. (Optional) */
+    uint8_t remain_t; /**< If the target field is present, the Remaining Time field shall also be present; otherwise
+                         these fields shall not be present */
 } PACKED TAL_MESH_LIGHT_LIGHTNESS_STATUS_T;
 
 typedef struct {
-    USHORT_T
-    lightness;         /**< The target value of the Light Lightness Actual state */
-    UCHAR_T tid;       /**< Transaction Identifier */
-    UCHAR_T transit_t; /**< Generic Default Transition Time(optional) */
-    UCHAR_T delay;     /**< If the transit_t field is present, the Delay field shall
-                          also be present; otherwise these fields shall not be
-                          present. */
+    uint16_t lightness; /**< The target value of the Light Lightness Actual state */
+    uint8_t tid;        /**< Transaction Identifier */
+    uint8_t transit_t;  /**< Generic Default Transition Time(optional) */
+    uint8_t delay; /**< If the transit_t field is present, the Delay field shall also be present; otherwise these fields
+                      shall not be present. */
 } PACKED TAL_MESH_LIGHT_LIGHTNESS_SET_T;
 
 typedef struct {
-    USHORT_T present_lightness; /**< The present value of the Light CTL
-                                   Lightness state */
-    USHORT_T present_temp;      /**< The present value of the Light CTL Temperature
-                                   state */
-    USHORT_T target_lightness;  /**< The target value of the Light CTL Lightness
-                                   state (Optional) */
-    USHORT_T target_temp;       /**< If the target_lightness field is present, this
-                                   field shall also be present; otherwise this field
-                                   shall not be present */
-    UCHAR_T remain_t;           /**< If the target_lightness field is present, this field
-                                   shall also be present; otherwise this field shall not
-                                   be present */
+    uint16_t present_lightness; /**< The present value of the Light CTL Lightness state */
+    uint16_t present_temp;      /**< The present value of the Light CTL Temperature state */
+    uint16_t target_lightness;  /**< The target value of the Light CTL Lightness state (Optional) */
+    uint16_t target_temp; /**< If the target_lightness field is present, this field shall also be present; otherwise
+                             this field shall not be present */
+    uint8_t remain_t; /**< If the target_lightness field is present, this field shall also be present; otherwise this
+                         field shall not be present */
 } PACKED TAL_MESH_LIGHT_CTL_STATUS_T;
 
 typedef struct {
-    USHORT_T present_temp;    /**< The present value of the Light CTL Temperature
-                                 state */
-    SHORT_T present_delta_uv; /**< The present value of the Light CTL Delta UV
-                                 state */
-    USHORT_T target_temp;     /**< The target value of the Light CTL Temperature
-                                 state (Optional) */
-    SHORT_T target_delta_uv;  /**< If the target_temp field is present, this
-                                 field shall also be present; otherwise this
+    uint16_t present_temp;    /**< The present value of the Light CTL Temperature state */
+    int16_t present_delta_uv; /**< The present value of the Light CTL Delta UV state */
+    uint16_t target_temp;     /**< The target value of the Light CTL Temperature state (Optional) */
+    int16_t target_delta_uv;  /**< If the target_temp field is present, this field shall also be present; otherwise this
                                  field shall not be present */
-    UCHAR_T remain_t;         /**< If the target_temp field is present, this field shall
-                                 also be present; otherwise this field shall not be
-                                 present */
+    uint8_t remain_t; /**< If the target_temp field is present, this field shall also be present; otherwise this field
+                         shall not be present */
 } PACKED TAL_MESH_LIGHT_CTL_TEMP_STATUS_T;
 
 typedef struct {
-    USHORT_T
-    lightness;         /**< The target value of the Light CTL Lightness state */
-    USHORT_T temp;     /**< The target value of the Light CTL Temperature state */
-    SHORT_T delta_uv;  /**< The target value of the Light CTL Delta UV state */
-    UCHAR_T tid;       /**< Transaction Identifier */
-    UCHAR_T transit_t; /**< Generic Default Transition Time(Optional) */
-    UCHAR_T delay;     /**< If the transit_t field is present, the Delay field shall
-                          also be present; otherwise these fields shall not be
-                          present. */
+    uint16_t lightness; /**< The target value of the Light CTL Lightness state */
+    uint16_t temp;      /**< The target value of the Light CTL Temperature state */
+    int16_t delta_uv;   /**< The target value of the Light CTL Delta UV state */
+    uint8_t tid;        /**< Transaction Identifier */
+    uint8_t transit_t;  /**< Generic Default Transition Time(Optional) */
+    uint8_t delay; /**< If the transit_t field is present, the Delay field shall also be present; otherwise these fields
+                      shall not be present. */
 } PACKED TAL_MESH_LIGHT_CTL_SET_T;
 
 typedef struct {
-    USHORT_T temp;     /**< The target value of the Light CTL Temperature state */
-    SHORT_T delta_uv;  /**< The target value of the Light CTL Delta UV state. */
-    UCHAR_T tid;       /**< Transaction Identifier */
-    UCHAR_T transit_t; /**< Generic Default Transition Time(Optional) */
-    UCHAR_T delay;     /**< If the transit_t field is present, the Delay field shall
-                          also be present; otherwise these fields shall not be
-                          present. */
+    uint16_t temp;     /**< The target value of the Light CTL Temperature state */
+    int16_t delta_uv;  /**< The target value of the Light CTL Delta UV state. */
+    uint8_t tid;       /**< Transaction Identifier */
+    uint8_t transit_t; /**< Generic Default Transition Time(Optional) */
+    uint8_t delay; /**< If the transit_t field is present, the Delay field shall also be present; otherwise these fields
+                      shall not be present. */
 } PACKED TAL_MESH_LIGHT_CTL_TEMP_SET_T;
 
 typedef struct {
-    USHORT_T
-    lightness;        /**< The present value of the Light HSL Lightness state */
-    USHORT_T hue;     /**< The present value of the Light HSL Hue state */
-    USHORT_T sat;     /**< The present value of the Light HSL Saturation state */
-    UCHAR_T remain_t; /**< Generic Default Transition Time(Optional) */
+    uint16_t lightness; /**< The present value of the Light HSL Lightness state */
+    uint16_t hue;       /**< The present value of the Light HSL Hue state */
+    uint16_t sat;       /**< The present value of the Light HSL Saturation state */
+    uint8_t remain_t;   /**< Generic Default Transition Time(Optional) */
 } PACKED TAL_MESH_LIGHT_HSL_STATUS_T;
 
 typedef struct {
-    USHORT_T
-    lightness;         /**< The target value of the Light HSL Lightness state */
-    USHORT_T hue;      /**< The target value of the Light HSL Hue state */
-    USHORT_T sat;      /**< The target value of the Light HSL Saturation state */
-    UCHAR_T tid;       /**< Transaction Identifier */
-    UCHAR_T transit_t; /**< Generic Default Transition Time(Optional) */
-    UCHAR_T delay;     /**< If the transit_t field is present, the Delay field shall
-                          also be present; otherwise these fields shall not be
-                          present. */
+    uint16_t lightness; /**< The target value of the Light HSL Lightness state */
+    uint16_t hue;       /**< The target value of the Light HSL Hue state */
+    uint16_t sat;       /**< The target value of the Light HSL Saturation state */
+    uint8_t tid;        /**< Transaction Identifier */
+    uint8_t transit_t;  /**< Generic Default Transition Time(Optional) */
+    uint8_t delay; /**< If the transit_t field is present, the Delay field shall also be present; otherwise these fields
+                      shall not be present. */
 } PACKED TAL_MESH_LIGHT_HSL_SET_T;
 
 typedef enum {
@@ -567,5 +527,7 @@ typedef enum {
     TAL_MESH_GROUP_SUB_ADD,
     TAL_MESH_GROUP_SUB_DEL,
 } TAL_MESH_NET_STATE_T;
+
+// clang-format on
 
 #endif

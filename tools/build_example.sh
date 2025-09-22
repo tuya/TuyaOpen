@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 ##
 # @file build_example.sh
-# @brief 在windows环境编译时，gcc生成的.d文件中路径可能存在冒号“:”
-#        导致第二次编译报错(makefile中冒号背当作目标)。
-#        此脚本在编译前提前生成compiler_depend.internal文件，
-#        可以阻止compiler_depend.make的生成
+# @brief When compiled for windows, gcc may generate .d file with a colon ":" in the path.
+#        Causes a second compilation error (the colon in the makefile is treated as the target).
+#        This script generates the compiler_depend.internal file before compiling.
+#        You can prevent compiler_depend.make from being built
 # @author Tuya
 # @version 1.0.0
 # @date 2024-01-30

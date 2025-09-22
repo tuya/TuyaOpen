@@ -21,19 +21,19 @@
 #define __TAL_BLUETOOTH_MESH_FIRMWARE_INFOR_INNER_H__
 
 typedef struct {
-    UCHAR_T is_key;        /**< Mesh Node Address */
-    UCHAR_T pid_or_key[8]; /**< Mesh Data, structure refer to @TAL_BLE_DATA_T */
+    uint8_t is_key;        /**< Mesh Node Address */
+    uint8_t pid_or_key[8]; /**< Mesh Data, structure refer to @TAL_BLE_DATA_T */
     uint32_t version;
     uint32_t mesh_category;
-    UCHAR_T need_publish_addr;
+    uint8_t need_publish_addr;
 } TAL_MESH_FIRMWARE_INFOR_T;
 
-UCHAR_T tal_get_firmware_key_or_pid(UCHAR_T *pid_or_key);
+uint8_t tal_get_firmware_key_or_pid(uint8_t *pid_or_key);
 
 uint32_t tal_get_firmware_version(void);
 
 uint32_t tal_get_firmware_mesh_category(void);
 
-UCHAR_T tal_get_firmware_if_need_publish_addr(void);
+uint8_t tal_get_firmware_if_need_publish_addr(void);
 
 #endif

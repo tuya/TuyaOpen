@@ -10,6 +10,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "tuya_config_defaults.h"
 #include "tuya_error_code.h"
 #include "cJSON.h"
@@ -728,15 +729,15 @@ int matop_service_dynamic_cfg_get(matop_context_t *context, HTTP_DYNAMIC_CFG_TYP
 
     switch (type) {
     case HTTP_DYNAMIC_CFG_TZ:
-        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN, "{\"type\":\"[\\\"timezone\\\"]\",\"t\":%d}", timestamp);
+        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN, "{\"type\":\"[\\\"timezone\\\"]\",\"t\":%" PRIu32 "}", timestamp);
         break;
     case HTTP_DYNAMIC_CFG_RATERULE:
-        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN, "{\"type\":\"[\\\"rateRule\\\"]\",\"t\":%d}", timestamp);
+        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN, "{\"type\":\"[\\\"rateRule\\\"]\",\"t\":%" PRIu32 "}", timestamp);
         break;
     case HTTP_DYNAMIC_CFG_ALL:
     default:
-        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN, "{\"type\":\"[\\\"timezone\\\",\\\"rateRule\\\"]\",\"t\":%d}",
-                 timestamp);
+        snprintf(buffer, MATOP_DEFAULT_BUFFER_LEN,
+                 "{\"type\":\"[\\\"timezone\\\",\\\"rateRule\\\"]\",\"t\":%" PRIu32 "}", timestamp);
         break;
     }
 

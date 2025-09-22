@@ -1,87 +1,100 @@
-# tuya-open-sdk-for-device
-[English](https://github.com/tuya/tuya-open-sdk-for-device/blob/master/README.md) | 简体中文
+<p align="center">
+<img src="https://images.tuyacn.com/fe-static/docs/img/c128362b-eb25-4512-b5f2-ad14aae2395c.jpg" width="100%" >
+</p>
 
-## 简介
-tuya-open-sdk-for-device 是一款跨芯片平台、操作系统的 IoT 开发框架。它基于通用南向接口设计，支持 Bluetooth、Wi-Fi、Ethernet 等通信协议，提供了物联网开发的核心功能，包括配网，激活，控制，升级等；它具备强大的安全合规能力，包括设备认证、数据加密、通信加密等，满足全球各个国家和地区的数据合规需求。
+<p align="center">
+  <a href="https://tuyaopen.ai/zh/docs/quick_start/enviroment-setup">快速开始</a> ·
+  <a href="https://developer.tuya.com/cn/docs/iot/ai-agent-management?id=Kdxr4v7uv4fud">涂鸦 AI Agent</a> ·
+  <a href="https://tuyaopen.ai/zh/docs/about-tuyaopen">文档中心</a> ·
+  <a href="https://tuyaopen.ai/zh/docs/hardware-specific/t5-ai-board/overview-t5-ai-board">硬件资源</a>
+</p>
 
-基于 tuya-open-sdk-for-device 开发的 IoT 产品，如果使用 tuya_cloud_service 组件的功能，就可以使用涂鸦APP、云服务提供的强大生态能力，并与 Power By Tuya 设备互联互通。
+<p align="center">
+    <a href="https://tuyaopen.ai" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Product-F04438"></a>
+    <a href="https://tuyaopen.ai/zh/pricing" target="_blank">
+        <img alt="Static Badge" src="https://img.shields.io/badge/free-pricing?logo=free&color=%20%23155EEF&label=pricing&labelColor=%20%23528bff"></a>
+    <a href="https://discord.gg/cbGrBjx7" target="_blank">
+        <img src="https://img.shields.io/badge/Discord-Join%20Chat-5462eb?logo=discord&labelColor=%235462eb&logoColor=%23f5f5f5&color=%235462eb"
+            alt="chat on Discord"></a>
+    <a href="https://www.youtube.com/@tuya2023" target="_blank">
+        <img src="https://img.shields.io/badge/YouTube-Subscribe-red?logo=youtube&labelColor=white"
+            alt="Subscribe on YouTube"></a>
+    <a href="https://x.com/tuyasmart" target="_blank">
+        <img src="https://img.shields.io/twitter/follow/tuyasmart?logo=X&color=%20%23f5f5f5"
+            alt="follow on X(Twitter)"></a>
+    <a href="https://www.linkedin.com/company/tuya-smart/" target="_blank">
+        <img src="https://custom-icon-badges.demolab.com/badge/LinkedIn-0A66C2?logo=linkedin-white&logoColor=fff"
+            alt="follow on LinkedIn"></a>
+    <a href="https://github.com/tuya/tuyaopen/graphs/commit-activity?branch=dev" target="_blank">
+        <img alt="Commits last month (dev branch)" src="https://img.shields.io/github/commit-activity/m/tuya/tuyaopen/dev?labelColor=%2332b583&color=%2312b76a"></a>
+    <a href="https://github.com/langgenius/dify/" target="_blank">
+        <img alt="Issues closed" src="https://img.shields.io/github/issues-search?query=repo%3Atuya%2Ftuyaopen%20is%3Aclosed&label=issues%20closed&labelColor=%20%237d89b0&color=%20%235d6b98"></a>
+</p>
 
-
-## 开始体验
-
-### 安装依赖
-Ubuntu and Debian
-
-```sh
-$ sudo apt-get install lcov cmake-curses-gui build-essential wget git python3 libc6-i386 libsystemd-dev
-```
-
-### 克隆仓库
-
-```sh
-$ git clone https://github.com/tuya/tuya-open-sdk-for-device.git
-```
-
-### 更新工程
-
-```sh
-$ git submodule update --init
-```
-
-### 修改示例工程
-`switch_demo` 演示一个简单的，跨平台、跨系统、支持多种连接的开关示例，通过涂鸦APP、涂鸦云服务，可以对这个开关进行远程控制。
-
-1. 创建产品并获取产品的 PID：
-
-参考文档 [https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc](https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc) 在 [https://iot.tuya.com](https://iot.tuya.com) 下创建产品，并获取到创建产品的 PID 。
-
-2. 获取正确的 uuid 和 authkey：
-
-参考文档 [https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc#title-4-%E7%AC%AC%E4%BA%94%E6%AD%A5%EF%BC%9A%E9%A2%86%E5%8F%96%E6%8E%88%E6%9D%83%E7%A0%81](https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc#title-4-%E7%AC%AC%E4%BA%94%E6%AD%A5%EF%BC%9A%E9%A2%86%E5%8F%96%E6%8E%88%E6%9D%83%E7%A0%81) 获取授权码清单，该清单中包含连接涂鸦云服务的 uuid 和 authkey。
-
-3. 修改示例：
-
-`examples/switch_demo/src/tuya_config.h` 文件中 `TUYA_PRODUCT_KEY` 和 `TUYA_DEVICE_UUID` 、`TUYA_DEVICE_AUTHKEY` 宏分别对应 pid 和 uuid 、authkey，请根据步骤 1 和 2 分别获取到的 PID 及 uuid 、authkey 正确修改，修改后删除 `#error` 提示语句。 
-
-### 配置工程
-选择当前编译的目标板和 demo
-```sh
-$ ./configure
-```
-
-### 编译工程
-
-```sh
-$ mkdir build; cd build; cmake ..
-
-$ make example
-```
-
-### 配置 tuya-open-sdk-for-device
-在 build 目录下运行如下命令进行菜单化配置
-```sh
-$ make menuconfig
-```
-
-### 运行示例程序
-
-```sh
-$ ./bin/switch_demo_1.0.0/switch_demo_1.0.0
-```
-
-## FAQ
-1. tuya-open-sdk-for-device 支持的 board 通过子仓库动态下载，更新 tuya-open-sdk-for-device 仓库不会主动更新子仓库，如遇到问题无法正常编译，请至 board 文件夹下对应的目录下使用 `git pull` 命令更新，或删除 board 文件夹下对应目录后再次下载。
-
-2. 通过二维码扫码激活需产品 PID 支持 “设备直连云” 功能，否则激活会报错，导致无法正常激活。
-![qrencode](docs/images/zh/qrencode.png)
-
-## License
-
-本项目的分发遵循 Apache License 版本 2.0。有关更多信息，请参见 LICENSE 文件。
+<p align="center">
+  <a href="./README.md"><img alt="README in English" src="https://img.shields.io/badge/English-d9d9d9"></a>
+  <a href="./README_zh.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-d9d9d9"></a>
+</p>
 
 
-## 免责与责任条款
+## 概述
 
-用户应明确知晓，本项目可能包含由第三方开发的子模块（submodules），这些子模块可能独立于本项目进行更新。鉴于这些子模块的更新频率不受控制，本项目无法确保这些子模块始终为最新版本。因此，用户在使用本项目时，若遇到与子模块相关的问题，建议自行根据需要进行更新或于本项目提交问题（issue）。
+TuyaOpen 是一个开源的 AI+IoT 开发框架，旨在帮助开发者快速创建智能互联设备。它支持多种芯片平台和类 RTOS 操作系统，能够无缝集成多模态 AI 能力，包括音频、视频和传感器数据处理。
 
-若用户决定将本项目用于商业目的，应充分认识到其中可能涉及的功能性和安全性风险。在此情况下，用户应对产品的所有功能性和安全性问题承担全部责任，应进行全面的功能和安全测试，以确保其满足特定的商业需求。本公司不对因用户使用本项目或其子模块而造成的任何直接、间接、特殊、偶然或惩罚性损害承担责任。
+### 🚀 使用 TuyaOpen，你可以：
+- 开发具备语音技术的硬件产品，如 `ASR`（Automatic Speech Recognition）、`KWS`（Keyword Spotting）、`TTS`（Text-to-Speech）、`STT`（Speech-to-Text）
+- 集成主流 LLMs 及 AI 平台，包括 `Deepseek`、`ChatGPT`、`Claude`、`Gemini` 等
+- 构建具备 `多模态AI能力` 的智能设备，包括文本、语音、视觉和基于传感器的功能
+- 创建自定义产品，并无缝连接至涂鸦云，实现 `远程控制`、`监控` 和 `OTA 升级`
+- 开发兼容 `Google Home` 和 `Amazon Alexa` 的设备
+- 设计自定义的 `Powered by Tuya` 硬件
+- 支持广泛的硬件应用，包括 `蓝牙`、`Wi-Fi`、`以太网` 等多种连接方式
+- 受益于强大的内置 `安全性`、`设备认证` 和 `数据加密` 能力
+
+无论你是在开发智能家居产品、工业 IoT 解决方案，还是定制 AI 应用，TuyaOpen 都能为你提供快速入门和跨平台扩展的工具与示例。
+
+
+
+### TuyaOpen SDK 框架
+<p align="center">
+<img src="https://images.tuyacn.com/fe-static/docs/img/25713212-9840-4cf5-889c-6f55476a59f9.jpg" width="80%" >
+</p>
+
+---
+
+### 支持的目标平台
+| Name                  | Support Status | Introduction                                                 | Debug log serial port |
+| --------------------- | -------------- | ------------------------------------------------------------ | --------------------- |
+| Ubuntu                | Supported      | 可直接运行于如 ubuntu 等 Linux 主机。                        |                       |
+| Tuya T2               | Supported      | 支持的模块列表: [T2-U](https://developer.tuya.com/en/docs/iot/T2-U-module-datasheet?id=Kce1tncb80ldq) | Uart2/115200          |
+| Tuya T3               | Supported      | 支持的模块列表: [T3-U](https://developer.tuya.com/en/docs/iot/T3-U-Module-Datasheet?id=Kdd4pzscwf0il) [T3-U-IPEX](https://developer.tuya.com/en/docs/iot/T3-U-IPEX-Module-Datasheet?id=Kdn8r7wgc24pt) [T3-2S](https://developer.tuya.com/en/docs/iot/T3-2S-Module-Datasheet?id=Ke4h1uh9ect1s) [T3-3S](https://developer.tuya.com/en/docs/iot/T3-3S-Module-Datasheet?id=Kdhkyow9fuplc) [T3-E2](https://developer.tuya.com/en/docs/iot/T3-E2-Module-Datasheet?id=Kdirs4kx3uotg) 等 | Uart1/460800          |
+| Tuya T5               | Supported      | 支持的模块列表: [T5-E1](https://developer.tuya.com/en/docs/iot/T5-E1-Module-Datasheet?id=Kdar6hf0kzmfi) [T5-E1-IPEX](https://developer.tuya.com/en/docs/iot/T5-E1-IPEX-Module-Datasheet?id=Kdskxvxe835tq) 等 | Uart1/460800          |
+| ESP32/ESP32C3/ESP32S3 | Supported      |                                                              | Uart0/115200          |
+| LN882H                | Supported      |                                                              | Uart1/921600          |
+| BK7231N               | Supported      | 支持的模块列表: [CBU](https://developer.tuya.com/en/docs/iot/cbu-module-datasheet?id=Ka07pykl5dk4u) [CB3S](https://developer.tuya.com/en/docs/iot/cb3s?id=Kai94mec0s076) [CB3L](https://developer.tuya.com/en/docs/iot/cb3l-module-datasheet?id=Kai51ngmrh3qm) [CB3SE](https://developer.tuya.com/en/docs/iot/CB3SE-Module-Datasheet?id=Kanoiluul7nl2) [CB2S](https://developer.tuya.com/en/docs/iot/cb2s-module-datasheet?id=Kafgfsa2aaypq) [CB2L](https://developer.tuya.com/en/docs/iot/cb2l-module-datasheet?id=Kai2eku1m3pyl) [CB1S](https://developer.tuya.com/en/docs/iot/cb1s-module-datasheet?id=Kaij1abmwyjq2) [CBLC5](https://developer.tuya.com/en/docs/iot/cblc5-module-datasheet?id=Ka07iqyusq1wm) [CBLC9](https://developer.tuya.com/en/docs/iot/cblc9-module-datasheet?id=Ka42cqnj9r0i5) [CB8P](https://developer.tuya.com/en/docs/iot/cb8p-module-datasheet?id=Kahvig14r1yk9) 等 | Uart2/115200          |
+
+# 开发者文档
+
+更多 TuyaOpen 相关文档，请参考 [TuyaOpen 开发者指南](https://tuyaopen.ai/docs/about-tuyaopen)。
+
+## 许可证
+
+本项目基于 Apache License Version 2.0 发布。更多信息请参见 `LICENSE`。
+
+
+
+## 代码贡献
+
+如果你对 TuyaOpen 感兴趣，并希望参与开发成为代码贡献者，请先阅读 [贡献指南](https://tuyaopen.ai/docs/contribute/contribute-guide)。
+
+## 免责声明
+
+用户需明确知晓，本项目可能包含由第三方开发的子模块。这些子模块可能会独立于本项目进行更新。鉴于这些子模块的更新频率不可控，本项目无法保证其始终为最新版本。因此，若用户在使用本项目过程中遇到与子模块相关的问题，建议根据需要自行更新，或向本项目提交 issue。
+
+如用户决定将本项目用于商业用途，应充分认识到其中可能存在的功能和安全风险。在此情况下，用户应对所有功能和安全问题自行承担责任，并进行全面的功能和安全性测试，以确保其满足特定业务需求。本公司不对因用户使用本项目或其子模块而导致的任何直接、间接、特殊、偶发或惩罚性损害承担责任。
+
+## 相关链接
+
+- Arduino for TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
+- Luanode for TuyaOpen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)

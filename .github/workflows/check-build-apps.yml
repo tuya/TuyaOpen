@@ -1,0 +1,69 @@
+name: TuyaOpen Check Build
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on:
+  pull_request:
+    branches:
+      - master  # 当分支有提交时执行此工作流
+      - dev
+jobs:
+  Build-Switch-Demo:
+    runs-on: self-hosted
+    env:
+      OPEN_COUNTRY_CODE: "NONE"
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 Running on a ${{ runner.os }}, branch is ${{ github.ref }} !"
+      - name: Check out repository code
+        uses: actions/checkout@v4
+        with:
+          show-progress: false
+      - name: Check Base Tools
+        run: |
+          echo "::group::Checking base tools"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          tos.py version
+          tos.py check
+          rm -rf ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - name: Check [switch_demo] Build
+        run: |
+          echo "::group::Building switch_demo"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
+          tos.py dev bac -d ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - name: Check [your_chat_bot] Build
+        run: |
+          echo "::group::Building your_chat_bot"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
+          tos.py dev bac -d ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - name: Check [your_otto_robot] Build
+        run: |
+          echo "::group::Building your_otto_robot"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
+          tos.py dev bac -d ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - name: Check [camera_demo] Build
+        run: |
+          echo "::group::Building camera_demo"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya_cloud/camera_demo
+          tos.py dev bac -d ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - name: Check [weather_get_demo] Build
+        run: |
+          echo "::group::Building weather_get_demo"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          cd ${{ github.workspace }}/apps/tuya_cloud/weather_get_demo
+          tos.py dev bac -d ${{ github.workspace }}/dist
+          echo "::endgroup::"
+      - run: echo "💡 This job's status is ${{ job.status }}."

@@ -14,16 +14,21 @@ set(MBEDTLS mbedtls-3.1.0)
 # LIB_SRCS
 file(GLOB_RECURSE 
     LIB_SRCS 
-    "${MODULE_PATH}/src/*.c" 
-    "${MODULE_PATH}/${MBEDTLS}/library/*.c")
+    "${MODULE_PATH}/src/*.c")
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
     ${MODULE_PATH}/include
-    ${MODULE_PATH}/${MBEDTLS}/include
     ${MODULE_PATH}/port)
 
+if (CONFIG_ENABLE_PLATFORM_MBEDTLS STREQUAL "y")
+    message(STATUS "Using mbedtls from platform")
+else()
+    file(GLOB_RECURSE MBEDTLS_SRCS "${MODULE_PATH}/${MBEDTLS}/library/*.c")
 
+    list(APPEND LIB_SRCS "${MBEDTLS_SRCS}")
+    list(APPEND LIB_PUBLIC_INC "${MODULE_PATH}/${MBEDTLS}/include")
+endif()
 
 ########################################
 # Target Configure

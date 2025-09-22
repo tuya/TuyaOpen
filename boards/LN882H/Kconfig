@@ -1,0 +1,38 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "LN882H"
+
+config PLATFORM_LN882H
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_WL2H_U
+        bool "WL2H-U"
+        if (BOARD_CHOICE_WL2H_U)
+            rsource "./WL2H-U/Kconfig"
+        endif
+
+    config BOARD_CHOICE_EWT103_W15
+        bool "EWT103-W15"
+        if (BOARD_CHOICE_EWT103_W15)
+            rsource "./EWT103-W15/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice

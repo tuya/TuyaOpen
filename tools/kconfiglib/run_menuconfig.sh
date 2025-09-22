@@ -7,11 +7,10 @@
 # @date 2023-04-08
 #/
 
-# $1: KCONFIG_CATALOG
-# $2: DOT_KCONFIG
+KCONFIG_CATALOG=$1
+DOT_KCONFIG=$2
 
 KCONFIG_TOOLS=`dirname $0`
 
-export KCONFIG_CONFIG="$2"
-python3 -u $KCONFIG_TOOLS/menuconfig.py $1
-
+export KCONFIG_CONFIG="$DOT_KCONFIG"
+python3 -u $KCONFIG_TOOLS/menuconfig.py $KCONFIG_CATALOG

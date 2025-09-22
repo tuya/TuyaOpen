@@ -79,7 +79,7 @@
 #include "lwip/etharp.h"
 #include "lwip/prot/dhcp.h"
 #include "lwip/prot/iana.h"
-
+#include "lwip/sys.h"
 #include <string.h>
 
 #ifdef LWIP_HOOK_FILENAME
@@ -180,7 +180,9 @@ static u8_t xid_initialised;
 #if LWIP_CONFIG_FAST_DHCP
 u8_t is_fast_dhcp = 0;
 ip_addr_t offered_ip_addr;
+ip_addr_t offered_mask_addr;
 ip_addr_t offered_gw_addr;
+ip_addr_t offered_dns_addr;
 #endif /* LWIP_CONFIG_FAST_DHCP */
 
 #define dhcp_option_given(dhcp, idx)          (dhcp_rx_options_given[idx] != 0)
@@ -291,6 +293,9 @@ dhcp_handle_nak(struct netif *netif)
   dhcp_set_state(dhcp, DHCP_STATE_BACKING_OFF);
   /* remove IP address from interface (must no longer be used, as per RFC2131) */
   netif_set_addr(netif, IP4_ADDR_ANY4, IP4_ADDR_ANY4, IP4_ADDR_ANY4);
+  if (netif->dhcp_cb != NULL) {
+    netif->dhcp_cb(netif, 0, 0);//ipv4 down
+  }
   /* We can immediately restart discovery */
   dhcp_discover(netif);
 }
@@ -574,7 +579,7 @@ dhcp_t1_timeout(struct netif *netif)
        DHCP_STATE_RENEWING, not DHCP_STATE_BOUND */
 #if LWIP_DHCP_SECONDS_ELAPSE
     if (dhcp->state != DHCP_STATE_RENEWING) {
-      dhcp->seconds_elapsed = sys_now();       
+      dhcp->seconds_elapsed = sys_now();
     }
 #endif
     dhcp_renew(netif);
@@ -772,6 +777,10 @@ dhcp_start(struct netif *netif)
     return ERR_MEM;
   }
 
+#if LWIP_CONFIG_FAST_DHCP
+//    is_fast_dhcp = 0; /* Current get this flag from hostapd */
+#endif /* LWIP_CONFIG_FAST_DHCP */
+
   /* no DHCP client attached yet? */
   if (dhcp == NULL) {
     LWIP_DEBUGF(DHCP_DEBUG | LWIP_DBG_TRACE, ("dhcp_start(): mallocing new DHCP client\n"));
@@ -829,9 +838,9 @@ dhcp_start(struct netif *netif)
 #endif
 
 #if LWIP_CONFIG_FAST_DHCP
-    if (is_fast_dhcp && offered_ip_addr.addr && offered_gw_addr.addr) {
-        dhcp->offered_ip_addr.addr = offered_ip_addr.addr;
-        dhcp->offered_gw_addr.addr = offered_gw_addr.addr;
+    if (is_fast_dhcp && ip_2_ip4(&offered_ip_addr)->addr && ip_2_ip4(&offered_gw_addr)->addr) {
+        dhcp->offered_ip_addr.addr = ip_2_ip4(&offered_ip_addr)->addr;
+        dhcp->offered_gw_addr.addr = ip_2_ip4(&offered_gw_addr)->addr;
         result = dhcp_reboot(netif);
     } else
 #endif /* LWIP_CONFIG_FAST_DHCP */
@@ -1203,6 +1212,9 @@ dhcp_bind(struct netif *netif)
 
   netif_set_addr(netif, &dhcp->offered_ip_addr, &sn_mask, &gw_addr);
   /* interface is used by routing now that an address is set */
+  if (netif->dhcp_cb != NULL) {
+    netif->dhcp_cb(netif, 0, 1);//ipv4 up
+  }
 }
 
 /**
@@ -1434,6 +1446,10 @@ dhcp_release_and_stop(struct netif *netif)
 
   /* remove IP address from interface (prevents routing from selecting this interface) */
   netif_set_addr(netif, IP4_ADDR_ANY4, IP4_ADDR_ANY4, IP4_ADDR_ANY4);
+
+  if (netif->dhcp_cb != NULL) {
+    netif->dhcp_cb(netif, 0, 0);//ipv4 down
+  }
 
 #if LWIP_DHCP_AUTOIP_COOP
   if (dhcp->autoip_coop_state == DHCP_AUTOIP_COOP_STATE_ON) {

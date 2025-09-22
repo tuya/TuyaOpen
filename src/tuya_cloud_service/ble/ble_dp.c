@@ -51,7 +51,7 @@ typedef struct s_klv_node {
     uint8_t *data;
 } klv_node_s;
 
-void tuya_change_bt_dp_tlv(dp_type type, void *data, UINT16_T *len)
+void tuya_change_bt_dp_tlv(dp_type type, void *data, uint16_t *len)
 {
     if (DT_ENUM == type) {
         uint32_t enum_value = *(uint32_t *)data;
@@ -60,7 +60,7 @@ void tuya_change_bt_dp_tlv(dp_type type, void *data, UINT16_T *len)
             *len = 1;
             memcpy(data, &enum_byte, *len);
         } else if (enum_value <= 0xffff) {
-            UINT16_T enum_short = *(uint32_t *)data;
+            uint16_t enum_short = *(uint32_t *)data;
             *len = 2;
             enum_short = UNI_HTONS(enum_short);
             memcpy(data, &enum_short, *len);
@@ -95,7 +95,7 @@ void free_klv_list(klv_node_s *list)
     } while (node);
 }
 
-klv_node_s *make_klv_list(klv_node_s *list, uint8_t id, dp_type type, void *data, UINT16_T len)
+klv_node_s *make_klv_list(klv_node_s *list, uint8_t id, dp_type type, void *data, uint16_t len)
 {
     klv_node_s *node;
     void *p_data = NULL;
@@ -325,12 +325,12 @@ OPERATE_RET data_2_klvlist(uint8_t *data, uint32_t len, klv_node_s **list)
     return OPRT_OK;
 }
 
-static OPERATE_RET __result_code_resp(uint16_t type, uint32_t ack_sn, BYTE_T result_code)
+static OPERATE_RET __result_code_resp(uint16_t type, uint32_t ack_sn, uint8_t result_code)
 {
     return tuya_ble_send(type, ack_sn, &result_code, 1);
 }
 
-static OPERATE_RET __result_code_resp_v4(uint16_t type, uint32_t ack_sn, uint8_t *data, BYTE_T result_code)
+static OPERATE_RET __result_code_resp_v4(uint16_t type, uint32_t ack_sn, uint8_t *data, uint8_t result_code)
 {
     uint8_t data_code[6] = {0}; // version(1byte)+R_SN(4byte)+STATE(1byte)
     memcpy(data_code, data, 5);
@@ -352,13 +352,13 @@ static OPERATE_RET __dp_data_report_data(uint16_t type, uint8_t *p_data, uint32_
 klv_node_s *__make_obj_dp_klv_list(dp_rept_in_t *dpin)
 {
     klv_node_s *p_node = NULL;
-    int32_t index = 0;
+    int index = 0;
 
     for (index = 0; index < dpin->dpscnt; index++) {
         dp_obj_t *p_dp = dpin->dps + index;
         dp_type new_type = 0;
         void *new_data = NULL;
-        UINT16_T new_len = 0;
+        uint16_t new_len = 0;
 
         switch (p_dp->type) {
         case PROP_BOOL: {
@@ -401,7 +401,7 @@ klv_node_s *__make_obj_dp_klv_list(dp_rept_in_t *dpin)
     return p_node;
 }
 
-OPERATE_RET ty_bt_dp_data_report(IN klv_node_s *p_node, IN uint32_t time_stamp)
+OPERATE_RET ty_bt_dp_data_report(klv_node_s *p_node, uint32_t time_stamp)
 {
     OPERATE_RET ret = OPRT_OK;
     uint16_t type = FRM_STAT_REPORT;
@@ -423,7 +423,7 @@ OPERATE_RET ty_bt_dp_data_report(IN klv_node_s *p_node, IN uint32_t time_stamp)
     return ret;
 }
 
-static klv_node_s *__get_response_query_dp_data(IN const BYTE_T *dpid, IN const BYTE_T num)
+static __attribute__((unused)) klv_node_s *__get_response_query_dp_data(const uint8_t *dpid, const uint8_t num)
 {
     uint16_t i;
     klv_node_s *p_node = NULL;
@@ -431,10 +431,10 @@ static klv_node_s *__get_response_query_dp_data(IN const BYTE_T *dpid, IN const 
 
     tal_mutex_lock(schema->mutex);
     for (i = 0; i < num; i++) {
-        int32_t id = dpid[i];
+        int id = dpid[i];
         dp_type new_type = 0;
         void *new_data = NULL;
-        UINT16_T new_len = 0;
+        uint16_t new_len = 0;
 
         dp_node_t *dpnode = dp_node_find(schema, id);
 
@@ -484,7 +484,7 @@ static klv_node_s *__get_response_query_dp_data(IN const BYTE_T *dpid, IN const 
     return p_node;
 }
 
-uint32_t __dp_get_time_stamp(IN dp_obj_t *dp_data, IN const uint32_t cnt)
+uint32_t __dp_get_time_stamp(dp_obj_t *dp_data, const uint32_t cnt)
 {
     // time_stamp:0 indicates the current time.
     if (NULL == dp_data || 0 == cnt || 0 == dp_data[0].time_stamp) {
@@ -564,11 +564,11 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
     klv_node_s *p_tmp = list;
     while (p_tmp != NULL) {
         PR_DEBUG("ble dp id:%d type:%d len:%d", p_tmp->id, p_tmp->type, p_tmp->len);
-        CHAR_T dp_id_str[5] = {0};
+        char dp_id_str[5] = {0};
         snprintf(dp_id_str, 5, "%d", p_tmp->id);
         switch (p_tmp->type) {
         case DT_RAW: {
-            CHAR_T *p_base64 = tal_malloc(p_tmp->len / 3 * 4 + 5);
+            char *p_base64 = tal_malloc(p_tmp->len / 3 * 4 + 5);
             tuya_base64_encode(p_tmp->data, p_base64, p_tmp->len);
             cJSON_AddStringToObject(p_dps, dp_id_str, p_base64);
             tal_free(p_base64);
@@ -580,13 +580,12 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
         }
         case DT_BITMAP:
         case DT_VALUE: {
-            int32_t val =
-                (p_tmp->data[0] << 24) + (p_tmp->data[1] << 16) + (p_tmp->data[2] << 8) + (p_tmp->data[3] << 0);
+            int val = (p_tmp->data[0] << 24) + (p_tmp->data[1] << 16) + (p_tmp->data[2] << 8) + (p_tmp->data[3] << 0);
             cJSON_AddNumberToObject(p_dps, dp_id_str, val);
             break;
         }
         case DT_ENUM: {
-            int32_t val = p_tmp->data[0];
+            int val = p_tmp->data[0];
             dp_node_t *dpnode = dp_node_find(tuya_iot_client_get()->schema, p_tmp->id);
             if (NULL == dpnode) {
                 PR_ERR("invalid dp id[%d]", p_tmp->id);
@@ -623,7 +622,7 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
 
     dp_schema_t *schema = dp_schema_find(tuya_iot_client_get()->activate.devid);
 
-    int32_t i;
+    int i;
     klv_node_s *p_node = NULL;
     if (schema == NULL) {
         PR_DEBUG("schema null");
@@ -642,7 +641,7 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
         if (dpnode->desc.type == T_OBJ) {
             dp_type new_type = 0;
             void *new_data = NULL;
-            UINT16_T new_len = 0;
+            uint16_t new_len = 0;
 
             switch (dpnode->desc.prop_tp) {
             case PROP_BOOL: {
@@ -658,7 +657,11 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
             case PROP_STR: {
                 new_type = DT_STRING;
                 new_data = dpnode->prop.prop_str.value;
-                new_len = strlen(dpnode->prop.prop_str.value);
+                if(dpnode->prop.prop_str.value) {
+                    new_len = strlen(dpnode->prop.prop_str.value);
+                }else {
+                    new_len = 0;
+                }
             } break;
             case PROP_ENUM: {
                 new_type = DT_ENUM;
@@ -705,7 +708,7 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
  *     - 0: Success
  *     - Other values: Error codes
  */
-int tuya_ble_dp_report(IN dp_rept_in_t *dpin)
+int tuya_ble_dp_report(dp_rept_in_t *dpin)
 {
     return ble_dp_report(dpin);
 }

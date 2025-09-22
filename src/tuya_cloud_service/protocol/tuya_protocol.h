@@ -109,8 +109,8 @@ typedef dp_cmd_type_t DP_CMD_TYPE_E;
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data, IN const int32_t len,
-                                     IN const CHAR_T *key, OUT CHAR_T **out_data);
+OPERATE_RET tuya_parse_protocol_data(const DP_CMD_TYPE_E cmd, uint8_t *data, const int len, const char *key,
+                                     char **out_data);
 
 /**
  * @brief pack protocol data
@@ -127,8 +127,8 @@ OPERATE_RET tuya_parse_protocol_data(IN const DP_CMD_TYPE_E cmd, IN BYTE_T *data
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T *src, IN const uint32_t pro,
-                                    IN BYTE_T *key, OUT CHAR_T **out, OUT uint32_t *out_len);
+OPERATE_RET tuya_pack_protocol_data(const DP_CMD_TYPE_E cmd, const char *src, const uint32_t pro, uint8_t *key,
+                                    char **out, uint32_t *out_len);
 /**
  * @brief add head and tail in lpv35 frame
  *
@@ -141,8 +141,8 @@ OPERATE_RET tuya_pack_protocol_data(IN const DP_CMD_TYPE_E cmd, IN const CHAR_T 
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv35_frame_object_t *input, BYTE_T *output,
-                                  int32_t *olen);
+OPERATE_RET lpv35_frame_serialize(const uint8_t *key, int key_len, const lpv35_frame_object_t *input, uint8_t *output,
+                                  int *olen);
 
 /**
  * @brief lpv35 frame parse
@@ -156,7 +156,7 @@ OPERATE_RET lpv35_frame_serialize(const BYTE_T *key, int32_t key_len, const lpv3
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *input, int32_t ilen,
+OPERATE_RET lpv35_frame_parse(const uint8_t *key, int key_len, const uint8_t *input, int ilen,
                               lpv35_frame_object_t *output);
 
 /**
@@ -166,7 +166,7 @@ OPERATE_RET lpv35_frame_parse(const BYTE_T *key, int32_t key_len, const BYTE_T *
  *
  * @return lpv35 frame buffer size
  */
-int32_t lpv35_frame_buffer_size_get(lpv35_frame_object_t *frame_obj);
+int lpv35_frame_buffer_size_get(lpv35_frame_object_t *frame_obj);
 
 #ifdef __cplusplus
 }

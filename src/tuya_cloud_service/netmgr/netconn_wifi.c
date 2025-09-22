@@ -1,15 +1,13 @@
 /**
  * @file netconn_wifi.c
- * @brief Implementation of WiFi connection management functions.
+ * @brief Implementation of WiFi network connection management for Tuya IoT devices.
  *
- * This file provides the functionality to manage WiFi connections including
- * connecting to a WiFi network, disconnecting, handling connection events,
- * and managing WiFi network configurations.
+ * This file provides functions and structures to manage WiFi network connections,
+ * including connection, disconnection, configuration, and event handling.
  *
- * The implementation includes managing WiFi connection states, handling
- * WiFi events, and storing/retrieving WiFi network information.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * 2025-07-11   yangjie     Adjust WiFi priority
  *
  */
 
@@ -17,6 +15,9 @@
 #include "tal_api.h"
 #include "cJSON.h"
 #include "ap_netcfg.h"
+#include "tuya_lan.h"
+
+#include "tal_network_register.h"
 
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
@@ -35,14 +36,29 @@ typedef struct {
     netmgr_conn_wifi_t *handle;
 } netmgr_wifi_msg_t;
 
-netmgr_conn_wifi_t s_netmgr_wifi = {.base = {.pri = 0,
-                                             .type = NETCONN_WIFI,
-                                             .open = netconn_wifi_open,
-                                             .close = netconn_wifi_close,
-                                             .get = netconn_wifi_get,
-                                             .set = netconn_wifi_set},
-                                    .ccode = {"CN"},
-                                    .conn = {.table_size = NETCONN_WIFI_CONN_TABLE, .table = {1, 3, 5, 10, 15, 20}}};
+netmgr_conn_wifi_t s_netmgr_wifi = {
+    .base =
+        {
+            .pri = 1,
+            .type = NETCONN_WIFI,
+            .status = NETMGR_LINK_DOWN,
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+            .card_type = TAL_NET_TYPE_POSIX,
+#else
+            .card_type = TAL_NET_TYPE_PLATFORM,
+#endif
+            .open = netconn_wifi_open,
+            .close = netconn_wifi_close,
+            .get = netconn_wifi_get,
+            .set = netconn_wifi_set,
+        },
+    .ccode = {"CN"},
+    .conn =
+        {
+            .table_size = NETCONN_WIFI_CONN_TABLE,
+            .table = {1, 3, 5, 10, 15, 20},
+        },
+};
 
 static void __netconn_wifi_connect_process(void *msg)
 {
@@ -56,7 +72,7 @@ static void __netconn_wifi_connect_process(void *msg)
         tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
         wifi->conn.stat = NETCONN_WIFI_CONN_CHECK;
         tal_wifi_set_work_mode(WWM_STATION);
-        tal_wifi_station_connect((SCHAR_T *)wifi->conn.wifi_conn_info.ssid, (SCHAR_T *)wifi->conn.wifi_conn_info.pswd);
+        tal_wifi_station_connect((int8_t *)wifi->conn.wifi_conn_info.ssid, (int8_t *)wifi->conn.wifi_conn_info.pswd);
         break;
 
     case NETCONN_WIFI_MSG_DISCONNECT:
@@ -168,7 +184,7 @@ static void __netconn_wifi_conn_timer(TIMER_ID timer_id, void *arg)
 
 OPERATE_RET __netconn_wifi_info_set(netconn_wifi_info_t *info)
 {
-    CHAR_T netinfo[128];
+    char netinfo[128];
     sprintf(netinfo, "{\"s\":\"%s\",\"p\":\"%s\"}", info->ssid, info->pswd);
     PR_DEBUG("netinfo %s", netinfo);
 
@@ -223,7 +239,7 @@ static OPERATE_RET __wifi_link_activete_cb(void *data)
     return rt;
 }
 
-OPERATE_RET __netconn_wifi_netcfg_finish(int32_t type, netcfg_info_t *info)
+OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
 {
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
@@ -263,7 +279,8 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
 
     // init netcfg
     netcfg_init();
-    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP) {
+    TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
+    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM) {
         ap_netcfg_init(&netmgr_wifi->netcfg);
         netcfg_start(NETCFG_TUYA_WIFI_AP, __netconn_wifi_netcfg_finish, NULL);
     }
@@ -370,8 +387,11 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
     switch (cmd) {
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
                           // active connection
-        netmgr_wifi->base.pri = *(int32_t *)param;
+        netmgr_wifi->base.pri = *(int *)param;
         netmgr_wifi->base.event_cb(NETCONN_WIFI, netmgr_wifi->base.status);
+        break;
+    case NETCONN_CMD_IP:
+        TUYA_CALL_ERR_RETURN(tal_wifi_set_ip(WF_STATION, (NW_IP_S *)param));
         break;
     case NETCONN_CMD_MAC: // set mac to the station
         TUYA_CALL_ERR_RETURN(tal_wifi_set_mac(WF_STATION, (NW_MAC_S *)param));
@@ -382,7 +402,7 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
         __netconn_wifi_connect();
         break;
     case NETCONN_CMD_COUNTRYCODE:
-        memcpy(netmgr_wifi->ccode, (CHAR_T *)param, strlen((CHAR_T *)param));
+        memcpy(netmgr_wifi->ccode, (char *)param, strlen((char *)param));
         TUYA_CALL_ERR_RETURN(tal_wifi_set_country_code(netmgr_wifi->ccode));
         break;
     case NETCONN_CMD_NETCFG: {
@@ -429,7 +449,7 @@ OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param)
     switch (cmd) {
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
                           // active connection
-        netmgr_wifi->base.pri = *(int32_t *)param;
+        netmgr_wifi->base.pri = *(int *)param;
         netmgr_wifi->base.event_cb(NETCONN_WIFI, netmgr_wifi->base.status);
         break;
     case NETCONN_CMD_MAC: // set mac to the station
@@ -440,7 +460,7 @@ OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param)
         memcpy((netconn_wifi_info_t *)param, &netmgr_wifi->conn.wifi_conn_info, sizeof(netconn_wifi_info_t));
         break;
     case NETCONN_CMD_COUNTRYCODE:
-        memcpy((CHAR_T *)param, netmgr_wifi->ccode, strlen(netmgr_wifi->ccode));
+        memcpy((char *)param, netmgr_wifi->ccode, strlen(netmgr_wifi->ccode));
         break;
     case NETCONN_CMD_IP:
         TUYA_CALL_ERR_RETURN(tal_wifi_get_ip(WF_STATION, (NW_IP_S *)param));

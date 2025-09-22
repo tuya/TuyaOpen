@@ -38,9 +38,9 @@ typedef enum {
     TSS_TLS_APP,
 } TLS_TCP_STAT_E;
 
-typedef void (*tuya_tls_pre_conn_cb)(const CHAR_T *hostname, const tuya_tls_hander p_tls_hander);
-typedef int32_t (*tuya_tls_send_cb)(void *p_custom_net_ctx, const BYTE_T *buf, SIZE_T len);
-typedef int32_t (*tuya_tls_recv_cb)(void *p_custom_net_ctx, BYTE_T *buf, SIZE_T len);
+typedef void (*tuya_tls_pre_conn_cb)(const char *hostname, const tuya_tls_hander p_tls_hander);
+typedef int (*tuya_tls_send_cb)(void *p_custom_net_ctx, const uint8_t *buf, size_t len);
+typedef int (*tuya_tls_recv_cb)(void *p_custom_net_ctx, uint8_t *buf, size_t len);
 
 typedef enum {
     TUYA_TLS_PSK_MODE,
@@ -111,7 +111,7 @@ int tuya_tls_random(unsigned char *output, size_t output_len);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int32_t tuya_tls_register_x509_crt_der(void *p_ctx, UCHAR_T *p_der, uint32_t der_len);
+int tuya_tls_register_x509_crt_der(void *p_ctx, uint8_t *p_der, uint32_t der_len);
 
 /**
  * @brief register cb invoked before tls handshake
@@ -171,8 +171,8 @@ tuya_tls_config_t *tuya_tls_config_get(tuya_tls_hander p_tls_handler);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, IN CHAR_T *hostname, IN int32_t port_num,
-                             IN int32_t socket_fd, IN int32_t overtime_s);
+OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int port_num, int socket_fd,
+                             int overtime_s);
 
 /**
  * @brief tls write
@@ -184,7 +184,7 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, IN CHAR_T *hostname,
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int32_t tuya_tls_write(IN tuya_tls_hander tls_handler, BYTE_T *buf, uint32_t len);
+int tuya_tls_write(tuya_tls_hander tls_handler, uint8_t *buf, uint32_t len);
 
 /**
  * @brief tls read
@@ -196,7 +196,7 @@ int32_t tuya_tls_write(IN tuya_tls_hander tls_handler, BYTE_T *buf, uint32_t len
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-int32_t tuya_tls_read(IN tuya_tls_hander tls_handler, BYTE_T *buf, uint32_t len);
+int tuya_tls_read(tuya_tls_hander tls_handler, uint8_t *buf, uint32_t len);
 
 /**
  * @brief generated random
@@ -206,7 +206,7 @@ int32_t tuya_tls_read(IN tuya_tls_hander tls_handler, BYTE_T *buf, uint32_t len)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tuya_tls_disconnect(IN tuya_tls_hander tls_handler);
+OPERATE_RET tuya_tls_disconnect(tuya_tls_hander tls_handler);
 
 /**
  * @brief Retrieves the configuration for the Tuya TLS PSK mode.

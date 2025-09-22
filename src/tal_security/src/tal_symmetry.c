@@ -538,7 +538,7 @@ uint32_t tal_pkcs7padding_buffer(uint8_t *p_buffer, uint32_t length)
  * @param dec_data_len Length of the decrypted data.
  * @return The actual length of the decrypted data after AES decryption.
  */
-int32_t tal_aes_get_actual_length(IN uint8_t *dec_data, IN uint32_t dec_data_len)
+int32_t tal_aes_get_actual_length(uint8_t *dec_data, uint32_t dec_data_len)
 {
     if ((NULL == dec_data) || (0 == dec_data_len) || (dec_data_len % 16 != 0)) {
         return OPRT_INVALID_PARM;
@@ -569,8 +569,7 @@ int32_t tal_aes_get_actual_length(IN uint8_t *dec_data, IN uint32_t dec_data_len
  *
  * @return OPERATE_RET Returns the status of the encoding operation.
  */
-OPERATE_RET tal_aes128_ecb_encode(IN uint8_t *data, IN uint32_t len, OUT uint8_t **ec_data, OUT uint32_t *ec_len,
-                                  IN uint8_t *key)
+OPERATE_RET tal_aes128_ecb_encode(uint8_t *data, uint32_t len, uint8_t **ec_data, uint32_t *ec_len, uint8_t *key)
 {
     if (NULL == data || NULL == key || NULL == ec_data || NULL == ec_len || 0 == len) {
         return OPRT_INVALID_PARM;
@@ -609,8 +608,7 @@ OPERATE_RET tal_aes128_ecb_encode(IN uint8_t *data, IN uint32_t len, OUT uint8_t
  *         - OPRT_OK: Decryption was successful.
  *         - Other error codes: Decryption failed.
  */
-OPERATE_RET tal_aes128_ecb_decode(IN uint8_t *data, IN uint32_t len, OUT uint8_t **dec_data, OUT uint32_t *dec_len,
-                                  IN uint8_t *key)
+OPERATE_RET tal_aes128_ecb_decode(uint8_t *data, uint32_t len, uint8_t **dec_data, uint32_t *dec_len, uint8_t *key)
 {
     if (NULL == data || 0 == len || NULL == key || NULL == dec_data || NULL == dec_len) {
         return OPRT_INVALID_PARM;
@@ -647,8 +645,8 @@ OPERATE_RET tal_aes128_ecb_decode(IN uint8_t *data, IN uint32_t len, OUT uint8_t
  * @param ec_data The encrypted data output.
  * @return The result of the encryption operation.
  */
-OPERATE_RET tal_aes128_cbc_encode(IN uint8_t *data, IN uint32_t len, IN uint8_t *key, IN uint8_t *iv,
-                                  OUT uint8_t **ec_data, OUT uint32_t *ec_len)
+OPERATE_RET tal_aes128_cbc_encode(uint8_t *data, uint32_t len, uint8_t *key, uint8_t *iv, uint8_t **ec_data,
+                                  uint32_t *ec_len)
 {
     if (NULL == data || 0 == len || NULL == key || NULL == iv || NULL == ec_data || NULL == ec_len) {
         return OPRT_INVALID_PARM;
@@ -687,8 +685,8 @@ OPERATE_RET tal_aes128_cbc_encode(IN uint8_t *data, IN uint32_t len, IN uint8_t 
  *         - OPRT_OK: Decryption was successful.
  *         - Other error codes: Decryption failed.
  */
-OPERATE_RET tal_aes128_cbc_decode(IN uint8_t *data, IN uint32_t len, IN uint8_t *key, IN uint8_t *iv,
-                                  OUT uint8_t **dec_data, OUT uint32_t *dec_len)
+OPERATE_RET tal_aes128_cbc_decode(uint8_t *data, uint32_t len, uint8_t *key, uint8_t *iv, uint8_t **dec_data,
+                                  uint32_t *dec_len)
 {
     if (NULL == data || 0 == len || NULL == key || NULL == iv || NULL == dec_data || NULL == dec_len) {
         return OPRT_INVALID_PARM;
@@ -721,7 +719,7 @@ OPERATE_RET tal_aes128_cbc_decode(IN uint8_t *data, IN uint32_t len, IN uint8_t 
  * @return OPERATE_RET Returns OPERATE_RET_OK if the memory is successfully
  * freed, otherwise returns an error code.
  */
-OPERATE_RET tal_aes_free_data(IN uint8_t *data)
+OPERATE_RET tal_aes_free_data(uint8_t *data)
 {
     if (data == NULL) {
         return OPRT_INVALID_PARM;

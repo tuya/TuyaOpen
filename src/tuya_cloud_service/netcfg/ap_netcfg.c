@@ -178,7 +178,7 @@ static void ap_broadcast_timeout(TIMER_ID timerID, void *pTimerArg)
         tal_free(plaintext_data);
         return;
     }
-    op_ret = lpv35_frame_serialize(ap->app_key, APP_KEY_LEN, &frame, send_buf, (int32_t *)&olen);
+    op_ret = lpv35_frame_serialize(ap->app_key, APP_KEY_LEN, &frame, send_buf, (int *)&olen);
     tal_free(plaintext_data);
     if (op_ret != OPRT_OK) {
         PR_ERR("lpv35_frame_serialize fail:%d", op_ret);
@@ -268,10 +268,25 @@ static int ap_setup_tls_serv(ap_netcfg_t *ap)
         ret = fd;
         goto __exit;
     }
+
     ret = tal_net_set_reuse(fd);
-    ret |= tal_net_bind(fd, ap->serv_ip, ap->is_psk_pincode ? AP_TLS_PSK_PINCODE_PORT : AP_TLS_PSK_PORT);
-    ret |= tal_net_listen(fd, 1);
     if (OPRT_OK != ret) {
+        PR_ERR("ap set reuse fail:%d", tal_net_get_errno());
+        ret = OPRT_SOCK_ERR;
+        goto __exit;
+    }
+
+    int bind_port = ap->is_psk_pincode ? AP_TLS_PSK_PINCODE_PORT : AP_TLS_PSK_PORT;
+    PR_DEBUG("ap try bind port:%d", bind_port);
+    ret = tal_net_bind(fd, ap->serv_ip, bind_port);
+    if (OPRT_OK != ret) {
+        PR_ERR("ap bind fail:%d", tal_net_get_errno());
+        ret = OPRT_SOCK_ERR;
+        goto __exit;
+    }
+    ret = tal_net_listen(fd, 1);
+    if (OPRT_OK != ret) {
+        PR_ERR("ap listen fail:%d", tal_net_get_errno());
         ret = OPRT_SOCK_ERR;
         goto __exit;
     }
@@ -410,11 +425,11 @@ static int ap_get_wifi_list(char *wifi_list, uint16_t wifi_list_size, uint16_t m
     return ret;
 }
 
-static int ap_ext_cmd_parse(ap_netcfg_t *ap, CHAR_T *data)
+static int ap_ext_cmd_parse(ap_netcfg_t *ap, char *data)
 {
     int rt = OPRT_OK;
     cJSON *root = NULL;
-    CHAR_T *buffer = NULL;
+    char *buffer = NULL;
     uint16_t buffer_size = 1024 * 4 + 32;
 
     // PR_DEBUG("ap_ext_cmd_parse data %s", data);
@@ -434,7 +449,7 @@ static int ap_ext_cmd_parse(ap_netcfg_t *ap, CHAR_T *data)
     }
 
     if (0 == strcmp(reqtype->valuestring, "query_dev")) {
-        CHAR_T *data = NULL;
+        char *data = NULL;
         rt = ap_dev_config_make(ap, &data);
         if (OPRT_OK != rt) {
             goto __exit;
@@ -457,7 +472,7 @@ static int ap_ext_cmd_parse(ap_netcfg_t *ap, CHAR_T *data)
         strcpy(buffer + strlen(buffer), "}");
     } else if (0 == strcmp(reqtype->valuestring,
                            "query_netcfg_stat")) { //  query_netcfg_stat
-        CHAR_T *out = "{\"type\":1,\"stage\":2,\"status\":0}";
+        char *out = "{\"type\":1,\"stage\":2,\"status\":0}";
         sprintf(buffer, "{\"reqType\":\"netcfg_stat_rpt\",\"data\":%s}", out);
     } else {
         PR_DEBUG("not support reqtype:%s", reqtype->valuestring);
@@ -756,8 +771,8 @@ static int ap_mode_start(ap_netcfg_t *ap)
     strcpy(ap_cfg.ip.gw, "192.168.176.1");
     strcpy(ap_cfg.ip.mask, "255.255.255.0");
     //! default ssid
-    sprintf((CHAR_T *)ap_cfg.ssid, "%s-%02X%02X", TUYA_AP_SSID_DEFAULT, mac.mac[4], mac.mac[5]);
-    ap_cfg.s_len = strlen((PCHAR_T)ap_cfg.ssid);
+    sprintf((char *)ap_cfg.ssid, "%s-%02X%02X", TUYA_AP_SSID_DEFAULT, mac.mac[4], mac.mac[5]);
+    ap_cfg.s_len = strlen((char *)ap_cfg.ssid);
     ap_cfg.md = WAAM_OPEN;
     ap_cfg.chan = 6;
     ap_cfg.max_conn = AP_MAX_STA_CONN;
@@ -860,6 +875,9 @@ static int ap_netcfg_stop(int type)
     TUYA_CALL_ERR_LOG(tal_wifi_set_work_mode(WWM_STATION));
     ap_netcfg_t *ap = ap_netcfg_get();
     if (ap) {
+        if (ap->broadcast_timer) {
+            tal_sw_timer_stop(ap->broadcast_timer);
+        }
         ap->thread_exit_flag = TRUE;
     }
 

@@ -50,7 +50,7 @@ OPERATE_RET tal_mesh_ble_recv_cb_init(TAL_BLE_EVT_FUNC_CB ble_event);
  * @return  SUCCESS
  *          ERROR
  * */
-OPERATE_RET tal_mesh_data_send(USHORT_T src_addr, USHORT_T dst_addr, uint32_t opcode, UCHAR_T *data, USHORT_T data_len);
+OPERATE_RET tal_mesh_data_send(uint16_t src_addr, uint16_t dst_addr, uint32_t opcode, uint8_t *data, uint16_t data_len);
 
 /**
  * @brief   Function to subscribe a group address for a model of the element.
@@ -59,7 +59,7 @@ OPERATE_RET tal_mesh_data_send(USHORT_T src_addr, USHORT_T dst_addr, uint32_t op
  * @param   [in] group_addr  group address
  * @return  tx result
  * */
-OPERATE_RET tal_group_addr_sub_set(uint32_t opcode, USHORT_T ele_index, USHORT_T group_addr);
+OPERATE_RET tal_group_addr_sub_set(uint32_t opcode, uint16_t ele_index, uint16_t group_addr);
 
 /**
  * @brief   Function to get the subscribe addr list of a model of the element.
@@ -67,7 +67,7 @@ OPERATE_RET tal_group_addr_sub_set(uint32_t opcode, USHORT_T ele_index, USHORT_T
  * @param   [in] group_addr  group address
  * @return  subscribe addr list
  * */
-USHORT_T *tal_group_addr_sub_list_get(USHORT_T ele_idx, USHORT_T model_id);
+uint16_t *tal_group_addr_sub_list_get(uint16_t ele_idx, uint16_t model_id);
 
 /**
  * @brief   Function to register a elemennt.
@@ -75,7 +75,7 @@ USHORT_T *tal_group_addr_sub_list_get(USHORT_T ele_idx, USHORT_T model_id);
  * @return  SUCCESS
  *          ERROR
  * */
-OPERATE_RET tal_element_register(USHORT_T element_index);
+OPERATE_RET tal_element_register(uint16_t element_index);
 
 /**
  * @brief   Function to register a model into the element.
@@ -84,7 +84,7 @@ OPERATE_RET tal_element_register(USHORT_T element_index);
  * @return  SUCCESS
  *          ERROR
  * */
-OPERATE_RET tal_model_register(USHORT_T element_index, uint32_t model_id);
+OPERATE_RET tal_model_register(uint16_t element_index, uint32_t model_id);
 
 /**
  * @brief   Function to enable/disable the provision.
@@ -102,19 +102,19 @@ void tal_mesh_node_provision_enable(MESH_PROVISION_TYPE_T enable);
  * @param   [in] uuid  mesh universally unique identifier
  * @return  NULL
  * */
-void tal_mesh_uuid_set(UCHAR_T *uuid);
+void tal_mesh_uuid_set(uint8_t *uuid);
 
 /**
  * @brief   Get the mesh node provision state.
  * @return  the provision state
  * */
-UCHAR_T tal_get_if_prov_success(void);
+uint8_t tal_get_if_prov_success(void);
 
 /**
  * @brief   Get the mesh node primary element address.
  * @return  the primary element address
  * */
-USHORT_T tal_primary_ele_addr_get(void);
+uint16_t tal_primary_ele_addr_get(void);
 
 /**
  * @brief   Set the mesh node primary element address.
@@ -122,7 +122,7 @@ USHORT_T tal_primary_ele_addr_get(void);
  * @param   [in] flash_save_en  save in flash or only update in ram
  * @return  NULL
  * */
-void tal_primary_ele_addr_set(USHORT_T addr, int flash_save_en);
+void tal_primary_ele_addr_set(uint16_t addr, int flash_save_en);
 
 /**
  * @brief   Set the mesh node network state.
@@ -151,8 +151,8 @@ TUYA_WEAK_ATTRIBUTE void tal_mesh_state_callback(TAL_MESH_NET_STATE_T state);
  * distributed by tuya cloud
  * @return  NULL
  * */
-void tal_firmware_infor_set(UCHAR_T is_key, UCHAR_T *product_id, UCHAR_T *product_key, uint32_t version,
-                            uint32_t mesh_category, UCHAR_T need_publish_addr);
+void tal_firmware_infor_set(uint8_t is_key, uint8_t *product_id, uint8_t *product_key, uint32_t version,
+                            uint32_t mesh_category, uint8_t need_publish_addr);
 
 /**
  * @brief   Enable/Disable mesh fast provision.
@@ -160,6 +160,6 @@ void tal_firmware_infor_set(UCHAR_T is_key, UCHAR_T *product_id, UCHAR_T *produc
  * @return  SUCCESS
  *          ERROR
  * */
-void tal_mesh_fast_prov_enable(UCHAR_T enable);
+void tal_mesh_fast_prov_enable(uint8_t enable);
 
 #endif

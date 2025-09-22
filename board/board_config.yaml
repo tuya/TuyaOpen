@@ -1,9 +1,0 @@
-boards:
-- name: linux-ubuntu-6.2.0_64Bit
-  locater: linux-ubuntu-6.2.0_64Bit
-  repo: https://github.com/tuya/tuya-open-sdk-for-device-board
-  commit: board_linux
-- name: t2
-  locater: t2
-  repo: https://github.com/tuya/tuya-open-sdk-for-device-board
-  commit: board_t2

@@ -1,0 +1,15 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "DNESP32S3_BOX2_WIFI"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO
+    select ENABLE_ESP_DISPLAY
+    select PLATFORM_FLASHSIZE_16M
+    select ENABLE_AUDIO_CODECS

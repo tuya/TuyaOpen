@@ -72,6 +72,16 @@ int tal_cli_cmd_register(const cli_cmd_t *cmd, uint8_t num);
  */
 int tal_cli_init_with_uart(uint8_t uart_num);
 
+/**
+ * @brief cli echo string
+ *
+ * @param[in] string context
+ *
+ * @return None
+ *
+ */
+void tal_cli_echo(char *string);
+
 #ifdef __cplusplus
 }
 #endif

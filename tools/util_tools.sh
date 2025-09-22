@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ##
 # @file util_tools.sh
-# @brief 
+# @brief
 # @author Tuya
 # @version 1.0.0
 # @date 2023-03-26
@@ -56,4 +56,5 @@ function check_command_version()
 
     NOTE_OK="Check [$1]($VER) > [$2]: OK."
     show "${fore[green]}" "$NOTE_OK"
+    return 0
 }

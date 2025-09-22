@@ -1,0 +1,66 @@
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    select ENABLE_BT_SERVICE
+    select ENABLE_NIMBLE
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_I2S
+    bool
+    default y
+
+config ENABLE_SPI
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+config ENABLE_WATCHDOG
+    bool
+    default y
+
+config ENABLE_AUDIO
+    bool
+    default n
+
+config ENABLE_VIDEO
+    bool
+    default n
+
+config ENABLE_ESP_DISPLAY
+    bool
+    default n
+    
+if (ENABLE_ESP_DISPLAY)
+    config DISPLAY_NAME
+        string "the name of display 1"
+        default "display"
+endif
+
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */

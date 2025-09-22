@@ -30,6 +30,8 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <inttypes.h>
+#include <ctype.h>
 #include "tal_log.h"
 #include "tuya_list.h"
 #include "tal_mutex.h"
@@ -45,9 +47,20 @@
 
 typedef struct {
     LIST_HEAD node;
-    CHAR_T *name;
+    char *name;
     TAL_LOG_OUTPUT_CB out_term;
 } LOG_OUT_NODE_S;
+
+typedef struct {
+    TAL_LOG_DISPLAY_MODE_E display_mode;
+    TAL_LOG_FONT_COLOR_E font_color;
+    TAL_LOG_BACKGROUND_COLOR_E background_color;
+} LOG_TEXT_STYLE_S;
+
+typedef struct {
+    BOOL_T enable_color;
+    LOG_TEXT_STYLE_S style[LOG_LEVEL_MAX + 1];
+} LOG_COLOR_S;
 
 typedef struct {
     LOG_LEVEL curLogLevel;
@@ -55,9 +68,11 @@ typedef struct {
     LIST_HEAD log_list;
     MUTEX_HANDLE mutex;
 
-    int32_t log_buf_len;
+    LOG_COLOR_S log_color;
+
+    int log_buf_len;
     BOOL_T ms_level;
-    CHAR_T *log_buf;
+    char *log_buf;
 } LOG_MANAGE, *P_LOG_MANAGE;
 
 #define DEF_OUTPUT_NAME "def_output"
@@ -65,8 +80,16 @@ typedef struct {
 /***********************************************************
 *************************variable define********************
 ***********************************************************/
-const PCHAR_T sLevelStr[] = {"E", "W", "N", "I", "D", "T"};
+const char *sLevelStr[] = {"E", "W", "N", "I", "D", "T"};
 P_LOG_MANAGE pLogManage = NULL;
+
+const LOG_TEXT_STYLE_S sDefaultStyle[LOG_LEVEL_MAX + 1] = {
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_RED, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_YELLOW, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_BLUE, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_CYAN, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_GREEN, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
+    {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_WHITE, TAL_LOG_BACKGROUND_COLOR_DEFAULT}};
 
 /***********************************************************
 *************************function define********************
@@ -87,7 +110,7 @@ P_LOG_MANAGE pLogManage = NULL;
  * OPRT_MALLOC_FAILED if memory allocation fails. Returns an error code if
  * adding the output terminal fails.
  */
-OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int32_t buf_len, const TAL_LOG_OUTPUT_CB output)
+OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const TAL_LOG_OUTPUT_CB output)
 {
     if (level < LOG_LEVEL_MIN || level > LOG_LEVEL_MAX || 0 == buf_len || NULL == output) {
         return OPRT_INVALID_PARM;
@@ -101,7 +124,7 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int32_t buf_len, con
             return OPRT_MALLOC_FAILED;
         }
         tmp_log_mng->log_buf_len = buf_len;
-        tmp_log_mng->log_buf = (CHAR_T *)(tmp_log_mng + 1);
+        tmp_log_mng->log_buf = (char *)(tmp_log_mng + 1);
         op_ret = tal_mutex_create_init(&tmp_log_mng->mutex);
         if (OPRT_OK != op_ret) {
             tal_free(tmp_log_mng);
@@ -112,6 +135,11 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int32_t buf_len, con
         tmp_log_mng->curLogLevel = level;
         tmp_log_mng->ms_level = FALSE;
         pLogManage = tmp_log_mng;
+
+        // set default log style
+        tmp_log_mng->log_color.enable_color = TRUE;
+        memcpy(tmp_log_mng->log_color.style, sDefaultStyle, (LOG_LEVEL_MAX + 1) * sizeof(LOG_TEXT_STYLE_S));
+
         op_ret = tal_log_add_output_term(DEF_OUTPUT_NAME, output);
         if (OPRT_OK != op_ret) {
             tal_mutex_release(tmp_log_mng->mutex);
@@ -138,7 +166,7 @@ void __output_logManage_buf(void)
     }
 }
 
-OPERATE_RET __find_out_term_node(const CHAR_T *name, LOG_OUT_NODE_S **node)
+OPERATE_RET __find_out_term_node(const char *name, LOG_OUT_NODE_S **node)
 {
     P_LIST_HEAD pPos;
     LOG_OUT_NODE_S *output_node;
@@ -169,7 +197,7 @@ OPERATE_RET __find_out_term_node(const CHAR_T *name, LOG_OUT_NODE_S **node)
  *     - OPRT_INVALID_PARM: Invalid parameter.
  *     - OPRT_MALLOC_FAILED: Memory allocation failed.
  */
-OPERATE_RET tal_log_add_output_term(const CHAR_T *name, const TAL_LOG_OUTPUT_CB term)
+OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB term)
 {
     if (NULL == name || NULL == term || NULL == pLogManage) {
         return OPRT_INVALID_PARM;
@@ -198,13 +226,13 @@ OPERATE_RET tal_log_add_output_term(const CHAR_T *name, const TAL_LOG_OUTPUT_CB 
     return OPRT_OK;
 }
 
-static int32_t tal_log_strrchr(CHAR_T *str, CHAR_T ch)
+static int tal_log_strrchr(char *str, char ch)
 {
-    CHAR_T *ta;
+    char *ta;
 
     ta = strrchr(str, ch);
     if (ta) {
-        return (int32_t)(ta - str);
+        return (int)(ta - str);
     }
 
     return -1;
@@ -223,7 +251,7 @@ static int32_t tal_log_strrchr(CHAR_T *str, CHAR_T ch)
  *
  * @param name The name of the log output terminal to be deleted.
  */
-void tal_log_del_output_term(const CHAR_T *name)
+void tal_log_del_output_term(const char *name)
 {
     if (NULL == name || NULL == pLogManage) {
         return;
@@ -335,8 +363,11 @@ OPERATE_RET tal_log_get_level(TAL_LOG_LEVEL_E *level)
  *     - OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED if there was an error formatting
  * the log message.
  */
-OPERATE_RET PrintLogV(LOG_LEVEL logLevel, CHAR_T *pFile, uint32_t line, CHAR_T *pFmt, va_list ap)
+OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char *pFmt, va_list ap)
 {
+    int len = 0;
+    int cnt = 0;
+
     if (!pLogManage) {
         return OPRT_INVALID_PARM;
     }
@@ -355,9 +386,9 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, CHAR_T *pFile, uint32_t line, CHAR_T *
     } else {
         int pos = 0;
         pTmpFilename = pFile;
-        pos = tal_log_strrchr((CHAR_T *)pFile, '/');
+        pos = tal_log_strrchr((char *)pFile, '/');
         if (pos < 0) {
-            pos = tal_log_strrchr((CHAR_T *)pFile, '\\');
+            pos = tal_log_strrchr((char *)pFile, '\\');
             if (pos >= 0) {
                 pTmpFilename = pFile + pos + 1;
             }
@@ -366,40 +397,57 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, CHAR_T *pFile, uint32_t line, CHAR_T *
         }
     }
     tal_mutex_lock(pLogManage->mutex);
+
+    // color prefix
+    if (pLogManage->log_color.enable_color) {
+        cnt = snprintf(pLogManage->log_buf, pLogManage->log_buf_len, "\033[%d;%d;%dm",
+                       pLogManage->log_color.style[logLevel].display_mode,
+                       pLogManage->log_color.style[logLevel].font_color,
+                       pLogManage->log_color.style[logLevel].background_color);
+        if (cnt <= 0) {
+            goto ERR_EXIT;
+        }
+        len += cnt;
+    }
+
     POSIX_TM_S tm;
     memset(&tm, 0, sizeof(tm));
 
-    int32_t len = 0;
-    int32_t cnt = 0;
     if (pLogManage->ms_level == FALSE) {
         tal_time_get_local_time_custom(0, &tm);
-        cnt = snprintf(pLogManage->log_buf, pLogManage->log_buf_len, "[%02d-%02d %02d:%02d:%02d %s %s][%s:%d] ",
-                       tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, pTmpModuleName, sLevelStr[logLevel],
-                       pTmpFilename, line);
+        cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len,
+                       "[%02d-%02d %02d:%02d:%02d %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour,
+                       tm.tm_min, tm.tm_sec, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     } else {
         SYS_TICK_T time_ms = tal_time_get_posix_ms();
         TIME_T sec = (TIME_T)(time_ms / 1000);
         uint32_t ms = (uint32_t)(time_ms % 1000);
         tal_time_get_local_time_custom(sec, &tm);
-        cnt = snprintf(pLogManage->log_buf, pLogManage->log_buf_len, "[%02d-%02d %02d:%02d:%02d:%d %s %s][%s:%d] ",
-                       tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, ms, pTmpModuleName,
-                       sLevelStr[logLevel], pTmpFilename, line);
+        cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len,
+                       "[%02d-%02d %02d:%02d:%02d:%" PRIu32 " %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday,
+                       tm.tm_hour, tm.tm_min, tm.tm_sec, ms, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     }
     if (cnt <= 0) {
         goto ERR_EXIT;
     }
-    len = cnt;
+    len += cnt;
     cnt = vsnprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len, pFmt, ap);
     if (cnt <= 0) {
         goto ERR_EXIT;
     }
     len += cnt;
-    if (len > (int32_t)(pLogManage->log_buf_len - 3)) { // 2
-        len = pLogManage->log_buf_len - 3;
+
+    char *p_suffix = (pLogManage->log_color.enable_color) ? "\033[0m\r\n" : "\r\n";
+    if (len > (int)(pLogManage->log_buf_len - strlen(p_suffix) - 1)) { // 1 -> "\0"
+        len = pLogManage->log_buf_len - strlen(p_suffix) - 1;
     }
-    pLogManage->log_buf[len] = '\r';
-    pLogManage->log_buf[len + 1] = '\n';
-    pLogManage->log_buf[len + 2] = 0;
+    cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len, "%s", p_suffix);
+    if (cnt <= 0) {
+        goto ERR_EXIT;
+    }
+    len += cnt;
+    pLogManage->log_buf[len] = '\0';
+
     __output_logManage_buf();
     tal_mutex_unlock(pLogManage->mutex);
 
@@ -430,20 +478,20 @@ ERR_EXIT:
  * message.
  * @return The result of the log printing operation.
  */
-OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const int32_t line, CHAR_T *fmt, ...)
+OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...)
 {
     OPERATE_RET opRet = 0;
     va_list ap;
     va_start(ap, fmt);
-    opRet = PrintLogV(level, (CHAR_T *)file, line, fmt, ap);
+    opRet = PrintLogV(level, (char *)file, line, fmt, ap);
     va_end(ap);
 
     return opRet;
 }
 
-static OPERATE_RET __PrintLogVRaw(IN const PCHAR_T pFmt, va_list ap)
+static OPERATE_RET __PrintLogVRaw(const char *pFmt, va_list ap)
 {
-    int32_t cnt = 0;
+    int cnt = 0;
     cnt = vsnprintf(pLogManage->log_buf, pLogManage->log_buf_len, pFmt, ap);
     if (cnt <= 0) {
         return OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
@@ -465,7 +513,7 @@ static OPERATE_RET __PrintLogVRaw(IN const PCHAR_T pFmt, va_list ap)
  *         - OPRT_INVALID_PARM if pLogManage is NULL.
  *         - The result of the __PrintLogVRaw function otherwise.
  */
-OPERATE_RET tal_log_print_raw(const PCHAR_T pFmt, ...)
+OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
 {
     if (NULL == pLogManage) {
         return OPRT_INVALID_PARM;
@@ -533,10 +581,10 @@ void tal_log_release(void)
  *
  * @return None.
  */
-void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const int32_t line, const CHAR_T *title,
-                      uint8_t width, uint8_t *buf, UINT16_T size)
+void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *title, uint8_t width,
+                      uint8_t *buf, uint16_t size)
 {
-    int i = 0;
+    uint16_t i = 0, j = 0;
 
     if (!pLogManage || level > pLogManage->curLogLevel) {
         return;
@@ -546,11 +594,144 @@ void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const CHAR_T *file, const int
         width = 64;
     }
     tal_log_print(level, file, line, "%s %d <%p>", title, size, buf);
-    for (i = 0; i < size; i++) {
-        tal_log_print_raw("%02x ", buf[i] & 0xFF);
-        if ((i + 1) % width == 0) {
-            tal_log_print_raw("\r\n");
+
+    for (i = 0; i < size; i += width) {
+        tal_log_print_raw("%04lX | ", i);
+
+        for (j = i; j < i + width; j++) {
+            if (j < size) {
+                tal_log_print_raw("%02X ", buf[j]);
+            } else {
+                tal_log_print_raw("   ");
+            }
         }
+
+        tal_log_print_raw("| ");
+
+        for (j = i; j < i + width && j < size; j++) {
+            if (isprint(buf[j])) {
+                tal_log_print_raw("%c", buf[j]);
+            } else {
+                tal_log_print_raw(".");
+            }
+        }
+
+        tal_log_print_raw("\r\n");
     }
-    tal_log_print_raw("\r\n\r\n");
+    tal_log_print_raw("\r\n");
+}
+
+/**
+ * @brief Sets the enable status of log color.
+ *
+ * This function sets the enable status of log color. If the enable parameter is set to TRUE,
+ * log color will be enabled. If the enable parameter is set to FALSE, log color will be disabled.
+ *
+ * @param enable The enable status of log color. Set to TRUE to enable log color, FALSE to disable log color.
+ *
+ * @return NONE
+ */
+void tal_log_color_enable_set(BOOL_T enable)
+{
+    if (!pLogManage) {
+        return;
+    }
+    pLogManage->log_color.enable_color = enable;
+}
+
+/**
+ * @brief Sets the color configuration for a specific log level.
+ *
+ * This function sets the color configuration for a specific log level, including the display mode, font color, and
+ * background color.
+ *
+ * @param level The log level to set the color configuration for.
+ * @param display_mode The display mode to set for the log level.
+ * @param font_color The font color to set for the log level.
+ * @param background_color The background color to set for the log level.
+ *
+ * @return NONE
+ */
+void tal_log_color_set(const TAL_LOG_LEVEL_E level, TAL_LOG_DISPLAY_MODE_E display_mode,
+                       TAL_LOG_FONT_COLOR_E font_color, TAL_LOG_BACKGROUND_COLOR_E background_color)
+{
+    if (!pLogManage) {
+        return;
+    }
+    if (level < LOG_LEVEL_MIN || level > LOG_LEVEL_MAX) {
+        return;
+    }
+    pLogManage->log_color.style[level].display_mode = display_mode;
+    pLogManage->log_color.style[level].font_color = font_color;
+    pLogManage->log_color.style[level].background_color = background_color;
+}
+
+/**
+ * @brief Prints a colored log message with the specified display mode, font color, and background color.
+ *
+ * This function prints a log message with the specified display mode, font color, and background color.
+ * The log message is formatted using a format string and optional arguments, similar to the printf function.
+ *
+ * @param display_mode The display mode of the log message.
+ * @param font_color The font color of the log message.
+ * @param background_color The background color of the log message.
+ * @param pFmt The format string for the log message.
+ * @param ... Optional arguments for the format string.
+ *
+ * @return The result of the operation. Returns OPRT_INVALID_PARM if pLogManage is NULL,
+ *         OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED if the format string failed to be formatted,
+ *         or the number of characters written to the log buffer otherwise.
+ */
+OPERATE_RET tal_log_color_print_raw(TAL_LOG_DISPLAY_MODE_E display_mode, TAL_LOG_FONT_COLOR_E font_color,
+                                    TAL_LOG_BACKGROUND_COLOR_E background_color, const char *pFmt, ...)
+{
+    OPERATE_RET opRet = 0;
+    va_list ap;
+    int cnt = 0;
+    int len = 0;
+
+    if (NULL == pLogManage) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(pLogManage->mutex);
+    va_start(ap, pFmt);
+    if (pLogManage->log_color.enable_color) {
+        cnt = snprintf(pLogManage->log_buf, pLogManage->log_buf_len, "\033[%d;%d;%dm", display_mode, font_color,
+                       background_color);
+        if (cnt <= 0) {
+            opRet = OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+            goto __EXIT;
+        }
+        len += cnt;
+    }
+
+    cnt = vsnprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len, pFmt, ap);
+    if (cnt <= 0) {
+        opRet = OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+        goto __EXIT;
+    }
+    len += cnt;
+
+    if (pLogManage->log_color.enable_color) {
+        if (len > (int)(pLogManage->log_buf_len - 4 - 1)) { // 4 -> "\033[0m" 1 -> "\0"
+            len = pLogManage->log_buf_len - 4 - 1;
+        }
+        cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len, "\033[0m");
+        if (cnt <= 0) {
+            opRet = OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+            goto __EXIT;
+        }
+        len += cnt;
+    }
+
+    pLogManage->log_buf[len] = 0;
+
+    __output_logManage_buf();
+
+__EXIT:
+    va_end(ap);
+    tal_mutex_unlock(pLogManage->mutex);
+
+    return opRet;
 }

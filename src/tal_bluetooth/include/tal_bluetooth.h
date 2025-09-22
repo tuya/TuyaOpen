@@ -69,7 +69,7 @@ OPERATE_RET tal_ble_address_get(TAL_BLE_ADDR_T *p_addr);
  * @return  SUCCESS
  *          ERROR
  * */
-OPERATE_RET tal_ble_bt_link_max(USHORT_T *p_maxlink);
+OPERATE_RET tal_ble_bt_link_max(uint16_t *p_maxlink);
 
 /**
  * @brief   Start advertising
@@ -194,7 +194,7 @@ OPERATE_RET tal_ble_server_common_send(TAL_BLE_DATA_T *p_data);
  * @return  SUCCESS
  *          ERROR Refer to platform error code
  * */
-OPERATE_RET tal_ble_server_common_notify(USHORT_T index, TAL_BLE_DATA_T *p_data);
+OPERATE_RET tal_ble_server_common_notify(uint16_t index, TAL_BLE_DATA_T *p_data);
 
 /**
  * @brief   [Ble Peripheral] Set Read Command characteristic value by
@@ -204,7 +204,7 @@ OPERATE_RET tal_ble_server_common_notify(USHORT_T index, TAL_BLE_DATA_T *p_data)
  * @return  SUCCESS
  *          ERROR Refer to platform error code
  * */
-OPERATE_RET tal_ble_server_common_read_update_ext(USHORT_T index, TAL_BLE_DATA_T *p_data);
+OPERATE_RET tal_ble_server_common_read_update_ext(uint16_t index, TAL_BLE_DATA_T *p_data);
 
 /**
  * @brief   [Ble Peripheral] Set Read Command characteristic value
@@ -239,7 +239,7 @@ OPERATE_RET tal_ble_client_common_read(const TAL_BLE_PEER_INFO_T peer);
  *          The MTU negotiation is given through TAL_BLE_EVT_MTU_REQUEST event
  * !!!!!!
  * */
-OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, USHORT_T server_mtu);
+OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, uint16_t server_mtu);
 
 /**
  * @brief   [Ble Central] Start an ATT_MTU exchange by sending an Exchange MTU
@@ -251,7 +251,7 @@ OPERATE_RET tal_ble_server_exchange_mtu_reply(const TAL_BLE_PEER_INFO_T peer, US
  *          ERROR_INVALID_STATE Invalid connection state or an ATT_MTU exchange
  * was already requested once.
  * */
-OPERATE_RET tal_ble_client_exchange_mtu_request(const TAL_BLE_PEER_INFO_T peer, USHORT_T client_mtu);
+OPERATE_RET tal_ble_client_exchange_mtu_request(const TAL_BLE_PEER_INFO_T peer, uint16_t client_mtu);
 
 #ifdef __cplusplus
 }

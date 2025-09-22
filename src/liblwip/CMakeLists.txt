@@ -27,10 +27,19 @@ list(APPEND LIB_SRCS ${LWIP_SRCS})
 set(LIB_PUBLIC_INC 
     ${MODULE_PATH}/${LWIP}/src/include
     ${MODULE_PATH}/${LWIP}/src/include/lwip
+    ${MODULE_PATH}/${LWIP}/src/include/lwip/apps
     ${MODULE_PATH}/${LWIP}/src/include/compat
     )
 
 set(LIB_OPTIONS "-w")
+
+# ppp
+if (CONFIG_ENABLE_LWIP_PPP_SUPPORT STREQUAL "y")
+    file(GLOB_RECURSE PPP_SRCS "${MODULE_PATH}/${LWIP}/src/netif/ppp/*.c")
+    list(APPEND LIB_SRCS
+        ${PPP_SRCS}
+    )
+endif()
 
 ########################################
 # Target Configure

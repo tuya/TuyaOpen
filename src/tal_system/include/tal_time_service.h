@@ -33,13 +33,13 @@ extern "C" {
  *
  */
 typedef struct {
-    int32_t tm_sec;  /* seconds [0-59] */
-    int32_t tm_min;  /* minutes [0-59] */
-    int32_t tm_hour; /* hours [0-23] */
-    int32_t tm_mday; /* day of the month [1-31] */
-    int32_t tm_mon;  /* month [0-11] */
-    int32_t tm_year; /* year. The number of years since 1900 */
-    int32_t tm_wday; /* day of the week [0-6] 0-Sunday...6-Saturday */
+    int tm_sec;  /* seconds [0-59] */
+    int tm_min;  /* minutes [0-59] */
+    int tm_hour; /* hours [0-23] */
+    int tm_mday; /* day of the month [1-31] */
+    int tm_mon;  /* month [0-11] */
+    int tm_year; /* year. The number of years since 1900 */
+    int tm_wday; /* day of the week [0-6] 0-Sunday...6-Saturday */
 } POSIX_TM_S;
 
 /**
@@ -80,7 +80,7 @@ OPERATE_RET tal_time_service_init(void);
  * @param[in] tm the time in posix time format
  * @return the time in TIME_T format
  */
-TIME_T tal_time_mktime(IN const POSIX_TM_S *tm);
+TIME_T tal_time_mktime(const POSIX_TM_S *tm);
 
 /**
  * @brief change TIME_T to posix time, redefine the std C func gmtime_r
@@ -89,7 +89,7 @@ TIME_T tal_time_mktime(IN const POSIX_TM_S *tm);
  * @param[out] result the time in posix time format
  * @return the time in posix time format
  */
-POSIX_TM_S *tal_time_gmtime_r(IN const TIME_T *tm, OUT POSIX_TM_S *result);
+POSIX_TM_S *tal_time_gmtime_r(const TIME_T *tm, POSIX_TM_S *result);
 
 /**
  * @brief check IoTOS time synchronize status
@@ -112,7 +112,7 @@ OPERATE_RET tal_time_check_time_zone_sync(void);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_set(IN const POSIX_TM_S *tm);
+OPERATE_RET tal_time_set(const POSIX_TM_S *tm);
 
 /**
  * @brief set IoTOS UTC time in time_t format
@@ -122,7 +122,7 @@ OPERATE_RET tal_time_set(IN const POSIX_TM_S *tm);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_set_posix(IN const TIME_T time, IN const int32_t update_source);
+OPERATE_RET tal_time_set_posix(const TIME_T time, const int update_source);
 
 /**
  * @brief get IoTOS UTC time in posix time format
@@ -131,7 +131,7 @@ OPERATE_RET tal_time_set_posix(IN const TIME_T time, IN const int32_t update_sou
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_get(OUT POSIX_TM_S *tm);
+OPERATE_RET tal_time_get(POSIX_TM_S *tm);
 
 /**
  * @brief get IoTOS UTC time in TIME_T format
@@ -161,7 +161,7 @@ TIME_T tal_time_get_cur_posix(void);
  * @param[out] pMsTime the current time in micro-second
  * @return void
  */
-void tal_time_get_system_time(OUT TIME_S *pSecTime, OUT TIME_MS *pMsTime);
+void tal_time_get_system_time(TIME_S *pSecTime, TIME_MS *pMsTime);
 
 /**
  * @brief set IoTOS time zone in "+/-hh:mm" format
@@ -170,7 +170,7 @@ void tal_time_get_system_time(OUT TIME_S *pSecTime, OUT TIME_MS *pMsTime);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_set_time_zone(IN const CHAR_T *time_zone);
+OPERATE_RET tal_time_set_time_zone(const char *time_zone);
 
 /**
  * @brief set IoTOS time zone in second format
@@ -179,7 +179,7 @@ OPERATE_RET tal_time_set_time_zone(IN const CHAR_T *time_zone);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_set_time_zone_seconds(IN int32_t time_zone_sec);
+OPERATE_RET tal_time_set_time_zone_seconds(int time_zone_sec);
 
 /**
  * @brief get IoTOS time zone in second format
@@ -188,7 +188,7 @@ OPERATE_RET tal_time_set_time_zone_seconds(IN int32_t time_zone_sec);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_get_time_zone_seconds(OUT int32_t *time_zone);
+OPERATE_RET tal_time_get_time_zone_seconds(int *time_zone);
 
 /**
  * @brief set IoTOS summer time zone
@@ -198,7 +198,7 @@ OPERATE_RET tal_time_get_time_zone_seconds(OUT int32_t *time_zone);
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-void tal_time_set_sum_zone_tbl(IN const SUM_ZONE_S *zone, IN const uint32_t cnt);
+void tal_time_set_sum_zone_tbl(const SUM_ZONE_S *zone, const uint32_t cnt);
 
 /**
  * @brief get IoTOS UTC summer time in posix time format
@@ -207,7 +207,7 @@ void tal_time_set_sum_zone_tbl(IN const SUM_ZONE_S *zone, IN const uint32_t cnt)
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_get_sum_time(OUT POSIX_TM_S *tm);
+OPERATE_RET tal_time_get_sum_time(POSIX_TM_S *tm);
 
 /**
  * @brief get IoTOS UTC summer time int TIME_T format
@@ -235,7 +235,7 @@ BOOL_T tal_time_is_in_sum_zone(TIME_T time);
  * @note if in_time is 0, return the IoTOS local time, otherwise, translate the
  * in_time to local time
  */
-OPERATE_RET tal_time_get_local_time_custom(IN TIME_T in_time, OUT POSIX_TM_S *tm);
+OPERATE_RET tal_time_get_local_time_custom(TIME_T in_time, POSIX_TM_S *tm);
 
 /**
  * @brief get sum zone info
@@ -244,7 +244,7 @@ OPERATE_RET tal_time_get_local_time_custom(IN TIME_T in_time, OUT POSIX_TM_S *tm
  * @return OPRT_OK on success. Others on error, please refer to
  * tuya_error_code.h
  */
-OPERATE_RET tal_time_get_sum_zone(OUT SUM_ZONE_TBL_S *sum_zone);
+OPERATE_RET tal_time_get_sum_zone(SUM_ZONE_TBL_S *sum_zone);
 
 #ifdef __cplusplus
 }

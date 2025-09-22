@@ -4,6 +4,7 @@
 
 #include "lwip/err.h"
 #include "lwip/netif.h"
+#include "tuya_cloud_types.h"
 #include "tal_network.h"
 
 /***********************************************************
@@ -14,6 +15,9 @@
 typedef enum {
     NETIF_STA_IDX = 0,
     NETIF_AP_IDX,
+#ifdef LWIP_DUAL_NET_SUPPORT    
+    NETIF_ETH_IDX,
+#endif /* LWIP_DUAL_NET_SUPPORT */    
     NETIF_NUM
 } TUYA_NETIF_TYPE;
 
@@ -64,7 +68,7 @@ void tuya_ethernetif_set_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_S *ip);
  * @param[out]      ip            ip of netif(ip gateway mask)
  * @return  void
  */
-void tuya_ethernetif_get_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_S *ip);
+int tuya_ethernetif_get_ip(const TUYA_NETIF_TYPE net_if_idx, NW_IP_TYPE type, NW_IP_S *ip);
 
 /**
  * @brief set netif's mac
@@ -117,5 +121,21 @@ extern int tuya_hostap_eapol_input(int vif_index, unsigned char *buf, unsigned s
 #endif /* LWIP_EAPOL_SUPPORT */
 
 int tuya_ethernetif_get_ifindex_by_mac(NW_MAC_S *mac, TUYA_NETIF_TYPE *net_if_idx);
+
+int tuya_ethernetif_get_dns_srv(NW_IP_TYPE type, NW_IP_S *ip);
+#ifdef LWIP_DUAL_NET_SUPPORT
+/**
+ * Helper struct to hold private data used to operate your ethernet interface.
+ * Keeping the ethernet address of the MAC in this struct is not necessary
+ * as it is already kept in the struct netif.
+ * But this is only an example, anyway...
+ */
+struct ethernetif {
+    uint16_t rx_len;
+    uint8_t rx_status;
+};
+
+extern err_t ethernetif_init(struct netif *netif);
+#endif /* LWIP_DUAL_NET_SUPPORT */
 
 #endif /* __ETHERNETIF_H__ */

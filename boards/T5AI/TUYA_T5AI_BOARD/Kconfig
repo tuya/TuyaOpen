@@ -1,0 +1,75 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "TUYA_T5AI_BOARD"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_LED
+    select ENABLE_BUTTON
+
+config BOARD_LVGL_CONFIG
+    bool
+    depends on ENABLE_LIBLVGL
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_LED
+    select ENABLE_BUTTON
+
+
+choice TUYA_T5AI_BOARD_VERSION
+    prompt "choose TUYA_T5AI_BOARD version"
+    default TUYA_T5AI_BOARD_VERSION_102
+    help
+        Select the version of the TUYA T5AI board you are using.
+        
+    config TUYA_T5AI_BOARD_VERSION_101
+        bool "T5AI_BOARD_V101"
+
+    config TUYA_T5AI_BOARD_VERSION_102
+        bool "T5AI_BOARD_V102"
+        select ENABLE_AUDIO_AEC
+endchoice
+
+choice TUYA_T5AI_BOARD_EX_MODULE
+    prompt "choose expansion module for TUYA_T5AI_BOARD"
+    default TUYA_T5AI_BOARD_EX_MODULE_NONE
+
+    config TUYA_T5AI_BOARD_EX_MODULE_NONE
+        bool "no expansion module"
+
+    config TUYA_T5AI_BOARD_EX_MODULE_35565LCD
+        bool "3.5 inch 480x320 rgb565 LCD"
+        select ENABLE_DISPLAY
+        select ENABLE_TOUCH
+        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+
+    config TUYA_T5AI_BOARD_EX_MODULE_EYES
+        bool "two circle 1.28 inch 240x240 spi LCD"
+        select ENABLE_DISPLAY
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)      
+
+    config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
+        bool "2.9 inch 168x384 E-Ink screen"
+        select ENABLE_DISPLAY
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+    
+    config TUYA_T5AI_BOARD_EX_MODULE_096_OLED
+        bool "0.96 inch 128x64 I2C OLED"
+        select ENABLE_DISPLAY
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)    
+endchoice
+
+if(TUYA_T5AI_BOARD_EX_MODULE_35565LCD || TUYA_T5AI_BOARD_EX_MODULE_EYES)
+    config ENABLE_EX_MODULE_CAMERA
+        bool "with camera module"
+        default n
+        select ENABLE_CAMERA
+endif
