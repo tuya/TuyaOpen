@@ -44,6 +44,7 @@ typedef struct {
     uint8_t cmd_ramwr;
     uint8_t cmd_ramwrc;
     const uint32_t *init_seq;
+    TDD_DISP_CONVERT_FB_CB convert_cb;
 } DISP_8080_DEV_T;
 
 /***********************************************************
@@ -188,6 +189,7 @@ static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
 
 static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
+    TDL_DISP_FRAME_BUFF_T *target_fb = NULL;
     OPERATE_RET rt = OPRT_OK;
     DISP_8080_DEV_T *tdd_8080 = NULL;
 
@@ -196,18 +198,28 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
     }
     tdd_8080 = (DISP_8080_DEV_T *)device;
 
-    if (sg_display_8080.width != frame_buff->width || sg_display_8080.height != frame_buff->height) {
-        tkl_8080_ppi_set(frame_buff->width, frame_buff->height);
-        sg_display_8080.width = frame_buff->width;
-        sg_display_8080.height = frame_buff->height;
+    if(tdd_8080->convert_cb) {
+        target_fb = tdd_8080->convert_cb(frame_buff);
+        if(NULL == target_fb) {
+            PR_ERR("convert fb failed, use original fb");
+            return OPRT_COM_ERROR;
+        }
+    } else {
+        target_fb = frame_buff;
     }
 
-    if (sg_display_8080.fmt != frame_buff->fmt) {
-        tkl_8080_pixel_mode_set(frame_buff->fmt);
-        sg_display_8080.fmt = frame_buff->fmt;
+    if (sg_display_8080.width != target_fb->width || sg_display_8080.height != target_fb->height) {
+        tkl_8080_ppi_set(target_fb->width, target_fb->height);
+        sg_display_8080.width = target_fb->width;
+        sg_display_8080.height = target_fb->height;
     }
 
-    tkl_8080_base_addr_set((uint32_t)frame_buff->frame);
+    if (sg_display_8080.fmt != target_fb->fmt) {
+        tkl_8080_pixel_mode_set(target_fb->fmt);
+        sg_display_8080.fmt = target_fb->fmt;
+    }
+
+    tkl_8080_base_addr_set((uint32_t)target_fb->frame);
 
     /*Wait for the TE interrupt to be given after a frame is completely scanned inside the screen,
      *and then start sending data to rewrite the frame buffer of the screen to avoid screen display tearing. */
@@ -299,11 +311,12 @@ OPERATE_RET tdd_disp_mcu8080_device_register(char *name, TDD_DISP_MCU8080_CFG_T 
     tdd_8080->cmd_raset = mcu8080->cmd_raset;
     tdd_8080->cmd_ramwr = mcu8080->cmd_ramwr;
     tdd_8080->cmd_ramwrc = mcu8080->cmd_ramwrc;
+    tdd_8080->convert_cb = mcu8080->convert_cb;
 
     mcu8080_dev_info.type     = TUYA_DISPLAY_8080;
     mcu8080_dev_info.width    = mcu8080->cfg.width;
     mcu8080_dev_info.height   = mcu8080->cfg.height;
-    mcu8080_dev_info.fmt      = mcu8080->cfg.pixel_fmt;
+    mcu8080_dev_info.fmt      = mcu8080->in_fmt;
     mcu8080_dev_info.rotation = mcu8080->rotation;
     mcu8080_dev_info.is_swap  = mcu8080->is_swap;
 

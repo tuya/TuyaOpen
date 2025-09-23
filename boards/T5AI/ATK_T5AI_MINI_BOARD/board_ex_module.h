@@ -13,6 +13,9 @@
      (defined(ATK_T5AI_MINI_BOARD_LCD_MD0240_8080) && (ATK_T5AI_MINI_BOARD_LCD_MD0240_8080 ==1)))
 #include "tdl_display_driver.h"
 #include "tdd_disp_st7789.h"
+#elif (defined(ATK_T5AI_MINI_BOARD_LCD_MD0280_8080) && (ATK_T5AI_MINI_BOARD_LCD_MD0280_8080 ==1))
+#include "tdl_display_driver.h"
+#include "atk_t5ai_disp_md0280.h"
 #endif
 
 #if defined (ATK_T5AI_MINI_BOARD_CAMERA_OV2640) && (ATK_T5AI_MINI_BOARD_CAMERA_OV2640 ==1)
@@ -64,12 +67,23 @@ extern "C" {
 #define BOARD_LCD_BL_ACTIVE_LV       TUYA_GPIO_LEVEL_HIGH
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
+
+#elif (defined(ATK_T5AI_MINI_BOARD_LCD_MD0280_8080) && (ATK_T5AI_MINI_BOARD_LCD_MD0280_8080 ==1))
+#define BOARD_LCD_WIDTH              240
+#define BOARD_LCD_HEIGHT             320
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_0
+
+#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_GPIO 
+#define BOARD_LCD_BL_PIN             TUYA_GPIO_NUM_9
+#define BOARD_LCD_BL_ACTIVE_LV       TUYA_GPIO_LEVEL_HIGH
+
+#define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
 #endif
 
 #if defined (ATK_T5AI_MINI_BOARD_CAMERA_OV2640) && (ATK_T5AI_MINI_BOARD_CAMERA_OV2640 ==1)
 #define BOARD_CAMERA_I2C_PORT        TUYA_I2C_NUM_0
 #define BOARD_CAMERA_I2C_SCL         TUYA_GPIO_NUM_13
-#define BOARD_CAMERA_I2C_SDA         TUYA_GPIO_NUM_15
+#define BOARD_CAMERA_I2C_SDA         TUYA_GPIO_NUM_28
 
 #define BOARD_CAMERA_RST_PIN         TUYA_GPIO_NUM_8
 #define BOARD_CAMERA_RST_ACTIVE_LV   TUYA_GPIO_LEVEL_LOW
