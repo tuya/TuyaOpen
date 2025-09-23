@@ -34,6 +34,8 @@
 static TDL_DISP_HANDLE_T      sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T    sg_display_info;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
+static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_1 = NULL;
+static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_2 = NULL;
 
 static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
 
@@ -68,7 +70,7 @@ static OPERATE_RET __dma2d_init(void)
 }
 #endif
 
-OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME_T *frame)
+OPERATE_RET __get_camera_raw_frame_rgb565_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME_T *frame)
 {
 #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
     sg_in_frame.type = TUYA_FRAME_FMT_YUV422;
@@ -92,16 +94,58 @@ OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME
     tkl_dma2d_convert(&sg_in_frame, &sg_out_frame);
 
     tal_semaphore_wait_forever(sg_convert_sem);
-
+    
     if(sg_display_info.is_swap) {
         tdl_disp_dev_rgb565_swap((uint16_t *)sg_p_display_fb->frame, sg_p_display_fb->len/2);
     }
 
     tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
+
+
+    sg_p_display_fb = (sg_p_display_fb == sg_p_display_fb_1) ? \
+                      sg_p_display_fb_2 : sg_p_display_fb_1;
 #endif
 
     return OPRT_OK;
 }
+
+OPERATE_RET __get_camera_raw_frame_mono_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME_T *frame)
+{
+    uint32_t total_pixels = 0, yuv_index = 0, mono_byte_idx = 0;
+    uint8_t mono_bit_idx = 0, current_byte = 0, y = 0, bit = 0;   
+
+    if(NULL == hdl || NULL == frame) {
+        return OPRT_INVALID_PARM;
+    }
+
+    total_pixels = CAMERA_WIDTH * CAMERA_HEIGHT;
+
+    for(uint32_t i = 0; i < total_pixels; i++) {
+        y = frame->data[yuv_index];
+        bit = (y > 143) ? 1 : 0;
+
+        current_byte = (current_byte << 1) | bit;
+        mono_bit_idx++;
+        if (mono_bit_idx >= 8) {
+            sg_p_display_fb->frame[mono_byte_idx++] = current_byte;
+            current_byte = 0;
+            mono_bit_idx = 0;
+        }
+        
+        yuv_index += 2; 
+    }
+
+    if (mono_bit_idx > 0) {
+        current_byte <<= (8 - mono_bit_idx);
+        sg_p_display_fb->frame[mono_byte_idx++] = current_byte;
+    }
+
+    tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
+
+    return OPRT_OK;
+
+}
+
 
 static OPERATE_RET __display_init(void)
 {
@@ -118,8 +162,9 @@ static OPERATE_RET __display_init(void)
 
     TUYA_CALL_ERR_RETURN(tdl_disp_dev_get_info(sg_tdl_disp_hdl, &sg_display_info));
 
-    if(sg_display_info.fmt != TUYA_PIXEL_FMT_RGB565) {
-        PR_ERR("display pixel format %d not supported", sg_display_info.fmt);
+    if(sg_display_info.fmt != TUYA_PIXEL_FMT_RGB565 &&\
+       sg_display_info.fmt != TUYA_PIXEL_FMT_MONOCHROME) {
+         PR_ERR("display pixel format %d not supported", sg_display_info.fmt);
         return OPRT_NOT_SUPPORTED;
     }
 
@@ -128,15 +173,30 @@ static OPERATE_RET __display_init(void)
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
 
     /*create frame buffer*/
-    frame_len = CAMERA_WIDTH * CAMERA_HEIGHT * 2; // RGB565 is 2 bytes per pixel
-    sg_p_display_fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
-    if(NULL == sg_p_display_fb) {
+    if(sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME ) {
+        frame_len = (CAMERA_WIDTH + 7) / 8 * CAMERA_HEIGHT;
+    } else {
+        frame_len = CAMERA_WIDTH * CAMERA_HEIGHT * 2; // RGB565 is 2 bytes per pixel
+    }
+    sg_p_display_fb_1 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
+    if(NULL == sg_p_display_fb_1) {
         PR_ERR("create display frame buff failed");
         return OPRT_MALLOC_FAILED;
     }
-    sg_p_display_fb->fmt    = TUYA_PIXEL_FMT_RGB565;
-    sg_p_display_fb->width  = CAMERA_WIDTH;
-    sg_p_display_fb->height = CAMERA_HEIGHT;
+    sg_p_display_fb_1->fmt    = sg_display_info.fmt;
+    sg_p_display_fb_1->width  = CAMERA_WIDTH;
+    sg_p_display_fb_1->height = CAMERA_HEIGHT;
+
+    sg_p_display_fb_2 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
+    if(NULL == sg_p_display_fb_2) {
+        PR_ERR("create display frame buff failed");
+        return OPRT_MALLOC_FAILED;
+    }
+    sg_p_display_fb_2->fmt    = sg_display_info.fmt;
+    sg_p_display_fb_2->width  = CAMERA_WIDTH;
+    sg_p_display_fb_2->height = CAMERA_HEIGHT;
+
+    sg_p_display_fb = sg_p_display_fb_1;
 
     return OPRT_OK;
 }
@@ -156,7 +216,12 @@ static OPERATE_RET __camera_init(void)
     cfg.width   = CAMERA_WIDTH;
     cfg.height  = CAMERA_HEIGHT;
     cfg.out_fmt = TDL_CAMERA_FMT_YUV422;
-    cfg.get_frame_cb = __get_camera_raw_frame_cb;
+
+    if(sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME) {
+        cfg.get_frame_cb =  __get_camera_raw_frame_mono_cb;
+    }else {
+        cfg.get_frame_cb =  __get_camera_raw_frame_rgb565_cb;
+    }
 
     TUYA_CALL_ERR_RETURN(tdl_camera_dev_open(sg_tdl_camera_hdl, &cfg));
 

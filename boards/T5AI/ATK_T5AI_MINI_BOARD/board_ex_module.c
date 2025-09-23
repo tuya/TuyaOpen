@@ -89,7 +89,25 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
     return tdd_disp_mcu8080_st7789_register(DISPLAY_NAME, &display_cfg);
+}
+#elif (defined(ATK_T5AI_MINI_BOARD_LCD_MD0280_8080) && (ATK_T5AI_MINI_BOARD_LCD_MD0280_8080 ==1))
+static OPERATE_RET __board_register_display(void)
+{
+    ATK_DISP_8080_7789_CFG_T display_cfg;
 
+    memset(&display_cfg, 0, sizeof(ATK_DISP_8080_7789_CFG_T));
+
+    display_cfg.width     = BOARD_LCD_WIDTH;
+    display_cfg.height    = BOARD_LCD_HEIGHT;
+    display_cfg.rotation  = BOARD_LCD_ROTATION;
+
+    display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
+    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
+    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
+
+    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
+
+    return atk_disp_8080_md0280_register(DISPLAY_NAME, &display_cfg);
 }
 #else
 static OPERATE_RET __board_register_display(void)
