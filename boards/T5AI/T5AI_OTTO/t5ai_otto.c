@@ -18,9 +18,9 @@
  #include "tdd_button_gpio.h"
  #endif
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1)
  #include "tdd_disp_st7789.h"
- #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
  #include "tdd_disp_spi_st7735s_xlt.h"
  #endif
  /***********************************************************
@@ -34,17 +34,17 @@
  #define BOARD_LED_PIN       TUYA_GPIO_NUM_MAX
  #define BOARD_LED_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1) || defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1) || defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
  
  #define BOARD_LCD_BL_TYPE      TUYA_DISP_BL_TP_GPIO
  #define BOARD_LCD_BL_PIN       TUYA_GPIO_NUM_5
  #define BOARD_LCD_BL_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1) 
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1) 
  #define BOARD_LCD_WIDTH      240
  #define BOARD_LCD_HEIGHT     240
  #define BOARD_LCD_SPI_CS_PIN  TUYA_GPIO_NUM_15
- #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
  #define BOARD_LCD_WIDTH      160
  #define BOARD_LCD_HEIGHT     80
  #define BOARD_LCD_SPI_CS_PIN  TUYA_GPIO_NUM_13
@@ -139,7 +139,7 @@
      return rt;
  }
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1) || defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1) || defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
  static OPERATE_RET __board_register_display(void)
  {
      OPERATE_RET rt = OPRT_OK;
@@ -167,9 +167,9 @@
      display_cfg.power.pin = BOARD_LCD_POWER_PIN;
      display_cfg.power.active_level = BOARD_LCD_POWER_ACTIVE_LV;
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1)
      TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7789_register(DISPLAY_NAME, &display_cfg));
- #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
      TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_xlt_register(DISPLAY_NAME, &display_cfg));
  #endif
  #endif
@@ -193,7 +193,7 @@
  
      TUYA_CALL_ERR_LOG(__board_register_led());
  
- #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1) || defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1) || defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
      TUYA_CALL_ERR_LOG(__board_register_display());
  #endif
  
