@@ -26,6 +26,7 @@
 #include "tkl_output.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
+#include "otto_robot_main.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
 #endif
@@ -59,8 +60,6 @@ tuya_iot_client_t ai_client;
 
 static uint8_t _need_reset = 0;
 
-extern void otto_robot_main();
-extern void otto_robot_dp_proc(uint32_t move_type);
 
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
@@ -104,7 +103,6 @@ OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
             ai_audio_set_volume(volume);
-            
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
             char volume_str[20] = {0};
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
@@ -114,10 +112,7 @@ OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
         }
 
         case DPID_MOVE: {
-            uint32_t move_type = dp->value.dp_enum;
-            PR_DEBUG("move_type:%d", move_type);
-            // otto_robot_main();
-            otto_robot_dp_proc(move_type);
+           //otto_robot_dp_proc(dp->value.dp_enum);
             break;
         }
         default:
@@ -288,6 +283,7 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
+    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
 
@@ -314,7 +310,6 @@ void user_main(void)
                                     });
     assert(ret == OPRT_OK);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif
@@ -352,8 +347,7 @@ void user_main(void)
     tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
-    extern void otto_power_on();
-    otto_power_on();
+    //otto_power_on();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */

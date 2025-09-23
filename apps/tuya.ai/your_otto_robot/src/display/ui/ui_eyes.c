@@ -28,6 +28,33 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+// 160x80 screen image declarations
+LV_IMG_DECLARE(Neutral);
+LV_IMG_DECLARE(Touched);
+LV_IMG_DECLARE(Angry);
+LV_IMG_DECLARE(Fearful);
+LV_IMG_DECLARE(Surprise);
+LV_IMG_DECLARE(Sad);
+LV_IMG_DECLARE(Think);
+LV_IMG_DECLARE(Happy);
+LV_IMG_DECLARE(Confused);
+LV_IMG_DECLARE(Disappointed);
+
+static const UI_EYES_EMOJI_T cEYES_EMOJI_LIST[] = {
+    {EMOJI_NEUTRAL,      &Neutral},
+    {EMOJI_SURPRISE,     &Surprise},
+    {EMOJI_ANGRY,        &Angry},
+    {EMOJI_FEARFUL,      &Fearful},
+    {EMOJI_TOUCH,        &Touched},
+    {EMOJI_SAD,          &Sad},
+    {EMOJI_THINKING,     &Think},
+    {EMOJI_HAPPY,        &Happy},
+    {EMOJI_CONFUSED,     &Confused},
+    {EMOJI_DISAPPOINTED, &Disappointed},
+};
+#else
+// 128x128 screen image declarations (original code)
 LV_IMG_DECLARE(Nature128);
 LV_IMG_DECLARE(Touch128);
 LV_IMG_DECLARE(Angry128);
@@ -51,6 +78,7 @@ static const UI_EYES_EMOJI_T cEYES_EMOJI_LIST[] = {
     {EMOJI_CONFUSED,     &Confused128},
     {EMOJI_DISAPPOINTED, &Disappointed128},
 };
+#endif
 
 static lv_obj_t *sg_eyes_gif;
 

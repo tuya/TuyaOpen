@@ -92,6 +92,23 @@ static void __ui_light_theme_init(APP_THEME_COLORS_T *theme)
     theme->low_battery = lv_color_black();
 }
 
+static __attribute__((unused)) void __ui_dark_theme_init(APP_THEME_COLORS_T *theme)
+{
+    if (theme == NULL) {
+        return;
+    }
+
+    theme->background = lv_color_hex(0x121212);
+    theme->text = lv_color_white();
+    theme->chat_background = lv_color_hex(0x1E1E1E);
+    theme->user_bubble = lv_color_hex(0x1A6C37);
+    theme->assistant_bubble = lv_color_hex(0x333333);
+    theme->system_bubble = lv_color_hex(0x2A2A2A);
+    theme->system_text = lv_color_hex(0xAAAAAA);
+    theme->border = lv_color_hex(0x333333);
+    theme->low_battery = lv_color_hex(0x333333);
+}
+
 int __ui_font_init(UI_FONT_T *ui_font)
 {
     if (ui_font == NULL) {

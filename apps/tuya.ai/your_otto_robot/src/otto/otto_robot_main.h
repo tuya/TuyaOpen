@@ -57,6 +57,10 @@ void otto_demo_basic_movements(void);
 void otto_robot_main_demo(void);
 void otto_robot_basic_demo(void);
 
+// Main control functions
+void otto_power_on(void);
+void otto_robot_dp_proc(uint32_t move_type);
+
 #ifdef __cplusplus
 }
 #endif

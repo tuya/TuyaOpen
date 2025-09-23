@@ -19,6 +19,7 @@
  */
 
 #include "tuya_cloud_types.h"
+#include "tuya_kconfig.h"
 #include "tal_api.h"
 #include "tkl_output.h"
 #include "tkl_pwm.h"
@@ -28,13 +29,35 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-// Otto机器人舵机引脚定义
+// Otto robot servo pin definitions based on board type
+#ifdef OTTO_BOARD_DEFAULT_TXP
+// board default txp Otto robot servo pin define
 #define PIN_LEFT_LEG   TUYA_PWM_NUM_0
 #define PIN_RIGHT_LEG  TUYA_PWM_NUM_1
 #define PIN_LEFT_FOOT  TUYA_PWM_NUM_2
 #define PIN_RIGHT_FOOT TUYA_PWM_NUM_3
 #define PIN_LEFT_HAND  TUYA_PWM_NUM_4
-#define PIN_RIGHT_HAND TUYA_PWM_NUM_5
+#define PIN_RIGHT_HAND TUYA_PWM_NUM_7
+
+#elif defined(OTTO_BOARD_DREAM)
+// board dream Otto robot servo pin define
+#define OTTO_GPIO_NUM_18   TUYA_PWM_NUM_0
+#define OTTO_GPIO_NUM_24   TUYA_PWM_NUM_1
+#define OTTO_GPIO_NUM_32   TUYA_PWM_NUM_2
+#define OTTO_GPIO_NUM_34   TUYA_PWM_NUM_3
+#define OTTO_GPIO_NUM_36   TUYA_PWM_NUM_4
+#define OTTO_GPIO_NUM_9    TUYA_PWM_NUM_7
+
+#define PIN_LEFT_LEG   OTTO_GPIO_NUM_18
+#define PIN_RIGHT_LEG  OTTO_GPIO_NUM_9
+#define PIN_LEFT_FOOT  OTTO_GPIO_NUM_34
+#define PIN_RIGHT_FOOT OTTO_GPIO_NUM_24
+#define PIN_LEFT_HAND  OTTO_GPIO_NUM_32
+#define PIN_RIGHT_HAND OTTO_GPIO_NUM_36
+
+#else
+#error "Please select a board type in Kconfig"
+#endif
 
 #define TASK_PWM_PRIORITY THREAD_PRIO_2
 #define TASK_PWM_SIZE     4096

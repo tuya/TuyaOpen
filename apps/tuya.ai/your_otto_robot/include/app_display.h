@@ -31,17 +31,17 @@ typedef uint8_t UI_WIFI_STATUS_E;
 #define UI_WIFI_STATUS_FAIR         2
 #define UI_WIFI_STATUS_WEAK         3
 
-#define EMOJI_NEUTRAL        "NEUTRAL"
-#define EMOJI_SAD            "SAD"
-#define EMOJI_ANGRY          "ANGRY"
-#define EMOJI_SURPRISE       "SURPRISE"
-#define EMOJI_CONFUSED       "CONFUSED"
-#define EMOJI_THINKING       "THINKING"
-#define EMOJI_HAPPY          "HAPPY"
-#define EMOJI_TOUCH          "TOUCH"
-#define EMOJI_FEARFUL        "FEARFUL"
-#define EMOJI_DISAPPOINTED   "DISAPPOINTED"
-#define EMOJI_ANNOYED        "ANNOYED"
+#define EMOJI_NEUTRAL      "NEUTRAL"
+#define EMOJI_SAD          "SAD"
+#define EMOJI_ANGRY        "ANGRY"
+#define EMOJI_SURPRISE     "SURPRISE"
+#define EMOJI_CONFUSED     "CONFUSED"
+#define EMOJI_THINKING     "THINKING"
+#define EMOJI_HAPPY        "HAPPY"
+#define EMOJI_TOUCH        "TOUCH"
+#define EMOJI_FEARFUL      "FEARFUL"
+#define EMOJI_DISAPPOINTED "DISAPPOINTED"
+#define EMOJI_ANNOYED      "ANNOYED"
 
 /***********************************************************
 ***********************typedef define***********************
@@ -52,6 +52,8 @@ typedef enum {
     TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_START,
     TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_DATA,
     TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END,
+    TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT,
+
     TY_DISPLAY_TP_SYSTEM_MSG,
 
     TY_DISPLAY_TP_EMOTION,
