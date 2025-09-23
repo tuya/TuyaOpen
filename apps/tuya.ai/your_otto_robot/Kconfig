@@ -47,4 +47,8 @@ config ENABLE_CHAT_DISPLAY
     if (ENABLE_CHAT_DISPLAY)
         rsource "./src/display/Kconfig"
     endif
+
+config ENABLE_AUDIO_CHAT
+    bool "enable audio chat mode"
+    default y
 endmenu
