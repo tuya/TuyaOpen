@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
+#include "bmi270_common.h"
 #include "bmi2_defs.h"
 #include "tkl_i2c.h"
 #include "tkl_system.h"
@@ -45,7 +45,7 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_
         return ret;
     }
     
-    ret = tkl_i2c_master_receive(0, dev_addr, reg_data, (uint16_t)len, TRUE);
+    ret = tkl_i2c_master_receive(0, dev_addr, reg_data, (uint16_t)len, FALSE);
 
     PR_DEBUG("bmi2_i2c_read: reg_addr=0x%02X, len=%d, ret=%d", reg_addr, len, ret);
     return ret;
@@ -57,7 +57,7 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_
 BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
     // uint8_t dev_addr = *(uint8_t*)intf_ptr;
-    PR_DEBUG("bmi2_i2c_write: reg_addr=0x%02X, len=%d", reg_addr, len);
+
     // For BMI270, we need to send the register address followed by the data
     // Create a buffer with register address and data
 
@@ -69,7 +69,7 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, 
     buf[0] = reg_addr;
     memcpy(buf + 1, reg_data, len);
     
-    OPERATE_RET ret = tkl_i2c_master_send(0, dev_addr, buf, (uint16_t)(len + 1), TRUE);
+    OPERATE_RET ret = tkl_i2c_master_send(0, dev_addr, buf, (uint16_t)(len + 1), FALSE);
     tkl_system_free(buf);
     PR_DEBUG("bmi2_i2c_write: reg_addr=0x%02X, len=%d, ret=%d", reg_addr, len, ret);
     // uint8_t buf[2];

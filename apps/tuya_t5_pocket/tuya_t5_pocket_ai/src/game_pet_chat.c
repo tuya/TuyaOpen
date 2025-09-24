@@ -25,7 +25,7 @@
 #include "app_pocket.h"
 #include "game_pet.h"
 #include "media_src_en.h"
-// #include "board_bmi270_api.h"
+#include "board_bmi270_api.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
