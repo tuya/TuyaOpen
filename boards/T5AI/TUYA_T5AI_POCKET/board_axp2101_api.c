@@ -147,7 +147,7 @@ OPERATE_RET board_axp2101_init(void)
     ENABLE_SIM_VDD(1);
 
     // release i2c source
-    // axp2101_deinit();
+    axp2101_deinit();
 
     return rt;
 }

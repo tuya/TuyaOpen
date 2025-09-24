@@ -10,13 +10,14 @@
 #include "tkl_pinmux.h"
 #include "tal_log.h"
 #include "tkl_system.h"
-
+#include "bmi270.h"
+#include "common.h"
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 
 /* Global BMI270 device instance */
-// static bmi270_dev_t g_bmi270_dev = {0};
+static bmi270_dev_t g_bmi270_dev = {0};
 
 /* I2C configuration for BMI270 */
 static TUYA_IIC_BASE_CFG_T g_bmi270_i2c_cfg = {
@@ -28,7 +29,53 @@ static TUYA_IIC_BASE_CFG_T g_bmi270_i2c_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/******************************************************************************/
+/*!                Macro definition                                           */
 
+/*! Earth's gravity in m/s^2 */
+#define GRAVITY_EARTH  (9.80665f)
+
+/*! Macros to select the sensors                   */
+#define ACCEL          UINT8_C(0x00)
+#define GYRO           UINT8_C(0x01)
+
+/******************************************************************************/
+/*!           Static Function Declaration                                     */
+
+/*!
+ *  @brief This internal API is used to set configurations for accel.
+ *
+ *  @param[in] dev       : Structure instance of bmi2_dev.
+ *
+ *  @return Status of execution.
+ */
+static int8_t set_accel_gyro_config(struct bmi2_dev *bmi2_dev);
+
+/*!
+ *  @brief This function converts lsb to meter per second squared for 16 bit accelerometer at
+ *  range 2G, 4G, 8G or 16G.
+ *
+ *  @param[in] val       : LSB from each axis.
+ *  @param[in] g_range   : Gravity range.
+ *  @param[in] bit_width : Resolution for accel.
+ *
+ *  @return Gravity.
+ */
+static float lsb_to_mps2(int16_t val, float g_range, uint8_t bit_width);
+
+/*!
+ *  @brief This function converts lsb to degree per second for 16 bit gyro at
+ *  range 125, 250, 500, 1000 or 2000dps.
+ *
+ *  @param[in] val       : LSB from each axis.
+ *  @param[in] dps       : Degree per second.
+ *  @param[in] bit_width : Resolution for gyro.
+ *
+ *  @return Degree per second.
+ */
+static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width);
+
+#if 0
 /**
  * @brief Write data to BMI270 register
  * @param dev Pointer to BMI270 device structure
@@ -203,7 +250,11 @@ static OPERATE_RET bmi270_configure_sensor(bmi270_dev_t *dev, const bmi270_confi
     tkl_system_sleep(100);
     
     /* Wait for configuration to take effect */
-    tkl_system_sleep(50);
+    ret = bmi270_write_reg(dev, BMI270_REG_PWR_CTRL, 0x0E);  /* Enable accel and gyro */
+    if (ret != OPRT_OK) {
+        PR_ERR("Failed to enable sensors in power control");
+        return ret;
+    }
     
     /* Store configuration */
     dev->config = *config;
@@ -213,17 +264,22 @@ static OPERATE_RET bmi270_configure_sensor(bmi270_dev_t *dev, const bmi270_confi
     
     return OPRT_OK;
 }
-
+#endif
 OPERATE_RET board_bmi270_init(bmi270_dev_t *dev)
 {
     OPERATE_RET ret;
     
     if (!dev) {
+        PR_ERR("Invalid device pointer");
         return OPRT_INVALID_PARM;
     }
     
     PR_DEBUG("Initializing BMI270 sensor...");
     
+    /* Configure I2C pins */
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_20, TUYA_IIC0_SCL);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_21, TUYA_IIC0_SDA);
+
     /* Initialize I2C */
     ret = tkl_i2c_init(BMI270_I2C_PORT, &g_bmi270_i2c_cfg);
     if (ret != OPRT_OK) {
@@ -231,71 +287,106 @@ OPERATE_RET board_bmi270_init(bmi270_dev_t *dev)
         return ret;
     }
     
-    /* Configure I2C pins */
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_20, TUYA_IIC0_SCL);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_21, TUYA_IIC0_SDA);
-    
     /* Initialize device structure */
     dev->i2c_port = BMI270_I2C_PORT;
     dev->i2c_addr = BMI270_I2C_ADDR;
     dev->initialized = false;
     
-    /* Check if device responds at primary address */
-    if (!bmi270_test_device_response(dev)) {
-        PR_DEBUG("Device not found at primary address, trying alternate address");
-        dev->i2c_addr = BMI270_I2C_ADDR_ALT;
-        if (!bmi270_test_device_response(dev)) {
-            PR_ERR("BMI270 device not found on I2C bus");
-            return OPRT_COM_ERROR;
+    /* Status of api are returned to this variable. */
+    int8_t rslt;
+
+    /* Variable to define limit to print accel data. */
+    uint8_t limit = 10;
+
+    /* Assign accel and gyro sensor to variable. */
+    uint8_t sensor_list[2] = { BMI2_ACCEL, BMI2_GYRO };
+
+    /* Sensor initialization configuration. */
+    struct bmi2_dev bmi2_dev;
+
+    /* Create an instance of sensor data structure. */
+    struct bmi2_sens_data sensor_data = { { 0 } };
+
+    /* Initialize the interrupt status of accel and gyro. */
+    uint16_t int_status = 0;
+
+    uint8_t indx = 1;
+
+    float x = 0, y = 0, z = 0;
+
+    /* Interface reference is given as a parameter
+     * For I2C : BMI2_I2C_INTF
+     * For SPI : BMI2_SPI_INTF
+     */
+    rslt = bmi2_interface_init(&bmi2_dev, BMI2_I2C_INTF);
+    bmi2_error_codes_print_result(rslt);
+
+    /* Initialize bmi270. */
+    rslt = bmi270_init(&bmi2_dev);
+    bmi2_error_codes_print_result(rslt);
+    PR_DEBUG("BMI270 initialized successfully %d", rslt);
+    if (rslt == BMI2_OK)
+    {
+        /* Accel and gyro configuration settings. */
+        rslt = set_accel_gyro_config(&bmi2_dev);
+        bmi2_error_codes_print_result(rslt);
+
+        if (rslt == BMI2_OK)
+        {
+            /* NOTE:
+             * Accel and Gyro enable must be done after setting configurations
+             */
+            rslt = bmi270_sensor_enable(sensor_list, 2, &bmi2_dev);
+            bmi2_error_codes_print_result(rslt);
+
+            /* Loop to print accel and gyro data when interrupt occurs. */
+            while (indx <= limit)
+            {
+                /* To get the data ready interrupt status of accel and gyro. */
+                rslt = bmi2_get_int_status(&int_status, &bmi2_dev);
+                bmi2_error_codes_print_result(rslt);
+
+                /* To check the data ready interrupt status and print the status for 10 samples. */
+                if ((int_status & BMI2_ACC_DRDY_INT_MASK) && (int_status & BMI2_GYR_DRDY_INT_MASK))
+                {
+                    /* Get accel and gyro data for x, y and z axis. */
+                    rslt = bmi2_get_sensor_data(&sensor_data, &bmi2_dev);
+                    bmi2_error_codes_print_result(rslt);
+
+                    printf("\n*******  Accel(Raw and m/s2) Gyro(Raw and dps) data : %d  *******\n", indx);
+
+                    printf("\nAcc_x = %d\t", sensor_data.acc.x);
+                    printf("Acc_y = %d\t", sensor_data.acc.y);
+                    printf("Acc_z = %d", sensor_data.acc.z);
+
+                    /* Converting lsb to meter per second squared for 16 bit accelerometer at 2G range. */
+                    x = lsb_to_mps2(sensor_data.acc.x, 2, bmi2_dev.resolution);
+                    y = lsb_to_mps2(sensor_data.acc.y, 2, bmi2_dev.resolution);
+                    z = lsb_to_mps2(sensor_data.acc.z, 2, bmi2_dev.resolution);
+
+                    /* Print the data in m/s2. */
+                    printf("\nAcc_ms2_X = %4.2f, Acc_ms2_Y = %4.2f, Acc_ms2_Z = %4.2f\n", x, y, z);
+
+                    printf("\nGyr_X = %d\t", sensor_data.gyr.x);
+                    printf("Gyr_Y = %d\t", sensor_data.gyr.y);
+                    printf("Gyr_Z= %d\n", sensor_data.gyr.z);
+
+                    /* Converting lsb to degree per second for 16 bit gyro at 2000dps range. */
+                    x = lsb_to_dps(sensor_data.gyr.x, 2000, bmi2_dev.resolution);
+                    y = lsb_to_dps(sensor_data.gyr.y, 2000, bmi2_dev.resolution);
+                    z = lsb_to_dps(sensor_data.gyr.z, 2000, bmi2_dev.resolution);
+
+                    /* Print the data in dps. */
+                    printf("Gyro_DPS_X = %4.2f, Gyro_DPS_Y = %4.2f, Gyro_DPS_Z = %4.2f\n", x, y, z);
+
+                    indx++;
+                }
+            }
         }
     }
-    
-    PR_DEBUG("BMI270 device found at address 0x%02X", dev->i2c_addr);
-    
-    /* Soft reset */
-    ret = bmi270_write_reg(dev, BMI270_REG_CMD, BMI270_CMD_SOFT_RESET);
-    if (ret != OPRT_OK) {
-        PR_ERR("Failed to reset BMI270");
-        return ret;
-    }
-    
-    /* Wait for reset to complete */
-    tkl_system_sleep(100);
-    
-    /* Check chip ID */
-    if (!bmi270_check_chip_id(dev)) {
-        dev->i2c_addr = BMI270_I2C_ADDR_ALT;
-        if (!bmi270_check_chip_id(dev)) {
-            PR_ERR("BMI270 chip ID verification failed");
-            return OPRT_COM_ERROR;
-        }
-    }
-    
-    /* Write feature configuration (this includes sensor enable) */
-    ret = bmi270_write_feature_config(dev);
-    if (ret != OPRT_OK) {
-        PR_ERR("Failed to write feature configuration");
-        return ret;
-    }
-    
-    /* Set default configuration for reference */
-    bmi270_config_t default_config = {
-        .acc_range = BMI270_ACC_RANGE_2G,
-        .gyr_range = BMI270_GYR_RANGE_2000DPS,
-        .acc_odr = BMI270_ODR_100HZ,
-        .gyr_odr = BMI270_ODR_100HZ,
-        .power_mode = BMI270_POWER_MODE_NORMAL
-    };
-    
-    /* Store configuration for reference */
-    dev->config = default_config;
-    
-    dev->initialized = true;
-    PR_DEBUG("BMI270 initialization completed successfully");
-    
     return OPRT_OK;
 }
-
+#if 0
 OPERATE_RET board_bmi270_deinit(bmi270_dev_t *dev)
 {
     if (!dev || !dev->initialized) {
@@ -329,7 +420,7 @@ OPERATE_RET board_bmi270_read_data(bmi270_dev_t *dev, bmi270_sensor_data_t *data
     
     /* In slave mode, we read data directly without status checks */
     /* Read sensor data from DATA_0 to DATA_11 (12 bytes total) */
-    ret = bmi270_read_regs(dev, BMI270_REG_DATA_0, buf, 12);
+    ret = bmi270_read_regs(dev, BMI270_REG_DATA_8, buf, 12);
     if (ret != OPRT_OK) {
         PR_ERR("Failed to read sensor data: %d", ret);
         return ret;
@@ -502,13 +593,20 @@ bool board_bmi270_is_ready(bmi270_dev_t *dev)
     /* Return true if we can read status and it's not all zeros */
     return (ret == OPRT_OK && status != 0x00);
 }
-
+#endif
 OPERATE_RET board_bmi270_register(void)
 {
+    OPERATE_RET ret = OPRT_OK;
     /* Register BMI270 driver with the system */
-    return OPRT_OK;
-}
+    g_bmi270_dev.i2c_port = BMI270_I2C_PORT;
+    g_bmi270_dev.i2c_addr = BMI270_I2C_ADDR;
+    g_bmi270_dev.initialized = false;
 
+    ret = board_bmi270_init(&g_bmi270_dev);
+    // board_bmi270_config(&g_bmi270_dev, &(g_bmi270_dev.config));
+    return ret;
+}
+#if 0
 OPERATE_RET board_bmi270_scan_i2c(TUYA_I2C_NUM_E port)
 {
     OPERATE_RET ret;
@@ -532,4 +630,114 @@ OPERATE_RET board_bmi270_scan_i2c(TUYA_I2C_NUM_E port)
     
     PR_ERR("BMI270 not found on I2C bus %d", port);
     return OPRT_COM_ERROR;
+}
+#endif
+bmi270_dev_t *board_bmi270_get_handle()
+{
+    return &g_bmi270_dev;
+}
+
+/*!
+ * @brief This internal API is used to set configurations for accel and gyro.
+ */
+static int8_t set_accel_gyro_config(struct bmi2_dev *bmi2_dev)
+{
+    /* Status of api are returned to this variable. */
+    int8_t rslt;
+
+    /* Structure to define accelerometer and gyro configuration. */
+    struct bmi2_sens_config config[2];
+
+    /* Configure the type of feature. */
+    config[ACCEL].type = BMI2_ACCEL;
+    config[GYRO].type = BMI2_GYRO;
+
+    /* Get default configurations for the type of feature selected. */
+    rslt = bmi270_get_sensor_config(config, 2, bmi2_dev);
+    bmi2_error_codes_print_result(rslt);
+
+    /* Map data ready interrupt to interrupt pin. */
+    rslt = bmi2_map_data_int(BMI2_DRDY_INT, BMI2_INT1, bmi2_dev);
+    bmi2_error_codes_print_result(rslt);
+
+    if (rslt == BMI2_OK)
+    {
+        /* NOTE: The user can change the following configuration parameters according to their requirement. */
+        /* Set Output Data Rate */
+        config[ACCEL].cfg.acc.odr = BMI2_ACC_ODR_200HZ;
+
+        /* Gravity range of the sensor (+/- 2G, 4G, 8G, 16G). */
+        config[ACCEL].cfg.acc.range = BMI2_ACC_RANGE_2G;
+
+        /* The bandwidth parameter is used to configure the number of sensor samples that are averaged
+         * if it is set to 2, then 2^(bandwidth parameter) samples
+         * are averaged, resulting in 4 averaged samples.
+         * Note1 : For more information, refer the datasheet.
+         * Note2 : A higher number of averaged samples will result in a lower noise level of the signal, but
+         * this has an adverse effect on the power consumed.
+         */
+        config[ACCEL].cfg.acc.bwp = BMI2_ACC_NORMAL_AVG4;
+
+        /* Enable the filter performance mode where averaging of samples
+         * will be done based on above set bandwidth and ODR.
+         * There are two modes
+         *  0 -> Ultra low power mode
+         *  1 -> High performance mode(Default)
+         * For more info refer datasheet.
+         */
+        config[ACCEL].cfg.acc.filter_perf = BMI2_PERF_OPT_MODE;
+
+        /* The user can change the following configuration parameters according to their requirement. */
+        /* Set Output Data Rate */
+        config[GYRO].cfg.gyr.odr = BMI2_GYR_ODR_200HZ;
+
+        /* Gyroscope Angular Rate Measurement Range.By default the range is 2000dps. */
+        config[GYRO].cfg.gyr.range = BMI2_GYR_RANGE_2000;
+
+        /* Gyroscope bandwidth parameters. By default the gyro bandwidth is in normal mode. */
+        config[GYRO].cfg.gyr.bwp = BMI2_GYR_NORMAL_MODE;
+
+        /* Enable/Disable the noise performance mode for precision yaw rate sensing
+         * There are two modes
+         *  0 -> Ultra low power mode(Default)
+         *  1 -> High performance mode
+         */
+        config[GYRO].cfg.gyr.noise_perf = BMI2_POWER_OPT_MODE;
+
+        /* Enable/Disable the filter performance mode where averaging of samples
+         * will be done based on above set bandwidth and ODR.
+         * There are two modes
+         *  0 -> Ultra low power mode
+         *  1 -> High performance mode(Default)
+         */
+        config[GYRO].cfg.gyr.filter_perf = BMI2_PERF_OPT_MODE;
+
+        /* Set the accel and gyro configurations. */
+        rslt = bmi270_set_sensor_config(config, 2, bmi2_dev);
+        bmi2_error_codes_print_result(rslt);
+    }
+
+    return rslt;
+}
+
+/*!
+ * @brief This function converts lsb to meter per second squared for 16 bit accelerometer at
+ * range 2G, 4G, 8G or 16G.
+ */
+static float lsb_to_mps2(int16_t val, float g_range, uint8_t bit_width)
+{
+    float half_scale = ((float)(1 << bit_width) / 2.0f);
+
+    return (GRAVITY_EARTH * val * g_range) / half_scale;
+}
+
+/*!
+ * @brief This function converts lsb to degree per second for 16 bit gyro at
+ * range 125, 250, 500, 1000 or 2000dps.
+ */
+static float lsb_to_dps(int16_t val, float dps, uint8_t bit_width)
+{
+    float half_scale = ((float)(1 << bit_width) / 2.0f);
+
+    return (dps / ((half_scale))) * (val);
 }

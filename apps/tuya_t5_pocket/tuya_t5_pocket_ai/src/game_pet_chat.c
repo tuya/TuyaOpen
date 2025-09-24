@@ -25,6 +25,7 @@
 #include "app_pocket.h"
 #include "game_pet.h"
 #include "media_src_en.h"
+// #include "board_bmi270_api.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -148,6 +149,13 @@ static TIMER_ID sg_battery_update_timer = NULL;
 
 static void __battery_update_timer_cb(TIMER_ID timer_id, void *param)
 {
+    // bmi270_dev_t *bmi270_dev = board_bmi270_get_handle();
+    // bmi270_sensor_data_t data;
+    // board_bmi270_read_data(bmi270_dev, &data);
+    // PR_NOTICE("data: acc_x=%d, acc_y=%d, acc_z=%d, gyr_x=%d, gyr_y=%d, gyr_z=%d, temp=%d",
+    //           data.acc_x, data.acc_y, data.acc_z,
+    //           data.gyr_x, data.gyr_y, data.gyr_z,
+    //           data.temp);
     app_display_send_msg(POCKET_DISP_TP_BATTERY_STATUS, NULL, 0);
 }
 

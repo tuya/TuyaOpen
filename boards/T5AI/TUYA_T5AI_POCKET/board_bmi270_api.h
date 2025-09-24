@@ -24,7 +24,7 @@ extern "C" {
 #define BMI270_I2C_PORT              TUYA_I2C_NUM_0
 #define BMI270_I2C_ADDR              0x68  /* BMI270 I2C address (ADDR pin = 0) */
 #define BMI270_I2C_ADDR_ALT          0x69  /* BMI270 I2C address (ADDR pin = 1) */
-
+#if 0
 /* BMI270 Chip ID */
 #define BMI270_CHIP_ID               0x24
 
@@ -46,7 +46,7 @@ extern "C" {
 #define BMI270_REG_DATA_11           0x0F
 
 /* BMI270 Power and Configuration Registers */
-#define BMI270_REG_PWR_CTRL          0x7C
+#define BMI270_REG_PWR_CTRL          0x7D
 #define BMI270_REG_PWR_CONF          0x7C
 #define BMI270_REG_CMD               0x7E
 
@@ -99,10 +99,78 @@ extern "C" {
 #define BMI270_ODR_1600HZ            0x0C
 #define BMI270_ODR_3200HZ            0x0D
 
+
+/*! @name BMI2 register addresses */
+#define BMI2_CHIP_ID_ADDR                         UINT8_C(0x00)
+#define BMI2_STATUS_ADDR                          UINT8_C(0x03)
+#define BMI2_AUX_X_LSB_ADDR                       UINT8_C(0x04)
+#define BMI2_ACC_X_LSB_ADDR                       UINT8_C(0x0C)
+#define BMI2_GYR_X_LSB_ADDR                       UINT8_C(0x12)
+#define BMI2_SENSORTIME_ADDR                      UINT8_C(0x18)
+#define BMI2_EVENT_ADDR                           UINT8_C(0x1B)
+#define BMI2_INT_STATUS_0_ADDR                    UINT8_C(0x1C)
+#define BMI2_INT_STATUS_1_ADDR                    UINT8_C(0x1D)
+#define BMI2_SC_OUT_0_ADDR                        UINT8_C(0x1E)
+#define BMI2_SYNC_COMMAND_ADDR                    UINT8_C(0x1E)
+#define BMI2_GYR_CAS_GPIO0_ADDR                   UINT8_C(0x1E)
+#define BMI2_INTERNAL_STATUS_ADDR                 UINT8_C(0x21)
+#define BMI2_FIFO_LENGTH_0_ADDR                   UINT8_C(0x24)
+#define BMI2_FIFO_DATA_ADDR                       UINT8_C(0x26)
+#define BMI2_FEAT_PAGE_ADDR                       UINT8_C(0x2F)
+#define BMI2_FEATURES_REG_ADDR                    UINT8_C(0x30)
+#define BMI2_ACC_CONF_ADDR                        UINT8_C(0x40)
+#define BMI2_GYR_CONF_ADDR                        UINT8_C(0x42)
+#define BMI2_AUX_CONF_ADDR                        UINT8_C(0x44)
+#define BMI2_FIFO_DOWNS_ADDR                      UINT8_C(0x45)
+#define BMI2_FIFO_WTM_0_ADDR                      UINT8_C(0x46)
+#define BMI2_FIFO_WTM_1_ADDR                      UINT8_C(0x47)
+#define BMI2_FIFO_CONFIG_0_ADDR                   UINT8_C(0x48)
+#define BMI2_FIFO_CONFIG_1_ADDR                   UINT8_C(0x49)
+#define BMI2_AUX_DEV_ID_ADDR                      UINT8_C(0x4B)
+#define BMI2_AUX_IF_CONF_ADDR                     UINT8_C(0x4C)
+#define BMI2_AUX_RD_ADDR                          UINT8_C(0x4D)
+#define BMI2_AUX_WR_ADDR                          UINT8_C(0x4E)
+#define BMI2_AUX_WR_DATA_ADDR                     UINT8_C(0x4F)
+#define BMI2_INT1_IO_CTRL_ADDR                    UINT8_C(0x53)
+#define BMI2_INT2_IO_CTRL_ADDR                    UINT8_C(0x54)
+#define BMI2_INT_LATCH_ADDR                       UINT8_C(0x55)
+#define BMI2_INT1_MAP_FEAT_ADDR                   UINT8_C(0x56)
+#define BMI2_INT2_MAP_FEAT_ADDR                   UINT8_C(0x57)
+#define BMI2_INT_MAP_DATA_ADDR                    UINT8_C(0x58)
+#define BMI2_INIT_CTRL_ADDR                       UINT8_C(0x59)
+#define BMI2_INIT_ADDR_0                          UINT8_C(0x5B)
+#define BMI2_INIT_ADDR_1                          UINT8_C(0x5C)
+#define BMI2_INIT_DATA_ADDR                       UINT8_C(0x5E)
+#define BMI2_AUX_IF_TRIM                          UINT8_C(0x68)
+#define BMI2_GYR_CRT_CONF_ADDR                    UINT8_C(0x69)
+#define BMI2_NVM_CONF_ADDR                        UINT8_C(0x6A)
+#define BMI2_IF_CONF_ADDR                         UINT8_C(0x6B)
+#define BMI2_ACC_SELF_TEST_ADDR                   UINT8_C(0x6D)
+#define BMI2_GYR_SELF_TEST_AXES_ADDR              UINT8_C(0x6E)
+#define BMI2_SELF_TEST_MEMS_ADDR                  UINT8_C(0x6F)
+#define BMI2_NV_CONF_ADDR                         UINT8_C(0x70)
+#define BMI2_ACC_OFF_COMP_0_ADDR                  UINT8_C(0x71)
+#define BMI2_GYR_OFF_COMP_3_ADDR                  UINT8_C(0x74)
+#define BMI2_GYR_OFF_COMP_6_ADDR                  UINT8_C(0x77)
+#define BMI2_GYR_USR_GAIN_0_ADDR                  UINT8_C(0x78)
+#define BMI2_PWR_CONF_ADDR                        UINT8_C(0x7C)
+#define BMI2_PWR_CTRL_ADDR                        UINT8_C(0x7D)
+#define BMI2_CMD_REG_ADDR                         UINT8_C(0x7E)
+
+/*! @name BMI2 I2C address */
+#define BMI2_I2C_PRIM_ADDR                        UINT8_C(0x68)
+#define BMI2_I2C_SEC_ADDR                         UINT8_C(0x69)
+
+/*! @name BMI2 Commands */
+#define BMI2_G_TRIGGER_CMD                        UINT8_C(0x02)
+#define BMI2_USR_GAIN_CMD                         UINT8_C(0x03)
+#define BMI2_NVM_PROG_CMD                         UINT8_C(0xA0)
+#define BMI2_SOFT_RESET_CMD                       UINT8_C(0xB6)
+#define BMI2_FIFO_FLUSH_CMD                       UINT8_C(0xB0)
 /***********************************************************
 ************************data structure**********************
 ***********************************************************/
-
+#endif
 /**
  * @brief BMI270 sensor data structure
  */
@@ -147,7 +215,13 @@ typedef struct {
  * @return OPERATE_RET_OK on success, error code on failure
  */
 OPERATE_RET board_bmi270_init(bmi270_dev_t *dev);
+/**
+ * @brief Register BMI270 driver
+ * @return OPERATE_RET_OK on success, error code on failure
+ */
+OPERATE_RET board_bmi270_register(void);
 
+#if 0
 /**
  * @brief Deinitialize BMI270 sensor
  * @param dev Pointer to BMI270 device structure
@@ -222,18 +296,13 @@ OPERATE_RET board_bmi270_force_reset(bmi270_dev_t *dev);
 bool board_bmi270_is_ready(bmi270_dev_t *dev);
 
 /**
- * @brief Register BMI270 driver
- * @return OPERATE_RET_OK on success, error code on failure
- */
-OPERATE_RET board_bmi270_register(void);
-
-/**
  * @brief Scan I2C bus for BMI270 device
  * @param port I2C port number
  * @return OPERATE_RET_OK on success, error code on failure
  */
 OPERATE_RET board_bmi270_scan_i2c(TUYA_I2C_NUM_E port);
-
+#endif
+bmi270_dev_t *board_bmi270_get_handle();
 #ifdef __cplusplus
 }
 #endif

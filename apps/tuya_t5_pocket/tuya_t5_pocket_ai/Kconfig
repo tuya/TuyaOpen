@@ -39,4 +39,8 @@ if(ENABLE_CHAT_MODE_ASR_WAKEUP_SINGEL || ENABLE_CHAT_MODE_ASR_WAKEUP_FREE)
         bool "the wake-up word is configured as XIAO ZHI GUAN JIA."  
     endchoice
 endif
+
+config ENABLE_AUDIO_CHAT
+    bool "enable audio chat mode"
+    default y
 endmenu
