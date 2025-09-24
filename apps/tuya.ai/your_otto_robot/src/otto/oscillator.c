@@ -54,7 +54,7 @@ int oscillator_create(int trim)
     return idx;
 }
 
-// 释放oscillator
+// Release oscillator
 void oscillator_destroy(int idx)
 {
     if (idx < 0 || idx >= g_oscillator_count)

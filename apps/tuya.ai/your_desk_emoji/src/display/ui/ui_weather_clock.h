@@ -33,10 +33,10 @@ extern "C" {
 typedef struct {
     lv_obj_t *container;
     lv_obj_t *status_bar;
-    lv_obj_t *time_label;           // 时间显示
-    lv_obj_t *date_weather_label;   // 日期显示
-    lv_obj_t *temperature_label;    // 温度显示
-    lv_obj_t *weather_icon_img;     // 天气图标显示
+    lv_obj_t *time_label;           // Time display
+    lv_obj_t *date_weather_label;   // Date display
+    lv_obj_t *temperature_label;    // Temperature display
+    lv_obj_t *weather_icon_img;     // Weather icon display
     lv_obj_t *network_label;
     lv_obj_t *notification_label;
     lv_obj_t *status_label;

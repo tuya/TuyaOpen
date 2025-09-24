@@ -55,8 +55,7 @@ tuya_iot_client_t ai_client;
 #define PROJECT_VERSION "1.0.0"
 #endif
 
-#define DPID_VOLUME 3
-#define DPID_MOVE   5
+#define DPID_VOLUME 6
 
 static uint8_t _need_reset = 0;
 
@@ -93,6 +92,10 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 
 OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
+    PR_DEBUG("=== user_dp_obj_proc called ===");
+    PR_DEBUG("DP object - dpscnt: %d, devid: %s", dpobj->dpscnt, dpobj->devid ? dpobj->devid : "NULL");
+    
+    otto_robot_dp_proc(dpobj);
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
         dp_obj_t *dp = dpobj->dps + index;
@@ -108,11 +111,6 @@ OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
             app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
 #endif
-            break;
-        }
-
-        case DPID_MOVE: {
-           //otto_robot_dp_proc(dp->value.dp_enum);
             break;
         }
         default:
@@ -347,7 +345,7 @@ void user_main(void)
     tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
-    //otto_power_on();
+    otto_power_on();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */

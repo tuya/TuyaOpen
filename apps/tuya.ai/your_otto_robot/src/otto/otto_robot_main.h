@@ -13,6 +13,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tkl_output.h"
+#include "tuya_iot_dp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +60,22 @@ void otto_robot_basic_demo(void);
 
 // Main control functions
 void otto_power_on(void);
-void otto_robot_dp_proc(uint32_t move_type);
+void otto_robot_dp_proc(dp_obj_recv_t *dpobj);
+
+// Action execution interface
+void otto_robot_execute_action(uint32_t move_type);
+
+// New DP processing functions
+void otto_robot_dp_proc_thread(uint32_t move_type);
+void otto_robot_step_dp_proc(uint32_t steps);
+void otto_robot_speed_dp_proc(uint32_t speed_type);
+void otto_robot_audio_mode_dp_proc(uint32_t mode);
+
+// Helper functions
+void set_otto_steps(uint32_t steps);
+uint32_t get_otto_steps(void);
+void set_otto_speed(uint32_t speed);
+uint32_t get_otto_speed(void);
 
 #ifdef __cplusplus
 }

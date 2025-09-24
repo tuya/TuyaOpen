@@ -641,7 +641,7 @@ void otto_disable_servo_limit()
 //-- hand wave: hand up
 //--  Parameters:
 //--    period:  time period of each cycle
-//--    dir: 方向 1=left, -1=right, 0=both
+//--    dir: direction 1=left, -1=right, 0=both
 //---------------------------------------------------------
 void otto_hands_up(int period, int dir)
 {
@@ -673,7 +673,7 @@ void otto_hands_up(int period, int dir)
 //--   Hands Wave Down
 //--  Parameters:
 //--    period:  time period of each cycle
-//--    dir: 方向 1=left, -1=right, 0=both
+//--    dir: direction 1=left, -1=right, 0=both
 //---------------------------------------------------------
 void otto_hands_down(int period, int dir)
 {
@@ -700,7 +700,7 @@ void otto_hands_down(int period, int dir)
 //-- otto_hand_wave: wave
 //--  Parameters:
 //--    period:  time period of each cycle
-//--    dir: 方向 1=left, -1=right, 0=both
+//--    dir: direction 1=left, -1=right, 0=both
 //---------------------------------------------------------
 void otto_hand_wave(int period, int dir)
 {
