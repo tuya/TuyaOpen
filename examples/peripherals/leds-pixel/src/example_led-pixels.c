@@ -31,83 +31,214 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define LED_PIXELS_TOTAL_NUM         50
-#define LED_CHANGE_TIME              800 //ms
-#define COLOR_RESOLUION              1000u
+#define LED_PIXELS_TOTAL_NUM 50
+#define LED_CHANGE_TIME      800 // ms
+#define COLOR_RESOLUION      1000u
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 static PIXEL_HANDLE_T sg_pixels_handle = NULL;
-static THREAD_HANDLE  sg_pixels_thrd = NULL;
+static THREAD_HANDLE sg_pixels_thrd = NULL;
 
 /***********************************************************
 *********************** const define ***********************
 ***********************************************************/
-static const PIXEL_COLOR_T cCOLOR_ARR[] = {
-    { // red
-        .warm = 0,
-        .cold = 0,
-        .red = COLOR_RESOLUION,
-        .green = 0,
-        .blue = 0,
-    },
-    { // green
-        .warm = 0,
-        .cold = 0,
-        .red = 0,
-        .green = COLOR_RESOLUION,
-        .blue = 0,
-    },
-    { // blue
-        .warm = 0,
-        .cold = 0,
-        .red = 0,
-        .green = 0,
-        .blue = COLOR_RESOLUION,
-    },
-    { // turn off
-        .warm = 0,
-        .cold = 0,
-        .red = 0,
-        .green = 0,
-        .blue = 0,
-    },
-};
+static const PIXEL_COLOR_T cCOLOR_ARR[] = {{
+                                               // red
+                                               .warm = 0,
+                                               .cold = 0,
+                                               .red = COLOR_RESOLUION,
+                                               .green = 0,
+                                               .blue = 0,
+                                           },
+                                           {
+                                               // green
+                                               .warm = 0,
+                                               .cold = 0,
+                                               .red = 0,
+                                               .green = COLOR_RESOLUION,
+                                               .blue = 0,
+                                           },
+                                           {
+                                               // blue
+                                               .warm = 0,
+                                               .cold = 0,
+                                               .red = 0,
+                                               .green = 0,
+                                               .blue = COLOR_RESOLUION,
+                                           }};
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void __example_pixels_task(void *args)
+
+static void __breathing_color_effect(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t i = 0, color_num = CNTSOF(cCOLOR_ARR);
+    PIXEL_COLOR_T current_color = {0};
+    uint32_t intensity = 0;
+    int32_t direction = 1;
+    uint32_t step = 20;
+    uint32_t cycle_count = 0;
+    uint32_t max_cycles = 3;
+    uint32_t color_index = 0;
+    uint32_t color_num = CNTSOF(cCOLOR_ARR);
 
-    while(1) {
-        TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, 0, LED_PIXELS_TOTAL_NUM, (PIXEL_COLOR_T *)&cCOLOR_ARR[i]), __ERROR);
+    while (cycle_count < max_cycles) {
+        intensity += (direction * step);
 
+        if (intensity >= COLOR_RESOLUION) {
+            intensity = COLOR_RESOLUION;
+            direction = -1;
+        } else if (intensity <= 0) {
+            intensity = 0;
+            direction = 1;
+            cycle_count++;
+            color_index = (color_index + 1) % color_num;
+        }
+
+        current_color.red = (cCOLOR_ARR[color_index].red * intensity) / COLOR_RESOLUION;
+        current_color.green = (cCOLOR_ARR[color_index].green * intensity) / COLOR_RESOLUION;
+        current_color.blue = (cCOLOR_ARR[color_index].blue * intensity) / COLOR_RESOLUION;
+        current_color.warm = (cCOLOR_ARR[color_index].warm * intensity) / COLOR_RESOLUION;
+        current_color.cold = (cCOLOR_ARR[color_index].cold * intensity) / COLOR_RESOLUION;
+
+        TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, 0, LED_PIXELS_TOTAL_NUM, &current_color),
+                           __ERROR);
         TUYA_CALL_ERR_GOTO(tdl_pixel_dev_refresh(sg_pixels_handle), __ERROR);
 
-        i = (i + 1) % color_num;
-        tal_system_sleep(1000);
-        PR_DEBUG("change to color %d", i);
+        tal_system_sleep(20);
     }
 
 __ERROR:
-    PR_ERR("pixels demo error exit");
-    tal_thread_delete(sg_pixels_thrd);
-    sg_pixels_thrd = NULL;
+    PR_ERR("breathing color effect error");
+    return;
+}
+
+static void __running_light_effect(uint32_t duration_ms)
+{
+    OPERATE_RET rt = OPRT_OK;
+    PIXEL_COLOR_T current_color = {0};
+    PIXEL_COLOR_T off_color = {0};
+    uint32_t current_led = 1;
+    uint32_t cycle_count = 0;
+    uint32_t max_cycles = 1;
+    uint32_t color_index = 0;
+    uint32_t color_num = CNTSOF(cCOLOR_ARR);
+    uint32_t color_change_interval = 50;
+
+    off_color.red = 0;
+    off_color.green = 0;
+    off_color.blue = 0;
+    off_color.warm = 0;
+    off_color.cold = 0;
+
+    while (cycle_count < max_cycles) {
+        TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, 0, LED_PIXELS_TOTAL_NUM, &off_color), __ERROR);
+
+        if ((current_led - 1) % color_change_interval == 0) {
+            color_index = (color_index + 1) % color_num;
+        }
+
+        current_color.red = cCOLOR_ARR[color_index].red;
+        current_color.green = cCOLOR_ARR[color_index].green;
+        current_color.blue = cCOLOR_ARR[color_index].blue;
+        current_color.warm = cCOLOR_ARR[color_index].warm;
+        current_color.cold = cCOLOR_ARR[color_index].cold;
+
+        TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, current_led, 1, &current_color), __ERROR);
+        TUYA_CALL_ERR_GOTO(tdl_pixel_dev_refresh(sg_pixels_handle), __ERROR);
+
+        current_led++;
+        if (current_led > 255) {
+            current_led = 1;
+            cycle_count++;
+        }
+
+        tal_system_sleep(30);
+    }
+
+__ERROR:
+    PR_ERR("running light effect error");
+    return;
+}
+
+static void __color_wave_effect(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+    PIXEL_COLOR_T current_color = {0};
+    PIXEL_COLOR_T off_color = {0};
+    uint32_t wave_position = 0;
+    uint32_t wave_length = 20;
+    uint32_t cycle_count = 0;
+    uint32_t max_cycles = 2;
+    uint32_t color_index = 0;
+    uint32_t color_num = CNTSOF(cCOLOR_ARR);
+
+    off_color.red = 0;
+    off_color.green = 0;
+    off_color.blue = 0;
+    off_color.warm = 0;
+    off_color.cold = 0;
+
+    while (cycle_count < max_cycles) {
+        TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, 0, LED_PIXELS_TOTAL_NUM, &off_color), __ERROR);
+
+        for (uint32_t i = 0; i < wave_length; i++) {
+            uint32_t led_pos = (wave_position + i) % LED_PIXELS_TOTAL_NUM;
+
+            color_index = (i * color_num) / wave_length;
+            current_color.red = cCOLOR_ARR[color_index].red;
+            current_color.green = cCOLOR_ARR[color_index].green;
+            current_color.blue = cCOLOR_ARR[color_index].blue;
+            current_color.warm = cCOLOR_ARR[color_index].warm;
+            current_color.cold = cCOLOR_ARR[color_index].cold;
+
+            TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, led_pos, 1, &current_color), __ERROR);
+        }
+
+        TUYA_CALL_ERR_GOTO(tdl_pixel_dev_refresh(sg_pixels_handle), __ERROR);
+
+        wave_position++;
+        if (wave_position >= LED_PIXELS_TOTAL_NUM) {
+            wave_position = 0;
+            cycle_count++;
+        }
+
+        tal_system_sleep(50);
+    }
+
+__ERROR:
+    PR_ERR("color wave effect error");
+    return;
+}
+
+static void __example_pixels_task(void *args)
+{
+    uint32_t effect_mode = 0;
+
+    while (1) {
+        if (effect_mode == 0) {
+            __breathing_color_effect();
+        } else if (effect_mode == 1) {
+            __running_light_effect(0);
+        } else {
+            __color_wave_effect();
+        }
+
+        effect_mode = (effect_mode + 1) % 3;
+    }
 
     return;
 }
 
 /**
- * @brief    register hardware 
+ * @brief    register hardware
  *
  * @param[in] : the name of the driver
  *
@@ -118,12 +249,16 @@ OPERATE_RET reg_pixels_hardware(char *device_name)
     OPERATE_RET rt = OPRT_OK;
 
 #if defined(ENABLE_SPI) && (ENABLE_SPI)
+    /*
+    Hardware Note: The LED pixel data line should be connected to the SPI0-MISO pin.
+    This configuration allows the SPI peripheral to drive the LED strip using the MISO line as the data output.
+    */
     PIXEL_DRIVER_CONFIG_T dev_init_cfg = {
-        .port     = TUYA_SPI_NUM_0,
+        .port = TUYA_SPI_NUM_0,
         .line_seq = RGB_ORDER,
     };
 
-    // Register WS2812 by default. If using other drivers, please replace with other chip driver interfaces 
+    // Register WS2812 by default. If using other drivers, please replace with other chip driver interfaces
     TUYA_CALL_ERR_RETURN(tdd_ws2812_driver_register(device_name, &dev_init_cfg));
 
     // TUYA_CALL_ERR_RETURN(tdd_ws2812_opt_driver_register(device_name, &dev_init_cfg));
@@ -141,7 +276,7 @@ OPERATE_RET reg_pixels_hardware(char *device_name)
     // TUYA_CALL_ERR_RETURN(tdd_yx1903b_driver_register(device_name, &dev_init_cfg));
 
     return OPRT_OK;
-#else 
+#else
     return OPRT_NOT_SUPPORTED;
 #endif
 }
@@ -162,7 +297,7 @@ OPERATE_RET open_pixels_driver(char *device_name)
 
     /*open leds strip pixels device*/
     PIXEL_DEV_CONFIG_T pixels_cfg = {
-        .pixel_num        = LED_PIXELS_TOTAL_NUM,
+        .pixel_num = LED_PIXELS_TOTAL_NUM,
         .pixel_resolution = COLOR_RESOLUION,
     };
     TUYA_CALL_ERR_RETURN(tdl_pixel_dev_open(sg_pixels_handle, &pixels_cfg));
@@ -198,8 +333,9 @@ void user_main()
 
     /*create example task*/
     THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
-    
-    TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&sg_pixels_thrd, NULL, NULL, __example_pixels_task, NULL, &thrd_param));
+
+    TUYA_CALL_ERR_LOG(
+        tal_thread_create_and_start(&sg_pixels_thrd, NULL, NULL, __example_pixels_task, NULL, &thrd_param));
 
     return;
 }
@@ -244,7 +380,7 @@ void tuya_app_main(void)
 {
     /*create example task*/
     THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
-    
+
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif
