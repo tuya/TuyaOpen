@@ -41,7 +41,7 @@
 /*!  @name          Header Files                                  */
 /******************************************************************************/
 #include "bmi2.h"
-#include "tal_log.h"
+
 /***************************************************************************/
 
 /*!         Local structures
@@ -1882,11 +1882,9 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
         .y_axis_sign = BMI2_POS_SIGN, .z_axis = BMI2_MAP_Z_AXIS, .z_axis_sign = BMI2_POS_SIGN
     };
 
-    PR_DEBUG("bmi2_sec_init started");
-    
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
-    
+
     if (rslt == BMI2_OK)
     {
         /* Set APS flag as after reset, the sensor is on advance power save mode */
@@ -1895,7 +1893,6 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
         /* Performing a dummy read to bring interface back to SPI from I2C interface */
         if (dev->intf == BMI2_SPI_INTF)
         {
-            PR_DEBUG("Performing dummy read for SPI interface");
             rslt = bmi2_get_regs(BMI2_CHIP_ID_ADDR, &chip_id, 1, dev);
         }
 
@@ -1903,13 +1900,12 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
         {
             /* Read chip-id of the BMI2 sensor */
             rslt = bmi2_get_regs(BMI2_CHIP_ID_ADDR, &chip_id, 1, dev);
-            PR_DEBUG("Chip id read : 0x%x", chip_id);
+
             if (rslt == BMI2_OK)
             {
                 /* Validate chip-id */
                 if (chip_id == dev->chip_id)
                 {
-                    PR_DEBUG("Chip ID validation passed");
                     /* Assign resolution to the structure */
                     dev->resolution = 16;
 
@@ -1925,7 +1921,6 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
                      * default values
                      */
                     rslt = bmi2_soft_reset(dev);
-                    PR_DEBUG("Soft reset completed with result: %d", rslt);
                 }
                 else
                 {
@@ -1934,25 +1929,11 @@ int8_t bmi2_sec_init(struct bmi2_dev *dev)
                      */
                     dev->chip_id = chip_id;
                     rslt = BMI2_E_DEV_NOT_FOUND;
-                    PR_DEBUG("Chip ID validation failed. Expected: 0x%x, Read: 0x%x", dev->chip_id, chip_id);
                 }
             }
-            else
-            {
-                PR_DEBUG("Failed to read chip ID. Result: %d", rslt);
-            }
-        }
-        else
-        {
-            PR_DEBUG("Dummy read failed. Result: %d", rslt);
         }
     }
-    else
-    {
-        PR_DEBUG("Null pointer check failed. Result: %d", rslt);
-    }
-    
-    PR_DEBUG("bmi2_sec_init completed with result: %d", rslt);
+
     return rslt;
 }
 
@@ -1975,8 +1956,6 @@ int8_t bmi2_get_regs(uint8_t reg_addr, uint8_t *data, uint16_t len, struct bmi2_
     /* Variable to define temporary buffer */
     uint8_t temp_buf[BMI2_MAX_LEN];
 
-    PR_DEBUG("bmi2_get_regs started. reg_addr: 0x%x, len: %d", reg_addr, len);
-    
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
     if ((rslt == BMI2_OK) && (data != NULL))
@@ -1985,21 +1964,17 @@ int8_t bmi2_get_regs(uint8_t reg_addr, uint8_t *data, uint16_t len, struct bmi2_
         if (dev->intf == BMI2_SPI_INTF)
         {
             reg_addr = (reg_addr | BMI2_SPI_RD_MASK);
-            PR_DEBUG("Configured reg_addr for SPI Interface: 0x%x", reg_addr);
         }
 
         dev->intf_rslt = dev->read(reg_addr, temp_buf, (len + dev->dummy_byte), dev->intf_ptr);
-        PR_DEBUG("Read operation completed. intf_rslt: %d", dev->intf_rslt);
 
         if (dev->aps_status == BMI2_ENABLE)
         {
             dev->delay_us(450, dev->intf_ptr);
-            PR_DEBUG("Delay 450us for low power mode");
         }
         else
         {
             dev->delay_us(2, dev->intf_ptr);
-            PR_DEBUG("Delay 2us for normal mode");
         }
 
         if (dev->intf_rslt == BMI2_INTF_RET_SUCCESS)
@@ -2014,16 +1989,13 @@ int8_t bmi2_get_regs(uint8_t reg_addr, uint8_t *data, uint16_t len, struct bmi2_
         else
         {
             rslt = BMI2_E_COM_FAIL;
-            PR_DEBUG("Communication failed. Setting rslt to BMI2_E_COM_FAIL");
         }
     }
     else
     {
         rslt = BMI2_E_NULL_PTR;
-        PR_DEBUG("Null pointer check failed. Setting rslt to BMI2_E_NULL_PTR");
     }
-    PR_DEBUG("Read reg_addr : 0x%x, data : 0x%x, rslt : %d", reg_addr, *data, rslt);
-    PR_DEBUG("bmi2_get_regs completed with result: %d", rslt);
+
     return rslt;
 }
 
@@ -2035,8 +2007,6 @@ int8_t bmi2_set_regs(uint8_t reg_addr, const uint8_t *data, uint16_t len, struct
     /* Variable to define error */
     int8_t rslt;
 
-    PR_DEBUG("bmi2_set_regs started. reg_addr: 0x%x, len: %d", reg_addr, len);
-    
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
     if ((rslt == BMI2_OK) && (data != NULL))
@@ -2045,23 +2015,19 @@ int8_t bmi2_set_regs(uint8_t reg_addr, const uint8_t *data, uint16_t len, struct
         if (dev->intf == BMI2_SPI_INTF)
         {
             reg_addr = (reg_addr & BMI2_SPI_WR_MASK);
-            PR_DEBUG("Configured reg_addr for SPI Interface: 0x%x", reg_addr);
         }
 
         dev->intf_rslt = dev->write(reg_addr, data, len, dev->intf_ptr);
-        PR_DEBUG("Write operation completed. intf_rslt: %d", dev->intf_rslt);
 
         /* Delay for Low power mode of the sensor is 450 us */
         if (dev->aps_status == BMI2_ENABLE)
         {
             dev->delay_us(450, dev->intf_ptr);
-            PR_DEBUG("Delay 450us for low power mode");
         }
         /* Delay for Normal mode of the sensor is 2 us */
         else
         {
             dev->delay_us(2, dev->intf_ptr);
-            PR_DEBUG("Delay 2us for normal mode");
         }
 
         /* Updating the advance power saver flag */
@@ -2070,28 +2036,22 @@ int8_t bmi2_set_regs(uint8_t reg_addr, const uint8_t *data, uint16_t len, struct
             if (*data & BMI2_ADV_POW_EN_MASK)
             {
                 dev->aps_status = BMI2_ENABLE;
-                PR_DEBUG("Advanced power save enabled");
             }
             else
             {
                 dev->aps_status = BMI2_DISABLE;
-                PR_DEBUG("Advanced power save disabled");
             }
         }
 
         if (dev->intf_rslt != BMI2_INTF_RET_SUCCESS)
         {
             rslt = BMI2_E_COM_FAIL;
-            PR_DEBUG("Communication failed. Setting rslt to BMI2_E_COM_FAIL");
         }
     }
     else
     {
         rslt = BMI2_E_NULL_PTR;
-        PR_DEBUG("Null pointer check failed. Setting rslt to BMI2_E_NULL_PTR");
     }
-    PR_DEBUG("Write reg_addr : 0x%x, data : 0x%x, rslt : %d", reg_addr, *data, rslt);
-    PR_DEBUG("bmi2_set_regs completed with result: %d", rslt);
 
     return rslt;
 }
@@ -2111,53 +2071,38 @@ int8_t bmi2_soft_reset(struct bmi2_dev *dev)
     /* Variable to read the dummy byte */
     uint8_t dummy_read = 0;
 
-    PR_DEBUG("bmi2_soft_reset started");
-    
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
     if (rslt == BMI2_OK)
     {
         /* Reset bmi2 device */
         rslt = bmi2_set_regs(BMI2_CMD_REG_ADDR, &data, 1, dev);
-        PR_DEBUG("Reset command sent. Result: %d", rslt);
         dev->delay_us(2000, dev->intf_ptr);
-        PR_DEBUG("Delay 2000us after reset command");
 
         /* Set APS flag as after soft reset the sensor is on advance power save mode */
         dev->aps_status = BMI2_ENABLE;
-        PR_DEBUG("APS status set to ENABLE");
 
         /* Performing a dummy read to bring interface back to SPI from
          * I2C after a soft-reset
          */
         if ((rslt == BMI2_OK) && (dev->intf == BMI2_SPI_INTF))
         {
-            PR_DEBUG("Performing dummy read for SPI interface after reset");
             rslt = bmi2_get_regs(BMI2_CHIP_ID_ADDR, &dummy_read, 1, dev);
-            PR_DEBUG("Dummy read result: %d", rslt);
         }
 
         if (rslt == BMI2_OK)
         {
             /* Write the configuration file */
-            PR_DEBUG("Writing configuration file");
             rslt = bmi2_write_config_file(dev);
-            PR_DEBUG("Configuration file write result: %d", rslt);
         }
 
         /* Reset the sensor status flag in the device structure */
         if (rslt == BMI2_OK)
         {
             dev->sens_en_stat = 0;
-            PR_DEBUG("Sensor status flag reset");
         }
     }
-    else
-    {
-        PR_DEBUG("Null pointer check failed. Result: %d", rslt);
-    }
-    
-    PR_DEBUG("bmi2_soft_reset completed with result: %d", rslt);
+
     return rslt;
 }
 
@@ -2195,47 +2140,30 @@ int8_t bmi2_set_adv_power_save(uint8_t enable, struct bmi2_dev *dev)
     /* Variable to store data */
     uint8_t reg_data = 0;
 
-    PR_DEBUG("bmi2_set_adv_power_save started. enable: %d", enable);
-    
     /* Null-pointer check */
     rslt = null_ptr_check(dev);
     if (rslt == BMI2_OK)
     {
         rslt = bmi2_get_regs(BMI2_PWR_CONF_ADDR, &reg_data, 1, dev);
-        PR_DEBUG("Read PWR_CONF register. Result: %d, reg_data: 0x%x", rslt, reg_data);
         if (rslt == BMI2_OK)
         {
-            PR_DEBUG("Register read successful");
             reg_data = BMI2_SET_BIT_POS0(reg_data, BMI2_ADV_POW_EN, enable);
-            PR_DEBUG("Updated reg_data: 0x%x", reg_data);
             rslt = bmi2_set_regs(BMI2_PWR_CONF_ADDR, &reg_data, 1, dev);
-            PR_DEBUG("APS reg_data : 0x%x, rslt : %d", reg_data, rslt);
+
             if (rslt != BMI2_OK)
             {
                 /* Return error if enable/disable APS fails */
                 rslt = BMI2_E_SET_APS_FAIL;
-                PR_DEBUG("Failed to set APS. Setting result to BMI2_E_SET_APS_FAIL");
             }
 
             if (rslt == BMI2_OK)
             {
                 dev->aps_status = BMI2_GET_BIT_POS0(reg_data, BMI2_ADV_POW_EN);
-                PR_DEBUG("APS status updated to: %d", dev->aps_status);
             }
         }
-        else
-        {
-            PR_DEBUG("Failed to read PWR_CONF register. Result: %d", rslt);
-        }
     }
-    else
-    {
-        PR_DEBUG("Null pointer check failed. Result: %d", rslt);
-    }
-    
-    PR_DEBUG("bmi2_set_adv_power_save completed with result: %d", rslt);
+
     return rslt;
-    // return 0;
 }
 
 /*!
@@ -2287,46 +2215,32 @@ int8_t bmi2_write_config_file(struct bmi2_dev *dev)
         if ((dev->read_write_len % 2) != 0)
         {
             dev->read_write_len = dev->read_write_len - 1;
-            PR_DEBUG("Adjusted read_write_len to be multiple of 2: %d", dev->read_write_len);
         }
 
         if (dev->read_write_len < 2)
         {
             dev->read_write_len = 2;
-            PR_DEBUG("Adjusted read_write_len to minimum value 2: %d", dev->read_write_len);
         }
 
         /* Write the configuration file */
-        PR_DEBUG("Calling write_config_file");
         rslt = write_config_file(dev);
         if (rslt == BMI2_OK)
         {
             /* Check the configuration load status */
             rslt = bmi2_get_internal_status(&load_status, dev);
-            PR_DEBUG("Configuration load status : 0x%x, rslt: %d", load_status, rslt);
+
             /* Return error if loading not successful */
             if ((rslt == BMI2_OK) && (!(load_status & BMI2_CONFIG_LOAD_SUCCESS)))
             {
                 rslt = BMI2_E_CONFIG_LOAD;
-                PR_DEBUG("Configuration load failed. Setting rslt to BMI2_E_CONFIG_LOAD");
             }
-            else if (rslt == BMI2_OK)
-            {
-                PR_DEBUG("Configuration load successful");
-            }
-        }
-        else
-        {
-            PR_DEBUG("write_config_file failed with result: %d", rslt);
         }
     }
     else
     {
         rslt = BMI2_E_NULL_PTR;
-        PR_DEBUG("Null pointer check failed or config_size is zero. Setting rslt to BMI2_E_NULL_PTR");
     }
-    
-    PR_DEBUG("bmi2_write_config_file completed with result: %d", rslt);
+
     return rslt;
 }
 
@@ -3850,7 +3764,7 @@ int8_t bmi2_perform_accel_self_test(struct bmi2_dev *dev)
     {
         /* Sets the configuration required before enabling self-test */
         rslt = pre_self_test_config(dev);
-        
+
         /* Wait for greater than 2 milliseconds */
         dev->delay_us(3000, dev->intf_ptr);
         if (rslt == BMI2_OK)
@@ -4958,67 +4872,51 @@ static int8_t write_config_file(struct bmi2_dev *dev)
     /* Variable to define temporary read/write length */
     uint16_t read_write_len = 0;
 
-    PR_DEBUG("write_config_file started. config_size: %d, read_write_len: %d", config_size, dev->read_write_len);
-    
     /* Disable advanced power save mode */
     rslt = bmi2_set_adv_power_save(BMI2_DISABLE, dev);
-    PR_DEBUG("Disabled advanced power save mode. Result: %d", rslt);
     if (rslt == BMI2_OK)
     {
         /* Disable loading of the configuration */
         rslt = set_config_load(BMI2_DISABLE, dev);
-        PR_DEBUG("Disabled configuration loading. Result: %d", rslt);
         if (rslt == BMI2_OK)
         {
             if (!remain)
             {
-                PR_DEBUG("No remainder bytes. Writing configuration file in chunks of %d bytes", dev->read_write_len);
                 /* Write the configuration file */
                 for (index = 0; (index < config_size) && (rslt == BMI2_OK); index += dev->read_write_len)
                 {
-                    PR_DEBUG("Writing chunk at index: %d", index);
                     rslt = upload_file((dev->config_file_ptr + index), index, dev->read_write_len, dev);
-                    PR_DEBUG("Chunk write result: %d", rslt);
                 }
             }
             else
             {
-                PR_DEBUG("Remainder bytes found: %d", remain);
                 /* Get the balance bytes */
                 bal_byte = (uint16_t) config_size - (uint16_t) remain;
-                PR_DEBUG("Balance bytes: %d", bal_byte);
 
                 /* Write the configuration file for the balancem bytes */
                 for (index = 0; (index < bal_byte) && (rslt == BMI2_OK); index += dev->read_write_len)
                 {
-                    PR_DEBUG("Writing balance chunk at index: %d", index);
                     rslt = upload_file((dev->config_file_ptr + index), index, dev->read_write_len, dev);
-                    PR_DEBUG("Balance chunk write result: %d", rslt);
                 }
 
                 if (rslt == BMI2_OK)
                 {
                     /* Update length in a temporary variable */
                     read_write_len = dev->read_write_len;
-                    PR_DEBUG("Stored read_write_len: %d", read_write_len);
 
                     /* Write the remaining bytes in 2 bytes length */
                     dev->read_write_len = 2;
-                    PR_DEBUG("Updated read_write_len to 2 for remainder bytes");
 
                     /* Write the configuration file for the remaining bytes */
                     for (index = bal_byte;
                          (index < config_size) && (rslt == BMI2_OK);
                          index += dev->read_write_len)
                     {
-                        PR_DEBUG("Writing remainder chunk at index: %d", index);
                         rslt = upload_file((dev->config_file_ptr + index), index, dev->read_write_len, dev);
-                        PR_DEBUG("Remainder chunk write result: %d", rslt);
                     }
 
                     /* Restore the user set length back from the temporary variable */
                     dev->read_write_len = read_write_len;
-                    PR_DEBUG("Restored read_write_len to: %d", read_write_len);
                 }
             }
 
@@ -5026,7 +4924,6 @@ static int8_t write_config_file(struct bmi2_dev *dev)
             {
                 /* Enable loading of the configuration */
                 rslt = set_config_load(BMI2_ENABLE, dev);
-                PR_DEBUG("Enabled configuration loading. Result: %d", rslt);
 
                 if (rslt == BMI2_OK)
                 {
@@ -5053,12 +4950,9 @@ static int8_t set_config_load(uint8_t enable, struct bmi2_dev *dev)
     uint8_t reg_data = 0;
 
     rslt = bmi2_get_regs(BMI2_INIT_CTRL_ADDR, &reg_data, 1, dev);
-    PR_DEBUG("Read INIT_CTRL register. Result: %d, reg_data: 0x%x", rslt, reg_data);
     if (rslt == BMI2_OK)
     {
-        PR_DEBUG("Register read successful");
         reg_data = BMI2_SET_BIT_POS0(reg_data, BMI2_CONF_LOAD_EN, enable);
-        PR_DEBUG("Updated reg_data: 0x%x", reg_data);
         rslt = bmi2_set_regs(BMI2_INIT_CTRL_ADDR, &reg_data, 1, dev);
     }
 
@@ -5076,41 +4970,27 @@ static int8_t upload_file(const uint8_t *config_data, uint16_t index, uint16_t w
     /* Array to store address */
     uint8_t addr_array[2] = { 0 };
 
-    PR_DEBUG("upload_file started. index: %d, write_len: %d", index, write_len);
-    
     if (config_data != NULL)
     {
-        PR_DEBUG("Config data pointer is valid");
         /* Store 0 to 3 bits of address in first byte */
         addr_array[0] = (uint8_t)((index / 2) & 0x0F);
-        PR_DEBUG("addr_array[0]: 0x%x", addr_array[0]);
 
         /* Store 4 to 11 bits of address in the second byte */
         addr_array[1] = (uint8_t)((index / 2) >> 4);
-        PR_DEBUG("addr_array[1]: 0x%x", addr_array[1]);
 
         /* Write the 2 bytes of address in consecutive locations */
         rslt = bmi2_set_regs(BMI2_INIT_ADDR_0, addr_array, 2, dev);
-        PR_DEBUG("Write address to INIT_ADDR registers. Result: %d", rslt);
         if (rslt == BMI2_OK)
         {
-            PR_DEBUG("Address write successful");
             /* Burst write configuration file data corresponding to user set length */
             rslt = bmi2_set_regs(BMI2_INIT_DATA_ADDR, (uint8_t *)config_data, write_len, dev);
-            PR_DEBUG("Write configuration data. Result: %d", rslt);
-        }
-        else
-        {
-            PR_DEBUG("Failed to write address to INIT_ADDR registers. Result: %d", rslt);
         }
     }
     else
     {
         rslt = BMI2_E_NULL_PTR;
-        PR_DEBUG("Config data pointer is NULL. Setting result to BMI2_E_NULL_PTR");
     }
-    
-    PR_DEBUG("upload_file completed with result: %d", rslt);
+
     return rslt;
 }
 
@@ -9413,11 +9293,6 @@ static int8_t null_ptr_check(const struct bmi2_dev *dev)
     {
         /* Device structure pointer is not valid */
         rslt = BMI2_E_NULL_PTR;
-        PR_DEBUG("Null pointer check failed. Device or function pointers are NULL");
-    }
-    else
-    {
-        PR_DEBUG("Null pointer check passed");
     }
 
     return rslt;

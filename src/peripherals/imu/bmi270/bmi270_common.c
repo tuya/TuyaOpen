@@ -44,10 +44,11 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_
         PR_DEBUG("BMI270 I2C read failed at reg 0x%02X: %d", reg_addr, ret);
         return ret;
     }
-    
-    ret = tkl_i2c_master_receive(0, dev_addr, reg_data, (uint16_t)len, FALSE);
-
-    PR_DEBUG("bmi2_i2c_read: reg_addr=0x%02X, len=%d, ret=%d", reg_addr, len, ret);
+    uint8_t port = 0;
+    if (intf_ptr != NULL){
+        port = *(uint8_t*)intf_ptr;
+    }
+    ret = tkl_i2c_master_receive(port, dev_addr, reg_data, (uint16_t)len, FALSE);
     return ret;
 }
 
@@ -68,22 +69,12 @@ BMI2_INTF_RETURN_TYPE bmi2_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, 
     
     buf[0] = reg_addr;
     memcpy(buf + 1, reg_data, len);
-    
-    OPERATE_RET ret = tkl_i2c_master_send(0, dev_addr, buf, (uint16_t)(len + 1), FALSE);
+    uint8_t port = 0;
+    if (intf_ptr != NULL){
+        port = *(uint8_t*)intf_ptr;
+    }
+    OPERATE_RET ret = tkl_i2c_master_send(port, dev_addr, buf, (uint16_t)(len + 1), FALSE);
     tkl_system_free(buf);
-    PR_DEBUG("bmi2_i2c_write: reg_addr=0x%02X, len=%d, ret=%d", reg_addr, len, ret);
-    // uint8_t buf[2];
-
-    // for (uint16_t i = 0; i < len; i++) {
-    //     buf[0] = reg_addr + i;
-    //     buf[1] = reg_data[i];
-        
-    //     OPERATE_RET ret = tkl_i2c_master_send(0, dev_addr, buf, 2, TRUE);
-    //     if (ret != OPRT_OK) {
-    //         printf("BMI270 I2C write failed at reg 0x%02X: %d", buf[0], ret);
-    //         // return ret;
-    //     }
-    // }
     return ret;
 }
 
@@ -113,7 +104,11 @@ BMI2_INTF_RETURN_TYPE bmi2_spi_write(uint8_t reg_addr, const uint8_t *reg_data, 
 void bmi2_delay_us(uint32_t period, void *intf_ptr)
 {
     // coines_delay_usec(period);
-    tkl_system_sleep_us(period);
+    for (uint32_t i = 0; i < period; i++) {
+        for (int j = 0; j < 1000; j++) {
+            __asm__ volatile ("nop");
+        }
+    }
 }
 
 void coines_delay_msec(uint32_t period)
@@ -199,7 +194,7 @@ int8_t bmi2_interface_init(struct bmi2_dev *bmi, uint8_t intf)
         }
 
         /* Assign device address to interface pointer */
-        bmi->intf_ptr = &dev_addr;
+        // bmi->intf_ptr = &dev_addr;
 
         /* Configure delay in microseconds */
         bmi->delay_us = bmi2_delay_us;
