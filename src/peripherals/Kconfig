@@ -10,4 +10,5 @@ menu "configure device driver"
     rsource "camera/Kconfig"
     rsource "ir/Kconfig"
     rsource "leds_pixel/Kconfig"
+    rsource "imu/Kconfig"
 endmenu
