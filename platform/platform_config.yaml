@@ -22,7 +22,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: dev-esp32
-  commit: e1d89b728a822e7fde56d219c7919ac0f8bb460f
+  commit: e1501e6a01216d944131187cb50f014a74c3f70a
 
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h

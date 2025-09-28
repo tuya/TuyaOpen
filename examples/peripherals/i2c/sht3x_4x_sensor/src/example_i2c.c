@@ -110,7 +110,7 @@ static void __example_i2c_task(void *param)
 
         op_ret = sht4x_read_temp_humi(TUYA_I2C_NUM_0, &temp, &humi);
         if (op_ret != OPRT_OK) {
-            PR_ERR("sht3x read fail, err<%d>!", op_ret);
+            PR_ERR("sht4x read fail, err<%d>!", op_ret);
             continue;
         }
         PR_INFO("sht4x temp:%d.%d, humi:%d.%d", temp / 1000, temp % 1000, humi / 1000, humi % 1000);

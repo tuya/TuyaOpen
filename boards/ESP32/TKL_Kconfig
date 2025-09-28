@@ -16,6 +16,10 @@ config ENABLE_GPIO
     bool
     default y
 
+config ENABLE_UART
+    bool
+    default y
+
 config ENABLE_PWM
     bool
     default y
