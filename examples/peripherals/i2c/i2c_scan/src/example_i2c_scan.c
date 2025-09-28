@@ -1,16 +1,13 @@
 /**
- * @file example_i2c.c
- * @brief Example implementation of an I2C driver for Tuya IoT projects.
- *
- * This file provides an example implementation of an I2C driver using the Tuya SDK.
- * It demonstrates the configuration and usage of I2C communication for reading and writing data to an I2C device.
- * The example covers initializing the I2C interface, sending commands to the device, and reading data from the device.
- *
- * The I2C driver example aims to help developers understand how to communicate with I2C devices in Tuya IoT projects.
- * It includes detailed examples of setting up I2C configurations, sending commands, and reading data from I2C devices.
- *
- * @note This example is designed to be adaptable to various Tuya IoT devices and platforms, showcasing fundamental I2C
- * operations that are critical for IoT device development.
+ * @file example_i2c_scan.c
+ * @brief Example implementation of an I2C scan for Tuya IoT projects.
+ * 
+ * This file provides an example implementation of an I2C scan using the Tuya SDK.
+ * It demonstrates how to scan the I2C bus for connected devices by iterating through possible
+ * 7-bit addresses and checking for device presence.
+ * 
+ * @note This example is designed to be adaptable to various Tuya IoT devices and platforms,
+ * showcasing fundamental I2C operations that are critical for IoT device development.
  *
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
