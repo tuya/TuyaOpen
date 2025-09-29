@@ -35,7 +35,7 @@
 ***********************************************************/
 #define LED_PIXELS_TOTAL_NUM 256
 #define LED_CHANGE_TIME      800 // ms
-#define COLOR_RESOLUION      1000u
+#define COLOR_RESOLUTION     1000u
 
 /*
 This demo uses single wire connection for all LEDs.
@@ -75,7 +75,7 @@ static const PIXEL_COLOR_T cCOLOR_ARR[] = {{
                                                // red
                                                .warm = 0,
                                                .cold = 0,
-                                               .red = COLOR_RESOLUION,
+                                               .red = COLOR_RESOLUTION,
                                                .green = 0,
                                                .blue = 0,
                                            },
@@ -84,7 +84,7 @@ static const PIXEL_COLOR_T cCOLOR_ARR[] = {{
                                                .warm = 0,
                                                .cold = 0,
                                                .red = 0,
-                                               .green = COLOR_RESOLUION,
+                                               .green = COLOR_RESOLUTION,
                                                .blue = 0,
                                            },
                                            {
@@ -93,7 +93,7 @@ static const PIXEL_COLOR_T cCOLOR_ARR[] = {{
                                                .cold = 0,
                                                .red = 0,
                                                .green = 0,
-                                               .blue = COLOR_RESOLUION,
+                                               .blue = COLOR_RESOLUTION,
                                            }};
 
 /***********************************************************
@@ -127,8 +127,8 @@ static void __breathing_color_effect(void)
     // Single frame update
     static_intensity += (static_direction * step);
 
-    if (static_intensity >= COLOR_RESOLUION) {
-        static_intensity = COLOR_RESOLUION;
+    if (static_intensity >= COLOR_RESOLUTION) {
+        static_intensity = COLOR_RESOLUTION;
         static_direction = -1;
     } else if (static_intensity <= 0) {
         static_intensity = 0;
@@ -141,11 +141,11 @@ static void __breathing_color_effect(void)
         }
     }
 
-    current_color.red = (cCOLOR_ARR[static_color_index].red * static_intensity) / COLOR_RESOLUION;
-    current_color.green = (cCOLOR_ARR[static_color_index].green * static_intensity) / COLOR_RESOLUION;
-    current_color.blue = (cCOLOR_ARR[static_color_index].blue * static_intensity) / COLOR_RESOLUION;
-    current_color.warm = (cCOLOR_ARR[static_color_index].warm * static_intensity) / COLOR_RESOLUION;
-    current_color.cold = (cCOLOR_ARR[static_color_index].cold * static_intensity) / COLOR_RESOLUION;
+    current_color.red = (cCOLOR_ARR[static_color_index].red * static_intensity) / COLOR_RESOLUTION;
+    current_color.green = (cCOLOR_ARR[static_color_index].green * static_intensity) / COLOR_RESOLUTION;
+    current_color.blue = (cCOLOR_ARR[static_color_index].blue * static_intensity) / COLOR_RESOLUTION;
+    current_color.warm = (cCOLOR_ARR[static_color_index].warm * static_intensity) / COLOR_RESOLUTION;
+    current_color.cold = (cCOLOR_ARR[static_color_index].cold * static_intensity) / COLOR_RESOLUTION;
 
     TUYA_CALL_ERR_GOTO(tdl_pixel_set_single_color(sg_pixels_handle, 0, LED_PIXELS_TOTAL_NUM, &current_color), __ERROR);
     TUYA_CALL_ERR_GOTO(tdl_pixel_dev_refresh(sg_pixels_handle), __ERROR);
@@ -382,12 +382,12 @@ static void __apply_directional_tint(PIXEL_COLOR_T *base_color, float angle, PIX
     tinted_color->cold = base_color->cold;
 
     // Clamp values to maximum
-    if (tinted_color->red > COLOR_RESOLUION)
-        tinted_color->red = COLOR_RESOLUION;
-    if (tinted_color->green > COLOR_RESOLUION)
-        tinted_color->green = COLOR_RESOLUION;
-    if (tinted_color->blue > COLOR_RESOLUION)
-        tinted_color->blue = COLOR_RESOLUION;
+    if (tinted_color->red > COLOR_RESOLUTION)
+        tinted_color->red = COLOR_RESOLUTION;
+    if (tinted_color->green > COLOR_RESOLUTION)
+        tinted_color->green = COLOR_RESOLUTION;
+    if (tinted_color->blue > COLOR_RESOLUTION)
+        tinted_color->blue = COLOR_RESOLUTION;
 }
 
 static void __2d_wave_effect(void)
@@ -485,9 +485,9 @@ static void __2d_wave_effect(void)
                 }
 
                 // Set constant color (no intensity fade)
-                tinted_color.red = (uint32_t)((r + m) * COLOR_RESOLUION);
-                tinted_color.green = (uint32_t)((g + m) * COLOR_RESOLUION);
-                tinted_color.blue = (uint32_t)((b + m) * COLOR_RESOLUION);
+                tinted_color.red = (uint32_t)((r + m) * COLOR_RESOLUTION);
+                tinted_color.green = (uint32_t)((g + m) * COLOR_RESOLUTION);
+                tinted_color.blue = (uint32_t)((b + m) * COLOR_RESOLUTION);
                 tinted_color.warm = 0;
                 tinted_color.cold = 0;
 
@@ -543,11 +543,11 @@ static void __snowflake_effect(void)
 
             if (distance <= radius) {
                 float intensity = 1.0f - (distance / radius) * 0.3f;
-                color.red = (uint32_t)(COLOR_RESOLUION * intensity * 0.9f);
-                color.green = (uint32_t)(COLOR_RESOLUION * intensity * 0.9f);
-                color.blue = (uint32_t)(COLOR_RESOLUION * intensity * 1.0f);
+                color.red = (uint32_t)(COLOR_RESOLUTION * intensity * 0.9f);
+                color.green = (uint32_t)(COLOR_RESOLUTION * intensity * 0.9f);
+                color.blue = (uint32_t)(COLOR_RESOLUTION * intensity * 1.0f);
                 color.warm = 0;
-                color.cold = (uint32_t)(COLOR_RESOLUION * intensity * 0.6f);
+                color.cold = (uint32_t)(COLOR_RESOLUTION * intensity * 0.6f);
 
                 uint32_t led_index = __matrix_coord_to_led_index(x, y);
                 if (led_index > 0 && led_index <= LED_PIXELS_TOTAL_NUM) {
@@ -597,33 +597,33 @@ static void __breathing_circle_effect(void)
                 float x_val = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
 
                 if (h < 1.0f) {
-                    color.red = (uint32_t)(c * COLOR_RESOLUION);
-                    color.green = (uint32_t)(x_val * COLOR_RESOLUION);
+                    color.red = (uint32_t)(c * COLOR_RESOLUTION);
+                    color.green = (uint32_t)(x_val * COLOR_RESOLUTION);
                     color.blue = 0;
                 } else if (h < 2.0f) {
-                    color.red = (uint32_t)(x_val * COLOR_RESOLUION);
-                    color.green = (uint32_t)(c * COLOR_RESOLUION);
+                    color.red = (uint32_t)(x_val * COLOR_RESOLUTION);
+                    color.green = (uint32_t)(c * COLOR_RESOLUTION);
                     color.blue = 0;
                 } else if (h < 3.0f) {
                     color.red = 0;
-                    color.green = (uint32_t)(c * COLOR_RESOLUION);
-                    color.blue = (uint32_t)(x_val * COLOR_RESOLUION);
+                    color.green = (uint32_t)(c * COLOR_RESOLUTION);
+                    color.blue = (uint32_t)(x_val * COLOR_RESOLUTION);
                 } else if (h < 4.0f) {
                     color.red = 0;
-                    color.green = (uint32_t)(x_val * COLOR_RESOLUION);
-                    color.blue = (uint32_t)(c * COLOR_RESOLUION);
+                    color.green = (uint32_t)(x_val * COLOR_RESOLUTION);
+                    color.blue = (uint32_t)(c * COLOR_RESOLUTION);
                 } else if (h < 5.0f) {
-                    color.red = (uint32_t)(x_val * COLOR_RESOLUION);
+                    color.red = (uint32_t)(x_val * COLOR_RESOLUTION);
                     color.green = 0;
-                    color.blue = (uint32_t)(c * COLOR_RESOLUION);
+                    color.blue = (uint32_t)(c * COLOR_RESOLUTION);
                 } else {
-                    color.red = (uint32_t)(c * COLOR_RESOLUION);
+                    color.red = (uint32_t)(c * COLOR_RESOLUTION);
                     color.green = 0;
-                    color.blue = (uint32_t)(x_val * COLOR_RESOLUION);
+                    color.blue = (uint32_t)(x_val * COLOR_RESOLUTION);
                 }
 
-                color.warm = (uint32_t)(COLOR_RESOLUION * intensity * 0.2f);
-                color.cold = (uint32_t)(COLOR_RESOLUION * intensity * 0.1f);
+                color.warm = (uint32_t)(COLOR_RESOLUTION * intensity * 0.2f);
+                color.cold = (uint32_t)(COLOR_RESOLUTION * intensity * 0.1f);
 
                 uint32_t led_index = __matrix_coord_to_led_index(x, y);
                 if (led_index > 0 && led_index <= LED_PIXELS_TOTAL_NUM) {
@@ -669,11 +669,11 @@ static void __ripple_effect(void)
             if (ripple > 0.3f) {
                 float intensity = (ripple - 0.3f) / 0.7f;
                 // Create vibrant blue-green ripples
-                color.red = (uint32_t)(COLOR_RESOLUION * intensity * 0.1f);
-                color.green = (uint32_t)(COLOR_RESOLUION * intensity * 0.6f);
-                color.blue = (uint32_t)(COLOR_RESOLUION * intensity * 1.0f);
+                color.red = (uint32_t)(COLOR_RESOLUTION * intensity * 0.1f);
+                color.green = (uint32_t)(COLOR_RESOLUTION * intensity * 0.6f);
+                color.blue = (uint32_t)(COLOR_RESOLUTION * intensity * 1.0f);
                 color.warm = 0;
-                color.cold = (uint32_t)(COLOR_RESOLUION * intensity * 0.8f);
+                color.cold = (uint32_t)(COLOR_RESOLUTION * intensity * 0.8f);
 
                 uint32_t led_index = __matrix_coord_to_led_index(x, y);
                 if (led_index > 0 && led_index <= LED_PIXELS_TOTAL_NUM) {
@@ -755,9 +755,9 @@ static void render_char(int32_t x, int32_t y, char ch, float hue)
                     bb = xv;
                 }
 
-                PIXEL_COLOR_T color = {.red = (uint32_t)(rr * COLOR_RESOLUION),
-                                       .green = (uint32_t)(gg * COLOR_RESOLUION),
-                                       .blue = (uint32_t)(bb * COLOR_RESOLUION),
+                PIXEL_COLOR_T color = {.red = (uint32_t)(rr * COLOR_RESOLUTION),
+                                       .green = (uint32_t)(gg * COLOR_RESOLUTION),
+                                       .blue = (uint32_t)(bb * COLOR_RESOLUTION),
                                        .warm = 0,
                                        .cold = 0};
 
@@ -811,7 +811,7 @@ static void __scan_animation_effect(void)
 
     if (column_phase) {
         // Column scan: Light up entire column in red
-        PIXEL_COLOR_T red_color = {.red = COLOR_RESOLUION, .green = 0, .blue = 0, .warm = 0, .cold = 0};
+        PIXEL_COLOR_T red_color = {.red = COLOR_RESOLUTION, .green = 0, .blue = 0, .warm = 0, .cold = 0};
 
         for (uint32_t y = 0; y < 16; y++) {
             uint32_t led_index = __matrix_coord_to_led_index(column_index, y);
@@ -821,7 +821,7 @@ static void __scan_animation_effect(void)
         }
     } else {
         // Row scan: Light up entire row in blue
-        PIXEL_COLOR_T blue_color = {.red = 0, .green = 0, .blue = COLOR_RESOLUION, .warm = 0, .cold = 0};
+        PIXEL_COLOR_T blue_color = {.red = 0, .green = 0, .blue = COLOR_RESOLUTION, .warm = 0, .cold = 0};
 
         for (uint32_t x = 0; x < 16; x++) {
             uint32_t led_index = __matrix_coord_to_led_index(x, row_index);
@@ -1020,7 +1020,7 @@ OPERATE_RET open_pixels_driver(char *device_name)
     /*open leds strip pixels device*/
     PIXEL_DEV_CONFIG_T pixels_cfg = {
         .pixel_num = LED_PIXELS_TOTAL_NUM,
-        .pixel_resolution = COLOR_RESOLUION,
+        .pixel_resolution = COLOR_RESOLUTION,
     };
     TUYA_CALL_ERR_RETURN(tdl_pixel_dev_open(sg_pixels_handle, &pixels_cfg));
 
