@@ -1,0 +1,9 @@
+# Generated headers directory
+genhdr/
+
+# Build directories
+build/
+build_*/
+build_test/
+*.build/
+cmake-build-*/
