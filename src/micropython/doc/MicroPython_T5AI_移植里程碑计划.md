@@ -1,7 +1,14 @@
 # MicroPython 移植到 TuyaOpen T5AI 里程碑计划
 
 ## 项目概述
-将 MicroPython 作为组件集成到 TuyaOpen 框架中，专门针对 T5AI (BK7258) 平台进行优化。
+将 MicroPython(v1.26.0) 作为组件集成到 TuyaOpen 框架中，专门针对 T5AI (BK7258) 平台进行优化。
+
+## 借助AI开发
+将`micropython`和`TuyaOpen`仓库下载到同一目录，
+然后使用AI coding工具，分别分析`micropython`的编译体系和与编译工作，
+将`micropython`中我们需要用到的源码和工具复制到`TuyaOpen`中，
+再按照里程碑计划，让AI工具一步一步完成开发,
+我们自己编译并验证功能，将结果反馈给AI工具。
 
 ## 里程碑规划
 
