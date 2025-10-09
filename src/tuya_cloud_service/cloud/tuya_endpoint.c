@@ -298,6 +298,7 @@ int tuya_endpoint_update(void)
     if (endpoint_mgr.endpoint.cert != NULL) {
         PR_TRACE("Free endpoint already exist cert.");
         tal_free(endpoint_mgr.endpoint.cert);
+        endpoint_mgr.endpoint.cert = NULL;
     }
     /* Try to get the iot-dns domain data */
     ret = iotdns_cloud_endpoint_get(endpoint_mgr.region, endpoint_mgr.regist_key, &endpoint_mgr.endpoint);
@@ -324,6 +325,7 @@ int tuya_endpoint_update_auto_region(void)
     if (endpoint_mgr.endpoint.cert != NULL) {
         PR_TRACE("Free endpoint already exist cert.");
         tal_free(endpoint_mgr.endpoint.cert);
+        endpoint_mgr.endpoint.cert = NULL;
     }
     /* Try to get the iot-dns domain data */
     ret = iotdns_cloud_endpoint_get(NULL, endpoint_mgr.regist_key, &endpoint_mgr.endpoint);

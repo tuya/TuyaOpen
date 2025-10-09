@@ -340,8 +340,11 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 
     s_netmgr.inited = TRUE;
 
+    // Cellular not support LAN
+#if !defined(ENABLE_CELLULAR) || (ENABLE_CELLULAR == 0)
     tal_sw_timer_create(__tuya_lan_init_tm_cb, NULL, &sg_lan_init_timer);
     tal_sw_timer_start(sg_lan_init_timer, 500, TAL_TIMER_CYCLE);
+#endif
 
 #ifdef ENABLE_BLUETOOTH
     tuya_ble_init(&(tuya_ble_cfg_t){.client = tuya_iot_client_get(), .device_name = "TYBLE"});
