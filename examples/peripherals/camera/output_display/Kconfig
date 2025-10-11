@@ -1,0 +1,14 @@
+menu "Application config"
+
+    config EXAMPLE_CAMERA_WIDTH
+        int "camera width"
+        default 480
+
+    config EXAMPLE_CAMERA_HEIGHT
+        int "camera height"
+        default 480
+
+    config EXAMPLE_CAMERA_FPS
+        int "camera fps"
+        default 20
+endmenu

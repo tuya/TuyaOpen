@@ -1,14 +1,15 @@
 /**
- * @file tdd_camera_ov2640.h
+ * @file atk_t5ai_disp_md0700r.h
+ * @brief atk_t5ai_disp_md0700r module is used to display rgb lcd md0700r.
  * @version 0.1
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
-#ifndef __TDD_CAMERA_OV2640_H__
-#define __TDD_CAMERA_OV2640_H__
+#ifndef __ATK_T5AI_DISP_MD0700R_H__
+#define __ATK_T5AI_DISP_MD0700R_H__
 
 #include "tuya_cloud_types.h"
-#include "tdd_camera_dvp.h"
+#include "tdd_disp_type.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,14 +23,24 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+typedef struct {
+    uint16_t width;
+    uint16_t height;
+    TUYA_DISPLAY_ROTATION_E rotation;
+    TUYA_DISPLAY_BL_CTRL_T      bl;
+    TUYA_DISPLAY_IO_CTRL_T      power;
+    TUYA_DISPLAY_IO_CTRL_T      rst;
+}ATK_T5AI_DISP_MD0700R_CFG_T;
+
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdd_camera_dvp_ov2640_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg);
+OPERATE_RET atk_t5ai_disp_rgb_md0700r_register(char *name, ATK_T5AI_DISP_MD0700R_CFG_T *dev_cfg);
+
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TDD_CAMERA_OV2640_H__ */
+#endif /* __ATK_T5AI_DISP_MD0700R_H__ */

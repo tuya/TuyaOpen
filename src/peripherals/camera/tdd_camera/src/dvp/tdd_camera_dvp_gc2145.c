@@ -36,6 +36,7 @@ typedef struct {
 }CAMERA_FPS_INIT_TAB_T;
 
 const CAMERA_PPI_INIT_TAB_T cPPI_INIT_SEQ_LIST[] = {
+    {TUYA_CAMERA_PPI_240X240, (uint8_t *)cGC2145_240_240_TAB, CNTSOF(cGC2145_240_240_TAB)},
     {TUYA_CAMERA_PPI_480X480,  (uint8_t *)cGC2145_480_480_TAB,  CNTSOF(cGC2145_480_480_TAB)},
     {TUYA_CAMERA_PPI_640X480,  (uint8_t *)cGC2145_640_480_TAB,  CNTSOF(cGC2145_640_480_TAB)},
     {TUYA_CAMERA_PPI_800X480,  (uint8_t *)cGC2145_800_480_TAB,  CNTSOF(cGC2145_800_480_TAB)},
@@ -63,7 +64,6 @@ const CAMERA_FPS_INIT_TAB_T cFPS_INIT_SEQ_LIST[] = {
 ***********************variable define**********************
 ***********************************************************/
 static TDD_DVP_SR_CFG_T sg_dvp_sensor = {
-	.clk = 24000000,
 	.max_fps = 30,
 	.max_width = 1616,
 	.max_height = 1232,
@@ -174,7 +174,7 @@ static OPERATE_RET __dvp_gc2145_set_ppi(DVP_I2C_CFG_T *i2c, TUYA_CAMERA_PPI_E pp
     return OPRT_OK;
 }
 
-OPERATE_RET tdl_camera_dvp_gc2145_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg)
+OPERATE_RET tdd_camera_dvp_gc2145_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg)
 {
     if(NULL == name || NULL == cfg) {
         return OPRT_INVALID_PARM;

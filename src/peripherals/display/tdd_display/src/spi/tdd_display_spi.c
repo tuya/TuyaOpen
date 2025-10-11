@@ -120,9 +120,14 @@ static OPERATE_RET __disp_spi_send(TUYA_SPI_NUM_E port, uint8_t *data, uint32_t 
 
     while (left_len > 0) {
         send_len = (left_len > dma_max_size) ? dma_max_size : (left_len);
+
         TUYA_CALL_ERR_RETURN(tkl_spi_send(port, data + size - left_len, send_len));
 
-        TUYA_CALL_ERR_RETURN(tal_semaphore_wait(sg_disp_spi_sync[port].tx_sem, 5000));
+        rt = tal_semaphore_wait(sg_disp_spi_sync[port].tx_sem, 100); 
+        if(rt != OPRT_OK) {
+            PR_ERR("spi tx wait timeout, port:%d len:%d\r\n", port, send_len);
+            return rt;
+        }
 
         left_len -= send_len;
     }
@@ -174,6 +179,7 @@ static OPERATE_RET __tdd_display_spi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
 {
     OPERATE_RET rt = OPRT_OK;
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
+    uint16_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 
     if (NULL == device || NULL == frame_buff) {
         return OPRT_INVALID_PARM;
@@ -181,10 +187,15 @@ static OPERATE_RET __tdd_display_spi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
 
     disp_spi_dev = (DISP_SPI_DEV_T *)device;
 
+    x0 = frame_buff->x_start;
+    y0 = frame_buff->y_start;
+    x1 = frame_buff->x_start + frame_buff->width - 1;
+    y1 = frame_buff->y_start + frame_buff->height - 1;
+
     if(disp_spi_dev->set_window_cb) {
-        disp_spi_dev->set_window_cb(&disp_spi_dev->cfg, 0, 0, frame_buff->width-1, frame_buff->height-1);
+        disp_spi_dev->set_window_cb(&disp_spi_dev->cfg, x0, y0, x1, y1);
     }else {
-        __disp_spi_set_window(&disp_spi_dev->cfg, 0, 0, frame_buff->width - 1, frame_buff->height - 1);
+        __disp_spi_set_window(&disp_spi_dev->cfg, x0, y0, x1, y1);
     }
 
     tdd_disp_spi_send_cmd(&disp_spi_dev->cfg, disp_spi_dev->cfg.cmd_ramwr);

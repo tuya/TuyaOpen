@@ -17,9 +17,10 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_3
     select ENABLE_BUTTON_4
     select ENABLE_DISPLAY
+    select ENABLE_CAMERA
     select ENABLE_JOYSTICK
     select ENABLE_PMIC
     select ENABLE_PMIC_AXP2101
     select ENABLE_IMU
     select ENABLE_IMU_BMI270
-    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)  

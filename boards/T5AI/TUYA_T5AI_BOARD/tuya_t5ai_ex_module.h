@@ -112,6 +112,8 @@ extern "C" {
 #define BOARD_CAMERA_RST_ACTIVE_LV   TUYA_GPIO_LEVEL_LOW
 
 #define BOARD_CAMERA_POWER_PIN       TUYA_GPIO_NUM_MAX
+
+#define BOARD_CAMERA_CLK             24000000
 #endif
 
 /***********************************************************
