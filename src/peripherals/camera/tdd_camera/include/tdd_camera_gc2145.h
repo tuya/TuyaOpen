@@ -26,7 +26,7 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdl_camera_dvp_gc2145_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg);
+OPERATE_RET tdd_camera_dvp_gc2145_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg);
 
 #ifdef __cplusplus
 }
