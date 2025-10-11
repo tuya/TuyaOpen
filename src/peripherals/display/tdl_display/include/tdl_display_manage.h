@@ -50,6 +50,8 @@ typedef void (*FRAME_BUFF_FREE_CB)(TDL_DISP_FRAME_BUFF_T *frame_buff);
 struct TDL_DISP_FRAME_BUFF_T {
     DISP_FB_RAM_TP_E type;
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
+    uint16_t x_start;
+    uint16_t y_start;
     uint16_t width;
     uint16_t height;
     FRAME_BUFF_FREE_CB free_cb;
@@ -180,7 +182,6 @@ OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl);
  * @return Returns OPRT_OK on success, or an appropriate error code if the operation fails.
  */
 OPERATE_RET tdl_disp_dev_rgb565_swap(uint16_t *data, uint32_t len);
-
 
 
 #ifdef __cplusplus
