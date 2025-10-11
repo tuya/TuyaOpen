@@ -204,9 +204,10 @@ static OPERATE_RET __board_register_camera(void)
             .clk  = BOARD_CAMERA_I2C_SCL,
             .sda  = BOARD_CAMERA_I2C_SDA,
         },
+        .clk = BOARD_CAMERA_CLK,
     };
 
-    TUYA_CALL_ERR_RETURN(tdl_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
 #endif
 
     return OPRT_OK;
