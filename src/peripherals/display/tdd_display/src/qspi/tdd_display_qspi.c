@@ -316,6 +316,7 @@ static OPERATE_RET __tdd_display_qspi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DI
 {
     OPERATE_RET rt = OPRT_OK;
     DISP_QSPI_DEV_T *disp_qspi_dev = NULL;
+    uint16_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 
     if (NULL == device || NULL == frame_buff) {
         return OPRT_INVALID_PARM;
@@ -326,8 +327,14 @@ static OPERATE_RET __tdd_display_qspi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DI
     tal_mutex_lock(sg_display_qspi.mutex);
 
     if(disp_qspi_dev->cfg.is_pixel_memory) {
+        x0 = frame_buff->x_start;
+        y0 = frame_buff->y_start;
+        x1 = frame_buff->x_start + frame_buff->width - 1;
+        y1 = frame_buff->y_start + frame_buff->height - 1;
+
+
         if(disp_qspi_dev->set_window_cb) {
-            disp_qspi_dev->set_window_cb(&disp_qspi_dev->cfg, 0, 0, frame_buff->width-1,  frame_buff->height-1);
+            disp_qspi_dev->set_window_cb(&disp_qspi_dev->cfg, x0, y0, x1, y1);
         }
 
         __disp_qspi_send_frame(&(disp_qspi_dev->cfg), frame_buff);

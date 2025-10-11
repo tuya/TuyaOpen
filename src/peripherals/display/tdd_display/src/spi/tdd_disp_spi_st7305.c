@@ -74,34 +74,46 @@ static uint8_t ST7305_INIT_SEQ[] = {
 // Corresponds to one byte of data:
 // BIT7 BIT5 BIT3 BIT1
 // BIT6 BIT4 BIT2 BIT0
-static void __tdd_st7305_convert(uint32_t width, uint32_t height, uint8_t *in_buf, uint8_t *out_buf)
+static void __tdd_st7305_convert(TDL_DISP_FRAME_BUFF_T *src_fb, TDL_DISP_FRAME_BUFF_T *dst_fb)
 {
     uint16_t k = 0, i = 0, j = 0, y = 0;
     uint8_t b1 = 0, b2 = 0, mix = 0;
-    uint32_t width_bytes = 0, offset = 0;
+    uint32_t src_width_bytes = 0, offset = 0, dst_width_bytes = 0;
 
-    if (NULL == in_buf || NULL == out_buf) {
+    if (NULL == src_fb || NULL == dst_fb) {
         return;
     }
 
-    offset = GET_ROUND_UP_TO_MULTI_OF_3((width + 3) / 4) - (width/4);
-    width_bytes = width / 8;
-    for (i = 0; i < height; i += 2) {
+    offset = GET_ROUND_UP_TO_MULTI_OF_3((dst_fb->width + 3) / 4) - (dst_fb->width / 4);
+    src_width_bytes = src_fb->width / 8;
+    dst_width_bytes = dst_fb->width / 8;
+
+    for (i = 0; i < dst_fb->height; i += 2) {
+        if (i >= (src_fb->height)) {
+            break; // Skip rows outside the source framebuffer
+        }
+
         k += offset;
-        for (j = 0; j < width_bytes; j += 3) {
+        for (j = 0; j < dst_width_bytes; j += 3) {
+
             for (y = 0; y < 3; y++) {
-                if ((j + y) >= width_bytes) {
+                if((j + y) >= dst_width_bytes) {
+                    break; // Avoid out of bounds
+                }
+
+                if ((j + y) >= src_width_bytes) {
+                    k += 2;
                     continue; // Avoid out of bounds
                 }
 
-                b1 = in_buf[i * width_bytes + j + y];
-                b2 = in_buf[(i + 1) * width_bytes + j + y];
+                b1 = src_fb->frame[i * src_width_bytes + j + y];
+                b2 = src_fb->frame[(i + 1) * src_width_bytes + j + y];
 
                 // First 4 bits
                 mix = 0;
                 mix = ((b1 & 0x01) << 7) | ((b2 & 0x01) << 6) | ((b1 & 0x02) << 4) | ((b2 & 0x02) << 3) |
                       ((b1 & 0x04) << 1) | ((b2 & 0x04)) | ((b1 & 0x08) >> 2) | ((b2 & 0x08) >> 3);
-                out_buf[k++] = mix;
+                dst_fb->frame[k++] = mix;
 
                 // Second 4 bits
                 b1 >>= 4;
@@ -109,9 +121,11 @@ static void __tdd_st7305_convert(uint32_t width, uint32_t height, uint8_t *in_bu
                 mix = 0;
                 mix = ((b1 & 0x01) << 7) | ((b2 & 0x01) << 6) | ((b1 & 0x02) << 4) | ((b2 & 0x02) << 3) |
                       ((b1 & 0x04) << 1) | ((b2 & 0x04)) | ((b1 & 0x08) >> 2) | ((b2 & 0x08) >> 3);
-                out_buf[k++] = mix;
+                dst_fb->frame[k++] = mix;
             }
         }
+
+
     }
 }
 
@@ -164,8 +178,7 @@ static OPERATE_RET __tdd_disp_spi_st7305_flush(TDD_DISP_DEV_HANDLE_T device, TDL
 
     disp_spi_dev = (DISP_ST7305_DEV_T *)device;
 
-    __tdd_st7305_convert(disp_spi_dev->cfg.width, disp_spi_dev->cfg.height, frame_buff->frame,
-                         disp_spi_dev->convert_fb->frame);
+    __tdd_st7305_convert(frame_buff, disp_spi_dev->convert_fb);
 
     __disp_spi_st7305_set_addr(&disp_spi_dev->cfg, disp_spi_dev->caset_xs);
 
