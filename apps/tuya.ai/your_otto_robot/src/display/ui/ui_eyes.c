@@ -28,7 +28,29 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-#if defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+#if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1)
+// 240x240 screen image declarations
+LV_IMG_DECLARE(staticstate);  // NEUTRAL
+LV_IMG_DECLARE(anger);        // ANGRY
+LV_IMG_DECLARE(scare);        // FEARFUL
+LV_IMG_DECLARE(sad);          // SAD
+LV_IMG_DECLARE(happy);        // HAPPY
+LV_IMG_DECLARE(buxue);        // Additional emotion
+
+static const UI_EYES_EMOJI_T cEYES_EMOJI_LIST[] = {
+    {EMOJI_NEUTRAL,      &staticstate},
+    {EMOJI_ANGRY,        &anger},
+    {EMOJI_FEARFUL,      &scare},
+    {EMOJI_SAD,          &sad},
+    {EMOJI_HAPPY,        &happy},
+    // TODO: Missing emotions - using happy as placeholder
+    {EMOJI_SURPRISE,     &happy},  // TODO: Need surprise240.c
+    {EMOJI_TOUCH,        &happy},  // TODO: Need touch240.c
+    {EMOJI_THINKING,     &happy},  // TODO: Need thinking240.c
+    {EMOJI_CONFUSED,     &happy},  // TODO: Need confused240.c
+    {EMOJI_DISAPPOINTED, &happy},  // TODO: Need disappointed240.c
+};
+#elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
 // 160x80 screen image declarations
 LV_IMG_DECLARE(Neutral);
 LV_IMG_DECLARE(Touched);
