@@ -72,6 +72,13 @@ typedef struct {
 void otto_init(int left_leg, int right_leg, int left_foot, int right_foot, int left_hand, int right_hand);
 
 /**
+ * @brief Initialize hand servos only, without affecting leg servos
+ * @param left_hand Left hand servo pin number
+ * @param right_hand Right hand servo pin number
+ */
+void otto_init_hands_only(int left_hand, int right_hand);
+
+/**
  * @brief Attach all servos to their respective pins
  */
 void otto_attach_servos(void);

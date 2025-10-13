@@ -21,6 +21,19 @@ static unsigned long millis()
     return tal_system_get_millisecond();
 }
 
+/**
+ * @brief 重置所有振荡器相位到初始状态
+ * 解决相位累积导致的不协调问题
+ */
+static void otto_reset_all_oscillators(void)
+{
+    for (int i = 0; i < SERVO_COUNT; i++) {
+        if (g_otto.oscillator_indices[i] != -1) {
+            oscillator_reset(g_otto.oscillator_indices[i]);
+        }
+    }
+}
+
 
 void otto_init(int left_leg, int right_leg, int left_foot, int right_foot, int left_hand, int right_hand)
 {
@@ -46,6 +59,36 @@ void otto_init(int left_leg, int right_leg, int left_foot, int right_foot, int l
 
     otto_attach_servos();
     g_otto.is_otto_resting = false;
+}
+
+/**
+ * @brief Initialize hand servos only, without affecting leg servos
+ */
+void otto_init_hands_only(int left_hand, int right_hand)
+{
+    // Only set hand pins, don't affect leg servos
+    g_otto.servo_pins[LEFT_HAND] = left_hand;
+    g_otto.servo_pins[RIGHT_HAND] = right_hand;
+    g_otto.has_hands = (left_hand != -1 && right_hand != -1);
+    
+    // Only create hand oscillators
+    g_otto.servo_trim[LEFT_HAND] = 0;
+    g_otto.servo_trim[RIGHT_HAND] = 0;
+    
+    if (g_otto.servo_pins[LEFT_HAND] != -1) {
+        g_otto.oscillator_indices[LEFT_HAND] = oscillator_create(0);
+    }
+    if (g_otto.servo_pins[RIGHT_HAND] != -1) {
+        g_otto.oscillator_indices[RIGHT_HAND] = oscillator_create(0);
+    }
+    
+    // Only attach hand servos
+    if (g_otto.servo_pins[LEFT_HAND] != -1 && g_otto.oscillator_indices[LEFT_HAND] != -1) {
+        oscillator_attach(g_otto.oscillator_indices[LEFT_HAND], g_otto.servo_pins[LEFT_HAND], false);
+    }
+    if (g_otto.servo_pins[RIGHT_HAND] != -1 && g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+        oscillator_attach(g_otto.oscillator_indices[RIGHT_HAND], g_otto.servo_pins[RIGHT_HAND], false);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -202,6 +245,9 @@ void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int perio
         g_otto.is_otto_resting = false;
     }
 
+    // 关键修复：在开始执行前重置所有振荡器相位，确保每次运动都从相同初始状态开始
+    otto_reset_all_oscillators();
+
     int cycles = (int)steps;
 
     //-- Execute complete cycles
@@ -219,7 +265,11 @@ void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int perio
 ///////////////////////////////////////////////////////////////////
 void otto_home(bool hands_down)
 {
-    if (g_otto.is_otto_resting == false) { // Go to rest position only if necessary
+  
+    // if (g_otto.is_otto_resting == false) { // Go to rest position only if necessary
+
+        // 关键修复：在回到home位置前，先重置所有振荡器相位，确保状态完全重置
+        otto_reset_all_oscillators();
 
         int homes[SERVO_COUNT];
         for (int i = 0; i < SERVO_COUNT; i++) {
@@ -246,8 +296,8 @@ void otto_home(bool hands_down)
         }
 
         otto_move_servos(500, homes);
-        g_otto.is_otto_resting = true;
-    }
+    //     g_otto.is_otto_resting = true;
+    // }
 
     tal_system_sleep(200);
 }

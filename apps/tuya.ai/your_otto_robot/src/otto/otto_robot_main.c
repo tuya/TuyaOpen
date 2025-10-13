@@ -35,9 +35,9 @@
 void otto_robot_dp_proc_thread(uint32_t move_type);
 
 // Otto motion speed definitions
-#define SPEED_SLOW       1000
-#define SPEED_NORMAL     700
-#define SPEED_FAST       400
+#define SPEED_SLOW       1500
+#define SPEED_NORMAL     1200
+#define SPEED_FAST       800
 
 // DP ID definitions
 #define DPID_OTTO_STEP    11 // otto robot step
@@ -276,23 +276,55 @@ void otto_robot_audio_mode_dp_proc(uint32_t mode)
     PR_DEBUG("otto_robot_audio_mode_dp_proc completed for mode:%d", mode);
 }
 
+bool is_otto_power_on = false;
+
+/**
+ * @brief Initialize hand servos only, without affecting leg servos
+ */
+void otto_init_hands_only_wrapper()
+{
+    PR_DEBUG("Initializing hands only...");
+    
+    // Call otto_init_hands_only function from otto_movements.c
+    otto_init_hands_only(PIN_LEFT_HAND, PIN_RIGHT_HAND);
+    
+    PR_DEBUG("Hands initialized successfully.");
+}
+
 void otto_power_on()
 {
+    if(is_otto_power_on)
+    {
+        PR_DEBUG("Otto already power on");
+        return;
+    }
+    is_otto_power_on = true;
     PR_DEBUG("Otto initializing...");
 
-    otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, PIN_LEFT_HAND, PIN_RIGHT_HAND);
-
-
+    // Step 1: Initialize legs and feet (hands set to -1, not initialized yet)
+    PR_DEBUG("Initializing legs and feet...");
+    otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, -1, -1);
+    
     otto_set_trims(0, 0, 0, 0, 0, 0);
-
- 
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
+    
+    // Move legs and feet to home position
+    otto_home(false);  // hands_down=false, because hands are not initialized yet
+    
+    PR_DEBUG("Legs and feet initialized, waiting 200ms...");
+    tal_system_sleep(200);  // Delay 200ms
+    
+    // Step 2: Initialize hands only, without affecting legs and feet
+    PR_DEBUG("Initializing hands...");
+    otto_init_hands_only_wrapper();
+    
+    // Set trim values for all servos
+    otto_set_trims(0, 0, 0, 0, 0, 0);
+    
+    // Move all servos to home position (including hands)
+    otto_home(true);  // hands_down=true, including hands
 
-
-    otto_home(true);
-    // tal_system_sleep(1000);
-
-    PR_DEBUG("Otto initialized.");
+    PR_DEBUG("Otto initialized completely.");
 }
 /**
  * @brief otto_Show
