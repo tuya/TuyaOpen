@@ -27,12 +27,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
+
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
 
 // Forward declarations
 void otto_robot_dp_proc_thread(uint32_t move_type);
+void otto_init_all_trims(void);
+void otto_set_trims_from_kv(void);
+void otto_trim_calibration_dp_proc(dp_obj_t *dp);
 
 // Otto motion speed definitions
 #define SPEED_SLOW       1500
@@ -46,11 +51,28 @@ void otto_robot_dp_proc_thread(uint32_t move_type);
 #define DPID_OTTO_ACTION  10 // otto robot action 
 #define DPID_OTTO_WALK_DIRECTION 4 // otto robot walk direction
 
+// DP ID definitions for servo trim calibration (starting from 101)
+#define DPID_OTTO_LEFT_LEG_TRIM    101 // left leg trim calibration
+#define DPID_OTTO_RIGHT_LEG_TRIM   102 // right leg trim calibration
+#define DPID_OTTO_LEFT_FOOT_TRIM   103 // left foot trim calibration
+#define DPID_OTTO_RIGHT_FOOT_TRIM  104 // right foot trim calibration
+#define DPID_OTTO_LEFT_HAND_TRIM   105 // left hand trim calibration
+#define DPID_OTTO_RIGHT_HAND_TRIM  106 // right hand trim calibration
+
 // Audio mode definitions (matching app_chat_bot.c)
 #define AUDIO_MODE_KEY_PRESS_HOLD_SINGLE    0  // Press and hold button to start a single conversation
 #define AUDIO_MODE_KEY_TRIG_VAD_FREE        1  // Press the button once to start or stop the free conversation
 #define AUDIO_MODE_ASR_WAKEUP_SINGLE        2  // Say the wake-up word to start a single conversation
 #define AUDIO_MODE_ASR_WAKEUP_FREE          3  // Say the wake-up word for free conversation
+
+// KV storage keys for Otto robot calibration
+#define OTTO_LEFT_LEG_TRIM_KEY "otto_left_leg_trim"
+#define OTTO_RIGHT_LEG_TRIM_KEY "otto_right_leg_trim"
+#define OTTO_LEFT_FOOT_TRIM_KEY "otto_left_foot_trim"
+#define OTTO_RIGHT_FOOT_TRIM_KEY "otto_right_foot_trim"
+#define OTTO_LEFT_HAND_TRIM_KEY "otto_left_hand_trim"
+#define OTTO_RIGHT_HAND_TRIM_KEY "otto_right_hand_trim"
+#define OTTO_TRIM_INIT_FLAG_KEY "otto_trim_init_flag"
 
 // Otto robot servo pin definitions based on board type
 #ifdef OTTO_BOARD_DEFAULT_TXP
@@ -92,6 +114,9 @@ void otto_robot_dp_proc_thread(uint32_t move_type);
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+
+// External reference to global Otto robot structure
+extern Otto_t g_otto;
 
 // Otto motion steps
 static uint32_t OTTO_STEP = 2; // otto steps, default is 2
@@ -301,11 +326,14 @@ void otto_power_on()
     is_otto_power_on = true;
     PR_DEBUG("Otto initializing...");
 
+    // Initialize all servo trim values to 0 (only once)
+    otto_init_all_trims();
+
     // Step 1: Initialize legs and feet (hands set to -1, not initialized yet)
     PR_DEBUG("Initializing legs and feet...");
     otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, -1, -1);
     
-    otto_set_trims(0, 0, 0, 0, 0, 0);
+   // otto_set_trims(0, 0, 0, 0, 0, 0);
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
     
     // Move legs and feet to home position
@@ -318,8 +346,8 @@ void otto_power_on()
     PR_DEBUG("Initializing hands...");
     otto_init_hands_only_wrapper();
     
-    // Set trim values for all servos
-    otto_set_trims(0, 0, 0, 0, 0, 0);
+    // Set trim values for all servos from KV storage
+    otto_set_trims_from_kv();
     
     // Move all servos to home position (including hands)
     otto_home(true);  // hands_down=true, including hands
@@ -336,7 +364,7 @@ static void otto_Show()
     PR_DEBUG("intializing otto_Show robot...");
 
 
-    otto_set_trims(0, 0, 0, 0, 0, 0);
+   // otto_set_trims(0, 0, 0, 0, 0, 0);
 
  
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
@@ -494,19 +522,19 @@ void otto_robot_execute_action(uint32_t move_type)
 
     case ACTION_NONE:    
         PR_DEBUG("Returning to home position");
-        otto_set_trims(0, 0, 0, 0, 0, 0);
+        //otto_set_trims(0, 0, 0, 0, 0, 0);
         otto_home(true);
         break;
 
     default:
         PR_DEBUG("Invalid action type: %d", move_type);
-        otto_set_trims(0, 0, 0, 0, 0, 0);
+        //otto_set_trims(0, 0, 0, 0, 0, 0);
         otto_home(true);
         break;
     }
     
     // Always return to home position after action
-    otto_set_trims(0, 0, 0, 0, 0, 0);
+    otto_set_trims_from_kv();
     otto_home(true);
     PR_DEBUG("Action completed, returned to home position");
 }
@@ -721,6 +749,21 @@ void otto_robot_dp_proc(dp_obj_recv_t *dpobj)
                 }
                 break;
 
+            // Otto robot servo trim calibration DPs (DP101-DP106)
+            case DPID_OTTO_LEFT_LEG_TRIM:
+            case DPID_OTTO_RIGHT_LEG_TRIM:
+            case DPID_OTTO_LEFT_FOOT_TRIM:
+            case DPID_OTTO_RIGHT_FOOT_TRIM:
+            case DPID_OTTO_LEFT_HAND_TRIM:
+            case DPID_OTTO_RIGHT_HAND_TRIM:
+                PR_DEBUG("otto Rev DP Obj Cmd dpid:%d type:%d value:%d", dp->id, dp->type, dp->value.dp_value);
+                PR_DEBUG("=== Otto Robot Trim Calibration ===");
+                PR_DEBUG("Trim calibration DPID: %d, Value: %d", dp->id, dp->value.dp_value);
+                otto_trim_calibration_dp_proc(dp);
+                otto_home(true);
+                PR_DEBUG("=== Trim Calibration Complete ===");
+                break;
+
             default:
                 PR_DEBUG("Unknown DP ID: %d", dp->id);
                 break;
@@ -812,7 +855,7 @@ static void __otto_motion_thread_process(void *arg)
 
         case ACTION_NONE:
     PR_DEBUG("otto_home");
-            otto_set_trims(0, 0, 0, 0, 0, 0);
+            otto_set_trims_from_kv();
             otto_home(true);
             break;
 
@@ -823,7 +866,7 @@ static void __otto_motion_thread_process(void *arg)
 
     // Return to initial position after all actions
     PR_DEBUG("Returning to home position...");
-    otto_set_trims(0, 0, 0, 0, 0, 0);
+   // otto_set_trims(0, 0, 0, 0, 0, 0);
     otto_home(true);
     PR_DEBUG("Otto returned to home position");
 
@@ -889,4 +932,517 @@ void otto_robot_dp_proc_thread(uint32_t move_type)
     } else {
         PR_DEBUG("Motion thread created and started successfully");
     }
+}
+
+/**
+ * @brief Sets the left leg trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the left leg.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_left_leg_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_LEFT_LEG_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[LEFT_LEG] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[LEFT_LEG] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[LEFT_LEG], trim_value);
+    }
+
+    PR_DEBUG("set left leg trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current left leg trim value from KV storage.
+ * @param None
+ * @return int - The current left leg trim value.
+ */
+int otto_get_left_leg_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_LEFT_LEG_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read left leg trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get left leg trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Sets the right leg trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the right leg.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_right_leg_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_RIGHT_LEG_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[RIGHT_LEG] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[RIGHT_LEG] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[RIGHT_LEG], trim_value);
+    }
+
+    PR_DEBUG("set right leg trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current right leg trim value from KV storage.
+ * @param None
+ * @return int - The current right leg trim value.
+ */
+int otto_get_right_leg_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_RIGHT_LEG_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read right leg trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get right leg trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Sets the left foot trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the left foot.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_left_foot_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_LEFT_FOOT_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[LEFT_FOOT] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[LEFT_FOOT] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[LEFT_FOOT], trim_value);
+    }
+
+    PR_DEBUG("set left foot trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current left foot trim value from KV storage.
+ * @param None
+ * @return int - The current left foot trim value.
+ */
+int otto_get_left_foot_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_LEFT_FOOT_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read left foot trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get left foot trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Sets the right foot trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the right foot.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_right_foot_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_RIGHT_FOOT_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[RIGHT_FOOT] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[RIGHT_FOOT] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[RIGHT_FOOT], trim_value);
+    }
+
+    PR_DEBUG("set right foot trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current right foot trim value from KV storage.
+ * @param None
+ * @return int - The current right foot trim value.
+ */
+int otto_get_right_foot_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_RIGHT_FOOT_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read right foot trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get right foot trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Sets the left hand trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the left hand.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_left_hand_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_LEFT_HAND_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[LEFT_HAND] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[LEFT_HAND], trim_value);
+    }
+
+    PR_DEBUG("set left hand trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current left hand trim value from KV storage.
+ * @param None
+ * @return int - The current left hand trim value.
+ */
+int otto_get_left_hand_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_LEFT_HAND_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read left hand trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get left hand trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Sets the right hand trim value and saves it to KV storage.
+ * @param trim_value The trim value to set for the right hand.
+ * @return OPERATE_RET - OPRT_OK if the trim value is set successfully, otherwise an error code.
+ */
+OPERATE_RET otto_set_right_hand_trim(int trim_value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    // Save to KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_RIGHT_HAND_TRIM_KEY, (const uint8_t *)&trim_value, sizeof(trim_value)));
+
+    // Update the global trim value
+    g_otto.servo_trim[RIGHT_HAND] = trim_value;
+
+    // Apply trim to oscillator if it exists
+    if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+        oscillator_set_trim(g_otto.oscillator_indices[RIGHT_HAND], trim_value);
+    }
+
+    PR_DEBUG("set right hand trim: %d", trim_value);
+
+    return rt;
+}
+
+/**
+ * @brief Retrieves the current right hand trim value from KV storage.
+ * @param None
+ * @return int - The current right hand trim value.
+ */
+int otto_get_right_hand_trim(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    int trim_value = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_RIGHT_HAND_TRIM_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_ERR("read right hand trim failed");
+        trim_value = 0;  // Default trim value
+    } else {
+        trim_value = *(int *)value;
+    }
+
+    PR_DEBUG("get right hand trim: %d", trim_value);
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return trim_value;
+}
+
+/**
+ * @brief Checks if all servo trims have been initialized
+ * @param None
+ * @return bool - true if initialized, false otherwise
+ */
+bool otto_is_trim_initialized(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    uint8_t init_flag = 0;
+    uint8_t *value = NULL;
+    size_t read_len = 0;
+
+    // Read initialization flag from KV storage
+    TUYA_CALL_ERR_LOG(tal_kv_get(OTTO_TRIM_INIT_FLAG_KEY, &value, &read_len));
+    if (OPRT_OK != rt || NULL == value) {
+        PR_DEBUG("trim not initialized yet");
+        init_flag = 0;  // Not initialized
+    } else {
+        init_flag = *value;
+    }
+
+    if (value) {
+        tal_kv_free(value);
+        value = NULL;
+    }
+
+    return (init_flag == 1);
+}
+
+/**
+ * @brief Sets the trim initialization flag
+ * @param None
+ * @return None
+ */
+void otto_set_trim_init_flag(void)
+{
+    uint8_t init_flag = 1;
+    OPERATE_RET rt = OPRT_OK;
+    TUYA_CALL_ERR_LOG(tal_kv_set(OTTO_TRIM_INIT_FLAG_KEY, &init_flag, sizeof(init_flag)));
+    PR_DEBUG("trim initialization flag set");
+}
+
+/**
+ * @brief Initializes all servo trim values to 0 (only once)
+ * @param None
+ * @return None
+ */
+void otto_init_all_trims(void)
+{
+    // Check if already initialized
+    if (otto_is_trim_initialized()) {
+        PR_DEBUG("trims already initialized, skipping");
+        return;
+    }
+
+    PR_DEBUG("initializing all servo trims to 0");
+
+    // Initialize all servo trim values to 0
+    otto_set_left_leg_trim(0);
+    otto_set_right_leg_trim(0);
+    otto_set_left_foot_trim(0);
+    otto_set_right_foot_trim(0);
+    otto_set_left_hand_trim(0);
+    otto_set_right_hand_trim(0);
+
+    // Set initialization flag
+    otto_set_trim_init_flag();
+
+    PR_DEBUG("all servo trims initialized successfully");
+}
+
+/**
+ * @brief Sets all servo trim values from KV storage data
+ * @param None
+ * @return None
+ */
+void otto_set_trims_from_kv(void)
+{
+    // Get trim values from KV storage for all servos
+    int left_leg_trim = otto_get_left_leg_trim();
+    int right_leg_trim = otto_get_right_leg_trim();
+    int left_foot_trim = otto_get_left_foot_trim();
+    int right_foot_trim = otto_get_right_foot_trim();
+    int left_hand_trim = otto_get_left_hand_trim();
+    int right_hand_trim = otto_get_right_hand_trim();
+
+    // Apply trim values to all servos
+    otto_set_trims(left_leg_trim, right_leg_trim, left_foot_trim, right_foot_trim, left_hand_trim, right_hand_trim);
+
+    PR_DEBUG("Applied trim values from KV: LL=%d, RL=%d, LF=%d, RF=%d, LH=%d, RH=%d", 
+             left_leg_trim, right_leg_trim, left_foot_trim, right_foot_trim, left_hand_trim, right_hand_trim);
+}
+
+/**
+ * @brief Process servo trim calibration DP data
+ * @param dp Pointer to the data point structure
+ * @return None
+ */
+void otto_trim_calibration_dp_proc(dp_obj_t *dp)
+{
+    if (dp == NULL) {
+        PR_ERR("dp is NULL");
+        return;
+    }
+
+    int trim_value = 0;
+    OPERATE_RET rt = OPRT_OK;
+
+    // Extract trim value from DP data
+    if (dp->type == PROP_VALUE) {
+        trim_value = dp->value.dp_value;
+    } else {
+        PR_ERR("Invalid DP type for trim calibration: %d", dp->type);
+        return;
+    }
+
+    // Validate trim value range (-50 to +50 degrees)
+    if (trim_value < -50 || trim_value > 50) {
+        PR_ERR("Trim value out of range: %d (valid range: -30 to +30)", trim_value);
+        return;
+    }
+
+    // Process different trim calibration DPs
+    switch (dp->id) {
+        case DPID_OTTO_LEFT_LEG_TRIM:
+            PR_DEBUG("Setting left leg trim: %d", trim_value);
+            rt = otto_set_left_leg_trim(trim_value);
+            break;
+
+        case DPID_OTTO_RIGHT_LEG_TRIM:
+            PR_DEBUG("Setting right leg trim: %d", trim_value);
+            rt = otto_set_right_leg_trim(trim_value);
+            break;
+
+        case DPID_OTTO_LEFT_FOOT_TRIM:
+            PR_DEBUG("Setting left foot trim: %d", trim_value);
+            rt = otto_set_left_foot_trim(trim_value);
+            break;
+
+        case DPID_OTTO_RIGHT_FOOT_TRIM:
+            PR_DEBUG("Setting right foot trim: %d", trim_value);
+            rt = otto_set_right_foot_trim(trim_value);
+            break;
+
+        case DPID_OTTO_LEFT_HAND_TRIM:
+            PR_DEBUG("Setting left hand trim: %d", trim_value);
+            rt = otto_set_left_hand_trim(trim_value);
+            break;
+
+        case DPID_OTTO_RIGHT_HAND_TRIM:
+            PR_DEBUG("Setting right hand trim: %d", trim_value);
+            rt = otto_set_right_hand_trim(trim_value);
+            break;
+
+        default:
+            PR_ERR("Unknown trim calibration DPID: %d", dp->id);
+            return;
+    }
+
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to set trim value: %d, error: %d", trim_value, rt);
+        return;
+    }
+
+    // Apply the new trim values to all servos
+    otto_set_trims_from_kv();
+
+    PR_DEBUG("Trim calibration applied successfully: DPID=%d, Value=%d", dp->id, trim_value);
 }

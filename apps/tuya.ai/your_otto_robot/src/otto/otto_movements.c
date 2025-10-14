@@ -14,7 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Otto_t g_otto;
+
+Otto_t g_otto;
 
 static unsigned long millis()
 {
@@ -809,3 +810,4 @@ void otto_hand_wave(int period, int dir)
         positions[RIGHT_HAND] = 180 - HAND_HOME_POSITION;
     otto_move_servos(raise_time, positions);
 }
+
