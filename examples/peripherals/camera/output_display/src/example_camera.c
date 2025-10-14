@@ -244,6 +244,8 @@ static OPERATE_RET __camera_init(void)
     OPERATE_RET rt = OPRT_OK;
     TDL_CAMERA_CFG_T cfg;
 
+    memset(&cfg, 0, sizeof(TDL_CAMERA_CFG_T));
+
     sg_tdl_camera_hdl = tdl_camera_find_dev(CAMERA_NAME);
     if(NULL == sg_tdl_camera_hdl) {
         PR_ERR("camera dev %s not found", CAMERA_NAME);

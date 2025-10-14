@@ -178,12 +178,13 @@ static void __raw_flow_task(void *args)
 
 	while (1)
 	{
+
 		tal_queue_fetch(sg_camera_manage.raw_frame_queue, &msg, SEM_WAIT_FOREVER);
 		if(NULL == msg.dev || NULL == msg.tdd_frame) {
             continue;
         }
 
-		if (msg.dev->get_raw_frame_cb) {
+		if((true == msg.dev->is_open) && msg.dev->get_raw_frame_cb) {
             msg.dev->get_raw_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
@@ -202,7 +203,7 @@ static void __encoded_flow_task(void *args)
             continue;
         }
 
-		if (msg.dev->get_encoded_frame_cb) {
+		if ((true == msg.dev->is_open) && msg.dev->get_encoded_frame_cb) {
             msg.dev->get_encoded_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
@@ -304,6 +305,8 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
         open_cfg.out_fmt = camera_dev->info.out_fmt;
 
         TUYA_CALL_ERR_RETURN(camera_dev->intfs.open(camera_dev->tdd_hdl, &open_cfg));
+
+        camera_dev->is_open = true;
     }
 
     return OPRT_OK;

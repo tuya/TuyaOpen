@@ -332,8 +332,20 @@ static OPERATE_RET __board_register_camera(void)
         .clk = BOARD_CAMERA_CLK,
     };
 
-    TUYA_CALL_ERR_RETURN(tdl_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
 #endif
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __board_sdio_pin_register(void)
+{
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_14, TUYA_SDIO_HOST_CLK);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_15, TUYA_SDIO_HOST_CMD);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_16, TUYA_SDIO_HOST_D0);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_17, TUYA_SDIO_HOST_D1);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_18, TUYA_SDIO_HOST_D2);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_19, TUYA_SDIO_HOST_D3);
 
     return OPRT_OK;
 }
@@ -356,6 +368,7 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_audio_mux_router());
     TUYA_CALL_ERR_LOG(__board_register_bmi270_sensor());
     TUYA_CALL_ERR_LOG(__board_register_camera());
+    TUYA_CALL_ERR_LOG(__board_sdio_pin_register());
 
     return rt;
 }
