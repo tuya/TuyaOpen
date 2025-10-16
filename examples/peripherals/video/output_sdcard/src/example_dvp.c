@@ -52,7 +52,7 @@ static OPERATE_RET __fs_sd_save_file(char *file_path, void *data, uint32_t data_
 
     // Check if the file already exists
     int is_exist = 0;
-    TUYA_CALL_ERR_RETURN(tkl_fs_is_exist(file_path, &is_exist));
+    tkl_fs_is_exist(file_path, &is_exist);
 
     if (is_exist) {
         tkl_fs_remove(file_path);

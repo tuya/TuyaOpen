@@ -80,12 +80,13 @@ static CAMERA_DEVICE_T *__find_camera_device(char *name)
 {
     CAMERA_DEVICE_T *camera_dev = NULL;
     struct tuya_list_head *pos = NULL;
+    struct tuya_list_head *tmp = NULL;
 
     if (NULL == name) {
         return NULL;
     }
 
-    tuya_list_for_each(pos, &sg_camera_list){
+    tuya_list_for_each_safe(pos, tmp, &sg_camera_list){
         camera_dev = tuya_list_entry(pos, CAMERA_DEVICE_T, node);
         if (0 == strncmp(camera_dev->name, name, CAMERA_DEV_NAME_MAX_LEN)) {
             return camera_dev;
@@ -99,12 +100,13 @@ static CAMERA_DEVICE_T *__find_camera_device_from_tdd(TDD_CAMERA_DEV_HANDLE_T td
 {
     CAMERA_DEVICE_T *camera_dev = NULL;
     struct tuya_list_head *pos = NULL;
+    struct tuya_list_head *tmp = NULL;
 
     if (NULL == tdd_hdl) {
         return NULL;
     }
 
-    tuya_list_for_each(pos, &sg_camera_list){
+    tuya_list_for_each_safe(pos, tmp, &sg_camera_list){
         camera_dev = tuya_list_entry(pos, CAMERA_DEVICE_T, node);
         if (camera_dev->tdd_hdl == tdd_hdl) {
             return camera_dev;
@@ -162,10 +164,9 @@ static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32
         frame_node->tdd_frame.frame.data_len = buf_len;
         frame_node->tdd_frame.sys_param = (void *)frame_node;
 
-        PR_DEBUG("phead:%p next:%p pre:%p", phead, \
-        phead->next,phead->prev);
-
         tuya_list_add(&frame_node->node, phead);
+
+        PR_NOTICE("frame node %p, frame_data %p", frame_node, frame_node->tdd_frame.frame.data);
     }
 
     return OPRT_OK;
@@ -177,12 +178,13 @@ static void __raw_flow_task(void *args)
 
 	while (1)
 	{
+
 		tal_queue_fetch(sg_camera_manage.raw_frame_queue, &msg, SEM_WAIT_FOREVER);
 		if(NULL == msg.dev || NULL == msg.tdd_frame) {
             continue;
         }
 
-		if (msg.dev->get_raw_frame_cb) {
+		if((true == msg.dev->is_open) && msg.dev->get_raw_frame_cb) {
             msg.dev->get_raw_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
@@ -201,7 +203,7 @@ static void __encoded_flow_task(void *args)
             continue;
         }
 
-		if (msg.dev->get_encoded_frame_cb) {
+		if ((true == msg.dev->is_open) && msg.dev->get_encoded_frame_cb) {
             msg.dev->get_encoded_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
@@ -277,8 +279,6 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
     raw_buf_len = cfg->width * cfg->height * CAMERA_RAW_PER_PIXEL_MAX_BYTE;
 
     if(cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {
-        PR_DEBUG("raw_frame_node_list:%p next:%p pre:%p", camera_dev->raw_frame_node_list, \
-            camera_dev->raw_frame_node_list.next,camera_dev->raw_frame_node_list.prev);
         TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->raw_frame_node_list, \
                                                       CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
         camera_dev->get_raw_frame_cb = cfg->get_frame_cb;
@@ -305,6 +305,8 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
         open_cfg.out_fmt = camera_dev->info.out_fmt;
 
         TUYA_CALL_ERR_RETURN(camera_dev->intfs.open(camera_dev->tdd_hdl, &open_cfg));
+
+        camera_dev->is_open = true;
     }
 
     return OPRT_OK;
@@ -361,15 +363,13 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
 
     camera_dev = __find_camera_device_from_tdd(tdd_hdl);
     if (NULL == camera_dev) {
-        PR_ERR("can not find camera device");
         return NULL;
     }
 
     pframe_list = (false == __is_camera_frame_encoded(fmt)) ? \
                   &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
-
+             
     if(tuya_list_empty(pframe_list)) {
-        PR_ERR("no free frame node");
         return NULL;
     }
 

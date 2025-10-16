@@ -75,7 +75,7 @@ static void __example_sd_test(void)
     }
 
 __EXIT:
-    // 关闭文件
+    // close file
     tkl_fclose(file_hdl);
     file_hdl = NULL;
 

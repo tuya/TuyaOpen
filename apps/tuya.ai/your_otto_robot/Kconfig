@@ -47,8 +47,7 @@ config ENABLE_CHAT_DISPLAY
     if (ENABLE_CHAT_DISPLAY)
         rsource "./src/display/Kconfig"
     endif
-
-choice 
+    choice 
     prompt "choose Otto robot board type"
     default OTTO_BOARD_DEFAULT_TXP
 
@@ -57,6 +56,9 @@ choice
 
     config OTTO_BOARD_DREAM
     bool "board dream - custom pin configuration"
-endchoice
+    endchoice
 
+config ENABLE_AUDIO_CHAT
+    bool "enable audio chat mode"
+    default y
 endmenu

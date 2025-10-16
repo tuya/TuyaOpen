@@ -17,7 +17,29 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_3
     select ENABLE_BUTTON_4
     select ENABLE_DISPLAY
+    select ENABLE_CAMERA
     select ENABLE_JOYSTICK
     select ENABLE_PMIC
     select ENABLE_PMIC_AXP2101
-    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+    select ENABLE_IMU
+    select ENABLE_IMU_BMI270
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)  
+
+choice TUYA_T5AI_POCKET_LCD_ROTATION
+    prompt "choose TUYA_T5AI_POCKET_LCD_ROTATION lcd rotation"
+    default TUYA_T5AI_POCKET_LCD_ROTATION_270
+    help
+        Select the rotation of the TUYA_T5AI_POCKET lcd you are using.
+        
+    config TUYA_T5AI_POCKET_LCD_ROTATION_0
+        bool "tuya t5ai pocket lcd rotation 0"
+
+    config TUYA_T5AI_POCKET_LCD_ROTATION_90
+        bool "tuya t5ai pocket lcd rotation 90"
+
+    config TUYA_T5AI_POCKET_LCD_ROTATION_180
+        bool "tuya t5ai pocket lcd rotation 180"
+
+    config TUYA_T5AI_POCKET_LCD_ROTATION_270
+        bool "tuya t5ai pocket lcd rotation 270"
+endchoice   

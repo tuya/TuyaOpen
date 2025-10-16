@@ -10,6 +10,7 @@
 #include "tkl_output.h"
 
 #include "tdl_display_manage.h"
+#include "tdl_display_draw.h"
 #include "board_com_api.h"
 
 /***********************************************************
@@ -31,63 +32,9 @@ static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static uint8_t __disp_get_bpp(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt)
-{
-    switch (pixel_fmt) {
-        case TUYA_PIXEL_FMT_RGB565:
-            return 16;
-        case TUYA_PIXEL_FMT_RGB666:
-            return 18;
-        case TUYA_PIXEL_FMT_RGB888:
-            return 24;
-        case TUYA_PIXEL_FMT_MONOCHROME:
-            return 1;
-        case TUYA_PIXEL_FMT_I2:
-            return 2; // I2 format is typically 2 bits per pixel
-        default:
-            return 0;
-    }
-}
 static uint32_t __disp_get_random_color(uint32_t range)
 {
     return tal_system_get_random(range);
-}
-
-static void __disp_fill_color(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, bool is_swap)
-{
-    uint8_t bpp = 0;
-    uint32_t pixel_count =0;
-
-    if (fb == NULL || fb->frame == NULL) {
-        return;
-    }
-
-    pixel_count = fb->width * fb->height;
-
-    bpp = __disp_get_bpp(fb->fmt);
-    if(0 == bpp) {
-        PR_ERR("Unsupported pixel format: %d", fb->fmt);
-        return;
-    }
-
-    pixel_count = fb->width * fb->height;
-
-    for (uint32_t i = 0; i < pixel_count; i++) {
-        if (bpp == 16) {
-            if(is_swap == true) {
-                color = ((color & 0xFF00) >> 8) | ((color & 0x00FF) << 8); // Swap bytes for RGB565
-            }
-            ((uint16_t *)fb->frame)[i] = (uint16_t)color; // RGB565
-        } else if (bpp == 24) {
-            ((uint8_t *)fb->frame)[i * 3] = (color >> 16) & 0xFF; // R
-            ((uint8_t *)fb->frame)[i * 3 + 1] = (color >> 8) & 0xFF; // G
-            ((uint8_t *)fb->frame)[i * 3 + 2] = color & 0xFF; // B
-        } else if (bpp == 1) {
-            ((uint8_t *)fb->frame)[i / 8] |= ((color & 0x01) << (7 - (i % 8))); // Monochrome
-        } else if (bpp == 2) {
-            ((uint8_t *)fb->frame)[i / 4] |= ((color & 0x03) << (6 - (i % 4) * 2)); // I2 format
-        }
-    }
 }
 
 /**
@@ -130,7 +77,7 @@ void user_main(void)
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
 
     /*get frame len*/
-    bpp = __disp_get_bpp(sg_display_info.fmt);
+    bpp = tdl_disp_get_fmt_bpp(sg_display_info.fmt);
     if (bpp == 0) {
         PR_ERR("Unsupported pixel format: %d", sg_display_info.fmt);
         return;
@@ -149,12 +96,15 @@ void user_main(void)
         PR_ERR("create display frame buff failed");
         return;
     }
+    sg_p_display_fb->x_start = 0;
+    sg_p_display_fb->y_start = 0;
     sg_p_display_fb->fmt    = sg_display_info.fmt;
     sg_p_display_fb->width  = sg_display_info.width;
     sg_p_display_fb->height = sg_display_info.height;
 
+
     while(1) {
-        __disp_fill_color(sg_p_display_fb, __disp_get_random_color(0xFFFFFFFF), sg_display_info.is_swap);
+        tdl_disp_draw_fill_full(sg_p_display_fb, __disp_get_random_color(0xFFFFFFFF), sg_display_info.is_swap);
 
         tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
 

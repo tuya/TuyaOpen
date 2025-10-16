@@ -481,7 +481,7 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
  * byte order expected by the application.
  *
  * @param data Pointer to the array of RGB565 data.
- * @param len  Length of the data array in bytes.
+ * @param len  Length of the data array in pixels.
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if the operation fails.
  */

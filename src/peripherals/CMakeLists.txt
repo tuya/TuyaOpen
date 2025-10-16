@@ -15,6 +15,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pmic)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/camera)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ir)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/leds_pixel)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/imu)
 
 ########################################
 # Layer Configure

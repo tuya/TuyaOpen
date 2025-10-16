@@ -74,10 +74,12 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
     case AI_EVENT_CHAT_BREAK:
     case AI_EVENT_SERVER_VAD: {
         PR_DEBUG("server vad");
+        #if ENABLE_AUDIO_CHAT
         if (ai_audio_player_is_playing()) {
             ai_audio_player_stop();
         }
         // stop UI streaming display
+        #endif
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         if (sg_ai_audio.evt_inform_cb) {
             sg_ai_audio.evt_inform_cb(AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT, NULL, 0, NULL);
@@ -92,10 +94,12 @@ static void __ai_audio_agent_event_cb(AI_EVENT_TYPE event, AI_EVENT_ID event_id)
 static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
 {
     AI_AUDIO_EVENT_E event = AI_AUDIO_EVT_NONE;
+#if ENABLE_AUDIO_CHAT
     static char event_id[PLAYER_ID_LEN_MAX] = {0};
-
+#endif
     switch (msg->type) {
     case AI_AGENT_MSG_TP_TEXT_ASR: {
+#if ENABLE_AUDIO_CHAT
         if (msg->data_len > 0) {
             ai_audio_cloud_stop_wait_asr();
 
@@ -111,8 +115,10 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
                 sg_ai_audio.state = AI_AUDIO_STATE_STANDBY;
             }
         }
+#endif
     } break;
     case AI_AGENT_MSG_TP_AUDIO_START: {
+#if ENABLE_AUDIO_CHAT
         // Prepare to play mp3
         if (ai_audio_player_is_playing()) {
             PR_DEBUG("player is playing, stop it first");
@@ -126,15 +132,19 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
         ai_audio_player_start(event_id);
 
         sg_ai_audio.state = AI_AUDIO_STATE_AI_SPEAK;
+#endif
     } break;
     case AI_AGENT_MSG_TP_AUDIO_DATA: {
+#if ENABLE_AUDIO_CHAT
         ai_audio_player_data_write(event_id, msg->data, msg->data_len, 0);
 
         if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
             ai_audio_input_restart_asr_awake_timer();
         }
+#endif
     } break;
     case AI_AGENT_MSG_TP_AUDIO_STOP: {
+#if ENABLE_AUDIO_CHAT
         ai_audio_player_data_write(event_id, msg->data, msg->data_len, 1);
 
         if (AI_AUDIO_WORK_ASR_WAKEUP_FREE_TALK == sg_ai_audio.work_mode) {
@@ -142,6 +152,7 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
         }
 
         memset(event_id, 0, PLAYER_ID_LEN_MAX);
+#endif
     } break;
     case AI_AGENT_MSG_TP_TEXT_NLG_START: {
         event = AI_AUDIO_EVT_AI_REPLIES_TEXT_START;
@@ -164,6 +175,7 @@ static void __ai_audio_agent_msg_cb(AI_AGENT_MSG_T *msg)
     }
 }
 
+#if ENABLE_AUDIO_CHAT
 static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *arg)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -208,7 +220,7 @@ static void __ai_audio_input_inform_handle(AI_AUDIO_INPUT_EVENT_E event, void *a
         break;
     }
 }
-
+#endif
 static void __inform_state_tm_cb(TIMER_ID timer_id, void *arg)
 {
     static AI_AUDIO_STATE_E s_last_state = AI_AUDIO_STATE_MAX;
@@ -232,6 +244,7 @@ static void __inform_state_tm_cb(TIMER_ID timer_id, void *arg)
     }
 }
 
+#if ENABLE_AUDIO_CHAT
 static AI_AUDIO_INPUT_VALID_METHOD_E __get_input_get_valid_data_method(AI_AUDIO_WORK_MODE_E work_mode)
 {
     AI_AUDIO_INPUT_VALID_METHOD_E method = 0;
@@ -250,6 +263,7 @@ static AI_AUDIO_INPUT_VALID_METHOD_E __get_input_get_valid_data_method(AI_AUDIO_
 
     return method;
 }
+#endif
 
 /**
  * @brief Initializes the audio module with the provided configuration.
@@ -259,18 +273,18 @@ static AI_AUDIO_INPUT_VALID_METHOD_E __get_input_get_valid_data_method(AI_AUDIO_
 OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
-    AI_AUDIO_INPUT_CFG_T input_cfg;
     AI_AGENT_CBS_T agent_cbs;
 
     if (NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
-    input_cfg.get_valid_data_method = __get_input_get_valid_data_method(cfg->work_mode);
     sg_ai_audio.work_mode = cfg->work_mode;
     sg_ai_audio.evt_inform_cb = cfg->evt_inform_cb;
     sg_ai_audio.state_inform_cb = cfg->state_inform_cb;
-
+#if ENABLE_AUDIO_CHAT
+    AI_AUDIO_INPUT_CFG_T input_cfg;
+    input_cfg.get_valid_data_method = __get_input_get_valid_data_method(cfg->work_mode);
     TUYA_CALL_ERR_RETURN(ai_audio_input_init(&input_cfg, __ai_audio_input_inform_handle));
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
@@ -280,7 +294,7 @@ OPERATE_RET ai_audio_init(AI_AUDIO_CONFIG_T *cfg)
     TUYA_CALL_ERR_RETURN(ai_audio_cloud_asr_init());
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
-
+#endif
     agent_cbs.ai_agent_msg_cb = __ai_audio_agent_msg_cb;
     agent_cbs.ai_agent_event_cb = __ai_audio_agent_event_cb;
 

@@ -19,6 +19,7 @@
 #include "board_audio_mux_api.h" // Add audio mux API header
 #include "board_bmi270_api.h"    // Add BMI270 sensor API header
 #include "board_axp2101_api.h"   // Add AXP2101 power management API header
+#include "tdd_camera_gc2145.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -49,8 +50,19 @@
 
 #define BOARD_LCD_WIDTH              168
 #define BOARD_LCD_HEIGHT             384
-#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_270
 #define BOARD_LCD_CASET_XS           0x17
+
+#if defined(TUYA_T5AI_POCKET_LCD_ROTATION_0) && (TUYA_T5AI_POCKET_LCD_ROTATION_0)
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_0
+#elif defined(TUYA_T5AI_POCKET_LCD_ROTATION_90) && (TUYA_T5AI_POCKET_LCD_ROTATION_90)
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_90
+#elif defined(TUYA_T5AI_POCKET_LCD_ROTATION_180) && (TUYA_T5AI_POCKET_LCD_ROTATION_180)
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_180
+#elif defined(TUYA_T5AI_POCKET_LCD_ROTATION_270) && (TUYA_T5AI_POCKET_LCD_ROTATION_270)
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_270
+#else 
+#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_270
+#endif
 
 #define BOARD_LCD_SPI_PORT           TUYA_SPI_NUM_0
 #define BOARD_LCD_SPI_CLK            48000000
@@ -68,6 +80,17 @@
 #define BOARD_JOYSTICK_ADC_CH_X      15
 #define BOARD_JOYSTICK_ADC_CH_Y      14
 #define BOARD_JOYSTICK_MODE          JOYSTICK_TIMER_SCAN_MODE
+
+#define BOARD_CAMERA_I2C_PORT        TUYA_I2C_NUM_0
+#define BOARD_CAMERA_I2C_SCL         TUYA_GPIO_NUM_20
+#define BOARD_CAMERA_I2C_SDA         TUYA_GPIO_NUM_21
+
+#define BOARD_CAMERA_RST_PIN         TUYA_GPIO_NUM_MAX
+
+#define BOARD_CAMERA_POWER_PIN       TUYA_GPIO_NUM_MAX
+
+#define BOARD_CAMERA_CLK             24000000
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -301,6 +324,43 @@ static OPERATE_RET __board_register_axp2101(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_camera(void)
+{
+#if defined(CAMERA_NAME)
+    OPERATE_RET rt = OPRT_OK;
+    TDD_DVP_SR_USR_CFG_T camera_cfg = {
+        .pwr = {
+            .pin = BOARD_CAMERA_POWER_PIN,
+        },
+        .rst = {
+            .pin = BOARD_CAMERA_RST_PIN,
+        },
+        .i2c ={
+            .port = BOARD_CAMERA_I2C_PORT,
+            .clk  = BOARD_CAMERA_I2C_SCL,
+            .sda  = BOARD_CAMERA_I2C_SDA,
+        },
+        .clk = BOARD_CAMERA_CLK,
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+#endif
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __board_sdio_pin_register(void)
+{
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_14, TUYA_SDIO_HOST_CLK);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_15, TUYA_SDIO_HOST_CMD);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_16, TUYA_SDIO_HOST_D0);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_17, TUYA_SDIO_HOST_D1);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_18, TUYA_SDIO_HOST_D2);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_19, TUYA_SDIO_HOST_D3);
+
+    return OPRT_OK;
+}
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED, display) on the board.
  *
@@ -318,7 +378,8 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_joystick());
     TUYA_CALL_ERR_LOG(__board_register_audio_mux_router());
     TUYA_CALL_ERR_LOG(__board_register_bmi270_sensor());
-
+    TUYA_CALL_ERR_LOG(__board_register_camera());
+    TUYA_CALL_ERR_LOG(__board_sdio_pin_register());
 
     return rt;
 }

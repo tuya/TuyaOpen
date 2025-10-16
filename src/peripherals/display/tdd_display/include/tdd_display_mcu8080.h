@@ -34,6 +34,7 @@ typedef struct {
     TUYA_DISPLAY_BL_CTRL_T      bl;
     TUYA_DISPLAY_IO_CTRL_T      power;
     TUYA_DISPLAY_ROTATION_E     rotation;
+    TUYA_DISPLAY_PIXEL_FMT_E    in_fmt;
     bool                        is_swap; 
     TUYA_GPIO_NUM_E             te_pin;
     TUYA_GPIO_IRQ_E             te_mode;
@@ -42,6 +43,7 @@ typedef struct {
     uint8_t                     cmd_ramwr;
     uint8_t                     cmd_ramwrc;
     const uint32_t             *init_seq; // Initialization commands for the display
+    TDD_DISP_CONVERT_FB_CB      convert_cb; // Optional framebuffer conversion callback
 }TDD_DISP_MCU8080_CFG_T;
 
 /***********************************************************

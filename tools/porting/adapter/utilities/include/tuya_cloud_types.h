@@ -553,7 +553,14 @@ typedef uint16_t TUYA_PIN_FUNC_E;
 #define  TUYA_I2S1_SDO_0     0x606
 #define  TUYA_I2S1_SDI_0     0x607
 
-#define  TUYA_GPIO           0x700
+#define  TUYA_SDIO_HOST_CLK  0x700
+#define  TUYA_SDIO_HOST_CMD  0x701
+#define  TUYA_SDIO_HOST_D0   0x702
+#define  TUYA_SDIO_HOST_D1   0x703
+#define  TUYA_SDIO_HOST_D2   0x704
+#define  TUYA_SDIO_HOST_D3   0x705
+
+#define  TUYA_GPIO           0x800
 
 #define  TUYA_PIN_FUNC_MAX   0xFFFF
 

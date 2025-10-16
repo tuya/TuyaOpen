@@ -415,6 +415,16 @@ static void __ai_alive_timeout(TIMER_ID timer_id, void *data)
     }
 }
 
+static int __ai_client_link_type_event_subscribe(void *data)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    PR_NOTICE("ai client link type change, reset ai client");
+    __ai_conn_close();
+
+    return rt;
+}
+
 void tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb)
 {
     if (ai_basic_client) {
@@ -465,6 +475,10 @@ OPERATE_RET tuya_ai_client_init(void)
     TUYA_CALL_ERR_GOTO(__ai_client_create_task(), EXIT);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(__ai_alive_timeout, NULL, &ai_basic_client->alive_timeout_timer), EXIT);
     TUYA_CALL_ERR_GOTO(tal_workq_init_delayed(WORKQ_HIGHTPRI, __ai_ping, NULL, &ai_basic_client->alive_work), EXIT);
+#ifdef EVENT_LINK_TYPE_CHG
+    TUYA_CALL_ERR_LOG(tal_event_subscribe(EVENT_LINK_TYPE_CHG, "ai client reset", __ai_client_link_type_event_subscribe,
+                                          SUBSCRIBE_TYPE_NORMAL));
+#endif
     PR_NOTICE("ai client init success");
     return rt;
 

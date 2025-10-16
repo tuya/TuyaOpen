@@ -23,6 +23,7 @@
 typedef struct {
     TDD_DVP_SR_CFG_T          sensor;
     TDD_DVP_SR_INTFS_T        intfs;
+    TUYA_DVP_CFG_T            dvp_cfg;
 }CAMERA_DVP_DEV_T;
 
 /***********************************************************
@@ -40,16 +41,15 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E f
 
     tdd_frame = tdl_camera_create_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, fmt);
     if(NULL == tdd_frame) {
-        PR_ERR("tdl_camera_create_tdd_frame failed");
         return NULL;
     }
 
     if(sizeof(TUYA_DVP_FRAME_MANAGE_T) > sizeof(tdd_frame->rsv)) {
-        PR_ERR("rsv buf is small");
         return NULL;
     }
 
     dvp_frame = (TUYA_DVP_FRAME_MANAGE_T *)(tdd_frame->rsv);
+    memset(dvp_frame, 0x00, sizeof(TUYA_DVP_FRAME_MANAGE_T));
 
     dvp_frame->frame_fmt = fmt;
     dvp_frame->data      = tdd_frame->frame.data;
@@ -62,44 +62,57 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E f
 
 static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_frame)
 {
-    if(NULL == dvp_frame) {
+    TDD_CAMERA_FRAME_T *tdd_frame = NULL;
+
+    if(NULL == dvp_frame || NULL == dvp_frame->arg) {
         return OPRT_INVALID_PARM;
     }
+
+    tdd_frame = (TDD_CAMERA_FRAME_T *)dvp_frame->arg;
+
+    tdd_frame->frame.id          = dvp_frame->frame_id;
+    tdd_frame->frame.is_i_frame  = dvp_frame->is_i_frame;
+    tdd_frame->frame.is_complete = dvp_frame->is_frame_complete;
+    tdd_frame->frame.width       = dvp_frame->width;
+    tdd_frame->frame.height      = dvp_frame->height;
 
     return tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, (TDD_CAMERA_FRAME_T *)dvp_frame->arg);
 }
 
-static OPERATE_RET __tdd_camera_dvp_init(uint32_t clk, TDD_CAMERA_OPEN_CFG_T *cfg) 
+static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_CFG_T *cfg) 
 {
     OPERATE_RET rt = OPRT_OK;
-    TUYA_DVP_CFG_T dvp_base_cfg;
+
+    if(NULL == dev || NULL == cfg) {
+        return OPRT_INVALID_PARM;
+    }
 
     switch(cfg->out_fmt) {
         case TDL_CAMERA_FMT_YUV422:
-            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_YUV422;
+            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_YUV422;
         break;
         case TDL_CAMERA_FMT_JPEG:
-            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG;
+            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG;
         break;
         case TDL_CAMERA_FMT_H264:
-            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264;
+            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264;
         break;
         case TDL_CAMERA_FMT_JPEG_YUV422_BOTH:
-            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH;
+            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH;
         break;
         case TDL_CAMERA_FMT_H264_YUV422_BOTH:
-            dvp_base_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH;
+            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH;
         break;
         default:
             PR_ERR("unsupported frame format: %d", cfg->out_fmt);
             return OPRT_INVALID_PARM;
     }
 
-    dvp_base_cfg.width     = cfg->width;
-    dvp_base_cfg.height    = cfg->height;
-    dvp_base_cfg.fps       = cfg->fps;
+    dev->dvp_cfg.width     = cfg->width;
+    dev->dvp_cfg.height    = cfg->height;
+    dev->dvp_cfg.fps       = cfg->fps;
 
-	TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dvp_base_cfg, clk));
+	TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dev->dvp_cfg, dev->sensor.usr_cfg.clk));
 
     return OPRT_OK;
 }
@@ -135,7 +148,7 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.rst(&p_usr_cfg->rst, dvp_dev->intfs.arg));
     }
     
-    TUYA_CALL_ERR_RETURN(__tdd_camera_dvp_init(dvp_dev->sensor.clk, cfg));
+    TUYA_CALL_ERR_RETURN(__tdd_camera_dvp_init(dvp_dev, cfg));
 
     if(dvp_dev->intfs.init) {
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.init(&p_usr_cfg->i2c, dvp_dev->intfs.arg));

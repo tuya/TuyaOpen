@@ -74,6 +74,8 @@ typedef struct {
     OPERATE_RET (*close)(TDD_DISP_DEV_HANDLE_T device);
 } TDD_DISP_INTFS_T;
 
+typedef TDL_DISP_FRAME_BUFF_T *(*TDD_DISP_CONVERT_FB_CB)(TDL_DISP_FRAME_BUFF_T *frame_buff);
+
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/

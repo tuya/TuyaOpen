@@ -1,0 +1,86 @@
+menuconfig ENABLE_MICROPYTHON
+    bool "Enable MicroPython"
+    default n
+    help
+        Enable MicroPython interpreter for T5AI platform
+
+if ENABLE_MICROPYTHON
+
+config MICROPYTHON_HEAP_SIZE
+    int "MicroPython heap size (KB)"
+    default 64
+    range 32 256
+    help
+        Size of heap memory allocated for MicroPython in kilobytes
+
+config MICROPYTHON_STACK_SIZE
+    int "MicroPython stack size (KB)"
+    default 8
+    range 4 32
+    help
+        Size of stack memory for MicroPython execution in kilobytes
+
+config MICROPYTHON_ENABLE_REPL
+    bool "Enable REPL (Read-Eval-Print Loop)"
+    default y
+    help
+        Enable interactive Python shell via UART
+
+config MICROPYTHON_REPL_UART_NUM
+    int "REPL UART number"
+    default 0
+    range 0 2
+    depends on MICROPYTHON_ENABLE_REPL
+    help
+        UART port number for REPL interface
+
+config MICROPYTHON_REPL_UART_BAUDRATE
+    int "REPL UART baudrate"
+    default 115200
+    depends on MICROPYTHON_ENABLE_REPL
+    help
+        Baudrate for REPL UART interface
+
+config MICROPYTHON_ENABLE_GC
+    bool "Enable garbage collection"
+    default y
+    help
+        Enable automatic garbage collection
+
+config MICROPYTHON_ENABLE_COMPILER
+    bool "Enable compiler"
+    default y
+    help
+        Enable runtime Python code compilation
+
+config MICROPYTHON_ENABLE_FROZEN_MODULES
+    bool "Enable frozen modules"
+    default n
+    help
+        Enable pre-compiled Python modules in flash
+
+config MICROPYTHON_MODULE_MACHINE
+    bool "Enable machine module"
+    default y
+    help
+        Enable hardware control module (GPIO, UART, SPI, I2C, etc.)
+
+config MICROPYTHON_MODULE_NETWORK
+    bool "Enable network module"
+    default n
+    help
+        Enable WiFi and network support
+
+config MICROPYTHON_MODULE_TUYA
+    bool "Enable Tuya cloud module"
+    default n
+    help
+        Enable Tuya cloud service integration
+
+config MICROPYTHON_DEBUG
+    bool "Enable debug output"
+    default n
+    help
+        Enable debug messages from MicroPython core
+
+endif # ENABLE_MICROPYTHON

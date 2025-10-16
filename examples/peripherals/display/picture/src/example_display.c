@@ -10,6 +10,7 @@
 #include "tkl_output.h"
 
 #include "tdl_display_manage.h"
+#include "tdl_display_draw.h"
 #include "board_com_api.h"
 
 /***********************************************************
@@ -29,43 +30,25 @@ static TDL_DISP_HANDLE_T      sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T    sg_display_info;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
 
-
 extern const uint16_t imga_width;
 extern const uint16_t imga_height;
 extern const uint8_t imga_data[];
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static uint8_t __disp_get_bpp(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt)
-{
-    switch (pixel_fmt) {
-        case TUYA_PIXEL_FMT_RGB565:
-            return 16;
-        case TUYA_PIXEL_FMT_RGB666:
-            return 18;
-        case TUYA_PIXEL_FMT_RGB888:
-            return 24;
-        case TUYA_PIXEL_FMT_MONOCHROME:
-            return 1;
-        case TUYA_PIXEL_FMT_I2:
-            return 2; // I2 format is typically 2 bits per pixel
-        default:
-            return 0;
-    }
-}
-static TDL_DISP_FRAME_BUFF_T *__get_disp_image(const uint8_t *img, const uint32_t width, \
+static TDL_DISP_FRAME_BUFF_T *__get_disp_image(const uint16_t *img, const uint32_t width, \
                                                const uint32_t height, bool is_swap)
 {
     TDL_DISP_FRAME_BUFF_T *fb = NULL;
     uint8_t bytes_per_pixel = 0, pixels_per_byte = 0, bpp = 0;
-    uint32_t frame_len = 0, pixel_count = 0;
+    uint32_t frame_len = 0;
 
     if (img == NULL || width == 0 || height == 0) {
         return NULL;
     }
 
     /*get frame len*/
-    bpp = __disp_get_bpp(sg_display_info.fmt);
+    bpp = tdl_disp_get_fmt_bpp(sg_display_info.fmt);
     if (bpp == 0) {
         PR_ERR("Unsupported pixel format: %d", sg_display_info.fmt);
         return NULL;
@@ -84,33 +67,21 @@ static TDL_DISP_FRAME_BUFF_T *__get_disp_image(const uint8_t *img, const uint32_
         PR_ERR("create display frame buff failed");
         return NULL;
     }
+    fb->x_start = 0;
+    fb->y_start = 0;
     fb->fmt    = sg_display_info.fmt;
     fb->width  = width;
     fb->height = height;
 
-    pixel_count = width * height;
+    for (uint32_t j = 0; j < height; j++) {
+        for (uint32_t i = 0; i < width; i++) {
+            uint16_t color16 = img[j*width+i];
+            uint32_t color = 0;
 
-    for (uint32_t i = 0; i < pixel_count; i++) {
-        uint16_t color = 0;
-
-        color = img[i*2+1]<<8 | img[i*2];
-
-        if (bpp == 16) {
-            if(is_swap == true) {
-                color = ((color & 0xFF00) >> 8) | ((color & 0x00FF) << 8); // Swap bytes for RGB565
-            }
-            ((uint16_t *)fb->frame)[i] = color; // RGB565
-        } else if (bpp == 24) {
-            ((uint8_t *)fb->frame)[i * 3] = (color & 0xF800) >> 11; // R
-            ((uint8_t *)fb->frame)[i * 3 + 1] = (color & 0x07E0) >> 5; // G
-            ((uint8_t *)fb->frame)[i * 3 + 2] = color & 0x001F; // B
-        } else if (bpp == 1) {
-            ((uint8_t *)fb->frame)[i / 8] |= ((color & 0x01) << (7 - (i % 8))); // Monochrome
-        } else if (bpp == 2) {
-            ((uint8_t *)fb->frame)[i / 4] |= ((color & 0x03) << (6 - (i % 4) * 2)); // I2 format
+            color = tdl_disp_convert_rgb565_to_color(color16, fb->fmt, 0x1000);
+            tdl_disp_draw_point(fb, i, j, color, is_swap);
         }
     }
-
 
     return fb;
 }
@@ -153,9 +124,32 @@ void user_main(void)
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
 
     /*get frame buffer*/
-    sg_p_display_fb = __get_disp_image(imga_data, imga_width, imga_height, sg_display_info.is_swap);
+    sg_p_display_fb = __get_disp_image((uint16_t *)imga_data, imga_width, imga_height, sg_display_info.is_swap);
+    if(NULL == sg_p_display_fb) {
+        PR_ERR("get display image failed");
+        return;
+    }
 
-    tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
+    TDL_DISP_FRAME_BUFF_T *target_fb = NULL;
+
+    /*create rotate frame buffer*/
+    if(sg_display_info.rotation != TUYA_DISPLAY_ROTATION_0) {
+        TDL_DISP_FRAME_BUFF_T *fb_rotat = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, sg_p_display_fb->len);
+        if(NULL == fb_rotat) {
+            PR_ERR("create display frame buff failed");
+            return;
+        }
+        fb_rotat->x_start = 0;
+        fb_rotat->y_start = 0;
+        fb_rotat->fmt = sg_p_display_fb->fmt;
+
+        tdl_disp_draw_rotate(sg_display_info.rotation, sg_p_display_fb, fb_rotat, sg_display_info.is_swap);
+        target_fb = fb_rotat;
+    }else {
+        target_fb = sg_p_display_fb;
+    }
+
+    tdl_disp_dev_flush(sg_tdl_disp_hdl, target_fb);
 
     while(1) {
 

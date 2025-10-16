@@ -89,7 +89,72 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
     return tdd_disp_mcu8080_st7789_register(DISPLAY_NAME, &display_cfg);
+}
+#elif (defined(ATK_T5AI_MINI_BOARD_LCD_MD0280_8080) && (ATK_T5AI_MINI_BOARD_LCD_MD0280_8080 ==1))
+static OPERATE_RET __board_register_display(void)
+{
+    ATK_DISP_8080_7789_CFG_T display_cfg;
 
+    memset(&display_cfg, 0, sizeof(ATK_DISP_8080_7789_CFG_T));
+
+    display_cfg.width     = BOARD_LCD_WIDTH;
+    display_cfg.height    = BOARD_LCD_HEIGHT;
+    display_cfg.rotation  = BOARD_LCD_ROTATION;
+
+    display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
+    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
+    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
+
+    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
+
+    return atk_disp_8080_md0280_register(DISPLAY_NAME, &display_cfg);
+}
+#elif (defined(ATK_T5AI_MINI_BOARD_LCD_MD0700R_RGB) && (ATK_T5AI_MINI_BOARD_LCD_MD0700R_RGB ==1))
+static OPERATE_RET __board_register_display(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+    ATK_T5AI_DISP_MD0700R_CFG_T display_cfg;
+
+    memset(&display_cfg, 0, sizeof(ATK_T5AI_DISP_MD0700R_CFG_T));
+
+    display_cfg.width     = BOARD_LCD_WIDTH;
+    display_cfg.height    = BOARD_LCD_HEIGHT;
+    display_cfg.rotation  = BOARD_LCD_ROTATION;
+
+    display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
+    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
+    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
+
+    display_cfg.rst.pin          = BOARD_LCD_RST_PIN;
+    display_cfg.rst.active_level = BOARD_LCD_RST_ACTIVE_LV;
+
+    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
+
+    TUYA_CALL_ERR_RETURN(atk_t5ai_disp_rgb_md0700r_register(DISPLAY_NAME, &display_cfg));
+
+    TDD_TOUCH_GT1151_INFO_T touch_cfg = {
+        .i2c_cfg =
+            {
+                .port = BOARD_TOUCH_I2C_PORT,
+                .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
+                .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+            },
+        .tp_cfg =
+            {
+                .x_max = BOARD_LCD_WIDTH,
+                .y_max = BOARD_LCD_HEIGHT,
+                .flags =
+                    {
+                        .mirror_x = 0,
+                        .mirror_y = 0,
+                        .swap_xy = 0,
+                    },
+            },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_gt1151_register(DISPLAY_NAME, &touch_cfg));
+
+    return rt;
 }
 #else
 static OPERATE_RET __board_register_display(void)
@@ -118,9 +183,10 @@ static OPERATE_RET __board_register_camera(void)
             .clk  = BOARD_CAMERA_I2C_SCL,
             .sda  = BOARD_CAMERA_I2C_SDA,
         },
+        .clk = BOARD_CAMERA_CLK,
     };
 
-    TUYA_CALL_ERR_RETURN(tdl_camera_dvp_ov2640_register(CAMERA_NAME, &camera_cfg)); 
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_ov2640_register(CAMERA_NAME, &camera_cfg)); 
 #endif
 
     return OPRT_OK;

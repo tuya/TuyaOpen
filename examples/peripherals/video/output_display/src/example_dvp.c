@@ -16,8 +16,8 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define CAMERA_WIDTH              480
-#define CAMERA_HEIGHT             480
+#define CAMERA_WIDTH              240
+#define CAMERA_HEIGHT             240
 
 /***********************************************************
 ***********************typedef define***********************
@@ -54,6 +54,10 @@ static void __dvp_display_frame_cb(TKL_VI_DISP_FRAME_T *p_frame)
     }
 
     memcpy(target_fb->frame, p_frame->pbuf, p_frame->frame_len);
+    
+    if(sg_display_info.is_swap) {
+        tdl_disp_dev_rgb565_swap((uint16_t *)target_fb->frame, target_fb->width*target_fb->height);
+    }
 
     tdl_disp_dev_flush(sg_tdl_disp_hdl, target_fb);
 
@@ -123,7 +127,7 @@ static OPERATE_RET __example_dvp_init(void)
     ext_conf.camera.camera_type = TKL_VI_CAMERA_TYPE_DVP;
     ext_conf.camera.fmt = TKL_CODEC_VIDEO_H264;
 
-    ext_conf.camera.power_pin = TUYA_GPIO_NUM_51;
+    ext_conf.camera.power_pin = TUYA_GPIO_NUM_8;
     ext_conf.camera.active_level = TUYA_GPIO_LEVEL_HIGH;
     ext_conf.camera.i2c.clk = TUYA_GPIO_NUM_13;
     ext_conf.camera.i2c.sda = TUYA_GPIO_NUM_15;
@@ -136,6 +140,29 @@ static OPERATE_RET __example_dvp_init(void)
     vi_config.isp.fps = 15;
 
     vi_config.pdata = &ext_conf;
+
+    #include "tkl_gpio.h"
+
+    TUYA_GPIO_BASE_CFG_T in_pin_cfg = {
+        .mode = TUYA_GPIO_PUSH_PULL,
+        .direct = TUYA_GPIO_OUTPUT,
+        .level = TUYA_GPIO_LEVEL_LOW,
+    };
+    TUYA_CALL_ERR_LOG(tkl_gpio_init(TUYA_GPIO_NUM_7, &in_pin_cfg));
+
+    in_pin_cfg.level = TUYA_GPIO_LEVEL_HIGH;
+
+    TUYA_CALL_ERR_LOG(tkl_gpio_init(TUYA_GPIO_NUM_8, &in_pin_cfg));
+
+    tal_system_sleep(100);
+
+    tkl_gpio_write(TUYA_GPIO_NUM_8, TUYA_GPIO_LEVEL_LOW);
+
+    tal_system_sleep(100);
+
+    tkl_gpio_write(TUYA_GPIO_NUM_8, TUYA_GPIO_LEVEL_HIGH);
+
+    tal_system_sleep(100);
 
     vi_config.disp_cb = __dvp_display_frame_cb;
 

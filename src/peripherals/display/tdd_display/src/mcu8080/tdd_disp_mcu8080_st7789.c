@@ -83,6 +83,7 @@ OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG
     sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
+    sg_disp_mcu8080_cfg.in_fmt = dev_cfg->pixel_fmt;
     sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
     sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
     sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;
