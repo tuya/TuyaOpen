@@ -21,9 +21,9 @@
  * work.
  *
  */
-
+	
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID "aub53kai42j8fdlf"
+#define TUYA_PRODUCT_ID "c8ccmpnhz35w5va7"
 #endif
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid

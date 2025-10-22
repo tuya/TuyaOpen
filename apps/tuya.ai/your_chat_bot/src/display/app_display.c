@@ -17,6 +17,9 @@
 #include "app_display.h"
 #include "tuya_lvgl.h"
 
+// 添加番茄钟UI头文件
+#include "ui_pomodoro_clock.h"
+
 #include "font_awesome_symbols.h"
 #include "ui_display.h"
 
@@ -96,9 +99,8 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
     }
 
 #if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
-     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_TUYA_T5AI_CORE)|| defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_T5AI_OTTO) || defined(BOARD_CHOICE_DNESP32S3_BOX) || \
-     defined(BOARD_CHOICE_DNESP32S3_BOX2_WIFI)) ||                                                                     \
-    defined(BOARD_CHOICE_WAVESHARE_T5AI_TOUCH_AMOLED_1_75)
+     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_DNESP32S3_BOX) || \
+     defined(BOARD_CHOICE_DNESP32S3_BOX2_WIFI))
 #if defined(ENABLE_GUI_WECHAT)
     ui_font->text = (lv_font_t *)&font_puhui_18_2;
     ui_font->icon = (lv_font_t *)&font_awesome_16_4;
@@ -195,9 +197,6 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END: {
         ui_set_assistant_msg_stream_end();
     } break;
-    case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT: {
-        ui_set_assistant_msg_stream_interrupt();
-    } break;
 #endif
     case TY_DISPLAY_TP_SYSTEM_MSG: {
         ui_set_system_msg(msg_data->data);
@@ -231,27 +230,41 @@ static void __chat_bot_ui_task(void *args)
 {
     OPERATE_RET rt = OPRT_OK;
     DISPLAY_MSG_T msg_data = {0};
+    UI_THEME_T ui_theme = {
+        .background = lv_color_white(),
+        .text = lv_color_black(),
+        .primary = lv_color_hex(0xFF6B6B),
+        .secondary = lv_color_hex(0x4ECDC4),
+        .accent = lv_color_hex(0x45B7D1),
+        .border = lv_color_hex(0xE0E0E0)
+    };
 
     (void)args;
 
     tuya_lvgl_mutex_lock();
     // Initialize the display font
     TUYA_CALL_ERR_LOG(__get_ui_font(&sg_display.ui_font));
-    // ui initialization
-    TUYA_CALL_ERR_LOG(ui_init(&sg_display.ui_font));
+    // ui initialization - 修改为使用番茄钟UI
+    TUYA_CALL_ERR_LOG(ui_pomodoro_clock_init(&sg_display.ui_font, &ui_theme));
 #if defined(BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
     extern void lcd_sh8601_set_backlight(uint8_t brightness);
     lcd_sh8601_set_backlight(80); // set backlight to 80%
     ui_set_status_bar_pad(LV_HOR_RES * 0.1);
 #endif
     tuya_lvgl_mutex_unlock();
-    PR_DEBUG("ui init success");
+    PR_DEBUG("pomodoro clock ui init success");
 
     for (;;) {
         memset(&msg_data, 0, sizeof(DISPLAY_MSG_T));
         tal_queue_fetch(sg_display.queue_hdl, &msg_data, 0xFFFFFFFF);
 
-        __app_display_msg_handle(&msg_data);
+        // 番茄钟模式下忽略所有聊天相关的消息
+        if (msg_data.type != TY_DISPLAY_TP_NETWORK) {
+            PR_DEBUG("Ignoring display message type %d in pomodoro mode", msg_data.type);
+        } else {
+            // 只处理网络状态更新
+            __app_display_msg_handle(&msg_data);
+        }
 
         if (msg_data.data) {
             tkl_system_psram_free(msg_data.data);

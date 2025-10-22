@@ -26,8 +26,46 @@
 #define TUYA_PRODUCT_ID "p320pepzvmm1ghse"
 #endif
 
-#define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
-#define TUYA_OPENSDK_AUTHKEY "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey
+// DPID definitions for data points
+#ifndef DPID_VOLUME
+#define DPID_VOLUME           3
+#endif
+#ifndef DPID_SWITCH
+#define DPID_SWITCH           1
+#endif
+#ifndef DPID_BATTERY_PERCENTAGE
+#define DPID_BATTERY_PERCENTAGE 2
+#endif
+#ifndef DPID_TEMP_CURRENT_1
+#define DPID_TEMP_CURRENT_1   101
+#endif
+#ifndef DPID_SWITCH_SPRAY
+#define DPID_SWITCH_SPRAY     102
+#endif
+#ifndef DPID_SWITCH_3
+#define DPID_SWITCH_3         103
+#endif
+#ifndef DPID_MUSIC_DATA
+#define DPID_MUSIC_DATA       104
+#endif
+#ifndef DPID_SWITCH_LED
+#define DPID_SWITCH_LED       105
+#endif
+#ifndef DPID_SWITCH_LED_1
+#define DPID_SWITCH_LED_1     106
+#endif
+#ifndef DPID_AUTO_LIGHT
+#define DPID_AUTO_LIGHT       107
+#endif
+#ifndef DPID_ROOM_LIGHT1
+#define DPID_ROOM_LIGHT1      108
+#endif
+#ifndef DPID_SHUJIA_LIGHT1
+#define DPID_SHUJIA_LIGHT1    109
+#endif
+
+#define TUYA_OPENSDK_UUID    "uuid4230c9053a0d83ca"             // Please change the correct uuid
+#define TUYA_OPENSDK_AUTHKEY "keySDaJlwX8RxMUSRG77n3FyA73otwSXhD8" // Please change the correct authkey
 
 /**
  * @brief PINCODE for AP provisioning
@@ -38,4 +76,9 @@
  */
 // #define TUYA_NETCFG_PINCODE   "69832860"
 
+#endif
+
+// 添加番茄钟UI启用宏
+#ifndef ENABLE_GUI_POMODORO_CLOCK
+#define ENABLE_GUI_POMODORO_CLOCK 1
 #endif

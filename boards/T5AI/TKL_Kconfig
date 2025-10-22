@@ -89,14 +89,6 @@ config ENABLE_MEDIA
     bool
     default y
 
-config ENABLE_DVP
-    bool
-    default y
-    
-config ENABLE_DMA2D
-    bool
-    default y
-
 config ENABLE_RGB
     bool
     default y
@@ -156,7 +148,3 @@ config ENABLE_PLATFORM_RSA
 config ENABLE_PLATFORM_ECC
     bool
     default n
-
-config ENABLE_SMP
-    bool
-    default y

@@ -54,8 +54,6 @@ tuya_iot_client_t ai_client;
 #define PROJECT_VERSION "1.0.0"
 #endif
 
-#define DPID_VOLUME 3
-
 static uint8_t _need_reset = 0;
 
 /**
@@ -105,6 +103,73 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
             app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
 #endif
+            break;
+        }
+        // 新添加的 dp 处理逻辑
+        case DPID_SWITCH: {
+            bool switch_value = dp->value.dp_bool;
+            PR_DEBUG("switch:%d", switch_value);
+            // 这里添加开关处理逻辑
+            break;
+        }
+        case DPID_BATTERY_PERCENTAGE: {
+            uint8_t battery_value = dp->value.dp_value;
+            PR_DEBUG("battery_percentage:%d", battery_value);
+            // 这里添加电量处理逻辑
+            break;
+        }
+        case DPID_TEMP_CURRENT_1: {
+            int temp_value = dp->value.dp_value;
+            PR_DEBUG("temp_current_1:%d", temp_value);
+            // 这里添加温度处理逻辑
+            break;
+        }
+        case DPID_SWITCH_SPRAY: {
+            bool spray_value = dp->value.dp_bool;
+            PR_DEBUG("switch_spray:%d", spray_value);
+            // 这里添加喷雾开关处理逻辑
+            break;
+        }
+        case DPID_SWITCH_3: {
+            bool switch3_value = dp->value.dp_bool;
+            PR_DEBUG("switch_3:%d", switch3_value);
+            // 这里添加开关3处理逻辑
+            break;
+        }
+        case DPID_MUSIC_DATA: {
+            char *music_data = dp->value.dp_str;
+            PR_DEBUG("music_data:%s", music_data);
+            // 这里添加音乐灯处理逻辑
+            break;
+        }
+        case DPID_SWITCH_LED: {
+            bool led_value = dp->value.dp_bool;
+            PR_DEBUG("switch_led:%d", led_value);
+            // 这里添加风扇灯开关处理逻辑
+            break;
+        }
+        case DPID_SWITCH_LED_1: {
+            bool led1_value = dp->value.dp_bool;
+            PR_DEBUG("switch_led_1:%d", led1_value);
+            // 这里添加房间灯处理逻辑
+            break;
+        }
+        case DPID_AUTO_LIGHT: {
+            bool auto_light_value = dp->value.dp_bool;
+            PR_DEBUG("auto_light:%d", auto_light_value);
+            // 这里添加自动灯控处理逻辑
+            break;
+        }
+        case DPID_ROOM_LIGHT1: {
+            bool room_light_value = dp->value.dp_bool;
+            PR_DEBUG("room_light1:%d", room_light_value);
+            // 这里添加房间灯处理逻辑
+            break;
+        }
+        case DPID_SHUJIA_LIGHT1: {
+            bool shujia_light_value = dp->value.dp_bool;
+            PR_DEBUG("shujia_light1:%d", shujia_light_value);
+            // 这里添加书架灯处理逻辑
             break;
         }
         default:
@@ -275,7 +340,6 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
-    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
 

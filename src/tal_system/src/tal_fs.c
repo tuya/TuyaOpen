@@ -20,15 +20,9 @@
  *
  */
 #include "tal_fs.h"
+#include "lfs.h"
 #include "tal_api.h"
 
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-#include "tkl_fs.h"
-#else
-#include "lfs.h"
-#endif
-
-#if !(defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1))
 int __lfs_get_cfg(const char *mode)
 {
     int flag = 0;
@@ -76,7 +70,6 @@ int __lfs_get_cfg(const char *mode)
 
     return flag;
 }
-#endif
 
 /**
  * @brief Make directory
@@ -89,11 +82,7 @@ int __lfs_get_cfg(const char *mode)
  */
 int tal_fs_mkdir(const char *path)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fs_mkdir(path);
-#else
     return lfs_mkdir(tal_lfs_get(), path);
-#endif
 }
 
 /**
@@ -107,11 +96,7 @@ int tal_fs_mkdir(const char *path)
  */
 int tal_fs_remove(const char *path)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fs_remove(path);
-#else
     return lfs_remove(tal_lfs_get(), path);
-#endif
 }
 
 /**
@@ -126,11 +111,7 @@ int tal_fs_remove(const char *path)
  */
 int tal_fs_mode(const char *path, unsigned int *mode)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fs_mode(path, mode);
-#else
     return OPRT_NOT_SUPPORTED;
-#endif
 }
 
 /**
@@ -145,14 +126,10 @@ int tal_fs_mode(const char *path, unsigned int *mode)
  */
 int tal_fs_is_exist(const char *path, BOOL_T *is_exist)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fs_is_exist(path, is_exist);
-#else
     struct lfs_info info;
     int rt = lfs_stat(tal_lfs_get(), path, &info);
     *is_exist = (rt < 0) ? 0 : 1;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -167,11 +144,7 @@ int tal_fs_is_exist(const char *path, BOOL_T *is_exist)
  */
 int tal_fs_rename(const char *path_old, const char *path_new)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fs_rename(path_old, path_new);
-#else
     return lfs_rename(tal_lfs_get(), path_old, path_new);
-#endif
 }
 
 /**
@@ -186,9 +159,6 @@ int tal_fs_rename(const char *path_old, const char *path_new)
  */
 int tal_dir_open(const char *path, TUYA_DIR *dir)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_open(path, dir);
-#else
     lfs_dir_t *d = tal_malloc(sizeof(lfs_dir_t));
     if (!d)
         return OPRT_MALLOC_FAILED;
@@ -200,7 +170,6 @@ int tal_dir_open(const char *path, TUYA_DIR *dir)
 
     *dir = d;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -214,9 +183,6 @@ int tal_dir_open(const char *path, TUYA_DIR *dir)
  */
 int tal_dir_close(TUYA_DIR dir)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_close(dir);
-#else
     if (NULL == dir)
         return OPRT_OK;
 
@@ -225,7 +191,6 @@ int tal_dir_close(TUYA_DIR dir)
     dir = NULL;
 
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -243,9 +208,6 @@ int tal_dir_close(TUYA_DIR dir)
  */
 int tal_dir_read(TUYA_DIR dir, TUYA_FILEINFO *info)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_read(dir, info);
-#else
     struct lfs_info *dir_info = tal_malloc(sizeof(struct lfs_info));
     if (!dir_info)
         return OPRT_MALLOC_FAILED;
@@ -257,7 +219,6 @@ int tal_dir_read(TUYA_DIR dir, TUYA_FILEINFO *info)
 
     *info = dir_info;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -272,9 +233,6 @@ int tal_dir_read(TUYA_DIR dir, TUYA_FILEINFO *info)
  */
 int tal_dir_name(TUYA_FILEINFO info, const char **name)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_name(info, name);
-#else
     if (NULL == info) {
         return OPRT_INVALID_PARM;
     }
@@ -282,7 +240,6 @@ int tal_dir_name(TUYA_FILEINFO info, const char **name)
     struct lfs_info *dir_info = (struct lfs_info *)info;
     *name = dir_info->name;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -297,9 +254,6 @@ int tal_dir_name(TUYA_FILEINFO info, const char **name)
  */
 int tal_dir_is_directory(TUYA_FILEINFO info, BOOL_T *is_dir)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_is_directory(info, is_dir);
-#else
     if (NULL == info) {
         return OPRT_INVALID_PARM;
     }
@@ -307,7 +261,6 @@ int tal_dir_is_directory(TUYA_FILEINFO info, BOOL_T *is_dir)
     struct lfs_info *dir_info = (struct lfs_info *)info;
     *is_dir = (dir_info->type == LFS_TYPE_DIR) ? 1 : 0;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -323,9 +276,6 @@ int tal_dir_is_directory(TUYA_FILEINFO info, BOOL_T *is_dir)
 
 int tal_dir_is_regular(TUYA_FILEINFO info, BOOL_T *is_regular)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_dir_is_regular(info, is_regular);
-#else
     if (NULL == info) {
         return OPRT_INVALID_PARM;
     }
@@ -333,7 +283,6 @@ int tal_dir_is_regular(TUYA_FILEINFO info, BOOL_T *is_regular)
     struct lfs_info *dir_info = (struct lfs_info *)info;
     *is_regular = (dir_info->type == LFS_TYPE_REG) ? 1 : 0;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -348,9 +297,6 @@ int tal_dir_is_regular(TUYA_FILEINFO info, BOOL_T *is_regular)
  */
 TUYA_FILE tal_fopen(const char *path, const char *mode)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fopen(path, mode);
-#else
     lfs_file_t *f = tal_malloc(sizeof(lfs_file_t));
     if (!f)
         return NULL;
@@ -362,7 +308,6 @@ TUYA_FILE tal_fopen(const char *path, const char *mode)
     }
 
     return f;
-#endif
 }
 
 /**
@@ -376,9 +321,6 @@ TUYA_FILE tal_fopen(const char *path, const char *mode)
  */
 int tal_fclose(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fclose(file);
-#else
     if (NULL == file)
         return OPRT_OK;
 
@@ -386,7 +328,6 @@ int tal_fclose(TUYA_FILE file)
     tal_free(file);
     file = NULL;
     return OPRT_OK;
-#endif
 }
 
 /**
@@ -402,11 +343,7 @@ int tal_fclose(TUYA_FILE file)
  */
 int tal_fread(void *buf, int bytes, TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fread(buf, bytes, file);
-#else
     return lfs_file_read(tal_lfs_get(), (lfs_file_t *)file, buf, bytes);
-#endif
 }
 
 /**
@@ -422,11 +359,7 @@ int tal_fread(void *buf, int bytes, TUYA_FILE file)
  */
 int tal_fwrite(void *buf, int bytes, TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fwrite(buf, bytes, file);
-#else
     return lfs_file_write(tal_lfs_get(), (lfs_file_t *)file, buf, bytes);
-#endif
 }
 
 /**
@@ -440,11 +373,7 @@ int tal_fwrite(void *buf, int bytes, TUYA_FILE file)
  */
 int tal_fsync(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fsync(file);
-#else
     return lfs_file_sync(tal_lfs_get(), (lfs_file_t *)file);
-#endif
 }
 
 /**
@@ -460,9 +389,6 @@ int tal_fsync(TUYA_FILE file)
  */
 char *tal_fgets(char *buf, int len, TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fgets(buf, len, file);
-#else
     int i = 0;
     char c;
     while (i < len - 1) {
@@ -485,7 +411,6 @@ char *tal_fgets(char *buf, int len, TUYA_FILE file)
     }
 
     return buf;
-#endif
 }
 
 /**
@@ -499,9 +424,6 @@ char *tal_fgets(char *buf, int len, TUYA_FILE file)
  */
 int tal_feof(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_feof(file);
-#else
     char ch;
     if (0 == lfs_file_read(tal_lfs_get(), (lfs_file_t *)file, &ch, 1))
         return 1;
@@ -509,7 +431,6 @@ int tal_feof(TUYA_FILE file)
     // if not EOF, need seek back (read will change the offset)
     lfs_file_seek(tal_lfs_get(), (lfs_file_t *)file, -1, LFS_SEEK_CUR);
     return 0;
-#endif
 }
 
 /**
@@ -525,11 +446,7 @@ int tal_feof(TUYA_FILE file)
  */
 int tal_fseek(TUYA_FILE file, int64_t offs, int whence)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fseek(file, offs, whence);
-#else
     return lfs_file_seek(tal_lfs_get(), (lfs_file_t *)file, offs, whence);
-#endif
 }
 
 /**
@@ -543,11 +460,7 @@ int tal_fseek(TUYA_FILE file, int64_t offs, int whence)
  */
 int64_t tal_ftell(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_ftell(file);
-#else
     return lfs_file_tell(tal_lfs_get(), (lfs_file_t *)file);
-#endif
 }
 
 /**
@@ -561,9 +474,6 @@ int64_t tal_ftell(TUYA_FILE file)
  */
 int tal_fgetsize(const char *filepath)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fgetsize(filepath);
-#else
     struct lfs_info info;
     int err = lfs_stat(tal_lfs_get(), filepath, &info);
     if (err < 0) {
@@ -571,7 +481,6 @@ int tal_fgetsize(const char *filepath)
     }
 
     return (info.type == LFS_TYPE_REG) ? info.size : -1;
-#endif
 }
 
 /**
@@ -587,11 +496,7 @@ int tal_fgetsize(const char *filepath)
  */
 int tal_faccess(const char *filepath, int mode)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_faccess(filepath, mode);
-#else
     return -1;
-#endif
 }
 
 /**
@@ -605,14 +510,10 @@ int tal_faccess(const char *filepath, int mode)
  */
 int tal_fgetc(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fgetc(file);
-#else
     char ch;
     if (0 == lfs_file_read(tal_lfs_get(), (lfs_file_t *)file, &ch, 1))
         ch = EOF;
     return ch;
-#endif
 }
 
 /**
@@ -626,11 +527,7 @@ int tal_fgetc(TUYA_FILE file)
  */
 int tal_fflush(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fflush(file);
-#else
     return lfs_file_sync(tal_lfs_get(), (lfs_file_t *)file);
-#endif
 }
 
 /**
@@ -644,11 +541,7 @@ int tal_fflush(TUYA_FILE file)
  */
 int tal_fileno(TUYA_FILE file)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_fileno(file);
-#else
     return OPRT_NOT_SUPPORTED;
-#endif
 }
 
 /**
@@ -664,9 +557,5 @@ int tal_fileno(TUYA_FILE file)
  */
 int tal_ftruncate(int fd, uint64_t length)
 {
-#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
-    return tkl_ftruncate(fd, length);
-#else
     return OPRT_NOT_SUPPORTED;
-#endif
 }

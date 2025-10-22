@@ -20,6 +20,9 @@
 #include "tal_cli.h"
 #include "tuya_authorize.h"
 #include <assert.h>
+
+#include "relay_drv.h"
+
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
 #endif
@@ -142,6 +145,15 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             switch (dp->type) {
             case PROP_BOOL: {
                 PR_DEBUG("bool value:%d", dp->value.dp_bool);
+                /// lck add start
+                if (dp->id == 1) { // 假设DPS ID 1 控制继电器开关
+                    if (dp->value.dp_bool) {
+                        relay_on();  // 打开继电器
+                    } else {
+                        relay_off(); // 关闭继电器
+                    }
+                }
+                /// lck add end
                 break;
             }
             case PROP_VALUE: {
@@ -213,7 +225,7 @@ bool user_network_check(void)
 
 void user_main(void)
 {
-    int rt = OPRT_OK;
+    int ret = OPRT_OK;
 
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
@@ -236,6 +248,8 @@ void user_main(void)
     tal_sw_timer_init();
     tal_workq_init();
 
+    relay_drv_init(); // lck add
+
 #if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
     tal_cli_init();
     tuya_authorize_init();
@@ -252,15 +266,15 @@ void user_main(void)
     }
     // PR_DEBUG("uuid %s, authkey %s", license.uuid, license.authkey);
     /* Initialize Tuya device configuration */
-    rt = tuya_iot_init(&client, &(const tuya_iot_config_t){
-                                    .software_ver = PROJECT_VERSION,
-                                    .productkey = TUYA_PRODUCT_ID,
-                                    .uuid = license.uuid,
-                                    .authkey = license.authkey,
-                                    .event_handler = user_event_handler_on,
-                                    .network_check = user_network_check,
-                                });
-    assert(rt == OPRT_OK);
+    ret = tuya_iot_init(&client, &(const tuya_iot_config_t){
+                                     .software_ver = PROJECT_VERSION,
+                                     .productkey = TUYA_PRODUCT_ID,
+                                     .uuid = license.uuid,
+                                     .authkey = license.authkey,
+                                     .event_handler = user_event_handler_on,
+                                     .network_check = user_network_check,
+                                 });
+    assert(ret == OPRT_OK);
 
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
@@ -288,7 +302,7 @@ void user_main(void)
     tuya_iot_start(&client);
 
     reset_netconfig_check();
-
+    
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
         tuya_iot_yield(&client);

@@ -16,7 +16,7 @@
 #include "tal_log.h"
 
 #include "tdd_disp_st7789.h"
-#include "tdd_display_mcu8080.h"
+#include "tdl_display_driver.h"
 
 /***********************************************************
 ***********************const define**********************
@@ -24,7 +24,7 @@
 const uint32_t cST7789_INIT_SEQ[] = {
     1,    100,  ST7789_SWRESET,                                 // Software reset
     1,    50,   ST7789_SLPOUT,                                  // Exit sleep mode
-    2,    10,   ST7789_COLMOD,    0x05,                         // Set colour mode to 16 bit
+    2,    10,   ST7789_COLMOD,    0x55,                         // Set colour mode to 16 bit
     2,    0,    ST7789_VCMOFSET,  0x1a,                         // VCOM
     6,    0,    ST7789_PORCTRL,   0x0c, 0x0c, 0x00, 0x33, 0x33, // Porch Setting
     1,    0,    ST7789_INVOFF, 
@@ -50,7 +50,7 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
     .cmd_caset = ST7789_CASET,
     .cmd_raset = ST7789_RASET,
     .cmd_ramwr = ST7789_RAMWR,
-    .cmd_ramwrc = ST7789_RAMWRC,
+    .cmd_ramwr = ST7789_RAMWRC,
     .init_seq = cST7789_INIT_SEQ,
 };
 
@@ -83,14 +83,12 @@ OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG
     sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
-    sg_disp_mcu8080_cfg.in_fmt = dev_cfg->pixel_fmt;
     sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
     sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
     sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;
-    sg_disp_mcu8080_cfg.is_swap = false;
 
     memcpy(&sg_disp_mcu8080_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_mcu8080_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
 
-    return tdd_disp_mcu8080_device_register(name, &sg_disp_mcu8080_cfg);
+    return tdl_disp_mcu8080_device_register(name, &sg_disp_mcu8080_cfg);
 }

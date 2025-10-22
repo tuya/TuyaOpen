@@ -11,7 +11,8 @@ config BOARD_CONFIG
     default y
     select ENABLE_AUDIO_CODECS
     select ENABLE_AUDIO_AEC
-
+    select ENABLE_LED
+    select ENABLE_BUTTON
 
 choice T5AI_MINI_EX_MODULE
     prompt "choose expansion module for T5AI_MINI"
@@ -23,9 +24,5 @@ choice T5AI_MINI_EX_MODULE
     config T5AI_MINI_EX_MODULE_13565LCD
         bool "1.54 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
-        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
-    config T5AI_MINI_EX_MODULE_ST7735S_XLT
-        bool "ST7735S XLT 160x80 spi LCD"
-        select ENABLE_DISPLAY
-	select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+        select LVGL_COLOR_16_SWAP if(ENABLE_LIBLVGL)
 endchoice

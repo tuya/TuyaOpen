@@ -1,16 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Check if already in virtual environment by checking if current Python is in .venv
-for /f %%i in ('where python 2^>nul') do set CURRENT_PYTHON=%%i
-if defined CURRENT_PYTHON (
-    echo !CURRENT_PYTHON! | findstr /C:".venv" >nul
-    if not errorlevel 1 (
-        echo Virtual environment is already activated.
-        exit /b 0
-    )
-)
-
 set OPEN_SDK_ROOT=%~dp0
 set OPEN_SDK_ROOT=%OPEN_SDK_ROOT:~0,-1%
 
@@ -83,9 +73,6 @@ if not exist "%OPEN_SDK_ROOT%\.venv\Scripts\pip.exe" (
     exit /b 1
 )
 
-:: Copy python.exe to python3.exe for compatibility
-if not exist "%OPEN_SDK_ROOT%\.venv\Scripts\python3.exe" copy "%OPEN_SDK_ROOT%\.venv\Scripts\python.exe" "%OPEN_SDK_ROOT%\.venv\Scripts\python3.exe"
-
 :: activate (set PATH to use virtual environment)
 echo DEBUG: Activating virtual environment from %OPEN_SDK_ROOT%\.venv\Scripts
 set PATH=%OPEN_SDK_ROOT%\.venv\Scripts;%PATH%
@@ -102,7 +89,6 @@ set OPEN_SDK_PYTHON=%OPEN_SDK_ROOT%\.venv\Scripts\python.exe
 set OPEN_SDK_PIP=%OPEN_SDK_ROOT%\.venv\Scripts\pip.exe
 set PATH=%PATH%;%OPEN_SDK_ROOT%
 DOSKEY tos.py=%OPEN_SDK_PYTHON% %OPEN_SDK_ROOT%\tos.py $*
-DOSKEY exit=echo Exiting TuyaOpen environment... $T set OPEN_SDK_PYTHON= $T set OPEN_SDK_PIP= $T set OPEN_SDK_ROOT= $T echo TuyaOpen environment deactivated. $T exit
 
 :: install dependencies
 echo Installing dependencies...
@@ -113,17 +99,11 @@ if errorlevel 1 (
 
 :: remove cache files
 set CACHE_PATH=%OPEN_SDK_ROOT%\.cache
-mkdir %CACHE_PATH% 2>nul
+mkdir /p %CACHE_PATH%
 if exist "%CACHE_PATH%\.env.json" del /F /Q "%CACHE_PATH%\.env.json"
 if exist "%CACHE_PATH%\.dont_prompt_update_platform" del /F /Q "%CACHE_PATH%\.dont_prompt_update_platform"
 
-:: hello tuya
 echo ****************************************
-echo  ______                 ____
-echo /_  __/_ ____ _____ _  / __ \___  ___ ___
-echo  / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
-echo /_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
-echo          /___/            /_/
 echo Exit use: exit
 echo ****************************************
 

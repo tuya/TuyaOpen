@@ -1,6 +1,48 @@
 ## 涂鸦云应用
 [English](README.md) | 简体中文
 
+lck:
+NFO]: Saving log to: monitor.log
+[09-07 20:28:49 ty D][netmgr.c:390] netmgr conn auto get 1
+[09-07 20:28:52 ty D][netmgr.c:390] netmgr conn auto get 1
+[09-07 20:28:52 ty D][tuya_lan.c:683] Process Data. FD:4, Num:12106, Type:13, Len:70
+[09-07 20:28:52 ty D][tuya_lan.c:702] JSON string:{"data":{"dps":{"1":true}},"protocol":5,"t":1757248131}
+[09-07 20:28:52 ty D][tuya_lan.c:720] Rev TP CMD. Send to User,Lan Ver 3.5
+[09-07 20:28:52 ty W][tuya_iot_dp.c:182] devid is null
+[09-07 20:28:52 ty D][tuya_main.c:95] Tuya Event ID:8(TUYA_EVENT_DP_RECEIVE_OBJ)
+[09-07 20:28:52 ty I][tuya_main.c:96] Device Free heap 146248
+[09-07 20:28:52 ty D][tuya_main.c:133] SOC Rev DP Cmd t1:0 t2:0 CNT:1
+[09-07 20:28:52 ty D][tuya_main.c:135] devid.6c67d9414dc7b0e718avy5
+[09-07 20:28:52 ty D][tuya_main.c:141] idx:0 dpid:1 type:0 ts:1757248132
+[09-07 20:28:52 ty D][tuya_main.c:144] bool value:1
+[09-07 20:28:52 ty D][tuya_iot_dp.c:239] dp report: devid 6c67d9414dc7b0e718avy5, dps 0x608124cc, dpscnt 1, flags 0
+[09-07 20:28:52 ty D][dp_schema.c:526] dp<1> check. need_update:1 pv_stat:1 trig_t:0 type:0 force_send:0 prop_tp:0
+[09-07 20:28:52 ty D][dp_schema.c:533] dp<1> bool: 0, new: 1
+[09-07 20:28:52 ty D][dp_schema.c:940] dp rept out: {"1":true}
+[09-07 20:28:52 ty D][tuya_iot_dp.c:300] lan channel report
+[09-07 20:28:52 ty D][tuya_lan.c:658] Prepare To Send Lan:3.5, msg_len:51, out_len:103
+[09-07 20:28:53 ty D][tuya_health.c:75] feed watchdog
+[09-07 20:28:53 ty D][tuya_lan.c:683] Process Data. FD:4, Num:12107, Type:13, Len:71
+[09-07 20:28:53 ty D][tuya_lan.c:702] JSON string:{"data":{"dps":{"1":false}},"protocol":5,"t":1757248133}
+[09-07 20:28:53 ty D][tuya_lan.c:720] Rev TP CMD. Send to User,Lan Ver 3.5
+[09-07 20:28:53 ty W][tuya_iot_dp.c:182] devid is null
+[09-07 20:28:53 ty D][tuya_main.c:95] Tuya Event ID:8(TUYA_EVENT_DP_RECEIVE_OBJ)
+[09-07 20:28:53 ty I][tuya_main.c:96] Device Free heap 146248
+[09-07 20:28:53 ty D][tuya_main.c:133] SOC Rev DP Cmd t1:0 t2:0 CNT:1
+[09-07 20:28:53 ty D][tuya_main.c:135] devid.6c67d9414dc7b0e718avy5
+[09-07 20:28:53 ty D][tuya_main.c:141] idx:0 dpid:1 type:0 ts:1757248133
+[09-07 20:28:53 ty D][tuya_main.c:144] bool value:0
+[09-07 20:28:53 ty D][tuya_iot_dp.c:239] dp report: devid 6c67d9414dc7b0e718avy5, dps 0x608124cc, dpscnt 1, flags 0
+[09-07 20:28:53 ty D][dp_schema.c:526] dp<1> check. need_update:1 pv_stat:1 trig_t:0 type:0 force_send:0 prop_tp:0
+[09-07 20:28:53 ty D][dp_schema.c:533] dp<1> bool: 1, new: 0
+[09-07 20:28:53 ty D][dp_schema.c:940] dp rept out: {"1":false}
+[09-07 20:28:53 ty D][tuya_iot_dp.c:300] lan channel report
+[09-07 20:28:53 ty D][tuya_lan.c:658] Prepare To Send Lan:3.5, msg_len:52, out_len:104
+[09-07 20:28:55 ty D][netmgr.c:390] netmgr conn auto get 1
+[09-07 20:29:02 ty D][mqtt_client_wrapper.c:72] MQTT_PACKET_TYPE_PUBACK id:6
+[09-07 20:29:02 ty D][mqtt_service.c:338] PUBACK ID:6
+
+
 涂鸦云应用是涂鸦 AI+IoT 平台提供的一种应用，通过涂鸦云应用，开发者可以快速实现设备远程控制、设备管理等功能。
 
 `switch_demo` 演示一个简单的，跨平台、跨系统、支持多种连接的开关示例，通过涂鸦 APP、涂鸦云服务，可以对这个开关进行远程控制。

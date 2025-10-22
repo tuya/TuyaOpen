@@ -51,10 +51,9 @@ OPERATE_RET tdd_pixel_pwm_open(PIXEL_PWM_CFG_T *p_drv)
     memset((uint8_t *)&pwm_cfg, 0x00, SIZEOF(pwm_cfg));
 
     pwm_cfg.frequency = p_drv->pwm_freq;
-    
-    /*��������ƽ̨��֧�ּ������ã��������ߵ���Ч���߼������� tdd �����д���*/
-    pwm_cfg.polarity  = TUYA_PWM_POSITIVE;
-    pwm_cfg.duty      = (FALSE == p_drv->active_level) ? PIXEL_PWM_DUTY_MAX : 0;
+
+    pwm_cfg.polarity = TUYA_PWM_POSITIVE;
+    pwm_cfg.duty = (FALSE == p_drv->active_level) ? PIXEL_PWM_DUTY_MAX : 0;
 
     for (i = 0; i < PIXEL_PWM_NUM_MAX; i++) {
         if (PIXEL_PWM_ID_INVALID == p_drv->pwm_ch_arr[i]) {
@@ -77,18 +76,26 @@ OPERATE_RET tdd_pixel_pwm_close(PIXEL_PWM_CFG_T *p_drv)
     OPERATE_RET rt = OPRT_OK;
     uint32_t i = 0;
 
-    if(NULL == p_drv) {
+    if (NULL == p_drv) {
         return OPRT_INVALID_PARM;
     }
 
     for (i = 0; i < PIXEL_PWM_NUM_MAX; i++) {
-        if(PIXEL_PWM_ID_INVALID == p_drv->pwm_ch_arr[i]) {
+        if (PIXEL_PWM_ID_INVALID == p_drv->pwm_ch_arr[i]) {
             continue;
         }
-        if(PIXEL_PWM_CH_IDX_COLD == i || PIXEL_PWM_CH_IDX_WARM == i){
+
+        if (PIXEL_PWM_CH_IDX_COLD == i && PIXEL_PWM_ID_INVALID != p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_WARM] &&
+            TRUE == p_drv->active_level) {
+            ;
+        } else if (PIXEL_PWM_CH_IDX_WARM == i && PIXEL_PWM_ID_INVALID != p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_COLD] &&
+                   TRUE == p_drv->active_level) {
+            TUYA_CALL_ERR_RETURN(tkl_pwm_multichannel_stop(&p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_COLD], 2));
+        } else {
             TUYA_CALL_ERR_RETURN(tkl_pwm_stop(p_drv->pwm_ch_arr[i]));
-            TUYA_CALL_ERR_RETURN(tkl_pwm_deinit(p_drv->pwm_ch_arr[i]));
         }
+
+        TUYA_CALL_ERR_RETURN(tkl_pwm_deinit(p_drv->pwm_ch_arr[i]));
     }
 
     return OPRT_OK;
@@ -104,24 +111,26 @@ OPERATE_RET tdd_pixel_pwm_close(PIXEL_PWM_CFG_T *p_drv)
  */
 OPERATE_RET tdd_pixel_pwm_output(PIXEL_PWM_CFG_T *p_drv, LIGHT_RGBCW_U *p_rgbcw)
 {
-    uint16_t i = 0, pwm_duty = 0;
+    USHORT_T pwm_duty = 0, i = 0;
 
     for (i = 0; i < PIXEL_PWM_NUM_MAX; i++) {
-        if(PIXEL_PWM_ID_INVALID == p_drv->pwm_ch_arr[i]) {
+        if (PIXEL_PWM_ID_INVALID == p_drv->pwm_ch_arr[i]) {
             continue;
         }
-        if(PIXEL_PWM_CH_IDX_COLD == i || PIXEL_PWM_CH_IDX_WARM == i){
 
-            pwm_duty = (TRUE == p_drv->active_level) ? p_rgbcw->array[i + 3] :\
-                                                    (PIXEL_PWM_DUTY_MAX - p_rgbcw->array[i + 3]);
-            
-            tkl_pwm_duty_set(p_drv->pwm_ch_arr[i], pwm_duty);
+        pwm_duty = (TRUE == p_drv->active_level) ? p_rgbcw->array[i + 3] : (PIXEL_PWM_DUTY_MAX - p_rgbcw->array[i + 3]);
+
+        tkl_pwm_duty_set(p_drv->pwm_ch_arr[i], pwm_duty);
+
+        if (PIXEL_PWM_CH_IDX_COLD == i && PIXEL_PWM_ID_INVALID != p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_WARM] &&
+            TRUE == p_drv->active_level) {
+            ;
+        } else if (PIXEL_PWM_CH_IDX_WARM == i && PIXEL_PWM_ID_INVALID != p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_COLD] &&
+                   TRUE == p_drv->active_level) {
+            tkl_pwm_multichannel_start(&p_drv->pwm_ch_arr[PIXEL_PWM_CH_IDX_COLD], 2);
+        } else {
             tkl_pwm_start(p_drv->pwm_ch_arr[i]);
-            if(TRUE == p_drv->active_level && p_rgbcw->array[i + 3] == 0){
-                tkl_pwm_stop(p_drv->pwm_ch_arr[i]);//��ʱ���t5ƽ̨pwm setduty0�޷�ֹͣ������� 
-            }
         }
-
     }
 
     return OPRT_OK;

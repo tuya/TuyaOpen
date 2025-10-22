@@ -117,8 +117,6 @@ def set_global_params():
     GLOBAL_PARAMS["app_bin_path"] = os.path.join(
         build_path, "bin")
 
-    GLOBAL_PARAMS["dist_root"] = os.path.join(app_root, "dist")
-
     cache_path = os.path.join(build_path, "cache")
     GLOBAL_PARAMS["app_cache_path"] = cache_path
     GLOBAL_PARAMS["catalog_kconfig"] = os.path.join(
@@ -201,8 +199,7 @@ def list_menu(tittle: str, contexts: List[str]) -> (str, int):
     pass
 
 
-# "China" or other
-COUNTRY_CODE = os.environ.get('OPEN_COUNTRY_CODE', "")
+COUNTRY_CODE = ""  # "China" or other
 
 
 def set_country_code():

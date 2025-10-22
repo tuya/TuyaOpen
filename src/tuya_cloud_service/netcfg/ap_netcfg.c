@@ -268,25 +268,10 @@ static int ap_setup_tls_serv(ap_netcfg_t *ap)
         ret = fd;
         goto __exit;
     }
-
     ret = tal_net_set_reuse(fd);
+    ret |= tal_net_bind(fd, ap->serv_ip, ap->is_psk_pincode ? AP_TLS_PSK_PINCODE_PORT : AP_TLS_PSK_PORT);
+    ret |= tal_net_listen(fd, 1);
     if (OPRT_OK != ret) {
-        PR_ERR("ap set reuse fail:%d", tal_net_get_errno());
-        ret = OPRT_SOCK_ERR;
-        goto __exit;
-    }
-
-    int bind_port = ap->is_psk_pincode ? AP_TLS_PSK_PINCODE_PORT : AP_TLS_PSK_PORT;
-    PR_DEBUG("ap try bind port:%d", bind_port);
-    ret = tal_net_bind(fd, ap->serv_ip, bind_port);
-    if (OPRT_OK != ret) {
-        PR_ERR("ap bind fail:%d", tal_net_get_errno());
-        ret = OPRT_SOCK_ERR;
-        goto __exit;
-    }
-    ret = tal_net_listen(fd, 1);
-    if (OPRT_OK != ret) {
-        PR_ERR("ap listen fail:%d", tal_net_get_errno());
         ret = OPRT_SOCK_ERR;
         goto __exit;
     }
@@ -875,9 +860,6 @@ static int ap_netcfg_stop(int type)
     TUYA_CALL_ERR_LOG(tal_wifi_set_work_mode(WWM_STATION));
     ap_netcfg_t *ap = ap_netcfg_get();
     if (ap) {
-        if (ap->broadcast_timer) {
-            tal_sw_timer_stop(ap->broadcast_timer);
-        }
         ap->thread_exit_flag = TRUE;
     }
 

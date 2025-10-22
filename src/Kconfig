@@ -8,6 +8,4 @@ menu "configure tuyaopen"
     rsource "tal_system/Kconfig"
     rsource "liblvgl/Kconfig"
     rsource "peripherals/Kconfig"
-    rsource "tuya_p2p/Kconfig"
-    rsource "micropython/Kconfig"
 endmenu

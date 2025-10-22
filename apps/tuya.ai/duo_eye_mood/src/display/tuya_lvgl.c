@@ -44,7 +44,7 @@ OPERATE_RET tuya_lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
 
-    lv_vendor_start(5, 1024*8);
+    lv_vendor_start();
 
     return OPRT_OK;
 }

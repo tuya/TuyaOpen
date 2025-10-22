@@ -12,23 +12,20 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-# Add otto source files explicitly
-aux_source_directory(${APP_PATH}/src/otto OTTO_SRCS)
-list(APPEND APP_SRCS ${OTTO_SRCS})
-
-list(APPEND media_srcs "${APP_PATH}/src/media")
-
-list(APPEND APP_SRCS ${media_srcs})
+file(GLOB_RECURSE ai_audio_srcs "${APP_PATH}/src/ai_audio/*.c")
+file(GLOB_RECURSE media_srcs "${APP_PATH}/src/ai_audio/media/*.c")
+list(APPEND APP_SRCS ${ai_audio_srcs} ${media_srcs})
 
 set(APP_INC 
             ${APP_PATH}/assets
             ${APP_PATH}/include
-            ${APP_PATH}/include/media
-            ${APP_PATH}/src/otto
+            ${APP_PATH}/include/ai_audio
+            ${APP_PATH}/include/ai_audio/media
 )
 
 list(APPEND APP_INC "${APP_PATH}/assets")
 
+list(APPEND APP_INC "${APP_PATH}/src/minimp3")
 ########################################
 # Target Configure
 ########################################

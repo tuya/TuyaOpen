@@ -33,7 +33,7 @@ static MUTEX_HANDLE mutex_hdl = NULL;
 
 static void __gpio_irq_callback(void *args)
 {
-    (void)args; // Suppress unused parameter warning
+    uint8_t pin_id = (uint8_t)args;
 
     tal_semaphore_post(example_sem_hdl);
 }
@@ -163,9 +163,9 @@ uint8_t encoder_get_pressed(void)
  * and setting up the encoder input interrupt configuration. If the waiting thread has not been
  * created yet, it will start the thread to handle semaphore waiting.
  *
- * @return OPERATE_RET
+ * @return None
  */
-OPERATE_RET tkl_encoder_init(void)
+void tkl_encoder_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -205,6 +205,4 @@ OPERATE_RET tkl_encoder_init(void)
 
     /*irq enable*/
     TUYA_CALL_ERR_LOG(tkl_gpio_irq_enable(DECODER_INPUT_A));
-
-    return OPRT_OK;
 }

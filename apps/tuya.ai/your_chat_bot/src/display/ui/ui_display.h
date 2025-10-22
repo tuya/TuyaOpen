@@ -47,6 +47,15 @@ typedef struct {
     UI_EMOJI_LIST_T *emoji_list;
 } UI_FONT_T;
 
+typedef struct {
+    lv_color_t background;
+    lv_color_t text;
+    lv_color_t primary;
+    lv_color_t secondary;
+    lv_color_t accent;
+    lv_color_t border;
+} UI_THEME_T;
+
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
@@ -77,8 +86,6 @@ void ui_set_assistant_msg_stream_start(void);
 void ui_set_assistant_msg_stream_data(const char *text);
 
 void ui_set_assistant_msg_stream_end(void);
-
-void ui_set_assistant_msg_stream_interrupt(void);
 #endif
 
 #ifdef __cplusplus

@@ -4,7 +4,7 @@
 This project is a demo of the LVGL library, which is a lightweight graphics library for embedded systems. It provides a simple and efficient way to create graphical user interfaces (GUIs) for embedded systems. The library is designed to be easy to use and efficient, making it ideal for use in resource-constrained environments.
 
 ## Supported Platforms and Interfaces
-- [x] T3: SPI
+- [] T3: SPI
 - [x] T5AI: RGB/8080/SPI
 - [ ] ESP32
 

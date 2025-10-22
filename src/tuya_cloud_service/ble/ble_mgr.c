@@ -953,11 +953,6 @@ static void tal_ble_event_callback(void *data)
     default:
         break;
     }
-
-    if (data) {
-        tal_free(data);
-        data = NULL;
-    }
 }
 
 /**

@@ -1,86 +1,40 @@
-menuconfig ENABLE_LIBLVGL
-    bool "configure enable/disable liblvgl"
+config ENABLE_LIBLVGL
+    bool "configure lvgl"
     select ENABLE_DISPLAY if (!ENABLE_PLATFORM_LVGL)
     default n
 
-    if (ENABLE_LIBLVGL)
-        choice LIBLVGL_VERSION
-            prompt "the version of the lvgl lib"
-            default LVGL_VERSION_9
+if (ENABLE_LIBLVGL)
+    config LVGL_ENABLE_TOUCH
+        bool "enable lvgl touch"
+        select ENABLE_TOUCH if (!ENABLE_PLATFORM_LVGL)
+        default n
 
-            config LVGL_VERSION_8
-                bool "LVGL 8"
-            config LVGL_VERSION_9
-                bool "LVGL 9"
+    if (!ENABLE_PLATFORM_LVGL)
+        config ENABLE_LVGL_DEMO
+            bool "enable lvgl demo"
+            default n
+
+        config LVGL_ENABLE_ENCODER
+            bool "enable lvgl encoder"
+            select ENABLE_ENCODER
+            default n
+
+        config LVGL_COLOR_16_SWAP
+            bool "swap color bytes"
+            default n
+
+        choice
+            prompt "the proportion of the draw buffer size"
+
+            config LV_DRAW_BUF_PROPORTION_10
+                bool "10% of the display size"
+            config LV_DRAW_BUF_PROPORTION_5
+                bool "5% of the display size"
         endchoice
 
-        if(LVGL_VERSION_8)
-            choice LIBLVGL_V8_COLOR_DEPTH
-                prompt "the color depth of the lvgl v8"
-                default LVGL_V8_COLOR_DEPTH_16
-
-                config LVGL_V8_COLOR_DEPTH_16
-                    bool "16-bit color"
-                config LVGL_V8_COLOR_DEPTH_24
-                    bool "24-bit color"
-            endchoice
-
-            config ENABLE_LVGL_V8_RGB565_SWAP
-                bool "enable lvgl v8 rgb565 swap"
-                depends on LVGL_V8_COLOR_DEPTH_16
-                default n
-        endif
-
-        config ENABLE_LVGL_OS_FREERTOS
-            bool "enable lvgl os freertos"
-            depends on LVGL_VERSION_9
-            default n
-
-        config LVGL_ENABLE_TOUCH
-            bool "enable lvgl touch"
-            select ENABLE_TOUCH if (!ENABLE_PLATFORM_LVGL)
-            default n
-
-        if (!ENABLE_PLATFORM_LVGL)
-
-            config ENABLE_LVGL_DEMO
-                bool "enable lvgl demo"
-                default n
-
-            config ENABLE_LVGL_MONITOR
-                bool "enable lvgl monitor"
-                default n
-
-            config ENABLE_LVGL_ENCODER
-                bool "enable lvgl encoder"
-                select ENABLE_ENCODER
-                default n
-
-            config ENABLE_LVGL_LODEPNG
-                bool "enable lvgl LODEPNG decoder library"
-                default n
-
-            config ENABLE_LVGL_DUAL_DISP_BUFF
-                bool "enable lvgl dual display buffer"
-                default n
-
-            config ENABLE_LVGL_DMA2D
-                bool "enable lvgl DMA2D"
-                depends on ENABLE_DMA2D
-                default n 
-
-            choice
-                prompt "the proportion of the draw buffer size"
-
-                config LV_DRAW_BUF_PROPORTION_10
-                    bool "10% of the display size"
-                config LV_DRAW_BUF_PROPORTION_5
-                    bool "5% of the display size"
-            endchoice
-
-            config LV_DRAW_BUF_PARTS
-                int
-                default 10 if LV_DRAW_BUF_PROPORTION_10
-                default 20 if LV_DRAW_BUF_PROPORTION_5
-        endif
+        config LV_DRAW_BUF_PARTS
+            int
+            default 10 if LV_DRAW_BUF_PROPORTION_10
+            default 20 if LV_DRAW_BUF_PROPORTION_5
     endif
+endif

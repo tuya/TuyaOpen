@@ -1,6 +1,5 @@
 /**
  * @file app_display.c
- * @author Tuya Inc.
  * @brief Handle display initialization and message processing
  *
  * This source file provides the implementation for initializing the display system,
@@ -76,8 +75,8 @@ static UI_EMOJI_LIST_T sg_awesome_emo_list[] = {
 };
 #endif
 
-static __attribute__((unused)) UI_EMOJI_LIST_T sg_emo_list[EMO_ICON_MAX_NUM] = {
-    {"NEUTRAL", "😶"},  {"SAD", "😔"},      {"ANGRY", "😠"}, {"SURPRISE", "😯"},
+static UI_EMOJI_LIST_T sg_emo_list[] = {
+    {"NEUTRAL", "😶"},  {"SAD", "😔"},         {"ANGRY", "😠"},    {"SURPRISE", "😯"},
     {"CONFUSED", "😏"}, {"THINKING", "🤔"}, {"HAPPY", "🙂"},
 };
 
@@ -96,9 +95,7 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
     }
 
 #if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
-     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_T5AI_OTTO) || defined(BOARD_CHOICE_DNESP32S3_BOX) || \
-     defined(BOARD_CHOICE_DNESP32S3_BOX2_WIFI)) ||                                                                     \
-    defined(BOARD_CHOICE_WAVESHARE_T5AI_TOUCH_AMOLED_1_75)
+     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_DNESP32S3_BOX))
 #if defined(ENABLE_GUI_WECHAT)
     ui_font->text = (lv_font_t *)&font_puhui_18_2;
     ui_font->icon = (lv_font_t *)&font_awesome_16_4;
@@ -194,9 +191,6 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     } break;
     case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END: {
         ui_set_assistant_msg_stream_end();
-    } break;
-    case TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT: {
-        ui_set_assistant_msg_stream_interrupt();
     } break;
 #endif
     case TY_DISPLAY_TP_SYSTEM_MSG: {

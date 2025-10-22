@@ -65,8 +65,6 @@ typedef struct {
 
 static netmgr_t s_netmgr = {0};
 
-static TIMER_ID sg_lan_init_timer = NULL;
-
 /**
  * @brief get active connection status and
  *
@@ -99,24 +97,6 @@ static netmgr_type_e __get_active_conn()
     }
 
     return active_type;
-}
-
-void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
-{
-    if (s_netmgr.status != NETMGR_LINK_UP) {
-        return;
-    }
-
-    netmgr_type_e type = (netmgr_type_e)s_netmgr.type;
-    tuya_iot_client_t *client = tuya_iot_client_get();
-
-    if ((type & NETCONN_WIRED || type & NETCONN_WIFI) && client->is_activated) {
-        PR_DEBUG("Start LAN initialization");
-        tuya_lan_init(client);
-        tal_sw_timer_stop(sg_lan_init_timer);
-    }
-
-    return;
 }
 
 static netmgr_conn_base_t *__get_conn_by_type(netmgr_type_e type)
@@ -201,8 +181,6 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
                      active_status);
             s_netmgr.status = active_status;
             s_netmgr.active = active_conn;
-            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
-            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
             tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
         } else if (active_status != s_netmgr.status) {
@@ -216,8 +194,6 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
                      NETMGR_TYPE_TO_STR(active_conn));
             s_netmgr.active = active_conn;
-            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
-            tal_network_card_set_active(p_conn->card_type);
             tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
         }
     }
@@ -309,8 +285,6 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    TUYA_CALL_ERR_RETURN(tal_network_card_init());
-
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&s_netmgr.lock));
     s_netmgr.status = NETMGR_LINK_DOWN;
     s_netmgr.type = type;
@@ -340,11 +314,9 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 
     s_netmgr.inited = TRUE;
 
-    // Cellular not support LAN
-#if !defined(ENABLE_CELLULAR) || (ENABLE_CELLULAR == 0)
-    tal_sw_timer_create(__tuya_lan_init_tm_cb, NULL, &sg_lan_init_timer);
-    tal_sw_timer_start(sg_lan_init_timer, 500, TAL_TIMER_CYCLE);
-#endif
+    if (type & NETCONN_WIFI || type & NETCONN_WIRED) {
+        tuya_lan_init(tuya_iot_client_get());
+    }
 
 #ifdef ENABLE_BLUETOOTH
     tuya_ble_init(&(tuya_ble_cfg_t){.client = tuya_iot_client_get(), .device_name = "TYBLE"});
@@ -414,6 +386,8 @@ OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
     if (!s_netmgr.inited) {
         return OPRT_RESOURCE_NOT_READY;
     }
+
+    PR_DEBUG("netmgr conn %s get %d", NETMGR_TYPE_TO_STR(type), cmd);
 
     if (NETCONN_AUTO == type) {
         // get the active connection
