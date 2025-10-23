@@ -35,6 +35,8 @@ typedef enum {
     PET_EVENT_SEE_DOCTOR,
     PET_EVENT_SLEEP,
     PET_EVENT_WAKE_UP,
+    PET_EVENT_WIFI_SCAN,
+    PET_EVENT_I2C_SCAN,
     PET_STAT_RANDOMIZE,
     PET_EVENT_MAX
 } pet_event_type_t;
