@@ -581,8 +581,8 @@ static void level_indicator_create_controls(void)
     lv_label_set_text(g_level_data.angle_y_label, "Y: 0.0°");
 
     // Create sensor status label at the very bottom of screen
-    lv_obj_t *status_label = lv_label_create(g_level_data.screen); // 改为直接创建在screen上
-    lv_obj_align(status_label, LV_ALIGN_BOTTOM_MID, 0, -2); // Y偏移为-2，距离屏幕底部2像素
+    lv_obj_t *status_label = lv_label_create(g_level_data.screen); 
+    lv_obj_align(status_label, LV_ALIGN_BOTTOM_MID, 0, -2); 
     lv_obj_set_style_text_font(status_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(status_label, lv_color_make(100, 100, 100), 0);
 
