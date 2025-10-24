@@ -15,7 +15,7 @@ extern "C" {
  *********************/
 #include "../lvgl/lvgl.h"
 
-
+// #define LVGL_SIMULATOR 1
 #include "status_bar.h"
 #include "toast.h"
 /*********************
@@ -29,12 +29,12 @@ extern "C" {
 #endif
 
 // LVGL key codes
-#define KEY_UP    17 
-#define KEY_LEFT  20 
-#define KEY_DOWN  18 
-#define KEY_RIGHT 19 
-#define KEY_ENTER 10 
-#define KEY_ESC   27 
+#define KEY_UP    17
+#define KEY_LEFT  20
+#define KEY_DOWN  18
+#define KEY_RIGHT 19
+#define KEY_ENTER 10
+#define KEY_ESC   27
 #define KEY_AI    105
 
 /**********************
@@ -67,7 +67,8 @@ typedef enum {
     AI_PET_MENU_FOOD,
     AI_PET_MENU_BATH,
     AI_PET_MENU_HEALTH,
-    AI_PET_MENU_SLEEP
+    AI_PET_MENU_SLEEP,
+    AI_PET_MENU_SCAN,
 } ai_pet_menu_t;
 
 typedef struct {

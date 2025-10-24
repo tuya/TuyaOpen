@@ -7,9 +7,14 @@
  *      INCLUDES
  *********************/
 #include "menu_system.h"
+#include "dino_game.h"
+#include "snake_game.h"
+#include "level_indicator.h"
+#include "peripherals_scan.h"
 #include <stdio.h>
 #include <string.h>
-
+#include <stdlib.h>
+#include <time.h>
 /*********************
  *      DEFINES
  *********************/
@@ -22,16 +27,22 @@
 #define SEPARATOR_HEIGHT 2
 
 // UI Constants
-#define MENU_BUTTON_COUNT 6
+#define MENU_BUTTON_COUNT 7
 #define MENU_BUTTON_SIZE 24
 #define MENU_BUTTON_SPACING 30
-#define MENU_BUTTON_START_X (AI_PET_SCREEN_WIDTH - 225)
+#define MENU_BUTTON_START_X (AI_PET_SCREEN_WIDTH - 195)
 
 // Pet stats constants
 #define MAX_STAT_VALUE 100
 #define MIN_WEIGHT_KG 1.0f
 #define MAX_WEIGHT_KG 5.0f
 #define WEIGHT_INCREMENT 0.1f
+
+// Dino game tuning constants
+#define DINO_JUMP_VY   12  /* positive = upward velocity magnitude */
+#define DINO_GRAVITY    1  /* per-tick gravity (subtracts from vy) */
+// Horizontal velocity applied when jumping (pixels per tick)
+#define DINO_HORZ_VX    0
 
 /**********************
  *      TYPEDEFS
@@ -64,6 +75,7 @@ static void show_bath_menu(menu_system_data_t *data);
 static void show_health_menu(menu_system_data_t *data);
 static void show_sleep_menu(menu_system_data_t *data);
 static void show_video_menu(menu_system_data_t *data);
+static void show_scan_menu(menu_system_data_t *data);
 static void show_keyboard_for_pet_name(menu_system_data_t *data);
 static void update_button_selection(uint8_t old_selection, uint8_t new_selection);
 static void update_sub_menu_selection(uint8_t old_selection, uint8_t new_selection);
@@ -75,6 +87,9 @@ static void create_stat_display_item(lv_obj_t *parent, const char *label, const 
 static void highlight_first_sub_menu_item(menu_system_data_t *data);
 // static void create_sub_menu_with_items(menu_system_data_t *data, const char *title, const char *symbols[], const char *items[], uint8_t item_count);
 static uint32_t find_action_items_start(void);
+// static void menu_game_stop_and_cleanup(void);
+// static void menu_game_timer_cb(lv_timer_t *tmr);
+// static void menu_game_event_cb(lv_event_t *e);
 
 // Forward declaration for functions from main app
 extern void lv_demo_ai_pocket_pet_show_toast(const char *message, uint32_t delay_ms);
@@ -83,6 +98,7 @@ extern lv_obj_t* lv_demo_ai_pocket_pet_get_main_screen(void);
 /**********************
  *  EXTERNAL VARIABLES
  **********************/
+// LV_IMG_DECLARE(scan_icon);
 LV_IMG_DECLARE(info_icon);
 LV_IMG_DECLARE(eat_icon);
 LV_IMG_DECLARE(sick_icon);
@@ -90,6 +106,9 @@ LV_IMG_DECLARE(sleep_icon);
 LV_IMG_DECLARE(toilet_icon);
 LV_IMG_DECLARE(camera_icon);
 LV_IMG_DECLARE(family_star);
+LV_IMG_DECLARE(scan_icon);
+LV_IMG_DECLARE(ducky_game);
+LV_IMG_DECLARE(ducky_walk);
 /**********************
  *  STATIC VARIABLES
  **********************/
@@ -117,7 +136,8 @@ lv_obj_t* menu_system_create_bottom_menu(lv_obj_t *parent)
         &toilet_icon,
         &sick_icon,
         &sleep_icon,
-        &camera_icon
+        &camera_icon,
+        &scan_icon
     };
 
     for(int i = 0; i < MENU_BUTTON_COUNT; i++) {
@@ -191,6 +211,7 @@ lv_obj_t* menu_system_create_sub_menu(lv_obj_t *parent)
 void menu_system_handle_main_navigation(uint32_t key)
 {
     menu_system_data_t *data = &g_menu_system_data;
+
     uint8_t old_selection = data->selected_button;
     uint8_t new_selection = old_selection;
 
@@ -219,6 +240,7 @@ void menu_system_handle_main_navigation(uint32_t key)
 void menu_system_handle_sub_navigation(uint32_t key)
 {
     menu_system_data_t *data = &g_menu_system_data;
+
     uint32_t child_count = lv_obj_get_child_cnt(data->sub_menu_list);
     if(child_count == 0) return;
 
@@ -267,6 +289,9 @@ void menu_system_handle_main_selection(void)
             break;
         case 5: // Video
             show_video_menu(data);
+            break;
+        case 6: // Scan (includes games)
+            show_scan_menu(data);
             break;
     }
 }
@@ -389,6 +414,43 @@ void menu_system_handle_sub_selection(void)
                     data->pet_event_callback(PET_EVENT_WAKE_UP, data->pet_event_user_data);
                 }
                 return_to_main_menu = 1;
+                break;
+        }
+    } else if(data->current_menu == AI_PET_MENU_SCAN) {
+        // Handle scan menu selection (not implemented)
+
+        switch(data->sub_menu_selection) {
+            case 0:
+                // lv_demo_ai_pocket_pet_show_toast("WiFi Scan: Not implemented", 1000);
+                wifi_scan_show();
+                if (data->pet_event_callback) {
+                    // data->pet_event_callback(PET_EVENT_WIFI_SCAN, data->pet_event_user_data);
+                }
+                // return_to_main_menu = 1;
+                break;
+            case 1: {
+                // lv_demo_ai_pocket_pet_show_toast("I2C Scan: Not implemented", 1000);
+                i2c_scan_show(0);
+                if (data->pet_event_callback) {
+                    // data->pet_event_callback(PET_EVENT_I2C_SCAN, data->pet_event_user_data);
+                }
+                // return_to_main_menu = 1;
+                break;
+            }
+            case 2:
+                dino_game_show();
+                if (data->pet_event_callback) {
+                    // data->pet_event_callback(PET_EVENT_BLE_SCAN, data->pet_event_user_data);
+                }
+                // return_to_main_menu = 1;
+                break;
+            case 3:
+                snake_game_show();
+                // return_to_main_menu = 1;
+                break;
+            case 4:
+                level_indicator_show();
+                // return_to_main_menu = 1;
                 break;
         }
     }
@@ -827,7 +889,7 @@ static void show_food_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-            // Add food menu items
+    // Add food menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Feed Hamburger");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Drink Water");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Feed Pizza");
@@ -852,7 +914,7 @@ static void show_bath_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add toilet/bath menu items
+    // Add toilet/bath menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Toilet");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Take Bath");
 
@@ -871,7 +933,7 @@ static void show_health_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add health menu items
+    // Add health menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "See Doctor");
 
     highlight_first_sub_menu_item(data);
@@ -889,7 +951,7 @@ static void show_sleep_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add sleep menu items
+    // Add sleep menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Sleep");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Wake Up");
 
@@ -901,4 +963,28 @@ static void show_video_menu(menu_system_data_t *data)
     (void)data;
     lv_demo_ai_pocket_pet_show_toast("Video AI: Coming Soon...", 2000);
     // TODO: Add video stream for multimodal feature
+}
+
+static void show_scan_menu(menu_system_data_t *data)
+{
+    (void)data;
+    // lv_demo_ai_pocket_pet_show_toast("Scan: Not implemented", 1000);
+    data->current_menu = AI_PET_MENU_SCAN;
+    lv_obj_clear_flag(data->sub_menu, LV_OBJ_FLAG_HIDDEN);
+
+    // Update title
+    lv_obj_t *title = lv_obj_get_child(data->sub_menu, 0);
+    lv_label_set_text(title, "Device Scan");
+
+    // Clear existing items
+    lv_obj_clean(data->sub_menu_list);
+
+    // Add demo items
+    lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_WIFI, "WIFI scan demo");
+    lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_SETTINGS, "I2C device scan demo");
+    lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_PLAY, "Dino Game");
+    lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
+    lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
+
+    highlight_first_sub_menu_item(data);
 }

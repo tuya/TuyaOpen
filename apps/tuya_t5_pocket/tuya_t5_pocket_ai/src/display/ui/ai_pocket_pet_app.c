@@ -9,20 +9,25 @@
 /*********************
  *      INCLUDES
  *********************/
-#include "tal_api.h"
 
 #include "ai_pocket_pet_app.h"
 #include "status_bar.h"
 #include "pet_area.h"
 #include "menu_system.h"
 #include "keyboard.h"
+#include "peripherals_scan.h"
 #include "toast.h"
 #include "startup_screen.h"
+#include "dino_game.h"
+#include "level_indicator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
+#ifndef LVGL_SIMULATOR
+#include "tal_api.h"
+#include "lv_port_indev.h"
+#endif
 /*********************
  *      DEFINES
  *********************/
@@ -47,7 +52,9 @@ typedef struct {
  **********************/
 static void init_app_data(void);
 static void create_main_screen(void);
-// static void keyboard_event_cb(lv_event_t *e);
+#if LVGL_SIMULATOR
+static void keyboard_event_cb(lv_event_t *e);
+#endif
 static void handle_main_menu_navigation(uint32_t key);
 static void handle_sub_menu_navigation(uint32_t key);
 static void handle_menu_selection(void);
@@ -100,7 +107,7 @@ void lv_demo_ai_pocket_pet(void)
     pet_area_start_animation();
 
     // Test network status icons - demonstrate different states
-    PR_DEBUG("Initializing network status icons...\n");
+    printf("Initializing network status icons...\n");
 
     // Set initial WiFi to 3 bars and cellular to 2 bars with connection
     lv_demo_ai_pocket_pet_set_wifi_strength(3);
@@ -112,18 +119,70 @@ void lv_demo_ai_pocket_pet(void)
 
 void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
 {
-    // Check if keyboard widget is active - if so, route input to keyboard
-    if (keyboard_is_active()) {
+    printf("=== Input Handler: Key %d pressed ===\n", key);
+
+    // If a modal input UI (keyboard / scan) is active prefer routing to it first
+    bool keyboard_active = keyboard_is_active();
+    printf("keyboard_is_active(): %d\n", keyboard_active);
+    if (keyboard_active) {
         keyboard_handle_input(key);
         return;
     }
 
-    PR_DEBUG("Key pressed: %d (UP:%d LEFT:%d DOWN:%d RIGHT:%d ENTER:%d ESC:%d I:%d)\n",
+    // Route to scan UI if active (scan behaves like keyboard widget)
+    bool i2c_active = i2c_scan_is_active();
+    printf("i2c_scan_is_active(): %d\n", i2c_active);
+    if (i2c_active) {
+        i2c_scan_handle_input(key);
+        return;
+    }
+
+    // Route to wifi scan UI if active
+    bool wifi_active = wifi_scan_is_active();
+    printf("wifi_scan_is_active(): %d\n", wifi_active);
+    if (wifi_active) {
+        wifi_scan_handle_input(key);
+        return;
+    }
+
+    // Route to level indicator if active
+    bool level_active = level_indicator_is_active();
+    printf("level_indicator_is_active(): %d\n", level_active);
+    if (level_active) {
+        printf("Routing key %d to level_indicator\n", key);
+        level_indicator_key_input(key);
+        return;
+    }
+
+    // Check if games are active and route input accordingly
+    extern int dino_game_is_active(void);
+    extern int snake_game_is_active(void);
+    extern void dino_game_key_input(int key);
+    extern void snake_game_key_input(int key);
+
+    int dino_active = dino_game_is_active();
+    int snake_active = snake_game_is_active();
+    
+    printf("dino_game_is_active(): %d, snake_game_is_active(): %d\n", dino_active, snake_active);
+    
+    if (dino_active) {
+        printf("Routing key %d to dino_game\n", key);
+        dino_game_key_input(key);
+        return;  // Don't process menu input when game is active
+    }
+    
+    if (snake_active) {
+        printf("Routing key %d to snake_game\n", key);
+        snake_game_key_input(key);
+        return;  // Don't process menu input when game is active
+    }
+
+    printf("Key pressed: %d (UP:%d LEFT:%d DOWN:%d RIGHT:%d ENTER:%d ESC:%d I:%d)\n",
            key, KEY_UP, KEY_LEFT, KEY_DOWN, KEY_RIGHT, KEY_ENTER, KEY_ESC, KEY_AI);
 
     switch(key) {
         case KEY_UP:
-            PR_DEBUG("UP key pressed - navigating up\n");
+            printf("UP key pressed - navigating up\n");
             if(menu_system_get_current_menu() == AI_PET_MENU_MAIN) {
                 handle_main_menu_navigation(key);
             } else {
@@ -132,7 +191,7 @@ void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
             break;
 
         case KEY_DOWN:
-            PR_DEBUG("DOWN key pressed - navigating down\n");
+            printf("DOWN key pressed - navigating down\n");
             if(menu_system_get_current_menu() == AI_PET_MENU_MAIN) {
                 handle_main_menu_navigation(key);
             } else {
@@ -141,12 +200,12 @@ void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
             break;
 
         case KEY_LEFT:
-            PR_DEBUG("LEFT/A key pressed - navigating left\n");
+            printf("LEFT/A key pressed - navigating left\n");
             handle_main_menu_navigation(key);
             break;
 
         case KEY_RIGHT:
-            PR_DEBUG("RIGHT/D key pressed - navigating right\n");
+            printf("RIGHT/D key pressed - navigating right\n");
             handle_main_menu_navigation(key);
             break;
 
@@ -166,55 +225,55 @@ void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
 
         /***********************test*************************/
         case KEY_AI:
-            PR_DEBUG("I key pressed - AI function invoked\n");
+            printf("I key pressed - AI function invoked\n");
             handle_ai_function();
             break;
 
         // Battery icon testing keys only
         case 97: // 'a' key - Battery 0 (empty)
-            PR_DEBUG("A key pressed - Setting battery to empty\n");
+            printf("A key pressed - Setting battery to empty\n");
             lv_demo_ai_pocket_pet_set_battery_status(0, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: Empty", 1000);
             break;
 
         case 115: // 's' key - Battery 1
-            PR_DEBUG("S key pressed - Setting battery to 1 bar\n");
+            printf("S key pressed - Setting battery to 1 bar\n");
             lv_demo_ai_pocket_pet_set_battery_status(1, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: 1 bar", 1000);
             break;
 
         case 100: // 'd' key - Battery 2
-            PR_DEBUG("D key pressed - Setting battery to 2 bars\n");
+            printf("D key pressed - Setting battery to 2 bars\n");
             lv_demo_ai_pocket_pet_set_battery_status(2, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: 2 bars", 1000);
             break;
 
         case 102: // 'f' key - Battery 3
-            PR_DEBUG("F key pressed - Setting battery to 3 bars\n");
+            printf("F key pressed - Setting battery to 3 bars\n");
             lv_demo_ai_pocket_pet_set_battery_status(3, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: 3 bars", 1000);
             break;
 
         case 103: // 'g' key - Battery 4
-            PR_DEBUG("G key pressed - Setting battery to 4 bars\n");
+            printf("G key pressed - Setting battery to 4 bars\n");
             lv_demo_ai_pocket_pet_set_battery_status(4, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: 4 bars", 1000);
             break;
 
         case 104: // 'h' key - Battery 5 (5 bars)
-            PR_DEBUG("H key pressed - Setting battery to 5 bars\n");
+            printf("H key pressed - Setting battery to 5 bars\n");
             lv_demo_ai_pocket_pet_set_battery_status(5, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: 5 bars", 1000);
             break;
 
         case 106: // 'j' key - Battery 6 (full)
-            PR_DEBUG("J key pressed - Setting battery to full\n");
+            printf("J key pressed - Setting battery to full\n");
             lv_demo_ai_pocket_pet_set_battery_status(6, false);
             lv_demo_ai_pocket_pet_show_toast("Battery: Full", 1000);
             break;
 
         case 99: // 'c' key - Battery charging
-            PR_DEBUG("C key pressed - Setting battery to charging\n");
+            printf("C key pressed - Setting battery to charging\n");
             lv_demo_ai_pocket_pet_set_battery_status(3, true);
             lv_demo_ai_pocket_pet_show_toast("Battery: Charging", 1000);
             break;
@@ -281,9 +340,9 @@ void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
             break;
 
         default:
-            PR_DEBUG("Unhandled key: %d\n", key);
+            printf("Unhandled key: %d\n", key);
             if(key > 0) {
-                PR_DEBUG("Key press detected but not handled: %d\n", key);
+                printf("Key press detected but not handled: %d\n", key);
             }
             break;
     }
@@ -293,7 +352,7 @@ void lv_demo_ai_pocket_pet_handle_input(uint32_t key)
 
 void lv_demo_ai_pocket_pet_show_toast(const char *message, uint32_t delay_ms)
 {
-    PR_DEBUG("Showing toast: '%s' for %d ms\n", message, delay_ms);
+    printf("Showing toast: '%s' for %d ms\n", message, delay_ms);
     toast_show(message, delay_ms);
 }
 
@@ -358,7 +417,6 @@ static void init_app_data(void)
 {
     memset(&g_app_data, 0, sizeof(ai_pet_app_t));
 }
-#include "lv_port_indev.h"
 
 /**
  * Creates and configures the main screen
@@ -370,10 +428,11 @@ static void create_main_screen(void)
     lv_obj_set_style_bg_color(g_app_data.screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(g_app_data.screen, LV_OPA_COVER, 0);
     // Note: We don't load this screen immediately - it will be loaded by the timer
- 
-    // // Add keyboard event handler to the screen
-    // lv_obj_add_event_cb(g_app_data.screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
 
+    // // Add keyboard event handler to the screen
+#if LVGL_SIMULATOR
+    lv_obj_add_event_cb(g_app_data.screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
+#endif
     // Make sure the screen can receive keyboard focus
     lv_group_add_obj(lv_group_get_default(), g_app_data.screen);
 
@@ -390,16 +449,17 @@ static void create_main_screen(void)
 /**
  * Keyboard event handler
  */
-// static void keyboard_event_cb(lv_event_t *e)
-// {
-//     lv_event_code_t code = lv_event_get_code(e);  // 获取事件类型
-//     PR_DEBUG("Keyboard event received: code=%d\n", code);
+#if LVGL_SIMULATOR
+static void keyboard_event_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);  // Get event code
+    printf("Keyboard event received: code=%d\n", code);
 
-//     uint32_t key = lv_event_get_key(e);
-//     PR_DEBUG("Keyboard event received: key=%d\n", key);
-//     lv_demo_ai_pocket_pet_handle_input(key);
-// }
-
+    uint32_t key = lv_event_get_key(e);
+    printf("Keyboard event received: key=%d\n", key);
+    lv_demo_ai_pocket_pet_handle_input(key);
+}
+#endif
 /**
  * Handles main menu navigation (up/down/left/right)
  */
