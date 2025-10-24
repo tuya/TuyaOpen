@@ -452,7 +452,7 @@ static void create_main_screen(void)
 #if LVGL_SIMULATOR
 static void keyboard_event_cb(lv_event_t *e)
 {
-    lv_event_code_t code = lv_event_get_code(e);  // 获取事件类型
+    lv_event_code_t code = lv_event_get_code(e);  // Get event code
     printf("Keyboard event received: code=%d\n", code);
 
     uint32_t key = lv_event_get_key(e);

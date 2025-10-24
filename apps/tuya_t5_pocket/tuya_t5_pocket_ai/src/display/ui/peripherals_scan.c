@@ -153,7 +153,7 @@ void i2c_scan_handle_input(uint32_t key)
             // Switch to previous PORT
             if (current_port_index > 0) {
                 current_port_index--;
-                // 更新PORT信息显示
+                // update PORT info display
                 lv_obj_t *info_bar = lv_obj_get_child(widget->scan_screen, 2); // get info_bar object
                 if (info_bar) {
                     char port_text[32];
@@ -181,7 +181,7 @@ void i2c_scan_handle_input(uint32_t key)
             // Switch to next PORT
             if (current_port_index < (sizeof(port_info) / sizeof(port_info[0]) - 1)) {
                 current_port_index++;
-                // 更新PORT信息显示
+                // Update PORT info display
                 lv_obj_t *info_bar = lv_obj_get_child(widget->scan_screen, 2); // get info_bar object
                 if (info_bar) {
                     char port_text[32];
@@ -222,33 +222,33 @@ void i2c_scan_show(uint8_t i2c_port)
 #endif
     scan_widget_t *widget = &g_scan_widget;
 
-    // 设置当前PORT索引为传入的端口号
+    // Set current PORT index to the input port number
     current_port_index = i2c_port;
     uint8_t dev_num = 0;
 
-    // 如果已经存在，先清理
+    // If already exists, clean up first
     if (widget->is_active) {
         i2c_scan_hidden();
     }
 
-    // 创建新的扫描屏幕
+    // Create new scan screen
     widget->scan_screen = lv_obj_create(NULL);
     lv_obj_set_size(widget->scan_screen, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(widget->scan_screen, lv_color_white(), 0);
 
-    // 创建标题
+    // Create title
     lv_obj_t *title = lv_label_create(widget->scan_screen);
     lv_label_set_text(title, "I2C Device Scan Results");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 5);
     lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
-    // 创建PORT信息行（放在标题下方）
-    // 左侧图标
+    // Create PORT info row (placed below the title)
+    // Left icon
     lv_obj_t *left_icon = lv_img_create(widget->scan_screen);
     lv_img_set_src(left_icon, &peripherals_scan_left_icon);
     lv_obj_align(left_icon, LV_ALIGN_TOP_MID, -85, 25);
-    lv_img_set_zoom(left_icon, 200); // 缩小到约78%的大小 (256是原始大小，200/256≈0.78)
+    lv_img_set_zoom(left_icon, 200); // Scale to about 78% of original size (256 is original size, 200/256≈0.78)
 
     lv_obj_t *info_bar = lv_label_create(widget->scan_screen);
     char port_text[32];
@@ -263,36 +263,36 @@ void i2c_scan_show(uint8_t i2c_port)
     printf("[Scan] Displaying PORT %d: SCL=%d, SDA=%d", current_port_index,
            port_info[current_port_index].scl, port_info[current_port_index].sda);
 
-    // 右侧图标
+    // Right icon
     lv_obj_t *right_icon = lv_img_create(widget->scan_screen);
     lv_img_set_src(right_icon, &peripherals_scan_right_icon);
     lv_obj_align(right_icon, LV_ALIGN_TOP_MID, 85, 25);
-    lv_img_set_zoom(right_icon, 200); // 缩小到约78%的大小 (256是原始大小，200/256≈0.78)
+    lv_img_set_zoom(right_icon, 200); // Scale to about 78% of original size (256 is original size, 200/256≈0.78)
 
-    // 创建矩阵显示I2C地址
+    // Create matrix to display I2C addresses
     lv_obj_t *matrix_container = lv_obj_create(widget->scan_screen);
-    widget->dev_list = matrix_container; // 保存引用以供滚动使用
-    lv_obj_set_size(matrix_container, AI_PET_SCREEN_WIDTH - 20, AI_PET_SCREEN_HEIGHT - 50); // 矩阵大小
-    lv_obj_align(matrix_container, LV_ALIGN_CENTER, 0, 20); // 向下移动更多一点
+    widget->dev_list = matrix_container; // Save reference for scrolling
+    lv_obj_set_size(matrix_container, AI_PET_SCREEN_WIDTH - 20, AI_PET_SCREEN_HEIGHT - 50); // Matrix size
+    lv_obj_align(matrix_container, LV_ALIGN_CENTER, 0, 20); // Move down a bit more
     lv_obj_set_style_border_color(matrix_container, lv_color_black(), 0);
     lv_obj_set_style_border_width(matrix_container, 2, 0);
     lv_obj_set_flex_flow(matrix_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_gap(matrix_container, 2, 0);
-    lv_obj_clear_flag(matrix_container, LV_OBJ_FLAG_SCROLLABLE); // 禁用容器滚动
+    lv_obj_clear_flag(matrix_container, LV_OBJ_FLAG_SCROLLABLE); // Disable container scrolling
 
-    // 创建标题行 (显示0 1 2 3 4 5 6 7 8 9 A B C D E F)
+    // Create header row (display 0 1 2 3 4 5 6 7 8 9 A B C D E F)
     lv_obj_t *header_row = lv_obj_create(matrix_container);
     lv_obj_set_size(header_row, LV_PCT(100), 20);
     lv_obj_set_flex_flow(header_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_gap(header_row, 1, 0);
     lv_obj_set_style_pad_all(header_row, 2, 0);
 
-    // 添加空位给左上角
+    // Add empty space for top-left corner
     lv_obj_t *empty_label = lv_label_create(header_row);
     lv_label_set_text(empty_label, "");
     lv_obj_set_width(empty_label, 30);
 
-    // 添加十六进制列标题
+    // Add hexadecimal column headers
     for (int col = 0; col < 16; col++) {
         lv_obj_t *label = lv_label_create(header_row);
         char hex_char[2];
@@ -305,41 +305,41 @@ void i2c_scan_show(uint8_t i2c_port)
         lv_label_set_text(label, hex_char);
         lv_obj_set_width(label, 16);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_10, 0);  // 使用较小字体
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_10, 0);  // Use smaller font
     }
 
-    // 创建可滚动的内容容器
+    // Create scrollable content container
     lv_obj_t *content_container = lv_obj_create(matrix_container);
-    lv_obj_set_size(content_container, LV_PCT(100), AI_PET_SCREEN_HEIGHT - 100); // 增加20像素高度
+    lv_obj_set_size(content_container, LV_PCT(100), AI_PET_SCREEN_HEIGHT - 100); // Increase height by 20 pixels
     lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(content_container, 0, 0);
     lv_obj_set_style_border_width(content_container, 0, 0);
-    lv_obj_set_scroll_dir(content_container, LV_DIR_VER); // 只允许垂直滚动
+    lv_obj_set_scroll_dir(content_container, LV_DIR_VER); // Only allow vertical scrolling
     lv_obj_set_style_pad_gap(content_container, 0, 0);
 
-    // 创建128个地址的矩阵 (0x00 - 0x7F)
+    // Create matrix of 128 addresses (0x00 - 0x7F)
     for (int row = 0; row < 8; row++) {
         lv_obj_t *row_container = lv_obj_create(content_container);
-        lv_obj_set_size(row_container, LV_PCT(100), 16);  // 减小行高
+        lv_obj_set_size(row_container, LV_PCT(100), 16);  // Reduce row height
         lv_obj_set_flex_flow(row_container, LV_FLEX_FLOW_ROW);
         lv_obj_set_style_pad_gap(row_container, 1, 0);
-        lv_obj_set_style_pad_all(row_container, 1, 0);  // 减小内边距
+        lv_obj_set_style_pad_all(row_container, 1, 0);  // Reduce padding
 
-        // 添加行标题 (0x 1x 2x ... 7x)
+        // Add row header (0x 1x 2x ... 7x)
         lv_obj_t *row_label = lv_label_create(row_container);
         char row_text[4];
         snprintf(row_text, sizeof(row_text), "%Xx", row);
         lv_label_set_text(row_label, row_text);
-        lv_obj_set_width(row_label, 30);  // 增加宽度与空列标题对齐
-        lv_obj_set_style_text_font(row_label, &lv_font_montserrat_10, 0);  // 使用较小字体
-        lv_obj_set_style_text_align(row_label, LV_TEXT_ALIGN_CENTER, 0); // 文本居中对齐
+        lv_obj_set_width(row_label, 30);  // Increase width to align with empty column header
+        lv_obj_set_style_text_font(row_label, &lv_font_montserrat_10, 0);  // Use smaller font
+        lv_obj_set_style_text_align(row_label, LV_TEXT_ALIGN_CENTER, 0); // Center align text
 
-        // 添加该行的16个地址单元格
+        // Add 16 address cells for this row
         for (int col = 0; col < 16; col++) {
             uint8_t addr = (row << 4) | col;
             lv_obj_t *cell = lv_label_create(row_container);
 #if LVGL_SIMULATOR
-            // 对于有效I2C地址范围显示地址
+            // For valid I2C address range, display address
             if (addr <= 0x7F) {
                 char addr_text[5];
                 snprintf(addr_text, sizeof(addr_text), "%02X", addr);
@@ -348,12 +348,12 @@ void i2c_scan_show(uint8_t i2c_port)
                 lv_label_set_text(cell, "--");
             }
 
-            lv_obj_set_width(cell, 16);  // 与列标题宽度一致
+            lv_obj_set_width(cell, 16);  // Consistent with column header width
             lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_radius(cell, 3, 0);
             lv_obj_set_style_bg_color(cell, lv_color_hex(0xf0f0f0), 0);
             lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
-            lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // 使用较小字体
+            lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // Use smaller font
 #else
             uint8_t i2c_addr = addr;
 
@@ -374,32 +374,32 @@ void i2c_scan_show(uint8_t i2c_port)
                     lv_label_set_text(cell, "");
                 }
 
-                lv_obj_set_width(cell, 16);  // 与列标题宽度一致
+                lv_obj_set_width(cell, 16);  // Consistent with column header width
                 lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
                 lv_obj_set_style_radius(cell, 3, 0);
                 lv_obj_set_style_bg_color(cell, lv_color_white(), 0);
                 lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
-                lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // 使用较小字体
+                lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // Use smaller font
             }
             else
             {
                 lv_label_set_text(cell, "");
-                lv_obj_set_width(cell, 16);  // 与列标题宽度一致
+                lv_obj_set_width(cell, 16);  // Consistent with column header width
                 lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
                 lv_obj_set_style_radius(cell, 3, 0);
                 lv_obj_set_style_bg_color(cell, lv_color_white(), 0);
                 lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
-                lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // 使用较小字体
+                lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);  // Use smaller font
             }
 #endif
         }
     }
 
-    // 设置屏幕属性
+    // Set screen properties
     lv_obj_clear_flag(widget->scan_screen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(widget->scan_screen, LV_OBJ_FLAG_CLICKABLE);
 
-    // 加载屏幕
+    // Load screen
     lv_screen_load(widget->scan_screen);
     widget->is_active = true;
 

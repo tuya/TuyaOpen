@@ -212,14 +212,6 @@ void menu_system_handle_main_navigation(uint32_t key)
 {
     menu_system_data_t *data = &g_menu_system_data;
 
-    // 如果游戏正在运行，将按键传递给游戏处理
-    // 移除了对g_game_screen的引用，改为检查当前菜单状态
-    // if (data->current_menu == AI_PET_MENU_SCAN &&
-    //     lv_obj_has_flag(data->sub_menu, LV_OBJ_FLAG_HIDDEN) == false) {
-    //     dino_game_key_input(key);
-    //     return;
-    // }
-
     uint8_t old_selection = data->selected_button;
     uint8_t new_selection = old_selection;
 
@@ -248,13 +240,6 @@ void menu_system_handle_main_navigation(uint32_t key)
 void menu_system_handle_sub_navigation(uint32_t key)
 {
     menu_system_data_t *data = &g_menu_system_data;
-
-    // 如果当前在游戏菜单中，将按键传递给游戏处理
-    // if (data->current_menu == AI_PET_MENU_SCAN &&
-    //     lv_obj_has_flag(data->sub_menu, LV_OBJ_FLAG_HIDDEN) == false) {
-    //     dino_game_key_input(key);
-    //     return;
-    // }
 
     uint32_t child_count = lv_obj_get_child_cnt(data->sub_menu_list);
     if(child_count == 0) return;
@@ -904,7 +889,7 @@ static void show_food_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-            // Add food menu items
+    // Add food menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Feed Hamburger");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Drink Water");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Feed Pizza");
@@ -929,7 +914,7 @@ static void show_bath_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add toilet/bath menu items
+    // Add toilet/bath menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Toilet");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Take Bath");
 
@@ -948,7 +933,7 @@ static void show_health_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add health menu items
+    // Add health menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "See Doctor");
 
     highlight_first_sub_menu_item(data);
@@ -966,7 +951,7 @@ static void show_sleep_menu(menu_system_data_t *data)
     // Clear existing items
     lv_obj_clean(data->sub_menu_list);
 
-        // Add sleep menu items
+    // Add sleep menu items
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Sleep");
     lv_list_add_btn(data->sub_menu_list, LV_SYMBOL_DUMMY, "Wake Up");
 

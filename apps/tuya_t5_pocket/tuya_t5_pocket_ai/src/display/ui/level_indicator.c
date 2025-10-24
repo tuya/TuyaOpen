@@ -107,25 +107,17 @@ static level_indicator_data_t g_level_data = {0};
 
 void level_indicator_show(void)
 {
-    printf("level_indicator_show() called\n");
 
     if (g_level_data.is_active) {
         printf("level_indicator_show: already active, returning\n");
         return;  // Already active
     }
 
-    printf("level_indicator_show: initializing...\n");
-
-    // CRITICAL: Force cleanup of other UI components that might intercept input
-    printf("level_indicator_show: Force cleanup of other UI components\n");
-
     // Check and cleanup keyboard if active
     if (keyboard_is_active()) {
         printf("level_indicator_show: keyboard was active, cleaning up\n");
         keyboard_cleanup();
     }
-
-    printf("level_indicator_show: Cleanup complete, proceeding with initialization\n");
 
     // Reset state
     memset(&g_level_data, 0, sizeof(level_indicator_data_t));
@@ -179,10 +171,6 @@ void level_indicator_show(void)
 
     // Initial update
     level_indicator_update_ui();
-
-    printf("level_indicator_show() completed, is_active=%d\n", g_level_data.is_active);
-    printf("level_indicator_show() completed, timer=%p\n", g_level_data.update_timer);
-    printf("level_indicator_show() completed, screen=%p\n", g_level_data.screen);
 }
 
 void level_indicator_hide(void)
@@ -192,8 +180,6 @@ void level_indicator_hide(void)
         return;
     }
 
-    printf("level_indicator_hide: starting cleanup\n");
-
     // Get main screen before cleanup
     lv_obj_t *main_screen = lv_demo_ai_pocket_pet_get_main_screen();
     if (!main_screen) {
@@ -202,7 +188,6 @@ void level_indicator_hide(void)
     }
 
     // Load main screen first, before cleanup
-    printf("level_indicator_hide: loading main screen\n");
     lv_screen_load(main_screen);
 
     // Now it's safe to cleanup
@@ -213,20 +198,14 @@ void level_indicator_hide(void)
     if (group) {
         lv_group_focus_obj(main_screen);
     }
-
-    printf("level_indicator_hide: completed successfully\n");
 }
 
 void level_indicator_key_input(int key)
 {
-    printf("level_indicator_key_input called with key=%d, is_active=%d\n", key, g_level_data.is_active);
-
     if (!g_level_data.is_active) {
         printf("level_indicator: not active, returning\n");
         return;
     }
-
-    printf("level_indicator: processing key %d\n", key);
 
     // Handle exit dialog first
     if (g_level_data.show_exit_dialog) {
@@ -420,8 +399,6 @@ float level_indicator_get_threshold(void)
 
 static void level_indicator_cleanup(void)
 {
-    printf("level_indicator_cleanup() called\n");
-
     // Stop timer
     if (g_level_data.update_timer) {
         lv_timer_del(g_level_data.update_timer);
@@ -441,7 +418,6 @@ static void level_indicator_cleanup(void)
 
     // Reset state
     memset(&g_level_data, 0, sizeof(level_indicator_data_t));
-    printf("level_indicator_cleanup() completed, is_active reset to 0\n");
 }
 
 static void level_indicator_update_ui(void)
