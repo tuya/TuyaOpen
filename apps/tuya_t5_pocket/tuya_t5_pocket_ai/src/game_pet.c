@@ -17,6 +17,8 @@
 #include "ai_audio_player.h"
 #include "game_pet.h"
 #include "media_pet.h"
+#include "menu_info_screen.h"
+#include "main_screen.h"
 #define PET_DEBUG_ENABLE 0
 
 extern void pocket_game_pet_indev_init(void);
@@ -113,7 +115,7 @@ void _display_pet_state(ai_pet_state_t pet_state)
     }
 
     lv_vendor_disp_lock();
-    pet_area_set_animation(pet_state);
+    simple_pet_area_set_animation(pet_state);
     lv_vendor_disp_unlock();
 }
 
@@ -242,7 +244,7 @@ OPERATE_RET game_pet_update_state_to_menu(int *state)
         .weight_kg = 1000.0
     };
 
-    menu_system_update_pet_stats(&menu_state);
+    main_screen_update_pet_stats(&menu_state);
     return OPRT_OK;
 }
 
@@ -464,7 +466,7 @@ OPERATE_RET game_pet_init(void)
         PR_ERR("Failed to start cycle timer: %d", rt);
     }
 
-    menu_system_register_pet_event_callback(pet_event_callback, NULL);
+    main_screen_register_pet_event_callback(pet_event_callback, NULL);
 
     pocket_game_pet_indev_init();
 
