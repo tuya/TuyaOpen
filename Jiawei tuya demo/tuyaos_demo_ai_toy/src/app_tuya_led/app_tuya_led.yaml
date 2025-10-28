@@ -1,0 +1,16 @@
+spec:
+  name: app_tuya_led
+  version: EMBED_VERSION
+  summary: embed module created by embedded-cli.
+  homepage: YOUR_HOMEPAGE
+  license:
+    type: MIT
+    file: LICENSE
+  author:
+    name: embedCI
+
+    email: embed@tuya.com
+
+  source:
+    git: https://registry.code.tuya-inc.top/ci_elp_wireless1_group/app_tuya_led.git
+    tag: EMBED_VERSION

@@ -1,0 +1,77 @@
+menuconfig APP_CONFIG
+    config LV_COLOR_16_SWAP
+        bool
+        default n
+        
+    config LCD_SPI_DISPLAY
+        bool
+        default n
+
+    config SPI0_REMAP_PIN
+        bool
+        default n
+
+    config AUDIO_DMIC
+        bool
+        default n
+
+    config DMIC_DUAL_NC_ALGRITHMS_OPEN
+        bool
+        default n
+
+    config T5_BOARD_TYPE
+    choice
+    prompt "T5_BOARD_TYPE choice"
+    default T5AI_BOARD
+
+    config T5AI_BOARD
+        bool "T5AI_BOARD"
+    
+    config T5AI_BOARD_CELLULAR
+        bool "T5AI_BOARD_CELLULAR"    
+
+    config T5AI_BOARD_EYES
+        bool "T5AI_BOARD_EYES"
+        select LCD_SPI_DISPLAY
+        select LV_COLOR_16_SWAP
+
+    config T5AI_BOARD_EVB
+        bool "T5AI_BOARD_EVB"
+        select LCD_SPI_DISPLAY
+        select LV_COLOR_16_SWAP
+
+    config T5AI_BOARD_EVB_PRO
+        bool "T5AI_BOARD_EVB_PRO"
+        select LCD_SPI_DISPLAY
+        select LV_COLOR_16_SWAP
+        select SPI0_REMAP_PIN
+
+    config T5AI_BOARD_ROBOT
+        bool "T5AI_BOARD_ROBOT"
+        select LCD_SPI_DISPLAY
+        select LV_COLOR_16_SWAP
+        select SPI0_REMAP_PIN
+    endchoice
+
+    if (T5AI_BOARD || T5AI_BOARD_EYES || T5AI_BOARD_ROBOT || T5AI_BOARD_EVB_PRO)
+        config ENABLE_TUYA_CAMERA
+            bool "ENABLE_TUYA_CAMERA"
+            default n
+    endif
+
+    config ENABLE_AUDIO_DUAL_DMIC
+        bool "ENABLE_AUDIO_DUAL_DMIC"
+        default n
+        select AUDIO_DMIC
+        select DMIC_DUAL_NC_ALGRITHMS_OPEN
+
+    if (T5AI_BOARD_EYES)
+        config LCD_SPI_DEVICE_NUM
+            int "LCD_SPI_DEVICE_NUM"
+            default 1
+    endif
+
+    config ENABLE_TUYA_UI
+        bool "ENABLE_TUYA_UI"
+        default y
+

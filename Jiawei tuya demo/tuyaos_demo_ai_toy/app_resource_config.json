@@ -1,0 +1,26 @@
+{
+    "gpio_map": [
+        {
+            "gpio_id": "GPIO_55",
+            "second_func_en": "GPIO_SECOND_FUNC_DISABLE",
+            "second_func_dev": "GPIO_DEV_INVALID",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_DISABLE",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_0",
+            "bind_core":"1"
+        }
+    ],
+
+    "flash": {
+        "cpu0_flash_size": "2380K",
+        "cpu1_flash_size": "2516K"
+    },
+
+    "psram": {
+        "cpu0_psram_size": "3072k",
+        "cpu1_psram_size": "6144k"
+    }
+}
