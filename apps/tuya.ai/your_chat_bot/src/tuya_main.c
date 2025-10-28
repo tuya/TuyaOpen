@@ -66,7 +66,8 @@ static uint8_t _need_reset = 0;
  */
 void user_log_output_cb(const char *str)
 {
-    tal_uart_write(TUYA_UART_NUM_0, (const uint8_t *)str, strlen(str));
+    // tal_uart_write(TUYA_UART_NUM_0, (const uint8_t *)str, strlen(str));
+    tkl_log_output(str);
 }
 
 /**
@@ -275,7 +276,6 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
-    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
 

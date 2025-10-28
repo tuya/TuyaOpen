@@ -77,8 +77,6 @@ void ui_set_assistant_msg_stream_start(void);
 void ui_set_assistant_msg_stream_data(const char *text);
 
 void ui_set_assistant_msg_stream_end(void);
-
-void ui_set_assistant_msg_stream_interrupt(void);
 #endif
 
 #ifdef __cplusplus

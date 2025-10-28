@@ -180,7 +180,37 @@ static OPERATE_RET _parse_nlg(cJSON *json, uint8_t eof)
             sg_ai.stream_status = AI_AGENT_CHAT_STREAM_STOP;
         }
     }
+    
+    // 计算数据部分长度：内容长度 + EOF文本长度(如果有)
+    size_t dataLength = strlen(content);
+    if(eof) {
+        dataLength += strlen("nlgEnd_cdroid");
+    }
 
+    // 准备帧头和数据长度
+    uint8_t frameHeader[4] = {0xcc, 0xee, 0x00, 0x00}; // 第3、4字节为长度
+
+    // 将数据长度填入第3、4字节（小端格式）
+    frameHeader[2] = dataLength & 0xFF;         // 低字节
+    frameHeader[3] = (dataLength >> 8) & 0xFF;  // 高字节
+
+    PR_DEBUG("NLG text: %s, data length: %d", content, dataLength);
+
+    // 发送帧头和数据长度
+    tal_uart_write(TUYA_UART_NUM_0, frameHeader, sizeof(frameHeader));
+
+    // 发送内容
+    tal_uart_write(TUYA_UART_NUM_0, (const uint8_t *)content, strlen(content));
+
+    // 发送EOF标记（如果有）
+    if(eof) {
+        const char *eofText = "nlgEnd_cdroid";
+        tal_uart_write(TUYA_UART_NUM_0, (const uint8_t *)eofText, strlen(eofText));
+    }
+
+    // 发送帧尾
+    const uint8_t frameFooter[] = {0x99, 0x55};
+    tal_uart_write(TUYA_UART_NUM_0, frameFooter, sizeof(frameFooter));
     return OPRT_OK;
 }
 
