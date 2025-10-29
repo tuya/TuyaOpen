@@ -21,6 +21,11 @@
 
 #include "../lvgl/lvgl.h"
 
+/***********************************************************
+************************macro define************************
+***********************************************************/
+#define ENABLE_LVGL_HARDWARE
+
 #define KEY_UP    17
 #define KEY_LEFT  20
 #define KEY_DOWN  18
@@ -35,22 +40,26 @@
 #ifndef AI_PET_SCREEN_HEIGHT
 #define AI_PET_SCREEN_HEIGHT 168
 #endif
-
-#define ENABLE_LVGL_HARDWARE
+/***********************************************************
+***********************variable define**********************
+***********************************************************/
 /**
  * @brief Screen structure definition
  *
  * Defines a screen with initialization and deinitialization functions,
- * a pointer to the screen object, and a name identifier.
+ * a pointer to the screen object, a name identifier, and state preservation.
  */
 typedef struct {
     void (*init)(void);           /**< Screen initialization function */
     void (*deinit)(void);         /**< Screen deinitialization function */
     lv_obj_t **screen_obj;        /**< Pointer to the screen object */
     char *name;                   /**< Screen name identifier */
+    void *state_data;             /**< Pointer to screen-specific state data */
 } Screen_t;
 
-/* Screen manager function declarations */
+/***********************************************************
+********************function declaration********************
+***********************************************************/
 
 /**
  * @brief Get the current screen (top of stack)
@@ -82,6 +91,16 @@ void screen_back_bottom(void);
  * A slide-in-from-right animation effect is used when switching screens.
  */
 void screen_load(Screen_t *newScreen);
+
+/**
+ * @brief Load a new screen to the top of the stack without animation
+ *
+ * @param newScreen Pointer to the new screen to be loaded
+ *
+ * This function pushes the current screen onto the stack and loads the specified new screen
+ * without any animation effect. Useful for overlays like toast screens.
+ */
+void screen_load_no_anim(Screen_t *newScreen);
 
 /**
  * @brief Initialize the screen manager

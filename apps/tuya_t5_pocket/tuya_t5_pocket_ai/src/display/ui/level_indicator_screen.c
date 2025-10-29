@@ -20,21 +20,22 @@
 ***********************************************************/
 
 // Screen dimensions
-#define SCREEN_WIDTH 800
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 384
+#define SCREEN_HEIGHT 168
 
 // Level circle parameters
-#define LEVEL_CIRCLE_DIAMETER 300
+#define LEVEL_CIRCLE_DIAMETER 140
 #define LEVEL_CIRCLE_RADIUS (LEVEL_CIRCLE_DIAMETER / 2)
-#define LEVEL_CENTER_DEAD_ZONE 15
-#define LEVEL_BALL_SIZE 20
-#define LEVEL_CROSS_ARM_LENGTH 180
-#define LEVEL_CROSS_LINE_WIDTH 3
+#define LEVEL_CENTER_DEAD_ZONE 6
+#define LEVEL_BALL_SIZE 12
+#define LEVEL_CROSS_ARM_LENGTH 70
+#define LEVEL_CROSS_LINE_WIDTH 2
 
 // Physics and sensitivity
-#define LEVEL_INDICATOR_ANGLE_SCALE 8.0f
-#define LEVEL_INDICATOR_LEVEL_THRESHOLD 0.5f
+#define LEVEL_INDICATOR_ANGLE_SCALE 2.0f
+#define LEVEL_INDICATOR_LEVEL_THRESHOLD 2.0f
 #define LEVEL_INDICATOR_UPDATE_PERIOD 50
+#define LEVEL_INDICATOR_MAX_ANGLE 90.0f
 #define BALL_MOVE_SMOOTH_FACTOR 0.15f
 
 /***********************************************************
@@ -141,13 +142,35 @@ Screen_t level_indicator_screen = {
  */
 void level_indicator_update_tilt(float x_angle, float y_angle)
 {
+    if (!g_level_data.is_active) {
+        return;
+    }
+
+    // Apply calibration offset
+    x_angle -= g_level_data.calibration.x_offset;
+    y_angle -= g_level_data.calibration.y_offset;
+
+    // Clamp angles to maximum range
+    if (x_angle > LEVEL_INDICATOR_MAX_ANGLE) x_angle = LEVEL_INDICATOR_MAX_ANGLE;
+    if (x_angle < -LEVEL_INDICATOR_MAX_ANGLE) x_angle = -LEVEL_INDICATOR_MAX_ANGLE;
+    if (y_angle > LEVEL_INDICATOR_MAX_ANGLE) y_angle = LEVEL_INDICATOR_MAX_ANGLE;
+    if (y_angle < -LEVEL_INDICATOR_MAX_ANGLE) y_angle = -LEVEL_INDICATOR_MAX_ANGLE;
+
+    // Update tilt data
     g_level_data.current_tilt.x_angle = x_angle;
     g_level_data.current_tilt.y_angle = y_angle;
     g_level_data.current_tilt.magnitude = sqrtf(x_angle * x_angle + y_angle * y_angle);
-    g_level_data.current_tilt.is_level = (g_level_data.current_tilt.magnitude <= g_level_data.level_threshold) ? 1 : 0;
 
-    // Update UI with new values
-    level_indicator_update_ui();
+    // bool was_level = g_level_data.current_tilt.is_level;
+    g_level_data.current_tilt.is_level = (g_level_data.current_tilt.magnitude <= g_level_data.level_threshold);
+
+    // Debug output for final angles (every 75 updates to avoid spam)
+    static int tilt_debug_counter = 0;
+    if (++tilt_debug_counter % 75 == 0) {
+        printf("Tilt Debug: final_angles(X:%.1f°, Y:%.1f°) -> magnitude:%.2f° -> is_level:%s\n",
+               g_level_data.current_tilt.x_angle, g_level_data.current_tilt.y_angle,
+               g_level_data.current_tilt.magnitude, g_level_data.current_tilt.is_level ? "YES" : "NO");
+    }
 }
 
 /**
@@ -155,9 +178,13 @@ void level_indicator_update_tilt(float x_angle, float y_angle)
  */
 void level_indicator_calibrate(void)
 {
+    if (!g_level_data.is_active) {
+        return;
+    }
+
+    // Read current sensor angles and set them as calibration offset
 #ifdef ENABLE_LVGL_HARDWARE
     if (g_level_data.sensor_available && g_level_data.bmi270_handle) {
-        // Read current sensor values to use as calibration baseline
         float acc_x, acc_y, acc_z;
         int result = board_bmi270_read_accel(g_level_data.bmi270_handle, &acc_x, &acc_y, &acc_z);
 
@@ -166,27 +193,22 @@ void level_indicator_calibrate(void)
             g_level_data.calibration.x_offset = level_indicator_calculate_tilt_angle(acc_x, acc_y, acc_z, 0);
             g_level_data.calibration.y_offset = level_indicator_calculate_tilt_angle(acc_x, acc_y, acc_z, 1);
             g_level_data.calibration.is_calibrated = 1;
-            printf("Level indicator calibrated: X_offset=%.2f, Y_offset=%.2f\n",
+            printf("Calibration completed: offset set to X:%.1f°, Y:%.1f°\n",
                    g_level_data.calibration.x_offset, g_level_data.calibration.y_offset);
         } else {
-            printf("Calibration failed: unable to read sensor data\n");
+            printf("Failed to read sensor for calibration\n");
+            return;
         }
-    } else {
-        // Simulation mode calibration - use current tilt as zero reference
+    } else
+#endif
+    {
+        // Fallback for simulator: set current offset to make current position become center
         g_level_data.calibration.x_offset = g_level_data.current_tilt.x_angle + g_level_data.calibration.x_offset;
         g_level_data.calibration.y_offset = g_level_data.current_tilt.y_angle + g_level_data.calibration.y_offset;
         g_level_data.calibration.is_calibrated = 1;
-        printf("Simulation calibration: X_offset=%.2f, Y_offset=%.2f\n",
+        printf("Calibration completed (simulator mode): offset set to X:%.1f°, Y:%.1f°\n",
                g_level_data.calibration.x_offset, g_level_data.calibration.y_offset);
     }
-#else
-    // Simulation mode calibration - use current tilt as zero reference
-    g_level_data.calibration.x_offset = g_level_data.current_tilt.x_angle + g_level_data.calibration.x_offset;
-    g_level_data.calibration.y_offset = g_level_data.current_tilt.y_angle + g_level_data.calibration.y_offset;
-    g_level_data.calibration.is_calibrated = 1;
-    printf("Simulator calibration: X_offset=%.2f, Y_offset=%.2f\n",
-           g_level_data.calibration.x_offset, g_level_data.calibration.y_offset);
-#endif
 }
 
 /***********************************************************
@@ -226,25 +248,26 @@ static void level_indicator_update_ui(void)
 
 static void level_indicator_update_ball_position(void)
 {
-    if (!g_level_data.ball || !g_level_data.level_circle) return;
+    if (!g_level_data.ball) {
+        return;
+    }
 
-    // Apply calibration offset
-    float adjusted_x = g_level_data.current_tilt.x_angle - g_level_data.calibration.x_offset;
-    float adjusted_y = g_level_data.current_tilt.y_angle - g_level_data.calibration.y_offset;
-
-    // Calculate ball offset based on tilt angles with scaling
-    float offset_x = adjusted_x * LEVEL_INDICATOR_ANGLE_SCALE;
-    float offset_y = adjusted_y * LEVEL_INDICATOR_ANGLE_SCALE;
-
-    // Circle center coordinates (relative to level_circle)
+    // Circle center coordinates (relative to level_circle container)
+    // Ball always starts from center and moves based on tilt angles
     float circle_center_x = LEVEL_CIRCLE_RADIUS;
     float circle_center_y = LEVEL_CIRCLE_RADIUS;
 
-    // Maximum allowed radius for ball movement (keep ball inside circle)
-    float max_radius = LEVEL_CIRCLE_RADIUS - LEVEL_BALL_SIZE / 2 - 5; // 5px margin from edge
+    // Convert angles to pixel offsets from center
+    // Use the final calibrated angles (current_tilt already has calibration applied)
+    // Map angles to movement: X angle controls Y movement, Y angle controls X movement
+    float angle_to_pixel_scale = 2.0f;  // Scale factor: degrees to pixels
+    float offset_x = g_level_data.current_tilt.y_angle * angle_to_pixel_scale;   // Y angle controls X movement
+    float offset_y = -g_level_data.current_tilt.x_angle * angle_to_pixel_scale;  // X angle controls Y movement (inverted)
 
-    // Check if ball would be outside circle boundary
+    // Limit ball movement within circle (considering ball size)
+    float max_radius = LEVEL_CIRCLE_RADIUS - LEVEL_BALL_SIZE / 2 - 5; // 5px margin from edge
     float distance = sqrtf(offset_x * offset_x + offset_y * offset_y);
+
     if (distance > max_radius) {
         // Scale down if outside circle
         float scale = max_radius / distance;
@@ -264,6 +287,15 @@ static void level_indicator_update_ball_position(void)
     lv_obj_set_pos(g_level_data.ball,
                    (lv_coord_t)g_level_data.ball_x_current,
                    (lv_coord_t)g_level_data.ball_y_current);
+
+    // Debug output for ball position (every 100 updates to avoid spam)
+    static int ball_debug_counter = 0;
+    if (++ball_debug_counter % 100 == 0) {
+        printf("Ball Debug: angles(X:%.1f°, Y:%.1f°) -> offset(%.1f, %.1f) -> ball_pos(%.1f, %.1f)\n",
+               g_level_data.current_tilt.x_angle, g_level_data.current_tilt.y_angle,
+               offset_x, offset_y,
+               g_level_data.ball_x_current, g_level_data.ball_y_current);
+    }
 
     // Keep ball black for clear visibility
     lv_obj_set_style_bg_color(g_level_data.ball, lv_color_black(), 0);
@@ -344,7 +376,7 @@ static void level_indicator_create_circle(void)
     g_level_data.ball_x_target = g_level_data.ball_x_current;
     g_level_data.ball_y_target = g_level_data.ball_y_current;
 
-    // Set initial position explicitly
+    // Set initial position explicitly (don't use lv_obj_center which conflicts with manual positioning)
     lv_obj_set_pos(g_level_data.ball,
                    (lv_coord_t)g_level_data.ball_x_current,
                    (lv_coord_t)g_level_data.ball_y_current);
@@ -360,7 +392,7 @@ static void level_indicator_create_controls(void)
     lv_obj_set_style_text_align(g_level_data.angle_x_label, LV_TEXT_ALIGN_LEFT, 0);
     lv_label_set_text(g_level_data.angle_x_label, "X: 0.0°");
 
-    // Create Y angle display label (right side)
+    // Create Y angle display label (right side, same height as X)
     g_level_data.angle_y_label = lv_label_create(g_level_data.main_container);
     lv_obj_align(g_level_data.angle_y_label, LV_ALIGN_RIGHT_MID, -10, 0);
     lv_obj_set_style_text_font(g_level_data.angle_y_label, &lv_font_montserrat_14, 0);
@@ -368,7 +400,7 @@ static void level_indicator_create_controls(void)
     lv_obj_set_style_text_align(g_level_data.angle_y_label, LV_TEXT_ALIGN_RIGHT, 0);
     lv_label_set_text(g_level_data.angle_y_label, "Y: 0.0°");
 
-    // Create sensor status label at the bottom
+    // Create sensor status label at the very bottom of screen
     lv_obj_t *status_label = lv_label_create(ui_level_indicator_screen);
     lv_obj_align(status_label, LV_ALIGN_BOTTOM_MID, 0, -2);
     lv_obj_set_style_text_font(status_label, &lv_font_montserrat_12, 0);
@@ -376,7 +408,7 @@ static void level_indicator_create_controls(void)
 
 #ifdef ENABLE_LVGL_HARDWARE
     if (g_level_data.sensor_available) {
-        lv_label_set_text(status_label, "BMI270 Ready | C=Cal | ESC=Exit");
+        lv_label_set_text(status_label, "BMI270 Ready | ESC=Exit");
     } else {
         lv_label_set_text(status_label, "Simulation Mode | C=Cal | ESC=Exit");
     }

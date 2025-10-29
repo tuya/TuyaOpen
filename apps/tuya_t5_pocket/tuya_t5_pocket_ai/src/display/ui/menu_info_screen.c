@@ -16,6 +16,7 @@
 
 #include "menu_info_screen.h"
 #include "screen_manager.h"
+#include "keyboard_screen.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -41,6 +42,7 @@ Screen_t menu_info_screen = {
     .deinit = menu_info_screen_deinit,
     .screen_obj = &ui_info_menu_screen,
     .name = "menu_info_screen",
+    .state_data = NULL,
 };
 
 // External image declarations
@@ -60,6 +62,8 @@ static void create_stat_display_item(const char *label, const char *value);
 static void create_stat_icon_bar(const char *label, int value);
 static void update_selection(uint8_t old_selection, uint8_t new_selection);
 static void handle_action_selection(void);
+static void keyboard_callback(const char *text, void *user_data);
+static void show_keyboard_for_pet_name(void);
 
 /***********************************************************
 ***********************function define**********************
@@ -299,6 +303,7 @@ static void handle_action_selection(void)
         switch (action_index) {
             case 0: // Edit Pet Name
                 printf("Edit Pet Name action selected\n");
+                show_keyboard_for_pet_name();
                 break;
             case 1: // View Statistics
                 printf("View Statistics action selected\n");
@@ -323,6 +328,35 @@ static void handle_action_selection(void)
                 break;
         }
     }
+}
+
+/**
+ * @brief Keyboard callback function
+ */
+static void keyboard_callback(const char *text, void *user_data)
+{
+    (void)user_data;  // Unused parameter
+
+    if (text && strlen(text) > 0) {
+        // Update pet name
+        strncpy(current_pet_stats.name, text, sizeof(current_pet_stats.name) - 1);
+        current_pet_stats.name[sizeof(current_pet_stats.name) - 1] = '\0';
+        printf("Pet name updated to: %s\n", current_pet_stats.name);
+
+        // Refresh the info screen to show updated name
+        menu_info_screen_deinit();
+        menu_info_screen_init();
+    } else {
+        printf("Keyboard input cancelled or empty\n");
+    }
+}
+
+/**
+ * @brief Show keyboard for pet name editing
+ */
+static void show_keyboard_for_pet_name(void)
+{
+    keyboard_screen_show_with_callback(current_pet_stats.name, keyboard_callback, NULL);
 }
 
 /**
@@ -371,8 +405,10 @@ void menu_info_screen_init(void)
     create_separator();
     create_actions_section();
 
-    // Highlight first item
+    // Always start from first item
     selected_item = 0;
+
+    // Highlight first item
     if (lv_obj_get_child_cnt(info_menu_list) > 0) {
         update_selection(0, 0);
     }

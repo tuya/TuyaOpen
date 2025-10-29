@@ -103,7 +103,7 @@ static lv_obj_t *g_game_over_dialog = NULL;
 // static lv_obj_t *g_game_over_high_score_label = NULL;
 // static lv_obj_t *g_game_over_current_score_label = NULL;
 static lv_obj_t *g_game_over_msg_label = NULL;
-static lv_obj_t *g_game_over_score_label = NULL;
+// static lv_obj_t *g_game_over_score_label = NULL;
 static lv_obj_t *g_game_over_restart_btn = NULL;
 static lv_obj_t *g_game_over_exit_btn = NULL;
 // static lv_obj_t *g_game_over_yes_btn = NULL;
@@ -136,22 +136,23 @@ static inline uint16_t dino_game_lfsr_random(void);
 ***********************************************************/
 
 /**
- * @brief LFSR random number generator for embedded systems
+ * @brief LFSR random number generator for embedded systems - exactly matching dino_game.c
  */
 static inline uint16_t dino_game_lfsr_random(void)
 {
-    g_lfsr_state = (g_lfsr_state >> 1) ^ (-(g_lfsr_state & 1u) & LFSR_POLYNOMIAL);
+    uint8_t bit = ((g_lfsr_state >> 0) ^ (g_lfsr_state >> 2) ^
+                   (g_lfsr_state >> 3) ^ (g_lfsr_state >> 5)) & 1;
+    g_lfsr_state = (g_lfsr_state >> 1) | (bit << 15);
     return g_lfsr_state;
 }
 
 /**
- * @brief Game timer callback for physics and rendering updates
+ * @brief Game timer callback for physics and rendering updates - exactly matching dino_game.c
  */
 static void dino_game_timer_cb(lv_timer_t *timer)
 {
-    if (g_gs.paused || g_gs.game_over || !g_gs.initialized) {
-        return;
-    }
+    (void)timer;
+    if (!ui_dino_game_screen || g_gs.game_over || !g_gs.initialized || g_gs.paused) return;
 
     // Apply friction to horizontal movement
     if (g_gs.on_ground) {
@@ -230,8 +231,8 @@ static void dino_game_timer_cb(lv_timer_t *timer)
                 // Next is air obstacle
                 g_gs.air_obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50 + (dino_game_lfsr_random() % 100);
                 lv_obj_set_x(g_air_obstacle, g_gs.air_obstacle_x);
-                lv_obj_add_flag(g_obstacle, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(g_air_obstacle, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(g_obstacle, LV_OBJ_FLAG_HIDDEN);
             }
 
             g_gs.score += 1;
@@ -256,8 +257,8 @@ static void dino_game_timer_cb(lv_timer_t *timer)
                 // Next is air obstacle
                 g_gs.air_obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50 + (dino_game_lfsr_random() % 100);
                 lv_obj_set_x(g_air_obstacle, g_gs.air_obstacle_x);
-                lv_obj_add_flag(g_obstacle, LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(g_air_obstacle, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(g_obstacle, LV_OBJ_FLAG_HIDDEN);
             }
 
             g_gs.score += 1;
@@ -281,7 +282,14 @@ static void dino_game_timer_cb(lv_timer_t *timer)
           dino_coords.y2 < obs_coords.y1 + collision_buffer ||
           dino_coords.y1 > obs_coords.y2 - collision_buffer)) {
         g_gs.game_over = 1;
-        dino_game_show_game_over_dialog();
+        g_gs.paused = 1;  // Immediately pause the game
+        char buf[32];
+        snprintf(buf, sizeof(buf), "GAME OVER: %d", g_gs.score);
+        lv_label_set_text(g_score_label, buf);
+        // Show game over dialog after collision only if not already shown
+        if (!g_gs.show_game_over_dialog) {
+            dino_game_show_game_over_dialog();
+        }
     }
 
     // Update score display
@@ -293,99 +301,119 @@ static void dino_game_timer_cb(lv_timer_t *timer)
 }
 
 /**
- * @brief Keyboard event callback
+ * @brief Keyboard event callback - exactly matching dino_game.c logic
  */
 static void keyboard_event_cb(lv_event_t *e)
 {
-    uint32_t key = lv_event_get_key(e);
-    printf("[%s] Keyboard event received: key = %d\n", dino_game_screen.name, key);
+    if (!e) return;
 
-    // Handle exit dialog
-    if (g_gs.show_exit_dialog) {
-        if (key == KEY_LEFT || key == KEY_RIGHT) {
-            g_gs.exit_selection = 1 - g_gs.exit_selection;
-            dino_game_update_exit_selection();
-        } else if (key == KEY_ENTER) {
-            if (g_gs.exit_selection == 1) {  // Yes selected
-                screen_back();
-            } else {  // No selected
+    // Ignore events during initialization
+    if (!g_gs.initialized) {
+        return;
+    }
+
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_KEY) {
+        uint32_t key = lv_event_get_key(e);
+        printf("[%s] Keyboard event received: key = %d\n", dino_game_screen.name, key);
+
+        // Handle exit dialog navigation
+        if (g_gs.show_exit_dialog) {
+            if (key == KEY_LEFT || key == KEY_RIGHT) {
+                g_gs.exit_selection = 1 - g_gs.exit_selection;  // Toggle between 0 and 1
+                dino_game_update_exit_selection();
+            }
+            else if (key == KEY_ENTER) {
+                if (g_gs.exit_selection == 1) {  // Yes selected
+                    screen_back();
+                } else {  // No selected
+                    dino_game_hide_exit_dialog();
+                }
+            }
+            else if (key == KEY_ESC) {
+                // ESC while dialog is shown = cancel (same as No)
                 dino_game_hide_exit_dialog();
             }
-        } else if (key == KEY_ESC) {
-            dino_game_hide_exit_dialog();
+            return;  // Don't process other game keys while dialog is shown
         }
-        return;
-    }
 
-    // Handle game over dialog
-    if (g_gs.show_game_over_dialog) {
-        if (key == KEY_LEFT || key == KEY_RIGHT) {
-            g_gs.game_over_selection = 1 - g_gs.game_over_selection;
-            dino_game_update_game_over_selection();
-        } else if (key == KEY_ENTER) {
-            if (g_gs.game_over_selection == 0) {  // Yes (play again)
-                dino_game_restart();
-            } else {  // No (exit)
-                screen_back();
+        // Handle game over dialog navigation
+        if (g_gs.show_game_over_dialog) {
+            if (key == KEY_LEFT || key == KEY_RIGHT) {
+                g_gs.game_over_selection = 1 - g_gs.game_over_selection;  // Toggle between 0 and 1
+                dino_game_update_game_over_selection();
             }
+            else if (key == KEY_ENTER) {
+                if (g_gs.game_over_selection == 0) {  // Yes selected (play again)
+                    dino_game_restart();
+                } else {  // No selected (exit)
+                    screen_back();
+                }
+            }
+            return;  // Don't process other game keys while dialog is shown
         }
-        return;
-    }
 
-    // Handle game controls
-    switch (key) {
-        case KEY_UP:
-        case ' ':  // Space key
-            if (g_gs.on_ground && !g_gs.game_over) {
+        // Normal game key handling (when no dialog is shown)
+        if (key == KEY_ENTER) {
+            if (!g_gs.game_over && g_gs.on_ground) {
                 g_gs.dino_vy = DINO_JUMP_VY;
                 g_gs.on_ground = 0;
             }
-            break;
-        case KEY_LEFT:
+        }
+        else if (key == KEY_LEFT) {
             if (!g_gs.game_over) {
                 g_gs.dino_vx -= DINO_MOVE_SPEED * (g_gs.on_ground ? 1.0f : DINO_AIR_CONTROL);
             }
-            break;
-        case KEY_RIGHT:
+        }
+        else if (key == KEY_RIGHT) {
             if (!g_gs.game_over) {
                 g_gs.dino_vx += DINO_MOVE_SPEED * (g_gs.on_ground ? 1.0f : DINO_AIR_CONTROL);
             }
-            break;
-        case KEY_ESC:
+        }
+        // Show exit confirmation dialog when ESC is pressed
+        else if (key == KEY_ESC) {
             dino_game_show_exit_dialog();
-            break;
-        case 'r':
-        case 'R':
-            if (g_gs.game_over) {
-                dino_game_restart();
-            }
-            break;
-        default:
-            break;
+        }
     }
 }
 
 /**
- * @brief Restart the game
+ * @brief Restart the game - exactly matching dino_game.c logic
  */
 static void dino_game_restart(void)
 {
+    // Hide game over dialog first
+    dino_game_hide_game_over_dialog();
+
+    // Reset game state to initial values
     g_gs.game_over = 0;
-    g_gs.paused = 0;
     g_gs.on_ground = 1;
     g_gs.dino_vy = 0.0f;
     g_gs.dino_y = 0.0f;
     g_gs.dino_vx = 0.0f;
     g_gs.dino_x = 20.0f;
-    g_gs.obstacle_x = AI_PET_SCREEN_WIDTH + 50;
-    g_gs.air_obstacle_x = AI_PET_SCREEN_WIDTH + 50;
-    g_gs.obstacle_type = 0;
+    g_gs.obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50;
+    g_gs.air_obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50;
+    g_gs.obstacle_type = 0;  // Start with ground obstacle
     g_gs.speed = 4;
     g_gs.score = 0;
+    g_gs.paused = 0;
     g_gs.show_game_over_dialog = 0;
     g_gs.game_over_selection = 0;
 
-    dino_game_hide_game_over_dialog();
+    // Reset visual elements
+    lv_label_set_text(g_score_label, "SCORE: 0");
+    lv_obj_set_x(g_dino, (lv_coord_t)g_gs.dino_x);
+    lv_coord_t base_y = lv_obj_get_height(ui_dino_game_screen) - 30;
+    lv_coord_t dino_height = lv_obj_get_height(g_dino);
+    lv_obj_set_y(g_dino, base_y - dino_height);
+    lv_obj_set_x(g_obstacle, g_gs.obstacle_x);
+    lv_obj_set_x(g_air_obstacle, g_gs.air_obstacle_x);
+
+    // Reset obstacle visibility - start with ground obstacle
+    lv_obj_clear_flag(g_obstacle, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_air_obstacle, LV_OBJ_FLAG_HIDDEN);
 }
 
 /**
@@ -456,102 +484,119 @@ static void dino_game_show_exit_dialog(void)
 }
 
 /**
- * @brief Hide exit dialog
+ * @brief Hide exit dialog - exactly matching dino_game.c logic
  */
 static void dino_game_hide_exit_dialog(void)
 {
-    if (g_exit_dialog) {
-        lv_obj_del(g_exit_dialog);
-        g_exit_dialog = NULL;
-    }
-    g_gs.show_exit_dialog = 0;
+    if (!g_exit_dialog) return;
+
+    lv_obj_del(g_exit_dialog);
+    g_exit_dialog = NULL;
+    g_exit_msg_label = NULL;
+    g_exit_yes_btn = NULL;
+    g_exit_no_btn = NULL;
+
     g_gs.paused = 0;
+    g_gs.show_exit_dialog = 0;
 }
 
 /**
- * @brief Show game over dialog
+ * @brief Show game over dialog - exactly matching dino_game.c logic
  */
 static void dino_game_show_game_over_dialog(void)
 {
-    if (g_game_over_dialog) return;
+    if (g_game_over_dialog) return;  // Already shown
 
     g_gs.paused = 1;
     g_gs.show_game_over_dialog = 1;
-    g_gs.game_over_selection = 0;  // Default to "Restart"
+    g_gs.game_over_selection = 0;  // Default to "Yes" (play again)
 
     // Create modal dialog background
     g_game_over_dialog = lv_obj_create(ui_dino_game_screen);
     lv_obj_set_size(g_game_over_dialog, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(g_game_over_dialog, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(g_game_over_dialog, LV_OPA_70, 0);
+    lv_obj_set_style_bg_opa(g_game_over_dialog, LV_OPA_70, 0);  // Semi-transparent
     lv_obj_set_pos(g_game_over_dialog, 0, 0);
 
-    // Create dialog box
+    // Create dialog box (larger for more content)
     lv_obj_t *dialog_box = lv_obj_create(g_game_over_dialog);
-    lv_obj_set_size(dialog_box, 220, 150);
+    lv_obj_set_size(dialog_box, 220, 160);
     lv_obj_center(dialog_box);
     lv_obj_set_style_bg_color(dialog_box, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(dialog_box, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(dialog_box, 2, 0);
     lv_obj_set_style_border_color(dialog_box, lv_color_black(), 0);
 
-    // Game Over label
-    g_game_over_msg_label = lv_label_create(dialog_box);
-    lv_label_set_text(g_game_over_msg_label, "Game Over!");
-    lv_obj_set_style_text_font(g_game_over_msg_label, &lv_font_montserrat_16, 0);
-    lv_obj_align(g_game_over_msg_label, LV_ALIGN_TOP_MID, 0, 10);
+    // High score label
+    lv_obj_t *high_score_label = lv_label_create(dialog_box);
+    char high_score_text[32];
+    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", HIGH_SCORE);
+    lv_label_set_text(high_score_label, high_score_text);
+    lv_obj_set_style_text_font(high_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_align(high_score_label, LV_ALIGN_TOP_MID, 0, 10);
 
-    // Score label
-    g_game_over_score_label = lv_label_create(dialog_box);
-    char score_text[32];
-    snprintf(score_text, sizeof(score_text), "Score: %u", g_gs.score);
-    lv_label_set_text(g_game_over_score_label, score_text);
-    lv_obj_set_style_text_font(g_game_over_score_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(g_game_over_score_label, LV_ALIGN_TOP_MID, 0, 40);
+    // Current score label
+    lv_obj_t *current_score_label = lv_label_create(dialog_box);
+    char current_score_text[32];
+    snprintf(current_score_text, sizeof(current_score_text), "Your Score: %d", g_gs.score);
+    lv_label_set_text(current_score_label, current_score_text);
+    lv_obj_set_style_text_font(current_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_align(current_score_label, LV_ALIGN_TOP_MID, 0, 30);
+
+    // Message label
+    g_game_over_msg_label = lv_label_create(dialog_box);
+    lv_label_set_text(g_game_over_msg_label, "Play Again?");
+    lv_obj_set_style_text_font(g_game_over_msg_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(g_game_over_msg_label, LV_ALIGN_TOP_MID, 0, 55);
 
     // Calculate symmetric positions for buttons
-    lv_coord_t btn_width = 80;
+    lv_coord_t btn_width = 70;
     lv_coord_t btn_height = 30;
-    lv_coord_t btn_spacing = 55;  // Space between buttons (center to center)
+    lv_coord_t btn_spacing = 50;  // Space between buttons (center to center)
 
-    // Restart button (default selected) - positioned to the left of center
+    // Yes button (default selected) - positioned to the left of center
     g_game_over_restart_btn = lv_obj_create(dialog_box);
     lv_obj_set_size(g_game_over_restart_btn, btn_width, btn_height);
-    lv_obj_align(g_game_over_restart_btn, LV_ALIGN_BOTTOM_MID, -btn_spacing, -5);
+    lv_obj_align(g_game_over_restart_btn, LV_ALIGN_BOTTOM_MID, -btn_spacing, -5);  // Left of center
     lv_obj_set_style_bg_color(g_game_over_restart_btn, lv_color_black(), 0);  // Black background (selected)
     lv_obj_set_style_bg_opa(g_game_over_restart_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(g_game_over_restart_btn, 2, 0);
     lv_obj_set_style_border_color(g_game_over_restart_btn, lv_color_black(), 0);
 
-    lv_obj_t *restart_label = lv_label_create(g_game_over_restart_btn);
-    lv_label_set_text(restart_label, "Restart");
-    lv_obj_center(restart_label);
-    lv_obj_set_style_text_color(restart_label, lv_color_white(), 0);  // White text on black background
+    lv_obj_t *yes_label = lv_label_create(g_game_over_restart_btn);
+    lv_label_set_text(yes_label, "YES");
+    lv_obj_center(yes_label);
+    lv_obj_set_style_text_color(yes_label, lv_color_white(), 0);  // White text on black background
 
-    // Exit button - positioned to the right of center
+    // No button - positioned to the right of center
     g_game_over_exit_btn = lv_obj_create(dialog_box);
     lv_obj_set_size(g_game_over_exit_btn, btn_width, btn_height);
-    lv_obj_align(g_game_over_exit_btn, LV_ALIGN_BOTTOM_MID, btn_spacing, -5);
+    lv_obj_align(g_game_over_exit_btn, LV_ALIGN_BOTTOM_MID, btn_spacing, -5);  // Right of center
     lv_obj_set_style_bg_color(g_game_over_exit_btn, lv_color_white(), 0);  // White background (not selected)
     lv_obj_set_style_bg_opa(g_game_over_exit_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(g_game_over_exit_btn, 2, 0);
     lv_obj_set_style_border_color(g_game_over_exit_btn, lv_color_black(), 0);
 
-    lv_obj_t *exit_label = lv_label_create(g_game_over_exit_btn);
-    lv_label_set_text(exit_label, "Exit");
-    lv_obj_center(exit_label);
-    lv_obj_set_style_text_color(exit_label, lv_color_black(), 0);  // Black text on white background
+    lv_obj_t *no_label = lv_label_create(g_game_over_exit_btn);
+    lv_label_set_text(no_label, "NO");
+    lv_obj_center(no_label);
+    lv_obj_set_style_text_color(no_label, lv_color_black(), 0);  // Black text on white background
 }
 
 /**
- * @brief Hide game over dialog
+ * @brief Hide game over dialog - exactly matching dino_game.c logic
  */
 static void dino_game_hide_game_over_dialog(void)
 {
-    if (g_game_over_dialog) {
-        lv_obj_del(g_game_over_dialog);
-        g_game_over_dialog = NULL;
-    }
+    if (!g_game_over_dialog) return;
+
+    lv_obj_del(g_game_over_dialog);
+    g_game_over_dialog = NULL;
+    g_game_over_msg_label = NULL;
+    g_game_over_restart_btn = NULL;
+    g_game_over_exit_btn = NULL;
+
+    g_gs.paused = 0;
     g_gs.show_game_over_dialog = 0;
 }
 
@@ -584,35 +629,45 @@ static void dino_game_update_exit_selection(void)
 }
 
 /**
- * @brief Update game over dialog selection visual
+ * @brief Update game over dialog selection visual - exactly matching dino_game.c logic
  */
 static void dino_game_update_game_over_selection(void)
 {
     if (!g_game_over_dialog || !g_game_over_restart_btn || !g_game_over_exit_btn) return;
 
-    if (g_gs.game_over_selection == 0) {
-        // "Restart" selected (default)
+    // Get label objects for text color changes
+    lv_obj_t *yes_label = lv_obj_get_child(g_game_over_restart_btn, 0);
+    lv_obj_t *no_label = lv_obj_get_child(g_game_over_exit_btn, 0);
+
+    if (g_gs.game_over_selection == 0) {  // Yes selected (play again)
+        // YES button: Black background, white text (selected)
         lv_obj_set_style_bg_color(g_game_over_restart_btn, lv_color_black(), 0);
+        if (yes_label) {
+            lv_obj_set_style_text_color(yes_label, lv_color_white(), 0);
+        }
+
+        // NO button: White background, black text (not selected)
         lv_obj_set_style_bg_color(g_game_over_exit_btn, lv_color_white(), 0);
-        // Update text colors for labels
-        lv_obj_t *restart_label = lv_obj_get_child(g_game_over_restart_btn, 0);
-        lv_obj_t *exit_label = lv_obj_get_child(g_game_over_exit_btn, 0);
-        if (restart_label) lv_obj_set_style_text_color(restart_label, lv_color_white(), 0);
-        if (exit_label) lv_obj_set_style_text_color(exit_label, lv_color_black(), 0);
-    } else {
-        // "Exit" selected
-        lv_obj_set_style_bg_color(g_game_over_exit_btn, lv_color_black(), 0);
+        if (no_label) {
+            lv_obj_set_style_text_color(no_label, lv_color_black(), 0);
+        }
+    } else {  // No selected (exit)
+        // YES button: White background, black text (not selected)
         lv_obj_set_style_bg_color(g_game_over_restart_btn, lv_color_white(), 0);
-        // Update text colors for labels
-        lv_obj_t *restart_label = lv_obj_get_child(g_game_over_restart_btn, 0);
-        lv_obj_t *exit_label = lv_obj_get_child(g_game_over_exit_btn, 0);
-        if (restart_label) lv_obj_set_style_text_color(restart_label, lv_color_black(), 0);
-        if (exit_label) lv_obj_set_style_text_color(exit_label, lv_color_white(), 0);
+        if (yes_label) {
+            lv_obj_set_style_text_color(yes_label, lv_color_black(), 0);
+        }
+
+        // NO button: Black background, white text (selected)
+        lv_obj_set_style_bg_color(g_game_over_exit_btn, lv_color_black(), 0);
+        if (no_label) {
+            lv_obj_set_style_text_color(no_label, lv_color_white(), 0);
+        }
     }
 }
 
 /**
- * @brief Initialize the dino game screen
+ * @brief Initialize the dino game screen - exactly matching dino_game.c logic
  */
 void dino_game_screen_init(void)
 {
@@ -621,14 +676,42 @@ void dino_game_screen_init(void)
     lv_obj_set_style_bg_color(ui_dino_game_screen, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(ui_dino_game_screen, LV_OPA_COVER, 0);
 
-    // Initialize game state
-    memset(&g_gs, 0, sizeof(dino_game_state_t));
-    g_gs.on_ground = 1;
-    g_gs.dino_x = 20.0f;
-    g_gs.obstacle_x = AI_PET_SCREEN_WIDTH + 50;
-    g_gs.air_obstacle_x = AI_PET_SCREEN_WIDTH + 50;
-    g_gs.speed = 4;
+    // Initialize LFSR with a different seed based on game invocation
     g_lfsr_state = LFSR_SEED ^ (lv_tick_get() & 0xFFFF);
+
+    // Reset all static variables to ensure clean state
+    g_dino = NULL;
+    g_obstacle = NULL;
+    g_air_obstacle = NULL;
+    g_score_label = NULL;
+    game_timer = NULL;
+    g_exit_dialog = NULL;
+    g_exit_msg_label = NULL;
+    g_exit_yes_btn = NULL;
+    g_exit_no_btn = NULL;
+    g_game_over_dialog = NULL;
+    g_game_over_msg_label = NULL;
+    g_game_over_restart_btn = NULL;
+    g_game_over_exit_btn = NULL;
+
+    // Initialize game state exactly like dino_game.c
+    g_gs.game_over = 0;
+    g_gs.on_ground = 1;
+    g_gs.dino_vy = 0.0f;
+    g_gs.dino_y = 0.0f;
+    g_gs.dino_vx = 0.0f;
+    g_gs.dino_x = 20.0f;
+    g_gs.obstacle_x = 0;  // Will be set after screen creation
+    g_gs.air_obstacle_x = 0;  // Will be set after screen creation
+    g_gs.obstacle_type = 0;  // Start with ground obstacle
+    g_gs.speed = 4;
+    g_gs.score = 0;
+    g_gs.initialized = 0;  // Not initialized yet
+    g_gs.paused = 0;
+    g_gs.show_exit_dialog = 0;
+    g_gs.exit_selection = 0;  // Default to "No"
+    g_gs.show_game_over_dialog = 0;
+    g_gs.game_over_selection = 0;  // Default to "Yes" (play again)
 
     // Score label
     g_score_label = lv_label_create(ui_dino_game_screen);
@@ -670,6 +753,7 @@ void dino_game_screen_init(void)
     lv_obj_set_style_bg_color(g_obstacle, lv_color_black(), 0);
 
     // Set obstacle to start off-screen to the right
+    g_gs.obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50;
     lv_obj_set_x(g_obstacle, g_gs.obstacle_x);
     lv_obj_set_y(g_obstacle, lv_obj_get_height(ui_dino_game_screen) - 30 - obstacle_h);
 
@@ -686,20 +770,26 @@ void dino_game_screen_init(void)
     lv_obj_set_size(g_air_obstacle, air_obstacle_w, air_obstacle_h);
 
     // Set air obstacle to start off-screen to the right, positioned in the air
+    g_gs.air_obstacle_x = lv_obj_get_width(ui_dino_game_screen) + 50;
     lv_obj_set_x(g_air_obstacle, g_gs.air_obstacle_x);
     lv_obj_set_y(g_air_obstacle, lv_obj_get_height(ui_dino_game_screen) - 30 - obstacle_h - 90); // 90px above ground obstacle
 
     // Initially hide air obstacle (will be shown based on obstacle_type)
     lv_obj_add_flag(g_air_obstacle, LV_OBJ_FLAG_HIDDEN);
 
-    // Start game timer
-    game_timer = lv_timer_create(dino_game_timer_cb, 20, NULL);
-    g_gs.initialized = 1;
-
-    // Event handling
+    // Events and group
     lv_obj_add_event_cb(ui_dino_game_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
-    lv_group_add_obj(lv_group_get_default(), ui_dino_game_screen);
-    lv_group_focus_obj(ui_dino_game_screen);
+    lv_group_t *grp = lv_group_get_default();
+    if (grp) {
+        lv_group_add_obj(grp, ui_dino_game_screen);
+        lv_group_focus_obj(ui_dino_game_screen);
+    }
+
+    // Start timer
+    game_timer = lv_timer_create(dino_game_timer_cb, 20, NULL);
+
+    // Mark game as fully initialized
+    g_gs.initialized = 1;
 }
 
 /**

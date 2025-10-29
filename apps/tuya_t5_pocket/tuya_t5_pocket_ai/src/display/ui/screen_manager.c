@@ -97,31 +97,34 @@ void screen_back(void) {
         return;
     }
 
-    // 弹出当前屏幕
+    // Pop current screen
+    screen_stack.screens[screen_stack.top - 1]->deinit();
     screen_stack_pop(&screen_stack);
 
     if (screen_stack_is_empty(&screen_stack)) {
-        // 如果栈为空，入栈并切换到StartupScreen
+        // If stack is empty, push and switch to StartupScreen
         screen_stack_push(&screen_stack, &startup_screen);
         // screen_stack_push(&screen_stack, &startup_screen);
         startup_screen.init();
 
         // Check if screen object is valid before loading
         if (startup_screen.screen_obj && *startup_screen.screen_obj) {
+            printf("[%s] Returning to startup screen: %s\n", startup_screen.name, startup_screen.name);
             lv_scr_load_anim(*startup_screen.screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true);
         } else {
-            printf("Error: startup_screen.screen_obj is NULL or invalid\n");
+            printf("[Error] %s is NULL or invalid\n", startup_screen.name);
         }
     } else {
-        // 切换到上一个屏幕
+        // Switch to previous screen
         Screen_t *previous_screen = screen_stack.screens[screen_stack.top - 1];
         previous_screen->init();
 
         // Check if screen object is valid before loading
         if (previous_screen->screen_obj && *previous_screen->screen_obj) {
+            printf("[%s] Returning to previous screen: %s\n", previous_screen->name, previous_screen->name);
             lv_scr_load_anim(*previous_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true);
         } else {
-            printf("Error: previous_screen->screen_obj is NULL or invalid\n");
+            printf("[Error] %s is NULL or invalid\n", previous_screen->name);
         }
     }
 }
@@ -134,21 +137,22 @@ void screen_back(void) {
 void screen_back_bottom(void) {
 
     if (screen_stack_is_empty(&screen_stack)) {
-        // 栈为空时，不应发生
+        // Should not happen when stack is empty
         return;
     }
 
-    // 弹出除栈底的所有屏幕
+    // Pop all screens except the bottom one
     while(screen_stack.top > 1)
         screen_stack_pop(&screen_stack);
-    screen_stack.screens[screen_stack.top - 1]->init(); // 初始化新屏幕
+    screen_stack.screens[screen_stack.top - 1]->init(); // Initialize new screen
 
     // Check if screen object is valid before loading
     Screen_t *bottom_screen = screen_stack.screens[screen_stack.top - 1];
     if (bottom_screen->screen_obj && *bottom_screen->screen_obj) {
-        lv_scr_load_anim(*bottom_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true); // 加载并应用动画
+        printf("[%s] Returning to home screen: %s\n", bottom_screen->name, bottom_screen->name);
+        lv_scr_load_anim(*bottom_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true); // Load and apply animation
     } else {
-        printf("Error: bottom_screen->screen_obj is NULL or invalid\n");
+        printf("[Error] %s is NULL or invalid\n", bottom_screen->name);
     }
 }
 
@@ -158,24 +162,58 @@ void screen_back_bottom(void) {
  * @param newScreen Pointer to the new screen to be loaded
  */
 void screen_load(Screen_t *newScreen) {
-	// 检查堆栈是否已满
+	// Check if stack is full
     if (screen_stack.top >= MAX_DEPTH - 1) {
-        // 错误处理：堆栈满
+        // Error handling: Stack full
         return;
     }
 
-    // 如果堆栈非空，反初始化当前屏幕
+    // If stack is not empty, deinitialize current screen
     if (screen_stack.top > 0) {
         screen_stack.screens[screen_stack.top - 1]->deinit();
     }
 
-    // 将新屏幕推入堆栈
+    // Push new screen to stack
     screen_stack_push(&screen_stack, newScreen);
-    newScreen->init(); // 初始化新屏幕
+    newScreen->init(); // Initialize new screen
 
     // Check if screen object is valid before loading
     if (newScreen->screen_obj && *newScreen->screen_obj) {
-        lv_scr_load_anim(*newScreen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true); // 加载并应用动画
+        lv_scr_load_anim(*newScreen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 100, 0, true); // Load and apply animation
+        printf("[%s] Screen loaded: %s\n", screen_stack.screens[screen_stack.top - 1 - 1]->name, newScreen->name);
+    } else {
+        printf("[Error] %s is NULL or invalid\n", newScreen->name);
+    }
+}
+
+/**
+ * @brief Load a new screen to the top of the stack without animation
+ *
+ * @param newScreen Pointer to the new screen to be loaded
+ *
+ * This function pushes the current screen onto the stack and loads the specified new screen
+ * without any animation effect. Useful for overlays like toast screens.
+ */
+void screen_load_no_anim(Screen_t *newScreen) {
+	// Check if stack is full
+    if (screen_stack.top >= MAX_DEPTH - 1) {
+        // Error handling: Stack full
+        return;
+    }
+
+    // If stack is not empty, deinitialize current screen
+    if (screen_stack.top > 0) {
+        screen_stack.screens[screen_stack.top - 1]->deinit();
+    }
+
+    // Push new screen to stack
+    screen_stack_push(&screen_stack, newScreen);
+    newScreen->init(); // Initialize new screen
+
+    // Check if screen object is valid before loading
+    if (newScreen->screen_obj && *newScreen->screen_obj) {
+        lv_scr_load(*newScreen->screen_obj); // Load without animation
+        printf("Screen loaded without animation: %s\n", newScreen->name);
     } else {
         printf("Error: newScreen->screen_obj is NULL or invalid\n");
     }

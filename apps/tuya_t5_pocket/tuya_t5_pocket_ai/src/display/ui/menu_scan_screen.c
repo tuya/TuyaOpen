@@ -39,6 +39,7 @@ Screen_t menu_scan_screen = {
     .deinit = menu_scan_screen_deinit,
     .screen_obj = &ui_menu_scan_screen,
     .name = "menu_scan_screen",
+    .state_data = NULL,
 };
 
 /***********************************************************
@@ -214,7 +215,7 @@ void menu_scan_screen_init(void)
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
 
-    // Highlight first item
+    // Highlight first item always
     selected_item = 0;
     if (lv_obj_get_child_cnt(scan_menu_list) > 0) {
         update_selection(0, 0);

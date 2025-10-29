@@ -5,6 +5,7 @@
 
 #include "menu_video_screen.h"
 #include "screen_manager.h"
+#include "toast_screen.h"
 #include <stdio.h>
 
 static lv_obj_t *ui_menu_video_screen_screen;
@@ -97,6 +98,8 @@ static void handle_video_selection(void)
     if (selected_item < VIDEO_ACTIONS_COUNT) {
         video_action_item_t *selected_action = &video_actions[selected_item];
         printf("Selected video action: %s\n", selected_action->name);
+        // Set the message after loading the screen
+        toast_screen_show("Unlock at Higher Level", 3000);
 
         // if (video_callback) {
         //     video_callback(selected_action->action, video_callback_user_data);

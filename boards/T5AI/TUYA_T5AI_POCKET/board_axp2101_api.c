@@ -41,7 +41,7 @@ static void __board_axp2101_charge_init(void)
     axp2101_setVbusCurrentLimit(XPOWERS_AXP2101_VBUS_CUR_LIM_500MA); // 500mA current limit for lower voltage
     axp2101_setSysPowerDownVoltage(3300);                            // 3.30V system shutdown voltage
 
-    axp2101_setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_200MA);             // 200mA precharge current
+    axp2101_setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_50MA);             // 200mA precharge current
     tal_axp2101_setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_25MA); // 25mA termination current
     axp2101_setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_1000MA);        // 1000mA constant current (max)
     axp2101_setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);           // 4.2V target voltage

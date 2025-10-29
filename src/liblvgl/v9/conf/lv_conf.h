@@ -75,7 +75,7 @@
  *====================*/
 
 /*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  10      /*[ms]*/
+#define LV_DEF_REFR_PERIOD  16      /*[ms] - Changed from 10ms to 33ms (30fps)*/
 
 #define LV_INDEV_REFR_PERIOD  30    /*[ms]*/
 
@@ -781,6 +781,7 @@
     #define LV_SNAPSHOT_USE_PSRAM 1          /* 0: use default sram memory, 1: use psram memory. */
 #endif
 
+#define ENABLE_LVGL_MONITOR 1
 /*1: Enable system monitor component*/
 #if defined(ENABLE_LVGL_MONITOR) && (ENABLE_LVGL_MONITOR == 1)
 #define LV_USE_SYSMON   1
@@ -799,7 +800,7 @@
         #define LV_USE_PERF_MONITOR 0
     #endif
     #if LV_USE_PERF_MONITOR
-        #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_RIGHT
+        #define LV_USE_PERF_MONITOR_POS LV_ALIGN_RIGHT_MID
 
         /*0: Displays performance data on the screen, 1: Prints performance data using log.*/
         #define LV_USE_PERF_MONITOR_LOG_MODE 0
