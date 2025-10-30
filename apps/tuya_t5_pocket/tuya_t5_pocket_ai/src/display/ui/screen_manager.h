@@ -25,6 +25,12 @@
 ************************macro define************************
 ***********************************************************/
 #define ENABLE_LVGL_HARDWARE
+#ifdef ENABLE_LVGL_HARDWARE
+#include "tal_log.h"
+#include "tuya_cloud_types.h"
+#include "tal_api.h"
+#define printf PR_DEBUG
+#endif
 
 #define KEY_UP    17
 #define KEY_LEFT  20

@@ -201,14 +201,6 @@ void toast_screen_deinit(void)
 }
 
 /**
- * @brief Create the toast screen (alias for init)
- */
-void toast_screen_create(void)
-{
-    toast_screen_init();
-}
-
-/**
  * @brief Show toast message
  *
  * @param message The message text to display
@@ -216,6 +208,8 @@ void toast_screen_create(void)
  */
 void toast_screen_show(const char *message, uint32_t delay_ms)
 {
+    printf("[%s] Showing toast message: %s\n", toast_screen.name, message);
+
     screen_load_no_anim(&toast_screen);
 
     if (!toast_container || !toast_label) {
