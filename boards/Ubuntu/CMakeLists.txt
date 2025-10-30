@@ -1,35 +1,22 @@
 ##
 # @file CMakeLists.txt
-# @brief 
+# @brief Ubuntu board configuration
 #/
 
-if (CONFIG_ENABLE_AUDIO_CODECS STREQUAL "y")
 # MODULE_PATH
-set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # MODULE_NAME
-get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
+set(MODULE_NAME "Ubuntu")
 
 # LIB_SRCS
-file(GLOB_RECURSE LIB_SRCS 
-    "${MODULE_PATH}/tdl_audio/src/*.c")
-
-if (CONFIG_ENABLE_MEDIA STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio.c)
-endif()
-
-# Add ALSA support for Ubuntu platform
-if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio_alsa.c)
-    message(STATUS "ALSA audio support enabled")
-endif()
+set(LIB_SRCS
+    ${MODULE_PATH}/board_com_api.c
+    ${MODULE_PATH}/keyboard_input.c
+)
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC
-    ${MODULE_PATH}/tdl_audio/include
-    ${MODULE_PATH}/tdd_audio/include
-    )
-
+set(LIB_PUBLIC_INC ${MODULE_PATH})
 
 
 ########################################
@@ -52,8 +39,8 @@ target_include_directories(${MODULE_NAME}
 
 # Link ALSA library if ALSA support is enabled
 if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
-    target_link_libraries(${MODULE_NAME} PUBLIC asound pthread)
-    target_compile_definitions(${MODULE_NAME} PUBLIC ENABLE_AUDIO_ALSA=1)
+    target_link_libraries(${MODULE_NAME} PUBLIC asound)
+    message(STATUS "Ubuntu board: Linking ALSA library")
 endif()
 
 
@@ -65,4 +52,3 @@ set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
 
-endif()

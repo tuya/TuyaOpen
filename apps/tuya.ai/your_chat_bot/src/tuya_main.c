@@ -28,6 +28,9 @@
 #include "tuya_authorize.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
+#else
+// Stub WiFi functions for non-WiFi platforms (e.g., Ubuntu with wired)
+#include "tkl_wifi_stub.h"
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
 #include "netconn_wired.h"
@@ -47,8 +50,15 @@
 #include "reset_netcfg.h"
 #include "app_system_info.h"
 
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+#include "qrencode_print.h"
+#endif
+
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
+
+/* Tuya license information (uuid authkey) */
+tuya_iot_license_t license;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
@@ -153,6 +163,15 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
         ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
+
+    /* Print the QRCode for Tuya APP bind */
+    case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+        char buffer[255];
+        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
+        qrcode_string_output(buffer, user_log_output_cb, 0);
+#endif
+    } break;
 
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
@@ -280,8 +299,6 @@ void user_main(void)
     tuya_authorize_init();
 
     reset_netconfig_start();
-
-    tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid = TUYA_OPENSDK_UUID;

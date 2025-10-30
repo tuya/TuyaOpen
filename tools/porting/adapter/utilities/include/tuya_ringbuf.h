@@ -21,6 +21,8 @@ typedef void *TUYA_RINGBUFF_T;
 typedef enum {
     OVERFLOW_STOP_TYPE = 0, ///< unread buff area will not be overwritten when writing overflow
     OVERFLOW_COVERAGE_TYPE, ///< unread buff area will be overwritten when writing overflow
+    OVERFLOW_PSRAM_STOP_TYPE = OVERFLOW_STOP_TYPE, ///< PSRAM variant (maps to normal for non-MCU platforms)
+    OVERFLOW_PSRAM_COVERAGE_TYPE = OVERFLOW_COVERAGE_TYPE, ///< PSRAM variant (maps to normal for non-MCU platforms)
 } RINGBUFF_TYPE_E;
 
 /**
