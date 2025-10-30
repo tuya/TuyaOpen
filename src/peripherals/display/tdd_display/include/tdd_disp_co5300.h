@@ -27,6 +27,8 @@ extern "C" {
 
 #define CO5300_CASET                0x2A // Column Address Set
 #define CO5300_RASET                0x2B // Row Address Set
+
+#define CO5300_BL                   0x51 // Set backlight
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -36,7 +38,7 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg);
-
+OPERATE_RET tdd_disp_qspi_co5300_set_bl(uint8_t value);
 
 #ifdef __cplusplus
 }

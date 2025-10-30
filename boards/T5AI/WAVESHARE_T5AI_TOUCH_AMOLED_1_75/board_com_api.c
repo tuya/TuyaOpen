@@ -193,6 +193,13 @@ static OPERATE_RET __board_register_display(void)
     return rt;
 }
 
+
+
+OPERATE_RET board_set_brightness(uint8_t value)
+{
+    return tdd_disp_qspi_co5300_set_bl(value);
+}
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
