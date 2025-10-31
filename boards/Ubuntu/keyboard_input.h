@@ -25,7 +25,8 @@ extern "C" {
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    KEYBOARD_EVENT_PRESS_S = 0,      /**< 'S' key pressed */
+    KEYBOARD_EVENT_PRESS_S = 0,      /**< 'S' key pressed - Start */
+    KEYBOARD_EVENT_PRESS_X,          /**< 'X' key pressed - Stop/End */
     KEYBOARD_EVENT_PRESS_Q,          /**< 'Q' key pressed (quit) */
     KEYBOARD_EVENT_PRESS_V,          /**< 'V' key pressed (volume up) */
     KEYBOARD_EVENT_PRESS_D,          /**< 'D' key pressed (volume down) */

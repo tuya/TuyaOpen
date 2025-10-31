@@ -103,12 +103,14 @@ static OPERATE_RET __board_register_audio(void)
             alsa_cfg.aec_enable = 0;
         #endif
 
-        // Register the ALSA audio driver
-        rt = tdd_audio_alsa_register(AUDIO_CODEC_NAME, alsa_cfg);
-        if (OPRT_OK != rt) {
-            PR_ERR("Failed to register ALSA audio driver: %d", rt);
-            return rt;
-        }
+    // Register the ALSA audio driver
+    rt = tdd_audio_alsa_register(AUDIO_CODEC_NAME, alsa_cfg);
+    if (OPRT_OK != rt) {
+        PR_WARN("Failed to register ALSA audio driver: %d", rt);
+        PR_WARN("This is expected on Ubuntu systems without audio hardware");
+        PR_WARN("Application will continue without audio functionality");
+        return rt;
+    }
 
         PR_INFO("ALSA audio device registered successfully");
         PR_INFO("  Capture device: %s", alsa_cfg.capture_device);
@@ -130,55 +132,19 @@ static OPERATE_RET __board_register_audio(void)
 /**
  * @brief Keyboard event callback handler
  *
- * Handles keyboard events and simulates button presses for the application.
+ * Simple forwarding of keyboard events to the application layer.
+ * All business logic is handled in app_chat_bot.c
  */
 #if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
-// Forward declaration for AI audio functions
-extern OPERATE_RET ai_audio_set_wakeup(void);
-extern OPERATE_RET ai_audio_set_volume(uint8_t volume);
-extern uint8_t ai_audio_get_volume(void);
-extern uint8_t ai_audio_player_is_playing(void);
-extern OPERATE_RET ai_audio_player_stop(void);
+
+// Forward declaration - Application layer callback
+extern void app_chat_bot_keyboard_event_handler(KEYBOARD_EVENT_E event);
 
 static void __keyboard_event_callback(KEYBOARD_EVENT_E event, void *arg)
 {
-    switch (event) {
-    case KEYBOARD_EVENT_PRESS_S:
-        PR_NOTICE("Triggering conversation via keyboard 'S' press");
-        // Trigger AI audio conversation (simulates wake-up)
-        ai_audio_set_wakeup();
-        break;
-
-    case KEYBOARD_EVENT_PRESS_V: {
-        // Volume up
-        uint8_t volume = ai_audio_get_volume();
-        if (volume < 100) {
-            volume = (volume + 10 > 100) ? 100 : volume + 10;
-            ai_audio_set_volume(volume);
-            PR_NOTICE("Volume increased to %d%%", volume);
-        }
-        break;
-    }
-
-    case KEYBOARD_EVENT_PRESS_D: {
-        // Volume down
-        uint8_t volume = ai_audio_get_volume();
-        if (volume > 0) {
-            volume = (volume < 10) ? 0 : volume - 10;
-            ai_audio_set_volume(volume);
-            PR_NOTICE("Volume decreased to %d%%", volume);
-        }
-        break;
-    }
-
-    case KEYBOARD_EVENT_PRESS_Q:
-        PR_NOTICE("Quit requested via keyboard");
-        // Quit is handled in keyboard_input.c
-        break;
-
-    default:
-        break;
-    }
+    // Simple forwarding to application layer
+    // All business logic is in app_chat_bot.c
+    app_chat_bot_keyboard_event_handler(event);
 }
 #endif
 
@@ -195,13 +161,13 @@ static OPERATE_RET __board_register_button(void)
     OPERATE_RET rt = OPRT_OK;
 
 #if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
-    PR_INFO("Initializing keyboard input handler (Press 'S' to start conversation)");
+    PR_INFO("Initializing keyboard input handler");
     rt = keyboard_input_init(__keyboard_event_callback, NULL);
     if (OPRT_OK != rt) {
         PR_ERR("Failed to initialize keyboard input: %d", rt);
         return rt;
     }
-    PR_INFO("Keyboard input ready: [S] = Start chat, [V] = Vol+, [D] = Vol-, [Q] = Quit");
+    PR_INFO("Keyboard ready: [S]=Start [X]=Stop [V]=Vol+ [D]=Vol- [Q]=Quit");
 #else
     PR_DEBUG("Keyboard input not enabled");
 #endif

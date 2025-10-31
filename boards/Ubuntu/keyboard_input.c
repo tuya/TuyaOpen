@@ -18,6 +18,7 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "tal_api.h"
 #include "keyboard_input.h"
@@ -35,6 +36,7 @@ typedef struct {
     KEYBOARD_EVENT_CB callback;
     void *user_arg;
     struct termios old_termios;
+    bool terminal_modified;  // Track if terminal was modified
 } KEYBOARD_INPUT_CTX_T;
 
 /***********************************************************
@@ -45,6 +47,29 @@ static KEYBOARD_INPUT_CTX_T g_keyboard_ctx = {0};
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+
+/**
+ * @brief Restore terminal to original mode
+ */
+static void __restore_terminal(void)
+{
+    if (g_keyboard_ctx.terminal_modified) {
+        tcsetattr(STDIN_FILENO, TCSANOW, &g_keyboard_ctx.old_termios);
+        g_keyboard_ctx.terminal_modified = false;
+        PR_INFO("Terminal settings restored");
+    }
+}
+
+/**
+ * @brief Signal handler for termination signals
+ */
+static void __signal_handler(int signum)
+{
+    PR_WARN("Received signal %d, cleaning up...", signum);
+    __restore_terminal();
+    signal(signum, SIG_DFL);  // Restore default handler
+    raise(signum);            // Re-raise the signal
+}
 
 /**
  * @brief Set terminal to non-canonical mode for character-by-character input
@@ -73,15 +98,15 @@ static int __set_nonblocking_input(void)
         return -1;
     }
 
-    return 0;
-}
+    g_keyboard_ctx.terminal_modified = true;
 
-/**
- * @brief Restore terminal to original mode
- */
-static void __restore_terminal(void)
-{
-    tcsetattr(STDIN_FILENO, TCSANOW, &g_keyboard_ctx.old_termios);
+    // Register signal handlers to restore terminal on abnormal termination
+    signal(SIGINT, __signal_handler);   // Ctrl+C
+    signal(SIGTERM, __signal_handler);  // kill command
+    signal(SIGQUIT, __signal_handler);  // Ctrl+backslash
+    signal(SIGHUP, __signal_handler);   // Terminal hangup
+
+    return 0;
 }
 
 /**
@@ -94,7 +119,8 @@ static void *__keyboard_monitor_thread(void *arg)
 
     PR_INFO("Keyboard input handler started");
     PR_INFO("Commands:");
-    PR_INFO("  [S] - Start/Stop conversation");
+    PR_INFO("  [S] - Start listening");
+    PR_INFO("  [X] - Stop listening");
     PR_INFO("  [V] - Volume up");
     PR_INFO("  [D] - Volume down");
     PR_INFO("  [Q] - Quit application");
@@ -112,7 +138,15 @@ static void *__keyboard_monitor_thread(void *arg)
             switch (ch) {
             case 'S':
                 event = KEYBOARD_EVENT_PRESS_S;
-                PR_NOTICE("Key pressed: [S] - Toggle conversation");
+                PR_NOTICE("Key pressed: [S] - Start listening");
+                if (g_keyboard_ctx.callback) {
+                    g_keyboard_ctx.callback(event, g_keyboard_ctx.user_arg);
+                }
+                break;
+
+            case 'X':
+                event = KEYBOARD_EVENT_PRESS_X;
+                PR_NOTICE("Key pressed: [X] - Stop listening");
                 if (g_keyboard_ctx.callback) {
                     g_keyboard_ctx.callback(event, g_keyboard_ctx.user_arg);
                 }
@@ -140,9 +174,8 @@ static void *__keyboard_monitor_thread(void *arg)
                 if (g_keyboard_ctx.callback) {
                     g_keyboard_ctx.callback(event, g_keyboard_ctx.user_arg);
                 }
-                // Exit the application
-                tal_system_sleep(500);
-                exit(0);
+                // Let the callback handle app exit gracefully
+                // The atexit handler will ensure terminal is restored
                 break;
 
             case '\n':
