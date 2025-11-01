@@ -52,7 +52,7 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
 
     lv_vendor_disp_lock();
     // PR_DEBUG("Display message type: %d", msg_data->type);
-    PR_NOTICE("Free heap size: %d", tal_system_get_free_heap_size());
+    // PR_NOTICE("Free heap size: %d", tal_system_get_free_heap_size());
 
     switch (msg_data->type) {
     case POCKET_DISP_TP_MENU_UP:

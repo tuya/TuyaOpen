@@ -49,7 +49,7 @@ Screen_t toast_screen = {
 
 static void toast_screen_timer_cb(lv_timer_t *timer);
 static void keyboard_event_cb(lv_event_t *e);
-// static void toast_screen_hide(void);
+static void toast_screen_hide(void);
 
 /***********************************************************
 ***********************function define**********************
@@ -67,6 +67,7 @@ static void toast_screen_timer_cb(lv_timer_t *timer)
 {
     printf("[%s] toast timer expired, returning to previous screen.\n", toast_screen.name);
     // Use screen_back to return to previous screen instead of hiding
+    toast_screen_hide();
     screen_back();
 }
 
@@ -209,15 +210,7 @@ void toast_screen_deinit(void)
 void toast_screen_show(const char *message, uint32_t delay_ms)
 {
     printf("[%s] Showing toast message: %s\n", toast_screen.name, message);
-
     screen_load_no_anim(&toast_screen);
-
-    if (!toast_container || !toast_label) {
-        printf("Toast screen not initialized\n");
-        return;
-    }
-
-    printf("toast_screen_show called with: '%s'\n", message ? message : "NULL");
 
     // Cancel any existing timer first to prevent multiple timers
     if (timer) {
@@ -254,49 +247,22 @@ void toast_screen_show(const char *message, uint32_t delay_ms)
 /**
  * @brief Hide toast message
  */
-// static void toast_screen_hide(void)
-// {
-//     if (!toast_container) {
-//         return;
-//     }
-
-//     printf("toast_screen_hide called\n");
-
-//     // Cancel existing timer
-//     if (timer) {
-//         lv_timer_del(timer);
-//         timer = NULL;
-//     }
-
-//     // Hide immediately
-//     lv_obj_add_flag(toast_container, LV_OBJ_FLAG_HIDDEN);
-//     is_visible = false;
-//     printf("Toast container hidden\n");
-// }
-
-/**
- * @brief Set toast message text
- *
- * @param message The message text to set
- */
-void toast_screen_set_message(const char *message)
+static void toast_screen_hide(void)
 {
-    if (!toast_label) {
-        printf("Toast label not initialized\n");
+    if (!toast_container) {
         return;
     }
 
-    if (message) {
-        lv_label_set_text(toast_label, message);
-    }
-}
+    printf("toast_screen_hide called\n");
 
-/**
- * @brief Check if toast is currently visible
- *
- * @return true if toast is visible, false otherwise
- */
-bool toast_screen_is_visible(void)
-{
-    return is_visible;
+    // Cancel existing timer
+    if (timer) {
+        lv_timer_del(timer);
+        timer = NULL;
+    }
+
+    // Hide immediately
+    lv_obj_add_flag(toast_container, LV_OBJ_FLAG_HIDDEN);
+    is_visible = false;
+    printf("Toast container hidden\n");
 }

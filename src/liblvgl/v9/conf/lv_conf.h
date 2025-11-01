@@ -75,7 +75,7 @@
  *====================*/
 
 /*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  30      /*[ms] - Changed from 10ms to 33ms (30fps)*/
+#define LV_DEF_REFR_PERIOD  10      /*[ms] - Changed from 10ms to 33ms (30fps)*/
 
 #define LV_INDEV_REFR_PERIOD  30    /*[ms]*/
 

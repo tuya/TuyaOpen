@@ -23,6 +23,7 @@
 #include "dino_game_screen.h"
 #include "snake_game_screen.h"
 #include "level_indicator_screen.h"
+#include "ebook_screen.h"
 #include <stdio.h>
 
 /***********************************************************
@@ -174,6 +175,10 @@ static void handle_scan_selection(void)
             printf("Level Indicator selected\n");
             screen_load(&level_indicator_screen);
             break;
+        case 5: // E-book Reader
+            printf("E-book Reader action selected\n");
+            screen_load(&ebook_screen);
+            break;
         default:
             printf("Unknown scan option selected\n");
             break;
@@ -214,6 +219,7 @@ void menu_scan_screen_init(void)
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_PLAY, "Dino Game");
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
+    lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
 
     // Highlight first item always
     selected_item = 0;
