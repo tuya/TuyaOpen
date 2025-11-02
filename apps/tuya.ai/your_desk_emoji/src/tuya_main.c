@@ -57,7 +57,7 @@ tuya_iot_client_t ai_client;
 #define PROJECT_VERSION "1.0.0"
 #endif
 
-#define DPID_VOLUME 3
+#define DPID_VOLUME 6  // Changed from 3 to 6 to match cloud configuration
 #define DPID_SERVO  5
 
 bool _s_servo_busy = FALSE;
@@ -228,8 +228,9 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         switch (dp->id) {
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
-            PR_DEBUG("volume:%d", volume);
+            PR_NOTICE("=== RECEIVED VOLUME DP FROM APP: %d ===", volume);
             ai_audio_set_volume(volume);
+            PR_NOTICE("=== VOLUME SET SUCCESSFULLY ===");
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
             char volume_str[20] = {0};
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
@@ -267,9 +268,15 @@ OPERATE_RET ai_audio_volume_upload(void)
     dp_obj.type = PROP_VALUE;
     dp_obj.value.dp_value = volume;
 
-    PR_DEBUG("DP upload volume:%d", volume);
+    PR_NOTICE("=== UPLOADING VOLUME DP TO CLOUD: %d ===", volume);
 
-    return tuya_iot_dp_obj_report(client, client->activate.devid, &dp_obj, 1, 0);
+    OPERATE_RET ret = tuya_iot_dp_obj_report(client, client->activate.devid, &dp_obj, 1, 0);
+    if (ret == OPRT_OK) {
+        PR_NOTICE("=== VOLUME UPLOAD SUCCESS ===");
+    } else {
+        PR_ERR("=== VOLUME UPLOAD FAILED: %d ===", ret);
+    }
+    return ret;
 }
 
 /**
