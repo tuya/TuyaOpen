@@ -1,0 +1,22 @@
+if(ENABLE_CHAT_DISPLAY) 
+choice
+    prompt "choose display gui"
+    default ENABLE_GUI_WECHAT
+
+    config ENABLE_GUI_WECHAT
+        bool "Use WeChat-like ui"
+
+    config ENABLE_GUI_CHATBOT
+        bool "Use Chatbot ui"
+
+    config ENABLE_GUI_OLED
+        bool "Use OLED ui"
+
+endchoice
+
+config ENABLE_GUI_STREAM_AI_TEXT
+    depends on ENABLE_GUI_WECHAT
+    bool "support streaming display of ai text"
+    default n
+
+endif

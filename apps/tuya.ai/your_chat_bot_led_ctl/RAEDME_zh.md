@@ -17,7 +17,7 @@
 6. APP 端实时切换 AI 智能体角色
 7. **LED PWM 控制** - 通过云端或本地触摸按键控制 LED 开关和亮度
 
-![](../../../docs/images/apps/your_chat_bot.png)
+![](../../../docs/images/zh/ailed.jpg)
 
 ## LED PWM 控制功能
 

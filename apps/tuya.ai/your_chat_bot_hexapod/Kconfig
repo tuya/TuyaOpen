@@ -1,0 +1,54 @@
+menu "configure app (your_chat_bot) "
+
+config TUYA_PRODUCT_ID
+    string "product ID of project"
+    default "p320pepzvmm1ghse"
+
+choice 
+    prompt "choose chat mode"
+    default ENABLE_CHAT_MODE_ASR_WAKEUP_FREE
+
+    config ENABLE_CHAT_MODE_KEY_PRESS_HOLD_SINGEL
+    bool "press and hold button to start a single conversation."   
+
+    config ENABLE_CHAT_MODE_KEY_TRIG_VAD_FREE
+    bool "press the button once to start or stop the free conversation."
+
+    config ENABLE_CHAT_MODE_ASR_WAKEUP_SINGEL
+    bool "say the wake-up word to initiate a single conversation, similar to a smart speaker."  
+
+    config ENABLE_CHAT_MODE_ASR_WAKEUP_FREE
+    bool "saying the wake-up word, you can have a free conversation."  
+endchoice
+
+if(ENABLE_CHAT_MODE_ASR_WAKEUP_SINGEL || ENABLE_CHAT_MODE_ASR_WAKEUP_FREE)
+    choice    
+        prompt "choose wakeup keyword"
+        default ENABLE_WAKEUP_KEYWORD_NIHAO_TUYA
+
+        config ENABLE_WAKEUP_KEYWORD_NIHAO_TUYA
+        bool "the wake-up word is configured as NI HAO TUYA."   
+    
+        config ENABLE_WAKEUP_KEYWORD_NIHAO_XIAOZHI
+        bool "the wake-up word is configured as NI HAO XIAO ZHI."   
+
+        config ENABLE_WAKEUP_KEYWORD_XIAOZHI_TONGXUE
+        bool "the wake-up word is configured as XIAO ZHI TONG XUE."  
+    
+        config ENABLE_WAKEUP_KEYWORD_XIAOZHI_GUANJIA
+        bool "the wake-up word is configured as XIAO ZHI GUAN JIA."  
+    endchoice
+endif
+
+config ENABLE_CHAT_DISPLAY
+    bool "enable the display module"
+    default n
+
+    if (ENABLE_CHAT_DISPLAY)
+        rsource "./src/display/Kconfig"
+    endif
+
+config ENABLE_AUDIO_CHAT
+    bool "enable audio chat mode"
+    default y
+endmenu
