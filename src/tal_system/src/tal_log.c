@@ -214,12 +214,14 @@ OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB te
     if (!output_node) {
         return OPRT_MALLOC_FAILED;
     }
-    output_node->name = tal_malloc(strlen(name) + 1);
+    size_t name_len = strlen(name);
+    output_node->name = tal_malloc(name_len + 1);
     if (!output_node->name) {
         tal_free(output_node);
         return OPRT_MALLOC_FAILED;
     }
-    strcpy(output_node->name, name);
+    memcpy(output_node->name, name, name_len);
+    output_node->name[name_len] = '\0';
     output_node->out_term = term;
     tuya_list_add(&(output_node->node), &(pLogManage->log_list));
 
