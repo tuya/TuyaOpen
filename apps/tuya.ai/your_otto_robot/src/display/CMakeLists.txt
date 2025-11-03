@@ -15,7 +15,20 @@ list(APPEND APP_MODULE_SRCS
 aux_source_directory(${APP_MODULE_PATH}/font FONT_SRCS)
 aux_source_directory(${APP_MODULE_PATH}/font/emoji EMOJI_SRCS)
 aux_source_directory(${APP_MODULE_PATH}/ui UI_SRCS)
-aux_source_directory(${APP_MODULE_PATH}/image/eyes128 IMAG_EYES_SRCS)
+
+# Include eyes directories, select in C code through conditional compilation
+aux_source_directory(${APP_MODULE_PATH}/image/eyes128 IMAG_EYES_SRCS_128)
+aux_source_directory(${APP_MODULE_PATH}/image/eyes160 IMAG_EYES_SRCS_160)
+aux_source_directory(${APP_MODULE_PATH}/image/eyes240 IMAG_EYES_SRCS_240)
+
+# Select which directory's source files to use based on macro definition
+if(CONFIG_T5AI_OTTO_EX_MODULE_13565LCD STREQUAL "y")
+    set(IMAG_EYES_SRCS ${IMAG_EYES_SRCS_240})
+elseif(CONFIG_T5AI_OTTO_EX_MODULE_ST7735S_XLT STREQUAL "y")
+    set(IMAG_EYES_SRCS ${IMAG_EYES_SRCS_160})
+else()
+    set(IMAG_EYES_SRCS ${IMAG_EYES_SRCS_128})
+endif()
 
 set(IMAGE_SRCS ${APP_MODULE_PATH}/image/TuyaOpen_img_320_480.c)
 
