@@ -99,7 +99,7 @@ OPERATE_RET ai_audio_agent_chat_intrrupt(void);
  * @param None
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
-OPERATE_RET ai_text_agent_upload(uint8_t *data, uint32_t len);
+OPERATE_RET ai_text_agent_upload(uint8_t *data, uint32_t len, char *event_id);
 
 #ifdef __cplusplus
 }

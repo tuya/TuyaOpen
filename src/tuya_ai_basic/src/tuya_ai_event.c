@@ -67,7 +67,10 @@ static OPERATE_RET __ai_event(AI_EVENT_TYPE tp, AI_SESSION_ID sid, AI_EVENT_ID e
 OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
 {
     OPERATE_RET rt = OPRT_OK;
-    rt = tuya_ai_basic_uuid_v4(eid);
+    if (strlen(eid) == 0) {
+        rt = tuya_ai_basic_uuid_v4(eid);
+    }
+
     if (OPRT_OK != rt) {
         PR_ERR("create event id failed, rt:%d", rt);
         return rt;

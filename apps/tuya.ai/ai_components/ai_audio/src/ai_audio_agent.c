@@ -41,6 +41,9 @@
 #define TY_AI_CHAT_ID_US_AUDIO 2
 #define TY_AI_CHAT_ID_US_TEXT  4
 
+#define AI_AGENT_SCODE_DEFAULT ""
+#define AI_SOLUTION_CODE_LEN   64
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -53,6 +56,7 @@ typedef struct {
     AI_AGENT_CBS_T           cbs;
     AI_AGENT_CHAT_STREAM_E   stream_status;
     bool                     is_audio_upload_first_frame;
+    char scode[AI_SOLUTION_CODE_LEN];
 } AI_AGENT_SESSION_T;
 // clang-format on
 /***********************************************************
@@ -287,12 +291,120 @@ static OPERATE_RET _parse_skill(cJSON *json)
     return rt;
 }
 
+typedef struct {
+    char *request_id;
+    char *content;
+} AI_CLOUD_TRIGGER_T;
+
+void __cloud_trigger_wq(void *data)
+{
+    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)data;
+    if (trigger == NULL) {
+        return;
+    }
+    const char *request_id = trigger->request_id;
+    const char *content = trigger->content;
+    if (request_id && content) {
+        // stop all stream
+        // upload
+        ai_text_agent_upload((uint8_t *)content, strlen(content), (char *)request_id);
+    }
+
+    if (trigger->request_id)
+        tal_free((char *)trigger->request_id);
+    if (trigger->content)
+        tal_free((char *)trigger->content);
+    tal_free(trigger);
+}
+
+OPERATE_RET tuya_ai_input_cloud_trigger(const char *request_id, const char *content)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    PR_DEBUG("cloud trigger request_id: %s, content: %s", request_id, content);
+
+    if (request_id == NULL || content == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)tal_psram_malloc(SIZEOF(AI_CLOUD_TRIGGER_T));
+    if (trigger == NULL) {
+        return OPRT_MALLOC_FAILED;
+    }
+    memset(trigger, 0, SIZEOF(AI_CLOUD_TRIGGER_T));
+    trigger->request_id = (char *)tal_psram_malloc(strlen(request_id) + 1);
+    if (trigger->request_id == NULL) {
+        rt = OPRT_MALLOC_FAILED;
+        goto err;
+    }
+    memset(trigger->request_id, 0, strlen(request_id) + 1);
+    strncpy(trigger->request_id, request_id, strlen(request_id));
+    trigger->content = (char *)tal_psram_malloc(strlen(content) + 1);
+    if (trigger->content == NULL) {
+        rt = OPRT_MALLOC_FAILED;
+        goto err;
+    }
+    memset(trigger->content, 0, strlen(content) + 1);
+    strncpy(trigger->content, content, strlen(content));
+
+    if (trigger->request_id == NULL || trigger->content == NULL) {
+        rt = OPRT_MALLOC_FAILED;
+        goto err;
+    }
+    TUYA_CALL_ERR_GOTO(tal_workq_schedule(WORKQ_SYSTEM, __cloud_trigger_wq, trigger), err);
+    return rt;
+err:
+    if (trigger && trigger->request_id)
+        tal_psram_free((char *)trigger->request_id);
+    if (trigger && trigger->content)
+        tal_psram_free((char *)trigger->content);
+    if (trigger)
+        tal_psram_free(trigger);
+    return rt;
+}
+
+OPERATE_RET __parse_cloud_event(char *scode, cJSON *root)
+{
+    OPERATE_RET rt = OPRT_OK;
+    cJSON *json_data = cJSON_GetObjectItem(root, "data");
+    if (json_data == NULL) {
+        PR_ERR("cloud event data is NULL");
+        return OPRT_CJSON_PARSE_ERR;
+    }
+
+    cJSON *node = cJSON_GetObjectItem(root, "action");
+    char *action = cJSON_GetStringValue(node);
+
+    if (action && strcmp(action, "TriggerAiChat") == 0) {
+        cJSON *data = cJSON_GetObjectItem(root, "data");
+        char *content = cJSON_GetStringValue(cJSON_GetObjectItem(data, "content"));
+        char *request_id = cJSON_GetStringValue(cJSON_GetObjectItem(data, "requestId"));
+        if (!content || !request_id) {
+            PR_ERR("content or request_id is NULL");
+            return OPRT_INVALID_PARM;
+        }
+        rt = tuya_ai_input_cloud_trigger(request_id, content);
+        if (OPRT_OK != rt) {
+            PR_ERR("ty_ai_proc_event_send failed");
+            return OPRT_COM_ERROR;
+        }
+        return OPRT_OK;
+    }
+
+    return OPRT_OK;
+}
+
 static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, void *usr_data)
 {
     cJSON *json, *node;
 
     if ((json = cJSON_Parse(data)) == NULL) {
         return OPRT_OK;
+    }
+
+    char *scode = (char *)usr_data;
+    if (!scode) {
+        scode = sg_ai.scode;
     }
 
     // parse bizType
@@ -310,6 +422,8 @@ static OPERATE_RET __ai_agent_txt_recv(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INF
         _parse_nlg(json, eof);
     } else if (eof && strcmp(bizType, "SKILL") == 0) {
         _parse_skill(json);
+    } else if (bizType && strcmp(bizType, "CloudEvent") == 0) {
+        __parse_cloud_event(scode, json);
     }
 
     cJSON_Delete(json);
@@ -405,6 +519,7 @@ static OPERATE_RET __ai_agent_session_create(void)
     uint32_t out_len = 0;
     tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
 
+    strncpy(sg_ai.scode, AI_AGENT_SCODE_DEFAULT, AI_SOLUTION_CODE_LEN);
     memset(sg_ai.session_id, 0, AI_UUID_V4_LEN);
     rt = tuya_ai_biz_crt_session(TY_BIZCODE_AI_CHAT, &cfg, out, out_len, sg_ai.session_id);
     tal_free(out);
@@ -543,6 +658,56 @@ OPERATE_RET ai_audio_agent_upload_start(uint8_t enable_vad)
 }
 
 /**
+ * @brief Starts the AI audio upload process.
+ * @param enable_vad Flag to enable cloud vad.
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_upload_text_start(uint8_t enable_vad, char *event_id)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    PR_DEBUG("tuya ai upload start...");
+
+    // send start event
+    memset(sg_ai.event_id, 0, AI_UUID_V4_LEN);
+    if (event_id) {
+        strncpy(sg_ai.event_id, event_id, AI_UUID_V4_LEN);
+    }
+
+    char attr_asr_enable_vad[64] = {0};
+    if (enable_vad) {
+        snprintf(attr_asr_enable_vad, sizeof(attr_asr_enable_vad),
+                 "{\"asr.enableVad\":true,\"processing.interrupt\":true}");
+    } else {
+        snprintf(attr_asr_enable_vad, sizeof(attr_asr_enable_vad), "{\"asr.enableVad\":true}");
+    }
+
+    AI_ATTRIBUTE_T attr[] = {{
+        .type = 1003,
+        .payload_type = ATTR_PT_STR,
+        .length = strlen(attr_asr_enable_vad),
+        .value.str = attr_asr_enable_vad, // tts.order.supports
+    }};
+    uint8_t *out = NULL;
+    uint32_t out_len = 0;
+    tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
+    if (out == NULL || out_len == 0) {
+        PR_ERR("pack user attrs failed");
+        return OPRT_MALLOC_FAILED;
+    }
+    rt = tuya_ai_event_start(sg_ai.session_id, sg_ai.event_id, out, out_len);
+    tal_free(out);
+    if (rt) {
+        PR_ERR("start event failed, rt:%d", rt);
+        return rt;
+    }
+
+    sg_ai.is_audio_upload_first_frame = true;
+    PR_DEBUG("upload start event_id:%s", sg_ai.event_id);
+
+    return rt;
+}
+/**
  * @brief Uploads audio data to the AI service.
  * @param data Pointer to the audio data buffer.
  * @param len Length of the audio data in bytes.
@@ -676,7 +841,7 @@ OPERATE_RET ai_text_agent_upload_stop(void)
     return rt;
 }
 
-OPERATE_RET ai_text_agent_upload(uint8_t *data, uint32_t len)
+OPERATE_RET ai_text_agent_upload(uint8_t *data, uint32_t len, char *event_id)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -699,7 +864,7 @@ OPERATE_RET ai_text_agent_upload(uint8_t *data, uint32_t len)
     PR_DEBUG("tuya ai upload text data[%d][%d]...", stype, len);
     PR_DEBUG("text data: %.*s", len, data);
 
-    ai_audio_agent_upload_start(1);
+    ai_audio_agent_upload_text_start(1, event_id);
 
     tal_system_sleep(100);
 

@@ -216,6 +216,17 @@ static void mqtt_subscribe_message_distribute(tuya_mqtt_context_t *context, uint
 /* -------------------------------------------------------------------------- */
 /*                       Tuya internal subscribe message                      */
 /* -------------------------------------------------------------------------- */
+void tuya_mqtt_ack(tuya_mqtt_context_t *context, char *ackId)
+{
+    char ack_str[64] = {0};
+    sprintf(ack_str, "{\"ackId\":\"%s\"}", ackId);
+
+    PR_DEBUG("Send ack: %s", ack_str);
+
+    tuya_mqtt_protocol_data_publish_common(context, PRO_CMD_ACK, (const uint8_t *)ack_str, strlen(ack_str), NULL, NULL,
+                                           3000, false);
+}
+
 static int tuya_protocol_message_parse_process(tuya_mqtt_context_t *context, const uint8_t *payload, size_t payload_len)
 {
     int ret = OPRT_OK;
@@ -262,6 +273,23 @@ static int tuya_protocol_message_parse_process(tuya_mqtt_context_t *context, con
     event.event_id = protocol_id;
     event.root_json = root;
     event.data = cJSON_GetObjectItem(root, "data");
+
+    // CloudEvent start
+    cJSON *bizType = cJSON_GetObjectItem(event.data, "bizType");
+    PR_DEBUG("bizType: %s", bizType ? bizType->valuestring : "NULL");
+    if (bizType && strcmp(bizType->valuestring, "CloudEvent") == 0) {
+        PR_DEBUG("CloudEvent come");
+        extern OPERATE_RET __parse_cloud_event(char *scode, cJSON *root);
+        cJSON *node = cJSON_GetObjectItem(event.data, "data");
+        if (node) {
+            PR_DEBUG("call __parse_cloud_event");
+            __parse_cloud_event("", node);
+
+            // ack
+            tuya_mqtt_ack(context, cJSON_GetObjectItem(root, "ackId")->valuestring);
+        }
+    }
+    // CloudEvent start
 
     /* LOCK */
     tuya_protocol_handle_t *target = context->protocol_list;
