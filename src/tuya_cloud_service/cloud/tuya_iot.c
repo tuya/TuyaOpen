@@ -564,10 +564,10 @@ int tuya_iot_init(tuya_iot_client_t *client, const tuya_iot_config_t *config)
     client->config = *config;
 
     /* Config param dump */
-    PR_DEBUG("software_ver:%s", client->config.software_ver);
-    PR_DEBUG("productkey:%s", client->config.productkey);
-    PR_DEBUG("uuid:%s", client->config.uuid);
-    PR_DEBUG("authkey:%s", client->config.authkey);
+    // PR_DEBUG("software_ver:%s", client->config.software_ver);
+    // PR_DEBUG("productkey:%s", client->config.productkey);
+    // PR_DEBUG("uuid:%s", client->config.uuid);
+    // PR_DEBUG("authkey:%s", client->config.authkey);
 
     tal_semaphore_create_init(&client->token_get.sem, 0, 1);
 
