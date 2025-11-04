@@ -436,21 +436,24 @@ void app_chat_bot_keyboard_event_handler(KEYBOARD_EVENT_E event)
 
         // Handle based on work mode (same logic as button)
         if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
+            if (ai_audio_player_is_playing()) {
+                ai_audio_player_stop();
+            }
+
+            // Stop current chat/conversation
+            ai_audio_manual_stop_single_talk();
+            ai_audio_cloud_asr_stop();
+            ai_audio_agent_upload_stop();
+
+            ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
+            ai_audio_manual_start_single_talk();
+
             // Start listening (simulates button press down)
             PR_NOTICE("Keyboard: Start listening");
             s_keyboard_listening = true;
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
             tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
 #endif
-            ai_audio_manual_start_single_talk();
-        } else {
-            // Other modes: trigger wakeup (same as single click)
-            if (sg_chat_bot.is_enable) {
-                PR_NOTICE("Keyboard: Triggering wakeup");
-                ai_audio_player_stop();
-                ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
-                ai_audio_set_wakeup();
-            }
         }
         break;
     }
@@ -563,45 +566,50 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_prologue_zh, sizeof(media_src_prologue_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NOT_ACTIVE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_zh, sizeof(media_src_network_conn_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_zh,
+                                        sizeof(media_src_network_conn_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CFG: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_zh, sizeof(media_src_network_config_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_zh,
+                                        sizeof(media_src_network_config_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CONNECTED: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_success_zh,
                                         sizeof(media_src_network_conn_success_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_FAIL: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_zh, sizeof(media_src_network_conn_failed_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_zh,
+                                        sizeof(media_src_network_conn_failed_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_reconfigure_zh,
                                         sizeof(media_src_network_reconfigure_zh), 1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_zh, sizeof(media_src_low_battery_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_zh, sizeof(media_src_low_battery_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_PLEASE_AGAIN: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_zh, sizeof(media_src_please_again_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_zh,
+                                        sizeof(media_src_please_again_zh), 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_ai_zh, sizeof(media_src_ai_zh), 1);
     } break;
     case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_zh,
-                                        sizeof(media_src_long_press_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_zh, sizeof(media_src_long_press_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_zh, sizeof(media_src_press_talk_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_zh, sizeof(media_src_press_talk_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP_TALK: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup_chat_zh, sizeof(media_src_wakeup_chat_zh),
                                         1);
     } break;
     case AI_AUDIO_ALERT_FREE_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_zh, sizeof(media_src_free_chat_zh),
-                                        1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_zh, sizeof(media_src_free_chat_zh), 1);
     } break;
 
     default:
