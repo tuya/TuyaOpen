@@ -54,6 +54,21 @@ uint8_t app_chat_bot_get_enable(void);
  */
 OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type);
 
+#if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
+// Include keyboard input header to get KEYBOARD_EVENT_E type
+#include "keyboard_input.h"
+
+/**
+ * @brief Handles keyboard events from board layer
+ * 
+ * This function is called from the board layer when keyboard
+ * events are detected. All business logic is handled here.
+ * 
+ * @param event - The keyboard event type
+ */
+void app_chat_bot_keyboard_event_handler(KEYBOARD_EVENT_E event);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
