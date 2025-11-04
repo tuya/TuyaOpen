@@ -119,7 +119,7 @@ static OPERATE_RET __alsa_setup_capture(TDD_AUDIO_ALSA_HANDLE_T *hdl)
         PR_WARN("Continuing without audio capture (this is normal on systems without audio hardware)");
         return OPRT_COM_ERROR;
     }
-    
+
     // Switch back to blocking mode for normal operation
     snd_pcm_nonblock(hdl->capture_handle, 0);
 
@@ -188,7 +188,7 @@ static OPERATE_RET __alsa_setup_playback(TDD_AUDIO_ALSA_HANDLE_T *hdl)
         PR_WARN("Continuing without audio playback (this is normal on systems without audio hardware)");
         return OPRT_COM_ERROR;
     }
-    
+
     // Switch back to blocking mode for normal operation
     snd_pcm_nonblock(hdl->playback_handle, 0);
 
@@ -300,7 +300,6 @@ static void *__alsa_capture_thread(void *arg)
 {
     TDD_AUDIO_ALSA_HANDLE_T *hdl = (TDD_AUDIO_ALSA_HANDLE_T *)arg;
     snd_pcm_sframes_t frames;
-    static int frame_count = 0;
 
     PR_INFO("ALSA capture thread started");
 
@@ -323,13 +322,6 @@ static void *__alsa_capture_thread(void *arg)
         // Call callback with captured data
         if (hdl->mic_cb && frames > 0) {
             uint32_t data_size = frames * hdl->cfg.channels * (hdl->cfg.data_bits / 8);
-            
-            // Log every 50th frame to avoid spam
-            if (frame_count % 50 == 0) {
-                PR_DEBUG("ALSA captured %d frames (%d bytes), calling mic_cb", (int)frames, data_size);
-            }
-            frame_count++;
-            
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->capture_buffer, data_size);
         }
     }
@@ -595,4 +587,3 @@ __ERR:
 }
 
 #endif /* ENABLE_AUDIO_ALSA */
-

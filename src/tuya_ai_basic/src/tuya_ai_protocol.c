@@ -94,13 +94,6 @@ typedef struct {
 
 static AI_BASIC_PROTO_T *ai_basic_proto = NULL;
 
-static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len);
-
-static AI_PACKET_WRITER_T s_default_packet_writer = {
-    .write = __default_write,
-    .user_data = NULL,
-};
-
 static void __ai_atop_cfg_free(void)
 {
     uint32_t idx = 0;
@@ -2309,37 +2302,5 @@ OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str)
     snprintf(uuid_str, AI_UUID_V4_LEN, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x", uuid[0],
              uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11],
              uuid[12], uuid[13], uuid[14], uuid[15]);
-    return OPRT_OK;
-}
-
-static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len)
-{
-    OPERATE_RET rt = OPRT_OK;
-    tuya_transporter_t transporter = (tuya_transporter_t)writer->user_data;
-    if ((!transporter) || (!buf) || (buf_len == 0)) {
-        PR_ERR("invalid parameter, transporter:%p, buf:%p, buf_len:%d", transporter, buf, buf_len);
-        return OPRT_INVALID_PARM;
-    }
-    uint32_t bytes_sent = 0;
-    uint8_t *current_buf_ptr = (uint8_t *)buf;
-    uint32_t remaining_len = buf_len;
-
-    while (remaining_len > 0) {
-        rt = tuya_transporter_write(transporter, current_buf_ptr, remaining_len, 0);
-        if (rt > 0) {
-            bytes_sent += rt;
-            current_buf_ptr += rt;
-            remaining_len -= rt;
-            if (remaining_len > 0) {
-                PR_DEBUG("partial send, sent:%d, total_sent:%d, remaining:%d, err:%d", rt, bytes_sent, remaining_len,
-                         tal_net_get_errno());
-                tal_system_sleep(100);
-            }
-        } else {
-            PR_ERR("send to cloud failed, rt:%d, len:%d, err:%d", rt, remaining_len, tal_net_get_errno());
-            return OPRT_COM_ERROR;
-        }
-    }
-    // PR_DEBUG("send success, total bytes sent: %d, sequence %d", bytes_sent, ai_basic_proto->sequence_out);
     return OPRT_OK;
 }
