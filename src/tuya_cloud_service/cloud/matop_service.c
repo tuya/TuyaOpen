@@ -11,6 +11,7 @@
  */
 
 #include <inttypes.h>
+#include <stdio.h>
 #include "tuya_config_defaults.h"
 #include "tuya_error_code.h"
 #include "cJSON.h"
@@ -191,7 +192,11 @@ int matop_serice_init(matop_context_t *context, const matop_config_t *config)
     memset(context, 0, sizeof(matop_context_t));
     context->config = *config;
 
-    sprintf(topic_buffer, "rpc/rsp/%s", config->devid);
+    int written = snprintf(topic_buffer, sizeof(topic_buffer), "rpc/rsp/%s", config->devid);
+    if (written < 0 || written >= (int)sizeof(topic_buffer)) {
+        PR_ERR("topic buffer overflow");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     ret = tuya_mqtt_subscribe_message_callback_register(context->config.mqctx, topic_buffer,
                                                         on_matop_service_data_receive, context);
     if (ret != OPRT_OK) {
@@ -199,15 +204,23 @@ int matop_serice_init(matop_context_t *context, const matop_config_t *config)
         return ret;
     }
 
-    sprintf(topic_buffer, "rpc/file/%s", config->devid);
-    tuya_mqtt_subscribe_message_callback_register(context->config.mqctx, topic_buffer,
-                                                  on_matop_service_file_rawdata_receive, context);
+    written = snprintf(topic_buffer, sizeof(topic_buffer), "rpc/file/%s", config->devid);
+    if (written < 0 || written >= (int)sizeof(topic_buffer)) {
+        PR_ERR("topic buffer overflow");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    ret = tuya_mqtt_subscribe_message_callback_register(context->config.mqctx, topic_buffer,
+                                                        on_matop_service_file_rawdata_receive, context);
     if (ret != OPRT_OK) {
         PR_ERR("Topic subscribe error:%s", topic_buffer);
         return ret;
     }
 
-    sprintf(context->resquest_topic, "rpc/req/%s", config->devid);
+    written = snprintf(context->resquest_topic, sizeof(context->resquest_topic), "rpc/req/%s", config->devid);
+    if (written < 0 || written >= (int)sizeof(context->resquest_topic)) {
+        PR_ERR("request topic overflow");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     return OPRT_OK;
 }
 
@@ -266,11 +279,19 @@ int matop_serice_destory(matop_context_t *context)
     int ret;
     char topic_buffer[48];
 
-    sprintf(topic_buffer, "rpc/rsp/%s", context->config.devid);
+    int written = snprintf(topic_buffer, sizeof(topic_buffer), "rpc/rsp/%s", context->config.devid);
+    if (written < 0 || written >= (int)sizeof(topic_buffer)) {
+        PR_ERR("topic buffer overflow");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     ret = tuya_mqtt_subscribe_message_callback_unregister(context->config.mqctx, topic_buffer);
     PR_DEBUG("MQTT unsubscribe %s result:%d", topic_buffer, ret);
 
-    sprintf(topic_buffer, "rpc/file/%s", context->config.devid);
+    written = snprintf(topic_buffer, sizeof(topic_buffer), "rpc/file/%s", context->config.devid);
+    if (written < 0 || written >= (int)sizeof(topic_buffer)) {
+        PR_ERR("topic buffer overflow");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     tuya_mqtt_subscribe_message_callback_unregister(context->config.mqctx, topic_buffer);
     PR_DEBUG("MQTT unsubscribe %s result:%d", topic_buffer, ret);
 

@@ -185,7 +185,7 @@ static void __netconn_wifi_conn_timer(TIMER_ID timer_id, void *arg)
 OPERATE_RET __netconn_wifi_info_set(netconn_wifi_info_t *info)
 {
     char netinfo[128];
-    sprintf(netinfo, "{\"s\":\"%s\",\"p\":\"%s\"}", info->ssid, info->pswd);
+    snprintf(netinfo, sizeof(netinfo), "{\"s\":\"%s\",\"p\":\"%s\"}", info->ssid, info->pswd);
     PR_DEBUG("netinfo %s", netinfo);
 
     return tal_kv_set("netinfo", (const uint8_t *)netinfo, strlen(netinfo));
@@ -209,8 +209,10 @@ OPERATE_RET __netconn_wifi_info_get(netconn_wifi_info_t *info)
     cJSON *p = cJSON_GetObjectItem(json, "p");
     TUYA_CHECK_NULL_GOTO(p, err_exit);
 
-    strcpy(info->ssid, s->valuestring);
-    strcpy(info->pswd, p->valuestring);
+    strncpy(info->ssid, s->valuestring, sizeof(info->ssid) - 1);
+    info->ssid[sizeof(info->ssid) - 1] = '\0';
+    strncpy(info->pswd, p->valuestring, sizeof(info->pswd) - 1);
+    info->pswd[sizeof(info->pswd) - 1] = '\0';
     cJSON_Delete(json);
     tal_kv_free(netinfo);
     return OPRT_OK;
@@ -244,8 +246,8 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
     // save wifi info
-    memcpy(netmgr_wifi->conn.wifi_conn_info.ssid, info->ssid, info->s_len);
-    memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd, info->p_len);
+    memcpy(netmgr_wifi->conn.wifi_conn_info.ssid, info->ssid, info->s_len > WIFI_SSID_LEN ? WIFI_SSID_LEN : info->s_len);
+    memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd, info->p_len > WIFI_PASSWD_LEN ? WIFI_PASSWD_LEN : info->p_len);
     __netconn_wifi_info_set(&netmgr_wifi->conn.wifi_conn_info);
     PR_DEBUG("netcfg finished,  ssid %s, passwd %s, token %s", netmgr_wifi->conn.wifi_conn_info.ssid,
              netmgr_wifi->conn.wifi_conn_info.pswd, info->token);

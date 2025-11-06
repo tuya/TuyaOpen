@@ -94,11 +94,17 @@ static int __tdl_pixel_dev_register(IN char *driver_name, IN PIXEL_DRIVER_INTFS_
     device->white_color_control = arrt->white_color_control;
 
     device->intfs = (PIXEL_DRIVER_INTFS_T *)tal_malloc(sizeof(PIXEL_DRIVER_INTFS_T));
+    if (NULL == device->intfs) {
+        PR_ERR("malloc intfs failed");
+        tal_free(device);
+        return OPRT_MALLOC_FAILED;
+    }
     memcpy(device->intfs, intfs, sizeof(PIXEL_DRIVER_INTFS_T));
 
     // mutex
     op_ret = tal_mutex_create_init(&device->mutex);
     if (op_ret != OPRT_OK) {
+        tal_free(device->intfs);
         tal_free(device);
         return op_ret;
     }
@@ -107,6 +113,9 @@ static int __tdl_pixel_dev_register(IN char *driver_name, IN PIXEL_DRIVER_INTFS_
     op_ret = tal_semaphore_create_init(&device->send_sem, 0, 1);
     if (op_ret != OPRT_OK) {
         PR_ERR("tal_semaphore_create_init err !!!");
+        tal_mutex_release(device->mutex);
+        tal_free(device->intfs);
+        tal_free(device);
         return op_ret;
     }
 
@@ -331,7 +340,12 @@ static OPERATE_RET __tdl_pixel_dev_num_set(PIXEL_HANDLE_T *handle, uint16_t num)
         device->pixel_buffer = NULL;
     }
 
-    device->pixel_buffer = (uint16_t *)tal_malloc((device->color_num) * device->pixel_num * sizeof(uint16_t));
+    uint16_t *new_buffer = (uint16_t *)tal_malloc((device->color_num) * device->pixel_num * sizeof(uint16_t));
+    if (NULL == new_buffer) {
+        PR_ERR("tx_buffer malloc err 2!!!");
+        return OPRT_MALLOC_FAILED;
+    }
+    device->pixel_buffer = new_buffer;
     device->pixel_buffer_len = (device->color_num) * device->pixel_num;
     memset(device->pixel_buffer, 0, ((device->color_num) * device->pixel_num * sizeof(uint16_t))); // Clear data
 

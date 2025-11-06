@@ -76,27 +76,32 @@ int dp_rept_json_append(dp_schema_t *schema, char *data, char *time, char *type,
     memset(tmp, 0, len);
 
     int offset = 0;
-    offset += sprintf(tmp + offset, "{\"dps\":%s,\"devId\":\"%s\"", data, schema->devid);
-    if (offset <= 0) {
+    int ret = 0;
+    ret = snprintf(tmp + offset, len - offset, "{\"dps\":%s,\"devId\":\"%s\"", data, schema->devid);
+    if (ret < 0 || ret >= len - offset) {
         goto __err_exit;
     }
+    offset += ret;
     if (time) {
-        offset += sprintf(tmp + offset, ",\"t\":%s", time);
-        if (offset <= 0) {
+        ret = snprintf(tmp + offset, len - offset, ",\"t\":%s", time);
+        if (ret < 0 || ret >= len - offset) {
             goto __err_exit;
         }
+        offset += ret;
     }
     if (rept_seq > 0) {
-        offset += sprintf(tmp + offset, ",\"seq\":\"%u\"", rept_seq);
-        if (offset <= 0) {
+        ret = snprintf(tmp + offset, len - offset, ",\"seq\":\"%u\"", rept_seq);
+        if (ret < 0 || ret >= len - offset) {
             goto __err_exit;
         }
+        offset += ret;
     }
     if (type) {
-        offset += sprintf(tmp + offset, ",\"type\":\"%s\"", type);
-        if (offset <= 0) {
+        ret = snprintf(tmp + offset, len - offset, ",\"type\":\"%s\"", type);
+        if (ret < 0 || ret >= len - offset) {
             goto __err_exit;
         }
+        offset += ret;
     }
     tmp[offset] = '}';
     *pp_out = tmp;
