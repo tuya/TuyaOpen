@@ -413,7 +413,7 @@ static void handle_bath_selection(void)
                     if (pet_state_timer) {
                         lv_timer_del(pet_state_timer);  // Clean up existing timer
                     }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
+                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
 
                     printf("Started bath animation timer\n");
                     break;
@@ -435,7 +435,7 @@ static void handle_bath_selection(void)
                     if (pet_state_timer) {
                         lv_timer_del(pet_state_timer);  // Clean up existing timer
                     }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
+                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
 
                     printf("Started bath animation timer\n");
                     break;
