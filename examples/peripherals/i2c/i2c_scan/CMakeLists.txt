@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_GPIO STREQUAL "y")
+if (CONFIG_ENABLE_I2C STREQUAL "y")
 
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
@@ -24,5 +24,5 @@ target_sources(${EXAMPLE_LIB}
         ${APP_SRCS}
     )
 else()
-message(FATAL_ERROR "sw i2c cannot work when CONFIG_ENABLE_GPIO is not set")
+message(FATAL_ERROR "i2c cannot work when CONFIG_ENABLE_I2C is not set")
 endif()

@@ -4,6 +4,8 @@
 #/
 
 # APP_PATH
+if (CONFIG_ENABLE_WATCHDOG STREQUAL "y")
+
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # APP_NAME
@@ -21,3 +23,6 @@ target_sources(${EXAMPLE_LIB}
     PRIVATE
         ${APP_SRCS}
     )
+else()
+message(FATAL_ERROR "watchdog cannot work when CONFIG_ENABLE_WATCHDOG is not set")
+endif()

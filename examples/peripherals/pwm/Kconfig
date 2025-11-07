@@ -1,0 +1,17 @@
+menu "Application config"
+
+    config EXAMPLE_PWM_PORT
+        int "pwm port"
+        default 0
+        range 0 11
+
+    config EXAMPLE_PWM_DUTY
+        int "pwm duty"
+        default 5000
+        range 0 10000
+
+    config EXAMPLE_PWM_FREQUENCY
+        int "pwm frequency"
+        default 10000   
+
+endmenu

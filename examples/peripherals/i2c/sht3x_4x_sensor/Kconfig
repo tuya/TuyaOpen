@@ -1,13 +1,27 @@
 menu "Application config"
 
+    config EXAMPLE_I2C_PORT
+        int "i2c port"
+        default 0
+        range 0 3
+
     config EXAMPLE_I2C_SCL_PIN
         int "scl pin"
-        default 26
+        default 13
         range 0 63
 
     config EXAMPLE_I2C_SDA_PIN
         int "sda pin"
-        default 24
+        default 15
         range 0 63
 
+    choice EXAMPLE_I2C_SENSOR_TYPE
+        prompt "sensor type"
+        default EXAMPLE_I2C_SENSOR_SHT3X
+        
+        config EXAMPLE_I2C_SENSOR_SHT3X
+            bool "sht3x"
+        config EXAMPLE_I2C_SENSOR_SHT4X
+            bool "sht4x"
+    endchoice
 endmenu
