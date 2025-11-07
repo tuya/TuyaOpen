@@ -24,6 +24,7 @@
 #include "snake_game_screen.h"
 #include "level_indicator_screen.h"
 #include "ebook_screen.h"
+#include "temp_humidity_screen.h"
 #include <stdio.h>
 
 /***********************************************************
@@ -34,6 +35,7 @@ static lv_obj_t *ui_menu_scan_screen;
 static lv_obj_t *scan_menu_list;
 static lv_timer_t *timer;
 static uint8_t selected_item = 0;
+static uint8_t last_selected_item = 0;
 
 Screen_t menu_scan_screen = {
     .init = menu_scan_screen_init,
@@ -53,6 +55,7 @@ extern Screen_t i2c_scan_screen;
 extern Screen_t dino_game_screen;
 extern Screen_t snake_game_screen;
 extern Screen_t level_indicator_screen;
+extern Screen_t temp_humidity_screen;
 
 static void menu_scan_screen_timer_cb(lv_timer_t *timer);
 static void keyboard_event_cb(lv_event_t *e);
@@ -117,6 +120,7 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_ESC:
             printf("ESC key pressed - returning to main menu\n");
+            last_selected_item = 0;
             screen_back();
             break;
         default:
@@ -154,6 +158,8 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
  */
 static void handle_scan_selection(void)
 {
+    last_selected_item = selected_item;
+
     switch (selected_item) {
         case 0: // WiFi scan demo
             printf("WiFi scan demo selected\n");
@@ -178,6 +184,10 @@ static void handle_scan_selection(void)
         case 5: // E-book Reader
             printf("E-book Reader action selected\n");
             screen_load(&ebook_screen);
+            break;
+        case 6: // Temperature & Humidity
+            printf("Temperature & Humidity selected\n");
+            screen_load(&temp_humidity_screen);
             break;
         default:
             printf("Unknown scan option selected\n");
@@ -220,11 +230,19 @@ void menu_scan_screen_init(void)
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
     lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
+    lv_list_add_btn(scan_menu_list, LV_SYMBOL_WARNING, "Temperature & Humidity");
 
-    // Highlight first item always
-    selected_item = 0;
-    if (lv_obj_get_child_cnt(scan_menu_list) > 0) {
-        update_selection(0, 0);
+    selected_item = last_selected_item;
+    uint32_t child_count = lv_obj_get_child_cnt(scan_menu_list);
+
+    if (selected_item >= child_count) {
+        selected_item = 0;
+        last_selected_item = 0;
+    }
+
+    if (child_count > 0) {
+        update_selection(0, selected_item);
+        printf("[%s] Restored selection to item %d\n", menu_scan_screen.name, selected_item);
     }
 
     timer = lv_timer_create(menu_scan_screen_timer_cb, 1000, NULL);
@@ -243,7 +261,7 @@ void menu_scan_screen_deinit(void)
 {
     if (ui_menu_scan_screen) {
         printf("deinit scan menu screen\n");
-        lv_obj_remove_event_cb(ui_menu_scan_screen, keyboard_event_cb);
+        lv_obj_remove_event_cb(ui_menu_scan_screen, NULL);
         lv_group_remove_obj(ui_menu_scan_screen);
     }
     if (timer) {

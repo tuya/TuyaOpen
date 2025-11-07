@@ -18,7 +18,7 @@
  */
 
 #include "ebook_screen.h"
-#include "main_screen.h"
+#include "toast_screen.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,6 +27,7 @@
 #include "tkl_fs.h"
 #include "tal_api.h"
 #include "tkl_output.h"
+#include "tal_kv.h"
 #else
 #include <dirent.h>
 #include <sys/stat.h>
@@ -39,7 +40,57 @@
 #define EBOOK_MAX_CONTENT_SIZE  (128 * 1024)  /**< Maximum content size (128KB) */
 #define EBOOK_LINES_PER_SCREEN  12           /**< Number of visible lines per screen for better readability */
 #define EBOOK_CHARS_PER_LINE    80           /**< Maximum characters per line for better screen utilization */
-#define BOOK_SCAN_INTERVAL      3000        /**< Book scanning interval in milliseconds (10 seconds) */
+#define BOOK_SCAN_INTERVAL      3000        /**< Book scanning interval in milliseconds (3 seconds) */
+
+/* UI Layout Configuration */
+#define SHELF_CONTAINER_PAD     5            /**< Shelf container padding */
+#define SHELF_TITLE_Y_OFFSET    5            /**< Title label Y offset from top */
+#define SHELF_LIST_MARGIN       10           /**< Shelf list horizontal margin */
+#define SHELF_LIST_HEIGHT       60           /**< Height reserved for title and instructions */
+#define SHELF_LIST_Y_OFFSET     30           /**< Shelf list Y offset from top */
+#define SHELF_INSTR_Y_OFFSET    (-5)         /**< Instructions label Y offset from bottom */
+
+#define READING_CONTAINER_PAD   3            /**< Reading container padding */
+#define READING_TITLE_HEIGHT    18           /**< Book title label height */
+#define READING_TITLE_Y_OFFSET  2            /**< Book title Y offset from top */
+/* #define READING_BATTERY_WIDTH   55 */           /**< Battery indicator width */
+#define READING_BATTERY_HEIGHT  18           /**< Battery indicator height */
+#define READING_BATTERY_MARGIN  3            /**< Battery indicator right margin */ */
+#define READING_TITLE_MARGIN    70           /**< Title label margin (for battery space) */
+
+#define SCROLL_AREA_MARGIN      6            /**< Scroll area margin from container */
+#define SCROLL_AREA_TOP_OFFSET  22           /**< Scroll area top offset (title height + spacing) */
+#define SCROLL_AREA_PAD         4            /**< Scroll area internal padding */
+#define SCROLL_TEXT_LINE_SPACE  2            /**< Text line spacing in pixels */
+
+#define PAGE_INFO_HEIGHT        14           /**< Page info label height */
+#define PAGE_INFO_BOTTOM_OFFSET 15           /**< Page info Y offset from bottom */
+#define PAGE_INFO_MARGIN        16           /**< Page info horizontal margin */
+#define PAGE_INFO_X_OFFSET      8            /**< Page info X offset from left */
+
+/* Color definitions */
+#define COLOR_GRAY_100          lv_color_make(100, 100, 100)  /**< Gray color for text */
+#define COLOR_GRAY_80           lv_color_make(80, 80, 80)     /**< Darker gray for page info */
+#define COLOR_GRAY_150          lv_color_make(150, 150, 150)  /**< Light gray for disabled text */
+#define COLOR_GRAY_240          lv_color_make(240, 240, 240)  /**< Very light gray for background */
+#define COLOR_BLUE_SELECT       lv_color_make(0, 100, 200)    /**< Blue color for selection */
+
+/* Battery simulation */
+/* #define BATTERY_INIT_LEVEL      85  */         /**< Initial battery level */
+#define BATTERY_UPDATE_COUNTER  50           /**< Update counter threshold */
+#define BATTERY_MIN_LEVEL       10           /**< Minimum battery level */
+#define BATTERY_MAX_LEVEL       100          /**< Maximum battery level */ */
+
+/* Timing configuration */
+#define PAGE_INFO_UPDATE_DELAY  100          /**< Delay before updating page info (ms) */
+
+/* Font configuration for ebook UI */
+#define EBOOK_UI_FONT           &lv_font_montserrat_14  /**< Font used for all ebook UI elements */
+#define EBOOK_PAGE_INFO_FONT    &lv_font_montserrat_12  /**< Font used for page info */
+#define EBOOK_TITLE_FONT        &lv_font_montserrat_16  /**< Font used for book title */
+
+/* Page navigation configuration - calculated at runtime */
+#define CALCULATE_PAGE_SCROLL_LINES()  ((AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET - READING_CONTAINER_PAD) / (lv_font_get_line_height(EBOOK_UI_FONT) + SCROLL_TEXT_LINE_SPACE))  /**< Lines to scroll per page */
 
 #ifdef ENABLE_LVGL_HARDWARE
 /* SD card configuration for hardware platform */
@@ -64,7 +115,7 @@ static lv_obj_t *shelf_list;
 static lv_obj_t *reading_text;
 static lv_obj_t *page_info_label;
 static lv_obj_t *book_title_label;
-static lv_obj_t *battery_label;
+/* static lv_obj_t *battery_label; */
 static lv_timer_t *book_scan_timer;  // Timer for periodic book scanning
 static ebook_state_t ebook_state = {0};
 
@@ -86,30 +137,15 @@ static void create_reading_ui(void);
 static void switch_to_shelf_mode(void);
 static void switch_to_reading_mode(void);
 static void calculate_lines(void);
+static int calculate_total_lines(void);
 static void load_book_position(int book_index);
 static void save_book_position(int book_index);
-static void update_battery_display(void);
+/* static void update_battery_display(void); */
 static void ebook_update_shelf_selection(void);
 static void book_scan_timer_cb(lv_timer_t *timer);
 static bool ebook_compare_book_lists(void);
 static int ebook_page_up(void);
 static int ebook_page_down(void);
-static int find_optimal_end_position(void);
-static bool has_meaningful_content_at_position(int position, int min_chars);
-
-// New functions for improved text layout
-static void ebook_init_page_metrics_internal(page_metrics_t *metrics, const lv_font_t *font, int display_width, int display_height);
-static int ebook_calculate_line_layout_internal(page_layout_t *layout, const char *content, size_t content_size, const page_metrics_t *metrics);
-static void ebook_free_line_layout_internal(page_layout_t *layout);
-static int ebook_get_screen_text_internal(char *buffer, int buffer_size, const page_layout_t *layout, const char *content, const page_metrics_t *metrics);
-static void ebook_update_page_numbers(void);
-
-// New functions for precise line-by-line scrolling
-static int ebook_init_screen_display_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics, int top_line_index);
-static int ebook_scroll_screen_up_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics);
-static int ebook_scroll_screen_down_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics);
-static int ebook_generate_screen_text_internal(char *buffer, int buffer_size, const screen_display_t *screen);
-static void ebook_extract_line_text(char *line_buffer, int buffer_size, const char *content, const line_info_t *line);
 
 #ifdef ENABLE_LVGL_HARDWARE
 static int ebook_mount_sdcard(void);
@@ -168,7 +204,7 @@ static int ebook_ensure_directories(void)
     // OPERATE_RET rt = OPRT_OK;
     // BOOL_T is_exist = FALSE;
 
-    // // Check and create txt directory
+    // Check and create txt directory
     // rt = tkl_fs_is_exist(EBOOK_TXT_DIR, &is_exist);
     // if (rt != OPRT_OK || !is_exist) {
     //     printf("[EBOOK] Creating directory: %s\n", EBOOK_TXT_DIR);
@@ -223,6 +259,23 @@ int ebook_scan_books(void)
                 // Check for .txt extension
                 char *ext = strrchr(name, '.');
                 if (ext && strcmp(ext, ".txt") == 0) {
+                    // Check file size by opening it
+                    TUYA_FILE test_file = tkl_fopen(filepath, "r");
+                    if (test_file) {
+                        tkl_fseek(test_file, 0, SEEK_END);
+                        long file_size = tkl_ftell(test_file);
+                        tkl_fclose(test_file);
+
+                        // Skip empty files
+                        if (file_size <= 0) {
+                            printf("Skipping empty file: %s\n", name);
+                            continue;
+                        }
+                    } else {
+                        // Can't open file, skip it
+                        continue;
+                    }
+
                     book_entry_t *book = &ebook_state.shelf.books[ebook_state.shelf.book_count];
 
                     // Store filename
@@ -272,9 +325,9 @@ int ebook_scan_books(void)
         snprintf(filepath, sizeof(filepath), "%s/%s", EBOOK_TXT_DIR, entry->d_name);
 
         if (stat(filepath, &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
-            // Check for .txt extension
+            // Check for .txt extension and non-empty file
             char *ext = strrchr(entry->d_name, '.');
-            if (ext && strcmp(ext, ".txt") == 0) {
+            if (ext && strcmp(ext, ".txt") == 0 && statbuf.st_size > 0) {
                 book_entry_t *book = &ebook_state.shelf.books[ebook_state.shelf.book_count];
 
                 // Store filename
@@ -304,6 +357,69 @@ int ebook_scan_books(void)
 
     printf("Found %d books in %s\n", ebook_state.shelf.book_count, EBOOK_TXT_DIR);
     return ebook_state.shelf.book_count;
+}
+
+/**
+ * @brief Keyboard event callback
+ */
+static void keyboard_event_cb(lv_event_t *e)
+{
+    uint32_t key = lv_event_get_key(e);
+    printf("[%s] Keyboard event received: key = %d\n", ebook_screen.name, key);
+
+    switch (key) {
+        case KEY_UP:
+            if (ebook_state.in_reading_mode) {
+                // Scroll up in reading mode
+                ebook_navigate_up();
+            } else {
+                // Navigate shelf up
+                ebook_navigate_up();
+            }
+            break;
+
+        case KEY_DOWN:
+            if (ebook_state.in_reading_mode) {
+                // Scroll down in reading mode
+                ebook_navigate_down();
+            } else {
+                // Navigate shelf down
+                ebook_navigate_down();
+            }
+            break;
+
+        case KEY_LEFT:
+            if (ebook_state.in_reading_mode) {
+                // Page up in reading mode
+                ebook_page_up();
+            } else {
+                // Navigate shelf up (same as KEY_UP)
+                ebook_navigate_up();
+            }
+            break;
+
+        case KEY_RIGHT:
+            if (ebook_state.in_reading_mode) {
+                // Page down in reading mode
+                ebook_page_down();
+            } else {
+                // Navigate shelf down (same as KEY_DOWN)
+                ebook_navigate_down();
+            }
+            break;
+
+        case KEY_ENTER:
+            ebook_handle_select();
+            break;
+
+        case KEY_ESC:
+            ebook_handle_back();
+            break;
+
+        default:
+            printf("Unknown key: %d\n", key);
+            break;
+    }
 }
 
 /**
@@ -422,15 +538,24 @@ static void load_book_position(int book_index)
 #endif
 
 #ifdef ENABLE_LVGL_HARDWARE
-    TUYA_FILE file = tkl_fopen(pos_filename, "r");
-    if (file) {
-        char buffer[32];
-        if (tkl_fread(buffer, sizeof(buffer) - 1, file) > 0) {
-            buffer[sizeof(buffer) - 1] = '\0';
-            sscanf(buffer, "%d", &book->saved_line);
+    {
+        /* Use tal_kv to get saved position for this book. Key format: "ebook_pos:<filename>" */
+        char kv_key[64];
+        snprintf(kv_key, sizeof(kv_key), "ebook_pos:%s", book->filename);
+        uint8_t *kv_val = NULL;
+        size_t kv_len = 0;
+        if (tal_kv_get(kv_key, &kv_val, &kv_len) == 0 && kv_val && kv_len > 0) {
+            char buffer[32];
+            size_t copy_len = kv_len < sizeof(buffer) - 1 ? kv_len : sizeof(buffer) - 1;
+            memcpy(buffer, kv_val, copy_len);
+            buffer[copy_len] = '\0';
+            book->saved_line = atoi(buffer);
+            tal_kv_free(kv_val);
+            printf("Loaded KV position for %s: line %d\n", book->display_name, book->saved_line);
+        } else {
+            /* Key not present or read failed - default to 0 */
+            book->saved_line = 0;
         }
-        tkl_fclose(file);
-        printf("Loaded position for %s: line %d\n", book->display_name, book->saved_line);
     }
 #else
     FILE *file = fopen(pos_filename, "r");
@@ -460,13 +585,17 @@ static void save_book_position(int book_index)
 #endif
 
 #ifdef ENABLE_LVGL_HARDWARE
-    TUYA_FILE file = tkl_fopen(pos_filename, "w");
-    if (file) {
+    {
+        /* Use tal_kv to set saved position for this book. Key format: "ebook_pos:<filename>" */
+        char kv_key[64];
+        snprintf(kv_key, sizeof(kv_key), "ebook_pos:%s", book->filename);
         char buffer[32];
         int len = snprintf(buffer, sizeof(buffer), "%d", book->saved_line);
-        tkl_fwrite(buffer, len, file);
-        tkl_fclose(file);
-        printf("Saved position for %s: line %d\n", book->display_name, book->saved_line);
+        if (tal_kv_set(kv_key, (const uint8_t *)buffer, (size_t)len) == 0) {
+            printf("Saved KV position for %s: line %d\n", book->display_name, book->saved_line);
+        } else {
+            printf("Failed to save KV position for %s\n", book->display_name);
+        }
     }
 #else
     FILE *file = fopen(pos_filename, "w");
@@ -498,40 +627,8 @@ int ebook_open_book(int book_index)
     // Load saved position for this book
     load_book_position(book_index);
 
-    // Convert old position to new layout system if available
-    if (ebook_state.reading.layout.layout_valid) {
-        // Try to find a reasonable line index based on saved character position
-        int target_line_index = 0;
-        int saved_char_pos = book->saved_line; // This was actually character position
-
-        // Find the line that contains or is closest to the saved character position
-        for (int i = 0; i < ebook_state.reading.layout.line_count; i++) {
-            const line_info_t *line = &ebook_state.reading.layout.lines[i];
-            if (line->char_start >= saved_char_pos) {
-                target_line_index = (i > 0) ? i - 1 : 0; // Go to previous line or stay at 0
-                break;
-            }
-            target_line_index = i; // Keep updating until we find the right position
-        }
-
-        ebook_state.reading.layout.current_line_index = target_line_index;
-
-        // Re-initialize screen display at the restored position
-        if (ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                             &ebook_state.reading.layout,
-                                             ebook_state.reading.content,
-                                             &ebook_state.reading.metrics,
-                                             target_line_index) == 0) {
-            printf("Screen display re-initialized at restored position line %d\n", target_line_index);
-        }
-
-        ebook_update_page_numbers();
-
-        printf("Converted saved position %d to line index %d\n", saved_char_pos, target_line_index);
-    } else {
-        // Use legacy character-based position
-        ebook_state.reading.current_line = book->saved_line;
-    }
+    // Use saved line position
+    ebook_state.reading.current_line = book->saved_line;
 
     // Update book info
     book->total_lines = ebook_state.reading.total_lines;
@@ -546,11 +643,10 @@ int ebook_open_book(int book_index)
     // Switch to reading mode
     ebook_state.in_reading_mode = true;
     switch_to_reading_mode();
+    lv_obj_clear_flag(page_info_label, LV_OBJ_FLAG_HIDDEN);
     ebook_update_reading_display();
 
-    printf("Opened book: %s at position %d\n", book->display_name,
-           ebook_state.reading.layout.layout_valid ?
-           ebook_state.reading.layout.current_line_index : ebook_state.reading.current_line);
+    printf("Opened book: %s at line %d\n", book->display_name, ebook_state.reading.current_line);
     return 0;
 }
 
@@ -598,8 +694,16 @@ bool ebook_load_file(const char *filename)
     long file_size = tkl_ftell(file);
     tkl_fseek(file, 0, SEEK_SET);
 
+    // Check for empty file
+    if (file_size <= 0) {
+        printf("File is empty: %s\n", filename);
+        tkl_fclose(file);
+        return false;
+    }
+
     if (file_size > EBOOK_MAX_CONTENT_SIZE) {
         printf("File too large: %ld bytes (max: %d)\n", file_size, EBOOK_MAX_CONTENT_SIZE);
+        toast_screen_show("File too large to open!", 1500);
         tkl_fclose(file);
         return false;
     }
@@ -634,8 +738,16 @@ bool ebook_load_file(const char *filename)
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
+    // Check for empty file
+    if (file_size <= 0) {
+        printf("File is empty: %s\n", filename);
+        fclose(file);
+        return false;
+    }
+
     if (file_size > EBOOK_MAX_CONTENT_SIZE) {
         printf("File too large: %ld bytes (max: %d)\n", file_size, EBOOK_MAX_CONTENT_SIZE);
+        toast_screen_show("File too large to open!", 1500);
         fclose(file);
         return false;
     }
@@ -664,44 +776,11 @@ bool ebook_load_file(const char *filename)
     ebook_state.reading.content_loaded = true;
     ebook_state.reading.current_line = 0;
 
-    // Calculate total lines (legacy support)
+    // Calculate total lines (legacy support - will be updated accurately after text is set)
     calculate_lines();
 
-    // Initialize page metrics for the reading text area
-    // Use the actual dimensions we set for the reading text area
-    const int text_display_width = AI_PET_SCREEN_WIDTH - 16 - 8; // width - margins - padding
-    const int text_display_height = AI_PET_SCREEN_HEIGHT - 22 - 16 - 6 - 8; // height - title - page_info - margin - padding
-
-    // Initialize page metrics with Montserrat 12 font
-    ebook_init_page_metrics_internal(&ebook_state.reading.metrics,
-                                   &lv_font_montserrat_12,
-                                   text_display_width,
-                                   text_display_height);
-
-    // Calculate line layout for the loaded content
-    if (ebook_calculate_line_layout_internal(&ebook_state.reading.layout,
-                                            ebook_state.reading.content,
-                                            ebook_state.reading.content_size,
-                                            &ebook_state.reading.metrics) == 0) {
-        printf("Line layout calculated successfully for loaded file\n");
-
-        // Initialize screen display system
-        if (ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                             &ebook_state.reading.layout,
-                                             ebook_state.reading.content,
-                                             &ebook_state.reading.metrics,
-                                             0) == 0) {
-            printf("Screen display system initialized successfully\n");
-        } else {
-            printf("Warning: Failed to initialize screen display system\n");
-        }
-    } else {
-        printf("Warning: Failed to calculate line layout, using fallback method\n");
-    }
-
-    printf("Loaded file: %s (%zu bytes, %d lines, %d layout lines)\n",
-           filename, ebook_state.reading.content_size, ebook_state.reading.total_lines,
-           ebook_state.reading.layout.line_count);
+    printf("Loaded file: %s (%zu bytes, %d lines)\n",
+           filename, ebook_state.reading.content_size, ebook_state.reading.total_lines);
 
     return true;
 }
@@ -711,7 +790,7 @@ bool ebook_load_file(const char *filename)
  */
 static void calculate_lines(void)
 {
-    if (!ebook_state.reading.content) {
+    if (!ebook_state.reading.content || ebook_state.reading.content_size == 0) {
         ebook_state.reading.total_lines = 0;
         return;
     }
@@ -730,8 +809,36 @@ static void calculate_lines(void)
 }
 
 /**
+ * @brief Calculate accurate total lines using LVGL text rendering
+ */
+static int calculate_total_lines(void)
+{
+    if (!reading_text || !ebook_state.reading.content_loaded || !ebook_state.reading.content) {
+        return 0;
+    }
+
+    /* 1. Get current label style, width, and text */
+    const lv_font_t * font = lv_obj_get_style_text_font(reading_text, LV_PART_MAIN);
+    int32_t letter_space = lv_obj_get_style_text_letter_space(reading_text, LV_PART_MAIN);
+    int32_t line_space   = lv_obj_get_style_text_line_space(reading_text, LV_PART_MAIN);
+    lv_coord_t max_w     = lv_obj_get_content_width(reading_text);   /* Drawable width excluding padding */
+    const char * txt       = lv_label_get_text(reading_text);
+
+    /* 2. Use lv_txt_get_size to calculate how many pixels it would occupy with WRAP layout */
+    lv_point_t size;
+    lv_txt_get_size(&size, txt, font, letter_space, line_space, max_w, LV_TEXT_FLAG_NONE);
+
+    /* 3. Calculate the number of lines */
+    lv_coord_t line_height = lv_font_get_line_height(font) + line_space;
+    int lines = (size.y + line_space) / line_height;   /* +line_space to round up the last line */
+
+    return lines;
+}
+
+/**
  * @brief Update battery display
  */
+/*
 static void update_battery_display(void)
 {
     if (!battery_label) {
@@ -739,24 +846,25 @@ static void update_battery_display(void)
     }
 
     // Use system battery status - this will get the real battery level from main screen
-    static uint8_t battery_level = 85;
+    static uint8_t battery_level = BATTERY_INIT_LEVEL;
     static bool charging = false;
 
     // In real implementation, this would get actual battery status
     // For now, we simulate it
     static int update_counter = 0;
     update_counter++;
-    if (update_counter > 50) {
+    if (update_counter > BATTERY_UPDATE_COUNTER) {
         update_counter = 0;
         // Simulate battery level changes
-        if (!charging && battery_level > 10) {
+        if (!charging && battery_level > BATTERY_MIN_LEVEL) {
             battery_level--;
-        } else if (charging && battery_level < 100) {
+        } else if (charging && battery_level < BATTERY_MAX_LEVEL) {
             battery_level++;
         }
 
-        // Update the main screen battery status
-        simple_demo_set_battery_status(battery_level, charging);
+        // Update the main screen battery status (convert 0-100 to 0-6 level)
+        uint8_t battery_state = (battery_level * 6) / BATTERY_MAX_LEVEL;
+        main_screen_set_battery_state(battery_state, charging);
     }
 
     // Choose appropriate battery icon based on level and charging status
@@ -777,6 +885,7 @@ static void update_battery_display(void)
     snprintf(battery_text, sizeof(battery_text), "%s%d%%", battery_icon, battery_level);
     lv_label_set_text(battery_label, battery_text);
 }
+*/
 
 /**
  * @brief Create book shelf UI with list-based scrolling
@@ -787,92 +896,104 @@ static void create_shelf_ui(void)
     lv_obj_set_size(shelf_container, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(shelf_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(shelf_container, 0, 0);
-    lv_obj_set_style_pad_all(shelf_container, 5, 0);
+    lv_obj_set_style_pad_all(shelf_container, SHELF_CONTAINER_PAD, 0);
 
     // Title label with auto-refresh indicator
     lv_obj_t *title_label = lv_label_create(shelf_container);
     lv_label_set_text(title_label, "Book Shelf - Auto-Refresh ON");
     lv_obj_set_style_text_color(title_label, lv_color_black(), 0);
     lv_obj_set_style_text_font(title_label, &lv_font_montserrat_14, 0);
-    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 5);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, SHELF_TITLE_Y_OFFSET);
 
     // Book list using lv_list for automatic scrolling
     shelf_list = lv_list_create(shelf_container);
-    lv_obj_set_size(shelf_list, AI_PET_SCREEN_WIDTH - 10, AI_PET_SCREEN_HEIGHT - 60);
-    lv_obj_align(shelf_list, LV_ALIGN_TOP_MID, 0, 30);
+    lv_obj_set_size(shelf_list, AI_PET_SCREEN_WIDTH - SHELF_LIST_MARGIN,
+                    AI_PET_SCREEN_HEIGHT - SHELF_LIST_HEIGHT);
+    lv_obj_align(shelf_list, LV_ALIGN_TOP_MID, 0, SHELF_LIST_Y_OFFSET);
     lv_obj_set_style_bg_color(shelf_list, lv_color_white(), 0);
     lv_obj_set_style_border_width(shelf_list, 1, 0);
     lv_obj_set_style_border_color(shelf_list, lv_color_black(), 0);
-    lv_obj_set_style_pad_all(shelf_list, 5, 0);
+    lv_obj_set_style_pad_all(shelf_list, SHELF_CONTAINER_PAD, 0);
 
     // Instructions
     lv_obj_t *instr_label = lv_label_create(shelf_container);
     lv_label_set_text(instr_label, LV_SYMBOL_UP LV_SYMBOL_DOWN " Navigate | " LV_SYMBOL_OK " Select | " LV_SYMBOL_CLOSE " Exit");
-    lv_obj_set_style_text_color(instr_label, lv_color_make(100, 100, 100), 0);
-    lv_obj_set_style_text_font(instr_label, &lv_font_montserrat_10, 0);
-    lv_obj_align(instr_label, LV_ALIGN_BOTTOM_MID, 0, -5);
+    lv_obj_set_style_text_color(instr_label, COLOR_GRAY_100, 0);
+    lv_obj_set_style_text_font(instr_label, EBOOK_UI_FONT, 0);
+    lv_obj_align(instr_label, LV_ALIGN_BOTTOM_MID, 0, SHELF_INSTR_Y_OFFSET);
 }
 
 /**
- * @brief Create reading UI
+ * @brief Create reading UI - consistent with original layout
  */
 static void create_reading_ui(void)
 {
+    // Main reading container (not scrollable, just a holder)
     reading_container = lv_obj_create(ui_ebook_screen);
     lv_obj_set_size(reading_container, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(reading_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(reading_container, 0, 0);
-    lv_obj_set_style_pad_all(reading_container, 3, 0); // Reduced padding for more space
+    lv_obj_set_style_pad_all(reading_container, READING_CONTAINER_PAD, 0);
+    lv_obj_clear_flag(reading_container, LV_OBJ_FLAG_SCROLLABLE);  // Container itself not scrollable
 
-    // Book title at top center
+    // Book title at top center (fixed position)
     book_title_label = lv_label_create(reading_container);
-    lv_obj_set_size(book_title_label, AI_PET_SCREEN_WIDTH - 70, 18); // Adjusted for 384x168 screen
-    lv_obj_align(book_title_label, LV_ALIGN_TOP_MID, 0, 2);
+    lv_obj_set_size(book_title_label, AI_PET_SCREEN_WIDTH - READING_TITLE_MARGIN, READING_TITLE_HEIGHT);
+    lv_obj_set_pos(book_title_label, (AI_PET_SCREEN_WIDTH - (AI_PET_SCREEN_WIDTH - READING_TITLE_MARGIN)) / 2,
+                   READING_TITLE_Y_OFFSET);
     lv_obj_set_style_text_color(book_title_label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(book_title_label, &lv_font_montserrat_12, 0); // Smaller font for title
+    lv_obj_set_style_text_font(book_title_label, EBOOK_TITLE_FONT, 0);
     lv_obj_set_style_text_align(book_title_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(book_title_label, LV_LABEL_LONG_DOT);
 
-    // Battery indicator at top right
+    // Battery indicator at top right (fixed position)
+    /*
     battery_label = lv_label_create(reading_container);
-    lv_obj_set_size(battery_label, 55, 18);
-    lv_obj_align(battery_label, LV_ALIGN_TOP_RIGHT, -3, 2);
-    lv_obj_set_style_text_color(battery_label, lv_color_make(100, 100, 100), 0);
-    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_size(battery_label, READING_BATTERY_WIDTH, READING_BATTERY_HEIGHT);
+    lv_obj_set_pos(battery_label, AI_PET_SCREEN_WIDTH - READING_BATTERY_WIDTH - READING_BATTERY_MARGIN,
+                   READING_TITLE_Y_OFFSET);
+    lv_obj_set_style_text_color(battery_label, COLOR_GRAY_100, 0);
+    lv_obj_set_style_text_font(battery_label, EBOOK_UI_FONT, 0);
     lv_obj_set_style_text_align(battery_label, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_label_set_text(battery_label, LV_SYMBOL_BATTERY_FULL "85%"); // Default battery level
+    lv_label_set_text(battery_label, LV_SYMBOL_BATTERY_FULL "85%");
+    */
 
-    // Main text display area - optimized for natural reading with LVGL wrapping (original behavior)
-    reading_text = lv_label_create(reading_container);
-    // Calculate available space: total height - title area - page info area - padding
-    int text_height = AI_PET_SCREEN_HEIGHT - 22 - 16 - 6; // 168 - 22 - 16 - 6 = 124
-    lv_obj_set_size(reading_text, AI_PET_SCREEN_WIDTH - 16, text_height); // Comfortable margins
-    lv_obj_align(reading_text, LV_ALIGN_TOP_LEFT, 8, 22); // Balanced margins
+    // Scrollable text area in the middle
+    lv_obj_t *scroll_area = lv_obj_create(reading_container);
+    int scroll_height = AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET -
+                        READING_CONTAINER_PAD;
+    lv_obj_set_size(scroll_area, AI_PET_SCREEN_WIDTH - SCROLL_AREA_MARGIN, scroll_height);
+    lv_obj_set_pos(scroll_area, READING_CONTAINER_PAD, SCROLL_AREA_TOP_OFFSET);
+    lv_obj_set_style_bg_color(scroll_area, lv_color_white(), 0);
+    lv_obj_set_style_border_width(scroll_area, 0, 0);
+    lv_obj_set_style_pad_all(scroll_area, SCROLL_AREA_PAD, 0);
+    lv_obj_set_scrollbar_mode(scroll_area, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_scroll_dir(scroll_area, LV_DIR_VER);  // Only vertical scroll
+
+    // Text label inside scroll area - auto height
+    reading_text = lv_label_create(scroll_area);
+    lv_obj_set_width(reading_text, lv_pct(100));  // Full width of parent
     lv_obj_set_style_text_color(reading_text, lv_color_black(), 0);
-    lv_obj_set_style_text_font(reading_text, &lv_font_montserrat_12, 0);
-    lv_label_set_long_mode(reading_text, LV_LABEL_LONG_WRAP); // Let LVGL handle wrapping naturally (restored)
-    lv_obj_set_style_text_line_space(reading_text, 2, 0); // Natural line spacing for reading
-    lv_obj_set_style_pad_all(reading_text, 4, 0); // Comfortable padding (restored)
-    lv_obj_set_style_text_align(reading_text, LV_TEXT_ALIGN_LEFT, 0); // Left align text
+    lv_obj_set_style_text_font(reading_text, EBOOK_UI_FONT, 0);
+    lv_label_set_long_mode(reading_text, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_line_space(reading_text, SCROLL_TEXT_LINE_SPACE, 0);
+    lv_obj_set_style_text_align(reading_text, LV_TEXT_ALIGN_LEFT, 0);
+    lv_label_set_text(reading_text, "No book loaded");
 
-    // Page info at very bottom of screen
+    // Page info at very bottom of screen (fixed position)
     page_info_label = lv_label_create(reading_container);
-    lv_obj_set_size(page_info_label, AI_PET_SCREEN_WIDTH - 16, 14);
-    lv_obj_align(page_info_label, LV_ALIGN_BOTTOM_MID, 0, -1); // Very bottom
-    lv_obj_set_style_text_color(page_info_label, lv_color_make(80, 80, 80), 0);
-    lv_obj_set_style_text_font(page_info_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_size(page_info_label, AI_PET_SCREEN_WIDTH - PAGE_INFO_MARGIN, PAGE_INFO_HEIGHT);
+    lv_obj_set_pos(page_info_label, PAGE_INFO_X_OFFSET, AI_PET_SCREEN_HEIGHT - PAGE_INFO_BOTTOM_OFFSET);
+    lv_obj_set_style_text_color(page_info_label, COLOR_GRAY_80, 0);
+    lv_obj_set_style_text_font(page_info_label, EBOOK_PAGE_INFO_FONT, 0);
     lv_obj_set_style_text_align(page_info_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_bg_color(page_info_label, lv_color_make(240, 240, 240), 0); // Light background
+    lv_obj_set_style_bg_color(page_info_label, COLOR_GRAY_240, 0);
     lv_obj_set_style_bg_opa(page_info_label, LV_OPA_80, 0);
 
+    // Store scroll_area reference in reading_container's user_data for later access
+    lv_obj_set_user_data(reading_container, scroll_area);
+
     // Initially hidden
-    lv_obj_add_flag(reading_container, LV_OBJ_FLAG_HIDDEN);
-}/**
- * @brief Switch to shelf mode
- */
-static void switch_to_shelf_mode(void)
-{
-    lv_obj_clear_flag(shelf_container, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(reading_container, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -883,6 +1004,17 @@ static void switch_to_reading_mode(void)
 {
     lv_obj_add_flag(shelf_container, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(reading_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(page_info_label, LV_OBJ_FLAG_HIDDEN);
+}
+
+/**
+ * @brief Switch to shelf mode
+ */
+static void switch_to_shelf_mode(void)
+{
+    lv_obj_clear_flag(shelf_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(reading_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(page_info_label, LV_OBJ_FLAG_HIDDEN);
 }
 
 /**
@@ -899,7 +1031,7 @@ void ebook_update_shelf_display(void)
 
     if (ebook_state.shelf.book_count == 0) {
         lv_obj_t *empty_btn = lv_list_add_btn(shelf_list, LV_SYMBOL_FILE, "No books found in txt directory");
-        lv_obj_set_style_text_color(empty_btn, lv_color_make(150, 150, 150), 0);
+        lv_obj_set_style_text_color(empty_btn, COLOR_GRAY_150, 0);
         return;
     }
 
@@ -911,7 +1043,7 @@ void ebook_update_shelf_display(void)
         lv_obj_t *book_btn = lv_list_add_btn(shelf_list, LV_SYMBOL_FILE, book->display_name);
 
         // Set font and basic styling
-        lv_obj_set_style_text_font(book_btn, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_font(book_btn, EBOOK_UI_FONT, 0);
 
         // Add book info (pages/size) on the right
         if (book->total_lines > 0) {
@@ -921,8 +1053,8 @@ void ebook_update_shelf_display(void)
             snprintf(info_text, sizeof(info_text), "%d pages", pages);
             lv_label_set_text(info_label, info_text);
             lv_obj_align(info_label, LV_ALIGN_RIGHT_MID, -10, 0);
-            lv_obj_set_style_text_color(info_label, lv_color_make(100, 100, 100), 0);
-            lv_obj_set_style_text_font(info_label, &lv_font_montserrat_10, 0);
+            lv_obj_set_style_text_color(info_label, COLOR_GRAY_100, 0);
+            lv_obj_set_style_text_font(info_label, EBOOK_UI_FONT, 0);
         }
     }
 
@@ -952,7 +1084,7 @@ static void ebook_update_shelf_selection(void)
     // Highlight selected item
     if (ebook_state.shelf.selected_book < (int)child_count) {
         lv_obj_t *selected_btn = lv_obj_get_child(shelf_list, ebook_state.shelf.selected_book);
-        lv_obj_set_style_bg_color(selected_btn, lv_color_make(0, 100, 200), 0);
+        lv_obj_set_style_bg_color(selected_btn, COLOR_BLUE_SELECT, 0);
         lv_obj_set_style_text_color(selected_btn, lv_color_white(), 0);
         lv_obj_set_style_bg_opa(selected_btn, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(selected_btn, 4, 0);
@@ -963,540 +1095,337 @@ static void ebook_update_shelf_selection(void)
 }
 
 /**
- * @brief Update reading display with improved layout-based positioning
+ * @brief Timer callback to update page info after scroll animation
  */
-void ebook_update_reading_display(void)
+static void update_page_info_timer_cb(lv_timer_t *timer)
 {
-    if (!reading_text || !ebook_state.reading.content_loaded) {
-        if (reading_text) {
-            lv_label_set_text(reading_text, "No content loaded");
-        }
-        if (page_info_label) {
-            lv_label_set_text(page_info_label, LV_SYMBOL_CLOSE " Back to shelf");
-        }
-        if (book_title_label) {
-            lv_label_set_text(book_title_label, "No Book Selected");
+    if (!reading_container || !page_info_label) {
+        if (timer) {
+            lv_timer_del(timer);
         }
         return;
     }
 
-    // Update book title
-    if (book_title_label) {
-        // Find current book to get display name
-        char *display_name = "Unknown Book";
-        for (int i = 0; i < ebook_state.shelf.book_count; i++) {
-            if (strcmp(ebook_state.shelf.books[i].filename, ebook_state.reading.current_book) == 0) {
-                display_name = ebook_state.shelf.books[i].display_name;
-                break;
-            }
+    // Get scroll area from reading_container's user_data
+    lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+    if (!scroll_area) {
+        if (timer) {
+            lv_timer_del(timer);
         }
-        lv_label_set_text(book_title_label, display_name);
+        return;
     }
 
-    // Use simplified layout-based display (combining previous correct implementations)
-    if (ebook_state.reading.layout.layout_valid) {
-        // Get current position as character offset
-        int char_offset = 0;
-        if (ebook_state.reading.layout.current_line_index < ebook_state.reading.layout.line_count) {
-            const line_info_t *current_line = &ebook_state.reading.layout.lines[ebook_state.reading.layout.current_line_index];
-            char_offset = current_line->char_start;
-        }
+    // Get scroll position from scroll_area
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(scroll_area);
 
-        printf("Display update: showing from line %d (char offset %d)\n", ebook_state.reading.layout.current_line_index, char_offset);
+    // Calculate line height (font height + line spacing)
+    const lv_font_t *font = EBOOK_UI_FONT;
+    int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
 
-        // Use the original character-based display method with layout position tracking
-        char *content_start = ebook_state.reading.content;
-        char *content_ptr = content_start + char_offset;
+    // Calculate current line based on scroll position
+    int current_line = scroll_y / line_height + 1; // +1 for 1-based indexing
+    if (current_line < 1) current_line = 1;
 
-        // Build display text for current screen (original method)
-        static char display_text[4096];
-        int chars_copied = 0;
-        const int screen_char_limit = 1800;
-
-        while (*content_ptr && chars_copied < screen_char_limit &&
-               chars_copied < sizeof(display_text) - 100 &&
-               (content_ptr - content_start) < (int)ebook_state.reading.content_size) {
-
-            // Handle paragraph breaks naturally (original logic)
-            if (*content_ptr == '\n') {
-                char *next_ptr = content_ptr + 1;
-                bool is_paragraph_break = false;
-
-                // Skip carriage returns
-                while (*next_ptr == '\r' && (next_ptr - content_start) < (int)ebook_state.reading.content_size) {
-                    next_ptr++;
-                }
-
-                // Check for paragraph break (double newline)
-                if (*next_ptr == '\n') {
-                    is_paragraph_break = true;
-                }
-
-                if (is_paragraph_break) {
-                    // Preserve paragraph break
-                    display_text[chars_copied++] = '\n';
-                    display_text[chars_copied++] = '\n';
-                    content_ptr++;
-                    // Skip additional newlines/returns
-                    while ((*content_ptr == '\n' || *content_ptr == '\r') &&
-                           (content_ptr - content_start) < (int)ebook_state.reading.content_size) {
-                        content_ptr++;
-                    }
-                    continue;
-                } else {
-                    // Single newline - convert to space for natural flow
-                    if (chars_copied > 0 && display_text[chars_copied-1] != ' ' && display_text[chars_copied-1] != '\n') {
-                        display_text[chars_copied++] = ' ';
-                    }
-                    content_ptr++;
-                    continue;
-                }
-            }
-
-            // Skip carriage returns
-            if (*content_ptr == '\r') {
-                content_ptr++;
-                continue;
-            }
-
-            // Copy regular characters
-            display_text[chars_copied++] = *content_ptr;
-            content_ptr++;
-        }
-
-        display_text[chars_copied] = '\0';
-
-        // Set text and let LVGL handle natural wrapping (original behavior)
-        lv_label_set_text(reading_text, display_text);
-
-        // Update page info with layout information
-        ebook_update_page_numbers();
-        static char page_text[100];
-        snprintf(page_text, sizeof(page_text),
-                "Line %d/%d | Page %d/%d " LV_SYMBOL_UP LV_SYMBOL_DOWN " Line " LV_SYMBOL_LEFT LV_SYMBOL_RIGHT " Page " LV_SYMBOL_CLOSE " Back",
-                ebook_state.reading.layout.current_line_index + 1,
-                ebook_state.reading.layout.line_count,
-                ebook_state.reading.layout.current_page, ebook_state.reading.layout.total_pages);
-        lv_label_set_text(page_info_label, page_text);
-    } else {
-        // Fallback to original character-based method
-        printf("Warning: Using fallback display method - layout not available\n");
-
-        // Use original character offset method based on current_line (fallback)
-        char *content_start = ebook_state.reading.content;
-        char *content_ptr = content_start;
-
-        // Skip to current_line position (simplified fallback)
-        int lines_skipped = 0;
-        while (*content_ptr && lines_skipped < ebook_state.reading.current_line &&
-               (content_ptr - content_start) < (int)ebook_state.reading.content_size) {
-            if (*content_ptr == '\n') {
-                lines_skipped++;
-            }
-            content_ptr++;
-        }
-
-        // Generate display text using original algorithm
-        static char display_text[4096];
-        int chars_copied = 0;
-        const int screen_char_limit = 1800;
-
-        while (*content_ptr && chars_copied < screen_char_limit &&
-               chars_copied < sizeof(display_text) - 100 &&
-               (content_ptr - content_start) < (int)ebook_state.reading.content_size) {
-
-            if (*content_ptr == '\n') {
-                char *next_ptr = content_ptr + 1;
-                while (*next_ptr == '\r' && (next_ptr - content_start) < (int)ebook_state.reading.content_size) {
-                    next_ptr++;
-                }
-
-                if (*next_ptr == '\n') {
-                    // Paragraph break
-                    display_text[chars_copied++] = '\n';
-                    display_text[chars_copied++] = '\n';
-                    content_ptr++;
-                    while ((*content_ptr == '\n' || *content_ptr == '\r') &&
-                           (content_ptr - content_start) < (int)ebook_state.reading.content_size) {
-                        content_ptr++;
-                    }
-                    continue;
-                } else {
-                    // Single newline to space
-                    if (chars_copied > 0 && display_text[chars_copied-1] != ' ' && display_text[chars_copied-1] != '\n') {
-                        display_text[chars_copied++] = ' ';
-                    }
-                    content_ptr++;
-                    continue;
-                }
-            }
-
-            if (*content_ptr == '\r') {
-                content_ptr++;
-                continue;
-            }
-
-            display_text[chars_copied++] = *content_ptr;
-            content_ptr++;
-        }
-
-        display_text[chars_copied] = '\0';
-        lv_label_set_text(reading_text, display_text);
-
-        // Simple page info
-        int current_offset = content_ptr - content_start;
-        static char page_text[100];
-        snprintf(page_text, sizeof(page_text),
-                "Position %d/%zu " LV_SYMBOL_LEFT LV_SYMBOL_RIGHT " Page " LV_SYMBOL_CLOSE " Back",
-                current_offset, ebook_state.reading.content_size);
-        lv_label_set_text(page_info_label, page_text);
+    // Ensure current line doesn't exceed total lines
+    if (current_line > ebook_state.reading.total_lines) {
+        current_line = ebook_state.reading.total_lines;
     }
+
+    // Update state
+    ebook_state.reading.current_line = current_line;
+
+    // Calculate current page
+    ebook_calculate_pages();
+
+    // Update page info label
+    char page_text[100];
+    snprintf(page_text, sizeof(page_text),
+            "Line %d/%d | Page %d/%d " LV_SYMBOL_LEFT LV_SYMBOL_RIGHT " Page " LV_SYMBOL_UP LV_SYMBOL_DOWN " Scroll " LV_SYMBOL_CLOSE " Back",
+            current_line, ebook_state.reading.total_lines,
+            ebook_state.reading.current_page, ebook_state.reading.total_pages);
+    lv_label_set_text(page_info_label, page_text);
+
+    // Delete the timer after update (only if timer is not NULL)
+    if (timer) {
+        lv_timer_del(timer);
+    }
+}
+
+/**
+ * @brief Update page info based on scroll position
+ */
+static void update_page_info(void)
+{
+    update_page_info_timer_cb(NULL);
+}
+
+/**
+ * @brief Update reading display - consistent with original behavior
+ */
+void ebook_update_reading_display(void)
+{
+    if (!reading_text || !ebook_state.reading.content_loaded || !ebook_state.reading.content) {
+        lv_label_set_text(reading_text, "No content loaded");
+        lv_label_set_text(book_title_label, "E-Book Reader");
+        if (page_info_label) {
+            lv_label_set_text(page_info_label, LV_SYMBOL_CLOSE " Back to shelf");
+        }
+        return;
+    }
+
+    // Find current book to get display name
+    char *display_name = "Unknown Book";
+    for (int i = 0; i < ebook_state.shelf.book_count; i++) {
+        if (strcmp(ebook_state.shelf.books[i].filename, ebook_state.reading.current_book) == 0) {
+            display_name = ebook_state.shelf.books[i].display_name;
+            break;
+        }
+    }
+    lv_label_set_text(book_title_label, display_name);
+
+    // Display full content in label - let LVGL handle scrolling
+    lv_label_set_text(reading_text, ebook_state.reading.content);
+
+    // Force layout update to ensure content height is calculated correctly
+    lv_obj_update_layout(reading_text);
+
+    // Calculate accurate total lines using LVGL rendering (now that text is set)
+    ebook_state.reading.total_lines = calculate_total_lines();
+
+    // Get scroll area from reading_container's user_data
+    lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+    if (scroll_area) {
+        // Update scroll area layout to reflect new content
+        lv_obj_update_layout(scroll_area);
+
+        // Scroll to saved position
+        const lv_font_t *font = EBOOK_UI_FONT;
+        int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
+        int scroll_y = (ebook_state.reading.current_line - 1) * line_height;
+        lv_obj_scroll_to_y(scroll_area, scroll_y, LV_ANIM_OFF);
+    }
+
+    // Update page info
+    update_page_info();
 
     // Update battery display
-    update_battery_display();
+    /* update_battery_display(); */
+
+    printf("Display updated: %s (%zu bytes, line %d/%d)\n",
+           ebook_state.reading.current_book,
+           ebook_state.reading.content_size,
+           ebook_state.reading.current_line,
+           ebook_state.reading.total_lines);
 }
 
 /**
- * @brief Page up function for left key with improved line-based navigation
- */
-static int ebook_page_up(void)
-{
-    if (!ebook_state.in_reading_mode) {
-        return -1;
-    }
-
-    if (ebook_state.reading.layout.layout_valid) {
-        // Use improved layout-based page navigation
-        int lines_per_screen = ebook_state.reading.metrics.lines_per_screen;
-        int current_line = ebook_state.reading.layout.current_line_index;
-
-        // Calculate new line index - jump by full screen minus one line for continuity
-        int new_line_index = current_line - (lines_per_screen - 1);
-
-        // Ensure we don't go below 0
-        if (new_line_index < 0) {
-            new_line_index = 0;
-        }
-
-        // Update layout position to the new page start
-        ebook_state.reading.layout.current_line_index = new_line_index;
-
-        // Re-initialize screen display at new position
-        if (ebook_state.reading.screen.screen_valid) {
-            if (ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                                 &ebook_state.reading.layout,
-                                                 ebook_state.reading.content,
-                                                 &ebook_state.reading.metrics,
-                                                 new_line_index) == 0) {
-                printf("Page up: re-initialized screen from line %d (jumped by %d lines)\n",
-                       new_line_index, lines_per_screen - 1);
-            }
-        }
-
-        ebook_update_page_numbers();
-        ebook_update_reading_display();
-        ebook_save_position();
-
-        printf("Page up: moved from line %d to line %d\n", current_line, new_line_index);
-        return 0;
-    } else {
-        // Fallback to character-based navigation
-        const int chars_per_screen = 1600;
-
-        if (ebook_state.reading.current_line >= chars_per_screen) {
-            ebook_state.reading.current_line -= chars_per_screen;
-        } else {
-            ebook_state.reading.current_line = 0;
-        }
-
-        ebook_update_reading_display();
-        ebook_save_position();
-        return 0;
-    }
-}
-
-/**
- * @brief Page down function for right key with improved line-based navigation
- */
-static int ebook_page_down(void)
-{
-    if (!ebook_state.in_reading_mode) {
-        return -1;
-    }
-
-    if (ebook_state.reading.layout.layout_valid) {
-        // Use improved layout-based page navigation
-        int lines_per_screen = ebook_state.reading.metrics.lines_per_screen;
-        int current_line = ebook_state.reading.layout.current_line_index;
-        int total_lines = ebook_state.reading.layout.line_count;
-
-        // Calculate new line index - jump by full screen minus one line for continuity
-        int new_line_index = current_line + lines_per_screen - 1;
-
-        // Calculate the maximum line we can scroll to (leave room for a full screen)
-        int max_scroll_line = total_lines - lines_per_screen;
-        if (max_scroll_line < 0) max_scroll_line = 0;
-
-        // Ensure we don't go beyond the end
-        if (new_line_index > max_scroll_line) {
-            new_line_index = max_scroll_line;
-        }
-
-        // Only update if we actually moved
-        if (new_line_index != current_line) {
-            // Update layout position to the new page start
-            ebook_state.reading.layout.current_line_index = new_line_index;
-
-            // Re-initialize screen display at new position
-            if (ebook_state.reading.screen.screen_valid) {
-                if (ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                                     &ebook_state.reading.layout,
-                                                     ebook_state.reading.content,
-                                                     &ebook_state.reading.metrics,
-                                                     new_line_index) == 0) {
-                    printf("Page down: re-initialized screen from line %d (jumped by %d lines)\n",
-                           new_line_index, lines_per_screen - 1);
-                }
-            }
-
-            ebook_update_page_numbers();
-            ebook_update_reading_display();
-            ebook_save_position();
-
-            printf("Page down: moved from line %d to line %d (max: %d)\n", current_line, new_line_index, max_scroll_line);
-        } else {
-            printf("Page down: already at end, staying at line %d\n", current_line);
-        }
-
-        return 0;
-    } else {
-        // Fallback to character-based navigation with improved end detection
-        const int chars_per_screen = 1600;
-        int new_position = ebook_state.reading.current_line + chars_per_screen;
-        int content_size = (int)ebook_state.reading.content_size;
-
-        // First, try the normal increment
-        if (new_position < content_size - 300) {
-            // Normal case - we have plenty of content ahead
-            ebook_state.reading.current_line = new_position;
-        } else {
-            // We're approaching the end - use optimal end position
-            int optimal_end = find_optimal_end_position();
-
-            // If we're already at or past the optimal end position, don't move
-            if (ebook_state.reading.current_line >= optimal_end) {
-                // Check if we can show a bit more content by moving slightly forward
-                int small_increment = 100;
-                int test_position = ebook_state.reading.current_line + small_increment;
-
-                if (test_position < content_size - 50 &&
-                    has_meaningful_content_at_position(test_position, 50)) {
-                    ebook_state.reading.current_line = test_position;
-                } else {
-                    // No more meaningful content, stay where we are
-                    return 0;
-                }
-            } else {
-                // Move to the optimal end position
-                ebook_state.reading.current_line = optimal_end;
-            }
-        }
-
-        ebook_update_reading_display();
-        ebook_save_position();
-        return 0;
-    }
-}
-
-/**
- * @brief Navigate up in current interface with precise line-by-line scrolling
+ * @brief Navigate up in reading mode - with boundary check
  */
 int ebook_navigate_up(void)
 {
     if (ebook_state.in_reading_mode) {
-        if (ebook_state.reading.layout.layout_valid && ebook_state.reading.screen.screen_valid) {
-            // Use new precise line scrolling system
-            int result = ebook_scroll_screen_up_internal(&ebook_state.reading.screen,
-                                                       &ebook_state.reading.layout,
-                                                       ebook_state.reading.content,
-                                                       &ebook_state.reading.metrics);
-            if (result == 0) {
-                // Update layout current line index to match screen
-                ebook_state.reading.layout.current_line_index = ebook_state.reading.screen.top_line_index;
-                ebook_update_page_numbers();
-                ebook_update_reading_display();
-                ebook_save_position();
-                printf("Precise scroll up: screen top line %d\n", ebook_state.reading.screen.top_line_index);
-                return 0;
-            } else {
-                printf("Cannot scroll up further\n");
-                return 0; // Already at top
-            }
-        } else if (ebook_state.reading.layout.layout_valid) {
-            // Fallback to layout-based navigation if screen not initialized
-            int current_line = ebook_state.reading.layout.current_line_index;
-            if (current_line > 0) {
-                ebook_state.reading.layout.current_line_index = current_line - 1;
-
-                // Re-initialize screen display at new position
-                ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                                 &ebook_state.reading.layout,
-                                                 ebook_state.reading.content,
-                                                 &ebook_state.reading.metrics,
-                                                 ebook_state.reading.layout.current_line_index);
-
-                ebook_update_page_numbers();
-                ebook_update_reading_display();
-                ebook_save_position();
-                printf("Layout scroll up: moved to line %d\n", ebook_state.reading.layout.current_line_index);
-                return 0;
-            }
-            printf("Already at first line, cannot scroll up\n");
-            return 0;
-        } else {
-            // Fallback to character-based scrolling
-            const int chars_per_line = 40;
-
-            if (ebook_state.reading.current_line <= 0) {
-                ebook_state.reading.current_line = 0;
-                return 0;
-            }
-
-            int new_position = ebook_state.reading.current_line - chars_per_line;
-            if (new_position < 0) {
-                new_position = 0;
-            }
-
-            if (new_position != ebook_state.reading.current_line) {
-                ebook_state.reading.current_line = new_position;
-                ebook_update_reading_display();
-                ebook_save_position();
-                printf("Fallback scroll up: moved to position %d\n", new_position);
-            }
-
+        // Get scroll area from reading_container's user_data
+        lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+        if (!scroll_area) {
+            printf("Error: scroll_area is NULL\n");
             return 0;
         }
+
+        // Get current scroll position
+        lv_coord_t scroll_y = lv_obj_get_scroll_y(scroll_area);
+
+        // Calculate line height
+        const lv_font_t *font = EBOOK_UI_FONT;
+        int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
+
+        // Check if already at top (scroll_y <= 0 means can't scroll up more)
+        if (scroll_y <= 0) {
+            printf("Already at top, cannot scroll up\n");
+            return 0;
+        }
+
+        // Scroll up by one line (positive value scrolls up in LVGL)
+        lv_obj_scroll_by(scroll_area, 0, line_height, LV_ANIM_ON);
+
+        // Update page info after scroll animation
+        lv_timer_create(update_page_info_timer_cb, PAGE_INFO_UPDATE_DELAY, NULL);
+
+        printf("Scrolled up by %d pixels\n", line_height);
+        return 0;
     } else {
-        // Shelf mode - move selection up (simplified like food menu)
+        // Navigate shelf up
         if (ebook_state.shelf.selected_book > 0) {
             ebook_state.shelf.selected_book--;
             ebook_update_shelf_selection();
-            printf("Shelf nav up: selected book %d\n", ebook_state.shelf.selected_book);
-            return 0;
+            printf("Selected book: %d\n", ebook_state.shelf.selected_book);
         }
+        return 0;
     }
-    return -1;
 }
 
 /**
- * @brief Navigate down in current interface with precise line-by-line scrolling
+ * @brief Navigate down in reading mode - with boundary check
  */
 int ebook_navigate_down(void)
 {
     if (ebook_state.in_reading_mode) {
-        if (ebook_state.reading.layout.layout_valid && ebook_state.reading.screen.screen_valid) {
-            // Use new precise line scrolling system
-            int result = ebook_scroll_screen_down_internal(&ebook_state.reading.screen,
-                                                         &ebook_state.reading.layout,
-                                                         ebook_state.reading.content,
-                                                         &ebook_state.reading.metrics);
-            if (result == 0) {
-                // Update layout current line index to match screen
-                ebook_state.reading.layout.current_line_index = ebook_state.reading.screen.top_line_index;
-                ebook_update_page_numbers();
-                ebook_update_reading_display();
-                ebook_save_position();
-                printf("Precise scroll down: screen top line %d\n", ebook_state.reading.screen.top_line_index);
-                return 0;
-            } else {
-                printf("Cannot scroll down further\n");
-                return 0; // Already at bottom
-            }
-        } else if (ebook_state.reading.layout.layout_valid) {
-            // Fallback to layout-based navigation if screen not initialized
-            int current_line = ebook_state.reading.layout.current_line_index;
-            int total_lines = ebook_state.reading.layout.line_count;
-            int lines_per_screen = ebook_state.reading.metrics.lines_per_screen;
-
-            int max_scroll_line = total_lines - lines_per_screen;
-            if (max_scroll_line < 0) max_scroll_line = 0;
-
-            if (current_line < max_scroll_line) {
-                ebook_state.reading.layout.current_line_index = current_line + 1;
-
-                // Re-initialize screen display at new position
-                ebook_init_screen_display_internal(&ebook_state.reading.screen,
-                                                 &ebook_state.reading.layout,
-                                                 ebook_state.reading.content,
-                                                 &ebook_state.reading.metrics,
-                                                 ebook_state.reading.layout.current_line_index);
-
-                ebook_update_page_numbers();
-                ebook_update_reading_display();
-                ebook_save_position();
-                printf("Layout scroll down: moved to line %d (max: %d)\n", ebook_state.reading.layout.current_line_index, max_scroll_line);
-                return 0;
-            }
-            printf("Already at last possible line (%d), cannot scroll down\n", max_scroll_line);
-            return 0;
-        } else {
-            // Fallback to character-based scrolling
-            const int chars_per_line = 40;
-            int content_size = (int)ebook_state.reading.content_size;
-
-            int new_position = ebook_state.reading.current_line + chars_per_line;
-
-            if (new_position < content_size - 400) {
-                ebook_state.reading.current_line = new_position;
-            } else {
-                int optimal_end = find_optimal_end_position();
-
-                if (ebook_state.reading.current_line >= optimal_end) {
-                    int small_increment = 20;
-                    int test_position = ebook_state.reading.current_line + small_increment;
-
-                    if (test_position < content_size - 50 &&
-                        has_meaningful_content_at_position(test_position, 20)) {
-                        ebook_state.reading.current_line = test_position;
-                    } else {
-                        printf("No more content to scroll, staying at position %d\n", ebook_state.reading.current_line);
-                        return 0;
-                    }
-                } else {
-                    int target = (ebook_state.reading.current_line + chars_per_line > optimal_end) ?
-                               optimal_end : ebook_state.reading.current_line + chars_per_line;
-                    ebook_state.reading.current_line = target;
-                }
-            }
-
-            ebook_update_reading_display();
-            ebook_save_position();
-            printf("Fallback scroll down: moved to position %d\n", ebook_state.reading.current_line);
+        // Get scroll area from reading_container's user_data
+        lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+        if (!scroll_area) {
+            printf("Error: scroll_area is NULL\n");
             return 0;
         }
+
+        // Get current scroll position
+        lv_coord_t scroll_y = lv_obj_get_scroll_y(scroll_area);
+
+        // Get the actual text content height from reading_text object
+        lv_coord_t text_height = lv_obj_get_height(reading_text);
+        lv_coord_t scroll_area_height = lv_obj_get_height(scroll_area);
+
+        // Get scroll area padding
+        lv_coord_t pad_top = lv_obj_get_style_pad_top(scroll_area, LV_PART_MAIN);
+        lv_coord_t pad_bottom = lv_obj_get_style_pad_bottom(scroll_area, LV_PART_MAIN);
+        lv_coord_t content_height = text_height + pad_top + pad_bottom;
+
+        // Calculate line height
+        const lv_font_t *font = EBOOK_UI_FONT;
+        int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
+
+        // Check if already at bottom (scroll_y >= content_height - scroll_area_height means can't scroll down more)
+        if (scroll_y >= content_height - scroll_area_height) {
+            printf("Already at bottom, cannot scroll down\n");
+            return 0;
+        }
+
+        // Scroll down by one line (negative value scrolls down in LVGL)
+        lv_obj_scroll_by(scroll_area, 0, -line_height, LV_ANIM_ON);
+
+        // Update page info after scroll animation
+        lv_timer_create(update_page_info_timer_cb, PAGE_INFO_UPDATE_DELAY, NULL);
+
+        printf("Scrolled down by %d pixels\n", line_height);
+        return 0;
     } else {
-        // Shelf mode - move selection down (simplified like food menu)
+        // Navigate shelf down
         if (ebook_state.shelf.selected_book < ebook_state.shelf.book_count - 1) {
             ebook_state.shelf.selected_book++;
             ebook_update_shelf_selection();
-            printf("Shelf nav down: selected book %d\n", ebook_state.shelf.selected_book);
-            return 0;
+            printf("Selected book: %d\n", ebook_state.shelf.selected_book);
         }
+        return 0;
     }
-    return -1;
 }
 
 /**
- * @brief Handle enter/select action
+ * @brief Page up in reading mode - scroll by fixed number of lines
+ */
+int ebook_page_up(void)
+{
+    if (!ebook_state.in_reading_mode) {
+        return 0;
+    }
+
+    // Get scroll area from reading_container's user_data
+    lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+    if (!scroll_area) {
+        printf("Error: scroll_area is NULL\n");
+        return 0;
+    }
+
+    // Get current scroll position
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(scroll_area);
+
+    // Calculate line height and page scroll lines
+    const lv_font_t *font = EBOOK_UI_FONT;
+    int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
+    int page_lines = CALCULATE_PAGE_SCROLL_LINES();
+    int scroll_pixels = page_lines * line_height;
+
+    // Calculate actual scroll amount (don't scroll past top)
+    int actual_scroll_pixels = (scroll_y < scroll_pixels) ? scroll_y : scroll_pixels;
+
+    // Check if already at top
+    if (actual_scroll_pixels <= 0) {
+        printf("Already at top, cannot page up\n");
+        return 0;
+    }
+
+    // Scroll up by actual_scroll_pixels (positive value scrolls up in LVGL)
+    lv_obj_scroll_by(scroll_area, 0, actual_scroll_pixels, LV_ANIM_ON);
+
+    // Update page info after scroll animation
+    lv_timer_create(update_page_info_timer_cb, PAGE_INFO_UPDATE_DELAY, NULL);
+
+    printf("Paged up by %d lines (%d pixels)\n", page_lines, actual_scroll_pixels);
+    return 0;
+}
+
+/**
+ * @brief Page down in reading mode - scroll by fixed number of lines
+ */
+int ebook_page_down(void)
+{
+    if (!ebook_state.in_reading_mode) {
+        return 0;
+    }
+
+    // Get scroll area from reading_container's user_data
+    lv_obj_t *scroll_area = (lv_obj_t *)lv_obj_get_user_data(reading_container);
+    if (!scroll_area) {
+        printf("Error: scroll_area is NULL\n");
+        return 0;
+    }
+
+    // Get current scroll position
+    lv_coord_t scroll_y = lv_obj_get_scroll_y(scroll_area);
+
+    // Get the actual text content height from reading_text object
+    lv_coord_t text_height = lv_obj_get_height(reading_text);
+    lv_coord_t scroll_area_height = lv_obj_get_height(scroll_area);
+
+    // Get scroll area padding
+    lv_coord_t pad_top = lv_obj_get_style_pad_top(scroll_area, LV_PART_MAIN);
+    lv_coord_t pad_bottom = lv_obj_get_style_pad_bottom(scroll_area, LV_PART_MAIN);
+    lv_coord_t content_height = text_height + pad_top + pad_bottom;
+
+    // Calculate line height and page scroll lines
+    const lv_font_t *font = EBOOK_UI_FONT;
+    int line_height = lv_font_get_line_height(font) + SCROLL_TEXT_LINE_SPACE;
+    int page_lines = CALCULATE_PAGE_SCROLL_LINES();
+    int scroll_pixels = page_lines * line_height;
+
+    // Calculate maximum scroll possible (don't scroll past bottom)
+    lv_coord_t max_scroll_down = content_height - scroll_area_height - scroll_y;
+    int actual_scroll_pixels = (scroll_pixels > max_scroll_down) ? max_scroll_down : scroll_pixels;
+
+    // Check if already at bottom
+    if (actual_scroll_pixels <= 0) {
+        printf("Already at bottom, cannot page down\n");
+        return 0;
+    }
+
+    // Scroll down by actual_scroll_pixels (negative value scrolls down in LVGL)
+    lv_obj_scroll_by(scroll_area, 0, -actual_scroll_pixels, LV_ANIM_ON);
+
+    // Update page info after scroll animation
+    lv_timer_create(update_page_info_timer_cb, PAGE_INFO_UPDATE_DELAY, NULL);
+
+    printf("Paged down by %d lines (%d pixels)\n", page_lines, actual_scroll_pixels);
+    return 0;
+}
+
+/**
+ * @brief Handle select/enter action
  */
 int ebook_handle_select(void)
 {
     if (ebook_state.in_reading_mode) {
-        // Reading mode - page down (same as right key)
-        return ebook_page_down();
+        // In reading mode, select doesn't do anything special
+        return 0;
     } else {
-        // Shelf mode - open selected book
-        if (ebook_state.shelf.book_count > 0 && ebook_state.shelf.selected_book >= 0) {
+        // In shelf mode, open selected book
+        if (ebook_state.shelf.selected_book >= 0 && ebook_state.shelf.selected_book < ebook_state.shelf.book_count) {
             return ebook_open_book(ebook_state.shelf.selected_book);
         }
     }
@@ -1536,18 +1465,15 @@ int ebook_save_position(void)
     // Find the current book in shelf
     for (int i = 0; i < ebook_state.shelf.book_count; i++) {
         if (strcmp(ebook_state.shelf.books[i].filename, ebook_state.reading.current_book) == 0) {
-            // Save position based on layout system if available
-            if (ebook_state.reading.layout.layout_valid &&
-                ebook_state.reading.layout.current_line_index < ebook_state.reading.layout.line_count) {
-                // Convert line index to character position for compatibility
-                const line_info_t *current_line = &ebook_state.reading.layout.lines[ebook_state.reading.layout.current_line_index];
-                ebook_state.shelf.books[i].saved_line = current_line->char_start;
-            } else {
-                // Use legacy character position
-                ebook_state.shelf.books[i].saved_line = ebook_state.reading.current_line;
-            }
+            // Update book's saved position
+            ebook_state.shelf.books[i].saved_line = ebook_state.reading.current_line;
 
+            // Save to file
             save_book_position(i);
+
+            printf("Saved reading position: book=%s, line=%d\n",
+                   ebook_state.shelf.books[i].filename,
+                   ebook_state.reading.current_line);
             return 0;
         }
     }
@@ -1560,60 +1486,18 @@ int ebook_save_position(void)
 int ebook_load_position(void)
 {
     if (!ebook_state.in_reading_mode || !ebook_state.reading.content_loaded) {
-        return 0;
+        return -1;
     }
 
     // Find the current book in shelf
     for (int i = 0; i < ebook_state.shelf.book_count; i++) {
         if (strcmp(ebook_state.shelf.books[i].filename, ebook_state.reading.current_book) == 0) {
             load_book_position(i);
-            return ebook_state.shelf.books[i].saved_line;
+            ebook_state.reading.current_line = ebook_state.shelf.books[i].saved_line;
+            return ebook_state.reading.current_line;
         }
     }
     return 0;
-}
-
-/**
- * @brief Keyboard event callback
- */
-static void keyboard_event_cb(lv_event_t *e)
-{
-    uint32_t key = lv_event_get_key(e);
-    printf("[%s] Keyboard event received: key = %d\n", ebook_screen.name, key);
-
-    switch (key) {
-        case KEY_UP:
-            printf("UP key pressed - scroll up one line\n");
-            ebook_navigate_up();
-            break;
-        case KEY_DOWN:
-            printf("DOWN key pressed - scroll down one line\n");
-            ebook_navigate_down();
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed - page up\n");
-            if (ebook_state.in_reading_mode) {
-                ebook_page_up();
-            }
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed - page down\n");
-            if (ebook_state.in_reading_mode) {
-                ebook_page_down();
-            }
-            break;
-        case KEY_ENTER:
-            printf("ENTER key pressed\n");
-            ebook_handle_select();
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed\n");
-            ebook_handle_back();
-            break;
-        default:
-            printf("Unknown key pressed: %d\n", key);
-            break;
-    }
 }
 
 /**
@@ -1628,22 +1512,16 @@ void ebook_cleanup(void)
 
     // Stop the book scanning timer
     if (book_scan_timer) {
+        lv_timer_set_period(book_scan_timer, 0);
         lv_timer_del(book_scan_timer);
         book_scan_timer = NULL;
-        printf("Book scanning timer stopped\n");
     }
-
-    // Free line layout memory
-    ebook_free_line_layout_internal(&ebook_state.reading.layout);
 
     // Free allocated content
     if (ebook_state.reading.content) {
         free(ebook_state.reading.content);
         ebook_state.reading.content = NULL;
     }
-
-    // Reset state
-    memset(&ebook_state, 0, sizeof(ebook_state));
 }
 
 /**
@@ -1651,26 +1529,23 @@ void ebook_cleanup(void)
  */
 void ebook_screen_init(void)
 {
-    printf("Initializing enhanced e-book screen with book shelf\n");
+    printf("[%s] Initializing e-book screen\n", ebook_screen.name);
 
 #ifdef ENABLE_LVGL_HARDWARE
-    // Initialize SD card for hardware platform
-    printf("Hardware platform detected, initializing SD card...\n");
+    // Mount SD card and ensure directories exist
     if (ebook_mount_sdcard() != 0) {
-        printf("Warning: SD card initialization failed, some features may not work\n");
+        printf("[EBOOK ERROR] Failed to mount SD card\n");
+        return;
     }
 
-    // Ensure required directories exist
     if (ebook_ensure_directories() != 0) {
-        printf("Warning: Failed to create required directories\n");
+        printf("[EBOOK ERROR] Failed to ensure directories exist\n");
+        return;
     }
 #endif
 
     // Initialize state
     memset(&ebook_state, 0, sizeof(ebook_state));
-    ebook_state.in_reading_mode = false;
-    ebook_state.shelf.selected_book = 0;
-    // No need for shelf_scroll with list-based scrolling
 
     // Create the main screen
     ui_ebook_screen = lv_obj_create(NULL);
@@ -1678,35 +1553,27 @@ void ebook_screen_init(void)
     lv_obj_set_style_bg_color(ui_ebook_screen, lv_color_white(), 0);
     lv_obj_set_style_pad_all(ui_ebook_screen, 0, 0);
 
-    // Create UI containers
+    // Create UI components
     create_shelf_ui();
     create_reading_ui();
-
-    // Scan for books
-    int book_count = ebook_scan_books();
-    if (book_count > 0) {
-        printf("Found %d books, displaying shelf\n", book_count);
-        ebook_update_shelf_display();
-    } else {
-        printf("No books found in directory: %s\n", EBOOK_TXT_DIR);
-        ebook_update_shelf_display(); // Will show "No books found" message
-    }
 
     // Set up keyboard event handling
     lv_obj_add_event_cb(ui_ebook_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
     lv_group_add_obj(lv_group_get_default(), ui_ebook_screen);
     lv_group_focus_obj(ui_ebook_screen);
 
+    // Scan for books
+    ebook_scan_books();
+
     // Start periodic book scanning timer
     book_scan_timer = lv_timer_create(book_scan_timer_cb, BOOK_SCAN_INTERVAL, NULL);
-    if (book_scan_timer) {
-        printf("Book scanning timer started (interval: %d ms)\n", BOOK_SCAN_INTERVAL);
-    } else {
-        printf("Warning: Failed to create book scanning timer\n");
-    }
 
-    // Start in shelf mode
+    // Show shelf initially
+    ebook_state.in_reading_mode = false;
     switch_to_shelf_mode();
+    ebook_update_shelf_display();
+
+    printf("[%s] E-book screen initialized with %d books\n", ebook_screen.name, ebook_state.shelf.book_count);
 }
 
 /**
@@ -1714,793 +1581,16 @@ void ebook_screen_init(void)
  */
 void ebook_screen_deinit(void)
 {
-    printf("Deinitializing e-book screen\n");
+    printf("[%s] Deinitializing e-book screen\n", ebook_screen.name);
 
-    // Clean up resources (includes stopping timer)
+    // Clean up resources
     ebook_cleanup();
 
-    // Remove event callbacks and focus
+    // Remove event callback
     if (ui_ebook_screen) {
         lv_obj_remove_event_cb(ui_ebook_screen, keyboard_event_cb);
         lv_group_remove_obj(ui_ebook_screen);
     }
-}
 
-/**
- * @brief Check if there's meaningful content at a given position
- */
-static bool has_meaningful_content_at_position(int position, int min_chars)
-{
-    if (!ebook_state.reading.content || position < 0 ||
-        position >= (int)ebook_state.reading.content_size) {
-        return false;
-    }
-
-    char *ptr = ebook_state.reading.content + position;
-    int meaningful_chars = 0;
-    int chars_checked = 0;
-    const int max_check = min_chars * 2; // Check double the minimum required
-
-    while (*ptr && chars_checked < max_check &&
-           (ptr - ebook_state.reading.content) < (int)ebook_state.reading.content_size) {
-
-        if (*ptr != ' ' && *ptr != '\n' && *ptr != '\r' && *ptr != '\t') {
-            meaningful_chars++;
-        }
-
-        chars_checked++;
-        ptr++;
-
-        if (meaningful_chars >= min_chars) {
-            return true;
-        }
-    }
-
-    return meaningful_chars >= min_chars;
-}
-
-/**
- * @brief Find optimal end position for displaying the last page
- */
-static int find_optimal_end_position(void)
-{
-    if (!ebook_state.reading.content || ebook_state.reading.content_size == 0) {
-        return 0;
-    }
-
-    const int screen_char_limit = 1600;
-    const int min_meaningful_chars = 200; // Minimum characters for meaningful content
-    int total_size = (int)ebook_state.reading.content_size;
-
-    // Try positions working backwards from the end
-    for (int offset = 100; offset <= screen_char_limit; offset += 100) {
-        int test_position = total_size - offset;
-
-        if (test_position < 0) {
-            return 0;
-        }
-
-        // Check if this position has meaningful content
-        if (has_meaningful_content_at_position(test_position, min_meaningful_chars)) {
-            // This position has good content, check if it's not too early
-            if (test_position <= total_size - 50) { // Not too close to the very end
-                return test_position;
-            }
-        }
-    }
-
-    // If no good position found, return a safe default
-    int safe_position = total_size - 800;
-    return safe_position > 0 ? safe_position : 0;
-}
-
-/***********************************************************
-****************New Layout Functions Implementation*********
-***********************************************************/
-
-/**
- * @brief Initialize page metrics based on font and screen size
- */
-static void ebook_init_page_metrics_internal(page_metrics_t *metrics, const lv_font_t *font, int display_width, int display_height)
-{
-    if (!metrics || !font) {
-        return;
-    }
-
-    metrics->font = font;
-    metrics->display_width = display_width;
-    metrics->display_height = display_height;
-
-    // Get font metrics - for Montserrat 12, typical values
-    metrics->font_height = lv_font_get_line_height(font);
-
-    // Calculate average character width using a mix of characters for better estimation
-    lv_point_t size_m, size_w, size_i;
-    lv_txt_get_size(&size_m, "M", font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-    lv_txt_get_size(&size_w, "W", font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-    lv_txt_get_size(&size_i, "i", font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-
-    // Use average of wide and narrow characters for better estimation
-    metrics->char_width = (size_m.x + size_w.x + size_i.x) / 3;
-    // Add a small buffer for character spacing
-    metrics->char_width += 1;
-
-    // Calculate layout parameters more conservatively
-    const int padding = 8; // Account for both widget padding and text padding
-    int usable_width = display_width - (padding * 2);
-    int usable_height = display_height - (padding * 2);
-
-    // Calculate characters per line conservatively for position tracking (not display)
-    metrics->chars_per_line = (usable_width / metrics->char_width) - 4; // More conservative buffer
-    if (metrics->chars_per_line < 20) metrics->chars_per_line = 20; // Minimum readable width
-
-    // Keep it reasonable for position tracking - original behavior
-    if (metrics->chars_per_line > 60) {
-        metrics->chars_per_line = 60; // Conservative for accurate position tracking
-    }
-
-    printf("Width calculation: usable_width=%d, char_width=%d, chars_per_line=%d (for position tracking)\n",
-           usable_width, metrics->char_width, metrics->chars_per_line);
-
-    // Calculate lines per screen more conservatively
-    metrics->lines_per_screen = usable_height / (metrics->font_height + 2); // Account for line spacing
-    if (metrics->lines_per_screen < 3) metrics->lines_per_screen = 3; // Minimum readable height
-    if (metrics->lines_per_screen > 12) metrics->lines_per_screen = 12; // Maximum for good readability
-
-    // Calculate total characters per screen
-    metrics->chars_per_screen = metrics->chars_per_line * metrics->lines_per_screen;
-
-    printf("Page metrics initialized: display_size=%dx%d, font_height=%d, char_width=%d, chars_per_line=%d, lines_per_screen=%d, total_chars=%d\n",
-           display_width, display_height, metrics->font_height, metrics->char_width,
-           metrics->chars_per_line, metrics->lines_per_screen, metrics->chars_per_screen);
-}
-
-/**
- * @brief Calculate line layout for text content
- */
-static int ebook_calculate_line_layout_internal(page_layout_t *layout, const char *content, size_t content_size, const page_metrics_t *metrics)
-{
-    if (!layout || !content || !metrics || content_size == 0) {
-        return -1;
-    }
-
-    // Free existing layout
-    ebook_free_line_layout_internal(layout);
-
-    // Estimate initial number of lines (overestimate for safety)
-    int estimated_lines = (content_size / metrics->chars_per_line) + 100;
-    layout->lines = malloc(estimated_lines * sizeof(line_info_t));
-    if (!layout->lines) {
-        printf("Failed to allocate memory for line layout\n");
-        return -1;
-    }
-
-    layout->line_count = 0;
-    layout->current_line_index = 0;
-    layout->current_page = 1;
-    layout->layout_valid = false;
-
-    const char *ptr = content;
-    const char *content_end = content + content_size;
-    int char_position = 0;
-
-    while (ptr < content_end && layout->line_count < estimated_lines - 1) {
-        line_info_t *line = &layout->lines[layout->line_count];
-        line->char_start = char_position;
-        line->char_count = 0;
-        line->is_paragraph_end = false;
-
-        const char *line_start = ptr;
-        int line_chars = 0;
-        bool forced_break = false;
-
-        // Process characters for this line
-        while (ptr < content_end && line_chars < metrics->chars_per_line) {
-            char c = *ptr;
-
-            if (c == '\n') {
-                // Handle newline - always treat as line break for accurate position tracking
-                ptr++;
-                char_position++;
-
-                // Look ahead for another newline (paragraph break)
-                if (ptr < content_end && (*ptr == '\n' || *ptr == '\r')) {
-                    line->is_paragraph_end = true;
-                    // Skip additional newlines/returns
-                    while (ptr < content_end && (*ptr == '\n' || *ptr == '\r')) {
-                        ptr++;
-                        char_position++;
-                    }
-                }
-
-                forced_break = true;
-                break;
-            } else if (c == '\r') {
-                // Skip carriage returns
-                ptr++;
-                char_position++;
-                continue;
-            } else {
-                // Regular character
-                line_chars++;
-                ptr++;
-                char_position++;
-            }
-        }
-
-        // If we filled the line without a natural break, try to break at word boundary
-        if (!forced_break && ptr < content_end && line_chars >= metrics->chars_per_line) {
-            // Look back for a space to break on (original conservative approach)
-            const char *break_ptr = ptr - 1;
-            int back_chars = 0;
-
-            while (break_ptr > line_start && back_chars < 20) { // Look back max 20 chars (restored)
-                if (*break_ptr == ' ' || *break_ptr == '\t') {
-                    // Found a good break point
-                    int chars_to_remove = (ptr - break_ptr - 1);
-                    ptr = break_ptr + 1; // Skip the space
-                    char_position -= chars_to_remove;
-                    line_chars -= chars_to_remove;
-                    break;
-                }
-                break_ptr--;
-                back_chars++;
-            }
-        }
-
-        line->char_count = line_chars;
-
-        // Adjust for trailing spaces (don't count them)
-        while (line->char_count > 0) {
-            char last_char = content[line->char_start + line->char_count - 1];
-            if (last_char == ' ' || last_char == '\t') {
-                line->char_count--;
-            } else {
-                break;
-            }
-        }
-
-        // Debug output for first few lines
-        if (layout->line_count < 5) {
-            printf("Line %d: start=%d, count=%d, content=%.20s...\n",
-                   layout->line_count, line->char_start, line->char_count,
-                   content + line->char_start);
-        }
-
-        layout->line_count++;
-
-        // Reallocate if we're running out of space
-        if (layout->line_count >= estimated_lines - 10) {
-            estimated_lines += 100;
-            line_info_t *new_lines = realloc(layout->lines, estimated_lines * sizeof(line_info_t));
-            if (!new_lines) {
-                printf("Failed to reallocate memory for line layout\n");
-                ebook_free_line_layout_internal(layout);
-                return -1;
-            }
-            layout->lines = new_lines;
-        }
-    }
-
-    // Calculate total pages
-    layout->total_pages = (layout->line_count + metrics->lines_per_screen - 1) / metrics->lines_per_screen;
-    if (layout->total_pages < 1) layout->total_pages = 1;
-
-    layout->layout_valid = true;
-
-    printf("Line layout calculated: %d lines, %d pages\n", layout->line_count, layout->total_pages);
-    return 0;
-}
-
-/**
- * @brief Free line layout memory
- */
-static void ebook_free_line_layout_internal(page_layout_t *layout)
-{
-    if (!layout) {
-        return;
-    }
-
-    if (layout->lines) {
-        free(layout->lines);
-        layout->lines = NULL;
-    }
-
-    layout->line_count = 0;
-    layout->current_line_index = 0;
-    layout->current_page = 1;
-    layout->total_pages = 0;
-    layout->layout_valid = false;
-}
-
-/**
- * @brief Get text content for current screen
- */
-static int ebook_get_screen_text_internal(char *buffer, int buffer_size, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    if (!buffer || !layout || !content || !metrics || !layout->layout_valid) {
-        return -1;
-    }
-
-    buffer[0] = '\0';
-    int buffer_pos = 0;
-    int lines_displayed = 0;
-    int start_line = layout->current_line_index;
-    int end_line = start_line + metrics->lines_per_screen;
-
-    if (end_line > layout->line_count) {
-        end_line = layout->line_count;
-    }
-
-    printf("Screen text: showing lines %d to %d (total %d lines)\n", start_line, end_line - 1, layout->line_count);
-
-    for (int i = start_line; i < end_line && lines_displayed < metrics->lines_per_screen && buffer_pos < buffer_size - 10; i++) {
-        const line_info_t *line = &layout->lines[i];
-
-        // Add line content with improved space handling
-        if (line->char_count > 0 && line->char_start < (int)strlen(content)) {
-            int chars_to_copy = line->char_count;
-            if (buffer_pos + chars_to_copy + 2 >= buffer_size) {
-                chars_to_copy = buffer_size - buffer_pos - 2;
-            }
-
-            if (chars_to_copy > 0) {
-                // Copy content while handling newlines that were converted to spaces
-                const char *src = content + line->char_start;
-                for (int j = 0; j < chars_to_copy && buffer_pos < buffer_size - 2; j++) {
-                    char c = src[j];
-                    if (c == '\n') {
-                        // Convert internal newlines to spaces for better line flow
-                        buffer[buffer_pos++] = ' ';
-                    } else if (c != '\r') {
-                        // Skip carriage returns, copy everything else
-                        buffer[buffer_pos++] = c;
-                    }
-                }
-            }
-        }
-
-        // Add line ending
-        if (buffer_pos + 2 < buffer_size) {
-            buffer[buffer_pos++] = '\n';
-
-            // Add extra newline for paragraph breaks
-            if (line->is_paragraph_end && buffer_pos + 1 < buffer_size) {
-                buffer[buffer_pos++] = '\n';
-            }
-        }
-
-        lines_displayed++;
-    }
-
-    buffer[buffer_pos] = '\0';
-
-    printf("Generated screen text: %d characters, %d lines displayed\n", buffer_pos, lines_displayed);
-    printf("First 100 chars: %.100s\n", buffer);
-
-    return buffer_pos;
-}
-
-/**
- * @brief Update page numbers based on current line position
- */
-static void ebook_update_page_numbers(void)
-{
-    if (!ebook_state.reading.layout.layout_valid || !ebook_state.reading.metrics.lines_per_screen) {
-        return;
-    }
-
-    page_layout_t *layout = &ebook_state.reading.layout;
-    const page_metrics_t *metrics = &ebook_state.reading.metrics;
-
-    // Calculate current page based on line index
-    layout->current_page = (layout->current_line_index / metrics->lines_per_screen) + 1;
-
-    // Ensure page numbers are valid
-    if (layout->current_page < 1) {
-        layout->current_page = 1;
-    }
-    if (layout->current_page > layout->total_pages) {
-        layout->current_page = layout->total_pages;
-    }
-}
-
-/***********************************************************
-*************Public Interface Functions********************
-***********************************************************/
-
-/**
- * @brief Initialize page metrics based on font and screen size (public interface)
- */
-void ebook_init_page_metrics(page_metrics_t *metrics, const lv_font_t *font, int display_width, int display_height)
-{
-    ebook_init_page_metrics_internal(metrics, font, display_width, display_height);
-}
-
-/**
- * @brief Calculate line layout for text content (public interface)
- */
-int ebook_calculate_line_layout(page_layout_t *layout, const char *content, size_t content_size, const page_metrics_t *metrics)
-{
-    return ebook_calculate_line_layout_internal(layout, content, content_size, metrics);
-}
-
-/**
- * @brief Free line layout memory (public interface)
- */
-void ebook_free_line_layout(page_layout_t *layout)
-{
-    ebook_free_line_layout_internal(layout);
-}
-
-/**
- * @brief Navigate to specific line index
- */
-int ebook_goto_line(int line_index)
-{
-    if (!ebook_state.in_reading_mode || !ebook_state.reading.layout.layout_valid) {
-        return -1;
-    }
-
-    page_layout_t *layout = &ebook_state.reading.layout;
-
-    // Validate line index
-    if (line_index < 0) {
-        line_index = 0;
-    }
-    if (line_index >= layout->line_count) {
-        line_index = layout->line_count - 1;
-    }
-
-    layout->current_line_index = line_index;
-    ebook_update_page_numbers();
-    ebook_update_reading_display();
-    ebook_save_position();
-
-    return 0;
-}
-
-/**
- * @brief Navigate to specific page number
- */
-int ebook_goto_page(int page_number)
-{
-    if (!ebook_state.in_reading_mode || !ebook_state.reading.layout.layout_valid) {
-        return -1;
-    }
-
-    const page_metrics_t *metrics = &ebook_state.reading.metrics;
-    page_layout_t *layout = &ebook_state.reading.layout;
-
-    // Validate page number
-    if (page_number < 1) {
-        page_number = 1;
-    }
-    if (page_number > layout->total_pages) {
-        page_number = layout->total_pages;
-    }
-
-    // Calculate line index for this page
-    int target_line = (page_number - 1) * metrics->lines_per_screen;
-    return ebook_goto_line(target_line);
-}
-
-/**
- * @brief Get text content for current screen (public interface)
- */
-int ebook_get_screen_text(char *buffer, int buffer_size, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    return ebook_get_screen_text_internal(buffer, buffer_size, layout, content, metrics);
-}
-
-/***********************************************************
-***********New Precise Line Scrolling Functions***********
-***********************************************************/
-
-/**
- * @brief Extract text for a specific line from content with natural formatting
- */
-static void ebook_extract_line_text(char *line_buffer, int buffer_size, const char *content, const line_info_t *line)
-{
-    if (!line_buffer || !content || !line || buffer_size <= 0) {
-        if (line_buffer) line_buffer[0] = '\0';
-        return;
-    }
-
-    int chars_to_copy = line->char_count;
-    if (chars_to_copy >= buffer_size) {
-        chars_to_copy = buffer_size - 1;
-    }
-
-    if (chars_to_copy > 0) {
-        const char *src = content + line->char_start;
-        int dst_pos = 0;
-
-        // Copy characters while preserving natural text flow
-        for (int i = 0; i < chars_to_copy && dst_pos < buffer_size - 1; i++) {
-            char c = src[i];
-
-            // Handle paragraph breaks (double newlines)
-            if (c == '\n') {
-                // Look ahead to see if this is a paragraph break
-                bool is_paragraph_break = false;
-                if (i + 1 < chars_to_copy) {
-                    char next_char = src[i + 1];
-                    if (next_char == '\n' || next_char == '\r') {
-                        is_paragraph_break = true;
-                    }
-                }
-
-                if (is_paragraph_break) {
-                    // Paragraph break - preserve with double space
-                    if (dst_pos > 0 && line_buffer[dst_pos-1] != ' ') {
-                        line_buffer[dst_pos++] = '.'; // Add period for natural break
-                        if (dst_pos < buffer_size - 1) {
-                            line_buffer[dst_pos++] = ' ';
-                        }
-                    }
-                    // Skip the extra newline in source
-                    i++;
-                } else {
-                    // Single newline - convert to space for flow
-                    if (dst_pos > 0 && line_buffer[dst_pos-1] != ' ') {
-                        line_buffer[dst_pos++] = ' ';
-                    }
-                }
-            } else if (c == '\r') {
-                // Skip carriage returns
-                continue;
-            } else {
-                // Regular character
-                line_buffer[dst_pos++] = c;
-            }
-        }
-        line_buffer[dst_pos] = '\0';
-    } else {
-        line_buffer[0] = '\0';
-    }
-}
-
-/**
- * @brief Initialize screen display from layout
- */
-static int ebook_init_screen_display_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics, int top_line_index)
-{
-    if (!screen || !layout || !content || !metrics || !layout->layout_valid) {
-        return -1;
-    }
-
-    // Clear screen
-    memset(screen, 0, sizeof(screen_display_t));
-
-    screen->visible_lines = metrics->lines_per_screen;
-    if (screen->visible_lines > 20) screen->visible_lines = 20; // Safety limit
-
-    screen->top_line_index = top_line_index;
-    if (screen->top_line_index < 0) screen->top_line_index = 0;
-    if (screen->top_line_index >= layout->line_count) {
-        screen->top_line_index = layout->line_count - 1;
-        if (screen->top_line_index < 0) screen->top_line_index = 0;
-    }
-
-    // Fill screen lines
-    for (int i = 0; i < screen->visible_lines; i++) {
-        int line_index = screen->top_line_index + i;
-        screen_line_t *screen_line = &screen->lines[i];
-
-        if (line_index < layout->line_count) {
-            const line_info_t *layout_line = &layout->lines[line_index];
-            screen_line->char_start = layout_line->char_start;
-            screen_line->char_count = layout_line->char_count;
-
-            // Extract actual text for this line
-            ebook_extract_line_text(screen_line->line_text, sizeof(screen_line->line_text), content, layout_line);
-        } else {
-            // Empty line beyond content
-            screen_line->char_start = 0;
-            screen_line->char_count = 0;
-            screen_line->line_text[0] = '\0';
-        }
-    }
-
-    screen->screen_valid = true;
-    printf("Screen display initialized: top_line=%d, visible_lines=%d\n", screen->top_line_index, screen->visible_lines);
-    return 0;
-}
-
-/**
- * @brief Scroll screen display up by one line
- */
-static int ebook_scroll_screen_up_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    if (!screen || !layout || !content || !metrics || !screen->screen_valid || !layout->layout_valid) {
-        return -1;
-    }
-
-    // Check if we can scroll up
-    if (screen->top_line_index <= 0) {
-        printf("Cannot scroll up: already at top\n");
-        return -1; // Already at top
-    }
-
-    // Move all lines down by one position
-    for (int i = screen->visible_lines - 1; i > 0; i--) {
-        screen->lines[i] = screen->lines[i - 1];
-    }
-
-    // Load new content for the top line (line that's now appearing at top)
-    screen->top_line_index--;
-    int new_line_index = screen->top_line_index;
-
-    screen_line_t *top_line = &screen->lines[0];
-    if (new_line_index < layout->line_count && new_line_index >= 0) {
-        const line_info_t *layout_line = &layout->lines[new_line_index];
-        top_line->char_start = layout_line->char_start;
-        top_line->char_count = layout_line->char_count;
-
-        // Extract actual text for this line
-        ebook_extract_line_text(top_line->line_text, sizeof(top_line->line_text), content, layout_line);
-
-        printf("Scrolled up: new top line %d, content: %.50s...\n", new_line_index, top_line->line_text);
-    } else {
-        // Safety fallback
-        top_line->char_start = 0;
-        top_line->char_count = 0;
-        top_line->line_text[0] = '\0';
-    }
-
-    return 0;
-}
-
-/**
- * @brief Scroll screen display down by one line
- */
-static int ebook_scroll_screen_down_internal(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    if (!screen || !layout || !content || !metrics || !screen->screen_valid || !layout->layout_valid) {
-        return -1;
-    }
-
-    // Check if we can scroll down
-    int max_top_line = layout->line_count - screen->visible_lines;
-    if (max_top_line < 0) max_top_line = 0;
-
-    if (screen->top_line_index >= max_top_line) {
-        printf("Cannot scroll down: already at bottom (top_line=%d, max=%d)\n", screen->top_line_index, max_top_line);
-        return -1; // Already at bottom
-    }
-
-    // Move all lines up by one position
-    for (int i = 0; i < screen->visible_lines - 1; i++) {
-        screen->lines[i] = screen->lines[i + 1];
-    }
-
-    // Load new content for the bottom line (line that's now appearing at bottom)
-    screen->top_line_index++;
-    int new_line_index = screen->top_line_index + screen->visible_lines - 1;
-
-    screen_line_t *bottom_line = &screen->lines[screen->visible_lines - 1];
-    if (new_line_index < layout->line_count && new_line_index >= 0) {
-        const line_info_t *layout_line = &layout->lines[new_line_index];
-        bottom_line->char_start = layout_line->char_start;
-        bottom_line->char_count = layout_line->char_count;
-
-        // Extract actual text for this line
-        ebook_extract_line_text(bottom_line->line_text, sizeof(bottom_line->line_text), content, layout_line);
-
-        printf("Scrolled down: new bottom line %d, content: %.50s...\n", new_line_index, bottom_line->line_text);
-    } else {
-        // Empty line beyond content
-        bottom_line->char_start = 0;
-        bottom_line->char_count = 0;
-        bottom_line->line_text[0] = '\0';
-    }
-
-    return 0;
-}
-
-/**
- * @brief Generate display text from screen lines with natural flow for full-width display
- */
-static int ebook_generate_screen_text_internal(char *buffer, int buffer_size, const screen_display_t *screen)
-{
-    if (!buffer || !screen || buffer_size <= 0 || !screen->screen_valid) {
-        if (buffer) buffer[0] = '\0';
-        return -1;
-    }
-
-    int buffer_pos = 0;
-    buffer[0] = '\0';
-
-    // Generate natural text flow that fills the entire display width
-    // Concatenate all visible lines into one continuous text flow
-    for (int i = 0; i < screen->visible_lines && buffer_pos < buffer_size - 100; i++) {
-        const screen_line_t *line = &screen->lines[i];
-
-        // Add line content with natural flow for full-width display
-        if (line->char_count > 0 && line->line_text[0] != '\0') {
-            int line_len = strlen(line->line_text);
-            if (buffer_pos + line_len + 5 < buffer_size) {
-                // Copy the line text directly
-                strcpy(buffer + buffer_pos, line->line_text);
-                buffer_pos += line_len;
-
-                // Add natural spacing between lines for continuous flow
-                if (i < screen->visible_lines - 1) { // Not the last line
-                    const screen_line_t *next_line = &screen->lines[i + 1];
-
-                    // Check if current line ends with punctuation or if it's a natural break
-                    bool line_ends_sentence = false;
-                    if (line_len > 0) {
-                        char last_char = line->line_text[line_len - 1];
-                        line_ends_sentence = (last_char == '.' || last_char == '!' || last_char == '?' ||
-                                            last_char == '"' || last_char == '\'' || last_char == ')');
-                    }
-
-                    // Check if next line starts with capital letter (new sentence)
-                    bool next_starts_sentence = false;
-                    if (next_line->char_count > 0 && next_line->line_text[0] != '\0') {
-                        char first_char = next_line->line_text[0];
-                        next_starts_sentence = (first_char >= 'A' && first_char <= 'Z') ||
-                                             (first_char == '"' || first_char == '\'');
-                    }
-
-                    // Add appropriate spacing for natural text flow
-                    if (line_ends_sentence && next_starts_sentence) {
-                        // Sentence boundary - add double space
-                        if (buffer_pos + 2 < buffer_size) {
-                            buffer[buffer_pos++] = ' ';
-                            buffer[buffer_pos++] = ' ';
-                        }
-                    } else {
-                        // Normal word flow - add single space
-                        if (buffer_pos + 1 < buffer_size &&
-                            buffer[buffer_pos-1] != ' ') {
-                            buffer[buffer_pos++] = ' ';
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    buffer[buffer_pos] = '\0';
-    printf("Generated full-width text flow: %d characters from %d lines\n", buffer_pos, screen->visible_lines);
-    return buffer_pos;
-}
-
-/***********************************************************
-**************Public Interface Functions*******************
-***********************************************************/
-
-/**
- * @brief Initialize screen display from layout (public interface)
- */
-int ebook_init_screen_display(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics, int top_line_index)
-{
-    return ebook_init_screen_display_internal(screen, layout, content, metrics, top_line_index);
-}
-
-/**
- * @brief Scroll screen display up by one line (public interface)
- */
-int ebook_scroll_screen_up(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    return ebook_scroll_screen_up_internal(screen, layout, content, metrics);
-}
-
-/**
- * @brief Scroll screen display down by one line (public interface)
- */
-int ebook_scroll_screen_down(screen_display_t *screen, const page_layout_t *layout, const char *content, const page_metrics_t *metrics)
-{
-    return ebook_scroll_screen_down_internal(screen, layout, content, metrics);
-}
-
-/**
- * @brief Generate display text from screen lines (public interface)
- */
-int ebook_generate_screen_text(char *buffer, int buffer_size, const screen_display_t *screen)
-{
-    return ebook_generate_screen_text_internal(buffer, buffer_size, screen);
+    printf("[%s] E-book screen deinitialized\n", ebook_screen.name);
 }

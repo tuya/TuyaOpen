@@ -416,7 +416,7 @@
 #define LV_FONT_MONTSERRAT_26 0
 #define LV_FONT_MONTSERRAT_28 0
 #define LV_FONT_MONTSERRAT_30 0
-#define LV_FONT_MONTSERRAT_32 0
+#define LV_FONT_MONTSERRAT_32 1
 #define LV_FONT_MONTSERRAT_34 0
 #define LV_FONT_MONTSERRAT_36 0
 #define LV_FONT_MONTSERRAT_38 0
@@ -781,7 +781,6 @@
     #define LV_SNAPSHOT_USE_PSRAM 1          /* 0: use default sram memory, 1: use psram memory. */
 #endif
 
-#define ENABLE_LVGL_MONITOR 1
 /*1: Enable system monitor component*/
 #if defined(ENABLE_LVGL_MONITOR) && (ENABLE_LVGL_MONITOR == 1)
 #define LV_USE_SYSMON   1

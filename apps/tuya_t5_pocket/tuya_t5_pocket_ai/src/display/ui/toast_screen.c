@@ -30,15 +30,15 @@
 ***********************variable define**********************
 ***********************************************************/
 
-static lv_obj_t *ui_toast_screen;
+static lv_obj_t *ui_toast_screen;  // Keep for compatibility but not used as screen
 static lv_obj_t *toast_container;
 static lv_obj_t *toast_label;
 static lv_timer_t *timer;
-static bool is_visible = false;
+static bool is_visible = false;  // Track if toast is currently visible
 
 Screen_t toast_screen = {
-    .init = toast_screen_init,
-    .deinit = toast_screen_deinit,
+    .init = NULL,
+    .deinit = NULL,
     .screen_obj = &ui_toast_screen,
     .name = "toast_screen",
 };
@@ -48,8 +48,6 @@ Screen_t toast_screen = {
 ***********************************************************/
 
 static void toast_screen_timer_cb(lv_timer_t *timer);
-static void keyboard_event_cb(lv_event_t *e);
-static void toast_screen_hide(void);
 
 /***********************************************************
 ***********************function define**********************
@@ -59,89 +57,72 @@ static void toast_screen_hide(void);
  * @brief Timer callback for the toast screen
  *
  * This function is called when the toast screen timer expires.
- * It automatically hides the toast message.
+ * It automatically hides the toast message by deleting the overlay.
  *
  * @param timer The timer object
  */
-static void toast_screen_timer_cb(lv_timer_t *timer)
+static void toast_screen_timer_cb(lv_timer_t *timer_param)
 {
-    printf("[%s] toast timer expired, returning to previous screen.\n", toast_screen.name);
-    // Use screen_back to return to previous screen instead of hiding
-    toast_screen_hide();
-    screen_back();
-}
-
-/**
- * @brief Keyboard event callback
- *
- * This function handles keyboard events for the toast screen.
- * ESC key can be used to manually dismiss the toast.
- *
- * @param e The event object
- */
-static void keyboard_event_cb(lv_event_t *e)
-{
-    uint32_t key = lv_event_get_key(e);
-    printf("[%s] Keyboard event received: key = %d\n", toast_screen.name, key);
-
-    switch (key) {
-        case KEY_UP:
-            printf("UP key pressed\n");
-            break;
-        case KEY_DOWN:
-            printf("DOWN key pressed\n");
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
-        case KEY_ENTER:
-            // Don't hide toast on ENTER, let it auto-hide via timer
-            printf("ENTER key pressed - ignoring for toast\n");
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - returning to previous screen\n");
-            screen_back();
-            break;
-        default:
-            printf("Key %d pressed\n", key);
-            break;
+    printf("[%s] toast timer expired, hiding toast overlay.\n", toast_screen.name);
+    
+    // Delete the toast container overlay
+    if (toast_container) {
+        lv_obj_del(toast_container);
+        toast_container = NULL;
+        toast_label = NULL;  // Label is child of container, will be deleted automatically
     }
-}
-
-/**
- * @brief Initialize the toast screen
- *
- * This function creates the toast screen UI with a toast container,
- * message label, and sets up event handling.
- */
-void toast_screen_init(void)
-{
-    // Clean up any existing resources first
+    
+    // Clean up timer
     if (timer) {
-        printf("Cleaning up existing timer in init\n");
         lv_timer_del(timer);
         timer = NULL;
     }
-
-    // Reset state
-    toast_container = NULL;
-    toast_label = NULL;
+    
     is_visible = false;
+    printf("[%s] Toast overlay hidden.\n", toast_screen.name);
+}
 
-    ui_toast_screen = lv_obj_create(NULL);
-    lv_obj_set_size(ui_toast_screen, 384, 168);
-    lv_obj_set_style_bg_color(ui_toast_screen, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(ui_toast_screen, LV_OPA_TRANSP, 0);  // Transparent background
-
-    // Create toast container
-    toast_container = lv_obj_create(ui_toast_screen);
+/**
+ * @brief Show toast message as an overlay on the current screen
+ *
+ * @param message The message text to display
+ * @param delay_ms Auto-hide delay in milliseconds (0 for default delay)
+ * 
+ * This function creates a floating toast overlay on top of the current active screen.
+ * The toast does not replace the current screen, it simply appears on top.
+ */
+void toast_screen_show(const char *message, uint32_t delay_ms)
+{
+    printf("[%s] Showing toast overlay: %s\n", toast_screen.name, message ? message : "NULL");
+    
+    // Clean up any existing toast first
+    if (toast_container) {
+        printf("Cleaning up existing toast overlay\n");
+        lv_obj_del(toast_container);
+        toast_container = NULL;
+        toast_label = NULL;
+    }
+    
+    // Cancel any existing timer
+    if (timer) {
+        printf("Canceling existing timer\n");
+        lv_timer_del(timer);
+        timer = NULL;
+    }
+    
+    // Get the current active screen to add toast overlay on top
+    lv_obj_t *active_screen = lv_scr_act();
+    if (!active_screen) {
+        printf("Error: No active screen found\n");
+        return;
+    }
+    
+    // Create toast container as a child of the active screen
+    toast_container = lv_obj_create(active_screen);
     lv_obj_set_size(toast_container, TOAST_MAX_WIDTH, TOAST_MIN_HEIGHT);
     lv_obj_align(toast_container, LV_ALIGN_CENTER, 0, 0);
-
-    // Style the toast container (matching toast.c styling)
+    
+    // Style the toast container with semi-transparent black background
     lv_obj_set_style_bg_color(toast_container, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(toast_container, LV_OPA_80, 0);
     lv_obj_set_style_border_width(toast_container, 2, 0);
@@ -151,118 +132,66 @@ void toast_screen_init(void)
     lv_obj_set_style_shadow_width(toast_container, 10, 0);
     lv_obj_set_style_shadow_color(toast_container, lv_color_black(), 0);
     lv_obj_set_style_shadow_opa(toast_container, LV_OPA_50, 0);
-
+    
+    // Make toast container clickable (but not scrollable)
+    // lv_obj_clear_flag(toast_container, LV_OBJ_FLAG_SCROLLABLE);
+    // lv_obj_add_flag(toast_container, LV_OBJ_FLAG_CLICKABLE);
+    
     // Create toast label
     toast_label = lv_label_create(toast_container);
-    lv_label_set_text(toast_label, "Toast Message");
+    lv_label_set_text(toast_label, message ? message : "Toast Message");
     lv_obj_align(toast_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_color(toast_label, lv_color_white(), 0);
     lv_obj_set_style_text_font(toast_label, &lv_font_montserrat_14, 0);
     lv_label_set_long_mode(toast_label, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(toast_label, TOAST_MAX_WIDTH - (TOAST_PADDING * 2));
-
-    // Move toast to top of screen (highest z-order)
+    
+    // Move toast to the foreground (highest z-order) to appear on top
     lv_obj_move_foreground(toast_container);
-
-    // Initially hide the toast
-    lv_obj_add_flag(toast_container, LV_OBJ_FLAG_HIDDEN);
-    is_visible = false;
-
-    // Initialize timer to NULL
-    timer = NULL;
-
-    // Add keyboard event handler to handle ESC key for returning
-    lv_obj_add_event_cb(ui_toast_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
-    lv_group_add_obj(lv_group_get_default(), ui_toast_screen);
-    lv_group_focus_obj(ui_toast_screen);
-}
-
-/**
- * @brief Deinitialize the toast screen
- *
- * This function cleans up the toast screen by deleting the UI object
- * and timer, and removing the event callback.
- */
-void toast_screen_deinit(void)
-{
-    if (ui_toast_screen) {
-        printf("deinit toast screen\n");
-        lv_obj_remove_event_cb(ui_toast_screen, keyboard_event_cb);
-        lv_group_remove_obj(ui_toast_screen);
-    }
-    if (timer) {
-        lv_timer_del(timer);
-        timer = NULL;
-    }
-
-    // Reset state
-    toast_container = NULL;
-    toast_label = NULL;
-    is_visible = false;
-}
-
-/**
- * @brief Show toast message
- *
- * @param message The message text to display
- * @param delay_ms Auto-hide delay in milliseconds (0 for default delay)
- */
-void toast_screen_show(const char *message, uint32_t delay_ms)
-{
-    printf("[%s] Showing toast message: %s\n", toast_screen.name, message);
-    screen_load_no_anim(&toast_screen);
-
-    // Cancel any existing timer first to prevent multiple timers
-    if (timer) {
-        printf("Canceling existing timer\n");
-        lv_timer_del(timer);
-        timer = NULL;
-    }
-
-    // Set the message text
-    if (message) {
-        lv_label_set_text(toast_label, message);
-    } else {
-        lv_label_set_text(toast_label, "Toast Message");
-    }
-
-    // Set a reasonable height for the toast container
-    lv_obj_set_height(toast_container, TOAST_MIN_HEIGHT);
-
-    // Move toast to top of screen (highest z-order)
-    lv_obj_move_foreground(toast_container);
-
-    // Show the toast immediately
-    lv_obj_clear_flag(toast_container, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_opa(toast_container, LV_OPA_COVER, 0);
+    
+    // Force immediate redraw
+    lv_obj_invalidate(active_screen);
+    
     is_visible = true;
-    printf("Toast container shown, opacity set to COVER\n");
-
-    // Set up new timer to hide the toast
+    printf("Toast overlay created and shown\n");
+    
+    // Set up timer to auto-hide the toast
     uint32_t actual_delay = (delay_ms > 0) ? delay_ms : TOAST_DEFAULT_DELAY;
     timer = lv_timer_create(toast_screen_timer_cb, actual_delay, NULL);
-    printf("Created new timer with delay: %d ms\n", actual_delay);
+    lv_timer_set_repeat_count(timer, 1);  // Run only once
+    printf("Created auto-hide timer with delay: %d ms\n", actual_delay);
 }
 
 /**
  * @brief Hide toast message
  */
-static void toast_screen_hide(void)
+/**
+ * @brief Manually hide the toast overlay
+ *
+ * This function can be called to immediately dismiss the toast overlay.
+ */
+void toast_screen_hide(void)
 {
-    if (!toast_container) {
+    if (!is_visible || !toast_container) {
+        printf("[%s] Toast not visible, nothing to hide\n", toast_screen.name);
         return;
     }
 
-    printf("toast_screen_hide called\n");
+    printf("[%s] Manually hiding toast overlay\n", toast_screen.name);
 
+    // Delete the toast container
+    if (toast_container) {
+        lv_obj_del(toast_container);
+        toast_container = NULL;
+        toast_label = NULL;
+    }
+    
     // Cancel existing timer
     if (timer) {
         lv_timer_del(timer);
         timer = NULL;
     }
-
-    // Hide immediately
-    lv_obj_add_flag(toast_container, LV_OBJ_FLAG_HIDDEN);
+    
     is_visible = false;
-    printf("Toast container hidden\n");
+    printf("Toast overlay hidden\n");
 }

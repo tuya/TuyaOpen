@@ -217,15 +217,38 @@ static void handle_key_press(const char *key_text)
         }
     } else if (strcmp(key_text, "OK") == 0) {
         // Enter - confirm input
-        if (g_keyboard_state.callback) {
-            g_keyboard_state.callback(g_keyboard_state.current_text, g_keyboard_state.user_data);
+        printf("OK key pressed, current text: '%s'\n", g_keyboard_state.current_text);
+
+        // Store callback and data before screen_back() to avoid issues
+        keyboard_callback_t callback = g_keyboard_state.callback;
+        void *user_data = g_keyboard_state.user_data;
+        char text_copy[KEYBOARD_MAX_TEXT_LENGTH + 1];
+        strncpy(text_copy, g_keyboard_state.current_text, sizeof(text_copy));
+        text_copy[KEYBOARD_MAX_TEXT_LENGTH] = '\0';  // Ensure null termination
+
+        printf("Executing callback with text: '%s'\n", text_copy);
+        // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
+        if (callback) {
+            callback(text_copy, user_data);
+        } else {
+            printf("Warning: No callback function set!\n");
         }
+
+        printf("Calling screen_back()\n");
+        // Return to previous screen after callback execution
         screen_back();
     } else if (strcmp(key_text, "ESC") == 0) {
         // Escape - cancel input
-        if (g_keyboard_state.callback) {
-            g_keyboard_state.callback(NULL, g_keyboard_state.user_data);
+        // Store callback and data before screen_back() to avoid issues
+        keyboard_callback_t callback = g_keyboard_state.callback;
+        void *user_data = g_keyboard_state.user_data;
+
+        // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
+        if (callback) {
+            callback(NULL, user_data);
         }
+
+        // Return to previous screen after callback execution
         screen_back();
     } else if (strcmp(key_text, " ") == 0) {
         // Space character
@@ -313,10 +336,19 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_ESC:
             // Cancel input
-            if (g_keyboard_state.callback) {
-                g_keyboard_state.callback(NULL, g_keyboard_state.user_data);
+            // Store callback and data before screen_back() to avoid issues
+            {
+                keyboard_callback_t callback = g_keyboard_state.callback;
+                void *user_data = g_keyboard_state.user_data;
+
+                // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
+                if (callback) {
+                    callback(NULL, user_data);
+                }
+
+                // Return to previous screen after callback execution
+                screen_back();
             }
-            screen_back();
             break;
         default:
             break;
@@ -328,6 +360,10 @@ static void keyboard_event_cb(lv_event_t *e)
  */
 void keyboard_screen_show_with_callback(const char *initial_text, keyboard_callback_t callback, void *user_data)
 {
+    printf("keyboard_screen_show_with_callback called\n");
+    printf("  initial_text: '%s'\n", initial_text ? initial_text : "NULL");
+    printf("  callback: %p\n", (void*)callback);
+
     // Store callback and user data
     g_keyboard_state.callback = callback;
     g_keyboard_state.user_data = user_data;
@@ -335,11 +371,14 @@ void keyboard_screen_show_with_callback(const char *initial_text, keyboard_callb
     // Initialize text
     if (initial_text) {
         strncpy(g_keyboard_state.current_text, initial_text, KEYBOARD_MAX_TEXT_LENGTH);
+        g_keyboard_state.current_text[KEYBOARD_MAX_TEXT_LENGTH] = '\0';  // Ensure null termination
         g_keyboard_state.text_length = strlen(g_keyboard_state.current_text);
     } else {
         memset(g_keyboard_state.current_text, 0, sizeof(g_keyboard_state.current_text));
         g_keyboard_state.text_length = 0;
     }
+
+    printf("  current_text after init: '%s' (length: %d)\n", g_keyboard_state.current_text, g_keyboard_state.text_length);
 
     // Load the screen
     screen_load(&keyboard_screen);
@@ -354,11 +393,12 @@ void keyboard_screen_init(void)
     lv_obj_set_size(ui_keyboard_screen, SCREEN_WIDTH, SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(ui_keyboard_screen, lv_color_white(), 0);
 
-    // Initialize keyboard state
-    memset(&g_keyboard_state, 0, sizeof(keyboard_state_t));
+    // Initialize keyboard state - preserve callback and user_data if already set
+    // Only reset UI-related state, not the callback
     g_keyboard_state.selected_row = 0;
     g_keyboard_state.selected_col = 0;
     g_keyboard_state.is_active = 1;
+    // Note: Do NOT reset callback and user_data here as they are set before init
 
     // Create UI components
     create_text_area();

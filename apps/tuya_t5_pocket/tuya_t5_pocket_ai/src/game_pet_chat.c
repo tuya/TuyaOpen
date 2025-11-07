@@ -142,15 +142,9 @@ static TDL_LED_HANDLE_T sg_led_hdl = NULL;
 #endif
 
 static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
-static TIMER_ID sg_battery_update_timer = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
-static void __battery_update_timer_cb(TIMER_ID timer_id, void *param)
-{
-    app_display_send_msg(POCKET_DISP_TP_BATTERY_STATUS, NULL, 0);
-}
 
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
 {
@@ -336,9 +330,6 @@ OPERATE_RET app_pocket_init(void)
     AI_AUDIO_CONFIG_T ai_audio_cfg;
 
     app_display_init();
-
-    tal_sw_timer_create(__battery_update_timer_cb, NULL, &sg_battery_update_timer);
-    tal_sw_timer_start(sg_battery_update_timer, 1000, 1);
 
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
     ai_audio_cfg.evt_inform_cb = __app_ai_audio_evt_inform_cb;

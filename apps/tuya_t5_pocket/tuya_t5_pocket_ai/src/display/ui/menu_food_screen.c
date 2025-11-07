@@ -16,6 +16,8 @@
 
 #include "menu_food_screen.h"
 #include "screen_manager.h"
+#include "main_screen.h"
+#include "toast_screen.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,7 +29,9 @@
 static lv_obj_t *ui_menu_food_screen_screen;
 static lv_obj_t *menu_food_screen_list;
 static lv_timer_t *timer;
+static lv_timer_t *pet_state_timer;  // Timer for eat animation
 static uint8_t selected_item = 0;
+static uint8_t last_selected_item = 0;
 static uint8_t pet_level = 1;
 static food_event_callback_t food_callback = NULL;
 static void *food_callback_user_data = NULL;
@@ -58,6 +62,7 @@ static food_item_t food_items[] = {
 ***********************************************************/
 
 static void menu_food_screen_timer_cb(lv_timer_t *timer);
+static void pet_state_timer_cb(lv_timer_t *timer);
 static void keyboard_event_cb(lv_event_t *e);
 static void create_food_items(void);
 static void create_food_item(food_item_t *item, uint8_t index);
@@ -81,6 +86,28 @@ static void menu_food_screen_timer_cb(lv_timer_t *timer)
 {
     printf("[%s] food menu timer callback\n", menu_food_screen.name);
     // Add any periodic update logic here
+}
+
+/**
+ * @brief Timer callback for eat animation
+ *
+ * This function is called 3 seconds after starting the eat animation
+ * to switch back to normal state.
+ *
+ * @param timer The timer object
+ */
+static void pet_state_timer_cb(lv_timer_t *timer)
+{
+    printf("[%s] eat animation timer callback - switching to normal state\n", menu_food_screen.name);
+
+    // Switch pet back to normal state
+    main_screen_set_pet_animation_state(AI_PET_STATE_NORMAL);
+
+    // Clean up the timer
+    if (pet_state_timer) {
+        lv_timer_del(pet_state_timer);
+        pet_state_timer = NULL;
+    }
 }
 
 /**
@@ -117,8 +144,8 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_ESC:
             printf("ESC key pressed - returning to main menu\n");
+            last_selected_item = 0;
             screen_back();
-            break;
             break;
         default:
             printf("Key %d pressed\n", key);
@@ -148,30 +175,17 @@ static void create_food_item(food_item_t *item, uint8_t index)
 {
     lv_obj_t *btn = lv_list_add_btn(menu_food_screen_list, item->icon, item->name);
 
-    // Style based on availability
-    if (!item->available) {
-        lv_obj_set_style_text_color(btn, lv_color_make(128, 128, 128), 0);
-        lv_obj_set_style_bg_color(btn, lv_color_make(240, 240, 240), 0);
+    lv_obj_set_style_text_color(btn, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(btn, lv_color_white(), 0);
 
-        // Add level requirement text
-        lv_obj_t *level_label = lv_label_create(btn);
-        char level_text[16];
-        snprintf(level_text, sizeof(level_text), "Lv.%d", item->required_level);
-        lv_label_set_text(level_label, level_text);
-        lv_obj_align(level_label, LV_ALIGN_RIGHT_MID, -5, 0);
-        lv_obj_set_style_text_color(level_label, lv_color_make(255, 0, 0), 0);
-        lv_obj_set_style_text_font(level_label, &lv_font_montserrat_10, 0);
-    } else {
-        // Add nutrition info for available items
-        lv_obj_t *nutrition_label = lv_label_create(btn);
-        char nutrition_text[32];
-        snprintf(nutrition_text, sizeof(nutrition_text), "H:%d +%d",
-                item->hunger_restore, item->happiness_bonus);
-        lv_label_set_text(nutrition_label, nutrition_text);
-        lv_obj_align(nutrition_label, LV_ALIGN_RIGHT_MID, -5, 0);
-        lv_obj_set_style_text_color(nutrition_label, lv_color_make(0, 128, 0), 0);
-        lv_obj_set_style_text_font(nutrition_label, &lv_font_montserrat_10, 0);
-    }
+    // Add level requirement text
+    lv_obj_t *level_label = lv_label_create(btn);
+    char level_text[16];
+    snprintf(level_text, sizeof(level_text), "Lv.%d", item->required_level);
+    lv_label_set_text(level_label, level_text);
+    lv_obj_align(level_label, LV_ALIGN_RIGHT_MID, -5, 0);
+    lv_obj_set_style_text_color(level_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(level_label, &lv_font_montserrat_10, 0);
 }
 
 /**
@@ -200,21 +214,117 @@ static void handle_food_selection(void)
 {
     if (selected_item >= FOOD_ITEMS_COUNT) return;
 
+    last_selected_item = selected_item;
+
     food_item_t *selected_food = &food_items[selected_item];
 
-    if (!selected_food->available) {
-        printf("Food item '%s' is not available (requires level %d)\n",
-               selected_food->name, selected_food->required_level);
-        return;
-    }
+    printf("Selected food: %s (index: %d)\n", selected_food->name, selected_item);
 
-    printf("Selected food: %s (H:+%d, Happy:+%d)\n",
-           selected_food->name, selected_food->hunger_restore, selected_food->happiness_bonus);
+    // Handle different food items with specific logic
+    switch (selected_item) {
+        case 0:  // Feed Hamburger
+            if (selected_food->available) {
+                printf("Feeding hamburger - returning to main screen and playing eat animation\n");
+                // Return to main screen and play eating animation
+                screen_back();
+                // Trigger eating animation on main screen
+                main_screen_set_pet_animation_state(AI_PET_STATE_EAT);
 
-    // Trigger callback based on selection
-    if (food_callback) {
-        food_event_t event = (food_event_t)selected_item;
-        food_callback(event, food_callback_user_data);
+                // Start timer to switch back to normal state after 3 seconds
+                if (pet_state_timer) {
+                    lv_timer_del(pet_state_timer);  // Clean up existing timer
+                }
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
+                // lv_timer_set_repeat_count(pet_state_timer, 1);  // Run only once
+
+                printf("Started eat animation timer for 3 seconds\n");
+            } else {
+                printf("Hamburger not available (requires level %d)\n", selected_food->required_level);
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 1:  // Drink Water
+            printf("Water selected - showing toast\n");
+            if (selected_food->available) {
+                printf("Feeding water - returning to main screen and playing drink animation\n");
+                // Return to main screen and play drinking animation
+                screen_back();
+                // Trigger drinking animation on main screen
+                main_screen_set_pet_animation_state(AI_PET_STATE_DANCE);
+
+                // Start timer to switch back to normal state after 3 seconds
+                if (pet_state_timer) {
+                    lv_timer_del(pet_state_timer);  // Clean up existing timer
+                }
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
+                // lv_timer_set_repeat_count(pet_state_timer, 1);  // Run only once
+
+                printf("Started eat animation timer for 3 seconds\n");
+            } else {
+                printf("Hamburger not available (requires level %d)\n", selected_food->required_level);
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 2:  // Feed Pizza
+            printf("Pizza selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Pizza Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 3:  // Feed Apple
+            printf("Apple selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Apple Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 4:  // Feed Fish
+            printf("Fish selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Fish Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 5:  // Feed Carrot
+            printf("Carrot selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Carrot Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 6:  // Feed Ice Cream
+            printf("Ice Cream selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Ice Cream Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        case 7:  // Feed Cookie
+            printf("Cookie selected - showing toast\n");
+            if (selected_food->available) {
+                toast_screen_show("Coming Soon: Cookie Feature", 2000);
+            } else {
+                toast_screen_show("Unlock at Higher Level", 2000);
+            }
+            break;
+
+        default:
+            printf("Unknown food item selected: %d\n", selected_item);
+            toast_screen_show("Unknown Food Item", 2000);
+            break;
     }
 }
 
@@ -237,7 +347,7 @@ static void update_food_availability(void)
 void menu_food_screen_init(void)
 {
     ui_menu_food_screen_screen = lv_obj_create(NULL);
-    lv_obj_set_size(ui_menu_food_screen_screen, 384, 168);
+    lv_obj_set_size(ui_menu_food_screen_screen, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(ui_menu_food_screen_screen, lv_color_white(), 0);
 
     // Title at the top
@@ -270,10 +380,17 @@ void menu_food_screen_init(void)
     update_food_availability();
     create_food_items();
 
-    // Highlight first item
-    selected_item = 0;
-    if (lv_obj_get_child_cnt(menu_food_screen_list) > 0) {
-        update_selection(0, 0);
+    selected_item = last_selected_item;
+    uint32_t child_count = lv_obj_get_child_cnt(menu_food_screen_list);
+
+    if (selected_item >= child_count) {
+        selected_item = 0;
+        last_selected_item = 0;
+    }
+
+    if (child_count > 0) {
+        update_selection(0, selected_item);
+        printf("[%s] Restored selection to item %d\n", menu_food_screen.name, selected_item);
     }
 
     timer = lv_timer_create(menu_food_screen_timer_cb, 1000, NULL);
@@ -292,12 +409,16 @@ void menu_food_screen_deinit(void)
 {
     if (ui_menu_food_screen_screen) {
         printf("deinit food menu screen\n");
-        lv_obj_remove_event_cb(ui_menu_food_screen_screen, keyboard_event_cb);
+        lv_obj_remove_event_cb(ui_menu_food_screen_screen, NULL);
         lv_group_remove_obj(ui_menu_food_screen_screen);
     }
     if (timer) {
         lv_timer_del(timer);
         timer = NULL;
+    }
+    if (pet_state_timer) {
+        lv_timer_del(pet_state_timer);
+        pet_state_timer = NULL;
     }
 }
 

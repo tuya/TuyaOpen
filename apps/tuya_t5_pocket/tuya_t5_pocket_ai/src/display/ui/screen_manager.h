@@ -38,6 +38,7 @@
 #define KEY_RIGHT 19
 #define KEY_ENTER 10
 #define KEY_ESC   27
+#define KEY_JOYCON  32
 #define KEY_AI    105
 
 #ifndef AI_PET_SCREEN_WIDTH
@@ -97,16 +98,6 @@ void screen_back_bottom(void);
  * A slide-in-from-right animation effect is used when switching screens.
  */
 void screen_load(Screen_t *newScreen);
-
-/**
- * @brief Load a new screen to the top of the stack without animation
- *
- * @param newScreen Pointer to the new screen to be loaded
- *
- * This function pushes the current screen onto the stack and loads the specified new screen
- * without any animation effect. Useful for overlays like toast screens.
- */
-void screen_load_no_anim(Screen_t *newScreen);
 
 /**
  * @brief Initialize the screen manager

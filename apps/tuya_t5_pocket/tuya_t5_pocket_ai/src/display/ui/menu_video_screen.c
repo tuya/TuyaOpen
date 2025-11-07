@@ -12,8 +12,7 @@ static lv_obj_t *ui_menu_video_screen_screen;
 static lv_obj_t *menu_video_screen_list;
 static lv_timer_t *timer;
 static uint8_t selected_item = 0;
-// static video_event_callback_t video_callback = NULL;
-// static void *video_callback_user_data = NULL;
+static uint8_t last_selected_item = 0;
 
 Screen_t menu_video_screen = {
     .init = menu_video_screen_init,
@@ -67,6 +66,7 @@ static void keyboard_event_cb(lv_event_t *e)
             handle_video_selection();
             break;
         case KEY_ESC:
+            last_selected_item = 0;
             screen_back();
             break;
     }
@@ -96,6 +96,8 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
 static void handle_video_selection(void)
 {
     if (selected_item < VIDEO_ACTIONS_COUNT) {
+        last_selected_item = selected_item;
+
         video_action_item_t *selected_action = &video_actions[selected_item];
         printf("Selected video action: %s\n", selected_action->name);
         // Set the message after loading the screen
@@ -128,9 +130,17 @@ void menu_video_screen_init(void)
         lv_list_add_btn(menu_video_screen_list, video_actions[i].icon, video_actions[i].name);
     }
 
-    selected_item = 0;
-    if (lv_obj_get_child_cnt(menu_video_screen_list) > 0) {
-        update_selection(0, 0);
+    selected_item = last_selected_item;
+    uint32_t child_count = lv_obj_get_child_cnt(menu_video_screen_list);
+
+    if (selected_item >= child_count) {
+        selected_item = 0;
+        last_selected_item = 0;
+    }
+
+    if (child_count > 0) {
+        update_selection(0, selected_item);
+        printf("[%s] Restored selection to item %d\n", menu_video_screen.name, selected_item);
     }
 
     timer = lv_timer_create(menu_video_screen_timer_cb, 1000, NULL);

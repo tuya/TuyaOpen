@@ -72,25 +72,26 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
         toast_screen_show("Pet: Crying", 1000);
         break;
     case POCKET_DISP_TP_WIFI_OFF:
-        simple_demo_set_wifi_strength(0);
+        main_screen_set_wifi_state(0);
         break;
     case POCKET_DISP_TP_WIFI_CONNECTED:
-        simple_demo_set_wifi_strength(3);
+        // toast_screen_show("WiFi Connected", 2000);
+        main_screen_set_wifi_state(3);
         break;
     case POCKET_DISP_TP_WIFI_FIND:
-        simple_demo_set_wifi_strength(4);
+        main_screen_set_wifi_state(4);
         break;
     case POCKET_DISP_TP_WIFI_ADD:
-        simple_demo_set_wifi_strength(5);
+        main_screen_set_wifi_state(5);
         break;
-    case POCKET_DISP_TP_BATTERY_STATUS: {
-        simple_demo_set_battery_status((uint8_t)(axp2101_getBatteryPercent() / 100.0f * 7),
-                                   axp2101_isCharging());
-    } break;
-    case POCKET_DISP_TP_BATTERY_CHARGING: {
-        simple_demo_set_battery_status((uint8_t)(axp2101_getBatteryPercent() / 100.0f * 7),
-                                   axp2101_isCharging());
-    } break;
+    case POCKET_DISP_TP_BATTERY_STATUS:
+        // Battery state is automatically updated by main_screen timer in hardware mode
+        // No need to manually update here
+        break;
+    case POCKET_DISP_TP_BATTERY_CHARGING:
+        // Battery charging state is automatically detected by main_screen timer in hardware mode
+        // No need to manually update here
+        break;
 
     default:
         break;

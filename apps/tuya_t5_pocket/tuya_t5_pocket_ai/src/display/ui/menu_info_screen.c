@@ -17,10 +17,14 @@
 #include "menu_info_screen.h"
 #include "screen_manager.h"
 #include "keyboard_screen.h"
+#include "toast_screen.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+#if defined(ENABLE_LVGL_HARDWARE)
+#include "ai_audio.h"
+#include "tal_kv.h"
+#endif
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -28,8 +32,20 @@
 static lv_obj_t *ui_info_menu_screen;
 static lv_obj_t *info_menu_list;
 static lv_timer_t *timer;
-static pet_stats_t current_pet_stats;
+static pet_stats_t current_pet_stats = {
+        .health = 85,
+        .hungry = 60,
+        .clean = 70,
+        .happy = 90,
+        .age_days = 15,
+        .weight_kg = 1.2f,
+        .name = "Ducky"
+};
 static uint8_t selected_item = 0;
+static uint8_t last_selected_item = 0;
+
+// KV storage key for pet name
+#define PET_NAME_KV_KEY "pet_name"
 
 // UI Constants
 #define STAT_CONTAINER_HEIGHT 30
@@ -62,8 +78,21 @@ static void create_stat_display_item(const char *label, const char *value);
 static void create_stat_icon_bar(const char *label, int value);
 static void update_selection(uint8_t old_selection, uint8_t new_selection);
 static void handle_action_selection(void);
+static void refresh_info_screen_timer_cb(lv_timer_t *timer);
+
 static void keyboard_callback(const char *text, void *user_data);
 static void show_keyboard_for_pet_name(void);
+
+/*
+ * Helper: determine whether a child object should be selectable/focusable
+ * We treat objects with the CLICK_FOCUSABLE flag as selectable (e.g. list buttons).
+ * Section titles and decorative labels typically clear CLICK_FOCUSABLE and will be skipped.
+ */
+static bool is_child_selectable(lv_obj_t *child)
+{
+    if (child == NULL) return false;
+    return lv_obj_has_flag(child, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+}
 
 /***********************************************************
 ***********************function define**********************
@@ -100,16 +129,25 @@ static void keyboard_event_cb(lv_event_t *e)
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
-
     switch (key) {
         case KEY_UP:
-            if (selected_item > 0) {
-                new_selection = selected_item - 1;
+            // move to previous selectable child
+            for (int i = (int)selected_item - 1; i >= 0; --i) {
+                lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+                if (is_child_selectable(ch)) {
+                    new_selection = (uint8_t)i;
+                    break;
+                }
             }
             break;
         case KEY_DOWN:
-            if (selected_item < child_count - 1) {
-                new_selection = selected_item + 1;
+            // move to next selectable child
+            for (uint32_t i = selected_item + 1; i < child_count; ++i) {
+                lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+                if (is_child_selectable(ch)) {
+                    new_selection = (uint8_t)i;
+                    break;
+                }
             }
             break;
         case KEY_ENTER:
@@ -117,6 +155,7 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_ESC:
             printf("ESC key pressed - returning to main menu\n");
+            last_selected_item = 0;
             screen_back();
             break;
         default:
@@ -267,16 +306,29 @@ static void create_stat_icon_bar(const char *label, int value)
 static void update_selection(uint8_t old_selection, uint8_t new_selection)
 {
     uint32_t child_count = lv_obj_get_child_cnt(info_menu_list);
-
+    // Find nearest selectable old child to un-highlight
     if (old_selection < child_count) {
-        lv_obj_set_style_bg_color(lv_obj_get_child(info_menu_list, old_selection), lv_color_white(), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(info_menu_list, old_selection), lv_color_black(), 0);
+        for (int i = old_selection; i >= 0; --i) {
+            lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+            if (is_child_selectable(ch)) {
+                lv_obj_set_style_bg_color(ch, lv_color_white(), 0);
+                lv_obj_set_style_text_color(ch, lv_color_black(), 0);
+                break;
+            }
+        }
     }
 
+    // Find nearest selectable new child to highlight
     if (new_selection < child_count) {
-        lv_obj_set_style_bg_color(lv_obj_get_child(info_menu_list, new_selection), lv_color_black(), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(info_menu_list, new_selection), lv_color_white(), 0);
-        lv_obj_scroll_to_view(lv_obj_get_child(info_menu_list, new_selection), LV_ANIM_ON);
+        for (uint32_t i = new_selection; i < child_count; ++i) {
+            lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+            if (is_child_selectable(ch)) {
+                lv_obj_set_style_bg_color(ch, lv_color_black(), 0);
+                lv_obj_set_style_text_color(ch, lv_color_white(), 0);
+                lv_obj_scroll_to_view(ch, LV_ANIM_ON);
+                break;
+            }
+        }
     }
 }
 
@@ -286,6 +338,9 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
 static void handle_action_selection(void)
 {
     uint32_t child_count = lv_obj_get_child_cnt(info_menu_list);
+
+    // Save current selection
+    last_selected_item = selected_item;
 
     // Find action items start (after stats and separator)
     uint32_t action_start = 0;
@@ -307,27 +362,73 @@ static void handle_action_selection(void)
                 break;
             case 1: // View Statistics
                 printf("View Statistics action selected\n");
+#if defined(ENABLE_LVGL_HARDWARE)
+				uint8_t chat_text[] = "What did you do yesterday";
+                ai_text_agent_upload(chat_text, sizeof(chat_text));
+#else
+				toast_screen_show("Unlock at Higher Level", 2000);
+#endif
                 break;
             case 2: // WIFI Settings
                 printf("WIFI Settings action selected\n");
+                toast_screen_show("Unlock at Higher Level", 2000);
                 break;
             case 3: // Randomize Pet Data
                 printf("Randomize Pet Data action selected\n");
-                // Randomize stats for demo
-                current_pet_stats.health = rand() % 101;
-                current_pet_stats.hungry = rand() % 101;
-                current_pet_stats.clean = rand() % 101;
-                current_pet_stats.happy = rand() % 101;
-
-                // Refresh the display
-                menu_info_screen_deinit();
-                menu_info_screen_init();
+                toast_screen_show("Unlock at Higher Level", 2000);
                 break;
             default:
                 printf("Unknown action selected\n");
+                toast_screen_show("Unlock at Higher Level", 2000);
                 break;
         }
     }
+}
+
+/**
+ * @brief Timer callback to refresh info screen after name change
+ */
+static void refresh_info_screen_timer_cb(lv_timer_t *timer)
+{
+    printf("Refreshing info screen after name change\n");
+    printf("Current pet name: '%s'\n", current_pet_stats.name);
+
+    // Try to directly update the name display instead of reinitializing
+    if (info_menu_list && lv_obj_is_valid(info_menu_list)) {
+        uint32_t child_count = lv_obj_get_child_cnt(info_menu_list);
+        printf("Info menu list has %d children\n", child_count);
+
+        if (child_count > 0) {
+            lv_obj_t *name_container = lv_obj_get_child(info_menu_list, 0);  // First child should be name container
+            if (name_container && lv_obj_is_valid(name_container)) {
+                printf("Found name container\n");
+                lv_obj_t *name_label = lv_obj_get_child(name_container, 0);  // First child should be name label
+                if (name_label && lv_obj_check_type(name_label, &lv_label_class)) {
+                    printf("Updating name label from direct access\n");
+                    lv_label_set_text_fmt(name_label, "Name: %s", current_pet_stats.name);
+                    // Force a redraw
+                    lv_obj_invalidate(name_label);
+                    lv_obj_invalidate(name_container);
+                    printf("Name label updated successfully to: %s\n", current_pet_stats.name);
+                } else {
+                    printf("Name label not found or invalid type\n");
+                }
+            } else {
+                printf("Name container not found or invalid\n");
+            }
+        } else {
+            printf("No children in info menu list\n");
+        }
+    } else {
+        printf("Info menu list is not valid, falling back to full reinit\n");
+        // Fallback: reinitialize the entire screen
+        if (ui_info_menu_screen && lv_obj_is_valid(ui_info_menu_screen)) {
+            menu_info_screen_deinit();
+            menu_info_screen_init();
+        }
+    }
+
+    lv_timer_del(timer);
 }
 
 /**
@@ -337,15 +438,30 @@ static void keyboard_callback(const char *text, void *user_data)
 {
     (void)user_data;  // Unused parameter
 
+    printf("Keyboard callback called with text: '%s'\n", text ? text : "NULL");
+
     if (text && strlen(text) > 0) {
         // Update pet name
         strncpy(current_pet_stats.name, text, sizeof(current_pet_stats.name) - 1);
         current_pet_stats.name[sizeof(current_pet_stats.name) - 1] = '\0';
-        printf("Pet name updated to: %s\n", current_pet_stats.name);
+        printf("Pet name updated to: '%s' (length: %zu)\n", current_pet_stats.name, strlen(current_pet_stats.name));
 
-        // Refresh the info screen to show updated name
-        menu_info_screen_deinit();
-        menu_info_screen_init();
+#if defined(ENABLE_LVGL_HARDWARE)
+        // Save pet name to KV storage
+        int ret = tal_kv_set(PET_NAME_KV_KEY, (const uint8_t *)current_pet_stats.name, strlen(current_pet_stats.name) + 1);
+        if (ret == 0) {
+            printf("Pet name saved to KV storage successfully\n");
+        } else {
+            printf("Failed to save pet name to KV storage, error: %d\n", ret);
+        }
+#else
+        printf("KV storage not available (PC simulator mode)\n");
+#endif
+
+        // Create a timer to refresh the screen after a short delay
+        // This ensures the screen_back() has completed before we refresh
+        lv_timer_t *refresh_timer = lv_timer_create(refresh_info_screen_timer_cb, 200, NULL);
+        lv_timer_set_repeat_count(refresh_timer, 1);
     } else {
         printf("Keyboard input cancelled or empty\n");
     }
@@ -356,6 +472,9 @@ static void keyboard_callback(const char *text, void *user_data)
  */
 static void show_keyboard_for_pet_name(void)
 {
+    printf("show_keyboard_for_pet_name called\n");
+    printf("  current pet name: '%s'\n", current_pet_stats.name);
+    printf("  callback function: %p\n", (void*)keyboard_callback);
     keyboard_screen_show_with_callback(current_pet_stats.name, keyboard_callback, NULL);
 }
 
@@ -367,16 +486,30 @@ static void show_keyboard_for_pet_name(void)
  */
 void menu_info_screen_init(void)
 {
-    // Initialize pet stats if not already set
-    if (strlen(current_pet_stats.name) == 0) {
-        current_pet_stats.health = 85;
-        current_pet_stats.hungry = 60;
-        current_pet_stats.clean = 70;
-        current_pet_stats.happy = 90;
-        current_pet_stats.age_days = 15;
-        current_pet_stats.weight_kg = 1.2f;
+#if defined(ENABLE_LVGL_HARDWARE)
+    // Try to load pet name from KV storage
+    uint8_t *stored_name = NULL;
+    size_t name_length = 0;
+    int ret = tal_kv_get(PET_NAME_KV_KEY, &stored_name, &name_length);
+
+    if (ret == 0 && stored_name != NULL && name_length > 0) {
+        // Successfully loaded pet name from storage
+        strncpy(current_pet_stats.name, (const char *)stored_name, sizeof(current_pet_stats.name) - 1);
+        current_pet_stats.name[sizeof(current_pet_stats.name) - 1] = '\0';
+        printf("Pet name loaded from KV storage: '%s'\n", current_pet_stats.name);
+
+        // Free the allocated memory
+        tal_kv_free(stored_name);
+    } else {
+        // No stored name found or error occurred, use default
+        printf("No pet name in KV storage (ret=%d), using default name\n", ret);
         strcpy(current_pet_stats.name, "Ducky");
     }
+#else
+    // PC simulator mode - use default name
+    strcpy(current_pet_stats.name, "Ducky");
+    printf("PC simulator mode - using default pet name: '%s'\n", current_pet_stats.name);
+#endif
 
     ui_info_menu_screen = lv_obj_create(NULL);
     lv_obj_set_size(ui_info_menu_screen, 384, 168);
@@ -405,12 +538,48 @@ void menu_info_screen_init(void)
     create_separator();
     create_actions_section();
 
-    // Always start from first item
-    selected_item = 0;
+    // Set selected_item to first selectable child (skip titles/decorative labels)
+    selected_item = last_selected_item;
+    uint32_t child_count = lv_obj_get_child_cnt(info_menu_list);
+    for (uint32_t i = 0; i < child_count; ++i) {
+        lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+        if (is_child_selectable(ch)) {
+            if (selected_item == 0) {
+                selected_item = (uint8_t)i;
+            }
+            break;
+        }
+    }
 
-    // Highlight first item
-    if (lv_obj_get_child_cnt(info_menu_list) > 0) {
-        update_selection(0, 0);
+    // Validate selected_item is within bounds and selectable
+    if (selected_item >= child_count) {
+        selected_item = 0;
+        last_selected_item = 0;
+        for (uint32_t i = 0; i < child_count; ++i) {
+            lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+            if (is_child_selectable(ch)) {
+                selected_item = (uint8_t)i;
+                break;
+            }
+        }
+    } else {
+        // Check if current selected_item is selectable, if not find nearest selectable
+        lv_obj_t *current_child = lv_obj_get_child(info_menu_list, selected_item);
+        if (!is_child_selectable(current_child)) {
+            for (uint32_t i = selected_item; i < child_count; ++i) {
+                lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+                if (is_child_selectable(ch)) {
+                    selected_item = (uint8_t)i;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Highlight the selected item
+    if (child_count > 0) {
+        update_selection(0, selected_item);
+        printf("[%s] Restored selection to item %d\n", menu_info_screen.name, selected_item);
     }
 
     timer = lv_timer_create(menu_info_screen_timer_cb, 1000, NULL);

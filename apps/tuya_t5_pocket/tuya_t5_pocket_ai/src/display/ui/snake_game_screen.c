@@ -18,6 +18,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#if defined(ENABLE_LVGL_HARDWARE)
+#include "tal_kv.h"
+#include "tal_system.h"
+#endif
 
 /***********************************************************
 ************************macro define************************
@@ -38,6 +42,9 @@
 // Simple LFSR random number generator
 #define LFSR_SEED           0x1234
 #define LFSR_POLYNOMIAL     0x8016
+
+// KV storage key for high score
+#define SNAKE_GAME_HIGH_SCORE_KV_KEY "snake_high_score"
 
 /***********************************************************
 ***********************variable define**********************
@@ -93,6 +100,7 @@ typedef struct {
 static snake_game_state_t g_gs;
 static uint16_t g_lfsr_state = LFSR_SEED;
 static uint16_t g_last_drawn_length = 0;
+static uint16_t g_high_score = 0;  // High score loaded from KV storage
 
 // Dialog UI elements
 static lv_obj_t *exit_dialog = NULL;
@@ -134,20 +142,72 @@ static uint8_t snake_game_check_collision(void);
 static uint8_t snake_game_check_food_collision(void);
 static void snake_game_move_snake(void);
 static inline uint16_t snake_game_lfsr_random(void);
+static void snake_game_load_high_score(void);
+static void snake_game_save_high_score(void);
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
 /**
+ * @brief Load high score from KV storage
+ */
+static void snake_game_load_high_score(void)
+{
+#if defined(ENABLE_LVGL_HARDWARE)
+    uint8_t *stored_score = NULL;
+    size_t score_length = 0;
+    int ret = tal_kv_get(SNAKE_GAME_HIGH_SCORE_KV_KEY, &stored_score, &score_length);
+    
+    if (ret == 0 && stored_score != NULL && score_length == sizeof(uint16_t)) {
+        // Successfully loaded high score from storage
+        memcpy(&g_high_score, stored_score, sizeof(uint16_t));
+        printf("[snake_game] High score loaded from KV storage: %d\n", g_high_score);
+        tal_kv_free(stored_score);
+    } else {
+        // No stored score found or error occurred, use default
+        g_high_score = 0;
+        printf("[snake_game] No high score in KV storage (ret=%d), using default: 0\n", ret);
+    }
+#else
+    // PC simulator mode - use default score
+    g_high_score = 50;
+    printf("[snake_game] PC simulator mode - using default high score: 50\n");
+#endif
+}
+
+/**
+ * @brief Save high score to KV storage
+ */
+static void snake_game_save_high_score(void)
+{
+#if defined(ENABLE_LVGL_HARDWARE)
+    int ret = tal_kv_set(SNAKE_GAME_HIGH_SCORE_KV_KEY, (const uint8_t *)&g_high_score, sizeof(uint16_t));
+    if (ret == 0) {
+        printf("[snake_game] High score saved to KV storage: %d\n", g_high_score);
+    } else {
+        printf("[snake_game] Failed to save high score to KV storage, error: %d\n", ret);
+    }
+#else
+    printf("[snake_game] KV storage not available (PC simulator mode), high score: %d\n", g_high_score);
+#endif
+}
+
+/**
  * @brief LFSR random number generator
  */
 static inline uint16_t snake_game_lfsr_random(void)
 {
+#if defined(ENABLE_LVGL_HARDWARE)
+    // Use Tuya system random function on hardware
+    return (uint16_t)tal_system_get_random(0xFFFF);
+#else
+    // Use LFSR for PC simulator
     uint8_t bit = ((g_lfsr_state >> 0) ^ (g_lfsr_state >> 2) ^
                    (g_lfsr_state >> 3) ^ (g_lfsr_state >> 5)) & 1;
     g_lfsr_state = (g_lfsr_state >> 1) | (bit << 15);
     return g_lfsr_state;
+#endif
 }
 
 /**
@@ -325,6 +385,14 @@ static void game_timer_cb(lv_timer_t *timer)
     // Check wall collision
     if (snake_game_check_collision()) {
         g_gs.game_over = 1;
+        
+        // Check and update high score
+        if (g_gs.score > g_high_score) {
+            g_high_score = g_gs.score;
+            snake_game_save_high_score();
+            printf("[snake_game] New high score: %d\n", g_high_score);
+        }
+        
         char buf[32];
         snprintf(buf, sizeof(buf), "GAME OVER: %d", g_gs.score);
         lv_label_set_text(score_label, buf);
@@ -521,7 +589,7 @@ static void snake_game_show_game_over_dialog(void)
     // High score label
     game_over_high_score_label = lv_label_create(dialog_box);
     char high_score_text[32];
-    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", HIGH_SCORE);
+    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", g_high_score);
     lv_label_set_text(game_over_high_score_label, high_score_text);
     lv_obj_set_style_text_font(game_over_high_score_label, &lv_font_montserrat_14, 0);
     lv_obj_align(game_over_high_score_label, LV_ALIGN_TOP_MID, 0, 10);
@@ -754,6 +822,9 @@ void snake_game_screen_init(void)
     ui_snake_game_screen = lv_obj_create(NULL);
     lv_obj_set_size(ui_snake_game_screen, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(ui_snake_game_screen, lv_color_white(), 0);
+
+    // Load high score from KV storage
+    snake_game_load_high_score();
 
     // Initialize game state
     memset(&g_gs, 0, sizeof(snake_game_state_t));

@@ -706,7 +706,7 @@ void level_indicator_screen_deinit(void)
 {
     if (ui_level_indicator_screen) {
         printf("Deinitializing level indicator screen\n");
-        lv_obj_remove_event_cb(ui_level_indicator_screen, keyboard_event_cb);
+        lv_obj_remove_event_cb(ui_level_indicator_screen, NULL);
         lv_group_remove_obj(ui_level_indicator_screen);
     }
 

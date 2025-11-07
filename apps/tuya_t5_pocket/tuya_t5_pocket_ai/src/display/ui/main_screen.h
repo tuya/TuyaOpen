@@ -94,11 +94,28 @@ extern Screen_t main_screen;
 void main_screen_init(void);
 void main_screen_deinit(void);
 
-void simple_demo_set_wifi_strength(uint8_t strength);
-void simple_demo_set_cellular_status(uint8_t strength, bool connected);
-void simple_demo_set_battery_status(uint8_t level, bool charging);
+/**
+ * State setting interface functions - Only change state, UI update in timer
+ */
 
-void simple_pet_area_set_animation(ai_pet_state_t state);
+/**
+ * Set pet animation state (state machine only, UI update in timer)
+ * @param state Target animation state
+ */
+void main_screen_set_pet_animation_state(ai_pet_state_t state);
+
+/**
+ * Set WiFi signal strength state (state machine only, UI update in timer)
+ * @param strength WiFi signal strength (0-5: 0=off, 1-3=bars, 4=find, 5=add)
+ */
+void main_screen_set_wifi_state(uint8_t strength);
+
+/**
+ * Set battery level and charging state (state machine only, UI update in timer)
+ * @param level Battery level (0-6: 0=empty, 6=full)
+ * @param charging Battery charging status (true=charging, false=discharging)
+ */
+void main_screen_set_battery_state(uint8_t level, bool charging);
 
 /**
  * Register callback function for pet events

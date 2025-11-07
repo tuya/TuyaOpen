@@ -115,7 +115,7 @@ void _display_pet_state(ai_pet_state_t pet_state)
     }
 
     lv_vendor_disp_lock();
-    simple_pet_area_set_animation(pet_state);
+    main_screen_set_pet_animation_state(pet_state);
     lv_vendor_disp_unlock();
 }
 
@@ -376,10 +376,8 @@ OPERATE_RET game_pet_random_state(void)
             pet_state = AI_PET_STATE_DANCE;
             break;
         case PET_EVENT_WIFI_SCAN:
-            return;
             break;
         case PET_EVENT_I2C_SCAN:
-            return;
             break;
         default:
             PR_ERR("Unhandled pet event type: %d", event_type);

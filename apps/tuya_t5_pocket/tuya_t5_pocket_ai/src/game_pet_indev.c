@@ -43,6 +43,7 @@ JOYSTICK_CODE_MAP_T disp_joystick_code_map[] = {
     { TDL_JOYSTICK_DOWN, POCKET_DISP_TP_MENU_DOWN},
     { TDL_JOYSTICK_LEFT, POCKET_DISP_TP_MENU_LEFT},
     { TDL_JOYSTICK_RIGHT, POCKET_DISP_TP_MENU_RIGHT},
+    { TDL_JOYSTICK_BUTTON_PRESS_DOWN, POCKET_DISP_TP_MENU_JOYCON_BTN},
 };
 
 
@@ -117,6 +118,9 @@ static void __disp_joystick_function_cb(char *name, TDL_JOYSTICK_TOUCH_EVENT_E e
                 break;
             case POCKET_DISP_TP_MENU_RIGHT:
                 cur_key = KEY_RIGHT;
+                break;
+            case POCKET_DISP_TP_MENU_JOYCON_BTN:
+                cur_key = KEY_JOYCON;
                 break;
             default:
                 cur_key = 0;

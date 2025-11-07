@@ -26,28 +26,23 @@ extern "C" {
 extern Screen_t toast_screen;
 
 /**
- * @brief Initialize the toast screen
- *
- * This function creates the toast screen UI with a toast container,
- * message label, and auto-hide functionality.
- */
-void toast_screen_init(void);
-
-/**
- * @brief Deinitialize the toast screen
- *
- * This function cleans up the toast screen by removing event callbacks
- * and freeing resources.
- */
-void toast_screen_deinit(void);
-
-/**
- * @brief Show toast message
+ * @brief Show toast message as an overlay on the current screen
  *
  * @param message The message text to display
  * @param delay_ms Auto-hide delay in milliseconds (0 for default delay)
+ * 
+ * This function creates a floating toast overlay on top of the current active screen.
+ * The toast does not replace the current screen, it simply appears on top as a popup.
  */
 void toast_screen_show(const char *message, uint32_t delay_ms);
+
+/**
+ * @brief Manually hide the toast overlay
+ *
+ * This function can be called to immediately dismiss the toast overlay.
+ */
+void toast_screen_hide(void);
+
 
 #ifdef __cplusplus
 } /*extern "C"*/

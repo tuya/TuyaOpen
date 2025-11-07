@@ -18,6 +18,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#if defined(ENABLE_LVGL_HARDWARE)
+#include "tal_kv.h"
+#include "tal_system.h"
+#endif
 
 // Declare the GIF image
 LV_IMG_DECLARE(ducky_game);
@@ -42,6 +46,9 @@ LV_IMG_DECLARE(ducky_game);
 // Screen dimensions - use AI_PET constants
 #define AI_PET_SCREEN_WIDTH  384
 #define AI_PET_SCREEN_HEIGHT 168
+
+// KV storage key for high score
+#define DINO_GAME_HIGH_SCORE_KV_KEY "dino_high_score"
 
 // Hardware abstraction
 #ifdef ENABLE_LVGL_HARDWARE
@@ -91,6 +98,7 @@ typedef struct {
 
 static dino_game_state_t g_gs;
 static uint16_t g_lfsr_state = LFSR_SEED;
+static uint16_t g_high_score = 0;  // High score loaded from KV storage
 
 // Dialog UI elements
 static lv_obj_t *g_exit_dialog = NULL;
@@ -130,20 +138,72 @@ static void dino_game_hide_game_over_dialog(void);
 static void dino_game_update_exit_selection(void);
 static void dino_game_update_game_over_selection(void);
 static inline uint16_t dino_game_lfsr_random(void);
+static void dino_game_load_high_score(void);
+static void dino_game_save_high_score(void);
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
 /**
+ * @brief Load high score from KV storage
+ */
+static void dino_game_load_high_score(void)
+{
+#if defined(ENABLE_LVGL_HARDWARE)
+    uint8_t *stored_score = NULL;
+    size_t score_length = 0;
+    int ret = tal_kv_get(DINO_GAME_HIGH_SCORE_KV_KEY, &stored_score, &score_length);
+    
+    if (ret == 0 && stored_score != NULL && score_length == sizeof(uint16_t)) {
+        // Successfully loaded high score from storage
+        memcpy(&g_high_score, stored_score, sizeof(uint16_t));
+        printf("[dino_game] High score loaded from KV storage: %d\n", g_high_score);
+        tal_kv_free(stored_score);
+    } else {
+        // No stored score found or error occurred, use default
+        g_high_score = 0;
+        printf("[dino_game] No high score in KV storage (ret=%d), using default: 0\n", ret);
+    }
+#else
+    // PC simulator mode - use default score
+    g_high_score = 100;
+    printf("[dino_game] PC simulator mode - using default high score: 100\n");
+#endif
+}
+
+/**
+ * @brief Save high score to KV storage
+ */
+static void dino_game_save_high_score(void)
+{
+#if defined(ENABLE_LVGL_HARDWARE)
+    int ret = tal_kv_set(DINO_GAME_HIGH_SCORE_KV_KEY, (const uint8_t *)&g_high_score, sizeof(uint16_t));
+    if (ret == 0) {
+        printf("[dino_game] High score saved to KV storage: %d\n", g_high_score);
+    } else {
+        printf("[dino_game] Failed to save high score to KV storage, error: %d\n", ret);
+    }
+#else
+    printf("[dino_game] KV storage not available (PC simulator mode), high score: %d\n", g_high_score);
+#endif
+}
+
+/**
  * @brief LFSR random number generator for embedded systems - exactly matching dino_game.c
  */
 static inline uint16_t dino_game_lfsr_random(void)
 {
+#if defined(ENABLE_LVGL_HARDWARE)
+    // Use Tuya system random function on hardware
+    return (uint16_t)tal_system_get_random(0xFFFF);
+#else
+    // Use LFSR for PC simulator
     uint8_t bit = ((g_lfsr_state >> 0) ^ (g_lfsr_state >> 2) ^
                    (g_lfsr_state >> 3) ^ (g_lfsr_state >> 5)) & 1;
     g_lfsr_state = (g_lfsr_state >> 1) | (bit << 15);
     return g_lfsr_state;
+#endif
 }
 
 /**
@@ -283,6 +343,14 @@ static void dino_game_timer_cb(lv_timer_t *timer)
           dino_coords.y1 > obs_coords.y2 - collision_buffer)) {
         g_gs.game_over = 1;
         g_gs.paused = 1;  // Immediately pause the game
+        
+        // Check and update high score
+        if (g_gs.score > g_high_score) {
+            g_high_score = g_gs.score;
+            dino_game_save_high_score();
+            printf("[dino_game] New high score: %d\n", g_high_score);
+        }
+        
         char buf[32];
         snprintf(buf, sizeof(buf), "GAME OVER: %d", g_gs.score);
         lv_label_set_text(g_score_label, buf);
@@ -530,7 +598,7 @@ static void dino_game_show_game_over_dialog(void)
     // High score label
     lv_obj_t *high_score_label = lv_label_create(dialog_box);
     char high_score_text[32];
-    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", HIGH_SCORE);
+    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", g_high_score);
     lv_label_set_text(high_score_label, high_score_text);
     lv_obj_set_style_text_font(high_score_label, &lv_font_montserrat_14, 0);
     lv_obj_align(high_score_label, LV_ALIGN_TOP_MID, 0, 10);
@@ -678,6 +746,9 @@ void dino_game_screen_init(void)
 
     // Initialize LFSR with a different seed based on game invocation
     g_lfsr_state = LFSR_SEED ^ (lv_tick_get() & 0xFFFF);
+
+    // Load high score from KV storage
+    dino_game_load_high_score();
 
     // Reset all static variables to ensure clean state
     g_dino = NULL;

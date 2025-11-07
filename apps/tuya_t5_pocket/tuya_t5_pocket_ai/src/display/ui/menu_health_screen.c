@@ -16,6 +16,8 @@
 
 #include "menu_health_screen.h"
 #include "screen_manager.h"
+#include "main_screen.h"
+#include "toast_screen.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,7 +29,10 @@
 static lv_obj_t *ui_menu_health_screen_screen;
 static lv_obj_t *menu_health_screen_list;
 static lv_timer_t *timer;
+static lv_timer_t *pet_state_timer;  // Timer for animation
 static uint8_t selected_item = 0;
+// Remember last selected actionable item for this menu (-1 = none)
+static int last_selected_item = -1;
 static health_status_t current_health_status;
 static health_event_callback_t health_callback = NULL;
 static void *health_callback_user_data = NULL;
@@ -78,6 +83,7 @@ static void create_stat_icon_bar(const char *label, int value);
 static void create_stat_display_item(const char *label, const char *value);
 static void update_selection(uint8_t old_selection, uint8_t new_selection);
 static void handle_health_selection(void);
+static bool is_child_selectable(lv_obj_t *child);
 
 /***********************************************************
 ***********************function define**********************
@@ -95,6 +101,27 @@ static void menu_health_screen_timer_cb(lv_timer_t *timer)
 {
     printf("[%s] health menu timer callback\n", menu_health_screen.name);
     // Add any periodic update logic here
+}
+
+/**
+ * @brief Timer callback for animation
+ *
+ * This function is called after animation to switch back to normal state.
+ *
+ * @param timer The timer object
+ */
+static void pet_state_timer_cb(lv_timer_t *timer)
+{
+    printf("[%s] animation timer callback - switching to normal state\n", menu_health_screen.name);
+
+    // Switch pet back to normal state
+    main_screen_set_pet_animation_state(AI_PET_STATE_NORMAL);
+
+    // Clean up the timer
+    if (pet_state_timer) {
+        lv_timer_del(pet_state_timer);
+        pet_state_timer = NULL;
+    }
 }
 
 /**
@@ -116,20 +143,40 @@ static void keyboard_event_cb(lv_event_t *e)
     uint8_t new_selection = old_selection;
 
     switch (key) {
-        case KEY_UP:
+        case KEY_UP: {
+            // Move to previous item (including non-selectable ones for scrolling)
             if (selected_item > 0) {
                 new_selection = selected_item - 1;
+                // Find the nearest selectable item going up
+                for (int i = (int)new_selection; i >= 0; --i) {
+                    lv_obj_t *ch = lv_obj_get_child(menu_health_screen_list, i);
+                    if (is_child_selectable(ch)) {
+                        new_selection = (uint8_t)i;
+                        break;
+                    }
+                }
             }
-            break;
-        case KEY_DOWN:
+        } break;
+        case KEY_DOWN: {
+            // Move to next item (including non-selectable ones for scrolling)
             if (selected_item < child_count - 1) {
                 new_selection = selected_item + 1;
+                // Find the nearest selectable item going down
+                for (int i = (int)new_selection; i < (int)child_count; ++i) {
+                    lv_obj_t *ch = lv_obj_get_child(menu_health_screen_list, i);
+                    if (is_child_selectable(ch)) {
+                        new_selection = (uint8_t)i;
+                        break;
+                    }
+                }
             }
-            break;
+        } break;
         case KEY_ENTER:
             handle_health_selection();
             break;
         case KEY_ESC:
+            /* save current selection for next time */
+            last_selected_item = 0;
             printf("ESC key pressed - returning to main menu\n");
             screen_back();
             break;
@@ -167,6 +214,8 @@ static void create_health_status_display(void)
     lv_obj_set_style_bg_opa(condition_container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(condition_container, 0, 0);
     lv_obj_set_style_pad_all(condition_container, 2, 0);
+    // lv_obj_add_flag(condition_container, LV_OBJ_FLAG_CLICKABLE);
+    // lv_obj_clear_flag(condition_container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *condition_label = lv_label_create(condition_container);
     lv_label_set_text(condition_label, "Condition:");
@@ -199,6 +248,8 @@ static void create_separator(void)
     lv_obj_set_size(separator, STAT_CONTAINER_WIDTH, SEPARATOR_HEIGHT);
     lv_obj_set_style_bg_color(separator, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(separator, LV_OPA_50, 0);
+    // lv_obj_add_flag(separator, LV_OBJ_FLAG_CLICKABLE);
+    // lv_obj_clear_flag(separator, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 }
 
 /**
@@ -227,12 +278,30 @@ static void create_health_action_item(health_action_item_t *action, uint8_t inde
 {
     lv_obj_t *btn = lv_list_add_btn(menu_health_screen_list, action->icon, action->name);
 
-    // Add description as a subtitle
-    lv_obj_t *desc_label = lv_label_create(btn);
-    lv_label_set_text(desc_label, action->description);
-    lv_obj_align(desc_label, LV_ALIGN_BOTTOM_LEFT, 30, -2);
-    lv_obj_set_style_text_color(desc_label, lv_color_make(128, 128, 128), 0);
-    lv_obj_set_style_text_font(desc_label, &lv_font_montserrat_10, 0);
+    // Add status info on the right side
+    lv_obj_t *info_label = lv_label_create(btn);
+    char info_text[32];
+    switch (index) {
+        case 0:  // See Doctor
+            snprintf(info_text, sizeof(info_text), "H:+100");
+            break;
+        case 1:  // Take Medicine
+            snprintf(info_text, sizeof(info_text), "H:+20");
+            break;
+        case 2:  // Check Symptoms
+            snprintf(info_text, sizeof(info_text), "Info");
+            break;
+        case 3:  // Exercise
+            snprintf(info_text, sizeof(info_text), "E:+15 H:+5");
+            break;
+        default:
+            snprintf(info_text, sizeof(info_text), " ");
+            break;
+    }
+    lv_label_set_text(info_label, info_text);
+    lv_obj_align(info_label, LV_ALIGN_RIGHT_MID, -5, 0);
+    lv_obj_set_style_text_color(info_label, lv_color_make(0, 128, 0), 0);
+    lv_obj_set_style_text_font(info_label, &lv_font_montserrat_10, 0);
 }
 
 /**
@@ -245,6 +314,8 @@ static void create_stat_icon_bar(const char *label, int value)
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 2, 0);
+    // lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    // lv_obj_clear_flag(container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *label_obj = lv_label_create(container);
     lv_label_set_text(label_obj, label);
@@ -286,6 +357,8 @@ static void create_stat_display_item(const char *label, const char *value)
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 2, 0);
+    // lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    // lv_obj_clear_flag(container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *label_obj = lv_label_create(container);
     lv_label_set_text(label_obj, label);
@@ -304,17 +377,39 @@ static void create_stat_display_item(const char *label, const char *value)
 static void update_selection(uint8_t old_selection, uint8_t new_selection)
 {
     uint32_t child_count = lv_obj_get_child_cnt(menu_health_screen_list);
-
+    // Un-highlight nearest selectable old child
     if (old_selection < child_count) {
-        lv_obj_set_style_bg_color(lv_obj_get_child(menu_health_screen_list, old_selection), lv_color_white(), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(menu_health_screen_list, old_selection), lv_color_black(), 0);
+        for (int i = old_selection; i >= 0; --i) {
+            lv_obj_t *ch = lv_obj_get_child(menu_health_screen_list, i);
+            if (is_child_selectable(ch)) {
+                lv_obj_set_style_bg_color(ch, lv_color_white(), 0);
+                lv_obj_set_style_text_color(ch, lv_color_black(), 0);
+                break;
+            }
+        }
     }
 
+    // Highlight nearest selectable new child
     if (new_selection < child_count) {
-        lv_obj_set_style_bg_color(lv_obj_get_child(menu_health_screen_list, new_selection), lv_color_black(), 0);
-        lv_obj_set_style_text_color(lv_obj_get_child(menu_health_screen_list, new_selection), lv_color_white(), 0);
-        lv_obj_scroll_to_view(lv_obj_get_child(menu_health_screen_list, new_selection), LV_ANIM_ON);
+        for (uint32_t i = new_selection; i < child_count; ++i) {
+            lv_obj_t *ch = lv_obj_get_child(menu_health_screen_list, i);
+            if (is_child_selectable(ch)) {
+                lv_obj_set_style_bg_color(ch, lv_color_black(), 0);
+                lv_obj_set_style_text_color(ch, lv_color_white(), 0);
+                lv_obj_scroll_to_view(ch, LV_ANIM_ON);
+                break;
+            }
+        }
     }
+}
+
+/**
+ * @brief Return true if child is actionable/selectable (click-focusable)
+ */
+static bool is_child_selectable(lv_obj_t *child)
+{
+    if (!child) return false;
+    return lv_obj_has_flag(child, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 }
 
 /**
@@ -346,53 +441,53 @@ static void handle_health_selection(void)
             printf("Selected health action: %s - %s\n",
                    selected_action->name, selected_action->description);
 
-            // Trigger callback
-            if (health_callback) {
-                health_callback(selected_action->action, health_callback_user_data);
-            }
-
-            // Update health status based on action
-            switch (selected_action->action) {
-                case HEALTH_ACTION_SEE_DOCTOR:
+            // Handle different health actions with specific logic
+            switch (action_index) {
+                case 0:  // See Doctor - only this one has animation
+                    printf("See Doctor - returning to main screen and playing animation\n");
                     current_health_status.health_level = 100;
                     current_health_status.is_sick = false;
                     current_health_status.needs_doctor = false;
                     strcpy(current_health_status.symptoms, "");
+
+                    // Trigger callback
+                    if (health_callback) {
+                        health_callback(selected_action->action, health_callback_user_data);
+                    }
+
+                    // Return to main screen and play animation
+                    screen_back();
+                    main_screen_set_pet_animation_state(AI_PET_STATE_SICK);  // Using sick animation as placeholder
+
+                    // Start timer to switch back to normal state after 2 seconds
+                    if (pet_state_timer) {
+                        lv_timer_del(pet_state_timer);  // Clean up existing timer
+                    }
+                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
+
+                    printf("Started health animation timer\n");
                     break;
-                case HEALTH_ACTION_TAKE_MEDICINE:
-                    current_health_status.health_level += 20;
-                    if (current_health_status.health_level > 100) {
-                        current_health_status.health_level = 100;
-                    }
-                    if (current_health_status.health_level >= 80) {
-                        current_health_status.is_sick = false;
-                        strcpy(current_health_status.symptoms, "");
-                    }
+
+                case 1:  // Take Medicine
+                    printf("Take Medicine selected - showing toast\n");
+                    toast_screen_show("Coming Soon: Take Medicine Feature", 2000);
                     break;
-                case HEALTH_ACTION_CHECK_SYMPTOMS:
-                    if (current_health_status.health_level < 50) {
-                        strcpy(current_health_status.symptoms, "Low energy, needs rest");
-                    } else if (current_health_status.health_level < 80) {
-                        strcpy(current_health_status.symptoms, "Mild fatigue");
-                    } else {
-                        strcpy(current_health_status.symptoms, "No symptoms");
-                    }
+
+                case 2:  // Check Symptoms
+                    printf("Check Symptoms selected - showing toast\n");
+                    toast_screen_show("Coming Soon: Check Symptoms Feature", 2000);
                     break;
-                case HEALTH_ACTION_EXERCISE:
-                    current_health_status.energy_level += 15;
-                    current_health_status.health_level += 5;
-                    if (current_health_status.energy_level > 100) {
-                        current_health_status.energy_level = 100;
-                    }
-                    if (current_health_status.health_level > 100) {
-                        current_health_status.health_level = 100;
-                    }
+
+                case 3:  // Exercise
+                    printf("Exercise selected - showing toast\n");
+                    toast_screen_show("Coming Soon: Exercise Feature", 2000);
+                    break;
+
+                default:
+                    printf("Unknown health action: %d\n", action_index);
+                    toast_screen_show("Unknown Action", 2000);
                     break;
             }
-
-            // Refresh the display to show updated status
-            menu_health_screen_deinit();
-            menu_health_screen_init();
         }
     }
 }
@@ -431,10 +526,39 @@ void menu_health_screen_init(void)
     create_separator();
     create_health_actions();
 
-    // Highlight first item
-    selected_item = 0;
-    if (lv_obj_get_child_cnt(menu_health_screen_list) > 0) {
-        update_selection(0, 0);
+    // Restore last selected item or find first selectable child
+    uint32_t child_count = lv_obj_get_child_cnt(menu_health_screen_list);
+    if (last_selected_item >= 0 && (uint32_t)last_selected_item < child_count) {
+        selected_item = (uint8_t)last_selected_item;
+    } else {
+        selected_item = 0;
+        last_selected_item = 0;
+    }
+
+    // Validate selected_item is within bounds and selectable
+    bool found_selectable = false;
+    if (child_count > 0) {
+        if (selected_item > 0 && selected_item < child_count) {
+            lv_obj_t *current_child = lv_obj_get_child(menu_health_screen_list, selected_item);
+            if (is_child_selectable(current_child)) {
+                found_selectable = true;
+            }
+        }
+
+        if (!found_selectable) {
+            for (uint32_t i = 0; i < child_count; ++i) {
+                lv_obj_t *ch = lv_obj_get_child(menu_health_screen_list, i);
+                if (is_child_selectable(ch)) {
+                    selected_item = (uint8_t)i;
+                    found_selectable = true;
+                    break;
+                }
+            }
+        }
+
+        if (found_selectable) {
+            update_selection(0, selected_item);
+        }
     }
 
     timer = lv_timer_create(menu_health_screen_timer_cb, 1000, NULL);
@@ -459,6 +583,10 @@ void menu_health_screen_deinit(void)
     if (timer) {
         lv_timer_del(timer);
         timer = NULL;
+    }
+    if (pet_state_timer) {
+        lv_timer_del(pet_state_timer);
+        pet_state_timer = NULL;
     }
 }
 
