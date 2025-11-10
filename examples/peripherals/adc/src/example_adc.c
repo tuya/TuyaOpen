@@ -23,7 +23,10 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define ADC_CHANNEL 2
+#define EXAMPLE_ADC_PORT             TUYA_ADC_NUM_0
+#define EXAMPLE_ADC_CHANNEL          2
+#define EXAMPLE_ADC_MODE             TUYA_ADC_CONTINUOUS
+#define EXAMPLE_ADC_TYPE             TUYA_ADC_INNER_SAMPLE_VOL
 
 /***********************************************************
 ***********************typedef define***********************
@@ -33,12 +36,12 @@
 ***********************variable define**********************
 ***********************************************************/
 static TUYA_ADC_BASE_CFG_T sg_adc_cfg = {
-    .ch_list.data = 1 << ADC_CHANNEL,
-    .ch_nums = 1, // adc Number of channel lists
-    .width = 12,
-    .mode = TUYA_ADC_CONTINUOUS,
-    .type = TUYA_ADC_INNER_SAMPLE_VOL,
-    .conv_cnt = 1,
+    .ch_list.data = 1 << EXAMPLE_ADC_CHANNEL,
+    .ch_nums      = 1, // adc Number of channel lists
+    .width        = 12,
+    .mode         = EXAMPLE_ADC_MODE,
+    .type         = EXAMPLE_ADC_TYPE,
+    .conv_cnt     = 1,
 };
 
 /***********************************************************
@@ -70,12 +73,12 @@ void user_main(void)
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
     /* ADC 0 channel 2 init */
-    TUYA_CALL_ERR_GOTO(tkl_adc_init(TUYA_ADC_NUM_0, &sg_adc_cfg), __EXIT);
+    TUYA_CALL_ERR_GOTO(tkl_adc_init(EXAMPLE_ADC_PORT, &sg_adc_cfg), __EXIT);
 
-    TUYA_CALL_ERR_LOG(tkl_adc_read_single_channel(TUYA_ADC_NUM_0, ADC_CHANNEL, &adc_value));
-    PR_DEBUG("ADC%d value = %d", TUYA_ADC_NUM_0, adc_value);
+    TUYA_CALL_ERR_LOG(tkl_adc_read_single_channel(EXAMPLE_ADC_PORT, EXAMPLE_ADC_CHANNEL, &adc_value));
+    PR_DEBUG("ADC%d value = %d", EXAMPLE_ADC_PORT, adc_value);
 
-    TUYA_CALL_ERR_LOG(tkl_adc_deinit(TUYA_ADC_NUM_0));
+    TUYA_CALL_ERR_LOG(tkl_adc_deinit(EXAMPLE_ADC_PORT));
 
 __EXIT:
     return;

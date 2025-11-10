@@ -27,9 +27,6 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define SPI_ID TUYA_SPI_NUM_0
-
-#define SPI_FREQ 10000
 
 /***********************************************************
 ***********************typedef define***********************
@@ -69,19 +66,22 @@ void user_main(void)
 
     /*spi init*/
     TUYA_SPI_BASE_CFG_T spi_cfg = {.mode = TUYA_SPI_MODE0,
-                                   .freq_hz = SPI_FREQ,
+                                   .freq_hz = EXAMPLE_SPI_BAUDRATE,
                                    .databits = TUYA_SPI_DATA_BIT8,
                                    .bitorder = TUYA_SPI_ORDER_LSB2MSB,
                                    .role = TUYA_SPI_ROLE_MASTER,
                                    .type = TUYA_SPI_AUTO_TYPE};
-    TUYA_CALL_ERR_GOTO(tkl_spi_init(SPI_ID, &spi_cfg), __EXIT);
+    TUYA_CALL_ERR_GOTO(tkl_spi_init(EXAMPLE_SPI_PORT, &spi_cfg), __EXIT);
 
-    TUYA_CALL_ERR_LOG(tkl_spi_send(SPI_ID, send_buff, CNTSOF(send_buff)));
-    PR_NOTICE("spi send \"%s\" finish", send_buff);
+    while(1) {
+        TUYA_CALL_ERR_LOG(tkl_spi_send(EXAMPLE_SPI_PORT, send_buff, sizeof(send_buff)));
+        PR_NOTICE("spi send \"%s\" finish", send_buff);
 
-    TUYA_CALL_ERR_LOG(tkl_spi_deinit(SPI_ID));
+        tal_system_sleep(500);
+    }
 
 __EXIT:
+    PR_ERR("example spi error code: %d", rt);
     return;
 }
 

@@ -1,13 +1,18 @@
 menu "Application config"
 
+    config EXAMPLE_I2C_PORT
+        int "i2c port"
+        default 0
+        range 0 3
+
     config EXAMPLE_I2C_SCL_PIN
         int "scl pin"
-        default 26
+        default 13
         range 0 63
 
     config EXAMPLE_I2C_SDA_PIN
         int "sda pin"
-        default 24
+        default 15
         range 0 63
 
 endmenu
