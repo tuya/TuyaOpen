@@ -144,17 +144,17 @@ static OPERATE_RET __ai_audio_player_mp3_playing(void)
 
     int samples = mp3dec_decode_frame(ctx->mp3_dec, ctx->mp3_raw_head, ctx->mp3_raw_used_len,
                                       (mp3d_sample_t *)ctx->mp3_pcm, &ctx->mp3_frame_info);
-    if (samples == 0) {
-        ctx->mp3_raw_used_len = 0;
-        ctx->mp3_raw_head = ctx->mp3_raw;
-        rt = OPRT_COM_ERROR;
+    if (samples <= 0 && ctx->mp3_frame_info.frame_bytes == 0) {
+        // need more data
         goto __EXIT;
     }
 
     ctx->mp3_raw_used_len -= ctx->mp3_frame_info.frame_bytes;
     ctx->mp3_raw_head += ctx->mp3_frame_info.frame_bytes;
 
-    tdl_audio_play(ctx->audio_hdl, ctx->mp3_pcm, samples * 2);
+    if (samples) {
+        tdl_audio_play(ctx->audio_hdl, ctx->mp3_pcm, samples * 2);
+    }
 
 __EXIT:
     return rt;
