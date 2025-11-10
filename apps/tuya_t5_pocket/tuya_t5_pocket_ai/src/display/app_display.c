@@ -21,6 +21,7 @@
 #include "lv_vendor.h"
 #include "main_screen.h"
 #include "toast_screen.h"
+#include "rfid_scan_screen.h"
 #include "axp2101_driver.h"
 /***********************************************************
 ************************macro define************************
@@ -91,6 +92,12 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case POCKET_DISP_TP_BATTERY_CHARGING:
         // Battery charging state is automatically detected by main_screen timer in hardware mode
         // No need to manually update here
+        break;
+
+    case POCKET_DISP_TP_RFID_SCAN_SUCCESS:
+        if (screen_get_now_screen() != &rfid_scan_screen) {
+            screen_load(&rfid_scan_screen);
+        }
         break;
 
     default:

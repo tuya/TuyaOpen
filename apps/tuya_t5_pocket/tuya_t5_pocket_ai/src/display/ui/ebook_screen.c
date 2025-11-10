@@ -28,6 +28,7 @@
 #include "tal_api.h"
 #include "tkl_output.h"
 #include "tal_kv.h"
+#include "tal_system.h"
 #else
 #include <dirent.h>
 #include <sys/stat.h>
@@ -37,7 +38,7 @@
 ************************macro define************************
 ***********************************************************/
 
-#define EBOOK_MAX_CONTENT_SIZE  (128 * 1024)  /**< Maximum content size (128KB) */
+#define EBOOK_MAX_CONTENT_SIZE  (512 * 1024)  /**< Maximum content size (512KB) */
 #define EBOOK_LINES_PER_SCREEN  12           /**< Number of visible lines per screen for better readability */
 #define EBOOK_CHARS_PER_LINE    80           /**< Maximum characters per line for better screen utilization */
 #define BOOK_SCAN_INTERVAL      3000        /**< Book scanning interval in milliseconds (3 seconds) */
@@ -96,7 +97,7 @@
 /* SD card configuration for hardware platform */
 #define SDCARD_MOUNT_PATH      "/sdcard"     /**< SD card mount path */
 #define SDCARD_MOUNT_RETRY     3             /**< Number of mount retry attempts */
-#define SDCARD_MOUNT_DELAY     1000          /**< Delay between mount attempts (ms) */
+#define SDCARD_MOUNT_DELAY     100          /**< Delay between mount attempts (ms) */
 
 #define EBOOK_TXT_DIR          SDCARD_MOUNT_PATH //"/sdcard/txt"  /**< Books directory on SD card for hardware platform */
 #define EBOOK_POSITIONS_FILE   "/sdcard/ebook_positions.txt"  /**< All positions save file on SD card */
@@ -172,24 +173,14 @@ static void ebook_log_error(const char *func, const char *msg, int error_code)
 static int ebook_mount_sdcard(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    int retry_count = 0;
 
     printf("[EBOOK] Attempting to mount SD card at %s\n", SDCARD_MOUNT_PATH);
 
-    while (retry_count < SDCARD_MOUNT_RETRY) {
-        // Use the same mount method as example_sd.c
-        rt = tkl_fs_mount(SDCARD_MOUNT_PATH, DEV_SDCARD);
-        if (rt == OPRT_OK) {
-            printf("[EBOOK] SD card mounted successfully\n");
-            return 0;
-        }
-
-        retry_count++;
-        ebook_log_error("ebook_mount_sdcard", "Mount failed, retrying", rt);
-
-        if (retry_count < SDCARD_MOUNT_RETRY) {
-            tal_system_sleep(SDCARD_MOUNT_DELAY);
-        }
+    // Use the same mount method as example_sd.c
+    rt = tkl_fs_mount(SDCARD_MOUNT_PATH, DEV_SDCARD);
+    if (rt == OPRT_OK) {
+        printf("[EBOOK] SD card mounted successfully\n");
+        return 0;
     }
 
     ebook_log_error("ebook_mount_sdcard", "All mount attempts failed", rt);
@@ -713,7 +704,7 @@ bool ebook_load_file(const char *filename)
         tal_psram_free(ebook_state.reading.content);
     }
 
-    ebook_state.reading.content = malloc(file_size + 1);
+    ebook_state.reading.content = tal_psram_malloc(file_size + 1);
     if (!ebook_state.reading.content) {
         printf("Failed to allocate memory for content\n");
         tkl_fclose(file);
@@ -1539,11 +1530,15 @@ void ebook_screen_init(void)
     // Mount SD card and ensure directories exist
     if (ebook_mount_sdcard() != 0) {
         printf("[EBOOK ERROR] Failed to mount SD card\n");
+        toast_screen_show("SD Card mount failed", 3000);
+        screen_back();
         return;
     }
 
     if (ebook_ensure_directories() != 0) {
         printf("[EBOOK ERROR] Failed to ensure directories exist\n");
+        toast_screen_show("Failed to ensure directories exist", 2000);
+        screen_back();
         return;
     }
 #endif

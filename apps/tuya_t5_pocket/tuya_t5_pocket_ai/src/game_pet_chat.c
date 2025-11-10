@@ -26,6 +26,7 @@
 #include "game_pet.h"
 #include "media_src_en.h"
 #include "board_bmi270_api.h"
+#include "rfid_scan.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -338,6 +339,8 @@ OPERATE_RET app_pocket_init(void)
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
 
     TUYA_CALL_ERR_RETURN(__app_open_button());
+
+    TUYA_CALL_ERR_RETURN(rfid_scan_init());
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
     sg_led_hdl = tdl_led_find_dev(LED_NAME);

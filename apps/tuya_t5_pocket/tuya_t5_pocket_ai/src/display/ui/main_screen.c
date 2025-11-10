@@ -29,7 +29,7 @@
 #include "menu_video_screen.h"
 #include "standby_screen.h"
 #include "ebook_screen.h"
-#include "txt_viewer_screen.h"
+#include "rfid_scan_screen.h"
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -121,6 +121,7 @@ LV_IMG_DECLARE(battery_charging_icon);
 #define MENU_BUTTON_COUNT 7
 #define BATTERY_UPDATE_INTERVAL 1000
 #define UI_UPDATE_INTERVAL 100
+#define STANDBY_TIME 30 // Seconds of inactivity before standby
 #define PET_NAME_KV_KEY "pet_name"
 /***********************************************************
 ***********************variable define**********************
@@ -152,11 +153,27 @@ static bool current_cellular_connected = true;
 static uint8_t current_battery_level = 4;
 static bool current_battery_charging = false;
 
-// Pet area variables - Dynamic GIF creation approach with double buffering
+// Pet area variables - Pre-loaded GIF approach (like pet_area.c)
 static lv_obj_t *gif_container = NULL;  // Container for GIF widgets
-static lv_obj_t *current_gif_widget = NULL;  // Currently active GIF widget
-static lv_obj_t *next_gif_widget = NULL;  // Next GIF widget (for smooth transition)
-static const lv_img_dsc_t *current_gif_src = NULL;  // Current GIF source for comparison
+
+// Normal state animation objects (for walking behavior)
+static lv_obj_t *pet_image_walk = NULL;
+static lv_obj_t *pet_image_walk_left = NULL;
+static lv_obj_t *pet_image_blink = NULL;
+static lv_obj_t *pet_image_stand = NULL;
+static lv_obj_t *current_normal_image = NULL; // Points to the currently active normal state image
+
+// Special state animation objects (pre-loaded to prevent black screen)
+static lv_obj_t *pet_image_sleep = NULL;
+static lv_obj_t *pet_image_dance = NULL;
+static lv_obj_t *pet_image_eat = NULL;
+static lv_obj_t *pet_image_bath = NULL;
+static lv_obj_t *pet_image_toilet = NULL;
+static lv_obj_t *pet_image_sick = NULL;
+static lv_obj_t *pet_image_happy = NULL;
+static lv_obj_t *pet_image_angry = NULL;
+static lv_obj_t *pet_image_cry = NULL;
+static lv_obj_t *current_special_image = NULL; // Points to the currently active special state image
 
 // Pet animation state
 static ai_pet_state_t current_animation_state = AI_PET_STATE_NORMAL;
@@ -224,13 +241,11 @@ static inline const lv_img_dsc_t* get_battery_icon_by_level(uint8_t level, bool 
 
 // Pet animation functions
 static const lv_img_dsc_t* get_gif_src_by_state(ai_pet_state_t state, bool is_walking, int8_t direction, uint8_t idle_state);
-static void create_gif_widget(const lv_img_dsc_t* gif_src);
-static void destroy_current_gif(void);
-static void switch_to_gif(const lv_img_dsc_t* gif_src);
+static void switch_pet_animation(lv_obj_t* target_image);
+// static void switch_to_special_animation(lv_obj_t* target_special_image);
+// static void switch_to_normal_animation(void);
 static void pet_animation_cb(lv_timer_t *timer);
 static void pet_movement_cb(lv_timer_t *timer);
-static void switch_to_special_animation(ai_pet_state_t state);
-static void switch_to_normal_animation(void);
 
 // UI update timer callback
 static void ui_update_timer_cb(lv_timer_t *timer);
@@ -402,7 +417,7 @@ static void keyboard_event_cb(lv_event_t *e)
             printf("C key pressed - Setting battery to charging\n");
             // screen_load(&standby_screen);
             // screen_load(&ebook_screen);
-            screen_load(&txt_viewer_screen);
+            screen_load(&rfid_scan_screen);
             break;
 #endif
         default:
@@ -508,10 +523,23 @@ void main_screen_deinit(void)
     // Stop pet animation
     simple_pet_area_stop_animation();
 
-    // Clean up dynamic GIF resources
-    destroy_current_gif();
+    // Reset GIF container and image pointers (objects will be cleaned up with parent)
     gif_container = NULL;
-    next_gif_widget = NULL;
+    pet_image_walk = NULL;
+    pet_image_walk_left = NULL;
+    pet_image_blink = NULL;
+    pet_image_stand = NULL;
+    pet_image_sleep = NULL;
+    pet_image_dance = NULL;
+    pet_image_eat = NULL;
+    pet_image_bath = NULL;
+    pet_image_toilet = NULL;
+    pet_image_sick = NULL;
+    pet_image_happy = NULL;
+    pet_image_angry = NULL;
+    pet_image_cry = NULL;
+    current_normal_image = NULL;
+    current_special_image = NULL;
 
     // Remove event callback and delete the main screen object
     if (ui_main_screen) {
@@ -623,7 +651,7 @@ static lv_obj_t* simple_pet_area_create(lv_obj_t *parent)
     gif_container = lv_obj_create(pet_area);
     lv_obj_set_size(gif_container, 170+10, 170+10);
     lv_obj_align(gif_container, LV_ALIGN_CENTER, 0, -5);
-    lv_obj_set_style_bg_opa(gif_container, LV_OPA_TRANSP, 0);      // Transparent to not block black line
+    lv_obj_set_style_bg_opa(gif_container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(gif_container, 0, 0);
     lv_obj_set_style_pad_all(gif_container, 0, 0);
     lv_obj_clear_flag(gif_container, LV_OBJ_FLAG_SCROLLABLE);
@@ -631,10 +659,120 @@ static lv_obj_t* simple_pet_area_create(lv_obj_t *parent)
     // Ensure GIF container has highest priority (always on top)
     lv_obj_move_foreground(gif_container);
 
-    // Initialize with no GIF widget (will be created dynamically)
-    current_gif_widget = NULL;
-    next_gif_widget = NULL;
-    current_gif_src = NULL;
+    // Create all normal state GIF widgets (pre-loaded)
+    // Walk right animation
+    pet_image_walk = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_walk, &ducky_walk);
+    lv_obj_align(pet_image_walk, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(pet_image_walk, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_walk, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_walk, LV_OPA_TRANSP, 0);
+
+    // Walk left animation
+    pet_image_walk_left = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_walk_left, &ducky_walk_to_left);
+    lv_obj_align(pet_image_walk_left, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(pet_image_walk_left, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_walk_left, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_walk_left, LV_OPA_TRANSP, 0);
+
+    // Blink animation
+    pet_image_blink = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_blink, &ducky_blink);
+    lv_obj_align(pet_image_blink, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(pet_image_blink, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_blink, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_blink, LV_OPA_TRANSP, 0);
+
+    // Stand animation
+    pet_image_stand = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_stand, &ducky_stand_still);
+    lv_obj_align(pet_image_stand, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_clear_flag(pet_image_stand, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_stand, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_stand, LV_OPA_TRANSP, 0);
+
+    // Create special state animation objects (pre-loaded to prevent black screen)
+    pet_image_sleep = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_sleep, &ducky_sleep);
+    lv_obj_align(pet_image_sleep, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_sleep, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_sleep, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_sleep, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_dance = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_dance, &ducky_dance);
+    lv_obj_align(pet_image_dance, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_dance, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_dance, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_dance, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_eat = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_eat, &ducky_eat);
+    lv_obj_align(pet_image_eat, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_eat, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_eat, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_eat, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_bath = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_bath, &ducky_bath);
+    lv_obj_align(pet_image_bath, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_bath, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_bath, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_bath, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_toilet = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_toilet, &ducky_toilet);
+    lv_obj_align(pet_image_toilet, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_toilet, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_toilet, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_toilet, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_sick = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_sick, &ducky_sick);
+    lv_obj_align(pet_image_sick, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_sick, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_sick, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_sick, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_happy = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_happy, &ducky_emotion_happy);
+    lv_obj_align(pet_image_happy, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_happy, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_happy, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_happy, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_angry = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_angry, &ducky_emotion_angry);
+    lv_obj_align(pet_image_angry, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_angry, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_angry, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_angry, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+
+    pet_image_cry = lv_gif_create(gif_container);
+    lv_gif_set_src(pet_image_cry, &ducky_emotion_cry);
+    lv_obj_align(pet_image_cry, LV_ALIGN_CENTER, 0, -5);
+    lv_obj_clear_flag(pet_image_cry, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(pet_image_cry, 159, 164);
+    lv_obj_set_style_bg_opa(pet_image_cry, LV_OPA_TRANSP, 0);
+    lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
+
+    // Initialize current special image pointer
+    current_special_image = NULL;
+
+    // Set initial active image and hide others
+    current_normal_image = pet_image_stand; // Default to standing
+    lv_obj_add_flag(pet_image_blink, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pet_image_walk, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pet_image_walk_left, LV_OBJ_FLAG_HIDDEN);
 
     // Initialize pet state
     current_animation_state = AI_PET_STATE_NORMAL;
@@ -652,9 +790,6 @@ static lv_obj_t* simple_pet_area_create(lv_obj_t *parent)
     idle_animation_timer = 0;
     idle_animation_duration = PET_IDLE_ANIMATION_SWITCH_MIN + (rand() % (PET_IDLE_ANIMATION_SWITCH_MAX - PET_IDLE_ANIMATION_SWITCH_MIN));
 #endif
-
-    // Create initial GIF (standing still)
-    create_gif_widget(&ducky_stand_still);
 
     return pet_area;
 }
@@ -699,90 +834,130 @@ static const lv_img_dsc_t* get_gif_src_by_state(ai_pet_state_t state, bool is_wa
 }
 
 /**
- * @brief Create a new GIF widget with specified source (no background interference)
+ * @brief Get the corresponding GIF image object based on GIF source
+ * @param gif_src The GIF source descriptor
+ * @return The corresponding GIF image object, or NULL if not found
  */
-static void create_gif_widget(const lv_img_dsc_t* gif_src)
+static lv_obj_t* get_gif_object_by_src(const lv_img_dsc_t* gif_src)
 {
-    if (gif_container == NULL || gif_src == NULL) {
-        return;
-    }
-
-    // Create new GIF widget in next_gif_widget first (off-screen preparation)
-    next_gif_widget = lv_gif_create(gif_container);
-    if (next_gif_widget == NULL) {
-        printf("Error: Failed to create next GIF widget\n");
-        return;
-    }
-
-    // Configure new GIF widget for priority display without background interference
-    lv_obj_set_size(next_gif_widget, 159, 164);
-    lv_obj_align(next_gif_widget, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_clear_flag(next_gif_widget, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Use transparent background to not interfere with black line
-    lv_obj_set_style_bg_opa(next_gif_widget, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_opa(next_gif_widget, LV_OPA_COVER, 0);        // Full visibility for GIF content
-
-    // Ensure GIF is always on top but doesn't block underlying elements
-    lv_obj_move_foreground(next_gif_widget);
-
-    // Set the GIF source immediately
-    lv_gif_set_src(next_gif_widget, gif_src);
-
-    // Minimal processing to initialize GIF quickly
-    lv_refr_now(NULL);
-    for(int i = 0; i < 2; i++) {
-        lv_timer_handler();
-    }
-
-    // Perform instant atomic swap
-    if (current_gif_widget != NULL) {
-        // Hide old GIF instantly and delete
-        lv_obj_set_style_opa(current_gif_widget, LV_OPA_TRANSP, 0);
-        lv_obj_del(current_gif_widget);
-    }
-
-    // Ensure new GIF maintains foreground position without blocking
-    lv_obj_move_foreground(next_gif_widget);
-
-    // Force refresh to show new GIF immediately
-    lv_refr_now(NULL);
-
-    // Atomic pointer swap
-    current_gif_widget = next_gif_widget;
-    next_gif_widget = NULL;
-    current_gif_src = gif_src;
+    if (gif_src == &ducky_walk) return pet_image_walk;
+    if (gif_src == &ducky_walk_to_left) return pet_image_walk_left;
+    if (gif_src == &ducky_blink) return pet_image_blink;
+    if (gif_src == &ducky_stand_still) return pet_image_stand;
+    if (gif_src == &ducky_sleep) return pet_image_sleep;
+    if (gif_src == &ducky_dance) return pet_image_dance;
+    if (gif_src == &ducky_eat) return pet_image_eat;
+    if (gif_src == &ducky_bath) return pet_image_bath;
+    if (gif_src == &ducky_toilet) return pet_image_toilet;
+    if (gif_src == &ducky_sick) return pet_image_sick;
+    if (gif_src == &ducky_emotion_happy) return pet_image_happy;
+    if (gif_src == &ducky_emotion_angry) return pet_image_angry;
+    if (gif_src == &ducky_emotion_cry) return pet_image_cry;
+    return NULL;
 }
 
 /**
- * @brief Destroy current GIF widget and clean up next widget
+ * @brief Switch between normal state pet animations (walk, walk_left, blink, stand)
+ * @param target_image The target normal animation image object to show
  */
-static void destroy_current_gif(void)
+static void switch_pet_animation(lv_obj_t* target_image)
 {
-    if (current_gif_widget != NULL) {
-        lv_obj_del(current_gif_widget);
-        current_gif_widget = NULL;
-        current_gif_src = NULL;
+    if (target_image == NULL) {
+        return;
     }
 
-    if (next_gif_widget != NULL) {
-        lv_obj_del(next_gif_widget);
-        next_gif_widget = NULL;
+    // Check if GIF objects are valid before operating on them
+    if (pet_image_walk == NULL || pet_image_walk_left == NULL ||
+        pet_image_blink == NULL || pet_image_stand == NULL) {
+        printf("[%s] Warning: GIF objects not initialized, cannot switch animation\n", main_screen.name);
+        return;
     }
+
+    // Hide all normal state animations
+    lv_obj_add_flag(pet_image_walk, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pet_image_walk_left, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pet_image_blink, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pet_image_stand, LV_OBJ_FLAG_HIDDEN);
+
+    // Show the target animation
+    lv_obj_clear_flag(target_image, LV_OBJ_FLAG_HIDDEN);
+
+    // Update current normal image pointer
+    current_normal_image = target_image;
 }
 
 /**
- * @brief Switch to new GIF only if different from current
+ * @brief Switch to a special state animation (sleep, dance, eat, bath, toilet, sick, happy, angry, cry)
+ * @param target_special_image The target special animation image object to show
  */
-static void switch_to_gif(const lv_img_dsc_t* gif_src)
-{
-    // Only switch if the new GIF source is different
-    if (gif_src != current_gif_src) {
-        create_gif_widget(gif_src);
-    }
+// static void switch_to_special_animation(lv_obj_t* target_special_image)
+// {
+//     if (target_special_image == NULL) {
+//         return;
+//     }
 
-    return;
-}
+//     // Check if GIF objects are valid before operating on them
+//     if (pet_image_walk == NULL || pet_image_sleep == NULL ||
+//         pet_image_dance == NULL || pet_image_eat == NULL) {
+//         printf("[%s] Warning: GIF objects not initialized, cannot switch to special animation\n", main_screen.name);
+//         return;
+//     }
+
+//     // Hide all normal state animations
+//     lv_obj_add_flag(pet_image_walk, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_walk_left, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_blink, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_stand, LV_OBJ_FLAG_HIDDEN);
+
+//     // Hide all special state animations
+//     lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
+
+//     // Show the target special animation
+//     lv_obj_clear_flag(target_special_image, LV_OBJ_FLAG_HIDDEN);
+
+//     // Update special image pointer
+//     current_special_image = target_special_image;
+// }
+
+/**
+ * @brief Switch from special state back to normal state animation
+ */
+// static void switch_to_normal_animation(void)
+// {
+//     // Check if GIF objects are valid before operating on them
+//     if (pet_image_sleep == NULL || pet_image_dance == NULL || pet_image_eat == NULL) {
+//         printf("[%s] Warning: GIF objects not initialized, cannot switch to normal animation\n", main_screen.name);
+//         return;
+//     }
+
+//     // Hide all special state animations
+//     lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+//     lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
+
+//     // Show current normal animation (previously active before special state)
+//     if (current_normal_image != NULL) {
+//         lv_obj_clear_flag(current_normal_image, LV_OBJ_FLAG_HIDDEN);
+//     }
+
+//     // Clear special image pointer and update state
+//     current_special_image = NULL;
+//     current_animation_state = AI_PET_STATE_NORMAL;
+// }
 
 // Menu system integration functions
 static void update_menu_button_selection(uint8_t old_selection, uint8_t new_selection)
@@ -906,9 +1081,6 @@ static void simple_pet_area_stop_animation(void)
         lv_timer_del(ui_update_timer);
         ui_update_timer = NULL;
     }
-
-    // Clean up any remaining GIF widget
-    destroy_current_gif();
 }
 
 /***********************************************************
@@ -916,19 +1088,20 @@ static void simple_pet_area_stop_animation(void)
 ***********************************************************/
 
 /**
- * @brief Set pet animation state (state will be updated in next timer cycle)
+ * @brief Set pet animation state (only updates state variable, actual GIF switching is handled by timer)
  * @param state Target animation state
  */
 void main_screen_set_pet_animation_state(ai_pet_state_t state)
 {
-    if (current_animation_state != state) {
-        if (state == AI_PET_STATE_NORMAL) {
-            switch_to_normal_animation();
-        } else {
-            switch_to_special_animation(state);
-        }
-        printf("[%s] Pet animation state changed to: %d\n", main_screen.name, state);
+    // Skip if already in the target state
+    if (current_animation_state == state) {
+        return;
     }
+
+    printf("[%s] Pet animation state changing: %d -> %d\n", main_screen.name, current_animation_state, state);
+
+    // Simply update the state variable - timer will handle GIF switching
+    current_animation_state = state;
 }
 
 /**
@@ -1007,13 +1180,11 @@ static inline const lv_img_dsc_t* get_battery_icon_by_level(uint8_t level, bool 
  */
 static void ui_update_timer_cb(lv_timer_t *timer)
 {
-    if (standby_time++) {
-        if (standby_time > 3 * 1000 / UI_UPDATE_INTERVAL) {
-            // Enter standby mode
-            printf("[%s] Entering standby mode due to inactivity\n", main_screen.name);
-            screen_load(&standby_screen);
-            standby_time = 0;
-        }
+    if (standby_time++ > STANDBY_TIME * 1000 / UI_UPDATE_INTERVAL) {
+        // Enter standby mode
+        printf("[%s] Entering standby mode due to inactivity\n", main_screen.name);
+        screen_load(&standby_screen);
+        standby_time = 0;
     }
 
     // Update WiFi icon if changed
@@ -1060,14 +1231,70 @@ static void ui_update_timer_cb(lv_timer_t *timer)
 // Pet animation functions
 static void pet_animation_cb(lv_timer_t *timer)
 {
-    // Only run normal animations if we're in normal state
-    if (current_animation_state != AI_PET_STATE_NORMAL) {
+    // This timer is responsible for switching GIF display based on current_animation_state
+    // Check if main screen is initialized and GIF objects are valid
+    if (ui_main_screen == NULL || gif_container == NULL ||
+        pet_image_walk == NULL || pet_image_stand == NULL) {
         return;
     }
 
-    // Ensure current gif widget is always visible (if it exists)
-    if (current_gif_widget) {
-        lv_obj_clear_flag(current_gif_widget, LV_OBJ_FLAG_HIDDEN);
+    // Determine which GIF should be displayed based on current state
+    lv_obj_t* target_image = NULL;
+
+    if (current_animation_state == AI_PET_STATE_NORMAL) {
+        // Normal state - choose based on walking state and direction
+        const lv_img_dsc_t* gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, pet_is_walking, pet_direction, idle_animation_state);
+        target_image = get_gif_object_by_src(gif_src);
+    } else {
+        // Special state - get the corresponding special animation
+        const lv_img_dsc_t* gif_src = get_gif_src_by_state(current_animation_state, false, 1, 0);
+        target_image = get_gif_object_by_src(gif_src);
+    }
+
+    // If target image is different from currently visible image, switch
+    if (target_image != NULL) {
+        bool need_switch = false;
+
+        if (current_animation_state == AI_PET_STATE_NORMAL) {
+            // Check if we need to switch normal animations
+            if (current_normal_image != target_image) {
+                need_switch = true;
+            }
+        } else {
+            // Check if we need to switch to/from special animations
+            if (current_special_image != target_image) {
+                need_switch = true;
+            }
+        }
+
+        if (need_switch) {
+            // Hide all GIF objects
+            if (pet_image_walk) lv_obj_add_flag(pet_image_walk, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_walk_left) lv_obj_add_flag(pet_image_walk_left, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_blink) lv_obj_add_flag(pet_image_blink, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_stand) lv_obj_add_flag(pet_image_stand, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_sleep) lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_dance) lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_eat) lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_bath) lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_toilet) lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_sick) lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_happy) lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_angry) lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
+            if (pet_image_cry) lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
+
+            // Show the target image
+            lv_obj_clear_flag(target_image, LV_OBJ_FLAG_HIDDEN);
+
+            // Update current image pointers
+            if (current_animation_state == AI_PET_STATE_NORMAL) {
+                current_normal_image = target_image;
+                current_special_image = NULL;
+            } else {
+                current_special_image = target_image;
+                current_normal_image = NULL;
+            }
+        }
     }
 }
 
@@ -1091,7 +1318,10 @@ static void pet_movement_cb(lv_timer_t *timer)
             idle_animation_state = 1 - idle_animation_state;
 
             const lv_img_dsc_t* new_gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, false, pet_direction, idle_animation_state);
-            switch_to_gif(new_gif_src);
+            lv_obj_t* target_image = get_gif_object_by_src(new_gif_src);
+            if (target_image != NULL) {
+                switch_pet_animation(target_image);
+            }
 
             // Reset idle animation timer and set new duration
             idle_animation_timer = 0;
@@ -1120,7 +1350,10 @@ static void pet_movement_cb(lv_timer_t *timer)
 
             // Set appropriate animation based on direction
             const lv_img_dsc_t* new_gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, true, pet_direction, idle_animation_state);
-            switch_to_gif(new_gif_src);
+            lv_obj_t* target_image = get_gif_object_by_src(new_gif_src);
+            if (target_image != NULL) {
+                switch_pet_animation(target_image);
+            }
         } else {
             // Start idle - choose random duration and return to current idle animation
 #if defined(ENABLE_LVGL_HARDWARE)
@@ -1139,7 +1372,10 @@ static void pet_movement_cb(lv_timer_t *timer)
 
             // Start with current idle animation state
             const lv_img_dsc_t* new_gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, false, pet_direction, idle_animation_state);
-            switch_to_gif(new_gif_src);
+            lv_obj_t* target_image = get_gif_object_by_src(new_gif_src);
+            if (target_image != NULL) {
+                switch_pet_animation(target_image);
+            }
         }
 
         pet_state_timer = 0;
@@ -1154,12 +1390,18 @@ static void pet_movement_cb(lv_timer_t *timer)
             pet_x_pos = PET_MOVEMENT_LIMIT;
             pet_direction = -1;
             const lv_img_dsc_t* new_gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, true, pet_direction, idle_animation_state);
-            switch_to_gif(new_gif_src);
+            lv_obj_t* target_image = get_gif_object_by_src(new_gif_src);
+            if (target_image != NULL) {
+                switch_pet_animation(target_image);
+            }
         } else if (pet_x_pos < -PET_MOVEMENT_LIMIT) {
             pet_x_pos = -PET_MOVEMENT_LIMIT;
             pet_direction = 1;
             const lv_img_dsc_t* new_gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, true, pet_direction, idle_animation_state);
-            switch_to_gif(new_gif_src);
+            lv_obj_t* target_image = get_gif_object_by_src(new_gif_src);
+            if (target_image != NULL) {
+                switch_pet_animation(target_image);
+            }
         }
     }
 
@@ -1171,33 +1413,7 @@ static void pet_movement_cb(lv_timer_t *timer)
     }
 }
 
-static void switch_to_special_animation(ai_pet_state_t state)
-{
-    // Get the appropriate GIF source for this state
-    const lv_img_dsc_t* gif_src = get_gif_src_by_state(state, false, 1, 0);
 
-    if (gif_src == NULL) {
-        return; // Invalid state, stay in current animation
-    }
-
-    // Switch to the new GIF
-    switch_to_gif(gif_src);
-
-    // Update state
-    current_animation_state = state;
-}
-
-static void switch_to_normal_animation(void)
-{
-    // Switch to appropriate normal animation based on current state
-    const lv_img_dsc_t* gif_src = get_gif_src_by_state(AI_PET_STATE_NORMAL, pet_is_walking, pet_direction, idle_animation_state);
-
-    // Switch to the new GIF
-    switch_to_gif(gif_src);
-
-    // Update state
-    current_animation_state = AI_PET_STATE_NORMAL;
-}
 
 /***********************************************************
 *****************Menu System Functions*********************
