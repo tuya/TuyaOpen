@@ -16,6 +16,7 @@
 #include "http_client_interface.h"
 #include "tal_time_service.h"
 #include "tal_log.h"
+#include "tal_memory.h"
 
 #ifndef MAX_HTTP_CERT_NUM
 #define MAX_HTTP_CERT_NUM 3
@@ -55,6 +56,10 @@ int tuya_http_cert_save(char *host, uint16_t port, uint8_t *cacert, uint16_t cac
 {
     tuya_cert_cache_t *cache = s_tuya_cert_mgr.cache;
 
+    if (host == NULL || cacert == NULL || cacert_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
+
     if (s_tuya_cert_mgr.count < MAX_HTTP_CERT_NUM) {
         cache = &s_tuya_cert_mgr.cache[s_tuya_cert_mgr.count];
         s_tuya_cert_mgr.count++;
@@ -62,7 +67,7 @@ int tuya_http_cert_save(char *host, uint16_t port, uint8_t *cacert, uint16_t cac
         TIME_T timeposix = cache[0].timeposix;
         cache = &s_tuya_cert_mgr.cache[0];
         for (int i = 1; i < s_tuya_cert_mgr.count; i++) {
-            if (NULL == cache->host && NULL == cache->cacert) {
+            if (cache[i].host == NULL || cache[i].cacert == NULL) {
                 cache = &s_tuya_cert_mgr.cache[i];
                 break;
             }
@@ -79,12 +84,18 @@ int tuya_http_cert_save(char *host, uint16_t port, uint8_t *cacert, uint16_t cac
     if (cache->cacert && cache->cacert_len) {
         tal_free(cache->cacert);
         cache->cacert = NULL;
+        cache->cacert_len = 0;
     }
-    cache->host = tal_calloc(1, strlen(host));
-    if (NULL == cache->host) {
+
+    size_t host_len = strlen(host);
+    char *host_copy = tal_malloc(host_len + 1);
+    if (NULL == host_copy) {
         return OPRT_MALLOC_FAILED;
     }
-    strcpy(cache->host, host);
+    memcpy(host_copy, host, host_len);
+    host_copy[host_len] = '\0';
+
+    cache->host = host_copy;
     cache->port = port;
     cache->cacert = cacert;
     cache->cacert_len = cacert_len;
@@ -107,6 +118,9 @@ int tuya_http_cert_save(char *host, uint16_t port, uint8_t *cacert, uint16_t cac
 tuya_cert_cache_t *tuya_http_cert_find(char *host, uint16_t port)
 {
     for (int i = 0; i < s_tuya_cert_mgr.count; i++) {
+        if (s_tuya_cert_mgr.cache[i].host == NULL || s_tuya_cert_mgr.cache[i].cacert == NULL) {
+            continue;
+        }
         if (0 == strcmp(s_tuya_cert_mgr.cache[i].host, host) && s_tuya_cert_mgr.cache[i].port == port) {
             return &s_tuya_cert_mgr.cache[i];
         }
@@ -134,6 +148,13 @@ int tuya_http_cert_load(char *host, uint16_t port, uint8_t **cacert, uint16_t *c
 {
     int rt = OPRT_OK;
 
+    if (cacert == NULL || cacert_len == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    *cacert = NULL;
+    *cacert_len = 0;
+
     tuya_cert_cache_t *cert_cache = tuya_http_cert_find(host, port);
     if (cert_cache) {
         *cacert = cert_cache->cacert;
@@ -142,8 +163,20 @@ int tuya_http_cert_load(char *host, uint16_t port, uint8_t **cacert, uint16_t *c
     }
 
     rt = tuya_iotdns_query_host_certs(host, port, cacert, cacert_len);
-    if (OPRT_OK == rt) {
-        rt = tuya_http_cert_save(host, port, *cacert, *cacert_len);
+    if (OPRT_OK != rt || *cacert == NULL || *cacert_len == 0) {
+        if (*cacert) {
+            tal_free(*cacert);
+            *cacert = NULL;
+        }
+        *cacert_len = 0;
+        return rt;
+    }
+
+    rt = tuya_http_cert_save(host, port, *cacert, *cacert_len);
+    if (OPRT_OK != rt) {
+        tal_free(*cacert);
+        *cacert = NULL;
+        *cacert_len = 0;
     }
 
     return rt;

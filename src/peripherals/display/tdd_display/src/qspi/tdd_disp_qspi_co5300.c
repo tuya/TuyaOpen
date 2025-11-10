@@ -99,6 +99,13 @@ void __tdd_disp_qspi_co5300_set_window(DISP_QSPI_BASE_CFG_T *p_cfg, uint16_t x_s
     }
 }
 
+OPERATE_RET tdd_disp_qspi_co5300_set_bl(uint8_t value)
+{
+    if (value == 0) {
+        value = 5;
+    }
+    return tdd_disp_qspi_send_cmd((DISP_QSPI_BASE_CFG_T*)&sg_disp_qspi_cfg, CO5300_BL, &value, 1);
+}
 
 OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {

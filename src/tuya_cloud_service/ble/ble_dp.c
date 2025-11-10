@@ -569,6 +569,11 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
         switch (p_tmp->type) {
         case DT_RAW: {
             char *p_base64 = tal_malloc(p_tmp->len / 3 * 4 + 5);
+            if (NULL == p_base64) {
+                PR_ERR("malloc base64 failed, len:%d", p_tmp->len);
+                ret = OPRT_MALLOC_FAILED;
+                goto EXIT;
+            }
             tuya_base64_encode(p_tmp->data, p_base64, p_tmp->len);
             cJSON_AddStringToObject(p_dps, dp_id_str, p_base64);
             tal_free(p_base64);
@@ -608,10 +613,17 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
         }
         p_tmp = p_tmp->next;
     }
-
+    ret = tuya_iot_dp_parse(tuya_iot_client_get(), DP_CMD_BT, p_root);
     free_klv_list(list);
+    if (ret != OPRT_OK) {
+        cJSON_Delete(p_root);
+    }
+    return ret;
 
-    return tuya_iot_dp_parse(tuya_iot_client_get(), DP_CMD_BT, p_root);
+EXIT:
+    free_klv_list(list);
+    cJSON_Delete(p_root);
+    return ret;
 }
 
 static int ble_dp_query(ble_packet_t *req, void *priv_data)

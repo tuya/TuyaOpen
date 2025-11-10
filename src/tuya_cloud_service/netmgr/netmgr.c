@@ -490,8 +490,10 @@ void netmgr_cmd(int argc, char *argv[])
                     PR_INFO("ssid or password too long");
                     return;
                 }
-                strcpy(wifi_info.ssid, argv[3]);
-                strcpy(wifi_info.pswd, argv[4]);
+                strncpy(wifi_info.ssid, argv[3], sizeof(wifi_info.ssid) - 1);
+                wifi_info.ssid[sizeof(wifi_info.ssid) - 1] = '\0';
+                strncpy(wifi_info.pswd, argv[4], sizeof(wifi_info.pswd) - 1);
+                wifi_info.pswd[sizeof(wifi_info.pswd) - 1] = '\0';
                 netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info);
             } else if (0 == strcmp(argv[2], "down")) {
                 netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_CLOSE, NULL);

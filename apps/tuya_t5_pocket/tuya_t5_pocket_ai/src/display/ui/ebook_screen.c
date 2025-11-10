@@ -701,7 +701,7 @@ bool ebook_load_file(const char *filename)
 
     // Allocate memory for content
     if (ebook_state.reading.content) {
-        free(ebook_state.reading.content);
+        tal_psram_free(ebook_state.reading.content);
     }
 
     ebook_state.reading.content = tal_psram_malloc(file_size + 1);
@@ -1510,7 +1510,11 @@ void ebook_cleanup(void)
 
     // Free allocated content
     if (ebook_state.reading.content) {
+#ifdef ENABLE_LVGL_HARDWARE
+        tal_psram_free(ebook_state.reading.content);
+#else
         free(ebook_state.reading.content);
+#endif
         ebook_state.reading.content = NULL;
     }
 }

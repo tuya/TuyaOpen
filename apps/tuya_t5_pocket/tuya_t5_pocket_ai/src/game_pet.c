@@ -32,6 +32,7 @@ extern void pocket_game_pet_indev_init(void);
 #define DPID_ENERGY 105
 #define DPID_MOOD 107
 #define PET_EVENT_TIMER PET_EVENT_MAX
+#define PET_EVENT_TIMER PET_EVENT_MAX
 #define PET_OPT_TOTAL (PET_EVENT_TIMER+1)
 #define PET_TIMER_ONCE_MS (3000)  // 1000 * 3
 
@@ -57,6 +58,8 @@ static const int s_pet_opt_values[PET_OPT_TOTAL][PET_STATE_TOTAL] = {
     [PET_EVENT_SEE_DOCTOR]     = {10,    -1,    -2,    -5},
     [PET_EVENT_SLEEP]          = { 3,    10,     0,     1},
     [PET_EVENT_WAKE_UP]        = { 1,    10,    -2,     2},
+    [PET_EVENT_WIFI_SCAN]      = { 0,     0,     0,     0},
+    [PET_EVENT_I2C_SCAN]       = { 0,     0,     0,     0},
     [PET_EVENT_WIFI_SCAN]      = { 0,     0,     0,     0},
     [PET_EVENT_I2C_SCAN]       = { 0,     0,     0,     0},
     [PET_STAT_RANDOMIZE]       = { 0,     0,     0,     0},

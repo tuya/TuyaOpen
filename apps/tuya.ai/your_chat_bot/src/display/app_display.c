@@ -96,7 +96,7 @@ static OPERATE_RET __get_ui_font(UI_FONT_T *ui_font)
     }
 
 #if (defined(BOARD_CHOICE_TUYA_T5AI_BOARD) || defined(BOARD_CHOICE_TUYA_T5AI_EVB) ||                                   \
-     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_DNESP32S3_BOX) || \
+     defined(BOARD_CHOICE_T5AI_MOJI_1_28) || defined(BOARD_CHOICE_TUYA_T5AI_CORE)|| defined(BOARD_CHOICE_T5AI_MINI) || defined(BOARD_CHOICE_T5AI_OTTO) || defined(BOARD_CHOICE_DNESP32S3_BOX) || \
      defined(BOARD_CHOICE_DNESP32S3_BOX2_WIFI)) ||                                                                     \
     defined(BOARD_CHOICE_WAVESHARE_T5AI_TOUCH_AMOLED_1_75)
 #if defined(ENABLE_GUI_WECHAT)

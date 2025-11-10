@@ -194,6 +194,11 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
 #endif
 #endif
     } break;
+    case AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT: {
+#if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
+        app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT, NULL, 0);
+#endif
+    } break;
     case AI_AUDIO_EVT_AI_REPLIES_EMO: {
         AI_AUDIO_EMOTION_T *emo;
         PR_DEBUG("---> AI_MSG_TYPE_EMOTION");

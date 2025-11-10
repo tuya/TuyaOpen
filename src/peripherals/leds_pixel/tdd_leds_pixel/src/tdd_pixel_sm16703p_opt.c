@@ -241,6 +241,10 @@ OPERATE_RET tdd_sm16703p_opt_driver_register(char *driver_name, PIXEL_DRIVER_CON
 
     if (NULL != pwm_cfg) {
         g_pwm_cfg = (PIXEL_PWM_CFG_T *)tal_malloc(SIZEOF(PIXEL_PWM_CFG_T));
+        if (NULL == g_pwm_cfg) {
+            PR_ERR("malloc pwm cfg failed");
+            return OPRT_MALLOC_FAILED;
+        }
         g_pwm_cfg->active_level = pwm_cfg->active_level;
         g_pwm_cfg->pwm_freq = pwm_cfg->pwm_freq;
         memcpy((uint8_t *)g_pwm_cfg->pwm_ch_arr, (uint8_t *)pwm_cfg->pwm_ch_arr, SIZEOF(pwm_cfg->pwm_ch_arr));

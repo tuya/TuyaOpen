@@ -559,6 +559,8 @@ OPERATE_RET tuya_ai_basic_session_close(char *session_id, AI_STATUS_CODE code);
  * @param[in] video video attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] total_len total length
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
@@ -571,6 +573,8 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
  * @param[in] audio audio attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] total_len total length
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
@@ -583,6 +587,8 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
  * @param[in] image image attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] total_len total length
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
@@ -595,6 +601,8 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
  * @param[in] file file attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] total_len total length
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
@@ -607,6 +615,8 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len, u
  * @param[in] text text attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] total_len total length
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
@@ -619,6 +629,7 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len, u
  * @param[in] event event attr
  * @param[in] data data
  * @param[in] len len
+ * @param[in] writer packet writer (can be NULL)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */

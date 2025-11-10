@@ -94,13 +94,6 @@ typedef struct {
 
 static AI_BASIC_PROTO_T *ai_basic_proto = NULL;
 
-static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len);
-
-static AI_PACKET_WRITER_T s_default_packet_writer = {
-    .write = __default_write,
-    .user_data = NULL,
-};
-
 static void __ai_atop_cfg_free(void)
 {
     uint32_t idx = 0;
@@ -398,9 +391,16 @@ EXIT:
 static uint32_t __ai_get_head_len(char *buf)
 {
     uint32_t head_len = 0;
-    AI_PACKET_HEAD_T *head = (AI_PACKET_HEAD_T *)buf;
+    uint8_t flags_byte = 0;
+    TUYA_CHECK_NULL_RETURN(buf, 0);
+
+    if (sizeof(AI_PACKET_HEAD_T) > 3) {
+        memcpy(&flags_byte, buf + 3, sizeof(uint8_t));
+        flags_byte = flags_byte & 0x01;
+    }
+
     head_len = sizeof(AI_PACKET_HEAD_T);
-    if (head->iv_flag) {
+    if (flags_byte) {
         head_len += AI_IV_LEN;
     }
     head_len += sizeof(head_len);
@@ -411,19 +411,31 @@ static uint32_t __ai_get_packet_len(char *buf)
 {
     uint32_t packet_len = 0;
     uint32_t head_len = sizeof(AI_PACKET_HEAD_T);
-    AI_PACKET_HEAD_T *head = (AI_PACKET_HEAD_T *)buf;
-    if (head->iv_flag) {
-        memcpy(&packet_len, buf + head_len + AI_IV_LEN, sizeof(packet_len));
-    } else {
-        memcpy(&packet_len, buf + head_len, sizeof(packet_len));
+    uint8_t flags_byte = 0;
+    TUYA_CHECK_NULL_RETURN(buf, 0);
+
+    if (sizeof(AI_PACKET_HEAD_T) > 3) {
+        memcpy(&flags_byte, buf + 3, sizeof(uint8_t));
+        flags_byte = flags_byte & 0x01;
     }
+
+    uint32_t length_offset = head_len;
+    if (flags_byte) {
+        length_offset += AI_IV_LEN;
+    }
+
+    memcpy(&packet_len, buf + length_offset, sizeof(packet_len));
     packet_len = UNI_NTOHL(packet_len);
     return packet_len;
 }
 
 static uint32_t __ai_get_payload_len(char *buf)
 {
-    return __ai_get_packet_len(buf) - AI_SIGN_LEN;
+    uint32_t packet_len = __ai_get_packet_len(buf);
+    if (packet_len < AI_SIGN_LEN) {
+        return 0;
+    }
+    return packet_len - AI_SIGN_LEN;
 }
 
 static OPERATE_RET __ai_packet_sign(char *buf, uint8_t *signature)
@@ -897,7 +909,6 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
     memset(send_pkt_buf, 0, uncrypt_len);
 
     uint32_t head_len = sizeof(AI_PACKET_HEAD_T);
-    // AI_PROTO_D("head len:%d", head_len);
 
     AI_PACKET_HEAD_T head = {0};
     head.version = 0x01;
@@ -909,25 +920,23 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
     memcpy(send_pkt_buf, &head, head_len);
     offset += head_len;
 
+    uint32_t length_field_offset = offset;
+
     if (head.iv_flag) {
         memcpy(send_pkt_buf + offset, ai_basic_proto->encrypt_iv, AI_IV_LEN);
         offset += AI_IV_LEN;
+        length_field_offset = offset;
     }
 
-    uint32_t length = 0;
-    offset += sizeof(length);
+    offset += sizeof(uint32_t);
 
     rt = __ai_pack_payload(info, send_pkt_buf + offset, &payload_len, frag, origin_len);
     if (OPRT_OK != rt) {
         goto EXIT;
     }
-    length = UNI_HTONL(payload_len + AI_SIGN_LEN);
+    uint32_t length = UNI_HTONL(payload_len + AI_SIGN_LEN);
 
-    if (head.iv_flag) {
-        memcpy(send_pkt_buf + head_len + AI_IV_LEN, &length, sizeof(length));
-    } else {
-        memcpy(send_pkt_buf + head_len, &length, sizeof(length));
-    }
+    memcpy(send_pkt_buf + length_field_offset, &length, sizeof(length));
 
     rt = __ai_packet_sign(send_pkt_buf, signature);
     if (OPRT_OK != rt) {
@@ -939,25 +948,16 @@ static OPERATE_RET __ai_packet_write(AI_SEND_PACKET_T *info, AI_FRAG_FLAG frag, 
 
     AI_PROTO_D("send packet len:%d", payload_len + AI_SIGN_LEN);
     AI_PROTO_D("send payload len:%d", payload_len);
-
     AI_PROTO_D("send total len:%d, send_len:%d", offset, uncrypt_len);
-    // tuya_debug_hex_dump("send_pkt_buf", 64, (uint8_t *)send_pkt_buf, offset);
-#if 0
     if (ai_basic_proto->transporter) {
         rt = tuya_transporter_write(ai_basic_proto->transporter, (uint8_t *)send_pkt_buf, offset, 0);
+        if (rt != offset) {
+            PR_ERR("send to cloud failed, rt:%d, len:%d", rt, offset);
+            goto EXIT;
+        } else {
+            rt = OPRT_OK;
+        }
     }
-#else
-    AI_PACKET_WRITER_T *writer = info->writer;
-    if (!writer) {
-        writer = &s_default_packet_writer;
-        writer->user_data = ai_basic_proto->transporter;
-    }
-    rt = writer->write(writer, send_pkt_buf, offset);
-    if (OPRT_OK != rt) {
-        PR_ERR("write packet failed, rt:%d", rt);
-        goto EXIT;
-    }
-#endif
 
 EXIT:
     OS_FREE(send_pkt_buf);
@@ -2160,7 +2160,7 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer; // Unused parameter for now
     pkt.type = AI_PT_VIDEO;
     if (video) {
         rt = __create_video_attrs(&pkt, video);
@@ -2168,15 +2168,11 @@ OPERATE_RET tuya_ai_basic_video(AI_VIDEO_ATTR_T *video, char *data, uint32_t len
             return rt;
         }
     }
-    pkt.total_len = total_len;
     pkt.len = len;
+    pkt.total_len = total_len;
     pkt.data = data;
     AI_PROTO_D("send video");
-    if (pkt.len == pkt.total_len) {
-        return tuya_ai_basic_pkt_send(&pkt);
-    } else {
-        return tuya_ai_basic_pkt_frag_send(&pkt);
-    }
+    return tuya_ai_basic_pkt_send(&pkt);
 }
 
 OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len, uint32_t total_len,
@@ -2184,7 +2180,7 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer; // Unused parameter for now
     pkt.type = AI_PT_AUDIO;
     if (audio) {
         rt = __create_audio_attrs(&pkt, audio);
@@ -2192,15 +2188,11 @@ OPERATE_RET tuya_ai_basic_audio(AI_AUDIO_ATTR_T *audio, char *data, uint32_t len
             return rt;
         }
     }
-    pkt.total_len = total_len;
     pkt.len = len;
+    pkt.total_len = total_len;
     pkt.data = data;
-    AI_PROTO_D("send audio");
-    if (pkt.len == pkt.total_len) {
-        return tuya_ai_basic_pkt_send(&pkt);
-    } else {
-        return tuya_ai_basic_pkt_frag_send(&pkt);
-    }
+    rt = tuya_ai_basic_pkt_send(&pkt);
+    return rt;
 }
 
 OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len, uint32_t total_len,
@@ -2208,7 +2200,7 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer; // Unused parameter for now
     pkt.type = AI_PT_IMAGE;
     if (image) {
         rt = __create_image_attrs(&pkt, image);
@@ -2216,7 +2208,7 @@ OPERATE_RET tuya_ai_basic_image(AI_IMAGE_ATTR_T *image, char *data, uint32_t len
             return rt;
         }
     }
-    pkt.total_len = total_len;
+    pkt.total_len = (total_len > 0) ? total_len : (image ? image->base.len : len);
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send image");
@@ -2232,7 +2224,7 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len, u
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer; // Unused parameter for now
     pkt.type = AI_PT_FILE;
     if (file) {
         rt = __create_file_attrs(&pkt, file);
@@ -2240,7 +2232,7 @@ OPERATE_RET tuya_ai_basic_file(AI_FILE_ATTR_T *file, char *data, uint32_t len, u
             return rt;
         }
     }
-    pkt.total_len = total_len;
+    pkt.total_len = (total_len > 0) ? total_len : (file ? file->base.len : len);
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send file");
@@ -2256,7 +2248,8 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len, u
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer;    // Unused parameter for now
+    (void)total_len; // Unused parameter for now
     pkt.type = AI_PT_TEXT;
     if (text) {
         rt = __create_text_attrs(&pkt, text);
@@ -2264,22 +2257,17 @@ OPERATE_RET tuya_ai_basic_text(AI_TEXT_ATTR_T *text, char *data, uint32_t len, u
             return rt;
         }
     }
-    pkt.total_len = total_len;
     pkt.len = len;
     pkt.data = data;
     AI_PROTO_D("send text");
-    if (pkt.len == pkt.total_len) {
-        return tuya_ai_basic_pkt_send(&pkt);
-    } else {
-        return tuya_ai_basic_pkt_frag_send(&pkt);
-    }
+    return tuya_ai_basic_pkt_send(&pkt);
 }
 
 OPERATE_RET tuya_ai_basic_event(AI_EVENT_ATTR_T *event, char *data, uint32_t len, AI_PACKET_WRITER_T *writer)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_SEND_PACKET_T pkt = {0};
-    pkt.writer = writer;
+    (void)writer; // Unused parameter for now
     pkt.type = AI_PT_EVENT;
 
     AI_EVENT_HEAD_T head = {0};
@@ -2314,37 +2302,5 @@ OPERATE_RET tuya_ai_basic_uuid_v4(char *uuid_str)
     snprintf(uuid_str, AI_UUID_V4_LEN, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x", uuid[0],
              uuid[1], uuid[2], uuid[3], uuid[4], uuid[5], uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11],
              uuid[12], uuid[13], uuid[14], uuid[15]);
-    return OPRT_OK;
-}
-
-static OPERATE_RET __default_write(AI_PACKET_WRITER_T *writer, void *buf, uint32_t buf_len)
-{
-    OPERATE_RET rt = OPRT_OK;
-    tuya_transporter_t transporter = (tuya_transporter_t)writer->user_data;
-    if ((!transporter) || (!buf) || (buf_len == 0)) {
-        PR_ERR("invalid parameter, transporter:%p, buf:%p, buf_len:%d", transporter, buf, buf_len);
-        return OPRT_INVALID_PARM;
-    }
-    uint32_t bytes_sent = 0;
-    uint8_t *current_buf_ptr = (uint8_t *)buf;
-    uint32_t remaining_len = buf_len;
-
-    while (remaining_len > 0) {
-        rt = tuya_transporter_write(transporter, current_buf_ptr, remaining_len, 0);
-        if (rt > 0) {
-            bytes_sent += rt;
-            current_buf_ptr += rt;
-            remaining_len -= rt;
-            if (remaining_len > 0) {
-                PR_DEBUG("partial send, sent:%d, total_sent:%d, remaining:%d, err:%d", rt, bytes_sent, remaining_len,
-                         tal_net_get_errno());
-                tal_system_sleep(100);
-            }
-        } else {
-            PR_ERR("send to cloud failed, rt:%d, len:%d, err:%d", rt, remaining_len, tal_net_get_errno());
-            return OPRT_COM_ERROR;
-        }
-    }
-    // PR_DEBUG("send success, total bytes sent: %d, sequence %d", bytes_sent, ai_basic_proto->sequence_out);
     return OPRT_OK;
 }

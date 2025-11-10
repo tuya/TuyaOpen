@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+
 #include "tuya_cloud_types.h"
 #include "storage_interface.h"
 #include "tal_log.h"
@@ -55,7 +57,11 @@ int posix_storage_set(const char *key, const uint8_t *buffer, size_t length)
     FILE *fptr = NULL;
 
     char name[128];
-    sprintf(name, "%s/%s", tuya_db_path, key);
+    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    if (written < 0 || written >= (int)sizeof(name)) {
+        PR_ERR("key path too long");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
 
     PR_DEBUG("key:%s", name);
 
@@ -102,7 +108,11 @@ int posix_storage_get(const char *key, uint8_t *buffer, size_t *length)
     }
 
     char name[128];
-    sprintf(name, "%s/%s", tuya_db_path, key);
+    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    if (written < 0 || written >= (int)sizeof(name)) {
+        PR_ERR("key path too long");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
 
     PR_DEBUG("key:%s, len:%d", name, (int)*length);
 
@@ -138,7 +148,11 @@ int posix_storage_get(const char *key, uint8_t *buffer, size_t *length)
 int posix_storage_del(const char *key)
 {
     char name[128];
-    sprintf(name, "%s/%s", tuya_db_path, key);
+    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    if (written < 0 || written >= (int)sizeof(name)) {
+        PR_ERR("key path too long");
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
 
     PR_DEBUG("key:%s", name);
     if (remove(name) == 0) {

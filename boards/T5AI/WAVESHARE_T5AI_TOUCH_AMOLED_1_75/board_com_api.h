@@ -33,7 +33,7 @@ extern "C" {
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void);
-
+OPERATE_RET board_set_brightness(uint8_t value);
 #ifdef __cplusplus
 }
 #endif

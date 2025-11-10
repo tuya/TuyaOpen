@@ -336,7 +336,7 @@ static void dino_game_timer_cb(lv_timer_t *timer)
     lv_obj_get_coords(active_obstacle, &obs_coords);
 
     // Add a small buffer to prevent overly sensitive collision detection
-    const int collision_buffer = 2;
+    const int collision_buffer = 5;
     if (!(dino_coords.x2 < obs_coords.x1 + collision_buffer ||
           dino_coords.x1 > obs_coords.x2 - collision_buffer ||
           dino_coords.y2 < obs_coords.y1 + collision_buffer ||

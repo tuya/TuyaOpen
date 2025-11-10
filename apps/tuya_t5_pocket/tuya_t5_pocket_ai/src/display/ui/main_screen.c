@@ -204,7 +204,7 @@ static void *pet_event_user_data = NULL;
 static pet_stats_t main_screen_pet_stats;
 
 // Standby mode timer
-static uint8_t standby_time = 0;
+static uint16_t standby_time = 0;
 
 Screen_t main_screen = {
     .init = main_screen_init,
@@ -1206,7 +1206,7 @@ static void ui_update_timer_cb(lv_timer_t *timer)
     current_battery_charging = axp2101_isCharging();
 
     // Update state
-    current_battery_level = (uint8_t)(battery_percent / 100.0f * 6);
+    current_battery_level = (uint8_t)(battery_percent / 100.0f * 7);
     if (current_battery_level > 6) current_battery_level = 6;
 
     // Update label
@@ -1216,7 +1216,7 @@ static void ui_update_timer_cb(lv_timer_t *timer)
 #else
     // PC simulator mode - update label based on current state
     if (battery_label) {
-        int demo_percent = current_battery_level * 100 / 6;
+        int demo_percent = current_battery_level * 100 / 7;
         float demo_voltage = 3.0f + (current_battery_level * 1.2f / 6);
         if (current_battery_charging) {
             lv_label_set_text_fmt(battery_label, "%.1fV %d%% CHG", demo_voltage, demo_percent);

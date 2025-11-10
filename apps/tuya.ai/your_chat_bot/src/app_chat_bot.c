@@ -150,6 +150,9 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
 // send asr text to display
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
             app_display_send_msg(TY_DISPLAY_TP_USER_MSG, data, len);
+#else
+            // Ubuntu console logging
+            PR_NOTICE("USER: %.*s", (int)len, data);
 #endif
         }
     } break;
@@ -167,6 +170,9 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
 
         ai_text_len = 0;
 #endif
+#else
+        // Ubuntu console logging - AI response start
+        PR_NOTICE("AI: ", len);
 #endif
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
@@ -182,6 +188,8 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
             ai_text_len = 0;
         }
 #endif
+#else
+        PR_NOTICE("AI: %.*s", len, data);
 #endif
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_END: {
@@ -197,6 +205,8 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT: {
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_INTERRUPT, NULL, 0);
+#else
+        PR_WARN("AI response interrupted");
 #endif
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_EMO: {
@@ -259,6 +269,8 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)EMOJI_NEUTRAL, strlen(EMOJI_NEUTRAL));
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
+#else
+        PR_NOTICE("State: STANDBY (Ready for next conversation)");
 #endif
         break;
     case AI_AUDIO_STATE_LISTEN:
@@ -268,14 +280,20 @@ static void __app_ai_audio_state_inform_cb(AI_AUDIO_STATE_E state)
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)LISTENING, strlen(LISTENING));
+#else
+        PR_NOTICE("State: LISTENING (Recording audio...)");
 #endif
         break;
     case AI_AUDIO_STATE_UPLOAD:
-
+#if !defined(ENABLE_CHAT_DISPLAY) || (ENABLE_CHAT_DISPLAY != 1)
+        PR_NOTICE("State: UPLOAD (Sending to cloud...)");
+#endif
         break;
     case AI_AUDIO_STATE_AI_SPEAK:
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
         app_display_send_msg(TY_DISPLAY_TP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
+#else
+        PR_NOTICE("State: AI_SPEAKING (Playing response...)");
 #endif
 
         break;
@@ -382,6 +400,117 @@ static OPERATE_RET __app_open_button(void)
 }
 #endif
 
+#if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
+#include "tuya_ai_client.h"
+
+// State tracking for keyboard (simulates press/hold behavior)
+static bool s_keyboard_listening = false;
+
+/**
+ * @brief Keyboard event handler
+ *
+ * Handles keyboard events from the board layer.
+ * Maps keyboard keys to chatbot functionality:
+ * - S: Start listening / Trigger wakeup
+ * - X: Stop listening
+ * - V: Volume up
+ * - D: Volume down
+ * - Q: Quit (handled in keyboard_input.c)
+ */
+void app_chat_bot_keyboard_event_handler(KEYBOARD_EVENT_E event)
+{
+    APP_CHAT_MODE_E work_mode = sg_chat_bot.work->mode;
+
+    switch (event) {
+    case KEYBOARD_EVENT_PRESS_S: {
+        PR_DEBUG("Keyboard 'S' pressed, work_mode: %d", work_mode);
+
+        // Check if AI client is ready
+        if (!tuya_ai_client_is_ready()) {
+            PR_WARN("AI client not ready, please wait for connection");
+            if (!ai_audio_player_is_playing()) {
+                ai_audio_player_play_alert(AI_AUDIO_ALERT_NOT_ACTIVE);
+            }
+            return;
+        }
+
+        // Handle based on work mode (same logic as button)
+        if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
+            if (ai_audio_player_is_playing()) {
+                ai_audio_player_stop();
+            }
+
+            // Stop current chat/conversation
+            ai_audio_manual_stop_single_talk();
+            ai_audio_cloud_asr_stop();
+            ai_audio_agent_upload_stop();
+
+            ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
+            ai_audio_manual_start_single_talk();
+
+            // Start listening (simulates button press down)
+            PR_NOTICE("Keyboard: Start listening");
+            s_keyboard_listening = true;
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+            tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
+#endif
+        }
+        break;
+    }
+
+    case KEYBOARD_EVENT_PRESS_X: {
+        PR_DEBUG("Keyboard 'X' pressed, work_mode: %d", work_mode);
+
+        if (work_mode == APP_CHAT_MODE_KEY_PRESS_HOLD_SINGLE) {
+            // Stop listening (simulates button press up)
+            if (s_keyboard_listening) {
+                PR_NOTICE("Keyboard: Stop listening");
+                s_keyboard_listening = false;
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+                tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+#endif
+                ai_audio_manual_stop_single_talk();
+            } else {
+                PR_WARN("Not currently listening, 'X' ignored");
+            }
+        }
+        // For other modes, 'X' does nothing
+        break;
+    }
+
+    case KEYBOARD_EVENT_PRESS_V: {
+        // Volume up
+        uint8_t volume = ai_audio_get_volume();
+        if (volume < 100) {
+            volume = (volume + 10 > 100) ? 100 : volume + 10;
+            ai_audio_set_volume(volume);
+            PR_NOTICE("Volume increased to %d%%", volume);
+        }
+        break;
+    }
+
+    case KEYBOARD_EVENT_PRESS_D: {
+        // Volume down
+        uint8_t volume = ai_audio_get_volume();
+        if (volume > 0) {
+            volume = (volume < 10) ? 0 : volume - 10;
+            ai_audio_set_volume(volume);
+            PR_NOTICE("Volume decreased to %d%%", volume);
+        }
+        break;
+    }
+
+    case KEYBOARD_EVENT_PRESS_Q:
+        PR_NOTICE("Quit requested via keyboard");
+        // Quit is handled in keyboard_input.c
+        break;
+
+    default:
+        break;
+    }
+}
+#endif
+
 OPERATE_RET app_chat_bot_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -430,52 +559,57 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
 
     snprintf(alert_id, sizeof(alert_id), "alert_%d", type);
 
-    ai_audio_player_start(alert_id);
+    rt = ai_audio_player_start(alert_id);
 
     switch (type) {
     case AI_AUDIO_ALERT_POWER_ON: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_prologue_zh, sizeof(media_src_prologue_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NOT_ACTIVE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_zh, sizeof(media_src_network_conn_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_zh,
+                                        sizeof(media_src_network_conn_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CFG: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_zh, sizeof(media_src_network_config_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_zh,
+                                        sizeof(media_src_network_config_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CONNECTED: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_success_zh,
                                         sizeof(media_src_network_conn_success_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_FAIL: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_zh, sizeof(media_src_network_conn_failed_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_zh,
+                                        sizeof(media_src_network_conn_failed_zh), 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_reconfigure_zh,
                                         sizeof(media_src_network_reconfigure_zh), 1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_zh, sizeof(media_src_low_battery_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_zh, sizeof(media_src_low_battery_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_PLEASE_AGAIN: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_zh, sizeof(media_src_please_again_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_zh,
+                                        sizeof(media_src_please_again_zh), 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_ai_zh, sizeof(media_src_ai_zh), 1);
     } break;
     case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_zh,
-                                        sizeof(media_src_long_press_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_zh, sizeof(media_src_long_press_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_zh, sizeof(media_src_press_talk_zh), 1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_zh, sizeof(media_src_press_talk_zh),
+                                        1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP_TALK: {
         rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup_chat_zh, sizeof(media_src_wakeup_chat_zh),
                                         1);
     } break;
     case AI_AUDIO_ALERT_FREE_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_zh, sizeof(media_src_free_chat_zh),
-                                        1);
+        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_zh, sizeof(media_src_free_chat_zh), 1);
     } break;
 
     default:

@@ -21,7 +21,6 @@
 #include "tal_api.h"
 #include "tal_bluetooth.h"
 #include "tkl_output.h"
-
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
@@ -33,6 +32,8 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+static bool     g_notify_enabled = false;
+
 static uint8_t adv_data_const[31] = {
     0x02, 0x01, 0x06, 0x03, 0x02, 0xFD, 0xFD, 0x17, 0x16, 0x50, 0xFD, 0x41, 0x00, // Frame Control
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -53,12 +54,16 @@ static TAL_BLE_PEER_INFO_T sg_ble_peripheral_info;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+
+// ...existing code...
+
 /**
- * @brief bluebooth event callback function
+ * @brief bluetooth event callback function
  *
- * @param[in] p_event: bluebooth event
+ * @param[in] p_event: bluetooth event
  * @return none
  */
+
 static void __ble_peripheral_event_callback(TAL_BLE_EVT_PARAMS_T *p_event)
 {
     PR_DEBUG("----------ble_peripheral event callback-------");
@@ -120,11 +125,32 @@ static void __ble_peripheral_event_callback(TAL_BLE_EVT_PARAMS_T *p_event)
         PR_DEBUG("Get Response MTU Size = %d", p_event->ble_event.exchange_mtu.mtu);
         break;
     }
+    case TAL_BLE_EVT_SUBSCRIBE: {
+        // Subscription event: triggered after client writes CCCD
+        bool notify_now = (p_event->ble_event.subscribe.cur_notify != 0);
+        PR_NOTICE("SUBSCRIBE char=0x%04X notify:%d->%d indicate:%d->%d",
+                  p_event->ble_event.subscribe.char_handle,
+                  p_event->ble_event.subscribe.prev_notify,
+                  p_event->ble_event.subscribe.cur_notify,
+                  p_event->ble_event.subscribe.prev_indicate,
+                  p_event->ble_event.subscribe.cur_indicate);
+
+        g_notify_enabled = notify_now;
+
+        if (g_notify_enabled) {
+            // Send a sample notification indicating subscription enabled
+            const char *ack = "NOTIFY ENABLED";
+            TAL_BLE_DATA_T pkt = { (uint16_t)strlen(ack), (uint8_t *)ack};
+            tal_ble_server_common_send(&pkt);
+        }
+        break;
+    }
     case TAL_BLE_EVT_WRITE_REQ: {
         int i = 0;
+        // Receive data
         PR_DEBUG("Get Device-Write Char Request");
         for (i = 0; i < p_event->ble_event.write_report.report.len; i++) {
-            PR_DEBUG("devicr send  data[%d]: %d", i, p_event->ble_event.write_report.report.p_data[i]);
+            PR_DEBUG("device send data[%d]: %d", i, p_event->ble_event.write_report.report.p_data[i]);
         }
         break;
     }

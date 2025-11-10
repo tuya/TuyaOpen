@@ -127,11 +127,22 @@ static int ap_dev_config_make(ap_netcfg_t *ap, char **buf)
     }
 
     uint32_t offset = 0;
-    offset += sprintf(json_buf + offset, "{\"ip\":\"%s\", \"uuid\":\"%s\", \"active\":0", ip.ip, ap->netcfg_args.uuid);
-    offset += sprintf(json_buf + offset, ",\"version\":\"%s\"", TUYA_LPV35);
-    offset += sprintf(json_buf + offset, ",\"sl\":%d", TUYA_SECURITY_LEVEL);
-    offset += sprintf(json_buf + offset, ",\"apConfigType\":1");
-    offset += sprintf(json_buf + offset, ",\"CombosFlag\":%d", (1 << 3));
+    int ret = 0;
+    ret = snprintf(json_buf + offset, 256 - offset, "{\"ip\":\"%s\", \"uuid\":\"%s\", \"active\":0", ip.ip, ap->netcfg_args.uuid);
+    if (ret < 0 || ret >= 256 - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += ret;
+    ret = snprintf(json_buf + offset, 256 - offset, ",\"version\":\"%s\"", TUYA_LPV35);
+    if (ret < 0 || ret >= 256 - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += ret;
+    ret = snprintf(json_buf + offset, 256 - offset, ",\"sl\":%d", TUYA_SECURITY_LEVEL);
+    if (ret < 0 || ret >= 256 - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += ret;
+    ret = snprintf(json_buf + offset, 256 - offset, ",\"apConfigType\":1");
+    if (ret < 0 || ret >= 256 - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += ret;
+    ret = snprintf(json_buf + offset, 256 - offset, ",\"CombosFlag\":%d", (1 << 3));
+    if (ret < 0 || ret >= 256 - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += ret;
 
     json_buf[offset] = '}';
     json_buf[offset + 1] = 0;
@@ -398,12 +409,14 @@ static int ap_get_wifi_list(char *wifi_list, uint16_t wifi_list_size, uint16_t m
     if ((OPRT_OK != ret) || (ap_num == 0)) {
         PR_DEBUG("scan ap null:%d %d", ret, ap_num);
 
-        sprintf(wifi_list + offset, "{\"wifi_list\":[]}");
+        snprintf(wifi_list + offset, wifi_list_size - offset, "{\"wifi_list\":[]}");
         return OPRT_OK;
     }
 
     // Sort and get the max cnt data with the strongest signal
-    offset += sprintf(wifi_list + offset, "{\"wifi_list\":[");
+    int n = snprintf(wifi_list + offset, wifi_list_size - offset, "{\"wifi_list\":[");
+    if (n < 0 || n >= wifi_list_size - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += n;
     max_cnt = (max_cnt > ap_num) ? ap_num : max_cnt;
     for (loop = 0; loop < max_cnt; loop++) {
         if (0 == strlen((char *)ap_if[loop].ssid)) {
@@ -413,13 +426,19 @@ static int ap_get_wifi_list(char *wifi_list, uint16_t wifi_list_size, uint16_t m
             break;
         }
         if (!first_ap) {
-            offset += sprintf(wifi_list + offset, ",");
+            n = snprintf(wifi_list + offset, wifi_list_size - offset, ",");
+            if (n < 0 || n >= wifi_list_size - offset) break;
+            offset += n;
         }
-        offset += sprintf(wifi_list + offset, "{\"ssid\":\"%s\",\"rssi\":%d,\"sec\":%u}", ap_if[loop].ssid,
+        n = snprintf(wifi_list + offset, wifi_list_size - offset, "{\"ssid\":\"%s\",\"rssi\":%d,\"sec\":%u}", ap_if[loop].ssid,
                           ap_if[loop].rssi, ap_if[loop].security);
+        if (n < 0 || n >= wifi_list_size - offset) break;
+        offset += n;
         first_ap = FALSE;
     }
-    offset += sprintf(wifi_list + offset, "]}");
+    n = snprintf(wifi_list + offset, wifi_list_size - offset, "]}");
+    if (n < 0 || n >= wifi_list_size - offset) return OPRT_BUFFER_NOT_ENOUGH;
+    offset += n;
     tal_wifi_release_ap(ap_if);
 
     return ret;
@@ -454,7 +473,7 @@ static int ap_ext_cmd_parse(ap_netcfg_t *ap, char *data)
         if (OPRT_OK != rt) {
             goto __exit;
         }
-        sprintf(buffer, "{\"reqType\":\"query_dev_rpt\",\"data\":%s}", data);
+        snprintf(buffer, buffer_size, "{\"reqType\":\"query_dev_rpt\",\"data\":%s}", data);
         tal_free(data);
     } else if (0 == strcmp(reqtype->valuestring, "get_wifi_list")) {
         cJSON *jdata = cJSON_GetObjectItem(root, "data");
@@ -467,13 +486,24 @@ static int ap_ext_cmd_parse(ap_netcfg_t *ap, char *data)
             rt = OPRT_CJSON_GET_ERR;
             goto __exit;
         }
-        uint16_t offset = sprintf(buffer, "{\"reqType\":\"wifi_list_rpt\",\"data\":");
+        int16_t offset = snprintf(buffer, buffer_size, "{\"reqType\":\"wifi_list_rpt\",\"data\":");
+        if (offset < 0 || offset >= buffer_size) {
+            rt = OPRT_BUFFER_NOT_ENOUGH;
+            goto __exit;
+        }
         TUYA_CALL_ERR_GOTO(ap_get_wifi_list(buffer + offset, buffer_size - offset, item->valueint), __exit);
-        strcpy(buffer + strlen(buffer), "}");
+        size_t cur_len = strlen(buffer);
+        if (cur_len + 2 < buffer_size) {
+            buffer[cur_len] = '}';
+            buffer[cur_len + 1] = '\0';
+        } else {
+            rt = OPRT_BUFFER_NOT_ENOUGH;
+            goto __exit;
+        }
     } else if (0 == strcmp(reqtype->valuestring,
                            "query_netcfg_stat")) { //  query_netcfg_stat
         char *out = "{\"type\":1,\"stage\":2,\"status\":0}";
-        sprintf(buffer, "{\"reqType\":\"netcfg_stat_rpt\",\"data\":%s}", out);
+        snprintf(buffer, buffer_size, "{\"reqType\":\"netcfg_stat_rpt\",\"data\":%s}", out);
     } else {
         PR_DEBUG("not support reqtype:%s", reqtype->valuestring);
         memset(buffer, 0, buffer_size);
@@ -767,11 +797,14 @@ static int ap_mode_start(ap_netcfg_t *ap)
         return op_ret;
     }
     //! default ip info
-    strcpy(ap_cfg.ip.ip, "192.168.176.1");
-    strcpy(ap_cfg.ip.gw, "192.168.176.1");
-    strcpy(ap_cfg.ip.mask, "255.255.255.0");
+    strncpy(ap_cfg.ip.ip, "192.168.176.1", sizeof(ap_cfg.ip.ip) - 1);
+    ap_cfg.ip.ip[sizeof(ap_cfg.ip.ip) - 1] = '\0';
+    strncpy(ap_cfg.ip.gw, "192.168.176.1", sizeof(ap_cfg.ip.gw) - 1);
+    ap_cfg.ip.gw[sizeof(ap_cfg.ip.gw) - 1] = '\0';
+    strncpy(ap_cfg.ip.mask, "255.255.255.0", sizeof(ap_cfg.ip.mask) - 1);
+    ap_cfg.ip.mask[sizeof(ap_cfg.ip.mask) - 1] = '\0';
     //! default ssid
-    sprintf((char *)ap_cfg.ssid, "%s-%02X%02X", TUYA_AP_SSID_DEFAULT, mac.mac[4], mac.mac[5]);
+    snprintf((char *)ap_cfg.ssid, sizeof(ap_cfg.ssid), "%s-%02X%02X", TUYA_AP_SSID_DEFAULT, mac.mac[4], mac.mac[5]);
     ap_cfg.s_len = strlen((char *)ap_cfg.ssid);
     ap_cfg.md = WAAM_OPEN;
     ap_cfg.chan = 6;
