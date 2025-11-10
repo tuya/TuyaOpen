@@ -101,7 +101,7 @@ static void handle_video_selection(void)
         video_action_item_t *selected_action = &video_actions[selected_item];
         printf("Selected video action: %s\n", selected_action->name);
         // Set the message after loading the screen
-        toast_screen_show("Unlock at Higher Level", 2000);
+        toast_screen_show("Unlock at Higher Level", 3000);
 
         // if (video_callback) {
         //     video_callback(selected_action->action, video_callback_user_data);

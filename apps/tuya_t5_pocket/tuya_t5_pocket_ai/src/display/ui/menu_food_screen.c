@@ -234,7 +234,7 @@ static void handle_food_selection(void)
                 if (pet_state_timer) {
                     lv_timer_del(pet_state_timer);  // Clean up existing timer
                 }
-                pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
                 // lv_timer_set_repeat_count(pet_state_timer, 1);  // Run only once
 
                 printf("Started eat animation timer for 3 seconds\n");

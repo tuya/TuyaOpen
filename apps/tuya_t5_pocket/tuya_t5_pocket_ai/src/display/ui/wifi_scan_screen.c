@@ -16,7 +16,6 @@
  */
 
 #include "wifi_scan_screen.h"
-#include "toast_screen.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -47,12 +46,6 @@ static lv_obj_t *ui_wifi_scan_screen;
 // UI components - match peripherals_scan.c structure
 static lv_obj_t *ap_list = NULL;
 static lv_obj_t *title_label = NULL;
-
-// Loading popup components
-static lv_obj_t *loading_popup = NULL;
-static lv_obj_t *loading_spinner = NULL;
-static lv_obj_t *loading_label = NULL;
-static lv_anim_t loading_anim;
 
 // WiFi state - match peripherals_scan.c widget structure
 typedef struct {
@@ -87,9 +80,6 @@ Screen_t wifi_scan_screen = {
 static void keyboard_event_cb(lv_event_t *e);
 static void create_wifi_scan_ui(void);
 static void reset_scroll_position_cb(lv_timer_t *timer);
-static void show_loading_popup(const char *message);
-static void hide_loading_popup(void);
-static void perform_wifi_scan_cb(lv_timer_t *timer);
 
 /***********************************************************
 ***********************function define**********************
@@ -121,13 +111,6 @@ static void create_wifi_scan_ui(void)
     lv_obj_set_size(w->wifi_screen, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(w->wifi_screen, lv_color_white(), 0);
 
-    // Title - place after AP list creation like peripherals_scan.c
-    lv_obj_t *title = lv_label_create(w->wifi_screen);
-    lv_label_set_text(title, "WiFi Scan Results");
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(title, lv_color_black(), 0);
-
     // AP list exactly like peripherals_scan.c
     w->ap_list = lv_list_create(w->wifi_screen);
     lv_obj_set_size(w->ap_list, AI_PET_SCREEN_WIDTH - 20, AI_PET_SCREEN_HEIGHT - 60);
@@ -141,20 +124,60 @@ static void create_wifi_scan_ui(void)
     lv_obj_clear_flag(w->wifi_screen, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(w->wifi_screen, LV_OBJ_FLAG_CLICKABLE);
 
-    // Show loading popup before starting scan
-    show_loading_popup("Scanning WiFi...");
+#ifdef ENABLE_LVGL_HARDWARE
+    // Scan APs using hardware - exactly like peripherals_scan.c
+    AP_IF_S *ap_info = NULL;
+    uint32_t ap_info_nums = 0;
+    int result = tal_wifi_all_ap_scan(&ap_info, &ap_info_nums);
+    printf("Found %d wifi APs", ap_info_nums);
 
-    // Use a timer to perform the actual scan asynchronously
-    // This ensures the loading popup is visible before the scan starts
-    lv_timer_create(perform_wifi_scan_cb, 400, NULL);
+    if (result == OPRT_OK && ap_info) {
+        for (uint32_t i = 0; i < ap_info_nums; i++) {
+            char wifi_msg[256];
+            snprintf(wifi_msg, sizeof(wifi_msg), "SSID: %s, RSSI: %d dB, channel: %d",
+                     (const char *)ap_info[i].ssid, ap_info[i].rssi, ap_info[i].channel);
+            lv_list_add_btn(w->ap_list, LV_SYMBOL_WIFI, wifi_msg);
+        }
+        // Reset scroll position to top after adding items
+        lv_obj_scroll_to_y(w->ap_list, 0, LV_ANIM_OFF);
+    }
+#else
+    // Simulator mode - add example data like peripherals_scan.c would  
+    const char *example_aps[] = {
+        "SSID: HomeWiFi, RSSI: -45 dB, channel: 6",
+        "SSID: Office_Network, RSSI: -52 dB, channel: 11", 
+        "SSID: Guest_WiFi, RSSI: -68 dB, channel: 1",
+        "SSID: Mobile_Hotspot, RSSI: -71 dB, channel: 9",
+        "SSID: Public_WiFi, RSSI: -78 dB, channel: 3",
+        "SSID: Neighbor_WiFi, RSSI: -82 dB, channel: 6",
+        "SSID: CoffeeShop_Free, RSSI: -75 dB, channel: 11",
+        "SSID: Hotel_Lobby, RSSI: -69 dB, channel: 1",
+        "SSID: Company_Guest, RSSI: -55 dB, channel: 9",
+        "SSID: Library_Public, RSSI: -88 dB, channel: 3"
+    };
+
+    for (int i = 0; i < 10; i++) {
+        lv_list_add_btn(w->ap_list, LV_SYMBOL_WIFI, example_aps[i]);
+    }
+    
+    // Reset scroll position to top after adding items
+    lv_obj_scroll_to_y(w->ap_list, 0, LV_ANIM_OFF);
+#endif
+
+    // Title - place after AP list creation like peripherals_scan.c
+    lv_obj_t *title = lv_label_create(w->wifi_screen);
+    lv_label_set_text(title, "WiFi Scan Results");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
     // Load screen and focus exactly like peripherals_scan.c
-    // lv_group_t *grp = lv_group_get_default();
-    // if (grp) {
-    //     lv_group_add_obj(grp, w->wifi_screen);
-    //     lv_group_focus_obj(w->wifi_screen);
-    // }
-    // lv_screen_load(w->wifi_screen);
+    lv_group_t *grp = lv_group_get_default();
+    if (grp) {
+        lv_group_add_obj(grp, w->wifi_screen);
+        lv_group_focus_obj(w->wifi_screen);
+    }
+    lv_screen_load(w->wifi_screen);
     w->is_active = true;
 
     // Force scroll to top after screen is loaded and active
@@ -188,153 +211,6 @@ static void reset_scroll_position_cb(lv_timer_t *timer)
     
     // Delete the timer after use
     lv_timer_del(timer);
-}
-
-/**
- * @brief Timer callback to perform actual WiFi scan
- */
-static void perform_wifi_scan_cb(lv_timer_t *timer)
-{
-    wifi_widget_t *w = &g_wifi_widget;
-    
-    if (!w->is_active || !w->ap_list) {
-        lv_timer_del(timer);
-        hide_loading_popup();
-        return;
-    }
-
-#ifdef ENABLE_LVGL_HARDWARE
-    // Scan APs using hardware
-    AP_IF_S *ap_info = NULL;
-    uint32_t ap_info_nums = 0;
-
-    int result = tal_wifi_all_ap_scan(&ap_info, &ap_info_nums);
-
-    printf("Found %d wifi APs\n", ap_info_nums);
-
-    if (result == OPRT_OK && ap_info) {
-        for (uint32_t i = 0; i < ap_info_nums; i++) {
-            char wifi_msg[256];
-            snprintf(wifi_msg, sizeof(wifi_msg), "SSID: %s, RSSI: %d dB, channel: %d",
-                     (const char *)ap_info[i].ssid, ap_info[i].rssi, ap_info[i].channel);
-            lv_list_add_btn(w->ap_list, LV_SYMBOL_WIFI, wifi_msg);
-        }
-        // Reset scroll position to top after adding items
-        lv_obj_scroll_to_y(w->ap_list, 0, LV_ANIM_OFF);
-    }
-#else
-    // Simulator mode - add example data
-    const char *example_aps[] = {
-        "SSID: HomeWiFi, RSSI: -45 dB, channel: 6",
-        "SSID: Office_Network, RSSI: -52 dB, channel: 11", 
-        "SSID: Guest_WiFi, RSSI: -68 dB, channel: 1",
-        "SSID: Mobile_Hotspot, RSSI: -71 dB, channel: 9",
-        "SSID: Public_WiFi, RSSI: -78 dB, channel: 3",
-        "SSID: Neighbor_WiFi, RSSI: -82 dB, channel: 6",
-        "SSID: CoffeeShop_Free, RSSI: -75 dB, channel: 11",
-        "SSID: Hotel_Lobby, RSSI: -69 dB, channel: 1",
-        "SSID: Company_Guest, RSSI: -55 dB, channel: 9",
-        "SSID: Library_Public, RSSI: -88 dB, channel: 3"
-    };
-
-    for (int i = 0; i < 10; i++) {
-        lv_list_add_btn(w->ap_list, LV_SYMBOL_WIFI, example_aps[i]);
-    }
-    
-    // Reset scroll position to top after adding items
-    lv_obj_scroll_to_y(w->ap_list, 0, LV_ANIM_OFF);
-#endif
-
-    // Hide loading popup after scan completes
-    hide_loading_popup();
-    
-    // Delete the one-shot timer
-    lv_timer_del(timer);
-}
-
-/**
- * @brief Show loading popup with spinner animation
- */
-static void show_loading_popup(const char *message)
-{
-    // Hide existing popup if any
-    hide_loading_popup();
-
-    // Create popup container (black and white only)
-    loading_popup = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(loading_popup, 200, 100);
-    lv_obj_center(loading_popup);
-    lv_obj_set_style_bg_color(loading_popup, lv_color_black(), 0);  // Black background
-    lv_obj_set_style_bg_opa(loading_popup, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(loading_popup, lv_color_white(), 0);  // White border
-    lv_obj_set_style_border_width(loading_popup, 2, 0);
-    lv_obj_set_style_radius(loading_popup, 10, 0);
-    lv_obj_clear_flag(loading_popup, LV_OBJ_FLAG_SCROLLABLE);
-
-    // Create spinner (rotating arc - black and white)
-    loading_spinner = lv_arc_create(loading_popup);
-    lv_obj_set_size(loading_spinner, 40, 40);
-    lv_obj_align(loading_spinner, LV_ALIGN_TOP_MID, 0, 15);
-    
-    // Configure arc angles for a partial circle (270 degrees)
-    lv_arc_set_bg_angles(loading_spinner, 0, 360);
-    lv_arc_set_angles(loading_spinner, 0, 270);
-    lv_arc_set_rotation(loading_spinner, 0);
-    
-    // Style the background arc (track) - light gray/white
-    lv_obj_set_style_arc_color(loading_spinner, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_arc_width(loading_spinner, 5, LV_PART_MAIN);
-    lv_obj_set_style_arc_opa(loading_spinner, LV_OPA_COVER, LV_PART_MAIN);
-
-    // Style the indicator arc (rotating part) - white
-    lv_obj_set_style_arc_color(loading_spinner, lv_color_white(), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(loading_spinner, 5, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_rounded(loading_spinner, true, LV_PART_INDICATOR);
-    
-    // Remove the knob (handle)
-    lv_obj_remove_style(loading_spinner, NULL, LV_PART_KNOB);
-    lv_obj_clear_flag(loading_spinner, LV_OBJ_FLAG_CLICKABLE);
-
-    // Create loading text - black text on white background, positioned lower to avoid overlapping spinner
-    loading_label = lv_label_create(loading_popup);
-    lv_label_set_text(loading_label, message);
-    lv_obj_align(loading_label, LV_ALIGN_BOTTOM_MID, 0, -5);
-    lv_obj_set_style_text_color(loading_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(loading_label, &lv_font_montserrat_14, 0);
-
-    // Start smooth continuous rotation animation
-    lv_anim_init(&loading_anim);
-    lv_anim_set_var(&loading_anim, loading_spinner);
-    lv_anim_set_exec_cb(&loading_anim, (lv_anim_exec_xcb_t)lv_arc_set_rotation);
-    lv_anim_set_duration(&loading_anim, 1200);  // Smooth rotation speed
-    lv_anim_set_repeat_count(&loading_anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_values(&loading_anim, 0, 360);
-    lv_anim_set_path_cb(&loading_anim, lv_anim_path_linear);  // Linear for continuous smooth rotation
-    lv_anim_start(&loading_anim);
-
-    // Force immediate screen refresh to show popup
-    lv_refr_now(NULL);
-
-    printf("Loading popup shown: %s\n", message);
-}
-
-/**
- * @brief Hide loading popup
- */
-static void hide_loading_popup(void)
-{
-    if (loading_anim.var) {
-        lv_anim_delete(NULL, (lv_anim_exec_xcb_t)lv_arc_set_rotation);
-        memset(&loading_anim, 0, sizeof(lv_anim_t));
-    }
-
-    if (loading_popup) {
-        lv_obj_del(loading_popup);
-        loading_popup = NULL;
-        loading_spinner = NULL;
-        loading_label = NULL;
-        printf("Loading popup hidden\n");
-    }
 }
 
 /**
@@ -389,16 +265,8 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_ENTER:
             // Refresh scan - rescan WiFi APs
-            printf("WiFi scan: ENTER key detected, rescanning...\n");
-            // create_wifi_scan_ui();
-            // Show loading popup before starting scan
-            show_loading_popup("Scanning WiFi...");
-
-            // Use a timer to perform the actual scan asynchronously
-            // This ensures the loading popup is visible before the scan starts
-            lv_timer_create(perform_wifi_scan_cb, 400, NULL);
+            create_wifi_scan_ui();
             break;
-
         default:
             break;
     }
@@ -430,9 +298,6 @@ void wifi_scan_screen_init(void)
  */
 void wifi_scan_screen_deinit(void)
 {
-    // Hide any active loading popup
-    hide_loading_popup();
-
     wifi_widget_t *w = &g_wifi_widget;
 
     if (ui_wifi_scan_screen) {

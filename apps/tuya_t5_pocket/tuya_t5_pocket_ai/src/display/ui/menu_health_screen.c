@@ -463,7 +463,7 @@ static void handle_health_selection(void)
                     if (pet_state_timer) {
                         lv_timer_del(pet_state_timer);  // Clean up existing timer
                     }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
+                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 2000, NULL);
 
                     printf("Started health animation timer\n");
                     break;
