@@ -9,7 +9,10 @@
 #include "rfid_scan.h"
 #include "tkl_pinmux.h"
 #include "tal_uart.h"
+#include "tal_system.h"
 #include "tal_api.h"
+
+#include "ai_audio.h"
 
 #include "app_display.h"
 #include "rfid_scan_screen.h"
@@ -18,7 +21,7 @@
 ************************macro define************************
 ***********************************************************/
 #define USR_UART_NUM      TUYA_UART_NUM_2
-#define READ_BUFFER_SIZE  256
+#define READ_BUFFER_SIZE  2048
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -44,9 +47,9 @@ typedef struct {
 
 static THREAD_HANDLE rfid_scan_thread = NULL;
 static uint8_t sg_read_buffer[READ_BUFFER_SIZE];
-RFID_SCAN_FRAME rfid_dev;
+static RFID_SCAN_FRAME rfid_dev;
 
-uint16_t crc16_mbrtu(uint8_t *buf, uint32_t len)
+static uint16_t crc16_mbrtu(uint8_t *buf, uint32_t len)
 {
     uint32_t i;
     uint16_t crc_value = 0xFFFF;
@@ -67,13 +70,74 @@ uint16_t crc16_mbrtu(uint8_t *buf, uint32_t len)
     return (crc_value);
  }
 
+ static void compute_next(const char *p, int *next)
+{
+    int m = (int)strlen(p);
+    next[0] = 0;
+    for (int i = 1, len = 0; i < m; ) {
+        if (p[i] == p[len]) {
+            ++len;
+            next[i++] = len;
+        } else if (len > 0) {
+            len = next[len - 1];
+        } else {
+            next[i++] = 0;
+        }
+    }
+}
+
+int kmp_search(const char *s, const char *p)
+{
+    int n = (int)strlen(s);
+    int m = (int)strlen(p);
+    if (m == 0) return -1;
+    if (n < m) return -1;
+
+    int *next = tal_psram_malloc(m * sizeof(int));
+    if (!next) return -1;
+    compute_next(p, next);
+
+    int i = 0, j = 0;
+    while (i < n) {
+        if (s[i] == p[j]) {
+            ++i; ++j;
+            if (j == m) {
+                free(next);
+                return i - j;
+            }
+        } else if (j > 0) {
+            j = next[j - 1];
+        } else {
+            ++i;
+        }
+    }
+    tal_psram_free(next);
+    return -1;
+}
+
+void __log_scan_thread(void *param)
+{
+    while (1) {
+        // RFID scanning logic goes here
+        int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
+        sg_read_buffer[read_len] = '\0';
+        if (read_len > 0) {
+            int16_t pos = kmp_search((const char *)sg_read_buffer, "ty E");
+            if (pos >= 0) {
+                PR_DEBUG("KMP search result: %d, data len: %d", pos, read_len);
+                ai_text_agent_upload((uint8_t *)sg_read_buffer, read_len);
+            }
+        }
+        // Log RFID scan data
+        tal_system_sleep(50);
+    }
+}
 
 void __rfid_scan_thread(void *param)
 {
     while (1) {
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
-        PR_NOTICE("Read len: %d", read_len);
         if(read_len <= 0) {
             tal_system_sleep(100);
             continue;
@@ -110,7 +174,7 @@ void __rfid_scan_thread(void *param)
         // PR_NOTICE("UID : %02x %02x %02x %02x %02x %02x %02x %02x",
         //           rfid_dev.data.data[0], rfid_dev.data.data[1], rfid_dev.data.data[2], rfid_dev.data.data[3],
         //           rfid_dev.data.data[4], rfid_dev.data.data[5], rfid_dev.data.data[6], rfid_dev.data.data[7]);
-        tal_system_sleep(100);
+        tal_system_sleep(50);
     }
 }
 
@@ -123,15 +187,16 @@ OPERATE_RET rfid_scan_init(void)
 
     /* UART 2 init */
     TAL_UART_CFG_T cfg = {0};
-    cfg.base_cfg.baudrate = 115200;
+    cfg.base_cfg.baudrate = 460800;
     cfg.base_cfg.databits = TUYA_UART_DATA_LEN_8BIT;
     cfg.base_cfg.stopbits = TUYA_UART_STOP_LEN_1BIT;
     cfg.base_cfg.parity = TUYA_UART_PARITY_TYPE_NONE;
-    cfg.rx_buffer_size = 256;
+    cfg.rx_buffer_size = 2048;
     cfg.open_mode = O_BLOCK;
     rt = tal_uart_init(USR_UART_NUM, &cfg);
 
-    THREAD_CFG_T thrd_param = {2048, 4, "rfid_scan_thread"};
+    THREAD_CFG_T thrd_param = {4096, 4, "rfid_scan_thread"};
+    // tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
     tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __rfid_scan_thread, NULL, &thrd_param);
 
     return rt;

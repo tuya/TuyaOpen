@@ -158,6 +158,7 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_START: {
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
+        PR_DEBUG("---> AI_MSG_TYPE_AI_TEXT_DATA");
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_END: {
     } break;

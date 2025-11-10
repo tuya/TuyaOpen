@@ -207,10 +207,15 @@ void standby_screen_init(void)
         lv_anim_set_exec_cb(&rotation_anims[i], rotation_anim_cb);
         lv_anim_set_duration(&rotation_anims[i], ROTATION_DURATION);
         lv_anim_set_repeat_count(&rotation_anims[i], LV_ANIM_REPEAT_INFINITE);
-        lv_anim_set_values(&rotation_anims[i], 0, 360);
-
-        // Add phase offset for wave effect
-        lv_anim_set_delay(&rotation_anims[i], i * 100);
+        
+        // Distribute 8 letters across 180° range with 22.5° spacing (reversed order)
+        // Letter 0: 157.5°, Letter 1: 135°, Letter 2: 112.5°, ..., Letter 7: 0°
+        int32_t start_angle = (text_len - 1 - i) * 22;  // Reverse order: 7*22, 6*22, ..., 0*22
+        int32_t end_angle = start_angle + 360;
+        lv_anim_set_values(&rotation_anims[i], start_angle, end_angle);
+        
+        // Use linear path for smooth continuous rotation
+        lv_anim_set_path_cb(&rotation_anims[i], lv_anim_path_linear);
 
         lv_anim_start(&rotation_anims[i]);
     }
