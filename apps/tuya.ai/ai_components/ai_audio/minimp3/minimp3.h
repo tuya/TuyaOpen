@@ -1812,6 +1812,13 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
                 *ptr_frame_bytes = frame_and_padding;
                 return i;
             }
+            /* streaming optimization: if we found a valid header but not enough data,
+               and buffer is reasonably small, return current position for potential retry */
+            if (frame_bytes > 0 && i + frame_and_padding > mp3_bytes && mp3_bytes <= MAX_FREE_FORMAT_FRAME_SIZE) {
+                *ptr_frame_bytes = frame_and_padding; /* return expected frame size */
+                return i;                             /* return header position for upper layer to decide */
+            }
+
             *free_format_bytes = 0;
         }
     }
@@ -1840,6 +1847,11 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
         memset(dec, 0, sizeof(mp3dec_t));
         i = mp3d_find_frame(mp3, mp3_bytes, &dec->free_format_bytes, &frame_size);
         if (!frame_size || i + frame_size > mp3_bytes) {
+            /* check if mp3d_find_frame found a header but not enough data */
+            if (frame_size > 0 && i + frame_size > mp3_bytes && mp3_bytes <= MAX_FREE_FORMAT_FRAME_SIZE) {
+                info->frame_bytes = 0; /* needs more data, don't advance */
+                return 0;
+            }
             info->frame_bytes = i;
             return 0;
         }

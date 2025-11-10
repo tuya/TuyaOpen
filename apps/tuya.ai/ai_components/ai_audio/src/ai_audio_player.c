@@ -70,6 +70,7 @@ typedef struct {
     uint32_t mp3_raw_used_len;
     uint8_t *mp3_pcm; // mp3 decode to pcm buffer
 
+    uint8_t is_first_play;
 } APP_PLAYER_T;
 
 /***********************************************************
@@ -144,17 +145,17 @@ static OPERATE_RET __ai_audio_player_mp3_playing(void)
 
     int samples = mp3dec_decode_frame(ctx->mp3_dec, ctx->mp3_raw_head, ctx->mp3_raw_used_len,
                                       (mp3d_sample_t *)ctx->mp3_pcm, &ctx->mp3_frame_info);
-    if (samples == 0) {
-        ctx->mp3_raw_used_len = 0;
-        ctx->mp3_raw_head = ctx->mp3_raw;
-        rt = OPRT_COM_ERROR;
+    if (samples <= 0 && ctx->mp3_frame_info.frame_bytes == 0) {
+        // need more data
         goto __EXIT;
     }
 
     ctx->mp3_raw_used_len -= ctx->mp3_frame_info.frame_bytes;
     ctx->mp3_raw_head += ctx->mp3_frame_info.frame_bytes;
 
-    tdl_audio_play(ctx->audio_hdl, ctx->mp3_pcm, samples * 2);
+    if (samples) {
+        tdl_audio_play(ctx->audio_hdl, ctx->mp3_pcm, samples * 2);
+    }
 
 __EXIT:
     return rt;
@@ -195,6 +196,8 @@ static void __ai_audio_player_task(void *arg)
     static AI_AUDIO_PLAYER_STATE_E last_state = 0xFF;
     uint32_t delay_ms = 5;
 
+    SYS_TIME_T start_time = 0;
+
     ctx->stat = AI_AUDIO_PLAYER_STAT_IDLE;
 
     for (;;) {
@@ -220,8 +223,22 @@ static void __ai_audio_player_task(void *arg)
             } else {
                 ctx->stat = AI_AUDIO_PLAYER_STAT_PLAY;
             }
+            ctx->is_first_play = 1;
+            start_time = tal_system_get_millisecond();
         } break;
         case AI_AUDIO_PLAYER_STAT_PLAY: {
+            // wait more data
+            if (ctx->is_first_play) {
+                tal_mutex_lock(ctx->spk_rb_mutex);
+                uint32_t cache_len = tuya_ring_buff_used_size_get(ctx->rb_hdl);
+                tal_mutex_unlock(ctx->spk_rb_mutex);
+
+                if (cache_len >= 10*1024 || tal_system_get_millisecond() - start_time > 2000) {
+                    ctx->is_first_play = 0;
+                }
+                break;
+            }
+
             rt = __ai_audio_player_mp3_playing();
             if (OPRT_RECV_DA_NOT_ENOUGH == rt) {
                 tal_sw_timer_start(ctx->tm_id, PLAYING_NO_DATA_TIMEOUT_MS, TAL_TIMER_ONCE);
