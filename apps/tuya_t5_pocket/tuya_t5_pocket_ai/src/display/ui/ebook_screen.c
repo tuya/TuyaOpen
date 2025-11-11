@@ -551,7 +551,10 @@ static void load_book_position(int book_index)
 #else
     FILE *file = fopen(pos_filename, "r");
     if (file) {
-        fscanf(file, "%d", &book->saved_line);
+        char buffer[32];
+        if (fgets(buffer, sizeof(buffer), file)) {
+            sscanf(buffer, "%d", &book->saved_line);
+        }
         fclose(file);
         printf("Loaded position for %s: line %d\n", book->display_name, book->saved_line);
     }

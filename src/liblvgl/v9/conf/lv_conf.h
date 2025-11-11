@@ -75,7 +75,7 @@
  *====================*/
 
 /*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  10      /*[ms] - Changed from 10ms to 33ms (30fps)*/
+#define LV_DEF_REFR_PERIOD  10      /*[ms]*/
 
 #define LV_INDEV_REFR_PERIOD  30    /*[ms]*/
 
@@ -404,27 +404,69 @@
 
 /*Montserrat fonts with ASCII range and some symbols using bpp = 4
  *https://fonts.google.com/specimen/Montserrat*/
+#ifndef LV_FONT_MONTSERRAT_8
 #define LV_FONT_MONTSERRAT_8  0
-#define LV_FONT_MONTSERRAT_10 1
-#define LV_FONT_MONTSERRAT_12 1
+#endif
+#ifndef LV_FONT_MONTSERRAT_10
+#define LV_FONT_MONTSERRAT_10 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_12
+#define LV_FONT_MONTSERRAT_12 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_14
 #define LV_FONT_MONTSERRAT_14 1
+#endif
+#ifndef LV_FONT_MONTSERRAT_16
 #define LV_FONT_MONTSERRAT_16 1
+#endif
+#ifndef LV_FONT_MONTSERRAT_18
 #define LV_FONT_MONTSERRAT_18 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_20
 #define LV_FONT_MONTSERRAT_20 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_22
 #define LV_FONT_MONTSERRAT_22 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_24
 #define LV_FONT_MONTSERRAT_24 1
+#endif
+#ifndef LV_FONT_MONTSERRAT_26
 #define LV_FONT_MONTSERRAT_26 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_28
 #define LV_FONT_MONTSERRAT_28 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_30
 #define LV_FONT_MONTSERRAT_30 0
-#define LV_FONT_MONTSERRAT_32 1
+#endif
+#ifndef LV_FONT_MONTSERRAT_32
+#define LV_FONT_MONTSERRAT_32 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_34
 #define LV_FONT_MONTSERRAT_34 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_36
 #define LV_FONT_MONTSERRAT_36 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_38
 #define LV_FONT_MONTSERRAT_38 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_40
 #define LV_FONT_MONTSERRAT_40 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_42
 #define LV_FONT_MONTSERRAT_42 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_44
 #define LV_FONT_MONTSERRAT_44 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_46
 #define LV_FONT_MONTSERRAT_46 0
+#endif
+#ifndef LV_FONT_MONTSERRAT_48
 #define LV_FONT_MONTSERRAT_48 0
+#endif
 
 /*Demonstrate special features*/
 #define LV_FONT_MONTSERRAT_28_COMPRESSED 0  /*bpp = 3*/
@@ -799,7 +841,7 @@
         #define LV_USE_PERF_MONITOR 0
     #endif
     #if LV_USE_PERF_MONITOR
-        #define LV_USE_PERF_MONITOR_POS LV_ALIGN_RIGHT_MID
+        #define LV_USE_PERF_MONITOR_POS LV_ALIGN_BOTTOM_RIGHT
 
         /*0: Displays performance data on the screen, 1: Prints performance data using log.*/
         #define LV_USE_PERF_MONITOR_LOG_MODE 0

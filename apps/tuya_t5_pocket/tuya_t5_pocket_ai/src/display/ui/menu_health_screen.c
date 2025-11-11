@@ -448,7 +448,7 @@ static void handle_health_selection(void)
                     current_health_status.health_level = 100;
                     current_health_status.is_sick = false;
                     current_health_status.needs_doctor = false;
-                    strcpy(current_health_status.symptoms, "");
+                    current_health_status.symptoms[0] = '\0';  // Clear symptoms safely
 
                     // Trigger callback
                     if (health_callback) {

@@ -162,13 +162,7 @@ void __log_scan_thread(void *param)
 
 void __rfid_scan_thread(void *param)
 {
-    while (1) {
-        if (log_scan_thread) {
-            tal_system_sleep(50);
-            log_scan_thread = NULL;
-            break;
-        }
-
+    while (!log_scan_running) {
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
         if(read_len <= 0) {
@@ -232,9 +226,6 @@ OPERATE_RET rfid_scan_init(void)
     THREAD_CFG_T thrd_param = {2048, 4, "rfid_scan_thread"};
     tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __rfid_scan_thread, NULL, &thrd_param);
 
-    // THREAD_CFG_T thrd_param = {4096, 4, "log_scan_thread"};
-    // tal_thread_create_and_start(&log_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
-
     return rt;
 }
 
@@ -254,11 +245,11 @@ OPERATE_RET rfid_log_scan_start(void)
     log_scan_running = TRUE;
 
     if (rfid_scan_thread) {
-        tal_system_sleep(200);
         tal_thread_delete(rfid_scan_thread);
+        tal_system_sleep(50);
+        tal_uart_deinit(USR_UART_NUM);
         rfid_scan_thread = NULL;
     }
-    tal_uart_deinit(USR_UART_NUM);
 
     THREAD_CFG_T thrd_param = {4096, 4, "log_scan_thread"};
     rt = tal_thread_create_and_start(&log_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
@@ -288,11 +279,11 @@ OPERATE_RET rfid_log_scan_stop(void)
 
     // Wait for thread to finish
     if (log_scan_thread) {
-        tal_system_sleep(200); // Give thread time to exit cleanly
         tal_thread_delete(log_scan_thread);
+        tal_system_sleep(50);
+        tal_uart_deinit(USR_UART_NUM);
         log_scan_thread = NULL;
     }
-    tal_uart_deinit(USR_UART_NUM);
 
     rfid_scan_init(); // Re-initialize RFID scan after stopping log scan
 

@@ -503,11 +503,13 @@ void menu_info_screen_init(void)
     } else {
         // No stored name found or error occurred, use default
         printf("No pet name in KV storage (ret=%d), using default name\n", ret);
-        strcpy(current_pet_stats.name, "Ducky");
+        strncpy(current_pet_stats.name, "Ducky", sizeof(current_pet_stats.name) - 1);
+        current_pet_stats.name[sizeof(current_pet_stats.name) - 1] = '\0';
     }
 #else
     // PC simulator mode - use default name
-    strcpy(current_pet_stats.name, "Ducky");
+    strncpy(current_pet_stats.name, "Ducky", sizeof(current_pet_stats.name) - 1);
+    current_pet_stats.name[sizeof(current_pet_stats.name) - 1] = '\0';
     printf("PC simulator mode - using default pet name: '%s'\n", current_pet_stats.name);
 #endif
 

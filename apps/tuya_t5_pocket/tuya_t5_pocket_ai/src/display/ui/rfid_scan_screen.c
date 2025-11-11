@@ -182,10 +182,19 @@ static void update_display(void)
         buffer[0] = '\0';
         int offset = 0;
         for (uint8_t i = 0; i < current_tag.uid_length && i < 16; i++) {
-            offset += snprintf(buffer + offset, sizeof(buffer) - offset,
+            int ret = snprintf(buffer + offset, sizeof(buffer) - offset,
                                 "%02X", current_tag.uid[i]);
+            if (ret < 0 || ret >= (int)(sizeof(buffer) - offset)) {
+                break;  // Buffer full, stop
+            }
+            offset += ret;
+            
             if (i < current_tag.uid_length - 1 && i < 15) {
-                offset += snprintf(buffer + offset, sizeof(buffer) - offset, ":");
+                ret = snprintf(buffer + offset, sizeof(buffer) - offset, ":");
+                if (ret < 0 || ret >= (int)(sizeof(buffer) - offset)) {
+                    break;  // Buffer full, stop
+                }
+                offset += ret;
             }
         }
         lv_label_set_text(uid_value, buffer);

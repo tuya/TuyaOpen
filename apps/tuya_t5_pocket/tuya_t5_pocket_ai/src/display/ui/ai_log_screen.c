@@ -346,8 +346,6 @@ void ai_log_screen_init(void)
     lv_obj_add_event_cb(ui_ai_log_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
     lv_group_add_obj(lv_group_get_default(), ui_ai_log_screen);
     lv_group_focus_obj(ui_ai_log_screen);
-
-    printf("[AI Log] Screen initialized\n");
 }
 
 /**

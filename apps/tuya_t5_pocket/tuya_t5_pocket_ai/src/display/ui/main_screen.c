@@ -1584,7 +1584,8 @@ void main_screen_init_pet_stats(pet_stats_t *stats)
     stats->happy = 90;
     stats->age_days = 15;
     stats->weight_kg = 1.2f;
-    strcpy(stats->name, "Ducky");
+    strncpy(stats->name, "Ducky", sizeof(stats->name) - 1);
+    stats->name[sizeof(stats->name) - 1] = '\0';
 
     // Also initialize internal pet stats
     main_screen_pet_stats = *stats;
