@@ -23,14 +23,6 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#ifndef EXAMPLE_I2C_SCL_PIN
-#define EXAMPLE_I2C_SCL_PIN TUYA_GPIO_NUM_13
-#endif
-
-#ifndef EXAMPLE_I2C_SDA_PIN
-#define EXAMPLE_I2C_SDA_PIN TUYA_GPIO_NUM_15
-#endif
-
 #define TASK_GPIO_PRIORITY THREAD_PRIO_2
 #define TASK_GPIO_SIZE     4096
 
@@ -50,12 +42,12 @@ static THREAD_HANDLE sg_i2c_handle;
 
 OPERATE_RET __i2c_scan()
 {
-    OPERATE_RET op_ret = OPRT_INVALID_PARM;
+    OPERATE_RET op_ret = OPRT_COM_ERROR;
     uint8_t i2c_addr = 0;
     uint8_t dev_num = 0;
-    for (i2c_addr = 0X00; i2c_addr <= 0X78; i2c_addr++) {
+    for (i2c_addr = 0X08; i2c_addr <= 0X77; i2c_addr++) {
         uint8_t data_buf[1] = {0};
-        if (OPRT_OK == tkl_i2c_master_send(TUYA_I2C_NUM_0, i2c_addr, data_buf, SCAN_TEST_SIZE, TRUE)) {
+        if (OPRT_OK == tkl_i2c_master_send(EXAMPLE_I2C_PORT, i2c_addr, data_buf, SCAN_TEST_SIZE, TRUE)) {
             dev_num++;
             if (dev_num >= i2c_addr) {
                 op_ret = OPRT_INVALID_PARM;
@@ -98,7 +90,7 @@ static void __example_i2c_task(void *param)
     cfg.speed = TUYA_IIC_BUS_SPEED_100K;
     cfg.addr_width = TUYA_IIC_ADDRESS_7BIT;
 
-    op_ret = tkl_i2c_init(TUYA_I2C_NUM_0, &cfg);
+    op_ret = tkl_i2c_init(EXAMPLE_I2C_PORT, &cfg);
     if (OPRT_OK != op_ret) {
         PR_ERR("i2c init fail, err<%d>!", op_ret);
     }

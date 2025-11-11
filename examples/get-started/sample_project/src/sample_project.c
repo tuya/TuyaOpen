@@ -60,6 +60,12 @@ int user_main()
     }
 
     PR_DEBUG("cnt is %d", cnt);
+
+#include "tkl_otp_flash.h"
+
+    tkl_otp_flash_write();
+
+
     while (1) {
         tal_system_sleep(10);
     }

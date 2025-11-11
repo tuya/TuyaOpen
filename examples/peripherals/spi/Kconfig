@@ -1,0 +1,12 @@
+menu "Application config"
+
+    config EXAMPLE_SPI_PORT
+        int "spi port"
+        default 0
+        range 0 4
+
+    config EXAMPLE_SPI_BAUDRATE
+        int "spi baudrate"
+        default 20000000
+        range 1000000 100000000 
+endmenu

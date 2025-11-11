@@ -26,20 +26,10 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#ifndef EXAMPLE_OUTPUT_PIN
-#define EXAMPLE_OUTPUT_PIN TUYA_GPIO_NUM_26
-#endif
+#define EXAMPLE_IRQ_MODE       TUYA_GPIO_IRQ_RISE
 
-#ifndef EXAMPLE_INPUT_PIN
-#define EXAMPLE_INPUT_PIN TUYA_GPIO_NUM_7
-#endif
-
-#ifndef EXAMPLE_IRQ_PIN
-#define EXAMPLE_IRQ_PIN TUYA_GPIO_NUM_6
-#endif
-
-#define TASK_GPIO_PRIORITY THREAD_PRIO_2
-#define TASK_GPIO_SIZE     4096
+#define TASK_GPIO_PRIORITY     THREAD_PRIO_2
+#define TASK_GPIO_SIZE         4096
 
 /***********************************************************
 ***********************typedef define***********************
@@ -94,7 +84,7 @@ static void __example_gpio_task(void *param)
     TUYA_GPIO_IRQ_T irq_cfg = {
         .cb = __gpio_irq_callback,
         .arg = NULL,
-        .mode = TUYA_GPIO_IRQ_RISE,
+        .mode = EXAMPLE_IRQ_MODE,
     };
     TUYA_CALL_ERR_LOG(tkl_gpio_irq_init(EXAMPLE_IRQ_PIN, &irq_cfg));
 
