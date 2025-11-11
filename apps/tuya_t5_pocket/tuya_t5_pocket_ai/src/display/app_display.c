@@ -22,6 +22,7 @@
 #include "main_screen.h"
 #include "toast_screen.h"
 #include "rfid_scan_screen.h"
+#include "ai_log_screen.h"
 #include "axp2101_driver.h"
 /***********************************************************
 ************************macro define************************
@@ -97,6 +98,14 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     case POCKET_DISP_TP_RFID_SCAN_SUCCESS:
         if (screen_get_now_screen() != &rfid_scan_screen) {
             screen_load(&rfid_scan_screen);
+        }
+        break;
+
+    case POCKET_DISP_TP_AI_LOG:
+        // For AI log messages, simply print to console
+        PR_DEBUG("AI LOG: %d", msg_data->len);
+        if (msg_data->data && msg_data->len > 0) {
+            ai_log_screen_update_log((const char *)msg_data->data, msg_data->len);
         }
         break;
 

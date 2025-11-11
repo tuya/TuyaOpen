@@ -46,8 +46,12 @@ typedef struct {
 ***********************************************************/
 
 static THREAD_HANDLE rfid_scan_thread = NULL;
+static THREAD_HANDLE log_scan_thread = NULL;
 static uint8_t sg_read_buffer[READ_BUFFER_SIZE];
 static RFID_SCAN_FRAME rfid_dev;
+
+// Log scan thread control
+static BOOL_T log_scan_running = FALSE;
 
 static uint16_t crc16_mbrtu(uint8_t *buf, uint32_t len)
 {
@@ -117,25 +121,54 @@ int kmp_search(const char *s, const char *p)
 
 void __log_scan_thread(void *param)
 {
-    while (1) {
+    OPERATE_RET rt = OPRT_OK;
+
+    tkl_io_pinmux_config(TUYA_IO_PIN_40, TUYA_UART2_RX);
+    tkl_io_pinmux_config(TUYA_IO_PIN_41, TUYA_UART2_TX);
+
+    /* UART 2 init */
+    TAL_UART_CFG_T cfg = {0};
+    cfg.base_cfg.baudrate = 460800;
+    cfg.base_cfg.databits = TUYA_UART_DATA_LEN_8BIT;
+    cfg.base_cfg.stopbits = TUYA_UART_STOP_LEN_1BIT;
+    cfg.base_cfg.parity = TUYA_UART_PARITY_TYPE_NONE;
+    cfg.rx_buffer_size = 2048;
+    cfg.open_mode = O_BLOCK;
+    rt = tal_uart_init(USR_UART_NUM, &cfg);
+
+    if (rt != OPRT_OK) {
+        PR_ERR("UART init failed");
+        return;
+    }
+
+    while (log_scan_running) {
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
-        sg_read_buffer[read_len] = '\0';
         if (read_len > 0) {
+            sg_read_buffer[read_len] = '\0';
             int16_t pos = kmp_search((const char *)sg_read_buffer, "ty E");
             if (pos >= 0) {
                 PR_DEBUG("KMP search result: %d, data len: %d", pos, read_len);
+                app_display_send_msg(POCKET_DISP_TP_AI_LOG, sg_read_buffer, read_len);
                 ai_text_agent_upload((uint8_t *)sg_read_buffer, read_len);
             }
         }
         // Log RFID scan data
         tal_system_sleep(50);
     }
+
+    PR_NOTICE("Log scan thread stopped");
 }
 
 void __rfid_scan_thread(void *param)
 {
     while (1) {
+        if (log_scan_thread) {
+            tal_system_sleep(50);
+            log_scan_thread = NULL;
+            break;
+        }
+
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
         if(read_len <= 0) {
@@ -156,7 +189,7 @@ void __rfid_scan_thread(void *param)
         uint16_t calculated_crc = crc16_mbrtu((uint8_t *)&sg_read_buffer[0], read_len - 2);
         calculated_crc = calculated_crc << 8 | (calculated_crc >> 8);
         if (calculated_crc != rfid_dev.crc) {
-            PR_ERR("CRC mismatch: received 0x%04X, calculated 0x%04X", rfid_dev.crc, calculated_crc);
+            // PR_ERR("CRC mismatch: received 0x%04X, calculated 0x%04X", rfid_dev.crc, calculated_crc);
             tal_system_sleep(100);
             continue;
         }
@@ -187,7 +220,7 @@ OPERATE_RET rfid_scan_init(void)
 
     /* UART 2 init */
     TAL_UART_CFG_T cfg = {0};
-    cfg.base_cfg.baudrate = 460800;
+    cfg.base_cfg.baudrate = 115200;
     cfg.base_cfg.databits = TUYA_UART_DATA_LEN_8BIT;
     cfg.base_cfg.stopbits = TUYA_UART_STOP_LEN_1BIT;
     cfg.base_cfg.parity = TUYA_UART_PARITY_TYPE_NONE;
@@ -195,10 +228,75 @@ OPERATE_RET rfid_scan_init(void)
     cfg.open_mode = O_BLOCK;
     rt = tal_uart_init(USR_UART_NUM, &cfg);
 
-    THREAD_CFG_T thrd_param = {4096, 4, "rfid_scan_thread"};
-    // tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
+    // Start RFID scan thread
+    THREAD_CFG_T thrd_param = {2048, 4, "rfid_scan_thread"};
     tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __rfid_scan_thread, NULL, &thrd_param);
 
+    // THREAD_CFG_T thrd_param = {4096, 4, "log_scan_thread"};
+    // tal_thread_create_and_start(&log_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
+
     return rt;
+}
+
+/**
+ * @brief Start log scanning thread
+ * This function starts the UART log scanning thread for AI log screen.
+ */
+OPERATE_RET rfid_log_scan_start(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (log_scan_running) {
+        PR_WARN("Log scan thread already running");
+        return OPRT_OK;
+    }
+
+    log_scan_running = TRUE;
+
+    if (rfid_scan_thread) {
+        tal_system_sleep(200);
+        tal_thread_delete(rfid_scan_thread);
+        rfid_scan_thread = NULL;
+    }
+    tal_uart_deinit(USR_UART_NUM);
+
+    THREAD_CFG_T thrd_param = {4096, 4, "log_scan_thread"};
+    rt = tal_thread_create_and_start(&log_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to create log scan thread: %d", rt);
+        log_scan_running = FALSE;
+        return rt;
+    }
+
+    PR_NOTICE("Log scan thread creation requested");
+    return OPRT_OK;
+}
+
+/**
+ * @brief Stop log scanning thread
+ * This function stops the UART log scanning thread.
+ */
+OPERATE_RET rfid_log_scan_stop(void)
+{
+    if (!log_scan_running) {
+        PR_WARN("Log scan thread not running");
+        return OPRT_OK;
+    }
+
+    PR_NOTICE("Stopping log scan thread...");
+    log_scan_running = FALSE;
+
+    // Wait for thread to finish
+    if (log_scan_thread) {
+        tal_system_sleep(200); // Give thread time to exit cleanly
+        tal_thread_delete(log_scan_thread);
+        log_scan_thread = NULL;
+    }
+    tal_uart_deinit(USR_UART_NUM);
+
+    rfid_scan_init(); // Re-initialize RFID scan after stopping log scan
+
+    PR_NOTICE("Log scan thread stopped");
+    return OPRT_OK;
 }
 

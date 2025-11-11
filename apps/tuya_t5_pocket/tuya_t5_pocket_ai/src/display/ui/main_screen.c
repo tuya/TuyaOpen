@@ -30,6 +30,7 @@
 #include "standby_screen.h"
 #include "ebook_screen.h"
 #include "rfid_scan_screen.h"
+#include "ai_log_screen.h"
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -307,9 +308,10 @@ static void keyboard_event_cb(lv_event_t *e)
             break;
         case KEY_JOYCON:{
 #if defined(ENABLE_LVGL_HARDWARE)
-                uint8_t chat_text[] = "Tell me today's weather and tell me a new story";
-                toast_screen_show("Tell you a new story", 1000);
-                ai_text_agent_upload(chat_text, sizeof(chat_text));
+                // uint8_t chat_text[] = "Tell me today's weather and tell me a new story";
+                // toast_screen_show("Tell you a new story", 1000);
+                // ai_text_agent_upload(chat_text, sizeof(chat_text));
+                screen_load(&ai_log_screen);
 #else
                 toast_screen_show("Unlock at Higher Level", 2000);
 #endif

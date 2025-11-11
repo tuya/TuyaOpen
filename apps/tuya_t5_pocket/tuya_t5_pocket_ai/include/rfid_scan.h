@@ -19,6 +19,18 @@ extern "C" {
  */
 OPERATE_RET rfid_scan_init(void);
 
+/**
+ * @brief Start log scanning thread
+ * This function starts the UART log scanning thread for AI log screen.
+ */
+OPERATE_RET rfid_log_scan_start(void);
+
+/**
+ * @brief Stop log scanning thread
+ * This function stops the UART log scanning thread.
+ */
+OPERATE_RET rfid_log_scan_stop(void);
+
 #if defined(__cplusplus)
 }
 #endif
