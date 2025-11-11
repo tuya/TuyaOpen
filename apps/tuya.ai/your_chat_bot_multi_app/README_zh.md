@@ -3,7 +3,9 @@
 ## 项目功能简介
 
 `your_chat_bot_multi_app` 是一个基于 Tuya IoT 平台的智能聊天机器人多应用系统，集成了丰富的GUI界面和功能模块。
-
+![](./src/display/image/home_page.jpg)
+![](./src/display/image/draw_page.jpg)
+![](./src/display/image/weather_page.jpg)
 ### 核心功能
 
 1. **智能聊天机器人**
