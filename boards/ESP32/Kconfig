@@ -95,6 +95,13 @@ choice
         if (BOARD_CHOICE_DNESP32S3_BOX2_WIFI)
             rsource "./DNESP32S3_BOX2_WIFI/Kconfig"
         endif
+        
+    config BOARD_CHOICE_XIAOZHI_ESP32S3_MOON_1_28
+        bool "XIAOZHI_ESP32S3_MOON_1.28"
+        if (BOARD_CHOICE_XIAOZHI_ESP32S3_MOON_1_28)
+            rsource "./XIAOZHI_ESP32S3_MOON_1.28/Kconfig"
+        endif
+
 
 # <new-board-add: This line cannot be deleted or modified>
 
