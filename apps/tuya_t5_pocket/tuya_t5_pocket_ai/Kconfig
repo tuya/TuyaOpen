@@ -44,17 +44,4 @@ config ENABLE_AUDIO_CHAT
     bool "enable audio chat mode"
     default y
 
-# Font configurations - directly define them here
-config LV_FONT_MONTSERRAT_10
-    bool "Enable Montserrat 10 font"
-    default y
-
-config LV_FONT_MONTSERRAT_12
-    bool "Enable Montserrat 12 font"
-    default y
-
-config LV_FONT_MONTSERRAT_32
-    bool "Enable Montserrat 32 font"
-    default y
-
 endmenu
