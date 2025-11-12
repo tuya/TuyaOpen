@@ -489,24 +489,24 @@
 #endif
 
 /*Demonstrate special features*/
-#ifndef CONFIG_LV_FONT_MONTSERRAT_28_COMPRESSED
+#ifndef LV_FONT_MONTSERRAT_28_COMPRESSED
 #define LV_FONT_MONTSERRAT_28_COMPRESSED 0  /*bpp = 3*/
 #endif
 
-#ifndef CONFIG_LV_FONT_DEJAVU_16_PERSIAN_HEBREW
+#ifndef LV_FONT_DEJAVU_16_PERSIAN_HEBREW
 #define LV_FONT_DEJAVU_16_PERSIAN_HEBREW 0  /*Hebrew, Arabic, Persian letters and all their forms*/
 #endif
 
-#ifndef CONFIG_LV_FONT_SIMSUN_16_CJK
-#define LV_FONT_SIMSUN_16_CJK 0  /*Chinese, Japanese, Korean characters*/
+#ifndef LV_FONT_SIMSUN_16_CJK
+#define LV_FONT_SIMSUN_16_CJK 0  /*1000 most common CJK radicals*/
 #endif
 
 /*Pixel perfect monospace fonts*/
-#ifndef CONFIG_LV_FONT_UNSCII_8
+#ifndef LV_FONT_UNSCII_8
 #define LV_FONT_UNSCII_8  0
 #endif
 
-#ifndef CONFIG_LV_FONT_UNSCII_16
+#ifndef LV_FONT_UNSCII_16
 #define LV_FONT_UNSCII_16 0
 #endif
 
