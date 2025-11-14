@@ -11,12 +11,14 @@
 #include "tal_uart.h"
 #include "tal_system.h"
 #include "tal_api.h"
+#include "tuya_ringbuf.h"
 
 #include "ai_audio.h"
 
 #include "app_display.h"
 #include "rfid_scan_screen.h"
-
+#include "DP_48A_printer.h"
+#include "utf8_to_gbk.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -47,11 +49,27 @@ typedef struct {
 
 static THREAD_HANDLE rfid_scan_thread = NULL;
 static THREAD_HANDLE log_scan_thread = NULL;
+static THREAD_HANDLE printer_scan_thread = NULL;
 static uint8_t sg_read_buffer[READ_BUFFER_SIZE];
 static RFID_SCAN_FRAME rfid_dev;
 
+static TAL_UART_CFG_T cfg = {
+    .base_cfg.baudrate = 115200,
+    .base_cfg.databits = TUYA_UART_DATA_LEN_8BIT,
+    .base_cfg.stopbits = TUYA_UART_STOP_LEN_1BIT,
+    .base_cfg.parity = TUYA_UART_PARITY_TYPE_NONE,
+    .rx_buffer_size = 2048,
+    .open_mode = O_BLOCK
+};
+
 // Log scan thread control
 static BOOL_T log_scan_running = FALSE;
+// Printer scan thread control
+static BOOL_T printer_scan_running = FALSE;
+
+// 外部函数声明，用于获取打印环形缓冲区和文本流状态
+extern TUYA_RINGBUFF_T app_get_print_ringbuf(void);
+extern BOOL_T app_get_text_stream_status(void);
 
 static uint16_t crc16_mbrtu(uint8_t *buf, uint32_t len)
 {
@@ -142,6 +160,12 @@ void __log_scan_thread(void *param)
     }
 
     while (log_scan_running) {
+        if (cfg.base_cfg.baudrate != 460800) {
+            tal_uart_deinit(USR_UART_NUM);
+            cfg.base_cfg.baudrate = 460800;
+            tal_uart_init(USR_UART_NUM, &cfg);
+        }
+
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
         if (read_len > 0) {
@@ -150,6 +174,10 @@ void __log_scan_thread(void *param)
             if (pos >= 0) {
                 PR_DEBUG("KMP search result: %d, data len: %d", pos, read_len);
                 app_display_send_msg(POCKET_DISP_TP_AI_LOG, sg_read_buffer, read_len);
+                if (app_get_text_stream_status() == TRUE){
+                    tal_system_sleep(50);
+                    continue;
+                }
                 ai_text_agent_upload((uint8_t *)sg_read_buffer, read_len);
             }
         }
@@ -160,12 +188,127 @@ void __log_scan_thread(void *param)
     PR_NOTICE("Log scan thread stopped");
 }
 
+/**
+ * @brief Get the full byte length of a UTF8 character
+ * @param b First byte of the UTF8 character
+ * @return Total bytes of the character, 0 means illegal
+ */
+static uint8_t utf8_full_char_len(uint8_t b)
+{
+    if (b < 0x80) return 1;
+    if ((b & 0xE0) == 0xC0) return 2;
+    if ((b & 0xF0) == 0xE0) return 3;
+    if ((b & 0xF8) == 0xF0) return 4;
+    return 0;   /* Illegal header */
+}
+
+/**
+ * @brief Printer scan thread, reads UTF8 data from ring buffer and converts to GBK for printing
+ */
+void __printer_scan_thread(void *param)
+{
+    uint8_t utf8_buf[16];  // Max 4 bytes for a single UTF8 character
+    uint8_t gbk_buf[512];   // GBK conversion buffer
+    
+    PR_NOTICE("Printer scan thread started");
+    
+    while (printer_scan_running) {
+        TUYA_RINGBUFF_T ringbuf = app_get_print_ringbuf();
+        
+        if (NULL == ringbuf) {
+            PR_NOTICE("Printer ringbuf is NULL");
+            tal_system_sleep(100);
+            continue;
+        }
+        
+        // Check available bytes in ring buffer
+        uint32_t available = tuya_ring_buff_used_size_get(ringbuf);
+        if (available == 0) {
+            // Buffer empty, wait for data
+            tal_system_sleep(50);
+            continue;
+        }
+        
+        // Read first byte to determine character length
+        uint8_t first_byte;
+        if (tuya_ring_buff_read(ringbuf, &first_byte, 1) != 1) {
+            PR_WARN("Failed to read first byte");
+            tal_system_sleep(10);
+            continue;
+        }
+        
+        // Determine the full character length needed
+        uint8_t char_len = utf8_full_char_len(first_byte);
+        if (char_len == 0) {
+            PR_WARN("Invalid UTF8 first byte: 0x%02X, skipped", first_byte);
+            continue;
+        }
+        
+        // Put first byte into buffer
+        utf8_buf[0] = first_byte;
+        
+        // If more bytes needed, wait for them to arrive
+        if (char_len > 1) {
+            // Wait for remaining bytes, max 2 seconds
+            uint32_t retry = 0;
+            while (tuya_ring_buff_used_size_get(ringbuf) < (char_len - 1) && retry < 200) {
+                tal_system_sleep(10);
+                retry++;
+            }
+        
+            // Check if data arrived successfully
+            uint32_t available_now = tuya_ring_buff_used_size_get(ringbuf);
+            if (available_now < (char_len - 1)) {
+                // Incomplete data, print question mark
+                PR_WARN("Incomplete UTF8: first=0x%02X, need %d, got %d", 
+                        first_byte, char_len - 1, available_now);
+                uint8_t placeholder[] = {0x3F};
+                dp48a_print_text_raw(placeholder, 1);
+                continue;
+            }
+            
+            // Read remaining bytes
+            if (tuya_ring_buff_read(ringbuf, &utf8_buf[1], char_len - 1) != (char_len - 1)) {
+                PR_WARN("Failed to read remaining bytes");
+                uint8_t placeholder[] = {0x3F};
+                dp48a_print_text_raw(placeholder, 1);
+                continue;
+            }
+        }
+        
+        // Convert UTF8 to GBK
+        int gbk_len = utf8_to_gbk_buf(utf8_buf, char_len, gbk_buf, sizeof(gbk_buf));
+        if (gbk_len > 0) {
+            // Send to printer
+            dp48a_print_text_raw(gbk_buf, gbk_len);
+            if (tuya_ring_buff_used_size_get(ringbuf) == 0 && app_get_text_stream_status() == FALSE) {
+                dp48a_feed_and_cut(2);
+            }
+        } else {
+            PR_WARN("UTF8 to GBK conversion failed");
+            uint8_t placeholder[] = {0x3F};
+            dp48a_print_text_raw(placeholder, 1);
+        }
+        
+        // Brief delay to avoid consuming too much CPU
+        tal_system_sleep(20);
+    }
+    
+    PR_NOTICE("Printer scan thread stopped");
+}
+
 void __rfid_scan_thread(void *param)
 {
     while (!log_scan_running) {
+        if (cfg.base_cfg.baudrate != 115200) {
+            tal_uart_deinit(USR_UART_NUM);
+            cfg.base_cfg.baudrate = 115200;
+            tal_uart_init(USR_UART_NUM, &cfg);
+        }
+
         // RFID scanning logic goes here
         int read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);
-        if(read_len <= 0) {
+        if(read_len <= 28) {
             tal_system_sleep(100);
             continue;
         }
@@ -223,9 +366,20 @@ OPERATE_RET rfid_scan_init(void)
     rt = tal_uart_init(USR_UART_NUM, &cfg);
 
     // Start RFID scan thread
-    THREAD_CFG_T thrd_param = {2048, 4, "rfid_scan_thread"};
-    tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __rfid_scan_thread, NULL, &thrd_param);
+    THREAD_CFG_T thrd_param_rfid = {2048, 4, "rfid_scan_thread"};
+    tal_thread_create_and_start(&rfid_scan_thread, NULL, NULL, __rfid_scan_thread, NULL, &thrd_param_rfid);
 
+    // Start printer scan thread
+    printer_scan_running = TRUE;
+    THREAD_CFG_T thrd_param_printer = {4096, 4, "printer_scan_thread"};
+    rt = tal_thread_create_and_start(&printer_scan_thread, NULL, NULL, __printer_scan_thread, NULL, &thrd_param_printer);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to create printer scan thread: %d", rt);
+        printer_scan_running = FALSE;
+        return rt;
+    }
+
+    PR_NOTICE("RFID and printer scan threads started");
     return rt;
 }
 
@@ -244,12 +398,23 @@ OPERATE_RET rfid_log_scan_start(void)
 
     log_scan_running = TRUE;
 
+    // Stop RFID scan thread
     if (rfid_scan_thread) {
+        tal_system_sleep(100);  // Wait for thread to exit
         tal_thread_delete(rfid_scan_thread);
-        tal_system_sleep(50);
-        tal_uart_deinit(USR_UART_NUM);
         rfid_scan_thread = NULL;
     }
+    
+    // Stop printer scan thread
+    // if (printer_scan_thread) {
+    //     printer_scan_running = FALSE;
+    //     tal_system_sleep(100);  // Wait for thread to exit
+    //     tal_thread_delete(printer_scan_thread);
+    //     printer_scan_thread = NULL;
+    // }
+    
+    tal_system_sleep(50);
+    tal_uart_deinit(USR_UART_NUM);
 
     THREAD_CFG_T thrd_param = {4096, 4, "log_scan_thread"};
     rt = tal_thread_create_and_start(&log_scan_thread, NULL, NULL, __log_scan_thread, NULL, &thrd_param);
