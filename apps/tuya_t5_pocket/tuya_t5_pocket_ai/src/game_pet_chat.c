@@ -26,6 +26,9 @@
 #include "game_pet.h"
 #include "media_src_en.h"
 #include "board_bmi270_api.h"
+#include "rfid_scan.h"
+#include "DP_48A_printer.h"
+#include "utf8_to_gbk.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -142,14 +145,30 @@ static TDL_LED_HANDLE_T sg_led_hdl = NULL;
 #endif
 
 static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
-static TIMER_ID sg_battery_update_timer = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
-static void __battery_update_timer_cb(TIMER_ID timer_id, void *param)
+#define UTF8_RINGBUF_SIZE 4096  /* Ring buffer size */
+static TUYA_RINGBUFF_T sg_print_ringbuf = NULL;
+static volatile BOOL_T sg_text_stream_active = FALSE;  /* Whether text stream is active */
+
+/**
+ * @brief Get print ring buffer handle
+ * @return Ring buffer handle
+ */
+TUYA_RINGBUFF_T app_get_print_ringbuf(void)
 {
-    app_display_send_msg(POCKET_DISP_TP_BATTERY_STATUS, NULL, 0);
+    return sg_print_ringbuf;
+}
+
+/**
+ * @brief Get text stream status
+ * @return TRUE=text stream active, FALSE=text stream ended
+ */
+BOOL_T app_get_text_stream_status(void)
+{
+    return sg_text_stream_active;
 }
 
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
@@ -161,10 +180,27 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
         }
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_START: {
+        sg_text_stream_active = TRUE;  // Mark text stream started
+        PR_NOTICE("=== TEXT_START: Stream started ===");
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
+        // Write UTF8 data to ring buffer
+        if (sg_print_ringbuf && data && len > 0) {
+            uint32_t written = tuya_ring_buff_write(sg_print_ringbuf, data, len);
+            uint32_t buf_used = tuya_ring_buff_used_size_get(sg_print_ringbuf);
+            
+            if (written < len) {
+                PR_WARN("Ringbuf full! written %d/%d bytes, buf_used=%d", written, len, buf_used);
+            } else {
+                PR_DEBUG("Written %d bytes, total buf_used=%d", written, buf_used);
+            }
+        }
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_END: {
+        // Mark stream ended
+        uint32_t remaining = sg_print_ringbuf ? tuya_ring_buff_used_size_get(sg_print_ringbuf) : 0;
+        PR_NOTICE("=== TEXT_END: %d bytes in buffer, stream marked as ended ===", remaining);
+        sg_text_stream_active = FALSE;
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_EMO: {
         AI_AUDIO_EMOTION_T *emo;
@@ -335,10 +371,14 @@ OPERATE_RET app_pocket_init(void)
     OPERATE_RET rt = OPRT_OK;
     AI_AUDIO_CONFIG_T ai_audio_cfg;
 
-    app_display_init();
+    // Create printer ring buffer
+    rt = tuya_ring_buff_create(UTF8_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &sg_print_ringbuf);
+    if (rt != OPRT_OK || sg_print_ringbuf == NULL) {
+        PR_ERR("Failed to create print ringbuf, rt=%d", rt);
+        return OPRT_MALLOC_FAILED;
+    }
 
-    tal_sw_timer_create(__battery_update_timer_cb, NULL, &sg_battery_update_timer);
-    tal_sw_timer_start(sg_battery_update_timer, 1000, 1);
+    app_display_init();
 
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
     ai_audio_cfg.evt_inform_cb = __app_ai_audio_evt_inform_cb;
@@ -347,6 +387,8 @@ OPERATE_RET app_pocket_init(void)
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
 
     TUYA_CALL_ERR_RETURN(__app_open_button());
+
+    TUYA_CALL_ERR_RETURN(rfid_scan_init());
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
     sg_led_hdl = tdl_led_find_dev(LED_NAME);

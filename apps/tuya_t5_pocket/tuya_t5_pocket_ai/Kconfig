@@ -43,4 +43,5 @@ endif
 config ENABLE_AUDIO_CHAT
     bool "enable audio chat mode"
     default y
+
 endmenu

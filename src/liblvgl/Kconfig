@@ -83,4 +83,7 @@ menuconfig ENABLE_LIBLVGL
                 default 10 if LV_DRAW_BUF_PROPORTION_10
                 default 20 if LV_DRAW_BUF_PROPORTION_5
         endif
+
+        # Font configuration
+        rsource "Fonts_Kconfig"
     endif
