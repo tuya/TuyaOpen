@@ -22,7 +22,6 @@
 
 #ifdef ENABLE_LVGL_HARDWARE
 #include "tkl_fs.h"
-#include "rfid_scan.h"
 #endif
 
 /***********************************************************
@@ -59,6 +58,9 @@ static lv_obj_t *log_text_area = NULL;
 static char log_buffer[MAX_LOG_SIZE] = {0};
 static size_t log_buffer_used = 0;
 
+// Lifecycle callback
+static ai_log_screen_lifecycle_cb_t sg_lifecycle_callback = NULL;
+
 #ifdef ENABLE_LVGL_HARDWARE
 // SD card mount status
 static bool sd_card_mounted = false;
@@ -84,6 +86,18 @@ static void save_log_to_sd(char *log_text, size_t length);
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+
+/**
+ * @brief Register lifecycle callback for AI log screen
+ * This allows external modules to be notified when the screen is shown/hidden
+ * 
+ * @param callback Callback function, NULL to unregister
+ */
+void ai_log_screen_register_lifecycle_cb(ai_log_screen_lifecycle_cb_t callback)
+{
+    sg_lifecycle_callback = callback;
+    printf("[AI Log] Lifecycle callback %s\n", callback ? "registered" : "unregistered");
+}
 
 #ifdef ENABLE_LVGL_HARDWARE
 /**
@@ -304,10 +318,9 @@ void ai_log_screen_init(void)
         printf("[AI Log] Failed to mount SD card: %d\n", rt);
     }
 
-    // Start log scanning thread
-    rt = rfid_log_scan_start();
-    if (rt != OPRT_OK) {
-        printf("[AI Log] Failed to start log scan thread: %d\n", rt);
+    // Notify external modules that screen is initialized
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(TRUE);
     }
 #endif
 
@@ -372,8 +385,10 @@ void ai_log_screen_deinit(void)
     log_text_area = NULL;
 
 #ifdef ENABLE_LVGL_HARDWARE
-    // Stop log scanning thread
-    rfid_log_scan_stop();
+    // Notify external modules that screen is deinitialized
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(FALSE);
+    }
 
     // Unmount SD card
     if (sd_card_mounted) {

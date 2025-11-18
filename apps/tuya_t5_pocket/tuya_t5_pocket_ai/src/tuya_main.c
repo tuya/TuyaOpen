@@ -104,7 +104,6 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
             break;
         }
     }
-
     return OPRT_OK;
 }
 

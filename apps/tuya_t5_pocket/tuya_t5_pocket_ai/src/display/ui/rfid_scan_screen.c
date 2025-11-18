@@ -412,33 +412,12 @@ static void keyboard_event_cb(lv_event_t *e)
         case KEY_UP:
         case KEY_LEFT:
             printf("RFID scan: Clearing tag information\n");
-            rfid_scan_screen_clear_tag();
+            memset(&current_tag, 0, sizeof(rfid_tag_info_t));
             break;
 
         default:
             break;
     }
-}
-
-/**
- * @brief Update RFID tag information on screen
- */
-void rfid_scan_screen_update_tag(const rfid_tag_info_t *tag_info)
-{
-    if (tag_info) {
-        memcpy(&current_tag, tag_info, sizeof(rfid_tag_info_t));
-        update_display();
-    }
-}
-
-/**
- * @brief Clear displayed RFID tag information
- */
-void rfid_scan_screen_clear_tag(void)
-{
-    memset(&current_tag, 0, sizeof(rfid_tag_info_t));
-    current_tag.is_valid = false;
-    update_display();
 }
 
 /**

@@ -10,7 +10,6 @@
 
 #include "tdl_button_manage.h"
 #include "tdl_joystick_manage.h"
-// #include "ai_pocket_pet_app.h"
 #include "lv_vendor.h"
 #include "app_display.h"
 #include "game_pet.h"

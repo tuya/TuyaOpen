@@ -1,5 +1,9 @@
-#ifndef DP48A_H
-#define DP48A_H
+#ifndef __DP48A_PRINTER_H__
+#define __DP48A_PRINTER_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "tuya_cloud_types.h"
 #include <stdint.h>
@@ -111,6 +115,7 @@ void dp48a_print_test_page(void);
 // ==================== Text printing ====================
 void dp48a_print_text(const char *text);
 void dp48a_print_line(const char *text);
+void dp48a_print_enter(void);
 void dp48a_print_text_raw(const uint8_t *data, size_t len);
 
 // ==================== Text formatting ====================
@@ -190,5 +195,9 @@ void dp48a_print_divider(char ch, uint8_t count);
 // ==================== Debug functions ====================
 void dp48a_debug_print_hex(const char *prefix, const char *text);
 void dp48a_debug_print_hex_raw(const char *prefix, const uint8_t *data, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
