@@ -25,7 +25,6 @@
 
 #ifdef ENABLE_LVGL_HARDWARE
 #include "tkl_fs.h"
-#include "tal_api.h"
 #include "tkl_output.h"
 #include "tal_kv.h"
 #include "tal_system.h"

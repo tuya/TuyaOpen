@@ -1,3 +1,10 @@
+/**
+ * @file rfid_scan.h
+ * @brief Implementation of RFID scan functions
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
 #ifndef __RFID_SCAN_H__
 #define __RFID_SCAN_H__
 

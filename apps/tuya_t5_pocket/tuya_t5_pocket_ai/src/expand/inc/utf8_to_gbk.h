@@ -1,3 +1,10 @@
+/**
+ * @file utf8_to_gbk.h
+ * @brief Implementation of UTF-8 to GBK conversion functions
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
 #ifndef __UTF8TOGBK_H__
 #define __UTF8TOGBK_H__
 

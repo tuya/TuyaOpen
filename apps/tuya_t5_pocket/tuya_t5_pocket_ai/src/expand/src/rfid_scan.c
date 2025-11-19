@@ -52,7 +52,7 @@ OPERATE_RET rfid_scan_process(const uint8_t *buffer, int len, rfid_scan_callback
     }
     
     if (callback == NULL) {
-        
+
         return OPRT_INVALID_PARM;
     }
     
@@ -71,7 +71,7 @@ OPERATE_RET rfid_scan_process(const uint8_t *buffer, int len, rfid_scan_callback
     uint16_t calculated_crc = crc16_mbrtu((uint8_t *)&buffer[0], len - 2);
     calculated_crc = calculated_crc << 8 | (calculated_crc >> 8);
     if (calculated_crc != rfid_frame.crc) {
-        PR_DEBUG("CRC mismatch: received 0x%04X, calculated 0x%04X", rfid_frame.crc, calculated_crc);
+        // PR_DEBUG("CRC mismatch: received 0x%04X, calculated 0x%04X", rfid_frame.crc, calculated_crc);
         return OPRT_INVALID_PARM;
     }
     

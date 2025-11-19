@@ -22,7 +22,6 @@
 #include <string.h>
 #include <stdlib.h>
 #if defined(ENABLE_LVGL_HARDWARE)
-#include "ai_audio.h"
 #include "tal_kv.h"
 #endif
 /***********************************************************
@@ -362,12 +361,7 @@ static void handle_action_selection(void)
                 break;
             case 1: // View Statistics
                 printf("View Statistics action selected\n");
-#if defined(ENABLE_LVGL_HARDWARE)
-				uint8_t chat_text[] = "What did you do yesterday";
-                ai_text_agent_upload(chat_text, sizeof(chat_text));
-#else
 				toast_screen_show("Unlock at Higher Level", 2000);
-#endif
                 break;
             case 2: // WIFI Settings
                 printf("WIFI Settings action selected\n");

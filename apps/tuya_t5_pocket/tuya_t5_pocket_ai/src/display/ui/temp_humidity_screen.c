@@ -20,9 +20,6 @@
 #include <stdlib.h>
 
 #ifdef ENABLE_LVGL_HARDWARE
-// #include "tuya_cloud_types.h"
-// #include "tal_api.h"
-// #include "tkl_output.h"
 #include "tkl_gpio.h"
 #include "tkl_i2c.h"
 #include "tkl_pinmux.h"

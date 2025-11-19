@@ -1,3 +1,10 @@
+/**
+ * @file ai_log.h
+ * @brief KMP substring search function declaration
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
 #ifndef __KMP_SEARCH_H__
 #define __KMP_SEARCH_H__
 

@@ -71,13 +71,6 @@ OPERATE_RET uart_expand_register_callback(UART_MODE_E mode, uart_data_callback_t
  */
 uint32_t uart_print_write(const uint8_t *data, size_t len);
 
-/**
- * @brief Flush printer buffer
- * Force print all buffered data immediately
- * Useful when you want to ensure all data is printed before a critical operation
- */
-void uart_print_flush(void);
-
 #if defined(__cplusplus)
 }
 #endif

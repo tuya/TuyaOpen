@@ -32,8 +32,6 @@
 
 // Hardware abstraction - consistent with peripherals_scan.c
 #ifdef ENABLE_LVGL_HARDWARE
-#include "tuya_cloud_types.h"
-#include "tal_api.h"
 #include "tkl_pinmux.h"
 #include "tkl_i2c.h"
 #endif

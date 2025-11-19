@@ -1,3 +1,10 @@
+/**
+ * @file dp48a_printer.h
+ * @brief Implementation of DP48A printer functions
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
+ */
 #ifndef __DP48A_PRINTER_H__
 #define __DP48A_PRINTER_H__
 
