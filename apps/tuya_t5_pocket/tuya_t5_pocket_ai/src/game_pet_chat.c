@@ -343,6 +343,13 @@ OPERATE_RET app_pocket_init(void)
     OPERATE_RET rt = OPRT_OK;
     AI_AUDIO_CONFIG_T ai_audio_cfg;
 
+    // Create printer ring buffer
+    rt = tuya_ring_buff_create(UTF8_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &sg_print_ringbuf);
+    if (rt != OPRT_OK || sg_print_ringbuf == NULL) {
+        PR_ERR("Failed to create print ringbuf, rt=%d", rt);
+        return OPRT_MALLOC_FAILED;
+    }
+
     app_display_init();
 
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
