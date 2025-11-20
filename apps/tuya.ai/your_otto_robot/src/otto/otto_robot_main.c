@@ -334,6 +334,7 @@ void otto_power_on()
     otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, -1, -1);
     
    // otto_set_trims(0, 0, 0, 0, 0, 0);
+    // Set slower speed limit for legs and feet (120 deg/s)
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
     
     // Move legs and feet to home position
@@ -345,6 +346,15 @@ void otto_power_on()
     // Step 2: Initialize hands only, without affecting legs and feet
     PR_DEBUG("Initializing hands...");
     otto_init_hands_only_wrapper();
+    
+    // Set much slower speed limit for hand servos to prevent overheating (60 deg/s)
+    PR_DEBUG("Setting hand servo speed limit to %d deg/s (slower for protection)", SERVO_LIMIT_HAND);
+    if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+        oscillator_set_limiter(g_otto.oscillator_indices[LEFT_HAND], SERVO_LIMIT_HAND);
+    }
+    if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+        oscillator_set_limiter(g_otto.oscillator_indices[RIGHT_HAND], SERVO_LIMIT_HAND);
+    }
     
     // Set trim values for all servos from KV storage
     otto_set_trims_from_kv();

@@ -275,7 +275,15 @@ void oscillator_write(int idx, int position)
 
     int angle = osc->pos + osc->trim;
 
+    // Apply safety limits for all servos
     angle = MIN(MAX(angle, 0), 180);
+    
+    // Additional safety limits for hand servos (indices 4 and 5)
+    // to prevent mechanical damage and reduce stress
+    if (idx == 4 || idx == 5) {  // LEFT_HAND or RIGHT_HAND
+        angle = MIN(MAX(angle, 20), 160);  // More restrictive range for hands
+        PR_DEBUG("Hand servo %d: angle limited to safe range [20-160]: %d", idx, angle);
+    }
 
     // 计算占空比
     uint32_t duty = (uint32_t)((0.5 + angle / 180.0 * 2.0) * 10000 / 20);

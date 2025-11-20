@@ -28,7 +28,8 @@
 #define BIG 30         /**< Large movement amplitude */
 
 // -- Servo speed limit default (degrees per second)
-#define SERVO_LIMIT_DEFAULT 240
+#define SERVO_LIMIT_DEFAULT 120     /**< Default servo speed limit: 120 deg/s (reduced for safety) */
+#define SERVO_LIMIT_HAND 60         /**< Hand servo speed limit: 60 deg/s (slower for heavy load) */
 
 // -- Servo indexes for easy access 
 #define LEFT_LEG 0     /**< Left leg servo index */
@@ -41,6 +42,10 @@
 
 /**< Default hand home position angle */
 #define HAND_HOME_POSITION 45
+
+// Hand servo safety angle limits to prevent mechanical damage
+#define HAND_ANGLE_MIN 20          /**< Minimum safe angle for hand servos */
+#define HAND_ANGLE_MAX 160         /**< Maximum safe angle for hand servos */
 
 
 /**
@@ -300,6 +305,17 @@ void otto_enable_servo_limit(int speed_limit_degree_per_sec);
  * @brief Disable servo speed limiting
  */
 void otto_disable_servo_limit(void);
+
+/**
+ * @brief Put hand servos to sleep (stop PWM) to prevent overheating
+ * Useful when hands are not being used for extended periods
+ */
+void otto_hands_sleep(void);
+
+/**
+ * @brief Wake up hand servos (restart PWM)
+ */
+void otto_hands_wake(void);
 
 /**
  * @brief Execute complex servo movement with oscillation parameters

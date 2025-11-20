@@ -759,11 +759,12 @@ void otto_hand_wave(int period, int dir)
         return;
     }
 
-    
-    const int wave_amplitude = 30;     
-    const int wave_cycles = 5;         
-    const int raise_time = 300;        
+    // Reduced parameters to protect servo from overheating
+    const int wave_amplitude = 20;     // Reduced from 30 to 20 degrees (33% less stress)
+    const int wave_cycles = 3;         // Reduced from 5 to 3 cycles (40% less work)
+    const int raise_time = 400;        // Increased from 300ms for smoother motion
     const int wave_time = period / 10; 
+    const int rest_time = 100;         // Add rest time between cycles for cooling 
 
    
     const int left_raised = 170;
@@ -789,19 +790,24 @@ void otto_hand_wave(int period, int dir)
 
 
     for (int cycle = 0; cycle < wave_cycles; cycle++) {
-
+        // Wave inward
         if (wave_left)
             positions[LEFT_HAND] = left_raised - wave_amplitude;
         if (wave_right)
             positions[RIGHT_HAND] = right_raised + wave_amplitude;
         otto_move_servos(wave_time, positions);
 
-
+        // Wave outward
         if (wave_left)
             positions[LEFT_HAND] = left_raised + wave_amplitude;
         if (wave_right)
             positions[RIGHT_HAND] = right_raised - wave_amplitude;
         otto_move_servos(wave_time, positions);
+        
+        // Add rest time between cycles to prevent overheating
+        if (cycle < wave_cycles - 1) {  // Don't rest after last cycle
+            tal_system_sleep(rest_time);
+        }
     }
 
     if (wave_left)
@@ -809,5 +815,49 @@ void otto_hand_wave(int period, int dir)
     if (wave_right)
         positions[RIGHT_HAND] = 180 - HAND_HOME_POSITION;
     otto_move_servos(raise_time, positions);
+}
+
+//---------------------------------------------------------
+//-- Hand servos sleep mode to prevent overheating
+//---------------------------------------------------------
+void otto_hands_sleep(void)
+{
+    if (!g_otto.has_hands) {
+        return;
+    }
+    
+    PR_DEBUG("Putting hand servos to sleep to prevent overheating");
+    
+    // Stop PWM signal to hand servos
+    if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+        oscillator_stop(g_otto.oscillator_indices[LEFT_HAND]);
+    }
+    if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+        oscillator_stop(g_otto.oscillator_indices[RIGHT_HAND]);
+    }
+    
+    PR_DEBUG("Hand servos are now in sleep mode");
+}
+
+//---------------------------------------------------------
+//-- Wake up hand servos
+//---------------------------------------------------------
+void otto_hands_wake(void)
+{
+    if (!g_otto.has_hands) {
+        return;
+    }
+    
+    PR_DEBUG("Waking up hand servos");
+    
+    // Resume PWM signal to hand servos
+    if (g_otto.oscillator_indices[LEFT_HAND] != -1) {
+        oscillator_play(g_otto.oscillator_indices[LEFT_HAND]);
+    }
+    if (g_otto.oscillator_indices[RIGHT_HAND] != -1) {
+        oscillator_play(g_otto.oscillator_indices[RIGHT_HAND]);
+    }
+    
+    PR_DEBUG("Hand servos are now awake");
 }
 
