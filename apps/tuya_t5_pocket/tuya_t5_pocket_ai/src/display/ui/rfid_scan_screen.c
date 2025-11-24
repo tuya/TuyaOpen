@@ -25,22 +25,22 @@
 
 // Screen dimensions
 #ifndef AI_PET_SCREEN_WIDTH
-#define AI_PET_SCREEN_WIDTH  384
+#define AI_PET_SCREEN_WIDTH 384
 #endif
 #ifndef AI_PET_SCREEN_HEIGHT
 #define AI_PET_SCREEN_HEIGHT 168
 #endif
 
 // Color scheme - Black and White only
-#define COLOR_PRIMARY       lv_color_black()
-#define COLOR_SECONDARY     lv_color_black()
-#define COLOR_ACCENT        lv_color_black()
-#define COLOR_BACKGROUND    lv_color_white()
-#define COLOR_CARD          lv_color_white()
-#define COLOR_TEXT_PRIMARY  lv_color_black()
+#define COLOR_PRIMARY        lv_color_black()
+#define COLOR_SECONDARY      lv_color_black()
+#define COLOR_ACCENT         lv_color_black()
+#define COLOR_BACKGROUND     lv_color_white()
+#define COLOR_CARD           lv_color_white()
+#define COLOR_TEXT_PRIMARY   lv_color_black()
 #define COLOR_TEXT_SECONDARY lv_color_black()
-#define COLOR_SUCCESS       lv_color_black()
-#define COLOR_WARNING       lv_color_black()
+#define COLOR_SUCCESS        lv_color_black()
+#define COLOR_WARNING        lv_color_black()
 
 /***********************************************************
 ***********************variable define**********************
@@ -101,15 +101,15 @@ static void ui_refresh_timer_cb(lv_timer_t *timer)
         // Copy pending data to current tag
         memcpy(&current_tag, &pending_tag, sizeof(rfid_tag_info_t));
         pending_update = false;
-        
+
         // Update display
         update_display();
-        
+
         // Reset back_time when new data received
         back_time = 0;
-        
-        printf("[RFID Timer] UI refreshed - DevID=0x%02X, Type=0x%04X, UID_len=%d\n",
-               current_tag.dev_id, current_tag.tag_type, current_tag.uid_length);
+
+        printf("[RFID Timer] UI refreshed - DevID=0x%02X, Type=0x%04X, UID_len=%d\n", current_tag.dev_id,
+               current_tag.tag_type, current_tag.uid_length);
     }
 
     // Auto return to previous screen after 15 seconds of no new data
@@ -128,9 +128,12 @@ static void update_display(void)
 {
     if (!current_tag.is_valid) {
         // No tag detected - show waiting state
-        if (dev_id_value) lv_label_set_text(dev_id_value, "--");
-        if (tag_type_value) lv_label_set_text(tag_type_value, "----");
-        if (uid_value) lv_label_set_text(uid_value, "No tag detected");
+        if (dev_id_value)
+            lv_label_set_text(dev_id_value, "--");
+        if (tag_type_value)
+            lv_label_set_text(tag_type_value, "----");
+        if (uid_value)
+            lv_label_set_text(uid_value, "No tag detected");
 
         if (hint_label) {
             lv_label_set_text(hint_label, "Place tag near reader");
@@ -153,25 +156,25 @@ static void update_display(void)
         // Add tag type description based on RFID_TAG_TYPE_E enum
         const char *type_name = "Unknown";
         switch (current_tag.tag_type) {
-            case RFID_TAG_TYPE_MIFARE_CLASSIC_1K:
-                type_name = "Mifare Classic 1K";
-                break;
-            case RFID_TAG_TYPE_MIFARE_CLASSIC_4K:
-                type_name = "Mifare Classic 4K";
-                break;
-            case RFID_TAG_TYPE_MIFARE_ULTRALIGHT:
-                type_name = "Mifare Ultralight";
-                break;
-            case RFID_TAG_TYPE_TYPE_B:
-                type_name = "Type B (CN ID)";
-                break;
-            case RFID_TAG_TYPE_15693:
-                type_name = "ISO15693";
-                break;
-            case RFID_TAG_TYPE_UNKNOWN:
-            default:
-                type_name = "Unknown";
-                break;
+        case RFID_TAG_TYPE_MIFARE_CLASSIC_1K:
+            type_name = "Mifare Classic 1K";
+            break;
+        case RFID_TAG_TYPE_MIFARE_CLASSIC_4K:
+            type_name = "Mifare Classic 4K";
+            break;
+        case RFID_TAG_TYPE_MIFARE_ULTRALIGHT:
+            type_name = "Mifare Ultralight";
+            break;
+        case RFID_TAG_TYPE_TYPE_B:
+            type_name = "Type B (CN ID)";
+            break;
+        case RFID_TAG_TYPE_15693:
+            type_name = "ISO15693";
+            break;
+        case RFID_TAG_TYPE_UNKNOWN:
+        default:
+            type_name = "Unknown";
+            break;
         }
         snprintf(buffer, sizeof(buffer), "0x%04X (%s)", current_tag.tag_type, type_name);
         lv_label_set_text(tag_type_value, buffer);
@@ -182,17 +185,16 @@ static void update_display(void)
         buffer[0] = '\0';
         int offset = 0;
         for (uint8_t i = 0; i < current_tag.uid_length && i < 16; i++) {
-            int ret = snprintf(buffer + offset, sizeof(buffer) - offset,
-                                "%02X", current_tag.uid[i]);
+            int ret = snprintf(buffer + offset, sizeof(buffer) - offset, "%02X", current_tag.uid[i]);
             if (ret < 0 || ret >= (int)(sizeof(buffer) - offset)) {
-                break;  // Buffer full, stop
+                break; // Buffer full, stop
             }
             offset += ret;
-            
+
             if (i < current_tag.uid_length - 1 && i < 15) {
                 ret = snprintf(buffer + offset, sizeof(buffer) - offset, ":");
                 if (ret < 0 || ret >= (int)(sizeof(buffer) - offset)) {
-                    break;  // Buffer full, stop
+                    break; // Buffer full, stop
                 }
                 offset += ret;
             }
@@ -254,8 +256,8 @@ static void simulate_tag_scan(void)
     // Set flag to trigger UI update
     pending_update = true;
 
-    printf("[RFID Simulate] Tag scan simulated: DevID=0x%02X, Type=0x%04X, UID_len=%d\n",
-           pending_tag.dev_id, pending_tag.tag_type, pending_tag.uid_length);
+    printf("[RFID Simulate] Tag scan simulated: DevID=0x%02X, Type=0x%04X, UID_len=%d\n", pending_tag.dev_id,
+           pending_tag.tag_type, pending_tag.uid_length);
 #else
     // Hardware mode - data comes from actual RFID reader via callback
     printf("[RFID] Simulation disabled in hardware mode - waiting for real RFID data\n");
@@ -393,52 +395,31 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", rfid_scan_screen.name, key);
 
     switch (key) {
-        case KEY_ESC:
-            printf("RFID scan: ESC key detected, returning to previous screen\n");
-            screen_back();
-            break;
+    case KEY_ESC:
+        printf("RFID scan: ESC key detected, returning to previous screen\n");
+        screen_back();
+        break;
 
-        case KEY_ENTER:
-            printf("RFID scan: ENTER key - simulating tag scan\n");
-            simulate_tag_scan();
-            break;
+    case KEY_ENTER:
+        printf("RFID scan: ENTER key - simulating tag scan\n");
+        simulate_tag_scan();
+        break;
 
-        case KEY_DOWN:
-        case KEY_RIGHT:
-            printf("RFID scan: Simulating new tag scan\n");
-            simulate_tag_scan();
-            break;
+    case KEY_DOWN:
+    case KEY_RIGHT:
+        printf("RFID scan: Simulating new tag scan\n");
+        simulate_tag_scan();
+        break;
 
-        case KEY_UP:
-        case KEY_LEFT:
-            printf("RFID scan: Clearing tag information\n");
-            rfid_scan_screen_clear_tag();
-            break;
+    case KEY_UP:
+    case KEY_LEFT:
+        printf("RFID scan: Clearing tag information\n");
+        memset(&current_tag, 0, sizeof(rfid_tag_info_t));
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
-}
-
-/**
- * @brief Update RFID tag information on screen
- */
-void rfid_scan_screen_update_tag(const rfid_tag_info_t *tag_info)
-{
-    if (tag_info) {
-        memcpy(&current_tag, tag_info, sizeof(rfid_tag_info_t));
-        update_display();
-    }
-}
-
-/**
- * @brief Clear displayed RFID tag information
- */
-void rfid_scan_screen_clear_tag(void)
-{
-    memset(&current_tag, 0, sizeof(rfid_tag_info_t));
-    current_tag.is_valid = false;
-    update_display();
 }
 
 /**
@@ -454,23 +435,23 @@ void rfid_scan_screen_data_update(uint8_t dev_id, uint16_t tag_type, const uint8
 
     // Clear old pending data first
     memset(&pending_tag, 0, sizeof(rfid_tag_info_t));
-    
+
     // Update pending tag information (will be applied by timer)
     pending_tag.dev_id = dev_id;
     pending_tag.tag_type = tag_type;
     pending_tag.uid_length = uid_length;
     memcpy(pending_tag.uid, uid, uid_length);
     pending_tag.is_valid = true;
-    
+
     // Set flag to trigger UI update in timer
     pending_update = true;
 
 #ifdef ENABLE_LVGL_HARDWARE
-    printf("[RFID Screen HW] Data received - DevID=0x%02X, Type=0x%04X, UID_len=%d (pending UI update)\n",
-           dev_id, tag_type, uid_length);
+    printf("[RFID Screen HW] Data received - DevID=0x%02X, Type=0x%04X, UID_len=%d (pending UI update)\n", dev_id,
+           tag_type, uid_length);
 #else
-    printf("[RFID Screen SIM] Data received - DevID=0x%02X, Type=0x%04X, UID_len=%d (pending UI update)\n",
-           dev_id, tag_type, uid_length);
+    printf("[RFID Screen SIM] Data received - DevID=0x%02X, Type=0x%04X, UID_len=%d (pending UI update)\n", dev_id,
+           tag_type, uid_length);
 #endif
 }
 
@@ -491,10 +472,10 @@ void rfid_scan_screen_init(void)
         // Copy pending data to current tag immediately
         memcpy(&current_tag, &pending_tag, sizeof(rfid_tag_info_t));
         pending_update = false;
-        printf("[RFID] Applied pending data during init - DevID=0x%02X, Type=0x%04X\n",
-               current_tag.dev_id, current_tag.tag_type);
+        printf("[RFID] Applied pending data during init - DevID=0x%02X, Type=0x%04X\n", current_tag.dev_id,
+               current_tag.tag_type);
     }
-    
+
     // Display current state
     update_display();
 
