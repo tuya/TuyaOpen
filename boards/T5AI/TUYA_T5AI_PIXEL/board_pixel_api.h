@@ -13,6 +13,8 @@
 #define __BOARD_PIXEL_API_H__
 
 #include "tuya_cloud_types.h"
+#include "tdl_pixel_dev_manage.h"
+#include "tdl_pixel_color_manage.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +25,7 @@ extern "C" {
 ***********************************************************/
 #define PIXEL_MATRIX_WIDTH  32
 #define PIXEL_MATRIX_HEIGHT 32
-#define PIXEL_MATRIX_TOTAL  (PIXEL_MATRIX_WIDTH * PIXEL_MATRIX_HEIGHT)
+#define PIXEL_MATRIX_TOTAL  (PIXEL_MATRIX_WIDTH * PIXEL_MATRIX_HEIGHT + 3)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -274,6 +276,49 @@ OPERATE_RET board_pixel_gif_reset(PIXEL_GIF_HANDLE_T gif);
  * @return OPRT_OK on success, error code on failure
  */
 OPERATE_RET board_pixel_gif_destroy(PIXEL_GIF_HANDLE_T gif);
+
+/**
+ * @brief Convert HSV color space to RGB
+ *
+ * @param[in] hue Hue in degrees (0-360)
+ * @param[in] saturation Saturation (0.0-1.0)
+ * @param[in] value Value/brightness (0.0-1.0)
+ * @param[out] r Output red component (0-255)
+ * @param[out] g Output green component (0-255)
+ * @param[out] b Output blue component (0-255)
+ */
+void board_pixel_hsv_to_rgb(float hue, float saturation, float value, uint32_t *r, uint32_t *g, uint32_t *b);
+
+/**
+ * @brief Convert HSV color space to PIXEL_COLOR_T
+ *
+ * @param[in] hue Hue in degrees (0-360)
+ * @param[in] saturation Saturation (0.0-1.0)
+ * @param[in] value Value/brightness (0.0-1.0)
+ * @param[in] brightness Brightness multiplier (0.0-1.0, typically 0.05-0.1)
+ * @param[in] color_resolution Color resolution (typically 1000)
+ * @return PIXEL_COLOR_T structure with converted color
+ */
+PIXEL_COLOR_T board_pixel_hsv_to_pixel_color(float hue, float saturation, float value, float brightness,
+                                             uint32_t color_resolution);
+
+/**
+ * @brief Convert 2D matrix coordinates to LED index
+ *
+ * @param[in] x X coordinate (0-31)
+ * @param[in] y Y coordinate (0-31)
+ * @return LED index, or PIXEL_MATRIX_TOTAL if out of bounds
+ */
+uint32_t board_pixel_matrix_coord_to_led_index(uint32_t x, uint32_t y);
+
+/**
+ * @brief Get pixel device handle (for advanced usage)
+ * Note: This function will initialize the pixel device if not already initialized
+ *
+ * @param[out] handle Pointer to receive the pixel handle
+ * @return OPRT_OK on success, error code on failure
+ */
+OPERATE_RET board_pixel_get_handle(PIXEL_HANDLE_T *handle);
 
 #ifdef __cplusplus
 }

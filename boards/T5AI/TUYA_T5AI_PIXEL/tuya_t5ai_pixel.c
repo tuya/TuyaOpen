@@ -8,6 +8,7 @@
 #include "tuya_cloud_types.h"
 
 #include "tal_api.h"
+#include <string.h>
 
 #include "tdd_audio.h"
 #include "tdd_led_gpio.h"
@@ -140,20 +141,23 @@ static OPERATE_RET __board_register_pixel_led(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL) &&                        \
-    defined(PIXEL_DEVICE_NAME)
+#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
+    char device_name[32] = "pixel";
+#if defined(PIXEL_DEVICE_NAME)
+    strncpy(device_name, PIXEL_DEVICE_NAME, sizeof(device_name) - 1);
+    device_name[sizeof(device_name) - 1] = '\0';
+#endif
 
     PIXEL_DRIVER_CONFIG_T dev_init_cfg = {
         .port = TUYA_SPI_NUM_0,
         .line_seq = RGB_ORDER,
     };
 
-    // Register WS2812 driver
-    rt = tdd_ws2812_driver_register(PIXEL_DEVICE_NAME, &dev_init_cfg);
+    rt = tdd_ws2812_driver_register(device_name, &dev_init_cfg);
     if (OPRT_OK == rt) {
-        PR_NOTICE("Pixel LED driver registered: %s", PIXEL_DEVICE_NAME);
+        PR_NOTICE("Pixel LED driver registered: %s", device_name);
     } else {
-        PR_ERR("Failed to register pixel LED driver '%s': %d", PIXEL_DEVICE_NAME, rt);
+        PR_ERR("Failed to register pixel LED driver '%s': %d", device_name, rt);
     }
 #endif
     return rt;

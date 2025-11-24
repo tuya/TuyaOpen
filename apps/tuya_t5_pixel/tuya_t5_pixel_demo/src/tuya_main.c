@@ -2,16 +2,13 @@
 #include "tkl_output.h"
 #include "tal_cli.h"
 #include "board_com_api.h"
+#include "board_pixel_api.h"
 #include "board_buzzer_api.h"
 #include "board_bmi270_api.h"
 #include "tdl_button_manage.h"
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
-
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
-#include "tdl_pixel_dev_manage.h"
-#include "tdl_pixel_color_manage.h"
 #include "led_font.h"
 #include "pixel_art/pixel_art_types.h"
 #include "pixel_art/resource/laughing_cat.h"
@@ -24,31 +21,23 @@
 #include "pixel_art/resource/Italian_Pixel_Art.h"
 #include "pixel_art/resource/Nintendo_Mario.h"
 #include "pixel_art/resource/Cat_Meme.h"
-#endif
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
-#define LED_PIXELS_TOTAL_NUM 1024
+#define LED_PIXELS_TOTAL_NUM 1027
 #define COLOR_RESOLUTION     1000u
 #define BRIGHTNESS           0.05f // 10% brightness
-#endif
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 
 static TDL_BUTTON_HANDLE g_button_ok_handle = NULL;
-#if defined(BUTTON_NAME_2)
 static TDL_BUTTON_HANDLE g_button_a_handle = NULL;
-#endif
-#if defined(BUTTON_NAME_3)
 static TDL_BUTTON_HANDLE g_button_b_handle = NULL;
-#endif
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
 static PIXEL_HANDLE_T g_pixels_handle = NULL;
 static THREAD_HANDLE g_pixels_thrd = NULL;
 static volatile uint32_t g_animation_mode = 0;
@@ -83,24 +72,19 @@ static sand_particle_t g_sand_particles[MAX_SAND_PARTICLES];
 static uint32_t g_last_sand_spawn_time = 0;
 static bmi270_dev_t *g_bmi270_dev = NULL;
 static bool g_sand_initialized = false;
-#endif
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 
 static void buzzer_demo_play_startup_melody(void);
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
 static void pixel_art_register_animation(const pixel_art_t *art);
 static void pixel_art_init_registrations(void);
-#endif
 static void buzzer_demo_init_buttons(void);
 static void buzzer_button_ok_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc);
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
 static void pixel_led_animation_task(void *args);
 static OPERATE_RET pixel_led_init(void);
-static uint32_t __matrix_coord_to_led_index(uint32_t x, uint32_t y);
 static void __breathing_color_effect(void);
 static void __running_light_effect(void);
 static void __color_wave_effect(void);
@@ -116,19 +100,14 @@ static void __sand_physics_effect(void);
 static void sand_init_particle(sand_particle_t *particle);
 static void sand_update_physics(void);
 static void sand_render(void);
-#endif
-#if defined(BUTTON_NAME_2)
+
 static void buzzer_button_a_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc);
-#endif
-#if defined(BUTTON_NAME_3)
 static void buzzer_button_b_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc);
-#endif
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
 /**
  * @brief Register a pixel art animation
  */
@@ -168,7 +147,6 @@ static void pixel_art_init_registrations(void)
 
     PR_NOTICE("Registered %d pixel art animations", g_registered_pixel_art_count);
 }
-#endif
 
 /**
  * @brief Play a startup melody to demonstrate the buzzer
@@ -193,7 +171,6 @@ static void buzzer_demo_play_startup_melody(void)
  */
 static void buzzer_button_ok_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc)
 {
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
     if (event == TDL_BUTTON_PRESS_SINGLE_CLICK) {
         // Single press: change to next animation
         uint32_t total_animations = EFFECT_ANIMATION_COUNT + g_registered_pixel_art_count;
@@ -211,7 +188,6 @@ static void buzzer_button_ok_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void
     } else if (event == TDL_BUTTON_PRESS_UP) {
         // Button release: no action
     }
-#endif
 }
 
 /**
@@ -219,7 +195,6 @@ static void buzzer_button_ok_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void
  */
 static void buzzer_button_a_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc)
 {
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
     if (event == TDL_BUTTON_PRESS_SINGLE_CLICK || event == TDL_BUTTON_PRESS_DOUBLE_CLICK) {
         // Switch to next pixel art animation
         g_pixel_art_index = (g_pixel_art_index + 1) % g_registered_pixel_art_count;
@@ -227,7 +202,6 @@ static void buzzer_button_a_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void 
         g_animation_mode = EFFECT_ANIMATION_COUNT + g_pixel_art_index;
         PR_NOTICE("A Button: Changed to pixel art %d (mode %d)", g_pixel_art_index, g_animation_mode);
     }
-#endif
 }
 
 /**
@@ -278,12 +252,10 @@ static void buzzer_button_b_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void 
         }
         board_buzzer_stop();
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
         // Switch to sand physics mode and reset sand state
         g_sand_initialized = false; // Reset sand state for fresh start
         g_animation_mode = SAND_PHYSICS_MODE;
         PR_NOTICE("B Button: Switched to sand physics mode");
-#endif
     } else if (event == TDL_BUTTON_PRESS_DOWN) {
         PR_NOTICE("B Button: Press DOWN detected");
     } else if (event == TDL_BUTTON_PRESS_UP) {
@@ -345,72 +317,23 @@ static void buzzer_demo_init_buttons(void)
         PR_ERR("Failed to create B button '%s': %d", BUTTON_NAME_3, rt);
         PR_ERR("Make sure BUTTON_NAME_3 is registered in board_register_hardware()");
     }
-
-    PR_WARN("BUTTON_NAME_3 is not defined - B button will not be available");
-    PR_WARN("Check that ENABLE_BUTTON_3 is enabled in Kconfig");
-}
-
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
-/**
- * @brief Convert 2D matrix coordinates to LED index
- */
-static uint32_t __matrix_coord_to_led_index(uint32_t x, uint32_t y)
-{
-    if (x >= 32 || y >= 32)
-        return 0;
-
-    uint32_t led_index;
-    if (y % 2 == 0) {
-        // Even row: left to right
-        led_index = y * 32 + x;
-    } else {
-        // Odd row: right to left
-        led_index = (y + 1) * 32 - 1 - x;
-    }
-    return led_index;
 }
 
 /**
- * @brief Initialize pixel LED driver
+ * @brief Initialize pixel LED driver using BSP
  */
 static OPERATE_RET pixel_led_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(PIXEL_DEVICE_NAME)
-    // Wait a bit to ensure driver registration is complete
     tal_system_sleep(100);
-
-    // Find pixel device
-    rt = tdl_pixel_dev_find(PIXEL_DEVICE_NAME, &g_pixels_handle);
+    rt = board_pixel_get_handle(&g_pixels_handle);
     if (OPRT_OK != rt) {
-        PR_ERR("Failed to find pixel device '%s': %d", PIXEL_DEVICE_NAME, rt);
-        return rt;
-    }
-
-    if (g_pixels_handle == NULL) {
-        PR_ERR("Pixel device handle is NULL after find");
-        return OPRT_COM_ERROR;
-    }
-
-    // Open pixel device
-    PIXEL_DEV_CONFIG_T pixels_cfg = {
-        .pixel_num = LED_PIXELS_TOTAL_NUM,
-        .pixel_resolution = COLOR_RESOLUTION,
-    };
-    rt = tdl_pixel_dev_open(g_pixels_handle, &pixels_cfg);
-    if (OPRT_OK != rt) {
-        PR_ERR("Failed to open pixel device: %d", rt);
-        g_pixels_handle = NULL;
+        PR_ERR("Failed to get pixel device handle: %d", rt);
         return rt;
     }
 
     PR_NOTICE("Pixel LED initialized: %d pixels", LED_PIXELS_TOTAL_NUM);
-#else
-    PR_ERR("PIXEL_DEVICE_NAME not defined");
-    return OPRT_INVALID_PARM;
-#endif
-
     return rt;
 }
 
@@ -638,45 +561,10 @@ static void __2d_wave_effect(void)
                 if (current_hue < 0.0f)
                     current_hue += 360.0f;
 
-                float h = current_hue / 60.0f;
-                float c = 1.0f;
-                float x_val = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
-                float m = 1.0f - c;
+                PIXEL_COLOR_T color =
+                    board_pixel_hsv_to_pixel_color(current_hue, 1.0f, 1.0f, BRIGHTNESS, COLOR_RESOLUTION);
 
-                float r, g, b;
-                if (h < 1.0f) {
-                    r = c;
-                    g = x_val;
-                    b = 0;
-                } else if (h < 2.0f) {
-                    r = x_val;
-                    g = c;
-                    b = 0;
-                } else if (h < 3.0f) {
-                    r = 0;
-                    g = c;
-                    b = x_val;
-                } else if (h < 4.0f) {
-                    r = 0;
-                    g = x_val;
-                    b = c;
-                } else if (h < 5.0f) {
-                    r = x_val;
-                    g = 0;
-                    b = c;
-                } else {
-                    r = c;
-                    g = 0;
-                    b = x_val;
-                }
-
-                PIXEL_COLOR_T color = {.red = (uint32_t)((r + m) * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .green = (uint32_t)((g + m) * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .blue = (uint32_t)((b + m) * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .warm = 0,
-                                       .cold = 0};
-
-                uint32_t led_index = __matrix_coord_to_led_index(x, y);
+                uint32_t led_index = board_pixel_matrix_coord_to_led_index(x, y);
                 if (led_index < LED_PIXELS_TOTAL_NUM) {
                     tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &color);
                 }
@@ -719,7 +607,7 @@ static void __snowflake_effect(void)
                                        .warm = 0,
                                        .cold = (uint32_t)(COLOR_RESOLUTION * intensity * 0.6f * BRIGHTNESS)};
 
-                uint32_t led_index = __matrix_coord_to_led_index(x, y);
+                uint32_t led_index = board_pixel_matrix_coord_to_led_index(x, y);
                 if (led_index < LED_PIXELS_TOTAL_NUM) {
                     tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &color);
                 }
@@ -753,33 +641,14 @@ static void __breathing_circle_effect(void)
 
             if (distance <= radius) {
                 float intensity = 1.0f - (distance / radius) * 0.5f;
-                float hue = (breath * 0.5f + distance * 0.3f) * 60.0f;
-                float h = fmodf(hue, 360.0f) / 60.0f;
-                float c = intensity * 0.9f;
-                float x_val = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
+                float hue = fmodf((breath * 0.5f + distance * 0.3f) * 60.0f, 360.0f);
+                float saturation = 0.9f;
+                float value = intensity;
 
-                PIXEL_COLOR_T color = {0};
-                if (h < 1.0f) {
-                    color.red = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.green = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                } else if (h < 2.0f) {
-                    color.red = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.green = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                } else if (h < 3.0f) {
-                    color.green = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.blue = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                } else if (h < 4.0f) {
-                    color.green = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.blue = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                } else if (h < 5.0f) {
-                    color.red = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.blue = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                } else {
-                    color.red = (uint32_t)(c * COLOR_RESOLUTION * BRIGHTNESS);
-                    color.blue = (uint32_t)(x_val * COLOR_RESOLUTION * BRIGHTNESS);
-                }
+                PIXEL_COLOR_T color =
+                    board_pixel_hsv_to_pixel_color(hue, saturation, value, BRIGHTNESS, COLOR_RESOLUTION);
 
-                uint32_t led_index = __matrix_coord_to_led_index(x, y);
+                uint32_t led_index = board_pixel_matrix_coord_to_led_index(x, y);
                 if (led_index < LED_PIXELS_TOTAL_NUM) {
                     tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &color);
                 }
@@ -821,7 +690,7 @@ static void __ripple_effect(void)
                                        .warm = 0,
                                        .cold = (uint32_t)(COLOR_RESOLUTION * intensity * 0.8f * BRIGHTNESS)};
 
-                uint32_t led_index = __matrix_coord_to_led_index(x, y);
+                uint32_t led_index = board_pixel_matrix_coord_to_led_index(x, y);
                 if (led_index < LED_PIXELS_TOTAL_NUM) {
                     tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &color);
                 }
@@ -871,7 +740,7 @@ static void __scan_animation_effect(void)
         PIXEL_COLOR_T red_color = {
             .red = (uint32_t)(COLOR_RESOLUTION * BRIGHTNESS), .green = 0, .blue = 0, .warm = 0, .cold = 0};
         for (uint32_t y = 0; y < 32; y++) {
-            uint32_t led_index = __matrix_coord_to_led_index(column_index, y);
+            uint32_t led_index = board_pixel_matrix_coord_to_led_index(column_index, y);
             if (led_index < LED_PIXELS_TOTAL_NUM) {
                 tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &red_color);
             }
@@ -880,7 +749,7 @@ static void __scan_animation_effect(void)
         PIXEL_COLOR_T blue_color = {
             .red = 0, .green = 0, .blue = (uint32_t)(COLOR_RESOLUTION * BRIGHTNESS), .warm = 0, .cold = 0};
         for (uint32_t x = 0; x < 32; x++) {
-            uint32_t led_index = __matrix_coord_to_led_index(x, row_index);
+            uint32_t led_index = board_pixel_matrix_coord_to_led_index(x, row_index);
             if (led_index < LED_PIXELS_TOTAL_NUM) {
                 tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &blue_color);
             }
@@ -910,49 +779,13 @@ static void render_char(int32_t x, int32_t y, char ch, float hue)
                 continue;
 
             if (row_data & (0x80 >> col)) {
-                float pixel_hue = hue + (float)display_x * 12.0f;
-                if (pixel_hue > 360.0f)
-                    pixel_hue -= 360.0f;
+                float pixel_hue = fmodf(hue + (float)display_x * 12.0f, 360.0f);
 
-                float hf = pixel_hue / 60.0f;
-                float c = 1.0f;
-                float xv = c * (1.0f - fabsf(fmodf(hf, 2.0f) - 1.0f));
-                float rr = 0.0f, gg = 0.0f, bb = 0.0f;
+                PIXEL_COLOR_T color =
+                    board_pixel_hsv_to_pixel_color(pixel_hue, 1.0f, 1.0f, BRIGHTNESS, COLOR_RESOLUTION);
 
-                if (hf < 1.0f) {
-                    rr = c;
-                    gg = xv;
-                    bb = 0;
-                } else if (hf < 2.0f) {
-                    rr = xv;
-                    gg = c;
-                    bb = 0;
-                } else if (hf < 3.0f) {
-                    rr = 0;
-                    gg = c;
-                    bb = xv;
-                } else if (hf < 4.0f) {
-                    rr = 0;
-                    gg = xv;
-                    bb = c;
-                } else if (hf < 5.0f) {
-                    rr = xv;
-                    gg = 0;
-                    bb = c;
-                } else {
-                    rr = c;
-                    gg = 0;
-                    bb = xv;
-                }
-
-                PIXEL_COLOR_T color = {.red = (uint32_t)(rr * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .green = (uint32_t)(gg * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .blue = (uint32_t)(bb * COLOR_RESOLUTION * BRIGHTNESS),
-                                       .warm = 0,
-                                       .cold = 0};
-
-                uint32_t led_index = __matrix_coord_to_led_index((uint32_t)display_x, (uint32_t)display_y);
-                if (led_index > 0 && led_index <= LED_PIXELS_TOTAL_NUM) {
+                uint32_t led_index = board_pixel_matrix_coord_to_led_index((uint32_t)display_x, (uint32_t)display_y);
+                if (led_index < LED_PIXELS_TOTAL_NUM) {
                     tdl_pixel_set_single_color(g_pixels_handle, led_index, 1, &color);
                 }
             }
@@ -1081,7 +914,7 @@ static void __pixel_art_effect(const pixel_art_t *art)
             color.blue = (uint32_t)((pixel->b * COLOR_RESOLUTION * BRIGHTNESS) / 255); // Blue stays the same
 
             // Convert 2D matrix coordinates to 1D LED index
-            uint32_t led_idx = __matrix_coord_to_led_index(x, y);
+            uint32_t led_idx = board_pixel_matrix_coord_to_led_index(x, y);
             if (led_idx < LED_PIXELS_TOTAL_NUM) {
                 tdl_pixel_set_single_color(g_pixels_handle, led_idx, 1, &color);
             }
@@ -1449,7 +1282,7 @@ static void sand_render(void)
         int32_t py = (int32_t)(p->y + 0.5f);
 
         if (px >= 0 && px < MATRIX_WIDTH && py >= 0 && py < MATRIX_HEIGHT) {
-            uint32_t led_idx = __matrix_coord_to_led_index((uint32_t)px, (uint32_t)py);
+            uint32_t led_idx = board_pixel_matrix_coord_to_led_index((uint32_t)px, (uint32_t)py);
             if (led_idx < LED_PIXELS_TOTAL_NUM) {
                 PIXEL_COLOR_T color = {0};
                 // Note: LED hardware expects GRB order
@@ -1581,7 +1414,6 @@ static void pixel_led_animation_task(void *args)
     PR_NOTICE("Pixel LED animation task stopped");
     g_pixels_thrd = NULL;
 }
-#endif
 
 /**
  * @brief Main user function
@@ -1648,7 +1480,6 @@ static void user_main(void)
     tal_system_sleep(500);
     buzzer_demo_play_startup_melody();
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
     // Initialize pixel art animation registrations
     pixel_art_init_registrations();
 
@@ -1669,27 +1500,20 @@ static void user_main(void)
     } else {
         PR_ERR("Pixel LED initialization failed: %d", rt);
     }
-#endif
 
     PR_NOTICE("==========================================");
     PR_NOTICE("Demo Ready!");
     PR_NOTICE("==========================================");
-#if defined(ENABLE_SPI) && (ENABLE_SPI) && defined(ENABLE_LEDS_PIXEL) && (ENABLE_LEDS_PIXEL)
     PR_NOTICE("Pixel LED Controls:");
     PR_NOTICE("  OK Button:");
     PR_NOTICE("    - Single/Double Click: Change animation");
     PR_NOTICE("    - Long Press: Toggle loop mode");
-#if defined(BUTTON_NAME_2)
     PR_NOTICE("  A Button:");
     PR_NOTICE("    - Single/Double Click: Switch pixel art animations");
-#endif
-#if defined(BUTTON_NAME_3)
     PR_NOTICE("  B Button:");
     PR_NOTICE("    - Single Click: Play Twinkle Twinkle Little Star");
     PR_NOTICE("    - Long Press: Start sand physics demo");
-#endif
     PR_NOTICE("==========================================");
-#endif
 
     // Main loop
     int cnt = 0;

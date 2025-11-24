@@ -9,6 +9,7 @@
 #include "tdl_pixel_dev_manage.h"
 #include "tdl_pixel_color_manage.h"
 #include "tal_log.h"
+#include "tal_api.h"
 #include "tkl_memory.h"
 #include "fonts/Fonts/Picopixel.h"
 #include "fonts/Fonts/FreeMono9pt7b.h"
@@ -20,6 +21,7 @@
 #include "fonts/Fonts/FreeMonoBold18pt7b.h"
 #include "fonts/Fonts/FreeMonoBold24pt7b.h"
 #include <string.h>
+#include <math.h>
 
 /***********************************************************
 ************************macro define************************
@@ -315,19 +317,33 @@ static OPERATE_RET init_pixel_device(void)
         return OPRT_OK;
     }
 
+    char device_name[32] = "pixel";
 #if defined(PIXEL_DEVICE_NAME)
-    OPERATE_RET rt = tdl_pixel_dev_find(PIXEL_DEVICE_NAME, &g_pixel_handle);
-    if (OPRT_OK != rt) {
-        PR_ERR("Failed to find pixel device '%s': %d", PIXEL_DEVICE_NAME, rt);
-        return rt;
+    strncpy(device_name, PIXEL_DEVICE_NAME, sizeof(device_name) - 1);
+    device_name[sizeof(device_name) - 1] = '\0';
+#endif
+
+    OPERATE_RET rt;
+    uint32_t retry_count = 0;
+    const uint32_t max_retries = 10;
+    const uint32_t retry_delay_ms = 100;
+
+    while (retry_count < max_retries) {
+        rt = tdl_pixel_dev_find(device_name, &g_pixel_handle);
+        if (OPRT_OK == rt && g_pixel_handle != NULL) {
+            break;
+        }
+        retry_count++;
+        if (retry_count < max_retries) {
+            tal_system_sleep(retry_delay_ms);
+        }
     }
 
-    if (g_pixel_handle == NULL) {
-        PR_ERR("Pixel device handle is NULL after find");
-        return OPRT_COM_ERROR;
+    if (OPRT_OK != rt || g_pixel_handle == NULL) {
+        PR_ERR("Failed to find pixel device '%s' after %d retries: %d", device_name, retry_count, rt);
+        return (rt != OPRT_OK) ? rt : OPRT_COM_ERROR;
     }
 
-    // Open pixel device if not already open
     PIXEL_DEV_CONFIG_T pixels_cfg = {
         .pixel_num = PIXEL_MATRIX_TOTAL,
         .pixel_resolution = COLOR_RESOLUTION,
@@ -341,10 +357,6 @@ static OPERATE_RET init_pixel_device(void)
 
     g_pixel_initialized = true;
     return OPRT_OK;
-#else
-    PR_ERR("PIXEL_DEVICE_NAME not defined");
-    return OPRT_INVALID_PARM;
-#endif
 }
 
 /**
@@ -888,5 +900,105 @@ OPERATE_RET board_pixel_gif_destroy(PIXEL_GIF_HANDLE_T gif)
     pixel_gif_t *g = (pixel_gif_t *)gif;
     tkl_system_free(g);
 
+    return OPRT_OK;
+}
+
+/**
+ * @brief Convert HSV color space to RGB
+ */
+void board_pixel_hsv_to_rgb(float hue, float saturation, float value, uint32_t *r, uint32_t *g, uint32_t *b)
+{
+    if (r == NULL || g == NULL || b == NULL) {
+        return;
+    }
+
+    // Normalize hue to 0-360
+    while (hue < 0.0f)
+        hue += 360.0f;
+    while (hue >= 360.0f)
+        hue -= 360.0f;
+
+    float h = hue / 60.0f;
+    float c = value * saturation;
+    float x = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
+    float m = value - c;
+
+    float rf, gf, bf;
+    if (h < 1.0f) {
+        rf = c;
+        gf = x;
+        bf = 0;
+    } else if (h < 2.0f) {
+        rf = x;
+        gf = c;
+        bf = 0;
+    } else if (h < 3.0f) {
+        rf = 0;
+        gf = c;
+        bf = x;
+    } else if (h < 4.0f) {
+        rf = 0;
+        gf = x;
+        bf = c;
+    } else if (h < 5.0f) {
+        rf = x;
+        gf = 0;
+        bf = c;
+    } else {
+        rf = c;
+        gf = 0;
+        bf = x;
+    }
+
+    *r = (uint32_t)((rf + m) * 255.0f);
+    *g = (uint32_t)((gf + m) * 255.0f);
+    *b = (uint32_t)((bf + m) * 255.0f);
+}
+
+/**
+ * @brief Convert HSV color space to PIXEL_COLOR_T
+ */
+PIXEL_COLOR_T board_pixel_hsv_to_pixel_color(float hue, float saturation, float value, float brightness,
+                                             uint32_t color_resolution)
+{
+    PIXEL_COLOR_T pixel_color = {0};
+    uint32_t r, g, b;
+
+    board_pixel_hsv_to_rgb(hue, saturation, value, &r, &g, &b);
+
+    // Convert RGB (0-255) to COLOR_RESOLUTION scale with brightness
+    // Note: LED hardware expects GRB order, so we swap red and green
+    pixel_color.red = (uint32_t)((g * color_resolution * brightness) / 255);   // Red channel gets green data
+    pixel_color.green = (uint32_t)((r * color_resolution * brightness) / 255); // Green channel gets red data
+    pixel_color.blue = (uint32_t)((b * color_resolution * brightness) / 255);  // Blue stays the same
+    pixel_color.warm = 0;
+    pixel_color.cold = 0;
+
+    return pixel_color;
+}
+
+/**
+ * @brief Convert 2D matrix coordinates to LED index
+ */
+uint32_t board_pixel_matrix_coord_to_led_index(uint32_t x, uint32_t y)
+{
+    return matrix_coord_to_led_index(x, y);
+}
+
+/**
+ * @brief Get pixel device handle (for advanced usage)
+ */
+OPERATE_RET board_pixel_get_handle(PIXEL_HANDLE_T *handle)
+{
+    if (handle == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    OPERATE_RET rt = init_pixel_device();
+    if (OPRT_OK != rt) {
+        return rt;
+    }
+
+    *handle = g_pixel_handle;
     return OPRT_OK;
 }
