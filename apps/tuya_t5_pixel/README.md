@@ -133,6 +133,40 @@ The demos demonstrate various visual effects, animations, and interactive featur
 **Hardware Used:**
 - 32x32 LED pixel matrix
 
+# Demo 5. tuya_t5_pixel_weather
+
+**Description:** Weather information display application that fetches weather data from Tuya cloud services and displays it on the pixel screen.
+
+**Capabilities:**
+- **Weather Information Display:**
+  - Current temperature and feels-like temperature
+  - Today's high/low temperatures
+  - Humidity percentage
+  - Wind speed and direction
+  - Air Quality Index (AQI)
+  - Time and date (with timezone support)
+- **Weather Icons:** 16x16 pixel weather icons displayed in the top-right corner
+- **Page Cycling:** Automatically cycles through different weather information pages
+- **WiFi Status Display:** Shows WiFi connection animation on startup, switches to weather pages after MQTT connection
+- **Error Handling:** Displays user-friendly messages when weather data is unavailable
+
+**Configuration Requirements:**
+> ⚠️ **Important:** This demo requires Tuya IoT platform authorization code configuration before use
+> 
+> 1. **Edit configuration file:** `apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h`
+> 
+> 2. **Configure the following parameters:**
+>    - `TUYA_OPENSDK_UUID`: Device UUID required for SDK authentication
+>    - `TUYA_OPENSDK_AUTHKEY`: Authentication key required for secure communication
+> 
+> 3. **Obtain authorization code:**
+>    - Product creation and PID generation: https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc
+>    - Authorization code acquisition: https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
+> 
+> 4. **Location Configuration:** Set device location information in the Tuya App to obtain accurate weather data
+> 
+> **Warning:** Failure to configure correct UUID and AUTHKEY will prevent the device from connecting to Tuya cloud servers, and weather data will be unavailable.
+
 ## Board Support Package (BSP)
 
 All demos utilize the BSP API implemented in:
@@ -204,8 +238,44 @@ Common demo builds (execute compilation directly after step 3):
 - Build `tuya_t5_pixel_sphere_effect` → 3D sphere animation
 - Build `tuya_t5_pixel_mic_spectrum_meter` → Microphone spectrum
 - Build `tuya_t5_pixel_simple_shapes` → Simple primitive rendering
+- Build `tuya_t5_pixel_weather` → Weather information display (requires UUID and AUTHKEY configuration)
 
 To build other targets or specify a demo, adjust the corresponding configuration under `apps/tuya_t5_pixel/`.
+
+### Weather App Special Configuration
+
+The **tuya_t5_pixel_weather** demo requires additional configuration steps:
+
+1. **Configure Tuya IoT Authorization Code**
+   ```bash
+   # Edit configuration file
+   vim apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h
+   ```
+
+2. **Modify the following configuration items:**
+   ```c
+   #define TUYA_OPENSDK_UUID       "your_uuid_here"
+   #define TUYA_OPENSDK_AUTHKEY    "your_authkey_here"
+   ```
+
+3. **Obtain Authorization Code:**
+   - Log in to [Tuya IoT Platform](https://iot.tuya.com/)
+   - Create a product and obtain Product ID (PID)
+   - Purchase SDK license and obtain UUID and AUTHKEY
+   - Detailed steps: https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
+
+4. **Configure Device Location:**
+   - Use Tuya App to bind the device
+   - Set device location (city/region) in the App
+   - Location information is used to obtain accurate weather data
+
+5. **Build and Flash:**
+   ```bash
+   tos.py build
+   tos.py flash
+   ```
+
+**Note:** Failure to correctly configure UUID and AUTHKEY will prevent the device from connecting to Tuya cloud servers, and weather data will be unavailable.
 
 
 ## Troubleshooting

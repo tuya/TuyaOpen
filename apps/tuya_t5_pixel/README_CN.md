@@ -131,6 +131,39 @@
 **使用的硬件：**
 - 32x32 LED像素矩阵
 
+# Demo 5. tuya_t5_pixel_weather
+
+**描述：** 天气信息显示应用，从Tuya云服务获取天气数据并在像素屏上显示。
+
+**功能：**
+- **天气信息显示：**
+  - 当前温度及体感温度
+  - 今日最高/最低温度
+  - 湿度百分比
+  - 风速和风向
+  - 空气质量指数（AQI）
+  - 时间和日期（支持时区）
+- **天气图标：** 16x16像素天气图标显示在屏幕右上角
+- **页面循环：** 自动循环显示不同天气信息页面
+
+**配置要求：**
+> ⚠️ **重要：** 使用此演示前，必须配置Tuya IoT平台授权码
+> 
+> 1. **编辑配置文件：** `apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h`
+> 
+> 2. **配置以下参数：**
+>    - `TUYA_OPENSDK_UUID`: SDK认证所需的设备UUID
+>    - `TUYA_OPENSDK_AUTHKEY`: 安全通信所需的认证密钥
+> 
+> 3. **获取凭证：**
+>    - 产品创建和PID生成：https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc
+>    - 授权码获取：https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
+> 
+> 4. **位置配置：** 在Tuya App中设置设备位置信息，以便获取准确的天气数据
+> 
+> **警告：** 未配置正确的UUID和AUTHKEY将导致设备无法连接到Tuya云服务器，天气数据将无法获取。
+
+
 ## TUYA_T5AI_PIXEL 板级支持包（BSP）
 
 所有演示程序都使用在以下位置实现的BSP API：
@@ -203,8 +236,44 @@
 - 构建 `tuya_t5_pixel_sphere_effect`   → 3D球体动画
 - 构建 `tuya_t5_pixel_mic_spectrum_meter` → 麦克风频谱
 - 构建 `tuya_t5_pixel_simple_shapes`   → 简单图元渲染
+- 构建 `tuya_t5_pixel_weather`         → 天气信息显示（需配置UUID和AUTHKEY）
 
 如需构建其他目标或指定 demo，可在 `apps/tuya_t5_pixel/` 下调整相应配置。
+
+### 天气应用特殊配置
+
+**tuya_t5_pixel_weather** 演示需要额外的配置步骤：
+
+1. **配置Tuya IoT凭证授权码**
+   ```bash
+   # 编辑配置文件
+   vim apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h
+   ```
+
+2. **修改以下配置项：**
+   ```c
+   #define TUYA_OPENSDK_UUID       "your_uuid_here"
+   #define TUYA_OPENSDK_AUTHKEY    "your_authkey_here"
+   ```
+
+3. **获取凭证：**
+   - 登录 [Tuya IoT平台](https://iot.tuya.com/)
+   - 创建产品并获取产品ID（PID）
+   - 购买SDK许可证并获取UUID和AUTHKEY
+   - 详细步骤：https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
+
+4. **配置设备位置：**
+   - 使用Tuya App绑定设备
+   - 在App中设置设备所在位置（城市/地区）
+   - 位置信息用于获取准确的天气数据
+
+5. **编译和烧录：**
+   ```bash
+   tos.py build
+   tos.py flash
+   ```
+
+**注意：** 未正确配置UUID和AUTHKEY将导致设备无法连接到Tuya云服务器，天气数据将无法获取。
 
 
 ## 故障排除
