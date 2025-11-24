@@ -8,7 +8,7 @@ Resamples images to default 32x32 pixels (configurable).
 
 import os
 import sys
-from PIL import Image
+from PIL import Image, ImageOps, ImageEnhance
 import argparse
 
 
@@ -78,7 +78,7 @@ def improved_resize(frame, target_width, target_height, resample_method='auto'):
     return result
 
 
-def generate_c_header(image_path, output_header_path, output_image_path, width=32, height=32, resample_method='auto'):
+def generate_c_header(image_path, output_header_path, output_image_path, width=32, height=32, resample_method='auto', invert=False, contrast=1.0, frame_reduction=0.0):
     """
     Convert image to C header file with RGB pixel data structures
     
@@ -89,6 +89,9 @@ def generate_c_header(image_path, output_header_path, output_image_path, width=3
         width: Target width (default 32)
         height: Target height (default 32)
         resample_method: Resampling method ('auto', 'box', 'lanczos', 'nearest', 'bicubic')
+        invert: Whether to invert colors before conversion (default False)
+        contrast: Contrast factor (0.0 = no contrast, 1.0 = normal, 2.0 = high contrast, default 1.0)
+        frame_reduction: Frame reduction percentage for animated GIFs (0.0 = keep all, 0.5 = keep 50%, 0.75 = keep 25%, default 0.0)
     """
     try:
         # Open image
@@ -101,16 +104,35 @@ def generate_c_header(image_path, output_header_path, output_image_path, width=3
         # Check if it's an animated GIF
         is_animated = getattr(img, 'is_animated', False)
         frames = []
+        original_frame_count = 0
         
         if is_animated:
-            # Process all frames
+            # Process frames (with optional reduction)
             frame_count = img.n_frames
-            for frame_idx in range(frame_count):
+            original_frame_count = frame_count
+            
+            # Calculate which frames to keep based on reduction percentage
+            if frame_reduction > 0.0 and frame_reduction < 1.0:
+                keep_percentage = 1.0 - frame_reduction
+                frames_to_keep = max(1, int(frame_count * keep_percentage))
+                # Evenly sample frames across the animation
+                if frames_to_keep < frame_count:
+                    step = frame_count / frames_to_keep
+                    frame_indices = [int(i * step) for i in range(frames_to_keep)]
+                    # Ensure we always include the last frame
+                    if frame_indices[-1] != frame_count - 1:
+                        frame_indices[-1] = frame_count - 1
+                else:
+                    frame_indices = list(range(frame_count))
+            else:
+                frame_indices = list(range(frame_count))
+            
+            for frame_idx in frame_indices:
                 img.seek(frame_idx)
                 # Convert to RGB (handles transparency properly)
                 if img.mode in ('RGBA', 'LA', 'P'):
-                    # Handle transparency: convert to RGB with black background
-                    background = Image.new('RGB', img.size, (0, 0, 0))
+                    # Handle transparency: convert to RGB with white background
+                    background = Image.new('RGB', img.size, (255, 255, 255))
                     if img.mode == 'P':
                         frame = img.convert('RGBA')
                     else:
@@ -122,6 +144,13 @@ def generate_c_header(image_path, output_header_path, output_image_path, width=3
                         frame = frame.convert('RGB')
                 else:
                     frame = img.convert('RGB')
+                # Invert colors if requested (before contrast/resizing)
+                if invert:
+                    frame = ImageOps.invert(frame.convert('RGB'))
+                # Apply contrast adjustment if not 1.0 (before resizing)
+                if contrast != 1.0:
+                    enhancer = ImageEnhance.Contrast(frame)
+                    frame = enhancer.enhance(contrast)
                 # Use improved resize with better edge handling
                 frame = improved_resize(frame, width, height, resample_method)
                 frames.append(frame)
@@ -129,8 +158,8 @@ def generate_c_header(image_path, output_header_path, output_image_path, width=3
             # Single frame
             # Convert to RGB (handles transparency properly)
             if img.mode in ('RGBA', 'LA', 'P'):
-                # Handle transparency: convert to RGB with black background
-                background = Image.new('RGB', img.size, (0, 0, 0))
+                # Handle transparency: convert to RGB with white background
+                background = Image.new('RGB', img.size, (255, 255, 255))
                 if img.mode == 'P':
                     frame = img.convert('RGBA')
                 else:
@@ -142,6 +171,13 @@ def generate_c_header(image_path, output_header_path, output_image_path, width=3
                     frame = frame.convert('RGB')
             else:
                 frame = img.convert('RGB')
+            # Invert colors if requested (before contrast/resizing)
+            if invert:
+                frame = ImageOps.invert(frame.convert('RGB'))
+            # Apply contrast adjustment if not 1.0 (before resizing)
+            if contrast != 1.0:
+                enhancer = ImageEnhance.Contrast(frame)
+                frame = enhancer.enhance(contrast)
             # Use improved resize with better edge handling
             frame = improved_resize(frame, width, height, resample_method)
             frames.append(frame)
@@ -267,7 +303,10 @@ const pixel_frame_t {var_name} = {{
         print(f"  → Image: {os.path.basename(output_image_path)}")
         print(f"  → Size: {width}x{height} pixels")
         if is_animated:
-            print(f"  → Frames: {len(frames)}")
+            print(f"  → Frames: {len(frames)} (original: {original_frame_count})")
+            if frame_reduction > 0.0:
+                reduction_pct = frame_reduction * 100
+                print(f"  → Frame reduction: {reduction_pct:.1f}%")
         
         return True
         
@@ -296,10 +335,21 @@ Examples:
   # Use specific resampling method (box is best for downscaling pixel art)
   python tool_pixel_art_gen.py --resample box
 
+  # Invert colors (useful for images with clear background and black strokes)
+  python tool_pixel_art_gen.py --invert
+
+  # Apply contrast adjustment (0.1 = low contrast/mono mapping, 1.0 = normal, 2.0 = high)
+  python tool_pixel_art_gen.py --contrast 0.1
+
+  # Reduce GIF frames by 50% (keeps 50% of frames, evenly sampled)
+  python tool_pixel_art_gen.py --frame-reduction 0.5
+
 Note: The tool uses improved resampling algorithms to reduce color shifts:
   - Auto mode: BOX (area averaging) for downscaling, LANCZOS for upscaling
   - BOX resampling averages all pixels in source area, reducing edge color shifts
   - Two-pass resampling for very small downscales to minimize artifacts
+  - Transparent backgrounds are converted to white (not black)
+  - Use --invert to invert colors before conversion
         """
     )
     
@@ -336,7 +386,32 @@ Note: The tool uses improved resampling algorithms to reduce color shifts:
         help='Resampling method: auto (smart selection), box (area averaging, best for downscaling), lanczos (smooth upscaling), nearest (pixel-perfect), bicubic (smooth) (default: auto)'
     )
     
+    parser.add_argument(
+        '--invert', '-I',
+        action='store_true',
+        help='Invert colors before conversion (useful for images with clear background and black strokes)'
+    )
+    
+    parser.add_argument(
+        '--contrast', '-c',
+        type=float,
+        default=0.1,
+        help='Contrast factor: 0.0 = no contrast (grayscale midpoint), 0.1 = low contrast/mono mapping, 1.0 = normal, 2.0 = high contrast (default: 0.1)'
+    )
+    
+    parser.add_argument(
+        '--frame-reduction', '-f',
+        type=float,
+        default=0.0,
+        help='Frame reduction percentage for animated GIFs: 0.0 = keep all frames, 0.5 = keep 50%% of frames (reduce by 50%%), 0.75 = keep 25%% of frames (reduce by 75%%). Frames are evenly sampled across the animation (default: 0.0)'
+    )
+    
     args = parser.parse_args()
+    
+    # Validate frame reduction parameter
+    if args.frame_reduction < 0.0 or args.frame_reduction >= 1.0:
+        print(f"Error: Frame reduction must be between 0.0 and 1.0 (exclusive), got {args.frame_reduction}")
+        return 1
     
     # Ensure output directory exists
     os.makedirs(args.output, exist_ok=True)
@@ -374,7 +449,7 @@ Note: The tool uses improved resampling algorithms to reduce color shifts:
         img_ext = '.gif' if image_path.lower().endswith('.gif') else '.png'
         output_image_path = os.path.join(args.output, f"{base_name}_resampled{img_ext}")
         
-        if generate_c_header(image_path, output_header_path, output_image_path, args.width, args.height, args.resample):
+        if generate_c_header(image_path, output_header_path, output_image_path, args.width, args.height, args.resample, args.invert, args.contrast, args.frame_reduction):
             success_count += 1
     
     print(f"\n✓ Successfully converted {success_count}/{len(input_files)} file(s)")
