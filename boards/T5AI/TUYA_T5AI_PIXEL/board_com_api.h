@@ -3,6 +3,8 @@
  * @author Tuya Inc.
  * @brief Header file for common board-level hardware registration APIs.
  *
+ * For LED pixel drawing APIs, see board_pixel_api.h
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 

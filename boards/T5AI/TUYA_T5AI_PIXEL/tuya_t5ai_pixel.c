@@ -24,7 +24,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define BOARD_SPEAKER_EN_PIN TUYA_GPIO_NUM_39
+#define BOARD_SPEAKER_EN_PIN TUYA_GPIO_NUM_42
 
 #define BOARD_BUTTON_OK_PIN       TUYA_GPIO_NUM_44
 #define BOARD_BUTTON_OK_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
@@ -159,19 +159,19 @@ static OPERATE_RET __board_register_pixel_led(void)
     return rt;
 }
 
-static OPERATE_RET __board_register_bmi270_sensor(void)
-{
-    OPERATE_RET rt = OPRT_OK;
+// static OPERATE_RET __board_register_bmi270_sensor(void)
+// {
+//     OPERATE_RET rt = OPRT_OK;
 
-    // Register BMI270 sensor
-    rt = board_bmi270_register();
-    if (OPRT_OK != rt) {
-        PR_ERR("BMI270 sensor registration failed: %d", rt);
-        return rt;
-    }
+//     // Register BMI270 sensor
+//     rt = board_bmi270_register();
+//     if (OPRT_OK != rt) {
+//         PR_ERR("BMI270 sensor registration failed: %d", rt);
+//         return rt;
+//     }
 
-    return rt;
-}
+//     return rt;
+// }
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED, buzzer, pixel LED) on the board.
@@ -192,7 +192,7 @@ OPERATE_RET board_register_hardware(void)
 
     TUYA_CALL_ERR_LOG(__board_register_pixel_led());
 
-    TUYA_CALL_ERR_LOG(__board_register_bmi270_sensor());
+    // TUYA_CALL_ERR_LOG(__board_register_bmi270_sensor());
 
     return rt;
 }
