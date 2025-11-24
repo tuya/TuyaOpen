@@ -17,6 +17,8 @@
 #include "ai_audio_player.h"
 #include "game_pet.h"
 #include "media_pet.h"
+#include "menu_info_screen.h"
+#include "main_screen.h"
 #define PET_DEBUG_ENABLE 0
 
 extern void pocket_game_pet_indev_init(void);
@@ -29,6 +31,7 @@ extern void pocket_game_pet_indev_init(void);
 #define DPID_HEALTH 104
 #define DPID_ENERGY 105
 #define DPID_MOOD 107
+#define PET_EVENT_TIMER PET_EVENT_MAX
 #define PET_EVENT_TIMER PET_EVENT_MAX
 #define PET_OPT_TOTAL (PET_EVENT_TIMER+1)
 #define PET_TIMER_ONCE_MS (3000)  // 1000 * 3
@@ -55,8 +58,6 @@ static const int s_pet_opt_values[PET_OPT_TOTAL][PET_STATE_TOTAL] = {
     [PET_EVENT_SEE_DOCTOR]     = {10,    -1,    -2,    -5},
     [PET_EVENT_SLEEP]          = { 3,    10,     0,     1},
     [PET_EVENT_WAKE_UP]        = { 1,    10,    -2,     2},
-    [PET_EVENT_WIFI_SCAN]      = { 0,     0,     0,     0},
-    [PET_EVENT_I2C_SCAN]       = { 0,     0,     0,     0},
     [PET_STAT_RANDOMIZE]       = { 0,     0,     0,     0},
     [PET_EVENT_TIMER]          = {-1,    -3,    -2,    -4}
 };
@@ -113,7 +114,7 @@ void _display_pet_state(ai_pet_state_t pet_state)
     }
 
     lv_vendor_disp_lock();
-    pet_area_set_animation(pet_state);
+    main_screen_set_pet_animation_state(pet_state);
     lv_vendor_disp_unlock();
 }
 
@@ -242,7 +243,7 @@ OPERATE_RET game_pet_update_state_to_menu(int *state)
         .weight_kg = 1000.0
     };
 
-    menu_system_update_pet_stats(&menu_state);
+    main_screen_update_pet_stats(&menu_state);
     return OPRT_OK;
 }
 
@@ -373,12 +374,6 @@ OPERATE_RET game_pet_random_state(void)
         case PET_EVENT_WAKE_UP:
             pet_state = AI_PET_STATE_DANCE;
             break;
-        case PET_EVENT_WIFI_SCAN:
-            return;
-            break;
-        case PET_EVENT_I2C_SCAN:
-            return;
-            break;
         default:
             PR_ERR("Unhandled pet event type: %d", event_type);
             return;
@@ -464,7 +459,7 @@ OPERATE_RET game_pet_init(void)
         PR_ERR("Failed to start cycle timer: %d", rt);
     }
 
-    menu_system_register_pet_event_callback(pet_event_callback, NULL);
+    main_screen_register_pet_event_callback(pet_event_callback, NULL);
 
     pocket_game_pet_indev_init();
 

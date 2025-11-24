@@ -1,0 +1,169 @@
+# LVGL Font Configuration
+# This file is automatically sourced by src/liblvgl/Kconfig
+
+menu "LVGL Font Configuration"
+    depends on ENABLE_LIBLVGL
+
+    comment "Montserrat Fonts with ASCII range (bpp = 4)"
+
+    config LV_FONT_MONTSERRAT_8
+        bool "Enable Montserrat 8"
+        default n
+        help
+          Enable Montserrat font with 8pt size
+
+    config LV_FONT_MONTSERRAT_10
+        bool "Enable Montserrat 10"
+        default n
+        help
+          Enable Montserrat font with 10pt size
+
+    config LV_FONT_MONTSERRAT_12
+        bool "Enable Montserrat 12"
+        default n
+        help
+          Enable Montserrat font with 12pt size
+
+    config LV_FONT_MONTSERRAT_14
+        bool "Enable Montserrat 14"
+        default y
+        help
+          Enable Montserrat font with 14pt size (default font)
+
+    config LV_FONT_MONTSERRAT_16
+        bool "Enable Montserrat 16"
+        default y
+        help
+          Enable Montserrat font with 16pt size
+
+    config LV_FONT_MONTSERRAT_18
+        bool "Enable Montserrat 18"
+        default n
+        help
+          Enable Montserrat font with 18pt size
+
+    config LV_FONT_MONTSERRAT_20
+        bool "Enable Montserrat 20"
+        default n
+        help
+          Enable Montserrat font with 20pt size
+
+    config LV_FONT_MONTSERRAT_22
+        bool "Enable Montserrat 22"
+        default n
+        help
+          Enable Montserrat font with 22pt size
+
+    config LV_FONT_MONTSERRAT_24
+        bool "Enable Montserrat 24"
+        default y
+        help
+          Enable Montserrat font with 24pt size
+
+    config LV_FONT_MONTSERRAT_26
+        bool "Enable Montserrat 26"
+        default n
+        help
+          Enable Montserrat font with 26pt size
+
+    config LV_FONT_MONTSERRAT_28
+        bool "Enable Montserrat 28"
+        default n
+        help
+          Enable Montserrat font with 28pt size
+
+    config LV_FONT_MONTSERRAT_30
+        bool "Enable Montserrat 30"
+        default n
+        help
+          Enable Montserrat font with 30pt size
+
+    config LV_FONT_MONTSERRAT_32
+        bool "Enable Montserrat 32"
+        default n
+        help
+          Enable Montserrat font with 32pt size
+
+    config LV_FONT_MONTSERRAT_34
+        bool "Enable Montserrat 34"
+        default n
+        help
+          Enable Montserrat font with 34pt size
+
+    config LV_FONT_MONTSERRAT_36
+        bool "Enable Montserrat 36"
+        default n
+        help
+          Enable Montserrat font with 36pt size
+
+    config LV_FONT_MONTSERRAT_38
+        bool "Enable Montserrat 38"
+        default n
+        help
+          Enable Montserrat font with 38pt size
+
+    config LV_FONT_MONTSERRAT_40
+        bool "Enable Montserrat 40"
+        default n
+        help
+          Enable Montserrat font with 40pt size
+
+    config LV_FONT_MONTSERRAT_42
+        bool "Enable Montserrat 42"
+        default n
+        help
+          Enable Montserrat font with 42pt size
+
+    config LV_FONT_MONTSERRAT_44
+        bool "Enable Montserrat 44"
+        default n
+        help
+          Enable Montserrat font with 44pt size
+
+    config LV_FONT_MONTSERRAT_46
+        bool "Enable Montserrat 46"
+        default n
+        help
+          Enable Montserrat font with 46pt size
+
+    config LV_FONT_MONTSERRAT_48
+        bool "Enable Montserrat 48"
+        default n
+        help
+          Enable Montserrat font with 48pt size
+
+    comment "Special Fonts"
+
+    config LV_FONT_MONTSERRAT_28_COMPRESSED
+        bool "Enable Montserrat 28 Compressed (bpp = 3)"
+        default n
+        help
+          Enable compressed Montserrat font with 28pt size
+
+    config LV_FONT_DEJAVU_16_PERSIAN_HEBREW
+        bool "Enable DejaVu 16 Persian/Hebrew"
+        default n
+        help
+          Enable DejaVu 16 with Hebrew, Arabic, Persian letters and forms
+
+    config LV_FONT_SIMSUN_16_CJK
+        bool "Enable SimSun 16 CJK"
+        default n
+        help
+          Enable SimSun 16 with 1000 most common CJK radicals
+
+    comment "Pixel Perfect Monospace Fonts"
+
+    config LV_FONT_UNSCII_8
+        bool "Enable Unscii 8"
+        default n
+        help
+          Enable Unscii monospace font with 8pt size
+
+    config LV_FONT_UNSCII_16
+        bool "Enable Unscii 16"
+        default n
+        help
+          Enable Unscii monospace font with 16pt size
+
+endmenu

@@ -19,8 +19,10 @@
 
 #include "lvgl.h"
 #include "lv_vendor.h"
-
-#include "ai_pocket_pet_app.h"
+#include "main_screen.h"
+#include "toast_screen.h"
+#include "rfid_scan_screen.h"
+#include "ai_log_screen.h"
 #include "axp2101_driver.h"
 /***********************************************************
 ************************macro define************************
@@ -51,57 +53,61 @@ static void __app_display_msg_handle(DISPLAY_MSG_T *msg_data)
     }
 
     lv_vendor_disp_lock();
+    // PR_DEBUG("Display message type: %d", msg_data->type);
+    // PR_NOTICE("Free heap size: %d", tal_system_get_free_heap_size());
 
     switch (msg_data->type) {
     case POCKET_DISP_TP_MENU_UP:
-        lv_demo_ai_pocket_pet_handle_input(KEY_UP);
-        break;
     case POCKET_DISP_TP_MENU_DOWN:
-        lv_demo_ai_pocket_pet_handle_input(KEY_DOWN);
-        break;
     case POCKET_DISP_TP_MENU_RIGHT:
-        lv_demo_ai_pocket_pet_handle_input(KEY_RIGHT);
-        break;
     case POCKET_DISP_TP_MENU_LEFT:
-        lv_demo_ai_pocket_pet_handle_input(KEY_LEFT);
-        break;
     case POCKET_DISP_TP_MENU_ENTER:
-        lv_demo_ai_pocket_pet_handle_input(KEY_ENTER);
-        break;
     case POCKET_DISP_TP_MENU_ESC:
-        lv_demo_ai_pocket_pet_handle_input(KEY_ESC);
-        break;
     case POCKET_DISP_TP_AI:
-        lv_demo_ai_pocket_pet_handle_input(KEY_AI);
-        break;
     case POCKET_DISP_TP_EMOJ_HAPPY:
-        lv_demo_ai_pocket_pet_show_toast("Pet: Happy", 1000);
+        toast_screen_show("Pet: Happy", 1000);
         break;
     case POCKET_DISP_TP_EMOJ_ANGRY:
-        lv_demo_ai_pocket_pet_show_toast("Pet: Angry", 1000);
+        toast_screen_show("Pet: Angry", 1000);
         break;
     case POCKET_DISP_TP_EMOJ_CRY:
-        lv_demo_ai_pocket_pet_show_toast("Pet: Crying", 1000);
+        toast_screen_show("Pet: Crying", 1000);
         break;
     case POCKET_DISP_TP_WIFI_OFF:
-        status_bar_set_wifi_strength(0);
+        main_screen_set_wifi_state(0);
         break;
     case POCKET_DISP_TP_WIFI_CONNECTED:
-        status_bar_set_wifi_strength(3);
+        // toast_screen_show("WiFi Connected", 2000);
+        main_screen_set_wifi_state(3);
         break;
     case POCKET_DISP_TP_WIFI_FIND:
-        status_bar_set_wifi_strength(4);
+        main_screen_set_wifi_state(4);
         break;
     case POCKET_DISP_TP_WIFI_ADD:
-        status_bar_set_wifi_strength(5);
+        main_screen_set_wifi_state(5);
         break;
-    case POCKET_DISP_TP_BATTERY_STATUS: {
-        lv_demo_ai_pocket_pet_set_battery_status((uint8_t)(axp2101_getBatteryPercent() / 100.0f * 7),
-                                                 axp2101_isCharging());
-    } break;
-    case POCKET_DISP_TP_BATTERY_CHARGING: {
-        lv_demo_ai_pocket_pet_set_battery_status(lv_demo_ai_pocket_pet_get_battery_level(), true);
-    } break;
+    case POCKET_DISP_TP_BATTERY_STATUS:
+        // Battery state is automatically updated by main_screen timer in hardware mode
+        // No need to manually update here
+        break;
+    case POCKET_DISP_TP_BATTERY_CHARGING:
+        // Battery charging state is automatically detected by main_screen timer in hardware mode
+        // No need to manually update here
+        break;
+
+    case POCKET_DISP_TP_RFID_SCAN_SUCCESS:
+        if (screen_get_now_screen() != &rfid_scan_screen) {
+            screen_load(&rfid_scan_screen);
+        }
+        break;
+
+    case POCKET_DISP_TP_AI_LOG:
+        // For AI log messages, simply print to console
+        PR_DEBUG("AI LOG: %d", msg_data->len);
+        if (msg_data->data && msg_data->len > 0) {
+            ai_log_screen_update_log((const char *)msg_data->data, msg_data->len);
+        }
+        break;
 
     default:
         break;
@@ -141,7 +147,7 @@ OPERATE_RET app_display_init(void)
 
     lv_vendor_init(DISPLAY_NAME);
 
-    lv_demo_ai_pocket_pet();
+    screens_init();
 
     lv_vendor_start(5, 1024*8);
 

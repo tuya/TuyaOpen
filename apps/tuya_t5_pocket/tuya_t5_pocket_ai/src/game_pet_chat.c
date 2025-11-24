@@ -25,7 +25,7 @@
 #include "app_pocket.h"
 #include "game_pet.h"
 #include "media_src_en.h"
-#include "board_bmi270_api.h"
+#include "uart_expand.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -142,14 +142,18 @@ static TDL_LED_HANDLE_T sg_led_hdl = NULL;
 #endif
 
 static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
-static TIMER_ID sg_battery_update_timer = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static volatile BOOL_T sg_text_stream_active = FALSE;  /* Whether text stream is active */
 
-static void __battery_update_timer_cb(TIMER_ID timer_id, void *param)
+/**
+ * @brief Get text stream status
+ * @return TRUE=text stream active, FALSE=text stream ended
+ */
+BOOL_T app_get_text_stream_status(void)
 {
-    app_display_send_msg(POCKET_DISP_TP_BATTERY_STATUS, NULL, 0);
+    return sg_text_stream_active;
 }
 
 static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, uint32_t len, void *arg)
@@ -161,10 +165,14 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
         }
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_START: {
+        sg_text_stream_active = TRUE;
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
+        // Write UTF8 data to ring buffer
+        uart_print_write(data, len);
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_END: {
+        sg_text_stream_active = FALSE;
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_EMO: {
         AI_AUDIO_EMOTION_T *emo;
@@ -337,9 +345,6 @@ OPERATE_RET app_pocket_init(void)
 
     app_display_init();
 
-    tal_sw_timer_create(__battery_update_timer_cb, NULL, &sg_battery_update_timer);
-    tal_sw_timer_start(sg_battery_update_timer, 1000, 1);
-
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
     ai_audio_cfg.evt_inform_cb = __app_ai_audio_evt_inform_cb;
     ai_audio_cfg.state_inform_cb = __app_ai_audio_state_inform_cb;
@@ -347,6 +352,8 @@ OPERATE_RET app_pocket_init(void)
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
 
     TUYA_CALL_ERR_RETURN(__app_open_button());
+
+    TUYA_CALL_ERR_RETURN(uart_expand_init());
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
     sg_led_hdl = tdl_led_find_dev(LED_NAME);

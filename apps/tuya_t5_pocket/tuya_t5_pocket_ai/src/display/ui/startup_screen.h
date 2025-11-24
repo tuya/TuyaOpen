@@ -1,9 +1,16 @@
 /**
  * @file startup_screen.h
- * Startup Screen for AI Pocket Pet Application
+ * @brief Declaration of the startup screen for the application
  *
- * This module handles the startup screen that displays the Tuya Open logo
- * and transitions to the main application after 1 second.
+ * This file contains the declarations for the startup screen which is displayed
+ * when the application starts. It shows a splash screen with "TuyaOpen" and
+ * "AI Pocket Pet Demo" text, and automatically transitions after a timeout.
+ *
+ * The startup screen includes:
+ * - Screen initialization and deinitialization functions
+ * - Screen structure definition for the screen manager
+ *
+ * @copyright Copyright (c) 2024 LVGL PC Simulator Project
  */
 
 #ifndef STARTUP_SCREEN_H
@@ -13,47 +20,15 @@
 extern "C" {
 #endif
 
-/*********************
- *      INCLUDES
- *********************/
-#include "../lvgl/lvgl.h"
+#include "screen_manager.h"
 
-/*********************
- *      DEFINES
- *********************/
+extern Screen_t startup_screen;
 
-/**********************
- *      TYPEDEFS
- **********************/
-
-/**********************
- * GLOBAL PROTOTYPES
- **********************/
-
-/**
- * Create and display the startup screen
- * @return Pointer to the startup screen object
- */
-lv_obj_t* startup_screen_create(void);
-
-/**
- * Get the startup screen object
- * @return Pointer to the startup screen object
- */
-lv_obj_t* startup_screen_get(void);
-
-/**
- * Timer callback to transition from startup to main screen
- * @param timer The timer object
- */
-void startup_screen_timer_cb(lv_timer_t *timer);
-
-/**********************
- *      MACROS
- **********************/
+void startup_screen_init(void);
+void startup_screen_deinit(void);
 
 #ifdef __cplusplus
-} /* extern "C" */
+} /*extern "C"*/
 #endif
 
-#endif /* STARTUP_SCREEN_H */
+#endif /*STARTUP_SCREEN_H*/
