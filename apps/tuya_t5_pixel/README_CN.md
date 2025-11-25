@@ -52,6 +52,63 @@
 - 多字体文本渲染
 - 位图和GIF动画支持
 
+## 构建项目
+
+> **建议**：详细环境搭建、编译与烧录步骤，请结合TuyaOpen官方文档：  
+> - [环境搭建](https://tuyaopen.ai/docs/quick-start/enviroment-setup)  
+> - [项目编译](https://tuyaopen.ai/docs/quick-start/project-compilation)  
+> - [固件烧录](https://tuyaopen.ai/docs/quick-start/firmware-burning)
+
+### 前置要求
+
+- 已完成TuyaOpen SDK环境配置（详见上方“环境搭建”）
+- 终端支持 bash shell
+- 目标开发板：**TUYA_T5AI_PIXEL**
+
+### 快速构建和烧录流程
+
+1. **进入TuyaOpen SDK根目录，并导出环境变量**  
+   ```bash
+   cd /path/to/TuyaOpen
+   . ./export.sh
+   ```
+
+2. **进入对应项目目录**  
+   ```bash
+   cd apps/tuya_t5_pixel
+   ```
+
+3. **项目配置**（首次构建时，选择硬件平台 TUYA_T5AI_PIXEL）  
+   ```bash
+   tos.py config
+   # 交互选择 TUYA_T5AI_PIXEL 开发板
+   ```
+
+4. **编译项目**  
+   ```bash
+   tos.py build
+   ```
+
+5. **烧录固件到设备**  
+   > 烧录建议配合 USB/UART 方式，详见官方[烧录教程](https://tuyaopen.ai/docs/quick-start/firmware-burning)
+   ```bash
+   # 典型命令（以USB方式为例，根据实际COM口和参数调整）
+   tos.py flash
+   ```
+   或者使用官方TuyaOpen烧录工具，具体参数参见上方文档。
+
+---
+
+常用构建演示程序（在步骤3后直接执行编译)：
+- 构建 `tuya_t5_pixel_demo`            → 默认演示
+- 构建 `tuya_t5_pixel_sphere_effect`   → 3D球体动画
+- 构建 `tuya_t5_pixel_mic_spectrum_meter` → 麦克风频谱
+- 构建 `tuya_t5_pixel_simple_shapes`   → 简单图元渲染
+- 构建 `tuya_t5_pixel_bongocat_kb`     → 键盘事件驱动的像素（键盘猫+积功德）动画
+- 构建 `tuya_t5_pixel_weather`         → 天气信息显示（需配置UUID和AUTHKEY）
+
+如需构建其他目标或指定 demo，可在 `apps/tuya_t5_pixel/` 下调整相应配置。
+
 ## 可用演示程序
 
 # Demo 1. tuya_t5_pixel_demo
@@ -213,7 +270,10 @@
 >    - 产品创建和PID生成：https://developer.tuya.com/cn/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc
 >    - 授权码获取：https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
 > 
-> 4. **位置配置：** 在Tuya App中设置设备位置信息，以便获取准确的天气数据
+> 4. **配置设备位置：**
+   - 使用Tuya App绑定设备
+   - 在App中设置设备所在位置（城市/地区）
+   - 位置信息用于获取准确的天气数据
 > 
 > **警告：** 未配置正确的UUID和AUTHKEY将导致设备无法连接到Tuya云服务器，天气数据将无法获取。
 
@@ -237,98 +297,6 @@
 - `boards/T5AI/TUYA_T5AI_PIXEL/board_audio_api.h`
 - `apps/tuya_t5_pixel/tuya_t5_pixel_demo/src/tuya_main.c` 部分演示实现
 
-
-## 构建项目
-
-> **建议**：详细环境搭建、编译与烧录步骤，请结合TuyaOpen官方文档：  
-> - [环境搭建](https://tuyaopen.ai/docs/quick-start/enviroment-setup)  
-> - [项目编译](https://tuyaopen.ai/docs/quick-start/project-compilation)  
-> - [固件烧录](https://tuyaopen.ai/docs/quick-start/firmware-burning)
-
-### 前置要求
-
-- 已完成TuyaOpen SDK环境配置（详见上方“环境搭建”）
-- 终端支持 bash shell
-- 目标开发板：**TUYA_T5AI_PIXEL**
-
-### 快速构建和烧录流程
-
-1. **进入TuyaOpen SDK根目录，并导出环境变量**  
-   ```bash
-   cd /path/to/TuyaOpen
-   . ./export.sh
-   ```
-
-2. **进入对应项目目录**  
-   ```bash
-   cd apps/tuya_t5_pixel
-   ```
-
-3. **项目配置**（首次构建时，选择硬件平台 TUYA_T5AI_PIXEL）  
-   ```bash
-   tos.py config
-   # 交互选择 TUYA_T5AI_PIXEL 开发板
-   ```
-
-4. **编译项目**  
-   ```bash
-   tos.py build
-   ```
-
-5. **烧录固件到设备**  
-   > 烧录建议配合 USB/UART 方式，详见官方[烧录教程](https://tuyaopen.ai/docs/quick-start/firmware-burning)
-   ```bash
-   # 典型命令（以USB方式为例，根据实际COM口和参数调整）
-   tos.py flash
-   ```
-   或者使用官方TuyaOpen烧录工具，具体参数参见上方文档。
-
----
-
-常用构建演示程序（在步骤3后直接执行编译)：
-- 构建 `tuya_t5_pixel_demo`            → 默认演示
-- 构建 `tuya_t5_pixel_sphere_effect`   → 3D球体动画
-- 构建 `tuya_t5_pixel_mic_spectrum_meter` → 麦克风频谱
-- 构建 `tuya_t5_pixel_simple_shapes`   → 简单图元渲染
-- 构建 `tuya_t5_pixel_bongocat_kb`     → 键盘事件驱动的像素（键盘猫+积功德）动画
-- 构建 `tuya_t5_pixel_weather`         → 天气信息显示（需配置UUID和AUTHKEY）
-
-如需构建其他目标或指定 demo，可在 `apps/tuya_t5_pixel/` 下调整相应配置。
-
-### 天气应用特殊配置
-
-**tuya_t5_pixel_weather** 演示需要额外的配置步骤：
-
-1. **配置Tuya IoT凭证授权码**
-   ```bash
-   # 编辑配置文件
-   vim apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h
-   ```
-
-2. **修改以下配置项：**
-   ```c
-   #define TUYA_OPENSDK_UUID       "your_uuid_here"
-   #define TUYA_OPENSDK_AUTHKEY    "your_authkey_here"
-   ```
-
-3. **获取凭证：**
-   - 登录 [Tuya IoT平台](https://iot.tuya.com/)
-   - 创建产品并获取产品ID（PID）
-   - 购买SDK许可证并获取UUID和AUTHKEY
-   - 详细步骤：https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
-
-4. **配置设备位置：**
-   - 使用Tuya App绑定设备
-   - 在App中设置设备所在位置（城市/地区）
-   - 位置信息用于获取准确的天气数据
-
-5. **编译和烧录：**
-   ```bash
-   tos.py build
-   tos.py flash
-   ```
-
-**注意：** 未正确配置UUID和AUTHKEY将导致设备无法连接到Tuya云服务器，天气数据将无法获取。
 
 
 ## 故障排除

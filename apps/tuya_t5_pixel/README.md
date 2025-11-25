@@ -54,6 +54,66 @@ The demos demonstrate various visual effects, animations, and interactive featur
 - Text rendering with multiple fonts
 - Bitmap and GIF animation support
 
+
+
+## Building the Projects
+
+> **Recommendation:** For detailed environment setup, compilation, and flashing steps, please refer to the TuyaOpen official documentation:
+> - [Environment Setup](https://tuyaopen.ai/docs/quick-start/enviroment-setup)
+> - [Project Compilation](https://tuyaopen.ai/docs/quick-start/project-compilation)
+> - [Firmware Burning](https://tuyaopen.ai/docs/quick-start/firmware-burning)
+
+### Prerequisites
+
+- TuyaOpen SDK environment configured (see "Environment Setup" above)
+- Terminal with bash shell support
+- Target board: **TUYA_T5AI_PIXEL**
+
+### Quick Build and Flash Workflow
+
+1. **Navigate to TuyaOpen SDK root directory and export environment variables**
+   ```bash
+   cd /path/to/TuyaOpen
+   . ./export.sh
+   ```
+
+2. **Navigate to the project directory**
+   ```bash
+   cd apps/tuya_t5_pixel
+   ```
+
+3. **Project configuration** (Select hardware platform TUYA_T5AI_PIXEL on first build)
+   ```bash
+   tos.py config
+   # Interactively select TUYA_T5AI_PIXEL development board
+   ```
+
+4. **Build the project**
+   ```bash
+   tos.py build
+   ```
+
+5. **Flash firmware to device**
+   > For flashing, it is recommended to use USB/UART method. See the official [Flashing Tutorial](https://tuyaopen.ai/docs/quick-start/firmware-burning)
+   ```bash
+   # Typical command (using USB method as example, adjust COM port and parameters as needed)
+   tos.py flash
+   ```
+   Or use the official TuyaOpen flashing tool. See the documentation above for specific parameters.
+
+---
+
+Common demo builds (execute compilation directly after step 3):
+- Build `tuya_t5_pixel_demo` → Default demo
+- Build `tuya_t5_pixel_sphere_effect` → 3D sphere animation
+- Build `tuya_t5_pixel_mic_spectrum_meter` → Microphone spectrum
+- Build `tuya_t5_pixel_simple_shapes` → Simple primitive rendering
+- Build `tuya_t5_pixel_bongocat_kb` → Keyboard event-driven pixel animation
+- Build `tuya_t5_pixel_weather` → Weather information display (requires UUID and AUTHKEY configuration)
+
+To build other targets or specify a demo, adjust the corresponding configuration under `apps/tuya_t5_pixel/`.
+
+
 ## Available Demos
 
 # Demo 1. tuya_t5_pixel_demo
@@ -145,7 +205,7 @@ The demos demonstrate various visual effects, animations, and interactive featur
   - **Wooden Block Mode:** Displays 5-frame wooden block animation (32x25 pixels, bottom-aligned)
     - Key UP (0x00): Shows frame 0 (up position)
     - Key DOWN (0x01): Shows frame 4 (down position, 5th frame)
-- **Serial Communication:** Receives single-byte commands via UART0 (115200 baud)
+- **Serial Communication:** Receives commands via UART0 (115200 baud)
   - 0x00: Key UP event
   - 0x01: Key DOWN event
   - All received data is echoed in hexadecimal format (for debugging)
@@ -174,7 +234,7 @@ The demos demonstrate various visual effects, animations, and interactive featur
 - **Notes:**
   - The script occupies the serial port; close it before flashing firmware
   - Select the Tuya T5's **flashing serial port** (not the debug serial port)
-  - The script sends 2-byte commands (0xA0 0x01/0x00), but the firmware expects single-byte commands (0x00/0x01). The firmware will process the second byte, so the first byte (0xA0) is effectively ignored. For optimal compatibility, consider updating the script to send single-byte commands.
+  - The script sends 2-byte commands: 0xA0 0x00 (Key UP) and 0xA0 0x01 (Key DOWN)
 
 **Hardware Used:**
 - 32x32 LED pixel matrix (1024 pixels)
@@ -182,7 +242,7 @@ The demos demonstrate various visual effects, animations, and interactive featur
 - UART0 serial port (115200 baud)
 
 **Serial Command Format:**
-- Single-byte commands, no start byte required
+- 2-byte commands with start byte
 - `0xA0 0x00`: Key UP event
 - `0xA0 0x01`: Key DOWN event
 - All received data is echoed in hexadecimal format: `RX: 0xXX 0xYY ...`
@@ -218,6 +278,9 @@ The demos demonstrate various visual effects, animations, and interactive featur
 >    - Authorization code acquisition: https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
 > 
 > 4. **Location Configuration:** Set device location information in the Tuya App to obtain accurate weather data
+>  - Use Tuya App to bind the device
+>  - Set device location (city/region) in the App
+>  - Location information is used to obtain accurate weather data
 > 
 > **Warning:** Failure to configure correct UUID and AUTHKEY will prevent the device from connecting to Tuya cloud servers, and weather data will be unavailable.
 
@@ -239,98 +302,6 @@ For more BSP audio, buzzer, and pixel matrix API examples, please refer to:
 - `boards/T5AI/TUYA_T5AI_PIXEL/board_buzzer_api.h`
 - `boards/T5AI/TUYA_T5AI_PIXEL/board_audio_api.h`
 - `apps/tuya_t5_pixel/tuya_t5_pixel_demo/src/tuya_main.c` for demo implementations
-
-## Building the Projects
-
-> **Recommendation:** For detailed environment setup, compilation, and flashing steps, please refer to the TuyaOpen official documentation:
-> - [Environment Setup](https://tuyaopen.ai/docs/quick-start/enviroment-setup)
-> - [Project Compilation](https://tuyaopen.ai/docs/quick-start/project-compilation)
-> - [Firmware Burning](https://tuyaopen.ai/docs/quick-start/firmware-burning)
-
-### Prerequisites
-
-- TuyaOpen SDK environment configured (see "Environment Setup" above)
-- Terminal with bash shell support
-- Target board: **TUYA_T5AI_PIXEL**
-
-### Quick Build and Flash Workflow
-
-1. **Navigate to TuyaOpen SDK root directory and export environment variables**
-   ```bash
-   cd /path/to/TuyaOpen
-   . ./export.sh
-   ```
-
-2. **Navigate to the project directory**
-   ```bash
-   cd apps/tuya_t5_pixel
-   ```
-
-3. **Project configuration** (Select hardware platform TUYA_T5AI_PIXEL on first build)
-   ```bash
-   tos.py config
-   # Interactively select TUYA_T5AI_PIXEL development board
-   ```
-
-4. **Build the project**
-   ```bash
-   tos.py build
-   ```
-
-5. **Flash firmware to device**
-   > For flashing, it is recommended to use USB/UART method. See the official [Flashing Tutorial](https://tuyaopen.ai/docs/quick-start/firmware-burning)
-   ```bash
-   # Typical command (using USB method as example, adjust COM port and parameters as needed)
-   tos.py flash
-   ```
-   Or use the official TuyaOpen flashing tool. See the documentation above for specific parameters.
-
----
-
-Common demo builds (execute compilation directly after step 3):
-- Build `tuya_t5_pixel_demo` → Default demo
-- Build `tuya_t5_pixel_sphere_effect` → 3D sphere animation
-- Build `tuya_t5_pixel_mic_spectrum_meter` → Microphone spectrum
-- Build `tuya_t5_pixel_simple_shapes` → Simple primitive rendering
-- Build `tuya_t5_pixel_bongocat_kb` → Keyboard event-driven pixel animation
-- Build `tuya_t5_pixel_weather` → Weather information display (requires UUID and AUTHKEY configuration)
-
-To build other targets or specify a demo, adjust the corresponding configuration under `apps/tuya_t5_pixel/`.
-
-### Weather App Special Configuration
-
-The **tuya_t5_pixel_weather** demo requires additional configuration steps:
-
-1. **Configure Tuya IoT Authorization Code**
-   ```bash
-   # Edit configuration file
-   vim apps/tuya_t5_pixel/tuya_t5_pixel_weather/include/tuya_config.h
-   ```
-
-2. **Modify the following configuration items:**
-   ```c
-   #define TUYA_OPENSDK_UUID       "your_uuid_here"
-   #define TUYA_OPENSDK_AUTHKEY    "your_authkey_here"
-   ```
-
-3. **Obtain Authorization Code:**
-   - Log in to [Tuya IoT Platform](https://iot.tuya.com/)
-   - Create a product and obtain Product ID (PID)
-   - Purchase SDK license and obtain UUID and AUTHKEY
-   - Detailed steps: https://tuyaopen.ai/docs/quick-start#get-tuyaopen-license
-
-4. **Configure Device Location:**
-   - Use Tuya App to bind the device
-   - Set device location (city/region) in the App
-   - Location information is used to obtain accurate weather data
-
-5. **Build and Flash:**
-   ```bash
-   tos.py build
-   tos.py flash
-   ```
-
-**Note:** Failure to correctly configure UUID and AUTHKEY will prevent the device from connecting to Tuya cloud servers, and weather data will be unavailable.
 
 
 ## Troubleshooting
