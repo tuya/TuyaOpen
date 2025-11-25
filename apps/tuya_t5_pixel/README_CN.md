@@ -131,7 +131,61 @@
 **使用的硬件：**
 - 32x32 LED像素矩阵
 
-# Demo 5. tuya_t5_pixel_weather
+# Demo 5. tuya_t5_pixel_bongocat
+
+**描述：** 键盘事件驱动的（键盘猫+功德木鱼）像素艺术动画演示，支持通过串口接收键盘按键事件，实时控制Bongo Cat和木块动画。
+
+**功能：**
+- **双模式动画：**
+  - **Bongo Cat模式：** 显示3帧可爱猫咪动画
+    - 按键UP (0x00)：随机显示帧1或帧3
+    - 按键DOWN (0x01)：显示帧2（双手举起）
+  - **木块模式：** 显示5帧木块动画（32x25像素，底部对齐）
+    - 按键UP (0x00)：显示帧0（向上位置）
+    - 按键DOWN (0x01)：显示帧4（向下位置，第5帧）
+- **串口通信：** 通过UART0接收单字节命令（115200波特率）
+  - 0x00：按键UP事件
+  - 0x01：按键DOWN事件
+  - 所有接收到的数据会以十六进制格式回显（用于调试）
+- **模式切换：** 使用OK按钮在Bongo Cat和木块模式之间切换
+
+**PC端键盘事件工具：**
+- **位置：** `apps/tuya_t5_pixel/tuya_t5_pixel_bongocat_kb/pc_kb_event/`
+- **功能：** Python脚本监听PC键盘按键事件，并通过串口发送到开发板
+- **使用方法：**
+  1. 安装依赖：
+     ```bash
+     cd apps/tuya_t5_pixel/tuya_t5_pixel_bongocat_kb/pc_kb_event
+     pip install -r requirements.txt
+     ```
+  2. 配置串口：
+     - 编辑 `key_event.py`，修改 `SERIAL_PORT` 变量为您的串口设备名
+     - Windows: `'COM14'` 等
+     - Linux: `'/dev/ttyUSB0'` 等
+     - macOS: `'/dev/cu.usbserial-*'` 等
+  3. 运行脚本：
+     ```bash
+     python key_event.py
+     ```
+  4. 按任意键即可看到按键事件发送到开发板
+  5. 按 Ctrl+C 退出程序
+  - **注意事项：**
+    - 脚本会占用串口，烧录固件前需先关闭脚本
+    - 选择Tuya T5的**烧录串口**（而非调试串口）
+    - 脚本发送单字节命令：0x00（按键UP）和0x01（按键DOWN）
+
+**使用的硬件：**
+- 32x32 LED像素矩阵（1024像素）
+- OK按钮（模式切换）
+- UART0串口（115200波特率）
+
+**串口命令格式：**
+- 单字节命令，无需起始字节
+- `0xA0 0x00`：按键UP事件
+- `0xA0 0x01`：按键DOWN事件
+- 所有接收数据会以十六进制格式回显：`RX: 0xXX 0xYY ...`
+
+# Demo 6. tuya_t5_pixel_weather
 
 **描述：** 天气信息显示应用，从Tuya云服务获取天气数据并在像素屏上显示。
 
@@ -236,6 +290,7 @@
 - 构建 `tuya_t5_pixel_sphere_effect`   → 3D球体动画
 - 构建 `tuya_t5_pixel_mic_spectrum_meter` → 麦克风频谱
 - 构建 `tuya_t5_pixel_simple_shapes`   → 简单图元渲染
+- 构建 `tuya_t5_pixel_bongocat_kb`     → 键盘事件驱动的像素（键盘猫+积功德）动画
 - 构建 `tuya_t5_pixel_weather`         → 天气信息显示（需配置UUID和AUTHKEY）
 
 如需构建其他目标或指定 demo，可在 `apps/tuya_t5_pixel/` 下调整相应配置。

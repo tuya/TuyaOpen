@@ -133,7 +133,61 @@ The demos demonstrate various visual effects, animations, and interactive featur
 **Hardware Used:**
 - 32x32 LED pixel matrix
 
-# Demo 5. tuya_t5_pixel_weather
+# Demo 5. tuya_t5_pixel_bongocat_kb
+
+**Description:** Keyboard event-driven pixel art animation demo (Bongo Cat + Wooden Block), supporting real-time control of Bongo Cat and wooden block animations via serial keyboard events.
+
+**Capabilities:**
+- **Dual Mode Animations:**
+  - **Bongo Cat Mode:** Displays 3-frame cute cat animation
+    - Key UP (0x00): Randomly shows frame 1 or frame 3
+    - Key DOWN (0x01): Shows frame 2 (hands up)
+  - **Wooden Block Mode:** Displays 5-frame wooden block animation (32x25 pixels, bottom-aligned)
+    - Key UP (0x00): Shows frame 0 (up position)
+    - Key DOWN (0x01): Shows frame 4 (down position, 5th frame)
+- **Serial Communication:** Receives single-byte commands via UART0 (115200 baud)
+  - 0x00: Key UP event
+  - 0x01: Key DOWN event
+  - All received data is echoed in hexadecimal format (for debugging)
+- **Mode Switching:** Use OK button to switch between Bongo Cat and Wooden Block modes
+
+**PC Keyboard Event Tool:**
+- **Location:** `apps/tuya_t5_pixel/tuya_t5_pixel_bongocat_kb/pc_kb_event/`
+- **Function:** Python script monitors PC keyboard events and sends them to the development board via serial port
+- **Usage:**
+  1. Install dependencies:
+     ```bash
+     cd apps/tuya_t5_pixel/tuya_t5_pixel_bongocat_kb/pc_kb_event
+     pip install -r requirements.txt
+     ```
+  2. Configure serial port:
+     - Edit `key_event.py`, modify the `SERIAL_PORT` variable to match your serial port device name
+     - Windows: `'COM14'` etc.
+     - Linux: `'/dev/ttyUSB0'` etc.
+     - macOS: `'/dev/cu.usbserial-*'` etc.
+  3. Run the script:
+     ```bash
+     python key_event.py
+     ```
+  4. Press any key to see keyboard events sent to the development board
+  5. Press Ctrl+C to exit the program
+- **Notes:**
+  - The script occupies the serial port; close it before flashing firmware
+  - Select the Tuya T5's **flashing serial port** (not the debug serial port)
+  - The script sends 2-byte commands (0xA0 0x01/0x00), but the firmware expects single-byte commands (0x00/0x01). The firmware will process the second byte, so the first byte (0xA0) is effectively ignored. For optimal compatibility, consider updating the script to send single-byte commands.
+
+**Hardware Used:**
+- 32x32 LED pixel matrix (1024 pixels)
+- OK button (mode switching)
+- UART0 serial port (115200 baud)
+
+**Serial Command Format:**
+- Single-byte commands, no start byte required
+- `0xA0 0x00`: Key UP event
+- `0xA0 0x01`: Key DOWN event
+- All received data is echoed in hexadecimal format: `RX: 0xXX 0xYY ...`
+
+# Demo 6. tuya_t5_pixel_weather
 
 **Description:** Weather information display application that fetches weather data from Tuya cloud services and displays it on the pixel screen.
 
@@ -238,6 +292,7 @@ Common demo builds (execute compilation directly after step 3):
 - Build `tuya_t5_pixel_sphere_effect` → 3D sphere animation
 - Build `tuya_t5_pixel_mic_spectrum_meter` → Microphone spectrum
 - Build `tuya_t5_pixel_simple_shapes` → Simple primitive rendering
+- Build `tuya_t5_pixel_bongocat_kb` → Keyboard event-driven pixel animation
 - Build `tuya_t5_pixel_weather` → Weather information display (requires UUID and AUTHKEY configuration)
 
 To build other targets or specify a demo, adjust the corresponding configuration under `apps/tuya_t5_pixel/`.
