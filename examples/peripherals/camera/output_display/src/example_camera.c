@@ -18,14 +18,11 @@
 #include "tdl_display_manage.h"
 #include "tdl_display_draw.h"
 #include "tdl_camera_manage.h"
-#if defined(ENABLE_JOYSTICK) && (ENABLE_JOYSTICK == 1)
-#include "tdl_joystick_manage.h"
-#endif
+
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
 #define DEFAULT_FIXED_THRESHOLD 128 // Default fixed threshold value
-#define THRESHOLD_STEP          5   // Threshold adjustment step
 
 /***********************************************************
 ***********************typedef define***********************
@@ -58,11 +55,6 @@ static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_2 = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_rotat = NULL;
 
 static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
-
-#if defined(ENABLE_JOYSTICK) && (ENABLE_JOYSTICK == 1)
-// Joystick handle
-static TDL_JOYSTICK_HANDLE sg_joystick_hdl = NULL;
-#endif
 
 // Binary conversion configuration
 static BINARY_CONFIG_T sg_binary_config = {
@@ -531,100 +523,6 @@ static OPERATE_RET __camera_init(void)
     return OPRT_OK;
 }
 
-#if defined(ENABLE_JOYSTICK) && (ENABLE_JOYSTICK == 1)
-/**
- * @brief Joystick callback function to adjust binary threshold
- *
- * @param name Joystick device name
- * @param event Joystick event type
- * @param argc User argument (unused)
- */
-static void __joystick_threshold_adjust_cb(char *name, TDL_JOYSTICK_TOUCH_EVENT_E event, void *argc)
-{
-    // Only adjust threshold when using FIXED method
-    if (sg_binary_config.method != BINARY_METHOD_FIXED) {
-        return;
-    }
-
-    switch (event) {
-    case TDL_JOYSTICK_UP: {
-        // Increase threshold
-        if (sg_binary_config.fixed_threshold <= 255 - THRESHOLD_STEP) {
-            sg_binary_config.fixed_threshold += THRESHOLD_STEP;
-        } else {
-            sg_binary_config.fixed_threshold = 255;
-        }
-        PR_NOTICE("Threshold UP: %d", sg_binary_config.fixed_threshold);
-    } break;
-
-    case TDL_JOYSTICK_DOWN: {
-        // Decrease threshold
-        if (sg_binary_config.fixed_threshold >= THRESHOLD_STEP) {
-            sg_binary_config.fixed_threshold -= THRESHOLD_STEP;
-        } else {
-            sg_binary_config.fixed_threshold = 0;
-        }
-        PR_NOTICE("Threshold DOWN: %d", sg_binary_config.fixed_threshold);
-    } break;
-
-    case TDL_JOYSTICK_BUTTON_PRESS_DOWN: {
-        // Toggle between FIXED and ADAPTIVE methods
-        if (sg_binary_config.method == BINARY_METHOD_FIXED) {
-            sg_binary_config.method = BINARY_METHOD_ADAPTIVE;
-            PR_NOTICE("Switched to ADAPTIVE method");
-        } else if (sg_binary_config.method == BINARY_METHOD_ADAPTIVE) {
-            sg_binary_config.method = BINARY_METHOD_OTSU;
-            PR_NOTICE("Switched to OTSU method");
-        } else {
-            sg_binary_config.method = BINARY_METHOD_FIXED;
-            PR_NOTICE("Switched to FIXED method (threshold: %d)", sg_binary_config.fixed_threshold);
-        }
-    } break;
-
-    default:
-        break;
-    }
-}
-
-/**
- * @brief Initialize joystick for threshold adjustment
- *
- * @return OPERATE_RET OPRT_OK on success
- */
-static OPERATE_RET __joystick_init(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    TDL_JOYSTICK_CFG_T joystick_cfg = {
-        .button_cfg = {.long_start_valid_time = 3000,
-                       .long_keep_timer = 1000,
-                       .button_debounce_time = 50,
-                       .button_repeat_valid_count = 2,
-                       .button_repeat_valid_time = 50},
-        .adc_cfg =
-            {
-                .adc_max_val = 8192,    /* adc max value */
-                .adc_min_val = 0,       /* adc min value */
-                .normalized_range = 10, /* normalized range ±10 */
-                .sensitivity = 2,       /* sensitivity should < normalized range */
-            },
-    };
-
-    TUYA_CALL_ERR_RETURN(tdl_joystick_create(JOYSTICK_NAME, &joystick_cfg, &sg_joystick_hdl));
-
-    // Register events for threshold adjustment
-    tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_UP, __joystick_threshold_adjust_cb);
-    tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_DOWN, __joystick_threshold_adjust_cb);
-    tdl_joystick_event_register(sg_joystick_hdl, TDL_JOYSTICK_BUTTON_PRESS_DOWN, __joystick_threshold_adjust_cb);
-
-    PR_NOTICE("Joystick initialized for threshold control");
-    PR_NOTICE("  UP/DOWN: Adjust threshold (±%d)", THRESHOLD_STEP);
-    PR_NOTICE("  BUTTON: Toggle method (FIXED -> ADAPTIVE -> OTSU)");
-
-    return OPRT_OK;
-}
-#endif
-
 /**
  * @brief user_main
  *
@@ -647,28 +545,22 @@ void user_main(void)
 
     TUYA_CALL_ERR_LOG(__display_init());
 
-    TUYA_CALL_ERR_LOG(__camera_init()); // Camera disabled for testing
+    TUYA_CALL_ERR_LOG(__camera_init());
 
-#if defined(ENABLE_JOYSTICK) && (ENABLE_JOYSTICK == 1)
-    // Initialize joystick for threshold control (if available)
+    // Configure binary conversion method
     if (sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME) {
-        OPERATE_RET joystick_rt = __joystick_init();
-        if (joystick_rt != OPRT_OK) {
-            PR_WARN("Joystick initialization failed, continuing without joystick control");
-        }
-    }
-#endif
-    // Configure binary conversion method to Otsu for optimal results
-    if (sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME) {
-        set_binary_method(BINARY_METHOD_FIXED); // Start with FIXED for joystick control
-        set_fixed_threshold(DEFAULT_FIXED_THRESHOLD);
-        PR_DEBUG("Binary conversion method set to FIXED with threshold: %d", DEFAULT_FIXED_THRESHOLD);
+        // You can change the method here:
+        set_binary_method(BINARY_METHOD_FIXED);
+        set_fixed_threshold(128);
+        // set_binary_method(BINARY_METHOD_ADAPTIVE);
+        // set_binary_method(BINARY_METHOD_OTSU);
 
-        PR_DEBUG("Current method: %s", sg_binary_config.method == BINARY_METHOD_FIXED      ? "FIXED"
-                                       : sg_binary_config.method == BINARY_METHOD_ADAPTIVE ? "ADAPTIVE"
-                                                                                           : "OTSU");
+        PR_NOTICE("Binary conversion initialized with method: %s",
+                  sg_binary_config.method == BINARY_METHOD_FIXED      ? "FIXED"
+                  : sg_binary_config.method == BINARY_METHOD_ADAPTIVE ? "ADAPTIVE"
+                                                                      : "OTSU");
         if (sg_binary_config.method == BINARY_METHOD_FIXED) {
-            PR_DEBUG("Current threshold: %d", sg_binary_config.fixed_threshold);
+            PR_NOTICE("Fixed threshold: %d", sg_binary_config.fixed_threshold);
         }
     }
 
