@@ -1,11 +1,11 @@
 /**
  * @file example_i2c_scan.c
  * @brief Example implementation of an I2C scan for Tuya IoT projects.
- * 
+ *
  * This file provides an example implementation of an I2C scan using the Tuya SDK.
  * It demonstrates how to scan the I2C bus for connected devices by iterating through possible
  * 7-bit addresses and checking for device presence.
- * 
+ *
  * @note This example is designed to be adaptable to various Tuya IoT devices and platforms,
  * showcasing fundamental I2C operations that are critical for IoT device development.
  *
@@ -45,7 +45,7 @@ OPERATE_RET __i2c_scan()
     OPERATE_RET op_ret = OPRT_COM_ERROR;
     uint8_t i2c_addr = 0;
     uint8_t dev_num = 0;
-    for (i2c_addr = 0X08; i2c_addr <= 0X77; i2c_addr++) {
+    for (i2c_addr = 0X00; i2c_addr <= 0X7F; i2c_addr++) {
         uint8_t data_buf[1] = {0};
         if (OPRT_OK == tkl_i2c_master_send(EXAMPLE_I2C_PORT, i2c_addr, data_buf, SCAN_TEST_SIZE, TRUE)) {
             dev_num++;

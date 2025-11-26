@@ -23,10 +23,26 @@ extern "C" {
 
 #include "screen_manager.h"
 
+/**
+ * @brief AI log screen lifecycle callback type
+ * Called when screen is initialized or deinitialized
+ *
+ * @param is_init TRUE for init, FALSE for deinit
+ */
+typedef void (*ai_log_screen_lifecycle_cb_t)(BOOL_T is_init);
+
 extern Screen_t ai_log_screen;
 
 void ai_log_screen_init(void);
 void ai_log_screen_deinit(void);
+
+/**
+ * @brief Register lifecycle callback for AI log screen
+ * This allows external modules to be notified when the screen is shown/hidden
+ *
+ * @param callback Callback function, NULL to unregister
+ */
+void ai_log_screen_register_lifecycle_cb(ai_log_screen_lifecycle_cb_t callback);
 
 /**
  * @brief Update AI log content

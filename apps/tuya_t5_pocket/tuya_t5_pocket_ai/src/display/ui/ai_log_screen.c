@@ -22,7 +22,6 @@
 
 #ifdef ENABLE_LVGL_HARDWARE
 #include "tkl_fs.h"
-#include "rfid_scan.h"
 #endif
 
 /***********************************************************
@@ -31,7 +30,7 @@
 
 // Screen dimensions
 #ifndef AI_PET_SCREEN_WIDTH
-#define AI_PET_SCREEN_WIDTH  384
+#define AI_PET_SCREEN_WIDTH 384
 #endif
 #ifndef AI_PET_SCREEN_HEIGHT
 #define AI_PET_SCREEN_HEIGHT 168
@@ -59,6 +58,9 @@ static lv_obj_t *log_text_area = NULL;
 static char log_buffer[MAX_LOG_SIZE] = {0};
 static size_t log_buffer_used = 0;
 
+// Lifecycle callback
+static ai_log_screen_lifecycle_cb_t sg_lifecycle_callback = NULL;
+
 #ifdef ENABLE_LVGL_HARDWARE
 // SD card mount status
 static bool sd_card_mounted = false;
@@ -85,6 +87,18 @@ static void save_log_to_sd(char *log_text, size_t length);
 ***********************function define**********************
 ***********************************************************/
 
+/**
+ * @brief Register lifecycle callback for AI log screen
+ * This allows external modules to be notified when the screen is shown/hidden
+ *
+ * @param callback Callback function, NULL to unregister
+ */
+void ai_log_screen_register_lifecycle_cb(ai_log_screen_lifecycle_cb_t callback)
+{
+    sg_lifecycle_callback = callback;
+    printf("[AI Log] Lifecycle callback %s\n", callback ? "registered" : "unregistered");
+}
+
 #ifdef ENABLE_LVGL_HARDWARE
 /**
  * @brief Save log to SD card
@@ -108,8 +122,7 @@ static void save_log_to_sd(char *log_text, size_t length)
 
     uint32_t ret_len = tkl_fwrite(log_text, length, file_hdl);
     if (ret_len != length) {
-        printf("[AI Log] Failed to write to file %s: wrote %d/%zu bytes\n", 
-               AI_LOG_FILE_PATH, ret_len, length);
+        printf("[AI Log] Failed to write to file %s: wrote %d/%zu bytes\n", AI_LOG_FILE_PATH, ret_len, length);
     } else {
         printf("[AI Log] Successfully saved %zu bytes to %s\n", length, AI_LOG_FILE_PATH);
     }
@@ -131,55 +144,55 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", ai_log_screen.name, key);
 
     switch (key) {
-        case KEY_UP:
-            // Scroll up
-            if (log_container) {
-                lv_coord_t scroll_top = lv_obj_get_scroll_top(log_container);
-                if (scroll_top > 0) {
-                    lv_coord_t scroll_step = (scroll_top > 20) ? 20 : scroll_top;
-                    lv_obj_scroll_by(log_container, 0, scroll_step, LV_ANIM_ON);
-                    printf("AI Log: Scrolled up by %d pixels\n", scroll_step);
-                } else {
-                    printf("AI Log: Already at top\n");
-                }
+    case KEY_UP:
+        // Scroll up
+        if (log_container) {
+            lv_coord_t scroll_top = lv_obj_get_scroll_top(log_container);
+            if (scroll_top > 0) {
+                lv_coord_t scroll_step = (scroll_top > 20) ? 20 : scroll_top;
+                lv_obj_scroll_by(log_container, 0, scroll_step, LV_ANIM_ON);
+                printf("AI Log: Scrolled up by %d pixels\n", scroll_step);
+            } else {
+                printf("AI Log: Already at top\n");
             }
-            break;
+        }
+        break;
 
-        case KEY_DOWN:
-            // Scroll down
-            if (log_container) {
-                lv_coord_t scroll_bottom = lv_obj_get_scroll_bottom(log_container);
-                if (scroll_bottom > 0) {
-                    lv_coord_t scroll_step = (scroll_bottom > 20) ? 20 : scroll_bottom;
-                    lv_obj_scroll_by(log_container, 0, -scroll_step, LV_ANIM_ON);
-                    printf("AI Log: Scrolled down by %d pixels\n", scroll_step);
-                } else {
-                    printf("AI Log: Already at bottom\n");
-                }
+    case KEY_DOWN:
+        // Scroll down
+        if (log_container) {
+            lv_coord_t scroll_bottom = lv_obj_get_scroll_bottom(log_container);
+            if (scroll_bottom > 0) {
+                lv_coord_t scroll_step = (scroll_bottom > 20) ? 20 : scroll_bottom;
+                lv_obj_scroll_by(log_container, 0, -scroll_step, LV_ANIM_ON);
+                printf("AI Log: Scrolled down by %d pixels\n", scroll_step);
+            } else {
+                printf("AI Log: Already at bottom\n");
             }
-            break;
+        }
+        break;
 
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
+    case KEY_LEFT:
+        printf("LEFT key pressed\n");
+        break;
 
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
+    case KEY_RIGHT:
+        printf("RIGHT key pressed\n");
+        break;
 
-        case KEY_ENTER:
-            printf("ENTER key pressed - Clear log\n");
-            ai_log_screen_clear_log();
-            break;
+    case KEY_ENTER:
+        printf("ENTER key pressed - Clear log\n");
+        ai_log_screen_clear_log();
+        break;
 
-        case KEY_ESC:
-            printf("ESC key pressed - Return to previous screen\n");
-            screen_back();
-            break;
+    case KEY_ESC:
+        printf("ESC key pressed - Return to previous screen\n");
+        screen_back();
+        break;
 
-        default:
-            printf("Unknown key pressed\n");
-            break;
+    default:
+        printf("Unknown key pressed\n");
+        break;
     }
 }
 
@@ -304,10 +317,9 @@ void ai_log_screen_init(void)
         printf("[AI Log] Failed to mount SD card: %d\n", rt);
     }
 
-    // Start log scanning thread
-    rt = rfid_log_scan_start();
-    if (rt != OPRT_OK) {
-        printf("[AI Log] Failed to start log scan thread: %d\n", rt);
+    // Notify external modules that screen is initialized
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(TRUE);
     }
 #endif
 
@@ -372,8 +384,10 @@ void ai_log_screen_deinit(void)
     log_text_area = NULL;
 
 #ifdef ENABLE_LVGL_HARDWARE
-    // Stop log scanning thread
-    rfid_log_scan_stop();
+    // Notify external modules that screen is deinitialized
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(FALSE);
+    }
 
     // Unmount SD card
     if (sd_card_mounted) {
