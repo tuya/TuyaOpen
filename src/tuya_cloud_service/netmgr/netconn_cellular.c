@@ -51,7 +51,7 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
         },
 };
 
-static TIMER_ID cellular_status_timer = NULL;
+static TIMER_ID __attribute__((unused)) cellular_status_timer = NULL;
 
 /***********************************************************
 ***********************function define**********************
@@ -77,7 +77,7 @@ static void __netconn_cellular_event(CELLULAR_STAT_E event)
     return;
 }
 
-static void __cellular_status_timer_cb(TIMER_ID timer_id, void *arg)
+static void __attribute__((unused)) __cellular_status_timer_cb(TIMER_ID timer_id, void *arg)
 {
     OPERATE_RET rt = OPRT_OK;
     CELLULAR_STAT_E net_status = NETMGR_LINK_DOWN;
@@ -106,7 +106,7 @@ OPERATE_RET netconn_cellular_open(void *config)
     tal_cellular_init(&cfg);
 
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;
-#if 0
+#if 1
     TUYA_CALL_ERR_RETURN(tal_cellular_set_status_cb(__netconn_cellular_event));
 #else
     // TODO: T5AI has not implemented 4G status change callback, use software timer to poll status
