@@ -91,7 +91,7 @@ static netmgr_type_e __get_active_conn()
         cur_conn->get(NETCONN_CMD_STATUS, &netmgr_status);
         if (netmgr_status == NETMGR_LINK_UP) {
             // return the first connection which is up
-            PR_DEBUG("netmgr active connection [%s]", NETMGR_TYPE_TO_STR(cur_conn->type));
+            PR_TRACE("netmgr active connection [%s]", NETMGR_TYPE_TO_STR(cur_conn->type));
             active_type = cur_conn->type;
             break;
         }
@@ -170,7 +170,7 @@ static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *stat
             }
 
             cur_conn->get(NETCONN_CMD_STATUS, status);
-            PR_DEBUG("netmgr conn [%s] status [%s]", NETMGR_TYPE_TO_STR(type), NETMGR_STATUS_TO_STR(*status));
+            PR_TRACE("netmgr conn [%s] status [%s]", NETMGR_TYPE_TO_STR(type), NETMGR_STATUS_TO_STR(*status));
             break;
         }
         cur_conn = cur_conn->next;

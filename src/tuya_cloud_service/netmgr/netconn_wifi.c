@@ -129,7 +129,6 @@ OPERATE_RET __netconn_wifi_disconnect(void)
 static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 {
     netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
-    PR_NOTICE("wifi status changed to %d, old stat: %d", event, wifi->conn.stat);
 
     tal_sw_timer_stop(wifi->conn.timer);
     if (event == WFE_CONNECTED) {
@@ -140,7 +139,6 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
     } else {
         //! faild or disconnect auto connect
         if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
-            PR_DEBUG("wifi connect wait %d-%d", wifi->conn.count, wifi->conn.table[wifi->conn.count]);
             tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
             if (wifi->conn.count < wifi->conn.table_size - 1) {
                 wifi->conn.count++;
@@ -246,8 +244,10 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
     // save wifi info
-    memcpy(netmgr_wifi->conn.wifi_conn_info.ssid, info->ssid, info->s_len > WIFI_SSID_LEN ? WIFI_SSID_LEN : info->s_len);
-    memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd, info->p_len > WIFI_PASSWD_LEN ? WIFI_PASSWD_LEN : info->p_len);
+    memcpy(netmgr_wifi->conn.wifi_conn_info.ssid, info->ssid,
+           info->s_len > WIFI_SSID_LEN ? WIFI_SSID_LEN : info->s_len);
+    memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd,
+           info->p_len > WIFI_PASSWD_LEN ? WIFI_PASSWD_LEN : info->p_len);
     __netconn_wifi_info_set(&netmgr_wifi->conn.wifi_conn_info);
     PR_DEBUG("netcfg finished,  ssid %s, passwd %s, token %s", netmgr_wifi->conn.wifi_conn_info.ssid,
              netmgr_wifi->conn.wifi_conn_info.pswd, info->token);
