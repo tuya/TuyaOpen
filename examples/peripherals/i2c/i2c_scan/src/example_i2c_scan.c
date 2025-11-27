@@ -82,8 +82,16 @@ static void __example_i2c_task(void *param)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC0_SCL);
-    tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC0_SDA);
+    if(TUYA_I2C_NUM_0 == EXAMPLE_I2C_PORT) {
+        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC0_SCL);
+        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC0_SDA);
+    } else if(TUYA_I2C_NUM_1 == EXAMPLE_I2C_PORT) {
+        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC1_SCL);
+        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC1_SDA);
+    }else if(TUYA_I2C_NUM_3 == EXAMPLE_I2C_PORT) {
+        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC2_SCL);
+        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC2_SDA);
+    }
 
     /*i2c init*/
     cfg.role = TUYA_IIC_MODE_MASTER;
@@ -97,13 +105,13 @@ static void __example_i2c_task(void *param)
 
     while (1) {
         if (OPRT_OK != __i2c_scan()) {
-            PR_ERR("i2c can not find any 7bits address device, please check : \n\
-                           1、device connection \n\
-                           2、device power supply \n\
-                           3、device is good \n\
-                           4、SCL/SDA pinmux \n\
-                           5、SCL/SDA pull-up resistor \n\
-                           6、device support bus speed \n");
+            PR_ERR("i2c can not find any 7bits address device, please check : \r\n\
+                           1、device connection \r\n\
+                           2、device power supply \r\n\
+                           3、device is good \r\n\
+                           4、SCL/SDA pinmux \r\n\
+                           5、SCL/SDA pull-up resistor \r\n\
+                           6、device support bus speed \r\n");
         }
         tal_system_sleep(1000);
     }

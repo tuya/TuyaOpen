@@ -147,7 +147,7 @@ OPERATE_RET __get_camera_raw_frame_rgb565_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA
 /**
  * @brief Converts YUV422 image to binary image using luminance threshold.
  *
- * @param yuv422_data Pointer to YUV422 input data (YUYV format).
+ * @param yuv422_data Pointer to YUV422 input data (UYVY format).
  * @param width Image width in pixels.
  * @param height Image height in pixels.
  * @param binary_data Pointer to output binary data buffer.
