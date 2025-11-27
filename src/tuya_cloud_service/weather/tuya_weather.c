@@ -49,7 +49,7 @@
  *         - OPRT_MALLOC_FAILED: Memory allocation failed.
  *         - Other error codes: Operation failed.
  */
-static OPERATE_RET tuya_weather_get(const char* code, atop_base_response_t *response)
+static OPERATE_RET tuya_weather_get(const char *code, atop_base_response_t *response)
 {
     OPERATE_RET rt = OPRT_OK;
     TIME_T timestamp = 0;
@@ -76,6 +76,10 @@ static OPERATE_RET tuya_weather_get(const char* code, atop_base_response_t *resp
     }
 
     timestamp = tal_time_get_posix();
+
+    if (code == NULL) {
+        return OPRT_INVALID_PARM;
+    }
 
     post_data_len = snprintf(NULL, 0, "{\"codes\":[%s], \"t\":%d}", code, timestamp);
     post_data_len++; // add '\0'
@@ -130,6 +134,10 @@ int tuya_weather_get_current_conditions(WEATHER_CURRENT_CONDITIONS_T *current_co
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (current_conditions == NULL) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -212,6 +220,10 @@ int tuya_weather_get_today_high_low_temp(int *high_temp, int *low_temp)
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
+    if (high_temp == NULL || low_temp == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
     }
@@ -267,10 +279,14 @@ int tuya_weather_get_today_high_low_temp(int *high_temp, int *low_temp)
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed)
+int tuya_weather_get_current_wind(char *wind_dir, size_t wind_dir_len, char *wind_speed, size_t wind_speed_len)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (wind_dir == NULL || wind_speed == NULL || wind_dir_len == 0 || wind_speed_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -298,12 +314,18 @@ int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed)
 
         item = cJSON_GetObjectItem(data_obj, "w.windDir");
         if (item) {
-            strcpy(wind_dir, item->valuestring);
+            int ret = snprintf(wind_dir, wind_dir_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)wind_dir_len) {
+                wind_dir[wind_dir_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.windSpeed");
         if (item) {
-            strcpy(wind_speed, item->valuestring);
+            int ret = snprintf(wind_speed, wind_speed_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)wind_speed_len) {
+                wind_speed[wind_speed_len - 1] = '\0';
+            }
         }
     }
 
@@ -328,10 +350,15 @@ int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed)
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_wind_cn(char *wind_dir, char *wind_speed, int *wind_level)
+int tuya_weather_get_current_wind_cn(char *wind_dir, size_t wind_dir_len, char *wind_speed, size_t wind_speed_len,
+                                     int *wind_level)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (wind_dir == NULL || wind_speed == NULL || wind_level == NULL || wind_dir_len == 0 || wind_speed_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -359,12 +386,18 @@ int tuya_weather_get_current_wind_cn(char *wind_dir, char *wind_speed, int *wind
 
         item = cJSON_GetObjectItem(data_obj, "w.windDir");
         if (item) {
-            strcpy(wind_dir, item->valuestring);
+            int ret = snprintf(wind_dir, wind_dir_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)wind_dir_len) {
+                wind_dir[wind_dir_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.windSpeed");
         if (item) {
-            strcpy(wind_speed, item->valuestring);
+            int ret = snprintf(wind_speed, wind_speed_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)wind_speed_len) {
+                wind_speed[wind_speed_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.windLevel");
@@ -393,10 +426,14 @@ int tuya_weather_get_current_wind_cn(char *wind_dir, char *wind_speed, int *wind
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, char *sunset)
+int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, size_t sunrise_len, char *sunset, size_t sunset_len)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (sunrise == NULL || sunset == NULL || sunrise_len == 0 || sunset_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -424,12 +461,18 @@ int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, char *sunset)
 
         item = cJSON_GetObjectItem(data_obj, "w.sunrise");
         if (item) {
-            strcpy(sunrise, item->valuestring);
+            int ret = snprintf(sunrise, sunrise_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)sunrise_len) {
+                sunrise[sunrise_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.sunset");
         if (item) {
-            strcpy(sunset, item->valuestring);
+            int ret = snprintf(sunset, sunset_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)sunset_len) {
+                sunset[sunset_len - 1] = '\0';
+            }
         }
     }
 
@@ -453,10 +496,14 @@ int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, char *sunset)
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_sunrise_sunset_local(char *sunrise, char *sunset)
+int tuya_weather_get_current_sunrise_sunset_local(char *sunrise, size_t sunrise_len, char *sunset, size_t sunset_len)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (sunrise == NULL || sunset == NULL || sunrise_len == 0 || sunset_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -484,12 +531,18 @@ int tuya_weather_get_current_sunrise_sunset_local(char *sunrise, char *sunset)
 
         item = cJSON_GetObjectItem(data_obj, "w.sunrise");
         if (item) {
-            strcpy(sunrise, item->valuestring);
+            int ret = snprintf(sunrise, sunrise_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)sunrise_len) {
+                sunrise[sunrise_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.sunset");
         if (item) {
-            strcpy(sunset, item->valuestring);
+            int ret = snprintf(sunset, sunset_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)sunset_len) {
+                sunset[sunset_len - 1] = '\0';
+            }
         }
     }
 
@@ -516,6 +569,10 @@ int tuya_weather_get_current_aqi(WEATHER_CURRENT_AQI_T *current_aqi)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (current_aqi == NULL) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -607,6 +664,10 @@ int tuya_weather_get_current_aqi_cn(WEATHER_CURRENT_AQI_T *current_aqi)
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
+    if (current_aqi == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
     }
@@ -638,7 +699,11 @@ int tuya_weather_get_current_aqi_cn(WEATHER_CURRENT_AQI_T *current_aqi)
 
         item = cJSON_GetObjectItem(data_obj, "w.rank");
         if (item) {
-            strcpy(current_aqi->rank, item->valuestring);
+            int ret =
+                snprintf(current_aqi->rank, sizeof(current_aqi->rank), "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)sizeof(current_aqi->rank)) {
+                current_aqi->rank[sizeof(current_aqi->rank) - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "w.qualityLevel");
@@ -703,7 +768,7 @@ int tuya_weather_get_forecast_conditions(int number, WEATHER_FORECAST_CONDITIONS
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
-    if (number < 1 || number > 7) {
+    if (number < 1 || number > 7 || forecast_conditions == NULL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -801,7 +866,7 @@ int tuya_weather_get_forecast_conditions_cn(int number, int *weather, int *humi,
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
-    if (number < 1 || number > 7) {
+    if (number < 1 || number > 7 || weather == NULL || humi == NULL || uvi == NULL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -881,7 +946,7 @@ int tuya_weather_get_forecast_wind(int number, char **wind_dir, char **wind_spee
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
-    if (number < 1 || number > 7) {
+    if (number < 1 || number > 7 || wind_dir == NULL || wind_speed == NULL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -915,20 +980,23 @@ int tuya_weather_get_forecast_wind(int number, char **wind_dir, char **wind_spee
             
             snprintf(key_name, sizeof(key_name), "w.windDir.%d", i);
             item = cJSON_GetObjectItem(data_obj, key_name);
-            if (item) {
+            if (item && item->valuestring) {
                 // wind_dir[i] = strdup(item->valuestring);
                 wind_dir[i] = tal_malloc(strlen(item->valuestring) + 1);
                 if (wind_dir[i] == NULL) {
                     PR_ERR("malloc wind_dir[%d] failed", i);
                     return OPRT_COM_ERROR;
                 }
-                memset(wind_dir[i], 0, strlen(item->valuestring) + 1);
-                strcpy(wind_dir[i], item->valuestring);
+                size_t value_len = strlen(item->valuestring);
+                memset(wind_dir[i], 0, value_len + 1);
+                memcpy(wind_dir[i], item->valuestring, value_len);
+            } else {
+                wind_dir[i] = NULL;
             }
 
             snprintf(key_name, sizeof(key_name), "w.windSpeed.%d", i);
             item = cJSON_GetObjectItem(data_obj, key_name);
-            if (item) {
+            if (item && item->valuestring) {
                 // wind_speed[i] = strdup(item->valuestring);
                 wind_speed[i] = tal_malloc(strlen(item->valuestring) + 1);
                 if (wind_speed[i] == NULL) {
@@ -939,8 +1007,11 @@ int tuya_weather_get_forecast_wind(int number, char **wind_dir, char **wind_spee
                     }
                     return OPRT_COM_ERROR;
                 }
-                memset(wind_speed[i], 0, strlen(item->valuestring) + 1);
-                strcpy(wind_speed[i], item->valuestring);
+                size_t value_len = strlen(item->valuestring);
+                memset(wind_speed[i], 0, value_len + 1);
+                memcpy(wind_speed[i], item->valuestring, value_len);
+            } else {
+                wind_speed[i] = NULL;
             }
         }
     }
@@ -972,7 +1043,7 @@ int tuya_weather_get_forecast_high_low_temp(int number, int *high_temp, int *low
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
 
-    if (number < 1 || number > 7) {
+    if (number < 1 || number > 7 || high_temp == NULL || low_temp == NULL) {
         return OPRT_INVALID_PARM;
     }
 
@@ -1039,10 +1110,15 @@ int tuya_weather_get_forecast_high_low_temp(int number, int *high_temp, int *low
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_city(char *province, char *city, char *area)
+int tuya_weather_get_city(char *province, size_t province_len, char *city, size_t city_len, char *area,
+                          size_t area_len)
 {
     OPERATE_RET rt = OPRT_OK;
     atop_base_response_t response;
+
+    if (province == NULL || city == NULL || area == NULL || province_len == 0 || city_len == 0 || area_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
 
     if (!tuya_weather_allow_update()) {
         return OPRT_COM_ERROR;
@@ -1070,17 +1146,26 @@ int tuya_weather_get_city(char *province, char *city, char *area)
 
         item = cJSON_GetObjectItem(data_obj, "c.province");
         if (item) {
-            strcpy(province, item->valuestring);
+            int ret = snprintf(province, province_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)province_len) {
+                province[province_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "c.city");
         if (item) {
-            strcpy(city, item->valuestring);
+            int ret = snprintf(city, city_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)city_len) {
+                city[city_len - 1] = '\0';
+            }
         }
 
         item = cJSON_GetObjectItem(data_obj, "c.area");
         if (item) {
-            strcpy(area, item->valuestring);
+            int ret = snprintf(area, area_len, "%s", item->valuestring ? item->valuestring : "");
+            if (ret < 0 || ret >= (int)area_len) {
+                area[area_len - 1] = '\0';
+            }
         }
     }
 

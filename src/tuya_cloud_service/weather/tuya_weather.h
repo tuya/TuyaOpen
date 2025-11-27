@@ -22,6 +22,7 @@
 /******************************************************************************
  * INCLUDE
  ******************************************************************************/
+#include <stddef.h>
 #include "tal_api.h"
 #include "atop_base.h"
 
@@ -164,14 +165,16 @@ int tuya_weather_get_today_high_low_temp(int *high_temp, int *low_temp);
  * before making the API request.
  *
  * @param wind_dir Pointer to store the wind direction string.
+ * @param wind_dir_len Length of the wind direction buffer.
  * @param wind_speed Pointer to store the wind speed string.
+ * @param wind_speed_len Length of the wind speed buffer.
  *
  * @return The operation result status. Possible values are:
  *         - OPRT_OK: Operation successful.
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed);
+int tuya_weather_get_current_wind(char *wind_dir, size_t wind_dir_len, char *wind_speed, size_t wind_speed_len);
 
 /**
  * @brief Retrieves current wind information for China from the Tuya cloud platform.
@@ -181,7 +184,9 @@ int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed);
  * It performs network and update permission checks before making the API request.
  *
  * @param wind_dir Pointer to store the wind direction string.
+ * @param wind_dir_len Length of the wind direction buffer.
  * @param wind_speed Pointer to store the wind speed string.
+ * @param wind_speed_len Length of the wind speed buffer.
  * @param wind_level Pointer to store the wind level number.
  *
  * @return The operation result status. Possible values are:
@@ -189,7 +194,8 @@ int tuya_weather_get_current_wind(char *wind_dir, char *wind_speed);
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_wind_cn(char *wind_dir, char *wind_speed, int *wind_level);
+int tuya_weather_get_current_wind_cn(char *wind_dir, size_t wind_dir_len, char *wind_speed, size_t wind_speed_len,
+                                     int *wind_level);
 
 /**
  * @brief Retrieves current sunrise and sunset times in GMT from the Tuya cloud platform.
@@ -199,14 +205,16 @@ int tuya_weather_get_current_wind_cn(char *wind_dir, char *wind_speed, int *wind
  * checks before making the API request.
  *
  * @param sunrise Pointer to store the sunrise time string in GMT.
+ * @param sunrise_len Length of the sunrise buffer.
  * @param sunset Pointer to store the sunset time string in GMT.
+ * @param sunset_len Length of the sunset buffer.
  *
  * @return The operation result status. Possible values are:
  *         - OPRT_OK: Operation successful.
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, char *sunset);
+int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, size_t sunrise_len, char *sunset, size_t sunset_len);
 
 /**
  * @brief Retrieves current sunrise and sunset times in local timezone from the Tuya cloud platform.
@@ -216,14 +224,16 @@ int tuya_weather_get_current_sunrise_sunset_gmt(char *sunrise, char *sunset);
  * checks before making the API request.
  *
  * @param sunrise Pointer to store the sunrise time string in local timezone.
+ * @param sunrise_len Length of the sunrise buffer.
  * @param sunset Pointer to store the sunset time string in local timezone.
+ * @param sunset_len Length of the sunset buffer.
  *
  * @return The operation result status. Possible values are:
  *         - OPRT_OK: Operation successful.
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_current_sunrise_sunset_local(char *sunrise, char *sunset);
+int tuya_weather_get_current_sunrise_sunset_local(char *sunrise, size_t sunrise_len, char *sunset, size_t sunset_len);
 
 /**
  * @brief Retrieves current air quality information from the Tuya cloud platform.
@@ -343,15 +353,19 @@ int tuya_weather_get_forecast_high_low_temp(int number, int *high_temp, int *low
  * update permission checks before making the API request.
  *
  * @param province Pointer to store the province name string.
+ * @param province_len Length of the province buffer.
  * @param city Pointer to store the city name string.
+ * @param city_len Length of the city buffer.
  * @param area Pointer to store the area name string.
+ * @param area_len Length of the area buffer.
  *
  * @return The operation result status. Possible values are:
  *         - OPRT_OK: Operation successful.
  *         - OPRT_COM_ERROR: Communication error or update not allowed.
  *         - Other error codes: Operation failed.
  */
-int tuya_weather_get_city(char *province, char *city, char *area);
+int tuya_weather_get_city(char *province, size_t province_len, char *city, size_t city_len, char *area,
+                          size_t area_len);
 
 /**
  * @brief Checks if weather data update is allowed.

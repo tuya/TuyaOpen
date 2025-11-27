@@ -102,7 +102,7 @@ OPERATE_RET netconn_cellular_open(void *config)
     // init
     TAL_CELLULAR_BASE_CFG_T cfg;
     memset(&cfg, 0, sizeof(cfg));
-    strcpy(cfg.apn, "");
+    snprintf(cfg.apn, sizeof(cfg.apn), "%s", "");
     tal_cellular_init(&cfg);
 
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;

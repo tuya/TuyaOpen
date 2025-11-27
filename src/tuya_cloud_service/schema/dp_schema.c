@@ -13,6 +13,7 @@
  */
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include "tuya_cloud_types.h"
 #include "dp_schema.h"
 #include "cJSON.h"
@@ -34,6 +35,25 @@ typedef struct {
 } dp_schema_mgr_t;
 
 static dp_schema_mgr_t s_dsmgr = {0};
+
+static bool dp_snprintf_append(char *buf, size_t buf_len, size_t *offset, const char *fmt, ...)
+{
+    if (buf == NULL || offset == NULL || *offset >= buf_len) {
+        return false;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+    int ret = vsnprintf(buf + *offset, buf_len - *offset, fmt, args);
+    va_end(args);
+
+    if (ret < 0 || (size_t)ret >= buf_len - *offset) {
+        return false;
+    }
+
+    *offset += (size_t)ret;
+    return true;
+}
 
 /**
  * @brief Appends a JSON string to the given data with the specified time, type,
@@ -110,7 +130,7 @@ int dp_rept_json_append(dp_schema_t *schema, char *data, char *time, char *type,
 
 __err_exit:
     tal_free(tmp);
-    PR_ERR("sprintf %d", offset);
+    PR_ERR("snprintf %d", offset);
     return OPRT_COM_ERROR;
 }
 
@@ -575,7 +595,7 @@ static bool dp_rept_update(dp_rept_type_t rept_type, dp_obj_t *dp, dp_node_t *dp
                     dpnode->prop.prop_str.cur_len = strlen(dp->value.dp_str);
                     dpnode->prop.prop_str.value = tal_malloc(dpnode->prop.prop_str.cur_len + 1);
                     if (dpnode->prop.prop_str.value) {
-                        strcpy(dpnode->prop.prop_str.value, dp->value.dp_str);
+                        memcpy(dpnode->prop.prop_str.value, dp->value.dp_str, dpnode->prop.prop_str.cur_len);
                         dpnode->prop.prop_str.value[dpnode->prop.prop_str.cur_len] = '\0';
                     } else {
                         PR_ERR("dp str malloc err, cache loss");
@@ -584,7 +604,12 @@ static bool dp_rept_update(dp_rept_type_t rept_type, dp_obj_t *dp, dp_node_t *dp
                         // dpnode->pv_stat = PV_STAT_LOCAL;
                     }
                 } else {
-                    strcpy(dpnode->prop.prop_str.value, dp->value.dp_str);
+                    size_t copy_len = strlen(dp->value.dp_str);
+                    if (copy_len > (size_t)dpnode->prop.prop_str.cur_len) {
+                        copy_len = dpnode->prop.prop_str.cur_len;
+                    }
+                    memcpy(dpnode->prop.prop_str.value, dp->value.dp_str, copy_len);
+                    dpnode->prop.prop_str.value[copy_len] = '\0';
                 }
 
                 // Statistical type DP Indicates the record time stamp
@@ -842,8 +867,8 @@ int dp_rept_valid_check(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
 int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t *dpvalid, dp_rept_out_t *dpout)
 {
     uint16_t i, j;
-    uint16_t offset = 0;
-    uint16_t time_offset = 0;
+    size_t offset = 0;
+    size_t time_offset = 0;
     OPERATE_RET op_ret = OPRT_OK;
     char *dpstr = NULL;
     char *dptimestr = NULL;
@@ -864,8 +889,17 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         }
         is_need_time = true;
     }
+    if (dpvalid->len == 0) {
+        op_ret = OPRT_BUFFER_NOT_ENOUGH;
+        goto __err_exit;
+    }
+
     dpstr[offset++] = '{';
     if (is_need_time) {
+        if (dpvalid->timelen == 0) {
+            op_ret = OPRT_BUFFER_NOT_ENOUGH;
+            goto __err_exit;
+        }
         dptimestr[time_offset++] = '{';
     }
 
@@ -898,20 +932,33 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         switch (dp->type) {
         case PROP_BOOL: {
             if (TRUE == dp->value.dp_bool) {
-                offset += sprintf(dpstr + offset, "\"%d\":true,", dp->id);
+                if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":true,", dp->id)) {
+                    op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                    goto __err_exit;
+                }
             } else {
-                offset += sprintf(dpstr + offset, "\"%d\":false,", dp->id);
+                if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":false,", dp->id)) {
+                    op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                    goto __err_exit;
+                }
             }
             break;
         }
 
         case PROP_VALUE: {
-            offset += sprintf(dpstr + offset, "\"%d\":%d,", dp->id, dp->value.dp_value);
+            if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%d,", dp->id, dp->value.dp_value)) {
+                op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                goto __err_exit;
+            }
             break;
         }
 
         case PROP_BITMAP: {
-            offset += sprintf(dpstr + offset, "\"%d\":%" PRIu32 ",", dp->id, dp->value.dp_bitmap);
+            if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%" PRIu32 ",", dp->id,
+                                    dp->value.dp_bitmap)) {
+                op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                goto __err_exit;
+            }
             break;
         }
 
@@ -919,7 +966,12 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
             cJSON *temp_str = cJSON_CreateString(dp->value.dp_str);
             char *tmp_data = cJSON_PrintUnformatted(temp_str);
             if (tmp_data) {
-                offset += sprintf(dpstr + offset, "\"%d\":%s,", dp->id, tmp_data);
+                if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%s,", dp->id, tmp_data)) {
+                    tal_free(tmp_data);
+                    cJSON_Delete(temp_str);
+                    op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                    goto __err_exit;
+                }
             }
             tal_free(tmp_data);
             cJSON_Delete(temp_str);
@@ -927,14 +979,25 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         }
 
         case PROP_ENUM: {
-            offset +=
-                sprintf(dpstr + offset, "\"%d\":\"%s\",", dp->id, dpnode->prop.prop_enum.pp_enum[dp->value.dp_enum]);
+            if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":\"%s\",", dp->id,
+                                    dpnode->prop.prop_enum.pp_enum[dp->value.dp_enum])) {
+                op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                goto __err_exit;
+            }
         } break;
         }
 
         if (is_need_time && dp->time_stamp) {
-            time_offset += sprintf(dptimestr + time_offset, "\"%d\":%u,", dp->id, dp->time_stamp);
+            if (!dp_snprintf_append(dptimestr, dpvalid->timelen, &time_offset, "\"%d\":%u,", dp->id, dp->time_stamp)) {
+                op_ret = OPRT_BUFFER_NOT_ENOUGH;
+                goto __err_exit;
+            }
         }
+    }
+
+    if (offset == 0 || offset + 1 >= dpvalid->len) {
+        op_ret = OPRT_BUFFER_NOT_ENOUGH;
+        goto __err_exit;
     }
 
     dpstr[offset - 1] = '}';
@@ -945,6 +1008,10 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
     PR_DEBUG("dp rept out: %s", dpstr);
 
     if (is_need_time) {
+        if (time_offset == 0 || time_offset + 1 >= dpvalid->timelen) {
+            op_ret = OPRT_BUFFER_NOT_ENOUGH;
+            goto __err_exit;
+        }
         dptimestr[time_offset - 1] = '}';
         dptimestr[time_offset] = 0;
         PR_DEBUG("dptimestr:%s", dptimestr);

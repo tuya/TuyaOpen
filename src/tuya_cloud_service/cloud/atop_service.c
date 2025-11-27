@@ -46,7 +46,14 @@
  */
 int atop_service_activate_request(const tuya_activite_request_t *request, atop_base_response_t *response)
 {
-    if (NULL == request || NULL == response) {
+    if (request == NULL || response == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (request->token == NULL || request->sw_ver == NULL || request->product_key == NULL || request->pv == NULL ||
+        request->bv == NULL || request->authkey == NULL || request->uuid == NULL || request->token[0] == '\0' ||
+        request->sw_ver[0] == '\0' || request->product_key[0] == '\0' || request->pv[0] == '\0' ||
+        request->bv[0] == '\0' || request->authkey[0] == '\0' || request->uuid[0] == '\0') {
         return OPRT_INVALID_PARM;
     }
 
@@ -85,52 +92,120 @@ int atop_service_activate_request(const tuya_activite_request_t *request, atop_b
 
     /* activate JSON format */
     size_t offset = 0;
+    size_t remain = prealloc_size;
 
     /* Requires params */
-    offset = sprintf(buffer,
-                     "{\"token\":\"%s\",\"softVer\":\"%s\",\"productKey\":\"%"
-                     "s\",\"protocolVer\":\"%s\",\"baselineVer\":\"%s\"",
-                     request->token, request->sw_ver, request->product_key, request->pv, request->bv);
+    int write_len = snprintf(buffer + offset, remain,
+                             "{\"token\":\"%s\",\"softVer\":\"%s\",\"productKey\":\"%s\",\"protocolVer\":\"%s\","
+                             "\"baselineVer\":\"%s\"",
+                             request->token, request->sw_ver, request->product_key, request->pv, request->bv);
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += (size_t)write_len;
+    remain = prealloc_size - offset;
 
     /* option params */
-    offset += sprintf(buffer + offset, ",\"options\": \"%s", "{\\\"otaChannel\\\":0, ");
-    if (request->firmware_key && request->firmware_key[0]) {
-        offset += sprintf(buffer + offset, "\\\"isFK\\\":true");
-    } else {
-        offset += sprintf(buffer + offset, "\\\"isFK\\\":false");
+    write_len = snprintf(buffer + offset, remain, ",\"options\": \"%s", "{\\\"otaChannel\\\":0, ");
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
     }
-    offset += sprintf(buffer + offset, "}\"");
+    offset += (size_t)write_len;
+    remain = prealloc_size - offset;
+    if (request->firmware_key && request->firmware_key[0]) {
+        write_len = snprintf(buffer + offset, remain, "\\\"isFK\\\":true");
+    } else {
+        write_len = snprintf(buffer + offset, remain, "\\\"isFK\\\":false");
+    }
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += (size_t)write_len;
+    remain = prealloc_size - offset;
+
+    write_len = snprintf(buffer + offset, remain, "}\"");
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += (size_t)write_len;
+    remain = prealloc_size - offset;
 
     /* firmware_key */
     if (request->firmware_key && request->firmware_key[0]) {
-        offset += sprintf(buffer + offset, ",\"productKeyStr\":\"%s\"", request->firmware_key);
+        write_len = snprintf(buffer + offset, remain, ",\"productKeyStr\":\"%s\"", request->firmware_key);
+        if (write_len < 0 || (size_t)write_len >= remain) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        offset += (size_t)write_len;
+        remain = prealloc_size - offset;
     }
 
     /* Activated atop */
     if (request->devid && strlen(request->devid) > 0) {
-        offset += sprintf(buffer + offset, ",\"devId\":\"%s\"", request->devid);
+        write_len = snprintf(buffer + offset, remain, ",\"devId\":\"%s\"", request->devid);
+        if (write_len < 0 || (size_t)write_len >= remain) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        offset += (size_t)write_len;
+        remain = prealloc_size - offset;
     }
 
     /* modules */
     if (request->modules && strlen(request->modules) > 0) {
-        offset += sprintf(buffer + offset, ",\"modules\":\"%s\"", request->modules);
+        write_len = snprintf(buffer + offset, remain, ",\"modules\":\"%s\"", request->modules);
+        if (write_len < 0 || (size_t)write_len >= remain) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        offset += (size_t)write_len;
+        remain = prealloc_size - offset;
     }
 
     /* feature */
     if (request->feature && strlen(request->feature) > 0) {
-        offset += sprintf(buffer + offset, ",\"feature\":\"%s\"", request->feature);
+        write_len = snprintf(buffer + offset, remain, ",\"feature\":\"%s\"", request->feature);
+        if (write_len < 0 || (size_t)write_len >= remain) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        offset += (size_t)write_len;
+        remain = prealloc_size - offset;
     }
 
     /* skill_param */
     if (request->skill_param && strlen(request->skill_param) > 0) {
-        offset += sprintf(buffer + offset, ",\"skillParam\":\"%s\"", request->skill_param);
+        write_len = snprintf(buffer + offset, remain, ",\"skillParam\":\"%s\"", request->skill_param);
+        if (write_len < 0 || (size_t)write_len >= remain) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        offset += (size_t)write_len;
+        remain = prealloc_size - offset;
     }
 
     /* default support device OTA */
-    offset += sprintf(buffer + offset, ",\"devAttribute\":%u", 1 << ATTRIBUTE_OTA);
+    write_len = snprintf(buffer + offset, remain, ",\"devAttribute\":%u", 1 << ATTRIBUTE_OTA);
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += (size_t)write_len;
+    remain = prealloc_size - offset;
 
-    offset +=
-        sprintf(buffer + offset, ",\"cadVer\":\"%s\",\"cdVer\":\"%s\",\"t\":%" PRIu32 "}", CAD_VER, CD_VER, timestamp);
+    write_len =
+        snprintf(buffer + offset, remain, ",\"cadVer\":\"%s\",\"cdVer\":\"%s\",\"t\":%" PRIu32 "}", CAD_VER, CD_VER,
+                 timestamp);
+    if (write_len < 0 || (size_t)write_len >= remain) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += (size_t)write_len;
 
     PR_DEBUG("POST JSON:%s", buffer);
 
@@ -168,7 +243,7 @@ int atop_service_activate_request(const tuya_activite_request_t *request, atop_b
  */
 int atop_service_client_reset(const char *id, const char *key)
 {
-    if (NULL == id || NULL == key) {
+    if (id == NULL || key == NULL || id[0] == '\0' || key[0] == '\0') {
         return OPRT_INVALID_PARM;
     }
 
@@ -176,7 +251,7 @@ int atop_service_client_reset(const char *id, const char *key)
 
     /* post data */
 #define RESET_POST_BUFFER_LEN 32
-    size_t buffer_len = 0;
+    int buffer_len = 0;
     char *buffer = tal_malloc(RESET_POST_BUFFER_LEN);
     if (NULL == buffer) {
         PR_ERR("post buffer malloc fail");
@@ -185,6 +260,10 @@ int atop_service_client_reset(const char *id, const char *key)
 
     uint32_t timestamp = tal_time_get_posix();
     buffer_len = snprintf(buffer, RESET_POST_BUFFER_LEN, "{\"t\":%" PRIu32 "}", timestamp);
+    if (buffer_len < 0 || buffer_len >= RESET_POST_BUFFER_LEN) {
+        tal_free(buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     PR_DEBUG("POST JSON:%s", buffer);
 
     /* atop_base_request object construct */
