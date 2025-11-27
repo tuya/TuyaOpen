@@ -13,6 +13,8 @@ config BOARD_CONFIG
     select ENABLE_AUDIO_AEC
     select ENABLE_LED
     select ENABLE_BUTTON
+    select ENABLE_BUTTON_2
+    select ENABLE_BUTTON_3
     select ENABLE_SPI
     select ENABLE_LEDS_PIXEL
     select ENABLE_IMU
