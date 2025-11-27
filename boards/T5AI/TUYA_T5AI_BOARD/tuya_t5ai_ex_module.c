@@ -60,12 +60,12 @@ static OPERATE_RET __board_register_display(void)
 
     TUYA_CALL_ERR_RETURN(tdd_disp_rgb_ili9488_register(DISPLAY_NAME, &display_cfg));
 
-    TDD_TOUCH_GT1151_INFO_T touch_cfg = {
+    TDD_TP_GT1151_INFO_T tp_cfg = {
         .i2c_cfg =
             {
-                .port = BOARD_TOUCH_I2C_PORT,
-                .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
-                .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+                .port = BOARD_TP_I2C_PORT,
+                .scl_pin = BOARD_TP_I2C_SCL_PIN,
+                .sda_pin = BOARD_TP_I2C_SDA_PIN,
             },
         .tp_cfg =
             {
@@ -80,7 +80,7 @@ static OPERATE_RET __board_register_display(void)
             },
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_gt1151_register(DISPLAY_NAME, &touch_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_tp_i2c_gt1151_register(DISPLAY_NAME, &tp_cfg));
 #endif
 
     return rt;

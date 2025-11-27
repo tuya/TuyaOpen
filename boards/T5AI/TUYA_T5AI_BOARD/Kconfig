@@ -13,15 +13,6 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_BUTTON
 
-config BOARD_LVGL_CONFIG
-    bool
-    depends on ENABLE_LIBLVGL
-    default y
-    select ENABLE_AUDIO_CODECS
-    select ENABLE_LED
-    select ENABLE_BUTTON
-
-
 choice TUYA_T5AI_BOARD_VERSION
     prompt "choose TUYA_T5AI_BOARD version"
     default TUYA_T5AI_BOARD_VERSION_102
@@ -46,7 +37,7 @@ choice TUYA_T5AI_BOARD_EX_MODULE
     config TUYA_T5AI_BOARD_EX_MODULE_35565LCD
         bool "3.5 inch 480x320 rgb565 LCD"
         select ENABLE_DISPLAY
-        select ENABLE_TOUCH
+        select ENABLE_TP
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)

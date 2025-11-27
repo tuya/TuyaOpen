@@ -59,7 +59,7 @@ void lv_port_indev_init(void *device)
     /*------------------
      * Touchpad
      * -----------------*/
-#ifdef LVGL_ENABLE_TOUCH
+#ifdef LVGL_ENABLE_TP
     /*Initialize your touchpad if you have*/
     esp_lcd_touch_handle_t tp_handle = (esp_lcd_touch_handle_t)board_touch_get_handle();
     if (NULL == tp_handle) {

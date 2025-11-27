@@ -24,22 +24,10 @@ choice ATK_T5AI_MINI_BOARD_EX_LCD_MODULE
         select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 
-    config ATK_T5AI_MINI_BOARD_LCD_MD0240_8080
-        bool "support 2.4 inch mcu8080 LCD module"
-        select ENABLE_DISPLAY
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
-        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
-
-    config ATK_T5AI_MINI_BOARD_LCD_MD0280_8080
-        bool "support 2.8 inch mcu8080 LCD module"
-        select ENABLE_DISPLAY
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
-        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
-
     config ATK_T5AI_MINI_BOARD_LCD_MD0700R_RGB
         bool "support 7 inch rgb LCD module"
         select ENABLE_DISPLAY
-        select ENABLE_TOUCH
+        select ENABLE_TP
         select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)

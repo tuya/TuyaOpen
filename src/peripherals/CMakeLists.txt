@@ -6,7 +6,7 @@
 # MODULE_PATH
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/audio_codecs)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/display)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/touch)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/encoder)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/button)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/led)

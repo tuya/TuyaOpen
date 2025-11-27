@@ -8,8 +8,8 @@
  *********************/
 #include "tal_api.h"
 #include "lv_port_indev.h"
-#ifdef LVGL_ENABLE_TOUCH
-#include "tdl_touch_manage.h"
+#ifdef LVGL_ENABLE_TP
+#include "tdl_tp_manage.h"
 #endif
 
 /*********************
@@ -23,7 +23,7 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-#ifdef LVGL_ENABLE_TOUCH
+#ifdef LVGL_ENABLE_TP
 static void touchpad_init(void *device);
 static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
 #endif
@@ -39,8 +39,8 @@ static void encoder_handler(void);
 lv_indev_t *indev_touchpad;
 lv_indev_t *indev_encoder;
 
-#ifdef LVGL_ENABLE_TOUCH
-static TDL_TOUCH_HANDLE_T sg_touch_hdl = NULL; // Handle for touch device
+#ifdef LVGL_ENABLE_TP
+static TDL_TP_HANDLE_T sg_tp_hdl = NULL; // Handle for tp device
 #endif
 
 /**********************
@@ -68,7 +68,7 @@ void lv_port_indev_init(void *device)
     /*------------------
      * Touchpad
      * -----------------*/
-#ifdef LVGL_ENABLE_TOUCH
+#ifdef LVGL_ENABLE_TP
     static lv_indev_drv_t indev_drv;
 
     /*Initialize your touchpad if you have*/
@@ -108,22 +108,22 @@ void lv_port_indev_init(void *device)
 /*------------------
  * Touchpad
  * -----------------*/
-#ifdef LVGL_ENABLE_TOUCH
+#ifdef LVGL_ENABLE_TP
 
 /*Initialize your touchpad*/
 static void touchpad_init(void *device)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    sg_touch_hdl = tdl_touch_find_dev(device);
-    if(NULL == sg_touch_hdl) {
-        PR_ERR("touch dev %s not found", device);
+    sg_tp_hdl = tdl_tp_find_dev(device);
+    if(NULL == sg_tp_hdl) {
+        PR_ERR("tp dev %s not found", device);
         return;
     }
 
-    rt = tdl_touch_dev_open(sg_touch_hdl);
+    rt = tdl_tp_dev_open(sg_tp_hdl);
     if(rt != OPRT_OK) {
-        PR_ERR("open touch dev failed, rt: %d", rt);
+        PR_ERR("open tp dev failed, rt: %d", rt);
         return;
     }
 }
@@ -134,9 +134,9 @@ static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
     static int32_t last_x = 0;
     static int32_t last_y = 0;
     uint8_t point_num = 0;
-    TDL_TOUCH_POS_T point;
+    TDL_TP_POS_T point;
 
-    tdl_touch_dev_read(sg_touch_hdl, 1, &point, &point_num);
+    tdl_tp_dev_read(sg_tp_hdl, 1, &point, &point_num);
     /*Save the pressed coordinates and the state*/
     if (point_num > 0) {
         data->state = LV_INDEV_STATE_PRESSED;

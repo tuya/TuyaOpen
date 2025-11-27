@@ -11,7 +11,7 @@
 
 #if defined (TUYA_T5AI_BOARD_EX_MODULE_35565LCD) && (TUYA_T5AI_BOARD_EX_MODULE_35565LCD ==1)
 #include "tdd_disp_ili9488.h"
-#include "tdd_touch_gt1151.h"
+#include "tdd_tp_gt1151.h"
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
 #include "tdd_disp_st7735s.h"
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
@@ -49,9 +49,9 @@ extern "C" {
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
 
-#define BOARD_TOUCH_I2C_PORT         TUYA_I2C_NUM_0
-#define BOARD_TOUCH_I2C_SCL_PIN      TUYA_GPIO_NUM_13
-#define BOARD_TOUCH_I2C_SDA_PIN      TUYA_GPIO_NUM_15
+#define BOARD_TP_I2C_PORT            TUYA_I2C_NUM_0
+#define BOARD_TP_I2C_SCL_PIN         TUYA_GPIO_NUM_13
+#define BOARD_TP_I2C_SDA_PIN         TUYA_GPIO_NUM_15
 
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
 #define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_GPIO 

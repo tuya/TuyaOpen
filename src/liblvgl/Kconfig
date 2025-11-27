@@ -36,9 +36,9 @@ menuconfig ENABLE_LIBLVGL
             depends on LVGL_VERSION_9
             default n
 
-        config LVGL_ENABLE_TOUCH
-            bool "enable lvgl touch"
-            select ENABLE_TOUCH if (!ENABLE_PLATFORM_LVGL)
+        config LVGL_ENABLE_TP
+            bool "enable lvgl tp"
+            select ENABLE_TP if (!ENABLE_PLATFORM_LVGL)
             default n
 
         if (!ENABLE_PLATFORM_LVGL)

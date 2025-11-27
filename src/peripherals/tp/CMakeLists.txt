@@ -4,7 +4,7 @@
 #/
 
 # MODULE_PATH
-if (CONFIG_ENABLE_TOUCH STREQUAL "y")
+if (CONFIG_ENABLE_TP STREQUAL "y")
 
 set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -12,18 +12,18 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-file(GLOB_RECURSE touch_srcs "${MODULE_PATH}/tdl_touch/src/*.c")
+file(GLOB_RECURSE tp_srcs "${MODULE_PATH}/tdl_tp/src/*.c")
 
 if (CONFIG_ENABLE_I2C STREQUAL "y")   
-    file(GLOB_RECURSE tdd_touch_i2c_srcs "${MODULE_PATH}/tdd_touch/src/i2c/*.c")
+    file(GLOB_RECURSE tdd_tp_i2c_srcs "${MODULE_PATH}/tdd_tp/src/i2c/*.c")
 endif()
 
-set(LIB_SRCS ${touch_srcs} ${tdd_touch_i2c_srcs})
+set(LIB_SRCS ${tp_srcs} ${tdd_tp_i2c_srcs})
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
-    ${MODULE_PATH}/tdl_touch/include
-    ${MODULE_PATH}/tdd_touch/include
+    ${MODULE_PATH}/tdl_tp/include
+    ${MODULE_PATH}/tdd_tp/include
     )
 
 ########################################

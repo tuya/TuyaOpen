@@ -1,10 +1,10 @@
 /**
- * @file tdd_touch_i2c.c
- * @brief I2C communication utilities for touch controller devices
+ * @file tdd_tp_i2c.c
+ * @brief I2C communication utilities for tp controller devices
  *
- * This file provides I2C communication functions for touch controller devices
+ * This file provides I2C communication functions for tp controller devices
  * in the TDD (Tuya Device Driver) layer. It includes pin multiplexing configuration,
- * I2C read/write operations with register address support for various touch ICs.
+ * I2C read/write operations with register address support for various tp ICs.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
@@ -12,7 +12,7 @@
 #include "tal_api.h"
 #include "tkl_i2c.h"
 #include "tkl_pinmux.h"
-#include "tdd_touch_i2c.h"
+#include "tdd_tp_i2c.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -28,7 +28,7 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-void tdd_touch_i2c_pinmux_config(TDD_TOUCH_I2C_CFG_T *cfg)
+void tdd_tp_i2c_pinmux_config(TDD_TP_I2C_CFG_T *cfg)
 {
     if (cfg == NULL) {
         return;
@@ -61,7 +61,7 @@ void tdd_touch_i2c_pinmux_config(TDD_TOUCH_I2C_CFG_T *cfg)
     return;
 }
 
-OPERATE_RET tdd_touch_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
+OPERATE_RET tdd_tp_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
                                     uint8_t *data, uint8_t data_len)
 {
     OPERATE_RET ret = OPRT_OK;
@@ -90,7 +90,7 @@ OPERATE_RET tdd_touch_i2c_port_read(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint
     return ret;
 }
 
-OPERATE_RET tdd_touch_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
+OPERATE_RET tdd_tp_i2c_port_write(TUYA_I2C_NUM_E port, uint16_t dev_addr, uint16_t reg_addr, uint8_t reg_addr_len,
                                      uint8_t *data, uint8_t data_len)
 {
     OPERATE_RET ret = OPRT_OK;

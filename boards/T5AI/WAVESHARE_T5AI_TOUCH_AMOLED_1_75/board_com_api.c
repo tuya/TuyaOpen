@@ -15,39 +15,39 @@
 #include "tdl_button_manage.h"
 
 #include "tdd_disp_co5300.h"
-#include "tdd_touch_cst92xx.h"
+#include "tdd_tp_cst92xx.h"
 
 /***********************************************************
 ***********************macro define***********************
 ***********************************************************/
-#define BOARD_PWR_EN_PIN       TUYA_GPIO_NUM_19
-#define BOARD_PWR_EN_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
+#define BOARD_PWR_EN_PIN           TUYA_GPIO_NUM_19
+#define BOARD_PWR_EN_ACTIVE_LV     TUYA_GPIO_LEVEL_HIGH
 
 #define BOARD_BUTTON_PWR_PIN       TUYA_GPIO_NUM_18
 #define BOARD_BUTTON_PWR_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
 
-#define BOARD_SPEAKER_EN_PIN TUYA_GPIO_NUM_28
+#define BOARD_SPEAKER_EN_PIN       TUYA_GPIO_NUM_28
+   
+#define BOARD_BUTTON_PIN           TUYA_GPIO_NUM_12
+#define BOARD_BUTTON_ACTIVE_LV     TUYA_GPIO_LEVEL_LOW
+   
+#define BOARD_LCD_RST_PIN          TUYA_GPIO_NUM_29
+#define BOARD_LCD_QSPI_PORT        TUYA_QSPI_NUM_0
+#define BOARD_LCD_QSPI_CLK         (80 * 1000000)
 
-#define BOARD_BUTTON_PIN       TUYA_GPIO_NUM_12
-#define BOARD_BUTTON_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+#define BOARD_LCD_BL_TYPE          TUYA_DISP_BL_TP_NONE
 
-#define BOARD_LCD_RST_PIN   TUYA_GPIO_NUM_29
-#define BOARD_LCD_QSPI_PORT TUYA_QSPI_NUM_0
-#define BOARD_LCD_QSPI_CLK  (80 * 1000000)
-
-#define BOARD_LCD_BL_TYPE TUYA_DISP_BL_TP_NONE
-
-#define BOARD_LCD_POWER_PIN TUYA_GPIO_NUM_MAX
-
-#define BOARD_LCD_WIDTH      466
-#define BOARD_LCD_HEIGHT     466
-#define BOARD_LCD_PIXELS_FMT TUYA_PIXEL_FMT_RGB565
-#define BOARD_LCD_ROTATION   TUYA_DISPLAY_ROTATION_0
-
-#define BOARD_TOUCH_I2C_PORT    TUYA_I2C_NUM_0
-#define BOARD_TOUCH_I2C_SCL_PIN TUYA_GPIO_NUM_20
-#define BOARD_TOUCH_I2C_SDA_PIN TUYA_GPIO_NUM_21
-
+#define BOARD_LCD_POWER_PIN        TUYA_GPIO_NUM_MAX
+   
+#define BOARD_LCD_WIDTH            466
+#define BOARD_LCD_HEIGHT           466
+#define BOARD_LCD_PIXELS_FMT       TUYA_PIXEL_FMT_RGB565
+#define BOARD_LCD_ROTATION         TUYA_DISPLAY_ROTATION_0
+   
+#define BOARD_TP_I2C_PORT          TUYA_I2C_NUM_0
+#define BOARD_TP_I2C_SCL_PIN       TUYA_GPIO_NUM_20
+#define BOARD_TP_I2C_SDA_PIN       TUYA_GPIO_NUM_21
+#define BOARD_TP_RST_PIN           TUYA_GPIO_NUM_42
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -167,12 +167,13 @@ static OPERATE_RET __board_register_display(void)
 
     TUYA_CALL_ERR_RETURN(tdd_disp_qspi_co5300_register(DISPLAY_NAME, &display_cfg));
 
-    TDD_TOUCH_CST92XX_INFO_T cst92xx_info = {
+    TDD_TP_CST92XX_INFO_T cst92xx_info = {
+        .rst_pin = BOARD_TP_RST_PIN,
         .i2c_cfg =
             {
-                .port = BOARD_TOUCH_I2C_PORT,
-                .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
-                .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+                .port = BOARD_TP_I2C_PORT,
+                .scl_pin = BOARD_TP_I2C_SCL_PIN,
+                .sda_pin = BOARD_TP_I2C_SDA_PIN,
             },
         .tp_cfg =
             {
@@ -187,7 +188,7 @@ static OPERATE_RET __board_register_display(void)
             },
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_cst92xx_register(DISPLAY_NAME, &cst92xx_info));
+    TUYA_CALL_ERR_RETURN(tdd_tp_i2c_cst92xx_register(DISPLAY_NAME, &cst92xx_info));
 #endif
 
     return rt;

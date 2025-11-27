@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_TOUCH STREQUAL "y")
+if (CONFIG_ENABLE_TP STREQUAL "y")
 
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
@@ -24,5 +24,5 @@ target_sources(${EXAMPLE_LIB}
         ${APP_SRCS}
     )
 else()
-message(FATAL_ERROR "touch cannot work when CONFIG_ENABLE_TOUCH is not set")
+message(FATAL_ERROR "touchpad cannot work when CONFIG_ENABLE_TP is not set")
 endif()

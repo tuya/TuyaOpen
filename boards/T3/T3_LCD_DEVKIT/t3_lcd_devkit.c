@@ -10,7 +10,7 @@
 #include "tal_api.h"
 
 #include "tdd_disp_gc9a01.h"
-#include "tdd_touch_cst816x.h"
+#include "tdd_tp_cst816x.h"
 
 /***********************************************************
 ************************macro define************************
@@ -34,9 +34,9 @@
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
 
-#define BOARD_TOUCH_I2C_PORT         TUYA_I2C_NUM_0
-#define BOARD_TOUCH_I2C_SCL_PIN      TUYA_GPIO_NUM_12
-#define BOARD_TOUCH_I2C_SDA_PIN      TUYA_GPIO_NUM_13
+#define BOARD_TP_I2C_PORT            TUYA_I2C_NUM_0
+#define BOARD_TP_I2C_SCL_PIN         TUYA_GPIO_NUM_12
+#define BOARD_TP_I2C_SDA_PIN         TUYA_GPIO_NUM_13
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -81,12 +81,12 @@ static OPERATE_RET __board_register_display(void)
 
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_gc9a01_register(DISPLAY_NAME, &display_cfg));
 
-    TDD_TOUCH_CST816X_INFO_T touch_cfg = {
+    TDD_TP_CST816X_INFO_T tp_cfg = {
         .i2c_cfg =
             {
-                .port = BOARD_TOUCH_I2C_PORT,
-                .scl_pin = BOARD_TOUCH_I2C_SCL_PIN,
-                .sda_pin = BOARD_TOUCH_I2C_SDA_PIN,
+                .port = BOARD_TP_I2C_PORT,
+                .scl_pin = BOARD_TP_I2C_SCL_PIN,
+                .sda_pin = BOARD_TP_I2C_SDA_PIN,
             },
         .tp_cfg =
             {
@@ -101,7 +101,7 @@ static OPERATE_RET __board_register_display(void)
             },
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_touch_i2c_cst816x_register(DISPLAY_NAME, &touch_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_tp_i2c_cst816x_register(DISPLAY_NAME, &tp_cfg));
 #endif
 
     return rt;

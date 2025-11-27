@@ -1,22 +1,22 @@
 /**
- * @file tdd_touch_gt911.h
- * @brief GT911 capacitive touch controller driver interface definitions
+ * @file tdd_tp_gt911.h
+ * @brief GT911 capacitive tp controller driver interface definitions
  *
- * This header file defines the interface for the GT911 capacitive touch controller
+ * This header file defines the interface for the GT911 capacitive tp controller
  * driver in the TDD layer. It includes register definitions, configuration parameters,
- * and function prototypes for GT911 touch controller operations including multi-point
- * touch detection and device registration.
+ * and function prototypes for GT911 tp controller operations including multi-point
+ * tp detection and device registration.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
 
-#ifndef __TDD_TOUCH_GT911_H__
-#define __TDD_TOUCH_GT911_H__
+#ifndef __TDD_TP_GT911_H__
+#define __TDD_TP_GT911_H__
 
 #include "tuya_cloud_types.h"
-#include "tdl_touch_driver.h"
-#include "tdd_touch_i2c.h"
+#include "tdl_tp_driver.h"
+#include "tdd_tp_i2c.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +43,7 @@ extern "C" {
 #define GT911_X_RESOLUTION         (0x8146)
 #define GT911_Y_RESOLUTION         (0x8148)
 
-/* Max detectable simultaneous touch points */
+/* Max detectable simultaneous tp points */
 #define GT911_I2C_MAX_POINT         (5)
 #define GT911_POINT_INFO_SIZE       (8)
 #define GT911_POINT_INFO_TOTAL_SIZE (GT911_I2C_MAX_POINT * GT911_POINT_INFO_SIZE)
@@ -51,17 +51,17 @@ extern "C" {
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    TDD_TOUCH_I2C_CFG_T i2c_cfg;
-    TDL_TOUCH_CONFIG_T tp_cfg;
-} TDD_TOUCH_GT911_INFO_T;
+    TDD_TP_I2C_CFG_T i2c_cfg;
+    TDD_TP_CONFIG_T tp_cfg;
+} TDD_TP_GT911_INFO_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdd_touch_i2c_gt911_register(char *name, TDD_TOUCH_GT911_INFO_T *cfg);
+OPERATE_RET tdd_tp_i2c_gt911_register(char *name, TDD_TP_GT911_INFO_T *cfg);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TDD_TOUCH_GT911_H__ */
+#endif /* __TDD_TP_GT911_H__ */
