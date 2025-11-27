@@ -10,4 +10,4 @@ config BOARD_CONFIG
     bool
     default y
     select ENABLE_DISPLAY
-    select ENABLE_TOUCH
+    select ENABLE_TP
