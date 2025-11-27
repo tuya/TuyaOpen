@@ -79,7 +79,7 @@ static OPERATE_RET __board_register_button(void)
         .pin   = BOARD_BUTTON_PIN,
         .level = BOARD_BUTTON_ACTIVE_LV,
         .mode  = BUTTON_IRQ_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
