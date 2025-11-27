@@ -76,8 +76,12 @@ config ENABLE_SPI
 config ENABLE_QSPI
     bool
     default y
-
+ 
 config ENABLE_MCU8080
+    bool
+    default y 
+
+config ENABLE_TOUCH
     bool
     default y   
 
