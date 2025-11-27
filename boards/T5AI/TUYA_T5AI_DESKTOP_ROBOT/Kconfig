@@ -1,0 +1,16 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "TUYA_T5AI_DESKTOP_ROBOT"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_DISPLAY
+    select ENABLE_TP
+    select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
+    select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
