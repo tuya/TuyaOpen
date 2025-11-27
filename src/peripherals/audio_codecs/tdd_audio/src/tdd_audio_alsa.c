@@ -39,6 +39,8 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+#define AUDIO_PCM_FRAME_MS       10
+
 #define ALSA_CAPTURE_THREAD_STACK_SIZE (4096)
 #define ALSA_CAPTURE_THREAD_PRIORITY   (THREAD_PRIO_2)
 
@@ -552,6 +554,7 @@ OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg)
     OPERATE_RET rt = OPRT_OK;
     TDD_AUDIO_ALSA_HANDLE_T *_hdl = NULL;
     TDD_AUDIO_INTFS_T intfs = {0};
+    TDD_AUDIO_INFO_T info = {0};
 
     // Allocate handle
     _hdl = (TDD_AUDIO_ALSA_HANDLE_T *)tal_malloc(sizeof(TDD_AUDIO_ALSA_HANDLE_T));
@@ -564,6 +567,11 @@ OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg)
     // Set default play volume
     _hdl->play_volume = 80;
 
+    info.sample_rate   = cfg.sample_rate;
+    info.sample_ch_num = cfg.channel;
+    info.sample_bits   = cfg.data_bits;
+    info.frame_tm_ms   = AUDIO_PCM_FRAME_MS;
+
     // Setup interface functions
     intfs.open = __tdd_audio_alsa_open;
     intfs.play = __tdd_audio_alsa_play;
@@ -571,7 +579,7 @@ OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg)
     intfs.close = __tdd_audio_alsa_close;
 
     // Register with TDL audio management
-    TUYA_CALL_ERR_GOTO(tdl_audio_driver_register(name, &intfs, (TDD_AUDIO_HANDLE_T)_hdl), __ERR);
+    TUYA_CALL_ERR_GOTO(tdl_audio_driver_register(name, (TDD_AUDIO_HANDLE_T)_hdl, &intfs, &info), __ERR);
 
     PR_INFO("ALSA audio driver registered: %s", name);
 

@@ -42,6 +42,13 @@ typedef void *TDL_AUDIO_HANDLE_T;
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+typedef struct {
+    uint16_t sample_rate;
+    uint16_t sample_ch_num;
+    uint16_t sample_bits;
+    uint16_t sample_tm_ms; 
+    uint16_t frame_size;
+}TDL_AUDIO_INFO_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -50,6 +57,8 @@ typedef void *TDL_AUDIO_HANDLE_T;
 OPERATE_RET tdl_audio_find(char *name, TDL_AUDIO_HANDLE_T *handle);
 
 OPERATE_RET tdl_audio_open(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB mic_cb);
+
+OPERATE_RET tdl_audio_get_info(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_INFO_T *info);
 
 OPERATE_RET tdl_audio_play(TDL_AUDIO_HANDLE_T handle, uint8_t *data, uint32_t len);
 

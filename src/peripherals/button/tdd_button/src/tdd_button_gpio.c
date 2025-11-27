@@ -158,7 +158,7 @@ static OPERATE_RET __tdd_read_gpio_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *val
 
     ret = tkl_gpio_read(p_local_cfg->pin, &result);
     if (OPRT_OK == ret) {
-        // PR_NOTICE("pin=%d,result=%d",p_local_cfg->pin, result);
+        // PR_NOTICE("pin=%d,level=%d result=%d",p_local_cfg->pin, p_local_cfg->level, result);
         // Handle active level logic
         if (p_local_cfg->level == result) {
             result = 1;

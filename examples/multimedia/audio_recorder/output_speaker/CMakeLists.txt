@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_MEDIA STREQUAL "y")
+if (CONFIG_ENABLE_AUDIO_CODECS STREQUAL "y")
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
 
@@ -23,5 +23,5 @@ target_sources(${EXAMPLE_LIB}
         ${APP_SRCS}
     )
 else()
-message(FATAL_ERROR "vad cannot work when ENABLE_MEDIA is not set")
+message(FATAL_ERROR "audio_recorder cannot work when ENABLE_AUDIO_CODECS is not set")
 endif()

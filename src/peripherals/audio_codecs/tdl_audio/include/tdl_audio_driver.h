@@ -71,10 +71,18 @@ typedef struct {
     OPERATE_RET (*close)(TDD_AUDIO_HANDLE_T handle);
 } TDD_AUDIO_INTFS_T;
 
+typedef struct {
+    uint16_t sample_rate;
+    uint16_t sample_ch_num;
+    uint16_t sample_bits;
+    uint16_t sample_tm_ms; 
+} TDD_AUDIO_INFO_T;
+
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_INTFS_T *intfs, TDD_AUDIO_HANDLE_T tdd_hdl);
+OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_HANDLE_T tdd_hdl,\
+                                      TDD_AUDIO_INTFS_T *intfs, TDD_AUDIO_INFO_T *info);
 
 #ifdef __cplusplus
 }
