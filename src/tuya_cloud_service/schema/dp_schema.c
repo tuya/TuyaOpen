@@ -144,11 +144,15 @@ dp_node_t *dp_node_find(dp_schema_t *schema, int id)
 dp_schema_t *dp_schema_find(const char *devid)
 {
     int i = 0;
-
-    PR_TRACE("try to find schema devid %s", devid);
     dp_schema_mgr_t *dsmgr = &s_dsmgr;
+
+    if (NULL == devid) {
+        PR_TRACE("find schema called with NULL devid");
+        return NULL;
+    }
+    PR_TRACE("try to find schema devid %s", devid);
     for (i = 0; i < DP_SCHEMA_NUM_MAX; i++) {
-        if (NULL == dsmgr->schema_list[i]) {
+        if (NULL == dsmgr->schema_list[i] || NULL == dsmgr->schema_list[i]->devid) {
             continue;
         }
         if (0 == strcmp(devid, dsmgr->schema_list[i]->devid)) {
