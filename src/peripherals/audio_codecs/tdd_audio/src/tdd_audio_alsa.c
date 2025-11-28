@@ -568,9 +568,9 @@ OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg)
     _hdl->play_volume = 80;
 
     info.sample_rate   = cfg.sample_rate;
-    info.sample_ch_num = cfg.channel;
+    info.sample_ch_num = cfg.channels;
     info.sample_bits   = cfg.data_bits;
-    info.frame_tm_ms   = AUDIO_PCM_FRAME_MS;
+    info.sample_tm_ms   = AUDIO_PCM_FRAME_MS;
 
     // Setup interface functions
     intfs.open = __tdd_audio_alsa_open;
