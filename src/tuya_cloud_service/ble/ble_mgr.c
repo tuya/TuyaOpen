@@ -283,7 +283,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         return OPRT_INVALID_PARM;
     }
     tuya_ble_raw_print("ble raw packet", 32, packet_recv->raw_buf, packet_recv->raw_len);
-    memset(packet_recv->dec_buf, 0, packet_recv->dec_len);
+    memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
                              packet_recv->dec_buf);
     if (rt != 0) {
