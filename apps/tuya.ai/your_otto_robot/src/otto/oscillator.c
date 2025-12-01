@@ -285,13 +285,13 @@ void oscillator_write(int idx, int position)
         PR_DEBUG("Hand servo %d: angle limited to safe range [20-160]: %d", idx, angle);
     }
 
-    // 计算占空比
+    // Calculate the duty cycle
     uint32_t duty = (uint32_t)((0.5 + angle / 180.0 * 2.0) * 10000 / 20);
     
-    // 计算占空比百分比 (duty/10000 * 100)
+    //  (duty/10000 * 100)
     float duty_percent = (float)duty / 100.0f;
     
-    // 合并的占空比打印信息 - 显示百分比
+    // Combined duty cycle printing information - Displays percentage
    PR_DEBUG("oscillator_write: idx=%d, pin=%d, pwm_channel=%d, pos=%d->angle=%d(trim:%d), duty=%d, duty_percent=%.1f%%", 
              idx, osc->pin, osc->pwm_channel, position, angle, osc->trim, duty, duty_percent);
 
