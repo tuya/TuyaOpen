@@ -58,6 +58,17 @@ config ENABLE_CHAT_DISPLAY
     bool "board dream - custom pin configuration"
     endchoice
 
+choice
+    prompt "choose Otto type"
+    default OTTO_TYPE_OTTO
+
+    config OTTO_TYPE_NINJA_OTTO
+    bool "ninja_otto"
+
+    config OTTO_TYPE_OTTO
+    bool "otto"
+endchoice
+
 config ENABLE_AUDIO_CHAT
     bool "enable audio chat mode"
     default y

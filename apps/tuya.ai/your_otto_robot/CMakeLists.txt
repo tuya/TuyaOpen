@@ -12,11 +12,21 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-# Add otto source files explicitly
-aux_source_directory(${APP_PATH}/src/otto OTTO_SRCS)
-list(APPEND APP_SRCS ${OTTO_SRCS})
-
 list(APPEND media_srcs "${APP_PATH}/src/media")
+
+# Add otto source files based on configuration
+if (CONFIG_OTTO_TYPE_OTTO STREQUAL "y")
+    # Add otto source files explicitly
+    aux_source_directory(${APP_PATH}/src/otto OTTO_SRCS)
+    list(APPEND APP_SRCS ${OTTO_SRCS})
+endif()
+
+# Add otto_ninja source files based on configuration
+if (CONFIG_OTTO_TYPE_NINJA_OTTO STREQUAL "y")
+    # Add otto_ninja source files explicitly
+    aux_source_directory(${APP_PATH}/src/otto_ninja OTTO_NINJA_SRCS)
+    list(APPEND APP_SRCS ${OTTO_NINJA_SRCS})
+endif()
 
 list(APPEND APP_SRCS ${media_srcs})
 
@@ -24,8 +34,16 @@ set(APP_INC
             ${APP_PATH}/assets
             ${APP_PATH}/include
             ${APP_PATH}/include/media
-            ${APP_PATH}/src/otto
 )
+
+# Add include directories based on configuration
+if (CONFIG_OTTO_TYPE_OTTO STREQUAL "y")
+    list(APPEND APP_INC ${APP_PATH}/src/otto)
+endif()
+
+if (CONFIG_OTTO_TYPE_NINJA_OTTO STREQUAL "y")
+    list(APPEND APP_INC ${APP_PATH}/src/otto_ninja)
+endif()
 
 list(APPEND APP_INC "${APP_PATH}/assets")
 
