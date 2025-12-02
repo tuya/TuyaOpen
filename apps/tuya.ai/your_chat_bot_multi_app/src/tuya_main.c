@@ -339,6 +339,7 @@ void user_main(void)
 
     reset_netconfig_check();
 
+
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
         tuya_iot_yield(&ai_client);
