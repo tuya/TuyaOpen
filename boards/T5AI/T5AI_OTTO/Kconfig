@@ -20,13 +20,18 @@ choice T5AI_OTTO_EX_MODULE
     config T5AI_OTTO_EX_MODULE_NONE
         bool "no expansion module"
 
-    config T5AI_OTTO_EX_MODULE_13565LCD
+    config T5AI_OTTO_EX_MODULE_ST7789
         bool "1.54 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
 	select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 
     config T5AI_OTTO_EX_MODULE_ST7735S_XLT
         bool "ST7735S XLT 160x80 spi LCD"
+        select ENABLE_DISPLAY
+	select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+
+    config T5AI_OTTO_EX_MODULE_GC9D01
+        bool "GC9D01 160x160 spi LCD"
         select ENABLE_DISPLAY
 	select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 endchoice
