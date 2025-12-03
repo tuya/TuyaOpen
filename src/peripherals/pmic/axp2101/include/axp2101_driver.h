@@ -485,6 +485,9 @@ bool axp2101_enableTSPinMeasure(void);
 bool axp2101_disableTSPinMeasure(void);
 
 // LED indicator light control functions
+void enableChargingLed(void);
+void disableChargingLed(void);
+uint8_t getChargingLedMode();
 void axp2101_setChargingLedMode(xpowers_chg_led_mode_t mode);
 
 // PEKEY setting functions

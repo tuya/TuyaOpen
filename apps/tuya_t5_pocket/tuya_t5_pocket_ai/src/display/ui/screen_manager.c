@@ -28,7 +28,7 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    Screen_t* screens[MAX_DEPTH]; /**< Array of screen pointers */
+    Screen_t *screens[MAX_DEPTH]; /**< Array of screen pointers */
     uint8_t top;                  /**< Index of the top of the stack */
 } ScreenStack_t;
 /***********************************************************
@@ -45,29 +45,34 @@ static ScreenStack_t screen_stack;
 ***********************function define**********************
 ***********************************************************/
 
-static void screen_stack_init(ScreenStack_t* stack) {
+static void screen_stack_init(ScreenStack_t *stack)
+{
     stack->top = 0;
 }
 
-static uint8_t screen_stack_push(ScreenStack_t* stack, Screen_t* screen) {
+static uint8_t screen_stack_push(ScreenStack_t *stack, Screen_t *screen)
+{
     if (stack->top >= MAX_DEPTH)
-		return -1;
+        return -1;
     stack->screens[stack->top++] = screen;
-	return 0;
+    return 0;
 }
 
-static uint8_t screen_stack_pop(ScreenStack_t* stack) {
+static uint8_t screen_stack_pop(ScreenStack_t *stack)
+{
     if (stack->top <= 0)
-		return -1;
+        return -1;
     stack->screens[--stack->top]->deinit();
     return 0;
 }
 
-static uint8_t screen_stack_is_empty(const ScreenStack_t* stack) {
+static uint8_t screen_stack_is_empty(const ScreenStack_t *stack)
+{
     return stack->top == 0;
 }
 
-static Screen_t* get_top_screen(ScreenStack_t* stack) {
+static Screen_t *get_top_screen(ScreenStack_t *stack)
+{
     // Check if stack is empty
     if (stack->top == 0) {
         return NULL; // Return NULL if stack is empty
@@ -81,10 +86,10 @@ static Screen_t* get_top_screen(ScreenStack_t* stack) {
  * @brief Get the current screen (top of stack)
  * @return Pointer to the current screen, or NULL if the screen stack is empty
  */
-Screen_t* screen_get_now_screen(void) {
+Screen_t *screen_get_now_screen(void)
+{
     return get_top_screen(&screen_stack);
 }
-
 
 /**
  * @brief Go back to the previous screen
@@ -92,8 +97,9 @@ Screen_t* screen_get_now_screen(void) {
  * This function unloads the current screen and loads the previous screen.
  * If there is no previous screen, it loads the startup screen.
  */
-void screen_back(void) {
-	if (screen_stack_is_empty(&screen_stack)) {
+void screen_back(void)
+{
+    if (screen_stack_is_empty(&screen_stack)) {
         return;
     }
 
@@ -134,7 +140,8 @@ void screen_back(void) {
  *
  * This function unloads all screens except the home screen.
  */
-void screen_back_bottom(void) {
+void screen_back_bottom(void)
+{
 
     if (screen_stack_is_empty(&screen_stack)) {
         // Should not happen when stack is empty
@@ -142,7 +149,7 @@ void screen_back_bottom(void) {
     }
 
     // Pop all screens except the bottom one
-    while(screen_stack.top > 1){
+    while (screen_stack.top > 1) {
         printf("[%s] pop screen\n", screen_stack.screens[screen_stack.top - 1]->name);
         screen_stack_pop(&screen_stack);
     }
@@ -155,7 +162,8 @@ void screen_back_bottom(void) {
     printf("[%s] bottom screen: %s\n", bottom_screen->name, bottom_screen->name);
     if (bottom_screen->screen_obj && *bottom_screen->screen_obj) {
         printf("[%s] Returning to home screen: %s\n", bottom_screen->name, bottom_screen->name);
-        lv_scr_load_anim(*bottom_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0, true); // Load and apply animation
+        lv_scr_load_anim(*bottom_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0,
+                         true); // Load and apply animation
     } else {
         printf("[Error] %s is NULL or invalid\n", bottom_screen->name);
     }
@@ -166,8 +174,9 @@ void screen_back_bottom(void) {
  *
  * @param newScreen Pointer to the new screen to be loaded
  */
-void screen_load(Screen_t *newScreen) {
-	// Check if stack is full
+void screen_load(Screen_t *newScreen)
+{
+    // Check if stack is full
     if (screen_stack.top >= MAX_DEPTH - 1) {
         // Error handling: Stack full
         return;
@@ -189,6 +198,8 @@ void screen_load(Screen_t *newScreen) {
     } else {
         printf("[Error] %s is NULL or invalid\n", newScreen->name);
     }
+    lv_obj_invalidate(lv_scr_act());
+    lv_refr_now(NULL);
 }
 
 /**
@@ -196,7 +207,8 @@ void screen_load(Screen_t *newScreen) {
  *
  * This function initializes the screen stack and loads the startup screen.
  */
-void screens_init(void) {
+void screens_init(void)
+{
     screen_stack_init(&screen_stack);
     screen_stack_push(&screen_stack, &startup_screen);
     startup_screen.init();

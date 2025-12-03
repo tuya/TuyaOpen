@@ -44,7 +44,7 @@
 #include "ai_audio.h"
 #include "reset_netcfg.h"
 #include "game_pet.h"
-
+#include "tkl_gpio.h"
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
 
@@ -242,6 +242,26 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
+void app_cellular_module_reset(void)
+{
+    TUYA_GPIO_BASE_CFG_T cfg;
+
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.direct = TUYA_GPIO_OUTPUT;
+    cfg.level = TUYA_GPIO_LEVEL_HIGH;
+
+    tkl_gpio_init(TUYA_GPIO_NUM_25, &cfg);
+    tkl_gpio_write(TUYA_GPIO_NUM_25, TUYA_GPIO_LEVEL_HIGH);
+
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.direct = TUYA_GPIO_OUTPUT;
+    cfg.level = TUYA_GPIO_LEVEL_LOW;
+
+    tkl_gpio_init(TUYA_GPIO_NUM_22, &cfg);
+    tkl_gpio_write(TUYA_GPIO_NUM_22, TUYA_GPIO_LEVEL_LOW);
+    return;
+}
+
 void user_main(void)
 {
     int ret = OPRT_OK;
@@ -303,6 +323,11 @@ void user_main(void)
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
     type |= NETCONN_WIRED;
+#endif
+#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+    type |= NETCONN_CELLULAR;
+    // reset·cellular·module
+    app_cellular_module_reset();
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
