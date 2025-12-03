@@ -17,7 +17,7 @@ platforms:
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
   branch: feature/smp
-  commit: 507d1f9ec797e73be627cac9f0c892aa64fd8cba
+  commit: 4aadd2e7c0430b0c3f8744cf1c12c3c402dc6aa8
 
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
