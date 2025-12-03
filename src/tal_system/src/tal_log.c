@@ -183,6 +183,75 @@ OPERATE_RET __find_out_term_node(const char *name, LOG_OUT_NODE_S **node)
     return OPRT_COM_ERROR;
 }
 
+static BOOL_T __log_fmt_has_forbidden_spec(const char *fmt)
+{
+    if (!fmt) {
+        return FALSE;
+    }
+
+    while (*fmt) {
+        if (*fmt == '%') {
+            fmt++;
+            if (*fmt == '%') {
+                fmt++;
+                continue;
+            }
+
+            while (*fmt && (*fmt == ' ' || *fmt == '#' || *fmt == '+' || *fmt == '-' || *fmt == '0' || *fmt == '\'' ||
+                            *fmt == 'I')) {
+                fmt++;
+            }
+            while (*fmt && isdigit((unsigned char)(*fmt))) {
+                fmt++;
+            }
+            if (*fmt == '.') {
+                fmt++;
+                while (*fmt && isdigit((unsigned char)(*fmt))) {
+                    fmt++;
+                }
+            }
+            while (*fmt && (*fmt == 'h' || *fmt == 'l' || *fmt == 'j' || *fmt == 'z' || *fmt == 't' || *fmt == 'L')) {
+                fmt++;
+            }
+            if (*fmt == 'n') {
+                return TRUE;
+            }
+        } else {
+            fmt++;
+        }
+    }
+
+    return FALSE;
+}
+
+static OPERATE_RET __log_escape_percent(const char *src, char *dst, size_t dst_len)
+{
+    if (!src || !dst || dst_len == 0) {
+        return OPRT_INVALID_PARM;
+    }
+
+    size_t used = 0;
+    while (*src && used + 1 < dst_len) {
+        if (*src == '%') {
+            if (used + 2 >= dst_len) {
+                break;
+            }
+            dst[used++] = '%';
+            dst[used++] = '%';
+            src++;
+            continue;
+        }
+        dst[used++] = *src++;
+    }
+    dst[used] = '\0';
+
+    if (*src != '\0') {
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+
+    return OPRT_OK;
+}
+
 /**
  * @brief Adds an output terminal for logging.
  *
@@ -483,12 +552,39 @@ ERR_EXIT:
 OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...)
 {
     OPERATE_RET opRet = 0;
+    if (NULL == fmt) {
+        return OPRT_INVALID_PARM;
+    }
+    if (__log_fmt_has_forbidden_spec(fmt)) {
+        return OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+    }
     va_list ap;
     va_start(ap, fmt);
     opRet = PrintLogV(level, (char *)file, line, fmt, ap);
     va_end(ap);
 
     return opRet;
+}
+
+OPERATE_RET tal_log_print_secure(BOOL_T is_const_fmt, const TAL_LOG_LEVEL_E level, const char *file, const int line,
+                                 const char *fmt, ...)
+{
+    if (NULL == fmt) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (is_const_fmt) {
+        if (__log_fmt_has_forbidden_spec(fmt)) {
+            return OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+        }
+        va_list ap;
+        va_start(ap, fmt);
+        OPERATE_RET ret = PrintLogV(level, (char *)file, line, fmt, ap);
+        va_end(ap);
+        return ret;
+    }
+
+    return tal_log_print_escape(level, file, line, NULL, fmt);
 }
 
 static OPERATE_RET __PrintLogVRaw(const char *pFmt, va_list ap)
@@ -520,6 +616,12 @@ OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
     if (NULL == pLogManage) {
         return OPRT_INVALID_PARM;
     }
+    if (NULL == pFmt) {
+        return OPRT_INVALID_PARM;
+    }
+    if (__log_fmt_has_forbidden_spec(pFmt)) {
+        return OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
+    }
 
     OPERATE_RET opRet = 0;
     va_list ap;
@@ -531,6 +633,48 @@ OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
     tal_mutex_unlock(pLogManage->mutex);
 
     return opRet;
+}
+
+/**
+ * @brief Print the user-provided string, internally escaping '%' to '%%' to avoid format parsing.
+ *
+ * @param[in] level log level
+ * @param[in] file file name
+ * @param[in] line line number
+ * @param[in] prefix fixed prefix, can be NULL or empty string
+ * @param[in] user_str user string to be output
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_log_print_escape(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *prefix,
+                                 const char *user_str)
+{
+    if (NULL == user_str) {
+        return OPRT_INVALID_PARM;
+    }
+
+    size_t src_len = strlen(user_str);
+    size_t buf_len = src_len * 2 + 1;
+    char *escaped = tal_malloc(buf_len);
+    if (NULL == escaped) {
+        return OPRT_MALLOC_FAILED;
+    }
+
+    OPERATE_RET esc_ret = __log_escape_percent(user_str, escaped, buf_len);
+    if (esc_ret != OPRT_OK && esc_ret != OPRT_BUFFER_NOT_ENOUGH) {
+        tal_free(escaped);
+        return esc_ret;
+    }
+
+    OPERATE_RET log_ret = OPRT_INVALID_PARM;
+    if (prefix && prefix[0] != '\0') {
+        log_ret = tal_log_print(level, file, line, "%s%s", prefix, escaped);
+    } else {
+        log_ret = tal_log_print(level, file, line, "%s", escaped);
+    }
+
+    tal_free(escaped);
+    return log_ret;
 }
 
 /**
