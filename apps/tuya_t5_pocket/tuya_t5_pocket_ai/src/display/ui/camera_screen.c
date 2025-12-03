@@ -252,6 +252,7 @@ static int yuv422_to_binary_crop(uint8_t *yuv422_data, int src_width, int src_he
     // We set: palette[0]=black, palette[1]=white
     // So: bright pixel (luminance >= threshold) -> bit=1 -> white
     //     dark pixel (luminance < threshold) -> bit=0 -> black
+    // LVGL I1 uses MSB first: bit 7 = leftmost pixel in byte
     for (int dst_y = 0; dst_y < dst_height; dst_y++) {
         int row_offset = dst_y * binary_stride;
 
@@ -270,11 +271,11 @@ static int yuv422_to_binary_crop(uint8_t *yuv422_data, int src_width, int src_he
             int yuv_index = src_y * src_width * 2 + src_x * 2 + 1; // UYVY format
             uint8_t luminance = yuv422_data[yuv_index];
 
-            // LVGL I1 format: LSB first (bit 0 = leftmost pixel in byte)
+            // LVGL I1 format: MSB first (bit 7 = leftmost pixel, bit 0 = rightmost)
             // luminance >= threshold -> white pixel -> set bit to 1
             if (luminance >= threshold) {
                 int byte_index = row_offset + (dst_x >> 3); // dst_x / 8
-                int bit_position = dst_x & 0x07;            // dst_x % 8, LSB first
+                int bit_position = 7 - (dst_x & 0x07);      // MSB first: 7,6,5,4,3,2,1,0
                 binary_data[byte_index] |= (1 << bit_position);
             }
         }

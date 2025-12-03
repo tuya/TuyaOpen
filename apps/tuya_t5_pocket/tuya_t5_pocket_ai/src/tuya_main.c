@@ -324,11 +324,11 @@ void user_main(void)
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
     type |= NETCONN_WIRED;
 #endif
-#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
-    type |= NETCONN_CELLULAR;
-    // reset·cellular·module
-    app_cellular_module_reset();
-#endif
+    // #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+    //     type |= NETCONN_CELLULAR;
+    //     // reset·cellular·module
+    //     app_cellular_module_reset();
+    // #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
     netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
