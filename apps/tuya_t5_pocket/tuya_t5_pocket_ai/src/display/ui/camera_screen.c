@@ -53,13 +53,16 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    BINARY_METHOD_FIXED = 0,      // Fixed threshold
-    BINARY_METHOD_ADAPTIVE,       // Adaptive threshold
-    BINARY_METHOD_OTSU,           // Otsu's method
-    BINARY_METHOD_BAYER4_DITHER,  // 8-level grayscale Bayer dithering (3x3)
-    BINARY_METHOD_BAYER8_DITHER,  // 4-level grayscale Bayer dithering (2x2)
-    BINARY_METHOD_BAYER16_DITHER, // 16-level grayscale Bayer dithering (4x4)
-    BINARY_METHOD_COUNT           // Total number of methods
+    BINARY_METHOD_FIXED = 0,       // Fixed threshold
+    BINARY_METHOD_ADAPTIVE,        // Adaptive threshold
+    BINARY_METHOD_OTSU,            // Otsu's method
+    BINARY_METHOD_BAYER8_DITHER,   // 8-level grayscale Bayer dithering (3x3)
+    BINARY_METHOD_BAYER4_DITHER,   // 4-level grayscale Bayer dithering (2x2)
+    BINARY_METHOD_BAYER16_DITHER,  // 16-level grayscale Bayer dithering (4x4)
+    BINARY_METHOD_FLOYD_STEINBERG, // Floyd-Steinberg error diffusion
+    BINARY_METHOD_STUCKI,          // Stucki error diffusion
+    BINARY_METHOD_JARVIS,          // Jarvis-Judice-Ninke error diffusion
+    BINARY_METHOD_COUNT            // Total number of methods
 } BINARY_METHOD_E;
 
 typedef struct {
@@ -83,6 +86,11 @@ static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_1 = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_2 = NULL;
 
+// YUV422 raw data buffers (double buffering for camera input)
+static uint8_t *sg_yuv422_buffer_1 = NULL;     // YUV422 buffer 1 (240x240x2 bytes)
+static uint8_t *sg_yuv422_buffer_2 = NULL;     // YUV422 buffer 2 (240x240x2 bytes)
+static uint8_t *sg_yuv422_write_buffer = NULL; // Current write buffer pointer
+
 static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
 static bool camera_running = false;
 static volatile bool frame_ready = false;       // Flag indicating new frame is ready
@@ -91,7 +99,7 @@ static volatile uint8_t read_buffer_index = 0;  // Buffer being read for display
 static MUTEX_HANDLE sg_buffer_mutex = NULL;     // Mutex to protect buffer access
 
 static BINARY_CONFIG_T sg_binary_config = {
-    .method = BINARY_METHOD_ADAPTIVE,
+    .method = BINARY_METHOD_FIXED,
     .fixed_threshold = 128,
 };
 
@@ -115,7 +123,8 @@ static void update_timer_cb(lv_timer_t *timer);
 static OPERATE_RET camera_init(void);
 static OPERATE_RET camera_start(void);
 static void camera_stop(void);
-
+static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                        int dst_width, int dst_height, BINARY_CONFIG_T *config);
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -139,6 +148,12 @@ static const char *get_method_name(BINARY_METHOD_E method)
         return "Bayer4";
     case BINARY_METHOD_BAYER16_DITHER:
         return "Bayer16";
+    case BINARY_METHOD_FLOYD_STEINBERG:
+        return "Floyd-Steinberg";
+    case BINARY_METHOD_STUCKI:
+        return "Stucki";
+    case BINARY_METHOD_JARVIS:
+        return "Jarvis";
     default:
         return "Unknown";
     }
@@ -162,10 +177,10 @@ static void update_info_display(void)
     // Update threshold label based on method
     if (sg_binary_config.method == BINARY_METHOD_BAYER8_DITHER ||
         sg_binary_config.method == BINARY_METHOD_BAYER4_DITHER ||
-        sg_binary_config.method == BINARY_METHOD_BAYER16_DITHER) {
+        sg_binary_config.method == BINARY_METHOD_BAYER16_DITHER ||
+        sg_binary_config.method == BINARY_METHOD_FLOYD_STEINBERG || sg_binary_config.method == BINARY_METHOD_STUCKI ||
+        sg_binary_config.method == BINARY_METHOD_JARVIS) {
         snprintf(buf, sizeof(buf), "Threshold:\nN/A");
-    } else if (sg_binary_config.method == BINARY_METHOD_FIXED) {
-        snprintf(buf, sizeof(buf), "Threshold:\n%d", sg_binary_config.fixed_threshold);
     } else {
         // For adaptive and otsu, show calculated threshold
         snprintf(buf, sizeof(buf), "Threshold:\n%d", sg_calculated_threshold);
@@ -184,6 +199,7 @@ static void update_info_display(void)
 
 /**
  * @brief Timer callback for updating display (runs in LVGL context)
+ * @note Now handles image processing (YUV422 -> binary conversion)
  */
 static void update_timer_cb(lv_timer_t *timer)
 {
@@ -191,25 +207,30 @@ static void update_timer_cb(lv_timer_t *timer)
 
 #ifdef ENABLE_LVGL_HARDWARE
 
-    // Check if new frame is ready and update canvas
+    // Check if new frame is ready and process it
     if (frame_ready && canvas_buffer && camera_canvas && sg_buffer_mutex) {
-        // Lock mutex to safely access buffer indices
+        // Lock mutex to safely access buffer indices and data
         tal_mutex_lock(sg_buffer_mutex);
 
-        // Swap read buffer index to point to the latest completed frame
+        // Get the YUV422 buffer with latest frame data
+        uint8_t *yuv422_source = (write_buffer_index == 0) ? sg_yuv422_buffer_1 : sg_yuv422_buffer_2;
         read_buffer_index = write_buffer_index;
         frame_ready = false; // Clear flag
 
-        // Get the buffer with latest frame data
-        TDL_DISP_FRAME_BUFF_T *source_fb = (read_buffer_index == 0) ? sg_p_display_fb_1 : sg_p_display_fb_2;
-
         tal_mutex_unlock(sg_buffer_mutex);
 
-        // Copy frame data to canvas buffer (safe to do in LVGL timer context)
+        // Process YUV422 data to binary in LVGL timer context (safe for LVGL operations)
+        // Get output buffer (toggle between two buffers for double buffering)
+        TDL_DISP_FRAME_BUFF_T *output_fb = (read_buffer_index == 0) ? sg_p_display_fb_1 : sg_p_display_fb_2;
+
+        // Convert YUV422 (240x240) to binary (240x168 cropped) with rotation
+        yuv422_to_binary_with_config(yuv422_source, CAMERA_WIDTH, CAMERA_HEIGHT, output_fb->frame, CAMERA_AREA_WIDTH,
+                                     CAMERA_AREA_HEIGHT, &sg_binary_config);
+
+        // Copy processed binary data to canvas buffer
         // For LVGL I1 format: palette (8 bytes) + bitmap data
-        // Our frame buffer contains only bitmap, copy it after palette area
         uint32_t bitmap_size = (CAMERA_AREA_WIDTH + 7) / 8 * CAMERA_AREA_HEIGHT;
-        memcpy(canvas_buffer + 8, source_fb->frame, bitmap_size);
+        memcpy(canvas_buffer + 8, output_fb->frame, bitmap_size);
 
         // Invalidate canvas to trigger redraw
         lv_obj_invalidate(camera_canvas);
@@ -461,6 +482,309 @@ static int yuv422_to_binary_crop(uint8_t *yuv422_data, int src_width, int src_he
 }
 
 /**
+ * @brief Convert YUV422 to binary with Floyd-Steinberg error diffusion
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ * @note Floyd-Steinberg: [    *  7/16]
+ *                        [3/16 5/16 1/16]
+ */
+static int yuv422_to_floyd_steinberg_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                          int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // Allocate error buffer (2 rows for current and next row)
+    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 2) * 2 * sizeof(int16_t));
+    if (!error_buffer) {
+        return -1;
+    }
+    memset(error_buffer, 0, (dst_width + 2) * 2 * sizeof(int16_t));
+
+    int16_t *curr_row = error_buffer + 1;             // Current row with padding
+    int16_t *next_row = error_buffer + dst_width + 3; // Next row
+
+    // Process with rotation and error diffusion
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            int16_t luminance = (int16_t)yuv422_data[yuv_index] + curr_row[dst_x];
+
+            // Clamp to valid range
+            if (luminance < 0)
+                luminance = 0;
+            if (luminance > 255)
+                luminance = 255;
+
+            // Determine output pixel (threshold at 128)
+            uint8_t new_pixel = (luminance >= 128) ? 255 : 0;
+            int16_t error = luminance - new_pixel;
+
+            // Set pixel in output
+            if (new_pixel == 255) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+
+            // Floyd-Steinberg error diffusion
+            // Right: 7/16
+            if (dst_x < dst_width - 1) {
+                curr_row[dst_x + 1] += (error * 7) >> 4;
+            }
+            // Bottom-left: 3/16
+            if (dst_x > 0) {
+                next_row[dst_x - 1] += (error * 3) >> 4;
+            }
+            // Bottom: 5/16
+            next_row[dst_x] += (error * 5) >> 4;
+            // Bottom-right: 1/16
+            if (dst_x < dst_width - 1) {
+                next_row[dst_x + 1] += error >> 4;
+            }
+        }
+
+        // Swap rows for next iteration
+        int16_t *temp = curr_row;
+        curr_row = next_row;
+        next_row = temp;
+        memset(next_row - 1, 0, (dst_width + 2) * sizeof(int16_t));
+    }
+
+    tal_free(error_buffer);
+    return 0;
+}
+
+/**
+ * @brief Convert YUV422 to binary with Stucki error diffusion
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ * @note Stucki: [        *    8/42  4/42]
+ *               [2/42  4/42  8/42  4/42  2/42]
+ *               [1/42  2/42  4/42  2/42  1/42]
+ */
+static int yuv422_to_stucki_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                 int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // Allocate error buffer (3 rows: current, next, next+1)
+    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 4) * 3 * sizeof(int16_t));
+    if (!error_buffer) {
+        return -1;
+    }
+    memset(error_buffer, 0, (dst_width + 4) * 3 * sizeof(int16_t));
+
+    int16_t *curr_row = error_buffer + 2;
+    int16_t *next_row1 = error_buffer + dst_width + 6;
+    int16_t *next_row2 = error_buffer + (dst_width + 4) * 2 + 2;
+
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            int16_t luminance = (int16_t)yuv422_data[yuv_index] + curr_row[dst_x];
+
+            if (luminance < 0)
+                luminance = 0;
+            if (luminance > 255)
+                luminance = 255;
+
+            uint8_t new_pixel = (luminance >= 128) ? 255 : 0;
+            int16_t error = luminance - new_pixel;
+
+            if (new_pixel == 255) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+
+            // Stucki error diffusion (divisor: 42)
+            // Current row
+            if (dst_x < dst_width - 1)
+                curr_row[dst_x + 1] += (error * 8) / 42;
+            if (dst_x < dst_width - 2)
+                curr_row[dst_x + 2] += (error * 4) / 42;
+
+            // Next row (1)
+            if (dst_x > 1)
+                next_row1[dst_x - 2] += (error * 2) / 42;
+            if (dst_x > 0)
+                next_row1[dst_x - 1] += (error * 4) / 42;
+            next_row1[dst_x] += (error * 8) / 42;
+            if (dst_x < dst_width - 1)
+                next_row1[dst_x + 1] += (error * 4) / 42;
+            if (dst_x < dst_width - 2)
+                next_row1[dst_x + 2] += (error * 2) / 42;
+
+            // Next row (2)
+            if (dst_x > 1)
+                next_row2[dst_x - 2] += error / 42;
+            if (dst_x > 0)
+                next_row2[dst_x - 1] += (error * 2) / 42;
+            next_row2[dst_x] += (error * 4) / 42;
+            if (dst_x < dst_width - 1)
+                next_row2[dst_x + 1] += (error * 2) / 42;
+            if (dst_x < dst_width - 2)
+                next_row2[dst_x + 2] += error / 42;
+        }
+
+        // Rotate rows
+        int16_t *temp = curr_row;
+        curr_row = next_row1;
+        next_row1 = next_row2;
+        next_row2 = temp;
+        memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
+    }
+
+    tal_free(error_buffer);
+    return 0;
+}
+
+/**
+ * @brief Convert YUV422 to binary with Jarvis-Judice-Ninke error diffusion
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ * @note Jarvis: [        *    7/48  5/48]
+ *               [3/48  5/48  7/48  5/48  3/48]
+ *               [1/48  3/48  5/48  3/48  1/48]
+ */
+static int yuv422_to_jarvis_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                 int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // Allocate error buffer (3 rows)
+    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 4) * 3 * sizeof(int16_t));
+    if (!error_buffer) {
+        return -1;
+    }
+    memset(error_buffer, 0, (dst_width + 4) * 3 * sizeof(int16_t));
+
+    int16_t *curr_row = error_buffer + 2;
+    int16_t *next_row1 = error_buffer + dst_width + 6;
+    int16_t *next_row2 = error_buffer + (dst_width + 4) * 2 + 2;
+
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            int16_t luminance = (int16_t)yuv422_data[yuv_index] + curr_row[dst_x];
+
+            if (luminance < 0)
+                luminance = 0;
+            if (luminance > 255)
+                luminance = 255;
+
+            uint8_t new_pixel = (luminance >= 128) ? 255 : 0;
+            int16_t error = luminance - new_pixel;
+
+            if (new_pixel == 255) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+
+            // Jarvis-Judice-Ninke error diffusion (divisor: 48)
+            // Current row
+            if (dst_x < dst_width - 1)
+                curr_row[dst_x + 1] += (error * 7) / 48;
+            if (dst_x < dst_width - 2)
+                curr_row[dst_x + 2] += (error * 5) / 48;
+
+            // Next row (1)
+            if (dst_x > 1)
+                next_row1[dst_x - 2] += (error * 3) / 48;
+            if (dst_x > 0)
+                next_row1[dst_x - 1] += (error * 5) / 48;
+            next_row1[dst_x] += (error * 7) / 48;
+            if (dst_x < dst_width - 1)
+                next_row1[dst_x + 1] += (error * 5) / 48;
+            if (dst_x < dst_width - 2)
+                next_row1[dst_x + 2] += (error * 3) / 48;
+
+            // Next row (2)
+            if (dst_x > 1)
+                next_row2[dst_x - 2] += error / 48;
+            if (dst_x > 0)
+                next_row2[dst_x - 1] += (error * 3) / 48;
+            next_row2[dst_x] += (error * 5) / 48;
+            if (dst_x < dst_width - 1)
+                next_row2[dst_x + 1] += (error * 3) / 48;
+            if (dst_x < dst_width - 2)
+                next_row2[dst_x + 2] += error / 48;
+        }
+
+        // Rotate rows
+        int16_t *temp = curr_row;
+        curr_row = next_row1;
+        next_row1 = next_row2;
+        next_row2 = temp;
+        memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
+    }
+
+    tal_free(error_buffer);
+    return 0;
+}
+
+/**
  * @brief Calculate adaptive threshold from source image
  */
 static uint8_t calculate_adaptive_threshold(uint8_t *yuv422_data, int src_width, int src_height)
@@ -543,80 +867,104 @@ static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int
     }
 
     // Special handling for Bayer dithering modes
-    if (config->method == BINARY_METHOD_BAYER8_DITHER) {
-        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
-        return yuv422_to_bayer8_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    }
+    // if (config->method == BINARY_METHOD_BAYER8_DITHER) {
+    //     sg_calculated_threshold = 0;
+    //     return yuv422_to_bayer8_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    // }
 
-    if (config->method == BINARY_METHOD_BAYER4_DITHER) {
-        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
-        return yuv422_to_bayer4_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    }
+    // if (config->method == BINARY_METHOD_BAYER4_DITHER) {
+    //     sg_calculated_threshold = 0;
+    //     return yuv422_to_bayer4_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    // }
 
-    if (config->method == BINARY_METHOD_BAYER16_DITHER) {
-        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
-        return yuv422_to_bayer16_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    }
+    // if (config->method == BINARY_METHOD_BAYER16_DITHER) {
+    //     sg_calculated_threshold = 0;
+    //     return yuv422_to_bayer16_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    // }
 
-    // Standard threshold-based methods
-    uint8_t threshold;
+    // // Error diffusion algorithms
+    // if (config->method == BINARY_METHOD_FLOYD_STEINBERG) {
+    //     return yuv422_to_floyd_steinberg_crop(yuv422_data, src_width, src_height, binary_data, dst_width,
+    //     dst_height);
+    // }
+
+    // if (config->method == BINARY_METHOD_STUCKI) {
+    //     return yuv422_to_stucki_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    // }
+
+    // if (config->method == BINARY_METHOD_JARVIS) {
+    //     return yuv422_to_jarvis_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    // }
 
     switch (config->method) {
     case BINARY_METHOD_FIXED:
-        threshold = config->fixed_threshold;
+        sg_calculated_threshold = config->fixed_threshold;
         break;
 
     case BINARY_METHOD_ADAPTIVE:
-        threshold = calculate_adaptive_threshold(yuv422_data, src_width, src_height);
-        // Save calculated threshold to global variable for display
-        sg_calculated_threshold = threshold;
+        sg_calculated_threshold = calculate_adaptive_threshold(yuv422_data, src_width, src_height);
         break;
 
     case BINARY_METHOD_OTSU:
-        threshold = calculate_otsu_threshold(yuv422_data, src_width, src_height);
-        // Save calculated threshold to global variable for display
-        sg_calculated_threshold = threshold;
+        sg_calculated_threshold = calculate_otsu_threshold(yuv422_data, src_width, src_height);
         break;
+
+    case BINARY_METHOD_BAYER4_DITHER:
+        return yuv422_to_bayer4_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+
+    case BINARY_METHOD_BAYER8_DITHER:
+        return yuv422_to_bayer8_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+
+    case BINARY_METHOD_BAYER16_DITHER:
+        return yuv422_to_bayer16_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+
+    case BINARY_METHOD_FLOYD_STEINBERG:
+        return yuv422_to_floyd_steinberg_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+
+    case BINARY_METHOD_STUCKI:
+        return yuv422_to_stucki_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+
+    case BINARY_METHOD_JARVIS:
+        return yuv422_to_jarvis_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
 
     default:
         return -1;
     }
 
-    return yuv422_to_binary_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height, threshold);
+    return yuv422_to_binary_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height,
+                                 sg_calculated_threshold);
 }
 
 /**
- * @brief Camera frame callback - process frame data without LVGL operations
+ * @brief Camera frame callback - only receive and save raw YUV422 data
  * @note This callback runs in camera thread context, should not call LVGL APIs
+ * @note Image processing is now done in timer callback
  */
 static OPERATE_RET camera_frame_callback(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
 {
-    // static uint32_t frame_count = 0;
-
-    if (NULL == hdl || NULL == frame || NULL == sg_p_display_fb) {
+    if (NULL == hdl || NULL == frame) {
         return OPRT_INVALID_PARM;
     }
 
-    if (!camera_running || !sg_buffer_mutex) {
+    if (!camera_running || !sg_buffer_mutex || !sg_yuv422_write_buffer) {
         return OPRT_OK;
     }
 
-    // Lock mutex BEFORE processing to ensure atomicity
+    // Lock mutex to safely copy data
     tal_mutex_lock(sg_buffer_mutex);
 
-    // Get current write buffer before conversion
-    TDL_DISP_FRAME_BUFF_T *current_write_buffer = sg_p_display_fb;
-    uint8_t current_write_index = (current_write_buffer == sg_p_display_fb_1) ? 0 : 1;
+    // Determine current write buffer index
+    uint8_t current_write_index = (sg_yuv422_write_buffer == sg_yuv422_buffer_1) ? 0 : 1;
 
-    // Convert YUV422 (240x240) to binary (240x168 cropped) with rotation
-    yuv422_to_binary_with_config(frame->data, frame->width, frame->height, current_write_buffer->frame,
-                                 CAMERA_AREA_WIDTH, CAMERA_AREA_HEIGHT, &sg_binary_config);
+    // Copy raw YUV422 data to buffer (240x240x2 = 115200 bytes)
+    uint32_t yuv422_size = frame->width * frame->height * 2;
+    memcpy(sg_yuv422_write_buffer, frame->data, yuv422_size);
 
-    // Mark which buffer contains the new frame (for display to read)
+    // Mark which buffer contains the new frame
     write_buffer_index = current_write_index;
 
-    // Toggle frame buffer for next capture (write to the other buffer)
-    sg_p_display_fb = (current_write_buffer == sg_p_display_fb_1) ? sg_p_display_fb_2 : sg_p_display_fb_1;
+    // Toggle YUV422 buffer for next capture
+    sg_yuv422_write_buffer = (sg_yuv422_write_buffer == sg_yuv422_buffer_1) ? sg_yuv422_buffer_2 : sg_yuv422_buffer_1;
 
     // Set flag to notify LVGL timer that new frame is ready
     frame_ready = true;
@@ -643,9 +991,27 @@ static OPERATE_RET camera_init(void)
     }
     PR_DEBUG("Buffer mutex created");
 
-    // Create frame buffers for camera processing (240x168 output after crop)
+    // Allocate YUV422 raw data buffers (240x240x2 = 115200 bytes each)
+    uint32_t yuv422_size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
+    sg_yuv422_buffer_1 = (uint8_t *)tal_psram_malloc(yuv422_size);
+    if (NULL == sg_yuv422_buffer_1) {
+        PR_ERR("Failed to allocate YUV422 buffer 1");
+        return OPRT_MALLOC_FAILED;
+    }
+
+    sg_yuv422_buffer_2 = (uint8_t *)tal_psram_malloc(yuv422_size);
+    if (NULL == sg_yuv422_buffer_2) {
+        PR_ERR("Failed to allocate YUV422 buffer 2");
+        tal_psram_free(sg_yuv422_buffer_1);
+        return OPRT_MALLOC_FAILED;
+    }
+
+    sg_yuv422_write_buffer = sg_yuv422_buffer_1;
+    PR_DEBUG("YUV422 buffers allocated: %d bytes each", yuv422_size);
+
+    // Create frame buffers for binary output (240x168 after crop)
     uint32_t frame_len = (CAMERA_AREA_WIDTH + 7) / 8 * CAMERA_AREA_HEIGHT;
-    PR_DEBUG("Frame buffer size: %d bytes", frame_len);
+    PR_DEBUG("Binary frame buffer size: %d bytes", frame_len);
 
     sg_p_display_fb_1 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
     if (NULL == sg_p_display_fb_1) {
@@ -928,6 +1294,17 @@ void camera_screen_deinit(void)
 #ifdef ENABLE_LVGL_HARDWARE
     // Stop camera if running
     camera_stop();
+
+    // Free YUV422 buffers
+    if (sg_yuv422_buffer_1) {
+        tal_psram_free(sg_yuv422_buffer_1);
+        sg_yuv422_buffer_1 = NULL;
+    }
+    if (sg_yuv422_buffer_2) {
+        tal_psram_free(sg_yuv422_buffer_2);
+        sg_yuv422_buffer_2 = NULL;
+    }
+    sg_yuv422_write_buffer = NULL;
 
     // Clean up frame buffers
     if (sg_p_display_fb_1) {

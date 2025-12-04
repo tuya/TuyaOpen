@@ -115,7 +115,7 @@ void screen_back(void)
 
         // Check if screen object is valid before loading
         if (startup_screen.screen_obj && *startup_screen.screen_obj) {
-            printf("[%s] Returning to startup screen: %s\n", startup_screen.name, startup_screen.name);
+            printf("[Manager] Returning to startup screen: %s\n", startup_screen.name);
             lv_scr_load_anim(*startup_screen.screen_obj, LV_SCR_LOAD_ANIM_OVER_RIGHT, 200, 0, true);
         } else {
             printf("[Error] %s is NULL or invalid\n", startup_screen.name);
@@ -127,7 +127,7 @@ void screen_back(void)
 
         // Check if screen object is valid before loading
         if (previous_screen->screen_obj && *previous_screen->screen_obj) {
-            printf("[%s] Returning to previous screen: %s\n", previous_screen->name, previous_screen->name);
+            printf("[Manager] Returning to previous screen: %s\n", previous_screen->name);
             lv_scr_load_anim(*previous_screen->screen_obj, LV_SCR_LOAD_ANIM_OVER_RIGHT, 200, 0, true);
         } else {
             printf("[Error] %s is NULL or invalid\n", previous_screen->name);
@@ -142,7 +142,6 @@ void screen_back(void)
  */
 void screen_back_bottom(void)
 {
-
     if (screen_stack_is_empty(&screen_stack)) {
         // Should not happen when stack is empty
         return;
@@ -154,14 +153,12 @@ void screen_back_bottom(void)
         screen_stack_pop(&screen_stack);
     }
 
-    printf("[%s] Load home screen\n", screen_stack.screens[screen_stack.top - 1]->name);
     screen_stack.screens[screen_stack.top - 1]->init(); // Initialize new screen
 
     // Check if screen object is valid before loading
     Screen_t *bottom_screen = screen_stack.screens[screen_stack.top - 1];
-    printf("[%s] bottom screen: %s\n", bottom_screen->name, bottom_screen->name);
     if (bottom_screen->screen_obj && *bottom_screen->screen_obj) {
-        printf("[%s] Returning to home screen: %s\n", bottom_screen->name, bottom_screen->name);
+        printf("[Manager] Returning to home screen: [%s]\n", bottom_screen->name);
         lv_scr_load_anim(*bottom_screen->screen_obj, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 200, 0,
                          true); // Load and apply animation
     } else {
@@ -194,12 +191,10 @@ void screen_load(Screen_t *newScreen)
     // Check if screen object is valid before loading
     if (newScreen->screen_obj && *newScreen->screen_obj) {
         lv_scr_load_anim(*newScreen->screen_obj, LV_SCR_LOAD_ANIM_OVER_LEFT, 200, 0, true); // Load and apply animation
-        printf("[%s] Screen loaded: %s\n", screen_stack.screens[screen_stack.top - 1 - 1]->name, newScreen->name);
+        printf("[Manager] Loading to new screen: [%s]\n", newScreen->name);
     } else {
         printf("[Error] %s is NULL or invalid\n", newScreen->name);
     }
-    lv_obj_invalidate(lv_scr_act());
-    lv_refr_now(NULL);
 }
 
 /**
@@ -217,6 +212,6 @@ void screens_init(void)
     if (startup_screen.screen_obj && *startup_screen.screen_obj) {
         lv_disp_load_scr(*startup_screen.screen_obj);
     } else {
-        printf("Error: startup_screen.screen_obj is NULL or invalid during initialization\n");
+        printf("[Error]: startup_screen.screen_obj is NULL or invalid during initialization\n");
     }
 }
