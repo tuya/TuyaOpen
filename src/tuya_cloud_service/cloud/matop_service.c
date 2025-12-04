@@ -11,6 +11,7 @@
  */
 
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include "tuya_config_defaults.h"
 #include "tuya_error_code.h"
@@ -325,7 +326,7 @@ int matop_serice_destory(matop_context_t *context)
 int matop_service_request_async(matop_context_t *context, const mqtt_atop_request_t *request,
                                 mqtt_atop_response_cb_t notify_cb, void *user_data)
 {
-    if (NULL == context || NULL == request) {
+    if (NULL == context || NULL == request || NULL == request->api) {
         return OPRT_INVALID_PARM;
     }
 
@@ -347,7 +348,37 @@ int matop_service_request_async(matop_context_t *context, const mqtt_atop_reques
 
     /* request buffer make */
     size_t request_datalen = 0;
-    size_t request_bufferlen = 128 + (request->data ? strlen((char *)request->data) : 0);
+    const char *data_ptr = request->data ? (const char *)request->data : "{}";
+    size_t data_len = request->data ? (request->data_len ? request->data_len : strlen(data_ptr)) : strlen(data_ptr);
+
+    if (data_len > (size_t)INT_MAX) {
+        tal_free(message_handle);
+        return OPRT_INVALID_PARM;
+    }
+
+    int posix_time = tal_time_get_posix();
+    int base_len = snprintf(NULL, 0, "{\"id\":%d,\"a\":\"%s\",\"t\":%d,\"data\":%.*s", message_handle->id,
+                            request->api, posix_time, (int)data_len, data_ptr);
+    if (base_len < 0) {
+        tal_free(message_handle);
+        return OPRT_COM_ERROR;
+    }
+
+    int version_len = 0;
+    if (request->version) {
+        version_len = snprintf(NULL, 0, ",\"v\":\"%s\"", request->version);
+        if (version_len < 0) {
+            tal_free(message_handle);
+            return OPRT_COM_ERROR;
+        }
+    }
+
+    size_t request_bufferlen = (size_t)base_len + (size_t)version_len + 2; /* '}' + '\0' */
+    if (request_bufferlen < (size_t)base_len) {
+        tal_free(message_handle);
+        return OPRT_COM_ERROR;
+    }
+
     char *request_buffer = tal_malloc(request_bufferlen);
     if (request_buffer == NULL) {
         PR_ERR("response_buffer malloc fail");
@@ -356,14 +387,33 @@ int matop_service_request_async(matop_context_t *context, const mqtt_atop_reques
     }
 
     /* buffer format */
-    request_datalen =
-        snprintf(request_buffer, request_bufferlen, "{\"id\":%d,\"a\":\"%s\",\"t\":%d,\"data\":%s", message_handle->id,
-                 request->api, tal_time_get_posix(), request->data ? ((char *)request->data) : "{}");
-    if (request->version) {
-        request_datalen += snprintf(request_buffer + request_datalen, request_bufferlen - request_datalen,
-                                    ",\"v\":\"%s\"", request->version);
+    int written = snprintf(request_buffer, request_bufferlen, "{\"id\":%d,\"a\":\"%s\",\"t\":%d,\"data\":%.*s",
+                           message_handle->id, request->api, posix_time, (int)data_len, data_ptr);
+    if (written < 0 || (size_t)written >= request_bufferlen) {
+        tal_free(request_buffer);
+        tal_free(message_handle);
+        return OPRT_BUFFER_NOT_ENOUGH;
     }
-    request_datalen += snprintf(request_buffer + request_datalen, request_bufferlen - request_datalen, "}");
+
+    if (request->version) {
+        int more =
+            snprintf(request_buffer + written, request_bufferlen - (size_t)written, ",\"v\":\"%s\"", request->version);
+        if (more < 0 || (size_t)more >= request_bufferlen - (size_t)written) {
+            tal_free(request_buffer);
+            tal_free(message_handle);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        written += more;
+    }
+
+    if ((size_t)written + 2 > request_bufferlen) {
+        tal_free(request_buffer);
+        tal_free(message_handle);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    request_buffer[written++] = '}';
+    request_buffer[written] = '\0';
+    request_datalen = (size_t)written;
     PR_DEBUG("atop request: %s", request_buffer);
 
     rt = matop_request_send(matop, (const uint8_t *)request_buffer, request_datalen);

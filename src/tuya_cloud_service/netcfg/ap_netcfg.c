@@ -215,42 +215,68 @@ static int ap_cfg_cmd_patse(ap_netcfg_t *ap, char *data)
         return OPRT_CJSON_GET_ERR;
     }
 
-    if (NULL == (cJSON_GetObjectItem(root, "ssid"))) {
+    cJSON *ssid_item = cJSON_GetObjectItem(root, "ssid");
+    if (!cJSON_IsString(ssid_item) || ssid_item->valuestring == NULL || ssid_item->valuestring[0] == '\0') {
         PR_ERR("data format err:%s", data);
         cJSON_Delete(root);
         return OPRT_CJSON_GET_ERR;
     }
-
-    char *ssid = cJSON_GetObjectItem(root, "ssid")->valuestring;
-    if (strlen(ssid) == 0) {
-        cJSON_Delete(root);
-        return OPRT_CJSON_GET_ERR;
-    }
+    const char *ssid = ssid_item->valuestring;
     PR_DEBUG("Parse ssid:%s", ssid);
 
     char *token = NULL;
-    if ((cJSON_GetObjectItem(root, "token") && (cJSON_GetObjectItem(root, "token")->valuestring[0]))) {
-        token = cJSON_GetObjectItem(root, "token")->valuestring;
+    cJSON *token_item = cJSON_GetObjectItem(root, "token");
+    if (cJSON_IsString(token_item) && token_item->valuestring && token_item->valuestring[0]) {
+        token = token_item->valuestring;
         PR_DEBUG("Parse token:%s", token);
     }
 
     char *passwd = NULL;
-    if ((cJSON_GetObjectItem(root, "passwd") && (cJSON_GetObjectItem(root, "passwd")->valuestring[0]))) {
-        passwd = cJSON_GetObjectItem(root, "passwd")->valuestring;
+    cJSON *passwd_item = cJSON_GetObjectItem(root, "passwd");
+    if (cJSON_IsString(passwd_item) && passwd_item->valuestring && passwd_item->valuestring[0]) {
+        passwd = passwd_item->valuestring;
         PR_DEBUG("Parse passwd:%s", passwd);
     }
-    strncpy((char *)ap->netcfg_info.ssid, ssid, WIFI_SSID_LEN);
-    ap->netcfg_info.s_len = strlen(ssid);
+
+    memset(&ap->netcfg_info, 0, sizeof(ap->netcfg_info));
+
+    // Copy SSID
+    size_t s_len = strnlen(ssid, WIFI_SSID_LEN + 1);
+    if (s_len == 0 || s_len > WIFI_SSID_LEN) {
+        PR_ERR("ssid len invalid:%zu", s_len);
+        cJSON_Delete(root);
+        return OPRT_CJSON_GET_ERR;
+    }
+    memcpy(ap->netcfg_info.ssid, ssid, s_len);
+    ap->netcfg_info.ssid[s_len] = '\0';
+    ap->netcfg_info.s_len = (uint8_t)s_len;
+
     if (passwd == NULL) {
         ap->netcfg_info.p_len = 0;
     } else {
-        strncpy((char *)ap->netcfg_info.passwd, passwd, WIFI_PASSWD_LEN);
-        ap->netcfg_info.p_len = strlen(passwd);
+        // Copy password
+        size_t p_len = strnlen(passwd, WIFI_PASSWD_LEN + 1);
+        if (p_len == 0 || p_len > WIFI_PASSWD_LEN) {
+            PR_ERR("passwd len invalid:%zu", p_len);
+            cJSON_Delete(root);
+            return OPRT_CJSON_GET_ERR;
+        }
+        memcpy(ap->netcfg_info.passwd, passwd, p_len);
+        ap->netcfg_info.passwd[p_len] = '\0';
+        ap->netcfg_info.p_len = (uint8_t)p_len;
     }
 
     if (token) {
-        strncpy((char *)ap->netcfg_info.token, token, WL_TOKEN_LEN);
-        ap->netcfg_info.t_len = strlen(token);
+        // Copy token
+        size_t t_len = strnlen(token, WL_TOKEN_LEN + 1);
+        if (t_len == 0 || t_len > WL_TOKEN_LEN) {
+            PR_ERR("token len invalid:%zu", t_len);
+            cJSON_Delete(root);
+            return OPRT_CJSON_GET_ERR;
+        }
+        memcpy(ap->netcfg_info.token, token, t_len);
+        ap->netcfg_info.token[t_len] = '\0';
+        ap->netcfg_info.t_len = (uint8_t)t_len;
     }
 
     cJSON *reg = cJSON_GetObjectItem(root, "reg");
