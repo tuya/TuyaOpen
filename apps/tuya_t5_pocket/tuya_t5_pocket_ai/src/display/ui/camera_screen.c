@@ -53,10 +53,13 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    BINARY_METHOD_FIXED = 0, // Fixed threshold
-    BINARY_METHOD_ADAPTIVE,  // Adaptive threshold
-    BINARY_METHOD_OTSU,      // Otsu's method
-    BINARY_METHOD_COUNT      // Total number of methods
+    BINARY_METHOD_FIXED = 0,      // Fixed threshold
+    BINARY_METHOD_ADAPTIVE,       // Adaptive threshold
+    BINARY_METHOD_OTSU,           // Otsu's method
+    BINARY_METHOD_BAYER4_DITHER,  // 8-level grayscale Bayer dithering (3x3)
+    BINARY_METHOD_BAYER8_DITHER,  // 4-level grayscale Bayer dithering (2x2)
+    BINARY_METHOD_BAYER16_DITHER, // 16-level grayscale Bayer dithering (4x4)
+    BINARY_METHOD_COUNT           // Total number of methods
 } BINARY_METHOD_E;
 
 typedef struct {
@@ -130,6 +133,12 @@ static const char *get_method_name(BINARY_METHOD_E method)
         return "Adaptive";
     case BINARY_METHOD_OTSU:
         return "Otsu";
+    case BINARY_METHOD_BAYER4_DITHER:
+        return "Bayer8";
+    case BINARY_METHOD_BAYER8_DITHER:
+        return "Bayer4";
+    case BINARY_METHOD_BAYER16_DITHER:
+        return "Bayer16";
     default:
         return "Unknown";
     }
@@ -151,7 +160,11 @@ static void update_info_display(void)
     lv_label_set_text(method_label, buf);
 
     // Update threshold label based on method
-    if (sg_binary_config.method == BINARY_METHOD_FIXED) {
+    if (sg_binary_config.method == BINARY_METHOD_BAYER8_DITHER ||
+        sg_binary_config.method == BINARY_METHOD_BAYER4_DITHER ||
+        sg_binary_config.method == BINARY_METHOD_BAYER16_DITHER) {
+        snprintf(buf, sizeof(buf), "Threshold:\nN/A");
+    } else if (sg_binary_config.method == BINARY_METHOD_FIXED) {
         snprintf(buf, sizeof(buf), "Threshold:\n%d", sg_binary_config.fixed_threshold);
     } else {
         // For adaptive and otsu, show calculated threshold
@@ -174,16 +187,9 @@ static void update_info_display(void)
  */
 static void update_timer_cb(lv_timer_t *timer)
 {
-    static uint32_t update_count = 0;
-    // static uint32_t last_log_time = 0;
     (void)timer;
 
 #ifdef ENABLE_LVGL_HARDWARE
-    // Periodic status log every 1 second (50 timer ticks at 20ms)
-    if (update_count % 50 == 0) {
-        PR_DEBUG("Timer tick %d: frame_ready=%d, camera_running=%d, mutex=%p, canvas=%p", update_count, frame_ready,
-                 camera_running, sg_buffer_mutex, camera_canvas);
-    }
 
     // Check if new frame is ready and update canvas
     if (frame_ready && canvas_buffer && camera_canvas && sg_buffer_mutex) {
@@ -205,13 +211,6 @@ static void update_timer_cb(lv_timer_t *timer)
         uint32_t bitmap_size = (CAMERA_AREA_WIDTH + 7) / 8 * CAMERA_AREA_HEIGHT;
         memcpy(canvas_buffer + 8, source_fb->frame, bitmap_size);
 
-        // Debug log for first few updates
-        if (update_count < 3) {
-            PR_DEBUG("Display update %d: copied %d bytes from buffer[%d], first_byte=0x%02x", update_count, bitmap_size,
-                     read_buffer_index, source_fb->frame[0]);
-        }
-        update_count++;
-
         // Invalidate canvas to trigger redraw
         lv_obj_invalidate(camera_canvas);
     }
@@ -221,6 +220,183 @@ static void update_timer_cb(lv_timer_t *timer)
 }
 
 #ifdef ENABLE_LVGL_HARDWARE
+
+/**
+ * @brief 2x2 Bayer matrix for 4-level grayscale dithering (threshold 0-3)
+ */
+static const uint8_t bayer_2x2[2][2] = {{0, 2}, {3, 1}};
+
+/**
+ * @brief 3x3 Bayer matrix for 8-level grayscale dithering (threshold 0-8)
+ */
+static const uint8_t bayer_3x3[3][3] = {{0, 7, 3}, {6, 4, 2}, {1, 5, 8}};
+
+/**
+ * @brief 4x4 Bayer matrix for 16-level grayscale dithering (threshold 0-15)
+ */
+static const uint8_t bayer_4x4[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
+
+/**
+ * @brief Convert YUV422 to binary with 4-level Bayer dithering (2x2 matrix)
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ */
+static int yuv422_to_bayer4_dither_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                        int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // 4-level Bayer dithering with rotation (2x2 matrix)
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            uint8_t luminance = yuv422_data[yuv_index];
+
+            // Map luminance to 0-3 range for 4-level grayscale
+            float normalized = luminance * 3.0f / 255.0f;
+
+            // Get Bayer threshold from 2x2 matrix (0-3)
+            uint8_t threshold = bayer_2x2[dst_y % 2][dst_x % 2];
+
+            // Apply dithering: if normalized luminance >= threshold, set pixel to white
+            if (normalized >= threshold) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+        }
+    }
+    return 0;
+}
+
+/**
+ * @brief Convert YUV422 to binary with 16-level Bayer dithering (4x4 matrix)
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ */
+static int yuv422_to_bayer16_dither_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                         int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // 16-level Bayer dithering with rotation (4x4 matrix)
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            uint8_t luminance = yuv422_data[yuv_index];
+
+            // Map luminance to 0-15 range for 16-level grayscale
+            float normalized = luminance * 15.0f / 255.0f;
+
+            // Get Bayer threshold from 4x4 matrix (0-15)
+            uint8_t threshold = bayer_4x4[dst_y & 0x03][dst_x & 0x03]; // Optimized: & 0x03 == % 4
+
+            // Apply dithering: if normalized luminance >= threshold, set pixel to white
+            if (normalized >= threshold) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Convert YUV422 to binary with 8-level Bayer dithering (3x3 matrix)
+ * @param yuv422_data Source YUV422 data (240x240)
+ * @param src_width Source width (240)
+ * @param src_height Source height (240)
+ * @param binary_data Output binary data buffer
+ * @param dst_width Destination width (240)
+ * @param dst_height Destination height (168, cropped from middle)
+ * @note Rotation: counter-clockwise 90 degrees, then crop to display area
+ */
+static int yuv422_to_bayer8_dither_crop(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                        int dst_width, int dst_height)
+{
+    if (!yuv422_data || !binary_data || src_width <= 0 || src_height <= 0) {
+        return -1;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    memset(binary_data, 0x00, binary_stride * dst_height);
+    int crop_offset = (src_width - dst_height) / 2;
+
+    // 8-level Bayer dithering with rotation
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            uint8_t luminance = yuv422_data[yuv_index];
+
+            // Map luminance to 0-8 range
+            float normalized = luminance * 8.0f / 255.0f;
+
+            // Get Bayer threshold (0-8)
+            uint8_t threshold = bayer_3x3[dst_y % 3][dst_x % 3];
+
+            // Apply dithering: if normalized luminance >= threshold, set pixel to white
+            if (normalized >= threshold) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+        }
+    }
+
+    return 0;
+}
+
 /**
  * @brief Convert YUV422 to binary using threshold with crop and 270 degree rotation (counter-clockwise 90)
  * @param yuv422_data Source YUV422 data (240x240)
@@ -366,6 +542,23 @@ static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int
         return -1;
     }
 
+    // Special handling for Bayer dithering modes
+    if (config->method == BINARY_METHOD_BAYER8_DITHER) {
+        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
+        return yuv422_to_bayer8_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    }
+
+    if (config->method == BINARY_METHOD_BAYER4_DITHER) {
+        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
+        return yuv422_to_bayer4_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    }
+
+    if (config->method == BINARY_METHOD_BAYER16_DITHER) {
+        sg_calculated_threshold = 0; // Not applicable for Bayer dithering
+        return yuv422_to_bayer16_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+    }
+
+    // Standard threshold-based methods
     uint8_t threshold;
 
     switch (config->method) {
@@ -398,7 +591,7 @@ static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int
  */
 static OPERATE_RET camera_frame_callback(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
 {
-    static uint32_t frame_count = 0;
+    // static uint32_t frame_count = 0;
 
     if (NULL == hdl || NULL == frame || NULL == sg_p_display_fb) {
         return OPRT_INVALID_PARM;
@@ -429,14 +622,6 @@ static OPERATE_RET camera_frame_callback(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRA
     frame_ready = true;
 
     tal_mutex_unlock(sg_buffer_mutex);
-
-    // Debug log for first few frames
-    if (frame_count < 3) {
-        PR_DEBUG("Frame %d captured: %dx%d -> buffer[%d], first_byte=0x%02x, last_byte=0x%02x", frame_count,
-                 frame->width, frame->height, current_write_index, current_write_buffer->frame[0],
-                 current_write_buffer->frame[5039]);
-    }
-    frame_count++;
 
     return OPRT_OK;
 }
