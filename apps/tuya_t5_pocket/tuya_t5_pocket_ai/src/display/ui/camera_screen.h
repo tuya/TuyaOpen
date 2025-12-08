@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 #include "screen_manager.h"
-
+#include "yuv422_to_binary.h"
 /**
  * @brief Camera screen lifecycle callback type
  * Called when screen is initialized or deinitialized
@@ -36,12 +36,16 @@ typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
 
 /**
  * @brief Camera photo print callback type
- * Called when ENTER key is pressed to print current photo
- * @param photo_data LVGL I1 format image data (palette + bitmap)
- * @param width Image width in pixels
- * @param height Image height in pixels
+ * Called when ENTER key is pressed to print current photo from raw YUV422 data
+ * @param yuv422_data Raw YUV422 camera data
+ * @param src_width Source width in pixels (e.g., 384)
+ * @param src_height Source height in pixels (e.g., 384)
+ * @param dst_width Desired output width (e.g., 240)
+ * @param dst_height Desired output height (e.g., 168)
+ * @param config Binary conversion configuration
  */
-typedef void (*camera_photo_print_cb_t)(const uint8_t *photo_data, int width, int height);
+typedef void (*camera_photo_print_cb_t)(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
+                                        int dst_height, const BINARY_CONFIG_T *config);
 
 extern Screen_t camera_screen;
 

@@ -26,16 +26,18 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define CAMERA_WIDTH  240
-#define CAMERA_HEIGHT 240 // Camera captures 240x240
+#define CAMERA_WIDTH  480
+#define CAMERA_HEIGHT 480 // Camera captures 384x384
 #define CAMERA_FPS    20
 
 #define CAMERA_AREA_WIDTH  240                                 // Left side for camera (240 pixels wide)
-#define CAMERA_AREA_HEIGHT 168                                 // Display area height (crop from 240)
-#define CAMERA_CROP_OFFSET 36                                  // Crop offset: (240-168)/2 = 36, display middle 168 rows
+#define CAMERA_AREA_HEIGHT 168                                 // Display area height (crop from camera height)
 #define INFO_AREA_X        240                                 // Right side starts at x=240
 #define INFO_AREA_WIDTH    (AI_PET_SCREEN_WIDTH - INFO_AREA_X) // Right side width (384-240=144)
 #define INFO_AREA_HEIGHT   168                                 // Info area height to match camera
+
+#define PRINT_WIDTH  384
+#define PRINT_HEIGHT 384
 
 #define THRESHOLD_STEP 4   // Threshold adjustment step
 #define THRESHOLD_MIN  0   // Minimum threshold
@@ -57,23 +59,23 @@
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef enum {
-    BINARY_METHOD_FIXED = 0,       // Fixed threshold
-    BINARY_METHOD_ADAPTIVE,        // Adaptive threshold
-    BINARY_METHOD_OTSU,            // Otsu's method
-    BINARY_METHOD_BAYER8_DITHER,   // 8-level grayscale Bayer dithering (3x3)
-    BINARY_METHOD_BAYER4_DITHER,   // 4-level grayscale Bayer dithering (2x2)
-    BINARY_METHOD_BAYER16_DITHER,  // 16-level grayscale Bayer dithering (4x4)
-    BINARY_METHOD_FLOYD_STEINBERG, // Floyd-Steinberg error diffusion
-    BINARY_METHOD_STUCKI,          // Stucki error diffusion
-    BINARY_METHOD_JARVIS,          // Jarvis-Judice-Ninke error diffusion
-    BINARY_METHOD_COUNT            // Total number of methods
-} BINARY_METHOD_E;
+// typedef enum {
+//     BINARY_METHOD_FIXED = 0,       // Fixed threshold
+//     BINARY_METHOD_ADAPTIVE,        // Adaptive threshold
+//     BINARY_METHOD_OTSU,            // Otsu's method
+//     BINARY_METHOD_BAYER8_DITHER,   // 8-level grayscale Bayer dithering (3x3)
+//     BINARY_METHOD_BAYER4_DITHER,   // 4-level grayscale Bayer dithering (2x2)
+//     BINARY_METHOD_BAYER16_DITHER,  // 16-level grayscale Bayer dithering (4x4)
+//     BINARY_METHOD_FLOYD_STEINBERG, // Floyd-Steinberg error diffusion
+//     BINARY_METHOD_STUCKI,          // Stucki error diffusion
+//     BINARY_METHOD_JARVIS,          // Jarvis-Judice-Ninke error diffusion
+//     BINARY_METHOD_COUNT            // Total number of methods
+// } BINARY_METHOD_E;
 
-typedef struct {
-    BINARY_METHOD_E method;
-    uint8_t fixed_threshold;
-} BINARY_CONFIG_T;
+// typedef struct {
+//     BINARY_METHOD_E method;
+//     uint8_t fixed_threshold;
+// } BINARY_CONFIG_T;
 
 /***********************************************************
 ***********************variable define**********************
@@ -255,7 +257,7 @@ static void update_timer_cb(lv_timer_t *timer)
         // Get output buffer (toggle between two buffers for double buffering)
         TDL_DISP_FRAME_BUFF_T *output_fb = (read_buffer_index == 0) ? sg_p_display_fb_1 : sg_p_display_fb_2;
 
-        // Convert YUV422 (240x240) to binary (240x168 cropped) with rotation
+        // Convert YUV422 (384x384) to binary (240x168 cropped) with rotation
         yuv422_to_binary_with_config(yuv422_source, CAMERA_WIDTH, CAMERA_HEIGHT, output_fb->frame, CAMERA_AREA_WIDTH,
                                      CAMERA_AREA_HEIGHT, &sg_binary_config);
 
@@ -291,9 +293,9 @@ static const uint8_t bayer_4x4[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1
 
 /**
  * @brief Convert YUV422 to binary with 4-level Bayer dithering (2x2 matrix)
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -344,9 +346,9 @@ static int yuv422_to_bayer4_dither_crop(uint8_t *yuv422_data, int src_width, int
 
 /**
  * @brief Convert YUV422 to binary with 16-level Bayer dithering (4x4 matrix)
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -398,9 +400,9 @@ static int yuv422_to_bayer16_dither_crop(uint8_t *yuv422_data, int src_width, in
 
 /**
  * @brief Convert YUV422 to binary with 8-level Bayer dithering (3x3 matrix)
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -452,9 +454,9 @@ static int yuv422_to_bayer8_dither_crop(uint8_t *yuv422_data, int src_width, int
 
 /**
  * @brief Convert YUV422 to binary using threshold with crop and 270 degree rotation (counter-clockwise 90)
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -473,8 +475,8 @@ static int yuv422_to_binary_crop(uint8_t *yuv422_data, int src_width, int src_he
 
     // For counter-clockwise 90 degree rotation:
     // Original point (x, y) -> Rotated point (y, width-1-x)
-    // Since we need to crop from 240x240 to 240x168, we crop from the source
-    int crop_offset = (src_width - dst_height) / 2; // 36 pixels offset from left/right
+    // Crop from center: (src_width - dst_height) / 2
+    int crop_offset = (src_width - dst_height) / 2; // Dynamic crop offset
 
     // Process with 90 degree counter-clockwise rotation
     // IMPORTANT: LVGL I1 format - bit=1: palette[1], bit=0: palette[0]
@@ -515,9 +517,9 @@ static int yuv422_to_binary_crop(uint8_t *yuv422_data, int src_width, int src_he
 
 /**
  * @brief Convert YUV422 to binary with Floyd-Steinberg error diffusion
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -608,9 +610,9 @@ static int yuv422_to_floyd_steinberg_crop(uint8_t *yuv422_data, int src_width, i
 
 /**
  * @brief Convert YUV422 to binary with Stucki error diffusion
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -713,9 +715,9 @@ static int yuv422_to_stucki_crop(uint8_t *yuv422_data, int src_width, int src_he
 
 /**
  * @brief Convert YUV422 to binary with Jarvis-Judice-Ninke error diffusion
- * @param yuv422_data Source YUV422 data (240x240)
- * @param src_width Source width (240)
- * @param src_height Source height (240)
+ * @param yuv422_data Source YUV422 data (384x384)
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
  * @param binary_data Output binary data buffer
  * @param dst_width Destination width (240)
  * @param dst_height Destination height (168, cropped from middle)
@@ -889,7 +891,7 @@ static uint8_t calculate_otsu_threshold(uint8_t *yuv422_data, int src_width, int
 }
 
 /**
- * @brief Convert YUV422 to binary with config (240x240 -> 240x168 cropped)
+ * @brief Convert YUV422 to binary with config (384x384 -> 240x168 cropped)
  */
 static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
                                         int dst_width, int dst_height, BINARY_CONFIG_T *config)
@@ -958,8 +960,13 @@ static OPERATE_RET camera_frame_callback(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRA
     // Determine current write buffer index
     uint8_t current_write_index = (sg_yuv422_write_buffer == sg_yuv422_buffer_1) ? 0 : 1;
 
-    // Copy raw YUV422 data to buffer (240x240x2 = 115200 bytes)
+    // Copy raw YUV422 data to buffer
     uint32_t yuv422_size = frame->width * frame->height * 2;
+    static uint8_t log_count = 0;
+    if (log_count < 3) {
+        PR_NOTICE("Frame size: %dx%d, yuv422_size=%d bytes", frame->width, frame->height, yuv422_size);
+        log_count++;
+    }
     memcpy(sg_yuv422_write_buffer, frame->data, yuv422_size);
 
     // Mark which buffer contains the new frame
@@ -993,7 +1000,7 @@ static OPERATE_RET camera_init(void)
     }
     PR_DEBUG("Buffer mutex created");
 
-    // Allocate YUV422 raw data buffers (240x240x2 = 115200 bytes each)
+    // Allocate YUV422 raw data buffers (384x384x2 = 294912 bytes each)
     uint32_t yuv422_size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
     sg_yuv422_buffer_1 = (uint8_t *)tal_psram_malloc(yuv422_size);
     if (NULL == sg_yuv422_buffer_1) {
@@ -1164,39 +1171,48 @@ static void keyboard_event_cb(lv_event_t *e)
 #ifdef ENABLE_LVGL_HARDWARE
         if (camera_running) {
             // Camera is running: stop and print
-            if (canvas_buffer && sg_print_callback) {
-                printf("ENTER pressed: Stopping camera and printing photo\n");
+            if (sg_print_callback) {
+                printf("ENTER pressed: Stopping camera and printing photo from YUV422 data\n");
 
                 // Stop camera first
                 camera_stop();
 
-                // Clear frame_ready flag to prevent timer from updating canvas during print
+                // Clear frame_ready flag to prevent timer from updating buffers during print
                 tal_mutex_lock(sg_buffer_mutex);
                 frame_ready = false;
+                uint8_t current_buffer_index = write_buffer_index;
                 tal_mutex_unlock(sg_buffer_mutex);
 
                 // Wait to ensure no pending updates
                 tal_system_sleep(100);
 
-                // Copy canvas_buffer to protect data during async print operation
-                uint32_t canvas_buf_size = ((CAMERA_AREA_WIDTH + 7) / 8) * CAMERA_AREA_HEIGHT + 8;
-                uint8_t *photo_snapshot = (uint8_t *)tal_psram_malloc(canvas_buf_size);
-                if (photo_snapshot) {
-                    memcpy(photo_snapshot, canvas_buffer, canvas_buf_size);
-                    printf("Photo snapshot created, size=%d bytes\n", canvas_buf_size);
+                // Get the YUV422 buffer with latest frame data
+                uint8_t *yuv422_source = (current_buffer_index == 0) ? sg_yuv422_buffer_1 : sg_yuv422_buffer_2;
+                uint32_t yuv422_size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
 
-                    // Call print callback with snapshot
-                    sg_print_callback(photo_snapshot, CAMERA_AREA_WIDTH, CAMERA_AREA_HEIGHT);
+                // Create snapshot of YUV422 data to protect during async print operation
+                uint8_t *yuv422_snapshot = (uint8_t *)tal_psram_malloc(yuv422_size);
+                if (yuv422_snapshot) {
+                    memcpy(yuv422_snapshot, yuv422_source, yuv422_size);
+                    printf("YUV422 snapshot created, size=%d bytes\n", yuv422_size);
+
+                    // Prepare binary config for printer (convert from internal enum)
+                    BINARY_CONFIG_T print_config;
+                    print_config.method = (BINARY_METHOD_E)sg_binary_config.method;
+                    print_config.fixed_threshold = sg_binary_config.fixed_threshold;
+
+                    // Call print callback with YUV422 snapshot and config
+                    sg_print_callback(yuv422_snapshot, CAMERA_WIDTH, CAMERA_HEIGHT, PRINT_WIDTH, PRINT_HEIGHT,
+                                      &print_config);
 
                     // Free snapshot after print completes (print is synchronous)
-                    tal_psram_free(photo_snapshot);
-                    printf("Photo snapshot freed\n");
+                    tal_psram_free(yuv422_snapshot);
+                    printf("YUV422 snapshot freed\n");
                 } else {
-                    printf("Failed to allocate photo snapshot, printing from canvas directly (may have artifacts)\n");
-                    sg_print_callback(canvas_buffer, CAMERA_AREA_WIDTH, CAMERA_AREA_HEIGHT);
+                    printf("Failed to allocate YUV422 snapshot\n");
                 }
             } else {
-                printf("ENTER key pressed but canvas or callback not ready\n");
+                printf("ENTER key pressed but callback not ready\n");
             }
         } else {
             // Camera is stopped: restart

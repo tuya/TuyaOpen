@@ -22,6 +22,7 @@
 #include "ai_log_screen.h"
 #include "rfid_scan_screen.h"
 #include "camera_screen.h"
+#include "yuv422_to_binary.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -86,8 +87,8 @@ static OPERATE_RET __uart_reinit_with_baudrate(uint32_t baudrate);
 static void __ai_log_screen_lifecycle_handler(BOOL_T is_init);
 static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, size_t len);
 static void __camera_screen_lifecycle_handler(BOOL_T is_init);
-static void __camera_photo_print_handler(const uint8_t *photo_data, int width, int height);
-static void convert_lvgl_to_printer_bitmap(const uint8_t *lvgl_data, int width, int height, uint8_t *out_printer_data);
+static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
+                                         int dst_height, const BINARY_CONFIG_T *config);
 
 /***********************************************************
 ***********************function define**********************
@@ -168,22 +169,27 @@ static void __camera_screen_lifecycle_handler(BOOL_T is_init)
 
 /**
  * @brief Camera photo print handler
- * Called when ENTER key is pressed with current photo data
- * @param photo_data LVGL I1 format image data (8-byte palette + bitmap)
- * @param width Image width in pixels
- * @param height Image height in pixels
+ * Called when ENTER key is pressed with raw YUV422 data
+ * @param yuv422_data Raw YUV422 camera data
+ * @param src_width Source width (384)
+ * @param src_height Source height (384)
+ * @param dst_width Desired output width (240)
+ * @param dst_height Desired output height (168)
+ * @param config Binary conversion configuration
  */
-static void __camera_photo_print_handler(const uint8_t *photo_data, int width, int height)
+static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
+                                         int dst_height, const BINARY_CONFIG_T *config)
 {
-    if (!photo_data || width <= 0 || height <= 0) {
-        PR_ERR("Invalid photo data");
+    if (!yuv422_data || !config || src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0) {
+        PR_ERR("Invalid parameters");
         return;
     }
 
-    PR_NOTICE("=== Starting camera photo print: %dx%d ===", width, height);
+    PR_NOTICE("=== Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d ===", src_width, src_height,
+              dst_width, dst_height, config->method);
 
     // Allocate buffer for printer format bitmap
-    int bitmap_size = (width + 7) / 8 * height;
+    int bitmap_size = (dst_width + 7) / 8 * dst_height;
     PR_DEBUG("Bitmap size: %d bytes", bitmap_size);
 
     uint8_t *printer_bitmap = (uint8_t *)tal_psram_malloc(bitmap_size);
@@ -192,13 +198,17 @@ static void __camera_photo_print_handler(const uint8_t *photo_data, int width, i
         return;
     }
 
-    // Convert LVGL I1 format to printer format
-    PR_DEBUG("Converting LVGL I1 to printer format...");
-    convert_lvgl_to_printer_bitmap(photo_data, width, height, printer_bitmap);
+    // Convert YUV422 to binary using selected algorithm
+    PR_DEBUG("Converting YUV422 to binary with method %d...", config->method);
+    int convert_result =
+        yuv422_to_printer_binary(yuv422_data, src_width, src_height, printer_bitmap, dst_width, dst_height, config);
+    if (convert_result != 0) {
+        PR_ERR("Failed to convert YUV422 to binary: %d", convert_result);
+        tal_psram_free(printer_bitmap);
+        return;
+    }
 
     // Debug: print first few bytes
-    PR_DEBUG("First 8 bytes - LVGL: %02X %02X %02X %02X %02X %02X %02X %02X", photo_data[8], photo_data[9],
-             photo_data[10], photo_data[11], photo_data[12], photo_data[13], photo_data[14], photo_data[15]);
     PR_DEBUG("First 8 bytes - Printer: %02X %02X %02X %02X %02X %02X %02X %02X", printer_bitmap[0], printer_bitmap[1],
              printer_bitmap[2], printer_bitmap[3], printer_bitmap[4], printer_bitmap[5], printer_bitmap[6],
              printer_bitmap[7]);
@@ -227,7 +237,7 @@ static void __camera_photo_print_handler(const uint8_t *photo_data, int width, i
     dp48a_set_align(DP48A_ALIGN_CENTER);
     dp48a_print_line("--- Camera Photo ---");
     dp48a_feed_lines(1);
-    dp48a_print_bitmap(width, height, printer_bitmap);
+    dp48a_print_bitmap(dst_width, dst_height, printer_bitmap);
 
     // Wait for print to complete before freeing buffer
     PR_DEBUG("Waiting for print to complete...");
@@ -402,33 +412,6 @@ static void __uart_worker_thread(void *param)
 uint32_t uart_print_write(const uint8_t *data, size_t len)
 {
     return tuya_ring_buff_write(sg_print_ringbuf, data, len);
-}
-
-/**
- * @brief Convert LVGL I1 format to printer bitmap format
- * Both formats use MSB first (bit7=pixel0, bit6=pixel1, ..., bit0=pixel7)
- * LVGL I1: palette (8 bytes) + bitmap (bit=0->black, bit=1->white)
- * Printer: bitmap (bit=1->black/print, bit=0->white/no-print)
- * Need to invert bit values only (black<->white)
- * @param lvgl_data LVGL I1 format data (with 8-byte palette)
- * @param width Image width in pixels
- * @param height Image height in pixels
- * @param out_printer_data Output buffer for printer format (must be pre-allocated)
- */
-static void convert_lvgl_to_printer_bitmap(const uint8_t *lvgl_data, int width, int height, uint8_t *out_printer_data)
-{
-    // Skip 8-byte palette, get actual bitmap data
-    const uint8_t *bitmap = lvgl_data + 8;
-    int bytes_per_row = (width + 7) / 8;
-    int total_bytes = bytes_per_row * height;
-
-    // Both LVGL and printer use MSB first, just invert bit values
-    // LVGL: bit=0->black, bit=1->white
-    // Printer: bit=1->black, bit=0->white
-    // Solution: simply invert all bits (NOT operation)
-    for (int i = 0; i < total_bytes; i++) {
-        out_printer_data[i] = ~bitmap[i];
-    }
 }
 
 static void __rfid_scan_data_callback(uint8_t dev_id, RFID_TAG_TYPE_E tag_type, const uint8_t *uid, uint8_t uid_len)
