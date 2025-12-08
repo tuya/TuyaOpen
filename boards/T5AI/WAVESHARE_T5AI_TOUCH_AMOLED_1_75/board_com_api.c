@@ -41,6 +41,8 @@
    
 #define BOARD_LCD_WIDTH            466
 #define BOARD_LCD_HEIGHT           466
+#define BOARD_LCD_X_OFFSET         6
+#define BOARD_LCD_Y_OFFSET         0
 #define BOARD_LCD_PIXELS_FMT       TUYA_PIXEL_FMT_RGB565
 #define BOARD_LCD_ROTATION         TUYA_DISPLAY_ROTATION_0
    
@@ -154,10 +156,12 @@ static OPERATE_RET __board_register_display(void)
 
     display_cfg.bl.type = BOARD_LCD_BL_TYPE;
 
-    display_cfg.width = BOARD_LCD_WIDTH;
-    display_cfg.height = BOARD_LCD_HEIGHT;
+    display_cfg.width     = BOARD_LCD_WIDTH;
+    display_cfg.height    = BOARD_LCD_HEIGHT;
+    display_cfg.x_offset  = BOARD_LCD_X_OFFSET;
+    display_cfg.y_offset  = BOARD_LCD_Y_OFFSET;
     display_cfg.pixel_fmt = BOARD_LCD_PIXELS_FMT;
-    display_cfg.rotation = BOARD_LCD_ROTATION;
+    display_cfg.rotation  = BOARD_LCD_ROTATION;
 
     display_cfg.port = BOARD_LCD_QSPI_PORT;
     display_cfg.spi_clk = BOARD_LCD_QSPI_CLK;
@@ -192,13 +196,6 @@ static OPERATE_RET __board_register_display(void)
 #endif
 
     return rt;
-}
-
-
-
-OPERATE_RET board_set_brightness(uint8_t value)
-{
-    return tdd_disp_qspi_co5300_set_bl(value);
 }
 
 /**
