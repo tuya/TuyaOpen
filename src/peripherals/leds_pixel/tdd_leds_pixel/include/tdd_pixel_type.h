@@ -46,7 +46,7 @@ typedef unsigned char RGB_ORDER_MODE_E;
 #define BGR_ORDER 0x05
 
 typedef struct {
-    TUYA_SPI_NUM_E port;
+    TUYA_SPI_NUM_E   port;
     RGB_ORDER_MODE_E line_seq;
 } PIXEL_DRIVER_CONFIG_T;
 
