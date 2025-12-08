@@ -37,15 +37,10 @@ typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
 /**
  * @brief Camera photo print callback type
  * Called when ENTER key is pressed to print current photo from raw YUV422 data
- * @param yuv422_data Raw YUV422 camera data
- * @param src_width Source width in pixels (e.g., 384)
- * @param src_height Source height in pixels (e.g., 384)
- * @param dst_width Desired output width (e.g., 240)
- * @param dst_height Desired output height (e.g., 168)
- * @param config Binary conversion configuration
+ * @param params Conversion parameters for printing
+ * @note The yuv422_data buffer will be freed after callback returns
  */
-typedef void (*camera_photo_print_cb_t)(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
-                                        int dst_height, const BINARY_CONFIG_T *config);
+typedef void (*camera_photo_print_cb_t)(const YUV422_TO_BINARY_PARAMS_T *params);
 
 extern Screen_t camera_screen;
 

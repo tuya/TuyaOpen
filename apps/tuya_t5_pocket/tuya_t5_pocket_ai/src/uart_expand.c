@@ -87,8 +87,7 @@ static OPERATE_RET __uart_reinit_with_baudrate(uint32_t baudrate);
 static void __ai_log_screen_lifecycle_handler(BOOL_T is_init);
 static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, size_t len);
 static void __camera_screen_lifecycle_handler(BOOL_T is_init);
-static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
-                                         int dst_height, const BINARY_CONFIG_T *config);
+static void __camera_photo_print_handler(const YUV422_TO_BINARY_PARAMS_T *params);
 
 /***********************************************************
 ***********************function define**********************
@@ -170,48 +169,25 @@ static void __camera_screen_lifecycle_handler(BOOL_T is_init)
 /**
  * @brief Camera photo print handler
  * Called when ENTER key is pressed with raw YUV422 data
- * @param yuv422_data Raw YUV422 camera data
- * @param src_width Source width (384)
- * @param src_height Source height (384)
- * @param dst_width Desired output width (240)
- * @param dst_height Desired output height (168)
- * @param config Binary conversion configuration
+ * @param params Conversion parameters with YUV422 data and pre-allocated buffer
+ * @note Buffer is allocated before callback and freed after callback returns
  */
-static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_width, int src_height, int dst_width,
-                                         int dst_height, const BINARY_CONFIG_T *config)
+static void __camera_photo_print_handler(const YUV422_TO_BINARY_PARAMS_T *params)
 {
-    if (!yuv422_data || !config || src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0) {
-        PR_ERR("Invalid parameters");
+    if (!params || !params->yuv422_data || !params->binary_data || !params->config || params->src_width <= 0 ||
+        params->src_height <= 0 || params->dst_width <= 0 || params->dst_height <= 0) {
+        PR_ERR("Invalid parameters or missing pre-allocated buffer");
         return;
     }
 
-    PR_NOTICE("=== Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d ===", src_width, src_height,
-              dst_width, dst_height, config->method);
+    PR_NOTICE("Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d", params->src_width,
+              params->src_height, params->dst_width, params->dst_height, params->config->method);
 
-    // Allocate buffer for printer format bitmap
-    int bitmap_size = (dst_width + 7) / 8 * dst_height;
-    PR_DEBUG("Bitmap size: %d bytes", bitmap_size);
-
-    uint8_t *printer_bitmap = (uint8_t *)tal_psram_malloc(bitmap_size);
-    if (!printer_bitmap) {
-        PR_ERR("Failed to allocate printer bitmap buffer");
-        return;
-    }
-
-    // Convert YUV422 to binary using selected algorithm
-    PR_DEBUG("Converting YUV422 to binary with method %d...", config->method);
-    int convert_result =
-        yuv422_to_printer_binary(yuv422_data, src_width, src_height, printer_bitmap, dst_width, dst_height, config);
+    int convert_result = yuv422_to_printer_binary(params);
     if (convert_result != 0) {
         PR_ERR("Failed to convert YUV422 to binary: %d", convert_result);
-        tal_psram_free(printer_bitmap);
         return;
     }
-
-    // Debug: print first few bytes
-    PR_DEBUG("First 8 bytes - Printer: %02X %02X %02X %02X %02X %02X %02X %02X", printer_bitmap[0], printer_bitmap[1],
-             printer_bitmap[2], printer_bitmap[3], printer_bitmap[4], printer_bitmap[5], printer_bitmap[6],
-             printer_bitmap[7]);
 
     // Save current UART mode
     UART_MODE_E saved_mode;
@@ -220,11 +196,9 @@ static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_wid
     PR_DEBUG("Current UART mode: %d", saved_mode);
 
     // Switch to printer baudrate
-    PR_DEBUG("Switching to printer baudrate %d...", PRINTER_BAUDRATE);
     if (__uart_reinit_with_baudrate(PRINTER_BAUDRATE) != OPRT_OK) {
         PR_ERR("Failed to switch to printer baudrate");
         tal_mutex_unlock(sg_mode_mutex);
-        tal_psram_free(printer_bitmap);
         return;
     }
     tal_mutex_unlock(sg_mode_mutex);
@@ -233,29 +207,22 @@ static void __camera_photo_print_handler(const uint8_t *yuv422_data, int src_wid
     tal_system_sleep(50);
 
     // Print photo
-    PR_DEBUG("Sending data to printer...");
     dp48a_set_align(DP48A_ALIGN_CENTER);
     dp48a_print_line("--- Camera Photo ---");
     dp48a_feed_lines(1);
-    dp48a_print_bitmap(dst_width, dst_height, printer_bitmap);
+    dp48a_print_bitmap(params->dst_width, params->dst_height, params->binary_data);
 
-    // Wait for print to complete before freeing buffer
+    // Wait for print to complete
     PR_DEBUG("Waiting for print to complete...");
     tal_system_sleep(200);
     dp48a_feed_lines(3);
+    dp48a_print_enter();
     tal_system_sleep(100);
 
-    // Free buffer
-    tal_psram_free(printer_bitmap);
-    PR_DEBUG("Printer bitmap buffer freed");
-
     // Restore UART baudrate
-    PR_DEBUG("Restoring UART mode %d with baudrate %d...", saved_mode, sg_mode_configs[saved_mode].baudrate);
     tal_mutex_lock(sg_mode_mutex);
     __uart_reinit_with_baudrate(sg_mode_configs[saved_mode].baudrate);
     tal_mutex_unlock(sg_mode_mutex);
-
-    PR_NOTICE("=== Photo print completed ===");
 }
 
 OPERATE_RET uart_expand_switch_mode(UART_MODE_E mode)

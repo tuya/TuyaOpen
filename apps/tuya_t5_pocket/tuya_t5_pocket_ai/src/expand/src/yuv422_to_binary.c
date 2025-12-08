@@ -1,6 +1,6 @@
 /**
  * @file yuv422_to_binary.c
- * @brief YUV422 to binary image conversion algorithms for thermal printer
+ * @brief YUV422 to binary image conversion algorithms (universal)
  *
  * Implements 9 different algorithms for converting YUV422 camera data to binary format:
  * 1. Fixed threshold
@@ -10,7 +10,7 @@
  * 7-9. Error diffusion (Floyd-Steinberg, Stucki, Jarvis)
  *
  * All algorithms rotate 90° counter-clockwise and crop to desired size.
- * Output format: MSB first bitmap for thermal printer (bit=1->black, bit=0->white)
+ * Output format: MSB first bitmap, color mapping controlled by invert_colors parameter
  *
  * @copyright Copyright (c) 2025 Tuya Inc. All Rights Reserved.
  */
@@ -39,83 +39,117 @@ static const uint8_t bayer_4x4[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1
 static uint8_t calculate_adaptive_threshold(const uint8_t *yuv422_data, int src_width, int src_height);
 static uint8_t calculate_otsu_threshold(const uint8_t *yuv422_data, int src_width, int src_height);
 static int yuv422_to_binary_crop_threshold(const uint8_t *yuv422_data, int src_width, int src_height,
-                                           uint8_t *binary_data, int dst_width, int dst_height, uint8_t threshold);
+                                           uint8_t *binary_data, int dst_width, int dst_height, uint8_t threshold,
+                                           int invert);
 static int yuv422_to_bayer4_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                   int dst_width, int dst_height);
+                                   int dst_width, int dst_height, int invert);
 static int yuv422_to_bayer8_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                   int dst_width, int dst_height);
+                                   int dst_width, int dst_height, int invert);
 static int yuv422_to_bayer16_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                    int dst_width, int dst_height);
+                                    int dst_width, int dst_height, int invert);
 static int yuv422_to_floyd_steinberg(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                     int dst_width, int dst_height);
+                                     int dst_width, int dst_height, int invert);
 static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                            int dst_width, int dst_height);
+                            int dst_width, int dst_height, int invert);
 static int yuv422_to_jarvis(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                            int dst_width, int dst_height);
+                            int dst_width, int dst_height, int invert);
 
 /***********************************************************
 ***********************Main Entry Point*********************
 ***********************************************************/
 /**
- * @brief Convert YUV422 to printer binary format with selected algorithm
- * @param yuv422_data Source YUV422 data (e.g., 384x384)
- * @param src_width Source width
- * @param src_height Source height
- * @param binary_data Output binary buffer (pre-allocated)
- * @param dst_width Destination width (e.g., 240)
- * @param dst_height Destination height (e.g., 168)
- * @param config Binary conversion configuration
- * @return 0 on success, -1 on error
+ * @brief Convert YUV422 to binary format with selected algorithm (universal interface)
  */
-int yuv422_to_printer_binary(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                             int dst_width, int dst_height, const BINARY_CONFIG_T *config)
+int yuv422_to_binary(const YUV422_TO_BINARY_PARAMS_T *params)
 {
-    if (!yuv422_data || !binary_data || !config) {
+    if (!params || !params->yuv422_data || !params->binary_data || !params->config) {
         return -1;
     }
 
     // Clear output buffer
-    int bitmap_size = (dst_width + 7) / 8 * dst_height;
-    memset(binary_data, 0, bitmap_size);
+    int bitmap_size = (params->dst_width + 7) / 8 * params->dst_height;
+    memset(params->binary_data, 0, bitmap_size);
 
-    switch (config->method) {
+    switch (params->config->method) {
     case BINARY_METHOD_FIXED:
-        return yuv422_to_binary_crop_threshold(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height,
-                                               config->fixed_threshold);
+        return yuv422_to_binary_crop_threshold(params->yuv422_data, params->src_width, params->src_height,
+                                               params->binary_data, params->dst_width, params->dst_height,
+                                               params->config->fixed_threshold, params->invert_colors);
 
     case BINARY_METHOD_ADAPTIVE: {
-        uint8_t threshold = calculate_adaptive_threshold(yuv422_data, src_width, src_height);
-        return yuv422_to_binary_crop_threshold(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height,
-                                               threshold);
+        uint8_t threshold = calculate_adaptive_threshold(params->yuv422_data, params->src_width, params->src_height);
+        return yuv422_to_binary_crop_threshold(params->yuv422_data, params->src_width, params->src_height,
+                                               params->binary_data, params->dst_width, params->dst_height, threshold,
+                                               params->invert_colors);
     }
 
     case BINARY_METHOD_OTSU: {
-        uint8_t threshold = calculate_otsu_threshold(yuv422_data, src_width, src_height);
-        return yuv422_to_binary_crop_threshold(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height,
-                                               threshold);
+        uint8_t threshold = calculate_otsu_threshold(params->yuv422_data, params->src_width, params->src_height);
+        return yuv422_to_binary_crop_threshold(params->yuv422_data, params->src_width, params->src_height,
+                                               params->binary_data, params->dst_width, params->dst_height, threshold,
+                                               params->invert_colors);
     }
 
     case BINARY_METHOD_BAYER4_DITHER:
-        return yuv422_to_bayer4_dither(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_bayer4_dither(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
+                                       params->dst_width, params->dst_height, params->invert_colors);
 
     case BINARY_METHOD_BAYER8_DITHER:
-        return yuv422_to_bayer8_dither(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_bayer8_dither(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
+                                       params->dst_width, params->dst_height, params->invert_colors);
 
     case BINARY_METHOD_BAYER16_DITHER:
-        return yuv422_to_bayer16_dither(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_bayer16_dither(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
+                                        params->dst_width, params->dst_height, params->invert_colors);
 
     case BINARY_METHOD_FLOYD_STEINBERG:
-        return yuv422_to_floyd_steinberg(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_floyd_steinberg(params->yuv422_data, params->src_width, params->src_height,
+                                         params->binary_data, params->dst_width, params->dst_height,
+                                         params->invert_colors);
 
     case BINARY_METHOD_STUCKI:
-        return yuv422_to_stucki(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_stucki(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
+                                params->dst_width, params->dst_height, params->invert_colors);
 
     case BINARY_METHOD_JARVIS:
-        return yuv422_to_jarvis(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
+        return yuv422_to_jarvis(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
+                                params->dst_width, params->dst_height, params->invert_colors);
 
     default:
         return -1;
     }
+}
+
+/**
+ * @brief Convert YUV422 to printer binary format (convenience wrapper)
+ */
+int yuv422_to_printer_binary(const YUV422_TO_BINARY_PARAMS_T *params)
+{
+    if (!params) {
+        return -1;
+    }
+
+    // Create a copy with invert_colors forced to 0 for printer
+    YUV422_TO_BINARY_PARAMS_T printer_params = *params;
+    printer_params.invert_colors = 0; // Printer: bit=1->black
+
+    return yuv422_to_binary(&printer_params);
+}
+
+/**
+ * @brief Convert YUV422 to LVGL I1 format binary (convenience wrapper)
+ */
+int yuv422_to_lvgl_binary(const YUV422_TO_BINARY_PARAMS_T *params)
+{
+    if (!params) {
+        return -1;
+    }
+
+    // Create a copy with invert_colors forced to 1 for LVGL
+    YUV422_TO_BINARY_PARAMS_T lvgl_params = *params;
+    lvgl_params.invert_colors = 1; // LVGL: bit=1->white
+
+    return yuv422_to_binary(&lvgl_params);
 }
 
 /***********************************************************
@@ -193,7 +227,8 @@ static uint8_t calculate_otsu_threshold(const uint8_t *yuv422_data, int src_widt
 ****************Simple Threshold Conversion*****************
 ***********************************************************/
 static int yuv422_to_binary_crop_threshold(const uint8_t *yuv422_data, int src_width, int src_height,
-                                           uint8_t *binary_data, int dst_width, int dst_height, uint8_t threshold)
+                                           uint8_t *binary_data, int dst_width, int dst_height, uint8_t threshold,
+                                           int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
@@ -213,8 +248,12 @@ static int yuv422_to_binary_crop_threshold(const uint8_t *yuv422_data, int src_w
             int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
             uint8_t luminance = yuv422_data[yuv_index];
 
-            // Printer format: bit=1->black, bit=0->white
-            if (luminance < threshold) {
+            // Apply threshold with color inversion control
+            // invert=0 (printer): luminance < threshold -> bit=1 (black)
+            // invert=1 (LVGL):    luminance >= threshold -> bit=1 (white)
+            int should_set_bit = invert ? (luminance >= threshold) : (luminance < threshold);
+
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -229,7 +268,7 @@ static int yuv422_to_binary_crop_threshold(const uint8_t *yuv422_data, int src_w
 ********************Bayer Dithering Methods*****************
 ***********************************************************/
 static int yuv422_to_bayer4_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                   int dst_width, int dst_height)
+                                   int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
@@ -252,7 +291,9 @@ static int yuv422_to_bayer4_dither(const uint8_t *yuv422_data, int src_width, in
             uint8_t bayer_value = bayer_2x2[dst_y % 2][dst_x % 2];
             uint8_t gray_level = luminance / 85; // Map 0-255 to 0-3
 
-            if (gray_level < bayer_value || luminance < 32) {
+            int should_set_bit =
+                invert ? (gray_level >= bayer_value && luminance >= 32) : (gray_level < bayer_value || luminance < 32);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -264,7 +305,7 @@ static int yuv422_to_bayer4_dither(const uint8_t *yuv422_data, int src_width, in
 }
 
 static int yuv422_to_bayer8_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                   int dst_width, int dst_height)
+                                   int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
@@ -287,7 +328,9 @@ static int yuv422_to_bayer8_dither(const uint8_t *yuv422_data, int src_width, in
             uint8_t bayer_value = bayer_3x3[dst_y % 3][dst_x % 3];
             uint8_t gray_level = luminance / 32; // Map 0-255 to 0-7
 
-            if (gray_level < bayer_value || luminance < 16) {
+            int should_set_bit =
+                invert ? (gray_level >= bayer_value && luminance >= 16) : (gray_level < bayer_value || luminance < 16);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -299,7 +342,7 @@ static int yuv422_to_bayer8_dither(const uint8_t *yuv422_data, int src_width, in
 }
 
 static int yuv422_to_bayer16_dither(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                    int dst_width, int dst_height)
+                                    int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
@@ -322,7 +365,8 @@ static int yuv422_to_bayer16_dither(const uint8_t *yuv422_data, int src_width, i
             uint8_t bayer_value = bayer_4x4[dst_y % 4][dst_x % 4];
             uint8_t gray_level = luminance / 17; // Map 0-255 to 0-15
 
-            if (gray_level < bayer_value) {
+            int should_set_bit = invert ? (gray_level >= bayer_value) : (gray_level < bayer_value);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -337,13 +381,13 @@ static int yuv422_to_bayer16_dither(const uint8_t *yuv422_data, int src_width, i
 **************Error Diffusion Methods***********************
 ***********************************************************/
 static int yuv422_to_floyd_steinberg(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                                     int dst_width, int dst_height)
+                                     int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
 
     // Allocate error buffers with padding
-    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 2) * 2 * sizeof(int16_t));
+    int16_t *error_buffer = (int16_t *)tal_psram_malloc((dst_width + 2) * 2 * sizeof(int16_t));
     if (!error_buffer) {
         return -1;
     }
@@ -375,7 +419,8 @@ static int yuv422_to_floyd_steinberg(const uint8_t *yuv422_data, int src_width, 
             int16_t error = luminance - new_pixel;
 
             // Printer: bit=1->black
-            if (new_pixel == 0) {
+            int should_set_bit = invert ? (new_pixel == 255) : (new_pixel == 0);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -398,18 +443,18 @@ static int yuv422_to_floyd_steinberg(const uint8_t *yuv422_data, int src_width, 
         memset(next_row - 1, 0, (dst_width + 2) * sizeof(int16_t));
     }
 
-    tal_free(error_buffer);
+    tal_psram_free(error_buffer);
     return 0;
 }
 
 static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                            int dst_width, int dst_height)
+                            int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
 
     // Allocate 3 error rows with padding
-    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 4) * 3 * sizeof(int16_t));
+    int16_t *error_buffer = (int16_t *)tal_psram_malloc((dst_width + 4) * 3 * sizeof(int16_t));
     if (!error_buffer) {
         return -1;
     }
@@ -441,7 +486,8 @@ static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_h
             uint8_t new_pixel = (luminance >= 128) ? 255 : 0;
             int16_t error = luminance - new_pixel;
 
-            if (new_pixel == 0) {
+            int should_set_bit = invert ? (new_pixel == 255) : (new_pixel == 0);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -480,18 +526,18 @@ static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_h
         memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
     }
 
-    tal_free(error_buffer);
+    tal_psram_free(error_buffer);
     return 0;
 }
 
 static int yuv422_to_jarvis(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
-                            int dst_width, int dst_height)
+                            int dst_width, int dst_height, int invert)
 {
     int binary_stride = (dst_width + 7) / 8;
     int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
 
     // Allocate 3 error rows with padding
-    int16_t *error_buffer = (int16_t *)tal_malloc((dst_width + 4) * 3 * sizeof(int16_t));
+    int16_t *error_buffer = (int16_t *)tal_psram_malloc((dst_width + 4) * 3 * sizeof(int16_t));
     if (!error_buffer) {
         return -1;
     }
@@ -523,7 +569,8 @@ static int yuv422_to_jarvis(const uint8_t *yuv422_data, int src_width, int src_h
             uint8_t new_pixel = (luminance >= 128) ? 255 : 0;
             int16_t error = luminance - new_pixel;
 
-            if (new_pixel == 0) {
+            int should_set_bit = invert ? (new_pixel == 255) : (new_pixel == 0);
+            if (should_set_bit) {
                 int byte_index = row_offset + (dst_x >> 3);
                 int bit_position = 7 - (dst_x & 0x07);
                 binary_data[byte_index] |= (1 << bit_position);
@@ -562,6 +609,6 @@ static int yuv422_to_jarvis(const uint8_t *yuv422_data, int src_width, int src_h
         memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
     }
 
-    tal_free(error_buffer);
+    tal_psram_free(error_buffer);
     return 0;
 }
