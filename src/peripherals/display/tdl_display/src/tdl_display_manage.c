@@ -43,7 +43,9 @@ typedef struct {
     TUYA_DISPLAY_IO_CTRL_T power;
 
     TDD_DISP_DEV_HANDLE_T tdd_hdl;
-    TDD_DISP_INTFS_T intfs;
+    TDD_DISP_INTFS_T      intfs;
+    TDD_SET_BACKLIGHT_CB  custom_set_bl_cb;
+    void                 *custom_set_bl_arg;
 } DISPLAY_DEVICE_T;
 
 /***********************************************************
@@ -301,6 +303,13 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
             tkl_pwm_stop(display_dev->bl.pwm.id);
         }
 #endif
+    }else if(display_dev->bl.type == TUYA_DISP_BL_TP_CUSTOM) {
+        if (display_dev->custom_set_bl_cb) {
+            display_dev->custom_set_bl_cb(brightness, display_dev->custom_set_bl_arg);
+        }else {
+            PR_ERR("no register custom backlight control callback");
+            return OPRT_NOT_SUPPORTED;
+        }
     } else if (display_dev->bl.type == TUYA_DISP_BL_TP_NONE) {
         PR_NOTICE("There is no backlight control pin on the board");
     } else {
@@ -454,12 +463,13 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
 
     strncpy(display_dev->name, name, DISPLAY_DEV_NAME_MAX_LEN);
 
-    display_dev->info.type = dev_info->type;
-    display_dev->info.width = dev_info->width;
-    display_dev->info.height = dev_info->height;
-    display_dev->info.fmt = dev_info->fmt;
+    display_dev->info.type     = dev_info->type;
+    display_dev->info.width    = dev_info->width;
+    display_dev->info.height   = dev_info->height;
+    display_dev->info.fmt      = dev_info->fmt;
     display_dev->info.rotation = dev_info->rotation;
     display_dev->info.is_swap  = dev_info->is_swap;
+    display_dev->info.has_vram = dev_info->has_vram;
 
     memcpy(&display_dev->bl, &dev_info->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&display_dev->power, &dev_info->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
@@ -469,6 +479,35 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
     memcpy(&display_dev->intfs, intfs, sizeof(TDD_DISP_INTFS_T));
 
     tuya_list_add(&display_dev->node, &sg_display_list);
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Registers a custom backlight control callback for a display device
+ * 
+ * @param name Name of the display device
+ * @param set_bl_cb Pointer to the custom backlight control callback function
+ * @param arg User-defined argument to be passed to the callback function
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, OPRT_INVALID_PARM if parameters are NULL,
+ *                     or OPRT_COM_ERROR if the display device is not found
+ */
+OPERATE_RET tdl_disp_custom_backlight_register(char *name, TDD_SET_BACKLIGHT_CB set_bl_cb, void *arg)
+{
+    DISPLAY_DEVICE_T *display_dev = NULL;
+
+    if (NULL == name || NULL == set_bl_cb) {
+        return OPRT_INVALID_PARM;
+    }
+
+    display_dev = __find_display_device(name);
+    if (NULL == display_dev) {
+        return OPRT_COM_ERROR;
+    }
+
+    display_dev->custom_set_bl_cb = set_bl_cb;
+    display_dev->custom_set_bl_arg = arg;
 
     return OPRT_OK;
 }

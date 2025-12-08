@@ -60,12 +60,13 @@ struct TDL_DISP_FRAME_BUFF_T {
 };
 
 typedef struct {
-    TUYA_DISPLAY_TYPE_E type;
-    TUYA_DISPLAY_ROTATION_E rotation;
-    uint16_t width;
-    uint16_t height;
+    TUYA_DISPLAY_TYPE_E      type;
+    TUYA_DISPLAY_ROTATION_E  rotation;
+    uint16_t                 width;
+    uint16_t                 height;
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
     bool                     is_swap;
+    bool                     has_vram;
 } TDL_DISP_DEV_INFO_T;
 
 /***********************************************************

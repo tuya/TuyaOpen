@@ -88,6 +88,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ILI9488 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
+
+/**
  * @brief Registers an ILI9488 RGB LCD display device with the display management system.
  *
  * This function configures and registers a display device for the ILI9488 series of RGB LCDs 

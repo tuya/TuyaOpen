@@ -15,6 +15,7 @@
 
 #include "tkl_spi.h"
 #include "tkl_gpio.h"
+#include "tkl_system.h"
 
 #include "tdd_display_spi.h"
 
@@ -26,23 +27,37 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    SEM_HANDLE tx_sem;
-} DISP_SPI_SYNC_T;
+    SEM_HANDLE    tx_sem;
+    SEM_HANDLE    exit_sem;
+    QUEUE_HANDLE  queue;
+    THREAD_HANDLE spi_task;
+    bool          is_task_running;    
+}TDD_DISP_SPI_SYNC_T;
+
+typedef enum {
+    TDD_SPI_FRAME_REQUEST = 0,
+    TDD_SPI_FRAME_EXIT,
+} TDD_SPI_FRAME_EVENT_E;
+
+typedef struct {
+    TDD_SPI_FRAME_EVENT_E event;
+    TDL_DISP_FRAME_BUFF_T *frame_buff;
+}TDD_DISP_SPI_MSG_T;
 
 typedef struct {
     DISP_SPI_BASE_CFG_T         cfg;
     const uint8_t              *init_seq;
-    TDD_DISP_SPI_SET_WINDOW_CB  set_window_cb;
 }DISP_SPI_DEV_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+static void __disp_spi_task(void *args);
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static DISP_SPI_SYNC_T sg_disp_spi_sync[TUYA_SPI_NUM_MAX] = {0};
+static TDD_DISP_SPI_SYNC_T sg_disp_spi_sync[TUYA_SPI_NUM_MAX] = {0};
 
 /***********************************************************
 ***********************function define**********************
@@ -69,9 +84,40 @@ static OPERATE_RET __disp_spi_gpio_init(DISP_SPI_BASE_CFG_T *p_cfg)
     pin_cfg.direct = TUYA_GPIO_OUTPUT;
     pin_cfg.level = TUYA_GPIO_LEVEL_LOW;
 
-    TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->cs_pin, &pin_cfg));
-    TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->dc_pin, &pin_cfg));
-    TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->rst_pin, &pin_cfg));
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->cs_pin, &pin_cfg));
+    }
+
+    if(p_cfg->dc_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->dc_pin, &pin_cfg));
+    }
+
+    if(p_cfg->rst_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_RETURN(tkl_gpio_init(p_cfg->rst_pin, &pin_cfg));
+    }
+
+    return rt;
+}
+
+static OPERATE_RET __disp_spi_gpio_deinit(DISP_SPI_BASE_CFG_T *p_cfg)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (NULL == p_cfg) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_LOG(tkl_gpio_deinit(p_cfg->cs_pin));
+    }
+
+    if(p_cfg->dc_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_LOG(tkl_gpio_deinit(p_cfg->dc_pin));
+    }
+
+    if(p_cfg->rst_pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_CALL_ERR_LOG(tkl_gpio_deinit(p_cfg->rst_pin));
+    }
 
     return rt;
 }
@@ -93,8 +139,41 @@ static OPERATE_RET __disp_spi_init(TUYA_SPI_NUM_E port, uint32_t spi_clk)
     TUYA_CALL_ERR_RETURN(tkl_spi_irq_init(port, __disp_spi_isr_cb));
     TUYA_CALL_ERR_RETURN(tkl_spi_irq_enable(port));
 
+    PR_NOTICE("SPI%d init success, clk: %d", port, spi_clk);
+
     return rt;
 }
+
+static OPERATE_RET __disp_spi_manage_init(TUYA_SPI_NUM_E port, DISP_SPI_DEV_T *disp_spi_dev)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if(port >= TUYA_SPI_NUM_MAX || disp_spi_dev == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (NULL == sg_disp_spi_sync[port].tx_sem) {
+        TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&(sg_disp_spi_sync[port].tx_sem), 0, 1));
+    }
+
+    if(NULL == sg_disp_spi_sync[port].exit_sem) {
+        TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&(sg_disp_spi_sync[port].exit_sem), 0, 1));
+    }
+
+    if(NULL == sg_disp_spi_sync[port].queue) {
+        tal_queue_create_init(&(sg_disp_spi_sync[port].queue), sizeof(TDD_DISP_SPI_MSG_T), 4);
+    }
+
+    if(NULL == sg_disp_spi_sync[port].spi_task) {
+        THREAD_CFG_T thread_cfg = {4096, THREAD_PRIO_1, "spi_task"};
+        TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_disp_spi_sync[port].spi_task), 
+                                                         NULL, NULL, __disp_spi_task,
+                                                         (const void *)disp_spi_dev, &thread_cfg));
+    }
+
+    return rt;
+}
+
 
 static void __disp_device_reset(TUYA_GPIO_NUM_E rst_pin)
 {
@@ -118,6 +197,11 @@ static OPERATE_RET __disp_spi_send(TUYA_SPI_NUM_E port, uint8_t *data, uint32_t 
     uint32_t left_len = size, send_len = 0;
     uint32_t dma_max_size = tkl_spi_get_max_dma_data_length();
 
+    if(NULL == sg_disp_spi_sync[port].tx_sem) {
+        PR_ERR("tx sem not init, port:%d\r\n", port);
+        return OPRT_COM_ERROR;
+    }
+
     while (left_len > 0) {
         send_len = (left_len > dma_max_size) ? dma_max_size : (left_len);
 
@@ -139,36 +223,131 @@ static void __disp_spi_set_window(DISP_SPI_BASE_CFG_T *p_cfg, uint16_t x_start, 
                                   uint16_t x_end, uint16_t y_end)
 {
     uint8_t lcd_data[4];
+    static uint16_t x1=0, x2=0, y1=0, y2=0;
 
     if (NULL == p_cfg) {
         return;
     }
 
-    lcd_data[0] = (x_start >> 8) & 0xFF;
-    lcd_data[1] = (x_start & 0xFF);
-    lcd_data[2] = (x_end >> 8) & 0xFF;
-    lcd_data[3] = (x_end & 0xFF);
-    tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_caset);
-    tdd_disp_spi_send_data(p_cfg, lcd_data, 4);
+    x_start += p_cfg->x_offset;
+    x_end   += p_cfg->x_offset;    
+    y_start += p_cfg->y_offset;
+    y_end   += p_cfg->y_offset;
 
-    lcd_data[0] = (y_start >> 8) & 0xFF;
-    lcd_data[1] = (y_start & 0xFF);
-    lcd_data[2] = (y_end >> 8) & 0xFF;
-    lcd_data[3] = (y_end & 0xFF);
-    tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_raset);
-    tdd_disp_spi_send_data(p_cfg, lcd_data, 4);
+    if(x1 != x_start || x2 != x_end) {
+        lcd_data[0] = (x_start >> 8) & 0xFF;
+        lcd_data[1] = (x_start & 0xFF);
+        lcd_data[2] = (x_end >> 8) & 0xFF;
+        lcd_data[3] = (x_end & 0xFF);
+        tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_caset);
+        tdd_disp_spi_send_data(p_cfg, lcd_data, 4);
+        x1 = x_start;
+        x2 = x_end;
+    }
+
+    if(y1 != y_start || y2 != y_end) {
+        lcd_data[0] = (y_start >> 8) & 0xFF;
+        lcd_data[1] = (y_start & 0xFF);
+        lcd_data[2] = (y_end >> 8) & 0xFF;
+        lcd_data[3] = (y_end & 0xFF);
+        tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_raset);
+        tdd_disp_spi_send_data(p_cfg, lcd_data, 4);
+        y1 = y_start;
+        y2 = y_end;
+    }
 }
+
+static void __disp_spi_display_frame(DISP_SPI_DEV_T *disp_spi_dev, TDL_DISP_FRAME_BUFF_T *frame_buff)
+{
+    uint16_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+
+    if(disp_spi_dev == NULL ||frame_buff == NULL) {
+        PR_ERR("param null\r\n");
+        return;
+    }
+
+    x0 = frame_buff->x_start;
+    y0 = frame_buff->y_start;
+    x1 = frame_buff->x_start + frame_buff->width - 1;
+    y1 = frame_buff->y_start + frame_buff->height - 1;
+
+    __disp_spi_set_window(&disp_spi_dev->cfg, x0, y0, x1, y1);
+
+    tdd_disp_spi_send_cmd(&disp_spi_dev->cfg, disp_spi_dev->cfg.cmd_ramwr);
+    tdd_disp_spi_send_data(&disp_spi_dev->cfg, frame_buff->frame, frame_buff->len);
+}
+
+static void __disp_spi_task(void *args)
+{
+    OPERATE_RET rt = 0;
+    TDD_DISP_SPI_MSG_T msg = {0};
+    DISP_SPI_DEV_T *disp_spi_dev = (DISP_SPI_DEV_T *)args;
+    TUYA_SPI_NUM_E port = 0;
+
+    if(disp_spi_dev == NULL) {
+        PR_ERR("disp spi task args null\r\n");
+        return;
+    }
+
+    port = disp_spi_dev->cfg.port;
+    sg_disp_spi_sync[port].is_task_running = 1;
+
+    while (sg_disp_spi_sync[port].is_task_running) {
+        rt = tal_queue_fetch(sg_disp_spi_sync[port].queue, &msg, QUEUE_WAIT_FOREVER);
+        if(rt != OPRT_OK) {
+            continue;
+        }
+
+        switch(msg.event) {
+        case TDD_SPI_FRAME_REQUEST: {
+            __disp_spi_display_frame(disp_spi_dev, msg.frame_buff);
+            if (msg.frame_buff != NULL && msg.frame_buff->free_cb) {
+                msg.frame_buff->free_cb(msg.frame_buff);
+            }
+        }
+        break;
+        case TDD_SPI_FRAME_EXIT:{
+            sg_disp_spi_sync[port].is_task_running = false;
+
+            if(sg_disp_spi_sync[port].exit_sem) {
+                while (tal_queue_fetch(sg_disp_spi_sync[port].queue, &msg, 0) == OPRT_OK) {
+                    if (msg.frame_buff != NULL && msg.frame_buff->free_cb) {
+                            msg.frame_buff->free_cb(msg.frame_buff);
+                    }
+                }
+                tal_semaphore_post(sg_disp_spi_sync[port].exit_sem);
+            }
+        }
+        break;
+        default:
+        break;
+        }
+    }
+    
+    THREAD_HANDLE tmp_task = sg_disp_spi_sync[port].spi_task;
+    sg_disp_spi_sync[port].spi_task = NULL;
+    tal_thread_delete(tmp_task);
+}
+
 
 static OPERATE_RET __tdd_display_spi_open(TDD_DISP_DEV_HANDLE_T device)
 {
+    OPERATE_RET rt = OPRT_OK;
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
+    TUYA_SPI_NUM_E port = 0;
 
     if (NULL == device) {
         return OPRT_INVALID_PARM;
     }
     disp_spi_dev = (DISP_SPI_DEV_T *)device;
+    port = disp_spi_dev->cfg.port;
 
-    tdd_disp_spi_init(&(disp_spi_dev->cfg));
+    PR_NOTICE("spi port :%d", port);
+
+    TUYA_CALL_ERR_RETURN(__disp_spi_manage_init(port, disp_spi_dev));
+
+    TUYA_CALL_ERR_RETURN(__disp_spi_init(port, disp_spi_dev->cfg.spi_clk));
+    TUYA_CALL_ERR_RETURN(__disp_spi_gpio_init(&disp_spi_dev->cfg));
 
     tdd_disp_spi_init_seq(&(disp_spi_dev->cfg), disp_spi_dev->init_seq);
 
@@ -179,34 +358,35 @@ static OPERATE_RET __tdd_display_spi_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
 {
     OPERATE_RET rt = OPRT_OK;
     DISP_SPI_DEV_T *disp_spi_dev = NULL;
-    uint16_t x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    TUYA_SPI_NUM_E port = 0;
+
 
     if (NULL == device || NULL == frame_buff) {
         return OPRT_INVALID_PARM;
     }
 
     disp_spi_dev = (DISP_SPI_DEV_T *)device;
+    port = disp_spi_dev->cfg.port;
 
-    x0 = frame_buff->x_start;
-    y0 = frame_buff->y_start;
-    x1 = frame_buff->x_start + frame_buff->width - 1;
-    y1 = frame_buff->y_start + frame_buff->height - 1;
-
-    if(disp_spi_dev->set_window_cb) {
-        disp_spi_dev->set_window_cb(&disp_spi_dev->cfg, x0, y0, x1, y1);
-    }else {
-        __disp_spi_set_window(&disp_spi_dev->cfg, x0, y0, x1, y1);
-    }
-
-    tdd_disp_spi_send_cmd(&disp_spi_dev->cfg, disp_spi_dev->cfg.cmd_ramwr);
-    tdd_disp_spi_send_data(&disp_spi_dev->cfg, frame_buff->frame, frame_buff->len);
+    TDD_DISP_SPI_MSG_T msg = {TDD_SPI_FRAME_REQUEST, frame_buff};
+    TUYA_CALL_ERR_RETURN(tal_queue_post(sg_disp_spi_sync[port].queue, &msg, SEM_WAIT_FOREVER));
 
     return rt;
 }
 
 static OPERATE_RET __tdd_display_spi_close(TDD_DISP_DEV_HANDLE_T device)
 {
-    return OPRT_NOT_SUPPORTED;
+    DISP_SPI_DEV_T *disp_spi_dev = NULL;
+
+    if (NULL == device) {
+        return OPRT_INVALID_PARM;
+    }
+
+    disp_spi_dev = (DISP_SPI_DEV_T *)device;
+    
+    __disp_spi_gpio_deinit(&disp_spi_dev->cfg);
+
+    return OPRT_OK;
 }
 
 /**
@@ -222,7 +402,7 @@ static OPERATE_RET __tdd_display_spi_close(TDD_DISP_DEV_HANDLE_T device)
 OPERATE_RET tdd_disp_spi_init(DISP_SPI_BASE_CFG_T *p_cfg)
 {
     OPERATE_RET rt = OPRT_OK;
-    DISP_SPI_SYNC_T *spi_sync = NULL;
+    TDD_DISP_SPI_SYNC_T *spi_sync = NULL;
 
     if(NULL == p_cfg) {
         return OPRT_INVALID_PARM;
@@ -235,8 +415,6 @@ OPERATE_RET tdd_disp_spi_init(DISP_SPI_BASE_CFG_T *p_cfg)
 
     TUYA_CALL_ERR_RETURN(__disp_spi_init(p_cfg->port, p_cfg->spi_clk));
     TUYA_CALL_ERR_RETURN(__disp_spi_gpio_init(p_cfg));
-
-    PR_NOTICE("SPI%d init success, clk: %d", p_cfg->port, p_cfg->spi_clk);
 
     return OPRT_OK;
 }
@@ -260,12 +438,19 @@ OPERATE_RET tdd_disp_spi_send_cmd(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t cmd)
         return OPRT_INVALID_PARM;
     }
 
-    tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
-    tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_LOW);
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
+    }
+
+    if(p_cfg->dc_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_LOW);
+    }
 
     rt = __disp_spi_send(p_cfg->port, &cmd, 1);
 
-    tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    }
 
     return rt;
 }
@@ -290,12 +475,19 @@ OPERATE_RET tdd_disp_spi_send_data(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t *data, ui
         return OPRT_INVALID_PARM;
     }
 
-    tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
-    tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_HIGH);
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_LOW);
+    }
+
+    if(p_cfg->dc_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->dc_pin, TUYA_GPIO_LEVEL_HIGH);
+    }
 
     rt = __disp_spi_send(p_cfg->port, data, data_len);
 
-    tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    if(p_cfg->cs_pin < TUYA_GPIO_NUM_MAX) {
+        tkl_gpio_write(p_cfg->cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    }
 
     return rt;
 }
@@ -409,7 +601,6 @@ OPERATE_RET tdd_disp_spi_device_register(char *name, TDD_DISP_SPI_CFG_T *spi)
     memcpy(&disp_spi_dev->cfg, &spi->cfg, sizeof(DISP_SPI_BASE_CFG_T));
 
     disp_spi_dev->init_seq       = spi->init_seq;
-    disp_spi_dev->set_window_cb  = spi->set_window_cb;
 
     disp_spi_dev_info.type     = TUYA_DISPLAY_SPI;
     disp_spi_dev_info.width    = spi->cfg.width;
@@ -417,6 +608,7 @@ OPERATE_RET tdd_disp_spi_device_register(char *name, TDD_DISP_SPI_CFG_T *spi)
     disp_spi_dev_info.fmt      = spi->cfg.pixel_fmt;
     disp_spi_dev_info.rotation = spi->rotation;
     disp_spi_dev_info.is_swap  = spi->is_swap;
+    disp_spi_dev_info.has_vram = true;
 
     memcpy(&disp_spi_dev_info.bl, &spi->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&disp_spi_dev_info.power, &spi->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));

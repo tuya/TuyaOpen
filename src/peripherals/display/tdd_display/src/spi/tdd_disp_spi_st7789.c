@@ -54,12 +54,29 @@ static TDD_DISP_SPI_CFG_T sg_disp_spi_cfg = {
          
     .is_swap = true,
     .init_seq = cST7789_INIT_SEQ,
-    .set_window_cb = NULL, // Default callback to set window
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Sets the initialization sequence for the ST7789 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_st7789_set_init_seq(const uint8_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_spi_cfg.init_seq = init_seq;
+
+    return OPRT_OK;
+}
+
 /**
  * @brief Registers an ST7789 TFT display device using the SPI interface with the display management system.
  *
@@ -80,15 +97,18 @@ OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_
 
     PR_NOTICE("tdd_disp_spi_st7789_register: %s", name);
 
-    sg_disp_spi_cfg.cfg.width = dev_cfg->width;
-    sg_disp_spi_cfg.cfg.height = dev_cfg->height;
+    sg_disp_spi_cfg.cfg.width     = dev_cfg->width;
+    sg_disp_spi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_spi_cfg.cfg.x_offset  = dev_cfg->x_offset;
+    sg_disp_spi_cfg.cfg.y_offset  = dev_cfg->y_offset;
     sg_disp_spi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_spi_cfg.cfg.port = dev_cfg->port;
+
+    sg_disp_spi_cfg.cfg.port    = dev_cfg->port;
     sg_disp_spi_cfg.cfg.spi_clk = dev_cfg->spi_clk;
-    sg_disp_spi_cfg.cfg.cs_pin = dev_cfg->cs_pin;
-    sg_disp_spi_cfg.cfg.dc_pin = dev_cfg->dc_pin;
+    sg_disp_spi_cfg.cfg.cs_pin  = dev_cfg->cs_pin;
+    sg_disp_spi_cfg.cfg.dc_pin  = dev_cfg->dc_pin;
     sg_disp_spi_cfg.cfg.rst_pin = dev_cfg->rst_pin;
-    sg_disp_spi_cfg.rotation = dev_cfg->rotation;
+    sg_disp_spi_cfg.rotation    = dev_cfg->rotation;
 
     memcpy(&sg_disp_spi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_spi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

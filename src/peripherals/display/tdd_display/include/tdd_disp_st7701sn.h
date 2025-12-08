@@ -30,6 +30,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the st7701sn display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_rgb_st7701sn_set_init_seq(const uint8_t *init_seq);
+
+/**
  * @brief Registers an ST7701SN RGB LCD display device with the display management system.
  *
  * This function configures and registers a display device for the ST7701SN series of RGB LCDs 

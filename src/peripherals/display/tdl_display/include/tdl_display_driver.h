@@ -43,6 +43,7 @@ typedef enum  {
     TUYA_DISP_BL_TP_NONE,
     TUYA_DISP_BL_TP_GPIO,
     TUYA_DISP_BL_TP_PWM,
+    TUYA_DISP_BL_TP_CUSTOM,
 }TUYA_DISPLAY_BL_TYPE_E;
 
 typedef struct {
@@ -62,6 +63,7 @@ typedef struct {
     uint16_t                  width;
     uint16_t                  height;
     bool                      is_swap;
+    bool                      has_vram;
     TUYA_DISPLAY_PIXEL_FMT_E  fmt;
     TUYA_DISPLAY_ROTATION_E   rotation;
     TUYA_DISPLAY_BL_CTRL_T    bl;
@@ -75,6 +77,7 @@ typedef struct {
 } TDD_DISP_INTFS_T;
 
 typedef TDL_DISP_FRAME_BUFF_T *(*TDD_DISP_CONVERT_FB_CB)(TDL_DISP_FRAME_BUFF_T *frame_buff);
+typedef OPERATE_RET (*TDD_SET_BACKLIGHT_CB)(uint8_t brightness, void *arg);
 
 /***********************************************************
 ********************function declaration********************
@@ -95,6 +98,18 @@ typedef TDL_DISP_FRAME_BUFF_T *(*TDD_DISP_CONVERT_FB_CB)(TDL_DISP_FRAME_BUFF_T *
  */
 OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, \
                                      TDD_DISP_INTFS_T *intfs, TDD_DISP_DEV_INFO_T *dev_info);
+
+/**
+ * @brief Registers a custom backlight control callback for a display device
+ * 
+ * @param name Name of the display device
+ * @param set_bl_cb Pointer to the custom backlight control callback function
+ * @param arg User-defined argument to be passed to the callback function
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, OPRT_INVALID_PARM if parameters are NULL,
+ *                     or OPRT_COM_ERROR if the display device is not found
+ */
+OPERATE_RET tdl_disp_custom_backlight_register(char *name, TDD_SET_BACKLIGHT_CB set_bl_cb, void *arg);
                                 
 #ifdef __cplusplus
 }

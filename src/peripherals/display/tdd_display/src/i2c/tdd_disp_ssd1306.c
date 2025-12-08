@@ -251,6 +251,10 @@ static OPERATE_RET __tdd_disp_i2c_ssd1306_flush(TDD_DISP_DEV_HANDLE_T device, TD
         j += disp_spi_dev->disp_info.width;
     }
 
+    if(frame_buff && frame_buff->free_cb) {
+        frame_buff->free_cb(frame_buff);
+    }
+
     return rt;
 }
 
@@ -305,6 +309,7 @@ OPERATE_RET tdd_disp_i2c_oled_ssd1306_register(char *name, DISP_I2C_OLED_DEVICE_
     disp_spi_dev->disp_info.height     = dev_cfg->height;
     disp_spi_dev->disp_info.rotation   = dev_cfg->rotation;
     disp_spi_dev->disp_info.is_swap    = false;
+    disp_spi_dev->disp_info.has_vram   = true;
 
     memcpy(&disp_spi_dev->disp_info.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&disp_spi_dev->disp_info.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
