@@ -17,18 +17,23 @@
 #include "tal_api.h"
 #include "tdl_display_manage.h"
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 #include "tkl_dma2d.h"
 #endif
 
 /*********************
  *      DEFINES
  *********************/
+#define DISP_DRAW_BUF_ALIGN    4
 
-
+#define LV_DISP_FB_MAX_NUM    3
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct {
+    uint8_t                is_used;
+    TDL_DISP_FRAME_BUFF_T *fb;
+}LV_DISP_FRAME_BUFF_T;
 
 /**********************
  *  STATIC PROTOTYPES
@@ -43,7 +48,7 @@ static uint8_t * __disp_draw_buf_align_alloc(uint32_t size_bytes);
 
 static uint8_t __disp_get_pixels_size_bytes(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt);
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 static void __disp_dma2d_init(void);
 #endif
 
@@ -53,19 +58,12 @@ static void __disp_dma2d_init(void);
 static TDL_DISP_HANDLE_T sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T sg_display_info;
 
-#if 1
-static TDL_DISP_FRAME_BUFF_T sg_display_fb;
-static uint8_t *sg_frame_1 = NULL;
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-static uint8_t *sg_frame_2 = NULL;
-#endif
-#else
+static LV_DISP_FRAME_BUFF_T sg_disp_fb_arr[LV_DISP_FB_MAX_NUM];
+static uint8_t sg_disp_fb_num = 0;
+static bool sg_is_wait_disp_free_fb = false;
+static SEM_HANDLE sg_disp_fb_free_sem = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL; 
-static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_1 = NULL;
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_2 = NULL;
-#endif
-#endif
+
 
 /**********************
  *      MACROS
@@ -160,20 +158,16 @@ void lv_port_disp_init(char *device)
     lv_disp_drv_register(&disp_drv);
 }
 
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-static void disp_deinit(void)
-{
-
-}
-
 void lv_port_disp_deinit(void)
 {
     disp_deinit();
 }
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 static SEM_HANDLE sg_dma2d_finish_sem = NULL;
 static bool sg_is_wait_dma2d = false;
 static void __disp_dma2d_event_cb(TUYA_DMA2D_IRQ_E type, VOID_T *args)
@@ -248,7 +242,6 @@ static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t * area, uint8_t * px_m
     __wait_dma2d_trans_finish();
 }
 
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
 static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
                                              uint8_t *dst_frame,\
                                              uint8_t *src_frame)
@@ -294,15 +287,132 @@ static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
     sg_is_wait_dma2d = true;
 }
 #endif
+
+static void disp_frame_buff_free(TDL_DISP_FRAME_BUFF_T *frame_buff)
+{
+    if(NULL == frame_buff) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        if(sg_disp_fb_arr[i].fb == frame_buff) {
+            sg_disp_fb_arr[i].is_used = 0;
+            if(sg_is_wait_disp_free_fb) {
+                sg_is_wait_disp_free_fb = false;
+                tal_semaphore_post(sg_disp_fb_free_sem);
+            }
+            return;
+        }
+    }
+
+    PR_ERR("frame buffer not found");
+}
+
+static TDL_DISP_FRAME_BUFF_T *disp_get_free_frame_buff(void)
+{
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        if(0 == sg_disp_fb_arr[i].is_used) {
+            return sg_disp_fb_arr[i].fb;
+        }
+    }
+
+    sg_is_wait_disp_free_fb = true;
+    tal_semaphore_wait(sg_disp_fb_free_sem, SEM_WAIT_FOREVER);
+
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        if(0 == sg_disp_fb_arr[i].is_used) {
+            return sg_disp_fb_arr[i].fb;
+        }
+    }
+
+    PR_ERR("no free frame buffer available");
+
+    return NULL;
+}
+static void disp_set_frame_buff_used(TDL_DISP_FRAME_BUFF_T *fb)
+{
+    if(NULL == fb) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        if(sg_disp_fb_arr[i].fb == fb) {
+            sg_disp_fb_arr[i].is_used = 1;
+            return;
+        }
+    }
+
+    PR_ERR("frame buffer not found");
+}
+
+static void disp_frame_buff_init(TUYA_DISPLAY_PIXEL_FMT_E fmt, uint16_t width, uint16_t height, bool has_vram)
+{
+    OPERATE_RET rt = OPRT_OK;
+    uint8_t per_pixel_byte = 0;
+    uint32_t frame_len = 0;
+
+    if(fmt == TUYA_PIXEL_FMT_MONOCHROME) {
+        frame_len = (width + 7) / 8 * height;
+    } else if(fmt == TUYA_PIXEL_FMT_I2){
+        frame_len = (width + 3) / 4 * height;
+    }else {
+        per_pixel_byte = __disp_get_pixels_size_bytes(fmt);
+        frame_len = width * height * per_pixel_byte;
+    }
+
+    rt = tal_semaphore_create_init(&sg_disp_fb_free_sem, 0 ,1);
+    if(rt != OPRT_OK) {
+        PR_ERR("create semaphore failed, rt: %d", rt);
+        return;
+    }
+
+#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
+    sg_disp_fb_num = 2 + (has_vram ? 0 : 1);
+#else
+    sg_disp_fb_num = 1 + (has_vram ? 0 : 1);
 #endif
 
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        sg_disp_fb_arr[i].is_used = 0;
+
+        sg_disp_fb_arr[i].fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
+        if(sg_disp_fb_arr[i].fb == NULL) {
+            PR_ERR("create display frame buff failed");
+            return;
+        }
+
+        sg_disp_fb_arr[i].fb->fmt    = fmt;
+        sg_disp_fb_arr[i].fb->width  = width;
+        sg_disp_fb_arr[i].fb->height = height;
+
+        sg_disp_fb_arr[i].fb->free_cb = disp_frame_buff_free;
+    }
+
+    sg_p_display_fb = disp_get_free_frame_buff();
+}
+
+static void disp_frame_buff_deinit(void)
+{
+    if(sg_disp_fb_free_sem) {
+        tal_semaphore_release(sg_disp_fb_free_sem);
+        sg_disp_fb_free_sem = NULL;
+    }
+
+    for (uint8_t i = 0; i < sg_disp_fb_num; i++) {
+        if(sg_disp_fb_arr[i].fb) {
+            tdl_disp_free_frame_buff(sg_disp_fb_arr[i].fb);
+        }
+    }
+    
+    memset(sg_disp_fb_arr, 0, sizeof(sg_disp_fb_arr));
+
+    sg_disp_fb_num = 0;
+}
 
 /*Initialize your display and the required peripherals.*/
 static void disp_init(char *device)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint8_t per_pixel_byte = 0;
-    uint32_t frame_len = 0;
 
     memset(&sg_display_info, 0, sizeof(TDL_DISP_DEV_INFO_T));
 
@@ -326,67 +436,13 @@ static void disp_init(char *device)
 
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
 
-    if(sg_display_info.fmt == TUYA_PIXEL_FMT_MONOCHROME) {
-        frame_len = (sg_display_info.width + 7) / 8 * sg_display_info.height;
-    } else if(sg_display_info.fmt == TUYA_PIXEL_FMT_I2){
-        frame_len = (sg_display_info.width + 3) / 4 * sg_display_info.height;
-    }else {
-        per_pixel_byte = __disp_get_pixels_size_bytes(sg_display_info.fmt);
-        frame_len = sg_display_info.width * sg_display_info.height * per_pixel_byte;
-    }
-#if 1
-    sg_display_fb.fmt    = sg_display_info.fmt;
-    sg_display_fb.width  = sg_display_info.width;
-    sg_display_fb.height = sg_display_info.height;
-    sg_display_fb.len    = frame_len;
+    disp_frame_buff_init(sg_display_info.fmt, sg_display_info.width, \
+                         sg_display_info.height, sg_display_info.has_vram);
 
-    sg_frame_1 = __disp_draw_buf_align_alloc(frame_len);
-    if(NULL == sg_frame_1) {
-        PR_ERR("create display frame buff 1 failed");
-        return;
-    }
-    sg_display_fb.frame  = sg_frame_1;
-
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-    sg_frame_2 = __disp_draw_buf_align_alloc(frame_len);
-        if(NULL == sg_frame_2) {
-            PR_ERR("create display frame buff 2 failed");
-            return;
-        }
-#endif
-#else 
-    /*create frame buffer*/
-    sg_p_display_fb_1 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
-    if(NULL == sg_p_display_fb_1) {
-        PR_ERR("create display frame buff failed");
-        return;
-    }
-    sg_p_display_fb_1->fmt    = sg_display_info.fmt;
-    sg_p_display_fb_1->width  = sg_display_info.width;
-    sg_p_display_fb_1->height = sg_display_info.height;
-
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-    sg_p_display_fb_2 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
-    if(NULL == sg_p_display_fb_2) {
-        PR_ERR("create display frame buff failed");
-        return;
-    }
-    sg_p_display_fb_2->fmt    = sg_display_info.fmt;
-    sg_p_display_fb_2->width  = sg_display_info.width;
-    sg_p_display_fb_2->height = sg_display_info.height;
-#endif
-
-    sg_p_display_fb = sg_p_display_fb_1;
-
-#endif
-
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
     __disp_dma2d_init();
 #endif
-
 }
-
-#define DISP_DRAW_BUF_ALIGN    4
 
 static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
 {
@@ -483,10 +539,11 @@ static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px
         }
     }else {
         #if LV_COLOR_16_SWAP == 1
+            extern void lv_draw_sw_rgb565_swap(void * buf, uint32_t buf_size_px);
             lv_draw_sw_rgb565_swap(px_map, lv_area_get_width(area) * lv_area_get_height(area));
         #endif
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
         __wait_dma2d_trans_finish();
 
         __dma2d_drawbuffer_memcpy_syn(area, px_map, fb);
@@ -505,18 +562,24 @@ static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px
     }
 }
 
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
 static void __disp_framebuffer_memcpy(TDL_DISP_DEV_INFO_T *dev_info,\
                                       uint8_t *dst_frame,uint8_t *src_frame,\
                                       uint32_t frame_size)
 {
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
     __dma2d_framebuffer_memcpy_async(dev_info, dst_frame, src_frame);
 #else
     memcpy(dst_frame, src_frame, frame_size);
 #endif
 }
-#endif
+
+static void disp_deinit(void)
+{
+    tdl_disp_dev_close(sg_tdl_disp_hdl);
+    sg_tdl_disp_hdl = NULL;
+
+    disp_frame_buff_deinit();
+}
 
 volatile bool disp_flush_enabled = true;
 
@@ -534,7 +597,18 @@ void disp_disable_update(void)
     disp_flush_enabled = false;
 }
 
-/*Flush the content of the internal buffer the specific area on the display
+/**
+ * @brief Sets the display backlight brightness
+ * 
+ * @param brightness Brightness level (0-100)
+ */
+void disp_set_backlight(uint8_t brightness)
+{
+    tdl_disp_set_brightness(sg_tdl_disp_hdl, brightness);
+}
+
+/*Flush the content of the internal buffer the specific area on the display.
+ *`px_map` contains the rendered image as raw pixel map and it should be copied to `area` on the display.
  *You can use DMA or any hardware acceleration to do this operation in the background but
  *'lv_disp_flush_ready()' has to be called when finished.*/
 static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
@@ -545,35 +619,18 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 
     if(disp_flush_enabled) {
 
-#if 1
-        __disp_fill_display_framebuffer(target_area, color_ptr, &sg_display_fb);
+        __disp_fill_display_framebuffer(target_area, color_ptr, sg_p_display_fb);
 
         if (lv_disp_flush_is_last(disp_drv)) {
-            tdl_disp_dev_flush(sg_tdl_disp_hdl, &sg_display_fb);
 
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-            uint8_t *next_frame = (sg_display_fb.frame == sg_frame_1) ? \
-                                    sg_frame_2 : sg_frame_1;
-            if(next_frame) {
-                __disp_framebuffer_memcpy(&sg_display_info, next_frame, sg_display_fb.frame, sg_display_fb.len);
-                sg_display_fb.frame = next_frame;
-            }
-#endif
-#else 
-        __disp_fill_display_framebuffer(target_area, color_ptr, cf, sg_p_display_fb);
-
-        if (lv_display_flush_is_last(disp)) {
+            disp_set_frame_buff_used(sg_p_display_fb);
             tdl_disp_dev_flush(sg_tdl_disp_hdl, sg_p_display_fb);
 
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-            TDL_DISP_FRAME_BUFF_T *next_fb = (sg_p_display_fb == sg_p_display_fb_1) ? \
-                                              sg_p_display_fb_2 : sg_p_display_fb_1;
-            if(next_fb) {
+            TDL_DISP_FRAME_BUFF_T *next_fb = disp_get_free_frame_buff();
+            if(next_fb &&  next_fb != sg_p_display_fb) {
                 __disp_framebuffer_memcpy(&sg_display_info, next_fb->frame, sg_p_display_fb->frame, sg_p_display_fb->len);
                 sg_p_display_fb = next_fb;
             }
-#endif
-#endif 
         }
     }
 

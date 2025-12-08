@@ -1,5 +1,5 @@
 /**
- * @file lv_port_disp_templ.h
+ * @file lv_port_disp.h
  *
  */
 
@@ -22,7 +22,6 @@ extern "C" {
 #include "lvgl/lvgl.h"
 #endif
 
-
 /*********************
  *      DEFINES
  *********************/
@@ -44,6 +43,13 @@ void disp_enable_update(void);
 /* Disable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */
 void disp_disable_update(void);
+
+/**
+ * @brief Sets the display backlight brightness
+ * 
+ * @param brightness Brightness level (0-100)
+ */
+void disp_set_backlight(uint8_t brightness);
 
 /**********************
  *      MACROS
