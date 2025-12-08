@@ -21,7 +21,7 @@
 // Font definitions - easily customizable
 #define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
 #define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
-#define SCREEN_INFO_FONT    &lv_font_montserrat_12
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ************************macro define************************

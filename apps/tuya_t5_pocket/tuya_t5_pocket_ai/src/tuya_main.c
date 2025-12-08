@@ -311,7 +311,7 @@ void user_main(void)
     type |= NETCONN_WIRED;
 #endif
 #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
-    // type |= NETCONN_CELLULAR;
+    type |= NETCONN_CELLULAR;
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)

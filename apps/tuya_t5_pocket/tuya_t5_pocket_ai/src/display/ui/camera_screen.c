@@ -432,6 +432,7 @@ static void camera_stop(void)
 static void keyboard_event_cb(lv_event_t *e)
 {
     uint32_t key = lv_event_get_key(e);
+    OPERATE_RET rt = OPRT_OK;
     printf("[%s] Key pressed: %d\n", camera_screen.name, key);
 
     switch (key) {
@@ -485,7 +486,6 @@ static void keyboard_event_cb(lv_event_t *e)
 
     case KEY_ENTER:
 #ifdef ENABLE_LVGL_HARDWARE
-        OPERATE_RET rt = OPRT_OK;
         if (camera_running) {
             // Camera is running: stop and print
             if (sg_print_callback) {
@@ -522,8 +522,15 @@ static void keyboard_event_cb(lv_event_t *e)
                         .invert_colors = 0           // Will be overridden by printer
                     };
 
+                    // Update status
+                    char buf[32];
+                    snprintf(buf, sizeof(buf), "Status:\n%s", "Printing");
+                    lv_label_set_text(status_label, buf);
+
                     sg_print_callback(&print_params); // Call print callback
                     tal_psram_free(printer_bitmap);
+
+                    update_info_display(); // Refresh status display
                     printf("bitmap_size %d bytes free succeed\n", bitmap_size);
                 }
             } else {

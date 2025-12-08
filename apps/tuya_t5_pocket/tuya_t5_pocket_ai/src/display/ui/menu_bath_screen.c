@@ -220,9 +220,14 @@ static void create_hygiene_status_display(void)
     // Bath status indicator
     lv_obj_t *bath_container = lv_obj_create(menu_bath_screen_list);
     lv_obj_set_size(bath_container, STAT_CONTAINER_WIDTH, STAT_CONTAINER_HEIGHT);
-    lv_obj_set_style_bg_opa(bath_container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(bath_container, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(bath_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(bath_container, 0, 0);
     lv_obj_set_style_pad_all(bath_container, 2, 0);
+
+    // Make container selectable
+    lv_obj_add_flag(bath_container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(bath_container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *bath_label = lv_label_create(bath_container);
     lv_label_set_text(bath_label, "Bath Status:");
@@ -313,9 +318,14 @@ static void create_stat_icon_bar(const char *label, int value)
 {
     lv_obj_t *container = lv_obj_create(menu_bath_screen_list);
     lv_obj_set_size(container, STAT_CONTAINER_WIDTH, STAT_CONTAINER_HEIGHT);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(container, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(container, lv_color_white(), 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 2, 0);
+
+    // Make container selectable
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *label_obj = lv_label_create(container);
     lv_label_set_text(label_obj, label);
@@ -364,6 +374,15 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
             if (is_child_selectable(ch)) {
                 lv_obj_set_style_bg_color(ch, lv_color_white(), 0);
                 lv_obj_set_style_text_color(ch, lv_color_black(), 0);
+
+                // Update all child labels to black
+                uint32_t ch_child_count = lv_obj_get_child_cnt(ch);
+                for (uint32_t j = 0; j < ch_child_count; j++) {
+                    lv_obj_t *child_elem = lv_obj_get_child(ch, j);
+                    if (lv_obj_check_type(child_elem, &lv_label_class)) {
+                        lv_obj_set_style_text_color(child_elem, lv_color_black(), 0);
+                    }
+                }
                 break;
             }
         }
@@ -376,6 +395,16 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
             if (is_child_selectable(ch)) {
                 lv_obj_set_style_bg_color(ch, lv_color_black(), 0);
                 lv_obj_set_style_text_color(ch, lv_color_white(), 0);
+
+                // Update all child labels to white
+                uint32_t ch_child_count = lv_obj_get_child_cnt(ch);
+                for (uint32_t j = 0; j < ch_child_count; j++) {
+                    lv_obj_t *child_elem = lv_obj_get_child(ch, j);
+                    if (lv_obj_check_type(child_elem, &lv_label_class)) {
+                        lv_obj_set_style_text_color(child_elem, lv_color_white(), 0);
+                    }
+                }
+
                 lv_obj_scroll_to_view(ch, LV_ANIM_ON);
                 break;
             }

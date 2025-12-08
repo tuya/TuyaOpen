@@ -22,7 +22,6 @@
 // Font definitions - easily customizable
 #define SCREEN_TITLE_FONT   &lv_font_montserrat_24
 #define SCREEN_CONTENT_FONT &lv_font_montserrat_14
-#define SCREEN_INFO_FONT    &lv_font_montserrat_12
 
 /***********************************************************
 ***********************variable define**********************
