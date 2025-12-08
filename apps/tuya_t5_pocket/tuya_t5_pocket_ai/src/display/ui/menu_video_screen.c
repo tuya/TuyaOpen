@@ -6,7 +6,13 @@
 #include "menu_video_screen.h"
 #include "screen_manager.h"
 #include "toast_screen.h"
+#include "camera_screen.h"
 #include <stdio.h>
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 static lv_obj_t *ui_menu_video_screen_screen;
 static lv_obj_t *menu_video_screen_list;
@@ -28,7 +34,7 @@ typedef struct {
 } video_action_item_t;
 
 static video_action_item_t video_actions[] = {
-    {"Play Video", LV_SYMBOL_PLAY, VIDEO_ACTION_PLAY_VIDEO},
+    {"Open Camera", LV_SYMBOL_PLAY, VIDEO_ACTION_OPEN_CAMERA},
     {"Take Photo", LV_SYMBOL_IMAGE, VIDEO_ACTION_TAKE_PHOTO},
     {"Record Video", LV_SYMBOL_VIDEO, VIDEO_ACTION_RECORD_VIDEO},
     {"View Gallery", LV_SYMBOL_DIRECTORY, VIDEO_ACTION_VIEW_GALLERY},
@@ -50,25 +56,28 @@ static void keyboard_event_cb(lv_event_t *e)
 {
     uint32_t key = lv_event_get_key(e);
     uint32_t child_count = lv_obj_get_child_cnt(menu_video_screen_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
 
     switch (key) {
-        case KEY_UP:
-            if (selected_item > 0) new_selection = selected_item - 1;
-            break;
-        case KEY_DOWN:
-            if (selected_item < child_count - 1) new_selection = selected_item + 1;
-            break;
-        case KEY_ENTER:
-            handle_video_selection();
-            break;
-        case KEY_ESC:
-            last_selected_item = 0;
-            screen_back();
-            break;
+    case KEY_UP:
+        if (selected_item > 0)
+            new_selection = selected_item - 1;
+        break;
+    case KEY_DOWN:
+        if (selected_item < child_count - 1)
+            new_selection = selected_item + 1;
+        break;
+    case KEY_ENTER:
+        handle_video_selection();
+        break;
+    case KEY_ESC:
+        last_selected_item = 0;
+        screen_back();
+        break;
     }
 
     if (new_selection != old_selection) {
@@ -100,8 +109,40 @@ static void handle_video_selection(void)
 
         video_action_item_t *selected_action = &video_actions[selected_item];
         printf("Selected video action: %s\n", selected_action->name);
-        // Set the message after loading the screen
-        toast_screen_show("Unlock at Higher Level", 2000);
+
+        // Handle each action specifically
+        switch (selected_action->action) {
+        case VIDEO_ACTION_OPEN_CAMERA:
+            printf("Play Video selected\n");
+            // toast_screen_show("Play Video: Feature Coming Soon", 2000);
+            screen_load(&camera_screen);
+            // TODO: Implement video playback functionality
+            break;
+
+        case VIDEO_ACTION_TAKE_PHOTO:
+            printf("Take Photo selected\n");
+            screen_load(&camera_screen);
+            // toast_screen_show("Take Photo: Feature Coming Soon", 2000);
+            // TODO: Implement camera photo capture
+            break;
+
+        case VIDEO_ACTION_RECORD_VIDEO:
+            printf("Record Video selected\n");
+            toast_screen_show("Record Video: Feature Coming Soon", 2000);
+            // TODO: Implement video recording
+            break;
+
+        case VIDEO_ACTION_VIEW_GALLERY:
+            printf("View Gallery selected\n");
+            toast_screen_show("View Gallery: Feature Coming Soon", 2000);
+            // TODO: Implement gallery viewer
+            break;
+
+        default:
+            printf("Unknown video action: %d\n", selected_action->action);
+            toast_screen_show("Unknown Action", 2000);
+            break;
+        }
 
         // if (video_callback) {
         //     video_callback(selected_action->action, video_callback_user_data);
@@ -118,7 +159,7 @@ void menu_video_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_menu_video_screen_screen);
     lv_label_set_text(title, "Video & Camera");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
 
     menu_video_screen_list = lv_list_create(ui_menu_video_screen_screen);
     lv_obj_set_size(menu_video_screen_list, 364, 128);
@@ -127,7 +168,11 @@ void menu_video_screen_init(void)
     lv_obj_set_style_border_width(menu_video_screen_list, 2, 0);
 
     for (uint8_t i = 0; i < VIDEO_ACTIONS_COUNT; i++) {
-        lv_list_add_btn(menu_video_screen_list, video_actions[i].icon, video_actions[i].name);
+        lv_obj_t *btn = lv_list_add_btn(menu_video_screen_list, video_actions[i].icon, video_actions[i].name);
+        // Set font for text label (child 1)
+        lv_obj_t *label = lv_obj_get_child(btn, 1);
+        if (label)
+            lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
     }
 
     selected_item = last_selected_item;

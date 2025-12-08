@@ -42,6 +42,11 @@
 #define COLOR_SUCCESS        lv_color_black()
 #define COLOR_WARNING        lv_color_black()
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -272,8 +277,8 @@ static void create_ui_components(void)
     // Create title
     title_label = lv_label_create(ui_rfid_scan_screen);
     lv_label_set_text(title_label, "RFID Scanner");
-    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 3);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_14, 0);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 5);
+    lv_obj_set_style_text_font(title_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title_label, COLOR_PRIMARY, 0);
 
     // Create info card container - compact layout
@@ -299,15 +304,15 @@ static void create_ui_components(void)
     lv_obj_clear_flag(dev_id_container, LV_OBJ_FLAG_SCROLLABLE);
 
     dev_id_label = lv_label_create(dev_id_container);
-    lv_label_set_text(dev_id_label, "Dev ID:");
-    lv_obj_align(dev_id_label, LV_ALIGN_LEFT_MID, 0, 0);
-    lv_obj_set_style_text_font(dev_id_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(dev_id_label, "Device:");
+    lv_obj_align(dev_id_label, LV_ALIGN_LEFT_MID, 10, 0);
+    lv_obj_set_style_text_font(dev_id_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(dev_id_label, COLOR_TEXT_PRIMARY, 0);
 
     dev_id_value = lv_label_create(dev_id_container);
     lv_label_set_text(dev_id_value, "--");
-    lv_obj_align(dev_id_value, LV_ALIGN_LEFT_MID, 75, 0);
-    lv_obj_set_style_text_font(dev_id_value, &lv_font_montserrat_16, 0);
+    lv_obj_align(dev_id_value, LV_ALIGN_RIGHT_MID, -10, 0);
+    lv_obj_set_style_text_font(dev_id_value, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(dev_id_value, COLOR_TEXT_PRIMARY, 0);
 
     y_offset += 33;
@@ -332,17 +337,17 @@ static void create_ui_components(void)
 
     tag_type_label = lv_label_create(tag_type_container);
     lv_label_set_text(tag_type_label, "Type:");
-    lv_obj_align(tag_type_label, LV_ALIGN_LEFT_MID, 0, 0);
-    lv_obj_set_style_text_font(tag_type_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(tag_type_label, LV_ALIGN_LEFT_MID, 10, 0);
+    lv_obj_set_style_text_font(tag_type_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(tag_type_label, COLOR_TEXT_PRIMARY, 0);
 
     tag_type_value = lv_label_create(tag_type_container);
     lv_label_set_text(tag_type_value, "----");
-    lv_obj_align(tag_type_value, LV_ALIGN_LEFT_MID, 55, 0);
-    lv_obj_set_style_text_font(tag_type_value, &lv_font_montserrat_14, 0);
+    lv_obj_align(tag_type_value, LV_ALIGN_RIGHT_MID, -10, 0);
+    lv_obj_set_style_text_font(tag_type_value, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(tag_type_value, COLOR_TEXT_PRIMARY, 0);
     lv_label_set_long_mode(tag_type_value, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_set_width(tag_type_value, AI_PET_SCREEN_WIDTH - 91);
+    lv_obj_set_width(tag_type_value, AI_PET_SCREEN_WIDTH - 100);
 
     y_offset += 33;
 
@@ -366,14 +371,14 @@ static void create_ui_components(void)
 
     uid_label = lv_label_create(uid_container);
     lv_label_set_text(uid_label, "UID:");
-    lv_obj_align(uid_label, LV_ALIGN_LEFT_MID, 0, 0);
-    lv_obj_set_style_text_font(uid_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(uid_label, LV_ALIGN_TOP_LEFT, 10, 8);
+    lv_obj_set_style_text_font(uid_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(uid_label, COLOR_TEXT_PRIMARY, 0);
 
     uid_value = lv_label_create(uid_container);
     lv_label_set_text(uid_value, "No tag");
     lv_obj_align(uid_value, LV_ALIGN_LEFT_MID, 50, 0);
-    lv_obj_set_style_text_font(uid_value, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(uid_value, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(uid_value, COLOR_TEXT_PRIMARY, 0);
     lv_label_set_long_mode(uid_value, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_width(uid_value, AI_PET_SCREEN_WIDTH - 86);
@@ -382,7 +387,7 @@ static void create_ui_components(void)
     hint_label = lv_label_create(ui_rfid_scan_screen);
     lv_label_set_text(hint_label, "Place tag near reader");
     lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, -3);
-    lv_obj_set_style_text_font(hint_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(hint_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(hint_label, COLOR_TEXT_SECONDARY, 0);
 }
 

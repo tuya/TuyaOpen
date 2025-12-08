@@ -54,6 +54,11 @@ LV_IMG_DECLARE(bird_obstacle);
 // KV storage key for high score
 #define DINO_GAME_HIGH_SCORE_KV_KEY "dino_high_score"
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 // Hardware abstraction
 #ifdef ENABLE_LVGL_HARDWARE
 #include "board_bmi270_api.h"
@@ -514,8 +519,8 @@ static void dino_game_show_exit_dialog(void)
 
     // Message label
     g_exit_msg_label = lv_label_create(dialog_box);
-    lv_label_set_text(g_exit_msg_label, "Exit Game?");
-    lv_obj_set_style_text_font(g_exit_msg_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(g_exit_msg_label, "Exit game?");
+    lv_obj_set_style_text_font(g_exit_msg_label, SCREEN_TITLE_FONT, 0);
     lv_obj_align(g_exit_msg_label, LV_ALIGN_TOP_MID, 0, 15);
 
     // Calculate symmetric positions for buttons
@@ -533,8 +538,9 @@ static void dino_game_show_exit_dialog(void)
     lv_obj_set_style_border_color(g_exit_no_btn, lv_color_black(), 0);
 
     lv_obj_t *no_label = lv_label_create(g_exit_no_btn);
-    lv_label_set_text(no_label, "NO");
+    lv_label_set_text(no_label, "No");
     lv_obj_center(no_label);
+    lv_obj_set_style_text_font(no_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(no_label, lv_color_white(), 0); // White text on black background
 
     // Yes button - positioned to the right of center
@@ -547,8 +553,9 @@ static void dino_game_show_exit_dialog(void)
     lv_obj_set_style_border_color(g_exit_yes_btn, lv_color_black(), 0);
 
     lv_obj_t *yes_label = lv_label_create(g_exit_yes_btn);
-    lv_label_set_text(yes_label, "YES");
+    lv_label_set_text(yes_label, "Yes");
     lv_obj_center(yes_label);
+    lv_obj_set_style_text_font(yes_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(yes_label, lv_color_black(), 0); // Black text on white background
 }
 
@@ -601,9 +608,9 @@ static void dino_game_show_game_over_dialog(void)
     // High score label
     lv_obj_t *high_score_label = lv_label_create(dialog_box);
     char high_score_text[32];
-    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", g_high_score);
+    snprintf(high_score_text, sizeof(high_score_text), "High Score: %d", g_high_score);
     lv_label_set_text(high_score_label, high_score_text);
-    lv_obj_set_style_text_font(high_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(high_score_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_align(high_score_label, LV_ALIGN_TOP_MID, 0, 10);
 
     // Current score label
@@ -611,13 +618,13 @@ static void dino_game_show_game_over_dialog(void)
     char current_score_text[32];
     snprintf(current_score_text, sizeof(current_score_text), "Your Score: %d", g_gs.score);
     lv_label_set_text(current_score_label, current_score_text);
-    lv_obj_set_style_text_font(current_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(current_score_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_align(current_score_label, LV_ALIGN_TOP_MID, 0, 30);
 
     // Message label
     g_game_over_msg_label = lv_label_create(dialog_box);
-    lv_label_set_text(g_game_over_msg_label, "Play Again?");
-    lv_obj_set_style_text_font(g_game_over_msg_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(g_game_over_msg_label, "Play again?");
+    lv_obj_set_style_text_font(g_game_over_msg_label, SCREEN_TITLE_FONT, 0);
     lv_obj_align(g_game_over_msg_label, LV_ALIGN_TOP_MID, 0, 55);
 
     // Calculate symmetric positions for buttons
@@ -649,8 +656,10 @@ static void dino_game_show_game_over_dialog(void)
     lv_obj_set_style_border_color(g_game_over_exit_btn, lv_color_black(), 0);
 
     lv_obj_t *no_label = lv_label_create(g_game_over_exit_btn);
-    lv_label_set_text(no_label, "NO");
+    lv_label_set_text(no_label, "Exit");
     lv_obj_center(no_label);
+    lv_obj_set_style_text_font(no_label, SCREEN_CONTENT_FONT, 0);
+    lv_obj_set_style_text_font(no_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(no_label, lv_color_black(), 0); // Black text on white background
 }
 
@@ -798,7 +807,7 @@ void dino_game_screen_init(void)
     g_score_label = lv_label_create(ui_dino_game_screen);
     lv_label_set_text(g_score_label, "SCORE: 0");
     lv_obj_align(g_score_label, LV_ALIGN_TOP_MID, 0, 6);
-    lv_obj_set_style_text_font(g_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(g_score_label, SCREEN_CONTENT_FONT, 0);
 
     // Ground
     lv_obj_t *ground = lv_obj_create(ui_dino_game_screen);

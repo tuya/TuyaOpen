@@ -170,6 +170,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* MQTT with tuya cloud is disconnected, device offline */
     case TUYA_EVENT_MQTT_DISCONNECT:
         PR_INFO("Device MQTT DisConnected!");
+        app_display_send_msg(POCKET_DISP_TP_WIFI_OFF, NULL, 0);
         tal_event_publish(EVENT_MQTT_DISCONNECTED, NULL);
         break;
 
@@ -242,26 +243,6 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
-void app_cellular_module_reset(void)
-{
-    TUYA_GPIO_BASE_CFG_T cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.direct = TUYA_GPIO_OUTPUT;
-    cfg.level = TUYA_GPIO_LEVEL_HIGH;
-
-    tkl_gpio_init(TUYA_GPIO_NUM_25, &cfg);
-    tkl_gpio_write(TUYA_GPIO_NUM_25, TUYA_GPIO_LEVEL_HIGH);
-
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.direct = TUYA_GPIO_OUTPUT;
-    cfg.level = TUYA_GPIO_LEVEL_LOW;
-
-    tkl_gpio_init(TUYA_GPIO_NUM_22, &cfg);
-    tkl_gpio_write(TUYA_GPIO_NUM_22, TUYA_GPIO_LEVEL_LOW);
-    return;
-}
-
 void user_main(void)
 {
     int ret = OPRT_OK;
@@ -288,6 +269,11 @@ void user_main(void)
     tal_workq_init();
     tal_cli_init();
     tuya_authorize_init();
+
+    ret = board_register_hardware();
+    if (ret != OPRT_OK) {
+        PR_ERR("board_register_hardware failed");
+    }
 
     reset_netconfig_start();
 
@@ -325,9 +311,7 @@ void user_main(void)
     type |= NETCONN_WIRED;
 #endif
 #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
-    type |= NETCONN_CELLULAR;
-    // reset·cellular·module
-    app_cellular_module_reset();
+    // type |= NETCONN_CELLULAR;
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
@@ -335,11 +319,6 @@ void user_main(void)
 #endif
 
     PR_DEBUG("tuya_iot_init success");
-
-    ret = board_register_hardware();
-    if (ret != OPRT_OK) {
-        PR_ERR("board_register_hardware failed");
-    }
 
     ret = app_pocket_init();
     if (ret != OPRT_OK) {

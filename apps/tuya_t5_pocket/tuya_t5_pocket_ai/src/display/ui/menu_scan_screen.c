@@ -26,8 +26,13 @@
 #include "ebook_screen.h"
 #include "temp_humidity_screen.h"
 #include "ai_log_screen.h"
-#include "lbb_screen.h"
+#include "photo_screen.h"
 #include <stdio.h>
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ***********************variable define**********************
@@ -52,13 +57,13 @@ Screen_t menu_scan_screen = {
 ***********************************************************/
 
 // External screen declarations
-extern Screen_t wifi_scan_screen;
-extern Screen_t i2c_scan_screen;
-extern Screen_t dino_game_screen;
-extern Screen_t snake_game_screen;
-extern Screen_t level_indicator_screen;
-extern Screen_t temp_humidity_screen;
-extern Screen_t lbb_screen;
+// extern Screen_t wifi_scan_screen;
+// extern Screen_t i2c_scan_screen;
+// extern Screen_t dino_game_screen;
+// extern Screen_t snake_game_screen;
+// extern Screen_t level_indicator_screen;
+// extern Screen_t temp_humidity_screen;
+// extern Screen_t photo_screen;
 
 static void menu_scan_screen_timer_cb(lv_timer_t *timer);
 static void keyboard_event_cb(lv_event_t *e);
@@ -197,9 +202,9 @@ static void handle_scan_selection(void)
         printf("Camera selected\n");
         screen_load(&ai_log_screen);
         break;
-    case 8: // LBB
-        printf("LBB selected\n");
-        screen_load(&lbb_screen);
+    case 8: // PHOTO
+        printf("PHOTO selected\n");
+        screen_load(&photo_screen);
         break;
     default:
         printf("Unknown scan option selected\n");
@@ -222,7 +227,7 @@ void menu_scan_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_menu_scan_screen);
     lv_label_set_text(title, "Device Scan & Games");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
     // List for scan menu items
@@ -236,15 +241,53 @@ void menu_scan_screen_init(void)
     lv_obj_set_style_border_width(scan_menu_list, 2, 0);
 
     // Add scan menu items
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_WIFI, "WiFi scan demo");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_SETTINGS, "I2C device scan demo");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_PLAY, "Dino Game");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_WARNING, "Temperature & Humidity");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_CALL, "AI Log Analyzer");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_IMAGE, "LBB");
+    lv_obj_t *btn;
+    lv_obj_t *label;
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_WIFI, "WiFi scan demo");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_SETTINGS, "I2C device scan demo");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_PLAY, "Dino Game");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_WARNING, "Temperature & Humidity");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_CALL, "AI Log Analyzer");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_IMAGE, "PHOTO");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
 
     selected_item = last_selected_item;
     uint32_t child_count = lv_obj_get_child_cnt(scan_menu_list);

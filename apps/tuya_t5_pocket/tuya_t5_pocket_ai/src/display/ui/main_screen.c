@@ -31,6 +31,7 @@
 #include "ebook_screen.h"
 #include "rfid_scan_screen.h"
 #include "camera_screen.h"
+#include "game_pet.h"
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -126,6 +127,12 @@ LV_IMG_DECLARE(battery_charging_icon);
 #define UI_UPDATE_INTERVAL      100
 #define STANDBY_TIME            30 // Seconds of inactivity before standby
 #define PET_NAME_KV_KEY         "pet_name"
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -619,7 +626,7 @@ static lv_obj_t *simple_status_bar_create(lv_obj_t *parent)
 
     // Battery info label (voltage and percentage)
     battery_label = lv_label_create(status_bar);
-    lv_obj_set_style_text_font(battery_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(battery_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(battery_label, lv_color_black(), 0);
     lv_obj_align(battery_label, LV_ALIGN_RIGHT_MID, -35, 0);
     // lv_label_set_text(battery_label, "4.2V 100%");
@@ -904,80 +911,10 @@ static void switch_pet_animation(lv_obj_t *target_image)
 
     // Update current normal image pointer
     current_normal_image = target_image;
+
+    // Play sound effect for normal state animation switch
+    // game_pet_play_alert(PET_ALERT_SHORT_SELECT_TONE);
 }
-
-/**
- * @brief Switch to a special state animation (sleep, dance, eat, bath, toilet, sick, happy, angry, cry)
- * @param target_special_image The target special animation image object to show
- */
-// static void switch_to_special_animation(lv_obj_t* target_special_image)
-// {
-//     if (target_special_image == NULL) {
-//         return;
-//     }
-
-//     // Check if GIF objects are valid before operating on them
-//     if (pet_image_walk == NULL || pet_image_sleep == NULL ||
-//         pet_image_dance == NULL || pet_image_eat == NULL) {
-//         printf("[%s] Warning: GIF objects not initialized, cannot switch to special animation\n", main_screen.name);
-//         return;
-//     }
-
-//     // Hide all normal state animations
-//     lv_obj_add_flag(pet_image_walk, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_walk_left, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_blink, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_stand, LV_OBJ_FLAG_HIDDEN);
-
-//     // Hide all special state animations
-//     lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
-
-//     // Show the target special animation
-//     lv_obj_clear_flag(target_special_image, LV_OBJ_FLAG_HIDDEN);
-
-//     // Update special image pointer
-//     current_special_image = target_special_image;
-// }
-
-/**
- * @brief Switch from special state back to normal state animation
- */
-// static void switch_to_normal_animation(void)
-// {
-//     // Check if GIF objects are valid before operating on them
-//     if (pet_image_sleep == NULL || pet_image_dance == NULL || pet_image_eat == NULL) {
-//         printf("[%s] Warning: GIF objects not initialized, cannot switch to normal animation\n", main_screen.name);
-//         return;
-//     }
-
-//     // Hide all special state animations
-//     lv_obj_add_flag(pet_image_sleep, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_dance, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_eat, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_bath, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_toilet, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_sick, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_happy, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_angry, LV_OBJ_FLAG_HIDDEN);
-//     lv_obj_add_flag(pet_image_cry, LV_OBJ_FLAG_HIDDEN);
-
-//     // Show current normal animation (previously active before special state)
-//     if (current_normal_image != NULL) {
-//         lv_obj_clear_flag(current_normal_image, LV_OBJ_FLAG_HIDDEN);
-//     }
-
-//     // Clear special image pointer and update state
-//     current_special_image = NULL;
-//     current_animation_state = AI_PET_STATE_NORMAL;
-// }
 
 // Menu system integration functions
 static void update_menu_button_selection(uint8_t old_selection, uint8_t new_selection)
@@ -1120,6 +1057,40 @@ void main_screen_set_pet_animation_state(ai_pet_state_t state)
 
     printf("[%s] Pet animation state changing: %d -> %d\n", main_screen.name, current_animation_state, state);
 
+    // Play sound effect based on pet state
+    switch (state) {
+    case AI_PET_STATE_SLEEP:
+        game_pet_play_alert(PET_ALERT_CANCEL_FAIL_TRI_TONE);
+        break;
+    case AI_PET_STATE_DANCE:
+        game_pet_play_alert(PET_ALERT_CANCEL_FAIL_TRI_TONE);
+        break;
+    case AI_PET_STATE_EAT:
+        game_pet_play_alert(PET_ALERT_SHORT_SELECT_TONE);
+        break;
+    case AI_PET_STATE_BATH:
+        game_pet_play_alert(PET_ALERT_FAIL_CANCEL_BI_TONE);
+        break;
+    case AI_PET_STATE_TOILET:
+        game_pet_play_alert(PET_ALERT_FAIL_CANCEL_BI_TONE);
+        break;
+    case AI_PET_STATE_SICK:
+        game_pet_play_alert(PET_ALERT_LOADING_TONE);
+        break;
+    case AI_PET_STATE_HAPPY:
+        game_pet_play_alert(PET_ALERT_SHORT_SELECT_TONE);
+        break;
+    case AI_PET_STATE_ANGRY:
+        game_pet_play_alert(PET_ALERT_THREE_STAGE_UP_TONE);
+        break;
+    case AI_PET_STATE_CRY:
+        game_pet_play_alert(PET_ALERT_THREE_STAGE_UP_TONE);
+        break;
+    default:
+        // No sound for AI_PET_STATE_NORMAL
+        break;
+    }
+
     // Simply update the state variable - timer will handle GIF switching
     current_animation_state = state;
 }
@@ -1255,20 +1226,24 @@ static void ui_update_timer_cb(lv_timer_t *timer)
     if (current_battery_level > 6)
         current_battery_level = 6;
 
-    // Update label
+    // Update label using snprintf
     if (battery_label) {
-        lv_label_set_text_fmt(battery_label, "%dmV  %d%%", voltage_mv, battery_percent);
+        char battery_text[16];
+        snprintf(battery_text, sizeof(battery_text), "%.1fV %d%%", ((float)voltage_mv) / 1000.0f, battery_percent);
+        lv_label_set_text(battery_label, battery_text);
     }
 #else
     // PC simulator mode - update label based on current state
     if (battery_label) {
+        char battery_text[20];
         int demo_percent = current_battery_level * 100 / 7;
         float demo_voltage = 3.0f + (current_battery_level * 1.2f / 6);
         if (current_battery_charging) {
-            lv_label_set_text_fmt(battery_label, "%.1fV %d%% CHG", demo_voltage, demo_percent);
+            snprintf(battery_text, sizeof(battery_text), "%.1fV %d%% CHG", demo_voltage, demo_percent);
         } else {
-            lv_label_set_text_fmt(battery_label, "%.1fV %d%%", demo_voltage, demo_percent);
+            snprintf(battery_text, sizeof(battery_text), "%.1fV %d%%", demo_voltage, demo_percent);
         }
+        lv_label_set_text(battery_label, battery_text);
     }
 #endif
     if (battery_icon) {

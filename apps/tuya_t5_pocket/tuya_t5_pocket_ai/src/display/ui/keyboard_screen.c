@@ -23,11 +23,16 @@
 ***********************************************************/
 
 #define KEYBOARD_MAX_TEXT_LENGTH 15
-#define KEYBOARD_ROWS 4
-#define KEYBOARD_COLS 10
-#define KEY_WIDTH 34
-#define KEY_HEIGHT 25
-#define KEY_SPACING 2
+#define KEYBOARD_ROWS            4
+#define KEYBOARD_COLS            10
+#define KEY_WIDTH                34
+#define KEY_HEIGHT               25
+#define KEY_SPACING              2
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 // Screen dimensions
 #define SCREEN_WIDTH  384
@@ -101,13 +106,13 @@ static void create_text_area(void)
     text_label = lv_label_create(text_area);
     lv_obj_align(text_label, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_style_text_color(text_label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(text_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(text_label, SCREEN_CONTENT_FONT, 0);
 
     // Character count label
     char_count_label = lv_label_create(text_area);
     lv_obj_align(char_count_label, LV_ALIGN_RIGHT_MID, -5, 0);
     lv_obj_set_style_text_color(char_count_label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(char_count_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(char_count_label, SCREEN_CONTENT_FONT, 0);
 
     update_text_display();
 }
@@ -126,12 +131,10 @@ static void create_keyboard_layout(void)
     lv_obj_set_style_pad_all(keyboard_container, 2, 0);
 
     // Define keyboard layout
-    const char *keyboard_layout[KEYBOARD_ROWS][KEYBOARD_COLS] = {
-        {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"},
-        {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p"},
-        {"a", "s", "d", "f", "g", "h", "j", "k", "l", "<-"},
-        {"z", "x", "c", "v", "b", "n", "m", " ", "OK", "ESC"}
-    };
+    const char *keyboard_layout[KEYBOARD_ROWS][KEYBOARD_COLS] = {{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0"},
+                                                                 {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p"},
+                                                                 {"a", "s", "d", "f", "g", "h", "j", "k", "l", "<-"},
+                                                                 {"z", "x", "c", "v", "b", "n", "m", " ", "OK", "ESC"}};
 
     // Create keys
     for (int row = 0; row < KEYBOARD_ROWS; row++) {
@@ -150,8 +153,8 @@ static void create_keyboard_layout(void)
             lv_obj_set_style_border_width(keys[row][col], 1, 0);
             lv_obj_set_style_border_color(keys[row][col], lv_color_black(), 0);
             lv_obj_set_style_radius(keys[row][col], 3, 0);
-            lv_obj_set_style_text_color(keys[row][col], lv_color_black(), 0);
-            lv_obj_set_style_text_font(keys[row][col], &lv_font_montserrat_14, 0);
+            lv_obj_set_style_text_color(keys[row][col], lv_color_white(), 0);
+            lv_obj_set_style_text_font(keys[row][col], SCREEN_CONTENT_FONT, 0);
 
             // Create label for key
             lv_obj_t *label = lv_label_create(keys[row][col]);
@@ -197,10 +200,13 @@ static void update_selection_highlight(void)
 
     // Highlight selected key
     if (keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col]) {
-        lv_obj_set_style_bg_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], lv_color_black(), 0);
-        lv_obj_set_style_border_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], lv_color_black(), 0);
+        lv_obj_set_style_bg_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], lv_color_black(),
+                                  0);
+        lv_obj_set_style_border_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col],
+                                      lv_color_black(), 0);
         lv_obj_set_style_border_width(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], 2, 0);
-        lv_obj_set_style_text_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], lv_color_white(), 0);
+        lv_obj_set_style_text_color(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col],
+                                    lv_color_white(), 0);
     }
 }
 
@@ -224,7 +230,7 @@ static void handle_key_press(const char *key_text)
         void *user_data = g_keyboard_state.user_data;
         char text_copy[KEYBOARD_MAX_TEXT_LENGTH + 1];
         strncpy(text_copy, g_keyboard_state.current_text, sizeof(text_copy));
-        text_copy[KEYBOARD_MAX_TEXT_LENGTH] = '\0';  // Ensure null termination
+        text_copy[KEYBOARD_MAX_TEXT_LENGTH] = '\0'; // Ensure null termination
 
         printf("Executing callback with text: '%s'\n", text_copy);
         // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
@@ -302,56 +308,56 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", keyboard_screen.name, key);
 
     switch (key) {
-        case KEY_UP:
-            if (g_keyboard_state.selected_row > 0) {
-                g_keyboard_state.selected_row--;
-                update_selection_highlight();
-            }
-            break;
-        case KEY_DOWN:
-            if (g_keyboard_state.selected_row < KEYBOARD_ROWS - 1) {
-                g_keyboard_state.selected_row++;
-                update_selection_highlight();
-            }
-            break;
-        case KEY_LEFT:
-            if (g_keyboard_state.selected_col > 0) {
-                g_keyboard_state.selected_col--;
-                update_selection_highlight();
-            }
-            break;
-        case KEY_RIGHT:
-            if (g_keyboard_state.selected_col < KEYBOARD_COLS - 1) {
-                g_keyboard_state.selected_col++;
-                update_selection_highlight();
-            }
-            break;
-        case KEY_ENTER:
-            // Activate the selected key
-            if (keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col]) {
-                lv_obj_t *label = lv_obj_get_child(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], 0);
-                const char *key_text = lv_label_get_text(label);
-                handle_key_press(key_text);
-            }
-            break;
-        case KEY_ESC:
-            // Cancel input
-            // Store callback and data before screen_back() to avoid issues
-            {
-                keyboard_callback_t callback = g_keyboard_state.callback;
-                void *user_data = g_keyboard_state.user_data;
+    case KEY_UP:
+        if (g_keyboard_state.selected_row > 0) {
+            g_keyboard_state.selected_row--;
+            update_selection_highlight();
+        }
+        break;
+    case KEY_DOWN:
+        if (g_keyboard_state.selected_row < KEYBOARD_ROWS - 1) {
+            g_keyboard_state.selected_row++;
+            update_selection_highlight();
+        }
+        break;
+    case KEY_LEFT:
+        if (g_keyboard_state.selected_col > 0) {
+            g_keyboard_state.selected_col--;
+            update_selection_highlight();
+        }
+        break;
+    case KEY_RIGHT:
+        if (g_keyboard_state.selected_col < KEYBOARD_COLS - 1) {
+            g_keyboard_state.selected_col++;
+            update_selection_highlight();
+        }
+        break;
+    case KEY_ENTER:
+        // Activate the selected key
+        if (keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col]) {
+            lv_obj_t *label = lv_obj_get_child(keys[g_keyboard_state.selected_row][g_keyboard_state.selected_col], 0);
+            const char *key_text = lv_label_get_text(label);
+            handle_key_press(key_text);
+        }
+        break;
+    case KEY_ESC:
+        // Cancel input
+        // Store callback and data before screen_back() to avoid issues
+        {
+            keyboard_callback_t callback = g_keyboard_state.callback;
+            void *user_data = g_keyboard_state.user_data;
 
-                // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
-                if (callback) {
-                    callback(NULL, user_data);
-                }
-
-                // Return to previous screen after callback execution
-                screen_back();
+            // Execute callback BEFORE calling screen_back to avoid deinit clearing the callback
+            if (callback) {
+                callback(NULL, user_data);
             }
-            break;
-        default:
-            break;
+
+            // Return to previous screen after callback execution
+            screen_back();
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -362,7 +368,7 @@ void keyboard_screen_show_with_callback(const char *initial_text, keyboard_callb
 {
     printf("keyboard_screen_show_with_callback called\n");
     printf("  initial_text: '%s'\n", initial_text ? initial_text : "NULL");
-    printf("  callback: %p\n", (void*)callback);
+    printf("  callback: %p\n", (void *)callback);
 
     // Store callback and user data
     g_keyboard_state.callback = callback;
@@ -371,14 +377,15 @@ void keyboard_screen_show_with_callback(const char *initial_text, keyboard_callb
     // Initialize text
     if (initial_text) {
         strncpy(g_keyboard_state.current_text, initial_text, KEYBOARD_MAX_TEXT_LENGTH);
-        g_keyboard_state.current_text[KEYBOARD_MAX_TEXT_LENGTH] = '\0';  // Ensure null termination
+        g_keyboard_state.current_text[KEYBOARD_MAX_TEXT_LENGTH] = '\0'; // Ensure null termination
         g_keyboard_state.text_length = strlen(g_keyboard_state.current_text);
     } else {
         memset(g_keyboard_state.current_text, 0, sizeof(g_keyboard_state.current_text));
         g_keyboard_state.text_length = 0;
     }
 
-    printf("  current_text after init: '%s' (length: %d)\n", g_keyboard_state.current_text, g_keyboard_state.text_length);
+    printf("  current_text after init: '%s' (length: %d)\n", g_keyboard_state.current_text,
+           g_keyboard_state.text_length);
 
     // Load the screen
     screen_load(&keyboard_screen);

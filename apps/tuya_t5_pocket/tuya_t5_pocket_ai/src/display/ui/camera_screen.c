@@ -28,7 +28,7 @@
 ***********************************************************/
 #define CAMERA_WIDTH  240
 #define CAMERA_HEIGHT 240 // Camera captures 240x240
-#define CAMERA_FPS    15
+#define CAMERA_FPS    20
 
 #define CAMERA_AREA_WIDTH  240                                 // Left side for camera (240 pixels wide)
 #define CAMERA_AREA_HEIGHT 168                                 // Display area height (crop from 240)
@@ -48,6 +48,11 @@
 #ifndef DISPLAY_NAME
 #define DISPLAY_NAME "display"
 #endif
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ***********************typedef define***********************
@@ -99,12 +104,18 @@ static volatile uint8_t read_buffer_index = 0;  // Buffer being read for display
 static MUTEX_HANDLE sg_buffer_mutex = NULL;     // Mutex to protect buffer access
 
 static BINARY_CONFIG_T sg_binary_config = {
-    .method = BINARY_METHOD_FIXED,
+    .method = BINARY_METHOD_FLOYD_STEINBERG,
     .fixed_threshold = 128,
 };
 
 // Calculated threshold for adaptive and otsu methods
 static uint8_t sg_calculated_threshold = 128;
+
+// Lifecycle callback
+static camera_screen_lifecycle_cb_t sg_lifecycle_callback = NULL;
+
+// Photo print callback
+static camera_photo_print_cb_t sg_print_callback = NULL;
 #endif
 
 Screen_t camera_screen = {
@@ -125,9 +136,30 @@ static OPERATE_RET camera_start(void);
 static void camera_stop(void);
 static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
                                         int dst_width, int dst_height, BINARY_CONFIG_T *config);
+
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+
+/**
+ * @brief Register lifecycle callback for camera screen
+ * @param callback Callback function, NULL to unregister
+ */
+void camera_screen_register_lifecycle_cb(camera_screen_lifecycle_cb_t callback)
+{
+    sg_lifecycle_callback = callback;
+    printf("[Camera] Lifecycle callback %s\n", callback ? "registered" : "unregistered");
+}
+
+/**
+ * @brief Register photo print callback for camera screen
+ * @param callback Callback function, NULL to unregister
+ */
+void camera_screen_register_print_cb(camera_photo_print_cb_t callback)
+{
+    sg_print_callback = callback;
+    printf("[Camera] Print callback %s\n", callback ? "registered" : "unregistered");
+}
 
 /**
  * @brief Get method name string
@@ -866,36 +898,6 @@ static int yuv422_to_binary_with_config(uint8_t *yuv422_data, int src_width, int
         return -1;
     }
 
-    // Special handling for Bayer dithering modes
-    // if (config->method == BINARY_METHOD_BAYER8_DITHER) {
-    //     sg_calculated_threshold = 0;
-    //     return yuv422_to_bayer8_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    // }
-
-    // if (config->method == BINARY_METHOD_BAYER4_DITHER) {
-    //     sg_calculated_threshold = 0;
-    //     return yuv422_to_bayer4_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    // }
-
-    // if (config->method == BINARY_METHOD_BAYER16_DITHER) {
-    //     sg_calculated_threshold = 0;
-    //     return yuv422_to_bayer16_dither_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    // }
-
-    // // Error diffusion algorithms
-    // if (config->method == BINARY_METHOD_FLOYD_STEINBERG) {
-    //     return yuv422_to_floyd_steinberg_crop(yuv422_data, src_width, src_height, binary_data, dst_width,
-    //     dst_height);
-    // }
-
-    // if (config->method == BINARY_METHOD_STUCKI) {
-    //     return yuv422_to_stucki_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    // }
-
-    // if (config->method == BINARY_METHOD_JARVIS) {
-    //     return yuv422_to_jarvis_crop(yuv422_data, src_width, src_height, binary_data, dst_width, dst_height);
-    // }
-
     switch (config->method) {
     case BINARY_METHOD_FIXED:
         sg_calculated_threshold = config->fixed_threshold;
@@ -1104,6 +1106,9 @@ static void camera_stop(void)
 static void keyboard_event_cb(lv_event_t *e)
 {
     uint32_t key = lv_event_get_key(e);
+#ifdef ENABLE_LVGL_HARDWARE
+    OPERATE_RET rt;
+#endif
     printf("[%s] Key pressed: %d\n", camera_screen.name, key);
 
     switch (key) {
@@ -1157,11 +1162,49 @@ static void keyboard_event_cb(lv_event_t *e)
 
     case KEY_ENTER:
 #ifdef ENABLE_LVGL_HARDWARE
-        // Toggle camera on/off
         if (camera_running) {
-            camera_stop();
+            // Camera is running: stop and print
+            if (canvas_buffer && sg_print_callback) {
+                printf("ENTER pressed: Stopping camera and printing photo\n");
+
+                // Stop camera first
+                camera_stop();
+
+                // Clear frame_ready flag to prevent timer from updating canvas during print
+                tal_mutex_lock(sg_buffer_mutex);
+                frame_ready = false;
+                tal_mutex_unlock(sg_buffer_mutex);
+
+                // Wait to ensure no pending updates
+                tal_system_sleep(100);
+
+                // Copy canvas_buffer to protect data during async print operation
+                uint32_t canvas_buf_size = ((CAMERA_AREA_WIDTH + 7) / 8) * CAMERA_AREA_HEIGHT + 8;
+                uint8_t *photo_snapshot = (uint8_t *)tal_psram_malloc(canvas_buf_size);
+                if (photo_snapshot) {
+                    memcpy(photo_snapshot, canvas_buffer, canvas_buf_size);
+                    printf("Photo snapshot created, size=%d bytes\n", canvas_buf_size);
+
+                    // Call print callback with snapshot
+                    sg_print_callback(photo_snapshot, CAMERA_AREA_WIDTH, CAMERA_AREA_HEIGHT);
+
+                    // Free snapshot after print completes (print is synchronous)
+                    tal_psram_free(photo_snapshot);
+                    printf("Photo snapshot freed\n");
+                } else {
+                    printf("Failed to allocate photo snapshot, printing from canvas directly (may have artifacts)\n");
+                    sg_print_callback(canvas_buffer, CAMERA_AREA_WIDTH, CAMERA_AREA_HEIGHT);
+                }
+            } else {
+                printf("ENTER key pressed but canvas or callback not ready\n");
+            }
         } else {
-            camera_start();
+            // Camera is stopped: restart
+            printf("ENTER pressed: Restarting camera\n");
+            rt = camera_start();
+            if (rt != OPRT_OK) {
+                printf("Failed to restart camera: %d\n", rt);
+            }
         }
 #endif
         break;
@@ -1243,18 +1286,21 @@ void camera_screen_init(void)
     lv_obj_set_pos(method_label, 10, 10);
     lv_obj_set_width(method_label, INFO_AREA_WIDTH - 20);
     lv_obj_set_style_text_color(method_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(method_label, SCREEN_CONTENT_FONT, 0);
 
     // Threshold label
     threshold_label = lv_label_create(info_panel);
     lv_obj_set_pos(threshold_label, 10, 60);
     lv_obj_set_width(threshold_label, INFO_AREA_WIDTH - 20);
     lv_obj_set_style_text_color(threshold_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(threshold_label, SCREEN_CONTENT_FONT, 0);
 
     // Status label
     status_label = lv_label_create(info_panel);
     lv_obj_set_pos(status_label, 10, 110);
     lv_obj_set_width(status_label, INFO_AREA_WIDTH - 20);
     lv_obj_set_style_text_color(status_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(status_label, SCREEN_CONTENT_FONT, 0);
 
 #ifdef ENABLE_LVGL_HARDWARE
     // Initialize camera hardware
@@ -1276,6 +1322,11 @@ void camera_screen_init(void)
     lv_group_focus_obj(ui_camera_screen);
 
     printf("[%s] Camera screen initialized\n", camera_screen.name);
+
+    // Notify lifecycle callback
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(TRUE);
+    }
 }
 
 /**
@@ -1284,6 +1335,11 @@ void camera_screen_init(void)
 void camera_screen_deinit(void)
 {
     printf("[%s] Deinitializing camera screen\n", camera_screen.name);
+
+    // Notify lifecycle callback
+    if (sg_lifecycle_callback) {
+        sg_lifecycle_callback(FALSE);
+    }
 
     // Delete timer
     if (update_timer) {

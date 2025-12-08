@@ -135,18 +135,18 @@ OPERATE_RET board_axp2101_init(void)
     axp2101_setPowerKeyPressOnTime(XPOWERS_POWERON_128MS);
     axp2101_setPowerKeyPressOffTime(XPOWERS_POWEROFF_4S);
 
-    // /*4G module RST init*/
-    // TUYA_GPIO_BASE_CFG_T pin_cfg = {
-    //     .mode = TUYA_GPIO_PUSH_PULL, .direct = TUYA_GPIO_OUTPUT, .level = TUYA_GPIO_LEVEL_HIGH};
-    // TUYA_CALL_ERR_LOG(tkl_gpio_init(RST_4G_MODULE_CTRL, &pin_cfg));
-    // ENABLE_4G_MODULE_RST(1);
+    /*4G module RST init*/
+    TUYA_GPIO_BASE_CFG_T pin_cfg = {
+        .mode = TUYA_GPIO_PUSH_PULL, .direct = TUYA_GPIO_OUTPUT, .level = TUYA_GPIO_LEVEL_HIGH};
+    TUYA_CALL_ERR_LOG(tkl_gpio_init(RST_4G_MODULE_CTRL, &pin_cfg));
+    ENABLE_4G_MODULE_RST(1);
 
-    // /*4G module pwr on/off init*/
-    // pin_cfg.mode = TUYA_GPIO_PUSH_PULL;
-    // pin_cfg.direct = TUYA_GPIO_OUTPUT;
-    // pin_cfg.level = TUYA_GPIO_LEVEL_LOW;
-    // TUYA_CALL_ERR_LOG(tkl_gpio_init(SIM_VDD_4G_MODULE_CTRL, &pin_cfg));
-    // ENABLE_SIM_VDD(1);
+    /*4G module pwr on/off init*/
+    pin_cfg.mode = TUYA_GPIO_PUSH_PULL;
+    pin_cfg.direct = TUYA_GPIO_OUTPUT;
+    pin_cfg.level = TUYA_GPIO_LEVEL_LOW;
+    TUYA_CALL_ERR_LOG(tkl_gpio_init(SIM_VDD_4G_MODULE_CTRL, &pin_cfg));
+    ENABLE_SIM_VDD(1);
 
     // release i2c source
     // axp2101_deinit();

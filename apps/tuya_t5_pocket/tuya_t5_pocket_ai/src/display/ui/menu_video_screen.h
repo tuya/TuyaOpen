@@ -13,7 +13,7 @@ extern "C" {
 #include "screen_manager.h"
 
 typedef enum {
-    VIDEO_ACTION_PLAY_VIDEO,
+    VIDEO_ACTION_OPEN_CAMERA,
     VIDEO_ACTION_TAKE_PHOTO,
     VIDEO_ACTION_RECORD_VIDEO,
     VIDEO_ACTION_VIEW_GALLERY,

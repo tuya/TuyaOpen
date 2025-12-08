@@ -21,21 +21,22 @@
 #include "dp48a_printer.h"
 #include "ai_log_screen.h"
 #include "rfid_scan_screen.h"
+#include "camera_screen.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
 #define USR_UART_NUM      TUYA_UART_NUM_2
 #define READ_BUFFER_SIZE  1024
-#define UTF8_RINGBUF_SIZE 1024  /* Ring buffer size */
+#define UTF8_RINGBUF_SIZE 1024 /* Ring buffer size */
 
 #define RFID_SCAN_BAUDRATE 115200
-#define RFID_SCAN_FREQ     100      /* in ms */
+#define RFID_SCAN_FREQ     100 /* in ms */
 #define AI_LOG_BAUDRATE    460800
-#define AI_LOG_FREQ        50       /* in ms */
+#define AI_LOG_FREQ        50 /* in ms */
 #define PRINTER_BAUDRATE   9600
-#define PRINTER_FREQ       50       /* in ms */
+#define PRINTER_FREQ       50 /* in ms */
 
-#define MODE_SWITCH_TIMEOUT 200     /* Mode switch timeout in ms */
+#define MODE_SWITCH_TIMEOUT 200 /* Mode switch timeout in ms */
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -84,6 +85,9 @@ static void __rfid_scan_data_callback(uint8_t dev_id, RFID_TAG_TYPE_E tag_type, 
 static OPERATE_RET __uart_reinit_with_baudrate(uint32_t baudrate);
 static void __ai_log_screen_lifecycle_handler(BOOL_T is_init);
 static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, size_t len);
+static void __camera_screen_lifecycle_handler(BOOL_T is_init);
+static void __camera_photo_print_handler(const uint8_t *photo_data, int width, int height);
+static void convert_lvgl_to_printer_bitmap(const uint8_t *lvgl_data, int width, int height, uint8_t *out_printer_data);
 
 /***********************************************************
 ***********************function define**********************
@@ -98,10 +102,10 @@ static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, s
     if (mode != UART_MODE_AI_LOG || !data || len == 0) {
         return;
     }
-    
+
     // Send data to display manager
     app_display_send_msg(POCKET_DISP_TP_AI_LOG, (uint8_t *)data, len);
-    
+
     // Upload to AI text agent if not streaming
     if (app_get_text_stream_status() == FALSE) {
         ai_text_agent_upload((uint8_t *)data, len);
@@ -111,23 +115,23 @@ static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, s
 /**
  * @brief AI log screen lifecycle handler
  * Called when AI log screen is initialized or deinitialized
- * 
+ *
  * @param is_init TRUE for init, FALSE for deinit
  */
 static void __ai_log_screen_lifecycle_handler(BOOL_T is_init)
 {
     OPERATE_RET rt;
-    
+
     if (is_init) {
         PR_DEBUG("[UART] AI log screen initialized, switching to AI log mode");
-        
+
         // Register AI log data callback
         rt = uart_expand_register_callback(UART_MODE_AI_LOG, __ai_log_uart_data_callback);
         if (rt != OPRT_OK) {
             PR_ERR("Failed to register AI log callback: %d", rt);
             return;
         }
-        
+
         // Switch to AI log mode
         rt = uart_expand_switch_mode(UART_MODE_AI_LOG);
         if (rt != OPRT_OK) {
@@ -135,16 +139,113 @@ static void __ai_log_screen_lifecycle_handler(BOOL_T is_init)
         }
     } else {
         PR_DEBUG("[UART] AI log screen deinitialized, switching back to RFID mode");
-        
+
         // Unregister callback
         uart_expand_register_callback(UART_MODE_AI_LOG, NULL);
-        
+
         // Switch back to RFID scan mode
         rt = uart_expand_switch_mode(UART_MODE_RFID_SCAN);
         if (rt != OPRT_OK) {
             PR_ERR("Failed to switch back to RFID scan mode: %d", rt);
         }
     }
+}
+
+/**
+ * @brief Camera screen lifecycle handler
+ * @param is_init TRUE for init, FALSE for deinit
+ */
+static void __camera_screen_lifecycle_handler(BOOL_T is_init)
+{
+    if (is_init) {
+        PR_DEBUG("[UART] Camera screen initialized, registering print callback");
+        camera_screen_register_print_cb(__camera_photo_print_handler);
+    } else {
+        PR_DEBUG("[UART] Camera screen deinitialized, unregistering print callback");
+        camera_screen_register_print_cb(NULL);
+    }
+}
+
+/**
+ * @brief Camera photo print handler
+ * Called when ENTER key is pressed with current photo data
+ * @param photo_data LVGL I1 format image data (8-byte palette + bitmap)
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ */
+static void __camera_photo_print_handler(const uint8_t *photo_data, int width, int height)
+{
+    if (!photo_data || width <= 0 || height <= 0) {
+        PR_ERR("Invalid photo data");
+        return;
+    }
+
+    PR_NOTICE("=== Starting camera photo print: %dx%d ===", width, height);
+
+    // Allocate buffer for printer format bitmap
+    int bitmap_size = (width + 7) / 8 * height;
+    PR_DEBUG("Bitmap size: %d bytes", bitmap_size);
+
+    uint8_t *printer_bitmap = (uint8_t *)tal_psram_malloc(bitmap_size);
+    if (!printer_bitmap) {
+        PR_ERR("Failed to allocate printer bitmap buffer");
+        return;
+    }
+
+    // Convert LVGL I1 format to printer format
+    PR_DEBUG("Converting LVGL I1 to printer format...");
+    convert_lvgl_to_printer_bitmap(photo_data, width, height, printer_bitmap);
+
+    // Debug: print first few bytes
+    PR_DEBUG("First 8 bytes - LVGL: %02X %02X %02X %02X %02X %02X %02X %02X", photo_data[8], photo_data[9],
+             photo_data[10], photo_data[11], photo_data[12], photo_data[13], photo_data[14], photo_data[15]);
+    PR_DEBUG("First 8 bytes - Printer: %02X %02X %02X %02X %02X %02X %02X %02X", printer_bitmap[0], printer_bitmap[1],
+             printer_bitmap[2], printer_bitmap[3], printer_bitmap[4], printer_bitmap[5], printer_bitmap[6],
+             printer_bitmap[7]);
+
+    // Save current UART mode
+    UART_MODE_E saved_mode;
+    tal_mutex_lock(sg_mode_mutex);
+    saved_mode = sg_current_mode;
+    PR_DEBUG("Current UART mode: %d", saved_mode);
+
+    // Switch to printer baudrate
+    PR_DEBUG("Switching to printer baudrate %d...", PRINTER_BAUDRATE);
+    if (__uart_reinit_with_baudrate(PRINTER_BAUDRATE) != OPRT_OK) {
+        PR_ERR("Failed to switch to printer baudrate");
+        tal_mutex_unlock(sg_mode_mutex);
+        tal_psram_free(printer_bitmap);
+        return;
+    }
+    tal_mutex_unlock(sg_mode_mutex);
+
+    // Small delay for baudrate stabilization
+    tal_system_sleep(50);
+
+    // Print photo
+    PR_DEBUG("Sending data to printer...");
+    dp48a_set_align(DP48A_ALIGN_CENTER);
+    dp48a_print_line("--- Camera Photo ---");
+    dp48a_feed_lines(1);
+    dp48a_print_bitmap(width, height, printer_bitmap);
+
+    // Wait for print to complete before freeing buffer
+    PR_DEBUG("Waiting for print to complete...");
+    tal_system_sleep(200);
+    dp48a_feed_lines(3);
+    tal_system_sleep(100);
+
+    // Free buffer
+    tal_psram_free(printer_bitmap);
+    PR_DEBUG("Printer bitmap buffer freed");
+
+    // Restore UART baudrate
+    PR_DEBUG("Restoring UART mode %d with baudrate %d...", saved_mode, sg_mode_configs[saved_mode].baudrate);
+    tal_mutex_lock(sg_mode_mutex);
+    __uart_reinit_with_baudrate(sg_mode_configs[saved_mode].baudrate);
+    tal_mutex_unlock(sg_mode_mutex);
+
+    PR_NOTICE("=== Photo print completed ===");
 }
 
 OPERATE_RET uart_expand_switch_mode(UART_MODE_E mode)
@@ -164,17 +265,17 @@ OPERATE_RET uart_expand_switch_mode(UART_MODE_E mode)
     sg_target_mode = mode;
     sg_mode_switch_request = TRUE;
     tal_mutex_unlock(sg_mode_mutex);
-    
+
     // Wait for mode switch to complete
     for (uint32_t timeout = 0; sg_mode_switch_request && timeout < MODE_SWITCH_TIMEOUT; timeout += 10) {
         tal_system_sleep(10);
     }
-    
+
     if (sg_mode_switch_request) {
         PR_ERR("Mode switch timeout");
         return OPRT_COM_ERROR;
     }
-    
+
     return OPRT_OK;
 }
 
@@ -196,7 +297,7 @@ OPERATE_RET uart_expand_register_callback(UART_MODE_E mode, uart_data_callback_t
     tal_mutex_lock(sg_mode_mutex);
     sg_mode_configs[mode].callback = callback;
     tal_mutex_unlock(sg_mode_mutex);
-    
+
     return OPRT_OK;
 }
 
@@ -204,24 +305,22 @@ static OPERATE_RET __uart_reinit_with_baudrate(uint32_t baudrate)
 {
     tal_uart_deinit(USR_UART_NUM);
     tal_system_sleep(5);
-    
+
     TAL_UART_CFG_T cfg = {
-        .base_cfg = {
-            .baudrate = baudrate,
-            .databits = TUYA_UART_DATA_LEN_8BIT,
-            .stopbits = TUYA_UART_STOP_LEN_1BIT,
-            .parity = TUYA_UART_PARITY_TYPE_NONE
-        },
+        .base_cfg = {.baudrate = baudrate,
+                     .databits = TUYA_UART_DATA_LEN_8BIT,
+                     .stopbits = TUYA_UART_STOP_LEN_1BIT,
+                     .parity = TUYA_UART_PARITY_TYPE_NONE},
         .rx_buffer_size = 2048,
-        .open_mode = 0  // Non-blocking mode
+        .open_mode = 0 // Non-blocking mode
     };
-    
+
     OPERATE_RET rt = tal_uart_init(USR_UART_NUM, &cfg);
     if (rt != OPRT_OK) {
         PR_ERR("UART reinit failed with baudrate %d, error: %d", baudrate, rt);
         return rt;
     }
-    
+
     tal_system_sleep(5);
     sg_current_baudrate = baudrate;
     return OPRT_OK;
@@ -252,14 +351,14 @@ static void __uart_worker_thread(void *param)
         BOOL_T need_switch = sg_mode_switch_request;
         UART_MODE_E new_mode = sg_target_mode;
         tal_mutex_unlock(sg_mode_mutex);
-        
+
         if (need_switch) {
             uint32_t new_baudrate = sg_mode_configs[new_mode].baudrate;
-            
+
             if (__uart_reinit_with_baudrate(new_baudrate) != OPRT_OK) {
                 PR_ERR("Worker UART reinit failed!");
             }
-            
+
             tal_mutex_lock(sg_mode_mutex);
             sg_current_mode = new_mode;
             sg_mode_switch_request = FALSE;
@@ -268,26 +367,26 @@ static void __uart_worker_thread(void *param)
 
         // Read UART data
         int read_len = tal_uart_read(USR_UART_NUM, sg_read_buffer, READ_BUFFER_SIZE);
-        
+
         if (read_len > 0) {
             sg_read_buffer[read_len] = '\0';
-            
+
             tal_mutex_lock(sg_mode_mutex);
             UART_MODE_E current_mode = sg_current_mode;
             tal_mutex_unlock(sg_mode_mutex);
-            
+
             uint32_t sleep_time = RFID_SCAN_FREQ;
             switch (current_mode) {
-                case UART_MODE_RFID_SCAN:
-                    __process_rfid_scan_data(sg_read_buffer, read_len);
-                    break;
-                case UART_MODE_AI_LOG:
-                    __process_ai_log_data(sg_read_buffer, read_len);
-                    sleep_time = AI_LOG_FREQ;
-                    break;
-                default:
-                    PR_WARN("Unknown mode %d", current_mode);
-                    break;
+            case UART_MODE_RFID_SCAN:
+                __process_rfid_scan_data(sg_read_buffer, read_len);
+                break;
+            case UART_MODE_AI_LOG:
+                __process_ai_log_data(sg_read_buffer, read_len);
+                sleep_time = AI_LOG_FREQ;
+                break;
+            default:
+                PR_WARN("Unknown mode %d", current_mode);
+                break;
             }
             tal_system_sleep(sleep_time);
         } else {
@@ -305,6 +404,33 @@ uint32_t uart_print_write(const uint8_t *data, size_t len)
     return tuya_ring_buff_write(sg_print_ringbuf, data, len);
 }
 
+/**
+ * @brief Convert LVGL I1 format to printer bitmap format
+ * Both formats use MSB first (bit7=pixel0, bit6=pixel1, ..., bit0=pixel7)
+ * LVGL I1: palette (8 bytes) + bitmap (bit=0->black, bit=1->white)
+ * Printer: bitmap (bit=1->black/print, bit=0->white/no-print)
+ * Need to invert bit values only (black<->white)
+ * @param lvgl_data LVGL I1 format data (with 8-byte palette)
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ * @param out_printer_data Output buffer for printer format (must be pre-allocated)
+ */
+static void convert_lvgl_to_printer_bitmap(const uint8_t *lvgl_data, int width, int height, uint8_t *out_printer_data)
+{
+    // Skip 8-byte palette, get actual bitmap data
+    const uint8_t *bitmap = lvgl_data + 8;
+    int bytes_per_row = (width + 7) / 8;
+    int total_bytes = bytes_per_row * height;
+
+    // Both LVGL and printer use MSB first, just invert bit values
+    // LVGL: bit=0->black, bit=1->white
+    // Printer: bit=1->black, bit=0->white
+    // Solution: simply invert all bits (NOT operation)
+    for (int i = 0; i < total_bytes; i++) {
+        out_printer_data[i] = ~bitmap[i];
+    }
+}
+
 static void __rfid_scan_data_callback(uint8_t dev_id, RFID_TAG_TYPE_E tag_type, const uint8_t *uid, uint8_t uid_len)
 {
     rfid_scan_screen_data_update(dev_id, tag_type, uid, uid_len);
@@ -317,19 +443,19 @@ void __printer_scan_thread(void *param)
     uint8_t gbk_buf[4];
     BOOL_T is_printing = FALSE;
     UART_MODE_E saved_mode = UART_MODE_RFID_SCAN;
-    
+
     dp48a_init();
     PR_NOTICE("Printer scan thread started");
-    
+
     while (printer_scan_running) {
         if (!sg_print_ringbuf) {
             PR_ERR("Printer ringbuf is NULL");
             tal_system_sleep(100);
             continue;
         }
-        
+
         uint32_t available = tuya_ring_buff_used_size_get(sg_print_ringbuf);
-        
+
         if (available == 0) {
             if (is_printing) {
                 // Stream ended, restore baudrate
@@ -338,45 +464,45 @@ void __printer_scan_thread(void *param)
                     dp48a_feed_lines(2);
                     tal_system_sleep(RFID_SCAN_FREQ);
                 }
-                
+
                 tal_mutex_lock(sg_mode_mutex);
                 __uart_reinit_with_baudrate(sg_mode_configs[saved_mode].baudrate);
                 sg_target_mode = saved_mode;
                 sg_mode_switch_request = TRUE;
                 tal_mutex_unlock(sg_mode_mutex);
-                
+
                 is_printing = FALSE;
             }
             tal_system_sleep(100);
             continue;
         }
-        
+
         // Data available, switch to printer baudrate if needed
         if (!is_printing) {
             tal_mutex_lock(sg_mode_mutex);
             saved_mode = sg_current_mode;
             __uart_reinit_with_baudrate(PRINTER_BAUDRATE);
             tal_mutex_unlock(sg_mode_mutex);
-            
+
             dp48a_set_align(DP48A_ALIGN_LEFT);
             is_printing = TRUE;
         }
-        
+
         // Read and process UTF8 character
         uint8_t first_byte;
         if (tuya_ring_buff_read(sg_print_ringbuf, &first_byte, 1) != 1) {
             tal_system_sleep(10);
             continue;
         }
-        
+
         uint8_t char_len = utf8_full_char_len(first_byte);
         if (char_len == 0) {
             PR_WARN("Invalid UTF8 first byte: 0x%02X", first_byte);
             continue;
         }
-        
+
         utf8_buf[0] = first_byte;
-        
+
         // Wait for remaining bytes if multi-byte character
         if (char_len > 1) {
             uint32_t retry = 0;
@@ -384,26 +510,26 @@ void __printer_scan_thread(void *param)
                 tal_system_sleep(10);
                 retry++;
             }
-            
+
             if (tuya_ring_buff_used_size_get(sg_print_ringbuf) < (char_len - 1) ||
                 tuya_ring_buff_read(sg_print_ringbuf, &utf8_buf[1], char_len - 1) != (char_len - 1)) {
                 // Incomplete data, print placeholder
-                uint8_t placeholder = 0x3F;  // '?'
+                uint8_t placeholder = 0x3F; // '?'
                 dp48a_print_text_raw(&placeholder, 1);
                 tal_system_sleep(5);
                 continue;
             }
         }
-        
+
         // Convert UTF8 to GBK and print
         int gbk_len = utf8_to_gbk_buf(utf8_buf, char_len, gbk_buf, sizeof(gbk_buf));
         uint8_t *print_data = (gbk_len > 0) ? gbk_buf : (uint8_t[]){0x3F};
         int print_len = (gbk_len > 0) ? gbk_len : 1;
-        
+
         dp48a_print_text_raw(print_data, print_len);
         tal_system_sleep(5);
     }
-    
+
     PR_NOTICE("Printer scan thread stopped");
 }
 
@@ -456,7 +582,8 @@ OPERATE_RET uart_expand_init(void)
     // Start printer scan thread (always running in background)
     printer_scan_running = TRUE;
     THREAD_CFG_T thrd_param_printer = {4096, 4, "printer_scan_thread"};
-    rt = tal_thread_create_and_start(&printer_scan_thread, NULL, NULL, __printer_scan_thread, NULL, &thrd_param_printer);
+    rt =
+        tal_thread_create_and_start(&printer_scan_thread, NULL, NULL, __printer_scan_thread, NULL, &thrd_param_printer);
     if (rt != OPRT_OK) {
         PR_ERR("Failed to create printer scan thread: %d", rt);
         printer_scan_running = FALSE;
@@ -470,6 +597,9 @@ OPERATE_RET uart_expand_init(void)
 
     // Register AI log screen lifecycle callback
     ai_log_screen_register_lifecycle_cb(__ai_log_screen_lifecycle_handler);
+
+    // Register camera screen lifecycle callback
+    camera_screen_register_lifecycle_cb(__camera_screen_lifecycle_handler);
 
     PR_NOTICE("UART expansion initialized with unified worker thread");
     return OPRT_OK;

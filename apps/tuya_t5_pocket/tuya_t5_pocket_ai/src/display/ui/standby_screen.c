@@ -26,15 +26,18 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define ROTATION_DURATION 2000  // Animation duration in milliseconds
-#define LETTER_SPACING 8        // Spacing between letters
+#define ROTATION_DURATION 2000 // Animation duration in milliseconds
+#define LETTER_SPACING    8    // Spacing between letters
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT &lv_font_montserrat_48
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 
 static lv_obj_t *ui_standby_screen;
-static lv_obj_t *letter_labels[8];  // "TuyaOpen" has 8 letters
+static lv_obj_t *letter_labels[8]; // "TuyaOpen" has 8 letters
 static lv_anim_t rotation_anims[8];
 static int16_t rotation_angles[8] = {0};
 static const char *text = "TuyaOpen";
@@ -72,27 +75,27 @@ static void keyboard_event_cb(lv_event_t *e)
     screen_back();
 
     switch (key) {
-        case KEY_UP:
-            printf("UP key pressed\n");
-            break;
-        case KEY_DOWN:
-            printf("DOWN key pressed\n");
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
-        case KEY_ENTER:
-            printf("ENTER key pressed\n");
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - going back\n");
-            break;
-        default:
-            printf("Unknown key pressed\n");
-            break;
+    case KEY_UP:
+        printf("UP key pressed\n");
+        break;
+    case KEY_DOWN:
+        printf("DOWN key pressed\n");
+        break;
+    case KEY_LEFT:
+        printf("LEFT key pressed\n");
+        break;
+    case KEY_RIGHT:
+        printf("RIGHT key pressed\n");
+        break;
+    case KEY_ENTER:
+        printf("ENTER key pressed\n");
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed - going back\n");
+        break;
+    default:
+        printf("Unknown key pressed\n");
+        break;
     }
 }
 
@@ -111,7 +114,8 @@ static void rotation_anim_cb(void *var, int32_t value)
     rotation_angles[index] = value;
 
     lv_obj_t *label = letter_labels[index];
-    if (!label) return;
+    if (!label)
+        return;
 
     // Convert angle to radians
     float angle_rad = (value % 360) * M_PI / 180.0f;
@@ -123,7 +127,8 @@ static void rotation_anim_cb(void *var, int32_t value)
     float scale_x = fabsf(cos_val);
 
     // Minimum scale to prevent complete disappearance
-    if (scale_x < 0.1f) scale_x = 0.1f;
+    if (scale_x < 0.1f)
+        scale_x = 0.1f;
 
     // Apply horizontal scaling to simulate 3D rotation
     lv_obj_set_style_transform_pivot_x(label, lv_obj_get_width(label) / 2, 0);
@@ -164,10 +169,8 @@ static void create_letter_label(int index, char letter, lv_coord_t x_offset)
     lv_obj_align(letter_labels[index], LV_ALIGN_CENTER, x_offset, 0);
 
     // Enable transform for this object
-    lv_obj_set_style_transform_pivot_x(letter_labels[index],
-                                       lv_obj_get_width(letter_labels[index]) / 2, 0);
-    lv_obj_set_style_transform_pivot_y(letter_labels[index],
-                                       lv_obj_get_height(letter_labels[index]) / 2, 0);
+    lv_obj_set_style_transform_pivot_x(letter_labels[index], lv_obj_get_width(letter_labels[index]) / 2, 0);
+    lv_obj_set_style_transform_pivot_y(letter_labels[index], lv_obj_get_height(letter_labels[index]) / 2, 0);
 }
 
 /**
@@ -190,7 +193,7 @@ void standby_screen_init(void)
 
     // Calculate total width of text
     int text_len = strlen(text);
-    lv_coord_t letter_width = 20;  // Approximate width per letter
+    lv_coord_t letter_width = 20; // Approximate width per letter
     lv_coord_t total_width = text_len * (letter_width + LETTER_SPACING);
     lv_coord_t start_x = -total_width / 2 + letter_width / 2;
 
@@ -207,13 +210,13 @@ void standby_screen_init(void)
         lv_anim_set_exec_cb(&rotation_anims[i], rotation_anim_cb);
         lv_anim_set_duration(&rotation_anims[i], ROTATION_DURATION);
         lv_anim_set_repeat_count(&rotation_anims[i], LV_ANIM_REPEAT_INFINITE);
-        
+
         // Distribute 8 letters across 180° range with 22.5° spacing (reversed order)
         // Letter 0: 157.5°, Letter 1: 135°, Letter 2: 112.5°, ..., Letter 7: 0°
-        int32_t start_angle = (text_len - 1 - i) * 22;  // Reverse order: 7*22, 6*22, ..., 0*22
+        int32_t start_angle = (text_len - 1 - i) * 22; // Reverse order: 7*22, 6*22, ..., 0*22
         int32_t end_angle = start_angle + 360;
         lv_anim_set_values(&rotation_anims[i], start_angle, end_angle);
-        
+
         // Use linear path for smooth continuous rotation
         lv_anim_set_path_cb(&rotation_anims[i], lv_anim_path_linear);
 

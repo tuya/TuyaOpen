@@ -26,10 +26,40 @@ extern "C" {
 
 #include "screen_manager.h"
 
+/**
+ * @brief Camera screen lifecycle callback type
+ * Called when screen is initialized or deinitialized
+ *
+ * @param is_init TRUE for init, FALSE for deinit
+ */
+typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
+
+/**
+ * @brief Camera photo print callback type
+ * Called when ENTER key is pressed to print current photo
+ * @param photo_data LVGL I1 format image data (palette + bitmap)
+ * @param width Image width in pixels
+ * @param height Image height in pixels
+ */
+typedef void (*camera_photo_print_cb_t)(const uint8_t *photo_data, int width, int height);
+
 extern Screen_t camera_screen;
 
 void camera_screen_init(void);
 void camera_screen_deinit(void);
+
+/**
+ * @brief Register lifecycle callback for camera screen
+ * @param callback Callback function, NULL to unregister
+ */
+void camera_screen_register_lifecycle_cb(camera_screen_lifecycle_cb_t callback);
+
+/**
+ * @brief Register photo print callback for camera screen
+ * Called when ENTER key is pressed with current photo data
+ * @param callback Callback function, NULL to unregister
+ */
+void camera_screen_register_print_cb(camera_photo_print_cb_t callback);
 
 #ifdef __cplusplus
 } /*extern "C"*/
