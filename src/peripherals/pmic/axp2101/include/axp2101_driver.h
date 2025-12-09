@@ -432,7 +432,7 @@ int axp2101_getBatteryPercent(void);
 // VBUS/USB control functions
 uint16_t axp2101_getVbusVoltage(void);
 void axp2101_setPrechargeCurr(xpowers_prechg_t opt);
-void tal_axp2101_setChargerTerminationCurr(xpowers_axp2101_chg_iterm_t opt);
+void axp2101_setChargerTerminationCurr(xpowers_axp2101_chg_iterm_t opt);
 
 bool axp2101_setVbusCurrentLimit(xpower_apx2101_vbus_vol_limit_t opt);
 uint8_t axp2101_getVbusCurrentLimit(void);
@@ -485,6 +485,9 @@ bool axp2101_enableTSPinMeasure(void);
 bool axp2101_disableTSPinMeasure(void);
 
 // LED indicator light control functions
+void axp2101_enableChargingLed(void);
+void axp2101_disableChargingLed(void);
+uint8_t axp2101_getChargingLedMode(void);
 void axp2101_setChargingLedMode(xpowers_chg_led_mode_t mode);
 
 // PEKEY setting functions

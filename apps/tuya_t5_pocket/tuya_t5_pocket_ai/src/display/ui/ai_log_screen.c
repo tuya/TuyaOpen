@@ -28,6 +28,11 @@
 ************************macro define************************
 ***********************************************************/
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 // Screen dimensions
 #ifndef AI_PET_SCREEN_WIDTH
 #define AI_PET_SCREEN_WIDTH 384
@@ -331,7 +336,7 @@ void ai_log_screen_init(void)
     title_label = lv_label_create(ui_ai_log_screen);
     lv_label_set_text(title_label, "AI Analysis Log");
     lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 5);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title_label, lv_color_black(), 0);
 
     // Create text area container (black border box)
@@ -349,7 +354,7 @@ void ai_log_screen_init(void)
     log_text_area = lv_label_create(log_container);
     lv_label_set_text(log_text_area, "");
     lv_obj_set_width(log_text_area, AI_PET_SCREEN_WIDTH - 30);
-    lv_obj_set_style_text_font(log_text_area, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(log_text_area, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(log_text_area, lv_color_black(), 0);
     lv_label_set_long_mode(log_text_area, LV_LABEL_LONG_WRAP);
     lv_obj_align(log_text_area, LV_ALIGN_TOP_LEFT, 0, 0);

@@ -38,72 +38,74 @@
 ************************macro define************************
 ***********************************************************/
 
-#define EBOOK_MAX_CONTENT_SIZE  (512 * 1024)  /**< Maximum content size (512KB) */
-#define EBOOK_LINES_PER_SCREEN  12           /**< Number of visible lines per screen for better readability */
-#define EBOOK_CHARS_PER_LINE    80           /**< Maximum characters per line for better screen utilization */
-#define BOOK_SCAN_INTERVAL      3000        /**< Book scanning interval in milliseconds (3 seconds) */
+#define EBOOK_MAX_CONTENT_SIZE (512 * 1024) /**< Maximum content size (512KB) */
+#define EBOOK_LINES_PER_SCREEN 12           /**< Number of visible lines per screen for better readability */
+#define EBOOK_CHARS_PER_LINE   80           /**< Maximum characters per line for better screen utilization */
+#define BOOK_SCAN_INTERVAL     3000         /**< Book scanning interval in milliseconds (3 seconds) */
 
 /* UI Layout Configuration */
-#define SHELF_CONTAINER_PAD     5            /**< Shelf container padding */
-#define SHELF_TITLE_Y_OFFSET    5            /**< Title label Y offset from top */
-#define SHELF_LIST_MARGIN       10           /**< Shelf list horizontal margin */
-#define SHELF_LIST_HEIGHT       60           /**< Height reserved for title and instructions */
-#define SHELF_LIST_Y_OFFSET     30           /**< Shelf list Y offset from top */
-#define SHELF_INSTR_Y_OFFSET    (-5)         /**< Instructions label Y offset from bottom */
+#define SHELF_CONTAINER_PAD  5    /**< Shelf container padding */
+#define SHELF_TITLE_Y_OFFSET 5    /**< Title label Y offset from top */
+#define SHELF_LIST_MARGIN    10   /**< Shelf list horizontal margin */
+#define SHELF_LIST_HEIGHT    60   /**< Height reserved for title and instructions */
+#define SHELF_LIST_Y_OFFSET  30   /**< Shelf list Y offset from top */
+#define SHELF_INSTR_Y_OFFSET (-5) /**< Instructions label Y offset from bottom */
 
-#define READING_CONTAINER_PAD   3            /**< Reading container padding */
-#define READING_TITLE_HEIGHT    18           /**< Book title label height */
-#define READING_TITLE_Y_OFFSET  2            /**< Book title Y offset from top */
-/* #define READING_BATTERY_WIDTH   55 */           /**< Battery indicator width */
-#define READING_BATTERY_HEIGHT  18           /**< Battery indicator height */
-#define READING_BATTERY_MARGIN  3            /**< Battery indicator right margin */ */
-#define READING_TITLE_MARGIN    70           /**< Title label margin (for battery space) */
+#define READING_CONTAINER_PAD  3         /**< Reading container padding */
+#define READING_TITLE_HEIGHT   18        /**< Book title label height */
+#define READING_TITLE_Y_OFFSET 2         /**< Book title Y offset from top */
+/* #define READING_BATTERY_WIDTH   55 */ /**< Battery indicator width */
+#define READING_BATTERY_HEIGHT 18        /**< Battery indicator height */
+#define READING_BATTERY_MARGIN 3 /**< Battery indicator right margin */ * /
+#define READING_TITLE_MARGIN   70 /**< Title label margin (for battery space) */
 
-#define SCROLL_AREA_MARGIN      6            /**< Scroll area margin from container */
-#define SCROLL_AREA_TOP_OFFSET  22           /**< Scroll area top offset (title height + spacing) */
-#define SCROLL_AREA_PAD         4            /**< Scroll area internal padding */
-#define SCROLL_TEXT_LINE_SPACE  2            /**< Text line spacing in pixels */
+#define SCROLL_AREA_MARGIN     6  /**< Scroll area margin from container */
+#define SCROLL_AREA_TOP_OFFSET 22 /**< Scroll area top offset (title height + spacing) */
+#define SCROLL_AREA_PAD        4  /**< Scroll area internal padding */
+#define SCROLL_TEXT_LINE_SPACE 2  /**< Text line spacing in pixels */
 
-#define PAGE_INFO_HEIGHT        14           /**< Page info label height */
-#define PAGE_INFO_BOTTOM_OFFSET 15           /**< Page info Y offset from bottom */
-#define PAGE_INFO_MARGIN        16           /**< Page info horizontal margin */
-#define PAGE_INFO_X_OFFSET      8            /**< Page info X offset from left */
+#define PAGE_INFO_HEIGHT        14 /**< Page info label height */
+#define PAGE_INFO_BOTTOM_OFFSET 15 /**< Page info Y offset from bottom */
+#define PAGE_INFO_MARGIN        16 /**< Page info horizontal margin */
+#define PAGE_INFO_X_OFFSET      8  /**< Page info X offset from left */
 
 /* Color definitions */
-#define COLOR_GRAY_100          lv_color_make(100, 100, 100)  /**< Gray color for text */
-#define COLOR_GRAY_80           lv_color_make(80, 80, 80)     /**< Darker gray for page info */
-#define COLOR_GRAY_150          lv_color_make(150, 150, 150)  /**< Light gray for disabled text */
-#define COLOR_GRAY_240          lv_color_make(240, 240, 240)  /**< Very light gray for background */
-#define COLOR_BLUE_SELECT       lv_color_make(0, 100, 200)    /**< Blue color for selection */
+#define COLOR_GRAY_100    lv_color_make(100, 100, 100) /**< Gray color for text */
+#define COLOR_GRAY_80     lv_color_make(80, 80, 80)    /**< Darker gray for page info */
+#define COLOR_GRAY_150    lv_color_make(150, 150, 150) /**< Light gray for disabled text */
+#define COLOR_GRAY_240    lv_color_make(240, 240, 240) /**< Very light gray for background */
+#define COLOR_BLUE_SELECT lv_color_make(0, 100, 200)   /**< Blue color for selection */
 
 /* Battery simulation */
-/* #define BATTERY_INIT_LEVEL      85  */         /**< Initial battery level */
-#define BATTERY_UPDATE_COUNTER  50           /**< Update counter threshold */
-#define BATTERY_MIN_LEVEL       10           /**< Minimum battery level */
-#define BATTERY_MAX_LEVEL       100          /**< Maximum battery level */ */
+/* #define BATTERY_INIT_LEVEL      85  */ /**< Initial battery level */
+#define BATTERY_UPDATE_COUNTER 50         /**< Update counter threshold */
+#define BATTERY_MIN_LEVEL      10         /**< Minimum battery level */
+#define BATTERY_MAX_LEVEL      100 /**< Maximum battery level */ * /
 
 /* Timing configuration */
-#define PAGE_INFO_UPDATE_DELAY  100          /**< Delay before updating page info (ms) */
+#define PAGE_INFO_UPDATE_DELAY 100 /**< Delay before updating page info (ms) */
 
 /* Font configuration for ebook UI */
-#define EBOOK_UI_FONT           &lv_font_montserrat_14  /**< Font used for all ebook UI elements */
-#define EBOOK_PAGE_INFO_FONT    &lv_font_montserrat_12  /**< Font used for page info */
-#define EBOOK_TITLE_FONT        &lv_font_montserrat_16  /**< Font used for book title */
+#define EBOOK_UI_FONT        &lv_font_terminusTTF_Bold_16 /**< Font used for all ebook UI elements */
+#define EBOOK_PAGE_INFO_FONT &lv_font_terminusTTF_Bold_14 /**< Font used for page info */
+#define EBOOK_TITLE_FONT     &lv_font_terminusTTF_Bold_18 /**< Font used for book title */
 
 /* Page navigation configuration - calculated at runtime */
-#define CALCULATE_PAGE_SCROLL_LINES()  ((AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET - READING_CONTAINER_PAD) / (lv_font_get_line_height(EBOOK_UI_FONT) + SCROLL_TEXT_LINE_SPACE))  /**< Lines to scroll per page */
+#define CALCULATE_PAGE_SCROLL_LINES()                                                                                  \
+    ((AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET - READING_CONTAINER_PAD) /               \
+     (lv_font_get_line_height(EBOOK_UI_FONT) + SCROLL_TEXT_LINE_SPACE)) /**< Lines to scroll per page */
 
 #ifdef ENABLE_LVGL_HARDWARE
 /* SD card configuration for hardware platform */
-#define SDCARD_MOUNT_PATH      "/sdcard"     /**< SD card mount path */
-#define SDCARD_MOUNT_RETRY     3             /**< Number of mount retry attempts */
-#define SDCARD_MOUNT_DELAY     100          /**< Delay between mount attempts (ms) */
+#define SDCARD_MOUNT_PATH  "/sdcard" /**< SD card mount path */
+#define SDCARD_MOUNT_RETRY 3         /**< Number of mount retry attempts */
+#define SDCARD_MOUNT_DELAY 100       /**< Delay between mount attempts (ms) */
 
-#define EBOOK_TXT_DIR          SDCARD_MOUNT_PATH //"/sdcard/txt"  /**< Books directory on SD card for hardware platform */
-#define EBOOK_POSITIONS_FILE   "/sdcard/ebook_positions.txt"  /**< All positions save file on SD card */
+#define EBOOK_TXT_DIR        SDCARD_MOUNT_PATH //"/sdcard/txt"  /**< Books directory on SD card for hardware platform */
+#define EBOOK_POSITIONS_FILE "/sdcard/ebook_positions.txt" /**< All positions save file on SD card */
 #else
-#define EBOOK_TXT_DIR          "/home/share/samba/lv_port_pc_vscode/txt"  /**< Books directory for software platform */
-#define EBOOK_POSITIONS_FILE   "ebook_positions.txt"  /**< All positions save file for software platform */
+#define EBOOK_TXT_DIR        "/home/share/samba/lv_port_pc_vscode/txt" /**< Books directory for software platform */
+#define EBOOK_POSITIONS_FILE "ebook_positions.txt" /**< All positions save file for software platform */
 #endif
 /***********************************************************
 ***********************variable define**********************
@@ -117,7 +119,7 @@ static lv_obj_t *reading_text;
 static lv_obj_t *page_info_label;
 static lv_obj_t *book_title_label;
 /* static lv_obj_t *battery_label; */
-static lv_timer_t *book_scan_timer;  // Timer for periodic book scanning
+static lv_timer_t *book_scan_timer; // Timer for periodic book scanning
 static ebook_state_t ebook_state = {0};
 
 Screen_t ebook_screen = {
@@ -359,57 +361,57 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", ebook_screen.name, key);
 
     switch (key) {
-        case KEY_UP:
-            if (ebook_state.in_reading_mode) {
-                // Scroll up in reading mode
-                ebook_navigate_up();
-            } else {
-                // Navigate shelf up
-                ebook_navigate_up();
-            }
-            break;
+    case KEY_UP:
+        if (ebook_state.in_reading_mode) {
+            // Scroll up in reading mode
+            ebook_navigate_up();
+        } else {
+            // Navigate shelf up
+            ebook_navigate_up();
+        }
+        break;
 
-        case KEY_DOWN:
-            if (ebook_state.in_reading_mode) {
-                // Scroll down in reading mode
-                ebook_navigate_down();
-            } else {
-                // Navigate shelf down
-                ebook_navigate_down();
-            }
-            break;
+    case KEY_DOWN:
+        if (ebook_state.in_reading_mode) {
+            // Scroll down in reading mode
+            ebook_navigate_down();
+        } else {
+            // Navigate shelf down
+            ebook_navigate_down();
+        }
+        break;
 
-        case KEY_LEFT:
-            if (ebook_state.in_reading_mode) {
-                // Page up in reading mode
-                ebook_page_up();
-            } else {
-                // Navigate shelf up (same as KEY_UP)
-                ebook_navigate_up();
-            }
-            break;
+    case KEY_LEFT:
+        if (ebook_state.in_reading_mode) {
+            // Page up in reading mode
+            ebook_page_up();
+        } else {
+            // Navigate shelf up (same as KEY_UP)
+            ebook_navigate_up();
+        }
+        break;
 
-        case KEY_RIGHT:
-            if (ebook_state.in_reading_mode) {
-                // Page down in reading mode
-                ebook_page_down();
-            } else {
-                // Navigate shelf down (same as KEY_DOWN)
-                ebook_navigate_down();
-            }
-            break;
+    case KEY_RIGHT:
+        if (ebook_state.in_reading_mode) {
+            // Page down in reading mode
+            ebook_page_down();
+        } else {
+            // Navigate shelf down (same as KEY_DOWN)
+            ebook_navigate_down();
+        }
+        break;
 
-        case KEY_ENTER:
-            ebook_handle_select();
-            break;
+    case KEY_ENTER:
+        ebook_handle_select();
+        break;
 
-        case KEY_ESC:
-            ebook_handle_back();
-            break;
+    case KEY_ESC:
+        ebook_handle_back();
+        break;
 
-        default:
-            printf("Unknown key: %d\n", key);
-            break;
+    default:
+        printf("Unknown key: %d\n", key);
+        break;
     }
 }
 
@@ -469,8 +471,7 @@ static void book_scan_timer_cb(lv_timer_t *timer)
 
     // Remember currently selected book name
     if (current_selection >= 0 && current_selection < ebook_state.shelf.book_count) {
-        strncpy(current_book_name, ebook_state.shelf.books[current_selection].filename,
-                MAX_FILENAME_LEN - 1);
+        strncpy(current_book_name, ebook_state.shelf.books[current_selection].filename, MAX_FILENAME_LEN - 1);
     }
 
     // Perform new scan
@@ -504,8 +505,8 @@ static void book_scan_timer_cb(lv_timer_t *timer)
         // Refresh the shelf display
         ebook_update_shelf_display();
 
-        printf("Book scan completed: %d books found, selection: %d\n",
-               ebook_state.shelf.book_count, ebook_state.shelf.selected_book);
+        printf("Book scan completed: %d books found, selection: %d\n", ebook_state.shelf.book_count,
+               ebook_state.shelf.selected_book);
     } else {
         printf("No changes detected in book list\n");
     }
@@ -655,7 +656,8 @@ void ebook_calculate_pages(void)
         return;
     }
 
-    ebook_state.reading.total_pages = (ebook_state.reading.total_lines + EBOOK_LINES_PER_SCREEN - 1) / EBOOK_LINES_PER_SCREEN;
+    ebook_state.reading.total_pages =
+        (ebook_state.reading.total_lines + EBOOK_LINES_PER_SCREEN - 1) / EBOOK_LINES_PER_SCREEN;
     ebook_state.reading.current_page = (ebook_state.reading.current_line / EBOOK_LINES_PER_SCREEN) + 1;
 
     // Ensure current page is valid
@@ -773,8 +775,8 @@ bool ebook_load_file(const char *filename)
     // Calculate total lines (legacy support - will be updated accurately after text is set)
     calculate_lines();
 
-    printf("Loaded file: %s (%zu bytes, %d lines)\n",
-           filename, ebook_state.reading.content_size, ebook_state.reading.total_lines);
+    printf("Loaded file: %s (%zu bytes, %d lines)\n", filename, ebook_state.reading.content_size,
+           ebook_state.reading.total_lines);
 
     return true;
 }
@@ -812,11 +814,11 @@ static int calculate_total_lines(void)
     }
 
     /* 1. Get current label style, width, and text */
-    const lv_font_t * font = lv_obj_get_style_text_font(reading_text, LV_PART_MAIN);
+    const lv_font_t *font = lv_obj_get_style_text_font(reading_text, LV_PART_MAIN);
     int32_t letter_space = lv_obj_get_style_text_letter_space(reading_text, LV_PART_MAIN);
-    int32_t line_space   = lv_obj_get_style_text_line_space(reading_text, LV_PART_MAIN);
-    lv_coord_t max_w     = lv_obj_get_content_width(reading_text);   /* Drawable width excluding padding */
-    const char * txt       = lv_label_get_text(reading_text);
+    int32_t line_space = lv_obj_get_style_text_line_space(reading_text, LV_PART_MAIN);
+    lv_coord_t max_w = lv_obj_get_content_width(reading_text); /* Drawable width excluding padding */
+    const char *txt = lv_label_get_text(reading_text);
 
     /* 2. Use lv_txt_get_size to calculate how many pixels it would occupy with WRAP layout */
     lv_point_t size;
@@ -824,7 +826,7 @@ static int calculate_total_lines(void)
 
     /* 3. Calculate the number of lines */
     lv_coord_t line_height = lv_font_get_line_height(font) + line_space;
-    int lines = (size.y + line_space) / line_height;   /* +line_space to round up the last line */
+    int lines = (size.y + line_space) / line_height; /* +line_space to round up the last line */
 
     return lines;
 }
@@ -896,13 +898,12 @@ static void create_shelf_ui(void)
     lv_obj_t *title_label = lv_label_create(shelf_container);
     lv_label_set_text(title_label, "Book Shelf - Auto-Refresh ON");
     lv_obj_set_style_text_color(title_label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title_label, EBOOK_TITLE_FONT, 0);
     lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, SHELF_TITLE_Y_OFFSET);
 
     // Book list using lv_list for automatic scrolling
     shelf_list = lv_list_create(shelf_container);
-    lv_obj_set_size(shelf_list, AI_PET_SCREEN_WIDTH - SHELF_LIST_MARGIN,
-                    AI_PET_SCREEN_HEIGHT - SHELF_LIST_HEIGHT);
+    lv_obj_set_size(shelf_list, AI_PET_SCREEN_WIDTH - SHELF_LIST_MARGIN, AI_PET_SCREEN_HEIGHT - SHELF_LIST_HEIGHT);
     lv_obj_align(shelf_list, LV_ALIGN_TOP_MID, 0, SHELF_LIST_Y_OFFSET);
     lv_obj_set_style_bg_color(shelf_list, lv_color_white(), 0);
     lv_obj_set_style_border_width(shelf_list, 1, 0);
@@ -911,7 +912,7 @@ static void create_shelf_ui(void)
 
     // Instructions
     lv_obj_t *instr_label = lv_label_create(shelf_container);
-    lv_label_set_text(instr_label, LV_SYMBOL_UP LV_SYMBOL_DOWN " Navigate | " LV_SYMBOL_OK " Select | " LV_SYMBOL_CLOSE " Exit");
+    lv_label_set_text(instr_label, "UP/DOWN: Navigate | ENTER: Select | ESC: Exit");
     lv_obj_set_style_text_color(instr_label, COLOR_GRAY_100, 0);
     lv_obj_set_style_text_font(instr_label, EBOOK_UI_FONT, 0);
     lv_obj_align(instr_label, LV_ALIGN_BOTTOM_MID, 0, SHELF_INSTR_Y_OFFSET);
@@ -928,7 +929,7 @@ static void create_reading_ui(void)
     lv_obj_set_style_bg_color(reading_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(reading_container, 0, 0);
     lv_obj_set_style_pad_all(reading_container, READING_CONTAINER_PAD, 0);
-    lv_obj_clear_flag(reading_container, LV_OBJ_FLAG_SCROLLABLE);  // Container itself not scrollable
+    lv_obj_clear_flag(reading_container, LV_OBJ_FLAG_SCROLLABLE); // Container itself not scrollable
 
     // Book title at top center (fixed position)
     book_title_label = lv_label_create(reading_container);
@@ -954,19 +955,18 @@ static void create_reading_ui(void)
 
     // Scrollable text area in the middle
     lv_obj_t *scroll_area = lv_obj_create(reading_container);
-    int scroll_height = AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET -
-                        READING_CONTAINER_PAD;
+    int scroll_height = AI_PET_SCREEN_HEIGHT - SCROLL_AREA_TOP_OFFSET - PAGE_INFO_BOTTOM_OFFSET - READING_CONTAINER_PAD;
     lv_obj_set_size(scroll_area, AI_PET_SCREEN_WIDTH - SCROLL_AREA_MARGIN, scroll_height);
     lv_obj_set_pos(scroll_area, READING_CONTAINER_PAD, SCROLL_AREA_TOP_OFFSET);
     lv_obj_set_style_bg_color(scroll_area, lv_color_white(), 0);
     lv_obj_set_style_border_width(scroll_area, 0, 0);
     lv_obj_set_style_pad_all(scroll_area, SCROLL_AREA_PAD, 0);
     lv_obj_set_scrollbar_mode(scroll_area, LV_SCROLLBAR_MODE_AUTO);
-    lv_obj_set_scroll_dir(scroll_area, LV_DIR_VER);  // Only vertical scroll
+    lv_obj_set_scroll_dir(scroll_area, LV_DIR_VER); // Only vertical scroll
 
     // Text label inside scroll area - auto height
     reading_text = lv_label_create(scroll_area);
-    lv_obj_set_width(reading_text, lv_pct(100));  // Full width of parent
+    lv_obj_set_width(reading_text, lv_pct(100)); // Full width of parent
     lv_obj_set_style_text_color(reading_text, lv_color_black(), 0);
     lv_obj_set_style_text_font(reading_text, EBOOK_UI_FONT, 0);
     lv_label_set_long_mode(reading_text, LV_LABEL_LONG_WRAP);
@@ -1025,6 +1025,9 @@ void ebook_update_shelf_display(void)
 
     if (ebook_state.shelf.book_count == 0) {
         lv_obj_t *empty_btn = lv_list_add_btn(shelf_list, LV_SYMBOL_FILE, "No books found in txt directory");
+        lv_obj_t *empty_label = lv_obj_get_child(empty_btn, 1);
+        if (empty_label)
+            lv_obj_set_style_text_font(empty_label, EBOOK_UI_FONT, 0);
         lv_obj_set_style_text_color(empty_btn, COLOR_GRAY_150, 0);
         return;
     }
@@ -1037,7 +1040,9 @@ void ebook_update_shelf_display(void)
         lv_obj_t *book_btn = lv_list_add_btn(shelf_list, LV_SYMBOL_FILE, book->display_name);
 
         // Set font and basic styling
-        lv_obj_set_style_text_font(book_btn, EBOOK_UI_FONT, 0);
+        lv_obj_t *book_label = lv_obj_get_child(book_btn, 1);
+        if (book_label)
+            lv_obj_set_style_text_font(book_label, EBOOK_UI_FONT, 0);
 
         // Add book info (pages/size) on the right
         if (book->total_lines > 0) {
@@ -1055,8 +1060,8 @@ void ebook_update_shelf_display(void)
     // Apply selection highlighting
     ebook_update_shelf_selection();
 
-    printf("Shelf display updated: %d books, selected: %d\n",
-           ebook_state.shelf.book_count, ebook_state.shelf.selected_book);
+    printf("Shelf display updated: %d books, selected: %d\n", ebook_state.shelf.book_count,
+           ebook_state.shelf.selected_book);
 }
 
 /**
@@ -1065,7 +1070,8 @@ void ebook_update_shelf_display(void)
 static void ebook_update_shelf_selection(void)
 {
     uint32_t child_count = lv_obj_get_child_cnt(shelf_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     // Reset all items to default style
     for (uint32_t i = 0; i < child_count; i++) {
@@ -1118,7 +1124,8 @@ static void update_page_info_timer_cb(lv_timer_t *timer)
 
     // Calculate current line based on scroll position
     int current_line = scroll_y / line_height + 1; // +1 for 1-based indexing
-    if (current_line < 1) current_line = 1;
+    if (current_line < 1)
+        current_line = 1;
 
     // Ensure current line doesn't exceed total lines
     if (current_line > ebook_state.reading.total_lines) {
@@ -1133,10 +1140,8 @@ static void update_page_info_timer_cb(lv_timer_t *timer)
 
     // Update page info label
     char page_text[100];
-    snprintf(page_text, sizeof(page_text),
-            "Line %d/%d | Page %d/%d " LV_SYMBOL_LEFT LV_SYMBOL_RIGHT " Page " LV_SYMBOL_UP LV_SYMBOL_DOWN " Scroll " LV_SYMBOL_CLOSE " Back",
-            current_line, ebook_state.reading.total_lines,
-            ebook_state.reading.current_page, ebook_state.reading.total_pages);
+    snprintf(page_text, sizeof(page_text), "Line %d/%d | Page %d/%d | L/R:Page U/D:Scroll ESC:Back", current_line,
+             ebook_state.reading.total_lines, ebook_state.reading.current_page, ebook_state.reading.total_pages);
     lv_label_set_text(page_info_label, page_text);
 
     // Delete the timer after update (only if timer is not NULL)
@@ -1162,7 +1167,7 @@ void ebook_update_reading_display(void)
         lv_label_set_text(reading_text, "No content loaded");
         lv_label_set_text(book_title_label, "E-Book Reader");
         if (page_info_label) {
-            lv_label_set_text(page_info_label, LV_SYMBOL_CLOSE " Back to shelf");
+            lv_label_set_text(page_info_label, "ESC: Back to shelf");
         }
         return;
     }
@@ -1205,11 +1210,8 @@ void ebook_update_reading_display(void)
     // Update battery display
     /* update_battery_display(); */
 
-    printf("Display updated: %s (%zu bytes, line %d/%d)\n",
-           ebook_state.reading.current_book,
-           ebook_state.reading.content_size,
-           ebook_state.reading.current_line,
-           ebook_state.reading.total_lines);
+    printf("Display updated: %s (%zu bytes, line %d/%d)\n", ebook_state.reading.current_book,
+           ebook_state.reading.content_size, ebook_state.reading.current_line, ebook_state.reading.total_lines);
 }
 
 /**
@@ -1465,8 +1467,7 @@ int ebook_save_position(void)
             // Save to file
             save_book_position(i);
 
-            printf("Saved reading position: book=%s, line=%d\n",
-                   ebook_state.shelf.books[i].filename,
+            printf("Saved reading position: book=%s, line=%d\n", ebook_state.shelf.books[i].filename,
                    ebook_state.reading.current_line);
             return 0;
         }
