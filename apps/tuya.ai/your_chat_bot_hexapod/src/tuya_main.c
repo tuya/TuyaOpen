@@ -46,7 +46,7 @@
 #include "ai_audio.h"
 #include "reset_netcfg.h"
 #include "app_system_info.h"
-#include "hexapod_test.h"
+#include "uart_servo_ctrl.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
@@ -56,6 +56,8 @@ tuya_iot_client_t ai_client;
 #endif
 
 #define DPID_VOLUME 3
+#define DPID_MOVE_STATUS 8
+#define DPID_MOVE_STEP 101
 #define USR_UART_NUM      TUYA_UART_NUM_0
 
 static uint8_t _need_reset = 0;
@@ -93,6 +95,9 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
+    char move_statu=-1;
+    uint32_t step=1;
+
     for (index = 0; index < dpobj->dpscnt; index++) {
         dp_obj_t *dp = dpobj->dps + index;
         PR_DEBUG("idx:%d dpid:%d type:%d ts:%u", index, dp->id, dp->type, dp->time_stamp);
@@ -109,9 +114,22 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
 #endif
             break;
         }
+        case DPID_MOVE_STATUS: {
+            move_statu = dp->value.dp_value;
+            PR_DEBUG("move_statu:%d", move_statu);
+            break;
+        }
+        case DPID_MOVE_STEP: {
+            step = dp->value.dp_value;
+            PR_DEBUG("step:%d", step);
+            break;
+        }
         default:
             break;
         }
+    }
+    if(move_statu!=-1){
+        robot_walking_status_set(move_statu ,step);
     }
 
     return OPRT_OK;
@@ -355,10 +373,8 @@ void user_main(void)
 
     reset_netconfig_check();
 
-    test_servo_mapping();
-    test_bus_servo();
-    test_bus_leg();
-    test_movement();
+
+    servo_uart_init();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
