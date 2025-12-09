@@ -43,20 +43,17 @@ static void __handle_net_cfg(void *data, void *user_data)
         goto __exit;
     }
 
-    cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
-    cJSON *token_item = cJSON_GetObjectItem(json, "token");
-    if (!cJSON_IsString(ssid_item) || !cJSON_IsString(token_item)) {
+    if (cJSON_GetObjectItem(json, "ssid") == NULL || cJSON_GetObjectItem(json, "token") == NULL) {
         PR_ERR(" json get error.");
         result = (uint8_t)OPRT_CJSON_GET_ERR;
         goto __exit;
     }
 
-    char *ssid = ssid_item->valuestring;
-    char *token = token_item->valuestring;
+    char *ssid = cJSON_GetObjectItem(json, "ssid")->valuestring;
+    char *token = cJSON_GetObjectItem(json, "token")->valuestring;
     char *passwd = NULL;
-    cJSON *passwd_item = cJSON_GetObjectItem(json, "pwd");
-    if (passwd_item != NULL && cJSON_IsString(passwd_item)) {
-        passwd = passwd_item->valuestring;
+    if (cJSON_GetObjectItem(json, "pwd") != NULL) {
+        passwd = cJSON_GetObjectItem(json, "pwd")->valuestring;
     }
 
     if (NULL == passwd) {
@@ -66,40 +63,12 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
 
     PR_NOTICE("cfg ssid:%s, passwd:%s, token:%s", ssid, passwd, token);
-    memset(&g_bt_netcfg_handle.netcfg_info, 0, sizeof(g_bt_netcfg_handle.netcfg_info));
-
-    // Copy SSID
-    size_t s_len = strnlen(ssid, WIFI_SSID_LEN + 1);
-    if (s_len == 0 || s_len > WIFI_SSID_LEN) {
-        PR_ERR("ssid len invalid:%zu", s_len);
-        result = (uint8_t)OPRT_CJSON_GET_ERR;
-        goto __exit;
-    }
-    memcpy(g_bt_netcfg_handle.netcfg_info.ssid, ssid, s_len);
-    g_bt_netcfg_handle.netcfg_info.ssid[s_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.s_len = (uint8_t)s_len;
-
-    // Copy password
-    size_t p_len = strnlen(passwd, WIFI_PASSWD_LEN + 1);
-    if (p_len == 0 || p_len > WIFI_PASSWD_LEN) {
-        PR_ERR("passwd len invalid:%zu", p_len);
-        result = (uint8_t)OPRT_CJSON_GET_ERR;
-        goto __exit;
-    }
-    memcpy(g_bt_netcfg_handle.netcfg_info.passwd, passwd, p_len);
-    g_bt_netcfg_handle.netcfg_info.passwd[p_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.p_len = (uint8_t)p_len;
-
-    // Copy token
-    size_t t_len = strnlen(token, WL_TOKEN_LEN + 1);
-    if (t_len == 0 || t_len > WL_TOKEN_LEN) {
-        PR_ERR("token len invalid:%zu", t_len);
-        result = (uint8_t)OPRT_CJSON_GET_ERR;
-        goto __exit;
-    }
-    memcpy(g_bt_netcfg_handle.netcfg_info.token, token, t_len);
-    g_bt_netcfg_handle.netcfg_info.token[t_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.t_len = (uint8_t)t_len;
+    strncpy((char *)g_bt_netcfg_handle.netcfg_info.ssid, ssid, WIFI_SSID_LEN + 1);
+    g_bt_netcfg_handle.netcfg_info.s_len = strlen(ssid);
+    strncpy((char *)g_bt_netcfg_handle.netcfg_info.passwd, passwd, WIFI_PASSWD_LEN + 1);
+    g_bt_netcfg_handle.netcfg_info.p_len = strlen(passwd);
+    strncpy((char *)g_bt_netcfg_handle.netcfg_info.token, token, WL_TOKEN_LEN + 1);
+    g_bt_netcfg_handle.netcfg_info.t_len = strlen(token);
     g_bt_netcfg_handle.netcfg_finish_cb(NETCFG_TUYA_BLE, &g_bt_netcfg_handle.netcfg_info);
 
     cJSON *reg = cJSON_GetObjectItem(json, "reg");

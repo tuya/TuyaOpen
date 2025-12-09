@@ -26,7 +26,6 @@
  */
 
 #include <assert.h>
-#include <limits.h>
 #include <string.h>
 
 #include "core_http_client.h"
@@ -128,8 +127,6 @@ static char * httpHeaderStrncpy( char * pDest,
                                  const char * pSrc,
                                  size_t len,
                                  uint8_t isField );
-
-static int addSizeTNoOverflow( size_t a, size_t b, size_t * pResult );
 
 /**
  * @brief Write header based on parameters. This method also adds a trailing
@@ -1338,21 +1335,6 @@ static char * httpHeaderStrncpy( char * pDest,
 
 /*-----------------------------------------------------------*/
 
-static int addSizeTNoOverflow( size_t a, size_t b, size_t * pResult )
-{
-    assert( pResult != NULL );
-
-    if( a > ( SIZE_MAX - b ) )
-    {
-        return 0;
-    }
-
-    *pResult = a + b;
-    return 1;
-}
-
-/*-----------------------------------------------------------*/
-
 static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
                                const char * pField,
                                size_t fieldLen,
@@ -1362,8 +1344,6 @@ static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
     HTTPStatus_t returnStatus = HTTPSuccess;
     char * pBufferCur = NULL;
     size_t toAddLen = 0U;
-    size_t headerLineSepTotal = 0U;
-    size_t totalRequiredLen = 0U;
     size_t backtrackHeaderLen = 0U;
 
     assert( pRequestHeaders != NULL );
@@ -1387,41 +1367,14 @@ static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
         pBufferCur -= HTTP_HEADER_LINE_SEPARATOR_LEN;
     }
 
-    if( addSizeTNoOverflow( HTTP_HEADER_LINE_SEPARATOR_LEN,
-                            HTTP_HEADER_LINE_SEPARATOR_LEN,
-                            &headerLineSepTotal ) == 0 )
-    {
-        returnStatus = HTTPInsufficientMemory;
-    }
-
-    if( ( returnStatus == HTTPSuccess ) &&
-        ( addSizeTNoOverflow( fieldLen, HTTP_HEADER_FIELD_SEPARATOR_LEN, &toAddLen ) == 0 ) )
-    {
-        returnStatus = HTTPInsufficientMemory;
-    }
-
-    if( ( returnStatus == HTTPSuccess ) &&
-        ( addSizeTNoOverflow( toAddLen, valueLen, &toAddLen ) == 0 ) )
-    {
-        returnStatus = HTTPInsufficientMemory;
-    }
-
-    if( ( returnStatus == HTTPSuccess ) &&
-        ( addSizeTNoOverflow( toAddLen, headerLineSepTotal, &toAddLen ) == 0 ) )
-    {
-        returnStatus = HTTPInsufficientMemory;
-    }
-
-    if( ( returnStatus == HTTPSuccess ) &&
-        ( addSizeTNoOverflow( backtrackHeaderLen, toAddLen, &totalRequiredLen ) == 0 ) )
-    {
-        returnStatus = HTTPInsufficientMemory;
-    }
+    /* Check if there is enough space in buffer for additional header. */
+    toAddLen = fieldLen + HTTP_HEADER_FIELD_SEPARATOR_LEN + valueLen +
+               HTTP_HEADER_LINE_SEPARATOR_LEN +
+               HTTP_HEADER_LINE_SEPARATOR_LEN;
 
     /* If we have enough room for the new header line, then write it to the
      * header buffer. */
-    if( ( returnStatus == HTTPSuccess ) &&
-        ( totalRequiredLen <= pRequestHeaders->bufferLen ) )
+    if( ( backtrackHeaderLen + toAddLen ) <= pRequestHeaders->bufferLen )
     {
         /* Write "<Field>: <Value> \r\n" to the headers buffer. */
 
@@ -1459,7 +1412,7 @@ static HTTPStatus_t addHeader( HTTPRequestHeaders_t * pRequestHeaders,
                               HTTP_HEADER_END_INDICATOR_LEN );
 
             /* Update the headers length value only when everything is successful. */
-            pRequestHeaders->headersLen = totalRequiredLen;
+            pRequestHeaders->headersLen = backtrackHeaderLen + toAddLen;
         }
     }
     else
@@ -2944,38 +2897,10 @@ int32_t HTTPClient_Recv(const TransportInterface_t *pTransport,
                         size_t   dataLen)
 {
     int32_t currentReceived = 0;
-    size_t copyLen = 0U;
-
-    if( ( data == NULL ) || ( dataLen == 0U ) )
-    {
-        LogError( ( "Parameter check failed: data is NULL or dataLen is 0." ) );
-        return -( int32_t ) HTTPInvalidParameter;
-    }
 
     if (pResponse->pBody && pResponse->bodyLen) {
-        copyLen = ( pResponse->bodyLen < dataLen ) ? pResponse->bodyLen : dataLen;
-
-        if( copyLen > ( size_t ) INT32_MAX )
-        {
-            LogError( ( "Receive buffer length exceeds int32_t capacity: CopyLen=%lu",
-                        ( unsigned long ) copyLen ) );
-            return -( int32_t ) HTTPInsufficientMemory;
-        }
-
-        memcpy( data, pResponse->pBody, copyLen );
-        currentReceived = ( int32_t ) copyLen;
-
-        if( pResponse->bodyLen > copyLen )
-        {
-            size_t remainingLen = pResponse->bodyLen - copyLen;
-
-            ( void ) memmove( ( uint8_t * ) pResponse->pBody,
-                              pResponse->pBody + copyLen,
-                              remainingLen );
-            pResponse->bodyLen = remainingLen;
-            return currentReceived;
-        }
-
+        memcpy(data, pResponse->pBody, pResponse->bodyLen);
+        currentReceived = pResponse->bodyLen;
         HTTP_FREE(pResponse->pBody);
         pResponse->pBody = NULL;
         pResponse->bodyLen = 0;
