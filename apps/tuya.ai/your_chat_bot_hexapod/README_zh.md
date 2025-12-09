@@ -1,4 +1,4 @@
-[English](./README_hexapod_en.md) | 简体中文
+[English](./README.md) | 简体中文
 
 # AI 聊天六足机器人
 
