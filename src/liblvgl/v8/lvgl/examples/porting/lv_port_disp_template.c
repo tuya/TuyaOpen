@@ -17,7 +17,7 @@
 #include "tal_api.h"
 #include "tdl_display_manage.h"
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 #include "tkl_dma2d.h"
 #endif
 
@@ -53,7 +53,7 @@ static lv_color_format_t __disp_get_lv_color_format(TUYA_DISPLAY_PIXEL_FMT_E pix
 
 static uint8_t __disp_get_pixels_size_bytes(TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt);
 
-#if defined(ENABLE_LVGL_DMA2D) && (ENABLE_LVGL_DMA2D == 1)
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 static void __disp_dma2d_init(void);
 #endif
 
