@@ -1,0 +1,23 @@
+menu "App config BME280 I2C"
+
+    config CONFIG_BME280_I2C_SCL_PIN
+        int "scl pin"
+        default 9
+        range 0 63
+
+    config CONFIG_BME280_I2C_SDA_PIN
+        int "sda pin"
+        default 8
+        range 0 63
+
+    config CONFIG_BME280_I2C_BUS
+        int "i2c bus"
+        default 1
+        range 0 1
+        
+    config CONFIG_BME280_I2C_ADDR
+        hex "i2c addr"
+        default 0x76
+        range 0x76 0x77
+        
+endmenu
