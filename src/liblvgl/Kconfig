@@ -63,12 +63,7 @@ menuconfig ENABLE_LIBLVGL
             config ENABLE_LVGL_DUAL_DISP_BUFF
                 bool "enable lvgl dual display buffer"
                 default n
-
-            config ENABLE_LVGL_DMA2D
-                bool "enable lvgl DMA2D"
-                depends on ENABLE_DMA2D
-                default n 
-
+ 
             choice
                 prompt "the proportion of the draw buffer size"
 

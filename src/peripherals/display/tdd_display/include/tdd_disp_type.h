@@ -42,6 +42,8 @@ typedef struct {
 typedef struct {
     uint16_t width;
     uint16_t height;
+    uint8_t  x_offset;
+    uint8_t  y_offset;
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
     TUYA_GPIO_NUM_E cs_pin;
@@ -56,6 +58,8 @@ typedef struct {
 typedef struct {
     uint16_t width;
     uint16_t height;
+    uint8_t  x_offset;
+    uint8_t  y_offset;
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
     TUYA_GPIO_NUM_E rst_pin;
@@ -68,6 +72,8 @@ typedef struct {
 typedef struct {
     uint16_t width;
     uint16_t height;
+    uint8_t  x_offset;
+    uint8_t  y_offset;
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
     TUYA_GPIO_NUM_E te_pin;

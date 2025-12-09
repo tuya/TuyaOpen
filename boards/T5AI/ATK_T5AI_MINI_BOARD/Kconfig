@@ -21,14 +21,14 @@ choice ATK_T5AI_MINI_BOARD_EX_LCD_MODULE
     config ATK_T5AI_MINI_BOARD_LCD_MD0240_SPI
         bool "support 2.4 inch spi LCD module"
         select ENABLE_DISPLAY
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
+        select ENABLE_LVGL_V8_RGB565_SWAP if (LVGL_VERSION_8 && LVGL_V8_COLOR_DEPTH_16)
+        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 
     config ATK_T5AI_MINI_BOARD_LCD_MD0700R_RGB
         bool "support 7 inch rgb LCD module"
         select ENABLE_DISPLAY
         select ENABLE_TP
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 

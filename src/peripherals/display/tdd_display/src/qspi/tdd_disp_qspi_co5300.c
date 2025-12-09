@@ -1,7 +1,11 @@
 /**
  * @file tdd_disp_qspi_co5300.c
-
- * @version 0.1
+ * @brief CO5300 QSPI display driver implementation
+ * 
+ * This file implements the driver for CO5300 QSPI display controller, providing
+ * functions for display initialization, device registration, backlight control,
+ * and custom initialization sequence configuration.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
@@ -53,8 +57,10 @@ static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
             .cmd_lines  = TUYA_QSPI_1WIRE,
             .addr_lines = TUYA_QSPI_1WIRE,
         },
-        .is_pixel_memory = false,
-        .cmd_write_reg   = CO5300_WRITE_REG,
+        .has_vram = true,
+        .cmd_caset = CO5300_CASET,
+        .cmd_raset = CO5300_RASET,
+        .cmd_ramwr = CO5300_WRITE_REG,
     },
     .is_swap = true,
     .init_seq = cCO5300_INIT_SEQ,
@@ -63,52 +69,44 @@ static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-void __tdd_disp_qspi_co5300_set_window(DISP_QSPI_BASE_CFG_T *p_cfg, uint16_t x_start, uint16_t y_start,\
-                                           uint16_t x_end, uint16_t y_end)
+OPERATE_RET __qspi_co5300_send_cmd_set_bl(uint8_t brightness, void *arg)
 {
-    uint8_t lcd_data[4];
-    static uint16_t x1=0, x2=0, y1=0, y2=0;
-
-    if (NULL == p_cfg) {
-        return;
+    if (brightness == 0) {
+        brightness = 5;
     }
-
-    x_start += CO5300_X_OFFSET;
-    x_end   += CO5300_X_OFFSET;
-    y_start += CO5300_Y_OFFSET;
-    y_end   += CO5300_Y_OFFSET;
-
-    if(x1 != x_start || x2 != x_end) {
-        lcd_data[0] = (x_start >> 8) & 0xFF;
-        lcd_data[1] = (x_start & 0xFF);
-        lcd_data[2] = (x_end >> 8) & 0xFF;
-        lcd_data[3] = (x_end & 0xFF);
-        tdd_disp_qspi_send_cmd(p_cfg, CO5300_CASET, lcd_data, sizeof(lcd_data));
-        x1 = x_start;
-        x2 = x_end;
-    }
-
-    if(y1 != y_start || y2 != y_end) {
-        lcd_data[0] = (y_start >> 8) & 0xFF;
-        lcd_data[1] = (y_start & 0xFF);
-        lcd_data[2] = (y_end >> 8) & 0xFF;
-        lcd_data[3] = (y_end & 0xFF);
-        tdd_disp_qspi_send_cmd(p_cfg, CO5300_RASET, lcd_data, sizeof(lcd_data));
-        y1 = y_start;
-        y2 = y_end;
-    }
+    return tdd_disp_qspi_send_cmd(&sg_disp_qspi_cfg.cfg, CO5300_BL, &brightness, 1);
 }
 
-OPERATE_RET tdd_disp_qspi_co5300_set_bl(uint8_t value)
+/**
+ * @brief Sets the initialization sequence for the CO5300 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_qspi_co5300_set_init_seq(const uint8_t *init_seq)
 {
-    if (value == 0) {
-        value = 5;
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
     }
-    return tdd_disp_qspi_send_cmd((DISP_QSPI_BASE_CFG_T*)&sg_disp_qspi_cfg, CO5300_BL, &value, 1);
+
+    sg_disp_qspi_cfg.init_seq = init_seq;
+
+    return OPRT_OK;
 }
 
+/**
+ * @brief Registers the CO5300 QSPI display device with the display driver
+ * 
+ * @param name Device name to register
+ * @param dev_cfg Pointer to the QSPI device configuration structure
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if parameters are NULL
+ */
 OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
+    OPERATE_RET rt = OPRT_OK;
+
     if (NULL == name || NULL == dev_cfg) {
         return OPRT_INVALID_PARM;
     }
@@ -117,16 +115,21 @@ OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *de
 
     sg_disp_qspi_cfg.cfg.width     = dev_cfg->width;
     sg_disp_qspi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_qspi_cfg.cfg.x_offset  = dev_cfg->x_offset;
+    sg_disp_qspi_cfg.cfg.y_offset  = dev_cfg->y_offset;
+
     sg_disp_qspi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
     sg_disp_qspi_cfg.cfg.port      = dev_cfg->port;
     sg_disp_qspi_cfg.cfg.freq_hz   = dev_cfg->spi_clk;
     sg_disp_qspi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
     sg_disp_qspi_cfg.rotation      = dev_cfg->rotation;
-    sg_disp_qspi_cfg.set_window_cb = __tdd_disp_qspi_co5300_set_window;
-
 
     memcpy(&sg_disp_qspi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_qspi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
 
-    return tdd_disp_qspi_device_register(name, &sg_disp_qspi_cfg);
+    TUYA_CALL_ERR_RETURN(tdd_disp_qspi_device_register(name, &sg_disp_qspi_cfg));
+
+    tdl_disp_custom_backlight_register(name, __qspi_co5300_send_cmd_set_bl, NULL);
+
+    return OPRT_OK;
 }
