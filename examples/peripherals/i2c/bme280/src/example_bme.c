@@ -80,6 +80,9 @@ static void __example_i2c_task(void *param)
 {
 
     BME280_DATA_T env;
+    int32_t temp_x10;
+    uint32_t humi_x10;
+    uint32_t pressure_hpa_x10;
 
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
@@ -96,7 +99,7 @@ static void __example_i2c_task(void *param)
     sensor_init();
 
     while (1) {
-        tal_system_sleep(2000);
+        tal_system_sleep(5000);
 
         if (bme280_read(&env) == OPRT_OK) {
             temp_x10 = env.temperature_x10;
