@@ -113,7 +113,7 @@ The hexapod robot has 6 legs, each with 3 servos (hip, thigh, shin), totaling 18
     └─────────┘
 ```
 
-For detailed instructions, see: [六足运动姿态生成使用说明.md](./六足运动姿态生成使用说明.md)
+For detailed instructions, see: [Hexapod_Gait_Generation_Tool_Guide.md](./Hexapod_Gait_Generation_Tool_Guide.md)
 
 ## 🦿 Supported Motion Actions
 
