@@ -3,6 +3,7 @@
 
 import os
 import sys
+import json
 import click
 from kconfiglib import Kconfig
 from menuconfig import menuconfig
@@ -26,8 +27,6 @@ def _defconfig(config, dconfig=".config", kconfig="Kconfig"):
     kconf = Kconfig(kconfig, suppress_traceback=True)
     kconf.load_config(config)
     kconf.write_config()
-    # print(kconf.load_config(config))
-    # print(kconf.write_config())
     pass
 
 
@@ -39,10 +38,124 @@ def _savedefconfig(config, dconfig=".config", kconfig="Kconfig"):
     kconf = Kconfig(kconfig, suppress_traceback=True)
     kconf.load_config()
     kconf.write_min_config(config)
-    # print(kconf.load_config())
-    # print(kconf.write_min_config(config))
     pass
 
+def generate_vscode_config():
+    """Generate VS Code C/C++ configuration from Kconfig"""
+    logger = get_logger()
+    
+    # Method 1: Try to find tos.py in the path hierarchy
+    def find_main_workspace_root():
+        # Start from current directory and go up until we find tos.py
+        current = os.path.abspath(os.getcwd())
+        while current != '/':
+            if os.path.exists(os.path.join(current, 'tos.py')):
+                return current
+            current = os.path.dirname(current)
+        # Fallback: use the original approach
+        current_script_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.abspath(os.path.join(current_script_dir, "../../.."))
+    
+    main_workspace_root = find_main_workspace_root()
+    logger.debug(f"Main workspace root: {main_workspace_root}")
+    
+    params = get_global_params()
+    using_config = params["using_config"]
+    catalog_kconfig = params["catalog_kconfig"]
+    
+    if not os.path.exists(using_config):
+        logger.warning(f"Config file {using_config} not found. Run menuconfig first.")
+        return False
+    
+    if not os.path.exists(catalog_kconfig):
+        logger.warning(f"Kconfig file {catalog_kconfig} not found.")
+        return False
+    
+    try:
+        # Parse Kconfig and load current configuration
+        os.environ['KCONFIG_CONFIG'] = using_config
+        kconf = Kconfig(catalog_kconfig, suppress_traceback=True)
+        kconf.load_config()
+        
+        # Extract all configuration defines - FIXED LOGIC
+        config_defines = []
+        for sym in kconf.unique_defined_syms:
+            if sym.name:
+                str_val = sym.str_value
+                # Only define symbols that are enabled (y) or have non-zero/non-empty values
+                if str_val == "y":
+                    config_defines.append(sym.name)  # Just the name for boolean true
+                elif str_val.isdigit() and int(str_val) != 0:
+                    config_defines.append(f"{sym.name}={str_val}")
+                elif str_val.startswith("0x") or str_val.startswith("0X"):
+                    hex_val = int(str_val, 16)
+                    if hex_val != 0:
+                        config_defines.append(f"{sym.name}={hex_val}")
+                elif str_val and str_val != '""' and str_val != "n":  # Non-empty strings
+                    config_defines.append(f'{sym.name}="{str_val}"')
+        
+        # Get absolute paths for include directories
+        app_root = os.path.abspath(params["app_root"])
+        board_path = os.path.abspath(params["boards_root"])
+        src_path = os.path.abspath(params["src_root"])
+        
+        # Generate VS Code configuration
+        vscode_config = {
+            "configurations": [
+                {
+                    "name": "KConfig-Aware",
+                    "includePath": [
+                        "${workspaceFolder}/**",
+                        app_root + "/**",
+                        board_path + "/**", 
+                        src_path + "/**"
+                    ],
+                    "defines": config_defines,  # Use the corrected list
+                    "compilerPath": "/usr/bin/gcc",
+                    "cStandard": "c99",
+                    "cppStandard": "c++17",
+                    "intelliSenseMode": "gcc-x64",
+                    "browse": {
+                        "path": [
+                            "${workspaceFolder}/**",
+                            app_root + "/**",
+                            board_path + "/**",
+                            src_path + "/**"
+                        ],
+                        "limitSymbolsToIncludedHeaders": True,
+                        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+                    },
+                    "configurationProvider": "ms-vscode.cpptools"
+                }
+            ],
+            "version": 4
+        }
+        
+        # Write to .vscode/c_cpp_properties.json in MAIN WORKSPACE ROOT
+        vscode_dir = os.path.join(main_workspace_root, ".vscode")
+        if not os.path.exists(vscode_dir):
+            os.makedirs(vscode_dir)
+        
+        config_file = os.path.join(vscode_dir, "c_cpp_properties.json")
+        with open(config_file, 'w') as f:
+            json.dump(vscode_config, f, indent=4)
+        
+        logger.note(f"VS Code configuration generated: {config_file}")
+        logger.note(f"Loaded {len(config_defines)} configuration symbols")
+        
+        # Debug: Show some important defines
+        logger.debug("Important board selection defines:")
+        for define in config_defines:
+            if "BOARD_CHOICE" in define or "PLATFORM" in define:
+                logger.debug(f"  {define}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to generate VS Code configuration: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
 
 def init_using_config(force=False):
     '''
@@ -55,20 +168,23 @@ def init_using_config(force=False):
     params = get_global_params()
     board_path = params["boards_root"]
     src_path = params["src_root"]
-    app_root = params["app_root"]
+    app_root = params["app_root"]  # apps/tuya_cloud/my
     catalog_kconfig = params["catalog_kconfig"]
     set_catalog_config(board_path, src_path, app_root, catalog_kconfig)
 
-    app_default_config = params["app_default_config"]
+    app_default_config = params["app_default_config"]  # apps/tuya_cloud/my/app_default.config
     if not os.path.exists(app_default_config):
         tools_root = params["tools_root"]
         template = os.path.join(tools_root, "kconfiglib", "app_default.config")
         copy_file(template, app_default_config)
         pass
 
-    using_config = params["using_config"]
+    using_config = params["using_config"]  # apps/tuya_cloud/my/.build/cache/using.config
     if force or not os.path.exists(using_config):
         _defconfig(app_default_config, using_config, catalog_kconfig)
+    
+    # Generate VS Code configuration after config change
+    generate_vscode_config()
     pass
 
 
@@ -137,6 +253,9 @@ def config_menu_exec():
     kconf = Kconfig(filename=catalog_kconfig)
     menuconfig(kconf)
     _savedefconfig(app_default_config, using_config, catalog_kconfig)
+    
+    # Generate VS Code configuration after menuconfig
+    generate_vscode_config()
     sys.exit(0)
 
 
@@ -164,10 +283,24 @@ def config_save_exec():
     sys.exit(0)
 
 
+@click.command(help="Update VS Code configuration.")
+def config_vscode_exec():
+    '''
+    Update VS Code C/C++ configuration with current Kconfig defines
+    '''
+    logger = get_logger()
+    if generate_vscode_config():
+        logger.note("VS Code configuration updated successfully")
+    else:
+        logger.error("Failed to update VS Code configuration")
+    sys.exit(0)
+
+
 CLIS = {
     "choice": config_choice_exec,
     "menu": config_menu_exec,
-    "save": config_save_exec
+    "save": config_save_exec,
+    "vscode": config_vscode_exec  # Add new command
 }
 
 
