@@ -32,6 +32,15 @@
 ***********************function declare**********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ST7305 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_mono_st7305_set_init_seq(uint8_t *init_seq);
+
+/**
  * @brief Registers an ST7305 monochrome display device using the SPI interface with the display management system.
  *
  * This function creates and initializes a new ST7305 display device instance, 
@@ -39,10 +48,9 @@
  *
  * @param name Name of the display device (used for identification).
  * @param dev_cfg Pointer to the SPI device configuration structure.
- * @param caset_xs Column address start value used in display window configuration.
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
-OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg, uint8_t caset_xs);
+OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
 
 #endif // __TDD_DISP_SPI_ST7305_H__

@@ -42,6 +42,8 @@ typedef struct {
     uint8_t                     cmd_raset;
     uint8_t                     cmd_ramwr;
     uint8_t                     cmd_ramwrc;
+    uint8_t                     x_offset;
+    uint8_t                     y_offset;
     const uint32_t             *init_seq; // Initialization commands for the display
     TDD_DISP_CONVERT_FB_CB      convert_cb; // Optional framebuffer conversion callback
 }TDD_DISP_MCU8080_CFG_T;

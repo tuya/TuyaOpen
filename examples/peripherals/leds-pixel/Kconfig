@@ -1,8 +1,0 @@
-menu "Application config"
-
-    config EXAMPLE_LEDS_PIXEL
-        bool
-        default y
-        select ENABLE_LEDS_PIXEL
-
-endmenu

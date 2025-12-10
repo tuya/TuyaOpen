@@ -83,7 +83,31 @@
  /***********************************************************
  ***********************variable define**********************
  ***********************************************************/
- 
+#if defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+const uint8_t cST7735S_XLT_INIT_SEQ[] = {
+    1,    120,  0x11, 
+    1,    0,  0x21, 
+    1,    0,  0x21, 
+    4,    100,  0xB1, 0x05,0x3A,0x3A,
+    4,    0,    0xB2, 0x05,0x3A,0x3A,
+    7,    0,    0xB3, 0x05,0x3A,0x3A, 0x05,0x3A,0x3A,
+    2,    0,    0xB4, 0x03,
+    4,    0,    0xC0, 0x62,0x02,0x04,
+    2,    0,    0xC1, 0xC0,
+    3,    0,    0xC2, 0x0D, 0x00,
+    3,    0,    0xC3, 0x8A, 0x6A,
+    3,    0,    0xC4, 0x8D, 0xEE,
+    2,    0,    0xC5, 0x0E,
+    17,   0,    0xE0, 0x10,0x0E,0x02,0x03,0x0E,0x07,0x02,0x07,0x0A,0x12,0x27,0x37,0x00,0x0D,0x0E,0x10,
+    17,   0,    0xE1, 0x10,0x0E,0x03,0x03,0x0F,0x06,0x02,0x08,0x0A,0x13,0x26,0x36,0x00,0x0D,0x0E,0x10,
+    2,    0,    0x3A, 0x05, 
+    2,    0,    0x36, 0xA8,
+    1,    0,    0x29,
+    0 // Terminate list                    // Terminate list
+};
+
+#endif
+
  /***********************************************************
  ***********************function define**********************
  ***********************************************************/
@@ -162,6 +186,8 @@
  
      display_cfg.width = BOARD_LCD_WIDTH;
      display_cfg.height = BOARD_LCD_HEIGHT;
+     display_cfg.x_offset = BOARD_LCD_X_OFFSET;
+     display_cfg.y_offset = BOARD_LCD_Y_OFFSET;
      display_cfg.pixel_fmt = BOARD_LCD_PIXELS_FMT;
      display_cfg.rotation = BOARD_LCD_ROTATION;
  

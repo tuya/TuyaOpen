@@ -29,18 +29,14 @@
 ***********************variable define**********************
 ***********************************************************/
 
+#define MENU_INFO_FONT       &lv_font_terminusTTF_Bold_18
+#define MENU_INFO_TITLE_FONT &lv_font_terminusTTF_Bold_16
+
 static lv_obj_t *ui_info_menu_screen;
 static lv_obj_t *info_menu_list;
 static lv_timer_t *timer;
 static pet_stats_t current_pet_stats = {
-        .health = 85,
-        .hungry = 60,
-        .clean = 70,
-        .happy = 90,
-        .age_days = 15,
-        .weight_kg = 1.2f,
-        .name = "Ducky"
-};
+    .health = 85, .hungry = 60, .clean = 70, .happy = 90, .age_days = 15, .weight_kg = 1.5f, .name = "Ducky"};
 static uint8_t selected_item = 0;
 static uint8_t last_selected_item = 0;
 
@@ -49,9 +45,9 @@ static uint8_t last_selected_item = 0;
 
 // UI Constants
 #define STAT_CONTAINER_HEIGHT 30
-#define STAT_CONTAINER_WIDTH 320
-#define SEPARATOR_HEIGHT 2
-#define MAX_STAT_VALUE 100
+#define STAT_CONTAINER_WIDTH  320
+#define SEPARATOR_HEIGHT      2
+#define MAX_STAT_VALUE        100
 
 Screen_t menu_info_screen = {
     .init = menu_info_screen_init,
@@ -90,7 +86,8 @@ static void show_keyboard_for_pet_name(void);
  */
 static bool is_child_selectable(lv_obj_t *child)
 {
-    if (child == NULL) return false;
+    if (child == NULL)
+        return false;
     return lv_obj_has_flag(child, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 }
 
@@ -125,42 +122,43 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", menu_info_screen.name, key);
 
     uint32_t child_count = lv_obj_get_child_cnt(info_menu_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
     switch (key) {
-        case KEY_UP:
-            // move to previous selectable child
-            for (int i = (int)selected_item - 1; i >= 0; --i) {
-                lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
-                if (is_child_selectable(ch)) {
-                    new_selection = (uint8_t)i;
-                    break;
-                }
+    case KEY_UP:
+        // move to previous selectable child
+        for (int i = (int)selected_item - 1; i >= 0; --i) {
+            lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+            if (is_child_selectable(ch)) {
+                new_selection = (uint8_t)i;
+                break;
             }
-            break;
-        case KEY_DOWN:
-            // move to next selectable child
-            for (uint32_t i = selected_item + 1; i < child_count; ++i) {
-                lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
-                if (is_child_selectable(ch)) {
-                    new_selection = (uint8_t)i;
-                    break;
-                }
+        }
+        break;
+    case KEY_DOWN:
+        // move to next selectable child
+        for (uint32_t i = selected_item + 1; i < child_count; ++i) {
+            lv_obj_t *ch = lv_obj_get_child(info_menu_list, i);
+            if (is_child_selectable(ch)) {
+                new_selection = (uint8_t)i;
+                break;
             }
-            break;
-        case KEY_ENTER:
-            handle_action_selection();
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - returning to main menu\n");
-            last_selected_item = 0;
-            screen_back();
-            break;
-        default:
-            printf("Key %d pressed\n", key);
-            break;
+        }
+        break;
+    case KEY_ENTER:
+        handle_action_selection();
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed - returning to main menu\n");
+        last_selected_item = 0;
+        screen_back();
+        break;
+    default:
+        printf("Key %d pressed\n", key);
+        break;
     }
 
     if (new_selection != old_selection) {
@@ -184,7 +182,7 @@ static void create_pet_name_display(void)
     lv_label_set_text_fmt(name_label, "Name: %s", current_pet_stats.name);
     lv_obj_align(name_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_color(name_label, lv_color_black(), 0);
-    lv_obj_set_style_text_font(name_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(name_label, MENU_INFO_FONT, 0);
 }
 
 /**
@@ -226,15 +224,21 @@ static void create_actions_section(void)
     lv_label_set_text(action_title, "Actions:");
     lv_obj_align(action_title, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_set_style_text_color(action_title, lv_color_black(), 0);
-    lv_obj_set_style_text_font(action_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(action_title, MENU_INFO_FONT, 0);
     lv_obj_add_flag(action_title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(action_title, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     // Add action buttons
-    lv_list_add_btn(info_menu_list, LV_SYMBOL_EDIT, "Edit Pet Name");
-    lv_list_add_btn(info_menu_list, LV_SYMBOL_SETTINGS, "View Statistics");
-    lv_list_add_btn(info_menu_list, LV_SYMBOL_WIFI, "WIFI Settings");
-    lv_list_add_btn(info_menu_list, LV_SYMBOL_REFRESH, "Randomize Pet Data");
+    lv_obj_t *btn1 = lv_list_add_btn(info_menu_list, LV_SYMBOL_EDIT, "Edit Pet Name");
+    // Get the label from the button and set font only for the text label
+    lv_obj_t *label1 = lv_obj_get_child(btn1, 1); // Second child is the text label
+    if (label1)
+        lv_obj_set_style_text_font(label1, MENU_INFO_FONT, 0);
+
+    lv_obj_t *btn2 = lv_list_add_btn(info_menu_list, LV_SYMBOL_REFRESH, "Randomize Pet Data");
+    lv_obj_t *label2 = lv_obj_get_child(btn2, 1);
+    if (label2)
+        lv_obj_set_style_text_font(label2, MENU_INFO_FONT, 0);
 }
 
 /**
@@ -252,11 +256,13 @@ static void create_stat_display_item(const char *label, const char *value)
     lv_label_set_text(label_obj, label);
     lv_obj_align(label_obj, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_style_text_color(label_obj, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label_obj, MENU_INFO_FONT, 0);
 
     lv_obj_t *value_obj = lv_label_create(container);
     lv_label_set_text(value_obj, value);
     lv_obj_align(value_obj, LV_ALIGN_RIGHT_MID, -5, 0);
     lv_obj_set_style_text_color(value_obj, lv_color_black(), 0);
+    lv_obj_set_style_text_font(value_obj, MENU_INFO_FONT, 0);
 }
 
 /**
@@ -274,11 +280,14 @@ static void create_stat_icon_bar(const char *label, int value)
     lv_label_set_text(label_obj, label);
     lv_obj_align(label_obj, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_style_text_color(label_obj, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label_obj, MENU_INFO_FONT, 0);
 
     // Quantize value to 0-5
     int filled = (value + 9) / 20; // 0-19:0, 20-39:1, ..., 100:5
-    if (filled > 5) filled = 5;
-    if (filled < 0) filled = 0;
+    if (filled > 5)
+        filled = 5;
+    if (filled < 0)
+        filled = 0;
 
     // Draw 5 icons using the family_star image
     for (int i = 0; i < 5; ++i) {
@@ -298,6 +307,7 @@ static void create_stat_icon_bar(const char *label, int value)
     lv_label_set_text(stat_label, stat_text);
     lv_obj_align(stat_label, LV_ALIGN_LEFT_MID, 80 + 5 * 22 + 8, 0);
     lv_obj_set_style_text_color(stat_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(stat_label, MENU_INFO_FONT, 0);
 }
 
 /**
@@ -356,31 +366,18 @@ static void handle_action_selection(void)
         uint32_t action_index = selected_item - action_start;
 
         switch (action_index) {
-            case 0: // Edit Pet Name
-                printf("Edit Pet Name action selected\n");
-                show_keyboard_for_pet_name();
-                break;
-            case 1: // View Statistics
-                printf("View Statistics action selected\n");
-#if defined(ENABLE_LVGL_HARDWARE)
-				uint8_t chat_text[] = "What did you do yesterday";
-                ai_text_agent_upload(chat_text, sizeof(chat_text));
-#else
-				toast_screen_show("Unlock at Higher Level", 2000);
-#endif
-                break;
-            case 2: // WIFI Settings
-                printf("WIFI Settings action selected\n");
-                toast_screen_show("Unlock at Higher Level", 2000);
-                break;
-            case 3: // Randomize Pet Data
-                printf("Randomize Pet Data action selected\n");
-                toast_screen_show("Unlock at Higher Level", 2000);
-                break;
-            default:
-                printf("Unknown action selected\n");
-                toast_screen_show("Unlock at Higher Level", 2000);
-                break;
+        case 0: // Edit Pet Name
+            printf("Edit Pet Name action selected\n");
+            show_keyboard_for_pet_name();
+            break;
+        case 1: // Randomize Pet Data
+            printf("Randomize Pet Data action selected\n");
+            toast_screen_show("Unlock at Higher Level", 2000);
+            break;
+        default:
+            printf("Unknown action selected\n");
+            toast_screen_show("Unlock at Higher Level", 2000);
+            break;
         }
     }
 }
@@ -399,10 +396,10 @@ static void refresh_info_screen_timer_cb(lv_timer_t *timer)
         printf("Info menu list has %d children\n", child_count);
 
         if (child_count > 0) {
-            lv_obj_t *name_container = lv_obj_get_child(info_menu_list, 0);  // First child should be name container
+            lv_obj_t *name_container = lv_obj_get_child(info_menu_list, 0); // First child should be name container
             if (name_container && lv_obj_is_valid(name_container)) {
                 printf("Found name container\n");
-                lv_obj_t *name_label = lv_obj_get_child(name_container, 0);  // First child should be name label
+                lv_obj_t *name_label = lv_obj_get_child(name_container, 0); // First child should be name label
                 if (name_label && lv_obj_check_type(name_label, &lv_label_class)) {
                     printf("Updating name label from direct access\n");
                     lv_label_set_text_fmt(name_label, "Name: %s", current_pet_stats.name);
@@ -436,7 +433,7 @@ static void refresh_info_screen_timer_cb(lv_timer_t *timer)
  */
 static void keyboard_callback(const char *text, void *user_data)
 {
-    (void)user_data;  // Unused parameter
+    (void)user_data; // Unused parameter
 
     printf("Keyboard callback called with text: '%s'\n", text ? text : "NULL");
 
@@ -448,7 +445,8 @@ static void keyboard_callback(const char *text, void *user_data)
 
 #if defined(ENABLE_LVGL_HARDWARE)
         // Save pet name to KV storage
-        int ret = tal_kv_set(PET_NAME_KV_KEY, (const uint8_t *)current_pet_stats.name, strlen(current_pet_stats.name) + 1);
+        int ret =
+            tal_kv_set(PET_NAME_KV_KEY, (const uint8_t *)current_pet_stats.name, strlen(current_pet_stats.name) + 1);
         if (ret == 0) {
             printf("Pet name saved to KV storage successfully\n");
         } else {
@@ -474,7 +472,7 @@ static void show_keyboard_for_pet_name(void)
 {
     printf("show_keyboard_for_pet_name called\n");
     printf("  current pet name: '%s'\n", current_pet_stats.name);
-    printf("  callback function: %p\n", (void*)keyboard_callback);
+    printf("  callback function: %p\n", (void *)keyboard_callback);
     keyboard_screen_show_with_callback(current_pet_stats.name, keyboard_callback, NULL);
 }
 
@@ -521,7 +519,7 @@ void menu_info_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_info_menu_screen);
     lv_label_set_text(title, "Pet Information");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, MENU_INFO_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
     // List for info menu items
@@ -626,7 +624,7 @@ void menu_info_screen_set_pet_stats(pet_stats_t *stats)
  *
  * @return Pointer to current pet statistics
  */
-pet_stats_t* menu_info_screen_get_pet_stats(void)
+pet_stats_t *menu_info_screen_get_pet_stats(void)
 {
     return &current_pet_stats;
 }

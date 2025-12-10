@@ -50,7 +50,8 @@
 
 #define BOARD_LCD_WIDTH              168
 #define BOARD_LCD_HEIGHT             384
-#define BOARD_LCD_CASET_XS           0x17
+#define BOARD_LCD_X_OFFSET           0x17
+#define BOARD_LCD_Y_OFFSET           0
 
 #if defined(TUYA_T5AI_POCKET_LCD_ROTATION_0) && (TUYA_T5AI_POCKET_LCD_ROTATION_0)
 #define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_0
@@ -212,6 +213,8 @@ static OPERATE_RET __board_register_display(void)
 
     display_cfg.width     = BOARD_LCD_WIDTH;
     display_cfg.height    = BOARD_LCD_HEIGHT;
+    display_cfg.x_offset  = BOARD_LCD_X_OFFSET;
+    display_cfg.y_offset  = BOARD_LCD_Y_OFFSET;
     display_cfg.rotation  = BOARD_LCD_ROTATION;
 
     display_cfg.port      = BOARD_LCD_SPI_PORT;

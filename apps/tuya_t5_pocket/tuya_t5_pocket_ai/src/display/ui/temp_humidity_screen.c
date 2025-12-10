@@ -20,9 +20,6 @@
 #include <stdlib.h>
 
 #ifdef ENABLE_LVGL_HARDWARE
-// #include "tuya_cloud_types.h"
-// #include "tal_api.h"
-// #include "tkl_output.h"
 #include "tkl_gpio.h"
 #include "tkl_i2c.h"
 #include "tkl_pinmux.h"
@@ -31,27 +28,32 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define UPDATE_INTERVAL_MS  2000    // Update data every 2 seconds
+#define UPDATE_INTERVAL_MS 2000 // Update data every 2 seconds
 
 // Hardware configuration (only used when ENABLE_LVGL_HARDWARE is defined)
 #ifdef ENABLE_LVGL_HARDWARE
-#define SHT3X_I2C_PORT    TUYA_I2C_NUM_1
+#define SHT3X_I2C_PORT TUYA_I2C_NUM_1
 
 #ifndef SHT3X_I2C_SCL_PIN
 #define SHT3X_I2C_SCL_PIN TUYA_GPIO_NUM_6
 #endif
 
-#ifndef SHT3X_I2C_SDA_PIN  
+#ifndef SHT3X_I2C_SDA_PIN
 #define SHT3X_I2C_SDA_PIN TUYA_GPIO_NUM_7
 #endif
 
-#define SR_I2C_ADDR_SHT3X_A 0x44 // SHT3x : ADDR pin - GND
+#define SR_I2C_ADDR_SHT3X_A     0x44   // SHT3x : ADDR pin - GND
 #define SHT3X_CMD_FETCH_DATA    0xE000 // readout measurements for periodic mode
 #define SHT3X_CMD_MEAS_PERI_1_H 0x2130 // measurement: periodic 1 mps, high repeatability
 
 #define CRC_OK  (0)
 #define CRC_ERR (-1)
 #endif
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ***********************variable define**********************
@@ -70,7 +72,7 @@ static lv_timer_t *update_timer;
 static float current_temperature = 23.5f;
 static float current_humidity = 65.0f;
 static int update_count = 0;
-static uint8_t sensor_connected = 0;        // Sensor connection status
+static uint8_t sensor_connected = 0; // Sensor connection status
 
 #ifdef ENABLE_LVGL_HARDWARE
 // Hardware related variables
@@ -262,7 +264,7 @@ static OPERATE_RET hardware_init(void)
     hardware_initialized = 1;
     sensor_first_read = 0;
     printf("[%s] Hardware initialized successfully\n", temp_humidity_screen.name);
-    
+
     return OPRT_OK;
 }
 
@@ -293,8 +295,8 @@ static void update_timer_cb(lv_timer_t *timer)
     update_sensor_data();
     update_display();
     update_count++;
-    printf("[%s] Data updated (count: %d) - Temp: %.1f°C, Humidity: %.1f%%\n", 
-           temp_humidity_screen.name, update_count, current_temperature, current_humidity);
+    printf("[%s] Data updated (count: %d) - Temp: %.1f°C, Humidity: %.1f%%\n", temp_humidity_screen.name, update_count,
+           current_temperature, current_humidity);
 }
 
 /**
@@ -310,30 +312,30 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", temp_humidity_screen.name, key);
 
     switch (key) {
-        case KEY_UP:
-            printf("UP key pressed\n");
-            break;
-        case KEY_DOWN:
-            printf("DOWN key pressed\n");
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
-        case KEY_ENTER:
-            printf("ENTER key pressed - Manual refresh\n");
-            update_sensor_data();
-            // update_display();
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - Exit screen\n");
-            screen_back(); // Uncomment when screen navigation is available
-            break;
-        default:
-            printf("Unknown key pressed\n");
-            break;
+    case KEY_UP:
+        printf("UP key pressed\n");
+        break;
+    case KEY_DOWN:
+        printf("DOWN key pressed\n");
+        break;
+    case KEY_LEFT:
+        printf("LEFT key pressed\n");
+        break;
+    case KEY_RIGHT:
+        printf("RIGHT key pressed\n");
+        break;
+    case KEY_ENTER:
+        printf("ENTER key pressed - Manual refresh\n");
+        update_sensor_data();
+        // update_display();
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed - Exit screen\n");
+        screen_back(); // Uncomment when screen navigation is available
+        break;
+    default:
+        printf("Unknown key pressed\n");
+        break;
     }
 }
 
@@ -349,15 +351,15 @@ static void update_sensor_data(void)
     uint16_t temp_raw = 0;
     uint16_t humi_raw = 0;
     OPERATE_RET ret = sht3x_read_temp_humi(SHT3X_I2C_PORT, &temp_raw, &humi_raw);
-    
+
     if (ret == OPRT_OK) {
         // I2C read successful - convert and update values
         current_temperature = (float)temp_raw / 1000.0f;
         current_humidity = (float)humi_raw / 1000.0f;
-        
+
         sensor_connected = 1;
-        printf("[%s] Hardware read successful - temp=%.1f°C, humi=%.1f%%\n", 
-               temp_humidity_screen.name, current_temperature, current_humidity);
+        printf("[%s] Hardware read successful - temp=%.1f°C, humi=%.1f%%\n", temp_humidity_screen.name,
+               current_temperature, current_humidity);
     } else {
         sensor_connected = 0;
         printf("[%s] I2C read failed, err<%d>\n", temp_humidity_screen.name, ret);
@@ -365,24 +367,24 @@ static void update_sensor_data(void)
 #else
     // Simulation mode - generate demo data
     sensor_connected = 1;
-    
+
     // Simulate fluctuating sensor readings
     static float temp_offset = 0.0f;
     static float humidity_offset = 0.0f;
     static int direction = 1;
-    
+
     temp_offset += direction * 0.2f;
     humidity_offset += direction * 0.5f;
-    
+
     if (temp_offset > 2.0f || temp_offset < -2.0f) {
         direction *= -1;
     }
-    
+
     current_temperature = 23.5f + temp_offset;
     current_humidity = 65.0f + humidity_offset;
-    
-    printf("[%s] Simulation mode - temp=%.1f°C, humi=%.1f%%\n", 
-           temp_humidity_screen.name, current_temperature, current_humidity);
+
+    printf("[%s] Simulation mode - temp=%.1f°C, humi=%.1f%%\n", temp_humidity_screen.name, current_temperature,
+           current_humidity);
 #endif
 }
 
@@ -394,14 +396,14 @@ static void update_sensor_data(void)
 static void update_display(void)
 {
     char time_str[64];
-    
+
 #ifdef ENABLE_LVGL_HARDWARE
     if (sensor_connected) {
         // Show temperature and humidity containers, hide error message
         lv_obj_clear_flag(temp_container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(humidity_container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-        
+
         // Update temperature and humidity values
         char temp_str[32];
         char humidity_str[32];
@@ -414,7 +416,7 @@ static void update_display(void)
         lv_obj_add_flag(temp_container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(humidity_container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-        
+
         lv_label_set_text(error_label, "Temperature Humidity Sensor\n Connection Failed !");
     }
 #else
@@ -422,7 +424,7 @@ static void update_display(void)
     lv_obj_clear_flag(temp_container, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(humidity_container, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(error_label, LV_OBJ_FLAG_HIDDEN);
-    
+
     char temp_str[32];
     char humidity_str[32];
     snprintf(temp_str, sizeof(temp_str), "%.1f°C", current_temperature);
@@ -430,7 +432,7 @@ static void update_display(void)
     lv_label_set_text(temp_value_label, temp_str);
     lv_label_set_text(humidity_value_label, humidity_str);
 #endif
-    
+
     // Update time string
     snprintf(time_str, sizeof(time_str), "Last Update: %d", update_count);
     lv_label_set_text(update_time_label, time_str);
@@ -462,14 +464,14 @@ void temp_humidity_screen_init(void)
     lv_obj_set_size(ui_temp_humidity_screen, AI_PET_SCREEN_WIDTH, AI_PET_SCREEN_HEIGHT);
     lv_obj_set_style_bg_color(ui_temp_humidity_screen, lv_color_white(), 0);
     lv_obj_set_style_pad_all(ui_temp_humidity_screen, 10, 0);
-    
+
     // Create title
     lv_obj_t *title = lv_label_create(ui_temp_humidity_screen);
     lv_label_set_text(title, "Temperature & Humidity");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 5);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
-    
+
     // Create temperature container
     temp_container = lv_obj_create(ui_temp_humidity_screen);
     lv_obj_set_size(temp_container, 180, 60);
@@ -477,27 +479,27 @@ void temp_humidity_screen_init(void)
     lv_obj_set_style_bg_color(temp_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(temp_container, 0, 0);
     lv_obj_set_style_radius(temp_container, 8, 0);
-    
+
     // Temperature icon
     lv_obj_t *temp_icon = lv_label_create(temp_container);
-    lv_label_set_text(temp_icon, LV_SYMBOL_LOOP);
-    lv_obj_align(temp_icon, LV_ALIGN_LEFT_MID, 10, -10);
-    lv_obj_set_style_text_font(temp_icon, &lv_font_montserrat_16, 0);
-    
+    lv_label_set_text(temp_icon, LV_SYMBOL_IMAGE);
+    lv_obj_align(temp_icon, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_text_font(temp_icon, SCREEN_TITLE_FONT, 0);
+
     // Temperature label
     lv_obj_t *temp_label = lv_label_create(temp_container);
-    lv_label_set_text(temp_label, "Temperature");
-    lv_obj_align(temp_label, LV_ALIGN_LEFT_MID, 40, -10);
-    lv_obj_set_style_text_font(temp_label, &lv_font_montserrat_12, 0);
+    lv_label_set_text(temp_label, "Temperature:");
+    lv_obj_align(temp_label, LV_ALIGN_LEFT_MID, 25, 0);
+    lv_obj_set_style_text_font(temp_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(temp_label, lv_color_black(), 0);
-    
+
     // Temperature value
     temp_value_label = lv_label_create(temp_container);
-    lv_label_set_text(temp_value_label, "23.5°C");
-    lv_obj_align(temp_value_label, LV_ALIGN_LEFT_MID, 40, 10);
-    lv_obj_set_style_text_font(temp_value_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(temp_value_label, "-- °C");
+    lv_obj_align(temp_value_label, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_text_font(temp_value_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(temp_value_label, lv_color_black(), 0);
-    
+
     // Create humidity container
     humidity_container = lv_obj_create(ui_temp_humidity_screen);
     lv_obj_set_size(humidity_container, 180, 60);
@@ -505,62 +507,62 @@ void temp_humidity_screen_init(void)
     lv_obj_set_style_bg_color(humidity_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(humidity_container, 0, 0);
     lv_obj_set_style_radius(humidity_container, 8, 0);
-    
+
     // Humidity icon
     lv_obj_t *humidity_icon = lv_label_create(humidity_container);
-    lv_label_set_text(humidity_icon, LV_SYMBOL_LOOP);
-    lv_obj_align(humidity_icon, LV_ALIGN_LEFT_MID, 10, -10);
-    lv_obj_set_style_text_font(humidity_icon, &lv_font_montserrat_16, 0);
-    
+    lv_label_set_text(humidity_icon, LV_SYMBOL_EYE_OPEN);
+    lv_obj_align(humidity_icon, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_text_font(humidity_icon, SCREEN_TITLE_FONT, 0);
+
     // Humidity label
     lv_obj_t *humidity_label = lv_label_create(humidity_container);
-    lv_label_set_text(humidity_label, "Humidity");
-    lv_obj_align(humidity_label, LV_ALIGN_LEFT_MID, 40, -10);
-    lv_obj_set_style_text_font(humidity_label, &lv_font_montserrat_12, 0);
+    lv_label_set_text(humidity_label, "Humidity:");
+    lv_obj_align(humidity_label, LV_ALIGN_LEFT_MID, 25, 0);
+    lv_obj_set_style_text_font(humidity_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(humidity_label, lv_color_black(), 0);
-    
+
     // Humidity value
     humidity_value_label = lv_label_create(humidity_container);
-    lv_label_set_text(humidity_value_label, "65.0%");
-    lv_obj_align(humidity_value_label, LV_ALIGN_LEFT_MID, 40, 10);
-    lv_obj_set_style_text_font(humidity_value_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(humidity_value_label, "-- %");
+    lv_obj_align(humidity_value_label, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_text_font(humidity_value_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(humidity_value_label, lv_color_black(), 0);
-    
+
     // Create error message label (initially hidden)
     error_label = lv_label_create(ui_temp_humidity_screen);
     lv_label_set_text(error_label, "Temperature Humidity Sensor Connection Failed");
     lv_obj_align(error_label, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_text_font(error_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(error_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(error_label, lv_color_black(), 0); // Black text
     lv_obj_set_style_text_align(error_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_add_flag(error_label, LV_OBJ_FLAG_HIDDEN); // Initially hidden
-    
+
     // Create update time info
     update_time_label = lv_label_create(ui_temp_humidity_screen);
     lv_label_set_text(update_time_label, "Last Update: 0");
     lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -5);
-    lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(update_time_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(update_time_label, lv_color_black(), 0);
-    
+
     // Create help text
     lv_obj_t *help_label = lv_label_create(ui_temp_humidity_screen);
     lv_label_set_text(help_label, "ENTER: Refresh | ESC: Exit");
     lv_obj_align(help_label, LV_ALIGN_BOTTOM_MID, 0, -20);
-    lv_obj_set_style_text_font(help_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(help_label, SCREEN_INFO_FONT, 0);
     lv_obj_set_style_text_color(help_label, lv_color_black(), 0);
-    
+
     // Initialize sensor data and display
     update_sensor_data();
     update_display();
-    
+
     // Start update timer
     update_timer = lv_timer_create(update_timer_cb, UPDATE_INTERVAL_MS, NULL);
-    
+
     // Add keyboard event handling
     lv_obj_add_event_cb(ui_temp_humidity_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
     lv_group_add_obj(lv_group_get_default(), ui_temp_humidity_screen);
     lv_group_focus_obj(ui_temp_humidity_screen);
-    
+
     printf("[%s] Temperature & Humidity screen initialized\n", temp_humidity_screen.name);
 }
 
@@ -577,7 +579,7 @@ void temp_humidity_screen_deinit(void)
         lv_obj_remove_event_cb(ui_temp_humidity_screen, keyboard_event_cb);
         lv_group_remove_obj(ui_temp_humidity_screen);
     }
-    
+
     if (update_timer) {
         lv_timer_del(update_timer);
         update_timer = NULL;
@@ -587,12 +589,12 @@ void temp_humidity_screen_deinit(void)
     // Deinitialize hardware
     hardware_deinit();
 #endif
-    
+
     // Reset variables
     update_count = 0;
     current_temperature = 0;
     current_humidity = 0;
-    
+
 #ifdef ENABLE_LVGL_HARDWARE
     // Reset hardware status variables
     sensor_connected = 0;

@@ -108,6 +108,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ST7789 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_st7789_set_init_seq(const uint8_t *init_seq);
+
+/**
  * @brief Registers an ST7789 TFT display device using the SPI interface with the display management system.
  *
  * This function configures and registers a display device for the ST7789 series of TFT LCDs 
@@ -120,6 +129,15 @@ extern "C" {
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
 OPERATE_RET tdd_disp_spi_st7789_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg);
+
+/**
+ * @brief Sets the initialization sequence for the ST7789 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_mcu8080_st7789_set_init_seq(const uint32_t *init_seq);
 
 /**
  * @brief Registers an ST7789 TFT display device using the MCU8080 interface with the display management system.

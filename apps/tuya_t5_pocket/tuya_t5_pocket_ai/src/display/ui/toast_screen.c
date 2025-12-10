@@ -22,19 +22,25 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define TOAST_PADDING 20
-#define TOAST_MAX_WIDTH 344  // (384 - 40)
-#define TOAST_MIN_HEIGHT 60
+#define TOAST_PADDING       20
+#define TOAST_MAX_WIDTH     344 // (384 - 40)
+#define TOAST_MIN_HEIGHT    60
 #define TOAST_DEFAULT_DELAY 3000
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 
-static lv_obj_t *ui_toast_screen;  // Keep for compatibility but not used as screen
+static lv_obj_t *ui_toast_screen; // Keep for compatibility but not used as screen
 static lv_obj_t *toast_container;
 static lv_obj_t *toast_label;
 static lv_timer_t *timer;
-static bool is_visible = false;  // Track if toast is currently visible
+static bool is_visible = false; // Track if toast is currently visible
 
 Screen_t toast_screen = {
     .init = NULL,
@@ -74,7 +80,7 @@ static void toast_screen_timer_cb(lv_timer_t *timer_param)
     if (toast_container) {
         lv_obj_del(toast_container);
         toast_container = NULL;
-        toast_label = NULL;  // Label is child of container, will be deleted automatically
+        toast_label = NULL; // Label is child of container, will be deleted automatically
     }
 
     is_visible = false;
@@ -141,7 +147,7 @@ void toast_screen_show(const char *message, uint32_t delay_ms)
     lv_label_set_text(toast_label, message ? message : "Toast Message");
     lv_obj_align(toast_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_color(toast_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(toast_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(toast_label, SCREEN_CONTENT_FONT, 0);
     lv_label_set_long_mode(toast_label, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(toast_label, TOAST_MAX_WIDTH - (TOAST_PADDING * 2));
 

@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 typedef void *QUEUE_HANDLE;
+#define QUEUE_WAIT_FOREVER 0xFFFFFFFF
 
 /**
  * @brief Create message queue

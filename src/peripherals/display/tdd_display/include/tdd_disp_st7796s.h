@@ -36,6 +36,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ST7796S display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_mcu8080_st7796s_set_init_seq(const uint32_t *init_seq);
+
+/**
  * @brief Registers an ST7796S TFT display device using the MCU8080 interface with the display management system.
  *
  * This function configures and registers a display device for the ST7796S series of TFT LCDs 
