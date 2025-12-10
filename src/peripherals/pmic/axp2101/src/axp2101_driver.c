@@ -2337,12 +2337,12 @@ int axp2101_getBatteryPercent(void)
 /*
  * CHG LED setting and control
  */
-void enableChargingLed(void)
+void axp2101_enableChargingLed(void)
 {
     setRegisterBit(XPOWERS_AXP2101_CHGLED_SET_CTRL, 0);
 }
 
-void disableChargingLed(void)
+void axp2101_disableChargingLed(void)
 {
     clrRegisterBit(XPOWERS_AXP2101_CHGLED_SET_CTRL, 0);
 }
@@ -2382,7 +2382,7 @@ void axp2101_setChargingLedMode(xpowers_chg_led_mode_t mode)
     }
 }
 
-uint8_t getChargingLedMode()
+uint8_t axp2101_getChargingLedMode(void)
 {
     int val = readRegister(XPOWERS_AXP2101_CHGLED_SET_CTRL);
     if (val == -1)
@@ -2448,7 +2448,7 @@ uint8_t axp2101_getChargerConstantCurr(void)
  * @note   Charging termination of current limit
  * @retval
  */
-void tal_axp2101_setChargerTerminationCurr(xpowers_axp2101_chg_iterm_t opt)
+void axp2101_setChargerTerminationCurr(xpowers_axp2101_chg_iterm_t opt)
 {
     int val = readRegister(XPOWERS_AXP2101_ITERM_CHG_SET_CTRL);
     if (val == -1)

@@ -26,23 +26,23 @@
 ***********************************************************/
 #define ENABLE_LVGL_HARDWARE
 #ifdef ENABLE_LVGL_HARDWARE
-#include "tal_log.h"
 #include "tuya_cloud_types.h"
+#include "tal_log.h"
 #include "tal_api.h"
 #define printf PR_DEBUG
 #endif
 
-#define KEY_UP    17
-#define KEY_LEFT  20
-#define KEY_DOWN  18
-#define KEY_RIGHT 19
-#define KEY_ENTER 10
-#define KEY_ESC   27
-#define KEY_JOYCON  32
-#define KEY_AI    105
+#define KEY_UP     17
+#define KEY_LEFT   20
+#define KEY_DOWN   18
+#define KEY_RIGHT  19
+#define KEY_ENTER  10
+#define KEY_ESC    27
+#define KEY_JOYCON 32
+#define KEY_AI     105
 
 #ifndef AI_PET_SCREEN_WIDTH
-#define AI_PET_SCREEN_WIDTH  384
+#define AI_PET_SCREEN_WIDTH 384
 #endif
 #ifndef AI_PET_SCREEN_HEIGHT
 #define AI_PET_SCREEN_HEIGHT 168
@@ -57,13 +57,16 @@
  * a pointer to the screen object, a name identifier, and state preservation.
  */
 typedef struct {
-    void (*init)(void);           /**< Screen initialization function */
-    void (*deinit)(void);         /**< Screen deinitialization function */
-    lv_obj_t **screen_obj;        /**< Pointer to the screen object */
-    char *name;                   /**< Screen name identifier */
-    void *state_data;             /**< Pointer to screen-specific state data */
+    void (*init)(void);    /**< Screen initialization function */
+    void (*deinit)(void);  /**< Screen deinitialization function */
+    lv_obj_t **screen_obj; /**< Pointer to the screen object */
+    char *name;            /**< Screen name identifier */
+    void *state_data;      /**< Pointer to screen-specific state data */
 } Screen_t;
 
+LV_FONT_DECLARE(lv_font_terminusTTF_Bold_14);
+LV_FONT_DECLARE(lv_font_terminusTTF_Bold_16);
+LV_FONT_DECLARE(lv_font_terminusTTF_Bold_18);
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
@@ -72,7 +75,7 @@ typedef struct {
  * @brief Get the current screen (top of stack)
  * @return Pointer to the current screen, or NULL if the screen stack is empty
  */
-Screen_t* screen_get_now_screen(void);
+Screen_t *screen_get_now_screen(void);
 
 /**
  * @brief Go back to the previous screen

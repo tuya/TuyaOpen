@@ -11,10 +11,15 @@
 #include <string.h>
 #include <stdlib.h>
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 static lv_obj_t *ui_menu_sleep_screen_screen;
 static lv_obj_t *menu_sleep_screen_list;
 static lv_timer_t *timer;
-static lv_timer_t *pet_state_timer;  // Timer for animation
+static lv_timer_t *pet_state_timer; // Timer for animation
 static uint8_t selected_item = 0;
 static int last_selected_item = -1;
 static sleep_status_t current_sleep_status = {false, 80, 8, 22};
@@ -85,37 +90,38 @@ static void keyboard_event_cb(lv_event_t *e)
 {
     uint32_t key = lv_event_get_key(e);
     uint32_t child_count = lv_obj_get_child_cnt(menu_sleep_screen_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
 
     switch (key) {
-        case KEY_UP: {
-            for (int i = (int)selected_item - 1; i >= 0; --i) {
-                lv_obj_t *ch = lv_obj_get_child(menu_sleep_screen_list, i);
-                if (is_child_selectable(ch)) {
-                    new_selection = i;
-                    break;
-                }
+    case KEY_UP: {
+        for (int i = (int)selected_item - 1; i >= 0; --i) {
+            lv_obj_t *ch = lv_obj_get_child(menu_sleep_screen_list, i);
+            if (is_child_selectable(ch)) {
+                new_selection = i;
+                break;
             }
-        } break;
-        case KEY_DOWN: {
-            for (int i = (int)selected_item + 1; i < (int)child_count; ++i) {
-                lv_obj_t *ch = lv_obj_get_child(menu_sleep_screen_list, i);
-                if (is_child_selectable(ch)) {
-                    new_selection = i;
-                    break;
-                }
+        }
+    } break;
+    case KEY_DOWN: {
+        for (int i = (int)selected_item + 1; i < (int)child_count; ++i) {
+            lv_obj_t *ch = lv_obj_get_child(menu_sleep_screen_list, i);
+            if (is_child_selectable(ch)) {
+                new_selection = i;
+                break;
             }
-        } break;
-        case KEY_ENTER:
-            handle_sleep_selection();
-            break;
-        case KEY_ESC:
-            last_selected_item = 0;
-            screen_back();
-            break;
+        }
+    } break;
+    case KEY_ENTER:
+        handle_sleep_selection();
+        break;
+    case KEY_ESC:
+        last_selected_item = 0;
+        screen_back();
+        break;
     }
 
     if (new_selection != old_selection) {
@@ -128,7 +134,7 @@ static void create_sleep_status_display(void)
 {
     lv_obj_t *status_title = lv_label_create(menu_sleep_screen_list);
     lv_label_set_text(status_title, "Sleep Status:");
-    lv_obj_set_style_text_font(status_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(status_title, SCREEN_TITLE_FONT, 0);
     /* Ensure title is not focusable/selectable */
     lv_obj_add_flag(status_title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(status_title, LV_OBJ_FLAG_CLICK_FOCUSABLE);
@@ -140,12 +146,18 @@ static void create_sleep_status_display(void)
     // Sleep quality
     char quality_text[32];
     snprintf(quality_text, sizeof(quality_text), "Sleep Quality: %d/100", current_sleep_status.sleep_quality);
-    lv_list_add_btn(menu_sleep_screen_list, LV_SYMBOL_BATTERY_FULL, quality_text);
+    lv_obj_t *btn = lv_list_add_btn(menu_sleep_screen_list, LV_SYMBOL_BATTERY_FULL, quality_text);
+    lv_obj_t *label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
 
     // Bedtime
     char bedtime_text[32];
     snprintf(bedtime_text, sizeof(bedtime_text), "Bedtime: %02d:00", current_sleep_status.bedtime_hour);
-    lv_list_add_btn(menu_sleep_screen_list, LV_SYMBOL_SETTINGS, bedtime_text);
+    btn = lv_list_add_btn(menu_sleep_screen_list, LV_SYMBOL_SETTINGS, bedtime_text);
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
 }
 
 static void create_separator(void)
@@ -163,13 +175,19 @@ static void create_sleep_actions(void)
 {
     lv_obj_t *actions_title = lv_label_create(menu_sleep_screen_list);
     lv_label_set_text(actions_title, "Sleep Actions:");
-    lv_obj_set_style_text_font(actions_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(actions_title, SCREEN_TITLE_FONT, 0);
     /* Ensure actions title is not selectable */
     lv_obj_add_flag(actions_title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(actions_title, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     for (uint8_t i = 0; i < SLEEP_ACTIONS_COUNT; i++) {
         lv_obj_t *btn = lv_list_add_btn(menu_sleep_screen_list, sleep_actions[i].icon, sleep_actions[i].name);
+
+        // Set font for text label (child 1)
+        lv_obj_t *label = lv_obj_get_child(btn, 1);
+        if (label)
+            lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
         /* Make sure action buttons are focusable/selectable */
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICK_FOCUSABLE);
@@ -178,26 +196,26 @@ static void create_sleep_actions(void)
         lv_obj_t *info_label = lv_label_create(btn);
         char info_text[32];
         switch (i) {
-            case 0:  // Sleep
-                snprintf(info_text, sizeof(info_text), "Rest");
-                break;
-            case 1:  // Wake Up
-                snprintf(info_text, sizeof(info_text), "E:+50");
-                break;
-            case 2:  // Set Bedtime
-                snprintf(info_text, sizeof(info_text), "Settings");
-                break;
-            case 3:  // Sleep Status
-                snprintf(info_text, sizeof(info_text), "Info");
-                break;
-            default:
-                snprintf(info_text, sizeof(info_text), " ");
-                break;
+        case 0: // Sleep
+            snprintf(info_text, sizeof(info_text), "Rest");
+            break;
+        case 1: // Wake Up
+            snprintf(info_text, sizeof(info_text), "E:+50");
+            break;
+        case 2: // Set Bedtime
+            snprintf(info_text, sizeof(info_text), "Settings");
+            break;
+        case 3: // Sleep Status
+            snprintf(info_text, sizeof(info_text), "Info");
+            break;
+        default:
+            snprintf(info_text, sizeof(info_text), " ");
+            break;
         }
         lv_label_set_text(info_label, info_text);
         lv_obj_align(info_label, LV_ALIGN_RIGHT_MID, -5, 0);
-        lv_obj_set_style_text_color(info_label, lv_color_make(0, 128, 0), 0);
-        lv_obj_set_style_text_font(info_label, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_color(info_label, lv_color_black(), 0);
+        lv_obj_set_style_text_font(info_label, SCREEN_INFO_FONT, 0);
     }
 }
 
@@ -253,47 +271,46 @@ static void handle_sleep_selection(void)
         if (action_index < SLEEP_ACTIONS_COUNT) {
             sleep_action_item_t *selected_action = &sleep_actions[action_index];
 
-            printf("Selected sleep action: %s - %s\n",
-                   selected_action->name, selected_action->description);
+            printf("Selected sleep action: %s - %s\n", selected_action->name, selected_action->description);
 
             // Handle different sleep actions with specific logic
             switch (action_index) {
-                case 0:  // Sleep - only this one has animation
-                    printf("Sleep - returning to main screen and playing animation\n");
-                    current_sleep_status.is_sleeping = true;
+            case 0: // Sleep - only this one has animation
+                printf("Sleep - returning to main screen and playing animation\n");
+                current_sleep_status.is_sleeping = true;
 
-                    // Return to main screen and play sleep animation
-                    screen_back();
-                    main_screen_set_pet_animation_state(AI_PET_STATE_SLEEP);
+                // Return to main screen and play sleep animation
+                screen_back();
+                main_screen_set_pet_animation_state(AI_PET_STATE_SLEEP);
 
-                    // Start timer to switch back to normal state after 2 seconds
-                    if (pet_state_timer) {
-                        lv_timer_del(pet_state_timer);  // Clean up existing timer
-                    }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
+                // Start timer to switch back to normal state after 2 seconds
+                if (pet_state_timer) {
+                    lv_timer_del(pet_state_timer); // Clean up existing timer
+                }
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
 
-                    printf("Started sleep animation timer\n");
-                    break;
+                printf("Started sleep animation timer\n");
+                break;
 
-                case 1:  // Wake Up
-                    printf("Wake Up selected - showing toast\n");
-                    toast_screen_show("Coming Soon: Wake Up Feature", 2000);
-                    break;
+            case 1: // Wake Up
+                printf("Wake Up selected - showing toast\n");
+                toast_screen_show("Coming Soon: Wake Up Feature", 2000);
+                break;
 
-                case 2:  // Set Bedtime
-                    printf("Set Bedtime selected - showing toast\n");
-                    toast_screen_show("Coming Soon: Set Bedtime Feature", 2000);
-                    break;
+            case 2: // Set Bedtime
+                printf("Set Bedtime selected - showing toast\n");
+                toast_screen_show("Coming Soon: Set Bedtime Feature", 2000);
+                break;
 
-                case 3:  // Sleep Status
-                    printf("Sleep Status selected - showing toast\n");
-                    toast_screen_show("Coming Soon: Sleep Status Feature", 2000);
-                    break;
+            case 3: // Sleep Status
+                printf("Sleep Status selected - showing toast\n");
+                toast_screen_show("Coming Soon: Sleep Status Feature", 2000);
+                break;
 
-                default:
-                    printf("Unknown sleep action: %d\n", action_index);
-                    toast_screen_show("Unknown Action", 2000);
-                    break;
+            default:
+                printf("Unknown sleep action: %d\n", action_index);
+                toast_screen_show("Unknown Action", 2000);
+                break;
             }
         }
     }
@@ -310,7 +327,7 @@ void menu_sleep_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_menu_sleep_screen_screen);
     lv_label_set_text(title, "Sleep & Rest");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
 
     menu_sleep_screen_list = lv_list_create(ui_menu_sleep_screen_screen);
     lv_obj_set_size(menu_sleep_screen_list, 364, 128);
@@ -368,7 +385,8 @@ void menu_sleep_screen_init(void)
 
 static bool is_child_selectable(lv_obj_t *child)
 {
-    if (!child) return false;
+    if (!child)
+        return false;
     return lv_obj_has_flag(child, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 }
 
@@ -390,10 +408,11 @@ void menu_sleep_screen_deinit(void)
 
 void menu_sleep_screen_set_sleep_status(sleep_status_t *status)
 {
-    if (status) current_sleep_status = *status;
+    if (status)
+        current_sleep_status = *status;
 }
 
-sleep_status_t* menu_sleep_screen_get_sleep_status(void)
+sleep_status_t *menu_sleep_screen_get_sleep_status(void)
 {
     return &current_sleep_status;
 }

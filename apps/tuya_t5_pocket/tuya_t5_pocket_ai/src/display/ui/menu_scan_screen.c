@@ -25,7 +25,14 @@
 #include "level_indicator_screen.h"
 #include "ebook_screen.h"
 #include "temp_humidity_screen.h"
+#include "ai_log_screen.h"
+#include "photo_screen.h"
 #include <stdio.h>
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ***********************variable define**********************
@@ -50,12 +57,13 @@ Screen_t menu_scan_screen = {
 ***********************************************************/
 
 // External screen declarations
-extern Screen_t wifi_scan_screen;
-extern Screen_t i2c_scan_screen;
-extern Screen_t dino_game_screen;
-extern Screen_t snake_game_screen;
-extern Screen_t level_indicator_screen;
-extern Screen_t temp_humidity_screen;
+// extern Screen_t wifi_scan_screen;
+// extern Screen_t i2c_scan_screen;
+// extern Screen_t dino_game_screen;
+// extern Screen_t snake_game_screen;
+// extern Screen_t level_indicator_screen;
+// extern Screen_t temp_humidity_screen;
+// extern Screen_t photo_screen;
 
 static void menu_scan_screen_timer_cb(lv_timer_t *timer);
 static void keyboard_event_cb(lv_event_t *e);
@@ -93,39 +101,40 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", menu_scan_screen.name, key);
 
     uint32_t child_count = lv_obj_get_child_cnt(scan_menu_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
 
     switch (key) {
-        case KEY_UP:
-            if (selected_item > 0) {
-                new_selection = selected_item - 1;
-            }
-            break;
-        case KEY_DOWN:
-            if (selected_item < child_count - 1) {
-                new_selection = selected_item + 1;
-            }
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
-        case KEY_ENTER:
-            handle_scan_selection();
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - returning to main menu\n");
-            last_selected_item = 0;
-            screen_back();
-            break;
-        default:
-            printf("Key %d pressed\n", key);
-            break;
+    case KEY_UP:
+        if (selected_item > 0) {
+            new_selection = selected_item - 1;
+        }
+        break;
+    case KEY_DOWN:
+        if (selected_item < child_count - 1) {
+            new_selection = selected_item + 1;
+        }
+        break;
+    case KEY_LEFT:
+        printf("LEFT key pressed\n");
+        break;
+    case KEY_RIGHT:
+        printf("RIGHT key pressed\n");
+        break;
+    case KEY_ENTER:
+        handle_scan_selection();
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed - returning to main menu\n");
+        last_selected_item = 0;
+        screen_back();
+        break;
+    default:
+        printf("Key %d pressed\n", key);
+        break;
     }
 
     if (new_selection != old_selection) {
@@ -161,37 +170,45 @@ static void handle_scan_selection(void)
     last_selected_item = selected_item;
 
     switch (selected_item) {
-        case 0: // WiFi scan demo
-            printf("WiFi scan demo selected\n");
-            screen_load(&wifi_scan_screen);
-            break;
-        case 1: // I2C device scan demo
-            printf("I2C device scan demo selected\n");
-            screen_load(&i2c_scan_screen);
-            break;
-        case 2: // Dino Game
-            printf("Dino Game selected\n");
-            screen_load(&dino_game_screen);
-            break;
-        case 3: // Snake Game
-            printf("Snake Game selected\n");
-            screen_load(&snake_game_screen);
-            break;
-        case 4: // Level Indicator
-            printf("Level Indicator selected\n");
-            screen_load(&level_indicator_screen);
-            break;
-        case 5: // E-book Reader
-            printf("E-book Reader action selected\n");
-            screen_load(&ebook_screen);
-            break;
-        case 6: // Temperature & Humidity
-            printf("Temperature & Humidity selected\n");
-            screen_load(&temp_humidity_screen);
-            break;
-        default:
-            printf("Unknown scan option selected\n");
-            break;
+    case 0: // WiFi scan demo
+        printf("WiFi scan demo selected\n");
+        screen_load(&wifi_scan_screen);
+        break;
+    case 1: // I2C device scan demo
+        printf("I2C device scan demo selected\n");
+        screen_load(&i2c_scan_screen);
+        break;
+    case 2: // Dino Game
+        printf("Dino Game selected\n");
+        screen_load(&dino_game_screen);
+        break;
+    case 3: // Snake Game
+        printf("Snake Game selected\n");
+        screen_load(&snake_game_screen);
+        break;
+    case 4: // Level Indicator
+        printf("Level Indicator selected\n");
+        screen_load(&level_indicator_screen);
+        break;
+    case 5: // E-book Reader
+        printf("E-book Reader action selected\n");
+        screen_load(&ebook_screen);
+        break;
+    case 6: // Temperature & Humidity
+        printf("Temperature & Humidity selected\n");
+        screen_load(&temp_humidity_screen);
+        break;
+    case 7: // Camera
+        printf("Camera selected\n");
+        screen_load(&ai_log_screen);
+        break;
+    case 8: // PHOTO
+        printf("PHOTO selected\n");
+        screen_load(&photo_screen);
+        break;
+    default:
+        printf("Unknown scan option selected\n");
+        break;
     }
 }
 
@@ -210,7 +227,7 @@ void menu_scan_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_menu_scan_screen);
     lv_label_set_text(title, "Device Scan & Games");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
     // List for scan menu items
@@ -224,13 +241,53 @@ void menu_scan_screen_init(void)
     lv_obj_set_style_border_width(scan_menu_list, 2, 0);
 
     // Add scan menu items
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_WIFI, "WiFi scan demo");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_SETTINGS, "I2C device scan demo");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_PLAY, "Dino Game");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
-    lv_list_add_btn(scan_menu_list, LV_SYMBOL_WARNING, "Temperature & Humidity");
+    lv_obj_t *btn;
+    lv_obj_t *label;
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_WIFI, "WiFi scan demo");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_SETTINGS, "I2C device scan demo");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_PLAY, "Dino Game");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_SHUFFLE, "Snake Game");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_EYE_OPEN, "Level Indicator");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_FILE, "E-book Reader");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_WARNING, "Temperature & Humidity");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_CALL, "AI Log Analyzer");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
+    btn = lv_list_add_btn(scan_menu_list, LV_SYMBOL_IMAGE, "PHOTO");
+    label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
 
     selected_item = last_selected_item;
     uint32_t child_count = lv_obj_get_child_cnt(scan_menu_list);

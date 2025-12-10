@@ -28,23 +28,28 @@
 ***********************************************************/
 
 // Snake game constants
-#define SNAKE_GRID_SIZE     16    /* Size of each grid cell in pixels */
-#define SNAKE_GRID_WIDTH    23    /* Number of grid cells horizontally */
-#define SNAKE_GRID_HEIGHT   8     /* Number of grid cells vertically */
-#define SNAKE_GAME_WIDTH    (SNAKE_GRID_WIDTH * SNAKE_GRID_SIZE)
-#define SNAKE_GAME_HEIGHT   (SNAKE_GRID_HEIGHT * SNAKE_GRID_SIZE)
-#define SNAKE_MAX_LENGTH    (SNAKE_GRID_WIDTH * SNAKE_GRID_HEIGHT)
-#define SNAKE_INITIAL_X     (SNAKE_GRID_WIDTH / 2)
-#define SNAKE_INITIAL_Y     (SNAKE_GRID_HEIGHT / 2)
-#define SNAKE_TIMER_PERIOD  300   /* Game update interval in ms */
-#define HIGH_SCORE          50    /* Historical high score */
+#define SNAKE_GRID_SIZE    16 /* Size of each grid cell in pixels */
+#define SNAKE_GRID_WIDTH   23 /* Number of grid cells horizontally */
+#define SNAKE_GRID_HEIGHT  8  /* Number of grid cells vertically */
+#define SNAKE_GAME_WIDTH   (SNAKE_GRID_WIDTH * SNAKE_GRID_SIZE)
+#define SNAKE_GAME_HEIGHT  (SNAKE_GRID_HEIGHT * SNAKE_GRID_SIZE)
+#define SNAKE_MAX_LENGTH   (SNAKE_GRID_WIDTH * SNAKE_GRID_HEIGHT)
+#define SNAKE_INITIAL_X    (SNAKE_GRID_WIDTH / 2)
+#define SNAKE_INITIAL_Y    (SNAKE_GRID_HEIGHT / 2)
+#define SNAKE_TIMER_PERIOD 300 /* Game update interval in ms */
+#define HIGH_SCORE         50  /* Historical high score */
 
 // Simple LFSR random number generator
-#define LFSR_SEED           0x1234
-#define LFSR_POLYNOMIAL     0x8016
+#define LFSR_SEED       0x1234
+#define LFSR_POLYNOMIAL 0x8016
 
 // KV storage key for high score
 #define SNAKE_GAME_HIGH_SCORE_KV_KEY "snake_high_score"
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 /***********************************************************
 ***********************variable define**********************
@@ -60,12 +65,7 @@ static lv_obj_t *snake_segments[SNAKE_MAX_LENGTH];
 static lv_obj_t *food_obj = NULL;
 
 // Snake direction enumeration
-typedef enum {
-    SNAKE_DIR_UP = 0,
-    SNAKE_DIR_DOWN,
-    SNAKE_DIR_LEFT,
-    SNAKE_DIR_RIGHT
-} snake_direction_t;
+typedef enum { SNAKE_DIR_UP = 0, SNAKE_DIR_DOWN, SNAKE_DIR_LEFT, SNAKE_DIR_RIGHT } snake_direction_t;
 
 // Snake point structure
 typedef struct {
@@ -100,7 +100,7 @@ typedef struct {
 static snake_game_state_t g_gs;
 static uint16_t g_lfsr_state = LFSR_SEED;
 static uint16_t g_last_drawn_length = 0;
-static uint16_t g_high_score = 0;  // High score loaded from KV storage
+static uint16_t g_high_score = 0; // High score loaded from KV storage
 
 // Dialog UI elements
 static lv_obj_t *exit_dialog = NULL;
@@ -158,7 +158,7 @@ static void snake_game_load_high_score(void)
     uint8_t *stored_score = NULL;
     size_t score_length = 0;
     int ret = tal_kv_get(SNAKE_GAME_HIGH_SCORE_KV_KEY, &stored_score, &score_length);
-    
+
     if (ret == 0 && stored_score != NULL && score_length == sizeof(uint16_t)) {
         // Successfully loaded high score from storage
         memcpy(&g_high_score, stored_score, sizeof(uint16_t));
@@ -203,8 +203,7 @@ static inline uint16_t snake_game_lfsr_random(void)
     return (uint16_t)tal_system_get_random(0xFFFF);
 #else
     // Use LFSR for PC simulator
-    uint8_t bit = ((g_lfsr_state >> 0) ^ (g_lfsr_state >> 2) ^
-                   (g_lfsr_state >> 3) ^ (g_lfsr_state >> 5)) & 1;
+    uint8_t bit = ((g_lfsr_state >> 0) ^ (g_lfsr_state >> 2) ^ (g_lfsr_state >> 3) ^ (g_lfsr_state >> 5)) & 1;
     g_lfsr_state = (g_lfsr_state >> 1) | (bit << 15);
     return g_lfsr_state;
 #endif
@@ -287,20 +286,18 @@ static void snake_game_draw_food(void)
     // Create food object only once
     if (!food_obj) {
         food_obj = lv_obj_create(game_canvas);
-        lv_obj_set_size(food_obj, SNAKE_GRID_SIZE - 6, SNAKE_GRID_SIZE - 6);  // Smaller size for diamond shape
-        lv_obj_set_style_bg_color(food_obj, lv_color_black(), 0);  // Black diamond
+        lv_obj_set_size(food_obj, SNAKE_GRID_SIZE - 6, SNAKE_GRID_SIZE - 6); // Smaller size for diamond shape
+        lv_obj_set_style_bg_color(food_obj, lv_color_black(), 0);            // Black diamond
         lv_obj_set_style_bg_opa(food_obj, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(food_obj, 0, 0);  // No border for clean look
-        lv_obj_set_style_radius(food_obj, 2, 0);  // Small radius
+        lv_obj_set_style_border_width(food_obj, 0, 0); // No border for clean look
+        lv_obj_set_style_radius(food_obj, 2, 0);       // Small radius
 
         // Transform to diamond shape by rotating 45 degrees
-        lv_obj_set_style_transform_angle(food_obj, 450, 0);  // 45 degrees in 0.1 degree units
+        lv_obj_set_style_transform_angle(food_obj, 450, 0); // 45 degrees in 0.1 degree units
     }
 
     // Update food position
-    lv_obj_set_pos(food_obj,
-                  g_gs.food.x * SNAKE_GRID_SIZE + 3,
-                  g_gs.food.y * SNAKE_GRID_SIZE + 3);
+    lv_obj_set_pos(food_obj, g_gs.food.x * SNAKE_GRID_SIZE + 3, g_gs.food.y * SNAKE_GRID_SIZE + 3);
 }
 
 /**
@@ -312,18 +309,20 @@ static void snake_game_move_snake(void)
     snake_point_t new_head = g_gs.body[0];
 
     switch (g_gs.direction) {
-        case SNAKE_DIR_UP:
-            if (new_head.y > 0) new_head.y--;
-            break;
-        case SNAKE_DIR_DOWN:
-            new_head.y++;
-            break;
-        case SNAKE_DIR_LEFT:
-            if (new_head.x > 0) new_head.x--;
-            break;
-        case SNAKE_DIR_RIGHT:
-            new_head.x++;
-            break;
+    case SNAKE_DIR_UP:
+        if (new_head.y > 0)
+            new_head.y--;
+        break;
+    case SNAKE_DIR_DOWN:
+        new_head.y++;
+        break;
+    case SNAKE_DIR_LEFT:
+        if (new_head.x > 0)
+            new_head.x--;
+        break;
+    case SNAKE_DIR_RIGHT:
+        new_head.x++;
+        break;
     }
 
     // Move body segments
@@ -385,14 +384,14 @@ static void game_timer_cb(lv_timer_t *timer)
     // Check wall collision
     if (snake_game_check_collision()) {
         g_gs.game_over = 1;
-        
+
         // Check and update high score
         if (g_gs.score > g_high_score) {
             g_high_score = g_gs.score;
             snake_game_save_high_score();
             printf("[snake_game] New high score: %d\n", g_high_score);
         }
-        
+
         char buf[32];
         snprintf(buf, sizeof(buf), "GAME OVER: %d", g_gs.score);
         lv_label_set_text(score_label, buf);
@@ -462,7 +461,7 @@ static void snake_game_restart(void)
 
     // Reset object pool for restart - hide excess snake segments
     uint16_t old_length = g_last_drawn_length;
-    g_last_drawn_length = 3;  // Reset to initial snake length
+    g_last_drawn_length = 3; // Reset to initial snake length
 
     // Hide any excess snake segments from previous game
     for (uint16_t i = 3; i < old_length; i++) {
@@ -481,11 +480,12 @@ static void snake_game_restart(void)
  */
 static void snake_game_show_exit_dialog(void)
 {
-    if (exit_dialog) return;
+    if (exit_dialog)
+        return;
 
     g_gs.paused = 1;
     g_gs.show_exit_dialog = 1;
-    g_gs.exit_selection = 0;  // Default to "No"
+    g_gs.exit_selection = 0; // Default to "No"
 
     // Create modal dialog background
     exit_dialog = lv_obj_create(ui_snake_game_screen);
@@ -505,8 +505,8 @@ static void snake_game_show_exit_dialog(void)
 
     // Message label
     exit_msg_label = lv_label_create(dialog_box);
-    lv_label_set_text(exit_msg_label, "Exit Game?");
-    lv_obj_set_style_text_font(exit_msg_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(exit_msg_label, "Exit game?");
+    lv_obj_set_style_text_font(exit_msg_label, SCREEN_TITLE_FONT, 0);
     lv_obj_align(exit_msg_label, LV_ALIGN_TOP_MID, 0, 15);
 
     // Calculate symmetric positions for buttons
@@ -524,8 +524,9 @@ static void snake_game_show_exit_dialog(void)
     lv_obj_set_style_border_color(exit_no_btn, lv_color_black(), 0);
 
     lv_obj_t *no_label = lv_label_create(exit_no_btn);
-    lv_label_set_text(no_label, "NO");
+    lv_label_set_text(no_label, "No");
     lv_obj_center(no_label);
+    lv_obj_set_style_text_font(no_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(no_label, lv_color_white(), 0);
 
     // Yes button
@@ -538,8 +539,9 @@ static void snake_game_show_exit_dialog(void)
     lv_obj_set_style_border_color(exit_yes_btn, lv_color_black(), 0);
 
     lv_obj_t *yes_label = lv_label_create(exit_yes_btn);
-    lv_label_set_text(yes_label, "YES");
+    lv_label_set_text(yes_label, "Yes");
     lv_obj_center(yes_label);
+    lv_obj_set_style_text_font(yes_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(yes_label, lv_color_black(), 0);
 }
 
@@ -548,7 +550,8 @@ static void snake_game_show_exit_dialog(void)
  */
 static void snake_game_hide_exit_dialog(void)
 {
-    if (!exit_dialog) return;
+    if (!exit_dialog)
+        return;
 
     lv_obj_del(exit_dialog);
     exit_dialog = NULL;
@@ -565,10 +568,11 @@ static void snake_game_hide_exit_dialog(void)
  */
 static void snake_game_show_game_over_dialog(void)
 {
-    if (game_over_dialog) return;
+    if (game_over_dialog)
+        return;
 
     g_gs.show_game_over_dialog = 1;
-    g_gs.game_over_selection = 0;  // Default to "Yes" (play again)
+    g_gs.game_over_selection = 0; // Default to "Yes" (play again)
 
     // Create modal dialog background
     game_over_dialog = lv_obj_create(ui_snake_game_screen);
@@ -589,9 +593,9 @@ static void snake_game_show_game_over_dialog(void)
     // High score label
     game_over_high_score_label = lv_label_create(dialog_box);
     char high_score_text[32];
-    snprintf(high_score_text, sizeof(high_score_text), "Highest Score: %d", g_high_score);
+    snprintf(high_score_text, sizeof(high_score_text), "High Score: %d", g_high_score);
     lv_label_set_text(game_over_high_score_label, high_score_text);
-    lv_obj_set_style_text_font(game_over_high_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(game_over_high_score_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_align(game_over_high_score_label, LV_ALIGN_TOP_MID, 0, 10);
 
     // Current score label
@@ -599,13 +603,13 @@ static void snake_game_show_game_over_dialog(void)
     char current_score_text[32];
     snprintf(current_score_text, sizeof(current_score_text), "Your Score: %d", g_gs.score);
     lv_label_set_text(game_over_current_score_label, current_score_text);
-    lv_obj_set_style_text_font(game_over_current_score_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(game_over_current_score_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_align(game_over_current_score_label, LV_ALIGN_TOP_MID, 0, 30);
 
     // Message label
     game_over_msg_label = lv_label_create(dialog_box);
-    lv_label_set_text(game_over_msg_label, "Play Again?");
-    lv_obj_set_style_text_font(game_over_msg_label, &lv_font_montserrat_16, 0);
+    lv_label_set_text(game_over_msg_label, "Play again?");
+    lv_obj_set_style_text_font(game_over_msg_label, SCREEN_TITLE_FONT, 0);
     lv_obj_align(game_over_msg_label, LV_ALIGN_TOP_MID, 0, 55);
 
     // Calculate symmetric positions for buttons
@@ -626,6 +630,7 @@ static void snake_game_show_game_over_dialog(void)
     lv_label_set_text(yes_label, "YES");
     lv_obj_center(yes_label);
     lv_obj_set_style_text_color(yes_label, lv_color_white(), 0);
+    lv_obj_set_style_text_font(yes_label, SCREEN_CONTENT_FONT, 0);
 
     // No button
     game_over_no_btn = lv_obj_create(dialog_box);
@@ -637,8 +642,9 @@ static void snake_game_show_game_over_dialog(void)
     lv_obj_set_style_border_color(game_over_no_btn, lv_color_black(), 0);
 
     lv_obj_t *no_label = lv_label_create(game_over_no_btn);
-    lv_label_set_text(no_label, "NO");
+    lv_label_set_text(no_label, "Exit");
     lv_obj_center(no_label);
+    lv_obj_set_style_text_font(no_label, SCREEN_CONTENT_FONT, 0);
     lv_obj_set_style_text_color(no_label, lv_color_black(), 0);
 }
 
@@ -647,7 +653,8 @@ static void snake_game_show_game_over_dialog(void)
  */
 static void snake_game_hide_game_over_dialog(void)
 {
-    if (!game_over_dialog) return;
+    if (!game_over_dialog)
+        return;
 
     lv_obj_del(game_over_dialog);
     game_over_dialog = NULL;
@@ -665,13 +672,14 @@ static void snake_game_hide_game_over_dialog(void)
  */
 static void snake_game_update_exit_selection(void)
 {
-    if (!exit_dialog || !exit_yes_btn || !exit_no_btn) return;
+    if (!exit_dialog || !exit_yes_btn || !exit_no_btn)
+        return;
 
     // Get label objects for text color changes
     lv_obj_t *no_label = lv_obj_get_child(exit_no_btn, 0);
     lv_obj_t *yes_label = lv_obj_get_child(exit_yes_btn, 0);
 
-    if (g_gs.exit_selection == 0) {  // No selected
+    if (g_gs.exit_selection == 0) { // No selected
         // NO button: Black background, white text (selected)
         lv_obj_set_style_bg_color(exit_no_btn, lv_color_black(), 0);
         if (no_label) {
@@ -683,7 +691,7 @@ static void snake_game_update_exit_selection(void)
         if (yes_label) {
             lv_obj_set_style_text_color(yes_label, lv_color_black(), 0);
         }
-    } else {  // Yes selected
+    } else { // Yes selected
         // NO button: White background, black text (not selected)
         lv_obj_set_style_bg_color(exit_no_btn, lv_color_white(), 0);
         if (no_label) {
@@ -703,13 +711,14 @@ static void snake_game_update_exit_selection(void)
  */
 static void snake_game_update_game_over_selection(void)
 {
-    if (!game_over_dialog || !game_over_yes_btn || !game_over_no_btn) return;
+    if (!game_over_dialog || !game_over_yes_btn || !game_over_no_btn)
+        return;
 
     // Get label objects for text color changes
     lv_obj_t *yes_label = lv_obj_get_child(game_over_yes_btn, 0);
     lv_obj_t *no_label = lv_obj_get_child(game_over_no_btn, 0);
 
-    if (g_gs.game_over_selection == 0) {  // Yes selected (play again)
+    if (g_gs.game_over_selection == 0) { // Yes selected (play again)
         // YES button: Black background, white text (selected)
         lv_obj_set_style_bg_color(game_over_yes_btn, lv_color_black(), 0);
         if (yes_label) {
@@ -721,7 +730,7 @@ static void snake_game_update_game_over_selection(void)
         if (no_label) {
             lv_obj_set_style_text_color(no_label, lv_color_black(), 0);
         }
-    } else {  // No selected (exit)
+    } else { // No selected (exit)
         // YES button: White background, black text (not selected)
         lv_obj_set_style_bg_color(game_over_yes_btn, lv_color_white(), 0);
         if (yes_label) {
@@ -750,9 +759,9 @@ static void keyboard_event_cb(lv_event_t *e)
             g_gs.exit_selection = 1 - g_gs.exit_selection;
             snake_game_update_exit_selection();
         } else if (key == KEY_ENTER) {
-            if (g_gs.exit_selection == 1) {  // Yes selected
+            if (g_gs.exit_selection == 1) { // Yes selected
                 screen_back();
-            } else {  // No selected
+            } else { // No selected
                 snake_game_hide_exit_dialog();
             }
         } else if (key == KEY_ESC) {
@@ -767,9 +776,9 @@ static void keyboard_event_cb(lv_event_t *e)
             g_gs.game_over_selection = 1 - g_gs.game_over_selection;
             snake_game_update_game_over_selection();
         } else if (key == KEY_ENTER) {
-            if (g_gs.game_over_selection == 0) {  // Yes (play again)
+            if (g_gs.game_over_selection == 0) { // Yes (play again)
                 snake_game_restart();
-            } else {  // No (exit)
+            } else { // No (exit)
                 screen_back();
             }
         }
@@ -779,31 +788,31 @@ static void keyboard_event_cb(lv_event_t *e)
     // Handle game controls
     if (!g_gs.game_over) {
         switch (key) {
-            case KEY_UP:
-                if (g_gs.direction != SNAKE_DIR_DOWN) {
-                    g_gs.next_direction = SNAKE_DIR_UP;
-                }
-                break;
-            case KEY_DOWN:
-                if (g_gs.direction != SNAKE_DIR_UP) {
-                    g_gs.next_direction = SNAKE_DIR_DOWN;
-                }
-                break;
-            case KEY_LEFT:
-                if (g_gs.direction != SNAKE_DIR_RIGHT) {
-                    g_gs.next_direction = SNAKE_DIR_LEFT;
-                }
-                break;
-            case KEY_RIGHT:
-                if (g_gs.direction != SNAKE_DIR_LEFT) {
-                    g_gs.next_direction = SNAKE_DIR_RIGHT;
-                }
-                break;
-            case KEY_ESC:
-                snake_game_show_exit_dialog();
-                break;
-            default:
-                break;
+        case KEY_UP:
+            if (g_gs.direction != SNAKE_DIR_DOWN) {
+                g_gs.next_direction = SNAKE_DIR_UP;
+            }
+            break;
+        case KEY_DOWN:
+            if (g_gs.direction != SNAKE_DIR_UP) {
+                g_gs.next_direction = SNAKE_DIR_DOWN;
+            }
+            break;
+        case KEY_LEFT:
+            if (g_gs.direction != SNAKE_DIR_RIGHT) {
+                g_gs.next_direction = SNAKE_DIR_LEFT;
+            }
+            break;
+        case KEY_RIGHT:
+            if (g_gs.direction != SNAKE_DIR_LEFT) {
+                g_gs.next_direction = SNAKE_DIR_RIGHT;
+            }
+            break;
+        case KEY_ESC:
+            snake_game_show_exit_dialog();
+            break;
+        default:
+            break;
         }
     } else {
         if (key == 'r' || key == 'R') {
@@ -845,8 +854,8 @@ void snake_game_screen_init(void)
     // Score label
     score_label = lv_label_create(ui_snake_game_screen);
     lv_label_set_text(score_label, "SCORE: 0");
-    lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 6);
-    lv_obj_set_style_text_font(score_label, &lv_font_montserrat_14, 0);
+    lv_obj_align(score_label, LV_ALIGN_TOP_MID, 0, 2);
+    lv_obj_set_style_text_font(score_label, SCREEN_CONTENT_FONT, 0);
 
     // Game canvas
     game_canvas = lv_obj_create(ui_snake_game_screen);
