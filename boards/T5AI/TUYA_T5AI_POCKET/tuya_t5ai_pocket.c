@@ -116,13 +116,13 @@ OPERATE_RET __board_register_audio(void)
 
     cfg.aec_enable = 1;
 
-    cfg.ai_chn = TKL_AI_0;
+    cfg.ai_chn      = TKL_AI_0;
     cfg.sample_rate = TKL_AUDIO_SAMPLE_16K;
-    cfg.data_bits = TKL_AUDIO_DATABITS_16;
-    cfg.channel = TKL_AUDIO_CHANNEL_MONO;
+    cfg.data_bits   = TKL_AUDIO_DATABITS_16;
+    cfg.channel     = TKL_AUDIO_CHANNEL_MONO;
 
-    cfg.spk_sample_rate = TKL_AUDIO_SAMPLE_16K;
-    cfg.spk_pin = BOARD_SPEAKER_EN_PIN;
+    cfg.spk_sample_rate  = TKL_AUDIO_SAMPLE_16K;
+    cfg.spk_pin          = BOARD_SPEAKER_EN_PIN;
     cfg.spk_pin_polarity = TUYA_GPIO_LEVEL_LOW;
 
     TUYA_CALL_ERR_RETURN(tdd_audio_register(AUDIO_CODEC_NAME, cfg));
@@ -132,42 +132,42 @@ OPERATE_RET __board_register_audio(void)
 
 static OPERATE_RET __board_register_button(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET       rt = OPRT_OK;
     BUTTON_GPIO_CFG_T button_hw_cfg;
 
     memset(&button_hw_cfg, 0, sizeof(BUTTON_GPIO_CFG_T));
 
 #if defined(BUTTON_NAME)
-    button_hw_cfg.pin = BOARD_BUTTON_PIN;
-    button_hw_cfg.level = BOARD_BUTTON_ACTIVE_LV;
-    button_hw_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin                = BOARD_BUTTON_PIN;
+    button_hw_cfg.level              = BOARD_BUTTON_ACTIVE_LV;
+    button_hw_cfg.mode               = BUTTON_TIMER_SCAN_MODE;
     button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
 #endif
 
 #if defined(BUTTON_NAME_2)
-    button_hw_cfg.pin = BOARD_BUTTON2_PIN;
-    button_hw_cfg.level = BOARD_BUTTON2_ACTIVE_LV;
-    button_hw_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin                = BOARD_BUTTON2_PIN;
+    button_hw_cfg.level              = BOARD_BUTTON2_ACTIVE_LV;
+    button_hw_cfg.mode               = BUTTON_TIMER_SCAN_MODE;
     button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_2, &button_hw_cfg));
 #endif
 
 #if defined(BUTTON_NAME_3)
-    button_hw_cfg.pin = BOARD_BUTTON3_PIN;
-    button_hw_cfg.level = BOARD_BUTTON3_ACTIVE_LV;
-    button_hw_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin                = BOARD_BUTTON3_PIN;
+    button_hw_cfg.level              = BOARD_BUTTON3_ACTIVE_LV;
+    button_hw_cfg.mode               = BUTTON_TIMER_SCAN_MODE;
     button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_3, &button_hw_cfg));
 #endif
 
 #if defined(BUTTON_NAME_4)
-    button_hw_cfg.pin = BOARD_BUTTON4_PIN;
-    button_hw_cfg.level = BOARD_BUTTON4_ACTIVE_LV;
-    button_hw_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    button_hw_cfg.pin                = BOARD_BUTTON4_PIN;
+    button_hw_cfg.level              = BOARD_BUTTON4_ACTIVE_LV;
+    button_hw_cfg.mode               = BUTTON_TIMER_SCAN_MODE;
     button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_4, &button_hw_cfg));
@@ -183,9 +183,9 @@ static OPERATE_RET __board_register_led(void)
 #if defined(LED_NAME)
     TDD_LED_GPIO_CFG_T led_gpio;
 
-    led_gpio.pin = BOARD_LED_PIN;
+    led_gpio.pin   = BOARD_LED_PIN;
     led_gpio.level = BOARD_LED_ACTIVE_LV;
-    led_gpio.mode = TUYA_GPIO_PUSH_PULL;
+    led_gpio.mode  = TUYA_GPIO_PUSH_PULL;
 
     TUYA_CALL_ERR_RETURN(tdd_led_gpio_register(LED_NAME, &led_gpio));
 #endif
@@ -210,16 +210,16 @@ static OPERATE_RET __board_register_display(void)
 
     display_cfg.bl.type = BOARD_LCD_BL_TYPE;
 
-    display_cfg.width = BOARD_LCD_WIDTH;
-    display_cfg.height = BOARD_LCD_HEIGHT;
+    display_cfg.width    = BOARD_LCD_WIDTH;
+    display_cfg.height   = BOARD_LCD_HEIGHT;
     display_cfg.x_offset = BOARD_LCD_X_OFFSET;
     display_cfg.y_offset = BOARD_LCD_Y_OFFSET;
     display_cfg.rotation = BOARD_LCD_ROTATION;
 
-    display_cfg.port = BOARD_LCD_SPI_PORT;
+    display_cfg.port    = BOARD_LCD_SPI_PORT;
     display_cfg.spi_clk = BOARD_LCD_SPI_CLK;
-    display_cfg.cs_pin = BOARD_LCD_SPI_CS_PIN;
-    display_cfg.dc_pin = BOARD_LCD_SPI_DC_PIN;
+    display_cfg.cs_pin  = BOARD_LCD_SPI_CS_PIN;
+    display_cfg.dc_pin  = BOARD_LCD_SPI_DC_PIN;
     display_cfg.rst_pin = BOARD_LCD_SPI_RST_PIN;
 
     display_cfg.power.pin = BOARD_LCD_POWER_PIN;
@@ -236,21 +236,21 @@ static OPERATE_RET __board_register_joystick(void)
 
 #if defined(JOYSTICK_NAME)
     JOYSTICK_GPIO_CFG_T joystick_hw_cfg = {
-        .btn_pin = BOARD_JOYSTICK_PIN,
-        .mode = BOARD_JOYSTICK_MODE,
+        .btn_pin            = BOARD_JOYSTICK_PIN,
+        .mode               = BOARD_JOYSTICK_MODE,
         .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-        .level = TUYA_GPIO_LEVEL_LOW,
-        .adc_num = BOARD_JOYSTICK_ADC_NUM,
-        .adc_ch_x = BOARD_JOYSTICK_ADC_CH_X,
-        .adc_ch_y = BOARD_JOYSTICK_ADC_CH_Y,
+        .level              = TUYA_GPIO_LEVEL_LOW,
+        .adc_num            = BOARD_JOYSTICK_ADC_NUM,
+        .adc_ch_x           = BOARD_JOYSTICK_ADC_CH_X,
+        .adc_ch_y           = BOARD_JOYSTICK_ADC_CH_Y,
         .adc_cfg =
             {
                 .ch_list.data = (1 << BOARD_JOYSTICK_ADC_CH_X) | (1 << BOARD_JOYSTICK_ADC_CH_Y),
-                .ch_nums = BOARD_JOYSTICK_ADC_CH_NUM, /* adc Number of channel lists */
-                .width = BOARD_JOYSTICK_ADC_WIDTH,
-                .mode = TUYA_ADC_CONTINUOUS,
-                .type = TUYA_ADC_INNER_SAMPLE_VOL,
-                .conv_cnt = 1,
+                .ch_nums      = BOARD_JOYSTICK_ADC_CH_NUM, /* adc Number of channel lists */
+                .width        = BOARD_JOYSTICK_ADC_WIDTH,
+                .mode         = TUYA_ADC_CONTINUOUS,
+                .type         = TUYA_ADC_INNER_SAMPLE_VOL,
+                .conv_cnt     = 1,
             },
     };
 
@@ -330,7 +330,7 @@ static OPERATE_RET __board_register_axp2101(void)
 static OPERATE_RET __board_register_camera(void)
 {
 #if defined(CAMERA_NAME)
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET          rt         = OPRT_OK;
     TDD_DVP_SR_USR_CFG_T camera_cfg = {
         .pwr =
             {
@@ -343,8 +343,8 @@ static OPERATE_RET __board_register_camera(void)
         .i2c =
             {
                 .port = BOARD_CAMERA_I2C_PORT,
-                .clk = BOARD_CAMERA_I2C_SCL,
-                .sda = BOARD_CAMERA_I2C_SDA,
+                .clk  = BOARD_CAMERA_I2C_SCL,
+                .sda  = BOARD_CAMERA_I2C_SDA,
             },
         .clk = BOARD_CAMERA_CLK,
     };
