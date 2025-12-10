@@ -18,10 +18,10 @@
  #include "tdd_button_gpio.h"
  #endif
  
-#if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1)
-#include "tdd_disp_st7789.h"
-#elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
-#include "tdd_disp_spi_st7735s_xlt.h"
+ #if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1)
+ #include "tdd_disp_st7789.h"
+ #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+ #include "tdd_disp_st7735s.h"
 #elif defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
  #include "tdd_disp_gc9d01.h"
  #endif
@@ -46,13 +46,22 @@
 #define BOARD_LCD_WIDTH      240
 #define BOARD_LCD_HEIGHT     240
 
+#define BOARD_LCD_X_OFFSET   0
+#define BOARD_LCD_Y_OFFSET   0
+
 #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
 #define BOARD_LCD_WIDTH      160
 #define BOARD_LCD_HEIGHT     80
 
+#define BOARD_LCD_X_OFFSET   1
+#define BOARD_LCD_Y_OFFSET   0x1A
+
 #elif defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
 #define BOARD_LCD_WIDTH      160
 #define BOARD_LCD_HEIGHT     160
+
+#define BOARD_LCD_X_OFFSET   0
+#define BOARD_LCD_Y_OFFSET   0
 
 #endif
  
@@ -83,7 +92,7 @@
  /***********************************************************
  ***********************variable define**********************
  ***********************************************************/
-#if defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+ #if defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
 const uint8_t cST7735S_XLT_INIT_SEQ[] = {
     1,    120,  0x11, 
     1,    0,  0x21, 
@@ -105,7 +114,6 @@ const uint8_t cST7735S_XLT_INIT_SEQ[] = {
     1,    0,    0x29,
     0 // Terminate list                    // Terminate list
 };
-
 #endif
 
  /***********************************************************
@@ -203,7 +211,8 @@ const uint8_t cST7735S_XLT_INIT_SEQ[] = {
 #if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1)
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7789_register(DISPLAY_NAME, &display_cfg));
 #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
-    TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_xlt_register(DISPLAY_NAME, &display_cfg));
+    tdd_disp_spi_st7735s_set_init_seq(cST7735S_XLT_INIT_SEQ);
+    TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_register(DISPLAY_NAME, &display_cfg));
 #elif defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_gc9d01_register(DISPLAY_NAME, &display_cfg));
 #endif
