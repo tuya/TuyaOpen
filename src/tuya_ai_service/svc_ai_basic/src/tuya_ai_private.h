@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_private.h
- * @author aoding.xia@tuya.com
+ * @author tuya
  * @brief ai private header
  * @version 0.1
  * @date 2025-04-04

@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_monitor.c
- * @author aoding.xia@tuya.com
+ * @author tuya
  * @brief TUYA AI monitor service implementation
  * @version 0.1
  * @date 2025-06-09

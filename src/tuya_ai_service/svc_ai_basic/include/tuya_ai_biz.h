@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_biz.h
- * @author fangweng.hu@tuya.com
+ * @author tuya
  * @brief ai protocol
  * @version 0.1
  * @date 2025-03-04

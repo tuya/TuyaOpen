@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_mqtt.c
- * @author fangweng.hu@tuya.com
+ * @author tuya
  * @brief ai mqtt
  * @version 0.1
  * @date 2025-05-17

@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_http.h
- * @author fangweng.hu@tuya.com
+ * @author tuya
  * @brief ai http
  * @version 0.1
  * @date 2025-05-18

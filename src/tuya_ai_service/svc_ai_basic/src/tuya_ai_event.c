@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_event.c
- * @author fangweng.hu@tuya.com
+ * @author tuya
  * @brief ai event
  * @version 0.1
  * @date 2025-03-06

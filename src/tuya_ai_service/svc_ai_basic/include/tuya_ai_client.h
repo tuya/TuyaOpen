@@ -1,6 +1,6 @@
 /**
  * @file tuya_ai_client.h
- * @author fangweng.hu@tuya.com
+ * @author tuya
  * @brief ai client
  * @version 0.1
  * @date 2025-03-02
@@ -27,8 +27,8 @@
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_mqtt.h"
 
-#define EVENT_AI_CLIENT_RUN      "ai.client.run"
-#define EVENT_AI_CLIENT_CLOSE    "ai.client.close"
+#define EVENT_AI_CLIENT_RUN   "ai.client.run"
+#define EVENT_AI_CLIENT_CLOSE "ai.client.close"
 
 /**
  * @brief data handle cb
@@ -39,7 +39,7 @@
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-typedef OPERATE_RET(*AI_BASIC_DATA_HANDLE)(CHAR_T *data, UINT_T len, AI_FRAG_FLAG frag);
+typedef OPERATE_RET (*AI_BASIC_DATA_HANDLE)(CHAR_T *data, UINT_T len, AI_FRAG_FLAG frag);
 
 /**
  * @brief register data handle cb
