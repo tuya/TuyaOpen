@@ -105,14 +105,26 @@ static OPERATE_RET __board_register_led(void)
     return rt;
 }
 
+static OPERATE_RET __board_rx1_deinit(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    extern int bk_uart_set_enable_rx(int id, bool enable);
+    bk_uart_set_enable_rx(1, 0);
+
+    return rt;
+}
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__board_rx1_deinit());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
 
