@@ -189,8 +189,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             UI_WIFI_STATUS_E wifi_status = UI_WIFI_STATUS_GOOD;
             app_display_send_msg(TY_DISPLAY_TP_NETWORK, (uint8_t *)&wifi_status, sizeof(UI_WIFI_STATUS_E));
 #endif
-
-            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
             ai_audio_volume_upload();
         }
         break;
@@ -333,7 +331,7 @@ void user_main(void)
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
@@ -396,7 +394,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 4096;
+    thrd_param.priority = 4;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

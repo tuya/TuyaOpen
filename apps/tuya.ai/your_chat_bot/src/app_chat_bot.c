@@ -4,6 +4,7 @@
  * @version 0.1
  * @date 2025-03-25
  */
+#include "tuya_cloud_types.h"
 #include "netmgr.h"
 
 #include "tkl_wifi.h"
@@ -23,7 +24,11 @@
 #include "app_display.h"
 #include "ai_audio.h"
 #include "app_chat_bot.h"
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+#include "media_src_en.h"
+#else
 #include "media_src_zh.h"
+#endif
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -162,17 +167,26 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_START, data, len);
 #else
         if (NULL == p_ai_text) {
-            p_ai_text = tkl_system_psram_malloc(AI_AUDIO_TEXT_BUFF_LEN);
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+            p_ai_text = tal_psram_malloc(AI_AUDIO_TEXT_BUFF_LEN);
+#else
+            p_ai_text = tal_malloc(AI_AUDIO_TEXT_BUFF_LEN);
+#endif
             if (NULL == p_ai_text) {
                 return;
             }
         }
 
         ai_text_len = 0;
+
+        if (len > 0 && data) {
+            memcpy(p_ai_text, data, len);
+            ai_text_len = len;
+        }
 #endif
 #else
         // Ubuntu console logging - AI response start
-        PR_NOTICE("AI: ", len);
+        PR_NOTICE("AI: %.*s", len, data);
 #endif
     } break;
     case AI_AUDIO_EVT_AI_REPLIES_TEXT_DATA: {
@@ -245,6 +259,13 @@ static void __app_ai_audio_evt_inform_cb(AI_AUDIO_EVENT_E event, uint8_t *data, 
 #if defined(ENABLE_GUI_STREAM_AI_TEXT) && (ENABLE_GUI_STREAM_AI_TEXT == 1)
         app_display_send_msg(TY_DISPLAY_TP_ASSISTANT_MSG_STREAM_END, data, len);
 #endif
+    } break;
+    case AI_AUDIO_EVT_ALERT: {
+        int type = *(int *)data;
+        PR_DEBUG("ai audio alert: %d", type);
+        if (type == AT_NETWORK_CONNECTED) {
+            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
+        }
     } break;
 
     default:
@@ -546,13 +567,7 @@ OPERATE_RET app_chat_bot_init(void)
     return OPRT_OK;
 }
 
-/**
- * @brief Plays an alert sound based on the specified alert type.
- *
- * @param type - The type of alert to play, defined by the APP_ALERT_TYPE_E enum.
- * @return OPERATE_RET - Returns OPRT_OK if the alert sound is successfully played, otherwise returns an error code.
- */
-OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
+OPERATE_RET ai_audio_player_play_local_alert(AI_AUDIO_ALERT_TYPE_E type)
 {
     OPERATE_RET rt = OPRT_OK;
     char alert_id[64] = {0};
@@ -563,57 +578,161 @@ OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
 
     switch (type) {
     case AI_AUDIO_ALERT_POWER_ON: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_prologue_zh, sizeof(media_src_prologue_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *power_on_data = (uint8_t *)media_src_prologue_en;
+        int power_on_data_len = sizeof(media_src_prologue_en);
+#else
+        uint8_t *power_on_data = (uint8_t *)media_src_prologue_zh;
+        int power_on_data_len = sizeof(media_src_prologue_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, power_on_data, power_on_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_NOT_ACTIVE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_zh,
-                                        sizeof(media_src_network_conn_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *not_active_data = (uint8_t *)media_src_network_conn_en;
+        int not_active_data_len = sizeof(media_src_network_conn_en);
+#else
+        uint8_t *not_active_data = (uint8_t *)media_src_network_conn_zh;
+        int not_active_data_len = sizeof(media_src_network_conn_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, not_active_data, not_active_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CFG: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_config_zh,
-                                        sizeof(media_src_network_config_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *network_cfg_data = (uint8_t *)media_src_network_config_en;
+        int network_cfg_data_len = sizeof(media_src_network_config_en);
+#else
+        uint8_t *network_cfg_data = (uint8_t *)media_src_network_config_zh;
+        int network_cfg_data_len = sizeof(media_src_network_config_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, network_cfg_data, network_cfg_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_CONNECTED: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_success_zh,
-                                        sizeof(media_src_network_conn_success_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *network_connected_data = (uint8_t *)media_src_network_conn_success_en;
+        int network_connected_data_len = sizeof(media_src_network_conn_success_en);
+#else
+        uint8_t *network_connected_data = (uint8_t *)media_src_network_conn_success_zh;
+        int network_connected_data_len = sizeof(media_src_network_conn_success_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, network_connected_data, network_connected_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_FAIL: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_conn_failed_zh,
-                                        sizeof(media_src_network_conn_failed_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *network_failed_data = (uint8_t *)media_src_network_conn_failed_en;
+        int network_failed_data_len = sizeof(media_src_network_conn_failed_en);
+#else
+        uint8_t *network_failed_data = (uint8_t *)media_src_network_conn_failed_zh;
+        int network_failed_data_len = sizeof(media_src_network_conn_failed_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, network_failed_data, network_failed_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_NETWORK_DISCONNECT: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_network_reconfigure_zh,
-                                        sizeof(media_src_network_reconfigure_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *network_reconfigure_data = (uint8_t *)media_src_network_reconfigure_en;
+        int network_reconfigure_data_len = sizeof(media_src_network_reconfigure_en);
+#else
+        uint8_t *network_reconfigure_data = (uint8_t *)media_src_network_reconfigure_zh;
+        int network_reconfigure_data_len = sizeof(media_src_network_reconfigure_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, network_reconfigure_data, network_reconfigure_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_BATTERY_LOW: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_low_battery_zh, sizeof(media_src_low_battery_zh),
-                                        1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *battery_low_data = (uint8_t *)media_src_low_battery_en;
+        int battery_low_data_len = sizeof(media_src_low_battery_en);
+#else
+        uint8_t *battery_low_data = (uint8_t *)media_src_low_battery_zh;
+        int battery_low_data_len = sizeof(media_src_low_battery_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, battery_low_data, battery_low_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_PLEASE_AGAIN: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_please_again_zh,
-                                        sizeof(media_src_please_again_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *please_again_data = (uint8_t *)media_src_please_again_en;
+        int please_again_data_len = sizeof(media_src_please_again_en);
+#else
+        uint8_t *please_again_data = (uint8_t *)media_src_please_again_zh;
+        int please_again_data_len = sizeof(media_src_please_again_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, please_again_data, please_again_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_ai_zh, sizeof(media_src_ai_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *wakeup_data = (uint8_t *)media_src_ai_en;
+        int wakeup_data_len = sizeof(media_src_ai_en);
+#else
+        uint8_t *wakeup_data = (uint8_t *)media_src_ai_zh;
+        int wakeup_data_len = sizeof(media_src_ai_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, wakeup_data, wakeup_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_LONG_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_long_press_zh, sizeof(media_src_long_press_zh),
-                                        1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *long_key_talk_data = (uint8_t *)media_src_long_press_en;
+        int long_key_talk_data_len = sizeof(media_src_long_press_en);
+#else
+        uint8_t *long_key_talk_data = (uint8_t *)media_src_long_press_zh;
+        int long_key_talk_data_len = sizeof(media_src_long_press_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, long_key_talk_data, long_key_talk_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_KEY_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_press_talk_zh, sizeof(media_src_press_talk_zh),
-                                        1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *key_talk_data = (uint8_t *)media_src_press_talk_en;
+        int key_talk_data_len = sizeof(media_src_press_talk_en);
+#else
+        uint8_t *key_talk_data = (uint8_t *)media_src_press_talk_zh;
+        int key_talk_data_len = sizeof(media_src_press_talk_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, key_talk_data, key_talk_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_WAKEUP_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_wakeup_chat_zh, sizeof(media_src_wakeup_chat_zh),
-                                        1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *wakeup_talk_data = (uint8_t *)media_src_wakeup_chat_en;
+        int wakeup_talk_data_len = sizeof(media_src_wakeup_chat_en);
+#else
+        uint8_t *wakeup_talk_data = (uint8_t *)media_src_wakeup_chat_zh;
+        int wakeup_talk_data_len = sizeof(media_src_wakeup_chat_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, wakeup_talk_data, wakeup_talk_data_len, 1);
     } break;
     case AI_AUDIO_ALERT_FREE_TALK: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_free_chat_zh, sizeof(media_src_free_chat_zh), 1);
+#if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
+        uint8_t *free_talk_data = (uint8_t *)media_src_free_chat_en;
+        int free_talk_data_len = sizeof(media_src_free_chat_en);
+#else
+        uint8_t *free_talk_data = (uint8_t *)media_src_free_chat_zh;
+        int free_talk_data_len = sizeof(media_src_free_chat_zh);
+#endif
+        rt = ai_audio_player_data_write(alert_id, free_talk_data, free_talk_data_len, 1);
     } break;
 
     default:
         break;
+    }
+
+    return rt;
+}
+
+/**
+ * @brief Plays an alert sound based on the specified alert type.
+ *
+ * @param type - The type of alert to play, defined by the APP_ALERT_TYPE_E enum.
+ * @return OPERATE_RET - Returns OPRT_OK if the alert sound is successfully played, otherwise returns an error code.
+ */
+OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (AI_AUDIO_ALERT_NETWORK_CONNECTED == type) {
+        rt = ai_audio_agent_cloud_alert(AT_NETWORK_CONNECTED);
+    } else if (AI_AUDIO_ALERT_PLEASE_AGAIN == type) {
+        rt = ai_audio_agent_cloud_alert(AT_PLEASE_AGAIN);
+    } else if (AI_AUDIO_ALERT_WAKEUP == type) {
+        rt = ai_audio_agent_cloud_alert(AT_WAKEUP);
+    } else {
+        rt = ai_audio_player_play_local_alert(type);
     }
 
     return rt;

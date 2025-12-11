@@ -502,9 +502,22 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char
         goto ERR_EXIT;
     }
     len += cnt;
-    cnt = vsnprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len, pFmt, ap);
-    if (cnt <= 0) {
+
+    // Check if there's enough space left for the formatted message
+    int remaining = pLogManage->log_buf_len - len;
+    if (remaining <= 0) {
         goto ERR_EXIT;
+    }
+
+    cnt = vsnprintf(pLogManage->log_buf + len, remaining, pFmt, ap);
+    if (cnt < 0) {
+        goto ERR_EXIT;
+    }
+    // vsnprintf returns the number of characters that would have been written
+    // (excluding null terminator). If the return value >= buffer size, the string
+    // was truncated and (buffer_size - 1) characters were actually written.
+    if (cnt >= remaining) {
+        cnt = remaining - 1; // Actual characters written (excluding null terminator)
     }
     len += cnt;
 

@@ -51,4 +51,16 @@ config ENABLE_CHAT_DISPLAY
 config ENABLE_AUDIO_CHAT
     bool "enable audio chat mode"
     default y
+
+choice
+    prompt "choose language"
+    default ENABLE_LANGUAGE_CHINESE
+
+    config ENABLE_LANGUAGE_CHINESE
+        bool "Chinese"
+
+    config ENABLE_LANGUAGE_ENGLISH
+        bool "English"
+endchoice
+
 endmenu

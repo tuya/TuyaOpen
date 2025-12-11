@@ -201,7 +201,16 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
     tal_mutex_unlock(s_del_thrd_mag->mutex);
 
     int opRet;
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    if (cfg->psram_mode == 1) {
+        opRet = tkl_thread_create_in_psram(&(pMgr->thrdID), cfg->thrdname, cfg->stackDepth, cfg->priority,
+                                           __WrapRunFunc, pMgr);
+    } else {
+        opRet = tkl_thread_create(&(pMgr->thrdID), cfg->thrdname, cfg->stackDepth, cfg->priority, __WrapRunFunc, pMgr);
+    }
+#else
     opRet = tkl_thread_create(&(pMgr->thrdID), cfg->thrdname, cfg->stackDepth, cfg->priority, __WrapRunFunc, pMgr);
+#endif
     if (opRet != 0) {
         PR_ERR("Create Thrd Fail:%d", opRet);
         tal_mutex_lock(s_del_thrd_mag->mutex);
