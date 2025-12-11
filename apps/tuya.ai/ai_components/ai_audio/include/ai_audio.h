@@ -9,6 +9,7 @@
 #include "ai_audio_cloud_asr.h"
 #include "ai_audio_player.h"
 #include "ai_audio_input.h"
+#include "tuya_ai_agent.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -29,6 +30,7 @@ typedef enum {
     AI_AUDIO_EVT_AI_REPLIES_TEXT_INTERUPT,
     AI_AUDIO_EVT_AI_REPLIES_EMO,
     AI_AUDIO_EVT_ASR_WAKEUP,
+    AI_AUDIO_EVT_ALERT,
 } AI_AUDIO_EVENT_E;
 
 typedef enum {

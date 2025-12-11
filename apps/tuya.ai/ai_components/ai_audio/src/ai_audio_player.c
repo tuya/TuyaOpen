@@ -233,7 +233,7 @@ static void __ai_audio_player_task(void *arg)
                 uint32_t cache_len = tuya_ring_buff_used_size_get(ctx->rb_hdl);
                 tal_mutex_unlock(ctx->spk_rb_mutex);
 
-                if (cache_len >= 3*1024 || tal_system_get_millisecond() - start_time > 1000) {
+                if (cache_len >= 3 * 1024 || tal_system_get_millisecond() - start_time > 1000) {
                     ctx->is_first_play = 0;
                 }
                 break;

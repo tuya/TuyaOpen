@@ -53,6 +53,7 @@ typedef struct {
 typedef struct {
     void (*ai_agent_msg_cb)(AI_AGENT_MSG_T *msg);
     void (*ai_agent_event_cb)(AI_EVENT_TYPE event, AI_EVENT_ID event_id);
+    void (*ai_agent_alert_cb)(int type);
 } AI_AGENT_CBS_T;
 
 /***********************************************************
@@ -93,6 +94,13 @@ OPERATE_RET ai_audio_agent_upload_stop(void);
  * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
  */
 OPERATE_RET ai_audio_agent_chat_intrrupt(void);
+
+/**
+ * @brief Send cloud alert to the AI service.
+ * @param type Alert type
+ * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_agent_cloud_alert(int type);
 
 /**
  * @brief Stops the AI chat process.

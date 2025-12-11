@@ -206,7 +206,7 @@ int ui_init(UI_FONT_T *ui_font)
 
 void ui_set_user_msg(const char *text)
 {
-    if (sg_ui.ui.content == NULL) {
+    if (sg_ui.ui.content == NULL || text == NULL || strlen(text) == 0) {
         return;
     }
 
@@ -260,7 +260,7 @@ void ui_set_user_msg(const char *text)
 
 void ui_set_assistant_msg(const char *text)
 {
-    if (sg_ui.ui.content == NULL) {
+    if (sg_ui.ui.content == NULL || text == NULL || strlen(text) == 0) {
         return;
     }
 
