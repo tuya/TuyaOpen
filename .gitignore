@@ -25,3 +25,5 @@ dist
 /.set_example
 /dist
 *monitor.log
+
+compile_commands.json

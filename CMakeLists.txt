@@ -9,6 +9,8 @@
 
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 
+# Enable compile commands export for clangd and other tools
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 MESSAGE(STATUS "#################### TuyaOpen CMakeLists.txt Start ####################")
 
