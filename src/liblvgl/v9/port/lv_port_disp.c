@@ -19,6 +19,7 @@
 
 #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 #include "tkl_dma2d.h"
+#include "tal_dma2d.h"
 #endif
 
 /*********************
@@ -27,16 +28,19 @@
 #define DISP_DRAW_BUF_ALIGN    4
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define LV_MEM_CUSTOM_ALLOC   tkl_system_psram_malloc
-#define LV_MEM_CUSTOM_FREE    tkl_system_psram_free
-#define LV_MEM_CUSTOM_REALLOC tkl_system_psram_realloc
+#define LV_MEM_CUSTOM_ALLOC   tal_psram_malloc
+#define LV_MEM_CUSTOM_FREE    tal_psram_free
+#define LV_MEM_CUSTOM_REALLOC tal_psram_realloc
 #else
-#define LV_MEM_CUSTOM_ALLOC   tkl_system_malloc
-#define LV_MEM_CUSTOM_FREE    tkl_system_free
-#define LV_MEM_CUSTOM_REALLOC tkl_system_realloc
+#define LV_MEM_CUSTOM_ALLOC   tal_malloc
+#define LV_MEM_CUSTOM_FREE    tal_free
+#define LV_MEM_CUSTOM_REALLOC tal_realloc
 #endif
 
 #define LV_DISP_FB_MAX_NUM    3
+
+#define USE_TAL_DMA2D 1
+
 /**********************
  *      TYPEDEFS
  **********************/
@@ -157,6 +161,129 @@ void lv_port_disp_deinit(void)
  *   STATIC FUNCTIONS
  **********************/
 #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+#if defined(USE_TAL_DMA2D) && (USE_TAL_DMA2D == 1)
+static TAL_DMA2D_HANDLE_T sg_lvgl_dma2d_hdl = NULL;
+static bool sg_is_wait_dma2d = false;
+
+static void __disp_dma2d_init(void)
+{
+    tal_dma2d_init(&sg_lvgl_dma2d_hdl);
+    return;
+}
+
+static void __wait_dma2d_trans_finish(void)
+{
+    if (sg_lvgl_dma2d_hdl && sg_is_wait_dma2d) {
+        tal_dma2d_wait_finish(sg_lvgl_dma2d_hdl, 1000);
+        sg_is_wait_dma2d = false;
+    }
+}
+
+static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t * area, uint8_t * px_map, \
+    lv_color_format_t cf, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (NULL == sg_lvgl_dma2d_hdl) {
+        return;
+    }
+
+    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
+    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
+
+    if (area == NULL || px_map == NULL || fb == NULL) {
+        PR_ERR("Invalid parameter");
+        return;
+    }
+
+    // Perform memory copy based on color format
+    switch (cf) {
+        case LV_COLOR_FORMAT_RGB565:
+            in_frame.type  = TUYA_FRAME_FMT_RGB565;
+            out_frame.type = TUYA_FRAME_FMT_RGB565;
+            break;
+        case LV_COLOR_FORMAT_RGB888:
+            in_frame.type  = TUYA_FRAME_FMT_RGB888;
+            out_frame.type = TUYA_FRAME_FMT_RGB888;
+            break;
+        default:
+            PR_ERR("Unsupported color format");
+            return;
+    }
+
+    in_frame.width  = area->x2 - area->x1 + 1;
+    in_frame.height = area->y2 - area->y1 + 1;
+    in_frame.pbuf   = px_map;
+    in_frame.axis.x_axis   = 0;
+    in_frame.axis.y_axis   = 0;
+    in_frame.width_cp      = 0;
+    in_frame.height_cp     = 0;
+
+    out_frame.width  = fb->width;
+    out_frame.height = fb->height;
+    out_frame.pbuf   = fb->frame;
+    out_frame.axis.x_axis   = area->x1;
+    out_frame.axis.y_axis   = area->y1;
+
+    rt = tal_dma2d_memcpy(sg_lvgl_dma2d_hdl, &in_frame, &out_frame);
+    if (rt == OPRT_OK) {
+        sg_is_wait_dma2d = true;
+        __wait_dma2d_trans_finish();
+    }
+}
+
+static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
+                                             uint8_t *dst_frame,\
+                                             uint8_t *src_frame)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (NULL == sg_lvgl_dma2d_hdl) {
+        return;
+    }
+
+    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
+    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
+
+    switch (dev_info->fmt) {
+        case TUYA_PIXEL_FMT_RGB565:
+            in_frame.type  = TUYA_FRAME_FMT_RGB565;
+            out_frame.type = TUYA_FRAME_FMT_RGB565;
+            break;
+        case TUYA_PIXEL_FMT_RGB888:
+            in_frame.type  = TUYA_FRAME_FMT_RGB888;
+            out_frame.type = TUYA_FRAME_FMT_RGB888;
+            break;
+        default:
+            PR_ERR("Unsupported color format");
+            return;
+    }
+
+
+    in_frame.type  = TUYA_FRAME_FMT_RGB565;
+    in_frame.width  = dev_info->width;
+    in_frame.height = dev_info->height;
+    in_frame.pbuf   = src_frame;
+    in_frame.axis.x_axis   = 0;
+    in_frame.axis.y_axis   = 0;
+    in_frame.width_cp      = 0;
+    in_frame.height_cp     = 0;
+    
+    out_frame.type = TUYA_FRAME_FMT_RGB565;
+    out_frame.width  = dev_info->width;
+    out_frame.height = dev_info->height;
+    out_frame.pbuf   = dst_frame;
+    out_frame.axis.x_axis   = 0;
+    out_frame.axis.y_axis   = 0;
+    out_frame.width_cp      = 0;
+    out_frame.height_cp     = 0;
+
+    rt = tal_dma2d_memcpy(sg_lvgl_dma2d_hdl, &in_frame, &out_frame);
+    if (rt == OPRT_OK) {
+        sg_is_wait_dma2d = true;
+    }
+}
+#else
 static SEM_HANDLE sg_dma2d_finish_sem = NULL;
 static bool sg_is_wait_dma2d = false;
 static void __disp_dma2d_event_cb(TUYA_DMA2D_IRQ_E type, VOID_T *args)
@@ -281,6 +408,7 @@ static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
 
     sg_is_wait_dma2d = true;
 }
+#endif
 #endif
 static void disp_frame_buff_free(TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
