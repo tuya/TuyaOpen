@@ -429,7 +429,7 @@ OPERATE_RET tuya_ai_input_init(VOID)
     TUYA_CALL_ERR_GOTO(tal_queue_create_init(&ai_input_ctx.queue, SIZEOF(AI_INPUT_STATE_E), 3), EXIT);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(__alert_timeout_cb, NULL, &ai_input_ctx.alert.timer), EXIT);
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-ai_input_ctx.input_buf = tal_psram_malloc(AI_INPUT_BUF_SIZE);
+    ai_input_ctx.input_buf = tal_psram_malloc(AI_INPUT_BUF_SIZE);
 #else
     ai_input_ctx.input_buf = Malloc(AI_INPUT_BUF_SIZE);
 #endif
