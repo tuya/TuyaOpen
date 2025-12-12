@@ -68,6 +68,7 @@ typedef struct {
     uint16_t                  width;
     uint16_t                  height;
     TDL_CAMERA_FMT_E          out_fmt;
+    TUYA_DVP_ENCODED_QUALITY  encoded_quality;
     TDL_CAMERA_GET_FRAME_CB   get_frame_cb;
     TDL_CAMERA_GET_FRAME_CB   get_encoded_frame_cb;
 }TDL_CAMERA_CFG_T;

@@ -41,11 +41,13 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E f
 
     tdd_frame = tdl_camera_create_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, fmt);
     if(NULL == tdd_frame) {
-        return NULL;
+        dvp_frame = NULL;
+        goto __EXIT;
     }
 
     if(sizeof(TUYA_DVP_FRAME_MANAGE_T) > sizeof(tdd_frame->rsv)) {
-        return NULL;
+        dvp_frame = NULL;
+        goto __EXIT;
     }
 
     dvp_frame = (TUYA_DVP_FRAME_MANAGE_T *)(tdd_frame->rsv);
@@ -57,9 +59,11 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E f
 
     dvp_frame->arg = (void *)tdd_frame;
 
+__EXIT:
     return dvp_frame;
 }
 
+//! WARNING: This is hardware interrupt handler for T5, do not use PR_xxx here!
 static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_frame)
 {
     TDD_CAMERA_FRAME_T *tdd_frame = NULL;
@@ -70,11 +74,13 @@ static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_fra
 
     tdd_frame = (TDD_CAMERA_FRAME_T *)dvp_frame->arg;
 
-    tdd_frame->frame.id          = dvp_frame->frame_id;
-    tdd_frame->frame.is_i_frame  = dvp_frame->is_i_frame;
-    tdd_frame->frame.is_complete = dvp_frame->is_frame_complete;
-    tdd_frame->frame.width       = dvp_frame->width;
-    tdd_frame->frame.height      = dvp_frame->height;
+    tdd_frame->frame.id              = dvp_frame->frame_id;
+    tdd_frame->frame.is_i_frame      = dvp_frame->is_i_frame;
+    tdd_frame->frame.is_complete     = dvp_frame->is_frame_complete;
+    tdd_frame->frame.width           = dvp_frame->width;
+    tdd_frame->frame.height          = dvp_frame->height;
+    tdd_frame->frame.data_len        = dvp_frame->data_len;
+    tdd_frame->frame.total_frame_len = dvp_frame->total_frame_len;
 
     return tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, (TDD_CAMERA_FRAME_T *)dvp_frame->arg);
 }
@@ -112,7 +118,9 @@ static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_
     dev->dvp_cfg.height    = cfg->height;
     dev->dvp_cfg.fps       = cfg->fps;
 
-	TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dev->dvp_cfg, dev->sensor.usr_cfg.clk));
+    memcpy(&dev->dvp_cfg.encoded_quality, &cfg->encoded_quality, sizeof(TUYA_DVP_ENCODED_QUALITY));
+
+    TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dev->dvp_cfg, dev->sensor.usr_cfg.clk));
 
     return OPRT_OK;
 }

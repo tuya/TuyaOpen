@@ -23,8 +23,8 @@
 #define CAMERA_ENCODE_MIN_COMP_PCT          (20) // uint:ENCODE
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
-#define TDL_CAMERA_FRAME_MALLOC    tkl_system_psram_malloc
-#define TDL_CAMERA_FRAME_FREE      tkl_system_psram_free
+#define TDL_CAMERA_FRAME_MALLOC    tal_psram_malloc
+#define TDL_CAMERA_FRAME_FREE      tal_psram_free
 #else
 #define TDL_CAMERA_FRAME_MALLOC    tal_malloc
 #define TDL_CAMERA_FRAME_FREE      tal_free
@@ -304,6 +304,8 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
         open_cfg.height  = camera_dev->info.height;
         open_cfg.out_fmt = camera_dev->info.out_fmt;
 
+        memcpy(&open_cfg.encoded_quality, &cfg->encoded_quality, sizeof(TUYA_DVP_ENCODED_QUALITY));
+
         TUYA_CALL_ERR_RETURN(camera_dev->intfs.open(camera_dev->tdd_hdl, &open_cfg));
 
         camera_dev->is_open = true;
@@ -366,10 +368,13 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
         return NULL;
     }
 
+    TAL_ENTER_CRITICAL();
+
     pframe_list = (false == __is_camera_frame_encoded(fmt)) ? \
                   &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
              
     if(tuya_list_empty(pframe_list)) {
+        TAL_EXIT_CRITICAL();
         return NULL;
     }
 
@@ -378,6 +383,8 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
     tuya_list_del(&pnode->node);
 
     pnode->tdd_frame.frame.fmt = fmt;
+
+    TAL_EXIT_CRITICAL();
 
     return &pnode->tdd_frame;
 }
@@ -401,6 +408,7 @@ void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FR
     if (NULL == camera_dev) {
         return;
     }
+    TAL_ENTER_CRITICAL();
 
     pframe_list = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? \
                   &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
@@ -408,6 +416,15 @@ void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FR
     pnode = (CAMERA_FRAME_NODE_T *)frame->sys_param;
 
     tuya_list_add_tail(&pnode->node, pframe_list);
+
+    frame->frame.id = 0;
+    frame->frame.is_complete = 0;
+    frame->frame.data_len = 0;
+    frame->frame.width = 0;
+    frame->frame.height = 0;
+    frame->frame.total_frame_len = 0;
+
+    TAL_EXIT_CRITICAL();
 
     return;
 }
@@ -423,14 +440,12 @@ OPERATE_RET tdl_camera_post_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMER
     }
 
     if(NULL == frame->sys_param) {
-        PR_ERR("frame sys_param is NULL");
         return OPRT_INVALID_PARM;
     }
 
     queue = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? \
                 sg_camera_manage.raw_frame_queue : sg_camera_manage.encoded_frame_queue;
     if(NULL == queue) {
-        PR_ERR("queue is null");
         return OPRT_COM_ERROR;
     }
 
