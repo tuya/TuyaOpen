@@ -39,8 +39,9 @@
 
 
 ## 概述
+TuyaOpen 赋能下一代 AI 智能体硬件：以灵活跨平台 C/C++ SDK 支持 涂鸦T系列 WIFI/蓝牙芯片、树莓派、ESP32 等设备，搭配涂鸦云低延迟多模态 AI（拖拽工作流），集成顶尖模型，简化开放式 AI-IoT 生态搭建。
 
-TuyaOpen 是一个开源的 AI+IoT 开发框架，旨在帮助开发者快速创建智能互联设备。它支持多种芯片平台和类 RTOS 操作系统，能够无缝集成多模态 AI 能力，包括音频、视频和传感器数据处理。
+![TuyaOpen One Pager](https://images.tuyacn.com/fe-static/docs/img/89647845-4851-4317-8265-45276a9b7d8e.png)
 
 ### 🚀 使用 TuyaOpen，你可以：
 - 开发具备语音技术的硬件产品，如 `ASR`（Automatic Speech Recognition）、`KWS`（Keyword Spotting）、`TTS`（Text-to-Speech）、`STT`（Speech-to-Text）

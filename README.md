@@ -42,7 +42,10 @@
 
 ## Overview
 
-TuyaOpen is an open source AI+IoT development framework designed for rapid creation of intelligent, connected devices. It supports multiple chip platforms and RTOS-like operating systems, enabling seamless integration of multimodal AI capabilities—including audio, video, and sensor data processing.
+TuyaOpen powers next-gen AI-agent hardware: it supports gear (Tuya T-Series WIFI/BT MCUs, Pi, ESP32s) via its flexible, cross-platform C/C++ SDK, pairs with Tuya Cloud’s low-latency multimodal AI (drag-and-drop workflows), integrates top models (ChatGPT, Gemini, Qwen, Doubao etc.), and streamlines open AI-IoT ecosystem building.
+
+![TuyaOpen One Pager](https://images.tuyacn.com/fe-static/docs/img/2eed8b23-0459-4db4-8f17-e7cce8b36b8a.png)
+
 
 ### 🚀 With TuyaOpen, you can:
 - Develop hardware products featuring speech technologies such as `ASR` (Automatic Speech Recognition), `KWS` (Keyword Spotting), `TTS` (Text-to-Speech), and `STT` (Speech-to-Text)
