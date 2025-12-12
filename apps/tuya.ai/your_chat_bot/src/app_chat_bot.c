@@ -22,6 +22,11 @@
 #endif
 
 #include "app_display.h"
+
+#if defined(ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA == 1)
+#include "app_camera.h"
+#endif
+
 #include "ai_audio.h"
 #include "app_chat_bot.h"
 #if defined(ENABLE_LANGUAGE_ENGLISH) && (ENABLE_LANGUAGE_ENGLISH == 1)
@@ -29,6 +34,9 @@
 #else
 #include "media_src_zh.h"
 #endif
+
+#include "app_mcp.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -346,6 +354,19 @@ uint8_t app_chat_bot_get_enable(void)
 }
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+static void __app_button_single_click_cb(void *data)
+{
+    if (sg_chat_bot.is_enable) {
+        ai_audio_player_stop();
+        ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
+        ai_audio_set_wakeup();
+        PR_DEBUG("button single click wakeup");
+    } else {
+        __app_chat_bot_enable(true);
+        PR_DEBUG("button single click enable");
+    }
+}
+
 static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, void *argc)
 {
     APP_CHAT_MODE_E work_mode = sg_chat_bot.work->mode;
@@ -387,13 +408,7 @@ static void __app_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event,
             break;
         }
 
-        if (sg_chat_bot.is_enable) {
-            ai_audio_player_stop();
-            ai_audio_player_play_alert(AI_AUDIO_ALERT_WAKEUP);
-            ai_audio_set_wakeup();
-        } else {
-            __app_chat_bot_enable(true);
-        }
+        tal_workq_schedule(WORKQ_SYSTEM, __app_button_single_click_cb, NULL);
         PR_DEBUG("button single click");
     } break;
     default:
@@ -538,7 +553,11 @@ OPERATE_RET app_chat_bot_init(void)
     AI_AUDIO_CONFIG_T ai_audio_cfg;
 
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_init();
+    TUYA_CALL_ERR_LOG(app_display_init());
+#endif
+
+#if defined(ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA == 1)
+    TUYA_CALL_ERR_LOG(app_camera_init());
 #endif
 
     ai_audio_cfg.work_mode = sg_chat_bot.work->auido_mode;
@@ -546,6 +565,8 @@ OPERATE_RET app_chat_bot_init(void)
     ai_audio_cfg.state_inform_cb = __app_ai_audio_state_inform_cb;
 
     TUYA_CALL_ERR_RETURN(ai_audio_init(&ai_audio_cfg));
+
+    TUYA_CALL_ERR_RETURN(app_mcp_init());
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
     TUYA_CALL_ERR_RETURN(__app_open_button());

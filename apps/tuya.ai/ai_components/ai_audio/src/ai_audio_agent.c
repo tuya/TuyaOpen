@@ -349,6 +349,16 @@ static OPERATE_RET __ai_agent_init(void *data)
     agent_cfg.attr.audio.channels = AUDIO_CHANNELS_MONO;
     agent_cfg.attr.audio.bit_depth = 16;
 
+    // video
+    // agent_cfg.attr.video.codec_type  = VIDEO_CODEC_H264;
+    // agent_cfg.attr.video.sample_rate = 90000;
+    // agent_cfg.attr.video.fps         = 20;
+    // agent_cfg.attr.video.width       = 480;
+    // agent_cfg.attr.video.height      = 480;
+
+    // MCP
+    agent_cfg.enable_mcp = TRUE;
+
     TUYA_CALL_ERR_RETURN(tuya_ai_agent_init(&agent_cfg));
 
     ai_monitor_config_t monitor_cfg = AI_MONITOR_CFG_DEFAULT;

@@ -45,11 +45,8 @@ endif()
 
 # Get Python command from environment variable PYTHON_CMD
 # Only execute if PYTHON_CMD is not empty
-message(STATUS "111 OPEN_SDK_PYTHON: $ENV{OPEN_SDK_PYTHON}")
 if(DEFINED ENV{OPEN_SDK_PYTHON} AND NOT "$ENV{OPEN_SDK_PYTHON}" STREQUAL "")
     set(PYTHON_CMD $ENV{OPEN_SDK_PYTHON})
-
-    message(STATUS "PYTHON_CMD: ${PYTHON_CMD}")
     
     # Add custom command to generate language config header
     add_custom_command(
@@ -100,6 +97,13 @@ target_compile_options(${EXAMPLE_LIB}
 if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
         add_subdirectory(${APP_PATH}/src/display)
 endif()
+
+if (CONFIG_ENABLE_EX_MODULE_CAMERA STREQUAL "y")
+    add_subdirectory(${APP_PATH}/src/camera)
+endif()
+
+# Add mcp subdirectory
+add_subdirectory(${APP_PATH}/src/mcp)
 
 add_subdirectory(${APP_PATH}/../ai_components/ai_audio)
 target_include_directories(${EXAMPLE_LIB} PRIVATE ${APP_PATH}/../ai_components/ai_audio)

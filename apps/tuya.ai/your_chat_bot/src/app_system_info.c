@@ -65,8 +65,14 @@ static APP_SYSTEM_INFO_T system_info = {0};
 
 static void __app_free_heap_tm_cb(TIMER_ID timer_id, void *arg)
 {
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    uint32_t free_heap       = tal_system_get_free_heap_size();
+    uint32_t free_psram_heap = tal_psram_get_free_heap_size();
+    PR_INFO("Free heap size:%d, Free psram heap size:%d", free_heap, free_psram_heap);
+#else
     uint32_t free_heap = tal_system_get_free_heap_size();
     PR_INFO("Free heap size:%d", free_heap);
+#endif
 }
 
 static void __app_display_net_status_update(void)
