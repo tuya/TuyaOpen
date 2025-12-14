@@ -302,8 +302,10 @@ void servo_write(uint8_t pin, uint16_t angle)
     // Set duty cycle
     tkl_pwm_duty_set(pwm_id, duty);
 
-   // PR_NOTICE("servo_write: pin=%d, angle=%d, pulse_width=%d us, duty=%d%%", 
-    //          pin, angle, pulse_width, duty);
+    // Calculate duty percentage (duty range 1-10000 corresponds to 0.01%-100%)
+    float duty_percent = (float)duty / 100.0f;
+   PR_NOTICE("servo_write: pin=%d, angle=%d, pulse_width=%d us, duty=%d (%.2f%%)", 
+            pin, angle, pulse_width, duty, duty_percent);
     // Ensure PWM is running
     tkl_pwm_start(pwm_id);
 }
@@ -368,6 +370,15 @@ void servo_detach(uint8_t pin)
      delay_ms(400);
 #endif
      
+     // Attach leg servos
+     servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+     servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+     
+      // Set leg positions
+      servo_write(SERVO_LEFT_LEG_PIN, LA0);
+      servo_write(SERVO_RIGHT_LEG_PIN, RA0); 
+      delay_ms(1000);
+
      // Attach feet servos
      servo_attach(SERVO_LEFT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
@@ -377,14 +388,7 @@ void servo_detach(uint8_t pin)
      servo_write(SERVO_RIGHT_FOOT_PIN, 90);
      delay_ms(400);
 
-     // Attach leg servos
-    servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-    servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-    
-     // Set leg positions
-     servo_write(SERVO_LEFT_LEG_PIN, LA0);
-     servo_write(SERVO_RIGHT_LEG_PIN, RA0); 
-     delay_ms(400);
+
 
      // Detach all servos
      servo_detach(SERVO_LEFT_FOOT_PIN);
@@ -405,6 +409,7 @@ void servo_detach(uint8_t pin)
   */
  void robot_set_walk(void)
  {
+    PR_NOTICE("robot_set_walk");
 #if ARM_HEAD_ENABLE == 1
      // Arms to middle position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
@@ -420,7 +425,7 @@ void servo_detach(uint8_t pin)
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_write(SERVO_LEFT_LEG_PIN, LA0);
      servo_write(SERVO_RIGHT_LEG_PIN, RA0);
-     delay_ms(300);
+     delay_ms(100);
      servo_detach(SERVO_LEFT_LEG_PIN);
      servo_detach(SERVO_RIGHT_LEG_PIN);
      
@@ -440,6 +445,7 @@ void servo_detach(uint8_t pin)
   */
  void robot_set_roll(void)
  {
+    PR_NOTICE("robot_set_roll");
 #if ARM_HEAD_ENABLE == 1
      // Arms to middle position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
@@ -456,7 +462,7 @@ void servo_detach(uint8_t pin)
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_write(SERVO_LEFT_LEG_PIN, LA1);
      servo_write(SERVO_RIGHT_LEG_PIN, RA1);
-     delay_ms(300);
+     delay_ms(100);
      servo_detach(SERVO_LEFT_LEG_PIN);
      servo_detach(SERVO_RIGHT_LEG_PIN);
      

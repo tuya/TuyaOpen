@@ -187,7 +187,7 @@ static void __example_otto_ninja_task(void *param)
     PR_NOTICE("=== OttoNinja Servo Control Task Start ===");
 
     main_init();
-
+    tal_system_sleep(1000); // Wait 1 second before starting
     robot_set_walk();
     while (1) {
        
