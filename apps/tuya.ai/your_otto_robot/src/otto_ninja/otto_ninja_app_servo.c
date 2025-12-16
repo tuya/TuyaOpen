@@ -303,9 +303,9 @@ void servo_write(uint8_t pin, uint16_t angle)
     tkl_pwm_duty_set(pwm_id, duty);
 
     // Calculate duty percentage (duty range 1-10000 corresponds to 0.01%-100%)
-    float duty_percent = (float)duty / 100.0f;
-   PR_NOTICE("servo_write: pin=%d, angle=%d, pulse_width=%d us, duty=%d (%.2f%%)", 
-            pin, angle, pulse_width, duty, duty_percent);
+//     float duty_percent = (float)duty / 100.0f;
+//    PR_NOTICE("servo_write: pin=%d, angle=%d, pulse_width=%d us, duty=%d (%.2f%%)", 
+//             pin, angle, pulse_width, duty, duty_percent);
     // Ensure PWM is running
     tkl_pwm_start(pwm_id);
 }
@@ -426,8 +426,8 @@ void servo_detach(uint8_t pin)
      servo_write(SERVO_LEFT_LEG_PIN, LA0);
      servo_write(SERVO_RIGHT_LEG_PIN, RA0);
      delay_ms(100);
-     servo_detach(SERVO_LEFT_LEG_PIN);
-     servo_detach(SERVO_RIGHT_LEG_PIN);
+     //servo_detach(SERVO_LEFT_LEG_PIN);
+     //servo_detach(SERVO_RIGHT_LEG_PIN);
      
 #if ARM_HEAD_ENABLE == 1
      // Arms to final position
@@ -463,8 +463,8 @@ void servo_detach(uint8_t pin)
      servo_write(SERVO_LEFT_LEG_PIN, LA1);
      servo_write(SERVO_RIGHT_LEG_PIN, RA1);
      delay_ms(100);
-     servo_detach(SERVO_LEFT_LEG_PIN);
-     servo_detach(SERVO_RIGHT_LEG_PIN);
+   //  servo_detach(SERVO_LEFT_LEG_PIN);
+   //  servo_detach(SERVO_RIGHT_LEG_PIN);
      
 #if ARM_HEAD_ENABLE == 1
      // Arms to final position

@@ -117,6 +117,7 @@ int get_mode_counter(void){
 
 #define DPID_JOYSTICK_X 103 //joystick_x
 #define DPID_JOYSTICK_Y 104 //joystick_y
+#define DPID_DIRECTION 105 //direction
 OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
@@ -157,6 +158,33 @@ OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
             int8_t joystick_y = dp->value.dp_value;
             set_joystick_y(joystick_y);
             PR_DEBUG("joystick_y:%d", joystick_y);
+            break;
+        }
+
+        case DPID_DIRECTION:{
+            int8_t direction = dp->value.dp_enum;
+            if(direction == 0){
+                set_joystick_y(100);
+                set_joystick_x(0);
+            }
+            else if(direction == 1){
+                set_joystick_y(-100);
+                set_joystick_x(0);
+            }
+            else if(direction == 2){
+                set_joystick_y(0);
+                set_joystick_x(100);
+            }
+            else if(direction == 3){
+                set_joystick_y(0);
+                set_joystick_x(-100);
+            }
+            else if(direction == 4){
+                set_joystick_y(0);
+                set_joystick_x(0);
+            }
+
+            PR_DEBUG("direction:%d", direction);
             break;
         }
 
