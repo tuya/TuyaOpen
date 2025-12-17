@@ -80,6 +80,7 @@ static TDD_DISP_RGB_CFG_T sg_disp_rgb = {
 };
 
 static TDD_DISP_SW_SPI_CFG_T sg_sw_spi_cfg;
+static const uint8_t *sg_disp_init_seq = cST7701S_INIT_SEQ;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -89,9 +90,27 @@ static OPERATE_RET __tdd_disp_st7701s_seq_init(void)
 
     TUYA_CALL_ERR_RETURN(tdd_disp_sw_spi_init(&sg_sw_spi_cfg));
 
-    tdd_disp_sw_spi_lcd_init_seq(cST7701S_INIT_SEQ);
+    tdd_disp_sw_spi_lcd_init_seq(sg_disp_init_seq);
 
     return rt;
+}
+
+/**
+ * @brief Sets the initialization sequence for the ST7701S display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_rgb_st7701s_set_init_seq(const uint8_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_init_seq = init_seq;
+
+    return OPRT_OK;
 }
 
 /**

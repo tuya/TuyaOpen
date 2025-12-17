@@ -38,14 +38,15 @@ choice TUYA_T5AI_BOARD_EX_MODULE
         bool "3.5 inch 480x320 rgb565 LCD"
         select ENABLE_DISPLAY
         select ENABLE_TP
-        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
-        select ENABLE_LVGL_DMA2D if (ENABLE_LIBLVGL)
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
 
     config TUYA_T5AI_BOARD_EX_MODULE_EYES
         bool "two circle 1.28 inch 240x240 spi LCD"
         select ENABLE_DISPLAY
-        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)      
+        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+        select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)    
+        select ENABLE_LVGL_V8_RGB565_SWAP if (LVGL_VERSION_8 && LVGL_V8_COLOR_DEPTH_16)
 
     config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
         bool "2.9 inch 168x384 E-Ink screen"

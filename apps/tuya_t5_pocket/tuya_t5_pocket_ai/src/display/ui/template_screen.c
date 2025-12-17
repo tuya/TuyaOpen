@@ -17,6 +17,12 @@
 
 #include "template_screen.h"
 #include <stdio.h>
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -77,27 +83,27 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", template_screen.name, key);
 
     switch (key) {
-        case KEY_UP:
-            printf("UP key pressed\n");
-            break;
-        case KEY_DOWN:
-            printf("DOWN key pressed\n");
-            break;
-        case KEY_LEFT:
-            printf("LEFT key pressed\n");
-            break;
-        case KEY_RIGHT:
-            printf("RIGHT key pressed\n");
-            break;
-        case KEY_ENTER:
-            printf("ENTER key pressed\n");
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed\n");
-            break;
-        default:
-            printf("Unknown key pressed\n");
-            break;
+    case KEY_UP:
+        printf("UP key pressed\n");
+        break;
+    case KEY_DOWN:
+        printf("DOWN key pressed\n");
+        break;
+    case KEY_LEFT:
+        printf("LEFT key pressed\n");
+        break;
+    case KEY_RIGHT:
+        printf("RIGHT key pressed\n");
+        break;
+    case KEY_ENTER:
+        printf("ENTER key pressed\n");
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed\n");
+        break;
+    default:
+        printf("Unknown key pressed\n");
+        break;
     }
 }
 
@@ -116,7 +122,7 @@ void template_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_template_screen);
     lv_label_set_text(title, "TuyaOpen\nLVGL Temp");
     lv_obj_align(title, LV_ALIGN_CENTER, 0, -20);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
 
     timer = lv_timer_create(template_timer_cb, 1000, NULL);
     lv_obj_add_event_cb(ui_template_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
@@ -134,11 +140,11 @@ void template_screen_deinit(void)
 {
     if (ui_template_screen) {
         printf("deinit template screen\n");
-        lv_obj_remove_event_cb(ui_template_screen, keyboard_event_cb);   // Remove event callback
-        lv_group_remove_obj(ui_template_screen);                         // Remove from group
+        lv_obj_remove_event_cb(ui_template_screen, keyboard_event_cb); // Remove event callback
+        lv_group_remove_obj(ui_template_screen);                       // Remove from group
     }
     if (timer) {
-        lv_timer_del(timer);    // Delete timer
+        lv_timer_del(timer); // Delete timer
         timer = NULL;
     }
 }

@@ -19,6 +19,10 @@
 #include "main_screen.h"
 #include <stdio.h>
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_montserrat_24
+#define SCREEN_CONTENT_FONT &lv_font_montserrat_14
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -90,11 +94,12 @@ void startup_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_startup_screen);
     lv_label_set_text(title, "TuyaOpen");
     lv_obj_align(title, LV_ALIGN_CENTER, 0, -20);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
 
     lv_obj_t *subtitle = lv_label_create(ui_startup_screen);
     lv_label_set_text(subtitle, "AI Pocket Pet Demo");
     lv_obj_align(subtitle, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_text_font(subtitle, SCREEN_CONTENT_FONT, 0);
 
     timer = lv_timer_create(startup_timer_cb, 1000, NULL);
     lv_obj_add_event_cb(ui_startup_screen, keyboard_event_cb, LV_EVENT_KEY, NULL);
@@ -111,13 +116,13 @@ void startup_screen_deinit(void)
 {
     if (ui_startup_screen) {
         printf("deinit startup screen\n");
-        lv_obj_remove_event_cb(ui_startup_screen, keyboard_event_cb);   // Remove event callback
-        lv_group_remove_obj(ui_startup_screen);                         // Remove from group
+        lv_obj_remove_event_cb(ui_startup_screen, keyboard_event_cb); // Remove event callback
+        lv_group_remove_obj(ui_startup_screen);                       // Remove from group
         // lv_obj_del(ui_startup_screen);
         // ui_startup_screen = NULL;
     }
     if (timer) {
-        lv_timer_del(timer);    // Delete timer
+        lv_timer_del(timer); // Delete timer
         timer = NULL;
     }
 }

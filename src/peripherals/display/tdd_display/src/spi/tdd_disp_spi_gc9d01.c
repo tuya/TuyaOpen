@@ -86,7 +86,6 @@ static TDD_DISP_SPI_CFG_T sg_disp_spi_cfg = {
 
     .is_swap = true,
     .init_seq = cGC9D01_INIT_SEQ,
-    .set_window_cb = NULL, // Default callback to set window
 };
 
 /***********************************************************
@@ -114,6 +113,8 @@ OPERATE_RET tdd_disp_spi_gc9d01_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_
 
     sg_disp_spi_cfg.cfg.width = dev_cfg->width;
     sg_disp_spi_cfg.cfg.height = dev_cfg->height;
+    sg_disp_spi_cfg.cfg.x_offset = dev_cfg->x_offset;
+    sg_disp_spi_cfg.cfg.y_offset = dev_cfg->y_offset;
     sg_disp_spi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
     sg_disp_spi_cfg.cfg.port = dev_cfg->port;
     sg_disp_spi_cfg.cfg.spi_clk = dev_cfg->spi_clk;

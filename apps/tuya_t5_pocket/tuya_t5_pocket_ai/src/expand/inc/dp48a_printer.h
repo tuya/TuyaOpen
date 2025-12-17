@@ -16,12 +16,10 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#define DP48A_MAX_PRINT_WIDTH 386
+
 // Text alignment
-typedef enum {
-    DP48A_ALIGN_LEFT = 0,
-    DP48A_ALIGN_CENTER = 1,
-    DP48A_ALIGN_RIGHT = 2
-} dp48a_align_t;
+typedef enum { DP48A_ALIGN_LEFT = 0, DP48A_ALIGN_CENTER = 1, DP48A_ALIGN_RIGHT = 2 } dp48a_align_t;
 
 // Text size
 typedef enum {
@@ -37,9 +35,9 @@ typedef enum {
 
 // Font type
 typedef enum {
-    DP48A_FONT_A = 0,  // 12x24
-    DP48A_FONT_B = 1,  // 9x17
-    DP48A_FONT_C = 2   // 9x24
+    DP48A_FONT_A = 0, // 12x24
+    DP48A_FONT_B = 1, // 9x17
+    DP48A_FONT_C = 2  // 9x24
 } dp48a_font_t;
 
 // Barcode type
@@ -56,34 +54,21 @@ typedef enum {
 } dp48a_barcode_type_t;
 
 // Barcode HRI position
-typedef enum {
-    DP48A_HRI_NONE = 0,
-    DP48A_HRI_ABOVE = 1,
-    DP48A_HRI_BELOW = 2,
-    DP48A_HRI_BOTH = 3
-} dp48a_hri_pos_t;
+typedef enum { DP48A_HRI_NONE = 0, DP48A_HRI_ABOVE = 1, DP48A_HRI_BELOW = 2, DP48A_HRI_BOTH = 3 } dp48a_hri_pos_t;
 
 // QR code error correction level
 typedef enum {
-    DP48A_QR_ERROR_L = 0x30,  // 7%
-    DP48A_QR_ERROR_M = 0x31,  // 15%
-    DP48A_QR_ERROR_Q = 0x32,  // 25%
-    DP48A_QR_ERROR_H = 0x33   // 30%
+    DP48A_QR_ERROR_L = 0x30, // 7%
+    DP48A_QR_ERROR_M = 0x31, // 15%
+    DP48A_QR_ERROR_Q = 0x32, // 25%
+    DP48A_QR_ERROR_H = 0x33  // 30%
 } dp48a_qr_error_t;
 
 // Print density
-typedef enum {
-    DP48A_DENSITY_LIGHT = 0,
-    DP48A_DENSITY_NORMAL = 1,
-    DP48A_DENSITY_DARK = 2
-} dp48a_density_t;
+typedef enum { DP48A_DENSITY_LIGHT = 0, DP48A_DENSITY_NORMAL = 1, DP48A_DENSITY_DARK = 2 } dp48a_density_t;
 
 // Print speed
-typedef enum {
-    DP48A_SPEED_HIGH = 0,
-    DP48A_SPEED_MEDIUM = 1,
-    DP48A_SPEED_LOW = 2
-} dp48a_speed_t;
+typedef enum { DP48A_SPEED_HIGH = 0, DP48A_SPEED_MEDIUM = 1, DP48A_SPEED_LOW = 2 } dp48a_speed_t;
 
 // Character set
 typedef enum {
@@ -130,7 +115,7 @@ void dp48a_set_align(dp48a_align_t align);
 void dp48a_set_text_size(dp48a_text_size_t size);
 void dp48a_set_font(dp48a_font_t font);
 void dp48a_set_bold(bool enable);
-void dp48a_set_underline(uint8_t mode);  // 0=off, 1=1dot, 2=2dot
+void dp48a_set_underline(uint8_t mode); // 0=off, 1=1dot, 2=2dot
 void dp48a_set_inverse(bool enable);
 void dp48a_set_rotate(bool enable);
 void dp48a_set_upside_down(bool enable);
@@ -160,7 +145,7 @@ void dp48a_print_barcode(dp48a_barcode_type_t type, const char *data);
 void dp48a_print_barcode_ex(dp48a_barcode_type_t type, const uint8_t *data, uint8_t len);
 
 // ==================== QR code printing ====================
-void dp48a_set_qr_size(uint8_t size);  // 1-16
+void dp48a_set_qr_size(uint8_t size); // 1-16
 void dp48a_set_qr_error_level(dp48a_qr_error_t level);
 void dp48a_print_qr(const char *data);
 void dp48a_print_qr_ex(const uint8_t *data, uint16_t len);

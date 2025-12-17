@@ -23,6 +23,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_16
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -30,7 +35,7 @@
 static lv_obj_t *ui_menu_bath_screen_screen;
 static lv_obj_t *menu_bath_screen_list;
 static lv_timer_t *timer;
-static lv_timer_t *pet_state_timer;  // Timer for animation
+static lv_timer_t *pet_state_timer; // Timer for animation
 static uint8_t selected_item = 0;
 static uint8_t last_selected_item = 0;
 static hygiene_status_t current_hygiene_status;
@@ -46,10 +51,10 @@ Screen_t menu_bath_screen = {
 
 // Bath actions configuration
 typedef struct {
-    const char *name;           /**< Action name */
-    const char *icon;           /**< Action icon symbol */
-    const char *description;    /**< Action description */
-    bath_action_t action;       /**< Action type */
+    const char *name;        /**< Action name */
+    const char *icon;        /**< Action icon symbol */
+    const char *description; /**< Action description */
+    bath_action_t action;    /**< Action type */
 } bath_action_item_t;
 
 static bath_action_item_t bath_actions[] = {
@@ -63,8 +68,8 @@ static bath_action_item_t bath_actions[] = {
 
 // UI Constants
 #define STAT_CONTAINER_HEIGHT 30
-#define STAT_CONTAINER_WIDTH 320
-#define SEPARATOR_HEIGHT 2
+#define STAT_CONTAINER_WIDTH  320
+#define SEPARATOR_HEIGHT      2
 
 // External image declarations
 LV_IMG_DECLARE(family_star);
@@ -85,7 +90,8 @@ static void handle_bath_selection(void);
 
 static bool is_child_selectable(lv_obj_t *child)
 {
-    if (child == NULL) return false;
+    if (child == NULL)
+        return false;
     return lv_obj_has_flag(child, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 }
 
@@ -141,50 +147,51 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", menu_bath_screen.name, key);
 
     uint32_t child_count = lv_obj_get_child_cnt(menu_bath_screen_list);
-    if (child_count == 0) return;
+    if (child_count == 0)
+        return;
 
     uint8_t old_selection = selected_item;
     uint8_t new_selection = old_selection;
     switch (key) {
-        case KEY_UP:
-            // Move to previous item (including non-selectable ones for scrolling)
-            if (selected_item > 0) {
-                new_selection = selected_item - 1;
-                // Find the nearest selectable item going up
-                for (int i = (int)new_selection; i >= 0; --i) {
-                    lv_obj_t *ch = lv_obj_get_child(menu_bath_screen_list, i);
-                    if (is_child_selectable(ch)) {
-                        new_selection = (uint8_t)i;
-                        break;
-                    }
+    case KEY_UP:
+        // Move to previous item (including non-selectable ones for scrolling)
+        if (selected_item > 0) {
+            new_selection = selected_item - 1;
+            // Find the nearest selectable item going up
+            for (int i = (int)new_selection; i >= 0; --i) {
+                lv_obj_t *ch = lv_obj_get_child(menu_bath_screen_list, i);
+                if (is_child_selectable(ch)) {
+                    new_selection = (uint8_t)i;
+                    break;
                 }
             }
-            break;
-        case KEY_DOWN:
-            // Move to next item (including non-selectable ones for scrolling)
-            if (selected_item < child_count - 1) {
-                new_selection = selected_item + 1;
-                // Find the nearest selectable item going down
-                for (uint32_t i = new_selection; i < child_count; ++i) {
-                    lv_obj_t *ch = lv_obj_get_child(menu_bath_screen_list, i);
-                    if (is_child_selectable(ch)) {
-                        new_selection = (uint8_t)i;
-                        break;
-                    }
+        }
+        break;
+    case KEY_DOWN:
+        // Move to next item (including non-selectable ones for scrolling)
+        if (selected_item < child_count - 1) {
+            new_selection = selected_item + 1;
+            // Find the nearest selectable item going down
+            for (uint32_t i = new_selection; i < child_count; ++i) {
+                lv_obj_t *ch = lv_obj_get_child(menu_bath_screen_list, i);
+                if (is_child_selectable(ch)) {
+                    new_selection = (uint8_t)i;
+                    break;
                 }
             }
-            break;
-        case KEY_ENTER:
-            handle_bath_selection();
-            break;
-        case KEY_ESC:
-            printf("ESC key pressed - returning to main menu\n");
-            last_selected_item = 0;
-            screen_back();
-            break;
-        default:
-            printf("Key %d pressed\n", key);
-            break;
+        }
+        break;
+    case KEY_ENTER:
+        handle_bath_selection();
+        break;
+    case KEY_ESC:
+        printf("ESC key pressed - returning to main menu\n");
+        last_selected_item = 0;
+        screen_back();
+        break;
+    default:
+        printf("Key %d pressed\n", key);
+        break;
     }
 
     if (new_selection != old_selection) {
@@ -203,7 +210,7 @@ static void create_hygiene_status_display(void)
     lv_label_set_text(status_title, "Hygiene Status:");
     lv_obj_align(status_title, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_set_style_text_color(status_title, lv_color_black(), 0);
-    lv_obj_set_style_text_font(status_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(status_title, SCREEN_TITLE_FONT, 0);
     lv_obj_add_flag(status_title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(status_title, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
@@ -213,20 +220,27 @@ static void create_hygiene_status_display(void)
     // Bath status indicator
     lv_obj_t *bath_container = lv_obj_create(menu_bath_screen_list);
     lv_obj_set_size(bath_container, STAT_CONTAINER_WIDTH, STAT_CONTAINER_HEIGHT);
-    lv_obj_set_style_bg_opa(bath_container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(bath_container, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(bath_container, lv_color_white(), 0);
     lv_obj_set_style_border_width(bath_container, 0, 0);
     lv_obj_set_style_pad_all(bath_container, 2, 0);
+
+    // Make container selectable
+    lv_obj_add_flag(bath_container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(bath_container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *bath_label = lv_label_create(bath_container);
     lv_label_set_text(bath_label, "Bath Status:");
     lv_obj_align(bath_label, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_style_text_color(bath_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(bath_label, SCREEN_CONTENT_FONT, 0);
 
     lv_obj_t *bath_status = lv_label_create(bath_container);
     lv_label_set_text(bath_status, current_hygiene_status.needs_bath ? "Needs Bath" : "Clean");
     lv_obj_align(bath_status, LV_ALIGN_RIGHT_MID, -5, 0);
-    lv_obj_set_style_text_color(bath_status,
-                                current_hygiene_status.needs_bath ? lv_color_make(255, 0, 0) : lv_color_make(0, 128, 0), 0);
+    lv_obj_set_style_text_color(bath_status, current_hygiene_status.needs_bath ? lv_color_white() : lv_color_black(),
+                                0);
+    lv_obj_set_style_text_font(bath_status, SCREEN_CONTENT_FONT, 0);
 }
 
 /**
@@ -250,7 +264,7 @@ static void create_bath_actions(void)
     lv_label_set_text(actions_title, "Bath Actions:");
     lv_obj_align(actions_title, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_set_style_text_color(actions_title, lv_color_black(), 0);
-    lv_obj_set_style_text_font(actions_title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(actions_title, SCREEN_TITLE_FONT, 0);
     lv_obj_add_flag(actions_title, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(actions_title, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
@@ -266,30 +280,35 @@ static void create_bath_action_item(bath_action_item_t *action, uint8_t index)
 {
     lv_obj_t *btn = lv_list_add_btn(menu_bath_screen_list, action->icon, action->name);
 
+    // Set font for text label (child 1)
+    lv_obj_t *label = lv_obj_get_child(btn, 1);
+    if (label)
+        lv_obj_set_style_text_font(label, SCREEN_CONTENT_FONT, 0);
+
     // Add status info on the right side
     lv_obj_t *info_label = lv_label_create(btn);
     char info_text[32];
     switch (index) {
-        case 0:  // Toilet
-            snprintf(info_text, sizeof(info_text), "T:-100");
-            break;
-        case 1:  // Take Bath
-            snprintf(info_text, sizeof(info_text), "C:+100");
-            break;
-        case 2:  // Brush Teeth
-            snprintf(info_text, sizeof(info_text), "C:+10");
-            break;
-        case 3:  // Wash Hands
-            snprintf(info_text, sizeof(info_text), "C:+5");
-            break;
-        default:
-            snprintf(info_text, sizeof(info_text), " ");
-            break;
+    case 0: // Toilet
+        snprintf(info_text, sizeof(info_text), "T:-100");
+        break;
+    case 1: // Take Bath
+        snprintf(info_text, sizeof(info_text), "C:+100");
+        break;
+    case 2: // Brush Teeth
+        snprintf(info_text, sizeof(info_text), "C:+10");
+        break;
+    case 3: // Wash Hands
+        snprintf(info_text, sizeof(info_text), "C:+5");
+        break;
+    default:
+        snprintf(info_text, sizeof(info_text), " ");
+        break;
     }
     lv_label_set_text(info_label, info_text);
     lv_obj_align(info_label, LV_ALIGN_RIGHT_MID, -5, 0);
     lv_obj_set_style_text_color(info_label, lv_color_make(0, 128, 0), 0);
-    lv_obj_set_style_text_font(info_label, &lv_font_montserrat_10, 0);
+    lv_obj_set_style_text_font(info_label, SCREEN_INFO_FONT, 0);
 }
 
 /**
@@ -299,19 +318,27 @@ static void create_stat_icon_bar(const char *label, int value)
 {
     lv_obj_t *container = lv_obj_create(menu_bath_screen_list);
     lv_obj_set_size(container, STAT_CONTAINER_WIDTH, STAT_CONTAINER_HEIGHT);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_opa(container, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(container, lv_color_white(), 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 2, 0);
+
+    // Make container selectable
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_CLICK_FOCUSABLE);
 
     lv_obj_t *label_obj = lv_label_create(container);
     lv_label_set_text(label_obj, label);
     lv_obj_align(label_obj, LV_ALIGN_LEFT_MID, 5, 0);
     lv_obj_set_style_text_color(label_obj, lv_color_black(), 0);
+    lv_obj_set_style_text_font(label_obj, SCREEN_CONTENT_FONT, 0);
 
     // Quantize value to 0-5
     int filled = (value + 9) / 20; // 0-19:0, 20-39:1, ..., 100:5
-    if (filled > 5) filled = 5;
-    if (filled < 0) filled = 0;
+    if (filled > 5)
+        filled = 5;
+    if (filled < 0)
+        filled = 0;
 
     // Draw 5 icons using the family_star image
     for (int i = 0; i < 5; ++i) {
@@ -331,6 +358,7 @@ static void create_stat_icon_bar(const char *label, int value)
     lv_label_set_text(stat_label, stat_text);
     lv_obj_align(stat_label, LV_ALIGN_LEFT_MID, 100 + 5 * 22 + 8, 0);
     lv_obj_set_style_text_color(stat_label, lv_color_black(), 0);
+    lv_obj_set_style_text_font(stat_label, SCREEN_CONTENT_FONT, 0);
 }
 
 /**
@@ -346,6 +374,15 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
             if (is_child_selectable(ch)) {
                 lv_obj_set_style_bg_color(ch, lv_color_white(), 0);
                 lv_obj_set_style_text_color(ch, lv_color_black(), 0);
+
+                // Update all child labels to black
+                uint32_t ch_child_count = lv_obj_get_child_cnt(ch);
+                for (uint32_t j = 0; j < ch_child_count; j++) {
+                    lv_obj_t *child_elem = lv_obj_get_child(ch, j);
+                    if (lv_obj_check_type(child_elem, &lv_label_class)) {
+                        lv_obj_set_style_text_color(child_elem, lv_color_black(), 0);
+                    }
+                }
                 break;
             }
         }
@@ -358,6 +395,16 @@ static void update_selection(uint8_t old_selection, uint8_t new_selection)
             if (is_child_selectable(ch)) {
                 lv_obj_set_style_bg_color(ch, lv_color_black(), 0);
                 lv_obj_set_style_text_color(ch, lv_color_white(), 0);
+
+                // Update all child labels to white
+                uint32_t ch_child_count = lv_obj_get_child_cnt(ch);
+                for (uint32_t j = 0; j < ch_child_count; j++) {
+                    lv_obj_t *child_elem = lv_obj_get_child(ch, j);
+                    if (lv_obj_check_type(child_elem, &lv_label_class)) {
+                        lv_obj_set_style_text_color(child_elem, lv_color_white(), 0);
+                    }
+                }
+
                 lv_obj_scroll_to_view(ch, LV_ANIM_ON);
                 break;
             }
@@ -391,69 +438,68 @@ static void handle_bath_selection(void)
         if (action_index < BATH_ACTIONS_COUNT) {
             bath_action_item_t *selected_action = &bath_actions[action_index];
 
-            printf("Selected bath action: %s - %s\n",
-                   selected_action->name, selected_action->description);
+            printf("Selected bath action: %s - %s\n", selected_action->name, selected_action->description);
 
             // Handle different bath actions with specific logic
             switch (action_index) {
-                case 0:  // Toilet - only this one has animation
-                    printf("Toilet - returning to main screen and playing animation\n");
-                    current_hygiene_status.toilet_need = 0;
+            case 0: // Toilet - only this one has animation
+                printf("Toilet - returning to main screen and playing animation\n");
+                current_hygiene_status.toilet_need = 0;
 
-                    // Trigger callback
-                    if (bath_callback) {
-                        bath_callback(selected_action->action, bath_callback_user_data);
-                    }
+                // Trigger callback
+                if (bath_callback) {
+                    bath_callback(selected_action->action, bath_callback_user_data);
+                }
 
-                    // Return to main screen and play animation
-                    screen_back();
-                    main_screen_set_pet_animation_state(AI_PET_STATE_TOILET);  // Using toilet animation
+                // Return to main screen and play animation
+                screen_back();
+                main_screen_set_pet_animation_state(AI_PET_STATE_TOILET); // Using toilet animation
 
-                    // Start timer to switch back to normal state after 2 seconds
-                    if (pet_state_timer) {
-                        lv_timer_del(pet_state_timer);  // Clean up existing timer
-                    }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
+                // Start timer to switch back to normal state after 2 seconds
+                if (pet_state_timer) {
+                    lv_timer_del(pet_state_timer); // Clean up existing timer
+                }
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
 
-                    printf("Started bath animation timer\n");
-                    break;
+                printf("Started bath animation timer\n");
+                break;
 
-                case 1:  // Take Bath
-                    printf("Take Bath selected - showing toast\n");
-                    current_hygiene_status.toilet_need = 0;
+            case 1: // Take Bath
+                printf("Take Bath selected - showing toast\n");
+                current_hygiene_status.toilet_need = 0;
 
-                    // Trigger callback
-                    if (bath_callback) {
-                        bath_callback(selected_action->action, bath_callback_user_data);
-                    }
+                // Trigger callback
+                if (bath_callback) {
+                    bath_callback(selected_action->action, bath_callback_user_data);
+                }
 
-                    // Return to main screen and play animation
-                    screen_back();
-                    main_screen_set_pet_animation_state(AI_PET_STATE_BATH);  // Using bath animation
+                // Return to main screen and play animation
+                screen_back();
+                main_screen_set_pet_animation_state(AI_PET_STATE_BATH); // Using bath animation
 
-                    // Start timer to switch back to normal state after 2 seconds
-                    if (pet_state_timer) {
-                        lv_timer_del(pet_state_timer);  // Clean up existing timer
-                    }
-                    pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
+                // Start timer to switch back to normal state after 2 seconds
+                if (pet_state_timer) {
+                    lv_timer_del(pet_state_timer); // Clean up existing timer
+                }
+                pet_state_timer = lv_timer_create(pet_state_timer_cb, 3000, NULL);
 
-                    printf("Started bath animation timer\n");
-                    break;
+                printf("Started bath animation timer\n");
+                break;
 
-                case 2:  // Brush Teeth
-                    printf("Brush Teeth selected - showing toast\n");
-                    toast_screen_show("Coming Soon: Brush Teeth Feature", 2000);
-                    break;
+            case 2: // Brush Teeth
+                printf("Brush Teeth selected - showing toast\n");
+                toast_screen_show("Coming Soon: Brush Teeth Feature", 2000);
+                break;
 
-                case 3:  // Wash Hands
-                    printf("Wash Hands selected - showing toast\n");
-                    toast_screen_show("Coming Soon: Wash Hands Feature", 2000);
-                    break;
+            case 3: // Wash Hands
+                printf("Wash Hands selected - showing toast\n");
+                toast_screen_show("Coming Soon: Wash Hands Feature", 2000);
+                break;
 
-                default:
-                    printf("Unknown bath action: %d\n", action_index);
-                    toast_screen_show("Unknown Action", 2000);
-                    break;
+            default:
+                printf("Unknown bath action: %d\n", action_index);
+                toast_screen_show("Unknown Action", 2000);
+                break;
             }
         }
     }
@@ -475,7 +521,7 @@ void menu_bath_screen_init(void)
     lv_obj_t *title = lv_label_create(ui_menu_bath_screen_screen);
     lv_label_set_text(title, "Bath & Hygiene");
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title, lv_color_black(), 0);
 
     // List for bath menu items
@@ -575,7 +621,7 @@ void menu_bath_screen_set_hygiene_status(hygiene_status_t *status)
  *
  * @return Pointer to current hygiene status
  */
-hygiene_status_t* menu_bath_screen_get_hygiene_status(void)
+hygiene_status_t *menu_bath_screen_get_hygiene_status(void)
 {
     return &current_hygiene_status;
 }

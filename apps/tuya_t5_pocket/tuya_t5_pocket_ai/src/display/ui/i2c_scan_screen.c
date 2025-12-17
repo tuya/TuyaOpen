@@ -24,7 +24,7 @@
 
 // Use consistent screen dimensions with peripherals_scan.c
 #ifndef AI_PET_SCREEN_WIDTH
-#define AI_PET_SCREEN_WIDTH  384
+#define AI_PET_SCREEN_WIDTH 384
 #endif
 #ifndef AI_PET_SCREEN_HEIGHT
 #define AI_PET_SCREEN_HEIGHT 168
@@ -37,6 +37,11 @@
 #include "tkl_pinmux.h"
 #include "tkl_i2c.h"
 #endif
+
+// Font definitions - easily customizable
+#define SCREEN_TITLE_FONT   &lv_font_terminusTTF_Bold_18
+#define SCREEN_CONTENT_FONT &lv_font_terminusTTF_Bold_14
+#define SCREEN_INFO_FONT    &lv_font_terminusTTF_Bold_14
 
 // Import icon declarations
 LV_IMG_DECLARE(peripherals_scan_left_icon);
@@ -63,11 +68,7 @@ typedef struct {
 } port_info_t;
 
 // Define array of port info containing PORT0, PORT1 and PORT2
-static port_info_t port_info[] = {
-    {"PORT 0", 20, 21},
-    {"PORT 1", 4, 5},
-    {"PORT 2", 6, 7}
-};
+static port_info_t port_info[] = {{"PORT 0", 20, 21}, {"PORT 1", 4, 5}, {"PORT 2", 6, 7}};
 
 // Current port index (no state preservation)
 static int current_port_index = 0;
@@ -106,8 +107,8 @@ static void switch_to_port(int port_index)
 
 #ifdef ENABLE_LVGL_HARDWARE
     printf("[Scan] Switching to PORT: %d\n", current_port_index);
-    tkl_io_pinmux_config(port_info[current_port_index].scl, current_port_index*2);
-    tkl_io_pinmux_config(port_info[current_port_index].sda, current_port_index*2+1);
+    tkl_io_pinmux_config(port_info[current_port_index].scl, current_port_index * 2);
+    tkl_io_pinmux_config(port_info[current_port_index].sda, current_port_index * 2 + 1);
 
     TUYA_IIC_BASE_CFG_T cfg;
     cfg.role = TUYA_IIC_MODE_MASTER;
@@ -129,15 +130,13 @@ static void update_port_display(void)
 {
     if (info_bar) {
         char port_text[32];
-        snprintf(port_text, sizeof(port_text), "%s : SCL=%d, SDA=%d",
-                 port_info[current_port_index].port_name,
-                 port_info[current_port_index].scl,
-                 port_info[current_port_index].sda);
+        snprintf(port_text, sizeof(port_text), "%s : SCL=%d, SDA=%d", port_info[current_port_index].port_name,
+                 port_info[current_port_index].scl, port_info[current_port_index].sda);
         lv_label_set_text(info_bar, port_text);
     }
 
-    printf("[Scan] Displaying PORT %d: SCL=%d, SDA=%d\n", current_port_index,
-           port_info[current_port_index].scl, port_info[current_port_index].sda);
+    printf("[Scan] Displaying PORT %d: SCL=%d, SDA=%d\n", current_port_index, port_info[current_port_index].scl,
+           port_info[current_port_index].sda);
 }
 
 /**
@@ -162,7 +161,7 @@ static void create_scan_matrix(void)
 
     // Create header row (display 0 1 2 3 4 5 6 7 8 9 A B C D E F)
     lv_obj_t *header_row = lv_obj_create(dev_list);
-    lv_obj_set_size(header_row, LV_PCT(100), 20);
+    lv_obj_set_size(header_row, LV_PCT(100), 24);
     lv_obj_set_flex_flow(header_row, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_gap(header_row, 1, 0);
     lv_obj_set_style_pad_all(header_row, 2, 0);
@@ -171,6 +170,7 @@ static void create_scan_matrix(void)
     lv_obj_t *empty_label = lv_label_create(header_row);
     lv_label_set_text(empty_label, "");
     lv_obj_set_width(empty_label, 30);
+    lv_obj_set_style_text_font(empty_label, SCREEN_INFO_FONT, 0);
 
     // Add hexadecimal column headers
     for (int col = 0; col < 16; col++) {
@@ -183,9 +183,9 @@ static void create_scan_matrix(void)
         }
         hex_char[1] = '\0';
         lv_label_set_text(label, hex_char);
-        lv_obj_set_width(label, 16);
+        lv_obj_set_width(label, 18);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(label, SCREEN_INFO_FONT, 0);
     }
 
     // Create scrollable content container
@@ -202,7 +202,7 @@ static void create_scan_matrix(void)
     uint8_t dev_num = 0;
     for (int row = 0; row < 8; row++) {
         lv_obj_t *row_container = lv_obj_create(content_container);
-        lv_obj_set_size(row_container, LV_PCT(100), 16);
+        lv_obj_set_size(row_container, LV_PCT(100), 20);
         lv_obj_set_flex_flow(row_container, LV_FLEX_FLOW_ROW);
         lv_obj_set_style_pad_gap(row_container, 1, 0);
         lv_obj_set_style_pad_all(row_container, 1, 0);
@@ -213,7 +213,7 @@ static void create_scan_matrix(void)
         snprintf(row_text, sizeof(row_text), "%Xx", row);
         lv_label_set_text(row_label, row_text);
         lv_obj_set_width(row_label, 30);
-        lv_obj_set_style_text_font(row_label, &lv_font_montserrat_10, 0);
+        lv_obj_set_style_text_font(row_label, SCREEN_INFO_FONT, 0);
 
         // Add cells for each column
         for (int col = 0; col < 16; col++) {
@@ -237,8 +237,7 @@ static void create_scan_matrix(void)
                         snprintf(addr_text, sizeof(addr_text), "%02X", i2c_addr);
                         PR_DEBUG("Found I2C device at address %s", addr_text);
                         lv_label_set_text(cell, addr_text);
-                    }
-                    else {
+                    } else {
                         lv_label_set_text(cell, "");
                     }
                 } else {
@@ -266,11 +265,11 @@ static void create_scan_matrix(void)
                 lv_obj_set_style_text_color(cell, lv_color_black(), 0);
             }
 
-            lv_obj_set_width(cell, 16);
+            lv_obj_set_width(cell, 18);
             lv_obj_set_style_text_align(cell, LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_set_style_radius(cell, 3, 0);
             lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, 0);
-            lv_obj_set_style_text_font(cell, &lv_font_montserrat_10, 0);
+            lv_obj_set_style_text_font(cell, SCREEN_INFO_FONT, 0);
         }
     }
 }
@@ -284,64 +283,64 @@ static void keyboard_event_cb(lv_event_t *e)
     printf("[%s] Keyboard event received: key = %d\n", i2c_scan_screen.name, key);
 
     switch (key) {
-        case KEY_ESC:
-            printf("I2C scan: ESC key detected, returning to main menu\n");
-            screen_back();
-            break;
-        case KEY_UP:
-            // Scroll content up - exactly like peripherals_scan.c
-            if (dev_list) {
-                lv_obj_t *content_container = lv_obj_get_child(dev_list, 1); // get content container
-                if (content_container) {
-                    // Check if already scrolled to top
-                    lv_coord_t scroll_top = lv_obj_get_scroll_top(content_container);
-                    if (scroll_top > 0) {
-                        // Limit scroll step to remaining scrollable distance
-                        lv_coord_t scroll_step = (scroll_top > 20) ? 20 : scroll_top;
-                        lv_obj_scroll_by(content_container, 0, scroll_step, LV_ANIM_ON);
-                        printf("I2C scan: Scrolled up by %d pixels\n", scroll_step);
-                    } else {
-                        printf("I2C scan: Already at top\n");
-                    }
+    case KEY_ESC:
+        printf("I2C scan: ESC key detected, returning to main menu\n");
+        screen_back();
+        break;
+    case KEY_UP:
+        // Scroll content up - exactly like peripherals_scan.c
+        if (dev_list) {
+            lv_obj_t *content_container = lv_obj_get_child(dev_list, 1); // get content container
+            if (content_container) {
+                // Check if already scrolled to top
+                lv_coord_t scroll_top = lv_obj_get_scroll_top(content_container);
+                if (scroll_top > 0) {
+                    // Limit scroll step to remaining scrollable distance
+                    lv_coord_t scroll_step = (scroll_top > 20) ? 20 : scroll_top;
+                    lv_obj_scroll_by(content_container, 0, scroll_step, LV_ANIM_ON);
+                    printf("I2C scan: Scrolled up by %d pixels\n", scroll_step);
+                } else {
+                    printf("I2C scan: Already at top\n");
                 }
             }
-            break;
-        case KEY_DOWN:
-            // Scroll content down - exactly like peripherals_scan.c
-            if (dev_list) {
-                lv_obj_t *content_container = lv_obj_get_child(dev_list, 1); // get content container
-                if (content_container) {
-                    // Check if already scrolled to bottom
-                    lv_coord_t scroll_bottom = lv_obj_get_scroll_bottom(content_container);
-                    if (scroll_bottom > 0) {
-                        // Limit scroll step to remaining scrollable distance
-                        lv_coord_t scroll_step = (scroll_bottom > 20) ? 20 : scroll_bottom;
-                        lv_obj_scroll_by(content_container, 0, -scroll_step, LV_ANIM_ON);
-                        printf("I2C scan: Scrolled down by %d pixels\n", scroll_step);
-                    } else {
-                        printf("I2C scan: Already at bottom\n");
-                    }
+        }
+        break;
+    case KEY_DOWN:
+        // Scroll content down - exactly like peripherals_scan.c
+        if (dev_list) {
+            lv_obj_t *content_container = lv_obj_get_child(dev_list, 1); // get content container
+            if (content_container) {
+                // Check if already scrolled to bottom
+                lv_coord_t scroll_bottom = lv_obj_get_scroll_bottom(content_container);
+                if (scroll_bottom > 0) {
+                    // Limit scroll step to remaining scrollable distance
+                    lv_coord_t scroll_step = (scroll_bottom > 20) ? 20 : scroll_bottom;
+                    lv_obj_scroll_by(content_container, 0, -scroll_step, LV_ANIM_ON);
+                    printf("I2C scan: Scrolled down by %d pixels\n", scroll_step);
+                } else {
+                    printf("I2C scan: Already at bottom\n");
                 }
             }
-            break;
-        case KEY_LEFT:
-            // Switch to previous PORT
-            if (current_port_index > 0) {
-                switch_to_port(current_port_index - 1);
-            }
-            break;
-        case KEY_RIGHT:
-            // Switch to next PORT
-            if (current_port_index < (int)(sizeof(port_info) / sizeof(port_info[0]) - 1)) {
-                switch_to_port(current_port_index + 1);
-            }
-            break;
-        case KEY_ENTER:
-            // Refresh scan
-            create_scan_matrix();
-            break;
-        default:
-            break;
+        }
+        break;
+    case KEY_LEFT:
+        // Switch to previous PORT
+        if (current_port_index > 0) {
+            switch_to_port(current_port_index - 1);
+        }
+        break;
+    case KEY_RIGHT:
+        // Switch to next PORT
+        if (current_port_index < (int)(sizeof(port_info) / sizeof(port_info[0]) - 1)) {
+            switch_to_port(current_port_index + 1);
+        }
+        break;
+    case KEY_ENTER:
+        // Refresh scan
+        create_scan_matrix();
+        break;
+    default:
+        break;
     }
 }
 
@@ -374,20 +373,20 @@ void i2c_scan_screen_init(void)
     title_label = lv_label_create(ui_i2c_scan_screen);
     lv_label_set_text(title_label, "I2C Device Scan Results");
     lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 5);
-    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(title_label, SCREEN_TITLE_FONT, 0);
     lv_obj_set_style_text_color(title_label, lv_color_black(), 0);
 
     // Create PORT info row
     // Left icon
     left_icon = lv_img_create(ui_i2c_scan_screen);
     lv_img_set_src(left_icon, &peripherals_scan_left_icon);
-    lv_obj_align(left_icon, LV_ALIGN_TOP_MID, -85, 25);
+    lv_obj_align(left_icon, LV_ALIGN_TOP_MID, -90, 25);
     lv_img_set_zoom(left_icon, 200);
 
     // Port info bar
     info_bar = lv_label_create(ui_i2c_scan_screen);
     lv_obj_align(info_bar, LV_ALIGN_TOP_MID, 0, 29);
-    lv_obj_set_style_text_font(info_bar, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(info_bar, SCREEN_CONTENT_FONT, 0);
 
     // Right icon
     right_icon = lv_img_create(ui_i2c_scan_screen);

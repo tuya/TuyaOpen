@@ -2,7 +2,7 @@
  * @file tdd_display_rgb.c
  * @brief TDD display RGB interface implementation
  *
- * This file implements the RGB parallel interface functionality for the TDL display
+ * This file implements the RGB parallel interface functionality for the TDD display
  * system. It provides hardware abstraction for displays using RGB parallel interface,
  * enabling high-speed data transfer and direct memory access for framebuffer operations.
  * The implementation supports various RGB configurations and timing parameters.
@@ -29,14 +29,14 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    TDL_RGB_FRAME_REQUEST = 0,
-    TDL_RGB_FRAME_EXIT,
-} TDL_RGB_FRAME_EVENT_E;
+    TDD_RGB_FRAME_REQUEST = 0,
+    TDD_RGB_FRAME_EXIT,
+} TDD_RGB_FRAME_EVENT_E;
 
 typedef struct {
-    TDL_RGB_FRAME_EVENT_E event;
-    uint32_t param;
-} TDL_DISP_RGB_MSG_T;
+    TDD_RGB_FRAME_EVENT_E event;
+    TDL_DISP_FRAME_BUFF_T *frame_buff;
+} TDD_DISP_RGB_MSG_T;
 
 typedef struct {
     uint8_t is_task_running;
@@ -47,7 +47,7 @@ typedef struct {
     MUTEX_HANDLE mutex;
     THREAD_HANDLE task;
     QUEUE_HANDLE queue;
-} TDL_DISP_RGB_INFO_T;
+} TDD_DISP_RGB_INFO_T;
 
 typedef struct {
     TUYA_RGB_BASE_CFG_T cfg;
@@ -61,15 +61,22 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDL_DISP_RGB_INFO_T sg_display_rgb = {0};
+static TDD_DISP_RGB_INFO_T sg_display_rgb = {0};
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+#include "tkl_gpio.h"
+#define DISP_RGB_TEST_PIN TUYA_GPIO_NUM_6
+static uint32_t sg_gpio_level = 0;
 
 // __attribute__((section(".itcm_sec_code")))
 static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
 {
+
+    tkl_gpio_write(DISP_RGB_TEST_PIN, UNACTIVE_LEVEL(sg_gpio_level));
+    sg_gpio_level = UNACTIVE_LEVEL(sg_gpio_level);
+
     if (sg_display_rgb.pingpong_frame != NULL) {
         if (sg_display_rgb.display_frame != NULL) {
 
@@ -84,15 +91,16 @@ static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
                 if (sg_display_rgb.display_frame->fmt != sg_display_rgb.pingpong_frame->fmt) {
                     tkl_rgb_pixel_mode_set(sg_display_rgb.pingpong_frame->fmt);
                 }
-
-                if (sg_display_rgb.display_frame != NULL && sg_display_rgb.display_frame->free_cb != NULL) {
-                    sg_display_rgb.display_frame->free_cb(sg_display_rgb.display_frame);
-                }
             }
+
+            if (sg_display_rgb.display_frame != NULL && sg_display_rgb.display_frame->free_cb != NULL) {
+                sg_display_rgb.display_frame->free_cb(sg_display_rgb.display_frame);
+            }
+
             sg_display_rgb.display_frame = sg_display_rgb.pingpong_frame;
             sg_display_rgb.pingpong_frame = NULL;
             tkl_rgb_base_addr_set((uint32_t)sg_display_rgb.display_frame->frame);
-            
+
             // TKL_EXIT_CRITICAL();
             tal_semaphore_post(sg_display_rgb.flush_sem);
         } else {
@@ -131,7 +139,7 @@ static OPERATE_RET __rgb_display_frame(TDL_DISP_FRAME_BUFF_T *frame)
 
 static void __rgb_task(void *arg)
 {
-    TDL_DISP_RGB_MSG_T msg = {0};
+    TDD_DISP_RGB_MSG_T msg = {0};
     OPERATE_RET ret = 0;
 
     sg_display_rgb.is_task_running = 1;
@@ -140,18 +148,17 @@ static void __rgb_task(void *arg)
         ret = tal_queue_fetch(sg_display_rgb.queue, &msg, SEM_WAIT_FOREVER);
         if (ret == OPRT_OK) {
             switch (msg.event) {
-            case TDL_RGB_FRAME_REQUEST:
-                __rgb_display_frame((TDL_DISP_FRAME_BUFF_T *)msg.param);
+            case TDD_RGB_FRAME_REQUEST:
+                __rgb_display_frame(msg.frame_buff);
                 break;
 
-            case TDL_RGB_FRAME_EXIT:
+            case TDD_RGB_FRAME_EXIT:
                 sg_display_rgb.is_task_running = false;
                 do {
                     ret = tal_queue_fetch(sg_display_rgb.queue, &msg, 0); // no wait
-                    if (msg.event == TDL_RGB_FRAME_REQUEST) {
-                        TDL_DISP_FRAME_BUFF_T *frame = (TDL_DISP_FRAME_BUFF_T *)msg.param;
-                        if (frame && frame->free_cb) {
-                            frame->free_cb(frame);
+                    if (msg.event == TDD_RGB_FRAME_REQUEST) {
+                        if (msg.frame_buff && msg.frame_buff->free_cb) {
+                            msg.frame_buff->free_cb(msg.frame_buff);
                         }
                     }
                 } while (ret == 0);
@@ -187,7 +194,7 @@ static OPERATE_RET __tdd_display_rgb_open(TDD_DISP_DEV_HANDLE_T device)
 
     TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&(sg_display_rgb.flush_sem), 0, 1));
     TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&(sg_display_rgb.task_sem), 0, 1));
-    TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_display_rgb.queue), sizeof(TDL_DISP_RGB_MSG_T), 32));
+    TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_display_rgb.queue), sizeof(TDD_DISP_RGB_MSG_T), 32));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_display_rgb.mutex));
 
     THREAD_CFG_T thread_cfg = {4096, THREAD_PRIO_1, "rgb_task"};
@@ -205,6 +212,13 @@ static OPERATE_RET __tdd_display_rgb_open(TDD_DISP_DEV_HANDLE_T device)
 
     TUYA_CALL_ERR_RETURN(tkl_rgb_irq_cb_register(__display_rgb_isr));
 
+    TUYA_GPIO_BASE_CFG_T gpio_cfg = {
+        .mode = TUYA_GPIO_PUSH_PULL,
+        .direct = TUYA_GPIO_OUTPUT,
+        .level = TUYA_GPIO_LEVEL_LOW,
+    };
+    tkl_gpio_init(DISP_RGB_TEST_PIN, &gpio_cfg);
+
     return OPRT_OK;
 }
 
@@ -217,12 +231,9 @@ static OPERATE_RET __tdd_display_rgb_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DIS
     tal_mutex_lock(sg_display_rgb.mutex);
 
     if (sg_display_rgb.is_task_running) {
-        TDL_DISP_RGB_MSG_T msg = {TDL_RGB_FRAME_REQUEST, (uint32_t)frame_buff};
+        TDD_DISP_RGB_MSG_T msg = {TDD_RGB_FRAME_REQUEST, frame_buff};
         tal_queue_post(sg_display_rgb.queue, &msg, SEM_WAIT_FOREVER);
     }
-
-    // __rgb_display_frame(frame_buff);
-
 
     tal_mutex_unlock(sg_display_rgb.mutex);
 
@@ -269,6 +280,7 @@ OPERATE_RET tdd_disp_rgb_device_register(char *name, TDD_DISP_RGB_CFG_T *rgb)
     rgb_dev_info.fmt      = rgb->cfg.pixel_fmt;
     rgb_dev_info.rotation = rgb->rotation;
     rgb_dev_info.is_swap  = rgb->is_swap;
+    rgb_dev_info.has_vram = false;
 
     memcpy(&rgb_dev_info.bl, &rgb->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&rgb_dev_info.power, &rgb->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));

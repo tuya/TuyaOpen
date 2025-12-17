@@ -11,3 +11,4 @@ config BOARD_CONFIG
     default y
     select ENABLE_DISPLAY
     select ENABLE_TP
+    select ENABLE_LVGL_V8_RGB565_SWAP if (LVGL_VERSION_8 && LVGL_V8_COLOR_DEPTH_16)

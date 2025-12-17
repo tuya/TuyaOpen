@@ -18,12 +18,11 @@ typedef enum{
 } lvgl_task_state_t;
 
 void lv_vendor_init(void *device);
-
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size);
 void lv_vendor_stop(void);
 void lv_vendor_disp_lock(void);
 void lv_vendor_disp_unlock(void);
-
+void lv_vendor_set_backlight(uint8_t brightness);
 
 #ifdef __cplusplus
 } /*extern "C"*/

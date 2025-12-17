@@ -56,13 +56,13 @@ typedef struct {
     uint32_t                    freq_hz;
     QSPI_REFRESH_METHOD_E       refresh_method;
     QSPI_PIXEL_CMD_T            pixel_pre_cmd;
-    uint8_t                     is_pixel_memory;
-    uint8_t                     cmd_write_reg;
+    uint8_t                     has_vram;
+    uint8_t                     cmd_caset;
+    uint8_t                     cmd_raset;
+    uint8_t                     cmd_ramwr;
+    uint8_t                     x_offset;
+    uint8_t                     y_offset;
 }DISP_QSPI_BASE_CFG_T;
-
-typedef void (*TDD_DISP_QPI_SET_WINDOW_CB)(DISP_QSPI_BASE_CFG_T *p_cfg, uint16_t x_start, uint16_t y_start,\
-                                           uint16_t x_end, uint16_t y_end);
-
 
 typedef struct { 
     DISP_QSPI_BASE_CFG_T        cfg;
@@ -71,7 +71,6 @@ typedef struct {
     TUYA_DISPLAY_ROTATION_E     rotation;
     bool                        is_swap;
     const uint8_t              *init_seq; // Initialization commands for the display
-    TDD_DISP_QPI_SET_WINDOW_CB  set_window_cb; // Callback to set the display window
 }TDD_DISP_QSPI_CFG_T;
 
 /***********************************************************

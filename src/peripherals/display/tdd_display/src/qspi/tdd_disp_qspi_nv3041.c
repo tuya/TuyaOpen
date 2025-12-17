@@ -1,8 +1,14 @@
 /**
  * @file tdd_disp_qspi_nv3041.c
-
- * @version 0.1
+ * @brief NV3041 QSPI display driver implementation
+ *
+ * This file implements the driver for NV3041 QSPI display controller, providing
+ * functions for display initialization, device registration, and custom initialization
+ * sequence configuration. The driver supports QSPI interface communication and frame-based
+ * refresh method.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tuya_cloud_types.h"
@@ -143,18 +149,45 @@ static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
             .cmd_lines  = TUYA_QSPI_1WIRE,
             .addr_lines = TUYA_QSPI_1WIRE,
         },
-        .is_pixel_memory = false,
-        .cmd_write_reg   = NV3041_WRITE_REG,
+        .has_vram = true,
+        .cmd_caset = NV3041_CASET,
+        .cmd_raset = NV3041_RASET,
+        .cmd_ramwr = NV3041_WRITE_REG,
     },
     .is_swap = true,
     .init_seq = cNV3041_INIT_SEQ,
-    .set_window_cb = NULL,
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 
+/**
+ * @brief Sets the initialization sequence for the NV3041 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_qspi_nv3041_set_init_seq(const uint8_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_qspi_cfg.init_seq = init_seq;
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Registers the NV3041 QSPI display device with the display driver
+ * 
+ * @param name Device name to register
+ * @param dev_cfg Pointer to the QSPI device configuration structure
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if parameters are NULL
+ */
 OPERATE_RET tdd_disp_qspi_nv3041_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
     if (NULL == name || NULL == dev_cfg) {
@@ -165,6 +198,9 @@ OPERATE_RET tdd_disp_qspi_nv3041_register(char *name, DISP_QSPI_DEVICE_CFG_T *de
 
     sg_disp_qspi_cfg.cfg.width     = dev_cfg->width;
     sg_disp_qspi_cfg.cfg.height    = dev_cfg->height;
+    sg_disp_qspi_cfg.cfg.x_offset  = dev_cfg->x_offset;
+    sg_disp_qspi_cfg.cfg.y_offset  = dev_cfg->y_offset;
+
     sg_disp_qspi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
     sg_disp_qspi_cfg.cfg.port      = dev_cfg->port;
     sg_disp_qspi_cfg.cfg.freq_hz   = dev_cfg->spi_clk;

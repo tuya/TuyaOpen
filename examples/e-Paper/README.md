@@ -64,7 +64,8 @@ For additional help, check READMEs in each subfolder or contact the repository m
 
 ## Screen Links
 
-- [Waveshare 4.26inch e-Paper](https://www.waveshare.net/shop/4.26inch-e-Paper.htm)
-- [Waveshare 4.26inch e-Paper HAT](https://www.waveshare.net/shop/4.26inch-e-Paper-HAT.htm)
-- [Waveshare 1.54inch e-Paper](https://www.waveshare.net/shop/1.54inch-e-Paper.htm)
-- [Waveshare 1.54inch e-Paper Module](https://www.waveshare.net/shop/1.54inch-e-Paper-Module.htm)
+- [Waveshare 4.26inch e-Paper](https://www.waveshare.com/4.26inch-e-paper.htm)
+- [Waveshare 4.26inch e-Paper HAT](https://www.waveshare.com/4.26inch-e-paper-hat.htm)
+- [Waveshare 1.54inch e-Paper](https://www.waveshare.com/1.54inch-e-paper.htm)
+- [Waveshare 1.54inch e-Paper Module](https://www.waveshare.com/1.54inch-e-paper-module.htm)
+

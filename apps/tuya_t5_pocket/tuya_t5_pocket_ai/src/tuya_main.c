@@ -44,7 +44,7 @@
 #include "ai_audio.h"
 #include "reset_netcfg.h"
 #include "game_pet.h"
-
+#include "tkl_gpio.h"
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
 
@@ -170,6 +170,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* MQTT with tuya cloud is disconnected, device offline */
     case TUYA_EVENT_MQTT_DISCONNECT:
         PR_INFO("Device MQTT DisConnected!");
+        app_display_send_msg(POCKET_DISP_TP_WIFI_OFF, NULL, 0);
         tal_event_publish(EVENT_MQTT_DISCONNECTED, NULL);
         break;
 
@@ -269,6 +270,11 @@ void user_main(void)
     tal_cli_init();
     tuya_authorize_init();
 
+    ret = board_register_hardware();
+    if (ret != OPRT_OK) {
+        PR_ERR("board_register_hardware failed");
+    }
+
     reset_netconfig_start();
 
     tuya_iot_license_t license;
@@ -304,17 +310,15 @@ void user_main(void)
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
     type |= NETCONN_WIRED;
 #endif
+#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+    type |= NETCONN_CELLULAR;
+#endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
     netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
-
-    ret = board_register_hardware();
-    if (ret != OPRT_OK) {
-        PR_ERR("board_register_hardware failed");
-    }
 
     ret = app_pocket_init();
     if (ret != OPRT_OK) {
