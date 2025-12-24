@@ -379,15 +379,15 @@ int generate_tag2_ndef_wifi(const wifi_config_t *config, uint8_t *buffer, size_t
     PR_INFO("Generated Tag Type 2 NDEF WiFi: total %d bytes", offset);
 
     // Debug output: print first 128 bytes in hex (enough to see full WSC payload)
-    PR_DEBUG("NDEF data (first 128 bytes):");
-    for (int i = 0; i < 128 && i < offset; i += 16) {
-        char hex_str[64];
-        int  hex_pos = 0;
-        for (int j = 0; j < 16 && (i + j) < offset; j++) {
-            hex_pos += sprintf(hex_str + hex_pos, "%02X ", buffer[i + j]);
-        }
-        PR_DEBUG("  [%02d] %s", i, hex_str);
-    }
+    // PR_DEBUG("NDEF data (first 128 bytes):");
+    // for (int i = 0; i < 128 && i < offset; i += 16) {
+    //     char hex_str[64];
+    //     int  hex_pos = 0;
+    //     for (int j = 0; j < 16 && (i + j) < offset; j++) {
+    //         hex_pos += sprintf(hex_str + hex_pos, "%02X ", buffer[i + j]);
+    //     }
+    //     PR_DEBUG("  [%02d] %s", i, hex_str);
+    // }
 
     return offset;
 }

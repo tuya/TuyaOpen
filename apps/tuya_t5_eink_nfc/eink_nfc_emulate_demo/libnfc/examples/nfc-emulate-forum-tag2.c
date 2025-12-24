@@ -204,9 +204,9 @@ int generate_tag2_ndef_uri_with_aar(const char *uri, const char *package_name, u
     size_t      pkg_len       = package_name ? strlen(package_name) : 0;
     bool        use_aar       = (package_name != NULL && pkg_len > 0);
 
-    PR_INFO("Generating NDEF URI: prefix=0x%02X, remaining='%s' (len=%zu)", prefix_code, remaining_uri, uri_len);
+    PR_DEBUG("Generating NDEF URI: prefix=0x%02X, remaining='%s' (len=%zu)", prefix_code, remaining_uri, uri_len);
     if (use_aar) {
-        PR_INFO("Adding AAR for package: %s", package_name);
+        PR_DEBUG("Adding AAR for package: %s", package_name);
     }
 
     // Calculate sizes
@@ -295,7 +295,7 @@ int generate_tag2_ndef_uri_with_aar(const char *uri, const char *package_name, u
     // NDEF Terminator TLV
     buffer[offset++] = 0xFE;
 
-    PR_INFO("NDEF generated: %d bytes (URI=%zu, AAR=%zu)", offset, uri_record_len, aar_record_len);
+    PR_DEBUG("NDEF generated: %d bytes (URI=%zu, AAR=%zu)", offset, uri_record_len, aar_record_len);
     return offset;
 }
 
@@ -324,7 +324,7 @@ int generate_tag2_ndef_uri(const char *uri, uint8_t *buffer, size_t buffer_size)
     uint8_t     prefix_code   = detect_uri_prefix(uri, &remaining_uri);
     size_t      uri_len       = strlen(remaining_uri);
 
-    PR_INFO("Generating NDEF URI: prefix=0x%02X, remaining='%s' (len=%zu)", prefix_code, remaining_uri, uri_len);
+    PR_DEBUG("Generating NDEF URI: prefix=0x%02X, remaining='%s' (len=%zu)", prefix_code, remaining_uri, uri_len);
 
     // Check if URI fits in Tag Type 2 (48 bytes data area)
     // NDEF overhead: TLV(2) + Record Header(3) + Type(1) + Prefix(1) + Terminator(1) = 8 bytes
@@ -384,9 +384,9 @@ int generate_tag2_ndef_uri(const char *uri, uint8_t *buffer, size_t buffer_size)
         buffer[offset++] = 0x00;
     }
 
-    PR_INFO("NDEF URI generated successfully: %d bytes total", offset);
-    PR_INFO("  - NDEF Message: %zu bytes", ndef_message_len);
-    PR_INFO("  - URI Payload: %zu bytes (prefix=0x%02X + '%s')", ndef_payload_len, prefix_code, remaining_uri);
+    PR_DEBUG("NDEF URI generated successfully: %d bytes total", offset);
+    PR_DEBUG("  - NDEF Message: %zu bytes", ndef_message_len);
+    PR_DEBUG("  - URI Payload: %zu bytes (prefix=0x%02X + '%s')", ndef_payload_len, prefix_code, remaining_uri);
 
     return offset;
 }
@@ -473,14 +473,14 @@ int nfc_emulate_forum_tag2_main(char *uri, char *aar_package)
         return EXIT_FAILURE;
     }
 
-    PR_INFO("====================================");
-    PR_INFO("Generating NDEF Tag Type 2 Data");
-    PR_INFO("====================================");
-    PR_INFO("URI: %s", uri);
+    PR_DEBUG("====================================");
+    PR_DEBUG("Generating NDEF Tag Type 2 Data");
+    PR_DEBUG("====================================");
+    PR_DEBUG("URI: %s", uri);
     if (aar_package) {
-        PR_INFO("AAR Package: %s (prevents app interception)", aar_package);
+        PR_DEBUG("AAR Package: %s (prevents app interception)", aar_package);
     } else {
-        PR_INFO("AAR: Disabled (other apps may intercept)");
+        PR_DEBUG("AAR: Disabled (other apps may intercept)");
     }
 
     int result;
@@ -498,21 +498,21 @@ int nfc_emulate_forum_tag2_main(char *uri, char *aar_package)
         return EXIT_FAILURE;
     }
 
-    PR_INFO("====================================");
-    PR_INFO("NDEF data generated successfully!");
-    PR_INFO("Memory dump (first %d bytes):", (result > 64) ? 64 : result);
-    int dump_size = (result > 64) ? 64 : result;
-    for (int i = 0; i < dump_size; i += 16) {
-        int remaining = dump_size - i;
-        if (remaining >= 16) {
-            PR_INFO("  %02X: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", i,
-                    tag2_memory[i + 0], tag2_memory[i + 1], tag2_memory[i + 2], tag2_memory[i + 3], tag2_memory[i + 4],
-                    tag2_memory[i + 5], tag2_memory[i + 6], tag2_memory[i + 7], tag2_memory[i + 8], tag2_memory[i + 9],
-                    tag2_memory[i + 10], tag2_memory[i + 11], tag2_memory[i + 12], tag2_memory[i + 13],
-                    tag2_memory[i + 14], tag2_memory[i + 15]);
-        }
-    }
-    PR_INFO("====================================");
+    // PR_DEBUG("====================================");
+    // PR_DEBUG("NDEF data generated successfully!");
+    // PR_DEBUG("Memory dump (first %d bytes):", (result > 64) ? 64 : result);
+    // int dump_size = (result > 64) ? 64 : result;
+    // for (int i = 0; i < dump_size; i += 16) {
+    //     int remaining = dump_size - i;
+    //     if (remaining >= 16) {
+    //         PR_DEBUG("  %02X: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X", i,
+    //                 tag2_memory[i + 0], tag2_memory[i + 1], tag2_memory[i + 2], tag2_memory[i + 3], tag2_memory[i +
+    //                 4], tag2_memory[i + 5], tag2_memory[i + 6], tag2_memory[i + 7], tag2_memory[i + 8], tag2_memory[i
+    //                 + 9], tag2_memory[i + 10], tag2_memory[i + 11], tag2_memory[i + 12], tag2_memory[i + 13],
+    //                 tag2_memory[i + 14], tag2_memory[i + 15]);
+    //     }
+    // }
+    // PR_DEBUG("====================================");
 
     nfc_target nt = {.nm =
                          {
@@ -539,7 +539,7 @@ int nfc_emulate_forum_tag2_main(char *uri, char *aar_package)
         .user_data     = tag2_memory, // Use dynamically generated data
     };
 
-    PR_INFO("Step 1: Initializing libnfc context...");
+    PR_DEBUG("Step 1: Initializing libnfc context...");
     nfc_init(&context);
     if (context == NULL) {
         PR_ERR("Failed to init libnfc context (malloc)");
@@ -547,29 +547,28 @@ int nfc_emulate_forum_tag2_main(char *uri, char *aar_package)
         tal_psram_free(tag2_memory);
         exit(EXIT_FAILURE);
     }
-    PR_INFO("Context initialized: %p", context);
+    PR_DEBUG("Context initialized: %p", context);
 
     // Use hardcoded connection string for embedded system (bypasses file system)
     const char *connstring = "pn532_uart:/dev/ttyS2";
-    PR_INFO("Step 2: Opening NFC device with connstring: %s", connstring);
+    PR_DEBUG("Step 2: Opening NFC device with connstring: %s", connstring);
     pnd = nfc_open(context, connstring);
-    PR_INFO("nfc_open returned: %p", pnd);
+    PR_DEBUG("nfc_open returned: %p", pnd);
 
     if (pnd == NULL) {
         PR_ERR("nfc_open returned NULL - device open failed!");
-        ERR("Unable to open NFC device");
         nfc_exit(context);
         tal_psram_free(tag2_memory);
         exit(EXIT_FAILURE);
     }
 
-    PR_INFO("Step 3: Device opened successfully!");
-    printf("NFC device: %s opened\n", nfc_device_get_name(pnd));
-    printf("Emulating NDEF tag with URI: %s\n", uri);
+    PR_DEBUG("Step 3: Device opened successfully!");
+    PR_DEBUG("NFC device: %s opened\n", nfc_device_get_name(pnd));
+    PR_DEBUG("Emulating NDEF tag with URI: %s\n", uri);
     if (aar_package) {
-        printf("AAR enabled: %s (prevents Alipay/WeChat interception)\n", aar_package);
+        PR_DEBUG("AAR enabled: %s (prevents Alipay/WeChat interception)\n", aar_package);
     }
-    printf("Please touch it with a second NFC device\n");
+    PR_DEBUG("Please touch it with a second NFC device\n");
 
     // while (1) {
     //     nfc_emulate_target(pnd, &emulator, 0);

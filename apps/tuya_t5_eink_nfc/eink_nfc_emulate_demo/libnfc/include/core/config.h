@@ -11,7 +11,8 @@
 // #define HAVE_CONFIG_H 1
 
 // Logging
-#define LOG 1
+// #define LOG 1
+// #define DEBUG 1
 
 // Driver support - only enable UART driver
 #define DRIVER_PN532_UART_ENABLED 1

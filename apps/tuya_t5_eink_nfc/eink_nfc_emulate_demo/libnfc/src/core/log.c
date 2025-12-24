@@ -33,6 +33,9 @@
 #include <stdarg.h>
 #include <fcntl.h>
 
+// Tuya platform log
+#include "tal_log.h"
+
 const char *log_priority_to_str(const int priority)
 {
     switch (priority) {
@@ -50,51 +53,41 @@ const char *log_priority_to_str(const int priority)
 
 #ifdef LOG
 
-#include "log-internal.h"
-
 void log_init(const nfc_context *context)
 {
-#ifdef ENVVARS
-    char str[32];
-    sprintf(str, "%" PRIu32, context->log_level);
-    setenv("LIBNFC_LOG_LEVEL", str, 1);
-#else
     (void)context;
-#endif
+    // Tuya log system is initialized by the platform
 }
 
-void log_exit(void) {}
+void log_exit(void)
+{
+    // Nothing to do for Tuya platform
+}
 
 void log_put(const uint8_t group, const char *category, const uint8_t priority, const char *format, ...)
 {
-    char *env_log_level = NULL;
-#ifdef ENVVARS
-    env_log_level = getenv("LIBNFC_LOG_LEVEL");
-#endif
-    uint32_t log_level;
-    if (NULL == env_log_level) {
-        // LIBNFC_LOG_LEVEL is not set
+    (void)group;
+
+    char    buffer[256];
+    va_list va;
+    va_start(va, format);
+    vsnprintf(buffer, sizeof(buffer), format, va);
+    va_end(va);
+
+    // Map NFC log priority to Tuya PR_xxx macros
+    switch (priority) {
+    case NFC_LOG_PRIORITY_ERROR:
+        PR_ERR("[%s] %s", category, buffer);
+        break;
+    case NFC_LOG_PRIORITY_INFO:
+        PR_INFO("[%s] %s", category, buffer);
+        break;
+    case NFC_LOG_PRIORITY_DEBUG:
+    default:
 #ifdef DEBUG
-        log_level = 3;
-#else
-        log_level = 1;
+        PR_DEBUG("[%s] %s", category, buffer);
 #endif
-    } else {
-        log_level = atoi(env_log_level);
-    }
-
-    //  printf("log_level = %"PRIu32" group = %"PRIu8" priority = %"PRIu8"\n", log_level, group, priority);
-    if (log_level) {                                                   // If log is not disabled by log_level=none
-        if (((log_level & 0x00000003) >= priority) ||                  // Global log level
-            (((log_level >> (group * 2)) & 0x00000003) >= priority)) { // Group log level
-
-            va_list va;
-            va_start(va, format);
-            log_put_internal("%s\t%s\t", log_priority_to_str(priority), category);
-            log_vput_internal(format, va);
-            log_put_internal("\n");
-            va_end(va);
-        }
+        break;
     }
 }
 

@@ -207,17 +207,12 @@ static void pn532_uart_close(nfc_device *pnd)
 
 static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstring connstring)
 {
-    PR_NOTICE("====================================");
-    PR_NOTICE("[pn532_uart_open] START");
-    PR_NOTICE("[pn532_uart_open] connstring: %s", connstring);
-    PR_NOTICE("====================================");
-
+    PR_DEBUG("pn532 uart open");
     struct pn532_uart_descriptor ndd;
     char                        *speed_s;
 
-    PR_NOTICE("[pn532_uart_open] Decoding connection string...");
     int connstring_decode_level = connstring_decode(connstring, PN532_UART_DRIVER_NAME, NULL, &ndd.port, &speed_s);
-    PR_NOTICE("[pn532_uart_open] Decode level: %d", connstring_decode_level);
+    // PR_DEBUG("[pn532_uart_open] Decode level: %d", connstring_decode_level);
 
     if (connstring_decode_level == 3) {
         ndd.speed = 0;
@@ -237,14 +232,13 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
     if (connstring_decode_level < 3) {
         ndd.speed = PN532_UART_DEFAULT_SPEED;
     }
-    PR_NOTICE("[pn532_uart_open] Port: %s, Speed: %d", ndd.port, ndd.speed);
+    // PR_NOTICE("[pn532_uart_open] Port: %s, Speed: %d", ndd.port, ndd.speed);
 
     serial_port sp;
     nfc_device *pnd = NULL;
 
-    PR_NOTICE("[pn532_uart_open] === Calling uart_open() ===");
     sp = uart_open(ndd.port);
-    PR_NOTICE("[pn532_uart_open] uart_open() returned: %p", sp);
+    // PR_DEBUG("[pn532_uart_open] uart_open() returned: %p", sp);
 
     if (sp == INVALID_SERIAL_PORT) {
         PR_ERR("[pn532_uart_open] Invalid serial port: %s", ndd.port);
@@ -259,12 +253,10 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
         return NULL;
     }
 
-    PR_NOTICE("[pn532_uart_open] UART opened successfully!");
     // We need to flush input to be sure first reply does not comes from older byte transceive
     uart_flush_input(sp, true);
     uart_set_speed(sp, ndd.speed);
 
-    PR_NOTICE("[pn532_uart_open] Creating nfc_device...");
     // We have a connection
     pnd = nfc_device_new(context, connstring);
     if (!pnd) {
@@ -277,7 +269,6 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
     snprintf(pnd->name, sizeof(pnd->name), "%s:%s", PN532_UART_DRIVER_NAME, ndd.port);
     free(ndd.port);
 
-    PR_NOTICE("[pn532_uart_open] Allocating driver_data...");
     pnd->driver_data = malloc(sizeof(struct pn532_uart_data));
     if (!pnd->driver_data) {
         perror("malloc");
@@ -286,11 +277,10 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
         nfc_device_free(pnd);
         return NULL;
     }
-    PR_NOTICE("[pn532_uart_open] driver_data allocated: %p", pnd->driver_data);
+    // PR_DEBUG("[pn532_uart_open] driver_data allocated: %p", pnd->driver_data);
     DRIVER_DATA(pnd)->port = sp;
 
     // Alloc and init chip's data
-    PR_NOTICE("[pn532_uart_open] Calling pn53x_data_new()...");
     if (pn53x_data_new(pnd, &pn532_uart_io) == NULL) {
         perror("malloc");
         PR_ERR("[pn532_uart_open] pn53x_data_new() FAILED!");
@@ -298,7 +288,6 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
         nfc_device_free(pnd);
         return NULL;
     }
-    PR_NOTICE("[pn532_uart_open] pn53x_data_new() SUCCESS");
     // SAMConfiguration command if needed to wakeup the chip and pn53x_SAMConfiguration check if the chip is a PN532
     CHIP_DATA(pnd)->type = PN532;
     // This device starts in LowVBat mode
@@ -309,7 +298,6 @@ static nfc_device *pn532_uart_open(const nfc_context *context, const nfc_connstr
     pnd->driver                      = &pn532_uart_driver;
 
 #ifndef WIN32
-    PR_NOTICE("[pn532_uart_open] Setting up pipe abort mechanism...");
     // pipe-based abort mechanism
     if (pipe(DRIVER_DATA(pnd)->iAbortFds) < 0) {
         PR_ERR("[pn532_uart_open] pipe() failed!");
