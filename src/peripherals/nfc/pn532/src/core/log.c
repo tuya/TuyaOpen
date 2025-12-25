@@ -84,7 +84,7 @@ void log_put(const uint8_t group, const char *category, const uint8_t priority, 
         break;
     case NFC_LOG_PRIORITY_DEBUG:
     default:
-#ifdef DEBUG
+#ifdef NFC_DEBUG
         PR_DEBUG("[%s] %s", category, buffer);
 #endif
         break;

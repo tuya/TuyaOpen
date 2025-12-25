@@ -35,7 +35,7 @@
 #include "tal_log.h" // For PR_NOTICE, PR_ERR, etc.
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "nfc_config.h"
 #endif
 
 #ifdef CONFFILES
@@ -81,7 +81,7 @@ nfc_context *nfc_context_new(void)
     // Set default context values
     res->allow_autoscan       = true;
     res->allow_intrusive_scan = false;
-#ifdef DEBUG
+#ifdef NFC_DEBUG
     res->log_level = 3;
 #else
     res->log_level = 1;
@@ -89,8 +89,8 @@ nfc_context *nfc_context_new(void)
 
     // Clear user defined devices array
     for (int i = 0; i < MAX_USER_DEFINED_DEVICES; i++) {
-        strcpy(res->user_defined_devices[i].name, "");
-        strcpy(res->user_defined_devices[i].connstring, "");
+        memset(res->user_defined_devices[i].name, 0, DEVICE_NAME_LENGTH);
+        memset(res->user_defined_devices[i].connstring, 0, NFC_BUFSIZE_CONNSTRING);
         res->user_defined_devices[i].optional = false;
     }
     res->user_defined_device_count = 0;
@@ -100,8 +100,9 @@ nfc_context *nfc_context_new(void)
     // Load user defined device from environment variable at first
     char *envvar = getenv("LIBNFC_DEFAULT_DEVICE");
     if (envvar) {
-        strcpy(res->user_defined_devices[0].name, "user defined default device");
-        strncpy(res->user_defined_devices[0].connstring, envvar, NFC_BUFSIZE_CONNSTRING);
+        strncpy(res->user_defined_devices[0].name, "user defined default device", DEVICE_NAME_LENGTH - 1);
+        res->user_defined_devices[0].name[DEVICE_NAME_LENGTH - 1] = '\0';
+        strncpy(res->user_defined_devices[0].connstring, envvar, NFC_BUFSIZE_CONNSTRING - 1);
         res->user_defined_devices[0].connstring[NFC_BUFSIZE_CONNSTRING - 1] = '\0';
         res->user_defined_device_count++;
     }
@@ -119,8 +120,9 @@ nfc_context *nfc_context_new(void)
     // Load user defined device from environment variable as the only reader
     envvar = getenv("LIBNFC_DEVICE");
     if (envvar) {
-        strcpy(res->user_defined_devices[0].name, "user defined device");
-        strncpy(res->user_defined_devices[0].connstring, envvar, NFC_BUFSIZE_CONNSTRING);
+        strncpy(res->user_defined_devices[0].name, "user defined device", DEVICE_NAME_LENGTH - 1);
+        res->user_defined_devices[0].name[DEVICE_NAME_LENGTH - 1] = '\0';
+        strncpy(res->user_defined_devices[0].connstring, envvar, NFC_BUFSIZE_CONNSTRING - 1);
         res->user_defined_devices[0].connstring[NFC_BUFSIZE_CONNSTRING - 1] = '\0';
         res->user_defined_device_count                                      = 1;
     }
@@ -144,7 +146,7 @@ nfc_context *nfc_context_new(void)
     log_init(res);
 
     // Debug context state
-#if defined DEBUG
+#if defined NFC_DEBUG
     log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_NONE, "log_level is set to %" PRIu32, res->log_level);
 #else
     log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_DEBUG, "log_level is set to %" PRIu32, res->log_level);

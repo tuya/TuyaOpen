@@ -4,7 +4,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "nfc_config.h"
 #endif
 
 #include "buses/uart.h"
@@ -67,14 +67,8 @@ serial_port uart_open(const char *pcPortName)
 {
     (void)pcPortName;
 
-#ifdef LOG
-    PR_DEBUG("[uart_open] Port: %s", pcPortName ? pcPortName : "NULL");
-#endif
-
     if (uart_initialized) {
-#ifdef LOG
         PR_DEBUG("[uart_open] UART already initialized!");
-#endif
         return (serial_port)1;
     }
 
@@ -102,10 +96,6 @@ serial_port uart_open(const char *pcPortName)
         return INVALID_SERIAL_PORT;
     }
 
-#ifdef LOG
-    PR_DEBUG("[uart_open] UART2 init SUCCESS!");
-#endif
-
     uart_initialized = true;
 
     return (serial_port)1;
@@ -118,9 +108,7 @@ void uart_close(const serial_port sp)
         return;
     tal_uart_deinit(PN532_UART_PORT);
     uart_initialized = false;
-#ifdef LOG
     PR_DEBUG("PN532 UART closed");
-#endif
 }
 
 void uart_set_speed(serial_port sp, const uint32_t uiPortSpeed)
@@ -144,7 +132,7 @@ int uart_send(serial_port sp, const uint8_t *pbtTx, const size_t szTx, int timeo
     if (!uart_initialized || !pbtTx || szTx == 0)
         return -1;
 
-    // Print TX data in hex (only in DEBUG mode)
+    // Print TX data in hex (only in NFC_DEBUG mode)
     UART_PRINT_HEX("TX:", pbtTx, szTx);
 
     int sent = tal_uart_write(PN532_UART_PORT, (uint8_t *)pbtTx, szTx);
@@ -198,7 +186,7 @@ int uart_receive(serial_port sp, uint8_t *pbtRx, const size_t szRx, void *abort_
         }
     }
 
-    // Print RX data in hex (only in DEBUG mode)
+    // Print RX data in hex (only in NFC_DEBUG mode)
     if (received > 0) {
         UART_PRINT_HEX("RX:", pbtRx, received);
     }

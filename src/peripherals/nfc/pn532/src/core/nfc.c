@@ -72,7 +72,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "nfc_config.h"
 #endif // HAVE_CONFIG_H
 
 #include <fcntl.h>
@@ -154,13 +154,6 @@ const char *nfc_property_name[] = {"NP_TIMEOUT_COMMAND",       "NP_TIMEOUT_ATR",
 
 static void nfc_drivers_init(void)
 {
-    PR_DEBUG("[nfc_drivers_init] Registering drivers...");
-
-#ifdef DRIVER_PN532_UART_ENABLED
-    PR_DEBUG("[nfc_drivers_init] DRIVER_PN532_UART_ENABLED is DEFINED!");
-#else
-    PR_ERR("[nfc_drivers_init] ERROR: DRIVER_PN532_UART_ENABLED is NOT defined!");
-#endif
 
 #if defined(DRIVER_PN53X_USB_ENABLED)
     PR_DEBUG("[nfc_drivers_init] + pn53x_usb");
@@ -202,7 +195,6 @@ static void nfc_drivers_init(void)
     PR_DEBUG("[nfc_drivers_init] + pn71xx");
     nfc_register_driver(&pn71xx_driver);
 #endif /* DRIVER_PN71XX_ENABLED */
-    PR_DEBUG("[nfc_drivers_init] All drivers registered");
 }
 
 static int nfc_device_validate_modulation(nfc_device *pnd, const nfc_mode mode, const nfc_modulation *nm);
@@ -216,26 +208,23 @@ static int nfc_device_validate_modulation(nfc_device *pnd, const nfc_mode mode, 
  */
 int nfc_register_driver(const struct nfc_driver *ndr)
 {
-    PR_DEBUG("[nfc_register_driver] Called with driver: %p", ndr);
     if (!ndr) {
         PR_ERR("[nfc_register_driver] NULL driver!");
         log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_DEBUG, "nfc_register_driver returning NFC_EINVARG");
         return NFC_EINVARG;
     }
-    PR_DEBUG("[nfc_register_driver] Driver name: %s", ndr->name);
+    // PR_DEBUG("[nfc_register_driver] Driver name: %s", ndr->name);
 
     struct nfc_driver_list *pndl = (struct nfc_driver_list *)malloc(sizeof(struct nfc_driver_list));
     if (!pndl) {
         PR_ERR("[nfc_register_driver] malloc failed!");
         return NFC_ESOFT;
     }
-    PR_DEBUG("[nfc_register_driver] Allocated list node: %p", pndl);
 
     pndl->driver = ndr;
     pndl->next   = nfc_drivers;
     nfc_drivers  = pndl;
 
-    PR_DEBUG("[nfc_register_driver] SUCCESS! nfc_drivers head: %p", nfc_drivers);
     return NFC_SUCCESS;
 }
 
@@ -246,29 +235,17 @@ int nfc_register_driver(const struct nfc_driver *ndr)
  */
 void nfc_init(nfc_context **context)
 {
-    // CRITICAL: This MUST appear in logs
-    PR_DEBUG("====================================");
-    PR_DEBUG("[nfc_init] START");
-    PR_DEBUG("====================================");
-
     *context = nfc_context_new();
     if (!*context) {
         PR_ERR("[nfc_init] nfc_context_new failed!");
         perror("malloc");
         return;
     }
-    PR_DEBUG("[nfc_init] Context created: %p", *context);
-
-    tkl_system_sleep(10); // Give time for log to flush
-    PR_DEBUG("[nfc_init] nfc_drivers before init: %p", nfc_drivers);
-    tkl_system_sleep(10);
 
     if (!nfc_drivers) {
-        PR_DEBUG("[nfc_init] No drivers loaded, calling nfc_drivers_init()...");
-        tkl_system_sleep(10);
         nfc_drivers_init();
         tkl_system_sleep(10);
-        PR_DEBUG("[nfc_init] Drivers initialized, nfc_drivers now: %p", nfc_drivers);
+        // PR_DEBUG("[nfc_init] Drivers initialized, nfc_drivers now: %p", nfc_drivers);
 
         // Count registered drivers
         int                           count = 0;
@@ -278,11 +255,11 @@ void nfc_init(nfc_context **context)
             PR_DEBUG("[nfc_init] Driver %d: %s", count, p->driver->name);
             p = p->next;
         }
-        PR_DEBUG("[nfc_init] Total %d drivers registered", count);
+        // PR_DEBUG("[nfc_init] Total %d drivers registered", count);
     } else {
         PR_DEBUG("[nfc_init] Drivers already loaded at %p", nfc_drivers);
     }
-    PR_DEBUG("[nfc_init] === COMPLETE ===");
+    PR_DEBUG("NFC initialized successfully !");
 }
 
 /** @ingroup lib
@@ -322,10 +299,6 @@ void nfc_exit(nfc_context *context)
  */
 nfc_device *nfc_open(nfc_context *context, const nfc_connstring connstring)
 {
-    PR_DEBUG("====================================");
-    PR_DEBUG("[nfc_open] START");
-    PR_DEBUG("====================================");
-
     nfc_device *pnd = NULL;
 
     nfc_connstring ncs;
@@ -336,12 +309,10 @@ nfc_device *nfc_open(nfc_context *context, const nfc_connstring connstring)
             return NULL;
         }
     } else {
-        PR_DEBUG("[nfc_open] Using connstring: %s", connstring);
+        // PR_DEBUG("[nfc_open] Using connstring: %s", connstring);
         strncpy(ncs, connstring, sizeof(nfc_connstring));
         ncs[sizeof(nfc_connstring) - 1] = '\0';
     }
-
-    PR_DEBUG("[nfc_open] nfc_drivers pointer: %p", nfc_drivers);
 
     // Search through the device list for an available device
     const struct nfc_driver_list *pndl         = nfc_drivers;
@@ -355,7 +326,7 @@ nfc_device *nfc_open(nfc_context *context, const nfc_connstring connstring)
     while (pndl) {
         const struct nfc_driver *ndr = pndl->driver;
         driver_count++;
-        PR_DEBUG("[nfc_open] Checking driver %d: %s", driver_count, ndr->name);
+        // PR_DEBUG("[nfc_open] Checking driver %d: %s", driver_count, ndr->name);
 
         // Specific device is requested: using device description
         if (0 != strncmp(ndr->name, ncs, strlen(ndr->name))) {
@@ -370,7 +341,6 @@ nfc_device *nfc_open(nfc_context *context, const nfc_connstring connstring)
         }
 
         pnd = ndr->open(context, ncs);
-        PR_DEBUG("[nfc_open] Driver->open() returned: %p", pnd);
 
         // Test if the opening was successful
         if (pnd == NULL) {
@@ -384,11 +354,12 @@ nfc_device *nfc_open(nfc_context *context, const nfc_connstring connstring)
             log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_DEBUG, "Unable to open \"%s\".", ncs);
             return NULL;
         }
-        PR_DEBUG("[nfc_open] === Device opened successfully! ===");
+        PR_DEBUG("Device opened successfully!");
         for (uint32_t i = 0; i < context->user_defined_device_count; i++) {
             if (strcmp(ncs, context->user_defined_devices[i].connstring) == 0) {
                 // This is a device sets by user, we use the device name given by user
-                strcpy(pnd->name, context->user_defined_devices[i].name);
+                strncpy(pnd->name, context->user_defined_devices[i].name, DEVICE_NAME_LENGTH - 1);
+                pnd->name[DEVICE_NAME_LENGTH - 1] = '\0';
                 break;
             }
         }
@@ -441,11 +412,13 @@ size_t nfc_list_devices(nfc_context *context, nfc_connstring connstrings[], cons
             char *old_env_log_level = NULL;
             // do it silently
             if (env_log_level) {
-                if ((old_env_log_level = malloc(strlen(env_log_level) + 1)) == NULL) {
+                size_t env_len = strlen(env_log_level);
+                if ((old_env_log_level = malloc(env_len + 1)) == NULL) {
                     log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_ERROR, "%s", "Unable to malloc()");
                     return 0;
                 }
-                strcpy(old_env_log_level, env_log_level);
+                strncpy(old_env_log_level, env_log_level, env_len);
+                old_env_log_level[env_len] = '\0';
             }
             setenv("LIBNFC_LOG_LEVEL", "0", 1);
 #endif // ENVVARS
@@ -465,14 +438,18 @@ size_t nfc_list_devices(nfc_context *context, nfc_connstring connstrings[], cons
                 nfc_close(pnd);
                 log_put(LOG_GROUP, LOG_CATEGORY, NFC_LOG_PRIORITY_DEBUG, "User device %s found",
                         context->user_defined_devices[i].name);
-                strcpy((char *)(connstrings + device_found), context->user_defined_devices[i].connstring);
+                strncpy((char *)(connstrings + device_found), context->user_defined_devices[i].connstring,
+                        NFC_BUFSIZE_CONNSTRING - 1);
+                ((char *)(connstrings + device_found))[NFC_BUFSIZE_CONNSTRING - 1] = '\0';
                 device_found++;
                 if (device_found == connstrings_len)
                     break;
             }
         } else {
             // manual choice is not marked as optional so let's take it blindly
-            strcpy((char *)(connstrings + device_found), context->user_defined_devices[i].connstring);
+            strncpy((char *)(connstrings + device_found), context->user_defined_devices[i].connstring,
+                    NFC_BUFSIZE_CONNSTRING - 1);
+            ((char *)(connstrings + device_found))[NFC_BUFSIZE_CONNSTRING - 1] = '\0';
             device_found++;
             if (device_found >= connstrings_len)
                 return device_found;

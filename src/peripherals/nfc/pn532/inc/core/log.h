@@ -28,7 +28,7 @@
 #define __LOG_H__
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "nfc_config.h"
 #endif // HAVE_CONFIG_H
 
 #include "nfc-internal.h"
@@ -50,11 +50,11 @@
     log_level = NFC_LOG_PRIORITY(main) + NFC_LOG_PRIORITY(group) * 2 ^ (NFC_LOG_GROUP(group) * 2)
 
   Examples:
-   * Main log level is NONE and only communication group log is set to DEBUG verbosity (for rx/tx trace):
+   * Main log level is NONE and only communication group log is set to NFC_DEBUG verbosity (for rx/tx trace):
        LIBNFC_LOG_LEVEL=3072  // 0+3072
-   * Main log level is ERROR and driver layer log is set to DEBUG level:
+   * Main log level is ERROR and driver layer log is set to NFC_DEBUG level:
        LIBNFC_LOG_LEVEL=769   // 1+768
-   * Main log level is ERROR, driver layer is set to INFO and communication is set to DEBUG:
+   * Main log level is ERROR, driver layer is set to INFO and communication is set to NFC_DEBUG:
        LIBNFC_LOG_LEVEL=3585  // 1+512+3072
 */
 

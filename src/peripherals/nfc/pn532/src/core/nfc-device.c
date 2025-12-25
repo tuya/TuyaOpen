@@ -24,19 +24,52 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef __LOG_INTERNAL_H__
-#define __LOG_INTERNAL_H__
+/**
+ * @file nfc-device.c
+ * @brief Provide internal function to manipulate nfc_device type
+ */
+
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "nfc_config.h"
 #endif // HAVE_CONFIG_H
 
-#include <stdarg.h>
+#include "nfc-internal.h"
 
-// Internal methods so different platforms can route the logging
-// Offering both forms of the variadic function
-// These are implemented in the log_<platform> specific file
-void log_put_internal(const char *format, ...);
-void log_vput_internal(const char *format, va_list args);
+nfc_device *nfc_device_new(const nfc_context *context, const nfc_connstring connstring)
+{
+    nfc_device *res = malloc(sizeof(*res));
 
-#endif // __LOG_INTERNAL_H__
+    if (!res) {
+        return NULL;
+    }
+
+    // Store associated context
+    res->context = context;
+
+    // Variables initiatialization
+    // Note: Actually, these initialization will be overwritten while the device
+    // will be setup. Putting them to _false_ while the default is _true_ ensure we
+    // send the command to the chip
+    res->bCrc            = false;
+    res->bPar            = false;
+    res->bEasyFraming    = false;
+    res->bInfiniteSelect = false;
+    res->bAutoIso14443_4 = false;
+    res->last_error      = 0;
+    memcpy(res->connstring, connstring, sizeof(res->connstring));
+    res->driver_data = NULL;
+    res->chip_data   = NULL;
+
+    return res;
+}
+
+void nfc_device_free(nfc_device *dev)
+{
+    if (dev) {
+        free(dev->driver_data);
+        free(dev);
+    }
+}

@@ -48,9 +48,9 @@
 
 /**
  * @macro DBG
- * @brief Print a message of standard output only in DEBUG mode
+ * @brief Print a message of standard output only in NFC_DEBUG mode
  */
-#ifdef DEBUG
+#ifdef NFC_DEBUG
 #define DBG(...)                                                                                                       \
     do {                                                                                                               \
         warnx("DBG %s:%d", __FILE__, __LINE__);                                                                        \
@@ -66,7 +66,7 @@
  * @macro WARN
  * @brief Print a warn message
  */
-#ifdef DEBUG
+#ifdef NFC_DEBUG
 #define WARN(...)                                                                                                      \
     do {                                                                                                               \
         warnx("WARNING %s:%d", __FILE__, __LINE__);                                                                    \
@@ -80,7 +80,7 @@
  * @macro ERR
  * @brief Print a error message
  */
-#ifdef DEBUG
+#ifdef NFC_DEBUG
 #define ERR(...)                                                                                                       \
     do {                                                                                                               \
         warnx("ERROR %s:%d", __FILE__, __LINE__);                                                                      \

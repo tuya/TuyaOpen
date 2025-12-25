@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "tkl_system.h"
+#include "tal_system.h"
 #include "tal_memory.h"
 
 // Memory allocation macros - use PSRAM for libnfc
@@ -15,12 +15,6 @@
 #define free(ptr)          tal_psram_free(ptr)
 #define calloc(n, size)    tal_psram_calloc(n, size)
 #define realloc(ptr, size) tal_psram_realloc(ptr, size)
-
-// Sleep function (usleep uses microseconds, we convert to milliseconds)
-// Only define if not already defined by system headers
-#ifndef usleep
-#define usleep(us) tkl_system_sleep(((us) + 999) / 1000)
-#endif
 
 // Signal handling (dummy implementation for embedded)
 #define SIGINT 2
