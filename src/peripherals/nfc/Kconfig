@@ -1,0 +1,9 @@
+config ENABLE_NFC
+    bool "Enable NFC"
+    default n
+
+if (ENABLE_NFC)
+    config ENABLE_NFC_PN532
+        bool "Enable PN532"
+        default y
+endif
