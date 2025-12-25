@@ -294,7 +294,7 @@ int nfc_demo_vcard_tag(void)
     PR_NOTICE("=== vCard Tag Demo ===");
     nfc_tag_config_t config = {.type  = NFC_TAG_TYPE_VCARD,
                                .vcard = {.name    = "Tuya",
-                                         .phone   = "+86-571-12345678",
+                                         .phone   = "+86-12345678",
                                          .email   = "support@tuya.com",
                                          .org     = "Tuya Inc.",
                                          .title   = "Customer Support",
