@@ -115,6 +115,15 @@ GND -------------- GND
   | ------------------   | ---- | ------------------------ |
   | Use Robot Dog ui     | 布尔 | 默认配置，显示上方状态栏与小狗表情 |
 
+### 文件系统配置
+  必要配置：机器狗部分表情gif已打包为LittleFS镜像位于./src/display/emotion/fs/fs.bin，必须将其烧入FLASH中指定地址处。
+  若不配置可能导致系统访问非法地址（表现为一直重启）或小狗表情显示不全。
+  步骤如下：
+  下载烧录工具 BKFIL，BKFIL 是 Beken FLASH Image Loader 的简称，是 Armino 官方烧录与配置工具。
+  进入后在"选择串口"中选中烧录串口，在"Bin文件路径"中选中fs.bin的路径。(./img/BKFIL_1.png)
+  选中"配置"页面，在fs.bin那一栏配置起始地址为0x6cb000，文件长度为0x100000。(./img/BKFIL_2.png)
+  进入主界面点击烧录即可。
+
 ## 补充说明
   your_robot_dog为移植项目，TUYA_T5AI_ROBOT_DOG的底板与常规T5AI开发板对比有较大差异。
   暂未支持音乐播放与摄像头功能。

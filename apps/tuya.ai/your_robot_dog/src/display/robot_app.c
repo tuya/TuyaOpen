@@ -86,7 +86,6 @@ void robot_gif_load(void)
     gif_load_init = true;
 }
 
-
 void robot_emotion_flush(char  *emotion)
 {
     uint8_t index = 0;
@@ -106,12 +105,10 @@ void robot_emotion_flush(char  *emotion)
     lv_gif_set_src(gif_full, s_gif_emotion[index].source); 
 }
 
-
 static  lv_obj_t    *status_bar_ ;
 static  lv_obj_t    *battery_label_;
 static  lv_obj_t    *network_label_;
 static  lv_obj_t    *status_label_;
-
 
 void robot_status_bar_init(lv_obj_t *container)
 {
@@ -157,7 +154,6 @@ void robot_status_bar_init(lv_obj_t *container)
              lv_obj_has_flag(battery_label_, LV_OBJ_FLAG_HIDDEN),
              lv_obj_has_flag(status_bar_, LV_OBJ_FLAG_HIDDEN));
 }
-
 
 void robot_set_status(int stat)
 {
@@ -222,40 +218,31 @@ void tuya_robot_app(TY_DISPLAY_MSG_T *msg)
     }
     PR_DEBUG("tuya_robot_app: type=%d len=%d data_preview=\"%s\"",
              msg ? msg->type : -1, msg ? msg->len : 0, data_str);
-
     if (!msg) {
         return;
     }
-
     switch (msg->type)
     {
-        
     case TY_DISPLAY_TP_LANGUAGE:
         gui_lang_set(((uint8_t *)msg->data)[0]);
         robot_set_status(GUI_STAT_INIT);
         break;
-
     case TY_DISPLAY_TP_EMOJI:{
         robot_emotion_flush(msg->data);
          robot_set_status(GUI_STAT_THINK);   
     }
         break;
-
     case TY_DISPLAY_TP_STAT_CHARGING:
         lv_label_set_text(battery_label_, FONT_AWESOME_BATTERY_CHARGING); 
         break;
-
     case TY_DISPLAY_TP_STAT_BATTERY: 
         lv_label_set_text(battery_label_, gui_battery_level_get(((uint8_t *)msg->data)[0]));
         break;
-
     case TY_DISPLAY_TP_STAT_NETCFG:
         robot_set_status(GUI_STAT_PROV);
         break;
-
     case TY_DISPLAY_TP_CHAT_STAT: {
         uint8_t stat = 0xFF;
-
         /* Support two payload formats: 1-byte enum or text (multibyte, Chinese/English) */
         if (msg->len == 1) {
             stat = ((uint8_t *)msg->data)[0];
@@ -287,7 +274,6 @@ void tuya_robot_app(TY_DISPLAY_MSG_T *msg)
                 stat = GUI_STAT_IDLE;
             }
         }
-
         if (GUI_STAT_IDLE == stat) {
             robot_emotion_flush("neutral");
         } else if (GUI_STAT_LISTEN == stat) {
@@ -295,22 +281,15 @@ void tuya_robot_app(TY_DISPLAY_MSG_T *msg)
         } else if (GUI_STAT_UPLOAD == stat) {
             robot_emotion_flush("thinking");
         }
-
-        /* While provisioning, keep the provisioning screen stable.
-         * Chatbot audio state (e.g. Standby) should not override it.
-         * Provisioning will be exited by explicit network/status messages.
-         */
         if (s_current_gui_stat == GUI_STAT_PROV && stat != GUI_STAT_PROV) {
             break;
         }
         robot_set_status(stat);
     } break;
-
     case TY_DISPLAY_TP_STAT_SPEAK:
         /* No action needed; speak status handled in CHAT_STAT */
         robot_set_status(GUI_STAT_SPEAK);
         break;
-
     case TY_DISPLAY_TP_STAT_NET:
         if (((uint8_t *)msg->data)[0]) {
             robot_gif_load();
@@ -318,7 +297,6 @@ void tuya_robot_app(TY_DISPLAY_MSG_T *msg)
         }
         lv_label_set_text(network_label_, gui_wifi_level_get(((uint8_t *)msg->data)[0]));
         break;
-
     default:
         break;
     }

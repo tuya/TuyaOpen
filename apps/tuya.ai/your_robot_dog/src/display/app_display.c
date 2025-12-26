@@ -235,16 +235,11 @@ static __attribute__((unused)) void __app_display_msg_handle(DISPLAY_MSG_T *msg_
 
 static void __chat_bot_ui_task(void *args)
 {
-    //OPERATE_RET rt = OPRT_OK;
     DISPLAY_MSG_T msg_data = {0};
 
     (void)args;
 
     tuya_lvgl_mutex_lock();
-    // Initialize the display font
-//    TUYA_CALL_ERR_LOG(__get_ui_font(&sg_display.ui_font));
-    // ui initialization
-//    TUYA_CALL_ERR_LOG(ui_init(&sg_display.ui_font));
     tuya_robot_init();
     tuya_lvgl_mutex_unlock();
     PR_DEBUG("ui init success");
@@ -252,12 +247,9 @@ static void __chat_bot_ui_task(void *args)
     for (;;) {
         memset(&msg_data, 0, sizeof(DISPLAY_MSG_T));
         tal_queue_fetch(sg_display.queue_hdl, &msg_data, 0xFFFFFFFF);
-        // __app_display_msg_handle(&msg_data);
         tuya_lvgl_mutex_lock();
         tuya_robot_app(&msg_data);
-
         tuya_lvgl_mutex_unlock();
-
         if (msg_data.data) {
             tkl_system_psram_free(msg_data.data);
         }
@@ -280,15 +272,6 @@ OPERATE_RET app_display_init(void)
     // lvgl initialization
     TUYA_CALL_ERR_RETURN(tuya_lvgl_init());
     PR_DEBUG("lvgl init success");
-
-
-    /*    lv_disp_t *disp = lv_disp_get_default();
-        if (disp) {
-            lv_disp_set_rotation(disp, LV_DISP_ROTATION_90);
-            PR_DEBUG("lvgl display rotated 90 degrees");
-        } else {
-            PR_WARN("lvgl default display not ready for rotation");
-        }*/
     
     TUYA_CALL_ERR_RETURN(tal_queue_create_init(&sg_display.queue_hdl, sizeof(DISPLAY_MSG_T), 8));
     THREAD_CFG_T cfg = {
@@ -322,7 +305,7 @@ OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, uint8_t *data, int len)
             return OPRT_MALLOC_FAILED;
         }
         memcpy(msg_data.data, data, len);
-        ((char *)msg_data.data)[len] = 0; //"\0"
+        ((char *)msg_data.data)[len] = 0; 
     } else {
         msg_data.data = NULL;
     }
