@@ -18,7 +18,7 @@
  #include "tdd_button_gpio.h"
  #endif
  
-#if defined(T5AI_OTTO_EX_MODULE_13565LCD) && (T5AI_OTTO_EX_MODULE_13565LCD == 1)
+#if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1)
 #include "tdd_disp_st7789.h"
 #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
 #include "tdd_disp_st7735s.h"
