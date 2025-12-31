@@ -69,14 +69,6 @@ static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-OPERATE_RET __qspi_co5300_send_cmd_set_bl(uint8_t brightness, void *arg)
-{
-    if (brightness == 0) {
-        brightness = 5;
-    }
-    return tdd_disp_qspi_send_cmd(&sg_disp_qspi_cfg.cfg, CO5300_BL, &brightness, 1);
-}
-
 /**
  * @brief Sets the initialization sequence for the CO5300 display
  * 
@@ -94,6 +86,26 @@ OPERATE_RET tdd_disp_qspi_co5300_set_init_seq(const uint8_t *init_seq)
 
     return OPRT_OK;
 }
+
+/**
+ * @brief Send command to set backlight brightness for CO5300 display via QSPI
+ * 
+ * @param brightness Backlight brightness value (0-100)
+ * @param arg Pointer to additional arguments or context (can be NULL)
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or error code on failure
+ */
+ OPERATE_RET tdd_qspi_co5300_send_cmd_set_bl(uint8_t brightness, void *arg)
+ {
+     // map brightness to 0-255
+     brightness = (uint8_t)(((uint32_t)brightness * 255) / 100);
+
+     if (brightness == 0) {
+         brightness = 5;
+     }
+
+     return tdd_disp_qspi_send_cmd(&sg_disp_qspi_cfg.cfg, CO5300_BL, &brightness, 1);
+ }
 
 /**
  * @brief Registers the CO5300 QSPI display device with the display driver
@@ -128,8 +140,6 @@ OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *de
     memcpy(&sg_disp_qspi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
 
     TUYA_CALL_ERR_RETURN(tdd_disp_qspi_device_register(name, &sg_disp_qspi_cfg));
-
-    tdl_disp_custom_backlight_register(name, __qspi_co5300_send_cmd_set_bl, NULL);
 
     return OPRT_OK;
 }

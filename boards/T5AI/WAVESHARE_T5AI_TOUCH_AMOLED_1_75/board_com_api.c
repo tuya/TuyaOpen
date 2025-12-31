@@ -35,8 +35,6 @@
 #define BOARD_LCD_QSPI_PORT        TUYA_QSPI_NUM_0
 #define BOARD_LCD_QSPI_CLK         (80 * 1000000)
 
-#define BOARD_LCD_BL_TYPE          TUYA_DISP_BL_TP_CUSTOM
-
 #define BOARD_LCD_POWER_PIN        TUYA_GPIO_NUM_MAX
    
 #define BOARD_LCD_WIDTH            466
@@ -154,7 +152,7 @@ static OPERATE_RET __board_register_display(void)
 
     memset(&display_cfg, 0, sizeof(DISP_QSPI_DEVICE_CFG_T));
 
-    display_cfg.bl.type = BOARD_LCD_BL_TYPE;
+    display_cfg.bl.type = TUYA_DISP_BL_TP_CUSTOM;
 
     display_cfg.width     = BOARD_LCD_WIDTH;
     display_cfg.height    = BOARD_LCD_HEIGHT;
@@ -170,6 +168,10 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
     TUYA_CALL_ERR_RETURN(tdd_disp_qspi_co5300_register(DISPLAY_NAME, &display_cfg));
+
+    TUYA_CALL_ERR_RETURN(tdl_disp_custom_backlight_register(DISPLAY_NAME,\
+                                                            tdd_qspi_co5300_send_cmd_set_bl,\
+                                                            NULL));
 
     TDD_TP_CST92XX_INFO_T cst92xx_info = {
         .rst_pin = BOARD_TP_RST_PIN,

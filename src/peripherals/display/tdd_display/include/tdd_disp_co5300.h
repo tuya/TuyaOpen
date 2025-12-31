@@ -53,6 +53,16 @@ extern "C" {
 OPERATE_RET tdd_disp_qspi_co5300_set_init_seq(const uint8_t *init_seq);
 
 /**
+ * @brief Send command to set backlight brightness for CO5300 display via QSPI
+ * 
+ * @param brightness Backlight brightness value (0-100)
+ * @param arg Pointer to additional arguments or context (can be NULL)
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or error code on failure
+ */
+OPERATE_RET tdd_qspi_co5300_send_cmd_set_bl(uint8_t brightness, void *arg);
+
+/**
  * @brief Registers the CO5300 QSPI display device with the display driver
  * 
  * @param name Device name to register
