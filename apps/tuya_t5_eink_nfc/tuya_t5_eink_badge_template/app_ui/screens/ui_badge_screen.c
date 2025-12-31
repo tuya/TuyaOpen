@@ -6,77 +6,154 @@
 #include "../ui.h"
 #include <src/widgets/label/lv_label.h>
 #include <string.h>
-
+#include "ndef.h"
 #include "tal_api.h"
 
 /**************** Position macros ************************/
-#define COMPANY_NAME_POS_X          32      // X position: center of left container (container width 64 / 2)
-#define COMPANY_NAME_POS_Y          10      // Y position: offset from top
-#define COMPANY_NAME_TEXT_HEIGHT    32      // Text height for rotation pivot calculation
-#define COMPANY_NAME_PIVOT_X        0       // Rotation pivot X: left edge
-#define COMPANY_NAME_PIVOT_Y        (COMPANY_NAME_TEXT_HEIGHT / 2)  // Rotation pivot Y: center (16)
+#define COMPANY_NAME_POS_X       32 // X position: center of left container (container width 64 / 2)
+#define COMPANY_NAME_POS_Y       10 // Y position: offset from top
+#define COMPANY_NAME_TEXT_HEIGHT 32 // Text height for rotation pivot calculation
+#define COMPANY_NAME_PIVOT_X     0  // Rotation pivot X: left edge
+#define COMPANY_NAME_PIVOT_Y     (COMPANY_NAME_TEXT_HEIGHT / 2) // Rotation pivot Y: center (16)
 
-lv_obj_t * ui_badge_screen = NULL;
-lv_obj_t * ui_badge_screen_left_container = NULL;
-lv_obj_t * ui_badge_screen_company_name = NULL;
-lv_obj_t * ui_badge_screen_NFC_ICON = NULL;
-lv_obj_t * ui_badge_screen_main_container = NULL;
-lv_obj_t * ui_badge_screen_top_container = NULL;
-lv_obj_t * ui_badge_screen_name_title_container = NULL;
-lv_obj_t * ui_badge_screen_name = NULL;
-lv_obj_t * ui_badge_screen_title = NULL;
-lv_obj_t * ui_badge_screen_Profile_picture = NULL;
-lv_obj_t * ui_badge_screen_image = NULL;
-lv_obj_t * ui_badge_screen_middle_container = NULL;
-lv_obj_t * ui_badge_screen_email_container = NULL;
-lv_obj_t * ui_badge_screen_email_tag = NULL;
-lv_obj_t * ui_badge_screen_email_content = NULL;
-lv_obj_t * ui_badge_screen_phone_container = NULL;
-lv_obj_t * ui_badge_screen_phone_tag = NULL;
-lv_obj_t * ui_badge_screen_phone_content = NULL;
-lv_obj_t * ui_badge_screen_site_container = NULL;
-lv_obj_t * ui_badge_screen_site_tag = NULL;
-lv_obj_t * ui_badge_screen_site_content = NULL;
-lv_obj_t * ui_badge_screen_bottom_container = NULL;
-lv_obj_t * ui_badge_screen_slogan = NULL;
-lv_obj_t * ui_badge_screen_image_QR = NULL;
+lv_obj_t *ui_badge_screen                      = NULL;
+lv_obj_t *ui_badge_screen_left_container       = NULL;
+lv_obj_t *ui_badge_screen_company_name         = NULL;
+lv_obj_t *ui_badge_screen_NFC_ICON             = NULL;
+lv_obj_t *ui_badge_screen_main_container       = NULL;
+lv_obj_t *ui_badge_screen_top_container        = NULL;
+lv_obj_t *ui_badge_screen_name_title_container = NULL;
+lv_obj_t *ui_badge_screen_name                 = NULL;
+lv_obj_t *ui_badge_screen_title                = NULL;
+lv_obj_t *ui_badge_screen_Profile_picture      = NULL;
+lv_obj_t *ui_badge_screen_image                = NULL;
+lv_obj_t *ui_badge_screen_middle_container     = NULL;
+lv_obj_t *ui_badge_screen_email_container      = NULL;
+lv_obj_t *ui_badge_screen_email_tag            = NULL;
+lv_obj_t *ui_badge_screen_email_content        = NULL;
+lv_obj_t *ui_badge_screen_phone_container      = NULL;
+lv_obj_t *ui_badge_screen_phone_tag            = NULL;
+lv_obj_t *ui_badge_screen_phone_content        = NULL;
+lv_obj_t *ui_badge_screen_site_container       = NULL;
+lv_obj_t *ui_badge_screen_site_tag             = NULL;
+lv_obj_t *ui_badge_screen_site_content         = NULL;
+lv_obj_t *ui_badge_screen_bottom_container     = NULL;
+lv_obj_t *ui_badge_screen_slogan               = NULL;
+lv_obj_t *ui_badge_screen_image_QR             = NULL;
 /**************** extern keyboard group functions start ************************/
 static void ui_badge_screen_keyboard_group_init(void);
 static void ui_badge_screen_keyboard_group_destroy(void);
 
-static void ui_badge_screen_keyboard_handler(lv_event_t * e);
+static void ui_badge_screen_keyboard_handler(lv_event_t *e);
 /**************** extern keyboard group functions end ************************/
 
-
 /**************** extern badge data functions start ************************/
-static ui_fs_badge_item_t *g_badge_item = NULL;
-static uint32_t g_badge_id = 1;
-static uint32_t g_current_displayed_badge_id = 0;  // Track currently displayed badge to avoid redundant updates
-static lv_obj_t *ui_badge_screen_fullscreen_image = NULL;  // Full screen image for BADGE_IMAGE type
+static ui_fs_badge_item_t *g_badge_item           = NULL;
+static uint32_t            g_badge_id             = 1;
+static uint32_t  g_current_displayed_badge_id     = 0;    // Track currently displayed badge to avoid redundant updates
+static lv_obj_t *ui_badge_screen_fullscreen_image = NULL; // Full screen image for BADGE_IMAGE type
 
-void ui_badge_screen_badge_data_update(ui_fs_badge_item_t *badge_item);
+void        ui_badge_screen_badge_data_update(ui_fs_badge_item_t *badge_item);
 static void ui_badge_screen_show_normal_badge(void);
 static void ui_badge_screen_show_image_badge(ui_fs_badge_item_t *badge_item);
 /**************** extern badge data functions end ************************/
+static THREAD_HANDLE nfc_thread = NULL;
+static void          nfc_app_thread(void *arg)
+{
+    extern int nfc_demo_uri_tag(const char *uri, const char *aar_package);
+    extern int nfc_demo_wifi_tag(const char *ssid, const char *password);
+    extern int nfc_demo_text_tag(const char *text, const char *lang);
+    extern int nfc_demo_smart_poster_tag(const char *uri, const char *title);
+    extern int nfc_demo_vcard_tag(nfc_tag_config_t * config);
+    while (1) {
+        // NFC handling code would go here
+        // nfc_emulate_forum_tag2_main("https://tuyaopen.ai", "com.android.browser");
+        // PR_DEBUG("NFC URI: %s", g_badge_item->nfc_data);
+        // PR_DEBUG("NFC Data Type: %s", g_badge_item->nfc_data_type);
+        if (strcmp(g_badge_item->nfc_data_type, "website") == 0) {
+            PR_NOTICE("Emulating Website Tag");
+            nfc_demo_uri_tag(g_badge_item->nfc_data, "com.android.browser");
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "email") == 0) {
+            PR_NOTICE("Emulating Email Tag");
+            nfc_demo_uri_tag(g_badge_item->nfc_data, NULL);
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "tel") == 0) {
+            PR_NOTICE("Emulating Telephone Tag");
+            nfc_demo_uri_tag(g_badge_item->nfc_data, NULL);
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "Vcard") == 0) {
+            PR_NOTICE("Emulating VCard Tag");
+            char name[24] = {0};
+            strncpy(name, g_badge_item->firstname, sizeof(name) - 1);
+            strncpy((name + strlen(name)), g_badge_item->lastname, sizeof(name) - 1 - strlen(name));
+            nfc_tag_config_t config = {.type  = NFC_TAG_TYPE_VCARD,
+                                       .vcard = {.name    = name,
+                                                 .phone   = g_badge_item->phone,
+                                                 .email   = g_badge_item->email,
+                                                 .org     = g_badge_item->company,
+                                                 .title   = g_badge_item->title,
+                                                 .url     = g_badge_item->site,
+                                                 .address = "",
+                                                 .note    = g_badge_item->slogan}};
+            nfc_demo_vcard_tag(&config);
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "wifi") == 0) {
+            PR_NOTICE("Emulating WiFi Tag");
+            // Parse nfc_data format: "SSID:Password"
+            char        ssid[64]     = {0};
+            char        password[64] = {0};
+            const char *delimiter    = strchr(g_badge_item->nfc_data, ':');
+            if (delimiter != NULL) {
+                size_t ssid_len = delimiter - g_badge_item->nfc_data;
+                if (ssid_len < sizeof(ssid)) {
+                    strncpy(ssid, g_badge_item->nfc_data, ssid_len);
+                    ssid[ssid_len] = '\0';
+                }
+                strncpy(password, delimiter + 1, sizeof(password) - 1);
+                password[sizeof(password) - 1] = '\0';
+            } else {
+                // If no delimiter, use entire string as SSID with empty password
+                strncpy(ssid, g_badge_item->nfc_data, sizeof(ssid) - 1);
+                ssid[sizeof(ssid) - 1] = '\0';
+            }
+            PR_DEBUG("WiFi SSID: %s, Password: %s", ssid, password);
+            nfc_demo_wifi_tag(ssid, password);
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "text") == 0) {
+            PR_NOTICE("Emulating Text Tag");
+            nfc_demo_text_tag(g_badge_item->nfc_data, "en");
+
+        } else if (strcmp(g_badge_item->nfc_data_type, "app") == 0) {
+            PR_NOTICE("Emulating app download Tag");
+            nfc_demo_uri_tag(g_badge_item->nfc_data, g_badge_item->nfc_data);
+        } else {
+            PR_WARN("Unknown NFC data type: %s", g_badge_item->nfc_data_type);
+            nfc_demo_uri_tag("https://tuyaopen.ai", "com.android.browser");
+        }
+
+        tal_system_sleep(100);
+    }
+}
 
 // event funtions
-void ui_event_badge_screen(lv_event_t * e)
+void ui_event_badge_screen(lv_event_t *e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
-    if(event_code == LV_EVENT_SCREEN_LOAD_START) {
+    if (event_code == LV_EVENT_SCREEN_LOAD_START) {
         uint32_t badge_count = ui_fs_badge_list_number_get();
-        if(badge_count > 0) {
-            if(ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
+        if (badge_count > 0) {
+            if (ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
                 ui_badge_screen_badge_data_update(g_badge_item);
             }
         }
-    } else if(event_code == LV_EVENT_SCREEN_LOADED) {
+    } else if (event_code == LV_EVENT_SCREEN_LOADED) {
         ui_badge_screen_loaded(e);
 
         // add keyboard group
         ui_badge_screen_keyboard_group_init();
-    } else if(event_code == LV_EVENT_KEY) {
+    } else if (event_code == LV_EVENT_KEY) {
         ui_badge_screen_keyboard_handler(e);
     }
 }
@@ -86,7 +163,7 @@ void ui_event_badge_screen(lv_event_t * e)
 void ui_badge_screen_screen_init(void)
 {
     ui_badge_screen = lv_obj_create(NULL);
-    lv_obj_remove_flag(ui_badge_screen, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen, LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_flex_flow(ui_badge_screen, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(ui_badge_screen, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
 
@@ -95,33 +172,36 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_width(ui_badge_screen_left_container, lv_pct(16));
     lv_obj_set_height(ui_badge_screen_left_container, lv_pct(100));
     lv_obj_set_align(ui_badge_screen_left_container, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_left_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_left_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_style_bg_color(ui_badge_screen_left_container, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_badge_screen_left_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_company_name = lv_label_create(ui_badge_screen_left_container);
-    lv_obj_set_width(ui_badge_screen_company_name, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_company_name, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_company_name, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_company_name, LV_SIZE_CONTENT); /// 1
     lv_label_set_text(ui_badge_screen_company_name, "TUYA INC");
     lv_obj_set_style_text_color(ui_badge_screen_company_name, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_badge_screen_company_name, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_badge_screen_company_name, &ui_font_terminus_bold_32_2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    
+    lv_obj_set_style_text_font(ui_badge_screen_company_name, &ui_font_terminus_bold_32_2,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
+
     // Position and rotation using macros
     lv_obj_set_pos(ui_badge_screen_company_name, COMPANY_NAME_POS_X, COMPANY_NAME_POS_Y);
     lv_obj_set_style_transform_rotation(ui_badge_screen_company_name, 900, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_transform_pivot_x(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_X, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_transform_pivot_y(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_Y, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_transform_pivot_x(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_X,
+                                       LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_transform_pivot_y(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_Y,
+                                       LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_NFC_ICON = lv_image_create(ui_badge_screen_left_container);
     lv_image_set_src(ui_badge_screen_NFC_ICON, &ui_img_image_badge_nfc_32_png);
-    lv_obj_set_width(ui_badge_screen_NFC_ICON, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_NFC_ICON, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_NFC_ICON, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_NFC_ICON, LV_SIZE_CONTENT); /// 1
     lv_obj_set_x(ui_badge_screen_NFC_ICON, 0);
     lv_obj_set_y(ui_badge_screen_NFC_ICON, 120);
     lv_obj_set_align(ui_badge_screen_NFC_ICON, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_badge_screen_NFC_ICON, LV_OBJ_FLAG_CLICKABLE);     /// Flags
-    lv_obj_remove_flag(ui_badge_screen_NFC_ICON, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_NFC_ICON, LV_OBJ_FLAG_SCROLLABLE); /// Flags
 
     ui_badge_screen_main_container = lv_obj_create(ui_badge_screen);
     lv_obj_remove_style_all(ui_badge_screen_main_container);
@@ -129,8 +209,9 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_height(ui_badge_screen_main_container, lv_pct(100));
     lv_obj_set_align(ui_badge_screen_main_container, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_badge_screen_main_container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(ui_badge_screen_main_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(ui_badge_screen_main_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_flex_align(ui_badge_screen_main_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START,
+                          LV_FLEX_ALIGN_START);
+    lv_obj_remove_flag(ui_badge_screen_main_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_style_bg_color(ui_badge_screen_main_container, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_badge_screen_main_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
@@ -141,7 +222,7 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_align(ui_badge_screen_top_container, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_badge_screen_top_container, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(ui_badge_screen_top_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(ui_badge_screen_top_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_top_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
 
     ui_badge_screen_name_title_container = lv_obj_create(ui_badge_screen_top_container);
     lv_obj_remove_style_all(ui_badge_screen_name_title_container);
@@ -151,7 +232,7 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_flex_flow(ui_badge_screen_name_title_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_badge_screen_name_title_container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(ui_badge_screen_name_title_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_name_title_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
     lv_obj_set_style_pad_left(ui_badge_screen_name_title_container, 15, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_right(ui_badge_screen_name_title_container, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_top(ui_badge_screen_name_title_container, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -159,15 +240,16 @@ void ui_badge_screen_screen_init(void)
 
     ui_badge_screen_name = lv_label_create(ui_badge_screen_name_title_container);
     lv_obj_set_width(ui_badge_screen_name, lv_pct(100));
-    lv_obj_set_height(ui_badge_screen_name, LV_SIZE_CONTENT);    /// 2
+    lv_obj_set_height(ui_badge_screen_name, LV_SIZE_CONTENT); /// 2
     lv_obj_set_align(ui_badge_screen_name, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_name, "TUYA HelloWorld");
     lv_obj_set_style_text_align(ui_badge_screen_name, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_badge_screen_name, &ui_font_JetBrains_Mono_Bold_32_4, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_badge_screen_name, &ui_font_JetBrains_Mono_Bold_32_4,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_title = lv_label_create(ui_badge_screen_name_title_container);
-    lv_obj_set_width(ui_badge_screen_title, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_title, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_title, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_title, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_title, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_title, "SENIOR PRODUCT DIRECTOR");
     lv_obj_set_style_text_color(ui_badge_screen_title, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -185,15 +267,15 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_height(ui_badge_screen_Profile_picture, 100);
     lv_obj_set_width(ui_badge_screen_Profile_picture, lv_pct(35));
     lv_obj_set_align(ui_badge_screen_Profile_picture, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_Profile_picture, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_Profile_picture, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
 
     ui_badge_screen_image = lv_image_create(ui_badge_screen_Profile_picture);
     lv_image_set_src(ui_badge_screen_image, &ui_img_image_badge_tuyaopen_logo_png);
-    lv_obj_set_width(ui_badge_screen_image, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_image, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_image, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_image, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_image, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_badge_screen_image, LV_OBJ_FLAG_CLICKABLE);     /// Flags
-    lv_obj_remove_flag(ui_badge_screen_image, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_image, LV_OBJ_FLAG_SCROLLABLE); /// Flags
 
     ui_badge_screen_middle_container = lv_obj_create(ui_badge_screen_main_container);
     lv_obj_remove_style_all(ui_badge_screen_middle_container);
@@ -203,8 +285,9 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_flex_flow(ui_badge_screen_middle_container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_badge_screen_middle_container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START,
                           LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(ui_badge_screen_middle_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_badge_screen_middle_container, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_flag(ui_badge_screen_middle_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_style_bg_color(ui_badge_screen_middle_container, lv_color_hex(0xFFFFFF),
+                              LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_badge_screen_middle_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_left(ui_badge_screen_middle_container, 15, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_right(ui_badge_screen_middle_container, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -214,77 +297,86 @@ void ui_badge_screen_screen_init(void)
     ui_badge_screen_email_container = lv_obj_create(ui_badge_screen_middle_container);
     lv_obj_remove_style_all(ui_badge_screen_email_container);
     lv_obj_set_width(ui_badge_screen_email_container, lv_pct(85));
-    lv_obj_set_height(ui_badge_screen_email_container, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_height(ui_badge_screen_email_container, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_email_container, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_email_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_border_color(ui_badge_screen_email_container, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_flag(ui_badge_screen_email_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_style_border_color(ui_badge_screen_email_container, lv_color_hex(0x000000),
+                                  LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_badge_screen_email_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_badge_screen_email_container, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_badge_screen_email_container, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(ui_badge_screen_email_container, LV_BORDER_SIDE_BOTTOM,
+                                 LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_email_tag = lv_label_create(ui_badge_screen_email_container);
-    lv_obj_set_width(ui_badge_screen_email_tag, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_email_tag, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_email_tag, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_email_tag, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_email_tag, LV_ALIGN_LEFT_MID);
     lv_label_set_text(ui_badge_screen_email_tag, "EMAIL: ");
     lv_obj_set_style_text_font(ui_badge_screen_email_tag, &ui_font_terminus_bold_16_2, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_email_content = lv_label_create(ui_badge_screen_email_container);
-    lv_obj_set_width(ui_badge_screen_email_content, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_email_content, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_email_content, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_email_content, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_email_content, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_email_content, "xxx@tuya.com");
-    lv_obj_set_style_text_font(ui_badge_screen_email_content, &ui_font_terminus_bold_18_2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_badge_screen_email_content, &ui_font_terminus_bold_18_2,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_phone_container = lv_obj_create(ui_badge_screen_middle_container);
     lv_obj_remove_style_all(ui_badge_screen_phone_container);
     lv_obj_set_width(ui_badge_screen_phone_container, lv_pct(85));
-    lv_obj_set_height(ui_badge_screen_phone_container, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_height(ui_badge_screen_phone_container, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_phone_container, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_phone_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_border_color(ui_badge_screen_phone_container, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_flag(ui_badge_screen_phone_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_style_border_color(ui_badge_screen_phone_container, lv_color_hex(0x000000),
+                                  LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_badge_screen_phone_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_badge_screen_phone_container, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_badge_screen_phone_container, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(ui_badge_screen_phone_container, LV_BORDER_SIDE_BOTTOM,
+                                 LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_phone_tag = lv_label_create(ui_badge_screen_phone_container);
-    lv_obj_set_width(ui_badge_screen_phone_tag, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_phone_tag, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_phone_tag, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_phone_tag, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_phone_tag, LV_ALIGN_LEFT_MID);
     lv_label_set_text(ui_badge_screen_phone_tag, "PHONE: ");
     lv_obj_set_style_text_font(ui_badge_screen_phone_tag, &ui_font_terminus_bold_16_2, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_phone_content = lv_label_create(ui_badge_screen_phone_container);
-    lv_obj_set_width(ui_badge_screen_phone_content, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_phone_content, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_phone_content, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_phone_content, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_phone_content, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_phone_content, "844-672-5646");
-    lv_obj_set_style_text_font(ui_badge_screen_phone_content, &ui_font_terminus_bold_18_2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_badge_screen_phone_content, &ui_font_terminus_bold_18_2,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_site_container = lv_obj_create(ui_badge_screen_middle_container);
     lv_obj_remove_style_all(ui_badge_screen_site_container);
     lv_obj_set_width(ui_badge_screen_site_container, lv_pct(85));
-    lv_obj_set_height(ui_badge_screen_site_container, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_height(ui_badge_screen_site_container, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_site_container, LV_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_site_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_border_color(ui_badge_screen_site_container, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_flag(ui_badge_screen_site_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_style_border_color(ui_badge_screen_site_container, lv_color_hex(0x000000),
+                                  LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(ui_badge_screen_site_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_badge_screen_site_container, 1, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_side(ui_badge_screen_site_container, LV_BORDER_SIDE_BOTTOM, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_side(ui_badge_screen_site_container, LV_BORDER_SIDE_BOTTOM,
+                                 LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_site_tag = lv_label_create(ui_badge_screen_site_container);
-    lv_obj_set_width(ui_badge_screen_site_tag, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_site_tag, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_site_tag, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_site_tag, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_site_tag, LV_ALIGN_LEFT_MID);
     lv_label_set_text(ui_badge_screen_site_tag, "SITE:");
     lv_obj_set_style_text_font(ui_badge_screen_site_tag, &ui_font_terminus_bold_16_2, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_site_content = lv_label_create(ui_badge_screen_site_container);
-    lv_obj_set_width(ui_badge_screen_site_content, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_site_content, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_site_content, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_site_content, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_site_content, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_site_content, "www.tuyaopen.ai");
-    lv_obj_set_style_text_font(ui_badge_screen_site_content, &ui_font_terminus_bold_18_2, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_badge_screen_site_content, &ui_font_terminus_bold_18_2,
+                               LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_bottom_container = lv_obj_create(ui_badge_screen_main_container);
     lv_obj_remove_style_all(ui_badge_screen_bottom_container);
@@ -294,13 +386,14 @@ void ui_badge_screen_screen_init(void)
     lv_obj_set_flex_flow(ui_badge_screen_bottom_container, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(ui_badge_screen_bottom_container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_remove_flag(ui_badge_screen_bottom_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_bg_color(ui_badge_screen_bottom_container, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_flag(ui_badge_screen_bottom_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE); /// Flags
+    lv_obj_set_style_bg_color(ui_badge_screen_bottom_container, lv_color_hex(0xFFFFFF),
+                              LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_badge_screen_bottom_container, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_badge_screen_slogan = lv_label_create(ui_badge_screen_bottom_container);
-    lv_obj_set_width(ui_badge_screen_slogan, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_slogan, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_slogan, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_slogan, LV_SIZE_CONTENT); /// 1
     lv_obj_set_align(ui_badge_screen_slogan, LV_ALIGN_CENTER);
     lv_label_set_text(ui_badge_screen_slogan, "Build AI-Agent Hardware \nWith TuyaOpen");
     lv_obj_set_style_text_align(ui_badge_screen_slogan, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -308,13 +401,13 @@ void ui_badge_screen_screen_init(void)
 
     ui_badge_screen_image_QR = lv_image_create(ui_badge_screen_bottom_container);
     lv_image_set_src(ui_badge_screen_image_QR, &ui_img_image_badge_tuyaopen_qr_48_png);
-    lv_obj_set_width(ui_badge_screen_image_QR, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_badge_screen_image_QR, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_width(ui_badge_screen_image_QR, LV_SIZE_CONTENT);  /// 1
+    lv_obj_set_height(ui_badge_screen_image_QR, LV_SIZE_CONTENT); /// 1
     lv_obj_set_x(ui_badge_screen_image_QR, 121);
     lv_obj_set_y(ui_badge_screen_image_QR, -4);
     lv_obj_set_align(ui_badge_screen_image_QR, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_badge_screen_image_QR, LV_OBJ_FLAG_CLICKABLE);     /// Flags
-    lv_obj_remove_flag(ui_badge_screen_image_QR, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_remove_flag(ui_badge_screen_image_QR, LV_OBJ_FLAG_SCROLLABLE); /// Flags
 
     lv_obj_add_event_cb(ui_badge_screen, ui_event_badge_screen, LV_EVENT_ALL, NULL);
 
@@ -322,44 +415,48 @@ void ui_badge_screen_screen_init(void)
     if (g_badge_item) {
         memset(g_badge_item, 0, sizeof(ui_fs_badge_item_t));
     }
+
+    THREAD_CFG_T thrd_param = {4096, 2, "nfc_app_thread"};
+    tal_thread_create_and_start(&nfc_thread, NULL, NULL, nfc_app_thread, NULL, &thrd_param);
 }
 
 void ui_badge_screen_screen_destroy(void)
 {
-    if(ui_badge_screen) lv_obj_del(ui_badge_screen);
+    if (ui_badge_screen)
+        lv_obj_del(ui_badge_screen);
 
     // NULL screen variables
-    ui_badge_screen = NULL;
-    ui_badge_screen_left_container = NULL;
-    ui_badge_screen_company_name = NULL;
-    ui_badge_screen_NFC_ICON = NULL;
-    ui_badge_screen_main_container = NULL;
-    ui_badge_screen_top_container = NULL;
+    ui_badge_screen                      = NULL;
+    ui_badge_screen_left_container       = NULL;
+    ui_badge_screen_company_name         = NULL;
+    ui_badge_screen_NFC_ICON             = NULL;
+    ui_badge_screen_main_container       = NULL;
+    ui_badge_screen_top_container        = NULL;
     ui_badge_screen_name_title_container = NULL;
-    ui_badge_screen_name = NULL;
-    ui_badge_screen_title = NULL;
-    ui_badge_screen_Profile_picture = NULL;
-    ui_badge_screen_image = NULL;
-    ui_badge_screen_middle_container = NULL;
-    ui_badge_screen_email_container = NULL;
-    ui_badge_screen_email_tag = NULL;
-    ui_badge_screen_email_content = NULL;
-    ui_badge_screen_phone_container = NULL;
-    ui_badge_screen_phone_tag = NULL;
-    ui_badge_screen_phone_content = NULL;
-    ui_badge_screen_site_container = NULL;
-    ui_badge_screen_site_tag = NULL;
-    ui_badge_screen_site_content = NULL;
-    ui_badge_screen_bottom_container = NULL;
-    ui_badge_screen_slogan = NULL;
-    ui_badge_screen_image_QR = NULL;
-    ui_badge_screen_fullscreen_image = NULL;
+    ui_badge_screen_name                 = NULL;
+    ui_badge_screen_title                = NULL;
+    ui_badge_screen_Profile_picture      = NULL;
+    ui_badge_screen_image                = NULL;
+    ui_badge_screen_middle_container     = NULL;
+    ui_badge_screen_email_container      = NULL;
+    ui_badge_screen_email_tag            = NULL;
+    ui_badge_screen_email_content        = NULL;
+    ui_badge_screen_phone_container      = NULL;
+    ui_badge_screen_phone_tag            = NULL;
+    ui_badge_screen_phone_content        = NULL;
+    ui_badge_screen_site_container       = NULL;
+    ui_badge_screen_site_tag             = NULL;
+    ui_badge_screen_site_content         = NULL;
+    ui_badge_screen_bottom_container     = NULL;
+    ui_badge_screen_slogan               = NULL;
+    ui_badge_screen_image_QR             = NULL;
+    ui_badge_screen_fullscreen_image     = NULL;
 
     // Reset badge tracking
     g_current_displayed_badge_id = 0;
 
     // Free badge item memory
-    if(g_badge_item) {
+    if (g_badge_item) {
         lv_free(g_badge_item);
         g_badge_item = NULL;
     }
@@ -370,7 +467,7 @@ void ui_badge_screen_screen_destroy(void)
 /****************************** keyboard start ******************************/
 // static uint32_t __focus_obj_count = 0;
 
-static lv_group_t * sg_keyboard_group = NULL;
+static lv_group_t *sg_keyboard_group = NULL;
 
 static void ui_badge_screen_keyboard_group_init(void)
 {
@@ -403,59 +500,59 @@ static void ui_badge_screen_keyboard_group_destroy(void)
     sg_keyboard_group = NULL;
 }
 
-static void ui_badge_screen_keyboard_handler(lv_event_t * e)
+static void ui_badge_screen_keyboard_handler(lv_event_t *e)
 {
-    lv_key_t key = lv_event_get_key(e);
-    uint32_t badge_count = ui_fs_badge_list_number_get();
+    lv_key_t key          = lv_event_get_key(e);
+    uint32_t badge_count  = ui_fs_badge_list_number_get();
     uint32_t old_badge_id = g_badge_id;
 
     switch (key) {
-        case LV_KEY_UP:
-        case LV_KEY_LEFT:
-        case LV_KEY_PREV:
-            // Switch to previous badge
-            if(badge_count > 0) {
-                if(g_badge_id > 1) {
-                    g_badge_id--;
-                } else {
-                    g_badge_id = badge_count;  // Wrap to last badge
-                }
-                
-                // Only update if badge ID actually changed
-                if(old_badge_id != g_badge_id) {
-                    if(ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
-                        ui_badge_screen_badge_data_update(g_badge_item);
-                    }
+    case LV_KEY_UP:
+    case LV_KEY_LEFT:
+    case LV_KEY_PREV:
+        // Switch to previous badge
+        if (badge_count > 0) {
+            if (g_badge_id > 1) {
+                g_badge_id--;
+            } else {
+                g_badge_id = badge_count; // Wrap to last badge
+            }
+
+            // Only update if badge ID actually changed
+            if (old_badge_id != g_badge_id) {
+                if (ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
+                    ui_badge_screen_badge_data_update(g_badge_item);
                 }
             }
-            break;
-        case LV_KEY_DOWN:
-        case LV_KEY_RIGHT:
-        case LV_KEY_NEXT:
-            // Switch to next badge
-            if(badge_count > 0) {
-                if(g_badge_id < badge_count) {
-                    g_badge_id++;
-                } else {
-                    g_badge_id = 1;  // Wrap to first badge
-                }
-                
-                // Only update if badge ID actually changed
-                if(old_badge_id != g_badge_id) {
-                    if(ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
-                        ui_badge_screen_badge_data_update(g_badge_item);
-                    }
+        }
+        break;
+    case LV_KEY_DOWN:
+    case LV_KEY_RIGHT:
+    case LV_KEY_NEXT:
+        // Switch to next badge
+        if (badge_count > 0) {
+            if (g_badge_id < badge_count) {
+                g_badge_id++;
+            } else {
+                g_badge_id = 1; // Wrap to first badge
+            }
+
+            // Only update if badge ID actually changed
+            if (old_badge_id != g_badge_id) {
+                if (ui_fs_badge_read(g_badge_id, g_badge_item) == 0) {
+                    ui_badge_screen_badge_data_update(g_badge_item);
                 }
             }
-            break;
-        case LV_KEY_ENTER:
-            // Could be used for additional actions (e.g., trigger NFC)
-            break;
-        case LV_KEY_ESC:
-            _ui_screen_change(&ui_home_screen, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_home_screen_screen_init);
-            break;
-        default:
-            break;
+        }
+        break;
+    case LV_KEY_ENTER:
+        // Could be used for additional actions (e.g., trigger NFC)
+        break;
+    case LV_KEY_ESC:
+        _ui_screen_change(&ui_home_screen, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_home_screen_screen_init);
+        break;
+    default:
+        break;
     }
 }
 
@@ -466,13 +563,13 @@ static void ui_badge_screen_keyboard_handler(lv_event_t * e)
  */
 static void ui_badge_screen_show_normal_badge(void)
 {
-    if(ui_badge_screen_left_container) {
+    if (ui_badge_screen_left_container) {
         lv_obj_remove_flag(ui_badge_screen_left_container, LV_OBJ_FLAG_HIDDEN);
     }
-    if(ui_badge_screen_main_container) {
+    if (ui_badge_screen_main_container) {
         lv_obj_remove_flag(ui_badge_screen_main_container, LV_OBJ_FLAG_HIDDEN);
     }
-    if(ui_badge_screen_fullscreen_image) {
+    if (ui_badge_screen_fullscreen_image) {
         lv_obj_add_flag(ui_badge_screen_fullscreen_image, LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -483,34 +580,34 @@ static void ui_badge_screen_show_normal_badge(void)
  */
 static void ui_badge_screen_show_image_badge(ui_fs_badge_item_t *badge_item)
 {
-    if(badge_item == NULL) {
+    if (badge_item == NULL) {
         return;
     }
 
     // Hide normal badge UI elements
-    if(ui_badge_screen_left_container) {
+    if (ui_badge_screen_left_container) {
         lv_obj_add_flag(ui_badge_screen_left_container, LV_OBJ_FLAG_HIDDEN);
     }
-    if(ui_badge_screen_main_container) {
+    if (ui_badge_screen_main_container) {
         lv_obj_add_flag(ui_badge_screen_main_container, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Create fullscreen image if not exists
-    if(ui_badge_screen_fullscreen_image == NULL) {
+    if (ui_badge_screen_fullscreen_image == NULL) {
         ui_badge_screen_fullscreen_image = lv_image_create(ui_badge_screen);
-        if(ui_badge_screen_fullscreen_image == NULL) {
+        if (ui_badge_screen_fullscreen_image == NULL) {
             return;
         }
-        
+
         // Get screen dimensions
         lv_coord_t screen_w = lv_obj_get_width(ui_badge_screen);
         lv_coord_t screen_h = lv_obj_get_height(ui_badge_screen);
-        
+
         // Set exact size to fill screen (use absolute pixels, not percentage)
         lv_obj_set_size(ui_badge_screen_fullscreen_image, screen_w, screen_h);
         lv_obj_set_pos(ui_badge_screen_fullscreen_image, 0, 0);
         lv_obj_remove_flag(ui_badge_screen_fullscreen_image, LV_OBJ_FLAG_SCROLLABLE);
-        
+
         // Remove any styling that might affect display
         lv_obj_set_style_radius(ui_badge_screen_fullscreen_image, 0, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(ui_badge_screen_fullscreen_image, 0, LV_PART_MAIN);
@@ -521,10 +618,10 @@ static void ui_badge_screen_show_image_badge(ui_fs_badge_item_t *badge_item)
     // Show fullscreen image and move to foreground
     lv_obj_remove_flag(ui_badge_screen_fullscreen_image, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(ui_badge_screen_fullscreen_image);
-    
+
     // Set image source
     lv_image_set_src(ui_badge_screen_fullscreen_image, badge_item->image_path);
-    
+
     // Update layout and force redraw
     lv_obj_update_layout(ui_badge_screen_fullscreen_image);
     lv_obj_invalidate(ui_badge_screen_fullscreen_image);
@@ -532,12 +629,12 @@ static void ui_badge_screen_show_image_badge(ui_fs_badge_item_t *badge_item)
 
 void ui_badge_screen_badge_data_update(ui_fs_badge_item_t *badge_item)
 {
-    if(badge_item == NULL) {
+    if (badge_item == NULL) {
         return;
     }
 
     // Check if this badge is already displayed to avoid redundant updates
-    if(g_current_displayed_badge_id == badge_item->id) {
+    if (g_current_displayed_badge_id == badge_item->id) {
         PR_DEBUG("Badge ID %d already displayed, skipped", badge_item->id);
         return;
     }
@@ -545,10 +642,10 @@ void ui_badge_screen_badge_data_update(ui_fs_badge_item_t *badge_item)
     // Update the current displayed badge ID
     g_current_displayed_badge_id = badge_item->id;
 
-    if(badge_item->type == UI_FS_BADGE_TYPE_BADGE) {
+    if (badge_item->type == UI_FS_BADGE_TYPE_BADGE) {
         // Show normal badge UI
         ui_badge_screen_show_normal_badge();
-        
+
         lv_label_set_text_fmt(ui_badge_screen_name, "%s %s", badge_item->firstname, badge_item->lastname);
         lv_label_set_text(ui_badge_screen_title, badge_item->title);
         lv_image_set_src(ui_badge_screen_image, badge_item->profile_picture);
@@ -556,16 +653,18 @@ void ui_badge_screen_badge_data_update(ui_fs_badge_item_t *badge_item)
         lv_label_set_text(ui_badge_screen_email_content, badge_item->email);
         lv_label_set_text(ui_badge_screen_phone_content, badge_item->phone);
         lv_label_set_text(ui_badge_screen_site_content, badge_item->site);
-        
+
         // Update company name with absolute positioning (using macros)
         lv_label_set_text(ui_badge_screen_company_name, badge_item->company);
         lv_obj_set_pos(ui_badge_screen_company_name, COMPANY_NAME_POS_X, COMPANY_NAME_POS_Y);
-        lv_obj_set_style_transform_pivot_x(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_X, LV_PART_MAIN | LV_STATE_DEFAULT);
-        lv_obj_set_style_transform_pivot_y(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_Y, LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_transform_pivot_x(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_X,
+                                           LV_PART_MAIN | LV_STATE_DEFAULT);
+        lv_obj_set_style_transform_pivot_y(ui_badge_screen_company_name, COMPANY_NAME_PIVOT_Y,
+                                           LV_PART_MAIN | LV_STATE_DEFAULT);
 
         lv_label_set_text(ui_badge_screen_slogan, badge_item->slogan);
         lv_image_set_src(ui_badge_screen_image_QR, badge_item->image_QR);
-    } else if(badge_item->type == UI_FS_BADGE_TYPE_BADGE_IMAGE) {
+    } else if (badge_item->type == UI_FS_BADGE_TYPE_BADGE_IMAGE) {
         extern void __set_need_partial_refresh(bool need_partial_refresh);
         __set_need_partial_refresh(false);
 

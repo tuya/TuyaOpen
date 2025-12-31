@@ -13,7 +13,6 @@
 *.gcno
 *.gcov
 
-/zconf.h
 /Makefile
 /example
 /example64

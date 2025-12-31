@@ -176,7 +176,7 @@ static void nfc_drivers_init(void)
     nfc_register_driver(&acr122s_driver);
 #endif /* DRIVER_ACR122S_ENABLED */
 #if defined(DRIVER_PN532_UART_ENABLED)
-    PR_DEBUG("[nfc_drivers_init] + pn532_uart <<< ENABLED");
+    // PR_DEBUG("[nfc_drivers_init] + pn532_uart <<< ENABLED");
     nfc_register_driver(&pn532_uart_driver);
 #endif /* DRIVER_PN532_UART_ENABLED */
 #if defined(DRIVER_PN532_SPI_ENABLED)
@@ -252,14 +252,14 @@ void nfc_init(nfc_context **context)
         const struct nfc_driver_list *p     = nfc_drivers;
         while (p) {
             count++;
-            PR_DEBUG("[nfc_init] Driver %d: %s", count, p->driver->name);
+            // PR_DEBUG("[nfc_init] Driver %d: %s", count, p->driver->name);
             p = p->next;
         }
         // PR_DEBUG("[nfc_init] Total %d drivers registered", count);
     } else {
         PR_DEBUG("[nfc_init] Drivers already loaded at %p", nfc_drivers);
     }
-    PR_DEBUG("NFC initialized successfully !");
+    // PR_DEBUG("NFC initialized successfully !");
 }
 
 /** @ingroup lib

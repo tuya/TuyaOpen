@@ -69,14 +69,14 @@ void string_as_boolean(const char *s, bool *value)
 
 nfc_context *nfc_context_new(void)
 {
-    PR_NOTICE("[nfc_context_new] Allocating context...");
+    // PR_NOTICE("[nfc_context_new] Allocating context...");
     nfc_context *res = malloc(sizeof(*res));
 
     if (!res) {
         PR_ERR("[nfc_context_new] malloc FAILED!");
         return NULL;
     }
-    PR_NOTICE("[nfc_context_new] Context allocated: %p", res);
+    // PR_NOTICE("[nfc_context_new] Context allocated: %p", res);
 
     // Set default context values
     res->allow_autoscan       = true;
@@ -94,7 +94,7 @@ nfc_context *nfc_context_new(void)
         res->user_defined_devices[i].optional = false;
     }
     res->user_defined_device_count = 0;
-    PR_NOTICE("[nfc_context_new] Context setup complete");
+    // PR_NOTICE("[nfc_context_new] Context setup complete");
 
 #ifdef ENVVARS
     // Load user defined device from environment variable at first

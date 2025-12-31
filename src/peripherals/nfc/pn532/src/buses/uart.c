@@ -161,6 +161,7 @@ int uart_receive(serial_port sp, uint8_t *pbtRx, const size_t szRx, void *abort_
         uint32_t avail = tal_uart_get_rx_data_size(PN532_UART_PORT);
 
         if (avail > 0) {
+            start               = tal_system_get_millisecond(); // Reset timeout timer on data received
             uint32_t to_read    = (szRx - received) < avail ? (szRx - received) : avail;
             int      read_bytes = tal_uart_read(PN532_UART_PORT, pbtRx + received, to_read);
             if (read_bytes > 0) {
@@ -192,8 +193,8 @@ int uart_receive(serial_port sp, uint8_t *pbtRx, const size_t szRx, void *abort_
     }
 
     if (received < szRx) {
-        PR_ERR("[RX INCOMPLETE] Expected %d bytes, got %d in %dms", szRx, received,
-               tal_system_get_millisecond() - start);
+        // PR_ERR("[RX INCOMPLETE] Expected %d bytes, got %d in %dms", szRx, received,
+        //    tal_system_get_millisecond() - start);
         // Return error if we didn't receive all requested bytes
         return -1;
     }
