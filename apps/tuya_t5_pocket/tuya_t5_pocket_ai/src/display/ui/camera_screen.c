@@ -53,33 +53,34 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static lv_obj_t *ui_camera_screen;
-static lv_obj_t *camera_canvas;   // Canvas for camera display
-static lv_obj_t *method_label;    // Binary method label
-static lv_obj_t *threshold_label; // Threshold value label
-static lv_obj_t *status_label;    // Camera status label
-static lv_timer_t *update_timer;  // Timer for updating display
+static lv_obj_t   *ui_camera_screen;
+static lv_obj_t   *camera_canvas;   // Canvas for camera display
+static lv_obj_t   *method_label;    // Binary method label
+static lv_obj_t   *threshold_label; // Threshold value label
+static lv_obj_t   *status_label;    // Camera status label
+static lv_timer_t *update_timer;    // Timer for updating display
 
 #ifdef ENABLE_LVGL_HARDWARE
-static uint8_t *canvas_buffer = NULL; // Canvas buffer for monochrome image
-static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb = NULL;
+static uint8_t               *canvas_buffer     = NULL; // Canvas buffer for monochrome image
+static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb   = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_1 = NULL;
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb_2 = NULL;
 
 // YUV422 raw data buffers (double buffering for camera input)
-static uint8_t *sg_yuv422_buffer_1 = NULL;     // YUV422 buffer 1 (240x240x2 bytes)
-static uint8_t *sg_yuv422_buffer_2 = NULL;     // YUV422 buffer 2 (240x240x2 bytes)
+static uint8_t *sg_yuv422_buffer_1     = NULL; // YUV422 buffer 1 (240x240x2 bytes)
+static uint8_t *sg_yuv422_buffer_2     = NULL; // YUV422 buffer 2 (240x240x2 bytes)
 static uint8_t *sg_yuv422_write_buffer = NULL; // Current write buffer pointer
 
-static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
-static bool camera_running = false;
-static volatile bool frame_ready = false;       // Flag indicating new frame is ready
-static volatile uint8_t write_buffer_index = 0; // Buffer being written by camera (0 or 1)
-static volatile uint8_t read_buffer_index = 0;  // Buffer being read for display (0 or 1)
-static MUTEX_HANDLE sg_buffer_mutex = NULL;     // Mutex to protect buffer access
+static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl  = NULL;
+static bool                camera_running     = false;
+static bool                camera_initialized = false;
+static volatile bool       frame_ready        = false; // Flag indicating new frame is ready
+static volatile uint8_t    write_buffer_index = 0;     // Buffer being written by camera (0 or 1)
+static volatile uint8_t    read_buffer_index  = 0;     // Buffer being read for display (0 or 1)
+static MUTEX_HANDLE        sg_buffer_mutex    = NULL;  // Mutex to protect buffer access
 
 static BINARY_CONFIG_T sg_binary_config = {
-    .method = BINARY_METHOD_FLOYD_STEINBERG,
+    .method          = BINARY_METHOD_FLOYD_STEINBERG,
     .fixed_threshold = 128,
 };
 
@@ -94,21 +95,21 @@ static camera_photo_print_cb_t sg_print_callback = NULL;
 #endif
 
 Screen_t camera_screen = {
-    .init = camera_screen_init,
-    .deinit = camera_screen_deinit,
+    .init       = camera_screen_init,
+    .deinit     = camera_screen_deinit,
     .screen_obj = &ui_camera_screen,
-    .name = "camera",
+    .name       = "camera",
 };
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-static void keyboard_event_cb(lv_event_t *e);
-static void update_info_display(void);
-static void update_timer_cb(lv_timer_t *timer);
+static void        keyboard_event_cb(lv_event_t *e);
+static void        update_info_display(void);
+static void        update_timer_cb(lv_timer_t *timer);
 static OPERATE_RET camera_init(void);
 static OPERATE_RET camera_start(void);
-static void camera_stop(void);
+static void        camera_stop(void);
 
 /***********************************************************
 ***********************function define**********************
@@ -219,8 +220,8 @@ static void update_timer_cb(lv_timer_t *timer)
 
         // Get the YUV422 buffer with latest frame data
         uint8_t *yuv422_source = (write_buffer_index == 0) ? sg_yuv422_buffer_1 : sg_yuv422_buffer_2;
-        read_buffer_index = write_buffer_index;
-        frame_ready = false; // Clear flag
+        read_buffer_index      = write_buffer_index;
+        frame_ready            = false; // Clear flag
 
         tal_mutex_unlock(sg_buffer_mutex);
 
@@ -230,13 +231,13 @@ static void update_timer_cb(lv_timer_t *timer)
 
         // Convert YUV422 to binary using unified module
         YUV422_TO_BINARY_PARAMS_T params = {
-            .yuv422_data = yuv422_source,
-            .src_width = CAMERA_WIDTH,
-            .src_height = CAMERA_HEIGHT,
-            .binary_data = output_fb->frame,
-            .dst_width = CAMERA_AREA_WIDTH,
-            .dst_height = CAMERA_AREA_HEIGHT,
-            .config = &sg_binary_config,
+            .yuv422_data   = yuv422_source,
+            .src_width     = CAMERA_WIDTH,
+            .src_height    = CAMERA_HEIGHT,
+            .binary_data   = output_fb->frame,
+            .dst_width     = CAMERA_AREA_WIDTH,
+            .dst_height    = CAMERA_AREA_HEIGHT,
+            .config        = &sg_binary_config,
             .invert_colors = 0 // Will be overridden by yuv422_to_lvgl_binary
         };
         yuv422_to_lvgl_binary(&params);
@@ -278,8 +279,8 @@ static OPERATE_RET camera_frame_callback(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRA
     uint8_t current_write_index = (sg_yuv422_write_buffer == sg_yuv422_buffer_1) ? 0 : 1;
 
     // Copy raw YUV422 data to buffer
-    uint32_t yuv422_size = frame->width * frame->height * 2;
-    static uint8_t log_count = 0;
+    uint32_t       yuv422_size = frame->width * frame->height * 2;
+    static uint8_t log_count   = 0;
     if (log_count < 3) {
         PR_NOTICE("Frame size: %dx%d, yuv422_size=%d bytes", frame->width, frame->height, yuv422_size);
         log_count++;
@@ -319,7 +320,7 @@ static OPERATE_RET camera_init(void)
 
     // Allocate YUV422 raw data buffers (384x384x2 = 294912 bytes each)
     uint32_t yuv422_size = CAMERA_WIDTH * CAMERA_HEIGHT * 2;
-    sg_yuv422_buffer_1 = (uint8_t *)tal_psram_malloc(yuv422_size);
+    sg_yuv422_buffer_1   = (uint8_t *)tal_psram_malloc(yuv422_size);
     if (NULL == sg_yuv422_buffer_1) {
         PR_ERR("Failed to allocate YUV422 buffer 1");
         return OPRT_MALLOC_FAILED;
@@ -344,8 +345,8 @@ static OPERATE_RET camera_init(void)
         PR_ERR("create frame buff 1 failed");
         return OPRT_MALLOC_FAILED;
     }
-    sg_p_display_fb_1->fmt = TUYA_PIXEL_FMT_MONOCHROME;
-    sg_p_display_fb_1->width = CAMERA_AREA_WIDTH;
+    sg_p_display_fb_1->fmt    = TUYA_PIXEL_FMT_MONOCHROME;
+    sg_p_display_fb_1->width  = CAMERA_AREA_WIDTH;
     sg_p_display_fb_1->height = CAMERA_AREA_HEIGHT;
 
     sg_p_display_fb_2 = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
@@ -353,8 +354,8 @@ static OPERATE_RET camera_init(void)
         PR_ERR("create frame buff 2 failed");
         return OPRT_MALLOC_FAILED;
     }
-    sg_p_display_fb_2->fmt = TUYA_PIXEL_FMT_MONOCHROME;
-    sg_p_display_fb_2->width = CAMERA_AREA_WIDTH;
+    sg_p_display_fb_2->fmt    = TUYA_PIXEL_FMT_MONOCHROME;
+    sg_p_display_fb_2->width  = CAMERA_AREA_WIDTH;
     sg_p_display_fb_2->height = CAMERA_AREA_HEIGHT;
 
     sg_p_display_fb = sg_p_display_fb_1;
@@ -368,15 +369,21 @@ static OPERATE_RET camera_init(void)
 
     TDL_CAMERA_CFG_T cfg;
     memset(&cfg, 0, sizeof(TDL_CAMERA_CFG_T));
-    cfg.fps = CAMERA_FPS;
-    cfg.width = CAMERA_WIDTH;
-    cfg.height = CAMERA_HEIGHT;
-    cfg.out_fmt = TDL_CAMERA_FMT_YUV422;
+    cfg.fps          = CAMERA_FPS;
+    cfg.width        = CAMERA_WIDTH;
+    cfg.height       = CAMERA_HEIGHT;
+    cfg.out_fmt      = TDL_CAMERA_FMT_YUV422;
     cfg.get_frame_cb = camera_frame_callback;
 
     PR_DEBUG("Camera config: %dx%d @ %d fps, callback=%p", cfg.width, cfg.height, cfg.fps, cfg.get_frame_cb);
 
-    rt = tdl_camera_dev_open(sg_tdl_camera_hdl, &cfg);
+    if (camera_initialized == false) {
+        rt                 = tdl_camera_dev_open(sg_tdl_camera_hdl, &cfg);
+        camera_initialized = true;
+    } else {
+        rt = OPRT_OK;
+    }
+
     if (OPRT_OK == rt) {
         camera_running = true;
         update_info_display(); // Update UI to show running status
@@ -431,8 +438,8 @@ static void camera_stop(void)
  */
 static void keyboard_event_cb(lv_event_t *e)
 {
-    uint32_t key = lv_event_get_key(e);
-    OPERATE_RET rt = OPRT_OK;
+    uint32_t    key = lv_event_get_key(e);
+    OPERATE_RET rt  = OPRT_OK;
     printf("[%s] Key pressed: %d\n", camera_screen.name, key);
 
     switch (key) {
@@ -491,10 +498,14 @@ static void keyboard_event_cb(lv_event_t *e)
             if (sg_print_callback) {
                 // Stop camera first
                 camera_stop();
+                // Update status
+                char buf[32];
+                snprintf(buf, sizeof(buf), "Status:\n%s", "Printing");
+                lv_label_set_text(status_label, buf);
 
                 // Clear frame_ready flag to prevent timer from updating buffers during print
                 tal_mutex_lock(sg_buffer_mutex);
-                frame_ready = false;
+                frame_ready                  = false;
                 uint8_t current_buffer_index = write_buffer_index;
                 tal_mutex_unlock(sg_buffer_mutex);
 
@@ -502,7 +513,7 @@ static void keyboard_event_cb(lv_event_t *e)
                 uint8_t *yuv422_source = (current_buffer_index == 0) ? sg_yuv422_buffer_1 : sg_yuv422_buffer_2;
 
                 // Allocate printer bitmap buffer before calling callback
-                int bitmap_size = (PRINT_WIDTH + 7) / 8 * PRINT_HEIGHT;
+                int      bitmap_size    = (PRINT_WIDTH + 7) / 8 * PRINT_HEIGHT;
                 uint8_t *printer_bitmap = (uint8_t *)tal_psram_malloc(bitmap_size);
                 if (!printer_bitmap) {
                     printf("Failed to allocate printer bitmap buffer (%d bytes)\n", bitmap_size);
@@ -512,25 +523,17 @@ static void keyboard_event_cb(lv_event_t *e)
                     }
                 } else {
                     YUV422_TO_BINARY_PARAMS_T print_params = {
-                        .yuv422_data = yuv422_source, // Direct pointer, no copy
-                        .src_width = CAMERA_WIDTH,
-                        .src_height = CAMERA_HEIGHT,
-                        .binary_data = printer_bitmap, // Pre-allocated buffer
-                        .dst_width = PRINT_WIDTH,
-                        .dst_height = PRINT_HEIGHT,
-                        .config = &sg_binary_config, // Use global config directly
-                        .invert_colors = 0           // Will be overridden by printer
+                        .yuv422_data   = yuv422_source, // Direct pointer, no copy
+                        .src_width     = CAMERA_WIDTH,
+                        .src_height    = CAMERA_HEIGHT,
+                        .binary_data   = printer_bitmap, // Pre-allocated buffer
+                        .dst_width     = PRINT_WIDTH,
+                        .dst_height    = PRINT_HEIGHT,
+                        .config        = &sg_binary_config, // Use global config directly
+                        .invert_colors = 0                  // Will be overridden by printer
                     };
-
-                    // Update status
-                    char buf[32];
-                    snprintf(buf, sizeof(buf), "Status:\n%s", "Printing");
-                    lv_label_set_text(status_label, buf);
-
                     sg_print_callback(&print_params); // Call print callback
                     tal_psram_free(printer_bitmap);
-
-                    update_info_display(); // Refresh status display
                     printf("bitmap_size %d bytes free succeed\n", bitmap_size);
                 }
             } else {
@@ -580,9 +583,9 @@ void camera_screen_init(void)
 
     // Allocate canvas buffer for monochrome 1-bit indexed image
     // For LVGL v9: I1 format needs palette (8 bytes) + bitmap data
-    uint32_t bitmap_size = ((CAMERA_AREA_WIDTH + 7) / 8) * CAMERA_AREA_HEIGHT;
+    uint32_t bitmap_size     = ((CAMERA_AREA_WIDTH + 7) / 8) * CAMERA_AREA_HEIGHT;
     uint32_t canvas_buf_size = bitmap_size + 8; // 8 bytes for 2-color palette (2 * 4 bytes)
-    canvas_buffer = (uint8_t *)tal_psram_malloc(canvas_buf_size);
+    canvas_buffer            = (uint8_t *)tal_psram_malloc(canvas_buf_size);
     if (canvas_buffer) {
         // Initialize buffer: clear palette area and fill bitmap with test pattern
         memset(canvas_buffer, 0, 8);                  // Clear palette area
