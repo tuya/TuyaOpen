@@ -5,6 +5,7 @@ __pycache__
 
 CMakeCache.txt
 /CMakeFiles
+compile_commands.json
 
 /.venv
 /tmp
