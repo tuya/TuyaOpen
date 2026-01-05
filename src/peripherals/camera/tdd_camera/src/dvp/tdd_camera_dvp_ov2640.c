@@ -36,17 +36,15 @@ typedef struct {
 }CAMERA_FPS_INIT_TAB_T;
 
 const CAMERA_PPI_INIT_TAB_T cPPI_INIT_SEQ_LIST[] = {
-    {TUYA_CAMERA_PPI_480X480,  (uint8_t *)sensor_dvp_ov2640_480X480_talbe,  CNTSOF(sensor_dvp_ov2640_480X480_talbe)},
-    {TUYA_CAMERA_PPI_1280X720, (uint8_t *)sensor_dvp_ov2640_1280X720_talbe, CNTSOF(sensor_dvp_ov2640_1280X720_talbe)},
+    {TUYA_CAMERA_PPI_240X240,  (uint8_t *)cOV2640_240_240_TAB,  CNTSOF(cOV2640_240_240_TAB)},
+    {TUYA_CAMERA_PPI_480X480,  (uint8_t *)cOV2640_480_480_TAB,  CNTSOF(cOV2640_480_480_TAB)},
+    {TUYA_CAMERA_PPI_1280X720, (uint8_t *)cOV2640_1280_720_TAB, CNTSOF(cOV2640_1280_720_TAB)},
 };
-
-
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 static TDD_DVP_SR_CFG_T sg_dvp_sensor = {
-	.clk = 24000000,
 	.max_fps = 30,
 	.max_width = 1600,
 	.max_height = 1200,
@@ -110,7 +108,7 @@ static OPERATE_RET __dvp_ov2640_init(DVP_I2C_CFG_T *i2c, void *arg)
 
     (void)arg;
 
-    __dvp_ov2640_update_reg(i2c->port, sensor_dvp_ov2640_init_talbe, CNTSOF(sensor_dvp_ov2640_init_talbe));
+    __dvp_ov2640_update_reg(i2c->port, cOV2640_INIT_TAB, CNTSOF(cOV2640_INIT_TAB));
 
     PR_NOTICE("__dvp_ov2640_init");
 
@@ -144,7 +142,7 @@ static OPERATE_RET __dvp_ov2640_set_ppi(DVP_I2C_CFG_T *i2c, TUYA_CAMERA_PPI_E pp
     return OPRT_OK;
 }
 
-OPERATE_RET tdl_camera_dvp_ov2640_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg)
+OPERATE_RET tdd_camera_dvp_ov2640_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg)
 {
     if(NULL == name || NULL == cfg) {
         return OPRT_INVALID_PARM;

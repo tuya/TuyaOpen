@@ -1,0 +1,7 @@
+menu "Application config"
+
+    config EXAMPLE_TIMER_ID
+        int "timer id"
+        default 3
+        range 0 5
+endmenu

@@ -26,15 +26,12 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define PWM_DUTY          5000 // 50% duty
-#define PWM_FREQUENCY     10000
 #define TASK_PWM_PRIORITY THREAD_PRIO_2
 #define TASK_PWM_SIZE     4096
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-#define PWM_ID TUYA_PWM_NUM_0
 
 /***********************************************************
 ***********************variable define**********************
@@ -54,38 +51,22 @@ static THREAD_HANDLE sg_pwm_handle;
 static void __example_pwm_task(void *param)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t frequency = PWM_FREQUENCY;
-    uint32_t count = 0;
-
+    
     /*pwm init*/
     TUYA_PWM_BASE_CFG_T pwm_cfg = {
-        .duty = PWM_DUTY, /* 1-10000 */
-        .frequency = PWM_FREQUENCY,
+        .duty = EXAMPLE_PWM_DUTY, /* 1-10000 */
+        .frequency = EXAMPLE_PWM_FREQUENCY,
         .polarity = TUYA_PWM_NEGATIVE,
     };
-    TUYA_CALL_ERR_GOTO(tkl_pwm_init(PWM_ID, &pwm_cfg), __EXIT);
+    TUYA_CALL_ERR_GOTO(tkl_pwm_init(EXAMPLE_PWM_PORT, &pwm_cfg), __EXIT);
 
-    /*start PWM3*/
-    TUYA_CALL_ERR_GOTO(tkl_pwm_start(PWM_ID), __EXIT);
-    PR_NOTICE("PWM%d start", PWM_ID);
+    /*start PWM*/
+    TUYA_CALL_ERR_GOTO(tkl_pwm_start(EXAMPLE_PWM_PORT), __EXIT);
+    PR_NOTICE("PWM: %d Frequency: %d start", EXAMPLE_PWM_PORT, EXAMPLE_PWM_FREQUENCY);
 
     while (1) {
-        /*Frequency, duty cycle settings*/
-        TUYA_CALL_ERR_LOG(tkl_pwm_frequency_set(PWM_ID, frequency));
-        TUYA_CALL_ERR_LOG(tkl_pwm_start(PWM_ID));
-        PR_NOTICE("PWM%d , frequency: %d", PWM_ID, frequency);
-
-        /*close pwm*/
-        if (count >= 3) {
-            break;
-        }
-        count++;
-        frequency = frequency + 10000;
-
         tal_system_sleep(2000);
     }
-
-    TUYA_CALL_ERR_LOG(tkl_pwm_stop(PWM_ID));
 
 __EXIT:
     PR_NOTICE("PWM task is finished, will delete");

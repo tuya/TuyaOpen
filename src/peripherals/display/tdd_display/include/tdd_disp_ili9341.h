@@ -108,6 +108,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ILI9341 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_ili9341_set_init_seq(const uint8_t *init_seq);
+
+/**
  * @brief Registers an ILI9341 TFT display device using the SPI interface with the display management system.
  *
  * This function configures and registers a display device for the ILI9341 series of TFT LCDs 

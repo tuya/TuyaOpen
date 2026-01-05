@@ -51,6 +51,7 @@ typedef struct {
 typedef struct
 {
     uint16_t            id;
+    uint8_t             is_i_frame;
     uint8_t             is_complete;
     TUYA_FRAME_FMT_E    fmt;
     uint16_t            width;

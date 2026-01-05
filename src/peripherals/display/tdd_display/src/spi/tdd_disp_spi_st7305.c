@@ -28,7 +28,6 @@
 ***********************************************************/
 typedef struct {
     DISP_SPI_BASE_CFG_T cfg;
-    uint8_t caset_xs;                  // Column Address Set X Start
     TDL_DISP_FRAME_BUFF_T *convert_fb; // Frame buffer for conversion
 } DISP_ST7305_DEV_T;
 
@@ -64,6 +63,8 @@ static uint8_t ST7305_INIT_SEQ[] = {
     0                    // Terminate list
 };
 
+static uint8_t *sg_disp_init_seq = ST7305_INIT_SEQ;
+
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -74,34 +75,46 @@ static uint8_t ST7305_INIT_SEQ[] = {
 // Corresponds to one byte of data:
 // BIT7 BIT5 BIT3 BIT1
 // BIT6 BIT4 BIT2 BIT0
-static void __tdd_st7305_convert(uint32_t width, uint32_t height, uint8_t *in_buf, uint8_t *out_buf)
+static void __tdd_st7305_convert(TDL_DISP_FRAME_BUFF_T *src_fb, TDL_DISP_FRAME_BUFF_T *dst_fb)
 {
     uint16_t k = 0, i = 0, j = 0, y = 0;
     uint8_t b1 = 0, b2 = 0, mix = 0;
-    uint32_t width_bytes = 0, offset = 0;
+    uint32_t src_width_bytes = 0, offset = 0, dst_width_bytes = 0;
 
-    if (NULL == in_buf || NULL == out_buf) {
+    if (NULL == src_fb || NULL == dst_fb) {
         return;
     }
 
-    offset = GET_ROUND_UP_TO_MULTI_OF_3((width + 3) / 4) - (width/4);
-    width_bytes = width / 8;
-    for (i = 0; i < height; i += 2) {
+    offset = GET_ROUND_UP_TO_MULTI_OF_3((dst_fb->width + 3) / 4) - (dst_fb->width / 4);
+    src_width_bytes = src_fb->width / 8;
+    dst_width_bytes = dst_fb->width / 8;
+
+    for (i = 0; i < dst_fb->height; i += 2) {
+        if (i >= (src_fb->height)) {
+            break; // Skip rows outside the source framebuffer
+        }
+
         k += offset;
-        for (j = 0; j < width_bytes; j += 3) {
+        for (j = 0; j < dst_width_bytes; j += 3) {
+
             for (y = 0; y < 3; y++) {
-                if ((j + y) >= width_bytes) {
+                if((j + y) >= dst_width_bytes) {
+                    break; // Avoid out of bounds
+                }
+
+                if ((j + y) >= src_width_bytes) {
+                    k += 2;
                     continue; // Avoid out of bounds
                 }
 
-                b1 = in_buf[i * width_bytes + j + y];
-                b2 = in_buf[(i + 1) * width_bytes + j + y];
+                b1 = src_fb->frame[i * src_width_bytes + j + y];
+                b2 = src_fb->frame[(i + 1) * src_width_bytes + j + y];
 
                 // First 4 bits
                 mix = 0;
                 mix = ((b1 & 0x01) << 7) | ((b2 & 0x01) << 6) | ((b1 & 0x02) << 4) | ((b2 & 0x02) << 3) |
                       ((b1 & 0x04) << 1) | ((b2 & 0x04)) | ((b1 & 0x08) >> 2) | ((b2 & 0x08) >> 3);
-                out_buf[k++] = mix;
+                dst_fb->frame[k++] = mix;
 
                 // Second 4 bits
                 b1 >>= 4;
@@ -109,23 +122,25 @@ static void __tdd_st7305_convert(uint32_t width, uint32_t height, uint8_t *in_bu
                 mix = 0;
                 mix = ((b1 & 0x01) << 7) | ((b2 & 0x01) << 6) | ((b1 & 0x02) << 4) | ((b2 & 0x02) << 3) |
                       ((b1 & 0x04) << 1) | ((b2 & 0x04)) | ((b1 & 0x08) >> 2) | ((b2 & 0x08) >> 3);
-                out_buf[k++] = mix;
+                dst_fb->frame[k++] = mix;
             }
         }
+
+
     }
 }
 
-static void __disp_spi_st7305_set_addr(DISP_SPI_BASE_CFG_T *p_cfg, uint8_t xs)
+static void __disp_spi_st7305_set_addr(DISP_SPI_BASE_CFG_T *p_cfg)
 {
     uint8_t data[2];
 
-    data[0] = xs;
-    data[1] = xs + (p_cfg->width + 11) / (4 * 3) - 1;
+    data[0] = p_cfg->x_offset;
+    data[1] = p_cfg->x_offset + (p_cfg->width + 11) / (4 * 3) - 1;
     tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_caset);
     tdd_disp_spi_send_data(p_cfg, data, sizeof(data));
 
-    data[0] = 0x00;
-    data[1] = (p_cfg->height + 1) / 2 - 1; // Height is divided by 2 for ST7305
+    data[0] = p_cfg->y_offset;
+    data[1] = p_cfg->y_offset + (p_cfg->height + 1) / 2 - 1; // Height is divided by 2 for ST7305
     tdd_disp_spi_send_cmd(p_cfg, p_cfg->cmd_raset);
     tdd_disp_spi_send_data(p_cfg, data, sizeof(data));
 }
@@ -142,12 +157,11 @@ static OPERATE_RET __tdd_disp_spi_st7305_open(TDD_DISP_DEV_HANDLE_T device)
 
     gate_line = (disp_spi_dev->cfg.height + 3) / 4;
 
-    tdd_disp_modify_init_seq_param(ST7305_INIT_SEQ, 0xB0, gate_line, 0); // Set gate line count
+    tdd_disp_modify_init_seq_param(sg_disp_init_seq, 0xB0, gate_line, 0); // Set gate line count
 
     tdd_disp_spi_init(&(disp_spi_dev->cfg));
 
-    tdd_disp_spi_init_seq(&(disp_spi_dev->cfg), (const uint8_t *)ST7305_INIT_SEQ);
-
+    tdd_disp_spi_init_seq(&(disp_spi_dev->cfg), (const uint8_t *)sg_disp_init_seq);
     PR_DEBUG("[ST7305] Initialize display device successful.");
 
     return OPRT_OK;
@@ -164,13 +178,16 @@ static OPERATE_RET __tdd_disp_spi_st7305_flush(TDD_DISP_DEV_HANDLE_T device, TDL
 
     disp_spi_dev = (DISP_ST7305_DEV_T *)device;
 
-    __tdd_st7305_convert(disp_spi_dev->cfg.width, disp_spi_dev->cfg.height, frame_buff->frame,
-                         disp_spi_dev->convert_fb->frame);
+    __tdd_st7305_convert(frame_buff, disp_spi_dev->convert_fb);
 
-    __disp_spi_st7305_set_addr(&disp_spi_dev->cfg, disp_spi_dev->caset_xs);
+    __disp_spi_st7305_set_addr(&disp_spi_dev->cfg);
 
     tdd_disp_spi_send_cmd(&disp_spi_dev->cfg, disp_spi_dev->cfg.cmd_ramwr);
     tdd_disp_spi_send_data(&disp_spi_dev->cfg, disp_spi_dev->convert_fb->frame, disp_spi_dev->convert_fb->len);
+
+    if(frame_buff && frame_buff->free_cb) {
+        frame_buff->free_cb(frame_buff);
+    }
 
     return rt;
 }
@@ -181,6 +198,24 @@ static OPERATE_RET __tdd_disp_spi_st7305_close(TDD_DISP_DEV_HANDLE_T device)
 }
 
 /**
+ * @brief Sets the initialization sequence for the ST7305 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_mono_st7305_set_init_seq(uint8_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_init_seq = init_seq;
+
+    return OPRT_OK;
+}
+
+/**
  * @brief Registers an ST7305 monochrome display device using the SPI interface with the display management system.
  *
  * This function creates and initializes a new ST7305 display device instance, 
@@ -188,11 +223,10 @@ static OPERATE_RET __tdd_disp_spi_st7305_close(TDD_DISP_DEV_HANDLE_T device)
  *
  * @param name Name of the display device (used for identification).
  * @param dev_cfg Pointer to the SPI device configuration structure.
- * @param caset_xs Column address start value used in display window configuration.
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
-OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg, uint8_t caset_xs)
+OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_cfg)
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t frame_len = 0, width_bytes = 0;
@@ -220,10 +254,10 @@ OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T 
     disp_spi_dev->convert_fb->width = dev_cfg->width;
     disp_spi_dev->convert_fb->height = dev_cfg->height;
 
-    disp_spi_dev->caset_xs = caset_xs;
-
-    disp_spi_dev->cfg.width = dev_cfg->width;
-    disp_spi_dev->cfg.height = dev_cfg->height;
+    disp_spi_dev->cfg.width     = dev_cfg->width;
+    disp_spi_dev->cfg.height    = dev_cfg->height;
+    disp_spi_dev->cfg.x_offset  = dev_cfg->x_offset;
+    disp_spi_dev->cfg.y_offset  = dev_cfg->y_offset;
     disp_spi_dev->cfg.pixel_fmt = TUYA_PIXEL_FMT_MONOCHROME;
     disp_spi_dev->cfg.port      = dev_cfg->port;
     disp_spi_dev->cfg.spi_clk   = dev_cfg->spi_clk;
@@ -240,6 +274,7 @@ OPERATE_RET tdd_disp_spi_mono_st7305_register(char *name, DISP_SPI_DEVICE_CFG_T 
     disp_spi_dev_info.fmt       = TUYA_PIXEL_FMT_MONOCHROME;
     disp_spi_dev_info.rotation  = dev_cfg->rotation;
     disp_spi_dev_info.is_swap   = false;
+    disp_spi_dev_info.has_vram  = true;
 
     memcpy(&disp_spi_dev_info.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&disp_spi_dev_info.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

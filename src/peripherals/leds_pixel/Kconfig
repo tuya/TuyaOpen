@@ -1,3 +1,9 @@
 config ENABLE_LEDS_PIXEL
     bool "enable leds pixel driver"
     default n
+
+if (ENABLE_LEDS_PIXEL)
+    config LEDS_PIXEL_NAME
+        string "the name of led pixel 1"
+        default "led_pixel"
+endif

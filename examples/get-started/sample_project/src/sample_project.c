@@ -60,6 +60,7 @@ int user_main()
     }
 
     PR_DEBUG("cnt is %d", cnt);
+
     while (1) {
         tal_system_sleep(10);
     }

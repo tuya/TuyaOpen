@@ -391,6 +391,10 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
 {
     int ret = OPRT_OK;
 
+    if (client == NULL || dp == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
     if (!client->is_activated) {
         PR_DEBUG("client no active");
         return OPRT_COM_ERROR;
@@ -426,9 +430,25 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
         return OPRT_MALLOC_FAILED;
     }
 
-    uint32_t offset = sprintf(dpout.dpsjson, "{\"%d\":\"", dp->id);
-    tuya_base64_encode(dp->data, dpout.dpsjson + offset, dp->len);
-    strcpy(dpout.dpsjson + strlen(dpout.dpsjson), "\"}");
+    int header_len = snprintf(dpout.dpsjson, encode_len, "{\"%d\":\"", dp->id);
+    if (header_len < 0 || (uint32_t)header_len >= encode_len) {
+        tal_free(dpout.dpsjson);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+
+    tuya_base64_encode(dp->data, dpout.dpsjson + header_len, dp->len);
+
+    size_t current_len = strlen(dpout.dpsjson);
+    size_t remain = encode_len > current_len ? encode_len - current_len : 0;
+    if (remain == 0) {
+        tal_free(dpout.dpsjson);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    int tail_len = snprintf(dpout.dpsjson + current_len, remain, "\"}");
+    if (tail_len < 0 || (size_t)tail_len >= remain) {
+        tal_free(dpout.dpsjson);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
 
     if (tuya_lan_is_connected()) {
         char *out = NULL;

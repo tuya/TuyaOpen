@@ -43,7 +43,10 @@ typedef struct {
     uint8_t cmd_raset;
     uint8_t cmd_ramwr;
     uint8_t cmd_ramwrc;
+    uint8_t x_offset;
+    uint8_t y_offset;
     const uint32_t *init_seq;
+    TDD_DISP_CONVERT_FB_CB convert_cb;
 } DISP_8080_DEV_T;
 
 /***********************************************************
@@ -53,7 +56,9 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDD_DISP_8080_MANAGE_T sg_display_8080 = {0};
+static TDD_DISP_8080_MANAGE_T sg_display_8080 = {
+    .fmt = 0xFF,
+};
 
 /***********************************************************
 ***********************function define**********************
@@ -137,25 +142,40 @@ static void __tdd_disp_init_seq(const uint32_t *init_seq)
     }
 }
 
-static void __disp_8080_set_window(DISP_8080_DEV_T *p_cfg, uint32_t width, uint32_t height)
+static void __disp_8080_set_window(DISP_8080_DEV_T *p_cfg,  uint16_t x_start, uint16_t y_start,\
+                                   uint16_t x_end, uint16_t y_end)
 {
     uint32_t lcd_data[4];
+    static uint16_t x1=0, x2=0, y1=0, y2=0;
 
     if (NULL == p_cfg) {
         return;
     }
 
-    lcd_data[0] = 0;
-    lcd_data[1] = 0;
-    lcd_data[2] = (width >> 8) & 0xFF;
-    lcd_data[3] = (width & 0xFF) - 1;
-    tkl_8080_cmd_send_with_param(p_cfg->cmd_caset, lcd_data, 4);
+    x_start += p_cfg->x_offset;
+    x_end   += p_cfg->x_offset;
+    y_start += p_cfg->y_offset;
+    y_end   += p_cfg->y_offset;
 
-    lcd_data[0] = 0;
-    lcd_data[1] = 0;
-    lcd_data[2] = (height >> 8) & 0xFF;
-    lcd_data[3] = (height & 0xFF) - 1;
-    tkl_8080_cmd_send_with_param(p_cfg->cmd_raset, lcd_data, 4);
+    if(x1 != x_start || x2 != x_end) {
+        lcd_data[0] = (x_start >> 8) & 0xFF;
+        lcd_data[1] = (x_start & 0xFF);
+        lcd_data[2] = (x_end >> 8) & 0xFF;
+        lcd_data[3] = (x_end & 0xFF);
+        tkl_8080_cmd_send_with_param(p_cfg->cmd_caset, lcd_data, 4);
+        x1 = x_start;
+        x2 = x_end;
+    }
+
+    if(y1 != y_start || y2 != y_end) {
+        lcd_data[0] = (y_start >> 8) & 0xFF;
+        lcd_data[1] = (y_start & 0xFF);
+        lcd_data[2] = (y_end >> 8) & 0xFF;
+        lcd_data[3] = (y_end & 0xFF);
+        tkl_8080_cmd_send_with_param(p_cfg->cmd_raset, lcd_data, 4);
+        y1 = y_start;
+        y2 = y_end;
+    }
 }
 
 static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
@@ -184,6 +204,7 @@ static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
 
 static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
+    TDL_DISP_FRAME_BUFF_T *target_fb = NULL;
     OPERATE_RET rt = OPRT_OK;
     DISP_8080_DEV_T *tdd_8080 = NULL;
 
@@ -192,18 +213,28 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
     }
     tdd_8080 = (DISP_8080_DEV_T *)device;
 
-    if (sg_display_8080.width != frame_buff->width || sg_display_8080.height != frame_buff->height) {
-        tkl_8080_ppi_set(frame_buff->width, frame_buff->height);
-        sg_display_8080.width = frame_buff->width;
-        sg_display_8080.height = frame_buff->height;
+    if(tdd_8080->convert_cb) {
+        target_fb = tdd_8080->convert_cb(frame_buff);
+        if(NULL == target_fb) {
+            PR_ERR("convert fb failed, use original fb");
+            return OPRT_COM_ERROR;
+        }
+    } else {
+        target_fb = frame_buff;
     }
 
-    if (sg_display_8080.fmt != frame_buff->fmt) {
-        tkl_8080_pixel_mode_set(frame_buff->fmt);
-        sg_display_8080.fmt = frame_buff->fmt;
+    if (sg_display_8080.width != target_fb->width || sg_display_8080.height != target_fb->height) {
+        tkl_8080_ppi_set(target_fb->width, target_fb->height);
+        sg_display_8080.width = target_fb->width;
+        sg_display_8080.height = target_fb->height;
     }
 
-    tkl_8080_base_addr_set((uint32_t)frame_buff->frame);
+    if (sg_display_8080.fmt != target_fb->fmt) {
+        tkl_8080_pixel_mode_set(target_fb->fmt);
+        sg_display_8080.fmt = target_fb->fmt;
+    }
+
+    tkl_8080_base_addr_set((uint32_t)target_fb->frame);
 
     /*Wait for the TE interrupt to be given after a frame is completely scanned inside the screen,
      *and then start sending data to rewrite the frame buffer of the screen to avoid screen display tearing. */
@@ -219,9 +250,12 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
     }
 
     if (false == sg_display_8080.has_flushed_flag) {
-        __disp_8080_set_window(tdd_8080, sg_display_8080.width, sg_display_8080.height);
+        __disp_8080_set_window(tdd_8080, frame_buff->x_start, \
+                               frame_buff->y_start, \
+                               frame_buff->width-1, frame_buff->height-1);
 
         tkl_8080_cmd_send(tdd_8080->cmd_ramwr);
+        sg_display_8080.has_flushed_flag = true;
     } else {
         tkl_8080_cmd_send(tdd_8080->cmd_ramwrc);
     }
@@ -294,13 +328,17 @@ OPERATE_RET tdd_disp_mcu8080_device_register(char *name, TDD_DISP_MCU8080_CFG_T 
     tdd_8080->cmd_raset = mcu8080->cmd_raset;
     tdd_8080->cmd_ramwr = mcu8080->cmd_ramwr;
     tdd_8080->cmd_ramwrc = mcu8080->cmd_ramwrc;
+    tdd_8080->x_offset = mcu8080->x_offset;
+    tdd_8080->y_offset = mcu8080->y_offset;
+    tdd_8080->convert_cb = mcu8080->convert_cb;
 
     mcu8080_dev_info.type     = TUYA_DISPLAY_8080;
     mcu8080_dev_info.width    = mcu8080->cfg.width;
     mcu8080_dev_info.height   = mcu8080->cfg.height;
-    mcu8080_dev_info.fmt      = mcu8080->cfg.pixel_fmt;
+    mcu8080_dev_info.fmt      = mcu8080->in_fmt;
     mcu8080_dev_info.rotation = mcu8080->rotation;
     mcu8080_dev_info.is_swap  = mcu8080->is_swap;
+    mcu8080_dev_info.has_vram = true;
 
     memcpy(&mcu8080_dev_info.bl, &mcu8080->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&mcu8080_dev_info.power, &mcu8080->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));

@@ -26,8 +26,19 @@
 #include "tkl_output.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
+
+#if defined(OTTO_TYPE_NINJA_OTTO) && (OTTO_TYPE_NINJA_OTTO == 1)
+#include "otto_ninja_main.h"
+#endif
+
+#if defined(OTTO_TYPE_OTTO) && (OTTO_TYPE_OTTO == 1)
+#include "otto_robot_main.h"
+#endif
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
+#else
+// Stub WiFi functions for non-WiFi platforms (e.g., Ubuntu with wired)
+#include "tkl_wifi_stub.h"
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
 #include "netconn_wired.h"
@@ -47,20 +58,24 @@
 #include "reset_netcfg.h"
 #include "app_system_info.h"
 
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+#include "qrencode_print.h"
+#endif
+
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
+
+/* Tuya license information (uuid authkey) */
+tuya_iot_license_t license;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
 #endif
 
-#define DPID_VOLUME 3
-#define DPID_MOVE   5
+#define DPID_VOLUME 6
 
 static uint8_t _need_reset = 0;
 
-extern void otto_robot_main();
-extern void otto_robot_dp_proc(uint32_t move_type);
 
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
@@ -94,6 +109,12 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 
 OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
+    PR_DEBUG("=== user_dp_obj_proc called ===");
+    PR_DEBUG("DP object - dpscnt: %d, devid: %s", dpobj->dpscnt, dpobj->devid ? dpobj->devid : "NULL");
+    
+#if defined(OTTO_TYPE_OTTO) && (OTTO_TYPE_OTTO == 1)
+    otto_robot_dp_proc(dpobj);
+#endif
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
         dp_obj_t *dp = dpobj->dps + index;
@@ -104,20 +125,11 @@ OPERATE_RET user_dp_obj_proc(dp_obj_recv_t *dpobj)
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
             ai_audio_set_volume(volume);
-            
 #if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
             char volume_str[20] = {0};
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
             app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
 #endif
-            break;
-        }
-
-        case DPID_MOVE: {
-            uint32_t move_type = dp->value.dp_enum;
-            PR_DEBUG("move_type:%d", move_type);
-            // otto_robot_main();
-            otto_robot_dp_proc(move_type);
             break;
         }
         default:
@@ -166,6 +178,15 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
         ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
+
+    /* Print the QRCode for Tuya APP bind */
+    case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+        char buffer[255];
+        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
+        qrcode_string_output(buffer, user_log_output_cb, 0);
+#endif
+    } break;
 
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
@@ -224,6 +245,12 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
 
+#if defined(OTTO_TYPE_NINJA_OTTO) && (OTTO_TYPE_NINJA_OTTO == 1)
+        otto_ninja_dp_obj_proc(dpobj);
+#endif
+
+        
+
     } break;
 
     /* RECV RAW DP */
@@ -240,8 +267,24 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         for (index = 0; index < dp->len; index++) {
             PR_DEBUG_RAW("%02x", dp->data[index]);
         }
+        PR_DEBUG_RAW("\n");
 
-        tuya_iot_dp_raw_report(client, dpraw->devid, &dpraw->dp, 3);
+        // Parse joystick data: first 2 bytes = X axis (signed), last 2 bytes = Y axis (signed)
+#if defined(OTTO_TYPE_NINJA_OTTO) && (OTTO_TYPE_NINJA_OTTO == 1)
+        if (dp->len >= 4) {
+            // Parse X axis (first 2 bytes, big-endian)
+            int16_t x_axis = (int16_t)((dp->data[0] << 8) | dp->data[1]);
+            // Parse Y axis (last 2 bytes, big-endian)
+            int16_t y_axis = (int16_t)((dp->data[2] << 8) | dp->data[3]);
+            set_joystick_x(x_axis);
+            PR_DEBUG("joystick_x:%d", x_axis);
+            set_joystick_y(y_axis);
+            PR_DEBUG("joystick_y:%d", y_axis);
+            PR_DEBUG("Joystick data - X axis: %d, Y axis: %d", x_axis, y_axis);
+        }
+#endif
+
+        //tuya_iot_dp_raw_report(client, dpraw->devid, &dpraw->dp, 3);
 
     } break;
 
@@ -288,12 +331,13 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
+    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
 
     reset_netconfig_start();
 
-    tuya_iot_license_t license;
+
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid = TUYA_OPENSDK_UUID;
@@ -314,7 +358,6 @@ void user_main(void)
                                     });
     assert(ret == OPRT_OK);
 
-    // 初始化LWIP
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
 #endif
@@ -352,8 +395,15 @@ void user_main(void)
     tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
-    extern void otto_power_on();
+    
+#if defined(OTTO_TYPE_OTTO) && (OTTO_TYPE_OTTO == 1)
     otto_power_on();
+#endif
+
+#if defined(OTTO_TYPE_NINJA_OTTO) && (OTTO_TYPE_NINJA_OTTO == 1)
+    PR_DEBUG("otto_ninja_main start\n");
+    otto_ninja_main();
+#endif
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */

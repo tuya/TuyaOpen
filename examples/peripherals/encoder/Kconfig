@@ -1,0 +1,32 @@
+menu "Application config"
+
+    config ENABLE_ENCODER_DRIVER
+        bool "Enable encoder driver"
+        default y
+
+    config DECODER_INPUT_A
+        int "encoder clockwise rotation detection pin (A signal)"
+        default 4
+        range 0 63
+        help
+            GPIO pin for encoder A signal (quadrature input).
+            This pin detects clockwise rotation when combined with B signal.
+
+    config DECODER_INPUT_B
+        int "encoder counter-clockwise rotation detection pin (B signal)"
+        default 5
+        range 0 63
+        help
+            GPIO pin for encoder B signal (quadrature input).
+            This pin detects counter-clockwise rotation when combined with A signal.
+
+    config DECODER_INPUT_P
+        int "encoder button press detection pin"
+        default 6
+        range 0 63
+        help
+            GPIO pin for encoder button/press detection.
+            Active low - reads LOW when button is pressed.
+
+endmenu
+

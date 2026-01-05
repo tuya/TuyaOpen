@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "WAVESHARE_ESP32S3_Touch_AMOLED_1.8"
+    default "DNESP32S3_BOX2_WIFI"
 
 config BOARD_CONFIG
     bool

@@ -203,9 +203,12 @@ int tuya_ota_start(cJSON *upgrade)
 
     ota->channel = cJSON_GetObjectItem(upgrade, "type")->valueint;
     ota->msg.file_size = atol(cJSON_GetObjectItem(upgrade, "size")->valuestring);
-    strcpy(ota->msg.fw_url, cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
-    strcpy(ota->msg.fw_hmac, cJSON_GetObjectItem(upgrade, "hmac")->valuestring);
-    strcpy(ota->msg.fw_md5, cJSON_GetObjectItem(upgrade, "md5")->valuestring);
+    strncpy(ota->msg.fw_url, cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring, sizeof(ota->msg.fw_url) - 1);
+    ota->msg.fw_url[sizeof(ota->msg.fw_url) - 1] = '\0';
+    strncpy(ota->msg.fw_hmac, cJSON_GetObjectItem(upgrade, "hmac")->valuestring, sizeof(ota->msg.fw_hmac) - 1);
+    ota->msg.fw_hmac[sizeof(ota->msg.fw_hmac) - 1] = '\0';
+    strncpy(ota->msg.fw_md5, cJSON_GetObjectItem(upgrade, "md5")->valuestring, sizeof(ota->msg.fw_md5) - 1);
+    ota->msg.fw_md5[sizeof(ota->msg.fw_md5) - 1] = '\0';
 
     THREAD_CFG_T thrd_param;
     thrd_param.priority = THREAD_PRIO_3;

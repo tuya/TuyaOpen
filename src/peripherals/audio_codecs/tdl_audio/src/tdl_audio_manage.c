@@ -43,7 +43,8 @@ typedef struct list_node {
     char name[TDL_AUDIO_NAME_LEN_MAX + 1];
 
     TDD_AUDIO_HANDLE_T tdd_hdl;
-    TDD_AUDIO_INTFS_T tdd_intfs;
+    TDD_AUDIO_INTFS_T  tdd_intfs;
+    TDD_AUDIO_INFO_T   tdd_info;
 } TDL_AUDIO_NODE_T;
 
 typedef struct {
@@ -121,6 +122,26 @@ OPERATE_RET tdl_audio_find(char *name, TDL_AUDIO_HANDLE_T *handle)
     }
 
     *handle = (TDL_AUDIO_HANDLE_T)node;
+
+    return OPRT_OK;
+}
+
+OPERATE_RET tdl_audio_get_info(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_INFO_T *info)
+{
+    TDL_AUDIO_NODE_T *node = (TDL_AUDIO_NODE_T *)handle;
+    uint32_t per_ms_size = 0;
+
+    TUYA_CHECK_NULL_RETURN(node, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(info, OPRT_INVALID_PARM);
+
+    info->sample_rate   = node->tdd_info.sample_rate;
+    info->sample_bits   = node->tdd_info.sample_bits;
+    info->sample_ch_num = node->tdd_info.sample_ch_num;
+    info->sample_tm_ms  = node->tdd_info.sample_tm_ms;
+    
+    per_ms_size = node->tdd_info.sample_rate * node->tdd_info.sample_ch_num *\
+                  (node->tdd_info.sample_bits / 8) / 1000;
+    info->frame_size = node->tdd_info.sample_tm_ms * per_ms_size;
 
     return OPRT_OK;
 }
@@ -220,7 +241,8 @@ OPERATE_RET tdl_audio_close(TDL_AUDIO_HANDLE_T handle)
     return node->tdd_intfs.close(node->tdd_hdl);
 }
 
-OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_INTFS_T *intfs, TDD_AUDIO_HANDLE_T tdd_hdl)
+OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_HANDLE_T tdd_hdl,\
+                                      TDD_AUDIO_INTFS_T *intfs, TDD_AUDIO_INFO_T *info)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -237,9 +259,10 @@ OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_INTFS_T *intfs, TDD_
     node = __audio_node_create();
     TUYA_CHECK_NULL_RETURN(node, OPRT_MALLOC_FAILED);
 
+    node->tdd_hdl = tdd_hdl;
     strncpy(node->name, name, TDL_AUDIO_NAME_LEN_MAX);
     memcpy(&node->tdd_intfs, intfs, sizeof(TDD_AUDIO_INTFS_T));
-    node->tdd_hdl = tdd_hdl;
+    memcpy(&node->tdd_info,  info,  sizeof(TDD_AUDIO_INFO_T));
 
     __audio_node_add(node);
 

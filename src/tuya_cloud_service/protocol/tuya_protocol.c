@@ -225,6 +225,10 @@ static OPERATE_RET __pack_data_with_cmd_pv23(const DP_CMD_TYPE_E cmd, const char
     char *out = NULL;
     int offset = 0;
 
+    if (pv == NULL || src == NULL || key == NULL || pack_out == NULL || out_len == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
     PR_TRACE("To:%d src:%s pro:%d num:%d", cmd, src, pro, num);
     // make json data
     int len = strlen(src) + 60;
@@ -234,11 +238,18 @@ static OPERATE_RET __pack_data_with_cmd_pv23(const DP_CMD_TYPE_E cmd, const char
         return OPRT_MALLOC_FAILED;
     }
 
-    // offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(),
-    // src);
-    offset += sprintf(out + offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
-                      (uint32_t)tal_time_get_posix(), src);
+    int ret = snprintf(out + offset, len - offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
+                       (uint32_t)tal_time_get_posix(), src);
+    if (ret < 0 || ret >= len - offset) {
+        tal_free(out);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += ret;
 
+    if (offset > len - 2) {
+        tal_free(out);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     out[offset++] = '}';
     out[offset] = 0;
 
@@ -303,6 +314,10 @@ static OPERATE_RET __pack_data_with_cmd_lpv35(const DP_CMD_TYPE_E cmd, const cha
     char *out = NULL;
     int offset = 0;
 
+    if (pv == NULL || src == NULL || key == NULL || pack_out == NULL || out_len == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
     PR_TRACE("To:%d src:%s pro:%d num:%d", cmd, src, pro, num);
 
     // make json data
@@ -313,11 +328,18 @@ static OPERATE_RET __pack_data_with_cmd_lpv35(const DP_CMD_TYPE_E cmd, const cha
         return OPRT_MALLOC_FAILED;
     }
 
-    // offset += sprintf(out + offset, "{\"protocol\":%d,\"t\":%d,\"data\":%s", pro, (uint32_t)tal_time_get_posix(),
-    // src);
-    offset += sprintf(out + offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
-                      (uint32_t)tal_time_get_posix(), src);
+    int ret = snprintf(out + offset, len - offset, "{\"protocol\":%" PRIu32 ",\"t\":%" PRIu32 ",\"data\":%s", pro,
+                       (uint32_t)tal_time_get_posix(), src);
+    if (ret < 0 || ret >= len - offset) {
+        tal_free(out);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    offset += ret;
 
+    if (offset > len - 2) {
+        tal_free(out);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
     out[offset++] = '}';
     out[offset] = 0;
 

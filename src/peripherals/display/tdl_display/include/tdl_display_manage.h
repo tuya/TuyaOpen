@@ -44,11 +44,14 @@ typedef enum {
 
 typedef struct TDL_DISP_FRAME_BUFF_T TDL_DISP_FRAME_BUFF_T;
 
+
 typedef void (*FRAME_BUFF_FREE_CB)(TDL_DISP_FRAME_BUFF_T *frame_buff);
 
 struct TDL_DISP_FRAME_BUFF_T {
     DISP_FB_RAM_TP_E type;
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
+    uint16_t x_start;
+    uint16_t y_start;
     uint16_t width;
     uint16_t height;
     FRAME_BUFF_FREE_CB free_cb;
@@ -57,12 +60,13 @@ struct TDL_DISP_FRAME_BUFF_T {
 };
 
 typedef struct {
-    TUYA_DISPLAY_TYPE_E type;
-    TUYA_DISPLAY_ROTATION_E rotation;
-    uint16_t width;
-    uint16_t height;
+    TUYA_DISPLAY_TYPE_E      type;
+    TUYA_DISPLAY_ROTATION_E  rotation;
+    uint16_t                 width;
+    uint16_t                 height;
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
     bool                     is_swap;
+    bool                     has_vram;
 } TDL_DISP_DEV_INFO_T;
 
 /***********************************************************
@@ -165,6 +169,20 @@ OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T
  * @return Returns OPRT_OK on success, or an appropriate error code if closing the device fails.
  */
 OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl);
+
+/**
+ * @brief Swaps the byte order of each pixel in an array of RGB565 data.
+ *
+ * This function takes an array of RGB565 data and swaps the byte order of each pixel.
+ * It is typically used to convert between the byte order used by the display device and the
+ * byte order expected by the application.
+ *
+ * @param data Pointer to the array of RGB565 data.
+ * @param len  Length of the data array in pixels.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if the operation fails.
+ */
+OPERATE_RET tdl_disp_dev_rgb565_swap(uint16_t *data, uint32_t len);
 
 
 #ifdef __cplusplus

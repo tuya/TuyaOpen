@@ -230,8 +230,8 @@ int http_file_download(http_download_config_t *config)
     }
     /* http client TransportInterface */
     ctx->transport.pNetworkContext = (NetworkContext_t *)&network;
-    ctx->transport.send = NetworkTransportSend;
-    ctx->transport.recv = NetworkTransportRecv;
+    ctx->transport.send = (TransportSend_t)NetworkTransportSend;
+    ctx->transport.recv = (TransportRecv_t)NetworkTransportRecv;
 
     ctx->state = DL_STATE_NETWORK_CONNECT;
     TIME_T download_time = tal_time_get_posix();

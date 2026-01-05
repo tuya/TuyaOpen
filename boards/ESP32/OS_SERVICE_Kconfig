@@ -2,6 +2,10 @@ config MBEDTLS_CONFIG_FILE
     string
     default "mbedtls/esp_config.h"
 
+config ENABLE_LIBLVGL
+    bool "enable liblvgl"
+    default y
+
 config ENABLE_PLATFORM_LVGL
     bool "enable platform lvgl"
     default y

@@ -136,7 +136,10 @@ void lv_vendor_stop(void)
     LV_LOG_INFO("%s complete\n", __func__);
 }
 
-
+void lv_vendor_set_backlight(uint8_t brightness)
+{
+    disp_set_backlight(brightness);
+}
 
 // Modified by TUYA Start
 void __attribute__((weak)) tuya_app_gui_feed_watchdog(void)

@@ -93,20 +93,35 @@ typedef TAL_LOG_LEVEL_E LOG_LEVEL;
 #define PRINTF_CHECK(...)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define LOG_FMT_IS_CONST(fmt) __builtin_constant_p(fmt)
+#else
+#define LOG_FMT_IS_CONST(fmt) (FALSE)
+#endif
+
 PRINTF_CHECK(4, 5)
 OPERATE_RET tal_log_print(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *fmt, ...);
+PRINTF_CHECK(5, 6)
+OPERATE_RET tal_log_print_secure(BOOL_T is_const_fmt, const TAL_LOG_LEVEL_E level, const char *file, const int line,
+                                 const char *fmt, ...);
 
 // file name maybe define from complie parameter
 #ifndef _THIS_FILE_NAME_
 #define _THIS_FILE_NAME_ __FILE__
 #endif
 
-#define PR_ERR(fmt, ...)    tal_log_print(TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
-#define PR_WARN(fmt, ...)   tal_log_print(TAL_LOG_LEVEL_WARN, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
-#define PR_NOTICE(fmt, ...) tal_log_print(TAL_LOG_LEVEL_NOTICE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
-#define PR_INFO(fmt, ...)   tal_log_print(TAL_LOG_LEVEL_INFO, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
-#define PR_DEBUG(fmt, ...)  tal_log_print(TAL_LOG_LEVEL_DEBUG, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
-#define PR_TRACE(fmt, ...)  tal_log_print(TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_ERR(fmt, ...)                                                                                                 \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_WARN(fmt, ...)                                                                                                \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_WARN, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_NOTICE(fmt, ...)                                                                                              \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_NOTICE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_INFO(fmt, ...)                                                                                                \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_INFO, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_DEBUG(fmt, ...)                                                                                               \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_DEBUG, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define PR_TRACE(fmt, ...)                                                                                               \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
 
 #define PR_HEXDUMP_ERR(title, buf, size)                                                                               \
     tal_log_hex_dump(TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
@@ -275,6 +290,20 @@ PRINTF_CHECK(1, 2)
  * tuya_error_code.h
  */
 OPERATE_RET tal_log_print_raw(const char *pFmt, ...);
+
+/**
+ * @brief Print the user-provided string, internally escaping '%' to '%%' to avoid format parsing.
+ *
+ * @param[in] level log level
+ * @param[in] file file name
+ * @param[in] line line number
+ * @param[in] prefix fixed prefix, can be NULL or empty string
+ * @param[in] user_str user string to be output
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_log_print_escape(const TAL_LOG_LEVEL_E level, const char *file, const int line, const char *prefix,
+                                 const char *user_str);
 
 /**
  * @brief destroy log management

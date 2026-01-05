@@ -555,8 +555,12 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &ip);
 
     lan_mgr_t *lan = lan_mgr_get();
+    if (lan == NULL || lan->iot_client == NULL || out == NULL || p_olen == NULL) {
+        PR_ERR("lan_make_udp_packets invalid param");
+        return;
+    }
 
-    uint32_t offset = 0;
+    size_t offset = 0;
     char *id = NULL;
     if (lan->iot_client->is_activated) {
         id = lan->iot_client->activate.devid;
@@ -572,15 +576,70 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     }
     memset(json_buf, 0, data_len);
 
-    offset += sprintf(json_buf + offset, "{\"ip\":\"%s\",\"gwId\":\"%s\",\"uuid\":\"%s\"", ip.ip, id,
-                      lan->iot_client->config.uuid);
-    offset += sprintf(json_buf + offset, ",\"active\":%d,\"ablilty\":0", lan->iot_client->is_activated ? 2 : 0);
-    offset += sprintf(json_buf + offset, ",\"encrypt\":true");
-    offset += sprintf(json_buf + offset, ",\"productKey\":\"%s\"", lan->iot_client->config.productkey);
-    offset += sprintf(json_buf + offset, ",\"version\":\"%s\"", TUYA_LPV35);
-    offset += sprintf(json_buf + offset, ",\"sl\":%d", TUYA_SECURITY_LEVEL);
-    json_buf[offset] = '}';
-    json_buf[offset + 1] = 0;
+    size_t remain = data_len;
+    int ret = snprintf(json_buf + offset, remain, "{\"ip\":\"%s\",\"gwId\":\"%s\",\"uuid\":\"%s\"", ip.ip, id,
+                       lan->iot_client->config.uuid);
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing ip info");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    ret = snprintf(json_buf + offset, remain, ",\"active\":%d,\"ablilty\":0",
+                   lan->iot_client->is_activated ? 2 : 0);
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing active");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    ret = snprintf(json_buf + offset, remain, ",\"encrypt\":true");
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing encrypt");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    ret = snprintf(json_buf + offset, remain, ",\"productKey\":\"%s\"", lan->iot_client->config.productkey);
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing productKey");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    ret = snprintf(json_buf + offset, remain, ",\"version\":\"%s\"", TUYA_LPV35);
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing version");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    ret = snprintf(json_buf + offset, remain, ",\"sl\":%d", TUYA_SECURITY_LEVEL);
+    if (ret < 0 || (size_t)ret >= remain) {
+        PR_ERR("json_buf overflow when writing sl");
+        tal_free(json_buf);
+        return;
+    }
+    offset += ret;
+    remain = data_len - offset;
+
+    if (remain < 2) {
+        PR_ERR("json_buf overflow when finalizing");
+        tal_free(json_buf);
+        return;
+    }
+    json_buf[offset++] = '}';
+    json_buf[offset] = 0;
 
     // PR_DEBUG("BufToSend %d %d:%s",data_len, offset, json_buf);
     int plaintext_len = sizeof(lpv35_plaintext_data_t) + strlen(json_buf);

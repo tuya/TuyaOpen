@@ -9,7 +9,6 @@
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
 #include "tuya_cloud_types.h"
@@ -24,7 +23,7 @@
 const uint32_t cST7789_INIT_SEQ[] = {
     1,    100,  ST7789_SWRESET,                                 // Software reset
     1,    50,   ST7789_SLPOUT,                                  // Exit sleep mode
-    2,    10,   ST7789_COLMOD,    0x55,                         // Set colour mode to 16 bit
+    2,    10,   ST7789_COLMOD,    0x05,                         // Set colour mode to 16 bit
     2,    0,    ST7789_VCMOFSET,  0x1a,                         // VCOM
     6,    0,    ST7789_PORCTRL,   0x0c, 0x0c, 0x00, 0x33, 0x33, // Porch Setting
     1,    0,    ST7789_INVOFF, 
@@ -50,13 +49,31 @@ static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
     .cmd_caset = ST7789_CASET,
     .cmd_raset = ST7789_RASET,
     .cmd_ramwr = ST7789_RAMWR,
-    .cmd_ramwr = ST7789_RAMWRC,
+    .cmd_ramwrc = ST7789_RAMWRC,
     .init_seq = cST7789_INIT_SEQ,
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Sets the initialization sequence for the ST7789 display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_mcu8080_st7789_set_init_seq(const uint32_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_mcu8080_cfg.init_seq = init_seq;
+
+    return OPRT_OK;
+}
+
 /**
  * @brief Registers an ST7789 TFT display device using the MCU8080 interface with the display management system.
  *
@@ -77,16 +94,19 @@ OPERATE_RET tdd_disp_mcu8080_st7789_register(char *name, DISP_MCU8080_DEVICE_CFG
 
     PR_NOTICE("tdd_disp_mcu8080_st7789_register: %s", name);
 
-    sg_disp_mcu8080_cfg.cfg.width = dev_cfg->width;
-    sg_disp_mcu8080_cfg.cfg.height = dev_cfg->height;
+    sg_disp_mcu8080_cfg.cfg.width     = dev_cfg->width;
+    sg_disp_mcu8080_cfg.cfg.height    = dev_cfg->height;
     sg_disp_mcu8080_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
+    sg_disp_mcu8080_cfg.cfg.clk       = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
+    sg_disp_mcu8080_cfg.in_fmt   = dev_cfg->pixel_fmt;
     sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
-    sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
-    sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;
-    sg_disp_mcu8080_cfg.is_swap = false;
+    sg_disp_mcu8080_cfg.te_pin   = dev_cfg->te_pin;
+    sg_disp_mcu8080_cfg.te_mode  = dev_cfg->te_mode;
+    sg_disp_mcu8080_cfg.x_offset = dev_cfg->x_offset;
+    sg_disp_mcu8080_cfg.y_offset = dev_cfg->y_offset;
+    sg_disp_mcu8080_cfg.is_swap  = false;
 
     memcpy(&sg_disp_mcu8080_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
     memcpy(&sg_disp_mcu8080_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));

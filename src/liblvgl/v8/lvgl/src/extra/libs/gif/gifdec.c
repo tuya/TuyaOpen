@@ -8,7 +8,9 @@
 #include <string.h>
 #include <stdbool.h>
 
+#undef  MIN
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
+#undef  MAX
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
 typedef struct Entry {

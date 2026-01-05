@@ -1,0 +1,22 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "TUYA_T5AI_PIXEL"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_AUDIO_AEC
+    select ENABLE_LED
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_2
+    select ENABLE_BUTTON_3
+    select ENABLE_SPI
+    select ENABLE_LEDS_PIXEL
+    select ENABLE_IMU
+    select ENABLE_IMU_BMI270
+

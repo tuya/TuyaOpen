@@ -4,15 +4,14 @@
 import os
 import sys
 import click
-import zipfile
 
 from tools.cli_command.util import (
-    set_clis, get_logger, get_global_params
+    set_clis, get_logger, get_global_params,
+    parse_config_file
 )
 from tools.cli_command.cli_config import get_board_config_dir
 from tools.cli_command.util_files import (
-    get_files_from_path, copy_file, rm_rf,
-    copy_directory
+    get_files_from_path, copy_file, rm_rf
 )
 from tools.cli_command.cli_build import build_project
 from tools.cli_command.cli_clean import full_clean_project
@@ -21,40 +20,25 @@ from tools.cli_command.cli_clean import full_clean_project
 def _save_product(dist, config_file):
     logger = get_logger()
     params = get_global_params()
-    app_root = params["app_root"]
-    app_root_basename = os.path.basename(app_root)
+
+    app_bin_path = params["app_bin_path"]
+    using_config = params["using_config"]
+    using_data = parse_config_file(using_config)
+    app_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    app_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
+    bin_name = f"{app_name}_QIO_{app_ver}.bin"
+    app_bin_file = os.path.join(app_bin_path, bin_name)
+    if not os.path.exists(app_bin_file):
+        logger.error(f"Not found {app_bin_file}")
+        return
+
     config_basename = os.path.basename(config_file)
     if config_basename.endswith(".config"):
         config_basename = config_basename[:-7]
-    app_dist = os.path.join(dist, app_root_basename)
-    os.makedirs(app_dist, exist_ok=True)
-    bin_dist = os.path.join(app_dist, config_basename)
-    if os.path.exists(bin_dist):
-        rm_rf(bin_dist)
-    app_bin_path = params["app_bin_path"]
-    logger.info(f"Save product to {bin_dist}.")
-    copy_directory(app_bin_path, bin_dist)
-
-    pass
-
-
-def _zip_product(dist):
-    logger = get_logger()
-    params = get_global_params()
-    app_root = params["app_root"]
-    app_root_basename = os.path.basename(app_root)
-    app_dist = os.path.join(dist, app_root_basename)
-    output_zip = os.path.join(dist, app_root_basename+".zip")
-    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        file_list = []
-        for root, dirs, files in os.walk(app_dist):
-            for file in files:
-                file_list.append(os.path.join(root, file))
-
-        for file_path in file_list:
-            arcname = os.path.relpath(file_path, dist)
-            zipf.write(file_path, arcname)
-    logger.info(f"Zip product to {output_zip}.")
+    bin_dist_name = f"{app_name}_{config_basename}_QIO_{app_ver}.bin"
+    app_bin_dist_file = os.path.join(dist, bin_dist_name)
+    rm_rf(app_bin_dist_file)
+    copy_file(app_bin_file, app_bin_dist_file)
     pass
 
 
@@ -95,8 +79,6 @@ def build_all_config_exec(dist):
             build_result_list.append(f"{config} build failed")
             exit_flag = 1
         full_clean_project()
-
-    _zip_product(dist)
 
     # print build result
     for result in build_result_list:

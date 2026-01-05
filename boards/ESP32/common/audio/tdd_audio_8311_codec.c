@@ -27,6 +27,7 @@
 ***********************************************************/
 // I2S read time default is 10ms
 #define I2S_READ_TIME_MS (10)
+#define SAMPLE_DATABITS  (16)
 
 typedef struct {
     TDD_AUDIO_8311_CODEC_T cfg;
@@ -104,7 +105,7 @@ static void EnableInput(bool enable)
 {
     if (enable) {
         esp_codec_dev_sample_info_t fs = {
-            .bits_per_sample = 16,
+            .bits_per_sample = SAMPLE_DATABITS,
             .channel = 1,
             .channel_mask = 0,
             .sample_rate = (uint32_t)input_sample_rate_,
@@ -127,7 +128,7 @@ static void EnableOutput(bool enable)
     if (enable) {
         // Play 16bit 1 channel
         esp_codec_dev_sample_info_t fs = {
-            .bits_per_sample = 16,
+            .bits_per_sample = SAMPLE_DATABITS,
             .channel = 1,
             .channel_mask = 0,
             .sample_rate = (uint32_t)output_sample_rate_,
@@ -433,8 +434,8 @@ OPERATE_RET tdd_audio_8311_codec_register(char *name, TDD_AUDIO_8311_CODEC_T cfg
 {
     OPERATE_RET rt = OPRT_OK;
     ESP_I2S_8311_HANDLE_T *_hdl = NULL;
-
     TDD_AUDIO_INTFS_T intfs = {0};
+    TDD_AUDIO_INFO_T info = {0};
 
     _hdl = (ESP_I2S_8311_HANDLE_T *)tal_malloc(sizeof(ESP_I2S_8311_HANDLE_T));
     TUYA_CHECK_NULL_RETURN(_hdl, OPRT_MALLOC_FAILED);
@@ -443,6 +444,12 @@ OPERATE_RET tdd_audio_8311_codec_register(char *name, TDD_AUDIO_8311_CODEC_T cfg
     // default play volume
     _hdl->play_volume = 80;
 
+    info.sample_rate    = cfg.mic_sample_rate;
+    info.sample_ch_num  = 1;
+    info.sample_bits    = SAMPLE_DATABITS;
+    info.sample_tm_ms   = I2S_READ_TIME_MS;
+
+
     memcpy(&_hdl->cfg, &cfg, sizeof(TDD_AUDIO_8311_CODEC_T));
 
     intfs.open = __tdd_audio_esp_i2s_8311_open;
@@ -450,7 +457,7 @@ OPERATE_RET tdd_audio_8311_codec_register(char *name, TDD_AUDIO_8311_CODEC_T cfg
     intfs.config = __tdd_audio_esp_i2s_8311_config;
     intfs.close = __tdd_audio_esp_i2s_8311_close;
 
-    TUYA_CALL_ERR_GOTO(tdl_audio_driver_register(name, &intfs, (TDD_AUDIO_HANDLE_T)_hdl), __ERR);
+    TUYA_CALL_ERR_GOTO(tdl_audio_driver_register(name, (TDD_AUDIO_HANDLE_T)_hdl,  &intfs, &info), __ERR);
 
     return rt;
 

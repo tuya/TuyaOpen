@@ -76,9 +76,9 @@ uint8_t encoder_get_pressed(void);
  * and setting up the encoder input interrupt configuration. If the waiting thread has not been
  * created yet, it will start the thread to handle semaphore waiting.
  *
- * @return None
+ * @return OPERATE_RET
  */
-void tkl_encoder_init(void);
+OPERATE_RET tkl_encoder_init(void);
 
 #ifdef __cplusplus
 }

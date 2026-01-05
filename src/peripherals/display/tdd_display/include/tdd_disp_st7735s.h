@@ -36,6 +36,15 @@ extern "C" {
 ********************function declaration********************
 ***********************************************************/
 /**
+ * @brief Sets the initialization sequence for the ST7735S display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_spi_st7735s_set_init_seq(const uint8_t *init_seq);
+
+/**
  * @brief Registers an ST7735S TFT display device using the SPI interface with the display management system.
  *
  * This function configures and registers a display device for the ST7735S series of TFT LCDs 

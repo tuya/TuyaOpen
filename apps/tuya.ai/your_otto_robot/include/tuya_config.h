@@ -21,9 +21,10 @@
  * work.
  *
  */
-	
+
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID "c8ccmpnhz35w5va7"
+#define TUYA_PRODUCT_ID "b05nl7xoijx4fwae" // Otto Ninja Robot
+//#define TUYA_PRODUCT_ID "aub53kai42j8fdlf" // Otto Robot
 #endif
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid

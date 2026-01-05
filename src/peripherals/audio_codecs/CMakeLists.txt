@@ -18,6 +18,12 @@ if (CONFIG_ENABLE_MEDIA STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio.c)
 endif()
 
+# Add ALSA support for Ubuntu platform
+if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio_alsa.c)
+    message(STATUS "ALSA audio support enabled")
+endif()
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC
     ${MODULE_PATH}/tdl_audio/include
@@ -43,6 +49,12 @@ target_include_directories(${MODULE_NAME}
     PUBLIC
         ${LIB_PUBLIC_INC}
     )
+
+# Link ALSA library if ALSA support is enabled
+if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
+    target_link_libraries(${MODULE_NAME} PUBLIC asound pthread)
+    target_compile_definitions(${MODULE_NAME} PUBLIC ENABLE_AUDIO_ALSA=1)
+endif()
 
 
 ########################################

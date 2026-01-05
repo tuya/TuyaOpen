@@ -16,6 +16,8 @@
 #include "tuya_error_code.h"
 #include "tuya_iot.h"
 
+#include <stdio.h>
+
 #include "tuya_endpoint.h"
 #include "tal_kv.h"
 #include "atop_base.h"
@@ -85,14 +87,19 @@ static int activate_json_string_parse(const char *str, tuya_activated_data_t *ou
         goto __exit;
     }
 
-    strcpy(out->devid, cJSON_GetObjectItem(root, "devId")->valuestring);
-    strcpy(out->seckey, cJSON_GetObjectItem(root, "secKey")->valuestring);
-    strcpy(out->localkey, cJSON_GetObjectItem(root, "localKey")->valuestring);
-    strcpy(out->schemaId, cJSON_GetObjectItem(root, "schemaId")->valuestring);
+    strncpy(out->devid, cJSON_GetObjectItem(root, "devId")->valuestring, sizeof(out->devid) - 1);
+    out->devid[sizeof(out->devid) - 1] = '\0';
+    strncpy(out->seckey, cJSON_GetObjectItem(root, "secKey")->valuestring, sizeof(out->seckey) - 1);
+    out->seckey[sizeof(out->seckey) - 1] = '\0';
+    strncpy(out->localkey, cJSON_GetObjectItem(root, "localKey")->valuestring, sizeof(out->localkey) - 1);
+    out->localkey[sizeof(out->localkey) - 1] = '\0';
+    strncpy(out->schemaId, cJSON_GetObjectItem(root, "schemaId")->valuestring, sizeof(out->schemaId) - 1);
+    out->schemaId[sizeof(out->schemaId) - 1] = '\0';
 
     cJSON *stdTimeZone = cJSON_GetObjectItem(root, "stdTimeZone");
     if (stdTimeZone) {
-        strcpy(out->timezone, stdTimeZone->valuestring);
+        strncpy(out->timezone, stdTimeZone->valuestring, sizeof(out->timezone) - 1);
+        out->timezone[sizeof(out->timezone) - 1] = '\0';
     }
 
 __exit:
@@ -564,10 +571,10 @@ int tuya_iot_init(tuya_iot_client_t *client, const tuya_iot_config_t *config)
     client->config = *config;
 
     /* Config param dump */
-    PR_DEBUG("software_ver:%s", client->config.software_ver);
-    PR_DEBUG("productkey:%s", client->config.productkey);
-    PR_DEBUG("uuid:%s", client->config.uuid);
-    PR_DEBUG("authkey:%s", client->config.authkey);
+    // PR_DEBUG("software_ver:%s", client->config.software_ver);
+    // PR_DEBUG("productkey:%s", client->config.productkey);
+    // PR_DEBUG("uuid:%s", client->config.uuid);
+    // PR_DEBUG("authkey:%s", client->config.authkey);
 
     tal_semaphore_create_init(&client->token_get.sem, 0, 1);
 
@@ -1064,13 +1071,24 @@ static int tuya_iot_dp_report_json_common(tuya_iot_client_t *client, const char 
 
     /* Package JSON format */
     if (time) {
-        buffer = tal_malloc(strlen(dps) + strlen(time) + 64);
+        size_t buf_len = strlen(dps) + strlen(time) + 64;
+        buffer = tal_malloc(buf_len);
         TUYA_CHECK_NULL_RETURN(buffer, OPRT_MALLOC_FAILED);
-        printlen = sprintf(buffer, "{\"devId\":\"%s\",\"dps\":%s,\"t\":%s}", client->activate.devid, dps, time);
+        printlen = snprintf(buffer, buf_len, "{\"devId\":\"%s\",\"dps\":%s,\"t\":%s}",
+                             client->activate.devid, dps, time);
+        if (printlen < 0 || (size_t)printlen >= buf_len) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
     } else {
-        buffer = tal_malloc(strlen(dps) + 64);
+        size_t buf_len = strlen(dps) + 64;
+        buffer = tal_malloc(buf_len);
         TUYA_CHECK_NULL_RETURN(buffer, OPRT_MALLOC_FAILED);
-        printlen = sprintf(buffer, "{\"devId\":\"%s\",\"dps\":%s}", client->activate.devid, dps);
+        printlen = snprintf(buffer, buf_len, "{\"devId\":\"%s\",\"dps\":%s}", client->activate.devid, dps);
+        if (printlen < 0 || (size_t)printlen >= buf_len) {
+            tal_free(buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
     }
 
     /* Report buffer */
@@ -1211,7 +1229,8 @@ int tuya_iot_token_get_port_register(tuya_iot_client_t *client, tuya_token_get_c
  */
 int tuya_iot_version_update_sync(tuya_iot_client_t *client)
 {
-    if (client == NULL) {
+    if (client == NULL || client->config.software_ver == NULL || client->config.software_ver[0] == '\0' ||
+        client->config.storage_namespace == NULL || client->config.storage_namespace[0] == '\0') {
         return OPRT_INVALID_PARM;
     }
 
@@ -1230,22 +1249,57 @@ int tuya_iot_version_update_sync(tuya_iot_client_t *client)
 
     /* Format version JSON buffer */
     size_t version_len = 0;
+    size_t remain = prealloc_size;
     if (client->config.modules) {
         /* extension modules version */
-        version_len += sprintf(version_buffer + version_len, "%s", client->config.modules);
+        int written = snprintf(version_buffer + version_len, remain, "%s", client->config.modules);
+        if (written < 0 || (size_t)written >= remain) {
+            tal_free(version_buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        version_len += (size_t)written;
+        if (version_len == 0) {
+            tal_free(version_buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
         version_len -= 1; // remove ']'
-        version_len += sprintf(version_buffer + version_len, ",");
+        version_buffer[version_len] = '\0';
+        remain = prealloc_size - version_len;
+        written = snprintf(version_buffer + version_len, remain, ",");
+        if (written < 0 || (size_t)written >= remain) {
+            tal_free(version_buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        version_len += (size_t)written;
+        remain = prealloc_size - version_len;
     } else {
-        version_len += sprintf(version_buffer + version_len, "[");
+        int written = snprintf(version_buffer + version_len, remain, "[");
+        if (written < 0 || (size_t)written >= remain) {
+            tal_free(version_buffer);
+            return OPRT_BUFFER_NOT_ENOUGH;
+        }
+        version_len += (size_t)written;
+        remain = prealloc_size - version_len;
     }
 
     /* Main firmware information */
-    version_len += sprintf(version_buffer + version_len,
+    int written = snprintf(version_buffer + version_len, remain,
                            "{\\\"otaChannel\\\":%d,\\\"protocolVer\\\":\\\"%s\\\","
                            "\\\"baselineVer\\\":\\\"%s\\\",\\\"softVer\\\":\\\"%s\\\"}",
                            0, PV_VERSION, BS_VERSION, client->config.software_ver);
+    if (written < 0 || (size_t)written >= remain) {
+        tal_free(version_buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    version_len += (size_t)written;
+    remain = prealloc_size - version_len;
 
-    version_len += sprintf(version_buffer + version_len, "]");
+    written = snprintf(version_buffer + version_len, remain, "]");
+    if (written < 0 || (size_t)written >= remain) {
+        tal_free(version_buffer);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    version_len += (size_t)written;
     PR_DEBUG("%s", version_buffer);
 
     /* local storage read buffer*/
@@ -1296,6 +1350,10 @@ int tuya_iot_version_update_sync(tuya_iot_client_t *client)
  */
 int tuya_iot_extension_modules_version_update(tuya_iot_client_t *client, const char *version)
 {
+    if (client == NULL || version == NULL || version[0] == '\0') {
+        return OPRT_INVALID_PARM;
+    }
+
     client->config.modules = version;
     return tuya_iot_version_update_sync(client);
 }

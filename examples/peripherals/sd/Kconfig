@@ -1,0 +1,40 @@
+menu "Application config"
+
+    config EBABLE_EXAMPLE_SD_PINMUX
+        bool "enable sd pinmux"
+        default n
+
+if(EBABLE_EXAMPLE_SD_PINMUX)
+    config EXAMPLE_SD_CLK_PIN
+        int "clk pin"
+        default 14
+        range 0 63
+
+    config EXAMPLE_SD_CMD_PIN
+        int "cmd pin"
+        default 15
+        range 0 63
+
+    config EXAMPLE_SD_D0_PIN
+            int "cmd pin"
+            default 16
+            range 0 63
+
+    config EXAMPLE_SD_D1_PIN
+            int "cmd pin"
+            default 17
+            range 0 63
+
+    config EXAMPLE_SD_D2_PIN
+            int "cmd pin"
+            default 18
+            range 0 63
+
+    config EXAMPLE_SD_D3_PIN
+            int "cmd pin"
+            default 19
+            range 0 63
+
+endif
+
+endmenu

@@ -36,9 +36,9 @@ menuconfig ENABLE_LIBLVGL
             depends on LVGL_VERSION_9
             default n
 
-        config LVGL_ENABLE_TOUCH
-            bool "enable lvgl touch"
-            select ENABLE_TOUCH if (!ENABLE_PLATFORM_LVGL)
+        config LVGL_ENABLE_TP
+            bool "enable lvgl tp"
+            select ENABLE_TP if (!ENABLE_PLATFORM_LVGL)
             default n
 
         if (!ENABLE_PLATFORM_LVGL)
@@ -63,12 +63,7 @@ menuconfig ENABLE_LIBLVGL
             config ENABLE_LVGL_DUAL_DISP_BUFF
                 bool "enable lvgl dual display buffer"
                 default n
-
-            config ENABLE_LVGL_DMA2D
-                bool "enable lvgl DMA2D"
-                depends on ENABLE_DMA2D
-                default n 
-
+ 
             choice
                 prompt "the proportion of the draw buffer size"
 
@@ -83,4 +78,7 @@ menuconfig ENABLE_LIBLVGL
                 default 10 if LV_DRAW_BUF_PROPORTION_10
                 default 20 if LV_DRAW_BUF_PROPORTION_5
         endif
+
+        # Font configuration
+        rsource "Fonts_Kconfig"
     endif

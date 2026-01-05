@@ -35,8 +35,6 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-#define TIMER_ID TUYA_TIMER_NUM_3
-
 static char sg_count = 0;
 
 /***********************************************************
@@ -57,9 +55,9 @@ static void __timer_callback(void *args)
 
     if (sg_count >= 5) {
         sg_count = 0;
-        tkl_timer_stop(TIMER_ID);
-        tkl_timer_deinit(TIMER_ID);
-        tkl_log_output("\r\ntimer %d is stop\r\n", TIMER_ID);
+        tkl_timer_stop(EXAMPLE_TIMER_ID);
+        tkl_timer_deinit(EXAMPLE_TIMER_ID);
+        tkl_log_output("\r\ntimer %d is stop\r\n", EXAMPLE_TIMER_ID);
     }
 
     return;
@@ -89,15 +87,11 @@ void user_main(void)
 
     /* timer init */
     TUYA_TIMER_BASE_CFG_T sg_timer_cfg = {.mode = TUYA_TIMER_MODE_PERIOD, .args = NULL, .cb = __timer_callback};
-    TUYA_CALL_ERR_GOTO(tkl_timer_init(TIMER_ID, &sg_timer_cfg), __EXIT);
+    TUYA_CALL_ERR_GOTO(tkl_timer_init(EXAMPLE_TIMER_ID, &sg_timer_cfg), __EXIT);
 
     /*start timer*/
-    TUYA_CALL_ERR_GOTO(tkl_timer_start(TIMER_ID, DELAY_TIME), __EXIT);
-    PR_NOTICE("timer %d is start", TIMER_ID);
-
-    while (1) {
-        tal_system_sleep(1000);
-    }
+    TUYA_CALL_ERR_GOTO(tkl_timer_start(EXAMPLE_TIMER_ID, DELAY_TIME), __EXIT);
+    PR_NOTICE("timer %d is start", EXAMPLE_TIMER_ID);
 
 __EXIT:
     return;

@@ -104,6 +104,45 @@ void *tal_realloc(void *ptr, size_t size)
 {
     return tkl_system_realloc(ptr, size);
 }
+
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+void *tal_psram_malloc(size_t size)
+{
+    if (0 == size) {
+        return NULL;
+    }
+
+    void *ptr = NULL;
+    ptr = tkl_system_psram_malloc(size);
+
+    if (NULL == ptr) {
+        PR_ERR("0x%x psram malloc failed:0x%x free:0x%x", __builtin_return_address(0), size,
+               tal_system_get_free_heap_size());
+    }
+
+    return ptr;
+}
+
+void tal_psram_free(void *ptr)
+{
+    if (NULL == ptr) {
+        return;
+    }
+
+    tkl_system_psram_free(ptr);
+}
+
+void *tal_psram_calloc(size_t nitems, size_t size)
+{
+    return tkl_system_psram_calloc(nitems, size);
+}
+
+void *tal_psram_realloc(void *ptr, size_t size)
+{
+    return tkl_system_psram_realloc(ptr, size);
+}
+#endif
+
 /**
  * @brief Sleeps for the specified amount of time in milliseconds.
  *

@@ -53,7 +53,7 @@ void weather_get_workqueue_cb(void *data)
 
     /* Get current wind */
     char wind_dir[64] = {0}, wind_speed[64] = {0};
-    rt = tuya_weather_get_current_wind(wind_dir, wind_speed);
+    rt = tuya_weather_get_current_wind(wind_dir, sizeof(wind_dir), wind_speed, sizeof(wind_speed));
     if (OPRT_OK != rt) {
         PR_ERR("get current wind failed: %d", rt);
         return;
@@ -65,7 +65,8 @@ void weather_get_workqueue_cb(void *data)
 
     /* Get current wind for China */
     int wind_level = 0;
-    rt = tuya_weather_get_current_wind_cn(wind_dir, wind_speed, &wind_level); // wind_level only support Mainland China
+    rt = tuya_weather_get_current_wind_cn(wind_dir, sizeof(wind_dir), wind_speed, sizeof(wind_speed),
+                                          &wind_level); // wind_level only support Mainland China
     if (OPRT_OK != rt) {
         PR_ERR("get current wind cn failed: %d", rt);
         return;
@@ -79,7 +80,7 @@ void weather_get_workqueue_cb(void *data)
     /* Get current sunrise and sunset */
     char sunrise[64] = {0};
     char sunset[64] = {0};
-    rt = tuya_weather_get_current_sunrise_sunset_gmt(sunrise, sunset);
+    rt = tuya_weather_get_current_sunrise_sunset_gmt(sunrise, sizeof(sunrise), sunset, sizeof(sunset));
     if (OPRT_OK != rt) {
         PR_ERR("get current sunrise sunset gmt failed: %d", rt);
         return;
@@ -90,7 +91,7 @@ void weather_get_workqueue_cb(void *data)
     PR_DEBUG_RAW("sunset: %s\n", sunset);
 
     /* Get current sunrise and sunset in local timezone */
-    rt = tuya_weather_get_current_sunrise_sunset_local(sunrise, sunset);
+    rt = tuya_weather_get_current_sunrise_sunset_local(sunrise, sizeof(sunrise), sunset, sizeof(sunset));
     if (OPRT_OK != rt) {
         PR_ERR("get current sunrise sunset local failed: %d", rt);
         return;
@@ -219,7 +220,7 @@ void weather_get_workqueue_cb(void *data)
 
     /* Get city */
     char province[64] = {0}, city[64] = {0}, area[64] = {0};
-    rt = tuya_weather_get_city(province, city, area);
+    rt = tuya_weather_get_city(province, sizeof(province), city, sizeof(city), area, sizeof(area));
     if (OPRT_OK != rt) {
         PR_ERR("get city failed: %d", rt);
         return;

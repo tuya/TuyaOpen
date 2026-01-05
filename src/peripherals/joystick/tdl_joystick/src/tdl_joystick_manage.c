@@ -35,7 +35,7 @@
 #define TDL_LONG_KEEP_TIMER          100   // ms
 #define TDL_JOYSTICK_DEBOUNCE_TIME   60    // ms
 #define TDL_JOYSTICK_IRQ_SCAN_TIME   10000 // ms
-#define TDL_JOYSTICK_SCAN_TIME       10    // 10ms
+#define TDL_JOYSTICK_SCAN_TIME       20    // 10ms
 #define TDL_JOYSTICK_IRQ_SCAN_CNT    (TDL_JOYSTICK_IRQ_SCAN_TIME / TDL_JOYSTICK_SCAN_TIME)
 #define TOUCH_DELAY                  500 // Click interval for single/double click differentiation
 #define TDL_JOYSTICK_TASK_STACK_SIZE (4096)

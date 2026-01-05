@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-# if (CONFIG_ENABLE_ADC STREQUAL "y")
+if (CONFIG_ENABLE_TOUCH STREQUAL "y")
 
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
@@ -23,6 +23,6 @@ target_sources(${EXAMPLE_LIB}
     PRIVATE
         ${APP_SRCS}
     )
-# else()
-# message(FATAL_ERROR "adc cannot work when CONFIG_ENABLE_ADC is not set")
-# endif()
+else()
+message(FATAL_ERROR "touch cannot work when CONFIG_ENABLE_TOUCH is not set")
+endif()

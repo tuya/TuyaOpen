@@ -2,8 +2,7 @@
 #define __GAME_PET_H__
 
 #include "lv_vendor.h"
-#include "pet_area.h"
-#include "menu_system.h"
+#include "main_screen.h"
 
 #ifdef __cplusplus
 extern "C" {

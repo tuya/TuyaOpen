@@ -43,7 +43,9 @@ typedef struct {
     TUYA_DISPLAY_IO_CTRL_T power;
 
     TDD_DISP_DEV_HANDLE_T tdd_hdl;
-    TDD_DISP_INTFS_T intfs;
+    TDD_DISP_INTFS_T      intfs;
+    TDD_SET_BACKLIGHT_CB  custom_set_bl_cb;
+    void                 *custom_set_bl_arg;
 } DISPLAY_DEVICE_T;
 
 /***********************************************************
@@ -301,6 +303,13 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
             tkl_pwm_stop(display_dev->bl.pwm.id);
         }
 #endif
+    }else if(display_dev->bl.type == TUYA_DISP_BL_TP_CUSTOM) {
+        if (display_dev->custom_set_bl_cb) {
+            display_dev->custom_set_bl_cb(brightness, display_dev->custom_set_bl_arg);
+        }else {
+            PR_ERR("no register custom backlight control callback");
+            return OPRT_NOT_SUPPORTED;
+        }
     } else if (display_dev->bl.type == TUYA_DISP_BL_TP_NONE) {
         PR_NOTICE("There is no backlight control pin on the board");
     } else {
@@ -454,12 +463,13 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
 
     strncpy(display_dev->name, name, DISPLAY_DEV_NAME_MAX_LEN);
 
-    display_dev->info.type = dev_info->type;
-    display_dev->info.width = dev_info->width;
-    display_dev->info.height = dev_info->height;
-    display_dev->info.fmt = dev_info->fmt;
+    display_dev->info.type     = dev_info->type;
+    display_dev->info.width    = dev_info->width;
+    display_dev->info.height   = dev_info->height;
+    display_dev->info.fmt      = dev_info->fmt;
     display_dev->info.rotation = dev_info->rotation;
     display_dev->info.is_swap  = dev_info->is_swap;
+    display_dev->info.has_vram = dev_info->has_vram;
 
     memcpy(&display_dev->bl, &dev_info->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
     memcpy(&display_dev->power, &dev_info->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
@@ -469,6 +479,84 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
     memcpy(&display_dev->intfs, intfs, sizeof(TDD_DISP_INTFS_T));
 
     tuya_list_add(&display_dev->node, &sg_display_list);
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Registers a custom backlight control callback for a display device
+ * 
+ * @param name Name of the display device
+ * @param set_bl_cb Pointer to the custom backlight control callback function
+ * @param arg User-defined argument to be passed to the callback function
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, OPRT_INVALID_PARM if parameters are NULL,
+ *                     or OPRT_COM_ERROR if the display device is not found
+ */
+OPERATE_RET tdl_disp_custom_backlight_register(char *name, TDD_SET_BACKLIGHT_CB set_bl_cb, void *arg)
+{
+    DISPLAY_DEVICE_T *display_dev = NULL;
+
+    if (NULL == name || NULL == set_bl_cb) {
+        return OPRT_INVALID_PARM;
+    }
+
+    display_dev = __find_display_device(name);
+    if (NULL == display_dev) {
+        return OPRT_COM_ERROR;
+    }
+
+    display_dev->custom_set_bl_cb = set_bl_cb;
+    display_dev->custom_set_bl_arg = arg;
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Swaps the byte order of each pixel in an array of RGB565 data.
+ *
+ * This function takes an array of RGB565 data and swaps the byte order of each pixel.
+ * It is typically used to convert between the byte order used by the display device and the
+ * byte order expected by the application.
+ *
+ * @param data Pointer to the array of RGB565 data.
+ * @param len  Length of the data array in pixels.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if the operation fails.
+ */
+OPERATE_RET tdl_disp_dev_rgb565_swap(uint16_t *buf, uint32_t len)
+{
+    uint32_t u32_cnt = len / 2;
+    uint16_t * buf16 = (uint16_t *)buf;
+    uint32_t * buf32 = (uint32_t *)buf;
+
+    if (NULL == buf || 0 == len) {
+        return OPRT_INVALID_PARM;
+    }
+
+    while(u32_cnt >= 8) {
+        buf32[0] = ((buf32[0] & 0xff00ff00) >> 8) | ((buf32[0] & 0x00ff00ff) << 8);
+        buf32[1] = ((buf32[1] & 0xff00ff00) >> 8) | ((buf32[1] & 0x00ff00ff) << 8);
+        buf32[2] = ((buf32[2] & 0xff00ff00) >> 8) | ((buf32[2] & 0x00ff00ff) << 8);
+        buf32[3] = ((buf32[3] & 0xff00ff00) >> 8) | ((buf32[3] & 0x00ff00ff) << 8);
+        buf32[4] = ((buf32[4] & 0xff00ff00) >> 8) | ((buf32[4] & 0x00ff00ff) << 8);
+        buf32[5] = ((buf32[5] & 0xff00ff00) >> 8) | ((buf32[5] & 0x00ff00ff) << 8);
+        buf32[6] = ((buf32[6] & 0xff00ff00) >> 8) | ((buf32[6] & 0x00ff00ff) << 8);
+        buf32[7] = ((buf32[7] & 0xff00ff00) >> 8) | ((buf32[7] & 0x00ff00ff) << 8);
+        buf32 += 8;
+        u32_cnt -= 8;
+    }
+
+    while(u32_cnt) {
+        *buf32 = ((*buf32 & 0xff00ff00) >> 8) | ((*buf32 & 0x00ff00ff) << 8);
+        buf32++;
+        u32_cnt--;
+    }
+
+    if(len & 0x1) {
+        uint32_t e = len - 1;
+        buf16[e] = ((buf16[e] & 0xff00) >> 8) | ((buf16[e] & 0x00ff) << 8);
+    }
 
     return OPRT_OK;
 }

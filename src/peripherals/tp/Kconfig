@@ -1,0 +1,4 @@
+config ENABLE_TP
+    bool "enable touchpad driver"
+    depends on ENABLE_DISPLAY
+    default n

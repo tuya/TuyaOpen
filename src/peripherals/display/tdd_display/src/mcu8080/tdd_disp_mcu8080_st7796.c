@@ -21,7 +21,7 @@
 /***********************************************************
 ***********************const define**********************
 ***********************************************************/
-const uint32_t cST7796S_INIT_SEQ[] = {
+static const uint32_t cST7796S_INIT_SEQ[] = {
     1,    0,    0x01, 
     1,    120,  0x28, 
     2,    0,    0xF0, 0xC3,
@@ -46,16 +46,34 @@ const uint32_t cST7796S_INIT_SEQ[] = {
 };
 
 static TDD_DISP_MCU8080_CFG_T sg_disp_mcu8080_cfg = {
-    .cmd_caset = ST7796S_CASET,
-    .cmd_raset = ST7796S_RASET,
-    .cmd_ramwr = ST7796S_RAMWR,
-    .cmd_ramwr = ST7796S_RAMWRC,
+    .cmd_caset  = ST7796S_CASET,
+    .cmd_raset  = ST7796S_RASET,
+    .cmd_ramwr  = ST7796S_RAMWR,
+    .cmd_ramwrc = ST7796S_RAMWRC,
     .init_seq = cST7796S_INIT_SEQ,
 };
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Sets the initialization sequence for the ST7796S display
+ * 
+ * @param init_seq Pointer to the initialization sequence array
+ * 
+ * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
+ */
+OPERATE_RET tdd_disp_mcu8080_st7796s_set_init_seq(const uint32_t *init_seq)
+{
+    if(NULL == init_seq) {
+        return OPRT_INVALID_PARM;
+    }
+
+    sg_disp_mcu8080_cfg.init_seq = init_seq;
+
+    return OPRT_OK;
+}
+
 /**
  * @brief Registers an ST7796S TFT display device using the MCU8080 interface with the display management system.
  *
@@ -82,6 +100,7 @@ OPERATE_RET tdd_disp_mcu8080_st7796s_register(char *name, DISP_MCU8080_DEVICE_CF
     sg_disp_mcu8080_cfg.cfg.clk = dev_cfg->clk;
     sg_disp_mcu8080_cfg.cfg.data_bits = dev_cfg->data_bits;
 
+    sg_disp_mcu8080_cfg.in_fmt = dev_cfg->pixel_fmt;
     sg_disp_mcu8080_cfg.rotation = dev_cfg->rotation;
     sg_disp_mcu8080_cfg.te_pin = dev_cfg->te_pin;
     sg_disp_mcu8080_cfg.te_mode = dev_cfg->te_mode;

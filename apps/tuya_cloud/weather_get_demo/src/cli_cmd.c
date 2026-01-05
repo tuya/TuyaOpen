@@ -52,7 +52,11 @@ static void system_cmd(int argc, char *argv[])
     size_t offset = 0;
 
     for (int i = 1; i < argc; i++) {
-        offset += sprintf(cmd + offset, "%s ", argv[i]);
+        int ret = snprintf(cmd + offset, sizeof(cmd) - offset, "%s ", argv[i]);
+        if (ret < 0 || offset + ret >= sizeof(cmd)) {
+            break;
+        }
+        offset += ret;
     }
 
     PR_DEBUG("system %s", cmd);

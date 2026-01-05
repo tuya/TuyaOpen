@@ -44,6 +44,13 @@ void disp_enable_update(void);
  */
 void disp_disable_update(void);
 
+/**
+ * @brief Sets the display backlight brightness
+ * 
+ * @param brightness Brightness level (0-100)
+ */
+void disp_set_backlight(uint8_t brightness);
+
 /**********************
  *      MACROS
  **********************/

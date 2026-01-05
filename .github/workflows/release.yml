@@ -7,7 +7,7 @@ on:
 
 jobs:
   sync:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout GitHub code
         uses: actions/checkout@v4
@@ -28,6 +28,8 @@ jobs:
 
   gen-artifacts:
     runs-on: self-hosted
+    env:
+      OPEN_COUNTRY_CODE: "NONE"
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -61,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-          path: ${{ github.workspace }}/dist/*.zip
+          path: ${{ github.workspace }}/dist/*.bin
 
   release:
     runs-on: self-hosted
@@ -80,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sync-release-to-gitee:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [release]
     steps:
       - name: Download artifacts

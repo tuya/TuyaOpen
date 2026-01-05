@@ -222,9 +222,8 @@ typedef enum { BANK_DSP, BANK_SENSOR, BANK_MAX } ov2640_bank_t;
 /***********************************************************
 ***********************const define***********************
 ***********************************************************/
-// 30fps@24MHz
-const uint8_t sensor_dvp_ov2640_init_talbe[][2] = {
 
+const uint8_t cOV2640_INIT_TAB[][2] = {
     {BANK_SEL, BANK_DSP},
     {0x2c, 0xff},
     {0x2e, 0xdf},
@@ -296,7 +295,6 @@ const uint8_t sensor_dvp_ov2640_init_talbe[][2] = {
     {0x42, 0x20},
     {0x43, 0x18},
     {0x4c, 0x00},
-    // {CTRL3, CTRL3_WPC_EN | 0x10},
     {CTRL3, 0xD5},
     {0x88, 0x3f},
     {0xd7, 0x03},
@@ -375,7 +373,6 @@ const uint8_t sensor_dvp_ov2640_init_talbe[][2] = {
     {0xb1, 0x94},
     {0xb2, 0x0f},
     {0xc4, 0x5c},
-    // {CTRL1, 0xfd},
     {CTRL1, 0xef},
     {0x7f, 0x00},
     {0xe5, 0x1f},
@@ -449,25 +446,16 @@ const uint8_t sensor_dvp_ov2640_init_talbe[][2] = {
     {0xE1, 0x67},
     {RESET, 0x00},
     {0, 0},
-    // {0xD7, 0x03},
-    // {0xDF, 0x00},
-    // {0x33, 0x80},
-    // {0x3C, 0x40},
-    // {0xE1, 0x77},
-    // {0x00, 0x00},
-
 
     //
     // agc
     //
     {BANK_SEL, BANK_DSP},
-    // {CTRL3, CTRL3_WPC_EN | CTRL3_BPC_EN},
     {CTRL3, 0xD5},
-    // {CTRL1, 0xFF},
     {CTRL1, 0xED},
 };
 
-const uint8_t sensor_dvp_ov2640_1280X720_talbe[][2] = {
+const uint8_t cOV2640_1280_720_TAB[][2] = {
     {0xff, 0x00},
     {0xe0, 0x04},
     // UXGA（1600×1200）
@@ -495,7 +483,7 @@ const uint8_t sensor_dvp_ov2640_1280X720_talbe[][2] = {
     {0xe0, 0x00},
 };
 
-const uint8_t sensor_dvp_ov2640_480X480_talbe[][2] = {
+const uint8_t cOV2640_480_480_TAB[][2] = {
     {0xff, 0x00},
     {0xe0, 0x04},
     // UXGA（1600×1200）
@@ -513,13 +501,40 @@ const uint8_t sensor_dvp_ov2640_480X480_talbe[][2] = {
     // VHYX
     {0x55, 0x01},
     // OUT W H
-    // 1280*720 -> 120*120
+    // 480*480 -> 120*120
     {0x5A, 0x78},
     {0x5B, 0x78},
     {0x5C, 0x00},
     {0xd3, 0x82},
     {0xe0, 0x00},
 };
+
+const uint8_t cOV2640_240_240_TAB[][2] = {
+    {0xff, 0x00},
+    {0xe0, 0x04},
+    // UXGA（1600×1200）
+    {0xc0, 0xc8},
+    {0xc1, 0x96},
+    // HSIZE 960/4 -> 240 -> 0xF0
+    {0x51, 0xF0},
+    // VSIZE 960/4 -> 240 -> 0xF0
+    {0x52, 0xF0},
+    // 960×960 as ROI
+    // XOFF 320 -> 0x0140
+    {0x53, 0x40},
+    // YOFF 120 -> 0x78
+    {0x54, 0x78},
+    // VHYX
+    {0x55, 0x01},
+    // OUT W H
+    // 240*240 -> 60*60
+    {0x5A, 0x3C},
+    {0x5B, 0x3C},
+    {0x5C, 0x00},
+    {0xd3, 0x82},
+    {0xe0, 0x00},
+};
+
 
 /***********************************************************
 ********************function declaration********************

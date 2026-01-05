@@ -15,7 +15,12 @@
 #include "tuya_iot.h"
 #include "netmgr.h"
 
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tkl_wifi.h"
+#else
+// Stub WiFi functions for non-WiFi platforms (e.g., Ubuntu with wired)
+#include "tkl_wifi_stub.h"
+#endif
 
 /***********************************************************
 ************************macro define************************

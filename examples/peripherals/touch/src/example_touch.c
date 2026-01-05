@@ -10,18 +10,18 @@
  */
 
 #include "tuya_cloud_types.h"
-
 #include "tal_api.h"
+
 #include "tkl_output.h"
 #include "tkl_touch.h"
 
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
+#define EXAMPLE_TOUCH_ID             1
+#define MULTI_TOUCH_CHANNEL_MASK     0xCF3F // Exclude channels 6,7,12,13
+#define SINGLE_TOUCH_CHANNEL_MASK    (1 << EXAMPLE_TOUCH_ID) // Single channel test uses channel 1
 
-#define MULTI_TOUCH_CHANNEL_MASK  0xCF3F // Exclude channels 6,7,12,13
-#define USER_TOUCH_ID             1
-#define SINGLE_TOUCH_CHANNEL_MASK (1 << USER_TOUCH_ID) // Single channel test uses channel 1
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -29,7 +29,6 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
 /**
  * @brief Touch event callback function
  *
@@ -37,7 +36,7 @@
  * @param[in] event Touch event type
  * @param[in] arg User parameter
  */
-static void touch_event_callback(UINT32_T channel, TUYA_TOUCH_EVENT_E event, VOID *arg)
+static void touch_event_callback(uint32_t channel, TUYA_TOUCH_EVENT_E event, void *arg)
 {
     switch (event) {
     case TUYA_TOUCH_EVENT_PRESSED:
@@ -47,15 +46,14 @@ static void touch_event_callback(UINT32_T channel, TUYA_TOUCH_EVENT_E event, VOI
     case TUYA_TOUCH_EVENT_RELEASED:
         PR_NOTICE("*** TOUCH EVENT RELEASED UP *** Channel %d", channel);
         break;
-
     case TUYA_TOUCH_EVENT_LONG_PRESS:
         PR_NOTICE("*** TOUCH EVENT LONG PRESSED *** Channel %d", channel);
         break;
-
     default:
         break;
     }
 }
+
 /**
  * @brief user_main
  *
@@ -66,9 +64,9 @@ void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_TOUCH_CONFIG_T touch_config;
-    float median_value = 0;
+    float median_value = 0.0f;
 
-    /* basic init */
+    /* Basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("========================================");
@@ -93,16 +91,21 @@ void user_main(void)
     touch_config.threshold.touch_detect_threshold = 0.4f;
     touch_config.threshold.touch_variance_threshold = 0.1f;
 
+    /* Initialize touch channel and register event callback */
     TUYA_CALL_ERR_LOG(tkl_touch_init(SINGLE_TOUCH_CHANNEL_MASK, &touch_config));
     TUYA_CALL_ERR_LOG(tkl_touch_register_callback(SINGLE_TOUCH_CHANNEL_MASK, touch_event_callback, NULL));
 
     while (1) {
-        tkl_touch_get_single_average_filter_value(USER_TOUCH_ID, &median_value);
-        PR_DEBUG("touch channel [%d] cap value: %f", USER_TOUCH_ID, median_value);
+        rt = tkl_touch_get_single_average_filter_value(EXAMPLE_TOUCH_ID, &median_value);
+        if (rt == OPRT_OK) {
+            PR_DEBUG("[SIMPLE] touch channel [%d] cap value: %f", EXAMPLE_TOUCH_ID, median_value);
+        } else {
+            PR_ERR("[SIMPLE] read failed rt=%d", rt);
+        }
+
         tal_system_sleep(500);
     }
 
-    return;
 }
 
 /**

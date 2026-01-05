@@ -19,3 +19,8 @@ config UART_NUM0_RX_PIN
     default 3
     ---help---
         esp32    default 3
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_ESP_DISPLAY
