@@ -102,15 +102,14 @@ def download_platform(platform):
     if code == "China":
         set_repo_mirro(unset=False)
 
-    if not git_clone(repo, platform_root) \
-            or not git_checkout(platform_root, commit):
-        return False
-
-    if code == "China":
-        set_repo_mirro(unset=True)
-
-    return True
-
+    try:
+        if not git_clone(repo, platform_root) \
+                or not git_checkout(platform_root, commit):
+            return False
+        return True
+    finally:
+        if code == "China":
+            set_repo_mirro(unset=True)
 
 def prepare_platform(platform, chip=""):
     '''
