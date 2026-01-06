@@ -122,6 +122,44 @@ GND -------------- GND
 
 必要配置：机器狗部分表情 GIF 已打包为 LittleFS 镜像，位于 `./src/display/emotion/fs/fs.bin`，必须将其烧入 FLASH 中指定地址处。
 
+<<<<<<< HEAD
+若不配置可能导致系统异常重启或小狗表情显示不全。
+
+步骤如下：
+1. 下载 TuyaOpen 官方烧录工具 TyuTool，TyuTool 是一款为物联网（IoT）开发者设计的、跨平台的串口工具，用于烧录和读取多种主流芯片的固件。
+2. 进入后在“Operate”中选中“Write”，在“File In”中选中 `fs.bin` 的路径。
+3. 在“Start”中配置 `fs.bin` 的起始地址，配置起始地址为 `0x6cb000`，点击下方“Start”按键开始烧录。
+
+![](./img/TyaTool_1.png)
+
+4. 如图所示即烧录成功。
+
+![](./img/TyaTool_2.png)
+
+#### 如何自己生成 fs.bin（可选）
+
+若需要增删表情，可本地重新打包：
+
+1. 准备 GIF  
+   把想要的表情文件重命名为：  
+   `angry.gif confused.gif disappointed.gif embarrassed.gif happy.gif laughing.gif relaxed.gif sad.gif happy.gif surprise.gif thinking.gif `  
+   并统一放到任意空目录，例如 `/tmp/gif_pack`。
+   注意：所有 GIF 总和必须 < 1 MB。设备端代码通过 /angry.gif 这类绝对路径加载，务必保持代码里的命名一致。
+
+2. 一键打包  
+   使用mklittlefs工具，工具使用说明位于TuyaOpen/platform/T5AI/t5_os/ap/components/littlefs/mkimg/README.md
+   在 TuyaOpen 根目录执行：
+
+   platform/T5AI/t5_os/ap/components/littlefs/mkimg/mklittlefs \
+     -c /tmp/gif_pack \
+     -b 4096 -p 256 -s 1048576 \
+     apps/tuya.ai/your_robot_dog/fs.bin
+
+	执行完该命令可以看到生成的 `fs.bin` 在 apps/tuya.ai/your_robot_dog 目录下。
+
+	参数含义：
+	-c 源目录 -b 块大小 -p 页大小 -s 镜像总大小（1 MB）
+=======
 若不配置可能导致系统访问非法地址（表现为一直重启）或小狗表情显示不全。
 
 步骤如下：
@@ -135,6 +173,7 @@ GND -------------- GND
 ![](./img/BKFIL_2.png)
 
 4. 进入主界面点击烧录即可。
+>>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 ## 补充说明
 `your_robot_dog` 为移植项目，TUYA_T5AI_ROBOT_DOG 的底板与常规 T5AI 开发板对比有较大差异。
