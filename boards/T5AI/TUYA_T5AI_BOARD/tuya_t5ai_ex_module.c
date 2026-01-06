@@ -48,8 +48,9 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.sw_spi_cfg.spi_rst = BOARD_LCD_SW_SPI_RST_PIN;
 
     display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
-    display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
-    display_cfg.bl.gpio.active_level = BOARD_LCD_BL_ACTIVE_LV;
+    display_cfg.bl.pwm.id            = BOARD_LCD_BL_PWM_ID;
+    display_cfg.bl.pwm.cfg.frequency = 1000;
+    display_cfg.bl.pwm.cfg.duty      = 10000; // 0-10000
 
     display_cfg.width     = BOARD_LCD_WIDTH;
     display_cfg.height    = BOARD_LCD_HEIGHT;

@@ -38,9 +38,8 @@ extern "C" {
 #define BOARD_LCD_SW_SPI_DC_PIN      TUYA_GPIO_NUM_MAX
 #define BOARD_LCD_SW_SPI_RST_PIN     TUYA_GPIO_NUM_53
 
-#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_GPIO 
-#define BOARD_LCD_BL_PIN             TUYA_GPIO_NUM_9
-#define BOARD_LCD_BL_ACTIVE_LV       TUYA_GPIO_LEVEL_HIGH
+#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_PWM
+#define BOARD_LCD_BL_PWM_ID          TUYA_PWM_NUM_7
 
 #define BOARD_LCD_WIDTH              320
 #define BOARD_LCD_HEIGHT             480
