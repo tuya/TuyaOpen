@@ -1,11 +1,7 @@
 English | [简体中文](./RAEDME_zh.md)
 
 # your_robot_dog
-<<<<<<< HEAD
 [your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) is ported from the TuyaOS `tuyaos_demo_ai_toy` project to TuyaOpen based on `your_char_bot`. It adds vivid robot-dog expression changes and servo-controlled actions, bringing an open-source LLM-powered smart-chat robot dog to TuyaOpen. Audio is captured through a microphone and transcribed by ASR to enable conversation, interaction, and playful banter. Emotion changes and interactive behaviors are also shown on the screen.
-=======
-[your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) is ported from the TuyaOS `tuyaos_demo_ai_toy` project based on TuyaOpen’s `your_char_bot`. It adds vivid robot-dog facial expression changes and servo-controlled actions, bringing an open-source LLM-powered smart-chat robot dog to TuyaOpen. It captures voice through a microphone, performs speech recognition, and enables conversation, interaction, and teasing. You can also see emotion changes on the screen and observe interactive behaviors.
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 ![](./img/robot_dog.png)
 
@@ -13,11 +9,7 @@ English | [简体中文](./RAEDME_zh.md)
 1. AI smart conversation
 2. Key wake / voice wake; turn-based dialog; supports voice interruption (hardware-dependent)
 3. Expression display
-<<<<<<< HEAD
 4. Supports LCD to display chat content in real time; supports viewing chat content in real time from the app
-=======
-4. Supports LCD to show chat content in real time; supports viewing chat content in real time on the app
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 5. Switch AI agent roles in real time from the app
 6. Voice control for robot-dog behaviors
 
@@ -41,11 +33,7 @@ To view serial logs:
 TX  -------------- RX_L
 RX  -------------- TX_L
 GND -------------- GND
-<<<<<<< HEAD
 Make sure they share a common ground; otherwise logs may appear garbled.
-=======
-Make sure they share a common ground, otherwise logs may appear garbled.
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 ## Build
 1. Run `tos.py config choice` and select `TUYA_T5AI_ROBOT_DOG.config`.
@@ -89,11 +77,7 @@ Make sure they share a common ground, otherwise logs may appear garbled.
 
 - **Wake word**
 
-<<<<<<< HEAD
 	This option appears only when the chat mode is **Wake-word mode** or **Free chat**.
-=======
-	This option only appears when the chat mode is **Wake-word mode** or **Free chat**.
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 	| Macro | Type | Description |
 	| --- | --- | --- |
@@ -138,7 +122,6 @@ The following options appear only after display is enabled.
 
 Required: some robot-dog expression GIFs have been packed into a LittleFS image at `./src/display/emotion/fs/fs.bin`. You must flash it to the specified address in FLASH.
 
-<<<<<<< HEAD
 If you do not configure this, it may cause abnormal reboots or incomplete dog-expression rendering.
 
 Steps:
@@ -175,29 +158,10 @@ If you want to add/remove expressions, you can re-pack locally:
 
 	Parameter meaning:
 	-c source directory  -b block size  -p page size  -s total image size (1 MB)
-=======
-If not configured, the system may access an invalid address (symptom: reboot loop) or the dog expressions may be incomplete.
-
-Steps:
-1. Download BKFIL (Beken FLASH Image Loader), Armino’s official flashing/configuration tool.
-2. In BKFIL, select the flashing serial port in “选择串口”, and choose the `fs.bin` path in “Bin文件路径”.
-
-![](./img/BKFIL_1.png)
-
-3. Open the “配置” page. In the `fs.bin` row, set start address to `0x6cb000` and file length to `0x100000`.
-
-![](./img/BKFIL_2.png)
-
-4. Go back to the main page and click flash/program.
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 ## Additional Notes
 `your_robot_dog` is a ported project. The baseboard for `TUYA_T5AI_ROBOT_DOG` differs significantly from a standard T5AI dev board.
 
-<<<<<<< HEAD
 Audio playback and camera functions are not yet supported.
-=======
- Audio playback and camera functions are not yet supported.
->>>>>>> a1855ca1e57928f4b93f6508bad5f6fba428294c
 
 
