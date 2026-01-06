@@ -1,9 +1,9 @@
-config COMPILE_PREX
-    string "Compile prefix"
-    default ""
-    help
-        The prefix of the compile command.
-        For example, if you want to compile the project with the prefix "arm-none-eabi-", you can set it to "arm-none-eabi-".
+config LITTLE_END
+    int "Little endian"
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
 
 config ENABLE_WIRED
     bool "Enable Wired"
@@ -26,13 +26,6 @@ endif
 config ENABLE_BLUETOOTH
     bool "Enable Bluetooth"
     default n
-
-config LITTLE_END
-    int "Little endian"
-    default 1
-    ---help---
-        0       /* big endian */
-        1       /* little endian */
 
 config FLASH_FILE_PATH
     string "flash file path"

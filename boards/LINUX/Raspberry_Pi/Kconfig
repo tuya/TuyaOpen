@@ -1,0 +1,29 @@
+config CHIP_CHOICE
+    string
+    default "Raspberry_Pi"
+
+config BOARD_CHOICE
+    string
+    default "Raspberry_Pi"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_QRCODE
+
+choice RASPBERRY_PI_MODEL
+    prompt "Choose Raspberry Pi model"
+    default RASPBERRY_PI_4
+    help
+        Select the Raspberry Pi model you are using.
+
+    config RASPBERRY_PI_4
+        bool "Raspberry Pi 4B/400"
+        help
+            Raspberry Pi 4 Model B or Pi 400 with BCM2711 (ARMv8)
+
+    config RASPBERRY_PI_5
+        bool "Raspberry Pi 5"
+        help
+            Raspberry Pi 5 with BCM2712 (ARMv8)
+endchoice

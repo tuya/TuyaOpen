@@ -1,4 +1,4 @@
-config BOARD_ENABLE_UBUNTU
+config BOARD_ENABLE_LINUX
     bool
     default y
 
@@ -32,11 +32,11 @@ config BOARD_ENABLE_BK7231X
 choice
     prompt "Choice a board"
 
-if (BOARD_ENABLE_UBUNTU)
-    config BOARD_CHOICE_UBUNTU
-        bool "Ubuntu"
-    if (BOARD_CHOICE_UBUNTU)
-    rsource "./Ubuntu/Kconfig"
+if (BOARD_ENABLE_LINUX)
+    config BOARD_CHOICE_LINUX
+        bool "LINUX"
+    if (BOARD_CHOICE_LINUX)
+    rsource "./LINUX/Kconfig"
     endif
 endif
 

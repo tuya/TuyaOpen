@@ -236,7 +236,7 @@ void user_main(void)
     tal_sw_timer_init();
     tal_workq_init();
 
-// #if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
+// #if !defined(PLATFORM_LINUX) || (PLATFORM_LINUX == 0)
     tal_cli_init();
     tuya_authorize_init();
     tuya_app_cli_init();

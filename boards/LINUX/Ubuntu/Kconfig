@@ -1,0 +1,12 @@
+config CHIP_CHOICE
+    string
+    default "Ubuntu"
+
+config BOARD_CHOICE
+    string
+    default "Ubuntu"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_QRCODE
