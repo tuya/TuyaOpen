@@ -58,7 +58,7 @@ void *tkl_system_memset(void* src, int ch, const size_t n);
 *
 * @return the memory address malloced
 */
-void *tkl_system_memcpy(void* src, const void* dst, const size_t n);
+void *tkl_system_memcpy(void* dst, const void* src, const size_t n);
 
 /**
  * @brief Allocate and clear the memory
