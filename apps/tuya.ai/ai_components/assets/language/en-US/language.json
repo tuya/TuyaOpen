@@ -5,6 +5,7 @@
     "strings": {
         "VERSION": "Version ",
         "INITIALIZING":"Initializing...",
+        "PROVISIONING":"Provisioning...",
         "REGISTERING_NETWORK":"Waiting for network...",
         "CONNECT_SERVER":"Connecting to server...",
 
@@ -14,6 +15,8 @@
         "CONNECTED_TO":"Connected to ",
 
         "LISTENING":"Listening...",
+        "UPLOADING":"Uploading...",
+        "THINKING":"Thinking...",
         "SPEAKING":"Speaking...",
 
         "HOLD_TALK":"Hold",

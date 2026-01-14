@@ -93,6 +93,12 @@ choice
             rsource "./TUYA_T5AI_DESKTOP_ROBOT/Kconfig"
         endif
 
+    config BOARD_CHOICE_TUYA_T5AI_DOG
+        bool "TUYA_T5AI_DOG"
+        if (BOARD_CHOICE_TUYA_T5AI_DOG)
+            rsource "./TUYA_T5AI_DOG/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
