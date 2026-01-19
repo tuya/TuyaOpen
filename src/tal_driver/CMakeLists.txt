@@ -9,12 +9,22 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
-# LIB_SRCS
-aux_source_directory(${MODULE_PATH}/src LIB_SRCS)
+# Set library sources, public includes and private includes
+set(LIB_SRCS)
+set(LIB_PUBLIC_INC)
+set(LIB_PRIVATE_INC)
 
-# LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
+# Add uart source files
+file(GLOB_RECURSE UART_SRCS "${MODULE_PATH}/uart/*.c")
+list(APPEND LIB_SRCS ${UART_SRCS})
+list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/uart)
 
+# Add dma2d source files
+if (CONFIG_ENABLE_DMA2D STREQUAL "y")
+    file(GLOB_RECURSE DMA2D_SRCS "${MODULE_PATH}/dma2d/*.c")
+    list(APPEND LIB_SRCS ${DMA2D_SRCS})
+    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/dma2d)
+endif()
 
 ########################################
 # Target Configure

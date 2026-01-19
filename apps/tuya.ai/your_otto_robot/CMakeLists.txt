@@ -12,8 +12,6 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-list(APPEND media_srcs "${APP_PATH}/src/media")
-
 # Add otto source files based on configuration
 if (CONFIG_OTTO_TYPE_OTTO STREQUAL "y")
     # Add otto source files explicitly
@@ -28,12 +26,24 @@ if (CONFIG_OTTO_TYPE_NINJA_OTTO STREQUAL "y")
     list(APPEND APP_SRCS ${OTTO_NINJA_SRCS})
 endif()
 
-list(APPEND APP_SRCS ${media_srcs})
+if (CONFIG_ENABLE_APP_CUSTOM_EYES_UI STREQUAL "y")
+    aux_source_directory(${APP_PATH}/src/ui/src UI_SRCS)
+
+    if (CONFIG_APP_UI_EYES_160_80 STREQUAL "y")
+        aux_source_directory(${APP_PATH}/src/ui/image/eyes160_80 IMAG_EYES_SRCS)
+    elseif (CONFIG_APP_UI_EYES_160_160 STREQUAL "y")
+        aux_source_directory(${APP_PATH}/src/ui/image/eyes160_160 IMAG_EYES_SRCS)
+    elseif (CONFIG_APP_UI_EYES_240_240 STREQUAL "y")
+        aux_source_directory(${APP_PATH}/src/ui/image/eyes240 IMAG_EYES_SRCS)
+    elseif (CONFIG_APP_UI_EYES_128_128 STREQUAL "y")
+        aux_source_directory(${APP_PATH}/src/ui/image/eyes128 IMAG_EYES_SRCS)
+    endif()
+    
+    list(APPEND APP_SRCS ${UI_SRCS} ${IMAG_EYES_SRCS})
+endif()
 
 set(APP_INC 
-            ${APP_PATH}/assets
             ${APP_PATH}/include
-            ${APP_PATH}/include/media
 )
 
 # Add include directories based on configuration
@@ -44,8 +54,6 @@ endif()
 if (CONFIG_OTTO_TYPE_NINJA_OTTO STREQUAL "y")
     list(APPEND APP_INC ${APP_PATH}/src/otto_ninja)
 endif()
-
-list(APPEND APP_INC "${APP_PATH}/assets")
 
 ########################################
 # Target Configure
@@ -70,10 +78,4 @@ target_compile_options(${EXAMPLE_LIB}
 ########################################
 # Add subdirectory
 ########################################
-
-if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
-        add_subdirectory(${APP_PATH}/src/display)
-endif()
-
-add_subdirectory(${APP_PATH}/../ai_components/ai_audio)
-target_include_directories(${EXAMPLE_LIB} PRIVATE ${APP_PATH}/../ai_components/ai_audio)
+add_subdirectory(${APP_PATH}/../ai_components)

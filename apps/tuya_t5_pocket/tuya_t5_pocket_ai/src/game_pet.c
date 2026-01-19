@@ -19,9 +19,12 @@
 #include "media_pet.h"
 #include "menu_info_screen.h"
 #include "main_screen.h"
+#include "lv_vendor.h"
+
 #define PET_DEBUG_ENABLE 0
 
 extern void pocket_game_pet_indev_init(void);
+extern OPERATE_RET game_ai_chat_init(void);
 
 /*============================ MACROS ========================================*/
 #define DEFAULT_STATE_VALUE 70
@@ -402,12 +405,25 @@ static void __timer_cb(TIMER_ID timer_id, void *arg)
     }
 }
 
+static void __game_display_init(void)
+{
+    lv_vendor_init(DISPLAY_NAME);
+
+    screens_init();
+
+    lv_vendor_start(5, 1024*8);
+}
+
 // init
 OPERATE_RET game_pet_init(void)
 {
     // Initialize the game pet state
     OPERATE_RET rt = OPRT_OK;
     size_t readlen = 0;
+
+    __game_display_init();
+
+    TUYA_CALL_ERR_RETURN(game_ai_chat_init());
 
     s_pet_state = (int *)tal_malloc(sizeof(int) * PET_STATE_TOTAL);
     if (NULL == s_pet_state) {
@@ -469,46 +485,55 @@ OPERATE_RET game_pet_init(void)
 OPERATE_RET game_pet_play_alert(PET_ALERT_TYPE_E type)
 {
     OPERATE_RET rt = OPRT_OK;
-    char alert_id[64] = {0};
-
-    snprintf(alert_id, sizeof(alert_id), "alert_pet_%d", type);
-
-    ai_audio_player_start(alert_id);
+    uint8_t *audio_data = NULL;
+    uint32_t audio_size = 0;
 
     switch(type) {
-    case PET_ALERT_BI_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_bi_tone_alert, sizeof(media_src_bi_tone_alert),
-                                        1);
-    } break;
-    case PET_ALERT_CANCEL_FAIL_TRI_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_cancel_fail_tri_tone,
-                                        sizeof(media_src_cancel_fail_tri_tone), 1);
-    } break;
-    case PET_ALERT_CONFIRM: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_comfirm, sizeof(media_src_comfirm), 1);
-    } break;
-    case PET_ALERT_DOWNWARD_BI_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_downward_bi_tone,
-                                        sizeof(media_src_downward_bi_tone), 1);
-    } break;
-    case PET_ALERT_FAIL_CANCEL_BI_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_fail_cancel_bi_tone,
-                                        sizeof(media_src_fail_cancel_bi_tone), 1);
-    } break;
-    case PET_ALERT_LOADING_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_loading_tone, sizeof(media_src_loading_tone), 1);
-    } break;
-    case PET_ALERT_SHORT_SELECT_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_short_select_tone,
-                                        sizeof(media_src_short_select_tone), 1);
-    } break;
-    case PET_ALERT_THREE_STAGE_UP_TONE: {
-        rt = ai_audio_player_data_write(alert_id, (uint8_t *)media_src_three_stage_up_tone,
-                                        sizeof(media_src_three_stage_up_tone), 1);
-    } break;
-    default:
+        case PET_ALERT_BI_TONE: {
+            audio_data = (uint8_t *)media_src_bi_tone_alert;
+            audio_size = sizeof(media_src_bi_tone_alert);
+        } 
         break;
+        case PET_ALERT_CANCEL_FAIL_TRI_TONE: {
+            audio_data = (uint8_t *)media_src_cancel_fail_tri_tone;
+            audio_size = sizeof(media_src_cancel_fail_tri_tone);
+        } 
+        break;
+        case PET_ALERT_CONFIRM: {
+            audio_data = (uint8_t *)media_src_comfirm;
+            audio_size = sizeof(media_src_comfirm);
+        } 
+        break;
+        case PET_ALERT_DOWNWARD_BI_TONE: {
+            audio_data = (uint8_t *)media_src_downward_bi_tone;
+            audio_size = sizeof(media_src_downward_bi_tone);
+        } 
+        break;
+        case PET_ALERT_FAIL_CANCEL_BI_TONE: {
+            audio_data = (uint8_t *)media_src_fail_cancel_bi_tone;
+            audio_size = sizeof(media_src_fail_cancel_bi_tone);
+        } 
+        break;
+        case PET_ALERT_LOADING_TONE: {
+            audio_data = (uint8_t *)media_src_loading_tone;
+            audio_size = sizeof(media_src_loading_tone);
+        } 
+        break;
+        case PET_ALERT_SHORT_SELECT_TONE: {
+            audio_data = (uint8_t *)media_src_short_select_tone;
+            audio_size = sizeof(media_src_short_select_tone);
+        } 
+        break;
+        case PET_ALERT_THREE_STAGE_UP_TONE: {
+            audio_data = (uint8_t *)media_src_three_stage_up_tone;
+            audio_size = sizeof(media_src_three_stage_up_tone);
+        } 
+        break;
+        default:
+            break;
     }
+
+    TUYA_CALL_ERR_RETURN(ai_audio_play_data(AI_AUDIO_CODEC_MP3, audio_data, audio_size));
 
     return rt;
 }

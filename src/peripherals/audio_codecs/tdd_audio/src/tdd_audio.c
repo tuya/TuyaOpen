@@ -34,7 +34,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define AUDIO_PCM_FRAME_MS       10
+#define AUDIO_PCM_FRAME_MS       20
 
 /***********************************************************
 ***********************typedef define***********************
@@ -105,7 +105,7 @@ static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB 
 
     TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 0));
     TUYA_CALL_ERR_RETURN(tkl_ai_start(0, 0));
-    TUYA_CALL_ERR_RETURN(tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 80));
+    // TUYA_CALL_ERR_RETURN(tkl_ai_set_vol(TKL_AUDIO_TYPE_BOARD, 0, 80));
 
     uint8_t volume = hdl->play_volume;
     if(volume) {
@@ -129,10 +129,16 @@ static OPERATE_RET __tdd_audio_play(TDD_AUDIO_HANDLE_T handle, uint8_t *data, ui
     }
 
     TKL_AUDIO_FRAME_INFO_T frame;
+
+    frame.type = TKL_AUDIO_FRAME;
+    frame.codectype = TKL_CODEC_AUDIO_PCM;
+    frame.sample = hdl->cfg.sample_rate;
+    frame.datebits = hdl->cfg.data_bits;
+    frame.channel = hdl->cfg.channel;
     frame.pbuf = (char *)data;
     frame.used_size = len;
-    tkl_ao_put_frame(0, 0, NULL, &frame);
-
+   
+    TUYA_CALL_ERR_RETURN(tkl_ao_put_frame(0, 0, NULL, &frame));
 
     return rt;
 }

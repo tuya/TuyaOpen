@@ -199,7 +199,7 @@ static int activate_response_parse(atop_base_response_t *response)
     const char *activate_data_key = client->config.storage_namespace;
     PR_DEBUG("result len %d :%s", (int)strlen(result_string), result_string);
     ret = tal_kv_set(activate_data_key, (const uint8_t *)result_string, strlen(result_string));
-    tal_free(result_string);
+    cJSON_free(result_string);
     if (ret != OPRT_OK) {
         PR_ERR("activate data save error:%d", ret);
         return OPRT_KVS_WR_FAIL;

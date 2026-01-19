@@ -132,11 +132,10 @@ OPERATE_RET __link_status_cb(void *data)
     if (NETMGR_LINK_DOWN == status)
         return OPRT_OK;
 
-    THREAD_CFG_T thread_cfg = {
-        .thrdname = "eg_tcp_server",
-        .stackDepth = 4096,
-        .priority = THREAD_PRIO_2,
-    };
+    THREAD_CFG_T thread_cfg = {0};
+    thread_cfg.stackDepth = 1024 * 4;
+    thread_cfg.priority = THREAD_PRIO_2;
+    thread_cfg.thrdname = "eg_tcp_server";
     if (NULL == tcp_server) {
         TUYA_CALL_ERR_RETURN(
             tal_thread_create_and_start(&tcp_server, NULL, NULL, __tcp_server_task, NULL, &thread_cfg));
@@ -238,7 +237,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

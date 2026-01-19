@@ -15,6 +15,8 @@
 #include "tal_log.h"
 #include "tal_memory.h"
 
+#include "tdl_display_manage.h"
+
 #include "tdd_display_spi.h"
 #include "tdd_disp_st7305.h"
 

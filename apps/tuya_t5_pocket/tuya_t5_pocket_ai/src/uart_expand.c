@@ -12,8 +12,7 @@
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
 
-#include "ai_audio.h"
-
+#include "ai_agent.h"
 #include "app_display.h"
 #include "rfid_scan.h"
 #include "ai_log.h"
@@ -104,11 +103,11 @@ static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, s
     }
 
     // Send data to display manager
-    app_display_send_msg(POCKET_DISP_TP_AI_LOG, (uint8_t *)data, len);
+    ai_ui_disp_msg(POCKET_DISP_TP_AI_LOG, (uint8_t *)data, len);
 
     // Upload to AI text agent if not streaming
     if (app_get_text_stream_status() == FALSE) {
-        ai_text_agent_upload((uint8_t *)data, len);
+        ai_agent_send_text((char *)data);
     }
 }
 
@@ -384,7 +383,7 @@ uint32_t uart_print_write(const uint8_t *data, size_t len)
 static void __rfid_scan_data_callback(uint8_t dev_id, RFID_TAG_TYPE_E tag_type, const uint8_t *uid, uint8_t uid_len)
 {
     rfid_scan_screen_data_update(dev_id, tag_type, uid, uid_len);
-    app_display_send_msg(POCKET_DISP_TP_RFID_SCAN_SUCCESS, NULL, 0);
+    ai_ui_disp_msg(POCKET_DISP_TP_RFID_SCAN_SUCCESS, NULL, 0);
 }
 
 void __printer_scan_thread(void *param)
@@ -518,7 +517,10 @@ OPERATE_RET uart_expand_init(void)
     // Start unified UART worker thread
     sg_worker_running = TRUE;
     sg_current_mode = UART_MODE_RFID_SCAN;
-    THREAD_CFG_T thrd_param_worker = {2048, 4, "uart_worker_thread"};
+    THREAD_CFG_T thrd_param_worker = {0};
+    thrd_param_worker.stackDepth = 1024 * 2;
+    thrd_param_worker.priority = THREAD_PRIO_1;
+    thrd_param_worker.thrdname = "uart_worker_thread";
     rt = tal_thread_create_and_start(&uart_worker_thread, NULL, NULL, __uart_worker_thread, NULL, &thrd_param_worker);
     if (rt != OPRT_OK) {
         PR_ERR("Failed to create UART worker thread: %d", rt);
@@ -531,7 +533,10 @@ OPERATE_RET uart_expand_init(void)
 
     // Start printer scan thread (always running in background)
     printer_scan_running = TRUE;
-    THREAD_CFG_T thrd_param_printer = {4096, 4, "printer_scan_thread"};
+    THREAD_CFG_T thrd_param_printer = {0};
+    thrd_param_printer.stackDepth = 1024 * 4;
+    thrd_param_printer.priority = THREAD_PRIO_1;
+    thrd_param_printer.thrdname = "printer_scan_thread";
     rt =
         tal_thread_create_and_start(&printer_scan_thread, NULL, NULL, __printer_scan_thread, NULL, &thrd_param_printer);
     if (rt != OPRT_OK) {

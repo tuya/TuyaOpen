@@ -1,0 +1,5 @@
+menu "configure tuya AI"
+    rsource "svc_ai_agent/Kconfig"
+    rsource "svc_ai_basic/Kconfig"
+    rsource "svc_ai_codec/Kconfig"
+endmenu

@@ -23,6 +23,8 @@
 #include "tal_thread.h"
 #include "tal_mutex.h"
 
+#include "audio_afe.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -256,11 +258,14 @@ static void atk_no_codec_read_task(void *args)
             continue;
         }
 
+        int bytes_read = 0;
         if (hdl->mic_cb) {
             // Call the callback function with the read data
-            int bytes_read = data_len * sizeof(int16_t);
+            bytes_read = data_len * sizeof(int16_t);
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, bytes_read);
         }
+
+        auio_afe_processor_feed(hdl->data_buf, bytes_read);
 
         tal_system_sleep(I2S_READ_TIME_MS);
     }
@@ -297,6 +302,12 @@ static OPERATE_RET __tdd_atk_no_codec_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_
     if (NULL == hdl->mutex_play) {
         PR_ERR("I2S mutex create failed");
         return OPRT_COM_ERROR;
+    }
+
+    rt = audio_afe_processor_init();
+    if(rt != OPRT_OK) {
+        PR_ERR("audio_afe_processor_init err:%d",  rt);
+        return rt;
     }
 
     const THREAD_CFG_T thread_cfg = {

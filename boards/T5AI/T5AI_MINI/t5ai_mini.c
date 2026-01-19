@@ -21,7 +21,7 @@
 #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1)
 #include "tdd_disp_st7789.h"
 #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
-#include "tdd_disp_spi_st7735s_xlt.h"
+ #include "tdd_disp_st7735s.h"
 #endif
 /***********************************************************
 ************************macro define************************
@@ -43,9 +43,16 @@
 #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1) 
 #define BOARD_LCD_WIDTH      240
 #define BOARD_LCD_HEIGHT     240
+
+#define BOARD_LCD_X_OFFSET   0
+#define BOARD_LCD_Y_OFFSET   0
+
 #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
 #define BOARD_LCD_WIDTH      160
 #define BOARD_LCD_HEIGHT     80
+
+#define BOARD_LCD_X_OFFSET   1
+#define BOARD_LCD_Y_OFFSET   0x1A
 #endif
 
 #define BOARD_LCD_PIXELS_FMT TUYA_PIXEL_FMT_RGB565
@@ -74,7 +81,29 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
+ #if defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
+const uint8_t cST7735S_XLT_INIT_SEQ[] = {
+    1,    120,  0x11, 
+    1,    0,  0x21, 
+    1,    0,  0x21, 
+    4,    100,  0xB1, 0x05,0x3A,0x3A,
+    4,    0,    0xB2, 0x05,0x3A,0x3A,
+    7,    0,    0xB3, 0x05,0x3A,0x3A, 0x05,0x3A,0x3A,
+    2,    0,    0xB4, 0x03,
+    4,    0,    0xC0, 0x62,0x02,0x04,
+    2,    0,    0xC1, 0xC0,
+    3,    0,    0xC2, 0x0D, 0x00,
+    3,    0,    0xC3, 0x8A, 0x6A,
+    3,    0,    0xC4, 0x8D, 0xEE,
+    2,    0,    0xC5, 0x0E,
+    17,   0,    0xE0, 0x10,0x0E,0x02,0x03,0x0E,0x07,0x02,0x07,0x0A,0x12,0x27,0x37,0x00,0x0D,0x0E,0x10,
+    17,   0,    0xE1, 0x10,0x0E,0x03,0x03,0x0F,0x06,0x02,0x08,0x0A,0x13,0x26,0x36,0x00,0x0D,0x0E,0x10,
+    2,    0,    0x3A, 0x05, 
+    2,    0,    0x36, 0xA8,
+    1,    0,    0x29,
+    0 // Terminate list                    // Terminate list
+};
+#endif
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -153,6 +182,8 @@ static OPERATE_RET __board_register_display(void)
 
     display_cfg.width = BOARD_LCD_WIDTH;
     display_cfg.height = BOARD_LCD_HEIGHT;
+    display_cfg.x_offset = BOARD_LCD_X_OFFSET;
+    display_cfg.y_offset = BOARD_LCD_Y_OFFSET;
     display_cfg.pixel_fmt = BOARD_LCD_PIXELS_FMT;
     display_cfg.rotation = BOARD_LCD_ROTATION;
 
@@ -168,7 +199,8 @@ static OPERATE_RET __board_register_display(void)
 #if defined(T5AI_MINI_EX_MODULE_13565LCD) && (T5AI_MINI_EX_MODULE_13565LCD == 1)
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7789_register(DISPLAY_NAME, &display_cfg));
 #elif defined(T5AI_MINI_EX_MODULE_ST7735S_XLT) && (T5AI_MINI_EX_MODULE_ST7735S_XLT == 1)
-    TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_xlt_register(DISPLAY_NAME, &display_cfg));
+    tdd_disp_spi_st7735s_set_init_seq(cST7735S_XLT_INIT_SEQ);
+    TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_register(DISPLAY_NAME, &display_cfg));
 #endif
 #endif
 

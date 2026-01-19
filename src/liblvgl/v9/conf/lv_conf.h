@@ -129,7 +129,7 @@
      * > 1 requires an operating system enabled in `LV_USE_OS`
      * > 1 means multiply threads will render the screen in parallel */
 #if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
-    #define LV_DRAW_SW_DRAW_UNIT_CNT    2
+    #define LV_DRAW_SW_DRAW_UNIT_CNT    1
 #else
     #define LV_DRAW_SW_DRAW_UNIT_CNT    1
 #endif
@@ -417,7 +417,7 @@
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_14
-#define LV_FONT_MONTSERRAT_14 0
+#define LV_FONT_MONTSERRAT_14 1
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_16
@@ -437,7 +437,7 @@
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_24
-#define LV_FONT_MONTSERRAT_24 0
+#define LV_FONT_MONTSERRAT_24 1
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_26

@@ -36,17 +36,16 @@
 #include "lwip_init.h"
 #endif
 
-#include "app_display.h"
-
 #include "board_com_api.h"
 
-#include "app_pocket.h"
-#include "ai_audio.h"
 #include "reset_netcfg.h"
 #include "game_pet.h"
 #include "tkl_gpio.h"
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
+
+/* Tuya license information (uuid authkey) */
+tuya_iot_license_t license;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
@@ -97,7 +96,7 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
-            ai_audio_set_volume(volume);
+            ai_chat_set_volume(volume);
             break;
         }
         default:
@@ -113,7 +112,7 @@ OPERATE_RET ai_audio_volume_upload(void)
     tuya_iot_client_t *client = tuya_iot_client_get();
     dp_obj_t dp_obj = {0};
 
-    uint8_t volume = ai_audio_get_volume();
+    uint8_t volume = ai_chat_get_volume();
 
     dp_obj.id = DPID_VOLUME;
     dp_obj.type = PROP_VALUE;
@@ -137,18 +136,18 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     PR_INFO("Device Free heap %d", tal_system_get_free_heap_size());
 
     switch (event->id) {
-    case TUYA_EVENT_BIND_START:
+    case TUYA_EVENT_BIND_START:{
         PR_INFO("Device Bind Start!");
         if (_need_reset == 1) {
             PR_INFO("Device Reset!");
             tal_system_reset();
         }
 
-        ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
-        // app_display_send_msg(POCKET_DISP_TP_WIFI_FIND, NULL, 0);
-        app_display_send_msg(POCKET_DISP_TP_WIFI_OFF, NULL, 0);
-        break;
-
+        ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
+        AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
+        ai_ui_disp_msg(AI_UI_DISP_NETWORK, (uint8_t *)&wifi_status, sizeof(AI_UI_WIFI_STATUS_E));
+    }
+    break;
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
 
@@ -160,17 +159,17 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         static uint8_t first = 1;
         if (first) {
             first = 0;
-
-            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
+            AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_GOOD;
+            ai_ui_disp_msg(AI_UI_DISP_NETWORK, (uint8_t *)&wifi_status, sizeof(AI_UI_WIFI_STATUS_E));
             ai_audio_volume_upload();
-            app_display_send_msg(POCKET_DISP_TP_WIFI_CONNECTED, NULL, 0);
         }
         break;
 
     /* MQTT with tuya cloud is disconnected, device offline */
     case TUYA_EVENT_MQTT_DISCONNECT:
         PR_INFO("Device MQTT DisConnected!");
-        app_display_send_msg(POCKET_DISP_TP_WIFI_OFF, NULL, 0);
+        AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
+        ai_ui_disp_msg(AI_UI_DISP_NETWORK, (uint8_t *)&wifi_status, sizeof(AI_UI_WIFI_STATUS_E));
         tal_event_publish(EVENT_MQTT_DISCONNECTED, NULL);
         break;
 
@@ -183,6 +182,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_TIMESTAMP_SYNC:
         PR_INFO("Sync timestamp:%d", event->value.asInteger);
         tal_time_set_posix(event->value.asInteger, 1);
+        tal_event_publish("app.time.sync", NULL);
         break;
 
     case TUYA_EVENT_RESET:
@@ -248,7 +248,12 @@ void user_main(void)
     int ret = OPRT_OK;
 
     //! open iot development kit runtim init
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_psram_malloc, .free_fn = tal_psram_free});
+#else 
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
+#endif
+
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");
@@ -267,17 +272,16 @@ void user_main(void)
     });
     tal_sw_timer_init();
     tal_workq_init();
+    tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
+
+    reset_netconfig_start();
 
     ret = board_register_hardware();
     if (ret != OPRT_OK) {
         PR_ERR("board_register_hardware failed");
     }
-
-    reset_netconfig_start();
-
-    tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid = TUYA_OPENSDK_UUID;
@@ -310,19 +314,19 @@ void user_main(void)
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
     type |= NETCONN_WIRED;
 #endif
-#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
-    type |= NETCONN_CELLULAR;
-#endif
+// #if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+//     type |= NETCONN_CELLULAR;
+// #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
 
-    ret = app_pocket_init();
+    ret = game_pet_init();
     if (ret != OPRT_OK) {
-        PR_ERR("app_pocket_init failed");
+        PR_ERR("game_pet_init failed");
     }
 
     /* Start tuya iot task */
@@ -331,8 +335,6 @@ void user_main(void)
     tkl_wifi_set_lp_mode(0, 0);
 
     reset_netconfig_check();
-
-    game_pet_init();
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
@@ -373,7 +375,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

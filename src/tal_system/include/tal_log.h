@@ -361,6 +361,15 @@ void tal_log_color_set(const TAL_LOG_LEVEL_E level, TAL_LOG_DISPLAY_MODE_E displ
                        TAL_LOG_FONT_COLOR_E font_color, TAL_LOG_BACKGROUND_COLOR_E background_color);
 
 /**
+ * @brief Variant of tal_log_print_raw that accepts a va_list.
+ *
+ * @param pFmt Format string
+ * @param ap   Initialized va_list (will not be modified except read)
+ * @return OPRT_OK on success or error code
+ */
+ OPERATE_RET tal_log_vprint_raw(const char *pFmt, va_list ap);
+
+/**
  * @brief Prints a colored log message with the specified display mode, font color, and background color.
  *
  * This function prints a log message with the specified display mode, font color, and background color.

@@ -18,13 +18,13 @@
  #include "tdd_button_gpio.h"
  #endif
  
-#if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1)
-#include "tdd_disp_st7789.h"
-#elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
-#include "tdd_disp_st7735s.h"
+ #if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1)
+ #include "tdd_disp_st7789.h"
+ #elif defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1)
+ #include "tdd_disp_st7735s.h"
 #elif defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
-#include "tdd_disp_gc9d01.h"
-#endif
+ #include "tdd_disp_gc9d01.h"
+ #endif
  /***********************************************************
  ************************macro define************************
  ***********************************************************/

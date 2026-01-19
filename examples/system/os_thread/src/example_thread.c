@@ -97,11 +97,10 @@ void user_main(void)
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
     /* thread create and start */
-    const THREAD_CFG_T thread_cfg = {
-        .thrdname = "example_task",
-        .stackDepth = 4096,
-        .priority = THREAD_PRIO_2,
-    };
+    THREAD_CFG_T thread_cfg = {0};
+    thread_cfg.stackDepth = 1024 * 4;
+    thread_cfg.priority = THREAD_PRIO_2;
+    thread_cfg.thrdname = "example_task";
     TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&example_thrd_hdl, NULL, NULL, example_task, NULL, &thread_cfg));
 
     return;
@@ -143,7 +142,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

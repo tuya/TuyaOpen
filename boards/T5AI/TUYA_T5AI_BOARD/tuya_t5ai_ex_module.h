@@ -14,8 +14,6 @@
 #include "tdd_tp_gt1151.h"
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
 #include "tdd_disp_st7735s.h"
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
-#include "tdd_disp_st7305.h"
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_096_OLED) && (TUYA_T5AI_BOARD_EX_MODULE_096_OLED ==1)
 #include "tdd_disp_ssd1306.h"
 #endif
@@ -62,6 +60,12 @@ extern "C" {
 #define BOARD_LCD_PIXELS_FMT         TUYA_PIXEL_FMT_RGB565
 #define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_180
 
+// #define BOARD_LCD_SPI_PORT          TUYA_SPI_NUM_3
+// #define BOARD_LCD_SPI_CLK           48000000
+// #define BOARD_LCD_SPI_CS_PIN        TUYA_GPIO_NUM_3
+// #define BOARD_LCD_SPI_DC_PIN        TUYA_GPIO_NUM_5
+// #define BOARD_LCD_SPI_RST_PIN       TUYA_GPIO_NUM_45
+
 #define BOARD_LCD_SPI_PORT           TUYA_SPI_NUM_2
 #define BOARD_LCD_SPI_CLK            48000000
 #define BOARD_LCD_SPI_CS_PIN         TUYA_GPIO_NUM_23
@@ -70,21 +74,19 @@ extern "C" {
 
 #define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
 
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_29E_INK) && (TUYA_T5AI_BOARD_EX_MODULE_29E_INK ==1)
-#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_NONE 
+#if defined(ENABLE_EYES_TWO_LCD) && (ENABLE_EYES_TWO_LCD == 1)
+#define BOARD_LCD_SPI2_PORT          TUYA_SPI_NUM_3
+#define BOARD_LCD_SPI2_CLK           48000000
+#define BOARD_LCD_SPI2_CS_PIN        TUYA_GPIO_NUM_3
+#define BOARD_LCD_SPI2_DC_PIN        TUYA_GPIO_NUM_5
+#define BOARD_LCD_SPI2_RST_PIN       TUYA_GPIO_NUM_45
 
-#define BOARD_LCD_WIDTH              168
-#define BOARD_LCD_HEIGHT             384
-#define BOARD_LCD_ROTATION           TUYA_DISPLAY_ROTATION_0
-#define BOARD_LCD_CASET_XS           0x17
-
-#define BOARD_LCD_SPI_PORT           TUYA_SPI_NUM_0
-#define BOARD_LCD_SPI_CLK            48000000
-#define BOARD_LCD_SPI_CS_PIN         TUYA_GPIO_NUM_15
-#define BOARD_LCD_SPI_DC_PIN         TUYA_GPIO_NUM_17
-#define BOARD_LCD_SPI_RST_PIN        TUYA_GPIO_NUM_6
-
-#define BOARD_LCD_POWER_PIN          TUYA_GPIO_NUM_MAX
+// #define BOARD_LCD_SPI2_PORT           TUYA_SPI_NUM_2
+// #define BOARD_LCD_SPI2_CLK            48000000
+// #define BOARD_LCD_SPI2_CS_PIN         TUYA_GPIO_NUM_23
+// #define BOARD_LCD_SPI2_DC_PIN         TUYA_GPIO_NUM_7
+// #define BOARD_LCD_SPI2_RST_PIN        TUYA_GPIO_NUM_6
+#endif
 
 #elif defined (TUYA_T5AI_BOARD_EX_MODULE_096_OLED) && (TUYA_T5AI_BOARD_EX_MODULE_096_OLED ==1)
 #define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_NONE 

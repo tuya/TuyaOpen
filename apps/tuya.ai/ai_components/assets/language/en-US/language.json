@@ -1,0 +1,39 @@
+{
+    "language": {
+        "type" :"en-US"
+    },
+    "strings": {
+        "VERSION": "Version ",
+        "INITIALIZING":"Initializing...",
+        "PROVISIONING":"Provisioning...",
+        "REGISTERING_NETWORK":"Waiting for network...",
+        "CONNECT_SERVER":"Connecting to server...",
+
+        "STANDBY":"Standby",
+        "CONNECT_TO":"Connect to ",
+        "CONNECTING":"Connecting...",
+        "CONNECTED_TO":"Connected to ",
+
+        "LISTENING":"Listening...",
+        "UPLOADING":"Uploading...",
+        "THINKING":"Thinking...",
+        "SPEAKING":"Speaking...",
+
+        "HOLD_TALK":"Hold",
+        "TRIG_TALK":"Press",
+        "WAKEUP_TALK":"Wake up",
+        "FREE_TALK":"Free",
+
+        "ENTERING_WIFI_CONFIG_MODE":"Entering Wi-Fi configuration mode...",
+
+        "VOLUME":"Volume ",
+        "MUTED":"Muted",
+        "MAX_VOLUME":"Max Volume",
+
+        "SYSTEM_MSG_POWER_ON":"Power on",
+        "SYSTEM_MSG_WIFI_SSID":"WiFi connected",
+        "SYSTEM_MSG_IP": "IP address is",
+        "SYSTEM_MSG_WIFI_DISCONNECTED":"WiFi disconnected",
+        "SYSTEM_MSG_VOLUME":"Volume set to"
+    }
+}

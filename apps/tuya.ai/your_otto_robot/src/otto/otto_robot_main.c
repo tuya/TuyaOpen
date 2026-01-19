@@ -19,7 +19,6 @@
 #include "tkl_pwm.h"
 #include "oscillator.h"
 #include "otto_movements.h"
-#include "ai_audio.h"
 #include "app_chat_bot.h"
 #include "tuya_iot_dp.h"
 #include "tuya_iot.h"

@@ -97,7 +97,10 @@ void user_main(void)
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
     /* a pwm thread */
-    THREAD_CFG_T pwm_param = {.priority = TASK_PWM_PRIORITY, .stackDepth = TASK_PWM_SIZE, .thrdname = "pwm_task"};
+    THREAD_CFG_T pwm_param = {0};
+    pwm_param.stackDepth = TASK_PWM_SIZE;
+    pwm_param.priority = TASK_PWM_PRIORITY;
+    pwm_param.thrdname = "pwm_task";
     TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&sg_pwm_handle, NULL, NULL, __example_pwm_task, NULL, &pwm_param));
 
     return;
@@ -140,7 +143,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

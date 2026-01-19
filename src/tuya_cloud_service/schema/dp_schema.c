@@ -280,6 +280,7 @@ static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema
         PR_ERR("json err");
         return OPRT_MALLOC_FAILED;
     }
+    cJSON_free(tmp);
 
     //! FIXME:
 
@@ -967,13 +968,13 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
             char *tmp_data = cJSON_PrintUnformatted(temp_str);
             if (tmp_data) {
                 if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%s,", dp->id, tmp_data)) {
-                    tal_free(tmp_data);
+                    cJSON_free(tmp_data);
                     cJSON_Delete(temp_str);
                     op_ret = OPRT_BUFFER_NOT_ENOUGH;
                     goto __err_exit;
                 }
             }
-            tal_free(tmp_data);
+            cJSON_free(tmp_data);
             cJSON_Delete(temp_str);
             break;
         }
@@ -1201,17 +1202,23 @@ int dp_obj_dump_stat_local_json(char *devid, dp_rept_valid_t **outdpvalid, char 
         return OPRT_CR_CJSON_ERR;
     }
 
+    char *out = NULL;
     if (flags & DP_APPEND_HEADER_FLAG) {
-        char *out = NULL;
         dp_rept_json_append(schema, jsonstr, NULL, NULL, 0, &out);
-        tal_free(jsonstr);
-        jsonstr = out;
+        cJSON_free(jsonstr);
+    }else {
+        out = tal_malloc(strlen(jsonstr) + 1);
+        cJSON_free(jsonstr);
+        if(out) {
+            memset(out, 0, strlen(jsonstr) + 1);
+            strcpy(out, jsonstr);
+        }
     }
 
     if (outjson) {
-        *outjson = jsonstr;
+        *outjson = out;
     } else {
-        tal_free(jsonstr);
+        tal_free(out);
     }
 
     if (outdpvalid) {
@@ -1281,7 +1288,18 @@ char *dp_obj_dump_all_json(char *devid, int flags)
         return NULL;
     }
 
-    char *out = tmp;
+    char *out_str = tal_malloc(strlen(tmp) + 1);
+    if (NULL == out_str) {
+        PR_ERR("malloc err");
+        cJSON_free(tmp);
+        return NULL;
+    }else {
+        memset(out_str, 0, strlen(tmp) + 1);
+        strcpy(out_str, tmp);
+        cJSON_free(tmp);
+    }
+
+    char *out = out_str;
 
     if (flags & DP_APPEND_HEADER_FLAG) {
         dp_rept_json_append(schema, out, NULL, NULL, 0, &out);

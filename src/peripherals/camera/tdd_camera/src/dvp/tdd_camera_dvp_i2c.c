@@ -1,7 +1,13 @@
 /**
  * @file tdd_camera_dvp_i2c.c
- * @version 0.1
+ * @brief DVP camera I2C interface implementation
+ *
+ * This file implements the I2C interface for DVP camera sensors, including
+ * I2C initialization, register read and write operations. It provides low-level
+ * I2C communication functions for camera sensor configuration.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tuya_cloud_types.h"
@@ -32,6 +38,11 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Initialize I2C interface for DVP camera sensor
+ * @param cfg Pointer to I2C configuration structure
+ * @return OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tdd_dvp_i2c_init(DVP_I2C_CFG_T *cfg)
 {
     if (NULL == cfg) {
@@ -52,6 +63,13 @@ OPERATE_RET tdd_dvp_i2c_init(DVP_I2C_CFG_T *cfg)
     return tkl_i2c_init(cfg->port, &i2c_cfg);
 }
 
+/**
+ * @brief Read data from camera sensor register via I2C
+ * @param cfg Pointer to I2C register configuration structure
+ * @param read_len Number of bytes to read
+ * @param buf Pointer to buffer to store read data
+ * @return OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tdd_dvp_i2c_read(DVP_I2C_REG_CFG_T *cfg, uint16_t read_len, uint8_t *buf)
 {
     if (NULL == cfg || NULL == buf) {
@@ -80,6 +98,13 @@ OPERATE_RET tdd_dvp_i2c_read(DVP_I2C_REG_CFG_T *cfg, uint16_t read_len, uint8_t 
     return tkl_i2c_master_receive(cfg->port, cfg->addr, buf, read_len, 0);
 }
 
+/**
+ * @brief Write data to camera sensor register via I2C
+ * @param cfg Pointer to I2C register configuration structure
+ * @param write_len Number of bytes to write
+ * @param buf Pointer to buffer containing data to write
+ * @return OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tdd_dvp_i2c_write(DVP_I2C_REG_CFG_T *cfg, uint16_t write_len, uint8_t *buf)
 {
     uint8_t reg_len = 0, write_data_len = 0;

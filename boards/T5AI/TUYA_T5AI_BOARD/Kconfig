@@ -42,16 +42,11 @@ choice TUYA_T5AI_BOARD_EX_MODULE
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
 
     config TUYA_T5AI_BOARD_EX_MODULE_EYES
-        bool "two circle 1.28 inch 240x240 spi LCD"
+        bool "two circle 1.28 inch 128x128 spi LCD"
         select ENABLE_DISPLAY
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)    
         select ENABLE_LVGL_V8_RGB565_SWAP if (LVGL_VERSION_8 && LVGL_V8_COLOR_DEPTH_16)
-
-    config TUYA_T5AI_BOARD_EX_MODULE_29E_INK
-        bool "2.9 inch 168x384 E-Ink screen"
-        select ENABLE_DISPLAY
-        select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
     
     config TUYA_T5AI_BOARD_EX_MODULE_096_OLED
         bool "0.96 inch 128x64 I2C OLED"
@@ -59,9 +54,16 @@ choice TUYA_T5AI_BOARD_EX_MODULE
         select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)    
 endchoice
 
+config ENABLE_EYES_TWO_LCD
+        bool "with two lcd as two eyes" 
+        depends on TUYA_T5AI_BOARD_EX_MODULE_EYES
+        default n
+        select ENABLE_DISPLAY_2
+
 if(TUYA_T5AI_BOARD_EX_MODULE_35565LCD || TUYA_T5AI_BOARD_EX_MODULE_EYES)
     config ENABLE_EX_MODULE_CAMERA
         bool "with camera module"
         default n
         select ENABLE_CAMERA
 endif
+

@@ -1,0 +1,3 @@
+menuconfig ENABLE_COMP_AI_MCP
+    bool "enable ai mcp module"
+    default y

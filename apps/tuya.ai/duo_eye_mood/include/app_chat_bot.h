@@ -9,6 +9,7 @@
 #define __APP_CHAT_BOT_H__
 
 #include "tuya_cloud_types.h"
+#include "ai_chat_main.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,37 +23,10 @@ extern "C" {
 ***********************typedef define***********************
 ***********************************************************/
 
-typedef enum {
-    AI_AUDIO_ALERT_NORMAL = 0,
-    AI_AUDIO_ALERT_POWER_ON,
-    AI_AUDIO_ALERT_NOT_ACTIVE,
-    AI_AUDIO_ALERT_NETWORK_CFG,
-    AI_AUDIO_ALERT_NETWORK_CONNECTED,
-    AI_AUDIO_ALERT_NETWORK_FAIL,
-    AI_AUDIO_ALERT_NETWORK_DISCONNECT,
-    AI_AUDIO_ALERT_BATTERY_LOW,
-    AI_AUDIO_ALERT_PLEASE_AGAIN,
-    AI_AUDIO_ALERT_WAKEUP,
-    AI_AUDIO_ALERT_LONG_KEY_TALK,
-    AI_AUDIO_ALERT_KEY_TALK,
-    AI_AUDIO_ALERT_WAKEUP_TALK,
-    AI_AUDIO_ALERT_FREE_TALK,
-} AI_AUDIO_ALERT_TYPE_E;
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 OPERATE_RET app_chat_bot_init(void);
-
-uint8_t app_chat_bot_get_enable(void);
-
-/**
- * @brief Plays an alert sound based on the specified alert type.
- *
- * @param type - The type of alert to play, defined by the APP_ALERT_TYPE_E enum.
- * @return OPERATE_RET - Returns OPRT_OK if the alert sound is successfully played, otherwise returns an error code.
- */
-OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type);
 
 #ifdef __cplusplus
 }

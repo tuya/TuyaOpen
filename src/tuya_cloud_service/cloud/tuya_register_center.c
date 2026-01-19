@@ -388,11 +388,11 @@ OPERATE_RET tuya_register_center_save(RCS_E source, cJSON *rcs)
     register_center_t tmp_rcs = {0};
     rt = __rcs_restore(data, &tmp_rcs);
     if (OPRT_OK != rt) {
-        tal_free(data);
+        cJSON_free(data);
         return OPRT_CJSON_GET_ERR;
     }
 
-    tal_free(data);
+    cJSON_free(data);
 
     data = NULL;
     rt = __rcs_serialize(&tmp_rcs, (uint8_t **)&data, &length);

@@ -36,22 +36,19 @@
 #include "lwip_init.h"
 #endif
 
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-#include "app_display.h"
-#include "app_weather.h"
-#endif
-
 #include "board_com_api.h"
 
 #include "app_chat_bot.h"
-#include "ai_audio.h"
+#include "app_clock.h"
 #include "reset_netcfg.h"
-#include "app_system_info.h"
 #include "app_servo.h"
 #include "app_gesture.h"
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
+
+/* Tuya license information (uuid authkey) */
+tuya_iot_license_t license;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
@@ -100,25 +97,25 @@ static void __servo_control_wk_cb(void *data)
     PR_DEBUG("Servo action: %d", _s_servo_action);
     
     // Trigger corresponding emoji expression for servo movement
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     switch (_s_servo_action) {
     case SERVO_UP:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"happy", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_HAPPY, strlen(EMOJI_HAPPY));
         break;
     case SERVO_DOWN:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"sad", 3);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_SAD, strlen(EMOJI_SAD));
         break;
     case SERVO_LEFT:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"left", 4);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_LEFT, strlen(EMOJI_LEFT));
         break;
     case SERVO_RIGHT:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"right", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_RIGHT, strlen(EMOJI_RIGHT));
         break;
     case SERVO_CENTER:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"center", 6);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_NEUTRAL, strlen(EMOJI_NEUTRAL));
         break;
     case SERVO_NOD:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wakeup", 6);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_WAKEUP, strlen(EMOJI_WAKEUP));
         break;
     default:
         break;
@@ -126,7 +123,9 @@ static void __servo_control_wk_cb(void *data)
 #endif
     
     _s_servo_busy = TRUE;
+    ai_ui_disp_msg(AI_UI_DISP_PAUSE_EMOJI_CYCLE, NULL, 0);
     app_servo_move(_s_servo_action);
+    ai_ui_disp_msg(AI_UI_DISP_RESUME_EMOJI_CYCLE, NULL, 0);
     _s_servo_busy = FALSE;
 }
 
@@ -135,46 +134,46 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
     PR_DEBUG("Gesture detected: %d", gesture);
 
     // Hide weather clock and show emoji mode
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    app_display_send_msg(TY_DISPLAY_TP_WEATHER_CLOCK_HIDE, NULL, 0);
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+    ai_ui_disp_msg(AI_UI_DISP_EMOJI_UI_SHOW, NULL, 0);
     
     // Trigger corresponding emoji expression
     switch (gesture) {
     case GESTURE_RIGHT:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"right", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_RIGHT, strlen(EMOJI_RIGHT));
         _s_servo_action = SERVO_RIGHT;
         break;
     case GESTURE_LEFT:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"left", 4);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_LEFT, strlen(EMOJI_LEFT));
         _s_servo_action = SERVO_LEFT;
         break;
     case GESTURE_UP:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"happy", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_HAPPY, strlen(EMOJI_HAPPY));
         _s_servo_action = SERVO_UP;
         break;
     case GESTURE_DOWN:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"sad", 3);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_SAD, strlen(EMOJI_SAD));
         _s_servo_action = SERVO_DOWN;
         break;
     case GESTURE_CLOCKWISE:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"surprise", 8);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_SURPRISE, strlen(EMOJI_SURPRISE));
         _s_servo_action = SERVO_CLOCKWISE; 
         break;
     case GESTURE_ANTICLOCKWISE:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"anger", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_ANGRY, strlen(EMOJI_ANGRY));
         _s_servo_action = SERVO_ANTICLOCKWISE; 
         break;
     case GESTURE_FORWARD:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wakeup", 6);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_WAKEUP, strlen(EMOJI_WAKEUP));
         _s_servo_action = SERVO_NOD;
         break;
     case GESTURE_BACKWARD:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"sleep", 5);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_SLEEP, strlen(EMOJI_SLEEP));
         _s_servo_action = SERVO_CENTER;
         break;
     // Add fun expressions for special gestures
     case GESTURE_WAVE:
-        app_display_send_msg(TY_DISPLAY_TP_EMOTION, (uint8_t *)"wink", 4);
+        ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_WINK, strlen(EMOJI_WINK));
         break;
     default:
         return;
@@ -229,12 +228,7 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
-            ai_audio_set_volume(volume);
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            char volume_str[20] = {0};
-            snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
-            app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
-#endif
+            ai_chat_set_volume(volume);
             break;
         }
         case DPID_SERVO: {
@@ -261,7 +255,7 @@ OPERATE_RET ai_audio_volume_upload(void)
     tuya_iot_client_t *client = tuya_iot_client_get();
     dp_obj_t dp_obj = {0};
 
-    uint8_t volume = ai_audio_get_volume();
+    uint8_t volume = ai_chat_get_volume();
 
     dp_obj.id = DPID_VOLUME;
     dp_obj.type = PROP_VALUE;
@@ -292,9 +286,11 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             tal_system_reset();
         }
 
-        ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
+        #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+        ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
+        #endif
+        
         break;
-
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
 
@@ -302,17 +298,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
         tal_event_publish(EVENT_MQTT_CONNECTED, NULL);
-        app_weather_update_now();
         static uint8_t first = 1;
         if (first) {
             first = 0;
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            UI_WIFI_STATUS_E wifi_status = UI_WIFI_STATUS_GOOD;
-            app_display_send_msg(TY_DISPLAY_TP_NETWORK, (uint8_t *)&wifi_status, sizeof(UI_WIFI_STATUS_E));
-#endif
-
-            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
             ai_audio_volume_upload();
         }
         break;
@@ -332,21 +320,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_TIMESTAMP_SYNC:
         PR_INFO("Sync timestamp:%d", event->value.asInteger);
         tal_time_set_posix(event->value.asInteger, 1);
-        
-        // Pass the synced timestamp to weather clock for independent time calculation
-        PR_DEBUG("Time synced, passing timestamp to weather clock: %d", event->value.asInteger);
-        app_display_send_msg(TY_DISPLAY_TP_WEATHER_CLOCK_UPDATE_TIME, 
-                            (uint8_t *)&event->value.asInteger, sizeof(event->value.asInteger));
-        PR_DEBUG("Weather clock timestamp update message sent");
-        
-        // Try to update weather data now that we have time sync
-        PR_DEBUG("=== ATTEMPTING WEATHER UPDATE AFTER TIME SYNC ===");
-        OPERATE_RET weather_ret = app_weather_check_and_update();
-        if (weather_ret == OPRT_OK) {
-            PR_DEBUG("Weather data updated successfully after time sync");
-        } else {
-            PR_DEBUG("Weather update failed after time sync: %d", weather_ret);
-        }
+        tal_event_publish("app.time.sync", NULL);
         break;
 
     case TUYA_EVENT_RESET:
@@ -412,7 +386,12 @@ void user_main(void)
     int ret = OPRT_OK;
 
     //! open iot development kit runtim init
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_psram_malloc, .free_fn = tal_psram_free});
+#else 
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
+#endif
+
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");
@@ -436,8 +415,6 @@ void user_main(void)
     tuya_authorize_init();
 
     reset_netconfig_start();
-
-    tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid = TUYA_OPENSDK_UUID;
@@ -472,7 +449,7 @@ void user_main(void)
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
@@ -484,10 +461,13 @@ void user_main(void)
 
     ret = app_chat_bot_init();
     if (ret != OPRT_OK) {
-        PR_ERR("tuya_audio_recorde_init failed");
+        PR_ERR("app_chat_bot_init failed");
     }
 
-    app_system_info();
+    ret = app_clock_init();
+    if (ret != OPRT_OK) {
+        PR_ERR("app_clock_init failed");
+    }
 
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
@@ -505,47 +485,6 @@ void user_main(void)
     if (ret != OPRT_OK) {
         PR_ERR("app_gesture_init failed: %d", ret);
     }
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-    PR_DEBUG("Initializing display system...");
-    ret = app_display_init();
-    if (ret != OPRT_OK) {
-        PR_ERR("app_display_init failed: %d", ret);
-    } else {
-        PR_DEBUG("Display system initialized successfully");
-    }
-    
-    // Initialize weather service
-    PR_DEBUG("Initializing weather service...");
-    ret = app_weather_init();
-    if (ret != OPRT_OK) {
-        PR_ERR("app_weather_init failed: %d", ret);
-    } else {
-        PR_DEBUG("Weather service initialized successfully");
-    }
-    
-    // Start weather update timer (30 minutes interval)
-    ret = app_weather_start_timer();
-    if (ret != OPRT_OK) {
-        PR_ERR("app_weather_start_timer failed: %d", ret);
-    } else {
-        PR_DEBUG("Weather update timer started successfully");
-    }
-    
-    // Weather clock functionality enabled for testing
-    PR_DEBUG("Weather clock functionality enabled for testing");
-    
-    // Wait a short time for display system to be ready
-    tal_system_sleep(500);
-    
-    // Show weather clock on startup immediately
-    PR_DEBUG("=== SENDING WEATHER CLOCK SHOW MESSAGE ===");
-    PR_DEBUG("Message type: TY_DISPLAY_TP_WEATHER_CLOCK_SHOW");
-    ret = app_display_send_msg(TY_DISPLAY_TP_WEATHER_CLOCK_SHOW, NULL, 0);
-    PR_DEBUG("Weather clock show message sent, result: %d", ret);
-    
-    PR_DEBUG("Weather clock initialization completed");
-#endif
 
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
@@ -586,7 +525,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 4096;
+    thrd_param.priority = 4;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

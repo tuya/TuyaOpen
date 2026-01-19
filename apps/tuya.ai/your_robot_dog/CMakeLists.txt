@@ -11,23 +11,21 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
-aux_source_directory(${APP_PATH}/src/hardware APP_SRCS)
+aux_source_directory(${APP_PATH}/src/system_info APP_SRCS)
 aux_source_directory(${APP_PATH}/src/servo_ctrl APP_SRCS)
 
-list(APPEND media_srcs "${APP_PATH}/src/media")
-
-list(APPEND APP_SRCS ${media_srcs})
+# Exclude trivial wrapper source; we link LittleFS directly now
+list(FILTER APP_SRCS EXCLUDE REGEX ".*/lfs_wrap\\.c$")
 
 set(APP_INC 
-            ${APP_PATH}/assets
             ${APP_PATH}/include
-            ${APP_PATH}/include/media
             ${APP_PATH}/src
-            ${APP_PATH}/src/hardware
+            ${APP_PATH}/src/system_info
             ${APP_PATH}/src/servo_ctrl
 )
 
-list(APPEND APP_INC "${APP_PATH}/assets")
+# NOTE: Board-specific hardware is now provided by boards/T5AI/TUYA_T5AI_DOG.
+# Do not compile or include the legacy app-local src/hardware (it may be removed).
 
 ########################################
 # Target Configure
@@ -44,25 +42,27 @@ target_include_directories(${EXAMPLE_LIB}
         ${APP_INC}
     )
 
+# Project-local build define for ai_components/ai_ui
+# (Avoid patching shared ai_components headers.)
+target_compile_definitions(${EXAMPLE_LIB} PRIVATE EMO_ICON_MAX_NUM=7)
+
 target_compile_options(${EXAMPLE_LIB}
     PRIVATE
         "-DLV_LVGL_H_INCLUDE_SIMPLE"
     )
 
-# Ensure our LittleFS safety wrapper is used (project-local, no platform edits).
-# This patches missing cfg->lock/unlock when CONFIG_LFS_THREADSAFE=y.
-target_link_options(${EXAMPLE_LIB} PUBLIC "-Wl,--wrap=lfs_mount")
+## Do not wrap lfs_mount; use platform LittleFS directly
+## (removes need for a dedicated wrapper source file)
 
 ########################################
 # Add subdirectory
 ########################################
 
-if (CONFIG_ENABLE_CHAT_DISPLAY STREQUAL "y")
-        add_subdirectory(${APP_PATH}/src/display)
+if (CONFIG_ENABLE_COMP_AI_DISPLAY STREQUAL "y")
+    add_subdirectory(${APP_PATH}/src/display)
 endif()
 
-add_subdirectory(${APP_PATH}/../ai_components/ai_audio)
-target_include_directories(${EXAMPLE_LIB} PRIVATE ${APP_PATH}/../ai_components/ai_audio)
+add_subdirectory(${APP_PATH}/../ai_components)
 
 ########################################
 # Project-local override (your_robot_dog only)
@@ -97,4 +97,3 @@ if(DEFINED TOS_PROJECT_NAME AND DEFINED TOS_PROJECT_PLATFORM)
         endif()
     endif()
 endif()
-

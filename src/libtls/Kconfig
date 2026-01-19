@@ -16,10 +16,30 @@ menu "configure mbedtls"
             range 0 5
             depends on ENABLE_MBEDTLS_DEBUG
             default 1
+  
+    config ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN
+            int "TLS maximum message content length"            
+            default 1024
+            range 512 16384        
+            help
+                Maximum TLS message length (in bytes) supported by mbedTLS.
+
+                16384 is the default and this value is required to comply
+                fully with TLS standards.
+
+                However you can set a lower value in order to save RAM. This
+                is safe if the other end of the connection supports Maximum
+                Fragment Length Negotiation Extension (max_fragment_length,
+                see RFC6066) or you know for certain that it will never send a
+                message longer than a certain number of bytes.
+
+                If the value is set too low, symptoms are a failed TLS
+                handshake or a return value of MBEDTLS_ERR_SSL_INVALID_RECORD
+                (-0x7200). 
 
     menuconfig ENABLE_CUSTOM_CONFIG
         bool "Enable user custom"
-        default n
+        default n 
 
     if(ENABLE_CUSTOM_CONFIG)        
         config ENABLE_MBEDTLS_SSL_MAX_FRAGMENT_LENGTH
@@ -32,26 +52,6 @@ menu "configure mbedtls"
                 help
                     Client support for RFC 5077 session tickets. See mbedTLS documentation for more details.
                     Disabling this option will save some code size.
-            
-            config ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN
-                    int "TLS maximum message content length"            
-                    default 1024
-                    range 512 16384        
-                    help
-                        Maximum TLS message length (in bytes) supported by mbedTLS.
-
-                        16384 is the default and this value is required to comply
-                        fully with TLS standards.
-
-                        However you can set a lower value in order to save RAM. This
-                        is safe if the other end of the connection supports Maximum
-                        Fragment Length Negotiation Extension (max_fragment_length,
-                        see RFC6066) or you know for certain that it will never send a
-                        message longer than a certain number of bytes.
-
-                        If the value is set too low, symptoms are a failed TLS
-                        handshake or a return value of MBEDTLS_ERR_SSL_INVALID_RECORD
-                        (-0x7200).  
                         
             config ENABLE_MBEDTLS_HAVE_TIME
                 bool "Enable mbedtls time"

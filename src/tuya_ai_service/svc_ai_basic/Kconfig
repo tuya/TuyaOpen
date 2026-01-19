@@ -1,0 +1,84 @@
+menu "AI Protocol Config"
+    config ENABLE_AI_MONITOR
+        bool "ENABLE_AI_MONITOR: enable ai debug monitor service"
+        default y
+
+    config AI_MAX_FRAGMENT_LENGTH
+        int "AI_MAX_FRAGMENT_LENGTH: max fragment length"
+        range 1024 512000
+        default 10240
+
+    config ENABLE_AI_PROTO_DEBUG
+        bool "ENABLE_AI_PROTO_DEBUG: enable ai protocol debug"
+        default n
+
+    config AI_BIZ_TASK_DELAY
+        int "AI_BIZ_TASK_DELAY: biz send task delay,unit(ms)"
+        range 1 10000
+        default 10
+
+    config AI_SESSION_MAX_NUM
+        int "AI_SESSION_MAX_NUM: ai session max num"
+        range 1 5
+        default 2
+
+    config AI_BIZ_MAX_NUM
+        int "AI_BIZ_MAX_NUM: ai max session id num"
+        range 5 10
+        default 5
+
+	config AI_MAX_ATTR_NUM
+        int "AI_MAX_ATTR_NUM: ai attribute max num"
+        range 5 20
+        default 10
+
+    config AI_PING_TIMEOUT
+        int "AI_PING_TIMEOUT: ai ping timeout,unit(s)"
+        range 3 20
+        default 6
+
+    config AI_HEARTBEAT_INTERVAL
+        int "AI_HEARTBEAT_INTERVAL: ai ping heartbeat interval,unit(s)"
+        default 120
+
+    config AI_PACKET_SECURITY_LEVEL
+        int "AI_PACKET_SECURITY_LEVEL: ai packet security level"
+        range 2 4
+        default 4
+
+	config AI_CLIENT_STACK_SIZE
+        int "AI_CLIENT_STACK_SIZE: ai client task size"
+        range 2048 16384
+        default 4096
+
+	config AI_READ_SOCKET_BUF_SIZE
+        int "AI_READ_SOCKET_BUF_SIZE: ai server read socket size"
+        default 0
+
+	config AI_WRITE_SOCKET_BUF_SIZE
+        int "AI_WRITE_SOCKET_BUF_SIZE: ai server write socket size"
+        default 8192
+
+    config AI_DL_IMAGE_UNIT_SIZE
+        int "AI_DL_IMAGE_UNIT_SIZE: download image unit size"
+        range 1024 40960
+        default 4096
+
+    config AI_HEAP_IN_PSRAM
+        bool "AI_HEAP_IN_PSRAM: use psram for heap"
+        default n
+
+    config AI_STACK_IN_PSRAM
+        bool "AI_STACK_IN_PSRAM: use psram for stack"
+        default n
+
+    config AI_SEND_PKT_TIMEOUT
+        int "AI_SEND_PKT_TIMEOUT: ai send packet timeout, unit(s)"
+        range 1 10
+        default 6
+
+    config AI_VERSION
+	int "AI_VERSION: ai version"
+	range 1 2
+	default 1
+endmenu

@@ -2,7 +2,12 @@ config ENABLE_BUTTON
     bool "enable button"
     default n
 
-if (ENABLE_BUTTON)  
+if (ENABLE_BUTTON) 
+    config BUTTION_STACK_SIZE
+        int "button task stack size"
+        default 2048
+        range 1024 16384
+        
     config BUTTON_NAME
         string "the name of button 1"
         default "button1"

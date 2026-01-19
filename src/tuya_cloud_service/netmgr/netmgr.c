@@ -203,14 +203,14 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             s_netmgr.active = active_conn;
             netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
             tal_network_card_set_active(p_conn->card_type);
-            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
-            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
+            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&s_netmgr.active);
+            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&s_netmgr.status);
         } else if (active_status != s_netmgr.status) {
             // active_status changed
             PR_DEBUG("netmgr conn status changed [%s] --> [%s]", NETMGR_STATUS_TO_STR(s_netmgr.status),
                      NETMGR_STATUS_TO_STR(active_status));
             s_netmgr.status = active_status;
-            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)s_netmgr.status);
+            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&s_netmgr.status);
         } else if (active_conn != s_netmgr.active) {
             // active_conn changed
             PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
@@ -218,7 +218,7 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
             s_netmgr.active = active_conn;
             netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
             tal_network_card_set_active(p_conn->card_type);
-            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)s_netmgr.active);
+            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&s_netmgr.active);
         }
     }
 
@@ -347,7 +347,10 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    tuya_ble_init(&(tuya_ble_cfg_t){.client = tuya_iot_client_get(), .device_name = "TYBLE"});
+    tuya_ble_cfg_t ble_cfg = {0};
+    ble_cfg.client = tuya_iot_client_get();
+    snprintf(ble_cfg.device_name, sizeof(ble_cfg.device_name), "TYBLE");
+    tuya_ble_init(&ble_cfg);
 #endif
 
     return rt;

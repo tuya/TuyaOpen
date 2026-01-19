@@ -71,7 +71,7 @@ extern "C" {
 #define GT1151_CHECK_SUM_POS      (236)
 
 /* Max detectable simultaneous tp points */
-#define GT911_I2C_MAX_POINT 5
+#define GT1151_I2C_MAX_POINT 5
 
 /***********************************************************
 ***********************typedef define***********************

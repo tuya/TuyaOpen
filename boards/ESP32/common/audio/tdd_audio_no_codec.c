@@ -17,6 +17,8 @@
 
 #include "tkl_i2s.h"
 
+#include "audio_afe.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -94,6 +96,8 @@ static void esp32_i2s_read_task(void *args)
                         samples * sizeof(int16_t));
         }
 
+        auio_afe_processor_feed(hdl->data_buf, samples * sizeof(int16_t));
+
         tal_system_sleep(I2S_READ_TIME_MS);
     }
 }
@@ -152,14 +156,22 @@ static OPERATE_RET __tdd_audio_no_codec_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDI
         return OPRT_COM_ERROR;
     }
 
+    rt = audio_afe_processor_init();
+    if(rt != OPRT_OK) {
+        PR_ERR("audio_afe_processor_init err:%d",  rt);
+        return rt;
+    }
+
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "esp32_i2s_read",
         .stackDepth = 3 * 1024,
         .priority = THREAD_PRIO_1,
     };
     PR_DEBUG("I2S read task args: %p", hdl);
-    TUYA_CALL_ERR_LOG(
-        tal_thread_create_and_start(&hdl->thrd_hdl, NULL, NULL, esp32_i2s_read_task, (void *)hdl, &thread_cfg));
+    TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&hdl->thrd_hdl, NULL, NULL,\
+                                                 esp32_i2s_read_task, \
+                                                 (void *)hdl, &thread_cfg));
+
 
     return rt;
 }

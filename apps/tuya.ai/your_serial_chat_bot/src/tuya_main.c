@@ -28,6 +28,9 @@
 #include "tuya_authorize.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
+#else
+// Stub WiFi functions for non-WiFi platforms (e.g., Ubuntu with wired)
+#include "tkl_wifi_stub.h"
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
 #include "netconn_wired.h"
@@ -36,19 +39,24 @@
 #include "lwip_init.h"
 #endif
 
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-#include "app_display.h"
-#endif
-
 #include "board_com_api.h"
 
 #include "app_chat_bot.h"
-#include "ai_audio.h"
 #include "reset_netcfg.h"
-#include "app_system_info.h"
+
+#if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
+#include "app_battery.h"
+#endif
+
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+#include "qrencode_print.h"
+#endif
 
 /* Tuya device handle */
 tuya_iot_client_t ai_client;
+
+/* Tuya license information (uuid authkey) */
+tuya_iot_license_t license;
 
 #ifndef PROJECT_VERSION
 #define PROJECT_VERSION "1.0.0"
@@ -99,12 +107,6 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
-            ai_audio_set_volume(volume);
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            char volume_str[20] = {0};
-            snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
-            app_display_send_msg(TY_DISPLAY_TP_NOTIFICATION, (uint8_t *)volume_str, strlen(volume_str));
-#endif
             break;
         }
         default:
@@ -113,22 +115,6 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
     }
 
     return OPRT_OK;
-}
-
-OPERATE_RET ai_audio_volume_upload(void)
-{
-    tuya_iot_client_t *client = tuya_iot_client_get();
-    dp_obj_t dp_obj = {0};
-
-    uint8_t volume = ai_audio_get_volume();
-
-    dp_obj.id = DPID_VOLUME;
-    dp_obj.type = PROP_VALUE;
-    dp_obj.value.dp_value = volume;
-
-    PR_DEBUG("DP upload volume:%d", volume);
-
-    return tuya_iot_dp_obj_report(client, client->activate.devid, &dp_obj, 1, 0);
 }
 
 /**
@@ -150,9 +136,16 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_INFO("Device Reset!");
             tal_system_reset();
         }
-
-        // ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         break;
+
+    /* Print the QRCode for Tuya APP bind */
+    case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
+        char buffer[255];
+        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
+        qrcode_string_output(buffer, user_log_output_cb, 0);
+#endif
+    } break;
 
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
@@ -161,19 +154,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
         tal_event_publish(EVENT_MQTT_CONNECTED, NULL);
-
-        static uint8_t first = 1;
-        if (first) {
-            first = 0;
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            UI_WIFI_STATUS_E wifi_status = UI_WIFI_STATUS_GOOD;
-            app_display_send_msg(TY_DISPLAY_TP_NETWORK, (uint8_t *)&wifi_status, sizeof(UI_WIFI_STATUS_E));
-#endif
-
-            // ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
-            // ai_audio_volume_upload();
-        }
         break;
 
     /* MQTT with tuya cloud is disconnected, device offline */
@@ -191,6 +171,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_TIMESTAMP_SYNC:
         PR_INFO("Sync timestamp:%d", event->value.asInteger);
         tal_time_set_posix(event->value.asInteger, 1);
+        tal_event_publish("app.time.sync", NULL);
         break;
 
     case TUYA_EVENT_RESET:
@@ -256,7 +237,12 @@ void user_main(void)
     int ret = OPRT_OK;
 
     //! open iot development kit runtim init
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_psram_malloc, .free_fn = tal_psram_free});
+#else 
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
+#endif
+
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");
@@ -276,12 +262,10 @@ void user_main(void)
     tal_sw_timer_init();
     tal_workq_init();
     tal_time_service_init();
-    tal_cli_init();
+    // tal_cli_init();
     tuya_authorize_init();
 
     reset_netconfig_start();
-
-    tuya_iot_license_t license;
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid = TUYA_OPENSDK_UUID;
@@ -316,7 +300,7 @@ void user_main(void)
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
@@ -328,10 +312,8 @@ void user_main(void)
 
     ret = app_chat_bot_init();
     if (ret != OPRT_OK) {
-        PR_ERR("tuya_audio_recorde_init failed");
+        PR_ERR("app_chat_bot_init failed");
     }
-
-    app_system_info();
 
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
@@ -379,7 +361,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 4096;
+    thrd_param.priority = 4;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

@@ -36,20 +36,25 @@ extern "C" {
 /* Initialize low level display driver */
 void lv_port_disp_init(char *device);
 
+void lv_port_disp_deinit(char *device);
+
 /* Enable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */
-void disp_enable_update(void);
+void disp_enable_update(lv_display_t *lv_disp);
 
 /* Disable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */
-void disp_disable_update(void);
+void disp_disable_update(lv_display_t *lv_disp);
 
 /**
  * @brief Sets the display backlight brightness
  * 
  * @param brightness Brightness level (0-100)
  */
-void disp_set_backlight(uint8_t brightness);
+void disp_set_backlight(lv_display_t *lv_disp, uint8_t brightness);
+
+
+lv_display_t *lv_port_get_lv_disp_by_name(char *device);
 
 /**********************
  *      MACROS

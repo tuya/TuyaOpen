@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(ENABLE_LVGL_HARDWARE)
-#include "ai_audio.h"
 #include "axp2101_driver.h"
 #include "tal_system.h"
 #include "tal_kv.h"

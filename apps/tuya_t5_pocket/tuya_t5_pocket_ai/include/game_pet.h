@@ -3,6 +3,7 @@
 
 #include "lv_vendor.h"
 #include "main_screen.h"
+#include "ai_chat_main.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,23 +38,6 @@ typedef enum {
     PET_ALERT_THREE_STAGE_UP_TONE,
 } PET_ALERT_TYPE_E;
 
-typedef enum {
-    AI_AUDIO_ALERT_NORMAL = 0,
-    AI_AUDIO_ALERT_POWER_ON,
-    AI_AUDIO_ALERT_NOT_ACTIVE,
-    AI_AUDIO_ALERT_NETWORK_CFG,
-    AI_AUDIO_ALERT_NETWORK_CONNECTED,
-    AI_AUDIO_ALERT_NETWORK_FAIL,
-    AI_AUDIO_ALERT_NETWORK_DISCONNECT,
-    AI_AUDIO_ALERT_BATTERY_LOW,
-    AI_AUDIO_ALERT_PLEASE_AGAIN,
-    AI_AUDIO_ALERT_WAKEUP,
-    AI_AUDIO_ALERT_LONG_KEY_TALK,
-    AI_AUDIO_ALERT_KEY_TALK,
-    AI_AUDIO_ALERT_WAKEUP_TALK,
-    AI_AUDIO_ALERT_FREE_TALK,
-} AI_AUDIO_ALERT_TYPE_E;
-
 /**
  * @brief game pet operation function
  *
@@ -76,13 +60,6 @@ OPERATE_RET game_pet_reset(void);
 
 OPERATE_RET game_pet_play_alert(PET_ALERT_TYPE_E type);
 
-/**
- * @brief Plays an alert sound based on the specified alert type.
- *
- * @param type - The type of alert to play, defined by the APP_ALERT_TYPE_E enum.
- * @return OPERATE_RET - Returns OPRT_OK if the alert sound is successfully played, otherwise returns an error code.
- */
-OPERATE_RET ai_audio_player_play_alert(AI_AUDIO_ALERT_TYPE_E type);
 
 #ifdef __cplusplus
 }

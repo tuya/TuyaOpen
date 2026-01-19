@@ -1,7 +1,14 @@
 /**
  * @file tdd_camera_dvp_ov2640.c
- * @version 0.1
+ * @brief OV2640 camera sensor driver implementation
+ *
+ * This file implements the OV2640 camera sensor driver for DVP interface,
+ * including sensor initialization, reset control, and PPI (pixels per inch)
+ * configuration. It provides register update functions and sensor-specific
+ * initialization sequences.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tuya_cloud_types.h"
@@ -54,6 +61,12 @@ static TDD_DVP_SR_CFG_T sg_dvp_sensor = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Update OV2640 sensor registers via I2C
+ * @param port I2C port number
+ * @param sensor_reg_table Pointer to sensor register table (register address and value pairs)
+ * @param size Number of register entries in the table
+ */
 static void __dvp_ov2640_update_reg(TUYA_I2C_NUM_E port, const uint8_t sensor_reg_table[][2], uint32_t size)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -74,6 +87,12 @@ static void __dvp_ov2640_update_reg(TUYA_I2C_NUM_E port, const uint8_t sensor_re
     }
 }
 
+/**
+ * @brief Reset OV2640 camera sensor
+ * @param rst_pin Pointer to reset pin control structure
+ * @param arg User argument (unused)
+ * @return OPRT_OK on success
+ */
 static OPERATE_RET __dvp_ov2640_reset(TUYA_CAMERA_IO_CTRL_T *rst_pin, void *arg)
 {
     if(NULL == rst_pin) {
@@ -100,6 +119,12 @@ static OPERATE_RET __dvp_ov2640_reset(TUYA_CAMERA_IO_CTRL_T *rst_pin, void *arg)
     return OPRT_OK;
 }
 
+/**
+ * @brief Initialize OV2640 camera sensor
+ * @param i2c Pointer to I2C configuration structure
+ * @param arg User argument (unused)
+ * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid
+ */
 static OPERATE_RET __dvp_ov2640_init(DVP_I2C_CFG_T *i2c, void *arg)
 {
     if(NULL == i2c) {
@@ -115,6 +140,14 @@ static OPERATE_RET __dvp_ov2640_init(DVP_I2C_CFG_T *i2c, void *arg)
     return OPRT_OK;
 }
 
+/**
+ * @brief Set OV2640 camera sensor PPI (resolution) and FPS
+ * @param i2c Pointer to I2C configuration structure
+ * @param ppi Camera PPI enumeration (resolution)
+ * @param fps Frame rate per second
+ * @param arg User argument (unused)
+ * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid
+ */
 static OPERATE_RET __dvp_ov2640_set_ppi(DVP_I2C_CFG_T *i2c, TUYA_CAMERA_PPI_E ppi, uint16_t fps, void *arg)
 {
     uint32_t i = 0; 
@@ -142,6 +175,12 @@ static OPERATE_RET __dvp_ov2640_set_ppi(DVP_I2C_CFG_T *i2c, TUYA_CAMERA_PPI_E pp
     return OPRT_OK;
 }
 
+/**
+ * @brief Register OV2640 camera sensor device
+ * @param name Camera device name
+ * @param cfg Pointer to DVP sensor user configuration structure
+ * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid
+ */
 OPERATE_RET tdd_camera_dvp_ov2640_register(char *name, TDD_DVP_SR_USR_CFG_T *cfg)
 {
     if(NULL == name || NULL == cfg) {

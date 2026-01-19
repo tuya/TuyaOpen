@@ -1,0 +1,21 @@
+if(ENABLE_CHAT_DISPLAY2) 
+choice
+    prompt "Select Display UI Style"
+    default ENABLE_GUI2_WECHAT
+    help
+      Choose the user interface style for the chat display.
+      Different styles provide different user experiences.
+
+    config ENABLE_GUI2_WECHAT
+        bool "WeChat-Style UI"
+        help
+          Modern chat interface similar to WeChat messenger.
+          Features: message bubbles, conversation view.
+
+    config ENABLE_GUI2_CHATBOT
+        bool "Chatbot-Style UI"
+        help
+          Classic chatbot interface
+          Features: single conversation thread, simple interaction.
+endchoice
+endif

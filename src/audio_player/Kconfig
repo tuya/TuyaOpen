@@ -1,0 +1,46 @@
+menuconfig ENABLE_AI_PLAYER
+    select ENABLE_AUDIO_CODECS
+    bool "ENABLE_AI_PLAYER: Enable AI player"
+    default n
+
+    if (ENABLE_AI_PLAYER)
+        config AI_PLAYER_STACK_SIZE
+            int "AI_PLAYER_STACK_SIZE: player thread stack size"
+            default 5120
+        config AI_PLAYER_FRAMEBUF_SIZE
+            int "AI_PLAYER_FRAMEBUF_SIZE: player frame buf size"
+            default 4096
+        config AI_PLAYER_DECODEBUF_SIZE
+            int "AI_PLAYER_DECODEBUF_SIZE: player decode buf size"
+            default 8192
+        config AI_PLAYER_RINGBUF_SIZE
+            int "AI_PLAYER_RINGBUF_SIZE: player ring buf size"
+            default 16384
+        config AI_PLAYER_HTTP_YIELD_MS
+            int "AI_PLAYER_HTTP_YIELD_MS: player http yield ms"
+            range 1 100
+            default 10
+        config AI_PLAYER_HTTP_TIMEOUT_S
+            int "AI_PLAYER_HTTP_TIMEOUT_S: player http timeout seconds"
+            range 60 300
+            default 180
+        menu "Decoder Options"
+            config ENABLE_AI_PLAYER_DECODER_OPUS
+                bool "ENABLE_AI_PLAYER_DECODER_OPUS: Enable OPUS decoder without any container"
+                default n
+            config AI_PLAYER_DECODER_OPUS_FRAME_SIZE
+                depends on ENABLE_AI_PLAYER_DECODER_OPUS
+                int "AI_PLAYER_DECODER_OPUS_FRAME_SIZE: OPUS decoder frame size in ms"
+                default 40
+                range 10 60
+            config AI_PLAYER_DECODER_OPUS_KBPS
+                depends on ENABLE_AI_PLAYER_DECODER_OPUS
+                int "AI_PLAYER_DECODER_OPUS_KBPS: OPUS decoder kbps, 16kbps or 24kbps is recommended"
+                default 16
+                range 16 128
+            config ENABLE_AI_PLAYER_DECODER_OGGOPUS
+                depends on ENABLE_AI_PLAYER_DECODER_OPUS
+                bool "ENABLE_AI_PLAYER_DECODER_OGGOPUS: Enable OGGOPUS decoder without any container"
+                default n
+        endmenu # Decoder Options
+    endif # ENABLE_AI_PLAYER

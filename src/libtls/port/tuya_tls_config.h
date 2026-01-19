@@ -3638,7 +3638,7 @@ extern int __tuya_tls_nv_seed_read(unsigned char *buf, size_t buf_len);
  * Uncomment to set the maximum plaintext size of both
  * incoming and outgoing I/O buffers.
  */
-#ifdef ENABLE_CUSTOM_CONFIG
+#ifdef ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN
 #define MBEDTLS_SSL_MAX_CONTENT_LEN                                                                                    \
     ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN /**< Maxium fragment length in bytes, determines the size of each of the two    \
                                           internal I/O buffers */

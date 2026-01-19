@@ -1,0 +1,22 @@
+menuconfig ENABLE_COMP_AI_PRESENT_MODE
+    bool "enable ai present mode"
+    select ENABLE_COMP_AI_AUDIO
+    default y
+
+if(ENABLE_COMP_AI_PRESENT_MODE)
+    config ENABLE_COMP_AI_MODE_HOLD
+        bool "enable ai mode hold"
+        default y
+
+    config ENABLE_COMP_AI_MODE_ONESHOT
+        bool "enable ai mode oneshot"
+        default y
+
+    config ENABLE_COMP_AI_MODE_WAKEUP
+        bool "enable ai mode wakeup"
+        default y
+
+    config ENABLE_COMP_AI_MODE_FREE
+        bool "enable ai mode free"
+        default y
+endif

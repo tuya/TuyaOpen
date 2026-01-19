@@ -35,6 +35,47 @@
 #include "tal_memory.h"
 
 /**
+ * @brief Enter a critical section by disabling interrupts.
+ *
+ * This function enters a critical section by disabling interrupts and returns
+ * the current interrupt mask. Critical sections are used to protect shared
+ * resources from being accessed concurrently by interrupt handlers and the main
+ * execution context. The returned interrupt mask should be saved and passed
+ * to tal_system_exit_critical() when exiting the critical section.
+ *
+ * This function is typically used in conjunction with tal_system_exit_critical()
+ * to protect code sections that must execute atomically. It can also be used
+ * with the TAL_ENTER_CRITICAL() and TAL_EXIT_CRITICAL() macros for convenience.
+ *
+ * @return The current interrupt mask value that should be passed to
+ *         tal_system_exit_critical() when exiting the critical section.
+ */
+uint32_t tal_system_enter_critical(void)
+{
+    return tkl_system_enter_critical();
+}
+
+/**
+ * @brief Exit a critical section by restoring interrupts.
+ *
+ * This function exits a critical section by restoring the interrupt state
+ * using the interrupt mask that was returned by tal_system_enter_critical().
+ * This restores the system to its previous interrupt state, allowing interrupts
+ * to be processed again.
+ *
+ * The interrupt mask parameter must be the value returned by the corresponding
+ * call to tal_system_enter_critical(). Mismatched calls or incorrect mask
+ * values may result in incorrect interrupt state restoration.
+ *
+ * @param irq_mask The interrupt mask value returned by tal_system_enter_critical()
+ *                 when entering the critical section.
+ */
+void tal_system_exit_critical(uint32_t irq_mask)
+{
+    tkl_system_exit_critical(irq_mask);
+}
+
+/**
  * @brief Allocates a block of memory of the specified size.
  *
  * This function is used to dynamically allocate memory of the specified size.
@@ -106,6 +147,18 @@ void *tal_realloc(void *ptr, size_t size)
 }
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+/**
+ * @brief Allocate memory from PSRAM (Pseudo Static RAM)
+ *
+ * This function allocates a block of memory of the specified size from the
+ * external PSRAM heap. PSRAM is typically used for large memory allocations
+ * that don't fit in the internal RAM, such as image buffers, audio buffers,
+ * or other large data structures.
+ *
+ * @param[in] size: The size of memory to allocate in bytes
+ *
+ * @return Pointer to the allocated memory block on success, NULL on failure
+ */
 void *tal_psram_malloc(size_t size)
 {
     if (0 == size) {
@@ -116,13 +169,24 @@ void *tal_psram_malloc(size_t size)
     ptr = tkl_system_psram_malloc(size);
 
     if (NULL == ptr) {
-        PR_ERR("0x%x psram malloc failed:0x%x free:0x%x", __builtin_return_address(0), size,
-               tal_system_get_free_heap_size());
+        PR_ERR("0x%x psram malloc failed:0x%x free:0x%x", __builtin_return_address(0), size, tal_system_get_free_heap_size());
     }
 
     return ptr;
 }
 
+/**
+ * @brief Free memory allocated from PSRAM
+ *
+ * This function deallocates a memory block that was previously allocated
+ * using tal_psram_malloc(), tal_psram_calloc(), or tal_psram_realloc().
+ * The pointer must have been returned by one of these functions.
+ *
+ * @param[in] ptr: Pointer to the memory block to be freed. If NULL, the
+ *                 function does nothing.
+ *
+ * @return none
+ */
 void tal_psram_free(void *ptr)
 {
     if (NULL == ptr) {
@@ -132,14 +196,59 @@ void tal_psram_free(void *ptr)
     tkl_system_psram_free(ptr);
 }
 
+/**
+ * @brief Allocate and zero-initialize memory from PSRAM
+ *
+ * This function allocates memory for an array of elements from PSRAM, where
+ * each element is of the specified size. The allocated memory is initialized
+ * to zero. This is equivalent to calling tal_psram_malloc() followed by
+ * memset() to zero.
+ *
+ * @param[in] nitems: The number of elements to allocate
+ * @param[in] size: The size of each element in bytes
+ *
+ * @return Pointer to the allocated and zero-initialized memory block on
+ *         success, NULL on failure
+ */
 void *tal_psram_calloc(size_t nitems, size_t size)
 {
     return tkl_system_psram_calloc(nitems, size);
 }
 
+/**
+ * @brief Reallocate memory block in PSRAM
+ *
+ * This function changes the size of a memory block previously allocated in
+ * PSRAM. The contents of the memory block are preserved up to the minimum
+ * of the old and new sizes. If the new size is larger, the additional memory
+ * is not initialized.
+ *
+ * @param[in] ptr: Pointer to the memory block to be reallocated. If NULL,
+ *                 the function behaves like tal_psram_malloc(size)
+ * @param[in] size: The new size for the memory block in bytes
+ *
+ * @return Pointer to the reallocated memory block on success, NULL on
+ *         failure. The original pointer may become invalid after this call.
+ */
 void *tal_psram_realloc(void *ptr, size_t size)
 {
     return tkl_system_psram_realloc(ptr, size);
+}
+
+/**
+ * @brief Get the amount of free heap memory in PSRAM
+ *
+ * This function returns the total amount of free memory available in the
+ * PSRAM heap. This can be useful for monitoring memory usage and debugging
+ * memory-related issues.
+ *
+ * @param[in] param: none
+ *
+ * @return The amount of free heap memory in PSRAM in bytes
+ */
+int tal_psram_get_free_heap_size(void)
+{
+    return tkl_system_psram_get_free_heap_size();
 }
 #endif
 

@@ -20,7 +20,7 @@
 #include "tkl_pinmux.h"
 #include "tdd_disp_ssd1306.h"
 #include "tdl_display_driver.h"
-
+#include "tdl_display_manage.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/

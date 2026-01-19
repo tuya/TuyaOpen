@@ -13,7 +13,6 @@
 
 #include "lvgl.h"
 #include "font_awesome_symbols.h"
-#include "tuya_slist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,13 +23,6 @@ extern "C" {
 typedef struct {
     char    *text[GUI_SUPPORT_LANG_NUM];
 } gui_lang_desc_t;
-
-
-typedef struct {
-    SLIST_HEAD  node;
-    uint32_t    timeindex;
-    char        data[33 + 3];
-} gui_text_disp_t;
 
 typedef struct {
     const void  *source;
@@ -61,19 +53,8 @@ mode   [gif]stat   vol cell
 ---------------------------
 */
 char *gui_wifi_level_get(uint8_t net);
-char *gui_volum_level_get(uint8_t volum);
 char *gui_battery_level_get(uint8_t battery);
-char *gui_mode_desc_get(uint8_t mode);
 int   gui_status_desc_get(uint8_t stat, const char **text, const lv_img_dsc_t **gif);
-
-int gui_txet_disp_init(lv_obj_t *obj, void *priv_data, uint16_t width, uint16_t high);
-int gui_txet_disp_start(void);
-int gui_txet_disp_stop(void);
-int gui_text_disp_pop(gui_text_disp_t **text);
-int gui_text_disp_push(uint8_t *data, int len);
-int gui_text_disp_free(void);
-int gui_txet_disp_set_cb(void (*text_disp_cb)(void *obj, char *text, int pos, void *priv_data));
-int gui_txet_disp_set_windows(lv_obj_t *obj, void *priv_data, uint16_t width, uint16_t high);
 
 
 #ifdef __cplusplus

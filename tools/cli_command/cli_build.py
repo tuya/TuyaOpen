@@ -230,6 +230,34 @@ def ninja_build(build_path, verbose=False):
     return True
 
 
+def copy_compile_commands(build_path):
+    '''
+    copy compile_commands.json from build directory to project root
+    '''
+    logger = get_logger()
+    params = get_global_params()
+    
+    src_file = os.path.join(build_path, "compile_commands.json")
+    dst_file = os.path.join(params["open_root"], "compile_commands.json")
+
+    logger.debug(f"Copying compile_commands.json from {src_file} to {dst_file}")
+    
+    if not os.path.exists(src_file):
+        logger.debug(f"compile_commands.json not found in {build_path}")
+        return True
+    
+    try:
+        if os.path.exists(dst_file):
+            os.remove(dst_file)
+            logger.debug(f"Removed existing {dst_file}")
+        shutil.copy2(src_file, dst_file)
+        logger.debug(f"Copied compile_commands.json to {dst_file}")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to copy compile_commands.json: {str(e)}")
+        return True  # Don't fail the build if copy fails
+
+
 def check_bin_file(using_data,):
     '''
     check bin file exists
@@ -319,6 +347,8 @@ def build_project(verbose=False):
     if not ninja_build(build_path, verbose):
         logger.error("Build error.")
         return False
+
+    copy_compile_commands(build_path)
 
     if not check_bin_file(using_data,):
         return False

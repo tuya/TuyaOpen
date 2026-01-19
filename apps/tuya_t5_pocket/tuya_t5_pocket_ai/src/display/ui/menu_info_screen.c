@@ -22,7 +22,6 @@
 #include <string.h>
 #include <stdlib.h>
 #if defined(ENABLE_LVGL_HARDWARE)
-#include "ai_audio.h"
 #include "tal_kv.h"
 #endif
 /***********************************************************

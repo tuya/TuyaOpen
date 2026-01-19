@@ -7,12 +7,12 @@ if (ENABLE_DISPLAY)
         string "the name of display 1"
         default "display"
 
-    config ENABLE_DISPLAY_DEV_2
+    config ENABLE_DISPLAY_2
         bool "enable second display device"
         default n
 
     config DISPLAY_NAME_2
         string "the name of display 2"
         default "display2"
-        depends on ENABLE_DISPLAY_DEV_2
+        depends on ENABLE_DISPLAY_2
 endif

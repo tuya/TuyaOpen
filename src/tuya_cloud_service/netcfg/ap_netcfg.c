@@ -282,7 +282,7 @@ static int ap_cfg_cmd_patse(ap_netcfg_t *ap, char *data)
     cJSON *reg = cJSON_GetObjectItem(root, "reg");
     if (reg) {
         char *app_reg = cJSON_PrintUnformatted(reg);
-        tal_free(app_reg);
+        cJSON_free(app_reg);
         if (OPRT_OK != tuya_register_center_save(RCS_APP, reg)) {
             PR_ERR("save to reg center err");
         }

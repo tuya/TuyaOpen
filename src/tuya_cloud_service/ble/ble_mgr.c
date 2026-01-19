@@ -191,13 +191,13 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
     if (device_name_len > TUYA_BLE_NAME_LEN) {
         device_name_len = TUYA_BLE_NAME_LEN;
     }
-    memcpy(&ble->rsp_data[ble->rsp_len], ble->cfg.device_name, device_name_len); /* device name */
     ble->rsp_data[ble->rsp_len++] = device_name_len + 1;
     ble->rsp_data[ble->rsp_len++] = 0x09; /* type */
+    memcpy(&ble->rsp_data[ble->rsp_len], ble->cfg.device_name, device_name_len);
     ble->rsp_len += device_name_len;
 
-    tuya_ble_raw_print("adv_data", 20, (uint8_t *)ble->adv_data, ble->adv_len);
-    tuya_ble_raw_print("rsp_data", 20, (uint8_t *)ble->rsp_data, ble->rsp_len);
+    tuya_ble_raw_print("adv_data", 8, (uint8_t *)ble->adv_data, ble->adv_len);
+    tuya_ble_raw_print("rsp_data", 8, (uint8_t *)ble->rsp_data, ble->rsp_len);
 
     return OPRT_OK;
 }
@@ -282,7 +282,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         PR_ERR("ble trsmitr version not compatibility! %d", packet_recv->trsmitr->version);
         return OPRT_INVALID_PARM;
     }
-    tuya_ble_raw_print("ble raw packet", 32, packet_recv->raw_buf, packet_recv->raw_len);
+    tuya_ble_raw_print("ble raw packet", 8, packet_recv->raw_buf, packet_recv->raw_len);
     memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
                              packet_recv->dec_buf);
@@ -290,7 +290,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         PR_ERR("ble packet decrypt err:%d", rt);
         return OPRT_INVALID_PARM;
     }
-    tuya_ble_raw_print("ble dec packet", 32, packet_recv->dec_buf, packet_recv->dec_len);
+    tuya_ble_raw_print("ble dec packet", 8, packet_recv->dec_buf, packet_recv->dec_len);
     uint16_t data_len = 0;
     data_len = packet_recv->dec_buf[BLE_PACKET_DLEN_IND] << 8;
     data_len += packet_recv->dec_buf[BLE_PACKET_DLEN_IND + 1];
@@ -358,7 +358,7 @@ static void ble_adv_update(tuya_ble_mgr_t *ble)
     if (ble->is_paired) {
         TUYA_CALL_ERR_LOG(tal_ble_advertising_data_set(&adv_data, &rsp_data));
     } else {
-        TUYA_CALL_ERR_LOG(tal_ble_advertising_stop());
+        tal_ble_advertising_stop();
         TUYA_CALL_ERR_LOG(tal_ble_advertising_data_set(&adv_data, &rsp_data));
         TAL_BLE_ADV_PARAMS_T ble_adv_params = DEFAULT_ADV_PARAMS(BT_ADV_INTERVAL_MIN, BT_ADV_INTERVAL_MAX);
         TUYA_CALL_ERR_LOG(tal_ble_advertising_start(&ble_adv_params));
@@ -587,7 +587,7 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         }
         uint32_t send_len = ble_frame_subpacket_len_get(trsmitr);
         memcpy(pbuf, ble_frame_subpacket_get(trsmitr), send_len);
-        // tuya_ble_raw_print("ble trsmitr pbuf", 32, pbuf, send_len);
+        // tuya_ble_raw_print("ble trsmitr pbuf", 8, pbuf, send_len);
         TAL_BLE_DATA_T ble_data;
 
         ble_data.p_data = pbuf;
@@ -641,7 +641,7 @@ int tuya_ble_send_packet(ble_packet_t *packet)
         packet->encrypt_mode = *ble->is_bound ? ENCRYPTION_MODE_SESSION_KEY15 : ENCRYPTION_MODE_KEY_12;
     }
 
-    tuya_ble_raw_print("ble packet", 32, packet->data, packet->len);
+    tuya_ble_raw_print("ble packet", 8, packet->data, packet->len);
     PR_TRACE("ble send. type:0x%x encrpyt:%d", packet->type, packet->encrypt_mode);
 
     return ble_packet_resp(ble, packet);
@@ -827,7 +827,7 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     }
     memset(pbuf, 0, buf_len);
     buf_len = ble_dev_info_make(ble, pbuf, buf_len);
-    // tuya_ble_raw_print("ble dev info:", 32, pbuf, buf_len);
+    // tuya_ble_raw_print("ble dev info:", 8, pbuf, buf_len);
 
     ble_packet_t resp;
     resp.sn = req->sn;
@@ -879,6 +879,46 @@ void ble_session_system_process(ble_packet_t *packet, void *priv_data)
         PR_TRACE("bt_dp can not process cmd: 0x%x ", packet->type);
         break;
     }
+}
+
+// ble event params malloc&copy
+static TAL_BLE_EVT_PARAMS_T * ble_event_msg_copy(TAL_BLE_EVT_PARAMS_T *evt)
+{
+    TAL_BLE_EVT_PARAMS_T *msg = NULL;
+
+    msg = tal_malloc(sizeof(TAL_BLE_EVT_PARAMS_T));
+    if (NULL == msg) {
+        return NULL;
+    }
+    memcpy(msg, evt, sizeof(TAL_BLE_EVT_PARAMS_T));
+
+    if (TAL_BLE_EVT_WRITE_REQ == evt->type && evt->ble_event.write_report.report.len > 0) {
+        msg->ble_event.write_report.report.p_data =
+            tal_malloc(evt->ble_event.write_report.report.len);
+        if (NULL == msg->ble_event.write_report.report.p_data) {
+            tal_free(msg);
+            return NULL;
+        }
+        memcpy(msg->ble_event.write_report.report.p_data, evt->ble_event.write_report.report.p_data,
+                evt->ble_event.write_report.report.len);
+    }
+
+    return msg;
+}
+
+// ble event params free
+static void ble_event_msg_free(TAL_BLE_EVT_PARAMS_T *msg)
+{
+    if (NULL == msg) {
+        return;
+    }
+
+    if (TAL_BLE_EVT_WRITE_REQ == msg->type && msg->ble_event.write_report.report.p_data) {
+        tal_free(msg->ble_event.write_report.report.p_data);
+        msg->ble_event.write_report.report.p_data = NULL;
+    }
+
+    tal_free(msg);
 }
 
 static void tal_ble_event_callback(void *data)
@@ -955,7 +995,7 @@ static void tal_ble_event_callback(void *data)
     }
 
     if (data) {
-        tal_free(data);
+        ble_event_msg_free(data);
         data = NULL;
     }
 }
@@ -1010,11 +1050,13 @@ static void tal_ble_event_on_worq(TAL_BLE_EVT_PARAMS_T *msg)
 {
     TAL_BLE_EVT_PARAMS_T *data;
 
-    data = tal_malloc(sizeof(TAL_BLE_EVT_PARAMS_T));
-    if (data) {
-        memcpy(data, (TAL_BLE_EVT_PARAMS_T *)msg, sizeof(TAL_BLE_EVT_PARAMS_T));
-        tal_workq_schedule(WORKQ_HIGHTPRI, tal_ble_event_callback, data);
+    data = ble_event_msg_copy(msg);
+    if (NULL == data) {
+        PR_ERR("ble event msg copy fail");
+        return;
     }
+
+    tal_workq_schedule(WORKQ_HIGHTPRI, tal_ble_event_callback, data);
 }
 
 /**

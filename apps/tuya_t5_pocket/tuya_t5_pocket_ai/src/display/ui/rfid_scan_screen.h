@@ -40,6 +40,8 @@ void rfid_scan_screen_deinit(void);
  */
 void rfid_scan_screen_data_update(uint8_t dev_id, uint16_t tag_type, const uint8_t *uid, uint8_t uid_length);
 
+void rfid_scan_screen_load(void);
+
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

@@ -1,10 +1,15 @@
-#include "tuya_ai_display.h"
-#include "gui_common.h"
-#include "lvgl.h"
-#include "tal_log.h"
-
+#include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
-#include <strings.h>
+
+#include "ai_ui_manage.h"
+#include "gui_common.h"
+
+#include "lang_config.h"
+#include "lv_vendor.h"
+#include "lvgl.h"
+#include "tal_api.h"
+#include "tal_log.h"
 
 LV_IMG_DECLARE(neutral);
 LV_IMG_DECLARE(annoyed);
@@ -25,15 +30,17 @@ static int current_gif_index = -1;
 static bool gif_load_init = false;
 static int s_current_gui_stat = GUI_STAT_INIT;
 
-/* Emoji vertical offset: positive moves down, negative moves up */
-#define EMOJI_Y_OFFSET -28
-/* Container vertical offset: positive moves down, negative moves up */
-#define CONTAINER_Y_OFFSET 32
+static lv_obj_t *status_bar_;
+static lv_obj_t *battery_label_;
+static lv_obj_t *network_label_;
+static lv_obj_t *status_label_;
 
 //! gif file
 static lv_img_dsc_t gif_files[11]; 
 
 #define GIF_EMOTION_FILE_INDEX       9
+
+static uint8_t s_last_wifi_status = 0;
 
 static const gui_emotion_t s_gif_emotion[] = {
     {&neutral,          "neutral"},
@@ -57,6 +64,13 @@ static const gui_emotion_t s_gif_emotion[] = {
     {&gif_files[8],     "surprise"},
     {&gif_files[9],     "thinking"},
 };
+
+static void __lvgl_init(void)
+{
+    lv_vendor_init(DISPLAY_NAME);
+
+    lv_vendor_start(5, 1024*8);
+}
 
 void robot_gif_load(void)
 {
@@ -105,11 +119,6 @@ void robot_emotion_flush(char  *emotion)
     lv_gif_set_src(gif_full, s_gif_emotion[index].source); 
 }
 
-static  lv_obj_t    *status_bar_ ;
-static  lv_obj_t    *battery_label_;
-static  lv_obj_t    *network_label_;
-static  lv_obj_t    *status_label_;
-
 void robot_status_bar_init(lv_obj_t *container)
 {
     /* Status bar */
@@ -127,12 +136,6 @@ void robot_status_bar_init(lv_obj_t *container)
     lv_obj_set_style_text_font(network_label_, &font_awesome_16_4, 0);
     lv_label_set_text(network_label_, FONT_AWESOME_WIFI_OFF);
     lv_obj_align(network_label_, LV_ALIGN_LEFT_MID, 10, 0);
-    PR_DEBUG("[robot_display] network_label_ created, init=%s", FONT_AWESOME_WIFI_OFF);
-    PR_DEBUG("[robot_display] network_label_ pos=(%d,%d) size=(%d,%d) hidden=%d parent_hidden=%d",
-             lv_obj_get_x(network_label_), lv_obj_get_y(network_label_),
-             lv_obj_get_width(network_label_), lv_obj_get_height(network_label_),
-             lv_obj_has_flag(network_label_, LV_OBJ_FLAG_HIDDEN),
-             lv_obj_has_flag(status_bar_, LV_OBJ_FLAG_HIDDEN));
 
     gif_stat = lv_gif_create(status_bar_);
     lv_obj_set_height(gif_stat, font_puhui_18_2.line_height);
@@ -147,12 +150,6 @@ void robot_status_bar_init(lv_obj_t *container)
     lv_label_set_text(battery_label_, FONT_AWESOME_BATTERY_FULL);
     lv_obj_set_style_text_font(battery_label_, &font_awesome_16_4, 0);
     lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, -10, 0);
-    PR_DEBUG("[robot_display] battery_label_ created, init=%s", FONT_AWESOME_BATTERY_FULL);
-    PR_DEBUG("[robot_display] battery_label_ pos=(%d,%d) size=(%d,%d) hidden=%d parent_hidden=%d",
-             lv_obj_get_x(battery_label_), lv_obj_get_y(battery_label_),
-             lv_obj_get_width(battery_label_), lv_obj_get_height(battery_label_),
-             lv_obj_has_flag(battery_label_, LV_OBJ_FLAG_HIDDEN),
-             lv_obj_has_flag(status_bar_, LV_OBJ_FLAG_HIDDEN));
 }
 
 void robot_set_status(int stat)
@@ -165,140 +162,184 @@ void robot_set_status(int stat)
     }
     
     lv_label_set_text(status_label_, text);
+    lv_obj_center(status_label_);
+    lv_obj_update_layout(status_label_);
+
+    lv_gif_set_src(gif_stat, gif);
+    lv_obj_update_layout(gif_stat);
+
     lv_obj_align_to(gif_stat, status_label_, LV_ALIGN_OUT_LEFT_MID, -5, -1);
-    lv_gif_set_src(gif_stat, gif); 
 
     s_current_gui_stat = stat;
 }
 
 void tuya_robot_init(void)
 {
+    /* Make sure the base background isn't theme-white. */
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
+
     /* Container */
     lv_obj_t * container_ = lv_obj_create(lv_scr_act());
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
     lv_obj_set_scrollbar_mode(container_, LV_SCROLLBAR_MODE_OFF);
-    /* Move the container down by the specified pixels */
-    lv_obj_set_y(container_, CONTAINER_Y_OFFSET);
+    lv_obj_set_style_bg_color(container_, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(container_, LV_OPA_COVER, 0);
 
     robot_status_bar_init(container_);
 
     gif_full = lv_gif_create(container_);
     lv_obj_set_size(gif_full, LV_HOR_RES, LV_VER_RES);
-    /* Set vertical offset for the full-screen emotion GIF */
-    lv_obj_set_y(gif_full, EMOJI_Y_OFFSET);
+    lv_obj_set_style_bg_color(gif_full, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(gif_full, LV_OPA_COVER, 0);
 
     robot_set_status(GUI_STAT_INIT);
     robot_emotion_flush("neutral");
     lv_obj_move_background(gif_full);
 }
 
-/* UVC camera stream controls disabled to avoid link errors */
-/* void bk_uvc_camera_stream_start(void); */
-/* void bk_uvc_camera_stream_stop(void); */
-
-void tuya_robot_app(TY_DISPLAY_MSG_T *msg)
+void robot_ui_battery_update(bool is_charging, uint8_t percentage)
 {
-    /* Debug print of incoming message: type, len, and a safe data preview */
-    const char *data_str = "<null>";
-    char preview[64] = {0};
-    if (msg && msg->data) {
-        int n = msg->len;
-        if (n > (int)(sizeof(preview) - 1)) {
-            n = (int)(sizeof(preview) - 1);
-        }
-        if (n > 0) {
-            memcpy(preview, msg->data, (size_t)n);
-            preview[n] = '\0';
-            data_str = preview;
+    lv_vendor_disp_lock();
+    if (battery_label_) {
+        if (is_charging) {
+            lv_label_set_text(battery_label_, FONT_AWESOME_BATTERY_CHARGING);
         } else {
-            data_str = "";
+            lv_label_set_text(battery_label_, gui_battery_level_get(percentage));
         }
     }
-    PR_DEBUG("tuya_robot_app: type=%d len=%d data_preview=\"%s\"",
-             msg ? msg->type : -1, msg ? msg->len : 0, data_str);
-    if (!msg) {
-        return;
-    }
-    switch (msg->type)
-    {
-    case TY_DISPLAY_TP_LANGUAGE:
-        gui_lang_set(((uint8_t *)msg->data)[0]);
-        robot_set_status(GUI_STAT_INIT);
-        break;
-    case TY_DISPLAY_TP_EMOJI:{
-        robot_emotion_flush(msg->data);
-         robot_set_status(GUI_STAT_THINK);   
-    }
-        break;
-    case TY_DISPLAY_TP_STAT_CHARGING:
-        lv_label_set_text(battery_label_, FONT_AWESOME_BATTERY_CHARGING); 
-        break;
-    case TY_DISPLAY_TP_STAT_BATTERY: 
-        lv_label_set_text(battery_label_, gui_battery_level_get(((uint8_t *)msg->data)[0]));
-        break;
-    case TY_DISPLAY_TP_STAT_NETCFG:
+    lv_vendor_disp_unlock();
+}
+
+void robot_ui_enter_netcfg(void)
+{
+    lv_vendor_disp_lock();
+    if (status_label_) {
         robot_set_status(GUI_STAT_PROV);
-        break;
-    case TY_DISPLAY_TP_CHAT_STAT: {
-        uint8_t stat = 0xFF;
-        /* Support two payload formats: 1-byte enum or text (multibyte, Chinese/English) */
-        if (msg->len == 1) {
-            stat = ((uint8_t *)msg->data)[0];
-        } else {
-            const char *s = (const char *)msg->data;
-            /* Simple text-to-status mapping (Chinese/English keywords) */
-            if (s) {
-                if (strstr(s, "聆听") || strstr(s, "Listening")) {
-                    stat = GUI_STAT_LISTEN;
-                } else if (strstr(s, "上传") || strstr(s, "Uploading")) {
-                    stat = GUI_STAT_UPLOAD;
-                } else if (strstr(s, "思考") || strstr(s, "Thinking")) {
-                    stat = GUI_STAT_THINK;
-                } else if (strstr(s, "说话") || strstr(s, "Speaking")) {
-                    stat = GUI_STAT_SPEAK;
-                } else if (strstr(s, "待命") || strstr(s, "Standby")) {
-                    stat = GUI_STAT_IDLE;
-                } else if (strstr(s, "连接") || strstr(s, "Connecting")) {
-                    stat = GUI_STAT_CONN;
-                } else if (strstr(s, "初始化") || strstr(s, "Initializing")) {
-                    stat = GUI_STAT_INIT;
-                } else if (strstr(s, "配网") || strstr(s, "Provisioning")) {
-                    stat = GUI_STAT_PROV;
-                } else {
-                    /* Default to idle when no match */
-                    stat = GUI_STAT_IDLE;
-                }
-            } else {
-                stat = GUI_STAT_IDLE;
+    }
+    lv_vendor_disp_unlock();
+}
+
+void robot_ui_wifi_update(uint8_t wifi_status)
+{
+    lv_vendor_disp_lock();
+    if (network_label_) {
+        if (wifi_status && !s_last_wifi_status) {
+            robot_gif_load();
+            if (gif_full && status_label_) {
+                robot_emotion_flush("neutral");
+                robot_set_status(GUI_STAT_IDLE);
             }
         }
-        if (GUI_STAT_IDLE == stat) {
-            robot_emotion_flush("neutral");
-        } else if (GUI_STAT_LISTEN == stat) {
-            robot_emotion_flush("neutral");
-        } else if (GUI_STAT_UPLOAD == stat) {
-            robot_emotion_flush("thinking");
-        }
-        if (s_current_gui_stat == GUI_STAT_PROV && stat != GUI_STAT_PROV) {
-            break;
-        }
-        robot_set_status(stat);
-    } break;
-    case TY_DISPLAY_TP_STAT_SPEAK:
-        /* No action needed; speak status handled in CHAT_STAT */
-        robot_set_status(GUI_STAT_SPEAK);
-        break;
-    case TY_DISPLAY_TP_STAT_NET:
-        if (((uint8_t *)msg->data)[0]) {
-            robot_gif_load();
-            robot_set_status(GUI_STAT_IDLE);
-        }
-        lv_label_set_text(network_label_, gui_wifi_level_get(((uint8_t *)msg->data)[0]));
-        break;
-    default:
-        break;
+        lv_label_set_text(network_label_, gui_wifi_level_get(wifi_status));
+    }
+    lv_vendor_disp_unlock();
+
+    s_last_wifi_status = wifi_status;
+}
+
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+static bool __robot_gui_stat_from_text(const char *text, uint8_t *stat)
+{
+    if (!text || !stat) {
+        return false;
+    }
+
+    /* Prefix match to allow minor suffix differences. */
+    if (strncmp(text, STANDBY, strlen(STANDBY)) == 0) {
+        *stat = (uint8_t)GUI_STAT_IDLE;
+        return true;
+    }
+    if (strncmp(text, LISTENING, strlen(LISTENING)) == 0) {
+        *stat = (uint8_t)GUI_STAT_LISTEN;
+        return true;
+    }
+    if (strncmp(text, SPEAKING, strlen(SPEAKING)) == 0) {
+        *stat = (uint8_t)GUI_STAT_SPEAK;
+        return true;
+    }
+    if (strncmp(text, INITIALIZING, strlen(INITIALIZING)) == 0) {
+        *stat = (uint8_t)GUI_STAT_INIT;
+        return true;
+    }
+    if (strncmp(text, CONNECTING, strlen(CONNECTING)) == 0 ||
+        strncmp(text, CONNECT_SERVER, strlen(CONNECT_SERVER)) == 0) {
+        *stat = (uint8_t)GUI_STAT_CONN;
+        return true;
+    }
+
+    return false;
+}
+
+static void __robot_apply_chat_stat(uint8_t stat)
+{
+    if (!gif_full || !status_label_) {
+        return;
+    }
+
+    if (GUI_STAT_IDLE == stat || GUI_STAT_LISTEN == stat) {
+        robot_emotion_flush("neutral");
+    }
+
+    robot_set_status(stat);
+}
+
+static OPERATE_RET __ui_init(void)
+{
+    __lvgl_init();
+    PR_DEBUG("lvgl init success");
+
+    lv_vendor_disp_lock();
+    tuya_robot_init();
+    lv_vendor_disp_unlock();
+    PR_DEBUG("ui init success");
+
+    return OPRT_OK;
+}
+
+static void __ui_disp_emotion(char *emotion)
+{
+    if (!emotion) {
+        return;
+    }
+
+    lv_vendor_disp_lock();
+    if (gif_full) {
+        robot_emotion_flush(emotion);
+    }
+    lv_vendor_disp_unlock();
+}
+
+static void __ui_disp_ai_mode_state(char *string)
+{
+    uint8_t stat = 0;
+    if (string && __robot_gui_stat_from_text(string, &stat)) {
+        lv_vendor_disp_lock();
+        __robot_apply_chat_stat(stat);
+        lv_vendor_disp_unlock();
     }
 }
+
+#endif
+
+OPERATE_RET ai_ui_robot_dog_register(void)
+{
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+    AI_UI_INTFS_T intfs;
+
+    memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
+
+    intfs.disp_init = __ui_init;
+    intfs.disp_emotion = __ui_disp_emotion;
+    intfs.disp_ai_mode_state = __ui_disp_ai_mode_state;
+
+    return ai_ui_register(&intfs);
+#else
+    return OPRT_OK;
+#endif
+}
+
+
 

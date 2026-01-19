@@ -66,7 +66,13 @@
         if (btn.list_cb[ev])                                                                                           \
             btn.list_cb[ev](name, ev, arg);                                                                            \
     } while (0)
-#define TDL_BUTTON_TASK_STACK_SIZE (2048)
+
+
+#if defined(BUTTION_STACK_SIZE) && (BUTTION_STACK_SIZE > 0)    
+#define TDL_BUTTON_TASK_STACK_SIZE BUTTION_STACK_SIZE
+#else
+#define TDL_BUTTON_TASK_STACK_SIZE 2048
+#endif
 
 /***********************************************************
 ***********************typedef define***********************

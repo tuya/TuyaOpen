@@ -66,17 +66,10 @@ static TDD_DISP_RGB_INFO_T sg_display_rgb = {0};
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-#include "tkl_gpio.h"
-#define DISP_RGB_TEST_PIN TUYA_GPIO_NUM_6
-static uint32_t sg_gpio_level = 0;
 
 // __attribute__((section(".itcm_sec_code")))
 static void __display_rgb_isr(TUYA_RGB_EVENT_E event)
 {
-
-    tkl_gpio_write(DISP_RGB_TEST_PIN, UNACTIVE_LEVEL(sg_gpio_level));
-    sg_gpio_level = UNACTIVE_LEVEL(sg_gpio_level);
-
     if (sg_display_rgb.pingpong_frame != NULL) {
         if (sg_display_rgb.display_frame != NULL) {
 
@@ -211,13 +204,6 @@ static OPERATE_RET __tdd_display_rgb_open(TDD_DISP_DEV_HANDLE_T device)
     TUYA_CALL_ERR_RETURN(tkl_rgb_init(rgb_cfg));
 
     TUYA_CALL_ERR_RETURN(tkl_rgb_irq_cb_register(__display_rgb_isr));
-
-    TUYA_GPIO_BASE_CFG_T gpio_cfg = {
-        .mode = TUYA_GPIO_PUSH_PULL,
-        .direct = TUYA_GPIO_OUTPUT,
-        .level = TUYA_GPIO_LEVEL_LOW,
-    };
-    tkl_gpio_init(DISP_RGB_TEST_PIN, &gpio_cfg);
 
     return OPRT_OK;
 }

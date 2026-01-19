@@ -10,8 +10,10 @@
  *
  */
 
-#ifndef __APP_DISPLAY_H__
-#define __APP_DISPLAY_H__
+#ifndef __APP_DISPLAY_YOUR_ROBOT_DOG_H__
+#define __APP_DISPLAY_YOUR_ROBOT_DOG_H__
+
+#include <stdbool.h>
 
 #include "tuya_cloud_types.h"
 
@@ -24,65 +26,11 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-// display network status
-typedef uint8_t UI_WIFI_STATUS_E;
-#define UI_WIFI_STATUS_DISCONNECTED 0
-#define UI_WIFI_STATUS_GOOD         1
-#define UI_WIFI_STATUS_FAIR         2
-#define UI_WIFI_STATUS_WEAK         3
-
-#define EMOJI_NEUTRAL      "NEUTRAL"
-#define EMOJI_SAD          "SAD"
-#define EMOJI_ANGRY        "ANGRY"
-#define EMOJI_SURPRISE     "SURPRISE"
-#define EMOJI_CONFUSED     "CONFUSED"
-#define EMOJI_THINKING     "THINKING"
-#define EMOJI_HAPPY        "HAPPY"
-#define EMOJI_TOUCH        "TOUCH"
-#define EMOJI_FEARFUL      "FEARFUL"
-#define EMOJI_DISAPPOINTED "DISAPPOINTED"
-#define EMOJI_ANNOYED      "ANNOYED"
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
- typedef enum {
-    TY_DISPLAY_TP_HUMAN_CHAT,
-    TY_DISPLAY_TP_AI_CHAT,
-    TY_DISPLAY_TP_STAT_SLEEP,
-    TY_DISPLAY_TP_STAT_WAKEUP,
-    TY_DISPLAY_TP_STAT_NETCFG,
-    TY_DISPLAY_TP_STAT_NET,
-    TY_DISPLAY_TP_STAT_POWERON,
-    TY_DISPLAY_TP_STAT_ONLINE,
-    TY_DISPLAY_TP_CHAT_MODE,
-    TY_DISPLAY_TP_CHAT_STAT,
-    TY_DISPLAY_TP_MALLOC,
-    TY_DISPLAY_TP_EMOJI,
-    TY_DISPLAY_TP_VOLUME,
-    TY_DISPLAY_TP_ASR_EMOJI,
-    TY_DISPLAY_TP_STAT_IDLE,
-    TY_DISPLAY_TP_STAT_LISTEN,
-    TY_DISPLAY_TP_STAT_SPEAK,
-    TY_DISPLAY_TP_STAT_BATTERY,
-    TY_DISPLAY_TP_STAT_CHARGING,
-    TY_DISPLAY_TP_LANGUAGE,
-} TY_DISPLAY_TYPE_E;
-
-typedef struct  {
-    TY_DISPLAY_TYPE_E   type;
-    int                 len;
-    char               *data;
-} TY_DISPLAY_MSG_T;
-
-/* Backward-compatible aliases for legacy display message types */
-#define TY_DISPLAY_TP_USER_MSG        TY_DISPLAY_TP_HUMAN_CHAT
-#define TY_DISPLAY_TP_ASSISTANT_MSG   TY_DISPLAY_TP_AI_CHAT
-#define TY_DISPLAY_TP_EMOTION         TY_DISPLAY_TP_EMOJI
-#define TY_DISPLAY_TP_STATUS          TY_DISPLAY_TP_CHAT_STAT
-#define TY_DISPLAY_TP_NETWORK         TY_DISPLAY_TP_STAT_NET
-#define TY_DISPLAY_TP_NOTIFICATION    TY_DISPLAY_TP_VOLUME
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
@@ -92,7 +40,6 @@ typedef struct  {
  * @param None
  * @return OPERATE_RET Initialization result, OPRT_OK indicates success
  */
-OPERATE_RET app_display_init(void);
 
 /**
  * @brief Send display message to the display system
@@ -102,10 +49,14 @@ OPERATE_RET app_display_init(void);
  * @param len Length of the message data
  * @return OPERATE_RET Result of sending the message, OPRT_OK indicates success
  */
-OPERATE_RET app_display_send_msg(TY_DISPLAY_TYPE_E tp, uint8_t *data, int len);
+
+/* Direct UI update APIs (no message sending) */
+void robot_ui_battery_update(bool is_charging, uint8_t percentage);
+void robot_ui_enter_netcfg(void);
+void robot_ui_wifi_update(uint8_t wifi_status);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __APP_DISPLAY_H__ */
+#endif /* __APP_DISPLAY_YOUR_ROBOT_DOG_H__ */

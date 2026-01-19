@@ -528,3 +528,10 @@ void rfid_scan_screen_deinit(void)
     uid_value = NULL;
     hint_label = NULL;
 }
+
+void rfid_scan_screen_load(void)
+{
+    if (screen_get_now_screen() != &rfid_scan_screen) {
+        screen_load(&rfid_scan_screen);
+    }
+}

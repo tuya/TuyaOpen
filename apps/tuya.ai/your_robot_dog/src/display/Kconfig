@@ -1,7 +1,0 @@
-if ENABLE_CHAT_DISPLAY
-
-config ENABLE_GUI_CHATBOT
-    bool "Use Robot Dog UI"
-    default y
-
-endif

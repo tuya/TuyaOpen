@@ -949,7 +949,7 @@ OPERATE_RET tal_net_posix_gethostbyname(const char *domain, TUYA_IP_ADDR_T *addr
 OPERATE_RET tal_net_posix_set_keepalive(int fd, const BOOL_T alive, const uint32_t idle, const uint32_t intr,
                                         const uint32_t cnt)
 {
-    int ret = -1;
+    int ret = 0;
 
     if (fd < 0) {
         return -3000 + fd;

@@ -5,9 +5,6 @@
 set(APP_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 set(APP_MODULE_SRCS)
-list(APPEND APP_MODULE_SRCS
-        ${APP_MODULE_PATH}/app_display.c
-    )
 
 aux_source_directory(${APP_MODULE_PATH}/ducky DUCKY_SRCS)
 aux_source_directory(${APP_MODULE_PATH}/icons ICONS_SRCS)

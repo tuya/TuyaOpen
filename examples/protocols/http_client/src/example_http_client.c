@@ -83,7 +83,7 @@ OPERATE_RET __link_status_cb(void *data)
                                        .path = PATH,
                                        .headers = headers,
                                        .headers_count = sizeof(headers) / sizeof(http_client_header_t),
-                                       .body = "",
+                                       .body = (const uint8_t *)"",
                                        .body_length = 0,
                                        .timeout_ms = HTTP_REQUEST_TIMEOUT},
         &http_response);
@@ -108,8 +108,6 @@ err_exit:
  */
 void user_main(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
@@ -192,7 +190,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

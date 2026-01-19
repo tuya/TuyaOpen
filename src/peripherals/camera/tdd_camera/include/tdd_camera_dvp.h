@@ -1,7 +1,14 @@
 /**
  * @file tdd_camera_dvp.h
- * @version 0.1
+ * @brief DVP (Digital Video Port) camera driver interface header
+ *
+ * This header file defines the DVP camera driver interface, including
+ * sensor configuration structures, interface function callbacks, and
+ * device registration functions. It provides a unified interface for
+ * DVP camera sensor drivers to register with the camera management system.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDD_CAMERA_DVP_H__
@@ -49,6 +56,15 @@ typedef struct {
 ********************function declaration********************
 ***********************************************************/
 
+/**
+ * @brief Register a DVP camera device
+ * @param name Camera device name
+ * @param sr_cfg Pointer to DVP sensor configuration structure containing
+ *               user configuration, maximum FPS, resolution, and frame format
+ * @param sr_intfs Pointer to DVP sensor interface functions structure containing
+ *                 reset, initialization, and PPI setting callbacks
+ * @return OPRT_OK on success, error code otherwise
+ */
 OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg, TDD_DVP_SR_INTFS_T *sr_intfs);
 
 #ifdef __cplusplus

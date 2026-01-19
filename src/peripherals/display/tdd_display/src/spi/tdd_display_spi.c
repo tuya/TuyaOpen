@@ -291,6 +291,7 @@ static void __disp_spi_task(void *args)
 
     port = disp_spi_dev->cfg.port;
     sg_disp_spi_sync[port].is_task_running = 1;
+    PR_NOTICE("__disp_spi_task start, port:%d\r\n", port);
 
     while (sg_disp_spi_sync[port].is_task_running) {
         rt = tal_queue_fetch(sg_disp_spi_sync[port].queue, &msg, QUEUE_WAIT_FOREVER);
@@ -324,6 +325,8 @@ static void __disp_spi_task(void *args)
         }
     }
     
+    PR_NOTICE("__disp_spi_task exit, port:%d\r\n", port);
+
     THREAD_HANDLE tmp_task = sg_disp_spi_sync[port].spi_task;
     sg_disp_spi_sync[port].spi_task = NULL;
     tal_thread_delete(tmp_task);
@@ -510,6 +513,8 @@ void tdd_disp_spi_init_seq(DISP_SPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq)
 
     __disp_device_reset(p_cfg->rst_pin);
 
+    PR_NOTICE("init_seq:%p", init_seq);
+
     while (*init_line) {
         data_len   = init_line[0] - 1;
         sleep_time = init_line[1];
@@ -524,11 +529,14 @@ void tdd_disp_spi_init_seq(DISP_SPI_BASE_CFG_T *p_cfg, const uint8_t *init_seq)
         tdd_disp_spi_send_cmd(p_cfg, cmd);
 	    tdd_disp_spi_send_data(p_cfg, p_data, data_len);
 
-        tal_system_sleep(sleep_time);
+        if(sleep_time) {
+            tal_system_sleep(sleep_time);
+        }
+
         init_line += init_line[0] + 2;
     }
 
-    PR_NOTICE("Display SPI init sequence completed");
+    PR_NOTICE("Display SPI:%d init sequence completed\r\n", p_cfg->port);
 }
 
 /**

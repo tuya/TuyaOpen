@@ -1,0 +1,19 @@
+menuconfig ENABLE_TUYA_CODEC
+    bool "enable tuya codec"
+    default y
+    if (ENABLE_TUYA_CODEC)
+        config ENABLE_TUYA_CODEC_OPUS
+            bool "enable opus codec"
+            default n
+        config ENABLE_TUYA_CODEC_OPUS_IPC
+            bool "enable opus codec through ipc"
+            depends on ENABLE_TUYA_CODEC_OPUS
+            default y
+        config ENABLE_TUYA_CODEC_SPEEX
+            bool "enable speex codec"
+            default n
+        config ENABLE_TUYA_CODEC_SPEEX_IPC
+            bool "enable speex codec through ipc"
+            depends on ENABLE_TUYA_CODEC_SPEEX
+            default n
+    endif

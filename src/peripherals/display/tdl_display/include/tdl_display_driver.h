@@ -15,7 +15,7 @@
 #define __TDL_DISPLAY_DRIVER_H__
 
 #include "tuya_cloud_types.h"
-#include "tdl_display_manage.h"
+#include "tdl_display_type.h"
 
 #ifdef __cplusplus
 extern "C" {

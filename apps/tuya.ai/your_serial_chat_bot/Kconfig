@@ -4,7 +4,6 @@ config TUYA_PRODUCT_ID
     string "product ID of project"
     default "p320pepzvmm1ghse"
 
-config ENABLE_AUDIO_CHAT
-    bool "enable audio chat mode"
-    default n
+rsource "../ai_components/Kconfig"
+
 endmenu

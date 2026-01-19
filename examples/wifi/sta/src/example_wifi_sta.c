@@ -153,7 +153,10 @@ static void start_socket_demo(void)
         return;
     }
     g_demo_stop = false;
-    THREAD_CFG_T cfg = {4096, 4, "socket_demo"};
+    THREAD_CFG_T cfg = {0};
+    cfg.stackDepth = 1024 * 4;
+    cfg.priority = THREAD_PRIO_1;
+    cfg.thrdname = "socket_demo";
     tal_thread_create_and_start(&g_socket_demo_thread, NULL, NULL, socket_demo_thread, NULL, &cfg);
 }
 
@@ -298,7 +301,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

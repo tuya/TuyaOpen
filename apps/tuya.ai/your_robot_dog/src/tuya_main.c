@@ -39,22 +39,25 @@
 #include "lwip_init.h"
 #endif
 
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+#include "board_com_api.h"
+
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
 #include "app_display.h"
 #endif
 
-#include "board_com_api.h"
-
 #include "app_chat_bot.h"
-#include "ai_audio.h"
 #include "reset_netcfg.h"
+
 #include "app_system_info.h"
+
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+#include "ai_audio_player.h"
+#endif
 
 #if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
 #include "qrencode_print.h"
 #endif
 
-#include "robot_dog_api.h"
 #include "servo_ctrl/tuya_robot_actions.h"
 
 /* Tuya device handle */
@@ -71,7 +74,6 @@ tuya_iot_license_t license;
 #define DPID_MOVE   8
 
 static uint8_t _need_reset = 0;
-static volatile uint8_t _need_reset_now = 0;
 
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
@@ -114,11 +116,10 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
         case DPID_VOLUME: {
             uint8_t volume = dp->value.dp_value;
             PR_DEBUG("volume:%d", volume);
-            ai_audio_set_volume(volume);
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
+            ai_chat_set_volume(volume);
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
             char volume_str[20] = {0};
             snprintf(volume_str, sizeof(volume_str), "%s%d", VOLUME, volume);
-            app_display_send_msg(TY_DISPLAY_TP_VOLUME, (uint8_t *)volume_str, strlen(volume_str));
 #endif
             break;
         }
@@ -186,7 +187,7 @@ OPERATE_RET ai_audio_volume_upload(void)
     tuya_iot_client_t *client = tuya_iot_client_get();
     dp_obj_t dp_obj = {0};
 
-    uint8_t volume = ai_audio_get_volume();
+    uint8_t volume = ai_chat_get_volume();
 
     dp_obj.id = DPID_VOLUME;
     dp_obj.type = PROP_VALUE;
@@ -212,15 +213,12 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
-        if (_need_reset == 1) {
-            PR_INFO("Device Reset pending, will reboot from main loop");
-            _need_reset_now = 1;
-        }
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-        /* Enter provisioning UI state; handled in robot_app.c */
-        app_display_send_msg(TY_DISPLAY_TP_STAT_NETCFG, NULL, 0);
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+        robot_ui_enter_netcfg();
 #endif        
-        ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CFG);
+    #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+        ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
+    #endif
         break;
 
     /* Print the QRCode for Tuya APP bind */
@@ -243,13 +241,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         static uint8_t first = 1;
         if (first) {
             first = 0;
-
-#if defined(ENABLE_CHAT_DISPLAY) && (ENABLE_CHAT_DISPLAY == 1)
-            UI_WIFI_STATUS_E wifi_status = UI_WIFI_STATUS_GOOD;
-            app_display_send_msg(TY_DISPLAY_TP_STAT_NET, (uint8_t *)&wifi_status, sizeof(UI_WIFI_STATUS_E));
-#endif
-
-            ai_audio_player_play_alert(AI_AUDIO_ALERT_NETWORK_CONNECTED);
             ai_audio_volume_upload();
         }
         break;
@@ -397,9 +388,9 @@ void user_main(void)
 
     PR_DEBUG("tuya_iot_init success");
 
-    ret = dog_register_hardware();
+    ret = board_register_hardware();
     if (ret != OPRT_OK) {
-        PR_ERR("dog_register_hardware failed");
+        PR_ERR("board_register_hardware failed");
     }
 
     ret = app_chat_bot_init();
@@ -417,12 +408,6 @@ void user_main(void)
     reset_netconfig_check();
 
     for (;;) {
-        if (_need_reset_now) {
-            _need_reset_now = 0;
-            PR_INFO("Device Reset! (deferred)");
-            tal_system_sleep(50);
-            tal_system_reset();
-        }
         /* Loop to receive packets, and handles client keepalive */
         tuya_iot_yield(&ai_client);
     }

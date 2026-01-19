@@ -5,55 +5,52 @@
 #include "lv_port_indev.h"
 #include "lv_vendor.h"
 
-#include "tuya_cloud_types.h"
-#include "tkl_system.h"
+#include "tal_api.h"
 #include "tkl_thread.h"
-#include "tkl_mutex.h"
-#include "tkl_semaphore.h"
 
 static TKL_THREAD_HANDLE g_disp_thread_handle = NULL;
-static TKL_MUTEX_HANDLE g_disp_mutex = NULL;
-static TKL_SEM_HANDLE lvgl_sem = NULL;
+static MUTEX_HANDLE g_disp_mutex = NULL;
+static SEM_HANDLE lvgl_sem = NULL;
 static uint8_t lvgl_task_state = STATE_INIT;
 static bool lv_vendor_initialized = false;
 
 static uint32_t lv_tick_get_callback(void)
 {
-    return (uint32_t)tkl_system_get_millisecond();
+    return (uint32_t)tal_system_get_millisecond();
 }
 
 void lv_vendor_disp_lock(void)
 {
-    tkl_mutex_lock(g_disp_mutex);
+    tal_mutex_lock(g_disp_mutex);
 }
 
 void lv_vendor_disp_unlock(void)
 {
-    tkl_mutex_unlock(g_disp_mutex);
+    tal_mutex_unlock(g_disp_mutex);
 }
 
 void lv_vendor_init(void *device)
 {
     if (lv_vendor_initialized) {
-        LV_LOG_INFO("%s already init\n", __func__);
+        PR_NOTICE("%s already init\n", __func__);
         return;
     }
 
     lv_init();
 
-    lv_port_disp_init(device);
+    lv_port_disp_init((char *)device);
 
-    lv_port_indev_init(device);
+    lv_port_indev_init((char *)device);
 
     lv_tick_set_cb(lv_tick_get_callback);
 
-    if (OPRT_OK != tkl_mutex_create_init(&g_disp_mutex)) {
-        LV_LOG_ERROR("%s g_disp_mutex init failed\n", __func__);
+    if (OPRT_OK != tal_mutex_create_init(&g_disp_mutex)) {
+        PR_ERR("%s g_disp_mutex init failed\n", __func__);
         return;
     }
 
-    if (OPRT_OK != tkl_semaphore_create_init(&lvgl_sem, 0, 1)) {
-        LV_LOG_ERROR("%s semaphore init failed\n", __func__);
+    if (OPRT_OK != tal_semaphore_create_init(&lvgl_sem, 0, 1)) {
+        PR_ERR("%s semaphore init failed\n", __func__);
         return;
     }
 
@@ -68,7 +65,7 @@ static void lv_tast_entry(void *arg)
 
     lvgl_task_state = STATE_RUNNING;
 
-    tkl_semaphore_post(lvgl_sem);
+    tal_semaphore_post(lvgl_sem);
 
     while(lvgl_task_state == STATE_RUNNING) {
         lv_vendor_disp_lock();
@@ -85,14 +82,14 @@ static void lv_tast_entry(void *arg)
             }
         #endif
 
-        tkl_system_sleep(sleep_time);
+        tal_system_sleep(sleep_time);
         // Modified by TUYA Start
         extern void tuya_app_gui_feed_watchdog(void);
         tuya_app_gui_feed_watchdog();
         // Modified by TUYA End
     }
 
-    tkl_semaphore_post(lvgl_sem);
+    tal_semaphore_post(lvgl_sem);
 
     tkl_thread_release(g_disp_thread_handle);
     g_disp_thread_handle = NULL;
@@ -101,7 +98,7 @@ static void lv_tast_entry(void *arg)
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
 {
     if (lvgl_task_state == STATE_RUNNING) {
-        LV_LOG_INFO("%s already start\n", __func__);
+        PR_NOTICE("%s already start\n", __func__);
         return; 
     }
 
@@ -117,29 +114,46 @@ void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
     }
 #endif
 
-    tkl_semaphore_wait(lvgl_sem, TKL_SEM_WAIT_FOREVER);
+    tal_semaphore_wait(lvgl_sem, SEM_WAIT_FOREVER);
 
-    LV_LOG_INFO("%s complete\n", __func__);
+    PR_NOTICE("%s complete\n", __func__);
 }
 
 void lv_vendor_stop(void)
 {
     if (lvgl_task_state == STATE_STOP) {
-        LV_LOG_INFO("%s already stop\n", __func__);
+        PR_NOTICE("%s already stop\n", __func__);
         return;
     }
 
     lvgl_task_state = STATE_STOP;
 
-    tkl_semaphore_wait(lvgl_sem, TKL_SEM_WAIT_FOREVER);
+    tal_semaphore_wait(lvgl_sem, SEM_WAIT_FOREVER);
 
-    LV_LOG_INFO("%s complete\n", __func__);
+    PR_NOTICE("%s complete\n", __func__);
 }
 
-void lv_vendor_set_backlight(uint8_t brightness)
+void lv_vendor_add_disp_dev(void *device)
 {
-    disp_set_backlight(brightness);
+    if(false == lv_vendor_initialized) {
+        PR_ERR("%s lv vendor not init\n", __func__);
+        return;
+    }
+
+    lv_port_disp_init((char *)device);
+
+    lv_port_indev_init((char *)device);
+
+    lv_display_t *lv_display = lv_port_get_lv_disp_by_name((char *)device);
+    lv_indev_t *lv_indev = lv_port_get_lv_indev_by_name((char *)device);
+
+    if(lv_display && lv_indev) {
+        lv_indev_set_display(lv_indev, lv_display);
+    }
+
+    PR_NOTICE("add display device:%s complete\n", device);
 }
+
 
 // Modified by TUYA Start
 void __attribute__((weak)) tuya_app_gui_feed_watchdog(void)

@@ -1,0 +1,18 @@
+menu "configure ai components"
+    choice
+        prompt "choose ai language"
+        default ENABLE_AI_LANGUAGE_CHINESE
+
+        config ENABLE_AI_LANGUAGE_CHINESE
+            bool "Chinese"
+
+        config ENABLE_AI_LANGUAGE_ENGLISH
+            bool "English"
+    endchoice
+
+    rsource "ai_mode/Kconfig"
+    rsource "ai_audio/Kconfig"
+    rsource "ai_mcp/Kconfig"
+    rsource "ai_video/Kconfig"
+    rsource "ai_ui/Kconfig"
+endmenu

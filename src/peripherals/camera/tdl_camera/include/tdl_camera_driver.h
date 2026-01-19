@@ -1,7 +1,14 @@
 /**
  * @file tdl_camera_driver.h
- * @version 0.1
+ * @brief Camera driver interface header
+ *
+ * This header file defines the camera driver interface, including device
+ * registration, frame creation and management, and driver callback functions.
+ * It provides structures for camera device information, configuration, and
+ * frame handling for camera driver implementations.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __TDL_CAMERA_DRIVER_H__
@@ -77,6 +84,7 @@ typedef struct {
     uint16_t                  width;
     uint16_t                  height;
     TDL_CAMERA_FMT_E          out_fmt;
+    TUYA_DVP_ENCODED_QUALITY  encoded_quality;
 } TDD_CAMERA_OPEN_CFG_T;
 
 typedef struct {
@@ -85,7 +93,7 @@ typedef struct {
 } TDD_CAMERA_INTFS_T;
 
 typedef struct {
-    void              *sys_param;            // system use, user do not care
+    void              *sys_param;            // System use, user should not care
     TDL_CAMERA_FRAME_T frame;
     uint8_t            rsv[128];
 } TDD_CAMERA_FRAME_T;
@@ -93,13 +101,40 @@ typedef struct {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Register a camera device
+ * @param name Camera device name
+ * @param tdd_hdl TDD camera device handle
+ * @param intfs Pointer to camera interface functions structure
+ * @param dev_info Pointer to camera device information structure
+ * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
+ *         OPRT_MALLOC_FAILED on memory allocation failure
+ */
 OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_hdl, \
                                        TDD_CAMERA_INTFS_T *intfs, TDD_CAMERA_DEV_INFO_T *dev_info);
                                     
+/**
+ * @brief Create a TDD frame from frame node pool
+ * @param tdd_hdl TDD camera device handle
+ * @param fmt Frame format enumeration
+ * @return Pointer to TDD frame structure, or NULL if no frame available or device not found
+ */
 TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TUYA_FRAME_FMT_E fmt);
 
+/**
+ * @brief Release TDD frame back to frame node pool
+ * @param tdd_hdl TDD camera device handle
+ * @param frame Pointer to TDD frame structure to release
+ */
 void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FRAME_T *frame);
 
+/**
+ * @brief Post TDD frame to processing queue
+ * @param tdd_hdl TDD camera device handle
+ * @param frame Pointer to TDD frame structure to post
+ * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
+ *         OPRT_COM_ERROR if queue or device not found
+ */
 OPERATE_RET tdl_camera_post_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FRAME_T *frame);   
 
 

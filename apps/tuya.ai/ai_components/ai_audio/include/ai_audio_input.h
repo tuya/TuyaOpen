@@ -1,15 +1,14 @@
 /**
  * @file ai_audio_input.h
- * @brief Header file for audio input handling functions including initialization,
- *        enabling/disabling detection, and setting wakeup types.
+ * @brief AI audio input module header
  *
- * This header file declares the functions and data structures required for managing audio input operations
- * such as initializing the audio system, enabling and disabling audio detection,
- * and setting the type of wakeup mechanism (e.g., VAD, ASR).
+ * This header file defines the types and functions for AI audio input processing,
+ * including VAD (Voice Activity Detection) configuration and audio data output callbacks.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
+
 #ifndef __AI_AUDIO_INPUT_H__
 #define __AI_AUDIO_INPUT_H__
 
@@ -22,70 +21,81 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-// PCM frame size: 320 bytes
-#define AI_AUDIO_PCM_FRAME_TM_MS (10)
-#define AI_AUDIO_PCM_FRAME_SIZE  (320)
+#define EVENT_AUDIO_VAD   "EVENT.VAD"
 
-#define AI_AUDIO_VOICE_FRAME_LEN_GET(tm_ms)                                                                            \
-    (((tm_ms > AI_AUDIO_PCM_FRAME_TM_MS) ? (tm_ms) : AI_AUDIO_PCM_FRAME_TM_MS) / AI_AUDIO_PCM_FRAME_TM_MS *            \
-     AI_AUDIO_PCM_FRAME_SIZE)
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    AI_AUDIO_INPUT_STATE_IDLE,
-    AI_AUDIO_INPUT_STATE_DETECTING,
-    AI_AUDIO_INPUT_STATE_GET_VALID_DATA,
-    AI_AUDIO_INPUT_STATE_ASR_WAKEUP_WORD,
-} AI_AUDIO_INPUT_STATE_E;
+    AI_AUDIO_VAD_MANUAL,    // use key event as vad
+    AI_AUDIO_VAD_AUTO,      // use human voice detect 
+} AI_AUDIO_VAD_MODE_E;
 
 typedef enum {
-    AI_AUDIO_INPUT_EVT_NONE,
-    AI_AUDIO_INPUT_EVT_GET_VALID_VOICE_START,
-    AI_AUDIO_INPUT_EVT_GET_VALID_VOICE_STOP,
-    AI_AUDIO_INPUT_EVT_ASR_WAKEUP_WORD,
-    AI_AUDIO_INPUT_EVT_ASR_WAKEUP_STOP, // Valid audio data can only be retained after the wake-up word is recognized
-                                        // again.
-} AI_AUDIO_INPUT_EVENT_E;
+    AI_AUDIO_VAD_START = 1,
+    AI_AUDIO_VAD_STOP,
+} AI_AUDIO_VAD_STATE_E;
 
-typedef enum {
-    AI_AUDIO_INPUT_VALID_METHOD_MANUAL, // Manually control whether to retain valid audio data.
-    AI_AUDIO_INPUT_VALID_METHOD_VAD, // Valid audio data can only be retained after the VAD (Voice Activity Detection)
-                                     // detects human voices.
-    AI_AUDIO_INPUT_VALID_METHOD_ASR, // Valid audio data can only be retained after the wake-up word is recognized
-    AI_AUDIO_INPUT_VALID_METHOD_MAX,
-} AI_AUDIO_INPUT_VALID_METHOD_E;
+typedef int (*AI_AUDIO_OUTPUT)(uint8_t *data, uint16_t datalen);
 
-typedef struct {
-    AI_AUDIO_INPUT_VALID_METHOD_E get_valid_data_method;
+typedef struct  {
+    /* VAD cache = vad_active_ms + vad_off_ms */
+    AI_AUDIO_VAD_MODE_E     vad_mode;
+    uint16_t                vad_off_ms;        /* Voice activity compensation time, unit: ms */
+    uint16_t                vad_active_ms;     /* Voice activity detection threshold, unit: ms */
+    uint16_t                slice_ms;          /* Reference macro, AUDIO_RECORDER_SLICE_TIME */
+
+    /* Microphone data processing callback */
+    AI_AUDIO_OUTPUT         output_cb;
 } AI_AUDIO_INPUT_CFG_T;
-
-typedef void (*AI_AUDIO_INOUT_INFORM_CB)(AI_AUDIO_INPUT_EVENT_E event, void *arg);
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 /**
- * @brief Initializes the audio input system with the provided configuration and callback.
- * @param cfg Pointer to the configuration structure for audio input.
- * @param cb Callback function to be called for audio input events.
- * @return OPERATE_RET - OPRT_OK on success, or an error code on failure.
- */
-OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg, AI_AUDIO_INOUT_INFORM_CB cb);
+@brief Initialize the AI audio input module
+@param cfg Audio input configuration
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg);
 
-OPERATE_RET ai_audio_input_enable_get_valid_data(bool is_enable);
+/**
+@brief Start audio input
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_start(void);
 
-OPERATE_RET ai_audio_input_manual_open_get_valid_data(bool is_open);
+/**
+@brief Stop audio input
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_stop(void);
 
-OPERATE_RET ai_audio_input_stop_asr_awake(void);
+/**
+@brief Deinitialize the AI audio input module
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_deinit(void);
 
-OPERATE_RET ai_audio_input_restart_asr_awake_timer(void);
+/**
+@brief Reset audio input ring buffer and VAD state
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_reset(void);
 
-uint32_t ai_audio_get_input_data(uint8_t *buff, uint32_t buff_len);
+/**
+@brief Set wake-up mode (VAD mode)
+@param mode VAD mode (manual or auto)
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_wakeup_mode_set(AI_AUDIO_VAD_MODE_E mode);
 
-uint32_t ai_audio_get_input_data_size(void);
-
-void ai_audio_discard_input_data(uint32_t discard_size);
+/**
+@brief Set wake-up state
+@param is_wakeup Wake-up flag
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_audio_input_wakeup_set(bool is_wakeup);
 
 #ifdef __cplusplus
 }

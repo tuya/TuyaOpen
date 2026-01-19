@@ -13,6 +13,8 @@
 #ifndef _CORE_HTTP_CONFIG_
 #define _CORE_HTTP_CONFIG_
 
+#include "tal_memory.h"
+
 /**
  * @brief Maximum size, in bytes, of headers allowed from the server.
  *
@@ -24,16 +26,20 @@
  * <b>Possible values:</b> Any positive 32 bit integer. <br>
  * <b>Default value:</b> `2048`
  */
-#define HTTP_MAX_RESPONSE_HEADERS_SIZE_BYTES        1024U
+#define HTTP_MAX_RESPONSE_HEADERS_SIZE_BYTES        4096U
 
 #define HTTP_MAX_RESPONSE_CHUNK_SIZE_BYTES          (1024U * 16)
 
 #define HTTP_MAX_RESPONSE_CHUNK_ONCE_BYTES          (2048U)
 
 
+#if defined(ENABLE_EXT_RAM)&&(ENABLE_EXT_RAM==1)
+#define HTTP_MALLOC                                 tal_psram_malloc
+#define HTTP_FREE                                   tal_psram_free
+#else
 #define HTTP_MALLOC                                 tal_malloc
 #define HTTP_FREE                                   tal_free
-
+#endif
 /**
  * @brief The HTTP header "User-Agent" value.
  *

@@ -101,7 +101,10 @@ void user_main(void)
     /* enter tickless&WiFi low-power mode */
     tal_wifi_lp_enable();
 
-    THREAD_CFG_T thrd_param = {4096, 4, "low_power_1"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_2;
+    thrd_param.thrdname = "low_power_1";
     tal_thread_create_and_start(&__wifi_lp_hdl1, NULL, NULL, __wifi_low_power_task1, NULL, &thrd_param);
 
     thrd_param.thrdname = "low_power_2";
@@ -146,7 +149,10 @@ static void tuya_app_thread(void *arg)
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
+    THREAD_CFG_T thrd_param = {0};
+    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.priority = THREAD_PRIO_1;
+    thrd_param.thrdname = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

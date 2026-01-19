@@ -31,8 +31,9 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-void lv_port_indev_init(void *device);
+void lv_port_indev_init(char *device);
 
+lv_indev_t *lv_port_get_lv_indev_by_name(char *device);
 /**********************
  *      MACROS
  **********************/
