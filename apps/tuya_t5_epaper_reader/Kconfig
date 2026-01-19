@@ -1,0 +1,62 @@
+menu "Application config"
+
+    config EBABLE_SD_PINMUX
+        bool "enable sd pinmux"
+        default n
+
+if(EBABLE_SD_PINMUX)
+    config SD_CLK_PIN
+        int "clk pin"
+        default 14
+        range 0 63
+
+    config SD_CMD_PIN
+        int "cmd pin"
+        default 15
+        range 0 63
+
+    config SD_D0_PIN
+            int "cmd pin"
+            default 16
+            range 0 63
+
+    config SD_D1_PIN
+            int "cmd pin"
+            default 17
+            range 0 63
+
+    config SD_D2_PIN
+            int "cmd pin"
+            default 18
+            range 0 63
+
+    config SD_D3_PIN
+            int "cmd pin"
+            default 19
+            range 0 63
+
+endif
+
+    config BAIDU_NETDISK_ENABLE
+        bool "enable baidu netdisk"
+        default y
+
+if(BAIDU_NETDISK_ENABLE)
+    config BAIDU_NETDISK_APP_KEY
+        string "baidu app key (client_id)"
+        default ""
+
+    config BAIDU_NETDISK_APP_SECRET
+        string "baidu app secret (client_secret)"
+        default ""
+
+    config BAIDU_NETDISK_TARGET_DIR
+        string "baidu netdisk target dir"
+        default "/TuyaT5AI"
+
+    config BAIDU_NETDISK_SCOPE
+        string "baidu oauth scope"
+        default "basic,netdisk"
+endif
+
+endmenu
