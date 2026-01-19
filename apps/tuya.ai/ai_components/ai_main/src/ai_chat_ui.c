@@ -168,6 +168,11 @@ OPERATE_RET ai_chat_ui_init(void)
 
     TUYA_CALL_ERR_RETURN(ai_ui_init());
 
+#if defined(BOARD_CHOICE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_1_8)
+    extern void lcd_sh8601_set_backlight(uint8_t brightness);
+    lcd_sh8601_set_backlight(80); // set backlight to 80%
+#endif
+
     return rt;
 }
 #endif

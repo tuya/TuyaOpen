@@ -18,6 +18,12 @@
 #include "tdd_audio_8311_codec.h"
 #include "tdd_audio_atk_no_codec.h"
 
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+#include "string.h"
+#include "tal_memory.h"
+#include "tdl_button_driver.h"
+#endif
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -71,6 +77,118 @@ static OPERATE_RET __io_expander_init(void)
     }
 
     return OPRT_OK;
+}
+
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+typedef struct {
+    uint32_t pin_mask;
+    TUYA_GPIO_LEVEL_E active_level;
+} XL9555_BUTTON_CFG_T;
+
+static OPERATE_RET __tdd_create_xl9555_button(TDL_BUTTON_OPRT_INFO *dev)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+
+    if (dev == NULL || dev->dev_handle == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)dev->dev_handle;
+    if (xl9555_set_dir(cfg->pin_mask, 1) != 0) {
+        PR_ERR("xl9555_set_dir(input) failed");
+        return OPRT_COM_ERROR;
+    }
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_delete_xl9555_button(TDL_BUTTON_OPRT_INFO *dev)
+{
+    if (dev == NULL || dev->dev_handle == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_free(dev->dev_handle);
+    dev->dev_handle = NULL;
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_read_xl9555_button_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *value)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+    uint32_t level_mask = 0;
+    uint8_t raw_high = 0;
+
+    if (dev == NULL || dev->dev_handle == NULL || value == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)dev->dev_handle;
+
+    if (xl9555_get_level(cfg->pin_mask, &level_mask) != 0) {
+        return OPRT_COM_ERROR;
+    }
+
+    raw_high = ((level_mask & cfg->pin_mask) != 0);
+    if (cfg->active_level == TUYA_GPIO_LEVEL_HIGH) {
+        *value = raw_high;
+    } else {
+        *value = (raw_high ? 0 : 1);
+    }
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_xl9555_button_register(char *name, uint32_t pin_mask, TUYA_GPIO_LEVEL_E active_level)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+    TDL_BUTTON_CTRL_INFO ctrl_info;
+    TDL_BUTTON_DEVICE_INFO_T device_info;
+
+    if (name == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)tal_malloc(sizeof(XL9555_BUTTON_CFG_T));
+    if (cfg == NULL) {
+        return OPRT_MALLOC_FAILED;
+    }
+    cfg->pin_mask = pin_mask;
+    cfg->active_level = active_level;
+
+    memset(&ctrl_info, 0, sizeof(ctrl_info));
+    ctrl_info.button_create = __tdd_create_xl9555_button;
+    ctrl_info.button_delete = __tdd_delete_xl9555_button;
+    ctrl_info.read_value = __tdd_read_xl9555_button_value;
+
+    device_info.dev_handle = cfg;
+    device_info.mode = BUTTON_TIMER_SCAN_MODE;
+
+    return tdl_button_register(name, &ctrl_info, &device_info);
+}
+#endif
+
+static OPERATE_RET __board_register_button(void)
+{
+#if !defined(ENABLE_BUTTON) || (ENABLE_BUTTON != 1)
+    return OPRT_OK;
+#else
+    OPERATE_RET rt = OPRT_OK;
+
+    /* Most XL9555 key circuits are pull-up + active-low. */
+    TUYA_GPIO_LEVEL_E active_level = TUYA_GPIO_LEVEL_LOW;
+
+    /* Button 1 */
+    TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME, EX_IO_KEY_0, active_level));
+
+    /* Button 2 (optional) */
+#if defined(ENABLE_BUTTON_2) && (ENABLE_BUTTON_2 == 1)
+    TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME_2, EX_IO_KEY_1, active_level));
+#endif
+
+    return rt;
+#endif
 }
 
 static OPERATE_RET __board_register_audio(void)
@@ -134,6 +252,7 @@ OPERATE_RET board_register_hardware(void)
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CALL_ERR_LOG(__io_expander_init());
+    TUYA_CALL_ERR_LOG(__board_register_button());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
 

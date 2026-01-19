@@ -45,6 +45,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
 static TUYA_ADC_BASE_CFG_T sg_adc_cfg = {
     .ch_list.data = 1 << ADC_BATTERY_ADC_CHANNEL,
     .ch_nums      = 1, // adc Number of channel lists
@@ -65,8 +66,11 @@ static uint8_t sg_battery_percentage = 50;
 static const int32_t bvc_map[] = {
     2800, 3100, 3280, 3440, 3570, 3680, 3780, 3880, 3980, 4090, 4200,
 };
+#endif
 
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
 static TIMER_ID s_wifi_status_timer_id = NULL;
+#endif
 
 static TIMER_ID sg_printf_heap_tm;
 
@@ -82,6 +86,7 @@ static void __printf_free_heap_tm_cb(TIMER_ID timer_id, void *arg)
     PR_INFO("Free heap size:%d", free_heap);
 }
 
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
 #ifndef PLATFORM_T5
 static uint8_t __robot_wifi_status_from_rssi(int8_t rssi)
 {
@@ -128,7 +133,9 @@ static void __robot_wifi_status_timer_cb(TIMER_ID timer_id, void *arg)
     robot_ui_wifi_update(wifi_status);
 }
 
+#endif /* ENABLE_COMP_AI_DISPLAY */
 
+#if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
 void __battery_charge_pin_init(void)
 {
     OPERATE_RET       rt         = OPRT_OK;
@@ -229,6 +236,7 @@ static void __charge_check_timer_cb(TIMER_ID timer_id, void *arg)
         __battery_status_process();
     }
 }
+#endif
 
 OPERATE_RET app_system_info(void)
 {
@@ -251,11 +259,13 @@ OPERATE_RET app_system_info(void)
     TUYA_CALL_ERR_RETURN(tal_sw_timer_start(sg_charge_check_timer_id, BATTERY_CHARGE_CHECK_TIME_MS, TAL_TIMER_CYCLE));
 #endif
 
+    #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     if (s_wifi_status_timer_id == NULL) {
         tal_sw_timer_create(__robot_wifi_status_timer_cb, NULL, &s_wifi_status_timer_id);
         tal_sw_timer_start(s_wifi_status_timer_id, 1000, TAL_TIMER_CYCLE);
         tal_sw_timer_trigger(s_wifi_status_timer_id);
     }
+    #endif
 
     tal_sw_timer_create(__printf_free_heap_tm_cb, NULL, &sg_printf_heap_tm);
     tal_sw_timer_start(sg_printf_heap_tm, PRINTF_FREE_HEAP_TTIME, TAL_TIMER_CYCLE);
@@ -269,8 +279,11 @@ void app_battery_get_status(uint8_t *percentage, bool *is_charging)
         return;
     }
 
+#if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
     *percentage  = sg_battery_percentage;
     *is_charging = sg_is_charging;
-
-    return;
+#else
+    *percentage  = 0;
+    *is_charging = false;
+#endif
 }
