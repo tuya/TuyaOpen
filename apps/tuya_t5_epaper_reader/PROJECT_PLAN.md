@@ -171,8 +171,12 @@
 - 可运行固件：SD 文件列表 + 文本/图片预览 + 旋转 + 断点
 - 核心技术点：启动网络时间同步 + 文件列表顶栏时间展示
 - 交付材料：
-  - 代码贡献链接（GitHub/Gitee PR）：<https://github.com/jiaxianhua/TuyaOpen>
+  - 代码贡献链接（GitHub/Gitee PR）
+    - <https://github.com/jiaxianhua/TuyaOpen>
   - 本计划书文档（本文件）
-  - 功能演示视频（单独提交）
-  - 社交媒体发布链接（如有）
+  - 功能演示视频：
+    - [贾-墨阅 · 墨水屏文本图片阅读器](https://www.bilibili.com/video/BV1pjkgB6EiT)，
+    - [贾-墨阅 · 墨水屏文本图片阅读器_百度网盘](https://www.bilibili.com/video/BV1aFkgBHEPT/)
+  - 社交媒体发布链接
+    - [Day 82: 基于涂鸦 T5 的「墨阅 · 墨水屏文本图片阅读器」项目计划书](https://mp.weixin.qq.com/s/6A0BuiTvOaudE775vNeNEQ)
 
