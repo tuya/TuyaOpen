@@ -24,10 +24,13 @@
 
 
 #include "tkl_pwm.h"
+#include "tal_sw_timer.h"
 
 // Include servo control header files
 #include "otto_ninja_app_servo.h"
 #include "otto_ninja_main.h"
+ #include "tal_thread.h"
+ #include "tal_log.h"
 
  
  /***********************************************************
@@ -46,10 +49,25 @@
  ***********************variable define**********************
  ***********************************************************/
  static THREAD_HANDLE sg_otto_ninja_handle;
+ static TIMER_ID sg_direction_timer = NULL;
  
  /***********************************************************
  ***********************function define**********************
  ***********************************************************/
+/**
+ * @brief Timer callback function for direction control
+ * @param timer_id: Timer ID
+ * @param arg: Timer argument (unused)
+ * @return none
+ */
+static void __direction_timer_cb(TIMER_ID timer_id, void *arg)
+{
+    PR_DEBUG("Direction timer callback triggered after 3 seconds");
+    // Timer will be automatically deleted after one-shot execution
+    sg_direction_timer = NULL;
+    set_joystick_y(0);
+    set_joystick_x(0);
+}
 // These values are assumed to be obtained from remote control or sensors
 /**
  * @brief Set joystick X-axis value
@@ -117,29 +135,40 @@ int get_mode_counter(void){
 
 #define DPID_JOYSTICK_X 103 //joystick_x
 #define DPID_JOYSTICK_Y 104 //joystick_y
+#define DPID_DIRECTION 105 //direction
+#define DPID_ROTATE_SPOT 106 //rotate_spot
 OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
         dp_obj_t *dp = dpobj->dps + index;
-        PR_DEBUG("idx:%d dpid:%d type:%d ts:%u", index, dp->id, dp->type, dp->time_stamp);
+        PR_DEBUG("Processing dp idx:%d dpid:%d type:%d", index, dp->id, dp->type);
+        PR_DEBUG("DP[%d]: ID=%d, Type=%d", index, dp->id, dp->type);
 
         switch (dp->id) {
 
         case SPORT_MODE:{
-
             set_sport_mode_change(true);//Trigger mode switch
-
             if(dp->value.dp_bool){
-
                 set_mode_counter(1);
                 PR_DEBUG("robot_set_roll");
             }else{
-
                 set_mode_counter(0);
                 PR_DEBUG("robot_set_walk");
             }
-            
+            break;
+        }
+
+        case DPID_ROTATE_SPOT:{
+            if(dp->value.dp_bool){
+                robot_rotate_spot(true);
+                // ai_audio_player_play_alert(AI_AUDIO_ALERT_MERRY_CHRISTMAS); // Commented out - function not available
+            }
+            else{
+                robot_rotate_spot_stop();  // Stop rotation
+                set_joystick_y(0);
+                set_joystick_x(0);
+            }
             break;
         }
 
@@ -157,6 +186,56 @@ OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
             int8_t joystick_y = dp->value.dp_value;
             set_joystick_y(joystick_y);
             PR_DEBUG("joystick_y:%d", joystick_y);
+            break;
+        }
+
+        case DPID_DIRECTION:{
+            int8_t direction = dp->value.dp_enum;
+            if(direction == 0){
+                set_joystick_y(100);
+                set_joystick_x(0);
+            }
+            else if(direction == 1){
+                set_joystick_y(-100);
+                set_joystick_x(0);
+            }
+            else if(direction == 2){
+                set_joystick_y(100);
+                set_joystick_x(100);
+            }
+            else if(direction == 3){
+                set_joystick_y(100);
+                set_joystick_x(-100);
+            }
+            else if(direction == 4){
+                set_joystick_y(0);
+                set_joystick_x(0);
+            }
+
+            PR_DEBUG("direction:%d", direction);
+            
+            // Stop existing timer if any
+            if (sg_direction_timer != NULL) {
+                tal_sw_timer_stop(sg_direction_timer);
+                tal_sw_timer_delete(sg_direction_timer);
+                sg_direction_timer = NULL;
+            }
+            
+            // Create and start 3 second timer
+            OPERATE_RET ret = tal_sw_timer_create(__direction_timer_cb, NULL, &sg_direction_timer);
+            if (ret == OPRT_OK && sg_direction_timer != NULL) {
+                ret = tal_sw_timer_start(sg_direction_timer, 3000, TAL_TIMER_ONCE);
+                if (ret == OPRT_OK) {
+                    PR_DEBUG("Direction timer started for 3 seconds");
+                } else {
+                    PR_ERR("Failed to start direction timer: %d", ret);
+                    tal_sw_timer_delete(sg_direction_timer);
+                    sg_direction_timer = NULL;
+                }
+            } else {
+                PR_ERR("Failed to create direction timer: %d", ret);
+            }
+            
             break;
         }
 
@@ -187,19 +266,15 @@ static void __example_otto_ninja_task(void *param)
     PR_NOTICE("=== OttoNinja Servo Control Task Start ===");
 
     main_init();
-
+    tal_system_sleep(1000); // Wait 1 second before starting
     robot_set_walk();
     while (1) {
-       
-
-      main_loop();
-      tal_system_sleep(10);  // Wait 10ms before restarting
-
+        main_loop();
+        tal_system_sleep(10);  // Wait 10ms before restarting
     }
 
     PR_NOTICE("OttoNinja task is finished, will delete");
     tal_thread_delete(sg_otto_ninja_handle);
-    return;
 }
  
 /**

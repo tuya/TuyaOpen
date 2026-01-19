@@ -101,7 +101,7 @@ void oscillator_attach(int idx, int pin, bool rev)
     osc->rev = rev;
     osc->pwm_channel = (TUYA_PWM_NUM_E)pin; 
 
-    // 打印初始化信息
+    // Print initialization information
     PR_DEBUG("oscillator_attach: idx=%d, pin=%d, pwm_channel=%d, rev=%s", 
               idx, pin, osc->pwm_channel, rev ? "true" : "false");
    
@@ -277,13 +277,13 @@ void oscillator_write(int idx, int position)
 
     angle = MIN(MAX(angle, 0), 180);
 
-    // 计算占空比
+    // Calculate duty cycle
     uint32_t duty = (uint32_t)((0.5 + angle / 180.0 * 2.0) * 10000 / 20);
     
-    // 计算占空比百分比 (duty/10000 * 100)
+    // Calculate duty cycle percentage (duty/10000 * 100)
     //float duty_percent = (float)duty / 100.0f;
     
-    // 合并的占空比打印信息 - 显示百分比
+    // Combined duty cycle print information - display percentage
    // PR_DEBUG("oscillator_write: idx=%d, pin=%d, pwm_channel=%d, pos=%d->angle=%d(trim:%d), duty=%d, duty_percent=%.1f%%", 
      //         idx, osc->pin, osc->pwm_channel, position, angle, osc->trim, duty, duty_percent);
 

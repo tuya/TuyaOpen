@@ -23,8 +23,8 @@ static unsigned long millis()
 }
 
 /**
- * @brief 重置所有振荡器相位到初始状态
- * 解决相位累积导致的不协调问题
+ * @brief Reset all oscillator phases to initial state
+ * Resolves coordination issues caused by phase accumulation
  */
 static void otto_reset_all_oscillators(void)
 {
@@ -246,7 +246,7 @@ void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int perio
         g_otto.is_otto_resting = false;
     }
 
-    // 关键修复：在开始执行前重置所有振荡器相位，确保每次运动都从相同初始状态开始
+    // Critical fix: Reset all oscillator phases before starting execution to ensure each movement starts from the same initial state
     otto_reset_all_oscillators();
 
     int cycles = (int)steps;
@@ -269,7 +269,7 @@ void otto_home(bool hands_down)
   
     // if (g_otto.is_otto_resting == false) { // Go to rest position only if necessary
 
-        // 关键修复：在回到home位置前，先重置所有振荡器相位，确保状态完全重置
+        // Critical fix: Reset all oscillator phases before returning to home position to ensure complete state reset
         otto_reset_all_oscillators();
 
         int homes[SERVO_COUNT];

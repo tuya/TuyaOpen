@@ -42,6 +42,7 @@ void platform_tuya_init(void);
 /**
  * Initialize servo control system
  */
+ void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_ms, uint16_t step_size);
 void servo_control_init(void);
 
 void main_init(void);
@@ -58,5 +59,8 @@ void robot_right_arm_down(void);
 void robot_roll_control(int8_t joystick_x, int8_t joystick_y);
 void robot_walk_forward(int8_t joystick_x, int8_t joystick_y);
 void robot_walk_backward(int8_t joystick_x, int8_t joystick_y);
+void robot_rotate_spot(bool direction);
+void robot_rotate_spot_stop(void);
+void robot_rotate_spot_update(void);
 #endif // OTTO_NINJA_APP_SERVO_H
 

@@ -63,6 +63,10 @@
 #define BOARD_LCD_X_OFFSET   0
 #define BOARD_LCD_Y_OFFSET   0
 
+// GC9D01 backlight is active low, override the default HIGH level
+#undef BOARD_LCD_BL_ACTIVE_LV
+#define BOARD_LCD_BL_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+
 #endif
  
  #define BOARD_LCD_SPI_CS_PIN  TUYA_GPIO_NUM_13

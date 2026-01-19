@@ -3,6 +3,7 @@
 
 #include "tuya_cloud_types.h"
 #include "tuya_iot_dp.h"
+#include "dp_schema.h"
 
 void set_joystick_x(int8_t value); // Set joystick X-axis value, range -100 to 100, 0 is neutral, negative is left, positive is right
 int8_t get_joystick_x(void); // Get joystick X-axis value, range -100 to 100, 0 is neutral, negative is left, positive is right
