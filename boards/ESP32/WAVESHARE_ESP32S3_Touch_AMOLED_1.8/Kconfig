@@ -21,3 +21,10 @@ config LVGL_ENABLE_TOUCH
     help
         Enable touch screen support for this board
 
+config BOARD_LCD_DEFAULT_BRIGHTNESS
+    int "Default LCD backlight (0-100)"
+    range 0 100
+    default 80
+    depends on BOARD_CONFIG
+    help
+        Default backlight brightness percentage. Used for SH8601 (DCS 0x51).

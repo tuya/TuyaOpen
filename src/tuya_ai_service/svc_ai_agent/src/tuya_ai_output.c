@@ -402,7 +402,7 @@ OPERATE_RET tuya_ai_output_write(AI_PACKET_PT type, uint8_t *data, uint32_t len)
 
     OPERATE_RET rt = OPRT_OK;
 #if (AI_OUTPUT_RINGBUF_SIZE > 0)
-    INT_T cnt = 0;
+    int cnt = 0;
     tal_mutex_lock(ai_output_ctx.mutex);
     rt = tuya_ring_buff_write(ai_output_ctx.ringbuf, data, len);
     tal_mutex_unlock(ai_output_ctx.mutex);
@@ -425,7 +425,7 @@ OPERATE_RET tuya_ai_output_write(AI_PACKET_PT type, uint8_t *data, uint32_t len)
     }
     return OPRT_OK;
 #else
-    rt = tuya_ai_output_media(NULL, type, (CHAR_T *)data, len, len);
+    rt = tuya_ai_output_media(NULL, type, (char *)data, len, len);
     return rt;
 #endif
 }
