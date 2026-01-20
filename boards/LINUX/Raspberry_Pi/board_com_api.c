@@ -1,10 +1,10 @@
 /**
  * @file board_com_api.c
  * @author Tuya Inc.
- * @brief Implementation of common board-level hardware registration APIs for Ubuntu platform.
+ * @brief Implementation of common board-level hardware registration APIs for Raspberry Pi platform.
  *
  * This file provides the implementation for initializing and registering hardware
- * components on the Ubuntu/Linux platform, with primary focus on ALSA audio support.
+ * components on the Linux platform, with primary focus on ALSA audio support.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -17,7 +17,7 @@
 #endif
 
 #if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
-#include "keyboard_input.h"
+#include "tdd_button_keyboard.h"
 #endif
 
 #include "board_com_api.h"
@@ -43,7 +43,7 @@
 ***********************************************************/
 
 /**
- * @brief Registers ALSA audio device for Ubuntu platform
+ * @brief Registers ALSA audio device for Raspberry Pi platform
  *
  * This function initializes and registers the ALSA audio driver for audio
  * capture (microphone) and playback (speaker) functionality. It is only
@@ -107,7 +107,7 @@ static OPERATE_RET __board_register_audio(void)
     rt = tdd_audio_alsa_register(AUDIO_CODEC_NAME, alsa_cfg);
     if (OPRT_OK != rt) {
         PR_WARN("Failed to register ALSA audio driver: %d", rt);
-        PR_WARN("This is expected on Ubuntu systems without audio hardware");
+        PR_WARN("This is expected on Raspberry Pi systems without audio hardware");
         PR_WARN("Application will continue without audio functionality");
         return rt;
     }
@@ -130,28 +130,9 @@ static OPERATE_RET __board_register_audio(void)
 }
 
 /**
- * @brief Keyboard event callback handler
+ * @brief Registers button hardware for Raspberry Pi platform
  *
- * Simple forwarding of keyboard events to the application layer.
- * All business logic is handled in app_chat_bot.c
- */
-#if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
-
-// Forward declaration - Application layer callback
-extern void app_chat_bot_keyboard_event_handler(KEYBOARD_EVENT_E event);
-
-static void __keyboard_event_callback(KEYBOARD_EVENT_E event, void *arg)
-{
-    // Simple forwarding to application layer
-    // All business logic is in app_chat_bot.c
-    app_chat_bot_keyboard_event_handler(event);
-}
-#endif
-
-/**
- * @brief Registers button hardware for Ubuntu platform
- *
- * On Ubuntu, we use keyboard input instead of physical buttons.
+ * On Raspberry Pi, we use keyboard input instead of physical buttons.
  * Press 'S' key to trigger conversation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -162,12 +143,15 @@ static OPERATE_RET __board_register_button(void)
 
 #if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
     PR_INFO("Initializing keyboard input handler");
-    rt = keyboard_input_init(__keyboard_event_callback, NULL);
+    #if defined(BUTTON_NAME)
+    BUTTON_CFG_T btn_cfg = {0};
+    btn_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    rt = tdd_keyboard_button_register(BUTTON_NAME, &btn_cfg);
     if (OPRT_OK != rt) {
-        PR_ERR("Failed to initialize keyboard input: %d", rt);
+        PR_ERR("Failed to register keyboard button handler: %d", rt);
         return rt;
     }
-    PR_INFO("Keyboard ready: [S]=Start [X]=Stop [V]=Vol+ [D]=Vol- [Q]=Quit");
+    #endif // BUTTON_NAME
 #else
     PR_DEBUG("Keyboard input not enabled");
 #endif
@@ -176,9 +160,9 @@ static OPERATE_RET __board_register_button(void)
 }
 
 /**
- * @brief Registers LED hardware for Ubuntu platform
+ * @brief Registers LED hardware for Raspberry Pi platform
  *
- * Note: LED support on Ubuntu may require platform-specific implementation
+ * Note: LED support on Raspberry Pi may require platform-specific implementation
  * or GPIO access. This is a placeholder for future implementation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -186,23 +170,16 @@ static OPERATE_RET __board_register_button(void)
 static OPERATE_RET __board_register_led(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-#if defined(LED_NAME)
-    // TODO: Implement LED support for Ubuntu if needed
-    // This may involve software indicators or GPIO access
-    PR_DEBUG("LED support not yet implemented for Ubuntu platform");
-#endif
-
     return rt;
 }
 
 /**
- * @brief Registers all the hardware peripherals on the Ubuntu platform.
+ * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
  * 
  * This function initializes and registers hardware components including:
  * - ALSA audio device (if ENABLE_AUDIO_ALSA is enabled)
- * - Button (placeholder)
- * - LED (placeholder)
+ * - Button
+ * - LED
  *
  * @return Returns OPRT_OK on success, or an appropriate error code on failure.
  */
@@ -210,7 +187,7 @@ OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    PR_INFO("Registering Ubuntu platform hardware...");
+    PR_INFO("Registering Raspberry Pi platform hardware...");
 
     // Register audio device (ALSA)
     rt = __board_register_audio();
@@ -219,19 +196,19 @@ OPERATE_RET board_register_hardware(void)
         // Continue with other hardware registration
     }
 
-    // Register button (placeholder)
+    // Register button
     rt = __board_register_button();
     if (OPRT_OK != rt) {
         PR_WARN("Button registration failed: %d", rt);
     }
 
-    // Register LED (placeholder)
+    // Register LED
     rt = __board_register_led();
     if (OPRT_OK != rt) {
         PR_WARN("LED registration failed: %d", rt);
     }
 
-    PR_INFO("Ubuntu platform hardware registration completed");
+    PR_INFO("Raspberry Pi platform hardware registration completed");
 
     return OPRT_OK;
 }

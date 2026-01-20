@@ -3,7 +3,7 @@
 # @brief 
 #/
 
-if (CONFIG_ENABLE_ADC STREQUAL "y")
+if (CONFIG_ENABLE_BUTTON STREQUAL "y")
 
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
@@ -24,5 +24,5 @@ target_sources(${EXAMPLE_LIB}
         ${APP_SRCS}
     )
 else()
-message(FATAL_ERROR "adc cannot work when CONFIG_ENABLE_ADC is not set")
+message(FATAL_ERROR "button cannot work when CONFIG_ENABLE_BUTTON is not set")
 endif()

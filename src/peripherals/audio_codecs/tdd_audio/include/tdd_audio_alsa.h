@@ -86,6 +86,22 @@ typedef struct {
 } TDD_AUDIO_ALSA_CFG_T;
 
 /***********************************************************
+***********************typedef define***********************
+***********************************************************/
+/**
+ * @brief Audio Front-End (AFE) feed callback function type
+ * 
+ * This callback is used to feed audio data to Voice Activity Detection (VAD)
+ * or Keyword Spotting (KWS) engines.
+ * 
+ * @param[in] mic_data  Microphone captured audio data (PCM int16)
+ * @param[in] ref_data  Reference audio data, typically from speaker playback (can be NULL)
+ * @param[in] out_data  Processed output data from AEC or other processing (can be NULL)
+ * @param[in] frames    Number of audio frames in the buffers
+ */
+typedef void (*TDD_AUDIO_AFE_FEED_CB)(int16_t *mic_data, int16_t *ref_data, int16_t *out_data, uint32_t frames);
+
+/***********************************************************
 ********************function declaration********************
 ***********************************************************/
 
@@ -105,6 +121,36 @@ typedef struct {
  * @retval OPRT_COM_ERROR       Registration failed
  */
 OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg);
+
+/**
+ * @brief Register a callback function for VAD (Voice Activity Detection) audio feed
+ * 
+ * The registered callback will be called with captured audio data during recording.
+ * This allows VAD processing to run in parallel with normal audio capture.
+ *
+ * @param[in] cb    Callback function pointer, or NULL to clear the callback
+ */
+void tdd_audio_alsa_register_vad_feed_cb(TDD_AUDIO_AFE_FEED_CB cb);
+
+/**
+ * @brief Register a callback function for KWS (Keyword Spotting) audio feed
+ * 
+ * The registered callback will be called with captured audio data during recording.
+ * This allows KWS processing to run in parallel with normal audio capture.
+ *
+ * @param[in] cb    Callback function pointer, or NULL to clear the callback
+ */
+void tdd_audio_alsa_register_kws_feed_cb(TDD_AUDIO_AFE_FEED_CB cb);
+
+/**
+ * @brief Unregister the VAD audio feed callback
+ */
+void tdd_audio_alsa_unregister_vad_feed_cb(void);
+
+/**
+ * @brief Unregister the KWS audio feed callback
+ */
+void tdd_audio_alsa_unregister_kws_feed_cb(void);
 
 #ifdef __cplusplus
 }

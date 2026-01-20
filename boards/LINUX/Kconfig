@@ -1,0 +1,38 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "LINUX"
+
+config PLATFORM_LINUX
+    bool
+    default y
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+config OPERATING_SYSTEM
+    int
+    default 100
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_UBUNTU
+        bool "Ubuntu"
+        if (BOARD_CHOICE_UBUNTU)
+            rsource "./Ubuntu/Kconfig"
+        endif
+
+    config BOARD_CHOICE_RASPBERRY_PI
+        bool "RaspberryPi"
+        if (BOARD_CHOICE_RASPBERRY_PI)
+            rsource "./Raspberry_Pi/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice

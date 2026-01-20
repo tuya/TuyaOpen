@@ -1,7 +1,7 @@
 /**
  * @file board_com_api.h
  * @author Tuya Inc.
- * @brief Header file for common board-level hardware registration APIs for Ubuntu platform.
+ * @brief Header file for common board-level hardware registration APIs for Raspberry Pi platform.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -28,7 +28,7 @@ extern "C" {
 ***********************************************************/
 
 /**
- * @brief Registers all the hardware peripherals on the Ubuntu platform.
+ * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
  * 
  * This function initializes and registers hardware components including:
  * - ALSA audio device (if ENABLE_AUDIO_ALSA is enabled)

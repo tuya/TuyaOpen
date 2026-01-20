@@ -1,19 +1,20 @@
 ##
 # @file CMakeLists.txt
-# @brief Ubuntu board configuration
+# @brief Raspberry Pi board configuration
 #/
 
 # MODULE_PATH
 set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # MODULE_NAME
-set(MODULE_NAME "Ubuntu")
+set(MODULE_NAME "Raspberry_Pi")
 
 # LIB_SRCS
-set(LIB_SRCS
-    ${MODULE_PATH}/board_com_api.c
-    ${MODULE_PATH}/keyboard_input.c
-)
+# set(LIB_SRCS
+#     ${MODULE_PATH}/board_com_api.c
+#     ${MODULE_PATH}/keyboard_input.c
+# )
+file(GLOB_RECURSE LIB_SRCS "${MODULE_PATH}/*.c")
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH})
@@ -40,7 +41,7 @@ target_include_directories(${MODULE_NAME}
 # Link ALSA library if ALSA support is enabled
 if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
     target_link_libraries(${MODULE_NAME} PUBLIC asound)
-    message(STATUS "Ubuntu board: Linking ALSA library")
+    message(STATUS "Raspberry Pi board: Linking ALSA library")
 endif()
 
 

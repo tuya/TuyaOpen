@@ -19,7 +19,7 @@ if (ENABLE_AUDIO_CODECS)
     config ENABLE_AUDIO_ALSA
         bool "enable ALSA audio support"
         default n
-        depends on PLATFORM_UBUNTU
+        depends on PLATFORM_LINUX
         ---help---
             Enable ALSA (Advanced Linux Sound Architecture) support for audio
             capture and playback on Ubuntu/Linux platforms. This option is only

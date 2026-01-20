@@ -53,13 +53,19 @@ static void __button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, voi
     switch (event) {
     case TDL_BUTTON_PRESS_DOWN: {
         PR_NOTICE("%s: single click", name);
-        sg_recorder_status = RECORDER_STATUS_START;
+        if (sg_recorder_status == RECORDER_STATUS_IDLE) {
+            sg_recorder_status = RECORDER_STATUS_START;
+        } else {
+            PR_WARN("Please wait status IDLE");
+        }
     } break;
 
     case TDL_BUTTON_PRESS_UP: {
         PR_NOTICE("%s: release", name);
-        sg_recorder_status = RECORDER_STATUS_END;
-    } break;    
+        if (sg_recorder_status == RECORDER_STATUS_RECORDING) {
+            sg_recorder_status = RECORDER_STATUS_END;
+        }
+    } break;
 
     default:
         break;
@@ -116,7 +122,16 @@ static void __example_play_from_recorder_rb(void)
 static void __example_get_audio_frame(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_STATUS_E status,\
                                       uint8_t *data, uint32_t len)
 {
+    if (RECORDER_STATUS_RECORDING != sg_recorder_status) {
+        return;
+    }
+
     if (sg_recorder_pcm_rb) {
+        uint32_t free_size = tuya_ring_buff_free_size_get(sg_recorder_pcm_rb);
+        if (free_size < len) {
+            PR_WARN("recorder ring buffer overflow, free_size:%u, need_size:%u", free_size, len);
+            return;
+        }
         tuya_ring_buff_write(sg_recorder_pcm_rb, data, len);
     }
 

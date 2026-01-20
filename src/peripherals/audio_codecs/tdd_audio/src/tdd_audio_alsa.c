@@ -61,6 +61,9 @@ typedef struct {
     pthread_t capture_thread;
     volatile uint8_t capture_running;
 
+    // Thread synchronization for ref_buffer
+    pthread_mutex_t ref_buffer_mutex;
+
     // Playback settings
     uint8_t play_volume;
     long mixer_min;
@@ -69,6 +72,11 @@ typedef struct {
     // Buffer
     uint8_t *capture_buffer;
     uint32_t capture_buffer_size;
+
+    uint8_t *ref_buffer;
+    uint32_t ref_buffer_size;
+    uint8_t *out_buffer;
+    uint32_t out_buffer_size;
 } TDD_AUDIO_ALSA_HANDLE_T;
 
 /***********************************************************
@@ -79,9 +87,17 @@ static OPERATE_RET __alsa_setup_capture(TDD_AUDIO_ALSA_HANDLE_T *hdl);
 static OPERATE_RET __alsa_setup_playback(TDD_AUDIO_ALSA_HANDLE_T *hdl);
 static OPERATE_RET __alsa_setup_mixer(TDD_AUDIO_ALSA_HANDLE_T *hdl);
 
+// Public API for VAD/KWS callback registration
+void tdd_audio_alsa_register_vad_feed_cb(TDD_AUDIO_AFE_FEED_CB cb);
+void tdd_audio_alsa_register_kws_feed_cb(TDD_AUDIO_AFE_FEED_CB cb);
+void tdd_audio_alsa_unregister_vad_feed_cb(void);
+void tdd_audio_alsa_unregister_kws_feed_cb(void);
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+static TDD_AUDIO_AFE_FEED_CB __s_vad_feed_cb = NULL;
+static TDD_AUDIO_AFE_FEED_CB __s_kws_feed_cb = NULL;
 
 /***********************************************************
 ***********************function define**********************
@@ -161,9 +177,46 @@ static OPERATE_RET __alsa_setup_capture(TDD_AUDIO_ALSA_HANDLE_T *hdl)
 
     // Calculate buffer size
     hdl->capture_buffer_size = hdl->cfg.period_frames * hdl->cfg.channels * (hdl->cfg.data_bits / 8);
+    hdl->ref_buffer_size = hdl->capture_buffer_size;
+    hdl->out_buffer_size = hdl->capture_buffer_size;
+    hdl->ref_buffer = (uint8_t *)tal_malloc(hdl->ref_buffer_size);
+    if (NULL == hdl->ref_buffer) {
+        PR_ERR("Cannot allocate reference buffer");
+        snd_pcm_close(hdl->capture_handle);
+        hdl->capture_handle = NULL;
+        return OPRT_MALLOC_FAILED;
+    }
+    memset(hdl->ref_buffer, 0, hdl->ref_buffer_size);
+
+    // Initialize mutex for ref_buffer protection
+    if (pthread_mutex_init(&hdl->ref_buffer_mutex, NULL) != 0) {
+        PR_ERR("Cannot initialize ref_buffer mutex");
+        tal_free(hdl->ref_buffer);
+        hdl->ref_buffer = NULL;
+        snd_pcm_close(hdl->capture_handle);
+        hdl->capture_handle = NULL;
+        return OPRT_COM_ERROR;
+    }
+    hdl->out_buffer = (uint8_t *)tal_malloc(hdl->out_buffer_size);
+    if (NULL == hdl->out_buffer) {
+        PR_ERR("Cannot allocate output buffer");
+        pthread_mutex_destroy(&hdl->ref_buffer_mutex);
+        tal_free(hdl->ref_buffer);
+        hdl->ref_buffer = NULL;
+        snd_pcm_close(hdl->capture_handle);
+        hdl->capture_handle = NULL;
+        return OPRT_MALLOC_FAILED;
+    }
+    memset(hdl->out_buffer, 0, hdl->out_buffer_size);
+
     hdl->capture_buffer = (uint8_t *)tal_malloc(hdl->capture_buffer_size);
     if (NULL == hdl->capture_buffer) {
         PR_ERR("Cannot allocate capture buffer");
+        tal_free(hdl->out_buffer);
+        hdl->out_buffer = NULL;
+        pthread_mutex_destroy(&hdl->ref_buffer_mutex);
+        tal_free(hdl->ref_buffer);
+        hdl->ref_buffer = NULL;
         snd_pcm_close(hdl->capture_handle);
         hdl->capture_handle = NULL;
         return OPRT_MALLOC_FAILED;
@@ -326,6 +379,29 @@ static void *__alsa_capture_thread(void *arg)
             uint32_t data_size = frames * hdl->cfg.channels * (hdl->cfg.data_bits / 8);
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->capture_buffer, data_size);
         }
+
+        // Feed data to VAD/KWS if registered
+        // ref_buffer contains the reference data (speaker playback) for AEC
+        // If no playback is active, ref_buffer contains zeros
+        if ((__s_vad_feed_cb || __s_kws_feed_cb) && frames > 0) {
+            int16_t *mic_data = (int16_t *)hdl->capture_buffer;
+            int16_t *ref_data = (int16_t *)hdl->ref_buffer;
+            int16_t *out_data = (int16_t *)hdl->out_buffer;
+            
+            // Safely read ref_buffer with mutex protection
+            // ref_data is always valid (all zeros if no playback)
+            pthread_mutex_lock(&hdl->ref_buffer_mutex);
+            
+            if (__s_vad_feed_cb) {
+                __s_vad_feed_cb(mic_data, ref_data, out_data, (uint32_t)frames);
+            }
+            if (__s_kws_feed_cb) {
+                __s_kws_feed_cb(mic_data, ref_data, out_data, (uint32_t)frames);
+            }
+            
+            memset(hdl->ref_buffer, 0, hdl->ref_buffer_size); // Clear ref_buffer after use
+            pthread_mutex_unlock(&hdl->ref_buffer_mutex);
+        }
     }
 
     PR_INFO("ALSA capture thread stopped");
@@ -419,6 +495,14 @@ static OPERATE_RET __tdd_audio_alsa_play(TDD_AUDIO_HANDLE_T handle, uint8_t *dat
     uint32_t frame_size = hdl->cfg.channels * (hdl->cfg.data_bits / 8);
     snd_pcm_uframes_t frames = len / frame_size;
 
+    // Copy playback data to ref_buffer for AEC reference
+    if (hdl->ref_buffer && hdl->ref_buffer_size > 0) {
+        pthread_mutex_lock(&hdl->ref_buffer_mutex);
+        uint32_t copy_size = (len < hdl->ref_buffer_size) ? len : hdl->ref_buffer_size;
+        memcpy(hdl->ref_buffer, data, copy_size);
+        pthread_mutex_unlock(&hdl->ref_buffer_mutex);
+    }
+
     // Write audio frames
     snd_pcm_sframes_t written = snd_pcm_writei(hdl->playback_handle, data, frames);
     if (written < 0) {
@@ -492,6 +576,12 @@ static OPERATE_RET __tdd_audio_alsa_config(TDD_AUDIO_HANDLE_T handle, TDD_AUDIO_
             snd_pcm_drop(hdl->playback_handle);
             snd_pcm_prepare(hdl->playback_handle);
         }
+        // Clear ref_buffer when playback stops
+        if (hdl->ref_buffer && hdl->ref_buffer_size > 0) {
+            pthread_mutex_lock(&hdl->ref_buffer_mutex);
+            memset(hdl->ref_buffer, 0, hdl->ref_buffer_size);
+            pthread_mutex_unlock(&hdl->ref_buffer_mutex);
+        }
     } break;
 
     default:
@@ -535,11 +625,24 @@ static OPERATE_RET __tdd_audio_alsa_close(TDD_AUDIO_HANDLE_T handle)
         hdl->mixer_handle = NULL;
     }
 
-    // Free buffer
+    // Free buffers
     if (hdl->capture_buffer) {
         tal_free(hdl->capture_buffer);
         hdl->capture_buffer = NULL;
     }
+
+    if (hdl->ref_buffer) {
+        tal_free(hdl->ref_buffer);
+        hdl->ref_buffer = NULL;
+    }
+
+    if (hdl->out_buffer) {
+        tal_free(hdl->out_buffer);
+        hdl->out_buffer = NULL;
+    }
+
+    // Destroy mutex
+    pthread_mutex_destroy(&hdl->ref_buffer_mutex);
 
     PR_INFO("ALSA audio device closed");
 
@@ -592,6 +695,46 @@ __ERR:
     }
 
     return rt;
+}
+
+/**
+ * @brief Register VAD audio feed callback
+ * 
+ * @param[in] cb Callback function to receive audio data for VAD processing
+ */
+void tdd_audio_alsa_register_vad_feed_cb(TDD_AUDIO_AFE_FEED_CB cb)
+{
+    __s_vad_feed_cb = cb;
+    PR_INFO("VAD feed callback %s", cb ? "registered" : "cleared");
+}
+
+/**
+ * @brief Register KWS audio feed callback
+ * 
+ * @param[in] cb Callback function to receive audio data for KWS processing
+ */
+void tdd_audio_alsa_register_kws_feed_cb(TDD_AUDIO_AFE_FEED_CB cb)
+{
+    __s_kws_feed_cb = cb;
+    PR_INFO("KWS feed callback %s", cb ? "registered" : "cleared");
+}
+
+/**
+ * @brief Unregister VAD audio feed callback
+ */
+void tdd_audio_alsa_unregister_vad_feed_cb(void)
+{
+    __s_vad_feed_cb = NULL;
+    PR_INFO("VAD feed callback unregistered");
+}
+
+/**
+ * @brief Unregister KWS audio feed callback
+ */
+void tdd_audio_alsa_unregister_kws_feed_cb(void)
+{
+    __s_kws_feed_cb = NULL;
+    PR_INFO("KWS feed callback unregistered");
 }
 
 #endif /* ENABLE_AUDIO_ALSA */

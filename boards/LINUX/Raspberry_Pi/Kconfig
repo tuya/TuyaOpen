@@ -1,0 +1,61 @@
+menu "Raspberry Pi Board Configuration"
+    config CHIP_CHOICE
+        string
+        default "Raspberry_Pi"
+
+    config BOARD_CHOICE
+        string
+        default "Raspberry_Pi"
+
+    config BOARD_CONFIG
+        bool
+        default y
+        select ENABLE_QRCODE
+        select ENABLE_AUDIO
+        select ENABLE_BUTTON
+
+    config COMPILE_PREX
+        string "Compile prefix"
+        default "aarch64-none-linux-gnu-"
+        help
+            The prefix of the compile command.
+            For example, if you want to compile the project with the prefix "arm-none-eabi-", you can set it to "arm-none-eabi-".
+
+    choice RASPBERRY_PI_MODEL
+        prompt "Choose Raspberry Pi model"
+        default RASPBERRY_PI_4
+        help
+            Select the Raspberry Pi model you are using.
+
+        config RASPBERRY_PI_4
+            bool "Raspberry Pi 4B/400"
+            help
+                Raspberry Pi 4 Model B or Pi 400 with BCM2711 (ARMv8)
+
+        config RASPBERRY_PI_5
+            bool "Raspberry Pi 5"
+            help
+                Raspberry Pi 5 with BCM2712 (ARMv8)
+    endchoice
+
+    # Audio codec configuration for Raspberry Pi platform
+    config AUDIO_CODEC_NAME
+        string "Audio codec device name"
+        default "alsa_audio"
+        ---help---
+            Name of the audio codec device. This name is used to identify
+            the audio device when calling tdl_audio_find().
+
+    config ENABLE_KEYBOARD_INPUT
+        bool "Enable keyboard input for Raspberry Pi"
+        default y
+        ---help---
+            Enable keyboard input handling for Raspberry Pi platform.
+
+    config BUTTON_NAME
+        string "Keyboard button device value"
+        depends on ENABLE_KEYBOARD_INPUT
+        default "s"
+        ---help---
+            Specify the keyboard button device value for input handling.
+endmenu
