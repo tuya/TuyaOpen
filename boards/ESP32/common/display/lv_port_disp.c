@@ -20,6 +20,10 @@
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lvgl_port.h"
+
+#if defined(BOARD_DISPLAY_TYPE) && (BOARD_DISPLAY_TYPE == DISPLAY_TYPE_LCD_SH8601)
+#include "lcd_sh8601.h"
+#endif
 /*********************
  *      DEFINES
  *********************/
@@ -58,6 +62,13 @@ void lv_port_disp_init(char *device)
         return;
     }
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel, true));
+
+#if defined(BOARD_DISPLAY_TYPE) && (BOARD_DISPLAY_TYPE == DISPLAY_TYPE_LCD_SH8601)
+#ifndef BOARD_LCD_DEFAULT_BRIGHTNESS
+#define BOARD_LCD_DEFAULT_BRIGHTNESS 80
+#endif
+    lcd_sh8601_set_backlight(BOARD_LCD_DEFAULT_BRIGHTNESS);
+#endif
 
     lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     port_cfg.task_stack = 8 * 1024;

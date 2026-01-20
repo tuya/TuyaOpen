@@ -218,7 +218,7 @@ static OPERATE_RET __cmd_player_service_deinit(void)
 }
 
 
-STATIC OPERATE_RET __handle_player_streaming_source(AI_PLAYER_T *player)
+static OPERATE_RET __handle_player_streaming_source(AI_PLAYER_T *player)
 {
     OPERATE_RET rt = OPRT_OK;
     bool is_eof = false;

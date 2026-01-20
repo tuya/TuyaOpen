@@ -1174,7 +1174,7 @@ OPERATE_RET tuya_ai_agent_end(VOID)
     if (ai_agent_ctx.enable_joyinside) {
         tuya_ai_agent_event(AI_EVENT_END, 0);
     } else {
-        USHORT_T idx = 0;
+        unsigned short idx = 0;
         AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
         if (!session) {
             return OPRT_COM_ERROR;

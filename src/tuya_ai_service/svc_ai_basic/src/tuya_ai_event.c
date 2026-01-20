@@ -150,7 +150,7 @@ OPERATE_RET tuya_ai_event_mcp(AI_SESSION_ID sid, AI_EVENT_ID eid, char *data)
     head.type = AI_EVENT_MCP_CMD;
     head.length = strlen(data);
     if (event.event_id == NULL || event.event_id[0] == '\0') {
-        CHAR_T tmp_eid[AI_UUID_V4_LEN + 1] = {0};
+        char tmp_eid[AI_UUID_V4_LEN + 1] = {0};
         tuya_ai_basic_uuid_short(tmp_eid);
         event.event_id = tmp_eid;
         return __ai_event(&event, &head, data);
