@@ -11,8 +11,6 @@
 #include "tkl_adc.h"
 #include "tkl_gpio.h"
 
-#include "tuya_lvgl.h"
-#include "ui.h"
 
 /***********************************************************
 ************************macro define************************
@@ -102,9 +100,6 @@ static void __battery_status_process(void)
         // TODO: Update DP
 
         // Update UI
-        tuya_lvgl_mutex_lock();
-        ui_setting_batter_update(sg_is_charging, sg_battery_percentage);
-        tuya_lvgl_mutex_unlock();
         return;
     }
 
@@ -131,9 +126,6 @@ static void __battery_status_process(void)
     // TODO: update dp
 
     // Update UI
-    tuya_lvgl_mutex_lock();
-    ui_setting_batter_update(sg_is_charging, sg_battery_percentage);
-    tuya_lvgl_mutex_unlock();
 
     return;
 }
