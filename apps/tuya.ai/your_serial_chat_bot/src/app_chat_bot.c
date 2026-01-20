@@ -86,11 +86,9 @@ static void __ai_chat_handle_event(AI_NOTIFY_EVENT_T *event)
             AI_NOTIFY_EMO_T *emo = (AI_NOTIFY_EMO_T *)(event->data);
 
             tal_uart_write(USER_CHAT_UART, (const uint8_t *)"emo: \r\n", strlen("emo: \r\n"));
-            for (uint32_t idx = 0; idx < emo->emo_cnt; idx++) {
-                tal_uart_write(USER_CHAT_UART, (const uint8_t *)emo->emotion[idx], strlen(emo->emotion[idx]));
-                tal_uart_write(USER_CHAT_UART, (const uint8_t *)" ", strlen(" "));
-                tal_uart_write(USER_CHAT_UART, (const uint8_t *)emo->text[idx], strlen(emo->text[idx]));
-            }
+            tal_uart_write(USER_CHAT_UART, (const uint8_t *)emo->name, strlen(emo->name));
+            tal_uart_write(USER_CHAT_UART, (const uint8_t *)" ", strlen(" "));
+            tal_uart_write(USER_CHAT_UART, (const uint8_t *)emo->emoji, strlen(emo->emoji));
             tal_uart_write(USER_CHAT_UART, (const uint8_t *)"\r\n", 2);
         }
         break;

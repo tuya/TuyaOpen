@@ -9,4 +9,3 @@ config ENABLE_PLATFORM_LVGL
 config ENABLE_ESP_OS_SERVICE
     bool
     default y
-    select ENABLE_AI_PLAYER

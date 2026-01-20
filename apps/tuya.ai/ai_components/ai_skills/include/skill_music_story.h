@@ -15,7 +15,9 @@
 #include "tuya_cloud_types.h"
 #include "cJSON.h"
 
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 #include "ai_audio_player.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +36,7 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 /**
 @brief Parse music data from JSON
 @param json JSON object containing music data
@@ -70,6 +73,8 @@ OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music);
 @return None
 */
 void ai_skill_playcontrol_music(AI_AUDIO_MUSIC_T *music);
+
+#endif
 
 #ifdef __cplusplus
 }

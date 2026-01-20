@@ -1,5 +1,5 @@
 menuconfig ENABLE_COMP_AI_AUDIO
-    select ENABLE_AUDIO_CODECS
+    select ENABLE_AI_PLAYER
     bool "enable ai audio input/output"
     default y
 

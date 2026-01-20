@@ -5,8 +5,12 @@
  */
 
 #include "tal_api.h"
+
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 #include "svc_ai_player.h"
 #include "ai_audio_player.h"
+#endif
+
 #include "skill_cloudevent.h"
 
 /***********************************************************
@@ -27,6 +31,7 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 static AI_AUDIO_CODEC_E __parse_get_codec_type(char *format)
 {
     AI_AUDIO_CODEC_E fmt = AI_AUDIO_CODEC_MP3;
@@ -153,13 +158,18 @@ OPERATE_RET __ai_parse_playtts_free(AI_AUDIO_PLAY_TTS_T *playtts)
     return OPRT_OK;
 }
 
+#endif
+
 OPERATE_RET ai_parse_cloud_event(cJSON *json)
 {
     OPERATE_RET rt = OPRT_OK;
     cJSON *action = cJSON_GetObjectItem(json, "action");
     if (action && (strcmp(action->valuestring, "playTts") == 0 ||
                    strcmp(action->valuestring, "alert") == 0)) {
+
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         cJSON *data = cJSON_GetObjectItem(json, "data");
+
         AI_AUDIO_PLAY_TTS_T *playtts = NULL;
         if ((rt = __ai_parse_playtts(action->valuestring, data, &playtts)) == 0) {
             ai_audio_play_tts_url(playtts, FALSE);
@@ -168,6 +178,8 @@ OPERATE_RET ai_parse_cloud_event(cJSON *json)
             // }
             __ai_parse_playtts_free(playtts);
         }
+#endif
+
         return rt;
     }
 

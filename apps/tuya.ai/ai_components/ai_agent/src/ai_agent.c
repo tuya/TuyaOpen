@@ -41,8 +41,9 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 static uint16_t __s_audio_codec_type = AI_AUDIO_CODEC_MP3;
-
+#endif
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -97,6 +98,7 @@ OPERATE_RET __ai_agent_media_attr_cb(AI_BIZ_ATTR_INFO_T *attr)
     /* PR_DEBUG(" ai agent -> recv media attr type: %d", attr->type); */
     if (attr->type == AI_PT_AUDIO && attr->flag & AI_HAS_ATTR) {
         PR_DEBUG("ai agent -> audio codec type: %d", attr->value.audio.base.codec_type);
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         switch (attr->value.audio.base.codec_type) {
             case AUDIO_CODEC_MP3:
                 __s_audio_codec_type = AI_AUDIO_CODEC_MP3;
@@ -108,6 +110,7 @@ OPERATE_RET __ai_agent_media_attr_cb(AI_BIZ_ATTR_INFO_T *attr)
                 __s_audio_codec_type = AI_AUDIO_CODEC_MAX;
                 break;
         }
+#endif
     }
     return OPRT_OK;
 }
