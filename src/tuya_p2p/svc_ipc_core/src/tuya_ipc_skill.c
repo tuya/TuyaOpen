@@ -615,13 +615,3 @@ INT_T tuya_imm_get_security_ability(VOID)
 {
     return ((1 << 1) | (1 << 2) | (1 << 3) | (1 << 4));
 }
-
-VOID_T *tkl_system_psram_malloc(CONST SIZE_T size)
-{
-    return malloc(size);
-}
-
-VOID_T tkl_system_psram_free(VOID_T *ptr)
-{
-    free(ptr);
-}
