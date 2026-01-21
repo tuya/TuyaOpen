@@ -20,6 +20,11 @@
 - `lib/`：EPD 驱动、字库与 GUI 绘制工具
 - `screenshots/`：示例截图（占位，可替换）
 
+视频：
+
+- [贾-墨阅 · 墨水屏文本图片阅读器](https://www.bilibili.com/video/BV1pjkgB6EiT)
+- [涂鸦 4.26 贾-墨阅 · 墨水屏文本图片阅读器_百度网盘下载文本图片到 SD 卡查看](https://www.bilibili.com/video/BV1hhz7BYEAa)
+
 截图示例：
 
 - 列表与 SD 卡文件： ![SD files](screenshots/sd_card_files.png)
@@ -29,6 +34,7 @@
 - 百度网盘文件列表： ![Baidu files](screenshots/baidu_net_disk_files.png)
 - 百度网盘二维码： ![Baidu qrcode](screenshots/baidu_net_disk_qrcode.png)
 - 百度网盘 App 界面： ![Baidu app](screenshots/baidu_net_disk_app.png)
+- 百度网盘下载成功： ![Baidu download](screenshots/baidu_net_disk_download.png)
 - 兼容图片示例： ![JPG/PNG sample](screenshots/jpg.png)
 
 (更多示例图见 `screenshots/` 目录)
@@ -46,6 +52,15 @@
 - 字库：使用 `lib/Fonts/hzk24` 进行中文 GBK 渲染；程序会尽量检测文件编码（UTF-8 / UTF-16 / GBK）并做相应处理。
 - 图片：通过内置 PNG/JPEG/BMP 解码器渲染为 1-bit 位图以适配 EPD。
 - 断点记录：保存在 SD 卡隐藏目录 `/.sd_reader/progress.bin`。
+
+百度网盘开发平台集成
+
+- 功能：内置对百度网盘的浏览与下载支持。设备可通过二维码/设备码完成授权后，浏览配置目录（默认 `BDNDK_TARGET_DIR` 为 `/TuyaT5AI`）并将文件下载到 SD 卡。
+- 启动：长按 `RST` 键进入 Baidu NetDisk 模式并启动授权流程，界面会显示二维码或授权 URL 与设备码供用户在手机上授权。
+- 操作：在网盘列表中使用方向键选择文件，按 `MID` 查看详情；在详情界面按 `MID` 开始下载。
+- 存储：下载文件保存到 SD 卡目录 `/sdcard/TuyaT5AI`（可在运行时通过 `bdndk_storage_set` 指定）。
+- 进度与错误：下载进度会在网盘消息页显示，失败时提供错误详情与最近的下载 URL 以便调试。
+- Token/缓存：OAuth token 与会话信息保存在 SD 卡 `/.sd_reader/baidu_token.txt`，下次可自动恢复会话。
 
 贡献与许可
 
@@ -79,6 +94,15 @@ Developer notes:
 - Fonts: `lib/Fonts/hzk24` (GBK) used for Chinese rendering; encoding detection attempts to handle UTF-8/UTF-16/GBK.
 - Images: decoded and dithered to 1-bit for EPD.
 - Progress file: `/.sd_reader/progress.bin` on the SD card.
+
+Baidu NetDisk Integration
+
+- Features: built-in browsing and downloading from Baidu Net Disk. The device can be authorized via QR/device-code, then browse the configured `BDNDK_TARGET_DIR` (default `/TuyaT5AI`) and download files to the SD card.
+- Start: long-press `RST` to enter Baidu Net Disk mode and start the device auth flow; the UI shows a QR code and/or verification URL and user code for mobile authorization.
+- Controls: navigate the list with arrow keys, press `MID` to view file details; press `MID` in the detail view to begin download.
+- Storage: downloaded files are saved under `/sdcard/TuyaT5AI` (adjustable via `bdndk_storage_set`).
+- Progress & errors: download progress is shown in the NetDisk message screen; errors and the last-download URL are exposed for debugging.
+- Token/cache: OAuth tokens and session info are stored in `/.sd_reader/baidu_token.txt` on the SD card for session restore.
 
 Screenshots
 

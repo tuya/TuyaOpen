@@ -34,6 +34,13 @@
 #endif
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+#ifdef CONFIG_EPAPER_WIFI_SSID
+#define EXAMPLE_WIFI_SSID CONFIG_EPAPER_WIFI_SSID
+#endif
+#ifdef CONFIG_EPAPER_WIFI_PSWD
+#define EXAMPLE_WIFI_PSWD CONFIG_EPAPER_WIFI_PSWD
+#endif
+
 #ifndef EXAMPLE_WIFI_SSID
 #ifdef DEFAULT_WIFI_SSID
 #define EXAMPLE_WIFI_SSID DEFAULT_WIFI_SSID
@@ -66,11 +73,10 @@ static int parse_http_date(const char *date_str, struct tm *tm_time)
     }
 
     char month_str[4] = {0};
-    char weekday[4] = {0};
+    char weekday[4]   = {0};
 
-    int parsed =
-        sscanf(p, "%3s, %d %3s %d %d:%d:%d", weekday, &tm_time->tm_mday, month_str, &tm_time->tm_year,
-               &tm_time->tm_hour, &tm_time->tm_min, &tm_time->tm_sec);
+    int parsed = sscanf(p, "%3s, %d %3s %d %d:%d:%d", weekday, &tm_time->tm_mday, month_str, &tm_time->tm_year,
+                        &tm_time->tm_hour, &tm_time->tm_min, &tm_time->tm_sec);
 
     if (parsed != 7) {
         PR_ERR("Failed to parse date string: %s", date_str);
@@ -78,7 +84,7 @@ static int parse_http_date(const char *date_str, struct tm *tm_time)
     }
 
     const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    tm_time->tm_mon = -1;
+    tm_time->tm_mon      = -1;
     for (int i = 0; i < 12; i++) {
         if (strcmp(month_str, months[i]) == 0) {
             tm_time->tm_mon = i;
@@ -106,21 +112,21 @@ static int sync_time_from_http(void)
         {.key = "Connection", .value = "close"},
     };
 
-    http_client_status_t http_status =
-        http_client_request(&(const http_client_request_t){
-                                .cacert = NULL,
-                                .cacert_len = 0,
-                                .host = EXAMPLE_TIME_SERVER_URL,
-                                .port = 80,
-                                .method = "GET",
-                                .path = EXAMPLE_TIME_SERVER_PATH,
-                                .headers = headers,
-                                .headers_count = 2,
-                                .body = (const uint8_t *)"",
-                                .body_length = 0,
-                                .timeout_ms = EXAMPLE_TIME_HTTP_TIMEOUT_MS,
-                            },
-                            &http_response);
+    http_client_status_t http_status = http_client_request(
+        &(const http_client_request_t){
+            .cacert        = NULL,
+            .cacert_len    = 0,
+            .host          = EXAMPLE_TIME_SERVER_URL,
+            .port          = 80,
+            .method        = "GET",
+            .path          = EXAMPLE_TIME_SERVER_PATH,
+            .headers       = headers,
+            .headers_count = 2,
+            .body          = (const uint8_t *)"",
+            .body_length   = 0,
+            .timeout_ms    = EXAMPLE_TIME_HTTP_TIMEOUT_MS,
+        },
+        &http_response);
 
     if (HTTP_CLIENT_SUCCESS != http_status) {
         PR_ERR("HTTP request failed: %d", http_status);
@@ -147,7 +153,7 @@ static int sync_time_from_http(void)
 
                 struct tm tm_time = {0};
                 if (parse_http_date(date_line, &tm_time) == 0) {
-                    time_t server_time_gmt = mktime(&tm_time);
+                    time_t server_time_gmt   = mktime(&tm_time);
                     time_t server_time_local = server_time_gmt + (EXAMPLE_TIMEZONE_OFFSET_HOURS * 3600);
                     tal_time_set_posix(server_time_local, 0);
                     sg_time_synced = 1;
@@ -164,9 +170,9 @@ static int sync_time_from_http(void)
 
 static OPERATE_RET link_status_callback(void *data)
 {
-    static netmgr_status_e last_status = NETMGR_LINK_DOWN;
-    static int sync_attempted = 0;
-    netmgr_status_e status = (netmgr_status_e)data;
+    static netmgr_status_e last_status    = NETMGR_LINK_DOWN;
+    static int             sync_attempted = 0;
+    netmgr_status_e        status         = (netmgr_status_e)data;
 
     if (status == last_status) {
         return OPRT_OK;
@@ -187,7 +193,7 @@ static void example_basic_runtime_init(void)
 {
     tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
-        .key = "dflfuap134ddlduq",
+        .key  = "dflfuap134ddlduq",
     });
     tal_sw_timer_init();
     tal_workq_init();
@@ -202,12 +208,12 @@ static void example_set_default_time_if_needed(void)
     }
 
     struct tm default_time = {
-        .tm_year = 2025 - 1900,
-        .tm_mon = 11,
-        .tm_mday = 20,
-        .tm_hour = 21,
-        .tm_min = 0,
-        .tm_sec = 0,
+        .tm_year  = 2025 - 1900,
+        .tm_mon   = 11,
+        .tm_mday  = 20,
+        .tm_hour  = 21,
+        .tm_min   = 0,
+        .tm_sec   = 0,
         .tm_isdst = 0,
     };
     time_t default_timestamp = mktime(&default_time);
@@ -258,6 +264,8 @@ OPERATE_RET example_time_sync_on_startup(uint32_t wait_timeout_ms)
         strncpy(wifi_info.ssid, EXAMPLE_WIFI_SSID, sizeof(wifi_info.ssid) - 1);
         strncpy(wifi_info.pswd, EXAMPLE_WIFI_PSWD, sizeof(wifi_info.pswd) - 1);
         netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info);
+    } else {
+        PR_WARN("Wi-Fi credentials not set. Configure CONFIG_EPAPER_WIFI_SSID/PSWD to enable network.");
     }
 #endif
 

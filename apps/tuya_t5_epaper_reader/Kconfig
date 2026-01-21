@@ -1,5 +1,13 @@
 menu "Application config"
 
+    config EPAPER_WIFI_SSID
+        string "wifi ssid"
+        default ""
+
+    config EPAPER_WIFI_PSWD
+        string "wifi password"
+        default ""
+
     config EBABLE_SD_PINMUX
         bool "enable sd pinmux"
         default n
