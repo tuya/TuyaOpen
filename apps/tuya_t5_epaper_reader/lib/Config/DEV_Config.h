@@ -8,7 +8,7 @@
 *----------------
 * |	This version:   V1.0
 * | Date        :   2025-11-19
-* | Info        :  
+* | Info        :
 * -----------------------------------------------------------------------------
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -46,65 +46,63 @@
 #include "tal_cli.h"
 #include "tkl_spi.h"
 
-
 /**
  * data
-**/
+ **/
 #define UBYTE   uint8_t
 #define UWORD   uint16_t
 #define UDOUBLE uint32_t
 
 /**
  * GPIO0 config
-**/
+ **/
 #ifndef EPD_MOSI_PIN
-#define EPD_MOSI_PIN    TUYA_GPIO_NUM_16
+#define EPD_MOSI_PIN TUYA_GPIO_NUM_16
 #endif
 
 #ifndef EPD_SCLK_PIN
-#define EPD_SCLK_PIN    TUYA_GPIO_NUM_14
+#define EPD_SCLK_PIN TUYA_GPIO_NUM_14
 #endif
 
-#ifndef EPD_CS_PIN      
-#define EPD_CS_PIN      TUYA_GPIO_NUM_18
+#ifndef EPD_CS_PIN
+#define EPD_CS_PIN TUYA_GPIO_NUM_18
 #endif
 
 #ifndef EPD_DC_PIN
-#define EPD_DC_PIN      TUYA_GPIO_NUM_19
+#define EPD_DC_PIN TUYA_GPIO_NUM_19
 #endif
 
 #ifndef EPD_RST_PIN
-#define EPD_RST_PIN     TUYA_GPIO_NUM_47
+#define EPD_RST_PIN TUYA_GPIO_NUM_47
 #endif
 
 #ifndef EPD_BUSY_PIN
-#define EPD_BUSY_PIN    TUYA_GPIO_NUM_46
+#define EPD_BUSY_PIN TUYA_GPIO_NUM_46
 #endif
 
 #ifndef EPD_PWR_PIN
-#define EPD_PWR_PIN     TUYA_GPIO_NUM_40
+#define EPD_PWR_PIN TUYA_GPIO_NUM_40
 #endif
 
 /**
  * SPI config
-**/
-#define SPI_ID          TUYA_SPI_NUM_0
-#define SPI_FREQ        4 * 1000 * 1000  // 4M
+ **/
+#define SPI_ID   TUYA_SPI_NUM_0
+#define SPI_FREQ 4 * 1000 * 1000 // 4M
 
 /*------------------------------------------------------------------------------------------------------*/
-void DEV_Digital_Write(UWORD Pin, UBYTE Value);
+void  DEV_Digital_Write(UWORD Pin, UBYTE Value);
 UBYTE DEV_Digital_Read(UWORD Pin);
 
 void DEV_SPI_WriteByte(UBYTE Value);
 void DEV_SPI_Write_nByte(uint8_t *pData, uint32_t Len);
 void DEV_Delay_ms(UDOUBLE xms);
 
-void DEV_SPI_SendData(UBYTE Reg);
-void DEV_SPI_SendnData(UBYTE *Reg);
+void  DEV_SPI_SendData(UBYTE Reg);
+void  DEV_SPI_SendnData(UBYTE *Reg);
 UBYTE DEV_SPI_ReadData();
 
 UBYTE DEV_Module_Init(void);
-void DEV_Module_Exit(void);
-
+void  DEV_Module_Exit(void);
 
 #endif

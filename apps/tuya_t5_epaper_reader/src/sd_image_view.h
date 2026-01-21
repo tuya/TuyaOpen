@@ -6,4 +6,3 @@
 int sd_draw_image_1bit(const char *path, int x, int y, int w, int h);
 
 #endif
-

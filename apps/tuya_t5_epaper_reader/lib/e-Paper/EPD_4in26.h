@@ -36,8 +36,8 @@
 // PR_DEBUG 已在 DEV_Config.h 中定义，这里不需要重复定义
 
 // Display resolution
-#define EPD_4in26_WIDTH       800
-#define EPD_4in26_HEIGHT      480
+#define EPD_4in26_WIDTH  800
+#define EPD_4in26_HEIGHT 480
 
 void EPD_4in26_Init(void);
 void EPD_4in26_Init_Fast(void);
@@ -49,6 +49,5 @@ void EPD_4in26_Display_Fast(UBYTE *Image);
 void EPD_4in26_Display_Part(UBYTE *Image, UWORD x, UWORD y, UWORD w, UWORD l);
 void EPD_4in26_4GrayDisplay(UBYTE *Image);
 void EPD_4in26_Sleep(void);
-
 
 #endif
