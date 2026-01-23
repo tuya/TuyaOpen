@@ -41,4 +41,16 @@ menu "TKL Board Configuration"
         bool
         default y
 
+    config ENABLE_GPIO
+        bool "ENABLE_GPIO --- support gpio"
+        default y
+
+    config ENABLE_I2C
+        bool "ENABLE_I2C --- support i2c"
+        default y
+
+    config ENABLE_SPI
+        bool "ENABLE_SPI --- support spi"
+        default y
+
 endmenu
