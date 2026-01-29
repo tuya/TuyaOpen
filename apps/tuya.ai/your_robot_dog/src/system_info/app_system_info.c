@@ -17,6 +17,10 @@
 
 #include "netmgr.h"
 
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+#include "ai_audio_player.h"
+#endif
+
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tal_wifi.h"
 #endif
@@ -109,6 +113,14 @@ static uint8_t __robot_get_wifi_status(void)
     }
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+    /* netmgr can lag behind real station state; prefer station status when available. */
+    WF_STATION_STAT_E sta_stat = WSS_IDLE;
+    if (OPRT_OK == tal_wifi_station_get_status(&sta_stat)) {
+        if (sta_stat != WSS_GOT_IP) {
+            return 0; // DISCONNECTED
+        }
+    }
+
 #ifndef PLATFORM_T5
     // get rssi
     int8_t rssi = 0;
@@ -130,6 +142,19 @@ static void __robot_wifi_status_timer_cb(TIMER_ID timer_id, void *arg)
     (void)arg;
 
     uint8_t wifi_status = __robot_get_wifi_status();
+
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+    static bool s_prev_wifi_connected = false;
+    bool        wifi_connected        = (wifi_status != 0);
+
+    /* Only alert on runtime disconnect (connected -> disconnected). */
+    if (s_prev_wifi_connected && !wifi_connected) {
+        (void)ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_DISCONNECT);
+    }
+
+    s_prev_wifi_connected = wifi_connected;
+#endif
+
     robot_ui_wifi_update(wifi_status);
 }
 

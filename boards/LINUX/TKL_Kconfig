@@ -33,6 +33,45 @@ menu "TKL Board Configuration"
         bool "Enable Bluetooth"
         default n
 
+    config ENABLE_GPIO
+        bool "ENABLE_GPIO"
+        default y
+
+    config ENABLE_I2C
+        bool "ENABLE_I2C"
+        default y
+
+    config ENABLE_SPI
+        bool "ENABLE_SPI"
+        default y
+
+    config ENABLE_PWM
+        bool "Enable PWM"
+        default n
+
+    config PWM_SYSFS_CHIP
+        int "Linux PWM sysfs chip index (/sys/class/pwm/pwmchipX)"
+        depends on ENABLE_PWM
+        default 0
+
+    config PWM_SYSFS_CHANNEL_BASE
+        int "Linux PWM sysfs channel base (pwmN = base + ch_id)"
+        depends on ENABLE_PWM
+        default 0
+
+    config ENABLE_UART
+        bool "Enable UART"
+        default n
+
+    config TKL_UART_USE_FAKE
+        bool "Use fake UART (stdin/UDP) instead of hardware ttyAMA*"
+        depends on ENABLE_UART
+        default y
+        ---help---
+            Select Y to keep the existing fake UART implementation that uses
+            stdin for RX and UDP for TX/RX. Select N to use the Raspberry Pi
+            hardware UART devices (ttyAMA*).
+
     config ENABLE_AUDIO
         bool
         default n

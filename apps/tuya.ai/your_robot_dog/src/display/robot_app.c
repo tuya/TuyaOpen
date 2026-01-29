@@ -35,6 +35,8 @@ static lv_obj_t *battery_label_;
 static lv_obj_t *network_label_;
 static lv_obj_t *status_label_;
 
+static bool force_thinking = false;
+
 //! gif file
 static lv_img_dsc_t gif_files[11]; 
 
@@ -226,6 +228,14 @@ void robot_ui_wifi_update(uint8_t wifi_status)
 {
     lv_vendor_disp_lock();
     if (network_label_) {
+        if (!wifi_status && !force_thinking) {
+            /* After init, show "Connecting" until Wi-Fi is up. */
+            if (gif_full && status_label_ &&
+                (s_current_gui_stat == GUI_STAT_INIT || s_current_gui_stat == GUI_STAT_CONN)) {
+                robot_set_status(GUI_STAT_CONN);
+            }
+        }
+
         if (wifi_status && !s_last_wifi_status) {
             robot_gif_load();
             if (gif_full && status_label_) {
@@ -256,6 +266,14 @@ static bool __robot_gui_stat_from_text(const char *text, uint8_t *stat)
         *stat = (uint8_t)GUI_STAT_LISTEN;
         return true;
     }
+    if (strncmp(text, UPLOADING, strlen(UPLOADING)) == 0) {
+        *stat = (uint8_t)GUI_STAT_UPLOAD;
+        return true;
+    }
+    if (strncmp(text, THINKING, strlen(THINKING)) == 0) {
+        *stat = (uint8_t)GUI_STAT_THINK;
+        return true;
+    }
     if (strncmp(text, SPEAKING, strlen(SPEAKING)) == 0) {
         *stat = (uint8_t)GUI_STAT_SPEAK;
         return true;
@@ -277,6 +295,16 @@ static void __robot_apply_chat_stat(uint8_t stat)
 {
     if (!gif_full || !status_label_) {
         return;
+    }
+
+    if (force_thinking) {
+        /* Keep showing "Thinking" after ASR until we really enter speaking. */
+        if (stat == GUI_STAT_IDLE || stat == GUI_STAT_LISTEN) {
+            return;
+        }
+        if (stat == GUI_STAT_SPEAK) {
+            force_thinking = false;
+        }
     }
 
     if (GUI_STAT_IDLE == stat || GUI_STAT_LISTEN == stat) {
@@ -312,6 +340,20 @@ static void __ui_disp_emotion(char *emotion)
     lv_vendor_disp_unlock();
 }
 
+static void __ui_disp_user_msg(char *string)
+{
+    (void)string;
+
+    lv_vendor_disp_lock();
+    if (status_label_) {
+        force_thinking = true;
+        /* Ensure thinking animation is available if the filesystem gifs are used. */
+        robot_gif_load();
+        robot_set_status(GUI_STAT_THINK);
+    }
+    lv_vendor_disp_unlock();
+}
+
 static void __ui_disp_ai_mode_state(char *string)
 {
     uint8_t stat = 0;
@@ -332,6 +374,7 @@ OPERATE_RET ai_ui_robot_dog_register(void)
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
     intfs.disp_init = __ui_init;
+    intfs.disp_user_msg = __ui_disp_user_msg;
     intfs.disp_emotion = __ui_disp_emotion;
     intfs.disp_ai_mode_state = __ui_disp_ai_mode_state;
 
@@ -340,6 +383,3 @@ OPERATE_RET ai_ui_robot_dog_register(void)
     return OPRT_OK;
 #endif
 }
-
-
-

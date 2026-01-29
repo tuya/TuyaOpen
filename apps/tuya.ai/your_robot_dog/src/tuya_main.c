@@ -105,7 +105,7 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
     PR_INFO("HTTPS URL: %s", cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
 }
 
-OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
+OPERATE_RET robot_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
     for (index = 0; index < dpobj->dpscnt; index++) {
@@ -276,7 +276,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpobj->devid);
         }
 
-        audio_dp_obj_proc(dpobj);
+        robot_dp_obj_proc(dpobj);
 
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
 
