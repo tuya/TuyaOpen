@@ -29,7 +29,7 @@ extern "C" {
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    AI_USER_EVT_IDLE = -1,
+    AI_USER_EVT_IDLE      = -1,
     AI_USER_EVT_ASR_EMPTY = 0,
     AI_USER_EVT_ASR_OK,
     AI_USER_EVT_ASR_ERROR,
@@ -41,7 +41,7 @@ typedef enum {
     AI_USER_EVT_TTS_ABORT,
     AI_USER_EVT_TTS_ERROR,
     AI_USER_EVT_VAD_TIMEOUT,
-    AI_USER_EVT_TEXT_STREAM_START,  /* 10 */
+    AI_USER_EVT_TEXT_STREAM_START, /* 10 */
     AI_USER_EVT_TEXT_STREAM_DATA,
     AI_USER_EVT_TEXT_STREAM_STOP,
     AI_USER_EVT_TEXT_STREAM_ABORT,
@@ -51,7 +51,7 @@ typedef enum {
     AI_USER_EVT_CHAT_BREAK,
     AI_USER_EVT_SERVER_VAD,
     AI_USER_EVT_END,
-    AI_USER_EVT_PLAY_CTL_PLAY,  /* 20 */
+    AI_USER_EVT_PLAY_CTL_PLAY, /* 20 */
     AI_USER_EVT_PLAY_CTL_RESUME,
     AI_USER_EVT_PLAY_CTL_PAUSE,
     AI_USER_EVT_PLAY_CTL_REPLAY,
@@ -61,24 +61,24 @@ typedef enum {
     AI_USER_EVT_PLAY_CTL_SEQUENTIAL_LOOP,
     AI_USER_EVT_PLAY_CTL_SINGLE_LOOP,
     AI_USER_EVT_PLAY_CTL_END,
-    AI_USER_EVT_PLAY_END,   /* 30 */
-    AI_USER_EVT_PLAY_ALERT, 
-    AI_USER_EVT_MODE_SWITCH, 
+    AI_USER_EVT_PLAY_END, /* 30 */
+    AI_USER_EVT_PLAY_ALERT,
+    AI_USER_EVT_MODE_SWITCH,
     AI_USER_EVT_MODE_STATE_UPDATE,
-    AI_USER_EVT_VEDIO_DISPLAY_START,
-    AI_USER_EVT_VEDIO_DISPLAY_END,
-    AI_USER_EVT_EXIT, 
-}AI_USER_EVT_TYPE_E;
+    AI_USER_EVT_VIDEO_DISPLAY_START,
+    AI_USER_EVT_VIDEO_DISPLAY_END,
+    AI_USER_EVT_EXIT,
+} AI_USER_EVT_TYPE_E;
 
 typedef struct {
     AI_USER_EVT_TYPE_E type;
-    void *data;
-}AI_NOTIFY_EVENT_T;
+    void              *data;
+} AI_NOTIFY_EVENT_T;
 
 typedef void (*AI_USER_EVENT_NOTIFY)(AI_NOTIFY_EVENT_T *event);
 
 typedef struct {
-    char     *data;
+    char    *data;
     uint16_t datalen;
     uint32_t timeindex;
 } AI_NOTIFY_TEXT_T;
@@ -111,7 +111,7 @@ void ai_user_event_notify_register(AI_USER_EVENT_NOTIFY cb);
 @param data Pointer to event data (can be NULL)
 @return None
 */
-void ai_user_event_notify(AI_USER_EVT_TYPE_E type,  void *data);
+void ai_user_event_notify(AI_USER_EVT_TYPE_E type, void *data);
 
 #ifdef __cplusplus
 }

@@ -12,7 +12,6 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -20,7 +19,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static volatile BOOL_T sg_text_stream_active = FALSE;  /* Whether text stream is active */
+static volatile BOOL_T sg_text_stream_active = FALSE; /* Whether text stream is active */
 
 /***********************************************************
 ***********************function define**********************
@@ -29,43 +28,40 @@ static void __ai_chat_handle_event(AI_NOTIFY_EVENT_T *event)
 {
     AI_NOTIFY_TEXT_T *text = NULL;
 
-    switch(event->type) {
-        case AI_USER_EVT_TEXT_STREAM_START: {
-            sg_text_stream_active = TRUE;
+    switch (event->type) {
+    case AI_USER_EVT_TEXT_STREAM_START: {
+        sg_text_stream_active = TRUE;
 
-            text = (AI_NOTIFY_TEXT_T *)event->data;
-            if(text && text->datalen > 0 && text->data) {
-                uart_print_write((const uint8_t *)text->data, text->datalen);
-            }
+        text = (AI_NOTIFY_TEXT_T *)event->data;
+        if (text && text->datalen > 0 && text->data) {
+            uart_print_write((const uint8_t *)text->data, text->datalen);
         }
-        break;
-        case AI_USER_EVT_TEXT_STREAM_DATA: {
-            text = (AI_NOTIFY_TEXT_T *)event->data;
-            if(text && text->datalen > 0 && text->data) {
-                uart_print_write((const uint8_t *)text->data, text->datalen);
-            }
+    } break;
+    case AI_USER_EVT_TEXT_STREAM_DATA: {
+        text = (AI_NOTIFY_TEXT_T *)event->data;
+        if (text && text->datalen > 0 && text->data) {
+            uart_print_write((const uint8_t *)text->data, text->datalen);
         }
-        break;
-        case AI_USER_EVT_TEXT_STREAM_STOP: {
-            text = (AI_NOTIFY_TEXT_T *)event->data;
-            if(text && text->datalen > 0 && text->data) {
-                uart_print_write((const uint8_t *)text->data, text->datalen);
-            }
+    } break;
+    case AI_USER_EVT_TEXT_STREAM_STOP: {
+        text = (AI_NOTIFY_TEXT_T *)event->data;
+        if (text && text->datalen > 0 && text->data) {
+            uart_print_write((const uint8_t *)text->data, text->datalen);
+        }
 
-            sg_text_stream_active = FALSE;
-        }
+        sg_text_stream_active = FALSE;
+    } break;
+    default:
         break;
-        default:
-            break;
     }
 }
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static void __ai_video_display_flush(TDL_CAMERA_FRAME_T *frame)
 {
-    #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     ai_ui_camera_flush(frame->data, frame->width, frame->height);
-    #endif
+#endif
 }
 #endif
 
@@ -73,18 +69,18 @@ OPERATE_RET game_ai_chat_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    //custom ui register
+    // custom ui register
     TUYA_CALL_ERR_RETURN(ai_ui_chat_register());
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
         .default_mode = AI_CHAT_MODE_HOLD,
-        .default_vol = 70,
-        .evt_cb = __ai_chat_handle_event,
+        .default_vol  = 70,
+        .evt_cb       = __ai_chat_handle_event,
     };
     TUYA_CALL_ERR_RETURN(ai_chat_init(&ai_chat_cfg));
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
-    AI_VEDIO_CFG_T ai_video_cfg = {
+    AI_VIDEO_CFG_T ai_video_cfg = {
         .disp_flush_cb = __ai_video_display_flush,
     };
 

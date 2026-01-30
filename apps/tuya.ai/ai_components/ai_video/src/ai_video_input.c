@@ -20,11 +20,11 @@
 ************************macro define************************
 ***********************************************************/
 #if defined(ENBALE_EXT_RAM) && (ENBALE_EXT_RAM == 1)
-#define AI_VIDEO_MALLOC    tal_psram_malloc
-#define AI_VIDEO_FREE      tal_psram_free
+#define AI_VIDEO_MALLOC tal_psram_malloc
+#define AI_VIDEO_FREE   tal_psram_free
 #else
-#define AI_VIDEO_MALLOC    tal_malloc
-#define AI_VIDEO_FREE      tal_free     
+#define AI_VIDEO_MALLOC tal_malloc
+#define AI_VIDEO_FREE   tal_free
 #endif
 
 /***********************************************************
@@ -33,8 +33,8 @@
 typedef struct {
     uint8_t     *data;
     uint32_t     len;
-    bool         need_capture;  
-    SEM_HANDLE   sem; 
+    bool         need_capture;
+    SEM_HANDLE   sem;
     MUTEX_HANDLE mutex;
 } JPEG_FRAME_CAPTURE_T;
 
@@ -45,7 +45,7 @@ static TDL_CAMERA_HANDLE_T    sg_camera_hdl = NULL;
 static TDL_CAMERA_CFG_T       sg_camera_cfg;
 static DELAYED_WORK_HANDLE    sg_delayed_work = NULL;
 static JPEG_FRAME_CAPTURE_T   sg_jpeg_capture;
-static AI_VEDIO_DISP_FLUSH_CB sg_disp_flush_cb = NULL;
+static AI_VIDEO_DISP_FLUSH_CB sg_disp_flush_cb   = NULL;
 static bool                   sg_is_disp_started = false;
 
 /***********************************************************
@@ -55,11 +55,11 @@ static OPERATE_RET __get_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_
 {
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == frame){
+    if (NULL == frame) {
         return OPRT_INVALID_PARM;
     }
 
-    if(false == sg_is_disp_started || NULL == sg_disp_flush_cb) {
+    if (false == sg_is_disp_started || NULL == sg_disp_flush_cb) {
         return OPRT_OK;
     }
 
@@ -76,8 +76,7 @@ static OPERATE_RET __get_jpeg_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME
         return OPRT_INVALID_PARM;
     }
 
-    if (NULL == sg_jpeg_capture.mutex ||\
-        false == sg_jpeg_capture.need_capture) {
+    if (NULL == sg_jpeg_capture.mutex || false == sg_jpeg_capture.need_capture) {
         return OPRT_OK;
     }
 
@@ -88,13 +87,13 @@ static OPERATE_RET __get_jpeg_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME
             AI_VIDEO_FREE(sg_jpeg_capture.data);
             sg_jpeg_capture.data = NULL;
         }
-        
+
         sg_jpeg_capture.data = (uint8_t *)AI_VIDEO_MALLOC(frame->data_len);
         if (sg_jpeg_capture.data) {
             memcpy(sg_jpeg_capture.data, frame->data, frame->data_len);
-            sg_jpeg_capture.len = frame->data_len;
+            sg_jpeg_capture.len          = frame->data_len;
             sg_jpeg_capture.need_capture = FALSE;
-            
+
             if (sg_jpeg_capture.sem) {
                 tal_semaphore_post(sg_jpeg_capture.sem);
             }
@@ -104,7 +103,7 @@ static OPERATE_RET __get_jpeg_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME
             sg_jpeg_capture.len = 0;
         }
     }
-    
+
     tal_mutex_unlock(sg_jpeg_capture.mutex);
 
     return rt;
@@ -112,14 +111,14 @@ static OPERATE_RET __get_jpeg_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME
 
 static void __video_init_workq(void *args)
 {
-    OPERATE_RET rt = OPRT_OK;
-    TDL_CAMERA_CFG_T *cfg = (TDL_CAMERA_CFG_T*)args;
+    OPERATE_RET       rt  = OPRT_OK;
+    TDL_CAMERA_CFG_T *cfg = (TDL_CAMERA_CFG_T *)args;
 
-    PR_DEBUG("vedio -> camera init event");
+    PR_DEBUG("video -> camera init event");
 
     /* Find camera device */
     sg_camera_hdl = tdl_camera_find_dev(CAMERA_NAME);
-    if(NULL == sg_camera_hdl) {
+    if (NULL == sg_camera_hdl) {
         PR_ERR("camera dev %s not found", CAMERA_NAME);
         return;
     }
@@ -134,9 +133,9 @@ static void __video_init_workq(void *args)
 @param vi_cfg Video input configuration
 @return OPERATE_RET Operation result
 */
-OPERATE_RET ai_video_init(AI_VEDIO_CFG_T *vi_cfg)
-{   
-    OPERATE_RET  rt = OPRT_OK;
+OPERATE_RET ai_video_init(AI_VIDEO_CFG_T *vi_cfg)
+{
+    OPERATE_RET rt = OPRT_OK;
 
     TUYA_CHECK_NULL_RETURN(vi_cfg, OPRT_INVALID_PARM);
 
@@ -148,14 +147,14 @@ OPERATE_RET ai_video_init(AI_VEDIO_CFG_T *vi_cfg)
         TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&sg_jpeg_capture.sem, 0, 1));
     }
 
-    sg_disp_flush_cb = vi_cfg->disp_flush_cb;
+    sg_disp_flush_cb   = vi_cfg->disp_flush_cb;
     sg_is_disp_started = false;
 
     /* Set camera config */
     sg_camera_cfg.width  = COMP_AI_VIDEO_WIDTH;
     sg_camera_cfg.height = COMP_AI_VIDEO_HEIGHT;
     sg_camera_cfg.fps    = COMP_AI_VIDEO_FPS;
-    
+
     sg_camera_cfg.get_frame_cb         = __get_raw_frame_cb;
     sg_camera_cfg.get_encoded_frame_cb = __get_jpeg_frame_cb;
 
@@ -168,8 +167,7 @@ OPERATE_RET ai_video_init(AI_VEDIO_CFG_T *vi_cfg)
     sg_camera_cfg.encoded_quality.jpeg_cfg.min_size = COMP_AI_VIDEO_JPEG_QUALITY_MIN_SIZE;
 #endif
 
-    TUYA_CALL_ERR_RETURN(tal_workq_init_delayed(WORKQ_SYSTEM, __video_init_workq,\
-                                                &sg_camera_cfg, &sg_delayed_work));
+    TUYA_CALL_ERR_RETURN(tal_workq_init_delayed(WORKQ_SYSTEM, __video_init_workq, &sg_camera_cfg, &sg_delayed_work));
     TUYA_CALL_ERR_RETURN(tal_workq_start_delayed(sg_delayed_work, 500, LOOP_ONCE));
 
     PR_NOTICE("camera init success");
@@ -191,7 +189,7 @@ OPERATE_RET ai_video_deinit(void)
             AI_VIDEO_FREE(sg_jpeg_capture.data);
             sg_jpeg_capture.data = NULL;
         }
-        sg_jpeg_capture.len = 0;
+        sg_jpeg_capture.len          = 0;
         sg_jpeg_capture.need_capture = false;
         tal_mutex_unlock(sg_jpeg_capture.mutex);
         tal_mutex_release(sg_jpeg_capture.mutex);
@@ -201,7 +199,7 @@ OPERATE_RET ai_video_deinit(void)
     if (sg_jpeg_capture.sem) {
         tal_semaphore_release(sg_jpeg_capture.sem);
         sg_jpeg_capture.sem = NULL;
-    }       
+    }
 
     if (NULL == sg_camera_hdl) {
         tdl_camera_dev_close(sg_camera_hdl);
@@ -244,7 +242,7 @@ OPERATE_RET ai_video_get_jpeg_frame(uint8_t **image_data, uint32_t *image_data_l
         PR_ERR("Wait for JPEG frame timeout");
         return OPRT_COM_ERROR;
     }
-    
+
     tal_mutex_lock(sg_jpeg_capture.mutex);
 
     if (!sg_jpeg_capture.data || sg_jpeg_capture.len == 0) {
@@ -252,19 +250,19 @@ OPERATE_RET ai_video_get_jpeg_frame(uint8_t **image_data, uint32_t *image_data_l
         PR_ERR("No valid JPEG frame data");
         return OPRT_COM_ERROR;
     }
-    
+
     *image_data = (uint8_t *)AI_VIDEO_MALLOC(sg_jpeg_capture.len);
     if (!(*image_data)) {
         tal_mutex_unlock(sg_jpeg_capture.mutex);
         PR_ERR("Failed to allocate memory for JPEG frame");
         return OPRT_MALLOC_FAILED;
     }
-    
+
     memcpy(*image_data, sg_jpeg_capture.data, sg_jpeg_capture.len);
     *image_data_len = sg_jpeg_capture.len;
-    
+
     tal_mutex_unlock(sg_jpeg_capture.mutex);
-    
+
     PR_DEBUG("Get JPEG frame success, len: %d", *image_data_len);
 
     return rt;
@@ -298,7 +296,7 @@ OPERATE_RET ai_video_display_start(void)
         .camera_height = sg_camera_cfg.height,
     };
 
-    ai_user_event_notify(AI_USER_EVT_VEDIO_DISPLAY_START, &notify);
+    ai_user_event_notify(AI_USER_EVT_VIDEO_DISPLAY_START, &notify);
 
     sg_is_disp_started = true;
 
@@ -313,7 +311,7 @@ OPERATE_RET ai_video_display_stop(void)
 {
     sg_is_disp_started = false;
 
-    ai_user_event_notify(AI_USER_EVT_VEDIO_DISPLAY_END, NULL);
+    ai_user_event_notify(AI_USER_EVT_VIDEO_DISPLAY_END, NULL);
 
     return OPRT_OK;
 }
