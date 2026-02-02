@@ -1207,12 +1207,13 @@ int dp_obj_dump_stat_local_json(char *devid, dp_rept_valid_t **outdpvalid, char 
         dp_rept_json_append(schema, jsonstr, NULL, NULL, 0, &out);
         cJSON_free(jsonstr);
     }else {
-        out = tal_malloc(strlen(jsonstr) + 1);
-        cJSON_free(jsonstr);
+        size_t jsonstr_len = strlen(jsonstr);
+        out = tal_malloc(jsonstr_len + 1);
         if(out) {
-            memset(out, 0, strlen(jsonstr) + 1);
-            strcpy(out, jsonstr);
+            memset(out, 0, jsonstr_len + 1);
+            memcpy(out, jsonstr, jsonstr_len);
         }
+        cJSON_free(jsonstr);
     }
 
     if (outjson) {
