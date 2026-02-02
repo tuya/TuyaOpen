@@ -32,12 +32,11 @@ extern OPERATE_RET ai_ui_robot_dog_register(void);
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static void __ai_video_display_flush(TDL_CAMERA_FRAME_T *frame)
 {
-    #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     ai_ui_camera_flush(frame->data, frame->width, frame->height);
-    #endif
+#endif
 }
 #endif
-
 
 OPERATE_RET app_chat_bot_init(void)
 {
@@ -60,14 +59,14 @@ OPERATE_RET app_chat_bot_init(void)
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
         .default_mode = AI_CHAT_MODE_FREE,
-        .default_vol = 70,
-        .evt_cb = NULL,
+        .default_vol  = 70,
+        .evt_cb       = NULL,
     };
 
     TUYA_CALL_ERR_RETURN(ai_chat_init(&ai_chat_cfg));
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
-    AI_VEDIO_CFG_T ai_video_cfg = {
+    AI_VIDEO_CFG_T ai_video_cfg = {
         .disp_flush_cb = __ai_video_display_flush,
     };
 

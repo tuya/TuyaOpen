@@ -18,7 +18,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define PRINTF_FREE_HEAP_TTIME      (10 * 1000)
+#define PRINTF_FREE_HEAP_TTIME (10 * 1000)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -27,7 +27,6 @@
 /***********************************************************
 ***********************const declaration********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************variable define**********************
@@ -52,9 +51,9 @@ static void __printf_free_heap_tm_cb(TIMER_ID timer_id, void *arg)
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static void __ai_video_display_flush(TDL_CAMERA_FRAME_T *frame)
 {
-    #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     ai_ui_camera_flush(frame->data, frame->width, frame->height);
-    #endif
+#endif
 }
 #endif
 
@@ -67,18 +66,18 @@ OPERATE_RET app_chat_bot_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    //custom ui register
+    // custom ui register
     TUYA_CALL_ERR_RETURN(app_ai_ui_register());
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
         .default_mode = AI_CHAT_MODE_WAKEUP,
-        .default_vol = 70,
-        .evt_cb = __ai_chat_handle_event,
+        .default_vol  = 70,
+        .evt_cb       = __ai_chat_handle_event,
     };
     TUYA_CALL_ERR_RETURN(ai_chat_init(&ai_chat_cfg));
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
-    AI_VEDIO_CFG_T ai_video_cfg = {
+    AI_VIDEO_CFG_T ai_video_cfg = {
         .disp_flush_cb = __ai_video_display_flush,
     };
 
@@ -95,4 +94,3 @@ OPERATE_RET app_chat_bot_init(void)
 
     return OPRT_OK;
 }
-

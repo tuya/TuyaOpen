@@ -23,16 +23,14 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef void (*AI_VEDIO_DISP_FLUSH_CB)(TDL_CAMERA_FRAME_T *frame);
+typedef void (*AI_VIDEO_DISP_FLUSH_CB)(TDL_CAMERA_FRAME_T *frame);
 
 typedef struct {
-    AI_VEDIO_DISP_FLUSH_CB  disp_flush_cb;
-}AI_VEDIO_CFG_T;
-
+    AI_VIDEO_DISP_FLUSH_CB disp_flush_cb;
+} AI_VIDEO_CFG_T;
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
@@ -41,7 +39,7 @@ typedef struct {
 @param vi_cfg Video input configuration
 @return OPERATE_RET Operation result
 */
-OPERATE_RET ai_video_init(AI_VEDIO_CFG_T *vi_cfg);
+OPERATE_RET ai_video_init(AI_VIDEO_CFG_T *vi_cfg);
 
 /**
 @brief Get JPEG frame from camera

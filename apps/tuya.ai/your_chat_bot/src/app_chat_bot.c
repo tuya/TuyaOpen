@@ -18,8 +18,8 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define PRINTF_FREE_HEAP_TTIME      (10 * 1000)
-#define DISP_NET_STATUS_TIME        (1 * 1000)
+#define PRINTF_FREE_HEAP_TTIME (10 * 1000)
+#define DISP_NET_STATUS_TIME   (1 * 1000)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -29,7 +29,6 @@
 ***********************const declaration********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -37,7 +36,7 @@ static TIMER_ID sg_printf_heap_tm;
 
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
 static AI_UI_WIFI_STATUS_E sg_wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
-static TIMER_ID sg_disp_status_tm;
+static TIMER_ID            sg_disp_status_tm;
 #endif
 /***********************************************************
 ***********************function define**********************
@@ -58,17 +57,17 @@ static void __printf_free_heap_tm_cb(TIMER_ID timer_id, void *arg)
 static void __display_net_status_update(void)
 {
     AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
-    netmgr_status_e net_status = NETMGR_LINK_DOWN;
+    netmgr_status_e     net_status  = NETMGR_LINK_DOWN;
 
     netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &net_status);
     if (net_status == NETMGR_LINK_UP) {
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
         // get rssi
         int8_t rssi = 0;
-        #ifndef PLATFORM_T5
+#ifndef PLATFORM_T5
         // BUG: Getting RSSI causes a crash on T5 platform
         tkl_wifi_station_get_conn_ap_rssi(&rssi);
-        #endif
+#endif
         if (rssi >= -60) {
             wifi_status = AI_UI_WIFI_STATUS_GOOD;
         } else if (rssi >= -70) {
@@ -99,9 +98,9 @@ static void __display_status_tm_cb(TIMER_ID timer_id, void *arg)
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static void __ai_video_display_flush(TDL_CAMERA_FRAME_T *frame)
 {
-    #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     ai_ui_camera_flush(frame->data, frame->width, frame->height);
-    #endif
+#endif
 }
 #endif
 
@@ -116,13 +115,13 @@ OPERATE_RET app_chat_bot_init(void)
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
         .default_mode = AI_CHAT_MODE_WAKEUP,
-        .default_vol = 70,
-        .evt_cb = __ai_chat_handle_event,
+        .default_vol  = 70,
+        .evt_cb       = __ai_chat_handle_event,
     };
     TUYA_CALL_ERR_RETURN(ai_chat_init(&ai_chat_cfg));
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
-    AI_VEDIO_CFG_T ai_video_cfg = {
+    AI_VIDEO_CFG_T ai_video_cfg = {
         .disp_flush_cb = __ai_video_display_flush,
     };
 
@@ -150,4 +149,3 @@ OPERATE_RET app_chat_bot_init(void)
 
     return OPRT_OK;
 }
-
