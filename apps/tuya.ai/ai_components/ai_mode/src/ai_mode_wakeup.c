@@ -11,7 +11,7 @@
 #include "tal_api.h"
 #include "tuya_ai_agent.h"
 
-#include "tkl_asr.h"
+#include "tkl_kws.h"
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
 #include "tdl_led_manage.h"
@@ -58,7 +58,7 @@ static uint32_t        sg_wakeup_time_ms = AI_CHAT_WAKEUP_TIME_MS;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void __ai_mode_kws_wakeup(TKL_ASR_WAKEUP_WORD_E wakeup_word)
+static void __ai_mode_kws_wakeup(TKL_KWS_WAKEUP_WORD_E wakeup_word)
 {
     ai_audio_player_stop(AI_AUDIO_PLAYER_ALL);
     ai_audio_input_reset();
@@ -147,8 +147,8 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
     //set vad mode
     ai_audio_input_wakeup_mode_set(AI_AUDIO_VAD_AUTO);
 
-    tkl_asr_reg_wakeup_cb(__ai_mode_kws_wakeup);
-    tkl_asr_enable();
+    tkl_kws_reg_wakeup_cb(__ai_mode_kws_wakeup);
+    tkl_kws_enable();
 
     //create idle timer
     TIMER_ID sg_enter_idle_timer = NULL;
@@ -162,7 +162,7 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
 
 static OPERATE_RET __ai_mode_wakeup_deinit(void)
 {
-    tkl_asr_disable();
+    tkl_kws_disable();
 
     tuya_ai_input_stop();
 

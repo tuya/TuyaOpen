@@ -9,13 +9,13 @@
 #include "tal_api.h"
 
 #include "tkl_output.h"
-#include "tkl_asr.h"
+#include "tkl_kws.h"
 #include "tdl_audio_manage.h"
 #include "board_com_api.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define ASR_PROCE_UNIT_NUM    30
+#define KWS_PROCE_UNIT_NUM    30
 
 /***********************************************************
 ***********************typedef define***********************
@@ -25,8 +25,8 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-const static TKL_ASR_WAKEUP_WORD_E cWAKEUP_KEYWORD_LIST[] = {
-    TKL_ASR_WAKEUP_NIHAO_TUYA,
+const static TKL_KWS_WAKEUP_WORD_E cWAKEUP_KEYWORD_LIST[] = {
+    TKL_KWS_WAKEUP_NIHAO_TUYA,
 };
 
 static TUYA_RINGBUFF_T sg_feed_ringbuff;
@@ -34,24 +34,24 @@ static uint32_t sg_feed_buff_len = 0;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static OPERATE_RET __example_asr_init(void)
+static OPERATE_RET __example_kws_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    TUYA_CALL_ERR_GOTO(tkl_asr_init(), __ASR_INIT_ERR);
+    TUYA_CALL_ERR_GOTO(tkl_kws_init(), __KWS_INIT_ERR);
 
-    TUYA_CALL_ERR_GOTO(tkl_asr_wakeup_word_config((TKL_ASR_WAKEUP_WORD_E *)cWAKEUP_KEYWORD_LIST,\
-                      CNTSOF(cWAKEUP_KEYWORD_LIST)), __ASR_INIT_ERR);
+    TUYA_CALL_ERR_GOTO(tkl_kws_wakeup_word_config((TKL_KWS_WAKEUP_WORD_E *)cWAKEUP_KEYWORD_LIST,\
+                      CNTSOF(cWAKEUP_KEYWORD_LIST)), __KWS_INIT_ERR);
 
-    sg_feed_buff_len = tkl_asr_get_process_uint_size() * ASR_PROCE_UNIT_NUM;
+    sg_feed_buff_len = tkl_kws_get_process_uint_size() * KWS_PROCE_UNIT_NUM;
     PR_DEBUG("sg_feed_buff_len:%d", sg_feed_buff_len);
-    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(sg_feed_buff_len + tkl_asr_get_process_uint_size(),
-                                             OVERFLOW_PSRAM_STOP_TYPE, &sg_feed_ringbuff), __ASR_INIT_ERR);
+    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(sg_feed_buff_len + tkl_kws_get_process_uint_size(),
+                                             OVERFLOW_PSRAM_STOP_TYPE, &sg_feed_ringbuff), __KWS_INIT_ERR);
 
     return OPRT_OK;
 
-__ASR_INIT_ERR:
-    tkl_asr_deinit();
+__KWS_INIT_ERR:
+    tkl_kws_deinit();
 
     if (sg_feed_ringbuff) {
         tuya_ring_buff_free(sg_feed_ringbuff);
@@ -81,30 +81,30 @@ static OPERATE_RET __example_audio_open(void)
     return OPRT_OK;
 }
 
-static TKL_ASR_WAKEUP_WORD_E __asr_recognize_wakeup_keyword(void)
+static TKL_KWS_WAKEUP_WORD_E __kws_recognize_wakeup_keyword(void)
 {
     uint32_t i = 0, fc = 0;
-    TKL_ASR_WAKEUP_WORD_E wakeup_word = TKL_ASR_WAKEUP_WORD_UNKNOWN;
+    TKL_KWS_WAKEUP_WORD_E wakeup_word = TKL_KWS_WAKEUP_WORD_UNKNOWN;
     uint32_t uint_size = 0, feed_size = 0;
 
-    uint_size = tkl_asr_get_process_uint_size();
+    uint_size = tkl_kws_get_process_uint_size();
     feed_size = tuya_ring_buff_used_size_get(sg_feed_ringbuff);
     if (feed_size < uint_size) {
-        return TKL_ASR_WAKEUP_WORD_UNKNOWN;
+        return TKL_KWS_WAKEUP_WORD_UNKNOWN;
     }
 
     uint8_t *p_buf = tal_malloc(uint_size);
     if (NULL == p_buf) {
         PR_ERR("malloc fail");
-        return TKL_ASR_WAKEUP_WORD_UNKNOWN;
+        return TKL_KWS_WAKEUP_WORD_UNKNOWN;
     }
 
     fc = feed_size / uint_size;
     for (i = 0; i < fc; i++) {
         tuya_ring_buff_read(sg_feed_ringbuff, p_buf, uint_size);
 
-        wakeup_word = tkl_asr_recognize_wakeup_word(p_buf, uint_size);
-        if (wakeup_word != TKL_ASR_WAKEUP_WORD_UNKNOWN) {
+        wakeup_word = tkl_kws_recognize_wakeup_word(p_buf, uint_size);
+        if (wakeup_word != TKL_KWS_WAKEUP_WORD_UNKNOWN) {
             break;
         }
     }
@@ -116,7 +116,7 @@ static TKL_ASR_WAKEUP_WORD_E __asr_recognize_wakeup_keyword(void)
 
 void user_main(void)
 {
-    TKL_ASR_WAKEUP_WORD_E wakeup_word = TKL_ASR_WAKEUP_WORD_UNKNOWN;
+    TKL_KWS_WAKEUP_WORD_E wakeup_word = TKL_KWS_WAKEUP_WORD_UNKNOWN;
 
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
@@ -135,12 +135,12 @@ void user_main(void)
 
     __example_audio_open();
 
-    __example_asr_init();
+    __example_kws_init();
 
     while(1) {
-        wakeup_word = __asr_recognize_wakeup_keyword();
-        if(wakeup_word != TKL_ASR_WAKEUP_WORD_UNKNOWN) {
-            PR_NOTICE("asr wakeup key: %d", wakeup_word);
+        wakeup_word = __kws_recognize_wakeup_keyword();
+        if(wakeup_word != TKL_KWS_WAKEUP_WORD_UNKNOWN) {
+            PR_NOTICE("kws wakeup key: %d", wakeup_word);
         } 
 
         tal_system_sleep(10);
