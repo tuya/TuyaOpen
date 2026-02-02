@@ -499,11 +499,11 @@ OPERATE_RET __ai_parse_video_attr(char *de_buf, uint32_t attr_len, AI_VIDEO_ATTR
         }
 #else
         if (attr.type == AI_ATTR_VIDEO_PARAMS) {
-            AI_PROTO_D("parase video params attr value:%s", attr.value.str);
+            AI_PROTO_D("parase vedio params attr value:%s", attr.value.str);
             uint32_t codec_type = 0, sample_rate = 0, width = 0, height = 0, fps = 0;
             char parased = sscanf(attr.value.str, "%d %d %d %d %d", &codec_type, &width, &height, &fps, &sample_rate);
             if (OPRT_COM_ERROR == parased) {
-                PR_ERR("parase video params attr value failed, rt:%d ", parased);
+                PR_ERR("parase vedio params attr value failed, rt:%d ", parased);
                 return parased;
             }
             video->base.codec_type  = (AI_VIDEO_CODEC_TYPE)codec_type;
