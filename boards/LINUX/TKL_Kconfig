@@ -80,4 +80,18 @@ menu "TKL Board Configuration"
         bool
         default y
 
+    config KWS_MODEL_PATH
+        string "KWS model file path"
+        depends on ENABLE_AUDIO
+        default ""
+        help
+            Set the path of the KWS model file used for keyword spotting.
+    
+    config KWS_MODEL_TOKEN_PATH
+        string "KWS model token file path"
+        depends on ENABLE_AUDIO
+        default ""
+        help
+            Set the path of the KWS model token file used for keyword spotting.
+
 endmenu

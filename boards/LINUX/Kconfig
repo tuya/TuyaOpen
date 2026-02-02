@@ -33,6 +33,12 @@ choice
             rsource "./Raspberry_Pi/Kconfig"
         endif
 
+    config BOARD_CHOICE_DshanPI_A1
+        bool "DshanPi A1"
+        if (BOARD_CHOICE_DshanPI_A1)
+            rsource "./DshanPi_A1/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

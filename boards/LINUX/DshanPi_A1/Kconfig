@@ -1,11 +1,11 @@
-menu "Raspberry Pi Board Configuration"
+menu "DshanPi A1 Board Configuration"
     config CHIP_CHOICE
         string
-        default "Raspberry_Pi"
+        default "DshanPi_A1"
 
     config BOARD_CHOICE
         string
-        default "Raspberry_Pi"
+        default "DshanPi_A1"
 
     config BOARD_CONFIG
         bool
@@ -14,24 +14,7 @@ menu "Raspberry Pi Board Configuration"
         select ENABLE_AUDIO
         select ENABLE_BUTTON
 
-    choice RASPBERRY_PI_MODEL
-        prompt "Choose Raspberry Pi model"
-        default RASPBERRY_PI_4
-        help
-            Select the Raspberry Pi model you are using.
-
-        config RASPBERRY_PI_4
-            bool "Raspberry Pi 4B"
-            help
-                Raspberry Pi 4 Model B with BCM2711 (ARMv8)
-
-        config RASPBERRY_PI_5
-            bool "Raspberry Pi 5"
-            help
-                Raspberry Pi 5 with BCM2712 (ARMv8)
-    endchoice
-
-    # Audio codec configuration for Raspberry Pi platform
+        # Audio codec configuration for DshanPi A1 platform
     config AUDIO_CODEC_NAME
         string "Audio codec device name"
         default "alsa_audio"
@@ -40,10 +23,10 @@ menu "Raspberry Pi Board Configuration"
             the audio device when calling tdl_audio_find().
 
     config ENABLE_KEYBOARD_INPUT
-        bool "Enable keyboard input for Raspberry Pi"
+        bool "Enable keyboard input for DshanPi A1"
         default y
         ---help---
-            Enable keyboard input handling for Raspberry Pi platform.
+            Enable keyboard input handling for DshanPi A1 platform.
 
     config BUTTON_NAME
         string "Keyboard button device value"
