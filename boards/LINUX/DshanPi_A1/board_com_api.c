@@ -63,16 +63,16 @@ static OPERATE_RET __board_register_audio(void)
         TDD_AUDIO_ALSA_CFG_T alsa_cfg = {0};
 
         // Use default ALSA device names (configurable via Kconfig)
-        #if defined(CONFIG_ALSA_DEVICE_CAPTURE)
-            strncpy(alsa_cfg.capture_device, CONFIG_ALSA_DEVICE_CAPTURE, sizeof(alsa_cfg.capture_device) - 1);
+        #if defined(ALSA_DEVICE_CAPTURE)
+            strncpy(alsa_cfg.capture_device, ALSA_DEVICE_CAPTURE, sizeof(alsa_cfg.capture_device) - 1);
         #else
-            strncpy(alsa_cfg.capture_device, "default", sizeof(alsa_cfg.capture_device) - 1);
+            strncpy(alsa_cfg.capture_device, "plughw:0,0", sizeof(alsa_cfg.capture_device) - 1);
         #endif
 
-        #if defined(CONFIG_ALSA_DEVICE_PLAYBACK)
-            strncpy(alsa_cfg.playback_device, CONFIG_ALSA_DEVICE_PLAYBACK, sizeof(alsa_cfg.playback_device) - 1);
+        #if defined(ALSA_DEVICE_PLAYBACK)
+            strncpy(alsa_cfg.playback_device, ALSA_DEVICE_PLAYBACK, sizeof(alsa_cfg.playback_device) - 1);
         #else
-            strncpy(alsa_cfg.playback_device, "default", sizeof(alsa_cfg.playback_device) - 1);
+            strncpy(alsa_cfg.playback_device, "speaker_r", sizeof(alsa_cfg.playback_device) - 1);
         #endif
 
         // Audio format configuration
@@ -84,14 +84,14 @@ static OPERATE_RET __board_register_audio(void)
         alsa_cfg.spk_sample_rate = TDD_ALSA_SAMPLE_16000;
 
         // ALSA buffer configuration
-        #if defined(CONFIG_ALSA_BUFFER_FRAMES)
-            alsa_cfg.buffer_frames = CONFIG_ALSA_BUFFER_FRAMES;
+        #if defined(ALSA_BUFFER_FRAMES)
+            alsa_cfg.buffer_frames = ALSA_BUFFER_FRAMES;
         #else
             alsa_cfg.buffer_frames = 1024;  // Default buffer size
         #endif
 
-        #if defined(CONFIG_ALSA_PERIOD_FRAMES)
-            alsa_cfg.period_frames = CONFIG_ALSA_PERIOD_FRAMES;
+        #if defined(ALSA_PERIOD_FRAMES)
+            alsa_cfg.period_frames = ALSA_PERIOD_FRAMES;
         #else
             alsa_cfg.period_frames = 256;   // Default period size
         #endif

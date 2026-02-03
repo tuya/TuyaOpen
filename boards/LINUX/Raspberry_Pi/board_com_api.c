@@ -63,14 +63,14 @@ static OPERATE_RET __board_register_audio(void)
         TDD_AUDIO_ALSA_CFG_T alsa_cfg = {0};
 
         // Use default ALSA device names (configurable via Kconfig)
-        #if defined(CONFIG_ALSA_DEVICE_CAPTURE)
-            strncpy(alsa_cfg.capture_device, CONFIG_ALSA_DEVICE_CAPTURE, sizeof(alsa_cfg.capture_device) - 1);
+        #if defined(ALSA_DEVICE_CAPTURE)
+            strncpy(alsa_cfg.capture_device, ALSA_DEVICE_CAPTURE, sizeof(alsa_cfg.capture_device) - 1);
         #else
             strncpy(alsa_cfg.capture_device, "default", sizeof(alsa_cfg.capture_device) - 1);
         #endif
 
-        #if defined(CONFIG_ALSA_DEVICE_PLAYBACK)
-            strncpy(alsa_cfg.playback_device, CONFIG_ALSA_DEVICE_PLAYBACK, sizeof(alsa_cfg.playback_device) - 1);
+        #if defined(ALSA_DEVICE_PLAYBACK)
+            strncpy(alsa_cfg.playback_device, ALSA_DEVICE_PLAYBACK, sizeof(alsa_cfg.playback_device) - 1);
         #else
             strncpy(alsa_cfg.playback_device, "default", sizeof(alsa_cfg.playback_device) - 1);
         #endif

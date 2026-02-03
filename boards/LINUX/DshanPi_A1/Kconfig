@@ -13,6 +13,7 @@ menu "DshanPi A1 Board Configuration"
         select ENABLE_QRCODE
         select ENABLE_AUDIO
         select ENABLE_BUTTON
+        select ENABLE_AUDIO_AEC
 
         # Audio codec configuration for DshanPi A1 platform
     config AUDIO_CODEC_NAME
