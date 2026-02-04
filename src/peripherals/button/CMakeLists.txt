@@ -14,7 +14,7 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/tdl_button/src/*.c")
 
-if (CONFIG_ENABLE_GPIO STREQUAL "y")    
+if (CONFIG_ENABLE_GPIO STREQUAL "y" AND (NOT DEFINED CONFIG_ENABLE_KEYBOARD_INPUT OR CONFIG_ENABLE_KEYBOARD_INPUT STREQUAL "n"))
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_button/src/tdd_button_gpio.c)
 endif()
 
