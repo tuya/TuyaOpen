@@ -17,7 +17,11 @@ if (CONFIG_ENABLE_DVP STREQUAL "y")
     file(GLOB_RECURSE tdd_camera_dvp_srcs "${MODULE_PATH}/tdd_camera/src/dvp/*.c")
 endif()
 
-set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs})
+if (CONFIG_ENABLE_CAMERA_V4L2 STREQUAL "y")
+    file(GLOB_RECURSE tdd_camera_v4l2_srcs "${MODULE_PATH}/tdd_camera/src/v4l2/*.c")
+endif()
+
+set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs} ${tdd_camera_v4l2_srcs})
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
