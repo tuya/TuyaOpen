@@ -99,6 +99,13 @@ choice
             rsource "./TUYA_T5AI_DOG/Kconfig"
         endif
 
+
+    config BOARD_CHOICE_TUYA_T5AI_EINK_NFC
+        bool "TUYA_T5AI_EINK_NFC"
+        if (BOARD_CHOICE_TUYA_T5AI_EINK_NFC)
+            rsource "./TUYA_T5AI_EINK_NFC/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
