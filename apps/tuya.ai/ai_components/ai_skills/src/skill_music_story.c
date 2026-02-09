@@ -1,8 +1,12 @@
 /**
  * @file skill_music_story.c
- * @brief skill_music_story module is used to 
- * @version 0.1
+ * @brief Music and story skill implementation.
+ *
+ * This file provides functions for parsing and playing music and story content
+ * from AI skill responses, including playlist management and play control.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tuya_cloud_types.h"
 
@@ -37,6 +41,11 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Free music source structure and release allocated memory.
+ *
+ * @param music Pointer to music source structure to free.
+ */
 static void _music_src_free(AI_MUSIC_SRC_T *music)
 {
     if (!music)
@@ -61,10 +70,14 @@ static void _music_src_free(AI_MUSIC_SRC_T *music)
     if (music->img_url) {
         tal_free(music->img_url);
     }
-
-    tal_free(music);
 }
 
+/**
+ * @brief Parse audio codec type from format string.
+ *
+ * @param format Format string (e.g., "mp3").
+ * @return AI_AUDIO_CODEC_E Audio codec type.
+ */
 static AI_AUDIO_CODEC_E _parse_get_codec_type(char *format)
 {
     AI_AUDIO_CODEC_E fmt = AI_AUDIO_CODEC_MAX;
@@ -78,6 +91,14 @@ static AI_AUDIO_CODEC_E _parse_get_codec_type(char *format)
     return fmt;
 }
 
+/**
+ * @brief Parse a single music item from JSON.
+ *
+ * @param id Music item ID.
+ * @param audio_item JSON object containing audio item data.
+ * @param music_src Pointer to store parsed music source structure.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET _parse_music_item(uint32_t id, cJSON *audio_item, AI_MUSIC_SRC_T *music_src)
 {
     cJSON *item = NULL;
@@ -135,6 +156,13 @@ static OPERATE_RET _parse_music_item(uint32_t id, cJSON *audio_item, AI_MUSIC_SR
     return 0;
 }
 
+/**
+ * @brief Parse music data from JSON.
+ *
+ * @param json JSON object containing music data.
+ * @param music Pointer to store parsed music structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
 {
     int audio_num = 0;
@@ -190,23 +218,25 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
         snprintf(music_ptr->action, sizeof(music_ptr->action), "play");
     }
 
-    music_ptr->src_array = tal_malloc(sizeof(AI_MUSIC_SRC_T) * audio_num);
-    if (music_ptr->src_array == NULL) {
-        PR_ERR("malloc arr fail.");
-        ai_skill_parse_music_free(music_ptr);
-        return OPRT_MALLOC_FAILED;
-    }
-
-    memset(music_ptr->src_array, 0, sizeof(AI_MUSIC_SRC_T) * audio_num);
-
-    int i = 0;
-    for (i = 0; i < music_ptr->src_cnt; i++) {
-        music_src = &music_ptr->src_array[i];
-        node = cJSON_GetArrayItem(audios, i);
-        if (_parse_music_item(i, node, music_src) != OPRT_OK) {
-            PR_ERR("parse audio %d fail.", i);
+    if (audio_num != 0) {
+        music_ptr->src_array = tal_malloc(sizeof(AI_MUSIC_SRC_T) * audio_num);
+        if (music_ptr->src_array == NULL) {
+            PR_ERR("malloc arr fail.");
             ai_skill_parse_music_free(music_ptr);
-            return OPRT_CJSON_PARSE_ERR;
+            return OPRT_MALLOC_FAILED;
+        }
+
+        memset(music_ptr->src_array, 0, sizeof(AI_MUSIC_SRC_T) * audio_num);
+
+        int i = 0;
+        for (i = 0; i < music_ptr->src_cnt; i++) {
+            music_src = &music_ptr->src_array[i];
+            node = cJSON_GetArrayItem(audios, i);
+            if (_parse_music_item(i, node, music_src) != OPRT_OK) {
+                PR_ERR("parse audio %d fail.", i);
+                ai_skill_parse_music_free(music_ptr);
+                return OPRT_CJSON_PARSE_ERR;
+            }
         }
     }
 
@@ -215,19 +245,33 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
     return OPRT_OK;
 }
 
+/**
+ * @brief Free music structure memory.
+ *
+ * @param music Pointer to music structure to free.
+ */
 void ai_skill_parse_music_free(AI_AUDIO_MUSIC_T *music)
 {
     if (music == NULL) {
         return;
     }
 
-    if (music->src_array) {
-        _music_src_free(music->src_array);
+    if(music->src_array) {
+        for(int i = 0; i < music->src_cnt; i++) {
+            _music_src_free(&music->src_array[i]);
+        }
+
+        tal_free(music->src_array);
     }
 
     tal_free(music);
 }
 
+/**
+ * @brief Dump music structure for debugging.
+ *
+ * @param music Pointer to music structure.
+ */
 void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
 {
     if (music == NULL) {
@@ -255,6 +299,14 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
     }
 }
 
+/**
+ * @brief Parse play control data from JSON.
+ *
+ * @param data JSON object containing play control data.
+ * @param skill_data JSON object containing skill data.
+ * @param music Pointer to store parsed music structure.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_AUDIO_MUSIC_T **music)
 {
     if (skill_data == NULL) {
@@ -287,6 +339,13 @@ static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_A
     return 0;
 }
 
+/**
+ * @brief Parse play control data from JSON.
+ *
+ * @param json JSON object containing play control data.
+ * @param music Pointer to store parsed music structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music)
 {
     cJSON *skill_general = cJSON_GetObjectItem(json, "general");
@@ -299,6 +358,11 @@ OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music)
     return 0;
 }
 
+/**
+ * @brief Execute play control command.
+ *
+ * @param music Pointer to music structure with play control information.
+ */
 void ai_skill_playcontrol_music(AI_AUDIO_MUSIC_T *music)
 {
     if (strcmp(music->action, "play") == 0 && music->src_cnt > 0) {

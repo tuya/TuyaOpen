@@ -14,5 +14,6 @@ menu "configure ai components"
     rsource "ai_audio/Kconfig"
     rsource "ai_mcp/Kconfig"
     rsource "ai_video/Kconfig"
+    rsource "ai_picture/Kconfig"
     rsource "ai_ui/Kconfig"
 endmenu

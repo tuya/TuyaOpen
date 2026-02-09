@@ -43,6 +43,25 @@ if(!ENABLE_AI_CHAT_CUSTOM_UI)
                 bool "OLED size 128x32"
         endchoice
     endif
+
+    choice 
+        prompt "choose display video output rotation"
+        default AI_DISP_VIDEO_ROTATION_0
+        depends on ENABLE_COMP_AI_VIDEO
+            
+        config AI_DISP_VIDEO_ROTATION_0
+            bool "display video output rotation 0"
+
+        config AI_DISP_VIDEO_ROTATION_90
+            bool "display video output rotation 90"
+            
+        config AI_DISP_VIDEO_ROTATION_180
+            bool "display video output rotation 180"
+
+        config AI_DISP_VIDEO_ROTATION_270
+            bool "display video output rotation 270"
+    endchoice
+
 endif
 
 config ENABLE_AI_UI_TEXT_STREAMING

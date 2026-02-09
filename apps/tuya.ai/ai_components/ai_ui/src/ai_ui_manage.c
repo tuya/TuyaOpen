@@ -1,7 +1,12 @@
 /**
- * @file ai_chat_ui_manage.c
- * @version 0.1
+ * @file ai_ui_manage.c
+ * @brief AI UI management implementation.
+ *
+ * This file provides functions for managing AI user interface, including
+ * message queue handling, display interface registration, and camera/picture display.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -35,6 +40,11 @@ static THREAD_HANDLE sg_ui_thrd_hdl;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Handle UI display message based on message type.
+ *
+ * @param msg_data Pointer to the message data structure.
+ */
 static void __ui_disp_msg_handle(AI_UI_MSG_T *msg_data)
 {
     if(NULL == msg_data) {
@@ -140,6 +150,11 @@ static void __ui_disp_msg_handle(AI_UI_MSG_T *msg_data)
     }
 }
 
+/**
+ * @brief AI chat UI task thread function.
+ *
+ * @param args Thread argument (unused).
+ */
 static void __ai_chat_ui_task(void *args)
 {
     AI_UI_MSG_T msg_data = {0};
@@ -160,6 +175,11 @@ static void __ai_chat_ui_task(void *args)
 }
 
 #if defined(ENABLE_AI_UI_TEXT_STREAMING) && (ENABLE_AI_UI_TEXT_STREAMING == 1)
+/**
+ * @brief Display stream text callback function.
+ *
+ * @param string Pointer to the text string to display, NULL indicates end of stream.
+ */
 static void __ai_chat_ui_stream_text_disp(char *string)
 {
     if(NULL == string) {
@@ -174,6 +194,11 @@ static void __ai_chat_ui_stream_text_disp(char *string)
 }
 #endif
 
+/**
+ * @brief Initialize AI UI module.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -201,6 +226,14 @@ OPERATE_RET ai_ui_init(void)
     return OPRT_OK;
 }
 
+/**
+ * @brief Display message on UI.
+ *
+ * @param tp Display type indicating the message category.
+ * @param data Pointer to the message data.
+ * @param len Length of the message data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_disp_msg(AI_UI_DISP_TYPE_E tp, uint8_t *data, int len)
 {
     AI_UI_MSG_T msg_data;
@@ -213,7 +246,7 @@ OPERATE_RET ai_ui_disp_msg(AI_UI_DISP_TYPE_E tp, uint8_t *data, int len)
             return OPRT_MALLOC_FAILED;
         }
         memcpy(msg_data.data, data, len);
-        msg_data.data[len] = 0; //"\0"
+        msg_data.data[len] = 0; /* "\0" */
     } else {
         msg_data.data = NULL;
     }
@@ -221,6 +254,13 @@ OPERATE_RET ai_ui_disp_msg(AI_UI_DISP_TYPE_E tp, uint8_t *data, int len)
     return tal_queue_post(sg_ui_queue_hdl, &msg_data, SEM_WAIT_FOREVER);
 }
 
+/**
+ * @brief Start camera display.
+ *
+ * @param width Camera frame width.
+ * @param height Camera frame height.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_start(uint16_t width, uint16_t height)
 {
     if(sg_ui_intfs.disp_camera_start) {
@@ -230,6 +270,14 @@ OPERATE_RET ai_ui_camera_start(uint16_t width, uint16_t height)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief Flush camera frame data to display.
+ *
+ * @param data Pointer to the camera frame data.
+ * @param width Frame width.
+ * @param height Frame height.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_flush(uint8_t *data, uint16_t width, uint16_t height)
 {
     if(sg_ui_intfs.disp_camera_flush) {
@@ -239,6 +287,11 @@ OPERATE_RET ai_ui_camera_flush(uint8_t *data, uint16_t width, uint16_t height)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief End camera display.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_end(void)
 {
     if(sg_ui_intfs.disp_camera_end) {
@@ -248,6 +301,32 @@ OPERATE_RET ai_ui_camera_end(void)
     return OPRT_NOT_SUPPORTED;
 }
 
+/**
+ * @brief Display picture on UI.
+ *
+ * @param fmt Picture frame format.
+ * @param width Picture width.
+ * @param height Picture height.
+ * @param data Pointer to the picture data.
+ * @param len Length of the picture data.
+ * @return OPERATE_RET Operation result code.
+ */
+OPERATE_RET ai_ui_disp_picture(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
+                                uint8_t *data, uint32_t len)
+{
+    if(sg_ui_intfs.disp_picture) {
+        return sg_ui_intfs.disp_picture(fmt, width, height, data, len);
+    }
+
+    return OPRT_NOT_SUPPORTED;
+}
+
+/**
+ * @brief Register UI interface callbacks.
+ *
+ * @param intfs Pointer to the UI interface structure containing callback functions.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_register(AI_UI_INTFS_T *intfs)
 {
     TUYA_CHECK_NULL_RETURN(intfs, OPRT_INVALID_PARM);

@@ -1,9 +1,13 @@
 
 /**
  * @file ai_ui_stream_text.c
- * @brief ai_ui_stream_text module is used to 
- * @version 0.1
+ * @brief Stream text display implementation.
+ *
+ * This file provides functions for streaming text display, supporting incremental
+ * text updates for real-time AI responses using ring buffer and timer-based display.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
@@ -39,6 +43,13 @@ static char sg_read_text_buf[STREAM_READ_TEXT_BUF_LEN];
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Get one UTF-8 word from stream ring buffer.
+ *
+ * @param stream Pointer to the text stream structure.
+ * @param result Buffer to store the word (at least 5 bytes).
+ * @return Number of bytes read (0 if buffer is empty).
+ */
 static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, char *result)
 {
     uint32_t rb_used_size = 0, read_len = 0;
@@ -52,7 +63,7 @@ static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, cha
         return 0;
     }
 
-    // get word len
+    /* Get word length */
     do {
         tal_mutex_lock(stream->rb_mutex);
         read_len = tuya_ring_buff_read(stream->text_ringbuff, &tmp, 1);
@@ -78,7 +89,7 @@ static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, cha
         return 0;
     }
 
-    // get word
+    /* Get word */
     result[0] = tmp;
 
     if (word_len - 1) {
@@ -90,6 +101,14 @@ static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, cha
     return word_len;
 }
 
+/**
+ * @brief Get multiple UTF-8 words from stream ring buffer.
+ *
+ * @param stream Pointer to the text stream structure.
+ * @param word_num Number of words to read.
+ * @param result Buffer to store the words.
+ * @return Number of words actually read.
+ */
 static uint8_t __get_words_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, uint8_t word_num, char *result)
 {
     uint8_t word_len = 0, i = 0, get_num = 0;
@@ -110,6 +129,12 @@ static uint8_t __get_words_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, uint8_
     return get_num;
 }
 
+/**
+ * @brief Timer callback for streaming text display.
+ *
+ * @param timer_id Timer ID.
+ * @param arg Pointer to the text stream structure.
+ */
 static void __ui_stream_text_timer_cb(TIMER_ID timer_id, void *arg)
 {
     AI_TEXT_STREAM_T *stream = (AI_TEXT_STREAM_T*)arg;
@@ -133,6 +158,12 @@ static void __ui_stream_text_timer_cb(TIMER_ID timer_id, void *arg)
     return;
 }
 
+/**
+ * @brief Initialize stream text display module.
+ *
+ * @param disp_cb Callback function for displaying text.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_stream_text_init(AI_UI_STREAM_TEXT_DISP_CB disp_cb)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -166,6 +197,9 @@ OPERATE_RET ai_ui_stream_text_init(AI_UI_STREAM_TEXT_DISP_CB disp_cb)
     return OPRT_OK;
 }
 
+/**
+ * @brief Start streaming text display.
+ */
 void ai_ui_stream_text_start(void)
 {
     if(false == sg_text_stream.is_init) {
@@ -177,6 +211,11 @@ void ai_ui_stream_text_start(void)
     sg_text_stream.is_start = true;
 }
 
+/**
+ * @brief Write text data to stream display.
+ *
+ * @param text Pointer to the text string to display.
+ */
 void ai_ui_stream_text_write(const char *text)
 {
     if(false == sg_text_stream.is_init || false == sg_text_stream.is_start) {
@@ -191,6 +230,9 @@ void ai_ui_stream_text_write(const char *text)
     tuya_ring_buff_write(sg_text_stream.text_ringbuff, text, strlen(text));
     tal_mutex_unlock(sg_text_stream.rb_mutex);
 }
+/**
+ * @brief End streaming text display.
+ */
 void ai_ui_stream_text_end(void)
 {
     if(false == sg_text_stream.is_init || false == sg_text_stream.is_start) {
@@ -201,6 +243,9 @@ void ai_ui_stream_text_end(void)
 }
 
 
+/**
+ * @brief Reset stream text display state.
+ */
 void ai_ui_stream_text_reset(void)
 {
     if(false == sg_text_stream.is_init) {

@@ -40,6 +40,7 @@ extern "C" {
 #define SYSTEM_MSG_IP "IP 地址为"
 #define SYSTEM_MSG_WIFI_DISCONNECTED "WiFi 断开连接"
 #define SYSTEM_MSG_VOLUME "音量设置为"
+#define VIEW_IMAGE "查看图片"
 
 #ifdef __cplusplus
 }

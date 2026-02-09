@@ -1,8 +1,12 @@
 /**
  * @file skill_emotion.c
- * @brief skill_emotion module is used to 
- * @version 0.1
+ * @brief Emotion skill implementation.
+ *
+ * This file provides functions for parsing and processing emotion expressions
+ * from AI skill responses, including emoji conversion and playback.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 #include "tuya_cloud_types.h"
 #include "mix_method.h"
@@ -22,27 +26,27 @@
 ***********************typedef define***********************
 ***********************************************************/
 AI_AGENT_EMO_T cAI_AGENT_EMO[] = {
-    {"U+1F636", EMOJI_NEUTRAL},      // 😶
-    {"U+1F642", EMOJI_HAPPY},        // 🙂
-    {"U+1F606", EMOJI_LAUGHING},     // 😆
-    {"U+1F602", EMOJI_FUNNY},        // 😂
-    {"U+1F614", EMOJI_SAD},          // 😔
-    {"U+1F620", EMOJI_ANGRY},        // 😠
-    {"U+1F62D", EMOJI_FEARFUL},      // 😭
-    {"U+1F60D", EMOJI_LOVING},       // 😍
-    {"U+1F633", EMOJI_EMBARRASSED},  // 😳
-    {"U+1F62F", EMOJI_SURPRISE},     // 😯
-    {"U+1F631", EMOJI_SHOCKED},      // 😱
-    {"U+1F914", EMOJI_THINKING},     // 🤔
-    {"U+1F609", EMOJI_WINK},         // 😉
-    {"U+1F60E", EMOJI_COOL},         // 😎
-    {"U+1F60C", EMOJI_RELAXED},      // 😌
-    {"U+1F924", EMOJI_DELICIOUS},    // 🤤
-    {"U+1F618", EMOJI_KISSY},        // 😘
-    {"U+1F60F", EMOJI_CONFIDENT},    // 😏
-    {"U+1F634", EMOJI_SLEEP},        // 😴
-    {"U+1F61C", EMOJI_SILLY},        // 😜
-    {"U+1F644", EMOJI_CONFUSED}      // 🙄
+    {"U+1F636", EMOJI_NEUTRAL},      /* 😶 */
+    {"U+1F642", EMOJI_HAPPY},        /* 🙂 */
+    {"U+1F606", EMOJI_LAUGHING},     /* 😆 */
+    {"U+1F602", EMOJI_FUNNY},        /* 😂 */
+    {"U+1F614", EMOJI_SAD},          /* 😔 */
+    {"U+1F620", EMOJI_ANGRY},        /* 😠 */
+    {"U+1F62D", EMOJI_FEARFUL},      /* 😭 */
+    {"U+1F60D", EMOJI_LOVING},       /* 😍 */
+    {"U+1F633", EMOJI_EMBARRASSED},  /* 😳 */
+    {"U+1F62F", EMOJI_SURPRISE},     /* 😯 */
+    {"U+1F631", EMOJI_SHOCKED},      /* 😱 */
+    {"U+1F914", EMOJI_THINKING},     /* 🤔 */
+    {"U+1F609", EMOJI_WINK},         /* 😉 */
+    {"U+1F60E", EMOJI_COOL},         /* 😎 */
+    {"U+1F60C", EMOJI_RELAXED},      /* 😌 */
+    {"U+1F924", EMOJI_DELICIOUS},    /* 🤤 */
+    {"U+1F618", EMOJI_KISSY},        /* 😘 */
+    {"U+1F60F", EMOJI_CONFIDENT},    /* 😏 */
+    {"U+1F634", EMOJI_SLEEP},        /* 😴 */
+    {"U+1F61C", EMOJI_SILLY},        /* 😜 */
+    {"U+1F644", EMOJI_CONFUSED}      /* 🙄 */
 };
 
 /***********************************************************
@@ -53,6 +57,12 @@ AI_AGENT_EMO_T cAI_AGENT_EMO[] = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Process emotion skill data from JSON.
+ *
+ * @param json JSON object containing emotion skill data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_emo_process(cJSON *json)
 {
     cJSON *emotion, *text;
@@ -157,7 +167,7 @@ const char* ai_agent_emoji_get_name(const char* emoji)
 
     PR_NOTICE("not found emoji: %s return %s as default", emoji, cAI_AGENT_EMO[0].name);
     
-    return cAI_AGENT_EMO[0].name; // 未找到匹配的emoji, use neutral as default
+    return cAI_AGENT_EMO[0].name; /* Emoji not found, use neutral as default */
 }
 
 const char* ai_agent_emoji_get_by_name(const char* name) 
@@ -170,13 +180,19 @@ const char* ai_agent_emoji_get_by_name(const char* name)
         }
     }
     
-    return cAI_AGENT_EMO[0].emoji; // 未找到匹配的emoji, use neutral as default
+    return cAI_AGENT_EMO[0].emoji; /* Emoji not found, use neutral as default */
 }
 
 
+/**
+ * @brief Play emotion expression.
+ *
+ * @param emo Pointer to emotion structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_agent_play_emo(AI_AGENT_EMO_T *emo)
 {
-    // send data to register cb
+    /* Send data to registered callback */
     ai_user_event_notify(AI_USER_EVT_EMOTION, emo);
 
     return OPRT_OK;    

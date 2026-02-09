@@ -1,7 +1,12 @@
 /**
- * @file ai_ui_icon_font.c 
- * @version 0.1
+ * @file ai_ui_icon_font.c
+ * @brief Icon and font management implementation.
+ *
+ * This file provides functions for managing fonts and icons used in AI UI,
+ * including text fonts, icon fonts, emoji fonts, and WiFi icons.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -25,7 +30,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-// Declare all possible fonts at file scope
+/* Declare all possible fonts at file scope */
 #if defined(FONT_TEXT_SIZE_14_1) && (FONT_TEXT_SIZE_14_1 == 1)
 LV_FONT_DECLARE(font_puhui_14_1);
 #endif
@@ -84,6 +89,11 @@ static  AI_UI_EMOJI_LIST_T sg_emo_list[] = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Get text font for UI display.
+ *
+ * @return Pointer to LVGL text font structure.
+ */
 lv_font_t *ai_ui_get_text_font(void)
 {
     lv_font_t *font = NULL;
@@ -102,6 +112,11 @@ lv_font_t *ai_ui_get_text_font(void)
 }
 
 
+/**
+ * @brief Get icon font for UI display.
+ *
+ * @return Pointer to LVGL icon font structure.
+ */
 lv_font_t *ai_ui_get_icon_font(void)
 {
     lv_font_t *font = NULL;
@@ -119,6 +134,11 @@ lv_font_t *ai_ui_get_icon_font(void)
     return font;
 }
 
+/**
+ * @brief Get emoji font for UI display.
+ *
+ * @return Pointer to LVGL emoji font structure.
+ */
 lv_font_t *ai_ui_get_emo_font(void)
 {
     lv_font_t *font = NULL;
@@ -136,6 +156,11 @@ lv_font_t *ai_ui_get_emo_font(void)
     return font;
 }
 
+/**
+ * @brief Get emoji list for UI display.
+ *
+ * @return Pointer to emoji list structure.
+ */
 AI_UI_EMOJI_LIST_T *ai_ui_get_emo_list(void)
 {
     AI_UI_EMOJI_LIST_T *emo_list = NULL;
@@ -149,6 +174,12 @@ AI_UI_EMOJI_LIST_T *ai_ui_get_emo_list(void)
     return emo_list;
 }
 
+/**
+ * @brief Get WiFi icon string based on WiFi status.
+ *
+ * @param status WiFi status (disconnected, good, fair, weak).
+ * @return Pointer to WiFi icon string.
+ */
 char *ai_ui_get_wifi_icon(AI_UI_WIFI_STATUS_E status)
 {
     char *wifi_icon = FONT_AWESOME_WIFI_OFF;

@@ -39,6 +39,14 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Process AI text data based on type.
+ *
+ * @param type Text type (ASR, NLG, SKILL, CLOUD_EVENT).
+ * @param root JSON root object containing text data.
+ * @param eof End of file flag indicating if this is the last data chunk.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, bool eof);
 
 #ifdef __cplusplus

@@ -104,6 +104,55 @@ static void __ai_video_display_flush(TDL_CAMERA_FRAME_T *frame)
 }
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+static void __ai_picture_output_notify_cb(AI_PICTURE_OUTPUT_NOTIFY_T *info)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if(NULL == info) {
+        return;
+    }
+
+    if(AI_PICTURE_OUTPUT_START == info->event) {
+        AI_PICTURE_CONVERT_CFG_T convert_cfg = {
+            .in_fmt = TUYA_FRAME_FMT_JPEG,
+            .in_frame_size = info->total_size,
+            .out_fmt = TUYA_FRAME_FMT_RGB565,
+        };
+
+        TUYA_CALL_ERR_LOG(ai_picture_convert_start(&convert_cfg)); 
+    }else if(AI_PICTURE_OUTPUT_SUCCESS == info->event) {
+        AI_PICTURE_INFO_T picture_info;
+
+        memset(&picture_info, 0, sizeof(AI_PICTURE_INFO_T));
+
+        TUYA_CALL_ERR_LOG(ai_picture_convert(&picture_info));
+        if(rt == OPRT_OK) {
+            PR_NOTICE("Picture convert success: fmt=%d, width=%d, height=%d, size=%d",\
+                       picture_info.fmt, picture_info.width, picture_info.height, picture_info.frame_size);
+        #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+            ai_ui_disp_picture(picture_info.fmt, picture_info.width, picture_info.height,\
+                               picture_info.frame, picture_info.frame_size);
+
+        #endif
+        }
+    
+        TUYA_CALL_ERR_LOG(ai_picture_convert_stop());
+    }else if(AI_PICTURE_OUTPUT_FAILED == info->event) {
+        TUYA_CALL_ERR_LOG(ai_picture_convert_stop());
+    }else {
+        ;
+    }
+}
+
+void __ai_picture_output_cb(uint8_t *data, uint32_t len, bool is_eof)
+{
+    ai_picture_convert_feed(data, len);
+}
+
+#endif
+
+
 static void __ai_chat_handle_event(AI_NOTIFY_EVENT_T *event)
 {
     (void)event;
@@ -130,6 +179,15 @@ OPERATE_RET app_chat_bot_init(void)
 
 #if defined(ENABLE_COMP_AI_MCP) && (ENABLE_COMP_AI_MCP == 1)
     TUYA_CALL_ERR_RETURN(ai_mcp_init());
+#endif
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+    AI_PICTURE_OUTPUT_CFG_T picture_output_cfg = {
+        .notify_cb = __ai_picture_output_notify_cb,
+        .output_cb = __ai_picture_output_cb,
+    };
+
+    TUYA_CALL_ERR_RETURN(ai_picture_output_init(&picture_output_cfg));
 #endif
 
     // Free heap size

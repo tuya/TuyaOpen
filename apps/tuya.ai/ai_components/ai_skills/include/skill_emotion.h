@@ -63,6 +63,12 @@ typedef struct {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Process emotion skill data from JSON.
+ *
+ * @param json JSON object containing emotion skill data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_emo_process(cJSON *json);
 
 /**
@@ -79,10 +85,11 @@ const char* ai_agent_emoji_get_name(const char* emoji);
 const char* ai_agent_emoji_get_by_name(const char* name);
 
 /**
-@brief Play emotion expression
-@param emo Pointer to emotion structure
-@return OPERATE_RET Operation result
-*/
+ * @brief Play emotion expression.
+ *
+ * @param emo Pointer to emotion structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_agent_play_emo(AI_AGENT_EMO_T *emo);
 
 

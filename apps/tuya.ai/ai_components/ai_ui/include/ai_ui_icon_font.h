@@ -1,8 +1,12 @@
 /**
  * @file ai_ui_icon_font.h
- * @brief ai_ui_icon_font module is used to 
- * @version 0.1
+ * @brief Icon and font management interface definitions.
+ *
+ * This header provides function declarations for managing fonts and icons
+ * used in AI UI, including text fonts, icon fonts, emoji fonts, and WiFi icons.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __AI_UI_ICON_FONT_H__
@@ -41,15 +45,40 @@ typedef struct {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
+/**
+ * @brief Get text font for UI display.
+ *
+ * @return Pointer to LVGL text font structure.
+ */
 lv_font_t *ai_ui_get_text_font(void);
 
+/**
+ * @brief Get icon font for UI display.
+ *
+ * @return Pointer to LVGL icon font structure.
+ */
 lv_font_t *ai_ui_get_icon_font(void);
 
+/**
+ * @brief Get emoji font for UI display.
+ *
+ * @return Pointer to LVGL emoji font structure.
+ */
 lv_font_t *ai_ui_get_emo_font(void);
 
+/**
+ * @brief Get emoji list for UI display.
+ *
+ * @return Pointer to emoji list structure.
+ */
 AI_UI_EMOJI_LIST_T *ai_ui_get_emo_list(void);
 
+/**
+ * @brief Get WiFi icon string based on WiFi status.
+ *
+ * @param status WiFi status (disconnected, good, fair, weak).
+ * @return Pointer to WiFi icon string.
+ */
 char *ai_ui_get_wifi_icon(AI_UI_WIFI_STATUS_E status);
 
 #endif

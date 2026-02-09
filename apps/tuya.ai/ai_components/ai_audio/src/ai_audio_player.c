@@ -513,6 +513,13 @@ OPERATE_RET ai_audio_player_get_vol(int *vol)
     return tuya_ai_player_get_volume(__s_tone_player, vol);
 }
 
+/**
+ * @brief Register a custom alert callback function.
+ *
+ * @param cb Pointer to the custom alert callback function. The callback will be
+ *           invoked when an alert event occurs, receiving the alert type as parameter.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_audio_player_reg_alert_cb(AI_PLAYER_ALERT_CUSTOM_CB cb)
 {
     __s_alert_custom_cb = cb;

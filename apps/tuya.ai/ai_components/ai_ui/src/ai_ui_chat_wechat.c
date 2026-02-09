@@ -1,7 +1,12 @@
 /**
  * @file ai_ui_chat_wechat.c
- * @version 0.1
+ * @brief WeChat-style chat UI implementation.
+ *
+ * This file provides WeChat-style chat user interface implementation using LVGL,
+ * including message display, emotion display, status bar, camera, and picture display.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -27,6 +32,18 @@
 ***********************************************************/
 #define MAX_MASSAGE_NUM           20
 
+#if defined(AI_DISP_VIDEO_ROTATION_0) && (AI_DISP_VIDEO_ROTATION_0 == 1)
+#define AI_DISP_VIDEO_ROTATION TUYA_DISPLAY_ROTATION_0
+#elif defined(AI_DISP_VIDEO_ROTATION_90) && (AI_DISP_VIDEO_ROTATION_90 == 1)
+#define AI_DISP_VIDEO_ROTATION TUYA_DISPLAY_ROTATION_90
+#elif defined(AI_DISP_VIDEO_ROTATION_180) && (AI_DISP_VIDEO_ROTATION_180  == 1)
+#define AI_DISP_VIDEO_ROTATION TUYA_DISPLAY_ROTATION_180
+#elif defined(AI_DISP_VIDEO_ROTATION_270) && (AI_DISP_VIDEO_ROTATION_270  == 1)
+#define AI_DISP_VIDEO_ROTATION TUYA_DISPLAY_ROTATION_270
+#else
+#define AI_DISP_VIDEO_ROTATION TUYA_DISPLAY_ROTATION_0
+#endif
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -34,6 +51,7 @@ typedef struct {
     lv_style_t style_avatar;
     lv_style_t style_ai_bubble;
     lv_style_t style_user_bubble;
+    lv_style_t style_link;
 
     lv_obj_t *container;
     lv_obj_t *status_bar;
@@ -49,6 +67,12 @@ typedef struct {
     lv_obj_t *stream_msg_cont;
     lv_obj_t *stream_bubble;
     lv_obj_t *stream_label;
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+    lv_obj_t *picture;
+    lv_obj_t *picture_canvas;
+#endif
+
 }AI_UI_WECHAT_T;
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
@@ -71,9 +95,18 @@ static bool                sg_is_streaming = false;
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static AI_UI_DISP_CAMERA_T sg_disp_camera = {0};
 #endif
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+static uint8_t    *sg_picture_buffer = NULL;
+static lv_timer_t *sg_picture_tm = NULL;
+#endif
+
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Initialize LVGL vendor.
+ */
 static void __lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
@@ -81,6 +114,9 @@ static void __lvgl_init(void)
     lv_vendor_start(5, 1024*8);
 }
 
+/**
+ * @brief Initialize UI fonts.
+ */
 static void __ui_font_init(void)
 {
     sg_font.text       = ai_ui_get_text_font();
@@ -89,6 +125,9 @@ static void __ui_font_init(void)
     sg_font.emoji_list = ai_ui_get_emo_list();
 }
 
+/**
+ * @brief Initialize UI styles for avatars, bubbles, and links.
+ */
 static void __ui_styles_init(void)
 {
     lv_style_init(&sg_ui.style_avatar);
@@ -111,8 +150,17 @@ static void __ui_styles_init(void)
     lv_style_set_pad_all(&sg_ui.style_user_bubble, 12);
     lv_style_set_shadow_width(&sg_ui.style_user_bubble, 12);
     lv_style_set_shadow_color(&sg_ui.style_user_bubble, lv_palette_darken(LV_PALETTE_GREEN, 2));
+
+    lv_style_init(&sg_ui.style_link);
+    lv_style_set_text_color(&sg_ui.style_link, lv_color_hex(0x0066CC));
+    lv_style_set_text_decor(&sg_ui.style_link, LV_TEXT_DECOR_UNDERLINE);
 }
 
+/**
+ * @brief Notification timeout callback function.
+ *
+ * @param timer Pointer to the timer object.
+ */
 static void __ui_notification_timeout_cb(lv_timer_t *timer)
 {
     lv_timer_del(sg_notification_tm);
@@ -120,10 +168,15 @@ static void __ui_notification_timeout_cb(lv_timer_t *timer)
 
     lv_obj_add_flag(sg_ui.notification_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.status_label, LV_OBJ_FLAG_HIDDEN);
-    // Show emotion label when notification timeout
+    /* Show emotion label when notification timeout */
     lv_obj_clear_flag(sg_ui.emotion_label, LV_OBJ_FLAG_HIDDEN);
 }
 
+/**
+ * @brief Initialize WeChat-style UI.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __ui_init(void)
 {
     __lvgl_init();
@@ -143,7 +196,7 @@ static OPERATE_RET __ui_init(void)
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(screen, LV_DIR_VER);
 
-    // Container
+    /* Container */
     sg_ui.container = lv_obj_create(screen);
     lv_obj_set_size(sg_ui.container, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_pad_all(sg_ui.container, 0, 0);
@@ -155,26 +208,26 @@ static OPERATE_RET __ui_init(void)
     lv_obj_set_size(sg_ui.status_bar, LV_HOR_RES, 40);
     lv_obj_set_style_bg_color(sg_ui.status_bar, lv_palette_main(LV_PALETTE_GREEN), 0);
 
-    // Mode label (leftmost)
+    /* Mode label (leftmost) */
     sg_ui.mode_label = lv_label_create(sg_ui.status_bar);
     lv_obj_set_style_text_font(sg_ui.mode_label, sg_font.text, 0);
     lv_label_set_text(sg_ui.mode_label, "");
     lv_obj_align(sg_ui.mode_label, LV_ALIGN_LEFT_MID, 0, 0);
 
-    // Status label
+    /* Status label */
     sg_ui.status_label = lv_label_create(sg_ui.status_bar);
     lv_obj_set_flex_grow(sg_ui.status_label, 1);
     lv_label_set_long_mode(sg_ui.status_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_center(sg_ui.status_label);
     lv_label_set_text(sg_ui.status_label, INITIALIZING);
 
-    // Emotion (left of status label)
+    /* Emotion (left of status label) */
     sg_ui.emotion_label = lv_label_create(sg_ui.status_bar);
     lv_obj_set_style_text_font(sg_ui.emotion_label, sg_font.icon, 0);
     lv_obj_align_to(sg_ui.emotion_label, sg_ui.status_label, LV_ALIGN_OUT_LEFT_MID, -5, 0);
     lv_label_set_text(sg_ui.emotion_label, FONT_AWESOME_AI_CHIP);
 
-    // Notification label
+    /* Notification label */
     sg_ui.notification_label = lv_label_create(sg_ui.status_bar);
     lv_obj_set_flex_grow(sg_ui.notification_label, 1);
     lv_label_set_long_mode(sg_ui.status_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
@@ -182,12 +235,12 @@ static OPERATE_RET __ui_init(void)
     lv_label_set_text(sg_ui.notification_label, "");
     lv_obj_add_flag(sg_ui.notification_label, LV_OBJ_FLAG_HIDDEN);
 
-    // Network status (rightmost)
+    /* Network status (rightmost) */
     sg_ui.network_label = lv_label_create(sg_ui.status_bar);
     lv_obj_set_style_text_font(sg_ui.network_label, sg_font.icon, 0);
     lv_obj_align(sg_ui.network_label, LV_ALIGN_RIGHT_MID, 0, 0);
 
-    // content
+    /* Content */
     sg_ui.content = lv_obj_create(sg_ui.container);
     lv_obj_set_size(sg_ui.content, LV_HOR_RES, LV_VER_RES - 40);
     lv_obj_set_flex_flow(sg_ui.content, LV_FLEX_FLOW_COLUMN);
@@ -200,11 +253,25 @@ static OPERATE_RET __ui_init(void)
     lv_obj_set_scrollbar_mode(sg_ui.content, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_bg_opa(sg_ui.content, LV_OPA_TRANSP, 0);
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+    sg_ui.picture = lv_obj_create(sg_ui.container);
+    lv_obj_set_size(sg_ui.picture, LV_HOR_RES, LV_VER_RES - 40);
+    lv_obj_set_style_pad_ver(sg_ui.picture, 8, 0);
+    lv_obj_set_style_pad_hor(sg_ui.picture, 10, 0);
+    lv_obj_align(sg_ui.picture, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_add_flag(sg_ui.picture, LV_OBJ_FLAG_HIDDEN);
+#endif
+
     lv_vendor_disp_unlock();
 
     return OPRT_OK;
 }
 
+/**
+ * @brief Set user message on UI.
+ *
+ * @param text Pointer to the user message text.
+ */
 static void __ui_set_user_msg(char *text)
 {
     if (sg_ui.content == NULL || text == NULL || strlen(text) == 0) {
@@ -263,24 +330,17 @@ static void __ui_set_user_msg(char *text)
     lv_vendor_disp_unlock();
 }
 
-static void __ui_set_ai_msg(char *text)
+
+/**
+ * @brief Create AI message label with avatar and bubble.
+ *
+ * @param parent Parent object to attach the message to.
+ * @param text Pointer to the AI message text.
+ * @return Pointer to the created label object.
+ */
+static lv_obj_t *__create_ai_msg_label(lv_obj_t *parent, char *text)
 {
-    if (sg_ui.content == NULL || text == NULL || strlen(text) == 0) {
-        return;
-    }
-
-    lv_vendor_disp_lock();
-
-    // Check if the number of messages exceeds the limit
-    uint32_t child_count = lv_obj_get_child_cnt(sg_ui.content);
-    if (child_count >= MAX_MASSAGE_NUM) {
-        lv_obj_t *first_child = lv_obj_get_child(sg_ui.content, 0);
-        if (first_child) {
-            lv_obj_del(first_child);
-        }
-    }
-
-    lv_obj_t *msg_cont = lv_obj_create(sg_ui.content);
+    lv_obj_t *msg_cont = lv_obj_create(parent);
     lv_obj_remove_style_all(msg_cont);
     lv_obj_set_size(msg_cont, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_style_pad_ver(msg_cont, 6, 0);
@@ -316,11 +376,42 @@ static void __ui_set_ai_msg(char *text)
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
 
     lv_obj_scroll_to_view_recursive(msg_cont, LV_ANIM_ON);
+
+    return label;
+}
+
+/**
+ * @brief Set AI message on UI.
+ *
+ * @param text Pointer to the AI message text.
+ */
+static void __ui_set_ai_msg(char *text)
+{
+    if (sg_ui.content == NULL || text == NULL || strlen(text) == 0) {
+        return;
+    }
+
+    lv_vendor_disp_lock();
+
+    // Check if the number of messages exceeds the limit
+    uint32_t child_count = lv_obj_get_child_cnt(sg_ui.content);
+    if (child_count >= MAX_MASSAGE_NUM) {
+        lv_obj_t *first_child = lv_obj_get_child(sg_ui.content, 0);
+        if (first_child) {
+            lv_obj_del(first_child);
+        }
+    }
+
+    __create_ai_msg_label(sg_ui.content, text);
+
     lv_obj_update_layout(sg_ui.content);
 
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Start AI message stream display.
+ */
 static void __ui_set_ai_msg_stream_start(void)
 {
     if (sg_ui.content == NULL) {
@@ -377,6 +468,11 @@ static void __ui_set_ai_msg_stream_start(void)
     sg_is_streaming = true;
 }
 
+/**
+ * @brief Update AI message stream data.
+ *
+ * @param text Pointer to the text data to append.
+ */
 static void __ui_set_ai_msg_stream_data(char *text)
 {
     if(false == sg_is_streaming) {
@@ -405,11 +501,19 @@ static void __ui_set_ai_msg_stream_data(char *text)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief End AI message stream display.
+ */
 static void __ui_set_ai_msg_stream_end(void)
 {
     sg_is_streaming = false;
 }
 
+/**
+ * @brief Set emotion display on UI.
+ *
+ * @param emotion Pointer to the emotion name string.
+ */
 static void __ui_set_emotion(char *emotion)
 {
     if (NULL == sg_ui.emotion_label) {
@@ -428,13 +532,18 @@ static void __ui_set_emotion(char *emotion)
     lv_vendor_disp_lock();
     lv_obj_set_style_text_font(sg_ui.emotion_label, sg_font.emoji, 0);
     lv_label_set_text(sg_ui.emotion_label, emo_icon);
-    // Re-align emotion label (left of status label)
+    /* Re-align emotion label (left of status label) */
     if (sg_ui.status_label != NULL) {
         lv_obj_align_to(sg_ui.emotion_label, sg_ui.status_label, LV_ALIGN_OUT_LEFT_MID, -5, 0);
     }
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set status text on UI.
+ *
+ * @param status Pointer to the status text string.
+ */
 static void __ui_set_status(char *status)
 {
     if (sg_ui.status_label == NULL) {
@@ -444,13 +553,18 @@ static void __ui_set_status(char *status)
     lv_vendor_disp_lock();
     lv_label_set_text(sg_ui.status_label, status);
     lv_obj_set_style_text_align(sg_ui.status_label, LV_TEXT_ALIGN_CENTER, 0);
-    // Re-align emotion label after status label text change
+    /* Re-align emotion label after status label text change */
     if (sg_ui.emotion_label != NULL) {
         lv_obj_align_to(sg_ui.emotion_label, sg_ui.status_label, LV_ALIGN_OUT_LEFT_MID, -5, 0);
     }
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set notification text on UI.
+ *
+ * @param notification Pointer to the notification text string.
+ */
 static void __ui_set_notification(char *notification)
 {
     if (sg_ui.notification_label == NULL) {
@@ -461,7 +575,7 @@ static void __ui_set_notification(char *notification)
     lv_label_set_text(sg_ui.notification_label, notification);
     lv_obj_add_flag(sg_ui.status_label, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(sg_ui.notification_label, LV_OBJ_FLAG_HIDDEN);
-    // Hide emotion label when showing notification
+    /* Hide emotion label when showing notification */
     lv_obj_add_flag(sg_ui.emotion_label, LV_OBJ_FLAG_HIDDEN);
     
     if (NULL == sg_notification_tm) {
@@ -472,6 +586,11 @@ static void __ui_set_notification(char *notification)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set network status icon on UI.
+ *
+ * @param wifi_status WiFi status (disconnected, good, fair, weak).
+ */
 static void __ui_set_network(AI_UI_WIFI_STATUS_E wifi_status)
 {
     char *wifi_icon = ai_ui_get_wifi_icon(wifi_status);
@@ -482,11 +601,16 @@ static void __ui_set_network(AI_UI_WIFI_STATUS_E wifi_status)
 
     lv_vendor_disp_lock();
     lv_label_set_text(sg_ui.network_label, wifi_icon);
-    // Re-align network label to rightmost position
+    /* Re-align network label to rightmost position */
     lv_obj_align(sg_ui.network_label, LV_ALIGN_RIGHT_MID, 0, 0);
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set chat mode text on UI.
+ *
+ * @param chat_mode Pointer to the chat mode text string.
+ */
 static void __ui_set_chat_mode(char *chat_mode)
 {
     if (sg_ui.mode_label == NULL || chat_mode == NULL) {
@@ -495,12 +619,19 @@ static void __ui_set_chat_mode(char *chat_mode)
 
     lv_vendor_disp_lock();
     lv_label_set_text(sg_ui.mode_label, chat_mode);
-    // Re-align mode label to leftmost position
+    /* Re-align mode label to leftmost position */
     lv_obj_align(sg_ui.mode_label, LV_ALIGN_LEFT_MID, 0, 0);
     lv_vendor_disp_unlock();
 }
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
+/**
+ * @brief Start camera display.
+ *
+ * @param width Camera frame width.
+ * @param height Camera frame height.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __disp_camera_start(uint16_t width, uint16_t height)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -519,11 +650,12 @@ static OPERATE_RET __disp_camera_start(uint16_t width, uint16_t height)
         for(uint8_t i=0; i<2; i++) {
             TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_add(sg_disp_camera.fb_manage, \
                                                         sg_disp_camera.disp_info.fmt, \
-                                                        width, height));
+                                                        sg_disp_camera.disp_info.width,\
+                                                        sg_disp_camera.disp_info.height));
         } 
     }
 
-    /*disable lvgl display*/
+    /* Disable LVGL display */
     disp_disable_update(NULL);
 
     sg_disp_camera.is_disp_start = true;
@@ -531,7 +663,23 @@ static OPERATE_RET __disp_camera_start(uint16_t width, uint16_t height)
     return rt;
 }
 
-OPERATE_RET __disp_camera_flush(uint8_t *data, uint16_t width, uint16_t height)
+/**
+ * @brief Flush camera frame data to display.
+ *
+ * @param data Pointer to the camera frame data.
+ * @param width Frame width.
+ * @param height Frame height.
+ * @return OPERATE_RET Operation result code.
+ */
+static /**
+ * @brief Flush camera frame data to display.
+ *
+ * @param data Pointer to the camera frame data.
+ * @param width Frame width.
+ * @param height Frame height.
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __disp_camera_flush(uint8_t *data, uint16_t width, uint16_t height)
 {
     OPERATE_RET rt = OPRT_OK;
     TDL_DISP_FRAME_BUFF_T *convert_fb = NULL;
@@ -543,24 +691,28 @@ OPERATE_RET __disp_camera_flush(uint8_t *data, uint16_t width, uint16_t height)
     convert_fb = tdl_disp_get_free_fb(sg_disp_camera.fb_manage);
     TUYA_CHECK_NULL_RETURN(convert_fb, OPRT_COM_ERROR);
 
-    TUYA_CALL_ERR_LOG(tdl_disp_convert_yuv422_to_framebuffer(data,
-                                                             width,
-                                                             height, 
-                                                             convert_fb));
+    TUYA_CALL_ERR_LOG(tdl_disp_convert_yuv422_to_fb(data, width, height, 
+                                                    convert_fb, sg_disp_camera.disp_info.is_swap,
+                                                    AI_DISP_VIDEO_ROTATION));
 
     tdl_disp_dev_flush(sg_disp_camera.disp_handle, convert_fb);
 
     return rt;
 }
 
-OPERATE_RET __disp_camera_end(void)
+/**
+ * @brief End camera display.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __disp_camera_end(void)
 {
     sg_disp_camera.is_disp_start = false;
 
-    /*enable lvgl display*/
+    /* Enable LVGL display */
     disp_enable_update(NULL);
 
-    // tdl_disp_fb_manage_release(&sg_disp_camera.fb_manage);
+    /* tdl_disp_fb_manage_release(&sg_disp_camera.fb_manage); */
 
     PR_NOTICE("app display camera end success");
 
@@ -569,6 +721,121 @@ OPERATE_RET __disp_camera_end(void)
 
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+/**
+ * @brief View photo event callback.
+ *
+ * @param e Pointer to the event object.
+ */
+static void __view_photo_event_cb(lv_event_t *e) 
+{
+    lv_obj_add_flag(sg_ui.content, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_ui.picture, LV_OBJ_FLAG_HIDDEN);
+}
+
+/**
+ * @brief Return to chat content event callback.
+ *
+ * @param e Pointer to the event object.
+ */
+static void __return_chat_content_event_cb(lv_event_t *e) 
+{
+    if(sg_picture_tm) {
+        lv_timer_pause(sg_picture_tm);
+    }
+
+    lv_obj_add_flag(sg_ui.picture, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_ui.content, LV_OBJ_FLAG_HIDDEN);
+}
+
+/**
+ * @brief Picture display timeout callback.
+ *
+ * @param timer Pointer to the timer object.
+ */
+static void __picture_timeout_cb(lv_timer_t *timer)
+{
+    lv_timer_pause(sg_picture_tm);
+
+    lv_obj_add_flag(sg_ui.picture, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_ui.content, LV_OBJ_FLAG_HIDDEN);
+}
+
+/**
+ * @brief Display picture on UI.
+ *
+ * @param fmt Picture frame format.
+ * @param width Picture width.
+ * @param height Picture height.
+ * @param data Pointer to the picture data.
+ * @param len Length of the picture data.
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __disp_picture(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
+                                uint8_t *data, uint32_t len)
+{
+    if(fmt != TUYA_FRAME_FMT_RGB565) {
+        PR_ERR("not support fmt:%d", fmt);
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    lv_vendor_disp_lock();
+
+    if(sg_ui.picture_canvas) {
+        lv_obj_delete(sg_ui.picture_canvas);
+        sg_ui.picture_canvas = NULL;
+    }
+
+    if(sg_picture_buffer) {
+        Free(sg_picture_buffer);
+        sg_picture_buffer = NULL;
+    }
+
+    sg_ui.picture_canvas = lv_canvas_create(sg_ui.picture);
+    lv_obj_set_pos(sg_ui.picture_canvas, 0, 0);
+    lv_obj_set_size(sg_ui.picture_canvas, width, height);
+    lv_obj_add_flag(sg_ui.picture_canvas, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(sg_ui.picture_canvas, __return_chat_content_event_cb, LV_EVENT_CLICKED, NULL);
+
+    sg_picture_buffer = (uint8_t *)Malloc(len);
+    if(NULL == sg_picture_buffer) {
+        PR_ERR("malloc picture buffer failed");
+        lv_vendor_disp_unlock();
+        return OPRT_MALLOC_FAILED;
+    }
+
+    memcpy(sg_picture_buffer, data, len);
+
+    lv_canvas_set_buffer(sg_ui.picture_canvas, sg_picture_buffer, width, height, LV_COLOR_FORMAT_RGB565);
+    if (NULL == sg_picture_tm) {
+        sg_picture_tm = lv_timer_create(__picture_timeout_cb, 3000, NULL);
+    } else {
+        lv_timer_reset(sg_picture_tm);
+    }
+
+    lv_obj_add_flag(sg_ui.content, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_ui.picture, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t *label = __create_ai_msg_label(sg_ui.content, VIEW_IMAGE);
+    lv_obj_add_style(label, &sg_ui.style_link, LV_STATE_DEFAULT);
+    lv_obj_add_flag(label, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(label, __view_photo_event_cb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_update_layout(sg_ui.content);
+
+    lv_vendor_disp_unlock();
+
+    return OPRT_OK;
+}
+
+
+#endif
+
+/**
+ * @brief Register WeChat-style chat UI implementation.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_chat_wechat_register(void)
 {
     AI_UI_INTFS_T intfs;
@@ -591,6 +858,10 @@ OPERATE_RET ai_ui_chat_wechat_register(void)
     intfs.disp_camera_start        = __disp_camera_start;
     intfs.disp_camera_flush        = __disp_camera_flush;
     intfs.disp_camera_end          = __disp_camera_end;
+#endif
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+    intfs.disp_picture             = __disp_picture;
 #endif
 
     return ai_ui_register(&intfs);

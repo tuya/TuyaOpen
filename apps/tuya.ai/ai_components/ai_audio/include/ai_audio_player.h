@@ -219,7 +219,13 @@ OPERATE_RET ai_audio_player_set_vol(int vol);
 OPERATE_RET ai_audio_player_get_vol(int *vol);
 
 #if defined(AI_PLAYER_ALERT_SOURCE_CUSTOM) && (AI_PLAYER_ALERT_SOURCE_CUSTOM == 1)
-
+/**
+ * @brief Register a custom alert callback function.
+ *
+ * @param cb Pointer to the custom alert callback function. The callback will be
+ *           invoked when an alert event occurs, receiving the alert type as parameter.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_audio_player_reg_alert_cb(AI_PLAYER_ALERT_CUSTOM_CB cb);
 #endif
 

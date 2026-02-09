@@ -1,7 +1,12 @@
 /**
  * @file skill_cloudevent.h
- * @version 0.1
- * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ * @brief Cloud event skill module header.
+ *
+ * This header provides function declarations for parsing and processing
+ * cloud events, including TTS playback commands.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __SKILL_CLOUDEVENT_H__
@@ -28,6 +33,12 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Parse and process cloud event from JSON.
+ *
+ * @param json JSON object containing cloud event data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_parse_cloud_event(cJSON *json);
 
 #ifdef __cplusplus

@@ -1,7 +1,13 @@
 /**
  * @file ai_ui_chat_oled.c
- * @version 0.1
- * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ * @brief OLED chat UI implementation.
+ *
+ * This file provides OLED display chat user interface implementation using LVGL,
+ * supporting different OLED sizes (128x64, 128x32) with message display,
+ * emotion display, and status bar.
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -52,6 +58,9 @@ static bool              sg_is_streaming = false;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Initialize LVGL vendor.
+ */
 static void __lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
@@ -59,6 +68,9 @@ static void __lvgl_init(void)
     lv_vendor_start(5, 1024*8);
 }
 
+/**
+ * @brief Initialize UI fonts.
+ */
 static void __ui_font_init(void)
 {
     sg_font.text       = ai_ui_get_text_font();
@@ -67,6 +79,11 @@ static void __ui_font_init(void)
     sg_font.emoji_list = ai_ui_get_emo_list();
 }
 
+/**
+ * @brief Notification timeout callback function.
+ *
+ * @param timer Pointer to the timer object.
+ */
 static void __ui_notification_timeout_cb(lv_timer_t *timer)
 {
     lv_timer_del(sg_notification_tm);
@@ -77,6 +94,9 @@ static void __ui_notification_timeout_cb(lv_timer_t *timer)
 }
 
 #if defined(AI_CHAT_GUI_OLED_SIZE_128_64) && (AI_CHAT_GUI_OLED_SIZE_128_64 == 1)
+/**
+ * @brief Initialize UI for 128x64 OLED display.
+ */
 static void __ui_init_128X64(void)
 {
     lv_obj_t *screen = lv_screen_active();
@@ -161,6 +181,9 @@ static void __ui_init_128X64(void)
     lv_obj_set_style_text_align(sg_ui.status_label, LV_TEXT_ALIGN_CENTER, 0);
 }
 #elif defined(AI_CHAT_GUI_OLED_SIZE_128_32) && (AI_CHAT_GUI_OLED_SIZE_128_32 == 1)
+/**
+ * @brief Initialize UI for 128x32 OLED display.
+ */
 static void __ui_init_128X32(void)
 {
     lv_obj_t *screen = lv_screen_active();
@@ -176,7 +199,7 @@ static void __ui_init_128X32(void)
 
     lv_obj_set_style_text_font(screen, sg_font.text, 0);
 
-    // Container
+    /* Container */
     sg_ui.container = lv_obj_create(screen);
     lv_obj_set_size(sg_ui.container, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_flex_flow(sg_ui.container, LV_FLEX_FLOW_ROW);
@@ -246,6 +269,11 @@ static void __ui_init_128X32(void)
 }
 #endif
 
+/**
+ * @brief Initialize OLED UI.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __ui_init(void)
 {
     __lvgl_init();
@@ -267,7 +295,12 @@ static OPERATE_RET __ui_init(void)
     return 0;
 }
 
-void __ui_set_user_msg(char *text)
+/**
+ * @brief Set user message on UI.
+ *
+ * @param text Pointer to the user message text.
+ */
+static void __ui_set_user_msg(char *text)
 {
     if (sg_ui.chat_message_label == NULL) {
         return;
@@ -277,7 +310,12 @@ void __ui_set_user_msg(char *text)
     lv_vendor_disp_unlock();
 }
 
-void __ui_set_ai_msg(char *text)
+/**
+ * @brief Set AI message on UI.
+ *
+ * @param text Pointer to the AI message text.
+ */
+static void __ui_set_ai_msg(char *text)
 {
     if (sg_ui.chat_message_label == NULL) {
         return;
@@ -287,6 +325,9 @@ void __ui_set_ai_msg(char *text)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Start AI message stream display.
+ */
 static void __ui_set_ai_msg_stream_start(void)
 {
     if (sg_ui.chat_message_label == NULL) {
@@ -300,6 +341,11 @@ static void __ui_set_ai_msg_stream_start(void)
     sg_is_streaming = true;
 }
 
+/**
+ * @brief Update AI message stream data.
+ *
+ * @param text Pointer to the text data to append.
+ */
 static void __ui_set_ai_msg_stream_data(char *text)
 {
     if (sg_ui.chat_message_label == NULL || !sg_is_streaming) {
@@ -312,11 +358,19 @@ static void __ui_set_ai_msg_stream_data(char *text)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief End AI message stream display.
+ */
 static void __ui_set_ai_msg_stream_end(void)
 {
     sg_is_streaming = false;
 }
 
+/**
+ * @brief Set system message on UI.
+ *
+ * @param text Pointer to the system message text.
+ */
 static void __ui_set_system_msg(char *text)
 {
     if (sg_ui.chat_message_label == NULL) {
@@ -327,6 +381,11 @@ static void __ui_set_system_msg(char *text)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set emotion display on UI.
+ *
+ * @param emotion Pointer to the emotion name string.
+ */
 static void __ui_set_emotion(char *emotion)
 {
     if (NULL == sg_ui.emotion_label) {
@@ -347,6 +406,11 @@ static void __ui_set_emotion(char *emotion)
     lv_vendor_disp_unlock();    
 }
 
+/**
+ * @brief Set status text on UI.
+ *
+ * @param status Pointer to the status text string.
+ */
 static void __ui_set_status(char *status)
 {
     if (sg_ui.status_label == NULL) {
@@ -360,6 +424,11 @@ static void __ui_set_status(char *status)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set notification text on UI.
+ *
+ * @param notification Pointer to the notification text string.
+ */
 static void __ui_set_notification(char *notification)
 {
     if (sg_ui.notification_label == NULL) {
@@ -379,6 +448,11 @@ static void __ui_set_notification(char *notification)
     lv_vendor_disp_unlock();
 }
 
+/**
+ * @brief Set network status icon on UI.
+ *
+ * @param wifi_status WiFi status (disconnected, good, fair, weak).
+ */
 static void __ui_set_network(AI_UI_WIFI_STATUS_E wifi_status)
 {
     char *wifi_icon = ai_ui_get_wifi_icon(wifi_status);
@@ -392,6 +466,11 @@ static void __ui_set_network(AI_UI_WIFI_STATUS_E wifi_status)
     lv_vendor_disp_unlock();    
 }
 
+/**
+ * @brief Register OLED chat UI implementation.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_chat_oled_register(void)
 {
     AI_UI_INTFS_T intfs;

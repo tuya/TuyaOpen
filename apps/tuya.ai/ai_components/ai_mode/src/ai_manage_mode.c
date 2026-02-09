@@ -97,7 +97,7 @@ OPERATE_RET ai_mode_init(AI_CHAT_MODE_E mode)
     AI_MODE_CTRL_T *mode_ctrl = NULL;
 
     mode_ctrl = __find_chat_mode_ctrl(mode);
-    if(!mode_ctrl) {
+    if(NULL == mode_ctrl) {
         PR_ERR("chat mode %d not registered", mode);
         return OPRT_NOT_FOUND;
     }
@@ -384,4 +384,48 @@ char *ai_get_mode_name_str(AI_CHAT_MODE_E mode)
     }
 
     return (char *)mode_ctrl->handle.name;
+}
+
+/**
+@brief Check if a chat mode is registered
+@param mode Chat mode to check
+@return bool Returns TRUE if registered, FALSE otherwise
+*/
+bool ai_mode_is_in_register_list(AI_CHAT_MODE_E mode)
+{
+    AI_MODE_CTRL_T *mode_ctrl = NULL;
+
+    mode_ctrl = __find_chat_mode_ctrl(mode);
+    if(NULL == mode_ctrl) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+@brief Get the first chat mode in the list
+@param out_mode Pointer to store the first mode
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_get_first_mode(AI_CHAT_MODE_E *out_mode)
+{
+    AI_MODE_CTRL_T *mode_ctrl = NULL;
+
+    TUYA_CHECK_NULL_RETURN(out_mode, OPRT_INVALID_PARM);
+
+    if(tuya_list_empty(&sg_ai_mode_list)) {
+        PR_ERR("chat mode list is empty");
+        return OPRT_COM_ERROR;
+    }
+
+    mode_ctrl = tuya_list_entry(sg_ai_mode_list.next, AI_MODE_CTRL_T, node);
+    if(NULL == mode_ctrl) {
+        PR_ERR("get first chat mode failed");
+        return OPRT_COM_ERROR;
+    }
+
+    *out_mode = mode_ctrl->mode;
+
+    return OPRT_OK;
 }

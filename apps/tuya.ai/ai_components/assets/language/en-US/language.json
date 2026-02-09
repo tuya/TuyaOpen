@@ -34,6 +34,9 @@
         "SYSTEM_MSG_WIFI_SSID":"WiFi connected",
         "SYSTEM_MSG_IP": "IP address is",
         "SYSTEM_MSG_WIFI_DISCONNECTED":"WiFi disconnected",
-        "SYSTEM_MSG_VOLUME":"Volume set to"
+        "SYSTEM_MSG_VOLUME":"Volume set to",
+
+        
+        "VIEW_IMAGE":"View Image"
     }
 }

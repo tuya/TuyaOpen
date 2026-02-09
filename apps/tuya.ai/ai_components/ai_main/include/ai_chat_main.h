@@ -52,6 +52,11 @@
 #include "ai_mcp.h"
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+#include "ai_picture_output.h"
+#include "ai_picture_convert.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

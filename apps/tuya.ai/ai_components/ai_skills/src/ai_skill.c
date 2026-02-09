@@ -8,11 +8,9 @@
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
  */
-
-#include "tuya_cloud_types.h"
-
 #include "tal_api.h"
 #include "cJSON.h"
+#include "mix_method.h"
 
 #include "ai_user_event.h"
 #include "skill_emotion.h"
@@ -20,6 +18,10 @@
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 #include "ai_audio_player.h"
 #include "skill_music_story.h"
+#endif
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+#include "ai_picture_output.h"
 #endif
 
 #include "ai_skill.h"
@@ -42,11 +44,12 @@
 ***********************function define**********************
 ***********************************************************/
 /**
-@brief Process AI skill data from JSON
-@param root JSON root object containing skill data
-@param eof End of file flag
-@return OPERATE_RET Operation result
-*/
+ * @brief Process AI skill data from JSON.
+ *
+ * @param root JSON root object containing skill data.
+ * @param eof End of file flag indicating if this is the last data chunk.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -91,11 +94,12 @@ static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
 }
 
 /**
-@brief Process ASR (Automatic Speech Recognition) text stream
-@param root JSON root object containing ASR data
-@param eof End of file flag
-@return OPERATE_RET Operation result
-*/
+ * @brief Process ASR (Automatic Speech Recognition) text stream.
+ *
+ * @param root JSON root object containing ASR data.
+ * @param eof End of file flag indicating if this is the last data chunk.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
 {
     char *content = cJSON_GetStringValue(root);
@@ -113,17 +117,80 @@ static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
     return OPRT_OK;
 }
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
 /**
-@brief Process NLG (Natural Language Generation) text stream
-@param root JSON root object containing NLG data
-@param eof End of file flag
-@return OPERATE_RET Operation result
-*/
+ * @brief Process image URLs from JSON and start picture output.
+ *
+ * @param root JSON root object containing images data.
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __ai_images_process(cJSON *root)
+{
+    cJSON *images = cJSON_GetObjectItem(root, "images");
+    if(NULL == images) {
+        PR_ERR("no images found");
+        return OPRT_COM_ERROR;
+    }
+
+    cJSON *url_array = cJSON_GetObjectItem(images, "url");
+    if(NULL == url_array || !cJSON_IsArray(url_array)) {
+        PR_ERR("no url array found");
+        return OPRT_COM_ERROR;
+    }
+
+    int url_count = cJSON_GetArraySize(url_array);
+    for(int i = 0; i < url_count; i++) {
+        cJSON *url_item = cJSON_GetArrayItem(url_array, i);
+        if(NULL == url_item) {
+            PR_ERR("url item is null");
+            continue;
+        }
+
+        char *url_str = cJSON_GetStringValue(url_item);
+        if(NULL == url_str) {
+            PR_ERR("url string is null");
+            continue;
+        }
+
+        PR_NOTICE("image url[%d]: %s", i, url_str);
+
+        /* #define TEST_IMG_URL "https://images.tuyacn.com/fe-static/docs/img/bef36953-4002-4a7c-b567-db05a6c5e2cd.jpeg" */
+
+        /* ai_picture_output_start(TEST_IMG_URL); */
+        ai_picture_output_start(url_str);
+    }
+
+    return OPRT_OK;
+}
+#endif 
+
+
+/**
+ * @brief Process NLG (Natural Language Generation) text stream.
+ *
+ * @param root JSON root object containing NLG data.
+ * @param eof End of file flag indicating if this is the last data chunk.
+ * @return OPERATE_RET Operation result code.
+ */
 static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
 {
     char *json_str = cJSON_PrintUnformatted(root);
     PR_NOTICE("json-str %s", json_str);
     cJSON_free(json_str);
+
+    cJSON *nlgResult = cJSON_GetObjectItem(root, "nlgResult");
+    if(nlgResult) {
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+        if(ai_picture_is_init() == true) {
+            if(__ai_images_process(nlgResult) != OPRT_OK) {
+                PR_NOTICE("process nlg images failed");
+            }else {
+                PR_NOTICE("process nlg images success");
+            }
+        }
+#endif
+        return OPRT_OK;
+    }
 
     char *content = cJSON_GetStringValue(cJSON_GetObjectItem(root, "content"));
     if (!content) {
@@ -135,7 +202,7 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     text.datalen   = strlen(content);
     PR_NOTICE("text -> NLG eof: %d, content: %s, time: %d", eof, content, text.timeindex);
 
-    // send data to register cb
+    /* Send data to register callback */
     static AI_USER_EVT_TYPE_E event_type = AI_USER_EVT_TEXT_STREAM_STOP;
     if(event_type == AI_USER_EVT_TEXT_STREAM_STOP) {
         if(eof) {
@@ -172,6 +239,14 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     return OPRT_OK;
 }
 
+/**
+ * @brief Process AI text data based on type.
+ *
+ * @param type Text type (ASR, NLG, SKILL, CLOUD_EVENT).
+ * @param root JSON root object containing text data.
+ * @param eof End of file flag indicating if this is the last data chunk.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, bool eof)
 {    
     TUYA_CHECK_NULL_RETURN(root, OPRT_INVALID_PARM);
@@ -190,10 +265,10 @@ OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, bool eof)
         ai_parse_cloud_event(root);
     break;
     default:
-        // PR_NOTICE("ai agent -> unknown text type: %d", type);
-        // char *content = cJSON_PrintUnformatted(root);
-        // PR_NOTICE("text content: %s", content);
-        // cJSON_free(content);
+        /* PR_NOTICE("ai agent -> unknown text type: %d", type); */
+        /* char *content = cJSON_PrintUnformatted(root); */
+        /* PR_NOTICE("text content: %s", content); */
+        /* cJSON_free(content); */
     break;     
     }
 

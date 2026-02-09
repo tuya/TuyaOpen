@@ -1,7 +1,13 @@
 /**
- * @file ai_chat_ui_manage.h
- * @version 0.1
+ * @file ai_ui_manage.h
+ * @brief AI UI management interface definitions.
+ *
+ * This header provides function declarations and type definitions for managing
+ * AI user interface, including display interfaces for messages, emotions, status,
+ * camera, and pictures.
+ *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #ifndef __AI_CHAT_UI_MANAGE_H__
@@ -22,7 +28,7 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-// display network status
+/* Display network status */
 typedef uint8_t AI_UI_WIFI_STATUS_E;
 #define AI_UI_WIFI_STATUS_DISCONNECTED 0
 #define AI_UI_WIFI_STATUS_GOOD         1
@@ -63,22 +69,77 @@ typedef struct {
     OPERATE_RET (*disp_camera_start)(uint16_t width, uint16_t height);
     OPERATE_RET (*disp_camera_flush)(uint8_t *data, uint16_t width, uint16_t height);
     OPERATE_RET (*disp_camera_end)(void);
+
+    OPERATE_RET (*disp_picture)(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
+                                uint8_t *data, uint32_t len);
 }AI_UI_INTFS_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
+/**
+ * @brief Register UI interface callbacks.
+ *
+ * @param intfs Pointer to the UI interface structure containing callback functions.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_register(AI_UI_INTFS_T *intfs);
 
+/**
+ * @brief Initialize AI UI module.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_init(void);
 
+/**
+ * @brief Display message on UI.
+ *
+ * @param tp Display type indicating the message category.
+ * @param data Pointer to the message data.
+ * @param len Length of the message data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_disp_msg(AI_UI_DISP_TYPE_E tp, uint8_t *data, int len);
 
+/**
+ * @brief Start camera display.
+ *
+ * @param width Camera frame width.
+ * @param height Camera frame height.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_start(uint16_t width, uint16_t height);
 
+/**
+ * @brief Flush camera frame data to display.
+ *
+ * @param data Pointer to the camera frame data.
+ * @param width Frame width.
+ * @param height Frame height.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_flush(uint8_t *data, uint16_t width, uint16_t height);
 
+/**
+ * @brief End camera display.
+ *
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_ui_camera_end(void);
+
+/**
+ * @brief Display picture on UI.
+ *
+ * @param fmt Picture frame format.
+ * @param width Picture width.
+ * @param height Picture height.
+ * @param data Pointer to the picture data.
+ * @param len Length of the picture data.
+ * @return OPERATE_RET Operation result code.
+ */
+OPERATE_RET ai_ui_disp_picture(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
+                                uint8_t *data, uint32_t len);
 
 #ifdef __cplusplus
 }

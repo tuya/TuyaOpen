@@ -363,8 +363,9 @@ static OPERATE_RET __ai_chat_mode_register(void)
 OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t mode = sg_ai_default_mode;
-    int vol = sg_ai_default_vol;
+    uint32_t mode = 0;
+    int vol = 0;
+    bool is_need_save = false;
 
     if(NULL == cfg) {
         return OPRT_INVALID_PARM;
@@ -374,8 +375,6 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 
     sg_ai_default_mode = cfg->default_mode;
     sg_ai_default_vol  = cfg->default_vol;
-    mode = sg_ai_default_mode;
-    vol  = sg_ai_default_vol;
 
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     TUYA_CALL_ERR_RETURN(ai_chat_ui_init());
@@ -384,9 +383,18 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
     rt = __ai_chat_load_config(&mode, &vol);
     if (OPRT_OK != rt) {
         mode = sg_ai_default_mode;
-        vol = sg_ai_default_vol;
+        vol  = sg_ai_default_vol;
+        is_need_save = true;
+    }
+
+    if(false ==ai_mode_is_in_register_list(mode)) {
+        TUYA_CALL_ERR_RETURN(ai_get_first_mode(&sg_ai_default_mode));
+        mode = sg_ai_default_mode;
+        is_need_save = true;
+    }
+
+    if(is_need_save) {
         __ai_chat_save_config(mode, vol);
-        PR_NOTICE("load chat mode config failed, use default mode %d, volume %d", mode, vol);
     }
 
     sg_evt_notify_cb = cfg->evt_cb;

@@ -38,40 +38,42 @@ extern "C" {
 ***********************************************************/
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 /**
-@brief Parse music data from JSON
-@param json JSON object containing music data
-@param music Pointer to store parsed music structure
-@return OPERATE_RET Operation result
-*/
+ * @brief Parse music data from JSON.
+ *
+ * @param json JSON object containing music data.
+ * @param music Pointer to store parsed music structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music);
 
 /**
-@brief Free music structure memory
-@param music Pointer to music structure to free
-@return None
-*/
+ * @brief Free music structure memory.
+ *
+ * @param music Pointer to music structure to free.
+ */
 void ai_skill_parse_music_free(AI_AUDIO_MUSIC_T *music);
 
 /**
-@brief Dump music structure for debugging
-@param music Pointer to music structure
-@return None
-*/
+ * @brief Dump music structure for debugging.
+ *
+ * @param music Pointer to music structure.
+ */
 void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music);
 
 /**
-@brief Parse play control data from JSON
-@param json JSON object containing play control data
-@param music Pointer to store parsed music structure
-@return OPERATE_RET Operation result
-*/
+ * @brief Parse play control data from JSON.
+ *
+ * @param json JSON object containing play control data.
+ * @param music Pointer to store parsed music structure.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music);
 
 /**
-@brief Execute play control command
-@param music Pointer to music structure with play control information
-@return None
-*/
+ * @brief Execute play control command.
+ *
+ * @param music Pointer to music structure with play control information.
+ */
 void ai_skill_playcontrol_music(AI_AUDIO_MUSIC_T *music);
 
 #endif

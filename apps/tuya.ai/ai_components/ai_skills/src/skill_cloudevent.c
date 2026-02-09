@@ -1,7 +1,12 @@
 /**
  * @file skill_cloudevent.c
- * @version 0.1
- * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ * @brief Cloud event skill implementation.
+ *
+ * This file provides functions for parsing and processing cloud events,
+ * including TTS playback commands (playTts and alert).
+ *
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_api.h"
@@ -32,6 +37,12 @@
 ***********************function define**********************
 ***********************************************************/
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+/**
+ * @brief Parse audio codec type from format string.
+ *
+ * @param format Format string (e.g., "mp3", "wav", "speex", "opus", "oggopus").
+ * @return AI_AUDIO_CODEC_E Audio codec type.
+ */
 static AI_AUDIO_CODEC_E __parse_get_codec_type(char *format)
 {
     AI_AUDIO_CODEC_E fmt = AI_AUDIO_CODEC_MP3;
@@ -54,7 +65,15 @@ static AI_AUDIO_CODEC_E __parse_get_codec_type(char *format)
     return fmt;
 }
 
-OPERATE_RET __ai_parse_playtts(CONST char *action, cJSON *json, AI_AUDIO_PLAY_TTS_T **playtts)
+/**
+ * @brief Parse TTS playback data from JSON.
+ *
+ * @param action Action string ("playTts" or "alert").
+ * @param json JSON object containing TTS data.
+ * @param playtts Pointer to store parsed TTS structure.
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __ai_parse_playtts(CONST char *action, cJSON *json, AI_AUDIO_PLAY_TTS_T **playtts)
 {
     cJSON *node = NULL;
     AI_AUDIO_PLAY_TTS_T *playtts_ptr;
@@ -135,7 +154,13 @@ OPERATE_RET __ai_parse_playtts(CONST char *action, cJSON *json, AI_AUDIO_PLAY_TT
     return OPRT_OK;
 }
 
-OPERATE_RET __ai_parse_playtts_free(AI_AUDIO_PLAY_TTS_T *playtts)
+/**
+ * @brief Free TTS playback structure and release allocated memory.
+ *
+ * @param playtts Pointer to TTS structure to free.
+ * @return OPERATE_RET Operation result code.
+ */
+static OPERATE_RET __ai_parse_playtts_free(AI_AUDIO_PLAY_TTS_T *playtts)
 {
     if (!playtts) {
         return OPRT_OK;
@@ -160,6 +185,12 @@ OPERATE_RET __ai_parse_playtts_free(AI_AUDIO_PLAY_TTS_T *playtts)
 
 #endif
 
+/**
+ * @brief Parse and process cloud event from JSON.
+ *
+ * @param json JSON object containing cloud event data.
+ * @return OPERATE_RET Operation result code.
+ */
 OPERATE_RET ai_parse_cloud_event(cJSON *json)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -173,9 +204,9 @@ OPERATE_RET ai_parse_cloud_event(cJSON *json)
         AI_AUDIO_PLAY_TTS_T *playtts = NULL;
         if ((rt = __ai_parse_playtts(action->valuestring, data, &playtts)) == 0) {
             ai_audio_play_tts_url(playtts, FALSE);
-            // if (s_chat_cbc.tuya_ai_chat_playtts) {
-            //     s_chat_cbc.tuya_ai_chat_playtts(playtts, s_chat_cbc.user_data);
-            // }
+            /* if (s_chat_cbc.tuya_ai_chat_playtts) { */
+            /*     s_chat_cbc.tuya_ai_chat_playtts(playtts, s_chat_cbc.user_data); */
+            /* } */
             __ai_parse_playtts_free(playtts);
         }
 #endif

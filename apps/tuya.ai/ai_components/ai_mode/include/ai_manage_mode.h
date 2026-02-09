@@ -181,6 +181,20 @@ char *ai_get_mode_state_str(AI_MODE_STATE_E state);
 */
 char *ai_get_mode_name_str(AI_CHAT_MODE_E mode);
 
+/**
+@brief Check if a chat mode is registered
+@param mode Chat mode to check
+@return bool Returns TRUE if registered, FALSE otherwise
+*/
+bool ai_mode_is_in_register_list(AI_CHAT_MODE_E mode);
+
+/**
+@brief Get the first chat mode in the list
+@param out_mode Pointer to store the first mode
+@return OPERATE_RET Operation result
+*/
+OPERATE_RET ai_get_first_mode(AI_CHAT_MODE_E *out_mode);
+
 #ifdef __cplusplus
 }
 #endif

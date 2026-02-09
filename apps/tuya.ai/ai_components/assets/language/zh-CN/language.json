@@ -34,7 +34,8 @@
         "SYSTEM_MSG_WIFI_SSID":"WiFi 已连接",
         "SYSTEM_MSG_IP": "IP 地址为",
         "SYSTEM_MSG_WIFI_DISCONNECTED":"WiFi 断开连接",
-        "SYSTEM_MSG_VOLUME":"音量设置为"
+        "SYSTEM_MSG_VOLUME":"音量设置为",
 
+        "VIEW_IMAGE":"查看图片"
     }
 }
