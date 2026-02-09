@@ -295,19 +295,25 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
         return ret;
     }
 
+    bool need_free_dpvalid = true;
+
     if (tuya_lan_is_connected()) {
         char *out = NULL;
         PR_DEBUG("lan channel report");
         dp_rept_json_append(schema, dpout.dpsjson, NULL, NULL, 0, &out);
         ret = tuya_lan_dp_report(out);
         tal_free(out);
-        tal_free(dpvalid);
         tuya_iot_dp_sync_start(client, 5);
-    } else if (tuya_iot_is_connected()) {
+    } 
+    
+    if (tuya_iot_is_connected()) {
         PR_DEBUG("mqtt channel report");
         ret = tuya_iot_dp_report_json_with_notify(client, dpout.dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
-    } else {
-        PR_ERR("no channel for connect");
+        need_free_dpvalid = false;
+    }
+
+    if (need_free_dpvalid) {
+        tal_free(dpvalid);
     }
 
     if (dpout.dpsjson) {
@@ -455,10 +461,10 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
         dp_rept_json_append(schema, dpout.dpsjson, NULL, NULL, 0, &out);
         ret = tuya_lan_dp_report(out);
         tal_free(out);
-    } else if (tuya_iot_is_connected()) {
+    } 
+    
+    if (tuya_iot_is_connected()) {
         ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, dp_raw_async_cb, NULL, timeout);
-    } else {
-        PR_ERR("no channel for connect");
     }
 
     if (dpout.dpsjson) {
