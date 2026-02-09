@@ -663,15 +663,7 @@ static OPERATE_RET __disp_camera_start(uint16_t width, uint16_t height)
     return rt;
 }
 
-/**
- * @brief Flush camera frame data to display.
- *
- * @param data Pointer to the camera frame data.
- * @param width Frame width.
- * @param height Frame height.
- * @return OPERATE_RET Operation result code.
- */
-static /**
+ /**
  * @brief Flush camera frame data to display.
  *
  * @param data Pointer to the camera frame data.
