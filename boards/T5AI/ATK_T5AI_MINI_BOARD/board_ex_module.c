@@ -40,10 +40,12 @@ static OPERATE_RET __board_register_display(void)
     memset(&display_cfg, 0, sizeof(DISP_SPI_DEVICE_CFG_T));
 
     /* Configure the SPI0 pins */
-    tkl_io_pinmux_config(BOARD_LCD_SPI_CS_PIN, TUYA_SPI0_CS);
-    tkl_io_pinmux_config(BOARD_LCD_SPI_SCL_PIN, TUYA_SPI0_CLK);
-    tkl_io_pinmux_config(BOARD_LCD_SPI_SDA_PIN, TUYA_SPI0_MOSI);
-    tkl_io_pinmux_config(BOARD_LCD_SPI_SDI_PIN, TUYA_SPI0_MISO);
+    if(BOARD_LCD_SPI_CLK_PIN == TUYA_GPIO_NUM_44) {
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_45, TUYA_SPI0_CS);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_44, TUYA_SPI0_CLK);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_46, TUYA_SPI0_MOSI);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_47, TUYA_SPI0_MISO);
+    }
 
     display_cfg.width     = BOARD_LCD_WIDTH;
     display_cfg.height    = BOARD_LCD_HEIGHT;

@@ -70,6 +70,7 @@
 #define BOARD_LCD_SPI_DC_PIN   TUYA_GPIO_NUM_47
 #define BOARD_LCD_SPI_RST_PIN  TUYA_GPIO_NUM_43
 #define BOARD_LCD_SPI_MISO_PIN TUYA_GPIO_NUM_46
+#define BOARD_LCD_SPI_CLK_PIN  TUYA_GPIO_NUM_44
 
 #define BOARD_LCD_POWER_PIN TUYA_GPIO_NUM_MAX
 
@@ -200,9 +201,12 @@ static OPERATE_RET __board_register_display(void)
 #if defined(DISPLAY_NAME)
 
     // Composite Pinout from chip internal, muxing set the actual pinout for SPI0 interface
-    tkl_io_pinmux_config(BOARD_LCD_SPI_CS_PIN, TUYA_SPI0_CS);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_44, TUYA_SPI0_CLK);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_46, TUYA_SPI0_MOSI);
+    if(BOARD_LCD_SPI_CLK_PIN == TUYA_GPIO_NUM_44) {
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_45, TUYA_SPI0_CS);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_44, TUYA_SPI0_CLK);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_46, TUYA_SPI0_MOSI);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_47, TUYA_SPI0_MISO);
+    }
 
     DISP_SPI_DEVICE_CFG_T display_cfg;
 
@@ -357,12 +361,12 @@ static OPERATE_RET __board_register_camera(void)
 
 static OPERATE_RET __board_sdio_pin_register(void)
 {
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_14, TUYA_SDIO_HOST_CLK);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_15, TUYA_SDIO_HOST_CMD);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_16, TUYA_SDIO_HOST_D0);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_17, TUYA_SDIO_HOST_D1);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_18, TUYA_SDIO_HOST_D2);
-    tkl_io_pinmux_config(TUYA_GPIO_NUM_19, TUYA_SDIO_HOST_D3);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_14, TUYA_SDIO_CLK);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_15, TUYA_SDIO_CMD);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_16, TUYA_SDIO_DATA0);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_17, TUYA_SDIO_DATA1);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_18, TUYA_SDIO_DATA2);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_19, TUYA_SDIO_DATA3);
 
     return OPRT_OK;
 }

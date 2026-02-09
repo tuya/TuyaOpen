@@ -42,6 +42,7 @@
 #define BOARD_LCD_SPI_CS_PIN         TUYA_GPIO_NUM_45  // SPI0_CSN-P45
 #define BOARD_LCD_SPI_DC_PIN         TUYA_GPIO_NUM_47  // LCD_DC-P47
 #define BOARD_LCD_SPI_RST_PIN        TUYA_GPIO_NUM_16  // LCD_RST_N-P16 (active low)
+#define BOARD_LCD_SPI_CLK_PIN        TUYA_GPIO_NUM_44  // SPI0_CLK-P44
 
 #define BOARD_LCD_PIXELS_FMT         TUYA_PIXEL_FMT_RGB565
 
@@ -93,10 +94,10 @@ static OPERATE_RET __board_register_button(void)
 
 #if defined(BUTTON_NAME)
     BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin = BOARD_BUTTON_PIN,
+        .pin   = BOARD_BUTTON_PIN,
         .level = BOARD_BUTTON_ACTIVE_LV,
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+        .mode  = BUTTON_IRQ_MODE,
+        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
@@ -127,6 +128,14 @@ static OPERATE_RET __board_register_display(void)
     OPERATE_RET rt = OPRT_OK;
     DISP_SPI_DEVICE_CFG_T display_cfg;
     memset(&display_cfg, 0, sizeof(display_cfg));
+
+    /* Configure the SPI0 pins */
+    if(BOARD_LCD_SPI_CLK_PIN == TUYA_GPIO_NUM_44) {
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_45, TUYA_SPI0_CS);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_44, TUYA_SPI0_CLK);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_46, TUYA_SPI0_MOSI);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_47, TUYA_SPI0_MISO);
+    }
 
     display_cfg.bl.type              = BOARD_LCD_BL_TYPE;
     display_cfg.bl.gpio.pin          = BOARD_LCD_BL_PIN;
@@ -160,12 +169,6 @@ static OPERATE_RET __board_register_display(void)
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-    /* Remap SPI0 pins for TUYA_T5AI_ROBOT_DOG baseboard without changing low-level driver */
-    tkl_io_pinmux_config(TUYA_IO_PIN_17, TUYA_SPI0_MISO);
-    tkl_io_pinmux_config(TUYA_IO_PIN_46, TUYA_SPI0_MOSI);
-    tkl_io_pinmux_config(TUYA_IO_PIN_44, TUYA_SPI0_CLK);
-    tkl_io_pinmux_config(TUYA_IO_PIN_45, TUYA_SPI0_CS);
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
 
