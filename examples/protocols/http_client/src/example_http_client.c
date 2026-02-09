@@ -66,7 +66,8 @@ OPERATE_RET __link_status_cb(void *data)
 {
     int rt = OPRT_OK;
     static netmgr_status_e status = NETMGR_LINK_DOWN;
-    if (status == (netmgr_status_e)data && NETMGR_LINK_UP == (netmgr_status_e)data)
+    netmgr_status_e new_status = *((netmgr_status_e *)data);
+    if (status == new_status && NETMGR_LINK_UP == new_status)
         return OPRT_OK;
 
     /* HTTP Response */

@@ -128,7 +128,7 @@ static void __tcp_server_task(void *args)
 OPERATE_RET __link_status_cb(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
-    netmgr_status_e status = (netmgr_status_e)data;
+    netmgr_status_e status = *((netmgr_status_e *)data);
     if (NETMGR_LINK_DOWN == status)
         return OPRT_OK;
 
