@@ -24,11 +24,6 @@ menuconfig ENABLE_LIBLVGL
                 config LVGL_V8_COLOR_DEPTH_24
                     bool "24-bit color"
             endchoice
-
-            config ENABLE_LVGL_V8_RGB565_SWAP
-                bool "enable lvgl v8 rgb565 swap"
-                depends on LVGL_V8_COLOR_DEPTH_16
-                default n
         endif
 
         config ENABLE_LVGL_OS_FREERTOS

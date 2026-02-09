@@ -8,6 +8,8 @@
  *********************/
 #include "tal_api.h"
 #include "lv_port_indev.h"
+#include "tuya_list.h"
+
 #ifdef LVGL_ENABLE_TP
 #include "tdl_tp_manage.h"
 #endif
@@ -19,28 +21,42 @@
 /**********************
  *      TYPEDEFS
  **********************/
-
+#ifdef LVGL_ENABLE_TP
+typedef struct {
+    struct tuya_list_head   node;
+    lv_indev_t             *lv_indev;
+    lv_indev_drv_t          lv_indev_drv;
+    TDL_TP_HANDLE_T         tp_hdl;
+    int32_t                 last_x;
+    int32_t                 last_y;
+}LV_INDEV_TP_NODE_T;
+#endif
 /**********************
  *  STATIC PROTOTYPES
  **********************/
 #ifdef LVGL_ENABLE_TP
-static void touchpad_init(void *device);
-static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
+static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_hdl(TDL_TP_HANDLE_T tp_hdl);
+static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_lv_indev_drv(lv_indev_drv_t * p_lv_indev_drv);
+static lv_indev_t *__find_tp_lv_indev_by_name(char *device);
+static LV_INDEV_TP_NODE_T *__create_touchpad_node(TDL_TP_HANDLE_T tp_hdl);
+static void __release_touchpad_node(LV_INDEV_TP_NODE_T *node);
+static void touchpad_read(lv_indev_drv_t *indev, lv_indev_data_t *data);
 #endif
 
 #ifdef ENABLE_LVGL_ENCODER
 static void encoder_init(void);
-static void encoder_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data);
+static void encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void encoder_handler(void);
 #endif
 /**********************
  *  STATIC VARIABLES
  **********************/
-lv_indev_t *indev_touchpad;
-lv_indev_t *indev_encoder;
+#ifdef ENABLE_LVGL_ENCODER
+static lv_indev_t *indev_encoder;
+#endif
 
 #ifdef LVGL_ENABLE_TP
-static TDL_TP_HANDLE_T sg_tp_hdl = NULL; // Handle for tp device
+static struct tuya_list_head sg_lv_indev_tp_list = LIST_HEAD_INIT(sg_lv_indev_tp_list);
 #endif
 
 /**********************
@@ -51,7 +67,7 @@ static TDL_TP_HANDLE_T sg_tp_hdl = NULL; // Handle for tp device
  *   GLOBAL FUNCTIONS
  **********************/
 
-void lv_port_indev_init(void *device)
+void lv_port_indev_init(char *device)
 {
     /**
      * Here you will find example implementation of input devices supported by LittelvGL:
@@ -69,17 +85,19 @@ void lv_port_indev_init(void *device)
      * Touchpad
      * -----------------*/
 #ifdef LVGL_ENABLE_TP
-    static lv_indev_drv_t indev_drv;
-
     /*Initialize your touchpad if you have*/
-    touchpad_init(device);
+    TDL_TP_HANDLE_T tp_hdl = tdl_tp_find_dev(device);
+    if(NULL == tp_hdl) {
+        PR_ERR("touchpad dev %s not found", device); 
+    }
 
-    /*Register a touchpad input device*/
-    lv_indev_drv_init(&indev_drv);
-    indev_drv.type = LV_INDEV_TYPE_POINTER;
-    indev_drv.read_cb = touchpad_read;
-    indev_touchpad = lv_indev_drv_register(&indev_drv);
+    LV_INDEV_TP_NODE_T *tp_node = __create_touchpad_node(tp_hdl);
+    if(NULL == tp_node) {
+        PR_ERR("create touchpad node failed"); 
+        return;
+    }
 
+    tuya_list_add(&tp_node->node, &sg_lv_indev_tp_list);
 #endif
 
     /*------------------
@@ -91,14 +109,26 @@ void lv_port_indev_init(void *device)
     /*Initialize your encoder if you have*/
     encoder_init();
 
-    /*Register a encoder input device*/
-
     /*Register a touchpad input device*/
     lv_indev_drv_init(&indev_encoder_drv);
     indev_encoder_drv.type = LV_INDEV_TYPE_ENCODER;
     indev_encoder_drv.read_cb = encoder_read;
     indev_encoder = lv_indev_drv_register(&indev_drv);
 #endif
+}
+
+lv_indev_t *lv_port_get_lv_indev_by_name(char *device)
+{
+    lv_indev_t *in_dev = NULL;
+
+#ifdef LVGL_ENABLE_TP
+    in_dev = __find_tp_lv_indev_by_name(device);
+    if(in_dev != NULL) {
+        return in_dev;
+    }
+#endif
+
+    return in_dev;
 }
 
 /**********************
@@ -109,47 +139,144 @@ void lv_port_indev_init(void *device)
  * Touchpad
  * -----------------*/
 #ifdef LVGL_ENABLE_TP
+static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_hdl(TDL_TP_HANDLE_T tp_hdl)
+{
+    LV_INDEV_TP_NODE_T *tp_node = NULL;
+    struct tuya_list_head *pos = NULL;
+
+    if(NULL == tp_hdl) {
+        return NULL;
+    }
+
+    tuya_list_for_each(pos, &sg_lv_indev_tp_list) {
+        tp_node = tuya_list_entry(pos, LV_INDEV_TP_NODE_T, node);
+        if (tp_node->tp_hdl == tp_hdl) {
+            return tp_node;
+        }
+    }
+
+    return NULL;
+}
+static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_lv_indev_drv(lv_indev_drv_t * p_lv_indev_drv)
+{
+    LV_INDEV_TP_NODE_T *tp_node = NULL;
+    struct tuya_list_head *pos = NULL;
+
+    if(NULL == p_lv_indev_drv) {
+        lv_indev_t *lv_indev = lv_indev_get_next(NULL);
+        if(lv_indev) {
+            p_lv_indev_drv = lv_indev->driver;
+        }
+    }
+
+    tuya_list_for_each(pos, &sg_lv_indev_tp_list) {
+        tp_node = tuya_list_entry(pos, LV_INDEV_TP_NODE_T, node);
+        if (&tp_node->lv_indev_drv == p_lv_indev_drv) {
+            return tp_node;
+        }
+    }
+
+    return NULL;
+}
+
+static lv_indev_t *__find_tp_lv_indev_by_name(char *device)
+{
+    TDL_TP_HANDLE_T tp_hdl = NULL;
+    LV_INDEV_TP_NODE_T *tp_node = NULL;
+
+    tp_hdl = tdl_tp_find_dev(device);
+    if(NULL == tp_hdl) {
+        PR_ERR("touchpad dev %s not found", device);
+        return NULL;
+    }
+    
+    tp_node = __find_touchpad_node_by_hdl(tp_hdl);
+    if(NULL == tp_node) {
+        PR_ERR("lv touchpad node not found");   
+        return NULL;
+    }
+
+    return tp_node->lv_indev;
+}
 
 /*Initialize your touchpad*/
-static void touchpad_init(void *device)
+static LV_INDEV_TP_NODE_T *__create_touchpad_node(TDL_TP_HANDLE_T tp_hdl)
 {
     OPERATE_RET rt = OPRT_OK;
+    LV_INDEV_TP_NODE_T *tp_node = NULL;
 
-    sg_tp_hdl = tdl_tp_find_dev(device);
-    if(NULL == sg_tp_hdl) {
-        PR_ERR("tp dev %s not found", device);
+    NEW_LIST_NODE(LV_INDEV_TP_NODE_T, tp_node);
+    if (NULL == tp_node) {
+        return NULL;
+    }
+    memset(tp_node, 0, sizeof(LV_INDEV_TP_NODE_T));
+
+    tp_node->tp_hdl = tp_hdl;
+    TUYA_CALL_ERR_GOTO(tdl_tp_dev_open(tp_hdl), __CREATE_ERR);
+
+    /*Register a touchpad input device*/
+    lv_indev_drv_init(&tp_node->lv_indev_drv);
+    tp_node->lv_indev_drv.type = LV_INDEV_TYPE_POINTER;
+    tp_node->lv_indev_drv.read_cb = touchpad_read;
+    tp_node->lv_indev = lv_indev_drv_register(&tp_node->lv_indev_drv);
+
+    return tp_node;
+
+__CREATE_ERR:
+    __release_touchpad_node(tp_node);
+
+    return NULL;
+}
+
+static void __release_touchpad_node(LV_INDEV_TP_NODE_T *node)
+{
+    if(NULL == node) {
         return;
     }
 
-    rt = tdl_tp_dev_open(sg_tp_hdl);
-    if(rt != OPRT_OK) {
-        PR_ERR("open tp dev failed, rt: %d", rt);
-        return;
+    if(node->lv_indev) { 
+        lv_indev_delete(node->lv_indev);
+        node->lv_indev = NULL;
+    }
+
+    if(node->tp_hdl) {
+        tdl_tp_dev_close(node->tp_hdl);
+        node->tp_hdl = NULL;
+    }
+
+    if(node) {
+        tal_free(node);
+        node = NULL;
     }
 }
 
 /*Will be called by the library to read the touchpad*/
-static void touchpad_read(lv_indev_drv_t * indev_drv, lv_indev_data_t * data)
+static void touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 {
-    static int32_t last_x = 0;
-    static int32_t last_y = 0;
+    LV_INDEV_TP_NODE_T *tp_node = NULL;
     uint8_t point_num = 0;
     TDL_TP_POS_T point;
 
-    tdl_tp_dev_read(sg_tp_hdl, 1, &point, &point_num);
+    tp_node = __find_touchpad_node_by_lv_indev_drv(indev_drv);
+    if(NULL == tp_node) {
+        PR_ERR("touchpad node not found"); 
+        return;
+    }
+
+    tdl_tp_dev_read(tp_node->tp_hdl, 1, &point, &point_num);
     /*Save the pressed coordinates and the state*/
     if (point_num > 0) {
         data->state = LV_INDEV_STATE_PRESSED;
-        last_x = point.x;
-        last_y = point.y;
+        tp_node->last_x = point.x;
+        tp_node->last_y = point.y;
         // PR_DEBUG("touchpad_read: x=%d, y=%d", point.x, point.y);
     } else {
         data->state = LV_INDEV_STATE_RELEASED;
     }
 
     /*Set the last pressed coordinates*/
-    data->point.x = last_x;
-    data->point.y = last_y;
+    data->point.x = tp_node->last_x;
+    data->point.y = tp_node->last_y;
 }
 #endif
 
