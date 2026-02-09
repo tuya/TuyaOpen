@@ -12,6 +12,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 
+#include "tdl_display_format.h"
 #include "tdl_display_draw.h"
 
 /***********************************************************
@@ -32,6 +33,14 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+/**
+ * @brief Writes a point to monochrome format frame buffer.
+ *
+ * @param x X coordinate relative to frame buffer start.
+ * @param y Y coordinate relative to frame buffer start.
+ * @param enable Whether to set the pixel (true) or clear it (false).
+ * @param fb Pointer to the frame buffer structure.
+ */
 static void __disp_mono_write_point(uint32_t x, uint32_t y, bool enable, TDL_DISP_FRAME_BUFF_T *fb)
 {
     uint32_t write_byte_index = y * (fb->width/8) + x/8;
@@ -44,15 +53,32 @@ static void __disp_mono_write_point(uint32_t x, uint32_t y, bool enable, TDL_DIS
     }
 }
 
+/**
+ * @brief Writes a point to I2 (2-bit grayscale) format frame buffer.
+ *
+ * @param x X coordinate relative to frame buffer start.
+ * @param y Y coordinate relative to frame buffer start.
+ * @param color Color value (2-bit, 0-3).
+ * @param fb Pointer to the frame buffer structure.
+ */
 static void __disp_i2_write_point(uint32_t x, uint32_t y, uint8_t color, TDL_DISP_FRAME_BUFF_T *fb)
 {
     uint32_t write_byte_index = y * (fb->width/4) + x/4;
     uint8_t write_bit = (x%4)*2;
-    uint8_t cleared = fb->frame[write_byte_index] & (~(0x03 << write_bit)); // Clear the bits we are going to write
+    uint8_t cleared = fb->frame[write_byte_index] & (~(0x03 << write_bit)); /* Clear the bits we are going to write */
 
     fb->frame[write_byte_index] = cleared | ((color & 0x03) << write_bit);
 }
 
+/**
+ * @brief Writes a point to RGB565 format frame buffer.
+ *
+ * @param x X coordinate relative to frame buffer start.
+ * @param y Y coordinate relative to frame buffer start.
+ * @param color Color value (16-bit RGB565).
+ * @param fb Pointer to the frame buffer structure.
+ * @param is_swap Whether to swap byte order.
+ */
 static void __disp_rgb565_write_point(uint32_t x, uint32_t y, uint16_t color, TDL_DISP_FRAME_BUFF_T *fb, bool is_swap)
 {
     uint32_t write_byte_index = (y * fb->width + x);
@@ -65,15 +91,30 @@ static void __disp_rgb565_write_point(uint32_t x, uint32_t y, uint16_t color, TD
     }
 }
 
+/**
+ * @brief Writes a point to RGB888 format frame buffer.
+ *
+ * @param x X coordinate relative to frame buffer start.
+ * @param y Y coordinate relative to frame buffer start.
+ * @param color Color value (24-bit RGB888).
+ * @param fb Pointer to the frame buffer structure.
+ */
 static void __disp_rgb888_write_point(uint32_t x, uint32_t y, uint32_t color, TDL_DISP_FRAME_BUFF_T *fb)
 {
     uint32_t write_byte_index = (y * fb->width + x)*3;
 
-    fb->frame[write_byte_index]     =  color & 0xFF; // B
-    fb->frame[write_byte_index + 1] = (color >> 8) & 0xFF; // G
-    fb->frame[write_byte_index + 2] = (color >> 16) & 0xFF; // R
+    fb->frame[write_byte_index]     =  color & 0xFF; /* B */
+    fb->frame[write_byte_index + 1] = (color >> 8) & 0xFF; /* G */
+    fb->frame[write_byte_index + 2] = (color >> 16) & 0xFF; /* R */
 }
 
+/**
+ * @brief Validates if a rectangle is within the frame buffer bounds.
+ *
+ * @param rect Pointer to the rectangle structure to validate.
+ * @param fb Pointer to the frame buffer structure.
+ * @return true if rectangle is valid and within bounds, false otherwise.
+ */
 static bool __is_rect_valid(TDL_DISP_RECT_T *rect, TDL_DISP_FRAME_BUFF_T *fb)
 {
     uint16_t x_end = 0, y_end = 0;
@@ -92,7 +133,7 @@ static bool __is_rect_valid(TDL_DISP_RECT_T *rect, TDL_DISP_FRAME_BUFF_T *fb)
 
     if(rect->x0 >= fb->x_start &&  rect->x1 <= x_end &&\
        rect->y0 >= fb->y_start && rect->y1 <= y_end) {
-        // Rectangle is completely within the framebuffer
+        /* Rectangle is completely within the framebuffer */
         return true;
     }
 
@@ -219,4 +260,63 @@ OPERATE_RET tdl_disp_draw_fill_full(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, b
     }
 
     return rt;
+}
+
+/**
+ * @brief Copies pixel data from a source buffer to a rectangular area in the frame buffer.
+ *
+ * @param fb Pointer to the frame buffer structure.
+ * @param rect Pointer to the rectangle structure specifying the destination area.
+ * @param buf Pointer to the source buffer containing pixel data (tightly packed, no padding).
+ * @return OPERATE_RET Operation result code.
+ */
+OPERATE_RET tdl_disp_draw_copy(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect, uint8_t *buf)
+{
+    uint32_t dst_width = 0, dst_height = 0, dst_line_sz = 0;
+    uint32_t src_buf_offset = 0, src_line_sz = 0, src_line_offset = 0;
+    uint8_t bpp = 0;
+
+    if(NULL == fb || NULL == fb->frame || NULL == rect ||\
+       NULL == buf || fb->width == 0 || fb->height == 0) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if(false == __is_rect_valid(rect, fb)) {
+        return OPRT_INVALID_PARM;
+    }
+
+    bpp = tdl_disp_get_fmt_bpp(fb->fmt);
+    if(bpp == 0) {
+        PR_ERR("Unsupported pixel format for draw copy: %d", fb->fmt);
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    dst_width = rect->x1 - rect->x0 + 1;
+    dst_height = rect->y1 - rect->y0 + 1;
+    dst_line_sz = (dst_width * bpp + 7) / 8;  /* Source buffer line size (tightly packed) */
+    src_line_sz = (fb->width * bpp + 7) / 8;  /* Destination framebuffer line size */
+    
+    /* Calculate source line offset in bytes */
+    /* rect->x0 - fb->x_start gives pixel offset, then convert to byte offset */
+    /* Note: For bit-packed formats (bpp < 8), this assumes rect->x0 is byte-aligned */
+    /* For u8g2 usage, rect->x0 is always 8-pixel aligned, so this is correct */
+    src_line_offset = ((rect->x0 - fb->x_start) * bpp) / 8;
+
+    /* 
+     * Note: This function assumes that:
+     * 1. Source buffer (buf) has the same pixel format as destination (fb->fmt)
+     * 2. Source buffer is tightly packed (no padding between rows)
+     * 3. For bit-packed formats (bpp < 8), rect->x0 should be byte-aligned if possible
+     *    (i.e., (rect->x0 * bpp) % 8 == 0) for correct byte-to-byte copy
+     * 
+     * If rect->x0 is not byte-aligned for bit-packed formats, the copy will still work
+     * but may copy extra bits at the boundaries. For u8g2 usage, rect->x0 is always
+     * 8-pixel aligned, so this is not an issue.
+     */
+    for(uint32_t j = 0; j < dst_height ; j++) {
+        src_buf_offset = (rect->y0 - fb->y_start + j) * src_line_sz + src_line_offset;
+        memcpy(&fb->frame[src_buf_offset], &buf[j * dst_line_sz], dst_line_sz);
+    }
+
+    return OPRT_OK;
 }

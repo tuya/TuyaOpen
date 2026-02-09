@@ -57,7 +57,7 @@ static void __disp_frame_buff_free(TDL_DISP_FRAME_BUFF_T *frame_buff)
         return;
     }
 
-    fb_manage = (TDL_DISP_FB_MANAGE_T *)frame_buff->sys_param;
+    fb_manage = (TDL_DISP_FB_MANAGE_T *)frame_buff->free_arg;
     if(NULL == fb_manage) {
         PR_ERR("fb manage is null");
         return;
@@ -161,7 +161,7 @@ OPERATE_RET tdl_disp_fb_manage_add(TDL_FB_MANAGE_HANDLE_T handle, TUYA_DISPLAY_P
     fb_manage->arr[idx].fb->width     = width;
     fb_manage->arr[idx].fb->height    = height;
     fb_manage->arr[idx].fb->free_cb   = __disp_frame_buff_free;
-    fb_manage->arr[idx].fb->sys_param = (void *)fb_manage;
+    fb_manage->arr[idx].fb->free_arg  = (void *)fb_manage;
 
     fb_manage->num++;
 

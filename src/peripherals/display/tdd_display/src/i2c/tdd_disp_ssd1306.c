@@ -227,6 +227,39 @@ static OPERATE_RET __tdd_disp_i2c_ssd1306_open(TDD_DISP_DEV_HANDLE_T device)
     return rt;
 }
 
+#if 0
+static void __print_frame_buffer_bits(uint8_t *frame, uint32_t width, uint32_t height, const char *title)
+{
+    uint32_t width_bytes = (width + 7) / 8;
+    uint32_t total_bytes = width_bytes * height;
+    uint32_t byte_idx, bit_idx;
+    uint32_t row, col;
+    char line_buf[256];
+    uint32_t pos;
+    
+    PR_NOTICE("========== %s ==========", title);
+    PR_NOTICE("Width: %d, Height: %d, Width_bytes: %d, Total_bytes: %d", width, height, width_bytes, total_bytes);
+    
+    /* Print first few rows for debugging */
+    for(row = 0; row < height; row++) {
+        pos = 0;
+        for(col = 0; col < width && pos < sizeof(line_buf) - 1; col++) {
+            byte_idx = row * width_bytes + (col / 8);
+            bit_idx = col % 8;
+            if(byte_idx < total_bytes) {
+                uint8_t bit = (frame[byte_idx] >> bit_idx) & 0x01;
+                line_buf[pos++] = (bit ? '1' : '0');
+            }
+        }
+        line_buf[pos] = '\0';
+        bk_printf("%s\r\n", line_buf);
+    }
+    
+    PR_NOTICE("");
+    PR_NOTICE("================================");
+}
+#endif
+
 static OPERATE_RET __tdd_disp_i2c_ssd1306_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
     OPERATE_RET rt = OPRT_OK;

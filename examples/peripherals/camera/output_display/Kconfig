@@ -11,4 +11,22 @@ menu "Application config"
     config EXAMPLE_CAMERA_FPS
         int "camera fps"
         default 20
+
+    choice 
+        prompt "choose camera output image rotation"
+        default EXAMPLE_CAMERA_IMG_ROTATION_0
+            
+        config EXAMPLE_CAMERA_IMG_ROTATION_0
+            bool "camera output image rotation 0"
+
+        config EXAMPLE_CAMERA_IMG_ROTATION_90
+            bool "camera output image rotation 90"
+
+        config EXAMPLE_CAMERA_IMG_ROTATION_180
+            bool "camera output image rotation 180"
+
+        config EXAMPLE_CAMERA_IMG_ROTATION_270
+            bool "camera output image rotation 270"
+    endchoice 
+
 endmenu

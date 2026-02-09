@@ -84,6 +84,29 @@ OPERATE_RET tdl_disp_draw_rotate(TUYA_DISPLAY_ROTATION_E rot, \
                                    TDL_DISP_FRAME_BUFF_T *out_fb,\
                                    bool is_swap);
 
+/**
+ * @brief Rotates a rectangle coordinate to the specified angle.
+ *
+ * @param rot Rotation angle (90, 180, 270 degrees).
+ * @param width Display width (used for coordinate transformation).
+ * @param height Display height (used for coordinate transformation).
+ * @param rect Pointer to the rectangle structure to be rotated (modified in place).
+ * @return OPERATE_RET Operation result code.
+ */
+OPERATE_RET tdl_disp_rotate_rect(TUYA_DISPLAY_ROTATION_E rot,\
+                                 uint16_t width, uint16_t height,\
+                                 TDL_DISP_RECT_T *rect);
+
+/**
+ * @brief Copies pixel data from a source buffer to a rectangular area in the frame buffer.
+ *
+ * @param fb Pointer to the frame buffer structure.
+ * @param rect Pointer to the rectangle structure specifying the destination area.
+ * @param buf Pointer to the source buffer containing pixel data (tightly packed, no padding).
+ * @return OPERATE_RET Operation result code.
+ */
+OPERATE_RET tdl_disp_draw_copy(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect, uint8_t *buf);
+
 #ifdef __cplusplus
 }
 #endif

@@ -29,6 +29,13 @@ typedef enum  {
     TUYA_DISPLAY_I2C,
 }TUYA_DISPLAY_TYPE_E;
 
+typedef enum {
+    TUYA_DISPLAY_ROTATION_0,
+    TUYA_DISPLAY_ROTATION_90,
+    TUYA_DISPLAY_ROTATION_180,
+    TUYA_DISPLAY_ROTATION_270,
+} TUYA_DISPLAY_ROTATION_E;
+
 typedef void*  TDL_DISP_HANDLE_T;
 
 typedef enum {
@@ -49,9 +56,9 @@ struct TDL_DISP_FRAME_BUFF_T {
     uint16_t width;
     uint16_t height;
     FRAME_BUFF_FREE_CB free_cb;
+    void  *free_arg;
     uint32_t len;
     uint8_t *frame;
-    void *sys_param;    //reserved for system use, user do not use
 };
 
 typedef struct {

@@ -40,4 +40,24 @@ if (ENABLE_BUTTON)
         string "the name of button 4"
         default "button4"
         depends on ENABLE_BUTTON_4
+
+    config ENABLE_BUTTON_5
+        bool "enable button 5"
+        default n
+        depends on ENABLE_BUTTON_4
+
+    config BUTTON_NAME_5
+        string "the name of button 5"
+        default "button5"
+        depends on ENABLE_BUTTON_5
+
+    config ENABLE_BUTTON_6
+        bool "enable button 6"
+        default n
+        depends on ENABLE_BUTTON_5
+
+    config BUTTON_NAME_6
+        string "the name of button 6"
+        default "button6"
+        depends on ENABLE_BUTTON_6
 endif

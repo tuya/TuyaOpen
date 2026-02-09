@@ -13,10 +13,7 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-#include "tal_dma2d.h"
-#endif
-
+#include "tdl_display_manage.h"
 #include "tdl_display_format.h"
 /***********************************************************
 ************************macro define************************
@@ -51,12 +48,8 @@ typedef union {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-static TAL_DMA2D_HANDLE_T sg_disp_dma2d_hdl = NULL;
-#endif
-
 static TDL_DISP_MONO_CFG_T sg_disp_mono_config = {
-    .method = TDL_DISP_MONO_MTH_FLOYD_STEINBERG,
+    .method = TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG,
     .fixed_threshold = 128,
     .invert_colors = 0,
 };
@@ -245,117 +238,174 @@ uint32_t tdl_disp_convert_rgb565_to_color(uint16_t rgb565, TUYA_DISPLAY_PIXEL_FM
     return color;
 }
 
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-/**
- * @brief Convert YUV422 buffer to RGB format using DMA2D hardware acceleration
- * @param in_buf Pointer to the input YUV422 buffer
- * @param in_width Width of the input image in pixels
- * @param in_height Height of the input image in pixels
- * @param out_fb Pointer to the output framebuffer structure
- * @return OPRT_OK on success, error code otherwise
- */
-static OPERATE_RET __disp_fb_convert_yuv422_to_rgb(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
-                                                    TDL_DISP_FRAME_BUFF_T *out_fb)
+TDL_DISP_FRAME_BUFF_T *__create_rotate_tmp_fb(TDL_DISP_FRAME_BUFF_T *fb, TUYA_DISPLAY_ROTATION_E rotate)
+{
+    TDL_DISP_FRAME_BUFF_T *tmp_fb = NULL;
+
+    if(rotate == TUYA_DISPLAY_ROTATION_0) {
+        return NULL;
+    }
+
+    tmp_fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, fb->len);
+    if(NULL == tmp_fb) {
+        PR_ERR("Failed to create temporary frame buffer for rotation");
+        return NULL;
+    }
+
+    tmp_fb->fmt = fb->fmt;
+    if(rotate == TUYA_DISPLAY_ROTATION_90 || rotate == TUYA_DISPLAY_ROTATION_270) {
+        tmp_fb->width  = fb->height;
+        tmp_fb->height = fb->width;
+    }else {
+        tmp_fb->width  = fb->width;
+        tmp_fb->height = fb->height;
+    }
+
+    return tmp_fb;
+}
+
+static OPERATE_RET __disp_fb_convert_yuv422_to_rgb565(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
+                                                      TDL_DISP_FRAME_BUFF_T *out_fb, bool is_swap, \
+                                                      TUYA_DISPLAY_ROTATION_E rotate)
 {
     OPERATE_RET rt = OPRT_OK;
-    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
-    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
+    TAL_IMAGE_YUV422_TO_RGB_T conv_cfg = {0};
+    TDL_DISP_FRAME_BUFF_T *p_tmp_fb = NULL;
 
-    if (in_buf == NULL || out_fb == NULL) {
-        return OPRT_INVALID_PARM;
+    p_tmp_fb = __create_rotate_tmp_fb(out_fb, rotate);
+    if(NULL == p_tmp_fb) {
+        p_tmp_fb = out_fb;
     }
 
-    memset(&in_frame, 0x00, sizeof(TKL_DMA2D_FRAME_INFO_T));
-    memset(&out_frame, 0x00, sizeof(TKL_DMA2D_FRAME_INFO_T));
+    memset(&conv_cfg, 0, sizeof(conv_cfg));
 
-    // Perform memory copy based on color format
-    switch (out_fb->fmt) {
-        case TUYA_PIXEL_FMT_RGB565:
-            out_frame.type = TUYA_FRAME_FMT_RGB565;
-            break;
-        case TUYA_PIXEL_FMT_RGB888:
-            out_frame.type = TUYA_FRAME_FMT_RGB888;
-            break;
-        default:
-            PR_ERR("Unsupported color format");
-            return OPRT_INVALID_PARM;
+    conv_cfg.in_buf     = in_buf;
+    conv_cfg.in_width   = in_width;
+    conv_cfg.in_height  = in_height;
+    conv_cfg.out_buf    = p_tmp_fb->frame;
+    conv_cfg.out_width  = p_tmp_fb->width;
+    conv_cfg.out_height = p_tmp_fb->height;
+
+    rt = tal_image_convert_yuv422_to_rgb565(&conv_cfg);
+    if(rt != OPRT_OK) {
+        PR_ERR("YUV422 to RGB565 conversion failed, rt=%d", rt);
+        if(p_tmp_fb != out_fb) {
+            tdl_disp_free_frame_buff(p_tmp_fb);
+        }
+        return rt;
     }
 
-    if (NULL == sg_disp_dma2d_hdl) {
-        TUYA_CALL_ERR_RETURN(tal_dma2d_init(&sg_disp_dma2d_hdl));
+    if(p_tmp_fb != out_fb) {
+        rt = tdl_disp_draw_rotate(rotate, p_tmp_fb, out_fb, is_swap);
+        tdl_disp_free_frame_buff(p_tmp_fb);
+    } else if(is_swap) {
+        rt = tdl_disp_dev_rgb565_swap((uint16_t *)out_fb->frame, out_fb->len / 2);
     }
-
-    in_frame.type  = TUYA_FRAME_FMT_YUV422;
-    in_frame.width  = in_width;
-    in_frame.height = in_height;
-    in_frame.pbuf   = in_buf;
-
-    out_frame.width  = out_fb->width;
-    out_frame.height = out_fb->height;
-    out_frame.pbuf   = out_fb->frame;
-
-    in_frame.width_cp  =  (in_width <= out_fb->width) ? in_width : out_fb->width;
-    in_frame.height_cp =  (in_height <= out_fb->height) ? in_height : out_fb->height;
-    
-    TUYA_CALL_ERR_RETURN(tal_dma2d_convert(sg_disp_dma2d_hdl, &in_frame, &out_frame));
-
-    TUYA_CALL_ERR_RETURN(tal_dma2d_wait_finish(sg_disp_dma2d_hdl, 2000));
 
     return rt;
 }
 
-#endif
-
-extern OPERATE_RET tdl_disp_format_yuv422_to_binary(uint8_t *in_buf, \
-                                                    uint16_t in_width,\
-                                                    uint16_t in_height, 
-                                                    TDL_DISP_MONO_CFG_T *cfg, \
-                                                    TDL_DISP_FRAME_BUFF_T *out_fb);
-/**
- * @brief Convert YUV422 buffer to monochrome format
- * @param in_buf Pointer to the input YUV422 buffer
- * @param in_width Width of the input image in pixels
- * @param in_height Height of the input image in pixels
- * @param out_fb Pointer to the output framebuffer structure
- * @return OPRT_OK on success, error code otherwise
- */
-static OPERATE_RET __disp_fb_convert_yuv422_to_mono(uint8_t *in_buf, uint16_t in_width, \
-                                                    uint16_t in_height, \
-                                                    TDL_DISP_FRAME_BUFF_T *out_fb)
+static OPERATE_RET __disp_fb_convert_yuv422_to_rgb888(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
+                                                      TDL_DISP_FRAME_BUFF_T *out_fb,\
+                                                      TUYA_DISPLAY_ROTATION_E rotate)
 {
-    return tdl_disp_format_yuv422_to_binary(in_buf, in_width, in_height, &sg_disp_mono_config, out_fb);
+    OPERATE_RET rt = OPRT_OK;
+    TAL_IMAGE_YUV422_TO_RGB_T conv_cfg = {0};
+    TDL_DISP_FRAME_BUFF_T *p_tmp_fb = NULL;
+
+    p_tmp_fb = __create_rotate_tmp_fb(out_fb, rotate);
+    if(NULL == p_tmp_fb) {
+        p_tmp_fb = out_fb;
+    }
+
+    memset(&conv_cfg, 0, sizeof(conv_cfg));
+
+    conv_cfg.in_buf     = in_buf;
+    conv_cfg.in_width   = in_width;
+    conv_cfg.in_height  = in_height;
+    conv_cfg.out_buf    = p_tmp_fb->frame;
+    conv_cfg.out_width  = p_tmp_fb->width;
+    conv_cfg.out_height = p_tmp_fb->height;
+
+    rt = tal_image_convert_yuv422_to_rgb888(&conv_cfg);
+    if(rt != OPRT_OK) {
+        PR_ERR("YUV422 to RGB888 conversion failed, rt=%d", rt);
+        if(p_tmp_fb != out_fb) {
+            tdl_disp_free_frame_buff(p_tmp_fb);
+        }
+        return rt;
+    }
+
+    if(p_tmp_fb != out_fb) {
+        rt = tdl_disp_draw_rotate(rotate, p_tmp_fb, out_fb, false);
+        tdl_disp_free_frame_buff(p_tmp_fb);
+    }
+
+    return rt;
 }
 
-/**
- * @brief Convert YUV422 format buffer to the specified framebuffer pixel format
- * @param in_buf Pointer to the input YUV422 buffer
- * @param in_width Width of the input image in pixels
- * @param in_height Height of the input image in pixels
- * @param out_fb Pointer to the output framebuffer structure containing format and buffer information
- * @return OPRT_OK on success, error code otherwise
- */
-OPERATE_RET tdl_disp_convert_yuv422_to_framebuffer(uint8_t *in_buf, uint16_t in_width,\
-                                                   uint16_t in_height, \
-                                                   TDL_DISP_FRAME_BUFF_T *out_fb)
+static OPERATE_RET __disp_fb_convert_yuv422_to_mono(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
+                                                    TDL_DISP_FRAME_BUFF_T *out_fb,
+                                                    TUYA_DISPLAY_ROTATION_E rotate)
+{
+    OPERATE_RET rt = OPRT_OK;
+    TAL_IMAGE_YUV422_TO_BINARY_T conv_cfg = {0};
+    TDL_DISP_FRAME_BUFF_T *p_tmp_fb = NULL;
+
+    p_tmp_fb = __create_rotate_tmp_fb(out_fb, rotate);
+    if(NULL == p_tmp_fb) {
+        p_tmp_fb = out_fb;
+    }
+
+    memset(&conv_cfg, 0, sizeof(conv_cfg));
+
+    conv_cfg.method          = sg_disp_mono_config.method;
+    conv_cfg.fixed_threshold = sg_disp_mono_config.fixed_threshold;
+    conv_cfg.invert_colors   = sg_disp_mono_config.invert_colors;
+    conv_cfg.in_buf          = in_buf;
+    conv_cfg.in_width        = in_width;
+    conv_cfg.in_height       = in_height;
+    conv_cfg.out_buf         = p_tmp_fb->frame;
+    conv_cfg.out_width       = p_tmp_fb->width;
+    conv_cfg.out_height      = p_tmp_fb->height;
+
+    rt = tal_image_format_yuv422_to_binary(&conv_cfg);
+    if(rt != OPRT_OK) {
+        PR_ERR("YUV422 to binary conversion failed, rt=%d", rt);
+        if(p_tmp_fb != out_fb) {
+            tdl_disp_free_frame_buff(p_tmp_fb);
+        }
+        return rt;
+    }
+
+    if(p_tmp_fb != out_fb) {
+        rt = tdl_disp_draw_rotate(rotate, p_tmp_fb, out_fb, false);
+        tdl_disp_free_frame_buff(p_tmp_fb);
+    }
+
+    return rt;
+}
+
+OPERATE_RET tdl_disp_convert_yuv422_to_fb(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
+                                          TDL_DISP_FRAME_BUFF_T *out_fb, bool is_swap, \
+                                          TUYA_DISPLAY_ROTATION_E rotate)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    if(in_buf == NULL || out_fb == NULL) {
+    if(in_buf == NULL || out_fb == NULL || \
+       out_fb->frame == NULL || out_fb->len == 0) {
         return OPRT_INVALID_PARM;
     }
 
     switch(out_fb->fmt) {
     case TUYA_PIXEL_FMT_RGB565:
+        rt = __disp_fb_convert_yuv422_to_rgb565(in_buf, in_width, in_height, out_fb, is_swap, rotate);
+        break;
     case TUYA_PIXEL_FMT_RGB888:
-    #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-        rt = __disp_fb_convert_yuv422_to_rgb(in_buf, in_width, in_height, out_fb);
-    #else
-        PR_ERR("DMA2D not enabled");
-        rt = OPRT_NOT_SUPPORTED;
-    #endif
+        rt = __disp_fb_convert_yuv422_to_rgb888(in_buf, in_width, in_height, out_fb, rotate);
         break;
     case TUYA_PIXEL_FMT_MONOCHROME:
-        rt = __disp_fb_convert_yuv422_to_mono(in_buf, in_width, in_height, out_fb);
+        rt = __disp_fb_convert_yuv422_to_mono(in_buf, in_width, in_height, out_fb, rotate);
         break;
     default:
         PR_ERR("Unsupported pixel format:%d", out_fb->fmt); 
@@ -373,7 +423,7 @@ OPERATE_RET tdl_disp_convert_yuv422_to_framebuffer(uint8_t *in_buf, uint16_t in_
  */
 OPERATE_RET tdl_disp_set_mono_convert_param(TDL_DISP_MONO_CFG_T *cfg)
 {
-    if(NULL == cfg || cfg->method >= TDL_DISP_MONO_MTH_COUNT) {
+    if(NULL == cfg || cfg->method >= TAL_IMAGE_MONO_MTH_COUNT) {
         return OPRT_INVALID_PARM;
     }
 
