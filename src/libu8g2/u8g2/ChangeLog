@@ -1,0 +1,361 @@
+
+https://github.com/olikraus/u8g2 ChangeLog
+
+
+2016-04-30	v2.0.1  	olikraus@gmail.com
+  * Support for DOGS102, ST7920, SSD1306
+  * Most graphics primitives are implemented
+2016-05-15	v2.0.3 	olikraus@gmail.com
+  * Support for Adafruit FeatherWing 128x32 OLED
+  * Added Wire.h support (I2C for SSD1306)
+  * Successfully tested with Adafruit ESP8266 Feather Board (HW+SW I2C)
+  * Successfully tested with Adafruit Feather M0 Basic Board (HW+SW I2C)
+2016-06-12	v2.0.4 	olikraus@gmail.com
+  * Support for ST7565
+2016-06-25	v2.0.6 	olikraus@gmail.com
+  * User interface functions
+  * Little Rook Chess ported
+  * ST7920 HW and SW SPI
+2016-06-26	v2.0.7	  olikraus@gmail.com
+  * drawLine
+  * GraphicsTest Example
+2016-08-09	v2.1.5	  olikraus@gmail.com
+  * T6963 Support
+  * Experimental Support for SSD1322 256x64
+  * A2 Thermoprinter Support
+  * Added several fonts from http://int10h.org/oldschool-pc-fonts/
+  * Added Arabic, Greek and Cyrillic fonts.
+  * Code cleanup (assert, spi modes, void * warning)
+2016-08-17	v2.2.7	  olikraus@gmail.com
+  * U8x8: Upscale by 2 (Issue 41)
+  * Fixed SSD1306 I2C procedures (mirror pixel in last tile column, issue 44)
+  * Experimental support für mini12864 (pull request)
+  * Use beginTransaction for SPI. This requires Arduino 1.6.0
+2016-08-18	v2.3.2	  olikraus@gmail.com
+ * MINI12874; Fixed HW Flip Mode (pull request 49)
+ * Fixed ST7920 HW SPI with very fast uC, issue 50
+ * Improved HW SPI for SH1106 and SSD1306 displays
+ * Fixed issue with missing fonts
+2016-08-21	v2.4.1	olikraus@gmail.com
+ * Fixed HW SPI Modes (issue 52)
+2016-10-01	v2.5.2	 olikraus@gmail.com
+ * Added crox fonts (issue 57)
+ * Support for RA8835 (issue 45)
+ * Added support for SSD1322 and SSD1325
+ * Added DrawXBMP (AVR: Assume bitmap in PROGMEM)
+ * Added japanese fonts (issue 65)
+2016-11-13	v2.6.3	 olikraus@gmail.com
+ * Added support for UC1610 (EA DOGXL160)
+ * Use Wire.setClock() for improved HW I2C performance (issue 79). This
+    requires Arduino IDE 1.6.0 or higher.
+ * Added Thai Fonts (issue 73)
+ * Added support for "\n" in the print function for u8x8 (issue 74)
+ * Screen mirror option for U8g2 (issue 76)
+ * Added support for second wire interface (Constructor postfix 2ND_HW_I2C)
+ * Added support for UC1611 (EA DOGM240 and EA DOGXL240, issue 66)
+2016-11-28	v2.7.5	 olikraus@gmail.com
+  * Added support for 0.66" 64x48 SSD1306 OLED (issue 89)
+  * Support for UC1608 (issue 92)
+  * Speed improvements for SW SPI und 8080 mode (issues 87, 90 and 95)
+  * Fixed issue with ST7920 not using the optimized SW SPI procedures (issue 87)
+  * Direct buffer API (issue 93)
+2016-12-11	v2.8.4	 olikraus@gmail.com
+  * Increased contrast range for SSD1306 (issue 98)
+  * Support for KS0108 (issue 88)
+  * Support for UC1608 240x128 (issue 101)
+  * Speed improvement (issue 96)
+2016-12-12	v2.8.5	 olikraus@gmail.com
+  * Bugfix for issue 96 (issue 106)
+2016-12-20	v2.9.1	 olikraus@gmail.com
+  * Speed improvement for AVR/KS0108 (issue 104)
+  * Support for UC1604 (issue 111)
+  * Support for PCD8544/Nokia Display (issue 107)
+  * Change/fixed behavior of userInterfaceSelectionList (issue 112)
+2016-12-23	v2.9.2	 olikraus@gmail.com
+  * Reverted the setup for SSD1306_NONAME to the original setup (undo issue 98)
+  * Introduced SSD1306_VCOMH0 for the max range setup (issue 116)
+2016-12-30	v2.10.1	 olikraus@gmail.com
+  * ST7565 LM6059 Display (issue 123)
+  * SSD1606 eInk/ePaper Display (issue 100)
+  * Documentation updates
+2017-01-08	v2.11.4	 olikraus@gmail.com
+  * Support for LC7981 (issue 134)
+  * Support for PCF8812 (issue 135)
+  * Fixed wrong half-move notation in Little Rook Chess (issue 137)
+  * Support for ST7567, Pax Instruments GLCD Shield (issue 138)
+  * Support for NT7534 (issue 143)
+  * Support for SSD1327, Seeedstudio OLED (issue 145)
+  * Support for SSD1305 (issue 146)
+  * Support for DOGM132 (issue 147)
+  * Fixed a bug in the draw pixel procedure which appears in full buffer mode,
+    if the display width is not a multiple of 8 (issue 148)
+  * Added XOR mode (setDrawColor 2, issue 56)
+2017-01-15	v2.12.6	  olikraus@gmail.com
+  * Support for SSD1309 (issue 113)
+  * Enabled U8G2_HVLINE_SPEED_OPTIMIZATION (not sure why this was disabled)
+  * Improved speed for ST7920 (up to 40%, issue 151)
+  * Support for IST3020 (issue 153)
+2017-02-07	v2.13.6	  olikraus@gmail.com
+  * Support for ST7588 (issue 154)
+  * ESP8266: Avoid RAM copy of the fonts (issue 159)
+  * Support for SSD1607 (issue 133)
+  * Support for hardware pin remapping on the ESP8266 (issue 158)
+  * Bugfix for the KS0108 support (issue 168)
+  * More fonts: https://github.com/olikraus/u8g2/wiki/fntgrpnbp (issue 174)
+2017-03-11	v2.14.7	  olikraus@gmail.com
+  * Bugfix: setFont does no longer resets the reference position (issue 195)
+  * Support for ST7565 NHD C12864 (issue 186)
+  * Support for SSD1329 128x96 OLED (issue 208)
+  * Support for LC7981 240x128 (issue 193)
+  * Performance improvement for the ST7920 (issue 200)
+2017-05-22	v2.15.2	  olikraus@gmail.com
+  * Added setBitmapMode (pull request 220)
+     Warning: Default behavior of drawXBM has changed in this release.
+  * Increased SPI speed to 8MHz for SSD1306, SH1106 and SSD1322 (issue 215)
+  * Added some more examples (issue 216)
+  * Added Urdu, Bengali, Hebrew and Polish language fonts (issues 221, 246 and 266)
+  * Added more examples (issue 216)
+  * Updated code for NHD C12864 (issues 219 and 241)
+  * Improved speed for HW SPI with SSD13xx OLEDs (issue 215)
+2017-08-12	v2.16.9	  olikraus@gmail.com
+  * Fonts u8g2_font_unifont_t_korean1, u8g2_font_unifont_t_korean2 (issue 266)
+  * Added support for 64128N ST7565 based display (issue 292)
+  * Added extended fonts (_te, unicodes 32-701, issue 284)
+  * Added support for MAX7219 (issue 280)
+  * Performance optimization for SSD1322/25/27  (issue 302)
+  * Fixed setContrast for SSD1322 (issue 328)
+  * Support for 96x16 SSD1306 OLED (issue 295)
+  * Fixed OldStandard-Bold fonts (osb, issue 306)
+  * Support for SED1520/SBN1661 (issue 324)
+2017-09-10	v2.17.11   olikraus@gmail.com
+  * Additional _m_  and _h_ symbol fonts (issue 335)
+  * Added parallel interfaces for several UC16xx devices (issue 339)
+  * Support for IL3820, WaveShare 2.9" e-paper (issues 318 & 347)
+  * Improved debounce algorithm (issue 338)
+  * Power save mode for SSD1607 device (issue 352)
+2017-09-30	v2.18.13   olikraus@gmail.com
+  * Support for ST7567_JLX12864 (issue 365)
+  * Support for UC1611 (no "s") (issue 339)
+  * Fixed several issues related to the _F_ (full buffer) mode (issue 370)
+2017-10-13	v2.19.8   olikraus@gmail.com
+  * Support for UC1601 (issue 378)
+  * Support for ESP32 I2C pin remapping (issue 377)
+  * Support for ST75256 (SPI), JLX256128, JLX172104 (issue 163)
+  * Added uw-ttyp0 fonts (issue 349)
+2017-12-09	v2.20.13   olikraus@gmail.com
+  * Bugfix for drawBitmap (issue 391)
+  * I2C support for ST75256 (issue 384)
+  * Support for SSD1327 128x128 display (issue 397)
+  * Support for ST75256 JLX25664 display (issue 399)
+  * Added keywords.txt  (issue 402)
+  * Experimental support for SSD1326 (issue 398)
+  * Experimental alternative COM config for SSD1306 128x64 (issue 408)
+  * New SH1106 init sequence (SH1106_WINSTAR, issue 316)
+  * Support for SSD1322 NHD 128x64 (issue 412)
+  * Fixed profont17 (issue 438)
+2018-02-18	v2.21.8  olikraus@gmail.com
+  * Support for SH1107 (issue 501)
+  * Support for HX1230 (issue 469)
+  * Bugfix for displays with display height not a multiple of 8 (issue 469)
+  * FontUsage demo for full buffer mode (issue 490) 
+  * Added 1x2 (double height) draw procedures to U8x8 (issue 474)
+    With this feature a 128x32 display can replace a 16x2 Char LCD.
+  * New constructor for the Good Display 200x200 eInk (issue 454)
+  * Update for the ST7920 device for more stable output (issue 487)
+  * Double height (2x1) chars for U8x8 API (issue 474)
+  * Excluded I2C for several ATMega uC which do not have HW I2C (issue 508)
+  * Fixed UC1610 contrast command (issue 428)
+  * Added WQY Chinese fonts at sizes 12, 13, 14, 15 and 16 
+     including gb2312 support (issue 455)
+  * Added new full buffer demo for the Chinese fonts (Shennong.ino, issue #455)
+  * Added siji icon font u8g2_font_siji_t_6x10 (issue 451)
+2018-04-30	v2.22.18  olikraus@gmail.com
+  * Bugfix for draw1x2string (u8x8 API)
+  * Changed return value for "begin()" (issue 518)
+  * New feature: U8log, https://github.com/olikraus/u8g2/wiki/u8logreference
+  * Added SSD1306 128x64 Adafruit OLED (issue 521)
+  * Added Winstart SSD1306 64x48 OLED variant (issue 522)
+  * Added support for JLX240160 (issue 556)
+  * Added support for JLX12864 (ST7565 variant, issue 440)
+  * Added support for JLX256160 (issue 561)
+  * Added support for SH1122 256x64 OLED (issue 420)
+  * Added open iconic icons (issue 535)
+  * Added several Persian fonts (issue 541)
+  * Added additional Japanese font variants (issue 581)
+  * Added Devanagari/Hindi font variant (issue 584)
+  * Added tom-thumb font (issue 563)
+  * Added AVR specific optimization for 3-wire Software SPI (issue 586)
+2018-08-24	v2.23.18  olikraus@gmail.com
+  * NEW FONT FORMAT for speedup of the unicode font section (issue 596)  
+  * Fixed a bug in the font construction for monospaced fonts (issue 669) 
+  * Fixed a bug with the CS line for huge KS0108 displays (issue 631)
+  * Fixed #if's for some AVR uC (issue 662)
+  * Added support for SH1108 controller (issue 619)
+  * Added support for T6963 160x80 Displays (issue 635)
+  * Added support for EA W128128 (issue 641)
+  * Added support for LC7981 240x64 (issue 642)  
+  * Added support for ST7567 ENH-DG128064 (issue 616)
+  * Included pull request for ST7586, support for ERC240160 & s028hn118a (pull request 660)
+  * Added SpaceTrash game (issue 622)
+  * Added contributed 7-segment font, https://github.com/olikraus/u8g2/wiki/fntgrpu8g#7segments_26x42 (issue 634)
+  * Added several fonts from fontstruct.com, https://github.com/olikraus/u8g2/wiki/fntgrpfontstruct (issue 687)#
+    This also includes several outline fonts.
+2018-10-28	v2.24.3  olikraus@gmail.com
+  * Added clip window support (issue 364)
+  * Added setBusClock() proc to change the I2C/SPI bus clock speed (Arduino only, issue 705)
+  * Added sleep mode for ST7920 (issue 245)
+  * Added support for SSD0323 (issue 720)
+2019-02-09	v2.25.10  olikraus@gmail.com
+  * Improved speed for I2C with SSD1306 controller: 4% faster now (issue 735)
+  * Fixed code problems (issues 766 and 754)  
+  * Added battery symbols and emoticons (issue 747)
+  * New U8x8 font format, added large U8x8 fonts (issue 771)
+  * Added alternative version for ERC12864 (issue 790)
+  * Added Waveshare SSD1607 200x200 support (issue 637)
+  * Added support for SSD1318 (issue 784)
+  * Partial display update with updateDisplayArea (issue 736)
+  * Several new decorative and fancy fonts from pentacom.jp (issue 801)
+2019-06-30	v2.26.14  olikraus@gmail.com
+  * Support for Pimoroni 128x128 OLED SH1107 (issue 803)
+  * Support for Grove 128x128 OLED SH1107 (issue 877)
+  * Support for Winstar 256x128 ST75256 (ST75256_WO256X128, issue 891)
+  * Bugfix: Open Iconic 1x for U8x8 (issue 828)
+  * Added sendF command for direct communication with the display (issues 822, 878, 896)
+  * Support for CG160160 UC1611 (issue 884)
+  * Support for LM6063 128x64 ST7565  (issue 893)
+  * Added fonts from pentacom (issue 810)
+  * Support for ST7511 (issue 876)
+  * Support for SSD1316 132x32 (issue 919)
+  * Support for ST75320 (issue 921)
+  * Added JLX256160M for mirrored version of the JLX256160 display (issue 930)
+  * Unifont update to 12.1.02, added several plane 1 fonts (issue 931)
+  * bdfconv.exe: Windows exe created, bugfix with -d option (issue 833)
+2020-01-27	v2.27.6	olikraus@gmail.com
+  * Support for IST7920 (issue 999). Note: IST7920 has nothing todo with ST7920
+  * Added screenshot/screencapture for full buffer mode (issue 1005)
+      See: https://github.com/olikraus/u8g2/wiki/u8g2reference#writebufferpbm
+  * Bugfix for draw 1x2 and 2x2 procedures for big 8x8 fonts (issue 1054)
+  * Added fast software SPI support for Arduino Nano Every (issue 987)
+  * Added "LoadFromSD" example to demonstrate reading XBM binary from SD card (issue #1059)
+  * Added png to XBM binary conversion tool (https://github.com/olikraus/u8g2/tree/master/tools/png2bin)
+  * Support for SSD1306 72x40 (issue 1047)
+  * Bugfix for print() and setFontDirection() (issue 963)
+  * Support for Visionox SSD1327 128x96 OLED (issue 1090)
+  * Support for Open-Smart ST7567 128x64 LCD (issue 1088)
+  * Added Lucida X11 fonts (issue 271)
+  * Added several fonts from dafont.com (issue 1093)
+  * Added 3-wire HW SPI (issue 1041)
+2020-12-28	v2.28.10	olikraus@gmail.com
+  * Added Euro Symbol to _te fonts (issue 1321) 
+  * Added support for ST7528 (issue 986) 
+  * Added support for ST7571 (issue 1298) 
+  * Added support for ST7586 YMC240160 (issue 1183)
+  * Added support for UC1617 JLX128128 (issue 1151)
+  * Added support for SH1106 Visionox 128X32 (issue 1250)
+  * Added support for Raystar SSD1305 (issue 1111)
+  * Added support for KS0713 controller (issue 1314)
+  * Added support for ST7567_HEM6432 (issue 1159)
+  * U8g2 16 Bit Mode enabled by default for ARM and ESP Systems (issue 1222)
+2021-09-03	v2.29.11	olikraus@gmail.com
+  * Update for getStrWidth/getUTF8Width: The new return value might be little bit larger (issue 1561)
+  * New draw procedure drawButtonUTF8 (issue 1577)
+  * Added vertical mirror option U8G2_MIRROR_VERTICAL for u8g2 (mattnutsch@gmail.com, issue 1474).
+  * Added support for UC1638 based 196x96 display (issue 371)
+  * Added support for HD44102 and T7932 displays (issue 1492)
+  * Added support for SSD1320 (issue 1351)
+  * Added support for S1D15721 (issue 1473)
+  * Added support for SSD1306 EA OLEDS102 (issue 1493)
+  * Added support for UC1601 128x64 (issue 1501)
+  * Font Wiki page splitted into four sub-pages to avoid the GitHub 'abuse' message.
+2021-09-07	v2.30.1	olikraus@gmail.com
+  * Bugfix drawButtonUTF8 (added C++ code, issue 1577)
+2021-09-19	v2.31.1	olikraus@gmail.com
+  * Added icons from https://app.streamlinehq.com/icons/pixel (issue 1589)
+2021-09-20	v2.31.2	olikraus@gmail.com
+  * Bugfix release for include error (issues 1592 and 1594)
+2022-04-03      v2.32.15  olikraus@gmail.com
+  * SH1107 128x80 (issue 1598)
+  * ST7920 256x32 (issue 1593)
+  * ST7567 122x32 (issue 1759)
+  * ST7571 128X96 (issue 1575)
+  * SSD1312 (issue 1806)
+  * ST7571 128x128 (bugfix issue 1576)
+  * Added support for UC1609 (issue 1565)
+  * Added support for GU800 series of Vacuum Fluorescent Displays (VFD, issue 1604)
+  * Changed SPI Mode for Sharp displays (ls013..., issue 1771)
+  * Added many more fonts (issues 1794, 1775, 1706, 1769)
+  * Fixed several bugs and compiler errors
+2022-09-04      v2.33.15 olikraus@gmail.com
+  * ST7567 ERC13232 (issue 1869)
+  * Bugfix for ST7567: (re-)added I2C and 3-wire-SPI (issue 1939)
+  * ST7920 160x32 (issue 1873)
+  * ST7586 JLX384160 (issue 1932)
+  * LC7981 128X128, NOT TESTED (issue 1913)
+  * SSD1316 96x32 (issue 1938, not tested, moved to 2.34.x)
+  * GP1287AI 256X50, GP1247AI 253X63 contributed (issue 1907)
+  * Added support for IST3088 (issue 1887) 
+  * Double size font functions: drawGlyphX2, drawStrX2, drawUTF8X2 (issue 1919)
+  * Experimental support for ST75160, TESTING REQUIRED (issue 1642)
+  * Bugfix font compression: Reduced fontsize by up to 4% (issue 1941)
+  * Changed SPI mode for SH1106 from 3 to 0 (issue 1901)
+2023-06-18      v2.34.22 olikraus@gmail.com
+  * SSD1327 ZJY M150 128x128 (issue 1960)
+  * SSD1316 96x32 (issue 1938)
+  * SSD1322 240x128 (issue 2092)
+  * SH1108 128x160 (issue 1998)
+  * SSD1306 96x39 (issue 1959)
+  * S1D15300 128x64, flip mode 1 not supported, (issue 2063)
+  * SSD1362 256x64 (issue 1322, issue 2051)
+  * ST75256 JLX160x80 (NOT TESTED, issue 2058)
+  * UC1638 240x128 (issue 2075)
+  * SED1330 320x200 (issue 1086)
+  * Bugfix: Clear font_height_mode during setup to ensure correct default values in 
+     cases where the u8g2 struct / class is created via dynamic memory allocation (issue 2046)
+  * Bugfix: Fix line draw procedure in 16 bit mode (issue 2053)
+  * Added Spleen Monospaced Font from https://github.com/fcambus/spleen (issue 2015)
+  * Extended the "E" font range with subscript characters if available in the original font (issue 2079)
+  * Bugfix for ESP32 HW SPI Pin Remapping (issue 377, PR 2123)
+  * Bugfix for LoadFromSD example (issue 2179)
+  * Changed MUI_LABEL to support UTF8 (issue 2196)
+  * Compiler Warning Cleanup for polygon draw (issue 1999, PR 2101)
+  * Added MUI fixed width bar graph (issue 2200)
+  * Added 04b fonts from u8glib (issue 2157)
+  * Added "font_tiny5" (issue 2185)
+  * Added MUI (https://github.com/olikraus/u8g2/wiki/muimanual) examples (issue 1747)
+2024-09-18      v2.35.30 olikraus@gmail.com
+  * ST7586S JLX320160, MD240128 (no flipmode, no u8x8, issues 2186, 2363)
+  * ST75161 JLX160160 (issue 2481)
+  * GP1294AI 256X48 (issue 2213, PR 2222)
+  * UC1628 256x128 (tested), 256x32 (tested), 128x64 (not tested) (issue 2260):
+  * ST7567 96x65 (issue 2332)
+  * ST7539 192x64 (issues 2146 & 2081)
+  * SSD1363 256x128 (issue 2490)
+  * SSD1322 ZJY 256x64 (issue 2386)
+  * UC1604 JLX128x64 (issue 2497)
+  * LS011B7DH03 160x68 (issue 2210)
+  * ST7302 122x250 (no flipmode, no u8x8, issue 2436)
+  * U8x8 example for 90 degree string rotation (issue 2271)
+  * Bugfix for drawUTF8X2 with negative x values (issue 2228)
+  * Examples for I2C adapter board for parallel gfx displays (issue 2191)
+  * New function drawArc (issue 2243, see also https://motla.github.io/arc-algorithm/)
+  * Added "-y" option to otf2bdf. "-y" can be used to fix issues with some fonts (issue 2406) 
+  * Fixed a bug with '\n' in u8log (issue 2319) 
+  * getXOffset for font glyphs (issue 2398)
+  * Improved performance for drawXBM/drawXBMP (issue 2477)
+  * Unifont upgrade from 12.1.02 to 15.1.05 (issue 2502)
+  * Added unifont_jp (issue 2502)
+  * Added BoutiqueBitmap fonts (issue 2265)
+  * MUI: More features and examples
+2025-xx-xx      v2.36.xx        olikraus@gmail.com
+  * SED1330 240x64 (issue 2518)
+  * SSD1309 128x128 (issue 2546)
+  * ST7571 128x96 (issue 2575)
+  * SSD1320 128x72 (issue 2565)
+  * Gulim Korean Font (issue 2653)
+  * drawHB function (issue 2656)
+  * ST7305 200x200 and 168x384 (issue 2661)
+  * Added Celsius and Fahrenheit 8451/$2103, 8457$2109 to "e" fonts (issue 2701)
+  * Update t0 font, added symbols and font size 30/40 (issue 2447)
+  * ST7511 640x320 (issue 2737)
+  * UC1698 160x160 (issue 2164)
+  

@@ -203,11 +203,11 @@ static void __example_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E ev
     switch (event) {
     case TDL_BUTTON_PRESS_SINGLE_CLICK: {
         if (false == sg_is_display_camera) {
-            disp_disable_update();
+            disp_disable_update(NULL);
             sg_is_display_camera = true;
         } else {
             sg_is_display_camera = false;
-            disp_enable_update();
+            disp_enable_update(NULL);
         }
     } break;
     default: {

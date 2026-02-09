@@ -1,0 +1,333 @@
+Sections
+- Wiring... Interconnect, pin/label names
+- Displays... Display support, display problems
+- U8g2... Setup, compilation, usage, fonts
+
+
+Wiring
+
+Q: Why does my xxx_SW_I2C() device not work with my other I2C devices?
+A: SW_I2C emulates I2C with digitalWrite(), which will have a conflict with other
+I2C devices at the same pins. There are two options: (A) use xxx_HW_I2C() or 
+(B) use different pins with xxx_SW_I2C()
+
+Q: My display has a pin labled as "A0" (or "RS"). How to connect this pin?
+A: There are different names for the "data/command" pin. In U8g2 only the name
+"dc" is used. On the display side it might be also called "A0", "RS", "CD".
+See also the next question.
+
+Q: My display has pins labled as "D0" and "D1". What is the interface and how 
+to connect these pins?
+A: This is probably a SSD1306 OLED. The meaning of the D0 and D1 pin depends
+on the configuration of the SSD1306. D0 is the clock line and D1 is the data line.
+
+Q: For HW SPI no pin numbers are required in the constructor. But which are
+the pin numbers for wiring?
+A: This depends on your board. For some official boards, this is listed here:
+https://www.arduino.cc/en/Reference/SPI
+You need to connect MOSI (data) and SCK (clock) pins of your board with the
+corresponding pins with your display.
+All U8g2 software emulated SPI constructors look like this:
+U8G2_..._4W_SW_SPI u8g2(U8G2_R0, clock, data, cs, dc, reset);
+All U8g2 hardware SPI constructors look like this:
+U8G2_..._4W_SW_SPI u8g2(U8G2_R0, cs, dc, reset);
+
+Q: How to use HSPI for HW SPI on ESP32?
+A: Assign  "SPI = SPIClass(HSPI);" before calling u8g2.begin() (see issue #1061)
+
+Q: For HW I2C no pin numbers are required in the constructor. But which are
+the pin numbers for wiring?
+A: See same question for SPI. For some boards, the pins are listed here:
+https://www.arduino.cc/en/Reference/Wire
+All U8g2 software emulated I2C constructors look like this:
+U8G2_..._SW_I2C u8g2(U8G2_R0, clock, data, reset);
+All U8g2 hardware I2C constructors look like this:
+U8G2_..._HW_I2C u8g2(U8G2_R0, reset);
+Note: The HW_I2C allows to more arguments for hardware pin number remapping.
+However, this is only supported on the ESP8266.
+
+Q: The pin names on my display do not fit to the pin names of U8g2.
+A: Yes, each datasheet/product/controller has different names. There 
+is a mapping table on the wiki for this:
+https://github.com/olikraus/u8g2/wiki/u8g2setupcpp#wiring
+
+Q: What is wrong with connecting Reset (RES) of my display with the  Reset of my 
+Arduino Board?
+A:
+- Both are inputs. It does not make sense to connect two inputs
+- Both pins have completly different functions: The reset of your board will reset
+the Arduino board, the reset of the display will reset the display. 
+Please connect the reset input of the display with a normal GPIO pin of your board.
+
+Q: Shell I connect CS (chip select) with the SS output of the Arduino board?
+A: In general this is required neither for hardware or software SPI.
+
+Q: My board has a MOSI and a SCK output. Do i need to connect this to the
+clock and data pins of my display?
+A: "Yes" if you want to use hardware SPI (u8g2 constructors ending in _HW_SPI).
+You can use any pins with the software emulated SPI of u8g2 (constructors ending
+in _SW_SPI). Howver in general it is better to use hardware SPI to get a better
+performance of your display.
+
+Q: How to wire ST7920 display in 8080 mode?
+A:
+- See also https://github.com/olikraus/u8g2/wiki/gallery#26-nov-2016-st7920-128x64-lcd-in-8080-parallel-mode
+- Connect the RW (SID) input of your ST7920 display to ground.
+- In the u8g2 constructor, use U8X8_PIN_NONE for "cs" signal
+- The "dc" pin is called "RS" in the ST7920 documentation.
+- See also issue #90: https://github.com/olikraus/u8g2/issues/90
+
+Displays
+
+Q: There is an x-offset on my SSD1306 128x64 OLED. 
+A: This is not a SSD1306 OLED, instead use the SH1106 constructor.
+
+Q: A T6963 misses columns on the display/has garbled output.
+A: Ensure that the T6963 operates in 8x8 mode: 
+If the display module has two font select (FSx) pins, connect both to GND
+If the display module has one font select (FS) pin, connect it to GND
+
+Q: My T6963 has a RD input. How shell this be connected?
+A: The RD input for any 8080 interface has to be connected to power supply (5V or 3.3V, 
+depending on the display)
+
+Q: My T6963 was working with u8glib, but it does not work with U8g2
+A: The sequence of argument has changed from cs, a0, wr to wr, cs, a0:
+U8GLIB_T6963_240X128 u8g(d0, d1, d2, d3, d4, d5, d6, d7, cs, dc, wr, rd, reset); 
+U8G2_T6963_240X128_1_8080 u8g2(U8G2_R0, d0, d1, d2, d3, d4, d5, d6, d7, wr, cs, dc, reset); 
+
+
+Q: My controller/interface combination is not listed in the examples.
+A: Yes, the complete list is here:
+https://github.com/olikraus/u8g2/wiki/u8g2setupcpp
+
+Q: My display controller is listed, but the display dimension is not supported.
+A: Raise an issue in the u8g2 tracker "https://github.com/olikraus/u8g2/issues"
+
+Q: My controller is not listed, What can I do?
+A: First check whether this controller is compatible to one of the supported 
+controller:
+Supported: ST7565, Compatible: NT7534, UC1701, SED1565, S1D15605, S6B0723, SPLC502
+Supported: SED1330, Compatible:  SED1335, RA8835, S1D3305 
+Supported: LC7981, Compatible:  NT7086, (maybe also: HD61830)
+This table just reflects my current knowledge. It is not tested and may not be true at all.
+Raise an issue in the u8g2 issue tracker, If your controller for a monochrome display is not listed.
+A more detailed discussion of some controllers is listed in "controller_cmds.txt"
+
+
+U8g2
+
+Q: How to install u8g2 for Arduino?
+A: The latest stable version of U8g2 is available as Arduino Library in the 
+"Manage Libraries..." browser. See also here: https://github.com/olikraus/u8g2/wiki/u8g2install
+The latest development version is available for download here:
+https://github.com/olikraus/U8g2_Arduino/archive/master.zip
+In the Arduino IDE use the Sketch>Include Library>Add .ZIP Library... menu to 
+import the u8g2 zip library.
+
+Q: There is a compilation error with I2C/SPI library used by U8g2.
+A: U8g2 expects standard Arduino Wire and SPI libraries. However some
+none-Arduino Boards did not implement the full set of library functions.
+Examples are the missing setClock() or missing beginTransaction() functions.
+This is an issue with your board support library and not an issue of U8g2.
+Workaround:
+1. Disable (comment) U8X8_HAVE_HW_SPI and/or U8X8_HAVE_HW_I2C in u8x8.h
+2. Use SW SPI/SW I2C U8g2 constructors
+
+Q: What is the meaning of the F/1/2 in the U8g2 constructor name?
+A: "F" means full buffer mode. The entire display is rendered in RAM. Use
+"sendBuffer" to transfer this RAM buffer to the display. "1"  and "2" constructors
+will store one or two pages of the display in RAM only.
+Use the firstPage/nextPage loop to create the image for the display. 
+There are also two different sets of examples for both modes.
+Conclusion: 
+"F" mode: Faster, but requires more RAM
+"1"/"2" modes: Use lesser RAM, but slower drawing speed.
+
+Q: Data is written only to the first 8 lines of the display. Why?
+A: U8g2 page mode constructor ("1" mode, see previous question) is used
+along with the "sendBuffer" command. This is a mistake and will not work.
+Solutions 1: Change the constructor to full buffer mode: Replace "_1_" by "_F_"
+Or solution 2: Replace "sendBuffer" with the firstPage/nextPage loop
+See also: https://github.com/olikraus/u8g2/wiki/u8g2setupcpp#constructor-name
+
+Q: What is the meaning of "SW"/"HW" in the U8g2 constructor name?
+A: "SW" means, that the protocol is emulated by software. For example 
+the SW_I2C will not use the I2C subsystem of your board. The "HW" constructor
+will use the hardware subsystem on your uC. For an Arduino board, HW_I2C will
+call the Wire library for hardware accelerated I2C communication. "HW"
+constructors are much faster, but maybe debugging and setup is more 
+easier with a "SW" constructor.
+
+Q: Why does the hardware I2C accept clock and data pins?
+The hardware I2C constructor looks like this:
+U8G2_<display>_HW_I2C(rotation, [reset [, clock, data]])
+This means there are three options to use this constructor:
+1. U8G2_<display>_HW_I2C(rotation)
+2. U8G2_<display>_HW_I2C(rotation, reset)
+3. U8G2_<display>_HW_I2C(rotation, reset, clock, data)
+Hardware I2C usually is possible only with fixed pins. This means, the first or 
+second form of the constructor must be used. As of today only the ESP8266 
+support pin remapping. In such a case, also the third form can be used.
+
+Q: How to activate 16 Bit mode?
+A: Search for the line
+//#define U8G2_16BIT
+in "u8g2.h". Uncomment this line:
+#define U8G2_16BIT
+The file "u8g2.h" is located in "/libraries/U8g2_Arduino/src/clib" inside your default
+sketch folder.
+
+Q: What will change in 16 Bit mode?
+A: U8x8 is unaffected: U8x8 will use a "tile" coordinate system (1 tile = 8x8 pixel). 
+As a result u8x8 can work with display dimensions of up to 2040x2040
+In U8g2 8 bit mode all pixel related calculations are done in 8 bit, which is faster 
+and produces smaller code on 8 bit architectures like ATMega AVR. 
+This will however restrict the display size to 255x255 (which is actually clipped at 240x240)
+In U8g2 16 bit mode the pixel related calculations are done in 16 bit. For 32 bit systems like ARM, 
+there will be not much a difference between 16 bit mode and 8 bit mode, this is also why 
+16 bit mode is now default on ARMs. The maximum display dimension is then 65000x65000, 
+however, because u8g2 just calls u8x8, the actual limit in 16 bit mode is 2040x2040 pixel.
+ 
+
+Q: U8g2 requires a lot of memory. How to reduce this?
+- Visit https://github.com/olikraus/u8g2/wiki/u8g2optimization
+- Disable U8g2 features if possible (see u8g2.h)
+- Limit the font size. If possible avoid "f" fonts, instead use "r" or "n" fonts
+- If the I2C interface is not required, then uncomment #define U8X8_HAVE_HW_I2C in U8x8lib.h
+  (Background: Due to a problem in Wire.h, the I2C Arduino lib is always included)
+
+Q: There is no visible output output. What is can be done?
+- Check the wiring, see first part of this FAQ.
+- Check the constructor. Does it fit to your display?
+- Do not output a text at (0,0): The reference point for text is lower left, so 
+  u8g2_DrawStr(&u8g2, 0, 0, “Hello world!”); will not display anything. Instead use
+  u8g2_DrawStr(&u8g2, 0, 20, “Hello world!”);
+
+Q: Only a small fraction of the display is visible. Why?
+A: With a "_1_" constructor, ensure to use the firstPage/nextPage loop.
+
+Q: U8g2 output is corrupted. What are possible causes?
+- Do not change the output inside the firstPage/nextPage loop: 
+Do *not* call digitalRead/analogRead inside the firstPage/nextPage loop.
+Read any sensor values into a variable *before* firstPage() and use the 
+variable value inside the loop.
+If the output includes unicode chars, use the UTF8 procedures.
+
+Q: U8g2 is slow. How to improve speed?
+A1: If there is sufficient RAM, use the F variant of the constructor (see the question
+on F/1/2 above).
+A2: Use hardware SPI or I2C communication. Software emulated SPI or I2C is much
+slower (see the question on SW and HW SPI/I2C above)
+A3: "firstPage/nextPage loop": Remove as much of code out of this loop. Try to
+precalculate as much of possible before the loop is entered.
+A4: "firstPage/nextPage loop": If the loop is still too slow, try to unroll the loop.
+See the StateBufferLoop example:
+https://github.com/olikraus/u8g2/blob/master/sys/arduino/u8g2_page_buffer/StateBufferLoop/StateBufferLoop.ino
+A5: For SW I2C and AVR architectures: Uncomment 
+#define U8X8_USE_ARDUINO_AVR_SW_I2C_OPTIMIZATION 
+in U8x8lib.h. This will increase speed a lot for I2C on all AVR uC. However the I2C
+bus is always driven by this implementation. Other I2C devices will not work on
+the same pins.
+A6: For HW I2C the default speed for some controllers is set 100KHz. However these
+controller often work with higher speed (200KHz or 400KHz). Suggestion is
+to test whether "u8g2.setBusClock(400000);" still works.
+
+Q: Umlaut chars or other chars with a unicode value greater than 127 do not 
+appear on the displays. What is wrong?
+A; Check the following:
+Did you use drawUTF8() instead of drawStr()?
+Did you enable UTF8 when using print() with enableUTF8Print()?
+Does the font include the expected char? Fonts with a 'n' (numbers), 
+'u' (uppercase) or 'r' (restricted) at the end of the fontname do only 
+include glyphs with unicode lower than 128.
+
+Q: How can I read a bitmap from SD card?
+A: There is an example, which includes a function "drawFile" which reads a bitmap
+from SD Card and writes the same to a u8g2 display:
+Example: 
+https://github.com/olikraus/u8g2/blob/master/sys/arduino/u8g2_page_buffer/LoadFromSD/LoadFromSD.ino
+The example also includes a function which writes to the SD card, but there is also
+a commandline tool which converts PNG to the format which is accepted by "drawFile":
+https://github.com/olikraus/u8g2/tree/master/tools/png2bin
+
+
+Q: How can I generate my own font?
+A: The font must be available in .bdf file format. Then use bdfconv to generate
+the font data. The font data can be pasted into an existing file of your project.
+There is also a nice Windows Bitmap Font Editor "Fony" (http://hukka.ncn.fi/?fony) 
+which can export .bdf files. A copy of Fony 1.4.7 is available here: 
+https://github.com/olikraus/u8g2/tree/master/tools/font/fony
+
+Q: Where do I find bdfconv?
+A: A Windows executable is available here:
+https://github.com/olikraus/u8g2/tree/master/tools/font/bdfconv
+Use the Makefile in this directory to create a Linux binary.
+
+Q: How to convert .ttf to .bdf?
+A1: With otf2bdf: http://sofia.nmsu.edu/~mleisher/Software/otf2bdf/
+A2: With FontForge: https://learn.adafruit.com/custom-fonts-for-pyportal-circuitpython-display/conversion
+
+Q: Which commandline options are required for bdfconv?
+A: "bdfconv -f 1 -m '32-255' -n fontname -o myfont.c myfont.bdf"
+"-f 1" generates a u8g2 font.
+"-m '32-255'" selects unicode 32 to 255. On Windows, please use double quotes: -m "32-255"
+"-n fontname": This is the name of the font in C/C++/Ino files.
+"-o myfont.c": The font array will be stored in this file.
+"myfont.bdf": The input file with the font data (bdf format).
+
+Q: Is there any further help for the commandline options of bdfconv.exe?
+A: There is an online tool which helps you to derive the commandline options:
+https://stncrn.github.io/u8g2-unifont-helper/
+Many thanks to "stncrn" for making this available.
+
+Q: Are there any video-tutorials for bdfconv?
+A1: This is what I found on youtube: https://www.youtube.com/watch?v=Igkb7ZmO31A
+The above video uses the -M option (instead of -m) to provide a map file with the unicodes.
+A2: There is a video about fony and how to convert fonts from different sources (ttf, png) with bdfconv.exe:
+https://www.youtube.com/watch?v=WIAcy5FXuAA
+
+Q: Is there any simple way to create a font with some custom chars?
+A: This online tool might be useful: http://www.kidsgo.net/u8g2/
+
+Q: How can I use multiple SPI Displays?
+A: For each additional display, separate CS (Chip select) is required.
+There are two options for the RST (Reset) line: 
+Also use separate lines or use the same GPIO pin.
+
+// Setup display1 and display2, both reset lines are connected to 4, execute display1.begin() first.
+U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI display1(U8G2_R0, /*CLK*/ 18, /*MOSI*/ 23, /*CS*/ 16,/*DC*/ 17, /*RST*/ 4);
+U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI display2(U8G2_R0, /*CLK*/ 18, /*MOSI*/ 23, /*CS*/ 15,/*DC*/ 17, /*RST*/ U8X8_PIN_NONE);
+
+// Setup display1 and display2, separate reset lines
+U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI display1(U8G2_R0, /*CLK*/ 18, /*MOSI*/ 23, /*CS*/ 16,/*DC*/ 17, /*RST*/ 4);
+U8G2_SSD1306_128X64_NONAME_F_4W_SW_SPI display2(U8G2_R0, /*CLK*/ 18, /*MOSI*/ 23, /*CS*/ 15,/*DC*/ 17, /*RST*/ 5);
+
+Ensure that the buffer is sent after printing with each display as follows.
+
+    display1.begin();
+    display2.begin();
+    ...
+    display1.setCursor(64, 32);
+    display1.print("DISPLAY 1");
+    display1.sendBuffer();
+    
+    display2.setCursor(64, 32);
+    display2.print("DISPLAY 2");
+    display2.sendBuffer();
+                                                
+Q: How can I send individual/special commands to my display.
+A: The sequence is: Start transfer, send data and args, close transfer. Note that
+this is not portable, because these commands are specific to the display controller.
+The following C++/Arduino code will send one command with one argument to the
+display:
+  u8x8_cad_StartTransfer(u8g2.getU8x8());
+  u8x8_cad_SendCmd( u8g2.getU8x8(), <display command>);
+  u8x8_cad_SendArg( u8g2.getU8x8(), <display-command-arg>);  
+  u8x8_cad_EndTransfer(u8g2.getU8x8());
+
+
+Q: RAM Overflow error when linking with u8g2
+A: With gcc use compiler flags -ffunction-sections -fdata-sections and 
+linker flag -Wl,--gc-sections.
+
