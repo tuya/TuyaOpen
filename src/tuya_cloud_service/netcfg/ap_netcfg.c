@@ -24,6 +24,7 @@
 #include "tal_wifi.h"
 #include "tal_network.h"
 #include "tuya_iot.h"
+#include "tuya_lan.h"
 #include "tuya_register_center.h"
 
 #define AP_BROADCAST_PORT       6667
@@ -860,6 +861,8 @@ static int ap_netcfg_start(int type, netcfg_finish_cb_t cb, void *args)
         PR_ERR("ap mgr or netcfg_finish_cb NULL");
         return OPRT_MALLOC_FAILED;
     }
+
+    tuya_lan_disable();
 
     op_ret = ap_mode_start(ap);
     if (OPRT_OK != op_ret) {

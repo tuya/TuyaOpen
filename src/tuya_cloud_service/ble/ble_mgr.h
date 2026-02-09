@@ -62,6 +62,15 @@ typedef void (*ble_session_fn_t)(ble_packet_t *packet, void *priv_data);
 int tuya_ble_init(tuya_ble_cfg_t *cfg);
 
 /**
+ * @brief Deinitializes the Tuya BLE module.
+ *
+ * This function deinitializes the Tuya BLE module and releases resources.
+ *
+ * @return 0 if successful, otherwise an error code.
+ */
+int tuya_ble_deinit(void);
+
+/**
  * @brief Checks if the device is connected to the Tuya BLE service.
  *
  * @return true if the device is connected, false otherwise.
