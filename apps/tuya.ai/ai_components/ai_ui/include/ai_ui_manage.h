@@ -70,8 +70,11 @@ typedef struct {
     OPERATE_RET (*disp_camera_flush)(uint8_t *data, uint16_t width, uint16_t height);
     OPERATE_RET (*disp_camera_end)(void);
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
     OPERATE_RET (*disp_picture)(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
                                 uint8_t *data, uint32_t len);
+#endif
+
 }AI_UI_INTFS_T;
 
 /***********************************************************
@@ -128,6 +131,8 @@ OPERATE_RET ai_ui_camera_flush(uint8_t *data, uint16_t width, uint16_t height);
  */
 OPERATE_RET ai_ui_camera_end(void);
 
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
 /**
  * @brief Display picture on UI.
  *
@@ -140,6 +145,7 @@ OPERATE_RET ai_ui_camera_end(void);
  */
 OPERATE_RET ai_ui_disp_picture(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t height,\
                                 uint8_t *data, uint32_t len);
+#endif
 
 #ifdef __cplusplus
 }

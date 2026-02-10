@@ -301,6 +301,8 @@ OPERATE_RET ai_ui_camera_end(void)
     return OPRT_NOT_SUPPORTED;
 }
 
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
 /**
  * @brief Display picture on UI.
  *
@@ -320,6 +322,7 @@ OPERATE_RET ai_ui_disp_picture(TUYA_FRAME_FMT_E fmt, uint16_t width, uint16_t he
 
     return OPRT_NOT_SUPPORTED;
 }
+#endif
 
 /**
  * @brief Register UI interface callbacks.
