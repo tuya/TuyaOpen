@@ -112,6 +112,13 @@ int tuya_get_sock_loop_terminate();
 void tuya_dump_lan_sock_reader();
 
 /**
+ * @brief check sock loop init
+ *
+ * @return TRUE if sock loop inited, otherwise FALSE
+ */
+BOOL_T tuya_sock_loop_is_inited(void);
+
+/**
  * @brief sock loop init
  *
  * @return OPRT_OK on success. Others on error, please refer to

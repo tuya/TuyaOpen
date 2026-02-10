@@ -7,12 +7,12 @@ platforms:
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
   branch: master
-  commit: 065639a0a76c5f7c564509b8fd8b64f7949da4f5
+  commit: a8425530dcf866a24f4a992056bc9993a2742c10
 
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: e3a221a223e1c4d0a488fc0354fb7722b1a5c4b3
+  commit: 0fb3ab4c531f03e383fcc3b2d20c775ba1817381
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI

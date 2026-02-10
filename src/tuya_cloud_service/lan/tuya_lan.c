@@ -1392,6 +1392,65 @@ int tuya_lan_exit(void)
 }
 
 /**
+ * @brief Disable LAN service and release sockets
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_lan_disable(void)
+{
+    if (s_lan_mgr == NULL) {
+        return OPRT_OK;
+    }
+
+    lan_session_close_all();
+
+    if (s_lan_mgr->tcp_serv_fd >= 0) {
+        tuya_unreg_lan_sock(s_lan_mgr->tcp_serv_fd);
+        s_lan_mgr->tcp_serv_fd = -1;
+    }
+
+    if (s_lan_mgr->udp_serv_fd >= 0) {
+        tuya_unreg_lan_sock(s_lan_mgr->udp_serv_fd);
+        s_lan_mgr->udp_serv_fd = -1;
+    }
+
+    if (s_lan_mgr->udp_client_fd >= 0) {
+        tal_net_close(s_lan_mgr->udp_client_fd);
+        s_lan_mgr->udp_client_fd = -1;
+    }
+
+    tuya_sock_loop_disable();
+    uint32_t wait_ms = 0;
+    while (tuya_sock_loop_is_inited() && wait_ms < 3000) {
+        tal_system_sleep(50);
+        wait_ms += 50;
+    }
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Enable LAN service
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_lan_enable(void)
+{
+    if (s_lan_mgr != NULL) {
+        return OPRT_OK;
+    }
+
+    tuya_iot_client_t *client = tuya_iot_client_get();
+    if (client == NULL || client->is_activated == false) {
+        return OPRT_COM_ERROR;
+    }
+
+    return tuya_lan_init(client);
+}
+
+/**
  * @brief distribute data to all connections
  *
  * @param[in] fr_type refer to LAN_PRO_HEAD_APP_S

@@ -422,6 +422,11 @@ BOOL_T tuya_get_sock_loop_terminate(void)
     return g_sloop->terminate;
 }
 
+BOOL_T tuya_sock_loop_is_inited(void)
+{
+    return (g_sloop != NULL);
+}
+
 /**
  * @brief Function to dump the LAN socket reader.
  *
