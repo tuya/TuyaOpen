@@ -455,11 +455,6 @@ int tuya_mqtt_start(tuya_mqtt_context_t *context)
         return OPRT_INVALID_PARM;
     }
 
-    PR_INFO("clientid:%s", context->signature.clientid);
-    PR_INFO("username:%s", context->signature.username);
-    PR_DEBUG("password:%s", context->signature.password);
-    PR_INFO("topic_in:%s", context->signature.topic_in);
-    PR_INFO("topic_out:%s", context->signature.topic_out);
     PR_INFO("tuya_mqtt_start...");
     context->manual_disconnect = false;
 

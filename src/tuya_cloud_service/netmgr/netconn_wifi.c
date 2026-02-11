@@ -249,8 +249,7 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd,
            info->p_len > WIFI_PASSWD_LEN ? WIFI_PASSWD_LEN : info->p_len);
     __netconn_wifi_info_set(&netmgr_wifi->conn.wifi_conn_info);
-    PR_DEBUG("netcfg finished,  ssid %s, passwd %s, token %s", netmgr_wifi->conn.wifi_conn_info.ssid,
-             netmgr_wifi->conn.wifi_conn_info.pswd, info->token);
+
     // stop all netcfg
     netcfg_stop(NETCFG_STOP_ALL_CFG_MODULE);
 

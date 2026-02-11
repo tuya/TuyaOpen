@@ -236,7 +236,6 @@ static int ap_cfg_cmd_patse(ap_netcfg_t *ap, char *data)
     cJSON *passwd_item = cJSON_GetObjectItem(root, "passwd");
     if (cJSON_IsString(passwd_item) && passwd_item->valuestring && passwd_item->valuestring[0]) {
         passwd = passwd_item->valuestring;
-        PR_DEBUG("Parse passwd:%s", passwd);
     }
 
     memset(&ap->netcfg_info, 0, sizeof(ap->netcfg_info));
@@ -354,8 +353,7 @@ static int ap_tls_psk_set(ap_netcfg_t *ap)
             PR_ERR("psk cacl error");
             return OPRT_COM_ERROR;
         }
-        PR_DEBUG("ap->netcfg_args.pincode %s", ap->netcfg_args.pincode);
-        PR_HEXDUMP_NOTICE("psk", ap->tls_psk, AP_TLS_PSK_LEN);
+
         tuya_tls_config_set(ap->tls_hander, &(tuya_tls_config_t){.mode = TUYA_TLS_PSK_MODE,
                                                                  .psk_key = (char *)ap->tls_psk,
                                                                  .psk_key_size = AP_TLS_PSK_LEN,
