@@ -657,7 +657,7 @@ OPERATE_RET __ai_parse_file_attr(char *de_buf, uint32_t attr_len, AI_FILE_ATTR_T
             AI_PROTO_D("parase file params attr value:%s", attr.value.str);
             uint32_t file_type = 0, file_format = 0;
             uint8_t file_name[256] = {0};
-            char parased = sscanf(attr.value.str, "%d %d %s", &file_type, &file_format, file_name);
+            char parased = sscanf(attr.value.str, "%d %d %255s", &file_type, &file_format, file_name);
             if (OPRT_COM_ERROR == parased) {
                 PR_ERR("parase image params attr value failed, rt:%d ", parased);
                 return parased;

@@ -1031,16 +1031,20 @@ OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_
     *offset += SIZEOF(length);
 
     if (payload_type == ATTR_PT_U8) {
-        memcpy(&(value.u8), de_buf + *offset, attr->length);
+        uint32_t copy_len = attr->length <= SIZEOF(value.u8) ? attr->length : (uint32_t)SIZEOF(value.u8);
+        memcpy(&(value.u8), de_buf + *offset, copy_len);
         attr->value.u8 = value.u8;
     } else if (payload_type == ATTR_PT_U16) {
-        memcpy(&(value.u16), de_buf + *offset, attr->length);
+        uint32_t copy_len = attr->length <= SIZEOF(value.u16) ? attr->length : (uint32_t)SIZEOF(value.u16);
+        memcpy(&(value.u16), de_buf + *offset, copy_len);
         attr->value.u16 = UNI_NTOHS(value.u16);
     } else if (payload_type == ATTR_PT_U32) {
-        memcpy(&(value.u32), de_buf + *offset, attr->length);
+        uint32_t copy_len = attr->length <= SIZEOF(value.u32) ? attr->length : (uint32_t)SIZEOF(value.u32);
+        memcpy(&(value.u32), de_buf + *offset, copy_len);
         attr->value.u32 = UNI_NTOHL(value.u32);
     } else if (payload_type == ATTR_PT_U64) {
-        memcpy(&(value.u64), de_buf + *offset, attr->length);
+        uint32_t copy_len = attr->length <= SIZEOF(value.u64) ? attr->length : (uint32_t)SIZEOF(value.u64);
+        memcpy(&(value.u64), de_buf + *offset, copy_len);
         attr->value.u64 = value.u64;
         UNI_NTOHLL(attr->value.u64);
     } else if (payload_type == ATTR_PT_BYTES) {
@@ -1052,6 +1056,10 @@ OPERATE_RET tuya_ai_get_attr_value(char *de_buf, uint32_t *offset, AI_ATTRIBUTE_
         return OPRT_COM_ERROR;
     }
 
+    if (*offset + attr->length < *offset) {
+        PR_ERR("attr offset overflow");
+        return OPRT_COM_ERROR;
+    }
     *offset += attr->length;
     if (!__ai_check_attr_vaild(attr)) {
         PR_ERR("attr invaild, type:%d, payload_type:%d, length:%d", attr->type, attr->payload_type, attr->length);
