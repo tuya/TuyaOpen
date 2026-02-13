@@ -17,6 +17,50 @@ config ENABLE_PWM
 
 在运行本示例工程前要确认基础的 [环境搭建](https://www.tuyaopen.ai/zh/docs/quick-start/enviroment-setup) 已经完成。
 
+- **管脚映射参考**
+
+  不同开发平台的 PWM 通道与 GPIO 管脚映射关系不同，请根据您使用的平台查阅以下说明：
+
+  - **ESP32 系列**
+
+    ESP32 平台的 PWM 基于 LEDC 外设实现，支持通过 `tkl_io_pinmux_config()` 将 PWM 通道重新映射到任意可用的 GPIO 管脚。默认的 PWM 通道与 GPIO 映射关系如下：
+
+    | PWM 通道 | 默认 GPIO |
+    |---|---|
+    | `TUYA_PWM_NUM_0` | GPIO 18 |
+    | `TUYA_PWM_NUM_1` | GPIO 19 |
+    | `TUYA_PWM_NUM_2` | GPIO 22 |
+    | `TUYA_PWM_NUM_3` | GPIO 23 |
+    | `TUYA_PWM_NUM_4` | GPIO 25 |
+    | `TUYA_PWM_NUM_5` | GPIO 26 |
+
+    如果需要使用其他 GPIO 管脚输出 PWM，可以在调用 `tkl_pwm_init()` **之前**，使用 `tkl_io_pinmux_config()` 进行管脚重映射。例如，将 GPIO 4 映射为 PWM 通道 0：
+
+    ```c
+    // 将 GPIO 4 重映射到 PWM 通道 0
+    tkl_io_pinmux_config(TUYA_IO_PIN_4, TUYA_PWM0);
+    ```
+
+    > 关于 ESP32 各芯片可用的 GPIO 管脚信息，请参考 [ESP32 GPIO & RTC GPIO](https://docs.espressif.com/projects/esp-idf/zh_CN/v5.5.2/esp32/api-reference/peripherals/gpio.html)。
+
+  - **T3 系列**
+
+    T3 平台的 PWM 通道与硬件 PWM ID 为固定映射，不支持管脚重映射。对应关系如下：
+
+    | TKL PWM 通道 | BK PWM ID |
+    |---|---|
+    | `TUYA_PWM_NUM_0` | PWM_ID_0 |
+    | `TUYA_PWM_NUM_1` | PWM_ID_4 |
+    | `TUYA_PWM_NUM_2` | PWM_ID_6 |
+    | `TUYA_PWM_NUM_3` | PWM_ID_8 |
+    | `TUYA_PWM_NUM_4` | PWM_ID_10 |
+
+    > 各 PWM ID 对应的实际 GPIO 管脚请参考 T3 芯片数据手册中的管脚复用表。
+
+  - **T5 系列**
+
+    T5 平台的 PWM 通道与管脚为**固定映射**，不支持通过 `tkl_io_pinmux_config()` 重新映射。请参考 [T5AI 外设管脚映射](https://tuyaopen.ai/zh/docs/hardware-specific/tuya-t5/t5ai-peripheral-mapping) 获取 T5AI 平台的 PWM 通道与管脚对应关系，并根据文档选择正确的 PWM 通道。
+
 ### 选择配置文件
 
 在编译示例工程之前需要根据自己的目标开发平台选择对应的配置文件。

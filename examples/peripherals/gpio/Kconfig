@@ -2,16 +2,16 @@ menu "Application config"
 
     config EXAMPLE_OUTPUT_PIN
         int "output pin"
-        default 26
+        default 18
         range 0 63
 
     config EXAMPLE_INPUT_PIN
         int "input pin"
-        default 7
+        default 4
         range 0 63
 
     config EXAMPLE_IRQ_PIN
         int "irq pin"
-        default 6
+        default 5
         range 0 63
 endmenu

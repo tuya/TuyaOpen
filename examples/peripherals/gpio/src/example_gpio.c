@@ -26,10 +26,10 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define EXAMPLE_IRQ_MODE       TUYA_GPIO_IRQ_RISE
+#define EXAMPLE_IRQ_MODE TUYA_GPIO_IRQ_FALL
 
-#define TASK_GPIO_PRIORITY     THREAD_PRIO_2
-#define TASK_GPIO_SIZE         4096
+#define TASK_GPIO_PRIORITY THREAD_PRIO_2
+#define TASK_GPIO_SIZE     4096
 
 /***********************************************************
 ***********************typedef define***********************
@@ -63,8 +63,8 @@ static void __gpio_irq_callback(void *args)
  */
 static void __example_gpio_task(void *param)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint8_t i = 0;
+    OPERATE_RET       rt         = OPRT_OK;
+    uint8_t           i          = 0;
     TUYA_GPIO_LEVEL_E read_level = 0;
 
     /*GPIO output init*/
@@ -74,7 +74,7 @@ static void __example_gpio_task(void *param)
 
     /*GPIO input init*/
     TUYA_GPIO_BASE_CFG_T in_pin_cfg = {
-        .mode = TUYA_GPIO_PULLUP,
+        .mode   = TUYA_GPIO_PULLUP,
         .direct = TUYA_GPIO_INPUT,
     };
     TUYA_CALL_ERR_LOG(tkl_gpio_init(EXAMPLE_INPUT_PIN, &in_pin_cfg));
@@ -82,8 +82,8 @@ static void __example_gpio_task(void *param)
     /*GPIO irq init*/
     TUYA_CALL_ERR_LOG(tkl_gpio_init(EXAMPLE_IRQ_PIN, &in_pin_cfg));
     TUYA_GPIO_IRQ_T irq_cfg = {
-        .cb = __gpio_irq_callback,
-        .arg = NULL,
+        .cb   = __gpio_irq_callback,
+        .arg  = NULL,
         .mode = EXAMPLE_IRQ_MODE,
     };
     TUYA_CALL_ERR_LOG(tkl_gpio_irq_init(EXAMPLE_IRQ_PIN, &irq_cfg));
@@ -137,9 +137,9 @@ void user_main(void)
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
     static THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = TASK_GPIO_SIZE;
-    thrd_param.priority = TASK_GPIO_PRIORITY;
-    thrd_param.thrdname = "gpio";
+    thrd_param.stackDepth          = TASK_GPIO_SIZE;
+    thrd_param.priority            = TASK_GPIO_PRIORITY;
+    thrd_param.thrdname            = "gpio";
     TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&sg_gpio_handle, NULL, NULL, __example_gpio_task, NULL, &thrd_param));
 
     return;
@@ -183,9 +183,9 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 1024 * 4;
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 4;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif
