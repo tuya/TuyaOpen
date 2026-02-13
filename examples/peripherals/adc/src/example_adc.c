@@ -24,7 +24,7 @@
 *************************micro define***********************
 ***********************************************************/
 #define EXAMPLE_ADC_PORT    TUYA_ADC_NUM_0
-#define EXAMPLE_ADC_CHANNEL 1
+#define EXAMPLE_ADC_CHANNEL 2
 #define EXAMPLE_ADC_MODE    TUYA_ADC_CONTINUOUS
 #define EXAMPLE_ADC_TYPE    TUYA_ADC_INNER_SAMPLE_VOL
 
