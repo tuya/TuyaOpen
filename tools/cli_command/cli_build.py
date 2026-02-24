@@ -9,7 +9,7 @@ import shutil
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
     env_read, env_write, parse_config_file, parse_yaml,
-    do_subprocess, get_country_code
+    do_subprocess, get_country_code, redirect_stdout_stderr_to
 )
 from tools.cli_command.util_git import (
     git_clone, git_checkout, set_repo_mirro, git_get_commit
@@ -303,57 +303,65 @@ def check_bin_file(using_data,):
     return True
 
 
-def build_project(verbose=False):
-    logger = get_logger()
-    check_proj_dir()
+def build_project(verbose=False, log_file=None, log_file_append=False):
+    """Perform a build; if log_file is provided, output will be redirected to that file. If log_file_append is True, append to the file."""
 
-    if not env_check():
-        logger.error("Env check error.")
-        return False
+    def _run():
+        logger = get_logger()
+        check_proj_dir()
 
-    init_using_config(force=False)
-    params = get_global_params()
-    using_config = params["using_config"]
-    using_data = parse_config_file(using_config)
-    platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
-    if not platform_name:
-        logger.error("Not fount platform name.")
-        return False
+        if not env_check():
+            logger.error("Env check error.")
+            return False
 
-    if not download_platform(platform_name):
-        logger.error("Download platform error.")
-        return False
-    logger.info(f"Platform [{platform_name}] downloaded successfully.")
+        init_using_config(force=False)
+        params = get_global_params()
+        using_config = params["using_config"]
+        using_data = parse_config_file(using_config)
+        platform_name = using_data.get("CONFIG_PLATFORM_CHOICE", "")
+        if not platform_name:
+            logger.error("Not fount platform name.")
+            return False
 
-    chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
-    if not prepare_platform(platform_name, chip_name):
-        logger.error("Prepare platform error.")
-        return False
-    logger.info(f"Platform [{platform_name}] prepared successfully.")
+        if not download_platform(platform_name):
+            logger.error("Download platform error.")
+            return False
+        logger.info(f"Platform [{platform_name}] downloaded successfully.")
 
-    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
-    framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
-    if not build_setup(platform_name, project_name, framework, chip_name):
-        logger.error("Build setup error.")
-        return False
-    logger.info(f"Build setup for [{project_name}] success.")
+        chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
+        if not prepare_platform(platform_name, chip_name):
+            logger.error("Prepare platform error.")
+            return False
+        logger.info(f"Platform [{platform_name}] prepared successfully.")
 
-    if not cmake_configure(using_data, verbose):
-        logger.error("Cmake configure error.")
-        return False
-    logger.info("Cmake configure success.")
+        project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+        framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
+        if not build_setup(platform_name, project_name, framework, chip_name):
+            logger.error("Build setup error.")
+            return False
+        logger.info(f"Build setup for [{project_name}] success.")
 
-    build_path = params["app_build_path"]
-    if not ninja_build(build_path, verbose):
-        logger.error("Build error.")
-        return False
+        if not cmake_configure(using_data, verbose):
+            logger.error("Cmake configure error.")
+            return False
+        logger.info("Cmake configure success.")
 
-    copy_compile_commands(build_path)
+        build_path = params["app_build_path"]
+        if not ninja_build(build_path, verbose):
+            logger.error("Build error.")
+            return False
 
-    if not check_bin_file(using_data,):
-        return False
+        copy_compile_commands(build_path)
 
-    return True
+        if not check_bin_file(using_data,):
+            return False
+
+        return True
+
+    if log_file:
+        with redirect_stdout_stderr_to(log_file, append=log_file_append):
+            return _run()
+    return _run()
 
 
 ##
@@ -363,7 +371,10 @@ def build_project(verbose=False):
 @click.option('-v', '--verbose',
               is_flag=True, default=False,
               help="Show verbose message.")
-def cli(verbose):
-    if not build_project(verbose):
-        sys.exit(1)
-    sys.exit(0)
+@click.option('-o', '--log-file',
+              type=click.Path(),
+              default=None,
+              help="Write build log to the specified file instead of terminal.")
+def cli(verbose, log_file):
+    ok = build_project(verbose, log_file)
+    sys.exit(0 if ok else 1)

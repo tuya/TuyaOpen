@@ -46,10 +46,17 @@ def _save_product(dist, config_file):
 @click.option('-d', '--dist',
               type=str, default="",
               help="Save product path.")
-def build_all_config_exec(dist):
+@click.option('-o', '--log-dir',
+              type=click.Path(),
+              default=None,
+              help="Write build log to a file in the specified directory (default: build.log).")
+def build_all_config_exec(dist, log_dir):
     logger = get_logger()
     params = get_global_params()
     dist_abs = os.path.abspath(dist)
+
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
 
     # get config files
     app_configs_path = params["app_configs_path"]
@@ -68,24 +75,41 @@ def build_all_config_exec(dist):
     exit_flag = 0
     full_clean_project()
 
-    for config in config_list:
-        logger.info(f"Build with: {config}")
+    # sort config list
+    config_list.sort()
+
+    for idx, config in enumerate(config_list):
+        config_file_name = os.path.basename(config)
         copy_file(config, app_default_config)
-        if build_project():
-            build_result_list.append(f"{config} build success")
+        logger.info(f"Build [{idx + 1}/{len(config_list)}] {config_file_name}")
+
+        log_file = os.path.join(log_dir, f"{config_file_name}.log") if log_dir else None
+        ok = build_project(log_file=log_file, log_file_append=False)
+
+        if ok:
+            logger.note(f"Build {config_file_name} success")
+            build_result_list.append(f"Build {config_file_name} success")
             if dist:
                 _save_product(dist_abs, config)
         else:
-            build_result_list.append(f"{config} build failed")
+            logger.error(f"Build {config_file_name} failed")
+            build_result_list.append(f"Build {config_file_name} failed")
             exit_flag = 1
-        full_clean_project()
+        full_clean_project(log_file=log_file, log_file_append=True)
 
     # print build result
+    BORDER = "================================"
+    logger.note(BORDER)
+    logger.note("Build Result")
+    logger.note(BORDER)
     for result in build_result_list:
         if result.endswith("success"):
-            logger.note(result)
+            name = result.replace("Build ", "").replace(" success", "")
+            logger.note(f"  ✓ {name}")
         else:
-            logger.error(result)
+            name = result.replace("Build ", "").replace(" failed", "")
+            logger.error(f"  ✗ {name}")
+    logger.note(BORDER)
 
     sys.exit(exit_flag)
 

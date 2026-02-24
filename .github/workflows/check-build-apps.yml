@@ -6,17 +6,18 @@ on:
       - master  # 当分支有提交时执行此工作流
       - dev
 jobs:
-  Build-Switch-Demo:
+  Check-Build-Apps:
     runs-on: self-hosted
     env:
       OPEN_COUNTRY_CODE: "NONE"
+      BUILD_LOG_BASE: ${{ github.workspace }}/tmp/logs/build_logs_${{ github.run_number }}
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 Running on a ${{ runner.os }}, branch is ${{ github.ref }} !"
       - name: Check out repository code
         uses: actions/checkout@v4
         with:
           show-progress: false
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 Running on a ${{ runner.os }}, branch is ${{ github.ref }} !"
       - name: Check Base Tools
         run: |
           echo "::group::Checking base tools"
@@ -26,44 +27,78 @@ jobs:
           tos.py check
           rm -rf ${{ github.workspace }}/dist
           echo "::endgroup::"
+      - name: Copy cache
+        run: |
+          echo "::group::Copying cache"
+          SCRIPT_PATH="${{ github.workspace }}/../../../.tuyaopen/platform_cache_copy.py"
+          cd ${{ github.workspace }}
+          . ./export.sh
+          if [ -f "$SCRIPT_PATH" ]; then
+            $SCRIPT_PATH --output "${{ github.workspace }}/platform"
+            tos.py update
+          else
+            echo "Cache copy script not found, skip: $SCRIPT_PATH"
+          fi
+          echo "::endgroup::"
       - name: Check [switch_demo] Build
+        env:
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/switch_demo
         run: |
           echo "::group::Building switch_demo"
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya_cloud/switch_demo
-          tos.py dev bac -d ${{ github.workspace }}/dist
+          tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
       - name: Check [your_chat_bot] Build
+        env:
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/your_chat_bot
         run: |
           echo "::group::Building your_chat_bot"
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_chat_bot
-          tos.py dev bac -d ${{ github.workspace }}/dist
+          tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
       - name: Check [your_otto_robot] Build
+        env:
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/your_otto_robot
         run: |
           echo "::group::Building your_otto_robot"
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
-          tos.py dev bac -d ${{ github.workspace }}/dist
+          tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
       - name: Check [camera_demo] Build
+        env:
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/camera_demo
         run: |
           echo "::group::Building camera_demo"
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya_cloud/camera_demo
-          tos.py dev bac -d ${{ github.workspace }}/dist
+          tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
       - name: Check [weather_get_demo] Build
+        env:
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/weather_get_demo
         run: |
           echo "::group::Building weather_get_demo"
           cd ${{ github.workspace }}
           . ./export.sh
           cd ${{ github.workspace }}/apps/tuya_cloud/weather_get_demo
-          tos.py dev bac -d ${{ github.workspace }}/dist
+          tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
-      - run: echo "💡 This job's status is ${{ job.status }}."
+      - name: Set timestamp
+        id: timestamp
+        if: always()
+        run: echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+      - name: Upload Log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build_logs_${{ github.run_number }}_${{ steps.timestamp.outputs.timestamp }}
+          path: ${{ env.BUILD_LOG_BASE }}
+          retention-days: 90
+          if-no-files-found: warn

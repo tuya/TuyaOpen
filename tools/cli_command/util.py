@@ -9,6 +9,7 @@ import click
 import requests
 import platform
 import logging
+import contextlib
 from typing import List
 
 
@@ -41,7 +42,7 @@ class CustomFormatter(logging.Formatter):
     YELLOW = '\033[93m'
     RED = '\033[91m'
     RESET = '\033[0m'
-    # 配置格式
+    # Format configuration
     default_format = "[%(levelname)s]: %(message)s"
 
     FORMATS = {
@@ -69,8 +70,8 @@ def set_logger(level=logging.WARNING):
 
     logger = logging.getLogger("open_logger")
     logger.setLevel(level)
-    # 输出重定向需要和GUI中使用的一致
-    # 使用stderr的好处，可以将运行时的报错也输出到GUI页面中
+    # Output redirection must match GUI usage
+    # Using stderr allows runtime errors to appear in the GUI
     lh = logging.StreamHandler(stream=sys.stderr)
     lh.setFormatter(CustomFormatter())
     logger.addHandler(lh)
@@ -87,6 +88,53 @@ def get_logger():
         return OPEN_LOGGER
     set_logger()
     return OPEN_LOGGER
+
+
+def set_log_stream(stream):
+    """
+    Redirect logger output to the given stream (e.g. a file object).
+    Only affects Python logging output; does not change process stdout/stderr FDs.
+    """
+    global OPEN_LOGGER_H
+    if OPEN_LOGGER_H is not None and stream is not None:
+        OPEN_LOGGER_H.stream = stream
+
+
+@contextlib.contextmanager
+def redirect_stdout_stderr_to(filepath, encoding="utf-8", append=False):
+    """
+    Redirect process stdout/stderr to the given file (including subprocess output).
+    Redirection is at file descriptor (FD) level, so output from subprocesses
+    started via os.system/subprocess (e.g. cmake, ninja) is also written to the file.
+    Restored on exit from the context. append: if True open in append mode, else overwrite.
+    """
+    get_logger()  # Ensure logger is initialized so set_log_stream works
+    mode = "a" if append else "w"
+    with open(filepath, mode, encoding=encoding) as f:
+        fd = f.fileno()
+        # Save current stdout(1) and stderr(2) FDs for restore on exit
+        saved_stdout = os.dup(1)
+        saved_stderr = os.dup(2)
+        try:
+            # Redirect at FD level; subprocesses inherit 1 and 2, so their output goes to file
+            os.dup2(fd, 1)
+            os.dup2(fd, 2)
+            # Python-level stdout/stderr and print() also go to the same file
+            sys.stdout = sys.stderr = f
+            # Logger StreamHandler writes to the same file
+            set_log_stream(f)
+            yield f
+        finally:
+            f.flush()
+            # Restore FDs 1 and 2 to original terminal/pipe
+            os.dup2(saved_stdout, 1)
+            os.dup2(saved_stderr, 2)
+            os.close(saved_stdout)
+            os.close(saved_stderr)
+            # Restore Python stdout/stderr and logger output target
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            set_log_stream(sys.stderr)
 
 
 def set_global_params():
@@ -251,9 +299,9 @@ def set_running_env():
 
 
 def get_running_env():
-    '''
-    linux/darwin_x86/darwin_arm64/windows
-    '''
+    """
+    Returns one of: linux, darwin_x86, darwin_arm64, windows.
+    """
     global RUNNING_ENV
     if len(RUNNING_ENV):
         return RUNNING_ENV
@@ -352,7 +400,7 @@ def do_subprocess(cmd: str) -> int:
 
     logger.info(f">>> subprocess >>>\n{cmd}")
 
-    ret = 1  # 0: success
+    ret = 1  # 0 means success
     try:
         ret = os.system(cmd)
     except Exception as e:
