@@ -19,7 +19,7 @@ def open_version():
     if version:
         OPEN_VERSION = version
     else:
-        OPEN_VERSION = "Unknow version"
+        OPEN_VERSION = "Unknown version"
 
     return OPEN_VERSION
 

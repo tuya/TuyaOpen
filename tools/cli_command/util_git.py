@@ -75,14 +75,12 @@ def get_git_tag_describe(repo_path):
         if repo.bare:
             logger.warning(f"[{repo_path}] is bare repository.")
             return ""
-        tags = list(repo.tags)
-        if not tags:
-            logger.debug(f"No tags found in repository: {repo_path}")
-            return ""
-        describe_output = repo.git.describe('--tags')
+        # --always: Output short commit hash if no tag is available,
+        # to avoid failures in CI when there is a shallow clone or no tag.
+        describe_output = repo.git.describe('--tags', '--always')
         return describe_output
     except Exception as e:
-        cmd = f"git -C {repo_path} describe --tags"
+        cmd = f"git -C {repo_path} describe --tags --always"
         logger.error(f"[{cmd}]: {e}")
         return ""
 
