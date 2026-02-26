@@ -97,6 +97,21 @@ menu "configure mbedtls"
                 bool "Enable arc4"
                 default n
 
+            menu "Hash Algorithms"
+                config ENABLE_MBEDTLS_SHA512_C
+                    bool "Enable SHA-384/SHA-512 hash algorithms"
+                    default n
+                    help
+                        Enable SHA-512 and optional SHA-384 hash support.
+
+                config ENABLE_MBEDTLS_SHA384_C
+                    bool "Enable SHA-384 hash algorithm"
+                    select ENABLE_MBEDTLS_SHA512_C
+                    default n
+                    help
+                        Enable SHA-384 in addition to SHA-512.
+            endmenu # Hash Algorithms
+
             menu "Symmetric Ciphers"
                 config ENABLE_MBEDTLS_DES_C
                     bool "DES block cipher (legacy, insecure)"

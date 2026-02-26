@@ -3217,8 +3217,24 @@
  *
  * This module adds support for SHA-384 and SHA-512.
  */
-// #define MBEDTLS_SHA384_C
-// #define MBEDTLS_SHA512_C
+#ifdef ENABLE_CUSTOM_CONFIG
+#if defined(ENABLE_MBEDTLS_SHA512_C) || defined(ENABLE_MBEDTLS_SHA384_C)
+/* SHA-384 in mbedTLS shares SHA-512 core implementation. */
+#define MBEDTLS_SHA512_C
+#else
+#undef MBEDTLS_SHA512_C
+#endif
+
+#ifdef ENABLE_MBEDTLS_SHA384_C
+#define MBEDTLS_SHA384_C
+#else
+#undef MBEDTLS_SHA384_C
+#endif
+#else
+#undef MBEDTLS_SHA512_C
+#undef MBEDTLS_SHA384_C
+#endif
+
 
 /**
  * \def MBEDTLS_SSL_CACHE_C

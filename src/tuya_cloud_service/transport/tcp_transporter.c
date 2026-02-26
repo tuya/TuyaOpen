@@ -90,18 +90,22 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
         goto err_out;
     }
 
-    // socket bind random port
-    NW_IP_S nw_ip = {0};
-    netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip);
-    tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+    // Auto bind to netmgr IP for embedded multi-interface targets.
+    // On Linux host builds, keep default routing unless bind is explicitly set.
+#if OPERATING_SYSTEM != SYSTEM_LINUX
+    if (tcp_transporter->config.bindAddr == 0 && tcp_transporter->config.bindPort == 0) {
+        NW_IP_S nw_ip = {0};
+        if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip) && nw_ip.ip[0] != '\0') {
+            tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+        }
+    }
+#endif
 
     if ((tcp_transporter->config.bindPort || tcp_transporter->config.bindAddr) &&
         (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, tcp_transporter->config.bindAddr,
                                  tcp_transporter->config.bindPort))) { // socket bind port
         op_ret = OPRT_MID_TRANSPORT_SOCK_NET_BIND_FAILED;
         goto err_out;
-    } else {
-        PR_DEBUG("bind ip:%08x port:%d ok", tcp_transporter->config.bindAddr, tcp_transporter->config.bindPort);
     }
 
     if (tcp_transporter->config.sendTimeoutMs &&

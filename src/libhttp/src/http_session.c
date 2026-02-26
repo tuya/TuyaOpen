@@ -419,8 +419,7 @@ OPERATE_RET http_send_request(http_session_t session, const http_req_t *req, uin
         }
     } 
 
-    PR_DEBUG("Sending HTTP %s request to %s%s", 
-              method_str, ctx->host, ctx->path);
+    PR_DEBUG("Sending HTTP %s request to %s", method_str, ctx->host);
 
     // Send request
     // Use HTTP_SEND_DISABLE_RECV_BODY_FLAG for streaming mode to only receive headers
@@ -433,8 +432,7 @@ OPERATE_RET http_send_request(http_session_t session, const http_req_t *req, uin
     HTTP_FREE(requestHeaders.pBuffer);
 
     if (httpStatus != HTTPSuccess) {
-        PR_ERR("Failed to send HTTP %s request to %s%s: Error=%s", method_str, ctx->host, ctx->path, 
-               HTTPClient_strerror(httpStatus));
+        PR_ERR("Failed to send HTTP %s request to %s: Error=%s", method_str, ctx->host, HTTPClient_strerror(httpStatus));
         return OPRT_COM_ERROR;
     }
 

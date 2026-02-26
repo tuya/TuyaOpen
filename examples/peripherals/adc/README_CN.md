@@ -34,6 +34,30 @@ config ENABLE_ADC
 
   根据外设配置将 ADC 检测引脚接在待测引脚上。例，如果使用的是默认设置，可以将 ADC2 引脚接高电平。
 
+- **管脚映射参考**
+
+  不同开发平台的 ADC 通道与 GPIO 管脚映射关系不同，请根据您使用的平台查阅对应的管脚映射文档：
+
+  - **ESP32 系列**：请参考 [ESP32 GPIO & RTC GPIO](https://docs.espressif.com/projects/esp-idf/zh_CN/v5.5.2/esp32/api-reference/peripherals/gpio.html) 获取各芯片的管脚功能与 ADC 通道映射信息。
+
+  > ESP32 系列 ADC1 对应 TUYA_ADC_NUM_0，ADC2 对应 TUYA_ADC_NUM_1。
+
+  - **T3 系列**
+
+    T3 平台的 ADC 通道与 GPIO 管脚为固定映射，对应关系如下：
+
+    | ADC 通道 | GPIO 管脚 |
+    |---|---|
+    | ADC_1 | GPIO 25 |
+    | ADC_2 | GPIO 24 |
+    | ADC_4 | GPIO 28 |
+    | ADC_12 | GPIO 0 |
+    | ADC_13 | GPIO 1 |
+    | ADC_14 | GPIO 12 |
+    | ADC_15 | GPIO 13 |
+
+  - **T5 系列**：请参考 [T5AI 外设管脚映射](https://tuyaopen.ai/zh/docs/hardware-specific/tuya-t5/t5ai-peripheral-mapping) 获取 T5AI 平台的 ADC 通道与管脚对应关系。
+
 ### 选择工程配置文件
 
 在编译示例工程之前需要根据自己的目标开发平台选择对应的配置文件。

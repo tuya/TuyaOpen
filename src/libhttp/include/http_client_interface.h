@@ -25,6 +25,7 @@ typedef struct http_client_request {
     const char *path;
     const uint8_t *cacert;
     size_t cacert_len;
+    bool tls_no_verify;
     const char *method;
     http_client_header_t *headers;
     uint8_t headers_count;

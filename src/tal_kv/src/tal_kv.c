@@ -266,7 +266,11 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
     tal_mutex_lock(lfs_mutex);
     result = lfs_file_open(&lfs, &file, key, LFS_O_RDONLY);
     if (LFS_ERR_OK != result) {
-        PR_ERR("lfs open %s %d err", key, result);
+        if (result == LFS_ERR_NOENT) {
+            PR_DEBUG("lfs key not found: %s", key);
+        } else {
+            PR_ERR("lfs open %s %d err", key, result);
+        }
         tal_mutex_unlock(lfs_mutex);
         return result;
     }

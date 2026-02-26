@@ -256,7 +256,7 @@ static int iotdns_query_domain_certs_parser(const uint8_t *input, uint8_t **cace
         goto __exit;
     }
     cJSON *ca = cJSON_GetObjectItem(item, "ca");
-    if (item == NULL) {
+    if (ca == NULL || !cJSON_IsString(ca) || ca->valuestring == NULL || ca->valuestring[0] == '\0') {
         rt = OPRT_CJSON_GET_ERR;
         goto __exit;
     }
@@ -316,7 +316,7 @@ int tuya_iotdns_query_host_certs(char *host, uint16_t port, uint8_t **cacert, ui
         http_client_free(&http_response);
     }
 
-    return OPRT_OK;
+    return rt;
 }
 
 /**

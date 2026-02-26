@@ -108,6 +108,17 @@ static const cli_cmd_t s_cli_cmd[] = {{
     .func = cli_hello,
 }};
 
+static const char s_cli_logo[] =
+    "\r\n****************************************\r\n"
+    "\r\n"
+    " ______                 ____\r\n"
+    "/_  __/_ ____ _____ _  / __ \\___  ___ ___\r\n"
+    " / / / // / // / _ `/ / /_/ / _ \\/ -_) _ \\\r\n"
+    "/_/  \\_,_/\\_, /\\_,_/  \\____/ .__/\\__/_//_/\r\n"
+    "         /___/            /_/\r\n"
+    "\r\n"
+    "****************************************\r\n";
+
 /*============================ IMPLEMENTATION ================================*/
 static int32_t cli_out_put(TUYA_UART_NUM_E port_id, char *out_str, uint32_t len)
 {
@@ -650,7 +661,8 @@ static void cli_task(void *parameter)
     cli_key_t key;
 
     cli = (cli_t *)parameter;
-    cli->prompt = "tuya>";
+    cli->prompt = "tuya> ";
+    cli_out_put(cli->port_id, (char *)s_cli_logo, strlen(s_cli_logo));
     cli_print_prompt(cli);
     cli->echo = 1;
 

@@ -109,6 +109,9 @@ void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
 
     netmgr_type_e type = (netmgr_type_e)s_netmgr.type;
     tuya_iot_client_t *client = tuya_iot_client_get();
+    if (client == NULL) {
+        return;
+    }
 
     if ((type & NETCONN_WIRED || type & NETCONN_WIFI) && client->is_activated) {
         PR_DEBUG("Start LAN initialization");

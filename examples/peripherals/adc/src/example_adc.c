@@ -23,10 +23,10 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#define EXAMPLE_ADC_PORT             TUYA_ADC_NUM_0
-#define EXAMPLE_ADC_CHANNEL          2
-#define EXAMPLE_ADC_MODE             TUYA_ADC_CONTINUOUS
-#define EXAMPLE_ADC_TYPE             TUYA_ADC_INNER_SAMPLE_VOL
+#define EXAMPLE_ADC_PORT    TUYA_ADC_NUM_0
+#define EXAMPLE_ADC_CHANNEL 2
+#define EXAMPLE_ADC_MODE    TUYA_ADC_CONTINUOUS
+#define EXAMPLE_ADC_TYPE    TUYA_ADC_INNER_SAMPLE_VOL
 
 /***********************************************************
 ***********************typedef define***********************
@@ -56,8 +56,8 @@ static TUYA_ADC_BASE_CFG_T sg_adc_cfg = {
  */
 void user_main(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-    int32_t adc_value = 0;
+    OPERATE_RET rt        = OPRT_OK;
+    int32_t     adc_value = 0;
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
@@ -122,9 +122,9 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 1024 * 4;
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 4;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

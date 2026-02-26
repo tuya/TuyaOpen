@@ -724,8 +724,10 @@ static int ble_pair_req(ble_packet_t *req, void *priv_data)
 
     TUYA_CALL_ERR_GOTO(ble_packet_resp(ble, &resp), __exit);
 
-    netmgr_status_e netstat;
-    netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &netstat);
+    netmgr_status_e netstat = NETMGR_LINK_DOWN;
+    if (OPRT_OK != netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &netstat)) {
+        PR_ERR("get net status failed, use default %d", netstat);
+    }
     PR_DEBUG("ble send netstat %d", netstat);
     TUYA_CALL_ERR_GOTO(tuya_ble_send(FRM_RPT_NET_STAT_REQ, 0, (uint8_t *)&netstat, 1), __exit);
 
