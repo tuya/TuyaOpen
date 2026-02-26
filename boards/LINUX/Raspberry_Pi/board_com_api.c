@@ -20,6 +20,10 @@
 #include "tdd_button_keyboard.h"
 #endif
 
+#if defined(ENABLE_CAMERA_V4L2) && (ENABLE_CAMERA_V4L2 == 1)
+#include "tdd_camera_v4l2.h"
+#endif
+
 #include "board_com_api.h"
 
 /***********************************************************
@@ -174,12 +178,41 @@ static OPERATE_RET __board_register_led(void)
 }
 
 /**
+ * @brief Registers V4L2 USB camera for Raspberry Pi platform
+ */
+static OPERATE_RET __board_register_camera(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_CAMERA_V4L2) && (ENABLE_CAMERA_V4L2 == 1)
+    #if defined(CAMERA_NAME)
+        #if defined(CAMERA_V4L2_DEVNODE)
+            PR_INFO("Registering V4L2 camera: %s (%s)", CAMERA_NAME, CAMERA_V4L2_DEVNODE);
+            rt = tdd_camera_v4l2_register(CAMERA_NAME, CAMERA_V4L2_DEVNODE);
+        #else
+            PR_INFO("Registering V4L2 camera: %s (/dev/video0)", CAMERA_NAME);
+            rt = tdd_camera_v4l2_register(CAMERA_NAME, "/dev/video0");
+        #endif
+        if (OPRT_OK != rt) {
+            PR_WARN("Failed to register V4L2 camera: %d", rt);
+            return rt;
+        }
+    #else
+        PR_WARN("CAMERA_NAME not defined, skipping camera registration");
+    #endif
+#endif
+
+    return rt;
+}
+
+/**
  * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
  * 
  * This function initializes and registers hardware components including:
  * - ALSA audio device (if ENABLE_AUDIO_ALSA is enabled)
  * - Button
  * - LED
+ * - Camera (if ENABLE_CAMERA_V4L2 is enabled)
  *
  * @return Returns OPRT_OK on success, or an appropriate error code on failure.
  */
@@ -206,6 +239,12 @@ OPERATE_RET board_register_hardware(void)
     rt = __board_register_led();
     if (OPRT_OK != rt) {
         PR_WARN("LED registration failed: %d", rt);
+    }
+
+    // Register camera (V4L2)
+    rt = __board_register_camera();
+    if (OPRT_OK != rt) {
+        PR_WARN("Camera registration failed: %d", rt);
     }
 
     PR_INFO("Raspberry Pi platform hardware registration completed");
