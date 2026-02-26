@@ -1,0 +1,26 @@
+config CHIP_CHOICE
+    string
+    default "esp32c6"
+
+config BOARD_CHOICE
+    string
+    default "ESP32-C6"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select PLATFORM_FLASHSIZE_16M
+
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 44
+    default 16
+    ---help---
+        esp32-c6 default 16
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 44
+    default 17
+    ---help---
+        esp32-c6 default 17

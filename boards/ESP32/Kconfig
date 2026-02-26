@@ -53,6 +53,12 @@ choice
             rsource "./ESP32-C3/Kconfig"
         endif
 
+    config BOARD_CHOICE_ESP32_C6
+        bool "ESP32-C6"
+        if (BOARD_CHOICE_ESP32_C6)
+            rsource "./ESP32-C6/Kconfig"
+        endif
+
     config BOARD_CHOICE_ESP32_S3
         bool "ESP32-S3"
         if (BOARD_CHOICE_ESP32_S3)
@@ -94,6 +100,13 @@ choice
         bool "DNESP32S3_BOX2_WIFI"
         if (BOARD_CHOICE_DNESP32S3_BOX2_WIFI)
             rsource "./DNESP32S3_BOX2_WIFI/Kconfig"
+        endif
+
+        
+    config BOARD_CHOICE_WAVESHARE_ESP32C6_DEV_KIT_N16
+        bool "WAVESHARE_ESP32C6_DEV_KIT_N16"
+        if (BOARD_CHOICE_WAVESHARE_ESP32C6_DEV_KIT_N16)
+            rsource "./WAVESHARE_ESP32C6_DEV_KIT_N16/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>
