@@ -188,7 +188,7 @@ static void os_dyna_msys_init_once(struct os_mempool *mempool, struct os_mbuf_po
     BLE_PANIC_ASSERT(rc == 0);
 }
 
-void os_msys_init(void)
+void ty_os_msys_init(void)
 {
     os_msys_reset();
     
@@ -207,7 +207,6 @@ void os_msys_init(void)
                       "msys_1");
 #endif
 }
-
 
 static stats_error_t os_mempool_init_internal(struct os_mempool *mp, uint16_t blocks,
                          uint32_t block_size, void *membuf, char *name,

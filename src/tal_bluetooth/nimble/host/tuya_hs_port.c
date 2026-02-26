@@ -30,7 +30,7 @@ static void* host_main_thread_hdl = NULL;
 static tuya_ble_eventq g_eventq_dflt;
 static int pre_init_flag = 0;
 
-extern void os_msys_init(void);
+extern void ty_os_msys_init(void);
 extern void os_mempool_module_init(void);
 void tuya_ble_host_pre_init(void *param)
 {
@@ -41,7 +41,7 @@ void tuya_ble_host_pre_init(void *param)
     
         /* Initialize the global memory pool */
         os_mempool_module_init();
-        os_msys_init();
+        ty_os_msys_init();
         /* Initialize the host */
         ble_hs_init();
     }

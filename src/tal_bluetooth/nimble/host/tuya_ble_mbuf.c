@@ -50,7 +50,7 @@
  *   @{
  */
 
-STAILQ_HEAD(, os_mbuf_pool) g_msys_pool_list =
+static STAILQ_HEAD(, os_mbuf_pool) g_msys_pool_list =
     STAILQ_HEAD_INITIALIZER(g_msys_pool_list);
 
 struct os_mbuf *os_dyna_mbuf_get(struct os_mbuf_pool *omp, uint16_t leadingspace);
