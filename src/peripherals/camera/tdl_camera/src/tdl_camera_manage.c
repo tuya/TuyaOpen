@@ -14,7 +14,11 @@
 #include "tuya_cloud_types.h"
 #include "tuya_list.h"
 #include "tal_api.h"
+
+#if defined(CONFIG_ENABLE_DVP) && (CONFIG_ENABLE_DVP==1)
 #include "tkl_dvp.h"
+#endif
+
 #include "tkl_memory.h"
 
 #include "tdl_camera_manage.h"
