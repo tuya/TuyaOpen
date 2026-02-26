@@ -16,6 +16,13 @@ set(MODULE_NAME "Raspberry_Pi")
 # )
 file(GLOB_RECURSE LIB_SRCS "${MODULE_PATH}/*.c")
 
+# Enable V4L2 camera driver if camera support is enabled
+if (CONFIG_ENABLE_CAMERA STREQUAL "y" AND CONFIG_ENABLE_CAMERA_V4L2 STREQUAL "y")
+    message(STATUS "Raspberry Pi board: Enabling V4L2 camera driver")
+else()
+    list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/tdd_camera_v4l2.c")
+endif()
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH})
 
