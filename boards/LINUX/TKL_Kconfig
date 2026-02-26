@@ -50,12 +50,12 @@ menu "TKL Board Configuration"
         default n
 
     config PWM_SYSFS_CHIP
-        int "Linux PWM sysfs chip index (/sys/class/pwm/pwmchipX)"
+        int "Linux PWM sysfs chip index"
         depends on ENABLE_PWM
         default 0
 
     config PWM_SYSFS_CHANNEL_BASE
-        int "Linux PWM sysfs channel base (pwmN = base + ch_id)"
+        int "Linux PWM sysfs channel base"
         depends on ENABLE_PWM
         default 0
 
@@ -63,14 +63,10 @@ menu "TKL Board Configuration"
         bool "Enable UART"
         default n
 
-    config TKL_UART_USE_FAKE
-        bool "Use fake UART (stdin/UDP) instead of hardware ttyAMA*"
+    config TKL_UART_REDIRECT_LOG_TO_STDOUT
+        bool "UART redirection (stdin/stdout/UDP) instead of hardware ttyAMA*"
         depends on ENABLE_UART
         default y
-        ---help---
-            Select Y to keep the existing fake UART implementation that uses
-            stdin for RX and UDP for TX/RX. Select N to use the Raspberry Pi
-            hardware UART devices (ttyAMA*).
 
     config ENABLE_AUDIO
         bool

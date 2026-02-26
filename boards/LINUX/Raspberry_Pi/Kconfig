@@ -51,4 +51,19 @@ menu "Raspberry Pi Board Configuration"
         default "s"
         ---help---
             Specify the keyboard button device value for input handling.
+
+    config ENABLE_CAMERA
+        bool "Enable Camera"
+        default n
+
+    if (ENABLE_CAMERA)
+        config ENABLE_CAMERA_V4L2
+            bool "Enable V4L2 USB camera"
+            default y
+
+        config CAMERA_V4L2_DEVNODE
+            string "V4L2 device node"
+            depends on ENABLE_CAMERA_V4L2
+            default "/dev/video0"
+    endif            
 endmenu
