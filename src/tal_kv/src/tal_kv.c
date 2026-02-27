@@ -283,7 +283,7 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
         tal_mutex_unlock(lfs_mutex);
         return result;
     }
-    PR_DEBUG("key:%s, len:%d", key, ec_len);
+
     result = lfs_file_read(&lfs, &file, ec_data, ec_len);
     lfs_file_close(&lfs, &file);
     tal_mutex_unlock(lfs_mutex);
@@ -323,8 +323,6 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
  */
 int tal_kv_del(const char *key)
 {
-    PR_DEBUG("key:%s", key);
-
     tal_mutex_lock(lfs_mutex);
     int result = lfs_remove(&lfs, key);
     tal_mutex_unlock(lfs_mutex);

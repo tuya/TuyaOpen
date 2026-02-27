@@ -153,8 +153,6 @@ static int activated_data_read(const char *storage_key, tuya_activated_data_t *o
         return rt;
     }
 
-    PR_DEBUG("readbuf %s", readbuf);
-
     /* Parse activate json string */
     rt = activate_json_string_parse((const char *)readbuf, out);
     tal_kv_free((uint8_t *)readbuf);
@@ -169,10 +167,6 @@ static int activated_data_read(const char *storage_key, tuya_activated_data_t *o
         PR_ERR("tal_time_set_time_zone fail:%d", rt);
     }
 
-    /* Dump info */
-    PR_TRACE("devId: %s", out->devid);
-    PR_TRACE("secKey: %s", out->seckey);
-    PR_TRACE("localKey: %s", out->localkey);
 
     return rt;
 }

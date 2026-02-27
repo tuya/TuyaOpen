@@ -233,8 +233,6 @@ static int tuya_protocol_message_parse_process(tuya_mqtt_context_t *context, con
         return OPRT_COM_ERROR;
     }
 
-    PR_DEBUG("Data JSON:%s", jsonstr);
-
     /* json parse */
     cJSON *root = NULL;
     cJSON *json = NULL;

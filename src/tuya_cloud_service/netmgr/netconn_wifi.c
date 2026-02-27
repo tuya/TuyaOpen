@@ -184,7 +184,6 @@ OPERATE_RET __netconn_wifi_info_set(netconn_wifi_info_t *info)
 {
     char netinfo[128];
     snprintf(netinfo, sizeof(netinfo), "{\"s\":\"%s\",\"p\":\"%s\"}", info->ssid, info->pswd);
-    PR_DEBUG("netinfo %s", netinfo);
 
     return tal_kv_set("netinfo", (const uint8_t *)netinfo, strlen(netinfo));
 }
