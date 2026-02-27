@@ -10,6 +10,7 @@
 #include "tal_api.h"
 
 #include "tdd_button_gpio.h"
+#include "tdd_led_esp_ws1280.h"
 
 /***********************************************************
 ************************macro define************************
@@ -17,6 +18,7 @@
 #define BOARD_BUTTON_PIN         TUYA_GPIO_NUM_9
 #define BOARD_BUTTON_ACTIVE_LV   TUYA_GPIO_LEVEL_LOW
 
+#define BOARD_LED_PIN            TUYA_GPIO_NUM_8
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -45,7 +47,24 @@ static OPERATE_RET __board_register_button(void)
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
+
+    return OPRT_OK;
 }
+
+static OPERATE_RET __board_register_led(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    TDD_LED_WS1280_CFG_T led_hw_cfg = {
+        .gpio = BOARD_LED_PIN,
+        .led_count = 1,
+        .color = 0x00001F, // 0xRRGGBB format
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_led_esp_ws1280_register(LED_NAME, &led_hw_cfg));
+
+    return OPRT_OK;
+}   
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.

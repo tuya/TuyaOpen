@@ -9,6 +9,9 @@ file(GLOB_RECURSE DISPLAY_SRCS "${COMMON_PATH}/display/*.c")
 # add lcd source files
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
 
+# add led source files
+file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
+
 # add io_expander source files
 file(GLOB_RECURSE IO_EXPANDER_SRCS "${COMMON_PATH}/io_expander/*.c")
 
@@ -45,5 +48,15 @@ if (CONFIG_ENABLE_AUDIO)
 
     list(APPEND BOARD_INC
         "${COMMON_PATH}/audio"
+    )
+endif()
+
+if (CONFIG_ENABLE_LED)
+    list(APPEND BOARD_SRC
+        "${LED_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/led"
     )
 endif()
