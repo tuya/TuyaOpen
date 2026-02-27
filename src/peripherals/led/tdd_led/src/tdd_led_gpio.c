@@ -46,8 +46,6 @@ static OPERATE_RET __tdd_led_gpio_set(TDD_LED_HANDLE_T handle, bool is_on)
         level = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
     }
 
-    PR_NOTICE("led:%d gpio write %d", is_on, level);
-
     return tkl_gpio_write(led_cfg->pin, level);
 }
 
