@@ -151,8 +151,6 @@ static void __led_blink_timer_cb(TIMER_ID timerID, void *pTimerArg)
 {
     LED_DEV_INFO_T *led_dev = (LED_DEV_INFO_T *)pTimerArg;
 
-    PR_NOTICE("LED blink timer callback triggered");
-
     if (NULL == led_dev) {
         return;
     }
