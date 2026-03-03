@@ -120,8 +120,11 @@ static char *patch_tool_input_with_context(const llm_tool_call_t *call, const mi
         changed = true;
     }
 
-    if (channel && strcmp(channel, MIMI_CHAN_TELEGRAM) == 0 && strcmp(msg->channel, MIMI_CHAN_TELEGRAM) == 0 &&
-        msg->chat_id[0] != '\0') {
+    /* Patch chat_id for Telegram and Feishu if AI used invalid 'cron' placeholder */
+    bool same_channel = channel && msg->channel[0] != '\0' && strcmp(channel, msg->channel) == 0;
+    bool needs_patch =
+        same_channel && (strcmp(channel, MIMI_CHAN_TELEGRAM) == 0 || strcmp(channel, MIMI_CHAN_FEISHU) == 0);
+    if (needs_patch && msg->chat_id[0] != '\0') {
         cJSON      *chat_item = cJSON_GetObjectItem(root, "chat_id");
         const char *chat_id   = cJSON_IsString(chat_item) ? chat_item->valuestring : NULL;
         if (!chat_id || chat_id[0] == '\0' || strcmp(chat_id, "cron") == 0) {
@@ -160,13 +163,20 @@ static cJSON *build_tool_results(const llm_response_t *resp, const mimi_msg_t *m
 
         tool_output[0] = '\0';
 
+        MIMI_LOGI(TAG, ">>> TOOL EXEC: name=%s id=%s input=%s", call->name, call->id,
+                  tool_input ? tool_input : "(null)");
         OPERATE_RET rt = tool_registry_execute(call->name, tool_input, tool_output, tool_output_size);
         if (rt != OPRT_OK && tool_output[0] == '\0') {
             snprintf(tool_output, tool_output_size, "Tool execute failed: %d", rt);
         }
         cJSON_free(patched_input);
 
-        MIMI_LOGI(TAG, "tool=%s result_bytes=%u", call->name, (unsigned)strlen(tool_output));
+        MIMI_LOGI(TAG, "<<< TOOL RESULT: name=%s rt=%d result_bytes=%u", call->name, rt, (unsigned)strlen(tool_output));
+        if (strlen(tool_output) <= 512) {
+            MIMI_LOGI(TAG, "    tool output: %s", tool_output);
+        } else {
+            MIMI_LOGI(TAG, "    tool output (first 512): %.512s ...[truncated]", tool_output);
+        }
 
         cJSON *result_block = cJSON_CreateObject();
         if (!result_block) {
@@ -212,7 +222,9 @@ static void agent_loop_task(void *arg)
             continue;
         }
 
-        MIMI_LOGI(TAG, "processing msg %s:%s", in_msg.channel, in_msg.chat_id);
+        MIMI_LOGI(TAG, "================ AGENT TURN START ================");
+        MIMI_LOGI(TAG, "processing msg channel=%s chat_id=%s", in_msg.channel, in_msg.chat_id);
+        MIMI_LOGI(TAG, "user input: %s", in_msg.content ? in_msg.content : "(null)");
 
         if (context_build_system_prompt(system_prompt, MIMI_CONTEXT_BUF_SIZE) != OPRT_OK) {
             free(in_msg.content);
@@ -261,22 +273,35 @@ static void agent_loop_task(void *arg)
             }
 #endif
 
+            MIMI_LOGI(TAG, "--- LLM call iteration=%d ---", iteration + 1);
+            bool           force_tool = (iteration == 0); /* first iteration: force tool use */
             llm_response_t resp;
-            OPERATE_RET    rt = llm_chat_tools(system_prompt, messages, tools_json, &resp);
+            OPERATE_RET    rt = llm_chat_tools_ex(system_prompt, messages, tools_json, force_tool, &resp);
             if (rt != OPRT_OK) {
-                MIMI_LOGE(TAG, "llm_chat_tools failed: %d", rt);
+                MIMI_LOGE(TAG, "llm_chat_tools failed: rt=%d iteration=%d", rt, iteration + 1);
                 break;
             }
+
+            MIMI_LOGI(TAG, "LLM response: tool_use=%s text_len=%u call_count=%d", resp.tool_use ? "true" : "false",
+                      (unsigned)(resp.text ? strlen(resp.text) : 0), resp.call_count);
 
             if (!resp.tool_use) {
                 if (resp.text && resp.text[0] != '\0') {
                     final_text = strdup(resp.text);
+                    MIMI_LOGI(TAG, "final text (len=%u): %.512s%s", (unsigned)strlen(resp.text), resp.text,
+                              strlen(resp.text) > 512 ? "...[truncated]" : "");
+                } else {
+                    MIMI_LOGW(TAG, "LLM returned no text and no tool calls");
                 }
                 llm_response_free(&resp);
                 break;
             }
 
             MIMI_LOGI(TAG, "tool iteration=%d call_count=%d", iteration + 1, resp.call_count);
+            for (int tc_i = 0; tc_i < resp.call_count; tc_i++) {
+                MIMI_LOGI(TAG, "  tool_call[%d]: name=%s id=%s input=%s", tc_i, resp.calls[tc_i].name,
+                          resp.calls[tc_i].id, resp.calls[tc_i].input ? resp.calls[tc_i].input : "(null)");
+            }
 
             cJSON *asst_msg = cJSON_CreateObject();
             cJSON_AddStringToObject(asst_msg, "role", "assistant");
@@ -295,7 +320,12 @@ static void agent_loop_task(void *arg)
 
         cJSON_Delete(messages);
 
+        MIMI_LOGI(TAG, "agent loop completed: iterations=%d final_text=%s", iteration,
+                  (final_text && final_text[0] != '\0') ? "present" : "empty");
+
         if (final_text && final_text[0] != '\0') {
+            MIMI_LOGI(TAG, "sending final response (len=%u): %.512s%s", (unsigned)strlen(final_text), final_text,
+                      strlen(final_text) > 512 ? "...[truncated]" : "");
             OPERATE_RET save_user_rt = session_append(in_msg.chat_id, "user", user_text);
             OPERATE_RET save_asst_rt = session_append(in_msg.chat_id, "assistant", final_text);
             if (save_user_rt != OPRT_OK || save_asst_rt != OPRT_OK) {
@@ -329,6 +359,7 @@ static void agent_loop_task(void *arg)
         free(final_text);
         free(in_msg.content);
         MIMI_LOGI(TAG, "free heap=%d", tal_system_get_free_heap_size());
+        MIMI_LOGI(TAG, "================ AGENT TURN END ================");
     }
 }
 

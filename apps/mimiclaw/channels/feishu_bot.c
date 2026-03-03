@@ -34,11 +34,13 @@ static THREAD_HANDLE s_ws_thread         = NULL;
 #define FS_WS_RX_BUF_SIZE          (64 * 1024)
 #define FS_WS_DEFAULT_RECONNECT_MS 5000
 #define FS_WS_DEFAULT_PING_MS      (120 * 1000)
-#define FS_WS_FRAME_MAX_HEADERS    32
-#define FS_WS_FRAME_MAX_KEY        64
-#define FS_WS_FRAME_MAX_VALUE      256
-#define FS_DEDUP_CACHE_SIZE        512
-#define FS_MAX_FRAG_PARTS          8
+/* 收消息轮询等待(ms)：越小收得越及时，过小会增加空转 CPU */
+#define FS_WS_POLL_WAIT_MS      150
+#define FS_WS_FRAME_MAX_HEADERS 32
+#define FS_WS_FRAME_MAX_KEY     64
+#define FS_WS_FRAME_MAX_VALUE   256
+#define FS_DEDUP_CACHE_SIZE     512
+#define FS_MAX_FRAG_PARTS       8
 #ifndef MIMI_FS_POLL_STACK
 #define MIMI_FS_POLL_STACK (16 * 1024)
 #endif
@@ -207,10 +209,12 @@ static void append_sender_id(char *sender_ids, size_t sender_ids_size, const cha
     }
 }
 
-/* -------- dedup -------- */
+/* -------- dedup (event_id: 同一条推送重复送达; message_id: 同一条用户消息重复/重放) -------- */
 
-static uint64_t s_seen_msg_keys[FS_DEDUP_CACHE_SIZE] = {0};
-static size_t   s_seen_msg_idx                       = 0;
+static uint64_t s_seen_msg_keys[FS_DEDUP_CACHE_SIZE]   = {0};
+static size_t   s_seen_msg_idx                         = 0;
+static uint64_t s_seen_event_keys[FS_DEDUP_CACHE_SIZE] = {0};
+static size_t   s_seen_event_idx                       = 0;
 
 static bool seen_msg_contains(uint64_t key)
 {
@@ -226,6 +230,22 @@ static void seen_msg_insert(uint64_t key)
 {
     s_seen_msg_keys[s_seen_msg_idx] = key;
     s_seen_msg_idx                  = (s_seen_msg_idx + 1) % FS_DEDUP_CACHE_SIZE;
+}
+
+static bool seen_event_contains(uint64_t key)
+{
+    for (size_t i = 0; i < FS_DEDUP_CACHE_SIZE; i++) {
+        if (s_seen_event_keys[i] == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void seen_event_insert(uint64_t key)
+{
+    s_seen_event_keys[s_seen_event_idx] = key;
+    s_seen_event_idx                    = (s_seen_event_idx + 1) % FS_DEDUP_CACHE_SIZE;
 }
 
 /* -------- TLS + HTTP -------- */
@@ -953,6 +973,24 @@ static int fs_conn_write(fs_ws_conn_t *conn, const uint8_t *data, int len)
     return sent;
 }
 
+/*
+ * Layout-compatible prefix of the internal tuya_mbedtls_context_t (tuya_tls.c)
+ * so we can call mbedtls_ssl_get_bytes_avail() to detect data already
+ * decrypted but not yet consumed by the application.
+ */
+typedef struct {
+    tuya_tls_config_t   _cfg;
+    mbedtls_ssl_context ssl_ctx;
+} fs_tls_compat_t;
+
+static size_t fs_tls_bytes_avail(tuya_tls_hander tls)
+{
+    if (!tls) {
+        return 0;
+    }
+    return mbedtls_ssl_get_bytes_avail(&((fs_tls_compat_t *)tls)->ssl_ctx);
+}
+
 static int fs_conn_read(fs_ws_conn_t *conn, uint8_t *buf, int len, int timeout_ms)
 {
     if (!conn || !buf || len <= 0 || timeout_ms <= 0) {
@@ -967,15 +1005,26 @@ static int fs_conn_read(fs_ws_conn_t *conn, uint8_t *buf, int len, int timeout_m
         return -1;
     }
 
-    TUYA_FD_SET_T readfds;
-    tal_net_fd_zero(&readfds);
-    tal_net_fd_set(conn->socket_fd, &readfds);
-    int ready = tal_net_select(conn->socket_fd + 1, &readfds, NULL, NULL, timeout_ms);
-    if (ready < 0) {
-        return -1;
-    }
-    if (ready == 0) {
-        return OPRT_RESOURCE_NOT_READY;
+    /*
+     * mbedtls decrypts a full TLS record at once but may return only part of
+     * it to the caller; the remainder stays in the SSL context's internal
+     * buffer.  select() only monitors the raw TCP socket and is blind to
+     * that buffered plaintext, so it would block until the *next* TCP
+     * segment arrives — causing multi-second stalls.
+     *
+     * Fix: skip select() when mbedtls already has data ready.
+     */
+    if (fs_tls_bytes_avail(conn->tls) == 0) {
+        TUYA_FD_SET_T readfds;
+        tal_net_fd_zero(&readfds);
+        tal_net_fd_set(conn->socket_fd, &readfds);
+        int ready = tal_net_select(conn->socket_fd + 1, &readfds, NULL, NULL, timeout_ms);
+        if (ready < 0) {
+            return -1;
+        }
+        if (ready == 0) {
+            return OPRT_RESOURCE_NOT_READY;
+        }
     }
 
     int n = tuya_tls_read(conn->tls, buf, (uint32_t)len);
@@ -2148,7 +2197,10 @@ static void extract_message_text(const char *msg_type, const char *content_json,
     cJSON_Delete(obj);
 }
 
-static OPERATE_RET fs_add_reaction(const char *message_id)
+/* fs_add_reaction removed: synchronous HTTP in the WebSocket read loop
+ * blocks message reception. Re-add as async if needed. */
+
+static OPERATE_RET __attribute__((unused)) fs_add_reaction(const char *message_id)
 {
     if (!message_id || message_id[0] == '\0') {
         return OPRT_INVALID_PARM;
@@ -2209,11 +2261,14 @@ static void publish_inbound_feishu(const char *chat_id, const char *text)
     if (!in.content) {
         return;
     }
+    /* in.received_at_ms = tal_system_get_millisecond(); — mimi_msg_t 暂无此字段 */
 
     OPERATE_RET rt = message_bus_push_inbound(&in);
     if (rt != OPRT_OK) {
         MIMI_LOGW(TAG, "push inbound failed rt=%d", rt);
         free(in.content);
+    } else {
+        MIMI_LOGI(TAG, "[feishu] latency +0ms push_inbound");
     }
 }
 
@@ -2226,6 +2281,7 @@ static void log_feishu_inbound_message(const char *chat_id, const char *sender_o
                                        const char *message_id, const char *msg_type, const char *chat_type,
                                        const char *text, const char *content_json)
 {
+    MIMI_LOGI(TAG, "[feishu] received msg chat_id=%s content=%s", log_str(chat_id), log_str(text));
     MIMI_LOGI(TAG, "rx inbound_text channel=%s chat=%s event=%s type=%s len=%u", MIMI_CHAN_FEISHU, log_str(chat_id),
               log_str(event_type), log_str(msg_type), (unsigned)strlen(log_str(text)));
     (void)sender_open_id;
@@ -2242,27 +2298,49 @@ static void handle_event_payload(const uint8_t *payload, size_t payload_len)
 
     cJSON *root = cJSON_ParseWithLength((const char *)payload, payload_len);
     if (!root) {
+        MIMI_LOGW(TAG, "[feishu] event payload parse failed len=%u", (unsigned)payload_len);
         return;
     }
 
+    // debug, output root as json string
+    char *json_str = cJSON_PrintUnformatted(root);
+    MIMI_LOGI(TAG, "[feishu] event payload: %s", json_str);
+    cJSON_free(json_str);
+
     const char *event_type = NULL;
+    const char *event_id   = NULL;
     cJSON      *header     = cJSON_GetObjectItem(root, "header");
     if (cJSON_IsObject(header)) {
         event_type = json_str2(header, "event_type", NULL);
+        event_id   = json_str2(header, "event_id", NULL);
     }
     if (!event_type) {
         event_type = json_str2(root, "type", NULL);
     }
 
+    MIMI_LOGI(TAG, "[feishu] event received event_type=%s", event_type ? event_type : "(null)");
+
     if (!event_type || strcmp(event_type, "im.message.receive_v1") != 0) {
+        MIMI_LOGI(TAG, "[feishu] skip event (only handle im.message.receive_v1)");
         cJSON_Delete(root);
         return;
+    }
+
+    /* 同一条推送重复送达（如重连后重放）：按 event_id 去重 */
+    if (event_id && event_id[0] != '\0') {
+        uint64_t ev_key = fnv1a64(event_id);
+        if (seen_event_contains(ev_key)) {
+            MIMI_LOGI(TAG, "[feishu] duplicate event_id dropped event_id=%s", event_id);
+            cJSON_Delete(root);
+            return;
+        }
     }
 
     cJSON *event   = cJSON_GetObjectItem(root, "event");
     cJSON *sender  = event ? cJSON_GetObjectItem(event, "sender") : NULL;
     cJSON *message = event ? cJSON_GetObjectItem(event, "message") : NULL;
     if (!cJSON_IsObject(sender) || !cJSON_IsObject(message)) {
+        MIMI_LOGW(TAG, "[feishu] event missing sender or message object");
         cJSON_Delete(root);
         return;
     }
@@ -2305,14 +2383,22 @@ static void handle_event_payload(const uint8_t *payload, size_t payload_len)
         return;
     }
 
+    /* 同一条用户消息重复/重放：按 message_id 去重 */
     const char *message_id = json_str2(message, "message_id", NULL);
     if (message_id && message_id[0]) {
         uint64_t msg_key = fnv1a64(message_id);
         if (seen_msg_contains(msg_key)) {
+            MIMI_LOGI(TAG, "[feishu] duplicate message_id dropped message_id=%s", message_id);
+            if (event_id && event_id[0] != '\0') {
+                seen_event_insert(fnv1a64(event_id));
+            }
             cJSON_Delete(root);
             return;
         }
         seen_msg_insert(msg_key);
+    }
+    if (event_id && event_id[0] != '\0') {
+        seen_event_insert(fnv1a64(event_id));
     }
 
     const char *chat_id      = json_str2(message, "chat_id", NULL);
@@ -2323,6 +2409,8 @@ static void handle_event_payload(const uint8_t *payload, size_t payload_len)
     char text[2048] = {0};
     extract_message_text(msg_type ? msg_type : "unknown", content_json, text, sizeof(text));
     if (text[0] == '\0') {
+        MIMI_LOGW(TAG, "[feishu] message text empty msg_type=%s (unsupported or empty content)",
+                  msg_type ? msg_type : "null");
         cJSON_Delete(root);
         return;
     }
@@ -2344,9 +2432,8 @@ static void handle_event_payload(const uint8_t *payload, size_t payload_len)
 
     publish_inbound_feishu(reply_to, text);
 
-    if (message_id && message_id[0] != '\0') {
-        (void)fs_add_reaction(message_id);
-    }
+    /* 不在收消息路径里同步调 reaction：fs_add_reaction 会发 HTTP，阻塞 WebSocket
+     * 读循环，导致下一条消息很久才被读到。需要 reaction 时可改为异步/独立线程。 */
 
     cJSON_Delete(root);
 }
@@ -2423,18 +2510,13 @@ static OPERATE_RET handle_data_pb_frame(fs_ws_conn_t *conn, const fs_pb_frame_t 
         return rt;
     }
 
-    if (type && strcmp(type, "event") == 0 && payload && payload_len > 0) {
-        handle_event_payload(payload, payload_len);
-    }
-
-    free(payload);
-
+    /* 飞书要求 3 秒内确认，否则会重推。先回 ACK 再处理业务，避免 handle_event_payload 内 HTTP 等导致超时。 */
     static const char ack_ok[] = "{\"code\":200}";
     fs_pb_frame_t    *ack      = fs_pb_frame_new();
     if (!ack) {
+        free(payload);
         return OPRT_MALLOC_FAILED;
     }
-
     ack->seq_id       = frame->seq_id;
     ack->log_id       = frame->log_id;
     ack->service      = frame->service;
@@ -2449,12 +2531,25 @@ static OPERATE_RET handle_data_pb_frame(fs_ws_conn_t *conn, const fs_pb_frame_t 
     }
     ack->payload     = (uint8_t *)ack_ok;
     ack->payload_len = sizeof(ack_ok) - 1;
-
     rt               = send_pb_frame(conn, ack);
     ack->payload     = NULL;
     ack->payload_len = 0;
     fs_pb_frame_delete(ack);
-    return rt;
+    if (rt != OPRT_OK) {
+        free(payload);
+        return rt;
+    }
+
+    if (payload && payload_len > 0) {
+        if (type && strcmp(type, "event") == 0) {
+            handle_event_payload(payload, payload_len);
+        } else {
+            MIMI_LOGI(TAG, "[feishu] ws data frame type=%s (only type=event handled for messages)",
+                      type ? type : "(null)");
+        }
+    }
+    free(payload);
+    return OPRT_OK;
 }
 
 /* -------- ws main loop -------- */
@@ -2538,7 +2633,7 @@ static void feishu_ws_task(void *arg)
             uint8_t  opcode      = 0;
             uint8_t *payload     = NULL;
             size_t   payload_len = 0;
-            rt                   = fs_ws_poll_frame(conn, 500, &opcode, &payload, &payload_len);
+            rt                   = fs_ws_poll_frame(conn, FS_WS_POLL_WAIT_MS, &opcode, &payload, &payload_len);
             if (rt == OPRT_RESOURCE_NOT_READY) {
                 continue;
             }

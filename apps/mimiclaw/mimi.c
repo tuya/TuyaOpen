@@ -15,6 +15,7 @@
 #include "proxy/http_proxy.h"
 #include "skills/skill_loader.h"
 #include "channels/telegram_bot.h"
+#include "tools/tool_get_time.h"
 #include "tools/tool_registry.h"
 #include "tuya_register_center.h"
 #include "tuya_tls.h"
@@ -22,7 +23,8 @@
 
 #include "cJSON.h"
 #include "netmgr.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
+#include "tkl_fs.h"
 #include "tkl_output.h"
 
 #include <ctype.h>
@@ -128,6 +130,36 @@ static void mimi_runtime_init(void)
         .key  = "dflfuap134ddlduq",
     });
 
+#if MIMI_USE_SDCARD
+    MIMI_LOGI(TAG, "Mounting SD card to %s...", MIMI_FS_BASE);
+    int         retry = 0;
+    OPERATE_RET rt    = OPRT_OK;
+    while (retry < 3) {
+        rt = tkl_fs_mount(MIMI_FS_BASE, DEV_SDCARD);
+        if (rt == OPRT_OK) {
+            MIMI_LOGI(TAG, "SD card mount success");
+            break;
+        }
+        MIMI_LOGW(TAG, "SD card mount failed (rt=%d), retry %d/3...", rt, retry + 1);
+        tal_system_sleep(1000);
+        retry++;
+    }
+#elif ENABLE_FILE_SYSTEM
+    MIMI_LOGI(TAG, "Mounting inner flash to %s...", MIMI_FS_BASE);
+    int         retry = 0;
+    OPERATE_RET rt    = OPRT_OK;
+    while (retry < 3) {
+        rt = tkl_fs_mount(MIMI_FS_BASE, DEV_INNER_FLASH);
+        if (rt == OPRT_OK) {
+            MIMI_LOGI(TAG, "Inner flash mount success");
+            break;
+        }
+        MIMI_LOGW(TAG, "Inner flash mount failed (rt=%d), retry %d/3...", rt, retry + 1);
+        tal_system_sleep(1000);
+        retry++;
+    }
+#endif
+
     (void)tal_sw_timer_init();
     (void)tal_workq_init();
     (void)tuya_tls_init();
@@ -138,12 +170,19 @@ static void mimi_runtime_init(void)
 
 static OPERATE_RET ensure_dir(const char *path)
 {
-    BOOL_T exists = FALSE;
-    if (tal_fs_is_exist(path, &exists) == OPRT_OK && exists) {
+    // Skip mkdir for mount point root itself
+    if (strcmp(path, "/sdcard") == 0 || strcmp(path, "/spiffs") == 0) {
         return OPRT_OK;
     }
 
-    OPERATE_RET rt = tal_fs_mkdir(path);
+    BOOL_T      exists = FALSE;
+    OPERATE_RET rt     = mimi_fs_is_exist(path, &exists);
+    if (rt == OPRT_OK && exists) {
+        return OPRT_OK;
+    }
+
+    MIMI_LOGI(TAG, "Creating directory: %s", path);
+    rt = mimi_fs_mkdir(path);
     if (rt != OPRT_OK) {
         MIMI_LOGE(TAG, "mkdir failed: %s rt=%d", path, rt);
         return rt;
@@ -154,31 +193,43 @@ static OPERATE_RET ensure_dir(const char *path)
 
 static OPERATE_RET init_storage(void)
 {
-    OPERATE_RET rt = ensure_dir(MIMI_SPIFFS_BASE);
+#if MIMI_USE_SDCARD
+    BOOL_T mounted = FALSE;
+    if (mimi_fs_is_exist(MIMI_FS_BASE, &mounted) != OPRT_OK || !mounted) {
+        MIMI_LOGW(TAG, "Storage root %s stat failed (SD mount may still be valid), creating subdirs", MIMI_FS_BASE);
+    }
+#endif
+
+    OPERATE_RET rt = ensure_dir(MIMI_FS_BASE);
     if (rt != OPRT_OK) {
         return rt;
     }
 
     rt = ensure_dir(MIMI_SPIFFS_CONFIG_DIR);
     if (rt != OPRT_OK) {
+        MIMI_LOGE(TAG, "Config dir init failed: %d", rt);
         return rt;
     }
 
     rt = ensure_dir(MIMI_SPIFFS_MEMORY_DIR);
     if (rt != OPRT_OK) {
+        MIMI_LOGE(TAG, "Memory dir init failed: %d", rt);
         return rt;
     }
 
     rt = ensure_dir(MIMI_SPIFFS_SESSION_DIR);
     if (rt != OPRT_OK) {
+        MIMI_LOGE(TAG, "Session dir init failed: %d", rt);
         return rt;
     }
 
     rt = ensure_dir(MIMI_SPIFFS_SKILLS_DIR);
     if (rt != OPRT_OK) {
+        MIMI_LOGE(TAG, "Skills dir init failed: %d", rt);
         return rt;
     }
 
+    MIMI_LOGI(TAG, "Storage initialized on %s", MIMI_FS_BASE);
     return OPRT_OK;
 }
 
@@ -351,6 +402,7 @@ void mimi_app_main(void)
     (void)feishu_bot_init();
     (void)llm_proxy_init();
     (void)tool_registry_init();
+    tool_get_time_init(); /* set timezone early so log timestamps are local */
     (void)cron_service_init();
     (void)heartbeat_init();
     (void)agent_loop_init();

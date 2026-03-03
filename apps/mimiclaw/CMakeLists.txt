@@ -28,8 +28,10 @@ set(APP_SRCS
     ${APP_PATH}/tools/tool_registry.c
     ${APP_PATH}/tools/tool_cron.c
     ${APP_PATH}/tools/tool_web_search.c
+    ${APP_PATH}/tools/tool_web_search_baidu.c
     ${APP_PATH}/tools/tool_get_time.c
     ${APP_PATH}/tools/tool_files.c
+    ${APP_PATH}/tools/tool_led.c
     ${APP_PATH}/skills/skill_loader.c
 )
 

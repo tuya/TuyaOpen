@@ -27,4 +27,6 @@ OPERATE_RET llm_set_provider(const char *provider);
 OPERATE_RET llm_set_model(const char *model);
 OPERATE_RET llm_chat(const char *system_prompt, const char *messages_json, char *response_buf, size_t buf_size);
 OPERATE_RET llm_chat_tools(const char *system_prompt, cJSON *messages, const char *tools_json, llm_response_t *resp);
+OPERATE_RET llm_chat_tools_ex(const char *system_prompt, cJSON *messages, const char *tools_json, bool force_tool,
+                              llm_response_t *resp);
 void        llm_response_free(llm_response_t *resp);

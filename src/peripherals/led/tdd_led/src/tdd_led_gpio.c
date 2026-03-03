@@ -34,7 +34,7 @@
 static OPERATE_RET __tdd_led_gpio_set(TDD_LED_HANDLE_T handle, bool is_on)
 {
     TDD_LED_GPIO_CFG_T *led_cfg = (TDD_LED_GPIO_CFG_T *)handle;
-    TUYA_GPIO_LEVEL_E level = 0;
+    TUYA_GPIO_LEVEL_E   level   = 0;
 
     if (NULL == handle) {
         return OPRT_INVALID_PARM;
@@ -51,7 +51,7 @@ static OPERATE_RET __tdd_led_gpio_set(TDD_LED_HANDLE_T handle, bool is_on)
 
 static OPERATE_RET __tdd_led_gpio_open(TDD_LED_HANDLE_T handle)
 {
-    TDD_LED_GPIO_CFG_T *led_cfg = (TDD_LED_GPIO_CFG_T *)handle;
+    TDD_LED_GPIO_CFG_T  *led_cfg  = (TDD_LED_GPIO_CFG_T *)handle;
     TUYA_GPIO_BASE_CFG_T gpio_cfg = {0};
 
     if (NULL == handle) {
@@ -59,8 +59,8 @@ static OPERATE_RET __tdd_led_gpio_open(TDD_LED_HANDLE_T handle)
     }
 
     gpio_cfg.direct = TUYA_GPIO_OUTPUT;
-    gpio_cfg.mode = led_cfg->mode;
-    gpio_cfg.level = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
+    gpio_cfg.mode   = led_cfg->mode;
+    gpio_cfg.level  = (true == led_cfg->level) ? TUYA_GPIO_LEVEL_LOW : TUYA_GPIO_LEVEL_HIGH;
 
     return tkl_gpio_init(led_cfg->pin, &gpio_cfg);
 }
@@ -87,7 +87,7 @@ static OPERATE_RET __tdd_led_gpio_close(TDD_LED_HANDLE_T handle)
 OPERATE_RET tdd_led_gpio_register(char *dev_name, TDD_LED_GPIO_CFG_T *led_cfg)
 {
     TDD_LED_GPIO_CFG_T *tdd_led_cfg = NULL;
-    TDD_LED_INTFS_T intfs;
+    TDD_LED_INTFS_T     intfs;
 
     if (NULL == dev_name || NULL == led_cfg) {
         return OPRT_INVALID_PARM;
@@ -98,8 +98,8 @@ OPERATE_RET tdd_led_gpio_register(char *dev_name, TDD_LED_GPIO_CFG_T *led_cfg)
     memcpy(tdd_led_cfg, led_cfg, sizeof(TDD_LED_GPIO_CFG_T));
 
     memset(&intfs, 0x00, sizeof(TDD_LED_INTFS_T));
-    intfs.led_open = __tdd_led_gpio_open;
-    intfs.led_set = __tdd_led_gpio_set;
+    intfs.led_open  = __tdd_led_gpio_open;
+    intfs.led_set   = __tdd_led_gpio_set;
     intfs.led_close = __tdd_led_gpio_close;
 
     return tdl_led_driver_register(dev_name, (TDD_LED_HANDLE_T)tdd_led_cfg, &intfs);

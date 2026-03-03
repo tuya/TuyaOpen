@@ -3,7 +3,7 @@
 #include "bus/message_bus.h"
 #include "mimi_config.h"
 
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -18,7 +18,7 @@ static TIMER_ID s_heartbeat_timer = NULL;
 
 static bool heartbeat_has_tasks(void)
 {
-    TUYA_FILE f = tal_fopen(MIMI_HEARTBEAT_FILE, "r");
+    TUYA_FILE f = mimi_fopen(MIMI_HEARTBEAT_FILE, "r");
     if (!f) {
         return false;
     }
@@ -26,7 +26,7 @@ static bool heartbeat_has_tasks(void)
     char line[256]  = {0};
     bool found_task = false;
 
-    while (tal_fgets(line, sizeof(line), f)) {
+    while (mimi_fgets(line, sizeof(line), f)) {
         const char *p = line;
         while (*p && isspace((unsigned char)*p)) {
             p++;
@@ -51,7 +51,7 @@ static bool heartbeat_has_tasks(void)
         break;
     }
 
-    tal_fclose(f);
+    mimi_fclose(f);
     return found_task;
 }
 

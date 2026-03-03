@@ -27,10 +27,23 @@ typedef struct {
 static llm_endpoint_t s_openai_endpoint    = {0};
 static llm_endpoint_t s_anthropic_endpoint = {0};
 
+#define LLM_LOG_PREVIEW_LEN 1024
+
 static void llm_log_payload(const char *label, const char *payload)
 {
     size_t total = payload ? strlen(payload) : 0;
-    MIMI_LOGI(TAG, "%s (%u bytes)", label ? label : "llm payload", (unsigned)total);
+    MIMI_LOGI(TAG, "========== %s (%u bytes) ==========", label ? label : "llm payload", (unsigned)total);
+    if (payload && total > 0) {
+        if (total <= LLM_LOG_PREVIEW_LEN) {
+            MIMI_LOGI(TAG, "%s", payload);
+        } else {
+            char preview[LLM_LOG_PREVIEW_LEN + 1];
+            memcpy(preview, payload, LLM_LOG_PREVIEW_LEN);
+            preview[LLM_LOG_PREVIEW_LEN] = '\0';
+            MIMI_LOGI(TAG, "%s ...[truncated, %u more bytes]", preview, (unsigned)(total - LLM_LOG_PREVIEW_LEN));
+        }
+    }
+    MIMI_LOGI(TAG, "========== end %s ==========", label ? label : "llm payload");
 }
 
 static void safe_copy(char *dst, size_t dst_size, const char *src)
@@ -712,10 +725,12 @@ OPERATE_RET llm_chat(const char *system_prompt, const char *messages_json, char 
     if (!raw_resp) {
         return OPRT_MALLOC_FAILED;
     }
+    MIMI_LOGI(TAG, ">>> LLM chat request: provider=%s model=%s", s_provider, s_model);
     llm_log_payload("LLM request", post_data);
     uint16_t    status = 0;
     OPERATE_RET rt     = llm_http_call(post_data, raw_resp, MIMI_LLM_STREAM_BUF_SIZE, &status);
     cJSON_free(post_data);
+    MIMI_LOGI(TAG, "<<< LLM chat response: http_status=%u rt=%d", (unsigned)status, rt);
     llm_log_payload("LLM raw response", raw_resp);
 
     if (rt != OPRT_OK) {
@@ -773,6 +788,12 @@ void llm_response_free(llm_response_t *resp)
 
 OPERATE_RET llm_chat_tools(const char *system_prompt, cJSON *messages, const char *tools_json, llm_response_t *resp)
 {
+    return llm_chat_tools_ex(system_prompt, messages, tools_json, false, resp);
+}
+
+OPERATE_RET llm_chat_tools_ex(const char *system_prompt, cJSON *messages, const char *tools_json, bool force_tool,
+                              llm_response_t *resp)
+{
     if (!resp) {
         return OPRT_INVALID_PARM;
     }
@@ -806,7 +827,7 @@ OPERATE_RET llm_chat_tools(const char *system_prompt, cJSON *messages, const cha
             cJSON *tools = convert_tools_openai(tools_json);
             if (tools) {
                 cJSON_AddItemToObject(body, "tools", tools);
-                cJSON_AddStringToObject(body, "tool_choice", "auto");
+                cJSON_AddStringToObject(body, "tool_choice", force_tool ? "required" : "auto");
             }
         }
     } else {
@@ -836,17 +857,22 @@ OPERATE_RET llm_chat_tools(const char *system_prompt, cJSON *messages, const cha
         cJSON_free(post_data);
         return OPRT_MALLOC_FAILED;
     }
+    MIMI_LOGI(TAG, ">>> LLM tools request: provider=%s model=%s host=%s", s_provider, s_model,
+              llm_api_host() ? llm_api_host() : "(null)");
     llm_log_payload("LLM tools request", post_data);
     uint16_t    status = 0;
     OPERATE_RET rt     = llm_http_call(post_data, raw_resp, MIMI_LLM_STREAM_BUF_SIZE, &status);
     cJSON_free(post_data);
+    MIMI_LOGI(TAG, "<<< LLM tools response: http_status=%u rt=%d", (unsigned)status, rt);
     llm_log_payload("LLM tools raw response", raw_resp);
 
     if (rt != OPRT_OK) {
+        MIMI_LOGE(TAG, "LLM tools HTTP call failed rt=%d", rt);
         free(raw_resp);
         return rt;
     }
     if (status != 200) {
+        MIMI_LOGE(TAG, "LLM tools API error HTTP %u, body: %.512s", (unsigned)status, raw_resp);
         free(raw_resp);
         return OPRT_COM_ERROR;
     }
@@ -948,6 +974,21 @@ OPERATE_RET llm_chat_tools(const char *system_prompt, cJSON *messages, const cha
                 resp->call_count++;
             }
         }
+    }
+
+    /* Log parsed LLM response details */
+    MIMI_LOGI(TAG, "LLM parsed result: tool_use=%s text_len=%u call_count=%d", resp->tool_use ? "true" : "false",
+              (unsigned)resp->text_len, resp->call_count);
+    if (resp->text && resp->text_len > 0) {
+        if (resp->text_len <= 512) {
+            MIMI_LOGI(TAG, "LLM response text: %s", resp->text);
+        } else {
+            MIMI_LOGI(TAG, "LLM response text (first 512): %.512s ...[truncated]", resp->text);
+        }
+    }
+    for (int log_i = 0; log_i < resp->call_count; log_i++) {
+        MIMI_LOGI(TAG, "LLM tool_call[%d]: id=%s name=%s input=%s", log_i, resp->calls[log_i].id,
+                  resp->calls[log_i].name, resp->calls[log_i].input ? resp->calls[log_i].input : "(null)");
     }
 
     cJSON_Delete(root);

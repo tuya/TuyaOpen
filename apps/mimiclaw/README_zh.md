@@ -151,6 +151,30 @@ cp apps/tuya_mimiclaw/mimi_secrets.h.example apps/tuya_mimiclaw/mimi_secrets.h
 5. **也可以直接复制 `apps/tuy_mimiclaw/mimi_secrets.h.example` 并重命名为 `mimi_secrets.h` 修改文件上的配置，并重新编译**  
 （本仓库中目录名为 `apps/tuya_mimiclaw`，请以实际路径为准）
 
+6. **存储切换**
+  
+在 `apps/tuya_mimiclaw/mimi_config.h` 中
+
+```
+#if MIMI_USE_SDCARD
+#define MIMI_FS_BASE "/spiffs"
+#else
+#define MIMI_FS_BASE "/spiffs"
+#endif
+```c
+
+7. **搜索引擎切换**
+
+在 `apps/tuya_mimiclaw/mimi_config.h` 中
+
+```
+/* Search Engine Selection: 0 = Brave, 1 = Baidu */
+#ifndef MIMI_USE_BAIDU_SEARCH
+#define MIMI_USE_BAIDU_SEARCH 0
+#endif
+```c
+
+
 ### 6. 配置优先级规则
 
 配置优先级（从高到低）如下：

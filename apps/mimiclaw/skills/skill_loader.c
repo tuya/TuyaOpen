@@ -2,7 +2,7 @@
 
 #include "mimi_config.h"
 
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 #include <string.h>
 
@@ -109,19 +109,19 @@ static void install_builtin(const builtin_skill_t *skill)
     snprintf(path, sizeof(path), "%s%s.md", MIMI_SKILLS_PREFIX, skill->filename);
 
     BOOL_T exists = FALSE;
-    if (tal_fs_is_exist(path, &exists) == OPRT_OK && exists) {
+    if (mimi_fs_is_exist(path, &exists) == OPRT_OK && exists) {
         MIMI_LOGD(TAG, "skill exists: %s", path);
         return;
     }
 
-    TUYA_FILE f = tal_fopen(path, "w");
+    TUYA_FILE f = mimi_fopen(path, "w");
     if (!f) {
         MIMI_LOGE(TAG, "cannot write skill: %s", path);
         return;
     }
 
-    int wn = tal_fwrite((void *)skill->content, (int)strlen(skill->content), f);
-    tal_fclose(f);
+    int wn = mimi_fwrite((void *)skill->content, (int)strlen(skill->content), f);
+    mimi_fclose(f);
     if (wn < 0) {
         MIMI_LOGE(TAG, "write skill failed: %s", path);
         return;
@@ -132,9 +132,11 @@ static void install_builtin(const builtin_skill_t *skill)
 
 OPERATE_RET skill_loader_init(void)
 {
+    MIMI_LOGI(TAG, "skill_loader_init: loading %d built-in skills, dir=%s", NUM_BUILTINS, MIMI_SPIFFS_SKILLS_DIR);
+
     BOOL_T exists = FALSE;
-    if (tal_fs_is_exist(MIMI_SPIFFS_SKILLS_DIR, &exists) != OPRT_OK || !exists) {
-        int mk_rt = tal_fs_mkdir(MIMI_SPIFFS_SKILLS_DIR);
+    if (mimi_fs_is_exist(MIMI_SPIFFS_SKILLS_DIR, &exists) != OPRT_OK || !exists) {
+        int mk_rt = mimi_fs_mkdir(MIMI_SPIFFS_SKILLS_DIR);
         if (mk_rt != OPRT_OK) {
             MIMI_LOGE(TAG, "mkdir failed: %s rt=%d", MIMI_SPIFFS_SKILLS_DIR, mk_rt);
             return mk_rt;
@@ -142,6 +144,7 @@ OPERATE_RET skill_loader_init(void)
     }
 
     for (int i = 0; i < NUM_BUILTINS; i++) {
+        MIMI_LOGI(TAG, "installing built-in skill [%d/%d]: %s", i + 1, NUM_BUILTINS, s_builtins[i].filename);
         install_builtin(&s_builtins[i]);
     }
 
@@ -180,7 +183,7 @@ static void extract_description(TUYA_FILE f, char *out, size_t out_size)
     size_t off       = 0;
     char   line[256] = {0};
 
-    while (tal_fgets(line, sizeof(line), f) && off < out_size - 1) {
+    while (mimi_fgets(line, sizeof(line), f) && off < out_size - 1) {
         size_t len = strlen(line);
 
         if (len == 0 || (len == 1 && line[0] == '\n') || (len >= 2 && line[0] == '#' && line[1] == '#')) {
@@ -213,7 +216,7 @@ size_t skill_loader_build_summary(char *buf, size_t size)
     }
 
     TUYA_DIR dir = NULL;
-    if (tal_dir_open(MIMI_SPIFFS_SKILLS_DIR, &dir) != OPRT_OK || !dir) {
+    if (mimi_dir_open(MIMI_SPIFFS_SKILLS_DIR, &dir) != OPRT_OK || !dir) {
         MIMI_LOGW(TAG, "cannot open skills dir: %s", MIMI_SPIFFS_SKILLS_DIR);
         buf[0] = '\0';
         return 0;
@@ -223,12 +226,12 @@ size_t skill_loader_build_summary(char *buf, size_t size)
 
     while (off < size - 1) {
         TUYA_FILEINFO info = NULL;
-        if (tal_dir_read(dir, &info) != OPRT_OK || !info) {
+        if (mimi_dir_read(dir, &info) != OPRT_OK || !info) {
             break;
         }
 
         const char *name = NULL;
-        if (tal_dir_name(info, &name) != OPRT_OK || !name) {
+        if (mimi_dir_name(info, &name) != OPRT_OK || !name) {
             continue;
         }
 
@@ -240,14 +243,14 @@ size_t skill_loader_build_summary(char *buf, size_t size)
         char full_path[256] = {0};
         snprintf(full_path, sizeof(full_path), "%s/%s", MIMI_SPIFFS_SKILLS_DIR, name);
 
-        TUYA_FILE f = tal_fopen(full_path, "r");
+        TUYA_FILE f = mimi_fopen(full_path, "r");
         if (!f) {
             continue;
         }
 
         char first_line[128] = {0};
-        if (!tal_fgets(first_line, sizeof(first_line), f)) {
-            tal_fclose(f);
+        if (!mimi_fgets(first_line, sizeof(first_line), f)) {
+            mimi_fclose(f);
             continue;
         }
 
@@ -256,19 +259,19 @@ size_t skill_loader_build_summary(char *buf, size_t size)
 
         char desc[256] = {0};
         extract_description(f, desc, sizeof(desc));
-        tal_fclose(f);
+        mimi_fclose(f);
 
         off += (size_t)snprintf(buf + off, size - off, "- **%s**: %s (read with: read_file %s)\n", title,
                                 desc[0] ? desc : "(no description)", full_path);
     }
 
-    tal_dir_close(dir);
+    mimi_dir_close(dir);
 
     if (off >= size) {
         off = size - 1;
     }
     buf[off] = '\0';
 
-    MIMI_LOGI(TAG, "skills summary bytes=%u", (unsigned)off);
+    MIMI_LOGI(TAG, "skills summary built: bytes=%u content:\n%s", (unsigned)off, off > 0 ? buf : "(empty)");
     return off;
 }

@@ -2,7 +2,7 @@
 #include "mimi_config.h"
 
 #include "cJSON.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 static const char *TAG = "session";
 
@@ -52,14 +52,14 @@ OPERATE_RET session_append(const char *chat_id, const char *role, const char *co
     char path[128] = {0};
     session_path(chat_id, path, sizeof(path));
 
-    TUYA_FILE f = tal_fopen(path, "a");
+    TUYA_FILE f = mimi_fopen(path, "a");
     if (!f) {
         return OPRT_FILE_OPEN_FAILED;
     }
 
     cJSON *obj = cJSON_CreateObject();
     if (!obj) {
-        tal_fclose(f);
+        mimi_fclose(f);
         return OPRT_CR_CJSON_ERR;
     }
 
@@ -71,14 +71,14 @@ OPERATE_RET session_append(const char *chat_id, const char *role, const char *co
     cJSON_Delete(obj);
 
     if (!line) {
-        tal_fclose(f);
+        mimi_fclose(f);
         return OPRT_CR_CJSON_ERR;
     }
 
-    (void)tal_fwrite(line, (int)strlen(line), f);
-    (void)tal_fwrite("\n", 1, f);
+    (void)mimi_fwrite(line, (int)strlen(line), f);
+    (void)mimi_fwrite("\n", 1, f);
     cJSON_free(line);
-    tal_fclose(f);
+    mimi_fclose(f);
     return OPRT_OK;
 }
 
@@ -94,7 +94,7 @@ OPERATE_RET session_get_history_json(const char *chat_id, char *buf, size_t size
     char path[128] = {0};
     session_path(chat_id, path, sizeof(path));
 
-    TUYA_FILE f = tal_fopen(path, "r");
+    TUYA_FILE f = mimi_fopen(path, "r");
     if (!f) {
         snprintf(buf, size, "[]");
         return OPRT_OK;
@@ -105,7 +105,7 @@ OPERATE_RET session_get_history_json(const char *chat_id, char *buf, size_t size
     int    write_idx                   = 0;
 
     char line[2048] = {0};
-    while (tal_fgets(line, (int)sizeof(line), f)) {
+    while (mimi_fgets(line, (int)sizeof(line), f)) {
         size_t len = strlen(line);
         if (len > 0 && line[len - 1] == '\n') {
             line[len - 1] = '\0';
@@ -128,7 +128,7 @@ OPERATE_RET session_get_history_json(const char *chat_id, char *buf, size_t size
             count++;
         }
     }
-    tal_fclose(f);
+    mimi_fclose(f);
 
     cJSON *arr   = cJSON_CreateArray();
     int    start = (count < max_msgs) ? 0 : write_idx;
@@ -182,7 +182,7 @@ OPERATE_RET session_clear(const char *chat_id)
     char path[128] = {0};
     session_path(normalized, path, sizeof(path));
 
-    return (tal_fs_remove(path) == OPRT_OK) ? OPRT_OK : OPRT_NOT_FOUND;
+    return (mimi_fs_remove(path) == OPRT_OK) ? OPRT_OK : OPRT_NOT_FOUND;
 }
 
 OPERATE_RET session_clear_all(uint32_t *out_removed)
@@ -193,18 +193,18 @@ OPERATE_RET session_clear_all(uint32_t *out_removed)
     }
 
     TUYA_DIR dir = NULL;
-    if (tal_dir_open(MIMI_SPIFFS_SESSION_DIR, &dir) != OPRT_OK || !dir) {
+    if (mimi_dir_open(MIMI_SPIFFS_SESSION_DIR, &dir) != OPRT_OK || !dir) {
         return OPRT_FILE_OPEN_FAILED;
     }
 
     while (1) {
         TUYA_FILEINFO info = NULL;
-        if (tal_dir_read(dir, &info) != OPRT_OK || !info) {
+        if (mimi_dir_read(dir, &info) != OPRT_OK || !info) {
             break;
         }
 
         const char *name = NULL;
-        if (tal_dir_name(info, &name) != OPRT_OK || !name || name[0] == '\0') {
+        if (mimi_dir_name(info, &name) != OPRT_OK || !name || name[0] == '\0') {
             continue;
         }
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
@@ -212,18 +212,18 @@ OPERATE_RET session_clear_all(uint32_t *out_removed)
         }
 
         BOOL_T is_regular = FALSE;
-        if (tal_dir_is_regular(info, &is_regular) != OPRT_OK || !is_regular) {
+        if (mimi_dir_is_regular(info, &is_regular) != OPRT_OK || !is_regular) {
             continue;
         }
 
         char path[160] = {0};
         snprintf(path, sizeof(path), "%s/%s", MIMI_SPIFFS_SESSION_DIR, name);
-        if (tal_fs_remove(path) == OPRT_OK) {
+        if (mimi_fs_remove(path) == OPRT_OK) {
             removed++;
         }
     }
 
-    tal_dir_close(dir);
+    mimi_dir_close(dir);
     if (out_removed) {
         *out_removed = removed;
     }
@@ -238,19 +238,19 @@ OPERATE_RET session_list(session_list_cb_t cb, void *user_data, uint32_t *out_co
     }
 
     TUYA_DIR dir = NULL;
-    if (tal_dir_open(MIMI_SPIFFS_SESSION_DIR, &dir) != OPRT_OK || !dir) {
+    if (mimi_dir_open(MIMI_SPIFFS_SESSION_DIR, &dir) != OPRT_OK || !dir) {
         MIMI_LOGW(TAG, "open session dir failed");
         return OPRT_FILE_OPEN_FAILED;
     }
 
     while (1) {
         TUYA_FILEINFO info = NULL;
-        if (tal_dir_read(dir, &info) != OPRT_OK || !info) {
+        if (mimi_dir_read(dir, &info) != OPRT_OK || !info) {
             break;
         }
 
         const char *name = NULL;
-        if (tal_dir_name(info, &name) == OPRT_OK && name && name[0] != '\0') {
+        if (mimi_dir_name(info, &name) == OPRT_OK && name && name[0] != '\0') {
             if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
                 continue;
             }
@@ -262,7 +262,7 @@ OPERATE_RET session_list(session_list_cb_t cb, void *user_data, uint32_t *out_co
         }
     }
 
-    tal_dir_close(dir);
+    mimi_dir_close(dir);
     if (out_count) {
         *out_count = count;
     }

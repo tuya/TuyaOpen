@@ -26,16 +26,15 @@
 #include "tal_memory.h"
 #include "tal_thread.h"
 
-#if defined(AI_HEAP_IN_PSRAM) && (AI_HEAP_IN_PSRAM == 1) &&\
-    defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define OS_MALLOC(size)    tal_psram_malloc(size)
-#define OS_FREE(ptr)       tal_psram_free(ptr)
-#define OS_CALLOC(num, size) tal_psram_calloc(num, size)
+#if defined(AI_HEAP_IN_PSRAM) && (AI_HEAP_IN_PSRAM == 1) && defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#define OS_MALLOC(size)       tal_psram_malloc(size)
+#define OS_FREE(ptr)          tal_psram_free(ptr)
+#define OS_CALLOC(num, size)  tal_psram_calloc(num, size)
 #define OS_REALLOC(ptr, size) tal_psram_realloc(ptr, size)
 #else
-#define OS_MALLOC(size)    tal_malloc(size)
-#define OS_FREE(ptr)       tal_free(ptr)
-#define OS_CALLOC(num, size) tal_calloc(num, size)
+#define OS_MALLOC(size)       tal_malloc(size)
+#define OS_FREE(ptr)          tal_free(ptr)
+#define OS_CALLOC(num, size)  tal_calloc(num, size)
 #define OS_REALLOC(ptr, size) tal_realloc(ptr, size)
 #endif
 

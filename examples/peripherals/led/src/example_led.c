@@ -13,11 +13,9 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************variable define**********************
@@ -66,9 +64,9 @@ void user_main(void)
     tal_system_sleep(2000);
 
     TDL_LED_BLINK_CFG_T blink_cfg = {
-        .cnt = 5,
-        .start_stat = TDL_LED_ON,
-        .first_half_cycle_time = 300,
+        .cnt                    = 5,
+        .start_stat             = TDL_LED_ON,
+        .first_half_cycle_time  = 300,
         .latter_half_cycle_time = 300,
     };
     TUYA_CALL_ERR_LOG(tdl_led_blink(sg_led_hdl, &blink_cfg));
@@ -124,9 +122,9 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 1024 * 4;
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 4;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

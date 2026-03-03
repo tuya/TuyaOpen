@@ -3,13 +3,14 @@
 #include "tools/tool_files.h"
 #include "tools/tool_cron.h"
 #include "tools/tool_get_time.h"
+#include "tools/tool_led.h"
 #include "tools/tool_web_search.h"
 
 #include "cJSON.h"
 
 static const char *TAG = "tools";
 
-#define MAX_TOOLS 12
+#define MAX_TOOLS 16
 
 static mimi_tool_t s_tools[MAX_TOOLS];
 static int         s_tool_count = 0;
@@ -59,6 +60,7 @@ OPERATE_RET tool_registry_init(void)
     s_tool_count = 0;
 
     (void)tool_web_search_init();
+    (void)tool_led_init();
 
     register_tool(&(mimi_tool_t){
         .name        = "web_search",
@@ -145,6 +147,21 @@ OPERATE_RET tool_registry_init(void)
         .execute           = tool_cron_remove_execute,
     });
 
+    register_tool(&(mimi_tool_t){
+        .name        = "led_control",
+        .description = "Control the onboard LED. Actions: on, off, toggle, blink (with optional count and "
+                       "interval_ms), flash (with optional interval_ms)",
+        .input_schema_json =
+            "{\"type\":\"object\","
+            "\"properties\":{"
+            "\"action\":{\"type\":\"string\",\"description\":\"LED action: on, off, toggle, blink, flash\"},"
+            "\"count\":{\"type\":\"integer\",\"description\":\"Blink count (default 5, blink only)\"},"
+            "\"interval_ms\":{\"type\":\"integer\",\"description\":\"Interval in ms (default 300 for blink, "
+            "1000 for flash)\"}},"
+            "\"required\":[\"action\"]}",
+        .execute = tool_led_control_execute,
+    });
+
     build_tools_json();
     return OPRT_OK;
 }
@@ -160,12 +177,20 @@ OPERATE_RET tool_registry_execute(const char *name, const char *input_json, char
         return OPRT_INVALID_PARM;
     }
 
+    MIMI_LOGI(TAG, "tool_execute: name=%s input_json=%s", name, input_json ? input_json : "(null)");
+
     for (int i = 0; i < s_tool_count; i++) {
         if (strcmp(name, s_tools[i].name) == 0) {
-            return s_tools[i].execute(input_json ? input_json : "{}", output, output_size);
+            uint32_t    start_ms   = tal_system_get_millisecond();
+            OPERATE_RET rt         = s_tools[i].execute(input_json ? input_json : "{}", output, output_size);
+            uint32_t    elapsed_ms = tal_system_get_millisecond() - start_ms;
+            MIMI_LOGI(TAG, "tool_execute done: name=%s rt=%d elapsed=%ums output_len=%u", name, rt,
+                      (unsigned)elapsed_ms, (unsigned)strlen(output));
+            return rt;
         }
     }
 
+    MIMI_LOGW(TAG, "tool_execute: unknown tool '%s'", name);
     snprintf(output, output_size, "Error: unknown tool: %s", name);
     return OPRT_NOT_FOUND;
 }

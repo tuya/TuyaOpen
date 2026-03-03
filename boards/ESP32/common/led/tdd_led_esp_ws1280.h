@@ -19,16 +19,16 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define TDD_LED_WS1280_COUNT_MAX    8
+#define TDD_LED_WS1280_COUNT_MAX 8
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    uint16_t        led_count;
-    uint32_t        gpio;
-    uint32_t        color;      // 24-bit color rgb/grb/.. format, depends on the LED strip
-}TDD_LED_WS1280_CFG_T;
+    uint16_t led_count;
+    uint32_t gpio;
+    uint32_t color; // 24-bit color rgb/grb/.. format, depends on the LED strip
+} TDD_LED_WS1280_CFG_T;
 
 /***********************************************************
 ********************function declaration********************

@@ -2,24 +2,24 @@
 
 #include "mimi_config.h"
 
-#if !defined(MIMI_USE_BAIDU_SEARCH)
+#if MIMI_USE_BAIDU_SEARCH
 
 #include "cJSON.h"
 #include "http_client_interface.h"
 #include "tls_cert_bundle.h"
 
-static char     s_search_key[128]      = {0};
+static char     s_search_key[256]      = {0};
 static uint8_t *s_search_cacert        = NULL;
 static size_t   s_search_cacert_len    = 0;
 static bool     s_search_tls_no_verify = false;
 
-static const char *TAG = "web_search";
+static const char *TAG = "web_search_baidu";
 
-#define SEARCH_HOST          "api.search.brave.com"
-#define SEARCH_PATH          "/res/v1/web/search"
+#define SEARCH_HOST          "qianfan.baidubce.com"
+#define SEARCH_PATH          "/v2/ai_search/chat/completions"
 #define SEARCH_RESULT_COUNT  5
-#define SEARCH_TIMEOUT_MS    (15 * 1000)
-#define SEARCH_RESP_BUF_SIZE (24 * 1024)
+#define SEARCH_TIMEOUT_MS    (30 * 1000)
+#define SEARCH_RESP_BUF_SIZE (32 * 1024)
 
 static void safe_copy(char *dst, size_t dst_size, const char *src)
 {
@@ -56,36 +56,6 @@ static OPERATE_RET ensure_search_cert(void)
     return OPRT_OK;
 }
 
-static size_t url_encode(const char *src, char *dst, size_t dst_size)
-{
-    static const char hex[] = "0123456789ABCDEF";
-    size_t            pos   = 0;
-
-    if (!src || !dst || dst_size == 0) {
-        return 0;
-    }
-
-    for (; *src && pos + 1 < dst_size; src++) {
-        unsigned char c = (unsigned char)*src;
-        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||
-            c == '.' || c == '~') {
-            dst[pos++] = (char)c;
-        } else if (c == ' ') {
-            dst[pos++] = '+';
-        } else {
-            if (pos + 3 >= dst_size) {
-                break;
-            }
-            dst[pos++] = '%';
-            dst[pos++] = hex[c >> 4];
-            dst[pos++] = hex[c & 0x0F];
-        }
-    }
-
-    dst[pos] = '\0';
-    return pos;
-}
-
 static void format_results(cJSON *root, char *output, size_t output_size)
 {
     if (!output || output_size == 0) {
@@ -93,9 +63,8 @@ static void format_results(cJSON *root, char *output, size_t output_size)
     }
     output[0] = '\0';
 
-    cJSON *web     = cJSON_GetObjectItem(root, "web");
-    cJSON *results = web ? cJSON_GetObjectItem(web, "results") : NULL;
-    if (!cJSON_IsArray(results) || cJSON_GetArraySize(results) == 0) {
+    cJSON *refs = cJSON_GetObjectItem(root, "references");
+    if (!cJSON_IsArray(refs) || cJSON_GetArraySize(refs) == 0) {
         snprintf(output, output_size, "No web results found.");
         return;
     }
@@ -103,21 +72,22 @@ static void format_results(cJSON *root, char *output, size_t output_size)
     size_t off  = 0;
     int    idx  = 0;
     cJSON *item = NULL;
-    cJSON_ArrayForEach(item, results)
+    cJSON_ArrayForEach(item, refs)
     {
         if (idx >= SEARCH_RESULT_COUNT || off >= output_size - 1) {
             break;
         }
 
-        cJSON *title = cJSON_GetObjectItem(item, "title");
-        cJSON *url   = cJSON_GetObjectItem(item, "url");
-        cJSON *desc  = cJSON_GetObjectItem(item, "description");
+        cJSON *title   = cJSON_GetObjectItem(item, "title");
+        cJSON *url     = cJSON_GetObjectItem(item, "url");
+        cJSON *content = cJSON_GetObjectItem(item, "content");
 
-        const char *title_s = cJSON_IsString(title) ? title->valuestring : "(no title)";
-        const char *url_s   = cJSON_IsString(url) ? url->valuestring : "";
-        const char *desc_s  = cJSON_IsString(desc) ? desc->valuestring : "";
+        const char *title_s   = cJSON_IsString(title) ? title->valuestring : "(no title)";
+        const char *url_s     = cJSON_IsString(url) ? url->valuestring : "";
+        const char *content_s = cJSON_IsString(content) ? content->valuestring : "";
 
-        int n = snprintf(output + off, output_size - off, "%d. %s\n   %s\n   %s\n\n", idx + 1, title_s, url_s, desc_s);
+        int n =
+            snprintf(output + off, output_size - off, "%d. %s\n   %s\n   %s\n\n", idx + 1, title_s, url_s, content_s);
         if (n <= 0) {
             break;
         }
@@ -136,9 +106,10 @@ static void format_results(cJSON *root, char *output, size_t output_size)
     }
 }
 
-static OPERATE_RET search_http_call(const char *path, char *resp_buf, size_t resp_size, uint16_t *status_code)
+static OPERATE_RET search_http_call(const char *body, size_t body_len, char *resp_buf, size_t resp_size,
+                                    uint16_t *status_code)
 {
-    if (!path || !resp_buf || resp_size == 0) {
+    if (!body || !resp_buf || resp_size == 0) {
         return OPRT_INVALID_PARM;
     }
 
@@ -147,15 +118,18 @@ static OPERATE_RET search_http_call(const char *path, char *resp_buf, size_t res
         return rt;
     }
 
+    char auth_value[300] = {0};
+    snprintf(auth_value, sizeof(auth_value), "Bearer %s", s_search_key);
+
     http_client_header_t headers[2]   = {0};
     uint8_t              header_count = 0;
     headers[header_count++]           = (http_client_header_t){
-                  .key   = "Accept",
+                  .key   = "Content-Type",
                   .value = "application/json",
     };
     headers[header_count++] = (http_client_header_t){
-        .key   = "X-Subscription-Token",
-        .value = s_search_key,
+        .key   = "Authorization",
+        .value = auth_value,
     };
 
     http_client_response_t response = {0};
@@ -166,12 +140,12 @@ static OPERATE_RET search_http_call(const char *path, char *resp_buf, size_t res
                .tls_no_verify = s_search_tls_no_verify,
                .host          = SEARCH_HOST,
                .port          = 443,
-               .method        = "GET",
-               .path          = path,
+               .method        = "POST",
+               .path          = SEARCH_PATH,
                .headers       = headers,
                .headers_count = header_count,
-               .body          = (const uint8_t *)"",
-               .body_length   = 0,
+               .body          = (const uint8_t *)body,
+               .body_length   = body_len,
                .timeout_ms    = SEARCH_TIMEOUT_MS,
         },
         &response);
@@ -202,12 +176,12 @@ OPERATE_RET tool_web_search_init(void)
         safe_copy(s_search_key, sizeof(s_search_key), MIMI_SECRET_SEARCH_KEY);
     }
 
-    char tmp[128] = {0};
+    char tmp[256] = {0};
     if (mimi_kv_get_string(MIMI_NVS_SEARCH, MIMI_NVS_KEY_API_KEY, tmp, sizeof(tmp)) == OPRT_OK) {
         safe_copy(s_search_key, sizeof(s_search_key), tmp);
     }
 
-    MIMI_LOGI(TAG, "web search init credential=%s", s_search_key[0] ? "configured" : "empty");
+    MIMI_LOGI(TAG, "baidu web search init credential=%s", s_search_key[0] ? "configured" : "empty");
     return OPRT_OK;
 }
 
@@ -220,7 +194,7 @@ OPERATE_RET tool_web_search_execute(const char *input_json, char *output, size_t
     output[0] = '\0';
 
     if (s_search_key[0] == '\0') {
-        snprintf(output, output_size, "Error: No search API key configured. Use CLI: set_search_key <api_key>");
+        snprintf(output, output_size, "Error: No Baidu search API key configured. Use CLI: set_search_key <api_key>");
         return OPRT_NOT_FOUND;
     }
 
@@ -237,30 +211,55 @@ OPERATE_RET tool_web_search_execute(const char *input_json, char *output, size_t
         return OPRT_INVALID_PARM;
     }
 
-    char encoded_query[384] = {0};
-    url_encode(query->valuestring, encoded_query, sizeof(encoded_query));
+    /* Build request body for Baidu AI Search API */
+    cJSON *req_body = cJSON_CreateObject();
+    if (!req_body) {
+        cJSON_Delete(input);
+        snprintf(output, output_size, "Error: alloc request body failed");
+        return OPRT_MALLOC_FAILED;
+    }
+
+    cJSON *messages = cJSON_CreateArray();
+    cJSON *msg      = cJSON_CreateObject();
+    cJSON_AddStringToObject(msg, "role", "user");
+    cJSON_AddStringToObject(msg, "content", query->valuestring);
+    cJSON_AddItemToArray(messages, msg);
+    cJSON_AddItemToObject(req_body, "messages", messages);
     cJSON_Delete(input);
 
-    if (encoded_query[0] == '\0') {
-        snprintf(output, output_size, "Error: empty query");
-        return OPRT_INVALID_PARM;
+    cJSON_AddFalseToObject(req_body, "stream");
+    cJSON_AddStringToObject(req_body, "search_source", "baidu_search_v1");
+
+    /* resource_type_filter: only web results */
+    cJSON *res_filter = cJSON_CreateArray();
+    cJSON *web_filter = cJSON_CreateObject();
+    cJSON_AddStringToObject(web_filter, "type", "web");
+    cJSON_AddNumberToObject(web_filter, "top_k", SEARCH_RESULT_COUNT);
+    cJSON_AddItemToArray(res_filter, web_filter);
+    cJSON_AddItemToObject(req_body, "resource_type_filter", res_filter);
+
+    char *body_str = cJSON_PrintUnformatted(req_body);
+    cJSON_Delete(req_body);
+
+    if (!body_str) {
+        snprintf(output, output_size, "Error: serialize request body failed");
+        return OPRT_MALLOC_FAILED;
     }
 
-    char path[512] = {0};
-    int  n         = snprintf(path, sizeof(path), "%s?q=%s&count=%d", SEARCH_PATH, encoded_query, SEARCH_RESULT_COUNT);
-    if (n <= 0 || (size_t)n >= sizeof(path)) {
-        snprintf(output, output_size, "Error: query too long");
-        return OPRT_BUFFER_NOT_ENOUGH;
-    }
+    size_t body_len = strlen(body_str);
 
     char *resp = tal_malloc(SEARCH_RESP_BUF_SIZE);
     if (!resp) {
+        cJSON_free(body_str);
         snprintf(output, output_size, "Error: alloc search response buffer failed");
         return OPRT_MALLOC_FAILED;
     }
     memset(resp, 0, SEARCH_RESP_BUF_SIZE);
+
     uint16_t    status = 0;
-    OPERATE_RET rt     = search_http_call(path, resp, SEARCH_RESP_BUF_SIZE, &status);
+    OPERATE_RET rt     = search_http_call(body_str, body_len, resp, SEARCH_RESP_BUF_SIZE, &status);
+    cJSON_free(body_str);
+
     if (rt != OPRT_OK) {
         snprintf(output, output_size, "Error: search request failed (rt=%d)", rt);
         tal_free(resp);
@@ -268,7 +267,7 @@ OPERATE_RET tool_web_search_execute(const char *input_json, char *output, size_t
     }
 
     if (status != 200) {
-        snprintf(output, output_size, "Error: search API http=%u", status);
+        snprintf(output, output_size, "Error: Baidu search API http=%u body=%.200s", status, resp);
         tal_free(resp);
         return OPRT_COM_ERROR;
     }
@@ -295,4 +294,4 @@ OPERATE_RET tool_web_search_set_key(const char *api_key)
     return mimi_kv_set_string(MIMI_NVS_SEARCH, MIMI_NVS_KEY_API_KEY, api_key);
 }
 
-#endif /* !MIMI_USE_BAIDU_SEARCH */
+#endif /* MIMI_USE_BAIDU_SEARCH */

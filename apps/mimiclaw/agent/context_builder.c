@@ -4,7 +4,7 @@
 #include "skills/skill_loader.h"
 
 #include "cJSON.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 static const char *TAG = "context";
 /* Reused scratch buffer for memory/skills blocks to keep stack usage low. */
@@ -12,10 +12,10 @@ static const char *TAG = "context";
 
 static size_t append_file(char *buf, size_t size, size_t offset, const char *path, const char *header)
 {
-    TUYA_FILE f = tal_fopen(path, "r");
+    TUYA_FILE f = mimi_fopen(path, "r");
     if (!f || !buf || size == 0 || offset >= size - 1) {
         if (f) {
-            tal_fclose(f);
+            mimi_fclose(f);
         }
         return offset;
     }
@@ -23,17 +23,17 @@ static size_t append_file(char *buf, size_t size, size_t offset, const char *pat
     if (header) {
         offset += snprintf(buf + offset, size - offset, "\n## %s\n\n", header);
         if (offset >= size - 1) {
-            tal_fclose(f);
+            mimi_fclose(f);
             return size - 1;
         }
     }
 
-    int n = tal_fread(buf + offset, (int)(size - offset - 1), f);
+    int n = mimi_fread(buf + offset, (int)(size - offset - 1), f);
     if (n > 0) {
         offset += (size_t)n;
     }
     buf[offset] = '\0';
-    tal_fclose(f);
+    mimi_fclose(f);
     return offset;
 }
 
@@ -55,7 +55,8 @@ OPERATE_RET context_build_system_prompt(char *buf, size_t size)
         "- web_search: Search the web for current information. "
         "Use this when you need up-to-date facts, news, weather, or anything beyond your training data.\n"
         "- get_current_time: Get the current date and time. "
-        "You do NOT have an internal clock - always use this tool when you need to know the time or date.\n"
+        "You do NOT have an internal clock - always use this tool when you need to know the time or date. "
+        "NEVER guess or reuse time from previous messages.\n"
         "- read_file: Read a file from SPIFFS (path must start with /spiffs/).\n"
         "- write_file: Write/overwrite a file on SPIFFS.\n"
         "- edit_file: Find-and-replace edit a file on SPIFFS.\n"
@@ -66,6 +67,13 @@ OPERATE_RET context_build_system_prompt(char *buf, size_t size)
         "- cron_remove: Remove a scheduled cron job by ID.\n\n"
         "When using cron_add for Telegram delivery, always set channel='telegram' and a valid numeric chat_id.\n\n"
         "Use tools when needed. Provide your final answer as text after using tools.\n\n"
+        "## CRITICAL RULES\n"
+        "1. When the user asks about time, date, or anything time-dependent, you MUST call get_current_time. "
+        "The [Current time] in the user message is approximate - for precise answers, always use the tool.\n"
+        "2. When the user asks to set reminders or timed tasks, you MUST call cron_add. NEVER pretend a task was set "
+        "without actually calling the tool.\n"
+        "3. NEVER fabricate tool results. If you need information, call the appropriate tool.\n"
+        "4. When answering about weather, news, or real-time info, you MUST call web_search.\n\n"
         "## Memory\n"
         "You have persistent memory stored on local flash:\n"
         "- Long-term memory: /spiffs/memory/MEMORY.md\n"

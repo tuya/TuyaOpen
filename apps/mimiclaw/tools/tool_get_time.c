@@ -11,7 +11,7 @@
 static const char *TAG = "tool_time";
 
 #define TIME_SYNC_HOST       MIMI_TG_API_HOST
-#define TIME_SYNC_PORT       443
+#define TIME_SYNC_PORT       80
 #define TIME_SYNC_PATH       "/"
 #define TIME_SYNC_TIMEOUT_MS (10 * 1000)
 
@@ -87,9 +87,16 @@ static void ensure_timezone_from_config(void)
         OPERATE_RET rt = tal_time_set_time_zone_seconds(tz_sec);
         if (rt != OPRT_OK) {
             MIMI_LOGW(TAG, "set timezone from config failed rt=%d", rt);
+        } else {
+            MIMI_LOGI(TAG, "timezone set from config: %s => %d sec", MIMI_TIMEZONE, tz_sec);
         }
     }
     s_tz_inited = true;
+}
+
+void tool_get_time_init(void)
+{
+    ensure_timezone_from_config();
 }
 
 static bool header_key_match(const char *line, size_t line_len, const char *key)
@@ -272,62 +279,72 @@ static OPERATE_RET fetch_date_direct(char *date_buf, size_t date_buf_size)
         return OPRT_INVALID_PARM;
     }
 
-    OPERATE_RET rt = ensure_time_cert();
-    if (rt != OPRT_OK) {
-        return rt;
-    }
+    const char    *sync_hosts[] = {"www.baidu.com", TIME_SYNC_HOST, "www.google.com"};
+    const uint16_t sync_ports[] = {80, 443};
+    const char    *methods[]    = {"GET", "HEAD"};
 
-    http_client_header_t headers[] = {
-        {.key = "Connection", .value = "close"},
-    };
+    OPERATE_RET last_rt = OPRT_NOT_FOUND;
 
-    OPERATE_RET last_rt   = OPRT_NOT_FOUND;
-    const char *methods[] = {"GET", "HEAD"};
-    for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); i++) {
-        const char *method = methods[i];
+    for (size_t h = 0; h < sizeof(sync_hosts) / sizeof(sync_hosts[0]); h++) {
+        const char *host = sync_hosts[h];
 
-        http_client_response_t response = {0};
-        http_client_status_t   http_rt  = http_client_request(
-            &(const http_client_request_t){
-                   .cacert        = s_time_cacert,
-                   .cacert_len    = s_time_cacert_len,
-                   .tls_no_verify = s_time_tls_no_verify,
-                   .host          = TIME_SYNC_HOST,
-                   .port          = TIME_SYNC_PORT,
-                   .method        = method,
-                   .path          = TIME_SYNC_PATH,
-                   .headers       = headers,
-                   .headers_count = (uint8_t)(sizeof(headers) / sizeof(headers[0])),
-                   .body          = (const uint8_t *)"",
-                   .body_length   = 0,
-                   .timeout_ms    = TIME_SYNC_TIMEOUT_MS,
-            },
-            &response);
+        for (size_t p = 0; p < sizeof(sync_ports) / sizeof(sync_ports[0]); p++) {
+            uint16_t port     = sync_ports[p];
+            bool     is_https = (port == 443);
 
-        if (http_rt != HTTP_CLIENT_SUCCESS) {
-            MIMI_LOGW(TAG, "direct %s request failed: %d", method, http_rt);
-            last_rt = OPRT_LINK_CORE_HTTP_CLIENT_SEND_ERROR;
-            continue;
+            if (is_https) {
+                ensure_time_cert();
+            }
+
+            for (size_t m = 0; m < sizeof(methods) / sizeof(methods[0]); m++) {
+                const char *method = methods[m];
+
+                http_client_header_t headers[] = {
+                    {.key = "Connection", .value = "close"},
+                };
+
+                http_client_response_t response = {0};
+                http_client_status_t   http_rt  = http_client_request(
+                    &(const http_client_request_t){
+                           .cacert        = is_https ? s_time_cacert : NULL,
+                           .cacert_len    = is_https ? s_time_cacert_len : 0,
+                           .tls_no_verify = is_https ? s_time_tls_no_verify : false,
+                           .host          = host,
+                           .port          = port,
+                           .method        = method,
+                           .path          = TIME_SYNC_PATH,
+                           .headers       = headers,
+                           .headers_count = (uint8_t)(sizeof(headers) / sizeof(headers[0])),
+                           .body          = (const uint8_t *)"",
+                           .body_length   = 0,
+                           .timeout_ms    = TIME_SYNC_TIMEOUT_MS,
+                    },
+                    &response);
+
+                if (http_rt != HTTP_CLIENT_SUCCESS) {
+                    MIMI_LOGW(TAG, "direct %s %s:%d failed: %d", method, host, port, http_rt);
+                    last_rt = OPRT_LINK_CORE_HTTP_CLIENT_SEND_ERROR;
+                    continue;
+                }
+
+                bool ok = false;
+                if (response.headers && response.headers_length > 0) {
+                    ok = find_header_value((const char *)response.headers, response.headers_length, "Date", date_buf,
+                                           date_buf_size);
+                }
+
+                uint16_t status = response.status_code;
+                http_client_free(&response);
+
+                if (ok) {
+                    MIMI_LOGI(TAG, "date fetched from %s:%d via %s, status=%u", host, port, method, status);
+                    return OPRT_OK;
+                }
+
+                MIMI_LOGW(TAG, "direct %s %s:%d status=%u missing Date header", method, host, port, status);
+                last_rt = OPRT_NOT_FOUND;
+            }
         }
-
-        bool ok = false;
-        if (response.headers && response.headers_length > 0) {
-            ok = find_header_value((const char *)response.headers, response.headers_length, "Date", date_buf,
-                                   date_buf_size);
-        }
-
-        uint16_t status = response.status_code;
-        http_client_free(&response);
-        if (status < 200 || status >= 400) {
-            MIMI_LOGW(TAG, "direct %s time sync http status=%u", method, status);
-        }
-
-        if (ok) {
-            return OPRT_OK;
-        }
-
-        MIMI_LOGW(TAG, "direct %s response missing Date header", method);
-        last_rt = OPRT_NOT_FOUND;
     }
 
     return last_rt;
@@ -339,65 +356,80 @@ static OPERATE_RET fetch_date_via_proxy(char *date_buf, size_t date_buf_size)
         return OPRT_INVALID_PARM;
     }
 
-    OPERATE_RET last_rt   = OPRT_NOT_FOUND;
-    const char *methods[] = {"GET", "HEAD"};
-    for (size_t i = 0; i < sizeof(methods) / sizeof(methods[0]); i++) {
-        const char   *method = methods[i];
-        proxy_conn_t *conn   = proxy_conn_open(TIME_SYNC_HOST, TIME_SYNC_PORT, TIME_SYNC_TIMEOUT_MS);
-        if (!conn) {
-            last_rt = OPRT_LINK_CORE_NET_CONNECT_ERROR;
-            continue;
-        }
+    const char    *sync_hosts[] = {"www.baidu.com", TIME_SYNC_HOST, "www.google.com"};
+    const uint16_t sync_ports[] = {80, 443};
+    const char    *methods[]    = {"GET", "HEAD"};
 
-        char req[256] = {0};
-        int  req_len  = snprintf(req, sizeof(req),
-                                 "%s %s HTTP/1.1\r\n"
-                                   "Host: " TIME_SYNC_HOST "\r\n"
-                                   "Connection: close\r\n\r\n",
-                                 method, TIME_SYNC_PATH);
-        if (req_len <= 0 || req_len >= (int)sizeof(req)) {
-            proxy_conn_close(conn);
-            return OPRT_COM_ERROR;
-        }
+    OPERATE_RET last_rt = OPRT_NOT_FOUND;
 
-        if (proxy_conn_write(conn, req, req_len) < 0) {
-            proxy_conn_close(conn);
-            MIMI_LOGW(TAG, "proxy %s request write failed", method);
-            last_rt = OPRT_LINK_CORE_NET_SOCKET_ERROR;
-            continue;
-        }
+    for (size_t h = 0; h < sizeof(sync_hosts) / sizeof(sync_hosts[0]); h++) {
+        const char *host = sync_hosts[h];
 
-        char raw[1024] = {0};
-        int  total     = 0;
-        while (total < (int)sizeof(raw) - 1) {
-            int n = proxy_conn_read(conn, raw + total, (int)sizeof(raw) - 1 - total, TIME_SYNC_TIMEOUT_MS);
-            if (n == OPRT_RESOURCE_NOT_READY) {
-                continue;
+        for (size_t p = 0; p < sizeof(sync_ports) / sizeof(sync_ports[0]); p++) {
+            uint16_t port = sync_ports[p];
+
+            for (size_t mi = 0; mi < sizeof(methods) / sizeof(methods[0]); mi++) {
+                const char *method = methods[mi];
+
+                proxy_conn_t *conn = proxy_conn_open(host, port, TIME_SYNC_TIMEOUT_MS);
+                if (!conn) {
+                    MIMI_LOGW(TAG, "proxy connect %s:%d failed", host, port);
+                    last_rt = OPRT_LINK_CORE_NET_CONNECT_ERROR;
+                    continue;
+                }
+
+                char req[256] = {0};
+                int  req_len  = snprintf(req, sizeof(req),
+                                         "%s %s HTTP/1.1\r\n"
+                                           "Host: %s\r\n"
+                                           "Connection: close\r\n\r\n",
+                                         method, TIME_SYNC_PATH, host);
+                if (req_len <= 0 || req_len >= (int)sizeof(req)) {
+                    proxy_conn_close(conn);
+                    return OPRT_COM_ERROR;
+                }
+
+                if (proxy_conn_write(conn, req, req_len) < 0) {
+                    proxy_conn_close(conn);
+                    MIMI_LOGW(TAG, "proxy %s write %s:%d failed", method, host, port);
+                    last_rt = OPRT_LINK_CORE_NET_SOCKET_ERROR;
+                    continue;
+                }
+
+                char raw[1024] = {0};
+                int  total     = 0;
+                while (total < (int)sizeof(raw) - 1) {
+                    int n = proxy_conn_read(conn, raw + total, (int)sizeof(raw) - 1 - total, TIME_SYNC_TIMEOUT_MS);
+                    if (n == OPRT_RESOURCE_NOT_READY) {
+                        continue;
+                    }
+                    if (n <= 0) {
+                        break;
+                    }
+                    total += n;
+                    raw[total] = '\0';
+                    if (strstr(raw, "\r\n\r\n")) {
+                        break;
+                    }
+                }
+                proxy_conn_close(conn);
+
+                if (total <= 0) {
+                    MIMI_LOGW(TAG, "proxy %s %s:%d empty response", method, host, port);
+                    last_rt = OPRT_COM_ERROR;
+                    continue;
+                }
+
+                bool ok = find_header_value(raw, (size_t)total, "Date", date_buf, date_buf_size);
+                if (ok) {
+                    MIMI_LOGI(TAG, "date fetched via proxy from %s:%d using %s", host, port, method);
+                    return OPRT_OK;
+                }
+
+                MIMI_LOGW(TAG, "proxy %s %s:%d missing Date header", method, host, port);
+                last_rt = OPRT_NOT_FOUND;
             }
-            if (n <= 0) {
-                break;
-            }
-            total += n;
-            raw[total] = '\0';
-            if (strstr(raw, "\r\n\r\n")) {
-                break;
-            }
         }
-        proxy_conn_close(conn);
-
-        if (total <= 0) {
-            MIMI_LOGW(TAG, "proxy %s request got empty response", method);
-            last_rt = OPRT_COM_ERROR;
-            continue;
-        }
-
-        bool ok = find_header_value(raw, (size_t)total, "Date", date_buf, date_buf_size);
-        if (ok) {
-            return OPRT_OK;
-        }
-
-        MIMI_LOGW(TAG, "proxy %s response missing Date header", method);
-        last_rt = OPRT_NOT_FOUND;
     }
 
     return last_rt;
@@ -442,4 +474,10 @@ OPERATE_RET tool_get_time_execute(const char *input_json, char *output, size_t o
     MIMI_LOGI(TAG, "time synced via %s, date=%s, local=%s", http_proxy_is_enabled() ? "proxy" : "direct", date_val,
               output);
     return OPRT_OK;
+}
+
+OPERATE_RET tool_get_time_sync_now(void)
+{
+    char out[128] = {0};
+    return tool_get_time_execute("{}", out, sizeof(out));
 }

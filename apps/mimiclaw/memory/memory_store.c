@@ -1,7 +1,7 @@
 #include "memory_store.h"
 #include "mimi_config.h"
 
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 static const char *TAG = "memory";
 
@@ -42,20 +42,20 @@ OPERATE_RET memory_read_long_term(char *buf, size_t size)
         return OPRT_INVALID_PARM;
     }
 
-    TUYA_FILE f = tal_fopen(MIMI_MEMORY_FILE, "r");
+    TUYA_FILE f = mimi_fopen(MIMI_MEMORY_FILE, "r");
     if (!f) {
         buf[0] = '\0';
         return OPRT_NOT_FOUND;
     }
 
-    int n = tal_fread(buf, (int)(size - 1), f);
+    int n = mimi_fread(buf, (int)(size - 1), f);
     if (n < 0) {
         buf[0] = '\0';
-        tal_fclose(f);
+        mimi_fclose(f);
         return OPRT_COM_ERROR;
     }
     buf[n] = '\0';
-    tal_fclose(f);
+    mimi_fclose(f);
     return OPRT_OK;
 }
 
@@ -65,13 +65,13 @@ OPERATE_RET memory_write_long_term(const char *content)
         return OPRT_INVALID_PARM;
     }
 
-    TUYA_FILE f = tal_fopen(MIMI_MEMORY_FILE, "w");
+    TUYA_FILE f = mimi_fopen(MIMI_MEMORY_FILE, "w");
     if (!f) {
         return OPRT_FILE_OPEN_FAILED;
     }
 
-    int n = tal_fwrite((void *)content, (int)strlen(content), f);
-    tal_fclose(f);
+    int n = mimi_fwrite((void *)content, (int)strlen(content), f);
+    mimi_fclose(f);
     if (n < 0) {
         return OPRT_COM_ERROR;
     }
@@ -89,22 +89,22 @@ OPERATE_RET memory_append_today(const char *note)
     get_date_str(date_str, sizeof(date_str), 0);
     snprintf(path, sizeof(path), "%s/%s.md", MIMI_SPIFFS_MEMORY_DIR, date_str);
 
-    TUYA_FILE f = tal_fopen(path, "a");
+    TUYA_FILE f = mimi_fopen(path, "a");
     if (!f) {
-        f = tal_fopen(path, "w");
+        f = mimi_fopen(path, "w");
         if (!f) {
             return OPRT_FILE_OPEN_FAILED;
         }
         char hdr[64] = {0};
         int  hn      = snprintf(hdr, sizeof(hdr), "# %s\n\n", date_str);
         if (hn > 0) {
-            (void)tal_fwrite(hdr, hn, f);
+            (void)mimi_fwrite(hdr, hn, f);
         }
     }
 
-    (void)tal_fwrite((void *)note, (int)strlen(note), f);
-    (void)tal_fwrite("\n", 1, f);
-    tal_fclose(f);
+    (void)mimi_fwrite((void *)note, (int)strlen(note), f);
+    (void)mimi_fwrite("\n", 1, f);
+    mimi_fclose(f);
     return OPRT_OK;
 }
 
@@ -124,7 +124,7 @@ OPERATE_RET memory_read_recent(char *buf, size_t size, int days)
         get_date_str(date_str, sizeof(date_str), i);
         snprintf(path, sizeof(path), "%s/%s.md", MIMI_SPIFFS_MEMORY_DIR, date_str);
 
-        TUYA_FILE f = tal_fopen(path, "r");
+        TUYA_FILE f = mimi_fopen(path, "r");
         if (!f) {
             continue;
         }
@@ -133,12 +133,12 @@ OPERATE_RET memory_read_recent(char *buf, size_t size, int days)
             off += snprintf(buf + off, size - off, "\n---\n");
         }
 
-        int n = tal_fread(buf + off, (int)(size - off - 1), f);
+        int n = mimi_fread(buf + off, (int)(size - off - 1), f);
         if (n > 0) {
             off += (size_t)n;
         }
         buf[off] = '\0';
-        tal_fclose(f);
+        mimi_fclose(f);
     }
 
     return OPRT_OK;

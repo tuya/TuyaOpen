@@ -56,6 +56,11 @@
 #define MIMI_SECRET_SEARCH_KEY ""
 #endif
 
+/* Search Engine Selection: 0 = Brave, 1 = Baidu */
+#ifndef MIMI_USE_BAIDU_SEARCH
+#define MIMI_USE_BAIDU_SEARCH 0
+#endif
+
 /* WiFi */
 #define MIMI_WIFI_MAX_RETRY     10
 #define MIMI_WIFI_RETRY_BASE_MS 1000
@@ -135,24 +140,34 @@
 #define MIMI_OUTBOUND_PRIO  5
 #define MIMI_OUTBOUND_CORE  0
 
-/* Memory / SPIFFS */
-#define MIMI_SPIFFS_BASE        "/spiffs"
-#define MIMI_SPIFFS_CONFIG_DIR  "/spiffs/config"
-#define MIMI_SPIFFS_MEMORY_DIR  "/spiffs/memory"
-#define MIMI_SPIFFS_SESSION_DIR "/spiffs/sessions"
-#define MIMI_MEMORY_FILE        "/spiffs/memory/MEMORY.md"
-#define MIMI_SOUL_FILE          "/spiffs/config/SOUL.md"
-#define MIMI_USER_FILE          "/spiffs/config/USER.md"
-#define MIMI_SPIFFS_SKILLS_DIR  "/spiffs/skills"
-#define MIMI_SKILLS_PREFIX      "/spiffs/skills/"
+/* Memory / Storage */
+#ifndef MIMI_USE_SDCARD
+#define MIMI_USE_SDCARD 1
+#endif
+
+#if MIMI_USE_SDCARD
+#define MIMI_FS_BASE "/spiffs"
+#else
+#define MIMI_FS_BASE "/spiffs"
+#endif
+
+#define MIMI_SPIFFS_BASE        MIMI_FS_BASE
+#define MIMI_SPIFFS_CONFIG_DIR  MIMI_FS_BASE "/config"
+#define MIMI_SPIFFS_MEMORY_DIR  MIMI_FS_BASE "/memory"
+#define MIMI_SPIFFS_SESSION_DIR MIMI_FS_BASE "/sessions"
+#define MIMI_MEMORY_FILE        MIMI_FS_BASE "/memory/MEMORY.md"
+#define MIMI_SOUL_FILE          MIMI_FS_BASE "/config/SOUL.md"
+#define MIMI_USER_FILE          MIMI_FS_BASE "/config/USER.md"
+#define MIMI_SPIFFS_SKILLS_DIR  MIMI_FS_BASE "/skills"
+#define MIMI_SKILLS_PREFIX      MIMI_FS_BASE "/skills/"
 #define MIMI_CONTEXT_BUF_SIZE   (16 * 1024)
 #define MIMI_SESSION_MAX_MSGS   20
 
 /* Cron / Heartbeat */
-#define MIMI_CRON_FILE              "/spiffs/cron.json"
+#define MIMI_CRON_FILE              MIMI_FS_BASE "/cron.json"
 #define MIMI_CRON_MAX_JOBS          16
 #define MIMI_CRON_CHECK_INTERVAL_MS (60 * 1000)
-#define MIMI_HEARTBEAT_FILE         "/spiffs/HEARTBEAT.md"
+#define MIMI_HEARTBEAT_FILE         MIMI_FS_BASE "/HEARTBEAT.md"
 #define MIMI_HEARTBEAT_INTERVAL_MS  (30 * 60 * 1000)
 
 /* WebSocket Gateway */

@@ -1,7 +1,7 @@
 #include "tool_files.h"
 
 #include "cJSON.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 #include <sys/stat.h>
 
@@ -42,7 +42,7 @@ OPERATE_RET tool_read_file_execute(const char *input_json, char *output, size_t 
         return OPRT_INVALID_PARM;
     }
 
-    TUYA_FILE f = tal_fopen(path, "r");
+    TUYA_FILE f = mimi_fopen(path, "r");
     if (!f) {
         cJSON_Delete(root);
         snprintf(output, output_size, "Error: file not found");
@@ -54,16 +54,16 @@ OPERATE_RET tool_read_file_execute(const char *input_json, char *output, size_t 
         max_read = MAX_FILE_SIZE;
     }
 
-    int n = tal_fread(output, (int)max_read, f);
+    int n = mimi_fread(output, (int)max_read, f);
     if (n < 0) {
-        tal_fclose(f);
+        mimi_fclose(f);
         cJSON_Delete(root);
         snprintf(output, output_size, "Error: read failed");
         return OPRT_COM_ERROR;
     }
     output[n] = '\0';
 
-    tal_fclose(f);
+    mimi_fclose(f);
     cJSON_Delete(root);
     MIMI_LOGI(TAG, "read_file path=%s bytes=%u", path, (unsigned)n);
     return OPRT_OK;
@@ -90,15 +90,15 @@ OPERATE_RET tool_write_file_execute(const char *input_json, char *output, size_t
         return OPRT_INVALID_PARM;
     }
 
-    TUYA_FILE f = tal_fopen(path, "w");
+    TUYA_FILE f = mimi_fopen(path, "w");
     if (!f) {
         cJSON_Delete(root);
         snprintf(output, output_size, "Error: open file failed");
         return OPRT_FILE_OPEN_FAILED;
     }
 
-    int wn = tal_fwrite((void *)content, (int)strlen(content), f);
-    tal_fclose(f);
+    int wn = mimi_fwrite((void *)content, (int)strlen(content), f);
+    mimi_fclose(f);
     if (wn < 0) {
         cJSON_Delete(root);
         snprintf(output, output_size, "Error: write failed");
@@ -132,7 +132,7 @@ OPERATE_RET tool_edit_file_execute(const char *input_json, char *output, size_t 
         return OPRT_INVALID_PARM;
     }
 
-    TUYA_FILE f = tal_fopen(path, "r");
+    TUYA_FILE f = mimi_fopen(path, "r");
     if (!f) {
         cJSON_Delete(root);
         snprintf(output, output_size, "Error: file not found");
@@ -141,13 +141,13 @@ OPERATE_RET tool_edit_file_execute(const char *input_json, char *output, size_t 
 
     char *buf = (char *)malloc(MAX_FILE_SIZE + 1);
     if (!buf) {
-        tal_fclose(f);
+        mimi_fclose(f);
         cJSON_Delete(root);
         return OPRT_MALLOC_FAILED;
     }
 
-    int n = tal_fread(buf, MAX_FILE_SIZE, f);
-    tal_fclose(f);
+    int n = mimi_fread(buf, MAX_FILE_SIZE, f);
+    mimi_fclose(f);
     if (n < 0) {
         free(buf);
         cJSON_Delete(root);
@@ -179,7 +179,7 @@ OPERATE_RET tool_edit_file_execute(const char *input_json, char *output, size_t 
     memcpy(new_buf + prefix_len, new_s, strlen(new_s));
     strcpy(new_buf + prefix_len + strlen(new_s), buf + suffix_off);
 
-    f = tal_fopen(path, "w");
+    f = mimi_fopen(path, "w");
     if (!f) {
         free(new_buf);
         free(buf);
@@ -187,8 +187,8 @@ OPERATE_RET tool_edit_file_execute(const char *input_json, char *output, size_t 
         return OPRT_FILE_OPEN_FAILED;
     }
 
-    (void)tal_fwrite(new_buf, (int)strlen(new_buf), f);
-    tal_fclose(f);
+    (void)mimi_fwrite(new_buf, (int)strlen(new_buf), f);
+    mimi_fclose(f);
 
     snprintf(output, output_size, "OK: edit done");
     free(new_buf);
@@ -217,7 +217,7 @@ OPERATE_RET tool_list_dir_execute(const char *input_json, char *output, size_t o
     }
 
     TUYA_DIR dir = NULL;
-    if (tal_dir_open(prefix, &dir) != OPRT_OK || !dir) {
+    if (mimi_dir_open(prefix, &dir) != OPRT_OK || !dir) {
         if (root) {
             cJSON_Delete(root);
         }
@@ -230,19 +230,19 @@ OPERATE_RET tool_list_dir_execute(const char *input_json, char *output, size_t o
 
     while (off < output_size - 2) {
         TUYA_FILEINFO info = NULL;
-        if (tal_dir_read(dir, &info) != OPRT_OK || !info) {
+        if (mimi_dir_read(dir, &info) != OPRT_OK || !info) {
             break;
         }
 
         const char *name = NULL;
-        if (tal_dir_name(info, &name) != OPRT_OK || !name) {
+        if (mimi_dir_name(info, &name) != OPRT_OK || !name) {
             continue;
         }
 
         off += snprintf(output + off, output_size - off, "- %s\n", name);
     }
 
-    tal_dir_close(dir);
+    mimi_dir_close(dir);
     if (root) {
         cJSON_Delete(root);
     }

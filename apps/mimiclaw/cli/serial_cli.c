@@ -8,7 +8,7 @@
 #include "channels/discord_bot.h"
 #include "channels/feishu_bot.h"
 #include "tal_cli.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
 #include "channels/telegram_bot.h"
 #include "tools/tool_web_search.h"
 #include "wifi/wifi_manager.h"
@@ -689,15 +689,15 @@ static void cmd_file_read(int argc, char *argv[])
     }
     memset(buf, 0, 4096);
 
-    TUYA_FILE f = tal_fopen(path, "r");
+    TUYA_FILE f = mimi_fopen(path, "r");
     if (!f) {
         cli_echof("file_read open failed: %s", path);
         tal_free(buf);
         return;
     }
 
-    int n = tal_fread(buf, 4095, f);
-    tal_fclose(f);
+    int n = mimi_fread(buf, 4095, f);
+    mimi_fclose(f);
     if (n < 0) {
         cli_echof("file_read read failed: %s", path);
         tal_free(buf);
@@ -705,7 +705,7 @@ static void cmd_file_read(int argc, char *argv[])
     }
     buf[n] = '\0';
 
-    int file_size = tal_fgetsize(path);
+    int file_size = mimi_fgetsize(path);
     if (buf[0] == '\0') {
         cli_echof("file_read empty: %s", path);
         tal_free(buf);
@@ -777,7 +777,7 @@ static void cli_session_list_cb(const char *name, void *user_data)
         snprintf(path, sizeof(path), "%s/%s", base_dir, name);
     }
 
-    int size = path[0] ? tal_fgetsize(path) : -1;
+    int size = path[0] ? mimi_fgetsize(path) : -1;
     if (size >= 0) {
         cli_echof("session[%u]: %s (%d B)", (unsigned)idx, name ? name : "", size);
     } else {
@@ -791,7 +791,7 @@ static void cli_list_spiffs_entries(void)
     uint32_t file_count = 0;
 
     TUYA_DIR root = NULL;
-    if (tal_dir_open(MIMI_SPIFFS_BASE, &root) != OPRT_OK || !root) {
+    if (mimi_dir_open(MIMI_SPIFFS_BASE, &root) != OPRT_OK || !root) {
         cli_echof("/spiffs open failed");
         return;
     }
@@ -799,12 +799,12 @@ static void cli_list_spiffs_entries(void)
     cli_echof("/spiffs all listing:");
     while (1) {
         TUYA_FILEINFO info = NULL;
-        if (tal_dir_read(root, &info) != OPRT_OK || !info) {
+        if (mimi_dir_read(root, &info) != OPRT_OK || !info) {
             break;
         }
 
         const char *name = NULL;
-        if (tal_dir_name(info, &name) != OPRT_OK || !name || name[0] == '\0') {
+        if (mimi_dir_name(info, &name) != OPRT_OK || !name || name[0] == '\0') {
             continue;
         }
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
@@ -815,8 +815,8 @@ static void cli_list_spiffs_entries(void)
         snprintf(path, sizeof(path), "%s/%s", MIMI_SPIFFS_BASE, name);
 
         BOOL_T is_regular = FALSE;
-        if (tal_dir_is_regular(info, &is_regular) == OPRT_OK && is_regular) {
-            int size = tal_fgetsize(path);
+        if (mimi_dir_is_regular(info, &is_regular) == OPRT_OK && is_regular) {
+            int size = mimi_fgetsize(path);
             cli_echof("/spiffs[%u]: %s (%d B)", (unsigned)entry_idx++, path, size);
             file_count++;
             continue;
@@ -825,18 +825,18 @@ static void cli_list_spiffs_entries(void)
         cli_echof("/spiffs[%u]: %s/ (<dir>)", (unsigned)entry_idx++, path);
 
         TUYA_DIR sub = NULL;
-        if (tal_dir_open(path, &sub) != OPRT_OK || !sub) {
+        if (mimi_dir_open(path, &sub) != OPRT_OK || !sub) {
             continue;
         }
 
         while (1) {
             TUYA_FILEINFO sub_info = NULL;
-            if (tal_dir_read(sub, &sub_info) != OPRT_OK || !sub_info) {
+            if (mimi_dir_read(sub, &sub_info) != OPRT_OK || !sub_info) {
                 break;
             }
 
             const char *sub_name = NULL;
-            if (tal_dir_name(sub_info, &sub_name) != OPRT_OK || !sub_name || sub_name[0] == '\0') {
+            if (mimi_dir_name(sub_info, &sub_name) != OPRT_OK || !sub_name || sub_name[0] == '\0') {
                 continue;
             }
             if (strcmp(sub_name, ".") == 0 || strcmp(sub_name, "..") == 0) {
@@ -847,8 +847,8 @@ static void cli_list_spiffs_entries(void)
             snprintf(sub_path, sizeof(sub_path), "%s/%s", path, sub_name);
 
             BOOL_T sub_is_regular = FALSE;
-            if (tal_dir_is_regular(sub_info, &sub_is_regular) == OPRT_OK && sub_is_regular) {
-                int sub_size = tal_fgetsize(sub_path);
+            if (mimi_dir_is_regular(sub_info, &sub_is_regular) == OPRT_OK && sub_is_regular) {
+                int sub_size = mimi_fgetsize(sub_path);
                 cli_echof("/spiffs[%u]: %s (%d B)", (unsigned)entry_idx++, sub_path, sub_size);
                 file_count++;
             } else {
@@ -856,10 +856,10 @@ static void cli_list_spiffs_entries(void)
             }
         }
 
-        tal_dir_close(sub);
+        mimi_dir_close(sub);
     }
 
-    tal_dir_close(root);
+    mimi_dir_close(root);
     cli_echof("file_list done files=%u entries=%u", (unsigned)file_count, (unsigned)entry_idx);
 }
 
@@ -912,7 +912,7 @@ static void cmd_file_clear(int argc, char *argv[])
         return;
     }
 
-    OPERATE_RET rt = tal_fs_remove(path);
+    OPERATE_RET rt = mimi_fs_remove(path);
     cli_echof("file_clear rt=%d", rt);
 }
 

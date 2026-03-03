@@ -4,7 +4,7 @@
 #include "mimi_config.h"
 
 #include "cJSON.h"
-#include "tal_fs.h"
+// #include "tal_fs.h"
 
 #include <string.h>
 
@@ -62,29 +62,29 @@ static void cron_generate_id(char *id_buf, size_t id_buf_size)
 
 static OPERATE_RET cron_load_jobs(void)
 {
-    TUYA_FILE f = tal_fopen(MIMI_CRON_FILE, "r");
+    TUYA_FILE f = mimi_fopen(MIMI_CRON_FILE, "r");
     if (!f) {
         MIMI_LOGI(TAG, "no cron file found, starting fresh");
         s_job_count = 0;
         return OPRT_OK;
     }
 
-    int fsize = tal_fgetsize(MIMI_CRON_FILE);
+    int fsize = mimi_fgetsize(MIMI_CRON_FILE);
     if (fsize <= 0 || fsize > CRON_FILE_MAX_BYTES) {
         MIMI_LOGW(TAG, "cron file invalid size: %d", fsize);
-        tal_fclose(f);
+        mimi_fclose(f);
         s_job_count = 0;
         return OPRT_OK;
     }
 
     char *buf = (char *)malloc((size_t)fsize + 1);
     if (!buf) {
-        tal_fclose(f);
+        mimi_fclose(f);
         return OPRT_MALLOC_FAILED;
     }
 
-    int n = tal_fread(buf, fsize, f);
-    tal_fclose(f);
+    int n = mimi_fread(buf, fsize, f);
+    mimi_fclose(f);
     if (n < 0) {
         free(buf);
         return OPRT_COM_ERROR;
@@ -221,7 +221,7 @@ static OPERATE_RET cron_save_jobs(void)
         return OPRT_MALLOC_FAILED;
     }
 
-    TUYA_FILE f = tal_fopen(MIMI_CRON_FILE, "w");
+    TUYA_FILE f = mimi_fopen(MIMI_CRON_FILE, "w");
     if (!f) {
         cJSON_free(json_str);
         MIMI_LOGE(TAG, "failed to open %s for writing", MIMI_CRON_FILE);
@@ -229,8 +229,8 @@ static OPERATE_RET cron_save_jobs(void)
     }
 
     size_t len = strlen(json_str);
-    int    wn  = tal_fwrite(json_str, (int)len, f);
-    tal_fclose(f);
+    int    wn  = mimi_fwrite(json_str, (int)len, f);
+    mimi_fclose(f);
     cJSON_free(json_str);
 
     if (wn < 0 || (size_t)wn != len) {
@@ -244,8 +244,9 @@ static OPERATE_RET cron_save_jobs(void)
 
 static void cron_process_due_jobs(void)
 {
-    int64_t now     = cron_now_epoch();
-    bool    changed = false;
+    int64_t now = cron_now_epoch();
+    MIMI_LOGI(TAG, "checking cron jobs at epoch %lld, job count=%d", (long long)now, s_job_count);
+    bool changed = false;
 
     for (int i = 0; i < s_job_count; i++) {
         cron_job_t *job = &s_jobs[i];

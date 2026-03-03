@@ -29,20 +29,20 @@ typedef enum {
 
 typedef struct {
     struct tuya_list_head node;
-    char name[LED_DEV_NAME_MAX_LEN + 1];
-    MUTEX_HANDLE mutex;
+    char                  name[LED_DEV_NAME_MAX_LEN + 1];
+    MUTEX_HANDLE          mutex;
 
     TDD_LED_HANDLE_T *drv_hdl;
-    TDD_LED_INTFS_T drv_intfs;
+    TDD_LED_INTFS_T   drv_intfs;
 
     TDL_LED_MODE_E mode;
-    bool is_open;
-    bool is_on;
+    bool           is_open;
+    bool           is_on;
 
     TIMER_ID led_tm;
 
-    LED_BLINK_STAT_E blink_stat;
-    uint32_t blink_cnt;
+    LED_BLINK_STAT_E    blink_stat;
+    uint32_t            blink_cnt;
     TDL_LED_BLINK_CFG_T blink_cfg;
 } LED_DEV_INFO_T;
 
@@ -56,8 +56,8 @@ static struct tuya_list_head sg_led_list = LIST_HEAD_INIT(sg_led_list);
 ***********************************************************/
 static LED_DEV_INFO_T *__find_led_device(char *name)
 {
-    LED_DEV_INFO_T *led_dev = NULL;
-    struct tuya_list_head *pos = NULL;
+    LED_DEV_INFO_T        *led_dev = NULL;
+    struct tuya_list_head *pos     = NULL;
 
     if (NULL == name) {
         return NULL;
@@ -76,8 +76,8 @@ static LED_DEV_INFO_T *__find_led_device(char *name)
 
 static OPERATE_RET __led_set_status(LED_DEV_INFO_T *led_dev, TDL_LED_STATUS_E status)
 {
-    OPERATE_RET rt = OPRT_OK;
-    bool is_on = false;
+    OPERATE_RET rt    = OPRT_OK;
+    bool        is_on = false;
 
     if (NULL == led_dev) {
         return OPRT_INVALID_PARM;
@@ -114,12 +114,12 @@ static void __led_blink_handle(LED_DEV_INFO_T *led_dev)
     case LED_BLINK_START:
         __led_set_status(led_dev, led_dev->blink_cfg.start_stat);
         led_dev->blink_stat = LED_BLINK_FIRST;
-        nxt_time = led_dev->blink_cfg.first_half_cycle_time;
+        nxt_time            = led_dev->blink_cfg.first_half_cycle_time;
         break;
     case LED_BLINK_FIRST:
         __led_set_status(led_dev, TDL_LED_TOGGLE);
         led_dev->blink_stat = LED_BLINK_LATTER;
-        nxt_time = led_dev->blink_cfg.latter_half_cycle_time;
+        nxt_time            = led_dev->blink_cfg.latter_half_cycle_time;
         break;
     case LED_BLINK_LATTER:
         if (led_dev->blink_cnt > 0 && led_dev->blink_cnt != TDL_BLINK_FOREVER) {
@@ -129,11 +129,11 @@ static void __led_blink_handle(LED_DEV_INFO_T *led_dev)
         if (0 == led_dev->blink_cnt) {
             __led_set_status(led_dev, led_dev->blink_cfg.end_stat);
             led_dev->blink_stat = LED_BLINK_IDLE;
-            nxt_time = 0;
+            nxt_time            = 0;
         } else {
             __led_set_status(led_dev, TDL_LED_TOGGLE);
             led_dev->blink_stat = LED_BLINK_FIRST;
-            nxt_time = led_dev->blink_cfg.first_half_cycle_time;
+            nxt_time            = led_dev->blink_cfg.first_half_cycle_time;
         }
         break;
     default:
@@ -172,7 +172,7 @@ static void __led_stop_blink(LED_DEV_INFO_T *led_dev)
         tal_sw_timer_stop(led_dev->led_tm);
     }
     led_dev->blink_stat = LED_BLINK_IDLE;
-    led_dev->blink_cnt = 0;
+    led_dev->blink_cnt  = 0;
 }
 
 /**
@@ -203,7 +203,7 @@ TDL_LED_HANDLE_T tdl_led_find_dev(char *dev_name)
  */
 OPERATE_RET tdl_led_open(TDL_LED_HANDLE_T handle)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET     rt      = OPRT_OK;
     LED_DEV_INFO_T *led_dev = NULL;
 
     if (NULL == handle) {
@@ -279,7 +279,7 @@ OPERATE_RET tdl_led_set_status(TDL_LED_HANDLE_T handle, TDL_LED_STATUS_E status)
  */
 OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET     rt      = OPRT_OK;
     LED_DEV_INFO_T *led_dev = (LED_DEV_INFO_T *)handle;
 
     if (NULL == led_dev || 0 == half_cycle_time) {
@@ -296,13 +296,13 @@ OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time)
 
     __led_stop_blink(led_dev);
 
-    led_dev->blink_cfg.cnt = TDL_BLINK_FOREVER;
-    led_dev->blink_cfg.start_stat = TDL_LED_ON;
-    led_dev->blink_cfg.first_half_cycle_time = half_cycle_time;
+    led_dev->blink_cfg.cnt                    = TDL_BLINK_FOREVER;
+    led_dev->blink_cfg.start_stat             = TDL_LED_ON;
+    led_dev->blink_cfg.first_half_cycle_time  = half_cycle_time;
     led_dev->blink_cfg.latter_half_cycle_time = half_cycle_time;
 
     led_dev->blink_stat = LED_BLINK_START;
-    led_dev->blink_cnt = led_dev->blink_cfg.cnt;
+    led_dev->blink_cnt  = led_dev->blink_cfg.cnt;
 
     rt = tal_sw_timer_start(led_dev->led_tm, 10, TAL_TIMER_ONCE);
     if (rt != OPRT_OK) {
@@ -310,7 +310,7 @@ OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time)
         tal_mutex_unlock(led_dev->mutex);
         return rt;
     }
-    
+
     tal_mutex_unlock(led_dev->mutex);
 
     return OPRT_OK;
@@ -326,7 +326,7 @@ OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time)
  */
 OPERATE_RET tdl_led_blink(TDL_LED_HANDLE_T handle, TDL_LED_BLINK_CFG_T *cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET     rt      = OPRT_OK;
     LED_DEV_INFO_T *led_dev = (LED_DEV_INFO_T *)handle;
 
     if (NULL == led_dev || NULL == cfg) {
@@ -346,7 +346,7 @@ OPERATE_RET tdl_led_blink(TDL_LED_HANDLE_T handle, TDL_LED_BLINK_CFG_T *cfg)
     memcpy(&led_dev->blink_cfg, cfg, sizeof(TDL_LED_BLINK_CFG_T));
 
     led_dev->blink_stat = LED_BLINK_START;
-    led_dev->blink_cnt = led_dev->blink_cfg.cnt;
+    led_dev->blink_cnt  = led_dev->blink_cfg.cnt;
 
     rt = tal_sw_timer_start(led_dev->led_tm, 10, TAL_TIMER_ONCE);
     if (rt != OPRT_OK) {
@@ -369,7 +369,7 @@ OPERATE_RET tdl_led_blink(TDL_LED_HANDLE_T handle, TDL_LED_BLINK_CFG_T *cfg)
  */
 OPERATE_RET tdl_led_close(TDL_LED_HANDLE_T handle)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET     rt      = OPRT_OK;
     LED_DEV_INFO_T *led_dev = (LED_DEV_INFO_T *)handle;
 
     if (NULL == led_dev) {
