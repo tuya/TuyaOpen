@@ -1,0 +1,90 @@
+#ifndef __IM_PLATFORM_H__
+#define __IM_PLATFORM_H__
+
+/*
+ * IM component platform adapter.
+ * Wraps tal_api.h with IM-specific log macros, memory helpers, and KV helpers.
+ * Host applications provide tal_api.h through their platform SDK.
+ */
+
+#include "tal_api.h"
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* ---- Logging ---- */
+
+#define IM_LOGE(tag, fmt, ...) PR_ERR("[%s] " fmt, tag, ##__VA_ARGS__)
+#define IM_LOGW(tag, fmt, ...) PR_WARN("[%s] " fmt, tag, ##__VA_ARGS__)
+#define IM_LOGI(tag, fmt, ...) PR_INFO("[%s] " fmt, tag, ##__VA_ARGS__)
+#define IM_LOGD(tag, fmt, ...) PR_DEBUG("[%s] " fmt, tag, ##__VA_ARGS__)
+
+/* ---- Memory ---- */
+
+#define im_malloc(size)          tal_malloc(size)
+#define im_calloc(nmemb, size)   tal_calloc(nmemb, size)
+#define im_realloc(ptr, size)    tal_realloc(ptr, size)
+#define im_free(ptr)             tal_free(ptr)
+
+static inline char *im_strdup(const char *s)
+{
+    if (!s) return NULL;
+    size_t len = strlen(s) + 1;
+    char  *p   = (char *)im_malloc(len);
+    if (p) memcpy(p, s, len);
+    return p;
+}
+
+/* ---- KV storage ---- */
+
+#ifndef IM_KV_PREFIX
+#define IM_KV_PREFIX "im"
+#endif
+
+static inline void im_build_kv_key(const char *ns, const char *key, char *out, size_t out_size)
+{
+    if (!out || out_size == 0) return;
+    snprintf(out, out_size, "%s.%s.%s", IM_KV_PREFIX, ns ? ns : "", key ? key : "");
+}
+
+static inline OPERATE_RET im_kv_set_string(const char *ns, const char *key, const char *value)
+{
+    if (!key || !value) return OPRT_INVALID_PARM;
+    char full_key[64] = {0};
+    im_build_kv_key(ns, key, full_key, sizeof(full_key));
+    return tal_kv_set(full_key, (const uint8_t *)value, strlen(value) + 1);
+}
+
+static inline OPERATE_RET im_kv_get_string(const char *ns, const char *key, char *out, size_t out_size)
+{
+    if (!key || !out || out_size == 0) return OPRT_INVALID_PARM;
+    char full_key[64] = {0};
+    im_build_kv_key(ns, key, full_key, sizeof(full_key));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    OPERATE_RET rt = tal_kv_get(full_key, &buf, &len);
+    if (rt != OPRT_OK || !buf || len == 0) {
+        out[0] = '\0';
+        if (buf) tal_kv_free(buf);
+        return (rt == OPRT_OK) ? OPRT_NOT_FOUND : rt;
+    }
+    size_t copy_len = (len < out_size - 1) ? len : (out_size - 1);
+    memcpy(out, buf, copy_len);
+    out[copy_len] = '\0';
+    tal_kv_free(buf);
+    return OPRT_OK;
+}
+
+static inline OPERATE_RET im_kv_del(const char *ns, const char *key)
+{
+    if (!key) return OPRT_INVALID_PARM;
+    char full_key[64] = {0};
+    im_build_kv_key(ns, key, full_key, sizeof(full_key));
+    return tal_kv_del(full_key);
+}
+
+#endif /* __IM_PLATFORM_H__ */
