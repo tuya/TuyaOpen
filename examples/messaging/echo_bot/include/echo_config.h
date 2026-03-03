@@ -1,16 +1,16 @@
 #ifndef __ECHO_CONFIG_H__
 #define __ECHO_CONFIG_H__
 
-/* Echo bot 应用：仅保留 WiFi 等应用侧配置，IM 相关见 im/im_config.h */
+/* Echo bot app-level config. For IM settings see IM/im_config.h. */
 #if __has_include("echo_secrets.h")
 #include "echo_secrets.h"
 #endif
 
 #ifndef ECHO_SECRET_WIFI_SSID
-#define ECHO_SECRET_WIFI_SSID "Pico"
+#define ECHO_SECRET_WIFI_SSID "your_wifi_ssid"
 #endif
 #ifndef ECHO_SECRET_WIFI_PASS
-#define ECHO_SECRET_WIFI_PASS "Pico123456"
+#define ECHO_SECRET_WIFI_PASS "your_wifi_password"
 #endif
 
 #define ECHO_WIFI_MAX_RETRY     10
