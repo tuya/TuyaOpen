@@ -144,20 +144,6 @@ static void mimi_runtime_init(void)
         tal_system_sleep(1000);
         retry++;
     }
-#elif ENABLE_FILE_SYSTEM
-    MIMI_LOGI(TAG, "Mounting inner flash to %s...", MIMI_FS_BASE);
-    int         retry = 0;
-    OPERATE_RET rt    = OPRT_OK;
-    while (retry < 3) {
-        rt = tkl_fs_mount(MIMI_FS_BASE, DEV_INNER_FLASH);
-        if (rt == OPRT_OK) {
-            MIMI_LOGI(TAG, "Inner flash mount success");
-            break;
-        }
-        MIMI_LOGW(TAG, "Inner flash mount failed (rt=%d), retry %d/3...", rt, retry + 1);
-        tal_system_sleep(1000);
-        retry++;
-    }
 #endif
 
     (void)tal_sw_timer_init();

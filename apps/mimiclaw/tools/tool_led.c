@@ -1,5 +1,6 @@
 #include "tool_led.h"
 
+#ifndef PLATFORM_LINUX
 #include "cJSON.h"
 #include "tdl_led_manage.h"
 #include "tdd_led_gpio.h"
@@ -142,3 +143,15 @@ OPERATE_RET tool_led_control_execute(const char *input_json, char *output, size_
     cJSON_Delete(root);
     return rt;
 }
+
+#else
+OPERATE_RET tool_led_init(void)
+{
+    return OPRT_NOT_SUPPORTED;
+}
+
+OPERATE_RET tool_led_control_execute(const char *input_json, char *output, size_t output_size)
+{
+    return OPRT_NOT_SUPPORTED;
+}
+#endif

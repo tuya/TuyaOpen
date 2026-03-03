@@ -142,7 +142,7 @@
 
 /* Memory / Storage */
 #ifndef MIMI_USE_SDCARD
-#define MIMI_USE_SDCARD 1
+#define MIMI_USE_SDCARD 0
 #endif
 
 #if MIMI_USE_SDCARD

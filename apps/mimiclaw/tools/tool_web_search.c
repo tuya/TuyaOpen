@@ -2,7 +2,7 @@
 
 #include "mimi_config.h"
 
-#if !defined(MIMI_USE_BAIDU_SEARCH)
+#if !(MIMI_USE_BAIDU_SEARCH)
 
 #include "cJSON.h"
 #include "http_client_interface.h"
