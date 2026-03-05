@@ -230,11 +230,12 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
         return OPRT_INVALID_PARM;
     }
 
-    dp_rept_valid_t *dpvalid = tal_malloc(sizeof(dp_rept_valid_t) + sizeof(uint8_t) * dpscnt);
+    size_t dpvalid_size = sizeof(dp_rept_valid_t) + sizeof(uint8_t) * dpscnt;
+    dp_rept_valid_t *dpvalid = tal_malloc(dpvalid_size);
     if (NULL == dpvalid) {
         return OPRT_MALLOC_FAILED;
     }
-    memset(dpvalid, 0, sizeof(sizeof(dp_rept_valid_t) + sizeof(uint8_t) * dpscnt));
+    memset(dpvalid, 0, dpvalid_size);
 
     PR_DEBUG("dp report: devid %s, dps 0x%08x, dpscnt %d, flags %d", devid ? devid : "null", dps, dpscnt, flags);
 
