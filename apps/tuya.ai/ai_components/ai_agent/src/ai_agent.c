@@ -172,9 +172,25 @@ OPERATE_RET __ai_agent_alert_cb(AI_ALERT_TYPE_E type)
 }
 
 /**
+ * @brief Session initialization callback function
+ *
+ * This callback is called to initialize a new session.
+ *
+ * @param[in] data  Reserved parameter, currently unused.
+ * @return int      Returns 0 on success.
+ */
+static int session_init_cb(void *data)
+{
+    (void)data;
+    tuya_ai_agent_crt_session("", 0, 0, NULL, 0);
+    return 0;
+}
+
+/**
 @brief Initialize the AI agent module
 @return OPERATE_RET Operation result
-*/OPERATE_RET ai_agent_init(void)
+*/
+OPERATE_RET ai_agent_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_AGENT_CFG_T ai_agent_cfg = {0};
@@ -210,7 +226,9 @@ OPERATE_RET __ai_agent_alert_cb(AI_ALERT_TYPE_E type)
     ai_agent_cfg.output.event_cb      = __ai_agent_event_cb;
 
     TUYA_CALL_ERR_RETURN(tuya_ai_agent_init(&ai_agent_cfg));
-    
+
+    TUYA_CALL_ERR_LOG(tal_event_subscribe(EVENT_AI_CLIENT_RUN, "agent_session_init", session_init_cb, SUBSCRIBE_TYPE_NORMAL));
+
 #if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
     ai_monitor_config_t monitor_cfg = AI_MONITOR_CFG_DEFAULT;
     TUYA_CALL_ERR_RETURN(tuya_ai_monitor_init(&monitor_cfg));
