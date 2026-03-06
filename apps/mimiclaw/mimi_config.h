@@ -146,7 +146,7 @@
 #endif
 
 #if MIMI_USE_SDCARD
-#define MIMI_FS_BASE "/spiffs"
+#define MIMI_FS_BASE "/sdcard"
 #else
 #define MIMI_FS_BASE "/spiffs"
 #endif
