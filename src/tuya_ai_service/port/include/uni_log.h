@@ -19,10 +19,18 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 
+#ifndef TAL_PR_ERR
 #define TAL_PR_DEBUG PR_DEBUG
+#endif
+#ifndef TAL_PR_INFO
 #define TAL_PR_INFO  PR_INFO
+#endif
+#ifndef TAL_PR_WARN
 #define TAL_PR_WARN  PR_WARN
+#endif
+#ifndef TAL_PR_ERR
 #define TAL_PR_ERR   PR_ERR
+#endif
 
 /***********************************************************
 ***********************typedef define***********************

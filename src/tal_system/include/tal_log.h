@@ -123,6 +123,19 @@ OPERATE_RET tal_log_print_secure(BOOL_T is_const_fmt, const TAL_LOG_LEVEL_E leve
 #define PR_TRACE(fmt, ...)                                                                                               \
     tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
 
+#define TAL_PR_ERR(fmt, ...)                                                                                                 \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define TAL_PR_WARN(fmt, ...)                                                                                                \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_WARN, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define TAL_PR_NOTICE(fmt, ...)                                                                                              \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_NOTICE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define TAL_PR_INFO(fmt, ...)                                                                                                \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_INFO, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define TAL_PR_DEBUG(fmt, ...)                                                                                               \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_DEBUG, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+#define TAL_PR_TRACE(fmt, ...)                                                                                               \
+    tal_log_print_secure(LOG_FMT_IS_CONST(fmt), TAL_LOG_LEVEL_TRACE, _THIS_FILE_NAME_, __LINE__, fmt, ##__VA_ARGS__)
+
 #define PR_HEXDUMP_ERR(title, buf, size)                                                                               \
     tal_log_hex_dump(TAL_LOG_LEVEL_ERR, _THIS_FILE_NAME_, __LINE__, title, 8, buf, size)
 #define PR_HEXDUMP_WARN(title, buf, size)                                                                              \
