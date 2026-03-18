@@ -19,13 +19,13 @@
 #include <assert.h>
 #include "cJSON.h"
 #include "tal_api.h"
-#include "tuya_config.h"
 #include "tuya_iot.h"
 #include "tuya_iot_dp.h"
 #include "netmgr.h"
 #include "tkl_output.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
+#include "tuya_config.h"
 
 #if defined(OTTO_TYPE_NINJA_OTTO) && (OTTO_TYPE_NINJA_OTTO == 1)
 #include "otto_ninja_main.h"
