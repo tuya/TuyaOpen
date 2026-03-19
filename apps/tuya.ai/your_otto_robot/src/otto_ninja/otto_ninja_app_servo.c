@@ -169,10 +169,10 @@ void platform_tuya_init(void)
 #define SERVO_MAX_PULSE        2500
 
 // ==================== Calibration Parameters ====================
-#define LFFWRS     20      // Left foot forward rotation speed
-#define RFFWRS     20      // Right foot forward rotation speed
-#define LFBWRS     20      // Left foot backward rotation speed
-#define RFBWRS     20      // Right foot backward rotation speed
+#define LFFWRS     20      // Left foot forward rotation speed (increased to compensate for counterclockwise turn)
+#define RFFWRS     12      // Right foot forward rotation speed (further reduced to prevent large right foot span and counterclockwise turn)
+#define LFBWRS     5      // Left foot backward rotation speed (increased to reduce left turn in backward)
+#define RFBWRS     5      // Right foot backward rotation speed (reduced to decrease clockwise rotation time)
 
 #define LA0        60      // Left leg standing position
 #define RA0        120     // Right leg standing position
@@ -199,6 +199,12 @@ static servo_t servos[MAX_SERVO_COUNT];
 
 // Time control variable
 static uint32_t currentmillis1 = 0;
+
+// Rotate spot state variables
+static bool sg_rotate_spot_active = false;  // Whether rotate spot is active
+static uint16_t sg_right_foot_angle = 90;   // Current right foot angle (0-180)
+static uint32_t sg_last_foot_update = 0;     // Last foot angle update time
+static uint32_t sg_angle_accumulator = 0;   // Angle accumulator for smooth rotation (0-36000, represents 0.0-360.0 degrees with 0.01 degree precision)
 
 // ==================== Utility Functions ====================
 
@@ -322,6 +328,77 @@ void servo_detach(uint8_t pin)
     servos[idx].attached = false;
 }
 
+/**
+ * Smooth servo angle transition
+ * Gradually transition from current angle to target angle to avoid sudden changes
+ * 
+ * @param pin Servo pin
+ * @param target_angle Target angle (0-180 degrees)
+ * @param step_delay_ms Delay time per step (milliseconds), controls speed
+ * @param step_size Angle increment per step, controls smoothness
+ */
+void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_ms, uint16_t step_size)
+{
+    int idx = get_servo_index(pin);
+    
+    // If servo not found, try to attach
+    if (idx < 0) {
+        servo_attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+        idx = get_servo_index(pin);
+        if (idx < 0) return;  // Attach failed, exit
+    }
+    
+    // If servo not attached, auto attach
+    if (!servos[idx].attached) {
+        servo_attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    }
+    
+    // Limit target angle range
+    if (target_angle > 180) target_angle = 180;
+    
+    // Get current angle
+    uint16_t current_angle = servos[idx].current_angle;
+    
+    // If already at target position, return directly
+    if (current_angle == target_angle) {
+        return;
+    }
+    
+    // Determine step direction
+    int16_t direction = (target_angle > current_angle) ? 1 : -1;
+    int16_t angle_diff = (target_angle > current_angle) ? 
+                         (target_angle - current_angle) : 
+                         (current_angle - target_angle);
+    
+    // Gradual transition
+    uint16_t steps = (angle_diff + step_size - 1) / step_size;  // Round up
+    if (steps == 0) steps = 1;  // At least one step
+    
+    for (uint16_t i = 0; i < steps; i++) {
+        // Calculate target angle for current step
+        uint16_t step_angle = current_angle + (direction * step_size * (i + 1));
+        
+        // Ensure not exceeding target angle
+        if (direction > 0) {
+            if (step_angle > target_angle) step_angle = target_angle;
+        } else {
+            if (step_angle < target_angle) step_angle = target_angle;
+        }
+        
+        // Set servo angle
+        servo_write(pin, step_angle);
+        
+        // Delay to ensure servo execution
+        if (i < steps - 1) {  // Last step doesn't need delay
+            delay_ms(step_delay_ms);
+        }
+    }
+    
+    // Ensure final target angle is reached
+    if (servos[idx].current_angle != target_angle) {
+        servo_write(pin, target_angle);
+    }
+}
 
 // ==================== Initialization Functions ====================
 
@@ -411,69 +488,76 @@ void servo_detach(uint8_t pin)
  {
     PR_NOTICE("robot_set_walk");
 #if ARM_HEAD_ENABLE == 1
-     // Arms to middle position
+     // Step 1: Smooth transition of arms to middle position (90 degrees)
+     // 2 degrees per step, 15ms delay, ensures smooth transition
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 90);
-     servo_write(SERVO_RIGHT_ARM_PIN, 90);
-     delay_ms(200);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 90, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 90, 15, 2);
+     delay_ms(200);  // Wait for servo stabilization
+     // Keep PWM running, don't detach
 #endif
-     // Ankles to standing position
+     // Step 2: Smooth transition of ankles to standing position (LA0, RA0)
+     // 2 degrees per step, 15ms delay, ensures smooth transition
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_LEG_PIN, LA0);
-     servo_write(SERVO_RIGHT_LEG_PIN, RA0);
-     delay_ms(100);
-     //servo_detach(SERVO_LEFT_LEG_PIN);
-     //servo_detach(SERVO_RIGHT_LEG_PIN);
+     servo_write_smooth(SERVO_LEFT_LEG_PIN, LA0, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_LEG_PIN, RA0, 15, 2);
+     delay_ms(100);  // Wait for servo stabilization
+     // Keep PWM running, don't detach
      
 #if ARM_HEAD_ENABLE == 1
-     // Arms to final position
+     // Step 3: Smooth transition of arms to final position (left arm 180 degrees, right arm 0 degrees)
+     // 2 degrees per step, 15ms delay, ensures smooth transition
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 180);
-     servo_write(SERVO_RIGHT_ARM_PIN, 0);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 180, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 0, 15, 2);
+     // Keep PWM running, don't detach
 #endif
  }
  
  /**
   * Set roll mode
+  * Use smooth transition function to avoid sudden servo changes and execution issues
   */
  void robot_set_roll(void)
  {
     PR_NOTICE("robot_set_roll");
 #if ARM_HEAD_ENABLE == 1
-     // Arms to middle position
+     // Step 1: Smooth transition of arms to middle position (90 degrees)
+     // 2 degrees per step, 15ms delay, ensures smooth transition
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 90);
-     servo_write(SERVO_RIGHT_ARM_PIN, 90);
-     delay_ms(200);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 90, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 90, 15, 2);
+     delay_ms(200);  // Wait for servo stabilization
+     // Keep PWM running, don't detach
 #endif
      
-     // Ankles to roll position
+     // Step 2: Smooth transition of legs to roll position (LA1=180 degrees, RA1=0 degrees)
+     // 3 degrees per step, 20ms delay, larger angle change requires more time
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_LEG_PIN, LA1);
-     servo_write(SERVO_RIGHT_LEG_PIN, RA1);
-     delay_ms(100);
-   //  servo_detach(SERVO_LEFT_LEG_PIN);
-   //  servo_detach(SERVO_RIGHT_LEG_PIN);
+     servo_write_smooth(SERVO_LEFT_LEG_PIN, LA1, 20, 3);
+     servo_write_smooth(SERVO_RIGHT_LEG_PIN, RA1, 20, 3);
+     delay_ms(100);  // Wait for servo stabilization
+     // Keep PWM running, don't detach
      
 #if ARM_HEAD_ENABLE == 1
-     // Arms to final position
+     // Step 3: Smooth transition of arms to final position (left arm 180 degrees, right arm 0 degrees)
+     // 2 degrees per step, 15ms delay, ensures smooth transition
+     // Keep PWM running, don't detach
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 180);
-     servo_write(SERVO_RIGHT_ARM_PIN, 0);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 180, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 0, 15, 2);
+     // Keep PWM running, don't detach
 #endif
  }
  
@@ -508,9 +592,11 @@ void servo_detach(uint8_t pin)
  {
      if (joystick_y <= 0) return;  // Only process forward
      
-     // Calculate left/right turn time
-     int lt = map_value(joystick_x, 100, -100, 200, 700);
-     int rt = map_value(joystick_x, 100, -100, 700, 200);
+    // Calculate left/right turn time
+    // Adjust time distribution to compensate for mechanical asymmetry
+    // Left foot time is smaller than right foot time
+    int lt = map_value(joystick_x, 100, -100, 300, 500);  // Left foot time: 300-500ms (400ms when straight)
+    int rt = map_value(joystick_x, 100, -100, 400, 600);  // Right foot time: 400-600ms (500ms when straight)
     // PR_NOTICE("robot_walk_forward: lt=%d, rt=%d", lt, rt);
      // Calculate time intervals
      int interval1 = 250;
@@ -578,13 +664,15 @@ void servo_detach(uint8_t pin)
   * @param joystick_x Joystick X value (-100 to 100)
   * @param joystick_y Joystick Y value (-100 to 100, should be <0 for backward)
   */
- void robot_walk_backward(int8_t joystick_x, int8_t joystick_y)
- {
-     if (joystick_y >= 0) return;  // Only process backward
-     
-     // Calculate left/right turn time
-     int lt = map_value(joystick_x, 100, -100, 200, 700);
-     int rt = map_value(joystick_x, 100, -100, 700, 200);
+void robot_walk_backward(int8_t joystick_x, int8_t joystick_y)
+{
+    if (joystick_y >= 0) return;  // Only process backward
+    
+   // Calculate left/right turn time
+    // Adjust time distribution to compensate for mechanical asymmetry
+    // Left foot time is smaller than right foot time
+    int lt = map_value(joystick_x, 100, -100, 150, 650);  // Left foot time: 300-500ms (400ms when straight)
+    int rt = map_value(joystick_x, 100, -100, 750, 250);  // Right foot time: 350-550ms (450ms when straight, reduced)
      
      // Calculate time intervals
      int interval1 = 250;
@@ -720,6 +808,154 @@ void servo_detach(uint8_t pin)
  #endif
 
 
+/**
+ * @brief Spot rotation function (walk mode)
+ * @param direction true=rotate right, false=rotate left (currently unused)
+ * 
+ * Function description:
+ * - Ensure in walk mode (not roll mode)
+ * - Execute the first step of forward walking (Phase 1-2: set to right tilt position, then right foot rotation)
+ * - Activate continuous rotation, updated in main_loop via robot_rotate_spot_update
+ */
+ void robot_rotate_spot(bool direction){
+    PR_NOTICE("robot_rotate_spot: direction=%s, starting rotation", direction ? "right" : "left");
+    
+    // Ensure in walk mode
+    if (get_mode_counter() != 0) {
+        PR_NOTICE("robot_rotate_spot: Not in walk mode, switching to walk mode");
+        robot_set_walk();
+        delay_ms(500);  // Wait for mode switch to complete
+    }
+    
+    // Attach leg and foot servos
+    servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_RIGHT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_LEFT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    
+    // Phase 1: Set ankles to right tilt position (first step of forward walking)
+    PR_NOTICE("robot_rotate_spot: Phase 1 - Set ankles to right tilt position (LATR, RATR)");
+    servo_write(SERVO_LEFT_LEG_PIN, LATR);
+    servo_write(SERVO_RIGHT_LEG_PIN, RATR);
+    delay_ms(250);  // Phase 1 duration: 250ms
+    
+    // Phase 2: Right foot rotation (first step of forward walking)
+    PR_NOTICE("robot_rotate_spot: Phase 2 - Right foot rotation (90 - RFFWRS = %d)", 90 - RFFWRS);
+    uint16_t start_angle = 90 - RFFWRS;  // Start angle: right foot angle for first step of forward walking
+    servo_write(SERVO_RIGHT_FOOT_PIN, start_angle);
+    delay_ms(500);  // Phase 2 duration: 500ms (right foot rotation time for first step of forward walking)
+    
+    // Initialize rotation state, start continuous rotation
+    sg_right_foot_angle = start_angle;  // Start angle: right foot angle for first step of forward walking
+    sg_last_foot_update = get_millis();
+    
+    // Map start angle to accumulator (angle range 60-180 degrees, accumulator range 0-36000)
+    if (sg_right_foot_angle < 60) {
+        sg_right_foot_angle = 60;
+    }
+    if (sg_right_foot_angle > 180) {
+        sg_right_foot_angle = 180;
+    }
+    if (sg_right_foot_angle <= 120) {
+        sg_angle_accumulator = (sg_right_foot_angle - 60) * 9000 / 60;
+    } else {
+        sg_angle_accumulator = 9000 + (sg_right_foot_angle - 120) * 9000 / 60;
+    }
+    
+    sg_rotate_spot_active = true;  // Activate rotation, updated in main_loop via robot_rotate_spot_update
+    
+    PR_NOTICE("robot_rotate_spot: Rotation started, will continue in main_loop, start angle=%d", 
+                  sg_right_foot_angle);
+ }
+
+/**
+ * @brief Stop spot rotation
+ */
+ void robot_rotate_spot_stop(void){
+    PR_NOTICE("robot_rotate_spot_stop: Stopping rotation");
+    sg_rotate_spot_active = false;
+    
+    // Restore leg position to standing position
+    servo_write(SERVO_LEFT_LEG_PIN, LA0);
+    servo_write(SERVO_RIGHT_LEG_PIN, RA0);
+    servo_write(SERVO_RIGHT_FOOT_PIN, 90);
+    
+    // Detach servos
+    servo_detach(SERVO_LEFT_LEG_PIN);
+    servo_detach(SERVO_RIGHT_LEG_PIN);
+    servo_detach(SERVO_RIGHT_FOOT_PIN);
+    servo_detach(SERVO_LEFT_FOOT_PIN);
+ }
+
+/**
+ * @brief Update rotation state (called in main_loop)
+ * Continuous rotation, no stuttering, no pauses
+ */
+ void robot_rotate_spot_update(void){
+    if (!sg_rotate_spot_active) {
+        return;  // If not in rotation state, return directly
+    }
+    
+    uint32_t current_time = get_millis();
+    uint32_t elapsed = current_time - sg_last_foot_update;
+    
+    // Update angle every 3ms to achieve smooth continuous rotation
+    if (elapsed >= 3) {
+        sg_last_foot_update = current_time;
+        
+        // Increase by approximately 15 units every 3ms (equivalent to 0.15 degrees per 3ms, about 50 degrees per second, achieving slow continuous rotation)
+        uint32_t increment = (elapsed * 15) / 3;
+        if (increment < 1) increment = 1;
+        if (increment > 50) increment = 50;
+        
+        sg_angle_accumulator += increment;
+        
+        // If accumulator exceeds 36000, use modulo to return to 0 and continue rotation (achieving continuous loop, no jumps)
+        if (sg_angle_accumulator >= 36000) {
+            sg_angle_accumulator = sg_angle_accumulator % 36000;
+        }
+        
+        // Convert accumulator to actual angle: map to 60-180 degree range
+        // Divide 36000 into 4 segments, each 9000, corresponding to: 60->120->180->120->60
+        uint32_t phase = sg_angle_accumulator % 36000;
+        uint32_t quarter = phase / 9000;  // 0, 1, 2, 3
+        uint32_t pos_in_quarter = phase % 9000;  // 0-8999
+        
+        switch (quarter) {
+            case 0:
+                // 0-9000: 60 degrees to 120 degrees (linear increase)
+                sg_right_foot_angle = 60 + (pos_in_quarter * 60) / 9000;
+                break;
+            case 1:
+                // 9000-18000: 120 degrees to 180 degrees (linear increase)
+                sg_right_foot_angle = 120 + (pos_in_quarter * 60) / 9000;
+                break;
+            case 2:
+                // 18000-27000: 180 degrees to 120 degrees (linear decrease)
+                sg_right_foot_angle = 180 - (pos_in_quarter * 60) / 9000;
+                break;
+            case 3:
+                // 27000-36000: 120 degrees to 60 degrees (linear decrease)
+                sg_right_foot_angle = 120 - (pos_in_quarter * 60) / 9000;
+                break;
+            default:
+                sg_right_foot_angle = 90;
+                break;
+        }
+        
+        // Ensure angle is within valid range (60-180 degrees)
+        if (sg_right_foot_angle < 60) {
+            sg_right_foot_angle = 60;
+        }
+        if (sg_right_foot_angle > 180) {
+            sg_right_foot_angle = 180;
+        }
+        
+        // Update servo angle
+        servo_write(SERVO_RIGHT_FOOT_PIN, sg_right_foot_angle);
+    }
+ }
+
 
 
 /**
@@ -745,9 +981,17 @@ void main_loop(void)
             PR_NOTICE("robot_set_roll");
         }
     }
+    
+    // Update rotate spot if active (must be called before other motion controls)
+    robot_rotate_spot_update();
+    
     // Execute different motion control based on mode
     if (get_mode_counter() == 0) {
         // Walk mode
+        // If rotate spot is active, skip other motion controls
+        if (sg_rotate_spot_active) {
+            return;  // Skip other motion controls when rotating
+        }
 
         if (joystick_x >= -10 && joystick_x <= 10 && 
             joystick_y >= -10 && joystick_y <= 10) {

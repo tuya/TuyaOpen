@@ -30,7 +30,11 @@
 #include "otto_ninja_app_servo.h"
 #include "otto_ninja_main.h"
 #include "tal_thread.h"
- 
+
+/* Forward declarations for rotate_spot (ensure visible when building with -Werror=implicit-function-declaration) */
+void robot_rotate_spot(bool direction);
+void robot_rotate_spot_stop(void);
+
  /***********************************************************
  *************************micro define***********************
  ***********************************************************/
