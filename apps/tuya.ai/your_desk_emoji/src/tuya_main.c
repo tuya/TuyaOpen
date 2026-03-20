@@ -57,8 +57,8 @@ tuya_iot_license_t license;
 #define DPID_VOLUME 3
 #define DPID_SERVO  5
 
-bool _s_servo_busy = FALSE;
-static uint8_t _need_reset = 0;
+bool                  _s_servo_busy   = FALSE;
+static uint8_t        _need_reset     = 0;
 static SERVO_ACTION_E _s_servo_action = SERVO_CENTER;
 
 /**
@@ -82,20 +82,32 @@ void user_log_output_cb(const char *str)
 void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 {
     PR_INFO("----- Upgrade information -----");
-    PR_INFO("OTA Channel: %d", cJSON_GetObjectItem(upgrade, "type")->valueint);
-    PR_INFO("Version: %s", cJSON_GetObjectItem(upgrade, "version")->valuestring);
-    PR_INFO("Size: %s", cJSON_GetObjectItem(upgrade, "size")->valuestring);
-    PR_INFO("MD5: %s", cJSON_GetObjectItem(upgrade, "md5")->valuestring);
-    PR_INFO("HMAC: %s", cJSON_GetObjectItem(upgrade, "hmac")->valuestring);
-    PR_INFO("URL: %s", cJSON_GetObjectItem(upgrade, "url")->valuestring);
-    PR_INFO("HTTPS URL: %s", cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
-}
+    if (!upgrade) {
+        PR_WARN("upgrade JSON is NULL");
+        return;
+    }
 
+    cJSON *type_item    = cJSON_GetObjectItem(upgrade, "type");
+    cJSON *version_item = cJSON_GetObjectItem(upgrade, "version");
+    cJSON *size_item    = cJSON_GetObjectItem(upgrade, "size");
+    cJSON *md5_item     = cJSON_GetObjectItem(upgrade, "md5");
+    cJSON *hmac_item    = cJSON_GetObjectItem(upgrade, "hmac");
+    cJSON *url_item     = cJSON_GetObjectItem(upgrade, "url");
+    cJSON *https_item   = cJSON_GetObjectItem(upgrade, "httpsUrl");
+
+    PR_INFO("OTA Channel: %d", cJSON_IsNumber(type_item) ? type_item->valueint : -1);
+    PR_INFO("Version: %s", cJSON_IsString(version_item) ? version_item->valuestring : "N/A");
+    PR_INFO("Size: %s", cJSON_IsString(size_item) ? size_item->valuestring : "N/A");
+    PR_INFO("MD5: %s", cJSON_IsString(md5_item) ? md5_item->valuestring : "N/A");
+    PR_INFO("HMAC: %s", cJSON_IsString(hmac_item) ? hmac_item->valuestring : "N/A");
+    PR_INFO("URL: %s", cJSON_IsString(url_item) ? url_item->valuestring : "N/A");
+    PR_INFO("HTTPS URL: %s", cJSON_IsString(https_item) ? https_item->valuestring : "N/A");
+}
 
 static void __servo_control_wk_cb(void *data)
 {
     PR_DEBUG("Servo action: %d", _s_servo_action);
-    
+
     // Trigger corresponding emoji expression for servo movement
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     switch (_s_servo_action) {
@@ -121,7 +133,7 @@ static void __servo_control_wk_cb(void *data)
         break;
     }
 #endif
-    
+
     _s_servo_busy = TRUE;
     ai_ui_disp_msg(AI_UI_DISP_PAUSE_EMOJI_CYCLE, NULL, 0);
     app_servo_move(_s_servo_action);
@@ -136,7 +148,7 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
     // Hide weather clock and show emoji mode
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     ai_ui_disp_msg(AI_UI_DISP_EMOJI_UI_SHOW, NULL, 0);
-    
+
     // Trigger corresponding emoji expression
     switch (gesture) {
     case GESTURE_RIGHT:
@@ -157,11 +169,11 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
         break;
     case GESTURE_CLOCKWISE:
         ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_SURPRISE, strlen(EMOJI_SURPRISE));
-        _s_servo_action = SERVO_CLOCKWISE; 
+        _s_servo_action = SERVO_CLOCKWISE;
         break;
     case GESTURE_ANTICLOCKWISE:
         ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_ANGRY, strlen(EMOJI_ANGRY));
-        _s_servo_action = SERVO_ANTICLOCKWISE; 
+        _s_servo_action = SERVO_ANTICLOCKWISE;
         break;
     case GESTURE_FORWARD:
         ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_WAKEUP, strlen(EMOJI_WAKEUP));
@@ -178,7 +190,7 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
     default:
         return;
     }
-    
+
     // Return to weather clock is now handled by emoji rotation counter
     // No need for separate timer - emoji UI will send return message when all emotions are rotated
 #else
@@ -196,10 +208,10 @@ static void __gesture_detect_cb(GESTURE_TYPE_E gesture)
         _s_servo_action = SERVO_DOWN;
         break;
     case GESTURE_CLOCKWISE:
-        _s_servo_action = SERVO_CLOCKWISE; 
+        _s_servo_action = SERVO_CLOCKWISE;
         break;
     case GESTURE_ANTICLOCKWISE:
-        _s_servo_action = SERVO_ANTICLOCKWISE; 
+        _s_servo_action = SERVO_ANTICLOCKWISE;
         break;
     case GESTURE_FORWARD:
         _s_servo_action = SERVO_NOD;
@@ -253,12 +265,12 @@ OPERATE_RET audio_dp_obj_proc(dp_obj_recv_t *dpobj)
 OPERATE_RET ai_audio_volume_upload(void)
 {
     tuya_iot_client_t *client = tuya_iot_client_get();
-    dp_obj_t dp_obj = {0};
+    dp_obj_t           dp_obj = {0};
 
     uint8_t volume = ai_chat_get_volume();
 
-    dp_obj.id = DPID_VOLUME;
-    dp_obj.type = PROP_VALUE;
+    dp_obj.id             = DPID_VOLUME;
+    dp_obj.type           = PROP_VALUE;
     dp_obj.value.dp_value = volume;
 
     PR_DEBUG("DP upload volume:%d", volume);
@@ -286,10 +298,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             tal_system_reset();
         }
 
-        #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
-        #endif
-        
+#endif
+
         break;
     case TUYA_EVENT_BIND_TOKEN_ON:
         break;
@@ -351,8 +363,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpraw->devid);
         }
 
-        uint32_t index = 0;
-        dp_raw_t *dp = &dpraw->dp;
+        uint32_t  index = 0;
+        dp_raw_t *dp    = &dpraw->dp;
         PR_DEBUG("dpid:%d type:RAW len:%d data:", dp->id, dp->len);
         for (index = 0; index < dp->len; index++) {
             PR_DEBUG_RAW("%02x", dp->data[index]);
@@ -388,7 +400,7 @@ void user_main(void)
     //! open iot development kit runtim init
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_psram_malloc, .free_fn = tal_psram_free});
-#else 
+#else
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
 #endif
 
@@ -406,7 +418,7 @@ void user_main(void)
 
     tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
-        .key = "dflfuap134ddlduq",
+        .key  = "dflfuap134ddlduq",
     });
     tal_sw_timer_init();
     tal_workq_init();
@@ -417,7 +429,7 @@ void user_main(void)
     reset_netconfig_start();
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
-        license.uuid = TUYA_OPENSDK_UUID;
+        license.uuid    = TUYA_OPENSDK_UUID;
         license.authkey = TUYA_OPENSDK_AUTHKEY;
         PR_WARN("Replace the TUYA_OPENSDK_UUID and TUYA_OPENSDK_AUTHKEY contents, otherwise the demo cannot work.\n \
                 Visit https://platform.tuya.com/purchase/index?type=6 to get the open-sdk uuid and authkey.");
@@ -426,9 +438,9 @@ void user_main(void)
     /* Initialize Tuya device configuration */
     ret = tuya_iot_init(&ai_client, &(const tuya_iot_config_t){
                                         .software_ver = PROJECT_VERSION,
-                                        .productkey = TUYA_PRODUCT_ID,
-                                        .uuid = license.uuid,
-                                        .authkey = license.authkey,
+                                        .productkey   = TUYA_PRODUCT_ID,
+                                        .uuid         = license.uuid,
+                                        .authkey      = license.authkey,
                                         // .firmware_key      = TUYA_DEVICE_FIRMWAREKEY,
                                         .event_handler = user_event_handler_on,
                                         .network_check = user_network_check,
@@ -526,9 +538,9 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 4096;
-    thrd_param.priority = 4;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 4096;
+    thrd_param.priority     = 4;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

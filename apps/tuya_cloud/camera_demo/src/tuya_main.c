@@ -43,7 +43,7 @@
 #endif
 
 static THREAD_HANDLE hIpcDemoHandle = NULL;
-static void tuya_ipc_demo_thread(void *arg);
+static void          tuya_ipc_demo_thread(void *arg);
 
 /* for cli command register */
 extern void tuya_app_cli_init(void);
@@ -76,13 +76,26 @@ void user_log_output_cb(const char *str)
 void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 {
     PR_INFO("----- Upgrade information -----");
-    PR_INFO("OTA Channel: %d", cJSON_GetObjectItem(upgrade, "type")->valueint);
-    PR_INFO("Version: %s", cJSON_GetObjectItem(upgrade, "version")->valuestring);
-    PR_INFO("Size: %s", cJSON_GetObjectItem(upgrade, "size")->valuestring);
-    PR_INFO("MD5: %s", cJSON_GetObjectItem(upgrade, "md5")->valuestring);
-    PR_INFO("HMAC: %s", cJSON_GetObjectItem(upgrade, "hmac")->valuestring);
-    PR_INFO("URL: %s", cJSON_GetObjectItem(upgrade, "url")->valuestring);
-    PR_INFO("HTTPS URL: %s", cJSON_GetObjectItem(upgrade, "httpsUrl")->valuestring);
+    if (!upgrade) {
+        PR_WARN("upgrade JSON is NULL");
+        return;
+    }
+
+    cJSON *type_item    = cJSON_GetObjectItem(upgrade, "type");
+    cJSON *version_item = cJSON_GetObjectItem(upgrade, "version");
+    cJSON *size_item    = cJSON_GetObjectItem(upgrade, "size");
+    cJSON *md5_item     = cJSON_GetObjectItem(upgrade, "md5");
+    cJSON *hmac_item    = cJSON_GetObjectItem(upgrade, "hmac");
+    cJSON *url_item     = cJSON_GetObjectItem(upgrade, "url");
+    cJSON *https_item   = cJSON_GetObjectItem(upgrade, "httpsUrl");
+
+    PR_INFO("OTA Channel: %d", cJSON_IsNumber(type_item) ? type_item->valueint : -1);
+    PR_INFO("Version: %s", cJSON_IsString(version_item) ? version_item->valuestring : "N/A");
+    PR_INFO("Size: %s", cJSON_IsString(size_item) ? size_item->valuestring : "N/A");
+    PR_INFO("MD5: %s", cJSON_IsString(md5_item) ? md5_item->valuestring : "N/A");
+    PR_INFO("HMAC: %s", cJSON_IsString(hmac_item) ? hmac_item->valuestring : "N/A");
+    PR_INFO("URL: %s", cJSON_IsString(url_item) ? url_item->valuestring : "N/A");
+    PR_INFO("HTTPS URL: %s", cJSON_IsString(https_item) ? https_item->valuestring : "N/A");
 }
 
 /**
@@ -111,16 +124,14 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     } break;
 
     /* MQTT with tuya cloud is connected, device online */
-    case TUYA_EVENT_MQTT_CONNECTED:
-    {
+    case TUYA_EVENT_MQTT_CONNECTED: {
         PR_INFO("Device MQTT Connected!");
-        THREAD_CFG_T thrd_param = {4096*5, 4, "tuya_ipc_demo_thread"};
+        THREAD_CFG_T thrd_param = {4096 * 5, 4, "tuya_ipc_demo_thread"};
         tal_thread_create_and_start(&hIpcDemoHandle, NULL, NULL, tuya_ipc_demo_thread, NULL, &thrd_param);
         break;
     }
     /* */
-    case TUYA_EVENT_RTC_REQ:
-    {
+    case TUYA_EVENT_RTC_REQ: {
         cJSON *root_json = event->value.asJSON;
         gw_p2p_mqtt_data_cb(root_json);
         break;
@@ -192,8 +203,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpraw->devid);
         }
 
-        uint32_t index = 0;
-        dp_raw_t *dp = &dpraw->dp;
+        uint32_t  index = 0;
+        dp_raw_t *dp    = &dpraw->dp;
         PR_DEBUG("dpid:%d type:RAW len:%d data:", dp->id, dp->len);
         for (index = 0; index < dp->len; index++) {
             PR_DEBUG_RAW("%02x", dp->data[index]);
@@ -244,7 +255,7 @@ void user_main(void)
 
     tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
-        .key = "dflfuap134ddlduq",
+        .key  = "dflfuap134ddlduq",
     });
     tal_sw_timer_init();
     tal_workq_init();
@@ -257,7 +268,7 @@ void user_main(void)
     reset_netconfig_start();
 
     if (OPRT_OK != tuya_authorize_read(&license)) {
-        license.uuid = TUYA_OPENSDK_UUID;
+        license.uuid    = TUYA_OPENSDK_UUID;
         license.authkey = TUYA_OPENSDK_AUTHKEY;
         PR_WARN("Replace the TUYA_OPENSDK_UUID and TUYA_OPENSDK_AUTHKEY contents, otherwise the demo cannot work.\n \
                 Visit https://platform.tuya.com/purchase/index?type=6 to get the open-sdk uuid and authkey.");
@@ -266,13 +277,13 @@ void user_main(void)
     /* Initialize Tuya device configuration */
     OnIotInited();
     ret = tuya_iot_init(&client, &(const tuya_iot_config_t){
-                                     .software_ver = PROJECT_VERSION,
-                                     .productkey = TUYA_PRODUCT_ID,
-                                     .uuid = license.uuid,
-                                     .authkey = license.authkey,
+                                     .software_ver  = PROJECT_VERSION,
+                                     .productkey    = TUYA_PRODUCT_ID,
+                                     .uuid          = license.uuid,
+                                     .authkey       = license.authkey,
                                      .event_handler = user_event_handler_on,
                                      .network_check = user_network_check,
-                                     .skill_param = gw_active_get_ext_param(),
+                                     .skill_param   = gw_active_get_ext_param(),
                                  });
     assert(ret == OPRT_OK);
 
@@ -340,20 +351,19 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 1024 * 4;
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 4;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif
 
 static void tuya_ipc_demo_thread(void *arg)
 {
-    TUYA_IPC_SDK_VAR_S sdkVar = {0};
+    TUYA_IPC_SDK_VAR_S sdkVar      = {0};
     sdkVar.OnGetVideoFrameCallback = demo_on_get_video_frame_callback;
     sdkVar.OnGetAudioFrameCallback = NULL;
     TUYA_APP_Start(&sdkVar);
     tuya_ipc_demo_start();
     return;
 }
-

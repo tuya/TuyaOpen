@@ -46,33 +46,33 @@
 #define LOG_LEVEL_MAX 5
 
 typedef struct {
-    LIST_HEAD node;
-    char *name;
+    LIST_HEAD         node;
+    char             *name;
     TAL_LOG_OUTPUT_CB out_term;
 } LOG_OUT_NODE_S;
 
 typedef struct {
-    TAL_LOG_DISPLAY_MODE_E display_mode;
-    TAL_LOG_FONT_COLOR_E font_color;
+    TAL_LOG_DISPLAY_MODE_E     display_mode;
+    TAL_LOG_FONT_COLOR_E       font_color;
     TAL_LOG_BACKGROUND_COLOR_E background_color;
 } LOG_TEXT_STYLE_S;
 
 typedef struct {
-    BOOL_T enable_color;
+    BOOL_T           enable_color;
     LOG_TEXT_STYLE_S style[LOG_LEVEL_MAX + 1];
 } LOG_COLOR_S;
 
 typedef struct {
-    LOG_LEVEL curLogLevel;
-    LIST_HEAD listHead;
-    LIST_HEAD log_list;
+    LOG_LEVEL    curLogLevel;
+    LIST_HEAD    listHead;
+    LIST_HEAD    log_list;
     MUTEX_HANDLE mutex;
 
     LOG_COLOR_S log_color;
 
-    int log_buf_len;
+    int    log_buf_len;
     BOOL_T ms_level;
-    char *log_buf;
+    char  *log_buf;
 } LOG_MANAGE, *P_LOG_MANAGE;
 
 #define DEF_OUTPUT_NAME "def_output"
@@ -80,8 +80,8 @@ typedef struct {
 /***********************************************************
 *************************variable define********************
 ***********************************************************/
-const char *sLevelStr[] = {"E", "W", "N", "I", "D", "T"};
-P_LOG_MANAGE pLogManage = NULL;
+const char  *sLevelStr[] = {"E", "W", "N", "I", "D", "T"};
+P_LOG_MANAGE pLogManage  = NULL;
 
 const LOG_TEXT_STYLE_S sDefaultStyle[LOG_LEVEL_MAX + 1] = {
     {TAL_LOG_DISPLAY_MODE_DEFAULT, TAL_LOG_FONT_COLOR_RED, TAL_LOG_BACKGROUND_COLOR_DEFAULT},
@@ -124,8 +124,8 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const T
             return OPRT_MALLOC_FAILED;
         }
         tmp_log_mng->log_buf_len = buf_len;
-        tmp_log_mng->log_buf = (char *)(tmp_log_mng + 1);
-        op_ret = tal_mutex_create_init(&tmp_log_mng->mutex);
+        tmp_log_mng->log_buf     = (char *)(tmp_log_mng + 1);
+        op_ret                   = tal_mutex_create_init(&tmp_log_mng->mutex);
         if (OPRT_OK != op_ret) {
             tal_free(tmp_log_mng);
             return op_ret;
@@ -133,8 +133,8 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const T
         INIT_LIST_HEAD(&(tmp_log_mng->listHead));
         INIT_LIST_HEAD(&(tmp_log_mng->log_list));
         tmp_log_mng->curLogLevel = level;
-        tmp_log_mng->ms_level = FALSE;
-        pLogManage = tmp_log_mng;
+        tmp_log_mng->ms_level    = FALSE;
+        pLogManage               = tmp_log_mng;
 
         // set default log style
         tmp_log_mng->log_color.enable_color = TRUE;
@@ -155,7 +155,7 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const T
 
 void __output_logManage_buf(void)
 {
-    P_LIST_HEAD pPos;
+    P_LIST_HEAD     pPos;
     LOG_OUT_NODE_S *output_node;
     tuya_list_for_each(pPos, &(pLogManage->log_list))
     {
@@ -168,7 +168,7 @@ void __output_logManage_buf(void)
 
 OPERATE_RET __find_out_term_node(const char *name, LOG_OUT_NODE_S **node)
 {
-    P_LIST_HEAD pPos;
+    P_LIST_HEAD     pPos;
     LOG_OUT_NODE_S *output_node;
 
     tuya_list_for_each(pPos, &(pLogManage->log_list))
@@ -273,7 +273,7 @@ OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB te
     }
 
     LOG_OUT_NODE_S *output_node;
-    OPERATE_RET ret = __find_out_term_node(name, &output_node);
+    OPERATE_RET     ret = __find_out_term_node(name, &output_node);
     if (ret == OPRT_OK) {
         output_node->out_term = term;
         return OPRT_OK;
@@ -283,7 +283,7 @@ OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB te
     if (!output_node) {
         return OPRT_MALLOC_FAILED;
     }
-    size_t name_len = strlen(name);
+    size_t name_len   = strlen(name);
     output_node->name = tal_malloc(name_len + 1);
     if (!output_node->name) {
         tal_free(output_node);
@@ -291,7 +291,7 @@ OPERATE_RET tal_log_add_output_term(const char *name, const TAL_LOG_OUTPUT_CB te
     }
     memcpy(output_node->name, name, name_len);
     output_node->name[name_len] = '\0';
-    output_node->out_term = term;
+    output_node->out_term       = term;
     tuya_list_add(&(output_node->node), &(pLogManage->log_list));
 
     return OPRT_OK;
@@ -329,7 +329,7 @@ void tal_log_del_output_term(const char *name)
     }
     tal_mutex_lock(pLogManage->mutex);
     LOG_OUT_NODE_S *output_node;
-    OPERATE_RET ret = __find_out_term_node(name, &output_node);
+    OPERATE_RET     ret = __find_out_term_node(name, &output_node);
     if (ret == OPRT_OK) {
         tuya_list_del(&(output_node->node));
         tal_free(output_node->name);
@@ -450,14 +450,14 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char
         return OPRT_BASE_LOG_MNG_PRINT_LOG_LEVEL_HIGHER;
     }
     const char *pTmpModuleName = "ty";
-    const char *pTmpFilename = NULL;
+    const char *pTmpFilename   = NULL;
 
     if (NULL == pFile) {
         pTmpFilename = "Null";
     } else {
-        int pos = 0;
+        int pos      = 0;
         pTmpFilename = pFile;
-        pos = tal_log_strrchr((char *)pFile, '/');
+        pos          = tal_log_strrchr((char *)pFile, '/');
         if (pos < 0) {
             pos = tal_log_strrchr((char *)pFile, '\\');
             if (pos >= 0) {
@@ -491,8 +491,8 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char
                        tm.tm_min, tm.tm_sec, pTmpModuleName, sLevelStr[logLevel], pTmpFilename, line);
     } else {
         SYS_TICK_T time_ms = tal_time_get_posix_ms();
-        TIME_T sec = (TIME_T)(time_ms / 1000);
-        uint32_t ms = (uint32_t)(time_ms % 1000);
+        TIME_T     sec     = (TIME_T)(time_ms / 1000);
+        uint32_t   ms      = (uint32_t)(time_ms % 1000);
         tal_time_get_local_time_custom(sec, &tm);
         cnt = snprintf(pLogManage->log_buf + len, pLogManage->log_buf_len - len,
                        "[%02d-%02d %02d:%02d:%02d:%" PRIu32 " %s %s][%s:%" PRIu32 "] ", tm.tm_mon + 1, tm.tm_mday,
@@ -519,6 +519,20 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char
     if (cnt >= remaining) {
         cnt = remaining - 1; // Actual characters written (excluding null terminator)
     }
+
+    char *msg = pLogManage->log_buf + len;
+    for (int i = 0; i + 1 < cnt; i++) {
+        if (msg[i] == '%') {
+            if (msg[i + 1] == '%') {
+                i++; // skip already-escaped '%%'
+                continue;
+            }
+            // Neutralise the character after '%' so it is no longer
+            // a valid format conversion (covers %n, %s, %x, %p, etc.)
+            msg[i] = '?';
+        }
+    }
+
     len += cnt;
 
     char *p_suffix = (pLogManage->log_color.enable_color) ? "\033[0m\r\n" : "\r\n";
@@ -603,7 +617,7 @@ OPERATE_RET tal_log_print_secure(BOOL_T is_const_fmt, const TAL_LOG_LEVEL_E leve
 static OPERATE_RET __PrintLogVRaw(const char *pFmt, va_list ap)
 {
     int cnt = 0;
-    cnt = vsnprintf(pLogManage->log_buf, pLogManage->log_buf_len, pFmt, ap);
+    cnt     = vsnprintf(pLogManage->log_buf, pLogManage->log_buf_len, pFmt, ap);
     if (cnt <= 0) {
         return OPRT_BASE_LOG_MNG_FORMAT_STRING_FAILED;
     }
@@ -637,7 +651,7 @@ OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
     }
 
     OPERATE_RET opRet = 0;
-    va_list ap;
+    va_list     ap;
 
     tal_mutex_lock(pLogManage->mutex);
     va_start(ap, pFmt);
@@ -668,7 +682,7 @@ OPERATE_RET tal_log_print_escape(const TAL_LOG_LEVEL_E level, const char *file, 
 
     size_t src_len = strlen(user_str);
     size_t buf_len = src_len * 2 + 1;
-    char *escaped = tal_malloc(buf_len);
+    char  *escaped = tal_malloc(buf_len);
     if (NULL == escaped) {
         return OPRT_MALLOC_FAILED;
     }
@@ -725,7 +739,7 @@ void tal_log_release(void)
 
     while (!tuya_list_empty(&(pLogManage->log_list))) {
         LOG_OUT_NODE_S *log_out_nd = NULL;
-        log_out_nd = tuya_list_entry(&(pLogManage->log_list.next), LOG_OUT_NODE_S, node);
+        log_out_nd                 = tuya_list_entry(&(pLogManage->log_list.next), LOG_OUT_NODE_S, node);
         tuya_list_del(&(log_out_nd->node));
         if (log_out_nd->name) {
             tal_free(log_out_nd->name);
@@ -839,8 +853,8 @@ void tal_log_color_set(const TAL_LOG_LEVEL_E level, TAL_LOG_DISPLAY_MODE_E displ
     if (level < LOG_LEVEL_MIN || level > LOG_LEVEL_MAX) {
         return;
     }
-    pLogManage->log_color.style[level].display_mode = display_mode;
-    pLogManage->log_color.style[level].font_color = font_color;
+    pLogManage->log_color.style[level].display_mode     = display_mode;
+    pLogManage->log_color.style[level].font_color       = font_color;
     pLogManage->log_color.style[level].background_color = background_color;
 }
 
@@ -864,9 +878,9 @@ OPERATE_RET tal_log_color_print_raw(TAL_LOG_DISPLAY_MODE_E display_mode, TAL_LOG
                                     TAL_LOG_BACKGROUND_COLOR_E background_color, const char *pFmt, ...)
 {
     OPERATE_RET opRet = 0;
-    va_list ap;
-    int cnt = 0;
-    int len = 0;
+    va_list     ap;
+    int         cnt = 0;
+    int         len = 0;
 
     if (NULL == pLogManage) {
         return OPRT_INVALID_PARM;
