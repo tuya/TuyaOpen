@@ -49,6 +49,8 @@ extern "C" {
 #define PRO_TIMER_UG_INF         13 /* cloud -> device update timer */
 #define PRO_UPGD_REQ             15 /* cloud -> device update device/gateway */
 #define PRO_UPGE_PUSH            16 /* device -> cloud update upgrade percent */
+#define PRO_DEV_DA_REQ           18  /* device -> cloud send data request */
+#define PRO_DEV_DA_RESP          19  /* cloud -> device send data response */
 #define PRO_IOT_DA_REQ           22 /* cloud -> device send data request */
 #define PRO_IOT_DA_RESP          23 /* device -> cloud send data response */
 #define PRO_DEV_LINE_STAT_UPDATE 25 /* device -> sub device online status update */

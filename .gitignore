@@ -2,6 +2,7 @@ __pycache__
 .vscode
 .tags
 .env.json
+.cache
 
 CMakeCache.txt
 /CMakeFiles

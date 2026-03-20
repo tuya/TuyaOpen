@@ -27,6 +27,9 @@
 #include "tal_sw_timer.h"
 #include "tal_api.h"
 #include "tuya_iot_dp.h"
+#include "tuya_device_meta.h"
+#include "tuya_device_timer.h"
+#include "tuya_mqtt_dispatch.h"
 #include "tuya_register_center.h"
 #include "tuya_tls.h"
 #include "tuya_lan.h"
@@ -610,6 +613,21 @@ int tuya_iot_init(tuya_iot_client_t *client, const tuya_iot_config_t *config)
 
     /* Auto check upgrade timer init */
     ret = tal_sw_timer_create(check_auto_upgrade_timeout_on, client, &client->check_upgrade_timer);
+    if (OPRT_OK != ret) {
+        return ret;
+    }
+
+    ret = tuya_mqtt_dispatch_init();
+    if (OPRT_OK != ret) {
+        return ret;
+    }
+
+    ret = tuya_device_meta_init();
+    if (OPRT_OK != ret) {
+        return ret;
+    }
+
+    ret = tuya_device_timer_init();
     if (OPRT_OK != ret) {
         return ret;
     }
