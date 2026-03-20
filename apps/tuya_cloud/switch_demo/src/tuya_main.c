@@ -111,6 +111,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* MQTT with tuya cloud is connected, device online */
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
+        tal_event_publish(EVENT_MQTT_CONNECTED, NULL);
         break;
 
     /* RECV upgrade request */
