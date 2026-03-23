@@ -398,7 +398,7 @@ TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_
 
     p_frame = (uint8_t *)fb + sizeof(TDL_DISP_FRAME_BUFF_T);
     p_frame += TDL_DISP_DRAW_BUF_ALIGN - 1;
-    p_frame = (uint8_t *)((uint32_t)p_frame & ~(TDL_DISP_DRAW_BUF_ALIGN - 1));
+    p_frame = (uint8_t *)((uintptr_t)p_frame & ~(uintptr_t)(TDL_DISP_DRAW_BUF_ALIGN - 1));
 
     fb->type = fb_type;
     fb->frame = p_frame;

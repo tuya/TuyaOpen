@@ -51,6 +51,17 @@ if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
     message(STATUS "Raspberry Pi board: Linking ALSA library")
 endif()
 
+# Link SDL2 library if SDL display support is enabled
+if (CONFIG_ENABLE_SDL_DISPLAY STREQUAL "y")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SDL2 REQUIRED sdl2)
+
+    target_include_directories(${MODULE_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
+    target_compile_options(${MODULE_NAME} PUBLIC ${SDL2_CFLAGS_OTHER})
+    target_link_libraries(${MODULE_NAME} PUBLIC ${SDL2_LIBRARIES})
+
+    message(STATUS "Raspberry Pi board: Linking SDL2 for desktop window display")
+endif()
 
 ########################################
 # Layer Configure

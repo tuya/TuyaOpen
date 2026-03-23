@@ -24,6 +24,10 @@
 #include "tdd_camera_v4l2.h"
 #endif
 
+#if defined(ENABLE_SDL_DISPLAY) && (ENABLE_SDL_DISPLAY == 1)
+#include "tdd_disp_sdl.h"
+#endif
+
 #include "board_com_api.h"
 
 /***********************************************************
@@ -206,6 +210,65 @@ static OPERATE_RET __board_register_camera(void)
 }
 
 /**
+ * @brief Registers SDL2 window display for Raspberry Pi Desktop.
+ */
+static OPERATE_RET __board_register_display(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_SDL_DISPLAY) && (ENABLE_SDL_DISPLAY == 1)
+#if defined(ENABLE_DISPLAY) && (ENABLE_DISPLAY == 1)
+#if defined(DISPLAY_NAME)
+    uint16_t width = 480;
+    uint16_t height = 480;
+
+#if defined(CONFIG_SDL_DISPLAY_WIDTH)
+    if (CONFIG_SDL_DISPLAY_WIDTH > 0) {
+        width = (uint16_t)CONFIG_SDL_DISPLAY_WIDTH;
+    }
+#endif
+#if defined(SDL_DISPLAY_WIDTH)
+    if (SDL_DISPLAY_WIDTH > 0) {
+        width = (uint16_t)SDL_DISPLAY_WIDTH;
+    }
+#endif
+#if defined(CONFIG_SDL_DISPLAY_HEIGHT)
+    if (CONFIG_SDL_DISPLAY_HEIGHT > 0) {
+        height = (uint16_t)CONFIG_SDL_DISPLAY_HEIGHT;
+    }
+#endif
+#if defined(SDL_DISPLAY_HEIGHT)
+    if (SDL_DISPLAY_HEIGHT > 0) {
+        height = (uint16_t)SDL_DISPLAY_HEIGHT;
+    }
+#endif
+
+    PR_INFO("Registering SDL display device '%s' (%ux%u)", DISPLAY_NAME, width, height);
+    rt = tdd_disp_sdl_register(DISPLAY_NAME, width, height);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to register SDL display: %d", rt);
+        return rt;
+    }
+
+#if defined(ENABLE_SDL_TP) && (ENABLE_SDL_TP == 1)
+    PR_INFO("Registering SDL touchpad device '%s' (%ux%u)", DISPLAY_NAME, width, height);
+    rt = tdd_tp_sdl_register(DISPLAY_NAME, width, height);
+    if (rt != OPRT_OK) {
+        PR_WARN("Failed to register SDL touchpad: %d", rt);
+        /* Touch is optional on desktop; don't fail the whole board init. */
+        rt = OPRT_OK;
+    }
+#endif
+#else
+    PR_WARN("DISPLAY_NAME is not defined, skipping SDL display registration");
+#endif
+#endif
+#endif
+
+    return rt;
+}
+
+/**
  * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
  * 
  * This function initializes and registers hardware components including:
@@ -213,7 +276,9 @@ static OPERATE_RET __board_register_camera(void)
  * - Button
  * - LED
  * - Camera (if ENABLE_CAMERA_V4L2 is enabled)
- *
+ * - Display (if ENABLE_SDL_DISPLAY is enabled)
+ * - Touchpad (if ENABLE_SDL_TP is enabled)
+ * 
  * @return Returns OPRT_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void)
@@ -245,6 +310,12 @@ OPERATE_RET board_register_hardware(void)
     rt = __board_register_camera();
     if (OPRT_OK != rt) {
         PR_WARN("Camera registration failed: %d", rt);
+    }
+
+    // Register display (SDL2 window)
+    rt = __board_register_display();
+    if (OPRT_OK != rt) {
+        PR_WARN("Display registration failed: %d", rt);
     }
 
     PR_INFO("Raspberry Pi platform hardware registration completed");

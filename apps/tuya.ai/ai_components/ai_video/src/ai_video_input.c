@@ -158,17 +158,8 @@ OPERATE_RET ai_video_init(AI_VIDEO_CFG_T *vi_cfg)
     sg_camera_cfg.get_frame_cb         = __get_raw_frame_cb;
     sg_camera_cfg.get_encoded_frame_cb = __get_jpeg_frame_cb;
 
-    /*
-     * - DVP camera driver supports BOTH raw + encoded.
-     * - Current Linux V4L2(UVC) camera TDD supports only one output per open.
-     *   For Raspberry Pi V4L2 use-case, MCP tool needs JPEG most.
-     */
-#if defined(ENABLE_CAMERA_V4L2) && (ENABLE_CAMERA_V4L2 == 1)
-    sg_camera_cfg.out_fmt = TDL_CAMERA_FMT_JPEG;
-    sg_camera_cfg.get_frame_cb = NULL;
-#else
+    /* Set JPEG encoded */
     sg_camera_cfg.out_fmt = TDL_CAMERA_FMT_JPEG_YUV422_BOTH;
-#endif
 
 #if defined(ENABLE_COMP_AI_VIDEO_JPEG_QUALITY) && (ENABLE_COMP_AI_VIDEO_JPEG_QUALITY == 1)
     sg_camera_cfg.encoded_quality.jpeg_cfg.enable   = 1;

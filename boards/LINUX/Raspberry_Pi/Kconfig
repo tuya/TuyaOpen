@@ -66,4 +66,38 @@ menu "Raspberry Pi Board Configuration"
             depends on ENABLE_CAMERA_V4L2
             default "/dev/video0"
     endif            
+
+    config ENABLE_SDL_DISPLAY
+        bool "Enable SDL2 desktop window for display"
+        depends on ENABLE_DISPLAY
+        default y
+        ---help---
+            Enable a simple SDL2 window as the display device.
+            This is useful on Raspberry Pi Desktop to show LVGL UI in a small window.
+
+    config ENABLE_SDL_TP
+        bool "Enable SDL virtual touchpad (mouse drag/wheel)"
+        depends on ENABLE_SDL_DISPLAY
+        select ENABLE_TP
+        select LVGL_ENABLE_TP
+        default y
+        ---help---
+            Enable a virtual touchpad on Raspberry Pi Desktop.
+            - Mouse left-button drag: press/move/release as single-touch
+            - Mouse wheel: generates a short swipe gesture for vertical scrolling
+
+    config SDL_DISPLAY_WIDTH
+        int "SDL window width"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
+
+    config SDL_DISPLAY_HEIGHT
+        int "SDL window height"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
+
+    config SDL_DISPLAY_TITLE
+        string "SDL window title"
+        depends on ENABLE_SDL_DISPLAY
+        default "TuyaOpen - your_chat_bot"
 endmenu

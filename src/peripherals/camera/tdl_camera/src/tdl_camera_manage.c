@@ -63,6 +63,7 @@ typedef struct {
 
 typedef struct {
     struct tuya_list_head       node;
+    uint32_t                    buf_len;
     TDD_CAMERA_FRAME_T          tdd_frame;
 } CAMERA_FRAME_NODE_T;
 
@@ -189,6 +190,8 @@ static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32
             return OPRT_MALLOC_FAILED;
         }
         memset(frame_node, 0, sizeof(CAMERA_FRAME_NODE_T));
+
+        frame_node->buf_len = buf_len;
 
         frame_node->tdd_frame.frame.data = TDL_CAMERA_FRAME_MALLOC(buf_len);
         if (NULL == frame_node->tdd_frame.frame.data) {
@@ -472,6 +475,8 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
     tuya_list_del(&pnode->node);
 
     pnode->tdd_frame.frame.fmt = fmt;
+    /* Restore buffer capacity for driver-side size checks. */
+    pnode->tdd_frame.frame.data_len = pnode->buf_len;
 
     TAL_EXIT_CRITICAL();
 

@@ -329,7 +329,7 @@ static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
     buf_u8 = (uint8_t *)LV_MEM_CUSTOM_ALLOC(size_bytes);
     if (buf_u8) {
         buf_u8 += DISP_DRAW_BUF_ALIGN - 1;
-        buf_u8 = (uint8_t *)((uint32_t) buf_u8 & ~(DISP_DRAW_BUF_ALIGN - 1));
+        buf_u8 = (uint8_t *)((uintptr_t)buf_u8 & ~(uintptr_t)(DISP_DRAW_BUF_ALIGN - 1));
     }
 
     return buf_u8;
@@ -664,6 +664,13 @@ static void disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px
         lv_display_flush_ready(disp);
         return;
     }
+
+    if (node->mutex == NULL || node->disp_fb == NULL || node->disp_fb->frame == NULL) {
+        PR_ERR("lv display not ready (mutex/fb null)");
+        node->is_enable_flush = false;
+        lv_display_flush_ready(disp);
+        return;
+    }    
 
     tal_mutex_lock(node->mutex);
 
