@@ -139,12 +139,12 @@ cleanup:
 
 static void __mqtt_event_callback(tuya_protocol_event_t *event)
 {
-    PR_DEBUG("mqtt event callback:%d", event->event_id);
-
     if (event == NULL || event->user_data == NULL) {
         PR_ERR("invalid parameters");
         return;
     }
+
+    // PR_DEBUG("mqtt event callback:%d", event->event_id);
 
     if (event->data == NULL) {
         PR_ERR("data is null");

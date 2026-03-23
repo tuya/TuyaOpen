@@ -386,6 +386,11 @@ static int __on_timer_sync_callback(cJSON *data, void *user_data)
     //     cJSON_free(sync_data_str);
     // }
 
+    if (cJSON_HasObjectItem(data, "reqId") == false) {
+        PR_ERR("req_id is null");
+        return OPRT_INVALID_PARM;
+    }
+
     char *req_id = cJSON_GetObjectItem(data, "reqId")->valuestring;
     if (req_id == NULL) {
         PR_ERR("req_id is null");
@@ -510,7 +515,7 @@ static uint8_t __check_timer_item(const tuya_timer_item_t *item, POSIX_TM_S *cur
 
     // check date: one-shot timer has specific date, recurring timer has "00000000"
     char now_date[TIMER_DATE_LEN] = {0};
-    snprintf(now_date, TIMER_DATE_LEN, "%04d%02d%02d", current_time->tm_year + 1900, current_time->tm_mon + 1, current_time->tm_mday);
+    snprintf(now_date, TIMER_DATE_LEN, "%04d%02d%02d", (current_time->tm_year + 1900) % 10000, (current_time->tm_mon + 1) % 100, current_time->tm_mday % 100);
 
     if ((strncmp(item->date, now_date, TIMER_DATE_LEN) != 0) && \
         (strncmp(item->date, "00000000", TIMER_DATE_LEN) != 0)) {
@@ -581,8 +586,8 @@ static void __timer_check_timer_cb(TIMER_ID timer_id, void *arg)
 
             char now_str[32] = {0};
             snprintf(now_str, sizeof(now_str), "%04d-%02d-%02d %02d:%02d:%02d",
-                     current_time.tm_year + 1900, current_time.tm_mon + 1, current_time.tm_mday,
-                     current_time.tm_hour, current_time.tm_min, current_time.tm_sec);
+                        (current_time.tm_year + 1900) % 10000, (current_time.tm_mon + 1) % 100, current_time.tm_mday % 100,
+                        current_time.tm_hour % 24, current_time.tm_min % 60, current_time.tm_sec % 60);
 
             if (item->loops == 0) {
                 /* one-shot timer: show date */
