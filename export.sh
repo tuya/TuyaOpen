@@ -11,7 +11,6 @@ fi
 
 # Function to find the project root directory
 pwd_dir="$(pwd)"
-# script_dir=$(realpath $(dirname "$0"))
 
 if [ -n "$BASH_VERSION" ]; then
     script_dir=$(realpath $(dirname "${BASH_SOURCE[0]}"))
