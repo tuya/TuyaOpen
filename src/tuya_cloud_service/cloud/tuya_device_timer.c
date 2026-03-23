@@ -36,7 +36,7 @@
 #define TIMER_CHECK_TIMER_MS     (30 * 1000)
 
 #define REQ_ID_LEN               32
-#define TIMER_DATE_LEN           10
+#define TIMER_DATE_LEN           16
 #define TIMER_TIME_LEN           6
 
 /* TIMER response error codes */
