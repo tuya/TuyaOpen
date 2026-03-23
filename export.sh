@@ -11,7 +11,16 @@ fi
 
 # Function to find the project root directory
 pwd_dir="$(pwd)"
-script_dir=$(realpath $(dirname "$0"))
+# script_dir=$(realpath $(dirname "$0"))
+
+if [ -n "$BASH_VERSION" ]; then
+    script_dir=$(realpath $(dirname "${BASH_SOURCE[0]}"))
+elif [ -n "$ZSH_VERSION" ]; then
+    script_dir=$(realpath "$(dirname "${(%):-%x}")")
+else
+    script_dir=$(realpath $(dirname "$0"))
+fi
+
 find_project_root() {
     if [ -e "$script_dir/export.sh" ] && [ -e "$script_dir/requirements.txt" ]; then
         echo "$script_dir"
@@ -183,6 +192,6 @@ HELLO_TUYA='
          /___/            /_/
 '
 echo "****************************************"
-echo $HELLO_TUYA
+echo "$HELLO_TUYA"
 echo "Exit use: exit"
 echo "****************************************"
