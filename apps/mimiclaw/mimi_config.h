@@ -129,6 +129,9 @@
 #ifndef MIMI_OPENAI_API_URL
 #define MIMI_OPENAI_API_URL "https://api.openai.com/v1/chat/completions"
 #endif
+#ifndef MIMI_MINIMAX_API_URL
+#define MIMI_MINIMAX_API_URL "https://api.minimax.io/v1/chat/completions"
+#endif
 #define MIMI_LLM_API_VERSION         "2023-06-01"
 #define MIMI_LLM_STREAM_BUF_SIZE     (32 * 1024)
 #define MIMI_LLM_LOG_VERBOSE_PAYLOAD 0

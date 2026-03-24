@@ -182,7 +182,7 @@ static const cli_help_item_t s_cli_help_items[] = {
         .name      = "set_model_provider",
         .usage     = "<provider>",
         .summary_1 = "Set LLM model provider (default: " MIMI_LLM_PROVIDER_DEFAULT ")",
-        .arg_1     = "    <provider>  Model provider (anthropic|openai)",
+        .arg_1     = "    <provider>  Model provider (anthropic|openai|minimax)",
         .verbose   = 0,
     },
     {
@@ -485,6 +485,9 @@ static const char *llm_default_api_url_for_provider(void)
 
     if (strcmp(provider, "openai") == 0) {
         return MIMI_OPENAI_API_URL;
+    }
+    if (strcmp(provider, "minimax") == 0) {
+        return MIMI_MINIMAX_API_URL;
     }
     return MIMI_LLM_API_URL;
 }

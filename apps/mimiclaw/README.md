@@ -10,7 +10,7 @@ TuyaOpen provides drivers, display, peripherals, and connectivity layers, greatl
 ### What you get
 
 - **Local‑first AI assistant** running on Tuya T5AI or Linux
-- **Multiple LLM providers**: DeepSeek, Qwen, Claude, GPT, and other OpenAI/Anthropic‑compatible endpoints
+- **Multiple LLM providers**: DeepSeek, Qwen, Claude, GPT, MiniMax, and other OpenAI/Anthropic‑compatible endpoints
 - **Multiple chat channels**: Telegram / Discord / Feishu (configurable)
 - **Persistent memory** stored as plain text on flash
 - **Cron‑style scheduler & heartbeat loop** so the AI can wake itself up and act
@@ -31,7 +31,7 @@ This TuyaOpen port is **based on** the upstream MimiClaw project and keeps the c
   - Adds first‑class **Feishu** support, in addition to **Telegram** and **Discord**
   - Unified CLI to switch the active channel at runtime
 - **Model configuration**
-  - Supports both **OpenAI** and **Anthropic** providers, plus **compatible base URLs**
+  - Supports **OpenAI**, **Anthropic**, and **MiniMax** providers, plus **compatible base URLs**
   - CLI and config‑file driven model/provider selection
 - **TuyaOpen integration**
   - Uses TuyaOpen’s rich **drivers, sensors, and displays**, enabling the AI to read sensors, drive GPIOs, and control more complex hardware devices
@@ -58,19 +58,21 @@ This prints the list of supported CLI commands for this port.
 
 ### 2. Configure model provider & API
 
-You can choose `openai` or `anthropic` as the provider. The project also supports **OpenAI/Anthropic‑compatible base URLs**.
+You can choose `openai`, `anthropic`, or `minimax` as the provider. The project also supports **OpenAI/Anthropic‑compatible base URLs**.
 
 Typical steps:
 
-1. Select provider (for example, OpenAI or Anthropic compatible):
+1. Select provider (for example, OpenAI, Anthropic, or MiniMax):
    - `set_model_provider openai`
    - or `set_model_provider anthropic`
+   - or `set_model_provider minimax`
 2. Set API key:
    - `set_api_key sk-xxxx...`
 3. (Optional) Use a compatible API base URL:
    - `set_api_url https://your-compatible-endpoint.example.com`
 4. Set model name:
    - `set_model gpt-4o` (or any supported model by your provider)
+   - For MiniMax: `set_model MiniMax-M2.7` or `set_model MiniMax-M2.5-highspeed` (204K context)
 
 If you provide a compatible URL, make sure both **API_KEY** and **API_URL** are set, otherwise calls will fail.
 
