@@ -2,10 +2,16 @@
  * @file ai_ui_icon_font.h
  * @brief Icon and font management interface definitions.
  *
- * This header provides function declarations for managing fonts and icons
- * used in AI UI, including text fonts, icon fonts, emoji fonts, and WiFi icons.
+ * DuckyClaw override of TuyaOpen's ai_ui_icon_font.h.
+ * Expands FONT_EMO_ICON_MAX_NUM to cover all 27 canonical emotion names
+ * plus 27 raw UTF-8 emoji fallback entries (UTF-8 variant only), so that
+ * the display layer correctly handles:
+ *   - All 27 emotion names returned by the AI model.
+ *   - Raw UTF-8 emoji characters (e.g. "😊") if the LLM sends those instead
+ *     of a canonical name.
+ *   - Any emotion string outside the defined set falls back to NEUTRAL.
  *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -25,7 +31,19 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define FONT_EMO_ICON_MAX_NUM 7
+
+/* 27 canonical emotion names.  For the Font Awesome variant the list stops
+ * here.  For the UTF-8 emoji variant an additional 27 raw-emoji entries are
+ * appended so that a bare emoji character (e.g. "😊") returned by the LLM is
+ * also matched. */
+#define FONT_EMO_ICON_NAME_NUM 27
+
+#if defined(FONT_EMO_AWESOME) && (FONT_EMO_AWESOME == 1)
+#define FONT_EMO_ICON_MAX_NUM FONT_EMO_ICON_NAME_NUM
+#else
+/* name entries + UTF-8 emoji fallback entries */
+#define FONT_EMO_ICON_MAX_NUM (FONT_EMO_ICON_NAME_NUM * 2)
+#endif
 
 /***********************************************************
 ***********************typedef define***********************
@@ -40,7 +58,7 @@ typedef struct {
     lv_font_t          *icon;
     const lv_font_t    *emoji;
     AI_UI_EMOJI_LIST_T *emoji_list;
-}AI_UI_FONT_LIST_T;
+} AI_UI_FONT_LIST_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -69,7 +87,7 @@ lv_font_t *ai_ui_get_emo_font(void);
 /**
  * @brief Get emoji list for UI display.
  *
- * @return Pointer to emoji list structure.
+ * @return Pointer to emoji list structure (FONT_EMO_ICON_MAX_NUM entries).
  */
 AI_UI_EMOJI_LIST_T *ai_ui_get_emo_list(void);
 
@@ -81,10 +99,10 @@ AI_UI_EMOJI_LIST_T *ai_ui_get_emo_list(void);
  */
 char *ai_ui_get_wifi_icon(AI_UI_WIFI_STATUS_E status);
 
-#endif
-
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* ENABLE_LIBLVGL */
 
 #endif /* __AI_UI_ICON_FONT_H__ */
