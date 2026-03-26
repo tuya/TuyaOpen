@@ -43,6 +43,15 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static const char *__json_get_string(const cJSON *item)
+{
+    if (item == NULL || !cJSON_IsString(item) || item->valuestring == NULL) {
+        return NULL;
+    }
+
+    return item->valuestring;
+}
+
 /**
  * @brief Process AI skill data from JSON.
  *
@@ -58,7 +67,7 @@ static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
 
     /* Root is data:{}, parse code */
     node = cJSON_GetObjectItem(root, "code");
-    code = cJSON_GetStringValue(node);
+    code = __json_get_string(node);
     if (!code) 
         return OPRT_OK;
 
@@ -102,14 +111,14 @@ static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
  */
 static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
 {
-    char *content = cJSON_GetStringValue(root);
-    PR_NOTICE("text -> ASR result: %s", content);
+    const char *content = __json_get_string(root);
     if (!content) {
         content = "";
     }
+    PR_NOTICE("text -> ASR result: %s", content);
 
     AI_NOTIFY_TEXT_T text;
-    text.data      = content;
+    text.data      = (char *)content;
     text.datalen   = strlen(content);
     text.timeindex = 0;
     ai_user_event_notify((0 == strlen(content))?AI_USER_EVT_ASR_EMPTY:AI_USER_EVT_ASR_OK, &text);
@@ -127,10 +136,7 @@ static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
 static OPERATE_RET __ai_images_process(cJSON *root)
 {
     cJSON *images = cJSON_GetObjectItem(root, "images");
-    if(NULL == images) {
-        PR_ERR("no images found");
-        return OPRT_COM_ERROR;
-    }
+    TUYA_CHECK_NULL_RETURN(images, OPRT_COM_ERROR);
 
     cJSON *url_array = cJSON_GetObjectItem(images, "url");
     if(NULL == url_array || !cJSON_IsArray(url_array)) {
@@ -146,7 +152,7 @@ static OPERATE_RET __ai_images_process(cJSON *root)
             continue;
         }
 
-        char *url_str = cJSON_GetStringValue(url_item);
+        const char *url_str = __json_get_string(url_item);
         if(NULL == url_str) {
             PR_ERR("url string is null");
             continue;
@@ -192,13 +198,13 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
         return OPRT_OK;
     }
 
-    char *content = cJSON_GetStringValue(cJSON_GetObjectItem(root, "content"));
+    const char *content = __json_get_string(cJSON_GetObjectItem(root, "content"));
     if (!content) {
         content = "";
     }
 
     AI_NOTIFY_TEXT_T text;
-    text.data      = content;
+    text.data      = (char *)content;
     text.datalen   = strlen(content);
     PR_NOTICE("text -> NLG eof: %d, content: %s, time: %d", eof, content, text.timeindex);
 
@@ -227,7 +233,7 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     AI_AGENT_EMO_T emo;
     cJSON *tags_array = cJSON_GetObjectItem(root, "tags");
     if (tags_array && cJSON_IsArray(tags_array) && cJSON_GetArraySize(tags_array) > 0) {
-        char *emoji = cJSON_GetStringValue(cJSON_GetArrayItem(tags_array, 0));
+        const char *emoji = __json_get_string(cJSON_GetArrayItem(tags_array, 0));
         if (emoji && strlen(emoji)) {
             emo.emoji = emoji;
             emo.name = ai_agent_emoji_get_name(emoji);

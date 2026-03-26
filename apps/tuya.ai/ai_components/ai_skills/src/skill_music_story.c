@@ -41,6 +41,16 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static bool _json_is_string(const cJSON *item)
+{
+    return item && cJSON_IsString(item) && item->valuestring != NULL;
+}
+
+static const char *_json_get_string(const cJSON *item)
+{
+    return _json_is_string(item) ? item->valuestring : NULL;
+}
+
 /**
  * @brief Free music source structure and release allocated memory.
  *
@@ -82,6 +92,11 @@ static AI_AUDIO_CODEC_E _parse_get_codec_type(char *format)
 {
     AI_AUDIO_CODEC_E fmt = AI_AUDIO_CODEC_MAX;
 
+    if (format == NULL) {
+        PR_ERR("decode type is NULL");
+        return fmt;
+    }
+
     if (strcmp(format, "mp3") == 0) {
         fmt = AI_AUDIO_CODEC_MP3;
     } else {
@@ -103,57 +118,79 @@ static OPERATE_RET _parse_music_item(uint32_t id, cJSON *audio_item, AI_MUSIC_SR
 {
     cJSON *item = NULL;
 
-    if ((item = cJSON_GetObjectItem(audio_item, "id")) != NULL) {
+    TUYA_CHECK_NULL_RETURN(audio_item, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(music_src, OPRT_INVALID_PARM);
+    if (!cJSON_IsObject(audio_item)) {
+        PR_ERR("audio item is not object");
+        return OPRT_INVALID_PARM;
+    }
+
+    if ((item = cJSON_GetObjectItem(audio_item, "id")) != NULL && cJSON_IsNumber(item)) {
         music_src->id = item->valueint;
-    }
-
-    if ((item = cJSON_GetObjectItem(audio_item, "url")) != NULL) {
-        music_src->url = mm_strdup(item->valuestring);
-        if (music_src->url == NULL) {
-            PR_ERR("no memory, strdup failed");
-            return -1;
-        }
     } else {
-        PR_ERR("the data is error");
-        return -1;
+        music_src->id = id;
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "size")) != NULL) {
+    if (_json_is_string(item = cJSON_GetObjectItem(audio_item, "url"))) {
+        music_src->url = mm_strdup(item->valuestring);
+        TUYA_CHECK_NULL_RETURN(music_src->url, OPRT_MALLOC_FAILED);
+    } else {
+        PR_ERR("invalid music url");
+        return OPRT_CJSON_GET_ERR;
+    }
+
+    if ((item = cJSON_GetObjectItem(audio_item, "size")) != NULL && cJSON_IsNumber(item)) {
         music_src->length = item->valueint;
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "duration")) != NULL) {
+    if ((item = cJSON_GetObjectItem(audio_item, "duration")) != NULL && cJSON_IsNumber(item)) {
         music_src->duration = item->valueint;
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "format")) != NULL) {
+    if (_json_is_string(item = cJSON_GetObjectItem(audio_item, "format"))) {
         music_src->format = _parse_get_codec_type(item->valuestring);
         if (music_src->format == AI_AUDIO_CODEC_MAX) {
             PR_ERR("the format not support");
-            return -1;
+            return OPRT_CJSON_GET_ERR;
         }
     } else {
-        PR_ERR("the data is error");
-        return -1;
+        PR_ERR("invalid music format");
+        return OPRT_CJSON_GET_ERR;
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "artist")) != NULL) {
+    item = cJSON_GetObjectItem(audio_item, "artist");
+    if (_json_is_string(item)) {
         music_src->artist = mm_strdup(item->valuestring);
+        TUYA_CHECK_NULL_RETURN(music_src->artist, OPRT_MALLOC_FAILED);
+    } else if (item != NULL) {
+        PR_WARN("invalid artist field type, ignore");
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "name")) != NULL) {
+    item = cJSON_GetObjectItem(audio_item, "name");
+    if (_json_is_string(item)) {
         music_src->song_name = mm_strdup(item->valuestring);
+        TUYA_CHECK_NULL_RETURN(music_src->song_name, OPRT_MALLOC_FAILED);
+    } else if (item != NULL) {
+        PR_WARN("invalid song name field type, ignore");
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "audioId")) != NULL) {
+    item = cJSON_GetObjectItem(audio_item, "audioId");
+    if (_json_is_string(item)) {
         music_src->audio_id = mm_strdup(item->valuestring);
+        TUYA_CHECK_NULL_RETURN(music_src->audio_id, OPRT_MALLOC_FAILED);
+    } else if (item != NULL) {
+        PR_WARN("invalid audioId field type, ignore");
     }
 
-    if ((item = cJSON_GetObjectItem(audio_item, "imageUrl")) != NULL) {
+    item = cJSON_GetObjectItem(audio_item, "imageUrl");
+    if (_json_is_string(item)) {
         music_src->img_url = mm_strdup(item->valuestring);
+        TUYA_CHECK_NULL_RETURN(music_src->img_url, OPRT_MALLOC_FAILED);
+    } else if (item != NULL) {
+        PR_WARN("invalid imageUrl field type, ignore");
     }
 
-    return 0;
+    return OPRT_OK;
 }
 
 /**
@@ -165,27 +202,31 @@ static OPERATE_RET _parse_music_item(uint32_t id, cJSON *audio_item, AI_MUSIC_SR
  */
 OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
 {
+    TUYA_CHECK_NULL_RETURN(json, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(music, OPRT_INVALID_PARM);
+
     int audio_num = 0;
     cJSON *skill_general = cJSON_GetObjectItem(json, "general");
     cJSON *skill_custom = cJSON_GetObjectItem(json, "custom");
     cJSON *action = NULL, *skill_data = NULL, *audios = NULL, *node = NULL;
+    const char *action_str = NULL;
     AI_MUSIC_SRC_T *music_src;
     AI_AUDIO_MUSIC_T *music_ptr;
 
-    if (skill_custom && (action = cJSON_GetObjectItem(skill_custom, "action"))) {
+    if (skill_custom && cJSON_IsObject(skill_custom) && (action = cJSON_GetObjectItem(skill_custom, "action"))) {
         skill_data = cJSON_GetObjectItem(skill_custom, "data");
-        if (skill_data) {
-            if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL) {
+        if (skill_data && cJSON_IsObject(skill_data)) {
+            if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL && cJSON_IsArray(audios)) {
                 audio_num = cJSON_GetArraySize(audios);
             }
         }
     }
 
-    if (action == NULL && skill_general) {
+    if (action == NULL && skill_general && cJSON_IsObject(skill_general)) {
         action = cJSON_GetObjectItem(skill_general, "action");
         skill_data = cJSON_GetObjectItem(skill_general, "data");
-        if (skill_data) {
-            if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL) {
+        if (skill_data && cJSON_IsObject(skill_data)) {
+            if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL && cJSON_IsArray(audios)) {
                 audio_num = cJSON_GetArraySize(audios);
             }
         } else {
@@ -193,27 +234,30 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
         }
     }
 
-    if (action == NULL || (strcmp(action->valuestring, "play") == 0 && audio_num == 0)) {
+    action_str = _json_get_string(action);
+    if (action_str == NULL) {
+        PR_WARN("invalid action");
+        return OPRT_CJSON_GET_ERR;
+    }
+
+    if (strcmp(action_str, "play") == 0 && audio_num == 0) {
         PR_WARN("the music list not exsit:%d", audio_num);
-        return -1;
+        return OPRT_CJSON_GET_ERR;
     }
 
     music_ptr = tal_malloc(sizeof(AI_AUDIO_MUSIC_T));
-    if (music_ptr == NULL) {
-        PR_ERR("malloc arr fail.");
-        return OPRT_MALLOC_FAILED;
-    }
+    TUYA_CHECK_NULL_RETURN(music_ptr, OPRT_MALLOC_FAILED);
 
     memset(music_ptr, 0, sizeof(AI_AUDIO_MUSIC_T));
     music_ptr->src_cnt = audio_num;
-    if ((node = cJSON_GetObjectItem(skill_data, "preTtsFlag")) != NULL) {
-        if (node->type == cJSON_True) {
+    if (skill_data != NULL && (node = cJSON_GetObjectItem(skill_data, "preTtsFlag")) != NULL) {
+        if (cJSON_IsTrue(node)) {
             music_ptr->has_tts = TRUE;
         }
     }
 
-    if (action && strlen(action->valuestring) > 0) {
-        snprintf(music_ptr->action, sizeof(music_ptr->action), "%s", action->valuestring);
+    if (action_str[0] != '\0') {
+        snprintf(music_ptr->action, sizeof(music_ptr->action), "%s", action_str);
     } else {
         snprintf(music_ptr->action, sizeof(music_ptr->action), "play");
     }
@@ -309,34 +353,36 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
  */
 static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_AUDIO_MUSIC_T **music)
 {
-    if (skill_data == NULL) {
-        return -1;
+    const char *action_str = NULL;
+
+    TUYA_CHECK_NULL_RETURN(music, OPRT_INVALID_PARM);
+
+    if (skill_data == NULL || !cJSON_IsObject(skill_data)) {
+        return OPRT_CJSON_GET_ERR;
     }
 
     cJSON *action = cJSON_GetObjectItem(skill_data, "action");
-    if (action == NULL || strlen(action->valuestring) <= 0) {
-        return -1;
+    action_str = _json_get_string(action);
+    if (action_str == NULL || action_str[0] == '\0') {
+        return OPRT_CJSON_GET_ERR;
     }
 
-    if (strcmp(action->valuestring, "next") == 0 || 
-        strcmp(action->valuestring, "prev") == 0 || 
-        strcmp(action->valuestring, "play") == 0 ||
-        strcmp(action->valuestring, "stop") == 0 ) {
+    if (strcmp(action_str, "next") == 0 ||
+        strcmp(action_str, "prev") == 0 ||
+        strcmp(action_str, "play") == 0 ||
+        strcmp(action_str, "stop") == 0 ) {
         return ai_skill_parse_music(data, music);
     }
 
     AI_AUDIO_MUSIC_T *media = tal_malloc(sizeof(AI_AUDIO_MUSIC_T));
-    if (media == NULL) {
-        PR_ERR("malloc arr fail.");
-        return OPRT_MALLOC_FAILED;
-    }
+    TUYA_CHECK_NULL_RETURN(media, OPRT_MALLOC_FAILED);
 
     memset(media, 0, sizeof(AI_AUDIO_MUSIC_T));
-    snprintf(media->action, sizeof(media->action), "%s", action->valuestring);
+    snprintf(media->action, sizeof(media->action), "%s", action_str);
 
     *music = media;
 
-    return 0;
+    return OPRT_OK;
 }
 
 /**

@@ -81,6 +81,14 @@ static MCP_SERVER_CTX_T s_server_ctx;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static const char *__json_get_string(const cJSON *item)
+{
+    if (item == NULL || !cJSON_IsString(item) || item->valuestring == NULL) {
+        return NULL;
+    }
+    return item->valuestring;
+}
+
 MCP_PROPERTY_T *ai_mcp_property_create(const char *name, MCP_PROPERTY_TYPE_E type, const char *description)
 {
     if (!name)
@@ -981,8 +989,10 @@ static OPERATE_RET __handle_tools_list(cJSON *params, const char *id)
     /* Parse parameters */
     if (params) {
         cJSON *cursor = cJSON_GetObjectItem(params, "cursor");
-        if (cJSON_IsString(cursor))
-            cursor_str = cursor->valuestring;
+        const char *cursor_value = __json_get_string(cursor);
+        if (cursor_value != NULL) {
+            cursor_str = cursor_value;
+        }
     }
 
     result = cJSON_CreateObject();
@@ -1085,12 +1095,12 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
         break;
 
     case MCP_PROPERTY_TYPE_STRING:
-        if (!cJSON_IsString(value))
+        if (!__json_get_string(value))
             return OPRT_INVALID_PARM;
         prop->default_val.type = MCP_PROPERTY_TYPE_STRING;
         if (prop->has_default && prop->default_val.str_val)
             AI_MCP_FREE(prop->default_val.str_val);    // Free existing string
-        prop->default_val.str_val = mm_strdup(value->valuestring);
+        prop->default_val.str_val = mm_strdup(__json_get_string(value));
         if (!prop->default_val.str_val)
             return OPRT_MALLOC_FAILED;
         prop->has_default = true;
@@ -1121,12 +1131,12 @@ static OPERATE_RET __handle_tools_call(cJSON *params, const char *id)
     }
 
     tool_name_json = cJSON_GetObjectItem(params, "name");
-    if (!cJSON_IsString(tool_name_json)) {
+    tool_name = __json_get_string(tool_name_json);
+    if (tool_name == NULL) {
         error_code = MCP_ERROR_INVALID_PARAMS;
         error_msg = "Missing tool name";
         goto err;
     }
-    tool_name = tool_name_json->valuestring;
 
     tool_arguments = cJSON_GetObjectItem(params, "arguments");
     if (tool_arguments && !cJSON_IsObject(tool_arguments)) {
@@ -1217,18 +1227,18 @@ OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
 
     /* Check JSONRPC version */
     node = cJSON_GetObjectItem(json, "jsonrpc");
-    if (!node || !cJSON_IsString(node) || strcmp(node->valuestring, "2.0") != 0) {
+    if (__json_get_string(node) == NULL || strcmp(__json_get_string(node), "2.0") != 0) {
         PR_ERR("Invalid JSONRPC version");
         return OPRT_INVALID_PARM;
     }
 
     /* Check method */
     node = cJSON_GetObjectItem(json, "method");
-    if (!node || !cJSON_IsString(node)) {
+    method = __json_get_string(node);
+    if (method == NULL) {
         PR_ERR("Missing method");
         return OPRT_INVALID_PARM;
     }
-    method = node->valuestring;
 
     /* Skip notifications */
     if (strncmp(method, "notifications", 13) == 0)
@@ -1241,11 +1251,11 @@ OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
         return OPRT_INVALID_PARM;
     }
 
-    if (!node || !cJSON_IsString(node) || node->valuestring == NULL) {
+    id = __json_get_string(node);
+    if (id == NULL) {
         PR_ERR("Missing ID or Invalid ID type for method: %s", method);
         return OPRT_INVALID_PARM;
     }
-    id = node->valuestring;
 
     /* Get params */
     node = cJSON_GetObjectItem(json, "params");

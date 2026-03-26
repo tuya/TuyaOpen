@@ -65,7 +65,7 @@ static void __handle_net_cfg(void *data, void *user_data)
         goto __exit;
     }
 
-    PR_NOTICE("cfg ssid:%s, passwd:%s, token:%s", ssid, passwd, token);
+    // PR_NOTICE("cfg ssid:%s, passwd:%s, token:%s", ssid, passwd, token);
     memset(&g_bt_netcfg_handle.netcfg_info, 0, sizeof(g_bt_netcfg_handle.netcfg_info));
 
     // Copy SSID

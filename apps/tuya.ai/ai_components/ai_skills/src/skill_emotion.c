@@ -57,6 +57,14 @@ AI_AGENT_EMO_T cAI_AGENT_EMO[] = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static const char *__json_get_string(const cJSON *item)
+{
+    if (item == NULL || !cJSON_IsString(item) || item->valuestring == NULL) {
+        return NULL;
+    }
+    return item->valuestring;
+}
+
 /**
  * @brief Process emotion skill data from JSON.
  *
@@ -70,13 +78,18 @@ OPERATE_RET ai_skill_emo_process(cJSON *json)
     int emo_cnt = 0;
 
     json = cJSON_GetObjectItem(json, "skillContent");
-    if (!json) {
-        PR_ERR("skill content is NULL");
-        return OPRT_OK;
-    }
+    TUYA_CHECK_NULL_RETURN(json, OPRT_OK);
 
     emotion = cJSON_GetObjectItem(json, "emotion");
     text = cJSON_GetObjectItem(json, "text");
+    TUYA_CHECK_NULL_RETURN(emotion, OPRT_CJSON_GET_ERR);
+    TUYA_CHECK_NULL_RETURN(text, OPRT_CJSON_GET_ERR);
+
+    if (!cJSON_IsArray(emotion) || !cJSON_IsArray(text)) {
+        PR_ERR("emotion or text is not array");
+        return OPRT_CJSON_GET_ERR;
+    }
+
     emo_cnt = cJSON_GetArraySize(emotion);
     if (emo_cnt == 0) {
         PR_ERR("emo array is empty");
@@ -84,8 +97,12 @@ OPERATE_RET ai_skill_emo_process(cJSON *json)
     }
 
     for (int i = 0; i < emo_cnt; i++) {
-        emo.emoji = cJSON_GetStringValue(cJSON_GetArrayItem(text, i));
-        emo.name = cJSON_GetStringValue(cJSON_GetArrayItem(emotion, i));
+        emo.emoji = __json_get_string(cJSON_GetArrayItem(text, i));
+        emo.name = __json_get_string(cJSON_GetArrayItem(emotion, i));
+        if (!emo.emoji || !emo.name) {
+            PR_ERR("emo item at index %d is NULL", i);
+            continue;
+        }
         ai_agent_play_emo(&emo);
     }
 

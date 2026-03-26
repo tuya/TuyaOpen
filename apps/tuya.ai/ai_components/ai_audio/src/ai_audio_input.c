@@ -71,6 +71,11 @@ static OPERATE_RET __audio_slice_check_and_send(bool *more_data)
         if (len >= sg_recorder->slice_size) {
             
             uint8_t *cache_data = (uint8_t*)Malloc(sg_recorder->slice_size);
+            if (NULL == cache_data) {
+                PR_ERR("malloc cache_data fail, size: %d", sg_recorder->slice_size);
+                tal_mutex_unlock(sg_recorder->mutex);
+                return OPRT_MALLOC_FAILED;
+            }
             uint32_t read_len = tuya_ring_buff_read(sg_recorder->ringbuf, cache_data, sg_recorder->slice_size);
         
             sg_recorder->output_cb(cache_data, read_len);

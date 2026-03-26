@@ -198,7 +198,7 @@ OPERATE_RET __netconn_wifi_info_get(netconn_wifi_info_t *info)
 
     cJSON *json = cJSON_Parse((const char *)netinfo);
     TUYA_CHECK_NULL_GOTO(json, err_exit);
-    PR_DEBUG("netinfo %s", cJSON_PrintUnformatted(json));
+    // PR_DEBUG("netinfo %s", cJSON_PrintUnformatted(json));
 
     cJSON *s = cJSON_GetObjectItem(json, "s");
     TUYA_CHECK_NULL_GOTO(s, err_exit);

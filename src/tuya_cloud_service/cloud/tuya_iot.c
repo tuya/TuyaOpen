@@ -203,7 +203,7 @@ static int activate_response_parse(atop_base_response_t *response)
     // activate info save
     char *result_string = cJSON_PrintUnformatted(result_root);
     const char *activate_data_key = client->config.storage_namespace;
-    PR_DEBUG("result len %d :%s", (int)strlen(result_string), result_string);
+    // PR_DEBUG("result len %d :%s", (int)strlen(result_string), result_string);
     ret = tal_kv_set(activate_data_key, (const uint8_t *)result_string, strlen(result_string));
     cJSON_free(result_string);
     if (ret != OPRT_OK) {
