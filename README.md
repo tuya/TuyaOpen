@@ -10,6 +10,9 @@
 </p>
 
 <p align="center">
+    <a href="https://github.com/tuya/TuyaOpen/actions/workflows/check-build-apps.yml" target="_blank">
+        <img src="https://github.com/tuya/TuyaOpen/actions/workflows/check-build-apps.yml/badge.svg"
+            alt="TuyaOpen Check Build"></a>
     <a href="https://tuyaopen.ai" target="_blank">
         <img alt="Static Badge" src="https://img.shields.io/badge/Product-F04438"></a>
     <a href="https://tuyaopen.ai/pricing" target="_blank">
@@ -107,3 +110,4 @@ If users decide to use this project for commercial purposes, they should fully r
 
 - Arduino for TuyaOpen: [https://github.com/tuya/arduino-TuyaOpen](https://github.com/tuya/arduino-TuyaOpen)
 - Luanode for tuyaopen：[https://github.com/tuya/luanode-TuyaOpen](https://github.com/tuya/luanode-TuyaOpen)
+- **TuyaOpen Dev Skills** (Cursor AI workflows: env, build, flash, device auth, etc.): [github.com/tuya/TuyaOpen-dev-skills](https://github.com/tuya/TuyaOpen-dev-skills) — import as a remote rule or clone: `https://github.com/tuya/TuyaOpen-dev-skills.git`
