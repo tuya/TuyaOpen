@@ -68,8 +68,6 @@ tuya_iot_license_t license;
 
 #define DPID_VOLUME 6
 
-static uint8_t _need_reset = 0;
-
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
  *
@@ -177,15 +175,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
-        if (_need_reset == 1) {
-            PR_INFO("Device Reset!");
-            tal_system_reset();
-        }
 
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
 #endif
-
         break;
 
     /* Print the QRCode for Tuya APP bind */
@@ -197,13 +190,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 #endif
     } break;
 
-    case TUYA_EVENT_BIND_TOKEN_ON:
-        break;
-
     /* MQTT with tuya cloud is connected, device online */
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
-        tal_event_publish(EVENT_MQTT_CONNECTED, NULL);
 
         static uint8_t first = 1;
         if (first) {
@@ -217,12 +206,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         }
         break;
 
-    /* MQTT with tuya cloud is disconnected, device offline */
-    case TUYA_EVENT_MQTT_DISCONNECT:
-        PR_INFO("Device MQTT DisConnected!");
-        tal_event_publish(EVENT_MQTT_DISCONNECTED, NULL);
-        break;
-
     /* RECV upgrade request */
     case TUYA_EVENT_UPGRADE_NOTIFY:
         user_upgrade_notify_on(client, event->value.asJSON);
@@ -230,16 +213,21 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
     /* Sync time with tuya Cloud */
     case TUYA_EVENT_TIMESTAMP_SYNC:
-        PR_INFO("Sync timestamp:%d", event->value.asInteger);
-        tal_time_set_posix(event->value.asInteger, 1);
         tal_event_publish("app.time.sync", NULL);
         break;
+    case TUYA_EVENT_RESET: {
+        tuya_reset_type_t reset_type = (tuya_reset_type_t)event->value.asInteger;
+        PR_INFO("Device Reset:%d", reset_type);
 
-    case TUYA_EVENT_RESET:
-        PR_INFO("Device Reset:%d", event->value.asInteger);
+        // TUYA_RESET_TYPE_FACTORY, TUYA_RESET_TYPE_REMOTE_FACTORY, TUYA_RESET_TYPE_DATA_FACTORY
+        // Need remove the device application data from the kv store
+    } break;
+    case TUYA_EVENT_RESET_COMPLETE: {
+        PR_INFO("Device Reset Complete!");
 
-        _need_reset = 1;
-        break;
+        // Restart the device
+        tal_system_reset();
+    } break;
 
     /* RECV OBJ DP */
     case TUYA_EVENT_DP_RECEIVE_OBJ: {

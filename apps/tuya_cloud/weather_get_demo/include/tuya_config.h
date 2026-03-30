@@ -24,6 +24,10 @@
 #ifndef _TUYA_CONFIG_H_
 #define _TUYA_CONFIG_H_
 
+#if __has_include("tuya_config_secrets.h")
+#include "tuya_config_secrets.h"
+#endif
+
 /**
  * @brief Product and device configuration settings
  *
@@ -47,9 +51,15 @@
  *
  */
 // clang-format off
+#ifndef TUYA_PRODUCT_ID
 #define TUYA_PRODUCT_ID         "wtewb6gaxuowjzhb"                        // Please change your product id
+#endif
+#ifndef TUYA_OPENSDK_UUID
 #define TUYA_OPENSDK_UUID       "uuidxxxxxxxxxxxxxxxx"                    // Please change the correct uuid
+#endif
+#ifndef TUYA_OPENSDK_AUTHKEY
 #define TUYA_OPENSDK_AUTHKEY    "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"        // Please change the correct authkey
+#endif
 
 /**
  * @brief Network provisioning configuration

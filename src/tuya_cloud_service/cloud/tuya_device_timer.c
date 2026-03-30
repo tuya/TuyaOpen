@@ -1072,6 +1072,16 @@ static void __timer_list_clear(void)
     s_ctx.timer_task_list.timer_items_count = 0;
 }
 
+static int __device_timer_reset_event_cb(void *data)
+{
+    (void)data;
+
+    PR_INFO("Device timer reset event received");
+
+    tuya_device_timer_deinit();
+    return OPRT_OK;
+}
+
 int tuya_device_timer_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -1105,6 +1115,7 @@ int tuya_device_timer_init(void)
     tuya_mqtt_dispatch_register(PRO_IOT_DA_REQ, "timer_sync", "device timer sync", __on_timer_sync_callback, NULL);
 
     tal_event_subscribe(EVENT_MQTT_CONNECTED, "tuya_device_timer", __device_timer_task_event_cb, SUBSCRIBE_TYPE_ONETIME);
+    tal_event_subscribe(EVENT_RESET, "tuya_device_timer", __device_timer_reset_event_cb, SUBSCRIBE_TYPE_ONETIME);
 
     // Load from kv
     char *kv_str = NULL;
@@ -1122,7 +1133,7 @@ int tuya_device_timer_init(void)
     }
 
     s_ctx.inited = true;
-     
+
     // tuya_device_timer_dump();
 
     return OPRT_OK;

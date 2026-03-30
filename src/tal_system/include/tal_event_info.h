@@ -34,6 +34,7 @@ extern "C" {
 #define EVENT_RESET             "dev.reset"     // device reset
 #define EVENT_MQTT_CONNECTED    "mqtt.con"      // mqtt connect
 #define EVENT_MQTT_DISCONNECTED "mqtt.disc"     // mqtt disconnect
+#define EVENT_TIME_SYNC         "time.sync"     // time sync
 #define EVENT_LINK_ACTIVATE     "link.activate" // linkage got activate info
 
 /***********************************************************

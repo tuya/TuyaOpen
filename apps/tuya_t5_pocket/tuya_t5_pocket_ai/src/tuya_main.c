@@ -53,8 +53,6 @@ tuya_iot_license_t license;
 
 #define DPID_VOLUME 3
 
-static uint8_t _need_reset = 0;
-
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
  *
@@ -151,10 +149,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START: {
         PR_INFO("Device Bind Start!");
-        if (_need_reset == 1) {
-            PR_INFO("Device Reset!");
-            tal_system_reset();
-        }
 
         ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
         AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
@@ -166,7 +160,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* MQTT with tuya cloud is connected, device online */
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
-        tal_event_publish(EVENT_MQTT_CONNECTED, NULL);
 
         static uint8_t first = 1;
         if (first) {
@@ -182,7 +175,6 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         PR_INFO("Device MQTT DisConnected!");
         AI_UI_WIFI_STATUS_E wifi_status = AI_UI_WIFI_STATUS_DISCONNECTED;
         ai_ui_disp_msg(AI_UI_DISP_NETWORK, (uint8_t *)&wifi_status, sizeof(AI_UI_WIFI_STATUS_E));
-        tal_event_publish(EVENT_MQTT_DISCONNECTED, NULL);
         break;
 
     /* RECV upgrade request */
@@ -192,17 +184,22 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
     /* Sync time with tuya Cloud */
     case TUYA_EVENT_TIMESTAMP_SYNC:
-        PR_INFO("Sync timestamp:%d", event->value.asInteger);
-        tal_time_set_posix(event->value.asInteger, 1);
         tal_event_publish("app.time.sync", NULL);
         break;
 
-    case TUYA_EVENT_RESET:
-        PR_INFO("Device Reset:%d", event->value.asInteger);
+    case TUYA_EVENT_RESET: {
+        tuya_reset_type_t reset_type = (tuya_reset_type_t)event->value.asInteger;
+        PR_INFO("Device Reset:%d", reset_type);
 
-        _need_reset = 1;
-        break;
+        // TUYA_RESET_TYPE_FACTORY, TUYA_RESET_TYPE_REMOTE_FACTORY, TUYA_RESET_TYPE_DATA_FACTORY
+        // Need remove the device application data from the kv store
+    } break;
+    case TUYA_EVENT_RESET_COMPLETE: {
+        PR_INFO("Device Reset Complete!");
 
+        // Restart the device
+        tal_system_reset();
+    } break;
     /* RECV OBJ DP */
     case TUYA_EVENT_DP_RECEIVE_OBJ: {
         dp_obj_recv_t *dpobj = event->value.dpobj;

@@ -120,25 +120,23 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         qrcode_string_output(buffer, user_log_output_cb, 0);
 #endif
     } break;
-
-    /* MQTT with tuya cloud is connected, device online */
-    case TUYA_EVENT_MQTT_CONNECTED:
-        PR_INFO("Device MQTT Connected!");
-        break;
-
     /* RECV upgrade request */
     case TUYA_EVENT_UPGRADE_NOTIFY:
         user_upgrade_notify_on(client, event->value.asJSON);
         break;
+    case TUYA_EVENT_RESET: {
+        tuya_reset_type_t reset_type = (tuya_reset_type_t)event->value.asInteger;
+        PR_INFO("Device Reset:%d", reset_type);
 
-    /* Sync time with tuya Cloud */
-    case TUYA_EVENT_TIMESTAMP_SYNC:
-        PR_INFO("Sync timestamp:%d", event->value.asInteger);
-        tal_time_set_posix(event->value.asInteger, 1);
-        break;
-    case TUYA_EVENT_RESET:
-        PR_INFO("Device Reset:%d", event->value.asInteger);
-        break;
+        // TUYA_RESET_TYPE_FACTORY, TUYA_RESET_TYPE_REMOTE_FACTORY, TUYA_RESET_TYPE_DATA_FACTORY
+        // Need remove the device application data from the kv store
+    } break;
+    case TUYA_EVENT_RESET_COMPLETE: {
+        PR_INFO("Device Reset Complete!");
+
+        // Restart the device
+        tal_system_reset();
+    } break;
 
     /* RECV OBJ DP */
     case TUYA_EVENT_DP_RECEIVE_OBJ: {
