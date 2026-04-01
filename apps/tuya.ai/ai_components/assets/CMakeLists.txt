@@ -16,7 +16,8 @@ set(COMP_MODULE_INC
 # Generate language config header
 ########################################
 set(LANG_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/scripts/gen_lang.py")
-set(LANG_HEADER "${CMAKE_CURRENT_LIST_DIR}/include/lang_config.h")
+# Generate into build tree (source tree may be read-only in some environments).
+set(LANG_HEADER "${CMAKE_BINARY_DIR}/include/lang_config.h")
 
 # Select language JSON based on Kconfig
 if(CONFIG_ENABLE_AI_LANGUAGE_CHINESE STREQUAL "y")
@@ -31,12 +32,34 @@ else()
     message(STATUS "Language not specified, defaulting to Chinese (zh-CN)")
 endif()
 
-# Get Python command from environment variable PYTHON_CMD
-# Only execute if PYTHON_CMD is not empty
+# Prefer python from OPEN_SDK_PYTHON, fallback to system python3.
+set(PYTHON_CMD "")
 if(DEFINED ENV{OPEN_SDK_PYTHON} AND NOT "$ENV{OPEN_SDK_PYTHON}" STREQUAL "")
     set(PYTHON_CMD $ENV{OPEN_SDK_PYTHON})
-    
-    # Add custom command to generate language config header
+else()
+    # Cross toolchains may prevent find_program() from seeing host tools.
+    if(EXISTS "/usr/bin/python3")
+        set(PYTHON_CMD "/usr/bin/python3")
+    else()
+        find_program(PYTHON_CMD python3)
+    endif()
+endif()
+
+# Generate header if python is available.
+if(PYTHON_CMD)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/include")
+    # Make sure header exists before compilation starts (configure-time fallback).
+    if(NOT EXISTS ${LANG_HEADER})
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
+                    ${PYTHON_CMD} ${LANG_SCRIPT} --input ${LANG_JSON} --output ${LANG_HEADER}
+            RESULT_VARIABLE _lang_gen_ret
+        )
+        if(NOT _lang_gen_ret EQUAL 0)
+            message(FATAL_ERROR "Failed to generate ${LANG_HEADER} (ret=${_lang_gen_ret})")
+        endif()
+    endif()
+
     add_custom_command(
         OUTPUT ${LANG_HEADER}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
@@ -46,11 +69,12 @@ if(DEFINED ENV{OPEN_SDK_PYTHON} AND NOT "$ENV{OPEN_SDK_PYTHON}" STREQUAL "")
         VERBATIM
     )
 
-    # Create a custom target for language generation (optional, for manual triggering)
     add_custom_target(generate_lang_config
         DEPENDS ${LANG_HEADER}
         COMMENT "Language config generation target"
     )
+else()
+    message(WARNING "python3 not found; lang_config.h will not be generated (build may fail).")
 endif()
 
 
@@ -58,8 +82,8 @@ endif()
 # Target Configure
 ########################################
 
-# Ensure language config header is generated before building (only if PYTHON_CMD is set)
-if(DEFINED ENV{OPEN_SDK_PYTHON} AND NOT "$ENV{OPEN_SDK_PYTHON}" STREQUAL "")
+# Ensure language config header is generated before building (only if python is found)
+if(PYTHON_CMD)
     add_dependencies(${EXAMPLE_LIB} generate_lang_config)
 endif()
 

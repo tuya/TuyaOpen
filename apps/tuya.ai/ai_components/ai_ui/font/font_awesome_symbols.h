@@ -74,4 +74,7 @@
 #define FONT_AWESOME_USER_ROBOT        "\xee\x81\x8b"
 #define FONT_AWESOME_DOWNLOAD          "\xef\x80\x99"
 
+/* Extra symbols (FontAwesome private-use area). */
+#define FONT_AWESOME_THERMOMETER_HALF  "\xef\x8b\x89" /* U+F2C9 */
+
 #endif

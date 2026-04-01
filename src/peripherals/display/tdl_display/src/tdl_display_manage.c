@@ -91,7 +91,9 @@ static void __tdl_blacklight_init(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
     if (bl_cfg->type == TUYA_DISP_BL_TP_GPIO) {
         cfg.mode = TUYA_GPIO_PUSH_PULL;
         cfg.direct = TUYA_GPIO_OUTPUT;
-        cfg.level = (bl_cfg->gpio.active_level == TUYA_GPIO_LEVEL_LOW) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
+        /* Default turn on backlight when display device is opened.
+         * It avoids keeping BL off if upper UI stack is not started yet. */
+        cfg.level = bl_cfg->gpio.active_level;
         tkl_gpio_init(bl_cfg->gpio.pin, &cfg);
     } else if (bl_cfg->type == TUYA_DISP_BL_TP_PWM) {
 #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)

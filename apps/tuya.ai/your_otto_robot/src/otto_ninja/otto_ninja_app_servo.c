@@ -12,6 +12,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include "otto_ninja_main.h"
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
@@ -304,16 +305,36 @@ void servo_write(uint8_t pin, uint16_t angle)
     } else if (duty > 10000) {
         duty = 10000;
     }
-    
-    // Set duty cycle
-    tkl_pwm_duty_set(pwm_id, duty);
 
-    // Calculate duty percentage (duty range 1-10000 corresponds to 0.01%-100%)
-//     float duty_percent = (float)duty / 100.0f;
-//    PR_NOTICE("servo_write: pin=%d, angle=%d, pulse_width=%d us, duty=%d (%.2f%%)", 
-//             pin, angle, pulse_width, duty, duty_percent);
-    // Ensure PWM is running
+    /*
+     * Use tkl_pwm_info_set every time: tkl_pwm_duty_set skips the driver if duty equals the last
+     * cached value. WiFi/BLE/coex can stop PWM output while the cache still holds the old duty;
+     * fixed-angle outputs (e.g. N20 on SERVO3 at 90deg every 10ms) would then never recover.
+     */
+    {
+        TUYA_PWM_BASE_CFG_T pwm_cfg;
+
+        memset(&pwm_cfg, 0, sizeof(pwm_cfg));
+        pwm_cfg.duty = duty;
+        pwm_cfg.frequency = SERVO_PWM_FREQUENCY;
+        pwm_cfg.polarity = TUYA_PWM_NEGATIVE;
+        tkl_pwm_info_set(pwm_id, &pwm_cfg);
+    }
     tkl_pwm_start(pwm_id);
+}
+
+/**
+ * @brief Stop PWM then apply angle (same duty path as servo_write).
+ * @return none
+ */
+void servo_pwm_force_update(uint8_t pin, uint16_t angle)
+{
+    TUYA_PWM_NUM_E pwm_id = pin_to_pwm_id(pin);
+
+    if (pwm_id < TUYA_PWM_NUM_MAX) {
+        (void)tkl_pwm_stop(pwm_id);
+    }
+    servo_write(pin, angle);
 }
 
 /**
@@ -401,6 +422,16 @@ void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_
 }
 
 // ==================== Initialization Functions ====================
+
+/**
+ * @brief PWM/servo software stack only (no robot_home). Used by main_init and your_ping N20 task.
+ * @return none
+ */
+void otto_ninja_servo_pwm_stack_init(void)
+{
+    platform_tuya_init();
+    servo_control_init();
+}
 
 /**
  * Initialize servo control system
@@ -1025,11 +1056,8 @@ void main_loop(void)
 void main_init(void)
 {
     PR_NOTICE("main_init");
-    // Initialize platform interface
-    platform_tuya_init();
-    // Initialize servo control system
-    servo_control_init();
-    
+    otto_ninja_servo_pwm_stack_init();
+
     // Robot returns to initial position
     robot_home();
     

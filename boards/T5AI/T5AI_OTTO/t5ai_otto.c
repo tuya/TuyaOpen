@@ -9,6 +9,7 @@
  #include "tuya_cloud_types.h"
 
  #include "tal_api.h"
+ #include "tuya_kconfig.h"
  
  #include "tdd_audio.h"
  #if defined(LED_NAME)
@@ -38,10 +39,14 @@
  
  #if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1) || defined(T5AI_OTTO_EX_MODULE_ST7735S_XLT) && (T5AI_OTTO_EX_MODULE_ST7735S_XLT == 1) || defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
  
- /* Backlight: same as TuyaOS tuyaos_demo_ai_otto T5AI_BOARD_EYES (GPIO5, active LOW) */
- #define BOARD_LCD_BL_TYPE      TUYA_DISP_BL_TP_GPIO
- #define BOARD_LCD_BL_PIN       TUYA_GPIO_NUM_5
- #define BOARD_LCD_BL_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+#define BOARD_LCD_BL_TYPE      TUYA_DISP_BL_TP_GPIO
+#define BOARD_LCD_BL_PIN       TUYA_GPIO_NUM_5
+/* Backlight active level follows expansion LCD choice (Kconfig T5AI_OTTO_EX_MODULE). */
+#if defined(T5AI_OTTO_EX_MODULE_GC9D01) && (T5AI_OTTO_EX_MODULE_GC9D01 == 1)
+#define BOARD_LCD_BL_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+#else
+#define BOARD_LCD_BL_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
+#endif
  
 #if defined(T5AI_OTTO_EX_MODULE_ST7789) && (T5AI_OTTO_EX_MODULE_ST7789 == 1) 
 #define BOARD_LCD_WIDTH      240
