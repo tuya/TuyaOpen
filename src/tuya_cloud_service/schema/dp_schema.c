@@ -351,9 +351,6 @@ int dp_data_recv_parse(dp_recv_msg_t *msg, dp_recv_cb_t dp_recv_cb)
         if (dpnode == NULL) {
             PR_ERR("DP ID %d Invalid", atoi(item->string));
             continue;
-            ;
-            ;
-            ;
         }
         if ((schema->actv.preprocess == TRUE) && (dpnode->desc.passive == PSV_TRUE)) {
             dpnode->desc.passive = PSV_F_ONCE;
