@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID "b05nl7xoijx4fwae" // Otto Ninja Robot
-//#define TUYA_PRODUCT_ID "aub53kai42j8fdlf" // Otto Robot
-#endif
+/* Must include this header after tuya_iot.h (so kconfig PID is overridden). */
+#undef TUYA_PRODUCT_ID
+#define TUYA_PRODUCT_ID "b05nl7xoijx4fwae"
 
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
 #define TUYA_OPENSDK_AUTHKEY "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey

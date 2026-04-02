@@ -16,6 +16,9 @@ config BOARD_CONFIG
 choice T5AI_OTTO_EX_MODULE
     prompt "choose expansion module for T5AI_OTTO"
     default T5AI_OTTO_EX_MODULE_NONE
+    help
+      SPI LCD on T5AI_OTTO. Backlight uses GPIO5: active-low for GC9D01 (Otto eyes),
+      active-high for ST7789 and ST7735S XLT. See boards/T5AI/T5AI_OTTO/t5ai_otto.c.
 
     config T5AI_OTTO_EX_MODULE_NONE
         bool "no expansion module"

@@ -109,7 +109,7 @@ OPERATE_RET tdd_disp_spi_gc9d01_register(char *name, DISP_SPI_DEVICE_CFG_T *dev_
         return OPRT_INVALID_PARM;
     }
 
-    PR_NOTICE("tdd_disp_spi_gc9a01_register: %s", name);
+    PR_NOTICE("tdd_disp_spi_gc9d01_register: %s", name);
 
     sg_disp_spi_cfg.cfg.width = dev_cfg->width;
     sg_disp_spi_cfg.cfg.height = dev_cfg->height;
