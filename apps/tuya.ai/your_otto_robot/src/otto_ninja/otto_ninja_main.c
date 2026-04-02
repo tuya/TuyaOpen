@@ -22,6 +22,12 @@
  *
  */
 
+#include <stdbool.h>
+
+/* Prototypes before any project headers: CI uses -Werror=implicit-function-declaration. */
+void robot_rotate_spot(bool direction);
+void robot_rotate_spot_stop(void);
+void robot_rotate_spot_update(void);
 
 #include "tkl_pwm.h"
 #include "tal_sw_timer.h"
