@@ -376,6 +376,11 @@ void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_
     
     // Limit target angle range
     if (target_angle > 180) target_angle = 180;
+
+    if (step_size == 0) {
+        servo_write(pin, target_angle);
+        return;
+    }
     
     // Get current angle
     uint16_t current_angle = servos[idx].current_angle;
@@ -396,18 +401,26 @@ void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_
     if (steps == 0) steps = 1;  // At least one step
     
     for (uint16_t i = 0; i < steps; i++) {
-        // Calculate target angle for current step
-        uint16_t step_angle = current_angle + (direction * step_size * (i + 1));
-        
-        // Ensure not exceeding target angle
+        int32_t delta = (int32_t)direction * (int32_t)step_size * (int32_t)(i + 1);
+        int32_t next_angle = (int32_t)current_angle + delta;
+
         if (direction > 0) {
-            if (step_angle > target_angle) step_angle = target_angle;
+            if (next_angle > (int32_t)target_angle) {
+                next_angle = (int32_t)target_angle;
+            }
         } else {
-            if (step_angle < target_angle) step_angle = target_angle;
+            if (next_angle < (int32_t)target_angle) {
+                next_angle = (int32_t)target_angle;
+            }
         }
-        
-        // Set servo angle
-        servo_write(pin, step_angle);
+
+        if (next_angle < 0) {
+            next_angle = 0;
+        } else if (next_angle > 180) {
+            next_angle = 180;
+        }
+
+        servo_write(pin, (uint16_t)next_angle);
         
         // Delay to ensure servo execution
         if (i < steps - 1) {  // Last step doesn't need delay
