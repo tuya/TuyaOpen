@@ -3,10 +3,15 @@
 
 
 import os
+import re
 from git import Repo, Git
 from git import RemoteProgress
+from git.exc import GitCommandError
 
 from tools.cli_command.util import get_logger, do_subprocess
+
+
+_INSTEADOF_KEY_RE = re.compile(r"^url\.(.+)\.insteadOf$", re.IGNORECASE)
 
 
 MIRROR_LIST = [
@@ -62,6 +67,41 @@ def set_repo_mirro(unset=False):
     pass
 
 
+def resolve_effective_git_url(repo_url):
+    """
+    Apply the same url.<base>.insteadOf rules Git uses, so logs match the real fetch URL.
+    Chooses the longest matching old-prefix when multiple rules apply.
+    """
+    if not repo_url:
+        return repo_url
+    try:
+        out = Git().config("--get-regexp", r"url\..*\.insteadOf")
+    except GitCommandError:
+        return repo_url
+    except Exception:
+        return repo_url
+
+    best_len = -1
+    resolved = None
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(None, 1)
+        if len(parts) < 2:
+            continue
+        key, old_prefix = parts[0], parts[1].strip()
+        match = _INSTEADOF_KEY_RE.match(key)
+        if not match:
+            continue
+        new_base = match.group(1)
+        if repo_url.startswith(old_prefix) and len(old_prefix) > best_len:
+            best_len = len(old_prefix)
+            resolved = new_base + repo_url[len(old_prefix):]
+
+    return resolved if resolved is not None else repo_url
+
+
 def get_git_tag_describe(repo_path):
     logger = get_logger()
 
@@ -110,7 +150,12 @@ target_path: {target_path}")
         logger.debug(f"git clone path is exists [{target_path}]")
         return True
 
-    logger.info(f"Git clone {repo_url} {target_path}")
+    effective_url = resolve_effective_git_url(repo_url)
+    if effective_url != repo_url:
+        logger.info(
+            f"Git clone {effective_url} {target_path} (resolved from {repo_url})")
+    else:
+        logger.info(f"Git clone {repo_url} {target_path}")
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
     try:
         # Check if we're in a CI environment
