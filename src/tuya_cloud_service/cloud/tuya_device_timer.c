@@ -552,26 +552,28 @@ static void __timer_check_timer_cb(TIMER_ID timer_id, void *arg)
     (void)arg;
 
     if (s_ctx.inited == false || s_ctx.timer_task_list.mutex == NULL) {
+        PR_ERR("device timer not initialized");
         return;
     }
 
     if (tal_time_check_time_sync() != OPRT_OK) {
+        PR_ERR("time sync failed");
         return;
     }
 
     if (tuya_slist_empty(&s_ctx.timer_task_list.head)) {
+        PR_ERR("timer task list is empty");
         return;
     }
 
     POSIX_TM_S current_time = {0};
     rt = tal_time_get(&current_time);
     if (rt != OPRT_OK) {
+        PR_ERR("tal_time_get failed");
         return;
     }
 
     tal_mutex_lock(s_ctx.timer_task_list.mutex);
-
-
 
     SLIST_HEAD *pos = NULL;
     tuya_timer_item_t *item = NULL;
@@ -1114,7 +1116,7 @@ int tuya_device_timer_init(void)
     tuya_mqtt_dispatch_register(PRO_DEV_DA_RESP, "timer_full_syn", "device timer full sync", __on_timer_full_syn_ack_callback, NULL);
     tuya_mqtt_dispatch_register(PRO_IOT_DA_REQ, "timer_sync", "device timer sync", __on_timer_sync_callback, NULL);
 
-    tal_event_subscribe(EVENT_MQTT_CONNECTED, "tuya_device_timer", __device_timer_task_event_cb, SUBSCRIBE_TYPE_ONETIME);
+    tal_event_subscribe(EVENT_DEVICE_META_REPORT, "tuya_device_timer", __device_timer_task_event_cb, SUBSCRIBE_TYPE_ONETIME);
     tal_event_subscribe(EVENT_RESET, "tuya_device_timer", __device_timer_reset_event_cb, SUBSCRIBE_TYPE_ONETIME);
 
     // Load from kv

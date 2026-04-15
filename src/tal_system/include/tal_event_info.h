@@ -23,6 +23,10 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+/*
+event name max length is 16, EVENT_NAME_MAX_LEN is defined in tal_event.h
+*/
+
 #define EVENT_REBOOT_REQ                                                                                               \
     "dev.reboot.req" // device health check reboot request, application should subscribe it if needed
 #define EVENT_REBOOT_ACK        "dev.reboot.ack" // device health check reboot ack, application should publish when it ready
@@ -36,6 +40,8 @@ extern "C" {
 #define EVENT_MQTT_DISCONNECTED "mqtt.disc"     // mqtt disconnect
 #define EVENT_TIME_SYNC         "time.sync"     // time sync
 #define EVENT_LINK_ACTIVATE     "link.activate" // linkage got activate info
+
+#define EVENT_DEVICE_META_REPORT  "dev.meta.rpt" // device meta report success
 
 /***********************************************************
 ***********************typedef define***********************

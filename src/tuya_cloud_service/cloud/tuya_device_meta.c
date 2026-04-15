@@ -9,6 +9,8 @@
 
 #include "atop_base.h"
 #include "tal_log.h"
+#include "tal_workq_service.h"
+#include "tuya_cloud_types.h"
 #include "tuya_iot.h"
 #include "tal_api.h"
 
@@ -28,6 +30,8 @@
 typedef struct {
     cJSON *json;
     MUTEX_HANDLE mutex;
+
+    DELAYED_WORK_HANDLE delayed_work;
 } tuya_device_meta_t;
 
 /***********************************************************
@@ -44,14 +48,52 @@ static tuya_device_meta_t s_meta = {0};
 ***********************function define**********************
 ***********************************************************/
 
+static void __device_meta_event_workq(void *data)
+{
+    (void)data;
+
+    OPERATE_RET rt = OPRT_OK;
+
+    rt = tuya_device_meta_add_number("timerCapability", 1);
+    if (OPRT_OK != rt) {
+        PR_ERR("add timerCapability failed:%d", rt);
+        return;
+    }
+
+    rt = tuya_device_meta_report();
+    if (OPRT_OK != rt) {
+        PR_ERR("report meta failed:%d", rt);
+        return;
+    }
+
+    PR_DEBUG("device meta report success");
+
+    tal_event_publish(EVENT_DEVICE_META_REPORT, NULL);
+
+    PR_DEBUG("device meta report success, event publish");
+
+    tal_workq_cancel_delayed(s_meta.delayed_work);
+    s_meta.delayed_work = NULL;
+}
+
 static int __device_meta_event_cb(void *data)
 {
     (void)data;
 
+    OPERATE_RET rt = OPRT_OK;
+
     /* Add common default device meta here. Meta for other features may be added
      * after tuya_iot_init() and before tuya_iot_start(). */
-    tuya_device_meta_add_number("timerCapability", 1);
-    tuya_device_meta_report();
+    rt = tal_workq_init_delayed(WORKQ_SYSTEM, __device_meta_event_workq, NULL, &s_meta.delayed_work);
+    if (OPRT_OK != rt) {
+        PR_ERR("init delayed work failed:%d", rt);
+        return -1;
+    }
+    rt = tal_workq_start_delayed(s_meta.delayed_work, 5*1000, LOOP_CYCLE);
+    if (OPRT_OK != rt) {
+        PR_ERR("start delayed work failed:%d", rt);
+        return -1;
+    }
 
     return 0;
 }
@@ -70,7 +112,7 @@ OPERATE_RET tuya_device_meta_init(void)
         return rt;
     }
 
-    tal_event_subscribe(EVENT_MQTT_CONNECTED, "tuya_device_meta", __device_meta_event_cb,
+    tal_event_subscribe(EVENT_TIME_SYNC, "tuya_device_meta", __device_meta_event_cb,
         SUBSCRIBE_TYPE_ONETIME);
 
     return OPRT_OK;
@@ -228,7 +270,8 @@ OPERATE_RET tuya_device_meta_report(void)
     tal_mutex_lock(s_meta.mutex);
 
     /* 1. Build payload: update timestamp and serialize */
-    cJSON *new_time = cJSON_CreateNumber((double)tal_time_get_posix());
+    TIME_T timestamp = tal_time_get_posix();
+    cJSON *new_time = cJSON_CreateNumber((double)timestamp);
     if (new_time == NULL) {
         rt = OPRT_MALLOC_FAILED;
         goto __EXIT;
@@ -251,7 +294,7 @@ OPERATE_RET tuya_device_meta_report(void)
     atop_request.devid = client->activate.devid;
     atop_request.key = client->activate.seckey;
     atop_request.path = "/d.json";
-    atop_request.timestamp = (uint32_t)tal_time_get_posix();
+    atop_request.timestamp = (uint32_t)timestamp;
     atop_request.api = DEVICE_META_SAVE_API;
     atop_request.version = "1.0";
     atop_request.data = buffer;

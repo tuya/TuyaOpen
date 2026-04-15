@@ -345,6 +345,9 @@ static void matop_upgrade_info_on(atop_base_response_t *response, void *user_dat
     client->event.value.asInteger = response->t;
     iot_dispatch_event(client);
 
+    /* Send timestamp sync event*/
+    tal_event_publish(EVENT_TIME_SYNC, (void *)client);
+
     /* Param verify */
     if (response->result == NULL) {
         return;
@@ -355,9 +358,6 @@ static void matop_upgrade_info_on(atop_base_response_t *response, void *user_dat
     client->event.type = TUYA_DATE_TYPE_JSON;
     client->event.value.asJSON = response->result;
     iot_dispatch_event(client);
-
-    /* Send timestamp sync event*/
-    tal_event_publish(EVENT_TIME_SYNC, (void *)client);
 
     TUYA_CALL_ERR_LOG(tuya_ota_start(response->result));
 }
@@ -528,7 +528,7 @@ static int run_state_mqtt_connect_start(tuya_iot_client_t *client)
     tuya_mqtt_protocol_register(&client->mqctx, PRO_UPGD_REQ, mqtt_service_upgrade_notify_on, client);
     tuya_mqtt_protocol_register(&client->mqctx, PRO_MQ_DPCACHE_NOTIFY, mqtt_atop_dp_cache_notify_cb, client);
     tuya_mqtt_protocol_register(&client->mqctx, PRO_RTC_REQ, mqtt_rtc_req_notify_cb, client);
-    
+
     return rt;
 }
 

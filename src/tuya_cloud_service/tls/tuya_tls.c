@@ -11,6 +11,7 @@
  *
  */
 
+#include "tuya_cloud_types.h"
 #include "tuya_tls.h"
 
 #if !defined(MBEDTLS_CONFIG_FILE)
@@ -612,6 +613,8 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int 
 
 #if defined(MBEDTLS_SSL_MAX_FRAGMENT_LENGTH)
 #if (MBEDTLS_SSL_MAX_CONTENT_LEN >= 4096)
+    mbedtls_ssl_conf_max_frag_len(p_conf_ctx, MBEDTLS_SSL_MAX_FRAG_LEN_4096);
+#elif defined(ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN) && (ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN>=4096)
     mbedtls_ssl_conf_max_frag_len(p_conf_ctx, MBEDTLS_SSL_MAX_FRAG_LEN_4096);
 #else
     mbedtls_ssl_conf_max_frag_len(p_conf_ctx, MBEDTLS_SSL_MAX_FRAG_LEN_1024);

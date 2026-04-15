@@ -3,6 +3,7 @@ __pycache__
 .tags
 .env.json
 .cache
+.clangd
 
 CMakeCache.txt
 /CMakeFiles
@@ -28,4 +29,3 @@ dist
 /dist
 *monitor.log
 
-/.omc
