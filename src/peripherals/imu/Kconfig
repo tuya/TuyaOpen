@@ -3,8 +3,12 @@ config ENABLE_IMU
     default n
 
 if (ENABLE_IMU)
+    config ENABLE_IMU_BMI220
+        bool "Enable bmi220 (direct register, no firmware upload)"
+        default y
+
     config ENABLE_IMU_BMI270
-        bool "Enable bmi270"
+        bool "Enable bmi270 (requires firmware upload)"
         default y
 
     config ENABLE_IMU_SC7A20

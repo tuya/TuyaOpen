@@ -4,6 +4,7 @@
 #include "board_com_api.h"
 #include "board_pixel_api.h"
 #include "board_buzzer_api.h"
+#include "board_bmi220_api.h"
 #include "board_bmi270_api.h"
 #include "tdl_button_manage.h"
 #include <string.h>
@@ -70,8 +71,68 @@ typedef struct {
 
 static sand_particle_t g_sand_particles[MAX_SAND_PARTICLES];
 static uint32_t g_last_sand_spawn_time = 0;
+/* IMU sensor abstraction: supports BMI220 (default) and BMI270 */
+typedef enum {
+    IMU_TYPE_NONE = 0,
+    IMU_TYPE_BMI220,
+    IMU_TYPE_BMI270,
+} imu_type_t;
+
+typedef struct {
+    float acc_x, acc_y, acc_z;
+    float gyr_x, gyr_y, gyr_z;
+} imu_sensor_data_t;
+
+static imu_type_t g_imu_type = IMU_TYPE_NONE;
+static bmi220_dev_t *g_bmi220_dev = NULL;
 static bmi270_dev_t *g_bmi270_dev = NULL;
 static bool g_sand_initialized = false;
+
+/**
+ * @brief Read IMU sensor data (works with either BMI220 or BMI270)
+ */
+static OPERATE_RET imu_read_data(imu_sensor_data_t *data)
+{
+    if (!data) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (g_imu_type == IMU_TYPE_BMI220 && g_bmi220_dev != NULL && board_bmi220_is_ready(g_bmi220_dev)) {
+        bmi220_sensor_data_t raw = {0};
+        OPERATE_RET ret = board_bmi220_read_data(g_bmi220_dev, &raw);
+        if (ret == OPRT_OK) {
+            data->acc_x = raw.acc_x;
+            data->acc_y = raw.acc_y;
+            data->acc_z = raw.acc_z;
+            data->gyr_x = raw.gyr_x;
+            data->gyr_y = raw.gyr_y;
+            data->gyr_z = raw.gyr_z;
+        }
+        return ret;
+    } else if (g_imu_type == IMU_TYPE_BMI270 && g_bmi270_dev != NULL && board_bmi270_is_ready(g_bmi270_dev)) {
+        bmi270_sensor_data_t raw = {0};
+        OPERATE_RET ret = board_bmi270_read_data(g_bmi270_dev, &raw);
+        if (ret == OPRT_OK) {
+            data->acc_x = raw.acc_x;
+            data->acc_y = raw.acc_y;
+            data->acc_z = raw.acc_z;
+            data->gyr_x = raw.gyr_x;
+            data->gyr_y = raw.gyr_y;
+            data->gyr_z = raw.gyr_z;
+        }
+        return ret;
+    }
+
+    return OPRT_COM_ERROR;
+}
+
+/**
+ * @brief Check if any IMU sensor is ready
+ */
+static bool imu_is_ready(void)
+{
+    return g_imu_type != IMU_TYPE_NONE;
+}
 
 /***********************************************************
 ********************function declaration********************
@@ -965,23 +1026,38 @@ static void sand_init_particle(sand_particle_t *particle)
 }
 
 /**
- * @brief Update sand particle physics based on BMI270 sensor data
+ * @brief Update sand particle physics based on IMU sensor data
  */
 static void sand_update_physics(void)
 {
-    bmi270_sensor_data_t sensor_data = {0};
+    imu_sensor_data_t sensor_data = {0};
     float acc_x = 0.0f, acc_y = 0.0f;
     float gyr_x = 0.0f, gyr_y = 0.0f;
 
     // Read sensor data if available
-    if (g_bmi270_dev != NULL && board_bmi270_is_ready(g_bmi270_dev)) {
-        if (board_bmi270_read_data(g_bmi270_dev, &sensor_data) == OPRT_OK) {
+    static uint32_t imu_dbg_cnt = 0;
+    if (imu_is_ready()) {
+        OPERATE_RET imu_ret = imu_read_data(&sensor_data);
+        if (imu_ret == OPRT_OK) {
             acc_x = sensor_data.acc_x;
             acc_y = sensor_data.acc_y;
             // acc_z = sensor_data.acc_z;
             gyr_x = sensor_data.gyr_x;
             gyr_y = sensor_data.gyr_y;
             // gyr_z = sensor_data.gyr_z;
+            if (imu_dbg_cnt++ % 500 == 0) {
+                PR_NOTICE("IMU data: acc(%.2f, %.2f, %.2f) gyr(%.2f, %.2f, %.2f)",
+                          sensor_data.acc_x, sensor_data.acc_y, sensor_data.acc_z,
+                          sensor_data.gyr_x, sensor_data.gyr_y, sensor_data.gyr_z);
+            }
+        } else {
+            if (imu_dbg_cnt++ % 500 == 0) {
+                PR_ERR("IMU read failed: %d", imu_ret);
+            }
+        }
+    } else {
+        if (imu_dbg_cnt++ % 500 == 0) {
+            PR_WARN("IMU not ready, imu_type=%d", g_imu_type);
         }
     }
 
@@ -1441,28 +1517,54 @@ static void user_main(void)
     }
     PR_NOTICE("Hardware initialized");
 
-    // Initialize BMI270 sensor
-    g_bmi270_dev = board_bmi270_get_handle();
-    if (g_bmi270_dev != NULL) {
-        PR_NOTICE("BMI270 sensor handle obtained");
-        // Wait a bit for hardware registration to complete
-        tal_system_sleep(200);
+    // Initialize IMU sensor: try BMI220 first (no firmware upload), fallback to BMI270
+    PR_NOTICE("Initializing IMU sensor...");
+    tal_system_sleep(200);
 
-        // Check if sensor is ready
-        if (!board_bmi270_is_ready(g_bmi270_dev)) {
-            PR_NOTICE("Initializing BMI270 sensor...");
-            rt = board_bmi270_init(g_bmi270_dev);
+    // Try BMI220 first (direct register access, no firmware upload needed)
+    g_bmi220_dev = board_bmi220_get_handle();
+    if (g_bmi220_dev != NULL) {
+        PR_NOTICE("Trying BMI220 sensor...");
+        if (!board_bmi220_is_ready(g_bmi220_dev)) {
+            rt = board_bmi220_init(g_bmi220_dev);
             if (OPRT_OK == rt) {
-                PR_NOTICE("BMI270 sensor initialized successfully");
+                g_imu_type = IMU_TYPE_BMI220;
+                PR_NOTICE("BMI220 sensor initialized successfully");
             } else {
-                PR_WARN("BMI270 sensor initialization failed: %d (will continue without sensor)", rt);
-                g_bmi270_dev = NULL;
+                PR_WARN("BMI220 init failed: %d, trying BMI270...", rt);
+                g_bmi220_dev = NULL;
             }
         } else {
-            PR_NOTICE("BMI270 sensor already initialized");
+            g_imu_type = IMU_TYPE_BMI220;
+            PR_NOTICE("BMI220 sensor already initialized");
         }
+    }
+
+    // Fallback to BMI270 if BMI220 failed
+    if (g_imu_type == IMU_TYPE_NONE) {
+        g_bmi270_dev = board_bmi270_get_handle();
+        if (g_bmi270_dev != NULL) {
+            PR_NOTICE("Trying BMI270 sensor...");
+            if (!board_bmi270_is_ready(g_bmi270_dev)) {
+                rt = board_bmi270_init(g_bmi270_dev);
+                if (OPRT_OK == rt) {
+                    g_imu_type = IMU_TYPE_BMI270;
+                    PR_NOTICE("BMI270 sensor initialized successfully");
+                } else {
+                    PR_WARN("BMI270 init failed: %d (continuing without IMU)", rt);
+                    g_bmi270_dev = NULL;
+                }
+            } else {
+                g_imu_type = IMU_TYPE_BMI270;
+                PR_NOTICE("BMI270 sensor already initialized");
+            }
+        }
+    }
+
+    if (g_imu_type == IMU_TYPE_NONE) {
+        PR_WARN("No IMU sensor available (continuing without sensor)");
     } else {
-        PR_WARN("BMI270 sensor not available (will continue without sensor)");
+        PR_NOTICE("IMU active: %s", g_imu_type == IMU_TYPE_BMI220 ? "BMI220" : "BMI270");
     }
 
     // Initialize buzzer

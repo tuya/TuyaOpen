@@ -18,5 +18,6 @@ config BOARD_CONFIG
     select ENABLE_SPI
     select ENABLE_LEDS_PIXEL
     select ENABLE_IMU
+    select ENABLE_IMU_BMI220
     select ENABLE_IMU_BMI270
 
