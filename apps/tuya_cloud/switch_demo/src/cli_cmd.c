@@ -26,9 +26,12 @@
  */
 
 #include "tal_api.h"
-#include "tal_wifi.h"
 #include "tuya_iot.h"
 #include <stdlib.h>
+
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+#include "tal_wifi.h"
+#endif
 
 extern void tal_kv_cmd(int argc, char *argv[]);
 extern void netmgr_cmd(int argc, char *argv[]);
@@ -136,6 +139,7 @@ static void stop(int argc, char *argv[])
     tuya_iot_stop(tuya_iot_client_get());
 }
 
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 static void read_mac(int argc, char *argv[])
 {
     char mac[18] = {0};
@@ -147,6 +151,7 @@ static void read_mac(int argc, char *argv[])
 
     PR_NOTICE("mac: %s", mac);
 }
+#endif
 
 /**
  * @brief cli cmd list
@@ -161,7 +166,9 @@ static cli_cmd_t s_cli_cmd[] = {
     {.name = "start", .func = start, .help = "start iot"},
     {.name = "mem", .func = mem, .help = "mem size"},
     {.name = "netmgr", .func = netmgr_cmd, .help = "netmgr cmd"},
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
     {.name = "read_mac", .func = read_mac, .help = "read sta mac cmd"},
+#endif
 };
 
 /**
