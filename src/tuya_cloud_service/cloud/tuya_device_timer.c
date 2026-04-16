@@ -562,7 +562,6 @@ static void __timer_check_timer_cb(TIMER_ID timer_id, void *arg)
     }
 
     if (tuya_slist_empty(&s_ctx.timer_task_list.head)) {
-        PR_ERR("timer task list is empty");
         return;
     }
 
