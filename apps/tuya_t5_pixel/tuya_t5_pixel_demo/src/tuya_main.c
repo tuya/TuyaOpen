@@ -1035,29 +1035,13 @@ static void sand_update_physics(void)
     float gyr_x = 0.0f, gyr_y = 0.0f;
 
     // Read sensor data if available
-    static uint32_t imu_dbg_cnt = 0;
     if (imu_is_ready()) {
         OPERATE_RET imu_ret = imu_read_data(&sensor_data);
         if (imu_ret == OPRT_OK) {
             acc_x = sensor_data.acc_x;
             acc_y = sensor_data.acc_y;
-            // acc_z = sensor_data.acc_z;
             gyr_x = sensor_data.gyr_x;
             gyr_y = sensor_data.gyr_y;
-            // gyr_z = sensor_data.gyr_z;
-            if (imu_dbg_cnt++ % 500 == 0) {
-                PR_NOTICE("IMU data: acc(%.2f, %.2f, %.2f) gyr(%.2f, %.2f, %.2f)",
-                          sensor_data.acc_x, sensor_data.acc_y, sensor_data.acc_z,
-                          sensor_data.gyr_x, sensor_data.gyr_y, sensor_data.gyr_z);
-            }
-        } else {
-            if (imu_dbg_cnt++ % 500 == 0) {
-                PR_ERR("IMU read failed: %d", imu_ret);
-            }
-        }
-    } else {
-        if (imu_dbg_cnt++ % 500 == 0) {
-            PR_WARN("IMU not ready, imu_type=%d", g_imu_type);
         }
     }
 

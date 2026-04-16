@@ -2,8 +2,11 @@
  * @file board_bmi220_api.c
  * @author Tuya Inc.
  * @brief BMI220 (chip ID 0x26) sensor driver for TUYA_T5AI_PIXEL board.
- *        Uses the Bosch BMI2 library with BMI270 config file, but accepts
- *        chip ID 0x26 instead of 0x24.
+ *        Uses the Bosch BMI2 library with BMI220-specific config firmware
+ *        (bmi260_config_file, sourced from ChromeOS EC v2.47.1).
+ *        BMI270 register-level API functions (bmi270_get/set_sensor_config,
+ *        bmi270_sensor_enable) are reused because BMI220/BMI260/BMI270 share
+ *        the same BMI2 register map for basic accel/gyro operations.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -36,7 +39,7 @@ static uint8_t sensor_list_220[2] = {BMI2_ACCEL, BMI2_GYRO};
 static TUYA_IIC_BASE_CFG_T g_bmi220_i2c_cfg = {
     .role = TUYA_IIC_MODE_MASTER, .speed = TUYA_IIC_BUS_SPEED_400K, .addr_width = TUYA_IIC_ADDRESS_7BIT};
 
-/* External: BMI270 config file (we reuse it for chip ID 0x26) */
+/* BMI220-specific config firmware (8192 bytes, from ChromeOS EC v2.47.1) */
 extern const uint8_t bmi260_config_file[];
 
 /***********************************************************
@@ -63,6 +66,8 @@ static int8_t set_accel_gyro_config_220(struct bmi2_dev *dev)
     config[ACCEL].type = BMI2_ACCEL;
     config[GYRO].type = BMI2_GYRO;
 
+    /* bmi270_get_sensor_config() reads generic BMI2 registers (ACC_CONF, GYR_CONF)
+     * shared across BMI220/BMI260/BMI270 — safe to reuse for BMI220. */
     rslt = bmi270_get_sensor_config(config, 2, dev);
     if (rslt != BMI2_OK) {
         PR_ERR("BMI220: get sensor config failed: %d", rslt);
@@ -88,6 +93,7 @@ static int8_t set_accel_gyro_config_220(struct bmi2_dev *dev)
     config[GYRO].cfg.gyr.noise_perf = BMI2_POWER_OPT_MODE;
     config[GYRO].cfg.gyr.filter_perf = BMI2_PERF_OPT_MODE;
 
+    /* Same rationale as bmi270_get_sensor_config() above */
     rslt = bmi270_set_sensor_config(config, 2, dev);
     if (rslt != BMI2_OK) {
         PR_ERR("BMI220: set sensor config failed: %d", rslt);
@@ -132,19 +138,20 @@ OPERATE_RET board_bmi220_init(bmi220_dev_t *dev)
     rslt = bmi2_interface_init(&bmi2_dev_220, BMI2_I2C_INTF);
     if (rslt != BMI2_OK) {
         PR_ERR("BMI220: interface init failed: %d", rslt);
+        tkl_i2c_deinit(BMI220_I2C_PORT);
         return OPRT_COM_ERROR;
     }
 
     /* Key: set expected chip_id to 0x26 (our actual chip) instead of BMI270's 0x24 */
     bmi2_dev_220.chip_id = BMI220_CHIP_ID;
 
-    /* Use BMI270 config file (same BMI2 family, compatible internal engine) */
+    /* BMI220-specific config firmware from ChromeOS EC (v2.47.1), NOT the BMI270 firmware */
     bmi2_dev_220.config_file_ptr = bmi260_config_file;
 
     /* Call bmi270_init-equivalent: set config_size and call bmi2_sec_init */
     /* We replicate what bmi270_init() does, but with our chip_id */
     {
-        /* Get config file size - BMI270 config is 8192 bytes */
+        /* Get config file size - BMI220 config is 8192 bytes */
         bmi2_dev_220.config_size = 8192;
 
         /* Enable variant features (same as BMI270) */
@@ -159,6 +166,7 @@ OPERATE_RET board_bmi220_init(bmi220_dev_t *dev)
         rslt = bmi2_sec_init(&bmi2_dev_220);
         if (rslt != BMI2_OK) {
             PR_ERR("BMI220: bmi2_sec_init failed: %d (chip_id read=0x%02X)", rslt, bmi2_dev_220.chip_id);
+            tkl_i2c_deinit(BMI220_I2C_PORT);
             return OPRT_COM_ERROR;
         }
         PR_NOTICE("BMI220: Config file uploaded successfully");
@@ -168,17 +176,24 @@ OPERATE_RET board_bmi220_init(bmi220_dev_t *dev)
     rslt = set_accel_gyro_config_220(&bmi2_dev_220);
     if (rslt != BMI2_OK) {
         PR_ERR("BMI220: sensor config failed: %d", rslt);
+        tkl_i2c_deinit(BMI220_I2C_PORT);
         return OPRT_COM_ERROR;
     }
 
-    /* Enable accel and gyro */
+    /* Enable accel and gyro.
+     * bmi270_sensor_enable() is used here because BMI220 shares the same BMI2
+     * register map and sensor enable logic as BMI270 — they are in the same
+     * Bosch BMI2 family.  The function writes to the generic BMI2_POWER_CTRL
+     * register, which is identical across BMI220/BMI260/BMI270. */
     rslt = bmi270_sensor_enable(sensor_list_220, 2, &bmi2_dev_220);
     if (rslt != BMI2_OK) {
         PR_ERR("BMI220: sensor enable failed: %d", rslt);
+        tkl_i2c_deinit(BMI220_I2C_PORT);
         return OPRT_COM_ERROR;
     }
 
     dev->initialized = true;
+    dev->chip_id = BMI220_CHIP_ID;
     PR_NOTICE("BMI220: Initialized successfully (Chip ID: 0x%02X, ACC:16G@200Hz, GYR:2000dps@200Hz)",
               BMI220_CHIP_ID);
     return OPRT_OK;
@@ -246,27 +261,6 @@ OPERATE_RET board_bmi220_read_accel(bmi220_dev_t *dev, float *acc_x, float *acc_
     return OPRT_OK;
 }
 
-OPERATE_RET board_bmi220_read_gyro(bmi220_dev_t *dev, float *gyr_x, float *gyr_y, float *gyr_z)
-{
-    int8_t rslt;
-    struct bmi2_sens_data sensor_data = {{0}};
-
-    if (!dev || !gyr_x || !gyr_y || !gyr_z || !dev->initialized) {
-        return OPRT_INVALID_PARM;
-    }
-
-    rslt = bmi2_get_sensor_data(&sensor_data, &bmi2_dev_220);
-    if (rslt != BMI2_OK) {
-        return OPRT_COM_ERROR;
-    }
-
-    *gyr_x = lsb_to_dps(sensor_data.gyr.x, 2000, bmi2_dev_220.resolution);
-    *gyr_y = lsb_to_dps(sensor_data.gyr.y, 2000, bmi2_dev_220.resolution);
-    *gyr_z = lsb_to_dps(sensor_data.gyr.z, 2000, bmi2_dev_220.resolution);
-
-    return OPRT_OK;
-}
-
 bmi220_dev_t *board_bmi220_get_handle(void)
 {
     return &g_bmi220_dev;
@@ -278,34 +272,4 @@ bool board_bmi220_is_ready(bmi220_dev_t *dev)
         return false;
     }
     return dev->initialized;
-}
-
-OPERATE_RET board_bmi220_scan_i2c(TUYA_I2C_NUM_E port)
-{
-    OPERATE_RET ret;
-    uint8_t reg = 0x00;
-    uint8_t chip_id = 0;
-
-    PR_DEBUG("BMI220: Scanning I2C bus %d...", port);
-
-    ret = tkl_i2c_master_send(port, BMI220_I2C_ADDR, &reg, 1, FALSE);
-    if (ret == OPRT_OK) {
-        ret = tkl_i2c_master_receive(port, BMI220_I2C_ADDR, &chip_id, 1, TRUE);
-        if (ret == OPRT_OK) {
-            PR_DEBUG("BMI220: Found at 0x%02X, chip_id=0x%02X", BMI220_I2C_ADDR, chip_id);
-            return OPRT_OK;
-        }
-    }
-
-    ret = tkl_i2c_master_send(port, BMI220_I2C_ADDR_ALT, &reg, 1, FALSE);
-    if (ret == OPRT_OK) {
-        ret = tkl_i2c_master_receive(port, BMI220_I2C_ADDR_ALT, &chip_id, 1, TRUE);
-        if (ret == OPRT_OK) {
-            PR_DEBUG("BMI220: Found at 0x%02X, chip_id=0x%02X", BMI220_I2C_ADDR_ALT, chip_id);
-            return OPRT_OK;
-        }
-    }
-
-    PR_ERR("BMI220: Not found on I2C bus %d", port);
-    return OPRT_COM_ERROR;
 }

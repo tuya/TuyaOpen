@@ -2,8 +2,7 @@
  * @file board_bmi220_api.h
  * @author Tuya Inc.
  * @brief BMI220 (chip ID 0x26) sensor driver API for TUYA_T5AI_PIXEL board.
- *        Uses Bosch BMI2 library with patched chip ID acceptance.
- *        Compatible with BMI270 config file for initialization.
+ *        Uses Bosch BMI2 library with BMI220-specific config firmware.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -61,10 +60,8 @@ OPERATE_RET board_bmi220_register(void);
 OPERATE_RET board_bmi220_deinit(bmi220_dev_t *dev);
 OPERATE_RET board_bmi220_read_data(bmi220_dev_t *dev, bmi220_sensor_data_t *data);
 OPERATE_RET board_bmi220_read_accel(bmi220_dev_t *dev, float *acc_x, float *acc_y, float *acc_z);
-OPERATE_RET board_bmi220_read_gyro(bmi220_dev_t *dev, float *gyr_x, float *gyr_y, float *gyr_z);
 bmi220_dev_t *board_bmi220_get_handle(void);
 bool board_bmi220_is_ready(bmi220_dev_t *dev);
-OPERATE_RET board_bmi220_scan_i2c(TUYA_I2C_NUM_E port);
 
 #ifdef __cplusplus
 }
