@@ -4,6 +4,8 @@ __pycache__
 .env.json
 .cache
 .clangd
+.cursor
+.target_logging
 
 CMakeCache.txt
 /CMakeFiles

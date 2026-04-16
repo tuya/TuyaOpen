@@ -793,7 +793,7 @@ int tal_cli_init_with_uart(uint8_t uart_num)
     THREAD_CFG_T param;
 
     param.priority = THREAD_PRIO_3;
-    param.stackDepth = 3072;
+    param.stackDepth = 1024 * 2;
     param.thrdname = "cli";
 
     result = tal_thread_create_and_start(&s_cli_handle->thread, NULL, NULL, cli_task, s_cli_handle, &param);
@@ -822,5 +822,9 @@ __exit:
  */
 int tal_cli_init(void)
 {
-    return tal_cli_init_with_uart(TUYA_UART_NUM_0);
+    OPERATE_RET rt = OPRT_OK;
+    TUYA_CALL_ERR_RETURN(tal_cli_init_with_uart(TUYA_UART_NUM_0));
+    extern void tuya_app_cli_init(void);
+    tuya_app_cli_init();
+    return rt;
 }
