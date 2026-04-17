@@ -40,3 +40,8 @@ choice T5AI_OTTO_EX_MODULE
         select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
 	    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 endchoice
+
+config T5AI_OTTO_GC9D01_BL_ACTIVE_LOW
+    bool "GC9D01 backlight active low"
+    depends on T5AI_OTTO_EX_MODULE_GC9D01
+    default n

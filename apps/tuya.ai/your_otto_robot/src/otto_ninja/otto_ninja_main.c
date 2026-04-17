@@ -24,6 +24,7 @@
 
 
 #include "tkl_pwm.h"
+#include "tal_sw_timer.h"
 
 // Include servo control header files
 #include "otto_ninja_app_servo.h"
@@ -46,10 +47,22 @@
  ***********************variable define**********************
  ***********************************************************/
  static THREAD_HANDLE sg_otto_ninja_handle;
+ static TIMER_ID sg_direction_timer = NULL;
  
  /***********************************************************
  ***********************function define**********************
  ***********************************************************/
+static void __direction_timer_cb(TIMER_ID timer_id, void *arg)
+{
+    (void)timer_id;
+    (void)arg;
+
+    PR_DEBUG("Direction timer callback triggered after 3 seconds");
+    sg_direction_timer = NULL;
+    set_joystick_y(0);
+    set_joystick_x(0);
+}
+
 // These values are assumed to be obtained from remote control or sensors
 /**
  * @brief Set joystick X-axis value
@@ -118,6 +131,7 @@ int get_mode_counter(void){
 #define DPID_JOYSTICK_X 103 //joystick_x
 #define DPID_JOYSTICK_Y 104 //joystick_y
 #define DPID_DIRECTION 105 //direction
+#define DPID_ROTATE_SPOT 106 //rotate_spot
 OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
 {
     uint32_t index = 0;
@@ -141,6 +155,17 @@ OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
                 PR_DEBUG("robot_set_walk");
             }
             
+            break;
+        }
+
+        case DPID_ROTATE_SPOT: {
+            if (dp->value.dp_bool) {
+                robot_rotate_spot(true);
+            } else {
+                robot_rotate_spot_stop();
+                set_joystick_y(0);
+                set_joystick_x(0);
+            }
             break;
         }
 
@@ -172,11 +197,11 @@ OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
                 set_joystick_x(0);
             }
             else if(direction == 2){
-                set_joystick_y(0);
+                set_joystick_y(100);
                 set_joystick_x(100);
             }
             else if(direction == 3){
-                set_joystick_y(0);
+                set_joystick_y(100);
                 set_joystick_x(-100);
             }
             else if(direction == 4){
@@ -185,6 +210,26 @@ OPERATE_RET otto_ninja_dp_obj_proc(dp_obj_recv_t *dpobj)
             }
 
             PR_DEBUG("direction:%d", direction);
+
+            if (sg_direction_timer != NULL) {
+                tal_sw_timer_stop(sg_direction_timer);
+                tal_sw_timer_delete(sg_direction_timer);
+                sg_direction_timer = NULL;
+            }
+
+            OPERATE_RET ret = tal_sw_timer_create(__direction_timer_cb, NULL, &sg_direction_timer);
+            if (ret == OPRT_OK && sg_direction_timer != NULL) {
+                ret = tal_sw_timer_start(sg_direction_timer, 3000, TAL_TIMER_ONCE);
+                if (ret == OPRT_OK) {
+                    PR_DEBUG("Direction timer started for 3 seconds");
+                } else {
+                    PR_ERR("Failed to start direction timer: %d", ret);
+                    tal_sw_timer_delete(sg_direction_timer);
+                    sg_direction_timer = NULL;
+                }
+            } else {
+                PR_ERR("Failed to create direction timer: %d", ret);
+            }
             break;
         }
 

@@ -169,10 +169,10 @@ void platform_tuya_init(void)
 #define SERVO_MAX_PULSE        2500
 
 // ==================== Calibration Parameters ====================
-#define LFFWRS     20      // Left foot forward rotation speed
-#define RFFWRS     20      // Right foot forward rotation speed
-#define LFBWRS     20      // Left foot backward rotation speed
-#define RFBWRS     20      // Right foot backward rotation speed
+#define LFFWRS     20      // Left foot forward rotation speed (demo_ai_otto calibrated)
+#define RFFWRS     12      // Right foot forward rotation speed (demo_ai_otto calibrated)
+#define LFBWRS     5       // Left foot backward rotation speed (demo_ai_otto calibrated)
+#define RFBWRS     5       // Right foot backward rotation speed (demo_ai_otto calibrated)
 
 #define LA0        60      // Left leg standing position
 #define RA0        120     // Right leg standing position
@@ -199,6 +199,14 @@ static servo_t servos[MAX_SERVO_COUNT];
 
 // Time control variable
 static uint32_t currentmillis1 = 0;
+
+// Rotate spot state variables
+static bool sg_rotate_spot_active = false;
+/** When true, robot_rotate_spot_update() runs the continuous foot motion (false during init delays). */
+static bool sg_rotate_spot_update_ready = false;
+static uint16_t sg_right_foot_angle = 90;
+static uint32_t sg_last_foot_update = 0;
+static uint32_t sg_angle_accumulator = 0;
 
 // ==================== Utility Functions ====================
 
@@ -322,6 +330,59 @@ void servo_detach(uint8_t pin)
     servos[idx].attached = false;
 }
 
+void servo_write_smooth(uint8_t pin, uint16_t target_angle, uint16_t step_delay_ms, uint16_t step_size)
+{
+    int idx = get_servo_index(pin);
+
+    if (idx < 0) {
+        servo_attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+        idx = get_servo_index(pin);
+        if (idx < 0) {
+            return;
+        }
+    }
+
+    if (!servos[idx].attached) {
+        servo_attach(pin, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    }
+
+    if (target_angle > 180) {
+        target_angle = 180;
+    }
+
+    uint16_t current_angle = servos[idx].current_angle;
+    if (current_angle == target_angle) {
+        return;
+    }
+
+    int16_t direction = (target_angle > current_angle) ? 1 : -1;
+    int16_t angle_diff = (target_angle > current_angle) ? (target_angle - current_angle) : (current_angle - target_angle);
+    uint16_t steps = (angle_diff + step_size - 1) / step_size;
+    if (steps == 0) {
+        steps = 1;
+    }
+
+    for (uint16_t i = 0; i < steps; i++) {
+        uint16_t step_angle = current_angle + (direction * step_size * (i + 1));
+
+        if (direction > 0 && step_angle > target_angle) {
+            step_angle = target_angle;
+        }
+        if (direction < 0 && step_angle < target_angle) {
+            step_angle = target_angle;
+        }
+
+        servo_write(pin, step_angle);
+        if (i < steps - 1) {
+            delay_ms(step_delay_ms);
+        }
+    }
+
+    if (servos[idx].current_angle != target_angle) {
+        servo_write(pin, target_angle);
+    }
+}
+
 
 // ==================== Initialization Functions ====================
 
@@ -411,32 +472,23 @@ void servo_detach(uint8_t pin)
  {
     PR_NOTICE("robot_set_walk");
 #if ARM_HEAD_ENABLE == 1
-     // Arms to middle position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 90);
-     servo_write(SERVO_RIGHT_ARM_PIN, 90);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 90, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 90, 15, 2);
      delay_ms(200);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
 #endif
-     // Ankles to standing position
      servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_LEG_PIN, LA0);
-     servo_write(SERVO_RIGHT_LEG_PIN, RA0);
+     servo_write_smooth(SERVO_LEFT_LEG_PIN, LA0, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_LEG_PIN, RA0, 15, 2);
      delay_ms(100);
-     //servo_detach(SERVO_LEFT_LEG_PIN);
-     //servo_detach(SERVO_RIGHT_LEG_PIN);
      
 #if ARM_HEAD_ENABLE == 1
-     // Arms to final position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 180);
-     servo_write(SERVO_RIGHT_ARM_PIN, 0);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 180, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 0, 15, 2);
 #endif
  }
  
@@ -447,33 +499,24 @@ void servo_detach(uint8_t pin)
  {
     PR_NOTICE("robot_set_roll");
 #if ARM_HEAD_ENABLE == 1
-     // Arms to middle position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 90);
-     servo_write(SERVO_RIGHT_ARM_PIN, 90);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 90, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 90, 15, 2);
      delay_ms(200);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
 #endif
      
-     // Ankles to roll position
      servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_LEG_PIN, LA1);
-     servo_write(SERVO_RIGHT_LEG_PIN, RA1);
+     servo_write_smooth(SERVO_LEFT_LEG_PIN, LA1, 20, 3);
+     servo_write_smooth(SERVO_RIGHT_LEG_PIN, RA1, 20, 3);
      delay_ms(100);
-   //  servo_detach(SERVO_LEFT_LEG_PIN);
-   //  servo_detach(SERVO_RIGHT_LEG_PIN);
      
 #if ARM_HEAD_ENABLE == 1
-     // Arms to final position
      servo_attach(SERVO_LEFT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
      servo_attach(SERVO_RIGHT_ARM_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
-     servo_write(SERVO_LEFT_ARM_PIN, 180);
-     servo_write(SERVO_RIGHT_ARM_PIN, 0);
-     servo_detach(SERVO_LEFT_ARM_PIN);
-     servo_detach(SERVO_RIGHT_ARM_PIN);
+     servo_write_smooth(SERVO_LEFT_ARM_PIN, 180, 15, 2);
+     servo_write_smooth(SERVO_RIGHT_ARM_PIN, 0, 15, 2);
 #endif
  }
  
@@ -508,9 +551,9 @@ void servo_detach(uint8_t pin)
  {
      if (joystick_y <= 0) return;  // Only process forward
      
-     // Calculate left/right turn time
-     int lt = map_value(joystick_x, 100, -100, 200, 700);
-     int rt = map_value(joystick_x, 100, -100, 700, 200);
+     // Calibrated timing from demo_ai_otto.
+     int lt = map_value(joystick_x, 100, -100, 300, 500);
+     int rt = map_value(joystick_x, 100, -100, 400, 600);
     // PR_NOTICE("robot_walk_forward: lt=%d, rt=%d", lt, rt);
      // Calculate time intervals
      int interval1 = 250;
@@ -582,9 +625,9 @@ void servo_detach(uint8_t pin)
  {
      if (joystick_y >= 0) return;  // Only process backward
      
-     // Calculate left/right turn time
-     int lt = map_value(joystick_x, 100, -100, 200, 700);
-     int rt = map_value(joystick_x, 100, -100, 700, 200);
+     // Calibrated timing from demo_ai_otto.
+     int lt = map_value(joystick_x, 100, -100, 150, 650);
+     int rt = map_value(joystick_x, 100, -100, 750, 250);
      
      // Calculate time intervals
      int interval1 = 250;
@@ -680,6 +723,131 @@ void servo_detach(uint8_t pin)
      servo_write(SERVO_RIGHT_FOOT_PIN, right_wheel_speed + right_wheel_delta);
      //PR_NOTICE("robot_roll_control: right_wheel_speed+right_wheel_delta=%d", right_wheel_speed+right_wheel_delta);
  }
+
+void robot_rotate_spot(bool direction)
+{
+    PR_NOTICE("robot_rotate_spot: direction=%s, starting rotation", direction ? "right" : "left");
+
+    /*
+     * Set active before init delays so main_loop does not call robot_walk_stop() / roll control
+     * in parallel (DP may run on another thread). update_ready stays false until init completes.
+     */
+    sg_rotate_spot_active = true;
+    sg_rotate_spot_update_ready = false;
+
+    if (get_mode_counter() != 0) {
+        PR_NOTICE("robot_rotate_spot: Not in walk mode, switching to walk mode");
+        robot_set_walk();
+        delay_ms(500);
+    }
+
+    servo_attach(SERVO_LEFT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_RIGHT_LEG_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_RIGHT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+    servo_attach(SERVO_LEFT_FOOT_PIN, SERVO_MIN_PULSE, SERVO_MAX_PULSE);
+
+    servo_write(SERVO_LEFT_LEG_PIN, LATR);
+    servo_write(SERVO_RIGHT_LEG_PIN, RATR);
+    delay_ms(250);
+
+    uint16_t start_angle = 90 - RFFWRS;
+    servo_write(SERVO_RIGHT_FOOT_PIN, start_angle);
+    delay_ms(500);
+
+    sg_right_foot_angle = start_angle;
+    sg_last_foot_update = get_millis();
+
+    if (sg_right_foot_angle < 60) {
+        sg_right_foot_angle = 60;
+    }
+    if (sg_right_foot_angle > 180) {
+        sg_right_foot_angle = 180;
+    }
+    if (sg_right_foot_angle <= 120) {
+        sg_angle_accumulator = (sg_right_foot_angle - 60) * 9000 / 60;
+    } else {
+        sg_angle_accumulator = 9000 + (sg_right_foot_angle - 120) * 9000 / 60;
+    }
+
+    sg_rotate_spot_update_ready = true;
+}
+
+void robot_rotate_spot_stop(void)
+{
+    PR_NOTICE("robot_rotate_spot_stop: Stopping rotation");
+    sg_rotate_spot_active = false;
+    sg_rotate_spot_update_ready = false;
+
+    servo_write(SERVO_LEFT_LEG_PIN, LA0);
+    servo_write(SERVO_RIGHT_LEG_PIN, RA0);
+    servo_write(SERVO_RIGHT_FOOT_PIN, 90);
+
+    servo_detach(SERVO_LEFT_LEG_PIN);
+    servo_detach(SERVO_RIGHT_LEG_PIN);
+    servo_detach(SERVO_RIGHT_FOOT_PIN);
+    servo_detach(SERVO_LEFT_FOOT_PIN);
+}
+
+void robot_rotate_spot_update(void)
+{
+    if (!sg_rotate_spot_active) {
+        return;
+    }
+    if (!sg_rotate_spot_update_ready) {
+        return;
+    }
+
+    uint32_t current_time = get_millis();
+    uint32_t elapsed = current_time - sg_last_foot_update;
+
+    if (elapsed >= 3) {
+        sg_last_foot_update = current_time;
+
+        uint32_t increment = (elapsed * 15) / 3;
+        if (increment < 1) {
+            increment = 1;
+        }
+        if (increment > 50) {
+            increment = 50;
+        }
+
+        sg_angle_accumulator += increment;
+        if (sg_angle_accumulator >= 36000) {
+            sg_angle_accumulator %= 36000;
+        }
+
+        uint32_t phase = sg_angle_accumulator % 36000;
+        uint32_t quarter = phase / 9000;
+        uint32_t pos_in_quarter = phase % 9000;
+
+        switch (quarter) {
+        case 0:
+            sg_right_foot_angle = 60 + (pos_in_quarter * 60) / 9000;
+            break;
+        case 1:
+            sg_right_foot_angle = 120 + (pos_in_quarter * 60) / 9000;
+            break;
+        case 2:
+            sg_right_foot_angle = 180 - (pos_in_quarter * 60) / 9000;
+            break;
+        case 3:
+            sg_right_foot_angle = 120 - (pos_in_quarter * 60) / 9000;
+            break;
+        default:
+            sg_right_foot_angle = 90;
+            break;
+        }
+
+        if (sg_right_foot_angle < 60) {
+            sg_right_foot_angle = 60;
+        }
+        if (sg_right_foot_angle > 180) {
+            sg_right_foot_angle = 180;
+        }
+
+        servo_write(SERVO_RIGHT_FOOT_PIN, sg_right_foot_angle);
+    }
+}
  
  /**
   * Left arm up
@@ -745,6 +913,14 @@ void main_loop(void)
             PR_NOTICE("robot_set_roll");
         }
     }
+
+    robot_rotate_spot_update();
+
+    /* While spot rotation is armed or running, do not run walk/roll (may run on another thread). */
+    if (sg_rotate_spot_active) {
+        return;
+    }
+
     // Execute different motion control based on mode
     if (get_mode_counter() == 0) {
         // Walk mode
@@ -791,5 +967,4 @@ void main_init(void)
     
     // Other initialization code...
 }
-
 
