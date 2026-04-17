@@ -620,12 +620,16 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
         cli_echof_("ERR: malloc failed");
         return OPRT_MALLOC_FAILED;
     }
+    char *tree_prefix = NULL;
+    tree_prefix = tal_malloc(CLI_VALUE_SIZE);
+    if (tree_prefix == NULL) {
+        cli_echof_("ERR: malloc failed");
+        return OPRT_MALLOC_FAILED;
+    }
     while (1) {
         TUYA_FILEINFO info                      = NULL;
         const char   *name                      = NULL;
         BOOL_T        is_dir                    = FALSE;
-        
-        char          tree_prefix[64]           = {0};
         bool          recurse                   = false;
 
         rt = tal_dir_read(dir, &info);
@@ -668,8 +672,14 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
     }
 
     (void)tal_dir_close(dir);
-    tal_free(path_ptr);
-    path_ptr = NULL;
+    if (path_ptr) {
+        tal_free(path_ptr);
+        path_ptr = NULL;
+    }
+    if (tree_prefix) {
+        tal_free(tree_prefix);
+        tree_prefix = NULL;
+    }
     return rt;
 }
 
