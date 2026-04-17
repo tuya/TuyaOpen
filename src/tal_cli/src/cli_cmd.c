@@ -173,6 +173,55 @@ static bool cli_join_args_(int argc, char *argv[], int start, char *out, size_t 
 }
 
 /**
+ * @brief Check whether a string contains only digit characters.
+ * @param[in] str input string
+ * @return true if all characters are '0'-'9', false otherwise
+ */
+static bool cli_is_numeric_(const char *str)
+{
+    if (str == NULL || str[0] == '\0') {
+        return false;
+    }
+
+    for (const char *p = str; *p != '\0'; p++) {
+        if (*p < '0' || *p > '9') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * @brief Escape a string for safe JSON embedding.
+ *        Escapes backslash and double-quote characters.
+ * @param[in]  src      input string
+ * @param[out] out      output buffer
+ * @param[in]  out_size output buffer size
+ * @return none
+ */
+static void cli_json_escape_(const char *src, char *out, size_t out_size)
+{
+    size_t pos = 0;
+
+    if (src == NULL || out == NULL || out_size == 0) {
+        return;
+    }
+
+    for (const char *p = src; *p != '\0' && pos + 1 < out_size; p++) {
+        if (*p == '"' || *p == '\\') {
+            if (pos + 2 >= out_size) {
+                break;
+            }
+            out[pos++] = '\\';
+        }
+        out[pos++] = *p;
+    }
+
+    out[pos] = '\0';
+}
+
+/**
  * @brief Convert a boolean state to CLI text.
  * @param[in] value boolean input
  * @return textual representation
@@ -598,8 +647,8 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
         }
 
         (void)tal_dir_is_directory(info, &is_dir);
-        cli_fs_join_path_(path, name, path_ptr, sizeof(path_ptr));
-        cli_fs_build_tree_prefix_(depth, tree_prefix, sizeof(tree_prefix));
+        cli_fs_join_path_(path, name, path_ptr, CLI_VALUE_SIZE);
+        cli_fs_build_tree_prefix_(depth, tree_prefix, CLI_VALUE_SIZE);
 
         if (is_dir == TRUE) {
             cli_echof_("%s%s/", tree_prefix, name);
@@ -1024,6 +1073,11 @@ static void cmd_sys_iot_report_dp(int argc, char *argv[])
         return;
     }
 
+    if (cli_is_numeric_(argv[1]) == false) {
+        cli_echof_("ERR: dp_id must be numeric, got '%s'", argv[1]);
+        return;
+    }
+
     payload_ptr = tal_malloc(CLI_LINE_SIZE);
     if (payload_ptr == NULL) {
         cli_echof_("ERR: malloc failed");
@@ -1041,11 +1095,19 @@ static void cmd_sys_iot_report_dp(int argc, char *argv[])
             return;
         }
     } else if (strcmp(argv[2], "int") == 0) {
-        long val = strtol(argv[3], NULL, 10);
+        char *endptr = NULL;
+        long val = strtol(argv[3], &endptr, 10);
 
+        if (endptr == argv[3] || (endptr != NULL && *endptr != '\0')) {
+            cli_echof_("ERR: invalid integer '%s'", argv[3]);
+            tal_free(payload_ptr);
+            return;
+        }
         snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": %ld}", argv[1], val);
     } else if (strcmp(argv[2], "str") == 0) {
         char *joined_ptr = NULL;
+        char *escaped_ptr = NULL;
+
         joined_ptr = tal_malloc(CLI_VALUE_SIZE);
         if (joined_ptr == NULL) {
             cli_echof_("ERR: malloc failed");
@@ -1053,9 +1115,20 @@ static void cmd_sys_iot_report_dp(int argc, char *argv[])
             return;
         }
 
+        escaped_ptr = tal_malloc(CLI_VALUE_SIZE);
+        if (escaped_ptr == NULL) {
+            cli_echof_("ERR: malloc failed");
+            tal_free(joined_ptr);
+            tal_free(payload_ptr);
+            return;
+        }
+
         (void)cli_join_args_(argc, argv, 3, joined_ptr, CLI_VALUE_SIZE);
-        snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": \"%s\"}", argv[1], joined_ptr);
+        cli_json_escape_(joined_ptr, escaped_ptr, CLI_VALUE_SIZE);
+        snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": \"%s\"}", argv[1], escaped_ptr);
+        tal_free(escaped_ptr);
         tal_free(joined_ptr);
+        escaped_ptr = NULL;
         joined_ptr = NULL;
     } else {
         cli_echof_("ERR: unknown type '%s', use bool/int/str", argv[2]);
@@ -1235,7 +1308,16 @@ static void cmd_fs_cat(int argc, char *argv[])
     }
 
     path      = argv[1];
-    max_bytes = (argc >= 3) ? strtol(argv[2], NULL, 10) : CLI_DEFAULT_TEXT_LIMIT;
+    if (argc >= 3) {
+        char *endptr = NULL;
+        max_bytes = strtol(argv[2], &endptr, 10);
+        if (endptr == argv[2] || (endptr != NULL && *endptr != '\0')) {
+            cli_echof_("ERR: invalid max '%s'", argv[2]);
+            return;
+        }
+    } else {
+        max_bytes = CLI_DEFAULT_TEXT_LIMIT;
+    }
     if (max_bytes <= 0) {
         tal_cli_echo("ERR: max_bytes must be > 0");
         return;
@@ -1300,7 +1382,16 @@ static void cmd_fs_hexdump(int argc, char *argv[])
     }
 
     path      = argv[1];
-    max_bytes = (argc >= 3) ? strtol(argv[2], NULL, 10) : CLI_DEFAULT_HEX_LIMIT;
+    if (argc >= 3) {
+        char *endptr = NULL;
+        max_bytes = strtol(argv[2], &endptr, 10);
+        if (endptr == argv[2] || (endptr != NULL && *endptr != '\0')) {
+            cli_echof_("ERR: invalid max '%s'", argv[2]);
+            return;
+        }
+    } else {
+        max_bytes = CLI_DEFAULT_HEX_LIMIT;
+    }
     if (max_bytes <= 0) {
         tal_cli_echo("ERR: max_bytes must be > 0");
         return;
@@ -1468,12 +1559,36 @@ static void cmd_kv_get(int argc, char *argv[])
 
     cli_echof_("key: %s", argv[1]);
     cli_echof_("len: %u", (unsigned)length);
+    char *masked_ptr = NULL;
     if (cli_kv_value_is_text_(value, length)) {
-        cli_echof_("value: %s", (char *)value);
-    } else {
-        cli_print_kv_binary_preview_(value, length);
-    }
+        masked_ptr = tal_malloc(CLI_VALUE_SIZE);
+        if (masked_ptr == NULL) {
+            cli_echof_("ERR: malloc failed");
+            tal_kv_free(value);
+            return;
+        }
 
+        cli_mask_kv_text_(value, length, masked_ptr, CLI_VALUE_SIZE);
+        cli_echof_("value: %s", masked_ptr);
+        tal_free(masked_ptr);
+        masked_ptr = NULL;
+    } else {
+        masked_ptr = tal_malloc(CLI_VALUE_SIZE);
+        if (masked_ptr == NULL) {
+            cli_echof_("ERR: malloc failed");
+            tal_kv_free(value);
+            return;
+        }
+
+        cli_mask_kv_binary_(value, length, masked_ptr, CLI_VALUE_SIZE);
+        cli_echof_("value(hex): %s", masked_ptr);
+        tal_free(masked_ptr);
+        masked_ptr = NULL;
+    }
+    if (masked_ptr != NULL) {
+        tal_free(masked_ptr);
+        masked_ptr = NULL;
+    }
     tal_kv_free(value);
 }
 

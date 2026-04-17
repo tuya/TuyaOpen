@@ -855,7 +855,9 @@ int tal_cli_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_CALL_ERR_RETURN(tal_cli_init_with_uart(TUYA_UART_NUM_0));
+#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
     extern void tuya_app_cli_init(void);
     tuya_app_cli_init();
+#endif
     return rt;
 }
