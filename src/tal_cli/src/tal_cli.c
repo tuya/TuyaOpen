@@ -95,18 +95,29 @@ typedef struct {
 
 /*============================ PROTOTYPES ====================================*/
 static void cli_hello(int argc, char *argv[]);
+static void cli_help(int argc, char *argv[]);
 static void cli_print_prompt(cli_t *cli);
+static void cli_print_cmd_title(cli_t *cli);
+static void cli_print_all_cmd(cli_t *cli);
 
 /*============================ LOCAL VARIABLES ===============================*/
 static cli_t *s_cli_handle = NULL;
 static SLIST_HEAD s_cli_dynamic_table;
 static cli_cmd_table_t s_cli_static_table[CLI_CMD_TABLE_NUM];
 
-static const cli_cmd_t s_cli_cmd[] = {{
-    .name = "hello",
-    .help = "print helo world",
-    .func = cli_hello,
-}};
+static const cli_cmd_t s_cli_cmd[] = {
+    {
+        .name = "help",
+        .help = "show all cli commands",
+        .func = cli_help,
+    },
+    {
+        .name = "hello",
+        .help = "print helo world",
+        .func = cli_hello,
+    },
+
+};
 
 static const char s_cli_logo[] =
     "\r\n****************************************\r\n"
@@ -135,7 +146,27 @@ static void cli_print_string(cli_t *cli, char *string)
 
 static void cli_hello(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
     cli_print_string(s_cli_handle, "helo world");
+}
+
+static void cli_help(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    if (s_cli_handle == NULL) {
+        tal_cli_echo("CLI not initialized");
+        return;
+    }
+
+    cli_print_cmd_title(s_cli_handle);
+    cli_print_all_cmd(s_cli_handle);
+
+#if !defined(CLI_CMD_SYS) || !defined(CLI_CMD_FS) || !defined(CLI_CMD_KV)
+    tal_cli_echo("if you want to see more commands(sys_*, fs_*, kv_*), please turn on ENABLE_SERIAL_CLI_CMD in Kconfig");
+#endif
 }
 
 static cli_cmd_t *cli_cmd_find_with_name(char *name)
@@ -788,12 +819,12 @@ int tal_cli_init_with_uart(uint8_t uart_num)
         PR_ERR("uart init failed", result);
         goto __exit;
     }
-    tal_cli_cmd_register((cli_cmd_t *)&s_cli_cmd, 1);
+    tal_cli_cmd_register((cli_cmd_t *)&s_cli_cmd, sizeof(s_cli_cmd) / sizeof(s_cli_cmd[0]));
 
     THREAD_CFG_T param;
 
     param.priority = THREAD_PRIO_3;
-    param.stackDepth = 1024 * 2;
+    param.stackDepth = SERIAL_CLI_STACK_SIZE;
     param.thrdname = "cli";
 
     result = tal_thread_create_and_start(&s_cli_handle->thread, NULL, NULL, cli_task, s_cli_handle, &param);

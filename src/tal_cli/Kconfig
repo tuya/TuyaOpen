@@ -1,0 +1,33 @@
+# Kconfig - CLI command group configuration
+menuconfig ENABLE_SERIAL_CLI_CMD
+    bool "Enable serial CLI commands"
+    default n
+    help
+      Enable the serial CLI commands.
+
+    config SERIAL_CLI_STACK_SIZE
+      int "Serial CLI stack size"
+      default 3072
+      help
+        Set the stack size for the serial CLI thread
+
+    if (ENABLE_SERIAL_CLI_CMD)
+
+        config CLI_CMD_SYS
+            bool "Enable system commands (sys_*)"
+            default y
+            help
+              Enable the sys_* command group
+
+        config CLI_CMD_FS
+            bool "Enable filesystem commands (fs_*)"
+            default y
+            help
+              Enable the fs_* command group
+
+        config CLI_CMD_KV
+            bool "Enable KV storage commands (kv_*)"
+            default y
+            help
+              Enable the kv_* command group
+    endif # ENABLE_SERIAL_CLI_CMD

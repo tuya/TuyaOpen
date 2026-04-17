@@ -32,7 +32,7 @@ extern void tal_thread_dump_watermark(void);
  * --------------------------------------------------------------------------- */
 #define CLI_LINE_SIZE             256
 #define CLI_VALUE_SIZE            512
-#define CLI_DEFAULT_TEXT_LIMIT    4096
+#define CLI_DEFAULT_TEXT_LIMIT    512
 #define CLI_DEFAULT_HEX_LIMIT     512
 #define CLI_FS_LS_MAX_DEPTH       3
 #define CLI_FS_DEFAULT_PATH       "/"
@@ -41,27 +41,31 @@ extern void tal_thread_dump_watermark(void);
 /* ---------------------------------------------------------------------------
  * Forward declarations
  * --------------------------------------------------------------------------- */
-static void cmd_help(int argc, char *argv[]);
+#if defined(CLI_CMD_SYS)
 static void cmd_sys_status(int argc, char *argv[]);
 static void cmd_sys_heap(int argc, char *argv[]);
 static void cmd_sys_thread(int argc, char *argv[]);
 static void cmd_sys_version(int argc, char *argv[]);
 static void cmd_sys_tick(int argc, char *argv[]);
-static void cmd_sys_log_level(int argc, char *argv[]);
+static void cmd_sys_set_log_level(int argc, char *argv[]);
 static void cmd_sys_reboot(int argc, char *argv[]);
 static void cmd_sys_iot_stop(int argc, char *argv[]);
 static void cmd_sys_iot_restart(int argc, char *argv[]);
 static void cmd_sys_iot_reset(int argc, char *argv[]);
+static void cmd_sys_iot_get_devid(int argc, char *argv[]);
 static void cmd_sys_netmgr(int argc, char *argv[]);
+#if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
 static void cmd_sys_exec(int argc, char *argv[]);
-static void cmd_sys_switch(int argc, char *argv[]);
-static void cmd_sys_uptime(int argc, char *argv[]);
-static void cmd_sys_random(int argc, char *argv[]);
+#endif
+static void cmd_sys_iot_report_dp(int argc, char *argv[]);
 static void cmd_sys_timer_count(int argc, char *argv[]);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 static void cmd_sys_wifi_info(int argc, char *argv[]);
 static void cmd_sys_wifi_scan(int argc, char *argv[]);
 #endif
+#endif /* CLI_CMD_SYS */
+
+#if defined(CLI_CMD_FS)
 static void cmd_fs_ls(int argc, char *argv[]);
 static void cmd_fs_stat(int argc, char *argv[]);
 static void cmd_fs_cat(int argc, char *argv[]);
@@ -71,13 +75,21 @@ static void cmd_fs_append(int argc, char *argv[]);
 static void cmd_fs_rm(int argc, char *argv[]);
 static void cmd_fs_mkdir(int argc, char *argv[]);
 static void cmd_fs_mv(int argc, char *argv[]);
+#endif /* CLI_CMD_FS */
+
+#if defined(CLI_CMD_KV)
 static void cmd_kv_get(int argc, char *argv[]);
 static void cmd_kv_set(int argc, char *argv[]);
 static void cmd_kv_del(int argc, char *argv[]);
 static void cmd_kv_list(int argc, char *argv[]);
+#endif /* CLI_CMD_KV */
+
+#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
 static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int max_depth, uint32_t *count);
 static void cli_fs_build_tree_prefix_(int depth, char *out, size_t out_size);
+#endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
 
+#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
 /* ---------------------------------------------------------------------------
  * Internal helpers
  * --------------------------------------------------------------------------- */
@@ -97,6 +109,30 @@ static void cli_echof_(const char *fmt, ...)
     va_end(args);
 
     tal_cli_echo(line);
+}
+
+/**
+ * @brief Print command usage and up to three examples.
+ * @param[in] usage usage string
+ * @param[in] example1 first example, optional
+ * @param[in] example2 second example, optional
+ * @param[in] example3 third example, optional
+ * @return none
+ */
+static void cli_print_usage_(const char *usage, const char *example1, const char *example2, const char *example3)
+{
+    if (usage != NULL) {
+        cli_echof_("Usage: %s", usage);
+    }
+    if (example1 != NULL) {
+        cli_echof_("  e.g. %s", example1);
+    }
+    if (example2 != NULL) {
+        cli_echof_("  e.g. %s", example2);
+    }
+    if (example3 != NULL) {
+        cli_echof_("  e.g. %s", example3);
+    }
 }
 
 /**
@@ -529,12 +565,17 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
     if (rt != OPRT_OK || dir == NULL) {
         return (rt == OPRT_OK) ? OPRT_DIR_OPEN_FAILED : rt;
     }
-
+    char *path_ptr = NULL;
+    path_ptr = tal_malloc(CLI_VALUE_SIZE);
+    if (path_ptr == NULL) {
+        cli_echof_("ERR: malloc failed");
+        return OPRT_MALLOC_FAILED;
+    }
     while (1) {
         TUYA_FILEINFO info                      = NULL;
         const char   *name                      = NULL;
         BOOL_T        is_dir                    = FALSE;
-        char          full_path[CLI_VALUE_SIZE] = {0};
+        
         char          tree_prefix[64]           = {0};
         bool          recurse                   = false;
 
@@ -557,7 +598,7 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
         }
 
         (void)tal_dir_is_directory(info, &is_dir);
-        cli_fs_join_path_(path, name, full_path, sizeof(full_path));
+        cli_fs_join_path_(path, name, path_ptr, sizeof(path_ptr));
         cli_fs_build_tree_prefix_(depth, tree_prefix, sizeof(tree_prefix));
 
         if (is_dir == TRUE) {
@@ -570,14 +611,16 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
         (*count)++;
 
         if (recurse == true) {
-            OPERATE_RET sub_rt = cli_fs_list_dir_recursive_(full_path, depth + 1, max_depth, count);
+            OPERATE_RET sub_rt = cli_fs_list_dir_recursive_(path_ptr, depth + 1, max_depth, count);
             if (sub_rt != OPRT_OK) {
-                cli_echof_("%*sERR: tal_dir_open('%s') rt=%d", depth * 2, "", full_path, sub_rt);
+                cli_echof_("%*sERR: tal_dir_open('%s') rt=%d", depth * 2, "", path_ptr, sub_rt);
             }
         }
     }
 
     (void)tal_dir_close(dir);
+    tal_free(path_ptr);
+    path_ptr = NULL;
     return rt;
 }
 
@@ -592,109 +635,47 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
 static void cli_fs_write_impl_(const char *path, const char *mode, int argc, char *argv[])
 {
     TUYA_FILE file;
-    char      content[CLI_VALUE_SIZE] = {0};
+    char *content_ptr = NULL;
     int       written;
 
     if (argc < 3) {
-        cli_echof_("Usage: %s <file> <content...>", argv[0]);
+        cli_print_usage_((strcmp(argv[0], "fs_append") == 0) ? "fs_append <file> <data...>" : "fs_write <file> <data...>",
+                         (strcmp(argv[0], "fs_append") == 0) ? "fs_append /demo.txt world" : "fs_write /demo.txt hello",
+                         NULL, NULL);
+        return;
+    }
+
+    content_ptr = tal_malloc(CLI_VALUE_SIZE);
+    if (content_ptr == NULL) {
+        cli_echof_("ERR: malloc failed");
         return;
     }
 
     file = tal_fopen(path, mode);
     if (file == NULL) {
         cli_echof_("ERR: tal_fopen('%s','%s') failed", path, mode);
+        tal_free(content_ptr);
         return;
     }
 
-    (void)cli_join_args_(argc, argv, 2, content, sizeof(content));
-    written = tal_fwrite(content, (int)strlen(content), file);
+    (void)cli_join_args_(argc, argv, 2, content_ptr, CLI_VALUE_SIZE);
+    written = tal_fwrite(content_ptr, strlen(content_ptr), file);
     (void)tal_fsync(file);
     (void)tal_fclose(file);
 
     if (written < 0) {
         cli_echof_("ERR: write failed n=%d", written);
+        tal_free(content_ptr);
         return;
     }
 
     cli_echof_("OK: wrote %d bytes to %s", written, path);
+    tal_free(content_ptr);
+    content_ptr = NULL;
 }
 
-/**
- * @brief Report a demo switch datapoint.
- * @param[in] enabled target state
- * @return none
- */
-static void cli_report_switch_state_(bool enabled)
-{
-    const char *payload = enabled ? "{\"1\": true}" : "{\"1\": false}";
-    OPERATE_RET rt      = tuya_iot_dp_report_json(tuya_iot_client_get(), payload);
-
-    cli_echof_("%s: sys_switch rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", rt);
-}
-
-/* ---------------------------------------------------------------------------
- * Help commands
- * --------------------------------------------------------------------------- */
-/**
- * @brief Show top-level CLI help.
- * @param[in] argc CLI argc
- * @param[in] argv CLI argv
- * @return none
- */
-static void cmd_help(int argc, char *argv[])
-{
-    (void)argc;
-    (void)argv;
-
-    tal_cli_echo("=== CLI ===");
-    tal_cli_echo("");
-
-    tal_cli_echo("[System]");
-    cli_echof_("  %-28s %s", "sys_status", "Show device runtime status");
-    cli_echof_("  %-28s %s", "sys_heap", "Show free heap/PSRAM");
-    cli_echof_("  %-28s %s", "sys_thread", "Dump all thread watermark info");
-    cli_echof_("  %-28s %s", "sys_uptime", "Show uptime in readable format");
-    cli_echof_("  %-28s %s", "sys_tick", "Show system tick count and uptime ms");
-    cli_echof_("  %-28s %s", "sys_version", "Show app, SDK, and platform version");
-    cli_echof_("  %-28s %s", "sys_log_level [level]", "Get or set log level");
-    cli_echof_("  %-28s %s", "sys_reboot", "Reboot device");
-    cli_echof_("  %-28s %s", "sys_random [range]", "Generate random number");
-    cli_echof_("  %-28s %s", "sys_timer_count", "Show active software timers");
-    cli_echof_("  %-28s %s", "sys_iot_stop", "Stop Tuya IoT client");
-    cli_echof_("  %-28s %s", "sys_iot_restart", "Restart Tuya IoT client");
-    cli_echof_("  %-28s %s", "sys_iot_reset", "Unactivate/reset Tuya IoT client");
-    cli_echof_("  %-28s %s", "sys_netmgr", "Show network connection status");
-    cli_echof_("  %-28s %s", "sys_netmgr wifi up <s> <p>", "Connect WiFi (ssid/password)");
-    cli_echof_("  %-28s %s", "sys_netmgr wifi down", "Disconnect WiFi");
-    cli_echof_("  %-28s %s", "sys_netmgr wifi scan", "Scan nearby WiFi APs");
-    cli_echof_("  %-28s %s", "sys_exec <cmd...>", "Execute shell command (Linux only)");
-    cli_echof_("  %-28s %s", "sys_switch <on|off>", "Report demo switch datapoint");
-#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    cli_echof_("  %-28s %s", "sys_wifi_info", "Show current WiFi SSID/BSSID/RSSI");
-    cli_echof_("  %-28s %s", "sys_wifi_scan", "Scan nearby WiFi APs");
-#endif
-    tal_cli_echo("");
-
-    tal_cli_echo("[Filesystem]");
-    cli_echof_("  %-28s %s", "fs_ls [dir]", "List directory tree (depth <= 3)");
-    cli_echof_("  %-28s %s", "fs_stat <path>", "Show exist/type/size/mode");
-    cli_echof_("  %-28s %s", "fs_cat <file> [max_bytes]", "Print text file");
-    cli_echof_("  %-28s %s", "fs_hexdump <file> [max_bytes]", "Hex dump file");
-    cli_echof_("  %-28s %s", "fs_write <file> <content...>", "Overwrite file");
-    cli_echof_("  %-28s %s", "fs_append <file> <content...>", "Append file");
-    cli_echof_("  %-28s %s", "fs_rm <path>", "Remove file or directory");
-    cli_echof_("  %-28s %s", "fs_mkdir <dir>", "Create directory");
-    cli_echof_("  %-28s %s", "fs_mv <old> <new>", "Rename or move path");
-    cli_echof_("  %-28s %s", "default root", CLI_FS_DEFAULT_PATH);
-    tal_cli_echo("");
-
-    tal_cli_echo("[KV]");
-    cli_echof_("  %-28s %s", "kv_get <key>", "Read a KV value");
-    cli_echof_("  %-28s %s", "kv_set <key> <value...>", "Write a string KV value");
-    cli_echof_("  %-28s %s", "kv_del <key>", "Delete a KV entry");
-    cli_echof_("  %-28s %s", "kv_list", "List all KV entries");
-    tal_cli_echo("");
-}
+#endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
+#if defined(CLI_CMD_SYS)
 
 /* ---------------------------------------------------------------------------
  * System commands
@@ -707,15 +688,37 @@ static void cmd_help(int argc, char *argv[])
  */
 static void cmd_sys_status(int argc, char *argv[])
 {
-    TAL_LOG_LEVEL_E   log_level = TAL_LOG_LEVEL_INFO;
-    char             *reason    = NULL;
+    TAL_LOG_LEVEL_E     log_level    = TAL_LOG_LEVEL_INFO;
+    char               *reason       = NULL;
     TUYA_RESET_REASON_E reset_reason;
+    SYS_TICK_T          tick_count;
+    SYS_TIME_T          uptime_ms;
+    TIME_T              posix_time;
+    POSIX_TM_S          tm           = {0};
+    uint32_t            sec, min, hour, day;
 
     (void)argc;
     (void)argv;
 
+    tick_count = tal_system_get_tick_count();
+    uptime_ms  = tal_system_get_millisecond();
+    posix_time = tal_time_get_posix();
+    tal_time_get_local_time_custom(posix_time, &tm);
+
+    sec  = (uint32_t)(uptime_ms / 1000);
+    day  = sec / 86400;
+    hour = (sec % 86400) / 3600;
+    min  = (sec % 3600) / 60;
+    sec  = sec % 60;
+
     tal_cli_echo("--- System status ---");
-    cli_echof_("system.time.ms         %llu", (unsigned long long)tal_system_get_millisecond());
+
+    cli_echof_("tick.count        %llu", (unsigned long long)tick_count);
+    cli_echof_("uptime            %ud %uh %um %us (%llu ms)", day, hour, min, sec, (unsigned long long)uptime_ms);
+    cli_echof_("posix.time        %llu", (unsigned long long)posix_time);
+    cli_echof_("local.time        %04d-%02d-%02d %02d:%02d:%02d",
+               tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+               tm.tm_hour, tm.tm_min, tm.tm_sec);
 
     if (tal_log_get_level(&log_level) == OPRT_OK) {
         cli_echof_("log.level         %s", cli_log_level_to_str_(log_level));
@@ -755,6 +758,7 @@ static void cmd_sys_thread(int argc, char *argv[])
     (void)argv;
 
     tal_cli_echo("--- Thread watermark ---");
+    tal_cli_echo("Note: output appears on log port");
     tal_thread_dump_watermark();
 }
 
@@ -791,45 +795,58 @@ static void cmd_sys_tick(int argc, char *argv[])
 {
     SYS_TICK_T tick_count;
     SYS_TIME_T uptime_ms;
+    TIME_T     posix_time;
+    POSIX_TM_S tm = {0};
+    uint32_t   sec, min, hour, day;
 
     (void)argc;
     (void)argv;
 
     tick_count = tal_system_get_tick_count();
     uptime_ms  = tal_system_get_millisecond();
+    posix_time = tal_time_get_posix();
+    tal_time_get_local_time_custom(posix_time, &tm);
 
-    cli_echof_("tick.count       %llu", (unsigned long long)tick_count);
-    cli_echof_("uptime.ms        %llu", (unsigned long long)uptime_ms);
+    sec  = (uint32_t)(uptime_ms / 1000);
+    day  = sec / 86400;
+    hour = (sec % 86400) / 3600;
+    min  = (sec % 3600) / 60;
+    sec  = sec % 60;
+
+    cli_echof_("tick.count        %llu", (unsigned long long)tick_count);
+    cli_echof_("uptime.ms         %llu", (unsigned long long)uptime_ms);
+    cli_echof_("uptime            %ud %uh %um %us", day, hour, min, sec);
+    cli_echof_("posix.time        %llu", (unsigned long long)posix_time);
+    cli_echof_("local.time        %04d-%02d-%02d %02d:%02d:%02d",
+               tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+               tm.tm_hour, tm.tm_min, tm.tm_sec);
 }
 
 /**
- * @brief Get or set CLI log level.
+ * @brief Set log level.
  * @param[in] argc CLI argc
  * @param[in] argv CLI argv
  * @return none
  */
-static void cmd_sys_log_level(int argc, char *argv[])
+static void cmd_sys_set_log_level(int argc, char *argv[])
 {
     TAL_LOG_LEVEL_E level = TAL_LOG_LEVEL_INFO;
     OPERATE_RET     rt;
 
     if (argc < 2) {
-        rt = tal_log_get_level(&level);
-        if (rt != OPRT_OK) {
-            cli_echof_("ERR: tal_log_get_level rt=%d", rt);
-            return;
-        }
-        cli_echof_("log level: %s", cli_log_level_to_str_(level));
+        cli_print_usage_("sys_set_log_level <err|warn|notice|info|debug|trace>",
+                         "sys_set_log_level debug", NULL, NULL);
         return;
     }
 
     if (cli_parse_log_level_(argv[1], &level) == false) {
-        tal_cli_echo("Usage: sys_log_level [err|warn|notice|info|debug|trace]");
+        cli_print_usage_("sys_set_log_level <err|warn|notice|info|debug|trace>",
+                         "sys_set_log_level debug", NULL, NULL);
         return;
     }
 
     rt = tal_log_set_level(level);
-    cli_echof_("%s: sys_log_level rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", rt);
+    cli_echof_("%s: sys_set_log_level '%s' rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", argv[1], rt);
 }
 
 /**
@@ -906,6 +923,27 @@ static void cmd_sys_iot_reset(int argc, char *argv[])
 }
 
 /**
+ * @brief Get Tuya device ID (assigned after cloud activation).
+ * @param[in] argc CLI argc
+ * @param[in] argv CLI argv
+ * @return none
+ * @note Returns empty or NULL when the device has not been activated yet.
+ */
+static void cmd_sys_iot_get_devid(int argc, char *argv[])
+{
+    const char *devid = tuya_iot_devid_get(tuya_iot_client_get());
+
+    (void)argc;
+    (void)argv;
+
+    if (devid != NULL && devid[0] != '\0') {
+        cli_echof_("device_id: %s", devid);
+    } else {
+        tal_cli_echo("device_id: (not available — device not activated)");
+    }
+}
+
+/**
  * @brief Forward arguments to the SDK netmgr CLI.
  * @param[in] argc CLI argc
  * @param[in] argv CLI argv
@@ -913,101 +951,122 @@ static void cmd_sys_iot_reset(int argc, char *argv[])
  */
 static void cmd_sys_netmgr(int argc, char *argv[])
 {
+    tal_cli_echo("Note: output appears on log port");
+    if (argc >= 2 && strcmp(argv[1], "help") == 0) {
+        tal_cli_echo("Usage:");
+        tal_cli_echo("  sys_netmgr                           Show connection status");
+        tal_cli_echo("  sys_netmgr wifi up <ssid> <pwd>      Connect to WiFi");
+        tal_cli_echo("  sys_netmgr wifi down                 Disconnect WiFi");
+        tal_cli_echo("  sys_netmgr wifi scan                 Scan nearby APs");
+        tal_cli_echo("  sys_netmgr wired up|down             Wired link control (TBD)");
+        tal_cli_echo("  sys_netmgr switch                    Switch active interface (TBD)");
+        return;
+    }
     netmgr_cmd(argc, argv);
 }
 
+#if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
 /**
- * @brief Execute a shell command on Linux builds.
+ * @brief Execute a shell command (Linux only).
  * @param[in] argc CLI argc
  * @param[in] argv CLI argv
  * @return none
  */
 static void cmd_sys_exec(int argc, char *argv[])
 {
-#if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
-    char command[CLI_VALUE_SIZE] = {0};
+    char *command_ptr = NULL;
     int  status;
 
-    if (cli_join_args_(argc, argv, 1, command, sizeof(command)) == false) {
-        tal_cli_echo("Usage: sys_exec <cmd...>");
-        return;
-    }
-
-    status = system(command);
-    cli_echof_("sys_exec exit=%d", status);
-#else
-    (void)argc;
-    (void)argv;
-    tal_cli_echo("ERR: sys_exec is supported on PLATFORM_LINUX only");
-#endif
-}
-
-/**
- * @brief Report a demo switch datapoint.
- * @param[in] argc CLI argc
- * @param[in] argv CLI argv
- * @return none
- */
-static void cmd_sys_switch(int argc, char *argv[])
-{
     if (argc < 2) {
-        tal_cli_echo("Usage: sys_switch <on|off>");
+        cli_print_usage_("sys_exec <cmd...>", "sys_exec ls /", NULL, NULL);
         return;
     }
 
-    if (strcmp(argv[1], "on") == 0) {
-        cli_report_switch_state_(true);
-    } else if (strcmp(argv[1], "off") == 0) {
-        cli_report_switch_state_(false);
-    } else {
-        tal_cli_echo("Usage: sys_switch <on|off>");
+    command_ptr = tal_malloc(CLI_VALUE_SIZE);
+    if (command_ptr == NULL) {
+        cli_echof_("ERR: malloc failed");
+        return;
     }
+
+    if (cli_join_args_(argc, argv, 1, command_ptr, CLI_VALUE_SIZE) == false) {
+        cli_print_usage_("sys_exec <cmd...>", "sys_exec ls /", NULL, NULL);
+        tal_free(command_ptr);
+        return;
+    }
+
+    status = system(command_ptr);
+    cli_echof_("sys_exec exit=%d", status);
+    tal_free(command_ptr);
+    command_ptr = NULL;
 }
+#endif
 
 /**
- * @brief Show uptime in human-readable format.
+ * @brief Report a Tuya IoT datapoint with user-specified ID, type, and value.
  * @param[in] argc CLI argc
  * @param[in] argv CLI argv
  * @return none
+ * @note Syntax: sys_iot_report_dp <dp_id> <type> <value>
+ *       type: bool  value: true | false
+ *       type: int   value: integer number
+ *       type: str   value: string (no quotes)
  */
-static void cmd_sys_uptime(int argc, char *argv[])
+static void cmd_sys_iot_report_dp(int argc, char *argv[])
 {
-    SYS_TIME_T ms;
-    uint32_t   sec, min, hour, day;
+    char *payload_ptr = NULL;
+    OPERATE_RET rt;
 
-    (void)argc;
-    (void)argv;
+    if (argc < 4) {
+        cli_print_usage_("sys_iot_report_dp <dp_id> <bool|int|str> <value>",
+                         "sys_iot_report_dp 1 bool true",
+                         "sys_iot_report_dp 101 int 50",
+                         "sys_iot_report_dp 2 str hello");
+        return;
+    }
 
-    ms   = tal_system_get_millisecond();
-    sec  = (uint32_t)(ms / 1000);
-    day  = sec / 86400;
-    hour = (sec % 86400) / 3600;
-    min  = (sec % 3600) / 60;
-    sec  = sec % 60;
+    payload_ptr = tal_malloc(CLI_LINE_SIZE);
+    if (payload_ptr == NULL) {
+        cli_echof_("ERR: malloc failed");
+        return;
+    }
 
-    cli_echof_("uptime: %ud %uh %um %us (%u ms)", day, hour, min, sec, (unsigned)ms);
-}
-
-/**
- * @brief Generate a random number.
- * @param[in] argc CLI argc
- * @param[in] argv CLI argv
- * @return none
- */
-static void cmd_sys_random(int argc, char *argv[])
-{
-    uint32_t range = 100;
-    int      val;
-
-    if (argc >= 2) {
-        range = (uint32_t)strtoul(argv[1], NULL, 10);
-        if (range == 0) {
-            range = 100;
+    if (strcmp(argv[2], "bool") == 0) {
+        if (strcmp(argv[3], "true") == 0 || strcmp(argv[3], "1") == 0) {
+            snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": true}", argv[1]);
+        } else if (strcmp(argv[3], "false") == 0 || strcmp(argv[3], "0") == 0) {
+            snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": false}", argv[1]);
+        } else {
+            cli_echof_("ERR: bool value must be true/false/1/0, got '%s'", argv[3]);
+            tal_free(payload_ptr);
+            return;
         }
+    } else if (strcmp(argv[2], "int") == 0) {
+        long val = strtol(argv[3], NULL, 10);
+
+        snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": %ld}", argv[1], val);
+    } else if (strcmp(argv[2], "str") == 0) {
+        char *joined_ptr = NULL;
+        joined_ptr = tal_malloc(CLI_VALUE_SIZE);
+        if (joined_ptr == NULL) {
+            cli_echof_("ERR: malloc failed");
+            tal_free(payload_ptr);
+            return;
+        }
+
+        (void)cli_join_args_(argc, argv, 3, joined_ptr, CLI_VALUE_SIZE);
+        snprintf(payload_ptr, CLI_LINE_SIZE, "{\"%s\": \"%s\"}", argv[1], joined_ptr);
+        tal_free(joined_ptr);
+        joined_ptr = NULL;
+    } else {
+        cli_echof_("ERR: unknown type '%s', use bool/int/str", argv[2]);
+        tal_free(payload_ptr);
+        return;
     }
 
-    val = tal_system_get_random(range);
-    cli_echof_("random(%u) = %d", range, val);
+    rt = tuya_iot_dp_report_json(tuya_iot_client_get(), payload_ptr);
+    cli_echof_("%s: sys_iot_report_dp payload=%s rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", payload_ptr, rt);
+    tal_free(payload_ptr);
+    payload_ptr = NULL;
 }
 
 /**
@@ -1075,6 +1134,9 @@ static void cmd_sys_wifi_scan(int argc, char *argv[])
 }
 #endif
 
+#endif /* CLI_CMD_SYS */
+
+#if defined(CLI_CMD_FS)
 /* ---------------------------------------------------------------------------
  * Filesystem commands
  * --------------------------------------------------------------------------- */
@@ -1118,7 +1180,7 @@ static void cmd_fs_stat(int argc, char *argv[])
     OPERATE_RET mode_rt;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: fs_stat <path>");
+        cli_print_usage_("fs_stat <path>", "fs_stat /demo.txt", NULL, NULL);
         return;
     }
 
@@ -1168,7 +1230,7 @@ static void cmd_fs_cat(int argc, char *argv[])
     char        buf[128];
 
     if (argc < 2) {
-        tal_cli_echo("Usage: fs_cat <file> [max_bytes]");
+        cli_print_usage_("fs_cat <file> [max]", "fs_cat /demo.txt", "fs_cat /demo.txt 256", NULL);
         return;
     }
 
@@ -1233,7 +1295,7 @@ static void cmd_fs_hexdump(int argc, char *argv[])
     long        offset = 0;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: fs_hexdump <file> [max_bytes]");
+        cli_print_usage_("fs_hexdump <file> [max]", "fs_hexdump /demo.bin", "fs_hexdump /demo.bin 128", NULL);
         return;
     }
 
@@ -1326,7 +1388,7 @@ static void cmd_fs_rm(int argc, char *argv[])
     OPERATE_RET rt;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: fs_rm <path>");
+        cli_print_usage_("fs_rm <path>", "fs_rm /demo.txt", NULL, NULL);
         return;
     }
 
@@ -1345,7 +1407,7 @@ static void cmd_fs_mkdir(int argc, char *argv[])
     OPERATE_RET rt;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: fs_mkdir <dir>");
+        cli_print_usage_("fs_mkdir <dir>", "fs_mkdir /logs", NULL, NULL);
         return;
     }
 
@@ -1364,7 +1426,7 @@ static void cmd_fs_mv(int argc, char *argv[])
     OPERATE_RET rt;
 
     if (argc < 3) {
-        tal_cli_echo("Usage: fs_mv <old> <new>");
+        cli_print_usage_("fs_mv <old> <new>", "fs_mv /old.txt /new.txt", NULL, NULL);
         return;
     }
 
@@ -1372,6 +1434,9 @@ static void cmd_fs_mv(int argc, char *argv[])
     cli_echof_("%s: fs_mv rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", rt);
 }
 
+#endif /* CLI_CMD_FS */
+
+#if defined(CLI_CMD_KV)
 /* ---------------------------------------------------------------------------
  * KV commands
  * --------------------------------------------------------------------------- */
@@ -1388,7 +1453,7 @@ static void cmd_kv_get(int argc, char *argv[])
     OPERATE_RET rt;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: kv_get <key>");
+        cli_print_usage_("kv_get <key>", "kv_get app_token", NULL, NULL);
         return;
     }
 
@@ -1420,17 +1485,25 @@ static void cmd_kv_get(int argc, char *argv[])
  */
 static void cmd_kv_set(int argc, char *argv[])
 {
-    char        value[CLI_VALUE_SIZE] = {0};
+    char        *value_ptr = NULL;
     OPERATE_RET rt;
 
     if (argc < 3) {
-        tal_cli_echo("Usage: kv_set <key> <value...>");
+        cli_print_usage_("kv_set <key> <value...>", "kv_set app_token hello", NULL, NULL);
         return;
     }
 
-    (void)cli_join_args_(argc, argv, 2, value, sizeof(value));
-    rt = tal_kv_set(argv[1], (const uint8_t *)value, strlen(value) + 1);
+    value_ptr = tal_malloc(CLI_VALUE_SIZE);
+    if (value_ptr == NULL) {
+        cli_echof_("ERR: malloc failed");
+        return;
+    }
+
+    (void)cli_join_args_(argc, argv, 2, value_ptr, CLI_VALUE_SIZE);
+    rt = tal_kv_set(argv[1], (const uint8_t *)value_ptr, strlen(value_ptr));
     cli_echof_("%s: kv_set rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", rt);
+    tal_free(value_ptr);
+    value_ptr = NULL;
 }
 
 /**
@@ -1444,7 +1517,7 @@ static void cmd_kv_del(int argc, char *argv[])
     OPERATE_RET rt;
 
     if (argc < 2) {
-        tal_cli_echo("Usage: kv_del <key>");
+        cli_print_usage_("kv_del <key>", "kv_del app_token", NULL, NULL);
         return;
     }
 
@@ -1494,6 +1567,10 @@ static void cmd_kv_list(int argc, char *argv[])
             continue;
         }
 
+        if (info.type == LFS_TYPE_DIR) {
+            continue;
+        }
+
         rt = tal_kv_get(info.name, &value, &length);
         if (rt != OPRT_OK) {
             cli_echof_("[%u] key=%s len=(n/a) rt=%d", (unsigned)count, info.name, rt);
@@ -1526,47 +1603,53 @@ static void cmd_kv_list(int argc, char *argv[])
     cli_echof_("Done. entries=%u", (unsigned)count);
 }
 
+#endif /* CLI_CMD_KV */
 /* ---------------------------------------------------------------------------
  * Command table
  * --------------------------------------------------------------------------- */
 static cli_cmd_t s_cli_cmd[] = {
-    {.name = "help",             .help = "Show all CLI commands",               .func = cmd_help},
-
-    {.name = "sys_status",       .help = "Show device runtime status",          .func = cmd_sys_status},
-    {.name = "sys_heap",         .help = "Show free heap and PSRAM",            .func = cmd_sys_heap},
-    {.name = "sys_thread",       .help = "Dump all thread watermark info",      .func = cmd_sys_thread},
-    {.name = "sys_uptime",       .help = "Show uptime in readable format",      .func = cmd_sys_uptime},
-    {.name = "sys_tick",         .help = "Show system tick and uptime ms",      .func = cmd_sys_tick},
-    {.name = "sys_version",      .help = "Show app, SDK, and platform version", .func = cmd_sys_version},
-    {.name = "sys_log_level",    .help = "Get or set log level",                .func = cmd_sys_log_level},
-    {.name = "sys_reboot",       .help = "Reboot device",                       .func = cmd_sys_reboot},
-    {.name = "sys_random",       .help = "Generate random number",              .func = cmd_sys_random},
-    {.name = "sys_timer_count",  .help = "Show active software timers",         .func = cmd_sys_timer_count},
-    {.name = "sys_iot_stop",     .help = "Stop Tuya IoT client",                .func = cmd_sys_iot_stop},
-    {.name = "sys_iot_restart",  .help = "Restart Tuya IoT client",             .func = cmd_sys_iot_restart},
-    {.name = "sys_iot_reset",    .help = "Reset Tuya IoT activation",           .func = cmd_sys_iot_reset},
-    {.name = "sys_netmgr",       .help = "Pass through to netmgr CLI",          .func = cmd_sys_netmgr},
-    {.name = "sys_exec",         .help = "Execute shell command on Linux",      .func = cmd_sys_exec},
-    {.name = "sys_switch",       .help = "Report demo switch datapoint",        .func = cmd_sys_switch},
+#if defined(CLI_CMD_SYS)
+    {.name = "sys_status",       .help = "Device status, tick, uptime, network",.func = cmd_sys_status},
+    {.name = "sys_heap",         .help = "Show free heap and PSRAM",             .func = cmd_sys_heap},
+    {.name = "sys_thread",       .help = "Dump all thread watermark info",       .func = cmd_sys_thread},
+    {.name = "sys_tick",         .help = "Show tick, uptime, posix, local time", .func = cmd_sys_tick},
+    {.name = "sys_version",      .help = "Show app, SDK, and platform version",  .func = cmd_sys_version},
+    {.name = "sys_set_log_level",.help = "Set log level (err/warn/notice/info/debug/trace)", .func = cmd_sys_set_log_level},
+    {.name = "sys_reboot",       .help = "Reboot device",                        .func = cmd_sys_reboot},
+    {.name = "sys_timer_count",  .help = "Show active software timer count",     .func = cmd_sys_timer_count},
+    {.name = "sys_iot_stop",     .help = "Stop Tuya IoT client",                 .func = cmd_sys_iot_stop},
+    {.name = "sys_iot_restart",  .help = "Restart Tuya IoT client",              .func = cmd_sys_iot_restart},
+    {.name = "sys_iot_reset",    .help = "Reset Tuya IoT activation",            .func = cmd_sys_iot_reset},
+    {.name = "sys_iot_get_devid",    .help = "Get Tuya device ID",                   .func = cmd_sys_iot_get_devid},
+    {.name = "sys_iot_report_dp",.help = "Report DP (bool/int/str)",             .func = cmd_sys_iot_report_dp},
+    {.name = "sys_netmgr",       .help = "Network manager (output on log port)", .func = cmd_sys_netmgr},
+#if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
+    {.name = "sys_exec",         .help = "Execute shell command",                .func = cmd_sys_exec},
+#endif
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    {.name = "sys_wifi_info",    .help = "Show current WiFi SSID/BSSID/RSSI",  .func = cmd_sys_wifi_info},
+    {.name = "sys_wifi_info",    .help = "Show current WiFi SSID/BSSID/RSSI",   .func = cmd_sys_wifi_info},
     {.name = "sys_wifi_scan",    .help = "Scan nearby WiFi APs",                .func = cmd_sys_wifi_scan},
 #endif
+#endif /* CLI_CMD_SYS */
 
-    {.name = "fs_ls",            .help = "List directory tree (depth <= 3)",   .func = cmd_fs_ls},
-    {.name = "fs_stat",          .help = "Show file or directory metadata",     .func = cmd_fs_stat},
+#if defined(CLI_CMD_FS)
+    {.name = "fs_ls",            .help = "List directory tree (depth <= 3)",    .func = cmd_fs_ls},
+    {.name = "fs_stat",          .help = "Show exist/type/size",                .func = cmd_fs_stat},
     {.name = "fs_cat",           .help = "Print text file",                     .func = cmd_fs_cat},
     {.name = "fs_hexdump",       .help = "Hex dump file",                       .func = cmd_fs_hexdump},
     {.name = "fs_write",         .help = "Overwrite file",                      .func = cmd_fs_write},
-    {.name = "fs_append",        .help = "Append file",                         .func = cmd_fs_append},
+    {.name = "fs_append",        .help = "Append to file",                      .func = cmd_fs_append},
     {.name = "fs_rm",            .help = "Remove file or directory",            .func = cmd_fs_rm},
     {.name = "fs_mkdir",         .help = "Create directory",                    .func = cmd_fs_mkdir},
     {.name = "fs_mv",            .help = "Rename or move path",                 .func = cmd_fs_mv},
+#endif /* CLI_CMD_FS */
 
+#if defined(CLI_CMD_KV)
     {.name = "kv_get",           .help = "Read a KV value",                     .func = cmd_kv_get},
     {.name = "kv_set",           .help = "Write a string KV value",             .func = cmd_kv_set},
     {.name = "kv_del",           .help = "Delete a KV entry",                   .func = cmd_kv_del},
     {.name = "kv_list",          .help = "List all KV entries",                 .func = cmd_kv_list},
+#endif /* CLI_CMD_KV */
 };
 
 /* ---------------------------------------------------------------------------
