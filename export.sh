@@ -64,7 +64,7 @@ fi
 # Git version string: exact tag, else <tag>-<8-char-sha>, plus -dirty suffix.
 # ---------------------------------------------------------------------------
 __tuya_print_version() {
-    local root="$1" ver="" tag short dirty=""
+    local root="$1" ver="" tag="" short="" dirty=""
     if ! command -v git >/dev/null 2>&1; then
         echo "TuyaOpen version: (git not found)"
         return 0
@@ -73,12 +73,18 @@ __tuya_print_version() {
         echo "TuyaOpen version: (not a git checkout)"
         return 0
     fi
-    if [ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]; then
+    # Tolerate failures under `set -e`: a shallow clone with no reachable tags
+    # makes `git describe` exit 128, which would otherwise abort the caller
+    # (e.g. CI running `bash -e`).
+    local status_out=""
+    status_out=$(git -C "$root" status --porcelain 2>/dev/null) || status_out=""
+    if [ -n "$status_out" ]; then
         dirty="-dirty"
     fi
-    if ! ver=$(git -C "$root" describe --tags --exact-match HEAD 2>/dev/null); then
-        tag=$(git -C "$root" describe --tags --abbrev=0 HEAD 2>/dev/null)
-        short=$(git -C "$root" rev-parse --short=8 HEAD 2>/dev/null)
+    ver=$(git -C "$root" describe --tags --exact-match HEAD 2>/dev/null) || ver=""
+    if [ -z "$ver" ]; then
+        tag=$(git -C "$root" describe --tags --abbrev=0 HEAD 2>/dev/null) || tag=""
+        short=$(git -C "$root" rev-parse --short=8 HEAD 2>/dev/null) || short=""
         if [ -n "$tag" ] && [ -n "$short" ]; then
             ver="${tag}-${short}"
         elif [ -n "$short" ]; then
