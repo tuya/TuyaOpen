@@ -1,4 +1,4 @@
-English | [简体中文](./RAEDME_zh.md)
+English | [简体中文](./README_zh.md)
 
 # your_serial_chat_bot
 [your_serial_chat_bot](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_serial_chat_bot) is an open-source large model intelligent chatbot based on tuya.ai. It receives text conversation through UART from external devices (such as PCs), uploads the content to the cloud for AI processing, and returns the AI response to the external device through UART. **Only the minimal core board is needed to achieve AI conversation!!!**
@@ -40,9 +40,9 @@ English | [简体中文](./RAEDME_zh.md)
 - Data format: UTF-8 encoded text
 
 ## Compilation
-1. Run the `tos config_choice` command to select the current development board in use.
-2. If you need to modify the configuration, run the `tos menuconfig` command to make changes.
-3. Run the `tos build` command to compile the project.
+1. Run the `tos.py config choice` command to select the current development board in use.
+2. If you need to modify the configuration, run the `tos.py config menu` command to make changes.
+3. Run the `tos.py build` command to compile the project.
 
 ## Configuration Description
 

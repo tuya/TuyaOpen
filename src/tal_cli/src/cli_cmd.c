@@ -471,30 +471,6 @@ static void cli_mask_kv_binary_(const uint8_t *value, size_t length, char *out, 
 }
 
 /**
- * @brief Print a binary preview for a KV value.
- * @param[in] value binary value buffer
- * @param[in] length buffer length
- * @return none
- */
-static void cli_print_kv_binary_preview_(const uint8_t *value, size_t length)
-{
-    char  line[CLI_LINE_SIZE] = {0};
-    int   pos                 = 0;
-    size_t preview_len        = (length < 16) ? length : 16;
-
-    pos += snprintf(line + pos, sizeof(line) - pos, "value(hex)        ");
-    for (size_t i = 0; i < preview_len && pos < (int)sizeof(line); i++) {
-        pos += snprintf(line + pos, sizeof(line) - pos, "%02X%s", value[i], (i + 1 == preview_len) ? "" : " ");
-    }
-
-    if (length > preview_len && pos < (int)sizeof(line)) {
-        (void)snprintf(line + pos, sizeof(line) - pos, " ...");
-    }
-
-    tal_cli_echo(line);
-}
-
-/**
  * @brief Check whether a KV value is printable text.
  * @param[in] value value buffer
  * @param[in] length buffer length

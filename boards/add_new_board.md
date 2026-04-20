@@ -78,14 +78,14 @@ void *board_display_get_panel_handle(void)
 
 ```
 
-完成以上功能配置可以来到 `apps/tuya.ai/your_chat_bot` 使用 `tos config_choice` 选择自己添加的开发板型号；
+完成以上功能配置可以来到 `apps/tuya.ai/your_chat_bot` 使用 `tos.py config choice` 选择自己添加的开发板型号；
 
-1. 使用 `tos menuconfig` 选择开发板的模块以及配置功能。
-2. 使用 `tos savedef` 保存生成的配置内容至 `app_default.config` 中。
+1. 使用 `tos.py config menu` 选择开发板的模块以及配置功能。
+2. 使用 `tos.py config save` 保存生成的配置内容至 `app_default.config` 中。
 
-​	提示：可以将本次配置内容保存至  `apps/tuya.ai/your_chat_bot/config` 下新建的BOARD-XXX.config 文件中，下次可以通过 `tos config_choice` 切换开发板平台。
+​	提示：可以将本次配置内容保存至  `apps/tuya.ai/your_chat_bot/config` 下新建的BOARD-XXX.config 文件中，下次可以通过 `tos.py config choice` 切换开发板平台。
 
-3. 现在可以使用 `tos build` 开始编译，看到编译成功说明框架移植成功。
+3. 现在可以使用 `tos.py build` 开始编译，看到编译成功说明框架移植成功。
 
 
 
@@ -199,7 +199,7 @@ ESP32 的 lvgl 初始化在 `boards/ESP32/common/display/tuya_lvgl.c` 中。
 + chatbot： 和小智的默认 UI 一样
 + OLED：和小智的 OLED UI 一样，为小屏幕  OLED 设计的
 
-在进行 UI 适配，需要先通过 `tos menuconfig` 选择 UI。
+在进行 UI 适配，需要先通过 `tos.py config menu` 选择 UI。
 
 然后在 display/app_display.c:85 __get_ui_font() 为你的开发板选择字体。
 

@@ -1,7 +1,7 @@
 [English](./README.md) | 简体中文
 
 # your_robot_dog
-[your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) 是基于 TuyaOS 的 `tuyaos_demo_ai_toy` 项目在 TuyaOpen 的 `your_char_bot` 基础上移植而来，添加机器狗生动表情变化与控制舵机动作，移植开源的大模型智能聊天机器狗。通过麦克风采集语音，语音识别，实现对话、互动、调侃，还能通过屏幕看到情感变化，以及互动行为。
+[your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) 是基于 TuyaOS 的 `tuyaos_demo_ai_toy` 项目在 TuyaOpen 的 `your_chat_bot` 基础上移植而来，添加机器狗生动表情变化与控制舵机动作，移植开源的大模型智能聊天机器狗。通过麦克风采集语音，语音识别，实现对话、互动、调侃，还能通过屏幕看到情感变化，以及互动行为。
 
 ![](../../../docs/images/apps/robot_dog.png)
 

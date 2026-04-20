@@ -1,4 +1,4 @@
-English | [简体中文](./RAEDME_zh.md)
+English | [简体中文](./README_zh.md)
 
 # your_desk_emoji
 

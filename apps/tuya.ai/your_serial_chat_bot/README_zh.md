@@ -40,9 +40,9 @@
 - 数据格式：UTF-8编码文本
 
 ## 编译
-1. 运行 `tos config_choice` 命令，选择当前运行的开发板。
-2. 如需修改配置，请先运行 `tos menuconfig` 命令修改配置。
-3. 运行 `tos build` 命令，编译工程。
+1. 运行 `tos.py config choice` 命令，选择当前运行的开发板。
+2. 如需修改配置，请先运行 `tos.py config menu` 命令修改配置。
+3. 运行 `tos.py build` 命令，编译工程。
 
 ## 配置说明
 

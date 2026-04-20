@@ -14,7 +14,7 @@ if(NOT EXISTS "${DOT_CONFIG_DIR}/${DOT_CONFIG}")  # copy pre-config to dot-confi
     message(FATAL_ERROR "
     [KCONFIG] Don't found
     [${DOT_CONFIG_DIR}/${DOT_CONFIG}]
-    Please use command: [tos config_choice or tos menuconfig].
+    Please use command: [tos.py config choice or tos.py config menu].
     ")
 endif()
 

@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://tuyaopen.ai/zh/docs/quick_start/enviroment-setup">快速开始</a> ·
+  <a href="https://tuyaopen.ai/zh/docs/quick-start/enviroment-setup">快速开始</a> ·
   <a href="https://developer.tuya.com/cn/docs/iot/ai-agent-management?id=Kdxr4v7uv4fud">涂鸦 AI Agent</a> ·
   <a href="https://tuyaopen.ai/zh/docs/about-tuyaopen">文档中心</a> ·
   <a href="https://tuyaopen.ai/zh/docs/hardware-specific/t5-ai-board/overview-t5-ai-board">硬件资源</a>

@@ -1,4 +1,4 @@
-English | [简体中文](./RAEDME_zh.md)
+English | [简体中文](./README_zh.md)
 
 # your_chat_bot
 [your_chat_bot](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_chat_bot) is an open-source large model intelligent chatbot based on tuya.ai. It collects voice through a microphone, performs speech recognition, and enables conversation, interaction, and banter. You can also see real-time chat content on the screen.
@@ -28,6 +28,6 @@ English | [简体中文](./RAEDME_zh.md)
 | TUYA T5AI_EVB Board | [https://oshwhub.com/flyingcys/t5ai_evb](https://oshwhub.com/flyingcys/t5ai_evb) | Reset by restarting 3 times |
 
 ## Compilation
-1. Run the `tos config_choice` command to select the current development board in use.
-2. If you need to modify the configuration, run the `tos menuconfig` command to make changes.
-3. Run the `tos build` command to compile the project.
+1. Run the `tos.py config choice` command to select the current development board in use.
+2. If you need to modify the configuration, run the `tos.py config menu` command to make changes.
+3. Run the `tos.py build` command to compile the project.

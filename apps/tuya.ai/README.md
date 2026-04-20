@@ -46,7 +46,7 @@ By utilizing tuya.ai, this connects the Tuya Cloud and AI services to achieve AI
 
 
 3. **Compile and Flash**
-    You can use the `tos flash` command for one-click flashing. For details, refer to [https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95](https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95).
+    You can use the `tos.py flash` command for one-click flashing. For details, refer to [https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95](https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95).
 
 4. After using the Tuya app to network and activate the device, you can perform AI voice interaction through the microphone.
 

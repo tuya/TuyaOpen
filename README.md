@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://tuyaopen.ai/docs/quick_start/enviroment-setup">Quick Start</a> ·
+  <a href="https://tuyaopen.ai/docs/quick-start/enviroment-setup">Quick Start</a> ·
   <a href="https://developer.tuya.com/en/docs/iot/ai-agent-management?id=Kdxr4v7uv4fud">Tuya AI Agent</a> ·
   <a href="https://tuyaopen.ai/docs/about-tuyaopen">Documentation</a> ·
   <a href="https://tuyaopen.ai/docs/hardware-specific/t5-ai-board/overview-t5-ai-board">Hardware Resource</a>

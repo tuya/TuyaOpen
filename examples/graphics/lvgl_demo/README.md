@@ -35,7 +35,7 @@ This project is a demo of the LVGL library, which is a lightweight graphics libr
 > More driver adaptations and testing in progress...
 
 ## Usage Process
-1. Run `tos menuconfig` to configure the project.
+1. Run `tos.py config menu` to configure the project.
 
 2. Configure the corresponding screen/touch/rotary encoder drivers.
 

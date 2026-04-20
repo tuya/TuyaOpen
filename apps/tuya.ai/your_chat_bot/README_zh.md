@@ -3,6 +3,7 @@
 # your_chat_bot
  [your_chat_bot](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_chat_bot) 是基于 tuya.ai 开源的大模型智能聊天机器人。通过麦克风采集语音，语音识别，实现对话、互动、调侃，还能通过屏幕看到实时聊天内容。
 
+**注意：在 TUYA AI V1.0 和 V2.0 之间切换需要先在 APP 上删除设备并清除数据后才能使用。**
 
 ## 支持功能
 
@@ -32,9 +33,9 @@
 
 
 ## 编译
-1. 运行 `tos config_choice` 命令， 选择当前运行的开发板。
-2. 如需修改配置，请先运行 `tos menuconfig` 命令修改配置。
-3. 运行 `tos build` 命令，编译工程。
+1. 运行 `tos.py config choice` 命令，选择当前运行的开发板。
+2. 如需修改配置，请先运行 `tos.py config menu` 命令修改配置。
+3. 运行 `tos.py build` 命令，编译工程。
 
 ## 配置说明
 

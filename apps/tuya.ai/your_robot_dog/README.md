@@ -1,8 +1,8 @@
-English | [简体中文](./RAEDME_zh.md)
+English | [简体中文](./README_zh.md)
 
 # your_robot_dog
 
-[your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) is ported from TuyaOS's `tuyaos_demo_ai_toy` project, based on TuyaOpen's `your_char_bot`. It adds vivid facial expressions and servo-driven actions for a robot dog, bringing an open-source LLM-powered chat robot dog to TuyaOpen.
+[your_robot_dog](https://github.com/tuya/TuyaOpen/tree/master/apps/tuya.ai/your_robot_dog) is ported from TuyaOS's `tuyaos_demo_ai_toy` project, based on TuyaOpen's `your_chat_bot`. It adds vivid facial expressions and servo-driven actions for a robot dog, bringing an open-source LLM-powered chat robot dog to TuyaOpen.
 
 It captures voice via microphone, performs speech recognition, and supports conversation, interaction, and playful banter. You can also see emotion changes on the screen and observe interactive behaviors.
 

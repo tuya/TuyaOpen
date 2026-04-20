@@ -48,7 +48,7 @@
 
 
 3. 编译烧录
-    可使用 tos flash 命令进行一键烧录，具体请参考 [tos flash](https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95)。
+    可使用 `tos.py flash` 命令进行一键烧录，具体请参考 [tos.py flash](https://github.com/tuya/TuyaOpen/blob/master/README_zh.md#%E7%83%A7%E5%BD%95)。
 
 4. 使用 涂鸦 APP 配网激活设备后，即可通过麦克风进行 AI 语音交互。
 
