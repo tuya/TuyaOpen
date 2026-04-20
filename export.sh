@@ -47,7 +47,7 @@ __tuya_export_cleanup() {
 # the directory of this script.
 # ---------------------------------------------------------------------------
 __tuya_is_sdk_root() {
-    [ -f "$1/export.sh" ] && [ -f "$1/requirements.txt" ]
+    [ -f "$1/export.sh" ] && [ -f "$1/requirements.txt" ] && [ -f "$1/tos.py" ]
 }
 
 if __tuya_is_sdk_root "$__tuya_pwd_dir"; then
@@ -109,13 +109,14 @@ fi
 unset __tuya_missing
 
 # ---------------------------------------------------------------------------
-# Locate a usable Python: supported range 3.9 - 3.13 (recommended: 3.11)
+# Locate a usable Python: 3.9 - 3.13 are officially supported (3.11 recommended).
+# Any Python 3.x is accepted with a warning (e.g. 3.14) instead of blocking.
 # ---------------------------------------------------------------------------
 __TUYA_PY_MIN="3.9"
 __TUYA_PY_MAX="3.13"
 __TUYA_PY_REC="3.11"
 
-__tuya_find_python() {
+__tuya_find_python_supported() {
     local cmd
     for cmd in python3.11 python3.12 python3.10 python3.13 python3.9 python3 python; do
         command -v "$cmd" >/dev/null 2>&1 || continue
@@ -131,15 +132,35 @@ sys.exit(0 if (major, minor) >= (3, 9) and (major, minor) <= (3, 13) else 1)
     return 1
 }
 
-PYTHON_CMD=$(__tuya_find_python)
+__tuya_find_python_any() {
+    local cmd
+    for cmd in python3 python; do
+        command -v "$cmd" >/dev/null 2>&1 || continue
+        if "$cmd" -c 'import sys; sys.exit(0 if sys.version_info[0] >= 3 else 1)' 2>/dev/null; then
+            echo "$cmd"
+            return 0
+        fi
+    done
+    return 1
+}
+
+PYTHON_CMD=$(__tuya_find_python_supported)
 if [ -z "$PYTHON_CMD" ]; then
-    echo "Error: No suitable Python version found!"
-    echo "       Please install Python ${__TUYA_PY_MIN} - ${__TUYA_PY_MAX} (recommended: ${__TUYA_PY_REC})."
+    PYTHON_CMD=$(__tuya_find_python_any)
+fi
+if [ -z "$PYTHON_CMD" ]; then
+    echo "Error: No usable Python interpreter found!"
+    echo "       Please install Python ${__TUYA_PY_MIN} - ${__TUYA_PY_MAX} (${__TUYA_PY_REC} recommended; all in range work)."
     unset __TUYA_PY_MIN __TUYA_PY_MAX __TUYA_PY_REC
     __tuya_export_cleanup
     return 1
 fi
+__tuya_py_major=$("$PYTHON_CMD" -c 'import sys; print(sys.version_info[0])' 2>/dev/null)
 __tuya_py_minor=$("$PYTHON_CMD" -c 'import sys; print(sys.version_info[1])' 2>/dev/null)
+__tuya_py_in_range=0
+if [ "$__tuya_py_major" = "3" ] && [ "${__tuya_py_minor:-0}" -ge 9 ] 2>/dev/null && [ "${__tuya_py_minor:-0}" -le 13 ] 2>/dev/null; then
+    __tuya_py_in_range=1
+fi
 
 # Detect re-source: this project's venv is already active.
 __tuya_is_resource=0
@@ -166,11 +187,13 @@ else
 
     __tuya_print_version "$OPEN_SDK_ROOT"
 
-    if [ "$__tuya_py_minor" != "11" ]; then
-        __tuya_info "[TuyaOpen] Note: Python ${__TUYA_PY_REC} is recommended (detected 3.${__tuya_py_minor})."
+    if [ "$__tuya_py_in_range" != "1" ]; then
+        __tuya_info "[TuyaOpen] Warning: Python ${__tuya_py_major}.${__tuya_py_minor} is outside the tested range ${__TUYA_PY_MIN} - ${__TUYA_PY_MAX}; continuing anyway (${__TUYA_PY_REC} recommended)."
+    elif [ "$__tuya_py_minor" != "11" ]; then
+        __tuya_info "[TuyaOpen] Note: Python ${__TUYA_PY_REC} is recommended; ${__TUYA_PY_MIN}-${__TUYA_PY_MAX} are supported (detected 3.${__tuya_py_minor})."
     fi
 fi
-unset __tuya_py_minor __TUYA_PY_MIN __TUYA_PY_MAX __TUYA_PY_REC
+unset __tuya_py_major __tuya_py_minor __tuya_py_in_range __TUYA_PY_MIN __TUYA_PY_MAX __TUYA_PY_REC
 
 # ---------------------------------------------------------------------------
 # Work inside project root so relative paths resolve
@@ -200,7 +223,14 @@ if [ ! -f "$OPEN_SDK_ROOT/.venv/bin/activate" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Custom `exit` that cleanly leaves the TuyaOpen environment
+# Custom `exit` that cleanly leaves the TuyaOpen environment before quitting.
+# Always falls through to the real `exit` so the shell actually terminates and
+# the user-supplied exit code is preserved.
+#
+# IMPORTANT: do NOT `export -f exit`. Exporting this function would leak it
+# into every child bash process (CI scripts, build scripts, `bash -c ...`),
+# where `exit N` would hit our wrapper instead of the builtin, silently
+# dropping the exit code and breaking error propagation.
 # ---------------------------------------------------------------------------
 exit() {
     if [ -n "$OPEN_SDK_ROOT" ]; then
@@ -209,11 +239,10 @@ exit() {
             deactivate
         fi
         unset OPEN_SDK_PYTHON OPEN_SDK_PIP OPEN_SDK_ROOT
-        unset -f exit
+        unset -f exit 2>/dev/null || true
         echo "TuyaOpen environment deactivated."
-    else
-        command exit "$@"
     fi
+    command exit "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -233,11 +262,8 @@ export OPEN_SDK_PYTHON="$OPEN_SDK_ROOT/.venv/bin/python"
 export OPEN_SDK_PIP="$OPEN_SDK_ROOT/.venv/bin/pip"
 export OPEN_SDK_ROOT
 
-# zsh forbids exporting a function named `exit`; the override still works in
-# the current zsh session via the shell function, just not in subshells.
-if [ -n "$BASH_VERSION" ]; then
-    export -f exit
-fi
+# Intentionally do NOT export the `exit` function (see note above its
+# definition). Child bash processes must keep the builtin `exit` semantics.
 
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "Error: Failed to activate virtual environment"
@@ -249,11 +275,16 @@ __tuya_debug "Virtual environment activated successfully: $VIRTUAL_ENV"
 # ---------------------------------------------------------------------------
 # Install dependencies
 # ---------------------------------------------------------------------------
+__tuya_pip_rc=0
 if [ -n "$TUYAOPEN_EXPORT_VERBOSE" ]; then
-    pip install -r "$OPEN_SDK_ROOT/requirements.txt"
+    pip install -r "$OPEN_SDK_ROOT/requirements.txt" || __tuya_pip_rc=$?
 else
-    pip install -q -r "$OPEN_SDK_ROOT/requirements.txt"
+    pip install -q -r "$OPEN_SDK_ROOT/requirements.txt" || __tuya_pip_rc=$?
 fi
+if [ "$__tuya_pip_rc" -ne 0 ]; then
+    echo "[TuyaOpen] Warning: Some dependencies may not have been installed correctly."
+fi
+unset __tuya_pip_rc
 
 # ---------------------------------------------------------------------------
 # Clean stale cache files
@@ -263,10 +294,11 @@ mkdir -p "$CACHE_PATH"
 rm -f "$CACHE_PATH/.env.json" "$CACHE_PATH/.dont_prompt_update_platform"
 
 # ---------------------------------------------------------------------------
-# tos.py shell completion (bash only; zsh does not implement `complete`)
+# tos.py shell completion (bash only; zsh does not implement `complete`).
+# Swallow errors so completion-generation failures never break sourcing.
 # ---------------------------------------------------------------------------
 if [ -n "$BASH_VERSION" ]; then
-    eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
+    eval "$(_TOS_PY_COMPLETE=bash_source tos.py 2>/dev/null)" || true
 fi
 
 # ---------------------------------------------------------------------------
