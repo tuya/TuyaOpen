@@ -287,16 +287,12 @@ function global:prompt {
 }
 
 # ---------------------------------------------------------------------------
-# Greeting banner (via tos.py hello; prints TuyaOpen version inside the art).
-#
-# `exit` is a PowerShell *language keyword*, not a cmdlet, so a function
-# named `exit` cannot shadow it. The default hint line from `tos.py hello`
-# ("Exit environment: `exit` or `deactivate`.") is therefore misleading in
-# a PS shell - typing `exit` would close the caller's terminal rather than
-# just leaving the TuyaOpen env. Suppress the default and print a
-# PS-specific single-command hint (`deactivate` only) instead.
+# Greeting banner (via tos.py hello; ASCII/version only). "Ready" + exit hint
+# are printed here so PowerShell can recommend `deactivate` only — `exit` is
+# a language keyword and cannot be wrapped like in cmd/bash.
 # ---------------------------------------------------------------------------
-& $pythonExe (Join-Path $OpenSdkRoot 'tos.py') hello --exit-hint ''
+& $pythonExe (Join-Path $OpenSdkRoot 'tos.py') hello
+Write-Host 'tos.py Tool and TuyaOpen SDK is now ready.'
 Write-Host 'Exit environment: `deactivate`.'
 
 # ---------------------------------------------------------------------------

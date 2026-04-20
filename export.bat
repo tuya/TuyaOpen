@@ -168,7 +168,7 @@ if exist "%CACHE_PATH%\.dont_prompt_update_platform" del /F /Q "%CACHE_PATH%\.do
 ::   sees inside the fresh child cmd is:
 ::     OPEN_SDK_ROOT / Host / [TuyaOpen] Note banner
 ::     [INFO]: Running tos.py ...  (from tos.py hello)
-::     ASCII art + "ready" / exit hint
+::     ASCII art, then "ready" / exit lines from this script
 ::   i.e. environment info FIRST, greeting SECOND. Running hello in the
 ::   parent here would print it above the child's "Microsoft Windows ..."
 ::   header and scroll away before the user could read the banner.
@@ -182,6 +182,8 @@ if exist "%CACHE_PATH%\.dont_prompt_update_platform" del /F /Q "%CACHE_PATH%\.do
 :: ---------------------------------------------------------------------------
 if not "%IS_RESOURCE%"=="1" goto :spawn_child
 "%OPEN_SDK_PYTHON%" "%OPEN_SDK_ROOT%\tos.py" hello
+echo tos.py Tool and TuyaOpen SDK is now ready.
+echo Exit environment: `exit` or `deactivate`.
 goto :eof
 
 :spawn_child
@@ -239,10 +241,12 @@ if "%PY_IN_RANGE%"=="0" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Warning: Pytho
 if "%PY_IN_RANGE%"=="1" if not "%PY_MINOR%"=="11" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Note: Python 3.11 is recommended; 3.9 - 3.13 are supported ^^^(detected 3.%PY_MINOR%^^^).
 
 :: Run tos.py hello AFTER the banner so the visible order in the child cmd is
-:: "environment info -> [INFO]: Running tos.py ... -> ASCII art -> ready hint".
+:: "environment info -> [INFO]: Running tos.py ... -> ASCII art -> ready/exit".
 :: Invoked in the child (not the parent) so it appears below the banner
 :: instead of scrolling off behind the child cmd's own header.
 >>"%TUYA_ALIAS_BAT%" echo "%OPEN_SDK_PYTHON%" "%OPEN_SDK_ROOT%\tos.py" hello
+>>"%TUYA_ALIAS_BAT%" echo echo tos.py Tool and TuyaOpen SDK is now ready.
+>>"%TUYA_ALIAS_BAT%" echo echo Exit environment: `exit` or `deactivate`.
 
 cmd /d /k "%TUYA_ALIAS_BAT%"
 

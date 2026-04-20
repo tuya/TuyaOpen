@@ -302,7 +302,8 @@ if [ -n "$BASH_VERSION" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Greeting banner — rendered by `tos.py hello`.
+# Greeting banner — ASCII/version from `tos.py hello`; "ready" + exit hint
+# from this script so shells can show accurate wording (see export.ps1).
 # On re-source (and non-verbose) the tos.py "Running tos.py ..." INFO log on
 # stderr would be noise, so we drop stderr in that case.
 # ---------------------------------------------------------------------------
@@ -311,6 +312,8 @@ if [ "$__tuya_is_resource" = "1" ] && [ -z "$TUYAOPEN_EXPORT_VERBOSE" ]; then
 else
     tos.py hello --no-version
 fi
+echo 'tos.py Tool and TuyaOpen SDK is now ready.'
+echo 'Exit environment: `exit` or `deactivate`.'
 unset __tuya_is_resource
 
 __tuya_export_cleanup
