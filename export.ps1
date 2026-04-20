@@ -1,208 +1,227 @@
-# Check if already in virtual environment by checking if current Python is in .venv
-try {
-    $currentPython = (Get-Command python -ErrorAction SilentlyContinue).Source
-    if ($currentPython -and $currentPython.Contains(".venv")) {
-        Write-Host "Virtual environment is already activated."
-        exit 0
+<#
+    Usage: .\export.ps1
+    Set $env:TUYAOPEN_EXPORT_VERBOSE = "1" before running for full diagnostics.
+
+    This script:
+      * locates the TuyaOpen project root (this script's directory),
+      * creates/activates a Python venv in <root>\.venv,
+      * installs requirements.txt,
+      * exports OPEN_SDK_ROOT / OPEN_SDK_PYTHON / OPEN_SDK_PIP,
+      * appends the project root to PATH so `tos.py` is runnable,
+      * opens an interactive PowerShell session with tos.py / exit / deactivate
+        functions wired up.
+#>
+
+# ---------------------------------------------------------------------------
+# Locate project root (script's directory)
+# ---------------------------------------------------------------------------
+$OpenSdkRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Verbose = [bool]$env:TUYAOPEN_EXPORT_VERBOSE
+
+# ---------------------------------------------------------------------------
+# Verify required project files (silent on success)
+# ---------------------------------------------------------------------------
+$missing = @()
+foreach ($f in 'export.ps1', 'requirements.txt', 'tos.py') {
+    if (-not (Test-Path -LiteralPath (Join-Path $OpenSdkRoot $f) -PathType Leaf)) {
+        $missing += $f
     }
-} catch {
-    # Python not found, continue with setup
 }
-
-# Set script root directory
-$OPEN_SDK_ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-# Debug information
-Write-Host "OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
-Write-Host "Current working directory = $(Get-Location)"
-
-# Change working directory
-Set-Location $OPEN_SDK_ROOT
-
-# Check Python version
-Write-Host "Checking Python version..."
-try {
-    $pythonVersion = python --version 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Error: Python is not installed or not in PATH!"
-        Write-Host "Please install Python 3.6.0 or higher."
-        Read-Host "Press any key to continue"
-        exit 1
-    }
-    Write-Host "Using Python $pythonVersion"
-} catch {
-    Write-Host "Error: Python is not installed or not in PATH!"
-    Write-Host "Please install Python 3.6.0 or higher."
-    Read-Host "Press any key to continue"
+if ($missing.Count -gt 0) {
+    Write-Host "Error: Missing required file(s) in $OpenSdkRoot: $($missing -join ' ')"
     exit 1
 }
 
-# Get Python version number
-$versionMatch = $pythonVersion -match "Python (\d+)\.(\d+)"
-if ($versionMatch) {
-    $major = [int]$matches[1]
-    $minor = [int]$matches[2]
-
-    if ($major -lt 3) {
-        Write-Host "Error: Python version $pythonVersion is too old!"
-        Write-Host "Please install Python 3.6.0 or higher."
-        Read-Host "Press any key to continue"
-        exit 1
-    }
-
-    if ($major -eq 3 -and $minor -lt 6) {
-        Write-Host "Error: Python version $pythonVersion is too old!"
-        Write-Host "Please install Python 3.6.0 or higher."
-        Read-Host "Press any key to continue"
-        exit 1
+# ---------------------------------------------------------------------------
+# Locate a usable Python: supported range 3.9 - 3.13 (recommended: 3.11)
+# ---------------------------------------------------------------------------
+function Test-TuyaPython {
+    param([string]$Exec, [string[]]$ExtraArgs)
+    try {
+        $probe = @($ExtraArgs) + @(
+            '-c',
+            'import sys;sys.exit(0 if (3,9)<=sys.version_info[:2]<=(3,13) else 1)'
+        )
+        & $Exec @probe 2>$null | Out-Null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
     }
 }
 
-# Create virtual environment
-$venvPath = Join-Path $OPEN_SDK_ROOT ".venv"
-if (-not (Test-Path $venvPath)) {
+$candidates = @(
+    @{ Exec = 'py';      Args = @('-3.11') },
+    @{ Exec = 'py';      Args = @('-3.12') },
+    @{ Exec = 'py';      Args = @('-3.10') },
+    @{ Exec = 'py';      Args = @('-3.13') },
+    @{ Exec = 'py';      Args = @('-3.9')  },
+    @{ Exec = 'python';  Args = @()         },
+    @{ Exec = 'python3'; Args = @()         }
+)
+
+$pythonExec = $null
+$pythonArgs = @()
+foreach ($c in $candidates) {
+    if (Test-TuyaPython -Exec $c.Exec -ExtraArgs $c.Args) {
+        $pythonExec = $c.Exec
+        $pythonArgs = $c.Args
+        break
+    }
+}
+
+if (-not $pythonExec) {
+    Write-Host "Error: No suitable Python version found!"
+    Write-Host "       Please install Python 3.9 - 3.13 (recommended: 3.11)."
+    exit 1
+}
+
+$pyVersion = (& $pythonExec @pythonArgs -c "import sys;print('.'.join(map(str,sys.version_info[:3])))").Trim()
+$pyMinor   = (& $pythonExec @pythonArgs -c "import sys;print(sys.version_info[1])").Trim()
+
+# ---------------------------------------------------------------------------
+# Re-source detection (is our venv already active?)
+# ---------------------------------------------------------------------------
+$venvPath   = Join-Path $OpenSdkRoot '.venv'
+$isResource = ($env:VIRTUAL_ENV -and $env:VIRTUAL_ENV -eq $venvPath)
+
+# ---------------------------------------------------------------------------
+# Summary banner
+#   Re-source: show only the "already active" note.
+#   First run: show OPEN_SDK_ROOT + Host/Python line + optional rec note.
+# ---------------------------------------------------------------------------
+if ($isResource) {
+    Write-Host "[TuyaOpen] Note: Virtual environment is already active ($env:VIRTUAL_ENV); refreshing environment variables."
+} else {
+    $arch = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { 'unknown' }
+    $pythonDisplay = if ($pythonArgs.Count -gt 0) {
+        "$pythonExec $($pythonArgs -join ' ')"
+    } else {
+        $pythonExec
+    }
+    Write-Host "OPEN_SDK_ROOT = $OpenSdkRoot"
+    Write-Host "Host: Windows $arch | $pythonDisplay $pyVersion"
+    if ($pyMinor -ne '11') {
+        Write-Host "[TuyaOpen] Note: Python 3.11 is recommended (detected 3.$pyMinor)."
+    }
+}
+
+Set-Location $OpenSdkRoot
+
+# ---------------------------------------------------------------------------
+# Create / reuse virtualenv
+# ---------------------------------------------------------------------------
+if (-not (Test-Path -LiteralPath $venvPath -PathType Container)) {
     Write-Host "Creating virtual environment..."
-    try {
-        python -m venv $venvPath
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Error: Failed to create virtual environment!"
-            Write-Host "Please check your Python installation and try again."
-            Read-Host "Press any key to continue"
-            exit 1
-        }
-        Write-Host "Virtual environment created successfully."
-    } catch {
+    & $pythonExec @pythonArgs -m venv $venvPath
+    if ($LASTEXITCODE -ne 0) {
         Write-Host "Error: Failed to create virtual environment!"
         Write-Host "Please check your Python installation and try again."
-        Read-Host "Press any key to continue"
         exit 1
     }
-} else {
-    Write-Host "Virtual environment already exists."
+    Write-Host "Virtual environment created successfully."
 }
 
-# Verify virtual environment was created properly
-$pythonExe = Join-Path $venvPath "Scripts\python.exe"
-$python3Exe = Join-Path $venvPath "Scripts\python3.exe"
-$pipExe = Join-Path $venvPath "Scripts\pip.exe"
+$pythonExe  = Join-Path $venvPath 'Scripts\python.exe'
+$python3Exe = Join-Path $venvPath 'Scripts\python3.exe'
+$pipExe     = Join-Path $venvPath 'Scripts\pip.exe'
+$scriptsDir = Join-Path $venvPath 'Scripts'
 
-if (-not (Test-Path $pythonExe)) {
+if (-not (Test-Path -LiteralPath $pythonExe)) {
     Write-Host "Error: Virtual environment Python executable not found: $pythonExe"
-    Read-Host "Press any key to continue"
     exit 1
 }
-
-if (-not (Test-Path $pipExe)) {
-    Write-Host "Error: Virtual environment pip executable not found: $pipExe"
-    Read-Host "Press any key to continue"
-    exit 1
+if (-not (Test-Path -LiteralPath $python3Exe)) {
+    Copy-Item -LiteralPath $pythonExe -Destination $python3Exe
 }
 
-# Copy python.exe to python3.exe for compatibility
-if (-not (Test-Path $python3Exe)) {
-    Copy-Item $pythonExe $python3Exe
-}
-
-# Activate virtual environment (set PATH to use virtual environment)
-Write-Host "DEBUG: Activating virtual environment from $venvPath\Scripts"
-$env:PATH = "$venvPath\Scripts;$env:PATH"
-
-# Verify activation worked by checking if we're using the right Python
-$activePython = (Get-Command python).Source
-Write-Host "Virtual environment activated successfully: $activePython"
-
-# Environmental variables
+# ---------------------------------------------------------------------------
+# Activate venv: set env vars and idempotently update PATH
+# ---------------------------------------------------------------------------
+$env:VIRTUAL_ENV     = $venvPath
+$env:OPEN_SDK_ROOT   = $OpenSdkRoot
 $env:OPEN_SDK_PYTHON = $pythonExe
-$env:OPEN_SDK_PIP = $pipExe
-$env:PATH = "$env:PATH;$OPEN_SDK_ROOT"
+$env:OPEN_SDK_PIP    = $pipExe
 
+$pathParts = $env:PATH -split ';'
+if ($pathParts -notcontains $scriptsDir)  { $env:PATH = "$scriptsDir;$env:PATH" }
+if (($env:PATH -split ';') -notcontains $OpenSdkRoot) { $env:PATH = "$env:PATH;$OpenSdkRoot" }
+
+# ---------------------------------------------------------------------------
 # Install dependencies
-Write-Host "Installing dependencies..."
-$requirementsPath = Join-Path $OPEN_SDK_ROOT "requirements.txt"
-if (Test-Path $requirementsPath) {
-    try {
-        & $env:OPEN_SDK_PIP install -r $requirementsPath
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "Warning: Some dependencies may not have been installed correctly."
-        }
-    } catch {
-        Write-Host "Warning: Error occurred while installing dependencies."
-    }
+# ---------------------------------------------------------------------------
+$reqFile = Join-Path $OpenSdkRoot 'requirements.txt'
+if ($Verbose) {
+    & $pipExe install -r $reqFile
 } else {
-    Write-Host "Warning: requirements.txt file not found."
+    & $pipExe install -q -r $reqFile
+}
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Some dependencies may not have been installed correctly."
 }
 
-# Remove cache files
-$cachePath = Join-Path $OPEN_SDK_ROOT ".cache"
+# ---------------------------------------------------------------------------
+# Clean stale cache files
+# ---------------------------------------------------------------------------
+$cachePath = Join-Path $OpenSdkRoot '.cache'
 New-Item -ItemType Directory -Path $cachePath -Force -ErrorAction SilentlyContinue | Out-Null
-$envJsonPath = Join-Path $cachePath ".env.json"
-if (Test-Path $envJsonPath) {
-    Remove-Item $envJsonPath -Force
-}
-$dontUpdatePlatform = Join-Path $cachePath ".dont_prompt_update_platform"
-if (Test-Path $dontUpdatePlatform) {
-    Remove-Item $dontUpdatePlatform -Force
+foreach ($name in '.env.json', '.dont_prompt_update_platform') {
+    $p = Join-Path $cachePath $name
+    if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
 }
 
-# hello tuya
-$HELLO_TUYA = '
- ______                 ____
-/_  __/_ ____ _____ _  / __ \___  ___ ___
- / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
-/_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
-         /___/            /_/
-'
-Write-Host "****************************************"
-Write-Host $HELLO_TUYA
-Write-Host "Exit use: exit"
-Write-Host "****************************************"
+# ---------------------------------------------------------------------------
+# Greeting banner (via tos.py hello; prints TuyaOpen version inside the art)
+# ---------------------------------------------------------------------------
+& $pythonExe (Join-Path $OpenSdkRoot 'tos.py') hello
 
-# Create a temporary script file for the new session
-$tempScript = [System.IO.Path]::GetTempFileName() + ".ps1"
+# ---------------------------------------------------------------------------
+# If already inside the activated shell, just return to caller.
+# Otherwise spawn an interactive PowerShell with tos.py / exit / deactivate
+# helper functions wired up.
+# ---------------------------------------------------------------------------
+if ($isResource) { return }
+
+$tempScript = [System.IO.Path]::GetTempFileName() + '.ps1'
 $scriptContent = @"
-# Set environment variables
+`$env:VIRTUAL_ENV     = '$venvPath'
+`$env:OPEN_SDK_ROOT   = '$OpenSdkRoot'
 `$env:OPEN_SDK_PYTHON = '$pythonExe'
-`$env:OPEN_SDK_PIP = '$pipExe'
-`$env:PATH = '$venvPath\Scripts;' + `$env:PATH
-`$env:PATH = `$env:PATH + ';$OPEN_SDK_ROOT'
+`$env:OPEN_SDK_PIP    = '$pipExe'
+`$env:PATH            = '$scriptsDir;' + `$env:PATH + ';$OpenSdkRoot'
 
-# Set working directory
-Set-Location '$OPEN_SDK_ROOT'
+Set-Location '$OpenSdkRoot'
 
-# Create custom prompt function (equivalent to set PROMPT=(tos) %PROMPT% in batch)
-function prompt {
-    "(tos) `$(`$executionContext.SessionState.Path.CurrentLocation)`$('>' * (`$nestedPromptLevel + 1)) "
+function global:prompt {
+    '(tos) ' + `$(`$ExecutionContext.SessionState.Path.CurrentLocation) + (' >' * (`$nestedPromptLevel + 1)) + ' '
 }
 
-# Create tos.py function
-function tos.py {
-    & `$env:OPEN_SDK_PYTHON '$OPEN_SDK_ROOT\tos.py' `$args
+function global:tos.py {
+    & '$pythonExe' '$OpenSdkRoot\tos.py' @args
 }
 
-# Create exit function to clean up environment
-function exit {
-    Write-Host "Exiting TuyaOpen environment..."
-
-    # Clean up environment variables
+function global:deactivate {
+    Write-Host 'Exiting TuyaOpen environment...'
+    Remove-Item Env:VIRTUAL_ENV     -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_ROOT   -ErrorAction SilentlyContinue
     Remove-Item Env:OPEN_SDK_PYTHON -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_PIP -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_ROOT -ErrorAction SilentlyContinue
-
-    Write-Host "TuyaOpen environment deactivated."
-
-    # Exit PowerShell
-    [Environment]::Exit(0)
+    Remove-Item Env:OPEN_SDK_PIP    -ErrorAction SilentlyContinue
+    Write-Host 'TuyaOpen environment deactivated.'
 }
 
+# `exit` is a PowerShell keyword and cannot be reliably overridden by a
+# function, so hook session teardown via the engine Exiting event instead.
+# This fires for `exit`, window close, or any other way the host is torn down.
+Register-EngineEvent PowerShell.Exiting -SupportEvent -Action {
+    Remove-Item Env:VIRTUAL_ENV     -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_ROOT   -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_PYTHON -ErrorAction SilentlyContinue
+    Remove-Item Env:OPEN_SDK_PIP    -ErrorAction SilentlyContinue
+} | Out-Null
 "@
 
-# Write the script content to temporary file
 $scriptContent | Out-File -FilePath $tempScript -Encoding UTF8
-
-# Start interactive PowerShell session with the temporary script
-Write-Host "Starting interactive session with virtual environment..."
-Write-Host "tmpScript $tempScript"
-powershell -NoExit -File $tempScript
-
-# Clean up temporary file
-Remove-Item $tempScript -Force -ErrorAction SilentlyContinue
+try {
+    & powershell -NoExit -File $tempScript
+} finally {
+    Remove-Item -LiteralPath $tempScript -Force -ErrorAction SilentlyContinue
+}

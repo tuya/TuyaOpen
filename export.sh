@@ -1,196 +1,284 @@
 #!/usr/bin/env bash
-
+#
 # Usage: . ./export.sh
 #
+# Set TUYAOPEN_EXPORT_VERBOSE=1 before sourcing for full diagnostic output.
+#
+# This script must be *sourced* (not executed). It:
+#   * locates the TuyaOpen project root,
+#   * creates/activates a Python venv in <root>/.venv,
+#   * installs requirements.txt,
+#   * exports OPEN_SDK_ROOT / OPEN_SDK_PYTHON / OPEN_SDK_PIP,
+#   * adds the project root to PATH so `tos.py` is runnable,
+#   * installs a friendly `exit` override that tears the env down cleanly.
 
-# Check if virtual environment is already activated
-if [ -n "$VIRTUAL_ENV" ] && [ "$VIRTUAL_ENV" = "$OPEN_SDK_ROOT/.venv" ]; then
-    echo "Virtual environment is already activated."
-    return 0
-fi
-
-# Function to find the project root directory
-pwd_dir="$(pwd)"
-
+# ---------------------------------------------------------------------------
+# Locate this script (works under bash, zsh, and plain POSIX sh)
+# ---------------------------------------------------------------------------
 if [ -n "$BASH_VERSION" ]; then
-    script_dir=$(realpath $(dirname "${BASH_SOURCE[0]}"))
+    __tuya_script_dir=$(realpath "$(dirname "${BASH_SOURCE[0]}")")
 elif [ -n "$ZSH_VERSION" ]; then
-    script_dir=$(realpath "$(dirname "${(%):-%x}")")
+    __tuya_script_dir=$(realpath "$(dirname "${(%):-%x}")")
 else
-    script_dir=$(realpath $(dirname "$0"))
+    __tuya_script_dir=$(realpath "$(dirname "$0")")
 fi
+__tuya_pwd_dir="$(pwd)"
 
-find_project_root() {
-    if [ -e "$script_dir/export.sh" ] && [ -e "$script_dir/requirements.txt" ]; then
-        echo "$script_dir"
-        return 0
-    fi
+# ---------------------------------------------------------------------------
+# Logging helpers
+#   __tuya_info  : always printed
+#   __tuya_debug : printed only when TUYAOPEN_EXPORT_VERBOSE is set
+# ---------------------------------------------------------------------------
+__tuya_info()  { echo "$@"; }
+__tuya_debug() { [ -n "$TUYAOPEN_EXPORT_VERBOSE" ] && echo "$@"; return 0; }
 
-    if [ -e "$pwd_dir/export.sh" ] && [ -e "$pwd_dir/requirements.txt" ]; then
-        echo "$pwd_dir"
-        return 0
-    fi
-
-    return 1
+# Unset every helper/temporary we introduce (used on both error and success).
+__tuya_export_cleanup() {
+    unset __tuya_script_dir __tuya_pwd_dir
+    unset -f __tuya_info __tuya_debug __tuya_is_sdk_root \
+             __tuya_print_version __tuya_find_python \
+             __tuya_export_cleanup 2>/dev/null || true
 }
 
-OPEN_SDK_ROOT=$(find_project_root)
+# ---------------------------------------------------------------------------
+# Project root detection
+# Prefer $PWD when it looks like a TuyaOpen checkout (so a copy of export.sh
+# sourced from another tree still picks the right root), then fall back to
+# the directory of this script.
+# ---------------------------------------------------------------------------
+__tuya_is_sdk_root() {
+    [ -f "$1/export.sh" ] && [ -f "$1/requirements.txt" ]
+}
 
-# Debug information
-echo "OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
-echo "Current root = $(pwd)"
-echo "Script name: $(basename "$0")"
-echo "Script path: $0"
-
-# Additional verification - check for expected project files
-echo "Project files check:"
-EXIT_FLAG=0
-for file in "export.sh" "requirements.txt" "tos.py"; do
-    if [ -f "$OPEN_SDK_ROOT/$file" ]; then
-        echo "  ✓ Found $file"
-    else
-        echo "  ✗ Missing $file"
-        EXIT_FLAG=1
-    fi
-done
-
-if [ x"1" = x"$EXIT_FLAG" ]; then
-    echo "Erorr: Can't export!"
+if __tuya_is_sdk_root "$__tuya_pwd_dir"; then
+    OPEN_SDK_ROOT="$__tuya_pwd_dir"
+elif __tuya_is_sdk_root "$__tuya_script_dir"; then
+    OPEN_SDK_ROOT="$__tuya_script_dir"
+else
+    echo "Error: Unable to locate TuyaOpen project root (export.sh + requirements.txt)."
+    __tuya_export_cleanup
     return 1
 fi
 
-# If we're not in the project root and export.sh exists in current directory, use current directory
-if [ "$OPEN_SDK_ROOT" != "$(pwd)" ] && [ -f "./export.sh" ]; then
-    echo "Found export.sh in current directory, using current directory as project root"
-    OPEN_SDK_ROOT="$(pwd)"
-    echo "Updated OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
-fi
-
-# Function to check Python version
-check_python_version() {
-    local python_cmd="$1"
-    if command -v "$python_cmd" >/dev/null 2>&1; then
-        local version=$($python_cmd -c "import sys; print('.'.join(map(str, sys.version_info[:3])))" 2>/dev/null)
-        if [ $? -eq 0 ]; then
-            local major=$(echo "$version" | cut -d. -f1)
-            local minor=$(echo "$version" | cut -d. -f2)
-            local patch=$(echo "$version" | cut -d. -f3)
-            # Check if version >= 3.6.0
-            if [ "$major" -eq 3 ] && [ "$minor" -ge 6 ]; then
-                echo "$python_cmd"
-                return 0
-            elif [ "$major" -gt 3 ]; then
-                echo "$python_cmd"
-                return 0
-            fi
+# ---------------------------------------------------------------------------
+# Git version string: exact tag, else <tag>-<8-char-sha>, plus -dirty suffix.
+# ---------------------------------------------------------------------------
+__tuya_print_version() {
+    local root="$1" ver="" tag short dirty=""
+    if ! command -v git >/dev/null 2>&1; then
+        echo "TuyaOpen version: (git not found)"
+        return 0
+    fi
+    if [ ! -e "$root/.git" ]; then
+        echo "TuyaOpen version: (not a git checkout)"
+        return 0
+    fi
+    if [ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]; then
+        dirty="-dirty"
+    fi
+    if ! ver=$(git -C "$root" describe --tags --exact-match HEAD 2>/dev/null); then
+        tag=$(git -C "$root" describe --tags --abbrev=0 HEAD 2>/dev/null)
+        short=$(git -C "$root" rev-parse --short=8 HEAD 2>/dev/null)
+        if [ -n "$tag" ] && [ -n "$short" ]; then
+            ver="${tag}-${short}"
+        elif [ -n "$short" ]; then
+            ver="$short"
+        else
+            ver="unknown"
         fi
     fi
+    echo "TuyaOpen version: ${ver}${dirty}"
+}
+
+# ---------------------------------------------------------------------------
+# Verify required project files (silent on success; only report what's missing)
+# ---------------------------------------------------------------------------
+__tuya_missing=""
+for __f in export.sh requirements.txt tos.py; do
+    if [ ! -f "$OPEN_SDK_ROOT/$__f" ]; then
+        __tuya_missing="$__tuya_missing $__f"
+    fi
+done
+unset __f
+if [ -n "$__tuya_missing" ]; then
+    echo "Error: Missing required file(s) in $OPEN_SDK_ROOT:$__tuya_missing"
+    unset __tuya_missing
+    __tuya_export_cleanup
+    return 1
+fi
+unset __tuya_missing
+
+# ---------------------------------------------------------------------------
+# Locate a usable Python: supported range 3.9 - 3.13 (recommended: 3.11)
+# ---------------------------------------------------------------------------
+__TUYA_PY_MIN="3.9"
+__TUYA_PY_MAX="3.13"
+__TUYA_PY_REC="3.11"
+
+__tuya_find_python() {
+    local cmd
+    for cmd in python3.11 python3.12 python3.10 python3.13 python3.9 python3 python; do
+        command -v "$cmd" >/dev/null 2>&1 || continue
+        if "$cmd" -c '
+import sys
+major, minor = sys.version_info[:2]
+sys.exit(0 if (major, minor) >= (3, 9) and (major, minor) <= (3, 13) else 1)
+' 2>/dev/null; then
+            echo "$cmd"
+            return 0
+        fi
+    done
     return 1
 }
 
-# Determine which Python command to use
-PYTHON_CMD=""
-if check_python_version "python3" >/dev/null 2>&1; then
-    PYTHON_CMD=$(check_python_version "python3")
-    echo "Using python3 ($(python3 --version))"
-elif check_python_version "python" >/dev/null 2>&1; then
-    PYTHON_CMD=$(check_python_version "python")
-    echo "Using python ($(python --version))"
-else
+PYTHON_CMD=$(__tuya_find_python)
+if [ -z "$PYTHON_CMD" ]; then
     echo "Error: No suitable Python version found!"
-    echo "Please install Python 3.6.0 or higher."
+    echo "       Please install Python ${__TUYA_PY_MIN} - ${__TUYA_PY_MAX} (recommended: ${__TUYA_PY_REC})."
+    unset __TUYA_PY_MIN __TUYA_PY_MAX __TUYA_PY_REC
+    __tuya_export_cleanup
     return 1
 fi
+__tuya_py_minor=$("$PYTHON_CMD" -c 'import sys; print(sys.version_info[1])' 2>/dev/null)
 
-# Change to the script directory to ensure relative paths work correctly
-cd "$OPEN_SDK_ROOT"
+# Detect re-source: this project's venv is already active.
+__tuya_is_resource=0
+if [ -n "$VIRTUAL_ENV" ] && [ "$VIRTUAL_ENV" = "$OPEN_SDK_ROOT/.venv" ]; then
+    __tuya_is_resource=1
+fi
 
-# create a virtual environment
+# ---------------------------------------------------------------------------
+# Summary banner
+#   Re-source: show only the "already active" note, then the greeting banner.
+#   First source / verbose: full summary as before.
+# ---------------------------------------------------------------------------
+if [ "$__tuya_is_resource" = "1" ] && [ -z "$TUYAOPEN_EXPORT_VERBOSE" ]; then
+    __tuya_info "[TuyaOpen] Note: Virtual environment is already active ($VIRTUAL_ENV); refreshing environment variables."
+else
+    __tuya_info  "OPEN_SDK_ROOT = $OPEN_SDK_ROOT"
+    __tuya_debug "Current root  = $__tuya_pwd_dir"
+    __tuya_debug "Script path   = $__tuya_script_dir"
+    __tuya_info  "Host: $(uname -s) $(uname -m) | $PYTHON_CMD $("$PYTHON_CMD" -c 'import sys; print(".".join(map(str, sys.version_info[:3])))' 2>/dev/null)"
+
+    if [ "$__tuya_is_resource" = "1" ]; then
+        __tuya_debug "Virtual environment already active: $VIRTUAL_ENV (re-sourcing export.sh)"
+    fi
+
+    __tuya_print_version "$OPEN_SDK_ROOT"
+
+    if [ "$__tuya_py_minor" != "11" ]; then
+        __tuya_info "[TuyaOpen] Note: Python ${__TUYA_PY_REC} is recommended (detected 3.${__tuya_py_minor})."
+    fi
+fi
+unset __tuya_py_minor __TUYA_PY_MIN __TUYA_PY_MAX __TUYA_PY_REC
+
+# ---------------------------------------------------------------------------
+# Work inside project root so relative paths resolve
+# ---------------------------------------------------------------------------
+cd "$OPEN_SDK_ROOT" || { __tuya_export_cleanup; return 1; }
+
+# ---------------------------------------------------------------------------
+# Create / reuse virtualenv
+# ---------------------------------------------------------------------------
 if [ ! -d "$OPEN_SDK_ROOT/.venv" ]; then
     echo "Creating virtual environment..."
-    $PYTHON_CMD -m venv "$OPEN_SDK_ROOT/.venv"
-    if [ $? -ne 0 ]; then
+    if ! "$PYTHON_CMD" -m venv "$OPEN_SDK_ROOT/.venv"; then
         echo "Error: Failed to create virtual environment!"
         echo "Please check your Python installation and try again."
+        __tuya_export_cleanup
         return 1
     fi
     echo "Virtual environment created successfully."
 else
-    echo "Virtual environment already exists."
+    __tuya_debug "Virtual environment already exists."
 fi
 
-# Verify that the virtual environment was created properly
 if [ ! -f "$OPEN_SDK_ROOT/.venv/bin/activate" ]; then
     echo "Error: Virtual environment activation script not found at $OPEN_SDK_ROOT/.venv/bin/activate"
+    __tuya_export_cleanup
     return 1
 fi
 
-
-# Define custom exit function for TuyaOpen environment
+# ---------------------------------------------------------------------------
+# Custom `exit` that cleanly leaves the TuyaOpen environment
+# ---------------------------------------------------------------------------
 exit() {
-    # Check if we're in TuyaOpen virtual environment
     if [ -n "$OPEN_SDK_ROOT" ]; then
         echo "Exiting TuyaOpen environment..."
-
-        # Call the original deactivate function
         if type deactivate >/dev/null 2>&1; then
             deactivate
         fi
-
-        # Clean up TuyaOpen specific environment variables
-        unset OPEN_SDK_PYTHON
-        unset OPEN_SDK_PIP
-        unset OPEN_SDK_ROOT
-
-        # Remove our custom exit function
+        unset OPEN_SDK_PYTHON OPEN_SDK_PIP OPEN_SDK_ROOT
         unset -f exit
-
         echo "TuyaOpen environment deactivated."
     else
-        # If not in TuyaOpen environment, call the original exit
         command exit "$@"
     fi
 }
 
-# activate
-echo "DEBUG: Activating virtual environment from $OPEN_SDK_ROOT/.venv/bin/activate"
-. ${OPEN_SDK_ROOT}/.venv/bin/activate
-export PATH=$PATH:${OPEN_SDK_ROOT}
-export OPEN_SDK_PYTHON=${OPEN_SDK_ROOT}/.venv/bin/python
-export OPEN_SDK_PIP=${OPEN_SDK_ROOT}/.venv/bin/pip
-export OPEN_SDK_ROOT=$OPEN_SDK_ROOT
+# ---------------------------------------------------------------------------
+# Activate venv and export variables
+# ---------------------------------------------------------------------------
+__tuya_debug "Activating virtual environment from $OPEN_SDK_ROOT/.venv/bin/activate"
+# shellcheck disable=SC1091
+. "$OPEN_SDK_ROOT/.venv/bin/activate"
 
-# Export the exit function
-export -f exit
+# Append project root to PATH only if not already present (idempotent).
+case ":$PATH:" in
+    *":$OPEN_SDK_ROOT:"*) ;;
+    *) PATH="$PATH:$OPEN_SDK_ROOT" ;;
+esac
+export PATH
+export OPEN_SDK_PYTHON="$OPEN_SDK_ROOT/.venv/bin/python"
+export OPEN_SDK_PIP="$OPEN_SDK_ROOT/.venv/bin/pip"
+export OPEN_SDK_ROOT
 
-# Verify activation worked
+# zsh forbids exporting a function named `exit`; the override still works in
+# the current zsh session via the shell function, just not in subshells.
+if [ -n "$BASH_VERSION" ]; then
+    export -f exit
+fi
+
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "Error: Failed to activate virtual environment"
+    __tuya_export_cleanup
     return 1
 fi
-echo "Virtual environment activated successfully: $VIRTUAL_ENV"
+__tuya_debug "Virtual environment activated successfully: $VIRTUAL_ENV"
 
-# install dependencies
-pip install -r ${OPEN_SDK_ROOT}/requirements.txt
+# ---------------------------------------------------------------------------
+# Install dependencies
+# ---------------------------------------------------------------------------
+if [ -n "$TUYAOPEN_EXPORT_VERBOSE" ]; then
+    pip install -r "$OPEN_SDK_ROOT/requirements.txt"
+else
+    pip install -q -r "$OPEN_SDK_ROOT/requirements.txt"
+fi
 
-# remove cache files
-CACHE_PATH=${OPEN_SDK_ROOT}/.cache
-mkdir -p ${CACHE_PATH}
-rm -f ${CACHE_PATH}/.env.json
-rm -f ${CACHE_PATH}/.dont_prompt_update_platform
+# ---------------------------------------------------------------------------
+# Clean stale cache files
+# ---------------------------------------------------------------------------
+CACHE_PATH="$OPEN_SDK_ROOT/.cache"
+mkdir -p "$CACHE_PATH"
+rm -f "$CACHE_PATH/.env.json" "$CACHE_PATH/.dont_prompt_update_platform"
 
-# complete
-eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
+# ---------------------------------------------------------------------------
+# tos.py shell completion (bash only; zsh does not implement `complete`)
+# ---------------------------------------------------------------------------
+if [ -n "$BASH_VERSION" ]; then
+    eval "$(bash -c '_TOS_PY_COMPLETE=bash_source tos.py')"
+fi
 
-# hello tuya
-HELLO_TUYA='
- ______                 ____
-/_  __/_ ____ _____ _  / __ \___  ___ ___
- / / / // / // / _ `/ / /_/ / _ \/ -_) _ \
-/_/  \_,_/\_, /\_,_/  \____/ .__/\__/_//_/
-         /___/            /_/
-'
-echo "****************************************"
-echo "$HELLO_TUYA"
-echo "Exit use: exit"
-echo "****************************************"
+# ---------------------------------------------------------------------------
+# Greeting banner — rendered by `tos.py hello`.
+# On re-source (and non-verbose) the tos.py "Running tos.py ..." INFO log on
+# stderr would be noise, so we drop stderr in that case.
+# ---------------------------------------------------------------------------
+if [ "$__tuya_is_resource" = "1" ] && [ -z "$TUYAOPEN_EXPORT_VERBOSE" ]; then
+    tos.py hello --no-version 2>/dev/null
+else
+    tos.py hello --no-version
+fi
+unset __tuya_is_resource
+
+__tuya_export_cleanup
