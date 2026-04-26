@@ -30,7 +30,7 @@
  */
 // clang-format off
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID      "qhivvyqawogv04e4"                        // Please change your product id
+#define TUYA_PRODUCT_ID      "qchyaloyipqbitkl"                        // Please change your product id
 #endif
 
 #ifndef TUYA_OPENSDK_UUID

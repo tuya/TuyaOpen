@@ -52,13 +52,13 @@
  */
 // clang-format off
 #ifndef TUYA_PRODUCT_ID
-#define TUYA_PRODUCT_ID         "wtewb6gaxuowjzhb"                        // Please change your product id
+#define TUYA_PRODUCT_ID         "qchyaloyipqbitkl"                        // Please change your product id
 #endif
 #ifndef TUYA_OPENSDK_UUID
-#define TUYA_OPENSDK_UUID       "uuidxxxxxxxxxxxxxxxx"                    // Please change the correct uuid
+#define TUYA_OPENSDK_UUID       "uuid772e52ba39485026"                    // Please change the correct uuid
 #endif
 #ifndef TUYA_OPENSDK_AUTHKEY
-#define TUYA_OPENSDK_AUTHKEY    "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"        // Please change the correct authkey
+#define TUYA_OPENSDK_AUTHKEY    "keyPr2b6EcpOGxbvPVo3d3QTyhgoESMydME"        // Please change the correct authkey
 #endif
 
 /**

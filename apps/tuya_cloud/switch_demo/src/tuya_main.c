@@ -34,6 +34,7 @@
 #endif
 
 #include "reset_netcfg.h"
+#include "dp_handler.h"
 
 #if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
 #include "qrencode_print.h"
@@ -48,6 +49,8 @@ extern void tuya_app_cli_init(void);
 
 /* Tuya device handle */
 tuya_iot_client_t client;
+
+BOOL_T g_tuya_mqtt_connected = FALSE;
 
 /* Tuya license information (uuid authkey) */
 tuya_iot_license_t license;
@@ -112,8 +115,20 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         PR_INFO("Device Bind Start!");
         break;
 
+    case TUYA_EVENT_MQTT_CONNECTED:
+        g_tuya_mqtt_connected = TRUE;
+        dp_handler_mqtt_connected();
+        PR_NOTICE("Tuya MQTT connected flag set");
+        break;
+
+    case TUYA_EVENT_MQTT_DISCONNECT:
+        g_tuya_mqtt_connected = FALSE;
+        PR_NOTICE("Tuya MQTT disconnected flag cleared");
+        break;
+
     /* Print the QRCode for Tuya APP bind */
     case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
+        g_tuya_mqtt_connected = TRUE;
 #if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
         char buffer[255];
         sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
@@ -125,6 +140,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         user_upgrade_notify_on(client, event->value.asJSON);
         break;
     case TUYA_EVENT_RESET: {
+        g_tuya_mqtt_connected = FALSE;
         tuya_reset_type_t reset_type = (tuya_reset_type_t)event->value.asInteger;
         PR_INFO("Device Reset:%d", reset_type);
 
@@ -145,39 +161,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
             PR_DEBUG("devid.%s", dpobj->devid);
         }
 
-        uint32_t index = 0;
-        for (index = 0; index < dpobj->dpscnt; index++) {
-            dp_obj_t *dp = dpobj->dps + index;
-            PR_DEBUG("idx:%d dpid:%d type:%d ts:%u", index, dp->id, dp->type, dp->time_stamp);
-            switch (dp->type) {
-            case PROP_BOOL: {
-                PR_DEBUG("bool value:%d", dp->value.dp_bool);
-                break;
-            }
-            case PROP_VALUE: {
-                PR_DEBUG("int value:%d", dp->value.dp_value);
-                break;
-            }
-            case PROP_STR: {
-                PR_DEBUG("str value:%s", dp->value.dp_str);
-                break;
-            }
-            case PROP_ENUM: {
-                PR_DEBUG("enum value:%u", dp->value.dp_enum);
-                break;
-            }
-            case PROP_BITMAP: {
-                PR_DEBUG("bits value:0x%X", dp->value.dp_bitmap);
-                break;
-            }
-            default: {
-                PR_ERR("idx:%d dpid:%d type:%d ts:%u is invalid", index, dp->id, dp->type, dp->time_stamp);
-                break;
-            }
-            } // end of switch
-        }
-
-        tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
+        // 调用DP点处理函数
+        dp_obj_cmd_handler(client, dpobj);
 
     } break;
 
@@ -206,6 +191,7 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         break;
     }
 }
+
 
 /**
  * @brief user defined network check callback, it will check the network every
@@ -294,8 +280,12 @@ void user_main(void)
 #endif
 
     PR_DEBUG("tuya_iot_init success");
+    
     /* Start tuya iot task */
     tuya_iot_start(&client);
+
+    // 初始化DP点处理模块（包含传感器初始化）
+    dp_handler_init(&client);
 
     reset_netconfig_check();
 
@@ -304,6 +294,7 @@ void user_main(void)
         tuya_iot_yield(&client);
     }
 }
+
 
 /**
  * @brief main
