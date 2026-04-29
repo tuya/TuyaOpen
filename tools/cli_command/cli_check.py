@@ -15,12 +15,45 @@ from tools.cli_command.util_files import copy_directory
 from tools.cli_command.util_git import set_repo_mirro, download_submoudules
 
 
+def _resolve_git_hooks_dir(open_root: str) -> str:
+    """
+    Path to the repository's hooks directory.
+    For a normal clone, this is <repo>/.git/hooks. For a git submodule, .git is
+    a file (gitdir pointer), so we ask git for the real path.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", open_root, "rev-parse", "--git-path", "hooks"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=True,
+            timeout=20,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+    path = (result.stdout or "").strip()
+    if not path:
+        return None
+    if not os.path.isabs(path):
+        path = os.path.normpath(os.path.join(open_root, path))
+    return path
+
+
 def copy_pre_commit():
     params = get_global_params()
+    logger = get_logger()
     open_root = params["open_root"]
     tools_root = params["tools_root"]
     source = os.path.join(tools_root, "hooks")
-    target = os.path.join(open_root, ".git", "hooks")
+    if not os.path.isdir(source):
+        return
+
+    target = _resolve_git_hooks_dir(open_root)
+    if not target:
+        logger.note("Skip copying pre-commit hooks (not a git repo or hooks path unknown).")
+        return
+
     copy_directory(source, target)
     pass
 
