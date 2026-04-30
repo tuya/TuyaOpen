@@ -26,13 +26,13 @@ lvgl_simulator/
 
 ```bash
 # Ubuntu / Debian
-sudo apt install cmake gcc libsdl2-dev
+sudo apt install build-essential cmake libsdl2-dev
 
 # Fedora / RHEL
-sudo dnf install cmake gcc SDL2-devel
+sudo dnf install @development-tools cmake SDL2-devel
 
 # Arch Linux
-sudo pacman -S cmake gcc sdl2
+sudo pacman -S base-devel cmake sdl2
 ```
 
 ### macOS
@@ -40,33 +40,8 @@ sudo pacman -S cmake gcc sdl2
 如未安装 [Homebrew](https://brew.sh)，先安装，然后：
 
 ```bash
-brew install cmake sdl2
+brew install sdl2 cmake make
 ```
-
-同时需要 Xcode 命令行工具（`xcode-select --install`）。
-
-### Windows
-
-**方案 A — WSL2（推荐）**
-
-安装 [WSL2](https://learn.microsoft.com/zh-cn/windows/wsl/install)（Ubuntu），然后按照上方 Linux 步骤操作即可。SDL2 窗口通过 WSLg（Windows 11）或 X 服务器（如 [VcXsrv](https://sourceforge.net/projects/vcxsrv/)，Windows 10）渲染。
-
-```powershell
-# 在管理员 PowerShell 中一次性安装 WSL2
-wsl --install
-```
-
-**方案 B — MSYS2 / MinGW-w64**
-
-1. 下载并安装 [MSYS2](https://www.msys2.org/)。
-2. 打开 **MSYS2 MinGW64** 终端，执行：
-
-```bash
-pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2
-```
-
-3. 在 MinGW64 终端中按照与 Linux 相同的命令进行编译。  
-   将 `$(nproc)` 替换为具体数字，如 `-j8`。
 
 ---
 

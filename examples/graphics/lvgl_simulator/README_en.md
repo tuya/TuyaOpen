@@ -43,31 +43,6 @@ Install [Homebrew](https://brew.sh) if not already installed, then:
 brew install cmake sdl2
 ```
 
-Xcode Command Line Tools are also required (`xcode-select --install`).
-
-### Windows
-
-**Option A — WSL2 (recommended)**
-
-Install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) with Ubuntu, then follow the Linux instructions above. The SDL2 window renders via WSLg (Windows 11) or an X server such as [VcXsrv](https://sourceforge.net/projects/vcxsrv/) (Windows 10).
-
-```powershell
-# In PowerShell (admin) — one-time WSL2 setup
-wsl --install
-```
-
-**Option B — MSYS2 / MinGW-w64**
-
-1. Download and install [MSYS2](https://www.msys2.org/).
-2. Open the **MSYS2 MinGW64** shell and run:
-
-```bash
-pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2
-```
-
-3. Build using the same commands as Linux (run inside the MinGW64 shell).  
-   Replace `$(nproc)` with a fixed number, e.g. `-j8`.
-
 ---
 
 ## Build & Run

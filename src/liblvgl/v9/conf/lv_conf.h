@@ -457,7 +457,7 @@
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_32
-#define LV_FONT_MONTSERRAT_32
+#define LV_FONT_MONTSERRAT_32 0
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_34
