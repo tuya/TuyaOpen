@@ -1,6 +1,6 @@
 # LVGL PC 模拟器
 
-在 Linux 桌面上运行 TuyaOpen App 的 LVGL UI，无需烧录硬件。UI 源码直接编译为原生可执行文件，通过 SDL2 窗口渲染 LVGL 界面。
+在桌面上运行 TuyaOpen App 的 LVGL UI，无需烧录硬件。UI 源码直接编译为原生可执行文件，通过 SDL2 窗口渲染 LVGL 界面。
 
 模拟器同时编译了 `platform/LINUX` 的 TKL 适配层和 `src/tal_system` 的 TAL 层，使得 UI 代码可以直接调用 `tal_*` / `tkl_*` 接口，并使用 `PR_xxx` 宏输出日志。
 
@@ -22,13 +22,51 @@ lvgl_simulator/
 
 ## 依赖安装
 
+### Linux
+
 ```bash
 # Ubuntu / Debian
 sudo apt install cmake gcc libsdl2-dev
 
 # Fedora / RHEL
 sudo dnf install cmake gcc SDL2-devel
+
+# Arch Linux
+sudo pacman -S cmake gcc sdl2
 ```
+
+### macOS
+
+如未安装 [Homebrew](https://brew.sh)，先安装，然后：
+
+```bash
+brew install cmake sdl2
+```
+
+同时需要 Xcode 命令行工具（`xcode-select --install`）。
+
+### Windows
+
+**方案 A — WSL2（推荐）**
+
+安装 [WSL2](https://learn.microsoft.com/zh-cn/windows/wsl/install)（Ubuntu），然后按照上方 Linux 步骤操作即可。SDL2 窗口通过 WSLg（Windows 11）或 X 服务器（如 [VcXsrv](https://sourceforge.net/projects/vcxsrv/)，Windows 10）渲染。
+
+```powershell
+# 在管理员 PowerShell 中一次性安装 WSL2
+wsl --install
+```
+
+**方案 B — MSYS2 / MinGW-w64**
+
+1. 下载并安装 [MSYS2](https://www.msys2.org/)。
+2. 打开 **MSYS2 MinGW64** 终端，执行：
+
+```bash
+pacman -S mingw-w64-x86_64-cmake mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2
+```
+
+3. 在 MinGW64 终端中按照与 Linux 相同的命令进行编译。  
+   将 `$(nproc)` 替换为具体数字，如 `-j8`。
 
 ---
 
@@ -76,7 +114,7 @@ rm -rf .build dist
 `sim_config.cmake` 是切换 App 的唯一入口，所有变量说明如下：
 
 ```cmake
-# 窗口标题（任意字符串，仅用于显示）
+# 窗口标题 / App 标识符（同时用于派生 SIM_APP_<name> 宏）
 set(SIM_APP_NAME  "tuya_t5_pocket_ai")
 
 # 屏幕分辨率（与目标硬件保持一致）
@@ -86,14 +124,12 @@ set(SIM_SCREEN_H  168)
 # UI 入口函数名（模拟器 main() 会调用此函数）
 set(SIM_ENTRY_FUNC  "screens_init")
 
-# UI 源码目录（递归搜索所有 .c 文件参与编译）
-# 可以列多个目录
+# UI 源码目录或单个 .c 文件路径；目录会递归搜索所有 .c 文件
 set(SIM_UI_SRC_DIRS
     "${CMAKE_SOURCE_DIR}/../../../apps/your_app/src/display"
 )
 
 # UI 头文件搜索路径（不含 SDK 路径，模拟器 stub 已覆盖）
-# 可以列多个目录
 set(SIM_UI_INC_DIRS
     "${CMAKE_SOURCE_DIR}/../../../apps/your_app/include"
     "${CMAKE_SOURCE_DIR}/../../../apps/your_app/src/expand/inc"
@@ -101,6 +137,43 @@ set(SIM_UI_INC_DIRS
 ```
 
 修改 `sim_config.cmake` 后，需要重新运行 `cmake -B .build` 才能生效（增量编译不够）。
+
+### 预置 App 配置
+
+文件中已内置四套配置（取消注释对应段落即可激活）：
+
+| App 名称 | 分辨率 | 入口函数 | 说明 |
+|---------|--------|---------|------|
+| `tuya_t5_pocket_ai` | 384×168 | `screens_init` | Tuya T5 口袋 AI 设备（当前默认激活） |
+| `your_chat_bot_wechat` | 480×320 | `ui_init` | 聊天机器人 — 微信风格 UI |
+| `your_chat_bot_chatbot` | 480×320 | `ui_init` | 聊天机器人 — chatbot 风格 UI |
+
+---
+
+## tuya_kconfig.h — 按 App 开启功能宏
+
+`include/tuya_kconfig.h` 是 Kconfig 生成头文件的模拟器桩，用于开启各 App UI 代码所依赖的功能宏。
+
+CMake 将 `SIM_APP_NAME` 转换为 C 标识符并注入为编译宏：
+
+```cmake
+string(MAKE_C_IDENTIFIER "${SIM_APP_NAME}" _sim_app_id)
+# 例："your_chat_bot_wechat" → SIM_APP_your_chat_bot_wechat
+target_compile_definitions(... SIM_APP_${_sim_app_id})
+```
+
+`tuya_kconfig.h` 即可按 App 有条件地开启宏：
+
+```c
+// 各 UI 通用字体大小，无条件开启
+#define LV_FONT_MONTSERRAT_16 1
+#define LV_FONT_MONTSERRAT_22 1
+#define LV_FONT_MONTSERRAT_32 1
+#define LV_FONT_MONTSERRAT_48 1
+
+```
+
+新增 App 时，若 UI 代码依赖额外的功能宏，在此处添加对应条件定义。
 
 ---
 
@@ -113,19 +186,11 @@ set(SIM_UI_INC_DIRS
 | 宏 | 定义时机 | 作用 |
 |----|---------|------|
 | `LVGL_PC_SIMULATOR` | 模拟器编译时由 CMake 注入 | 总开关，标识当前为 PC 模拟器环境 |
-| `ENABLE_LVGL_HARDWARE` | 硬件编译时由 `screen_manager.h` 定义 | 标识当前为真实硬件环境 |
+| `ENABLE_LVGL_HARDWARE` | 硬件编译时由 `screen_manager.h` 定义 | 标识当前为真实硬件环境（仅 pocket 项目使用） |
 | `LV_CONF_INCLUDE_SIMPLE` | 模拟器编译时注入 | 让 LVGL 以 `lv_conf.h` 方式查找配置头 |
 | `LV_LVGL_H_INCLUDE_SIMPLE` | 模拟器编译时注入 | 让 LVGL 内部以 `"lvgl.h"` 方式 include |
 | `OPERATING_SYSTEM=100` | 模拟器编译时注入 | `SYSTEM_LINUX`，激活 `tuya_cloud_types.h` 的 Linux 分支 |
-
-`screen_manager.h` 中的定义关系：
-
-```c
-// 非模拟器环境下才定义硬件宏
-#ifndef LVGL_PC_SIMULATOR
-#define ENABLE_LVGL_HARDWARE
-#endif
-```
+| `SIM_APP_<name>` | 由 CMake 注入 | 每个 App 的唯一标识，供 `tuya_kconfig.h` 条件开启功能宏 |
 
 ### lv_conf.h 中受 LVGL_PC_SIMULATOR 影响的配置
 
@@ -138,18 +203,17 @@ set(SIM_UI_INC_DIRS
 
 ### 在 UI 源码中使用宏
 
-**推荐写法：使用 `ENABLE_LVGL_HARDWARE`**
+**标准写法 — 使用 `#ifndef LVGL_PC_SIMULATOR`：**
 
 ```c
 // 硬件专属头文件
-#ifdef ENABLE_LVGL_HARDWARE
+#ifndef LVGL_PC_SIMULATOR
+#include "tal_api.h"
 #include "lv_vendor.h"
-#include "tkl_output.h"
-#include "tdl_camera_manage.h"
 #endif
 
-// 硬件操作分支
-#ifdef ENABLE_LVGL_HARDWARE
+// 硬件操作分支，模拟器提供默认实现
+#ifndef LVGL_PC_SIMULATOR
     camera_hw_start();
 #else
     printf("[SIM] camera stub\n");
@@ -159,9 +223,9 @@ set(SIM_UI_INC_DIRS
 **函数级整体屏蔽写法：**
 
 ```c
-OPERATE_RET ai_ui_chat_register(void)
+OPERATE_RET ai_ui_register_intfs(void)
 {
-#ifdef ENABLE_LVGL_HARDWARE
+#ifndef LVGL_PC_SIMULATOR
     AI_UI_INTFS_T intfs = {0};
     intfs.disp_emotion    = __ui_set_emotion;
     intfs.disp_wifi_state = __ui_set_network;
@@ -171,8 +235,6 @@ OPERATE_RET ai_ui_chat_register(void)
 #endif
 }
 ```
-
-**注意：** `#ifndef LVGL_PC_SIMULATOR` 与 `#ifdef ENABLE_LVGL_HARDWARE` 等价，但推荐统一使用后者，保持代码一致性。
 
 ---
 
@@ -186,27 +248,8 @@ OPERATE_RET ai_ui_chat_register(void)
 - **`tal_system_*`** — 系统信息
 - **`tal_log_*`** — 日志系统，已在 `main()` 中初始化为 `TAL_LOG_LEVEL_DEBUG`
 
-日志格式示例：
-```
-[E][file.c:42] some error message
-[D][file.c:100] debug info
-```
-
-已编译的 TKL 模块（Linux 原生实现）：`tkl_memory`, `tkl_mutex`, `tkl_semaphore`, `tkl_queue`, `tkl_thread`, `tkl_system`, `tkl_output`, `tkl_fs`
-
-已编译的 TAL 模块：`tal_log`, `tal_sleep`, `tal_sw_timer`, `tal_system`, `tal_thread`, `tal_time_service`, `tal_workqueue`, `tal_workq_service`
-
-> **未编译**：`tal_api`（依赖网络/UART/KV 子系统，UI 层无需）、`tal_event`、`tal_fs`（依赖 `tal_api.h`）。
-
 ---
 
 ## 键盘控制
 
-SDL 键盘事件映射到 LVGL 按键：
-
-| 按键 | LVGL 事件 |
-|------|-----------|
-| ↑ / ↓ / ← / → | `LV_KEY_UP` / `LV_KEY_DOWN` / `LV_KEY_LEFT` / `LV_KEY_RIGHT` |
-| Enter | `LV_KEY_ENTER` |
-| Esc | `LV_KEY_ESC` |
-| Tab | `LV_KEY_NEXT` |
+SDL 键盘事件映射到 LVGL 按键

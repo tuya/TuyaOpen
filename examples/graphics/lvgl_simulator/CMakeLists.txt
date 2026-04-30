@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 project(LVGLSimulator C)
 
-# 加载用户配置（修改 sim_config.cmake 切换 App）
+# Load app config — edit sim_config.cmake to switch apps
 include(${CMAKE_CURRENT_SOURCE_DIR}/sim_config.cmake)
 
-# 定位 TuyaOpen 根目录（simulator 在 examples/graphics/lvgl_simulator/）
+# Locate TuyaOpen root (simulator lives at examples/graphics/lvgl_simulator/)
 get_filename_component(TUYAOPEN_ROOT
     "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 
@@ -13,11 +13,11 @@ set(PLATFORM_DIR "${TUYAOPEN_ROOT}/platform/LINUX/tuyaos_adapter")
 set(TAL_DIR      "${TUYAOPEN_ROOT}/src/tal_system")
 set(COMMON_DIR   "${TUYAOPEN_ROOT}/src/common")
 
-# 可执行文件输出到 dist/
+# Output executable to dist/
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dist)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 生成 main.c（注入入口函数名和分辨率）
+# Generate main.c (inject entry function name and screen resolution)
 # ─────────────────────────────────────────────────────────────────────────────
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/sim_main.c.in
@@ -26,23 +26,27 @@ configure_file(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 源文件收集
+# Source file collection
 # ─────────────────────────────────────────────────────────────────────────────
 
-# LVGL 核心源码（含内置 SDL 驱动；排除 port/ 的嵌入式端口文件）
+# LVGL core sources (includes built-in SDL driver; embedded port files excluded)
 file(GLOB_RECURSE LVGL_SRCS "${LVGL_DIR}/lvgl/src/*.c")
 
-# UI 业务代码
+# UI source files (SIM_UI_SRC_DIRS entries can be directories or individual .c file paths)
 set(UI_SRCS "")
-foreach(dir ${SIM_UI_SRC_DIRS})
-    file(GLOB_RECURSE _srcs "${dir}/*.c")
+foreach(entry ${SIM_UI_SRC_DIRS})
+    if(IS_DIRECTORY "${entry}")
+        file(GLOB_RECURSE _srcs "${entry}/*.c")
+    else()
+        set(_srcs "${entry}")
+    endif()
     list(APPEND UI_SRCS ${_srcs})
 endforeach()
 
-# platform/LINUX 工具库（链表、哈希表等）
+# platform/LINUX utility library (linked lists, hash tables, etc.)
 file(GLOB UTIL_SRCS "${PLATFORM_DIR}/include/utilities/src/*.c")
 
-# platform/LINUX TKL 适配层（仅选取 TAL 依赖的核心模块）
+# platform/LINUX TKL adapter layer (only the core modules required by TAL)
 set(TKL_CORE_SRCS
     ${PLATFORM_DIR}/src/tkl_memory.c
     ${PLATFORM_DIR}/src/tkl_mutex.c
@@ -55,7 +59,8 @@ set(TKL_CORE_SRCS
     ${PLATFORM_DIR}/src/tkl_ota.c
 )
 
-# TAL 抽象层（含 tal_log.c 提供 PR_xxx 宏实现；排除依赖网络/UART/KV 头的 tal_event/fs）
+# TAL abstraction layer (tal_log.c provides PR_xxx macros;
+# tal_event.c and tal_fs.c excluded — they depend on network/UART/KV headers)
 set(TAL_SRCS
     ${TAL_DIR}/src/tal_api.c
     ${TAL_DIR}/src/tal_log.c
@@ -69,7 +74,7 @@ set(TAL_SRCS
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 可执行目标
+# Executable target
 # ─────────────────────────────────────────────────────────────────────────────
 find_package(SDL2 REQUIRED)
 
@@ -83,41 +88,50 @@ add_executable(lvgl_sim
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 编译宏
+# Compile-time definitions
 # ─────────────────────────────────────────────────────────────────────────────
+
+# Convert SIM_APP_NAME to a valid C identifier and inject as a preprocessor macro
+# (read by tuya_kconfig.h to enable per-app feature macros)
+string(MAKE_C_IDENTIFIER "${SIM_APP_NAME}" _sim_app_id)
+
 target_compile_definitions(lvgl_sim PRIVATE
-    LVGL_PC_SIMULATOR           # 总开关：控制 lv_conf.h / ENABLE_LVGL_HARDWARE
-    LV_CONF_INCLUDE_SIMPLE      # LVGL 使用 lv_conf.h 而非相对路径查找
-    LV_LVGL_H_INCLUDE_SIMPLE    # 内部头以 "lvgl.h" 方式 include
-    OPERATING_SYSTEM=100        # SYSTEM_LINUX：激活 tuya_cloud_types.h 的 Linux 分支
+    LVGL_PC_SIMULATOR              # Master switch: identifies PC simulator environment
+    LV_CONF_INCLUDE_SIMPLE         # Tell LVGL to locate its config via lv_conf.h
+    LV_LVGL_H_INCLUDE_SIMPLE       # Tell LVGL internals to #include "lvgl.h"
+    OPERATING_SYSTEM=100           # SYSTEM_LINUX: activates the Linux branch in tuya_cloud_types.h
+    SIM_APP_${_sim_app_id}         # Per-app identifier, read by tuya_kconfig.h
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Include 路径（顺序关键：stub 头必须在最前面）
+# Include paths (order matters: real headers before stub headers)
 # ─────────────────────────────────────────────────────────────────────────────
 target_include_directories(lvgl_sim PRIVATE
-    # 1. platform/LINUX 真实头文件（优先于 stub，提供 tuya_cloud_types.h 和 tkl_*.h / tal_*.h）
-    ${PLATFORM_DIR}/include/utilities/include   # tuya_cloud_types.h 及工具类头
+    # 1. Real platform/LINUX headers (provide tuya_cloud_types.h, tkl_*.h, tal_*.h)
+    ${PLATFORM_DIR}/include/utilities/include   # tuya_cloud_types.h and utility headers
     ${PLATFORM_DIR}/include/system              # tkl_*.h
-    ${TAL_DIR}/include                          # tal_*.h（含 tal_log.h / PR_xxx）
+    ${TAL_DIR}/include                          # tal_*.h (including tal_log.h / PR_xxx)
     ${COMMON_DIR}/include                       # tuya_error_code.h, tuya_iot_config.h
 
-    # 2. Stub 头（屏蔽硬件 SDK 专属头：lv_vendor.h 等）
+    # 2. Stub headers (shadow hardware-only SDK headers such as lv_vendor.h)
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 
-    # 3. LVGL 驱动路径 trick：使 "../lvgl/lvgl.h" 解析为 lvgl/lvgl.h
+    # 3. LVGL driver path trick: resolves "../lvgl/lvgl.h" relative to the driver directory
     ${LVGL_DIR}/lvgl
 
-    # 4. LVGL conf（含 LVGL_PC_SIMULATOR 条件分支的 lv_conf.h）
+    # 4. LVGL parent directory: resolves "lvgl/lvgl.h" (used by SquareLine Studio–generated code)
+    ${LVGL_DIR}
+
+    # 5. LVGL config directory (contains lv_conf.h with LVGL_PC_SIMULATOR conditionals)
     ${LVGL_DIR}/conf
 
-    # 5. 生成的 main.c 所在目录
+    # 6. Directory of the generated main.c
     ${CMAKE_BINARY_DIR}
 
-    # 6. App 专属头（game_pet.h 等）
+    # 7. App-specific headers
     ${SIM_UI_INC_DIRS}
 
-    # 7. SDL2
+    # 8. SDL2
     ${SDL2_INCLUDE_DIRS}
 )
 
@@ -128,7 +142,7 @@ target_link_libraries(lvgl_sim PRIVATE
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 调试信息
+# Status output
 # ─────────────────────────────────────────────────────────────────────────────
 message(STATUS "=== LVGL Simulator ===")
 message(STATUS "App:        ${SIM_APP_NAME}")

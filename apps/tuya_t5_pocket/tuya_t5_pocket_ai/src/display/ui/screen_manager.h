@@ -27,6 +27,7 @@
 #ifndef LVGL_PC_SIMULATOR
 #define ENABLE_LVGL_HARDWARE
 #endif
+
 #ifdef ENABLE_LVGL_HARDWARE
 #include "tuya_cloud_types.h"
 #include "tal_log.h"

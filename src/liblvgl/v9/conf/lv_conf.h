@@ -457,11 +457,7 @@
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_32
-    #ifdef LVGL_PC_SIMULATOR
-        #define LV_FONT_MONTSERRAT_32 1
-    #else
-        #define LV_FONT_MONTSERRAT_32 0
-    #endif
+#define LV_FONT_MONTSERRAT_32
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_34
@@ -493,11 +489,7 @@
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_48
-    #ifdef LVGL_PC_SIMULATOR
-        #define LV_FONT_MONTSERRAT_48 1
-    #else
-        #define LV_FONT_MONTSERRAT_48 0
-    #endif
+#define LV_FONT_MONTSERRAT_48 0
 #endif
 
 

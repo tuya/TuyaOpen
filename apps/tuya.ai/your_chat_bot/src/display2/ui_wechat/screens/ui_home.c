@@ -8,7 +8,9 @@
 #include "lang_config.h"
 #include "src/core/lv_obj_style_gen.h"
 
+#ifndef LVGL_PC_SIMULATOR
 #include "tal_api.h"
+#endif
 #include <string.h>
 
 #define UI_CHAT_MSG_MAX_COUNT (20)
