@@ -5,15 +5,14 @@
  */
 
 #include "tuya_cloud_types.h"
+
+#ifdef ENABLE_LVGL_HARDWARE
 #include "lv_vendor.h"
-
 #include "ai_ui_manage.h"
-
 #include "toast_screen.h"
 #include "rfid_scan_screen.h"
 #include "ai_log_screen.h"
 #include "main_screen.h"
-
 #include "app_display.h"
 
 /***********************************************************
@@ -37,7 +36,7 @@ static const CHAT_EMOJI_SHOW_T cCHAT_EMOJI_SHOW_LIST[] = {
     {EMOJI_ANGRY,   "PET: Angry"},
     {EMOJI_FEARFUL, "PET: Fearful"},
     {EMOJI_SAD,     "PET: Sad"},
-}; 
+};
 
 /***********************************************************
 ***********************function define**********************
@@ -90,7 +89,6 @@ void __ui_set_custom_msg(uint32_t type, uint8_t *data, int len )
             rfid_scan_screen_load();
             break;
         case POCKET_DISP_TP_AI_LOG:
-            PR_DEBUG("AI LOG: %d", len);
             if (data && len > 0) {
                 ai_log_screen_update_log((const char *)data, len);
             }
@@ -114,3 +112,9 @@ OPERATE_RET ai_ui_chat_register(void)
 
     return ai_ui_register(&intfs);
 }
+
+#else /* ENABLE_LVGL_HARDWARE */
+
+OPERATE_RET ai_ui_chat_register(void) { return OPRT_OK; }
+
+#endif /* ENABLE_LVGL_HARDWARE */

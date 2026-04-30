@@ -546,8 +546,10 @@ static void obj_delete_core(lv_obj_t * obj)
 
     // Modified by TUYA Start
     //del self event obj
+#ifndef LVGL_PC_SIMULATOR
     void lvMsgEventDel(lv_obj_t *obj);
     lvMsgEventDel(obj);
+#endif
     // Modified by TUYA End
 
     /*All children deleted. Now clean up the object specific data*/
