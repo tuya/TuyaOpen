@@ -19,6 +19,8 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+typedef OPERATE_RET (*TDD_AUDIO_PA_ENABLE_CB)(bool enable);
+
 typedef struct {
     uint8_t i2c_id;
     TUYA_GPIO_NUM_E i2c_sda_io;                /*!< GPIO number of I2C SDA signal, pulled-up internally */
@@ -32,6 +34,7 @@ typedef struct {
     TUYA_GPIO_NUM_E i2s_do_io;
     TUYA_GPIO_NUM_E i2s_di_io;
     TUYA_GPIO_NUM_E gpio_output_pa;
+    TDD_AUDIO_PA_ENABLE_CB pa_enable_cb;
     uint8_t es8311_addr;
     uint32_t dma_desc_num;
     uint32_t dma_frame_num;

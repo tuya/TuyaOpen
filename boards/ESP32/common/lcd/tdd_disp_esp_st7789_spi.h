@@ -34,6 +34,8 @@ typedef struct {
     bool swap_xy;
     bool mirror_x;
     bool mirror_y;
+    uint16_t offset_x; /* column offset for panel alignment */
+    uint16_t offset_y; /* row offset for panel alignment */
 } LCD_ST7789_SPI_HW_CFG_T;
 
 /* ---------------------------------------------------------------------------

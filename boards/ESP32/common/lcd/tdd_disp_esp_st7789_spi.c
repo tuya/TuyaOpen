@@ -103,6 +103,7 @@ static int __lcd_st7789_spi_init(LCD_ST7789_SPI_HW_CFG_T *hw, uint16_t width, ui
     esp_lcd_panel_reset(sg_lcd_config.panel);
     esp_lcd_panel_init(sg_lcd_config.panel);
     esp_lcd_panel_invert_color(sg_lcd_config.panel, hw->invert_color);
+    esp_lcd_panel_set_gap(sg_lcd_config.panel, hw->offset_x, hw->offset_y);
     esp_lcd_panel_swap_xy(sg_lcd_config.panel, hw->swap_xy);
     esp_lcd_panel_mirror(sg_lcd_config.panel, hw->mirror_x, hw->mirror_y);
 

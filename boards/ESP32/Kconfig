@@ -106,6 +106,12 @@ choice
             rsource "./DNESP32S3_BOX2_WIFI/Kconfig"
         endif
 
+    config BOARD_CHOICE_M5STACK_STICKS3
+        bool "M5STACK_STICKS3"
+        if (BOARD_CHOICE_M5STACK_STICKS3)
+            rsource "./M5STACK_STICKS3/Kconfig"
+        endif
+
         
     config BOARD_CHOICE_WAVESHARE_ESP32C6_DEV_KIT_N16
         bool "WAVESHARE_ESP32C6_DEV_KIT_N16"

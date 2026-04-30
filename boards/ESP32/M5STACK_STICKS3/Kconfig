@@ -1,0 +1,28 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "M5STACK_STICKS3"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO
+    select ENABLE_ESP_DISPLAY
+    select PLATFORM_FLASHSIZE_8M
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_PMIC
+    select ENABLE_PMIC_M5PM1
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_2
+
+config BOARD_M5STACK_STICKS3_EXT_5V_OUTPUT
+    bool "Enable EXT_5V output on boot"
+    default y
+    depends on BOARD_CONFIG
+    help
+        Enable the Grove/Hat EXT_5V output rail during board initialization for
+        hardware bring-up. Disable this when the EXT_5V pin may be externally
+        powered.

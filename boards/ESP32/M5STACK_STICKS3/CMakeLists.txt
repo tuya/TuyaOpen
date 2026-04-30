@@ -1,29 +1,19 @@
 ##
 # @file CMakeLists.txt
-# @brief 
+# @brief M5Stack StickS3 board build configuration
 #/
 
 # MODULE_PATH
-if (CONFIG_ENABLE_PMIC STREQUAL "y")
-
-set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-set(LIB_SRCS "")
-set(LIB_PUBLIC_INC "")
+aux_source_directory(${MODULE_PATH} LIB_SRCS)
 
-if (CONFIG_ENABLE_PMIC_AXP2101 STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/axp2101/src/axp2101_driver.c)
-    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/axp2101/include)
-endif()
-
-if (CONFIG_ENABLE_PMIC_M5PM1 STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/m5pm1/src/m5pm1_driver.c)
-    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/m5pm1/include)
-endif()
+# LIB_PUBLIC_INC
+set(LIB_PUBLIC_INC ${MODULE_PATH})
 
 ########################################
 # Target Configure
@@ -43,7 +33,6 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
-
 ########################################
 # Layer Configure
 ########################################
@@ -51,4 +40,3 @@ list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
-endif()
