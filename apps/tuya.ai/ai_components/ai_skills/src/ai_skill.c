@@ -39,6 +39,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+static bool __s_nlg_in_stream = false;
 
 /***********************************************************
 ***********************function define**********************
@@ -117,6 +118,8 @@ static OPERATE_RET __ai_asr_process(cJSON *root, BOOL_T eof)
     }
     PR_NOTICE("text -> ASR result: %s", content);
 
+    __s_nlg_in_stream = false;
+
     AI_NOTIFY_TEXT_T text;
     text.data      = (char *)content;
     text.datalen   = strlen(content);
@@ -147,39 +150,32 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     AI_NOTIFY_TEXT_T text;
     text.data      = (char *)content;
     text.datalen   = strlen(content);
+
+    cJSON *time_idx = cJSON_GetObjectItem(root, "timeIndex");
+    text.timeindex = time_idx ? time_idx->valueint : 0;
+
     PR_NOTICE("text -> NLG eof: %d, content: %s, time: %d", eof, content, text.timeindex);
 
-    /* Send data to register callback */
-    static AI_USER_EVT_TYPE_E event_type = AI_USER_EVT_TEXT_STREAM_STOP;
-    // Detect new stream start after interruption:
-    // If we're in DATA state but receive a non-empty START packet, reset state machine
-    if(event_type == AI_USER_EVT_TEXT_STREAM_DATA && !eof && strlen(content) > 0) {
-        // Check if this looks like a new stream (e.g., timeIndex is small or content starts fresh)
-        cJSON *time_idx = cJSON_GetObjectItem(root, "timeIndex");
-        if (time_idx && time_idx->valueint < 1000) {
-            // Likely a new conversation round after interrupt
-            PR_NOTICE("[NLG] Detected new stream after interrupt, resetting state");
-            event_type = AI_USER_EVT_TEXT_STREAM_STOP;
-        }
-    }
-
-    if(event_type == AI_USER_EVT_TEXT_STREAM_STOP) {
-        if(eof) {
-            if(strlen(content) > 0) {
-                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text);
-                text.data = NULL;
-                text.datalen = 0;
-                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
-                event_type = AI_USER_EVT_TEXT_STREAM_STOP;
+    if (!__s_nlg_in_stream) {
+        if (strlen(content) > 0) {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text);
+            if (eof) {
+                /* Single-frame complete response: open and close immediately */
+                AI_NOTIFY_TEXT_T empty = {.data = NULL, .datalen = 0, .timeindex = 0};
+                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &empty);
+            } else {
+                __s_nlg_in_stream = true;
             }
-        }else {
-            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text); 
-            event_type = AI_USER_EVT_TEXT_STREAM_DATA;
+        } else if (eof) {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
         }
     } else {
-        if (event_type == AI_USER_EVT_TEXT_STREAM_DATA) {
-            ai_user_event_notify(eof?AI_USER_EVT_TEXT_STREAM_STOP:AI_USER_EVT_TEXT_STREAM_DATA, &text);
-            event_type = eof?AI_USER_EVT_TEXT_STREAM_STOP:AI_USER_EVT_TEXT_STREAM_DATA;
+        if (eof) {
+            /* Last chunk: append final content (may be empty) and close bubble */
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
+            __s_nlg_in_stream = false;
+        } else {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_DATA, &text);
         }
     }
 
