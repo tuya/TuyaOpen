@@ -6,7 +6,7 @@
 #include "qmi8658.h"
 
 #include "tal_log.h"
-
+#include "tkl_i2c.h"
 #include <math.h>
 
 qmi8658_data_t qmi_data;
@@ -415,10 +415,12 @@ OPERATE_RET qmi8658_disable_wake_on_motion(qmi8658_dev_t *dev) {
 
 OPERATE_RET qmi8658_write_register(qmi8658_dev_t *dev, uint8_t reg, uint8_t value) {
     if (!dev) return OPRT_COM_ERROR;
-    return dev_i2c_write(dev->i2c_addr, reg,  value);
+    uint8_t data[2] = {reg, value};
+    return tkl_i2c_master_send(TUYA_I2C_NUM_0, dev->i2c_addr, data, 2, false);
 }
 
 OPERATE_RET qmi8658_read_register(qmi8658_dev_t *dev, uint8_t reg, uint8_t *buffer, uint8_t length) {
     if (!dev || !buffer || length == 0) return OPRT_COM_ERROR;
-    return dev_i2c_read_nbytes(dev->i2c_addr, reg, buffer, length);
+    tkl_i2c_master_send(TUYA_I2C_NUM_0, dev->i2c_addr, &reg, 1, false);
+    return tkl_i2c_master_receive(TUYA_I2C_NUM_0, dev->i2c_addr, buffer, length, false);
 }
