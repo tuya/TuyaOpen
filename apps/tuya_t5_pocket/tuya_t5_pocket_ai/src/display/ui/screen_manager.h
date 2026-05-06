@@ -19,6 +19,10 @@
 #ifndef SCREEN_MANAGER_H
 #define SCREEN_MANAGER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "../lvgl/lvgl.h"
 
 /***********************************************************
@@ -112,4 +116,16 @@ void screen_load(Screen_t *newScreen);
  */
 void screens_init(void);
 
-#endif // SCREEN_STACK_H
+/**
+ * @brief Initialize the UI
+ *
+ * This function is a wrapper for the screens_init function.
+ * It is used to initialize the UI.
+ */
+void ui_init(void);
+
+#ifdef __cplusplus
+} /*extern "C"*/
+#endif
+
+#endif // SCREEN_MANAGER_H

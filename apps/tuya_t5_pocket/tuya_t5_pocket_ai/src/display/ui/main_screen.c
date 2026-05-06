@@ -430,7 +430,7 @@ static void keyboard_event_cb(lv_event_t *e)
         printf("C key pressed - Setting battery to charging\n");
         // screen_load(&standby_screen);
         // screen_load(&ebook_screen);
-        screen_load(&rfid_scan_screen);
+        // screen_load(&rfid_scan_screen);
         break;
 #endif
     default:

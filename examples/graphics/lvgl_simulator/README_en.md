@@ -97,7 +97,7 @@ set(SIM_SCREEN_W  384)
 set(SIM_SCREEN_H  168)
 
 # UI entry function — called by the simulator's main()
-set(SIM_ENTRY_FUNC  "screens_init")
+set(SIM_ENTRY_FUNC  "ui_init")
 
 # UI source directories or individual .c file paths — compiled recursively for directories
 set(SIM_UI_SRC_DIRS
@@ -119,7 +119,7 @@ The file ships with four ready-to-use configurations (uncomment the one you want
 
 | App name | Resolution | Entry function | Notes |
 |----------|-----------|---------------|-------|
-| `tuya_t5_pocket_ai` | 384×168 | `screens_init` | Tuya T5 pocket AI device (default active) |
+| `tuya_t5_pocket_ai` | 384×168 | `ui_init` | Tuya T5 pocket AI device (default active) |
 | `your_chat_bot_wechat` | 480×320 | `ui_init` | Chat-bot — WeChat-style UI |
 | `your_chat_bot_chatbot` | 480×320 | `ui_init` | Chat-bot — chatbot-style UI |
 

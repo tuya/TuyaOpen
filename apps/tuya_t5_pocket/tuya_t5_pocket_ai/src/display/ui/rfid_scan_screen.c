@@ -22,7 +22,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
+#ifdef ENABLE_LVGL_HARDWARE
 // Screen dimensions
 #ifndef AI_PET_SCREEN_WIDTH
 #define AI_PET_SCREEN_WIDTH 384
@@ -535,3 +535,4 @@ void rfid_scan_screen_load(void)
         screen_load(&rfid_scan_screen);
     }
 }
+#endif // ENABLE_LVGL_HARDWARE

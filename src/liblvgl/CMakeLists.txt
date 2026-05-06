@@ -8,6 +8,7 @@ if (CONFIG_ENABLE_LIBLVGL STREQUAL "y")
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/v8)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/v9)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simulator)
 
 ########################################
 # Layer Configure

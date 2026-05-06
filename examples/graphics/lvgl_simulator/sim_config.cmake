@@ -9,7 +9,7 @@
 set(SIM_APP_NAME   "tuya_t5_pocket_ai")
 set(SIM_SCREEN_W   384)
 set(SIM_SCREEN_H   168)
-set(SIM_ENTRY_FUNC "screens_init")
+set(SIM_ENTRY_FUNC "ui_init")
 set(SIM_UI_SRC_DIRS
     "${CMAKE_SOURCE_DIR}/../../../apps/tuya_t5_pocket/tuya_t5_pocket_ai/src/display"
 )

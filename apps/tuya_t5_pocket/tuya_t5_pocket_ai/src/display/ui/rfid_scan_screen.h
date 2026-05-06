@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 #include "screen_manager.h"
+#ifdef ENABLE_LVGL_HARDWARE
 #include "rfid_scan.h"
 
 extern Screen_t rfid_scan_screen;
@@ -45,5 +46,7 @@ void rfid_scan_screen_load(void);
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif
+
+#endif // ENABLE_LVGL_HARDWARE
 
 #endif /*RFID_SCAN_SCREEN_H*/

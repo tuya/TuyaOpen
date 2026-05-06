@@ -97,7 +97,7 @@ set(SIM_SCREEN_W  384)
 set(SIM_SCREEN_H  168)
 
 # UI 入口函数名（模拟器 main() 会调用此函数）
-set(SIM_ENTRY_FUNC  "screens_init")
+set(SIM_ENTRY_FUNC  "ui_init")
 
 # UI 源码目录或单个 .c 文件路径；目录会递归搜索所有 .c 文件
 set(SIM_UI_SRC_DIRS
@@ -119,7 +119,7 @@ set(SIM_UI_INC_DIRS
 
 | App 名称 | 分辨率 | 入口函数 | 说明 |
 |---------|--------|---------|------|
-| `tuya_t5_pocket_ai` | 384×168 | `screens_init` | Tuya T5 口袋 AI 设备（当前默认激活） |
+| `tuya_t5_pocket_ai` | 384×168 | `ui_init` | Tuya T5 口袋 AI 设备（当前默认激活） |
 | `your_chat_bot_wechat` | 480×320 | `ui_init` | 聊天机器人 — 微信风格 UI |
 | `your_chat_bot_chatbot` | 480×320 | `ui_init` | 聊天机器人 — chatbot 风格 UI |
 

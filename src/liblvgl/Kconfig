@@ -76,4 +76,7 @@ menuconfig ENABLE_LIBLVGL
 
         # Font configuration
         rsource "Fonts_Kconfig"
+
+        # PC Simulator
+        rsource "simulator/Kconfig"
     endif

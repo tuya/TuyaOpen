@@ -9,6 +9,29 @@ set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
 # APP_NAME
 get_filename_component(APP_NAME ${APP_PATH} NAME)
 
+if (CONFIG_LVGL_PC_SIMULATOR STREQUAL "y")
+########################################
+# Simulator mode: display only
+########################################
+add_library(${EXAMPLE_LIB})
+
+target_compile_options(${EXAMPLE_LIB}
+    PRIVATE
+        "-DLV_LVGL_H_INCLUDE_SIMPLE"
+)
+
+target_include_directories(${EXAMPLE_LIB}
+    PRIVATE
+        ${APP_PATH}/include
+)
+
+add_subdirectory(${APP_PATH}/src/display)
+
+else()
+########################################
+# Embedded mode: full build (original)
+########################################
+
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 aux_source_directory(${APP_PATH}/src/media media_alert)
@@ -50,3 +73,5 @@ add_subdirectory(${APP_PATH}/src/expand)
 
 add_subdirectory(${APP_PATH}/../../tuya.ai/ai_components)
 target_include_directories(${EXAMPLE_LIB} PRIVATE ${APP_PATH}/../../tuya.ai/ai_components)
+
+endif()

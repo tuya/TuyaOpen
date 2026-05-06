@@ -56,14 +56,14 @@ void lvgl_sim_start(LVGL_SIM_ENTRY_CB entry_cb)
     }
 }
 
-/* SIM_ENTRY_FUNC is injected via compile definition (e.g. screens_init) */
-extern void SIM_ENTRY_FUNC(void);
+/* LVGL_SIM_ENTRY_FUNC is injected via compile definition (e.g. ui_init) */
+extern void LVGL_SIM_ENTRY_FUNC(void);
 
 /**
- * @brief Simulator entry point, replaces the app's user_main
- * @return none
+ * @brief Simulator entry point — provides main() for Linux platform
  */
-void user_main(void)
+int main(void)
 {
-    lvgl_sim_start(SIM_ENTRY_FUNC);
+    lvgl_sim_start(LVGL_SIM_ENTRY_FUNC);
+    return 0;
 }
