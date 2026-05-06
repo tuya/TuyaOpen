@@ -1,3 +1,8 @@
+config ENABLE_CHAT_DISPLAY2
+    bool "Enable Chat Display2 UI"
+    depends on ENABLE_LIBLVGL
+    default n
+
 if(ENABLE_CHAT_DISPLAY2) 
 choice
     prompt "Select Display UI Style"

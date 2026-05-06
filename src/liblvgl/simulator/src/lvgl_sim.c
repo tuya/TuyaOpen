@@ -12,16 +12,16 @@
 #include "src/drivers/sdl/lv_sdl_keyboard.h"
 #include <unistd.h>
 
-#ifndef CONFIG_SIM_SCREEN_WIDTH
-#define CONFIG_SIM_SCREEN_WIDTH 384
+#ifndef SIM_SCREEN_WIDTH
+#define SIM_SCREEN_WIDTH 384
 #endif
 
-#ifndef CONFIG_SIM_SCREEN_HEIGHT
-#define CONFIG_SIM_SCREEN_HEIGHT 168
+#ifndef SIM_SCREEN_HEIGHT
+#define SIM_SCREEN_HEIGHT 168
 #endif
 
-#ifndef CONFIG_SIM_WINDOW_TITLE
-#define CONFIG_SIM_WINDOW_TITLE "TuyaOpen LVGL Simulator"
+#ifndef SIM_WINDOW_TITLE
+#define SIM_WINDOW_TITLE "TuyaOpen LVGL Simulator"
 #endif
 
 /**
@@ -33,9 +33,9 @@ void lvgl_sim_start(LVGL_SIM_ENTRY_CB entry_cb)
 {
     lv_init();
 
-    lv_display_t *disp = lv_sdl_window_create(CONFIG_SIM_SCREEN_WIDTH,
-                                                CONFIG_SIM_SCREEN_HEIGHT);
-    lv_sdl_window_set_title(disp, CONFIG_SIM_WINDOW_TITLE);
+    lv_display_t *disp = lv_sdl_window_create(SIM_SCREEN_WIDTH,
+                                                SIM_SCREEN_HEIGHT);
+    lv_sdl_window_set_title(disp, SIM_WINDOW_TITLE);
     lv_sdl_mouse_create();
 
     lv_indev_t *kb = lv_sdl_keyboard_create();

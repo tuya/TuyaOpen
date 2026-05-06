@@ -9,5 +9,6 @@ config ENABLE_BATTERY
     default n
 
 rsource "../ai_components/Kconfig"
+rsource "src/display2/Kconfig"
 
 endmenu
