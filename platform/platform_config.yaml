@@ -33,3 +33,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-bk7231x
   branch: master
   commit: 53b61a46c27406623cdf7e727a2958aca98a1cda
+
+- name: GD32
+  repo: https://github.com/tuya/TuyaOpen-GigaDevice
+  branch: master
+  commit: e16c3403a9798b9ac5d5148b24cb6f381c6e4548

@@ -1,0 +1,7 @@
+config CHIP_CHOICE
+    string
+    default "GD32VW553H"
+
+config BOARD_CHOICE
+    string
+    default "GIGADEVICE_GD32VM553H_EVAL"

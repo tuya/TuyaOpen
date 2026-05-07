@@ -1,0 +1,28 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "GD32"
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_GIGADEVICE_GD32VM553H_EVAL
+        bool "GD32VW553H-EVAL"
+        if (BOARD_CHOICE_GIGADEVICE_GD32VM553H_EVAL)
+            rsource "./GIGADEVICE_GD32VM553H_EVAL/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice
