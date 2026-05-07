@@ -23,6 +23,15 @@ target_compile_definitions(${MODULE_NAME}
 )
 
 ########################################
+# SDL2: required by LVGL built-in SDL driver (LV_USE_SDL=1)
+########################################
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2)
+target_include_directories(${MODULE_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
+target_link_libraries(${MODULE_NAME} PUBLIC ${SDL2_LIBRARIES})
+message(STATUS "LVGL Simulator: Linking SDL2 (${SDL2_LIBRARIES})")
+
+########################################
 # Layer Configure
 ########################################
 list(APPEND COMPONENT_LIBS ${MODULE_NAME})

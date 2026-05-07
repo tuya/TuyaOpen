@@ -30,25 +30,6 @@ target_include_directories(${EXAMPLE_LIB}
 ########################################
 # Generate language config header
 ########################################
-# set(LANG_SCRIPT "${APP_PATH}/../ai_components/assets/scripts/gen_lang.py")
-# set(LANG_HEADER "${APP_PATH}/../ai_components/assets/include/lang_config.h")
-
-# if(CONFIG_ENABLE_AI_LANGUAGE_ENGLISH STREQUAL "y")
-#     set(LANG_JSON "${APP_PATH}/../ai_components/assets/language/en-US/language.json")
-# else()
-#     set(LANG_JSON "${APP_PATH}/../ai_components/assets/language/zh-CN/language.json")
-# endif()
-
-# execute_process(
-#     COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
-#             ${PYTHON_CMD} ${LANG_SCRIPT} --input ${LANG_JSON} --output ${LANG_HEADER}
-#     RESULT_VARIABLE LANG_GEN_RESULT
-# )
-
-# if(NOT LANG_GEN_RESULT EQUAL 0)
-#     message(FATAL_ERROR "Failed to generate lang_config.h")
-# endif()
-
 add_subdirectory(${APP_PATH}/src/display2)
 
 add_subdirectory(${APP_PATH}/../ai_components)
