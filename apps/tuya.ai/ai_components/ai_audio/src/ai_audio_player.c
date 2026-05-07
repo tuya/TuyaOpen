@@ -27,6 +27,11 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+// Music digital-gain levels used to duck background music while TTS is playing.
+// These are absolute digital scale values (0~PLAYER_MAX_VOLUME), independent
+// from the user-facing hardware volume.
+#define AI_AUDIO_MUSIC_DIGITAL_GAIN_NORMAL  100
+#define AI_AUDIO_MUSIC_DIGITAL_GAIN_DUCK    50
 
 /***********************************************************
 ***********************typedef define***********************
@@ -150,23 +155,24 @@ OPERATE_RET __player_cloud_alert(AI_AUDIO_ALERT_TYPE_E type)
 */
 static OPERATE_RET __player_event(void *data)
 {
-    TUYA_CHECK_NULL_RETURN(data, OPRT_OK);    
+    TUYA_CHECK_NULL_RETURN(data, OPRT_OK);
 
     AI_PLAYER_EVT_T *event = (AI_PLAYER_EVT_T*)data;
     PR_DEBUG("audio player -> player %s event: %d", (event->handle == __s_tone_player) ? "tts" : "music", event->state);
 
     OPERATE_RET rt = OPRT_OK;
-    int player_vol = 0;
-    tuya_ai_player_get_volume(NULL, &player_vol);
+
     /* Player finished or failed */
     if (event->state == AI_PLAYER_STOPPED) {
         PR_DEBUG("audio player -> stop event");
         if (!ai_audio_player_is_playing()) {
             ai_user_event_notify(AI_USER_EVT_PLAY_END, NULL);
-        }else {
-			PR_DEBUG("audio player -> playing stop event, music vol change to %d", player_vol);
-			tuya_ai_player_set_volume(__s_music_player, player_vol);	
-		}
+        } else if (event->handle == __s_tone_player) {
+            /* TTS finished while music is still playing: restore music digital gain */
+            PR_DEBUG("audio player -> tts stop, restore music digital gain to %d",
+                     AI_AUDIO_MUSIC_DIGITAL_GAIN_NORMAL);
+            tuya_ai_player_set_volume(__s_music_player, AI_AUDIO_MUSIC_DIGITAL_GAIN_NORMAL);
+        }
 
         /* If TTS play stop, reset play flag */
         if(event->handle == __s_tone_player && __s_tts_play_flag) {
@@ -176,15 +182,17 @@ static OPERATE_RET __player_event(void *data)
     else if (event->state == AI_PLAYER_PLAYING) {
         PR_DEBUG("audio player -> playing start event");
         if (event->handle == __s_tone_player && AI_PLAYER_PLAYING == tuya_ai_player_get_state(__s_music_player)) {
-            PR_DEBUG("audio player -> playing start event, music vol change to %d", player_vol/2);
-            tuya_ai_player_set_volume(__s_music_player, player_vol/2);
+            /* TTS started while music is playing: duck music digital gain */
+            PR_DEBUG("audio player -> tts start, duck music digital gain to %d",
+                     AI_AUDIO_MUSIC_DIGITAL_GAIN_DUCK);
+            tuya_ai_player_set_volume(__s_music_player, AI_AUDIO_MUSIC_DIGITAL_GAIN_DUCK);
         }
         ai_user_event_notify(AI_USER_EVT_PLAY_CTL_PLAY, NULL);
     } else if (event->state == AI_PLAYER_PAUSED) {
         PR_DEBUG("audio player -> pause event");
         ai_user_event_notify(AI_USER_EVT_PLAY_CTL_PAUSE, NULL);
     }
-    
+
     return rt;
 }
 
@@ -492,25 +500,36 @@ OPERATE_RET ai_audio_player_alert(AI_AUDIO_ALERT_TYPE_E type)
 }
 
 /**
-@brief Set audio player volume
+@brief Set audio player volume (user-facing master volume, applied to hardware output)
 @param vol Volume value (0-100)
 @return OPERATE_RET Operation result
 */
 OPERATE_RET ai_audio_player_set_vol(int vol)
 {
+    if (vol < 0) {
+        vol = 0;
+    } else if (vol > 100) {
+        vol = 100;
+    }
+
     PR_DEBUG("audio player -> set volume %d", vol);
 
-    return tuya_ai_player_set_volume(__s_tone_player, vol);
+    /* Drive the global hardware volume so it affects both TTS and music. */
+    return tuya_ai_player_set_volume(NULL, vol);
 }
 
 /**
-@brief Get audio player volume
+@brief Get audio player volume (user-facing master volume)
 @param vol Pointer to store volume value
 @return OPERATE_RET Operation result
 */
 OPERATE_RET ai_audio_player_get_vol(int *vol)
 {
-    return tuya_ai_player_get_volume(__s_tone_player, vol);
+    if (vol == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    return tuya_ai_player_get_volume(NULL, vol);
 }
 
 /**
