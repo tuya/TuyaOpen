@@ -126,12 +126,16 @@ OPERATE_RET http_set_timeout(http_session_t session, uint32_t timeout_ms);
 
 /**
  * @brief Read content from HTTP response
- * 
- * @param[in] session Session handle
- * @param[out] buf Buffer to store read data
- * @param[in] max_len Maximum length to read
- * 
- * @return Number of bytes read (>0), 0 on EOF, negative on error
+ *
+ * @param[in]  session Session handle
+ * @param[out] buf     Buffer to store read data
+ * @param[in]  max_len Maximum length to read
+ *
+ * @return >0  number of bytes read
+ * @return 0   clean EOF (full Content-Length received, or chunked stream ended)
+ * @return <0  error, including network failure and premature peer close
+ *             (peer sent FIN before Content-Length was fully delivered).
+ *             Callers that want to resume should use Range requests.
  */
 int http_read_content(http_session_t session, void *buf, unsigned int max_len);
 

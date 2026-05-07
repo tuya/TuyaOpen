@@ -625,6 +625,18 @@ int http_read_content(http_session_t session, void *buf, unsigned int max_len)
     ctx->bytes_read += bytes_read;
     // PR_DEBUG("http_read_content read %d total_len %zu all_read %zu", bytes_read, ctx->total_body_length, ctx->bytes_read);
 
+    // Detect premature peer close: peer sent FIN before delivering full Content-Length.
+    // Treat as error so callers (e.g. audio datasink) can do Range-based resume,
+    // instead of mis-reporting it as a clean EOF.
+    // Only applies to non-chunked responses (total_body_length > 0).
+    if (bytes_read == 0 && ctx->total_body_length > 0
+        && ctx->bytes_read < ctx->total_body_length) {
+        PR_WARN("http_read_content premature close: %u/%u",
+                (unsigned int)ctx->bytes_read,
+                (unsigned int)ctx->total_body_length);
+        return -1;
+    }
+
     return (int)bytes_read;
 }
 
