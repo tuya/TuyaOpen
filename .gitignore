@@ -1,33 +1,41 @@
-__pycache__
-.vscode
-.tags
-.env.json
-.cache
+# Python
+__pycache__/
+/.venv/
+.pytest_cache/
+
+# Editor / IDE
+.vscode/
+.cursor/
 .clangd
-.cursor
-.target_logging
+.tags
 
+# CMake / Build
 CMakeCache.txt
-/CMakeFiles
+/CMakeFiles/
 compile_commands.json
+.build/
+/build/
+/output/
 
-/.venv
-/tmp
-/.cache
-/cache
-/output
-/build
-tuyadb/
-/platform/*/
-__pycache__
-.build
-*.using_config
-.mirror
-dist
-
-/arduino-tuyaopen
-/tools/tyutool/
-/.set_example
-/dist
+# Logs
 *monitor.log
 
+# Distribution / Packages
+dist/
+
+# Project specific
+.env.json
+.target_logging
+.mirror
+.cache/
+*.using_config
+tuyadb/
+/platform/*/
+/arduino-tuyaopen/
+/tools/tyutool/
+/.set_example
+/tmp/
+/cache/
+
+# Docs
+/docs/superpowers/
