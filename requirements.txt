@@ -9,6 +9,7 @@ GitPython==3.1.44
 idna==3.10
 kconfiglib==14.1.0
 ninja==1.11.1.4
+pyserial>=3.5
 PyYAML==6.0.2
 requests==2.32.3
 smmap==5.0.2
