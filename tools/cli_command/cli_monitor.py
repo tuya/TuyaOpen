@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 # coding=utf-8
+#
+# Usage examples:
+#   tos.py monitor                              # auto-detect port, auto baud
+#   tos.py monitor -p /dev/ttyUSB0             # specify port
+#   tos.py monitor -p /dev/ttyUSB0 -b 115200   # specify port and baud rate
+#   tos.py monitor -l device.log               # save log to file (append)
+#   tos.py monitor -p /dev/ttyUSB0 -l out.log  # specify port and log file
+#   Quit: Ctrl+]
 
 import sys
 import click
@@ -21,6 +29,24 @@ _CHIP_MONITOR_BAUDRATE = {
     "T5": 460800,
     "T5AI": 460800,
 }
+
+
+class _LoggingSerial:
+    """Proxy that forwards all serial calls and tees read data to a file."""
+
+    def __init__(self, ser, logfile):
+        self._ser = ser
+        self._logfile = logfile
+
+    def __getattr__(self, name):
+        return getattr(self._ser, name)
+
+    def read(self, size=1):
+        data = self._ser.read(size)
+        if data:
+            self._logfile.write(data)
+            self._logfile.flush()
+        return data
 
 
 def _choose_port() -> str:
@@ -57,7 +83,10 @@ def _choose_port() -> str:
 @click.option('-b', '--baud',
               type=int, default=0,
               help="Uart baud rate.")
-def cli(port, baud):
+@click.option('-l', '--log',
+              type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Save received log to file.")
+def cli(port, baud, log):
     logger = get_logger()
     check_proj_dir()
 
@@ -80,6 +109,8 @@ def cli(port, baud):
             sys.exit(1)
 
     logger.info(f"Monitor: port={port}, baudrate={baudrate}")
+    if log:
+        logger.info(f"Log file: {log}")
 
     try:
         ser = serial.Serial(port, baudrate, timeout=1)
@@ -89,18 +120,24 @@ def cli(port, baud):
 
     ser.reset_input_buffer()
 
-    miniterm = Miniterm(ser, filters=('direct',))
-    miniterm.set_rx_encoding('utf-8', 'replace')
-    miniterm.set_tx_encoding('utf-8', 'replace')
-    miniterm.exit_character = chr(0x1d)  # Ctrl+]
-    miniterm.menu_character = chr(0x14)  # Ctrl+T
-    miniterm.start()
-    sys.stderr.write(f'--- Monitor {port}  {baudrate} baud --- Quit: Ctrl+] ---\r\n')
+    logfile = open(log, 'ab') if log else None
     try:
-        miniterm.join(True)
-    except KeyboardInterrupt:
-        pass
+        serial_obj = _LoggingSerial(ser, logfile) if logfile else ser
+        miniterm = Miniterm(serial_obj, filters=('direct',))
+        miniterm.set_rx_encoding('utf-8', 'replace')
+        miniterm.set_tx_encoding('utf-8', 'replace')
+        miniterm.exit_character = chr(0x1d)  # Ctrl+]
+        miniterm.menu_character = chr(0x14)  # Ctrl+T
+        miniterm.start()
+        sys.stderr.write(f'--- Monitor {port}  {baudrate} baud --- Quit: Ctrl+] ---\r\n')
+        try:
+            miniterm.join(True)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            miniterm.join()
+            miniterm.close()
     finally:
-        miniterm.join()
-        miniterm.close()
+        if logfile:
+            logfile.close()
     sys.exit(0)
