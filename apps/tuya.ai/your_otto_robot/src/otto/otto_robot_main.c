@@ -19,6 +19,8 @@
 #include "tkl_pwm.h"
 #include "oscillator.h"
 #include "otto_movements.h"
+#include "otto_motion_ctrl.h"
+#include "otto_robot_dp_profile.h"
 #include "app_chat_bot.h"
 #include "tuya_iot_dp.h"
 #include "tuya_iot.h"
@@ -36,27 +38,14 @@
 void otto_robot_dp_proc_thread(uint32_t move_type);
 void otto_init_all_trims(void);
 void otto_set_trims_from_kv(void);
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
 void otto_trim_calibration_dp_proc(dp_obj_t *dp);
+#endif
 
 // Otto motion speed definitions
 #define SPEED_SLOW       1500
 #define SPEED_NORMAL     1200
 #define SPEED_FAST       800
-
-// DP ID definitions
-#define DPID_OTTO_STEP    11 // otto robot step
-#define DPID_OTTO_SPEED   5  // otto robot speed
-#define DPID_OTTO_AUDIO   9  // otto robot audio mode 
-#define DPID_OTTO_ACTION  10 // otto robot action 
-#define DPID_OTTO_WALK_DIRECTION 4 // otto robot walk direction
-
-// DP ID definitions for servo trim calibration (starting from 101)
-#define DPID_OTTO_LEFT_LEG_TRIM    101 // left leg trim calibration
-#define DPID_OTTO_RIGHT_LEG_TRIM   102 // right leg trim calibration
-#define DPID_OTTO_LEFT_FOOT_TRIM   103 // left foot trim calibration
-#define DPID_OTTO_RIGHT_FOOT_TRIM  104 // right foot trim calibration
-#define DPID_OTTO_LEFT_HAND_TRIM   105 // left hand trim calibration
-#define DPID_OTTO_RIGHT_HAND_TRIM  106 // right hand trim calibration
 
 // Audio mode definitions (matching app_chat_bot.c)
 #define AUDIO_MODE_KEY_PRESS_HOLD_SINGLE    0  // Press and hold button to start a single conversation
@@ -64,6 +53,7 @@ void otto_trim_calibration_dp_proc(dp_obj_t *dp);
 #define AUDIO_MODE_ASR_WAKEUP_SINGLE        2  // Say the wake-up word to start a single conversation
 #define AUDIO_MODE_ASR_WAKEUP_FREE          3  // Say the wake-up word for free conversation
 
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
 // KV storage keys for Otto robot calibration
 #define OTTO_LEFT_LEG_TRIM_KEY "otto_left_leg_trim"
 #define OTTO_RIGHT_LEG_TRIM_KEY "otto_right_leg_trim"
@@ -72,6 +62,7 @@ void otto_trim_calibration_dp_proc(dp_obj_t *dp);
 #define OTTO_LEFT_HAND_TRIM_KEY "otto_left_hand_trim"
 #define OTTO_RIGHT_HAND_TRIM_KEY "otto_right_hand_trim"
 #define OTTO_TRIM_INIT_FLAG_KEY "otto_trim_init_flag"
+#endif
 
 // Otto robot servo pin definitions based on board type
 #ifdef OTTO_BOARD_DEFAULT_TXP
@@ -128,6 +119,9 @@ static bool is_otto_robot_dp_proc_running = false;
 
 // Thread handle
 static THREAD_HANDLE robot_app_thread = NULL;
+
+#define OTTO_SHOW_STEPS           2
+#define OTTO_SHOW_GAP_MS          150
 
 /***********************************************************
 ***********************function define**********************
@@ -317,113 +311,145 @@ void otto_init_hands_only_wrapper()
 
 void otto_power_on()
 {
-    if(is_otto_power_on)
-    {
+    if (is_otto_power_on) {
         PR_DEBUG("Otto already power on");
         return;
     }
     is_otto_power_on = true;
     PR_DEBUG("Otto initializing...");
 
-    // Initialize all servo trim values to 0 (only once)
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
     otto_init_all_trims();
+#endif
 
-    // Step 1: Initialize legs and feet (hands set to -1, not initialized yet)
     PR_DEBUG("Initializing legs and feet...");
     otto_init(PIN_LEFT_LEG, PIN_RIGHT_LEG, PIN_LEFT_FOOT, PIN_RIGHT_FOOT, -1, -1);
-    
-   // otto_set_trims(0, 0, 0, 0, 0, 0);
     otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
-    
-    // Move legs and feet to home position
-    otto_home(false);  // hands_down=false, because hands are not initialized yet
-    
-    PR_DEBUG("Legs and feet initialized, waiting 200ms...");
-    tal_system_sleep(200);  // Delay 200ms
-    
-    // Step 2: Initialize hands only, without affecting legs and feet
+    otto_home(false);
+    tal_system_sleep(200);
+
+#if !defined(OTTO_NO_ARMS) || (OTTO_NO_ARMS != 1)
     PR_DEBUG("Initializing hands...");
     otto_init_hands_only_wrapper();
-    
-    // Set trim values for all servos from KV storage
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
     otto_set_trims_from_kv();
-    
-    // Move all servos to home position (including hands)
-    otto_home(true);  // hands_down=true, including hands
-
-    PR_DEBUG("Otto initialized completely.");
+#endif
+    otto_home(true);
+    PR_DEBUG("Otto initialized completely (with arms).");
+#else
+    PR_DEBUG("Otto initialized completely (4 servos, no arms).");
+#endif
 }
 /**
  * @brief otto_Show
  *
  * @return none
  */
-static void otto_Show()
+/**
+ * @brief Run one show segment if not aborted
+ * @param[in] fn Segment runner (calls one motion primitive)
+ * @return true if completed, false if aborted
+ */
+typedef void (*otto_show_step_fn_t)(void);
+
+static bool __otto_show_step(otto_show_step_fn_t fn)
 {
-    PR_DEBUG("intializing otto_Show robot...");
+    if (otto_motion_should_abort()) {
+        return false;
+    }
+    fn();
+    if (otto_motion_should_abort()) {
+        return false;
+    }
+    otto_motion_sleep_ms(OTTO_SHOW_GAP_MS);
+    return !otto_motion_should_abort();
+}
 
+static void __show_walk_f(void)
+{
+    otto_walk(OTTO_SHOW_STEPS, OTTO_SPEED, FORWARD, 20);
+}
 
-   // otto_set_trims(0, 0, 0, 0, 0, 0);
+static void __show_turn_l(void)
+{
+    otto_turn(OTTO_SHOW_STEPS, OTTO_SPEED, LEFT, 25);
+}
 
- 
-    otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
+static void __show_swing(void)
+{
+    otto_swing(OTTO_SHOW_STEPS, OTTO_SPEED, 20);
+}
 
-    
-    otto_home(true);
-    tal_system_sleep(1000);
+static void __show_up_down(void)
+{
+    otto_up_down(OTTO_SHOW_STEPS, OTTO_SPEED, 20);
+}
 
-    PR_DEBUG("Otto initialized,starting to show...");
+static void __show_bend(void)
+{
+    otto_bend(1, OTTO_SPEED, LEFT);
+}
 
-    
-    PR_DEBUG("otto_walk");
-    otto_walk(4, OTTO_SPEED, FORWARD, 20); 
-    tal_system_sleep(500);
+static void __show_jitter(void)
+{
+    otto_jitter(OTTO_SHOW_STEPS, OTTO_SPEED, 20);
+}
 
-    PR_DEBUG("otto_turn");
-    otto_turn(4, OTTO_SPEED, LEFT, 25); 
-    tal_system_sleep(500);
+static void __show_moonwalker(void)
+{
+    otto_moonwalker(OTTO_SHOW_STEPS, OTTO_SPEED, 20, LEFT);
+}
 
-    PR_DEBUG("otto_swing");
-    otto_swing(4, OTTO_SPEED, 20); 
-    tal_system_sleep(500);
+static void __show_jump(void)
+{
+    otto_jump(1, OTTO_SPEED);
+}
 
-    PR_DEBUG("otto_up_down");
-    otto_up_down(4, OTTO_SPEED, 20); 
-    tal_system_sleep(500);
-
-    PR_DEBUG("otto_bend");
-    otto_bend(2, OTTO_SPEED, LEFT); 
-    tal_system_sleep(500);
-
-    PR_DEBUG("otto_jitter");
-    otto_jitter(4, OTTO_SPEED, 20); 
-    tal_system_sleep(500);
-
-  
-    PR_DEBUG("otto_moonwalker");
-    otto_moonwalker(4, OTTO_SPEED, 20, LEFT);
-    tal_system_sleep(500);
-
-    PR_DEBUG("otto_jump");
-    otto_jump(2, OTTO_SPEED);
-    tal_system_sleep(500);
-
-
-    PR_DEBUG("otto hand wave");
+#if !defined(OTTO_NO_ARMS) || (OTTO_NO_ARMS != 1)
+static void __show_hand_wave(void)
+{
     otto_hand_wave(OTTO_SPEED, 0);
+}
+#endif
 
-    // int positions[SERVO_COUNT] = {110, 70, 120, 60};
-    // otto_move_servos(1000, positions);
-    tal_system_sleep(1000);
+/**
+ * @brief Compact show sequence; abortable between segments
+ * @return none
+ */
+static void otto_Show(void)
+{
+    PR_DEBUG("otto_Show start");
 
-
-    PR_DEBUG("otto_home");
-    otto_home(true);
-    tal_system_sleep(1000);
-
-    PR_DEBUG("oto_show complete.");
-
-    return;
+    if (!__otto_show_step(__show_walk_f)) {
+        return;
+    }
+    if (!__otto_show_step(__show_turn_l)) {
+        return;
+    }
+    if (!__otto_show_step(__show_swing)) {
+        return;
+    }
+    if (!__otto_show_step(__show_up_down)) {
+        return;
+    }
+    if (!__otto_show_step(__show_bend)) {
+        return;
+    }
+    if (!__otto_show_step(__show_jitter)) {
+        return;
+    }
+    if (!__otto_show_step(__show_moonwalker)) {
+        return;
+    }
+    if (!__otto_show_step(__show_jump)) {
+        return;
+    }
+#if !defined(OTTO_NO_ARMS) || (OTTO_NO_ARMS != 1)
+    if (!__otto_show_step(__show_hand_wave)) {
+        return;
+    }
+#endif
+    PR_DEBUG("otto_Show complete");
 }
 
 enum ActionType {
@@ -532,11 +558,189 @@ void otto_robot_execute_action(uint32_t move_type)
         break;
     }
     
-    // Always return to home position after action
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
     otto_set_trims_from_kv();
+#endif
+#if defined(OTTO_NO_ARMS) && (OTTO_NO_ARMS == 1)
+    otto_home(false);
+#else
     otto_home(true);
+#endif
     PR_DEBUG("Action completed, returned to home position");
 }
+
+#if defined(OTTO_PRODUCT_ST7789_V1) && (OTTO_PRODUCT_ST7789_V1 == 1)
+
+/**
+ * @brief Map V1 speed enum index to legacy speed type (0:slow, 1:normal, 2:fast)
+ * @param[in] speed_enum V1 cloud enum index
+ * @return Legacy speed type for otto_robot_speed_dp_proc
+ */
+static uint32_t __otto_v1_speed_enum_to_legacy(uint32_t speed_enum)
+{
+    switch (speed_enum) {
+    case 0:
+        return 1;
+    case 1:
+        return 0;
+    case 2:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
+/**
+ * @brief Map V1 speed enum string to legacy speed type
+ * @param[in] speed_str V1 cloud enum string
+ * @return Legacy speed type for otto_robot_speed_dp_proc
+ */
+static uint32_t __otto_v1_speed_str_to_legacy(const char *speed_str)
+{
+    if (speed_str == NULL) {
+        return 1;
+    }
+    if (strcmp(speed_str, "SPEED_SLOW") == 0) {
+        return 0;
+    }
+    if (strcmp(speed_str, "SPEED_FAST") == 0) {
+        return 2;
+    }
+    return 1;
+}
+
+/**
+ * @brief Map V1 ptz_control string to internal action type
+ * @param[in] ptz_str Cloud enum string
+ * @param[out] action_out Internal ActionType value
+ * @return true if mapped, false if unknown
+ */
+static bool __otto_v1_ptz_str_to_action(const char *ptz_str, uint32_t *action_out)
+{
+    if (ptz_str == NULL || action_out == NULL) {
+        return false;
+    }
+    if (strcmp(ptz_str, "front") == 0) {
+        *action_out = ACTION_WALK_F;
+    } else if (strcmp(ptz_str, "back") == 0) {
+        *action_out = ACTION_WALK_B;
+    } else if (strcmp(ptz_str, "left") == 0) {
+        *action_out = ACTION_WALK_L;
+    } else if (strcmp(ptz_str, "right") == 0) {
+        *action_out = ACTION_WALK_R;
+    } else if (strcmp(ptz_str, "none") == 0) {
+        *action_out = ACTION_NONE;
+    } else if (strcmp(ptz_str, "swing") == 0) {
+        *action_out = ACTION_SWING;
+    } else if (strcmp(ptz_str, "up_down") == 0) {
+        *action_out = ACTION_UP_DOWN;
+    } else if (strcmp(ptz_str, "bend") == 0) {
+        *action_out = ACTION_BEND;
+    } else if (strcmp(ptz_str, "jitter") == 0) {
+        *action_out = ACTION_JITTER;
+    } else if (strcmp(ptz_str, "moonwalker") == 0) {
+        *action_out = ACTION_MOONWALKER;
+    } else if (strcmp(ptz_str, "jump") == 0) {
+        *action_out = ACTION_JUMP;
+    } else if (strcmp(ptz_str, "show") == 0) {
+        *action_out = ACTION_SHOW;
+    } else if (strcmp(ptz_str, "hand") == 0) {
+        *action_out = ACTION_HAND_WAVE;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Process V1 ptz_control DP (DP5)
+ * @param[in] dp Data point object
+ * @return none
+ */
+static void __otto_v1_ptz_dp_proc(dp_obj_t *dp)
+{
+    uint32_t action = ACTION_NONE;
+
+    if (dp->type == PROP_ENUM) {
+        action = dp->value.dp_enum;
+        if (action > ACTION_HAND_WAVE) {
+            PR_DEBUG("Unknown ptz_control enum: %d", action);
+            return;
+        }
+        PR_DEBUG("ptz_control enum index: %d", action);
+        otto_robot_dp_proc_thread(action);
+        return;
+    }
+    if (dp->type == PROP_STR) {
+        if (!__otto_v1_ptz_str_to_action(dp->value.dp_str, &action)) {
+            PR_DEBUG("Unknown ptz_control string: %s", dp->value.dp_str);
+            return;
+        }
+        PR_DEBUG("ptz_control string: %s -> action %d", dp->value.dp_str, action);
+        otto_robot_dp_proc_thread(action);
+        return;
+    }
+    PR_DEBUG("Unsupported ptz_control DP type: %d", dp->type);
+}
+
+/**
+ * @brief Process data points for ST7789 V1 product profile
+ * @param[in] dpobj Received DP object bundle
+ * @return none
+ */
+static void __otto_robot_dp_proc_v1(dp_obj_recv_t *dpobj)
+{
+    for (uint32_t i = 0; i < dpobj->dpscnt; i++) {
+        dp_obj_t *dp = dpobj->dps + i;
+        PR_DEBUG("V1 DP[%d]: id=%d type=%d", i, dp->id, dp->type);
+        switch (dp->id) {
+        case DPID_OTTO_PTZ_CONTROL:
+            __otto_v1_ptz_dp_proc(dp);
+            break;
+        case DPID_OTTO_SPEED:
+            if (dp->type == PROP_ENUM) {
+                otto_robot_speed_dp_proc(__otto_v1_speed_enum_to_legacy(dp->value.dp_enum));
+            } else if (dp->type == PROP_STR) {
+                otto_robot_speed_dp_proc(__otto_v1_speed_str_to_legacy(dp->value.dp_str));
+            }
+            break;
+        case DPID_OTTO_STEP:
+            if (dp->type == PROP_VALUE) {
+                uint32_t steps = dp->value.dp_value;
+                if (steps < OTTO_STEP_MIN) {
+                    steps = OTTO_STEP_MIN;
+                }
+                if (steps > OTTO_STEP_MAX) {
+                    steps = OTTO_STEP_MAX;
+                }
+                otto_robot_step_dp_proc(steps);
+            }
+            break;
+        case DPID_OTTO_AUDIO:
+            if (dp->type == PROP_ENUM) {
+                otto_robot_audio_mode_dp_proc(dp->value.dp_enum);
+            } else if (dp->type == PROP_STR) {
+                if (strcmp(dp->value.dp_str, "hold") == 0) {
+                    otto_robot_audio_mode_dp_proc(0);
+                } else if (strcmp(dp->value.dp_str, "key") == 0) {
+                    otto_robot_audio_mode_dp_proc(1);
+                } else if (strcmp(dp->value.dp_str, "weakup") == 0) {
+                    otto_robot_audio_mode_dp_proc(2);
+                } else if (strcmp(dp->value.dp_str, "free") == 0) {
+                    otto_robot_audio_mode_dp_proc(3);
+                } else {
+                    PR_DEBUG("Unknown audio mode string: %s", dp->value.dp_str);
+                }
+            }
+            break;
+        default:
+            PR_DEBUG("Unknown V1 DP ID: %d", dp->id);
+            break;
+        }
+    }
+}
+
+#endif /* OTTO_PRODUCT_ST7789_V1 */
 
 /**
  * @brief Process data point objects for Otto robot control
@@ -551,6 +755,12 @@ void otto_robot_dp_proc(dp_obj_recv_t *dpobj)
         PR_DEBUG("Invalid dpobj or no dps to process");
         return;
     }
+
+#if defined(OTTO_PRODUCT_ST7789_V1) && (OTTO_PRODUCT_ST7789_V1 == 1)
+    __otto_robot_dp_proc_v1(dpobj);
+    PR_DEBUG("=== Otto Robot DP Processing Completed (V1) ===");
+    return;
+#else
 
     PR_DEBUG("Processing %d data points", dpobj->dpscnt);
     
@@ -748,7 +958,7 @@ void otto_robot_dp_proc(dp_obj_recv_t *dpobj)
                 }
                 break;
 
-            // Otto robot servo trim calibration DPs (DP101-DP106)
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
             case DPID_OTTO_LEFT_LEG_TRIM:
             case DPID_OTTO_RIGHT_LEG_TRIM:
             case DPID_OTTO_LEFT_FOOT_TRIM:
@@ -757,19 +967,20 @@ void otto_robot_dp_proc(dp_obj_recv_t *dpobj)
             case DPID_OTTO_RIGHT_HAND_TRIM:
                 PR_DEBUG("otto Rev DP Obj Cmd dpid:%d type:%d value:%d", dp->id, dp->type, dp->value.dp_value);
                 PR_DEBUG("=== Otto Robot Trim Calibration ===");
-                PR_DEBUG("Trim calibration DPID: %d, Value: %d", dp->id, dp->value.dp_value);
                 otto_trim_calibration_dp_proc(dp);
                 otto_home(true);
                 PR_DEBUG("=== Trim Calibration Complete ===");
                 break;
+#endif
 
             default:
                 PR_DEBUG("Unknown DP ID: %d", dp->id);
                 break;
         }
     }
-    
+
     PR_DEBUG("=== Otto Robot DP Processing Completed ===");
+#endif /* !OTTO_PRODUCT_ST7789_V1 */
 }
 
 /**
@@ -787,6 +998,8 @@ static void __otto_motion_thread_process(void *arg)
     // Get thread parameters
     OttoMotionThreadParams *params = (OttoMotionThreadParams *)arg;
     uint32_t move_type = params->move_type;
+
+    otto_motion_set_current(move_type);
     PR_DEBUG("Thread received motion type: %d", move_type);
     PR_DEBUG("Current Otto settings - Steps: %d, Speed: %dms", OTTO_STEP, OTTO_SPEED);
 
@@ -853,9 +1066,15 @@ static void __otto_motion_thread_process(void *arg)
             break;
 
         case ACTION_NONE:
-    PR_DEBUG("otto_home");
+            PR_DEBUG("otto_home");
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
             otto_set_trims_from_kv();
+#endif
+#if defined(OTTO_NO_ARMS) && (OTTO_NO_ARMS == 1)
+            otto_home(false);
+#else
             otto_home(true);
+#endif
             break;
 
         default:
@@ -863,21 +1082,35 @@ static void __otto_motion_thread_process(void *arg)
             break;
     }
 
-    // Return to initial position after all actions
-    PR_DEBUG("Returning to home position...");
-   // otto_set_trims(0, 0, 0, 0, 0, 0);
-    otto_home(true);
-    PR_DEBUG("Otto returned to home position");
+    {
+        bool aborted = otto_motion_should_abort();
+        uint32_t pending_type = 0;
+        uint32_t queued_type = 0;
+        bool has_pending = otto_motion_take_pending(&pending_type);
+        bool has_queued = otto_motion_dequeue(&queued_type);
 
-    // Free thread parameter memory and clear running flag
-    tal_free(params);
-    is_otto_robot_dp_proc_running = false;
-    PR_DEBUG("Thread resources cleaned up");
+        if (!aborted || !has_pending) {
+            PR_DEBUG("Returning to home position...");
+#if defined(OTTO_NO_ARMS) && (OTTO_NO_ARMS == 1)
+            otto_home(false);
+#else
+            otto_home(true);
+#endif
+        } else {
+            PR_DEBUG("Show preempted, skip home, next action %d", pending_type);
+        }
 
-    PR_DEBUG("Deleting motion thread...");
-    // Delete current thread itself
-    tal_thread_delete(robot_app_thread);
-    robot_app_thread = NULL;
+        tal_free(params);
+        is_otto_robot_dp_proc_running = false;
+        tal_thread_delete(robot_app_thread);
+        robot_app_thread = NULL;
+
+        if (has_pending) {
+            otto_robot_dp_proc_thread(pending_type);
+        } else if (has_queued) {
+            otto_robot_dp_proc_thread(queued_type);
+        }
+    }
     PR_DEBUG("=== Otto Motion Thread Completed ===");
 }
 
@@ -893,13 +1126,12 @@ void otto_robot_dp_proc_thread(uint32_t move_type)
     PR_DEBUG("=== Starting Otto Robot Motion Thread ===");
     PR_DEBUG("Motion type: %d", move_type);
     
-    // Check if a thread is already running to prevent concurrent execution
     if (is_otto_robot_dp_proc_running) {
-        PR_DEBUG("Motion thread already running, skipping new request");
+        otto_motion_on_busy(move_type);
         return;
     }
 
-    // Set thread running flag
+    otto_motion_begin();
     is_otto_robot_dp_proc_running = true;
     PR_DEBUG("Motion thread flag set, creating new thread...");
 
@@ -932,6 +1164,8 @@ void otto_robot_dp_proc_thread(uint32_t move_type)
         PR_DEBUG("Motion thread created and started successfully");
     }
 }
+
+#if !defined(OTTO_NO_SERVO_TRIM) || (OTTO_NO_SERVO_TRIM != 1)
 
 /**
  * @brief Sets the left leg trim value and saves it to KV storage.
@@ -1365,7 +1599,7 @@ void otto_set_trims_from_kv(void)
     // Apply trim values to all servos
     otto_set_trims(left_leg_trim, right_leg_trim, left_foot_trim, right_foot_trim, left_hand_trim, right_hand_trim);
 
-    PR_DEBUG("Applied trim values from KV: LL=%d, RL=%d, LF=%d, RF=%d, LH=%d, RH=%d", 
+    PR_DEBUG("Applied trim values from KV: LL=%d, RL=%d, LF=%d, RF=%d, LH=%d, RH=%d",
              left_leg_trim, right_leg_trim, left_foot_trim, right_foot_trim, left_hand_trim, right_hand_trim);
 }
 
@@ -1445,3 +1679,25 @@ void otto_trim_calibration_dp_proc(dp_obj_t *dp)
 
     PR_DEBUG("Trim calibration applied successfully: DPID=%d, Value=%d", dp->id, trim_value);
 }
+
+#endif /* OTTO_NO_SERVO_TRIM */
+
+#if defined(OTTO_NO_SERVO_TRIM) && (OTTO_NO_SERVO_TRIM == 1)
+
+/**
+ * @brief Stub when servo trim is disabled
+ * @return none
+ */
+void otto_init_all_trims(void)
+{
+}
+
+/**
+ * @brief Stub when servo trim is disabled
+ * @return none
+ */
+void otto_set_trims_from_kv(void)
+{
+}
+
+#endif /* OTTO_NO_SERVO_TRIM */

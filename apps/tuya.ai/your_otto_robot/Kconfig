@@ -15,7 +15,28 @@ choice
     bool "otto"
 endchoice
 
-if(OTTO_TYPE_OTTO) 
+if(OTTO_TYPE_OTTO)
+    choice
+        prompt "choose Otto product profile"
+        default OTTO_PRODUCT_LEGACY
+
+        config OTTO_PRODUCT_LEGACY
+        bool "legacy product (6 servos, trim DPs, multi-DP control)"
+
+        config OTTO_PRODUCT_ST7789_V1
+        bool "ST7789 V1 product (4 servos, PID 2aay22ssg224cpvi, ptz_control DP5)"
+    endchoice
+
+    config OTTO_NO_ARMS
+        bool "Otto robot without arm servos"
+        default y if OTTO_PRODUCT_ST7789_V1
+        default n
+
+    config OTTO_NO_SERVO_TRIM
+        bool "disable servo trim calibration DPs and KV"
+        default y if OTTO_PRODUCT_ST7789_V1
+        default n
+
     choice
         prompt "choose Otto board type"
         default OTTO_BOARD_DEFAULT_TXP

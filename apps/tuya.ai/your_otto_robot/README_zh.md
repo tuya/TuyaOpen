@@ -253,6 +253,57 @@ cd apps/tuya.ai/your_otto_robot/
 
 2. 选择配置：
 
+先根据外壳/屏幕/功能对照下图与表格，选对 `config/` 预设，再复制为 `app_default.config` 后编译（或在 `tos.py config choice` 中选择同名预设）。
+
+### 如何区分各款 Otto
+
+| 机型 | 外观参考 | 屏幕 | 固件类型 | 配置文件 | 备注 |
+|------|----------|------|----------|----------|------|
+| **Otto Ya（小黄鸭）** | 见下图 | ST7735S 160×80 双眼 | Otto 六舵机 | `config/T5AI_OTTO_LCD_ST7735S.config` | 带手臂，支持舵机校准 DP |
+| **Otto 标准（ST7789 新版）** | 标准 Otto 外壳 | ST7789 240×240 | Otto 六舵机 | `config/T5AI_OTTO_LCD_ST7789.config` | PID `aub53kai42j8fdlf` |
+| **Otto V1（ST7789 老版）** | 见下图 | ST7789 240×240 | Otto 四舵机 | `config/T5_OTTO_LCD_ST7789_V1.config` | PID `2aay22ssg224cpvi`，无手臂/无校准，DP5 `ptz_control` |
+| **Otto Ninja（轮足）** | 见下图 | GC9D01 160×160 | Ninja Otto | `config/T5AI_OTTO_LCD_GC9D01.config` | 摇杆/按键控制，非步态 Otto |
+
+**Otto Ya（小黄鸭）**
+
+![Otto Ya](doc/otto%20ya.jpg)
+
+**Otto V1（四舵机老版）**
+
+![Otto V1](doc/otto%20v1.png)
+
+**Otto Ninja（轮足）**
+
+![Otto Ninja](doc/otto%20ninjia.jpg)
+
+![Otto Ninja 轮子细节](doc/otto%20nijia_lun.jpg)
+
+```bash
+# 示例：小黄鸭
+cp config/T5AI_OTTO_LCD_ST7735S.config app_default.config
+
+# 示例：Ninja 轮足
+cp config/T5AI_OTTO_LCD_GC9D01.config app_default.config
+
+# 示例：ST7789 新版六舵机
+cp config/T5AI_OTTO_LCD_ST7789.config app_default.config
+
+# 示例：ST7789 老版四舵机
+cp config/T5_OTTO_LCD_ST7789_V1.config app_default.config
+```
+
+**Kconfig 产品画像（`OTTO_TYPE_OTTO` 时）**
+
+- `OTTO_PRODUCT_LEGACY`：六舵机 + 舵机校准 DP（默认）
+- `OTTO_PRODUCT_ST7789_V1`：四舵机、无校准，云 DP 为 DP5 `ptz_control` / 102 速度 / 103 步数 / 104 音频
+
+**动作调度说明**
+
+- **展示 (show)**：可被新指令打断，立即执行最新一条。
+- **其它动作**（前进、后退、转向等）：忙时进入 FIFO 队列（最多 8 条），按顺序执行；单次行走/转身会完整做完再归位。
+
+或使用交互配置：
+
 ```bash
 tos.py config choice 
 ```
@@ -284,9 +335,11 @@ tos.py build
 使用语音唤醒聊天（唤醒词："你好，涂鸦"，hey,tuya“）
 
 ### 3. 功能清单
-- 支持基本行走动作
+- 支持基本行走动作（非 show 动作支持排队）
+- 支持展示动作（可被打断）
 - 支持语音指令控制
 - 屏幕显示状态信息
+- Otto V1 四舵机版：无手臂、无舵机校准 DP
 - 支持视频识别（未来规划）
 
 ## 九、资源支持
