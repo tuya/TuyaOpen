@@ -12,6 +12,11 @@
 #include "ai_chat_main.h"
 #include "app_chat_bot.h"
 
+#if defined(ENABLE_COMP_AI_MCP) && (ENABLE_COMP_AI_MCP == 1) && defined(OTTO_TYPE_OTTO) && \
+    (OTTO_TYPE_OTTO == 1)
+#include "otto_mcp_tools.h"
+#endif
+
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tkl_wifi.h"
 #endif
@@ -138,6 +143,9 @@ OPERATE_RET app_chat_bot_init(void)
 
 #if defined(ENABLE_COMP_AI_MCP) && (ENABLE_COMP_AI_MCP == 1)
     TUYA_CALL_ERR_RETURN(ai_mcp_init());
+#if defined(OTTO_TYPE_OTTO) && (OTTO_TYPE_OTTO == 1)
+    TUYA_CALL_ERR_RETURN(otto_mcp_tools_init());
+#endif
 #endif
 
     // Free heap size

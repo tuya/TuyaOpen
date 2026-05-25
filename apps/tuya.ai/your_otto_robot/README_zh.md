@@ -302,6 +302,18 @@ cp config/T5_OTTO_LCD_ST7789_V1.config app_default.config
 - **展示 (show)**：可被新指令打断，立即执行最新一条。
 - **其它动作**（前进、后退、转向等）：忙时进入 FIFO 队列（最多 8 条），按顺序执行；单次行走/转身会完整做完再归位。
 
+**MCP 控制（`ENABLE_COMP_AI_MCP=y` 时）**
+
+启用 AI MCP 后，语音/云端 AI 可通过 MCP 工具控制动作；**App/云 DP 控制仍保留**，与 MCP 共用同一套动作调度（show 抢占、其它动作排队）。
+
+| MCP 工具名 | 参数 | 说明 |
+|------------|------|------|
+| `otto_robot_action` | `action`（字符串）或 `action_id`（0–12） | 与 V1 `ptz_control` 一致：`front`/`back`/`left`/`right`/`none`/`swing`/`up_down`/`bend`/`jitter`/`moonwalker`/`jump`/`show`/`hand` |
+| `otto_robot_speed_set` | `speed_level` 0–2 | 0=慢、1=正常、2=快 |
+| `otto_robot_step_set` | `steps` 1–30 | 行走/转向步数 |
+
+对话模式仍可使用通用工具 `device_audio_mode_set`（`mode` 0–3）。
+
 或使用交互配置：
 
 ```bash
@@ -345,7 +357,7 @@ tos.py build
 ## 九、资源支持
 - **技术交流**：加入涂鸦AI开发QQ群/微信群 获取技术支持
 
-![](https://cdn.nlark.com/yuque/0/2025/png/55332580/1747998833234-310a2deb-5b01-4ebe-8e85-0b58f3b568f0.png)
+![](doc/q_qrcode.png)
 
 ![](https://cdn.nlark.com/yuque/0/2025/jpeg/55332580/1747998771203-5ac06211-d6ce-424d-99f9-b431804ebc80.jpeg?x-oss-process=image%2Fformat%2Cwebp)
 

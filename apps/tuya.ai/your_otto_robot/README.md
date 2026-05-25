@@ -302,6 +302,18 @@ cp config/T5_OTTO_LCD_ST7789_V1.config app_default.config
 - **Show**: can be interrupted; the newest command runs immediately.
 - **Other moves** (walk, turn, etc.): queued FIFO (max 8) while busy; each move finishes and returns home before the next.
 
+**MCP control (when `ENABLE_COMP_AI_MCP=y`)**
+
+With AI MCP enabled, voice/cloud AI can drive motion via MCP tools; **App/cloud DP control remains available** and shares the same motion queue as MCP.
+
+| MCP tool | Parameters | Notes |
+|----------|------------|-------|
+| `otto_robot_action` | `action` (string) or `action_id` (0–12) | Same as V1 `ptz_control`: `front`/`back`/`left`/`right`/`none`/`swing`/`up_down`/`bend`/`jitter`/`moonwalker`/`jump`/`show`/`hand` |
+| `otto_robot_speed_set` | `speed_level` 0–2 | 0=slow, 1=normal, 2=fast |
+| `otto_robot_step_set` | `steps` 1–30 | Walk/turn step count |
+
+Use `device_audio_mode_set` (`mode` 0–3) for chat interaction mode.
+
 Or use interactive configuration:
 
 ```bash
