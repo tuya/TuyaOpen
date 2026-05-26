@@ -24,7 +24,7 @@ if(OTTO_TYPE_OTTO)
         bool "legacy product (6 servos, trim DPs, multi-DP control)"
 
         config OTTO_PRODUCT_ST7789_V1
-        bool "ST7789 V1 product (4 servos, PID 2aay22ssg224cpvi, ptz_control DP5)"
+        bool "ST7789 V1 product (4 servos, PID brlsjfkjj4y8wg2d, ptz_control DP5)"
     endchoice
 
     config OTTO_NO_ARMS
