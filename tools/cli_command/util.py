@@ -188,10 +188,10 @@ def set_global_params():
     GLOBAL_PARAMS["platforms_yaml"] = os.path.join(
         platforms_root, "platform_config.yaml")
 
-    tyutool_root = os.path.join(tools_root, "tyutool")
-    GLOBAL_PARAMS["tyutool_root"] = tyutool_root
-    tyutool_cli = os.path.join(tyutool_root, "tyutool_cli.py")
-    GLOBAL_PARAMS["tyutool_cli"] = tyutool_cli
+    tyutool_bin_dir = os.path.join(tools_root, "tyutool")
+    GLOBAL_PARAMS["tyutool_bin_dir"] = tyutool_bin_dir
+    _bin_name = "tyutool_cli.exe" if sys.platform == "win32" else "tyutool_cli"
+    GLOBAL_PARAMS["tyutool_bin"] = os.path.join(tyutool_bin_dir, _bin_name)
 
     porting_root = os.path.join(tools_root, "porting")
     GLOBAL_PARAMS["porting_root"] = porting_root

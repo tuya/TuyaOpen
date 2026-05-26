@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 # coding=utf-8
+#
+# Usage examples:
+#   tos.py config choice                        # interactive selection from app configs
+#   tos.py config choice -d                     # interactive selection from board default configs
+#   tos.py config choice -c my_board.config     # non-interactive, specify config by name
+#   tos.py config choice -d -c my_board.config  # non-interactive, from board default configs
+#   tos.py config menu                          # open menuconfig UI
+#   tos.py config save                          # save current config to app configs
 
 import os
 import sys
@@ -86,7 +94,10 @@ def get_board_config_dir(board_path):
 @click.option('-d', '--default',
               is_flag=True, default=False,
               help="Only display board default config.")
-def config_choice_exec(default):
+@click.option('-c', '--config',
+              default=None, metavar='NAME',
+              help="Specify config file name directly (e.g. my_board.config), skipping interactive selection.")
+def config_choice_exec(default, config):
     '''
     Choice config file
     from app config or board default config
@@ -106,11 +117,23 @@ def config_choice_exec(default):
         config_dir = get_board_config_dir(board_path)
         config_list = get_files_from_path(".config", config_dir, 0)
 
-    # choice config file
     config_list.sort()
-    show_list = [os.path.basename(conf) for conf in config_list]
-    _, index = list_menu("Choice config file", show_list)
-    choice_config = config_list[index]
+
+    if config is not None:
+        # non-interactive: match by filename
+        if not config.endswith(".config"):
+            config += ".config"
+        matched = [f for f in config_list if os.path.basename(f) == config]
+        if not matched:
+            show_list = [os.path.basename(f) for f in config_list]
+            logger.error(f"Config '{config}' not found. Available: {show_list}")
+            sys.exit(1)
+        choice_config = matched[0]
+    else:
+        # interactive selection
+        show_list = [os.path.basename(conf) for conf in config_list]
+        _, index = list_menu("Choice config file", show_list)
+        choice_config = config_list[index]
 
     # copy config file
     app_default_config = params["app_default_config"]
