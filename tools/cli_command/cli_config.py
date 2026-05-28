@@ -6,6 +6,8 @@
 #   tos.py config choice -d                     # interactive selection from board default configs
 #   tos.py config choice -c my_board.config     # non-interactive, specify config by name
 #   tos.py config choice -d -c my_board.config  # non-interactive, from board default configs
+#   tos.py config choice -l                     # list all available app configs
+#   tos.py config choice -d -l                  # list all board default configs
 #   tos.py config menu                          # open menuconfig UI
 #   tos.py config save                          # save current config to app configs
 
@@ -97,14 +99,16 @@ def get_board_config_dir(board_path):
 @click.option('-c', '--config',
               default=None, metavar='NAME',
               help="Specify config file name directly (e.g. my_board.config), skipping interactive selection.")
-def config_choice_exec(default, config):
+@click.option('-l', '--list', 'list_configs',
+              is_flag=True, default=False,
+              help="List all available config files.")
+def config_choice_exec(default, config, list_configs):
     '''
     Choice config file
     from app config or board default config
     '''
     logger = get_logger()
     params = get_global_params()
-    full_clean_project()
 
     # get config files
     app_configs_path = params["app_configs_path"]
@@ -118,6 +122,14 @@ def config_choice_exec(default, config):
         config_list = get_files_from_path(".config", config_dir, 0)
 
     config_list.sort()
+
+    if list_configs:
+        show_list = [os.path.basename(f) for f in config_list]
+        for name in show_list:
+            print(name)
+        sys.exit(0)
+
+    full_clean_project()
 
     if config is not None:
         # non-interactive: match by filename
