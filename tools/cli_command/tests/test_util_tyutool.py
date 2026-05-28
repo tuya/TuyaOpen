@@ -73,6 +73,13 @@ class TestCompareVersions(unittest.TestCase):
     def test_malformed_returns_zero_tuple(self):
         self.assertEqual(self.compare('bad', 'bad'), 0)
 
+    def test_two_component_equal_to_three_component(self):
+        # "3.0" should equal "3.0.0", not be treated as older
+        self.assertEqual(self.compare('3.0', '3.0.0'), 0)
+
+    def test_two_component_newer_than_three_component(self):
+        self.assertEqual(self.compare('3.1', '3.0.9'), 1)
+
 
 class TestShouldCheckUpdate(unittest.TestCase):
     def setUp(self):
@@ -284,6 +291,57 @@ class TestDownloadTyutoolBin(unittest.TestCase):
             self.assertTrue(result)
             self.assertTrue(os.path.isfile(params["tyutool_bin"]))
             self.assertEqual(written.get("tyutool_version"), "3.0.7")
+
+
+class TestEnsureTyutool(unittest.TestCase):
+    def _base_patches(self, tyutool_bin, open_root):
+        return {
+            "tyutool_bin_dir": os.path.dirname(tyutool_bin),
+            "tyutool_bin": tyutool_bin,
+            "open_root": open_root,
+        }
+
+    def test_fetch_failure_updates_last_check(self):
+        """Bug fix: when fetch_latest_json fails, tyutool_last_check must still be updated
+        to prevent repeated network requests on every subsequent invocation."""
+        import tools.cli_command.util_tyutool as m
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_path = os.path.join(tmp, "tyutool_cli")
+            open(bin_path, 'w').close()  # create dummy binary
+            params = self._base_patches(bin_path, tmp)
+            written = {}
+            with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
+                 patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
+                 patch('tools.cli_command.util_tyutool.fetch_latest_json', return_value=None), \
+                 patch('tools.cli_command.util_tyutool.env_write', side_effect=lambda k, v: written.update({k: v})):
+                result = m.ensure_tyutool()
+            self.assertEqual(result, bin_path)
+            self.assertIn("tyutool_last_check", written,
+                          "tyutool_last_check must be updated even when fetch_latest_json fails")
+
+    def test_binary_version_takes_priority_over_env(self):
+        """Always detect version from binary so stale env cache can't cause false update prompts."""
+        import tools.cli_command.util_tyutool as m
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_path = os.path.join(tmp, "tyutool_cli")
+            open(bin_path, 'w').close()
+            params = self._base_patches(bin_path, tmp)
+            prompted = []
+            with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
+                 patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
+                 patch('tools.cli_command.util_tyutool.fetch_latest_json',
+                       return_value={"version": "3.0.10"}), \
+                 patch('tools.cli_command.util_tyutool._detect_installed_version',
+                       return_value="3.0.10"), \
+                 patch('tools.cli_command.util_tyutool.get_local_version',
+                       return_value="3.0.9"), \
+                 patch('tools.cli_command.util_tyutool.env_write'), \
+                 patch('tools.cli_command.util_tyutool.prompt_update',
+                       side_effect=lambda *a: prompted.append(a)):
+                m.ensure_tyutool()
+            self.assertEqual(len(prompted), 0,
+                             "binary reports 3.0.10 == remote 3.0.10, no prompt expected"
+                             " even if env cache says 3.0.9")
 
 
 if __name__ == '__main__':
