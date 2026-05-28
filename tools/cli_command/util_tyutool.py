@@ -53,7 +53,9 @@ def get_platform_key() -> str:
 
 def _parse(v: str) -> tuple:
     try:
-        return tuple(int(x) for x in v.lstrip('v').split('.')[:3])
+        parts = v.lstrip('v').split('.')[:3]
+        padded = (parts + ['0', '0', '0'])[:3]
+        return tuple(int(x) for x in padded)
     except (ValueError, AttributeError):
         return (0, 0, 0)
 
@@ -83,17 +85,36 @@ def get_local_version() -> Optional[str]:
     return env_read("tyutool_version", None)
 
 
+def _detect_installed_version(tyutool_bin: str) -> str:
+    """Run the binary to detect its version when env has no record."""
+    try:
+        out = subprocess.check_output(
+            [tyutool_bin, "--version"],
+            stderr=subprocess.STDOUT,
+            timeout=5,
+        ).decode().strip()
+        # expected output: "tyutool X.Y.Z"
+        parts = out.split()
+        return parts[-1] if parts else ""
+    except Exception:
+        return ""
+
+
 def _make_gitee_url(github_url: str) -> str:
     return github_url.replace(_GITHUB_PREFIX, _GITEE_PREFIX)
+
+
+DOWNLOAD_TIMEOUT = 300  # 5 minutes total cap for binary download
 
 
 def _download_file(url: str, dest: str) -> bool:
     logger = get_logger()
     try:
-        resp = requests.get(url, stream=True, timeout=60)
+        resp = requests.get(url, stream=True, timeout=(15, 30))
         resp.raise_for_status()
         total = int(resp.headers.get('content-length', 0))
         downloaded = 0
+        deadline = time.time() + DOWNLOAD_TIMEOUT
         with open(dest, 'wb') as f:
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 if chunk:
@@ -105,6 +126,10 @@ def _download_file(url: str, dest: str) -> bool:
                         logger.info(f"  {mb}MB / {total_mb}MB")
                     else:
                         logger.info(f"  {mb}MB downloaded")
+                if time.time() > deadline:
+                    raise TimeoutError(
+                        f"Download exceeded {DOWNLOAD_TIMEOUT}s limit"
+                    )
         return True
     except Exception as e:
         logger.debug(f"Download failed ({url}): {e}")
@@ -264,10 +289,11 @@ def ensure_tyutool() -> Optional[str]:
 
     latest_data = fetch_latest_json()
     if latest_data is None:
+        env_write("tyutool_last_check", time.time())
         return tyutool_bin
 
     latest_ver = latest_data.get("version", "")
-    local_ver = get_local_version() or ""
+    local_ver = _detect_installed_version(tyutool_bin) or get_local_version() or ""
     if compare_versions(latest_ver, local_ver) > 0:
         prompt_update(local_ver, latest_ver, latest_data)
 
