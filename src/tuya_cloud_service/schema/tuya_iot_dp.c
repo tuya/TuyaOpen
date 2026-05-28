@@ -272,7 +272,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
         ble_dpin->flags = flags;
         ble_dpin->rept_type = T_OBJ_REPT;
         ble_dpin->dpscnt = dpvalid->num;
-        ble_dpin->dps = (dp_obj_t *)(ble_dpin + sizeof(dp_rept_in_t));
+        ble_dpin->dps = (dp_obj_t *)((uint8_t *)ble_dpin + sizeof(dp_rept_in_t));
         //! copy vaild dpid
         int i, j;
         for (i = 0; i < dpvalid->num; i++) {
