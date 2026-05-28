@@ -10,6 +10,7 @@ import tarfile
 import zipfile
 import platform
 import subprocess
+from typing import Optional
 
 import requests
 
@@ -67,7 +68,7 @@ def should_check_update() -> bool:
     return (time.time() - float(last_check)) >= CHECK_INTERVAL
 
 
-def fetch_latest_json() -> dict | None:
+def fetch_latest_json() -> Optional[dict]:
     logger = get_logger()
     try:
         resp = requests.get(LATEST_JSON_URL, timeout=10)
@@ -78,7 +79,7 @@ def fetch_latest_json() -> dict | None:
         return None
 
 
-def get_local_version() -> str | None:
+def get_local_version() -> Optional[str]:
     return env_read("tyutool_version", None)
 
 
@@ -231,7 +232,7 @@ def prompt_update(local_ver: str, latest_ver: str, latest_data: dict) -> bool:
             return True
 
 
-def ensure_tyutool() -> str | None:
+def ensure_tyutool() -> Optional[str]:
     logger = get_logger()
     params = get_global_params()
     tyutool_bin = params["tyutool_bin"]
