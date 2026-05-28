@@ -32,8 +32,90 @@ def do_flash_subprocess(cmd: str) -> int:
 
     logger.info(f">>> subprocess >>>\n{cmd}")
 
+    if sys.platform != "win32":
+        try:
+            return _do_flash_pty(cmd)
+        except Exception as e:
+            logger.debug(f"pty mode failed ({e}), falling back to pipe mode")
+    return _do_flash_pipe(cmd)
+
+
+def _do_flash_pty(cmd: str) -> int:
+    import pty
+    import os
+    import select
+    import termios
+    import tty
+
+    master_fd, slave_fd = pty.openpty()
+    proc = subprocess.Popen(
+        cmd, shell=True,
+        stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+        close_fds=True,
+    )
+    os.close(slave_fd)
+
+    stdin_fd = sys.stdin.fileno()
+    old_tty = None
+    try:
+        old_tty = termios.tcgetattr(stdin_fd)
+        tty.setraw(stdin_fd)
+    except Exception:
+        old_tty = None
+
+    try:
+        while proc.poll() is None:
+            watch = [master_fd] + ([stdin_fd] if old_tty is not None else [])
+            try:
+                rfds, _, _ = select.select(watch, [], [], 0.1)
+            except (ValueError, OSError):
+                break
+            for fd in rfds:
+                try:
+                    data = os.read(fd, 4096 if fd == master_fd else 256)
+                except OSError:
+                    data = b''
+                if not data:
+                    continue
+                if fd == master_fd:
+                    sys.stdout.buffer.write(data)
+                    sys.stdout.buffer.flush()
+                else:
+                    try:
+                        os.write(master_fd, data)
+                    except OSError:
+                        pass
+        # drain remaining output after process exits
+        while True:
+            try:
+                r, _, _ = select.select([master_fd], [], [], 0.1)
+                if not r:
+                    break
+                data = os.read(master_fd, 4096)
+                if not data:
+                    break
+                sys.stdout.buffer.write(data)
+                sys.stdout.buffer.flush()
+            except OSError:
+                break
+    finally:
+        if old_tty is not None:
+            try:
+                termios.tcsetattr(stdin_fd, termios.TCSADRAIN, old_tty)
+            except Exception:
+                pass
+        try:
+            os.close(master_fd)
+        except OSError:
+            pass
+
+    proc.wait()
+    return proc.returncode
+
+
+def _do_flash_pipe(cmd: str) -> int:
+    logger = get_logger()
     last_pct = -1
-    current_phase = ""
     on_progress_line = False
 
     try:
@@ -60,8 +142,7 @@ def do_flash_subprocess(cmd: str) -> int:
                 if on_progress_line:
                     sys.stdout.write('\n')
                     on_progress_line = False
-                current_phase = mp.group(1)
-                print(f"[phase] {current_phase}")
+                print(f"[phase] {mp.group(1)}")
                 last_pct = -1
                 continue
 
