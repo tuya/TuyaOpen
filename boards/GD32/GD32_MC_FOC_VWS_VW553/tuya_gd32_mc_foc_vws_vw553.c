@@ -1,15 +1,15 @@
 /**
- * @file board_com_api.c
- * @brief board_com_api module is used to 
+ * @file tuya_gd32_mc_foc_vws_vw553.c
+ * @brief Implementation of common board-level hardware registration APIs for button, and LED peripherals.
  * @version 0.1
- * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
- #include "tuya_cloud_types.h"
- 
-#include "board_com_api.h"
+#include "tuya_cloud_types.h"
 
 #include "tal_api.h"
+
+#include "board_com_api.h"
 
 /***********************************************************
 ************************macro define************************
@@ -18,11 +18,6 @@
 
 /***********************************************************
 ***********************typedef define***********************
-***********************************************************/
-
-
-/***********************************************************
-********************function declaration********************
 ***********************************************************/
 
 

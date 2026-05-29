@@ -17,10 +17,10 @@ rsource "./OS_SERVICE_Kconfig"
 choice
     prompt "Choice a board"
 
-    config BOARD_CHOICE_GIGADEVICE_GD32VM553H_EVAL
-        bool "GD32VW553H-EVAL"
-        if (BOARD_CHOICE_GIGADEVICE_GD32VM553H_EVAL)
-            rsource "./GIGADEVICE_GD32VM553H_EVAL/Kconfig"
+    config BOARD_CHOICE_GD32_MC_FOC_VWS_VW553
+        bool "GD32_MC_FOC_VWS_VW553"
+        if (BOARD_CHOICE_GD32_MC_FOC_VWS_VW553)
+            rsource "./GD32_MC_FOC_VWS_VW553/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>
