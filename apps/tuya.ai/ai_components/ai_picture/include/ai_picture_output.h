@@ -1,18 +1,17 @@
 /**
  * @file ai_picture_output.h
- * @brief Picture output interface definitions.
- *
- * This header provides function declarations and type definitions for downloading
- * and outputting pictures from URLs via HTTP, with event notification support.
- *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
- *
+ * @brief Picture output module for receiving AI-generated images.
+ *        Accumulates streamed JPEG chunks and saves the completed
+ *        picture to the album, then notifies via AI_AI_EVENT_ACCEPT_PICTURE.
+ * @version 0.1
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __AI_PICTURE_OUTPUT_H__
 #define __AI_PICTURE_OUTPUT_H__
 
 #include "tuya_cloud_types.h"
+#include "ai_picture.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,62 +20,44 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+#define AI_PICTURE_OUTPUT_MAX_NUM 12
 
-/***********************************************************
-***********************typedef define***********************
-***********************************************************/
-typedef enum {
-    AI_PICTURE_OUTPUT_START = 0,
-    AI_PICTURE_OUTPUT_SUCCESS,
-    AI_PICTURE_OUTPUT_FAILED,
-} AI_PICTURE_OUTPUT_EVENT_E;
-
-typedef struct {
-    AI_PICTURE_OUTPUT_EVENT_E     event;
-    uint32_t                      total_size;
-} AI_PICTURE_OUTPUT_NOTIFY_T;
-
-typedef void (*AI_PICTURE_OUTPUT_NOTIFY_CB)(AI_PICTURE_OUTPUT_NOTIFY_T *info);
-
-typedef void (*AI_PICTURE_OUTPUT_CB)(uint8_t *data, uint32_t len, bool is_eof);
-
-typedef struct {
-    AI_PICTURE_OUTPUT_NOTIFY_CB notify_cb;
-    AI_PICTURE_OUTPUT_CB        output_cb;
-} AI_PICTURE_OUTPUT_CFG_T;
+#ifndef COMP_AI_PICTURE_DLD_MAX_FILE_SIZE
+#define COMP_AI_PICTURE_DLD_MAX_FILE_SIZE (2 * 1024 * 1024)
+#endif
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-/**
- * @brief Initialize the picture output module.
- *
- * @param cfg Pointer to the output configuration structure.
- * @return OPERATE_RET Operation result code.
- */
-OPERATE_RET ai_picture_output_init(AI_PICTURE_OUTPUT_CFG_T *cfg);
 
 /**
- * @brief Start downloading and outputting picture from URL.
- *
- * @param url Pointer to the picture URL string.
- * @return OPERATE_RET Operation result code.
+ * @brief Set the desired output picture dimensions for AI image generation
+ * @param[in] width desired width in pixels
+ * @param[in] height desired height in pixels
+ * @return OPRT_OK on success
  */
-OPERATE_RET ai_picture_output_start(char *url);
+OPERATE_RET ai_picture_output_set_size(uint16_t width, uint16_t height);
 
 /**
- * @brief Stop picture output and cleanup resources.
- *
- * @return OPERATE_RET Operation result code.
+ * @brief Accumulate a JPEG chunk and save to album when all chunks are received
+ * @param[in] data JPEG chunk data
+ * @param[in] len chunk length in bytes
+ * @param[in] total_len total expected JPEG size in bytes
+ * @return OPRT_OK on success
  */
-OPERATE_RET ai_picture_output_stop(void);
+OPERATE_RET ai_picture_output_save_to_album(uint8_t *data, uint32_t len, uint32_t total_len);
 
+#if defined(ENABLE_COMP_AI_PICTURE_HOSTING_DLD) && (ENABLE_COMP_AI_PICTURE_HOSTING_DLD == 1)
 /**
- * @brief Check if picture output module is initialized.
- *
- * @return true if initialized, false otherwise.
+ * @brief Register file-storage download handler to receive cloud-pushed images.
+ *        Must be called after iot init (e.g. in pre_device_init).
+ *        Max file size is controlled by COMP_AI_PICTURE_DLD_MAX_FILE_SIZE (default 2MB).
+ * @param[in] width desired output width in pixels
+ * @param[in] height desired output height in pixels
+ * @return OPRT_OK on success
  */
-bool ai_picture_is_init(void);
+OPERATE_RET ai_picture_output_dld_init(uint16_t width, uint16_t height);
+#endif
 
 #ifdef __cplusplus
 }

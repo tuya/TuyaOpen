@@ -29,10 +29,10 @@ typedef struct {
     TUYA_AI_ENCODER_INFO_T info;        // Encoder configuration
     AI_ENCODE_HANDLE_T handle;          // Encoder handle
     INT16_T *buf;                       // Input buffer
-    uint32_t buf_len;                   // Input buffer length
+    UINT32_T buf_len;                   // Input buffer length
     INT8_T  *out_buf;                   // Output buffer
-    uint32_t out_buf_len;               // Output buffer length
-    uint32_t out_len;                   // Output data length
+    UINT32_T out_buf_len;               // Output buffer length
+    UINT32_T out_len;                   // Output data length
 } IPC_AUDIO_ENC_PARA_T;
 
 OPERATE_RET tuya_ai_encoder_opus_server_handle(VOID *para);

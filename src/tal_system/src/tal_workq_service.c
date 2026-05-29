@@ -61,7 +61,7 @@ static WORKQUEUE_HANDLE wq_highpri;
 OPERATE_RET tal_workq_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    THREAD_CFG_T thread_cfg;
+    THREAD_CFG_T thread_cfg = {0};
 
     if (wq_system) {
         return OPRT_OK;

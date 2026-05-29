@@ -10,7 +10,7 @@
 #include "lv_port_indev.h"
 #include "tuya_list.h"
 
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
 #include "tdl_tp_manage.h"
 #endif
 
@@ -21,7 +21,7 @@
 /**********************
  *      TYPEDEFS
  **********************/
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
 typedef struct {
     struct tuya_list_head   node;
     lv_indev_t             *lv_indev;
@@ -33,7 +33,7 @@ typedef struct {
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
 static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_hdl(TDL_TP_HANDLE_T tp_hdl);
 static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_lv_indev(lv_indev_t * lv_indev);
 static lv_indev_t *__find_tp_lv_indev_by_name(char *device);
@@ -52,7 +52,7 @@ static void encoder_handler(void);
  **********************/
 lv_indev_t *indev_encoder;
 
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
 static struct tuya_list_head sg_lv_indev_tp_list = LIST_HEAD_INIT(sg_lv_indev_tp_list);
 #endif
 
@@ -81,7 +81,7 @@ void lv_port_indev_init(char *device)
     /*------------------
      * Touchpad
      * -----------------*/
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
     /*Initialize your touchpad if you have*/
     TDL_TP_HANDLE_T tp_hdl = tdl_tp_find_dev(device);
     if(NULL == tp_hdl) {
@@ -115,7 +115,7 @@ lv_indev_t *lv_port_get_lv_indev_by_name(char *device)
 {
     lv_indev_t *in_dev = NULL;
 
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
     in_dev = __find_tp_lv_indev_by_name(device);
     if(in_dev != NULL) {
         return in_dev;
@@ -132,7 +132,7 @@ lv_indev_t *lv_port_get_lv_indev_by_name(char *device)
 /*------------------
  * Touchpad
  * -----------------*/
-#ifdef LVGL_ENABLE_TP
+#ifdef ENABLE_LVGL_TP
 static LV_INDEV_TP_NODE_T *__find_touchpad_node_by_hdl(TDL_TP_HANDLE_T tp_hdl)
 {
     LV_INDEV_TP_NODE_T *tp_node = NULL;

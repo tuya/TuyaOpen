@@ -16,6 +16,7 @@ file(GLOB_RECURSE LIB_SRCS
     "${MODULE_PATH}/protocol/*.c" 
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"
+    "${MODULE_PATH}/file_storage/*.c"
     "${MODULE_PATH}/tls/*.c"
     "${MODULE_PATH}/transport/*.c"
     "${MODULE_PATH}/authorize/*.c"
@@ -23,6 +24,7 @@ file(GLOB_RECURSE LIB_SRCS
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/cloud)
+list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/file_storage)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/protocol)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/schema)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/lan)

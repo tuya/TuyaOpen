@@ -67,6 +67,8 @@ extern "C" {
 #define PRO_GW_LINKAGE_UPDATE       49  /* cloud -> device scene update push */
 #define PRO_MQ_THINGCONFIG          51  /* device password-free networking */
 #define PRO_MQ_LOG_CONFIG           55  /* log configuration */
+#define PRO_MQ_APP_PROTOCOL_RX      64  /* cloud->dev */
+#define PRO_MQ_APP_PROTOCOL_TX      65  /* dev->cloud */
 #define PRO_MQ_DPCACHE_NOTIFY       103 /* dp cache notify */
 #define PRO_MQ_EN_GW_ADD_DEV_REQ    200 // gateway enable add sub device request
 #define PRO_MQ_EN_GW_ADD_DEV_RESP   201 // gateway enable add sub device response

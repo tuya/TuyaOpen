@@ -729,6 +729,30 @@ OPERATE_RET tal_aes_free_data(uint8_t *data)
     return OPRT_OK;
 }
 
+OPERATE_RET tal_aes_gcm_encode(const uint8_t *key, uint32_t key_len,
+                                const uint8_t *nonce, uint32_t nonce_len,
+                                const uint8_t *ad, uint32_t ad_len,
+                                const uint8_t *input, uint32_t input_len,
+                                uint8_t *output, uint32_t *output_len,
+                                uint8_t *tag, uint32_t tag_len)
+{
+return tkl_aes_gcm_encode(key, key_len, nonce, nonce_len,
+                            ad, ad_len, input, input_len,
+                            output, output_len, tag, tag_len);
+}
+
+OPERATE_RET tal_aes_gcm_decode(const uint8_t *key, uint32_t key_len,
+                                const uint8_t *nonce, uint32_t nonce_len,
+                                const uint8_t *ad, uint32_t ad_len,
+                                const uint8_t *input, uint32_t input_len,
+                                uint8_t *output, uint32_t *output_len,
+                                uint8_t *tag, uint32_t tag_len)
+{
+return tkl_aes_gcm_decode(key, key_len, nonce, nonce_len,
+                            ad, ad_len, input, input_len,
+                            output, output_len, tag, tag_len);
+}
+
 #if defined(ENABLE_TAL_SECURITY_SELF_TEST)
 /*
  * AES test vectors from:

@@ -47,7 +47,7 @@ extern "C" {
  * @param eof End of file flag indicating if this is the last data chunk.
  * @return OPERATE_RET Operation result code.
  */
-OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, bool eof);
+OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, BOOL_T eof);
 
 #ifdef __cplusplus
 }

@@ -64,31 +64,31 @@ typedef void (*tuya_tls_event_cb)(tuya_tls_event_t event, void *p_args);
 
 typedef struct {
     tuya_tls_mode_t mode;
-    char *hostname;
-    uint16_t port;
-    uint32_t timeout;
+    char           *hostname;
+    uint16_t        port;
+    uint32_t        timeout;
 
-    char *psk_key;
+    char    *psk_key;
     uint32_t psk_key_size;
-    char *psk_id;
-    int psk_id_size;
+    char    *psk_id;
+    int      psk_id_size;
 
-    bool verify;
+    bool  verify;
     char *ca_cert;
-    int ca_cert_size;
+    int   ca_cert_size;
 
     char *client_cert;
-    int client_cert_size;
+    int   client_cert_size;
     char *client_pkey;
-    int client_pkey_size;
+    int   client_pkey_size;
 
     size_t in_content_len;
     size_t out_content_len;
 
-    tuya_tls_send_cb f_send;
-    tuya_tls_recv_cb f_recv;
+    tuya_tls_send_cb  f_send;
+    tuya_tls_recv_cb  f_recv;
     tuya_tls_event_cb exception_cb;
-    void *user_data;
+    void             *user_data;
 } tuya_tls_config_t;
 
 /**
@@ -220,16 +220,6 @@ OPERATE_RET tuya_tls_disconnect(tuya_tls_hander tls_handler);
  * TLS PSK mode configuration.
  */
 const tuya_tls_config_t *tuya_tls_psk_mode_config_get(void);
-
-/**
- * Retrieves the callback function for Tuya TLS events.
- *
- * This function returns the callback function that is registered to handle Tuya
- * TLS events.
- *
- * @return The callback function for Tuya TLS events.
- */
-tuya_tls_event_cb tuya_cert_get_tls_event_cb(void);
 
 #ifdef __cplusplus
 }

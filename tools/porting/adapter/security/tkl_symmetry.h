@@ -132,6 +132,69 @@ OPERATE_RET tkl_aes_crypt_ecb(TKL_SYMMETRY_HANDLE ctx, int32_t mode, size_t leng
 OPERATE_RET tkl_aes_crypt_cbc(TKL_SYMMETRY_HANDLE ctx, int32_t mode, size_t length, uint8_t iv[16],
                               const uint8_t *input, uint8_t *output);
 
+/**
+ * @brief This function performs AES-GCM authenticated encryption.
+ *
+ * @param[in]  key:        The encryption key.
+ * @param[in]  key_len:    The length of the key in bytes. Valid options are:
+ *                         <ul><li>16 bytes (128 bits)</li>
+ *                         <li>24 bytes (192 bits)</li>
+ *                         <li>32 bytes (256 bits)</li></ul>
+ * @param[in]  nonce:      The initialization vector (nonce).
+ * @param[in]  nonce_len:  The length of the nonce in bytes.
+ * @param[in]  ad:         The additional authenticated data (AAD). May be NULL if ad_len is 0.
+ * @param[in]  ad_len:     The length of the AAD in bytes.
+ * @param[in]  input:      The buffer holding the plaintext input data.
+ * @param[in]  input_len:  The length of the input data in bytes.
+ * @param[out] output:     The buffer where the ciphertext will be written.
+ *                         Must be at least input_len bytes.
+ * @param[out] output_len: The number of bytes written to the output buffer.
+ * @param[out] tag:        The buffer where the authentication tag will be written.
+ * @param[in]  tag_len:    The length of the authentication tag in bytes.
+ *
+ * @note This API is used to encrypt and authenticate data using AES-GCM.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tkl_aes_gcm_encode(const uint8_t *key, uint32_t key_len,
+                               const uint8_t *nonce, uint32_t nonce_len,
+                               const uint8_t *ad, uint32_t ad_len,
+                               const uint8_t *input, uint32_t input_len,
+                               uint8_t *output, uint32_t *output_len,
+                               uint8_t *tag, uint32_t tag_len);
+
+/**
+ * @brief This function performs AES-GCM authenticated decryption.
+ *
+ * @param[in]  key:        The decryption key.
+ * @param[in]  key_len:    The length of the key in bytes. Valid options are:
+ *                         <ul><li>16 bytes (128 bits)</li>
+ *                         <li>24 bytes (192 bits)</li>
+ *                         <li>32 bytes (256 bits)</li></ul>
+ * @param[in]  nonce:      The initialization vector (nonce) used during encryption.
+ * @param[in]  nonce_len:  The length of the nonce in bytes.
+ * @param[in]  ad:         The additional authenticated data (AAD). May be NULL if ad_len is 0.
+ * @param[in]  ad_len:     The length of the AAD in bytes.
+ * @param[in]  input:      The buffer holding the ciphertext input data.
+ * @param[in]  input_len:  The length of the input data in bytes.
+ * @param[out] output:     The buffer where the decrypted plaintext will be written.
+ *                         Must be at least input_len bytes.
+ * @param[out] output_len: The number of bytes written to the output buffer.
+ * @param[in]  tag:        The authentication tag to verify.
+ * @param[in]  tag_len:    The length of the authentication tag in bytes.
+ *
+ * @note This API is used to decrypt and verify data using AES-GCM.
+ *       Returns an error if tag verification fails.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tkl_aes_gcm_decode(const uint8_t *key, uint32_t key_len,
+                               const uint8_t *nonce, uint32_t nonce_len,
+                               const uint8_t *ad, uint32_t ad_len,
+                               const uint8_t *input, uint32_t input_len,
+                               uint8_t *output, uint32_t *output_len,
+                               uint8_t *tag, uint32_t tag_len);
+
 #ifdef __cplusplus
 }
 #endif

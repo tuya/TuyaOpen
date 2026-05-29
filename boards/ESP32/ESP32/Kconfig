@@ -23,4 +23,4 @@ config UART_NUM0_RX_PIN
 config BOARD_CONFIG
     bool
     default y
-    select ENABLE_ESP_DISPLAY
+    select ENABLE_DISPLAY

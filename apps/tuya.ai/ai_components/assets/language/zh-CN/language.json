@@ -36,6 +36,22 @@
         "SYSTEM_MSG_WIFI_DISCONNECTED":"WiFi 断开连接",
         "SYSTEM_MSG_VOLUME":"音量设置为",
 
-        "VIEW_IMAGE":"查看图片"
+        "VIEW_IMAGE":"查看图片",
+        "NO_IMAGE":"暂无图片",
+
+        "TAKE_PHOTO":"拍照",
+        "ADD_IMAGE":"添加图片",
+        "PRINT_IMAGE":"打印图片",
+        "PRINTING":"打印中...",
+        "PRINT_SUCCESS":"打印成功",
+        "PRINT_FAILED":"打印失败",
+        "CAMERA":"相机",
+        "ALBUM":"相册",
+        "CANCEL":"取消",
+        "ALL_PHOTOS":"所有照片",
+        "SELECT_TEXT":"选择",
+        "DELETE_TEXT":"删除",
+        "CONFIRM_TEXT":"确认",
+        "RECOGNIZE_IMAGE_PROMPT":"请解释上传图片的内容，不要触发MCP技能，不要调用MCP工具"
     }
 }

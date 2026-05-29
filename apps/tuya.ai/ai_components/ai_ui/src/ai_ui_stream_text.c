@@ -174,9 +174,15 @@ OPERATE_RET ai_ui_stream_text_init(AI_UI_STREAM_TEXT_DISP_CB disp_cb)
     }
 
     if (NULL == sg_text_stream.text_ringbuff) {
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
         TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, \
                                                    OVERFLOW_PSRAM_STOP_TYPE, \
                                                    &sg_text_stream.text_ringbuff));
+#else
+        TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, \
+                                                   OVERFLOW_STOP_TYPE, \
+                                                   &sg_text_stream.text_ringbuff));
+#endif
     }
 
     tuya_ring_buff_reset(sg_text_stream.text_ringbuff);

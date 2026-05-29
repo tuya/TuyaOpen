@@ -146,16 +146,6 @@ OPERATE_RET tdl_button_set_ready_flag(char *name, uint8_t status);
 OPERATE_RET tdl_button_read_status(TDL_BUTTON_HANDLE handle, uint8_t *status);
 
 /**
- * @brief set button level ( rocker button use)
- *		 The default configuration is toggle switch - when level flipping,
- *		 it is modified to level synchronization in the application - the default effective level is low effective
- * @param[in] handle button handle
- * @param[in] level TUYA_GPIO_LEVEL_E
- * @return OPRT_OK if successful
- */
-OPERATE_RET tdl_button_set_level(TDL_BUTTON_HANDLE handle, TUYA_GPIO_LEVEL_E level);
-
-/**
  * @brief set button scan time, default is 10ms
  * @param[in] time_ms button scan time
  * @return OPRT_OK if successful

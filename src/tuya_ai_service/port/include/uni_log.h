@@ -19,7 +19,7 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 
-#ifndef TAL_PR_ERR
+#ifndef TAL_PR_DEBUG
 #define TAL_PR_DEBUG PR_DEBUG
 #endif
 #ifndef TAL_PR_INFO

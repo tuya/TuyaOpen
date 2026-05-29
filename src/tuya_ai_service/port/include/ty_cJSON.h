@@ -21,19 +21,21 @@ extern "C" {
 #define ty_cJSON_True  cJSON_True
 #define ty_cJSON_False cJSON_False
 
-#define ty_cJSON_CreateString      cJSON_CreateString
-#define ty_cJSON_CreateArray       cJSON_CreateArray
-#define ty_cJSON_CreateObject      cJSON_CreateObject
-#define ty_cJSON_Parse             cJSON_Parse
-#define ty_cJSON_AddStringToObject cJSON_AddStringToObject
-#define ty_cJSON_AddNumberToObject cJSON_AddNumberToObject
-#define ty_cJSON_AddItemToArray    cJSON_AddItemToArray
-#define ty_cJSON_AddBoolToObject   cJSON_AddBoolToObject
-#define ty_cJSON_AddItemToObject   cJSON_AddItemToObject
-#define ty_cJSON_AddArrayToObject  cJSON_AddArrayToObject
-#define ty_cJSON_Delete            cJSON_Delete
-#define ty_cJSON_PrintUnformatted  cJSON_PrintUnformatted
-#define ty_cJSON_Duplicate         cJSON_Duplicate
+#define ty_cJSON_CreateString         cJSON_CreateString
+#define ty_cJSON_CreateArray          cJSON_CreateArray
+#define ty_cJSON_CreateObject         cJSON_CreateObject
+#define ty_cJSON_Parse                cJSON_Parse
+#define ty_cJSON_AddStringToObject    cJSON_AddStringToObject
+#define ty_cJSON_AddNumberToObject    cJSON_AddNumberToObject
+#define ty_cJSON_AddItemToArray       cJSON_AddItemToArray
+#define ty_cJSON_AddBoolToObject      cJSON_AddBoolToObject
+#define ty_cJSON_AddItemToObject      cJSON_AddItemToObject
+#define ty_cJSON_AddArrayToObject     cJSON_AddArrayToObject
+#define ty_cJSON_Delete               cJSON_Delete
+#define ty_cJSON_PrintUnformatted     cJSON_PrintUnformatted
+#define ty_cJSON_Duplicate            cJSON_Duplicate
+#define ty_cJSON_ParseWithLengthOpts  cJSON_ParseWithLengthOpts
+#define ty_cJSON_DetachItemViaPointer cJSON_DetachItemViaPointer
 
 #define ty_cJSON_IsNumber       cJSON_IsNumber
 #define ty_cJSON_IsBool         cJSON_IsBool

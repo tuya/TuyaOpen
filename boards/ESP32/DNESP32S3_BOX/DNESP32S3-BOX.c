@@ -9,8 +9,7 @@
 
 #include "tal_api.h"
 
-#include "board_config.h"
-#include "lcd_st7789_80.h"
+#include "tdd_disp_esp_st7789_80.h"
 #include "board_com_api.h"
 
 #include "xl9555.h"
@@ -27,6 +26,77 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+/* Audio sample rates */
+#define I2S_INPUT_SAMPLE_RATE  (16000)
+#define I2S_OUTPUT_SAMPLE_RATE (16000)
+
+/* I2C port and GPIOs */
+#define I2C_NUM    (0)
+#define I2C_SCL_IO (45)
+#define I2C_SDA_IO (48)
+
+/* I2S port and GPIOs */
+#define I2S_NUM    (0)
+#define I2S_MCK_IO (-1)
+#define I2S_BCK_IO (21)
+#define I2S_WS_IO  (13)
+#define I2S_DO_IO  (14)
+#define I2S_DI_IO  (47)
+
+#define GPIO_OUTPUT_PA (-1)
+
+/* Audio codec */
+#define AUDIO_CODEC_DMA_DESC_NUM  (6)
+#define AUDIO_CODEC_DMA_FRAME_NUM (240)
+#define AUDIO_CODEC_ES8311_ADDR   (0x30)
+
+/* LCD (ST7789 over i80 8-bit bus) */
+#define LCD_I80_CS  (1)
+#define LCD_I80_DC  (2)
+#define LCD_I80_RD  (41)
+#define LCD_I80_WR  (42)
+#define LCD_I80_RST (-1)
+
+#define LCD_I80_D0 (40)
+#define LCD_I80_D1 (39)
+#define LCD_I80_D2 (38)
+#define LCD_I80_D3 (12)
+#define LCD_I80_D4 (11)
+#define LCD_I80_D5 (10)
+#define LCD_I80_D6 (9)
+#define LCD_I80_D7 (46)
+
+#define DISPLAY_WIDTH      (320)
+#define DISPLAY_HEIGHT     (240)
+#define DISPLAY_SWAP_XY    true
+#define DISPLAY_MIRROR_X   true
+#define DISPLAY_MIRROR_Y   false
+#define DISPLAY_SWAP_BYTES 1
+
+/* XL9555 IO expander */
+#define IO_EXPANDER_XL9555_ADDR (0x20)
+
+#define EX_IO_AP_INT   (0x0001 << 0)
+#define EX_IO_QMA_INT  (0x0001 << 1)
+#define EX_IO_BEEP     (0x0001 << 2)
+#define EX_IO_KEY_1    (0x0001 << 3)
+#define EX_IO_KEY_0    (0x0001 << 4)
+#define EX_IO_SPK_CTRL (0x0001 << 5)
+#define EX_IO_CTP_RST  (0x0001 << 6)
+#define EX_IO_LCD_BL   (0x0001 << 7)
+#define EX_IO_LED_R    (0x0001 << 8)
+#define EX_IO_CTP_INT  (0x0001 << 9)
+#define EX_IO_1_2      (0x0001 << 10)
+#define EX_IO_1_3      (0x0001 << 11)
+#define EX_IO_1_4      (0x0001 << 12)
+#define EX_IO_1_5      (0x0001 << 13)
+#define EX_IO_1_6      (0x0001 << 14)
+#define EX_IO_1_7      (0x0001 << 15)
+
+/***********************************************************
+********************function declaration********************
+***********************************************************/
+int board_display_init(void);
 
 /***********************************************************
 ***********************typedef define***********************
@@ -43,11 +113,18 @@ static DNSESP32S3_BOX_CONFIG_T sg_dnesp32s3_box = {0};
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static int __board_display_io_init(void);
 static OPERATE_RET __io_expander_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    rt = xl9555_init();
+    XL9555_HW_CFG_T xl9555_hw = {
+        .i2c_port = I2C_NUM,
+        .scl_io   = I2C_SCL_IO,
+        .sda_io   = I2C_SDA_IO,
+        .dev_addr = IO_EXPANDER_XL9555_ADDR,
+    };
+    rt = xl9555_init(&xl9555_hw);
     if (rt != OPRT_OK) {
         PR_ERR("xl9555_init failed: %d", rt);
         return rt;
@@ -255,30 +332,42 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_button());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(board_display_init());
+    TUYA_CALL_ERR_LOG(__board_display_io_init());
 
     return rt;
 }
 
-int board_display_init(void)
+static int __board_display_io_init(void)
 {
-    int rt = lcd_st7789_80_init();
-    if (rt != OPRT_OK) {
-        PR_ERR("lcd_st7789_80_init failed: %d", rt);
-        return rt;
-    }
-
     xl9555_set_dir(EX_IO_LCD_BL, 0);
-    xl9555_set_level(EX_IO_LCD_BL, 1); // Enable LCD backlight
-
+    xl9555_set_level(EX_IO_LCD_BL, 1);
     return 0;
 }
 
-void *board_display_get_panel_io_handle(void)
+int board_display_init(void)
 {
-    return lcd_st7789_80_get_panel_io_handle();
-}
+    TDD_DISP_ESP_LCD_CFG_T cfg = {
+        .width     = DISPLAY_WIDTH,
+        .height    = DISPLAY_HEIGHT,
+        .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
+        .rotation  = TUYA_DISPLAY_ROTATION_0,
+        .is_swap   = DISPLAY_SWAP_BYTES,
+        .bl.type   = TUYA_DISP_BL_TP_NONE,
+    };
 
-void *board_display_get_panel_handle(void)
-{
-    return lcd_st7789_80_get_panel_handle();
+    LCD_ST7789_80_HW_CFG_T hw = {
+        .rd_io    = LCD_I80_RD,
+        .dc_io    = LCD_I80_DC,
+        .wr_io    = LCD_I80_WR,
+        .cs_io    = LCD_I80_CS,
+        .rst_io   = LCD_I80_RST,
+        .data_io  = {LCD_I80_D0, LCD_I80_D1, LCD_I80_D2, LCD_I80_D3,
+                     LCD_I80_D4, LCD_I80_D5, LCD_I80_D6, LCD_I80_D7},
+        .swap_xy  = DISPLAY_SWAP_XY,
+        .mirror_x = DISPLAY_MIRROR_X,
+        .mirror_y = DISPLAY_MIRROR_Y,
+    };
+
+    return tdd_disp_esp_st7789_80_register(DISPLAY_NAME, &hw, &cfg);
 }

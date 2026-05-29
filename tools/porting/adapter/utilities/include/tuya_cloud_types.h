@@ -17,6 +17,8 @@ Copyright(C),2018-2020, 涂鸦科技 www.tuya.comm
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "tuya_error_code.h"
 
 #ifdef __cplusplus
@@ -137,30 +139,30 @@ typedef enum {
 
 typedef uint8_t NW_IP_TYPE;
 
-#define NW_IPV4    0
-#define NW_IPV6    1
-#define NW_IPV6_LL 2
+#define NW_IPV4         0
+#define NW_IPV6         1
+#define NW_IPV6_LL      2
 
 #if defined(ENABLE_IPv6) && (ENABLE_IPv6 == 1)
 #define IS_NW_IPV4_ADDR(ip) (TY_AF_INET == (ip)->type)
 #define IS_NW_IPV6_ADDR(ip) (TY_AF_INET6 == (ip)->type)
 
 typedef struct {
-    char ip[16];   /* ip addr:  xxx.xxx.xxx.xxx  */
-    char mask[16]; /* net mask: xxx.xxx.xxx.xxx  */
-    char gw[16];   /* gateway:  xxx.xxx.xxx.xxx  */
+    char ip[16];    /* ip addr:  xxx.xxx.xxx.xxx  */
+    char mask[16];  /* net mask: xxx.xxx.xxx.xxx  */
+    char gw[16];    /* gateway:  xxx.xxx.xxx.xxx  */
     char islinklocal;
 } NW_IP4_S;
 
 typedef struct {
-    char ip[40]; /* ip6 addr:  xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx */
+    char ip[40];    /* ip6 addr:  xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx */
     char islinklocal;
 } NW_IP6_S;
 
 typedef struct {
-#define nwipstr   addr.ip4.ip
-#define nwmaskstr addr.ip4.mask
-#define nwgwstr   addr.ip4.gw
+    #define nwipstr        addr.ip4.ip
+    #define nwmaskstr      addr.ip4.mask
+    #define nwgwstr        addr.ip4.gw
     union {
         NW_IP4_S ip4;
         NW_IP6_S ip6;
@@ -818,12 +820,18 @@ typedef void (*TUYA_I2C_IRQ_CB)(TUYA_I2C_NUM_E port, TUYA_IIC_IRQ_EVT_E event);
  *
  */
 typedef enum {
-    TUYA_PWM_NUM_0, // PWM 0
-    TUYA_PWM_NUM_1, // PWM 1
-    TUYA_PWM_NUM_2, // PWM 2
-    TUYA_PWM_NUM_3, // PWM 3
-    TUYA_PWM_NUM_4, // PWM 4
-    TUYA_PWM_NUM_5, // PWM 5
+    TUYA_PWM_NUM_0,		    // PWM 0
+    TUYA_PWM_NUM_1,		    // PWM 1
+    TUYA_PWM_NUM_2,	        // PWM 2
+    TUYA_PWM_NUM_3,	        // PWM 3
+    TUYA_PWM_NUM_4,	        // PWM 4
+    TUYA_PWM_NUM_5,	        // PWM 5
+    TUYA_PWM_NUM_6,	        // PWM 6
+    TUYA_PWM_NUM_7,	        // PWM 7
+    TUYA_PWM_NUM_8,	        // PWM 8
+    TUYA_PWM_NUM_9,	        // PWM 9
+    TUYA_PWM_NUM_10,	    // PWM 10
+    TUYA_PWM_NUM_11,	    // PWM 11
     TUYA_PWM_NUM_MAX,
 } TUYA_PWM_NUM_E;
 
@@ -1013,14 +1021,16 @@ typedef enum {
 
 typedef struct {
     TUYA_QSPI_OP_E op;        /**< QSPI operation */
-	uint32_t cmd;               /**< QSPI command */
-	uint32_t addr;              /**< QSPI address */
-	uint32_t addr_size;               /**< QSPI address len */
-	uint32_t dummy_cycle;       /**< QSPI dummy cycle */
-	uint32_t data_len;          /**< QSPI data length */
-	TUYA_QSPI_WIRE_MODE_E cmd_lines;               /**< QSPI command lines */
-	TUYA_QSPI_WIRE_MODE_E addr_lines;               /**< QSPI address lines */
+	uint8_t cmd[4];               /**< QSPI command */
+    uint8_t  cmd_size;          /**< QSPI data length */
+    TUYA_QSPI_WIRE_MODE_E cmd_lines;               /**< QSPI command lines */
+	uint8_t addr[4];              /**< QSPI address */
+    uint8_t addr_size;               /**< QSPI address len */
+    TUYA_QSPI_WIRE_MODE_E addr_lines;               /**< QSPI address lines */
+    uint8_t *data;
+	uint32_t data_size;          /**< QSPI data length */
 	TUYA_QSPI_WIRE_MODE_E data_lines;               /**< QSPI data lines */
+    uint32_t dummy_cycle;       /**< QSPI dummy cycle */
 } TUYA_QSPI_CMD_T;
 
 typedef enum {
@@ -1035,6 +1045,19 @@ typedef enum {
     TUYA_QSPI_ROLE_SLAVE,              ///< SPI Slave  (Output on MISO, Input on MOSI)
 } TUYA_QSPI_ROLE_E;
 
+/****** QSPI LCD Refresh enum *****/
+typedef enum {
+    TUYA_QSPI_LCD_REFRESH_BY_LINE = 0,   
+    TUYA_QSPI_LCD_REFRESH_BY_FRAME,
+}TUYA_QSPI_LCD_REFRESH_METHOD_E;
+
+/****** QSPI LCD Refresh enum *****/
+typedef enum {
+    TUYA_QSPI_TYPE_FLASH = 0,   
+    TUYA_QSPI_TYPE_PSRAM,
+    TUYA_QSPI_TYPE_LCD
+}TUYA_QSPI_MODULE_TYPE_E;
+
 /**
  * @brief qspi config
  *
@@ -1042,8 +1065,11 @@ typedef enum {
 typedef struct {
     TUYA_QSPI_ROLE_E      role; /** QSPI Master / Slave */
     TUYA_QSPI_MODE_E      mode;
-	uint32_t baudrate;       /**< QSPI controller clock divide number */
-	uint32_t is_dma;       /**< QSPI dma mode*/
+	uint32_t freq_hz;       /**< QSPI controller clock divide number */
+	BOOL_T use_dma;       /**< QSPI dma mode*/
+    TUYA_QSPI_WIRE_MODE_E dma_data_lines;
+    TUYA_QSPI_MODULE_TYPE_E type;
+    // TUYA_QSPI_LCD_REFRESH_METHOD_E refresh_method;  /**< QSPI lcd mode*/
 } TUYA_QSPI_BASE_CFG_T;
 
 /****** QSPI Event *****/
@@ -1057,6 +1083,7 @@ typedef enum {
  *
  */
 typedef void (*TUYA_QSPI_IRQ_CB)(TUYA_QSPI_NUM_E port, TUYA_QSPI_IRQ_EVT_E event);
+
 
 /**
  * @brief i2s message struct
@@ -1075,28 +1102,28 @@ typedef enum {
 
 /**
  * @brief I2S Mode
- * USE IN 4 TYPES, MASTER TX,MASTER RX,SLAVE TX,SLAVE RX,
+ * USE  4 TYPES, MASTER TX,MASTER RX,SLAVE TX,SLAVE RX,
  */
 typedef enum {
-    TUYA_I2S_MODE_MASTER = (0x1 << 0), /*!< Master mode*/
-    TUYA_I2S_MODE_SLAVE = (0x1 << 1),  /*!< Slave mode*/
-    TUYA_I2S_MODE_TX = (0x1 << 2),     /*!< TX mode*/
-    TUYA_I2S_MODE_RX = (0x1 << 3),     /*!< RX mode*/
+    TUYA_I2S_MODE_MASTER       = (0x1 << 0),       /*!< Master mode*/
+    TUYA_I2S_MODE_SLAVE        = (0x1 << 1),       /*!< Slave mode*/
+    TUYA_I2S_MODE_TX           = (0x1 << 2),       /*!< TX mode*/
+    TUYA_I2S_MODE_RX           = (0x1 << 3),       /*!< RX mode*/
 } TUYA_I2S_MODE_E;
 
 typedef enum {
-    TUYA_I2S_BITS_PER_SAMPLE_8BIT = 8,   /*!< data bit-width: 8 */
-    TUYA_I2S_BITS_PER_SAMPLE_16BIT = 16, /*!< data bit-width: 16 */
-    TUYA_I2S_BITS_PER_SAMPLE_24BIT = 24, /*!< data bit-width: 24 */
-    TUYA_I2S_BITS_PER_SAMPLE_32BIT = 32, /*!< data bit-width: 32 */
+    TUYA_I2S_BITS_PER_SAMPLE_8BIT    = 8,            /*!< data bit-width: 8 */
+    TUYA_I2S_BITS_PER_SAMPLE_16BIT   = 16,           /*!< data bit-width: 16 */
+    TUYA_I2S_BITS_PER_SAMPLE_24BIT   = 24,           /*!< data bit-width: 24 */
+    TUYA_I2S_BITS_PER_SAMPLE_32BIT   = 32,           /*!< data bit-width: 32 */
 } TUYA_I2S_BITS_PER_SAMP_E;
 
 typedef enum {
-    TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT, /*!< Separated left and right channel */
-    TUYA_I2S_CHANNEL_FMT_ALL_RIGHT,  /*!< Load right channel data in both two channels */
-    TUYA_I2S_CHANNEL_FMT_ALL_LEFT,   /*!< Load left channel data in both two channels */
-    TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT, /*!< Only load data in right channel (mono mode) */
-    TUYA_I2S_CHANNEL_FMT_ONLY_LEFT,  /*!< Only load data in left channel (mono mode) */
+    TUYA_I2S_CHANNEL_FMT_RIGHT_LEFT,         /*!< Separated left and right channel */
+    TUYA_I2S_CHANNEL_FMT_ALL_RIGHT,          /*!< Load right channel data in both two channels */
+    TUYA_I2S_CHANNEL_FMT_ALL_LEFT,           /*!< Load left channel data in both two channels */
+    TUYA_I2S_CHANNEL_FMT_ONLY_RIGHT,         /*!< Only load data in right channel (mono mode) */
+    TUYA_I2S_CHANNEL_FMT_ONLY_LEFT,          /*!< Only load data in left channel (mono mode) */
 } TUYA_I2S_CHANNEL_FMT_E;
 
 typedef enum {
@@ -1108,33 +1135,35 @@ typedef enum {
 } TUYA_I2S_COMM_FORMAT_E;
 
 typedef struct {
-    TUYA_I2S_MODE_E mode;                        /*!< I2S work mode */
-    uint32_t sample_rate;                        /*!< I2S sample rate */
-    uint32_t mclk;                               /*!< I2S mclk */
-    TUYA_I2S_BITS_PER_SAMP_E bits_per_sample;    /*!< I2S sample bits in one channel */
-    TUYA_I2S_CHANNEL_FMT_E channel_format;       /*!< I2S channel format.*/
-    TUYA_I2S_COMM_FORMAT_E communication_format; /*!< I2S communication format */
-    uint32_t i2s_dma_flags;                      /*!< I2S dma format , 1 use dma */
-} TUYA_I2S_BASE_CFG_T;
+    TUYA_I2S_MODE_E             mode;                       /*!< I2S work mode */
+    uint32_t                    sample_rate;                /*!< I2S sample rate */
+    uint32_t                    mclk;                       /*!< I2S mclk */
+    TUYA_I2S_BITS_PER_SAMP_E    bits_per_sample;            /*!< I2S sample bits in one channel */
+    TUYA_I2S_CHANNEL_FMT_E      channel_format;             /*!< I2S channel format.*/
+    TUYA_I2S_COMM_FORMAT_E      communication_format;       /*!< I2S communication format */
+    uint32_t                    i2s_dma_flags;              /*!< I2S dma format , 1 use dma */
+}TUYA_I2S_BASE_CFG_T;
 
-// 文件访问权限
-#define TUYA_IRUSR 0400 /* Read by owner.  */
-#define TUYA_IWUSR 0200 /* Write by owner.  */
-#define TUYA_IXUSR 0100 /* Execute by owner.  */
+    // 文件访问权限
+#define TUYA_IRUSR  0400    /* Read by owner.  */
+#define TUYA_IWUSR  0200    /* Write by owner.  */
+#define TUYA_IXUSR  0100    /* Execute by owner.  */
 
-// 缓冲区搜索起始位置类型
-#define TUYA_SEEK_SET 0 /* Seek from beginning of file.  */
-#define TUYA_SEEK_CUR 1 /* Seek from current position.  */
-#define TUYA_SEEK_END 2 /* Seek from end of file.  */
 
-#define TUYA_R_OK 4
-#define TUYA_W_OK 2
-#define TUYA_X_OK 1
-#define TUYA_F_OK 0
+    // 缓冲区搜索起始位置类型
+#define TUYA_SEEK_SET   0   /* Seek from beginning of file.  */
+#define TUYA_SEEK_CUR   1   /* Seek from current position.  */
+#define TUYA_SEEK_END   2   /* Seek from end of file.  */
 
-typedef void *TUYA_DIR;
-typedef void *TUYA_FILEINFO;
-typedef void *TUYA_FILE;
+#define TUYA_R_OK       4
+#define TUYA_W_OK       2
+#define TUYA_X_OK       1
+#define TUYA_F_OK       0
+
+typedef void* TUYA_DIR;
+typedef void* TUYA_FILEINFO;
+typedef void* TUYA_FILE;
+
 
 /**
  * @brief cpu sleep mode
@@ -1165,7 +1194,7 @@ typedef struct {
 typedef struct {
     uint32_t use_ratio;         // cpu used ratio
     uint8_t chipid[32+1];       // max len 32
-    uint8_t chipidlen;    
+    uint8_t chipidlen;
 } TUYA_CPU_INFO_T;
 
 #if OPERATING_SYSTEM != SYSTEM_NON_OS
@@ -1179,22 +1208,23 @@ typedef uint32_t SYS_TIME_T;
  *  reasons for restart
  */
 typedef enum {
-    TUYA_RESET_REASON_POWERON = 0,    ///< Poweron reset type, supply voltage < power-on threshold (TY_RST_POWER_OFF)
-    TUYA_RESET_REASON_HW_WDOG = 1,    ///< Hardware watchdog reset occurred (TY_RST_HARDWARE_WATCHDOG)
-    TUYA_RESET_REASON_FAULT = 2,      ///< A access fault occurred (TY_RST_FATAL_EXCEPTION)
-    TUYA_RESET_REASON_SW_WDOG = 3,    ///< Software watchdog reset occurred (TY_RST_SOFTWARE_WATCHDOG)
-    TUYA_RESET_REASON_SOFTWARE = 4,   ///< Software triggered reset (TY_RST_SOFTWARE)
-    TUYA_RESET_REASON_DEEPSLEEP = 5,  ///< Reset caused by entering deep sleep (TY_RST_DEEPSLEEP)
-    TUYA_RESET_REASON_EXTERNAL = 6,   ///< External reset trigger        (TY_RST_HARDWARE)
-    TUYA_RESET_REASON_UNKNOWN = 7,    ///< Underterminable cause
-    TUYA_RESET_REASON_FIB = 8,        ///< Reset originated from the FIB bootloader
-    TUYA_RESET_REASON_BOOTLOADER = 8, ///< Reset relates to an bootloader
-    TUYA_RESET_REASON_CRASH = 10,     ///< Software crash
-    TUYA_RESET_REASON_FLASH = 11,     ///< Flash failure cause reset
-    TUYA_RESET_REASON_FATAL = 12,     ///< A non-recoverable fatal error occurred
-    TUYA_RESET_REASON_BROWNOUT = 13,  ///< Brown out
-    TUYA_RESET_REASON_UNSUPPORT = 0xFF,
+    TUYA_RESET_REASON_POWERON    = 0,  ///< Poweron reset type, supply voltage < power-on threshold (TY_RST_POWER_OFF)
+    TUYA_RESET_REASON_HW_WDOG    = 1,  ///< Hardware watchdog reset occurred (TY_RST_HARDWARE_WATCHDOG)
+    TUYA_RESET_REASON_FAULT      = 2,  ///< A access fault occurred (TY_RST_FATAL_EXCEPTION)
+    TUYA_RESET_REASON_SW_WDOG    = 3,  ///< Software watchdog reset occurred (TY_RST_SOFTWARE_WATCHDOG)
+    TUYA_RESET_REASON_SOFTWARE   = 4,  ///< Software triggered reset (TY_RST_SOFTWARE)
+    TUYA_RESET_REASON_DEEPSLEEP  = 5,  ///< Reset caused by entering deep sleep (TY_RST_DEEPSLEEP)
+    TUYA_RESET_REASON_EXTERNAL   = 6,  ///< External reset trigger        (TY_RST_HARDWARE)
+    TUYA_RESET_REASON_UNKNOWN    = 7,  ///< Underterminable cause
+    TUYA_RESET_REASON_FIB        = 8,  ///< Reset originated from the FIB bootloader
+    TUYA_RESET_REASON_BOOTLOADER = 8,  ///< Reset relates to an bootloader
+    TUYA_RESET_REASON_CRASH      = 10, ///< Software crash
+    TUYA_RESET_REASON_FLASH      = 11, ///< Flash failure cause reset
+    TUYA_RESET_REASON_FATAL      = 12, ///< A non-recoverable fatal error occurred
+    TUYA_RESET_REASON_BROWNOUT   = 13, ///< Brown out
+    TUYA_RESET_REASON_UNSUPPORT  = 0xFF,
 } TUYA_RESET_REASON_E;
+
 
 /* ota */
 #define TUYA_OTA_FILE_MD5_LEN 16
@@ -1203,19 +1233,20 @@ typedef enum {
  * ota upgrade type
  */
 typedef enum {
-    TUYA_OTA_FULL = 1, ///< AB area switch, full package upgrade
-    TUYA_OTA_DIFF = 2, ///< fixed area, difference package upgrade
+    TUYA_OTA_FULL        = 1,            ///< AB area switch, full package upgrade
+    TUYA_OTA_DIFF        = 2,            ///< fixed area, difference package upgrade
 } TUYA_OTA_TYPE_E;
 
+
 typedef enum {
-    TUYA_OTA_PATH_AIR = 0,      ///< OTA from Wired/Wi-Fi/Cellular/NBIoT
-    TUYA_OTA_PATH_UART = 1,     ///< OTA from uart for MF
-    TUYA_OTA_PATH_BLE = 2,      ///< OTA from BLE protocol for subdev
-    TUYA_OTA_PATH_ZIGBEE = 3,   ///< OTA from Zigbee protocol for subdev
-    TUYA_OTA_PATH_SEC_A = 4,    ///< OTA from multi-section A
-    TUYA_OTA_PATH_SEC_B = 5,    ///< OTA from multi-section B
-    TUYA_OTA_PATH_INVALID = 255 ///< OTA from multi-section invalid
-} TUYA_OTA_PATH_E;
+    TUYA_OTA_PATH_AIR    = 0,            ///< OTA from Wired/Wi-Fi/Cellular/NBIoT
+    TUYA_OTA_PATH_UART   = 1,            ///< OTA from uart for MF
+    TUYA_OTA_PATH_BLE    = 2,            ///< OTA from BLE protocol for subdev
+    TUYA_OTA_PATH_ZIGBEE = 3,            ///< OTA from Zigbee protocol for subdev
+    TUYA_OTA_PATH_SEC_A = 4,             ///< OTA from multi-section A
+    TUYA_OTA_PATH_SEC_B = 5,             ///< OTA from multi-section B
+    TUYA_OTA_PATH_INVALID = 255          ///< OTA from multi-section invalid
+}TUYA_OTA_PATH_E;
 
 
 typedef struct {
@@ -1241,12 +1272,12 @@ typedef struct {
  *
  */
 typedef enum {
-    TUYA_UART_NUM_0, // UART 0
-    TUYA_UART_NUM_1, // UART 1
-    TUYA_UART_NUM_2, // UART 2
-    TUYA_UART_NUM_3, // UART 3
-    TUYA_UART_NUM_4, // UART 4
-    TUYA_UART_NUM_5, // UART 5
+    TUYA_UART_NUM_0,		    // UART 0
+    TUYA_UART_NUM_1,		    // UART 1
+    TUYA_UART_NUM_2,	        // UART 2
+    TUYA_UART_NUM_3,	        // UART 3
+    TUYA_UART_NUM_4,	        // UART 4
+    TUYA_UART_NUM_5,	        // UART 5
     TUYA_UART_NUM_MAX,
 } TUYA_UART_NUM_E;
 
@@ -1263,10 +1294,10 @@ typedef enum {
  *
  */
 typedef enum {
-    TUYA_UART_DATA_LEN_5BIT = 0x05,
-    TUYA_UART_DATA_LEN_6BIT = 0x06,
-    TUYA_UART_DATA_LEN_7BIT = 0x07,
-    TUYA_UART_DATA_LEN_8BIT = 0x08,
+    TUYA_UART_DATA_LEN_5BIT      = 0x05,
+    TUYA_UART_DATA_LEN_6BIT      = 0x06,
+    TUYA_UART_DATA_LEN_7BIT      = 0x07,
+    TUYA_UART_DATA_LEN_8BIT      = 0x08,
 } TUYA_UART_DATA_LEN_E;
 
 /**
@@ -1274,9 +1305,9 @@ typedef enum {
  *
  */
 typedef enum {
-    TUYA_UART_STOP_LEN_1BIT = 0x01,
-    TUYA_UART_STOP_LEN_1_5BIT1 = 0x02,
-    TUYA_UART_STOP_LEN_2BIT = 0x03,
+    TUYA_UART_STOP_LEN_1BIT      = 0x01,
+    TUYA_UART_STOP_LEN_1_5BIT1   = 0x02,
+    TUYA_UART_STOP_LEN_2BIT      = 0x03,
 } TUYA_UART_STOP_LEN_E;
 
 /**
@@ -1284,9 +1315,9 @@ typedef enum {
  *
  */
 typedef enum {
-    TUYA_UART_PARITY_TYPE_NONE = 0,
-    TUYA_UART_PARITY_TYPE_ODD = 1,
-    TUYA_UART_PARITY_TYPE_EVEN = 2,
+    TUYA_UART_PARITY_TYPE_NONE    = 0,
+    TUYA_UART_PARITY_TYPE_ODD     = 1,
+    TUYA_UART_PARITY_TYPE_EVEN    = 2,
 } TUYA_UART_PARITY_TYPE_E;
 
 typedef enum {
@@ -1305,12 +1336,13 @@ typedef enum {
  *
  */
 typedef struct {
-    uint32_t baudrate;
-    TUYA_UART_PARITY_TYPE_E parity;
-    TUYA_UART_DATA_LEN_E databits;
-    TUYA_UART_STOP_LEN_E stopbits;
-    TUYA_UART_FLOWCTRL_TYPE_E flowctrl;
+    uint32_t                      baudrate;
+    TUYA_UART_PARITY_TYPE_E     parity;
+    TUYA_UART_DATA_LEN_E        databits;
+    TUYA_UART_STOP_LEN_E        stopbits;
+    TUYA_UART_FLOWCTRL_TYPE_E   flowctrl;
 } TUYA_UART_BASE_CFG_T;
+
 
 /**
  * @brief uart irq callback
@@ -1378,7 +1410,7 @@ typedef enum {
 	TUYA_PIXEL_FMT_RGB565,  
     TUYA_PIXEL_FMT_RGB666,  
 	TUYA_PIXEL_FMT_RGB888,
-    TUYA_PIXEL_FMT_MONOCHROME, /* binary pixel format, 1bit per pixel, 0 is black, 1 is white */    
+    TUYA_PIXEL_FMT_MONOCHROME, /* binary pixel format, 1bit per pixel, 0 is black, 1 is white */ 
     TUYA_PIXEL_FMT_I2,
 } TUYA_DISPLAY_PIXEL_FMT_E;
 
@@ -1388,38 +1420,118 @@ typedef enum {
 }TUYA_RGB_DATA_CLK_EDGE_E;
 
 typedef struct {
-    uint16_t                 width;
-    uint16_t                 height;
-	TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
-    uint32_t                 clk;
+    uint32_t clk;
     TUYA_RGB_DATA_CLK_EDGE_E out_data_clk_edge;  /** rgb data output in clk rising or falling */
-    uint16_t                 hsync_back_porch;   /**< rang 0~0x3FF (0~1023), should refer rgb device spec*/
-	uint16_t                 hsync_front_porch;  /**< rang 0~0x3FF (0~1023), should refer rgb device spec*/
-	uint16_t                 vsync_back_porch;   /**< rang 0~0xFF (0~255), should refer rgb device spec*/
-	uint16_t                 vsync_front_porch;  /**< rang 0~0xFF (0~255), should refer rgb device spec*/
-	uint8_t                  hsync_pulse_width;  /**< rang 0~0x3F (0~7), should refer rgbdevice spec*/
-	uint8_t                  vsync_pulse_width;  /**< rang 0~0x3F (0~7), should refer rgb device spec*/
+    uint16_t width;
+    uint16_t height;
+	TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
+    uint16_t hsync_back_porch;            /**< rang 0~0x3FF (0~1023), should refer rgb device spec*/
+	uint16_t hsync_front_porch;           /**< rang 0~0x3FF (0~1023), should refer rgb device spec*/
+	uint16_t vsync_back_porch;            /**< rang 0~0xFF (0~255), should refer rgb device spec*/
+	uint16_t vsync_front_porch;           /**< rang 0~0xFF (0~255), should refer rgb device spec*/
+	uint8_t hsync_pulse_width;            /**< rang 0~0x3F (0~7), should refer rgbdevice spec*/
+	uint8_t vsync_pulse_width;            /**< rang 0~0x3F (0~7), should refer rgb device spec*/
 } TUYA_RGB_BASE_CFG_T;
 
 typedef struct {
-    uint16_t                 width;
-    uint16_t                 height;
-    TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
-    uint32_t                 clk;
-    uint8_t                  data_bits;// 8,9,16,18,24
+    uint32_t clk;
+    uint8_t data_bits;// 8,9,16,18,24
+    uint16_t width;
+    uint16_t height;
+	TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
 } TUYA_8080_BASE_CFG_T;
+
+typedef enum {
+    TUYA_MCU8080_OUTPUT_FINISH = 0,
+} TUYA_MCU8080_EVENT_E;
+
+
+typedef void (*TUYA_MCU8080_ISR_CB)(TUYA_MCU8080_EVENT_E event);
+
+typedef enum {
+    TUYA_FRAME_FMT_UNKNOWN = 0,
+    TUYA_FRAME_FMT_YUV422,
+    TUYA_FRAME_FMT_YUV420,
+    TUYA_FRAME_FMT_RGB565,
+    TUYA_FRAME_FMT_RGB888,
+    TUYA_FRAME_FMT_JPEG,
+    TUYA_FRAME_FMT_H264,
+} TUYA_FRAME_FMT_E;
+
+typedef enum {
+    TUYA_CAMERA_OUTPUT_YUV422,
+    TUYA_CAMERA_OUTPUT_JPEG,
+    TUYA_CAMERA_OUTPUT_H264,
+    TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH,
+    TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH,
+} TUYA_CAMERA_OUTPUT_MODE;
+
+typedef enum {
+    TUYA_DVP_SYNC_MODE_0,      /* hsync: high valid,   vsync: high valid */
+    TUYA_DVP_SYNC_MODE_1,      /* hsync: high valid,   vsync: low valid */
+    TUYA_DVP_SYNC_MODE_2,      /* hsync: low valid,    vsync: high valid */
+    TUYA_DVP_SYNC_MODE_3,      /* hsync: low valid,    vsync: low valid */
+} TUYA_DVP_SYNC_MODE;
+
+typedef struct
+{
+    uint32_t frame_id;
+    uint8_t is_frame_complete;
+	uint8_t is_i_frame;
+    TUYA_FRAME_FMT_E frame_fmt;
+    uint16_t width;
+	uint16_t height;
+    uint32_t data_len;
+    uint8_t *data;
+    uint32_t total_frame_len;
+    void    *arg;
+} TUYA_DVP_FRAME_MANAGE_T;
+
+// H.264 编码质量参数
+typedef struct {
+    uint8_t enable;
+    uint8_t init_qp;
+    uint8_t i_min_qp;
+    uint8_t i_max_qp;
+    uint8_t p_min_qp;
+    uint8_t p_max_qp;
+	uint16_t i_block_bits;
+	uint16_t p_block_bits;
+} H264_CFG;
+
+// JPEG 编码质量参数
+typedef struct {
+    uint8_t enable;
+    uint16_t max_size; // uint: KB
+    uint16_t min_size; // uint: KB
+} JPEG_CFG;
+
+typedef struct
+{
+    JPEG_CFG jpeg_cfg;
+    H264_CFG h264_cfg;
+} TUYA_DVP_ENCODED_QUALITY;
+
+typedef struct {
+    uint16_t fps;
+    uint16_t width;
+    uint16_t height;
+    TUYA_DVP_SYNC_MODE sync_polarity;
+    TUYA_CAMERA_OUTPUT_MODE output_mode;
+    TUYA_DVP_ENCODED_QUALITY encoded_quality;
+} TUYA_DVP_CFG_T;
 
 /**
  * @brief timer num
  *
  */
 typedef enum {
-    TUYA_TIMER_NUM_0, // TIMER 0
-    TUYA_TIMER_NUM_1, // TIMER 1
-    TUYA_TIMER_NUM_2, // TIMER 2
-    TUYA_TIMER_NUM_3, // TIMER 3
-    TUYA_TIMER_NUM_4, // TIMER 4
-    TUYA_TIMER_NUM_5, // TIMER 5
+    TUYA_TIMER_NUM_0,		    // TIMER 0
+    TUYA_TIMER_NUM_1,		    // TIMER 1
+    TUYA_TIMER_NUM_2,	        // TIMER 2
+    TUYA_TIMER_NUM_3,	        // TIMER 3
+    TUYA_TIMER_NUM_4,	        // TIMER 4
+    TUYA_TIMER_NUM_5,	        // TIMER 5
     TUYA_TIMER_NUM_MAX,
 } TUYA_TIMER_NUM_E;
 
@@ -1427,7 +1539,7 @@ typedef enum {
         (__CFG)->mode = __MODE;                         \
         (__CFG)->cb   = __CB;                           \
         (__CFG)->arg  = __ARG
-    
+
 typedef enum {
     TUYA_TIMER_MODE_ONCE = 0,
     TUYA_TIMER_MODE_PERIOD
@@ -1436,10 +1548,11 @@ typedef enum {
 typedef void (*TUYA_TIMER_ISR_CB)(void *args);
 
 typedef struct {
-    TUYA_TIMER_MODE_E mode;
-    TUYA_TIMER_ISR_CB cb;
-    void *args;
+    TUYA_TIMER_MODE_E   mode;
+    TUYA_TIMER_ISR_CB   cb;
+    void                *args;
 } TUYA_TIMER_BASE_CFG_T;
+
 
 /**
  * @brief tuya wake source gpio
@@ -1460,15 +1573,15 @@ typedef struct {
 
 /**
  * @brief timer num
- *
+ * 
  */
 typedef enum {
-    TUYA_RTC_NUM_0, // RTC 0
-    TUYA_RTC_NUM_1, // RTC 1
-    TUYA_RTC_NUM_2, // RTC 2
-    TUYA_RTC_NUM_3, // RTC 3
-    TUYA_RTC_NUM_4, // RTC 4
-    TUYA_RTC_NUM_5, // RTC 5
+    TUYA_RTC_NUM_0,         // RTC 0
+    TUYA_RTC_NUM_1,         // RTC 1
+    TUYA_RTC_NUM_2,         // RTC 2
+    TUYA_RTC_NUM_3,         // RTC 3
+    TUYA_RTC_NUM_4,         // RTC 4
+    TUYA_RTC_NUM_5,         // RTC 5
     TUYA_RTC_NUM_MAX,
 } TUYA_RTC_NUM_E;
 
@@ -1477,6 +1590,8 @@ typedef enum {
     TUYA_RTC_MODE_PERIOD
 } TUYA_RTC_MODE_E;
 
+
+typedef void (*TUYA_RTC_ISR_CB)(TUYA_RTC_NUM_E port, void *args);
 /**
  * @brief tuya wake source rtc
  */
@@ -1484,6 +1599,8 @@ typedef struct {
     TUYA_RTC_NUM_E RTC_num;
     TUYA_RTC_MODE_E mode;
     uint32_t ms;
+    TUYA_RTC_ISR_CB cb;
+    void    *args;
 } TUYA_WAKEUP_SOURCE_RTC_T;
 
 /**
@@ -1505,15 +1622,16 @@ typedef struct {
         TUYA_WAKEUP_SOURCE_TIMER_T timer_param;
         TUYA_WAKEUP_SOURCE_RTC_T rtc_param;
     } wakeup_para;
-} TUYA_WAKEUP_SOURCE_BASE_CFG_T;
+}TUYA_WAKEUP_SOURCE_BASE_CFG_T;
+
 
 #ifndef TUYA_FD_MAX_COUNT
 #if defined(SYSTEM_LINUX) && (OPERATING_SYSTEM == SYSTEM_LINUX)
 /* max fd numbers in linux */
-#define TUYA_FD_MAX_COUNT (1024)
+#define TUYA_FD_MAX_COUNT    (1024)
 #else
 /* max fd numbers in other system */
-#define TUYA_FD_MAX_COUNT (64)
+#define TUYA_FD_MAX_COUNT    (64)
 #endif
 #endif
 
@@ -1522,7 +1640,7 @@ typedef int TUYA_OPT_NAME;
 
 /* tuyaos definition of fd operations */
 typedef struct {
-    uint8_t placeholder[(TUYA_FD_MAX_COUNT + 7) / 8];
+    uint8_t placeholder[(TUYA_FD_MAX_COUNT+7)/8];
 } TUYA_FD_SET_T;
 
 /* tuyaos definition of socket protocol */
@@ -1530,7 +1648,7 @@ typedef enum {
     PROTOCOL_TCP = 0,
     PROTOCOL_UDP = 1,
     PROTOCOL_RAW = 2,
-} TUYA_PROTOCOL_TYPE_E;
+}TUYA_PROTOCOL_TYPE_E;
 
 /* tuyaos definition of transfer type */
 typedef enum {
@@ -1547,6 +1665,17 @@ typedef enum {
 
 /* tuyaos definition of IP addr */
 typedef uint32_t TUYA_IP_ADDR_T;
+
+/* MTD 接口类型枚举 */
+typedef enum {
+    MTD_IF_SPI,        // 标准SPI接口
+    MTD_IF_QSPI,       // Quad-SPI接口
+} MTD_INTERFACE_E;
+
+typedef enum {
+    TYPE_SRAM = 0,
+    TYPE_PSRAM,
+} RAM_TYPE_E;
 
 /* tuyaos errorno */
 typedef int TUYA_ERRNO;
@@ -1596,13 +1725,9 @@ typedef int TUYA_ERRNO;
 #define TKL_THREAD_PRI_LOW          1
 #define TKL_THREAD_PRI_LOWEST       0
 
-/* MTD 接口类型枚举 */
-typedef enum {
-    MTD_IF_SPI,        // 标准SPI接口
-    MTD_IF_QSPI,       // Quad-SPI接口
-} MTD_INTERFACE_E;
 #ifdef __cplusplus
 }
 #endif
 
 #endif // TUYA_CLOUD_TYPES_H
+

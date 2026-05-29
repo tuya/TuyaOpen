@@ -31,7 +31,9 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-#if defined (TUYA_T5AI_BOARD_EX_MODULE_35565LCD) && (TUYA_T5AI_BOARD_EX_MODULE_35565LCD ==1)
+
+/* ---- LCD ---- */
+#if defined (TUYA_T5AI_BOARD_LCD_35565) && (TUYA_T5AI_BOARD_LCD_35565 ==1)
 static OPERATE_RET __board_register_display(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -86,7 +88,8 @@ static OPERATE_RET __board_register_display(void)
 
     return rt;
 }
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_EYES) && (TUYA_T5AI_BOARD_EX_MODULE_EYES ==1)
+
+#elif defined (TUYA_T5AI_BOARD_LCD_EYES) && (TUYA_T5AI_BOARD_LCD_EYES ==1)
 static OPERATE_RET __board_register_display(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -111,7 +114,7 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.dc_pin    = BOARD_LCD_SPI_DC_PIN;
     display_cfg.rst_pin   = BOARD_LCD_SPI_RST_PIN;
 
-    display_cfg.power.pin          = BOARD_LCD_POWER_PIN;
+    display_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_register(DISPLAY_NAME, &display_cfg));
 #endif
@@ -136,15 +139,16 @@ static OPERATE_RET __board_register_display(void)
     display2_cfg.dc_pin    = BOARD_LCD_SPI2_DC_PIN;
     display2_cfg.rst_pin   = BOARD_LCD_SPI2_RST_PIN;
 
-    display2_cfg.power.pin  = BOARD_LCD_POWER_PIN;
+    display2_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
     TUYA_CALL_ERR_RETURN(tdd_disp_spi_st7735s_register(DISPLAY_NAME_2, &display2_cfg));
 #endif
 
     return rt;
 }
-#elif defined (TUYA_T5AI_BOARD_EX_MODULE_096_OLED) && (TUYA_T5AI_BOARD_EX_MODULE_096_OLED ==1)
-static OPERATE_RET __board_register_display(void)   
+
+#elif defined (TUYA_T5AI_BOARD_LCD_096_OLED) && (TUYA_T5AI_BOARD_LCD_096_OLED ==1)
+static OPERATE_RET __board_register_display(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -179,11 +183,11 @@ static OPERATE_RET __board_register_display(void)
 {
     return OPRT_OK;
 }
-
 #endif
 
 
-#if defined (ENABLE_EX_MODULE_CAMERA) && (ENABLE_EX_MODULE_CAMERA ==1)
+/* ---- Camera ---- */
+#if defined (TUYA_T5AI_BOARD_CAMERA) && (TUYA_T5AI_BOARD_CAMERA ==1)
 static OPERATE_RET __board_register_camera(void)
 {
 #if defined(CAMERA_NAME)
@@ -196,7 +200,7 @@ static OPERATE_RET __board_register_camera(void)
             .pin = BOARD_CAMERA_RST_PIN,
             .active_level = BOARD_CAMERA_RST_ACTIVE_LV,
         },
-        .i2c ={
+        .i2c = {
             .port = BOARD_CAMERA_I2C_PORT,
             .clk  = BOARD_CAMERA_I2C_SCL,
             .sda  = BOARD_CAMERA_I2C_SDA,
@@ -204,13 +208,45 @@ static OPERATE_RET __board_register_camera(void)
         .clk = BOARD_CAMERA_CLK,
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg));
 #endif
 
     return OPRT_OK;
 }
-#else 
+#else
 static OPERATE_RET __board_register_camera(void)
+{
+    return OPRT_OK;
+}
+#endif
+
+
+/* ---- Printer ---- */
+#if defined (TUYA_T5AI_BOARD_PRINTER_DP48) && (TUYA_T5AI_BOARD_PRINTER_DP48 ==1)
+static OPERATE_RET __board_register_printer(void)
+{
+#if defined(PRINTER_NAME)
+    OPERATE_RET rt = OPRT_OK;
+    TDD_PRINTER_DP48_CFG_T dp48_cfg = {
+        .port_id  = BOARD_PRINTER_UART_PORT,
+        .uart_cfg = {
+            .base_cfg = {
+                .baudrate  = BOARD_PRINTER_UART_BAUDRATE,
+                .databits  = TUYA_UART_DATA_LEN_8BIT,
+                .stopbits  = TUYA_UART_STOP_LEN_1BIT,
+                .parity    = TUYA_UART_PARITY_TYPE_NONE,
+                .flowctrl  = TUYA_UART_FLOWCTRL_NONE,
+            },
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_printer_dp48_register(PRINTER_NAME, &dp48_cfg));
+#endif
+
+    return OPRT_OK;
+}
+#else
+static OPERATE_RET __board_register_printer(void)
 {
     return OPRT_OK;
 }
@@ -224,6 +260,8 @@ OPERATE_RET board_register_ex_module(void)
     TUYA_CALL_ERR_RETURN(__board_register_display());
 
     TUYA_CALL_ERR_RETURN(__board_register_camera());
+
+    TUYA_CALL_ERR_RETURN(__board_register_printer());
 
     return rt;
 }

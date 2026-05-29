@@ -19,16 +19,26 @@ extern "C" {
 ***********************************************************/
 typedef void * http_session_t;
 
+#define PARSE_EXTRA_BYTES 10
+
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
+typedef struct {
+    char *scheme;
+    char *hostname;
+    unsigned portno;
+    char *resource;
+} parsed_url_t;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 
-int http_read_content(http_session_t handle, void *buf, unsigned int max_len);
+extern int http_read_content(http_session_t handle, void *buf, unsigned int max_len);
+
+int http_parse_URL(const char *URL, char *tmp_buf, int tmp_buf_len,
+                   parsed_url_t *parsed_url);
 
 #ifdef __cplusplus
 }

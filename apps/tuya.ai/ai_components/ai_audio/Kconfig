@@ -12,9 +12,13 @@ if (ENABLE_COMP_AI_AUDIO)
         bool "enable ai audio pcm codec"
 
     config ENABLE_COMP_AI_AUDIO_CODEC_OPUS
+        select ENABLE_TUYA_CODEC
+        select ENABLE_TUYA_CODEC_OPUS
         bool "enable ai audio opus codec"
 
     config ENABLE_COMP_AI_AUDIO_CODEC_SPEEX
+        select ENABLE_TUYA_CODEC
+        select ENABLE_TUYA_CODEC_SPEEX
         bool "enable ai audio speex codec"
 
     endchoice

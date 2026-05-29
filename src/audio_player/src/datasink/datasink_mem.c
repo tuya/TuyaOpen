@@ -48,7 +48,11 @@ OPERATE_RET datasink_mem_start(char *value, void* *handle)
 
     memset(ctx, 0, sizeof(MEM_DATASINK_CTX_T));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&ctx->mutex));
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ctx->ringbuf));
+#else
     TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ctx->ringbuf));
+#endif
 
     *handle = (void*)ctx;
     return OPRT_OK;

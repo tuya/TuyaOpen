@@ -36,7 +36,22 @@
         "SYSTEM_MSG_WIFI_DISCONNECTED":"WiFi disconnected",
         "SYSTEM_MSG_VOLUME":"Volume set to",
 
-        
-        "VIEW_IMAGE":"View Image"
+        "VIEW_IMAGE":"View Image",
+        "NO_IMAGE":"No Images",
+
+        "TAKE_PHOTO":"Take Photo",
+        "ADD_IMAGE":"Add Image",
+        "PRINT_IMAGE":"Print Image",
+        "PRINTING":"Printing...",
+        "PRINT_SUCCESS":"Print success",
+        "PRINT_FAILED":"Print failed",
+        "CAMERA":"Camera",
+        "ALBUM":"Album",
+        "CANCEL":"Cancel",
+        "ALL_PHOTOS":"All Photos",
+        "SELECT_TEXT":"Select",
+        "DELETE_TEXT":"Delete",
+        "CONFIRM_TEXT":"Confirm",
+        "RECOGNIZE_IMAGE_PROMPT":"explain the content of the uploaded image, do not trigger MCP skills, do not call MCP tools"
     }
 }

@@ -6,6 +6,11 @@ config BOARD_CHOICE
     string
     default "ESP32-S3"
 
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_EXT_RAM
+
 config UART_NUM0_TX_PIN
     int "UART_NUM0_TX_PIN"
     range 0 44

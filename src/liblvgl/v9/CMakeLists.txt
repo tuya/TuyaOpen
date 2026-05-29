@@ -10,22 +10,6 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
-if (CONFIG_ENABLE_PLATFORM_LVGL STREQUAL "y")
-    message(STATUS "Using lvgl from platform")
-    set(LIB_SRCS)
-    set(LIB_PRIVATE_INC)
-    set(LIB_PUBLIC_INC 
-            ${MODULE_PATH}/conf
-    )
-
-    # add log port
-    list(APPEND LIB_SRCS 
-            "${MODULE_PATH}/port/lv_port_log.c"
-            "${MODULE_PATH}/port/lv_port_mem.c"
-    )
-
-else ()
-
 # LIB_SRCS
 file(GLOB_RECURSE  LIB_SRCS
     "${MODULE_PATH}/lvgl/src/*.c" "${MODULE_PATH}/port/*.c")
@@ -45,7 +29,6 @@ set(LIB_PUBLIC_INC
     ${MODULE_PATH}/port
     ${MODULE_PATH}/conf
 )
-endif()
 
 set(LIB_OPTIONS "-O3")
 

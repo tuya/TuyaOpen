@@ -2,10 +2,6 @@ config MBEDTLS_CONFIG_FILE
     string
     default "mbedtls/esp_config.h"
 
-config ENABLE_PLATFORM_LVGL
-    bool
-    default y
-
 config ENABLE_ESP_OS_SERVICE
     bool
     default y

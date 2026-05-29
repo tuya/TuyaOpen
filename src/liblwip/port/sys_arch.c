@@ -150,7 +150,7 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg, 
 {
     THREAD_HANDLE CreatedTask = NULL;
     long result;
-    THREAD_CFG_T thread_cfg;
+    THREAD_CFG_T thread_cfg = {0};
 
     thread_cfg.priority = prio;
     thread_cfg.stackDepth = stacksize;

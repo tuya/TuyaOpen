@@ -32,10 +32,6 @@ config ENABLE_I2S
     bool
     default y
 
-config ENABLE_SPI
-    bool
-    default y
-
 config ENABLE_TIMER
     bool
     default y
@@ -49,6 +45,10 @@ config ENABLE_AUDIO
     default n
 
 config ENABLE_VIDEO
+    bool
+    default n
+
+config ENABLE_EXT_RAM
     bool
     default n
 

@@ -30,7 +30,6 @@
 #include "tuya_ai_input.h"
 #include "tal_queue.h"
 #include "tal_sw_timer.h"
-#include "tal_workq_service.h"
 
 #ifndef AI_INPUT_STACK_SIZE
 #define AI_INPUT_STACK_SIZE (4608)
@@ -42,50 +41,146 @@
 #define AI_INPUT_BUF_SIZE (6*1024)
 #endif
 
-#define AI_INPUT_TASK_DELAY   (80)
-
-#define AI_ALERT_DEFAULT_TIMEOUT   (1500) // ms
-
-typedef enum {
-    /** alert idle state */
-    AI_ALERT_IDLE = 0,
-    /** alert wait response state */
-    AI_ALERT_WAIT_RESP,
-    /** alert timeout state */
-    AI_ALERT_TIMEOUT,
-} AI_ALERT_STATE_E;
+#define AI_INPUT_TASK_DELAY   (10)
 
 typedef struct {
-    AI_ALERT_STATE_E state;
-    TIMER_ID timer;
-    AI_ALERT_FB_CB cb;
-    AI_CLOUD_ALERT_TYPE_E type;
-} AI_ALERT_CTX_T;
+    CHAR_T scode[AI_SOLUTION_CODE_LEN];
+    BOOL_T queue_sync;
+    QUEUE_HANDLE queue;
+    UINT32_T lazy_input;
+    TUYA_RINGBUFF_T ringbuf;
+    AI_INPUT_STATE_E state;
+} AI_INPUT_SESSION_CTX_T;
 
 typedef struct {
     THREAD_HANDLE thread;
-    AI_INPUT_STATE_E state;
-    TUYA_RINGBUFF_T ringbuf;
-    uint32_t lazy_input;
     MUTEX_HANDLE mutex;
-    QUEUE_HANDLE queue;
-    char *input_buf;
-    bool terminate;
-    bool queue_sync;
-    AI_ALERT_CTX_T alert;
+    CHAR_T *input_buf;
+    BOOL_T terminate;
+    BOOL_T mute_audio;
+    AI_INPUT_SESSION_CTX_T *sctx[AI_SESSION_MAX_NUM];
 } AI_INPUT_CTX_T;
 STATIC AI_INPUT_CTX_T ai_input_ctx;
 
-STATIC VOID_T __alert_timeout_cb(TIMER_ID timer_id, VOID_T *arg);
-
-OPERATE_RET tuya_ai_input_write(AI_RINGBUF_HEAD_T *head, uint8_t *data)
+STATIC AI_INPUT_SESSION_CTX_T* __ai_get_sctx(CHAR_T *scode)
 {
-    uint32_t rt = 0;
+    UINT_T idx = 0;
+    tal_mutex_lock(ai_input_ctx.mutex);
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_input_ctx.sctx[idx] != NULL) {
+            if ((!scode && ai_input_ctx.sctx[idx]->scode[0] == 0) ||
+                (scode && strncmp(ai_input_ctx.sctx[idx]->scode, scode, AI_SOLUTION_CODE_LEN) == 0)) {
+                tal_mutex_unlock(ai_input_ctx.mutex);
+                return ai_input_ctx.sctx[idx];
+            }
+        }
+    }
+    tal_mutex_unlock(ai_input_ctx.mutex);
+    return NULL;
+}
+
+STATIC AI_INPUT_SESSION_CTX_T* __ai_crt_sctx(CHAR_T *scode)
+{
+    OPERATE_RET rt = OPRT_OK;
+    UINT_T idx = 0;
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
+    if (sctx) {
+        return sctx;
+    }
+
+    tal_mutex_lock(ai_input_ctx.mutex);
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_input_ctx.sctx[idx] == NULL) {
+            ai_input_ctx.sctx[idx] = (AI_INPUT_SESSION_CTX_T *)Malloc(SIZEOF(AI_INPUT_SESSION_CTX_T));
+            if (ai_input_ctx.sctx[idx] == NULL) {
+                tal_mutex_unlock(ai_input_ctx.mutex);
+                PR_ERR("malloc session ctx failed");
+                return NULL;
+            }
+            memset(ai_input_ctx.sctx[idx], 0, SIZEOF(AI_INPUT_SESSION_CTX_T));
+            if (scode) {
+                strncpy(ai_input_ctx.sctx[idx]->scode, scode, AI_SOLUTION_CODE_LEN);
+            }
+            rt = tal_queue_create_init(&ai_input_ctx.sctx[idx]->queue, SIZEOF(AI_INPUT_STATE_E), 3);
+            if (rt != OPRT_OK) {
+                PR_ERR("create input queue failed");
+                Free(ai_input_ctx.sctx[idx]);
+                ai_input_ctx.sctx[idx] = NULL;
+                tal_mutex_unlock(ai_input_ctx.mutex);
+                return NULL;
+            }
+            tal_mutex_unlock(ai_input_ctx.mutex);
+            return ai_input_ctx.sctx[idx];
+        }
+    }
+    PR_ERR("crt ctx full");
+    tal_mutex_unlock(ai_input_ctx.mutex);
+    return NULL;
+}
+
+
+STATIC TUYA_RINGBUFF_T __ai_get_ringbuf(CHAR_T *scode) 
+{
+    AI_INPUT_SESSION_CTX_T* sctx = __ai_get_sctx(scode);
+    if (sctx && sctx->ringbuf) {
+        return sctx->ringbuf;
+    }
+    return NULL;
+}
+
+STATIC TUYA_RINGBUFF_T __ai_crt_ringbuf(CHAR_T *scode)
+{
+    OPERATE_RET rt = OPRT_OK;
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
+    if (sctx && sctx->ringbuf) {
+        return sctx->ringbuf;
+    }
+
+    tal_mutex_lock(ai_input_ctx.mutex);
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    rt = tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &sctx->ringbuf);
+#else
+    rt = tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &sctx->ringbuf);
+#endif
+    if (rt != OPRT_OK) {
+        PR_ERR("create input ringbuf failed");
+        tal_mutex_unlock(ai_input_ctx.mutex);
+        return NULL;
+    }
+    tal_mutex_unlock(ai_input_ctx.mutex);
+    return sctx->ringbuf;
+}
+
+STATIC VOID __ai_free_sctx(VOID)
+{
+    UINT_T idx = 0;
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_input_ctx.sctx[idx] != NULL) {
+            if (ai_input_ctx.sctx[idx]->ringbuf) {
+                tuya_ring_buff_free(ai_input_ctx.sctx[idx]->ringbuf);
+                ai_input_ctx.sctx[idx]->ringbuf = NULL;
+            }
+            if (ai_input_ctx.sctx[idx]->queue) {
+                tal_queue_free(ai_input_ctx.sctx[idx]->queue);
+                ai_input_ctx.sctx[idx]->queue = NULL;
+            }
+            Free(ai_input_ctx.sctx[idx]);
+            ai_input_ctx.sctx[idx] = NULL;
+        }
+    }
+}
+
+STATIC OPERATE_RET __ai_ringbuf_write(AI_RINGBUF_HEAD_T *head, BYTE_T *data)
+{
+    UINT_T rt = 0;
     // if ((ai_input_ctx.state != AI_INPUT_PROC) && (ai_input_ctx.state != AI_INPUT_STOPPING)) {
     //     return OPRT_OK;
     // }
+    if (ai_input_ctx.mute_audio) {
+        return OPRT_OK;
+    }
 
-    if (data == NULL || head->len == 0) {
+    if ((data == NULL || head->len == 0 || head->type != AI_PT_AUDIO)) {
         return OPRT_OK;
     }
     if (head->len > AI_INPUT_BUF_SIZE) {
@@ -93,18 +188,23 @@ OPERATE_RET tuya_ai_input_write(AI_RINGBUF_HEAD_T *head, uint8_t *data)
         return OPRT_INVALID_PARM;
     }
 
+    TUYA_RINGBUFF_T ringbuf = __ai_crt_ringbuf(head->scode);
+    if (ringbuf == NULL) {
+        return OPRT_COM_ERROR;
+    }
+
     tal_mutex_lock(ai_input_ctx.mutex);
-    uint32_t free_size = tuya_ring_buff_free_size_get(ai_input_ctx.ringbuf);
+    UINT_T free_size = tuya_ring_buff_free_size_get(ringbuf);
     if (free_size < (SIZEOF(AI_RINGBUF_HEAD_T) + head->len)) {
         tal_mutex_unlock(ai_input_ctx.mutex);
         return OPRT_RESOURCE_NOT_READY;
     }
-    rt = tuya_ring_buff_write(ai_input_ctx.ringbuf, (VOID_T *)head, SIZEOF(AI_RINGBUF_HEAD_T));
+    rt = tuya_ring_buff_write(ringbuf, (VOID_T *)head, SIZEOF(AI_RINGBUF_HEAD_T));
     if (rt != SIZEOF(AI_RINGBUF_HEAD_T)) {
         PR_ERR("input ring buf write head failed %d %d", rt, SIZEOF(AI_RINGBUF_HEAD_T));
         goto EXIT;
     }
-    rt = tuya_ring_buff_write(ai_input_ctx.ringbuf, data, head->len);
+    rt = tuya_ring_buff_write(ringbuf, data, head->len);
     if (rt != head->len) {
         PR_ERR("ring buf write pbuf failed %d %d", rt, head->len);
         goto EXIT;
@@ -113,39 +213,35 @@ OPERATE_RET tuya_ai_input_write(AI_RINGBUF_HEAD_T *head, uint8_t *data)
     return OPRT_OK;
 
 EXIT:
-    tuya_ring_buff_reset(ai_input_ctx.ringbuf);
-    ai_input_ctx.state = AI_INPUT_STOP;
+    tuya_ring_buff_reset(ringbuf);
     tal_mutex_unlock(ai_input_ctx.mutex);
     return OPRT_COM_ERROR;
 }
 
-OPERATE_RET tuya_ai_input_read(AI_RINGBUF_HEAD_T *head, char *buf)
+STATIC OPERATE_RET __ai_ringbuf_read(AI_INPUT_SESSION_CTX_T *sctx, AI_RINGBUF_HEAD_T *head, CHAR_T *buf)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t read_len = 0, total_len = 0;
-
-    if (ai_input_ctx.ringbuf == NULL) {
-        PR_ERR("ring buffer is not initialized");
-        return OPRT_COM_ERROR;
+    UINT_T read_len = 0, total_len = 0;
+    if (sctx == NULL || sctx->ringbuf == NULL || head == NULL || buf == NULL) {
+        return OPRT_INVALID_PARM;
     }
 
-    tal_mutex_lock(ai_input_ctx.mutex);
     while (total_len < AI_INPUT_BUF_SIZE) {
-        if (ai_input_ctx.state == AI_INPUT_STOP) {
+        if (sctx->state == AI_INPUT_STOP) {
             break;
         }
-        read_len = tuya_ring_buff_peek(ai_input_ctx.ringbuf, (VOID_T *)head, SIZEOF(AI_RINGBUF_HEAD_T));
+        read_len = tuya_ring_buff_peek(sctx->ringbuf, (VOID_T *)head, SIZEOF(AI_RINGBUF_HEAD_T));
         if (read_len != SIZEOF(AI_RINGBUF_HEAD_T)) {
             break;
         }
         if (head->len + total_len > AI_INPUT_BUF_SIZE) {
             break;
         }
-        read_len = tuya_ring_buff_read(ai_input_ctx.ringbuf, head, SIZEOF(AI_RINGBUF_HEAD_T));
+        read_len = tuya_ring_buff_read(sctx->ringbuf, head, SIZEOF(AI_RINGBUF_HEAD_T));
         if (read_len != SIZEOF(AI_RINGBUF_HEAD_T)) {
             break;
         }
-        read_len = tuya_ring_buff_read(ai_input_ctx.ringbuf, buf + total_len, head->len);
+        read_len = tuya_ring_buff_read(sctx->ringbuf, buf + total_len, head->len);
         if (read_len != head->len) {
             PR_ERR("ring buf read pbuf failed %d %d", read_len, head->len);
             rt = OPRT_COM_ERROR;
@@ -155,14 +251,19 @@ OPERATE_RET tuya_ai_input_read(AI_RINGBUF_HEAD_T *head, char *buf)
     }
     head->len = total_len;
     head->total_len = total_len;
-    tal_mutex_unlock(ai_input_ctx.mutex);
     return rt;
 }
 
-bool tuya_ai_input_is_started(VOID)
+BOOL_T tuya_ai_input_is_started_s(CHAR_T *scode)
 {
-    uint32_t cnt = 0;
-    while (!ai_input_ctx.queue_sync) {
+    UINT_T cnt = 0;
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
+    if (sctx == NULL) {
+        PR_ERR("scode not exist");
+        return FALSE;
+    }
+
+    while (!sctx->queue_sync) {
         tal_system_sleep(50);
         if (cnt++ > 100) {
             PR_ERR("input failed, ai input not started");
@@ -172,42 +273,48 @@ bool tuya_ai_input_is_started(VOID)
     return TRUE;
 }
 
-OPERATE_RET tuya_ai_video_input(uint64_t timestamp, uint64_t pts, uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_video_input_s(CHAR_T *scode, UINT64_T timestamp, UINT64_T pts, AI_VIDEO_FRAME_TYPE frame_type, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
-    if (!tuya_ai_input_is_started()) {
+    if (!tuya_ai_input_is_started_s(scode)) {
         return OPRT_RESOURCE_NOT_READY;
     }
     AI_BIZ_HD_T biz = {0};
     biz.video.timestamp = timestamp;
     biz.video.pts = pts;
-    return tuya_ai_agent_upload_stream(AI_PT_VIDEO, &biz, (char *)data, len, total_len);
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+    biz.video.frame_type = frame_type;
+#endif
+    return tuya_ai_agent_upload_stream(scode, AI_PT_VIDEO, &biz, (CHAR_T *)data, len, total_len);
 }
 
-OPERATE_RET tuya_ai_audio_input_direct(uint64_t timestamp, uint64_t pts, uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_audio_input_direct_s(CHAR_T *scode, UINT64_T timestamp, UINT64_T pts, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
-    if (!tuya_ai_input_is_started()) {
+    if (!tuya_ai_input_is_started_s(scode)) {
         return OPRT_RESOURCE_NOT_READY;
     }
     AI_BIZ_HD_T biz = {0};
     biz.audio.timestamp = timestamp;
     biz.audio.pts = pts;
-    return tuya_ai_agent_upload_stream(AI_PT_AUDIO, &biz, (char *)data, len, total_len);
+    return tuya_ai_agent_upload_stream(scode, AI_PT_AUDIO, &biz, (CHAR_T *)data, len, total_len);
 }
 
-OPERATE_RET tuya_ai_audio_input(uint64_t timestamp, uint64_t pts, uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_audio_input_s(CHAR_T *scode, UINT64_T timestamp, UINT64_T pts, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t cnt = 0;
+    UINT_T cnt = 0;
     AI_RINGBUF_HEAD_T head = {0};
     head.type = AI_PT_AUDIO;
     head.len = len;
     head.total_len = total_len;
     head.biz.audio.timestamp = timestamp;
     head.biz.audio.pts = pts;
-    rt = tuya_ai_input_write(&head, data);
+    if (scode) {
+        strncpy(head.scode, scode, AI_SOLUTION_CODE_LEN);
+    }
+    rt = __ai_ringbuf_write(&head, data);
     while (rt == OPRT_RESOURCE_NOT_READY) {
         tal_system_sleep(10);
-        rt = tuya_ai_input_write(&head, data);
+        rt = __ai_ringbuf_write(&head, data);
         if (cnt++ > 1000) {
             PR_ERR("audio input failed %d", rt);
             break;
@@ -216,36 +323,41 @@ OPERATE_RET tuya_ai_audio_input(uint64_t timestamp, uint64_t pts, uint8_t *data,
     return rt;
 }
 
-OPERATE_RET tuya_ai_image_input(uint64_t timestamp, uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_image_input_s(CHAR_T *scode, UINT64_T timestamp, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
-    if (!tuya_ai_input_is_started()) {
+    if (!tuya_ai_input_is_started_s(scode)) {
         return OPRT_RESOURCE_NOT_READY;
     }
     AI_BIZ_HD_T biz = {0};
     biz.image.timestamp = timestamp;
-    return tuya_ai_agent_upload_stream(AI_PT_IMAGE, &biz, (char *)data, len, total_len);
+    return tuya_ai_agent_upload_stream(scode, AI_PT_IMAGE, &biz, (CHAR_T *)data, len, total_len);
 }
 
-OPERATE_RET tuya_ai_text_input(uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_text_input_s(CHAR_T *scode, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
-    if (!tuya_ai_input_is_started()) {
+    if (!tuya_ai_input_is_started_s(scode)) {
         return OPRT_RESOURCE_NOT_READY;
     }
-    return tuya_ai_agent_upload_stream(AI_PT_TEXT, NULL, (char *)data, len, total_len);
+    return tuya_ai_agent_upload_stream(scode, AI_PT_TEXT, NULL, (CHAR_T *)data, len, total_len);
 }
 
-OPERATE_RET tuya_ai_file_input(uint8_t *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_file_input_s(CHAR_T *scode, BYTE_T *data, UINT_T len, UINT_T total_len)
 {
-    if (!tuya_ai_input_is_started()) {
+    if (!tuya_ai_input_is_started_s(scode)) {
         return OPRT_RESOURCE_NOT_READY;
     }
-    return tuya_ai_agent_upload_stream(AI_PT_FILE, NULL, (char *)data, len, total_len);
+    return tuya_ai_agent_upload_stream(scode, AI_PT_FILE, NULL, (CHAR_T *)data, len, total_len);
 }
 
-VOID tuya_ai_input_start(bool force)
+VOID tuya_ai_input_start_s(CHAR_T *scode, BOOL_T force)
 {
     OPERATE_RET rt = OPRT_OK;
     if (!tuya_ai_agent_is_ready()) {
+        return;
+    }
+
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_crt_sctx(scode);
+    if (sctx == NULL) {
         return;
     }
 
@@ -256,8 +368,8 @@ VOID tuya_ai_input_start(bool force)
         state = AI_INPUT_START_LAZY;
     }
 
-    ai_input_ctx.queue_sync = FALSE;
-    rt = tal_queue_post(ai_input_ctx.queue, &state, 0);
+    sctx->queue_sync = FALSE;
+    rt = tal_queue_post(sctx->queue, &state, 0);
     if (OPRT_OK != rt) {
         PR_ERR("queue post err, rt:%d", rt);
     } else {
@@ -266,27 +378,29 @@ VOID tuya_ai_input_start(bool force)
     return;
 }
 
-AI_INPUT_STATE_E tuya_ai_input_get_state(VOID)
-{
-    return ai_input_ctx.state;
-}
-
-VOID tuya_ai_input_stop(VOID)
+VOID tuya_ai_input_stop_s(CHAR_T *scode)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t cnt = 0;
+    UINT_T cnt = 0;
     if (!tuya_ai_agent_is_ready()) {
         return;
     }
+
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
+    if (sctx == NULL) {
+        return;
+    }
+
     AI_INPUT_STATE_E state = AI_INPUT_STOPPING;
-    ai_input_ctx.lazy_input = 0;
-    ai_input_ctx.queue_sync = FALSE;
-    rt = tal_queue_post(ai_input_ctx.queue, &state, 0);
+    sctx->lazy_input = 0;
+    sctx->queue_sync = FALSE;
+
+    rt = tal_queue_post(sctx->queue, &state, 0);
     if (OPRT_OK != rt) {
         PR_ERR("queue post err, rt:%d", rt);
     } else {
         PR_DEBUG("ai input stop, state:%d", state);
-        while (!ai_input_ctx.queue_sync) {
+        while (!sctx->queue_sync) {
             tal_system_sleep(100);
             if (cnt++ >= 5) {
                 PR_ERR("ai input stop timeout, cnt:%d", cnt);
@@ -308,10 +422,6 @@ STATIC VOID __ai_input_free(VOID)
         tal_thread_delete(ai_input_ctx.thread);
         ai_input_ctx.thread = NULL;
     }
-    if (ai_input_ctx.ringbuf) {
-        tuya_ring_buff_free(ai_input_ctx.ringbuf);
-        ai_input_ctx.ringbuf = NULL;
-    }
     if (ai_input_ctx.input_buf) {
         Free(ai_input_ctx.input_buf);
         ai_input_ctx.input_buf = NULL;
@@ -320,14 +430,7 @@ STATIC VOID __ai_input_free(VOID)
         tal_mutex_release(ai_input_ctx.mutex);
         ai_input_ctx.mutex = NULL;
     }
-    if (ai_input_ctx.queue) {
-        tal_queue_free(ai_input_ctx.queue);
-        ai_input_ctx.queue = NULL;
-    }
-    if (ai_input_ctx.alert.timer) {
-        tal_sw_timer_delete(ai_input_ctx.alert.timer);
-        ai_input_ctx.alert.timer = NULL;
-    }
+    __ai_free_sctx();
     memset(&ai_input_ctx, 0, SIZEOF(ai_input_ctx));
     PR_DEBUG("ai input deinit");
 }
@@ -335,92 +438,125 @@ STATIC VOID __ai_input_free(VOID)
 STATIC VOID __ai_input_thread(VOID* arg)
 {
     OPERATE_RET rt = OPRT_OK;
-    AI_INPUT_STATE_E queue_state = AI_INPUT_IDLE;
+    UINT_T idx = 0;
+    AI_INPUT_STATE_E queue_state = AI_INPUT_IDLE, new_state = AI_INPUT_IDLE;
     AI_RINGBUF_HEAD_T head = {0};
 
     while (!ai_input_ctx.terminate && tal_thread_get_state(ai_input_ctx.thread) == THREAD_STATE_RUNNING) {
-        queue_state = ai_input_ctx.state;
-        if (tal_queue_fetch(ai_input_ctx.queue, &queue_state, 0) == 0) {
-            PR_DEBUG("recv queue state %d", queue_state);
-        }
-        switch (queue_state) {
-        case AI_INPUT_START: {
-            tuya_ai_agent_event(AI_EVENT_CHAT_BREAK, 0);
-            tuya_ai_output_stop(TRUE);
-            if (tuya_ai_agent_is_ready()) {
-                ai_input_ctx.state = AI_INPUT_PROC;
-                rt = tuya_ai_agent_start();
-                if (OPRT_OK != rt) {
-                    ai_input_ctx.state = AI_INPUT_STOP;
-                }
-            } else {
-                tuya_ai_output_alert(AT_NETWORK_FAIL);
-                ai_input_ctx.state = AI_INPUT_IDLE;
-            }
-            PR_DEBUG("start queue sync");
-            ai_input_ctx.queue_sync = TRUE;
-        }
-        break;
-        case AI_INPUT_START_LAZY: {
-            if (tuya_ai_agent_is_ready()) {
-                ai_input_ctx.state = AI_INPUT_PROC;
-                rt = tuya_ai_agent_start();
-                if (OPRT_OK != rt) {
-                    ai_input_ctx.state = AI_INPUT_STOP;
-                }
-            } else {
-                tuya_ai_output_alert(AT_NETWORK_FAIL);
-                ai_input_ctx.state = AI_INPUT_IDLE;
-            }
-            PR_DEBUG("start lazy queue sync");
-            ai_input_ctx.queue_sync = TRUE;
-        }
-        break;
-        case AI_INPUT_PROC: {
+        for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+            BOOL_T need_unlock = TRUE;
             tal_mutex_lock(ai_input_ctx.mutex);
-            rt = tuya_ai_input_read(&head, ai_input_ctx.input_buf);
-            tal_mutex_unlock(ai_input_ctx.mutex);
-            if ((rt == OPRT_OK) && (head.len > 0)) {
-                tuya_ai_agent_upload_stream(head.type, &head.biz, ai_input_ctx.input_buf, head.len, head.total_len);
-            }
-        }
-        break;
-        case AI_INPUT_STOPPING: {
-            if (ai_input_ctx.lazy_input++ < 30) {
-                tal_mutex_lock(ai_input_ctx.mutex);
-                rt = tuya_ai_input_read(&head, ai_input_ctx.input_buf);
+            if (ai_input_ctx.sctx[idx] != NULL) {
+                AI_INPUT_SESSION_CTX_T sctx = {0};
+                memcpy(&sctx, ai_input_ctx.sctx[idx], SIZEOF(AI_INPUT_SESSION_CTX_T));
                 tal_mutex_unlock(ai_input_ctx.mutex);
-                if ((rt == OPRT_OK) && (head.len > 0)) {
-                    tuya_ai_agent_upload_stream(head.type, &head.biz, ai_input_ctx.input_buf, head.len, head.total_len);
-                    ai_input_ctx.state = AI_INPUT_STOPPING;
-                } else {
-                    ai_input_ctx.state = AI_INPUT_STOP;
+                need_unlock = FALSE;
+                queue_state = new_state = sctx.state;
+                if (tal_queue_fetch(sctx.queue, &queue_state, 0) == 0) {
+                    PR_DEBUG("recv queue state %d, scode %s", queue_state, sctx.scode);
                 }
-            } else {
-                ai_input_ctx.state = AI_INPUT_STOP;
+                switch (queue_state) {
+                case AI_INPUT_START: {
+                    tuya_ai_agent_event_s(sctx.scode, AI_EVENT_CHAT_BREAK, 0);
+                    tuya_ai_output_stop(TRUE);
+                    if (tuya_ai_agent_is_ready()) {
+                        new_state = AI_INPUT_PROC;
+                        rt = tuya_ai_agent_start(sctx.scode);
+                        if (OPRT_OK != rt) {
+                            new_state = AI_INPUT_STOP;
+                        }
+                    } else {
+                        tuya_ai_output_alert(AT_NETWORK_FAIL);
+                        new_state = AI_INPUT_IDLE;
+                    }
+                    PR_DEBUG("start queue sync");
+                    tal_mutex_lock(ai_input_ctx.mutex);
+                    if (ai_input_ctx.sctx[idx] != NULL) {
+                        ai_input_ctx.sctx[idx]->state = new_state;
+                        ai_input_ctx.sctx[idx]->queue_sync = TRUE;
+                    }
+                    tal_mutex_unlock(ai_input_ctx.mutex);
+                    need_unlock = FALSE;
+                }
+                break;
+                case AI_INPUT_START_LAZY: {
+                    if (tuya_ai_agent_is_ready()) {
+                        new_state = AI_INPUT_PROC;
+                        rt = tuya_ai_agent_start(sctx.scode);
+                        if (OPRT_OK != rt) {
+                            new_state = AI_INPUT_STOP;
+                        }
+                    } else {
+                        tuya_ai_output_alert(AT_NETWORK_FAIL);
+                        new_state = AI_INPUT_IDLE;
+                    }
+                    PR_DEBUG("start lazy queue sync");
+                    tal_mutex_lock(ai_input_ctx.mutex);
+                    if (ai_input_ctx.sctx[idx] != NULL) {
+                        ai_input_ctx.sctx[idx]->state = new_state;
+                        ai_input_ctx.sctx[idx]->queue_sync = TRUE;
+                    }
+                    tal_mutex_unlock(ai_input_ctx.mutex);
+                    need_unlock = FALSE;
+                }
+                break;
+                case AI_INPUT_PROC: {
+                    tal_mutex_lock(ai_input_ctx.mutex);
+                    rt = __ai_ringbuf_read(&sctx, &head, ai_input_ctx.input_buf);
+                    tal_mutex_unlock(ai_input_ctx.mutex);
+                    need_unlock = FALSE;
+                    if ((rt == OPRT_OK) && (head.len > 0)) {
+                        tuya_ai_agent_upload_stream(sctx.scode, head.type, &head.biz, ai_input_ctx.input_buf, head.len, head.total_len);
+                    }
+                }
+                break;
+                case AI_INPUT_STOPPING: {
+                    tal_mutex_lock(ai_input_ctx.mutex);
+                    if (sctx.lazy_input < 30) {
+                        rt = __ai_ringbuf_read(&sctx, &head, ai_input_ctx.input_buf);
+                        if ((rt == OPRT_OK) && (head.len > 0)) {
+                            new_state = AI_INPUT_STOPPING;
+                        } else {
+                            new_state = AI_INPUT_STOP;
+                        }
+                    } else {
+                        new_state = AI_INPUT_STOP;
+                    }
+                    if (ai_input_ctx.sctx[idx] != NULL) {
+                        ai_input_ctx.sctx[idx]->state = new_state;
+                        ai_input_ctx.sctx[idx]->lazy_input++;
+                    }
+                    tal_mutex_unlock(ai_input_ctx.mutex);
+                    need_unlock = FALSE;
+                    if ((rt == OPRT_OK) && (head.len > 0)) {
+                        tuya_ai_agent_upload_stream(sctx.scode, head.type, &head.biz, ai_input_ctx.input_buf, head.len, head.total_len);
+                    }
+                }
+                break;
+                case AI_INPUT_STOP: {
+                    tuya_ai_agent_end(sctx.scode);
+                    tal_mutex_lock(ai_input_ctx.mutex);
+                    if (ai_input_ctx.sctx[idx] != NULL) {
+                        tuya_ring_buff_reset(ai_input_ctx.sctx[idx]->ringbuf);
+                        ai_input_ctx.sctx[idx]->state = AI_INPUT_IDLE;
+                        ai_input_ctx.sctx[idx]->queue_sync = TRUE;
+                    }
+                    tal_mutex_unlock(ai_input_ctx.mutex);
+                    need_unlock = FALSE;
+                }
+                break;
+                case AI_INPUT_IDLE:
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            if (need_unlock) {
+                tal_mutex_unlock(ai_input_ctx.mutex);
             }
         }
-        break;
-        case AI_INPUT_STOP: {
-            tuya_ai_agent_end();
-            tal_mutex_lock(ai_input_ctx.mutex);
-            tuya_ring_buff_reset(ai_input_ctx.ringbuf);
-            tal_mutex_unlock(ai_input_ctx.mutex);
-            ai_input_ctx.state = AI_INPUT_IDLE;
-            ai_input_ctx.queue_sync = TRUE;
-        }
-        break;
-        case AI_INPUT_IDLE:
-            break;
-        default:
-            break;
-        }
-
-        if (ai_input_ctx.state != AI_INPUT_STOPPING) {
-            tal_system_sleep(AI_INPUT_TASK_DELAY);
-        } else {
-            tal_system_sleep(10);
-        }
+        tal_system_sleep(AI_INPUT_TASK_DELAY);
     }
     __ai_input_free();
 }
@@ -433,22 +569,14 @@ OPERATE_RET tuya_ai_input_init(VOID)
     }
     memset(&ai_input_ctx, 0, SIZEOF(ai_input_ctx));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&ai_input_ctx.mutex));
-    TUYA_CALL_ERR_GOTO(tal_queue_create_init(&ai_input_ctx.queue, SIZEOF(AI_INPUT_STATE_E), 3), EXIT);
-    TUYA_CALL_ERR_GOTO(tal_sw_timer_create(__alert_timeout_cb, NULL, &ai_input_ctx.alert.timer), EXIT);
     ai_input_ctx.input_buf = Malloc(AI_INPUT_BUF_SIZE);
     TUYA_CHECK_NULL_GOTO(ai_input_ctx.input_buf, EXIT);
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ai_input_ctx.ringbuf),
-                       EXIT);
-#else
-    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ai_input_ctx.ringbuf), EXIT);
-#endif
 
     THREAD_CFG_T thrd_param = {0};
     thrd_param.priority = THREAD_PRIO_1;
     thrd_param.thrdname = "ai_agent_input";
     thrd_param.stackDepth = AI_INPUT_STACK_SIZE;
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if defined(AI_STACK_IN_PSRAM) && (AI_STACK_IN_PSRAM == 1)
     thrd_param.psram_mode = 1;
 #endif
     rt = tal_thread_create_and_start(&ai_input_ctx.thread, NULL, NULL, __ai_input_thread, NULL, &thrd_param);
@@ -464,11 +592,15 @@ EXIT:
     return rt;
 }
 
-OPERATE_RET tuya_ai_input_alert(AI_CLOUD_ALERT_TYPE_E type, AI_ALERT_FB_CB cb)
+OPERATE_RET tuya_ai_input_alert_custom(AI_CLOUD_ALERT_TYPE_E type, CONST CHAR_T *event_type)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    PR_DEBUG("[cloud] alert type: %d", type);
+    PR_DEBUG("[cloud] alert type: %d(%s)", type, event_type);
+    if (event_type == NULL) {
+        PR_ERR("event_type is NULL");
+        return OPRT_INVALID_PARM;
+    }
 
     // get network status
     if (!tuya_ai_agent_is_ready()) {
@@ -476,173 +608,85 @@ OPERATE_RET tuya_ai_input_alert(AI_CLOUD_ALERT_TYPE_E type, AI_ALERT_FB_CB cb)
         return OPRT_COM_ERROR;
     }
 
-    ty_cJSON *json = ty_cJSON_CreateObject();
-    if (json == NULL) {
-        return OPRT_MALLOC_FAILED;
-    }
-
     tuya_ai_input_stop();
     tuya_ai_output_stop(TRUE);
-    tuya_ai_agent_set_scode(AI_AGENT_SCODE_ALERT);
-    char eid[AI_UUID_V4_LEN + 1] = {0};
-    tuya_ai_basic_uuid_v4(eid);
-    memcpy(eid, AI_ALERT_PLAY_ID, AI_ALERT_PLAY_ID_LEN);    // set eid start from AI_ALERT_PLAY_ID
-    tuya_ai_agent_set_eid(eid);
-    tuya_ai_input_start(FALSE);
-    tal_mutex_lock(ai_input_ctx.mutex);
-    tal_sw_timer_stop(ai_input_ctx.alert.timer);
-    ai_input_ctx.alert.state = AI_ALERT_IDLE;
-    ai_input_ctx.alert.cb = cb;
-    ai_input_ctx.alert.type = type;
-    tal_mutex_unlock(ai_input_ctx.mutex);
 
-    // eg. alert_prompt = {"type":"hintTone","eventType":"networkConnected"}
-    ty_cJSON_AddStringToObject(json, "type", "hintTone");
+    rt = tuya_ai_agent_crt_session(tuya_ai_agent_get_scode(NULL), 0, 0, NULL, 0);
+    if (rt != OPRT_OK) {
+        PR_ERR("create ai agent session failed, rt:%d", rt);
+        return rt;
+    }
+    return tuya_ai_agent_trigger(tuya_ai_agent_get_scode(NULL), event_type, NULL);
+}
+
+OPERATE_RET tuya_ai_input_alert(AI_CLOUD_ALERT_TYPE_E type)
+{
+    CONST CHAR_T *event_type = NULL;
+
     switch (type) {
     case AT_NETWORK_CONNECTED:
-        ty_cJSON_AddStringToObject(json, "eventType", "networkConnected");
+        event_type = "networkConnected";
         break;
     case AT_PLEASE_AGAIN:
-        ty_cJSON_AddStringToObject(json, "eventType", "pleaseAgain");
+        event_type = "pleaseAgain";
         break;
     case AT_WAKEUP:
-        ty_cJSON_AddStringToObject(json, "eventType", "wakeUp");
+        event_type = "wakeUp";
         break;
     case AT_LONG_KEY_TALK:
-        ty_cJSON_AddStringToObject(json, "eventType", "talkModeSwitch_longPressTalk");
+        event_type = "talkModeSwitch_longPressTalk";
         break;
     case AT_KEY_TALK:
-        ty_cJSON_AddStringToObject(json, "eventType", "talkModeSwitch_pressTalk");
+        event_type = "talkModeSwitch_pressTalk";
         break;
     case AT_WAKEUP_TALK:
-        ty_cJSON_AddStringToObject(json, "eventType", "talkModeSwitch_wakeWordTalk");
+        event_type = "talkModeSwitch_wakeWordTalk";
         break;
     case AT_RANDOM_TALK:
-        ty_cJSON_AddStringToObject(json, "eventType", "talkModeSwitch_continuousTalk");
+        event_type = "talkModeSwitch_continuousTalk";
         break;
     default:
-        ty_cJSON_Delete(json);
         PR_WARN("alert type %d is not support", type);
         return OPRT_NOT_SUPPORTED;
     }
-    char *alert_prompt = ty_cJSON_PrintUnformatted(json);
-    if (alert_prompt == NULL) {
-        ty_cJSON_Delete(json);
-        return OPRT_MALLOC_FAILED;
-    }
-    ty_cJSON_Delete(json);
-    tuya_ai_text_input((uint8_t *)alert_prompt, strlen(alert_prompt), strlen(alert_prompt));
-    Free(alert_prompt);
-
-    tuya_ai_input_stop();
-
-    // wait for tts input use timer
-    tal_mutex_lock(ai_input_ctx.mutex);
-    ai_input_ctx.alert.state = AI_ALERT_WAIT_RESP;
-    tal_sw_timer_start(ai_input_ctx.alert.timer, AI_ALERT_DEFAULT_TIMEOUT, TAL_TIMER_ONCE);
-    tal_mutex_unlock(ai_input_ctx.mutex);
-
-    return rt;
+    return tuya_ai_input_alert_custom(type, event_type);
 }
 
-OPERATE_RET tuya_ai_input_alert_notify(bool alert_tts_start)
-{
-    tal_mutex_lock(ai_input_ctx.mutex);
-    if (ai_input_ctx.alert.state == AI_ALERT_TIMEOUT) {
-        tal_mutex_unlock(ai_input_ctx.mutex);
-        return OPRT_TIMEOUT;
-    }
-
-    if (alert_tts_start && ai_input_ctx.alert.timer) {
-        PR_DEBUG("alert tts start, stop alert timer");
-        tal_sw_timer_stop(ai_input_ctx.alert.timer);
-        ai_input_ctx.alert.state = AI_ALERT_IDLE;
-    }
-    tal_mutex_unlock(ai_input_ctx.mutex);
-    return OPRT_OK;
-}
-
-STATIC VOID_T __alert_timeout_cb(TIMER_ID timer_id, VOID_T *arg)
-{
-    PR_WARN("alert input timeout");
-    tal_mutex_lock(ai_input_ctx.mutex);
-    if (ai_input_ctx.alert.state != AI_ALERT_WAIT_RESP) {
-        tal_mutex_unlock(ai_input_ctx.mutex);
-        return;
-    }
-    ai_input_ctx.alert.state = AI_ALERT_TIMEOUT;
-    AI_ALERT_FB_CB cb = ai_input_ctx.alert.cb;
-    AI_CLOUD_ALERT_TYPE_E type = ai_input_ctx.alert.type;
-    tal_mutex_unlock(ai_input_ctx.mutex);
-    if (cb) {
-        cb(type);
-    }
-}
-
-typedef struct {
-    const char *request_id;
-    const char *content;
-} AI_CLOUD_TRIGGER_T;
-
-VOID __cloud_trigger_wq(VOID *data)
-{
-    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)data;
-    if (trigger == NULL) {
-        return;
-    }
-    const char *request_id = trigger->request_id;
-    const char *content = trigger->content;
-    if (request_id && content) {
-        tuya_ai_input_stop();
-        tuya_ai_output_stop(TRUE);
-        tuya_ai_agent_set_scode(AI_AGENT_SCODE_DEFAULT);
-        tuya_ai_agent_set_eid((char *)request_id);
-        tuya_ai_input_start(FALSE);
-        tuya_ai_text_input((uint8_t *)content, strlen(content), strlen(content));
-        tuya_ai_input_stop();
-    }
-
-    if (trigger->request_id) {
-        tal_free((char *)trigger->request_id);
-    }
-    if (trigger->content) {
-        tal_free((char *)trigger->content);
-    }
-    tal_free(trigger);
-}
-
-OPERATE_RET tuya_ai_input_cloud_trigger(const char *request_id, const char *content)
+OPERATE_RET tuya_ai_input_get_buffer_free_capacity_s(CHAR_T *scode, SIZE_T *capa_out) 
 {
     OPERATE_RET rt = OPRT_OK;
 
-    PR_DEBUG("cloud trigger request_id: %s, content: %s", request_id, content);
+    TUYA_CALL_ERR_GOTO(tal_mutex_lock(ai_input_ctx.mutex), LOCK_FAIL);
 
-    if (request_id == NULL || content == NULL) {
-        return OPRT_INVALID_PARM;
+    if (capa_out == NULL) {
+        rt = OPRT_INVALID_PARM;
+        goto EXIT;
     }
 
-    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)tal_malloc(SIZEOF(AI_CLOUD_TRIGGER_T));
-    if (trigger == NULL) {
-        return OPRT_MALLOC_FAILED;
+    TUYA_RINGBUFF_T ringbuf = __ai_get_ringbuf(scode);
+    if (ringbuf == NULL) {
+        rt = OPRT_RESOURCE_NOT_READY;
+        goto EXIT;
     }
-    memset(trigger, 0, SIZEOF(AI_CLOUD_TRIGGER_T));
-    trigger->request_id = mm_strdup(request_id);
-    trigger->content = mm_strdup(content);
-    if (trigger->request_id == NULL || trigger->content == NULL) {
-        rt = OPRT_MALLOC_FAILED;
-        goto err;
+
+    SIZE_T raw_free_capa = tuya_ring_buff_free_size_get(ringbuf);
+    if (raw_free_capa <= sizeof(AI_RINGBUF_HEAD_T))
+        *capa_out = 0;
+    else 
+        *capa_out = raw_free_capa - sizeof(AI_RINGBUF_HEAD_T);
+
+    rt = OPRT_OK;
+
+EXIT:
+    if (OPRT_OK != tal_mutex_unlock(ai_input_ctx.mutex)) {
+        PR_ERR("Failed to unlock ai_input_ctx.mutex.");
     }
-    TUYA_CALL_ERR_GOTO(tal_workq_schedule(WORKQ_SYSTEM, __cloud_trigger_wq, trigger), err);
+    
+LOCK_FAIL:
     return rt;
-err:
-    if (trigger && trigger->request_id) {
-        tal_free((char *)trigger->request_id);
-    }
-    if (trigger && trigger->content) {
-        tal_free((char *)trigger->content);
-    }
-    if (trigger) {
-        tal_free(trigger);
-    }
-    return rt;
+}
+
+VOID tuya_ai_input_mute_audio(BOOL_T mute)
+{
+    ai_input_ctx.mute_audio = mute;
 }
