@@ -16,6 +16,46 @@ from tools.cli_command.util_files import (
 from tools.cli_command.cli_build import build_project
 from tools.cli_command.cli_clean import full_clean_project
 
+# Config names to skip in `tos.py dev bac` (with or without `.config` suffix).
+BAC_SKIP_CONFIGS = [
+    # "RaspberryPi",
+    # "DNESP32S3_BOX2_WIFI",
+   "GD32.config",
+]
+
+
+def _normalize_config_name(name):
+    name = os.path.basename(name.strip())
+    if name.endswith(".config"):
+        name = name[:-7]
+    return name
+
+
+def _build_skip_set(skip_names):
+    skip_set = set()
+    for name in BAC_SKIP_CONFIGS + list(skip_names):
+        if not name:
+            continue
+        for part in name.split(','):
+            part = part.strip()
+            if part:
+                skip_set.add(_normalize_config_name(part))
+    return skip_set
+
+
+def _filter_config_list(config_list, skip_set):
+    if not skip_set:
+        return config_list, []
+
+    filtered = []
+    skipped = []
+    for config in config_list:
+        if _normalize_config_name(config) in skip_set:
+            skipped.append(config)
+        else:
+            filtered.append(config)
+    return filtered, skipped
+
 
 def _save_product(dist, config_file):
     logger = get_logger()
@@ -50,7 +90,10 @@ def _save_product(dist, config_file):
               type=click.Path(),
               default=None,
               help="Write build log to a file in the specified directory (default: build.log).")
-def build_all_config_exec(dist, log_dir):
+@click.option('-s', '--skip',
+              multiple=True,
+              help="Skip config(s) by name. Repeatable; comma-separated names are supported.")
+def build_all_config_exec(dist, log_dir, skip):
     logger = get_logger()
     params = get_global_params()
     dist_abs = os.path.abspath(dist)
@@ -77,6 +120,17 @@ def build_all_config_exec(dist, log_dir):
 
     # sort config list
     config_list.sort()
+
+    skip_set = _build_skip_set(skip)
+    config_list, skipped_list = _filter_config_list(config_list, skip_set)
+    if skipped_list:
+        logger.info("Skipped configs:")
+        for config in skipped_list:
+            logger.info(f"  - {os.path.basename(config)}")
+
+    if not config_list:
+        logger.error("No config to build after filtering.")
+        sys.exit(1)
 
     for idx, config in enumerate(config_list):
         config_file_name = os.path.basename(config)
@@ -109,6 +163,10 @@ def build_all_config_exec(dist, log_dir):
         else:
             name = result.replace("Build ", "").replace(" failed", "")
             logger.error(f"  ✗ {name}")
+    if skipped_list:
+        logger.note("Skipped:")
+        for config in skipped_list:
+            logger.note(f"  - {os.path.basename(config)}")
     logger.note(BORDER)
 
     sys.exit(exit_flag)
