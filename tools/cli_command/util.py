@@ -10,6 +10,7 @@ import requests
 import platform
 import logging
 import contextlib
+import subprocess
 from typing import List
 
 
@@ -391,18 +392,24 @@ def parse_yaml(yaml_file: str) -> dict:
         return {}
 
 
-def do_subprocess(cmd: str) -> int:
+def do_subprocess(cmd: str, cwd: str = None) -> int:
     logger = get_logger()
 
     if not cmd:
         logger.warning("Subprocess cmd is empty.")
         return 0
 
-    logger.info(f">>> subprocess >>>\n{cmd}")
+    if cwd:
+        logger.info(f">>> subprocess >>>\ncd {cwd}\n{cmd}")
+    else:
+        logger.info(f">>> subprocess >>>\n{cmd}")
 
     ret = 1  # 0 means success
     try:
-        ret = os.system(cmd)
+        if cwd:
+            ret = subprocess.call(cmd, shell=True, cwd=cwd)
+        else:
+            ret = os.system(cmd)
     except Exception as e:
         logger.error(f"Do subprocess error: {str(e)}")
         logger.info(f"do subprocess: {cmd}")

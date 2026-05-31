@@ -134,8 +134,8 @@ def prepare_platform(platform, chip=""):
         parpare_cmd = "./platform_prepare.sh"
 
     logger.info(f"Preparing platform [{platform}] ...")
-    cmd = f"cd {platform_root} && {parpare_cmd} {chip}"
-    ret = do_subprocess(cmd)
+    cmd = f"{parpare_cmd} {chip}"
+    ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
     return True
@@ -165,9 +165,8 @@ def build_setup(platform, project_name, framework, chip=""):
         setup_cmd = "./build_setup.sh"
 
     logger.info("Build setup ...")
-    cmd = f"cd {platform_root} && {setup_cmd} "
-    cmd += f"{project_name} {platform} {framework} {chip}"
-    ret = do_subprocess(cmd)
+    cmd = f"{setup_cmd} {project_name} {platform} {framework} {chip}"
+    ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
     return True
@@ -207,8 +206,7 @@ def cmake_configure(using_data, verbose=False):
     cmd += " ".join(defines)
 
     build_path = params["app_build_path"]
-    cmake_cmd = f"cd {build_path} && {cmd}"
-    ret = do_subprocess(cmake_cmd)
+    ret = do_subprocess(cmd, cwd=build_path)
     if 0 != ret:
         return False
     return True
@@ -223,8 +221,7 @@ def ninja_build(build_path, verbose=False):
     if verbose:
         cmd += "--verbose "
 
-    ninja_cmd = f"cd {build_path} && {cmd}"
-    ret = do_subprocess(ninja_cmd)
+    ret = do_subprocess(cmd, cwd=build_path)
     if 0 != ret:
         return False
     return True
