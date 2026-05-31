@@ -4,8 +4,6 @@
 
 import click
 import logging
-from click_completion import init as click_completion_init
-
 from tools.cli_command.util import (
     set_clis, set_logger, set_global_params
 )
@@ -21,8 +19,6 @@ from tools.cli_command.cli_new import cli as new_exec
 from tools.cli_command.cli_dev import cli as dev_exec
 from tools.cli_command.cli_idf import cli as idf_exec
 from tools.cli_command.cli_hello import cli as hello_exec
-
-click_completion_init()
 
 CLIS = {
     "version": version_exec,

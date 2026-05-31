@@ -115,21 +115,21 @@ fi
 unset __tuya_missing
 
 # ---------------------------------------------------------------------------
-# Locate a usable Python: 3.9 - 3.13 are officially supported (3.11 recommended).
+# Locate a usable Python: 3.8 - 3.13 are officially supported (3.11 recommended).
 # Any Python 3.x is accepted with a warning (e.g. 3.14) instead of blocking.
 # ---------------------------------------------------------------------------
-__TUYA_PY_MIN="3.9"
+__TUYA_PY_MIN="3.8"
 __TUYA_PY_MAX="3.13"
 __TUYA_PY_REC="3.11"
 
 __tuya_find_python_supported() {
     local cmd
-    for cmd in python3.11 python3.12 python3.10 python3.13 python3.9 python3 python; do
+    for cmd in python3.11 python3.12 python3.10 python3.13 python3.9 python3.8 python3 python; do
         command -v "$cmd" >/dev/null 2>&1 || continue
         if "$cmd" -c '
 import sys
 major, minor = sys.version_info[:2]
-sys.exit(0 if (major, minor) >= (3, 9) and (major, minor) <= (3, 13) else 1)
+sys.exit(0 if (major, minor) >= (3, 8) and (major, minor) <= (3, 13) else 1)
 ' 2>/dev/null; then
             echo "$cmd"
             return 0
@@ -164,7 +164,7 @@ fi
 __tuya_py_major=$("$PYTHON_CMD" -c 'import sys; print(sys.version_info[0])' 2>/dev/null)
 __tuya_py_minor=$("$PYTHON_CMD" -c 'import sys; print(sys.version_info[1])' 2>/dev/null)
 __tuya_py_in_range=0
-if [ "$__tuya_py_major" = "3" ] && [ "${__tuya_py_minor:-0}" -ge 9 ] 2>/dev/null && [ "${__tuya_py_minor:-0}" -le 13 ] 2>/dev/null; then
+if [ "$__tuya_py_major" = "3" ] && [ "${__tuya_py_minor:-0}" -ge 8 ] 2>/dev/null && [ "${__tuya_py_minor:-0}" -le 13 ] 2>/dev/null; then
     __tuya_py_in_range=1
 fi
 

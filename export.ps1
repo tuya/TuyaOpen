@@ -41,14 +41,14 @@ if ($missing.Count -gt 0) {
 }
 
 # ---------------------------------------------------------------------------
-# Locate a usable Python: 3.9 - 3.13 are officially supported (3.11 recommended).
+# Locate a usable Python: 3.8 - 3.13 are officially supported (3.11 recommended).
 # Any Python 3.x is accepted with a warning (e.g. 3.14) instead of blocking.
 # ---------------------------------------------------------------------------
 function Test-TuyaPython {
     param(
         [string]$Exec,
         [string[]]$ExtraArgs,
-        [string]$Probe = 'import sys;sys.exit(0 if (3,9)<=sys.version_info[:2]<=(3,13) else 1)'
+        [string]$Probe = 'import sys;sys.exit(0 if (3,8)<=sys.version_info[:2]<=(3,13) else 1)'
     )
     try {
         # Do not name this $args — it shadows PowerShell's automatic variable.
@@ -66,6 +66,7 @@ $candidates = @(
     @{ Exec = 'py';      Args = @('-3.10') },
     @{ Exec = 'py';      Args = @('-3.13') },
     @{ Exec = 'py';      Args = @('-3.9')  },
+    @{ Exec = 'py';      Args = @('-3.8')  },
     @{ Exec = 'python';  Args = @()         },
     @{ Exec = 'python3'; Args = @()         }
 )
@@ -97,7 +98,7 @@ if (-not $pythonExec) {
 
 if (-not $pythonExec) {
     Write-Host "Error: No usable Python interpreter found!"
-    Write-Host "       Please install Python 3.9 - 3.13 (3.11 recommended; all in range work)."
+    Write-Host "       Please install Python 3.8 - 3.13 (3.11 recommended; all in range work)."
     exit 1
 }
 
@@ -108,7 +109,7 @@ $pyParts   = $pyVerLine -split '\s+', 3
 $pyMajor   = $pyParts[0]
 $pyMinor   = $pyParts[1]
 $pyVersion = $pyParts[2]
-$pyInRange = ($pyMajor -eq '3' -and [int]$pyMinor -ge 9 -and [int]$pyMinor -le 13)
+$pyInRange = ($pyMajor -eq '3' -and [int]$pyMinor -ge 8 -and [int]$pyMinor -le 13)
 
 # ---------------------------------------------------------------------------
 # Re-source detection (is our venv already active?)
@@ -133,9 +134,9 @@ if ($isResource) {
     Write-Host "OPEN_SDK_ROOT = $OpenSdkRoot"
     Write-Host "Host: Windows $arch | $pythonDisplay $pyVersion"
     if (-not $pyInRange) {
-        Write-Host "[TuyaOpen] Warning: Python $pyMajor.$pyMinor is outside the tested range 3.9 - 3.13; continuing anyway (3.11 recommended)."
+        Write-Host "[TuyaOpen] Warning: Python $pyMajor.$pyMinor is outside the tested range 3.8 - 3.13; continuing anyway (3.11 recommended)."
     } elseif ($pyMinor -ne '11') {
-        Write-Host "[TuyaOpen] Note: Python 3.11 is recommended; 3.9 - 3.13 are supported (detected 3.$pyMinor)."
+        Write-Host "[TuyaOpen] Note: Python 3.11 is recommended; 3.8 - 3.13 are supported (detected 3.$pyMinor)."
     }
 }
 

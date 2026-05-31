@@ -34,7 +34,7 @@ if defined MISSING (
 )
 
 :: ---------------------------------------------------------------------------
-:: Locate a usable Python: 3.9 - 3.13 are officially supported (3.11 recommended).
+:: Locate a usable Python: 3.8 - 3.13 are officially supported (3.11 recommended).
 :: Any Python >= 3.0 is accepted with a warning (e.g. 3.14) instead of blocking.
 :: Probe order prefers 3.11, then other supported minors, then generic names.
 :: ---------------------------------------------------------------------------
@@ -44,6 +44,7 @@ if not defined PYTHON_CMD call :try_python_supported py -3.12
 if not defined PYTHON_CMD call :try_python_supported py -3.10
 if not defined PYTHON_CMD call :try_python_supported py -3.13
 if not defined PYTHON_CMD call :try_python_supported py -3.9
+if not defined PYTHON_CMD call :try_python_supported py -3.8
 if not defined PYTHON_CMD call :try_python_supported python
 if not defined PYTHON_CMD call :try_python_supported python3
 
@@ -53,7 +54,7 @@ if not defined PYTHON_CMD call :try_python_any python3
 
 if not defined PYTHON_CMD (
     echo Error: No usable Python interpreter found!
-    echo        Please install Python 3.9 - 3.13 ^(3.11 recommended; all in range work^).
+    echo        Please install Python 3.8 - 3.13 ^(3.11 recommended; all in range work^).
     pause
     exit /b 1
 )
@@ -63,7 +64,7 @@ for /f "usebackq tokens=*" %%i in (`%PYTHON_CMD% -c "import sys;print(sys.versio
 for /f "usebackq tokens=*" %%i in (`%PYTHON_CMD% -c "import sys;print('.'.join(map(str,sys.version_info[:3])))"`) do set "PY_VER=%%i"
 
 set "PY_IN_RANGE=0"
-if "!PY_MAJOR!"=="3" if !PY_MINOR! geq 9 if !PY_MINOR! leq 13 set "PY_IN_RANGE=1"
+if "!PY_MAJOR!"=="3" if !PY_MINOR! geq 8 if !PY_MINOR! leq 13 set "PY_IN_RANGE=1"
 
 :: ---------------------------------------------------------------------------
 :: Re-source detection (is our venv already active?)
@@ -237,8 +238,8 @@ set "TUYA_EXIT_BAT=%TEMP%\tuya_open_exit_%TUYA_SID%.bat"
 :: ---------------------------------------------------------------------------
 >>"%TUYA_ALIAS_BAT%" echo echo OPEN_SDK_ROOT = %OPEN_SDK_ROOT%
 >>"%TUYA_ALIAS_BAT%" echo echo Host: Windows %PROCESSOR_ARCHITECTURE% ^^^| %PYTHON_CMD% %PY_VER%
-if "%PY_IN_RANGE%"=="0" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Warning: Python %PY_MAJOR%.%PY_MINOR% is outside the tested range 3.9 - 3.13; continuing anyway ^^^(3.11 recommended^^^).
-if "%PY_IN_RANGE%"=="1" if not "%PY_MINOR%"=="11" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Note: Python 3.11 is recommended; 3.9 - 3.13 are supported ^^^(detected 3.%PY_MINOR%^^^).
+if "%PY_IN_RANGE%"=="0" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Warning: Python %PY_MAJOR%.%PY_MINOR% is outside the tested range 3.8 - 3.13; continuing anyway ^^^(3.11 recommended^^^).
+if "%PY_IN_RANGE%"=="1" if not "%PY_MINOR%"=="11" >>"%TUYA_ALIAS_BAT%" echo echo [TuyaOpen] Note: Python 3.11 is recommended; 3.8 - 3.13 are supported ^^^(detected 3.%PY_MINOR%^^^).
 
 :: Run tos.py hello AFTER the banner so the visible order in the child cmd is
 :: "environment info -> [INFO]: Running tos.py ... -> ASCII art -> ready/exit".
@@ -260,8 +261,8 @@ goto :eof
 
 :try_python_supported
 :: Usage: call :try_python_supported <python-command-tokens>
-:: Sets PYTHON_CMD=<command> when the command satisfies 3.9 <= ver <= 3.13.
-%* -c "import sys;sys.exit(0 if (3,9)<=sys.version_info[:2]<=(3,13) else 1)" >nul 2>&1
+:: Sets PYTHON_CMD=<command> when the command satisfies 3.8 <= ver <= 3.13.
+%* -c "import sys;sys.exit(0 if (3,8)<=sys.version_info[:2]<=(3,13) else 1)" >nul 2>&1
 if !errorlevel! neq 0 exit /b 0
 set "PYTHON_CMD=%*"
 exit /b 0
