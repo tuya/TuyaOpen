@@ -1,0 +1,3 @@
+config MBEDTLS_CONFIG_FILE
+    string
+    default "mbedtls/mbedtls_config.h"

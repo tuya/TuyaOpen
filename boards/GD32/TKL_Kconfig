@@ -1,0 +1,53 @@
+config ENABLE_ADC
+	default y
+
+config ENABLE_BLUETOOTH
+	bool
+	default y
+
+config ENABLE_GPIO
+	default y
+
+config ENABLE_HCI
+	default n
+
+config ENABLE_I2C
+	default y
+
+config ENABLE_PWM
+	default y
+
+config ENABLE_QSPI
+	default y
+
+config ENABLE_RTC
+	default y
+
+config ENABLE_NIMBLE
+	default n
+
+config ENABLE_SPI
+	default y
+
+config ENABLE_TIMER
+	default y
+
+config ENABLE_UART
+	default y
+
+config ENABLE_WAKEUP
+	default y
+
+config ENABLE_WATCHDOG
+	default y
+
+config ENABLE_WIFI
+	default y
+
+config ENABLE_PLATFORM_MBEDTLS
+	bool
+	default y
+
+config LITTLE_END
+	int
+	default 1
