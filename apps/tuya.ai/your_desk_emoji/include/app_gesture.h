@@ -17,7 +17,7 @@ typedef enum {
     GESTURE_WAVE
 } GESTURE_TYPE_E;
 
-typedef VOID (*GESTURE_CB_T)(GESTURE_TYPE_E gesture);
+typedef void (*GESTURE_CB_T)(GESTURE_TYPE_E gesture);
 
 #ifdef __cplusplus
 extern "C" {
