@@ -83,6 +83,8 @@
             btn.list_cb[ev](name, ev, arg);                                                                            \
     } while (0)
 
+#define TDL_BUTTON_EVENT_ARG(val) ((void *)(uintptr_t)(val))
+
 
 #if defined(BUTTION_STACK_SIZE) && (BUTTION_STACK_SIZE > 0)    
 #define TDL_BUTTON_TASK_STACK_SIZE BUTTION_STACK_SIZE
@@ -430,7 +432,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             p_node->device_data.now_event = TDL_BUTTON_PRESS_DOWN;
             PR_DEBUG("[btn] %s pressed down", p_node->name);
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_DOWN,
-                         (void *)((uint32_t)p_node->device_data.repeat));
+                         TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
 
         } else {
             p_node->device_data.pre_event = p_node->device_data.now_event;
@@ -455,7 +457,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 p_node->device_data.pre_event = p_node->device_data.now_event;
                 p_node->device_data.now_event = TDL_BUTTON_LONG_PRESS_START;
                 PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_LONG_PRESS_START,
-                             (void *)((uint32_t)p_node->device_data.ticks * tdl_button_scan_time));
+                             TDL_BUTTON_EVENT_ARG(p_node->device_data.ticks * tdl_button_scan_time));
                 p_node->device_data.flag = BTN_FSM_LONG_HOLD;
             } else {
                 // First press, holding, has not reached the long press start event, update the front and back status in
@@ -471,7 +473,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             PR_DEBUG("[btn] %s released (held %u ms)", p_node->name,
                      (uint32_t)p_node->device_data.ticks * tdl_button_scan_time);
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
-                         (void *)((uint32_t)p_node->device_data.repeat));
+                         TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
             p_node->device_data.flag = BTN_FSM_WAIT_REPEAT;
             p_node->device_data.ticks = 0;
         }
@@ -488,7 +490,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             p_node->device_data.pre_event = p_node->device_data.now_event;
             p_node->device_data.now_event = TDL_BUTTON_PRESS_DOWN;
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_DOWN,
-                         (void *)((uint32_t)p_node->device_data.repeat));
+                         TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
             p_node->device_data.flag = BTN_FSM_REPEAT_PRESSED;
         } else {
             /*release timeout*/
@@ -500,20 +502,20 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                     p_node->device_data.pre_event = p_node->device_data.now_event;
                     p_node->device_data.now_event = TDL_BUTTON_PRESS_SINGLE_CLICK;
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_SINGLE_CLICK,
-                                 (void *)((uint32_t)p_node->device_data.repeat));
+                                 TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
                 } else if (p_node->device_data.repeat == BTN_REPEAT_DOUBLE) {
                     /*Release triggers double click event*/
                     /*Release triggers double click event*/
                     p_node->device_data.pre_event = p_node->device_data.now_event;
                     p_node->device_data.now_event = TDL_BUTTON_PRESS_DOUBLE_CLICK;
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_DOUBLE_CLICK,
-                                 (void *)((uint32_t)p_node->device_data.repeat));
+                                 TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
                 } else if (p_node->device_data.repeat == p_node->user_data.button_cfg.button_repeat_valid_count) {
                     if (p_node->user_data.button_cfg.button_repeat_valid_count > 2) {
                         p_node->device_data.pre_event = p_node->device_data.now_event;
                         p_node->device_data.now_event = TDL_BUTTON_PRESS_REPEAT;
                         PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_REPEAT,
-                                     (void *)((uint32_t)p_node->device_data.repeat));
+                                     TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
                     }
                 }
                 p_node->device_data.flag = BTN_FSM_IDLE;
@@ -535,7 +537,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             p_node->device_data.now_event = TDL_BUTTON_PRESS_UP;
             PR_DEBUG("[btn] %s released (repeat %u)", p_node->name, (uint32_t)p_node->device_data.repeat);
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
-                         (void *)((uint32_t)p_node->device_data.repeat));
+                         TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
             repeat_tick = p_node->user_data.button_cfg.button_repeat_valid_time / tdl_button_scan_time;
             if (p_node->device_data.ticks >= repeat_tick) {
                 // Timeout after release, double-click uses default interval, multiple-click uses user-configured
@@ -576,7 +578,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                     // Execute only when it is confirmed that it is an integer multiple of hold
                     // PR_NOTICE("hold,tick=%d",hold_tick);
                     PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_LONG_PRESS_HOLD,
-                                 (void *)((uint32_t)p_node->device_data.ticks * tdl_button_scan_time));
+                                 TDL_BUTTON_EVENT_ARG(p_node->device_data.ticks * tdl_button_scan_time));
                 }
             }
         } else {
@@ -587,7 +589,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             PR_DEBUG("[btn] %s released after long hold (%u ms)", p_node->name,
                      (uint32_t)p_node->device_data.ticks * tdl_button_scan_time);
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
-                         (void *)((uint32_t)p_node->device_data.ticks * tdl_button_scan_time));
+                         TDL_BUTTON_EVENT_ARG(p_node->device_data.ticks * tdl_button_scan_time));
             p_node->device_data.ticks = 0;
             p_node->device_data.flag = BTN_FSM_IDLE;
         }
