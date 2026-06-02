@@ -19,13 +19,9 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#if defined(ENBALE_EXT_RAM) && (ENBALE_EXT_RAM == 1)
-#define AI_VIDEO_MALLOC tal_psram_malloc
-#define AI_VIDEO_FREE   tal_psram_free
-#else
-#define AI_VIDEO_MALLOC tal_malloc
-#define AI_VIDEO_FREE   tal_free
-#endif
+#define AI_VIDEO_MALLOC Malloc
+#define AI_VIDEO_FREE   Free
+
 
 /***********************************************************
 ***********************typedef define***********************
@@ -45,7 +41,7 @@ static TDL_CAMERA_HANDLE_T    sg_camera_hdl = NULL;
 static TDL_CAMERA_CFG_T       sg_camera_cfg;
 static DELAYED_WORK_HANDLE    sg_delayed_work = NULL;
 static JPEG_FRAME_CAPTURE_T   sg_jpeg_capture;
-static AI_VIDEO_DISP_FLUSH_CB sg_disp_flush_cb   = NULL;
+static AI_VIDEO_FLUSH_CB      sg_disp_flush_cb   = NULL;
 static bool                   sg_is_disp_started = false;
 
 /***********************************************************
@@ -133,11 +129,9 @@ static void __video_init_workq(void *args)
 @param vi_cfg Video input configuration
 @return OPERATE_RET Operation result
 */
-OPERATE_RET ai_video_init(AI_VIDEO_CFG_T *vi_cfg)
+OPERATE_RET ai_video_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-    TUYA_CHECK_NULL_RETURN(vi_cfg, OPRT_INVALID_PARM);
 
     if (!sg_jpeg_capture.mutex) {
         TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&sg_jpeg_capture.mutex));
@@ -147,7 +141,6 @@ OPERATE_RET ai_video_init(AI_VIDEO_CFG_T *vi_cfg)
         TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&sg_jpeg_capture.sem, 0, 1));
     }
 
-    sg_disp_flush_cb   = vi_cfg->disp_flush_cb;
     sg_is_disp_started = false;
 
     /* Set camera config */
@@ -289,29 +282,27 @@ OPERATE_RET ai_video_jpeg_image_free(uint8_t **image_data)
 @brief Start video display
 @return OPERATE_RET Operation result
 */
-OPERATE_RET ai_video_display_start(void)
+OPERATE_RET ai_video_start(void)
 {
-    AI_NOTIFY_VIDEO_START_T notify = {
-        .camera_width  = sg_camera_cfg.width,
-        .camera_height = sg_camera_cfg.height,
-    };
-
-    ai_user_event_notify(AI_USER_EVT_VIDEO_DISPLAY_START, &notify);
-
     sg_is_disp_started = true;
 
     return OPRT_OK;
+}
+
+OPERATE_RET ai_video_set_yuv_frame_flush_cb(AI_VIDEO_FLUSH_CB cb)
+{
+   sg_disp_flush_cb = cb;
+
+   return OPRT_OK;
 }
 
 /**
 @brief Stop video display
 @return OPERATE_RET Operation result
 */
-OPERATE_RET ai_video_display_stop(void)
+OPERATE_RET ai_video_stop(void)
 {
     sg_is_disp_started = false;
-
-    ai_user_event_notify(AI_USER_EVT_VIDEO_DISPLAY_END, NULL);
 
     return OPRT_OK;
 }

@@ -48,7 +48,7 @@
  * This callback is called when the MCP server needs to send a message
  * back to the client (e.g., response or notification).
  */
-typedef void (*MCP_SEND_MESSAGE_CB)(const char *message);
+typedef void (*MCP_SEND_MESSAGE_CB)(char *sid, char *eid, const char *message);
 
 /**
  * MCP server instance
@@ -68,6 +68,8 @@ typedef struct {
 } MCP_SERVER_CTX_T;
 
 typedef struct {
+    char *sid;
+    char *eid;
     char *id;
     MCP_PROPERTY_LIST_T *arguments;
     MCP_TOOL_T *tool;
@@ -81,14 +83,6 @@ static MCP_SERVER_CTX_T s_server_ctx;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static const char *__json_get_string(const cJSON *item)
-{
-    if (item == NULL || !cJSON_IsString(item) || item->valuestring == NULL) {
-        return NULL;
-    }
-    return item->valuestring;
-}
-
 MCP_PROPERTY_T *ai_mcp_property_create(const char *name, MCP_PROPERTY_TYPE_E type, const char *description)
 {
     if (!name)
@@ -750,9 +744,9 @@ cJSON *ai_mcp_tool_to_json(const MCP_TOOL_T *tool)
 
 /* === Server Management Functions === */
 
-VOID __send_message_default(const char *message)
+void __send_message_default(char *sid, char*eid, const char *message)
 {
-    tuya_ai_agent_mcp_response((char *)message);
+    tuya_ai_agent_mcp_response(sid, eid, (char *)message);
 }
 
 OPERATE_RET ai_mcp_server_init(const char *name, const char *version)
@@ -843,7 +837,7 @@ MCP_TOOL_T *ai_mcp_server_find_tool(const char *name)
 
 /* === Message Handling Functions === */
 
-static OPERATE_RET __reply_result(const char *id, cJSON *result)
+static OPERATE_RET __reply_result(char *sid, char *eid, const char *id, cJSON *result)
 {
     cJSON *response;
     char *json_str;
@@ -863,7 +857,7 @@ static OPERATE_RET __reply_result(const char *id, cJSON *result)
     if (json_str) {
         PR_DEBUG("MCP Reply: %s", json_str);
         if (s_server_ctx.send_message)
-            s_server_ctx.send_message(json_str);
+            s_server_ctx.send_message(sid, eid, json_str);
         cJSON_free(json_str);
     }
 
@@ -871,7 +865,7 @@ static OPERATE_RET __reply_result(const char *id, cJSON *result)
     return OPRT_OK;
 }
 
-static OPERATE_RET __reply_error(const char *id, int error_code, const char *message)
+static OPERATE_RET __reply_error(char *sid, char *eid, const char *id, int error_code, const char *message)
 {
     cJSON *response, *error;
     char *json_str;
@@ -898,7 +892,7 @@ static OPERATE_RET __reply_error(const char *id, int error_code, const char *mes
     json_str = cJSON_PrintUnformatted(response);
     if (json_str) {
         PR_DEBUG("MCP Error Reply: %s", json_str);
-        s_server_ctx.send_message(json_str);
+        s_server_ctx.send_message(sid, eid, json_str);
         cJSON_free(json_str);
     }
 
@@ -914,7 +908,7 @@ static VOID_T __tool_call(VOID_T *data)
 
     TOOL_CALL_MSG_T *msg = (TOOL_CALL_MSG_T *)data;
     if (!msg || !msg->tool || !msg->arguments) {
-        __reply_error(msg ? msg->id : NULL, MCP_ERROR_INTERNAL, "Invalid tool call message");
+        __reply_error(msg->sid, msg->eid, msg ? msg->id : NULL, MCP_ERROR_INTERNAL, "Invalid tool call message");
         goto exit;
     }
 
@@ -924,7 +918,7 @@ static VOID_T __tool_call(VOID_T *data)
     rt = msg->tool->callback(msg->arguments, &ret_val, msg->tool->user_data);
     if (rt != OPRT_OK) {
         ai_mcp_return_value_cleanup(&ret_val);
-        __reply_error(msg->id, MCP_ERROR_INTERNAL, "Tool execution failed");
+        __reply_error(msg->sid, msg->eid, msg->id, MCP_ERROR_INTERNAL, "Tool execution failed");
         goto exit;
     }
 
@@ -933,23 +927,26 @@ static VOID_T __tool_call(VOID_T *data)
     ai_mcp_return_value_cleanup(&ret_val);
 
     if (!result) {
-        __reply_error(msg->id, MCP_ERROR_INTERNAL, "Failed to format result");
+        __reply_error(msg->sid, msg->eid, msg->id, MCP_ERROR_INTERNAL, "Failed to format result");
         goto exit;
     }
 
-    __reply_result(msg->id, result);
-
+    __reply_result(msg->sid, msg->eid, msg->id, result);
 exit:
     if (msg) {
         if (msg->id)
             AI_MCP_FREE(msg->id);
+        if (msg->sid)
+            AI_MCP_FREE(msg->sid);
+        if (msg->eid)
+            AI_MCP_FREE(msg->eid);
         if (msg->arguments)
             ai_mcp_property_list_destroy(msg->arguments);
         AI_MCP_FREE(msg);
     }
 }
 
-static OPERATE_RET __handle_initialize(cJSON *params, const char *id)
+static OPERATE_RET __handle_initialize(char *sid, char *eid, cJSON *params, const char *id)
 {
     cJSON *root, *node;
 
@@ -975,10 +972,10 @@ static OPERATE_RET __handle_initialize(cJSON *params, const char *id)
         cJSON_AddItemToObject(root, "serverInfo", node);
     }
 
-    return __reply_result(id, root);
+    return __reply_result(sid, eid, id, root);
 }
 
-static OPERATE_RET __handle_tools_list(cJSON *params, const char *id)
+static OPERATE_RET __handle_tools_list(char *sid, char *eid, cJSON *params, const char *id)
 {
     const char *cursor_str = "";
     bool found_cursor = false;
@@ -989,10 +986,8 @@ static OPERATE_RET __handle_tools_list(cJSON *params, const char *id)
     /* Parse parameters */
     if (params) {
         cJSON *cursor = cJSON_GetObjectItem(params, "cursor");
-        const char *cursor_value = __json_get_string(cursor);
-        if (cursor_value != NULL) {
-            cursor_str = cursor_value;
-        }
+        if (cJSON_IsString(cursor))
+            cursor_str = cursor->valuestring;
     }
 
     result = cJSON_CreateObject();
@@ -1044,7 +1039,7 @@ static OPERATE_RET __handle_tools_list(cJSON *params, const char *id)
     }
 
     cJSON_AddItemToObject(result, "tools", tools_array);
-    return __reply_result(id, result);
+    return __reply_result(sid, eid, id, result);
 }
 
 static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
@@ -1095,12 +1090,12 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
         break;
 
     case MCP_PROPERTY_TYPE_STRING:
-        if (!__json_get_string(value))
+        if (!cJSON_IsString(value))
             return OPRT_INVALID_PARM;
         prop->default_val.type = MCP_PROPERTY_TYPE_STRING;
         if (prop->has_default && prop->default_val.str_val)
             AI_MCP_FREE(prop->default_val.str_val);    // Free existing string
-        prop->default_val.str_val = mm_strdup(__json_get_string(value));
+        prop->default_val.str_val = mm_strdup(value->valuestring);
         if (!prop->default_val.str_val)
             return OPRT_MALLOC_FAILED;
         prop->has_default = true;
@@ -1113,7 +1108,7 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
     return OPRT_OK;
 }
 
-static OPERATE_RET __handle_tools_call(cJSON *params, const char *id)
+static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, const char *id)
 {
     int ret, i;
     cJSON *tool_name_json, *tool_arguments;
@@ -1131,12 +1126,12 @@ static OPERATE_RET __handle_tools_call(cJSON *params, const char *id)
     }
 
     tool_name_json = cJSON_GetObjectItem(params, "name");
-    tool_name = __json_get_string(tool_name_json);
-    if (tool_name == NULL) {
+    if (!cJSON_IsString(tool_name_json)) {
         error_code = MCP_ERROR_INVALID_PARAMS;
         error_msg = "Missing tool name";
         goto err;
     }
+    tool_name = tool_name_json->valuestring;
 
     tool_arguments = cJSON_GetObjectItem(params, "arguments");
     if (tool_arguments && !cJSON_IsObject(tool_arguments)) {
@@ -1170,6 +1165,16 @@ static OPERATE_RET __handle_tools_call(cJSON *params, const char *id)
     msg->id = mm_strdup(id);
     if (!msg->id) {
         error_msg = "Failed to allocate id";
+        goto err;
+    }
+    msg->sid = mm_strdup(sid);
+    if (!msg->sid) {
+        error_msg = "Failed to allocate sid";
+        goto err;
+    }
+    msg->eid = mm_strdup(eid);
+    if (!msg->eid) {
+        error_msg = "Failed to allocate eid";
         goto err;
     }
     msg->arguments = arguments;
@@ -1209,14 +1214,18 @@ err:
     if (msg) {
         if (msg->id)
             AI_MCP_FREE(msg->id);
+        if (msg->sid)
+            AI_MCP_FREE(msg->sid);
+        if (msg->eid)
+            AI_MCP_FREE(msg->eid);
         if (msg->arguments)
             ai_mcp_property_list_destroy(msg->arguments);
         AI_MCP_FREE(msg);
     }
-    return __reply_error(id, error_code, error_msg);
+    return __reply_error(sid, eid, id, error_code, error_msg);
 }
 
-OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
+OPERATE_RET ai_mcp_server_parse_message(char *sid, char *eid, const cJSON *json, void *user_data)
 {
     cJSON *node;
     const char *method;
@@ -1227,18 +1236,18 @@ OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
 
     /* Check JSONRPC version */
     node = cJSON_GetObjectItem(json, "jsonrpc");
-    if (__json_get_string(node) == NULL || strcmp(__json_get_string(node), "2.0") != 0) {
+    if (!node || !cJSON_IsString(node) || strcmp(node->valuestring, "2.0") != 0) {
         PR_ERR("Invalid JSONRPC version");
         return OPRT_INVALID_PARM;
     }
 
     /* Check method */
     node = cJSON_GetObjectItem(json, "method");
-    method = __json_get_string(node);
-    if (method == NULL) {
+    if (!node || !cJSON_IsString(node)) {
         PR_ERR("Missing method");
         return OPRT_INVALID_PARM;
     }
+    method = node->valuestring;
 
     /* Skip notifications */
     if (strncmp(method, "notifications", 13) == 0)
@@ -1251,11 +1260,11 @@ OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
         return OPRT_INVALID_PARM;
     }
 
-    id = __json_get_string(node);
-    if (id == NULL) {
+    if (!node || !cJSON_IsString(node) || node->valuestring == NULL) {
         PR_ERR("Missing ID or Invalid ID type for method: %s", method);
         return OPRT_INVALID_PARM;
     }
+    id = node->valuestring;
 
     /* Get params */
     node = cJSON_GetObjectItem(json, "params");
@@ -1266,14 +1275,14 @@ OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, VOID *user_data)
 
     /* Handle methods */
     if (strcmp(method, "initialize") == 0) {
-        return __handle_initialize(node, id);
+        return __handle_initialize(sid, eid, node, id);
     } else if (strcmp(method, "tools/list") == 0) {
-        return __handle_tools_list(node, id);
+        return __handle_tools_list(sid, eid, node, id);
     } else if (strcmp(method, "tools/call") == 0) {
-        return __handle_tools_call(node, id);
+        return __handle_tools_call(sid, eid, node, id);
     } else {
         PR_ERR("Method not implemented: %s", method);
-        return __reply_error(id, MCP_ERROR_METHOD_NOT_FOUND, "Method not implemented");
+        return __reply_error(sid, eid, id, MCP_ERROR_METHOD_NOT_FOUND, "Method not implemented");
     }
 }
 

@@ -206,19 +206,3 @@ OPERATE_RET tdd_gpio_button_register(char *name, BUTTON_GPIO_CFG_T *gpio_cfg)
     PR_DEBUG("tdd_gpio_button_register succ");
     return ret;
 }
-
-// Update the effective level of the button configuration
-OPERATE_RET tdd_gpio_button_update_level(DEVICE_BUTTON_HANDLE handle, TUYA_GPIO_LEVEL_E level)
-{
-    BUTTON_GPIO_CFG_T *p_gpio_cfg = NULL;
-
-    if (NULL == handle) {
-        return OPRT_INVALID_PARM;
-    }
-
-    p_gpio_cfg = (BUTTON_GPIO_CFG_T *)handle;
-
-    p_gpio_cfg->level = level;
-
-    return OPRT_OK;
-}

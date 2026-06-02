@@ -36,7 +36,7 @@ typedef struct {
 } robot_action_list_t;
 
 
-OPERATE_RET servo_hardware_init(VOID);
+OPERATE_RET servo_hardware_init(void);
 OPERATE_RET servo_set_angle(int servo_id, float angle);
 OPERATE_RET robot_action_add_action(TUYA_ROBOT_ACTION_E action);
 OPERATE_RET robot_action_thread_init(void);

@@ -408,8 +408,6 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     lv_disp_node->dev_hdl = dev_hdl;
     TUYA_CALL_ERR_GOTO(tdl_disp_dev_get_info(lv_disp_node->dev_hdl, &lv_disp_node->dev_info), __CREATE_ERR);
 
-    tdl_disp_set_brightness(lv_disp_node->dev_hdl, 100); // Set brightness to 100%
-
     disp_frame_buff_init(lv_disp_node);
 
     /* Example 2

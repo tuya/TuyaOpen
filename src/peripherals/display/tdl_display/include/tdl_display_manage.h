@@ -62,6 +62,9 @@ OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_
  *
  * This function prepares the specified display device for operation by initializing 
  * its power control, mutex, and invoking the device-specific open function if available.
+ * After backlight hardware init, applies the device's cached brightness (initialized from
+ * CONFIG_DISPLAY_DEFAULT_BRIGHTNESS at tdl_disp_device_register(), 0-100) via
+ * tdl_disp_set_brightness() when backlight control is available.
  *
  * @param disp_hdl Handle to the display device to be opened.
  *
@@ -73,10 +76,11 @@ OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl);
  * @brief Sets the brightness level of the display's backlight.
  *
  * This function controls the backlight of the specified display device using either 
- * GPIO or PWM, depending on the configured backlight type.
+ * GPIO or PWM, depending on the configured backlight type. On success, stores the
+ * clamped level (0-100) in the device structure for later queries or reopen.
  *
  * @param disp_hdl Handle to the display device.
- * @param brightness The desired brightness level (0 for off, non-zero for on).
+ * @param brightness The desired brightness level (0-100; values above 100 are clamped).
  *
  * @return Returns OPRT_OK on success, or an appropriate error code if setting the brightness fails.
  */

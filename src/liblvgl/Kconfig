@@ -1,6 +1,6 @@
 menuconfig ENABLE_LIBLVGL
     bool "configure enable/disable liblvgl"
-    select ENABLE_DISPLAY if (!ENABLE_PLATFORM_LVGL)
+    select ENABLE_DISPLAY
     default n
 
     if (ENABLE_LIBLVGL)
@@ -31,48 +31,45 @@ menuconfig ENABLE_LIBLVGL
             depends on LVGL_VERSION_9
             default n
 
-        config LVGL_ENABLE_TP
+        config ENABLE_LVGL_TP
             bool "enable lvgl tp"
-            select ENABLE_TP if (!ENABLE_PLATFORM_LVGL)
+            select ENABLE_TP
             default n
 
-        if (!ENABLE_PLATFORM_LVGL)
+        config ENABLE_LVGL_DEMO
+            bool "enable lvgl demo"
+            default n
 
-            config ENABLE_LVGL_DEMO
-                bool "enable lvgl demo"
-                default n
+        config ENABLE_LVGL_MONITOR
+            bool "enable lvgl monitor"
+            default n
 
-            config ENABLE_LVGL_MONITOR
-                bool "enable lvgl monitor"
-                default n
+        config ENABLE_LVGL_ENCODER
+            bool "enable lvgl encoder"
+            select ENABLE_ENCODER
+            default n
 
-            config ENABLE_LVGL_ENCODER
-                bool "enable lvgl encoder"
-                select ENABLE_ENCODER
-                default n
+        config ENABLE_LVGL_LODEPNG
+            bool "enable lvgl LODEPNG decoder library"
+            default n
 
-            config ENABLE_LVGL_LODEPNG
-                bool "enable lvgl LODEPNG decoder library"
-                default n
+        config ENABLE_LVGL_DUAL_DISP_BUFF
+            bool "enable lvgl dual display buffer"
+            default n
 
-            config ENABLE_LVGL_DUAL_DISP_BUFF
-                bool "enable lvgl dual display buffer"
-                default n
- 
-            choice
-                prompt "the proportion of the draw buffer size"
+        choice
+            prompt "the proportion of the draw buffer size"
 
-                config LV_DRAW_BUF_PROPORTION_10
-                    bool "10% of the display size"
-                config LV_DRAW_BUF_PROPORTION_5
-                    bool "5% of the display size"
-            endchoice
+            config LV_DRAW_BUF_PROPORTION_10
+                bool "10% of the display size"
+            config LV_DRAW_BUF_PROPORTION_5
+                bool "5% of the display size"
+        endchoice
 
-            config LV_DRAW_BUF_PARTS
-                int
-                default 10 if LV_DRAW_BUF_PROPORTION_10
-                default 20 if LV_DRAW_BUF_PROPORTION_5
-        endif
+        config LV_DRAW_BUF_PARTS
+            int
+            default 10 if LV_DRAW_BUF_PROPORTION_10
+            default 20 if LV_DRAW_BUF_PROPORTION_5
 
         # Font configuration
         rsource "Fonts_Kconfig"

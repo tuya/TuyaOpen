@@ -33,7 +33,6 @@ typedef struct {
     uint8_t *out_buf;
     uint16_t out_width;
     uint16_t out_height;
-    uint8_t  rotate;
 } TAL_IMAGE_YUV422_TO_RGB_T;
 
 /***********************************************************

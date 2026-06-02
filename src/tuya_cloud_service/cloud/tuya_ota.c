@@ -210,7 +210,7 @@ int tuya_ota_start(cJSON *upgrade)
     strncpy(ota->msg.fw_md5, cJSON_GetObjectItem(upgrade, "md5")->valuestring, sizeof(ota->msg.fw_md5) - 1);
     ota->msg.fw_md5[sizeof(ota->msg.fw_md5) - 1] = '\0';
 
-    THREAD_CFG_T thrd_param;
+    THREAD_CFG_T thrd_param = {0};
     thrd_param.priority = THREAD_PRIO_3;
     thrd_param.stackDepth = 4086;
     thrd_param.thrdname = "tuya_ota";

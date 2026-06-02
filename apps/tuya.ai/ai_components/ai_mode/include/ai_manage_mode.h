@@ -31,18 +31,18 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
+#define AI_AGENT_SCODE_DEFAULT ""
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef enum {
-    AI_CHAT_MODE_HOLD,       
-    AI_CHAT_MODE_ONE_SHOT,    
-    AI_CHAT_MODE_WAKEUP,      
-    AI_CHAT_MODE_FREE,       
+    AI_CHAT_MODE_HOLD,
+    AI_CHAT_MODE_ONE_SHOT,
+    AI_CHAT_MODE_WAKEUP,
+    AI_CHAT_MODE_FREE,
 
-    AI_CHAT_MODE_CUSTOM_START = 0x100,   
+    AI_CHAT_MODE_CUSTOM_START = 0x100,
 } AI_CHAT_MODE_E;
 
 typedef enum {
@@ -58,22 +58,22 @@ typedef enum {
 typedef struct {
     const char *name;
 
-    OPERATE_RET     (*init)         (void);
-    OPERATE_RET     (*deinit)       (void);
-    OPERATE_RET     (*task)         (void *args);
-    OPERATE_RET     (*handle_event) (AI_NOTIFY_EVENT_T *event);
-    AI_MODE_STATE_E (*get_state)    (void);
-    OPERATE_RET     (*client_run)   (void *data);
+    OPERATE_RET (*init)(void);
+    OPERATE_RET (*deinit)(void);
+    OPERATE_RET (*task)(void *args);
+    OPERATE_RET (*handle_event)(AI_NOTIFY_EVENT_T *event);
+    AI_MODE_STATE_E (*get_state)(void);
+    OPERATE_RET (*client_run)(void *data);
 
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
-    OPERATE_RET     (*vad_change)   (AI_AUDIO_VAD_STATE_E vad_state);
+    OPERATE_RET (*vad_change)(AI_AUDIO_VAD_STATE_E vad_state);
 #endif
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
-    OPERATE_RET   (*handle_key)  (TDL_BUTTON_TOUCH_EVENT_E event, void *arg);
+    OPERATE_RET (*handle_key)(TDL_BUTTON_TOUCH_EVENT_E event, void *arg);
 #endif
 
-}AI_MODE_HANDLE_T;
+} AI_MODE_HANDLE_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -136,7 +136,6 @@ OPERATE_RET ai_mode_client_run(void *data);
 OPERATE_RET ai_mode_vad_change(AI_AUDIO_VAD_STATE_E vad_state);
 #endif
 
-
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
 /**
 @brief Handle button key event
@@ -176,7 +175,7 @@ char *ai_get_mode_state_str(AI_MODE_STATE_E state);
 
 /**
 @brief Get mode name string
-@param mode Mode 
+@param mode Mode
 @return char* name string
 */
 char *ai_get_mode_name_str(AI_CHAT_MODE_E mode);

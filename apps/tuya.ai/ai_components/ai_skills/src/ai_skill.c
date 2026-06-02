@@ -39,6 +39,7 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+static bool __s_nlg_in_stream = false;
 
 /***********************************************************
 ***********************function define**********************
@@ -109,13 +110,15 @@ static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
  * @param eof End of file flag indicating if this is the last data chunk.
  * @return OPERATE_RET Operation result code.
  */
-static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
+static OPERATE_RET __ai_asr_process(cJSON *root, BOOL_T eof)
 {
     const char *content = __json_get_string(root);
     if (!content) {
         content = "";
     }
     PR_NOTICE("text -> ASR result: %s", content);
+
+    __s_nlg_in_stream = false;
 
     AI_NOTIFY_TEXT_T text;
     text.data      = (char *)content;
@@ -125,51 +128,6 @@ static OPERATE_RET __ai_asr_process(cJSON *root, bool eof)
 
     return OPRT_OK;
 }
-
-#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
-/**
- * @brief Process image URLs from JSON and start picture output.
- *
- * @param root JSON root object containing images data.
- * @return OPERATE_RET Operation result code.
- */
-static OPERATE_RET __ai_images_process(cJSON *root)
-{
-    cJSON *images = cJSON_GetObjectItem(root, "images");
-    TUYA_CHECK_NULL_RETURN(images, OPRT_COM_ERROR);
-
-    cJSON *url_array = cJSON_GetObjectItem(images, "url");
-    if(NULL == url_array || !cJSON_IsArray(url_array)) {
-        PR_ERR("no url array found");
-        return OPRT_COM_ERROR;
-    }
-
-    int url_count = cJSON_GetArraySize(url_array);
-    for(int i = 0; i < url_count; i++) {
-        cJSON *url_item = cJSON_GetArrayItem(url_array, i);
-        if(NULL == url_item) {
-            PR_ERR("url item is null");
-            continue;
-        }
-
-        const char *url_str = __json_get_string(url_item);
-        if(NULL == url_str) {
-            PR_ERR("url string is null");
-            continue;
-        }
-
-        PR_NOTICE("image url[%d]: %s", i, url_str);
-
-        /* #define TEST_IMG_URL "https://images.tuyacn.com/fe-static/docs/img/bef36953-4002-4a7c-b567-db05a6c5e2cd.jpeg" */
-
-        /* ai_picture_output_start(TEST_IMG_URL); */
-        ai_picture_output_start(url_str);
-    }
-
-    return OPRT_OK;
-}
-#endif 
-
 
 /**
  * @brief Process NLG (Natural Language Generation) text stream.
@@ -184,21 +142,7 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     PR_NOTICE("json-str %s", json_str);
     cJSON_free(json_str);
 
-    cJSON *nlgResult = cJSON_GetObjectItem(root, "nlgResult");
-    if(nlgResult) {
-#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
-        if(ai_picture_is_init() == true) {
-            if(__ai_images_process(nlgResult) != OPRT_OK) {
-                PR_NOTICE("process nlg images failed");
-            }else {
-                PR_NOTICE("process nlg images success");
-            }
-        }
-#endif
-        return OPRT_OK;
-    }
-
-    const char *content = __json_get_string(cJSON_GetObjectItem(root, "content"));
+    char *content = cJSON_GetStringValue(cJSON_GetObjectItem(root, "content"));
     if (!content) {
         content = "";
     }
@@ -206,27 +150,32 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
     AI_NOTIFY_TEXT_T text;
     text.data      = (char *)content;
     text.datalen   = strlen(content);
+
+    cJSON *time_idx = cJSON_GetObjectItem(root, "timeIndex");
+    text.timeindex = time_idx ? time_idx->valueint : 0;
+
     PR_NOTICE("text -> NLG eof: %d, content: %s, time: %d", eof, content, text.timeindex);
 
-    /* Send data to register callback */
-    static AI_USER_EVT_TYPE_E event_type = AI_USER_EVT_TEXT_STREAM_STOP;
-    if(event_type == AI_USER_EVT_TEXT_STREAM_STOP) {
-        if(eof) {
-            if(strlen(content) > 0) {
-                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text);
-                text.data = NULL;
-                text.datalen = 0;
-                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
-                event_type = AI_USER_EVT_TEXT_STREAM_STOP;
+    if (!__s_nlg_in_stream) {
+        if (strlen(content) > 0) {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text);
+            if (eof) {
+                /* Single-frame complete response: open and close immediately */
+                AI_NOTIFY_TEXT_T empty = {.data = NULL, .datalen = 0, .timeindex = 0};
+                ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &empty);
+            } else {
+                __s_nlg_in_stream = true;
             }
-        }else {
-            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_START, &text); 
-            event_type = AI_USER_EVT_TEXT_STREAM_DATA;
+        } else if (eof) {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
         }
     } else {
-        if (event_type == AI_USER_EVT_TEXT_STREAM_DATA) {
-            ai_user_event_notify(eof?AI_USER_EVT_TEXT_STREAM_STOP:AI_USER_EVT_TEXT_STREAM_DATA, &text);
-            event_type = eof?AI_USER_EVT_TEXT_STREAM_STOP:AI_USER_EVT_TEXT_STREAM_DATA;
+        if (eof) {
+            /* Last chunk: append final content (may be empty) and close bubble */
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_STOP, &text);
+            __s_nlg_in_stream = false;
+        } else {
+            ai_user_event_notify(AI_USER_EVT_TEXT_STREAM_DATA, &text);
         }
     }
 
@@ -253,7 +202,7 @@ static OPERATE_RET __ai_nlg_process(cJSON *root, bool eof)
  * @param eof End of file flag indicating if this is the last data chunk.
  * @return OPERATE_RET Operation result code.
  */
-OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, bool eof)
+OPERATE_RET ai_text_process(AI_TEXT_TYPE_E type, cJSON *root, BOOL_T eof)
 {    
     TUYA_CHECK_NULL_RETURN(root, OPRT_INVALID_PARM);
 

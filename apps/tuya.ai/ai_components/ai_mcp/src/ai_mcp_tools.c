@@ -19,6 +19,14 @@
 #include "ai_video_input.h"
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+#include "ai_picture.h"
+#endif
+
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+#include "ai_ui_manage.h"
+#endif
+
 #include "ai_mcp_server.h"
 
 #include "ai_mcp.h"
@@ -68,7 +76,7 @@ static OPERATE_RET __take_photo(const MCP_PROPERTY_LIST_T *properties, MCP_RETUR
     uint8_t *image_data = NULL;
     uint32_t image_size = 0;
 
-    TUYA_CALL_ERR_LOG(ai_video_display_start());
+    TUYA_CALL_ERR_LOG(ai_video_start());
 
     tal_system_sleep(3000);
 
@@ -77,6 +85,16 @@ static OPERATE_RET __take_photo(const MCP_PROPERTY_LIST_T *properties, MCP_RETUR
         PR_ERR("get jpeg frame err, rt:%d", rt);
         return rt;
     }
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+    char name[AI_PICTURE_NAME_MAX_LEN + 1] = {0};
+    ai_picture_save_to_album(image_data, image_size, NULL, name);
+
+#if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
+    ai_ui_disp_msg(AI_UI_DISP_USER_IMAGE_LINK, (uint8_t *)name, strlen(name)+1);
+#endif
+
+#endif
 
     rt = ai_mcp_return_value_set_image(ret_val, MCP_IMAGE_MIME_TYPE_JPEG, image_data, image_size);
     if (OPRT_OK != rt) {
@@ -87,7 +105,7 @@ static OPERATE_RET __take_photo(const MCP_PROPERTY_LIST_T *properties, MCP_RETUR
 
     ai_video_jpeg_image_free(&image_data);
 
-    TUYA_CALL_ERR_LOG(ai_video_display_stop());
+    TUYA_CALL_ERR_LOG(ai_video_stop());
 
     return OPRT_OK;
 }
@@ -163,8 +181,9 @@ static OPERATE_RET __ai_mcp_tools_register(void)
     // device camera take photo tool
     TUYA_CALL_ERR_GOTO(AI_MCP_TOOL_ADD(
         "device_camera_take_photo",
-        "Captures one or more photos using the device camera. Use when picture or scene "
-        "change is detected, for visitor detection, or when the user asks for a photo.\n"
+        "Captures one or more photos using the device camera. \n"
+        "Do NOT call this function when the user mentions printing, print, or printer.\n"
+        "Only use when picture or scene change is detected, for visitor detection, or when the user asks for a photo.\n"
         "Parameters:\n"
         "- count (int): Number of photos to capture (1-10).\n"
         "Returns: Captured image(s) in Base64 format.",

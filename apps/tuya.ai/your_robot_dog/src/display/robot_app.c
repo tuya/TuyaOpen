@@ -370,15 +370,20 @@ OPERATE_RET ai_ui_robot_dog_register(void)
 {
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     AI_UI_INTFS_T intfs;
-
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
-    intfs.disp_init = __ui_init;
-    intfs.disp_user_msg = __ui_disp_user_msg;
-    intfs.disp_emotion = __ui_disp_emotion;
+    intfs.disp_init          = __ui_init;
+    intfs.disp_emotion       = __ui_disp_emotion;
     intfs.disp_ai_mode_state = __ui_disp_ai_mode_state;
 
-    return ai_ui_register(&intfs);
+    ai_ui_register(&intfs);
+
+    AI_UI_CHAT_INTFS_T chat_intfs;
+    memset(&chat_intfs, 0, sizeof(AI_UI_CHAT_INTFS_T));
+
+    chat_intfs.disp_user_msg = __ui_disp_user_msg;
+
+    return ai_ui_chat_register(&chat_intfs);
 #else
     return OPRT_OK;
 #endif

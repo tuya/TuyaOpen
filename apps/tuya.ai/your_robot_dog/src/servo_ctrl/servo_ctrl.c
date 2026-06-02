@@ -896,7 +896,7 @@ int servo_action_map_set(TUYA_ROBOT_ACTION_E action)
  * @brief Servo initialization
  * @return OPERATE_RET: 0 on success, otherwise an error code
  */
-OPERATE_RET servo_hardware_init(VOID)
+OPERATE_RET servo_hardware_init(void)
 {
     PR_NOTICE("Servo hardware init start");
     OPERATE_RET rt = OPRT_OK;

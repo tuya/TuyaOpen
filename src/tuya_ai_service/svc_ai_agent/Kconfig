@@ -4,7 +4,7 @@ menu "AI Agent Config"
         default 4608
     config AI_INPUT_RINGBUF_SIZE
         int "AI_INPUT_RING_BUF_SIZE: input ringbuf size"
-        default 65536
+        default 20480
     config AI_INPUT_BUF_SIZE
         int "AI_INPUT_BUF_SIZE: input buf size"
         range 1024 20480
@@ -14,7 +14,7 @@ menu "AI Agent Config"
         default 4096
 	config AI_OUTPUT_RINGBUF_SIZE
         int "AI_OUTPUT_RINGBUF_SIZE: output ringbuf size"
-        default 65536
+        default 20480
     config AI_OUTPUT_BUF_SIZE
         int "AI_OUTPUT_BUF_SIZE: output buf size"
         range 0 20480

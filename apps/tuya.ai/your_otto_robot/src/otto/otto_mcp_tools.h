@@ -22,7 +22,7 @@ extern "C" {
  * @return OPRT_OK on success
  * @note Subscribe after ai_mcp_init(); tools are added when MCP server is ready
  */
-OPERATE_RET otto_mcp_tools_init(VOID_T);
+OPERATE_RET otto_mcp_tools_init(void);
 
 #ifdef __cplusplus
 }

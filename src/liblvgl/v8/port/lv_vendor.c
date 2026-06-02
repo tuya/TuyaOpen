@@ -6,9 +6,11 @@
 #include "lv_vendor.h"
 
 #include "tal_api.h"
+#if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
 #include "tkl_thread.h"
+#endif
 
-static TKL_THREAD_HANDLE g_disp_thread_handle = NULL;
+static THREAD_HANDLE g_disp_thread_handle = NULL;
 static MUTEX_HANDLE g_disp_mutex = NULL;
 static SEM_HANDLE lvgl_sem = NULL;
 static uint8_t lvgl_task_state = STATE_INIT;
@@ -84,8 +86,10 @@ static void lv_tast_entry(void *arg)
 
     tal_semaphore_post(lvgl_sem);
 
+#if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
     tkl_thread_release(g_disp_thread_handle);
     g_disp_thread_handle = NULL;
+#endif
 }
 
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
@@ -96,12 +100,18 @@ void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
     }
 
 #if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
-    if(OPRT_OK != tkl_thread_smp_create(&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
+    if(OPRT_OK != tkl_thread_smp_create((TKL_THREAD_HANDLE *)&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
-#else 
-    if(OPRT_OK != tkl_thread_create(&g_disp_thread_handle, "lvgl_v9", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
+#else
+    THREAD_CFG_T thrd_cfg = {
+        .stackDepth = lvgl_stack_size,
+        .priority   = lvgl_task_pri,
+        .thrdname   = "lvgl_v8",
+        .psram_mode = 1,
+    };
+    if(OPRT_OK != tal_thread_create_and_start(&g_disp_thread_handle, NULL, NULL, lv_tast_entry, NULL, &thrd_cfg)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
@@ -122,6 +132,13 @@ void lv_vendor_stop(void)
     lvgl_task_state = STATE_STOP;
 
     tal_semaphore_wait(lvgl_sem, SEM_WAIT_FOREVER);
+
+#if !(defined(ENABLE_SMP) && (ENABLE_SMP == 1))
+    if (g_disp_thread_handle != NULL) {
+        tal_thread_delete(g_disp_thread_handle);
+        g_disp_thread_handle = NULL;
+    }
+#endif
 
     PR_NOTICE("%s complete\n", __func__);
 }

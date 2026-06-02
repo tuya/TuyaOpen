@@ -11,9 +11,6 @@
  */
 #define MINIMP3_IMPLEMENTATION
 
-#include "tkl_system.h"
-#include "tkl_memory.h"
-
 #include "tal_api.h"
 #include "tuya_ringbuf.h"
 #include "svc_ai_player.h"

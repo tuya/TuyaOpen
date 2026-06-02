@@ -72,8 +72,10 @@ static void __ai_mode_kws_wakeup(TKL_KWS_WAKEUP_WORD_E wakeup_word)
 
 static void __ai_mode_enter_idle(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+    }
 #endif
 
     tal_sw_timer_stop(sg_enter_idle_timer);
@@ -86,8 +88,10 @@ static void __ai_mode_enter_idle(void)
 
 static void __ai_mode_enter_listen(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_flash(sg_led_hdl, 500);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_flash(sg_led_hdl, 500);
+    }
 #endif
 
     tal_sw_timer_start(sg_enter_idle_timer, sg_wakeup_time_ms, TAL_TIMER_ONCE);
@@ -103,8 +107,10 @@ static void __ai_mode_enter_upload(void)
 
 static void __ai_mode_enter_think(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_flash(sg_led_hdl, 2000);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_flash(sg_led_hdl, 2000);
+    }
 #endif
 
     tal_sw_timer_start(sg_enter_idle_timer, sg_wakeup_time_ms, TAL_TIMER_ONCE);
@@ -116,9 +122,11 @@ static void __ai_mode_enter_think(void)
 
 static void __ai_mode_enter_speak(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
-#endif    
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
+    }
+#endif
 
     tal_sw_timer_stop(sg_enter_idle_timer);
 }
@@ -140,8 +148,19 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
     OPERATE_RET rt = OPRT_OK;
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    /* LED is an auxiliary indicator: tolerate the device not being
+     * registered (board did not enable LED, or LED name mismatch) so
+     * that chat mode can still start. */
     sg_led_hdl = tdl_led_find_dev(LED_NAME);
-    TUYA_CALL_ERR_RETURN(tdl_led_open(sg_led_hdl));
+    if (sg_led_hdl != NULL) {
+        OPERATE_RET led_rt = tdl_led_open(sg_led_hdl);
+        if (led_rt != OPRT_OK) {
+            PR_WARN("LED open failed (rt=%d), continuing without LED", led_rt);
+            sg_led_hdl = NULL;
+        }
+    } else {
+        PR_WARN("LED \"%s\" not registered, continuing without LED", LED_NAME);
+    }
 #endif
 
     //set vad mode
@@ -151,7 +170,6 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
     tkl_kws_enable();
 
     //create idle timer
-    TIMER_ID sg_enter_idle_timer = NULL;
     TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__ai_mode_enter_idle_time_cb, NULL, &sg_enter_idle_timer));
 
     MODE_STATE_CHANGE(sg_mode_set_state, AI_MODE_STATE_IDLE);

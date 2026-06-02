@@ -226,7 +226,11 @@ static AI_AUDIO_RECODER_T *__audio_recorder_create(AI_AUDIO_INPUT_CFG_T *cfg, TD
     sg_recorder->slice_size     = cfg->slice_ms * audio_1ms_size;
 
     uint32_t rb_size = sg_recorder->vad_size;
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(rb_size, OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder->ringbuf), __error);
+#else
+    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(rb_size, OVERFLOW_STOP_TYPE, &sg_recorder->ringbuf), __error);
+#endif
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_recorder->mutex), __error);
     PR_DEBUG("recorder vad mode %d", cfg->vad_mode);
     PR_DEBUG("recorder total ms %d, slice ms %d, vad active %d ms, vad off timeout %d", rb_size, cfg->slice_ms, cfg->vad_active_ms, cfg->vad_off_ms);
@@ -253,9 +257,7 @@ OPERATE_RET ai_audio_input_start(void)
             .priority = THREAD_PRIO_5,
             .stackDepth = 2 * 1024 + 512,  /* Support opus encode */
             .thrdname = "record_task",
-            #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
             .psram_mode = 1,
-            #endif            
         };
         tal_thread_create_and_start(&sg_recorder->vad_task, NULL, NULL, __record_task, NULL, &thrd_cfg);
     }

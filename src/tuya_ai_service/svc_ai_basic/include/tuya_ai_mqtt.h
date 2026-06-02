@@ -51,7 +51,7 @@ AI_SERVER_CFG_INFO_T* tuya_ai_mq_ser_cfg_get(VOID);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_mq_token_req(char *solution_code, AI_AGENT_TOKEN_INFO_T *agent);
+OPERATE_RET tuya_ai_mq_token_req(CHAR_T *solution_code, AI_AGENT_TOKEN_INFO_T *agent);
 
 /**
  * @brief recv mqtt 9000 protocol message

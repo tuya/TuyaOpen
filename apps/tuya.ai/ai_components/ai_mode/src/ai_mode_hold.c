@@ -16,8 +16,14 @@
 #include "tdl_led_manage.h"
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+#include "ai_picture_input.h"
+#endif
+
 #include "lang_config.h"
 #include "ai_user_event.h"
+
+#include "mix_method.h"
 
 #include "ai_audio_input.h"
 #include "ai_audio_player.h"
@@ -57,8 +63,10 @@ static uint32_t        sg_wakeup_time_ms = AI_CHAT_WAKEUP_TIME_MS;
 ***********************************************************/
 static void __ai_mode_enter_idle(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_set_status(sg_led_hdl, TDL_LED_OFF);
+    }
 #endif
 
     tal_sw_timer_stop(sg_enter_idle_timer);
@@ -71,8 +79,10 @@ static void __ai_mode_enter_idle(void)
 
 static void __ai_mode_enter_listen(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_flash(sg_led_hdl, 500);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_flash(sg_led_hdl, 500);
+    }
 #endif
 
     tal_sw_timer_start(sg_enter_idle_timer, sg_wakeup_time_ms, TAL_TIMER_ONCE);
@@ -92,8 +102,10 @@ static void __ai_mode_enter_upload(void)
 
 static void __ai_mode_enter_think(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_flash(sg_led_hdl, 2000);
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_flash(sg_led_hdl, 2000);
+    }
 #endif
 
     tal_sw_timer_start(sg_enter_idle_timer, sg_wakeup_time_ms, TAL_TIMER_ONCE);
@@ -103,9 +115,11 @@ static void __ai_mode_enter_think(void)
 
 static void __ai_mode_enter_speak(void)
 {
-#if defined(ENABLE_LED) && (ENABLE_LED == 1)   
-    tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
-#endif    
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    if (sg_led_hdl != NULL) {
+        tdl_led_set_status(sg_led_hdl, TDL_LED_ON);
+    }
+#endif
 
     tal_sw_timer_stop(sg_enter_idle_timer);
 
@@ -128,15 +142,26 @@ static OPERATE_RET __ai_mode_hold_init(void)
     OPERATE_RET rt = OPRT_OK;
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
+    /* LED is an auxiliary indicator: tolerate the device not being
+     * registered (board did not enable LED, or LED name mismatch) so
+     * that chat mode can still start. Without this guard a missing
+     * LED makes the whole AI chat mode init fail with rt=-2. */
     sg_led_hdl = tdl_led_find_dev(LED_NAME);
-    TUYA_CALL_ERR_RETURN(tdl_led_open(sg_led_hdl));
+    if (sg_led_hdl != NULL) {
+        OPERATE_RET led_rt = tdl_led_open(sg_led_hdl);
+        if (led_rt != OPRT_OK) {
+            PR_WARN("LED open failed (rt=%d), continuing without LED", led_rt);
+            sg_led_hdl = NULL;
+        }
+    } else {
+        PR_WARN("LED \"%s\" not registered, continuing without LED", LED_NAME);
+    }
 #endif
 
     //set vad mode
     ai_audio_input_wakeup_mode_set(AI_AUDIO_VAD_MANUAL);
 
     //create idle timer
-    TIMER_ID sg_enter_idle_timer = NULL;
     TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__ai_mode_enter_idle_time_cb, NULL, &sg_enter_idle_timer));
 
     // disable vad
@@ -252,7 +277,17 @@ static OPERATE_RET __ai_mode_hold_vad_change(AI_AUDIO_VAD_STATE_E vad_flag)
 
     if (AI_AUDIO_VAD_START == vad_flag) {
         tuya_ai_agent_set_scode(AI_AGENT_SCODE_DEFAULT);
+
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+        if(ai_picture_input_get_num()) {
+            tuya_ai_input_start(true);
+            ai_picture_input_from_album();
+        }else {
+            tuya_ai_input_start(false);
+        }
+#else
         tuya_ai_input_start(false);
+#endif
     } else {
         tuya_ai_input_stop();
     }

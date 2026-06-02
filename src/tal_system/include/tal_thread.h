@@ -88,9 +88,7 @@ typedef struct {
     uint32_t stackDepth; // stack size
     uint8_t priority;    // thread priority
     char *thrdname;      // thread name
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
     uint8_t psram_mode : 1; // run in psram
-#endif
 } THREAD_CFG_T;
 
 /**

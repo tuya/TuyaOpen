@@ -12,6 +12,7 @@
 
 #include "tal_api.h"
 #include "tuya_iot.h"
+#include "atop_service.h"
 
 /***********************************************************
 ************************macro define************************
@@ -124,34 +125,5 @@ OPERATE_RET iot_httpc_common_post(IN CONST char *api_name, IN CONST char *api_ve
                                   IN CONST char *devid, IN char *post_data, IN CONST char *p_head_other,
                                   OUT ty_cJSON **pp_result)
 {
-    OPERATE_RET rt = OPRT_OK;
-
-    if (!api_name || !api_ver || !post_data || !pp_result) {
-        return OPRT_INVALID_PARM;
-    }
-
-    TIME_T timestamp = tal_time_get_posix();
-    tuya_iot_client_t *iot_hdl = tuya_iot_client_get();
-    atop_base_request_t atop_request = {
-        .devid = devid,
-        .uuid = uuid,
-        .key = iot_hdl->activate.seckey,
-        .path = "/d.json",
-        .timestamp = timestamp,
-        .api = api_name,
-        .version = api_ver,
-        .data = post_data,
-        .datalen = strlen(post_data),
-        .user_data = NULL,
-    };
-    atop_base_response_t response = {0};
-    rt = atop_base_request(&atop_request, &response);
-    if (OPRT_OK != rt) {
-        PR_ERR("http post err, rt:%d", rt);
-        return rt;
-    }
-
-    *pp_result = response.result;
-
-    return OPRT_OK;
+    return atop_service_comm_post_simple(api_name, api_ver, post_data, NULL, pp_result);
 }

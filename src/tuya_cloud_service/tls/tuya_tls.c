@@ -14,6 +14,7 @@
 #include "tuya_cloud_types.h"
 #include "tuya_tls.h"
 
+#include "tuya_cert_manager.h"
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "tuya_tls_config.h"
 #else
@@ -43,44 +44,27 @@
 #define TLS_URL_LEN (128 + 16)
 
 typedef struct {
-    tuya_tls_config_t config;
+    tuya_tls_config_t   config;
     mbedtls_ssl_context ssl_ctx;
-    mbedtls_ssl_config conf_ctx;
-    mbedtls_x509_crt cacert;
-    mbedtls_x509_crt client_cert;
-    mbedtls_pk_context client_pkey;
-    int socket_fd;
-    int overtime_s;
-    MUTEX_HANDLE mutex;
-    MUTEX_HANDLE read_mutex;
+    mbedtls_ssl_config  conf_ctx;
+    mbedtls_x509_crt    cacert;
+    mbedtls_x509_crt    client_cert;
+    mbedtls_pk_context  client_pkey;
+    int                 socket_fd;
+    int                 overtime_s;
+    MUTEX_HANDLE        mutex;
+    MUTEX_HANDLE        read_mutex;
 } tuya_mbedtls_context_t;
 
 #define TLS_HANDSHAKE_TIMEOUT (18) // s
 
-static tuya_tls_pre_conn_cb s_pre_conn_cb = NULL;
-static mbedtls_entropy_context ty_entropy;
+static tuya_tls_pre_conn_cb     s_pre_conn_cb = NULL;
+static mbedtls_entropy_context  ty_entropy;
 static mbedtls_ctr_drbg_context ty_ctr_drbg;
 
 /* -------------------------------------------------------------------------- */
 /*                                  TLS Mutex                                 */
 /* -------------------------------------------------------------------------- */
-
-static void __tuya_tls_event_cb(tuya_tls_event_t event, void *p_args)
-{
-    const char *p_url = (char *)p_args;
-    if (NULL == p_url) {
-        PR_ERR("url was NULL");
-        return;
-    }
-    if (event == TUYA_TLS_CERT_EXPIRED) {
-        PR_DEBUG("tls cert expired");
-        // tuya_iotdns_query_domain_certs(BAIDU_TOKEN_URL, &cacert,
-        // &cacert_len);
-        // TODO..
-        return;
-    }
-}
-
 static void __tuya_tls_mutex_init(mbedtls_threading_mutex_t *mutex)
 {
     if (mutex == NULL) {
@@ -194,8 +178,8 @@ int __tuya_tls_random(void *p_rng, unsigned char *output, size_t output_len)
  */
 int __tuya_tls_nv_seed_read(unsigned char *buf, size_t buf_len)
 {
-    int ret;
-    size_t len;
+    int      ret;
+    size_t   len;
     uint8_t *seed;
 
     // /* fetch seed */
@@ -316,10 +300,31 @@ static int __tuya_tls_socket_recv_cb(void *ctx, unsigned char *buf, size_t len)
 
 static int tuya_tls_ciphersuite_list_PSK[] = {MBEDTLS_TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256, 0};
 
+/* -------------------------------------------------------------------------- */
+/*                                  Cert load                                 */
+/* -------------------------------------------------------------------------- */
+static OPERATE_RET legacy_mbedtls_cacert_load(mbedtls_x509_crt *chain, char *hostname, int port_num)
+{
+    OPERATE_RET ret;
+    char whole_hostname[TLS_URL_LEN] = {0};
+    if (port_num != 443) {
+        snprintf(whole_hostname, SIZEOF(whole_hostname), "%s:%d", hostname, port_num);
+    } else {
+        snprintf(whole_hostname, SIZEOF(whole_hostname), "%s", hostname);
+    }
+
+    ret = tuya_cert_manager_load(whole_hostname, (CERT_PARSE_CB)mbedtls_x509_crt_parse, (void *)chain);
+    if (ret != 0) {
+        PR_ERR("cert load fail, ret: %x", ret);
+    }
+
+    return ret;
+}
+
 static void mbedtls_cert_pkey_free(tuya_tls_hander p_tls_handler)
 {
     tuya_mbedtls_context_t *tls_context = (tuya_mbedtls_context_t *)p_tls_handler;
-    tuya_tls_config_t *config = &tls_context->config;
+    tuya_tls_config_t      *config      = &tls_context->config;
 
     PR_DEBUG("mbedtls_cert_pkey_free.");
 
@@ -334,9 +339,9 @@ static void mbedtls_cert_pkey_free(tuya_tls_hander p_tls_handler)
 
 static OPERATE_RET mbedtls_cert_pkey_parse(tuya_tls_hander p_tls_handler)
 {
-    OPERATE_RET op_ret;
+    OPERATE_RET             op_ret;
     tuya_mbedtls_context_t *tls_context = (tuya_mbedtls_context_t *)p_tls_handler;
-    tuya_tls_config_t *config = &tls_context->config;
+    tuya_tls_config_t      *config      = &tls_context->config;
 
     if (config->verify) {
         PR_DEBUG("mbedtls authmode: MBEDTLS_SSL_VERIFY_REQUIRED");
@@ -351,18 +356,22 @@ static OPERATE_RET mbedtls_cert_pkey_parse(tuya_tls_hander p_tls_handler)
     mbedtls_x509_crt_init(p_cert_ctx);
 
     // parse ca cert
-    if (config->ca_cert) {
-        PR_DEBUG("load root ca cert.");
-        op_ret = mbedtls_x509_crt_parse(p_cert_ctx, (const unsigned char *)config->ca_cert, config->ca_cert_size);
-        if (op_ret != OPRT_OK) {
-            PR_ERR("mbedtls_x509_crt_parse Fail. 0x%x %d", -op_ret, op_ret);
-            return op_ret;
-        }
-        mbedtls_ssl_conf_ca_chain(&(tls_context->conf_ctx), p_cert_ctx, NULL);
+	if(NULL == config->ca_cert) {
+        PR_DEBUG("load %s cert, port %d", config->hostname, config->port);
+        op_ret = legacy_mbedtls_cacert_load(p_cert_ctx, config->hostname, config->port);
+    } else {
+        PR_DEBUG("load custom cert.");
+        op_ret = mbedtls_x509_crt_parse(p_cert_ctx,
+                                        (const unsigned char*)config->ca_cert, config->ca_cert_size);
     }
+    if (op_ret != OPRT_OK) {
+        PR_ERR("mbedtls_x509_crt_parse Fail. 0x%x %d", -op_ret, op_ret);
+        return op_ret;
+    }
+    mbedtls_ssl_conf_ca_chain(&(tls_context->conf_ctx), p_cert_ctx, NULL);
 
     /* parse client own cert */
-    mbedtls_x509_crt *client_cert = NULL;
+    mbedtls_x509_crt   *client_cert = NULL;
     mbedtls_pk_context *client_pkey = NULL;
 
     if (config->client_cert && config->client_pkey) {
@@ -394,9 +403,16 @@ static OPERATE_RET mbedtls_cert_pkey_parse(tuya_tls_hander p_tls_handler)
     return OPRT_OK;
 }
 
-static int tuya_tls_ciphersuite_list[] = {MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-                                          MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-                                          MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 0};
+/* Modern AEAD-only suite list. CBC mode dropped (no longer recommended) and
+ * ChaCha20-Poly1305 added so we negotiate one of the AEAD suites that every
+ * mainstream TLS 1.2 server supports. */
+static int tuya_tls_ciphersuite_list[] = {
+    MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+    MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+    MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+    0,
+};
 
 /**
  * @brief Initializes the Tuya TLS module.
@@ -416,9 +432,9 @@ OPERATE_RET tuya_tls_init(void)
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM)
     op_ret = mbedtls_platform_set_calloc_free(tal_psram_calloc, tal_psram_free);
-#else 
+#else
     op_ret = mbedtls_platform_set_calloc_free(tal_calloc, tal_free);
-#endif 
+#endif
     if (op_ret != 0) {
         PR_ERR("mbedtls_platform_set_calloc_free Fail. %x", op_ret);
         return op_ret;
@@ -452,6 +468,11 @@ exit:
 void tuya_tls_register_pre_conn_cb(tuya_tls_pre_conn_cb pre_conn)
 {
     s_pre_conn_cb = pre_conn;
+}
+
+const tuya_tls_config_t *tuya_tls_psk_mode_config_get(void)
+{
+    return NULL;
 }
 
 tuya_tls_hander *tuya_tls_connect_create(void)
@@ -513,7 +534,7 @@ void tuya_tls_connect_destroy(tuya_tls_hander p_tls_hander)
     tuya_mbedtls_context_t *tls_context = (tuya_mbedtls_context_t *)p_tls_hander;
     tal_mutex_release(tls_context->mutex);
     tal_mutex_release(tls_context->read_mutex);
-    
+
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM)
     tal_psram_free(p_tls_hander);
 #else
@@ -570,7 +591,7 @@ tuya_tls_config_t *tuya_tls_config_get(tuya_tls_hander p_tls_handler)
  */
 OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int port_num, int socket_fd, int overtime_s)
 {
-    OPERATE_RET op_ret;
+    OPERATE_RET             op_ret;
     tuya_mbedtls_context_t *tls_context = (tuya_mbedtls_context_t *)p_tls_handler;
 
     if (NULL == p_tls_handler || socket_fd < 0) {
@@ -579,10 +600,13 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int 
     }
 
     tls_context->config.hostname = hostname;
-    tls_context->config.port = port_num;
-    tls_context->config.timeout = overtime_s;
-    tls_context->config.exception_cb =
-        tls_context->config.exception_cb == NULL ? __tuya_tls_event_cb : tls_context->config.exception_cb;
+    tls_context->config.port     = port_num;
+    tls_context->config.timeout  = overtime_s;
+
+    if (NULL == tls_context->config.exception_cb) {
+        extern tuya_tls_event_cb tuya_cert_get_tls_event_cb(void);
+        tls_context->config.exception_cb = tuya_cert_get_tls_event_cb();
+    }
 
 #if defined(TLS_MEM_DEBUG) && (TLS_MEM_DEBUG == 1) && (OPERATING_SYSTEM != SYSTEM_LINUX)
     PR_NOTICE("xPortGetFreeHeapSize=%d,xPortGetMinimumEverFreeHeapSize=%d\n", xPortGetFreeHeapSize(),
@@ -590,8 +614,8 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int 
 #endif
     PR_DEBUG("TUYA_TLS Begin Connect %s:%d", (hostname ? hostname : ""), port_num);
 
-    mbedtls_ssl_context *p_ssl_ctx = &(tls_context->ssl_ctx);
-    mbedtls_ssl_config *p_conf_ctx = &(tls_context->conf_ctx);
+    mbedtls_ssl_context *p_ssl_ctx  = &(tls_context->ssl_ctx);
+    mbedtls_ssl_config  *p_conf_ctx = &(tls_context->conf_ctx);
 
     mbedtls_ssl_init(p_ssl_ctx);
     mbedtls_ssl_config_init(p_conf_ctx);
@@ -657,7 +681,7 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int 
     }
 
     /* BIO default config */
-    tls_context->socket_fd = socket_fd;
+    tls_context->socket_fd  = socket_fd;
     tls_context->overtime_s = overtime_s;
     tal_net_set_timeout(tls_context->socket_fd, overtime_s * 1000, TRANS_SEND);
     mbedtls_ssl_set_bio(p_ssl_ctx, tls_context, __tuya_tls_socket_send_cb, __tuya_tls_socket_recv_cb, NULL);
@@ -740,11 +764,11 @@ int tuya_tls_write(tuya_tls_hander tls_handler, uint8_t *buf, uint32_t len)
     }
 
     tuya_mbedtls_context_t *tls_context = (tuya_mbedtls_context_t *)tls_handler;
-    int ret = -1;
-    size_t written_len = 0;
+    int                     ret         = -1;
+    size_t                  written_len = 0;
 
     OPERATE_RET mu_ret = OPRT_OK;
-    mu_ret = tal_mutex_lock(tls_context->mutex);
+    mu_ret             = tal_mutex_lock(tls_context->mutex);
     if (OPRT_OK != mu_ret) {
         PR_ERR("tuya_hal_mutex_lock err %d", mu_ret);
         return mu_ret;
@@ -833,8 +857,8 @@ OPERATE_RET tuya_tls_disconnect(tuya_tls_hander tls_handler)
         PR_ERR("read_mutex lock err %d", mu_ret);
     }
 
-    mbedtls_ssl_context *p_ssl_ctx = &(tls_context->ssl_ctx);
-    mbedtls_ssl_config *p_conf_ctx = &(tls_context->conf_ctx);
+    mbedtls_ssl_context *p_ssl_ctx  = &(tls_context->ssl_ctx);
+    mbedtls_ssl_config  *p_conf_ctx = &(tls_context->conf_ctx);
 
     mbedtls_ssl_free(p_ssl_ctx);
     mbedtls_ssl_config_free(p_conf_ctx);
@@ -846,17 +870,4 @@ OPERATE_RET tuya_tls_disconnect(tuya_tls_hander tls_handler)
 
     PR_DEBUG("TUYA_TLS Disconnect Success");
     return OPRT_OK;
-}
-
-/**
- * Retrieves the callback function for Tuya TLS events.
- *
- * This function returns the callback function that is registered to handle Tuya
- * TLS events.
- *
- * @return The callback function for Tuya TLS events.
- */
-tuya_tls_event_cb tuya_cert_get_tls_event_cb(void)
-{
-    return __tuya_tls_event_cb;
 }

@@ -36,6 +36,9 @@ tuyadb/
 /.set_example
 /tmp/
 /cache/
+/dist
+*monitor.log
+/.omc
 
 # Docs
 /docs/superpowers/

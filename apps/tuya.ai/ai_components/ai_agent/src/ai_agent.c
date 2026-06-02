@@ -26,6 +26,10 @@
 #include "ai_audio_player.h"
 #endif
 
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+#include "ai_picture_output.h"
+#endif
+
 #if defined(ENABLE_AI_MONITOR) && (ENABLE_AI_MONITOR == 1)
 #include "tuya_ai_monitor.h"
 #endif
@@ -56,13 +60,13 @@ static uint16_t __s_audio_codec_type = AI_AUDIO_CODEC_MP3;
 */
 OPERATE_RET __ai_agent_event_cb(AI_EVENT_TYPE type, AI_PACKET_PT ptype, AI_EVENT_ID eid)
 {
-    PR_DEBUG("ai agent -> recv event type: %d", type);
+    PR_DEBUG("ai agent -> recv event type: %d packet_tp:%d", type, ptype);
 
     if (AI_EVENT_START == type) {
         if (AI_PT_AUDIO == ptype) {
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
             /* Start audio player */
-            ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_START, __s_audio_codec_type, (char*)eid, strlen(eid));
+            ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_START, __s_audio_codec_type, NULL, 0);
 #endif
         }
     } else if ((AI_EVENT_CHAT_BREAK == type)) {
@@ -77,7 +81,7 @@ OPERATE_RET __ai_agent_event_cb(AI_EVENT_TYPE type, AI_PACKET_PT ptype, AI_EVENT
         if (AI_PT_AUDIO == ptype) {
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
             /* Stop audio player */
-            ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_STOP, __s_audio_codec_type, (char*)eid, strlen(eid));
+            ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_STOP, __s_audio_codec_type, NULL, 0);
 #endif
         }
     } else if (AI_EVENT_CHAT_EXIT == type) {
@@ -134,7 +138,12 @@ OPERATE_RET __ai_agent_media_data_cb(AI_PACKET_PT type, char *data, uint32_t len
     } else if(type == AI_PT_VIDEO) {
         /* TBD */
     } else if(type == AI_PT_IMAGE) {
-        /* TBD */
+        PR_DEBUG("recv image data, len:%d, total_len:%d", len, total_len);
+#if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
+        if(len > 0) {
+            rt = ai_picture_output_save_to_album((uint8_t *)data, len, total_len);
+        }
+#endif
     } else if(type == AI_PT_FILE) {
         /* TBD */
     }
@@ -148,7 +157,7 @@ OPERATE_RET __ai_agent_media_data_cb(AI_PACKET_PT type, char *data, uint32_t len
 @param eof End of file flag
 @return OPERATE_RET Operation result
 */
-OPERATE_RET __ai_agent_text_cb(AI_TEXT_TYPE_E type, cJSON *root, bool eof)
+OPERATE_RET __ai_agent_text_cb(AI_TEXT_TYPE_E type, cJSON *root, BOOL_T eof)
 {    
     return ai_text_process(type, root, eof);
 }

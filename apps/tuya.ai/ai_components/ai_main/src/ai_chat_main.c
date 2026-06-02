@@ -427,9 +427,7 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
         .priority = THREAD_PRIO_5,
         .stackDepth = 3* 1024,
         .thrdname = "ai_chat_mode",
-        #ifdef ENABLE_EXT_RAM
         .psram_mode = 1,
-        #endif            
     };
 
     TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&sg_ai_chat_mode_task, NULL, NULL,\

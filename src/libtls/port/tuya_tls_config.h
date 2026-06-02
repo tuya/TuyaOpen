@@ -1652,7 +1652,7 @@
  *          configuration of this extension).
  *
  */
-//#define MBEDTLS_SSL_RENEGOTIATION
+#define MBEDTLS_SSL_RENEGOTIATION
 
 /**
  * \def MBEDTLS_SSL_SRV_SUPPORT_SSLV2_CLIENT_HELLO
@@ -1784,7 +1784,7 @@
  *
  * Comment this macro to disable support for ALPN.
  */
-//#define MBEDTLS_SSL_ALPN
+#define MBEDTLS_SSL_ALPN
 
 /**
  * \def MBEDTLS_SSL_DTLS_ANTI_REPLAY
@@ -1910,7 +1910,7 @@
 #undef MBEDTLS_SSL_SESSION_TICKETS
 #endif
 #else
-// #define MBEDTLS_SSL_SESSION_TICKETS
+#define MBEDTLS_SSL_SESSION_TICKETS
 #endif
 /**
  * \def MBEDTLS_SSL_EXPORT_KEYS
@@ -3231,8 +3231,14 @@
 #undef MBEDTLS_SHA384_C
 #endif
 #else
-#undef MBEDTLS_SHA512_C
-#undef MBEDTLS_SHA384_C
+/* Enabled by default. Many real-world intermediate CAs are signed with
+ * sha384WithRSAEncryption (OID 1.2.840.113549.1.1.12). Without SHA-384/512
+ * compiled in, mbedtls_x509_crt_parse silently drops these certs from the
+ * peer chain with MBEDTLS_ERR_OID_NOT_FOUND, leaving only the leaf and
+ * triggering MBEDTLS_X509_BADCERT_NOT_TRUSTED on otherwise valid chains
+ * (e.g. *.wgine.com leaf -> GoGetSSL RSA DV CA SHA-384 intermediate). */
+#define MBEDTLS_SHA512_C
+#define MBEDTLS_SHA384_C
 #endif
 
 

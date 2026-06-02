@@ -13,26 +13,31 @@ extern "C" {
 // Encoder information structure
 typedef struct {
     AI_AUDIO_CODEC_TYPE encode_type;
-    uint32_t sample_rate;
-    uint8_t channels;
-    uint32_t bits_per_sample;
-    uint16_t frame_size;
+    UINT_T sample_rate;
+    BYTE_T channels;
+    UINT_T bits_per_sample;
+    UINT16_T frame_size;
+    UINT_T bitrate;     // Encoder bitrate in bps. 0 = default
+    UINT_T bandwidth;   // Opus bandwidth setting. 0 = auto-select
+    BYTE_T vbr;         // Opus VBR mode. 0 = CBR (default), 1 = VBR
+    BYTE_T dtx;         // Opus DTX mode. 0 = disabled (default), 1 = enabled
+    BYTE_T complexity;  // Opus encoding complexity. 0-10. 0 = default (lowest/fastest)
 } TUYA_AI_ENCODER_INFO_T;
 
 // Encoder handle type
 typedef VOID *AI_ENCODE_HANDLE_T;
 
 // Encoder data output callback function type
-typedef OPERATE_RET (*AI_ENCODER_DATA_OUT_CB)(AI_AUDIO_CODEC_TYPE codec_type, uint8_t *data, uint32_t len, void *usr_data);
+typedef OPERATE_RET (*AI_ENCODER_DATA_OUT_CB)(AI_AUDIO_CODEC_TYPE codec_type, UCHAR_T *data, UINT_T len, void *usr_data);
 
 // Encoder interface structure
 typedef struct {
     AI_ENCODE_HANDLE_T handle;
-    char *name;
+    CHAR_T *name;
     AI_AUDIO_CODEC_TYPE codec_type;
     OPERATE_RET (*create)(AI_ENCODE_HANDLE_T *handle, TUYA_AI_ENCODER_INFO_T *info);
     OPERATE_RET (*destroy)(AI_ENCODE_HANDLE_T handle);
-    OPERATE_RET (*encode)(AI_ENCODE_HANDLE_T handle, uint8_t *in_buf, uint32_t in_len, AI_ENCODER_DATA_OUT_CB cb, void *usr_data);
+    OPERATE_RET (*encode)(AI_ENCODE_HANDLE_T handle, UCHAR_T *in_buf, UINT_T in_len, AI_ENCODER_DATA_OUT_CB cb, void *usr_data);
 } TUYA_AI_ENCODER_T;
 
 /**

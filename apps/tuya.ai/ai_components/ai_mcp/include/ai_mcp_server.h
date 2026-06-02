@@ -542,7 +542,7 @@ MCP_TOOL_T *ai_mcp_server_find_tool(const char *name);
  * 
  * Return: OPRT_OK on success, error code on failure
  */
-OPERATE_RET ai_mcp_server_parse_message(const cJSON *json, void *user_data);
+OPERATE_RET ai_mcp_server_parse_message(char *sid, char *eid, const cJSON *json, void *user_data);
 
 /* === Utility Functions === */
 

@@ -1,5 +1,5 @@
 menuconfig ENABLE_COMP_AI_DISPLAY
-    bool "enable ai chat display ui"
+    bool "enable ai ui"
     default y
 
 if(ENABLE_COMP_AI_DISPLAY)
@@ -30,6 +30,19 @@ if(!ENABLE_AI_CHAT_CUSTOM_UI)
         depends on ENABLE_AI_CHAT_GUI_CHATBOT
         bool "Enable circle ui style"
         default n
+
+    config AI_UI_WECHAT_SCREEN_CORNER_RADIUS
+        depends on ENABLE_AI_CHAT_GUI_WECHAT
+        int "WeChat UI rounded-screen corner radius in pixels (NOT degrees)"
+        range 0 120
+        default 0
+        help
+            Physical corner radius of the display panel in pixels (px), NOT degrees.
+            Example: set to 36 for a 368x448 screen whose physical corners are ~36 px.
+            A non-zero value adds safe insets so UI elements (chat area, buttons,
+            attach bar) are shifted inward and not clipped by rounded corners.
+            Setting this too large will shrink the content area unnecessarily.
+            Recommended starting value: corner_radius_px = screen_width * 0.1
 
     if(ENABLE_AI_CHAT_GUI_OLED)
         choice AI_CHAT_GUI_OLED_SIZE

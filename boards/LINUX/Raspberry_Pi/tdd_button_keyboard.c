@@ -251,12 +251,3 @@ OPERATE_RET tdd_keyboard_button_register(char *name, BUTTON_CFG_T *cfg)
 
     return rt;
 }
-
-OPERATE_RET tdd_gpio_button_update_level(DEVICE_BUTTON_HANDLE handle, TUYA_GPIO_LEVEL_E level)
-{
-    BUTTON_CTX_T *p_ctx = (BUTTON_CTX_T *)handle;
-
-    PR_DEBUG("button %s set level %d", p_ctx->name, level);
-
-    return OPRT_OK;
-}

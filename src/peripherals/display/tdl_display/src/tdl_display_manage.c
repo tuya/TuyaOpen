@@ -42,6 +42,8 @@ typedef struct {
     TUYA_DISPLAY_BL_CTRL_T bl;
     TUYA_DISPLAY_IO_CTRL_T power;
 
+    uint8_t brightness; /* 0-100, cached level; init from CONFIG_DISPLAY_DEFAULT_BRIGHTNESS at register */
+
     TDD_DISP_DEV_HANDLE_T tdd_hdl;
     TDD_DISP_INTFS_T      intfs;
     TDD_SET_BACKLIGHT_CB  custom_set_bl_cb;
@@ -168,6 +170,7 @@ TDL_DISP_HANDLE_T tdl_disp_find_dev(char *name)
  *
  * This function prepares the specified display device for operation by initializing 
  * its power control, mutex, and invoking the device-specific open function if available.
+ * Applies display_dev->brightness (initialized from CONFIG_DISPLAY_DEFAULT_BRIGHTNESS at register).
  *
  * @param disp_hdl Handle to the display device to be opened.
  *
@@ -199,6 +202,9 @@ OPERATE_RET tdl_disp_dev_open(TDL_DISP_HANDLE_T disp_hdl)
     }
 
     __tdl_blacklight_init(&display_dev->bl);
+
+    tdl_disp_set_brightness(disp_hdl, display_dev->brightness);
+
 
     display_dev->is_open = true;
 
@@ -278,6 +284,7 @@ OPERATE_RET tdl_disp_dev_get_info(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_DEV_INFO_
 OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightness)
 {
     DISPLAY_DEVICE_T *display_dev = NULL;
+    uint8_t           b;
 
     if (NULL == disp_hdl) {
         return OPRT_INVALID_PARM;
@@ -285,8 +292,13 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
 
     display_dev = (DISPLAY_DEVICE_T *)disp_hdl;
 
+    b = brightness;
+    if (b > 100U) {
+        b = 100U;
+    }
+
     if (display_dev->bl.type == TUYA_DISP_BL_TP_GPIO) {
-        if (brightness) {
+        if (b) {
             tkl_gpio_write(display_dev->bl.gpio.pin, display_dev->bl.gpio.active_level);
         } else {
             tkl_gpio_write(display_dev->bl.gpio.pin, (display_dev->bl.gpio.active_level == TUYA_GPIO_LEVEL_HIGH)
@@ -295,18 +307,18 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
         }
     } else if (display_dev->bl.type == TUYA_DISP_BL_TP_PWM) {
 #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
-        if (brightness) {
-            display_dev->bl.pwm.cfg.duty = brightness * 100;
+        if (b) {
+            display_dev->bl.pwm.cfg.duty = b * 100;
             tkl_pwm_info_set(display_dev->bl.pwm.id, &display_dev->bl.pwm.cfg);
             tkl_pwm_start(display_dev->bl.pwm.id);
         } else {
             tkl_pwm_stop(display_dev->bl.pwm.id);
         }
 #endif
-    }else if(display_dev->bl.type == TUYA_DISP_BL_TP_CUSTOM) {
+    } else if (display_dev->bl.type == TUYA_DISP_BL_TP_CUSTOM) {
         if (display_dev->custom_set_bl_cb) {
-            display_dev->custom_set_bl_cb(brightness, display_dev->custom_set_bl_arg);
-        }else {
+            display_dev->custom_set_bl_cb(b, display_dev->custom_set_bl_arg);
+        } else {
             PR_ERR("no register custom backlight control callback");
             return OPRT_NOT_SUPPORTED;
         }
@@ -315,6 +327,8 @@ OPERATE_RET tdl_disp_set_brightness(TDL_DISP_HANDLE_T disp_hdl, uint8_t brightne
     } else {
         return OPRT_NOT_SUPPORTED;
     }
+
+    display_dev->brightness = b;
 
     return OPRT_OK;
 }
@@ -477,6 +491,8 @@ OPERATE_RET tdl_disp_device_register(char *name, TDD_DISP_DEV_HANDLE_T tdd_hdl, 
     display_dev->tdd_hdl = tdd_hdl;
 
     memcpy(&display_dev->intfs, intfs, sizeof(TDD_DISP_INTFS_T));
+
+    display_dev->brightness = (uint8_t)DISPLAY_DEFAULT_BRIGHTNESS;
 
     tuya_list_add(&display_dev->node, &sg_display_list);
 

@@ -10,7 +10,7 @@
 
 #include "tuya_cloud_types.h"
 
-#include "base_event_info.h"
+#include "tal_event_info.h"
 #include "tal_event.h"
 
 #ifdef __cplusplus
