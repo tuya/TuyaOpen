@@ -84,7 +84,7 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
     int n = 0;
 
     endport->atop.path[0] = '\0';
-    n = sscanf(httpsSelfUrl, "https://%64[^:]:%hu%16[^\n]", endport->atop.host, &port, endport->atop.path);
+    n = sscanf(httpsSelfUrl, "https://%64[^:]:%d%16[^\n]", endport->atop.host, &port, endport->atop.path);
     if (n >= 2) {
         endport->atop.port = (uint16_t)port;
     } else {
