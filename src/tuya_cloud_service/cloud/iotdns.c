@@ -38,6 +38,29 @@
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
     "\"mqttsSelfUrl\",\"need_ca\":true}],\"env\":\"%s\"}"
 
+/**
+ * @brief Split register-center style "host" or "host:port"
+ * @param[in] url input host string
+ * @param[out] host output hostname buffer
+ * @param[in] host_len size of host buffer
+ * @return resolved port, 443 when url has no port suffix
+ */
+static uint16_t iotdns_split_host_port(const char *url, char *host, size_t host_len)
+{
+    unsigned int port = 443;
+
+    if (url == NULL || host == NULL || host_len == 0) {
+        return 443;
+    }
+
+    if (sscanf(url, "%63[^:]:%u", host, &port) >= 2 && port > 0 && port <= 65535) {
+        return (uint16_t)port;
+    }
+
+    snprintf(host, host_len, "%s", url);
+    return 443;
+}
+
 static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoint_t *endport)
 {
     cJSON *root = cJSON_Parse((const char *)input);
@@ -56,10 +79,19 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
     PR_DEBUG("httpsSelfUrl:%s", httpsSelfUrl);
     PR_DEBUG("mqttsSelfUrl:%s", mqttsSelfUrl);
 
-    /* ATOP url decode */
+    /* ATOP url decode: https://host[:port]/path */
     int port = 443;
-    sscanf(httpsSelfUrl, "https://%64[^/]%16[^\n]", endport->atop.host, endport->atop.path);
-    endport->atop.port = (uint16_t)port;
+    int n = 0;
+
+    endport->atop.path[0] = '\0';
+    n = sscanf(httpsSelfUrl, "https://%64[^:]:%hu%16[^\n]", endport->atop.host, &port, endport->atop.path);
+    if (n >= 2) {
+        endport->atop.port = (uint16_t)port;
+    } else {
+        port = 443;
+        sscanf(httpsSelfUrl, "https://%64[^/]%16[^\n]", endport->atop.host, endport->atop.path);
+        endport->atop.port = (uint16_t)port;
+    }
     PR_DEBUG("endport->atop.host = \"%s\"", endport->atop.host);
     PR_DEBUG("endport->atop.port = %d", endport->atop.port);
     PR_DEBUG("endport->atop.path = \"%s\"", endport->atop.path);
@@ -100,6 +132,9 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
 static int iotdns_base_request(char *body, char *path, http_client_response_t *http_response)
 {
     http_client_status_t http_status;
+    char rcs_host[MAX_LENGTH_TUYA_HOST + 1] = {0};
+    uint16_t rcs_port = 443;
+    const char *rcs_url = NULL;
 
     /* HTTP headers */
     http_client_header_t headers[] = {
@@ -110,6 +145,11 @@ static int iotdns_base_request(char *body, char *path, http_client_response_t *h
 
     register_center_t rcs;
     tuya_register_center_get(&rcs);
+    rcs_url = rcs.urlx ? rcs.urlx : rcs.url0;
+    if (rcs_url == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
@@ -117,8 +157,8 @@ static int iotdns_base_request(char *body, char *path, http_client_response_t *h
         &(const http_client_request_t){
             .cacert = rcs.ca_cert,
             .cacert_len = rcs.ca_cert_len,
-            .host = rcs.urlx ? rcs.urlx : rcs.url0,
-            .port = 443,
+            .host = rcs_host,
+            .port = rcs_port,
             .method = "POST",
             .path = path,
             .headers = headers,
@@ -193,9 +233,18 @@ int iotdns_cloud_endpoint_get(const char *region, const char *env, tuya_endpoint
     uint8_t headers_count = sizeof(headers) / sizeof(http_client_header_t);
 
     http_client_response_t http_response = {0};
+    char rcs_host[MAX_LENGTH_TUYA_HOST + 1] = {0};
+    uint16_t rcs_port = 443;
+    const char *rcs_url = NULL;
 
     register_center_t rcs;
     tuya_register_center_get(&rcs);
+    rcs_url = rcs.urlx ? rcs.urlx : rcs.url0;
+    if (rcs_url == NULL) {
+        tal_free(body_buffer);
+        return OPRT_INVALID_PARM;
+    }
+    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
@@ -203,8 +252,8 @@ int iotdns_cloud_endpoint_get(const char *region, const char *env, tuya_endpoint
         &(const http_client_request_t){
             .cacert = rcs.ca_cert,
             .cacert_len = rcs.ca_cert_len,
-            .host = rcs.urlx ? rcs.urlx : rcs.url0,
-            .port = 443,
+            .host = rcs_host,
+            .port = rcs_port,
             .method = "POST",
             .path = "/v2/url_config",
             .headers = headers,
