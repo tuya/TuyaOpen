@@ -213,6 +213,10 @@ add_custom_command(
     OUTPUT
     build_example_exe
 
+    DEPENDS
+    ${EXAMPLE_LIB}
+    ${COMPONENTS_ALL_LIB}
+
     WORKING_DIRECTORY
     ${PLATFORM_PATH}
 
