@@ -463,8 +463,8 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
     TAL_ENTER_CRITICAL();
 
     pframe_list = (false == __is_camera_frame_encoded(fmt)) ? \
-                  &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
-             
+                    &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
+
     if(tuya_list_empty(pframe_list)) {
         TAL_EXIT_CRITICAL();
         return NULL;
