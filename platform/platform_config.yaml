@@ -16,8 +16,8 @@ platforms:
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
-  branch: yj/sync-vendor-sdk
-  commit: 9db68217406b35630204a621767a2410c63c67b7
+  branch: master
+  commit: f08139f0a236cd2b61463cd7b42a5fc1f77f8029
 
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
