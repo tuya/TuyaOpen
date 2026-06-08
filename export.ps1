@@ -76,6 +76,7 @@ function Write-TuyaOpenDebug {
 
 function Write-TuyaOpenStage {
     param([Parameter(Mandatory)][string]$StageId)
+    if (-not $script:TuyaOpenIdeHost) { return }
     Write-TuyaOpenInfo "[TuyaOpen] Stage: $StageId"
 }
 

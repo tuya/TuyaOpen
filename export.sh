@@ -50,6 +50,7 @@ tuya_info()  { echo "$@" >&2; }
 tuya_debug() { [ -n "${TUYAOPEN_EXPORT_VERBOSE:-}" ] && echo "$@" >&2; return 0; }
 
 tuya_stage() {
+    tuya_is_ide_host || return 0
     tuya_info "[TuyaOpen] Stage: $1"
 }
 
