@@ -1,52 +1,60 @@
-config CHIP_CHOICE
-    string
-    default "Ubuntu"
+menu "Ubuntu Board Configuration"
+    config CHIP_CHOICE
+        string
+        default "Ubuntu"
 
-config BOARD_CHOICE
-    string
-    default "Ubuntu"
+    config BOARD_CHOICE
+        string
+        default "Ubuntu"
 
-config BOARD_CONFIG
-    bool
-    default y
-    select ENABLE_QRCODE
-    select ENABLE_BUTTON
+    config BOARD_CONFIG
+        bool
+        default y
+        select ENABLE_QRCODE
+        select ENABLE_AUDIO_CODECS
+        select ENABLE_BUTTON
 
-config ENABLE_KEYBOARD_INPUT
-    bool "Enable keyboard input for Ubuntu"
-    default y
-    ---help---
-        Enable keyboard input handling for Ubuntu platform.
+    config ENABLE_KEYBOARD_INPUT
+        bool "Enable keyboard input for Ubuntu"
+        default y
+        ---help---
+            Enable keyboard input handling for Ubuntu platform.
 
-config BUTTON_NAME
-    string "Keyboard button key character"
-    depends on ENABLE_KEYBOARD_INPUT
-    default "s"
-    ---help---
-        Specify the keyboard key character used as the button trigger.
+    config BUTTON_NAME
+        string "Keyboard button key character"
+        depends on ENABLE_KEYBOARD_INPUT
+        default "s"
+        ---help---
+            Specify the keyboard key character used as the button trigger.
 
-config ENABLE_SDL_DISPLAY
-    bool "Enable SDL2 desktop window for display"
-    depends on ENABLE_DISPLAY
-    default y
-    ---help---
-        Enable a simple SDL2 window as the display device.
+    config ENABLE_SDL_DISPLAY
+        bool "Enable SDL2 desktop window for display"
+        depends on ENABLE_DISPLAY
+        default y
+        ---help---
+            Enable a simple SDL2 window as the display device.
 
-config ENABLE_SDL_TP
-    bool "Enable SDL virtual touchpad (mouse drag/wheel)"
-    depends on ENABLE_SDL_DISPLAY
-    select ENABLE_TP
-    select ENABLE_LVGL_TP
-    default y
-    ---help---
-        Enable a virtual touchpad on Ubuntu Desktop.
+    config ENABLE_SDL_TP
+        bool "Enable SDL virtual touchpad (mouse drag/wheel)"
+        depends on ENABLE_SDL_DISPLAY
+        select ENABLE_TP
+        select ENABLE_LVGL_TP
+        default y
+        ---help---
+            Enable a virtual touchpad on Ubuntu Desktop.
 
-config SDL_DISPLAY_WIDTH
-    int "SDL window width"
-    depends on ENABLE_SDL_DISPLAY
-    default 480
+    config SDL_DISPLAY_WIDTH
+        int "SDL window width"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
 
-config SDL_DISPLAY_HEIGHT
-    int "SDL window height"
-    depends on ENABLE_SDL_DISPLAY
-    default 480
+    config SDL_DISPLAY_HEIGHT
+        int "SDL window height"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
+
+    config SDL_DISPLAY_TITLE
+        string "SDL window title"
+        depends on ENABLE_SDL_DISPLAY
+        default "TuyaOpen - your_chat_bot"
+endmenu
