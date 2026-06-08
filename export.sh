@@ -494,7 +494,7 @@ tuya_download_uv() {
 tuya_resolve_uv() {
     local size=""
     if [ -f "$_tuya_uv_archive" ]; then
-        size=$(wc -c < "$_tuya_uv_archive" 2>/dev/null || echo 0)
+        size=$(wc -c < "$_tuya_uv_archive" 2>/dev/null | awk '{print $1}' || echo 0)
         if [ "$size" = "$_tuya_uv_dl_size" ] && tuya_verify_sha256 "$_tuya_uv_archive" "$_tuya_uv_dl_sha256"; then
             tuya_debug '[TuyaOpen] Using cached uv package.'
             return 0
@@ -517,7 +517,7 @@ tuya_resolve_uv() {
         return 1
     fi
 
-    size=$(wc -c < "$_tuya_uv_archive" 2>/dev/null || echo 0)
+    size=$(wc -c < "$_tuya_uv_archive" 2>/dev/null | awk '{print $1}' || echo 0)
     if [ "$size" != "$_tuya_uv_dl_size" ] || ! tuya_verify_sha256 "$_tuya_uv_archive" "$_tuya_uv_dl_sha256"; then
         rm -f "$_tuya_uv_archive" 2>/dev/null || true
         tuya_error Uv 'Downloaded package failed verification.' 'Size or SHA256 mismatch.' \
