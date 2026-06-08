@@ -40,12 +40,18 @@ static CAMERA_DVP_DEV_T *sg_dvp_dev = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+OPERATE_RET __tdd_dvp_setup_callback(void *args)
+{
+    (void)args;
+    return OPRT_OK;
+}
+
 /**
  * @brief Allocate frame buffer for DVP frame management
  * @param fmt Frame format enumeration
  * @return Pointer to DVP frame management structure, or NULL on failure
  */
-static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E fmt)
+static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E fmt, void *args)
 {
     TDD_CAMERA_FRAME_T *tdd_frame;
     TUYA_DVP_FRAME_MANAGE_T *dvp_frame;
@@ -80,7 +86,7 @@ __EXIT:
  * @param dvp_frame Pointer to DVP frame management structure
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid
  */
-static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_frame)
+static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_frame, void *args)
 {
     TDD_CAMERA_FRAME_T *tdd_frame = NULL;
 
@@ -139,10 +145,15 @@ static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_
     dev->dvp_cfg.width     = cfg->width;
     dev->dvp_cfg.height    = cfg->height;
     dev->dvp_cfg.fps       = cfg->fps;
+    dev->dvp_cfg.inter_cfg.sensor_clk = dev->sensor.usr_cfg.clk;
+    dev->dvp_cfg.inter_cfg.setup_cb = __tdd_dvp_setup_callback;
+    dev->dvp_cfg.inter_cfg.assign_cb = __tdd_dvp_frame_manage_malloc;
+    dev->dvp_cfg.inter_cfg.post_cb = __tdd_dvp_frame_post_handler;
+    dev->dvp_cfg.inter_cfg.cb_param = NULL;
 
     memcpy(&dev->dvp_cfg.encoded_quality, &cfg->encoded_quality, sizeof(TUYA_DVP_ENCODED_QUALITY));
 
-    TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dev->dvp_cfg, dev->sensor.usr_cfg.clk));
+    TUYA_CALL_ERR_RETURN(tkl_dvp_init(&dev->dvp_cfg));
 
     return OPRT_OK;
 }
@@ -166,9 +177,6 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
 
     sg_dvp_dev = dvp_dev;
     p_usr_cfg  = &(dvp_dev->sensor.usr_cfg);
-
-    tkl_dvp_frame_assign_cb_register(__tdd_dvp_frame_manage_malloc);
-	tkl_dvp_frame_post_cb_register(__tdd_dvp_frame_post_handler);
 
     if(p_usr_cfg->i2c.port < TUYA_I2C_NUM_MAX) {
         TUYA_CALL_ERR_RETURN(tdd_dvp_i2c_init(&p_usr_cfg->i2c));

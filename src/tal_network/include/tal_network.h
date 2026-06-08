@@ -31,11 +31,17 @@ extern "C" {
 #endif
 
 /* tuya sdk definition of 127.0.0.1 */
+#ifndef TY_IPADDR_LOOPBACK
 #define TY_IPADDR_LOOPBACK ((uint32_t)0x7f000001UL)
+#endif
 /* tuya sdk definition of 0.0.0.0 */
+#ifndef TY_IPADDR_ANY
 #define TY_IPADDR_ANY ((uint32_t)0x00000000UL)
+#endif
 /* tuya sdk definition of 255.255.255.255 */
+#ifndef TY_IPADDR_BROADCAST
 #define TY_IPADDR_BROADCAST ((uint32_t)0xffffffffUL)
+#endif
 
 /**
  * @brief Get error code of network
