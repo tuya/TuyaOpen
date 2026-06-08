@@ -107,29 +107,67 @@ def _make_gitee_url(github_url: str) -> str:
 DOWNLOAD_TIMEOUT = 300  # 5 minutes total cap for binary download
 
 
-def _download_file(url: str, dest: str) -> bool:
+def _format_download_progress(downloaded: int, total: int) -> str:
+    """Human-readable download progress (KB when total < 1 MiB)."""
+    if total > 0:
+        pct = min(100, downloaded * 100 // total)
+        if total >= 1024 * 1024:
+            d_mb = downloaded / (1024 * 1024)
+            t_mb = total / (1024 * 1024)
+            return f"  {d_mb:.1f}MB / {t_mb:.1f}MB ({pct}%)"
+        if total >= 1024:
+            return f"  {downloaded // 1024}KB / {total // 1024}KB ({pct}%)"
+        return f"  {downloaded}B / {total}B ({pct}%)"
+    if downloaded >= 1024 * 1024:
+        return f"  {downloaded / (1024 * 1024):.1f}MB downloaded"
+    if downloaded >= 1024:
+        return f"  {downloaded // 1024}KB downloaded"
+    if downloaded > 0:
+        return f"  {downloaded}B downloaded"
+    return ""
+
+
+def _download_file(url: str, dest: str, *, log_progress: bool = True) -> bool:
     logger = get_logger()
     try:
         resp = requests.get(url, stream=True, timeout=(15, 30))
         resp.raise_for_status()
-        total = int(resp.headers.get('content-length', 0))
+        total = int(resp.headers.get("content-length") or 0)
         downloaded = 0
         deadline = time.time() + DOWNLOAD_TIMEOUT
-        with open(dest, 'wb') as f:
+        last_logged_pct = -1
+        last_logged_kb_bucket = -1
+        with open(dest, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
-                    mb = downloaded // (1024 * 1024)
-                    if total:
-                        total_mb = total // (1024 * 1024)
-                        logger.info(f"  {mb}MB / {total_mb}MB")
-                    else:
-                        logger.info(f"  {mb}MB downloaded")
+                    if log_progress:
+                        if total > 0:
+                            pct = min(100, downloaded * 100 // total)
+                            if pct >= last_logged_pct + 10 or pct == 100:
+                                msg = _format_download_progress(
+                                    downloaded, total)
+                                if msg:
+                                    logger.info(msg)
+                                last_logged_pct = pct
+                        else:
+                            kb_bucket = downloaded // (256 * 1024)
+                            if kb_bucket > last_logged_kb_bucket:
+                                msg = _format_download_progress(downloaded, 0)
+                                if msg:
+                                    logger.info(msg)
+                                last_logged_kb_bucket = kb_bucket
                 if time.time() > deadline:
                     raise TimeoutError(
                         f"Download exceeded {DOWNLOAD_TIMEOUT}s limit"
                     )
+        if log_progress and downloaded > 0 and (
+                total == 0 or last_logged_pct < 100):
+            msg = _format_download_progress(
+                downloaded, total if total > 0 else downloaded)
+            if msg:
+                logger.info(msg)
         return True
     except Exception as e:
         logger.debug(f"Download failed ({url}): {e}")
