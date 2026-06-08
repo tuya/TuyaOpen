@@ -587,11 +587,12 @@ STATIC BOOL_T __ai_client_restore_ca(VOID *p_ctx, CHAR_T *url)
         return FALSE;
     }
 
-    UINT_T  len = 0, idx = 0;
+    size_t  len = 0;
+    UINT_T  idx = 0;
     BYTE_T *buffer = 0;
     for (idx = 0; idx < ser_cfg->domain_num; idx++) {
         if (strncmp(url, ser_cfg->domains[idx], strlen(url)) == 0) {
-            rt = tal_kv_get(AI_DOMAIN_CA_KV_KEY, &buffer, (size_t *)&len);
+            rt = tal_kv_get(AI_DOMAIN_CA_KV_KEY, &buffer, &len);
             if (rt == OPRT_OK) {
                 rt = tuya_tls_register_x509_crt_der(p_ctx, buffer, len);
                 PR_DEBUG("load url %s ca to tls %d", url, rt);
