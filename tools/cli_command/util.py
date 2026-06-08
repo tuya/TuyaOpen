@@ -202,6 +202,9 @@ def set_global_params():
     board_template_root = os.path.join(tools_root, "board_template")
     GLOBAL_PARAMS["board_template_root"] = board_template_root
 
+    GLOBAL_PARAMS["win_make_bin_dir"] = os.path.join(
+        open_root, ".tools", "make", "4.4.1")
+
     pass
 
 

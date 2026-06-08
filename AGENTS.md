@@ -22,9 +22,12 @@ cd /workspace && . ./export.sh
 
 What this does:
 - Creates or reuses `.venv/`
-- Installs Python dependencies from `requirements.txt`
-- Exports `OPEN_SDK_ROOT`, `OPEN_SDK_PYTHON`, and `OPEN_SDK_PIP`
+- Syncs Python dependencies via `uv sync` (`pyproject.toml` + `uv.lock`)
+- Runs `tos.py prepare` to install SDK host tools (on Windows, GNU Make goes under `.tools/make/<version>/`; downloads are cached under `.tools/archives/`)
+- Exports `OPEN_SDK_ROOT`, `OPEN_SDK_PYTHON`, and `OPEN_SDK_PIP` on all platforms; on Windows, also exports `OPEN_SDK_MAKE_BIN` and `OPEN_SDK_MAKE` after `tos.py prepare` installs GNU Make
 - Makes `tos.py` available in the current shell
+
+On Windows, after `export.ps1` / `export.bat`, you can also run `tos.py prepare` manually to retry host-tool setup.
 
 ### Build workflow
 
@@ -68,3 +71,4 @@ Expected packages (see `Dockerfile`):
 - Build intermediates: `<project>/.build/`
 - Final outputs: `<project>/dist/`
 - Platform SDK cache: `platform/LINUX/`
+

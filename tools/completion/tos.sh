@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+# Legacy static completion (optional manual source).
+# Prefer: source export.sh (bash/zsh) or . .\export.ps1 (PowerShell 7+ on Windows).
+# Uses Click 8 built-in completion; Windows PowerShell uses click-pwsh via export.ps1.
 
 _tos_get_commands() {
-    echo "version check new build flash monitor clean fullclean menuconfig savedef config_choice new_platform update help dev"
+    echo "version check config build clean flash monitor update new dev idf hello"
 }
 
 _tos_get_templates() {

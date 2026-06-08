@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 /.venv/
+/.tools/
 .pytest_cache/
 
 # Editor / IDE
