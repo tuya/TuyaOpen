@@ -1,416 +1,1450 @@
 <#
     Usage:
-      .\export.ps1        - runs in a dedicated child PowerShell session
       . .\export.ps1      - dot-source into the current session (recommended)
 
     Set $env:TUYAOPEN_EXPORT_VERBOSE = "1" before running for full diagnostics.
 
     This script:
       * locates the TuyaOpen project root (this script's directory),
-      * creates/activates a Python venv in <root>\.venv,
-      * installs requirements.txt,
-      * exports OPEN_SDK_ROOT / OPEN_SDK_PYTHON / OPEN_SDK_PIP,
-      * appends the project root to PATH so `tos.py` is runnable,
-      * installs `tos.py` / `deactivate` helper functions in the caller's
-        session (global scope), and optionally opens an interactive child
-        PowerShell with a `(tos)` prompt when invoked directly (not dot-sourced).
+      * ensures `uv` from <root>\.tools\uv\<version>\ (uv-manifest.env),
+      * installs Python 3.12.13 via uv into <root>\.tools\python\3.12.13\,
+      * creates <root>\.venv and runs `uv sync --frozen` (pyproject.toml + uv.lock),
+      * sets OPEN_SDK_ROOT / OPEN_SDK_UV / OPEN_SDK_PYTHON (.venv) / OPEN_SDK_PIP / OPEN_SDK_MAKE_BIN / OPEN_SDK_MAKE,
+      * runs tos.py prepare (host tools; GNU Make on Windows when missing),
+      * sets TUYAOPEN_ENV_ACTIVE=1 and (TuyaOpen) prompt; registers tos.py / deactivate; resets .cache each source (re-source safe),
+      * on Windows registers PowerShell tab completion for tos.py (click-pwsh + Click 8).
 #>
 
-# ---------------------------------------------------------------------------
-# Locate project root (script's directory) and invocation style.
-# `$MyInvocation.InvocationName` is '.' when dot-sourced; otherwise it is the
-# name used to invoke the script (e.g. '.\export.ps1'). We skip spawning a
-# child shell when dot-sourced so the user stays in their own session.
-# ---------------------------------------------------------------------------
-$OpenSdkRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Verbose       = [bool]$env:TUYAOPEN_EXPORT_VERBOSE
-$isDotSourced  = ($MyInvocation.InvocationName -eq '.')
+#Requires -Version 5.1
 
 # ---------------------------------------------------------------------------
-# Verify required project files (silent on success)
+# Session state
 # ---------------------------------------------------------------------------
-$missing = @()
-foreach ($f in 'export.ps1', 'requirements.txt', 'tos.py') {
-    if (-not (Test-Path -LiteralPath (Join-Path $OpenSdkRoot $f) -PathType Leaf)) {
-        $missing += $f
+$script:TuyaOpenVerbose = [bool]$env:TUYAOPEN_EXPORT_VERBOSE
+$script:TuyaOpenDotSourced = $false
+
+$script:TuyaUvToolName               = 'uv'
+$script:PythonVersion            = '3.12.13'
+$script:VenvMarker           = '.tuyaopen-uv'
+$script:PromptPrefix          = '(TuyaOpen) '
+$script:UvDownloadAttempts = 2
+$script:UvVersion = '0.11.18'
+$script:TuyaUvDefaultBaseUrl = 'https://releases.astral.sh/github/uv/releases/download'
+$script:TuyaUvBinNames       = @('uv.exe', 'uvx.exe', 'uvw.exe')
+$script:TuyaMakeToolName     = 'make'
+$script:TuyaMakeVersion      = '4.4.1'
+$script:TuyaAliyunPypiIndex  = 'https://mirrors.aliyun.com/pypi/simple/'
+
+# Windows release triple -> uv zip artifact (MSVC builds only).
+$script:TuyaUvWindowsArtifacts = @{
+    'i686-pc-windows-msvc'    = 'uv-i686-pc-windows-msvc.zip'
+    'x86_64-pc-windows-msvc'  = 'uv-x86_64-pc-windows-msvc.zip'
+    'aarch64-pc-windows-msvc' = 'uv-aarch64-pc-windows-msvc.zip'
+}
+
+# ---------------------------------------------------------------------------
+# Logging, errors, IO
+# ---------------------------------------------------------------------------
+function Write-TuyaOpenInfo {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Message)
+    Write-Host ($Message -join ' ')
+}
+
+function Write-TuyaOpenDebug {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Message)
+    if ($script:TuyaOpenVerbose) {
+        Write-Host ($Message -join ' ')
     }
 }
-if ($missing.Count -gt 0) {
-    Write-Host "Error: Missing required file(s) in ${OpenSdkRoot}: $($missing -join ' ')"
-    exit 1
+
+function Invoke-TuyaUvNative {
+    <#
+        Run uv. Default is quiet (no venv banner, package list, or hardlink warnings).
+        Use -WithProgress for long installs (e.g. python install) or set TUYAOPEN_EXPORT_VERBOSE=1.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$UvExe,
+        [Parameter(Mandatory)][string[]]$ArgumentList,
+        [switch]$WithProgress
+    )
+
+    $useQuiet = -not $script:TuyaOpenVerbose -and -not $WithProgress
+    if ($ProgressPreference -eq 'SilentlyContinue') {
+        $useQuiet = $true
+    }
+
+    if ($useQuiet) {
+        $savedLink = $env:UV_LINK_MODE
+        if (-not $savedLink) { $env:UV_LINK_MODE = 'copy' }
+        try {
+            $null = & $UvExe @ArgumentList --quiet 2>&1
+        } finally {
+            if ($null -eq $savedLink) {
+                Remove-Item Env:UV_LINK_MODE -ErrorAction SilentlyContinue
+            } else {
+                $env:UV_LINK_MODE = $savedLink
+            }
+        }
+        return
+    }
+
+    $savedUvNoProgress = $env:UV_NO_PROGRESS
+    Remove-Item Env:UV_NO_PROGRESS -ErrorAction SilentlyContinue
+    try {
+        & $UvExe @ArgumentList
+    } finally {
+        if ($null -ne $savedUvNoProgress) {
+            $env:UV_NO_PROGRESS = $savedUvNoProgress
+        } else {
+            Remove-Item Env:UV_NO_PROGRESS -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Write-TuyaOpenFailureHint {
+    param(
+        [ValidateSet('Entry', 'Uv', 'Python', 'Venv', 'Sync', 'Session', 'Io')]
+        [string]$Stage,
+        [string]$Summary,
+        [string]$Cause,
+        [string[]]$NextSteps
+    )
+    Write-TuyaOpenInfo "[TuyaOpen] Error: $Stage - $Summary"
+    if ($Cause) { Write-TuyaOpenInfo "Cause: $Cause" }
+    if ($NextSteps -and $NextSteps.Count -gt 0) {
+        Write-TuyaOpenInfo 'Next:'
+        foreach ($step in $NextSteps) { Write-TuyaOpenInfo "  $step" }
+    }
+}
+
+function Stop-TuyaOpenExport {
+  <# Dot-sourced runs must not call exit (it closes the host). Throw instead. #>
+    param([int]$Code = 1)
+    if ($script:TuyaOpenDotSourced -and $env:TUYAOPEN_EXPORT_SKIP_MAIN -ne '1') {
+        throw "[TuyaOpen] export aborted (exit code $Code)."
+    }
+    exit $Code
+}
+
+function Ensure-TuyaDirectory {
+    param([string]$Path)
+    if (Test-Path -LiteralPath $Path -PathType Container) { return $true }
+    try {
+        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        return $true
+    } catch {
+        Write-TuyaOpenFailureHint -Stage Io -Summary 'Cannot create directory.' -Cause $_.Exception.Message -NextSteps @("Ensure the path is writable: $Path", 'Re-run with sufficient permissions.')
+        return $false
+    }
+}
+
+function Remove-TuyaPathSafe {
+    param([string]$Path, [switch]$Recurse)
+    if (-not (Test-Path -LiteralPath $Path)) { return $true }
+    try {
+        Remove-Item -LiteralPath $Path -Force -Recurse:$Recurse
+        return $true
+    } catch {
+        Write-TuyaOpenDebug "[TuyaOpen] Remove failed: $Path - $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Write-TuyaMarkerFile {
+    param([string]$Path, [string]$Content)
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Ensure-TuyaDirectory -Path $parent)) { return $false }
+    try {
+        [System.IO.File]::WriteAllText($Path, $Content, (New-Object System.Text.UTF8Encoding $false))
+        return $true
+    } catch {
+        Write-TuyaOpenDebug "[TuyaOpen] Marker write failed: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+function Test-TuyaOpenIsResource {
+    param([string]$Root)
+    if ($env:TUYAOPEN_ENV_ACTIVE -ne '1') { return $false }
+    if (-not $env:OPEN_SDK_ROOT -or $env:OPEN_SDK_ROOT -ine $Root) { return $false }
+    $venvPy = Join-Path $Root '.venv\Scripts\python.exe'
+    return (Test-Path -LiteralPath $venvPy -PathType Leaf)
+}
+
+function Invoke-TuyaGuardActive {
+    param([string]$Root)
+    if ($env:TUYAOPEN_ENV_ACTIVE -ne '1') { return $false }
+    if (-not $env:OPEN_SDK_ROOT -or $env:OPEN_SDK_ROOT -ine $Root) { return $false }
+    $venvPy = Join-Path $Root '.venv\Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $venvPy -PathType Leaf)) { return $false }
+    Write-TuyaOpenInfo '[TuyaOpen] Environment is already active.'
+    Write-TuyaOpenInfo 'To re-activate: deactivate && . .\export.ps1'
+    return $true
+}
+
+function Test-TuyaProjectFiles {
+    param([string]$Root)
+    $missing = @()
+    foreach ($name in 'tos.py', 'pyproject.toml', 'uv.lock', 'export.ps1') {
+        if (-not (Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf)) { $missing += $name }
+    }
+    if ($missing.Count -eq 0) { return $true }
+    Write-TuyaOpenFailureHint -Stage Entry -Summary 'Required project files are missing.' -Cause ($missing -join ', ') -NextSteps @('Use a complete TuyaOpen clone.', "Missing under: $Root")
+    return $false
+}
+
+function Add-TuyaPathEntryIfMissing {
+    param([string]$Dir)
+    if (($env:PATH -split ';') | Where-Object { $_ -ieq $Dir }) {
+        return
+    }
+    $env:PATH = "$Dir;$env:PATH"
 }
 
 # ---------------------------------------------------------------------------
-# Locate a usable Python: 3.9 - 3.13 are officially supported (3.11 recommended).
-# Any Python 3.x is accepted with a warning (e.g. 3.14) instead of blocking.
+# Platform detection
 # ---------------------------------------------------------------------------
-function Test-TuyaPython {
-    param(
-        [string]$Exec,
-        [string[]]$ExtraArgs,
-        [string]$Probe = 'import sys;sys.exit(0 if (3,9)<=sys.version_info[:2]<=(3,13) else 1)'
-    )
+function Get-TuyaUvOsArchitectureLabel {
     try {
-        # Do not name this $args — it shadows PowerShell's automatic variable.
-        $probeArgs = @($ExtraArgs) + @('-c', $Probe)
-        & $Exec @probeArgs 2>$null | Out-Null
+        $asm = [System.Reflection.Assembly]::LoadWithPartialName(
+            'System.Runtime.InteropServices.RuntimeInformation')
+        $type = $asm.GetType('System.Runtime.InteropServices.RuntimeInformation')
+        $prop = $type.GetProperty('OSArchitecture')
+        return $prop.GetValue($null).ToString()
+    } catch {
+        return $null
+    }
+}
+
+function Get-TuyaUvOsArch {
+    switch (Get-TuyaUvOsArchitectureLabel) {
+        'X86'   { return 'i686' }
+        'X64'   { return 'x86_64' }
+        'Arm'   { return 'thumbv7a' }
+        'Arm64' { return 'aarch64' }
+    }
+    Write-TuyaOpenDebug '[TuyaOpen] OSArchitecture unavailable; using environment fallback.'
+    if ([System.Environment]::Is64BitOperatingSystem) {
+        return 'x86_64'
+    }
+    return 'i686'
+}
+
+function Get-TuyaUvTargetTriple {
+    switch (Get-TuyaUvOsArch) {
+        'i686'     { return 'i686-pc-windows-msvc' }
+        'aarch64'  { return 'aarch64-pc-windows-msvc' }
+        'thumbv7a' { return 'thumbv7a-pc-windows-msvc' }
+        default    { return 'x86_64-pc-windows-msvc' }
+    }
+}
+
+# thumbv7a has no official uv build; fall back to 32-bit x86.
+function Resolve-TuyaUvTargetTriple {
+    $triple = Get-TuyaUvTargetTriple
+    if ($script:TuyaUvWindowsArtifacts.ContainsKey($triple)) {
+        return $triple
+    }
+    if ($triple -like '*thumbv7a*') {
+        Write-TuyaOpenDebug "[TuyaOpen] No uv build for $triple; falling back to i686-pc-windows-msvc."
+        return 'i686-pc-windows-msvc'
+    }
+    return $triple
+}
+
+function Get-TuyaUvDisplayVersion {
+    param(
+        [string]$Root,
+        [string]$UvVersion = $null
+    )
+    if (-not $UvVersion) {
+        return (Get-TuyaUvManifest -Root $Root).Version
+    }
+    $v = $UvVersion.Trim()
+    if ($v -match '(?i)^uv\s+(\d+\.\d+\.\d+)') {
+        return $Matches[1]
+    }
+    if ($v -match '^(\d+\.\d+\.\d+)') {
+        return $Matches[1]
+    }
+    return $v
+}
+
+function Write-TuyaUvPlatformBanner {
+    param(
+        [string]$Root,
+        [string]$UvVersion = $null
+    )
+    $uvDisplay = Get-TuyaUvDisplayVersion -Root $Root -UvVersion $UvVersion
+    $archLabel = Get-TuyaUvOsArchitectureLabel
+    if (-not $archLabel) {
+        $archLabel = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { 'unknown' }
+    }
+    Write-TuyaOpenInfo "OPEN_SDK_ROOT = $Root"
+    Write-TuyaOpenInfo "Host: Windows $archLabel | uv $uvDisplay | Python $($script:PythonVersion)"
+}
+
+function Invoke-TuyaHello {
+    param([string]$Root, [string]$PythonExe)
+    if (-not $PythonExe -or -not (Test-Path -LiteralPath $PythonExe -PathType Leaf)) { return }
+    $tosHello = Join-Path $Root 'tos.py'
+    if (-not (Test-Path -LiteralPath $tosHello -PathType Leaf)) { return }
+    if ($script:TuyaOpenVerbose) {
+        & $PythonExe $tosHello hello --no-version
+    } else {
+        & $PythonExe $tosHello hello --no-version 2>$null
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Manifest and download URLs (uv-manifest.env + env overrides)
+# ---------------------------------------------------------------------------
+function Get-TuyaUvTripleManifestKey {
+    param([string]$Triple)
+    return ($Triple -replace '-', '_').ToUpperInvariant()
+}
+
+function Get-TuyaUvManifest {
+    param([string]$Root)
+
+    $manifest = @{
+        Version        = $script:UvVersion
+        BaseUrls       = @($script:TuyaUvDefaultBaseUrl)
+        ArtifactChecks = @{}
+    }
+
+    $envFile = Join-Path $Root 'uv-manifest.env'
+    if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
+        return $manifest
+    }
+
+    $astralUrl = $null
+    $githubUrl = $null
+    foreach ($line in Get-Content -LiteralPath $envFile) {
+        if ($line -match '^\s*#' -or $line -match '^\s*$') {
+            continue
+        }
+        if ($line -match '^\s*UV_VERSION\s*=\s*(.+)\s*$') {
+            $manifest.Version = $Matches[1].Trim()
+        } elseif ($line -match '^\s*UV_DOWNLOAD_SOURCE_ASTRAL\s*=\s*(.+)\s*$') {
+            $astralUrl = $Matches[1].Trim()
+        } elseif ($line -match '^\s*UV_DOWNLOAD_SOURCE_GITHUB\s*=\s*(.+)\s*$') {
+            $githubUrl = $Matches[1].Trim()
+        } elseif ($line -match '^\s*UV_([A-Za-z0-9_]+)_SHA256\s*=\s*(.+)\s*$') {
+            $key = $Matches[1].ToUpperInvariant()
+            if (-not $manifest.ArtifactChecks.ContainsKey($key)) {
+                $manifest.ArtifactChecks[$key] = @{}
+            }
+            $manifest.ArtifactChecks[$key].Sha256 = $Matches[2].Trim().ToLower()
+        } elseif ($line -match '^\s*UV_([A-Za-z0-9_]+)_SIZE\s*=\s*(.+)\s*$') {
+            $key = $Matches[1].ToUpperInvariant()
+            if (-not $manifest.ArtifactChecks.ContainsKey($key)) {
+                $manifest.ArtifactChecks[$key] = @{}
+            }
+            $manifest.ArtifactChecks[$key].Size = [long]$Matches[2].Trim()
+        }
+    }
+
+    $configured = @($astralUrl, $githubUrl) | Where-Object { $_ }
+    if ($configured.Count -gt 0) {
+        $manifest.BaseUrls = $configured
+    }
+    return $manifest
+}
+
+function Get-TuyaUvArtifactCheck {
+    param(
+        $Manifest,
+        [string]$Triple
+    )
+    $key = Get-TuyaUvTripleManifestKey -Triple $Triple
+    if (-not $Manifest.ArtifactChecks.ContainsKey($key)) {
+        return $null
+    }
+    $entry = $Manifest.ArtifactChecks[$key]
+    if (-not $entry.Size -or -not $entry.Sha256) {
+        return $null
+    }
+    return @{
+        Size   = [long]$entry.Size
+        Sha256 = [string]$entry.Sha256
+    }
+}
+
+function Get-TuyaUvReleaseBaseUrls {
+    param(
+        [string]$Version,
+        [string[]]$BaseUrls
+    )
+    if ($env:UV_DOWNLOAD_URL) {
+        return @($env:UV_DOWNLOAD_URL)
+    }
+    if ($env:UV_INSTALLER_GHE_BASE_URL) {
+        return @("$($env:UV_INSTALLER_GHE_BASE_URL)/astral-sh/uv/releases/download/$Version")
+    }
+    if ($env:UV_INSTALLER_GITHUB_BASE_URL) {
+        return @("$($env:UV_INSTALLER_GITHUB_BASE_URL)/astral-sh/uv/releases/download/$Version")
+    }
+
+    $sources = @($BaseUrls | Where-Object { $_ })
+    if ($sources.Count -eq 0) {
+        $sources = @($script:TuyaUvDefaultBaseUrl)
+    }
+    return @($sources | ForEach-Object { "$($_.TrimEnd('/'))/$Version" })
+}
+
+# ---------------------------------------------------------------------------
+# Install context (paths + URLs derived once per install attempt)
+# ---------------------------------------------------------------------------
+function New-TuyaUvInstallContext {
+    param([string]$Root)
+
+    $manifest        = Get-TuyaUvManifest -Root $Root
+    $candidateTriple = Get-TuyaUvTargetTriple
+    $triple          = Resolve-TuyaUvTargetTriple
+
+    if (-not $script:TuyaUvWindowsArtifacts.ContainsKey($triple)) {
+        throw "No uv binaries for this platform ($triple)."
+    }
+
+    $artifactName = $script:TuyaUvWindowsArtifacts[$triple] 
+    $uvVersionDir = Join-Path $Root ".tools\uv\$($manifest.Version)"
+    $artifactCheck = Get-TuyaUvArtifactCheck -Manifest $manifest -Triple $triple
+    if (-not $artifactCheck) {
+        $manifestKey = Get-TuyaUvTripleManifestKey -Triple $triple
+        throw "Missing UV_${manifestKey}_SIZE / UV_${manifestKey}_SHA256 in uv-manifest.env"
+    }
+    return @{
+        Version         = $manifest.Version
+        TargetTriple    = $triple
+        ArtifactName    = $artifactName
+        ExpectedSize    = $artifactCheck.Size
+        ExpectedSha256  = $artifactCheck.Sha256
+        ReleaseBaseUrls = Get-TuyaUvReleaseBaseUrls -Version $manifest.Version -BaseUrls $manifest.BaseUrls
+        UvToolsDir      = $uvVersionDir
+        ArchivePath     = Join-Path $Root ".tools\archives\$($script:TuyaUvToolName)\$($manifest.Version)\$artifactName"
+        UvExe           = Join-Path $uvVersionDir 'uv.exe'
+    }
+}
+
+function Get-TuyaUvDownloadUrl {
+    param($Context)
+    if ($Context.ReleaseBaseUrls.Count -eq 0) {
+        return $null
+    }
+    $base = $Context.ReleaseBaseUrls[0].TrimEnd('/')
+    return "$base/$($Context.ArtifactName)"
+}
+
+# ---------------------------------------------------------------------------
+# Download, extract, verify
+# ---------------------------------------------------------------------------
+function Test-TuyaUvExecutable {
+    param([string]$ExePath)
+    if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        & $ExePath --version 2>$null | Out-Null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false
     }
 }
 
-$candidates = @(
-    @{ Exec = 'py';      Args = @('-3.11') },
-    @{ Exec = 'py';      Args = @('-3.12') },
-    @{ Exec = 'py';      Args = @('-3.10') },
-    @{ Exec = 'py';      Args = @('-3.13') },
-    @{ Exec = 'py';      Args = @('-3.9')  },
-    @{ Exec = 'python';  Args = @()         },
-    @{ Exec = 'python3'; Args = @()         }
-)
-
-$pythonExec = $null
-$pythonArgs = @()
-foreach ($c in $candidates) {
-    if (Test-TuyaPython -Exec $c.Exec -ExtraArgs $c.Args) {
-        $pythonExec = $c.Exec
-        $pythonArgs = $c.Args
-        break
-    }
+function Remove-TuyaUvArchive {
+    param($Context)
+    Remove-TuyaPathSafe -Path $Context.ArchivePath | Out-Null
 }
 
-if (-not $pythonExec) {
-    $fallbackProbe = 'import sys;sys.exit(0 if sys.version_info[0]>=3 else 1)'
-    foreach ($c in @(
-            @{ Exec = 'py';      Args = @() },
-            @{ Exec = 'python';  Args = @() },
-            @{ Exec = 'python3'; Args = @() }
-        )) {
-        if (Test-TuyaPython -Exec $c.Exec -ExtraArgs $c.Args -Probe $fallbackProbe) {
-            $pythonExec = $c.Exec
-            $pythonArgs = $c.Args
-            break
+function Test-TuyaUvArchiveIntegrity {
+    param($Context)
+    if (-not (Test-Path -LiteralPath $Context.ArchivePath -PathType Leaf)) {
+        return $false
+    }
+
+    $file = Get-Item -LiteralPath $Context.ArchivePath
+    if ($file.Length -ne $Context.ExpectedSize) {
+        Write-TuyaOpenDebug "[TuyaOpen] Size mismatch: got $($file.Length), expected $($Context.ExpectedSize)"
+        return $false
+    }
+
+    $hash = (Get-FileHash -LiteralPath $Context.ArchivePath -Algorithm SHA256).Hash.ToLower()
+    if ($hash -ne $Context.ExpectedSha256) {
+        Write-TuyaOpenDebug "[TuyaOpen] SHA256 mismatch: got $hash"
+        return $false
+    }
+    return $true
+}
+
+function Write-TuyaUvManualDownloadHint {
+    param($Context)
+    $manualUrl = Get-TuyaUvDownloadUrl -Context $Context
+    Write-TuyaOpenInfo '[TuyaOpen] Manual install:'
+    if ($manualUrl) {
+        Write-TuyaOpenInfo "  Download: $manualUrl"
+    }
+    Write-TuyaOpenInfo "  Save zip to: $($Context.ArchivePath)"
+    Write-TuyaOpenInfo "  Or extract uv.exe, uvx.exe, uvw.exe to: $($Context.UvToolsDir)"
+    Write-TuyaOpenInfo '  Then re-run: . .\export.ps1'
+}
+
+function Import-TuyaUvLegacyArchive {
+    param($Context)
+    if (Test-Path -LiteralPath $Context.ArchivePath -PathType Leaf) {
+        return $true
+    }
+
+    # Previous layout: .tools\archives\<version>\<artifact>.zip
+    $versionDir   = Split-Path -Parent $Context.ArchivePath
+    $version      = Split-Path -Leaf $versionDir
+    $archivesRoot = Split-Path -Parent (Split-Path -Parent $versionDir)
+    $legacyPath   = Join-Path $archivesRoot "$version\$($Context.ArtifactName)"
+    if (-not (Test-Path -LiteralPath $legacyPath -PathType Leaf)) {
+        return $false
+    }
+
+    Write-TuyaOpenDebug "[TuyaOpen] Migrating cached archive to $($Context.ArchivePath)"
+    New-Item -ItemType Directory -Path $versionDir -Force | Out-Null
+    Move-Item -LiteralPath $legacyPath -Destination $Context.ArchivePath
+    return $true
+}
+
+function Receive-TuyaUvFileDownload {
+    <#
+        HTTPS download. IWR progress title ("Web request status") cannot be renamed, so when a
+        size is known we use Write-Progress with ProgressLabel on the main thread (worker job
+        runs WebClient.DownloadFile — avoids async progress-handler crashes).
+    #>
+    param(
+        [string]$Url,
+        [string]$DestinationPath,
+        [string]$AuthToken = $null,
+        [string]$ProgressLabel = '[TuyaOpen] Downloading',
+        [long]$ExpectedBytes = 0
+    )
+
+    $tmpPath = "$DestinationPath.part"
+    Remove-TuyaPathSafe -Path $tmpPath | Out-Null
+    Remove-TuyaPathSafe -Path $DestinationPath | Out-Null
+
+    $downloadBlock = {
+        param($DownloadUrl, $PartPath, $Token)
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+        } catch {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        }
+        $wc = New-Object System.Net.WebClient
+        try {
+            if ($Token) { $wc.Headers['Authorization'] = "Bearer $Token" }
+            $wc.DownloadFile($DownloadUrl, $PartPath)
+        } finally {
+            $wc.Dispose()
+        }
+    }
+
+    $useProgressBar = ($ProgressPreference -ne 'SilentlyContinue') -and ($ExpectedBytes -gt 0)
+    $job = $null
+
+    try {
+        if ($useProgressBar) {
+            $job = Start-Job -ScriptBlock $downloadBlock -ArgumentList $Url, $tmpPath, $AuthToken
+            try {
+                while ($job.State -eq 'Running') {
+                    $received = 0L
+                    if (Test-Path -LiteralPath $tmpPath -PathType Leaf) {
+                        $received = (Get-Item -LiteralPath $tmpPath).Length
+                    }
+                    $pct = [math]::Min(99, [int](100 * $received / $ExpectedBytes))
+                    $status = 'Downloaded: {0:N1} MB of {1:N1} MB' -f ($received / 1MB), ($ExpectedBytes / 1MB)
+                    Write-Progress -Activity $ProgressLabel -Status $status -PercentComplete $pct
+                    Start-Sleep -Milliseconds 100
+                }
+                Receive-Job -Job $job -Wait -ErrorAction Stop | Out-Null
+            } finally {
+                Write-Progress -Activity $ProgressLabel -Completed
+            }
+        } elseif ($ProgressPreference -eq 'SilentlyContinue') {
+            & $downloadBlock $Url $tmpPath $AuthToken
+        } else {
+            Write-TuyaOpenInfo $ProgressLabel
+            & $downloadBlock $Url $tmpPath $AuthToken
+        }
+        Move-Item -LiteralPath $tmpPath -Destination $DestinationPath -Force
+    } catch {
+        Remove-TuyaPathSafe -Path $tmpPath | Out-Null
+        throw
+    } finally {
+        if ($job) {
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
         }
     }
 }
 
-if (-not $pythonExec) {
-    Write-Host "Error: No usable Python interpreter found!"
-    Write-Host "       Please install Python 3.9 - 3.13 (3.11 recommended; all in range work)."
-    exit 1
+function Invoke-TuyaUvArchiveDownload {
+    param($Context)
+
+    if (-not (Ensure-TuyaDirectory -Path (Split-Path -Parent $Context.ArchivePath))) { Stop-TuyaOpenExport 1 }
+    $authToken = $env:UV_GITHUB_TOKEN
+    $mirror    = 0
+    $lastError = $null
+
+    foreach ($releaseBase in $Context.ReleaseBaseUrls) {
+        $mirror++
+        $downloadUrl = "$($releaseBase.TrimEnd('/'))/$($Context.ArtifactName)"
+        if ($Context.ReleaseBaseUrls.Count -gt 1) {
+            Write-TuyaOpenDebug "[TuyaOpen] Mirror $mirror/$($Context.ReleaseBaseUrls.Count): $downloadUrl"
+        } else {
+            Write-TuyaOpenDebug "[TuyaOpen] Download: $downloadUrl"
+        }
+
+        for ($attempt = 1; $attempt -le $script:UvDownloadAttempts; $attempt++) {
+            if ($attempt -gt 1) {
+                Write-TuyaOpenDebug "[TuyaOpen] Retry $attempt/$($script:UvDownloadAttempts)..."
+            }
+            try {
+                Remove-TuyaPathSafe -Path $Context.ArchivePath | Out-Null
+                Receive-TuyaUvFileDownload -Url $downloadUrl -DestinationPath $Context.ArchivePath -AuthToken $authToken `
+                    -ProgressLabel "[TuyaOpen] Downloading $($Context.ArtifactName)" -ExpectedBytes $Context.ExpectedSize
+                Write-TuyaOpenDebug '[TuyaOpen] Download complete.'
+                return $true
+            } catch {
+                $lastError = $_.Exception.Message
+                Write-TuyaOpenDebug "[TuyaOpen] Download failed: $lastError"
+            }
+        }
+    }
+    if ($lastError) {
+        Write-TuyaOpenInfo "[TuyaOpen] Download failed: $lastError"
+    }
+    return $false
 }
 
-# Fetch all version fields with a single Python invocation (whitespace-separated:
-# "<major> <minor> <major>.<minor>.<patch>").
-$pyVerLine = (& $pythonExec @pythonArgs -c "import sys;v=sys.version_info;print('%d %d %d.%d.%d' % (v[0], v[1], v[0], v[1], v[2]))").Trim()
-$pyParts   = $pyVerLine -split '\s+', 3
-$pyMajor   = $pyParts[0]
-$pyMinor   = $pyParts[1]
-$pyVersion = $pyParts[2]
-$pyInRange = ($pyMajor -eq '3' -and [int]$pyMinor -ge 9 -and [int]$pyMinor -le 13)
+function Resolve-TuyaUvArchive {
+    param($Context)
 
-# ---------------------------------------------------------------------------
-# Re-source detection (is our venv already active?)
-# ---------------------------------------------------------------------------
-$venvPath   = Join-Path $OpenSdkRoot '.venv'
-$isResource = ($env:VIRTUAL_ENV -and $env:VIRTUAL_ENV -eq $venvPath)
+    Import-TuyaUvLegacyArchive -Context $Context | Out-Null
 
-# ---------------------------------------------------------------------------
-# Summary banner
-#   Re-source: show only the "already active" note.
-#   First run: show OPEN_SDK_ROOT + Host/Python line + optional rec note.
-# ---------------------------------------------------------------------------
-if ($isResource) {
-    Write-Host "[TuyaOpen] Note: Virtual environment is already active ($env:VIRTUAL_ENV); refreshing environment variables."
-} else {
-    $arch = if ($env:PROCESSOR_ARCHITECTURE) { $env:PROCESSOR_ARCHITECTURE } else { 'unknown' }
-    $pythonDisplay = if ($pythonArgs.Count -gt 0) {
-        "$pythonExec $($pythonArgs -join ' ')"
+    if (Test-Path -LiteralPath $Context.ArchivePath -PathType Leaf) {
+        if (Test-TuyaUvArchiveIntegrity -Context $Context) {
+            Write-TuyaOpenDebug '[TuyaOpen] Using cached uv package.'
+            return $true
+        }
+        Write-TuyaOpenDebug '[TuyaOpen] Removing invalid cache.'
+        Remove-TuyaUvArchive -Context $Context
+    }
+
+    if (-not (Invoke-TuyaUvArchiveDownload -Context $Context)) {
+        Write-TuyaOpenFailureHint -Stage Uv -Summary 'uv download failed.' -Cause 'All mirrors and retries exhausted.' -NextSteps @('Check network or proxy.', 'See manual install below.')
+        Write-TuyaUvManualDownloadHint -Context $Context
+        Stop-TuyaOpenExport 1
+    }
+
+    if (-not (Test-TuyaUvArchiveIntegrity -Context $Context)) {
+        Remove-TuyaUvArchive -Context $Context
+        Write-TuyaOpenFailureHint -Stage Uv -Summary 'Downloaded package failed verification.' -Cause 'Size or SHA256 mismatch.' -NextSteps @('Delete the zip and re-run: . .\export.ps1')
+        Write-TuyaUvManualDownloadHint -Context $Context
+        Stop-TuyaOpenExport 1
+    }
+    return $true
+}
+
+function Import-TuyaUvFromLegacyDir {
+    param($Context)
+    if (Test-TuyaUvExecutable $Context.UvExe) {
+        return $true
+    }
+
+    # Previous layout: binaries lived directly under .tools\uv\
+    $uvRoot = Split-Path -Parent $Context.UvToolsDir
+    $legacyExe = Join-Path $uvRoot 'uv.exe'
+    if (-not (Test-TuyaUvExecutable $legacyExe)) {
+        return $false
+    }
+
+    Write-TuyaOpenDebug "[TuyaOpen] Migrating uv from legacy path $uvRoot to $($Context.UvToolsDir)"
+    New-Item -ItemType Directory -Path $Context.UvToolsDir -Force | Out-Null
+    foreach ($binName in $script:TuyaUvBinNames) {
+        $src = Join-Path $uvRoot $binName
+        if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
+            continue
+        }
+        Copy-Item -LiteralPath $src -Destination (Join-Path $Context.UvToolsDir $binName) -Force
+    }
+    return (Test-TuyaUvExecutable $Context.UvExe)
+}
+
+function Expand-TuyaUvArchive {
+    param($Context)
+
+    Write-TuyaOpenDebug '[TuyaOpen] Extracting uv...'
+    $extractDir = Join-Path ([IO.Path]::GetTempPath()) ("tuya_uv_{0}" -f [guid]::NewGuid().ToString('N'))
+    if (-not (Ensure-TuyaDirectory -Path $Context.UvToolsDir)) { Stop-TuyaOpenExport 1 }
+
+    try {
+        if (-not (Ensure-TuyaDirectory -Path $extractDir)) { Stop-TuyaOpenExport 1 }
+        Expand-Archive -LiteralPath $Context.ArchivePath -DestinationPath $extractDir -Force
+
+        $uvInstalled = $false
+        foreach ($binName in $script:TuyaUvBinNames) {
+            $src = Join-Path $extractDir $binName
+            if (-not (Test-Path -LiteralPath $src -PathType Leaf)) { continue }
+            Copy-Item -LiteralPath $src -Destination (Join-Path $Context.UvToolsDir $binName) -Force
+            if ($binName -eq 'uv.exe') { $uvInstalled = $true }
+        }
+        if (-not $uvInstalled) {
+            Write-TuyaOpenFailureHint -Stage Uv -Summary 'uv.exe not found in archive.' -Cause $Context.ArchivePath -NextSteps @('Remove cached zip and re-run: . .\export.ps1')
+            Stop-TuyaOpenExport 1
+        }
+    } catch {
+        Write-TuyaOpenFailureHint -Stage Io -Summary 'Failed to extract uv archive.' -Cause $_.Exception.Message -NextSteps @('Close programs locking the zip.', 'Remove cached zip and re-run: . .\export.ps1')
+        Stop-TuyaOpenExport 1
+    } finally {
+        Remove-TuyaPathSafe -Path $extractDir -Recurse | Out-Null
+    }
+}
+
+function Install-TuyaUv {
+    param($Context)
+
+    if (Import-TuyaUvFromLegacyDir -Context $Context) {
+        Write-TuyaOpenDebug "[TuyaOpen] uv ready: $($Context.UvExe)"
+        return
+    }
+
+    Resolve-TuyaUvArchive -Context $Context | Out-Null
+    Expand-TuyaUvArchive -Context $Context
+    Write-TuyaOpenDebug "[TuyaOpen] uv ready: $($Context.UvExe)"
+}
+
+function Invoke-TuyaSetupUv {
+    param([string]$Root)
+
+    $ctx = New-TuyaUvInstallContext -Root $Root
+
+    if (Test-TuyaUvExecutable $ctx.UvExe) {
+        Write-TuyaOpenDebug "[TuyaOpen] uv already installed: $($ctx.UvExe)"
     } else {
-        $pythonExec
+        Install-TuyaUv -Context $ctx
     }
-    Write-Host "OPEN_SDK_ROOT = $OpenSdkRoot"
-    Write-Host "Host: Windows $arch | $pythonDisplay $pyVersion"
-    if (-not $pyInRange) {
-        Write-Host "[TuyaOpen] Warning: Python $pyMajor.$pyMinor is outside the tested range 3.9 - 3.13; continuing anyway (3.11 recommended)."
-    } elseif ($pyMinor -ne '11') {
-        Write-Host "[TuyaOpen] Note: Python 3.11 is recommended; 3.9 - 3.13 are supported (detected 3.$pyMinor)."
+
+    if (-not (Test-TuyaUvExecutable $ctx.UvExe)) {
+        Write-TuyaOpenFailureHint -Stage Uv -Summary 'uv installation failed.' -Cause 'Executable missing or not runnable.' -NextSteps @('See manual install below.')
+        Write-TuyaUvManualDownloadHint -Context $ctx
+        Stop-TuyaOpenExport 1
+    }
+
+    Add-TuyaPathEntryIfMissing -Dir $ctx.UvToolsDir
+    return $ctx.UvExe
+}
+
+# ---------------------------------------------------------------------------
+# Python (uv-managed, project-local)
+# ---------------------------------------------------------------------------
+function Get-TuyaPythonInstallDir {
+    param(
+        [string]$Root,
+        [string]$Version = $script:PythonVersion
+    )
+    return Join-Path $Root ".tools\python\$Version"
+}
+
+function Get-TuyaManagedPythonExe {
+    param([string]$InstallDir)
+    if (-not (Test-Path -LiteralPath $InstallDir -PathType Container)) {
+        return $null
+    }
+    $candidates = Get-ChildItem -LiteralPath $InstallDir -Recurse -Filter 'python.exe' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\Lib\\venv\\' }
+    if (-not $candidates) {
+        return $null
+    }
+    return ($candidates | Select-Object -First 1).FullName
+}
+
+function Test-TuyaPythonExecutable {
+    param(
+        [string]$ExePath,
+        [string]$ExpectedVersion = $script:PythonVersion
+    )
+    if (-not $ExePath -or -not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $versionLine = (& $ExePath --version 2>&1 | Select-Object -First 1).ToString()
+        return $versionLine -match [regex]::Escape("Python $ExpectedVersion")
+    } catch {
+        return $false
     }
 }
 
-Set-Location $OpenSdkRoot
+function Install-TuyaPython {
+    param(
+        [string]$Root,
+        [string]$UvExe
+    )
+    $version    = $script:PythonVersion
+    $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
 
-# ---------------------------------------------------------------------------
-# Create / reuse virtualenv
-# ---------------------------------------------------------------------------
-$pythonExe  = Join-Path $venvPath 'Scripts\python.exe'
-$venvPythonMissing = -not (Test-Path -LiteralPath $pythonExe -PathType Leaf)
-if ($venvPythonMissing -and (Test-Path -LiteralPath $venvPath -PathType Container)) {
-    Write-Host "Removing incomplete virtual environment..."
-    Remove-Item -LiteralPath $venvPath -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-if (-not (Test-Path -LiteralPath $venvPath -PathType Container)) {
-    Write-Host "Creating virtual environment..."
-    & $pythonExec @pythonArgs -m venv $venvPath
+    Write-TuyaOpenInfo "[TuyaOpen] Installing Python $version..."
+    Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
+        'python', 'install', $version,
+        '--install-dir', $installDir,
+        '--no-registry', '--no-bin'
+    )
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "Error: Failed to create virtual environment!"
-        Write-Host "Please check your Python installation and try again."
-        exit 1
+        Write-TuyaOpenFailureHint -Stage Python -Summary "Python $version installation failed." -Cause "uv python install exited with code $LASTEXITCODE" -NextSteps @("Run: `"$UvExe`" python install $version --install-dir `"$installDir`"", 'Re-run: . .\export.ps1')
+        Stop-TuyaOpenExport 1
     }
-    Write-Host "Virtual environment created successfully."
 }
 
-$python3Exe = Join-Path $venvPath 'Scripts\python3.exe'
-$pipExe     = Join-Path $venvPath 'Scripts\pip.exe'
-$scriptsDir = Join-Path $venvPath 'Scripts'
+function Invoke-TuyaSetupPython {
+    param(
+        [string]$Root,
+        [string]$UvExe
+    )
+    $version    = $script:PythonVersion
+    $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
+    $pythonExe  = Get-TuyaManagedPythonExe -InstallDir $installDir
 
-if (-not (Test-Path -LiteralPath $pythonExe)) {
-    Write-Host "Error: Virtual environment Python executable not found: $pythonExe"
-    exit 1
-}
-if (-not (Test-Path -LiteralPath $python3Exe)) {
-    Copy-Item -LiteralPath $pythonExe -Destination $python3Exe
-}
+    if (Test-TuyaPythonExecutable -ExePath $pythonExe -ExpectedVersion $version) {
+        Write-TuyaOpenDebug "[TuyaOpen] Python ${version}: $pythonExe"
+    } else {
+        if ($pythonExe -and -not (Test-TuyaPythonExecutable -ExePath $pythonExe)) {
+            Write-TuyaOpenDebug '[TuyaOpen] Existing Python install is invalid; reinstalling.'
+            if (-not (Remove-TuyaPathSafe -Path $installDir -Recurse)) {
+                Write-TuyaOpenFailureHint -Stage Python -Summary 'Cannot remove invalid Python install.' -Cause $installDir -NextSteps @('Close processes using .tools\python', 'Delete folder manually, then re-run.')
+                Stop-TuyaOpenExport 1
+            }
+            $pythonExe = $null
+        }
+        if (-not $pythonExe) {
+            Install-TuyaPython -Root $Root -UvExe $UvExe
+            $pythonExe = Get-TuyaManagedPythonExe -InstallDir $installDir
+        }
+        if (-not (Test-TuyaPythonExecutable -ExePath $pythonExe -ExpectedVersion $version)) {
+            Write-TuyaOpenFailureHint -Stage Python -Summary 'Python installation incomplete.' -Cause "Expected Python $version under $installDir" -NextSteps @('Re-run: . .\export.ps1')
+            Stop-TuyaOpenExport 1
+        }
+        Write-TuyaOpenDebug "[TuyaOpen] Python $version ready: $pythonExe"
+    }
 
-# ---------------------------------------------------------------------------
-# Activate venv: set env vars and idempotently update PATH
-# ---------------------------------------------------------------------------
-$env:VIRTUAL_ENV     = $venvPath
-$env:OPEN_SDK_ROOT   = $OpenSdkRoot
-$env:OPEN_SDK_PYTHON = $pythonExe
-$env:OPEN_SDK_PIP    = $pipExe
-
-# PowerShell's -notcontains is case-sensitive by default; Windows paths are not.
-# Use case-insensitive comparison so re-sourcing does not append duplicates.
-if (-not (($env:PATH -split ';') | Where-Object { $_ -ieq $scriptsDir })) {
-    $env:PATH = "$scriptsDir;$env:PATH"
-}
-if (-not (($env:PATH -split ';') | Where-Object { $_ -ieq $OpenSdkRoot })) {
-    $env:PATH = "$env:PATH;$OpenSdkRoot"
-}
-
-# ---------------------------------------------------------------------------
-# Install dependencies
-# ---------------------------------------------------------------------------
-$reqFile = Join-Path $OpenSdkRoot 'requirements.txt'
-if ($Verbose) {
-    & $pipExe install -r $reqFile
-} else {
-    & $pipExe install -q -r $reqFile
-}
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Warning: Some dependencies may not have been installed correctly."
+    return $pythonExe
 }
 
-# ---------------------------------------------------------------------------
-# Clean stale cache files
-# ---------------------------------------------------------------------------
-$cachePath = Join-Path $OpenSdkRoot '.cache'
-New-Item -ItemType Directory -Path $cachePath -Force -ErrorAction SilentlyContinue | Out-Null
-foreach ($name in '.env.json', '.dont_prompt_update_platform') {
-    $p = Join-Path $cachePath $name
-    if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Force }
-}
 
 # ---------------------------------------------------------------------------
-# Install tos.py / deactivate helpers into the caller's session (global scope).
-#
-# `function global:*` registers the function at session (process) scope so it
-# survives whether this script was dot-sourced or invoked directly. This is
-# what makes `tos.py <subcommand>` work in the user's own PowerShell after a
-# dot-source or a re-source (isResource), not only inside the spawned child.
-#
-# The helpers read $env:OPEN_SDK_PYTHON / $env:OPEN_SDK_ROOT at call time
-# rather than the $pythonExe / $OpenSdkRoot captured at source time, so they
-# continue to work correctly across re-sources.
+# Project .venv (uv sync)
 # ---------------------------------------------------------------------------
-function global:tos.py {
-    if (-not $env:OPEN_SDK_PYTHON -or -not $env:OPEN_SDK_ROOT) {
-        Write-Host 'TuyaOpen environment is not active. Source export.ps1 first.'
+function Enable-TuyaUvAliyunPypiMirrorSession {
+    <#
+        Temporarily set uv default index to Aliyun PyPI for this process.
+        Returns saved env values to pass to Restore-TuyaUvPypiMirrorEnv.
+    #>
+    Write-TuyaOpenDebug "[TuyaOpen] uv index -> $($script:TuyaAliyunPypiIndex)"
+    $saved = @{}
+    foreach ($key in @('UV_DEFAULT_INDEX', 'UV_INDEX_URL')) {
+        $item = Get-Item -Path "Env:$key" -ErrorAction SilentlyContinue
+        $saved[$key] = if ($item) { $item.Value } else { $null }
+        Set-Item -Path "Env:$key" -Value $script:TuyaAliyunPypiIndex
+    }
+    return $saved
+}
+
+function Get-TuyaUvSyncPlan {
+    <#
+        Default: uv sync --frozen (lockfile URLs unchanged).
+        Override: TUYAOPEN_PYPI_MIRROR=1 uses Aliyun (uv sync, may rewrite uv.lock).
+                  TUYAOPEN_PYPI_MIRROR=0 forces --frozen (same as default).
+    #>
+    $override = $env:TUYAOPEN_PYPI_MIRROR
+    if ($override -eq '1') {
+        return @{ ArgumentList = @('sync'); UseAliyunMirror = $true; Reason = 'override-on' }
+    }
+    return @{ ArgumentList = @('sync', '--frozen'); UseAliyunMirror = $false; Reason = 'default' }
+}
+
+function Restore-TuyaUvPypiMirrorEnv {
+    param($Saved)
+    if (-not $Saved) { return }
+    foreach ($key in $Saved.Keys) {
+        if ($null -eq $Saved[$key]) {
+            Remove-Item -Path "Env:$key" -ErrorAction SilentlyContinue
+        } else {
+            Set-Item -Path "Env:$key" -Value $Saved[$key]
+        }
+    }
+}
+
+function Get-TuyaUvLockPackageCount {
+    param([Parameter(Mandatory)][string]$LockPath)
+    if (-not (Test-Path -LiteralPath $LockPath -PathType Leaf)) {
+        return 1
+    }
+    $matches = Select-String -LiteralPath $LockPath -Pattern '^\[\[package\]\]' -AllMatches
+    $count = @($matches).Count
+    if ($count -lt 1) { return 1 }
+    return $count
+}
+
+function New-TuyaUvSyncProgressState {
+    return @{
+        LastPct     = -1
+        Started     = $false
+        NewlineDone = $false
+        LastWidth   = 0
+        UseInline   = -not [Console]::IsOutputRedirected
+    }
+}
+
+function Write-TuyaUvSyncProgressUpdate {
+    <#
+        Single-line progress bar (\r in-place refresh) or throttled lines when redirected.
+        Inline mode redraws on every caller update (no 10% throttle) so output feels streamed.
+    #>
+    param(
+        [Parameter(Mandatory)][int]$Current,
+        [Parameter(Mandatory)][int]$Total,
+        [string]$PackageName = '',
+        [Parameter(Mandatory)][hashtable]$State
+    )
+
+    if ($Total -lt 1) { $Total = 1 }
+    $pct = if ($Current -ge $Total) {
+        100
+    } else {
+        [Math]::Max(0, [int](100 * $Current / $Total))
+    }
+
+    if (-not $State.UseInline) {
+        if ($pct -gt 0 -and $pct -lt 100 -and ($pct -lt ($State.LastPct + 10))) {
+            return
+        }
+        if ($pct -ge 100 -and $State.LastPct -ge 100) {
+            return
+        }
+    }
+
+    $barWidth = 28
+    $filled = [Math]::Min($barWidth, [int]($barWidth * $Current / $Total))
+    $empty = $barWidth - $filled
+    $bar = ('#' * $filled) + ('-' * $empty)
+    $text = "[TuyaOpen] Syncing dependencies [$bar] $Current/$Total ($pct%)"
+    if ($PackageName) {
+        $text += " - $PackageName"
+    }
+
+    if ($State.UseInline) {
+        if ($State.LastWidth -gt $text.Length) {
+            $text += (' ' * ($State.LastWidth - $text.Length))
+        }
+        $State.LastWidth = $text.Length
+        if (-not $State.Started) {
+            Write-Host $text -NoNewline
+            $State.Started = $true
+        } else {
+            Write-Host "`r$text" -NoNewline
+        }
+    } else {
+        Write-TuyaOpenInfo $text
+        $State.Started = $true
+    }
+    $State.LastPct = $pct
+}
+
+function Update-TuyaUvSyncFromUvLine {
+    param(
+        [Parameter(Mandatory)][string]$Line,
+        [ref]$Current,
+        [ref]$LastName,
+        [Parameter(Mandatory)][int]$TotalPackages,
+        [Parameter(Mandatory)][hashtable]$ProgressState
+    )
+
+    $changed = $false
+    $plusRe = [regex]'^\+\s+([^\s=]+)'
+    $downloadingRe = [regex]'(?i)^Downloading\s+(\S+)'
+    $installedRe = [regex]'(?i)Installed\s+(\d+)\s+packages'
+    $auditedRe = [regex]'(?i)Audited\s+(\d+)\s+packages'
+
+    $m = $plusRe.Match($Line)
+    if ($m.Success) {
+        $Current.Value = [Math]::Min($TotalPackages, $Current.Value + 1)
+        $LastName.Value = $m.Groups[1].Value
+        $changed = $true
+    }
+    $m = $downloadingRe.Match($Line)
+    if ($m.Success) {
+        $next = [Math]::Min($TotalPackages, $Current.Value + 1)
+        if ($next -gt $Current.Value) {
+            $Current.Value = $next
+            $LastName.Value = $m.Groups[1].Value
+            $changed = $true
+        }
+    }
+    $m = $installedRe.Match($Line)
+    if ($m.Success) {
+        $n = [int]$m.Groups[1].Value
+        if ($n -gt $Current.Value) {
+            $Current.Value = [Math]::Min($TotalPackages, $n)
+            $changed = $true
+        }
+    }
+    $m = $auditedRe.Match($Line)
+    if ($m.Success) {
+        $n = [int]$m.Groups[1].Value
+        if ($n -gt $Current.Value) {
+            $Current.Value = [Math]::Min($TotalPackages, $n)
+            $changed = $true
+        }
+    }
+
+    if ($changed) {
+        Write-TuyaUvSyncProgressUpdate -Current $Current.Value -Total $TotalPackages `
+            -PackageName $LastName.Value -State $ProgressState
+    }
+}
+
+function Invoke-TuyaProcessStreamLines {
+    <#
+        Run a process and invoke OnLine per stdout/stderr line as it arrives (no pipeline buffering).
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Exe,
+        [Parameter(Mandatory)][string[]]$ArgumentList,
+        [string]$WorkingDirectory = $null,
+        [Parameter(Mandatory)][scriptblock]$OnLine
+    )
+
+    $argText = ($ArgumentList | ForEach-Object {
+            if ($_ -match '[\s"]') {
+                '"' + ($_ -replace '"', '\"') + '"'
+            } else {
+                $_
+            }
+        }) -join ' '
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $psi.Arguments = $argText
+    if ($WorkingDirectory) {
+        $psi.WorkingDirectory = $WorkingDirectory
+    }
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    $psi.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
+
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+    $queue = New-Object System.Collections.Concurrent.ConcurrentQueue[string]
+    $handler = {
+        if ($Event.SourceEventArgs.Data) {
+            $Event.MessageData.Queue.Enqueue($Event.SourceEventArgs.Data)
+        }
+    }
+    $msg = @{ Queue = $queue }
+    $subs = @(
+        Register-ObjectEvent -InputObject $proc -EventName OutputDataReceived -Action $handler -MessageData $msg
+        Register-ObjectEvent -InputObject $proc -EventName ErrorDataReceived -Action $handler -MessageData $msg
+    )
+
+    try {
+        [void]$proc.Start()
+        $proc.BeginOutputReadLine()
+        $proc.BeginErrorReadLine()
+        while (-not $proc.HasExited) {
+            while ($queue.Count -gt 0) {
+                $line = $null
+                if ($queue.TryDequeue([ref]$line)) {
+                    & $OnLine $line.Trim()
+                }
+            }
+            Start-Sleep -Milliseconds 25
+        }
+        $proc.WaitForExit()
+        while ($queue.Count -gt 0) {
+            $line = $null
+            if ($queue.TryDequeue([ref]$line)) {
+                & $OnLine $line.Trim()
+            }
+        }
+        return $proc.ExitCode
+    } finally {
+        foreach ($sub in $subs) {
+            Unregister-Event -SubscriptionId $sub.Id -ErrorAction SilentlyContinue
+            Remove-Job -Id $sub.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Complete-TuyaUvSyncProgress {
+    param([Parameter(Mandatory)][hashtable]$State)
+    if ($State.Started -and -not $State.NewlineDone) {
+        if ($State.UseInline) {
+            Write-Host ''
+        }
+        $State.NewlineDone = $true
+    }
+}
+
+function Invoke-TuyaUvSyncWithProgress {
+    param(
+        [Parameter(Mandatory)][string]$UvExe,
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][int]$TotalPackages
+    )
+
+    $syncPlan = Get-TuyaUvSyncPlan
+    if ($syncPlan.UseAliyunMirror) {
+        Write-TuyaOpenDebug "[TuyaOpen] Dependency sync: Aliyun mirror ($($syncPlan.Reason))."
+    } else {
+        Write-TuyaOpenDebug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).'
+    }
+
+    $savedPypiMirror = if ($syncPlan.UseAliyunMirror) {
+        Enable-TuyaUvAliyunPypiMirrorSession
+    } else {
+        $null
+    }
+    $syncArgs = $syncPlan.ArgumentList
+    try {
+        if ($ProgressPreference -eq 'SilentlyContinue') {
+            Invoke-TuyaUvNative -UvExe $UvExe -ArgumentList $syncArgs
+            return $LASTEXITCODE
+        }
+
+        $current = 0
+        $lastName = ''
+        $progressState = New-TuyaUvSyncProgressState
+
+        $savedLink = $env:UV_LINK_MODE
+        if (-not $savedLink) { $env:UV_LINK_MODE = 'copy' }
+        $savedNoProgress = $env:UV_NO_PROGRESS
+        $env:UV_NO_PROGRESS = '1'
+
+        $uvLines = [System.Collections.Generic.List[string]]::new()
+        $onUvLine = {
+            param($line)
+            if (-not $line) { return }
+            $uvLines.Add($line)
+            Update-TuyaUvSyncFromUvLine -Line $line -Current ([ref]$current) -LastName ([ref]$lastName) `
+                -TotalPackages $TotalPackages -ProgressState $progressState
+        }
+
+        try {
+            Write-TuyaUvSyncProgressUpdate -Current 0 -Total $TotalPackages -State $progressState
+            $exitCode = Invoke-TuyaProcessStreamLines -Exe $UvExe -ArgumentList $syncArgs `
+                -WorkingDirectory $Root -OnLine $onUvLine
+            if ($exitCode -ne 0 -and $uvLines.Count -gt 0) {
+                Write-TuyaOpenInfo '[TuyaOpen] uv sync output:'
+                foreach ($uvLine in $uvLines) {
+                    Write-TuyaOpenInfo "  $uvLine"
+                }
+            }
+            if ($exitCode -eq 0 -and $progressState.LastPct -lt 100) {
+                Write-TuyaUvSyncProgressUpdate -Current $TotalPackages -Total $TotalPackages `
+                    -State $progressState
+            }
+        } finally {
+            Complete-TuyaUvSyncProgress -State $progressState
+            if ($null -eq $savedLink) {
+                Remove-Item Env:UV_LINK_MODE -ErrorAction SilentlyContinue
+            } else {
+                $env:UV_LINK_MODE = $savedLink
+            }
+            if ($null -eq $savedNoProgress) {
+                Remove-Item Env:UV_NO_PROGRESS -ErrorAction SilentlyContinue
+            } else {
+                $env:UV_NO_PROGRESS = $savedNoProgress
+            }
+        }
+        return $exitCode
+    } finally {
+        Restore-TuyaUvPypiMirrorEnv -Saved $savedPypiMirror
+    }
+}
+
+function Get-TuyaWindowsMakeBinDir {
+    param([Parameter(Mandatory)][string]$Root)
+    return Join-Path $Root ".tools\$($script:TuyaMakeToolName)\$($script:TuyaMakeVersion)"
+}
+
+function Get-TuyaVenvMarkerPath {
+    param([string]$VenvPath)
+    return Join-Path $VenvPath $script:VenvMarker
+}
+
+function Test-TuyaUvManagedVenv {
+    param([string]$VenvPath)
+    $marker = Get-TuyaVenvMarkerPath -VenvPath $VenvPath
+    if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { return $false }
+    $venvPy = Join-Path $VenvPath 'Scripts\python.exe'
+    return (Test-Path -LiteralPath $venvPy -PathType Leaf)
+}
+
+function Remove-TuyaLegacyVenvIfNeeded {
+    param([string]$Root)
+    $venvPath = Join-Path $Root '.venv'
+    $venvPy   = Join-Path $venvPath 'Scripts\python.exe'
+
+    if (Test-Path -LiteralPath $venvPath -PathType Leaf) {
+        Write-TuyaOpenDebug '[TuyaOpen] Removing invalid .venv (not a directory)...'
+        if (-not (Remove-TuyaPathSafe -Path $venvPath -Recurse)) {
+            Write-TuyaOpenFailureHint -Stage Venv -Summary 'Cannot remove .venv.' -Cause 'Path is a file or locked.' -NextSteps @('Delete .venv manually', 'Re-run: . .\export.ps1')
+            Stop-TuyaOpenExport 1
+        }
         return
     }
-    & $env:OPEN_SDK_PYTHON (Join-Path $env:OPEN_SDK_ROOT 'tos.py') @args
+    if (-not (Test-Path -LiteralPath $venvPath -PathType Container)) { return }
+    if ((Test-TuyaUvManagedVenv -VenvPath $venvPath) -and (Test-Path -LiteralPath $venvPy -PathType Leaf)) { return }
+
+    Write-TuyaOpenInfo '[TuyaOpen] Detected legacy Python venv (.venv). Migrating to uv-managed environment...'
+    Write-TuyaOpenInfo '           Old .venv removed. A new environment will be created.'
+    if (-not (Remove-TuyaPathSafe -Path $venvPath -Recurse)) {
+        Write-TuyaOpenFailureHint -Stage Venv -Summary 'Cannot remove .venv.' -Cause 'Directory may be in use.' -NextSteps @('Close IDE/terminals using .venv', 'Delete folder manually', 'Re-run: . .\export.ps1')
+        Stop-TuyaOpenExport 1
+    }
 }
 
-function global:__tuyaTeardown {
-    param([switch]$Silent)
-    if (-not $Silent) { Write-Host 'Exiting TuyaOpen environment...' }
-    if ($env:OPEN_SDK_ROOT) {
-        $sdkRoot    = $env:OPEN_SDK_ROOT
-        $sdkScripts = Join-Path $sdkRoot '.venv\Scripts'
-        # Remove exactly the two entries we appended, case-insensitively.
-        $env:PATH = (($env:PATH -split ';') |
-            Where-Object { $_ -and ($_ -ine $sdkRoot) -and ($_ -ine $sdkScripts) }
-        ) -join ';'
+function Invoke-TuyaSetupVenv {
+    param(
+        [string]$Root,
+        [string]$UvExe,
+        [string]$ManagedPythonExe
+    )
+    Remove-TuyaLegacyVenvIfNeeded -Root $Root
+    $venvPath = Join-Path $Root '.venv'
+    $venvPy   = Join-Path $venvPath 'Scripts\python.exe'
+    $marker   = Get-TuyaVenvMarkerPath -VenvPath $venvPath
+
+    if (-not (Test-TuyaUvManagedVenv -VenvPath $venvPath) -or -not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {
+        Write-TuyaOpenInfo '[TuyaOpen] Creating .venv...'
+        Push-Location $Root
+        try {
+            Invoke-TuyaUvNative -UvExe $UvExe -ArgumentList @('venv', $venvPath, '--python', $ManagedPythonExe)
+            if ($LASTEXITCODE -ne 0) {
+                Write-TuyaOpenFailureHint -Stage Venv -Summary 'Failed to create .venv.' -Cause "uv venv exited with code $LASTEXITCODE" -NextSteps @("Run: `"$UvExe`" venv .venv --python `"$ManagedPythonExe`"", 'Re-run: . .\export.ps1')
+                Stop-TuyaOpenExport 1
+            }
+        } finally { Pop-Location }
+        $markerContent = "managed-by=export.ps1`npython=$($script:PythonVersion)"
+        if (-not (Write-TuyaMarkerFile -Path $marker -Content $markerContent)) {
+            Write-TuyaOpenFailureHint -Stage Venv -Summary 'Cannot write venv marker.' -Cause $marker -NextSteps @('Check .venv permissions', 'Re-run: . .\export.ps1')
+            Stop-TuyaOpenExport 1
+        }
+        Write-TuyaOpenDebug '[TuyaOpen] .venv created.'
     }
-    Remove-Item Env:VIRTUAL_ENV     -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_ROOT   -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_PYTHON -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_PIP    -ErrorAction SilentlyContinue
-    # Restore the original prompt (saved on activation by the block below).
+
+    Push-Location $Root
+    try {
+        $pkgCount = Get-TuyaUvLockPackageCount -LockPath (Join-Path $Root 'uv.lock')
+        $syncRc = Invoke-TuyaUvSyncWithProgress -UvExe $UvExe -Root $Root -TotalPackages $pkgCount
+        if ($syncRc -ne 0) {
+            Write-TuyaOpenFailureHint -Stage Sync -Summary 'Dependency sync failed.' -Cause 'uv sync --frozen failed.' -NextSteps @('Ensure uv.lock matches pyproject.toml', 'Check network, then re-run: . .\export.ps1')
+            Stop-TuyaOpenExport 1
+        }
+        Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
+    } finally { Pop-Location }
+
+    if (-not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {
+        Write-TuyaOpenFailureHint -Stage Sync -Summary '.venv Python missing after sync.' -Cause $venvPy -NextSteps @('Remove .venv and re-run: . .\export.ps1')
+        Stop-TuyaOpenExport 1
+    }
+    return $venvPy
+}
+
+function Set-TuyaSessionEnv {
+    param([string]$Root, [string]$VenvPythonExe)
+    $venvPath   = Join-Path $Root '.venv'
+    $scriptsDir = Join-Path $venvPath 'Scripts'
+    $pipExe     = Join-Path $scriptsDir 'pip.exe'
+    $python3Exe = Join-Path $scriptsDir 'python3.exe'
+    if (-not (Test-Path -LiteralPath $python3Exe -PathType Leaf)) {
+        try { Copy-Item -LiteralPath $VenvPythonExe -Destination $python3Exe -Force } catch { }
+    }
+    $makeBinDir = Get-TuyaWindowsMakeBinDir -Root $Root
+    $env:VIRTUAL_ENV        = $venvPath
+    $env:OPEN_SDK_ROOT      = $Root
+    $env:OPEN_SDK_PYTHON    = $VenvPythonExe
+    $env:OPEN_SDK_PIP       = $pipExe
+    $env:OPEN_SDK_MAKE_BIN  = $makeBinDir
+    $env:OPEN_SDK_MAKE      = Join-Path $makeBinDir 'make.exe'
+    $env:TUYAOPEN_ENV_ACTIVE = '1'
+    Add-TuyaPathEntryIfMissing -Dir $scriptsDir
+    Add-TuyaPathEntryIfMissing -Dir $Root
+}
+
+function Reset-TuyaSessionCache {
+    param([string]$Root)
+    $cachePath = Join-Path $Root '.cache'
+    if (-not (Ensure-TuyaDirectory -Path $cachePath)) { return }
+    foreach ($name in '.env.json', '.dont_prompt_update_platform') {
+        Remove-TuyaPathSafe -Path (Join-Path $cachePath $name) | Out-Null
+    }
+}
+
+
+function Restore-TuyaOpenPrompt {
     if (Test-Path function:_OLD_TUYA_PROMPT) {
         Copy-Item -Path function:_OLD_TUYA_PROMPT -Destination function:prompt -Force -ErrorAction SilentlyContinue
         Remove-Item function:_OLD_TUYA_PROMPT -Force -ErrorAction SilentlyContinue
-    }
-    Remove-Item 'function:\tos.py'     -Force -ErrorAction SilentlyContinue
-    Remove-Item 'function:\deactivate' -Force -ErrorAction SilentlyContinue
-    Remove-Item 'function:\deactive'   -Force -ErrorAction SilentlyContinue
-    if (-not $Silent) { Write-Host 'TuyaOpen environment deactivated.' }
-}
-
-function global:deactivate { __tuyaTeardown }
-
-# Tolerate the common misspelling `deactive`.
-function global:deactive   { deactivate }
-
-# ---------------------------------------------------------------------------
-# Prompt decoration, modeled after Python's venv `Activate.ps1`.
-# Back up the caller's existing `prompt` once (so re-sourcing does not
-# double-wrap and lose the real original), then install a wrapper that
-# prefixes `(.venv) ` and delegates to the original prompt. `deactivate`
-# (via __tuyaTeardown above) restores it and deletes the backup.
-# ---------------------------------------------------------------------------
-if (-not (Test-Path function:_OLD_TUYA_PROMPT)) {
-    if (Test-Path function:prompt) {
-        Copy-Item -Path function:prompt -Destination function:_OLD_TUYA_PROMPT
-    }
-}
-function global:prompt {
-    Write-Host -NoNewline -ForegroundColor Green '(.venv) '
-    if (Test-Path function:_OLD_TUYA_PROMPT) {
-        & $function:_OLD_TUYA_PROMPT
-    } else {
-        'PS ' + $ExecutionContext.SessionState.Path.CurrentLocation + '> '
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Greeting banner (via tos.py hello; ASCII/version only). "Ready" + exit hint
-# are printed here so PowerShell can recommend `deactivate` only — `exit` is
-# a language keyword and cannot be wrapped like in cmd/bash.
-# ---------------------------------------------------------------------------
-& $pythonExe (Join-Path $OpenSdkRoot 'tos.py') hello
-Write-Host 'tos.py Tool and TuyaOpen SDK is now ready.'
-Write-Host 'Exit environment: `deactivate`.'
-
-# ---------------------------------------------------------------------------
-# Decide whether to spawn an interactive child shell with a `(.venv)` prompt:
-#   - isResource (venv already active): skip - the user is refreshing an
-#     environment that is already set up in the current shell.
-#   - isDotSourced: skip - the user explicitly asked to integrate the env
-#     into their current session, so dumping them into a child would be
-#     surprising (and the helpers above already cover their session).
-#   - otherwise (plain `.\export.ps1` invocation): spawn a child so the
-#     user gets the dedicated venv prompt.
-# ---------------------------------------------------------------------------
-if ($isResource -or $isDotSourced) { return }
-
-# ---------------------------------------------------------------------------
-# Pick the same PowerShell host as the parent so pwsh (PS 7) users are not
-# silently downgraded to Windows PowerShell 5.1. Fall back to the edition
-# default if the current process path cannot be resolved.
-# ---------------------------------------------------------------------------
-$hostExe = $null
-try { $hostExe = (Get-Process -Id $PID).Path } catch { $hostExe = $null }
-if (-not $hostExe -or -not (Test-Path -LiteralPath $hostExe -PathType Leaf)) {
-    $hostExe = if ($PSVersionTable.PSEdition -eq 'Core') { 'pwsh' } else { 'powershell' }
-}
-
-# ---------------------------------------------------------------------------
-# Create the child bootstrap script with a non-colliding, self-cleaning name.
-# [IO.Path]::GetTempFileName() creates an extra *.tmp file we would have to
-# clean up; [guid] gives us a unique name without the stray file.
-# ---------------------------------------------------------------------------
-$tempScript = Join-Path ([IO.Path]::GetTempPath()) ("tuya_export_{0}.ps1" -f [guid]::NewGuid().ToString('N'))
-
-$scriptContent = @"
-`$__tuyaOrigPath = `$env:PATH
-
-`$env:VIRTUAL_ENV     = '$venvPath'
-`$env:OPEN_SDK_ROOT   = '$OpenSdkRoot'
-`$env:OPEN_SDK_PYTHON = '$pythonExe'
-`$env:OPEN_SDK_PIP    = '$pipExe'
-
-# The parent already appended scriptsDir / OpenSdkRoot to PATH before spawning
-# this child, so the child inherits an updated PATH. Guard against duplicates
-# with the same case-insensitive dedupe logic the parent uses.
-if (-not ((`$env:PATH -split ';') | Where-Object { `$_ -ieq '$scriptsDir' })) {
-    `$env:PATH = '$scriptsDir;' + `$env:PATH
-}
-if (-not ((`$env:PATH -split ';') | Where-Object { `$_ -ieq '$OpenSdkRoot' })) {
-    `$env:PATH = `$env:PATH + ';$OpenSdkRoot'
-}
-
-Set-Location '$OpenSdkRoot'
-
-# Same prompt decoration scheme as the dot-sourced path (mirrors Python's
-# venv Activate.ps1): back up the host's default prompt, install a wrapper
-# that prefixes `(.venv) `, delegate to the original for the rest.
-if (-not (Test-Path function:_OLD_TUYA_PROMPT)) {
-    if (Test-Path function:prompt) {
-        Copy-Item -Path function:prompt -Destination function:_OLD_TUYA_PROMPT
-    }
-}
-function global:prompt {
-    Write-Host -NoNewline -ForegroundColor Green '(.venv) '
-    if (Test-Path function:_OLD_TUYA_PROMPT) {
-        & `$function:_OLD_TUYA_PROMPT
-    } else {
-        'PS ' + `$ExecutionContext.SessionState.Path.CurrentLocation + '> '
-    }
-}
-
-# Read env vars at call time (matches the parent-session helper so both
-# stay in sync even if the user reassigns OPEN_SDK_PYTHON / OPEN_SDK_ROOT).
-function global:tos.py {
-    if (-not `$env:OPEN_SDK_PYTHON -or -not `$env:OPEN_SDK_ROOT) {
-        Write-Host 'TuyaOpen environment is not active.'
         return
     }
-    & `$env:OPEN_SDK_PYTHON (Join-Path `$env:OPEN_SDK_ROOT 'tos.py') @args
-}
-
-# Centralised teardown so `deactivate` and the engine Exiting event stay in
-# sync (both restore PATH, prompt, and clear every env var we added).
-function global:__tuyaTeardown {
-    param([switch]`$Silent)
-    if (-not `$Silent) { Write-Host 'Exiting TuyaOpen environment...' }
-    if (Test-Path function:_OLD_TUYA_PROMPT) {
-        Copy-Item -Path function:_OLD_TUYA_PROMPT -Destination function:prompt -Force -ErrorAction SilentlyContinue
-        Remove-Item function:_OLD_TUYA_PROMPT -Force -ErrorAction SilentlyContinue
+    function global:prompt {
+        "PS $($executionContext.SessionState.Path.CurrentLocation)> "
     }
-    if (`$__tuyaOrigPath) { `$env:PATH = `$__tuyaOrigPath }
-    Remove-Item Env:VIRTUAL_ENV     -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_ROOT   -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_PYTHON -ErrorAction SilentlyContinue
-    Remove-Item Env:OPEN_SDK_PIP    -ErrorAction SilentlyContinue
-    Remove-Item 'function:\tos.py'     -Force -ErrorAction SilentlyContinue
-    Remove-Item 'function:\deactivate' -Force -ErrorAction SilentlyContinue
-    Remove-Item 'function:\deactive'   -Force -ErrorAction SilentlyContinue
-    if (-not `$Silent) { Write-Host 'TuyaOpen environment deactivated.' }
 }
 
-function global:deactivate { __tuyaTeardown }
+function Install-TuyaOpenPromptIndicator {
+    if (-not (Test-Path function:_OLD_TUYA_PROMPT)) {
+        if (Test-Path function:prompt) {
+            $current = (Get-Command prompt -CommandType Function).ScriptBlock.ToString()
+            if ($current -notmatch 'TuyaOpenPromptPrefix' -and $current -notmatch '\(TuyaOpen\) ') {
+                Copy-Item -Path function:prompt -Destination function:_OLD_TUYA_PROMPT
+            }
+        }
+    }
+    function global:prompt {
+        Write-Host -NoNewline -ForegroundColor Green $script:PromptPrefix
+        if (Test-Path function:_OLD_TUYA_PROMPT) {
+            & $function:_OLD_TUYA_PROMPT
+        } else {
+            'PS ' + $ExecutionContext.SessionState.Path.CurrentLocation + '> '
+        }
+    }
+}
 
-# Tolerate the common misspelling `deactive`.
-function global:deactive   { deactivate }
+function Install-TuyaOpenPwshCompletion {
+    <#
+        Register tos.py tab completion in the current PowerShell session (Click 8 + click-pwsh).
+        Failures are ignored so sourcing export.ps1 never aborts.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$PythonExe
+    )
 
-# `exit` is a PowerShell keyword and cannot be reliably overridden by a
-# function, so hook session teardown via the engine Exiting event instead.
-# This fires for `exit`, window close, or any other way the host is torn down.
-Register-EngineEvent PowerShell.Exiting -SupportEvent -Action {
-    try { __tuyaTeardown -Silent } catch { }
-} | Out-Null
-"@
+    if ($PSVersionTable.PSEdition -ne 'Core') {
+        return
+    }
 
-# -Encoding UTF8 writes a BOM on Windows PowerShell 5.1 which PS 5.1 itself
-# reads fine; OEM/ASCII avoids the BOM but may mangle non-ASCII paths. UTF8
-# is the correct default for the content we emit here.
-$scriptContent | Out-File -FilePath $tempScript -Encoding UTF8
+    $tosScript = Join-Path $Root 'tos.py'
+    if (-not (Test-Path -LiteralPath $tosScript)) {
+        return
+    }
+
+    $prevComplete = $env:_TOS_PY_COMPLETE
+    try {
+        $env:_TOS_PY_COMPLETE = 'pwsh_source'
+        $sourceScript = & $PythonExe $tosScript 2>$null
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($sourceScript)) {
+            return
+        }
+        Invoke-Expression $sourceScript
+    } catch {
+        if ($script:TuyaOpenVerbose) {
+            Write-TuyaOpenDebug "PowerShell completion setup skipped: $($_.Exception.Message)"
+        }
+    } finally {
+        if ($null -eq $prevComplete) {
+            Remove-Item Env:_TOS_PY_COMPLETE -ErrorAction SilentlyContinue
+        } else {
+            $env:_TOS_PY_COMPLETE = $prevComplete
+        }
+    }
+}
+
+function Register-TuyaOpenCommandHelpers {
+    function global:tos.py {
+        if (-not $env:OPEN_SDK_PYTHON -or -not $env:OPEN_SDK_ROOT) {
+            Write-TuyaOpenInfo 'TuyaOpen environment is not active. Source export.ps1 first: . .\export.ps1'
+            return
+        }
+        & $env:OPEN_SDK_PYTHON (Join-Path $env:OPEN_SDK_ROOT 'tos.py') @args
+    }
+
+    function global:__tuyaTeardown {
+        param([switch]$Silent)
+        if ($env:OPEN_SDK_ROOT) {
+            $sdkRoot    = $env:OPEN_SDK_ROOT
+            $sdkScripts = Join-Path $sdkRoot '.venv\Scripts'
+            $makeBin    = $env:OPEN_SDK_MAKE_BIN
+            if (-not $makeBin) {
+                $makeBin = Get-TuyaWindowsMakeBinDir -Root $sdkRoot
+            }
+            $uvDir      = Join-Path $sdkRoot ".tools\uv\$((Get-TuyaUvManifest -Root $sdkRoot).Version)"
+            $env:PATH = (($env:PATH -split ';') | Where-Object {
+                $_ -and ($_ -ine $sdkRoot) -and ($_ -ine $sdkScripts) -and ($_ -ine $makeBin) -and ($_ -ine $uvDir)
+            }) -join ';'
+        }
+        Remove-Item Env:VIRTUAL_ENV        -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_ROOT      -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_PYTHON    -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_PIP       -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_MAKE_BIN  -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_MAKE      -ErrorAction SilentlyContinue
+        Remove-Item Env:OPEN_SDK_UV        -ErrorAction SilentlyContinue
+        Remove-Item Env:TUYAOPEN_ENV_ACTIVE -ErrorAction SilentlyContinue
+        Restore-TuyaOpenPrompt
+        Remove-Item 'function:\tos.py'     -Force -ErrorAction SilentlyContinue
+        Remove-Item 'function:\deactivate' -Force -ErrorAction SilentlyContinue
+        Remove-Item 'function:\__tuyaTeardown' -Force -ErrorAction SilentlyContinue
+        if (-not $Silent) {
+            Write-TuyaOpenInfo 'TuyaOpen environment deactivated. Re-enter: . .\export.ps1'
+        }
+    }
+
+    function global:deactivate { __tuyaTeardown }
+}
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+if ($env:TUYAOPEN_EXPORT_SKIP_MAIN -eq '1') { return }
+
+$script:TuyaOpenDotSourced = ($MyInvocation.InvocationName -eq '.')
+if (-not $script:TuyaOpenDotSourced) {
+    Write-TuyaOpenInfo '[TuyaOpen] Tip: dot-source this script: . .\export.ps1'
+}
+
+if (-not $env:OPEN_SDK_ROOT) {
+    $env:OPEN_SDK_ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+$openRoot = $env:OPEN_SDK_ROOT
+
 try {
-    & $hostExe -NoExit -NoProfile -File $tempScript
-} finally {
-    Remove-Item -LiteralPath $tempScript -Force -ErrorAction SilentlyContinue
+    if (-not (Test-TuyaProjectFiles -Root $openRoot)) { Stop-TuyaOpenExport 1 }
+    Set-Location $openRoot
+
+    if (Invoke-TuyaGuardActive -Root $openRoot) { return }
+
+    $env:OPEN_SDK_UV = Invoke-TuyaSetupUv -Root $openRoot
+    Write-TuyaUvPlatformBanner -Root $openRoot
+    $managedPython = Invoke-TuyaSetupPython -Root $openRoot -UvExe $env:OPEN_SDK_UV
+    $venvPython    = Invoke-TuyaSetupVenv   -Root $openRoot -UvExe $env:OPEN_SDK_UV -ManagedPythonExe $managedPython
+
+    Set-TuyaSessionEnv -Root $openRoot -VenvPythonExe $venvPython
+    Register-TuyaOpenCommandHelpers
+    tos.py prepare
+    if ($LASTEXITCODE -ne 0) {
+        Write-TuyaOpenInfo '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
+    }
+    if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
+        Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
+    }
+    Install-TuyaOpenPwshCompletion -Root $openRoot -PythonExe $venvPython
+    Install-TuyaOpenPromptIndicator
+    Reset-TuyaSessionCache -Root $openRoot
+
+    Invoke-TuyaHello -Root $openRoot -PythonExe $env:OPEN_SDK_PYTHON
+    Write-TuyaOpenInfo '[TuyaOpen] Ready - tos.py available. Exit: deactivate'
+} catch {
+    if ($_.Exception.Message -match '^\[TuyaOpen\] export aborted \(exit code (\d+)\)\.$') {
+        return
+    }
+    throw
 }
