@@ -4,6 +4,7 @@ setlocal enabledelayedexpansion
 :: ===========================================================================
 :: Usage: export.bat
 :: Set TUYAOPEN_EXPORT_VERBOSE=1 before running for full diagnostic output.
+:: Set TUYAOPEN_EXPORT_IDE=1 when invoked by TuyaOpen IDE (passed through to export.ps1).
 ::
 :: This script:
 ::   * locates the TuyaOpen project root (this script's directory),
@@ -80,25 +81,10 @@ set "TUYA_BOOTSTRAP_PS1=%TEMP%\tuya_bootstrap_%TUYA_SID%.ps1"
 >>"%TUYA_BOOTSTRAP_PS1%" echo $openRoot = $env:OPEN_SDK_ROOT
 >>"%TUYA_BOOTSTRAP_PS1%" echo if (-not (Test-TuyaProjectFiles -Root $openRoot^)^) { exit 1 }
 >>"%TUYA_BOOTSTRAP_PS1%" echo Set-Location -LiteralPath $openRoot
->>"%TUYA_BOOTSTRAP_PS1%" echo $env:OPEN_SDK_UV = Invoke-TuyaSetupUv -Root $openRoot
->>"%TUYA_BOOTSTRAP_PS1%" echo Write-TuyaUvPlatformBanner -Root $openRoot
->>"%TUYA_BOOTSTRAP_PS1%" echo $managedPython = Invoke-TuyaSetupPython -Root $openRoot -UvExe $env:OPEN_SDK_UV
->>"%TUYA_BOOTSTRAP_PS1%" echo $venvPython = Invoke-TuyaSetupVenv -Root $openRoot -UvExe $env:OPEN_SDK_UV -ManagedPythonExe $managedPython
->>"%TUYA_BOOTSTRAP_PS1%" echo Set-TuyaSessionEnv -Root $openRoot -VenvPythonExe $venvPython
+>>"%TUYA_BOOTSTRAP_PS1%" echo Invoke-TuyaExportSetupCore -Root $openRoot ^| Out-Null
 >>"%TUYA_BOOTSTRAP_PS1%" echo Reset-TuyaSessionCache -Root $openRoot
->>"%TUYA_BOOTSTRAP_PS1%" echo $out = $env:TUYA_ENV_BAT
->>"%TUYA_BOOTSTRAP_PS1%" echo if (-not $out^) { throw 'TUYA_ENV_BAT not set' }
->>"%TUYA_BOOTSTRAP_PS1%" echo @(
->>"%TUYA_BOOTSTRAP_PS1%" echo     '@echo off',
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_ROOT=$($env:OPEN_SDK_ROOT)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_PYTHON=$($env:OPEN_SDK_PYTHON)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_PIP=$($env:OPEN_SDK_PIP)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_UV=$($env:OPEN_SDK_UV)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_MAKE_BIN=$($env:OPEN_SDK_MAKE_BIN)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"OPEN_SDK_MAKE=$($env:OPEN_SDK_MAKE)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     "set `"VIRTUAL_ENV=$($env:VIRTUAL_ENV)`"",
->>"%TUYA_BOOTSTRAP_PS1%" echo     'set "TUYAOPEN_ENV_ACTIVE=1"'
->>"%TUYA_BOOTSTRAP_PS1%" echo ^) ^| Set-Content -LiteralPath $out -Encoding ASCII
+>>"%TUYA_BOOTSTRAP_PS1%" echo if (-not $env:TUYA_ENV_BAT^) { throw 'TUYA_ENV_BAT not set' }
+>>"%TUYA_BOOTSTRAP_PS1%" echo Write-TuyaCmdEnvBat -OutputPath $env:TUYA_ENV_BAT
 
 powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -File "%TUYA_BOOTSTRAP_PS1%"
 set "BOOT_EXIT=!errorlevel!"
@@ -128,12 +114,15 @@ if not exist "%OPEN_SDK_PYTHON%" (
 )
 
 :: ---------------------------------------------------------------------------
-:: Host tools (same as export.ps1: tos.py prepare after session env is set)
+:: Host tools (prepare only; hello/ready stay in child cmd alias bat)
 :: ---------------------------------------------------------------------------
-"%OPEN_SDK_PYTHON%" "%OPEN_SDK_ROOT%\tos.py" prepare
-if !errorlevel! neq 0 (
-    echo [TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare
-)
+set "TUYA_PREPARE_PS1=%TEMP%\tuya_prepare_%TUYA_SID%.ps1"
+> "%TUYA_PREPARE_PS1%" echo $ErrorActionPreference = 'Stop'
+>>"%TUYA_PREPARE_PS1%" echo $env:TUYAOPEN_EXPORT_SKIP_MAIN = '1'
+>>"%TUYA_PREPARE_PS1%" echo . (Join-Path $env:OPEN_SDK_ROOT 'export.ps1'^)
+>>"%TUYA_PREPARE_PS1%" echo Invoke-TuyaExportFinalize -Root $env:OPEN_SDK_ROOT -SkipHello -SkipReady
+powershell -NoProfile -NoLogo -ExecutionPolicy Bypass -File "%TUYA_PREPARE_PS1%"
+if exist "%TUYA_PREPARE_PS1%" del /F /Q "%TUYA_PREPARE_PS1%" 2>nul
 
 :: ---------------------------------------------------------------------------
 :: PATH: uv tools dir, .venv\Scripts, make bin, project root (idempotent)
