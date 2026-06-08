@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # Full test suite for export.sh
-# Usage: bash tools/test_export.sh
+# Usage: bash tests/export/test_export.sh
 #
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 PASS=0

@@ -3,6 +3,7 @@
 # Usage: . ./export.sh
 #
 # Set TUYAOPEN_EXPORT_VERBOSE=1 before sourcing for full diagnostic output.
+# Set TUYAOPEN_EXPORT_IDE=1 when invoked by TuyaOpen IDE (stage markers for progress UI).
 # Set TUYAOPEN_EXPORT_SKIP_MAIN=1 to load functions only (tests).
 #
 # This script must be *sourced* (not executed). It:
@@ -26,6 +27,10 @@ TUYA_UV_DOWNLOAD_ATTEMPTS=2
 TUYA_ALIYUN_PYPI_INDEX='https://mirrors.aliyun.com/pypi/simple/'
 TUYA_PROMPT_PREFIX='(TuyaOpen) '
 
+if [ "${TUYAOPEN_EXPORT_IDE:-}" = '1' ]; then
+    export NO_COLOR=1 FORCE_COLOR=0 CLICOLOR=0
+fi
+
 # ---------------------------------------------------------------------------
 # Locate this script (bash, zsh, POSIX sh)
 # ---------------------------------------------------------------------------
@@ -43,6 +48,229 @@ _tuya_pwd_dir="$(pwd)"
 # ---------------------------------------------------------------------------
 tuya_info()  { echo "$@" >&2; }
 tuya_debug() { [ -n "${TUYAOPEN_EXPORT_VERBOSE:-}" ] && echo "$@" >&2; return 0; }
+
+tuya_stage() {
+    tuya_info "[TuyaOpen] Stage: $1"
+}
+
+tuya_is_ide_host() {
+    [ "${TUYAOPEN_EXPORT_IDE:-}" = '1' ]
+}
+
+tuya_size_to_mib() {
+    local value="$1" unit
+    unit=$(echo "$2" | tr '[:lower:]' '[:upper:]')
+    case "$unit" in
+        KIB) awk "BEGIN {printf \"%.4f\", $value / 1024}" ;;
+        MIB) echo "$value" ;;
+        GIB) awk "BEGIN {printf \"%.4f\", $value * 1024}" ;;
+        *) echo "$value" ;;
+    esac
+}
+
+_tuya_prog_last_text=''
+_tuya_prog_last_at=0
+_tuya_prog_last_pct=-1
+
+tuya_emit_if_changed() {
+    local text="$1" pct="${2:--1}" min_ms="${3:-2000}" min_pct="${4:-2}"
+    local now pct_delta=100 elapsed=999999
+    now=$(date +%s 2>/dev/null || echo 0)
+    elapsed=$((now - _tuya_prog_last_at))
+    if [ "$pct" -ge 0 ] && [ "$_tuya_prog_last_pct" -ge 0 ]; then
+        pct_delta=$((pct - _tuya_prog_last_pct))
+        [ "$pct_delta" -lt 0 ] && pct_delta=$((-pct_delta))
+    fi
+    if [ "$text" = "$_tuya_prog_last_text" ] && [ "$elapsed" -lt 5 ]; then
+        return 0
+    fi
+    if [ "$elapsed" -lt 2 ] && [ "$pct_delta" -lt "$min_pct" ]; then
+        return 0
+    fi
+    _tuya_prog_last_text="$text"
+    _tuya_prog_last_at="$now"
+    _tuya_prog_last_pct="$pct"
+    tuya_info "$text"
+}
+
+tuya_uv_run_stream() {
+    # Run OPEN_SDK_UV with streaming line-by-line callback and correct exit code.
+    # Uses a FIFO so the while loop runs in the current shell (variable mutations
+    # persist) and wait() gives the real uv exit code.  Falls back to a temp
+    # file when mkfifo is unavailable (no real-time streaming, but correct rc).
+    # UV_NO_PROGRESS and UV_LINK_MODE are set/exported here and restored on exit.
+    local on_line="$1"
+    shift
+    local rc=0 line="" fifo="" tmp="" uv_pid=0
+    local _saved_no_prog="${UV_NO_PROGRESS:-}"
+    local _saved_link="${UV_LINK_MODE:-}"
+    UV_NO_PROGRESS=1
+    UV_LINK_MODE="${UV_LINK_MODE:-copy}"
+    export UV_NO_PROGRESS UV_LINK_MODE
+
+    fifo=$(mktemp -u 2>/dev/null || printf '%s' "/tmp/tuya_uv_fifo_$$")
+    if mkfifo "$fifo" 2>/dev/null; then
+        "$OPEN_SDK_UV" "$@" >"$fifo" 2>&1 &
+        uv_pid=$!
+        while IFS= read -r line; do
+            [ -n "$line" ] && "$on_line" "$line"
+        done <"$fifo"
+        wait "$uv_pid" || rc=$?
+        rm -f "$fifo" 2>/dev/null || true
+    else
+        tmp=$(mktemp 2>/dev/null || printf '%s' "/tmp/tuya_uv_stream_$$")
+        "$OPEN_SDK_UV" "$@" >"$tmp" 2>&1 || rc=$?
+        while IFS= read -r line; do
+            [ -n "$line" ] && "$on_line" "$line"
+        done <"$tmp"
+        rm -f "$tmp" 2>/dev/null || true
+    fi
+
+    if [ -z "$_saved_no_prog" ]; then unset UV_NO_PROGRESS;  else UV_NO_PROGRESS="$_saved_no_prog"; export UV_NO_PROGRESS; fi
+    if [ -z "$_saved_link" ];    then unset UV_LINK_MODE;     else UV_LINK_MODE="$_saved_link";      export UV_LINK_MODE;     fi
+    return "$rc"
+}
+
+_tuya_sync_current=0
+_tuya_sync_last_name=''
+_tuya_sync_pkg_total=1
+
+tuya_on_uv_sync_line() {
+    tuya_parse_uv_sync_line "$1" "$_tuya_sync_pkg_total"
+}
+
+tuya_parse_uv_sync_line() {
+    local line="$1" total="$2"
+    local changed=0 pkg="" n=0
+    case "$line" in
+        +*)
+            pkg=${line#+ }
+            pkg=${pkg%% *}
+            _tuya_sync_current=$((_tuya_sync_current + 1))
+            [ "$_tuya_sync_current" -gt "$total" ] && _tuya_sync_current=$total
+            _tuya_sync_last_name="$pkg"
+            changed=1
+            ;;
+    esac
+    case "$line" in
+        [Dd]ownloading\ *)
+            pkg=${line#Downloading }
+            pkg=${pkg%% *}
+            n=$((_tuya_sync_current + 1))
+            [ "$n" -gt "$total" ] && n=$total
+            if [ "$n" -gt "$_tuya_sync_current" ]; then
+                _tuya_sync_current=$n
+                _tuya_sync_last_name="$pkg"
+                changed=1
+            fi
+            ;;
+    esac
+    case "$line" in
+        *Installed\ [0-9]*\ packages*)
+            n=$(echo "$line" | sed -n 's/.*Installed \([0-9][0-9]*\) packages.*/\1/p')
+            if [ -n "$n" ] && [ "$n" -gt "$_tuya_sync_current" ]; then
+                [ "$n" -gt "$total" ] && n=$total
+                _tuya_sync_current=$n
+                changed=1
+            fi
+            ;;
+        *Audited\ [0-9]*\ packages*)
+            n=$(echo "$line" | sed -n 's/.*Audited \([0-9][0-9]*\) packages.*/\1/p')
+            if [ -n "$n" ] && [ "$n" -gt "$_tuya_sync_current" ]; then
+                [ "$n" -gt "$total" ] && n=$total
+                _tuya_sync_current=$n
+                changed=1
+            fi
+            ;;
+    esac
+    if [ "$changed" -eq 1 ]; then
+        local pct=0 filled=0 empty=28 bar='' text='' i=0
+        [ "$total" -lt 1 ] && total=1
+        pct=$((100 * _tuya_sync_current / total))
+        [ "$pct" -gt 100 ] && pct=100
+        filled=$((28 * _tuya_sync_current / total))
+        [ "$filled" -gt 28 ] && filled=28
+        empty=$((28 - filled))
+        bar=$(printf '%*s' "$filled" '' | tr ' ' '#')
+        bar="${bar}$(printf '%*s' "$empty" '' | tr ' ' '-')"
+        text="[TuyaOpen] Syncing dependencies [$bar] ${_tuya_sync_current}/${total} (${pct}%)"
+        [ -n "$_tuya_sync_last_name" ] && text="$text - $_tuya_sync_last_name"
+        tuya_emit_if_changed "$text" "$pct"
+    fi
+}
+
+_tuya_py_artifact='cpython'
+_tuya_py_total_mib=0
+_tuya_py_recv_mib=-1
+
+tuya_parse_python_install_line() {
+    local line="$1" recv_u='' total_u='' pct=0 text='' changed=0
+    case "$line" in
+        *[Dd]ownloading\ cpython*)
+            _tuya_py_artifact=$(echo "$line" | sed -n 's/.*[Dd]ownloading \([^ (]*\).*/\1/p')
+            changed=1
+            ;;
+    esac
+    recv_u=$(echo "$line" | sed -n 's/.*\([0-9][0-9.]*\) MiB *\/ *\([0-9][0-9.]*\) MiB.*/\1/p')
+    total_u=$(echo "$line" | sed -n 's/.*\([0-9][0-9.]*\) MiB *\/ *\([0-9][0-9.]*\) MiB.*/\2/p')
+    if [ -n "$recv_u" ] && [ -n "$total_u" ]; then
+        _tuya_py_recv_mib="$recv_u"
+        _tuya_py_total_mib="$total_u"
+        changed=1
+    fi
+    if [ "$changed" -eq 1 ]; then
+        text="[TuyaOpen] Installing Python ${TUYA_PYTHON_VERSION}: ${_tuya_py_artifact}"
+        if [ -n "$total_u" ] && [ -n "$recv_u" ]; then
+            pct=$(awk "BEGIN {v=int(100*$recv_u/$total_u); if (v>99) v=99; print v}")
+            text="$text: $recv_u / $total_u MB (${pct}%)"
+            tuya_emit_if_changed "$text" "$pct"
+        else
+            tuya_emit_if_changed "$text" -1
+        fi
+    fi
+}
+
+tuya_export_cold_start_kind() {
+    local venv_path="$OPEN_SDK_ROOT/.venv" install_dir python_exe=''
+    if ! tuya_load_uv_manifest "$OPEN_SDK_ROOT"; then
+        echo 'full'
+        return 0
+    fi
+    if ! tuya_new_uv_context "$OPEN_SDK_ROOT"; then
+        echo 'full'
+        return 0
+    fi
+    if ! tuya_test_uv_exe "$_tuya_uv_exe"; then
+        echo 'full'
+        return 0
+    fi
+    install_dir=$(tuya_python_install_dir)
+    python_exe=$(tuya_find_managed_python "$install_dir")
+    if ! tuya_test_python_exe "$python_exe"; then
+        echo 'full'
+        return 0
+    fi
+    if ! tuya_is_uv_venv "$venv_path"; then
+        echo 'venv_only'
+        return 0
+    fi
+    echo 'warm'
+}
+
+tuya_write_cold_start_hint() {
+    case "$1" in
+        full)
+            tuya_info '[TuyaOpen] First-time setup: downloading uv, Python, and dependencies (may take 3-10 minutes). Please wait...'
+            ;;
+        venv_only)
+            tuya_info '[TuyaOpen] Rebuilding virtual environment (Python already installed)...'
+            ;;
+    esac
+}
+
+tuya_export_cold_start() {
+    [ "$(tuya_export_cold_start_kind)" != 'warm' ]
+}
 
 tuya_error() {
     local stage="$1" summary="$2" cause="$3"
@@ -64,6 +292,9 @@ tuya_cleanup() {
     unset _tuya_uv_dl_size _tuya_uv_dl_sha256 _tuya_uv_tools_dir
     unset _tuya_uv_archive _tuya_uv_exe
     unset _tuya_managed_python _tuya_venv_py
+    unset _tuya_sync_current _tuya_sync_last_name _tuya_sync_pkg_total
+    unset _tuya_py_artifact _tuya_py_total_mib _tuya_py_recv_mib
+    unset _tuya_prog_last_text _tuya_prog_last_at _tuya_prog_last_pct
     unset -f tuya_debug tuya_error \
              tuya_is_sdk_root tuya_print_version tuya_has_cmd \
              tuya_ensure_dir tuya_path_add \
@@ -71,19 +302,25 @@ tuya_cleanup() {
              tuya_get_uv_artifact_check tuya_get_release_urls \
              tuya_get_arch tuya_select_uv_artifact \
              tuya_check_glibc tuya_download_file tuya_verify_sha256 \
+             tuya_download_file_ide \
              tuya_test_uv_exe tuya_new_uv_context \
              tuya_resolve_uv tuya_download_uv \
              tuya_extract_uv tuya_install_uv tuya_setup_uv \
              tuya_python_install_dir tuya_find_managed_python \
-             tuya_test_python_exe tuya_install_python \
+             tuya_test_python_exe tuya_install_python tuya_install_python_ide \
              tuya_setup_python tuya_uv_sync_plan tuya_uv \
-             tuya_lock_pkg_count tuya_sync_deps \
+             tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide \
              tuya_is_uv_venv tuya_migrate_legacy_venv \
              tuya_setup_venv tuya_is_env_active \
              tuya_set_env tuya_reset_cache \
              tuya_install_prompt tuya_install_completion \
              tuya_register_helpers tuya_invoke_hello \
              tuya_platform_banner tuya_guard_active tuya_finalize \
+             tuya_is_ide_host tuya_size_to_mib tuya_emit_if_changed \
+             tuya_uv_run_stream tuya_on_uv_sync_line \
+             tuya_parse_uv_sync_line tuya_parse_python_install_line \
+             tuya_export_cold_start_kind tuya_write_cold_start_hint \
+             tuya_export_cold_start \
              tuya_human_size tuya_cleanup 2>/dev/null || true
 }
 
@@ -397,8 +634,51 @@ tuya_select_uv_artifact() {
 # ---------------------------------------------------------------------------
 # Download / verify / extract uv
 # ---------------------------------------------------------------------------
+tuya_download_file_ide() {
+    local url="$1" dest="$2" expected="$3" label="$4" token="${UV_GITHUB_TOKEN:-}"
+    local tmp="${dest}.part" pid=0 rc=0 received=0 total_mib=0 recv_mib=0
+    local last_text='' line=''
+    total_mib=$(awk "BEGIN {printf \"%.1f\", $expected / 1048576}")
+    rm -f "$tmp" 2>/dev/null || true
+    if tuya_has_cmd curl; then
+        if [ -n "$token" ]; then
+            curl -fL -s --header "Authorization: Bearer $token" "$url" -o "$tmp" &
+        else
+            curl -fL -s "$url" -o "$tmp" &
+        fi
+        pid=$!
+        while kill -0 "$pid" 2>/dev/null; do
+            if [ -f "$tmp" ]; then
+                received=$(wc -c <"$tmp" 2>/dev/null || echo 0)
+                recv_mib=$(awk "BEGIN {printf \"%.1f\", $received / 1048576}")
+                line="${label}: ${recv_mib} / ${total_mib} MB"
+                if [ "$line" != "$last_text" ]; then
+                    tuya_info "$line"
+                    last_text="$line"
+                fi
+            fi
+            sleep 1
+        done
+        wait "$pid" || rc=$?
+        if [ "$rc" -eq 0 ]; then
+            mv -f "$tmp" "$dest"
+            line="${label}: ${total_mib} / ${total_mib} MB"
+            [ "$line" != "$last_text" ] && tuya_info "$line"
+        else
+            rm -f "$tmp" 2>/dev/null || true
+        fi
+        return "$rc"
+    fi
+    tuya_download_file "$url" "$dest"
+}
+
 tuya_download_file() {
-    local url="$1" dest="$2" token="${UV_GITHUB_TOKEN:-}"
+    local url="$1" dest="$2" expected="${3:-0}" label="${4:-[TuyaOpen] Downloading}"
+    local token="${UV_GITHUB_TOKEN:-}"
+    if tuya_is_ide_host && [ "$expected" -gt 0 ] 2>/dev/null; then
+        tuya_download_file_ide "$url" "$dest" "$expected" "$label"
+        return $?
+    fi
     if tuya_has_cmd curl; then
         if [ -n "$token" ]; then
             curl -fL --progress-bar --header "Authorization: Bearer $token" "$url" -o "$dest"
@@ -481,7 +761,7 @@ tuya_download_uv() {
         while [ "$attempt" -le "$TUYA_UV_DOWNLOAD_ATTEMPTS" ]; do
             [ "$attempt" -gt 1 ] && tuya_debug "[TuyaOpen] Retry $attempt/$TUYA_UV_DOWNLOAD_ATTEMPTS..."
             rm -f "$_tuya_uv_archive" 2>/dev/null || true
-            if tuya_download_file "$url" "$_tuya_uv_archive"; then
+            if tuya_download_file "$url" "$_tuya_uv_archive" "$_tuya_uv_dl_size" "[TuyaOpen] Downloading $_tuya_uv_artifact"; then
                 rc=0
                 break 2
             fi
@@ -581,6 +861,7 @@ tuya_install_uv() {
 }
 
 tuya_setup_uv() {
+    tuya_stage uv
     tuya_load_uv_manifest "$OPEN_SDK_ROOT" || return 1
     tuya_new_uv_context "$OPEN_SDK_ROOT"   || return 1
     tuya_install_uv                        || return 1
@@ -648,9 +929,34 @@ tuya_uv() {
     return "$rc"
 }
 
+tuya_install_python_ide() {
+    local install_dir rc=0
+    install_dir=$(tuya_python_install_dir)
+    _tuya_py_artifact='cpython'
+    _tuya_py_total_mib=0
+    _tuya_py_recv_mib=-1
+    _tuya_prog_last_text=''
+    _tuya_prog_last_at=0
+    _tuya_prog_last_pct=-1
+    tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION..."
+    tuya_uv_run_stream tuya_parse_python_install_line \
+        python install "$TUYA_PYTHON_VERSION" --install-dir "$install_dir" --no-registry --no-bin || rc=$?
+    return "$rc"
+}
+
 tuya_install_python() {
     local install_dir
     install_dir=$(tuya_python_install_dir)
+    if tuya_is_ide_host; then
+        tuya_install_python_ide || {
+            tuya_error Python "Python $TUYA_PYTHON_VERSION installation failed." \
+                "uv python install exited non-zero" \
+                "Run: \"$OPEN_SDK_UV\" python install $TUYA_PYTHON_VERSION --install-dir \"$install_dir\"" \
+                'Re-run: . ./export.sh'
+            return 1
+        }
+        return 0
+    fi
     tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION..."
     tuya_uv --with-progress python install "$TUYA_PYTHON_VERSION" \
         --install-dir "$install_dir" --no-registry --no-bin || {
@@ -663,6 +969,7 @@ tuya_install_python() {
 }
 
 tuya_setup_python() {
+    tuya_stage python
     local install_dir python_exe=""
     install_dir=$(tuya_python_install_dir)
     python_exe=$(tuya_find_managed_python "$install_dir")
@@ -719,10 +1026,50 @@ tuya_lock_pkg_count() {
     echo "$count"
 }
 
+tuya_sync_deps_ide() {
+    local plan="$1" pkg_count="$2" saved_index="" saved_url="" rc=0
+    _tuya_sync_current=0
+    _tuya_sync_last_name=''
+    _tuya_prog_last_text=''
+    _tuya_prog_last_at=0
+    _tuya_prog_last_pct=-1
+    case "$plan" in
+        'sync mirror')
+            saved_index="${UV_DEFAULT_INDEX:-}"
+            saved_url="${UV_INDEX_URL:-}"
+            UV_DEFAULT_INDEX="$TUYA_ALIYUN_PYPI_INDEX"
+            UV_INDEX_URL="$TUYA_ALIYUN_PYPI_INDEX"
+            export UV_DEFAULT_INDEX UV_INDEX_URL
+            _tuya_sync_pkg_total=$pkg_count
+            tuya_uv_run_stream tuya_on_uv_sync_line sync || rc=$?
+            if [ -z "$saved_index" ]; then unset UV_DEFAULT_INDEX; else UV_DEFAULT_INDEX="$saved_index"; export UV_DEFAULT_INDEX; fi
+            if [ -z "$saved_url" ]; then unset UV_INDEX_URL; else UV_INDEX_URL="$saved_url"; export UV_INDEX_URL; fi
+            ;;
+        *)
+            _tuya_sync_pkg_total=$pkg_count
+            tuya_uv_run_stream tuya_on_uv_sync_line sync --frozen || rc=$?
+            ;;
+    esac
+    if [ "$rc" -eq 0 ] && [ "$_tuya_sync_current" -lt "$pkg_count" ]; then
+        _tuya_sync_current=$pkg_count
+        tuya_parse_uv_sync_line "+ done" "$pkg_count"
+    fi
+    return "$rc"
+}
+
 tuya_sync_deps() {
+    tuya_stage sync
     local plan saved_index="" saved_url="" rc=0 pkg_count
     plan=$(tuya_uv_sync_plan)
     pkg_count=$(tuya_lock_pkg_count)
+    if tuya_is_ide_host; then
+        case "$plan" in
+            'sync mirror') tuya_debug "[TuyaOpen] Dependency sync: Aliyun mirror." ;;
+            *) tuya_debug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).' ;;
+        esac
+        tuya_sync_deps_ide "$plan" "$pkg_count" || rc=$?
+        return "$rc"
+    fi
     tuya_info "[TuyaOpen] Syncing ${pkg_count} Python dependencies..."
     case "$plan" in
         'sync mirror')
@@ -775,6 +1122,7 @@ tuya_migrate_legacy_venv() {
 }
 
 tuya_setup_venv() {
+    tuya_stage venv
     local managed_python="${_tuya_managed_python:-}" venv_path="$OPEN_SDK_ROOT/.venv" marker="" rc=0
     local venv_py="$venv_path/bin/python"
     tuya_migrate_legacy_venv || return 1
@@ -962,6 +1310,7 @@ tuya_invoke_hello() {
 # ---------------------------------------------------------------------------
 tuya_finalize() {
     local prepare_rc=0
+    tuya_stage prepare
     "$OPEN_SDK_PYTHON" "$OPEN_SDK_ROOT/tos.py" prepare || prepare_rc=$?
     if [ "$prepare_rc" -ne 0 ]; then
         tuya_info '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
@@ -970,6 +1319,7 @@ tuya_finalize() {
     tuya_install_prompt
     tuya_reset_cache
     tuya_invoke_hello
+    tuya_stage ready
     tuya_info '[TuyaOpen] Ready - tos.py available. Exit: deactivate'
 }
 
@@ -985,6 +1335,7 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" = "$0" ]; then
 fi
 
 tuya_guard_active   && { tuya_cleanup; return 0; }
+tuya_write_cold_start_hint "$(tuya_export_cold_start_kind)"
 tuya_setup_uv       || { tuya_cleanup; return 1; }
 tuya_setup_python   || { tuya_cleanup; return 1; }
 tuya_setup_venv     || { tuya_cleanup; return 1; }

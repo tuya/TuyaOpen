@@ -3,6 +3,7 @@
       . .\export.ps1      - dot-source into the current session (recommended)
 
     Set $env:TUYAOPEN_EXPORT_VERBOSE = "1" before running for full diagnostics.
+    Set $env:TUYAOPEN_EXPORT_IDE = "1" when invoked by TuyaOpen IDE (line-based progress, stderr logs).
 
     This script:
       * locates the TuyaOpen project root (this script's directory),
@@ -21,7 +22,13 @@
 # Session state
 # ---------------------------------------------------------------------------
 $script:TuyaOpenVerbose = [bool]$env:TUYAOPEN_EXPORT_VERBOSE
+$script:TuyaOpenIdeHost = ($env:TUYAOPEN_EXPORT_IDE -eq '1')
 $script:TuyaOpenDotSourced = $false
+if ($script:TuyaOpenIdeHost) {
+    $env:NO_COLOR = '1'
+    $env:FORCE_COLOR = '0'
+    $env:CLICOLOR = '0'
+}
 
 $script:TuyaUvToolName               = 'uv'
 $script:PythonVersion            = '3.12.13'
@@ -47,14 +54,70 @@ $script:TuyaUvWindowsArtifacts = @{
 # ---------------------------------------------------------------------------
 function Write-TuyaOpenInfo {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Message)
-    Write-Host ($Message -join ' ')
+    $text = $Message -join ' '
+    if ($script:TuyaOpenIdeHost) {
+        [Console]::Error.WriteLine($text)
+    } else {
+        Write-Host $text
+    }
 }
 
 function Write-TuyaOpenDebug {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Message)
     if ($script:TuyaOpenVerbose) {
-        Write-Host ($Message -join ' ')
+        $text = $Message -join ' '
+        if ($script:TuyaOpenIdeHost) {
+            [Console]::Error.WriteLine($text)
+        } else {
+            Write-Host $text
+        }
     }
+}
+
+function Write-TuyaOpenStage {
+    param([Parameter(Mandatory)][string]$StageId)
+    Write-TuyaOpenInfo "[TuyaOpen] Stage: $StageId"
+}
+
+function Get-TuyaExportColdStartKind {
+    param([string]$Root)
+    $uvReady = $false
+    try {
+        $ctx = New-TuyaUvInstallContext -Root $Root
+        $uvReady = Test-TuyaUvExecutable $ctx.UvExe
+    } catch {
+        $uvReady = $false
+    }
+    $version     = $script:PythonVersion
+    $installDir  = Get-TuyaPythonInstallDir -Root $Root -Version $version
+    $pythonExe   = Get-TuyaManagedPythonExe -InstallDir $installDir
+    $pythonReady = $pythonExe -and (Test-TuyaPythonExecutable -ExePath $pythonExe -ExpectedVersion $version)
+    $venvPath    = Join-Path $Root '.venv'
+    $venvReady   = Test-TuyaUvManagedVenv -VenvPath $venvPath
+    if (-not $uvReady -or -not $pythonReady) {
+        return 'full'
+    }
+    if (-not $venvReady) {
+        return 'venv_only'
+    }
+    return 'warm'
+}
+
+function Write-TuyaExportColdStartHint {
+    param([Parameter(Mandatory)][string]$Kind)
+    switch ($Kind) {
+        'full' {
+            Write-TuyaOpenInfo '[TuyaOpen] First-time setup: downloading uv, Python, and dependencies (may take 3-10 minutes). Please wait...'
+        }
+        'venv_only' {
+            Write-TuyaOpenInfo '[TuyaOpen] Rebuilding virtual environment (Python already installed)...'
+        }
+    }
+}
+
+function Test-TuyaExportColdStart {
+    param([string]$Root)
+    return (Get-TuyaExportColdStartKind -Root $Root) -ne 'warm'
 }
 
 function Invoke-TuyaUvNative {
@@ -544,11 +607,46 @@ function Receive-TuyaUvFileDownload {
         }
     }
 
-    $useProgressBar = ($ProgressPreference -ne 'SilentlyContinue') -and ($ExpectedBytes -gt 0)
+    $useProgressBar = ($ProgressPreference -ne 'SilentlyContinue') -and ($ExpectedBytes -gt 0) -and (-not $script:TuyaOpenIdeHost)
+    $useIdeLineProgress = $script:TuyaOpenIdeHost -and ($ExpectedBytes -gt 0)
     $job = $null
 
     try {
-        if ($useProgressBar) {
+        if ($useIdeLineProgress) {
+            $job = Start-Job -ScriptBlock $downloadBlock -ArgumentList $Url, $tmpPath, $AuthToken
+            $lastReportAt = [datetime]::MinValue
+            $lastStatusText = ''
+            try {
+                while ($job.State -eq 'Running') {
+                    $received = 0L
+                    if (Test-Path -LiteralPath $tmpPath -PathType Leaf) {
+                        $received = (Get-Item -LiteralPath $tmpPath).Length
+                    }
+                    $now = [datetime]::UtcNow
+                    if (($now - $lastReportAt).TotalMilliseconds -ge 1000) {
+                        $status = '{0:N1} / {1:N1} MB' -f ($received / 1MB), ($ExpectedBytes / 1MB)
+                        $line = "$ProgressLabel`: $status"
+                        if ($line -ne $lastStatusText) {
+                            Write-TuyaOpenInfo $line
+                            $lastStatusText = $line
+                        }
+                        $lastReportAt = $now
+                    }
+                    Start-Sleep -Milliseconds 100
+                }
+                Receive-Job -Job $job -Wait -ErrorAction Stop | Out-Null
+            } finally {
+                $received = 0L
+                if (Test-Path -LiteralPath $tmpPath -PathType Leaf) {
+                    $received = (Get-Item -LiteralPath $tmpPath).Length
+                }
+                $status = '{0:N1} / {1:N1} MB' -f ($received / 1MB), ($ExpectedBytes / 1MB)
+                $line = "$ProgressLabel`: $status"
+                if ($line -ne $lastStatusText) {
+                    Write-TuyaOpenInfo $line
+                }
+            }
+        } elseif ($useProgressBar) {
             $job = Start-Job -ScriptBlock $downloadBlock -ArgumentList $Url, $tmpPath, $AuthToken
             try {
                 while ($job.State -eq 'Running') {
@@ -721,6 +819,7 @@ function Install-TuyaUv {
 function Invoke-TuyaSetupUv {
     param([string]$Root)
 
+    Write-TuyaOpenStage -StageId 'uv'
     $ctx = New-TuyaUvInstallContext -Root $Root
 
     if (Test-TuyaUvExecutable $ctx.UvExe) {
@@ -779,6 +878,222 @@ function Test-TuyaPythonExecutable {
     }
 }
 
+function Convert-TuyaSizeToMiB {
+    param(
+        [double]$Value,
+        [string]$Unit
+    )
+    switch ($Unit.ToUpperInvariant()) {
+        'KIB' { return $Value / 1024 }
+        'MIB' { return $Value }
+        'GIB' { return $Value * 1024 }
+        default { return $Value }
+    }
+}
+
+function Measure-TuyaPythonInstallDirBytes {
+    param(
+        [Parameter(Mandatory)][string]$InstallDir
+    )
+    if (-not (Test-Path -LiteralPath $InstallDir)) {
+        return 0L
+    }
+    $sum = 0L
+    Get-ChildItem -LiteralPath $InstallDir -Recurse -File -Force -ErrorAction SilentlyContinue |
+        ForEach-Object { $sum += $_.Length }
+    return $sum
+}
+
+function Write-TuyaPythonInstallProgress {
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [string]$Artifact = '',
+        [double]$ReceivedMiB = -1,
+        [double]$TotalMiB = -1
+    )
+    $text = "[TuyaOpen] Installing Python ${Version}"
+    if ($Artifact) {
+        $text += ": $Artifact"
+    }
+    if ($TotalMiB -gt 0 -and $ReceivedMiB -ge 0) {
+        $pct = [Math]::Min(99, [int](100 * $ReceivedMiB / $TotalMiB))
+        $text += ": {0:N1} / {1:N1} MB ({2}%)" -f $ReceivedMiB, $TotalMiB, $pct
+    } elseif ($TotalMiB -gt 0) {
+        $text += ": {0:N1} MB total" -f $TotalMiB
+    }
+    Write-TuyaOpenInfo $text
+}
+
+function Write-TuyaPythonInstallProgressIfChanged {
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][hashtable]$State,
+        [switch]$Force
+    )
+    $recv = $State.ReceivedMiB
+    $recvForPct = if ($recv -ge 0 -and $State.TotalMiB -gt 0) {
+        [Math]::Min($recv, $State.TotalMiB)
+    } else {
+        -1.0
+    }
+    $pct = if ($recvForPct -ge 0 -and $State.TotalMiB -gt 0) {
+        [Math]::Min(99, [int](100 * $recvForPct / $State.TotalMiB))
+    } else {
+        -1
+    }
+    $text = "[TuyaOpen] Installing Python ${Version}"
+    if ($State.Artifact) {
+        $text += ": $($State.Artifact)"
+    }
+    if ($recv -ge 0 -and $State.TotalMiB -gt 0 -and $recv -gt $State.TotalMiB) {
+        $text += ": extracting ({0:N1} MB written)" -f $recv
+    } elseif ($State.TotalMiB -gt 0 -and $recv -ge 0) {
+        $text += ": {0:N1} / {1:N1} MB ({2}%)" -f $recvForPct, $State.TotalMiB, $pct
+    } elseif ($State.TotalMiB -gt 0) {
+        $text += ": {0:N1} MB total" -f $State.TotalMiB
+    }
+    $now = [datetime]::UtcNow
+    $elapsedMs = ($now - $State.LastEmitAt).TotalMilliseconds
+    $pctDelta = if ($pct -ge 0 -and $State.LastPct -ge 0) {
+        [Math]::Abs($pct - $State.LastPct)
+    } else {
+        100
+    }
+    if (-not $Force) {
+        if ($text -eq $State.LastText -and $elapsedMs -lt 5000) {
+            return
+        }
+        if ($elapsedMs -lt 2000 -and $pctDelta -lt 2) {
+            return
+        }
+    }
+    $State.LastEmitAt = $now
+    $State.LastPct = $pct
+    $State.LastText = $text
+    Write-TuyaOpenInfo $text
+}
+
+function Update-TuyaPythonInstallFromUvLine {
+    param(
+        [Parameter(Mandatory)][string]$Line,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][hashtable]$State
+    )
+    if ([string]::IsNullOrWhiteSpace($Line)) {
+        return
+    }
+    $changed = $false
+    if ($Line -match '(?i)Downloading\s+(cpython[^\s(]+)') {
+        $State.Artifact = $Matches[1].Trim()
+        $changed = $true
+    }
+    if ($Line -match '(?i)([\d.]+)\s*(MiB|KiB|GiB)\s*/\s*([\d.]+)\s*(MiB|KiB|GiB)') {
+        $State.ReceivedMiB = Convert-TuyaSizeToMiB -Value ([double]$Matches[1]) -Unit $Matches[2]
+        $State.TotalMiB = Convert-TuyaSizeToMiB -Value ([double]$Matches[3]) -Unit $Matches[4]
+        $changed = $true
+    } else {
+        $sizeMatches = [regex]::Matches($Line, '(?i)\(([\d.]+)\s*(MiB|KiB|GiB)\)')
+        if ($sizeMatches.Count -gt 0) {
+            $last = $sizeMatches[$sizeMatches.Count - 1]
+            $State.TotalMiB = Convert-TuyaSizeToMiB -Value ([double]$last.Groups[1].Value) -Unit $last.Groups[2].Value
+            $changed = $true
+        }
+    }
+    if (-not $changed) {
+        return
+    }
+    Write-TuyaPythonInstallProgressIfChanged -Version $Version -State $State
+}
+
+function Invoke-TuyaUvPythonInstallWithIdeProgress {
+    param(
+        [Parameter(Mandatory)][string]$UvExe,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string]$InstallDir
+    )
+    $installArgs = @(
+        'python', 'install', $Version,
+        '--install-dir', $InstallDir,
+        '--no-registry', '--no-bin'
+    )
+    $state = @{
+        Artifact        = 'cpython'
+        TotalMiB        = 0.0
+        ReceivedMiB     = -1.0
+        LastEmitAt      = [datetime]::MinValue
+        LastHeartbeatAt = [datetime]::MinValue
+        LastPollAt      = [datetime]::MinValue
+        LastPct         = -1
+        LastText        = ''
+    }
+    $savedNoProgress = $env:UV_NO_PROGRESS
+    $savedLink = $env:UV_LINK_MODE
+    $env:UV_NO_PROGRESS = '1'
+    if (-not $savedLink) { $env:UV_LINK_MODE = 'copy' }
+    $onLine = {
+        param($line)
+        Update-TuyaPythonInstallFromUvLine -Line $line -Version $Version -State $state
+    }
+    $onPoll = {
+        $now = [datetime]::UtcNow
+        if (($now - $state.LastPollAt).TotalMilliseconds -lt 500) {
+            return
+        }
+        $state.LastPollAt = $now
+        if ($state.TotalMiB -le 0) {
+            return
+        }
+        $recvForExtract = if ($state.ReceivedMiB -ge 0) { $state.ReceivedMiB } else { 0.0 }
+        $isExtractPhase = $state.TotalMiB -gt 0 -and $recvForExtract -ge $state.TotalMiB
+        if (-not $isExtractPhase -and $state.ReceivedMiB -lt 0) {
+            return
+        }
+        $bytes = Measure-TuyaPythonInstallDirBytes -InstallDir $InstallDir
+        if ($bytes -gt 0) {
+            $recvMiB = $bytes / 1048576.0
+            $isExtract = $state.TotalMiB -gt 0 -and $recvMiB -gt $state.TotalMiB
+            if (-not $isExtract -and $recvMiB -lt 0.2 -and $state.ReceivedMiB -lt 0) {
+                return
+            }
+            if ($isExtract) {
+                $now = [datetime]::UtcNow
+                $elapsed = ($now - $state.LastHeartbeatAt).TotalSeconds
+                $delta = if ($state.ReceivedMiB -ge 0) { $recvMiB - $state.ReceivedMiB } else { 999 }
+                if ($state.ReceivedMiB -ge 0 -and $elapsed -lt 5 -and $delta -lt 2) {
+                    return
+                }
+                $state.LastHeartbeatAt = $now
+            } elseif ($recvMiB -le $state.ReceivedMiB + 0.05 -and $state.ReceivedMiB -ge 0) {
+                return
+            }
+            $state.ReceivedMiB = $recvMiB
+            Write-TuyaPythonInstallProgressIfChanged -Version $Version -State $state
+            return
+        }
+        $now = [datetime]::UtcNow
+        if (($now - $state.LastHeartbeatAt).TotalSeconds -lt 5) {
+            return
+        }
+        $state.LastHeartbeatAt = $now
+        Write-TuyaPythonInstallProgressIfChanged -Version $Version -State $state
+    }
+    try {
+        return Invoke-TuyaProcessStreamLines -Exe $UvExe -ArgumentList $installArgs `
+            -OnLine $onLine -OnPoll $onPoll
+    } finally {
+        if ($null -eq $savedNoProgress) {
+            Remove-Item Env:UV_NO_PROGRESS -ErrorAction SilentlyContinue
+        } else {
+            $env:UV_NO_PROGRESS = $savedNoProgress
+        }
+        if ($null -eq $savedLink) {
+            Remove-Item Env:UV_LINK_MODE -ErrorAction SilentlyContinue
+        } else {
+            $env:UV_LINK_MODE = $savedLink
+        }
+    }
+}
+
 function Install-TuyaPython {
     param(
         [string]$Root,
@@ -788,13 +1103,19 @@ function Install-TuyaPython {
     $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
 
     Write-TuyaOpenInfo "[TuyaOpen] Installing Python $version..."
-    Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
-        'python', 'install', $version,
-        '--install-dir', $installDir,
-        '--no-registry', '--no-bin'
-    )
-    if ($LASTEXITCODE -ne 0) {
-        Write-TuyaOpenFailureHint -Stage Python -Summary "Python $version installation failed." -Cause "uv python install exited with code $LASTEXITCODE" -NextSteps @("Run: `"$UvExe`" python install $version --install-dir `"$installDir`"", 'Re-run: . .\export.ps1')
+    $exitCode = 0
+    if ($script:TuyaOpenIdeHost) {
+        $exitCode = Invoke-TuyaUvPythonInstallWithIdeProgress -UvExe $UvExe -Version $version -InstallDir $installDir
+    } else {
+        Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
+            'python', 'install', $version,
+            '--install-dir', $installDir,
+            '--no-registry', '--no-bin'
+        )
+        $exitCode = $LASTEXITCODE
+    }
+    if ($exitCode -ne 0) {
+        Write-TuyaOpenFailureHint -Stage Python -Summary "Python $version installation failed." -Cause "uv python install exited with code $exitCode" -NextSteps @("Run: `"$UvExe`" python install $version --install-dir `"$installDir`"", 'Re-run: . .\export.ps1')
         Stop-TuyaOpenExport 1
     }
 }
@@ -804,6 +1125,7 @@ function Invoke-TuyaSetupPython {
         [string]$Root,
         [string]$UvExe
     )
+    Write-TuyaOpenStage -StageId 'python'
     $version    = $script:PythonVersion
     $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
     $pythonExe  = Get-TuyaManagedPythonExe -InstallDir $installDir
@@ -894,7 +1216,11 @@ function New-TuyaUvSyncProgressState {
         Started     = $false
         NewlineDone = $false
         LastWidth   = 0
-        UseInline   = -not [Console]::IsOutputRedirected
+        UseInline   = (-not $script:TuyaOpenIdeHost) -and (-not [Console]::IsOutputRedirected)
+        LastText    = ''
+        LastEmitAt  = [datetime]::MinValue
+        Current     = 0
+        LastName    = ''
     }
 }
 
@@ -935,6 +1261,19 @@ function Write-TuyaUvSyncProgressUpdate {
         $text += " - $PackageName"
     }
 
+    if (-not $State.UseInline) {
+        $now = [datetime]::UtcNow
+        $elapsedMs = ($now - $State.LastEmitAt).TotalMilliseconds
+        if ($text -eq $State.LastText -and $elapsedMs -lt 5000) {
+            return
+        }
+        if ($elapsedMs -lt 1500 -and $State.LastPct -ge 0 -and [Math]::Abs($pct - $State.LastPct) -lt 3) {
+            return
+        }
+        $State.LastText = $text
+        $State.LastEmitAt = $now
+    }
+
     if ($State.UseInline) {
         if ($State.LastWidth -gt $text.Length) {
             $text += (' ' * ($State.LastWidth - $text.Length))
@@ -956,10 +1295,8 @@ function Write-TuyaUvSyncProgressUpdate {
 function Update-TuyaUvSyncFromUvLine {
     param(
         [Parameter(Mandatory)][string]$Line,
-        [ref]$Current,
-        [ref]$LastName,
         [Parameter(Mandatory)][int]$TotalPackages,
-        [Parameter(Mandatory)][hashtable]$ProgressState
+        [Parameter(Mandatory)][hashtable]$State
     )
 
     $changed = $false
@@ -970,51 +1307,53 @@ function Update-TuyaUvSyncFromUvLine {
 
     $m = $plusRe.Match($Line)
     if ($m.Success) {
-        $Current.Value = [Math]::Min($TotalPackages, $Current.Value + 1)
-        $LastName.Value = $m.Groups[1].Value
+        $State.Current = [Math]::Min($TotalPackages, $State.Current + 1)
+        $State.LastName = $m.Groups[1].Value
         $changed = $true
     }
     $m = $downloadingRe.Match($Line)
     if ($m.Success) {
-        $next = [Math]::Min($TotalPackages, $Current.Value + 1)
-        if ($next -gt $Current.Value) {
-            $Current.Value = $next
-            $LastName.Value = $m.Groups[1].Value
+        $next = [Math]::Min($TotalPackages, $State.Current + 1)
+        if ($next -gt $State.Current) {
+            $State.Current = $next
+            $State.LastName = $m.Groups[1].Value
             $changed = $true
         }
     }
     $m = $installedRe.Match($Line)
     if ($m.Success) {
         $n = [int]$m.Groups[1].Value
-        if ($n -gt $Current.Value) {
-            $Current.Value = [Math]::Min($TotalPackages, $n)
+        if ($n -gt $State.Current) {
+            $State.Current = [Math]::Min($TotalPackages, $n)
             $changed = $true
         }
     }
     $m = $auditedRe.Match($Line)
     if ($m.Success) {
         $n = [int]$m.Groups[1].Value
-        if ($n -gt $Current.Value) {
-            $Current.Value = [Math]::Min($TotalPackages, $n)
+        if ($n -gt $State.Current) {
+            $State.Current = [Math]::Min($TotalPackages, $n)
             $changed = $true
         }
     }
 
     if ($changed) {
-        Write-TuyaUvSyncProgressUpdate -Current $Current.Value -Total $TotalPackages `
-            -PackageName $LastName.Value -State $ProgressState
+        Write-TuyaUvSyncProgressUpdate -Current $State.Current -Total $TotalPackages `
+            -PackageName $State.LastName -State $State
     }
 }
 
 function Invoke-TuyaProcessStreamLines {
     <#
         Run a process and invoke OnLine per stdout/stderr line as it arrives (no pipeline buffering).
+        Optional OnPoll runs every ~500ms while the child is alive (IDE heartbeat progress).
     #>
     param(
         [Parameter(Mandatory)][string]$Exe,
         [Parameter(Mandatory)][string[]]$ArgumentList,
         [string]$WorkingDirectory = $null,
-        [Parameter(Mandatory)][scriptblock]$OnLine
+        [Parameter(Mandatory)][scriptblock]$OnLine,
+        [scriptblock]$OnPoll = $null
     )
 
     $argText = ($ArgumentList | ForEach-Object {
@@ -1062,6 +1401,9 @@ function Invoke-TuyaProcessStreamLines {
                 if ($queue.TryDequeue([ref]$line)) {
                     & $OnLine $line.Trim()
                 }
+            }
+            if ($OnPoll) {
+                & $OnPoll
             }
             Start-Sleep -Milliseconds 25
         }
@@ -1117,8 +1459,6 @@ function Invoke-TuyaUvSyncWithProgress {
             return $LASTEXITCODE
         }
 
-        $current = 0
-        $lastName = ''
         $progressState = New-TuyaUvSyncProgressState
 
         $savedLink = $env:UV_LINK_MODE
@@ -1131,8 +1471,7 @@ function Invoke-TuyaUvSyncWithProgress {
             param($line)
             if (-not $line) { return }
             $uvLines.Add($line)
-            Update-TuyaUvSyncFromUvLine -Line $line -Current ([ref]$current) -LastName ([ref]$lastName) `
-                -TotalPackages $TotalPackages -ProgressState $progressState
+            Update-TuyaUvSyncFromUvLine -Line $line -TotalPackages $TotalPackages -State $progressState
         }
 
         try {
@@ -1216,6 +1555,7 @@ function Invoke-TuyaSetupVenv {
         [string]$UvExe,
         [string]$ManagedPythonExe
     )
+    Write-TuyaOpenStage -StageId 'venv'
     Remove-TuyaLegacyVenvIfNeeded -Root $Root
     $venvPath = Join-Path $Root '.venv'
     $venvPy   = Join-Path $venvPath 'Scripts\python.exe'
@@ -1241,6 +1581,7 @@ function Invoke-TuyaSetupVenv {
 
     Push-Location $Root
     try {
+        Write-TuyaOpenStage -StageId 'sync'
         $pkgCount = Get-TuyaUvLockPackageCount -LockPath (Join-Path $Root 'uv.lock')
         $syncRc = Invoke-TuyaUvSyncWithProgress -UvExe $UvExe -Root $Root -TotalPackages $pkgCount
         if ($syncRc -ne 0) {
@@ -1401,6 +1742,59 @@ function Register-TuyaOpenCommandHelpers {
     function global:deactivate { __tuyaTeardown }
 }
 
+function Invoke-TuyaExportSetupCore {
+    param([Parameter(Mandatory)][string]$Root)
+    $coldKind = Get-TuyaExportColdStartKind -Root $Root
+    Write-TuyaExportColdStartHint -Kind $coldKind
+    $env:OPEN_SDK_UV = Invoke-TuyaSetupUv -Root $Root
+    Write-TuyaUvPlatformBanner -Root $Root
+    $managedPython = Invoke-TuyaSetupPython -Root $Root -UvExe $env:OPEN_SDK_UV
+    $venvPython    = Invoke-TuyaSetupVenv -Root $Root -UvExe $env:OPEN_SDK_UV -ManagedPythonExe $managedPython
+    Set-TuyaSessionEnv -Root $Root -VenvPythonExe $venvPython
+    return $venvPython
+}
+
+function Invoke-TuyaExportFinalize {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [switch]$SkipHello,
+        [switch]$SkipReady
+    )
+    $pythonExe = $env:OPEN_SDK_PYTHON
+    if (-not $pythonExe) {
+        Write-TuyaOpenFailureHint -Stage Entry -Summary 'OPEN_SDK_PYTHON is not set.' -Cause 'Session environment incomplete.' -NextSteps @('Re-run: . .\export.ps1')
+        Stop-TuyaOpenExport 1
+    }
+    Write-TuyaOpenStage -StageId 'prepare'
+    $tosPy = Join-Path $Root 'tos.py'
+    & $pythonExe $tosPy prepare
+    if ($LASTEXITCODE -ne 0) {
+        Write-TuyaOpenInfo '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
+    }
+    if (-not $SkipHello) {
+        Invoke-TuyaHello -Root $Root -PythonExe $pythonExe
+    }
+    if (-not $SkipReady) {
+        Write-TuyaOpenStage -StageId 'ready'
+        Write-TuyaOpenInfo '[TuyaOpen] Ready - tos.py available. Exit: deactivate'
+    }
+}
+
+function Write-TuyaCmdEnvBat {
+    param([Parameter(Mandatory)][string]$OutputPath)
+    @(
+        '@echo off',
+        "set `"OPEN_SDK_ROOT=$($env:OPEN_SDK_ROOT)`"",
+        "set `"OPEN_SDK_PYTHON=$($env:OPEN_SDK_PYTHON)`"",
+        "set `"OPEN_SDK_PIP=$($env:OPEN_SDK_PIP)`"",
+        "set `"OPEN_SDK_UV=$($env:OPEN_SDK_UV)`"",
+        "set `"OPEN_SDK_MAKE_BIN=$($env:OPEN_SDK_MAKE_BIN)`"",
+        "set `"OPEN_SDK_MAKE=$($env:OPEN_SDK_MAKE)`"",
+        "set `"VIRTUAL_ENV=$($env:VIRTUAL_ENV)`"",
+        'set "TUYAOPEN_ENV_ACTIVE=1"'
+    ) | Set-Content -LiteralPath $OutputPath -Encoding ASCII
+}
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -1422,26 +1816,15 @@ try {
 
     if (Invoke-TuyaGuardActive -Root $openRoot) { return }
 
-    $env:OPEN_SDK_UV = Invoke-TuyaSetupUv -Root $openRoot
-    Write-TuyaUvPlatformBanner -Root $openRoot
-    $managedPython = Invoke-TuyaSetupPython -Root $openRoot -UvExe $env:OPEN_SDK_UV
-    $venvPython    = Invoke-TuyaSetupVenv   -Root $openRoot -UvExe $env:OPEN_SDK_UV -ManagedPythonExe $managedPython
-
-    Set-TuyaSessionEnv -Root $openRoot -VenvPythonExe $venvPython
+    $venvPython = Invoke-TuyaExportSetupCore -Root $openRoot
     Register-TuyaOpenCommandHelpers
-    tos.py prepare
-    if ($LASTEXITCODE -ne 0) {
-        Write-TuyaOpenInfo '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
-    }
     if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
         Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
     }
     Install-TuyaOpenPwshCompletion -Root $openRoot -PythonExe $venvPython
     Install-TuyaOpenPromptIndicator
     Reset-TuyaSessionCache -Root $openRoot
-
-    Invoke-TuyaHello -Root $openRoot -PythonExe $env:OPEN_SDK_PYTHON
-    Write-TuyaOpenInfo '[TuyaOpen] Ready - tos.py available. Exit: deactivate'
+    Invoke-TuyaExportFinalize -Root $openRoot
 } catch {
     if ($_.Exception.Message -match '^\[TuyaOpen\] export aborted \(exit code (\d+)\)\.$') {
         return
