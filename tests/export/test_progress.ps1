@@ -67,12 +67,31 @@ if ($progressState.Current -ge 1) {
     Fail 'sync parser advanced count'
 }
 
+Write-Host "`n== CN tz range =="
+foreach ($pair in @(
+        @{ Offset = 450; Want = $true }
+        @{ Offset = 480; Want = $true }
+        @{ Offset = 510; Want = $true }
+        @{ Offset = 449; Want = $false }
+        @{ Offset = 511; Want = $false }
+    )) {
+    $got = Test-TuyaCnTzRange -Offset $pair.Offset
+    if ($got -eq $pair.Want) {
+        Pass "tz range offset=$($pair.Offset) -> $got"
+    } else {
+        Fail "tz range offset=$($pair.Offset)" "want $($pair.Want) got $got"
+    }
+}
+
 Write-Host "`n== Core functions exist =="
 foreach ($fn in @(
         'Invoke-TuyaExportSetupCore',
         'Invoke-TuyaExportFinalize',
         'Write-TuyaCmdEnvBat',
-        'Register-TuyaOpenCommandHelpers'
+        'Register-TuyaOpenCommandHelpers',
+        'Invoke-TuyaRegionDetect',
+        'Get-TuyaUvDownloadUrls',
+        'Test-TuyaCnTzRange'
     )) {
     if (Get-Command $fn -ErrorAction SilentlyContinue) {
         Pass "$fn defined"

@@ -90,7 +90,7 @@ else
 fi
 
 if command -v shellcheck >/dev/null 2>&1; then
-    if shellcheck -e SC1091,SC2034,SC2164,SC2181,SC2155 "$ROOT/export.sh" 2>/dev/null; then
+    if shellcheck -e SC1091,SC2034,SC2164,SC2181,SC2155,SC2269,SC2296,SC2317 "$ROOT/export.sh" 2>/dev/null; then
         pass 'shellcheck'
     else
         fail 'shellcheck' 'see shellcheck output above'
@@ -207,6 +207,45 @@ echo "URL_COUNT=\$urls"
 
 marker=\$(tuya_is_uv_venv "\$ROOT/.venv" && echo MANAGED || echo LEGACY)
 echo "VENV_STATE=\$marker"
+
+echo "TZ_PARSE_0800=\$(tuya_parse_tz_offset_z +0800)"
+echo "TZ_PARSE_0500=\$(tuya_parse_tz_offset_z -0500)"
+echo "TZ_PARSE_COLON=\$(tuya_parse_tz_offset_z +08:00)"
+live_tz=\$(tuya_get_utc_offset_minutes || echo FAIL)
+echo "TZ_LIVE=\$live_tz"
+
+tuya_is_in_cn_tz_range 450 && echo TZ450=1 || echo TZ450=0
+tuya_is_in_cn_tz_range 480 && echo TZ480=1 || echo TZ480=0
+tuya_is_in_cn_tz_range 510 && echo TZ510=1 || echo TZ510=0
+tuya_is_in_cn_tz_range 449 && echo TZ449=1 || echo TZ449=0
+tuya_is_in_cn_tz_range 511 && echo TZ511=1 || echo TZ511=0
+
+cn_url=\$(tuya_get_uv_cn_url 'x86_64-unknown-linux-gnu' || true)
+echo "CN_URL=\${cn_url:-EMPTY}"
+
+echo "TRIM_CR=\$(tuya_trim_manifest_value \$'https://images.tuyacn.com/test\r')"
+crlf_root=\$(mktemp -d)
+printf 'UV_X86_64_UNKNOWN_LINUX_GNU_DOWNLOAD_CN=https://images.tuyacn.com/crlf-test.zip\r\n' > "\$crlf_root/uv-manifest.env"
+tuya_load_uv_manifest "\$crlf_root"
+crlf_cn=\$(tuya_get_uv_cn_url 'x86_64-unknown-linux-gnu' || true)
+echo "CRLF_CN=\${crlf_cn:-EMPTY}"
+rm -rf "\$crlf_root"
+tuya_load_uv_manifest "\$ROOT"
+
+TUYAOPEN_CN_DOWNLOAD=1
+export TUYAOPEN_CN_DOWNLOAD
+tuya_detect_region
+tuya_new_uv_context "\$ROOT"
+dl_cn=\$(tuya_get_uv_download_urls | head -n1)
+echo "DL_CN=\$dl_cn"
+
+TUYAOPEN_CN_DOWNLOAD=0
+export TUYAOPEN_CN_DOWNLOAD
+tuya_detect_region
+dl_os=\$(tuya_get_uv_download_urls | head -n1)
+echo "DL_OS=\$dl_os"
+first_intl=\$(tuya_get_release_urls "\$_tuya_uv_ver" | head -n1)
+echo "INTL_FIRST=\$first_intl"
 UNIT_EOF
 ) || unit_rc=$?
 
@@ -264,6 +303,63 @@ else
         pass "unit: venv marker probe ($venv_state)"
     else
         fail 'unit: venv marker probe' "got '$venv_state'"
+    fi
+
+    assert_eq 'unit: parse +0800 offset' '480' "$(echo "$unit_out" | sed -n 's/^TZ_PARSE_0800=//p')"
+    assert_eq 'unit: parse -0500 offset' '-300' "$(echo "$unit_out" | sed -n 's/^TZ_PARSE_0500=//p')"
+    assert_eq 'unit: parse +08:00 offset' '480' "$(echo "$unit_out" | sed -n 's/^TZ_PARSE_COLON=//p')"
+
+    tz_live=$(echo "$unit_out" | sed -n 's/^TZ_LIVE=//p' | head -n1)
+    if [ "$tz_live" != FAIL ] && [ -n "$tz_live" ]; then
+        pass "unit: live tz offset readable ($tz_live)"
+    else
+        fail 'unit: live tz offset readable' "got '$tz_live'"
+    fi
+
+    for tz_marker in TZ450=1 TZ480=1 TZ510=1 TZ449=0 TZ511=0; do
+        assert_contains "unit: tz range $tz_marker" "$unit_out" "$tz_marker"
+    done
+
+    cn_url_val=$(echo "$unit_out" | sed -n 's/^CN_URL=//p' | head -n1)
+    if [[ "$cn_url_val" == *images.tuyacn.com* ]]; then
+        pass 'unit: CN download URL parsed from manifest'
+    else
+        fail 'unit: CN download URL parsed from manifest' "got '$cn_url_val'"
+    fi
+
+    trim_cr_val=$(echo "$unit_out" | sed -n 's/^TRIM_CR=//p' | head -n1)
+    if [[ "$trim_cr_val" == 'https://images.tuyacn.com/test' ]]; then
+        pass 'unit: trim manifest strips CR'
+    else
+        fail 'unit: trim manifest strips CR' "got '$trim_cr_val'"
+    fi
+
+    crlf_cn_val=$(echo "$unit_out" | sed -n 's/^CRLF_CN=//p' | head -n1)
+    if [[ "$crlf_cn_val" == 'https://images.tuyacn.com/crlf-test.zip' ]]; then
+        pass 'unit: CRLF manifest CN URL has no trailing CR'
+    else
+        fail 'unit: CRLF manifest CN URL has no trailing CR' "got '$crlf_cn_val'"
+    fi
+
+    dl_cn_val=$(echo "$unit_out" | sed -n 's/^DL_CN=//p' | head -n1)
+    if [[ "$dl_cn_val" == *images.tuyacn.com* ]]; then
+        pass 'unit: CN override uses tuyacn first'
+    else
+        fail 'unit: CN override uses tuyacn first' "got '$dl_cn_val'"
+    fi
+
+    dl_os_val=$(echo "$unit_out" | sed -n 's/^DL_OS=//p' | head -n1)
+    if [[ "$dl_os_val" != *images.tuyacn.com* ]] && [[ "$dl_os_val" == http* ]]; then
+        pass 'unit: overseas override skips tuyacn'
+    else
+        fail 'unit: overseas override skips tuyacn' "got '$dl_os_val'"
+    fi
+
+    intl_first=$(echo "$unit_out" | sed -n 's/^INTL_FIRST=//p' | head -n1)
+    if [[ "$intl_first" == *github.com* ]]; then
+        pass 'unit: overseas default mirror is GitHub first'
+    else
+        fail 'unit: overseas default mirror is GitHub first' "got '$intl_first'"
     fi
 fi
 

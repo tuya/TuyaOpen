@@ -4,6 +4,7 @@
 
     Set $env:TUYAOPEN_EXPORT_VERBOSE = "1" before running for full diagnostics.
     Set $env:TUYAOPEN_EXPORT_IDE = "1" when invoked by TuyaOpen IDE (line-based progress, stderr logs).
+    Set $env:TUYAOPEN_CN_DOWNLOAD = "1" or "0" to force CN / overseas uv download mirrors (default: auto via timezone).
 
     This script:
       * locates the TuyaOpen project root (this script's directory),
@@ -36,11 +37,15 @@ $script:VenvMarker           = '.tuyaopen-uv'
 $script:PromptPrefix          = '(TuyaOpen) '
 $script:UvDownloadAttempts = 2
 $script:UvVersion = '0.11.18'
-$script:TuyaUvDefaultBaseUrl = 'https://releases.astral.sh/github/uv/releases/download'
+$script:TuyaUvDefaultBaseUrl = 'https://github.com/astral-sh/uv/releases/download'
+$script:TuyaUvAstralBaseUrl   = 'https://releases.astral.sh/github/uv/releases/download'
 $script:TuyaUvBinNames       = @('uv.exe', 'uvx.exe', 'uvw.exe')
 $script:TuyaMakeToolName     = 'make'
 $script:TuyaMakeVersion      = '4.4.1'
 $script:TuyaAliyunPypiIndex  = 'https://mirrors.aliyun.com/pypi/simple/'
+$script:TuyaCnTzOffsetTarget     = 480
+$script:TuyaCnTzOffsetTolerance  = 30
+$script:TuyaUseCnDownload          = $false
 
 # Windows release triple -> uv zip artifact (MSVC builds only).
 $script:TuyaUvWindowsArtifacts = @{
@@ -78,6 +83,54 @@ function Write-TuyaOpenStage {
     param([Parameter(Mandatory)][string]$StageId)
     if (-not $script:TuyaOpenIdeHost) { return }
     Write-TuyaOpenInfo "[TuyaOpen] Stage: $StageId"
+}
+
+function Get-TuyaUtcOffsetMinutes {
+    [int][System.TimeZoneInfo]::Local.GetUtcOffset([datetime]::Now).TotalMinutes
+}
+
+function Test-TuyaCnTzRange {
+    param([int]$Offset)
+    $min = $script:TuyaCnTzOffsetTarget - $script:TuyaCnTzOffsetTolerance
+    $max = $script:TuyaCnTzOffsetTarget + $script:TuyaCnTzOffsetTolerance
+    return ($Offset -ge $min -and $Offset -le $max)
+}
+
+function Test-TuyaMainlandChina {
+    if ($env:TUYAOPEN_CN_DOWNLOAD -eq '1') { return $true }
+    if ($env:TUYAOPEN_CN_DOWNLOAD -eq '0') { return $false }
+    return (Test-TuyaCnTzRange -Offset (Get-TuyaUtcOffsetMinutes))
+}
+
+function Invoke-TuyaRegionDetect {
+    Write-TuyaOpenStage -StageId 'region'
+    $override = ''
+    $offset = $null
+    if ($env:TUYAOPEN_CN_DOWNLOAD -eq '1') {
+        $script:TuyaUseCnDownload = $true
+        $override = ' (override)'
+    } elseif ($env:TUYAOPEN_CN_DOWNLOAD -eq '0') {
+        $script:TuyaUseCnDownload = $false
+        $override = ' (override)'
+    } else {
+        $offset = Get-TuyaUtcOffsetMinutes
+        $script:TuyaUseCnDownload = (Test-TuyaCnTzRange -Offset $offset)
+    }
+    if ($script:TuyaUseCnDownload) {
+        $msg = "[TuyaOpen] Region: mainland China (UTC+8±$($script:TuyaCnTzOffsetTolerance)min"
+        if ($null -ne $offset) {
+            $msg += ", offset=$offset"
+        }
+        $msg += ", CN download mirror)$override"
+        Write-TuyaOpenDebug $msg
+    } else {
+        $msg = '[TuyaOpen] Region: overseas'
+        if ($null -ne $offset) {
+            $msg += " (offset=$offset)"
+        }
+        $msg += $override
+        Write-TuyaOpenDebug $msg
+    }
 }
 
 function Get-TuyaExportColdStartKind {
@@ -394,6 +447,12 @@ function Get-TuyaUvManifest {
             $astralUrl = $Matches[1].Trim()
         } elseif ($line -match '^\s*UV_DOWNLOAD_SOURCE_GITHUB\s*=\s*(.+)\s*$') {
             $githubUrl = $Matches[1].Trim()
+        } elseif ($line -match '^\s*UV_([A-Za-z0-9_]+)_DOWNLOAD_CN\s*=\s*(.+)\s*$') {
+            $key = $Matches[1].ToUpperInvariant()
+            if (-not $manifest.ArtifactChecks.ContainsKey($key)) {
+                $manifest.ArtifactChecks[$key] = @{}
+            }
+            $manifest.ArtifactChecks[$key].DownloadCn = $Matches[2].Trim()
         } elseif ($line -match '^\s*UV_([A-Za-z0-9_]+)_SHA256\s*=\s*(.+)\s*$') {
             $key = $Matches[1].ToUpperInvariant()
             if (-not $manifest.ArtifactChecks.ContainsKey($key)) {
@@ -409,7 +468,7 @@ function Get-TuyaUvManifest {
         }
     }
 
-    $configured = @($astralUrl, $githubUrl) | Where-Object { $_ }
+    $configured = @($githubUrl, $astralUrl) | Where-Object { $_ }
     if ($configured.Count -gt 0) {
         $manifest.BaseUrls = $configured
     }
@@ -457,6 +516,53 @@ function Get-TuyaUvReleaseBaseUrls {
     return @($sources | ForEach-Object { "$($_.TrimEnd('/'))/$Version" })
 }
 
+function Test-TuyaUvDownloadOverride {
+    return [bool]($env:UV_DOWNLOAD_URL -or $env:UV_INSTALLER_GHE_BASE_URL -or $env:UV_INSTALLER_GITHUB_BASE_URL)
+}
+
+function Get-TuyaUvCnDownloadUrl {
+    param(
+        $Manifest,
+        [string]$Triple
+    )
+    $key = Get-TuyaUvTripleManifestKey -Triple $Triple
+    if (-not $Manifest.ArtifactChecks.ContainsKey($key)) {
+        return $null
+    }
+    $url = $Manifest.ArtifactChecks[$key].DownloadCn
+    if ([string]::IsNullOrWhiteSpace($url)) {
+        return $null
+    }
+    return $url.Trim()
+}
+
+function Get-TuyaUvDownloadUrls {
+    param(
+        [string]$Version,
+        [string[]]$BaseUrls,
+        [string]$Triple,
+        [string]$ArtifactName,
+        $Manifest
+    )
+    $urls = [System.Collections.Generic.List[string]]::new()
+    if (Test-TuyaUvDownloadOverride) {
+        foreach ($base in (Get-TuyaUvReleaseBaseUrls -Version $Version -BaseUrls $BaseUrls)) {
+            $urls.Add("$($base.TrimEnd('/'))/$ArtifactName")
+        }
+        return @($urls)
+    }
+    if ($script:TuyaUseCnDownload) {
+        $cnUrl = Get-TuyaUvCnDownloadUrl -Manifest $Manifest -Triple $Triple
+        if ($cnUrl) {
+            $urls.Add($cnUrl)
+        }
+    }
+    foreach ($base in (Get-TuyaUvReleaseBaseUrls -Version $Version -BaseUrls $BaseUrls)) {
+        $urls.Add("$($base.TrimEnd('/'))/$ArtifactName")
+    }
+    return @($urls)
+}
+
 # ---------------------------------------------------------------------------
 # Install context (paths + URLs derived once per install attempt)
 # ---------------------------------------------------------------------------
@@ -478,13 +584,17 @@ function New-TuyaUvInstallContext {
         $manifestKey = Get-TuyaUvTripleManifestKey -Triple $triple
         throw "Missing UV_${manifestKey}_SIZE / UV_${manifestKey}_SHA256 in uv-manifest.env"
     }
+    $releaseBaseUrls = Get-TuyaUvReleaseBaseUrls -Version $manifest.Version -BaseUrls $manifest.BaseUrls
+    $downloadUrls    = Get-TuyaUvDownloadUrls -Version $manifest.Version -BaseUrls $manifest.BaseUrls `
+        -Triple $triple -ArtifactName $artifactName -Manifest $manifest
     return @{
         Version         = $manifest.Version
         TargetTriple    = $triple
         ArtifactName    = $artifactName
         ExpectedSize    = $artifactCheck.Size
         ExpectedSha256  = $artifactCheck.Sha256
-        ReleaseBaseUrls = Get-TuyaUvReleaseBaseUrls -Version $manifest.Version -BaseUrls $manifest.BaseUrls
+        ReleaseBaseUrls = $releaseBaseUrls
+        DownloadUrls    = $downloadUrls
         UvToolsDir      = $uvVersionDir
         ArchivePath     = Join-Path $Root ".tools\archives\$($script:TuyaUvToolName)\$($manifest.Version)\$artifactName"
         UvExe           = Join-Path $uvVersionDir 'uv.exe'
@@ -493,6 +603,9 @@ function New-TuyaUvInstallContext {
 
 function Get-TuyaUvDownloadUrl {
     param($Context)
+    if ($Context.DownloadUrls -and $Context.DownloadUrls.Count -gt 0) {
+        return $Context.DownloadUrls[0]
+    }
     if ($Context.ReleaseBaseUrls.Count -eq 0) {
         return $null
     }
@@ -689,11 +802,16 @@ function Invoke-TuyaUvArchiveDownload {
     $mirror    = 0
     $lastError = $null
 
-    foreach ($releaseBase in $Context.ReleaseBaseUrls) {
+    $downloadUrls = @($Context.DownloadUrls)
+    if ($downloadUrls.Count -eq 0) {
+        foreach ($releaseBase in $Context.ReleaseBaseUrls) {
+            $downloadUrls += "$($releaseBase.TrimEnd('/'))/$($Context.ArtifactName)"
+        }
+    }
+    foreach ($downloadUrl in $downloadUrls) {
         $mirror++
-        $downloadUrl = "$($releaseBase.TrimEnd('/'))/$($Context.ArtifactName)"
-        if ($Context.ReleaseBaseUrls.Count -gt 1) {
-            Write-TuyaOpenDebug "[TuyaOpen] Mirror $mirror/$($Context.ReleaseBaseUrls.Count): $downloadUrl"
+        if ($downloadUrls.Count -gt 1) {
+            Write-TuyaOpenDebug "[TuyaOpen] Mirror $mirror/$($downloadUrls.Count): $downloadUrl"
         } else {
             Write-TuyaOpenDebug "[TuyaOpen] Download: $downloadUrl"
         }
@@ -1747,6 +1865,7 @@ function Invoke-TuyaExportSetupCore {
     param([Parameter(Mandatory)][string]$Root)
     $coldKind = Get-TuyaExportColdStartKind -Root $Root
     Write-TuyaExportColdStartHint -Kind $coldKind
+    Invoke-TuyaRegionDetect
     $env:OPEN_SDK_UV = Invoke-TuyaSetupUv -Root $Root
     Write-TuyaUvPlatformBanner -Root $Root
     $managedPython = Invoke-TuyaSetupPython -Root $Root -UvExe $env:OPEN_SDK_UV
