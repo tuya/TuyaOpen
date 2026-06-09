@@ -1,26 +1,17 @@
-import requests
-import json
+import datetime
 
 def get_country_code():
     global MORROR
     if MORROR == 0:
         try:
-            response = requests.get('http://www.ip-api.com/json', timeout=5)
-            response.raise_for_status()  
-            # print(response.elapsed)
-            result = response.json()
-            # print(result)
-
-            country = result.get('country', '')
-            # print("country: ", country)
-            if country == "China":
+            offset = datetime.datetime.now().astimezone().utcoffset()
+            if offset is not None and int(offset.total_seconds()) == 8 * 3600:
                 MORROR = 1
             else:
                 MORROR = 2
-        except requests.exceptions.RequestException as e:
-            # print(f"curl http://www.ip-api.com/json failed ... Error: {e}")
-            MORROR = 1
-    
+        except Exception:
+            MORROR = 2
+
     print(MORROR)
 
 

@@ -17,4 +17,15 @@ On Windows (Git Bash / WSL), the same command works. PowerShell progress tests r
 | `test_export.sh` | Integration and unit tests (migrated from `tools/test_export.sh`) |
 | `test_progress.sh` | POSIX progress-line parser fixtures |
 | `test_progress.ps1` | Windows progress-line parser fixtures |
+| `test_uv_manifest_downloads.sh` | Download all uv mirrors (CN / Astral / GitHub) and verify SIZE + SHA256 |
 | `fixtures/` | Sample uv/python/sync output lines |
+
+## uv manifest download verification (network)
+
+Downloads every artifact in `uv-manifest.env` and checks size and SHA256 against the manifest. Not included in `run_all.sh` (large downloads).
+
+```bash
+bash tests/export/test_uv_manifest_downloads.sh
+bash tests/export/test_uv_manifest_downloads.sh --triple x86_64-unknown-linux-gnu
+bash tests/export/test_uv_manifest_downloads.sh --source cn
+```

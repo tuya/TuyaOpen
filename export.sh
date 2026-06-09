@@ -5,6 +5,7 @@
 # Set TUYAOPEN_EXPORT_VERBOSE=1 before sourcing for full diagnostic output.
 # Set TUYAOPEN_EXPORT_IDE=1 when invoked by TuyaOpen IDE (stage markers for progress UI).
 # Set TUYAOPEN_EXPORT_SKIP_MAIN=1 to load functions only (tests).
+# Set TUYAOPEN_CN_DOWNLOAD=1 or 0 to force CN / overseas uv download mirrors (default: auto via timezone).
 #
 # This script must be *sourced* (not executed). It:
 #   * locates the TuyaOpen project root,
@@ -20,12 +21,15 @@
 # Constants (aligned with export.ps1)
 # ---------------------------------------------------------------------------
 TUYA_UV_VERSION='0.11.18'
-TUYA_UV_BASE_URL='https://releases.astral.sh/github/uv/releases/download'
+TUYA_UV_BASE_URL='https://github.com/astral-sh/uv/releases/download'
+TUYA_UV_ASTRAL_BASE_URL='https://releases.astral.sh/github/uv/releases/download'
 TUYA_PYTHON_VERSION='3.12.13'
 TUYA_VENV_MARKER='.tuyaopen-uv'
 TUYA_UV_DOWNLOAD_ATTEMPTS=2
 TUYA_ALIYUN_PYPI_INDEX='https://mirrors.aliyun.com/pypi/simple/'
 TUYA_PROMPT_PREFIX='(TuyaOpen) '
+TUYA_CN_TZ_OFFSET_TARGET=480
+TUYA_CN_TZ_OFFSET_TOLERANCE=30
 
 if [ "${TUYAOPEN_EXPORT_IDE:-}" = '1' ]; then
     export NO_COLOR=1 FORCE_COLOR=0 CLICOLOR=0
@@ -56,6 +60,98 @@ tuya_stage() {
 
 tuya_is_ide_host() {
     [ "${TUYAOPEN_EXPORT_IDE:-}" = '1' ]
+}
+
+# ---------------------------------------------------------------------------
+# Region detection (CN download mirror; UTC+8 ± tolerance)
+# ---------------------------------------------------------------------------
+tuya_parse_tz_offset_z() {
+    local z="$1" sign=1 hours=0 mins=0
+    [ -n "$z" ] || return 1
+    case "$z" in
+        -*)
+            sign=-1
+            z="${z#-}"
+            ;;
+        +*)
+            z="${z#+}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    z="${z//:/}"
+    if [ "${#z}" -lt 4 ]; then
+        return 1
+    fi
+    hours=$((10#${z:0:2}))
+    mins=$((10#${z:2:2}))
+    echo $(( sign * (hours * 60 + mins) ))
+}
+
+tuya_get_utc_offset_minutes() {
+    local z=''
+    z=$(date +%z 2>/dev/null) || return 1
+    tuya_parse_tz_offset_z "$z"
+}
+
+tuya_is_in_cn_tz_range() {
+    local offset="${1:-}"
+    local min max
+    if [ -z "$offset" ]; then
+        return 1
+    fi
+    min=$((TUYA_CN_TZ_OFFSET_TARGET - TUYA_CN_TZ_OFFSET_TOLERANCE))
+    max=$((TUYA_CN_TZ_OFFSET_TARGET + TUYA_CN_TZ_OFFSET_TOLERANCE))
+    [ "$offset" -ge "$min" ] && [ "$offset" -le "$max" ]
+}
+
+tuya_is_mainland_china() {
+    case "${TUYAOPEN_CN_DOWNLOAD:-}" in
+        1) return 0 ;;
+        0) return 1 ;;
+    esac
+    local offset=''
+    offset=$(tuya_get_utc_offset_minutes) || return 1
+    tuya_is_in_cn_tz_range "$offset"
+}
+
+tuya_detect_region() {
+    local offset='' override='' msg=''
+    tuya_stage region
+    case "${TUYAOPEN_CN_DOWNLOAD:-}" in
+        1)
+            _tuya_use_cn_download=1
+            override=' (override)'
+            ;;
+        0)
+            _tuya_use_cn_download=0
+            override=' (override)'
+            ;;
+        *)
+            offset=$(tuya_get_utc_offset_minutes) || offset='unknown'
+            if [ "$offset" != 'unknown' ] && tuya_is_in_cn_tz_range "$offset"; then
+                _tuya_use_cn_download=1
+            else
+                _tuya_use_cn_download=0
+            fi
+            ;;
+    esac
+    if [ "$_tuya_use_cn_download" -eq 1 ]; then
+        msg="[TuyaOpen] Region: mainland China (UTC+8±${TUYA_CN_TZ_OFFSET_TOLERANCE}min"
+        if [ -n "$offset" ] && [ "$offset" != 'unknown' ]; then
+            msg="${msg}, offset=${offset}"
+        fi
+        msg="${msg}, CN download mirror)${override}"
+        tuya_debug "$msg"
+    else
+        msg='[TuyaOpen] Region: overseas'
+        if [ -n "$offset" ] && [ "$offset" != 'unknown' ]; then
+            msg="${msg} (offset=${offset})"
+        fi
+        msg="${msg}${override}"
+        tuya_debug "$msg"
+    fi
 }
 
 tuya_size_to_mib() {
@@ -289,7 +385,7 @@ tuya_error() {
 
 tuya_cleanup() {
     unset _tuya_script_dir _tuya_pwd_dir tuya_is_env_active
-    unset _tuya_uv_ver _tuya_uv_triple _tuya_uv_artifact _tuya_uv_url_astral _tuya_uv_url_github
+    unset _tuya_uv_ver _tuya_uv_triple _tuya_uv_artifact _tuya_uv_url_astral _tuya_uv_url_github _tuya_use_cn_download
     unset _tuya_uv_dl_size _tuya_uv_dl_sha256 _tuya_uv_tools_dir
     unset _tuya_uv_archive _tuya_uv_exe
     unset _tuya_managed_python _tuya_venv_py
@@ -299,8 +395,10 @@ tuya_cleanup() {
     unset -f tuya_debug tuya_error \
              tuya_is_sdk_root tuya_print_version tuya_has_cmd \
              tuya_ensure_dir tuya_path_add \
-             tuya_triple_manifest_key tuya_load_uv_manifest \
-             tuya_get_uv_artifact_check tuya_get_release_urls \
+             tuya_triple_manifest_key tuya_trim_manifest_value tuya_load_uv_manifest \
+             tuya_get_uv_artifact_check tuya_get_release_urls tuya_get_uv_download_urls \
+             tuya_get_uv_cn_url tuya_has_uv_download_override \
+             tuya_parse_tz_offset_z tuya_get_utc_offset_minutes tuya_is_in_cn_tz_range tuya_is_mainland_china tuya_detect_region \
              tuya_get_arch tuya_select_uv_artifact \
              tuya_check_glibc tuya_download_file tuya_verify_sha256 \
              tuya_download_file_ide \
@@ -449,35 +547,51 @@ tuya_triple_manifest_key() {
     echo "$1" | tr '[:lower:]' '[:upper:]' | tr '-' '_'
 }
 
+tuya_trim_manifest_value() {
+    local v="$1"
+    v="${v%$'\r'}"
+    v="${v#"${v%%[![:space:]]*}"}"
+    v="${v%"${v##*[![:space:]]}"}"
+    printf '%s' "$v"
+}
+
 tuya_load_uv_manifest() {
     local root="$1"
     local env_file="$root/uv-manifest.env"
     _tuya_uv_ver="$TUYA_UV_VERSION"
-    _tuya_uv_url_astral="$TUYA_UV_BASE_URL"
-    _tuya_uv_url_github='https://github.com/astral-sh/uv/releases/download'
+    _tuya_uv_url_github="$TUYA_UV_BASE_URL"
+    _tuya_uv_url_astral="$TUYA_UV_ASTRAL_BASE_URL"
 
     if [ -f "$env_file" ]; then
+        local key val
         while IFS= read -r line || [ -n "$line" ]; do
+            line="${line%$'\r'}"
             case "$line" in
                 ''|\#*) continue ;;
-                UV_VERSION=*) _tuya_uv_ver="${line#UV_VERSION=}" ;;
-                UV_DOWNLOAD_SOURCE_ASTRAL=*) _tuya_uv_url_astral="${line#UV_DOWNLOAD_SOURCE_ASTRAL=}" ;;
-                UV_DOWNLOAD_SOURCE_GITHUB=*) _tuya_uv_url_github="${line#UV_DOWNLOAD_SOURCE_GITHUB=}" ;;
-                UV_*_SHA256=*)
-                    local key="${line%%_SHA256=*}"
+                UV_VERSION=*) _tuya_uv_ver="$(tuya_trim_manifest_value "${line#UV_VERSION=}")" ;;
+                UV_DOWNLOAD_SOURCE_ASTRAL=*) _tuya_uv_url_astral="$(tuya_trim_manifest_value "${line#UV_DOWNLOAD_SOURCE_ASTRAL=}")" ;;
+                UV_DOWNLOAD_SOURCE_GITHUB=*) _tuya_uv_url_github="$(tuya_trim_manifest_value "${line#UV_DOWNLOAD_SOURCE_GITHUB=}")" ;;
+                UV_*_DOWNLOAD_CN=*)
+                    key="${line%%_DOWNLOAD_CN=*}"
                     key="${key#UV_}"
-                    eval "_tuya_uv_sha256_${key}=\"${line#*=}\""
+                    val="$(tuya_trim_manifest_value "${line#*=}")"
+                    eval "_tuya_uv_cn_url_${key}=\$val"
+                    ;;
+                UV_*_SHA256=*)
+                    key="${line%%_SHA256=*}"
+                    key="${key#UV_}"
+                    val="$(tuya_trim_manifest_value "${line#*=}")"
+                    eval "_tuya_uv_sha256_${key}=\$val"
                     ;;
                 UV_*_SIZE=*)
-                    local key="${line%%_SIZE=*}"
+                    key="${line%%_SIZE=*}"
                     key="${key#UV_}"
-                    eval "_tuya_uv_size_${key}=\"${line#*=}\""
+                    val="$(tuya_trim_manifest_value "${line#*=}")"
+                    eval "_tuya_uv_size_${key}=\$val"
                     ;;
             esac
         done < "$env_file"
     fi
-    _tuya_uv_ver="${_tuya_uv_ver#"${_tuya_uv_ver%%[![:space:]]*}"}"
-    _tuya_uv_ver="${_tuya_uv_ver%"${_tuya_uv_ver##*[![:space:]]}"}"
 }
 
 tuya_get_uv_artifact_check() {
@@ -507,8 +621,43 @@ tuya_get_release_urls() {
         echo "${UV_INSTALLER_GITHUB_BASE_URL}/astral-sh/uv/releases/download/$version"
         return 0
     fi
-    echo "${_tuya_uv_url_astral}/$version"
     echo "${_tuya_uv_url_github}/$version"
+    echo "${_tuya_uv_url_astral}/$version"
+}
+
+tuya_has_uv_download_override() {
+    [ -n "${UV_DOWNLOAD_URL:-}" ] \
+        || [ -n "${UV_INSTALLER_GHE_BASE_URL:-}" ] \
+        || [ -n "${UV_INSTALLER_GITHUB_BASE_URL:-}" ]
+}
+
+tuya_get_uv_cn_url() {
+    local triple="$1" key url_var url=''
+    key=$(tuya_triple_manifest_key "$triple")
+    url_var="_tuya_uv_cn_url_${key}"
+    eval "url=\${${url_var}:-}"
+    if [ -n "$url" ]; then
+        echo "$url"
+    fi
+}
+
+tuya_get_uv_download_urls() {
+    local base cn_url=''
+    if tuya_has_uv_download_override; then
+        for base in $(tuya_get_release_urls "$_tuya_uv_ver"); do
+            echo "${base%/}/$_tuya_uv_artifact"
+        done
+        return 0
+    fi
+    if [ "${_tuya_use_cn_download:-0}" -eq 1 ]; then
+        cn_url=$(tuya_get_uv_cn_url "$_tuya_uv_triple")
+        if [ -n "$cn_url" ]; then
+            echo "$cn_url"
+        fi
+    fi
+    for base in $(tuya_get_release_urls "$_tuya_uv_ver"); do
+        echo "${base%/}/$_tuya_uv_artifact"
+    done
 }
 
 # ---------------------------------------------------------------------------
@@ -749,12 +898,12 @@ tuya_new_uv_context() {
 }
 
 tuya_download_uv() {
-    local base url attempt mirror=0 rc=1
-    for base in $(tuya_get_release_urls "$_tuya_uv_ver"); do
+    local url attempt mirror=0 total=0 rc=1
+    total=$(tuya_get_uv_download_urls | wc -l | awk '{print $1}')
+    for url in $(tuya_get_uv_download_urls); do
         mirror=$((mirror + 1))
-        url="${base%/}/$_tuya_uv_artifact"
-        if [ "$mirror" -gt 1 ]; then
-            tuya_debug "[TuyaOpen] Mirror $mirror: $url"
+        if [ "$total" -gt 1 ]; then
+            tuya_debug "[TuyaOpen] Mirror $mirror/$total: $url"
         else
             tuya_debug "[TuyaOpen] Download: $url"
         fi
@@ -1337,6 +1486,7 @@ fi
 
 tuya_guard_active   && { tuya_cleanup; return 0; }
 tuya_write_cold_start_hint "$(tuya_export_cold_start_kind)"
+tuya_detect_region
 tuya_setup_uv       || { tuya_cleanup; return 1; }
 tuya_setup_python   || { tuya_cleanup; return 1; }
 tuya_setup_venv     || { tuya_cleanup; return 1; }
