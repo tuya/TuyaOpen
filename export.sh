@@ -563,6 +563,7 @@ tuya_load_uv_manifest() {
     _tuya_uv_url_astral="$TUYA_UV_ASTRAL_BASE_URL"
 
     if [ -f "$env_file" ]; then
+        local key val
         while IFS= read -r line || [ -n "$line" ]; do
             line="${line%$'\r'}"
             case "$line" in
@@ -571,21 +572,18 @@ tuya_load_uv_manifest() {
                 UV_DOWNLOAD_SOURCE_ASTRAL=*) _tuya_uv_url_astral="$(tuya_trim_manifest_value "${line#UV_DOWNLOAD_SOURCE_ASTRAL=}")" ;;
                 UV_DOWNLOAD_SOURCE_GITHUB=*) _tuya_uv_url_github="$(tuya_trim_manifest_value "${line#UV_DOWNLOAD_SOURCE_GITHUB=}")" ;;
                 UV_*_DOWNLOAD_CN=*)
-                    local key val
                     key="${line%%_DOWNLOAD_CN=*}"
                     key="${key#UV_}"
                     val="$(tuya_trim_manifest_value "${line#*=}")"
                     eval "_tuya_uv_cn_url_${key}=\$val"
                     ;;
                 UV_*_SHA256=*)
-                    local key val
                     key="${line%%_SHA256=*}"
                     key="${key#UV_}"
                     val="$(tuya_trim_manifest_value "${line#*=}")"
                     eval "_tuya_uv_sha256_${key}=\$val"
                     ;;
                 UV_*_SIZE=*)
-                    local key val
                     key="${line%%_SIZE=*}"
                     key="${key#UV_}"
                     val="$(tuya_trim_manifest_value "${line#*=}")"
