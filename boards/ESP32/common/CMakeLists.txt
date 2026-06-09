@@ -5,6 +5,12 @@ file(GLOB_RECURSE AUDIO_SRCS "${COMMON_PATH}/audio/*.c")
 
 # add lcd source files
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
+# *_dpi.c adapters use the MIPI-DSI peripheral, which only exists on the
+# ESP32-P4. On other targets esp_lcd_mipi_dsi.h / esp_lcd_st7701 are absent,
+# so drop them to keep non-P4 display boards compiling.
+if(NOT IDF_TARGET STREQUAL "esp32p4")
+    list(FILTER LCD_SRCS EXCLUDE REGEX ".*_dpi\\.c$")
+endif()
 
 # add led source files
 file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
