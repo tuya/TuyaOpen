@@ -6,7 +6,7 @@ import sys
 import json
 import yaml
 import click
-import requests
+import datetime
 import platform
 import logging
 import contextlib
@@ -263,17 +263,16 @@ def set_country_code():
         return COUNTRY_CODE
 
     try:
-        response = requests.get('http://www.ip-api.com/json', timeout=5)
-        response.raise_for_status()
-        logger.debug(response.elapsed)
-
-        result = response.json()
-        country = result.get("country", "")
-        logger.debug(f"country code: {country}")
-
-        COUNTRY_CODE = country
-    except requests.exceptions.RequestException as e:
+        offset = datetime.datetime.now().astimezone().utcoffset()
+        if offset is not None and int(offset.total_seconds()) == 8 * 3600:
+            COUNTRY_CODE = "China"
+            logger.debug("country code: China (UTC+8)")
+        else:
+            COUNTRY_CODE = ""
+            logger.debug("country code: overseas (timezone)")
+    except Exception as e:
         logger.warning(f"country code error: {e}")
+        COUNTRY_CODE = ""
 
     return COUNTRY_CODE
 

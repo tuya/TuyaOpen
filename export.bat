@@ -5,6 +5,7 @@ setlocal enabledelayedexpansion
 :: Usage: export.bat
 :: Set TUYAOPEN_EXPORT_VERBOSE=1 before running for full diagnostic output.
 :: Set TUYAOPEN_EXPORT_IDE=1 when invoked by TuyaOpen IDE (passed through to export.ps1).
+:: Set TUYAOPEN_CN_DOWNLOAD=1 or 0 to force CN / overseas uv download mirrors (region detect is in export.ps1).
 ::
 :: This script:
 ::   * locates the TuyaOpen project root (this script's directory),
