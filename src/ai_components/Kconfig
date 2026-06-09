@@ -1,3 +1,12 @@
+config ENABLE_AI_COMPONENTS
+    bool "enable ai components"
+    default n
+    help
+        Master switch for the tuya.ai component collection (ai_main, ai_agent,
+        ai_audio, ai_ui, ...). Leave off for projects that do not need it so it
+        is not compiled in.
+
+if (ENABLE_AI_COMPONENTS)
 menu "configure ai components"
     choice
         prompt "choose ai language"
@@ -17,3 +26,4 @@ menu "configure ai components"
     rsource "ai_picture/Kconfig"
     rsource "ai_ui/Kconfig"
 endmenu
+endif

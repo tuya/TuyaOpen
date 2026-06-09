@@ -24,7 +24,6 @@ target_compile_definitions(${EXAMPLE_LIB}
 target_include_directories(${EXAMPLE_LIB}
     PRIVATE
         ${APP_PATH}/include
-        ${APP_PATH}/../ai_components/assets/include
 )
 
 ########################################
@@ -32,7 +31,6 @@ target_include_directories(${EXAMPLE_LIB}
 ########################################
 add_subdirectory(${APP_PATH}/src/display2)
 
-add_subdirectory(${APP_PATH}/../ai_components)
 
 else()
 ########################################
@@ -67,6 +65,5 @@ if (CONFIG_ENABLE_BATTERY STREQUAL "y")
     add_subdirectory(${APP_PATH}/src/battery)
 endif()
 
-add_subdirectory(${APP_PATH}/../ai_components)
 
 endif()

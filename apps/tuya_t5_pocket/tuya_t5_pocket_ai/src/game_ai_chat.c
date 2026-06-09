@@ -70,7 +70,7 @@ OPERATE_RET game_ai_chat_init(void)
     OPERATE_RET rt = OPRT_OK;
 
     // custom ui register
-    TUYA_CALL_ERR_RETURN(ai_ui_chat_register());
+    TUYA_CALL_ERR_RETURN(app_ai_ui_chat_register());
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
         .default_mode = AI_CHAT_MODE_HOLD,

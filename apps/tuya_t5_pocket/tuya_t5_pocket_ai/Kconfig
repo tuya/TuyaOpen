@@ -13,6 +13,9 @@ config TUYA_PRODUCT_ID
     string "product ID of project"
     default "zcsqsvltoy071a4j"
 
-rsource "../../tuya.ai/ai_components/Kconfig"
+config APP_NEED_AI_COMPONENTS
+    bool
+    default y
+    select ENABLE_AI_COMPONENTS
 
 endmenu

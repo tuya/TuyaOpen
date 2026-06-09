@@ -42,4 +42,3 @@ if (CONFIG_ENABLE_BATTERY STREQUAL "y")
     add_subdirectory(${APP_PATH}/src/battery)
 endif()
 
-add_subdirectory(${APP_PATH}/../ai_components)
