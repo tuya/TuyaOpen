@@ -119,6 +119,12 @@ choice
             rsource "./ESP32-P4-C6/Kconfig"
         endif
 
+    config BOARD_CHOICE_WAVESHARE_ESP32P4C6_TOUCH_LCD_4_3
+        bool "WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3"
+        if (BOARD_CHOICE_WAVESHARE_ESP32P4C6_TOUCH_LCD_4_3)
+            rsource "./WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

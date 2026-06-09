@@ -1,11 +1,12 @@
 /**
- * @file tdd_disp_esp_lcd.c
- * @brief Adapter that wraps an ESP-IDF esp_lcd_panel into a TuyaOpen TDD display driver.
+ * @file tdd_disp_esp_spi.c
+ * @brief Adapter that wraps a framebuffer-less ESP-IDF esp_lcd panel (SPI / QSPI
+ *        / I80 / I2C) into a TuyaOpen TDD display driver.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
-#include "tdd_disp_esp_lcd.h"
+#include "tdd_disp_esp_spi.h"
 
 #include "tal_memory.h"
 #include "esp_lcd_panel_ops.h"
@@ -134,8 +135,8 @@ static OPERATE_RET __esp_lcd_close(TDD_DISP_DEV_HANDLE_T device)
     return OPRT_OK;
 }
 
-OPERATE_RET tdd_disp_esp_lcd_register(char *name, void *panel_io, void *panel,
-                                       TDD_DISP_ESP_LCD_CFG_T *cfg)
+OPERATE_RET tdd_disp_esp_spi_register(char *name, void *panel_io, void *panel,
+                                          TDD_DISP_ESP_LCD_CFG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
 

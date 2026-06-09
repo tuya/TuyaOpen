@@ -3,7 +3,7 @@
  * @brief One-shot init + register helper for SH8601 QSPI LCD panels via ESP-IDF esp_lcd.
  *
  * Internally configures the QSPI bus, creates the esp_lcd panel handle, and
- * registers it with TuyaOpen TDL display via tdd_disp_esp_lcd_register(). The
+ * registers it with TuyaOpen TDL display via tdd_disp_esp_spi_register(). The
  * board passes pinout / SPI host / mirror flags through LCD_SH8601_HW_CFG_T;
  * generic display geometry / pixel format / backlight come through the shared
  * TDD_DISP_ESP_LCD_CFG_T.
@@ -15,7 +15,7 @@
 #define __TDD_DISP_ESP_SH8601_H__
 
 #include "tuya_cloud_types.h"
-#include "tdd_disp_esp_lcd.h"
+#include "tdd_disp_esp_spi.h"
 
 #ifdef __cplusplus
 extern "C" {

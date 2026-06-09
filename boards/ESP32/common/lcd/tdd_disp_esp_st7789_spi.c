@@ -119,5 +119,5 @@ OPERATE_RET tdd_disp_esp_st7789_spi_register(char *name, LCD_ST7789_SPI_HW_CFG_T
         return OPRT_COM_ERROR;
     }
 
-    return tdd_disp_esp_lcd_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, cfg);
+    return tdd_disp_esp_spi_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, cfg);
 }

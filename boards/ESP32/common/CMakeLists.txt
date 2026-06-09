@@ -18,6 +18,9 @@ file(GLOB_RECURSE TP_SRCS "${COMMON_PATH}/tp/*.c")
 # add button source files
 file(GLOB_RECURSE BUTTON_SRCS "${COMMON_PATH}/button/*.c")
 
+# add camera source files
+file(GLOB_RECURSE CAMERA_SRCS "${COMMON_PATH}/camera/*.c")
+
 set(BOARD_SRC "")
 set(BOARD_INC "${COMMON_PATH}")
 
@@ -71,5 +74,15 @@ if (CONFIG_ENABLE_BUTTON)
 
     list(APPEND BOARD_INC
         "${COMMON_PATH}/button"
+    )
+endif()
+
+if (CONFIG_ENABLE_CAMERA)
+    list(APPEND BOARD_SRC
+        "${CAMERA_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/camera"
     )
 endif()

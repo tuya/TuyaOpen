@@ -179,7 +179,7 @@ OPERATE_RET tdd_disp_esp_sh8601_register(char *name, LCD_SH8601_HW_CFG_T *hw, TD
     TDD_DISP_ESP_LCD_CFG_T local_cfg = *cfg;
     local_cfg.bl.type                = TUYA_DISP_BL_TP_CUSTOM;
 
-    rt = tdd_disp_esp_lcd_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, &local_cfg);
+    rt = tdd_disp_esp_spi_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, &local_cfg);
     if (rt != OPRT_OK) {
         return rt;
     }
