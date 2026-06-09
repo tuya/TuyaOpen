@@ -3,7 +3,7 @@
  * @brief One-shot init + register helper for ST7789 panels behind a single-line SPI bus.
  *
  * Internally configures the SPI bus and the ST7789 panel, then registers it
- * with TuyaOpen TDL display via tdd_disp_esp_lcd_register(). The board passes
+ * with TuyaOpen TDL display via tdd_disp_esp_spi_register(). The board passes
  * pinout / SPI host / orientation through LCD_ST7789_SPI_HW_CFG_T; geometry /
  * pixel format / backlight come through TDD_DISP_ESP_LCD_CFG_T.
  *
@@ -14,7 +14,7 @@
 #define __TDD_DISP_ESP_ST7789_SPI_H__
 
 #include "tuya_cloud_types.h"
-#include "tdd_disp_esp_lcd.h"
+#include "tdd_disp_esp_spi.h"
 
 #ifdef __cplusplus
 extern "C" {

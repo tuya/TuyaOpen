@@ -27,7 +27,10 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define TDL_DISP_DRAW_BUF_ALIGN 4
+/* 64 bytes = ESP32-P4 L1/L2 cache-line size. Frame buffers handed to 2D-DMA /
+ * PPA hardware must be cache-line aligned (address and size); over-aligning to
+ * 64 is harmless on platforms with smaller requirements. */
+#define TDL_DISP_DRAW_BUF_ALIGN 64
 
 /***********************************************************
 ***********************typedef define***********************

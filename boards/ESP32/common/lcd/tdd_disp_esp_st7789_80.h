@@ -3,7 +3,7 @@
  * @brief One-shot init + register helper for ST7789 panels behind an i80 (8-bit) bus.
  *
  * Internally configures the i80 bus and the panel, then registers the panel
- * with TuyaOpen TDL display via tdd_disp_esp_lcd_register(). The board passes
+ * with TuyaOpen TDL display via tdd_disp_esp_spi_register(). The board passes
  * pinout and orientation through LCD_ST7789_80_HW_CFG_T; geometry / pixel
  * format / backlight come through TDD_DISP_ESP_LCD_CFG_T.
  *
@@ -14,7 +14,7 @@
 #define __TDD_DISP_ESP_ST7789_80_H__
 
 #include "tuya_cloud_types.h"
-#include "tdd_disp_esp_lcd.h"
+#include "tdd_disp_esp_spi.h"
 
 #ifdef __cplusplus
 extern "C" {

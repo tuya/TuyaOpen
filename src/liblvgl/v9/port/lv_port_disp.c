@@ -25,7 +25,9 @@
 /*********************
  *      DEFINES
  *********************/
-#define DISP_DRAW_BUF_ALIGN    4
+/* 64 = cache-line size on ESP32-P4; keeps LVGL draw buffers cache-line aligned
+ * for 2D-DMA / PPA acceleration. Harmless over-alignment elsewhere. */
+#define DISP_DRAW_BUF_ALIGN    64
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define LV_MEM_CUSTOM_ALLOC   tal_psram_malloc

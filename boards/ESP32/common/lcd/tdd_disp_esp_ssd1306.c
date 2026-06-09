@@ -106,5 +106,5 @@ OPERATE_RET tdd_disp_esp_ssd1306_register(char *name, OLED_SSD1306_HW_CFG_T *hw,
         return OPRT_COM_ERROR;
     }
 
-    return tdd_disp_esp_lcd_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, cfg);
+    return tdd_disp_esp_spi_register(name, sg_lcd_config.panel_io, sg_lcd_config.panel, cfg);
 }

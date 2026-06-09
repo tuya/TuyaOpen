@@ -5,6 +5,12 @@ file(GLOB_RECURSE AUDIO_SRCS "${COMMON_PATH}/audio/*.c")
 
 # add lcd source files
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
+# *_dpi.c adapters use the MIPI-DSI peripheral, which only exists on the
+# ESP32-P4. On other targets esp_lcd_mipi_dsi.h / esp_lcd_st7701 are absent,
+# so drop them to keep non-P4 display boards compiling.
+if(NOT IDF_TARGET STREQUAL "esp32p4")
+    list(FILTER LCD_SRCS EXCLUDE REGEX ".*_dpi\\.c$")
+endif()
 
 # add led source files
 file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
@@ -17,6 +23,9 @@ file(GLOB_RECURSE TP_SRCS "${COMMON_PATH}/tp/*.c")
 
 # add button source files
 file(GLOB_RECURSE BUTTON_SRCS "${COMMON_PATH}/button/*.c")
+
+# add camera source files
+file(GLOB_RECURSE CAMERA_SRCS "${COMMON_PATH}/camera/*.c")
 
 set(BOARD_SRC "")
 set(BOARD_INC "${COMMON_PATH}")
@@ -71,5 +80,15 @@ if (CONFIG_ENABLE_BUTTON)
 
     list(APPEND BOARD_INC
         "${COMMON_PATH}/button"
+    )
+endif()
+
+if (CONFIG_ENABLE_CAMERA)
+    list(APPEND BOARD_SRC
+        "${CAMERA_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/camera"
     )
 endif()

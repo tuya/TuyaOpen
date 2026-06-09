@@ -8,7 +8,10 @@ config ENABLE_BATTERY
     bool "enable the battery module"
     default n
 
-rsource "../ai_components/Kconfig"
+config APP_NEED_AI_COMPONENTS
+    bool
+    default y
+    select ENABLE_AI_COMPONENTS
 rsource "src/display2/Kconfig"
 
 endmenu

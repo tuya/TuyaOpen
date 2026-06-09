@@ -71,7 +71,5 @@ add_subdirectory(${APP_PATH}/src/display)
 add_subdirectory(${APP_PATH}/src/expand)
 
 
-add_subdirectory(${APP_PATH}/../../tuya.ai/ai_components)
-target_include_directories(${EXAMPLE_LIB} PRIVATE ${APP_PATH}/../../tuya.ai/ai_components)
 
 endif()

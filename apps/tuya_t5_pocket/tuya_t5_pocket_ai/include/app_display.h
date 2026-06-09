@@ -36,7 +36,7 @@ typedef enum {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-OPERATE_RET ai_ui_chat_register(void);
+OPERATE_RET app_ai_ui_chat_register(void);
 
 
 #ifdef __cplusplus
