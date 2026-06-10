@@ -106,6 +106,12 @@ choice
             rsource "./TUYA_T5AI_EINK_NFC/Kconfig"
         endif
 
+    config BOARD_CHOICE_T5AI_MODULE
+        bool "T5AI_MODULE"
+        if (BOARD_CHOICE_T5AI_MODULE)
+            rsource "./T5AI_MODULE/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
