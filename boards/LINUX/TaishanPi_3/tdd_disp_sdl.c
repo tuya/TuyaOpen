@@ -1,9 +1,9 @@
 /**
  * @file tdd_disp_sdl.c
- * @brief SDL2 based virtual display driver for LINUX/RK3576.
+ * @brief SDL2 based virtual display driver for LINUX/TaishanPi_3.
  *
  * This driver registers a TDL display device which renders the framebuffer
- * into a desktop window using SDL2. It is intended for RK3576 Desktop
+ * into a desktop window using SDL2. It is intended for TaishanPi_3
  * to preview LVGL UI.
  */
 

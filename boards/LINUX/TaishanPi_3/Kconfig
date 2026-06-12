@@ -1,11 +1,11 @@
-menu "RK3576 Board Configuration"
+menu "TaishanPi_3 Board Configuration"
     config CHIP_CHOICE
         string
         default "RK3576"
 
     config BOARD_CHOICE
         string
-        default "RK3576"
+        default "TaishanPi_3"
 
     config BOARD_CONFIG
         bool
@@ -14,7 +14,7 @@ menu "RK3576 Board Configuration"
         select ENABLE_AUDIO
         select ENABLE_BUTTON
 
-    # Audio codec configuration for RK3576 platform
+    # Audio codec configuration for TaishanPi_3 board
     config AUDIO_CODEC_NAME
         string "Audio codec device name"
         default "alsa_audio"

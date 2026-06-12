@@ -1,6 +1,6 @@
 /**
  * @file tdd_disp_sdl.h
- * @brief SDL2 based virtual display driver for LINUX/RK3576.
+ * @brief SDL2 based virtual display driver for LINUX/TaishanPi_3.
  */
 
 #ifndef __TDD_DISP_SDL_H__

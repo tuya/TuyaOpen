@@ -39,10 +39,10 @@ choice
             rsource "./DshanPi_A1/Kconfig"
         endif
 
-    config BOARD_CHOICE_RK3576
-        bool "RK3576"
-        if (BOARD_CHOICE_RK3576)
-            rsource "./RK3576/Kconfig"
+    config BOARD_CHOICE_TaishanPi_3
+        bool "TaishanPi_3"
+        if (BOARD_CHOICE_TaishanPi_3)
+            rsource "./TaishanPi_3/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>
