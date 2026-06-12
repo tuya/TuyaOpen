@@ -25,6 +25,7 @@ extern "C" {
 ***********************************************************/
 typedef struct {
     TDL_BUTTON_MODE_E mode;
+    char key_char;  // keyboard character for this button; 0 = use name[0]
 } BUTTON_CFG_T;
 
 /***********************************************************
