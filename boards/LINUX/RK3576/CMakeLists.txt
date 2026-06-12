@@ -1,24 +1,20 @@
 ##
 # @file CMakeLists.txt
-# @brief Raspberry Pi board configuration
+# @brief RK3576 board configuration
 #/
 
 # MODULE_PATH
 set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
 # MODULE_NAME
-set(MODULE_NAME "Raspberry_Pi")
+set(MODULE_NAME "RK3576")
 
 # LIB_SRCS
-# set(LIB_SRCS
-#     ${MODULE_PATH}/board_com_api.c
-#     ${MODULE_PATH}/keyboard_input.c
-# )
 file(GLOB_RECURSE LIB_SRCS "${MODULE_PATH}/*.c")
 
 # Enable V4L2 camera driver if camera support is enabled
 if (CONFIG_ENABLE_CAMERA STREQUAL "y" AND CONFIG_ENABLE_CAMERA_V4L2 STREQUAL "y")
-    message(STATUS "Raspberry Pi board: Enabling V4L2 camera driver")
+    message(STATUS "RK3576 board: Enabling V4L2 camera driver")
 else()
     list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/tdd_camera_v4l2.c")
 endif()
@@ -48,7 +44,7 @@ target_include_directories(${MODULE_NAME}
 # Link ALSA library if ALSA support is enabled
 if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
     target_link_libraries(${MODULE_NAME} PUBLIC asound)
-    message(STATUS "Raspberry Pi board: Linking ALSA library")
+    message(STATUS "RK3576 board: Linking ALSA library")
 endif()
 
 # Link SDL2 library if SDL display support is enabled
@@ -56,7 +52,7 @@ if (CONFIG_ENABLE_SDL_DISPLAY STREQUAL "y")
     set(SDL2_PREBUILT_DIR "${TOP_SOURCE_DIR}/platform/LINUX/tuyaos_adapter/src/tkl_display/libs/Raspberry_Pi/SDL2")
     target_include_directories(${MODULE_NAME} PUBLIC "${SDL2_PREBUILT_DIR}/include/SDL2")
     target_link_libraries(${MODULE_NAME} PUBLIC "${SDL2_PREBUILT_DIR}/libSDL2.a" pthread dl)
-    message(STATUS "Raspberry Pi board: Linking prebuilt ARM64 SDL2 static library (X11 via dlopen)")
+    message(STATUS "RK3576 board: Linking prebuilt ARM64 SDL2 static library (X11 via dlopen)")
 endif()
 
 ########################################
@@ -66,4 +62,3 @@ list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
-

@@ -1,0 +1,85 @@
+menu "RK3576 Board Configuration"
+    config CHIP_CHOICE
+        string
+        default "RK3576"
+
+    config BOARD_CHOICE
+        string
+        default "RK3576"
+
+    config BOARD_CONFIG
+        bool
+        default y
+        select ENABLE_QRCODE
+        select ENABLE_AUDIO
+        select ENABLE_BUTTON
+
+    # Audio codec configuration for RK3576 platform
+    config AUDIO_CODEC_NAME
+        string "Audio codec device name"
+        default "alsa_audio"
+        ---help---
+            Name of the audio codec device. This name is used to identify
+            the audio device when calling tdl_audio_find().
+
+    config ENABLE_KEYBOARD_INPUT
+        bool "Enable keyboard input"
+        default y
+        ---help---
+            Enable keyboard input handling.
+
+    config BUTTON_NAME
+        string "Keyboard button device value"
+        depends on ENABLE_KEYBOARD_INPUT
+        default "s"
+        ---help---
+            Specify the keyboard button device value for input handling.
+
+    config ENABLE_CAMERA
+        bool "Enable Camera"
+        default n
+
+    if (ENABLE_CAMERA)
+        config ENABLE_CAMERA_V4L2
+            bool "Enable V4L2 USB camera"
+            default y
+
+        config CAMERA_V4L2_DEVNODE
+            string "V4L2 device node"
+            depends on ENABLE_CAMERA_V4L2
+            default "/dev/video0"
+    endif
+
+    config ENABLE_SDL_DISPLAY
+        bool "Enable SDL2 desktop window for display"
+        depends on ENABLE_DISPLAY
+        default y
+        ---help---
+            Enable a simple SDL2 window as the display device.
+
+    config ENABLE_SDL_TP
+        bool "Enable SDL virtual touchpad (mouse drag/wheel)"
+        depends on ENABLE_SDL_DISPLAY
+        select ENABLE_TP
+        select ENABLE_LVGL_TP
+        default y
+        ---help---
+            Enable a virtual touchpad.
+            - Mouse left-button drag: press/move/release as single-touch
+            - Mouse wheel: generates a short swipe gesture for vertical scrolling
+
+    config SDL_DISPLAY_WIDTH
+        int "SDL window width"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
+
+    config SDL_DISPLAY_HEIGHT
+        int "SDL window height"
+        depends on ENABLE_SDL_DISPLAY
+        default 480
+
+    config SDL_DISPLAY_TITLE
+        string "SDL window title"
+        depends on ENABLE_SDL_DISPLAY
+        default "TuyaOpen - your_chat_bot"
+endmenu

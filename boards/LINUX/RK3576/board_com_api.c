@@ -1,7 +1,7 @@
 /**
  * @file board_com_api.c
  * @author Tuya Inc.
- * @brief Implementation of common board-level hardware registration APIs for Raspberry Pi platform.
+ * @brief Implementation of common board-level hardware registration APIs for RK3576 platform.
  *
  * This file provides the implementation for initializing and registering hardware
  * components on the Linux platform, with primary focus on ALSA audio support.
@@ -51,7 +51,7 @@
 ***********************************************************/
 
 /**
- * @brief Registers ALSA audio device for Raspberry Pi platform
+ * @brief Registers ALSA audio device for RK3576 platform
  *
  * This function initializes and registers the ALSA audio driver for audio
  * capture (microphone) and playback (speaker) functionality. It is only
@@ -115,7 +115,7 @@ static OPERATE_RET __board_register_audio(void)
     rt = tdd_audio_alsa_register(AUDIO_CODEC_NAME, alsa_cfg);
     if (OPRT_OK != rt) {
         PR_WARN("Failed to register ALSA audio driver: %d", rt);
-        PR_WARN("This is expected on Raspberry Pi systems without audio hardware");
+        PR_WARN("This is expected on RK3576 systems without audio hardware");
         PR_WARN("Application will continue without audio functionality");
         return rt;
     }
@@ -138,9 +138,9 @@ static OPERATE_RET __board_register_audio(void)
 }
 
 /**
- * @brief Registers button hardware for Raspberry Pi platform
+ * @brief Registers button hardware for RK3576 platform
  *
- * On Raspberry Pi, we use keyboard input instead of physical buttons.
+ * On RK3576, we use keyboard input instead of physical buttons.
  * Press 'S' key to trigger conversation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -169,9 +169,9 @@ static OPERATE_RET __board_register_button(void)
 }
 
 /**
- * @brief Registers LED hardware for Raspberry Pi platform
+ * @brief Registers LED hardware for RK3576 platform
  *
- * Note: LED support on Raspberry Pi may require platform-specific implementation
+ * Note: LED support on RK3576 may require platform-specific implementation
  * or GPIO access. This is a placeholder for future implementation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -183,7 +183,7 @@ static OPERATE_RET __board_register_led(void)
 }
 
 /**
- * @brief Registers V4L2 USB camera for Raspberry Pi platform
+ * @brief Registers V4L2 USB camera for RK3576 platform
  */
 static OPERATE_RET __board_register_camera(void)
 {
@@ -211,7 +211,7 @@ static OPERATE_RET __board_register_camera(void)
 }
 
 /**
- * @brief Registers SDL2 window display for Raspberry Pi Desktop.
+ * @brief Registers SDL2 window display for RK3576 Desktop.
  */
 static OPERATE_RET __board_register_display(void)
 {
@@ -270,7 +270,7 @@ static OPERATE_RET __board_register_display(void)
 }
 
 /**
- * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
+ * @brief Registers all the hardware peripherals on the RK3576 platform.
  * 
  * This function initializes and registers hardware components including:
  * - ALSA audio device (if ENABLE_AUDIO_ALSA is enabled)
@@ -286,7 +286,7 @@ OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    PR_INFO("Registering Raspberry Pi platform hardware...");
+    PR_INFO("Registering RK3576 platform hardware...");
 
     // Register audio device (ALSA)
     rt = __board_register_audio();
@@ -319,7 +319,7 @@ OPERATE_RET board_register_hardware(void)
         PR_WARN("Display registration failed: %d", rt);
     }
 
-    PR_INFO("Raspberry Pi platform hardware registration completed");
+    PR_INFO("RK3576 platform hardware registration completed");
 
     return OPRT_OK;
 }
