@@ -25,7 +25,7 @@ extern "C" {
 ***********************************************************/
 typedef struct {
     TDL_BUTTON_MODE_E mode;
-    char key_char;  // keyboard character for this button; 0 = use name[0]
+    char key_char;  // keyboard character to detect as button press (e.g. 's')
 } BUTTON_CFG_T;
 
 /***********************************************************

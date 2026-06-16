@@ -1,7 +1,7 @@
 /**
  * @file board_com_api.c
  * @author Tuya Inc.
- * @brief Implementation of common board-level hardware registration APIs for Raspberry Pi platform.
+ * @brief Implementation of common board-level hardware registration APIs for TaishanPi_3 board.
  *
  * This file provides the implementation for initializing and registering hardware
  * components on the Linux platform, with primary focus on ALSA audio support.
@@ -14,6 +14,7 @@
 
 #if defined(ENABLE_AUDIO_ALSA) && (ENABLE_AUDIO_ALSA == 1)
 #include "tdd_audio_alsa.h"
+#include <alsa/asoundlib.h>
 #endif
 
 #if defined(ENABLE_KEYBOARD_INPUT) && (ENABLE_KEYBOARD_INPUT == 1)
@@ -51,7 +52,81 @@
 ***********************************************************/
 
 /**
- * @brief Registers ALSA audio device for Raspberry Pi platform
+ * @brief Applies ES8388 codec tuning for TaishanPi_3 board mic input.
+ *
+ * Sets Left/Right Capture Volume to +24 dB and configures ADC Data Select
+ * to Left-Left to prevent phase cancellation when down-mixing to mono.
+ * Equivalent to:
+ *   amixer -c 0 cset numid=52 8   # Left  Capture Volume +24 dB
+ *   amixer -c 0 cset numid=53 8   # Right Capture Volume +24 dB
+ *   amixer -c 0 cset numid=61 1   # ADC Data Select: Left-Left
+ */
+#if defined(ENABLE_AUDIO_ALSA) && (ENABLE_AUDIO_ALSA == 1)
+static void __es8388_ctl_set_integer(snd_ctl_t *ctl, unsigned int numid, long value)
+{
+    snd_ctl_elem_id_t    *id  = NULL;
+    snd_ctl_elem_value_t *val = NULL;
+
+    snd_ctl_elem_id_malloc(&id);
+    snd_ctl_elem_value_malloc(&val);
+
+    snd_ctl_elem_id_set_numid(id, numid);
+    snd_ctl_elem_value_set_id(val, id);
+    snd_ctl_elem_value_set_integer(val, 0, value);
+    if (snd_ctl_elem_write(ctl, val) < 0) {
+        PR_WARN("ES8388: failed to set numid=%u to %ld", numid, value);
+    }
+
+    snd_ctl_elem_value_free(val);
+    snd_ctl_elem_id_free(id);
+}
+
+static void __es8388_ctl_set_enum(snd_ctl_t *ctl, unsigned int numid, unsigned int item)
+{
+    snd_ctl_elem_id_t    *id  = NULL;
+    snd_ctl_elem_value_t *val = NULL;
+
+    snd_ctl_elem_id_malloc(&id);
+    snd_ctl_elem_value_malloc(&val);
+
+    snd_ctl_elem_id_set_numid(id, numid);
+    snd_ctl_elem_value_set_id(val, id);
+    snd_ctl_elem_value_set_enumerated(val, 0, item);
+    if (snd_ctl_elem_write(ctl, val) < 0) {
+        PR_WARN("ES8388: failed to set numid=%u to item %u", numid, item);
+    }
+
+    snd_ctl_elem_value_free(val);
+    snd_ctl_elem_id_free(id);
+}
+
+static void __board_configure_es8388(void)
+{
+    snd_ctl_t *ctl = NULL;
+    if (snd_ctl_open(&ctl, "hw:0", 0) < 0) {
+        PR_WARN("ES8388: cannot open ALSA control hw:0, skipping codec tuning");
+        return;
+    }
+
+    __es8388_ctl_set_integer(ctl, 52, 8); /* Left  Capture Volume: +24 dB */
+    __es8388_ctl_set_integer(ctl, 53, 8); /* Right Capture Volume: +24 dB */
+    __es8388_ctl_set_enum   (ctl, 61, 1); /* ADC Data Select: Left-Left   */
+
+    snd_ctl_close(ctl);
+    PR_INFO("ES8388 codec tuned: mic gain +24 dB, ADC Left-Left");
+}
+
+/* Stop PipeWire so direct ALSA hw access is not blocked by the sound server. */
+static void __board_stop_pipewire(void)
+{
+    PR_INFO("Stopping PipeWire...");
+    system("systemctl --user stop pipewire.socket pipewire-pulse.socket "
+           "wireplumber pipewire pipewire-pulse >/dev/null 2>&1");
+}
+#endif
+
+/**
+ * @brief Registers ALSA audio device for TaishanPi_3 board
  *
  * This function initializes and registers the ALSA audio driver for audio
  * capture (microphone) and playback (speaker) functionality. It is only
@@ -70,17 +145,18 @@ static OPERATE_RET __board_register_audio(void)
         // Configure ALSA audio parameters
         TDD_AUDIO_ALSA_CFG_T alsa_cfg = {0};
 
-        // Use default ALSA device names (configurable via Kconfig)
+        // Use plughw:0,0 — ALSA plug layer converts 16kHz mono to hardware 48kHz stereo.
+        // No /etc/asound.conf needed.
         #if defined(ALSA_DEVICE_CAPTURE)
             strncpy(alsa_cfg.capture_device, ALSA_DEVICE_CAPTURE, sizeof(alsa_cfg.capture_device) - 1);
         #else
-            strncpy(alsa_cfg.capture_device, "default", sizeof(alsa_cfg.capture_device) - 1);
+            strncpy(alsa_cfg.capture_device, "plughw:0,0", sizeof(alsa_cfg.capture_device) - 1);
         #endif
 
         #if defined(ALSA_DEVICE_PLAYBACK)
             strncpy(alsa_cfg.playback_device, ALSA_DEVICE_PLAYBACK, sizeof(alsa_cfg.playback_device) - 1);
         #else
-            strncpy(alsa_cfg.playback_device, "default", sizeof(alsa_cfg.playback_device) - 1);
+            strncpy(alsa_cfg.playback_device, "plughw:0,0", sizeof(alsa_cfg.playback_device) - 1);
         #endif
 
         // Audio format configuration
@@ -111,11 +187,15 @@ static OPERATE_RET __board_register_audio(void)
             alsa_cfg.aec_enable = 0;
         #endif
 
+    // Stop PipeWire and configure ES8388 codec before registering the ALSA driver
+    __board_stop_pipewire();
+    __board_configure_es8388();
+
     // Register the ALSA audio driver
     rt = tdd_audio_alsa_register(AUDIO_CODEC_NAME, alsa_cfg);
     if (OPRT_OK != rt) {
         PR_WARN("Failed to register ALSA audio driver: %d", rt);
-        PR_WARN("This is expected on Raspberry Pi systems without audio hardware");
+        PR_WARN("This is expected on TaishanPi_3 systems without audio hardware");
         PR_WARN("Application will continue without audio functionality");
         return rt;
     }
@@ -138,9 +218,9 @@ static OPERATE_RET __board_register_audio(void)
 }
 
 /**
- * @brief Registers button hardware for Raspberry Pi platform
+ * @brief Registers button hardware for TaishanPi_3 board
  *
- * On Raspberry Pi, we use keyboard input instead of physical buttons.
+ * On TaishanPi_3, we use keyboard input instead of physical buttons.
  * Press 'S' key to trigger conversation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -169,9 +249,9 @@ static OPERATE_RET __board_register_button(void)
 }
 
 /**
- * @brief Registers LED hardware for Raspberry Pi platform
+ * @brief Registers LED hardware for TaishanPi_3 board
  *
- * Note: LED support on Raspberry Pi may require platform-specific implementation
+ * Note: LED support on TaishanPi_3 may require platform-specific implementation
  * or GPIO access. This is a placeholder for future implementation.
  *
  * @return OPERATE_RET - OPRT_OK on success
@@ -183,7 +263,7 @@ static OPERATE_RET __board_register_led(void)
 }
 
 /**
- * @brief Registers V4L2 USB camera for Raspberry Pi platform
+ * @brief Registers V4L2 USB camera for TaishanPi_3 board
  */
 static OPERATE_RET __board_register_camera(void)
 {
@@ -211,7 +291,7 @@ static OPERATE_RET __board_register_camera(void)
 }
 
 /**
- * @brief Registers SDL2 window display for Raspberry Pi Desktop.
+ * @brief Registers SDL2 window display for TaishanPi_3 board.
  */
 static OPERATE_RET __board_register_display(void)
 {
@@ -270,7 +350,7 @@ static OPERATE_RET __board_register_display(void)
 }
 
 /**
- * @brief Registers all the hardware peripherals on the Raspberry Pi platform.
+ * @brief Registers all the hardware peripherals on the TaishanPi_3 board.
  * 
  * This function initializes and registers hardware components including:
  * - ALSA audio device (if ENABLE_AUDIO_ALSA is enabled)
@@ -286,7 +366,7 @@ OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    PR_INFO("Registering Raspberry Pi platform hardware...");
+    PR_INFO("Registering TaishanPi_3 board hardware...");
 
     // Register audio device (ALSA)
     rt = __board_register_audio();
@@ -319,7 +399,7 @@ OPERATE_RET board_register_hardware(void)
         PR_WARN("Display registration failed: %d", rt);
     }
 
-    PR_INFO("Raspberry Pi platform hardware registration completed");
+    PR_INFO("TaishanPi_3 board hardware registration completed");
 
     return OPRT_OK;
 }

@@ -13,7 +13,6 @@
 
 LV_IMG_DECLARE(neutral);
 LV_IMG_DECLARE(annoyed);
-LV_IMG_DECLARE(cool);
 LV_IMG_DECLARE(delicious);
 LV_IMG_DECLARE(fearful);
 LV_IMG_DECLARE(lovestruck);
@@ -40,14 +39,13 @@ static bool force_thinking = false;
 //! gif file
 static lv_img_dsc_t gif_files[11]; 
 
-#define GIF_EMOTION_FILE_INDEX       9
+#define GIF_EMOTION_FILE_INDEX       8
 
 static uint8_t s_last_wifi_status = 0;
 
 static const gui_emotion_t s_gif_emotion[] = {
     {&neutral,          "neutral"},
     {&annoyed,          "annoyed"},
-    {&cool,             "cool"},
     {&delicious,        "delicious"},
     {&fearful,          "fearful"},
     {&lovestruck,       "lovestruck"},
@@ -57,14 +55,15 @@ static const gui_emotion_t s_gif_emotion[] = {
     /*----------------------------------- */
     {&gif_files[0],     "angry"},
     {&gif_files[1],     "confused" },
-    {&gif_files[2],     "disappointed"},
-    {&gif_files[3],     "embarrassed"},
-    {&gif_files[4],     "happy"},
-    {&gif_files[5],     "laughing"},
-    {&gif_files[6],     "relaxed"},
-    {&gif_files[7],     "sad"},
-    {&gif_files[8],     "surprise"},
-    {&gif_files[9],     "thinking"},
+    {&gif_files[2],     "cool"},
+    {&gif_files[3],     "disappointed"},
+    {&gif_files[4],     "embarrassed"},
+    {&gif_files[5],     "happy"},
+    {&gif_files[6],     "laughing"},
+    {&gif_files[7],     "relaxed"},
+    {&gif_files[8],     "sad"},
+    {&gif_files[9],     "surprise"},
+    {&gif_files[10],    "thinking"},
 };
 
 static void __lvgl_init(void)
@@ -85,6 +84,7 @@ void robot_gif_load(void)
     char *gif_file_path[] = {
         "/angry.gif",
         "/confused.gif",
+        "/cool.gif",
         "/disappointed.gif",
         "/embarrassed.gif",
         "/happy.gif",

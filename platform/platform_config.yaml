@@ -12,7 +12,7 @@ platforms:
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 811c996c040fd0fbcdb96ea2e36885326b9b927d
+  commit: 98fe9dc649ee5415bc3142a41b95ae576eb04e83
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
