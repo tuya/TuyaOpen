@@ -1,5 +1,5 @@
 /**
- * @file tuya_gd32_mc_foc_vws_vw553.c
+ * @file board_com_api.c
  * @brief Implementation of common board-level hardware registration APIs for button, and LED peripherals.
  * @version 0.1
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
