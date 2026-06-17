@@ -1945,6 +1945,12 @@ try {
     Install-TuyaOpenPromptIndicator
     Reset-TuyaSessionCache -Root $openRoot
     Invoke-TuyaExportFinalize -Root $openRoot
+    # Re-check after tos.py prepare: on first install the directory didn't exist
+    # yet when we checked above, but prepare just downloaded make into it.
+    # Add-TuyaPathEntryIfMissing is idempotent, so this is safe on re-source too.
+    if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
+        Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
+    }
 } catch {
     if ($_.Exception.Message -match '^\[TuyaOpen\] export aborted \(exit code (\d+)\)\.$') {
         return
