@@ -151,6 +151,7 @@ def ensure_windows_make() -> bool:
 
     if os.path.isfile(make_exe) and _make_version_ok(make_exe):
         logger.debug(f"[prepare] make already installed: {make_exe}")
+        prepend_windows_make_to_path()
         return True
 
     which_make = shutil.which("make")
@@ -217,6 +218,7 @@ def ensure_windows_make() -> bool:
             f"[prepare] GNU Make {MAKE_VERSION} extracted and installed to "
             f"{install_dir}"
         )
+        prepend_windows_make_to_path()
         return True
     finally:
         if os.path.exists(tmp_dir):

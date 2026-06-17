@@ -312,10 +312,11 @@ function Test-TuyaProjectFiles {
 
 function Add-TuyaPathEntryIfMissing {
     param([string]$Dir)
-    if (($env:PATH -split ';') | Where-Object { $_ -ieq $Dir }) {
+    $sep = [System.IO.Path]::PathSeparator
+    if (($env:PATH -split [regex]::Escape($sep)) | Where-Object { $_ -ieq $Dir }) {
         return
     }
-    $env:PATH = "$Dir;$env:PATH"
+    $env:PATH = "$Dir$sep$env:PATH"
 }
 
 # ---------------------------------------------------------------------------
@@ -1891,6 +1892,11 @@ function Invoke-TuyaExportFinalize {
     if ($LASTEXITCODE -ne 0) {
         Write-TuyaOpenInfo '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
     }
+    $makeBinDir = Get-TuyaWindowsMakeBinDir -Root $Root
+    $makeExe    = Join-Path $makeBinDir 'make.exe'
+    if (Test-Path -LiteralPath $makeExe -PathType Leaf) {
+        Add-TuyaPathEntryIfMissing -Dir $makeBinDir
+    }
     if (-not $SkipHello) {
         Invoke-TuyaHello -Root $Root -PythonExe $pythonExe
     }
@@ -1938,19 +1944,10 @@ try {
 
     $venvPython = Invoke-TuyaExportSetupCore -Root $openRoot
     Register-TuyaOpenCommandHelpers
-    if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
-        Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
-    }
     Install-TuyaOpenPwshCompletion -Root $openRoot -PythonExe $venvPython
     Install-TuyaOpenPromptIndicator
     Reset-TuyaSessionCache -Root $openRoot
     Invoke-TuyaExportFinalize -Root $openRoot
-    # Re-check after tos.py prepare: on first install the directory didn't exist
-    # yet when we checked above, but prepare just downloaded make into it.
-    # Add-TuyaPathEntryIfMissing is idempotent, so this is safe on re-source too.
-    if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
-        Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
-    }
 } catch {
     if ($_.Exception.Message -match '^\[TuyaOpen\] export aborted \(exit code (\d+)\)\.$') {
         return
