@@ -61,7 +61,8 @@ def prepend_windows_make_to_path() -> None:
         return
     path = os.environ.get("PATH", "")
     parts = path.split(os.pathsep)
-    if install_dir not in parts:
+    target = os.path.normcase(install_dir)
+    if all(os.path.normcase(p) != target for p in parts):
         os.environ["PATH"] = install_dir + os.pathsep + path
 
 

@@ -1838,9 +1838,10 @@ function Register-TuyaOpenCommandHelpers {
                 $makeBin = Get-TuyaWindowsMakeBinDir -Root $sdkRoot
             }
             $uvDir      = Join-Path $sdkRoot ".tools\uv\$((Get-TuyaUvManifest -Root $sdkRoot).Version)"
-            $env:PATH = (($env:PATH -split ';') | Where-Object {
+            $sep        = [System.IO.Path]::PathSeparator
+            $env:PATH = (($env:PATH -split [regex]::Escape($sep)) | Where-Object {
                 $_ -and ($_ -ine $sdkRoot) -and ($_ -ine $sdkScripts) -and ($_ -ine $makeBin) -and ($_ -ine $uvDir)
-            }) -join ';'
+            }) -join $sep
         }
         Remove-Item Env:VIRTUAL_ENV        -ErrorAction SilentlyContinue
         Remove-Item Env:OPEN_SDK_ROOT      -ErrorAction SilentlyContinue
