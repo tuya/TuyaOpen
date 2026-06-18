@@ -25,7 +25,7 @@ target_include_directories(${EXAMPLE_LIB}
         ${APP_PATH}/include
 )
 
-add_subdirectory(${APP_PATH}/src/display)
+add_subdirectory(${APP_PATH}/src/display ${CMAKE_BINARY_DIR}/app_display)
 
 else()
 ########################################
@@ -67,8 +67,8 @@ target_compile_options(${EXAMPLE_LIB}
 # Add subdirectory
 ########################################
 
-add_subdirectory(${APP_PATH}/src/display)
-add_subdirectory(${APP_PATH}/src/expand)
+add_subdirectory(${APP_PATH}/src/display ${CMAKE_BINARY_DIR}/app_display)
+add_subdirectory(${APP_PATH}/src/expand ${CMAKE_BINARY_DIR}/app_expand)
 
 
 

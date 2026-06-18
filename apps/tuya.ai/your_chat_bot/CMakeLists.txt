@@ -29,7 +29,7 @@ target_include_directories(${EXAMPLE_LIB}
 ########################################
 # Generate language config header
 ########################################
-add_subdirectory(${APP_PATH}/src/display2)
+add_subdirectory(${APP_PATH}/src/display2 ${CMAKE_BINARY_DIR}/app_display2)
 
 
 else()
@@ -62,7 +62,7 @@ target_include_directories(${EXAMPLE_LIB}
 ########################################
 
 if (CONFIG_ENABLE_BATTERY STREQUAL "y")
-    add_subdirectory(${APP_PATH}/src/battery)
+    add_subdirectory(${APP_PATH}/src/battery ${CMAKE_BINARY_DIR}/app_battery)
 endif()
 
 
