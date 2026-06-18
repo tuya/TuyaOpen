@@ -312,10 +312,11 @@ function Test-TuyaProjectFiles {
 
 function Add-TuyaPathEntryIfMissing {
     param([string]$Dir)
-    if (($env:PATH -split ';') | Where-Object { $_ -ieq $Dir }) {
+    $sep = [System.IO.Path]::PathSeparator
+    if (($env:PATH -split [regex]::Escape($sep)) | Where-Object { $_ -ieq $Dir }) {
         return
     }
-    $env:PATH = "$Dir;$env:PATH"
+    $env:PATH = "$Dir$sep$env:PATH"
 }
 
 # ---------------------------------------------------------------------------
@@ -1837,9 +1838,10 @@ function Register-TuyaOpenCommandHelpers {
                 $makeBin = Get-TuyaWindowsMakeBinDir -Root $sdkRoot
             }
             $uvDir      = Join-Path $sdkRoot ".tools\uv\$((Get-TuyaUvManifest -Root $sdkRoot).Version)"
-            $env:PATH = (($env:PATH -split ';') | Where-Object {
+            $sep        = [System.IO.Path]::PathSeparator
+            $env:PATH = (($env:PATH -split [regex]::Escape($sep)) | Where-Object {
                 $_ -and ($_ -ine $sdkRoot) -and ($_ -ine $sdkScripts) -and ($_ -ine $makeBin) -and ($_ -ine $uvDir)
-            }) -join ';'
+            }) -join $sep
         }
         Remove-Item Env:VIRTUAL_ENV        -ErrorAction SilentlyContinue
         Remove-Item Env:OPEN_SDK_ROOT      -ErrorAction SilentlyContinue
@@ -1891,6 +1893,11 @@ function Invoke-TuyaExportFinalize {
     if ($LASTEXITCODE -ne 0) {
         Write-TuyaOpenInfo '[TuyaOpen] Warning: tos.py prepare failed. Retry: tos.py prepare'
     }
+    $makeBinDir = Get-TuyaWindowsMakeBinDir -Root $Root
+    $makeExe    = Join-Path $makeBinDir 'make.exe'
+    if (Test-Path -LiteralPath $makeExe -PathType Leaf) {
+        Add-TuyaPathEntryIfMissing -Dir $makeBinDir
+    }
     if (-not $SkipHello) {
         Invoke-TuyaHello -Root $Root -PythonExe $pythonExe
     }
@@ -1938,9 +1945,6 @@ try {
 
     $venvPython = Invoke-TuyaExportSetupCore -Root $openRoot
     Register-TuyaOpenCommandHelpers
-    if ($env:OPEN_SDK_MAKE_BIN -and (Test-Path -LiteralPath $env:OPEN_SDK_MAKE_BIN -PathType Container)) {
-        Add-TuyaPathEntryIfMissing -Dir $env:OPEN_SDK_MAKE_BIN
-    }
     Install-TuyaOpenPwshCompletion -Root $openRoot -PythonExe $venvPython
     Install-TuyaOpenPromptIndicator
     Reset-TuyaSessionCache -Root $openRoot

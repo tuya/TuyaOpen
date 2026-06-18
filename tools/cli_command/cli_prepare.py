@@ -61,7 +61,8 @@ def prepend_windows_make_to_path() -> None:
         return
     path = os.environ.get("PATH", "")
     parts = path.split(os.pathsep)
-    if install_dir not in parts:
+    target = os.path.normcase(install_dir)
+    if all(os.path.normcase(p) != target for p in parts):
         os.environ["PATH"] = install_dir + os.pathsep + path
 
 
@@ -151,6 +152,7 @@ def ensure_windows_make() -> bool:
 
     if os.path.isfile(make_exe) and _make_version_ok(make_exe):
         logger.debug(f"[prepare] make already installed: {make_exe}")
+        prepend_windows_make_to_path()
         return True
 
     which_make = shutil.which("make")
@@ -217,6 +219,7 @@ def ensure_windows_make() -> bool:
             f"[prepare] GNU Make {MAKE_VERSION} extracted and installed to "
             f"{install_dir}"
         )
+        prepend_windows_make_to_path()
         return True
     finally:
         if os.path.exists(tmp_dir):

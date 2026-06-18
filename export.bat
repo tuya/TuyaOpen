@@ -132,7 +132,7 @@ for %%I in ("%OPEN_SDK_UV%") do set "UV_TOOLS_DIR=%%~dpI"
 if defined UV_TOOLS_DIR set "UV_TOOLS_DIR=!UV_TOOLS_DIR:~0,-1!"
 if defined UV_TOOLS_DIR call :add_path_if_missing "!UV_TOOLS_DIR!"
 call :add_path_if_missing "%OPEN_SDK_ROOT%\.venv\Scripts"
-if defined OPEN_SDK_MAKE_BIN if exist "%OPEN_SDK_MAKE_BIN%" call :add_path_if_missing "%OPEN_SDK_MAKE_BIN%"
+if defined OPEN_SDK_MAKE_BIN if exist "%OPEN_SDK_MAKE_BIN%\make.exe" call :add_path_if_missing "%OPEN_SDK_MAKE_BIN%"
 call :add_path_if_missing "%OPEN_SDK_ROOT%"
 
 :: ---------------------------------------------------------------------------
