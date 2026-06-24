@@ -510,6 +510,9 @@ static OPERATE_RET __tdd_audio_alsa_play(TDD_AUDIO_HANDLE_T handle, uint8_t *dat
         if (written == -EPIPE) {
             PR_WARN("ALSA playback underrun occurred");
             snd_pcm_prepare(hdl->playback_handle);
+            if (snd_pcm_state(hdl->playback_handle) == SND_PCM_STATE_PREPARED) {
+                snd_pcm_start(hdl->playback_handle);
+            }
             written = snd_pcm_writei(hdl->playback_handle, data, frames);
         }
 
@@ -573,7 +576,7 @@ static OPERATE_RET __tdd_audio_alsa_config(TDD_AUDIO_HANDLE_T handle, TDD_AUDIO_
     case TDD_AUDIO_CMD_PLAY_STOP: {
         TDD_AUDIO_ALSA_HANDLE_T *hdl = (TDD_AUDIO_ALSA_HANDLE_T *)handle;
         if (hdl->playback_handle) {
-            snd_pcm_drop(hdl->playback_handle);
+            snd_pcm_drain(hdl->playback_handle);
             snd_pcm_prepare(hdl->playback_handle);
         }
         // Clear ref_buffer when playback stops

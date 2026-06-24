@@ -26,6 +26,7 @@
 
 #if defined(ENABLE_AUDIO_CODECS) && (ENABLE_AUDIO_CODECS == 1)
 static TDL_AUDIO_HANDLE_T s_speaker_ctx = NULL;
+static BOOL_T             s_play_session_logged = FALSE;
 #endif
 
 OPERATE_RET consumer_speaker_open(PLAYER_CONSUMER_HANDLE *handle)
@@ -55,8 +56,11 @@ OPERATE_RET consumer_speaker_close(PLAYER_CONSUMER_HANDLE handle)
 OPERATE_RET consumer_speaker_start(PLAYER_CONSUMER_HANDLE handle)
 {
 #if defined(ENABLE_AUDIO_CODECS) && (ENABLE_AUDIO_CODECS == 1)
+    (void)handle;
+    s_play_session_logged = FALSE;
     return OPRT_OK;
 #else
+    (void)handle;
     return OPRT_OK;
 #endif
 }
@@ -64,8 +68,19 @@ OPERATE_RET consumer_speaker_start(PLAYER_CONSUMER_HANDLE handle)
 OPERATE_RET consumer_speaker_write(PLAYER_CONSUMER_HANDLE handle, const void *buf, uint32_t len)
 {
 #if defined(ENABLE_AUDIO_CODECS) && (ENABLE_AUDIO_CODECS == 1)
-    return tdl_audio_play(s_speaker_ctx, (uint8_t *)buf, len);
+    OPERATE_RET rt;
+
+    (void)handle;
+    if (!s_play_session_logged && buf != NULL && len > 0) {
+        s_play_session_logged = TRUE;
+        PR_DEBUG("consumer_speaker: first PCM chunk len=%u", (unsigned)len);
+    }
+    rt = tdl_audio_play(s_speaker_ctx, (uint8_t *)buf, len);
+    return rt;
 #else
+    (void)handle;
+    (void)buf;
+    (void)len;
     return OPRT_OK;
 #endif
 }
@@ -73,8 +88,11 @@ OPERATE_RET consumer_speaker_write(PLAYER_CONSUMER_HANDLE handle, const void *bu
 OPERATE_RET consumer_speaker_stop(PLAYER_CONSUMER_HANDLE handle)
 {
 #if defined(ENABLE_AUDIO_CODECS) && (ENABLE_AUDIO_CODECS == 1)
+    (void)handle;
+    s_play_session_logged = FALSE;
     return tdl_audio_play_stop(s_speaker_ctx);
 #else
+    (void)handle;
     return OPRT_OK;
 #endif
 }

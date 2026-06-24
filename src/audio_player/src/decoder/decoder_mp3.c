@@ -25,6 +25,9 @@
 
 #define MP3_HEAD_SIZE (10)
 
+/* Bound skip/parse loops when input is corrupt so we do not spin unbounded. */
+#define DECODER_MP3_SKIP_CHAIN_MAX 512
+
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define DECODER_MP3_MALLOC tal_psram_malloc
 #define DECODER_MP3_FREE   tal_psram_free
@@ -52,7 +55,8 @@ static int __mp3_find_id3(uint8_t *buf)
     memcpy(tag_header, buf, sizeof(tag_header));
 
     if (tag_header[0] == 'I' && tag_header[1] == 'D' && tag_header[2] == '3') {
-        tag_size = ((tag_header[6] & 0x7F) << 21) | ((tag_header[7] & 0x7F) << 14) | ((tag_header[8] & 0x7F) << 7) | (tag_header[9] & 0x7F);
+        tag_size = ((tag_header[6] & 0x7F) << 21) | ((tag_header[7] & 0x7F) << 14) | ((tag_header[8] & 0x7F) << 7) |
+                   (tag_header[9] & 0x7F);
         PR_DEBUG("ID3 tag_size = %d", tag_size);
         return tag_size + sizeof(tag_header);
     } else {
@@ -93,7 +97,8 @@ OPERATE_RET decoder_mp3_stop(void* handle)
     return OPRT_OK;
 }
 
-int decoder_mp3_process(void* handle, uint8_t *in_buf, int in_len, uint8_t *out_buf, int out_size, DECODER_OUTPUT_T *output)
+int decoder_mp3_process(void *handle, uint8_t *in_buf, int in_len, uint8_t *out_buf, int out_size,
+                        DECODER_OUTPUT_T *output)
 {
     DECODER_MP3_CTX_T *ctx = (DECODER_MP3_CTX_T *)handle;
 
