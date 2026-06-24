@@ -39,6 +39,12 @@ choice
             rsource "./DshanPi_A1/Kconfig"
         endif
 
+    config BOARD_CHOICE_LINUX_X86_64
+        bool "Linux x86_64"
+        if (BOARD_CHOICE_LINUX_X86_64)
+            rsource "./Linux_x86_64/Kconfig"
+        endif
+
     config BOARD_CHOICE_TaishanPi_3
         bool "TaishanPi_3"
         if (BOARD_CHOICE_TaishanPi_3)

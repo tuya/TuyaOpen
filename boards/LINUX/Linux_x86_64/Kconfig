@@ -1,0 +1,37 @@
+menu "Linux x86_64 Board Configuration"
+    config CHIP_CHOICE
+        string
+        default "Linux_x86_64"
+
+    config BOARD_CHOICE
+        string
+        default "Linux_x86_64"
+
+    config BOARD_CONFIG
+        bool
+        default y
+        select ENABLE_QRCODE
+        select ENABLE_AUDIO
+        select ENABLE_BUTTON
+
+    # Audio codec configuration for Linux x86_64 platform
+    config AUDIO_CODEC_NAME
+        string "Audio codec device name"
+        default "default"
+        ---help---
+            Name of the audio codec device. On Linux x86_64, "default" routes
+            to PulseAudio/WirePlumber via ALSA.
+
+    config ENABLE_KEYBOARD_INPUT
+        bool "Enable keyboard input for Linux x86_64"
+        default y
+        ---help---
+            Enable keyboard input handling for Linux x86_64 platform.
+
+    config BUTTON_NAME
+        string "Keyboard button device value"
+        depends on ENABLE_KEYBOARD_INPUT
+        default "s"
+        ---help---
+            Specify the keyboard button device value for input handling.
+endmenu
