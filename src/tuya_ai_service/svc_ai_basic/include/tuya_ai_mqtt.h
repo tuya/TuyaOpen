@@ -76,4 +76,14 @@ OPERATE_RET tuya_ai_mq_init(AI_MQTT_RECV_CB cb);
  *
  */
 VOID tuya_ai_mq_deinit(VOID);
+
+/**
+ * @brief Send a protocol-9000 custom MQTT message.
+ *
+ * @param[in] json_str Null-terminated JSON string to publish.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_mq_send(CONST CHAR_T *json_str);
+
 #endif

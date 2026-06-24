@@ -108,6 +108,27 @@ OPERATE_RET mqc_send_custom_mqtt_msg(IN CONST uint32_t protocol, IN CONST uint8_
     return OPRT_OK;
 }
 
+/**
+ * Re-register all protocol handlers into the MQTT context.
+ *
+ * tuya_mqtt_init() does memset(context, 0, ...) which wipes protocol_list.
+ * This happens a second time during tuya_iot_start() after our protocol 9000
+ * handler was registered at app init. Call this after MQTT reconnects to
+ * restore all handlers that were wiped by the second tuya_mqtt_init() call.
+ */
+OPERATE_RET mqc_app_reregister_all(void)
+{
+    tuya_iot_client_t *client = tuya_iot_client_get();
+    if (!client) {
+        return OPRT_COM_ERROR;
+    }
+    for (uint32_t i = 0; i < g_mqc_protocol_count; i++) {
+        tuya_mqtt_protocol_register(&client->mqctx, (uint16_t)g_mqc_protocol_table[i].protocol, __mqc_app_handler,
+                                    &g_mqc_protocol_table[i]);
+    }
+    return OPRT_OK;
+}
+
 // netmgr
 
 OPERATE_RET __linkage_open(LINKAGE_CAP_E cap)

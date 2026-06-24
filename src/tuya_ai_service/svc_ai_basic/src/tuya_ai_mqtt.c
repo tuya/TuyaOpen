@@ -170,6 +170,8 @@ AI_SERVER_CFG_INFO_T* tuya_ai_mq_ser_cfg_get(VOID)
 OPERATE_RET tuya_ai_mq_token_req(CHAR_T *solution_code, AI_AGENT_TOKEN_INFO_T *agent)
 {
     OPERATE_RET rt = OPRT_OK;
+    TUYA_CHECK_NULL_RETURN(ai_mqtt_ctx, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(agent, OPRT_INVALID_PARM);
     CHAR_T *mq_msg = OS_MALLOC(512);
     TUYA_CHECK_NULL_RETURN(mq_msg, OPRT_MALLOC_FAILED);
     memset(mq_msg, 0, 512);
@@ -593,4 +595,12 @@ EXIT:
     PR_ERR("ai mqtt init failed, rt:%d", rt);
     tuya_ai_mq_deinit();
     return rt;
+}
+
+OPERATE_RET tuya_ai_mq_send(CONST CHAR_T *json_str)
+{
+    if (json_str == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+    return mqc_send_custom_mqtt_msg(AI_MQ_PROTO_NUM, (CONST UINT8_T *)json_str);
 }

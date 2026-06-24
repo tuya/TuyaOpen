@@ -36,7 +36,7 @@
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-typedef OPERATE_RET(*AI_BASIC_DATA_HANDLE)(CHAR_T *data, UINT_T len, AI_FRAG_FLAG frag);
+typedef OPERATE_RET (*AI_BASIC_DATA_HANDLE)(CHAR_T *data, UINT_T len, AI_FRAG_FLAG frag);
 
 /**
  * @brief register data handle cb

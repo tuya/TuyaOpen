@@ -69,6 +69,15 @@ OPERATE_RET mqc_app_unregister_cb(uint32_t mq_pro, mqc_protocol_handler_cb handl
 OPERATE_RET mqc_send_custom_mqtt_msg(IN CONST uint32_t protocol, IN CONST uint8_t *p_data);
 
 /**
+ * @brief Re-register all stored protocol handlers into the MQTT context.
+ *
+ * tuya_mqtt_init() does memset(context, 0, ...) which wipes protocol_list.
+ * Call this after TUYA_EVENT_MQTT_CONNECTED to restore handlers that were
+ * wiped by the second tuya_mqtt_init() call during tuya_iot_start().
+ */
+OPERATE_RET mqc_app_reregister_all(void);
+
+/**
  * @brief Get current linakge for mqtt connection
  *
  * @param[in] linkage Current linkage
