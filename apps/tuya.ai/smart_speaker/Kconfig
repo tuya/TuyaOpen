@@ -1,0 +1,96 @@
+menu "configure app (smart_speaker)"
+
+config TUYA_PRODUCT_ID
+    string "product ID of project"
+    default "dqvmpbcptlgw8hcm"
+
+config SPEAKER_DP_VOLUME
+    int "Volume DP ID"
+    default 203
+    range 1 255
+
+config SPEAKER_DP_MIC
+    int "Microphone switch DP ID"
+    default 204
+    range 1 255
+
+config SPEAKER_DP_PLAY_SWITCH
+    int "Play switch DP ID"
+    default 205
+    range 1 255
+
+config SPEAKER_DP_CTRL_GROUP
+    int "Control group DP ID (DND/CTalk/Tmode)"
+    default 208
+    range 1 255
+
+config SPEAKER_DP_RING
+    int "Ringtone trigger DP ID"
+    default 207
+    range 1 255
+
+config SPEAKER_DP_QUIT
+    int "Quit dialog DP ID"
+    default 4
+    range 1 255
+
+config SPEAKER_DP_BT
+    int "BT enable DP ID"
+    default 206
+    range 1 255
+
+config SPEAKER_DP_BT_SWITCH
+    int "BT switch DP ID"
+    default 5
+    range 1 255
+
+config SPEAKER_DP_BT_VISIBLE
+    int "BT discoverable DP ID"
+    default 6
+    range 1 255
+
+config SPEAKER_DEFAULT_VOLUME
+    int "Default volume (0-100)"
+    default 70
+    range 0 100
+
+config SPEAKER_VOLUME_PROMPT
+    bool "Play short WAV on volume change"
+    default y if PLATFORM_LINUX
+    default n
+    help
+      Plays embedded volume-change WAV (volume-change prompt WAV) after DP203/CLI volume set.
+      Respects DND and skips when FG (TTS/prompt) is playing.
+
+config SPEAKER_BT_CLASSIC
+    bool "Classic Bluetooth music (A2DP scaffold)"
+    default n
+    help
+      Enables DP206/5/6 handlers and speaker_bt_player hooks. Requires full A2DP/Opus port
+      (see speaker_bt_player.c) for actual streaming; default is wiring + stubs only.
+
+
+config SPEAKER_HOST_MANUAL_VAD
+    bool "Host: inject VAD START after listen (no hardware VAD)"
+    default n
+    depends on PLATFORM_LINUX
+    help
+      x86/Linux host builds have no hardware VAD. When enabled, speaker_hw
+      injects VAD START after voice_app_start_dialog() (same as CLI 'r').
+      Disable on T5 — use platform AUTO VAD after oneshot is armed.
+
+config SPEAKER_CLOUD_BACKEND_LOOPBACK
+    bool "Use loopback cloud backend (local ASR/NLG/TTS, no cloud)"
+    default n
+    depends on PLATFORM_LINUX
+    help
+      Register cloud_cap_comm loopback backend instead of production MQTT.
+      Use for x86/Linux self-tests (test/*.sh) without cloud credentials.
+      Leave disabled for production builds and T5 hardware.
+
+config APP_NEED_AI_COMPONENTS
+    bool
+    default y
+    select ENABLE_AI_COMPONENTS
+
+endmenu
