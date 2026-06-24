@@ -18,6 +18,7 @@
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 #include "ai_audio_player.h"
 #include "skill_music_story.h"
+#include "ai_skill_play_hook.h"
 #endif
 
 #if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
@@ -81,7 +82,9 @@ static OPERATE_RET __ai_skills_process(cJSON *root, bool eof)
         AI_AUDIO_MUSIC_T *music = NULL;
         if (ai_skill_parse_music(root, &music) == OPRT_OK) {
             ai_skill_parse_music_dump(music);
+            if (ai_skill_play_hook(music) == OPRT_NOT_SUPPORTED) {
             ai_audio_play_music(music);
+            }
             ai_skill_parse_music_free(music);
         }
     } else if (strcmp(code, "PlayControl") == 0) {

@@ -22,25 +22,48 @@
 #include "ai_user_event.h"
 #include "ai_skill.h"
 #include "skill_music_story.h"
+#include "ai_skill_play_hook.h"
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static void _skill_route_play_music(AI_AUDIO_MUSIC_T *music)
+{
+    OPERATE_RET rt = ai_skill_play_hook(music);
+
+    if (rt == OPRT_OK) {
+        return;
+    }
+    if (rt == OPRT_NOT_SUPPORTED) {
+        ai_audio_play_music(music);
+    }
+}
+
+/**
+ * @brief Try platform hook; on NOT_SUPPORTED notify default play-control event.
+ * @param[in] music Parsed play-control payload
+ * @param[in] evt Fallback user event when hook is not overridden
+ * @return none
+ */
+static void _skill_route_play_ctl(AI_AUDIO_MUSIC_T *music, AI_USER_EVT_TYPE_E evt)
+{
+    if (ai_skill_play_hook(music) == OPRT_NOT_SUPPORTED) {
+        ai_user_event_notify(evt, NULL);
+    }
+}
+
 static bool _json_is_string(const cJSON *item)
 {
     return item && cJSON_IsString(item) && item->valuestring != NULL;
@@ -205,12 +228,12 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
     TUYA_CHECK_NULL_RETURN(json, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(music, OPRT_INVALID_PARM);
 
-    int audio_num = 0;
-    cJSON *skill_general = cJSON_GetObjectItem(json, "general");
-    cJSON *skill_custom = cJSON_GetObjectItem(json, "custom");
-    cJSON *action = NULL, *skill_data = NULL, *audios = NULL, *node = NULL;
-    const char *action_str = NULL;
-    AI_MUSIC_SRC_T *music_src;
+    int               audio_num     = 0;
+    cJSON            *skill_general = cJSON_GetObjectItem(json, "general");
+    cJSON            *skill_custom  = cJSON_GetObjectItem(json, "custom");
+    cJSON            *action = NULL, *skill_data = NULL, *audios = NULL, *node = NULL;
+    const char       *action_str = NULL;
+    AI_MUSIC_SRC_T   *music_src;
     AI_AUDIO_MUSIC_T *music_ptr;
 
     if (skill_custom && cJSON_IsObject(skill_custom) && (action = cJSON_GetObjectItem(skill_custom, "action"))) {
@@ -223,7 +246,7 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
     }
 
     if (action == NULL && skill_general && cJSON_IsObject(skill_general)) {
-        action = cJSON_GetObjectItem(skill_general, "action");
+        action     = cJSON_GetObjectItem(skill_general, "action");
         skill_data = cJSON_GetObjectItem(skill_general, "data");
         if (skill_data && cJSON_IsObject(skill_data)) {
             if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL && cJSON_IsArray(audios)) {
@@ -275,7 +298,7 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
         int i = 0;
         for (i = 0; i < music_ptr->src_cnt; i++) {
             music_src = &music_ptr->src_array[i];
-            node = cJSON_GetArrayItem(audios, i);
+            node      = cJSON_GetArrayItem(audios, i);
             if (_parse_music_item(i, node, music_src) != OPRT_OK) {
                 PR_ERR("parse audio %d fail.", i);
                 ai_skill_parse_music_free(music_ptr);
@@ -300,8 +323,8 @@ void ai_skill_parse_music_free(AI_AUDIO_MUSIC_T *music)
         return;
     }
 
-    if(music->src_array) {
-        for(int i = 0; i < music->src_cnt; i++) {
+    if (music->src_array) {
+        for (int i = 0; i < music->src_cnt; i++) {
             _music_src_free(&music->src_array[i]);
         }
 
@@ -323,11 +346,10 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
         return;
     }
 
-    int i = 0;
+    int             i         = 0;
     AI_MUSIC_SRC_T *media_src = NULL;
 
-    PR_INFO("media info: has tts:%d, action:%s, count:%d", 
-        music->has_tts, music->action, music->src_cnt);
+    PR_INFO("media info: has tts:%d, action:%s, count:%d", music->has_tts, music->action, music->src_cnt);
 
     for (i = 0; i < music->src_cnt; i++) {
         media_src = &music->src_array[i];
@@ -338,8 +360,8 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
         PR_INFO("  format:%d", media_src->format);
         PR_INFO("  artist:%s", media_src->artist ? media_src->artist : "NULL");
         PR_INFO("  song_name:%s", media_src->song_name ? media_src->song_name : "NULL");
-        PR_INFO("  audio_id:%s", media_src->audio_id  ? media_src->audio_id : "NULL");
-        PR_INFO("  img_url:%s\n", media_src->img_url  ? media_src->img_url : "NULL");
+        PR_INFO("  audio_id:%s", media_src->audio_id ? media_src->audio_id : "NULL");
+        PR_INFO("  img_url:%s\n", media_src->img_url ? media_src->img_url : "NULL");
     }
 }
 
@@ -362,7 +384,7 @@ static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_A
     }
 
     cJSON *action = cJSON_GetObjectItem(skill_data, "action");
-    action_str = _json_get_string(action);
+    action_str    = _json_get_string(action);
     if (action_str == NULL || action_str[0] == '\0') {
         return OPRT_CJSON_GET_ERR;
     }
@@ -412,25 +434,29 @@ OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music)
 void ai_skill_playcontrol_music(AI_AUDIO_MUSIC_T *music)
 {
     if (strcmp(music->action, "play") == 0 && music->src_cnt > 0) {
-        ai_audio_play_music(music);
+        _skill_route_play_music(music);
     } else if (strcmp(music->action, "resume") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_RESUME, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_RESUME);
     } else if (strcmp(music->action, "stop") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_PAUSE, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_PAUSE);
     } else if (strcmp(music->action, "replay") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_REPLAY, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_REPLAY);
     } else if (strcmp(music->action, "prev") == 0 || strcmp(music->action, "next") == 0) {
         if (music->src_cnt > 0) {
-            ai_audio_play_music(music);
+            _skill_route_play_music(music);
         } else {
-
+            (void)ai_skill_play_hook(music);
+            /* your_chat_bot: ai_chat_main handles NEXT/PREV via ai_user_event */
         }
     } else if (strcmp(music->action, "single_loop") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_SINGLE_LOOP, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_SINGLE_LOOP);
     } else if (strcmp(music->action, "sequential_loop") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_SEQUENTIAL_LOOP, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_SEQUENTIAL_LOOP);
     } else if (strcmp(music->action, "no_loop") == 0) {
-        ai_user_event_notify(AI_USER_EVT_PLAY_CTL_SEQUENTIAL, NULL);
+        _skill_route_play_ctl(music, AI_USER_EVT_PLAY_CTL_SEQUENTIAL);
+    } else if (strcmp(music->action, "control_device") == 0) {
+        /* Volume and other device controls are applied via DP (e.g. DP 203). */
+        PR_DEBUG("ai_skill: control_device ¡ª handled via device DP");
     } else {
         PR_WARN("unknown action:%s", music->action);
     }
