@@ -32,6 +32,20 @@ endif()
 if(DEFINED ENV{OPEN_SDK_PYTHON} AND NOT "$ENV{OPEN_SDK_PYTHON}" STREQUAL "")
     set(PYTHON_CMD $ENV{OPEN_SDK_PYTHON})
 
+    # Generate the header at CONFIGURE time so it exists before ANY consumer
+    # compiles. The build-time custom target below only orders the `assets`
+    # library itself; other components (ai_mode/ai_main/ai_ui/ai_picture) include
+    # lang_config.h without depending on generate_lang_config, so in a parallel
+    # build they could otherwise compile before it is written ("No such file").
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
+                ${PYTHON_CMD} ${LANG_SCRIPT} --input ${LANG_JSON} --output ${LANG_HEADER}
+        RESULT_VARIABLE _lang_gen_rc
+    )
+    if(NOT _lang_gen_rc EQUAL 0)
+        message(WARNING "lang_config.h configure-time generation failed (rc=${_lang_gen_rc})")
+    endif()
+
     add_custom_command(
         OUTPUT ${LANG_HEADER}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1
