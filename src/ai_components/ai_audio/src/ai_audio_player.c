@@ -114,7 +114,9 @@ OPERATE_RET __player_local_alert(AI_AUDIO_ALERT_TYPE_E type)
         audio_size = sizeof(LOCAL_ALERT_SRC_WAKEUP);
     break;
     default:
-        PR_NOTICE("audio player -> local alert type: %d not support", type);
+        PR_NOTICE("audio player -> local alert type: %d not support, fallback to dingdong", type);
+        audio_data = (uint8_t *)media_src_dingdong;
+        audio_size = sizeof(media_src_dingdong);
         break;
     }
 
@@ -175,8 +177,7 @@ static OPERATE_RET __player_event(void *data)
         if(event->handle == __s_tone_player && __s_tts_play_flag) {
             __s_tts_play_flag = FALSE;
         }
-    }
-    else if (event->state == AI_PLAYER_PLAYING) {
+    } else if (event->state == AI_PLAYER_PLAYING) {
         PR_DEBUG("audio player -> playing start event");
         if (event->handle == __s_tone_player && AI_PLAYER_PLAYING == tuya_ai_player_get_state(__s_music_player)) {
             /* TTS started while music is playing: duck music digital gain */
@@ -443,8 +444,7 @@ OPERATE_RET ai_audio_player_stop(AI_AUDIO_PLAYER_TYPE_E type)
 
     PR_DEBUG("audio player -> stop all player");
 
-    switch (type)
-    {
+    switch (type) {
     case AI_AUDIO_PLAYER_FG:
         TUYA_CALL_ERR_LOG(tuya_ai_playlist_clear(__s_tone_playlist));
         TUYA_CALL_ERR_LOG(tuya_ai_player_stop(__s_tone_player));

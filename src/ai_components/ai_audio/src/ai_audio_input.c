@@ -41,6 +41,7 @@ typedef struct {
 
     uint16_t                 slice_size;
     AI_AUDIO_OUTPUT          output_cb;
+    AI_AUDIO_MIC_TAP_CB mic_tap_cb;
 }AI_AUDIO_RECODER_T;
 
 /***********************************************************
@@ -124,6 +125,10 @@ static void __audio_frame_put(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_STATUS_E 
         tuya_ring_buff_write(sg_recorder->ringbuf, data, (uint16_t)data_len);
         tal_mutex_unlock(sg_recorder->mutex);
     }    
+
+    if (sg_recorder->mic_tap_cb != NULL) {
+        sg_recorder->mic_tap_cb(data, data_len);
+    }
 
     AI_NOTIFY_MIC_DATA_T mic_data;
     mic_data.data = data;
@@ -217,12 +222,15 @@ static AI_AUDIO_RECODER_T *__audio_recorder_create(AI_AUDIO_INPUT_CFG_T *cfg, TD
     memset(sg_recorder, 0, sizeof(AI_AUDIO_RECODER_T));
  
     sg_recorder->output_cb      = cfg->output_cb;
+    sg_recorder->mic_tap_cb     = cfg->mic_tap_cb;
     sg_recorder->wakeup_flag    = FALSE;
     sg_recorder->vad_task       = NULL;
     sg_recorder->vad_mode       = cfg->vad_mode;
 
     uint32_t audio_1ms_size     = audio_info->sample_rate * audio_info->sample_bits * audio_info->sample_ch_num / 8 / 1000;
-    sg_recorder->vad_size       = (cfg->vad_active_ms + 300) * audio_1ms_size + 1;
+    /* +600ms pre-roll lookback (was +300): cache more audio before the VAD-START
+     * edge so speech onset isn't clipped. Buffer is in PSRAM. */
+    sg_recorder->vad_size       = (cfg->vad_active_ms + 600) * audio_1ms_size + 1;
     sg_recorder->slice_size     = cfg->slice_ms * audio_1ms_size;
 
     uint32_t rb_size = sg_recorder->vad_size;
@@ -233,7 +241,8 @@ static AI_AUDIO_RECODER_T *__audio_recorder_create(AI_AUDIO_INPUT_CFG_T *cfg, TD
 #endif
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_recorder->mutex), __error);
     PR_DEBUG("recorder vad mode %d", cfg->vad_mode);
-    PR_DEBUG("recorder total ms %d, slice ms %d, vad active %d ms, vad off timeout %d", rb_size, cfg->slice_ms, cfg->vad_active_ms, cfg->vad_off_ms);
+    PR_DEBUG("recorder total ms %d, slice ms %d, vad active %d ms, vad off timeout %d", rb_size, cfg->slice_ms,
+             cfg->vad_active_ms, cfg->vad_off_ms);
 
     return sg_recorder;
 
@@ -327,7 +336,8 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &audio_info));
 
-    PR_DEBUG("sample %d, databits %d, channel %d", audio_info.sample_rate, audio_info.sample_bits, audio_info.sample_ch_num);
+    PR_DEBUG("sample %d, databits %d, channel %d", audio_info.sample_rate, audio_info.sample_bits,
+             audio_info.sample_ch_num);
 
     TUYA_CHECK_NULL_RETURN(sg_recorder = __audio_recorder_create(cfg, &audio_info), OPRT_MALLOC_FAILED);
 
@@ -380,7 +390,7 @@ OPERATE_RET ai_audio_input_reset(void)
     tal_mutex_lock(sg_recorder->mutex);
     tuya_ring_buff_reset(sg_recorder->ringbuf);
     tal_mutex_unlock(sg_recorder->mutex);
-    //sg_recorder->vad_flag = AI_AUDIO_VAD_STOP;
+    sg_recorder->vad_flag = AI_AUDIO_VAD_STOP;
 
     if (AI_AUDIO_VAD_AUTO == sg_recorder->vad_mode) {
         PR_NOTICE("audio input -> vad stop!");
@@ -406,7 +416,8 @@ OPERATE_RET ai_audio_input_wakeup_set(bool is_wakeup)
     /* Only manual mode support set VAD flag */
     /* Auto mode will update by audio VAD detect */
     if (sg_recorder->wakeup_flag != is_wakeup) {
-        PR_NOTICE("audio input -> mode is %d, wakeup set to %d, vad flag is %d!", sg_recorder->vad_mode, is_wakeup, sg_recorder->vad_flag);
+        PR_NOTICE("audio input -> mode is %d, wakeup set to %d, vad flag is %d!", sg_recorder->vad_mode, is_wakeup,
+                  sg_recorder->vad_flag);
         sg_recorder->wakeup_flag = is_wakeup;
         if (sg_recorder->vad_mode == AI_AUDIO_VAD_MANUAL) {
             sg_recorder->vad_flag = is_wakeup ? AI_AUDIO_VAD_START : AI_AUDIO_VAD_STOP;

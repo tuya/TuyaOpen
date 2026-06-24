@@ -38,6 +38,9 @@ typedef enum {
 
 typedef int (*AI_AUDIO_OUTPUT)(uint8_t *data, uint16_t datalen);
 
+/** Optional always-on mic tap (every captured frame, not VAD-gated). */
+typedef void (*AI_AUDIO_MIC_TAP_CB)(uint8_t *data, uint32_t data_len);
+
 typedef struct  {
     /* VAD cache = vad_active_ms + vad_off_ms */
     AI_AUDIO_VAD_MODE_E     vad_mode;
@@ -47,6 +50,8 @@ typedef struct  {
 
     /* Microphone data processing callback */
     AI_AUDIO_OUTPUT         output_cb;
+    /* Optional: raw mic tap before VAD gating (e.g. KWS on no-AEC boards). */
+    AI_AUDIO_MIC_TAP_CB mic_tap_cb;
 } AI_AUDIO_INPUT_CFG_T;
 
 /***********************************************************

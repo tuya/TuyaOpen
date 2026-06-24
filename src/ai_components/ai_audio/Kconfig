@@ -29,12 +29,21 @@ if (ENABLE_COMP_AI_AUDIO)
 
     config AI_PLAYER_ALERT_SOURCE_LOCAL
         bool "use local alert source"
+        help
+          Use locally embedded MP3 resources for alert sounds.
+          Resources are compiled into the binary.
 
     config AI_PLAYER_ALERT_SOURCE_CLOUD
         bool "use cloud alert source"
+        select AI_AGENT_ENABLE_CLOUD_ALERT
+        help
+          Use cloud-based alert sounds. Falls back to local dingdong
+          sound when cloud is unavailable.
 
     config AI_PLAYER_ALERT_SOURCE_CUSTOM
         bool "use custom alert source"
+        help
+          Use a product-registered callback for alert sounds.
 
     endchoice
 
