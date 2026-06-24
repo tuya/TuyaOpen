@@ -32,9 +32,17 @@
 #include "tal_sw_timer.h"
 
 #ifndef AI_INPUT_STACK_SIZE
+/* Fallback only; the real value comes from CONFIG_AI_INPUT_STACK_SIZE (Kconfig).
+ * NOTE: the software (non-IPC) opus/speex encoders run on this thread and
+ * libopus needs several KB of stack, so opus builds must raise
+ * CONFIG_AI_INPUT_STACK_SIZE in the app config (PSRAM-backed, so it's cheap). */
 #define AI_INPUT_STACK_SIZE (4608)
 #endif
 #ifndef AI_INPUT_RINGBUF_SIZE
+/* Fallback only; the real value comes from CONFIG_AI_INPUT_RINGBUF_SIZE (Kconfig).
+ * This buffer holds raw PCM (opus encoding happens later in upload_stream) and
+ * must cover the session-start window (~1s @16kHz/16bit/mono = ~32KB) so the
+ * buffered VAD pre-roll + utterance head survives until state==PROC drains it. */
 #define AI_INPUT_RINGBUF_SIZE (20*1024)
 #endif
 #ifndef AI_INPUT_BUF_SIZE
@@ -132,7 +140,12 @@ STATIC TUYA_RINGBUFF_T __ai_crt_ringbuf(CHAR_T *scode)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
-    if (sctx && sctx->ringbuf) {
+    if (sctx == NULL) {
+        // session not started for this scode; drop audio instead of writing
+        // through &sctx->ringbuf (a near-NULL pointer) inside ring_buff_create
+        return NULL;
+    }
+    if (sctx->ringbuf) {
         return sctx->ringbuf;
     }
 
@@ -173,9 +186,6 @@ STATIC VOID __ai_free_sctx(VOID)
 STATIC OPERATE_RET __ai_ringbuf_write(AI_RINGBUF_HEAD_T *head, BYTE_T *data)
 {
     UINT_T rt = 0;
-    // if ((ai_input_ctx.state != AI_INPUT_PROC) && (ai_input_ctx.state != AI_INPUT_STOPPING)) {
-    //     return OPRT_OK;
-    // }
     if (ai_input_ctx.mute_audio) {
         return OPRT_OK;
     }
@@ -186,6 +196,23 @@ STATIC OPERATE_RET __ai_ringbuf_write(AI_RINGBUF_HEAD_T *head, BYTE_T *data)
     if (head->len > AI_INPUT_BUF_SIZE) {
         PR_ERR("input data len is too long %d, type:%d", head->len, head->type);
         return OPRT_INVALID_PARM;
+    }
+
+    // Buffer audio while the session is starting (START/START_LAZY), actively
+    // streaming (PROC), or draining (STOPPING). Buffering during the start
+    // window is essential: tuya_ai_agent_start() does a network round-trip to
+    // create the cloud session, and that latency (~1s) overlaps with the user
+    // already speaking. Audio that arrives in that window (VAD pre-roll + the
+    // head of the utterance) is parked in the session ring buffer and drained
+    // the moment the state reaches PROC -- otherwise the head gets clipped
+    // ("讲一个故事" -> "的故事"). In other states (no session / IDLE between
+    // turns) the ring buffer is not consumed, so writing would just accumulate
+    // stale audio. This also keeps us off the NULL-sctx path in __ai_crt_ringbuf.
+    AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(head->scode);
+    if (sctx == NULL ||
+        (sctx->state != AI_INPUT_PROC && sctx->state != AI_INPUT_STOPPING &&
+         sctx->state != AI_INPUT_START && sctx->state != AI_INPUT_START_LAZY)) {
+        return OPRT_OK;
     }
 
     TUYA_RINGBUFF_T ringbuf = __ai_crt_ringbuf(head->scode);
@@ -369,6 +396,13 @@ VOID tuya_ai_input_start_s(CHAR_T *scode, BOOL_T force)
     }
 
     sctx->queue_sync = FALSE;
+    /* Mark the session "starting" right now (before the input thread dequeues
+     * the request and runs tuya_ai_agent_start). This opens the __ai_ringbuf_write
+     * gate immediately so VAD pre-roll and the head of the utterance are buffered
+     * during the start window instead of dropped. Drained as soon as state==PROC. */
+    tal_mutex_lock(ai_input_ctx.mutex);
+    sctx->state = state;
+    tal_mutex_unlock(ai_input_ctx.mutex);
     rt = tal_queue_post(sctx->queue, &state, 0);
     if (OPRT_OK != rt) {
         PR_ERR("queue post err, rt:%d", rt);
@@ -472,6 +506,11 @@ STATIC VOID __ai_input_thread(VOID* arg)
                     PR_DEBUG("start queue sync");
                     tal_mutex_lock(ai_input_ctx.mutex);
                     if (ai_input_ctx.sctx[idx] != NULL) {
+                        /* start failed -> discard audio buffered during the start
+                         * window so it can't leak into the next turn */
+                        if (new_state == AI_INPUT_IDLE && ai_input_ctx.sctx[idx]->ringbuf) {
+                            tuya_ring_buff_reset(ai_input_ctx.sctx[idx]->ringbuf);
+                        }
                         ai_input_ctx.sctx[idx]->state = new_state;
                         ai_input_ctx.sctx[idx]->queue_sync = TRUE;
                     }
@@ -493,6 +532,11 @@ STATIC VOID __ai_input_thread(VOID* arg)
                     PR_DEBUG("start lazy queue sync");
                     tal_mutex_lock(ai_input_ctx.mutex);
                     if (ai_input_ctx.sctx[idx] != NULL) {
+                        /* start failed -> discard audio buffered during the start
+                         * window so it can't leak into the next turn */
+                        if (new_state == AI_INPUT_IDLE && ai_input_ctx.sctx[idx]->ringbuf) {
+                            tuya_ring_buff_reset(ai_input_ctx.sctx[idx]->ringbuf);
+                        }
                         ai_input_ctx.sctx[idx]->state = new_state;
                         ai_input_ctx.sctx[idx]->queue_sync = TRUE;
                     }
