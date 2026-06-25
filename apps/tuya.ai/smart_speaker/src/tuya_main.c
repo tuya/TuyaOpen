@@ -45,6 +45,7 @@
 #include "speaker_config.h"
 #include "speaker_dp.h"
 #include "reset_netcfg.h"
+#include "app_ir_service.h"
 
 #include "ai_chat_main.h"
 
@@ -188,6 +189,8 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
                 speaker_volume_upload();
             }
             speaker_event_mqtt_connected(client);
+            /* select cloud IR code library once online */
+            app_ir_service_on_mqtt_connected();
         }
         break;
 
@@ -228,6 +231,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 
         /* Route speaker DPs (203+) to speaker dispatch */
         speaker_dp_process(dpobj);
+
+        /* Route IR/RF system DP (201) to the IR cloud service */
+        app_ir_dp_process(dpobj);
 
         /* Report back to cloud */
         tuya_iot_dp_obj_report(client, dpobj->devid, dpobj->dps, dpobj->dpscnt, 0);
@@ -351,6 +357,12 @@ void user_main(void)
     ret = app_smart_speaker_init();
     if (ret != OPRT_OK) {
         PR_ERR("app_smart_speaker_init failed");
+    }
+
+    /* IR cloud service (no-op unless CONFIG_ENABLE_TBL_IR_CLOUD_SERVICE=y) */
+    ret = app_ir_service_init();
+    if (ret != OPRT_OK) {
+        PR_ERR("app_ir_service_init failed");
     }
 
 #if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)

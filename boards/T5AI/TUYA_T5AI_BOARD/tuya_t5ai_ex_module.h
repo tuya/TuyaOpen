@@ -26,6 +26,10 @@
 #include "tdd_printer_dp48.h"
 #endif
 
+#if defined (TUYA_T5AI_BOARD_IR) && (TUYA_T5AI_BOARD_IR == 1)
+#include "tdd_ir_driver.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -112,6 +116,15 @@ extern "C" {
 #if defined (TUYA_T5AI_BOARD_PRINTER_DP48) && (TUYA_T5AI_BOARD_PRINTER_DP48 ==1)
 #define BOARD_PRINTER_UART_PORT      TUYA_UART_NUM_0
 #define BOARD_PRINTER_UART_BAUDRATE  9600
+#endif
+
+#if defined (TUYA_T5AI_BOARD_IR) && (TUYA_T5AI_BOARD_IR == 1)
+/* IR transceiver pins/timer come from Kconfig (menuconfig -> TUYA_T5AI_BOARD_IR_*) */
+#define BOARD_IR_SEND_PIN            TUYA_T5AI_BOARD_IR_SEND_PIN
+#define BOARD_IR_RECV_PIN            TUYA_T5AI_BOARD_IR_RECV_PIN
+#define BOARD_IR_SEND_TIMER          TUYA_T5AI_BOARD_IR_SEND_TIMER
+#define BOARD_IR_RECV_TIMER          TUYA_T5AI_BOARD_IR_RECV_TIMER
+#define BOARD_IR_SEND_DUTY           TUYA_T5AI_BOARD_IR_SEND_DUTY
 #endif
 
 /***********************************************************

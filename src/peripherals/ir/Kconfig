@@ -1,3 +1,9 @@
 config ENABLE_IR
     bool "enable IR"
     default n
+
+if (ENABLE_IR)
+    config IR_NAME
+        string "the name of the IR device"
+        default "ir_dev"
+endif

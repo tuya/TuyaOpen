@@ -7,6 +7,7 @@
 #include "tal_api.h"
 
 #include "tuya_t5ai_ex_module.h"
+#include "board_com_api.h"
 
 /***********************************************************
 ************************macro define************************
@@ -253,6 +254,28 @@ static OPERATE_RET __board_register_printer(void)
 #endif
 
 
+/* ---- IR transceiver ---- */
+#if defined (TUYA_T5AI_BOARD_IR) && (TUYA_T5AI_BOARD_IR == 1)
+static OPERATE_RET __board_register_ir(void)
+{
+    IR_DRV_CFG_T ir_cfg = {
+        .send_pin   = BOARD_IR_SEND_PIN,
+        .recv_pin   = BOARD_IR_RECV_PIN,
+        .send_timer = BOARD_IR_SEND_TIMER,
+        .recv_timer = BOARD_IR_RECV_TIMER,
+        .send_duty  = BOARD_IR_SEND_DUTY,
+    };
+
+    return tdd_ir_driver_register((char *)IR_NAME, IR_DRV_SINGLE_TIMER, ir_cfg);
+}
+#else
+static OPERATE_RET __board_register_ir(void)
+{
+    return OPRT_OK;
+}
+#endif
+
+
 OPERATE_RET board_register_ex_module(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -262,6 +285,8 @@ OPERATE_RET board_register_ex_module(void)
     TUYA_CALL_ERR_RETURN(__board_register_camera());
 
     TUYA_CALL_ERR_RETURN(__board_register_printer());
+
+    TUYA_CALL_ERR_RETURN(__board_register_ir());
 
     return rt;
 }

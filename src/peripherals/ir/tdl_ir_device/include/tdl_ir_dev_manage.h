@@ -74,6 +74,8 @@ typedef unsigned char IR_CMD_E;
 #define IR_CMD_RECV_CB_REGISTER     9
 #define IR_CMD_CODE_INTER_DELAY_SET 10 // Set the delay between continuous transmission of infrared code, unit: (uint32_t) us
 #define IR_CMD_RECV_TASK_STACK_SET  11 // Set the stack size of the infrared receive task
+#define IR_CMD_RECV_FILTER_ENABLE_SET 12 // Enable the infrared receive filter, which is used to filter out the noise of the infrared signal
+#define IR_CMD_INTERRUPT_RECV_STATUS 13 // ir study is blocked, study is interrupted first when quitting study (Post Receiving NULL Data Once)
 
 /***********************************************************
 ***********************typedef define***********************

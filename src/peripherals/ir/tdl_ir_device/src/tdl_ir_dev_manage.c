@@ -53,6 +53,11 @@
 #define IR_RECV_POST_TIMEOUT_MS (3*1000)
 #define IR_RECV_VALID_LEN_MIN   20
 
+/* receive filter thresholds (unit: us): drop too-short glitch pulses and
+ * invalid lead codes when the receive filter is enabled */
+#define IR_RECV_MIN_US          (100)
+#define IR_RECV_MIN_HEAD        (200)
+
 #define IR_DEVICE_NUM_MAX       5
 
 #ifndef QUEUE_WAIT_FOREVER
@@ -114,6 +119,8 @@ typedef struct ir_dev_node {
 
     /* ir device config params */
     IR_DEV_CFG_T            ir_dev_cfg;
+
+    BOOL_T                  is_recv_filter_enable;
 }IR_DEV_NODE_T;
 
 typedef struct {
@@ -575,6 +582,18 @@ static int __tdl_ir_recv_cb(IR_DRV_HANDLE_T drv_hdl, unsigned int raw_data, void
         }
 
     } else if (IR_STA_RECVING == dev_info->recv_status) {
+        if (TRUE == dev_info->is_recv_filter_enable) {
+            /* drop glitch pulses, and a too-short leading pulse, treating it as
+             * the end of this (noise) frame */
+            if ((raw_data < IR_RECV_MIN_US) ||
+                (0 == RING_BUFFER_LENGTH_GET(dev_info->recv_info.ring_buf) && raw_data < IR_RECV_MIN_HEAD)) {
+                dev_info->drv_intfs->status_notif(dev_info->ir_drv_hdl, IR_DRV_RECV_FINISH_STATE, NULL);
+                /* clear ring buffer and go back to idle */
+                dev_info->recv_info.ring_buf->read_idx = dev_info->recv_info.ring_buf->write_idx;
+                dev_info->recv_status = IR_STA_RECV_IDLE;
+                return 0;
+            }
+        }
         __tdl_ir_ring_buf_write_word(dev_info->recv_info.ring_buf, raw_data);
     }
 
@@ -1337,7 +1356,13 @@ OPERATE_RET tdl_ir_dev_recv(IR_HANDLE_T handle, IR_DATA_U **ir_data, uint32_t ti
         return OPRT_NOT_SUPPORTED;
     }
 
-    return tal_queue_fetch(ir_device->recv_info.recv_queue_hdl, ir_data, timeout_ms);
+    OPERATE_RET op_ret = tal_queue_fetch(ir_device->recv_info.recv_queue_hdl, ir_data, timeout_ms);
+    if (OPRT_OK == op_ret && NULL == *ir_data) {
+        /* interrupted by IR_CMD_INTERRUPT_RECV_STATUS */
+        return OPRT_COM_ERROR;
+    }
+
+    return op_ret;
 }
 
 /**
@@ -1458,6 +1483,26 @@ OPERATE_RET tdl_ir_config(IR_HANDLE_T handle, IR_CMD_E cmd, void *params)
             if (NULL == params) { return OPRT_INVALID_PARM; }
             sg_list_head.stack_size = *(uint32_t *)params;
             PR_NOTICE("Set ir recv task stack size: %d", sg_list_head.stack_size);
+        break;
+
+        case IR_CMD_RECV_FILTER_ENABLE_SET: {
+            if (NULL == params) { return OPRT_INVALID_PARM; }
+            ir_device->is_recv_filter_enable = *(BOOL_T *)params;
+            if (TRUE == ir_device->is_recv_filter_enable) {
+                PR_NOTICE("ir recv filter enable");
+            } else {
+                PR_NOTICE("ir recv filter disable");
+            }
+        }
+        break;
+
+        case IR_CMD_INTERRUPT_RECV_STATUS: {
+            /* post an empty(NULL) data to unblock a pending tdl_ir_dev_recv() */
+            if (NULL != ir_device->recv_info.recv_queue_hdl) {
+                IR_DATA_U *recv_data = NULL;
+                op_ret = tal_queue_post(ir_device->recv_info.recv_queue_hdl, &recv_data, 500);
+            }
+        }
         break;
 
         default: break;
