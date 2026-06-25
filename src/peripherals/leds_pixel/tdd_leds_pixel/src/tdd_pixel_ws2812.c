@@ -52,7 +52,7 @@ static PIXEL_DRIVER_CONFIG_T driver_info;
  * @param[out]: *handle  -> Device handle
  * @return: success -> 0  fail -> else
  */
-OPERATE_RET tdd_2812_driver_open(OUT DRIVER_HANDLE_T *handle, unsigned short pixel_num)
+OPERATE_RET tdd_2812_driver_open(DRIVER_HANDLE_T *handle, unsigned short pixel_num)
 {
     OPERATE_RET op_ret = OPRT_OK;
     TUYA_SPI_BASE_CFG_T spi_cfg = {0};
