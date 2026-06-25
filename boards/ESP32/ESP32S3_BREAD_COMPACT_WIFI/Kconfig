@@ -10,6 +10,7 @@ config BOARD_CONFIG
     bool
     default y
     select ENABLE_AUDIO
+    select ENABLE_EXT_RAM
     select ENABLE_DISPLAY
     select PLATFORM_FLASHSIZE_16M
     select ENABLE_AUDIO_CODECS
