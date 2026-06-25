@@ -72,6 +72,7 @@ typedef struct {
 
     int    log_buf_len;
     BOOL_T ms_level;
+    BOOL_T enabled;
     char  *log_buf;
 } LOG_MANAGE, *P_LOG_MANAGE;
 
@@ -134,6 +135,7 @@ OPERATE_RET tal_log_init(const TAL_LOG_LEVEL_E level, const int buf_len, const T
         INIT_LIST_HEAD(&(tmp_log_mng->log_list));
         tmp_log_mng->curLogLevel = level;
         tmp_log_mng->ms_level    = FALSE;
+        tmp_log_mng->enabled     = TRUE;
         pLogManage               = tmp_log_mng;
 
         // set default log style
@@ -442,6 +444,9 @@ OPERATE_RET PrintLogV(LOG_LEVEL logLevel, char *pFile, uint32_t line, const char
     if (!pLogManage) {
         return OPRT_INVALID_PARM;
     }
+    if (!pLogManage->enabled) {
+        return OPRT_OK;
+    }
     if (logLevel < LOG_LEVEL_MIN || logLevel > LOG_LEVEL_MAX) {
         return OPRT_INVALID_PARM;
     }
@@ -643,6 +648,9 @@ OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
     if (NULL == pLogManage) {
         return OPRT_INVALID_PARM;
     }
+    if (!pLogManage->enabled) {
+        return OPRT_OK;
+    }
     if (NULL == pFmt) {
         return OPRT_INVALID_PARM;
     }
@@ -716,11 +724,40 @@ OPERATE_RET tal_log_vprint_raw(const char *pFmt, va_list ap)
     if (NULL == pLogManage) {
         return OPRT_INVALID_PARM;
     }
+    if (!pLogManage->enabled) {
+        return OPRT_OK;
+    }
     OPERATE_RET opRet = 0;
     tal_mutex_lock(pLogManage->mutex);
     opRet = __PrintLogVRaw(pFmt, ap);
     tal_mutex_unlock(pLogManage->mutex);
     return opRet;
+}
+
+/**
+ * @brief Enable or disable all log output globally.
+ *
+ * @param enable TRUE to enable logging, FALSE to suppress all output.
+ */
+void tal_log_enable_set(BOOL_T enable)
+{
+    if (!pLogManage) {
+        return;
+    }
+    pLogManage->enabled = enable;
+}
+
+/**
+ * @brief Query whether log output is currently enabled.
+ *
+ * @return TRUE if logging is enabled, FALSE if suppressed.
+ */
+BOOL_T tal_log_is_enabled(void)
+{
+    if (!pLogManage) {
+        return FALSE;
+    }
+    return pLogManage->enabled;
 }
 
 /**

@@ -28,16 +28,20 @@
  */
 
 /*============================ INCLUDES ======================================*/
+#include "tal_system.h"
 #include "tuya_cloud_types.h"
 #include "tuya_iot.h"
 #include "tal_log.h"
 #include "tal_cli.h"
 #include "tal_kv.h"
+#include "tal_wifi.h"
+#include "cJSON.h"
 
 /*============================ MACROS ========================================*/
 #define KVKEY_TYOPEN_UUID    "UUID_TUYAOPEN"
 #define KVKEY_TYOPEN_AUTHKEY "AUTHKEY_TUYAOPEN"
 #define UUID_LENGTH          20
+#define UUID_LENGTH_16       16
 #define AUTHKEY_LENGTH       32
 
 /*============================ MACROFIED FUNCTIONS ===========================*/
@@ -84,8 +88,6 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey)
     if ((OPRT_OK == tal_kv_set(KVKEY_TYOPEN_UUID, (const uint8_t *)uuid, UUID_LENGTH)) &&
         (OPRT_OK == tal_kv_set(KVKEY_TYOPEN_AUTHKEY, (const uint8_t *)authkey, AUTHKEY_LENGTH))) {
         PR_INFO("Authorization write succeeds.");
-
-        tal_system_reset();
         return OPRT_OK;
     } else {
         PR_ERR("Authorization write failure.");
@@ -165,10 +167,14 @@ OPERATE_RET tuya_authorize_init(void)
 
 static void cli_authorize(int argc, char *argv[])
 {
+    OPERATE_RET rt = OPRT_OK;
+
     if (argc < 3) {
         tal_cli_echo("Use like: auth uuidxxxxxxxxxxxxxxxx keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         return;
     }
+
+    int storage = 0; // 0:kv, 1:otp
 
     char *uuid = argv[1];
     char *authkey = argv[2];
@@ -177,16 +183,116 @@ static void cli_authorize(int argc, char *argv[])
     PR_DEBUG("uuid:%s(%d)", uuid, uuid_len);
     PR_DEBUG("authkey:%s(%d)", authkey, authkey_len);
 
-    if ((UUID_LENGTH != uuid_len) || (AUTHKEY_LENGTH != authkey_len)) {
-        PR_ERR("uuid len not equal 20 or authkey len not equal 32.");
-        tal_cli_echo("uuid len not equal 20 or authkey len not equal 32.");
+    if ((uuid_len != UUID_LENGTH && uuid_len != UUID_LENGTH_16) || (authkey_len != AUTHKEY_LENGTH)) {
+        tal_cli_echo("uuid length must be 20/16, authkey length must be 32");
         return;
     }
 
-    if (OPRT_OK == tuya_authorize_write((const char *)uuid, (const char *)authkey)) {
-        tal_cli_echo("Authorization write succeeds.");
+    if (argc >= 4) {
+        char *storage_str = argv[3];
+        if (strcmp(storage_str, "0") == 0) {
+            storage = 0;
+        } else if (strcmp(storage_str, "1") == 0) {
+            storage = 1;
+        } else {
+            tal_cli_echo("storage must be 0 or 1");
+            return;
+        }
+        PR_DEBUG("storage:%d", storage);
+    }
+
+    char *p_mac = NULL;
+    char mac_buf[13] = {0};
+
+    if (argc >= 5) {
+        p_mac = argv[4];
+        if (strlen(p_mac) != 12) {
+            tal_cli_echo("mac length must be 12");
+            return;
+        }
+        snprintf(mac_buf, sizeof(mac_buf), "%s", p_mac);
+        PR_DEBUG("mac:%s", mac_buf);
     } else {
-        tal_cli_echo("Authorization write failure.");
+        NW_MAC_S mac_struct = {0};
+        rt = tal_wifi_get_mac(WF_STATION, &mac_struct);
+        if (rt != OPRT_OK) {
+            tal_cli_echo("Authorization write flailure: tal_wifi_get_mac failed");
+            return;
+        }
+        snprintf(mac_buf, sizeof(mac_buf), "%02X%02X%02X%02X%02X%02X",
+                 mac_struct.mac[0], mac_struct.mac[1], mac_struct.mac[2],
+                 mac_struct.mac[3], mac_struct.mac[4], mac_struct.mac[5]);
+        PR_DEBUG("tal get wifi mac:%s", mac_buf);
+    }
+
+    if (storage == 0) {
+        if (OPRT_OK == tuya_authorize_write((const char *)uuid, (const char *)authkey)) {
+            tal_cli_echo("Authorization write succeeds.\r\nPlease reset the system to ensure the new credentials are used.");
+        } else {
+            tal_cli_echo("Authorization write failure.");
+        }
+    } else {
+        // Only support T5 platform for OTP storage
+#if (defined(PLATFORM_T5) && (PLATFORM_T5 == 1))
+        // For t5 cmd: 
+        // auth uuidxxxxxxxxxxxxxxxx keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 1 001122334455
+        // auth $uuid $authkey $storage $mac
+        // $storage: 0:kv, 1:otp
+        // $mac: 001122334455
+
+        // T5 write uuid and authkey to opt
+        // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx","prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
+
+        // if is default mac, send warning
+        if (strcmp(mac_buf, "C8478C000018") == 0) { // "C8478C000018" is the default mac in T5 platform
+            tal_cli_echo("Warning: mac is default mac, please check your device mac.");
+        }
+
+        cJSON *root = cJSON_CreateObject();
+        if (root == NULL) {
+            tal_cli_echo("Authorization write flailure: cJSON_CreateObject failed");
+            return;
+        }
+        cJSON_AddStringToObject(root, "auzkey", authkey);
+        cJSON_AddStringToObject(root, "uuid", uuid);
+        cJSON_AddBoolToObject(root, "prod_test", false);
+        cJSON_AddStringToObject(root, "ap_ssid", "SmartLife");
+        cJSON_AddStringToObject(root, "mac", mac_buf);
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str == NULL) {
+            tal_cli_echo("Authorization write flailure: cJSON_PrintUnformatted failed");
+            cJSON_Delete(root);
+            return;
+        }
+
+        PR_DEBUG("json_str:%s", json_str);
+
+        // write to otp
+        extern int tal_otp_flash_write(uint8_t *data, uint16_t datalen);
+        rt = tal_otp_flash_write((uint8_t *)json_str, strlen(json_str));
+        if (rt != OPRT_OK) {
+            tal_cli_echo("Authorization write to OTP failure.");
+        }
+
+        extern int tal_otp_flash_read(uint8_t **data, uint16_t *datalen);
+        uint8_t *read_data = NULL;
+        uint16_t read_datalen = 0;
+        rt = tal_otp_flash_read(&read_data, &read_datalen);
+        if (rt != OPRT_OK || read_data == NULL) {
+            tal_cli_echo("Authorization read from OTP failure.");
+        } else {
+            PR_DEBUG("read_data:%s", read_data);
+            tal_free(read_data);
+            read_data = NULL;
+        }
+
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+#else
+        tal_cli_echo("OTP storage is only supported on T5 platform.");
+        return;
+#endif
     }
 }
 
