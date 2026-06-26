@@ -54,6 +54,10 @@ static void cli_authorize_read(int argc, char *argv[]);
 static void cli_authorize_reset(int argc, char *argv[]);
 static void cli_read_mac(int argc, char *argv[]);
 
+#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
+static void cli_auth_opt_lock(int argc, char *argv[]);
+#endif
+
 /*============================ LOCAL VARIABLES ===============================*/
 static char UUID_BUF[UUID_LENGTH + 1] = {0};
 static char AUTHKEY_BUF[AUTHKEY_LENGTH + 1] = {0};
@@ -78,6 +82,13 @@ static const cli_cmd_t s_cli_cmd[] = {
         .help = "Read device MAC address",
         .func = cli_read_mac,
     }
+#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
+    ,{
+        .name = "auth-opt-lock",
+        .help = "Lock authorization options",
+        .func = cli_auth_opt_lock,
+    }
+#endif
 };
 
 /*============================ IMPLEMENTATION ================================*/
@@ -304,6 +315,20 @@ static void cli_authorize(int argc, char *argv[])
 #endif
     }
 }
+
+#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
+static void cli_auth_opt_lock(int argc, char *argv[])
+{
+    extern int tal_otp_flash_lock(void);
+    int rt = tal_otp_flash_lock();
+    if (rt == OPRT_OK) {
+        tal_cli_echo("Authorization option lock succeeds.");
+    } else {
+        tal_cli_echo("Authorization option lock failure.");
+    }
+    return;
+}
+#endif
 
 static void cli_authorize_read(int argc, char *argv[])
 {
