@@ -55,7 +55,7 @@ static void cli_authorize_reset(int argc, char *argv[]);
 static void cli_read_mac(int argc, char *argv[]);
 
 #if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
-static void cli_auth_opt_lock(int argc, char *argv[]);
+static void cli_auth_otp_lock(int argc, char *argv[]);
 #endif
 
 /*============================ LOCAL VARIABLES ===============================*/
@@ -84,9 +84,9 @@ static const cli_cmd_t s_cli_cmd[] = {
     }
 #if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
     ,{
-        .name = "auth-opt-lock",
-        .help = "Lock authorization options",
-        .func = cli_auth_opt_lock,
+        .name = "auth-otp-lock",
+        .help = "Lock authorization information in OTP",
+        .func = cli_auth_otp_lock,
     }
 #endif
 };
@@ -260,7 +260,7 @@ static void cli_authorize(int argc, char *argv[])
         // $storage: 0:kv, 1:otp
         // $mac: 001122334455
 
-        // T5 write uuid and authkey to opt
+        // T5 write uuid and authkey to otp
         // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx","prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
 
         // if is default mac, send warning
@@ -317,14 +317,14 @@ static void cli_authorize(int argc, char *argv[])
 }
 
 #if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
-static void cli_auth_opt_lock(int argc, char *argv[])
+static void cli_auth_otp_lock(int argc, char *argv[])
 {
     extern int tal_otp_flash_lock(void);
     int rt = tal_otp_flash_lock();
     if (rt == OPRT_OK) {
-        tal_cli_echo("Authorization option lock succeeds.");
+        tal_cli_echo("Authorization otp lock succeeds.");
     } else {
-        tal_cli_echo("Authorization option lock failure.");
+        tal_cli_echo("Authorization otp lock failure.");
     }
     return;
 }
