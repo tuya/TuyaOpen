@@ -208,6 +208,7 @@ static void cli_authorize(int argc, char *argv[])
         PR_DEBUG("storage:%d", storage);
     }
 
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
     char *p_mac = NULL;
     char mac_buf[13] = {0};
 
@@ -231,6 +232,7 @@ static void cli_authorize(int argc, char *argv[])
                  mac_struct.mac[3], mac_struct.mac[4], mac_struct.mac[5]);
         PR_DEBUG("tal get wifi mac:%s", mac_buf);
     }
+#endif
 
     if (storage == 0) {
         if (OPRT_OK == tuya_authorize_write((const char *)uuid, (const char *)authkey)) {
