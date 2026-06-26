@@ -34,7 +34,9 @@
 #include "tal_log.h"
 #include "tal_cli.h"
 #include "tal_kv.h"
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tal_wifi.h"
+#endif
 #include "cJSON.h"
 
 /*============================ MACROS ========================================*/
