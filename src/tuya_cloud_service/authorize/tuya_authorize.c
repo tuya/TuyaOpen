@@ -152,6 +152,59 @@ OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license)
 }
 
 /**
+ * @brief Read authorization information with specified storage
+ *
+ * @param[out] license: uuid and authkey
+ * @param[in] storage: 0 for KV, 1 for OTP
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tuya_authorize_read_with_storage(tuya_iot_license_t *license, int storage)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (storage == 0) {
+        // KV read
+        char *uuid = NULL;
+        char *authkey = NULL;
+        size_t readlen = 0;
+
+        if ((OPRT_OK == tal_kv_get(KVKEY_TYOPEN_UUID, (uint8_t **)&uuid, &readlen)) &&
+            (OPRT_OK == tal_kv_get(KVKEY_TYOPEN_AUTHKEY, (uint8_t **)&authkey, &readlen))) {
+            memcpy(UUID_BUF, uuid, UUID_LENGTH);
+            UUID_BUF[UUID_LENGTH] = '\0';
+            memcpy(AUTHKEY_BUF, authkey, AUTHKEY_LENGTH);
+            AUTHKEY_BUF[AUTHKEY_LENGTH] = '\0';
+            license->uuid = UUID_BUF;
+            license->authkey = AUTHKEY_BUF;
+            tal_kv_free((uint8_t *)uuid);
+            tal_kv_free((uint8_t *)authkey);
+            PR_INFO("Authorization KV read succeeds.");
+            return OPRT_OK;
+        } else {
+            PR_ERR("Authorization KV read failure.");
+            return OPRT_COM_ERROR;
+        }
+    } else if (storage == 1) {
+        // OTP read
+        rt = tuya_iot_license_read(license);
+        if (OPRT_OK == rt) {
+            PR_INFO("Authorization OTP read succeeds.");
+            return OPRT_OK;
+        } else {
+            PR_ERR("Authorization OTP read failure.");
+            return OPRT_COM_ERROR;
+        }
+    } else {
+        PR_ERR("Invalid storage type: %d", storage);
+        return OPRT_INVALID_PARM;
+    }
+
+    return rt;
+}
+
+/**
  * @brief Reset authorization information
  *
  * @return OPRT_OK on success. Others on error, please refer to
@@ -335,7 +388,22 @@ static void cli_authorize_read(int argc, char *argv[])
     OPERATE_RET ret = OPRT_OK;
     tuya_iot_license_t license;
 
-    ret = tuya_authorize_read(&license);
+    int storage = 0; // 0:kv, 1:otp
+
+    if (argc >= 2) {
+        char *storage_str = argv[1];
+        if (strcmp(storage_str, "0") == 0) {
+            storage = 0;
+        } else if (strcmp(storage_str, "1") == 0) {
+            storage = 1;
+        } else {
+            tal_cli_echo("storage must be 0 or 1");
+            return;
+        }
+        PR_DEBUG("storage:%d", storage);
+    }
+
+    ret = tuya_authorize_read_with_storage(&license, storage);
     if (OPRT_OK != ret) {
         tal_cli_echo("Authorization read failure.");
         return;

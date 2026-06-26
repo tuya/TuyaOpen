@@ -63,6 +63,17 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey);
 OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license);
 
 /**
+ * @brief Read authorization information with specified storage
+ *
+ * @param[out] license: uuid and authkey
+ * @param[in] storage: 0 for KV, 1 for OTP
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tuya_authorize_read_with_storage(tuya_iot_license_t *license, int storage);
+
+/**
  * @brief Reset authorization information
  *
  * @return OPRT_OK on success. Others on error, please refer to
