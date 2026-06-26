@@ -50,6 +50,7 @@
 static void cli_authorize(int argc, char *argv[]);
 static void cli_authorize_read(int argc, char *argv[]);
 static void cli_authorize_reset(int argc, char *argv[]);
+static void cli_read_mac(int argc, char *argv[]);
 
 /*============================ LOCAL VARIABLES ===============================*/
 static char UUID_BUF[UUID_LENGTH + 1] = {0};
@@ -70,7 +71,11 @@ static const cli_cmd_t s_cli_cmd[] = {
         .name = "auth-reset",
         .help = "Reset authorization information",
         .func = cli_authorize_reset,
-    },
+    },{
+        .name = "read_mac",
+        .help = "Read device MAC address",
+        .func = cli_read_mac,
+    }
 };
 
 /*============================ IMPLEMENTATION ================================*/
@@ -318,4 +323,25 @@ static void cli_authorize_reset(int argc, char *argv[])
     } else {
         tal_cli_echo("Authorization reset failure.");
     }
+}
+
+static void cli_read_mac(int argc, char *argv[])
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    char mac_buf[32] = {0};
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+    NW_MAC_S mac_s;
+    memset(&mac_s, 0, sizeof(NW_MAC_S));
+    rt = tal_wifi_get_mac(WF_STATION, &mac_s);
+    if (OPRT_OK != rt) {
+        tal_cli_echo("Failed to get MAC address.");
+        return;
+    }
+    sprintf(mac_buf, "mac: %02x:%02x:%02x:%02x:%02x:%02x", mac_s.mac[0], mac_s.mac[1], mac_s.mac[2], mac_s.mac[3], mac_s.mac[4], mac_s.mac[5]);
+
+    tal_cli_echo(mac_buf);
+#else
+    tal_cli_echo("Failed to get MAC address.");
+#endif
 }
