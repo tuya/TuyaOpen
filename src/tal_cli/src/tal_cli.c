@@ -16,6 +16,7 @@
 
 /*============================ INCLUDES ======================================*/
 #include <string.h>
+#include <stdio.h>
 #include "tuya_slist.h"
 #include "tal_uart.h"
 #include "tal_log.h"
@@ -24,6 +25,8 @@
 #include "tal_memory.h"
 
 /*============================ MACROS ========================================*/
+#define CLI_VER "1.0.0"
+
 #ifndef CLI_BUFFER_SIZE
 #define CLI_BUFFER_SIZE 1000
 #endif
@@ -96,6 +99,7 @@ typedef struct {
 /*============================ PROTOTYPES ====================================*/
 static void cli_hello(int argc, char *argv[]);
 static void cli_help(int argc, char *argv[]);
+static void cli_version(int argc, char *argv[]);
 static void cli_print_prompt(cli_t *cli);
 static void cli_print_cmd_title(cli_t *cli);
 static void cli_print_all_cmd(cli_t *cli);
@@ -115,8 +119,11 @@ static const cli_cmd_t s_cli_cmd[] = {
         .name = "hello",
         .help = "print helo world",
         .func = cli_hello,
-    },
-
+    },{
+        .name = "version",
+        .help = "print version information",
+        .func = cli_version,
+    }
 };
 
 static const char s_cli_logo[] =
@@ -167,6 +174,21 @@ static void cli_help(int argc, char *argv[])
 #if !defined(CLI_CMD_SYS) || !defined(CLI_CMD_FS) || !defined(CLI_CMD_KV)
     tal_cli_echo("if you want to see more commands(sys_*, fs_*, kv_*), please turn on ENABLE_SERIAL_CLI_CMD in Kconfig");
 #endif
+}
+
+static void cli_version(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    if (s_cli_handle == NULL) {
+        tal_cli_echo("CLI not initialized");
+        return;
+    }
+
+    char version_info[32] = {0};
+    snprintf(version_info, sizeof(version_info), "CLI version: %s", CLI_VER);
+    cli_print_string(s_cli_handle, version_info);
 }
 
 static cli_cmd_t *cli_cmd_find_with_name(char *name)
@@ -855,9 +877,8 @@ int tal_cli_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_CALL_ERR_RETURN(tal_cli_init_with_uart(TUYA_UART_NUM_0));
-#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
-    extern void tuya_app_cli_init(void);
-    tuya_app_cli_init();
-#endif
+
+    extern void tuya_sys_cli_init(void);
+    tuya_sys_cli_init();
     return rt;
 }

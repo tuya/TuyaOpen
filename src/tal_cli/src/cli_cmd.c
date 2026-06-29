@@ -41,6 +41,7 @@ extern void tal_thread_dump_watermark(void);
 /* ---------------------------------------------------------------------------
  * Forward declarations
  * --------------------------------------------------------------------------- */
+static void cmd_sys_log_enable(int argc, char *argv[]);
 #if defined(CLI_CMD_SYS)
 static void cmd_sys_status(int argc, char *argv[]);
 static void cmd_sys_heap(int argc, char *argv[]);
@@ -89,9 +90,8 @@ static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int m
 static void cli_fs_build_tree_prefix_(int depth, char *out, size_t out_size);
 #endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
 
-#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
 /* ---------------------------------------------------------------------------
- * Internal helpers
+ * Internal helpers (always available)
  * --------------------------------------------------------------------------- */
 /**
  * @brief Echo a formatted line to CLI.
@@ -134,6 +134,21 @@ static void cli_print_usage_(const char *usage, const char *example1, const char
         cli_echof_("  e.g. %s", example3);
     }
 }
+
+/**
+ * @brief Convert a boolean state to CLI text.
+ * @param[in] value boolean input
+ * @return textual representation
+ */
+static const char *cli_bool_to_str_(bool value)
+{
+    return value ? "true" : "false";
+}
+
+#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
+/* ---------------------------------------------------------------------------
+ * Internal helpers (ENABLE_SERIAL_CLI_CMD only)
+ * --------------------------------------------------------------------------- */
 
 /**
  * @brief Join CLI arguments into one space-separated string.
@@ -219,16 +234,6 @@ static void cli_json_escape_(const char *src, char *out, size_t out_size)
     }
 
     out[pos] = '\0';
-}
-
-/**
- * @brief Convert a boolean state to CLI text.
- * @param[in] value boolean input
- * @return textual representation
- */
-static const char *cli_bool_to_str_(bool value)
-{
-    return value ? "true" : "false";
 }
 
 /**
@@ -710,6 +715,34 @@ static void cli_fs_write_impl_(const char *path, const char *mode, int argc, cha
 }
 
 #endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
+
+/**
+ * @brief Enable or disable log output, or query current state.
+ * @param[in] argc CLI argc
+ * @param[in] argv CLI argv
+ * @return none
+ */
+static void cmd_sys_log_enable(int argc, char *argv[])
+{
+    if (argc < 2) {
+        cli_echof_("log.enabled %s", cli_bool_to_str_(tal_log_is_enabled()));
+        cli_print_usage_("sys_log_enable <on|off>", "sys_log_enable off", "sys_log_enable on", NULL);
+        return;
+    }
+
+    const char *arg = argv[1];
+    if (strcmp(arg, "on") == 0 || strcmp(arg, "1") == 0 || strcmp(arg, "enable") == 0) {
+        tal_log_enable_set(TRUE);
+        cli_echof_("OK: log enabled");
+    } else if (strcmp(arg, "off") == 0 || strcmp(arg, "0") == 0 || strcmp(arg, "disable") == 0) {
+        tal_log_enable_set(FALSE);
+        cli_echof_("OK: log disabled");
+    } else {
+        cli_echof_("ERR: unknown argument '%s'", arg);
+        cli_print_usage_("sys_log_enable <on|off>", "sys_log_enable off", "sys_log_enable on", NULL);
+    }
+}
+
 #if defined(CLI_CMD_SYS)
 
 /* ---------------------------------------------------------------------------
@@ -758,6 +791,7 @@ static void cmd_sys_status(int argc, char *argv[])
     if (tal_log_get_level(&log_level) == OPRT_OK) {
         cli_echof_("log.level         %s", cli_log_level_to_str_(log_level));
     }
+    cli_echof_("log.enabled       %s", cli_bool_to_str_(tal_log_is_enabled()));
 
     reset_reason = tal_system_get_reset_reason(&reason);
     cli_echof_("reset.reason      %d (%s)", (int)reset_reason, (reason != NULL) ? reason : "unknown");
@@ -883,6 +917,7 @@ static void cmd_sys_set_log_level(int argc, char *argv[])
     rt = tal_log_set_level(level);
     cli_echof_("%s: sys_set_log_level '%s' rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", argv[1], rt);
 }
+
 
 /**
  * @brief Reboot the device.
@@ -1709,6 +1744,8 @@ static void cmd_kv_list(int argc, char *argv[])
  * Command table
  * --------------------------------------------------------------------------- */
 static cli_cmd_t s_cli_cmd[] = {
+    {.name = "sys_log_enable",   .help = "Enable/disable log output (on|off)",   .func = cmd_sys_log_enable},
+
 #if defined(CLI_CMD_SYS)
     {.name = "sys_status",       .help = "Device status, tick, uptime, network",.func = cmd_sys_status},
     {.name = "sys_heap",         .help = "Show free heap and PSRAM",             .func = cmd_sys_heap},
@@ -1716,7 +1753,6 @@ static cli_cmd_t s_cli_cmd[] = {
     {.name = "sys_tick",         .help = "Show tick, uptime, posix, local time", .func = cmd_sys_tick},
     {.name = "sys_version",      .help = "Show app, SDK, and platform version",  .func = cmd_sys_version},
     {.name = "sys_set_log_level",.help = "Set log level (err/warn/notice/info/debug/trace)", .func = cmd_sys_set_log_level},
-    {.name = "sys_reboot",       .help = "Reboot device",                        .func = cmd_sys_reboot},
     {.name = "sys_timer_count",  .help = "Show active software timer count",     .func = cmd_sys_timer_count},
     {.name = "sys_iot_stop",     .help = "Stop Tuya IoT client",                 .func = cmd_sys_iot_stop},
     {.name = "sys_iot_restart",  .help = "Restart Tuya IoT client",              .func = cmd_sys_iot_restart},
@@ -1760,12 +1796,12 @@ static cli_cmd_t s_cli_cmd[] = {
  * @brief Register all unified CLI commands.
  * @return none
  */
-void tuya_app_cli_init(void)
+void tuya_sys_cli_init(void)
 {
     OPERATE_RET rt = tal_cli_cmd_register(s_cli_cmd, sizeof(s_cli_cmd) / sizeof(s_cli_cmd[0]));
 
     if (rt != OPRT_OK) {
         PR_ERR("tal_cli_cmd_register failed: %d", rt);
     }
-    PR_DEBUG("tuya_app_cli_init: tal_cli_cmd_register success");
+    PR_DEBUG("tuya_sys_cli_init: tal_cli_cmd_register success");
 }
