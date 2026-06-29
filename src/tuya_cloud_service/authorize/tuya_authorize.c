@@ -172,10 +172,10 @@ OPERATE_RET tuya_authorize_read_with_storage(tuya_iot_license_t *license, int st
 
         if ((OPRT_OK == tal_kv_get(KVKEY_TYOPEN_UUID, (uint8_t **)&uuid, &readlen)) &&
             (OPRT_OK == tal_kv_get(KVKEY_TYOPEN_AUTHKEY, (uint8_t **)&authkey, &readlen))) {
-            memcpy(UUID_BUF, uuid, UUID_LENGTH);
-            UUID_BUF[UUID_LENGTH] = '\0';
+            memset(UUID_BUF, 0, sizeof(UUID_BUF));
+            memcpy(UUID_BUF, uuid, (strlen(uuid) < UUID_LENGTH) ? strlen(uuid) : UUID_LENGTH);
+            memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
             memcpy(AUTHKEY_BUF, authkey, AUTHKEY_LENGTH);
-            AUTHKEY_BUF[AUTHKEY_LENGTH] = '\0';
             license->uuid = UUID_BUF;
             license->authkey = AUTHKEY_BUF;
             tal_kv_free((uint8_t *)uuid);
@@ -189,13 +189,27 @@ OPERATE_RET tuya_authorize_read_with_storage(tuya_iot_license_t *license, int st
     } else if (storage == 1) {
         // OTP read
         rt = tuya_iot_license_read(license);
-        if (OPRT_OK == rt) {
-            PR_INFO("Authorization OTP read succeeds.");
-            return OPRT_OK;
-        } else {
+        if (OPRT_OK != rt) {
             PR_ERR("Authorization OTP read failure.");
             return OPRT_COM_ERROR;
         }
+        memset(UUID_BUF, 0, sizeof(UUID_BUF));
+        memcpy(UUID_BUF, license->uuid, (strlen(license->uuid) < UUID_LENGTH) ? strlen(license->uuid) : UUID_LENGTH);
+        memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
+        memcpy(AUTHKEY_BUF, license->authkey, AUTHKEY_LENGTH);
+        if (license->uuid) {
+            tal_free(license->uuid);
+            license->uuid = NULL;
+        }
+        if (license->authkey) {
+            tal_free(license->authkey);
+            license->authkey = NULL;
+        }
+
+        license->uuid = UUID_BUF;
+        license->authkey = AUTHKEY_BUF;
+        PR_INFO("Authorization OTP read succeeds.");
+        return OPRT_OK;
     } else {
         PR_ERR("Invalid storage type: %d", storage);
         return OPRT_INVALID_PARM;
@@ -344,20 +358,10 @@ static void cli_authorize(int argc, char *argv[])
         // write to otp
         extern int tal_otp_flash_write(uint8_t *data, uint16_t datalen);
         rt = tal_otp_flash_write((uint8_t *)json_str, strlen(json_str));
-        if (rt != OPRT_OK) {
-            tal_cli_echo("Authorization write to OTP failure.");
-        }
-
-        extern int tal_otp_flash_read(uint8_t **data, uint16_t *datalen);
-        uint8_t *read_data = NULL;
-        uint16_t read_datalen = 0;
-        rt = tal_otp_flash_read(&read_data, &read_datalen);
-        if (rt != OPRT_OK || read_data == NULL) {
-            tal_cli_echo("Authorization read from OTP failure.");
+        if (rt == OPRT_OK) {
+            tal_cli_echo("Authorization write to OTP Succeeds.");
         } else {
-            PR_DEBUG("read_data:%s", read_data);
-            tal_free(read_data);
-            read_data = NULL;
+            tal_cli_echo("Authorization write to OTP failure.");
         }
 
         cJSON_free(json_str);
