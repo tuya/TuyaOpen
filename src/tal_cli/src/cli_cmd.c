@@ -743,6 +743,22 @@ static void cmd_sys_log_enable(int argc, char *argv[])
     }
 }
 
+/**
+ * @brief Reboot the device.
+ * @param[in] argc CLI argc
+ * @param[in] argv CLI argv
+ * @return none
+ */
+static void cmd_sys_reboot(int argc, char *argv[])
+{
+    (void)argc;
+    (void)argv;
+
+    tal_cli_echo("Rebooting device...");
+    tal_system_sleep(100);
+    tal_system_reset();
+}
+
 #if defined(CLI_CMD_SYS)
 
 /* ---------------------------------------------------------------------------
@@ -916,23 +932,6 @@ static void cmd_sys_set_log_level(int argc, char *argv[])
 
     rt = tal_log_set_level(level);
     cli_echof_("%s: sys_set_log_level '%s' rt=%d", (rt == OPRT_OK) ? "OK" : "ERR", argv[1], rt);
-}
-
-
-/**
- * @brief Reboot the device.
- * @param[in] argc CLI argc
- * @param[in] argv CLI argv
- * @return none
- */
-static void cmd_sys_reboot(int argc, char *argv[])
-{
-    (void)argc;
-    (void)argv;
-
-    tal_cli_echo("Rebooting device...");
-    tal_system_sleep(100);
-    tal_system_reset();
 }
 
 /**
