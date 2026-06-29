@@ -42,6 +42,7 @@ extern void tal_thread_dump_watermark(void);
  * Forward declarations
  * --------------------------------------------------------------------------- */
 static void cmd_sys_log_enable(int argc, char *argv[]);
+static void cmd_sys_reboot(int argc, char *argv[]);
 #if defined(CLI_CMD_SYS)
 static void cmd_sys_status(int argc, char *argv[]);
 static void cmd_sys_heap(int argc, char *argv[]);
@@ -49,7 +50,6 @@ static void cmd_sys_thread(int argc, char *argv[]);
 static void cmd_sys_version(int argc, char *argv[]);
 static void cmd_sys_tick(int argc, char *argv[]);
 static void cmd_sys_set_log_level(int argc, char *argv[]);
-static void cmd_sys_reboot(int argc, char *argv[]);
 static void cmd_sys_iot_stop(int argc, char *argv[]);
 static void cmd_sys_iot_restart(int argc, char *argv[]);
 static void cmd_sys_iot_reset(int argc, char *argv[]);
@@ -1745,6 +1745,7 @@ static void cmd_kv_list(int argc, char *argv[])
  * --------------------------------------------------------------------------- */
 static cli_cmd_t s_cli_cmd[] = {
     {.name = "sys_log_enable",   .help = "Enable/disable log output (on|off)",   .func = cmd_sys_log_enable},
+    {.name = "sys_reboot",       .help = "Reboot device",                        .func = cmd_sys_reboot},
 
 #if defined(CLI_CMD_SYS)
     {.name = "sys_status",       .help = "Device status, tick, uptime, network",.func = cmd_sys_status},
