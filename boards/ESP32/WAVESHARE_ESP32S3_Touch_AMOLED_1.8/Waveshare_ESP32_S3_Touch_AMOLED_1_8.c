@@ -20,6 +20,8 @@
 #include "tca9554.h"
 #include "axp2101_driver.h"
 #include "tkl_pinmux.h"
+#include "tkl_spi.h"
+#include "tkl_fs.h"
 #include "tdd_disp_esp_sh8601.h"
 #include "tdd_tp_esp_ft5x06.h"
 #include "tdl_display_manage.h"
@@ -76,6 +78,12 @@
 /* On-board mechanical button */
 #define BOARD_BUTTON_PIN       TUYA_GPIO_NUM_0
 #define BOARD_BUTTON_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+
+/* SD card SPI configuration */
+#define SD_SPI_MOSI_IO  (1)   /* GPIO1 */
+#define SD_SPI_SCK_IO   (2)   /* GPIO2 */
+#define SD_SPI_MISO_IO  (3)   /* GPIO3 */
+#define SD_CS_IO        (7)   /* EXIO7 via TCA9554 IO expander */
 
 /* Power key: TCA9554 EXIO5 = AXP2101 IRQ (active low) */
 #define BOARD_PWR_KEY_NAME      "power_key"
@@ -303,6 +311,50 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_display());
+
+    /* Configure SD card SPI pin mapping */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI0_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCK_IO, TUYA_SPI0_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI0_MISO);
+    PR_NOTICE("SD card SPI pins configured");
+
+    /* SD card CS is connected to TCA9554 EXIO7 (IO expander, not a GPIO).
+     * Set EXIO7 as output and assert LOW to select the card. */
+    {
+        uint32_t sd_cs_mask = (1ULL << 7);
+        rt = tca9554_set_dir(sd_cs_mask, 0);
+        if (rt != 0) {
+            PR_ERR("tca9554_set_dir for SD CS failed");
+            return rt;
+        }
+        tca9554_set_level(sd_cs_mask, 0);
+    }
+
+    /* Initialize SPI bus for SD card */
+    TUYA_SPI_BASE_CFG_T sd_spi_cfg = {
+        .mode = TUYA_SPI_MODE0,
+        .freq_hz = 20000000,
+        .databits = TUYA_SPI_DATA_BIT8,
+        .bitorder = TUYA_SPI_ORDER_MSB2LSB,
+        .role = TUYA_SPI_ROLE_MASTER,
+        .type = TUYA_SPI_AUTO_TYPE,
+        .spi_dma_flags = 1,
+    };
+    rt = tkl_spi_init(TUYA_SPI_NUM_0, &sd_spi_cfg);
+    if (rt != OPRT_OK) {
+        PR_ERR("tkl_spi_init for SD card failed: %d", rt);
+        return rt;
+    }
+
+    /* Set SD card SPI config and mount (CS=-1: managed by board via TCA9554) */
+    tkl_fs_set_sd_spi_config(SPI2_HOST, -1);
+
+    rt = tkl_fs_mount("/sdcard", DEV_SDCARD);
+    if (rt != OPRT_OK) {
+        PR_ERR("SD card mount failed: %d", rt);
+    } else {
+        PR_NOTICE("SD card mounted successfully");
+    }
 
     return rt;
 }
