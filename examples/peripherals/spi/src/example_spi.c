@@ -19,33 +19,33 @@
  *
  */
 
- #include "tuya_cloud_types.h"
+#include "tuya_cloud_types.h"
 
- #include "tal_api.h"
- #include "tkl_output.h"
- #include "tkl_spi.h"
- /***********************************************************
- *************************micro define***********************
- ***********************************************************/
- 
- /***********************************************************
- ***********************typedef define***********************
- ***********************************************************/
- 
- /***********************************************************
- ***********************variable define**********************
- ***********************************************************/
- 
- /***********************************************************
- ***********************function define**********************
- ***********************************************************/
+#include "tal_api.h"
+#include "tkl_output.h"
+#include "tkl_spi.h"
+/***********************************************************
+*************************micro define***********************
+***********************************************************/
+
+/***********************************************************
+***********************typedef define***********************
+***********************************************************/
+
+/***********************************************************
+***********************variable define**********************
+***********************************************************/
+
+/***********************************************************
+***********************function define**********************
+***********************************************************/
  
 /**
-* @brief user_main
-*
-* @param[in] param:Task parameters
-* @return none
-*/
+ * @brief user_main
+ *
+ * @param[in] param:Task parameters
+ * @return none
+ */
 void user_main(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -86,12 +86,12 @@ __EXIT:
 }
 
 /**
-* @brief main
-*
-* @param argc
-* @param argv
-* @return void
-*/
+ * @brief main
+ *
+ * @param argc
+ * @param argv
+ * @return void
+ */
 #if OPERATING_SYSTEM == SYSTEM_LINUX
 void main(int argc, char *argv[])
 {
@@ -107,11 +107,11 @@ void main(int argc, char *argv[])
 static THREAD_HANDLE ty_app_thread = NULL;
 
 /**
-* @brief  task thread
-*
-* @param[in] arg:Parameters when creating a task
-* @return none
-*/
+ * @brief  task thread
+ *
+ * @param[in] arg:Parameters when creating a task
+ * @return none
+ */
 static void tuya_app_thread(void *arg)
 {
     user_main();
