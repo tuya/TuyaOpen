@@ -217,6 +217,7 @@ OPERATE_RET board_register_hardware(void)
 
     TUYA_CALL_ERR_LOG(__io_expander_init());
     TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(board_display_init());
     TUYA_CALL_ERR_LOG(__board_register_sd());
 
     return rt;
