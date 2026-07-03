@@ -1391,13 +1391,19 @@ function Enable-TuyaUvAliyunPypiMirrorSession {
 
 function Get-TuyaUvSyncPlan {
     <#
-        Default: uv sync --frozen (lockfile URLs unchanged).
-        Override: TUYAOPEN_PYPI_MIRROR=1 uses Aliyun (uv sync, may rewrite uv.lock).
-                  TUYAOPEN_PYPI_MIRROR=0 forces --frozen (same as default).
+        Both plans install strictly from uv.lock (--frozen); 'mirror' only
+        changes the index URL.  Explicit TUYAOPEN_PYPI_MIRROR wins (1=on, 0=off);
+        otherwise mainland China auto-uses the Aliyun mirror.
     #>
     $override = $env:TUYAOPEN_PYPI_MIRROR
     if ($override -eq '1') {
-        return @{ ArgumentList = @('sync'); UseAliyunMirror = $true; Reason = 'override-on' }
+        return @{ ArgumentList = @('sync', '--frozen'); UseAliyunMirror = $true; Reason = 'override-on' }
+    }
+    if ($override -eq '0') {
+        return @{ ArgumentList = @('sync', '--frozen'); UseAliyunMirror = $false; Reason = 'override-off' }
+    }
+    if ($script:TuyaUseCnDownload) {
+        return @{ ArgumentList = @('sync', '--frozen'); UseAliyunMirror = $true; Reason = 'cn-auto' }
     }
     return @{ ArgumentList = @('sync', '--frozen'); UseAliyunMirror = $false; Reason = 'default' }
 }
@@ -1657,11 +1663,9 @@ function Invoke-TuyaUvSyncWithProgress {
 
     Reset-TuyaUvDiag
     $syncPlan = Get-TuyaUvSyncPlan
-    if ($syncPlan.UseAliyunMirror) {
-        Write-TuyaOpenDebug "[TuyaOpen] Dependency sync: Aliyun mirror ($($syncPlan.Reason))."
-    } else {
-        Write-TuyaOpenDebug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).'
-    }
+    $syncSrc = if ($syncPlan.UseAliyunMirror) { 'Aliyun PyPI mirror (CN)' } else { 'PyPI (default)' }
+    Write-TuyaOpenInfo "[TuyaOpen] Syncing $TotalPackages Python dependencies from $syncSrc..."
+    Write-TuyaOpenDebug "[TuyaOpen] Dependency sync plan: $($syncPlan.Reason)."
 
     $savedPypiMirror = if ($syncPlan.UseAliyunMirror) {
         Enable-TuyaUvAliyunPypiMirrorSession

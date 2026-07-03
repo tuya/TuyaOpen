@@ -1269,16 +1269,23 @@ tuya_setup_python() {
 # ---------------------------------------------------------------------------
 # Project .venv (uv sync)
 # ---------------------------------------------------------------------------
+# Decide the PyPI source for `uv sync`.  Explicit TUYAOPEN_PYPI_MIRROR wins;
+# otherwise mainland China auto-uses the Aliyun mirror.  Both plans install
+# strictly from uv.lock (--frozen); 'mirror' only changes the index URL.
 tuya_uv_sync_plan() {
     case "${TUYAOPEN_PYPI_MIRROR:-}" in
         1)
-            echo 'sync mirror'
+            echo 'mirror'
             ;;
         0)
-            echo 'sync --frozen'
+            echo 'default'
             ;;
         *)
-            echo 'sync --frozen'
+            if [ "${_tuya_use_cn_download:-0}" -eq 1 ]; then
+                echo 'mirror'
+            else
+                echo 'default'
+            fi
             ;;
     esac
 }
@@ -1298,20 +1305,19 @@ tuya_sync_deps_ide() {
     _tuya_prog_last_text=''
     _tuya_prog_last_at=0
     _tuya_prog_last_pct=-1
+    _tuya_sync_pkg_total=$pkg_count
     case "$plan" in
-        'sync mirror')
+        'mirror')
             saved_index="${UV_DEFAULT_INDEX:-}"
             saved_url="${UV_INDEX_URL:-}"
             UV_DEFAULT_INDEX="$TUYA_ALIYUN_PYPI_INDEX"
             UV_INDEX_URL="$TUYA_ALIYUN_PYPI_INDEX"
             export UV_DEFAULT_INDEX UV_INDEX_URL
-            _tuya_sync_pkg_total=$pkg_count
-            tuya_uv_run_stream tuya_on_uv_sync_line sync || rc=$?
+            tuya_uv_run_stream tuya_on_uv_sync_line sync --frozen || rc=$?
             if [ -z "$saved_index" ]; then unset UV_DEFAULT_INDEX; else UV_DEFAULT_INDEX="$saved_index"; export UV_DEFAULT_INDEX; fi
             if [ -z "$saved_url" ]; then unset UV_INDEX_URL; else UV_INDEX_URL="$saved_url"; export UV_INDEX_URL; fi
             ;;
         *)
-            _tuya_sync_pkg_total=$pkg_count
             tuya_uv_run_stream tuya_on_uv_sync_line sync --frozen || rc=$?
             ;;
     esac
@@ -1345,30 +1351,27 @@ tuya_sync_deps() {
     tuya_uv_reset_diag
     plan=$(tuya_uv_sync_plan)
     pkg_count=$(tuya_lock_pkg_count)
+    local src='PyPI (default)'
+    [ "$plan" = 'mirror' ] && src='Aliyun PyPI mirror (CN)'
     if tuya_is_ide_host; then
-        case "$plan" in
-            'sync mirror') tuya_debug "[TuyaOpen] Dependency sync: Aliyun mirror." ;;
-            *) tuya_debug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).' ;;
-        esac
+        tuya_info "[TuyaOpen] Syncing ${pkg_count} Python dependencies from ${src}..."
         tuya_sync_deps_ide "$plan" "$pkg_count" || rc=$?
         [ "$rc" -ne 0 ] && tuya_sync_deps_error
         return "$rc"
     fi
-    tuya_info "[TuyaOpen] Syncing ${pkg_count} Python dependencies..."
+    tuya_info "[TuyaOpen] Syncing ${pkg_count} Python dependencies from ${src}..."
     case "$plan" in
-        'sync mirror')
-            tuya_debug "[TuyaOpen] Dependency sync: Aliyun mirror."
+        'mirror')
             saved_index="${UV_DEFAULT_INDEX:-}"
             saved_url="${UV_INDEX_URL:-}"
             UV_DEFAULT_INDEX="$TUYA_ALIYUN_PYPI_INDEX"
             UV_INDEX_URL="$TUYA_ALIYUN_PYPI_INDEX"
             export UV_DEFAULT_INDEX UV_INDEX_URL
-            tuya_uv sync || rc=$?
+            tuya_uv sync --frozen || rc=$?
             if [ -z "$saved_index" ]; then unset UV_DEFAULT_INDEX; else UV_DEFAULT_INDEX="$saved_index"; export UV_DEFAULT_INDEX; fi
             if [ -z "$saved_url" ]; then unset UV_INDEX_URL; else UV_INDEX_URL="$saved_url"; export UV_INDEX_URL; fi
             ;;
         *)
-            tuya_debug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).'
             tuya_uv sync --frozen || rc=$?
             ;;
     esac
