@@ -1625,10 +1625,16 @@ int dp_schema_create(char *devid, char *schema_json, dp_schema_t **dp_schema_out
     PR_DEBUG("devid %s, schema_json %s", devid, schema_json);
 
     nodenum = dp_node_pos_decode(schema_json, nodepos, 255);
-    if (0 == nodenum || nodenum >= 255) {
+    if (nodenum >= 255) {
         PR_ERR("dp num parse err:%d", nodenum);
         tal_free(nodepos);
         return OPRT_SVC_DEVOS_DEV_DP_CNT_INVALID;
+    }
+    // An empty DP schema ([]) is valid: some products legitimately define no DPs.
+    // Fall through to create an empty schema (num=0) rather than failing activation,
+    // which previously caused a CLIENT RESET -> re-provision loop.
+    if (0 == nodenum) {
+        PR_NOTICE("empty dp schema, create schema with 0 dp");
     }
     dp_schema_t *dp_schema = (dp_schema_t *)tal_malloc(sizeof(dp_schema_t) + nodenum * sizeof(dp_node_t));
     if (NULL == dp_schema) {

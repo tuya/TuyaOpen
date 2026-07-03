@@ -243,6 +243,11 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
     // save wifi info
+    // clear first: this is a persistent global, and a shorter new SSID/pwd must
+    // not leave a stale longer value behind (e.g. new "Pico" over old "Pico-Test").
+    // memset also guarantees the trailing '\0' since the buffers are LEN + 1.
+    memset(netmgr_wifi->conn.wifi_conn_info.ssid, 0, sizeof(netmgr_wifi->conn.wifi_conn_info.ssid));
+    memset(netmgr_wifi->conn.wifi_conn_info.pswd, 0, sizeof(netmgr_wifi->conn.wifi_conn_info.pswd));
     memcpy(netmgr_wifi->conn.wifi_conn_info.ssid, info->ssid,
            info->s_len > WIFI_SSID_LEN ? WIFI_SSID_LEN : info->s_len);
     memcpy(netmgr_wifi->conn.wifi_conn_info.pswd, info->passwd,
