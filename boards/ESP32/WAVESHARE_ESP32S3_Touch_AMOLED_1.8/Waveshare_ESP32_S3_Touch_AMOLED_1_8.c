@@ -20,7 +20,6 @@
 #include "tca9554.h"
 #include "axp2101_driver.h"
 #include "tkl_pinmux.h"
-#include "tkl_spi.h"
 #include "tkl_fs.h"
 #include "tdd_disp_esp_sh8601.h"
 #include "tdd_tp_esp_ft5x06.h"
@@ -288,6 +287,29 @@ static OPERATE_RET __board_register_display(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
+    /* SD card SPI pinmux. */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCK_IO,  TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(-1, TUYA_SPI1_CS);
+
+    /* CS on TCA9554 EXIO7 — held LOW, sdspi does no-op cs_high/cs_low */
+    uint32_t sd_cs_mask = (1ULL << 7);
+    rt = tca9554_set_dir(sd_cs_mask, 0);
+    if (rt != 0) {
+        PR_ERR("tca9554_set_dir for SD CS failed");
+        return rt;
+    }
+    tca9554_set_level(sd_cs_mask, 0);
+#endif
+
+    return rt;
+}
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
@@ -311,50 +333,7 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_display());
-
-    /* Configure SD card SPI pin mapping */
-    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI0_MOSI);
-    tkl_io_pinmux_config(SD_SPI_SCK_IO, TUYA_SPI0_CLK);
-    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI0_MISO);
-    PR_NOTICE("SD card SPI pins configured");
-
-    /* SD card CS is connected to TCA9554 EXIO7 (IO expander, not a GPIO).
-     * Set EXIO7 as output and assert LOW to select the card. */
-    {
-        uint32_t sd_cs_mask = (1ULL << 7);
-        rt = tca9554_set_dir(sd_cs_mask, 0);
-        if (rt != 0) {
-            PR_ERR("tca9554_set_dir for SD CS failed");
-            return rt;
-        }
-        tca9554_set_level(sd_cs_mask, 0);
-    }
-
-    /* Initialize SPI bus for SD card */
-    TUYA_SPI_BASE_CFG_T sd_spi_cfg = {
-        .mode = TUYA_SPI_MODE0,
-        .freq_hz = 20000000,
-        .databits = TUYA_SPI_DATA_BIT8,
-        .bitorder = TUYA_SPI_ORDER_MSB2LSB,
-        .role = TUYA_SPI_ROLE_MASTER,
-        .type = TUYA_SPI_AUTO_TYPE,
-        .spi_dma_flags = 1,
-    };
-    rt = tkl_spi_init(TUYA_SPI_NUM_0, &sd_spi_cfg);
-    if (rt != OPRT_OK) {
-        PR_ERR("tkl_spi_init for SD card failed: %d", rt);
-        return rt;
-    }
-
-    /* Set SD card SPI config and mount (CS=-1: managed by board via TCA9554) */
-    tkl_fs_set_sd_spi_config(SPI2_HOST, -1);
-
-    rt = tkl_fs_mount("/sdcard", DEV_SDCARD);
-    if (rt != OPRT_OK) {
-        PR_ERR("SD card mount failed: %d", rt);
-    } else {
-        PR_NOTICE("SD card mounted successfully");
-    }
+    TUYA_CALL_ERR_LOG(__board_register_sd());
 
     return rt;
 }

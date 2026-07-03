@@ -13,9 +13,11 @@
 #include "tdd_audio_es8388_codec.h"
 
 #include "tdd_disp_esp_st7789_spi.h"
+#include "tdd_disp_type.h"
 #include "board_com_api.h"
-
 #include "xl9555.h"
+#include "tkl_pinmux.h"
+#include "tkl_fs.h"
 
 /***********************************************************
 ************************macro define************************
@@ -62,25 +64,10 @@
 #define EX_IO_KEY_1    (0x0001 << 14)
 #define EX_IO_KEY_0    (0x0001 << 15)
 
-/* LCD (ST7789 over single-line SPI) */
-#define LCD_SPI_HOST (1) /* SPI2_HOST in ESP-IDF host enum */
-#define LCD_SCLK_PIN (12)
-#define LCD_MOSI_PIN (11)
-#define LCD_DC_PIN   (40)
-#define LCD_CS_PIN   (21)
-
-#define DISPLAY_WIDTH                   (320)
-#define DISPLAY_HEIGHT                  (240)
-#define DISPLAY_SWAP_XY                 true
-#define DISPLAY_MIRROR_X                true
-#define DISPLAY_MIRROR_Y                false
-#define DISPLAY_SWAP_BYTES              1
-#define DISPLAY_BACKLIGHT_OUTPUT_INVERT true
-
-/***********************************************************
-********************function declaration********************
-***********************************************************/
-int board_display_init(void);
+/* SD card SPI (SPI3_HOST — SPI2_HOST is occupied by Octal PSRAM on ESP32-S3) */
+#define SD_SPI_MOSI_IO  11
+#define SD_SPI_SCLK_IO  12
+#define SD_SPI_MISO_IO  13
 
 /***********************************************************
 ***********************typedef define***********************
@@ -182,6 +169,23 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
+    /* SD card SPI pinmux */
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_11, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_12, TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_13, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_2,  TUYA_SPI1_CS);
+#endif
+
+    return rt;
+}
+
+
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
@@ -192,36 +196,32 @@ OPERATE_RET board_register_hardware(void)
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CALL_ERR_LOG(__io_expander_init());
-
     TUYA_CALL_ERR_LOG(__board_register_audio());
-    TUYA_CALL_ERR_LOG(board_display_init());
+    TUYA_CALL_ERR_LOG(__board_register_sd());
+
+#if 1 /* LCD display test */
+    {
+        #include "tdd_disp_st7789.h"
+
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_12, TUYA_SPI0_CLK);
+        tkl_io_pinmux_config(TUYA_GPIO_NUM_11, TUYA_SPI0_MOSI);
+
+        DISP_SPI_DEVICE_CFG_T dev_cfg;
+        memset(&dev_cfg, 0, sizeof(dev_cfg));
+        dev_cfg.width     = 320;
+        dev_cfg.height    = 240;
+        dev_cfg.pixel_fmt = TUYA_PIXEL_FMT_RGB565;
+        dev_cfg.rotation  = TUYA_DISPLAY_ROTATION_0;
+        dev_cfg.port      = TUYA_SPI_NUM_0;
+        dev_cfg.spi_clk   = 40 * 1000 * 1000;
+        dev_cfg.cs_pin    = TUYA_GPIO_NUM_21;
+        dev_cfg.dc_pin    = TUYA_GPIO_NUM_40;
+        dev_cfg.rst_pin   = TUYA_GPIO_NUM_MAX;
+        dev_cfg.bl.type   = TUYA_DISP_BL_TP_NONE;
+        dev_cfg.power.pin = TUYA_GPIO_NUM_MAX;
+        tdd_disp_spi_st7789_register(DISPLAY_NAME, &dev_cfg);
+    }
+#endif
 
     return rt;
-}
-
-int board_display_init(void)
-{
-    TDD_DISP_ESP_LCD_CFG_T cfg = {
-        .width     = DISPLAY_WIDTH,
-        .height    = DISPLAY_HEIGHT,
-        .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
-        .rotation  = TUYA_DISPLAY_ROTATION_0,
-        .is_swap   = DISPLAY_SWAP_BYTES,
-        .bl.type   = TUYA_DISP_BL_TP_NONE,
-    };
-
-    LCD_ST7789_SPI_HW_CFG_T hw = {
-        .spi_host     = LCD_SPI_HOST,
-        .sclk_io      = LCD_SCLK_PIN,
-        .mosi_io      = LCD_MOSI_PIN,
-        .cs_io        = LCD_CS_PIN,
-        .dc_io        = LCD_DC_PIN,
-        .rst_io       = -1,
-        .invert_color = DISPLAY_BACKLIGHT_OUTPUT_INVERT,
-        .swap_xy      = DISPLAY_SWAP_XY,
-        .mirror_x     = DISPLAY_MIRROR_X,
-        .mirror_y     = DISPLAY_MIRROR_Y,
-    };
-
-    return tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg);
 }
