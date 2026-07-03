@@ -1303,11 +1303,13 @@ function Install-TuyaPython {
     $savedMirror = $env:UV_PYTHON_INSTALL_MIRROR
     $exitCode = 0
     if ($savedMirror) {
-        $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'custom mirror (UV_PYTHON_INSTALL_MIRROR)'
+        Write-TuyaOpenDebug "[TuyaOpen] Python mirror URL: $savedMirror"
+        $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'custom mirror'
     } elseif ($script:TuyaUseCnDownload -and $script:TuyaPythonInstallMirrorCn) {
         $env:UV_PYTHON_INSTALL_MIRROR = $script:TuyaPythonInstallMirrorCn
+        Write-TuyaOpenDebug "[TuyaOpen] Python mirror URL: $($script:TuyaPythonInstallMirrorCn)"
         try {
-            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source "CN mirror ($($script:TuyaPythonInstallMirrorCn))"
+            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'npmmirror (CN mirror)'
         } finally {
             Remove-Item Env:UV_PYTHON_INSTALL_MIRROR -ErrorAction SilentlyContinue
         }

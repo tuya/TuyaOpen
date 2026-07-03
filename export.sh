@@ -1206,7 +1206,8 @@ tuya_install_python() {
 
     # If the user pinned their own mirror, honor it and don't manage fallback.
     if [ -n "$saved_py_mirror" ]; then
-        tuya_run_python_install "$install_dir" 'custom mirror (UV_PYTHON_INSTALL_MIRROR)' && return 0
+        tuya_debug "[TuyaOpen] Python mirror URL: $saved_py_mirror"
+        tuya_run_python_install "$install_dir" 'custom mirror' && return 0
         tuya_python_install_error "$install_dir"
         return 1
     fi
@@ -1216,7 +1217,8 @@ tuya_install_python() {
     if [ "${_tuya_use_cn_download:-0}" -eq 1 ] && [ -n "${TUYA_PYTHON_INSTALL_MIRROR_CN:-}" ]; then
         UV_PYTHON_INSTALL_MIRROR="$TUYA_PYTHON_INSTALL_MIRROR_CN"
         export UV_PYTHON_INSTALL_MIRROR
-        tuya_run_python_install "$install_dir" "CN mirror ($TUYA_PYTHON_INSTALL_MIRROR_CN)"
+        tuya_debug "[TuyaOpen] Python mirror URL: $TUYA_PYTHON_INSTALL_MIRROR_CN"
+        tuya_run_python_install "$install_dir" 'npmmirror (CN mirror)'
         rc=$?
         unset UV_PYTHON_INSTALL_MIRROR
         if [ "$rc" -eq 0 ]; then
