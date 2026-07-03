@@ -82,7 +82,7 @@
 #define SD_SPI_MOSI_IO  (1)   /* GPIO1 */
 #define SD_SPI_SCK_IO   (2)   /* GPIO2 */
 #define SD_SPI_MISO_IO  (3)   /* GPIO3 */
-#define SD_CS_IO        (7)   /* EXIO7 via TCA9554 IO expander */
+#define SD_CS_IO        (-1)   /* EXIO7 via TCA9554 IO expander */
 
 /* Power key: TCA9554 EXIO5 = AXP2101 IRQ (active low) */
 #define BOARD_PWR_KEY_NAME      "power_key"
@@ -296,7 +296,7 @@ static OPERATE_RET __board_register_sd(void)
     tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
     tkl_io_pinmux_config(SD_SPI_SCK_IO,  TUYA_SPI1_CLK);
     tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
-    tkl_io_pinmux_config(-1, TUYA_SPI1_CS);
+    tkl_io_pinmux_config(SD_CS_IO, TUYA_SPI1_CS);
 
     /* CS on TCA9554 EXIO7 — held LOW, sdspi does no-op cs_high/cs_low */
     uint32_t sd_cs_mask = (1ULL << 7);
