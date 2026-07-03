@@ -11,11 +11,12 @@
 
 #include "tdd_audio_codec_bus.h"
 #include "tdd_audio_es8388_codec.h"
-
 #include "tdd_disp_esp_st7789_spi.h"
-#include "board_com_api.h"
 
+#include "board_com_api.h"
 #include "xl9555.h"
+#include "tkl_pinmux.h"
+#include "tkl_fs.h"
 
 /***********************************************************
 ************************macro define************************
@@ -61,6 +62,12 @@
 #define EX_IO_KEY_2    (0x0001 << 13)
 #define EX_IO_KEY_1    (0x0001 << 14)
 #define EX_IO_KEY_0    (0x0001 << 15)
+
+/* SD card SPI3 */
+#define SD_SPI_MOSI_IO  11
+#define SD_SPI_SCLK_IO  12
+#define SD_SPI_MISO_IO  13
+#define SD_SPI_CS_IO    2
 
 /* LCD (ST7789 over single-line SPI) */
 #define LCD_SPI_HOST (1) /* SPI2_HOST in ESP-IDF host enum */
@@ -182,6 +189,23 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
+    /* SD card SPI pinmux */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(SD_SPI_CS_IO,  TUYA_SPI1_CS);
+#endif
+
+    return rt;
+}
+
+
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
@@ -192,9 +216,9 @@ OPERATE_RET board_register_hardware(void)
     OPERATE_RET rt = OPRT_OK;
 
     TUYA_CALL_ERR_LOG(__io_expander_init());
-
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(board_display_init());
+    TUYA_CALL_ERR_LOG(__board_register_sd());
 
     return rt;
 }

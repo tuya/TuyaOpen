@@ -20,6 +20,7 @@
 #include "tca9554.h"
 #include "axp2101_driver.h"
 #include "tkl_pinmux.h"
+#include "tkl_fs.h"
 #include "tdd_disp_esp_sh8601.h"
 #include "tdd_tp_esp_ft5x06.h"
 #include "tdl_display_manage.h"
@@ -76,6 +77,12 @@
 /* On-board mechanical button */
 #define BOARD_BUTTON_PIN       TUYA_GPIO_NUM_0
 #define BOARD_BUTTON_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
+
+/* SD card SPI configuration */
+#define SD_SPI_MOSI_IO  (1)   /* GPIO1 */
+#define SD_SPI_SCK_IO   (2)   /* GPIO2 */
+#define SD_SPI_MISO_IO  (3)   /* GPIO3 */
+#define SD_CS_IO        (-1)   /* EXIO7 via TCA9554 IO expander */
 
 /* Power key: TCA9554 EXIO5 = AXP2101 IRQ (active low) */
 #define BOARD_PWR_KEY_NAME      "power_key"
@@ -280,6 +287,29 @@ static OPERATE_RET __board_register_display(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
+    /* SD card SPI pinmux. */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCK_IO,  TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(SD_CS_IO, TUYA_SPI1_CS);
+
+    /* CS on TCA9554 EXIO7 — held LOW, sdspi does no-op cs_high/cs_low */
+    uint32_t sd_cs_mask = (1ULL << 7);
+    rt = tca9554_set_dir(sd_cs_mask, 0);
+    if (rt != 0) {
+        PR_ERR("tca9554_set_dir for SD CS failed");
+        return rt;
+    }
+    tca9554_set_level(sd_cs_mask, 0);
+#endif
+
+    return rt;
+}
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
@@ -303,6 +333,7 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_display());
+    TUYA_CALL_ERR_LOG(__board_register_sd());
 
     return rt;
 }
