@@ -27,6 +27,9 @@ TUYA_PYTHON_VERSION='3.12.13'
 TUYA_VENV_MARKER='.tuyaopen-uv'
 TUYA_UV_DOWNLOAD_ATTEMPTS=2
 TUYA_ALIYUN_PYPI_INDEX='https://mirrors.aliyun.com/pypi/simple/'
+# CN mirror for uv-managed Python (python-build-standalone). Replaces the
+# default GitHub base for `uv python install` via UV_PYTHON_INSTALL_MIRROR.
+TUYA_PYTHON_INSTALL_MIRROR_CN='https://registry.npmmirror.com/-/binary/python-build-standalone'
 TUYA_PROMPT_PREFIX='(TuyaOpen) '
 TUYA_CN_TZ_OFFSET_TARGET=480
 TUYA_CN_TZ_OFFSET_TOLERANCE=30
@@ -451,7 +454,7 @@ tuya_cleanup() {
              tuya_extract_uv tuya_install_uv tuya_setup_uv \
              tuya_python_install_dir tuya_find_managed_python \
              tuya_test_python_exe tuya_install_python tuya_install_python_ide \
-             tuya_python_install_error \
+             tuya_run_python_install tuya_python_install_error \
              tuya_uv_reset_diag tuya_uv_capture_diag tuya_uv_diag_is_network tuya_uv_print_diag \
              tuya_setup_python tuya_uv_sync_plan tuya_uv \
              tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide tuya_sync_deps_error \
@@ -1158,7 +1161,6 @@ tuya_install_python_ide() {
     _tuya_prog_last_text=''
     _tuya_prog_last_at=0
     _tuya_prog_last_pct=-1
-    tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION..."
     tuya_uv_run_stream tuya_parse_python_install_line \
         python install "$TUYA_PYTHON_VERSION" --install-dir "$install_dir" --no-registry --no-bin || rc=$?
     return "$rc"
@@ -1182,23 +1184,51 @@ tuya_python_install_error() {
     tuya_uv_print_diag
 }
 
-tuya_install_python() {
-    local install_dir
-    install_dir=$(tuya_python_install_dir)
+# Run one `uv python install` attempt, announcing the source it downloads from
+# (so the origin is visible in logs for later diagnosis).
+tuya_run_python_install() {
+    local install_dir="$1" src="$2" rc=0
     tuya_uv_reset_diag
+    tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION from ${src}..."
     if tuya_is_ide_host; then
-        tuya_install_python_ide || {
-            tuya_python_install_error "$install_dir"
-            return 1
-        }
-        return 0
+        tuya_install_python_ide || rc=$?
+    else
+        tuya_uv --with-progress python install "$TUYA_PYTHON_VERSION" \
+            --install-dir "$install_dir" --no-registry --no-bin || rc=$?
     fi
-    tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION..."
-    tuya_uv --with-progress python install "$TUYA_PYTHON_VERSION" \
-        --install-dir "$install_dir" --no-registry --no-bin || {
+    return "$rc"
+}
+
+tuya_install_python() {
+    local install_dir rc=0 saved_py_mirror=""
+    install_dir=$(tuya_python_install_dir)
+    saved_py_mirror="${UV_PYTHON_INSTALL_MIRROR:-}"
+
+    # If the user pinned their own mirror, honor it and don't manage fallback.
+    if [ -n "$saved_py_mirror" ]; then
+        tuya_run_python_install "$install_dir" 'custom mirror (UV_PYTHON_INSTALL_MIRROR)' && return 0
         tuya_python_install_error "$install_dir"
         return 1
-    }
+    fi
+
+    # In mainland China, try the CN mirror first, then fall back to the default
+    # (GitHub) source if it fails — uv itself does not fall back automatically.
+    if [ "${_tuya_use_cn_download:-0}" -eq 1 ] && [ -n "${TUYA_PYTHON_INSTALL_MIRROR_CN:-}" ]; then
+        UV_PYTHON_INSTALL_MIRROR="$TUYA_PYTHON_INSTALL_MIRROR_CN"
+        export UV_PYTHON_INSTALL_MIRROR
+        tuya_run_python_install "$install_dir" "CN mirror ($TUYA_PYTHON_INSTALL_MIRROR_CN)"
+        rc=$?
+        unset UV_PYTHON_INSTALL_MIRROR
+        if [ "$rc" -eq 0 ]; then
+            return 0
+        fi
+        tuya_info "[TuyaOpen] CN Python mirror failed (exit ${rc}); falling back to default source (GitHub)..."
+    fi
+
+    # Default source (GitHub) — first choice overseas, fallback in CN.
+    tuya_run_python_install "$install_dir" 'GitHub (default)' && return 0
+    tuya_python_install_error "$install_dir"
+    return 1
 }
 
 tuya_setup_python() {

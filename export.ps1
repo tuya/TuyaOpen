@@ -43,6 +43,9 @@ $script:TuyaUvBinNames       = @('uv.exe', 'uvx.exe', 'uvw.exe')
 $script:TuyaMakeToolName     = 'make'
 $script:TuyaMakeVersion      = '4.4.1'
 $script:TuyaAliyunPypiIndex  = 'https://mirrors.aliyun.com/pypi/simple/'
+# CN mirror for uv-managed Python (python-build-standalone). Replaces the
+# default GitHub base for `uv python install` via UV_PYTHON_INSTALL_MIRROR.
+$script:TuyaPythonInstallMirrorCn = 'https://registry.npmmirror.com/-/binary/python-build-standalone'
 $script:TuyaCnTzOffsetTarget     = 480
 $script:TuyaCnTzOffsetTolerance  = 30
 $script:TuyaUseCnDownload          = $false
@@ -1264,6 +1267,28 @@ function Invoke-TuyaUvPythonInstallWithIdeProgress {
     }
 }
 
+# Run one `uv python install` attempt, announcing the source it downloads from
+# (so the origin is visible in logs for later diagnosis).
+function Invoke-TuyaPythonInstallAttempt {
+    param(
+        [Parameter(Mandatory)][string]$UvExe,
+        [Parameter(Mandatory)][string]$Version,
+        [Parameter(Mandatory)][string]$InstallDir,
+        [Parameter(Mandatory)][string]$Source
+    )
+    Reset-TuyaUvDiag
+    Write-TuyaOpenInfo "[TuyaOpen] Installing Python $Version from $Source..."
+    if ($script:TuyaOpenIdeHost) {
+        return (Invoke-TuyaUvPythonInstallWithIdeProgress -UvExe $UvExe -Version $Version -InstallDir $InstallDir)
+    }
+    Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
+        'python', 'install', $Version,
+        '--install-dir', $InstallDir,
+        '--no-registry', '--no-bin'
+    )
+    return $LASTEXITCODE
+}
+
 function Install-TuyaPython {
     param(
         [string]$Root,
@@ -1272,18 +1297,26 @@ function Install-TuyaPython {
     $version    = $script:PythonVersion
     $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
 
-    Write-TuyaOpenInfo "[TuyaOpen] Installing Python $version..."
-    Reset-TuyaUvDiag
+    # If the user pinned their own mirror, honor it (no managed fallback).
+    # Otherwise in mainland China try the CN mirror first and fall back to the
+    # default (GitHub) source — uv does not fall back automatically.
+    $savedMirror = $env:UV_PYTHON_INSTALL_MIRROR
     $exitCode = 0
-    if ($script:TuyaOpenIdeHost) {
-        $exitCode = Invoke-TuyaUvPythonInstallWithIdeProgress -UvExe $UvExe -Version $version -InstallDir $installDir
+    if ($savedMirror) {
+        $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'custom mirror (UV_PYTHON_INSTALL_MIRROR)'
+    } elseif ($script:TuyaUseCnDownload -and $script:TuyaPythonInstallMirrorCn) {
+        $env:UV_PYTHON_INSTALL_MIRROR = $script:TuyaPythonInstallMirrorCn
+        try {
+            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source "CN mirror ($($script:TuyaPythonInstallMirrorCn))"
+        } finally {
+            Remove-Item Env:UV_PYTHON_INSTALL_MIRROR -ErrorAction SilentlyContinue
+        }
+        if ($exitCode -ne 0) {
+            Write-TuyaOpenInfo "[TuyaOpen] CN Python mirror failed (exit $exitCode); falling back to default source (GitHub)..."
+            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'GitHub (default)'
+        }
     } else {
-        Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
-            'python', 'install', $version,
-            '--install-dir', $installDir,
-            '--no-registry', '--no-bin'
-        )
-        $exitCode = $LASTEXITCODE
+        $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'GitHub (default)'
     }
     if ($exitCode -ne 0) {
         $cause = "uv python install exited with code $exitCode"
