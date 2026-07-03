@@ -143,15 +143,18 @@ tuya_detect_region() {
             msg="${msg}, offset=${offset}"
         fi
         msg="${msg}, CN download mirror)${override}"
-        tuya_debug "$msg"
     else
         msg='[TuyaOpen] Region: overseas'
         if [ -n "$offset" ] && [ "$offset" != 'unknown' ]; then
             msg="${msg} (offset=${offset})"
         fi
-        msg="${msg}${override}"
-        tuya_debug "$msg"
+        msg="${msg} (GitHub/Astral download source)${override}"
     fi
+    # Remember the decision (reason + which source) but don't print it here:
+    # it's surfaced at uv download time so a warm start (nothing downloaded)
+    # stays quiet.  tuya_debug still shows it under TUYAOPEN_EXPORT_VERBOSE.
+    _tuya_region_msg="$msg"
+    tuya_debug "$msg"
 }
 
 tuya_size_to_mib() {
@@ -190,6 +193,43 @@ tuya_emit_if_changed() {
     tuya_info "$text"
 }
 
+# uv diagnostics: keep error/cause lines from a streamed uv run so a failure
+# can explain the real reason (network vs. other) instead of a bare exit code.
+_tuya_uv_diag=''
+
+tuya_uv_reset_diag() { _tuya_uv_diag=''; }
+
+tuya_uv_capture_diag() {
+    case "$1" in
+        error:*|warning:*|*[Ee]rror:*|*Caused\ by:*|*[Ff]ailed\ to\ *|*[Tt]imed\ out*)
+            _tuya_uv_diag="${_tuya_uv_diag}${1}
+"
+            ;;
+    esac
+}
+
+# Best-effort: does the captured uv output look like a network/connectivity issue?
+tuya_uv_diag_is_network() {
+    case "$_tuya_uv_diag" in
+        *[Dd]ns*|*lookup*|*"name resolution"*|*"Connection refused"*|\
+        *"Connection reset"*|*"connect error"*|*"tcp connect"*|*"could not connect"*|\
+        *[Tt]imed\ out*|*[Tt]imeout*|*"Failed to fetch"*|*"Failed to download"*|\
+        *"error sending request"*|*"Request failed"*|*retries*|*unreachable*|\
+        *certificate*|*[Ss][Ss][Ll]*|*[Tt][Ll][Ss]*|*proxy*|*network*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+tuya_uv_print_diag() {
+    [ -n "$_tuya_uv_diag" ] || return 0
+    tuya_info 'uv output:'
+    printf '%s' "$_tuya_uv_diag" | while IFS= read -r _line; do
+        [ -n "$_line" ] && tuya_info "  $_line"
+    done
+}
+
 tuya_uv_run_stream() {
     # Run OPEN_SDK_UV with streaming line-by-line callback and correct exit code.
     # Uses a FIFO so the while loop runs in the current shell (variable mutations
@@ -204,12 +244,14 @@ tuya_uv_run_stream() {
     UV_NO_PROGRESS=1
     UV_LINK_MODE="${UV_LINK_MODE:-copy}"
     export UV_NO_PROGRESS UV_LINK_MODE
+    tuya_uv_reset_diag
 
     fifo=$(mktemp -u 2>/dev/null || printf '%s' "/tmp/tuya_uv_fifo_$$")
     if mkfifo "$fifo" 2>/dev/null; then
         "$OPEN_SDK_UV" "$@" >"$fifo" 2>&1 &
         uv_pid=$!
         while IFS= read -r line; do
+            tuya_uv_capture_diag "$line"
             [ -n "$line" ] && "$on_line" "$line"
         done <"$fifo"
         wait "$uv_pid" || rc=$?
@@ -218,6 +260,7 @@ tuya_uv_run_stream() {
         tmp=$(mktemp 2>/dev/null || printf '%s' "/tmp/tuya_uv_stream_$$")
         "$OPEN_SDK_UV" "$@" >"$tmp" 2>&1 || rc=$?
         while IFS= read -r line; do
+            tuya_uv_capture_diag "$line"
             [ -n "$line" ] && "$on_line" "$line"
         done <"$tmp"
         rm -f "$tmp" 2>/dev/null || true
@@ -385,19 +428,20 @@ tuya_error() {
 
 tuya_cleanup() {
     unset _tuya_script_dir _tuya_pwd_dir tuya_is_env_active
-    unset _tuya_uv_ver _tuya_uv_triple _tuya_uv_artifact _tuya_uv_url_astral _tuya_uv_url_github _tuya_use_cn_download
+    unset _tuya_uv_ver _tuya_uv_triple _tuya_uv_artifact _tuya_uv_url_astral _tuya_uv_url_github _tuya_use_cn_download _tuya_region_msg
     unset _tuya_uv_dl_size _tuya_uv_dl_sha256 _tuya_uv_tools_dir
     unset _tuya_uv_archive _tuya_uv_exe
     unset _tuya_managed_python _tuya_venv_py
     unset _tuya_sync_current _tuya_sync_last_name _tuya_sync_pkg_total
     unset _tuya_py_artifact _tuya_py_total_mib _tuya_py_recv_mib
     unset _tuya_prog_last_text _tuya_prog_last_at _tuya_prog_last_pct
+    unset _tuya_uv_diag
     unset -f tuya_debug tuya_error \
              tuya_is_sdk_root tuya_print_version tuya_has_cmd \
              tuya_ensure_dir tuya_path_add \
              tuya_triple_manifest_key tuya_trim_manifest_value tuya_load_uv_manifest \
              tuya_get_uv_artifact_check tuya_get_release_urls tuya_get_uv_download_urls \
-             tuya_get_uv_cn_url tuya_has_uv_download_override \
+             tuya_get_uv_cn_url tuya_has_uv_download_override tuya_uv_source_label \
              tuya_parse_tz_offset_z tuya_get_utc_offset_minutes tuya_is_in_cn_tz_range tuya_is_mainland_china tuya_detect_region \
              tuya_get_arch tuya_select_uv_artifact \
              tuya_check_glibc tuya_download_file tuya_verify_sha256 \
@@ -407,8 +451,10 @@ tuya_cleanup() {
              tuya_extract_uv tuya_install_uv tuya_setup_uv \
              tuya_python_install_dir tuya_find_managed_python \
              tuya_test_python_exe tuya_install_python tuya_install_python_ide \
+             tuya_python_install_error \
+             tuya_uv_reset_diag tuya_uv_capture_diag tuya_uv_diag_is_network tuya_uv_print_diag \
              tuya_setup_python tuya_uv_sync_plan tuya_uv \
-             tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide \
+             tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide tuya_sync_deps_error \
              tuya_is_uv_venv tuya_migrate_legacy_venv \
              tuya_setup_venv tuya_is_env_active \
              tuya_set_env tuya_reset_cache \
@@ -792,9 +838,9 @@ tuya_download_file_ide() {
     rm -f "$tmp" 2>/dev/null || true
     if tuya_has_cmd curl; then
         if [ -n "$token" ]; then
-            curl -fL -s --header "Authorization: Bearer $token" "$url" -o "$tmp" &
+            curl -fL -sS --header "Authorization: Bearer $token" "$url" -o "$tmp" &
         else
-            curl -fL -s "$url" -o "$tmp" &
+            curl -fL -sS "$url" -o "$tmp" &
         fi
         pid=$!
         while kill -0 "$pid" 2>/dev/null; do
@@ -897,26 +943,49 @@ tuya_new_uv_context() {
     _tuya_uv_exe="$_tuya_uv_tools_dir/uv"
 }
 
+# Map a download URL to a short, friendly source name (github/astral/tuyacn).
+tuya_uv_source_label() {
+    case "$1" in
+        *github.com*) echo github ;;
+        *astral.sh*) echo astral ;;
+        *tuyacn.com*) echo tuyacn ;;
+        *)
+            local host="${1#*://}"
+            host="${host%%/*}"
+            echo "${host:-unknown}"
+            ;;
+    esac
+}
+
 tuya_download_uv() {
-    local url attempt mirror=0 total=0 rc=1
+    local url attempt mirror=0 total=0 rc=1 src=''
     total=$(tuya_get_uv_download_urls | wc -l | awk '{print $1}')
     for url in $(tuya_get_uv_download_urls); do
         mirror=$((mirror + 1))
+        src=$(tuya_uv_source_label "$url")
         if [ "$total" -gt 1 ]; then
-            tuya_debug "[TuyaOpen] Mirror $mirror/$total: $url"
+            tuya_info "[TuyaOpen] Downloading ${_tuya_uv_artifact} from ${src} (source ${mirror}/${total})"
         else
-            tuya_debug "[TuyaOpen] Download: $url"
+            tuya_info "[TuyaOpen] Downloading ${_tuya_uv_artifact} from ${src}"
         fi
+        tuya_debug "[TuyaOpen] URL: $url"
         attempt=1
         while [ "$attempt" -le "$TUYA_UV_DOWNLOAD_ATTEMPTS" ]; do
-            [ "$attempt" -gt 1 ] && tuya_debug "[TuyaOpen] Retry $attempt/$TUYA_UV_DOWNLOAD_ATTEMPTS..."
+            [ "$attempt" -gt 1 ] && tuya_info "[TuyaOpen] Retry $attempt/$TUYA_UV_DOWNLOAD_ATTEMPTS from ${src}..."
             rm -f "$_tuya_uv_archive" 2>/dev/null || true
             if tuya_download_file "$url" "$_tuya_uv_archive" "$_tuya_uv_dl_size" "[TuyaOpen] Downloading $_tuya_uv_artifact"; then
                 rc=0
                 break 2
+            else
+                rc=$?
             fi
             attempt=$((attempt + 1))
         done
+        if [ "$mirror" -lt "$total" ]; then
+            tuya_info "[TuyaOpen] Download from ${src} failed (exit ${rc}); trying next source..."
+        else
+            tuya_info "[TuyaOpen] Download from ${src} failed (exit ${rc})."
+        fi
     done
     return "$rc"
 }
@@ -936,6 +1005,7 @@ tuya_resolve_uv() {
     tuya_ensure_dir "$(dirname "$_tuya_uv_archive")" || return 1
     local size_human
     size_human=$(tuya_human_size "${_tuya_uv_dl_size:-0}")
+    [ -n "${_tuya_region_msg:-}" ] && tuya_info "$_tuya_region_msg"
     tuya_info "[TuyaOpen] Downloading uv v${_tuya_uv_ver} (${size_human})..."
     if ! tuya_download_uv; then
         tuya_error Uv 'uv download failed.' 'All mirrors and retries exhausted.' \
@@ -1094,15 +1164,31 @@ tuya_install_python_ide() {
     return "$rc"
 }
 
+# Report a Python install failure, explaining the real cause (network vs. other)
+# from the captured uv output when available.
+tuya_python_install_error() {
+    local install_dir="$1" cause='uv python install exited non-zero'
+    if [ -n "$_tuya_uv_diag" ]; then
+        if tuya_uv_diag_is_network; then
+            cause='network error while downloading Python (check connection/proxy; see uv output below)'
+        else
+            cause='uv python install failed (see uv output below)'
+        fi
+    fi
+    tuya_error Python "Python $TUYA_PYTHON_VERSION installation failed." \
+        "$cause" \
+        "Run: \"$OPEN_SDK_UV\" python install $TUYA_PYTHON_VERSION --install-dir \"$install_dir\"" \
+        'Re-run: . ./export.sh'
+    tuya_uv_print_diag
+}
+
 tuya_install_python() {
     local install_dir
     install_dir=$(tuya_python_install_dir)
+    tuya_uv_reset_diag
     if tuya_is_ide_host; then
         tuya_install_python_ide || {
-            tuya_error Python "Python $TUYA_PYTHON_VERSION installation failed." \
-                "uv python install exited non-zero" \
-                "Run: \"$OPEN_SDK_UV\" python install $TUYA_PYTHON_VERSION --install-dir \"$install_dir\"" \
-                'Re-run: . ./export.sh'
+            tuya_python_install_error "$install_dir"
             return 1
         }
         return 0
@@ -1110,10 +1196,7 @@ tuya_install_python() {
     tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION..."
     tuya_uv --with-progress python install "$TUYA_PYTHON_VERSION" \
         --install-dir "$install_dir" --no-registry --no-bin || {
-        tuya_error Python "Python $TUYA_PYTHON_VERSION installation failed." \
-            "uv python install exited non-zero" \
-            "Run: \"$OPEN_SDK_UV\" python install $TUYA_PYTHON_VERSION --install-dir \"$install_dir\"" \
-            'Re-run: . ./export.sh'
+        tuya_python_install_error "$install_dir"
         return 1
     }
 }
@@ -1207,9 +1290,27 @@ tuya_sync_deps_ide() {
     return "$rc"
 }
 
+# Report a dependency-sync failure, explaining the real cause (network vs. other)
+# from the captured uv output when available.  Emitted here (not in the caller)
+# so it runs in the same shell that captured the uv diagnostics.
+tuya_sync_deps_error() {
+    local cause='uv sync failed.'
+    if [ -n "$_tuya_uv_diag" ]; then
+        if tuya_uv_diag_is_network; then
+            cause='network error while syncing dependencies (check connection/proxy; see uv output below)'
+        else
+            cause='uv sync failed (see uv output below)'
+        fi
+    fi
+    tuya_error Sync 'Dependency sync failed.' "$cause" \
+        'Ensure uv.lock matches pyproject.toml' 'Check network, then re-run: . ./export.sh'
+    tuya_uv_print_diag
+}
+
 tuya_sync_deps() {
     tuya_stage sync
     local plan saved_index="" saved_url="" rc=0 pkg_count
+    tuya_uv_reset_diag
     plan=$(tuya_uv_sync_plan)
     pkg_count=$(tuya_lock_pkg_count)
     if tuya_is_ide_host; then
@@ -1218,6 +1319,7 @@ tuya_sync_deps() {
             *) tuya_debug '[TuyaOpen] Dependency sync: PyPI lock (--frozen).' ;;
         esac
         tuya_sync_deps_ide "$plan" "$pkg_count" || rc=$?
+        [ "$rc" -ne 0 ] && tuya_sync_deps_error
         return "$rc"
     fi
     tuya_info "[TuyaOpen] Syncing ${pkg_count} Python dependencies..."
@@ -1238,6 +1340,7 @@ tuya_sync_deps() {
             tuya_uv sync --frozen || rc=$?
             ;;
     esac
+    [ "$rc" -ne 0 ] && tuya_sync_deps_error
     return "$rc"
 }
 
@@ -1302,8 +1405,7 @@ tuya_setup_venv() {
         tuya_sync_deps
     ) || rc=$?
     if [ "$rc" -ne 0 ]; then
-        tuya_error Sync 'Dependency sync failed.' 'uv sync --frozen failed.' \
-            'Ensure uv.lock matches pyproject.toml' 'Check network, then re-run: . ./export.sh'
+        # tuya_sync_deps already reported the specific cause (incl. uv output).
         return 1
     fi
     tuya_debug '[TuyaOpen] Dependencies synced.'

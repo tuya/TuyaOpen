@@ -46,6 +46,7 @@ $script:TuyaAliyunPypiIndex  = 'https://mirrors.aliyun.com/pypi/simple/'
 $script:TuyaCnTzOffsetTarget     = 480
 $script:TuyaCnTzOffsetTolerance  = 30
 $script:TuyaUseCnDownload          = $false
+$script:TuyaRegionMsg              = ''
 
 # Windows release triple -> uv zip artifact (MSVC builds only).
 $script:TuyaUvWindowsArtifacts = @{
@@ -122,15 +123,18 @@ function Invoke-TuyaRegionDetect {
             $msg += ", offset=$offset"
         }
         $msg += ", CN download mirror)$override"
-        Write-TuyaOpenDebug $msg
     } else {
         $msg = '[TuyaOpen] Region: overseas'
         if ($null -ne $offset) {
             $msg += " (offset=$offset)"
         }
-        $msg += $override
-        Write-TuyaOpenDebug $msg
+        $msg += " (GitHub/Astral download source)$override"
     }
+    # Remember the decision (reason + which source) but don't print it here:
+    # it's surfaced at uv download time so a warm start (nothing downloaded)
+    # stays quiet.  Write-TuyaOpenDebug still shows it under TUYAOPEN_EXPORT_VERBOSE.
+    $script:TuyaRegionMsg = $msg
+    Write-TuyaOpenDebug $msg
 }
 
 function Get-TuyaExportColdStartKind {
@@ -564,6 +568,17 @@ function Get-TuyaUvDownloadUrls {
     return @($urls)
 }
 
+# Map a download URL to a short, friendly source name (github/astral/tuyacn).
+function Get-TuyaUvSourceLabel {
+    param([string]$Url)
+    switch -Wildcard ($Url) {
+        '*github.com*' { return 'github' }
+        '*astral.sh*'  { return 'astral' }
+        '*tuyacn.com*' { return 'tuyacn' }
+    }
+    try { return ([Uri]$Url).Host } catch { return 'unknown' }
+}
+
 # ---------------------------------------------------------------------------
 # Install context (paths + URLs derived once per install attempt)
 # ---------------------------------------------------------------------------
@@ -811,15 +826,17 @@ function Invoke-TuyaUvArchiveDownload {
     }
     foreach ($downloadUrl in $downloadUrls) {
         $mirror++
+        $src = Get-TuyaUvSourceLabel -Url $downloadUrl
         if ($downloadUrls.Count -gt 1) {
-            Write-TuyaOpenDebug "[TuyaOpen] Mirror $mirror/$($downloadUrls.Count): $downloadUrl"
+            Write-TuyaOpenInfo "[TuyaOpen] Downloading $($Context.ArtifactName) from $src (source $mirror/$($downloadUrls.Count))"
         } else {
-            Write-TuyaOpenDebug "[TuyaOpen] Download: $downloadUrl"
+            Write-TuyaOpenInfo "[TuyaOpen] Downloading $($Context.ArtifactName) from $src"
         }
+        Write-TuyaOpenDebug "[TuyaOpen] URL: $downloadUrl"
 
         for ($attempt = 1; $attempt -le $script:UvDownloadAttempts; $attempt++) {
             if ($attempt -gt 1) {
-                Write-TuyaOpenDebug "[TuyaOpen] Retry $attempt/$($script:UvDownloadAttempts)..."
+                Write-TuyaOpenInfo "[TuyaOpen] Retry $attempt/$($script:UvDownloadAttempts) from $src..."
             }
             try {
                 Remove-TuyaPathSafe -Path $Context.ArchivePath | Out-Null
@@ -832,9 +849,11 @@ function Invoke-TuyaUvArchiveDownload {
                 Write-TuyaOpenDebug "[TuyaOpen] Download failed: $lastError"
             }
         }
-    }
-    if ($lastError) {
-        Write-TuyaOpenInfo "[TuyaOpen] Download failed: $lastError"
+        if ($mirror -lt $downloadUrls.Count) {
+            Write-TuyaOpenInfo "[TuyaOpen] Download from $src failed ($lastError); trying next source..."
+        } else {
+            Write-TuyaOpenInfo "[TuyaOpen] Download from $src failed ($lastError)."
+        }
     }
     return $false
 }
@@ -853,6 +872,7 @@ function Resolve-TuyaUvArchive {
         Remove-TuyaUvArchive -Context $Context
     }
 
+    if ($script:TuyaRegionMsg) { Write-TuyaOpenInfo $script:TuyaRegionMsg }
     if (-not (Invoke-TuyaUvArchiveDownload -Context $Context)) {
         Write-TuyaOpenFailureHint -Stage Uv -Summary 'uv download failed.' -Cause 'All mirrors and retries exhausted.' -NextSteps @('Check network or proxy.', 'See manual install below.')
         Write-TuyaUvManualDownloadHint -Context $Context
@@ -1125,6 +1145,35 @@ function Update-TuyaPythonInstallFromUvLine {
     Write-TuyaPythonInstallProgressIfChanged -Version $Version -State $State
 }
 
+# uv diagnostics: keep error/cause lines from a streamed uv run so a failure
+# can explain the real reason (network vs. other) instead of a bare exit code.
+$script:TuyaUvDiag = [System.Collections.Generic.List[string]]::new()
+
+function Reset-TuyaUvDiag {
+    $script:TuyaUvDiag = [System.Collections.Generic.List[string]]::new()
+}
+
+function Add-TuyaUvDiagLine {
+    param([string]$Line)
+    if ([string]::IsNullOrWhiteSpace($Line)) { return }
+    if ($Line -match '(?i)(error:|caused by:|failed to |timed out|warning:)') {
+        [void]$script:TuyaUvDiag.Add($Line.Trim())
+    }
+}
+
+# Best-effort: does the captured uv output look like a network/connectivity issue?
+function Test-TuyaUvDiagIsNetwork {
+    if ($script:TuyaUvDiag.Count -eq 0) { return $false }
+    $text = ($script:TuyaUvDiag -join "`n")
+    return ($text -match '(?i)(dns|lookup|name resolution|connection refused|connection reset|connect error|tcp connect|could not connect|timed out|timeout|failed to fetch|failed to download|error sending request|request failed|retries|unreachable|certificate|ssl|tls|proxy|network)')
+}
+
+function Write-TuyaUvDiag {
+    if ($script:TuyaUvDiag.Count -eq 0) { return }
+    Write-TuyaOpenInfo 'uv output:'
+    foreach ($diagLine in $script:TuyaUvDiag) { Write-TuyaOpenInfo "  $diagLine" }
+}
+
 function Invoke-TuyaUvPythonInstallWithIdeProgress {
     param(
         [Parameter(Mandatory)][string]$UvExe,
@@ -1152,6 +1201,7 @@ function Invoke-TuyaUvPythonInstallWithIdeProgress {
     if (-not $savedLink) { $env:UV_LINK_MODE = 'copy' }
     $onLine = {
         param($line)
+        Add-TuyaUvDiagLine -Line $line
         Update-TuyaPythonInstallFromUvLine -Line $line -Version $Version -State $state
     }
     $onPoll = {
@@ -1223,6 +1273,7 @@ function Install-TuyaPython {
     $installDir = Get-TuyaPythonInstallDir -Root $Root -Version $version
 
     Write-TuyaOpenInfo "[TuyaOpen] Installing Python $version..."
+    Reset-TuyaUvDiag
     $exitCode = 0
     if ($script:TuyaOpenIdeHost) {
         $exitCode = Invoke-TuyaUvPythonInstallWithIdeProgress -UvExe $UvExe -Version $version -InstallDir $installDir
@@ -1235,7 +1286,16 @@ function Install-TuyaPython {
         $exitCode = $LASTEXITCODE
     }
     if ($exitCode -ne 0) {
-        Write-TuyaOpenFailureHint -Stage Python -Summary "Python $version installation failed." -Cause "uv python install exited with code $exitCode" -NextSteps @("Run: `"$UvExe`" python install $version --install-dir `"$installDir`"", 'Re-run: . .\export.ps1')
+        $cause = "uv python install exited with code $exitCode"
+        if ($script:TuyaUvDiag.Count -gt 0) {
+            if (Test-TuyaUvDiagIsNetwork) {
+                $cause = 'network error while downloading Python (check connection/proxy; see uv output below)'
+            } else {
+                $cause = 'uv python install failed (see uv output below)'
+            }
+        }
+        Write-TuyaOpenFailureHint -Stage Python -Summary "Python $version installation failed." -Cause $cause -NextSteps @("Run: `"$UvExe`" python install $version --install-dir `"$installDir`"", 'Re-run: . .\export.ps1')
+        Write-TuyaUvDiag
         Stop-TuyaOpenExport 1
     }
 }
@@ -1560,6 +1620,7 @@ function Invoke-TuyaUvSyncWithProgress {
         [Parameter(Mandatory)][int]$TotalPackages
     )
 
+    Reset-TuyaUvDiag
     $syncPlan = Get-TuyaUvSyncPlan
     if ($syncPlan.UseAliyunMirror) {
         Write-TuyaOpenDebug "[TuyaOpen] Dependency sync: Aliyun mirror ($($syncPlan.Reason))."
@@ -1591,6 +1652,7 @@ function Invoke-TuyaUvSyncWithProgress {
             param($line)
             if (-not $line) { return }
             $uvLines.Add($line)
+            Add-TuyaUvDiagLine -Line $line
             Update-TuyaUvSyncFromUvLine -Line $line -TotalPackages $TotalPackages -State $progressState
         }
 
@@ -1705,7 +1767,15 @@ function Invoke-TuyaSetupVenv {
         $pkgCount = Get-TuyaUvLockPackageCount -LockPath (Join-Path $Root 'uv.lock')
         $syncRc = Invoke-TuyaUvSyncWithProgress -UvExe $UvExe -Root $Root -TotalPackages $pkgCount
         if ($syncRc -ne 0) {
-            Write-TuyaOpenFailureHint -Stage Sync -Summary 'Dependency sync failed.' -Cause 'uv sync --frozen failed.' -NextSteps @('Ensure uv.lock matches pyproject.toml', 'Check network, then re-run: . .\export.ps1')
+            $cause = 'uv sync --frozen failed.'
+            if ($script:TuyaUvDiag.Count -gt 0) {
+                if (Test-TuyaUvDiagIsNetwork) {
+                    $cause = 'network error while syncing dependencies (check connection/proxy; see uv sync output above)'
+                } else {
+                    $cause = 'dependency resolution or uv sync failed (see uv sync output above)'
+                }
+            }
+            Write-TuyaOpenFailureHint -Stage Sync -Summary 'Dependency sync failed.' -Cause $cause -NextSteps @('Ensure uv.lock matches pyproject.toml', 'Check network, then re-run: . .\export.ps1')
             Stop-TuyaOpenExport 1
         }
         Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
