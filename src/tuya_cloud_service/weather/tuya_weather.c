@@ -30,7 +30,7 @@
 #define ENABLE_WEATHER_DEBUG      0
 
 #define WEATHER_API              "thing.weather.get"
-#define API_VERSION              "1.0"
+#define API_VERSION              "2.0"
 
 /**
  * @brief Retrieves weather data from the Tuya cloud platform.
