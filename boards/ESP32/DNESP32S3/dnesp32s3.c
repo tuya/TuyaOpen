@@ -11,12 +11,27 @@
 
 #include "tdd_audio_codec_bus.h"
 #include "tdd_audio_es8388_codec.h"
+
+#if defined(DNESP32S3_LCD_MD0240_SPI) && (DNESP32S3_LCD_MD0240_SPI == 1)
 #include "tdd_disp_esp_st7789_spi.h"
+
+#elif defined(DNESP32S3_LCD_MD0430R_RGB) && (DNESP32S3_LCD_MD0430R_RGB == 1)
+#include "tdd_disp_esp_rgb.h"
+#include "tdd_tp_esp_gt911.h"
+
+#endif
 
 #include "board_com_api.h"
 #include "xl9555.h"
 #include "tkl_pinmux.h"
 #include "tkl_fs.h"
+#include "tdd_button_esp_io_expander.h"
+#include "tdd_led_esp_io_expander.h"
+#include "tdd_led_gpio.h"
+
+#if defined(ENABLE_DNESP32S3_CAMERA) && (ENABLE_DNESP32S3_CAMERA == 1)
+#include "tdd_camera_esp_dvp.h"
+#endif
 
 /***********************************************************
 ************************macro define************************
@@ -64,11 +79,44 @@
 #define EX_IO_KEY_0    (0x0001 << 15)
 
 /* SD card SPI3 */
-#define SD_SPI_MOSI_IO  11
-#define SD_SPI_SCLK_IO  12
-#define SD_SPI_MISO_IO  13
-#define SD_SPI_CS_IO    2
+#define SD_SPI_MOSI_IO 11
+#define SD_SPI_SCLK_IO 12
+#define SD_SPI_MISO_IO 13
+#define SD_SPI_CS_IO   2
 
+/* OV2640 DVP camera */
+#define OV_I2C_NUM    (1)
+#define OV_I2C_SCL_IO (38)
+#define OV_I2C_SDA_IO (39)
+#define OV_CAMERA_CLK (20000000)
+
+#if defined(DNESP32S3_LCD_MD0430R_RGB) && (DNESP32S3_LCD_MD0430R_RGB == 1)
+/* LCD (ATK-MD0430R-800480 over RGB parallel, DE mode) */
+#define DISPLAY_WIDTH   (800)
+#define DISPLAY_HEIGHT  (480)
+#define DISPLAY_PCLK_HZ (18 * 1000 * 1000) /* 18MHz - match Alientek for PSRAM bandwidth */
+#define LCD_RGB_PCLK    (5)
+#define LCD_RGB_DE      (4)
+#define LCD_RGB_HSYNC   (-1) /* DE mode, no HSYNC */
+#define LCD_RGB_VSYNC   (-1) /* DE mode, no VSYNC */
+/* Data pins: D[0..4]=B3~B7, D[5..10]=G2~G7, D[11..15]=R3~R7 */
+#define LCD_RGB_D0  (17)  /* B3 */
+#define LCD_RGB_D1  (16)  /* B4 */
+#define LCD_RGB_D2  (15)  /* B5 */
+#define LCD_RGB_D3  (7)   /* B6 */
+#define LCD_RGB_D4  (6)   /* B7 */
+#define LCD_RGB_D5  (10)  /* G2 */
+#define LCD_RGB_D6  (9)   /* G3 */
+#define LCD_RGB_D7  (46)  /* G4 */
+#define LCD_RGB_D8  (3)   /* G5 */
+#define LCD_RGB_D9  (8)   /* G6 */
+#define LCD_RGB_D10 (18)  /* G7 */
+#define LCD_RGB_D11 (45)  /* R3 */
+#define LCD_RGB_D12 (48)  /* R4 */
+#define LCD_RGB_D13 (47)  /* R5 */
+#define LCD_RGB_D14 (21)  /* R6 */
+#define LCD_RGB_D15 (14)  /* R7 */
+#else
 /* LCD (ST7789 over single-line SPI) */
 #define LCD_SPI_HOST (1) /* SPI2_HOST in ESP-IDF host enum */
 #define LCD_SCLK_PIN (12)
@@ -83,11 +131,11 @@
 #define DISPLAY_MIRROR_Y                false
 #define DISPLAY_SWAP_BYTES              1
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT true
+#endif /* DNESP32S3_LCD_MD0430R_RGB */
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-int board_display_init(void);
 
 /***********************************************************
 ***********************typedef define***********************
@@ -97,9 +145,9 @@ int board_display_init(void);
 ***********************variable define**********************
 ***********************************************************/
 
-static TDD_AUDIO_I2C_HANDLE i2c_bus_handle = NULL;
-static TDD_AUDIO_I2S_TX_HANDLE i2s_tx_handle = NULL;
-static TDD_AUDIO_I2S_RX_HANDLE i2s_rx_handle = NULL;
+static TDD_AUDIO_I2C_HANDLE    i2c_bus_handle = NULL;
+static TDD_AUDIO_I2S_TX_HANDLE i2s_tx_handle  = NULL;
+static TDD_AUDIO_I2S_RX_HANDLE i2s_rx_handle  = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -136,7 +184,7 @@ static OPERATE_RET __io_expander_init(void)
         return rt;
     }
     uint32_t pin_in_mask = ~pin_out_mask;
-    rt = xl9555_set_dir(pin_in_mask, 1); // Set input direction
+    rt                   = xl9555_set_dir(pin_in_mask, 1); // Set input direction
     if (rt != OPRT_OK) {
         PR_ERR("xl9555_set_dir in failed: %d", rt);
         return rt;
@@ -151,34 +199,34 @@ static OPERATE_RET __board_register_audio(void)
 
 #if defined(AUDIO_CODEC_NAME)
     TDD_AUDIO_CODEC_BUS_CFG_T bus_cfg = {
-        .i2c_id = I2C_NUM,
-        .i2c_sda_io = I2C_SDA_IO,
-        .i2c_scl_io = I2C_SCL_IO,
-        .i2s_id = I2S_NUM,
-        .i2s_mck_io = I2S_MCK_IO,
-        .i2s_bck_io = I2S_BCK_IO,
-        .i2s_ws_io = I2S_WS_IO,
-        .i2s_do_io = I2S_DO_IO,
-        .i2s_di_io = I2S_DI_IO,
-        .dma_desc_num = AUDIO_CODEC_DMA_DESC_NUM,
+        .i2c_id        = I2C_NUM,
+        .i2c_sda_io    = I2C_SDA_IO,
+        .i2c_scl_io    = I2C_SCL_IO,
+        .i2s_id        = I2S_NUM,
+        .i2s_mck_io    = I2S_MCK_IO,
+        .i2s_bck_io    = I2S_BCK_IO,
+        .i2s_ws_io     = I2S_WS_IO,
+        .i2s_do_io     = I2S_DO_IO,
+        .i2s_di_io     = I2S_DI_IO,
+        .dma_desc_num  = AUDIO_CODEC_DMA_DESC_NUM,
         .dma_frame_num = AUDIO_CODEC_DMA_FRAME_NUM,
-        .sample_rate = I2S_OUTPUT_SAMPLE_RATE,
+        .sample_rate   = I2S_OUTPUT_SAMPLE_RATE,
     };
 
     tdd_audio_codec_bus_i2c_new(bus_cfg, &i2c_bus_handle);
     tdd_audio_codec_bus_i2s_new(bus_cfg, &i2s_tx_handle, &i2s_rx_handle);
 
     TDD_AUDIO_ES8388_CODEC_T codec = {
-        .i2c_id = I2C_NUM,
-        .i2c_handle = i2c_bus_handle,
-        .i2s_id = I2S_NUM,
-        .i2s_tx_handle = i2s_tx_handle,
-        .i2s_rx_handle = i2s_rx_handle,
+        .i2c_id          = I2C_NUM,
+        .i2c_handle      = i2c_bus_handle,
+        .i2s_id          = I2S_NUM,
+        .i2s_tx_handle   = i2s_tx_handle,
+        .i2s_rx_handle   = i2s_rx_handle,
         .mic_sample_rate = I2S_INPUT_SAMPLE_RATE,
         .spk_sample_rate = I2S_OUTPUT_SAMPLE_RATE,
-        .es8388_addr = AUDIO_CODEC_ES8388_ADDR,
-        .pa_pin = -1, /* The speaker power is controlled by XL9555. */
-        .default_volume = 80,
+        .es8388_addr     = AUDIO_CODEC_ES8388_ADDR,
+        .pa_pin          = -1, /* The speaker power is controlled by XL9555. */
+        .default_volume  = 80,
     };
     TUYA_CALL_ERR_RETURN(tdd_audio_es8388_codec_register(AUDIO_CODEC_NAME, codec));
 
@@ -189,42 +237,47 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
-static OPERATE_RET __board_register_sd(void)
+static OPERATE_RET __board_register_display(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+#if defined(DNESP32S3_LCD_MD0430R_RGB) && (DNESP32S3_LCD_MD0430R_RGB == 1)
+    /* ATK-MD0430R-800480: 4.3" RGB parallel LCD, DE mode, no init sequence needed */
+    TDD_DISP_ESP_LCD_CFG_T cfg = {
+        .width     = DISPLAY_WIDTH,
+        .height    = DISPLAY_HEIGHT,
+        .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
+        .rotation  = TUYA_DISPLAY_ROTATION_0,
+        .is_swap   = false, /* RGB panel hw does byte-order natively */
+        .bl.type   = TUYA_DISP_BL_TP_NONE, /* BL via XL9555 */
+    };
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
-    /* SD card SPI pinmux */
-    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
-    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);
-    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
-    tkl_io_pinmux_config(SD_SPI_CS_IO,  TUYA_SPI1_CS);
-#endif
+    TDD_DISP_ESP_RGB_HW_CFG_T hw = {
+        .pclk_hz            = DISPLAY_PCLK_HZ,
+        .h_res              = DISPLAY_WIDTH,
+        .v_res              = DISPLAY_HEIGHT,
+        .hsync_back_porch   = 88,
+        .hsync_front_porch  = 40,
+        .hsync_pulse_width  = 48,
+        .vsync_back_porch   = 32,
+        .vsync_front_porch  = 13,
+        .vsync_pulse_width  = 3,
+        .pclk_gpio          = LCD_RGB_PCLK,
+        .de_gpio            = LCD_RGB_DE,
+        .hsync_gpio         = LCD_RGB_HSYNC,
+        .vsync_gpio         = LCD_RGB_VSYNC,
+        .data_gpio          = {
+            LCD_RGB_D0,  LCD_RGB_D1,  LCD_RGB_D2,  LCD_RGB_D3,
+            LCD_RGB_D4,  LCD_RGB_D5,  LCD_RGB_D6,  LCD_RGB_D7,
+            LCD_RGB_D8,  LCD_RGB_D9,  LCD_RGB_D10, LCD_RGB_D11,
+            LCD_RGB_D12, LCD_RGB_D13, LCD_RGB_D14, LCD_RGB_D15,
+        },
+        .bounce_buffer_size = 480 * 10 * 2, /* 4800px bounce buf, match Alientek (saves internal SRAM) */
+    };
 
-    return rt;
-}
+    /* Enable backlight via XL9555 */
+    xl9555_set_level(EX_IO_LCD_BL, 1);
 
-
-
-/**
- * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- *
- * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
- */
-OPERATE_RET board_register_hardware(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    TUYA_CALL_ERR_LOG(__io_expander_init());
-    TUYA_CALL_ERR_LOG(__board_register_audio());
-    TUYA_CALL_ERR_LOG(board_display_init());
-    TUYA_CALL_ERR_LOG(__board_register_sd());
-
-    return rt;
-}
-
-int board_display_init(void)
-{
+    return tdd_disp_esp_rgb_register(DISPLAY_NAME, &hw, &cfg);
+#elif defined(DNESP32S3_LCD_MD0240_SPI) && (DNESP32S3_LCD_MD0240_SPI == 1)
     TDD_DISP_ESP_LCD_CFG_T cfg = {
         .width     = DISPLAY_WIDTH,
         .height    = DISPLAY_HEIGHT,
@@ -247,5 +300,193 @@ int board_display_init(void)
         .mirror_y     = DISPLAY_MIRROR_Y,
     };
 
-    return tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg);
+    TUYA_CALL_ERR_RETURN(tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg));
+
+    /* GT9147 on ATK-MD0430R, I2C shared with XL9555.
+     * RST via XL9555 P1.1 (EX_IO_CTP_RST) - toggled before this call.
+     * INT not wired to a GPIO on this board. */
+    TDD_TP_ESP_GT911_CFG_T tp_cfg = {
+        .i2c_port   = I2C_NUM,
+        .i2c_scl_io = I2C_SCL_IO,
+        .i2c_sda_io = I2C_SDA_IO,
+        .rst_io     = -1,   /* RST managed via XL9555, not direct GPIO */
+        .int_io     = -1,   /* INT not connected */
+        .tp = {
+            .tp_cfg = {
+                .x_max = DISPLAY_WIDTH,
+                .y_max = DISPLAY_HEIGHT,
+                .flags = {
+                    .swap_xy  = 0,
+                    .mirror_x = 0,
+                    .mirror_y = 0,
+                },
+            },
+        },
+    };
+
+    /* De-assert CTP reset via XL9555 before registering */
+    xl9555_set_level(EX_IO_CTP_RST, 0);
+    tal_system_sleep(10);
+    xl9555_set_level(EX_IO_CTP_RST, 1);
+    tal_system_sleep(50);
+
+    TUYA_CALL_ERR_RETURN(tdd_tp_esp_i2c_gt911_register(DISPLAY_NAME, &tp_cfg));
+
+#endif
+}
+
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_DNESP32S3_SDCARD) && (ENABLE_DNESP32S3_SDCARD == 1)
+    /* SD card SPI pinmux */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);    /home/share/samba/ATK-DNESP32S3-Board/2_examples/1_ESP_IDF/4_lvgl_routines/01_lvgl_transplant.rar
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(SD_SPI_CS_IO, TUYA_SPI1_CS);
+#endif
+
+    return rt;
+}
+
+static OPERATE_RET __board_register_button(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* KEY0~KEY3 on XL9555 IO1_4~IO1_7, active-low (pull-up) */
+    const struct {
+        const char *name;
+        uint32_t    pin_mask;
+    } key_tbl[] = {
+        {BUTTON_NAME, EX_IO_KEY_0},
+        {BUTTON_NAME_2, EX_IO_KEY_1},
+        {BUTTON_NAME_3, EX_IO_KEY_2},
+        {BUTTON_NAME_4, EX_IO_KEY_3},
+    };
+
+    for (uint32_t i = 0; i < sizeof(key_tbl) / sizeof(key_tbl[0]); i++) {
+        TDD_BUTTON_IO_EXP_CFG_T hw_cfg = {
+            .pin_mask     = key_tbl[i].pin_mask,
+            .active_level = TUYA_GPIO_LEVEL_LOW,
+            .init         = NULL,
+            .set_dir      = xl9555_set_dir,
+            .get_level    = xl9555_get_level,
+        };
+        TUYA_CALL_ERR_RETURN(tdd_button_esp_io_expander_register((char *)key_tbl[i].name, &hw_cfg));
+    }
+
+    return rt;
+}
+
+static OPERATE_RET __board_register_led(void)
+{
+    /* Onboard red LED on GPIO1, active-low (VCC3.3 → R4 → LED → IO1) */
+    TDD_LED_GPIO_CFG_T led_cfg = {
+        .pin   = 1,  /* GPIO1 */
+        .mode  = TUYA_GPIO_PULLUP,
+        .level = TUYA_GPIO_LEVEL_LOW,  /* active-low */
+    };
+    return tdd_led_gpio_register(LED_NAME, &led_cfg);
+}
+
+
+static OPERATE_RET __board_register_touch(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* GT9147 on ATK-MD0430R, I2C shared with XL9555.
+     * RST via XL9555 P1.1 (EX_IO_CTP_RST) - toggled before this call.
+     * INT not wired to a GPIO on this board. */
+    TDD_TP_ESP_GT911_CFG_T tp_cfg = {
+        .i2c_port   = I2C_NUM,
+        .i2c_scl_io = I2C_SCL_IO,
+        .i2c_sda_io = I2C_SDA_IO,
+        .rst_io     = -1,   /* RST managed via XL9555, not direct GPIO */
+        .int_io     = -1,   /* INT not connected */
+        .tp = {
+            .tp_cfg = {
+                .x_max = DISPLAY_WIDTH,
+                .y_max = DISPLAY_HEIGHT,
+                .flags = {
+                    .swap_xy  = 0,
+                    .mirror_x = 0,
+                    .mirror_y = 0,
+                },
+            },
+        },
+    };
+
+    /* De-assert CTP reset via XL9555 before registering */
+    xl9555_set_level(EX_IO_CTP_RST, 0);
+    tal_system_sleep(10);
+    xl9555_set_level(EX_IO_CTP_RST, 1);
+    tal_system_sleep(50);
+
+    TUYA_CALL_ERR_RETURN(tdd_tp_esp_i2c_gt911_register(DISPLAY_NAME, &tp_cfg));
+
+    return rt;
+}
+
+static OPERATE_RET __board_register_camera(void)
+{
+#if defined(ENABLE_DNESP32S3_CAMERA) && (ENABLE_DNESP32S3_CAMERA == 1)
+    /* Power sequence: assert PWDN low (sensor on), pulse RESET via XL9555. */
+    xl9555_set_level(EX_IO_OV_PWDN, 0);  /* PWDN active-low: drive low = powered on */
+    xl9555_set_level(EX_IO_OV_RESET, 0); /* hold in reset */
+    tal_system_sleep(10);
+    xl9555_set_level(EX_IO_OV_RESET, 1); /* release reset */
+    tal_system_sleep(20);
+
+    /* DVP pin mapping for DNESP32S3:
+     *   D0~D7  : IO4, IO5, IO6, IO7, IO15, IO16, IO17, IO18
+     *   PCLK   : IO45   VSYNC : IO47   HREF : IO48
+     *   SCCB   : SCL=IO38  SDA=IO39  (I2C port 1)
+     *   PWDN / RESET: driven via XL9555 in the power sequence above.
+     *   XCLK   : -1 (OV2640 module carries its own 24 MHz oscillator)
+     */
+    TDD_CAMERA_ESP_DVP_CFG_T cam_cfg = {
+        .pin_pwdn      = -1,
+        .pin_reset     = -1,
+        .pin_xclk      = -1,
+        .xclk_freq_hz  = OV_CAMERA_CLK,
+        .pin_sccb_scl  = OV_I2C_SCL_IO,
+        .pin_sccb_sda  = OV_I2C_SDA_IO,
+        .sccb_i2c_port = OV_I2C_NUM,
+        .pin_d0        = 4,
+        .pin_d1        = 5,
+        .pin_d2        = 6,
+        .pin_d3        = 7,
+        .pin_d4        = 15,
+        .pin_d5        = 16,
+        .pin_d6        = 17,
+        .pin_d7        = 18,
+        .pin_vsync     = 47,
+        .pin_href      = 48,
+        .pin_pclk      = 45,
+    };
+    return tdd_camera_esp_dvp_register(CAMERA_NAME, &cam_cfg);
+#else
+    return OPRT_OK;
+#endif /* ENABLE_DNESP32S3_CAMERA */
+}
+
+/**
+ * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
+ *
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET board_register_hardware(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__io_expander_init());
+    TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(__board_register_display());
+    TUYA_CALL_ERR_LOG(__board_register_sd());
+    TUYA_CALL_ERR_LOG(__board_register_button());
+    TUYA_CALL_ERR_LOG(__board_register_led());
+    TUYA_CALL_ERR_LOG(__board_register_camera());
+
+    return rt;
 }

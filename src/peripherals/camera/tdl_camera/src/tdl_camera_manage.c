@@ -273,7 +273,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.raw_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task"};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task", 0};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.raw_thrd), NULL, NULL,\
                                                              __raw_flow_task, NULL, &thread_cfg));
         }
@@ -286,7 +286,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.encoded_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task"};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task", 0};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.encoded_thrd), NULL, NULL,\
                                                              __encoded_flow_task, NULL, &thread_cfg));
         }
