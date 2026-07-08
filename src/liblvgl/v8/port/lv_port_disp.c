@@ -152,7 +152,7 @@ static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
 {
     uint8_t *buf_u8 = NULL;
     size_bytes += DISP_DRAW_BUF_ALIGN - 1;
-    buf_u8 = (uint8_t *)LV_MEM_CUSTOM_ALLOC(size_bytes);
+    buf_u8 = (uint8_t *)LV_DRAW_BUF_ALLOC(size_bytes);
     if (buf_u8) {
         buf_u8 += DISP_DRAW_BUF_ALIGN - 1;
         buf_u8 = (uint8_t *)((uint32_t)buf_u8 & ~(DISP_DRAW_BUF_ALIGN - 1));
@@ -304,12 +304,12 @@ static void __release_lv_disp_dev(LV_DISP_NODE_T *node)
     }
 
     if (node->buf_2_1) {
-        LV_MEM_CUSTOM_FREE(node->buf_2_1);
+        LV_DRAW_BUF_FREE(node->buf_2_1);
         node->buf_2_1 = NULL;
     }
 
     if (node->buf_2_2) {
-        LV_MEM_CUSTOM_FREE(node->buf_2_2);
+        LV_DRAW_BUF_FREE(node->buf_2_2);
         node->buf_2_2 = NULL;
     }
 

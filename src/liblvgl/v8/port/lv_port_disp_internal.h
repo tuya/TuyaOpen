@@ -26,6 +26,15 @@ extern "C" {
 #define DISP_DRAW_BUF_ALIGN    4
 #define LV_DISP_FB_MAX_NUM     3
 
+/* Draw buffer allocation - SRAM for higher throughput when configured */
+#if defined(ENABLE_LVGL_DRAW_BUF_PSRAM) && (ENABLE_LVGL_DRAW_BUF_PSRAM == 1)
+#define LV_DRAW_BUF_ALLOC     tkl_system_psram_malloc
+#define LV_DRAW_BUF_FREE      tkl_system_psram_free
+#else
+#define LV_DRAW_BUF_ALLOC     tkl_system_malloc
+#define LV_DRAW_BUF_FREE      tkl_system_free
+#endif
+
 /**********************
  *      TYPEDEFS
  **********************/

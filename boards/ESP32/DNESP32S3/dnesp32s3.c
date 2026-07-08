@@ -390,44 +390,6 @@ static OPERATE_RET __board_register_led(void)
     return tdd_led_gpio_register(LED_NAME, &led_cfg);
 }
 
-
-static OPERATE_RET __board_register_touch(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    /* GT9147 on ATK-MD0430R, I2C shared with XL9555.
-     * RST via XL9555 P1.1 (EX_IO_CTP_RST) - toggled before this call.
-     * INT not wired to a GPIO on this board. */
-    TDD_TP_ESP_GT911_CFG_T tp_cfg = {
-        .i2c_port   = I2C_NUM,
-        .i2c_scl_io = I2C_SCL_IO,
-        .i2c_sda_io = I2C_SDA_IO,
-        .rst_io     = -1,   /* RST managed via XL9555, not direct GPIO */
-        .int_io     = -1,   /* INT not connected */
-        .tp = {
-            .tp_cfg = {
-                .x_max = DISPLAY_WIDTH,
-                .y_max = DISPLAY_HEIGHT,
-                .flags = {
-                    .swap_xy  = 0,
-                    .mirror_x = 0,
-                    .mirror_y = 0,
-                },
-            },
-        },
-    };
-
-    /* De-assert CTP reset via XL9555 before registering */
-    xl9555_set_level(EX_IO_CTP_RST, 0);
-    tal_system_sleep(10);
-    xl9555_set_level(EX_IO_CTP_RST, 1);
-    tal_system_sleep(50);
-
-    TUYA_CALL_ERR_RETURN(tdd_tp_esp_i2c_gt911_register(DISPLAY_NAME, &tp_cfg));
-
-    return rt;
-}
-
 static OPERATE_RET __board_register_camera(void)
 {
 #if defined(ENABLE_DNESP32S3_CAMERA) && (ENABLE_DNESP32S3_CAMERA == 1)
