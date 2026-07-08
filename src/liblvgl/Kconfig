@@ -53,9 +53,30 @@ menuconfig ENABLE_LIBLVGL
             bool "enable lvgl LODEPNG decoder library"
             default n
 
+        config ENABLE_LVGL_PARTIAL_FLUSH
+            bool "enable partial flush (bypass full-frame buffer)"
+            default n
+            help
+                When enabled and the display driver reports has_vram=true,
+                LVGL flushes each partial area directly to the panel without
+                allocating a full-frame intermediate buffer. This saves significant
+                memory (e.g. 768KB for 800x480 RGB565) and reduces latency.
+                If the driver does not support partial writes (has_vram=false),
+                this option has no effect and full-frame mode is used.
+
         config ENABLE_LVGL_DUAL_DISP_BUFF
             bool "enable lvgl dual display buffer"
+            depends on !ENABLE_LVGL_PARTIAL_FLUSH
             default n
+
+        config ENABLE_LVGL_DRAW_BUF_PSRAM
+            bool "allocate LVGL draw buffer from PSRAM"
+            depends on ENABLE_EXT_RAM
+            default y
+            help
+                When enabled, LVGL draw buffers are allocated from PSRAM
+                (via tkl_system_psram_malloc). Disable this to use internal SRAM
+                for higher rendering throughput on RGB parallel displays.
 
         choice
             prompt "the proportion of the draw buffer size"
