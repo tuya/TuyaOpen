@@ -55,6 +55,20 @@ if !errorlevel! neq 0 (
 )
 
 :: ---------------------------------------------------------------------------
+:: git is a hard dependency (platform updates, submodules, version detection)
+:: ---------------------------------------------------------------------------
+where git >nul 2>&1
+if !errorlevel! neq 0 (
+    echo [TuyaOpen] Error: Git - git not found. It may not be installed.
+    echo Next:
+    echo   Open a new terminal and run: winget install Git.Git
+    echo   ^(or download from https://git-scm.com/downloads^)
+    echo   Then restart this terminal and re-run: export.bat
+    pause
+    exit /b 1
+)
+
+:: ---------------------------------------------------------------------------
 :: Guard active (Stage 2): already active → print hint and exit
 :: ---------------------------------------------------------------------------
 if "%TUYAOPEN_ENV_ACTIVE%"=="1" (

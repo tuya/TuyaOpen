@@ -227,7 +227,7 @@ function Invoke-TuyaUvNative {
 
 function Write-TuyaOpenFailureHint {
     param(
-        [ValidateSet('Entry', 'Uv', 'Python', 'Venv', 'Sync', 'Session', 'Io')]
+        [ValidateSet('Entry', 'Uv', 'Python', 'Venv', 'Sync', 'Session', 'Io', 'Git')]
         [string]$Stage,
         [string]$Summary,
         [string]$Cause,
@@ -314,6 +314,19 @@ function Test-TuyaProjectFiles {
     }
     if ($missing.Count -eq 0) { return $true }
     Write-TuyaOpenFailureHint -Stage Entry -Summary 'Required project files are missing.' -Cause ($missing -join ', ') -NextSteps @('Use a complete TuyaOpen clone.', "Missing under: $Root")
+    return $false
+}
+
+function Test-TuyaGitAvailable {
+    # git is a hard dependency: platform updates, submodule downloads and version
+    # detection all rely on it. GitPython also fails at import time without it.
+    $cmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($cmd) { return $true }
+    Write-TuyaOpenFailureHint -Stage Git -Summary 'git not found. It may not be installed.' -NextSteps @(
+        'Open a new terminal and run: winget install Git.Git',
+        '(or download from https://git-scm.com/downloads)',
+        'Then restart your terminal and re-run: . .\export.ps1'
+    )
     return $false
 }
 
@@ -2048,6 +2061,7 @@ $openRoot = $env:OPEN_SDK_ROOT
 
 try {
     if (-not (Test-TuyaProjectFiles -Root $openRoot)) { Stop-TuyaOpenExport 1 }
+    if (-not (Test-TuyaGitAvailable)) { Stop-TuyaOpenExport 1 }
     Set-Location $openRoot
 
     if (Invoke-TuyaGuardActive -Root $openRoot) { return }

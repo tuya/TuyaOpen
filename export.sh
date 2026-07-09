@@ -468,7 +468,7 @@ tuya_cleanup() {
              tuya_uv_run_stream tuya_on_uv_sync_line \
              tuya_parse_uv_sync_line tuya_parse_python_install_line \
              tuya_export_cold_start_kind tuya_write_cold_start_hint \
-             tuya_export_cold_start \
+             tuya_export_cold_start tuya_check_git \
              tuya_human_size tuya_cleanup 2>/dev/null || true
 }
 
@@ -556,6 +556,19 @@ if [ -n "$_tuya_missing" ]; then
     return 1
 fi
 unset _tuya_missing
+
+# ---------------------------------------------------------------------------
+# Git availability (hard dependency: platform update / submodules / version)
+# ---------------------------------------------------------------------------
+tuya_check_git() {
+    if tuya_has_cmd git; then
+        return 0
+    fi
+    tuya_error Git 'git not found. It may not be installed.' \
+        'Open a terminal and install, e.g.: sudo apt install git  (or: brew install git)' \
+        'Then restart your terminal and re-run: . ./export.sh'
+    return 1
+}
 
 # ---------------------------------------------------------------------------
 # Git version banner
@@ -1624,6 +1637,7 @@ fi
 tuya_guard_active   && { tuya_cleanup; return 0; }
 tuya_write_cold_start_hint "$(tuya_export_cold_start_kind)"
 tuya_detect_region
+tuya_check_git      || { tuya_cleanup; return 1; }
 tuya_setup_uv       || { tuya_cleanup; return 1; }
 tuya_setup_python   || { tuya_cleanup; return 1; }
 tuya_setup_venv     || { tuya_cleanup; return 1; }
