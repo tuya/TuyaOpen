@@ -112,6 +112,7 @@ OPERATE_RET tdd_tp_esp_i2c_gt911_register(char *name, TDD_TP_ESP_GT911_CFG_T *cf
 
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
     tp_io_config.scl_speed_hz                  = 400 * 1000;
+    tp_io_config.dev_addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP; /* 0x14 for GT1151/GT9147 */
 
     esp_rt = esp_lcd_new_panel_io_i2c(i2c_bus, &tp_io_config, &tp_io_handle);
     if (esp_rt != ESP_OK) {

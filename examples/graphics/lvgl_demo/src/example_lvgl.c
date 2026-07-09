@@ -72,8 +72,8 @@ void user_main(void)
 
     lv_vendor_disp_lock();
 
-    // lv_demo_widgets();
-    lv_demo_benchmark();
+    lv_demo_widgets();
+    // lv_demo_benchmark();
     
     lv_vendor_disp_unlock();
 

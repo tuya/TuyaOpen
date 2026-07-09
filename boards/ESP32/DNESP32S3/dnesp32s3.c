@@ -8,6 +8,7 @@
 #include "tuya_cloud_types.h"
 
 #include "tal_api.h"
+#include "tkl_gpio.h"
 
 #include "tdd_audio_codec_bus.h"
 #include "tdd_audio_es8388_codec.h"
@@ -239,6 +240,8 @@ static OPERATE_RET __board_register_audio(void)
 
 static OPERATE_RET __board_register_display(void)
 {
+    OPERATE_RET rt = OPRT_OK;
+
 #if defined(DNESP32S3_LCD_MD0430R_RGB) && (DNESP32S3_LCD_MD0430R_RGB == 1)
     /* ATK-MD0430R-800480: 4.3" RGB parallel LCD, DE mode, no init sequence needed */
     TDD_DISP_ESP_LCD_CFG_T cfg = {
@@ -276,7 +279,49 @@ static OPERATE_RET __board_register_display(void)
     /* Enable backlight via XL9555 */
     xl9555_set_level(EX_IO_LCD_BL, 1);
 
-    return tdd_disp_esp_rgb_register(DISPLAY_NAME, &hw, &cfg);
+    TUYA_CALL_ERR_RETURN(tdd_disp_esp_rgb_register(DISPLAY_NAME, &hw, &cfg));
+
+    /* GT9147/GT1151 touch on ATK-MD0430R, I2C addr 0x14 */
+    /* Address select sequence: INT=HIGH during RST rising edge → addr 0x14 */
+    TUYA_GPIO_BASE_CFG_T int_cfg = {
+        .mode   = TUYA_GPIO_PUSH_PULL,
+        .direct = TUYA_GPIO_OUTPUT,
+        .level  = TUYA_GPIO_LEVEL_HIGH,
+    };
+    tkl_gpio_init(40, &int_cfg);    /* INT = HIGH → select address 0x14 */
+
+    xl9555_set_level(EX_IO_CTP_RST, 0);  /* RST low */
+    tal_system_sleep(10);
+    xl9555_set_level(EX_IO_CTP_RST, 1);  /* RST high (address latched) */
+    tal_system_sleep(5);
+
+    /* Release INT pin (driver will reconfigure as input for interrupt) */
+    int_cfg.direct = TUYA_GPIO_INPUT;
+    int_cfg.mode   = TUYA_GPIO_PULLUP;
+    tkl_gpio_init(40, &int_cfg);
+    tal_system_sleep(50);
+
+    TDD_TP_ESP_GT911_CFG_T tp_cfg = {
+        .i2c_port   = 1,    /* Use I2C1 (I2C0 is used by XL9555/ES8388 on IO42/IO41) */
+        .i2c_scl_io = 38,   /* CT_SCL = IO38 */
+        .i2c_sda_io = 39,   /* CT_SDA = IO39 */
+        .rst_io     = -1,   /* RST via XL9555, already toggled above */
+        .int_io     = 40,   /* CT_INT = IO40 */
+        .tp = {
+            .tp_cfg = {
+                .x_max = DISPLAY_WIDTH,
+                .y_max = DISPLAY_HEIGHT,
+                .flags = {
+                    .swap_xy  = 0,
+                    .mirror_x = 0,
+                    .mirror_y = 0,
+                },
+            },
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_tp_esp_i2c_gt911_register(DISPLAY_NAME, &tp_cfg));
+
 #elif defined(DNESP32S3_LCD_MD0240_SPI) && (DNESP32S3_LCD_MD0240_SPI == 1)
     TDD_DISP_ESP_LCD_CFG_T cfg = {
         .width     = DISPLAY_WIDTH,
@@ -301,38 +346,9 @@ static OPERATE_RET __board_register_display(void)
     };
 
     TUYA_CALL_ERR_RETURN(tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg));
-
-    /* GT9147 on ATK-MD0430R, I2C shared with XL9555.
-     * RST via XL9555 P1.1 (EX_IO_CTP_RST) - toggled before this call.
-     * INT not wired to a GPIO on this board. */
-    TDD_TP_ESP_GT911_CFG_T tp_cfg = {
-        .i2c_port   = I2C_NUM,
-        .i2c_scl_io = I2C_SCL_IO,
-        .i2c_sda_io = I2C_SDA_IO,
-        .rst_io     = -1,   /* RST managed via XL9555, not direct GPIO */
-        .int_io     = -1,   /* INT not connected */
-        .tp = {
-            .tp_cfg = {
-                .x_max = DISPLAY_WIDTH,
-                .y_max = DISPLAY_HEIGHT,
-                .flags = {
-                    .swap_xy  = 0,
-                    .mirror_x = 0,
-                    .mirror_y = 0,
-                },
-            },
-        },
-    };
-
-    /* De-assert CTP reset via XL9555 before registering */
-    xl9555_set_level(EX_IO_CTP_RST, 0);
-    tal_system_sleep(10);
-    xl9555_set_level(EX_IO_CTP_RST, 1);
-    tal_system_sleep(50);
-
-    TUYA_CALL_ERR_RETURN(tdd_tp_esp_i2c_gt911_register(DISPLAY_NAME, &tp_cfg));
-
 #endif
+
+    return rt;
 }
 
 static OPERATE_RET __board_register_sd(void)
