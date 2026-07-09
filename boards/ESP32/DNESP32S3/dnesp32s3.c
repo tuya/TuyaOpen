@@ -89,7 +89,7 @@
 #define OV_I2C_NUM    (1)
 #define OV_I2C_SCL_IO (38)
 #define OV_I2C_SDA_IO (39)
-#define OV_CAMERA_CLK (20000000)
+#define OV_CAMERA_CLK (24000000) /* matches onboard 24 MHz crystal; feeds S3 DMA sample mode */
 
 #if defined(DNESP32S3_LCD_MD0430R_RGB) && (DNESP32S3_LCD_MD0430R_RGB == 1)
 /* LCD (ATK-MD0430R-800480 over RGB parallel, DE mode) */
@@ -412,9 +412,9 @@ static OPERATE_RET __board_register_camera(void)
     /* Power sequence: assert PWDN low (sensor on), pulse RESET via XL9555. */
     xl9555_set_level(EX_IO_OV_PWDN, 0);  /* PWDN active-low: drive low = powered on */
     xl9555_set_level(EX_IO_OV_RESET, 0); /* hold in reset */
-    tal_system_sleep(10);
+    tal_system_sleep(50);
     xl9555_set_level(EX_IO_OV_RESET, 1); /* release reset */
-    tal_system_sleep(20);
+    tal_system_sleep(100);  /* OV2640 needs time to stabilize after reset */
 
     /* DVP pin mapping for DNESP32S3:
      *   D0~D7  : IO4, IO5, IO6, IO7, IO15, IO16, IO17, IO18
@@ -430,7 +430,7 @@ static OPERATE_RET __board_register_camera(void)
         .xclk_freq_hz  = OV_CAMERA_CLK,
         .pin_sccb_scl  = OV_I2C_SCL_IO,
         .pin_sccb_sda  = OV_I2C_SDA_IO,
-        .sccb_i2c_port = OV_I2C_NUM,
+        .sccb_i2c_port = OV_I2C_NUM,  /* Use I2C port 1 */
         .pin_d0        = 4,
         .pin_d1        = 5,
         .pin_d2        = 6,

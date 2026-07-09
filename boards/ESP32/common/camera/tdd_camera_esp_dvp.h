@@ -15,9 +15,6 @@
 #ifndef __TDD_CAMERA_ESP_DVP_H__
 #define __TDD_CAMERA_ESP_DVP_H__
 
-/* This driver is only available on ESP32 / ESP32-S3 (DVP via LCD_CAM peripheral). */
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32)
-
 #include "tuya_cloud_types.h"
 
 #ifdef __cplusplus
@@ -83,7 +80,5 @@ OPERATE_RET tdd_camera_esp_dvp_register(const char *name, const TDD_CAMERA_ESP_D
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32 */
 
 #endif /* __TDD_CAMERA_ESP_DVP_H__ */

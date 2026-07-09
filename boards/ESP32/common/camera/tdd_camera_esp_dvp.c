@@ -18,7 +18,6 @@
  * with a camera input (ESP32 / ESP32-S3).  Guard the whole compilation unit
  * so it compiles silently to nothing on other targets (e.g. ESP32-P4 which
  * uses MIPI-CSI instead). */
-#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(CONFIG_IDF_TARGET_ESP32)
 
 #include <string.h>
 
@@ -210,9 +209,6 @@ static OPERATE_RET __tdd_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPE
     }
 
     int jpeg_quality = DVP_JPEG_QUALITY_DEFAULT;
-    if (cfg->encoded_quality.jpeg_quality > 0) {
-        jpeg_quality = cfg->encoded_quality.jpeg_quality;
-    }
 
     uint32_t    req_w      = cfg->width ? (uint32_t)cfg->width : 320;
     uint32_t    req_h      = cfg->height ? (uint32_t)cfg->height : 240;
@@ -259,7 +255,7 @@ static OPERATE_RET __tdd_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPE
     dev->height = req_h;
 
     dev->running    = true;
-    THREAD_CFG_T th = {DVP_CAP_TASK_STACK, THREAD_PRIO_2, "dvp_cam"};
+    THREAD_CFG_T th = {.stackDepth = DVP_CAP_TASK_STACK, .priority = THREAD_PRIO_2, .thrdname = "dvp_cam"};
     OPERATE_RET  rt = tal_thread_create_and_start(&dev->thread, NULL, NULL, __dvp_capture_task, dev, &th);
     if (rt != OPRT_OK) {
         dev->running = false;
@@ -337,5 +333,3 @@ OPERATE_RET tdd_camera_esp_dvp_register(const char *name, const TDD_CAMERA_ESP_D
     PR_NOTICE("registered DVP camera: %s (SCCB SCL=%d SDA=%d)", name, cfg->pin_sccb_scl, cfg->pin_sccb_sda);
     return OPRT_OK;
 }
-
-#endif /* CONFIG_IDF_TARGET_ESP32S3 || CONFIG_IDF_TARGET_ESP32 */
