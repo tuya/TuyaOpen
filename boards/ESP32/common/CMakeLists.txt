@@ -11,6 +11,11 @@ file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
 if(NOT IDF_TARGET STREQUAL "esp32p4")
     list(FILTER LCD_SRCS EXCLUDE REGEX ".*_dpi\\.c$")
 endif()
+# *_rgb.c adapters use the RGB LCD peripheral (SOC_LCDCAM_RGB_LCD_SUPPORTED),
+# which only exists on ESP32-S3 and ESP32-P4.
+if(NOT IDF_TARGET STREQUAL "esp32s3" AND NOT IDF_TARGET STREQUAL "esp32p4")
+    list(FILTER LCD_SRCS EXCLUDE REGEX ".*_rgb\\.c$")
+endif()
 
 # add led source files
 file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
