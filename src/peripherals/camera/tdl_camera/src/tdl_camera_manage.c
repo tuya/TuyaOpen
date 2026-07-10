@@ -426,6 +426,7 @@ OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_h
     camera_dev->info.max_width   = dev_info->max_width;
     camera_dev->info.max_height  = dev_info->max_height;
     camera_dev->info.sr_fmt      = dev_info->fmt;
+    camera_dev->info.yuv_order   = dev_info->yuv_order;
 
     INIT_LIST_HEAD(&(camera_dev->raw_frame_node_list));
     INIT_LIST_HEAD(&(camera_dev->encoded_frame_node_list));

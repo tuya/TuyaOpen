@@ -195,13 +195,12 @@ static OPERATE_RET __tdd_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPE
     dev->need_raw     = (cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) ? true : false;
     dev->need_encoded = (cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) ? true : false;
 
-    /* OV2640 can output JPEG or YUV422, but not both simultaneously.
-     * If both are requested, prefer JPEG and drop raw output. */
+    /* OV2640 can output JPEG or YUV422, but not both simultaneously. */
     pixformat_t pf;
     if (dev->need_encoded) {
         pf = PIXFORMAT_JPEG;
         if (dev->need_raw) {
-            PR_WARN("DVP: JPEG+YUV422 simultaneously not supported; using JPEG only");
+            PR_WARN("DVP: JPEG+RAW simultaneously not supported; using JPEG only");
             dev->need_raw = false;
         }
     } else {
@@ -250,6 +249,7 @@ static OPERATE_RET __tdd_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPE
         PR_ERR("esp_camera_init failed: 0x%x", (unsigned)err);
         return OPRT_COM_ERROR;
     }
+
     dev->inited = true;
     dev->width  = req_w;
     dev->height = req_h;
@@ -318,6 +318,7 @@ OPERATE_RET tdd_camera_esp_dvp_register(const char *name, const TDD_CAMERA_ESP_D
         .max_width  = 1600,
         .max_height = 1200,
         .fmt        = TUYA_FRAME_FMT_YUV422,
+        .yuv_order  = TUYA_YUV422_YUYV,  /* ESP32-S3 LCD_CAM outputs YUYV */
     };
     TDD_CAMERA_INTFS_T intfs = {
         .open  = __tdd_dvp_open,

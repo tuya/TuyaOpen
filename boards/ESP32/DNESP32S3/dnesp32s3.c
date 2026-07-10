@@ -125,10 +125,10 @@
 #define LCD_DC_PIN   (40)
 #define LCD_CS_PIN   (21)
 
-#define DISPLAY_WIDTH                   (240)
-#define DISPLAY_HEIGHT                  (320)
-#define DISPLAY_SWAP_XY                 false
-#define DISPLAY_MIRROR_X                false
+#define DISPLAY_WIDTH                   (320)
+#define DISPLAY_HEIGHT                  (240)
+#define DISPLAY_SWAP_XY                 true
+#define DISPLAY_MIRROR_X                true
 #define DISPLAY_MIRROR_Y                false
 #define DISPLAY_SWAP_BYTES              1
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT true
@@ -414,7 +414,7 @@ static OPERATE_RET __board_register_camera(void)
     xl9555_set_level(EX_IO_OV_RESET, 0); /* hold in reset */
     tal_system_sleep(50);
     xl9555_set_level(EX_IO_OV_RESET, 1); /* release reset */
-    tal_system_sleep(100);  /* OV2640 needs time to stabilize after reset */
+    tal_system_sleep(20);  /* OV2640 reset recovery */
 
     /* DVP pin mapping for DNESP32S3:
      *   D0~D7  : IO4, IO5, IO6, IO7, IO15, IO16, IO17, IO18
@@ -430,7 +430,7 @@ static OPERATE_RET __board_register_camera(void)
         .xclk_freq_hz  = OV_CAMERA_CLK,
         .pin_sccb_scl  = OV_I2C_SCL_IO,
         .pin_sccb_sda  = OV_I2C_SDA_IO,
-        .sccb_i2c_port = OV_I2C_NUM,  /* Use I2C port 1 */
+        .sccb_i2c_port = -1,   /* Let SCCB_Init create its own I2C bus on port 1 */
         .pin_d0        = 4,
         .pin_d1        = 5,
         .pin_d2        = 6,
@@ -460,11 +460,11 @@ OPERATE_RET board_register_hardware(void)
 
     TUYA_CALL_ERR_LOG(__io_expander_init());
     TUYA_CALL_ERR_LOG(__board_register_audio());
-    TUYA_CALL_ERR_LOG(__board_register_display());
     TUYA_CALL_ERR_LOG(__board_register_sd());
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_led());
     TUYA_CALL_ERR_LOG(__board_register_camera());
+    TUYA_CALL_ERR_LOG(__board_register_display());
 
     return rt;
 }

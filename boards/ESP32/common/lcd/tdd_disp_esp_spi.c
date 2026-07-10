@@ -86,8 +86,7 @@ static OPERATE_RET __esp_lcd_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_
         int y = y1;
 
         if (dev->single_shot) {
-            /* Whole frame fits in one buffer: single memcpy + single draw_bitmap.
-             * No race possible: only one DMA in flight per flush. */
+            /* Single-shot: memcpy whole frame to DMA-capable bounce buffer, then send. */
             memcpy(dev->bounce_buf[0], src, (size_t)bytes_per_line * (y2 - y1));
             esp_lcd_panel_draw_bitmap((esp_lcd_panel_handle_t)dev->panel,
                                       x1, y1, x2, y2,
