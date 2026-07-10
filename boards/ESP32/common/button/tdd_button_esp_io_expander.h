@@ -1,6 +1,6 @@
 /**
- * @file tdd_button_io_expander.h
- * @brief TDD button driver for buttons connected via IO expander (e.g. xl9555, tca9554).
+ * @file tdd_button_esp_io_expander.h
+ * @brief TDD button driver for buttons connected via IO expander on ESP32 boards (e.g. XL9555, TCA9554).
  *
  * Uses function pointers for the expander ops so any compatible expander can be used.
  * Only BUTTON_TIMER_SCAN_MODE is supported — IO expanders are polled, not IRQ-driven.
@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
 
-#ifndef __TDD_BUTTON_IO_EXPANDER_H__
-#define __TDD_BUTTON_IO_EXPANDER_H__
+#ifndef __TDD_BUTTON_ESP_IO_EXPANDER_H__
+#define __TDD_BUTTON_ESP_IO_EXPANDER_H__
 
 #include "tuya_cloud_types.h"
 #include "tdl_button_driver.h"
@@ -43,10 +43,10 @@ typedef struct {
  * @param[in] cfg    hardware configuration, must not be NULL
  * @return OPRT_OK on success, other values on failure
  */
-OPERATE_RET tdd_io_expander_button_register(char *name, TDD_BUTTON_IO_EXP_CFG_T *cfg);
+OPERATE_RET tdd_button_esp_io_expander_register(char *name, TDD_BUTTON_IO_EXP_CFG_T *cfg);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TDD_BUTTON_IO_EXPANDER_H__ */
+#endif /* __TDD_BUTTON_ESP_IO_EXPANDER_H__ */

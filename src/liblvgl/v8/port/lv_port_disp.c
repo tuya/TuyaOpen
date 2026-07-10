@@ -1,6 +1,11 @@
 /**
  * @file lv_port_disp.c
  *
+ * @brief LVGL display port - node management, rotation, and flush dispatch.
+ *
+ * Actual flush strategy is implemented in:
+ *   - lv_port_disp_partial.c    (ENABLE_LVGL_PARTIAL_FLUSH == 1)
+ *   - lv_port_disp_full_frame.c (otherwise)
  */
 
 /*Copy this file as "lv_port_disp.c" and set this value to "1" to enable content*/
@@ -9,58 +14,20 @@
 /*********************
  *      INCLUDES
  *********************/
-#include <stdbool.h>
-#include "lv_port_disp.h"
-#include "lv_vendor.h"
-
-#include "tkl_memory.h"
-#include "tal_api.h"
-#include "tuya_list.h"
-#include "tdl_display_manage.h"
-
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-#include "tal_dma2d.h"
-#endif
-
-/*********************
- *      DEFINES
- *********************/
-#define DISP_DRAW_BUF_ALIGN    4
-
-#define LV_DISP_FB_MAX_NUM    3
-
-/**********************
- *      TYPEDEFS
- **********************/
-typedef struct {
-    struct tuya_list_head   node;
-    bool                    is_enable_flush;
-    bool                    is_add_rotate_buf;
-    lv_disp_drv_t           lv_disp_drv;
-    lv_disp_draw_buf_t      draw_buf_dsc;
-    lv_disp_t              *lv_disp;
-    TDL_DISP_HANDLE_T       dev_hdl;
-    TDL_DISP_DEV_INFO_T     dev_info;
-    MUTEX_HANDLE            mutex;
-    uint8_t                *buf_2_1;
-    uint8_t                *buf_2_2;
-    uint8_t                *rotate_buf;
-    TDL_DISP_FRAME_BUFF_T  *disp_fb;
-    TDL_FB_MANAGE_HANDLE_T  fb_mag;
-}LV_DISP_NODE_T;
+#include "lv_port_disp_internal.h"
 
 /**********************
  *  STATIC PROTOTYPES
  **********************/
 static LV_DISP_NODE_T *__find_lv_disp_node_by_hdl(TDL_DISP_HANDLE_T hdl);
 
-static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp(lv_disp_t * lv_disp);
+static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp(lv_disp_t *lv_disp);
 
 static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl);
 
 static void __release_lv_disp_dev(LV_DISP_NODE_T *node);
 
-static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p);
+static void disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p);
 
 static void __disp_dev_enable_update(LV_DISP_NODE_T *node);
 
@@ -68,16 +35,9 @@ static void __disp_dev_disable_update(LV_DISP_NODE_T *node);
 
 static void __disp_dev_set_backlight(LV_DISP_NODE_T *node, uint8_t brightness);
 
-static void __disp_framebuffer_memcpy(TDL_DISP_DEV_INFO_T *dev_info,\
-                                      uint8_t *dst_frame,uint8_t *src_frame,\
-                                      uint32_t frame_size);
 /**********************
  *  STATIC VARIABLES
  **********************/
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-static TAL_DMA2D_HANDLE_T sg_lvgl_dma2d_hdl = NULL;
-#endif
-
 static struct tuya_list_head sg_lv_disp_list = LIST_HEAD_INIT(sg_lv_disp_list);
 
 /**********************
@@ -105,13 +65,6 @@ void lv_port_disp_init(char *device)
     }
 
     tuya_list_add(&lv_disp_dev->node, &sg_lv_disp_list);
-
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-    OPERATE_RET rt = OPRT_OK;
-    if(NULL == sg_lvgl_dma2d_hdl) {
-        TUYA_CALL_ERR_LOG(tal_dma2d_init(&sg_lvgl_dma2d_hdl));
-    }
-#endif
 }
 
 void lv_port_disp_deinit(char *device)
@@ -194,140 +147,26 @@ lv_disp_t *lv_port_get_lv_disp_by_name(char *device)
 /**********************
  *   STATIC FUNCTIONS
  **********************/
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t * area, uint8_t * px_map, \
-                                          TDL_DISP_FRAME_BUFF_T *fb)
-{
-    if (NULL == sg_lvgl_dma2d_hdl) {
-        return;
-    }
-
-    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
-    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
-
-    if (area == NULL || px_map == NULL || fb == NULL) {
-        PR_ERR("Invalid parameter");
-        return;
-    }
-
-    // Perform memory copy based on color format
-#if defined(LV_COLOR_DEPTH) && (LV_COLOR_DEPTH==16)
-    in_frame.type  = TUYA_FRAME_FMT_RGB565;
-    out_frame.type = TUYA_FRAME_FMT_RGB565;
-#elif defined(LV_COLOR_DEPTH) && (LV_COLOR_DEPTH==24)
-    in_frame.type  = TUYA_FRAME_FMT_RGB888;
-    out_frame.type = TUYA_FRAME_FMT_RGB888;
-#else 
-    #error "LV_COLOR_DEPTH not support"
-#endif
-
-    in_frame.width  = area->x2 - area->x1 + 1;
-    in_frame.height = area->y2 - area->y1 + 1;
-    in_frame.pbuf   = px_map;
-    in_frame.axis.x_axis   = 0;
-    in_frame.axis.y_axis   = 0;
-    in_frame.width_cp      = 0;
-    in_frame.height_cp     = 0;
-
-    out_frame.width  = fb->width;
-    out_frame.height = fb->height;
-    out_frame.pbuf   = fb->frame;
-    out_frame.axis.x_axis   = area->x1;
-    out_frame.axis.y_axis   = area->y1;
-
-    tal_dma2d_memcpy(sg_lvgl_dma2d_hdl, &in_frame, &out_frame);
-
-    tal_dma2d_wait_finish(sg_lvgl_dma2d_hdl, 1000);
-}
-
-static void __dma2d_framebuffer_memcpy_async(TDL_DISP_DEV_INFO_T *dev_info,\
-                                             uint8_t *dst_frame,\
-                                             uint8_t *src_frame)
-{
-    if (NULL == sg_lvgl_dma2d_hdl) {
-        return;
-    }
-
-    TKL_DMA2D_FRAME_INFO_T in_frame = {0};
-    TKL_DMA2D_FRAME_INFO_T out_frame = {0};
-
-    switch (dev_info->fmt) {
-        case TUYA_PIXEL_FMT_RGB565:
-            in_frame.type  = TUYA_FRAME_FMT_RGB565;
-            out_frame.type = TUYA_FRAME_FMT_RGB565;
-            break;
-        case TUYA_PIXEL_FMT_RGB888:
-            in_frame.type  = TUYA_FRAME_FMT_RGB888;
-            out_frame.type = TUYA_FRAME_FMT_RGB888;
-            break;
-        default:
-            PR_ERR("Unsupported color format");
-            return;
-    }
-
-    in_frame.width  = dev_info->width;
-    in_frame.height = dev_info->height;
-    in_frame.pbuf   = src_frame;
-    in_frame.axis.x_axis   = 0;
-    in_frame.axis.y_axis   = 0;
-    in_frame.width_cp      = 0;
-    in_frame.height_cp     = 0;
-    
-    out_frame.width  = dev_info->width;
-    out_frame.height = dev_info->height;
-    out_frame.pbuf   = dst_frame;
-    out_frame.axis.x_axis   = 0;
-    out_frame.axis.y_axis   = 0;
-    out_frame.width_cp      = 0;
-    out_frame.height_cp     = 0;
-
-    tal_dma2d_memcpy(sg_lvgl_dma2d_hdl, &in_frame, &out_frame);
-}
-#endif
-
-static void disp_frame_buff_init(LV_DISP_NODE_T *node)
-{
-    OPERATE_RET rt = OPRT_OK;
-    uint8_t disp_fb_num = 0;
-
-    if(NULL == node){
-        return;
-    }
-
-    TUYA_CALL_ERR_LOG(tdl_disp_fb_manage_init(&node->fb_mag));
-
-#if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
-    disp_fb_num = 2 + ( node->dev_info.has_vram ? 0 : 1);
-#else
-    disp_fb_num = 1 + (node->dev_info.has_vram ? 0 : 1);
-#endif
-
-    for(uint8_t i=0; i<disp_fb_num; i++) {
-        TUYA_CALL_ERR_LOG(tdl_disp_fb_manage_add(node->fb_mag, node->dev_info.fmt, node->dev_info.width, node->dev_info.height));
-    }
-
-    node->disp_fb = tdl_disp_get_free_fb(node->fb_mag);
-}
 
 static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
 {
-    uint8_t *buf_u8= NULL;
-    /*Allocate larger memory to be sure it can be aligned as needed*/
+    uint8_t *buf_u8 = NULL;
     size_bytes += DISP_DRAW_BUF_ALIGN - 1;
-    buf_u8 = (uint8_t *)LV_MEM_CUSTOM_ALLOC(size_bytes);
+    buf_u8 = (uint8_t *)LV_DRAW_BUF_ALLOC(size_bytes);
     if (buf_u8) {
         buf_u8 += DISP_DRAW_BUF_ALIGN - 1;
-        buf_u8 = (uint8_t *)((uint32_t) buf_u8 & ~(DISP_DRAW_BUF_ALIGN - 1));
+        buf_u8 = (uint8_t *)((uint32_t)buf_u8 & ~(DISP_DRAW_BUF_ALIGN - 1));
     }
 
     return buf_u8;
 }
+
 static LV_DISP_NODE_T *__find_lv_disp_node_by_hdl(TDL_DISP_HANDLE_T hdl)
 {
     LV_DISP_NODE_T *lv_disp_node = NULL;
     struct tuya_list_head *pos = NULL;
 
-    if(NULL == hdl) {
+    if (NULL == hdl) {
         return NULL;
     }
 
@@ -346,7 +185,7 @@ static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp(lv_disp_t *lv_disp)
     LV_DISP_NODE_T *lv_disp_node = NULL;
     struct tuya_list_head *pos = NULL;
 
-    if(NULL == lv_disp) {
+    if (NULL == lv_disp) {
         lv_disp = lv_disp_get_default();
     }
 
@@ -365,9 +204,9 @@ static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp_drv(lv_disp_drv_t *lv_disp
     LV_DISP_NODE_T *lv_disp_node = NULL;
     struct tuya_list_head *pos = NULL;
 
-    if(NULL == lv_disp_drv) {
+    if (NULL == lv_disp_drv) {
         lv_disp_t *lv_disp = lv_disp_get_default();
-        if(lv_disp) {
+        if (lv_disp) {
             lv_disp_drv = lv_disp->driver;
         }
     }
@@ -388,7 +227,7 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     LV_DISP_NODE_T *lv_disp_node = NULL;
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == dev_hdl) {
+    if (NULL == dev_hdl) {
         return NULL;
     }
 
@@ -400,20 +239,14 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
 
     tal_mutex_create_init(&lv_disp_node->mutex);
 
-    /*---------------------------------
-     * Initialize your display device *
-     * -----------------------------*/
     TUYA_CALL_ERR_GOTO(tdl_disp_dev_open(dev_hdl), __CREATE_ERR);
 
     lv_disp_node->dev_hdl = dev_hdl;
     TUYA_CALL_ERR_GOTO(tdl_disp_dev_get_info(lv_disp_node->dev_hdl, &lv_disp_node->dev_info), __CREATE_ERR);
 
-    disp_frame_buff_init(lv_disp_node);
+    lv_port_flush_init(lv_disp_node);
 
-    /* Example 2
-     * Two buffers for partial rendering
-     * In flush_cb DMA or similar hardware should be used to update the display in the background.*/
-    per_pixel_byte = LV_COLOR_DEPTH/8;
+    per_pixel_byte = LV_COLOR_DEPTH / 8;
 
     uint32_t buf_len = (lv_disp_node->dev_info.height / LV_DRAW_BUF_PARTS) * lv_disp_node->dev_info.width * per_pixel_byte;
 
@@ -423,36 +256,31 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     lv_disp_node->buf_2_2 = __disp_draw_buf_align_alloc(buf_len);
     TUYA_CHECK_NULL_GOTO(lv_disp_node->buf_2_2, __CREATE_ERR);
 
-    lv_disp_draw_buf_init(&lv_disp_node->draw_buf_dsc, lv_disp_node->buf_2_1, lv_disp_node->buf_2_2, buf_len/per_pixel_byte);   /*Initialize the display buffer*/
+    lv_disp_draw_buf_init(&lv_disp_node->draw_buf_dsc, lv_disp_node->buf_2_1, lv_disp_node->buf_2_2, buf_len / per_pixel_byte);
 
-    /*------------------------------------
-     * Create a display and set a flush_cb
-     * -----------------------------------*/
     lv_disp_drv_init(&lv_disp_node->lv_disp_drv);
 
-    /*Set the resolution of the display*/
     lv_disp_node->lv_disp_drv.hor_res = lv_disp_node->dev_info.width;
     lv_disp_node->lv_disp_drv.ver_res = lv_disp_node->dev_info.height;
-    
-    /*Used to copy the buffer's content to the display*/
+
     lv_disp_node->lv_disp_drv.flush_cb = disp_flush;
 
-    /*Set a display buffer*/
     lv_disp_node->lv_disp_drv.draw_buf = &lv_disp_node->draw_buf_dsc;
 
-    /*Finally register the driver*/
     lv_disp_node->lv_disp = lv_disp_drv_register(&lv_disp_node->lv_disp_drv);
 
-    if(lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_90) {
+    if (lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_90) {
         lv_disp_set_rotation(lv_disp_node->lv_disp, LV_DISP_ROT_90);
-    }else if(lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_180) {
+    } else if (lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_180) {
         lv_disp_set_rotation(lv_disp_node->lv_disp, LV_DISP_ROT_180);
-    }else if(lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_270) {
+    } else if (lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_270) {
         lv_disp_set_rotation(lv_disp_node->lv_disp, LV_DISP_ROT_270);
     }
 
-    lv_disp_node->rotate_buf = __disp_draw_buf_align_alloc(buf_len);
-    TUYA_CHECK_NULL_GOTO(lv_disp_node->rotate_buf, __CREATE_ERR);
+    if (lv_disp_node->dev_info.rotation != TUYA_DISPLAY_ROTATION_0) {
+        lv_disp_node->rotate_buf = __disp_draw_buf_align_alloc(buf_len);
+        TUYA_CHECK_NULL_GOTO(lv_disp_node->rotate_buf, __CREATE_ERR);
+    }
 
     lv_disp_node->is_enable_flush = true;
 
@@ -466,46 +294,43 @@ __CREATE_ERR:
 
 static void __release_lv_disp_dev(LV_DISP_NODE_T *node)
 {
-    if(NULL == node){
+    if (NULL == node) {
         return;
     }
 
-    if(node->lv_disp) {
+    if (node->lv_disp) {
         lv_disp_remove(node->lv_disp);
         node->lv_disp = NULL;
     }
 
-    if(node->buf_2_1) {
-        LV_MEM_CUSTOM_FREE(node->buf_2_1);
+    if (node->buf_2_1) {
+        LV_DRAW_BUF_FREE(node->buf_2_1);
         node->buf_2_1 = NULL;
     }
 
-    if(node->buf_2_2) {
-        LV_MEM_CUSTOM_FREE(node->buf_2_2);
+    if (node->buf_2_2) {
+        LV_DRAW_BUF_FREE(node->buf_2_2);
         node->buf_2_2 = NULL;
-    } 
-    
-    if(node->rotate_buf) { 
+    }
+
+    if (node->rotate_buf) {
         LV_MEM_CUSTOM_FREE(node->rotate_buf);
         node->rotate_buf = NULL;
     }
 
-    if(node->fb_mag) {
-        tdl_disp_fb_manage_release(&node->fb_mag);
-        node->fb_mag = NULL;
-    }
+    lv_port_flush_release(node);
 
-    if(node->dev_hdl) {
+    if (node->dev_hdl) {
         tdl_disp_dev_close(node->dev_hdl);
         node->dev_hdl = NULL;
     }
 
-    if(node->mutex) {
+    if (node->mutex) {
         tal_mutex_release(node->mutex);
         node->mutex = NULL;
     }
 
-    if(node) {
+    if (node) {
         tal_free(node);
         node = NULL;
     }
@@ -515,16 +340,7 @@ static void __disp_dev_enable_update(LV_DISP_NODE_T *node)
 {
     tal_mutex_lock(node->mutex);
 
-    if(node->disp_fb) {
-        tdl_disp_dev_flush(node->dev_hdl, node->disp_fb);
-
-        TDL_DISP_FRAME_BUFF_T *next_fb = tdl_disp_get_free_fb(node->fb_mag);
-        if(next_fb &&  next_fb != node->disp_fb) {
-            __disp_framebuffer_memcpy(&node->dev_info, next_fb->frame,\
-                                       node->disp_fb->frame, node->disp_fb->len);
-            node->disp_fb = next_fb;
-        }
-    }
+    lv_port_flush_on_enable(node);
 
     node->is_enable_flush = true;
 
@@ -545,115 +361,19 @@ static void __disp_dev_set_backlight(LV_DISP_NODE_T *node, uint8_t brightness)
     tdl_disp_set_brightness(node->dev_hdl, brightness);
 }
 
-static void __disp_mono_write_point(uint32_t x, uint32_t y, bool enable, TDL_DISP_FRAME_BUFF_T *fb)
-{
-    if(NULL == fb || x >= fb->width || y >= fb->height) {
-        PR_ERR("Point (%d, %d) out of bounds", x, y);
-        return;
-    }
-
-    uint32_t write_byte_index = y * (fb->width/8) + x/8;
-    uint8_t write_bit = x%8;
-
-    if (enable) {
-        fb->frame[write_byte_index] |= (1 << write_bit);
-    } else {
-        fb->frame[write_byte_index] &= ~(1 << write_bit);
-    }
-}
-
-static void __disp_i2_write_point(uint32_t x, uint32_t y, uint8_t color, TDL_DISP_FRAME_BUFF_T *fb)
-{
-    if(NULL == fb || x >= fb->width || y >= fb->height) {
-        PR_ERR("Point (%d, %d) out of bounds", x, y);
-        return;
-    }
-
-    uint32_t write_byte_index = y * (fb->width/4) + x/4;
-    uint8_t write_bit = (x%4)*2;
-    uint8_t cleared = fb->frame[write_byte_index] & (~(0x03 << write_bit)); // Clear the bits we are going to write
-
-    fb->frame[write_byte_index] = cleared | ((color & 0x03) << write_bit);
-}
-
-static void __disp_fill_display_framebuffer(const lv_area_t * area, uint8_t * px_map,\
-                                            TDL_DISP_FRAME_BUFF_T *fb, bool is_swap)
-{
-    uint32_t offset = 0, x = 0, y = 0;
-
-    if(NULL == area || NULL == px_map || NULL == fb) {
-        PR_ERR("Invalid parameters: area or px_map or fb is NULL");
-        return;
-    }
-    
-    if(fb->fmt == TUYA_PIXEL_FMT_MONOCHROME) {
-        for(y = area->y1 ; y <= area->y2; y++) {
-            for(x = area->x1; x <= area->x2; x++) {
-                uint16_t *px_map_u16 = (uint16_t *)px_map;
-                bool enable = (px_map_u16[offset++]> 0x8FFF) ? false : true;
-                __disp_mono_write_point(x, y, enable, fb);
-            }
-        }
-    }else if(fb->fmt == TUYA_PIXEL_FMT_I2) { 
-        for(y = area->y1 ; y <= area->y2; y++) {
-            for(x = area->x1; x <= area->x2; x++) {
-                lv_color16_t *px_map_color16 = (lv_color16_t *)px_map;
-                uint8_t grey2 = ~((px_map_color16[offset].ch.red + px_map_color16[offset].ch.green*2 +\
-                                 px_map_color16[offset].ch.blue) >> 2);
-                offset++;
-                __disp_i2_write_point(x, y, grey2, fb);
-            }
-        }
-    }else {
-        if(is_swap) {
-            tdl_disp_dev_rgb565_swap((uint16_t*)px_map, lv_area_get_width(area) * lv_area_get_height(area));
-        }
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-        tal_dma2d_wait_finish(sg_lvgl_dma2d_hdl, 1000);
-
-        __dma2d_drawbuffer_memcpy_syn(area, px_map, fb);
-#else
-        uint8_t *color_ptr = px_map;
-        uint8_t per_pixel_byte = (tdl_disp_get_fmt_bpp(fb->fmt) + 7) / 8;
-        int32_t width = lv_area_get_width(area);
-
-        offset = (area->y1 * fb->width + area->x1) * per_pixel_byte;
-        for (y = area->y1; y <= area->y2 && y < fb->height; y++) {
-            memcpy(fb->frame + offset, color_ptr, width * per_pixel_byte);
-            offset += fb->width * per_pixel_byte; // Move to the next line in the display buffer
-            color_ptr += width * per_pixel_byte;
-        }
-#endif
-    }
-}
-
-static void __disp_framebuffer_memcpy(TDL_DISP_DEV_INFO_T *dev_info,\
-                                      uint8_t *dst_frame,uint8_t *src_frame,\
-                                      uint32_t frame_size)
-{
-
-#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-    __dma2d_framebuffer_memcpy_async(dev_info, dst_frame, src_frame);
-#else
-    memcpy(dst_frame, src_frame, frame_size);
-#endif
-}
-
-
-
-static void __disp_draw_buf_rotate(TDL_DISP_DEV_INFO_T *dev_info, lv_disp_rot_t rot, lv_area_t *area,\
+static void __disp_draw_buf_rotate(TDL_DISP_DEV_INFO_T *dev_info, lv_disp_rot_t rot, lv_area_t *area,
                                    uint8_t *src_buf, uint8_t *dst_buf)
 {
     TDL_DISP_RECT_T rect = {0};
     TUYA_DISPLAY_ROTATION_E disp_rot = TUYA_DISPLAY_ROTATION_0;
     TDL_DISP_FRAME_BUFF_T in_fb, out_fb;
 
-    if(NULL == dev_info || NULL == area || NULL == src_buf || NULL == dst_buf) {
+    if (NULL == dev_info || NULL == area || NULL == src_buf || NULL == dst_buf) {
         PR_ERR("Invalid parameters: area or src_buf or dst_buf is NULL");
         return;
     }
 
-    if(rot == LV_DISP_ROT_NONE) {
+    if (rot == LV_DISP_ROT_NONE) {
         return;
     }
 
@@ -686,18 +406,13 @@ static void __disp_draw_buf_rotate(TDL_DISP_DEV_INFO_T *dev_info, lv_disp_rot_t 
     area->y2 = rect.y1;
 }
 
-
-/*Flush the content of the internal buffer the specific area on the display.
- *`px_map` contains the rendered image as raw pixel map and it should be copied to `area` on the display.
- *You can use DMA or any hardware acceleration to do this operation in the background but
- *'lv_disp_flush_ready()' has to be called when finished.*/
-static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_color_t * color_p)
+static void disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
 {
     uint8_t *color_ptr = (uint8_t *)color_p;
     lv_area_t *target_area = (lv_area_t *)area;
     LV_DISP_NODE_T *node = __find_lv_disp_node_by_lv_disp_drv(disp_drv);
 
-    if(NULL == node) {
+    if (NULL == node) {
         PR_ERR("lv display node not found");
         lv_disp_flush_ready(disp_drv);
         return;
@@ -707,27 +422,21 @@ static void disp_flush(lv_disp_drv_t * disp_drv, const lv_area_t * area, lv_colo
 
     if (node->is_enable_flush) {
         lv_disp_rot_t rotation = lv_disp_get_rotation(node->lv_disp);
-        if(rotation != LV_DISP_ROT_NONE && node->rotate_buf != NULL) {
-            __disp_draw_buf_rotate(&node->dev_info, rotation, target_area, color_ptr, node->rotate_buf);
-            color_ptr = node->rotate_buf;
-        }
-
-        __disp_fill_display_framebuffer(target_area, color_ptr, node->disp_fb, node->dev_info.is_swap);
-
-        if (lv_disp_flush_is_last(disp_drv)) {
-            tdl_disp_dev_flush(node->dev_hdl, node->disp_fb);
-
-            TDL_DISP_FRAME_BUFF_T *next_fb = tdl_disp_get_free_fb(node->fb_mag);
-            if(next_fb &&  next_fb != node->disp_fb) {
-                __disp_framebuffer_memcpy(&node->dev_info, next_fb->frame, node->disp_fb->frame, node->disp_fb->len);
-                node->disp_fb = next_fb;
+        if (rotation != LV_DISP_ROT_NONE) {
+            if (node->rotate_buf == NULL) {
+                uint32_t buf_len = (node->dev_info.height / LV_DRAW_BUF_PARTS) * node->dev_info.width * (LV_COLOR_DEPTH / 8);
+                node->rotate_buf = __disp_draw_buf_align_alloc(buf_len);
+            }
+            if (node->rotate_buf != NULL) {
+                __disp_draw_buf_rotate(&node->dev_info, rotation, target_area, color_ptr, node->rotate_buf);
+                color_ptr = node->rotate_buf;
             }
         }
-    }
 
-    /*IMPORTANT!!!
-     *Inform the graphics library that you are ready with the flushing*/
-    lv_disp_flush_ready(disp_drv);
+        lv_port_flush_execute(node, disp_drv, target_area, color_ptr);
+    } else {
+        lv_disp_flush_ready(disp_drv);
+    }
 
     tal_mutex_unlock(node->mutex);
 }

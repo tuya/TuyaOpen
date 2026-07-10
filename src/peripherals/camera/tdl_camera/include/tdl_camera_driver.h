@@ -77,6 +77,7 @@ typedef struct {
     uint32_t                  max_width;
     uint32_t                  max_height;
     TUYA_FRAME_FMT_E          fmt;
+    TUYA_YUV422_ORDER_E  yuv_order; /**< YUV422 byte order: 0=UYVY(default), 1=YUYV */
 } TDD_CAMERA_DEV_INFO_T;
 
 typedef struct {

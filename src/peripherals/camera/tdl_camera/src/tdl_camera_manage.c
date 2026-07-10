@@ -273,7 +273,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.raw_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task"};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task", 0};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.raw_thrd), NULL, NULL,\
                                                              __raw_flow_task, NULL, &thread_cfg));
         }
@@ -286,7 +286,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.encoded_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task"};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task", 0};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.encoded_thrd), NULL, NULL,\
                                                              __encoded_flow_task, NULL, &thread_cfg));
         }
@@ -426,6 +426,7 @@ OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_h
     camera_dev->info.max_width   = dev_info->max_width;
     camera_dev->info.max_height  = dev_info->max_height;
     camera_dev->info.sr_fmt      = dev_info->fmt;
+    camera_dev->info.yuv_order   = dev_info->yuv_order;
 
     INIT_LIST_HEAD(&(camera_dev->raw_frame_node_list));
     INIT_LIST_HEAD(&(camera_dev->encoded_frame_node_list));

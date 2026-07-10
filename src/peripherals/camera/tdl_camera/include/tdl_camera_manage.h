@@ -15,6 +15,7 @@
 #define __TDL_CAMERA_MANAGE_H__
 
 #include "tuya_cloud_types.h"
+#include "tuya_media_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,8 +36,8 @@ typedef enum  {
 
 typedef enum {
     TDL_CAMERA_FMT_YUV422 = 1,
-    TDL_CAMERA_FMT_JPEG = ENCODED_SHIFT(1),
-    TDL_CAMERA_FMT_H264 = ENCODED_SHIFT(2),
+    TDL_CAMERA_FMT_JPEG   = ENCODED_SHIFT(1),
+    TDL_CAMERA_FMT_H264   = ENCODED_SHIFT(2),
     TDL_CAMERA_FMT_JPEG_YUV422_BOTH =  (TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_YUV422),
     TDL_CAMERA_FMT_H264_YUV422_BOTH =  (TDL_CAMERA_FMT_H264 | TDL_CAMERA_FMT_YUV422),
 } TDL_CAMERA_FMT_E;
@@ -53,6 +54,7 @@ typedef struct {
     uint16_t                  max_width;
     uint16_t                  max_height;
     TUYA_FRAME_FMT_E          sr_fmt;
+    TUYA_YUV422_ORDER_E       yuv_order; /**< YUV422 byte order: 0=UYVY(default), 1=YUYV */
 } TDL_CAMERA_DEV_INFO_T;
 
 typedef struct

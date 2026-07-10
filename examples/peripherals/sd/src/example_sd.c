@@ -9,10 +9,6 @@
 #include "tkl_output.h"
 #include "tkl_fs.h"
 
-#if defined(EBABLE_EXAMPLE_SD_PINMUX) && (EBABLE_EXAMPLE_SD_PINMUX == 1)
-#include "tkl_pinmux.h"
-#endif
-
 #include "board_com_api.h"
 
 /***********************************************************
@@ -98,15 +94,6 @@ static void __example_sd_task(void *param)
 {
     OPERATE_RET rt = OPRT_OK;
     
-#if defined(EBABLE_EXAMPLE_SD_PINMUX) && (EBABLE_EXAMPLE_SD_PINMUX == 1)
-    tkl_io_pinmux_config(EXAMPLE_SD_CLK_PIN, TUYA_SDIO_CLK);
-    tkl_io_pinmux_config(EXAMPLE_SD_CMD_PIN, TUYA_SDIO_CMD);
-    tkl_io_pinmux_config(EXAMPLE_SD_D0_PIN, TUYA_SDIO_DATA0);
-    tkl_io_pinmux_config(EXAMPLE_SD_D1_PIN, TUYA_SDIO_DATA1);
-    tkl_io_pinmux_config(EXAMPLE_SD_D2_PIN, TUYA_SDIO_DATA2);
-    tkl_io_pinmux_config(EXAMPLE_SD_D3_PIN, TUYA_SDIO_DATA3);
-#endif
-
     TUYA_CALL_ERR_LOG(tkl_fs_mount(SDCARD_MOUNT_PATH, DEV_SDCARD));
     if (rt != OPRT_OK) {
         PR_ERR("Mount SD card failed: %d", rt);

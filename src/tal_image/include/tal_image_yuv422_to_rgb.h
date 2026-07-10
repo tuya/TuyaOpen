@@ -13,6 +13,7 @@
 #define __TAL_IMAGE_YUV422_TO_RGB_H__
 
 #include "tuya_cloud_types.h"
+#include "tuya_media_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +34,7 @@ typedef struct {
     uint8_t *out_buf;
     uint16_t out_width;
     uint16_t out_height;
+    TUYA_YUV422_ORDER_E in_order; /**< YUV422 byte order, default 0=UYVY */
 } TAL_IMAGE_YUV422_TO_RGB_T;
 
 /***********************************************************

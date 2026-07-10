@@ -1,6 +1,6 @@
 /**
- * @file tdd_button_io_expander.c
- * @brief TDD button driver for buttons connected via IO expander.
+ * @file tdd_button_esp_io_expander.c
+ * @brief TDD button driver for buttons connected via IO expander on ESP32 boards.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "tdl_button_manage.h"
-#include "tdd_button_io_expander.h"
+#include "tdd_button_esp_io_expander.h"
 
 #include "tal_memory.h"
 #include "tal_log.h"
@@ -76,7 +76,7 @@ static OPERATE_RET __tdd_read_io_exp_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *v
     return OPRT_OK;
 }
 
-OPERATE_RET tdd_io_expander_button_register(char *name, TDD_BUTTON_IO_EXP_CFG_T *cfg)
+OPERATE_RET tdd_button_esp_io_expander_register(char *name, TDD_BUTTON_IO_EXP_CFG_T *cfg)
 {
     if (NULL == name || NULL == cfg) {
         return OPRT_INVALID_PARM;

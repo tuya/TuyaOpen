@@ -12,7 +12,7 @@
 #include "board_com_api.h"
 
 #include "tdd_button_gpio.h"
-#include "tdd_button_io_expander.h"
+#include "tdd_button_esp_io_expander.h"
 #include "tdl_button_manage.h"
 
 #include "tdd_audio_8311_codec.h"
@@ -191,7 +191,7 @@ static OPERATE_RET __board_register_power_button(void)
         .set_dir      = tca9554_set_dir,
         .get_level    = tca9554_get_level,
     };
-    TUYA_CALL_ERR_RETURN(tdd_io_expander_button_register(BOARD_PWR_KEY_NAME, &hw_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_button_esp_io_expander_register(BOARD_PWR_KEY_NAME, &hw_cfg));
 
     TDL_BUTTON_HANDLE handle = NULL;
     TDL_BUTTON_CFG_T btn_cfg = {
