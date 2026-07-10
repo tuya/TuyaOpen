@@ -358,7 +358,7 @@ static OPERATE_RET __board_register_sd(void)
 #if defined(ENABLE_DNESP32S3_SDCARD) && (ENABLE_DNESP32S3_SDCARD == 1)
     /* SD card SPI pinmux */
     tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
-    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);    /home/share/samba/ATK-DNESP32S3-Board/2_examples/1_ESP_IDF/4_lvgl_routines/01_lvgl_transplant.rar
+    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);
     tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
     tkl_io_pinmux_config(SD_SPI_CS_IO, TUYA_SPI1_CS);
 #endif
