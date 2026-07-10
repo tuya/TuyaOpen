@@ -1148,6 +1148,12 @@ void tuya_device_timer_deinit(void)
 
     tal_event_unsubscribe(EVENT_MQTT_CONNECTED, "tuya_device_timer", __device_timer_task_event_cb);
 
+    if (s_ctx.timer_check_timer_id != NULL) {
+        tal_sw_timer_stop(s_ctx.timer_check_timer_id);
+        tal_sw_timer_delete(s_ctx.timer_check_timer_id);
+        s_ctx.timer_check_timer_id = NULL;
+    }
+
     tal_mutex_lock(s_ctx.timer_task_list.mutex);
     __timer_list_clear();
     tal_kv_del(TIMER_TASKS_KV_KEY);
