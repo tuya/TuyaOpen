@@ -30,6 +30,12 @@ typedef enum {
 // HTTP redirect check macro
 #define HTTP_RESP_REDIR(code) ((code) >= 300 && (code) < 400)
 
+// HTTP custom header for request
+typedef struct {
+    const char *key;
+    const char *value;
+} http_custom_header_t;
+
 // HTTP request structure
 typedef struct {
     enum http_method type;        // HTTP method (HTTP_GET, HTTP_POST, etc.)
@@ -38,6 +44,8 @@ typedef struct {
     int content_len;              // Content length
     unsigned int download_offset;  // Range request offset
     unsigned int download_size;   // Range request size
+    http_custom_header_t *custom_headers; // Array of custom headers (optional)
+    int custom_headers_count;             // Number of custom headers
 } http_req_t;
 
 // HTTP response structure
@@ -126,14 +134,48 @@ OPERATE_RET http_set_timeout(http_session_t session, uint32_t timeout_ms);
 
 /**
  * @brief Read content from HTTP response
- * 
- * @param[in] session Session handle
- * @param[out] buf Buffer to store read data
- * @param[in] max_len Maximum length to read
- * 
- * @return Number of bytes read (>0), 0 on EOF, negative on error
+ *
+ * @param[in]  session Session handle
+ * @param[out] buf     Buffer to store read data
+ * @param[in]  max_len Maximum length to read
+ *
+ * @return >0  number of bytes read
+ * @return 0   clean EOF (full Content-Length received, or chunked stream ended)
+ * @return <0  error, including network failure and premature peer close
+ *             (peer sent FIN before Content-Length was fully delivered).
+ *             Callers that want to resume should use Range requests.
  */
 int http_read_content(http_session_t session, void *buf, unsigned int max_len);
+
+/**
+ * @brief Send HTTP request header only (for streaming body)
+ *
+ * Sends the request line and headers with the specified Content-Length,
+ * but does not send the body. Use http_write_content() to stream the body.
+ *
+ * @param[in] session Session handle
+ * @param[in] req Request structure (content/content_len are ignored)
+ * @param[in] total_body_len Total body length to set in Content-Length
+ * @param[in] req_flags Request flags
+ *
+ * @return OPRT_OK on success, error code on failure
+ */
+OPERATE_RET http_send_request_stream(http_session_t session, const http_req_t *req,
+                                     uint32_t total_body_len, uint32_t req_flags);
+
+/**
+ * @brief Write body data for a streaming request
+ *
+ * Must be called after http_send_request_stream(). Writes raw body data
+ * to the underlying transport.
+ *
+ * @param[in] session Session handle
+ * @param[in] data Data to write
+ * @param[in] len Length of data
+ *
+ * @return Number of bytes written (>0), negative on error
+ */
+int http_write_content(http_session_t session, const void *data, size_t len);
 
 #ifdef __cplusplus
 }

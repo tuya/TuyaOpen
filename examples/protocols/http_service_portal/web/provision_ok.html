@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Provision Submitted</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Saved Successfully</h1>
+    <p>Device will switch from SoftAP to router Wi-Fi shortly.</p>
+    <p>Please reconnect your phone/computer to your router.</p>
+    <p id="count">Switching in 3s...</p>
+    <p><a href="/status.html">View status page</a></p>
+  </main>
+  <script>
+    (function () {
+      var n = 3;
+      var el = document.getElementById('count');
+      var t = setInterval(function () {
+        n--;
+        if (n <= 0) {
+          clearInterval(t);
+          el.textContent = 'Switching now...';
+        } else {
+          el.textContent = 'Switching in ' + n + 's...';
+        }
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>

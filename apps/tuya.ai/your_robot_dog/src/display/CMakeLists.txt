@@ -21,7 +21,7 @@ list(APPEND APP_MODULE_SRCS
     ${EMOTION_SRCS}
 )
 
-set(AI_UI_FONT_PATH ${APP_MODULE_PATH}/../../../ai_components/ai_ui/font)
+set(AI_UI_FONT_PATH ${PROJECT_SOURCE_DIR}/src/ai_components/ai_ui/font)
 
 set(APP_MODULE_INC 
     ${APP_MODULE_PATH}

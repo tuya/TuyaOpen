@@ -33,12 +33,13 @@
 #include "joyinside_biz.h"
 #endif
 
-#define AI_AGENT_SCODE_DEFAULT ""
-#define AI_AGENT_SCODE_ALERT "device_alert"
-#define AI_AGENT_SCODE_MULTIMODAL "multimodal_agent"
-
 /* MCP tool callback */
-typedef OPERATE_RET (*TY_AI_MCP_CB)(CONST ty_cJSON *json, VOID *user_data);
+typedef OPERATE_RET (*TY_AI_MCP_CB)(CHAR_T *sid, CHAR_T *eid, CONST ty_cJSON *json, VOID *user_data);
+
+typedef BYTE_T AI_VIDEO_STREAM_E;
+#define AI_VIDEO_STREAM_MAIN   0x00
+#define AI_VIDEO_STREAM_SUB    0x01
+#define AI_VIDEO_STREAM_THIRD  0x02
 
 typedef union {
     /** video attr */
@@ -52,32 +53,41 @@ typedef union {
 } AI_ATTR_BIZ_T;
 
 typedef struct {
-    uint32_t bit_rate;          // bit rate in bps, default is 16000, set 48000 or 64000 to reduce latency in poor network conditions
-    uint32_t sample_rate;       // sample rate in Hz, default is 16000
-    CONST char *format;       // default is "mp3", set to "opus" if your player supports opus decoding
+    UINT32_T bit_rate;          // bit rate in bps, default is 16000, set 48000 or 64000 to reduce latency in poor network conditions
+    UINT32_T sample_rate;       // sample rate in Hz, default is 16000
+    CONST CHAR_T *format;       // default is "mp3", set to "opus" if your player supports opus decoding
 } AI_AGENT_TTS_CFG_T;
 
 typedef struct {
     AI_PACKET_PT type;
-    uint16_t id;
+    USHORT_T id;
     BOOL_T first_pkt;
 } AI_AGENT_ID_T;
 typedef struct {
-    char scode[AI_SOLUTION_CODE_LEN];
-    char sid[AI_UUID_V4_LEN + 1];
-    char eid[AI_UUID_V4_LEN + 1];
+    AI_PACKET_PT type;
+    AI_BIZ_RECV_CB cb;
+} AI_AGENT_RECV_CB_T;
+typedef struct {
+    CHAR_T scode[AI_SOLUTION_CODE_LEN];
+    AI_AGENT_RECV_CB_T arc[AI_BIZ_MAX_NUM];
+    AI_EVENT_CB event_cb;
+} AI_AGENT_RECV_DATA_T;
+typedef struct {
+    CHAR_T scode[AI_SOLUTION_CODE_LEN];
+    CHAR_T sid[AI_UUID_V4_LEN + 1];
+    CHAR_T eid[AI_UUID_V4_LEN + 1];
     AI_AGENT_ID_T send[AI_BIZ_MAX_NUM];
-    char token[AI_AGENT_TOKEN_LEN];
-    BOOL_T is_active;
+    CHAR_T token[AI_AGENT_TOKEN_LEN];
 } AI_AGENT_SESSION_T;
 
 typedef struct {
+    CHAR_T scode[AI_SOLUTION_CODE_LEN];
     AI_ATTR_BASE_T attr;
-    char scode[AI_SOLUTION_CODE_LEN];
     AI_INPUT_SEND_T biz_get[AI_BIZ_MAX_NUM];
     AI_OUTPUT_CBS_T output;
     BOOL_T codec_enable; // whether to enable codec to encode audio before upload
     AI_AGENT_TTS_CFG_T tts_cfg;
+    AI_SECURITY_CFG_T security_cfg;
     BOOL_T enable_crt_session_ext; // enable crt session external
     BOOL_T enable_internal_scode; // enable internal solution code
     BOOL_T enable_mcp; // enable mcp tools
@@ -100,16 +110,6 @@ OPERATE_RET tuya_ai_agent_init(AI_AGENT_CFG_T *cfg);
  *
  */
 VOID tuya_ai_agent_deinit(VOID);
-
-/**
- * @brief ai agent event
- *
- * @param[in] etype event type
- * @param[in] ptype packet type
- *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
- */
-OPERATE_RET tuya_ai_agent_event(AI_EVENT_TYPE etype, AI_PACKET_PT ptype);
 
 /**
  * @brief ai agent set attribute
@@ -141,7 +141,7 @@ VOID tuya_ai_agent_set_tts_cfg(AI_AGENT_TTS_CFG_T *cfg);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bizTag, uint8_t *attr, uint32_t attr_len);
+OPERATE_RET tuya_ai_agent_crt_session(CHAR_T *scode, UINT_T bizCode, UINT64_T bizTag, BYTE_T *attr, UINT_T attr_len);
 
 /**
  * @brief ai agent del session
@@ -150,22 +150,7 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_agent_del_session(char *scode);
-
-/**
- * @brief ai agent set solution code
- *
- * @param[in] scode solution code
- *
- */
-VOID tuya_ai_agent_set_scode(char *scode);
-
-/**
- * @brief ai agent get active solution code
- *
- * @return active solution code or default solution code
- */
-char *tuya_ai_agent_get_active_scode(VOID);
+OPERATE_RET tuya_ai_agent_del_session(CHAR_T *scode);
 
 /**
  * @brief ai agent set event id
@@ -176,20 +161,66 @@ char *tuya_ai_agent_get_active_scode(VOID);
 VOID tuya_ai_agent_set_eid(AI_EVENT_ID eid);
 
 /**
- * @brief ai agent get event id
- *
- * @return event id
+ * @brief Set custom parameters for the next event start
+ * @param[in] value event parameter string
  */
-AI_EVENT_ID tuya_ai_agent_get_eid(VOID);
+VOID tuya_ai_agent_set_event_param(CHAR_T *value);
+
+/**
+ * @brief Set custom parameters for the next session create
+ * @param[in] value session parameter string
+ */
+VOID tuya_ai_agent_set_session_param(CHAR_T *value);
+
+/**
+ * @brief set ai agent solution code
+ *
+ * @param[in] scode solution code
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_agent_set_scode(CHAR_T *scode);
+
+/**
+ * @brief ai agent event
+ *
+ * @param[in] scode solution code
+ * @param[in] etype event type
+ * @param[in] ptype packet type
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_agent_event_s(CHAR_T *scode, AI_EVENT_TYPE etype, AI_PACKET_PT ptype);
+#define tuya_ai_agent_event(etype, ptype) tuya_ai_agent_event_s(tuya_ai_agent_get_scode(NULL), etype, ptype)
+
+/**
+ * @brief ai agent event trigger
+ *
+ * @param[in] scode solution code
+ * @param[in] trigger event trigger string
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_agent_trigger(CHAR_T *scode, CONST CHAR_T *trigger, CHAR_T *param);
+
+/**
+ * @brief get ai agent solution code
+ *
+ * @param[in] scode solution code
+ *
+ * @return solution code
+ */
+CHAR_T* tuya_ai_agent_get_scode(CHAR_T *scode);
 
 /**
  * @brief get recv callback by packet type
  *
+ * @param[in] scode solution code
  * @param[in] type packet type
  *
  * @return recv callback
  */
-AI_BIZ_RECV_CB tuya_ai_agent_get_recv_cb(AI_PACKET_PT type);
+AI_BIZ_RECV_CB tuya_ai_agent_get_recv_cb(CHAR_T *scode, AI_PACKET_PT type);
 
 /**
  * @brief set send callback
@@ -214,7 +245,7 @@ BOOL_T tuya_ai_agent_is_internal_scode(VOID);
  *
  * @return VOID
  */
-void tuya_ai_agent_internal_scode_ctrl(BOOL_T flag);
+VOID tuya_ai_agent_internal_scode_ctrl(BOOL_T flag);
 
 /**
  * @brief get session by solution code
@@ -223,7 +254,7 @@ void tuya_ai_agent_internal_scode_ctrl(BOOL_T flag);
  *
  * @return session pointer, NULL if not found
  */
-AI_AGENT_SESSION_T* tuya_ai_agent_get_session(char *scode);
+AI_AGENT_SESSION_T* tuya_ai_agent_get_session(CHAR_T *scode);
 
 /**
  * @brief server vad control
@@ -232,6 +263,14 @@ AI_AGENT_SESSION_T* tuya_ai_agent_get_session(char *scode);
  *
  */
 VOID tuya_ai_agent_server_vad_ctrl(BOOL_T flag);
+
+/**
+ * @brief processing interrupt control
+ *
+ * @param[in] flag TRUE: enable processing interrupt; FALSE: disable processing interrupt
+ *
+ */
+VOID tuya_ai_agent_proc_interrupt_ctrl(BOOL_T flag);
 
 /**
  * @brief get down attribute
@@ -253,23 +292,42 @@ OPERATE_RET tuya_ai_agent_mcp_set_cb(TY_AI_MCP_CB cb, VOID *user_data);
 /**
  * @brief ai agent mcp response
  *
+ * @param[in] sid session id
+ * @param[in] eid event id
  * @param[in] message response message
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_agent_mcp_response(char *message);
+OPERATE_RET tuya_ai_agent_mcp_response(CHAR_T *sid, CHAR_T *eid, CHAR_T *message);
 
 /**
  * @brief get event callback
  *
+ * @param[in] scode solution code
+ *
  * @return event callback
  */
-AI_EVENT_CB tuya_ai_agent_get_evt_cb(void);
+AI_EVENT_CB tuya_ai_agent_get_evt_cb(CHAR_T *scode);
 
 /**
  * @brief is ai agent ready
  *
  * @return TRUE is ready, FALSE is not ready
  */
-BOOL_T tuya_ai_agent_is_ready(void);
+BOOL_T tuya_ai_agent_is_ready(VOID);
+
+/**
+ * @brief set recv callback
+ *
+ * @param[in] recv recv callback data
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_agent_set_recv_cb(AI_AGENT_RECV_DATA_T *recv);
+
+/**
+ * @brief Set video stream channel type
+ * @param[in] stream_type video stream type
+ */
+VOID tuya_ai_agent_set_video_stream(AI_VIDEO_STREAM_E stream_type);
 #endif // __TUYA_AI_AGENT_H__

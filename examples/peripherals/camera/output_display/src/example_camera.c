@@ -43,6 +43,7 @@ static TDL_DISP_DEV_INFO_T sg_display_info;
 static TDL_FB_MANAGE_HANDLE_T sg_fb_manage = NULL;
 
 static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
+static TUYA_YUV422_ORDER_E sg_yuv_order = TUYA_YUV422_UYVY;
 
 /***********************************************************
 ***********************function define**********************
@@ -58,7 +59,8 @@ static OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA
 
     TUYA_CALL_ERR_LOG(tdl_disp_convert_yuv422_to_fb(frame->data, frame->width, frame->height, \
                                                     convert_fb, sg_display_info.is_swap,\
-                                                    EXAMPLE_CAMERA_IMG_ROTATION));
+                                                    EXAMPLE_CAMERA_IMG_ROTATION, \
+                                                    sg_yuv_order));
 
     tdl_disp_dev_flush(sg_tdl_disp_hdl, convert_fb);
 
@@ -115,6 +117,11 @@ static OPERATE_RET __camera_init(void)
         PR_ERR("camera dev %s not found", CAMERA_NAME);
         return OPRT_NOT_FOUND;
     }
+
+    /* Get YUV byte order from camera driver info */
+    TDL_CAMERA_DEV_INFO_T cam_info = {0};
+    tdl_camera_dev_get_info(sg_tdl_camera_hdl, &cam_info);
+    sg_yuv_order = cam_info.yuv_order;
 
     cfg.fps = EXAMPLE_CAMERA_FPS;
     cfg.width = EXAMPLE_CAMERA_WIDTH;

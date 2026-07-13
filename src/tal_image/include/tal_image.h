@@ -16,6 +16,8 @@
 #include "tal_image_yuv422_to_rgb.h"
 #include "tal_image_yuv422_to_binary.h"
 #include "tal_image_rotate.h"
+#include "tal_image_jpeg_codec.h"
+#include "tal_image_scale.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -78,7 +78,7 @@ OPERATE_RET tdd_pixel_create_tx_ctrl(unsigned int tx_buff_len, DRV_PIXEL_TX_CTRL
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tdd_pixel_tx_ctrl_release(IN DRV_PIXEL_TX_CTRL_T *tx_ctrl);
+OPERATE_RET tdd_pixel_tx_ctrl_release(DRV_PIXEL_TX_CTRL_T *tx_ctrl);
 
 #ifdef __cplusplus
 }

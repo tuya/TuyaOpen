@@ -52,6 +52,17 @@ config ENABLE_VIDEO
     bool
     default n
 
+config ENABLE_EXT_RAM
+    bool
+    default n
+
+config ENABLE_DMA2D
+    bool
+    default n
+    ---help---
+        2D-DMA / pixel-processing hardware acceleration (tkl_dma2d).
+        Backed by the PPA on ESP32-P4; has no effect on other ESP32 targets.
+
 config ENABLE_ESP_DISPLAY
     bool
     default n

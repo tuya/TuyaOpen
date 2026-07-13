@@ -409,7 +409,7 @@ static void __game_display_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
 
-    screens_init();
+    ui_init();
 
     lv_vendor_start(5, 1024*8);
 }

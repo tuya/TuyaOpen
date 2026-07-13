@@ -175,7 +175,7 @@ void ctx_listen_thread_func(void *arg)
 
 OPERATE_RET p2p_rtc_listen_start()
 {
-    THREAD_CFG_T param;
+    THREAD_CFG_T param = {0};
     param.priority = THREAD_PRIO_3;
     param.stackDepth = 128 * 1024;
     param.thrdname = "tuya_p2p_listen_task";

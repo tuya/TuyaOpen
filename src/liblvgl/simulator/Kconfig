@@ -1,0 +1,30 @@
+menuconfig LVGL_PC_SIMULATOR
+    bool "LVGL PC Simulator (SDL)"
+    depends on ENABLE_LIBLVGL && PLATFORM_LINUX
+    default n
+    help
+      Build as PC simulator with SDL2 window.
+      Only display/UI code will be compiled.
+
+if LVGL_PC_SIMULATOR
+
+    config SIM_SCREEN_WIDTH
+        int "Screen width"
+        default 384
+
+    config SIM_SCREEN_HEIGHT
+        int "Screen height"
+        default 168
+
+    config SIM_WINDOW_TITLE
+        string "Window title"
+        default "TuyaOpen LVGL Simulator"
+
+    config SIM_ENTRY_FUNC
+        string "UI entry function name"
+        default "ui_init"
+        help
+          The function called after LVGL init to create UI.
+          Must be provided by the app display code.
+
+endif

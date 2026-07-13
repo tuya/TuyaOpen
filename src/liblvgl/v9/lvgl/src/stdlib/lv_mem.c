@@ -154,7 +154,7 @@ lv_result_t lv_mem_test(void)
         return LV_RESULT_INVALID;
     }
 
-#if LV_USE_STDLIB_MALLOC != LV_STDLIB_CUSTOM
+#if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     if(lv_tlsf_check(tlsf)) {
         LV_LOG_WARN("failed");
         return LV_RESULT_INVALID;
@@ -173,7 +173,7 @@ void lv_mem_monitor(lv_mem_monitor_t * mon_p)
 {
     lv_memzero(mon_p, sizeof(lv_mem_monitor_t));
 
-#if LV_USE_STDLIB_MALLOC != LV_STDLIB_CUSTOM
+#if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     lv_mem_monitor_core(mon_p);
 #endif
 }

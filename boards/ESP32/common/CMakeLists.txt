@@ -3,11 +3,19 @@ set(COMMON_PATH ${CMAKE_CURRENT_LIST_DIR})
 # add audio source files
 file(GLOB_RECURSE AUDIO_SRCS "${COMMON_PATH}/audio/*.c")
 
-# add display source files
-file(GLOB_RECURSE DISPLAY_SRCS "${COMMON_PATH}/display/*.c")
-
 # add lcd source files
 file(GLOB_RECURSE LCD_SRCS "${COMMON_PATH}/lcd/*.c")
+# *_dpi.c adapters use the MIPI-DSI peripheral, which only exists on the
+# ESP32-P4. On other targets esp_lcd_mipi_dsi.h / esp_lcd_st7701 are absent,
+# so drop them to keep non-P4 display boards compiling.
+if(NOT IDF_TARGET STREQUAL "esp32p4")
+    list(FILTER LCD_SRCS EXCLUDE REGEX ".*_dpi\\.c$")
+endif()
+# *_rgb.c adapters use the RGB LCD peripheral (SOC_LCDCAM_RGB_LCD_SUPPORTED),
+# which only exists on ESP32-S3 and ESP32-P4.
+if(NOT IDF_TARGET STREQUAL "esp32s3" AND NOT IDF_TARGET STREQUAL "esp32p4")
+    list(FILTER LCD_SRCS EXCLUDE REGEX ".*_rgb\\.c$")
+endif()
 
 # add led source files
 file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
@@ -15,30 +23,47 @@ file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
 # add io_expander source files
 file(GLOB_RECURSE IO_EXPANDER_SRCS "${COMMON_PATH}/io_expander/*.c")
 
-# add touch source files
-file(GLOB_RECURSE TOUCH_SRCS "${COMMON_PATH}/touch/*.c")
+# add tp source files
+file(GLOB_RECURSE TP_SRCS "${COMMON_PATH}/tp/*.c")
+
+# add button source files
+file(GLOB_RECURSE BUTTON_SRCS "${COMMON_PATH}/button/*.c")
+
+# add camera source files — pick the right driver per target:
+#   ESP32-P4 : MIPI-CSI (tdd_camera_esp_csi.c)
+#   ESP32/S3 : DVP via esp32-camera component (tdd_camera_esp_dvp.c)
+if(IDF_TARGET STREQUAL "esp32p4")
+    set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_csi.c")
+elseif(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32")
+    set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_dvp.c")
+else()
+    set(CAMERA_SRCS "")
+endif()
 
 set(BOARD_SRC "")
 set(BOARD_INC "${COMMON_PATH}")
 
-if (CONFIG_ENABLE_ESP_DISPLAY)
+if (CONFIG_ENABLE_DISPLAY)
     list(APPEND BOARD_SRC
         "${COMMON_PATH}"
-        "${DISPLAY_SRCS}"
         "${LCD_SRCS}"
         "${IO_EXPANDER_SRCS}"
-        "${TOUCH_SRCS}"
     )
 
     list(APPEND BOARD_INC
         "${COMMON_PATH}/lcd"
         "${COMMON_PATH}/io_expander"
-        "${COMMON_PATH}/touch"
-        "${COMMON_PATH}/display"
     )
-    
-    set_property(SOURCE ${DISPLAY_SRCS}
-                 APPEND PROPERTY COMPILE_DEFINITIONS LV_LVGL_H_INCLUDE_SIMPLE)
+endif()
+
+if (CONFIG_ENABLE_TP)
+    list(APPEND BOARD_SRC
+        "${TP_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/tp"
+    )
 endif()
 
 if (CONFIG_ENABLE_AUDIO)
@@ -58,5 +83,25 @@ if (CONFIG_ENABLE_LED)
 
     list(APPEND BOARD_INC
         "${COMMON_PATH}/led"
+    )
+endif()
+
+if (CONFIG_ENABLE_BUTTON)
+    list(APPEND BOARD_SRC
+        "${BUTTON_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/button"
+    )
+endif()
+
+if (CONFIG_ENABLE_CAMERA)
+    list(APPEND BOARD_SRC
+        "${CAMERA_SRCS}"
+    )
+
+    list(APPEND BOARD_INC
+        "${COMMON_PATH}/camera"
     )
 endif()

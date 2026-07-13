@@ -22,9 +22,27 @@ cd /workspace && . ./export.sh
 
 What this does:
 - Creates or reuses `.venv/`
-- Installs Python dependencies from `requirements.txt`
-- Exports `OPEN_SDK_ROOT`, `OPEN_SDK_PYTHON`, and `OPEN_SDK_PIP`
+- Syncs Python dependencies via `uv sync` (`pyproject.toml` + `uv.lock`)
+- Runs `tos.py prepare` to install SDK host tools (on Windows, GNU Make goes under `.tools/make/<version>/`; downloads are cached under `.tools/archives/`)
+- Exports `OPEN_SDK_ROOT`, `OPEN_SDK_PYTHON`, and `OPEN_SDK_PIP` on all platforms; on Windows, also exports `OPEN_SDK_MAKE_BIN` and `OPEN_SDK_MAKE` after `tos.py prepare` installs GNU Make
 - Makes `tos.py` available in the current shell
+
+On Windows, after `export.ps1` / `export.bat`, you can also run `tos.py prepare` manually to retry host-tool setup.
+
+### Export progress protocol (IDE)
+
+When `TUYAOPEN_EXPORT_IDE=1` (set by TuyaOpen IDE during non-interactive init), export scripts emit line-based progress on stderr for the IDE UI. Manual `. ./export.sh` / `. .\export.ps1` without this flag keeps the original interactive progress bars and behavior.
+
+| Line pattern | Stage | Example |
+|--------------|-------|---------|
+| `[TuyaOpen] Stage: <id>` | stage switch | `[TuyaOpen] Stage: sync` |
+| `[TuyaOpen] Downloading <artifact>: X / Y MB` | uv download | `[TuyaOpen] Downloading uv-x86_64.tar.gz: 12.3 / 25.6 MB` |
+| `[TuyaOpen] Installing Python <ver>: ...: X / Y MB (N%)` | python install | `[TuyaOpen] Installing Python 3.12.13: cpython-...: 12.5 / 25.6 MB (48%)` |
+| `[TuyaOpen] Syncing dependencies [###---] N/M (P%) - pkg` | uv sync | `[TuyaOpen] Syncing dependencies [########------] 8/28 (28%) - pydantic` |
+
+IDE parser: `tuyaopen_ide/src/extension.ts` → `parseSdkEnvStageLine`.
+
+Export tests: `bash tests/export/run_all.sh`
 
 ### Build workflow
 
@@ -68,3 +86,4 @@ Expected packages (see `Dockerfile`):
 - Build intermediates: `<project>/.build/`
 - Final outputs: `<project>/dist/`
 - Platform SDK cache: `platform/LINUX/`
+

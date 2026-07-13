@@ -45,4 +45,3 @@ target_compile_options(${EXAMPLE_LIB}
 ########################################
 # Add subdirectory
 ########################################
-add_subdirectory(${APP_PATH}/../ai_components)

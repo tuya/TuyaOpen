@@ -195,6 +195,26 @@ def cmake_configure(using_data, verbose=False):
     framework = using_data.get("CONFIG_FRAMEWORK_CHOICE", "")
     chip_name = using_data.get("CONFIG_CHIP_CHOICE", "")
     board_name = using_data.get("CONFIG_BOARD_CHOICE", "")
+    # Expose an app's private esp-idf components to the platform build via the
+    # TUYAOS_EXTRA_COMPONENT_DIRS env var, consumed only by ESP32's
+    # platform/ESP32/tuya_open_sdk/CMakeLists.txt (each root is appended to
+    # EXTRA_COMPONENT_DIRS, so every subdir under it becomes an esp-idf
+    # component). Convention over configuration: an app just drops components
+    # under <app_root>/esp_components (esp-prefixed since this is ESP32-only —
+    # esp-idf's own components/ dir doesn't reach the app, as the idf "project"
+    # is tuya_open_sdk, not the app). We merge rather than overwrite so a
+    # caller/CI can pre-export extra roots. Gated on ESP32; joined with spaces
+    # to match the receiver's split.
+    if platform_name == "ESP32":
+        comp_roots = []
+        existing = os.environ.get("TUYAOS_EXTRA_COMPONENT_DIRS", "").strip()
+        if existing:
+            comp_roots.extend(existing.split())
+        conv_dir = os.path.join(app_root, "esp_components")
+        if os.path.isdir(conv_dir) and conv_dir not in comp_roots:
+            comp_roots.append(conv_dir)
+        if comp_roots:
+            os.environ["TUYAOS_EXTRA_COMPONENT_DIRS"] = " ".join(comp_roots)
     defines = [
         f"-DTOS_PROJECT_NAME={project_name}",
         f"-DTOS_PROJECT_ROOT={app_root}",

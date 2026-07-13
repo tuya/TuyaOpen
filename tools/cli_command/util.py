@@ -6,7 +6,7 @@ import sys
 import json
 import yaml
 import click
-import requests
+import datetime
 import platform
 import logging
 import contextlib
@@ -188,10 +188,10 @@ def set_global_params():
     GLOBAL_PARAMS["platforms_yaml"] = os.path.join(
         platforms_root, "platform_config.yaml")
 
-    tyutool_root = os.path.join(tools_root, "tyutool")
-    GLOBAL_PARAMS["tyutool_root"] = tyutool_root
-    tyutool_cli = os.path.join(tyutool_root, "tyutool_cli.py")
-    GLOBAL_PARAMS["tyutool_cli"] = tyutool_cli
+    tyutool_bin_dir = os.path.join(tools_root, "tyutool")
+    GLOBAL_PARAMS["tyutool_bin_dir"] = tyutool_bin_dir
+    _bin_name = "tyutool_cli.exe" if sys.platform == "win32" else "tyutool_cli"
+    GLOBAL_PARAMS["tyutool_bin"] = os.path.join(tyutool_bin_dir, _bin_name)
 
     porting_root = os.path.join(tools_root, "porting")
     GLOBAL_PARAMS["porting_root"] = porting_root
@@ -201,6 +201,9 @@ def set_global_params():
 
     board_template_root = os.path.join(tools_root, "board_template")
     GLOBAL_PARAMS["board_template_root"] = board_template_root
+
+    GLOBAL_PARAMS["win_make_bin_dir"] = os.path.join(
+        open_root, ".tools", "make", "4.4.1")
 
     pass
 
@@ -260,17 +263,16 @@ def set_country_code():
         return COUNTRY_CODE
 
     try:
-        response = requests.get('http://www.ip-api.com/json', timeout=5)
-        response.raise_for_status()
-        logger.debug(response.elapsed)
-
-        result = response.json()
-        country = result.get("country", "")
-        logger.debug(f"country code: {country}")
-
-        COUNTRY_CODE = country
-    except requests.exceptions.RequestException as e:
+        offset = datetime.datetime.now().astimezone().utcoffset()
+        if offset is not None and int(offset.total_seconds()) == 8 * 3600:
+            COUNTRY_CODE = "China"
+            logger.debug("country code: China (UTC+8)")
+        else:
+            COUNTRY_CODE = ""
+            logger.debug("country code: overseas (timezone)")
+    except Exception as e:
         logger.warning(f"country code error: {e}")
+        COUNTRY_CODE = ""
 
     return COUNTRY_CODE
 

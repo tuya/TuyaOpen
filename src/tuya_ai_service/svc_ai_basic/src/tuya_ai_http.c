@@ -18,6 +18,7 @@
  *
  */
 #include <stdio.h>
+#include <string.h>
 #include "uni_log.h"
 #include "http_inf.h"
 #include "http_manager.h"
@@ -28,20 +29,25 @@
 #include "tuya_ai_http.h"
 #include "tuya_ai_agent.h"
 #include "tuya_ai_input.h"
+#include "ty_cJSON.h"
+#include "tuya_devos_utils.h"
+#include "uni_base64.h"
 
 #ifndef AI_DL_IMAGE_UNIT_SIZE
 #define AI_DL_IMAGE_UNIT_SIZE (6144)
 #endif
 
 typedef struct {
-    char *url;
-    AI_PACKET_PT type;
+    CHAR_T        *url;
+    AI_PACKET_PT   type;
     AI_BIZ_RECV_CB cb;
 } AI_HTTP_DLD_T;
 
-STATIC OPERATE_RET __ai_http_output_media(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data, AI_BIZ_RECV_CB cb)
+STATIC BOOL_T sg_ai_dld_stop = FALSE;
+
+STATIC OPERATE_RET __ai_http_output_media(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, CHAR_T *data, AI_BIZ_RECV_CB cb)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET  rt   = OPRT_OK;
     AI_PACKET_PT type = attr->type;
     AI_PROTO_D("output media type:%d, len:%d", type, head->len);
     if (cb) {
@@ -52,50 +58,50 @@ STATIC OPERATE_RET __ai_http_output_media(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_
 
 STATIC VOID __ai_http_dld_work(VOID *data)
 {
-    OPERATE_RET rt = OPRT_OK;
-    SESSION_ID http_sesion = NULL;
-    char *buf = NULL;
-    AI_HTTP_DLD_T *dld = (AI_HTTP_DLD_T *)data;
-    AI_PACKET_PT type = dld->type;
-    char *url = dld->url;
-    S_HTTP_MANAGER *http_manager = NULL;
-    STATIC BOOL_T first_pkt = TRUE;
-    AI_BIZ_HEAD_INFO_T head = {0};
-    AI_BIZ_ATTR_INFO_T attr = {0};
-    attr.type = type;
-    attr.flag = AI_HAS_ATTR;
+    OPERATE_RET        rt           = OPRT_OK;
+    SESSION_ID         http_sesion  = NULL;
+    CHAR_T            *buf          = NULL;
+    AI_HTTP_DLD_T     *dld          = (AI_HTTP_DLD_T *)data;
+    AI_PACKET_PT       type         = dld->type;
+    CHAR_T            *url          = dld->url;
+    S_HTTP_MANAGER    *http_manager = NULL;
+    STATIC BOOL_T      first_pkt    = TRUE;
+    AI_BIZ_HEAD_INFO_T head         = {0};
+    AI_BIZ_ATTR_INFO_T attr         = {0};
+    attr.type                       = type;
+    attr.flag                       = AI_HAS_ATTR;
 #if defined(AI_VERSION) && (0x02 == AI_VERSION)
     AI_ATTR_BASE_T *down_attr = tuya_ai_agent_get_down_attr();
 #endif
     if (type == AI_PT_IMAGE) {
 #if defined(AI_VERSION) && (0x02 == AI_VERSION)
         if (down_attr && (down_attr->image.type == IMAGE_PAYLOAD_TYPE_URL)) {
-            attr.value.image.base.type = IMAGE_PAYLOAD_TYPE_RAW;
+            attr.value.image.base.type   = IMAGE_PAYLOAD_TYPE_RAW;
             attr.value.image.base.format = down_attr->image.format;
-            attr.value.image.base.width = down_attr->image.width;
+            attr.value.image.base.width  = down_attr->image.width;
             attr.value.image.base.height = down_attr->image.height;
         } else {
             attr.value.image.base.format = IMAGE_FORMAT_JPEG;
-            attr.value.image.base.width = 480;
+            attr.value.image.base.width  = 480;
             attr.value.image.base.height = 480;
         }
 #else
         attr.value.image.base.format = IMAGE_FORMAT_JPEG;
-        attr.value.image.base.width = 480;
+        attr.value.image.base.width  = 480;
         attr.value.image.base.height = 480;
 #endif
     } else if (type == AI_PT_AUDIO) {
         attr.value.audio.base.codec_type = AUDIO_CODEC_MP3;
     } else if (type == AI_PT_VIDEO) {
-        attr.value.video.base.codec_type = VIDEO_CODEC_H264;
-        attr.value.video.base.fps = 30;
-        attr.value.video.base.width = 480;
-        attr.value.video.base.height = 480;
+        attr.value.video.base.codec_type  = VIDEO_CODEC_H264;
+        attr.value.video.base.fps         = 30;
+        attr.value.video.base.width       = 480;
+        attr.value.video.base.height      = 480;
         attr.value.video.base.sample_rate = 90000;
     } else if (type == AI_PT_FILE) {
 #if defined(AI_VERSION) && (0x02 == AI_VERSION)
         if (down_attr && (down_attr->file.type == FILE_PAYLOAD_TYPE_URL)) {
-            attr.value.file.base.type = FILE_PAYLOAD_TYPE_RAW;
+            attr.value.file.base.type   = FILE_PAYLOAD_TYPE_RAW;
             attr.value.file.base.format = down_attr->file.format;
             memcpy(attr.value.file.base.file_name, down_attr->file.file_name, SIZEOF(down_attr->file.file_name));
         } else {
@@ -143,10 +149,10 @@ STATIC VOID __ai_http_dld_work(VOID *data)
         goto EXIT;
     }
 
-    int read_len = 0, have_read_len = 0, sum_read_len = 0;
-    uint32_t total_len = resp->content_length;
-    uint32_t unit_len = AI_DL_IMAGE_UNIT_SIZE;
-    buf = (char *)OS_MALLOC(unit_len);
+    INT_T  read_len = 0, have_read_len = 0, sum_read_len = 0;
+    UINT_T total_len = resp->content_length;
+    UINT_T unit_len  = AI_DL_IMAGE_UNIT_SIZE;
+    buf              = (CHAR_T *)OS_MALLOC(unit_len);
     TUYA_CHECK_NULL_GOTO(buf, EXIT);
     memset(buf, 0, unit_len);
 
@@ -161,17 +167,17 @@ STATIC VOID __ai_http_dld_work(VOID *data)
         AI_PROTO_D("sum_read_len:%d,have_read_len:%d,read_len:%d,total_len:%d", sum_read_len, have_read_len, read_len, total_len);
         if (sum_read_len + have_read_len >= total_len) {
             if (first_pkt) {
-                first_pkt = TRUE;
+                first_pkt        = TRUE;
                 head.stream_flag = AI_STREAM_ONE;
-                head.total_len = total_len;
-                head.len = have_read_len;
-                rt = __ai_http_output_media(&attr, &head, buf, dld->cb);
+                head.total_len   = total_len;
+                head.len         = have_read_len;
+                rt               = __ai_http_output_media(&attr, &head, buf, dld->cb);
             } else {
-                first_pkt = TRUE;
+                first_pkt        = TRUE;
                 head.stream_flag = AI_STREAM_END;
-                head.total_len = total_len;
-                head.len = have_read_len;
-                rt = __ai_http_output_media(&attr, &head, buf, dld->cb);
+                head.total_len   = total_len;
+                head.len         = have_read_len;
+                rt               = __ai_http_output_media(&attr, &head, buf, dld->cb);
             }
             if (OPRT_OK != rt) {
                 PR_ERR("send to app err,rt:%d", rt);
@@ -183,19 +189,20 @@ STATIC VOID __ai_http_dld_work(VOID *data)
             }
         }
         if (first_pkt) {
-            first_pkt = FALSE;
+            first_pkt        = FALSE;
             head.stream_flag = AI_STREAM_START;
-            head.total_len = total_len;
-            head.len = unit_len;
-            rt = __ai_http_output_media(&attr, &head, buf, dld->cb);
+            head.total_len   = total_len;
+            head.len         = unit_len;
+            rt               = __ai_http_output_media(&attr, &head, buf, dld->cb);
         } else {
             head.stream_flag = AI_STREAM_ING;
-            head.total_len = total_len;
-            head.len = unit_len;
-            rt = __ai_http_output_media(&attr, &head, buf, dld->cb);
+            head.total_len   = total_len;
+            head.len         = unit_len;
+            rt               = __ai_http_output_media(&attr, &head, buf, dld->cb);
         }
-        if (OPRT_OK != rt) {
-            PR_ERR("send to app err,rt:%d", rt);
+        if ((OPRT_OK != rt) || sg_ai_dld_stop) {
+            PR_ERR("dld work end:%d, dld stop:%d", rt, sg_ai_dld_stop);
+            sg_ai_dld_stop = FALSE;
             break;
         }
         memset(buf, 0, unit_len);
@@ -222,7 +229,7 @@ EXIT:
     return;
 }
 
-STATIC OPERATE_RET __ai_http_dld_media(char *url, AI_PACKET_PT type, AI_BIZ_RECV_CB cb)
+STATIC OPERATE_RET __ai_http_dld_media(CHAR_T *url, AI_PACKET_PT type, AI_BIZ_RECV_CB cb)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_CHECK_NULL_RETURN(url, OPRT_INVALID_PARM);
@@ -230,15 +237,16 @@ STATIC OPERATE_RET __ai_http_dld_media(char *url, AI_PACKET_PT type, AI_BIZ_RECV
     TUYA_CHECK_NULL_RETURN(dld, OPRT_MALLOC_FAILED);
     memset(dld, 0, SIZEOF(AI_HTTP_DLD_T));
     dld->type = type;
-    dld->cb = cb;
-    dld->url = mm_strdup(url);
+    dld->cb   = cb;
+    dld->url  = mm_strdup(url);
     if (dld->url == NULL) {
         PR_ERR("malloc url failed");
         Free(dld);
         return OPRT_MALLOC_FAILED;
     }
     PR_DEBUG("do http dld work");
-    rt = tal_workq_schedule(WORKQ_SYSTEM, __ai_http_dld_work, dld);
+    sg_ai_dld_stop = FALSE;
+    rt             = tal_workq_schedule(WORKQ_SYSTEM, __ai_http_dld_work, dld);
     if (OPRT_OK != rt) {
         PR_ERR("schedule workq err,rt:%d", rt);
         Free(dld->url);
@@ -247,27 +255,65 @@ STATIC OPERATE_RET __ai_http_dld_media(char *url, AI_PACKET_PT type, AI_BIZ_RECV
     return rt;
 }
 
-OPERATE_RET tuya_ai_http_dld_audio(char *url, AI_BIZ_RECV_CB cb)
+OPERATE_RET tuya_ai_http_dld_audio(CHAR_T *url, AI_BIZ_RECV_CB cb)
 {
     return __ai_http_dld_media(url, AI_PT_AUDIO, cb);
 }
 
-OPERATE_RET tuya_ai_http_dld_image(char *url, AI_BIZ_RECV_CB cb)
+OPERATE_RET tuya_ai_http_dld_image(CHAR_T *url, AI_BIZ_RECV_CB cb)
 {
     return __ai_http_dld_media(url, AI_PT_IMAGE, cb);
 }
 
-OPERATE_RET tuya_ai_http_dld_video(char *url, AI_BIZ_RECV_CB cb)
+OPERATE_RET tuya_ai_http_dld_video(CHAR_T *url, AI_BIZ_RECV_CB cb)
 {
     return __ai_http_dld_media(url, AI_PT_VIDEO, cb);
 }
 
-OPERATE_RET tuya_ai_http_dld_file(char *url, AI_BIZ_RECV_CB cb)
+OPERATE_RET tuya_ai_http_dld_file(CHAR_T *url, AI_BIZ_RECV_CB cb)
 {
     return __ai_http_dld_media(url, AI_PT_FILE, cb);
 }
 
-OPERATE_RET tuya_ai_http_dld_text(char *url, AI_BIZ_RECV_CB cb)
+OPERATE_RET tuya_ai_http_dld_text(CHAR_T *url, AI_BIZ_RECV_CB cb)
 {
     return __ai_http_dld_media(url, AI_PT_TEXT, cb);
+}
+
+OPERATE_RET tuya_ai_http_get_secret_key(UCHAR_T *key)
+{
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+    TUYA_CHECK_NULL_RETURN(key, OPRT_INVALID_PARM);
+    OPERATE_RET rt      = OPRT_OK;
+    INT_T       dec_len = 0;
+    ty_cJSON   *result  = NULL;
+
+    memset(key, 0, TUYA_AI_SECRET_KEY_LEN);
+    rt = iot_httpc_common_post("thing.km.secret.get.device", "1.0", NULL, get_gw_dev_id(),
+                NULL, NULL, &result);
+    if ((rt != OPRT_OK) || (result == NULL)) {
+        PR_ERR("http get secret failed, rt:%d", rt);
+        return rt;
+    }
+    ty_cJSON *secret = ty_cJSON_GetObjectItem(result, "secretValue");
+    if (secret && secret->valuestring) {
+        dec_len = tuya_base64_decode(secret->valuestring, key);
+        if (dec_len != (INT_T)TUYA_AI_SECRET_KEY_LEN) {
+            PR_ERR("secret key length err:%d expect:%u", dec_len, (UINT_T)TUYA_AI_SECRET_KEY_LEN);
+            memset(key, 0, TUYA_AI_SECRET_KEY_LEN);
+            rt = OPRT_COM_ERROR;
+        }
+    } else {
+        PR_ERR("get secret key failed");
+        rt = OPRT_CJSON_GET_ERR;
+    }
+    ty_cJSON_Delete(result);
+    return rt;
+#endif
+    return OPRT_OK;
+}
+
+VOID tuya_ai_http_stop_dld(VOID)
+{
+    sg_ai_dld_stop = TRUE;
 }

@@ -215,3 +215,14 @@ void screens_init(void)
         printf("[Error]: startup_screen.screen_obj is NULL or invalid during initialization\n");
     }
 }
+
+/**
+ * @brief Initialize the UI
+ *
+ * This function is a wrapper for the screens_init function.
+ * It is used to initialize the UI.
+ */
+void ui_init(void)
+{
+    screens_init();
+}

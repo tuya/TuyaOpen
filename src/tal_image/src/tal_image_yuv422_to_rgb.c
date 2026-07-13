@@ -150,17 +150,19 @@ static OPERATE_RET __sw_convert_yuv422_to_rgb565(TAL_IMAGE_YUV422_TO_RGB_T *conv
     const uint8_t *yuv_ptr = conv_cfg->in_buf;
     uint16_t *rgb_ptr = (uint16_t *)conv_cfg->out_buf;
     uint16_t in_stride = conv_cfg->in_width * 2; /* YUV422: 2 bytes per pixel */
+    const bool is_yuyv = (conv_cfg->in_order == TUYA_YUV422_YUYV);
 
     for (uint16_t y = 0; y < height; y++) {
         const uint8_t *yuv_row = yuv_ptr;
         uint16_t *rgb_row = rgb_ptr;
         
         for (uint16_t x = 0; x < width; x += 2) {
-            /* Read UYVY format: U0 Y0 V0 Y1 */
-            uint8_t u0 = yuv_row[0];
-            uint8_t y0 = yuv_row[1];
-            uint8_t v0 = yuv_row[2];
-            uint8_t y1 = yuv_row[3];
+            uint8_t y0, u0, y1, v0;
+            if (is_yuyv) {
+                y0 = yuv_row[0]; u0 = yuv_row[1]; y1 = yuv_row[2]; v0 = yuv_row[3];
+            } else {
+                u0 = yuv_row[0]; y0 = yuv_row[1]; v0 = yuv_row[2]; y1 = yuv_row[3];
+            }
             yuv_row += 4;
 
             /* Convert first pixel (Y0, U0, V0) */
@@ -228,17 +230,19 @@ static OPERATE_RET __sw_convert_yuv422_to_rgb888(TAL_IMAGE_YUV422_TO_RGB_T *conv
     const uint8_t *yuv_ptr = conv_cfg->in_buf;
     uint8_t *rgb_ptr = conv_cfg->out_buf;
     uint16_t in_stride = conv_cfg->in_width * 2; /* YUV422: 2 bytes per pixel */
+    const bool is_yuyv = (conv_cfg->in_order == TUYA_YUV422_YUYV);
 
     for (uint16_t y = 0; y < height; y++) {
         const uint8_t *yuv_row = yuv_ptr;
         uint8_t *rgb_row = rgb_ptr;
         
         for (uint16_t x = 0; x < width; x += 2) {
-            /* Read UYVY format: U0 Y0 V0 Y1 */
-            uint8_t u0 = yuv_row[0];
-            uint8_t y0 = yuv_row[1];
-            uint8_t v0 = yuv_row[2];
-            uint8_t y1 = yuv_row[3];
+            uint8_t y0, u0, y1, v0;
+            if (is_yuyv) {
+                y0 = yuv_row[0]; u0 = yuv_row[1]; y1 = yuv_row[2]; v0 = yuv_row[3];
+            } else {
+                u0 = yuv_row[0]; y0 = yuv_row[1]; v0 = yuv_row[2]; y1 = yuv_row[3];
+            }
             yuv_row += 4;
 
             /* Convert first pixel (Y0, U0, V0) */

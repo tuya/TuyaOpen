@@ -200,10 +200,17 @@ OPERATE_RET datasink_url_read(void* handle, uint8_t *data, uint32_t len, uint32_
         return OPRT_OK;
     } else if(ctx->status == URLSINK_STATUS_EXIT) {
         if(ctx->chunked) { // in chunked mode, do not support retry
+            PR_ERR("url sink give up: chunked stream cannot resume, offset %u",
+                   (unsigned int)ctx->offset);
             return OPRT_NETWORK_ERROR;
         } else if((ctx->download_start_s + AI_PLAYER_HTTP_TIMEOUT_S) < tal_time_get_posix()) { // timeout
+            PR_ERR("url sink give up: retry timeout %us, offset %u/%u",
+                   (unsigned int)AI_PLAYER_HTTP_TIMEOUT_S,
+                   (unsigned int)ctx->offset, (unsigned int)ctx->length);
             return OPRT_NETWORK_ERROR;
         } else {
+            PR_WARN("url sink retry: resume from %u/%u",
+                    (unsigned int)ctx->offset, (unsigned int)ctx->length);
             ctx->status = URLSINK_STATUS_CONNECT;
             return tal_workq_schedule(WORKQ_SYSTEM, __http_connect, (void *)ctx);
         }
@@ -228,7 +235,10 @@ OPERATE_RET datasink_url_read(void* handle, uint8_t *data, uint32_t len, uint32_
         ctx->eof = true;
         return OPRT_NOT_FOUND; // eof
     } else {
-        PR_ERR("url sink err offset %d length %d start_s %d", ctx->offset, ctx->length, ctx->download_start_s);
+        // http read failed (network error or premature peer close).
+        // Switch to EXIT so next read schedules a Range-based reconnect.
+        PR_WARN("url sink read failed at offset %u/%u, will retry",
+                (unsigned int)ctx->offset, (unsigned int)ctx->length);
         ctx->status = URLSINK_STATUS_EXIT; // error, let connect again
         return OPRT_OK;
     }

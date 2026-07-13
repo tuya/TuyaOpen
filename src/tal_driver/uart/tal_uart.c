@@ -222,7 +222,7 @@ OPERATE_RET tal_uart_init(TUYA_UART_NUM_E port_num, TAL_UART_CFG_T *cfg)
 
     TAL_UART_DEV *uart_info = uart_list_get_one_node(port_num);
     if (uart_info != NULL) {
-        PR_ERR("uart port %d has been initialized", port_num);
+        PR_ERR("uart port %d has been initialized (already in list)", port_num);
         return OPRT_INVALID_PARM;
     }
 
@@ -248,6 +248,7 @@ OPERATE_RET tal_uart_init(TUYA_UART_NUM_E port_num, TAL_UART_CFG_T *cfg)
 
     ret = tkl_uart_init(port_num, &cfg->base_cfg);
     if (ret != OPRT_OK) {
+        PR_ERR("tkl_uart_init(port %d) failed: %d", port_num, ret);
         goto ERR_EXIT;
     }
 

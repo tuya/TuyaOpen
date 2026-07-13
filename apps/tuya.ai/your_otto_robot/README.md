@@ -253,6 +253,69 @@ cd apps/tuya.ai/your_otto_robot/
 
 2. Select configuration:
 
+Pick the preset that matches your shell and screen (see table and photos below), copy it to `app_default.config`, then build. You can also use `tos.py config choice` and select the same preset name.
+
+### How to Tell Otto Variants Apart
+
+| Model | Reference photo | Display | Firmware | Config file | Notes |
+|-------|-----------------|---------|----------|-------------|-------|
+| **Otto Ya (duck shell)** | below | ST7735S 160×80 dual-eye | Otto 6-servo | `config/T5AI_OTTO_LCD_ST7735S.config` | Arms + trim calibration DPs |
+| **Otto standard (ST7789)** | standard shell | ST7789 240×240 | Otto 6-servo | `config/T5AI_OTTO_LCD_ST7789.config` | PID `aub53kai42j8fdlf` |
+| **Otto V1 (ST7789 legacy)** | below | ST7789 240×240 | Otto 4-servo | `config/T5_OTTO_LCD_ST7789_V1.config` | PID `2aay22ssg224cpvi`, no arms/trim, DP5 `ptz_control` |
+| **Otto Ninja (wheeled)** | below | GC9D01 160×160 | Ninja Otto | `config/T5AI_OTTO_LCD_GC9D01.config` | Joystick/button control, not gait Otto |
+
+**Otto Ya (duck shell)**
+
+![Otto Ya](doc/otto%20ya.jpg)
+
+**Otto V1 (4-servo legacy)**
+
+![Otto V1](doc/otto%20v1.png)
+
+**Otto Ninja (wheeled)**
+
+![Otto Ninja](doc/otto%20ninjia.jpg)
+
+![Otto Ninja wheel detail](doc/otto%20nijia_lun.jpg)
+
+```bash
+# Otto Ya (duck)
+cp config/T5AI_OTTO_LCD_ST7735S.config app_default.config
+
+# Otto Ninja
+cp config/T5AI_OTTO_LCD_GC9D01.config app_default.config
+
+# Otto standard ST7789 (6 servos)
+cp config/T5AI_OTTO_LCD_ST7789.config app_default.config
+
+# Otto V1 ST7789 (4 servos, legacy cloud DP schema)
+cp config/T5_OTTO_LCD_ST7789_V1.config app_default.config
+```
+
+**Kconfig product profile (when `OTTO_TYPE_OTTO`)**
+
+- `OTTO_PRODUCT_LEGACY`: 6 servos + trim calibration DPs (default)
+- `OTTO_PRODUCT_ST7789_V1`: 4 servos, no trim, cloud DPs DP5 `ptz_control` / 102 speed / 103 steps / 104 audio
+
+**Motion scheduling**
+
+- **Show**: can be interrupted; the newest command runs immediately.
+- **Other moves** (walk, turn, etc.): queued FIFO (max 8) while busy; each move finishes and returns home before the next.
+
+**MCP control (when `ENABLE_COMP_AI_MCP=y`)**
+
+With AI MCP enabled, voice/cloud AI can drive motion via MCP tools; **App/cloud DP control remains available** and shares the same motion queue as MCP.
+
+| MCP tool | Parameters | Notes |
+|----------|------------|-------|
+| `otto_robot_action` | `action` (string) or `action_id` (0–12) | Same as V1 `ptz_control`: `front`/`back`/`left`/`right`/`none`/`swing`/`up_down`/`bend`/`jitter`/`moonwalker`/`jump`/`show`/`hand` |
+| `otto_robot_speed_set` | `speed_level` 0–2 | 0=slow, 1=normal, 2=fast |
+| `otto_robot_step_set` | `steps` 1–30 | Walk/turn step count |
+
+Use `device_audio_mode_set` (`mode` 0–3) for chat interaction mode.
+
+Or use interactive configuration:
+
 ```bash
 tos.py config choice 
 ```
@@ -284,9 +347,11 @@ Official documentation: [TuyaOpen Firmware Burning](https://tuyaopen.ai/zh/docs/
 Use voice wake-up chat (wake words: "Hello, Tuya", "hey, tuya")
 
 ### 3. Feature List
-- Support basic walking movements
+- Support basic walking movements (non-show actions are queued)
+- Support show sequence (interruptible)
 - Support voice command control
 - Screen display status information
+- Otto V1 4-servo build: no arms, no trim calibration DPs
 - Support video recognition (future planning)
 
 ## 9. Resource Support

@@ -21,6 +21,7 @@
 #include "uni_log.h"
 #include "base_event.h"
 #include "tuya_ai_biz.h"
+#include "tuya_ai_http.h"
 #include "tuya_ai_client.h"
 #include "tuya_ai_event.h"
 #include "tuya_ai_output.h"
@@ -32,7 +33,7 @@
 #include "http_manager.h"
 #include "tal_workq_service.h"
 #include "tuya_ai_mqtt.h"
-#include "tuya_ai_http.h"
+#include "tal_symmetry.h"
 #include "smart_frame.h"
 #include "tuya_ai_encoder.h"
 #include "uni_base64.h"
@@ -48,46 +49,55 @@
 #endif
 #include "tuya_ai_protocol.h"
 
-#define INTTERUPT_TIME_MAX  16
+#define INTTERUPT_TIME_MAX 16
 
 typedef struct {
-    char scode[AI_SOLUTION_CODE_LEN];
-    AI_ATTR_BASE_T up_attr;
-    AI_ATTR_BASE_T down_attr;
-    AI_INPUT_SEND_T biz_get[AI_BIZ_MAX_NUM];
-    AI_AGENT_SESSION_T session[AI_SESSION_MAX_NUM];
-    char cfg_eid[AI_UUID_V4_LEN + 1];     // will auto clear after session create
-    BOOL_T codec_enable;
-    TUYA_AI_ENCODER_T *encoder;             // encoder handle
-    TUYA_AI_ENCODER_INFO_T encoder_info;    // encoder info
-    AI_AGENT_TTS_CFG_T tts_cfg;
-    char last_intr_time[INTTERUPT_TIME_MAX];  // last chat break time
-    BOOL_T enable_crt_session_ext; // enable crt session external
-    BOOL_T enable_internal_scode; // enable internal solution code
-    BOOL_T enable_serv_vad; // enable server vad
-    BOOL_T enable_mcp; // enable mcp tools
-    BOOL_T enable_joyinside; // enable joyinside cloud
-    TY_AI_MCP_CB mcp_cb;
-    VOID *mcp_user_data;
+    CHAR_T      *scode;
+    AI_BIZ_HD_T *biz;
+    UCHAR_T     *buf;
+    UINT_T       buf_size;
+    UINT_T       buf_len;
+} AUDIO_ENCODE_CTX_T;
+typedef struct {
+    CHAR_T                 scode[AI_SOLUTION_CODE_LEN]; // global scode
+    AI_ATTR_BASE_T         up_attr;
+    AI_ATTR_BASE_T         down_attr;
+    AI_INPUT_SEND_T        biz_get[AI_BIZ_MAX_NUM];
+    AI_AGENT_SESSION_T     session[AI_SESSION_MAX_NUM];
+    CHAR_T                 cfg_eid[AI_UUID_V4_LEN + 1]; // will auto clear after session create
+    CHAR_T                *event_param;                 // will auto clear after event start
+    CHAR_T                *session_param;               // will auto clear after session create
+    BOOL_T                 codec_enable;
+    TUYA_AI_ENCODER_T     *encoder;      // encoder handle
+    TUYA_AI_ENCODER_INFO_T encoder_info; // encoder info
+    AI_AGENT_TTS_CFG_T     tts_cfg;
+    CHAR_T                 last_intr_time[INTTERUPT_TIME_MAX]; // last chat break time
+    BOOL_T                 enable_crt_session_ext;             // enable crt session external
+    BOOL_T                 enable_internal_scode;              // enable internal solution code
+    BOOL_T                 enable_serv_vad;                    // enable server vad
+    BOOL_T                 enable_proc_intr;                   // enable processing interrupt
+    BOOL_T                 enable_mcp;                         // enable mcp tools
+    BOOL_T                 enable_joyinside;                   // enable joyinside cloud
+    TY_AI_MCP_CB           mcp_cb;
+    VOID                  *mcp_user_data;
+    AI_AGENT_RECV_DATA_T  *recv[AI_SESSION_MAX_NUM];
+    AI_VIDEO_STREAM_E      video_stream;
 } AI_AGENT_CTX_T;
 STATIC AI_AGENT_CTX_T ai_agent_ctx;
 
-STATIC OPERATE_RET __mcp_handle(char *data);
-STATIC AI_SESSION_ID __ai_agent_get_eid(char *scode);
+STATIC OPERATE_RET __mcp_handle(CHAR_T *sid, CHAR_T *eid, CHAR_T *data);
 
-STATIC OPERATE_RET __parse_attr_time(uint8_t *data, uint32_t len, char *time_str)
+STATIC OPERATE_RET __parse_attr_time(BYTE_T *data, UINT_T len, CHAR_T *time_str)
 {
     OPERATE_RET rt = OPRT_OK;
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
-    AI_ATTRIBUTE_T *attr = NULL;
-    uint32_t attr_num = 0, idx;
-    ty_cJSON *root, *node;
-
-    rt = tuya_parse_user_attrs((char *)data, len, &attr, &attr_num);
+    AI_ATTRIBUTE_T *attr     = NULL;
+    UINT_T          attr_num = 0, idx;
+    ty_cJSON       *root, *node;
+    rt = tuya_parse_user_attrs((CHAR_T *)data, len, &attr, &attr_num);
     if (OPRT_OK != rt) {
         return rt;
     }
-
     rt = OPRT_NOT_SUPPORTED;
     for (idx = 0; idx < attr_num; idx++) {
         if (attr[idx].type == 1008) {
@@ -100,51 +110,55 @@ STATIC OPERATE_RET __parse_attr_time(uint8_t *data, uint32_t len, char *time_str
             ty_cJSON_Delete(root);
         }
     }
-
     Free(attr);
-
 #else
-    tuya_debug_hex_dump("__parse_attr_time", 64, data, len);
-
+    // tal_log_hex_dump("__parse_attr_time", 64, data, len);
     ty_cJSON *root, *attr, *time;
-    root = ty_cJSON_Parse((char *)data);
+    root = ty_cJSON_Parse((CHAR_T *)data);
     if (NULL == root) {
-        rt = OPRT_COM_ERROR ;
+        rt = OPRT_COM_ERROR;
         return rt;
     }
     attr = ty_cJSON_GetObjectItem(root, "breakAttributes");
-
     if (NULL != attr) {
         time = ty_cJSON_GetObjectItem(attr, "time");
-
         if (time && time->valuestring) {
             strncpy(time_str, time->valuestring, INTTERUPT_TIME_MAX);
             rt = OPRT_OK;
         }
     } else {
-        rt = OPRT_COM_ERROR ;
+        rt = OPRT_COM_ERROR;
     }
-
-
     ty_cJSON_Delete(root);
 #endif
     return rt;
 }
 
+OPERATE_RET tuya_ai_agent_set_scode(CHAR_T *scode)
+{
+    if (scode) {
+        memset(&ai_agent_ctx.scode, 0, SIZEOF(ai_agent_ctx.scode));
+        strncpy(ai_agent_ctx.scode, scode, AI_SOLUTION_CODE_LEN);
+    }
+    return OPRT_OK;
+}
+
+CHAR_T *tuya_ai_agent_get_scode(CHAR_T *scode)
+{
+    return scode ? scode : ai_agent_ctx.scode;
+}
+
 STATIC OPERATE_RET __ai_event_cb(AI_EVENT_ATTR_T *event, AI_EVENT_HEAD_T *head, VOID *data)
 {
-    PR_DEBUG("[====ai event cb====] type:%d, sid:%s, eid:%s", 
-        head ? head->type : -1, 
-        event && event->session_id ? event->session_id : "(null)", 
-        event && event->event_id ? event->event_id : "(null)");
+    PR_DEBUG("[====ai event cb====] type:%d, sid:%s, eid:%s", head->type, event->session_id, event->event_id);
     if ((head->type == AI_EVENT_CHAT_BREAK) || (head->type == AI_EVENT_SERVER_VAD)) {
         if (head->type == AI_EVENT_CHAT_BREAK && event->user_data && event->user_len > 0) {
             /* filter chat break event */
-            char intr_time[INTTERUPT_TIME_MAX] = {0};
-            OPERATE_RET rt = __parse_attr_time(event->user_data, event->user_len, intr_time);
+            CHAR_T      intr_time[INTTERUPT_TIME_MAX] = {0};
+            OPERATE_RET rt                            = __parse_attr_time(event->user_data, event->user_len, intr_time);
             if (OPRT_OK == rt) {
                 if ((ai_agent_ctx.last_intr_time[0] != '\0') && (strcmp(intr_time, ai_agent_ctx.last_intr_time) <= 0)) {
-                    PR_DEBUG("Interrupt event ignored, last:%s, cur:%s", ai_agent_ctx.last_intr_time, intr_time);
+                    TAL_PR_DEBUG("Interrupt event ignored, last:%s, cur:%s", ai_agent_ctx.last_intr_time, intr_time);
                     return OPRT_OK;
                 }
                 strncpy(ai_agent_ctx.last_intr_time, intr_time, INTTERUPT_TIME_MAX);
@@ -152,7 +166,7 @@ STATIC OPERATE_RET __ai_event_cb(AI_EVENT_ATTR_T *event, AI_EVENT_HEAD_T *head, 
         }
         tuya_ai_output_event(head->type, 0, event->event_id);
     } else if (head->type == AI_EVENT_MCP_CMD && data) {
-        __mcp_handle(data);
+        __mcp_handle(event->session_id, event->event_id, data);
     }
     return OPRT_OK;
 }
@@ -160,30 +174,22 @@ STATIC OPERATE_RET __ai_event_cb(AI_EVENT_ATTR_T *event, AI_EVENT_HEAD_T *head, 
 STATIC OPERATE_RET __ai_audio_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
 {
     OPERATE_RET rt = OPRT_OK;
-    char *scode = (char *)usr_data;
-
-    // handle alert input
-    if (scode && (strcmp(scode, AI_AGENT_SCODE_ALERT) == 0)) {
-        rt = tuya_ai_input_alert_notify(head->stream_flag == AI_STREAM_START);
-        if (rt == OPRT_TIMEOUT) {
-            PR_WARN("alert input timeout, ignore audio data");
-            return OPRT_OK;
-        }
-    }
 
     switch (head->stream_flag) {
     case AI_STREAM_START:
         if (attr && attr->flag == AI_HAS_ATTR) {
-            tuya_ai_output_attr(scode, attr);
+            tuya_ai_output_attr(attr);
         }
         rt = tuya_ai_output_start();
-        rt += tuya_ai_output_write(AI_PT_AUDIO, (uint8_t *)data, head->len);
+        rt += tuya_ai_output_write(AI_PT_AUDIO, (UINT8_T *)data, head->len);
         break;
     case AI_STREAM_ING:
-        rt = tuya_ai_output_write(AI_PT_AUDIO, (uint8_t *)data, head->len);
+        rt = tuya_ai_output_write(AI_PT_AUDIO, (UINT8_T *)data, head->len);
         break;
     case AI_STREAM_END:
-        rt = tuya_ai_output_write(AI_PT_AUDIO, (uint8_t *)data, head->len);
+        if (head->len > 0) {
+            rt = tuya_ai_output_write(AI_PT_AUDIO, (UINT8_T *)data, head->len);
+        }
         rt += tuya_ai_output_stop(FALSE);
         break;
     default:
@@ -198,7 +204,7 @@ AI_ATTR_BASE_T *tuya_ai_agent_get_down_attr(VOID)
     return &ai_agent_ctx.down_attr;
 }
 
-STATIC OPERATE_RET __ai_direct_output(char *scode, AI_PACKET_PT type, AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, char *data)
+STATIC OPERATE_RET __ai_direct_output(AI_PACKET_PT type, AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, CHAR_T *data)
 {
     OPERATE_RET rt = OPRT_OK;
     if (head->len == 0xFFFFFFFF) {
@@ -208,25 +214,27 @@ STATIC OPERATE_RET __ai_direct_output(char *scode, AI_PACKET_PT type, AI_BIZ_ATT
     switch (head->stream_flag) {
     case AI_STREAM_START:
         if (attr && attr->flag == AI_HAS_ATTR) {
-            tuya_ai_output_attr(scode, attr);
+            tuya_ai_output_attr(attr);
         }
-        tuya_ai_output_event(AI_EVENT_START, type, __ai_agent_get_eid(scode));
-        rt = tuya_ai_output_media(scode, type, data, head->len, head->len);
+        tuya_ai_output_event(AI_EVENT_START, type, NULL);
+        rt = tuya_ai_output_media(type, data, head->len, head->len);
         break;
     case AI_STREAM_ING:
-        rt = tuya_ai_output_media(scode, type, data, head->len, head->len);
+        rt = tuya_ai_output_media(type, data, head->len, head->len);
         break;
     case AI_STREAM_END:
-        rt = tuya_ai_output_media(scode, type, data, head->len, head->len);
-        tuya_ai_output_event(AI_EVENT_END, type, __ai_agent_get_eid(scode));
+        if (head->len > 0) {
+            rt = tuya_ai_output_media(type, data, head->len, head->len);
+        }
+        tuya_ai_output_event(AI_EVENT_END, type, NULL);
         break;
     case AI_STREAM_ONE:
         if (attr && attr->flag == AI_HAS_ATTR) {
-            tuya_ai_output_attr(scode, attr);
+            tuya_ai_output_attr(attr);
         }
-        tuya_ai_output_event(AI_EVENT_START, type, __ai_agent_get_eid(scode));
-        rt = tuya_ai_output_media(scode, type, data, head->len, head->len);
-        tuya_ai_output_event(AI_EVENT_END, type, __ai_agent_get_eid(scode));
+        tuya_ai_output_event(AI_EVENT_START, type, NULL);
+        rt = tuya_ai_output_media(type, data, head->len, head->len);
+        tuya_ai_output_event(AI_EVENT_END, type, NULL);
         break;
     default:
         break;
@@ -235,11 +243,19 @@ STATIC OPERATE_RET __ai_direct_output(char *scode, AI_PACKET_PT type, AI_BIZ_ATT
     return rt;
 }
 
+STATIC OPERATE_RET __ai_image_http_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
+{
+    return __ai_direct_output(AI_PT_IMAGE, attr, head, (CHAR_T *)data);
+}
+
 STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
 {
-    OPERATE_RET rt = OPRT_OK;
-    char *decode_base64 = NULL;
-    uint32_t decode_len = 0;
+    OPERATE_RET rt            = OPRT_OK;
+    CHAR_T     *decode_base64 = NULL;
+    UINT_T      decode_len    = 0;
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+    CHAR_T *dec_data = NULL;
+#endif
 #if defined(AI_VERSION) && (0x02 == AI_VERSION)
     AI_IMAGE_PAYLOAD_TYPE img_type;
     switch (head->stream_flag) {
@@ -251,7 +267,7 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
             if (img_type == IMAGE_PAYLOAD_TYPE_URL) {
                 memcpy(&ai_agent_ctx.down_attr.image, &attr->value.image, SIZEOF(AI_IMAGE_ATTR_T));
                 PR_NOTICE("download image from url:%d, %s", head->len, data);
-                return tuya_ai_http_dld_image(data, __ai_image_recv_cb);
+                return tuya_ai_http_dld_image(data, __ai_image_http_recv_cb);
             } else if (img_type == IMAGE_PAYLOAD_TYPE_BASE64) {
                 memcpy(&ai_agent_ctx.down_attr.image, &attr->value.image, SIZEOF(AI_IMAGE_ATTR_T));
                 decode_base64 = Malloc(head->len);
@@ -260,7 +276,7 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
                     return OPRT_MALLOC_FAILED;
                 }
                 memset(decode_base64, 0, head->len);
-                decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+                decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
             }
         }
         break;
@@ -273,7 +289,7 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
                 return OPRT_MALLOC_FAILED;
             }
             memset(decode_base64, 0, head->len);
-            decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+            decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
         }
         break;
     case AI_STREAM_END:
@@ -285,7 +301,7 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
                 return OPRT_MALLOC_FAILED;
             }
             memset(decode_base64, 0, head->len);
-            decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+            decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
         }
         break;
     case AI_STREAM_ONE:
@@ -295,7 +311,7 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
             if (img_type == IMAGE_PAYLOAD_TYPE_URL) {
                 memcpy(&ai_agent_ctx.down_attr.image, &attr->value.image, SIZEOF(AI_IMAGE_ATTR_T));
                 PR_NOTICE("download image from url:%d, %s", head->len, data);
-                return tuya_ai_http_dld_image(data, __ai_image_recv_cb);
+                return tuya_ai_http_dld_image(data, __ai_image_http_recv_cb);
             } else if (img_type == IMAGE_PAYLOAD_TYPE_BASE64) {
                 memcpy(&ai_agent_ctx.down_attr.image, &attr->value.image, SIZEOF(AI_IMAGE_ATTR_T));
                 decode_base64 = Malloc(head->len);
@@ -304,32 +320,106 @@ STATIC OPERATE_RET __ai_image_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO
                     return OPRT_MALLOC_FAILED;
                 }
                 memset(decode_base64, 0, head->len);
-                decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+                decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
             }
         }
         break;
     }
 #endif
+    CHAR_T *eff_data;
+    UINT_T  eff_len;
     if ((decode_len > 0) && decode_base64) {
-        head->len = decode_len;
-        rt = __ai_direct_output((char *)usr_data, AI_PT_IMAGE, attr, head, decode_base64);
-        Free(decode_base64);
+        eff_data = decode_base64;
+        eff_len  = decode_len;
     } else {
-        rt = __ai_direct_output((char *)usr_data, AI_PT_IMAGE, attr, head, (char *)data);
+        eff_data = (CHAR_T *)data;
+        eff_len  = head->len;
+    }
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+    if (eff_data && eff_len > AI_GCM_TAG_LEN) {
+        UCHAR_T *key = tuya_ai_biz_get_key();
+        if (key == NULL) {
+            PR_ERR("image decrypt key is null");
+            rt = OPRT_COM_ERROR;
+            goto EXIT;
+        }
+        UINT_T   cipher_len = eff_len - AI_GCM_TAG_LEN;
+        UCHAR_T *tag        = (UCHAR_T *)eff_data + cipher_len;
+        dec_data            = Malloc(cipher_len);
+        if (dec_data == NULL) {
+            PR_ERR("malloc image decrypt buf failed");
+            rt = OPRT_MALLOC_FAILED;
+            goto EXIT;
+        }
+        UINT32_T gcm_len = 0;
+        rt = tal_aes_gcm_decode(key, TUYA_AI_SECRET_KEY_LEN, head->value.image.iv, AI_IV_LEN,
+                                NULL, 0, (UINT8_T *)eff_data, cipher_len,
+                                (UINT8_T *)dec_data, &gcm_len,
+                                tag, AI_GCM_TAG_LEN);
+        if (rt != OPRT_OK) {
+            PR_ERR("image gcm decode err:%d", rt);
+            goto EXIT;
+        }
+        eff_data = dec_data;
+        eff_len  = gcm_len;
+        PR_DEBUG("image gcm decode success, len:%d", gcm_len);
+    }
+#endif
+    head->len = eff_len;
+    rt        = __ai_direct_output(AI_PT_IMAGE, attr, head, eff_data);
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+EXIT:
+    if (dec_data) {
+        Free(dec_data);
+    }
+#endif
+    if (decode_base64) {
+        Free(decode_base64);
     }
     return rt;
 }
 
 STATIC OPERATE_RET __ai_video_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
 {
-    return __ai_direct_output((char *)usr_data, AI_PT_VIDEO, attr, head, (char *)data);
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+    if (data && head->len > AI_GCM_TAG_LEN && head->value.video.frame_type == AI_VIDEO_FRAME_TYPE_I) {
+        UCHAR_T *key = tuya_ai_biz_get_key();
+        if (key == NULL) {
+            PR_ERR("video decrypt key is null");
+            return OPRT_COM_ERROR;
+        }
+        UINT_T   cipher_len = head->len - AI_GCM_TAG_LEN;
+        UCHAR_T *tag        = (UCHAR_T *)data + cipher_len;
+        CHAR_T  *plaintext  = Malloc(cipher_len);
+        if (plaintext == NULL) {
+            PR_ERR("malloc video decrypt buf failed");
+            return OPRT_MALLOC_FAILED;
+        }
+        UINT32_T dec_len = 0;
+        OPERATE_RET rt = tal_aes_gcm_decode(key, TUYA_AI_SECRET_KEY_LEN, head->value.video.iv, AI_IV_LEN,
+                                            NULL, 0, (UINT8_T *)data, cipher_len,
+                                            (UINT8_T *)plaintext, &dec_len,
+                                            tag, AI_GCM_TAG_LEN);
+        if (rt != OPRT_OK) {
+            PR_ERR("video gcm decode err:%d", rt);
+            Free(plaintext);
+            return rt;
+        }
+        PR_DEBUG("video gcm decode success, len:%d", dec_len);
+        head->len = dec_len;
+        rt        = __ai_direct_output(AI_PT_VIDEO, attr, head, plaintext);
+        Free(plaintext);
+        return rt;
+    }
+#endif
+    return __ai_direct_output(AI_PT_VIDEO, attr, head, (CHAR_T *)data);
 }
 
 STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
 {
-    OPERATE_RET rt = OPRT_OK;
-    char *decode_base64 = NULL;
-    uint32_t decode_len = 0;
+    OPERATE_RET rt            = OPRT_OK;
+    CHAR_T     *decode_base64 = NULL;
+    UINT_T      decode_len    = 0;
 #if defined(AI_VERSION) && (0x02 == AI_VERSION)
     AI_FILE_PAYLOAD_TYPE file_type;
     switch (head->stream_flag) {
@@ -350,7 +440,7 @@ STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
                     return OPRT_MALLOC_FAILED;
                 }
                 memset(decode_base64, 0, head->len);
-                decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+                decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
             }
         }
         break;
@@ -363,7 +453,7 @@ STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
                 return OPRT_MALLOC_FAILED;
             }
             memset(decode_base64, 0, head->len);
-            decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+            decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
         }
         break;
     case AI_STREAM_END:
@@ -375,7 +465,7 @@ STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
                 return OPRT_MALLOC_FAILED;
             }
             memset(decode_base64, 0, head->len);
-            decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+            decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
         }
         break;
     case AI_STREAM_ONE:
@@ -394,7 +484,7 @@ STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
                     return OPRT_MALLOC_FAILED;
                 }
                 memset(decode_base64, 0, head->len);
-                decode_len = tuya_base64_decode(data, (uint8_t *)decode_base64);
+                decode_len = tuya_base64_decode(data, (UCHAR_T *)decode_base64);
             }
         }
         break;
@@ -402,36 +492,37 @@ STATIC OPERATE_RET __ai_file_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
 #endif
     if ((decode_len > 0) && decode_base64) {
         head->len = decode_len;
-        rt = __ai_direct_output((char *)usr_data, AI_PT_FILE, attr, head, decode_base64);
+        rt        = __ai_direct_output(AI_PT_FILE, attr, head, decode_base64);
         Free(decode_base64);
     } else {
-        rt = __ai_direct_output((char *)usr_data, AI_PT_FILE, attr, head, (char *)data);
+        rt = __ai_direct_output(AI_PT_FILE, attr, head, (CHAR_T *)data);
     }
     return rt;
 }
 
-STATIC OPERATE_RET __ai_parse_asr(char *scode, ty_cJSON *root, BOOL_T eof)
+STATIC OPERATE_RET __ai_parse_asr(ty_cJSON *root, BOOL_T eof)
 {
     ty_cJSON *node = ty_cJSON_GetObjectItem(root, "text");
     PR_DEBUG("ASR text: %s", ty_cJSON_GetStringValue(node));
     if (eof && (!node || !node->valuestring || strlen(node->valuestring) == 0)) {
         tuya_ai_output_alert(AT_PLEASE_AGAIN);
+    } else {
+        tuya_ai_output_text(AI_TEXT_ASR, node, eof);
     }
-    tuya_ai_output_text(scode, AI_TEXT_ASR, node, eof);
     return OPRT_OK;
 }
 
-STATIC OPERATE_RET __ai_parse_nlg(char *scode, ty_cJSON *root, BOOL_T eof)
+STATIC OPERATE_RET __ai_parse_nlg(ty_cJSON *root, BOOL_T eof)
 {
     OPERATE_RET rt = OPRT_OK;
-    ty_cJSON *node;
+    ty_cJSON   *node;
     PR_TRACE("NLG text: %s", ty_cJSON_GetStringValue(ty_cJSON_GetObjectItem(root, "content")));
-    tuya_ai_output_text(scode, AI_TEXT_NLG, root, eof);
+    tuya_ai_output_text(AI_TEXT_NLG, root, eof);
     node = ty_cJSON_GetObjectItem(root, "images");
     if (node) {
         ty_cJSON *url = ty_cJSON_GetObjectItem(node, "url");
         if (url) {
-            uint32_t image_num = 0, idx = 0;
+            UINT_T image_num = 0, idx = 0;
             image_num = ty_cJSON_GetArraySize(url);
             for (idx = 0; idx < image_num; idx++) {
                 ty_cJSON *url_item = ty_cJSON_GetArrayItem(url, idx);
@@ -464,7 +555,7 @@ STATIC OPERATE_RET __ai_parse_dev_ctrl(ty_cJSON *root, ty_cJSON **dp_json)
 STATIC OPERATE_RET __ai_parse_speech_control(ty_cJSON *root, BOOL_T *exit)
 {
     ty_cJSON *skill_general = ty_cJSON_GetObjectItem(root, "general");
-    ty_cJSON *action = NULL;
+    ty_cJSON *action        = NULL;
 
     if (skill_general &&
         (action = ty_cJSON_GetObjectItem(skill_general, "action"))) {
@@ -478,20 +569,17 @@ STATIC OPERATE_RET __ai_parse_speech_control(ty_cJSON *root, BOOL_T *exit)
     return OPRT_NOT_SUPPORTED;
 }
 
-STATIC OPERATE_RET __ai_parse_skill(char *scode, ty_cJSON *root)
+STATIC OPERATE_RET __ai_parse_skill(ty_cJSON *root)
 {
-    OPERATE_RET rt = OPRT_OK;
-    ty_cJSON *node = ty_cJSON_GetObjectItem(root, "code");
-    char *code = ty_cJSON_GetStringValue(node);
-    if (!code) {
-        return OPRT_OK;
-    }
-    if (strcmp(code, "DeviceControl") == 0) {
+    OPERATE_RET rt   = OPRT_OK;
+    ty_cJSON   *node = ty_cJSON_GetObjectItem(root, "code");
+    CHAR_T     *code = ty_cJSON_GetStringValue(node);
+    if (code && strcmp(code, "DeviceControl") == 0) {
         ty_cJSON *dp_json = NULL;
         if ((rt = __ai_parse_dev_ctrl(root, &dp_json)) == OPRT_OK && dp_json) {
-            dp_json = ty_cJSON_Duplicate(dp_json, TRUE);
+            dp_json                = ty_cJSON_Duplicate(dp_json, TRUE);
             SF_GW_DEV_CMD_S gd_cmd = {DP_CMD_AI_SKILL, dp_json};
-            rt = sf_send_gw_dev_cmd(&gd_cmd);
+            rt                     = sf_send_gw_dev_cmd(&gd_cmd);
             if (rt != OPRT_OK) {
                 ty_cJSON_Delete(dp_json);
                 PR_ERR("send gw dev cmd failed: %d", rt);
@@ -499,45 +587,116 @@ STATIC OPERATE_RET __ai_parse_skill(char *scode, ty_cJSON *root)
                 PR_DEBUG("send gw dev cmd success");
             }
         } else {
-            tuya_ai_output_text(scode, AI_TEXT_SKILL, root, FALSE);
+            tuya_ai_output_text(AI_TEXT_SKILL, root, FALSE);
         }
-    } else if (strcmp(code, "speechControl") == 0) {
+    } else if (code && strcmp(code, "speechControl") == 0) {
         BOOL_T exit = 0;
         if ((rt = __ai_parse_speech_control(root, &exit)) == OPRT_OK) {
             if (exit) {
-                tuya_ai_output_event(AI_EVENT_CHAT_EXIT, 0, __ai_agent_get_eid(scode));
+                tuya_ai_output_event(AI_EVENT_CHAT_EXIT, 0, NULL);
             }
         } else {
-            tuya_ai_output_text(scode, AI_TEXT_SKILL, root, FALSE);
+            tuya_ai_output_text(AI_TEXT_SKILL, root, FALSE);
         }
     } else {
-        tuya_ai_output_text(scode, AI_TEXT_SKILL, root, FALSE);
+        tuya_ai_output_text(AI_TEXT_SKILL, root, FALSE);
+    }
+    return rt;
+}
+typedef struct {
+    CONST CHAR_T *request_id;
+    CONST CHAR_T *content;
+} AI_CLOUD_TRIGGER_T;
+
+STATIC VOID __cloud_trigger_wq(VOID *data)
+{
+    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)data;
+    if (trigger == NULL) {
+        return;
+    }
+    CONST CHAR_T *request_id = trigger->request_id;
+    CONST CHAR_T *content    = trigger->content;
+    if (request_id && content && tuya_ai_agent_is_ready()) {
+        tuya_ai_input_mute_audio(TRUE);
+        tuya_ai_agent_event(AI_EVENT_CHAT_BREAK, 0);
+        tuya_ai_output_event(AI_EVENT_CHAT_BREAK, AI_PT_AUDIO, 0);
+        tuya_ai_input_stop();
+        tuya_ai_output_stop(TRUE);
+        tuya_ai_agent_set_scode(NULL);
+        tuya_ai_agent_set_eid((CHAR_T *)request_id);
+        tuya_ai_input_start(FALSE);
+        tuya_ai_text_input((BYTE_T *)content, strlen(content), strlen(content));
+        tuya_ai_input_stop();
+        tuya_ai_input_mute_audio(FALSE);
+    }
+
+    if (trigger->request_id) {
+        tal_free((CHAR_T *)trigger->request_id);
+    }
+    if (trigger->content) {
+        tal_free((CHAR_T *)trigger->content);
+    }
+    tal_free(trigger);
+}
+
+STATIC OPERATE_RET __ai_agent_cloud_trigger(CONST CHAR_T *request_id, CONST CHAR_T *content)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    PR_DEBUG("cloud trigger request_id: %s, content: %s", request_id, content);
+
+    if (request_id == NULL || content == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    AI_CLOUD_TRIGGER_T *trigger = (AI_CLOUD_TRIGGER_T *)tal_malloc(SIZEOF(AI_CLOUD_TRIGGER_T));
+    if (trigger == NULL) {
+        return OPRT_MALLOC_FAILED;
+    }
+    memset(trigger, 0, SIZEOF(AI_CLOUD_TRIGGER_T));
+    trigger->request_id = mm_strdup(request_id);
+    trigger->content    = mm_strdup(content);
+    if (trigger->request_id == NULL || trigger->content == NULL) {
+        rt = OPRT_MALLOC_FAILED;
+        goto err;
+    }
+    TUYA_CALL_ERR_GOTO(tal_workq_schedule(WORKQ_SYSTEM, __cloud_trigger_wq, trigger), err);
+    return rt;
+err:
+    if (trigger && trigger->request_id) {
+        tal_free((CHAR_T *)trigger->request_id);
+    }
+    if (trigger && trigger->content) {
+        tal_free((CHAR_T *)trigger->content);
+    }
+    if (trigger) {
+        tal_free(trigger);
     }
     return rt;
 }
 
-STATIC OPERATE_RET __ai_parse_cloud_event(char *scode, ty_cJSON *root)
+STATIC OPERATE_RET __ai_parse_cloud_event(ty_cJSON *root)
 {
-    OPERATE_RET rt = OPRT_OK;
-    ty_cJSON *node = ty_cJSON_GetObjectItem(root, "action");
-    char *action = ty_cJSON_GetStringValue(node);
+    OPERATE_RET rt     = OPRT_OK;
+    ty_cJSON   *node   = ty_cJSON_GetObjectItem(root, "action");
+    CHAR_T     *action = ty_cJSON_GetStringValue(node);
 
     if (action && strcmp(action, "TriggerAiChat") == 0) {
-        ty_cJSON *data = ty_cJSON_GetObjectItem(root, "data");
-        char *content = ty_cJSON_GetStringValue(ty_cJSON_GetObjectItem(data, "content"));
-        char *request_id = ty_cJSON_GetStringValue(ty_cJSON_GetObjectItem(data, "requestId"));
+        ty_cJSON *data       = ty_cJSON_GetObjectItem(root, "data");
+        CHAR_T   *content    = ty_cJSON_GetStringValue(ty_cJSON_GetObjectItem(data, "content"));
+        CHAR_T   *request_id = ty_cJSON_GetStringValue(ty_cJSON_GetObjectItem(data, "requestId"));
         if (!content || !request_id) {
             PR_ERR("content or request_id is NULL");
             return OPRT_INVALID_PARM;
         }
-        rt = tuya_ai_input_cloud_trigger(request_id, content);
+        rt = __ai_agent_cloud_trigger(request_id, content);
         if (OPRT_OK != rt) {
-            PR_ERR("ty_ai_proc_event_send failed");
+            PR_ERR("cloud trigger failed: %d", rt);
             return OPRT_COM_ERROR;
         }
         return OPRT_OK;
     } else {
-        tuya_ai_output_text(scode, AI_TEXT_CLOUD_EVENT, root, FALSE);
+        tuya_ai_output_text(AI_TEXT_CLOUD_EVENT, root, FALSE);
     }
 
     return rt;
@@ -546,21 +705,19 @@ STATIC OPERATE_RET __ai_parse_cloud_event(char *scode, ty_cJSON *root)
 STATIC OPERATE_RET __ai_text_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, VOID *data, VOID *usr_data)
 {
     if (!data || !head) {
+        PR_ERR("invalid param %p %p", data, head);
         return OPRT_OK;
     }
-    OPERATE_RET rt = OPRT_OK;
-    BOOL_T eof = FALSE;
+    OPERATE_RET rt  = OPRT_OK;
+    BOOL_T      eof = FALSE;
 
-    char *scode = (char *)usr_data;
-    if (!scode) {
-        scode = ai_agent_ctx.scode;
-    }
     ty_cJSON *root = NULL;
     if (head->data_type == AI_BIZ_DATA_TYPE_BYTE) {
-        if ((!head->len) || (!data) || (strlen((char *)data) == 0)) {
+        if ((0 == head->len) || (!data)) {
+            PR_ERR("invalid text data %p %d", data, head->len);
             return OPRT_OK;
         }
-        root = ty_cJSON_Parse((char *)data);
+        root = ty_cJSON_ParseWithLengthOpts((CHAR_T *)data, head->len, NULL, 0);
     } else if (head->data_type == AI_BIZ_DATA_TYPE_JSON) {
         root = (ty_cJSON *)data;
     } else {
@@ -568,11 +725,12 @@ STATIC OPERATE_RET __ai_text_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
         return OPRT_INVALID_PARM;
     }
     if (root == NULL) {
+        PR_ERR("cjson parse failed");
         return OPRT_OK;
     }
 
     ty_cJSON *json_bizType = ty_cJSON_GetObjectItem(root, "bizType");
-    char *bizType = ty_cJSON_GetStringValue(json_bizType);
+    CHAR_T   *bizType      = ty_cJSON_GetStringValue(json_bizType);
 
     ty_cJSON *json_eof = ty_cJSON_GetObjectItem(root, "eof");
     if (json_eof) {
@@ -581,15 +739,15 @@ STATIC OPERATE_RET __ai_text_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
     ty_cJSON *json_data = ty_cJSON_GetObjectItem(root, "data");
 
     if (eof && bizType && strcmp(bizType, "ASR") == 0) {
-        __ai_parse_asr(scode, json_data, eof);
+        __ai_parse_asr(json_data, eof);
     } else if (bizType && strcmp(bizType, "NLG") == 0) {
-        __ai_parse_nlg(scode, json_data, eof);
+        __ai_parse_nlg(json_data, eof);
     } else if (bizType && strcmp(bizType, "SKILL") == 0) {
-        __ai_parse_skill(scode, json_data);
+        __ai_parse_skill(json_data);
     } else if (bizType && strcmp(bizType, "CloudEvent") == 0) {
-        __ai_parse_cloud_event(scode, json_data);
+        __ai_parse_cloud_event(json_data);
     } else {
-        tuya_ai_output_text(scode, AI_TEXT_OTHER, root, eof);
+        tuya_ai_output_text(AI_TEXT_OTHER, root, eof);
     }
     if (head->data_type == AI_BIZ_DATA_TYPE_BYTE) {
         ty_cJSON_Delete(root);
@@ -597,9 +755,9 @@ STATIC OPERATE_RET __ai_text_recv_cb(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_
     return rt;
 }
 
-STATIC AI_INPUT_SEND_T* __ai_agent_biz_get(AI_PACKET_PT type)
+STATIC AI_INPUT_SEND_T *__ai_agent_biz_get(AI_PACKET_PT type)
 {
-    uint16_t idx = 0;
+    USHORT_T idx = 0;
     for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
         if (ai_agent_ctx.biz_get[idx].type == type) {
             return &ai_agent_ctx.biz_get[idx];
@@ -608,33 +766,24 @@ STATIC AI_INPUT_SEND_T* __ai_agent_biz_get(AI_PACKET_PT type)
     return NULL;
 }
 
-STATIC BOOL_T __ai_agent_update_sid(char *scode)
+STATIC BOOL_T __ai_agent_is_session_crt(CHAR_T *scode)
 {
-    uint32_t idx = 0;
-    BOOL_T found = FALSE;
-    if (!scode) {
-        return FALSE;
-    }
-
+    UINT_T idx = 0;
     for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
-        if (!found && strcmp(ai_agent_ctx.session[idx].scode, scode) == 0 &&
-            ai_agent_ctx.session[idx].sid[0] != '\0') {
-            // set current session as active
-            PR_NOTICE("set session active, scode:%s, sid:%s", scode, ai_agent_ctx.session[idx].sid);
-            ai_agent_ctx.session[idx].is_active = TRUE;
-            found = TRUE;
-        } else {
-            // reset other as unactive
-            ai_agent_ctx.session[idx].is_active = FALSE;
+        if (ai_agent_ctx.session[idx].sid[0] != '\0' &&
+            ((!scode && ai_agent_ctx.session[idx].scode[0] == 0) ||
+             (scode && strcmp(ai_agent_ctx.session[idx].scode, scode) == 0))) {
+            PR_DEBUG("use session %s", ai_agent_ctx.session[idx].sid);
+            return TRUE;
         }
     }
-    return found;
+    return FALSE;
 }
 
 // find a free session slot
-STATIC uint32_t __ai_agent_find_free_sid(VOID)
+STATIC UINT_T __ai_agent_find_free_sid(VOID)
 {
-    uint32_t idx;
+    UINT_T idx;
     for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
         if (ai_agent_ctx.session[idx].sid[0] == '\0') {
             return idx;
@@ -643,21 +792,20 @@ STATIC uint32_t __ai_agent_find_free_sid(VOID)
     return AI_SESSION_MAX_NUM;
 }
 
-STATIC VOID __ai_agent_set_sid(AI_AGENT_SESSION_T *session, char *scode, AI_SESSION_ID id, AI_SESSION_CFG_T *cfg, char *token)
+STATIC VOID __ai_agent_set_sid(AI_AGENT_SESSION_T *session, CHAR_T *scode, AI_SESSION_ID id, AI_SESSION_CFG_T *cfg, CHAR_T *token)
 {
     if (!scode) {
         return;
     }
 
-    uint32_t jdx = 0;
+    UINT_T jdx = 0;
     memset(session->scode, 0, SIZEOF(session->scode));
     strncpy(session->scode, scode, SIZEOF(session->scode) - 1);
     memcpy(session->sid, id, strlen(id));
     memcpy(session->token, token, strlen(token));
-    session->is_active = TRUE;
     for (jdx = 0; jdx < cfg->send_num; jdx++) {
-        session->send[jdx].id = cfg->send[jdx].id;
-        session->send[jdx].type = cfg->send[jdx].type;
+        session->send[jdx].id        = cfg->send[jdx].id;
+        session->send[jdx].type      = cfg->send[jdx].type;
         session->send[jdx].first_pkt = FALSE;
     }
 
@@ -666,9 +814,10 @@ STATIC VOID __ai_agent_set_sid(AI_AGENT_SESSION_T *session, char *scode, AI_SESS
 
 STATIC VOID __ai_agent_del_sid(AI_SESSION_ID id)
 {
-    uint32_t idx = 0;
+    UINT_T idx = 0;
     for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
-        if (memcmp(ai_agent_ctx.session[idx].sid, id, strlen(id)) == 0) {
+        if (ai_agent_ctx.session[idx].sid[0] != '\0' &&
+            !strcmp(ai_agent_ctx.session[idx].sid, id)) {
             memset(&ai_agent_ctx.session[idx], 0, SIZEOF(AI_AGENT_SESSION_T));
             PR_DEBUG("del session idx:%d", idx);
             break;
@@ -681,27 +830,13 @@ STATIC VOID __ai_agent_del_sid(AI_SESSION_ID id)
     return;
 }
 
-STATIC AI_AGENT_SESSION_T* __ai_agent_get_active_session(VOID)
+AI_AGENT_SESSION_T *tuya_ai_agent_get_session(CHAR_T *scode)
 {
-    uint16_t idx = 0;
-    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
-        if (ai_agent_ctx.session[idx].is_active) {
-            return &ai_agent_ctx.session[idx];
-        }
-    }
-    PR_TRACE("no active session found");
-    return NULL;
-}
-
-AI_AGENT_SESSION_T* tuya_ai_agent_get_session(char *scode)
-{
-    uint16_t idx = 0;
-    if (!scode) {
-        scode = AI_AGENT_SCODE_DEFAULT;
-    }
+    USHORT_T idx = 0;
     for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
         if (ai_agent_ctx.session[idx].sid[0] != '\0' &&
-            strcmp(ai_agent_ctx.session[idx].scode, scode) == 0) {
+            ((!scode && ai_agent_ctx.session[idx].scode[0] == 0) ||
+             (scode && strcmp(ai_agent_ctx.session[idx].scode, scode) == 0))) {
             return &ai_agent_ctx.session[idx];
         }
     }
@@ -709,26 +844,53 @@ AI_AGENT_SESSION_T* tuya_ai_agent_get_session(char *scode)
     return NULL;
 }
 
-STATIC AI_SESSION_ID __ai_agent_get_sid(VOID)
+VOID __ai_agent_free_recv_cb(VOID)
 {
-    AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-    if (session) {
-        return session->sid;
+    UINT_T idx;
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_agent_ctx.recv[idx]) {
+            Free(ai_agent_ctx.recv[idx]);
+            ai_agent_ctx.recv[idx] = NULL;
+        }
     }
-    return NULL;
 }
 
-STATIC AI_SESSION_ID __ai_agent_get_eid(char *scode)
+OPERATE_RET tuya_ai_agent_set_recv_cb(AI_AGENT_RECV_DATA_T *recv)
 {
-    AI_AGENT_SESSION_T *session = tuya_ai_agent_get_session(scode);
-    if (session) {
-        return session->eid;
+    UINT_T idx = 0;
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_agent_ctx.recv[idx] == NULL) {
+            ai_agent_ctx.recv[idx] = Malloc(SIZEOF(AI_AGENT_RECV_DATA_T));
+            if (ai_agent_ctx.recv[idx] == NULL) {
+                PR_ERR("malloc recv data failed");
+                return OPRT_MALLOC_FAILED;
+            }
+            memset(ai_agent_ctx.recv[idx], 0, SIZEOF(AI_AGENT_RECV_DATA_T));
+            memcpy(ai_agent_ctx.recv[idx], recv, SIZEOF(AI_AGENT_RECV_DATA_T));
+            PR_DEBUG("set recv cb idx:%d, scode:%s", idx, recv->scode);
+            return OPRT_OK;
+        }
     }
-    return "";
+    PR_ERR("ai agent recv cb full");
+    return OPRT_COM_ERROR;
 }
 
-AI_BIZ_RECV_CB tuya_ai_agent_get_recv_cb(AI_PACKET_PT type)
+AI_BIZ_RECV_CB tuya_ai_agent_get_recv_cb(CHAR_T *scode, AI_PACKET_PT type)
 {
+    UINT_T idx = 0, jdx = 0;
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_agent_ctx.recv[idx] &&
+            ((!scode && ai_agent_ctx.recv[idx]->scode[0] == 0) ||
+                (scode && strcmp(ai_agent_ctx.recv[idx]->scode, scode) == 0))) {
+            for (jdx = 0; jdx < AI_BIZ_MAX_NUM; jdx++) {
+                if (ai_agent_ctx.recv[idx]->arc[jdx].type == type) {
+                    PR_DEBUG("get recv cb idx:%d, scode:%s, type:%d", idx, ai_agent_ctx.recv[idx]->scode, type);
+                    return ai_agent_ctx.recv[idx]->arc[jdx].cb;
+                }
+            }
+        }
+    }
+
     if (type == AI_PT_TEXT) {
         return __ai_text_recv_cb;
     } else if (type == AI_PT_AUDIO) {
@@ -743,18 +905,29 @@ AI_BIZ_RECV_CB tuya_ai_agent_get_recv_cb(AI_PACKET_PT type)
     return NULL;
 }
 
-AI_EVENT_CB tuya_ai_agent_get_evt_cb(void)
+AI_EVENT_CB tuya_ai_agent_get_evt_cb(CHAR_T *scode)
 {
+    UINT_T idx = 0;
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_agent_ctx.recv[idx] &&
+            ((!scode && ai_agent_ctx.recv[idx]->scode[0] == 0) ||
+                (scode && strcmp(ai_agent_ctx.recv[idx]->scode, scode) == 0))) {
+            return ai_agent_ctx.recv[idx]->event_cb;
+        }
+    }
     return __ai_event_cb;
 }
 
-OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bizTag, uint8_t *attr, uint32_t attr_len)
+OPERATE_RET tuya_ai_agent_crt_session(CHAR_T *scode, UINT_T bizCode, UINT64_T bizTag, BYTE_T *attr, UINT_T attr_len)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET      rt         = OPRT_OK;
     AI_INPUT_SEND_T *input_send = NULL;
-    uint32_t idx = 0;
-
-    if (__ai_agent_update_sid(scode)) {
+    UINT_T           idx        = 0;
+    CHAR_T          *token      = NULL;
+    if (ai_agent_ctx.enable_joyinside) {
+        return OPRT_OK;
+    }
+    if (__ai_agent_is_session_crt(scode)) {
         return OPRT_OK;
     }
     PR_DEBUG("ai session new");
@@ -772,51 +945,55 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
     memset(&session_cfg, 0, SIZEOF(AI_SESSION_CFG_T));
 
     AI_AGENT_TOKEN_INFO_T agent = {0};
-    rt = tuya_ai_mq_token_req(scode, &agent);
-    if (rt != OPRT_OK) {
-        if (agent.tts_url[0] != 0) {
-            PR_ERR("get agent token failed, tts url:%s", agent.tts_url);
-            tuya_ai_http_dld_audio(agent.tts_url, __ai_audio_recv_cb);
+    if (!ai_agent_ctx.enable_internal_scode) {
+        rt = tuya_ai_mq_token_req(scode, &agent);
+        if (rt != OPRT_OK) {
+            if (agent.tts_url[0] != 0) {
+                PR_ERR("get agent token failed, tts url:%s", agent.tts_url);
+                tuya_ai_http_dld_audio(agent.tts_url, __ai_audio_recv_cb);
+            }
+            return rt;
         }
-        return rt;
+        token   = agent.token;
+        bizCode = agent.biz.code;
+    } else {
+        agent.biz.send_num = AI_BIZ_MAX_NUM;
+        agent.biz.recv_num = AI_BIZ_MAX_NUM;
+        for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
+            agent.biz.send[idx] = AI_PT_VIDEO + idx;
+            agent.biz.recv[idx] = AI_PT_VIDEO + idx;
+        }
     }
 
     session_cfg.send_num = agent.biz.send_num;
     for (idx = 0; idx < agent.biz.send_num; idx++) {
         session_cfg.send[idx].type = agent.biz.send[idx];
-        input_send = __ai_agent_biz_get(agent.biz.send[idx]);
+        input_send                 = __ai_agent_biz_get(agent.biz.send[idx]);
         if (input_send && input_send->multi_session) {
             session_cfg.send[idx].id = tuya_ai_biz_get_reuse_send_id(agent.biz.send[idx]);
+            if (agent.biz.send[idx] == AI_PT_VIDEO && ai_agent_ctx.video_stream != AI_VIDEO_STREAM_MAIN) {
+                session_cfg.send[idx].id += (AI_PT_TEXT - AI_PT_VIDEO + ai_agent_ctx.video_stream) * 2;
+            }
         } else {
             session_cfg.send[idx].id = tuya_ai_biz_get_send_id();
         }
-        session_cfg.send[idx].get_cb = input_send ? input_send->get_cb : NULL;
+        session_cfg.send[idx].get_cb  = input_send ? input_send->get_cb : NULL;
         session_cfg.send[idx].free_cb = input_send ? input_send->free_cb : NULL;
     }
 
     session_cfg.recv_num = agent.biz.recv_num;
     for (idx = 0; idx < agent.biz.recv_num; idx++) {
-        session_cfg.recv[idx].type = agent.biz.recv[idx];
-        session_cfg.recv[idx].id = tuya_ai_biz_get_recv_id();
+        session_cfg.recv[idx].type     = agent.biz.recv[idx];
+        session_cfg.recv[idx].id       = tuya_ai_biz_get_recv_id();
         session_cfg.recv[idx].usr_data = session->scode;
-        if (agent.biz.recv[idx] == AI_PT_TEXT) {
-            session_cfg.recv[idx].cb = __ai_text_recv_cb;
-        } else if (agent.biz.recv[idx] == AI_PT_AUDIO) {
-            session_cfg.recv[idx].cb = __ai_audio_recv_cb;
-        } else if (agent.biz.recv[idx] == AI_PT_IMAGE) {
-            session_cfg.recv[idx].cb = __ai_image_recv_cb;
-        } else if (agent.biz.recv[idx] == AI_PT_VIDEO) {
-            session_cfg.recv[idx].cb = __ai_video_recv_cb;
-        } else if (agent.biz.recv[idx] == AI_PT_FILE) {
-            session_cfg.recv[idx].cb = __ai_file_recv_cb;
-        }
+        session_cfg.recv[idx].cb       = tuya_ai_agent_get_recv_cb(scode, agent.biz.recv[idx]);
     }
-    session_cfg.event_cb = __ai_event_cb;
+    session_cfg.event_cb = tuya_ai_agent_get_evt_cb(scode);
 
-    uint8_t *out = NULL;
-    uint32_t out_len = 0;
+    BYTE_T *out     = NULL;
+    UINT_T  out_len = 0;
     if (attr && attr_len > 0) {
-        out = attr;
+        out     = attr;
         out_len = attr_len;
     } else {
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
@@ -842,7 +1019,7 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
             ty_cJSON_AddItemToObject(root, "deviceMcp", item);
         }
 
-        char *session_attrs = ty_cJSON_PrintUnformatted(root);
+        CHAR_T *session_attrs = ty_cJSON_PrintUnformatted(root);
         PR_DEBUG("session attrs: %s", session_attrs);
 
         AI_ATTRIBUTE_T def_attr[2] = {{
@@ -861,7 +1038,7 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
         Free(session_attrs);
         ty_cJSON_Delete(root);
 #else
-        ty_cJSON *attr_info = ty_cJSON_CreateObject();
+        ty_cJSON *attr_info         = ty_cJSON_CreateObject();
         ty_cJSON *sessionAttributes = ty_cJSON_CreateObject();
         ty_cJSON_AddItemToObject(attr_info, "sessionAttributes", sessionAttributes);
 
@@ -870,13 +1047,13 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
 
         cJSON *supportItem = cJSON_CreateObject();
         cJSON_AddItemToArray(tts_order_supports, supportItem);
-        //container
+        // container
         ty_cJSON_AddStringToObject(supportItem, "container", "");
-        //channels
+        // channels
         ty_cJSON_AddNumberToObject(supportItem, "channels", 1);
-        //bitDepth
+        // bitDepth
         ty_cJSON_AddStringToObject(supportItem, "bitDepth", "16");
-        //bitRate
+        // bitRate
         if (ai_agent_ctx.tts_cfg.format && strcmp(ai_agent_ctx.tts_cfg.format, "opus") == 0) {
             ty_cJSON_AddNumberToObject(supportItem, "bitRate", ai_agent_ctx.tts_cfg.bit_rate == 0 ? 16000 : (ai_agent_ctx.tts_cfg.bit_rate));
         } else {
@@ -893,27 +1070,30 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
             ty_cJSON_AddBoolToObject(supportItem, "supportCustomMCP", ai_agent_ctx.enable_mcp);
             ty_cJSON_AddItemToObject(sessionAttributes, "deviceMcp", supportItem);
         }
-
-        out = (uint8_t *)ty_cJSON_PrintUnformatted(attr_info);
-        out_len = strlen((char *)out);
+        if (ai_agent_ctx.session_param) {
+            ty_cJSON *custom = ty_cJSON_Parse(ai_agent_ctx.session_param);
+            if (custom) {
+                ty_cJSON_AddItemToObject(sessionAttributes, "custom.param", custom);
+            }
+            Free(ai_agent_ctx.session_param);
+            ai_agent_ctx.session_param = NULL;
+        }
+        out     = (UCHAR_T *)ty_cJSON_PrintUnformatted(attr_info);
+        out_len = strlen((CHAR_T *)out);
 
         ty_cJSON_Delete(attr_info);
         AI_PROTO_D("user data out: %s ", out);
 #endif
     }
 
-    char sid[AI_UUID_V4_LEN + 1] = {0};
-    if (bizCode == 0) {
-        bizCode = agent.biz.code;
-    }
-    rt = tuya_ai_biz_crt_session(bizCode, bizTag, &session_cfg, out, out_len, agent.token, sid);
+    CHAR_T sid[AI_UUID_V4_LEN + 1] = {0};
+    rt                             = tuya_ai_biz_crt_session(bizCode, bizTag, &session_cfg, out, out_len, token, sid);
     if (rt != OPRT_OK) {
         PR_ERR("create session failed");
         tuya_ai_output_alert(AT_NETWORK_FAIL);
     } else {
-        PR_DEBUG("create session success, %s", sid);
+        PR_DEBUG("create session:%s success, scode:%s", sid, scode);
         __ai_agent_set_sid(session, scode, sid, &session_cfg, agent.token);
-        memcpy(ai_agent_ctx.scode, scode, strlen(scode));
     }
     if (attr == NULL) {
         Free(out);
@@ -921,20 +1101,26 @@ OPERATE_RET tuya_ai_agent_crt_session(char *scode, uint32_t bizCode, uint64_t bi
     return rt;
 }
 
-OPERATE_RET tuya_ai_agent_del_session(char *scode)
+OPERATE_RET tuya_ai_agent_del_session(CHAR_T *scode)
 {
-    uint32_t idx = 0;
-    char sid[AI_UUID_V4_LEN + 1] = {0};
-    for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
-        if (memcmp(ai_agent_ctx.session[idx].scode, scode, strlen(scode)) == 0) {
+    if (ai_agent_ctx.enable_joyinside) {
+        return OPRT_OK;
+    }
+    UINT_T idx                     = 0;
+    CHAR_T sid[AI_UUID_V4_LEN + 1] = {0};
+
+    for (idx = 0; idx < AI_SESSION_MAX_NUM; idx++) {
+        if (ai_agent_ctx.session[idx].sid[0] != '\0' &&
+            ((!scode && ai_agent_ctx.session[idx].scode[0] == 0) ||
+             (scode && strcmp(ai_agent_ctx.session[idx].scode, scode) == 0))) {
             PR_DEBUG("del session idx:%d", idx);
-            memcpy(sid, ai_agent_ctx.session[idx].sid, strlen(ai_agent_ctx.session[idx].sid));
+            strncpy(sid, ai_agent_ctx.session[idx].sid, AI_UUID_V4_LEN);
             memset(&ai_agent_ctx.session[idx], 0, SIZEOF(AI_AGENT_SESSION_T));
             break;
         }
     }
-    if (idx >= AI_BIZ_MAX_NUM) {
-        PR_ERR("session not found, scode:%s", scode);
+    if (idx >= AI_SESSION_MAX_NUM) {
+        PR_ERR("session not found, scode:%s", scode ? scode : "null");
         return OPRT_COM_ERROR;
     }
     return tuya_ai_biz_del_session(sid, AI_CODE_OK);
@@ -952,8 +1138,8 @@ STATIC OPERATE_RET __ai_session_closed_evt(VOID_T *data)
 STATIC OPERATE_RET __ai_agent_mq_handle(ty_cJSON *root)
 {
     AI_BIZ_HEAD_INFO_T biz_head = {0};
-    biz_head.data_type = AI_BIZ_DATA_TYPE_JSON;
-    return __ai_text_recv_cb(NULL, &biz_head, root, ai_agent_ctx.scode);
+    biz_head.data_type          = AI_BIZ_DATA_TYPE_JSON;
+    return __ai_text_recv_cb(NULL, &biz_head, root, NULL);
 }
 
 STATIC OPERATE_RET __ai_client_run_evt(VOID_T *data)
@@ -961,7 +1147,7 @@ STATIC OPERATE_RET __ai_client_run_evt(VOID_T *data)
     return tuya_ai_output_alert(AT_NETWORK_CONNECTED);
 }
 
-STATIC OPERATE_RET  __ai_devos_state_evt(VOID *data)
+STATIC OPERATE_RET __ai_devos_state_evt(VOID *data)
 {
     DEVOS_STATE_E state = (DEVOS_STATE_E)data;
     if (state == DEVOS_STATE_UNREGISTERED) {
@@ -983,11 +1169,16 @@ STATIC VOID __ai_agent_set_audio_encoder(AI_AUDIO_ATTR_BASE_T *attr)
 {
     OPERATE_RET rt = OPRT_OK;
     if (ai_agent_ctx.codec_enable) {
-        ai_agent_ctx.encoder = tuya_ai_get_encoder(attr->codec_type);
-        ai_agent_ctx.encoder_info.encode_type = attr->codec_type;
-        ai_agent_ctx.encoder_info.sample_rate = attr->sample_rate;
-        ai_agent_ctx.encoder_info.channels = attr->channels;
+        ai_agent_ctx.encoder                      = tuya_ai_get_encoder(attr->codec_type);
+        ai_agent_ctx.encoder_info.encode_type     = attr->codec_type;
+        ai_agent_ctx.encoder_info.sample_rate     = attr->sample_rate;
+        ai_agent_ctx.encoder_info.channels        = attr->channels;
         ai_agent_ctx.encoder_info.bits_per_sample = attr->bit_depth;
+        ai_agent_ctx.encoder_info.bitrate         = attr->bitrate;
+        ai_agent_ctx.encoder_info.bandwidth       = attr->bandwidth;
+        ai_agent_ctx.encoder_info.vbr             = attr->vbr;
+        ai_agent_ctx.encoder_info.dtx             = attr->dtx;
+        ai_agent_ctx.encoder_info.complexity      = attr->complexity;
         if (ai_agent_ctx.encoder) {
             __ai_agent_destroy_encoder();
             rt = ai_agent_ctx.encoder->create(&ai_agent_ctx.encoder->handle, &ai_agent_ctx.encoder_info);
@@ -1041,9 +1232,7 @@ VOID tuya_ai_agent_send_cb_set(AI_INPUT_SEND_T *in_send)
 OPERATE_RET tuya_ai_agent_init(AI_AGENT_CFG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
-
     TUYA_CHECK_NULL_RETURN(cfg, OPRT_INVALID_PARM);
-    memset(&ai_agent_ctx, 0, SIZEOF(ai_agent_ctx));
 
 #if defined(ENABLE_JOYINSIDE) && (ENABLE_JOYINSIDE == 1)
     if (cfg->jd_cfg) {
@@ -1051,14 +1240,20 @@ OPERATE_RET tuya_ai_agent_init(AI_AGENT_CFG_T *cfg)
         TUYA_CALL_ERR_GOTO(joyinside_client_init(cfg->jd_cfg), EXIT);
     } else {
 #endif
-        memcpy(ai_agent_ctx.scode, cfg->scode, strlen(cfg->scode));
+        strncpy(ai_agent_ctx.scode, cfg->scode, SIZEOF(ai_agent_ctx.scode) - 1);
         memcpy(&ai_agent_ctx.up_attr, &cfg->attr, SIZEOF(ai_agent_ctx.up_attr));
         memcpy(ai_agent_ctx.biz_get, cfg->biz_get, AI_BIZ_MAX_NUM * SIZEOF(AI_INPUT_SEND_T));
         memcpy(&ai_agent_ctx.tts_cfg, &cfg->tts_cfg, SIZEOF(ai_agent_ctx.tts_cfg));
         ai_agent_ctx.enable_crt_session_ext = cfg->enable_crt_session_ext;
-        ai_agent_ctx.enable_internal_scode = cfg->enable_internal_scode;
-        ai_agent_ctx.enable_serv_vad = TRUE;
-        TUYA_CALL_ERR_GOTO(tuya_ai_client_init(__ai_agent_mq_handle), EXIT);
+        ai_agent_ctx.enable_internal_scode  = cfg->enable_internal_scode;
+        ai_agent_ctx.enable_serv_vad        = TRUE;
+        ai_agent_ctx.enable_proc_intr       = TRUE;
+#if defined(AI_SUB_VERSION) && (0x02 == AI_SUB_VERSION)
+        cfg->security_cfg.data_sl  = AI_DATA_SL4;
+        cfg->security_cfg.video_er = AI_VIDEO_ENCRYPT_I_FR_ALL;
+        cfg->security_cfg.image_er = AI_IMAGE_ENCRYPT_ALL;
+#endif
+        TUYA_CALL_ERR_GOTO(tuya_ai_client_init(__ai_agent_mq_handle, &cfg->security_cfg), EXIT);
         ty_subscribe_event(EVENT_AI_SESSION_CLOSE, "ai.agent", __ai_session_closed_evt, SUBSCRIBE_TYPE_NORMAL);
 #if defined(ENABLE_JOYINSIDE) && (ENABLE_JOYINSIDE == 1)
     }
@@ -1094,15 +1289,21 @@ VOID tuya_ai_agent_deinit(VOID)
     ty_unsubscribe_event(EVENT_DEVOS_STATE_CHANGE, "ai.agent", __ai_devos_state_evt);
     __ai_agent_destroy_encoder();
     __ai_agent_unreg_encoder();
-    // tuya_ai_agent_mcp_unregister_all();
+    __ai_agent_free_recv_cb();
+    if (ai_agent_ctx.event_param) {
+        Free(ai_agent_ctx.event_param);
+    }
+    if (ai_agent_ctx.session_param) {
+        Free(ai_agent_ctx.session_param);
+    }
     memset(&ai_agent_ctx, 0, SIZEOF(ai_agent_ctx));
     PR_NOTICE("ai agent deinit");
     return;
 }
 
-STATIC uint16_t __ai_agent_get_send_id(AI_PACKET_PT type, AI_AGENT_SESSION_T *session)
+STATIC USHORT_T __ai_agent_get_send_id(AI_PACKET_PT type, AI_AGENT_SESSION_T *session)
 {
-    uint16_t idx = 0;
+    USHORT_T idx = 0;
     for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
         if (session->send[idx].type == type) {
             return session->send[idx].id;
@@ -1113,7 +1314,7 @@ STATIC uint16_t __ai_agent_get_send_id(AI_PACKET_PT type, AI_AGENT_SESSION_T *se
 
 STATIC BOOL_T __ai_agent_is_first_pkt(AI_PACKET_PT type, AI_AGENT_SESSION_T *session)
 {
-    uint16_t idx = 0;
+    USHORT_T idx = 0;
     for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
         if (session->send[idx].type == type) {
             return session->send[idx].first_pkt;
@@ -1124,7 +1325,7 @@ STATIC BOOL_T __ai_agent_is_first_pkt(AI_PACKET_PT type, AI_AGENT_SESSION_T *ses
 
 STATIC VOID __ai_agent_set_first_pkt(AI_PACKET_PT type, BOOL_T flag, AI_AGENT_SESSION_T *session)
 {
-    uint16_t idx = 0;
+    USHORT_T idx = 0;
     for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
         if (session->send[idx].type == type) {
             session->send[idx].first_pkt = flag;
@@ -1134,34 +1335,34 @@ STATIC VOID __ai_agent_set_first_pkt(AI_PACKET_PT type, BOOL_T flag, AI_AGENT_SE
     return;
 }
 
-BOOL_T tuya_ai_agent_is_internal_scode(void)
+BOOL_T tuya_ai_agent_is_internal_scode(VOID)
 {
     return ai_agent_ctx.enable_internal_scode;
 }
 
-void tuya_ai_agent_internal_scode_ctrl(BOOL_T flag)
+VOID tuya_ai_agent_internal_scode_ctrl(BOOL_T flag)
 {
     ai_agent_ctx.enable_internal_scode = flag;
 }
 
-OPERATE_RET tuya_ai_agent_start(VOID)
+OPERATE_RET tuya_ai_agent_start(CHAR_T *scode)
 {
     OPERATE_RET rt = OPRT_OK;
     if (ai_agent_ctx.enable_joyinside) {
         return rt;
     } else {
         if (!ai_agent_ctx.enable_crt_session_ext) {
-            rt = tuya_ai_agent_crt_session(ai_agent_ctx.scode, 0, 0, NULL, 0);
+            rt = tuya_ai_agent_crt_session(scode, 0, 0, NULL, 0);
             if (rt != OPRT_OK) {
                 PR_ERR("create ai agent session failed");
                 return rt;
             }
         }
-        return tuya_ai_agent_event(AI_EVENT_START, 0);
+        return tuya_ai_agent_event_s(scode, AI_EVENT_START, 0);
     }
 }
 
-STATIC BOOL_T __ai_agent_is_need_stream_flag(AI_PACKET_PT ptype, uint32_t len, uint32_t total_len)
+STATIC BOOL_T __ai_agent_is_need_stream_flag(AI_PACKET_PT ptype, UINT_T len, UINT_T total_len)
 {
     if (AI_PT_IMAGE != ptype && len == total_len) {
         return TRUE;
@@ -1169,28 +1370,28 @@ STATIC BOOL_T __ai_agent_is_need_stream_flag(AI_PACKET_PT ptype, uint32_t len, u
     return FALSE;
 }
 
-OPERATE_RET tuya_ai_agent_end(VOID)
+OPERATE_RET tuya_ai_agent_end(CHAR_T *scode)
 {
     if (ai_agent_ctx.enable_joyinside) {
-        tuya_ai_agent_event(AI_EVENT_END, 0);
+        tuya_ai_agent_event_s(scode, AI_EVENT_END, 0);
     } else {
-        unsigned short idx = 0;
-        AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-        if (!session) {
+        AI_AGENT_SESSION_T *session = tuya_ai_agent_get_session(scode);
+        if (session == NULL) {
             return OPRT_COM_ERROR;
         }
+        USHORT_T idx = 0;
         for (idx = 0; idx < AI_BIZ_MAX_NUM; idx++) {
             AI_PACKET_PT type = session->send[idx].type;
             if (__ai_agent_is_first_pkt(type, session)) {
-                tuya_ai_agent_upload_stream(type, NULL, NULL, 0, 0);
-    #if defined(AI_VERSION) && (0x01 == AI_VERSION)
-                tuya_ai_agent_event(AI_EVENT_PAYLOADS_END, type);
-    #endif
+                tuya_ai_agent_upload_stream(scode, type, NULL, NULL, 0, 0);
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+                tuya_ai_agent_event_s(scode, AI_EVENT_PAYLOADS_END, type);
+#endif
                 __ai_agent_set_first_pkt(type, FALSE, session);
             }
         }
 
-        tuya_ai_agent_event(AI_EVENT_END, 0);
+        tuya_ai_agent_event_s(scode, AI_EVENT_END, 0);
     }
     return OPRT_OK;
 }
@@ -1216,7 +1417,12 @@ VOID tuya_ai_agent_set_tts_cfg(AI_AGENT_TTS_CFG_T *cfg)
     }
 }
 
-STATIC OPERATE_RET __ai_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char *data, uint32_t len, uint32_t total_len)
+VOID tuya_ai_agent_set_video_stream(AI_VIDEO_STREAM_E stream_type)
+{
+    ai_agent_ctx.video_stream = stream_type;
+}
+
+STATIC OPERATE_RET __ai_upload_stream(CHAR_T *scode, AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, CHAR_T *data, UINT_T len, UINT_T total_len)
 {
     if (ai_agent_ctx.enable_joyinside) {
         PR_DEBUG("[ptype %d upload stream] len:%d, total_len:%d", ptype, len, total_len);
@@ -1228,8 +1434,8 @@ STATIC OPERATE_RET __ai_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char
         }
 #endif
     } else {
-        AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-        if (!session) {
+        AI_AGENT_SESSION_T *session = tuya_ai_agent_get_session(scode);
+        if (session == NULL) {
             return OPRT_COM_ERROR;
         }
         AI_BIZ_ATTR_INFO_T attr;
@@ -1263,8 +1469,8 @@ STATIC OPERATE_RET __ai_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char
         AI_BIZ_HEAD_INFO_T head;
         memset(&head, 0, SIZEOF(head));
         head.stream_flag = stype;
-        head.total_len = total_len;
-        head.len = len;
+        head.total_len   = total_len;
+        head.len         = len;
         if (biz) {
             if (AI_PT_VIDEO == ptype) {
                 memcpy(&head.value.video, &(biz->video), SIZEOF(head.value.video));
@@ -1275,7 +1481,7 @@ STATIC OPERATE_RET __ai_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char
             }
         }
 
-    uint16_t id = __ai_agent_get_send_id(ptype, session);
+        USHORT_T id = __ai_agent_get_send_id(ptype, session);
 
         PR_DEBUG("[ptype %d upload stream] len:%d flag %d, total_len:%d, id:%d", ptype, len, stype, total_len, id);
 
@@ -1284,12 +1490,39 @@ STATIC OPERATE_RET __ai_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char
     return OPRT_OK;
 }
 
-STATIC OPERATE_RET __upload_data_cb(AI_AUDIO_CODEC_TYPE codec_type, uint8_t *data, uint32_t len, void *usr_data)
+// Buffer size (in bytes) for batching encoded audio before upload.
+// 800 bytes accommodates up to ~64kbps at 40ms frame duration.
+// At 32kbps/40ms: ~160 bytes/frame, fits 5 frames.
+// At 16kbps/40ms: ~80 bytes/frame, fits 10 frames.
+#ifndef AUDIO_ENCODE_BUF_SIZE
+#define AUDIO_ENCODE_BUF_SIZE 800
+#endif
+
+STATIC OPERATE_RET __upload_data_cb(AI_AUDIO_CODEC_TYPE codec_type, UCHAR_T *data, UINT_T len, void *usr_data)
 {
-    return __ai_upload_stream(AI_PT_AUDIO, (AI_BIZ_HD_T *)usr_data, (char *)data, len, len);
+    AUDIO_ENCODE_CTX_T *encode_ctx = (AUDIO_ENCODE_CTX_T *)usr_data;
+
+    if ((encode_ctx->buf_len + len) > encode_ctx->buf_size) {
+        OPERATE_RET rt = __ai_upload_stream(encode_ctx->scode, AI_PT_AUDIO, encode_ctx->biz,
+                                            (CHAR_T *)encode_ctx->buf, encode_ctx->buf_len, encode_ctx->buf_len);
+        if (rt != OPRT_OK) {
+            PR_ERR("upload encoded data failed, rt:%d", rt);
+            return rt;
+        }
+        encode_ctx->buf_len = 0;
+    }
+
+    if ((encode_ctx->buf_len + len) > encode_ctx->buf_size) {
+        PR_ERR("encoded frame too large: %d > %d", len, encode_ctx->buf_size);
+        return OPRT_INVALID_PARM;
+    }
+
+    memcpy(encode_ctx->buf + encode_ctx->buf_len, data, len);
+    encode_ctx->buf_len += len;
+    return OPRT_OK;
 }
 
-OPERATE_RET tuya_ai_agent_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, char *data, uint32_t len, uint32_t total_len)
+OPERATE_RET tuya_ai_agent_upload_stream(CHAR_T *scode, AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, CHAR_T *data, UINT_T len, UINT_T total_len)
 {
     if (ptype == AI_PT_AUDIO && ai_agent_ctx.encoder) {
         if (ai_agent_ctx.encoder->handle == NULL) {
@@ -1301,17 +1534,29 @@ OPERATE_RET tuya_ai_agent_upload_stream(AI_PACKET_PT ptype, AI_BIZ_HD_T *biz, ch
         }
         if (data && len > 0) {
             // encode data
-            OPERATE_RET rt = ai_agent_ctx.encoder->encode(ai_agent_ctx.encoder->handle, (uint8_t *)data, len, __upload_data_cb, (VOID *)biz);
+            UCHAR_T            encode_buf[AUDIO_ENCODE_BUF_SIZE] = {0};
+            AUDIO_ENCODE_CTX_T encode_ctx                        = {
+                .scode    = scode,
+                .biz      = biz,
+                .buf      = encode_buf,
+                .buf_size = AUDIO_ENCODE_BUF_SIZE,
+                .buf_len  = 0,
+            };
+            OPERATE_RET rt = ai_agent_ctx.encoder->encode(ai_agent_ctx.encoder->handle, (UCHAR_T *)data, len, __upload_data_cb, (VOID *)&encode_ctx);
             if (rt != OPRT_OK) {
                 PR_ERR("encoder failed, rt:%d", rt);
                 return rt;
             }
+            if (encode_ctx.buf_len > 0) {
+                rt = __ai_upload_stream(encode_ctx.scode, AI_PT_AUDIO, encode_ctx.biz,
+                                        (CHAR_T *)encode_ctx.buf, encode_ctx.buf_len, encode_ctx.buf_len);
+            }
             return rt;
         } else {
-            return __ai_upload_stream(ptype, biz, data, len, total_len);
+            return __ai_upload_stream(scode, ptype, biz, data, len, total_len);
         }
     } else {
-        return __ai_upload_stream(ptype, biz, data, len, total_len);
+        return __ai_upload_stream(scode, ptype, biz, data, len, total_len);
     }
 }
 
@@ -1320,34 +1565,32 @@ VOID tuya_ai_agent_server_vad_ctrl(BOOL_T flag)
     ai_agent_ctx.enable_serv_vad = flag;
 }
 
-STATIC OPERATE_RET __ai_event_start(VOID)
+VOID tuya_ai_agent_proc_interrupt_ctrl(BOOL_T flag)
+{
+    ai_agent_ctx.enable_proc_intr = flag;
+}
+
+STATIC OPERATE_RET __ai_event_start(AI_SESSION_ID sid, AI_SESSION_ID eid)
 {
     OPERATE_RET rt = OPRT_OK;
-    char *eid = tuya_ai_agent_get_eid();
-    if (!eid) {
-        PR_ERR("no active session or eid");
-        return OPRT_COM_ERROR;
-    }
-    memset(eid, 0, AI_UUID_V4_LEN + 1);
-    AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-    if (!session) {
+    if (eid == NULL || sid == NULL) {
         return OPRT_COM_ERROR;
     }
 
+    memset(eid, 0, AI_UUID_V4_LEN + 1);
     if (ai_agent_ctx.cfg_eid[0] != '\0') {
         memcpy(eid, ai_agent_ctx.cfg_eid, AI_UUID_V4_LEN);
-        memset(ai_agent_ctx.cfg_eid, 0, SIZEOF(ai_agent_ctx.cfg_eid));  // clear cfg eid
+        memset(ai_agent_ctx.cfg_eid, 0, SIZEOF(ai_agent_ctx.cfg_eid)); // clear cfg eid
     }
-    uint8_t *out = NULL;
-    uint32_t out_len = 0;
+    BYTE_T *out     = NULL;
+    UINT_T  out_len = 0;
 
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
-    char start_attr[128] = {0};
-    if (ai_agent_ctx.enable_serv_vad) {
-        snprintf(start_attr, sizeof(start_attr), "{\"tts.alternate\":\"true\",\"asr.enableVad\":true,\"processing.interrupt\":true}");
-    } else {
-        snprintf(start_attr, sizeof(start_attr), "{\"tts.alternate\":\"true\",\"asr.enableVad\":false,\"processing.interrupt\":true}");
-    }
+    CHAR_T start_attr[128] = {0};
+    snprintf(start_attr, sizeof(start_attr),
+             "{\"tts.alternate\":\"true\",\"asr.enableVad\":%s,\"processing.interrupt\":%s}",
+             ai_agent_ctx.enable_serv_vad ? "true" : "false",
+             ai_agent_ctx.enable_proc_intr ? "true" : "false");
 
     AI_ATTRIBUTE_T attr[] = {{
             .type = 1003,
@@ -1359,48 +1602,55 @@ STATIC OPERATE_RET __ai_event_start(VOID)
 
     tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
 #else
-    ty_cJSON *attr_info = ty_cJSON_CreateObject();
+    ty_cJSON *attr_info      = ty_cJSON_CreateObject();
     ty_cJSON *chatAttributes = ty_cJSON_CreateObject();
     ty_cJSON_AddItemToObject(attr_info, "chatAttributes", chatAttributes);
-    if (ai_agent_ctx.enable_serv_vad) {
-        ty_cJSON_AddBoolToObject(chatAttributes, "asr.enableVad", true);
-    } else {
-        ty_cJSON_AddBoolToObject(chatAttributes, "asr.enableVad", false);
+    ty_cJSON_AddBoolToObject(chatAttributes, "tts.alternate", true);
+    ty_cJSON_AddBoolToObject(chatAttributes, "asr.enableVad", ai_agent_ctx.enable_serv_vad ? true : false);
+    ty_cJSON_AddBoolToObject(chatAttributes, "processing.interrupt", ai_agent_ctx.enable_proc_intr ? true : false);
+    if (ai_agent_ctx.event_param) {
+        ty_cJSON *custom = ty_cJSON_Parse(ai_agent_ctx.event_param);
+        if (custom) {
+            ty_cJSON *sessionAttributes = ty_cJSON_CreateObject();
+            ty_cJSON_AddItemToObject(sessionAttributes, "custom.param", custom);
+            ty_cJSON_AddItemToObject(attr_info, "sessionAttributes", sessionAttributes);
+        }
+        Free(ai_agent_ctx.event_param);
+        ai_agent_ctx.event_param = NULL;
     }
-    ty_cJSON_AddBoolToObject(chatAttributes, "processing.interrupt", true);
-
-    out = (uint8_t *)ty_cJSON_PrintUnformatted(attr_info);
-    out_len = strlen((char *)out);
+    out     = (BYTE_T *)ty_cJSON_PrintUnformatted(attr_info);
+    out_len = strlen((CHAR_T *)out);
     ty_cJSON_Delete(attr_info);
     AI_PROTO_D("event start attr: %s ", out);
 #endif
-    rt = tuya_ai_event_start(__ai_agent_get_sid(), eid, out, out_len);
+    rt = tuya_ai_event_start(sid, eid, out, out_len);
     Free(out);
     return rt;
 }
 
-STATIC OPERATE_RET __ai_event_payloads_end(AI_PACKET_PT packet_type)
+STATIC OPERATE_RET __ai_event_payloads_end(AI_SESSION_ID sid, AI_SESSION_ID eid, USHORT_T send_id)
 {
     OPERATE_RET rt = OPRT_OK;
-    AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-    if (!session) {
+    if (eid == NULL || sid == NULL) {
+        PR_ERR("no active session or eid");
         return OPRT_COM_ERROR;
     }
+
     AI_ATTRIBUTE_T attr = {
-        .type = 1002,
+        .type         = 1002,
         .payload_type = ATTR_PT_U16,
-        .length = 2,
-        .value.u16 = __ai_agent_get_send_id(packet_type, session),
+        .length       = 2,
+        .value.u16    = send_id,
     };
-    uint8_t *out = NULL;
-    uint32_t out_len = 0;
+    BYTE_T *out     = NULL;
+    UINT_T  out_len = 0;
     tuya_pack_user_attrs(&attr, 1, &out, &out_len);
-    rt = tuya_ai_event_payloads_end(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), out, out_len);
+    rt = tuya_ai_event_payloads_end(sid, eid, out, out_len);
     Free(out);
     return rt;
 }
 
-OPERATE_RET tuya_ai_agent_event(AI_EVENT_TYPE etype, AI_PACKET_PT ptype)
+OPERATE_RET tuya_ai_agent_event_s(CHAR_T *scode, AI_EVENT_TYPE etype, AI_PACKET_PT ptype)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -1415,43 +1665,75 @@ OPERATE_RET tuya_ai_agent_event(AI_EVENT_TYPE etype, AI_PACKET_PT ptype)
         }
 #endif
     } else {
-        PR_DEBUG("[upload event] type:%d", etype);
+        AI_AGENT_SESSION_T *session = tuya_ai_agent_get_session(scode);
+        if ((session == NULL) || (session->sid[0] == 0)) {
+            return OPRT_COM_ERROR;
+        }
         if (AI_EVENT_START == etype) {
-            rt = __ai_event_start();
+            rt = __ai_event_start(session->sid, session->eid);
         } else if (AI_EVENT_PAYLOADS_END == etype) {
-            rt = __ai_event_payloads_end(ptype);
+            USHORT_T send_id = __ai_agent_get_send_id(ptype, session);
+            rt               = __ai_event_payloads_end(session->sid, session->eid, send_id);
         } else if (AI_EVENT_END == etype) {
-            rt = tuya_ai_event_end(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), NULL, 0);
+            rt = tuya_ai_event_end(session->sid, session->eid, NULL, 0);
         } else if (AI_EVENT_ONE_SHOT == etype) {
-            rt = tuya_ai_event_one_shot(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), NULL, 0);
+            rt = tuya_ai_event_one_shot(session->sid, session->eid, NULL, 0);
         } else if (AI_EVENT_CHAT_BREAK == etype) {
-            rt = tuya_ai_event_chat_break(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), NULL, 0);
+            rt = tuya_ai_event_chat_break(session->sid, session->eid, NULL, 0);
         }
     }
 
     return rt;
 }
 
-VOID tuya_ai_agent_set_scode(char *scode)
+OPERATE_RET tuya_ai_agent_trigger(CHAR_T *scode, CONST CHAR_T *trigger, CHAR_T *param)
 {
-    if (ai_agent_ctx.enable_joyinside) {
-        return;
-    }
-    if (scode) {
-        memset(ai_agent_ctx.scode, 0, SIZEOF(ai_agent_ctx.scode));
-        strncpy(ai_agent_ctx.scode, scode, SIZEOF(ai_agent_ctx.scode) - 1);
-        PR_DEBUG("set scode:%s", ai_agent_ctx.scode);
-    }
-    return;
-}
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+    return OPRT_NOT_SUPPORTED;
+#endif
+    OPERATE_RET rt      = OPRT_OK;
+    BYTE_T     *out     = NULL;
+    UINT_T      out_len = 0;
 
-char *tuya_ai_agent_get_active_scode(VOID)
-{
-    AI_AGENT_SESSION_T *session = __ai_agent_get_active_session();
-    if (session) {
-        return session->scode;
+    AI_AGENT_SESSION_T *session = tuya_ai_agent_get_session(scode);
+    if ((session == NULL) || (session->sid[0] == 0)) {
+        return OPRT_COM_ERROR;
     }
-    return NULL;
+
+    ty_cJSON *attr_info       = ty_cJSON_CreateObject();
+    ty_cJSON *eventAttributes = ty_cJSON_CreateObject();
+    ty_cJSON_AddItemToObject(attr_info, "eventAttributes", eventAttributes);
+    ty_cJSON *custom_param = ty_cJSON_CreateObject();
+    ty_cJSON_AddItemToObject(eventAttributes, "custom.param", custom_param);
+    ty_cJSON *sys_trigger = ty_cJSON_CreateObject();
+    ty_cJSON_AddItemToObject(custom_param, "sys.trigger", sys_trigger);
+    ty_cJSON_AddStringToObject(sys_trigger, "value", trigger);
+    if (param && strlen(param) > 0) {
+        ty_cJSON *extra = ty_cJSON_Parse(param);
+        if (extra) {
+            ty_cJSON *child = extra->child;
+            while (child) {
+                ty_cJSON *next = child->next;
+                ty_cJSON_DetachItemViaPointer(extra, child);
+                ty_cJSON_AddItemToObject(custom_param, child->string, child);
+                child = next;
+            }
+            ty_cJSON_Delete(extra);
+        }
+    }
+    out = (BYTE_T *)ty_cJSON_PrintUnformatted(attr_info);
+    if (out == NULL) {
+        ty_cJSON_Delete(attr_info);
+        return OPRT_MALLOC_FAILED;
+    }
+    out_len = strlen((CHAR_T *)out);
+    ty_cJSON_Delete(attr_info);
+    CHAR_T eid[AI_UUID_V4_LEN + 1] = {0};
+    tuya_ai_basic_uuid_short(eid);
+    PR_DEBUG("event trigger attr: %s, eid:%s, sid:%s", out, eid, session->sid);
+    rt = tuya_ai_event_trigger(session->sid, eid, out, out_len);
+    Free(out);
+    return rt;
 }
 
 VOID tuya_ai_agent_set_eid(AI_EVENT_ID eid)
@@ -1463,55 +1745,100 @@ VOID tuya_ai_agent_set_eid(AI_EVENT_ID eid)
     }
 }
 
-AI_EVENT_ID tuya_ai_agent_get_eid(VOID)
+VOID tuya_ai_agent_set_event_param(CHAR_T *value)
 {
-    return __ai_agent_get_eid(ai_agent_ctx.scode);
+    if (value == NULL || strlen(value) == 0) {
+        PR_ERR("event param value is empty");
+        return;
+    }
+    ty_cJSON *json = ty_cJSON_Parse(value);
+    if (json == NULL) {
+        PR_ERR("event param value is not valid json");
+        return;
+    }
+    ty_cJSON_Delete(json);
+    if (ai_agent_ctx.event_param) {
+        Free(ai_agent_ctx.event_param);
+        ai_agent_ctx.event_param = NULL;
+    }
+    ai_agent_ctx.event_param = Malloc(strlen(value) + 1);
+    if (ai_agent_ctx.event_param == NULL) {
+        PR_ERR("malloc event param failed");
+        return;
+    }
+    memset(ai_agent_ctx.event_param, 0, strlen(value) + 1);
+    memcpy(ai_agent_ctx.event_param, value, strlen(value));
+}
+
+VOID tuya_ai_agent_set_session_param(CHAR_T *value)
+{
+    if (value == NULL || strlen(value) == 0) {
+        PR_ERR("session param value is empty");
+        return;
+    }
+    ty_cJSON *json = ty_cJSON_Parse(value);
+    if (json == NULL) {
+        PR_ERR("session param value is not valid json");
+        return;
+    }
+    ty_cJSON_Delete(json);
+    if (ai_agent_ctx.session_param) {
+        Free(ai_agent_ctx.session_param);
+        ai_agent_ctx.session_param = NULL;
+    }
+    ai_agent_ctx.session_param = Malloc(strlen(value) + 1);
+    if (ai_agent_ctx.session_param == NULL) {
+        PR_ERR("malloc session param failed");
+        return;
+    }
+    memset(ai_agent_ctx.session_param, 0, strlen(value) + 1);
+    memcpy(ai_agent_ctx.session_param, value, strlen(value));
 }
 
 OPERATE_RET tuya_ai_agent_mcp_set_cb(TY_AI_MCP_CB cb, VOID *user_data)
 {
     if (!cb) {
-        ai_agent_ctx.enable_mcp = FALSE;
-        ai_agent_ctx.mcp_cb = NULL;
+        ai_agent_ctx.enable_mcp    = FALSE;
+        ai_agent_ctx.mcp_cb        = NULL;
         ai_agent_ctx.mcp_user_data = NULL;
         PR_DEBUG("mcp cb cleared");
         return OPRT_OK;
     }
-    ai_agent_ctx.enable_mcp = TRUE;
-    ai_agent_ctx.mcp_cb = cb;
+    ai_agent_ctx.enable_mcp    = TRUE;
+    ai_agent_ctx.mcp_cb        = cb;
     ai_agent_ctx.mcp_user_data = user_data;
     PR_DEBUG("mcp cb set");
     return OPRT_OK;
 }
 
-STATIC OPERATE_RET __mcp_handle(char *data)
+STATIC OPERATE_RET __mcp_handle(CHAR_T *sid, CHAR_T *eid, CHAR_T *data)
 {
-    PR_DEBUG("mcp data: %s", data);
+    TAL_PR_DEBUG("mcp data: %s", data);
 
     if (ai_agent_ctx.mcp_cb) {
-        ty_cJSON *root = ty_cJSON_Parse(data);
-        OPERATE_RET rt = ai_agent_ctx.mcp_cb(root, ai_agent_ctx.mcp_user_data);
+        ty_cJSON   *root = ty_cJSON_Parse(data);
+        OPERATE_RET rt   = ai_agent_ctx.mcp_cb(sid, eid, root, ai_agent_ctx.mcp_user_data);
         ty_cJSON_Delete(root);
         if (rt == OPRT_OK) {
             return OPRT_OK;
         }
     }
 
-    PR_ERR("mcp handle not found or handle failed");
+    TAL_PR_ERR("mcp handle not found or handle failed");
     // generate error response
-    char *message = "{\"error\":{\"code\":500,\"message\":\"Internal Server Error\"}}";
-    return tuya_ai_event_mcp(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), message);
+    CHAR_T *message = "{\"error\":{\"code\":500,\"message\":\"Internal Server Error\"}}";
+    return tuya_ai_event_mcp(sid, eid, message);
 }
 
-OPERATE_RET tuya_ai_agent_mcp_response(char *message)
+OPERATE_RET tuya_ai_agent_mcp_response(CHAR_T *sid, CHAR_T *eid, CHAR_T *message)
 {
     if (!message) {
         return OPRT_INVALID_PARM;
     }
-    return tuya_ai_event_mcp(__ai_agent_get_sid(), tuya_ai_agent_get_eid(), message);
+    return tuya_ai_event_mcp(sid, eid, message);
 }
 
-BOOL_T tuya_ai_agent_is_ready(void)
+BOOL_T tuya_ai_agent_is_ready(VOID)
 {
     if (ai_agent_ctx.enable_joyinside) {
 #if defined(ENABLE_JOYINSIDE) && (ENABLE_JOYINSIDE == 1)

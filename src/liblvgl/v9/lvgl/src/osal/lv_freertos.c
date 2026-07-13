@@ -43,7 +43,7 @@
  **********************/
 
 /**********************
- *  STATIC PROTOTYPES
+ *  static PROTOTYPES
  **********************/
 
 static void prvRunThread(void * pxArg);
@@ -64,7 +64,7 @@ static void prvTestAndDecrement(lv_thread_sync_t * pxCond,
 #endif
 
 /**********************
- *  STATIC VARIABLES
+ *  static VARIABLES
  **********************/
 
 /**********************
@@ -181,7 +181,7 @@ lv_result_t lv_thread_sync_wait(lv_thread_sync_t * pxCond)
     TKL_THREAD_HANDLE xCurrentTaskHandle = NULL;
     tkl_thread_get_id(&xCurrentTaskHandle);
 
-    UINT_T level = tkl_system_enter_critical();
+    uint32_t level = tkl_system_enter_critical();
     BOOL_T xSyncSygnal = pxCond->xSyncSignal;
     pxCond->xSyncSignal = FALSE;
     if(xSyncSygnal == FALSE) {
@@ -259,7 +259,7 @@ lv_result_t lv_thread_sync_signal(lv_thread_sync_t * pxCond)
     prvCheckCondInit(pxCond);
 
 #if USE_FREERTOS_TASK_NOTIFY
-    UINT_T level = tkl_system_enter_critical();
+    uint32_t level = tkl_system_enter_critical();
     TKL_THREAD_HANDLE xTaskToNotify = pxCond->xTaskToNotify;
     pxCond->xTaskToNotify = NULL;
     if(xTaskToNotify == NULL) {
@@ -325,7 +325,7 @@ lv_result_t lv_thread_sync_delete(lv_thread_sync_t * pxCond)
 }
 
 /**********************
- *   STATIC FUNCTIONS
+ *   static FUNCTIONS
  **********************/
 
 static void prvRunThread(void * pxArg)
@@ -353,7 +353,7 @@ static void prvCheckMutexInit(lv_mutex_t * pxMutex)
     if(pxMutex->xIsInitialized == FALSE) {
         /* Mutex initialization must be in a critical section to prevent two threads
          * from initializing it at the same time. */
-        UINT_T level = tkl_system_enter_critical();
+        uint32_t level = tkl_system_enter_critical();
 
         /* Check again that the mutex is still uninitialized, i.e. it wasn't
          * initialized while this function was waiting to enter the critical
@@ -404,7 +404,7 @@ static void prvCheckCondInit(lv_thread_sync_t * pxCond)
     if(pxCond->xIsInitialized == FALSE) {
         /* Cond initialization must be in a critical section to prevent two
          * threads from initializing it at the same time. */
-        UINT_T level = tkl_system_enter_critical();
+        uint32_t level = tkl_system_enter_critical();
 
         /* Check again that the condition is still uninitialized, i.e. it wasn't
          * initialized while this function was waiting to enter the critical
@@ -451,7 +451,7 @@ static void prvTestAndDecrement(lv_thread_sync_t * pxCond,
 #endif
 
 /**********************
- *  STATIC VARIABLES
+ *  static VARIABLES
  **********************/
 
 #if (ESP_PLATFORM)
@@ -714,7 +714,7 @@ lv_result_t lv_thread_sync_delete(lv_thread_sync_t * pxCond)
 }
 
 /**********************
- *   STATIC FUNCTIONS
+ *   static FUNCTIONS
  **********************/
 
 static void prvRunThread(void * pxArg)

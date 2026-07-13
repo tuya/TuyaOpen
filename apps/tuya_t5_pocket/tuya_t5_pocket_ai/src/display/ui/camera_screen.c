@@ -60,6 +60,9 @@ static lv_obj_t   *threshold_label; // Threshold value label
 static lv_obj_t   *status_label;    // Camera status label
 static lv_timer_t *update_timer;    // Timer for updating display
 
+// Lifecycle callback (not hardware-specific)
+static camera_screen_lifecycle_cb_t sg_lifecycle_callback = NULL;
+
 #ifdef ENABLE_LVGL_HARDWARE
 static uint8_t               *canvas_buffer     = NULL; // Canvas buffer for monochrome image
 static TDL_DISP_FRAME_BUFF_T *sg_p_display_fb   = NULL;
@@ -86,9 +89,6 @@ static BINARY_CONFIG_T sg_binary_config = {
 
 // Calculated threshold for adaptive and otsu methods
 static uint8_t sg_calculated_threshold = 128;
-
-// Lifecycle callback
-static camera_screen_lifecycle_cb_t sg_lifecycle_callback = NULL;
 
 // Photo print callback
 static camera_photo_print_cb_t sg_print_callback = NULL;
@@ -129,18 +129,20 @@ void camera_screen_register_lifecycle_cb(camera_screen_lifecycle_cb_t callback)
  * @brief Register photo print callback for camera screen
  * @param callback Callback function, NULL to unregister
  */
+#ifdef ENABLE_LVGL_HARDWARE
 void camera_screen_register_print_cb(camera_photo_print_cb_t callback)
 {
     sg_print_callback = callback;
     printf("[Camera] Print callback %s\n", callback ? "registered" : "unregistered");
 }
+#endif
 
 /**
  * @brief Get method name string
  */
+#ifdef ENABLE_LVGL_HARDWARE
 static const char *get_method_name(BINARY_METHOD_E method)
 {
-#ifdef ENABLE_LVGL_HARDWARE
     switch (method) {
     case BINARY_METHOD_FIXED:
         return "Fixed";
@@ -163,10 +165,10 @@ static const char *get_method_name(BINARY_METHOD_E method)
     default:
         return "Unknown";
     }
-#else
-    return "N/A";
-#endif
 }
+#else
+static const char *get_method_name(int method) { (void)method; return "N/A"; }
+#endif
 
 /**
  * @brief Update info area display

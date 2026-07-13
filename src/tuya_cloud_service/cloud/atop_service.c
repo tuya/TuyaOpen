@@ -1114,18 +1114,24 @@ int atop_service_comm_post_simple(const char *api, const char *version, const ch
     int rt = OPRT_OK;
     tuya_iot_client_t *iot_client = tuya_iot_client_get();
     uint32_t timestamp = tal_time_get_posix();
+    PR_NOTICE("timestamp:%d", timestamp);
     /* post data */
 
     char *buffer = NULL;
     size_t buffer_len = 0;
     if (body) {
-        buffer = tal_malloc(strlen(body) + 1);
+        size_t body_len     = strlen(body);
+        size_t body_buf_len = body_len + ATOP_DEFAULT_POST_BUFFER_LEN; /* extra room for ,"t":4294967295} */
+        buffer = tal_malloc(body_buf_len);
+        PR_NOTICE("body len:%d", body_buf_len);
         if (NULL == buffer) {
             PR_ERR("post buffer malloc fail");
             return OPRT_MALLOC_FAILED;
         }
 
-        buffer_len = snprintf(buffer, ATOP_DEFAULT_POST_BUFFER_LEN, "%s", body);
+        /* insert "t":timestamp before the closing } */
+        buffer_len = snprintf(buffer, body_buf_len, "%.*s,\"t\":%" PRIu32 "}",
+                              (int)(body_len - 1), body, timestamp);
     } else {
         buffer = tal_malloc(ATOP_DEFAULT_POST_BUFFER_LEN);
         if (NULL == buffer) {

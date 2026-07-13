@@ -9,6 +9,7 @@
 #include "src/core/lv_obj_style_gen.h"
 
 #include "tal_api.h"
+
 #include <string.h>
 
 #define UI_CHAT_MSG_MAX_COUNT (20)

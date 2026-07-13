@@ -15,13 +15,22 @@
 #include "tdd_button_gpio.h"
 #endif
 
-#include "board_config.h"
-#include "oled_ssd1306.h"
+#include "tdd_disp_esp_ssd1306.h"
 #include "board_com_api.h"
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+/* SSD1306 OLED over I2C */
+#define OLED_I2C_PORT (0)
+#define OLED_I2C_ADDR (0x3C)
+#define OLED_I2C_SCL  (42)
+#define OLED_I2C_SDA  (41)
+#define OLED_WIDTH    (128)
+#define OLED_HEIGHT   (32)
+
+#define DISPLAY_WIDTH  OLED_WIDTH
+#define DISPLAY_HEIGHT OLED_HEIGHT
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
 /*
@@ -40,6 +49,11 @@
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+
+/***********************************************************
+********************function declaration********************
+***********************************************************/
+int board_display_init(void);
 
 /***********************************************************
 ***********************variable define**********************
@@ -97,21 +111,29 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_button());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(board_display_init());
 
     return rt;
 }
 
 int board_display_init(void)
 {
-    return oled_ssd1306_init();
-}
+    TDD_DISP_ESP_LCD_CFG_T cfg = {
+        .width     = DISPLAY_WIDTH,
+        .height    = DISPLAY_HEIGHT,
+        .pixel_fmt = TUYA_PIXEL_FMT_MONOCHROME,
+        .rotation  = TUYA_DISPLAY_ROTATION_0,
+        .is_swap   = false,
+        .bl.type   = TUYA_DISP_BL_TP_NONE,
+    };
 
-void *board_display_get_panel_io_handle(void)
-{
-    return oled_ssd1306_get_panel_io_handle();
-}
+    OLED_SSD1306_HW_CFG_T hw = {
+        .i2c_port     = OLED_I2C_PORT,
+        .sda_io       = OLED_I2C_SDA,
+        .scl_io       = OLED_I2C_SCL,
+        .dev_addr     = OLED_I2C_ADDR,
+        .panel_height = OLED_HEIGHT,
+    };
 
-void *board_display_get_panel_handle(void)
-{
-    return oled_ssd1306_get_panel_handle();
+    return tdd_disp_esp_ssd1306_register(DISPLAY_NAME, &hw, &cfg);
 }

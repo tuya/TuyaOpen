@@ -41,7 +41,7 @@ typedef struct {
     AI_SERVER_CFG_INFO_T config;
     AI_AGENT_TOKEN_INFO_T agent;
     SEM_HANDLE sem;
-    char biz_id[AI_UUID_V4_LEN + 1];
+    CHAR_T biz_id[AI_UUID_V4_LEN + 1];
     AI_MQTT_RECV_CB recv_cb;
 } AI_MQTT_CTX_T;
 STATIC AI_MQTT_CTX_T *ai_mqtt_ctx = NULL;
@@ -53,14 +53,14 @@ STATIC OPERATE_RET __ai_mq_do_interrupt(ty_cJSON *root)
     TUYA_CHECK_NULL_RETURN(cfg, OPRT_INVALID_PARM);
     ty_cJSON *eventId = ty_cJSON_GetObjectItem(root, "eventId");
     ty_cJSON *time = ty_cJSON_GetObjectItem(root, "time");
-    if (!eventId || !time) {
-        PR_ERR("eventId or time is null");
+    if (!eventId || !time || (strlen(eventId->valuestring) > AI_UUID_V4_LEN)) {
+        PR_ERR("eventId or time is null %d", eventId ? strlen(eventId->valuestring) : 0);
         return OPRT_INVALID_PARM;
     }
     if (cfg->event_cb) {
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
         /* pack timestamp into userdata attr */
-        char *tmp = ty_cJSON_PrintUnformatted(root);
+        CHAR_T *tmp = ty_cJSON_PrintUnformatted(root);
         AI_ATTRIBUTE_T attr[] = {{
                 .type = 1008,
                 .payload_type = ATTR_PT_STR,
@@ -68,13 +68,13 @@ STATIC OPERATE_RET __ai_mq_do_interrupt(ty_cJSON *root)
                 .value.str = tmp,
             }
         };
-        uint8_t *out = NULL;
-        uint32_t out_len = 0;
+        BYTE_T *out = NULL;
+        UINT_T out_len = 0;
         tuya_pack_user_attrs(attr, CNTSOF(attr), &out, &out_len);
         tal_free(tmp);
         AI_EVENT_ATTR_T event;
         memset(&event, 0, SIZEOF(AI_EVENT_ATTR_T));
-        event.event_id = eventId->valuestring;
+        strncpy(event.event_id, eventId->valuestring, AI_UUID_V4_LEN);
         event.user_data = out;
         event.user_len = out_len;
         AI_EVENT_HEAD_T head = {0};
@@ -82,37 +82,31 @@ STATIC OPERATE_RET __ai_mq_do_interrupt(ty_cJSON *root)
         rt = cfg->event_cb(&event, &head, NULL);
         tal_free(out);
 #else
-
         ty_cJSON *root = ty_cJSON_CreateObject();
         if (NULL == root) {
             PR_ERR("creat cjson obj error");
             return OPRT_COM_ERROR;
         }
-
         ty_cJSON *attr = ty_cJSON_CreateObject();
         if (NULL != attr) {
             ty_cJSON_AddItemToObject(root, "breakAttributes", attr);
             if (time->valuestring) {
                 ty_cJSON_AddStringToObject(attr, "time", time->valuestring);
             }
-            uint8_t *out = (uint8_t *)ty_cJSON_PrintUnformatted(root);
-
+            UCHAR_T *out = (UCHAR_T *)ty_cJSON_PrintUnformatted(root);
             AI_EVENT_ATTR_T event;
             memset(&event, 0, SIZEOF(AI_EVENT_ATTR_T));
-            event.event_id = eventId->valuestring;
+            strncpy(event.event_id, eventId->valuestring, AI_UUID_V4_LEN);
             event.user_data = out;
-            event.user_len = strlen((char *)out);
+            event.user_len = strlen((CHAR_T *)out);
             AI_EVENT_HEAD_T head = {0};
             head.type = AI_EVENT_CHAT_BREAK;
             rt = cfg->event_cb(&event, &head, NULL);
-
             tal_free(out);
-
         } else {
             PR_ERR("creat cjson obj error");
             return OPRT_COM_ERROR;
         }
-
         ty_cJSON_Delete(root);
 #endif
     }
@@ -130,17 +124,17 @@ STATIC OPERATE_RET __ai_mq_do_text(ty_cJSON *root)
 OPERATE_RET tuya_ai_mq_ser_cfg_req(VOID)
 {
     OPERATE_RET rt = OPRT_OK;
-    char *mq_msg = OS_MALLOC(256);
+    CHAR_T *mq_msg = OS_MALLOC(256);
     TUYA_CHECK_NULL_RETURN(mq_msg, OPRT_MALLOC_FAILED);
     memset(mq_msg, 0, 256);
-    char biz_id[AI_UUID_V4_LEN + 1] = {0};
+    CHAR_T biz_id[AI_UUID_V4_LEN + 1] = {0};
     tuya_ai_basic_uuid_v4(biz_id);
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
-    snprintf(mq_msg, 256, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"data\":{\"type\":\"thingGetServerInfo\"}}", biz_id);
+    sprintf(mq_msg, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"data\":{\"type\":\"thingGetServerInfo\"}}", biz_id);
 #else
-    snprintf(mq_msg, 256, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"data\":{\"type\":\"thingGetServerInfo\", \"pv\":%d}}", biz_id, 0x02);
+    sprintf(mq_msg, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"data\":{\"type\":\"thingGetServerInfo\", \"pv\":%d}}", biz_id, 0x02);
 #endif
-    rt = mqc_send_custom_mqtt_msg(AI_MQ_PROTO_NUM, (uint8_t *)mq_msg);
+    rt = mqc_send_custom_mqtt_msg(AI_MQ_PROTO_NUM, (BYTE_T *)mq_msg);
     OS_FREE(mq_msg);
     if (OPRT_OK != rt) {
         PR_ERR("send mqtt msg err, rt:%d", rt);
@@ -155,10 +149,12 @@ OPERATE_RET tuya_ai_mq_ser_cfg_req(VOID)
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
         if ((ai_mqtt_ctx->config.host_num == 0) || !ai_mqtt_ctx->config.username ||
             !ai_mqtt_ctx->config.credential || !ai_mqtt_ctx->config.client_id) {
+            PR_ERR("miss required field");
             rt = OPRT_COM_ERROR;
         }
 #else
-        if ((ai_mqtt_ctx->config.host_num == 0) || !ai_mqtt_ctx->config.derived_client_id) {
+        if ((ai_mqtt_ctx->config.domain_num == 0) || !ai_mqtt_ctx->config.derived_client_id) {
+            PR_ERR("miss required field");
             rt = OPRT_COM_ERROR;
         }
 #endif
@@ -171,17 +167,17 @@ AI_SERVER_CFG_INFO_T* tuya_ai_mq_ser_cfg_get(VOID)
     return &ai_mqtt_ctx->config;
 }
 
-OPERATE_RET tuya_ai_mq_token_req(char *solution_code, AI_AGENT_TOKEN_INFO_T *agent)
+OPERATE_RET tuya_ai_mq_token_req(CHAR_T *solution_code, AI_AGENT_TOKEN_INFO_T *agent)
 {
     OPERATE_RET rt = OPRT_OK;
-    char *mq_msg = OS_MALLOC(512);
+    CHAR_T *mq_msg = OS_MALLOC(512);
     TUYA_CHECK_NULL_RETURN(mq_msg, OPRT_MALLOC_FAILED);
     memset(mq_msg, 0, 512);
-    char biz_id[AI_UUID_V4_LEN + 1] = {0};
+    CHAR_T biz_id[AI_UUID_V4_LEN + 1] = {0};
     tuya_ai_basic_uuid_v4(biz_id);
-    snprintf(mq_msg, 512, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"devId\":\"%s\",\"data\":{\"type\":\"thingGetAgentToken\",\"data\":{\"aiSolutionCode\":\"%s\"}}}", \
+    sprintf(mq_msg, "{\"bizType\":\"EVENT\",\"bizId\":\"%s\",\"devId\":\"%s\",\"data\":{\"type\":\"thingGetAgentToken\",\"data\":{\"aiSolutionCode\":\"%s\"}}}", \
             biz_id, get_gw_dev_id(), (!tuya_ai_agent_is_internal_scode() && solution_code) ? solution_code : "");
-    rt = mqc_send_custom_mqtt_msg(AI_MQ_PROTO_NUM, (uint8_t *)mq_msg);
+    rt = mqc_send_custom_mqtt_msg(AI_MQ_PROTO_NUM, (BYTE_T *)mq_msg);
     OS_FREE(mq_msg);
     if (OPRT_OK != rt) {
         PR_ERR("send mqtt msg err, rt:%d", rt);
@@ -204,7 +200,7 @@ OPERATE_RET tuya_ai_mq_token_req(char *solution_code, AI_AGENT_TOKEN_INFO_T *age
 
 STATIC VOID __ai_mq_ser_cfg_free(VOID)
 {
-    uint32_t idx = 0;
+    UINT_T idx = 0;
     if (ai_mqtt_ctx) {
         if (ai_mqtt_ctx->config.username) {
             OS_FREE(ai_mqtt_ctx->config.username);
@@ -231,8 +227,11 @@ STATIC VOID __ai_mq_ser_cfg_free(VOID)
         if (ai_mqtt_ctx->config.derived_client_id) {
             OS_FREE(ai_mqtt_ctx->config.derived_client_id);
         }
-        if (ai_mqtt_ctx->config.rsa_public_key) {
-            OS_FREE(ai_mqtt_ctx->config.rsa_public_key);
+        if (ai_mqtt_ctx->config.domains) {
+            for (idx = 0; idx < ai_mqtt_ctx->config.domain_num; idx++) {
+                OS_FREE(ai_mqtt_ctx->config.domains[idx]);
+            }
+            OS_FREE(ai_mqtt_ctx->config.domains);
         }
 #endif
         memset(&ai_mqtt_ctx->config, 0, SIZEOF(AI_SERVER_CFG_INFO_T));
@@ -242,7 +241,7 @@ STATIC VOID __ai_mq_ser_cfg_free(VOID)
 STATIC OPERATE_RET __ai_mq_parse_ser_cfg(ty_cJSON *root)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint32_t idx = 0;
+    UINT_T idx = 0;
 
     __ai_mq_ser_cfg_free();
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
@@ -276,7 +275,7 @@ STATIC OPERATE_RET __ai_mq_parse_ser_cfg(ty_cJSON *root)
     ai_mqtt_ctx->config.client_id = mm_strdup(clientId->valuestring);
     ai_mqtt_ctx->config.derived_algorithm = mm_strdup(derivedAlgorithm->valuestring);
     ai_mqtt_ctx->config.derived_iv = mm_strdup(derivedIv->valuestring);
-    ai_mqtt_ctx->config.hosts = OS_MALLOC(ai_mqtt_ctx->config.host_num * SIZEOF(char *));
+    ai_mqtt_ctx->config.hosts = OS_MALLOC(ai_mqtt_ctx->config.host_num * SIZEOF(CHAR_T *));
     if ((!ai_mqtt_ctx->config.hosts) || (!ai_mqtt_ctx->config.username) ||
         (!ai_mqtt_ctx->config.credential) || (!ai_mqtt_ctx->config.client_id) ||
         (!ai_mqtt_ctx->config.derived_algorithm) || (!ai_mqtt_ctx->config.derived_iv)) {
@@ -300,33 +299,29 @@ STATIC OPERATE_RET __ai_mq_parse_ser_cfg(ty_cJSON *root)
         }
     }
 #else
-    ty_cJSON *tcpport = ty_cJSON_GetObjectItem(root, "tcpport");
-    ty_cJSON *hosts = ty_cJSON_GetObjectItem(root, "hosts");
-    ty_cJSON *udpport = ty_cJSON_GetObjectItem(root, "udpport");
     ty_cJSON *expire = ty_cJSON_GetObjectItem(root, "expire");
-    ty_cJSON *rsa_public_key = ty_cJSON_GetObjectItem(root, "rsa_public_key");
+    ty_cJSON *domains = ty_cJSON_GetObjectItem(root, "domains");
+    ty_cJSON *tlsport = ty_cJSON_GetObjectItem(root, "ecc_tls_port");
     ty_cJSON *derived_client_id = ty_cJSON_GetObjectItem(root, "derived_client_id");
 
-    if (!tcpport || !hosts || !expire || !derived_client_id || !rsa_public_key) {
+    if (!tlsport || !domains || !expire || !derived_client_id) {
         PR_ERR("ai key vaule was null");
         return OPRT_CJSON_PARSE_ERR;
     }
 
-    ai_mqtt_ctx->config.host_num = ty_cJSON_GetArraySize(hosts);
-    if (ai_mqtt_ctx->config.host_num <= 0) {
-        PR_ERR("host num err %d", ai_mqtt_ctx->config.host_num);
+    ai_mqtt_ctx->config.domain_num = ty_cJSON_GetArraySize(domains);
+    if (ai_mqtt_ctx->config.domain_num <= 0) {
+        PR_ERR("domain num err %d", ai_mqtt_ctx->config.domain_num);
         return OPRT_COM_ERROR;
     }
-    ai_mqtt_ctx->config.tcp_port = tcpport->valueint;
-    if (udpport) {
-        ai_mqtt_ctx->config.udp_port = udpport->valueint;
-    }
-    ai_mqtt_ctx->config.expire = (uint64_t)expire->valueint;
+    ai_mqtt_ctx->config.tls_port = tlsport->valueint;
+    ai_mqtt_ctx->config.expire = (UINT64_T)expire->valueint;
     ai_mqtt_ctx->config.derived_client_id = mm_strdup(derived_client_id->valuestring);
-    ai_mqtt_ctx->config.rsa_public_key = mm_strdup(rsa_public_key->valuestring);
-    ai_mqtt_ctx->config.hosts = OS_MALLOC(ai_mqtt_ctx->config.host_num * SIZEOF(char *));
-    if ((!ai_mqtt_ctx->config.hosts) || (!ai_mqtt_ctx->config.derived_client_id) ||
-        (!ai_mqtt_ctx->config.rsa_public_key)) {
+    ai_mqtt_ctx->config.domains = OS_MALLOC(ai_mqtt_ctx->config.domain_num * SIZEOF(CHAR_T *));
+    if (ai_mqtt_ctx->config.host_num > 0) {
+        ai_mqtt_ctx->config.hosts = OS_MALLOC(ai_mqtt_ctx->config.host_num * SIZEOF(CHAR_T *));
+    }
+    if ((!ai_mqtt_ctx->config.domains) || (!ai_mqtt_ctx->config.derived_client_id)) {
         PR_ERR("malloc err");
         rt = OPRT_MALLOC_FAILED;
         goto EXIT;
@@ -334,13 +329,14 @@ STATIC OPERATE_RET __ai_mq_parse_ser_cfg(ty_cJSON *root)
 
     AI_PROTO_D("expire:%lld", ai_mqtt_ctx->config.expire);
     AI_PROTO_D("derived_client_id: %s", ai_mqtt_ctx->config.derived_client_id);
-    AI_PROTO_D("rsa_public_key: %s", ai_mqtt_ctx->config.rsa_public_key);
+    AI_PROTO_D("domain num: %d", ai_mqtt_ctx->config.domain_num);
+    AI_PROTO_D("host num: %d", ai_mqtt_ctx->config.host_num);
 
-    for (idx = 0; idx < ai_mqtt_ctx->config.host_num; idx++) {
-        ty_cJSON *host = ty_cJSON_GetArrayItem(hosts, idx);
-        ai_mqtt_ctx->config.hosts[idx] = mm_strdup(host->valuestring);
-        AI_PROTO_D("host[%d]: %s", idx, ai_mqtt_ctx->config.hosts[idx]);
-        if (!ai_mqtt_ctx->config.hosts[idx]) {
+    for (idx = 0; idx < ai_mqtt_ctx->config.domain_num; idx++) {
+        ty_cJSON *domain = ty_cJSON_GetArrayItem(domains, idx);
+        ai_mqtt_ctx->config.domains[idx] = mm_strdup(domain->valuestring);
+        AI_PROTO_D("domain[%d]: %s", idx, ai_mqtt_ctx->config.domains[idx]);
+        if (!ai_mqtt_ctx->config.domains[idx]) {
             PR_ERR("malloc host err");
             rt = OPRT_MALLOC_FAILED;
             goto EXIT;
@@ -357,11 +353,11 @@ EXIT:
 OPERATE_RET tuya_ai_atop_ser_cfg_req(VOID)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint64_t bizTag = 0;
+    UINT64_T bizTag = 0;
     ty_cJSON *root = ty_cJSON_CreateObject();
     TUYA_CHECK_NULL_RETURN(root, OPRT_MALLOC_FAILED);
     ty_cJSON_AddNumberToObject(root, "bizTag", bizTag);
-    char *post_data = ty_cJSON_PrintUnformatted(root);
+    CHAR_T *post_data = ty_cJSON_PrintUnformatted(root);
     ty_cJSON_Delete(root);
     TUYA_CHECK_NULL_RETURN(post_data, OPRT_MALLOC_FAILED);
 
@@ -417,13 +413,13 @@ STATIC OPERATE_RET __ai_mq_do_ser_cfg(ty_cJSON *root)
 
 STATIC OPERATE_RET __ai_mq_parse_biz_cfg(ty_cJSON *root, BOOL_T is_send)
 {
-    uint32_t size = 0, idx = 0;
+    UINT_T size = 0, idx = 0;
     size = ty_cJSON_GetArraySize(root);
     if ((size > AI_BIZ_MAX_NUM) || (size == 0)) {
         PR_ERR("biz size err %d", size);
         return OPRT_CJSON_PARSE_ERR;
     }
-    char *value = NULL;
+    CHAR_T *value = NULL;
     if (is_send) {
         ai_mqtt_ctx->agent.biz.send_num = size;
         value = ai_mqtt_ctx->agent.biz.send;

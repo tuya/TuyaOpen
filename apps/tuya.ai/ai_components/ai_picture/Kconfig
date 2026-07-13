@@ -1,3 +1,0 @@
-menuconfig ENABLE_COMP_AI_PICTURE
-    bool "enable ai picture"
-    default n

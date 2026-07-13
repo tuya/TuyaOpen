@@ -857,9 +857,9 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
     /* LOCK */
     /* publish async process */
     mqtt_publish_handle_t **next_handle = &context->publish_list;
-    for (; *next_handle; next_handle = &(*next_handle)->next) {
+    while (*next_handle) {
         mqtt_publish_handle_t *entry = *next_handle;
-
+    
         if (entry->timeout <= tal_time_get_posix()) {
             entry->cb(OPRT_TIMEOUT, entry->user_data);
             *next_handle = entry->next;
@@ -867,11 +867,12 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
             tal_free(entry);
             continue;
         }
-
+    
         if (entry->msgid <= 0) {
-            entry->msgid =
-                mqtt_client_publish(context->mqtt_client, entry->topic, entry->payload, entry->payload_length, 1);
+            entry->msgid = mqtt_client_publish(context->mqtt_client,
+                entry->topic, entry->payload, entry->payload_length, 1);
         }
+        next_handle = &entry->next;
     }
     /* UNLOCK */
 

@@ -4,6 +4,8 @@
 #include "tal_sw_timer.h"
 
 #include "app_servo.h"
+
+#include <stdint.h>
 #define EMOJI_GPIO_NUM_18   TUYA_PWM_NUM_0
 #define EMOJI_GPIO_NUM_24   TUYA_PWM_NUM_1
 #define EMOJI_GPIO_NUM_32   TUYA_PWM_NUM_2
@@ -34,8 +36,8 @@
 #define SERVO_ANGLE_RIGHT        150
 
 // Maintain current angles of horizontal and vertical servos
-STATIC UINT_T s_servo_horizontal_angle = SERVO_ANGLE_CENTER_HORI;
-STATIC UINT_T s_servo_vertical_angle   = SERVO_ANGLE_CENTER_VERT;
+static unsigned int s_servo_horizontal_angle = SERVO_ANGLE_CENTER_HORI;
+static unsigned int s_servo_vertical_angle   = SERVO_ANGLE_CENTER_VERT;
 
 // Servo position states for smooth transition
 typedef enum {
@@ -47,17 +49,17 @@ typedef enum {
     SERVO_POS_RIGHT
 } SERVO_POSITION_E;
 
-STATIC SERVO_POSITION_E s_servo_vertical_state = SERVO_POS_CENTER_VERT;
-STATIC SERVO_POSITION_E s_servo_horizontal_state = SERVO_POS_CENTER_HORI;
+static SERVO_POSITION_E s_servo_vertical_state = SERVO_POS_CENTER_VERT;
+static SERVO_POSITION_E s_servo_horizontal_state = SERVO_POS_CENTER_HORI;
 
 // Auto center timer variables
 #define AUTO_CENTER_TIMEOUT_MS        5000   // 5 seconds timeout
-STATIC TIMER_ID s_auto_center_timer = 0;
-STATIC BOOL_T s_auto_center_enabled = TRUE;
+static TIMER_ID s_auto_center_timer = 0;
+static BOOL_T s_auto_center_enabled = TRUE;
 
-STATIC UINT32_T angle_to_duty(INT_T angle)
+static uint32_t angle_to_duty(int angle)
 {
-    FLOAT_T pulse_ms = 1.0;
+    float pulse_ms = 1.0;
 
     // Clamp angle
     if (angle < 0) angle = 0;
@@ -66,10 +68,10 @@ STATIC UINT32_T angle_to_duty(INT_T angle)
     pulse_ms = 0.5 + (angle / 180.0) * 2;
     
     // Convert to duty cycle value (20ms period corresponds to 10000 units, 1ms=500 units)
-    return (UINT32_T)(pulse_ms * 500);
+    return (uint32_t)(pulse_ms * 500);
 }
 
-STATIC FLOAT_T ease_in_out_cubic(FLOAT_T t)
+static float ease_in_out_cubic(float t)
 {
     if (t < 0.5) {
         return 4 * t * t * t;
@@ -79,15 +81,15 @@ STATIC FLOAT_T ease_in_out_cubic(FLOAT_T t)
 }
 
 // Forward declarations
-STATIC VOID app_servo_center(VOID);
-STATIC VOID app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, INT_T target_angle, UINT_T move_time_ms);
-STATIC VOID app_servo_auto_center_timer_cb(TIMER_ID timer_id, PVOID_T arg);
-STATIC VOID app_servo_smooth_move_vertical(SERVO_ACTION_E action);
-STATIC VOID app_servo_smooth_move_horizontal(SERVO_ACTION_E action);
-STATIC CONST CHAR_T* app_servo_action_to_string(SERVO_ACTION_E action);
+static void app_servo_center(void);
+static void app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, unsigned int *p_angle, int target_angle, unsigned int move_time_ms);
+static void app_servo_auto_center_timer_cb(TIMER_ID timer_id, void * arg);
+static void app_servo_smooth_move_vertical(SERVO_ACTION_E action);
+static void app_servo_smooth_move_horizontal(SERVO_ACTION_E action);
+static const char* app_servo_action_to_string(SERVO_ACTION_E action);
 
 // Enhanced move function with speed control
-STATIC VOID app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, INT_T target_angle, UINT_T move_time_ms)
+static void app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, unsigned int *p_angle, int target_angle, unsigned int move_time_ms)
 {
     // Add safety checks
     if (p_angle == NULL) {
@@ -99,31 +101,31 @@ STATIC VOID app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, 
     if (target_angle < 0) target_angle = 0;
     if (target_angle > 180) target_angle = 180;
     
-    INT_T start_angle = *p_angle;
-    INT_T delta = target_angle - start_angle;
-    INT_T abs_delta = delta > 0 ? delta : -delta;
+    int start_angle = *p_angle;
+    int delta = target_angle - start_angle;
+    int abs_delta = delta > 0 ? delta : -delta;
     if (abs_delta == 0) return;
 
-    UINT_T total_time = (move_time_ms * abs_delta) / 180;
+    unsigned int total_time = (move_time_ms * abs_delta) / 180;
     if (total_time == 0) {
         total_time = move_time_ms / SERVO_STEP_COUNT;
     } else if (total_time > move_time_ms) {
         total_time = move_time_ms;
     }
 
-    UINT_T steps = total_time / (move_time_ms / SERVO_STEP_COUNT);
+    unsigned int steps = total_time / (move_time_ms / SERVO_STEP_COUNT);
     if (steps == 0) steps = 1;
     if (steps > 1000) steps = 1000; // Prevent excessive steps
-    UINT_T step_delay = total_time / steps;
+    unsigned int step_delay = total_time / steps;
     if (step_delay == 0) step_delay = 1; // Prevent zero delay
 
     PR_DEBUG("Moving servo from %d to %d, steps: %d, delay: %d", start_angle, target_angle, steps, step_delay);
 
-    for (UINT_T i = 1; i <= steps; ++i) {
-        FLOAT_T t = (FLOAT_T)i / steps;
-        FLOAT_T ease = ease_in_out_cubic(t);
-        INT_T cur_angle = start_angle + (INT_T)(delta * ease + 0.5f);
-        UINT32_T duty = angle_to_duty(cur_angle);
+    for (unsigned int i = 1; i <= steps; ++i) {
+        float t = (float)i / steps;
+        float ease = ease_in_out_cubic(t);
+        int cur_angle = start_angle + (int)(delta * ease + 0.5f);
+        uint32_t duty = angle_to_duty(cur_angle);
         
         // Add error checking for PWM
         OPERATE_RET ret = tkl_pwm_duty_set(ch_id, duty);
@@ -138,13 +140,13 @@ STATIC VOID app_servo_move_to_with_speed(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, 
 }
 
 // Optimized: Add parameters to control horizontal and vertical channel angles separately
-STATIC VOID app_servo_move_to(TUYA_PWM_NUM_E ch_id, UINT_T *p_angle, INT_T target_angle)
+static void app_servo_move_to(TUYA_PWM_NUM_E ch_id, unsigned int *p_angle, int target_angle)
 {
     app_servo_move_to_with_speed(ch_id, p_angle, target_angle, SERVO_MOVE_TIME_MS);
 }
 
 // Auto center timer callback function
-STATIC VOID app_servo_auto_center_timer_cb(TIMER_ID timer_id, PVOID_T arg)
+static void app_servo_auto_center_timer_cb(TIMER_ID timer_id, void * arg)
 {
     if (!s_auto_center_enabled) return;
     
@@ -153,7 +155,7 @@ STATIC VOID app_servo_auto_center_timer_cb(TIMER_ID timer_id, PVOID_T arg)
 }
 
 // Start auto center timer
-STATIC VOID app_servo_start_auto_center_timer(VOID)
+static void app_servo_start_auto_center_timer(void)
 {
     if (!s_auto_center_enabled) return;
     
@@ -182,7 +184,7 @@ STATIC VOID app_servo_start_auto_center_timer(VOID)
 }
 
 // Stop auto center timer
-STATIC VOID app_servo_stop_auto_center_timer(VOID)
+static void app_servo_stop_auto_center_timer(void)
 {
     if (s_auto_center_timer != 0) {
         tal_sw_timer_stop(s_auto_center_timer);
@@ -193,13 +195,13 @@ STATIC VOID app_servo_stop_auto_center_timer(VOID)
 }
 
 // Update action time - restart timer on new action
-STATIC VOID app_servo_update_action_time(VOID)
+static void app_servo_update_action_time(void)
 {
     app_servo_start_auto_center_timer();
 }
 
 // Convert servo action enum to string for debugging
-STATIC CONST CHAR_T* app_servo_action_to_string(SERVO_ACTION_E action)
+static const char* app_servo_action_to_string(SERVO_ACTION_E action)
 {
     switch (action) {
         case SERVO_UP:
@@ -224,10 +226,10 @@ STATIC CONST CHAR_T* app_servo_action_to_string(SERVO_ACTION_E action)
 }
 
 // Smooth vertical movement with center transition
-STATIC VOID app_servo_smooth_move_vertical(SERVO_ACTION_E action)
+static void app_servo_smooth_move_vertical(SERVO_ACTION_E action)
 {
     SERVO_POSITION_E target_state;
-    INT_T target_angle;
+    int target_angle;
     
     // Determine target state and angle
     if (action == SERVO_UP) {
@@ -264,10 +266,10 @@ STATIC VOID app_servo_smooth_move_vertical(SERVO_ACTION_E action)
 }
 
 // Smooth horizontal movement with center transition
-STATIC VOID app_servo_smooth_move_horizontal(SERVO_ACTION_E action)
+static void app_servo_smooth_move_horizontal(SERVO_ACTION_E action)
 {
     SERVO_POSITION_E target_state;
-    INT_T target_angle;
+    int target_angle;
     
     // Determine target state and angle
     if (action == SERVO_LEFT) {
@@ -304,7 +306,7 @@ STATIC VOID app_servo_smooth_move_horizontal(SERVO_ACTION_E action)
 }
 
 // Vertical center (90°)
-STATIC VOID app_servo_center(VOID)
+static void app_servo_center(void)
 {
     app_servo_move_to(SERVO_PWM_VERTICAL, &s_servo_vertical_angle, SERVO_ANGLE_CENTER_VERT);
     app_servo_move_to(SERVO_PWM_HORIZONTAL, &s_servo_horizontal_angle, SERVO_ANGLE_CENTER_HORI);
@@ -315,12 +317,12 @@ STATIC VOID app_servo_center(VOID)
 }
 
 // Enhanced nod action: faster and with more amplitude
-STATIC VOID app_servo_nod(VOID)
+static void app_servo_nod(void)
 {
-    UINT_T i;
+    unsigned int i;
     // Increased amplitude for more noticeable nodding
-    INT_T nod_down = SERVO_ANGLE_CENTER_VERT + 35;  // More down movement
-    INT_T nod_up = SERVO_ANGLE_CENTER_VERT - 25;    // More up movement
+    int nod_down = SERVO_ANGLE_CENTER_VERT + 35;  // More down movement
+    int nod_up = SERVO_ANGLE_CENTER_VERT - 25;    // More up movement
 
     PR_DEBUG("Starting enhanced nod action");
     
@@ -340,7 +342,7 @@ STATIC VOID app_servo_nod(VOID)
 }
 
 // Simple and stable clockwise rotation
-STATIC VOID app_servo_clockwise(VOID)
+static void app_servo_clockwise(void)
 {
     PR_DEBUG("Starting simple clockwise rotation");
     
@@ -375,7 +377,7 @@ STATIC VOID app_servo_clockwise(VOID)
 }
 
 // Simple and stable counter-clockwise rotation
-STATIC VOID app_servo_anticlockwise(VOID)
+static void app_servo_anticlockwise(void)
 {
     PR_DEBUG("Starting simple anticlockwise rotation");
     
@@ -409,7 +411,7 @@ STATIC VOID app_servo_anticlockwise(VOID)
     PR_DEBUG("Simple anticlockwise rotation completed");
 }
 
-OPERATE_RET app_servo_init(VOID)
+OPERATE_RET app_servo_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_PWM_BASE_CFG_T cfg_x = {
@@ -450,12 +452,12 @@ OPERATE_RET app_servo_init(VOID)
 }
 
 // Cleanup function to stop timer (can be called on exit)
-VOID app_servo_cleanup(VOID)
+void app_servo_cleanup(void)
 {
     app_servo_stop_auto_center_timer();
 }
 
-VOID app_servo_move(SERVO_ACTION_E action)
+void app_servo_move(SERVO_ACTION_E action)
 {
     PR_DEBUG("servo action: %s (%d)", app_servo_action_to_string(action), action);
 

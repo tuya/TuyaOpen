@@ -39,7 +39,7 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-
+ 
 /**
  * @brief user_main
  *
@@ -66,11 +66,11 @@ void user_main(void)
 
     /*spi init*/
     TUYA_SPI_BASE_CFG_T spi_cfg = {.mode = TUYA_SPI_MODE0,
-                                   .freq_hz = EXAMPLE_SPI_BAUDRATE,
-                                   .databits = TUYA_SPI_DATA_BIT8,
-                                   .bitorder = TUYA_SPI_ORDER_LSB2MSB,
-                                   .role = TUYA_SPI_ROLE_MASTER,
-                                   .type = TUYA_SPI_AUTO_TYPE};
+                                .freq_hz = EXAMPLE_SPI_BAUDRATE,
+                                .databits = TUYA_SPI_DATA_BIT8,
+                                .bitorder = TUYA_SPI_ORDER_LSB2MSB,
+                                .role = TUYA_SPI_ROLE_MASTER,
+                                .type = TUYA_SPI_AUTO_TYPE};
     TUYA_CALL_ERR_GOTO(tkl_spi_init(EXAMPLE_SPI_PORT, &spi_cfg), __EXIT);
 
     while(1) {

@@ -46,10 +46,10 @@
 #define     GES_CLOCKWISE_FLAG              PAJ7620_VAL(1,6)
 #define     GES_COUNT_CLOCKWISE_FLAG        PAJ7620_VAL(1,7)
 #define     GES_WAVE_FLAG                   PAJ7620_VAL(1,0)
-STATIC GESTURE_CB_T s_gesture_cb = NULL;
+static GESTURE_CB_T s_gesture_cb = NULL;
 
-STATIC THREAD_HANDLE s_gesture_thread_handle = NULL;
-STATIC SEM_HANDLE s_gesture_sem = NULL;
+static THREAD_HANDLE s_gesture_thread_handle = NULL;
+static SEM_HANDLE s_gesture_sem = NULL;
 
 static uint8_t __gesture_i2c_read_uint8(uint8_t reg)
 {
@@ -86,7 +86,7 @@ static int __gesture_i2c_write_uint8(uint8_t reg, uint8_t value)
     return rt;
 }
 
-STATIC VOID __gesture_thread_process(VOID *arg)
+static void __gesture_thread_process(void *arg)
 {
     uint8_t data = 0, data1 = 0;
     GESTURE_TYPE_E gesture = GESTURE_NONE;
@@ -159,7 +159,7 @@ STATIC VOID __gesture_thread_process(VOID *arg)
     }
 }
 
-STATIC VOID __gesture_irq_cb(VOID *args)
+static void __gesture_irq_cb(void *args)
 {
     tal_semaphore_post(s_gesture_sem);
 }

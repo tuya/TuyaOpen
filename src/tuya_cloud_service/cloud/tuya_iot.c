@@ -32,6 +32,7 @@
 #include "tuya_mqtt_dispatch.h"
 #include "tuya_register_center.h"
 #include "tuya_tls.h"
+#include "tuya_cert_manager.h"
 #include "tuya_lan.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netcfg.h"
@@ -359,6 +360,8 @@ static void matop_upgrade_info_on(atop_base_response_t *response, void *user_dat
     client->event.value.asJSON = response->result;
     iot_dispatch_event(client);
 
+
+
     TUYA_CALL_ERR_LOG(tuya_ota_start(response->result));
 }
 
@@ -609,6 +612,7 @@ int tuya_iot_init(tuya_iot_client_t *client, const tuya_iot_config_t *config)
     /* Software timer Init */
     tuya_tls_init();
     tuya_register_center_init();
+    tuya_cert_manager_init();
     /* Load Tuya cloud endpoint config */
     tuya_endpoint_init();
     /* Try to read the local activation data.

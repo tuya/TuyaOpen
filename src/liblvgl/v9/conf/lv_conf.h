@@ -49,7 +49,11 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CUSTOM
+#ifdef LVGL_PC_SIMULATOR
+    #define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
+#else
+    #define LV_USE_STDLIB_MALLOC    LV_STDLIB_CUSTOM
+#endif
 #define LV_USE_STDLIB_STRING    LV_STDLIB_BUILTIN
 #define LV_USE_STDLIB_SPRINTF   LV_STDLIB_BUILTIN
 
@@ -96,7 +100,7 @@
  * - LV_OS_WINDOWS
  * - LV_OS_CUSTOM */
 #if defined(ENABLE_LVGL_OS_FREERTOS) && (ENABLE_LVGL_OS_FREERTOS == 1)
-#define LV_USE_OS   LV_OS_FREERTOS
+// #define LV_USE_OS   LV_OS_FREERTOS
 #else
 #define LV_USE_OS   LV_OS_NONE
 #endif
@@ -754,15 +758,21 @@
 
 /*PNG decoder library*/
 // Modified by TUYA Start
+#ifndef LVGL_PC_SIMULATOR
 #define LV_USE_PNG 1
 #if LV_USE_PNG
     #define LV_PNG_USE_PSRAM 1          /* 0: use default sram memory, 1: use psram memory. */
+#endif
+#else
+#define LV_USE_PNG 0
 #endif
 // Modified by TUYA End
 
 /*LODEPNG decoder library*/
 #ifdef ENABLE_LVGL_LODEPNG
 #define LV_USE_LODEPNG ENABLE_LVGL_LODEPNG
+#elif defined(LVGL_PC_SIMULATOR)
+#define LV_USE_LODEPNG 1
 #else
 #define LV_USE_LODEPNG 0
 #endif
@@ -966,7 +976,11 @@
  *==================*/
 
 /*Use SDL to open window on PC and handle mouse and keyboard*/
-#define LV_USE_SDL              0
+#ifdef LVGL_PC_SIMULATOR
+    #define LV_USE_SDL              1
+#else
+    #define LV_USE_SDL              0
+#endif
 #if LV_USE_SDL
     #define LV_SDL_INCLUDE_PATH     <SDL2/SDL.h>
     #define LV_SDL_RENDER_MODE      LV_DISPLAY_RENDER_MODE_DIRECT   /*LV_DISPLAY_RENDER_MODE_DIRECT is recommended for best performance*/

@@ -31,7 +31,9 @@
 #include "ebook_screen.h"
 #include "rfid_scan_screen.h"
 #include "camera_screen.h"
+#ifdef ENABLE_LVGL_HARDWARE
 #include "game_pet.h"
+#endif
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
@@ -428,7 +430,7 @@ static void keyboard_event_cb(lv_event_t *e)
         printf("C key pressed - Setting battery to charging\n");
         // screen_load(&standby_screen);
         // screen_load(&ebook_screen);
-        screen_load(&rfid_scan_screen);
+        // screen_load(&rfid_scan_screen);
         break;
 #endif
     default:
@@ -1056,6 +1058,7 @@ void main_screen_set_pet_animation_state(ai_pet_state_t state)
 
     printf("[%s] Pet animation state changing: %d -> %d\n", main_screen.name, current_animation_state, state);
 
+#ifdef ENABLE_LVGL_HARDWARE
     // Play sound effect based on pet state
     switch (state) {
     case AI_PET_STATE_SLEEP:
@@ -1086,9 +1089,9 @@ void main_screen_set_pet_animation_state(ai_pet_state_t state)
         game_pet_play_alert(PET_ALERT_THREE_STAGE_UP_TONE);
         break;
     default:
-        // No sound for AI_PET_STATE_NORMAL
         break;
     }
+#endif
 
     // Simply update the state variable - timer will handle GIF switching
     current_animation_state = state;

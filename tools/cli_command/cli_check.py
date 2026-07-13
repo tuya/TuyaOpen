@@ -2,9 +2,11 @@
 # coding=utf-8
 
 import os
+import sys
 import click
 import subprocess
 import re
+import shutil
 from typing import List
 
 from tools.cli_command.util import (
@@ -114,6 +116,21 @@ def check_command_version(tool_name, min_version, ver_cmd="--version"):
     return True
 
 
+def _ensure_make_for_check():
+    if sys.platform != "win32":
+        return
+    if shutil.which("make"):
+        return
+    from tools.cli_command.cli_prepare import (
+        ensure_windows_make, prepend_windows_make_to_path,
+    )
+    logger = get_logger()
+    if ensure_windows_make():
+        prepend_windows_make_to_path()
+        return
+    logger.note("Run . .\\export.ps1 (or export.sh) to prepare host tools.")
+
+
 def check_base_tools():
     command_list = [
         ("git", "--version", "2.0.0"),
@@ -123,6 +140,8 @@ def check_base_tools():
     ]
 
     for command in command_list:
+        if command[0] == "make":
+            _ensure_make_for_check()
         check_command_version(command[0], command[2], command[1])
 
     copy_pre_commit()

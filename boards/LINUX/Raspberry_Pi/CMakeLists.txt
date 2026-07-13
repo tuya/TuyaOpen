@@ -53,14 +53,10 @@ endif()
 
 # Link SDL2 library if SDL display support is enabled
 if (CONFIG_ENABLE_SDL_DISPLAY STREQUAL "y")
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(SDL2 REQUIRED sdl2)
-
-    target_include_directories(${MODULE_NAME} PUBLIC ${SDL2_INCLUDE_DIRS})
-    target_compile_options(${MODULE_NAME} PUBLIC ${SDL2_CFLAGS_OTHER})
-    target_link_libraries(${MODULE_NAME} PUBLIC ${SDL2_LIBRARIES})
-
-    message(STATUS "Raspberry Pi board: Linking SDL2 for desktop window display")
+    set(SDL2_PREBUILT_DIR "${TOP_SOURCE_DIR}/platform/LINUX/tuyaos_adapter/src/tkl_display/libs/Raspberry_Pi/SDL2")
+    target_include_directories(${MODULE_NAME} PUBLIC "${SDL2_PREBUILT_DIR}/include/SDL2")
+    target_link_libraries(${MODULE_NAME} PUBLIC "${SDL2_PREBUILT_DIR}/libSDL2.a" pthread dl)
+    message(STATUS "Raspberry Pi board: Linking prebuilt ARM64 SDL2 static library (X11 via dlopen)")
 endif()
 
 ########################################

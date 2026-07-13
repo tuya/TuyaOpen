@@ -266,7 +266,8 @@ TDL_DISP_FRAME_BUFF_T *__create_rotate_tmp_fb(TDL_DISP_FRAME_BUFF_T *fb, TUYA_DI
 
 static OPERATE_RET __disp_fb_convert_yuv422_to_rgb565(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
                                                       TDL_DISP_FRAME_BUFF_T *out_fb, bool is_swap, \
-                                                      TUYA_DISPLAY_ROTATION_E rotate)
+                                                      TUYA_DISPLAY_ROTATION_E rotate, \
+                                                      TUYA_YUV422_ORDER_E yuv_order)
 {
     OPERATE_RET rt = OPRT_OK;
     TAL_IMAGE_YUV422_TO_RGB_T conv_cfg = {0};
@@ -285,6 +286,7 @@ static OPERATE_RET __disp_fb_convert_yuv422_to_rgb565(uint8_t *in_buf, uint16_t 
     conv_cfg.out_buf    = p_tmp_fb->frame;
     conv_cfg.out_width  = p_tmp_fb->width;
     conv_cfg.out_height = p_tmp_fb->height;
+    conv_cfg.in_order   = yuv_order;
 
     rt = tal_image_convert_yuv422_to_rgb565(&conv_cfg);
     if(rt != OPRT_OK) {
@@ -388,7 +390,8 @@ static OPERATE_RET __disp_fb_convert_yuv422_to_mono(uint8_t *in_buf, uint16_t in
 
 OPERATE_RET tdl_disp_convert_yuv422_to_fb(uint8_t *in_buf, uint16_t in_width, uint16_t in_height, \
                                           TDL_DISP_FRAME_BUFF_T *out_fb, bool is_swap, \
-                                          TUYA_DISPLAY_ROTATION_E rotate)
+                                          TUYA_DISPLAY_ROTATION_E rotate, \
+                                          TUYA_YUV422_ORDER_E yuv_order)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -399,7 +402,7 @@ OPERATE_RET tdl_disp_convert_yuv422_to_fb(uint8_t *in_buf, uint16_t in_width, ui
 
     switch(out_fb->fmt) {
     case TUYA_PIXEL_FMT_RGB565:
-        rt = __disp_fb_convert_yuv422_to_rgb565(in_buf, in_width, in_height, out_fb, is_swap, rotate);
+        rt = __disp_fb_convert_yuv422_to_rgb565(in_buf, in_width, in_height, out_fb, is_swap, rotate, yuv_order);
         break;
     case TUYA_PIXEL_FMT_RGB888:
         rt = __disp_fb_convert_yuv422_to_rgb888(in_buf, in_width, in_height, out_fb, rotate);

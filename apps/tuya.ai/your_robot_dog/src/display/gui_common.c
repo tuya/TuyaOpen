@@ -1,6 +1,7 @@
 //! Common GUI helpers
 #include "gui_common.h"
 #include "tuya_cloud_types.h"
+#include "tal_api.h"
 
 #include "lang_config.h"
 
@@ -9,10 +10,6 @@
 #include "tkl_fs.h"
 
 #define GUI_LOG(...)        bk_printf(__VA_ARGS__)
-
-/* Centralize PSRAM alloc/free declarations to avoid implicit declarations in multiple places */
-extern void *tkl_system_psram_malloc(CONST SIZE_T size);
-extern void  tkl_system_psram_free(void *ptr);
 
 #ifndef TY_AI_DEFAULT_LANG
 #define TY_AI_DEFAULT_LANG 0
@@ -122,7 +119,7 @@ OPERATE_RET gui_img_load_psram(char *filename, lv_img_dsc_t *img_dst)
     uint32_t file_size = (uint32_t)file_size64;
 
     // Allocate memory to store file content
-    uint8_t *buffer = tkl_system_psram_malloc(file_size);
+    uint8_t *buffer = tal_psram_malloc(file_size);
     if (buffer == NULL) {
         LV_LOG_ERROR("Memory allocation failed\n");
         tkl_fclose(file);
@@ -132,7 +129,7 @@ OPERATE_RET gui_img_load_psram(char *filename, lv_img_dsc_t *img_dst)
     int bytes_read = tkl_fread(buffer, (int)file_size, file);
     if (bytes_read != (int)file_size) {
         LV_LOG_ERROR("Failed to read file: %s read:%d expect:%u\n", filename, bytes_read, file_size);
-        tkl_system_psram_free(buffer);
+        tal_psram_free(buffer);
         tkl_fclose(file);
         return ret;
     }

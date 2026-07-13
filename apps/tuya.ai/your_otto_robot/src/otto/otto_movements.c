@@ -9,6 +9,7 @@
 //--------------------------------------------------------------
 
 #include "otto_movements.h"
+#include "otto_motion_ctrl.h"
 #include "oscillator.h"
 #include <math.h>
 #include <stdlib.h>
@@ -16,6 +17,9 @@
 
 
 Otto_t g_otto;
+
+#define OTTO_HOME_MOVE_MS           500
+#define OTTO_HOME_ADJUST_MAX        40
 
 static unsigned long millis()
 {
@@ -197,6 +201,71 @@ void otto_move_servos(int time, int servo_target[])
     }
 }
 
+/**
+ * @brief Move servos to target for homing (no rate limit, more settle iterations)
+ * @param[in] time Move duration in ms
+ * @param[in] servo_target Target angle per servo index
+ * @return none
+ */
+static void otto_move_servos_home(int time, int servo_target[])
+{
+    otto_disable_servo_limit();
+    if (g_otto.is_otto_resting == true) {
+        g_otto.is_otto_resting = false;
+    }
+
+    g_otto.final_time = millis() + time;
+    if (time > 10) {
+        for (int i = 0; i < SERVO_COUNT; i++) {
+            if (g_otto.oscillator_indices[i] != -1) {
+                g_otto.increment[i] =
+                    (servo_target[i] - oscillator_get_position(g_otto.oscillator_indices[i])) / (time / 10.0);
+            }
+        }
+
+        for (int iteration = 1; millis() < g_otto.final_time; iteration++) {
+            for (int i = 0; i < SERVO_COUNT; i++) {
+                if (g_otto.oscillator_indices[i] != -1) {
+                    oscillator_set_position(g_otto.oscillator_indices[i],
+                                            oscillator_get_position(g_otto.oscillator_indices[i]) +
+                                                g_otto.increment[i]);
+                }
+            }
+            tal_system_sleep(10);
+        }
+    } else {
+        for (int i = 0; i < SERVO_COUNT; i++) {
+            if (g_otto.oscillator_indices[i] != -1) {
+                oscillator_set_position(g_otto.oscillator_indices[i], servo_target[i]);
+            }
+        }
+        tal_system_sleep(time);
+    }
+
+    bool f = true;
+    int adjustment_count = 0;
+    while (f && adjustment_count < OTTO_HOME_ADJUST_MAX) {
+        f = false;
+        for (int i = 0; i < SERVO_COUNT; i++) {
+            if (g_otto.oscillator_indices[i] != -1 &&
+                servo_target[i] != oscillator_get_position(g_otto.oscillator_indices[i])) {
+                f = true;
+                break;
+            }
+        }
+        if (f) {
+            for (int i = 0; i < SERVO_COUNT; i++) {
+                if (g_otto.oscillator_indices[i] != -1) {
+                    oscillator_set_position(g_otto.oscillator_indices[i], servo_target[i]);
+                }
+            }
+            tal_system_sleep(10);
+            adjustment_count++;
+        }
+    }
+    otto_enable_servo_limit(SERVO_LIMIT_DEFAULT);
+}
+
 void otto_move_single(int position, int servo_number)
 {
     if (position > 180)
@@ -229,6 +298,9 @@ void otto_oscillate_servos(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], 
     unsigned long end_time = (unsigned long)(period * cycle + ref);
 
     while (millis() < end_time) {
+        if (otto_motion_should_abort()) {
+            break;
+        }
         for (int i = 0; i < SERVO_COUNT; i++) {
             if (g_otto.oscillator_indices[i] != -1) {
                 oscillator_refresh(g_otto.oscillator_indices[i]);
@@ -264,42 +336,37 @@ void otto_execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT], int perio
 ///////////////////////////////////////////////////////////////////
 //-- HOME = Otto at rest position -------------------------------//
 ///////////////////////////////////////////////////////////////////
+/**
+ * @brief Return Otto to rest pose; legs/feet to 90 degrees
+ * @param[in] hands_down true to lower arms to home when present
+ * @return none
+ */
 void otto_home(bool hands_down)
 {
-  
-    // if (g_otto.is_otto_resting == false) { // Go to rest position only if necessary
+    otto_reset_all_oscillators();
 
-        // 关键修复：在回到home位置前，先重置所有振荡器相位，确保状态完全重置
-        otto_reset_all_oscillators();
-
-        int homes[SERVO_COUNT];
-        for (int i = 0; i < SERVO_COUNT; i++) {
-            if (i == LEFT_HAND || i == RIGHT_HAND) {
-                if (hands_down) {
-                   
-                    if (i == LEFT_HAND) {
-                        homes[i] = HAND_HOME_POSITION;
-                    } else {                                 // RIGHT_HAND
-                        homes[i] = 180 - HAND_HOME_POSITION; 
-                    }
+    int homes[SERVO_COUNT];
+    for (int i = 0; i < SERVO_COUNT; i++) {
+        if (i == LEFT_HAND || i == RIGHT_HAND) {
+            if (hands_down) {
+                if (i == LEFT_HAND) {
+                    homes[i] = HAND_HOME_POSITION;
                 } else {
-                    
-                    if (g_otto.oscillator_indices[i] != -1) {
-                        homes[i] = oscillator_get_position(g_otto.oscillator_indices[i]);
-                    } else {
-                        homes[i] = 90;
-                    }
+                    homes[i] = 180 - HAND_HOME_POSITION;
                 }
             } else {
-                
-                homes[i] = 90;
+                if (g_otto.oscillator_indices[i] != -1) {
+                    homes[i] = oscillator_get_position(g_otto.oscillator_indices[i]);
+                } else {
+                    homes[i] = 90;
+                }
             }
+        } else {
+            homes[i] = 90;
         }
+    }
 
-        otto_move_servos(500, homes);
-    //     g_otto.is_otto_resting = true;
-    // }
-
+    otto_move_servos_home(OTTO_HOME_MOVE_MS, homes);
     tal_system_sleep(200);
 }
 

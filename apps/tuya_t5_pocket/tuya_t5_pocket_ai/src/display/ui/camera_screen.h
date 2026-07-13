@@ -25,7 +25,9 @@ extern "C" {
 #endif
 
 #include "screen_manager.h"
+#ifdef ENABLE_LVGL_HARDWARE
 #include "yuv422_to_binary.h"
+#endif
 /**
  * @brief Camera screen lifecycle callback type
  * Called when screen is initialized or deinitialized
@@ -34,6 +36,7 @@ extern "C" {
  */
 typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
 
+#ifdef ENABLE_LVGL_HARDWARE
 /**
  * @brief Camera photo print callback type
  * Called when ENTER key is pressed to print current photo from raw YUV422 data
@@ -41,6 +44,7 @@ typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
  * @note The yuv422_data buffer will be freed after callback returns
  */
 typedef void (*camera_photo_print_cb_t)(const YUV422_TO_BINARY_PARAMS_T *params);
+#endif
 
 extern Screen_t camera_screen;
 
@@ -53,12 +57,14 @@ void camera_screen_deinit(void);
  */
 void camera_screen_register_lifecycle_cb(camera_screen_lifecycle_cb_t callback);
 
+#ifdef ENABLE_LVGL_HARDWARE
 /**
  * @brief Register photo print callback for camera screen
  * Called when ENTER key is pressed with current photo data
  * @param callback Callback function, NULL to unregister
  */
 void camera_screen_register_print_cb(camera_photo_print_cb_t callback);
+#endif
 
 #ifdef __cplusplus
 } /*extern "C"*/

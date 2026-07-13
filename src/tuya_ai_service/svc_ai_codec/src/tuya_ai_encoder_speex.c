@@ -31,12 +31,12 @@ typedef VOID *SpeexEncoder;
 typedef struct {
     SpeexEncoder *codec;            // speex encoder handle
     SpeexBits bits;                 // speex encode bits
-    uint32_t frame_size;              // Frame size in samples
-    uint32_t buf_offset;              // PCM data input buffer offset
-    uint8_t *in_buf;                 // Input buffer
-    uint32_t in_buf_size;             // Input buffer size
-    uint8_t *out_buf;                // Encoded output data buffer
-    uint32_t out_buf_size;            // Encoded output data buffer size
+    UINT_T frame_size;              // Frame size in samples
+    UINT_T buf_offset;              // PCM data input buffer offset
+    BYTE_T *in_buf;                 // Input buffer
+    UINT_T in_buf_size;             // Input buffer size
+    BYTE_T *out_buf;                // Encoded output data buffer
+    UINT_T out_buf_size;            // Encoded output data buffer size
 } TUYA_AI_SPEEX_CONTEXT_T;
 
 STATIC OPERATE_RET _encoder_speex_create(AI_ENCODE_HANDLE_T *handle, TUYA_AI_ENCODER_INFO_T *info)
@@ -44,7 +44,7 @@ STATIC OPERATE_RET _encoder_speex_create(AI_ENCODE_HANDLE_T *handle, TUYA_AI_ENC
     OPERATE_RET rt = OPRT_OK;
     // spx_int32_t vbr_enabled = 0;
     spx_int32_t complexity = 3, quality = SPEEX_QUALITY_DEF;
-    int channels = info->channels;
+    INT_T channels = info->channels;
     if (channels != 1) {
         ENC_PR_D("current speex supports only 1 channel.");
         return OPRT_INVALID_PARM;
@@ -59,8 +59,8 @@ STATIC OPERATE_RET _encoder_speex_create(AI_ENCODE_HANDLE_T *handle, TUYA_AI_ENC
     memset(speex, 0, sizeof(TUYA_AI_SPEEX_CONTEXT_T));
     ENC_PR_D("info->channels: %d, info->sample_rate: %d", info->channels, info->sample_rate);
 
-    CONST uint32_t frame_size_ms = 20;     // Default frame size is 20ms, can be 10, 20, 40 or 60ms
-    int frame_size = info->sample_rate / 1000 * frame_size_ms;
+    CONST UINT_T frame_size_ms = 20;     // Default frame size is 20ms, can be 10, 20, 40 or 60ms
+    INT_T frame_size = info->sample_rate / 1000 * frame_size_ms;
 
     const SpeexMode *mode = speex_lib_get_mode(SPEEX_MODEID_WB);
     SpeexEncoder *enc = speex_encoder_init(mode);
@@ -80,20 +80,20 @@ STATIC OPERATE_RET _encoder_speex_create(AI_ENCODE_HANDLE_T *handle, TUYA_AI_ENC
     // speex_encoder_ctl(enc, SPEEX_GET_VBR, &vbr_enabled);
 
     // /** FIXME: filling some data from external */
-    // p_encoder->p_start_data     = (uint8_t *)p_speex->p_head;
+    // p_encoder->p_start_data     = (BYTE_T *)p_speex->p_head;
     // p_encoder->start_data_len   = sizeof(*p_speex->p_head);
 
     speex->codec = enc;
     speex->bits = bits;
     speex->frame_size = frame_size;
     speex->in_buf_size = frame_size * channels * sizeof(INT16_T);
-    speex->in_buf = (uint8_t *)OS_Malloc(speex->in_buf_size);
+    speex->in_buf = (BYTE_T *)OS_Malloc(speex->in_buf_size);
     if (NULL == speex->in_buf) {
         rt = OPRT_MALLOC_FAILED;
         goto FAILURE_EXIT;
     }
     speex->out_buf_size = SPEEX_MAX_FRAME_BYTES;
-    speex->out_buf = (uint8_t *)OS_Malloc(speex->out_buf_size);
+    speex->out_buf = (BYTE_T *)OS_Malloc(speex->out_buf_size);
     if (NULL == speex->out_buf) {
         rt = OPRT_MALLOC_FAILED;
         goto FAILURE_EXIT;
@@ -144,7 +144,7 @@ STATIC OPERATE_RET _encoder_speex_destroy(AI_ENCODE_HANDLE_T handle)
     return OPRT_OK;
 }
 
-STATIC OPERATE_RET _encoder_speex_encode(AI_ENCODE_HANDLE_T handle, uint8_t *in_buf, uint32_t in_len, AI_ENCODER_DATA_OUT_CB cb, void *usr_data)
+STATIC OPERATE_RET _encoder_speex_encode(AI_ENCODE_HANDLE_T handle, UCHAR_T *in_buf, UINT_T in_len, AI_ENCODER_DATA_OUT_CB cb, void *usr_data)
 {
     TUYA_AI_SPEEX_CONTEXT_T *speex = (TUYA_AI_SPEEX_CONTEXT_T *)handle;
 
@@ -154,7 +154,7 @@ STATIC OPERATE_RET _encoder_speex_encode(AI_ENCODE_HANDLE_T handle, uint8_t *in_
     int out_bytes = 0;
 
     while (in_len > 0) {
-        uint32_t copy_size = speex->buf_offset + in_len > speex->in_buf_size ? speex->in_buf_size - speex->buf_offset : in_len;
+        UINT_T copy_size = speex->buf_offset + in_len > speex->in_buf_size ? speex->in_buf_size - speex->buf_offset : in_len;
         memcpy(speex->in_buf + speex->buf_offset, in_buf, copy_size);
         speex->buf_offset += copy_size;
         if (speex->buf_offset < speex->in_buf_size) {
