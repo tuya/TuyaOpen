@@ -249,6 +249,32 @@ tuya_uv_run_stream() {
     export UV_NO_PROGRESS UV_LINK_MODE
     tuya_uv_reset_diag
 
+    tuya_uv_release_venv_lock() {
+        local lock="$OPEN_SDK_ROOT/.venv/.lock"
+        [ -f "$lock" ] || return 0
+        if ps -C uv >/dev/null 2>&1; then
+            return 0
+        fi
+        rm -f "$lock" 2>/dev/null || true
+    }
+
+    tuya_uv_stream_cleanup() {
+        local exit_rc="${1:-0}"
+        if [ "$uv_pid" -gt 0 ]; then
+            kill -TERM "$uv_pid" 2>/dev/null || true
+            wait "$uv_pid" 2>/dev/null || true
+        fi
+        tuya_uv_release_venv_lock
+        rm -f "$fifo" "$tmp" 2>/dev/null || true
+        trap - INT TERM EXIT
+        if [ -z "$_saved_no_prog" ]; then unset UV_NO_PROGRESS; else UV_NO_PROGRESS="$_saved_no_prog"; export UV_NO_PROGRESS; fi
+        if [ -z "$_saved_link" ]; then unset UV_LINK_MODE; else UV_LINK_MODE="$_saved_link"; export UV_LINK_MODE; fi
+        return "$exit_rc"
+    }
+
+    trap 'tuya_uv_stream_cleanup 130; return 130 2>/dev/null || exit 130' INT TERM
+    trap 'tuya_uv_stream_cleanup 0; return 0 2>/dev/null || exit 0' EXIT
+
     fifo=$(mktemp -u 2>/dev/null || printf '%s' "/tmp/tuya_uv_fifo_$$")
     if mkfifo "$fifo" 2>/dev/null; then
         "$OPEN_SDK_UV" "$@" >"$fifo" 2>&1 &
@@ -269,6 +295,7 @@ tuya_uv_run_stream() {
         rm -f "$tmp" 2>/dev/null || true
     fi
 
+    trap - INT TERM EXIT
     if [ -z "$_saved_no_prog" ]; then unset UV_NO_PROGRESS;  else UV_NO_PROGRESS="$_saved_no_prog"; export UV_NO_PROGRESS; fi
     if [ -z "$_saved_link" ];    then unset UV_LINK_MODE;     else UV_LINK_MODE="$_saved_link";      export UV_LINK_MODE;     fi
     return "$rc"
@@ -1358,10 +1385,29 @@ tuya_sync_deps_error() {
     tuya_uv_print_diag
 }
 
+tuya_try_release_stale_lock() {
+    local lock="$OPEN_SDK_ROOT/.venv/.lock"
+    local owner='' stamp=0 age=0
+
+    [ -f "$lock" ] || return 0
+
+    owner=$(head -n 1 "$lock" 2>/dev/null | tr -d '[:space:]')
+    if [ -n "$owner" ] && [ -d "/proc/$owner" ]; then
+        return 0
+    fi
+
+    stamp=$(stat -c %Y "$lock" 2>/dev/null || echo 0)
+    age=$(( $(date +%s) - stamp ))
+    if [ "$age" -gt 15 ]; then
+        rm -f "$lock" 2>/dev/null || true
+    fi
+}
+
 tuya_sync_deps() {
     tuya_stage sync
     local plan saved_index="" saved_url="" rc=0 pkg_count
     tuya_uv_reset_diag
+    tuya_try_release_stale_lock
     plan=$(tuya_uv_sync_plan)
     pkg_count=$(tuya_lock_pkg_count)
     local src='PyPI (default)'
@@ -1425,7 +1471,7 @@ tuya_migrate_legacy_venv() {
 tuya_setup_venv() {
     tuya_stage venv
     local managed_python="${_tuya_managed_python:-}" venv_path="$OPEN_SDK_ROOT/.venv" marker="" rc=0
-    local venv_py="$venv_path/bin/python"
+    local venv_py="$venv_path/bin/python" created_venv=0
     tuya_migrate_legacy_venv || return 1
 
     if ! tuya_is_uv_venv "$venv_path" || [ ! -x "$venv_py" ]; then
@@ -1445,18 +1491,23 @@ tuya_setup_venv() {
                 'Check .venv permissions' 'Re-run: . ./export.sh'
             return 1
         }
+        created_venv=1
         tuya_debug '[TuyaOpen] .venv created.'
     fi
 
-    (
-        cd "$OPEN_SDK_ROOT" || exit 1
-        tuya_sync_deps
-    ) || rc=$?
-    if [ "$rc" -ne 0 ]; then
-        # tuya_sync_deps already reported the specific cause (incl. uv output).
-        return 1
+    if [ "$created_venv" -eq 1 ]; then
+        (
+            cd "$OPEN_SDK_ROOT" || exit 1
+            tuya_sync_deps
+        ) || rc=$?
+        if [ "$rc" -ne 0 ]; then
+            # tuya_sync_deps already reported the specific cause (incl. uv output).
+            return 1
+        fi
+        tuya_debug '[TuyaOpen] Dependencies synced.'
+    else
+        tuya_debug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
     fi
-    tuya_debug '[TuyaOpen] Dependencies synced.'
 
     if [ ! -x "$venv_py" ]; then
         tuya_error Sync '.venv Python missing after sync.' "$venv_py" \
