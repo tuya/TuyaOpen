@@ -1667,6 +1667,31 @@ function Complete-TuyaUvSyncProgress {
     }
 }
 
+function Try-RemoveTuyaStaleVenvLock {
+    param([Parameter(Mandatory)][string]$Root)
+    $lockPath = Join-Path $Root '.venv/.lock'
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) { return }
+
+    $owner = $null
+    try {
+        $owner = (Get-Content -LiteralPath $lockPath -TotalCount 1 -ErrorAction SilentlyContinue).Trim()
+    } catch {}
+
+    if ($owner -and $owner -match '^\d+$') {
+        if (Get-Process -Id ([int]$owner) -ErrorAction SilentlyContinue) {
+            return
+        }
+    }
+
+    $stamp = $null
+    try { $stamp = (Get-Item -LiteralPath $lockPath).LastWriteTimeUtc } catch { $stamp = $null }
+    if ($null -eq $stamp) { return }
+    $ageSeconds = [int]((Get-Date).ToUniversalTime() - $stamp).TotalSeconds
+    if ($ageSeconds -gt 15) {
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Invoke-TuyaUvSyncWithProgress {
     param(
         [Parameter(Mandatory)][string]$UvExe,
@@ -1675,6 +1700,7 @@ function Invoke-TuyaUvSyncWithProgress {
     )
 
     Reset-TuyaUvDiag
+    Try-RemoveTuyaStaleVenvLock -Root $Root
     $syncPlan = Get-TuyaUvSyncPlan
     $syncSrc = if ($syncPlan.UseAliyunMirror) { 'Aliyun PyPI mirror (CN)' } else { 'PyPI (default)' }
     Write-TuyaOpenInfo "[TuyaOpen] Syncing $TotalPackages Python dependencies from $syncSrc..."
@@ -1794,6 +1820,7 @@ function Invoke-TuyaSetupVenv {
     $venvPath = Join-Path $Root '.venv'
     $venvPy   = Join-Path $venvPath 'Scripts\python.exe'
     $marker   = Get-TuyaVenvMarkerPath -VenvPath $venvPath
+    $createdVenv = $false
 
     if (-not (Test-TuyaUvManagedVenv -VenvPath $venvPath) -or -not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {
         Write-TuyaOpenInfo '[TuyaOpen] Creating .venv...'
@@ -1810,28 +1837,33 @@ function Invoke-TuyaSetupVenv {
             Write-TuyaOpenFailureHint -Stage Venv -Summary 'Cannot write venv marker.' -Cause $marker -NextSteps @('Check .venv permissions', 'Re-run: . .\export.ps1')
             Stop-TuyaOpenExport 1
         }
+        $createdVenv = $true
         Write-TuyaOpenDebug '[TuyaOpen] .venv created.'
     }
 
-    Push-Location $Root
-    try {
-        Write-TuyaOpenStage -StageId 'sync'
-        $pkgCount = Get-TuyaUvLockPackageCount -LockPath (Join-Path $Root 'uv.lock')
-        $syncRc = Invoke-TuyaUvSyncWithProgress -UvExe $UvExe -Root $Root -TotalPackages $pkgCount
-        if ($syncRc -ne 0) {
-            $cause = 'uv sync --frozen failed.'
-            if ($script:TuyaUvDiag.Count -gt 0) {
-                if (Test-TuyaUvDiagIsNetwork) {
-                    $cause = 'network error while syncing dependencies (check connection/proxy; see uv sync output above)'
-                } else {
-                    $cause = 'dependency resolution or uv sync failed (see uv sync output above)'
+    if ($createdVenv) {
+        Push-Location $Root
+        try {
+            Write-TuyaOpenStage -StageId 'sync'
+            $pkgCount = Get-TuyaUvLockPackageCount -LockPath (Join-Path $Root 'uv.lock')
+            $syncRc = Invoke-TuyaUvSyncWithProgress -UvExe $UvExe -Root $Root -TotalPackages $pkgCount
+            if ($syncRc -ne 0) {
+                $cause = 'uv sync --frozen failed.'
+                if ($script:TuyaUvDiag.Count -gt 0) {
+                    if (Test-TuyaUvDiagIsNetwork) {
+                        $cause = 'network error while syncing dependencies (check connection/proxy; see uv sync output above)'
+                    } else {
+                        $cause = 'dependency resolution or uv sync failed (see uv sync output above)'
+                    }
                 }
+                Write-TuyaOpenFailureHint -Stage Sync -Summary 'Dependency sync failed.' -Cause $cause -NextSteps @('Ensure uv.lock matches pyproject.toml', 'Check network, then re-run: . .\export.ps1')
+                Stop-TuyaOpenExport 1
             }
-            Write-TuyaOpenFailureHint -Stage Sync -Summary 'Dependency sync failed.' -Cause $cause -NextSteps @('Ensure uv.lock matches pyproject.toml', 'Check network, then re-run: . .\export.ps1')
-            Stop-TuyaOpenExport 1
-        }
-        Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
-    } finally { Pop-Location }
+            Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
+        } finally { Pop-Location }
+    } else {
+        Write-TuyaOpenDebug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
+    }
 
     if (-not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {
         Write-TuyaOpenFailureHint -Stage Sync -Summary '.venv Python missing after sync.' -Cause $venvPy -NextSteps @('Remove .venv and re-run: . .\export.ps1')
