@@ -100,7 +100,7 @@ void __ui_set_custom_msg(uint32_t type, uint8_t *data, int len )
     lv_vendor_disp_unlock();
 }
 
-OPERATE_RET ai_ui_chat_register(void)
+OPERATE_RET app_ai_ui_chat_register(void)
 {
     AI_UI_INTFS_T intfs;
 
@@ -115,6 +115,6 @@ OPERATE_RET ai_ui_chat_register(void)
 
 #else /* ENABLE_LVGL_HARDWARE */
 
-OPERATE_RET ai_ui_chat_register(void) { return OPRT_OK; }
+OPERATE_RET app_ai_ui_chat_register(void) { return OPRT_OK; }
 
 #endif /* ENABLE_LVGL_HARDWARE */

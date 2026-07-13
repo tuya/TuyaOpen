@@ -205,7 +205,7 @@ int tuya_iot_dp_parse(tuya_iot_client_t *client, dp_cmd_type_t cmd_tp, cJSON *cm
  * service.
  *
  * @param client The Tuya IoT client instance.
- * @param devid The device ID.
+ * @param devid The device ID. Uses client->activate.devid when NULL or empty.
  * @param dps An array of device object data.
  * @param dpscnt The number of device object data elements in the array.
  * @param flags Additional flags for the report.
@@ -217,12 +217,19 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
 {
     int ret = OPRT_OK;
 
+    if (NULL == client) {
+        return OPRT_INVALID_PARM;
+    }
     if (!client->is_activated) {
         PR_DEBUG("client no active");
         return OPRT_COM_ERROR;
     }
     if (NULL == dps || 0 == dpscnt) {
         return OPRT_INVALID_PARM;
+    }
+
+    if (NULL == devid || '\0' == devid[0]) {
+        devid = client->activate.devid;
     }
 
     dp_schema_t *schema = dp_schema_find(devid);
@@ -265,7 +272,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
         ble_dpin->flags = flags;
         ble_dpin->rept_type = T_OBJ_REPT;
         ble_dpin->dpscnt = dpvalid->num;
-        ble_dpin->dps = (dp_obj_t *)(ble_dpin + sizeof(dp_rept_in_t));
+        ble_dpin->dps = (dp_obj_t *)((uint8_t *)ble_dpin + sizeof(dp_rept_in_t));
         //! copy vaild dpid
         int i, j;
         for (i = 0; i < dpvalid->num; i++) {

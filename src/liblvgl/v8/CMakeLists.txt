@@ -13,6 +13,7 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 # LIB_SRCS
 file(GLOB_RECURSE  LIB_SRCS
     "${MODULE_PATH}/lvgl/src/*.c" "${MODULE_PATH}/port/*.c")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MODULE_PATH}/port/")
 
 set(LVGL_DEMO_SRCS "")
 if (CONFIG_ENABLE_LVGL_DEMO STREQUAL "y")
@@ -53,6 +54,7 @@ target_include_directories(${MODULE_NAME}
 target_compile_options(${MODULE_NAME}
     PRIVATE
         ${LIB_OPTIONS}
+        -Wno-error=format=
     )
 ########################################
 # Layer Configure

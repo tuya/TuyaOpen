@@ -407,6 +407,54 @@ OPERATE_RET tal_aes128_cbc_decode(uint8_t *data, uint32_t len, uint8_t *key, uin
 OPERATE_RET tal_aes_free_data(uint8_t *data);
 
 /**
+ * @brief AES-GCM encrypt
+ *
+ * @param[in] key encryption key
+ * @param[in] key_len key length in bytes (16/24/32)
+ * @param[in] nonce nonce/IV buffer
+ * @param[in] nonce_len nonce length in bytes (typically 12)
+ * @param[in] ad additional authenticated data (can be NULL)
+ * @param[in] ad_len AAD length in bytes
+ * @param[in] input plaintext buffer
+ * @param[in] input_len plaintext length in bytes
+ * @param[out] output ciphertext buffer (at least input_len bytes)
+ * @param[out] output_len actual ciphertext length
+ * @param[out] tag authentication tag buffer
+ * @param[in] tag_len desired tag length in bytes (typically 16)
+ * @return OPRT_OK on success
+ */
+ OPERATE_RET tal_aes_gcm_encode(const uint8_t *key, uint32_t key_len,
+                                const uint8_t *nonce, uint32_t nonce_len,
+                                const uint8_t *ad, uint32_t ad_len,
+                                const uint8_t *input, uint32_t input_len,
+                                uint8_t *output, uint32_t *output_len,
+                                uint8_t *tag, uint32_t tag_len);
+
+/**
+* @brief AES-GCM decrypt
+*
+* @param[in] key decryption key
+* @param[in] key_len key length in bytes (16/24/32)
+* @param[in] nonce nonce/IV buffer
+* @param[in] nonce_len nonce length in bytes (typically 12)
+* @param[in] ad additional authenticated data (can be NULL)
+* @param[in] ad_len AAD length in bytes
+* @param[in] input ciphertext buffer
+* @param[in] input_len ciphertext length in bytes
+* @param[out] output plaintext buffer (at least input_len bytes)
+* @param[out] output_len actual plaintext length
+* @param[in] tag authentication tag to verify
+* @param[in] tag_len tag length in bytes (typically 16)
+* @return OPRT_OK on success, error if authentication fails
+*/
+OPERATE_RET tal_aes_gcm_decode(const uint8_t *key, uint32_t key_len,
+                               const uint8_t *nonce, uint32_t nonce_len,
+                               const uint8_t *ad, uint32_t ad_len,
+                               const uint8_t *input, uint32_t input_len,
+                               uint8_t *output, uint32_t *output_len,
+                               uint8_t *tag, uint32_t tag_len);
+
+/**
  * @brief Performs a self-test for the AES encryption algorithm.
  *
  * This function tests the correctness of the AES encryption algorithm

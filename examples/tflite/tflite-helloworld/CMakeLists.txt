@@ -39,4 +39,4 @@ target_compile_options(${EXAMPLE_LIB}
         ${APP_OPTIONS}
     )
 
-add_subdirectory(${APP_PATH}/tflite)
+add_subdirectory(${APP_PATH}/tflite ${CMAKE_BINARY_DIR}/app_tflite)

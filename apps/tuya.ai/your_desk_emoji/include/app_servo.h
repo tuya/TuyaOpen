@@ -20,9 +20,9 @@ typedef enum {
 extern "C" {
 #endif
 
-OPERATE_RET app_servo_init(VOID);
-VOID app_servo_move(SERVO_ACTION_E action);
-VOID app_servo_cleanup(VOID);
+OPERATE_RET app_servo_init(void);
+void app_servo_move(SERVO_ACTION_E action);
+void app_servo_cleanup(void);
 
 #ifdef __cplusplus
 }

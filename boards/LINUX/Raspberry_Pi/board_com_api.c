@@ -154,7 +154,8 @@ static OPERATE_RET __board_register_button(void)
     #if defined(BUTTON_NAME)
     BUTTON_CFG_T btn_cfg = {0};
     btn_cfg.mode = BUTTON_TIMER_SCAN_MODE;
-    rt = tdd_keyboard_button_register(BUTTON_NAME, &btn_cfg);
+    btn_cfg.key_char = BUTTON_NAME[0];
+    rt = tdd_keyboard_button_register("ai_chat_button", &btn_cfg);
     if (OPRT_OK != rt) {
         PR_ERR("Failed to register keyboard button handler: %d", rt);
         return rt;

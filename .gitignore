@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 /.venv/
+/.tools/
 .pytest_cache/
 
 # Editor / IDE
@@ -36,6 +37,9 @@ tuyadb/
 /.set_example
 /tmp/
 /cache/
+/dist
+*monitor.log
+/.omc
 
 # Docs
 /docs/superpowers/

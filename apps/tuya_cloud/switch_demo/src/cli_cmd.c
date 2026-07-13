@@ -139,20 +139,6 @@ static void stop(int argc, char *argv[])
     tuya_iot_stop(tuya_iot_client_get());
 }
 
-#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-static void read_mac(int argc, char *argv[])
-{
-    char mac[18] = {0};
-
-    NW_MAC_S mac_s;
-    memset(&mac_s, 0, sizeof(NW_MAC_S));
-    tal_wifi_get_mac(WF_STATION, &mac_s);
-    sprintf(mac, "%02x:%02x:%02x:%02x:%02x:%02x", mac_s.mac[0], mac_s.mac[1], mac_s.mac[2], mac_s.mac[3], mac_s.mac[4], mac_s.mac[5]);
-
-    PR_NOTICE("mac: %s", mac);
-}
-#endif
-
 /**
  * @brief cli cmd list
  *
@@ -165,10 +151,7 @@ static cli_cmd_t s_cli_cmd[] = {
     {.name = "stop", .func = stop, .help = "stop iot"},
     {.name = "start", .func = start, .help = "start iot"},
     {.name = "mem", .func = mem, .help = "mem size"},
-    {.name = "netmgr", .func = netmgr_cmd, .help = "netmgr cmd"},
-#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    {.name = "read_mac", .func = read_mac, .help = "read sta mac cmd"},
-#endif
+    {.name = "netmgr", .func = netmgr_cmd, .help = "netmgr cmd"}
 };
 
 /**

@@ -495,7 +495,7 @@ int tuya_health_monitor_init(void)
     PR_DEBUG("watch_dog_interval:%d, monitor_detect_interval:%d", HEALTH_WATCHDOG_INTERVAL, HEALTH_DETECT_INTERVAL);
 
     // create health monitor thread with highest priority
-    THREAD_CFG_T thrd_param;
+    THREAD_CFG_T thrd_param = {0};
     thrd_param.priority = THREAD_PRIO_0;
     thrd_param.stackDepth = STACK_SIZE_HEALTH_MONITOR;
     thrd_param.thrdname = "health_monitor";

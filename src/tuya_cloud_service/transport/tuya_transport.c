@@ -38,7 +38,7 @@ struct tuya_transport_array_handle {
 tuya_transport_array_handle_t tuya_transport_array_create()
 {
     tuya_transport_array_handle_t p_transport_array =
-        (tuya_transport_array_handle_t)tal_malloc(sizeof(struct tuya_transport_array_handle));
+        (tuya_transport_array_handle_t)Malloc(sizeof(struct tuya_transport_array_handle));
     PR_DEBUG("p_trans array:0x%x", p_transport_array);
     if (p_transport_array) {
         memset(p_transport_array, 0, sizeof(struct tuya_transport_array_handle));
@@ -118,7 +118,7 @@ tuya_transport_array_destroy(tuya_transport_array_handle_t transport_handle)
             tuya_transporter_destroy(transport_handle->array[i]);
         }
     }
-    tal_free(transport_handle);
+    Free(transport_handle);
     return OPRT_OK;
 }
 

@@ -59,10 +59,9 @@ target_compile_options(${EXAMPLE_LIB}
 ########################################
 
 if (CONFIG_ENABLE_COMP_AI_DISPLAY STREQUAL "y")
-    add_subdirectory(${APP_PATH}/src/display)
+    add_subdirectory(${APP_PATH}/src/display ${CMAKE_BINARY_DIR}/app_display)
 endif()
 
-add_subdirectory(${APP_PATH}/../ai_components)
 
 ########################################
 # Project-local override (your_robot_dog only)

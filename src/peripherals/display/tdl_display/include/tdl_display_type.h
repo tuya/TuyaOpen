@@ -27,6 +27,9 @@ typedef enum  {
     TUYA_DISPLAY_QSPI,
     TUYA_DISPLAY_SPI,
     TUYA_DISPLAY_I2C,
+    TUYA_DISPLAY_MIPI_DSI, /* MIPI-DSI bus carrying a DPI video stream; like RGB,
+                              the panel has no GRAM and is refreshed continuously
+                              from a host-side frame buffer. */
 }TUYA_DISPLAY_TYPE_E;
 
 typedef void*  TDL_DISP_HANDLE_T;

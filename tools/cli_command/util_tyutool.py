@@ -10,6 +10,7 @@ import tarfile
 import zipfile
 import platform
 import subprocess
+from typing import Optional
 
 import requests
 
@@ -52,7 +53,9 @@ def get_platform_key() -> str:
 
 def _parse(v: str) -> tuple:
     try:
-        return tuple(int(x) for x in v.lstrip('v').split('.')[:3])
+        parts = v.lstrip('v').split('.')[:3]
+        padded = (parts + ['0', '0', '0'])[:3]
+        return tuple(int(x) for x in padded)
     except (ValueError, AttributeError):
         return (0, 0, 0)
 
@@ -67,7 +70,7 @@ def should_check_update() -> bool:
     return (time.time() - float(last_check)) >= CHECK_INTERVAL
 
 
-def fetch_latest_json() -> dict | None:
+def fetch_latest_json() -> Optional[dict]:
     logger = get_logger()
     try:
         resp = requests.get(LATEST_JSON_URL, timeout=10)
@@ -78,32 +81,93 @@ def fetch_latest_json() -> dict | None:
         return None
 
 
-def get_local_version() -> str | None:
+def get_local_version() -> Optional[str]:
     return env_read("tyutool_version", None)
+
+
+def _detect_installed_version(tyutool_bin: str) -> str:
+    """Run the binary to detect its version when env has no record."""
+    try:
+        out = subprocess.check_output(
+            [tyutool_bin, "--version"],
+            stderr=subprocess.STDOUT,
+            timeout=5,
+        ).decode().strip()
+        # expected output: "tyutool X.Y.Z"
+        parts = out.split()
+        return parts[-1] if parts else ""
+    except Exception:
+        return ""
 
 
 def _make_gitee_url(github_url: str) -> str:
     return github_url.replace(_GITHUB_PREFIX, _GITEE_PREFIX)
 
 
-def _download_file(url: str, dest: str) -> bool:
+DOWNLOAD_TIMEOUT = 300  # 5 minutes total cap for binary download
+
+
+def _format_download_progress(downloaded: int, total: int) -> str:
+    """Human-readable download progress (KB when total < 1 MiB)."""
+    if total > 0:
+        pct = min(100, downloaded * 100 // total)
+        if total >= 1024 * 1024:
+            d_mb = downloaded / (1024 * 1024)
+            t_mb = total / (1024 * 1024)
+            return f"  {d_mb:.1f}MB / {t_mb:.1f}MB ({pct}%)"
+        if total >= 1024:
+            return f"  {downloaded // 1024}KB / {total // 1024}KB ({pct}%)"
+        return f"  {downloaded}B / {total}B ({pct}%)"
+    if downloaded >= 1024 * 1024:
+        return f"  {downloaded / (1024 * 1024):.1f}MB downloaded"
+    if downloaded >= 1024:
+        return f"  {downloaded // 1024}KB downloaded"
+    if downloaded > 0:
+        return f"  {downloaded}B downloaded"
+    return ""
+
+
+def _download_file(url: str, dest: str, *, log_progress: bool = True) -> bool:
     logger = get_logger()
     try:
-        resp = requests.get(url, stream=True, timeout=60)
+        resp = requests.get(url, stream=True, timeout=(15, 30))
         resp.raise_for_status()
-        total = int(resp.headers.get('content-length', 0))
+        total = int(resp.headers.get("content-length") or 0)
         downloaded = 0
-        with open(dest, 'wb') as f:
+        deadline = time.time() + DOWNLOAD_TIMEOUT
+        last_logged_pct = -1
+        last_logged_kb_bucket = -1
+        with open(dest, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1024 * 1024):
                 if chunk:
                     f.write(chunk)
                     downloaded += len(chunk)
-                    mb = downloaded // (1024 * 1024)
-                    if total:
-                        total_mb = total // (1024 * 1024)
-                        logger.info(f"  {mb}MB / {total_mb}MB")
-                    else:
-                        logger.info(f"  {mb}MB downloaded")
+                    if log_progress:
+                        if total > 0:
+                            pct = min(100, downloaded * 100 // total)
+                            if pct >= last_logged_pct + 10 or pct == 100:
+                                msg = _format_download_progress(
+                                    downloaded, total)
+                                if msg:
+                                    logger.info(msg)
+                                last_logged_pct = pct
+                        else:
+                            kb_bucket = downloaded // (256 * 1024)
+                            if kb_bucket > last_logged_kb_bucket:
+                                msg = _format_download_progress(downloaded, 0)
+                                if msg:
+                                    logger.info(msg)
+                                last_logged_kb_bucket = kb_bucket
+                if time.time() > deadline:
+                    raise TimeoutError(
+                        f"Download exceeded {DOWNLOAD_TIMEOUT}s limit"
+                    )
+        if log_progress and downloaded > 0 and (
+                total == 0 or last_logged_pct < 100):
+            msg = _format_download_progress(
+                downloaded, total if total > 0 else downloaded)
+            if msg:
+                logger.info(msg)
         return True
     except Exception as e:
         logger.debug(f"Download failed ({url}): {e}")
@@ -231,7 +295,7 @@ def prompt_update(local_ver: str, latest_ver: str, latest_data: dict) -> bool:
             return True
 
 
-def ensure_tyutool() -> str | None:
+def ensure_tyutool() -> Optional[str]:
     logger = get_logger()
     params = get_global_params()
     tyutool_bin = params["tyutool_bin"]
@@ -263,10 +327,11 @@ def ensure_tyutool() -> str | None:
 
     latest_data = fetch_latest_json()
     if latest_data is None:
+        env_write("tyutool_last_check", time.time())
         return tyutool_bin
 
     latest_ver = latest_data.get("version", "")
-    local_ver = get_local_version() or ""
+    local_ver = _detect_installed_version(tyutool_bin) or get_local_version() or ""
     if compare_versions(latest_ver, local_ver) > 0:
         prompt_update(local_ver, latest_ver, latest_data)
 

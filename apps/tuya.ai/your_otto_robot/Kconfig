@@ -74,6 +74,9 @@ if(ENABLE_APP_CUSTOM_EYES_UI)
     endchoice
 endif
 
-rsource "../ai_components/Kconfig"
+config APP_NEED_AI_COMPONENTS
+    bool
+    default y
+    select ENABLE_AI_COMPONENTS
 
 endmenu

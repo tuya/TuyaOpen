@@ -9,7 +9,39 @@ config BOARD_CHOICE
 config BOARD_CONFIG
     bool
     default y
+    select ENABLE_EXT_RAM
     select ENABLE_AUDIO
-    select ENABLE_ESP_DISPLAY
+    select ENABLE_DISPLAY
     select PLATFORM_FLASHSIZE_16M
     select ENABLE_AUDIO_CODECS
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_2
+    select ENABLE_BUTTON_3
+    select ENABLE_BUTTON_4
+    select ENABLE_LED
+
+choice DNESP32S3_EX_LCD_MODULE
+    prompt "choose expansion lcd module for DNESP32S3"
+    default DNESP32S3_LCD_NONE
+
+    config DNESP32S3_LCD_MD0240_SPI
+        bool "SPI LCD (MD0240 ST7789, 320x240)"
+        select ENABLE_DISPLAY
+
+    config DNESP32S3_LCD_MD0430R_RGB
+        bool "RGB LCD (ATK-MD0430R-800480, 800x480)"
+        select ENABLE_DISPLAY
+        select ENABLE_TP
+
+    config DNESP32S3_LCD_NONE
+        bool "no expansion lcd module"
+endchoice
+
+config ENABLE_DNESP32S3_CAMERA
+    bool "enable expansion camera module (OV2640 / OV5640)"
+    default n
+    select ENABLE_CAMERA
+
+config ENABLE_DNESP32S3_SDCARD
+    bool "enable expansion sdcard module"
+    default n

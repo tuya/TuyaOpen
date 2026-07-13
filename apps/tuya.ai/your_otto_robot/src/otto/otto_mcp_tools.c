@@ -27,7 +27,7 @@
  * @param[out] action_out Internal action id
  * @return true if mapped, false if unknown
  */
-STATIC BOOL_T __otto_mcp_action_from_name(CONST CHAR_T *action_str, UINT32_T *action_out)
+static BOOL_T __otto_mcp_action_from_name(const char *action_str, uint32_t *action_out)
 {
     if (action_str == NULL || action_out == NULL) {
         return FALSE;
@@ -71,9 +71,9 @@ STATIC BOOL_T __otto_mcp_action_from_name(CONST CHAR_T *action_str, UINT32_T *ac
  * @param[in] default_val Value when property missing
  * @return Parsed integer or default
  */
-STATIC INT_T __otto_mcp_get_int_prop(CONST MCP_PROPERTY_LIST_T *properties, CONST CHAR_T *name, INT_T default_val)
+static int __otto_mcp_get_int_prop(const MCP_PROPERTY_LIST_T *properties, const char *name, int default_val)
 {
-    INT_T i = 0;
+    int i = 0;
 
     if (properties == NULL || name == NULL) {
         return default_val;
@@ -94,9 +94,9 @@ STATIC INT_T __otto_mcp_get_int_prop(CONST MCP_PROPERTY_LIST_T *properties, CONS
  * @param[in] name Property name
  * @return String pointer or NULL
  */
-STATIC CONST CHAR_T *__otto_mcp_get_str_prop(CONST MCP_PROPERTY_LIST_T *properties, CONST CHAR_T *name)
+static const char *__otto_mcp_get_str_prop(const MCP_PROPERTY_LIST_T *properties, const char *name)
 {
-    INT_T i = 0;
+    int i = 0;
 
     if (properties == NULL || name == NULL) {
         return NULL;
@@ -118,14 +118,14 @@ STATIC CONST CHAR_T *__otto_mcp_get_str_prop(CONST MCP_PROPERTY_LIST_T *properti
  * @param[in] user_data Unused
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __otto_mcp_robot_action(CONST MCP_PROPERTY_LIST_T *properties,
-                                           MCP_RETURN_VALUE_T *ret_val, VOID_T *user_data)
+static OPERATE_RET __otto_mcp_robot_action(const MCP_PROPERTY_LIST_T *properties,
+                                           MCP_RETURN_VALUE_T *ret_val, void *user_data)
 {
-    UINT32_T action_id = 0;
-    CONST CHAR_T *action_str = NULL;
+    uint32_t action_id = 0;
+    const char *action_str = NULL;
     BOOL_T has_action = FALSE;
 
-    (VOID)user_data;
+    (void)user_data;
 
     action_str = __otto_mcp_get_str_prop(properties, "action");
     if (action_str != NULL) {
@@ -136,7 +136,7 @@ STATIC OPERATE_RET __otto_mcp_robot_action(CONST MCP_PROPERTY_LIST_T *properties
         }
         has_action = TRUE;
     } else {
-        action_id = (UINT32_T)__otto_mcp_get_int_prop(properties, "action_id", -1);
+        action_id = (uint32_t)__otto_mcp_get_int_prop(properties, "action_id", -1);
         if (action_id <= OTTO_MCP_ACTION_ID_MAX) {
             has_action = TRUE;
         }
@@ -161,12 +161,12 @@ STATIC OPERATE_RET __otto_mcp_robot_action(CONST MCP_PROPERTY_LIST_T *properties
  * @param[in] user_data Unused
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __otto_mcp_robot_speed_set(CONST MCP_PROPERTY_LIST_T *properties,
-                                              MCP_RETURN_VALUE_T *ret_val, VOID_T *user_data)
+static OPERATE_RET __otto_mcp_robot_speed_set(const MCP_PROPERTY_LIST_T *properties,
+                                              MCP_RETURN_VALUE_T *ret_val, void *user_data)
 {
-    INT_T speed_level = 0;
+    int speed_level = 0;
 
-    (VOID)user_data;
+    (void)user_data;
 
     speed_level = __otto_mcp_get_int_prop(properties, "speed_level", -1);
     if (speed_level < 0 || speed_level > 2) {
@@ -175,7 +175,7 @@ STATIC OPERATE_RET __otto_mcp_robot_speed_set(CONST MCP_PROPERTY_LIST_T *propert
         return OPRT_INVALID_PARM;
     }
 
-    otto_robot_speed_dp_proc((UINT32_T)speed_level);
+    otto_robot_speed_dp_proc((uint32_t)speed_level);
     PR_DEBUG("otto_mcp speed_level=%d", speed_level);
     ai_mcp_return_value_set_bool(ret_val, TRUE);
     return OPRT_OK;
@@ -188,14 +188,14 @@ STATIC OPERATE_RET __otto_mcp_robot_speed_set(CONST MCP_PROPERTY_LIST_T *propert
  * @param[in] user_data Unused
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __otto_mcp_robot_step_set(CONST MCP_PROPERTY_LIST_T *properties,
-                                             MCP_RETURN_VALUE_T *ret_val, VOID_T *user_data)
+static OPERATE_RET __otto_mcp_robot_step_set(const MCP_PROPERTY_LIST_T *properties,
+                                             MCP_RETURN_VALUE_T *ret_val, void *user_data)
 {
-    UINT32_T steps = 0;
+    uint32_t steps = 0;
 
-    (VOID)user_data;
+    (void)user_data;
 
-    steps = (UINT32_T)__otto_mcp_get_int_prop(properties, "steps", 0);
+    steps = (uint32_t)__otto_mcp_get_int_prop(properties, "steps", 0);
 #if defined(OTTO_PRODUCT_ST7789_V1) && (OTTO_PRODUCT_ST7789_V1 == 1)
     if (steps < OTTO_STEP_MIN) {
         steps = OTTO_STEP_MIN;
@@ -222,7 +222,7 @@ STATIC OPERATE_RET __otto_mcp_robot_step_set(CONST MCP_PROPERTY_LIST_T *properti
  * @brief Register Otto MCP tools (server must already be initialized)
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __otto_mcp_tools_register(VOID_T)
+static OPERATE_RET __otto_mcp_tools_register(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -281,9 +281,9 @@ err:
  * @param[in] data Unused
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __otto_mcp_on_mqtt_connected(VOID_T *data)
+static OPERATE_RET __otto_mcp_on_mqtt_connected(void *data)
 {
-    (VOID)data;
+    (void)data;
     return __otto_mcp_tools_register();
 }
 
@@ -291,7 +291,7 @@ STATIC OPERATE_RET __otto_mcp_on_mqtt_connected(VOID_T *data)
  * @brief Initialize Otto MCP tools (subscribe after ai_mcp_init)
  * @return OPRT_OK on success
  */
-OPERATE_RET otto_mcp_tools_init(VOID_T)
+OPERATE_RET otto_mcp_tools_init(void)
 {
     return tal_event_subscribe(EVENT_MQTT_CONNECTED, "otto_mcp_tools", __otto_mcp_on_mqtt_connected,
                                SUBSCRIBE_TYPE_ONETIME);

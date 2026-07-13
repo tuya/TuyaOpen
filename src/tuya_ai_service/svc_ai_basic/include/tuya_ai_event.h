@@ -48,7 +48,7 @@ typedef OPERATE_RET(*AI_EVENT_CB)(AI_EVENT_ATTR_T *event, AI_EVENT_HEAD_T *head,
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
 
 /**
  * @brief event end
@@ -60,7 +60,7 @@ OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *att
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
 
 /**
  * @brief event payloads end
@@ -72,7 +72,7 @@ OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr,
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
 
 /**
  * @brief event chat break
@@ -84,7 +84,7 @@ OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
 
 /**
  * @brief event one shot
@@ -96,7 +96,7 @@ OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len);
+OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
 
 /**
  * @brief event mcp command
@@ -107,6 +107,27 @@ OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_event_mcp(AI_SESSION_ID sid, AI_EVENT_ID eid, char *data);
+OPERATE_RET tuya_ai_event_mcp(AI_SESSION_ID sid, AI_EVENT_ID eid, CHAR_T *data);
+
+/**
+ * @brief event trigger
+ *
+ * @param[in] sid session id
+ * @param[in] eid event id
+ * @param[in] attr attr user data
+ * @param[in] len attr user len
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_event_trigger(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len);
+
+/**
+ * @brief Update session context with custom parameters
+ * @param[in] sid session id
+ * @param[in] eid event id
+ * @param[in] value context string
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_event_update_context(AI_SESSION_ID sid, AI_EVENT_ID eid, CHAR_T *value);
 
 #endif

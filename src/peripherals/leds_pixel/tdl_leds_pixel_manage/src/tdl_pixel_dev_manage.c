@@ -68,7 +68,7 @@ static PIXEL_DEV_NODE_T *__tdl_pixel_dev_node_find(PIXEL_DEV_LIST_T *list, char 
     return NULL;
 }
 
-static int __tdl_pixel_dev_register(IN char *driver_name, IN PIXEL_DRIVER_INTFS_T *intfs, PIXEL_ATTR_T *arrt,
+static int __tdl_pixel_dev_register(char *driver_name, PIXEL_DRIVER_INTFS_T *intfs, PIXEL_ATTR_T *arrt,
                                     void *param)
 {
     int op_ret = 0;
@@ -236,7 +236,7 @@ static int __tdl_pixel_dev_close(PIXEL_DEV_NODE_T *device)
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-int tdl_pixel_dev_find(char *name, OUT PIXEL_HANDLE_T *handle)
+int tdl_pixel_dev_find(char *name, PIXEL_HANDLE_T *handle)
 {
     PIXEL_DEV_NODE_T *device = NULL;
 

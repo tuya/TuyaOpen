@@ -29,36 +29,36 @@
 #include "tuya_ai_event.h"
 #include "tuya_ai_private.h"
 
-STATIC OPERATE_RET __ai_event(AI_EVENT_ATTR_T *event, AI_EVENT_HEAD_T *head, char *payload)
+STATIC OPERATE_RET __ai_event(AI_EVENT_ATTR_T *event, AI_EVENT_TYPE type, USHORT_T length, CHAR_T *payload)
 {
     OPERATE_RET rt = OPRT_OK;
-    if (event == NULL || (NULL == event->session_id) ||
-        (NULL == event->event_id) || strlen(event->session_id) == 0 ||
-        strlen(event->event_id) == 0) {
+    if (event == NULL || strlen(event->session_id) == 0 || strlen(event->event_id) == 0) {
         PR_ERR("event or session id was null");
         return OPRT_INVALID_PARM;
     }
 
-    uint32_t data_len = SIZEOF(AI_EVENT_HEAD_T) + head->length;
-    char *event_data = OS_MALLOC(data_len);
+    UINT_T data_len = SIZEOF(AI_EVENT_HEAD_T) + length;
+    CHAR_T *event_data = OS_MALLOC(data_len);
     if (event_data == NULL) {
         PR_ERR("malloc failed");
         return OPRT_MALLOC_FAILED;
     }
     memset(event_data, 0, data_len);
     AI_EVENT_HEAD_T *event_head = (AI_EVENT_HEAD_T *)event_data;
-    event_head->type = UNI_HTONS(head->type);
-    event_head->length = UNI_HTONS(head->length);
-    if (payload && head->length) {
-        memcpy(event_data + SIZEOF(AI_EVENT_HEAD_T), payload, head->length);
+    event_head->type = UNI_HTONS(type);
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+    event_head->length = UNI_HTONS(length);
+#endif
+    if (payload && length) {
+        memcpy(event_data + SIZEOF(AI_EVENT_HEAD_T), payload, length);
     }
     rt = tuya_ai_basic_event(event, event_data, data_len, NULL);
     OS_FREE(event_data);
-    PR_DEBUG("send event rt:%d, type:%d", rt, head->type);
+    PR_DEBUG("send event rt:%d, type:%d", rt, type);
     return rt;
 }
 
-OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
+OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
 {
     OPERATE_RET rt = OPRT_OK;
 
@@ -74,14 +74,11 @@ OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *att
     }
 
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
     event.user_data = attr;
     event.user_len = len;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_START;
-    head.length = 0;
-    rt = __ai_event(&event, &head, NULL);
+    rt = __ai_event(&event, AI_EVENT_START, 0, NULL);
     if (OPRT_OK != rt) {
         return rt;
     }
@@ -89,71 +86,101 @@ OPERATE_RET tuya_ai_event_start(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *att
     return rt;
 }
 
-OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
+OPERATE_RET tuya_ai_event_payloads_end(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
 {
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
     event.user_data = attr;
     event.user_len = len;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_PAYLOADS_END;
-    head.length = 0;
-    return __ai_event(&event, &head, NULL);
+    return __ai_event(&event, AI_EVENT_PAYLOADS_END, 0, NULL);
 }
 
-OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
+OPERATE_RET tuya_ai_event_end(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
 {
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
     event.user_data = attr;
     event.user_len = len;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_END;
-    head.length = 0;
-    return __ai_event(&event, &head, NULL);
+    return __ai_event(&event, AI_EVENT_END, 0, NULL);
 }
 
-OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
+OPERATE_RET tuya_ai_event_chat_break(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
 {
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
     event.user_data = attr;
     event.user_len = len;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_CHAT_BREAK;
-    head.length = 0;
-    return __ai_event(&event, &head, NULL);
+    return __ai_event(&event, AI_EVENT_CHAT_BREAK, 0, NULL);
 }
 
-OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, uint8_t *attr, uint32_t len)
+OPERATE_RET tuya_ai_event_one_shot(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
 {
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
     event.user_data = attr;
     event.user_len = len;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_ONE_SHOT;
-    head.length = 0;
-    return __ai_event(&event, &head, NULL);
+    return __ai_event(&event, AI_EVENT_ONE_SHOT, 0, NULL);
 }
 
-OPERATE_RET tuya_ai_event_mcp(AI_SESSION_ID sid, AI_EVENT_ID eid, char *data)
+OPERATE_RET tuya_ai_event_mcp(AI_SESSION_ID sid, AI_EVENT_ID eid, CHAR_T *data)
 {
     AI_EVENT_ATTR_T event = {0};
-    event.session_id = sid;
-    event.event_id = eid;
-    AI_EVENT_HEAD_T head = {0};
-    head.type = AI_EVENT_MCP_CMD;
-    head.length = strlen(data);
-    if (event.event_id == NULL || event.event_id[0] == '\0') {
-        char tmp_eid[AI_UUID_V4_LEN + 1] = {0};
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
+    if (event.event_id[0] == '\0') {
+        CHAR_T tmp_eid[AI_UUID_V4_LEN + 1] = {0};
         tuya_ai_basic_uuid_short(tmp_eid);
-        event.event_id = tmp_eid;
-        return __ai_event(&event, &head, data);
+        strncpy(event.event_id, tmp_eid, AI_UUID_V4_LEN);
+        return __ai_event(&event, AI_EVENT_MCP_CMD, strlen(data), data);
     }
-    return __ai_event(&event, &head, data);
+    return __ai_event(&event, AI_EVENT_MCP_CMD, strlen(data), data);
+}
+
+OPERATE_RET tuya_ai_event_trigger(AI_SESSION_ID sid, AI_EVENT_ID eid, BYTE_T *attr, UINT_T len)
+{
+    AI_EVENT_ATTR_T event = {0};
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
+    event.user_data = attr;
+    event.user_len = len;
+    return __ai_event(&event, AI_EVENT_EVENT_TRIGGER, 0, NULL);
+}
+
+OPERATE_RET tuya_ai_event_update_context(AI_SESSION_ID sid, AI_EVENT_ID eid, CHAR_T *value)
+{
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+    return OPRT_NOT_SUPPORTED;
+#endif
+    if (sid == NULL || eid == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    BYTE_T *out = NULL;
+    UINT_T out_len = 0;
+
+    if (value && strlen(value) > 0) {
+        ty_cJSON *attr_info = ty_cJSON_CreateObject();
+        ty_cJSON *sessionAttributes = ty_cJSON_CreateObject();
+        ty_cJSON *custom = ty_cJSON_Parse(value);
+        if (custom) {
+            ty_cJSON_AddItemToObject(sessionAttributes, "custom.param", custom);
+        }
+        ty_cJSON_AddItemToObject(attr_info, "sessionAttributes", sessionAttributes);
+        out = (BYTE_T *)ty_cJSON_PrintUnformatted(attr_info);
+        out_len = strlen((CHAR_T *)out);
+        ty_cJSON_Delete(attr_info);
+    }
+
+    AI_EVENT_ATTR_T event = {0};
+    strncpy(event.session_id, sid, AI_UUID_V4_LEN);
+    strncpy(event.event_id, eid, AI_UUID_V4_LEN);
+    event.user_data = out;
+    event.user_len = out_len;
+    OPERATE_RET rt = __ai_event(&event, AI_EVENT_UPDATE_CONTEXT, 0, NULL);
+    Free(out);
+    return rt;
 }

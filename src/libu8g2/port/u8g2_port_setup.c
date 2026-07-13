@@ -110,7 +110,6 @@ static uint8_t __u8x8_port_display_cb(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int
         break;
         case U8X8_MSG_DISPLAY_INIT: {
            TUYA_CALL_ERR_LOG(tdl_disp_dev_open(disp->hdl));
-           TUYA_CALL_ERR_LOG(tdl_disp_set_brightness(disp->hdl, 100));
         }
         break;
         case U8X8_MSG_DISPLAY_DRAW_TILE: {

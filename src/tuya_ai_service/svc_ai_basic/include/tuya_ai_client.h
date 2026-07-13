@@ -27,9 +27,6 @@
 #include "tuya_ai_protocol.h"
 #include "tuya_ai_mqtt.h"
 
-#define EVENT_AI_CLIENT_RUN      "ai.client.run"
-#define EVENT_AI_CLIENT_CLOSE    "ai.client.close"
-
 /**
  * @brief data handle cb
  *
@@ -39,7 +36,7 @@
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-typedef OPERATE_RET (*AI_BASIC_DATA_HANDLE)(char *data, uint32_t len, AI_FRAG_FLAG frag);
+typedef OPERATE_RET(*AI_BASIC_DATA_HANDLE)(CHAR_T *data, UINT_T len, AI_FRAG_FLAG frag);
 
 /**
  * @brief register data handle cb
@@ -52,10 +49,11 @@ VOID tuya_ai_client_reg_cb(AI_BASIC_DATA_HANDLE cb);
  * @brief ai client init
  *
  * @param[in] cb mqtt recv callback
+ * @param[in] security_cfg security config
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_client_init(AI_MQTT_RECV_CB cb);
+OPERATE_RET tuya_ai_client_init(AI_MQTT_RECV_CB cb, AI_SECURITY_CFG_T *security_cfg);
 
 /**
  * @brief ai client deinit

@@ -1,0 +1,35 @@
+config CHIP_CHOICE
+    string
+    default "esp32p4"
+
+config BOARD_CHOICE
+    string
+    default "WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select PLATFORM_FLASHSIZE_32M
+    select ENABLE_EXT_RAM
+    select ENABLE_DISPLAY
+    select ENABLE_TP
+    select ENABLE_AUDIO
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_BUTTON
+
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 54
+    default 37
+    ---help---
+        ESP32-P4 ROM default U0TXD pin (GPIO37). Keep this consistent with
+        the IDF default so ROM bootloader, 2nd-stage bootloader, and the
+        application share the same physical UART0 TX line.
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 54
+    default 38
+    ---help---
+        ESP32-P4 ROM default U0RXD pin (GPIO38). Keep this consistent with
+        the IDF default.

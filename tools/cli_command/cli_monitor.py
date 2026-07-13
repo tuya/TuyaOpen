@@ -10,6 +10,7 @@
 #   Quit: Ctrl+]
 
 import sys
+import time
 import click
 import serial
 from serial.tools.miniterm import Miniterm
@@ -30,6 +31,8 @@ _CHIP_MONITOR_BAUDRATE = {
     "T5AI": 460800,
 }
 
+_SERIAL_IO_EXCEPTIONS = (serial.SerialException, OSError)
+
 
 class _LoggingSerial:
     """Proxy that forwards all serial calls and tees read data to a file."""
@@ -47,6 +50,121 @@ class _LoggingSerial:
             self._logfile.write(data)
             self._logfile.flush()
         return data
+
+
+class _FriendlyMiniterm(Miniterm):
+    """Miniterm variant that exits cleanly when the serial device disappears."""
+
+    def __init__(self, serial_instance, port, **kwargs):
+        super().__init__(serial_instance, **kwargs)
+        self.port = port
+        self._disconnect_reported = False
+
+    def _report_disconnect(self, exc):
+        if self._disconnect_reported:
+            return
+        self._disconnect_reported = True
+
+        detail = str(exc).strip()
+        sys.stderr.write(
+            f"\r\n--- Monitor stopped: serial port {self.port} "
+            "disconnected or unavailable. ---\r\n"
+        )
+        if detail:
+            sys.stderr.write(f"--- Detail: {detail} ---\r\n")
+        sys.stderr.flush()
+
+    def _cancel_console_quietly(self):
+        try:
+            self.console.cancel()
+        except OSError:
+            pass
+
+    def reader(self):
+        """Loop and copy serial->console."""
+        try:
+            while self.alive and self._reader_alive:
+                data = self.serial.read(self.serial.in_waiting or 1)
+                if data:
+                    if self.raw:
+                        self.console.write_bytes(data)
+                    else:
+                        text = self.rx_decoder.decode(data)
+                        for transformation in self.rx_transformations:
+                            text = transformation.rx(text)
+                        self.console.write(text)
+        except _SERIAL_IO_EXCEPTIONS as exc:
+            self.alive = False
+            self._report_disconnect(exc)
+            self._cancel_console_quietly()
+
+    def writer(self):
+        """Loop and copy console->serial until the exit character is found."""
+        menu_active = False
+        try:
+            while self.alive:
+                try:
+                    c = self.console.getkey()
+                except KeyboardInterrupt:
+                    c = '\x03'
+                if not self.alive:
+                    break
+                if menu_active:
+                    self.handle_menu_key(c)
+                    menu_active = False
+                elif c == self.menu_character:
+                    menu_active = True
+                elif c == self.exit_character:
+                    self.stop()
+                    break
+                else:
+                    text = c
+                    for transformation in self.tx_transformations:
+                        text = transformation.tx(text)
+                    self.serial.write(self.tx_encoder.encode(text))
+                    if self.echo:
+                        echo_text = c
+                        for transformation in self.tx_transformations:
+                            echo_text = transformation.echo(echo_text)
+                        self.console.write(echo_text)
+        except _SERIAL_IO_EXCEPTIONS as exc:
+            self.alive = False
+            self._report_disconnect(exc)
+            self._cancel_console_quietly()
+
+
+def _close_miniterm(miniterm):
+    miniterm.alive = False
+    if hasattr(miniterm.serial, 'cancel_read'):
+        try:
+            miniterm.serial.cancel_read()
+        except _SERIAL_IO_EXCEPTIONS:
+            pass
+
+    if miniterm.receiver_thread and miniterm.receiver_thread.is_alive():
+        miniterm.receiver_thread.join(timeout=1)
+    if miniterm.transmitter_thread and miniterm.transmitter_thread.is_alive():
+        miniterm._cancel_console_quietly()
+        miniterm.transmitter_thread.join(timeout=1)
+
+    try:
+        miniterm.console.cleanup()
+    except OSError:
+        pass
+    try:
+        miniterm.close()
+    except _SERIAL_IO_EXCEPTIONS:
+        pass
+
+
+def _wait_miniterm(miniterm):
+    try:
+        while miniterm.alive:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        _close_miniterm(miniterm)
 
 
 def _choose_port() -> str:
@@ -88,6 +206,7 @@ def _choose_port() -> str:
               help="Save received log to file.")
 def cli(port, baud, log):
     logger = get_logger()
+    logger.info("Monitor: Press Ctrl+] to quit.")
     check_proj_dir()
 
     params = get_global_params()
@@ -123,20 +242,14 @@ def cli(port, baud, log):
     logfile = open(log, 'ab') if log else None
     try:
         serial_obj = _LoggingSerial(ser, logfile) if logfile else ser
-        miniterm = Miniterm(serial_obj, filters=('direct',))
+        miniterm = _FriendlyMiniterm(serial_obj, port, filters=('direct',))
         miniterm.set_rx_encoding('utf-8', 'replace')
         miniterm.set_tx_encoding('utf-8', 'replace')
         miniterm.exit_character = chr(0x1d)  # Ctrl+]
         miniterm.menu_character = chr(0x14)  # Ctrl+T
         miniterm.start()
         sys.stderr.write(f'--- Monitor {port}  {baudrate} baud --- Quit: Ctrl+] ---\r\n')
-        try:
-            miniterm.join(True)
-        except KeyboardInterrupt:
-            pass
-        finally:
-            miniterm.join()
-            miniterm.close()
+        _wait_miniterm(miniterm)
     finally:
         if logfile:
             logfile.close()

@@ -1,0 +1,63 @@
+config ENABLE_PRINTER
+    bool "enable printer"
+    default n
+
+if (ENABLE_PRINTER)
+    config PRINTER_NAME
+        string "the name of printer"
+        default "printer"
+
+    config PRINTER_STACK_SIZE
+        int "printer task stack size"
+        default 4096
+        range 1024 16384
+
+    config PRINTER_POLL_INTERVAL_MS
+        int "printer status poll interval (ms)"
+        default 500
+        range 100 5000
+
+    config ENABLE_PRINTER_UART
+        bool "enable printer uart"
+        default y
+
+    config PRINTER_UART_BAUDRATE
+        int "printer uart baudrate"
+        default 19200
+        range 2400 115200
+        depends on ENABLE_PRINTER_UART
+
+    config ENABLE_PRINTER_MTP02
+        bool "enable MTP02-DXD thermal printer mechanism driver"
+        default n
+
+    config PRINTER_MTP02_STROBE_MS
+        int "MTP02 thermal head strobe time (ms)"
+        default 1
+        range 1 10
+        depends on ENABLE_PRINTER_MTP02
+
+    config PRINTER_MTP02_MOTOR_STEP_MS
+        int "MTP02 motor step interval (ms)"
+        default 3
+        range 1 10
+        depends on ENABLE_PRINTER_MTP02
+
+    config ENABLE_PRINTER_DP48
+        bool "enable DP48A ESC/POS UART printer driver"
+        default n
+
+    config PRINTER_TEAR_FEED_LINES
+        int "paper feed lines after each print job (tear-off strip), 0 = disabled"
+        default 0
+        range 0 5000
+        help
+          When non-zero, tdl_printer_end() automatically advances the
+          paper by this many dot-rows so the printed content clears
+          the tear bar. Set to 0 to disable (the application can still
+          call tdl_printer_paper_feed() explicitly).
+          Note: on some thermal printers the ESC d n command's "n"
+          parameter is interpreted as millimetres rather than dot-rows;
+          if you see excessive paper feed at the default value, lower
+          this number or set it to 0.
+endif

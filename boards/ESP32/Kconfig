@@ -31,6 +31,10 @@ config PLATFORM_FLASHSIZE_16M
     bool
     default n
 
+config PLATFORM_FLASHSIZE_32M
+    bool
+    default n
+
 config ENABLE_ESP32S3_USB_JTAG_ONLY
     bool
     default n
@@ -107,6 +111,18 @@ choice
         bool "WAVESHARE_ESP32C6_DEV_KIT_N16"
         if (BOARD_CHOICE_WAVESHARE_ESP32C6_DEV_KIT_N16)
             rsource "./WAVESHARE_ESP32C6_DEV_KIT_N16/Kconfig"
+        endif
+
+    config BOARD_CHOICE_ESP32_P4_C6
+        bool "ESP32-P4-C6"
+        if (BOARD_CHOICE_ESP32_P4_C6)
+            rsource "./ESP32-P4-C6/Kconfig"
+        endif
+
+    config BOARD_CHOICE_WAVESHARE_ESP32P4C6_TOUCH_LCD_4_3
+        bool "WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3"
+        if (BOARD_CHOICE_WAVESHARE_ESP32P4C6_TOUCH_LCD_4_3)
+            rsource "./WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>

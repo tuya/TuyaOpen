@@ -1,4 +1,3 @@
-#include "tuya_ai_encoder_opus.h"
 #include "tuya_ai_encoder_opus_ipc_server.h"
 #include "tuya_error_code.h"
 #include "tal_system.h"
@@ -16,7 +15,7 @@ STATIC TUYA_AI_ENCODER_T *enc_speex = &g_tuya_ai_encoder_speex;
 STATIC TUYA_AI_ENCODER_T *enc_speex = NULL;
 #endif
 
-STATIC OPERATE_RET __output_cb(AI_AUDIO_CODEC_TYPE codec_type, uint8_t *data, uint32_t len, void *usr_data)
+STATIC OPERATE_RET __output_cb(AI_AUDIO_CODEC_TYPE codec_type, UCHAR_T *data, UINT_T len, void *usr_data)
 {
     if (data == NULL || len == 0 || usr_data == NULL) {
         return OPRT_INVALID_PARM; // Invalid parameters
@@ -69,7 +68,7 @@ OPERATE_RET tuya_ai_encoder_opus_server_handle(VOID *para)
             return OPRT_INVALID_PARM; // Invalid parameters
         }
         // Encode audio data
-        rt = enc->encode(enc_para->handle, (uint8_t *)enc_para->buf, enc_para->buf_len, __output_cb, enc_para);
+        rt = enc->encode(enc_para->handle, (UCHAR_T *)enc_para->buf, enc_para->buf_len, __output_cb, enc_para);
         return rt; // Return the result of encoding operation
     } else if (IPC_AUDIO_ENC_OPS_DESTROY == enc_para->ops) {
         // Destroy Opus encoder

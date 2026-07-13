@@ -15,4 +15,13 @@ if (ENABLE_DISPLAY)
         string "the name of display 2"
         default "display2"
         depends on ENABLE_DISPLAY_2
+
+    config DISPLAY_DEFAULT_BRIGHTNESS
+        int "Default backlight brightness when opening display (0-100)"
+        range 0 100
+        default 100
+        help
+            Applied by tdl_disp_dev_open() after backlight hardware is initialized.
+            0 turns backlight off where supported; 100 is maximum. For GPIO on/off
+            backlight, any non-zero value turns the backlight on.
 endif

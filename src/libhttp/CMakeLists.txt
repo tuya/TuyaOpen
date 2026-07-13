@@ -16,7 +16,10 @@ list(APPEND LIB_SRCS
     ${MODULE_PATH}/coreHTTP/source/core_http_client.c
     ${MODULE_PATH}/coreHTTP/source/dependency/3rdparty/http_parser/http_parser.c
     ${MODULE_PATH}/src/http_client_wrapper.c
-    ${MODULE_PATH}/src/http_session.c)
+    ${MODULE_PATH}/src/http_session.c
+    ${MODULE_PATH}/src/http_host.c
+    ${MODULE_PATH}/src/http_site.c
+    ${MODULE_PATH}/src/http_captive.c)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 

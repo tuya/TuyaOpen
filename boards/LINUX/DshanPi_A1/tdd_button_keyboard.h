@@ -38,14 +38,6 @@ typedef struct {
  */
 OPERATE_RET tdd_keyboard_button_register(char *name, BUTTON_CFG_T *gpio_cfg);
 
-/**
- * @brief Update the effective level of button configuration
- * @param[in] handle  button handle
- * @param[in] level  level
- * @return Function Operation Result  OPRT_OK is ok other is fail
- */
-OPERATE_RET tdd_gpio_button_update_level(DEVICE_BUTTON_HANDLE handle, TUYA_GPIO_LEVEL_E level);
-
 #ifdef __cplusplus
 }
 #endif

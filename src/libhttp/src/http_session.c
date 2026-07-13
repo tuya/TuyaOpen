@@ -402,6 +402,22 @@ OPERATE_RET http_send_request(http_session_t session, const http_req_t *req, uin
         return OPRT_COM_ERROR;
     }
 
+    // Add custom headers if provided
+    if (req->custom_headers && req->custom_headers_count > 0) {
+        for (int i = 0; i < req->custom_headers_count; i++) {
+            if (req->custom_headers[i].key && req->custom_headers[i].value) {
+                httpStatus = HTTPClient_AddHeader(&requestHeaders,
+                    req->custom_headers[i].key, strlen(req->custom_headers[i].key),
+                    req->custom_headers[i].value, strlen(req->custom_headers[i].value));
+                if (httpStatus != HTTPSuccess) {
+                    PR_ERR("HTTP add header error:%d key:%s", httpStatus, req->custom_headers[i].key);
+                    HTTP_FREE(requestHeaders.pBuffer);
+                    return OPRT_COM_ERROR;
+                }
+            }
+        }
+    }
+
     // Check if this is a range request (for partial download)
     bool is_range_request = (req->download_size > 0 || req->download_offset > 0);
     
@@ -606,14 +622,14 @@ int http_read_content(http_session_t session, void *buf, unsigned int max_len)
 
     // Use HTTPClient_Recv to read data directly from network
     // Response body is not pre-loaded, it's read on-demand via HTTPClient_Recv
-    
+
     // Check if we've already read all data
     if (ctx->total_body_length > 0 && ctx->bytes_read >= ctx->total_body_length) {
         return 0; // EOF
     }
 
     // Use HTTPClient_Recv to read data directly into caller's buffer
-    int32_t bytes_read = HTTPClient_Recv(&ctx->transport, &ctx->response, 
+    int32_t bytes_read = HTTPClient_Recv(&ctx->transport, &ctx->response,
                                          (uint8_t *)buf, (size_t)max_len);
 
     if (bytes_read < 0) {
@@ -638,5 +654,101 @@ int http_read_content(http_session_t session, void *buf, unsigned int max_len)
     }
 
     return (int)bytes_read;
+}
+
+OPERATE_RET http_send_request_stream(http_session_t session, const http_req_t *req,
+                                     uint32_t total_body_len, uint32_t req_flags)
+{
+    if (!session || !req) {
+        return OPRT_INVALID_PARM;
+    }
+
+    http_session_ctx_t *ctx = (http_session_ctx_t *)session;
+
+    if (!ctx->connected) {
+        PR_ERR("session not connected");
+        return OPRT_COM_ERROR;
+    }
+
+    const char *method_str = "GET";
+    switch (req->type) {
+        case HTTP_GET: method_str = "GET"; break;
+        case HTTP_POST: method_str = "POST"; break;
+        case HTTP_PUT: method_str = "PUT"; break;
+        case HTTP_DELETE: method_str = "DELETE"; break;
+        case HTTP_HEAD: method_str = "HEAD"; break;
+        default: method_str = "GET"; break;
+    }
+
+    // Build request line and headers manually for streaming
+    char *header_buf = HTTP_MALLOC(HEADER_BUFFER_LENGTH);
+    if (!header_buf) {
+        return OPRT_MALLOC_FAILED;
+    }
+
+    int offset = snprintf(header_buf, HEADER_BUFFER_LENGTH,
+        "%s %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %u\r\n",
+        method_str, ctx->path, ctx->host, total_body_len);
+
+    // Add custom headers
+    if (req->custom_headers && req->custom_headers_count > 0) {
+        for (int i = 0; i < req->custom_headers_count; i++) {
+            if (req->custom_headers[i].key && req->custom_headers[i].value) {
+                offset += snprintf(header_buf + offset, HEADER_BUFFER_LENGTH - offset,
+                    "%s: %s\r\n", req->custom_headers[i].key, req->custom_headers[i].value);
+            }
+        }
+    }
+
+    // End of headers
+    offset += snprintf(header_buf + offset, HEADER_BUFFER_LENGTH - offset, "\r\n");
+
+    PR_DEBUG("Streaming HTTP %s to %s, body_len=%u", method_str, ctx->host, total_body_len);
+
+    // Send headers via transport
+    int32_t sent = ctx->transport.send(ctx->transport.pNetworkContext,
+                                       (const uint8_t *)header_buf, (size_t)offset);
+    HTTP_FREE(header_buf);
+
+    if (sent != offset) {
+        PR_ERR("Failed to send streaming request headers: sent=%d expected=%d", sent, offset);
+        return OPRT_COM_ERROR;
+    }
+
+    // Set up for streaming body writes
+    ctx->total_body_length = total_body_len;
+    ctx->bytes_read = 0; // reuse as bytes_written tracker
+    ctx->response_ready = false;
+
+    return OPRT_OK;
+}
+
+int http_write_content(http_session_t session, const void *data, size_t len)
+{
+    if (!session || !data || len == 0) {
+        return -1;
+    }
+
+    http_session_ctx_t *ctx = (http_session_ctx_t *)session;
+
+    if (!ctx->connected) {
+        return -1;
+    }
+
+    size_t total_sent = 0;
+    while (total_sent < len) {
+        int32_t sent = ctx->transport.send(ctx->transport.pNetworkContext,
+                                           (const uint8_t *)data + total_sent,
+                                           len - total_sent);
+        if (sent <= 0) {
+            PR_ERR("http_write_content send failed: %d", sent);
+            return (total_sent > 0) ? (int)total_sent : -1;
+        }
+        total_sent += sent;
+    }
+
+    ctx->bytes_read += total_sent; // track total written
+
+    return (int)total_sent;
 }
 

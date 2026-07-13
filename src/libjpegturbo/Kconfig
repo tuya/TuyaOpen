@@ -1,0 +1,3 @@
+config ENABLE_LIBJPEGTURBO
+  bool "configure enable/disable libjpegturbo"
+	default n

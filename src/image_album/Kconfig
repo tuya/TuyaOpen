@@ -1,0 +1,19 @@
+menuconfig ENABLE_IMAGE_ALBUM
+    bool "ENABLE_IMAGE_ALBUM: Enable image album component"
+    default n
+
+    if (ENABLE_IMAGE_ALBUM)
+        config ENABLE_IMAGE_ALBUM_STORAGE_MEM
+            bool "ENABLE_IMAGE_ALBUM_STORAGE_MEM: Enable memory storage backend"
+            default y
+            help
+              Store pictures in RAM for fast access.
+              Pictures are lost on power cycle.
+
+        config ENABLE_IMAGE_ALBUM_STORAGE_SD
+            bool "ENABLE_IMAGE_ALBUM_STORAGE_SD: Enable filesystem storage backend"
+            default n
+            help
+              Store pictures on filesystem (SD card, flash, etc.)
+              for persistent storage across power cycles.
+    endif # ENABLE_IMAGE_ALBUM

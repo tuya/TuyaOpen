@@ -165,7 +165,7 @@ static OPERATE_RET __disp_spi_manage_init(TUYA_SPI_NUM_E port, DISP_SPI_DEV_T *d
     }
 
     if(NULL == sg_disp_spi_sync[port].spi_task) {
-        THREAD_CFG_T thread_cfg = {4096, THREAD_PRIO_1, "spi_task"};
+        THREAD_CFG_T thread_cfg = {4096, THREAD_PRIO_1, "spi_task", 0};
         TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_disp_spi_sync[port].spi_task), 
                                                          NULL, NULL, __disp_spi_task,
                                                          (const void *)disp_spi_dev, &thread_cfg));

@@ -9,22 +9,13 @@ config BOARD_CHOICE
 config BOARD_CONFIG
     bool
     default y
+    select ENABLE_EXT_RAM
     select ENABLE_AUDIO
-    select ENABLE_ESP_DISPLAY
+    select ENABLE_BUTTON
+    select ENABLE_DISPLAY
+    select ENABLE_TP
+    select ENABLE_PMIC
+    select ENABLE_PMIC_AXP2101
     select PLATFORM_FLASHSIZE_16M
     select ENABLE_AUDIO_CODECS
     select ENABLE_ESP32S3_USB_JTAG_ONLY
-
-config LVGL_ENABLE_TOUCH
-    bool "Enable LVGL Touch Support"
-    default y
-    help
-        Enable touch screen support for this board
-
-config BOARD_LCD_DEFAULT_BRIGHTNESS
-    int "Default LCD backlight (0-100)"
-    range 0 100
-    default 80
-    depends on BOARD_CONFIG
-    help
-        Default backlight brightness percentage. Used for SH8601 (DCS 0x51).

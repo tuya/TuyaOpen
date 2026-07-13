@@ -10,10 +10,23 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-aux_source_directory(${MODULE_PATH}/src/ LIB_SRCS)
+# Root source files
+file(GLOB ROOT_SRCS "${MODULE_PATH}/src/*.c")
+
+# md5 source files
+file(GLOB TJPEG_SRCS "${MODULE_PATH}/src/tjpgd/*.c")
+
+# Combine all source files
+set(LIB_SRCS
+    ${ROOT_SRCS}
+    ${TJPEG_SRCS}
+)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
+
+# LIB_PRIVATE_INC
+set(LIB_PRIVATE_INC ${MODULE_PATH}/src ${MODULE_PATH}/src/tjpgd)
 
 ########################################
 # Target Configure

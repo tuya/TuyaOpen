@@ -1,0 +1,48 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f2f5f7;
+  margin: 0;
+  padding: 20px;
+}
+
+.card {
+  max-width: 520px;
+  margin: auto;
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+label {
+  display: block;
+  margin: 10px 0;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+button {
+  padding: 10px 16px;
+  cursor: pointer;
+  background: #2a64f6;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}
+
+pre {
+  background: #111;
+  color: #8ef;
+  padding: 10px;
+  border-radius: 4px;
+  overflow: auto;
+}

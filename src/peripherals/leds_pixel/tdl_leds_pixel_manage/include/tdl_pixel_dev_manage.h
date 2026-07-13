@@ -65,7 +65,7 @@ typedef void *PIXEL_HANDLE_T;
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-int tdl_pixel_dev_find(char *name, OUT PIXEL_HANDLE_T *handle);
+int tdl_pixel_dev_find(char *name, PIXEL_HANDLE_T *handle);
 
 /**
  * @brief        Start device

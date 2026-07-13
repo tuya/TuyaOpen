@@ -566,6 +566,7 @@ OPERATE_RET tuya_ai_player_service_init(AI_PLAYER_CFG_T *cfg)
     thread_cfg.stackDepth = AI_PLAYER_STACK_SIZE;
     thread_cfg.priority   = THREAD_PRIO_1;
     thread_cfg.thrdname   = "ai_player";
+    thread_cfg.psram_mode = 1;
     TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&s_ai_player_ctx.thread, NULL, NULL, __ai_player_thread_cb, NULL, &thread_cfg));
 
     memcpy(&s_ai_player_ctx.cfg, cfg, SIZEOF(AI_PLAYER_CFG_T));

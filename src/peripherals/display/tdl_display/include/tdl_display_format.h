@@ -79,14 +79,17 @@ uint32_t tdl_disp_convert_rgb565_to_color(uint16_t rgb565, TUYA_DISPLAY_PIXEL_FM
  * @param in_height Height of the input image in pixels.
  * @param out_fb Pointer to the output framebuffer structure containing format and buffer information.
  * @param is_swap Flag indicating whether to swap the frame buffers(rgb565).
+ * @param rotate Rotation angle for the output image.
+ * @param yuv_order YUV422 byte order (UYVY or YUYV).
  * @return OPERATE_RET Returns OPRT_OK on success, error code otherwise.
  */
 OPERATE_RET tdl_disp_convert_yuv422_to_fb(uint8_t *in_buf, uint16_t in_width, uint16_t in_height,
                                           TDL_DISP_FRAME_BUFF_T *out_fb, bool is_swap,
-                                          TUYA_DISPLAY_ROTATION_E rotate);
+                                          TUYA_DISPLAY_ROTATION_E rotate,
+                                          TUYA_YUV422_ORDER_E yuv_order);
 
 /**
- * @brief Converts YUV422 format buffer to the specified framebuffer pixel format.
+ * @brief Converts YUV422 format buffer to the specified framebuffer pixel format (UYVY default).
  * @param in_buf Pointer to the input YUV422 buffer.
  * @param in_width Width of the input image in pixels.
  * @param in_height Height of the input image in pixels.
@@ -94,7 +97,7 @@ OPERATE_RET tdl_disp_convert_yuv422_to_fb(uint8_t *in_buf, uint16_t in_width, ui
  * @return OPERATE_RET Returns OPRT_OK on success, error code otherwise.
  */
 #define tdl_disp_convert_yuv422_to_framebuffer(in_buf, in_width, in_height, out_fb) \
-        tdl_disp_convert_yuv422_to_fb(in_buf, in_width, in_height, out_fb, false, TUYA_DISPLAY_ROTATION_0)
+        tdl_disp_convert_yuv422_to_fb(in_buf, in_width, in_height, out_fb, false, TUYA_DISPLAY_ROTATION_0, TUYA_YUV422_UYVY)
 
 /**
  * @brief Set monochrome conversion parameters

@@ -27,6 +27,9 @@
 #include "tuya_ai_client.h"
 #include "tuya_ai_biz.h"
 
+/** Length in bytes of device secret key used for AI media AES-GCM (must match tal_aes_gcm_* key_len). */
+#define TUYA_AI_SECRET_KEY_LEN (16)
+
 /**
  * @brief http download ai audio
  *
@@ -35,7 +38,7 @@
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_http_dld_audio(char *url, AI_BIZ_RECV_CB cb);
+OPERATE_RET tuya_ai_http_dld_audio(CHAR_T *url, AI_BIZ_RECV_CB cb);
 
 /**
  * @brief http download ai video
@@ -45,7 +48,7 @@ OPERATE_RET tuya_ai_http_dld_audio(char *url, AI_BIZ_RECV_CB cb);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_http_dld_video(char *url, AI_BIZ_RECV_CB cb);
+OPERATE_RET tuya_ai_http_dld_video(CHAR_T *url, AI_BIZ_RECV_CB cb);
 
 /**
  * @brief http download ai image
@@ -55,7 +58,7 @@ OPERATE_RET tuya_ai_http_dld_video(char *url, AI_BIZ_RECV_CB cb);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_http_dld_image(char *url, AI_BIZ_RECV_CB cb);
+OPERATE_RET tuya_ai_http_dld_image(CHAR_T *url, AI_BIZ_RECV_CB cb);
 
 /**
  * @brief http download ai file
@@ -65,7 +68,7 @@ OPERATE_RET tuya_ai_http_dld_image(char *url, AI_BIZ_RECV_CB cb);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_http_dld_file(char *url, AI_BIZ_RECV_CB cb);
+OPERATE_RET tuya_ai_http_dld_file(CHAR_T *url, AI_BIZ_RECV_CB cb);
 
 /**
  * @brief http download ai text
@@ -75,5 +78,21 @@ OPERATE_RET tuya_ai_http_dld_file(char *url, AI_BIZ_RECV_CB cb);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ai_http_dld_text(char *url, AI_BIZ_RECV_CB cb);
+OPERATE_RET tuya_ai_http_dld_text(CHAR_T *url, AI_BIZ_RECV_CB cb);
+
+/**
+ * @brief get http secret key for AI media AES-GCM
+ *
+ * @param[out] key secret key buffer
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tuya_ai_http_get_secret_key(UCHAR_T *key);
+
+/**
+ * @brief stop http download
+ *
+ * @return VOID
+ */
+VOID tuya_ai_http_stop_dld(VOID);
 #endif // __TUYA_AI_HTTP_H__

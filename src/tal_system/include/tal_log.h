@@ -346,6 +346,25 @@ void tal_log_hex_dump(const TAL_LOG_LEVEL_E level, const char *file, const int l
                       uint8_t *buf, uint16_t size);
 
 /**
+ * @brief Enable or disable all log output globally.
+ *
+ * When disabled, all log APIs return immediately without producing any output.
+ * The log system remains initialized and can be re-enabled at any time.
+ *
+ * @param enable TRUE to enable logging, FALSE to suppress all output.
+ *
+ * @return NONE
+ */
+void tal_log_enable_set(BOOL_T enable);
+
+/**
+ * @brief Query whether log output is currently enabled.
+ *
+ * @return TRUE if logging is enabled, FALSE if suppressed.
+ */
+BOOL_T tal_log_is_enabled(void);
+
+/**
  * @brief Sets the enable status of log color.
  *
  * This function sets the enable status of log color. If the enable parameter is set to TRUE,
