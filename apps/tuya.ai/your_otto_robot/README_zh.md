@@ -190,25 +190,21 @@ cd TuyaOpen
 - **13565LCD**：适用于标准Otto外壳的1.54寸240x240屏幕
 
 **舵机配置选择：**
+- **OTTO_BOARD_DEFAULT_TXP**：标准TXP板子配置，使用默认引脚映射
+  - 左腿：PWM0 (P18)
+  - 右腿：PWM1 (P24) 
+  - 左脚：PWM2 (P32)
+  - 右脚：PWM3 (P34)
+  - 左手：PWM4 (P36)
+  - 右手：PWM7 (P9)
 
-| 舵机 | OTTO_BOARD_DEFAULT_TXP（标准 TXP） | OTTO_BOARD_DREAM | 差异 |
-|------|-----------------------------------|------------------|------|
-| 左腿 | PWM0 (P18) | PWM0 (P18) | — |
-| 右腿 | PWM1 (P24) | PWM7 (P9) | ✓ |
-| 左脚 | PWM2 (P32) | PWM3 (P34) | ✓ |
-| 右脚 | PWM3 (P34) | PWM1 (P24) | ✓ |
-| 左手 | PWM4 (P36) | PWM2 (P32) | ✓ |
-| 右手 | PWM7 (P9) | PWM4 (P36) | ✓ |
-
-**接线图：**
-
-- **OTTO_BOARD_DEFAULT_TXP**（标准 TXP 板）
-
-  ![OTTO_BOARD_DEFAULT_TXP](doc/OTTO_BOARD_DEFAULT_TXP.jpg)
-
-- **OTTO_BOARD_DREAM**（Dream 板）
-
-  ![OTTO_BOARD_DREAM](doc/OTTO_BOARD_DREAM.jpg)
+- **OTTO_BOARD_DREAM**：Dream板子配置，使用自定义引脚映射
+  - 左腿：PWM0 (P18)
+  - 右腿：PWM7 (P9) - 与标准配置不同
+  - 左脚：PWM3 (P34)
+  - 右脚：PWM1 (P24) - 与标准配置不同  
+  - 左手：PWM2 (P32)
+  - 右手：PWM4 (P36) - 与标准配置不同
 
 **配置差异说明：**
 - `OTTO_BOARD_DEFAULT_TXP`：适用于标准的TXP开发板，引脚配置与硬件接线图一致
