@@ -1667,10 +1667,22 @@ function Complete-TuyaUvSyncProgress {
     }
 }
 
-function Try-RemoveTuyaStaleVenvLock {
+function Write-TuyaStaleVenvLockWarning {
+    param([string]$LockPath)
+    if (-not $LockPath) { $LockPath = Join-Path $env:OPEN_SDK_ROOT '.venv\.lock' }
+    Write-TuyaOpenInfo "[TuyaOpen] Warning: a stale uv venv lock was detected at: $LockPath"
+    Write-TuyaOpenInfo "           This may block dependency sync. If no uv process is running,"
+    Write-TuyaOpenInfo "           you can remove it manually, then re-run: . .\export.ps1"
+    Write-TuyaOpenInfo "             Remove-Item -LiteralPath '$LockPath' -Force"
+}
+
+function Test-TuyaStaleVenvLock {
+    # Detects a stale uv venv lock and warns the user (does NOT auto-remove;
+    # removal is left to the user to avoid deleting a lock held by another uv).
+    # Returns $true if a stale lock was detected, $false otherwise.
     param([Parameter(Mandatory)][string]$Root)
-    $lockPath = Join-Path $Root '.venv/.lock'
-    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) { return }
+    $lockPath = Join-Path $Root '.venv\.lock'
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) { return $false }
 
     $owner = $null
     try {
@@ -1679,17 +1691,19 @@ function Try-RemoveTuyaStaleVenvLock {
 
     if ($owner -and $owner -match '^\d+$') {
         if (Get-Process -Id ([int]$owner) -ErrorAction SilentlyContinue) {
-            return
+            return $false
         }
     }
 
     $stamp = $null
     try { $stamp = (Get-Item -LiteralPath $lockPath).LastWriteTimeUtc } catch { $stamp = $null }
-    if ($null -eq $stamp) { return }
+    if ($null -eq $stamp) { return $false }
     $ageSeconds = [int]((Get-Date).ToUniversalTime() - $stamp).TotalSeconds
     if ($ageSeconds -gt 15) {
-        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
+        Write-TuyaStaleVenvLockWarning -LockPath $lockPath
+        return $true
     }
+    return $false
 }
 
 function Invoke-TuyaUvSyncWithProgress {
@@ -1700,7 +1714,7 @@ function Invoke-TuyaUvSyncWithProgress {
     )
 
     Reset-TuyaUvDiag
-    Try-RemoveTuyaStaleVenvLock -Root $Root
+    Test-TuyaStaleVenvLock -Root $Root | Out-Null
     $syncPlan = Get-TuyaUvSyncPlan
     $syncSrc = if ($syncPlan.UseAliyunMirror) { 'Aliyun PyPI mirror (CN)' } else { 'PyPI (default)' }
     Write-TuyaOpenInfo "[TuyaOpen] Syncing $TotalPackages Python dependencies from $syncSrc..."
@@ -1842,6 +1856,26 @@ function Invoke-TuyaSetupVenv {
     }
 
     if ($createdVenv) {
+        Write-TuyaOpenDebug '[TuyaOpen] .venv was just created; running dependency sync.'
+        $shouldSync = $true
+    } else {
+        # venv already exists: only skip sync when uv.lock is not newer than the
+        # venv marker, to avoid silently using stale deps after a git pull.
+        $lockPath   = Join-Path $Root 'uv.lock'
+        $lockStamp  = $null
+        $markerStamp = $null
+        try { $lockStamp = (Get-Item -LiteralPath $lockPath).LastWriteTimeUtc } catch {}
+        try { $markerStamp = (Get-Item -LiteralPath $marker).LastWriteTimeUtc } catch {}
+        if ($null -ne $lockStamp -and $null -ne $markerStamp -and $lockStamp -le $markerStamp) {
+            $shouldSync = $false
+            Write-TuyaOpenDebug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
+        } else {
+            $shouldSync = $true
+            Write-TuyaOpenDebug '[TuyaOpen] uv.lock newer than venv; running dependency sync.'
+        }
+    }
+
+    if ($shouldSync) {
         Push-Location $Root
         try {
             Write-TuyaOpenStage -StageId 'sync'
@@ -1861,8 +1895,6 @@ function Invoke-TuyaSetupVenv {
             }
             Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
         } finally { Pop-Location }
-    } else {
-        Write-TuyaOpenDebug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
     }
 
     if (-not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {

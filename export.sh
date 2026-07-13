@@ -252,10 +252,13 @@ tuya_uv_run_stream() {
     tuya_uv_release_venv_lock() {
         local lock="$OPEN_SDK_ROOT/.venv/.lock"
         [ -f "$lock" ] || return 0
-        if ps -C uv >/dev/null 2>&1; then
+        # Cross-platform active-uv detection: pgrep -x works on Linux and macOS.
+        # If a uv process is running, keep the lock; otherwise do NOT auto-remove
+        # (leave it to the user) — just warn once.
+        if command -v pgrep >/dev/null 2>&1 && pgrep -x uv >/dev/null 2>&1; then
             return 0
         fi
-        rm -f "$lock" 2>/dev/null || true
+        tuya_warn_stale_venv_lock "$lock"
     }
 
     tuya_uv_stream_cleanup() {
@@ -485,6 +488,7 @@ tuya_cleanup() {
              tuya_uv_reset_diag tuya_uv_capture_diag tuya_uv_diag_is_network tuya_uv_print_diag \
              tuya_setup_python tuya_uv_sync_plan tuya_uv \
              tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide tuya_sync_deps_error \
+             tuya_file_mtime_epoch tuya_warn_stale_venv_lock tuya_try_release_stale_lock \
              tuya_is_uv_venv tuya_migrate_legacy_venv \
              tuya_setup_venv tuya_is_env_active \
              tuya_set_env tuya_reset_cache \
@@ -1385,21 +1389,41 @@ tuya_sync_deps_error() {
     tuya_uv_print_diag
 }
 
+tuya_file_mtime_epoch() {
+    # Cross-platform file mtime (epoch seconds). Returns non-zero on failure.
+    # Linux: stat -c %Y; macOS/BSD: stat -f %m. Falls back safely if neither works.
+    local f="$1"
+    stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || return 1
+}
+
+tuya_warn_stale_venv_lock() {
+    # A stale lock was detected: do NOT auto-remove. Warn the user and let them
+    # decide, to avoid deleting a lock legitimately held by another uv process.
+    local lock="$1"
+    [ -n "$lock" ] || lock="$OPEN_SDK_ROOT/.venv/.lock"
+    tuya_info "[TuyaOpen] Warning: a stale uv venv lock was detected at: $lock"
+    tuya_info "           This may block dependency sync. If no uv process is running,"
+    tuya_info "           you can remove it manually, then re-run: . ./export.sh"
+    tuya_info "             rm -f \"$lock\""
+}
+
 tuya_try_release_stale_lock() {
     local lock="$OPEN_SDK_ROOT/.venv/.lock"
-    local owner='' stamp=0 age=0
+    local owner='' stamp='' age=0
 
     [ -f "$lock" ] || return 0
 
     owner=$(head -n 1 "$lock" 2>/dev/null | tr -d '[:space:]')
-    if [ -n "$owner" ] && [ -d "/proc/$owner" ]; then
+    # Cross-platform PID liveness check: ps -p works on Linux and macOS and is
+    # read-only (sends no signal).
+    if [ -n "$owner" ] && ps -p "$owner" >/dev/null 2>&1; then
         return 0
     fi
 
-    stamp=$(stat -c %Y "$lock" 2>/dev/null || echo 0)
+    stamp=$(tuya_file_mtime_epoch "$lock") || return 0
     age=$(( $(date +%s) - stamp ))
     if [ "$age" -gt 15 ]; then
-        rm -f "$lock" 2>/dev/null || true
+        tuya_warn_stale_venv_lock "$lock"
     fi
 }
 
@@ -1506,7 +1530,28 @@ tuya_setup_venv() {
         fi
         tuya_debug '[TuyaOpen] Dependencies synced.'
     else
-        tuya_debug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
+        # venv already exists: only skip sync when uv.lock is not newer than the
+        # venv marker, to avoid silently using stale deps after a git pull.
+        local lock_mtime='' marker_mtime='' need_sync=1
+        lock_mtime=$(tuya_file_mtime_epoch "$OPEN_SDK_ROOT/uv.lock") || lock_mtime=''
+        marker_mtime=$(tuya_file_mtime_epoch "$venv_path/$TUYA_VENV_MARKER") || marker_mtime=''
+        if [ -n "$lock_mtime" ] && [ -n "$marker_mtime" ] && [ "$lock_mtime" -le "$marker_mtime" ]; then
+            need_sync=0
+        fi
+        if [ "$need_sync" -eq 1 ]; then
+            tuya_debug '[TuyaOpen] uv.lock newer than venv; running dependency sync.'
+            (
+                cd "$OPEN_SDK_ROOT" || exit 1
+                tuya_sync_deps
+            ) || rc=$?
+            if [ "$rc" -ne 0 ]; then
+                # tuya_sync_deps already reported the specific cause (incl. uv output).
+                return 1
+            fi
+            tuya_debug '[TuyaOpen] Dependencies synced.'
+        else
+            tuya_debug '[TuyaOpen] Environment already healthy; skipping dependency sync.'
+        fi
     fi
 
     if [ ! -x "$venv_py" ]; then
