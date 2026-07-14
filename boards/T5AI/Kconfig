@@ -112,6 +112,12 @@ choice
             rsource "./T5AI_MODULE/Kconfig"
         endif
 
+    config BOARD_CHOICE_LCKFB_T5AI_TOUCH
+        bool "LCKFB_T5AI_TOUCH"
+        if (BOARD_CHOICE_LCKFB_T5AI_TOUCH)
+            rsource "./LCKFB_T5AI_TOUCH/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

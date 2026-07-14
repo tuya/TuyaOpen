@@ -6,4 +6,8 @@ if (ENABLE_IMU)
     config ENABLE_IMU_BMI270
         bool "Enable bmi270"
         default y
+
+    config ENABLE_IMU_SC7A20
+        bool "Enable SC7A20 accelerometer"
+        default n
 endif
