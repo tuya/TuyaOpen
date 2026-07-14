@@ -22,6 +22,12 @@ if (CONFIG_ENABLE_IMU_BMI270 STREQUAL "y")
     list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/bmi270)
 endif()
 
+if (CONFIG_ENABLE_IMU_SC7A20 STREQUAL "y")
+    file(GLOB SC7A20_SOURCES "${MODULE_PATH}/sc7a20/*.c")
+    list(APPEND LIB_SRCS ${SC7A20_SOURCES})
+    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/sc7a20)
+endif()
+
 ########################################
 # Target Configure
 ########################################
