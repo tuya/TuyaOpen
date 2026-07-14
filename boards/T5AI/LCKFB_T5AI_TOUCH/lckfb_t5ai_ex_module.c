@@ -155,6 +155,8 @@ static TDD_SC7A20_CFG_T s_sc7a20_cfg;
 
 static OPERATE_RET __board_register_sc7a20(void)
 {
+    OPERATE_RET rt = OPRT_OK;
+    
     s_sc7a20_cfg.i2c_port  = BOARD_SC7A20_I2C_PORT;
     s_sc7a20_cfg.i2c_addr  = SC7A20_I2C_ADDR_SA0_HIGH;
     s_sc7a20_cfg.range     = SC7A20_RANGE_2G;
