@@ -152,43 +152,9 @@ static OPERATE_RET __board_register_camera(void)
 /* ---- SC7A20 IMU sensor ---- */
 #if defined(LCKFB_T5AI_TOUCH_SC7A20) && (LCKFB_T5AI_TOUCH_SC7A20 == 1)
 static TDD_SC7A20_CFG_T s_sc7a20_cfg;
-static SEM_HANDLE       s_sc7a20_int_sem  = NULL;
-static THREAD_HANDLE    s_sc7a20_int_thrd = NULL;
-
-/* INT1 ISR: post semaphore only — NO blocking/I2C calls in IRQ context. */
-static void __board_sc7a20_int_isr(void *args)
-{
-    (void)args;
-    tal_semaphore_post(s_sc7a20_int_sem);
-}
-
-/* INT1 worker: clear the latched interrupt (read INT1_SRC) and read accel.
- * Runs in thread context so blocking I2C access is safe. */
-static void __board_sc7a20_int_task(void *args)
-{
-    uint8_t            src = 0;
-    SC7A20_ACCEL_DATA_T mg;
-
-    (void)args;
-
-    while (1) {
-        tal_semaphore_wait(s_sc7a20_int_sem, SEM_WAIT_FOREVER);
-
-        /* reading INT1_SRC clears the latched INT1 */
-        if (OPRT_OK == tdd_sc7a20_int_read_src(&s_sc7a20_cfg, &src)) {
-            if (src & SC7A20_INT1_IA) {
-                if (OPRT_OK == tdd_sc7a20_read_mg(&s_sc7a20_cfg, &mg)) {
-                    PR_NOTICE("[SC7A20] INT1 activity: x=%d y=%d z=%d mg", mg.x, mg.y, mg.z);
-                }
-            }
-        }
-    }
-}
 
 static OPERATE_RET __board_register_sc7a20(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     s_sc7a20_cfg.i2c_port  = BOARD_SC7A20_I2C_PORT;
     s_sc7a20_cfg.i2c_addr  = SC7A20_I2C_ADDR_SA0_HIGH;
     s_sc7a20_cfg.range     = SC7A20_RANGE_2G;
@@ -196,52 +162,12 @@ static OPERATE_RET __board_register_sc7a20(void)
     s_sc7a20_cfg.low_power = false;
     s_sc7a20_cfg.hpf_data  = false;
 
-    /* I2C pinmux is board-specific (SCL/SDA routed to I2C1) */
     tkl_io_pinmux_config(BOARD_SC7A20_I2C_SCL_PIN, TUYA_IIC1_SCL);
     tkl_io_pinmux_config(BOARD_SC7A20_I2C_SDA_PIN, TUYA_IIC1_SDA);
 
     TUYA_CALL_ERR_RETURN(tdd_sc7a20_init(&s_sc7a20_cfg));
 
-    /* configure INT1: activity detection (latched, active-high) */
-    TDD_SC7A20_INT_CFG_T int_cfg = {
-        .event     = SC7A20_INT_ACT,
-        .threshold = 0x10,    /* ~250 mg at 2 g full-scale (1 LSB = 15.6 mg) */
-        .duration  = 0x00,    /* immediate */
-    };
-    TUYA_CALL_ERR_RETURN(tdd_sc7a20_int_config(&s_sc7a20_cfg, &int_cfg));
-
-    /* clear any latched INT1 before enabling the GPIO IRQ */
-    uint8_t src = 0;
-    (void)tdd_sc7a20_int_read_src(&s_sc7a20_cfg, &src);
-
-    /* INT1 pin as input with pull-up (sensor drives it high on event) */
-    TUYA_GPIO_BASE_CFG_T int_pin = {
-        .mode   = TUYA_GPIO_PULLUP,
-        .direct = TUYA_GPIO_INPUT,
-    };
-    TUYA_CALL_ERR_RETURN(tkl_gpio_init(BOARD_SC7A20_INT1_PIN, &int_pin));
-
-    /* semaphore + worker thread: defer I2C out of IRQ context */
-    TUYA_CALL_ERR_RETURN(tal_semaphore_create_init(&s_sc7a20_int_sem, 0, 1));
-    THREAD_CFG_T thrd_cfg = {
-        .thrdname   = "sc7a20_int",
-        .stackDepth = 2048,
-        .priority   = THREAD_PRIO_2,
-    };
-    if (NULL == s_sc7a20_int_thrd) {
-        TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&s_sc7a20_int_thrd, NULL, NULL, __board_sc7a20_int_task, NULL, &thrd_cfg));
-    }
-
-    /* enable INT1 GPIO interrupt: rising edge (INT1 goes high on event) */
-    TUYA_GPIO_IRQ_T irq_cfg = {
-        .mode = TUYA_GPIO_IRQ_RISE,
-        .cb   = __board_sc7a20_int_isr,
-        .arg  = NULL,
-    };
-    TUYA_CALL_ERR_RETURN(tkl_gpio_irq_init(BOARD_SC7A20_INT1_PIN, &irq_cfg));
-    TUYA_CALL_ERR_RETURN(tkl_gpio_irq_enable(BOARD_SC7A20_INT1_PIN));
-
-    PR_NOTICE("[SC7A20] INT1 activity-detection enabled on P%d", BOARD_SC7A20_INT1_PIN);
+    PR_NOTICE("[SC7A20] initialized");
     return OPRT_OK;
 }
 #else
