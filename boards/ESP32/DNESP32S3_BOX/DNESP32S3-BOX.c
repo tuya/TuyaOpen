@@ -9,6 +9,8 @@
 
 #include "tal_api.h"
 
+#include "tkl_pinmux.h"
+
 #include "tdd_disp_esp_st7789_80.h"
 #include "board_com_api.h"
 
@@ -17,11 +19,13 @@
 #include "tdd_audio_8311_codec.h"
 #include "tdd_audio_atk_no_codec.h"
 
-#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+#include "tdd_led_gpio.h"
+#include "tdd_led_esp_io_expander.h"
+
+
 #include "string.h"
 #include "tal_memory.h"
 #include "tdl_button_driver.h"
-#endif
 
 /***********************************************************
 ************************macro define************************
@@ -49,6 +53,9 @@
 #define AUDIO_CODEC_DMA_DESC_NUM  (6)
 #define AUDIO_CODEC_DMA_FRAME_NUM (240)
 #define AUDIO_CODEC_ES8311_ADDR   (0x30)
+
+/* LED GPIOs */
+#define GPIO_LEDB (4)
 
 /* LCD (ST7789 over i80 8-bit bus) */
 #define LCD_I80_CS  (1)
@@ -92,6 +99,12 @@
 #define EX_IO_1_5      (0x0001 << 13)
 #define EX_IO_1_6      (0x0001 << 14)
 #define EX_IO_1_7      (0x0001 << 15)
+
+/* SD card SPI0 */
+#define SD_SPI_MOSI_IO 16
+#define SD_SPI_SCLK_IO 7
+#define SD_SPI_MISO_IO 15
+#define SD_SPI_CS_IO   17
 
 /***********************************************************
 ********************function declaration********************
@@ -248,9 +261,6 @@ static OPERATE_RET __tdd_xl9555_button_register(char *name, uint32_t pin_mask, T
 
 static OPERATE_RET __board_register_button(void)
 {
-#if !defined(ENABLE_BUTTON) || (ENABLE_BUTTON != 1)
-    return OPRT_OK;
-#else
     OPERATE_RET rt = OPRT_OK;
 
     /* Most XL9555 key circuits are pull-up + active-low. */
@@ -260,12 +270,33 @@ static OPERATE_RET __board_register_button(void)
     TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME, EX_IO_KEY_0, active_level));
 
     /* Button 2 (optional) */
-#if defined(ENABLE_BUTTON_2) && (ENABLE_BUTTON_2 == 1)
     TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME_2, EX_IO_KEY_1, active_level));
-#endif
 
     return rt;
-#endif
+}
+
+static OPERATE_RET __board_register_led(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* Blue LED on GPIO4, active-low (VCC3.3 → R9 → LED → IO4) */
+    TDD_LED_GPIO_CFG_T led_gpio_cfg = {
+        .pin   = GPIO_LEDB,
+        .mode  = TUYA_GPIO_PULLUP,
+        .level = TUYA_GPIO_LEVEL_LOW,
+    };
+    TUYA_CALL_ERR_RETURN(tdd_led_gpio_register(LED_NAME, &led_gpio_cfg));
+
+    /* Red LED on XL9555 IO1_0, active-low */
+    TDD_LED_IO_EXP_CFG_T led_exp_cfg = {
+        .pin_mask     = EX_IO_LED_R,
+        .active_level = TUYA_GPIO_LEVEL_LOW,
+        .set_dir      = xl9555_set_dir,
+        .set_level    = xl9555_set_level,
+    };
+    TUYA_CALL_ERR_RETURN(tdd_led_esp_io_expander_register(LED_NAME_2, &led_exp_cfg));
+
+    return rt;
 }
 
 static OPERATE_RET __board_register_audio(void)
@@ -319,34 +350,12 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
-/**
- * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- *
- * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
- */
-OPERATE_RET board_register_hardware(void)
-{
-    OPERATE_RET rt = OPRT_OK;
 
-    TUYA_CALL_ERR_LOG(__io_expander_init());
-    TUYA_CALL_ERR_LOG(__board_register_button());
-
-    TUYA_CALL_ERR_LOG(__board_register_audio());
-    TUYA_CALL_ERR_LOG(board_display_init());
-    TUYA_CALL_ERR_LOG(__board_display_io_init());
-
-    return rt;
-}
-
-static int __board_display_io_init(void)
+static OPERATE_RET __board_register_display(void)
 {
     xl9555_set_dir(EX_IO_LCD_BL, 0);
     xl9555_set_level(EX_IO_LCD_BL, 1);
-    return 0;
-}
 
-int board_display_init(void)
-{
     TDD_DISP_ESP_LCD_CFG_T cfg = {
         .width     = DISPLAY_WIDTH,
         .height    = DISPLAY_HEIGHT,
@@ -370,4 +379,39 @@ int board_display_init(void)
     };
 
     return tdd_disp_esp_st7789_80_register(DISPLAY_NAME, &hw, &cfg);
+}
+
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* SD card SPI pinmux */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(SD_SPI_CS_IO, TUYA_SPI1_CS);
+
+    return rt;
+}
+
+
+/**
+ * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
+ *
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET board_register_hardware(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__io_expander_init());
+    TUYA_CALL_ERR_LOG(__board_register_button());
+
+    TUYA_CALL_ERR_LOG(__board_register_led());
+    TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(__board_register_display());
+
+    TUYA_CALL_ERR_LOG(__board_register_sd());
+
+    return rt;
 }

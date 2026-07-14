@@ -14,12 +14,15 @@
 #include "tdd_audio_es8389_codec.h"
 #include "tkl_gpio.h"
 #include "tkl_adc.h"
+#include "tkl_pinmux.h"
 #include "tdd_disp_esp_st7789_80.h"
 #include "board_com_api.h"
 
 #include "xl9555.h"
 #include "tdl_audio_driver.h"
 #include "tdl_audio_manage.h"
+
+#include "tdl_button_driver.h"
 
 /***********************************************************
 ************************macro define************************
@@ -79,6 +82,15 @@
 #define LCD_I80_D5 (5)
 #define LCD_I80_D6 (4)
 #define LCD_I80_D7 (3)
+
+/* SD card SPI */
+#define SD_SPI_MOSI_IO (16)
+#define SD_SPI_SCLK_IO (17)
+#define SD_SPI_MISO_IO (18)
+#define SD_SPI_CS_IO   (15)
+
+/* KEY_R direct GPIO (BOOT button) */
+#define GPIO_KEY_R (0)
 
 #define DISPLAY_BACKLIGHT_PIN           LCD_I80_BL
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT true
@@ -203,25 +215,120 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
-/**
- * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- *
- * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
- */
-OPERATE_RET board_register_hardware(void)
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+typedef struct {
+    uint32_t pin_mask;
+    TUYA_GPIO_LEVEL_E active_level;
+} XL9555_BUTTON_CFG_T;
+
+static OPERATE_RET __tdd_create_xl9555_button(TDL_BUTTON_OPRT_INFO *dev)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+
+    if (dev == NULL || dev->dev_handle == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)dev->dev_handle;
+    if (xl9555_set_dir(cfg->pin_mask, 1) != 0) {
+        PR_ERR("xl9555_set_dir(input) failed");
+        return OPRT_COM_ERROR;
+    }
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_delete_xl9555_button(TDL_BUTTON_OPRT_INFO *dev)
+{
+    if (dev == NULL || dev->dev_handle == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_free(dev->dev_handle);
+    dev->dev_handle = NULL;
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_read_xl9555_button_value(TDL_BUTTON_OPRT_INFO *dev, uint8_t *value)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+    uint32_t level_mask = 0;
+    uint8_t raw_high = 0;
+
+    if (dev == NULL || dev->dev_handle == NULL || value == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)dev->dev_handle;
+
+    if (xl9555_get_level(cfg->pin_mask, &level_mask) != 0) {
+        return OPRT_COM_ERROR;
+    }
+
+    raw_high = ((level_mask & cfg->pin_mask) != 0);
+    if (cfg->active_level == TUYA_GPIO_LEVEL_HIGH) {
+        *value = raw_high;
+    } else {
+        *value = (raw_high ? 0 : 1);
+    }
+
+    return OPRT_OK;
+}
+
+static OPERATE_RET __tdd_xl9555_button_register(char *name, uint32_t pin_mask, TUYA_GPIO_LEVEL_E active_level)
+{
+    XL9555_BUTTON_CFG_T *cfg = NULL;
+    TDL_BUTTON_CTRL_INFO ctrl_info;
+    TDL_BUTTON_DEVICE_INFO_T device_info;
+
+    if (name == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    cfg = (XL9555_BUTTON_CFG_T *)tal_malloc(sizeof(XL9555_BUTTON_CFG_T));
+    if (cfg == NULL) {
+        return OPRT_MALLOC_FAILED;
+    }
+    cfg->pin_mask = pin_mask;
+    cfg->active_level = active_level;
+
+    memset(&ctrl_info, 0, sizeof(ctrl_info));
+    ctrl_info.button_create = __tdd_create_xl9555_button;
+    ctrl_info.button_delete = __tdd_delete_xl9555_button;
+    ctrl_info.read_value = __tdd_read_xl9555_button_value;
+
+    device_info.dev_handle = cfg;
+    device_info.mode = BUTTON_TIMER_SCAN_MODE;
+
+    return tdl_button_register(name, &ctrl_info, &device_info);
+}
+#endif
+
+static OPERATE_RET __board_register_button(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    TUYA_CALL_ERR_LOG(__io_expander_init());
+    /* XL9555 keys are pull-up + active-low */
+    TUYA_GPIO_LEVEL_E active_level = TUYA_GPIO_LEVEL_LOW;
 
-    TUYA_CALL_ERR_LOG(__board_register_audio());
-    TUYA_CALL_ERR_LOG(board_display_init());
+    /* Button 1: KEY_L (XL9555 IO0_5) */
+    TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME, EX_IO_KEY_L, active_level));
+
+    /* Button 2: KEY_Q (XL9555 IO0_6) */
+    TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME_2, EX_IO_KEY_Q, active_level));
+
+    /* Button 3: KEY_M (XL9555 IO0_7) */
+    TUYA_CALL_ERR_RETURN(__tdd_xl9555_button_register(BUTTON_NAME_3, EX_IO_KEY_M, active_level));
 
     return rt;
 }
 
-int board_display_init(void)
+
+static OPERATE_RET  __board_register_display(void)
 {
+    OPERATE_RET rt = OPRT_OK;
+
     TDD_DISP_ESP_LCD_CFG_T cfg = {
         .width     = DISPLAY_WIDTH,
         .height    = DISPLAY_HEIGHT,
@@ -248,4 +355,37 @@ int board_display_init(void)
     };
 
     return tdd_disp_esp_st7789_80_register(DISPLAY_NAME, &hw, &cfg);
+}
+
+
+static OPERATE_RET __board_register_sd(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* SD card SPI pinmux (use SPI1 to match tkl_fs default TKL_SD_SPI_PORT) */
+    tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
+    tkl_io_pinmux_config(SD_SPI_SCLK_IO, TUYA_SPI1_CLK);
+    tkl_io_pinmux_config(SD_SPI_MISO_IO, TUYA_SPI1_MISO);
+    tkl_io_pinmux_config(SD_SPI_CS_IO, TUYA_SPI1_CS);
+
+    return rt;
+}
+
+/**
+ * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
+ *
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET board_register_hardware(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__io_expander_init());
+    TUYA_CALL_ERR_LOG(__board_register_button());
+    TUYA_CALL_ERR_LOG(__board_register_sd());
+
+    TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(__board_register_display());
+
+    return rt;
 }
