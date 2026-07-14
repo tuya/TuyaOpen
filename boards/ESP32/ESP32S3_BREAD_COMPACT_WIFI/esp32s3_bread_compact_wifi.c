@@ -15,6 +15,10 @@
 #include "tdd_button_gpio.h"
 #endif
 
+#if defined(ENABLE_LED) && (ENABLE_LED == 1)
+#include "tdd_led_esp_ws1280.h"
+#endif
+
 #include "tdd_disp_esp_ssd1306.h"
 #include "board_com_api.h"
 
@@ -45,6 +49,10 @@
 #define BOARD_BUTTON_ACTIVE_LV TUYA_GPIO_LEVEL_LOW
 #endif
 #endif
+
+/* RGB LED (WS2812) on GPIO48 — ESP32-S3-DevKitC-1 v1.0 */
+#define BOARD_LED_WS2812_GPIO  (48)
+#define BOARD_LED_WS2812_COUNT (1)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -78,14 +86,26 @@ static OPERATE_RET __board_register_audio(void)
     return rt;
 }
 
-static OPERATE_RET __board_register_button(void)
+static OPERATE_RET __board_register_led(void)
 {
-#if !defined(ENABLE_BUTTON) || (ENABLE_BUTTON != 1)
-    return OPRT_OK;
-#else
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(BUTTON_NAME)
+#if defined(LED_NAME)
+    TDD_LED_WS1280_CFG_T led_cfg = {
+        .gpio      = BOARD_LED_WS2812_GPIO,
+        .led_count = BOARD_LED_WS2812_COUNT,
+        .color     = 0x001F00, /* red, WS2812 GRB format: G=0x00 R=0x1F B=0x00 */
+    };
+    TUYA_CALL_ERR_RETURN(tdd_led_esp_ws1280_register(LED_NAME, &led_cfg));
+#endif
+
+    return rt;
+}
+
+static OPERATE_RET __board_register_button(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
     BUTTON_GPIO_CFG_T button_hw_cfg = {
         .pin   = BOARD_BUTTON_PIN,
         .level = BOARD_BUTTON_ACTIVE_LV,
@@ -94,10 +114,8 @@ static OPERATE_RET __board_register_button(void)
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
-#endif
 
     return rt;
-#endif
 }
 
 /**
@@ -108,6 +126,7 @@ static OPERATE_RET __board_register_button(void)
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
+    TUYA_CALL_ERR_LOG(__board_register_led());
     TUYA_CALL_ERR_LOG(__board_register_button());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());

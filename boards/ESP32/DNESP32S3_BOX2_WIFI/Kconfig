@@ -14,3 +14,6 @@ config BOARD_CONFIG
     select ENABLE_DISPLAY
     select PLATFORM_FLASHSIZE_16M
     select ENABLE_AUDIO_CODECS
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_2
+    select ENABLE_BUTTON_3

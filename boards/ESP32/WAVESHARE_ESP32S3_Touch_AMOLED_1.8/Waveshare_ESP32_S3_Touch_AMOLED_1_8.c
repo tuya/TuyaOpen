@@ -291,7 +291,6 @@ static OPERATE_RET __board_register_sd(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(ENABLE_SPI) && (ENABLE_SPI == 1)
     /* SD card SPI pinmux. */
     tkl_io_pinmux_config(SD_SPI_MOSI_IO, TUYA_SPI1_MOSI);
     tkl_io_pinmux_config(SD_SPI_SCK_IO,  TUYA_SPI1_CLK);
@@ -306,7 +305,6 @@ static OPERATE_RET __board_register_sd(void)
         return rt;
     }
     tca9554_set_level(sd_cs_mask, 0);
-#endif
 
     return rt;
 }
