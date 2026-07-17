@@ -30,7 +30,7 @@ extern "C" {
 /**
  * @brief Prepare SD card SDIO pinmux before mount
  * @return OPRT_OK on success
- * @note Call before tkl_fs_mount() on SPARKLEIOT_T5_DEV
+ * @note Call before tkl_fs_mount() on SPARKLEIOT_T5AI_DEV
  */
 OPERATE_RET board_sdcard_prepare(void);
 

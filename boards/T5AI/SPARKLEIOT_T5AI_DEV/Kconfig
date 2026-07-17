@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "SPARKLEIOT_T5_DEV"
+    default "SPARKLEIOT_T5AI_DEV"
 
 config BOARD_CONFIG
     bool
