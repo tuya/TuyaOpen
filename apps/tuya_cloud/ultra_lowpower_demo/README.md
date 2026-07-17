@@ -2,7 +2,7 @@
 
 Demonstrates TuyaOpen's WiFi ultra-low-power (ULP / DTIM) feature: the device
 stays connected to the cloud while saving power via WiFi DTIM + CPU low-voltage
-deep sleep, bringing the steady-state average current down to **~300µA** (measured
+deep sleep, bringing the steady-state average current down to **~550µA** (measured
 on T5AI).
 
 > Note: this is "stay-online" power saving (downlink always receivable), which is
