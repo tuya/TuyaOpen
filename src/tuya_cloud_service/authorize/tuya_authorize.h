@@ -53,6 +53,20 @@ OPERATE_RET tuya_authorize_init(void);
 OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey);
 
 /**
+ * @brief Write authorization information with specified storage
+ *
+ * @param[in] license: uuid and authkey
+ * @param[in] mac: MAC address string (12 hex chars), used only when storage == 1 (OTP).
+ *                 If NULL, will be obtained via tal_wifi_get_mac when wifi is enabled.
+ *                 Ignored for KV storage.
+ * @param[in] storage: 0 for KV, 1 for OTP
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tuya_authorize_write_with_storage(tuya_iot_license_t *license, char *mac, int storage);
+
+/**
  * @brief Read authorization information from KV and OTP
  *
  * @param[out] license: uuid and authkey

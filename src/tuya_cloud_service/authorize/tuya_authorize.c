@@ -34,6 +34,7 @@
 #include "tal_log.h"
 #include "tal_cli.h"
 #include "tal_kv.h"
+#include "tuyaopen_license.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tal_wifi.h"
 #endif
@@ -53,10 +54,6 @@ static void cli_authorize(int argc, char *argv[]);
 static void cli_authorize_read(int argc, char *argv[]);
 static void cli_authorize_reset(int argc, char *argv[]);
 static void cli_read_mac(int argc, char *argv[]);
-
-#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
-static void cli_auth_otp_lock(int argc, char *argv[]);
-#endif
 
 /*============================ LOCAL VARIABLES ===============================*/
 static char UUID_BUF[UUID_LENGTH + 1] = {0};
@@ -82,13 +79,6 @@ static const cli_cmd_t s_cli_cmd[] = {
         .help = "Read device MAC address",
         .func = cli_read_mac,
     }
-#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
-    ,{
-        .name = "auth-otp-lock",
-        .help = "Lock authorization information in OTP",
-        .func = cli_auth_otp_lock,
-    }
-#endif
 };
 
 /*============================ IMPLEMENTATION ================================*/
@@ -114,6 +104,80 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey)
 }
 
 /**
+ * @brief Write authorization information with specified storage
+ *
+ * @param[in] license: uuid and authkey
+ * @param[in] mac: MAC address string (12 hex chars), used only when storage == 1 (OTP).
+ *                 If NULL, will be obtained via tal_wifi_get_mac when wifi is enabled.
+ *                 Ignored for KV storage.
+ * @param[in] storage: 0 for KV, 1 for OTP
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tuya_authorize_write_with_storage(tuya_iot_license_t *license, char *mac, int storage)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (license == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (storage == 0) {
+        // KV storage
+        return tuya_authorize_write(license->uuid, license->authkey);
+    } else if (storage == 1) {
+        // Chip efuse/flash/otp storage
+        char mac_buf[13] = {0};
+        char *mac_to_use = mac;
+
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+        if (mac_to_use == NULL) {
+            NW_MAC_S mac_struct = {0};
+            rt = tal_wifi_get_mac(WF_STATION, &mac_struct);
+            if (rt == OPRT_OK) {
+                snprintf(mac_buf, sizeof(mac_buf), "%02X%02X%02X%02X%02X%02X",
+                         mac_struct.mac[0], mac_struct.mac[1], mac_struct.mac[2],
+                         mac_struct.mac[3], mac_struct.mac[4], mac_struct.mac[5]);
+                mac_to_use = mac_buf;
+                PR_DEBUG("tal get wifi mac:%s", mac_to_use);
+            }
+        }
+#endif
+
+        cJSON *root = cJSON_CreateObject();
+        if (root == NULL) {
+            return OPRT_COM_ERROR;
+        }
+        cJSON_AddStringToObject(root, "auzkey", license->authkey);
+        cJSON_AddStringToObject(root, "uuid", license->uuid);
+        cJSON_AddBoolToObject(root, "prod_test", false);
+        cJSON_AddStringToObject(root, "ap_ssid", "SmartLife");
+        if (mac_to_use != NULL) {
+            cJSON_AddStringToObject(root, "mac", mac_to_use);
+        }
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str == NULL) {
+            cJSON_Delete(root);
+            return OPRT_COM_ERROR;
+        }
+
+        PR_DEBUG("json_str:%s", json_str);
+
+        rt = tuyaopen_license_write(json_str, strlen(json_str));
+
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+
+        return rt;
+    }
+
+    PR_ERR("Invalid storage type: %d", storage);
+    return OPRT_INVALID_PARM;
+}
+
+/**
  * @brief Read authorization information from KV and OTP
  *
  * @param[out] license: uuid and authkey
@@ -123,6 +187,8 @@ OPERATE_RET tuya_authorize_write(const char *uuid, const char *authkey)
  */
 OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license)
 {
+    OPERATE_RET rt = OPRT_OK;
+
     char *uuid = NULL;
     char *authkey = NULL;
     size_t readlen = 0;
@@ -141,13 +207,58 @@ OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license)
         PR_INFO("Authorization read succeeds.");
         return OPRT_OK;
     } else {
-        if (OPRT_OK == tuya_iot_license_read(license)) {
-            // otp read
-            PR_INFO("Authorization otp read succeeds.");
-            return OPRT_OK;
+        // KV read failed, try other read
+        char *data = NULL;
+        uint32_t data_len = 0;
+        rt = tuyaopen_license_read(&data, &data_len);
+        if (OPRT_OK != rt) {
+            PR_ERR("tuyaopen_license_read read failure.");
+            return OPRT_COM_ERROR;
         }
-        PR_ERR("Authorization read failure.");
-        return OPRT_COM_ERROR;
+
+        // Parse license JSON, e.g.
+        // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx",
+        //  "prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
+        cJSON *root = cJSON_ParseWithLength((const char *)data, data_len);
+        if (root == NULL) {
+            PR_ERR("Authorization license JSON parse failure.");
+            tal_free(data);
+            return OPRT_COM_ERROR;
+        }
+
+        cJSON *j_uuid    = cJSON_GetObjectItemCaseSensitive(root, "uuid");
+        cJSON *j_authkey = cJSON_GetObjectItemCaseSensitive(root, "auzkey");
+        if (!cJSON_IsString(j_uuid) || !cJSON_IsString(j_authkey)) {
+            PR_ERR("Authorization license JSON missing uuid/auzkey.");
+            cJSON_Delete(root);
+            tal_free(data);
+            return OPRT_COM_ERROR;
+        }
+
+        char *uuid_str    = j_uuid->valuestring;
+        char *authkey_str = j_authkey->valuestring;
+        size_t uuid_len    = strlen(uuid_str);
+        size_t authkey_len = strlen(authkey_str);
+
+        memset(UUID_BUF, 0, sizeof(UUID_BUF));
+        memcpy(UUID_BUF, uuid_str, (uuid_len < UUID_LENGTH) ? uuid_len : UUID_LENGTH);
+        memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
+        memcpy(AUTHKEY_BUF, authkey_str, (authkey_len < AUTHKEY_LENGTH) ? authkey_len : AUTHKEY_LENGTH);
+
+        cJSON_Delete(root);
+        tal_free(data);
+
+        // Write back to KV so subsequent reads can be served from KV directly.
+        // Failure here does not invalidate the license read result.
+        if (OPRT_OK != tuya_authorize_write(UUID_BUF, AUTHKEY_BUF)) {
+            PR_WARN("Authorization license->KV writeback failed, will retry on next read.");
+        }
+
+        license->uuid    = UUID_BUF;
+        license->authkey = AUTHKEY_BUF;
+
+        PR_INFO("Authorization license read succeeds.");
+        return OPRT_OK;
     }
 }
 
@@ -187,28 +298,52 @@ OPERATE_RET tuya_authorize_read_with_storage(tuya_iot_license_t *license, int st
             return OPRT_COM_ERROR;
         }
     } else if (storage == 1) {
-        // OTP read
-        rt = tuya_iot_license_read(license);
+        // Chip efuse/flash/otp read
+
+        char *data = NULL;
+        uint32_t data_len = 0;
+        rt = tuyaopen_license_read(&data, &data_len);
         if (OPRT_OK != rt) {
             PR_ERR("Authorization OTP read failure.");
             return OPRT_COM_ERROR;
         }
-        memset(UUID_BUF, 0, sizeof(UUID_BUF));
-        memcpy(UUID_BUF, license->uuid, (strlen(license->uuid) < UUID_LENGTH) ? strlen(license->uuid) : UUID_LENGTH);
-        memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
-        memcpy(AUTHKEY_BUF, license->authkey, AUTHKEY_LENGTH);
-        if (license->uuid) {
-            tal_free(license->uuid);
-            license->uuid = NULL;
-        }
-        if (license->authkey) {
-            tal_free(license->authkey);
-            license->authkey = NULL;
+
+        // Parse license JSON, e.g.
+        // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx",
+        //  "prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
+        cJSON *root = cJSON_ParseWithLength((const char *)data, data_len);
+        if (root == NULL) {
+            PR_ERR("Authorization OTP JSON parse failure.");
+            tal_free(data);
+            return OPRT_COM_ERROR;
         }
 
-        license->uuid = UUID_BUF;
+        cJSON *j_uuid    = cJSON_GetObjectItemCaseSensitive(root, "uuid");
+        cJSON *j_authkey = cJSON_GetObjectItemCaseSensitive(root, "auzkey");
+        if (!cJSON_IsString(j_uuid) || !cJSON_IsString(j_authkey)) {
+            PR_ERR("Authorization OTP JSON missing uuid/auzkey.");
+            cJSON_Delete(root);
+            tal_free(data);
+            return OPRT_COM_ERROR;
+        }
+
+        char *uuid_str    = j_uuid->valuestring;
+        char *authkey_str = j_authkey->valuestring;
+        size_t uuid_len    = strlen(uuid_str);
+        size_t authkey_len = strlen(authkey_str);
+
+        memset(UUID_BUF, 0, sizeof(UUID_BUF));
+        memcpy(UUID_BUF, uuid_str, (uuid_len < UUID_LENGTH) ? uuid_len : UUID_LENGTH);
+        memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
+        memcpy(AUTHKEY_BUF, authkey_str, (authkey_len < AUTHKEY_LENGTH) ? authkey_len : AUTHKEY_LENGTH);
+
+        license->uuid    = UUID_BUF;
         license->authkey = AUTHKEY_BUF;
-        PR_INFO("Authorization OTP read succeeds.");
+
+        cJSON_Delete(root);
+        tal_free(data);
+
+        PR_INFO("tuyaopen_license_read read succeeds.");
         return OPRT_OK;
     } else {
         PR_ERR("Invalid storage type: %d", storage);
@@ -252,8 +387,6 @@ OPERATE_RET tuya_authorize_init(void)
 
 static void cli_authorize(int argc, char *argv[])
 {
-    OPERATE_RET rt = OPRT_OK;
-
     if (argc < 3) {
         tal_cli_echo("Use like: auth uuidxxxxxxxxxxxxxxxx keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         return;
@@ -273,6 +406,8 @@ static void cli_authorize(int argc, char *argv[])
         return;
     }
 
+    char *mac = NULL;
+
     if (argc >= 4) {
         char *storage_str = argv[3];
         if (strcmp(storage_str, "0") == 0) {
@@ -286,106 +421,34 @@ static void cli_authorize(int argc, char *argv[])
         PR_DEBUG("storage:%d", storage);
     }
 
-#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    char *p_mac = NULL;
-    char mac_buf[13] = {0};
-
     if (argc >= 5) {
-        p_mac = argv[4];
-        if (strlen(p_mac) != 12) {
+        mac = argv[4];
+        if (strlen(mac) != 12) {
             tal_cli_echo("mac length must be 12");
             return;
         }
-        snprintf(mac_buf, sizeof(mac_buf), "%s", p_mac);
-        PR_DEBUG("mac:%s", mac_buf);
-    } else {
-        NW_MAC_S mac_struct = {0};
-        rt = tal_wifi_get_mac(WF_STATION, &mac_struct);
-        if (rt != OPRT_OK) {
-            tal_cli_echo("Authorization write flailure: tal_wifi_get_mac failed");
-            return;
-        }
-        snprintf(mac_buf, sizeof(mac_buf), "%02X%02X%02X%02X%02X%02X",
-                 mac_struct.mac[0], mac_struct.mac[1], mac_struct.mac[2],
-                 mac_struct.mac[3], mac_struct.mac[4], mac_struct.mac[5]);
-        PR_DEBUG("tal get wifi mac:%s", mac_buf);
+        PR_DEBUG("mac:%s", mac);
     }
-#endif
 
-    if (storage == 0) {
-        if (OPRT_OK == tuya_authorize_write((const char *)uuid, (const char *)authkey)) {
+    tuya_iot_license_t license = {0};
+    license.uuid = uuid;
+    license.authkey = authkey;
+
+    OPERATE_RET rt = tuya_authorize_write_with_storage(&license, mac, storage);
+    if (OPRT_OK == rt) {
+        if (storage == 0) {
             tal_cli_echo("Authorization write succeeds.\r\nPlease reset the system to ensure the new credentials are used.");
         } else {
-            tal_cli_echo("Authorization write failure.");
+            tal_cli_echo("Authorization write to OTP Succeeds.");
         }
     } else {
-        // Only support T5 platform for OTP storage
-#if (defined(PLATFORM_T5) && (PLATFORM_T5 == 1))
-        // For t5 cmd: 
-        // auth uuidxxxxxxxxxxxxxxxx keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx 1 001122334455
-        // auth $uuid $authkey $storage $mac
-        // $storage: 0:kv, 1:otp
-        // $mac: 001122334455
-
-        // T5 write uuid and authkey to otp
-        // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx","prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
-
-        // if is default mac, send warning
-        if (strcmp(mac_buf, "C8478C000018") == 0) { // "C8478C000018" is the default mac in T5 platform
-            tal_cli_echo("Warning: mac is default mac, please check your device mac.");
-        }
-
-        cJSON *root = cJSON_CreateObject();
-        if (root == NULL) {
-            tal_cli_echo("Authorization write flailure: cJSON_CreateObject failed");
-            return;
-        }
-        cJSON_AddStringToObject(root, "auzkey", authkey);
-        cJSON_AddStringToObject(root, "uuid", uuid);
-        cJSON_AddBoolToObject(root, "prod_test", false);
-        cJSON_AddStringToObject(root, "ap_ssid", "SmartLife");
-        cJSON_AddStringToObject(root, "mac", mac_buf);
-
-        char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str == NULL) {
-            tal_cli_echo("Authorization write flailure: cJSON_PrintUnformatted failed");
-            cJSON_Delete(root);
-            return;
-        }
-
-        PR_DEBUG("json_str:%s", json_str);
-
-        // write to otp
-        extern int tal_otp_flash_write(uint8_t *data, uint16_t datalen);
-        rt = tal_otp_flash_write((uint8_t *)json_str, strlen(json_str));
-        if (rt == OPRT_OK) {
-            tal_cli_echo("Authorization write to OTP Succeeds.");
+        if (storage == 0) {
+            tal_cli_echo("Authorization write failure.");
         } else {
             tal_cli_echo("Authorization write to OTP failure.");
         }
-
-        cJSON_free(json_str);
-        cJSON_Delete(root);
-#else
-        tal_cli_echo("OTP storage is only supported on T5 platform.");
-        return;
-#endif
     }
 }
-
-#if defined(PLATFORM_T5) && (PLATFORM_T5 == 1)
-static void cli_auth_otp_lock(int argc, char *argv[])
-{
-    extern int tal_otp_flash_lock(void);
-    int rt = tal_otp_flash_lock();
-    if (rt == OPRT_OK) {
-        tal_cli_echo("Authorization otp lock succeeds.");
-    } else {
-        tal_cli_echo("Authorization otp lock failure.");
-    }
-    return;
-}
-#endif
 
 static void cli_authorize_read(int argc, char *argv[])
 {
