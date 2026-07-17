@@ -181,3 +181,72 @@ OPERATE_RET tal_cpu_lp_disable(void)
 
     return op_ret;
 }
+
+/* -------------------------------------------------------------------------- */
+/*                          Wakelock Management                               */
+/* -------------------------------------------------------------------------- */
+
+#ifndef BIT
+#define BIT(nr) (1UL << (nr))
+#endif
+
+static uint32_t tal_wakelock = 0;
+static MUTEX_HANDLE tal_wl_mutex = NULL;
+
+static OPERATE_RET tal_cpu_init_wakelock_mutex(void)
+{
+    if (NULL != tal_wl_mutex) {
+        return OPRT_OK;
+    }
+    OPERATE_RET rt = tal_mutex_create_init(&tal_wl_mutex);
+    if (OPRT_OK != rt) {
+        PR_ERR("create wakelock mutex fail");
+    }
+    return rt;
+}
+
+OPERATE_RET tal_cpu_acquire_wakelock(TAL_WAKELOCK_ID_E id)
+{
+    if (id > TAL_WAKELOCK_MAX) {
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = OPRT_OK;
+    rt = tal_cpu_init_wakelock_mutex();
+    if (OPRT_OK != rt) {
+        return rt;
+    }
+    tal_mutex_lock(tal_wl_mutex);
+    PR_DEBUG("tal_cpu_acquire_wakelock:%d", id);
+    if (0 == tal_wakelock) {
+        tal_cpu_lp_disable();
+    }
+    tal_wakelock |= BIT(id);
+    PR_DEBUG("tal_wakelock:0x%x", tal_wakelock);
+    tal_mutex_unlock(tal_wl_mutex);
+    return rt;
+}
+
+OPERATE_RET tal_cpu_release_wakelock(TAL_WAKELOCK_ID_E id)
+{
+    if (id > TAL_WAKELOCK_MAX) {
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = OPRT_OK;
+    rt = tal_cpu_init_wakelock_mutex();
+    if (OPRT_OK != rt) {
+        return rt;
+    }
+    tal_mutex_lock(tal_wl_mutex);
+    PR_DEBUG("tal_cpu_release_wakelock:%d", id);
+    if (0 == tal_wakelock) {
+        goto EXIT;
+    }
+    tal_wakelock &= ~BIT(id);
+    if (0 == tal_wakelock) {
+        tal_cpu_lp_enable();
+    }
+EXIT:
+    PR_DEBUG("tal_wakelock:0x%x", tal_wakelock);
+    tal_mutex_unlock(tal_wl_mutex);
+    return rt;
+}

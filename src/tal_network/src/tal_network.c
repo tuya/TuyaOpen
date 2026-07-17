@@ -33,6 +33,7 @@
 #include "tal_api.h"
 
 #include "tal_network_register.h"
+#include "dev_evt.h"
 
 /***********************************************************
 ************************macro define************************
@@ -289,7 +290,18 @@ TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16
         return -3000 + fd;
     }
 
-    TAL_NET_EXEC_OP(connect, -1, fd, addr, port);
+    /* Notify ULP around the TCP connect so it can keep the device awake for the
+     * duration (covers TLS/HTTP/MQTT/ATOP socket setup - they all land here). */
+    TUYA_ERRNO rt = -1;
+    TAL_NETWORK_OPS_T *ops = tal_network_get_active_ops();
+    if (NULL != ops && ops->connect) {
+        tuya_dev_evt_notify(DEV_EVT_TCP_CONNECT, ACTION_BEFORE, NULL);
+        rt = ops->connect(fd, addr, port);
+        tuya_dev_evt_notify(DEV_EVT_TCP_CONNECT, ACTION_AFTER, NULL);
+        return rt;
+    }
+    PR_ERR("Network operation connect not available");
+    return rt;
 }
 
 /**
@@ -639,6 +651,16 @@ OPERATE_RET tal_net_gethostbyname(const char *domain, TUYA_IP_ADDR_T *addr)
 {
     if ((domain == NULL) || (addr == NULL)) {
         return -2;
+    }
+
+    /* Notify ULP around the DNS lookup so it can keep the device awake for it. */
+    TAL_NETWORK_OPS_T *dns_ops = tal_network_get_active_ops();
+    if (NULL != dns_ops && dns_ops->gethostbyname) {
+        OPERATE_RET rt = OPRT_OK;
+        tuya_dev_evt_notify(DEV_EVT_DNS_LOOKUP, ACTION_BEFORE, NULL);
+        rt = dns_ops->gethostbyname(domain, addr);
+        tuya_dev_evt_notify(DEV_EVT_DNS_LOOKUP, ACTION_AFTER, NULL);
+        return rt;
     }
 
     TAL_NET_EXEC_OP(gethostbyname, OPRT_COM_ERROR, domain, addr);

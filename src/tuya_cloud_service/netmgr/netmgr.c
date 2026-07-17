@@ -350,6 +350,12 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 #endif
 
 #ifdef ENABLE_BLUETOOTH
+    /* Always bring up the BLE stack here. For ULP, the app tears it down via
+     * tuya_ble_deinit() once online (TUYA_EVENT_MQTT_CONNECTED) - that deinit is
+     * what actually powers down the BT controller. Gating this init instead
+     * would leave the controller powered (deinit becomes a NULL no-op) and pin
+     * the idle floor, so the original's "don't start BLE if activated" does not
+     * translate to TuyaOpen; init-then-deinit reaches the same off state. */
     tuya_ble_cfg_t ble_cfg = {0};
     ble_cfg.client = tuya_iot_client_get();
     snprintf(ble_cfg.device_name, sizeof(ble_cfg.device_name), "TYBLE");

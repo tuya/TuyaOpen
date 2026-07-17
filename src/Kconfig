@@ -16,4 +16,5 @@ menu "configure tuyaopen"
     rsource "micropython/Kconfig"
     rsource "peripherals/Kconfig"
     rsource "image_album/Kconfig"
+    rsource "tal_wifi_ulp/Kconfig"
 endmenu

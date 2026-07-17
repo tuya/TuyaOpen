@@ -112,6 +112,39 @@ OPERATE_RET tal_cpu_lp_enable(void);
  */
 OPERATE_RET tal_cpu_lp_disable(void);
 
+/**
+ * @brief wakelock ID enum for CPU sleep management
+ */
+typedef enum {
+    TAL_WAKELOCK_SDK_BASE = 0,
+    TAL_WAKELOCK_SDK_WIFI = 1,
+    TAL_WAKELOCK_SDK_BT = 2,
+    TAL_WAKELOCK_SDK_KEYSCAN = 3,
+    // for application
+    TAL_WAKELOCK_APP_BASE = 16,
+    TAL_WAKELOCK_MAX = 31,
+} TAL_WAKELOCK_ID_E;
+
+/**
+ * @brief Acquire a wakelock to prevent CPU from sleeping.
+ *        Uses bitmap-based management; same ID won't stack.
+ *
+ * @param[in] id: wakelock ID
+ *
+ * @return OPRT_OK on success. Others on error.
+ */
+OPERATE_RET tal_cpu_acquire_wakelock(TAL_WAKELOCK_ID_E id);
+
+/**
+ * @brief Release a wakelock to allow CPU to sleep.
+ *        When all wakelocks released (bitmap == 0), enables CPU sleep.
+ *
+ * @param[in] id: wakelock ID
+ *
+ * @return OPRT_OK on success. Others on error.
+ */
+OPERATE_RET tal_cpu_release_wakelock(TAL_WAKELOCK_ID_E id);
+
 #ifdef __cplusplus
 }
 #endif

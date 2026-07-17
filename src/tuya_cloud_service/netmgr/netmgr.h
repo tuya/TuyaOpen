@@ -74,7 +74,18 @@ typedef enum {
                                // default
     NETCONN_CMD_CLOSE,         // close network connection
     NETCONN_CMD_RESET,         // close network connection
+    NETCONN_CMD_RECONN_TABLE,  // netmgr_reconn_table_t: reconnect back-off table (seconds)
 } netmgr_conn_config_type_e;
+
+/**
+ * @brief reconnect back-off table (seconds between retries), grows to the last
+ * entry and then repeats it. Used to configure a long back-off for low-power
+ * scenarios so a device stays out of RF for longer while the network is down.
+ */
+typedef struct {
+    uint32_t *table; // array of intervals in seconds
+    uint32_t size;   // number of valid entries in table
+} netmgr_reconn_table_t;
 
 /**
  * @brief the device network config
