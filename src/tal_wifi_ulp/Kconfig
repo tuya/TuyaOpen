@@ -1,0 +1,15 @@
+# Kconfig for WiFi Ultra Low Power module
+
+menuconfig ENABLE_WIFI_ULTRA_LOWPOWER
+    bool "Enable WiFi Ultra Low Power"
+    default n
+    depends on ENABLE_WIFI
+    help
+        Enable the WiFi Ultra Low Power (ULP) module.
+        This provides a reference-counting based power manager (lpmgr)
+        that automatically adjusts CPU sleep cycles and WiFi DTIM
+        values based on active system operations.
+        
+        When enabled, applications can use lpmgr_register/lpmgr_unregister
+        to control power states, while the SDK automatically manages
+        transitions during network operations.

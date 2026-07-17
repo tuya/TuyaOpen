@@ -26,6 +26,7 @@
 #include "cJSON.h"
 #include "tal_sw_timer.h"
 #include "tal_api.h"
+#include "dev_evt.h"
 #include "tuya_iot_dp.h"
 #include "tuya_device_meta.h"
 #include "tuya_device_timer.h"
@@ -545,6 +546,7 @@ static int run_state_restart(tuya_iot_client_t *client)
 static int run_state_reset(tuya_iot_client_t *client)
 {
     PR_WARN("CLIENT RESET...");
+    tuya_dev_evt_notify(DEV_EVT_RESET, ACTION_BEFORE, NULL);
 
     /* Stop MQTT service */
     if (client->is_activated && tuya_mqtt_connected(&client->mqctx)) {
@@ -559,6 +561,7 @@ static int run_state_reset(tuya_iot_client_t *client)
     tal_kv_set((const char *)devid_key, (const uint8_t *)client->activate.devid, strlen(client->activate.devid));
 
     tal_event_publish(EVENT_RESET, client);
+    tuya_dev_evt_notify(DEV_EVT_RESET, ACTION_AFTER, NULL);
     /* Clean client local data */
     return tuya_iot_activated_data_remove(client);
 }
@@ -1196,9 +1199,11 @@ static int tuya_iot_dp_report_json_common(tuya_iot_client_t *client, const char 
     }
 
     /* Report buffer */
+    tuya_dev_evt_notify(DEV_EVT_DP_PROCESS, ACTION_BEFORE, NULL);
     ret = tuya_mqtt_protocol_data_publish_common(&client->mqctx, PRO_DATA_PUSH, (const uint8_t *)buffer,
                                                  (uint16_t)printlen, (mqtt_publish_notify_cb_t)cb, user_data,
                                                  timeout_ms, async);
+    tuya_dev_evt_notify(DEV_EVT_DP_PROCESS, ACTION_AFTER, NULL);
     tal_free(buffer);
     return ret;
 }

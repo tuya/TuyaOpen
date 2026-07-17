@@ -13,6 +13,7 @@
 
 #include "netconn_wifi.h"
 #include "tal_api.h"
+#include "dev_evt.h"
 #include "cJSON.h"
 #include "ap_netcfg.h"
 #include "tuya_lan.h"
@@ -72,6 +73,9 @@ static void __netconn_wifi_connect_process(void *msg)
         tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
         wifi->conn.stat = NETCONN_WIFI_CONN_CHECK;
         tal_wifi_set_work_mode(WWM_STATION);
+        /* ULP: keep awake while associating; released in __netconn_wifi_event
+         * (TY_LP_NETCONN also self-releases via its 3min timeout). */
+        tuya_dev_evt_notify(DEV_EVT_STA_CONNECT, ACTION_BEFORE, NULL);
         tal_wifi_station_connect((int8_t *)wifi->conn.wifi_conn_info.ssid, (int8_t *)wifi->conn.wifi_conn_info.pswd);
         break;
 
@@ -151,6 +155,9 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 
         wifi->base.status = NETMGR_LINK_DOWN;
     }
+
+    /* ULP: STA connect attempt resolved (up or down) -> release keep-awake */
+    tuya_dev_evt_notify(DEV_EVT_STA_CONNECT, ACTION_AFTER, NULL);
 
     // notify netmgr the wifi connection status changed
     if (wifi->base.event_cb) {
@@ -427,6 +434,20 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
         memset(&netmgr_wifi->conn.wifi_conn_info, 0, sizeof(netmgr_wifi->conn.wifi_conn_info));
         tal_wifi_station_disconnect();
         break;
+
+    case NETCONN_CMD_RECONN_TABLE: {
+        /* Override the reconnect back-off table (seconds). A longer table keeps
+         * the radio off for longer while the network is down - used by ULP. */
+        netmgr_reconn_table_t *rc = (netmgr_reconn_table_t *)param;
+        if (NULL == rc || NULL == rc->table || 0 == rc->size) {
+            return OPRT_INVALID_PARM;
+        }
+        uint32_t n = (rc->size > NETCONN_WIFI_CONN_TABLE) ? NETCONN_WIFI_CONN_TABLE : rc->size;
+        memcpy(netmgr_wifi->conn.table, rc->table, n * sizeof(uint32_t));
+        netmgr_wifi->conn.table_size = n;
+        netmgr_wifi->conn.count = 0;
+        PR_NOTICE("reconn table set, %d entries (last %ds)", n, netmgr_wifi->conn.table[n - 1]);
+    } break;
 
     default:
         return OPRT_NOT_SUPPORTED;

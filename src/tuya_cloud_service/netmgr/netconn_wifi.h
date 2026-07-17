@@ -69,7 +69,7 @@ typedef enum {
  * @brief wifi connection reconnect configure
  *
  */
-#define NETCONN_WIFI_CONN_TABLE 6
+#define NETCONN_WIFI_CONN_TABLE 16
 #define WIFI_CONN_TIMEOUT_MAX   20
 typedef struct {
     char ssid[WIFI_SSID_LEN + 1];   // wifi ap ssid

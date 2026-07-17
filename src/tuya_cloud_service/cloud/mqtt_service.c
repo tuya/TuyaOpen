@@ -34,6 +34,7 @@
 #include "crc32i.h"
 #include "tal_api.h"
 #include "tuya_protocol.h"
+#include "dev_evt.h"
 
 static void on_subscribe_message_default(uint16_t msgid, const mqtt_client_message_t *msg, void *userdata);
 
@@ -458,7 +459,9 @@ int tuya_mqtt_start(tuya_mqtt_context_t *context)
 
     mqtt_client_status_t mqtt_status;
 
+    tuya_dev_evt_notify(DEV_EVT_MQTT_CONNECT, ACTION_BEFORE, NULL);
     mqtt_status = mqtt_client_connect(context->mqtt_client);
+    tuya_dev_evt_notify(DEV_EVT_MQTT_CONNECT, ACTION_AFTER, NULL);
     if (MQTT_STATUS_NOT_AUTHORIZED == mqtt_status) {
         PR_ERR("MQTT connect fail:%d", mqtt_status);
         if (context->on_unbind) {
@@ -645,7 +648,9 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
     }
 
     if (cb == NULL) {
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
         uint16_t msgid = mqtt_client_publish(context->mqtt_client, topic, payload, payload_length, MQTT_QOS_0);
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_AFTER, NULL);
         if (msgid <= 0) {
             return OPRT_COM_ERROR;
         }
@@ -673,8 +678,10 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
     }
 
     if (async == false) {
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
         handle->msgid = mqtt_client_publish(context->mqtt_client, handle->topic, handle->payload,
                                             handle->payload_length, MQTT_QOS_1);
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_AFTER, NULL);
     }
 
     if (context->publish_list == NULL) {
@@ -833,7 +840,9 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
 
     /* reconnect */
     if (context->is_connected == false) {
+        tuya_dev_evt_notify(DEV_EVT_MQTT_CONNECT, ACTION_BEFORE, NULL);
         mqtt_status = mqtt_client_connect(context->mqtt_client);
+        tuya_dev_evt_notify(DEV_EVT_MQTT_CONNECT, ACTION_AFTER, NULL);
         if (mqtt_status == MQTT_STATUS_NOT_AUTHORIZED) {
             if (context->on_unbind) {
                 context->on_unbind(context, context->user_data);

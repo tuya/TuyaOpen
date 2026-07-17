@@ -17,6 +17,7 @@
 #include "cJSON.h"
 #include "tal_api.h"
 #include "tuya_cloud_com_defs.h"
+#include "dev_evt.h"
 #include "tuya_endpoint.h"
 #include "iotdns.h"
 #include "mix_method.h"
@@ -48,6 +49,7 @@ static void file_download_event_cb(http_download_event_id_t id, http_download_ev
     switch (id) {
     case DL_EVENT_START:
         PR_DEBUG("DL_EVENT_START");
+        tuya_dev_evt_notify(DEV_EVT_OTA, ACTION_BEFORE, NULL);
         tuya_ota_upgrade_status_report(ota, TUS_UPGRDING);
         tal_sha256_create_init(&ota->sha256);
         tal_sha256_starts_ret(ota->sha256, 0);
@@ -100,6 +102,7 @@ static void file_download_event_cb(http_download_event_id_t id, http_download_ev
 
     case DL_EVENT_FINISH:
         PR_DEBUG("DL_EVENT_FINISH");
+        tuya_dev_evt_notify(DEV_EVT_OTA, ACTION_AFTER, NULL);
         PR_DEBUG("File Download Percent: %d%%", 100);
         tal_sha256_finish_ret(ota->sha256, file_hmac);
         tal_sha256_free(ota->sha256);
@@ -122,6 +125,7 @@ static void file_download_event_cb(http_download_event_id_t id, http_download_ev
 
     case DL_EVENT_FAULT:
         PR_DEBUG("DL_EVENT_FAULT");
+        tuya_dev_evt_notify(DEV_EVT_OTA, ACTION_AFTER, NULL);
         tuya_ota_upgrade_status_report(ota, TUS_UPGRD_EXEC);
         if (event_cb) {
             ota->event.id = TUYA_OTA_EVENT_FAULT;
