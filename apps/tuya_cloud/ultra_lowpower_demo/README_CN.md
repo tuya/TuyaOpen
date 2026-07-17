@@ -1,6 +1,6 @@
 # ultra_lowpower_demo — WiFi 超低功耗示例
 
-演示 TuyaOpen 的 WiFi 超低功耗（ULP / DTIM）功能：设备保持连云在线的同时，通过 WiFi DTIM 省电 + CPU 低压深睡，把稳态平均电流压到 **~300µA**（T5AI 实测）。
+演示 TuyaOpen 的 WiFi 超低功耗（ULP / DTIM）功能：设备保持连云在线的同时，通过 WiFi DTIM 省电 + CPU 低压深睡，把稳态平均电流压到 **~550µA**（T5AI 实测）。
 
 > 注意：这是“保持在线”的省电（随时能收下行），天生是 **µA~mA** 级；真正的 **深睡/待机（关 WiFi、离线）** 是另一套方案，不在本示例范围。
 
