@@ -22,7 +22,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: master
-  commit: e2215ada6ea9aba87fa33ac2d63bef89fa25a9f5
+  commit: e2b4b264b93376d3eafc289d22603685429b0cdd
 
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h
@@ -32,7 +32,7 @@ platforms:
 - name: BK7231X
   repo: https://github.com/tuya/TuyaOpen-bk7231x
   branch: master
-  commit: 8ad5239fd9482ad66eced11677a5e64dcb5e9b4b
+  commit: 5cebc077ae0f6feb41eacb70838239a02be6ed2d
 
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
