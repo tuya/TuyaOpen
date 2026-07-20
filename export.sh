@@ -1496,6 +1496,18 @@ tuya_platform_banner() {
     tuya_info "Host: $(uname -s) $(uname -m) | uv $uv_ver | Python $TUYA_PYTHON_VERSION"
 }
 
+tuya_clear_pythonhome() {
+    # An inherited PYTHONHOME (conda or another Python distribution active in
+    # the launching shell) breaks startup of every python this script and the
+    # venv run. Clear it like a standard venv activate does; deactivate
+    # restores it.
+    if [ -n "${PYTHONHOME:-}" ]; then
+        _OLD_TUYA_PYTHONHOME="$PYTHONHOME"
+        unset PYTHONHOME
+        tuya_debug '[TuyaOpen] Cleared inherited PYTHONHOME (deactivate restores it).'
+    fi
+}
+
 tuya_set_env() {
     local venv_py="${_tuya_venv_py:-}"
     local venv_path="$OPEN_SDK_ROOT/.venv"
@@ -1570,6 +1582,11 @@ tuya_teardown() {
         tuya_path_remove "$uv_dir"
     fi
     unset VIRTUAL_ENV OPEN_SDK_ROOT OPEN_SDK_PYTHON OPEN_SDK_PIP OPEN_SDK_UV OPEN_SDK_MAKE_BIN OPEN_SDK_MAKE TUYAOPEN_ENV_ACTIVE
+    if [ -n "${_OLD_TUYA_PYTHONHOME:-}" ]; then
+        PYTHONHOME="$_OLD_TUYA_PYTHONHOME"
+        export PYTHONHOME
+        unset _OLD_TUYA_PYTHONHOME
+    fi
     if [ -n "${BASH_VERSION:-}" ] && [ -n "${_OLD_TUYA_PS1:-}" ]; then
         PS1="$_OLD_TUYA_PS1"
         unset _OLD_TUYA_PS1
@@ -1635,6 +1652,7 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" = "$0" ]; then
 fi
 
 tuya_guard_active   && { tuya_cleanup; return 0; }
+tuya_clear_pythonhome
 tuya_write_cold_start_hint "$(tuya_export_cold_start_kind)"
 tuya_detect_region
 tuya_check_git      || { tuya_cleanup; return 1; }

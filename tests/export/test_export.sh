@@ -422,6 +422,31 @@ assert_contains 'guard_active: active prints re-activate hint' \
     "$guard_active_out" 'To re-activate:'
 
 # ---------------------------------------------------------------------------
+# 5b. PYTHONHOME hygiene
+# ---------------------------------------------------------------------------
+section 'PYTHONHOME hygiene'
+
+# An inherited PYTHONHOME (conda / another Python install active in the
+# launching shell) breaks startup of every python the export flow runs.
+# tuya_clear_pythonhome must clear it (saving the old value) and
+# tuya_teardown must restore it, mirroring standard venv activate scripts.
+pythonhome_out=""
+pythonhome_out=$(bash --norc --noprofile <<PYHOME_EOF
+ROOT='$ROOT'
+export PYTHONHOME=/foreign/python
+TUYAOPEN_EXPORT_SKIP_MAIN=1 . "\$ROOT/export.sh"
+tuya_clear_pythonhome
+[ -z "\${PYTHONHOME:-}" ] && echo "CLEARED=1"
+[ "\${_OLD_TUYA_PYTHONHOME:-}" = '/foreign/python' ] && echo "SAVED=1"
+tuya_teardown --silent 2>/dev/null
+[ "\${PYTHONHOME:-}" = '/foreign/python' ] && echo "RESTORED=1"
+PYHOME_EOF
+)
+assert_contains 'pythonhome: cleared for the session' "$pythonhome_out" 'CLEARED=1'
+assert_contains 'pythonhome: old value saved' "$pythonhome_out" 'SAVED=1'
+assert_contains 'pythonhome: restored by teardown' "$pythonhome_out" 'RESTORED=1'
+
+# ---------------------------------------------------------------------------
 # 6. Full integration (subshell)
 # ---------------------------------------------------------------------------
 section 'Full integration'
