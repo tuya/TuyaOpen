@@ -2135,7 +2135,13 @@ try {
     if (-not (Test-TuyaGitAvailable)) { Stop-TuyaOpenExport 1 }
     Set-Location $openRoot
 
-    if (Invoke-TuyaGuardActive -Root $openRoot) { return }
+    if (Invoke-TuyaGuardActive -Root $openRoot) {
+        # Env vars may be inherited from a parent process, but functions are
+        # session-local: re-register tos.py / deactivate so this shell works.
+        Register-TuyaOpenCommandHelpers
+        Install-TuyaOpenPromptIndicator
+        return
+    }
 
     $venvPython = Invoke-TuyaExportSetupCore -Root $openRoot
     Register-TuyaOpenCommandHelpers
