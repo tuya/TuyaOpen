@@ -233,6 +233,18 @@ tuya_uv_print_diag() {
     done
 }
 
+tuya_warn_uv_lock_contention() {
+    # uv serializes environment access via OS-level file locks (e.g. .venv/.lock)
+    # and waits for a busy lock silently (nothing is printed without -v), which
+    # looks like a hang. A leftover lock FILE after a crash is normal and
+    # harmless; only a live uv process holding the lock blocks us.
+    local reason="$1"
+    tuya_info "[TuyaOpen] $reason"
+    tuya_info "           uv waits silently for its file lock (e.g. $OPEN_SDK_ROOT/.venv/.lock)."
+    tuya_info '           Likely another TuyaOpen/uv session holds it. Check: pgrep -x uv'
+    tuya_info '           Close other sessions or stop stray uv processes, then re-run: . ./export.sh'
+}
+
 tuya_uv_run_stream() {
     # Run OPEN_SDK_UV with streaming line-by-line callback and correct exit code.
     # Uses a FIFO so the while loop runs in the current shell (variable mutations
@@ -253,11 +265,36 @@ tuya_uv_run_stream() {
     if mkfifo "$fifo" 2>/dev/null; then
         "$OPEN_SDK_UV" "$@" >"$fifo" 2>&1 &
         uv_pid=$!
+        # uv runs as a background job, so Ctrl+C in the sourcing shell never
+        # reaches it: it would keep running and hold the environment lock,
+        # silently blocking every later sync. Kill it on INT/TERM (existing
+        # user traps are restored afterwards where `trap -p` is available).
+        _tuya_saved_traps=$(trap -p INT TERM 2>/dev/null || true)
+        trap 'kill -TERM "$uv_pid" 2>/dev/null || true' INT TERM
+        # A run blocked on a busy uv lock produces no output at all: the
+        # sentinel file marks the first output line; a one-shot background
+        # watchdog explains total silence after 10 seconds.
+        _tuya_uv_sentinel="$fifo.out"
+        rm -f "$_tuya_uv_sentinel" 2>/dev/null || true
+        (
+            sleep 10
+            [ -e "$_tuya_uv_sentinel" ] && exit 0
+            kill -0 "$uv_pid" 2>/dev/null || exit 0
+            tuya_warn_uv_lock_contention 'uv has produced no output for 10+ seconds; it may be waiting to acquire a lock held by another uv process.'
+        ) &
+        _tuya_uv_watchdog=$!
         while IFS= read -r line; do
+            [ -e "$_tuya_uv_sentinel" ] || : > "$_tuya_uv_sentinel"
             tuya_uv_capture_diag "$line"
             [ -n "$line" ] && "$on_line" "$line"
         done <"$fifo"
         wait "$uv_pid" || rc=$?
+        kill "$_tuya_uv_watchdog" 2>/dev/null || true
+        wait "$_tuya_uv_watchdog" 2>/dev/null || true
+        trap - INT TERM
+        [ -n "$_tuya_saved_traps" ] && eval "$_tuya_saved_traps" 2>/dev/null
+        rm -f "$_tuya_uv_sentinel" 2>/dev/null || true
+        unset _tuya_saved_traps _tuya_uv_sentinel _tuya_uv_watchdog
         rm -f "$fifo" 2>/dev/null || true
     else
         tmp=$(mktemp 2>/dev/null || printf '%s' "/tmp/tuya_uv_stream_$$")
@@ -456,6 +493,7 @@ tuya_cleanup() {
              tuya_test_python_exe tuya_install_python tuya_install_python_ide \
              tuya_run_python_install tuya_python_install_error \
              tuya_uv_reset_diag tuya_uv_capture_diag tuya_uv_diag_is_network tuya_uv_print_diag \
+             tuya_warn_uv_lock_contention tuya_file_mtime_epoch \
              tuya_setup_python tuya_uv_sync_plan tuya_uv \
              tuya_lock_pkg_count tuya_sync_deps tuya_sync_deps_ide tuya_sync_deps_error \
              tuya_is_uv_venv tuya_migrate_legacy_venv \
@@ -1362,6 +1400,9 @@ tuya_sync_deps() {
     tuya_stage sync
     local plan saved_index="" saved_url="" rc=0 pkg_count
     tuya_uv_reset_diag
+    if command -v pgrep >/dev/null 2>&1 && pgrep -x uv >/dev/null 2>&1; then
+        tuya_warn_uv_lock_contention 'Another uv process is already running; dependency sync may pause until it finishes.'
+    fi
     plan=$(tuya_uv_sync_plan)
     pkg_count=$(tuya_lock_pkg_count)
     local src='PyPI (default)'
@@ -1390,6 +1431,11 @@ tuya_sync_deps() {
     esac
     [ "$rc" -ne 0 ] && tuya_sync_deps_error
     return "$rc"
+}
+
+tuya_file_mtime_epoch() {
+    # File mtime as epoch seconds: GNU stat (Linux), then BSD stat (macOS).
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
 tuya_is_uv_venv() {
@@ -1424,8 +1470,9 @@ tuya_migrate_legacy_venv() {
 
 tuya_setup_venv() {
     tuya_stage venv
-    local managed_python="${_tuya_managed_python:-}" venv_path="$OPEN_SDK_ROOT/.venv" marker="" rc=0
-    local venv_py="$venv_path/bin/python"
+    local managed_python="${_tuya_managed_python:-}" venv_path="$OPEN_SDK_ROOT/.venv" rc=0
+    local venv_py="$venv_path/bin/python" marker="$venv_path/$TUYA_VENV_MARKER"
+    local created_venv=0 need_sync=1 lock_mtime='' marker_mtime=''
     tuya_migrate_legacy_venv || return 1
 
     if ! tuya_is_uv_venv "$venv_path" || [ ! -x "$venv_py" ]; then
@@ -1439,24 +1486,43 @@ tuya_setup_venv() {
                 'Re-run: . ./export.sh'
             return 1
         }
-        marker="$venv_path/$TUYA_VENV_MARKER"
         printf 'managed-by=export.sh\npython=%s\n' "$TUYA_PYTHON_VERSION" > "$marker" || {
             tuya_error Venv 'Cannot write venv marker.' "$marker" \
                 'Check .venv permissions' 'Re-run: . ./export.sh'
             return 1
         }
+        created_venv=1
         tuya_debug '[TuyaOpen] .venv created.'
     fi
 
-    (
-        cd "$OPEN_SDK_ROOT" || exit 1
-        tuya_sync_deps
-    ) || rc=$?
-    if [ "$rc" -ne 0 ]; then
-        # tuya_sync_deps already reported the specific cause (incl. uv output).
-        return 1
+    # Warm start: skip sync when uv.lock has not changed since the last
+    # successful sync (the marker mtime is refreshed after each sync). This
+    # keeps re-sourcing fast and avoids re-acquiring the venv lock every time.
+    # TUYAOPEN_EXPORT_VERBOSE forces a full sync (self-repair escape hatch).
+    if [ "$created_venv" -eq 0 ] && [ -z "${TUYAOPEN_EXPORT_VERBOSE:-}" ]; then
+        lock_mtime=$(tuya_file_mtime_epoch "$OPEN_SDK_ROOT/uv.lock") || lock_mtime=''
+        marker_mtime=$(tuya_file_mtime_epoch "$marker") || marker_mtime=''
+        if [ -n "$lock_mtime" ] && [ -n "$marker_mtime" ] && [ "$lock_mtime" -le "$marker_mtime" ]; then
+            need_sync=0
+        fi
     fi
-    tuya_debug '[TuyaOpen] Dependencies synced.'
+
+    if [ "$need_sync" -eq 1 ]; then
+        (
+            cd "$OPEN_SDK_ROOT" || exit 1
+            tuya_sync_deps
+        ) || rc=$?
+        if [ "$rc" -ne 0 ]; then
+            # tuya_sync_deps already reported the specific cause (incl. uv output).
+            return 1
+        fi
+        tuya_debug '[TuyaOpen] Dependencies synced.'
+        # Record the sync time so an unchanged uv.lock can skip sync next source.
+        touch "$marker" 2>/dev/null || true
+    else
+        tuya_stage sync
+        tuya_info '[TuyaOpen] Python dependencies up to date (uv.lock unchanged); skipping sync.'
+    fi
 
     if [ ! -x "$venv_py" ]; then
         tuya_error Sync '.venv Python missing after sync.' "$venv_py" \
