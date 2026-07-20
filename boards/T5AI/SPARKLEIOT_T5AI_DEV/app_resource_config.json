@@ -1,0 +1,108 @@
+{
+    "gpio_map": [
+        {
+            "gpio_id": "GPIO_14",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_CLK",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_15",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_CMD",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_16",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_DATA0",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_17",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_DATA1",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_18",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_DATA2",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_19",
+            "second_func_en": "GPIO_SECOND_FUNC_ENABLE",
+            "second_func_dev": "GPIO_DEV_SDIO_HOST_DATA3",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_DISABLE"
+        },
+        {
+            "gpio_id": "GPIO_20",
+            "second_func_en": "GPIO_SECOND_FUNC_DISABLE",
+            "second_func_dev": "GPIO_DEV_I2C0_SCL",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_ENABLE"
+        },
+        {
+            "gpio_id": "GPIO_21",
+            "second_func_en": "GPIO_SECOND_FUNC_DISABLE",
+            "second_func_dev": "GPIO_DEV_I2C0_SDA",
+            "io_mode": "GPIO_IO_DISABLE",
+            "pull_mode": "GPIO_PULL_UP_EN",
+            "int_en": "GPIO_INT_DISABLE",
+            "int_type": "GPIO_INT_TYPE_LOW_LEVEL",
+            "low_power_io_ctrl": "GPIO_LOW_POWER_DISCARD_IO_STATUS",
+            "driver_capacity": "GPIO_DRIVER_CAPACITY_3",
+            "gpio_init": "GPIO_INIT_ENABLE",
+            "gpio_time_sharing_multiplex": "GPIO_TIME_SHARING_MULTIPLEX_ENABLE"
+        }
+    ]
+}
