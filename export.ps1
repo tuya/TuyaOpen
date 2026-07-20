@@ -1973,6 +1973,10 @@ function Register-TuyaOpenCommandHelpers {
         Remove-Item Env:OPEN_SDK_MAKE      -ErrorAction SilentlyContinue
         Remove-Item Env:OPEN_SDK_UV        -ErrorAction SilentlyContinue
         Remove-Item Env:TUYAOPEN_ENV_ACTIVE -ErrorAction SilentlyContinue
+        if ($env:_OLD_TUYA_PYTHONHOME) {
+            $env:PYTHONHOME = $env:_OLD_TUYA_PYTHONHOME
+            Remove-Item Env:_OLD_TUYA_PYTHONHOME -ErrorAction SilentlyContinue
+        }
         Restore-TuyaOpenPrompt
         Remove-Item 'function:\tos.py'     -Force -ErrorAction SilentlyContinue
         Remove-Item 'function:\deactivate' -Force -ErrorAction SilentlyContinue
@@ -1987,6 +1991,15 @@ function Register-TuyaOpenCommandHelpers {
 
 function Invoke-TuyaExportSetupCore {
     param([Parameter(Mandatory)][string]$Root)
+    # An inherited PYTHONHOME (conda or another Python distribution active in
+    # the launching shell) breaks startup of every python this script and the
+    # venv run. Clear it like a standard venv activate does; deactivate
+    # restores it.
+    if ($env:PYTHONHOME) {
+        $env:_OLD_TUYA_PYTHONHOME = $env:PYTHONHOME
+        Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+        Write-TuyaOpenDebug '[TuyaOpen] Cleared inherited PYTHONHOME (deactivate restores it).'
+    }
     $coldKind = Get-TuyaExportColdStartKind -Root $Root
     Write-TuyaExportColdStartHint -Kind $coldKind
     Invoke-TuyaRegionDetect
@@ -2040,6 +2053,7 @@ function Write-TuyaCmdEnvBat {
         "set `"OPEN_SDK_MAKE_BIN=$($env:OPEN_SDK_MAKE_BIN)`"",
         "set `"OPEN_SDK_MAKE=$($env:OPEN_SDK_MAKE)`"",
         "set `"VIRTUAL_ENV=$($env:VIRTUAL_ENV)`"",
+        'set "PYTHONHOME="',
         'set "TUYAOPEN_ENV_ACTIVE=1"'
     ) | Set-Content -LiteralPath $OutputPath -Encoding ASCII
 }
