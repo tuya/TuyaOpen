@@ -14,9 +14,13 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/tdl_led/src/*.c")
 
-if (CONFIG_ENABLE_GPIO STREQUAL "y")    
+if (CONFIG_ENABLE_GPIO STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_led/src/tdd_led_gpio.c)
-endif() 
+endif()
+
+if (CONFIG_ENABLE_PWM STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_led/src/tdd_led_pwm.c)
+endif()
 
 
 # LIB_PUBLIC_INC

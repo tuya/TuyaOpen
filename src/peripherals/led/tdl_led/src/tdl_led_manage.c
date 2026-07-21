@@ -20,6 +20,10 @@
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+// Number of brightness steps per breath half-cycle (dim->bright). Higher = smoother
+// but more timer ticks.
+#define LED_BREATH_STEPS 50
+
 typedef enum {
     LED_BLINK_IDLE,
     LED_BLINK_START,
@@ -44,6 +48,12 @@ typedef struct {
     LED_BLINK_STAT_E    blink_stat;
     uint32_t            blink_cnt;
     TDL_LED_BLINK_CFG_T blink_cfg;
+
+    TDL_LED_BREATH_CFG_T breath_cfg;
+    uint32_t             breath_cnt;       // remaining breath cycles
+    uint16_t             breath_idx;       // current step index, 0..LED_BREATH_STEPS
+    int8_t               breath_dir;       // +1 ramping up, -1 ramping down
+    uint32_t             breath_step_time; // ms between steps
 } LED_DEV_INFO_T;
 
 /***********************************************************
@@ -147,6 +157,46 @@ static void __led_blink_handle(LED_DEV_INFO_T *led_dev)
     return;
 }
 
+static void __led_breath_handle(LED_DEV_INFO_T *led_dev)
+{
+    uint8_t  min = 0, max = 0, level = 0;
+    uint32_t range = 0;
+    int      next  = 0;
+
+    if (NULL == led_dev || NULL == led_dev->drv_intfs.led_set_level) {
+        return;
+    }
+
+    min   = led_dev->breath_cfg.min_level;
+    max   = led_dev->breath_cfg.max_level;
+    range = (max > min) ? (uint32_t)(max - min) : 0;
+
+    // Output the level for the current step, then step toward the next.
+    level = (uint8_t)(min + range * led_dev->breath_idx / LED_BREATH_STEPS);
+    led_dev->drv_intfs.led_set_level(led_dev->drv_hdl, level);
+    led_dev->is_on = (level > 0);
+
+    next = (int)led_dev->breath_idx + led_dev->breath_dir;
+    if (next >= LED_BREATH_STEPS) {
+        next                = LED_BREATH_STEPS;
+        led_dev->breath_dir = -1;
+    } else if (next <= 0) {
+        next                = 0;
+        led_dev->breath_dir = 1;
+        // Back at the dim end => one full breath cycle completed.
+        if (led_dev->breath_cnt > 0 && led_dev->breath_cnt != TDL_BLINK_FOREVER) {
+            led_dev->breath_cnt--;
+            if (0 == led_dev->breath_cnt) {
+                led_dev->drv_intfs.led_set_level(led_dev->drv_hdl, min);
+                return; // done: stop the timer chain
+            }
+        }
+    }
+    led_dev->breath_idx = (uint16_t)next;
+
+    tal_sw_timer_start(led_dev->led_tm, led_dev->breath_step_time, TAL_TIMER_ONCE);
+}
+
 static void __led_blink_timer_cb(TIMER_ID timerID, void *pTimerArg)
 {
     LED_DEV_INFO_T *led_dev = (LED_DEV_INFO_T *)pTimerArg;
@@ -157,7 +207,11 @@ static void __led_blink_timer_cb(TIMER_ID timerID, void *pTimerArg)
 
     tal_mutex_lock(led_dev->mutex);
 
-    __led_blink_handle(led_dev);
+    if (TDL_LED_MODE_BREATH == led_dev->mode) {
+        __led_breath_handle(led_dev);
+    } else {
+        __led_blink_handle(led_dev);
+    }
 
     tal_mutex_unlock(led_dev->mutex);
 }
@@ -173,6 +227,8 @@ static void __led_stop_blink(LED_DEV_INFO_T *led_dev)
     }
     led_dev->blink_stat = LED_BLINK_IDLE;
     led_dev->blink_cnt  = 0;
+    // Also cancel any running breath effect (shares the same timer).
+    led_dev->breath_cnt = 0;
 }
 
 /**
@@ -261,6 +317,7 @@ OPERATE_RET tdl_led_set_status(TDL_LED_HANDLE_T handle, TDL_LED_STATUS_E status)
     __led_stop_blink(led_dev);
 
     __led_set_status(led_dev, status);
+    led_dev->mode = led_dev->is_on ? TDL_LED_MODE_ON : TDL_LED_MODE_OFF;
 
     tal_mutex_unlock(led_dev->mutex);
 
@@ -301,6 +358,7 @@ OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time)
     led_dev->blink_cfg.first_half_cycle_time  = half_cycle_time;
     led_dev->blink_cfg.latter_half_cycle_time = half_cycle_time;
 
+    led_dev->mode       = TDL_LED_MODE_FLASH;
     led_dev->blink_stat = LED_BLINK_START;
     led_dev->blink_cnt  = led_dev->blink_cfg.cnt;
 
@@ -345,8 +403,71 @@ OPERATE_RET tdl_led_blink(TDL_LED_HANDLE_T handle, TDL_LED_BLINK_CFG_T *cfg)
 
     memcpy(&led_dev->blink_cfg, cfg, sizeof(TDL_LED_BLINK_CFG_T));
 
+    led_dev->mode       = TDL_LED_MODE_BLINK;
     led_dev->blink_stat = LED_BLINK_START;
     led_dev->blink_cnt  = led_dev->blink_cfg.cnt;
+
+    rt = tal_sw_timer_start(led_dev->led_tm, 10, TAL_TIMER_ONCE);
+    if (rt != OPRT_OK) {
+        PR_ERR("Failed to trigger LED timer: %d", rt);
+        tal_mutex_unlock(led_dev->mutex);
+        return rt;
+    }
+
+    tal_mutex_unlock(led_dev->mutex);
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Starts a smooth breathing effect (brightness ramps dim<->bright).
+ *
+ * @param handle The handle to the LED device.
+ * @param cfg A pointer to the TDL_LED_BREATH_CFG_T structure containing the breath configuration.
+ *
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET tdl_led_breath(TDL_LED_HANDLE_T handle, TDL_LED_BREATH_CFG_T *cfg)
+{
+    OPERATE_RET     rt        = OPRT_OK;
+    LED_DEV_INFO_T *led_dev   = (LED_DEV_INFO_T *)handle;
+    uint32_t        step_time = 0;
+
+    if (NULL == led_dev || NULL == cfg) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (0 == cfg->period_ms || cfg->max_level > 100 || cfg->min_level > cfg->max_level) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(led_dev->mutex);
+
+    if (false == led_dev->is_open) {
+        PR_ERR("led is not open");
+        tal_mutex_unlock(led_dev->mutex);
+        return OPRT_COM_ERROR;
+    }
+
+    // Breathing needs brightness control; on/off-only drivers (GPIO) cannot do it.
+    if (NULL == led_dev->drv_intfs.led_set_level) {
+        PR_ERR("led driver has no brightness control, breath not supported");
+        tal_mutex_unlock(led_dev->mutex);
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    __led_stop_blink(led_dev);
+
+    memcpy(&led_dev->breath_cfg, cfg, sizeof(TDL_LED_BREATH_CFG_T));
+    led_dev->breath_cnt = cfg->cnt;
+    led_dev->breath_idx = 0;
+    led_dev->breath_dir = 1;
+
+    // One full breath = 2 * LED_BREATH_STEPS ticks (dim->bright->dim); >=1 ms per tick.
+    step_time = cfg->period_ms / (2 * LED_BREATH_STEPS);
+    led_dev->breath_step_time = (0 == step_time) ? 1 : step_time;
+
+    led_dev->mode = TDL_LED_MODE_BREATH;
 
     rt = tal_sw_timer_start(led_dev->led_tm, 10, TAL_TIMER_ONCE);
     if (rt != OPRT_OK) {

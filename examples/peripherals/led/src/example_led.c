@@ -74,6 +74,24 @@ void user_main(void)
 
     tal_system_sleep(6000);
 
+    // Breathing: brightness smoothly ramps dim<->bright. Needs a driver with
+    // brightness control (e.g. the PWM LED driver); on/off-only drivers such as the
+    // GPIO LED return OPRT_NOT_SUPPORTED, so fall back gracefully.
+    TDL_LED_BREATH_CFG_T breath_cfg = {
+        .period_ms = 2000, // 2s per breath (dim->bright->dim)
+        .min_level = 0,     // logical dim end (0..100), scaled by the driver's duty range
+        .max_level = 100,   // logical bright end
+        .cnt       = 5,     // breathe 5 times, or TDL_BLINK_FOREVER to keep going
+    };
+    rt = tdl_led_breath(sg_led_hdl, &breath_cfg);
+    if (OPRT_NOT_SUPPORTED == rt) {
+        PR_NOTICE("LED breathing not supported on this board (needs a PWM/dimmable LED)");
+    } else {
+        TUYA_CALL_ERR_LOG(rt);
+        PR_NOTICE("LED will breathe 5 times, 2s per breath");
+        tal_system_sleep(5 * 2000 + 500);
+    }
+
     TUYA_CALL_ERR_LOG(tdl_led_flash(sg_led_hdl, 1000));
     PR_NOTICE("LED will flash with 1s half cycle time");
 
