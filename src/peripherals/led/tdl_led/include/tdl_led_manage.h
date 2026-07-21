@@ -33,6 +33,7 @@ typedef enum {
     TDL_LED_MODE_ON,
     TDL_LED_MODE_FLASH,
     TDL_LED_MODE_BLINK,
+    TDL_LED_MODE_BREATH,
 } TDL_LED_MODE_E;
 
 typedef enum {
@@ -48,6 +49,13 @@ typedef struct {
     uint32_t first_half_cycle_time;
     uint32_t latter_half_cycle_time;
 } TDL_LED_BLINK_CFG_T;
+
+typedef struct {
+    uint32_t period_ms;  // duration of one full breath (dim->bright->dim) in ms
+    uint8_t  min_level;  // brightness (%) at the dim end of the breath (0..100)
+    uint8_t  max_level;  // brightness (%) at the bright end of the breath (0..100)
+    uint32_t cnt;        // number of breath cycles, or TDL_BLINK_FOREVER
+} TDL_LED_BREATH_CFG_T;
 
 /***********************************************************
 ***********************variable define**********************
@@ -103,6 +111,19 @@ OPERATE_RET tdl_led_flash(TDL_LED_HANDLE_T handle, uint32_t half_cycle_time);
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET tdl_led_blink(TDL_LED_HANDLE_T handle, TDL_LED_BLINK_CFG_T *cfg);
+
+/**
+ * @brief Starts a smooth breathing effect (brightness ramps dim<->bright).
+ *
+ * Requires a driver that supports brightness control (e.g. the PWM LED driver); on an
+ * on/off-only driver (e.g. GPIO) it returns OPRT_NOT_SUPPORTED.
+ *
+ * @param handle The handle to the LED device.
+ * @param cfg A pointer to the TDL_LED_BREATH_CFG_T structure containing the breath configuration.
+ *
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET tdl_led_breath(TDL_LED_HANDLE_T handle, TDL_LED_BREATH_CFG_T *cfg);
 
 /**
  * @brief Closes the LED device and releases associated resources.

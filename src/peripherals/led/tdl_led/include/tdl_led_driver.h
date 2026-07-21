@@ -33,6 +33,10 @@ typedef struct {
     OPERATE_RET (*led_open)(TDD_LED_HANDLE_T dev);
     OPERATE_RET (*led_set)(TDD_LED_HANDLE_T dev, bool is_on);
     OPERATE_RET (*led_close)(TDD_LED_HANDLE_T dev);
+    // Optional: set brightness 0..100 (%). Drivers that can dim (e.g. PWM) implement
+    // this to enable smooth breathing; leave NULL for on/off-only drivers (e.g. GPIO),
+    // in which case tdl_led_breath() reports OPRT_NOT_SUPPORTED.
+    OPERATE_RET (*led_set_level)(TDD_LED_HANDLE_T dev, uint8_t level);
 } TDD_LED_INTFS_T;
 /***********************************************************
 ********************function declaration********************

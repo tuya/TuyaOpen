@@ -123,6 +123,13 @@ choice
             rsource "./LCKFB_T5AI_TOUCH/Kconfig"
         endif
 
+
+    config BOARD_CHOICE_ZECTRIX_T5AI_NOTE_4
+        bool "ZECTRIX_T5AI_NOTE_4"
+        if (BOARD_CHOICE_ZECTRIX_T5AI_NOTE_4)
+            rsource "./ZECTRIX_T5AI_NOTE_4/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

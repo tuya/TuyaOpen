@@ -17,7 +17,7 @@ platforms:
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
   branch: master
-  commit: b43db93bf916e982476c8b5f1f65bd241a9e0162
+  commit: 8aa737c8bb2c61a0697a9a1771ab96a0f83f5442
 
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
