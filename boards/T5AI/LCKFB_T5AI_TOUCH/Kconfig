@@ -10,7 +10,7 @@ config BOARD_CONFIG
     bool
     default y
     select ENABLE_AUDIO_CODECS
-    select ENABLE_AUDIO_AEC
+    # No MIC2 speaker loopback on this board — keep hardware AEC off
     select ENABLE_BUTTON
     select ENABLE_DISPLAY
     select ENABLE_TP
