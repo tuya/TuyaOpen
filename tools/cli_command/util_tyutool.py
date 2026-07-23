@@ -68,14 +68,14 @@ def should_check_update() -> bool:
     return (time.time() - float(last_check)) >= CHECK_INTERVAL
 
 
-def fetch_latest_json() -> Optional[dict]:
+def fetch_release_json() -> Optional[dict]:
     logger = get_logger()
     try:
         resp = requests.get(RELEASE_JSON_URL, timeout=10)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        logger.debug(f"fetch_latest_json failed: {e}")
+        logger.debug(f"fetch_release_json failed: {e}")
         return None
 
 
@@ -194,14 +194,14 @@ def _sha256_file(path: str) -> str:
     return h.hexdigest()
 
 
-def download_tyutool_bin(latest_data: dict) -> bool:
+def download_tyutool_bin(release_data: dict) -> bool:
     logger = get_logger()
     params = get_global_params()
     tyutool_bin_dir = params["tyutool_bin_dir"]
     tyutool_bin = params["tyutool_bin"]
 
     platform_key = get_platform_key()
-    cli_info = latest_data.get("cli", {}).get(platform_key)
+    cli_info = release_data.get("cli", {}).get(platform_key)
     if not cli_info:
         logger.error(f"No CLI binary available for platform: {platform_key}")
         return False
@@ -211,7 +211,8 @@ def download_tyutool_bin(latest_data: dict) -> bool:
     if not urls:
         logger.error(f"No download URL available for platform: {platform_key}")
         return False
-    asset_name = urls[0].split('/')[-1]
+    # strip any query string so the asset keeps a valid filename/extension
+    asset_name = urls[0].split('?')[0].split('/')[-1]
     bin_name = "tyutool_cli.exe" if sys.platform == "win32" else "tyutool_cli"
 
     tmp_dir = os.path.join(tyutool_bin_dir, ".tmp")
@@ -221,7 +222,7 @@ def download_tyutool_bin(latest_data: dict) -> bool:
 
     try:
         logger.info(
-            f"Downloading tyutool {latest_data['version']} for {platform_key} ..."
+            f"Downloading tyutool {release_data['version']} for {platform_key} ..."
         )
         downloaded = False
         for url in urls:
@@ -268,8 +269,8 @@ def download_tyutool_bin(latest_data: dict) -> bool:
 
         os.makedirs(tyutool_bin_dir, exist_ok=True)
         shutil.move(extracted_bin, tyutool_bin)
-        env_write("tyutool_version", latest_data["version"])
-        logger.info(f"tyutool {latest_data['version']} installed successfully.")
+        env_write("tyutool_version", release_data["version"])
+        logger.info(f"tyutool {release_data['version']} installed successfully.")
         return True
 
     finally:
@@ -279,7 +280,7 @@ def download_tyutool_bin(latest_data: dict) -> bool:
             shutil.rmtree(extract_dir)
 
 
-def prompt_update(local_ver: str, latest_ver: str, latest_data: dict) -> bool:
+def prompt_update(local_ver: str, latest_ver: str, release_data: dict) -> bool:
     logger = get_logger()
     if not sys.stdin.isatty():
         logger.info(
@@ -297,7 +298,7 @@ def prompt_update(local_ver: str, latest_ver: str, latest_data: dict) -> bool:
         except (EOFError, KeyboardInterrupt):
             return True
         if ret == "Y":
-            if not download_tyutool_bin(latest_data):
+            if not download_tyutool_bin(release_data):
                 logger.warning("Update failed, continuing with current version.")
             return True
         elif ret == "N":
@@ -320,13 +321,13 @@ def ensure_tyutool() -> Optional[str]:
             logger.debug(f"Failed to remove old tyutool: {e}")
 
     if not os.path.isfile(tyutool_bin):
-        latest_data = fetch_latest_json()
-        if not latest_data:
+        release_data = fetch_release_json()
+        if not release_data:
             logger.error(
                 "Cannot fetch tyutool version info. Please check your network."
             )
             return None
-        if not download_tyutool_bin(latest_data):
+        if not download_tyutool_bin(release_data):
             return None
         env_write("tyutool_last_check", time.time())
         return tyutool_bin
@@ -334,15 +335,15 @@ def ensure_tyutool() -> Optional[str]:
     if not should_check_update():
         return tyutool_bin
 
-    latest_data = fetch_latest_json()
-    if latest_data is None:
+    release_data = fetch_release_json()
+    if release_data is None:
         env_write("tyutool_last_check", time.time())
         return tyutool_bin
 
-    latest_ver = latest_data.get("version", "")
+    latest_ver = release_data.get("version", "")
     local_ver = _detect_installed_version(tyutool_bin) or get_local_version() or ""
     if compare_versions(latest_ver, local_ver) > 0:
-        prompt_update(local_ver, latest_ver, latest_data)
+        prompt_update(local_ver, latest_ver, release_data)
 
     env_write("tyutool_last_check", time.time())
     return tyutool_bin

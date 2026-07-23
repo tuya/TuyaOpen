@@ -9,7 +9,7 @@ from tools.cli_command.util import (
     get_logger, get_global_params, parse_yaml
 )
 from tools.cli_command.util_git import git_checkout
-from tools.cli_command.util_tyutool import fetch_latest_json, download_tyutool_bin
+from tools.cli_command.util_tyutool import fetch_release_json, download_tyutool_bin
 
 
 def update_tyutool(force):
@@ -24,12 +24,12 @@ def update_tyutool(force):
         logger.debug("tyutool not installed, skipping.")
         return True
 
-    latest_data = fetch_latest_json()
-    if not latest_data:
+    release_data = fetch_release_json()
+    if not release_data:
         logger.error("Failed to get latest tyutool version.")
         return False
 
-    ret = download_tyutool_bin(latest_data)
+    ret = download_tyutool_bin(release_data)
     if ret:
         from tools.cli_command.util import env_write
         env_write("tyutool_last_check", time.time())

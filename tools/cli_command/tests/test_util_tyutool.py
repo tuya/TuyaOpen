@@ -105,10 +105,10 @@ class TestShouldCheckUpdate(unittest.TestCase):
             self.assertFalse(self.fn())
 
 
-class TestFetchLatestJson(unittest.TestCase):
+class TestFetchReleaseJson(unittest.TestCase):
     def setUp(self):
         import tools.cli_command.util_tyutool as m
-        self.fn = m.fetch_latest_json
+        self.fn = m.fetch_release_json
 
     def test_success_returns_dict(self):
         fake_json = {"version": "3.0.7", "cli": {}}
@@ -333,7 +333,7 @@ class TestEnsureTyutool(unittest.TestCase):
         }
 
     def test_fetch_failure_updates_last_check(self):
-        """Bug fix: when fetch_latest_json fails, tyutool_last_check must still be updated
+        """Bug fix: when fetch_release_json fails, tyutool_last_check must still be updated
         to prevent repeated network requests on every subsequent invocation."""
         import tools.cli_command.util_tyutool as m
         with tempfile.TemporaryDirectory() as tmp:
@@ -343,12 +343,12 @@ class TestEnsureTyutool(unittest.TestCase):
             written = {}
             with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
                  patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
-                 patch('tools.cli_command.util_tyutool.fetch_latest_json', return_value=None), \
+                 patch('tools.cli_command.util_tyutool.fetch_release_json', return_value=None), \
                  patch('tools.cli_command.util_tyutool.env_write', side_effect=lambda k, v: written.update({k: v})):
                 result = m.ensure_tyutool()
             self.assertEqual(result, bin_path)
             self.assertIn("tyutool_last_check", written,
-                          "tyutool_last_check must be updated even when fetch_latest_json fails")
+                          "tyutool_last_check must be updated even when fetch_release_json fails")
 
     def test_binary_version_takes_priority_over_env(self):
         """Always detect version from binary so stale env cache can't cause false update prompts."""
@@ -360,7 +360,7 @@ class TestEnsureTyutool(unittest.TestCase):
             prompted = []
             with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
                  patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
-                 patch('tools.cli_command.util_tyutool.fetch_latest_json',
+                 patch('tools.cli_command.util_tyutool.fetch_release_json',
                        return_value={"version": "3.0.10"}), \
                  patch('tools.cli_command.util_tyutool._detect_installed_version',
                        return_value="3.0.10"), \
