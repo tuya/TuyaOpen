@@ -105,10 +105,10 @@ class TestShouldCheckUpdate(unittest.TestCase):
             self.assertFalse(self.fn())
 
 
-class TestFetchLatestJson(unittest.TestCase):
+class TestFetchReleaseJson(unittest.TestCase):
     def setUp(self):
         import tools.cli_command.util_tyutool as m
-        self.fn = m.fetch_latest_json
+        self.fn = m.fetch_release_json
 
     def test_success_returns_dict(self):
         fake_json = {"version": "3.0.7", "cli": {}}
@@ -140,6 +140,23 @@ class TestFetchLatestJson(unittest.TestCase):
             result = self.fn()
         self.assertIsNone(result)
 
+    def test_fetches_release_json(self):
+        import tools.cli_command.util_tyutool as m
+        tried_urls = []
+        mock_resp = unittest.mock.MagicMock()
+        mock_resp.json.return_value = {"version": "3.2.7"}
+        mock_resp.raise_for_status.return_value = None
+
+        def fake_get(url, **kwargs):
+            tried_urls.append(url)
+            return mock_resp
+
+        with patch('tools.cli_command.util_tyutool.requests.get',
+                   side_effect=fake_get):
+            result = self.fn()
+        self.assertEqual(result, {"version": "3.2.7"})
+        self.assertEqual(tried_urls, [m.RELEASE_JSON_URL])
+
 
 class TestGetLocalVersion(unittest.TestCase):
     def setUp(self):
@@ -158,11 +175,13 @@ class TestGetLocalVersion(unittest.TestCase):
 
 
 class TestDownloadTyutoolBin(unittest.TestCase):
-    FAKE_LATEST = {
-        "version": "3.0.7",
+    FAKE_RELEASE = {
+        "version": "3.2.7",
         "cli": {
             "linux-x86_64": {
-                "url": "https://github.com/tuya/tyutool/releases/download/v3.0.7/tyutool-cli_linux_x86_64_3.0.7.tar.gz",
+                "url": "https://airtake-public-data.example.com/tyutool/v3.2.7/tyutool-cli_linux_x86_64_3.2.7.tar.gz",
+                "url_github": "https://github.com/tuya/tyutool/releases/download/v3.2.7/tyutool-cli_linux_x86_64_3.2.7.tar.gz",
+                "url_tuya": "https://airtake-public-data.example.com/tyutool/v3.2.7/tyutool-cli_linux_x86_64_3.2.7.tar.gz",
                 "sha256": "FAKE_SHA256",
             }
         }
@@ -203,7 +222,7 @@ class TestDownloadTyutoolBin(unittest.TestCase):
                  patch('tools.cli_command.util_tyutool.env_write'), \
                  patch('tools.cli_command.util_tyutool._download_file',
                        side_effect=fake_download):
-                result = m.download_tyutool_bin(self.FAKE_LATEST)
+                result = m.download_tyutool_bin(self.FAKE_RELEASE)
         self.assertFalse(result)
 
     def test_all_sources_fail_returns_false(self):
@@ -218,10 +237,10 @@ class TestDownloadTyutoolBin(unittest.TestCase):
                        return_value="US"), \
                  patch('tools.cli_command.util_tyutool._download_file',
                        return_value=False):
-                result = m.download_tyutool_bin(self.FAKE_LATEST)
+                result = m.download_tyutool_bin(self.FAKE_RELEASE)
         self.assertFalse(result)
 
-    def test_gitee_prioritized_for_china(self):
+    def _tried_urls(self, country):
         import tools.cli_command.util_tyutool as m
         with tempfile.TemporaryDirectory() as tmp:
             params = self._make_params(tmp)
@@ -234,12 +253,23 @@ class TestDownloadTyutoolBin(unittest.TestCase):
                  patch('tools.cli_command.util_tyutool.get_platform_key',
                        return_value="linux-x86_64"), \
                  patch('tools.cli_command.util_tyutool.get_country_code',
-                       return_value="China"), \
+                       return_value=country), \
                  patch('tools.cli_command.util_tyutool._download_file',
                        side_effect=fake_download):
-                m.download_tyutool_bin(self.FAKE_LATEST)
-        self.assertIn("gitee.com", tried_urls[0])
-        self.assertIn("github.com", tried_urls[1])
+                m.download_tyutool_bin(self.FAKE_RELEASE)
+        return tried_urls
+
+    def test_url_tuya_prioritized_for_china(self):
+        tried_urls = self._tried_urls("China")
+        cli_info = self.FAKE_RELEASE["cli"]["linux-x86_64"]
+        self.assertEqual(
+            tried_urls, [cli_info["url_tuya"], cli_info["url_github"]])
+
+    def test_url_github_prioritized_overseas(self):
+        tried_urls = self._tried_urls("US")
+        cli_info = self.FAKE_RELEASE["cli"]["linux-x86_64"]
+        self.assertEqual(
+            tried_urls, [cli_info["url_github"], cli_info["url_tuya"]])
 
     def test_successful_install(self):
         import io, hashlib, tarfile as _tarfile
@@ -282,6 +312,7 @@ class TestDownloadTyutoolBin(unittest.TestCase):
                        return_value="linux-x86_64"), \
                  patch('tools.cli_command.util_tyutool.get_country_code',
                        return_value="US"), \
+                 patch('tools.cli_command.util_tyutool.sys.platform', 'linux'), \
                  patch('tools.cli_command.util_tyutool._download_file',
                        side_effect=fake_download), \
                  patch('tools.cli_command.util_tyutool.env_write',
@@ -302,7 +333,7 @@ class TestEnsureTyutool(unittest.TestCase):
         }
 
     def test_fetch_failure_updates_last_check(self):
-        """Bug fix: when fetch_latest_json fails, tyutool_last_check must still be updated
+        """Bug fix: when fetch_release_json fails, tyutool_last_check must still be updated
         to prevent repeated network requests on every subsequent invocation."""
         import tools.cli_command.util_tyutool as m
         with tempfile.TemporaryDirectory() as tmp:
@@ -312,12 +343,12 @@ class TestEnsureTyutool(unittest.TestCase):
             written = {}
             with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
                  patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
-                 patch('tools.cli_command.util_tyutool.fetch_latest_json', return_value=None), \
+                 patch('tools.cli_command.util_tyutool.fetch_release_json', return_value=None), \
                  patch('tools.cli_command.util_tyutool.env_write', side_effect=lambda k, v: written.update({k: v})):
                 result = m.ensure_tyutool()
             self.assertEqual(result, bin_path)
             self.assertIn("tyutool_last_check", written,
-                          "tyutool_last_check must be updated even when fetch_latest_json fails")
+                          "tyutool_last_check must be updated even when fetch_release_json fails")
 
     def test_binary_version_takes_priority_over_env(self):
         """Always detect version from binary so stale env cache can't cause false update prompts."""
@@ -329,7 +360,7 @@ class TestEnsureTyutool(unittest.TestCase):
             prompted = []
             with patch('tools.cli_command.util_tyutool.get_global_params', return_value=params), \
                  patch('tools.cli_command.util_tyutool.should_check_update', return_value=True), \
-                 patch('tools.cli_command.util_tyutool.fetch_latest_json',
+                 patch('tools.cli_command.util_tyutool.fetch_release_json',
                        return_value={"version": "3.0.10"}), \
                  patch('tools.cli_command.util_tyutool._detect_installed_version',
                        return_value="3.0.10"), \
