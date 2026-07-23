@@ -20,11 +20,9 @@ from tools.cli_command.util import (
 )
 
 CHECK_INTERVAL = 86400  # 24 hours
-LATEST_JSON_URL = (
-    "https://github.com/tuya/tyutool/releases/latest/download/latest.json"
+RELEASE_JSON_URL = (
+    "https://github.com/tuya/tyutool/releases/latest/download/release.json"
 )
-_GITHUB_PREFIX = "https://github.com/tuya/tyutool"
-_GITEE_PREFIX = "https://gitee.com/tuya-open/tyutool"
 
 
 def get_platform_key() -> str:
@@ -73,7 +71,7 @@ def should_check_update() -> bool:
 def fetch_latest_json() -> Optional[dict]:
     logger = get_logger()
     try:
-        resp = requests.get(LATEST_JSON_URL, timeout=10)
+        resp = requests.get(RELEASE_JSON_URL, timeout=10)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -100,8 +98,22 @@ def _detect_installed_version(tyutool_bin: str) -> str:
         return ""
 
 
-def _make_gitee_url(github_url: str) -> str:
-    return github_url.replace(_GITHUB_PREFIX, _GITEE_PREFIX)
+def _select_download_urls(cli_info: dict) -> list:
+    """Order download URLs by region.
+
+    release.json entries carry explicit `url_tuya` (mainland China CDN) and
+    `url_github` fields; mainland China prefers `url_tuya`, elsewhere prefers
+    `url_github`, each falling back to the other source.
+    """
+    url_github = cli_info.get("url_github") or cli_info.get("url", "")
+    url_tuya = cli_info.get("url_tuya") or cli_info.get("url", "")
+
+    if "China" in get_country_code():
+        urls = [url_tuya, url_github]
+    else:
+        urls = [url_github, url_tuya]
+    # drop empties and duplicates, keep order
+    return list(dict.fromkeys(u for u in urls if u))
 
 
 DOWNLOAD_TIMEOUT = 300  # 5 minutes total cap for binary download
@@ -194,16 +206,13 @@ def download_tyutool_bin(latest_data: dict) -> bool:
         logger.error(f"No CLI binary available for platform: {platform_key}")
         return False
 
-    github_url = cli_info["url"]
     expected_sha256 = cli_info["sha256"]
-    asset_name = github_url.split('/')[-1]
+    urls = _select_download_urls(cli_info)
+    if not urls:
+        logger.error(f"No download URL available for platform: {platform_key}")
+        return False
+    asset_name = urls[0].split('/')[-1]
     bin_name = "tyutool_cli.exe" if sys.platform == "win32" else "tyutool_cli"
-
-    gitee_url = _make_gitee_url(github_url)
-    if "China" in get_country_code():
-        urls = [gitee_url, github_url]
-    else:
-        urls = [github_url, gitee_url]
 
     tmp_dir = os.path.join(tyutool_bin_dir, ".tmp")
     extract_dir = os.path.join(tyutool_bin_dir, ".tmp_extract")
