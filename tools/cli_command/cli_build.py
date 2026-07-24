@@ -330,6 +330,15 @@ def build_project(verbose=False, log_file=None, log_file_append=False):
         logger = get_logger()
         check_proj_dir()
 
+        # export.{sh,ps1,bat} is always the entry point and already prepares
+        # cmake/ninja; re-verify here so a toolchain broken AFTER export (e.g.
+        # antivirus removed cmake, or an interrupted sync) fails fast with a
+        # clear, self-healing message instead of a cryptic cmake error later.
+        from tools.cli_command.cli_prepare import ensure_build_tools
+        if not ensure_build_tools():
+            logger.error("Build tools (cmake/ninja) are missing or broken.")
+            return False
+
         if not env_check():
             logger.error("Env check error.")
             return False

@@ -1828,6 +1828,7 @@ function Invoke-TuyaSetupVenv {
     $venvPath = Join-Path $Root '.venv'
     $venvPy   = Join-Path $venvPath 'Scripts\python.exe'
     $marker   = Get-TuyaVenvMarkerPath -VenvPath $venvPath
+    $syncStamp = Join-Path $venvPath '.uv-sync-ok'
     $createdVenv = $false
 
     if (-not (Test-TuyaUvManagedVenv -VenvPath $venvPath) -or -not (Test-Path -LiteralPath $venvPy -PathType Leaf)) {
@@ -1849,17 +1850,20 @@ function Invoke-TuyaSetupVenv {
         Write-TuyaOpenDebug '[TuyaOpen] .venv created.'
     }
 
-    # Warm start: skip sync when uv.lock has not changed since the last
-    # successful sync (the marker mtime is refreshed after each sync). This
-    # keeps re-sourcing fast and avoids re-acquiring the venv lock every time.
+    # Warm start: skip sync only when a PREVIOUS sync SUCCEEDED (the .uv-sync-ok
+    # stamp is written only after uv sync returns 0) and uv.lock has not changed
+    # since. The stamp is deliberately separate from the venv marker: the marker
+    # is written when the venv is first created (before sync), so keying the skip
+    # on it would make a failed/interrupted first sync permanently skip sync on
+    # every later run, leaving dependencies (e.g. cmake) half-installed.
     # TUYAOPEN_EXPORT_VERBOSE=1 forces a full sync (self-repair escape hatch).
     $needSync = $true
     if (-not $createdVenv -and -not $script:TuyaOpenVerbose) {
         $lockStamp = $null
-        $markerStamp = $null
-        try { $lockStamp   = (Get-Item -LiteralPath (Join-Path $Root 'uv.lock') -ErrorAction Stop).LastWriteTimeUtc } catch {}
-        try { $markerStamp = (Get-Item -LiteralPath $marker -ErrorAction Stop).LastWriteTimeUtc } catch {}
-        if ($null -ne $lockStamp -and $null -ne $markerStamp -and $lockStamp -le $markerStamp) {
+        $syncStampTime = $null
+        try { $lockStamp     = (Get-Item -LiteralPath (Join-Path $Root 'uv.lock') -ErrorAction Stop).LastWriteTimeUtc } catch {}
+        try { $syncStampTime = (Get-Item -LiteralPath $syncStamp -ErrorAction Stop).LastWriteTimeUtc } catch {}
+        if ($null -ne $lockStamp -and $null -ne $syncStampTime -and $lockStamp -le $syncStampTime) {
             $needSync = $false
         }
     }
@@ -1884,7 +1888,9 @@ function Invoke-TuyaSetupVenv {
             }
             Write-TuyaOpenDebug '[TuyaOpen] Dependencies synced.'
         } finally { Pop-Location }
-        try { (Get-Item -LiteralPath $marker -ErrorAction Stop).LastWriteTimeUtc = [datetime]::UtcNow } catch {}
+        # Mark sync success (only reached when syncRc -eq 0). Writing the file
+        # sets its mtime to now, which the warm-start check above compares to uv.lock.
+        Write-TuyaMarkerFile -Path $syncStamp -Content ("synced=" + ([datetime]::UtcNow.ToString('o'))) | Out-Null
     } else {
         Write-TuyaOpenStage -StageId 'sync'
         Write-TuyaOpenInfo '[TuyaOpen] Python dependencies up to date (uv.lock unchanged); skipping sync.'
