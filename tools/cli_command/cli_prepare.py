@@ -12,7 +12,7 @@ from typing import Callable, List, Optional, Tuple
 import click
 
 from tools.cli_command.util import (
-    get_logger, get_global_params, env_write,
+    get_logger, get_global_params, env_write, get_country_code,
 )
 from tools.cli_command.util_tyutool import _download_file
 
@@ -232,8 +232,89 @@ def download_host_tools() -> bool:
     return True
 
 
+def _tool_runs_ok(exe: str) -> bool:
+    """Run ``<exe> --version``; True only if it launches and exits 0.
+
+    List form + shell=False keeps paths with spaces / non-ASCII / special
+    characters safe. A present-but-broken tool (e.g. a venv launcher whose
+    payload was removed by antivirus, or an incomplete install) exits non-zero
+    and is thus reported as broken, not merely "missing".
+    """
+    try:
+        subprocess.run(
+            [exe, "--version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return False
+
+
+def resolve_venv_tool(binary: str) -> Optional[str]:
+    """Absolute path to a venv-provided tool (cmake/ninja), or None.
+
+    Resolved from the running interpreter's Scripts/bin dir (so it does not
+    depend on the caller's PATH being activated). ``shutil.which`` applies
+    PATHEXT, so it returns the real ``.exe`` on Windows.
+    """
+    scripts = os.path.dirname(os.path.abspath(sys.executable))
+    return shutil.which(binary, path=scripts)
+
+
+def ensure_venv_tool(pkg: str, binary: str) -> Tuple[bool, Optional[str]]:
+    """Ensure a venv-managed tool exists and actually runs; repair if not.
+
+    Returns ``(ok, exe)``. When the tool is missing or broken, reinstall just
+    that package via uv. ``--reinstall-package`` is required because uv treats
+    an intact dist-info as "already installed" and would otherwise not restore
+    files that were deleted after install. Needs OPEN_SDK_UV and a .venv.
+    """
+    logger = get_logger()
+    exe = resolve_venv_tool(binary)
+    if exe and _tool_runs_ok(exe):
+        return True, exe
+
+    uv = os.environ.get("OPEN_SDK_UV") or shutil.which("uv")
+    open_root = get_global_params().get("open_root")
+    if uv and open_root and os.path.isdir(os.path.join(open_root, ".venv")):
+        logger.warning(
+            f"[{binary}] dependency missing or broken; reinstalling {pkg} ...")
+        cmd = [uv, "sync", "--frozen", "--reinstall-package", pkg]
+        if get_country_code() == "China":
+            cmd += ["--default-index",
+                    "https://mirrors.aliyun.com/pypi/simple/"]
+        try:
+            subprocess.run(cmd, cwd=open_root)
+        except OSError as e:
+            logger.error(f"[{binary}] reinstall failed to start: {e}")
+        exe = resolve_venv_tool(binary)
+        if exe and _tool_runs_ok(exe):
+            logger.note(f"[{binary}] repaired.")
+            return True, exe
+
+    return False, exe
+
+
+def ensure_build_tools() -> bool:
+    """Verify (and repair) the venv-managed build tools: cmake + ninja."""
+    logger = get_logger()
+    ok = True
+    for pkg, binary in (("cmake", "cmake"), ("ninja", "ninja")):
+        good, _ = ensure_venv_tool(pkg, binary)
+        if not good:
+            logger.error(
+                f"[{binary}] could not be prepared. Re-run export, "
+                f"or: uv sync --reinstall-package {pkg}"
+            )
+            ok = False
+    return ok
+
+
 PREPARE_STEPS: List[Tuple[str, PrepareStep]] = [
     ("download_host_tools", download_host_tools),
+    ("ensure_build_tools", ensure_build_tools),
 ]
 
 

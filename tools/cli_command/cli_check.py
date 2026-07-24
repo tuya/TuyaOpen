@@ -58,8 +58,10 @@ def _compare_version(actual: str, required: str) -> bool:
     return True
 
 
-def check_command_version(tool_name, min_version, ver_cmd="--version"):
+def check_command_version(tool_name, min_version, ver_cmd="--version",
+                          label=None):
     logger = get_logger()
+    disp = label or tool_name
     cmd = [tool_name, ver_cmd]
     try:
         result = subprocess.run(
@@ -71,15 +73,15 @@ def check_command_version(tool_name, min_version, ver_cmd="--version"):
         )
         cmd_out = result.stdout + result.stderr
     except (subprocess.CalledProcessError, FileNotFoundError):
-        logger.error(f"[{tool_name}] not found, please install.")
+        logger.error(f"[{disp}] not found, please install.")
         return False
 
     tool_ver = _find_version_string(cmd_out)
     if tool_ver == "" or _compare_version(tool_ver, min_version) is False:
         logger.warning(
-            f"[{tool_name}] ({tool_ver} < {min_version}) need update.")
+            f"[{disp}] ({tool_ver} < {min_version}) need update.")
         return False
-    logger.note(f"[{tool_name}] ({tool_ver} >= {min_version}) is ok.")
+    logger.note(f"[{disp}] ({tool_ver} >= {min_version}) is ok.")
     return True
 
 
@@ -99,17 +101,32 @@ def _ensure_make_for_check():
 
 
 def check_base_tools():
-    command_list = [
-        ("git", "--version", "2.0.0"),
-        ("cmake", "--version", "3.28.0"),
-        ("make", "--version", "3.0.0"),
-        ("ninja", "--version", "1.6.0"),
-    ]
+    logger = get_logger()
 
-    for command in command_list:
-        if command[0] == "make":
-            _ensure_make_for_check()
-        check_command_version(command[0], command[2], command[1])
+    # git: system dependency.
+    check_command_version("git", "2.0.0", "--version")
+
+    # cmake / ninja: TuyaOpen-managed (installed into the venv). Resolve by
+    # absolute path and repair if the venv copy is missing or broken, so we
+    # never mis-report "please install" for a bundled-but-damaged tool, and
+    # never silently fall back to a system cmake of an unpinned version.
+    from tools.cli_command.cli_prepare import ensure_venv_tool
+    for pkg, binary, min_ver in (("cmake", "cmake", "3.28.0"),
+                                 ("ninja", "ninja", "1.6.0")):
+        ok, exe = ensure_venv_tool(pkg, binary)
+        if ok and exe:
+            check_command_version(exe, min_ver, "--version", label=binary)
+        else:
+            logger.error(
+                f"[{binary}] TuyaOpen-managed dependency is missing or broken. "
+                f"Re-initialize the environment (. .\\export.ps1 / . ./export.sh) "
+                f"or run: uv sync --reinstall-package {pkg}. "
+                f"If it was removed by antivirus, add .venv to the allowlist."
+            )
+
+    # make: on Windows this is a downloaded .tools/make; keep the self-heal.
+    _ensure_make_for_check()
+    check_command_version("make", "3.0.0", "--version")
 
     copy_pre_commit()
     pass
