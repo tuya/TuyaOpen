@@ -17,6 +17,8 @@
 #include "tdd_disp_co5300.h"
 #include "tdd_tp_cst92xx.h"
 
+#include "qmi8658.h"
+
 /***********************************************************
 ***********************macro define***********************
 ***********************************************************/
@@ -201,6 +203,23 @@ static OPERATE_RET __board_register_display(void)
 }
 
 /**
+ * @brief Register QMI8658 IMU on the shared touch I2C bus (after display/touch init).
+ * @return OPRT_OK on success
+ */
+static OPERATE_RET __board_register_qmi8658(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    rt = qmi8658_init(&g_qmi8658_dev, QMI8658_ADDRESS_HIGH);
+    if (rt != OPRT_OK) {
+        PR_ERR("board: qmi8658_init failed rt=%d", rt);
+    } else {
+        PR_NOTICE("board: QMI8658 IMU ready (addr 0x%02X)", QMI8658_ADDRESS_HIGH);
+    }
+    return rt;
+}
+
+/**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
@@ -214,6 +233,8 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_button());
 
     TUYA_CALL_ERR_LOG(__board_register_display());
+
+    TUYA_CALL_ERR_LOG(__board_register_qmi8658());
 
     return rt;
 }
