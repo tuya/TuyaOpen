@@ -1472,7 +1472,8 @@ tuya_setup_venv() {
     tuya_stage venv
     local managed_python="${_tuya_managed_python:-}" venv_path="$OPEN_SDK_ROOT/.venv" rc=0
     local venv_py="$venv_path/bin/python" marker="$venv_path/$TUYA_VENV_MARKER"
-    local created_venv=0 need_sync=1 lock_mtime='' marker_mtime=''
+    local sync_stamp="$venv_path/.uv-sync-ok"
+    local created_venv=0 need_sync=1 lock_mtime='' sync_mtime=''
     tuya_migrate_legacy_venv || return 1
 
     if ! tuya_is_uv_venv "$venv_path" || [ ! -x "$venv_py" ]; then
@@ -1495,14 +1496,17 @@ tuya_setup_venv() {
         tuya_debug '[TuyaOpen] .venv created.'
     fi
 
-    # Warm start: skip sync when uv.lock has not changed since the last
-    # successful sync (the marker mtime is refreshed after each sync). This
-    # keeps re-sourcing fast and avoids re-acquiring the venv lock every time.
+    # Warm start: skip sync only when a PREVIOUS sync SUCCEEDED (.uv-sync-ok is
+    # written only after uv sync returns 0) and uv.lock has not changed since.
+    # The stamp is deliberately separate from the venv marker: the marker is
+    # written when the venv is first created (before sync), so keying the skip on
+    # it would make a failed/interrupted first sync permanently skip sync on every
+    # later run, leaving dependencies (e.g. cmake) half-installed.
     # TUYAOPEN_EXPORT_VERBOSE forces a full sync (self-repair escape hatch).
     if [ "$created_venv" -eq 0 ] && [ -z "${TUYAOPEN_EXPORT_VERBOSE:-}" ]; then
         lock_mtime=$(tuya_file_mtime_epoch "$OPEN_SDK_ROOT/uv.lock") || lock_mtime=''
-        marker_mtime=$(tuya_file_mtime_epoch "$marker") || marker_mtime=''
-        if [ -n "$lock_mtime" ] && [ -n "$marker_mtime" ] && [ "$lock_mtime" -le "$marker_mtime" ]; then
+        sync_mtime=$(tuya_file_mtime_epoch "$sync_stamp") || sync_mtime=''
+        if [ -n "$lock_mtime" ] && [ -n "$sync_mtime" ] && [ "$lock_mtime" -le "$sync_mtime" ]; then
             need_sync=0
         fi
     fi
@@ -1517,8 +1521,9 @@ tuya_setup_venv() {
             return 1
         fi
         tuya_debug '[TuyaOpen] Dependencies synced.'
-        # Record the sync time so an unchanged uv.lock can skip sync next source.
-        touch "$marker" 2>/dev/null || true
+        # Record sync success (only reached when tuya_sync_deps returned 0); the
+        # warm-start check above compares this stamp's mtime to uv.lock.
+        touch "$sync_stamp" 2>/dev/null || true
     else
         tuya_stage sync
         tuya_info '[TuyaOpen] Python dependencies up to date (uv.lock unchanged); skipping sync.'
