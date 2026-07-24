@@ -18,6 +18,8 @@ static uint8_t *s_openai_cacert        = NULL;
 static size_t   s_openai_cacert_len    = 0;
 static uint8_t *s_anthropic_cacert     = NULL;
 static size_t   s_anthropic_cacert_len = 0;
+static uint8_t *s_minimax_cacert       = NULL;
+static size_t   s_minimax_cacert_len   = 0;
 
 typedef struct {
     char host[96];
@@ -26,6 +28,7 @@ typedef struct {
 
 static llm_endpoint_t s_openai_endpoint    = {0};
 static llm_endpoint_t s_anthropic_endpoint = {0};
+static llm_endpoint_t s_minimax_endpoint   = {0};
 
 #define LLM_LOG_PREVIEW_LEN 1024
 
@@ -65,6 +68,16 @@ static bool provider_is_openai(void)
     return strcmp(s_provider, "openai") == 0;
 }
 
+static bool provider_is_minimax(void)
+{
+    return strcmp(s_provider, "minimax") == 0;
+}
+
+static bool provider_uses_openai_format(void)
+{
+    return provider_is_openai() || provider_is_minimax();
+}
+
 static void free_cached_cert(uint8_t **cert, size_t *cert_len)
 {
     if (cert && *cert) {
@@ -80,13 +93,21 @@ static void clear_endpoint_cache(void)
 {
     memset(&s_openai_endpoint, 0, sizeof(s_openai_endpoint));
     memset(&s_anthropic_endpoint, 0, sizeof(s_anthropic_endpoint));
+    memset(&s_minimax_endpoint, 0, sizeof(s_minimax_endpoint));
     free_cached_cert(&s_openai_cacert, &s_openai_cacert_len);
     free_cached_cert(&s_anthropic_cacert, &s_anthropic_cacert_len);
+    free_cached_cert(&s_minimax_cacert, &s_minimax_cacert_len);
 }
 
 static const char *llm_default_endpoint_url(void)
 {
-    return provider_is_openai() ? MIMI_OPENAI_API_URL : MIMI_LLM_API_URL;
+    if (provider_is_openai()) {
+        return MIMI_OPENAI_API_URL;
+    }
+    if (provider_is_minimax()) {
+        return MIMI_MINIMAX_API_URL;
+    }
+    return MIMI_LLM_API_URL;
 }
 
 static const char *llm_active_endpoint_url(void)
@@ -131,7 +152,14 @@ static void parse_endpoint_url(const char *url, llm_endpoint_t *endpoint)
 
 static llm_endpoint_t *llm_current_endpoint(void)
 {
-    llm_endpoint_t *endpoint = provider_is_openai() ? &s_openai_endpoint : &s_anthropic_endpoint;
+    llm_endpoint_t *endpoint;
+    if (provider_is_openai()) {
+        endpoint = &s_openai_endpoint;
+    } else if (provider_is_minimax()) {
+        endpoint = &s_minimax_endpoint;
+    } else {
+        endpoint = &s_anthropic_endpoint;
+    }
     parse_endpoint_url(llm_active_endpoint_url(), endpoint);
     return endpoint;
 }
@@ -159,6 +187,9 @@ static void get_provider_cert(uint8_t **cert, size_t **cert_len)
     if (provider_is_openai()) {
         *cert     = s_openai_cacert;
         *cert_len = &s_openai_cacert_len;
+    } else if (provider_is_minimax()) {
+        *cert     = s_minimax_cacert;
+        *cert_len = &s_minimax_cacert_len;
     } else {
         *cert     = s_anthropic_cacert;
         *cert_len = &s_anthropic_cacert_len;
@@ -197,6 +228,8 @@ static OPERATE_RET ensure_provider_cert(void)
 
     if (provider_is_openai()) {
         s_openai_cacert = cert;
+    } else if (provider_is_minimax()) {
+        s_minimax_cacert = cert;
     } else {
         s_anthropic_cacert = cert;
     }
@@ -515,7 +548,7 @@ static OPERATE_RET llm_http_call(const char *post_data, char *resp_buf, size_t r
         .value = "application/json",
     };
 
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         snprintf(auth, sizeof(auth), "Bearer %s", s_api_key);
         headers[header_count++] = (http_client_header_t){
             .key   = "Authorization",
@@ -676,7 +709,7 @@ OPERATE_RET llm_chat(const char *system_prompt, const char *messages_json, char 
         return OPRT_MALLOC_FAILED;
     }
     cJSON_AddStringToObject(body, "model", s_model);
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         cJSON_AddNumberToObject(body, "max_completion_tokens", MIMI_LLM_MAX_TOKENS);
     } else {
         cJSON_AddNumberToObject(body, "max_tokens", MIMI_LLM_MAX_TOKENS);
@@ -699,7 +732,7 @@ OPERATE_RET llm_chat(const char *system_prompt, const char *messages_json, char 
         cJSON_AddItemToArray(parsed_messages, msg);
     }
 
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         cJSON *openai_msgs = convert_messages_openai(system_prompt, parsed_messages);
         if (!openai_msgs) {
             cJSON_Delete(parsed_messages);
@@ -752,7 +785,7 @@ OPERATE_RET llm_chat(const char *system_prompt, const char *messages_json, char 
         return OPRT_CR_CJSON_ERR;
     }
 
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         extract_text_openai(root, response_buf, buf_size);
     } else {
         extract_text_anthropic(root, response_buf, buf_size);
@@ -810,13 +843,13 @@ OPERATE_RET llm_chat_tools_ex(const char *system_prompt, cJSON *messages, const 
     }
 
     cJSON_AddStringToObject(body, "model", s_model);
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         cJSON_AddNumberToObject(body, "max_completion_tokens", MIMI_LLM_MAX_TOKENS);
     } else {
         cJSON_AddNumberToObject(body, "max_tokens", MIMI_LLM_MAX_TOKENS);
     }
 
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         cJSON *openai_msgs = convert_messages_openai(system_prompt, messages);
         if (!openai_msgs) {
             cJSON_Delete(body);
@@ -883,7 +916,7 @@ OPERATE_RET llm_chat_tools_ex(const char *system_prompt, cJSON *messages, const 
         return OPRT_CR_CJSON_ERR;
     }
 
-    if (provider_is_openai()) {
+    if (provider_uses_openai_format()) {
         cJSON *choices = cJSON_GetObjectItem(root, "choices");
         cJSON *choice0 = cJSON_IsArray(choices) ? cJSON_GetArrayItem(choices, 0) : NULL;
         if (choice0) {

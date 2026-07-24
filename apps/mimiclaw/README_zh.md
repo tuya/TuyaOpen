@@ -4,7 +4,7 @@
 插上电、连上 Wi‑Fi，这块几十块钱的 T5AI 板子就会变成一个可以 7×24 小时运行的超级 AI 管家。
 
 你可以通过 **飞书 / Telegram / Discord** 直接和它对话，把任务丢给它处理；  
-它支持 **DeepSeek、Claude、GPT 等主流大模型**，可以在不同模型和兼容接口之间灵活切换；  
+它支持 **DeepSeek、Claude、GPT、MiniMax 等主流大模型**，可以在不同模型和兼容接口之间灵活切换；  
 它有本地记忆，所有对话和偏好都以纯文本文件保存在芯片里，重启不丢失，用得越久越懂你。
 
 它还内置了 **定时任务调度器**，可以让 AI 自己安排每日提醒、定时汇总；  
@@ -30,7 +30,7 @@
   - 在原本 Telegram 的基础上，增加了 **飞书** 与 **Discord** 支持
   - 通过统一的 CLI 命令切换当前使用的社交通道
 - **大模型配置方式**
-  - 支持 **OpenAI** 与 **Anthropic**，同时支持 **兼容 OpenAI/Anthropic 协议的自建 / 第三方 URL**
+  - 支持 **OpenAI**、**Anthropic** 与 **MiniMax**，同时支持 **兼容 OpenAI/Anthropic 协议的自建 / 第三方 URL**
   - 可通过命令行与 `mimi_secrets.h` 双层配置模型与 API
 - **与 TuyaOpen 深度集成**
   - 利用 TuyaOpen 的 **驱动、传感器与显示能力**，让 AI 能够读取环境数据、控制 GPIO 以及更多硬件外设
@@ -55,28 +55,30 @@ help
 
 即可获取到当前固件支持的命令行工具列表和帮助信息。
 
-### 2. 配置大模型（OpenAI / Anthropic / 兼容 URL）
+### 2. 配置大模型（OpenAI / Anthropic / MiniMax / 兼容 URL）
 
-你可以选择 `openai` 或 `anthropic` 作为模型提供方，也可以使用 **OpenAI / Anthropic 协议兼容的自建或第三方接口**。
+你可以选择 `openai`、`anthropic` 或 `minimax` 作为模型提供方，也可以使用 **OpenAI / Anthropic 协议兼容的自建或第三方接口**。
 
 典型配置流程：
 
 1. 选择模型提供方：
    - `set_model_provider openai`
    - 或 `set_model_provider anthropic`
+   - 或 `set_model_provider minimax`
 2. 设置 API Key：
    - `set_api_key sk-xxxx...`
 3. （可选）设置兼容的 API Base URL：
    - `set_api_url https://your-compatible-endpoint.example.com`
 4. 设置模型名称：
    - `set_model gpt-4o`（或你所使用提供方支持的任意模型）
+   - MiniMax 可选：`set_model MiniMax-M2.7` 或 `set_model MiniMax-M2.5-highspeed`（204K 上下文窗口）
 
 如果你选择“兼容 URL”模式，**必须**同时设置 `API_KEY` 和 `API_URL`，缺一不可，否则接口调用会失败。
 
 对应你原始提到的迁移说明，可以理解为：
 
 1. **115200 打开烧录口，输入 `help`，可以获取到命令行工具**
-2. **配置大模型，选择 `openai` 或者 `anthropic`，然后输入 `API_KEY` 和 模型；如果使用兼容 URL，需要额外输入 `API_URL`**
+2. **配置大模型，选择 `openai`、`anthropic` 或 `minimax`，然后输入 `API_KEY` 和 模型；如果使用兼容 URL，需要额外输入 `API_URL`**
 
 ### 3. 连接路由器（Wi‑Fi 配网）
 
@@ -141,7 +143,7 @@ cp apps/tuya_mimiclaw/mimi_secrets.h.example apps/tuya_mimiclaw/mimi_secrets.h
 
 - Wi‑Fi 名称与密码
 - 大模型 API Key、模型名称
-- 模型提供方（OpenAI / Anthropic / 兼容 URL）
+- 模型提供方（OpenAI / Anthropic / MiniMax / 兼容 URL）
 - 对话通道及必要的 Token / AppID 等
 
 保存后重新编译并烧录固件即可。
