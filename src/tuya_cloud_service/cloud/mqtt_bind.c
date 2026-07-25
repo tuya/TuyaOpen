@@ -153,7 +153,6 @@ void mqtt_bind_token_get_thread(void *args)
 
         case STATE_MQTT_BIND_INIT:
             if (mqbind->config->network_check()) {
-                PR_NOTICE("[mqbind] network is up, starting binding...");
                 mqbind->state = STATE_MQTT_BIND_START;
             } else {
                 tal_system_sleep(200);
@@ -162,13 +161,10 @@ void mqtt_bind_token_get_thread(void *args)
 
         case STATE_MQTT_BIND_START: {
             /* Update region demain */
-            PR_NOTICE("[mqbind] updating endpoint region...");
             if (OPRT_OK != tuya_endpoint_update_auto_region()) {
-                PR_WARN("[mqbind] endpoint region update failed, retry in 1s...");
                 tal_system_sleep(1000);
                 continue;
             }
-            PR_NOTICE("[mqbind] endpoint region OK, initialising MQTT...");
             /* mqtt init */
             const tuya_endpoint_t *endpoint = tuya_endpoint_get();
             rt = tuya_mqtt_init(&mqbind->mqctx, &(const tuya_mqtt_config_t){
@@ -193,15 +189,12 @@ void mqtt_bind_token_get_thread(void *args)
         }
 
         case STATE_MQTT_BIND_CONNECT:
-            PR_NOTICE("[mqbind] connecting to MQTT broker %s:%d...",
-                      tuya_endpoint_get()->mqtt.host, tuya_endpoint_get()->mqtt.port);
             rt = tuya_mqtt_start(&mqbind->mqctx);
             if (OPRT_OK != rt) {
-                PR_ERR("[mqbind] MQTT connect fail:%d, retry in 1s...", rt);
+                PR_ERR("tuya mqtt connect fail:%d, retry..", rt);
                 tal_system_sleep(1000);
                 break;
             }
-            PR_NOTICE("[mqbind] MQTT start OK, waiting for connection...");
             mqbind->state = STATE_MQTT_BIND_CONNECTED_WAIT;
             break;
 
@@ -272,7 +265,7 @@ int mqtt_bind_token_get(tuya_iot_config_t *config)
 
     s_mqbind->config = config;
 
-    THREAD_CFG_T thread_cfg = {.priority = THREAD_PRIO_3, .stackDepth = 8192, .thrdname = "mqtt_bind"};
+    THREAD_CFG_T thread_cfg = {.priority = THREAD_PRIO_3, .stackDepth = 4096, .thrdname = "mqtt_bind"};
     rt = tal_thread_create_and_start(&s_mqbind->thread, NULL, NULL, mqtt_bind_token_get_thread, s_mqbind, &thread_cfg);
     if (OPRT_OK != rt) {
         PR_ERR("tuya cli create thread failed %d", rt);

@@ -13,7 +13,6 @@
 #include "cJSON.h"
 #include "netmgr.h"
 #include "tal_api.h"
-#include "tal_wifi.h"
 #include "tkl_output.h"
 #include "tuya_config.h"
 #include "tuya_iot.h"
@@ -63,28 +62,6 @@ void user_log_output_cb(const char *str)
 {
     tkl_log_output(str);
 }
-
-#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
-/**
- * @brief Print the Tuya binding QR code to the console
- *
- * Generates a QR code URL containing the product ID and device UUID,
- * then prints it as a UTF-8 QR code to the serial console. The Tuya
- * smart life app can scan this QR code to bind the device.
- */
-static void print_binding_qrcode(void)
-{
-    char buffer[255];
-    snprintf(buffer, sizeof(buffer),
-             "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0",
-             TUYA_PRODUCT_ID, license.uuid);
-
-    PR_NOTICE("------ Scan QR Code to bind device ------");
-    PR_NOTICE("URL: %s", buffer);
-    qrcode_string_output(buffer, user_log_output_cb, 0);
-    PR_NOTICE("-----------------------------------------");
-}
-#endif
 
 /**
  * @brief user defined upgrade notify callback, it will notify device a OTA
@@ -138,7 +115,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     /* Print the QRCode for Tuya APP bind */
     case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
 #if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
-        print_binding_qrcode();
+        char buffer[255];
+        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
+        qrcode_string_output(buffer, user_log_output_cb, 0);
 #endif
     } break;
     /* RECV upgrade request */
@@ -237,13 +216,9 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
  */
 bool user_network_check(void)
 {
-    /* Query the WiFi driver directly — netmgr may not know about a connection
-     * established via msh 'wifi join' outside the netmgr framework. */
-    WF_STATION_STAT_E stat = WSS_IDLE;
-    OPERATE_RET rt = tal_wifi_station_get_status(&stat);
-    bool up = (rt == OPRT_OK) && (stat >= WSS_CONN_SUCCESS);
-    PR_DEBUG("[netcheck] wifi station status: %d (rt=%d, up=%d)", stat, rt, up);
-    return up;
+    netmgr_status_e status = NETMGR_LINK_DOWN;
+    netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status);
+    return status == NETMGR_LINK_DOWN ? false : true;
 }
 
 void user_main(void)
@@ -272,9 +247,9 @@ void user_main(void)
     tal_workq_init();
 
 #if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
-    // tal_cli_init();
-    // tuya_authorize_init();
-    // tuya_app_cli_init();
+    tal_cli_init();
+    tuya_authorize_init();
+    tuya_app_cli_init();
 #endif
 
     reset_netconfig_start();
@@ -315,21 +290,12 @@ void user_main(void)
     netmgr_init(type);
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    /* Use type=0: skip local AP/BLE provisioning.  The device is already
-     * connected to WiFi (e.g. via msh 'wifi join').  QR code cloud binding
-     * delivers the activation token via MQTT — same as wired/cellular. */
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = 0});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
     /* Start tuya iot task */
     tuya_iot_start(&client);
-
-    /* Print QR code early so users can scan it while the device is
-     * waiting for network connection / pairing. */
-#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
-    print_binding_qrcode();
-#endif
 
     reset_netconfig_check();
 
