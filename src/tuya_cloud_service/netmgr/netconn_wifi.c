@@ -17,6 +17,7 @@
 #include "cJSON.h"
 #include "ap_netcfg.h"
 #include "tuya_lan.h"
+#include "mqtt_bind.h"
 
 #include "tal_network_register.h"
 
@@ -420,6 +421,12 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
     case NETCONN_CMD_NETCFG: {
         netcfg_args_t *netcfg = (netcfg_args_t *)param;
         netmgr_wifi->netcfg.type = netcfg->type;
+        /* Always register MQTT bind for cloud-based QR code binding.
+         * This is the same mechanism used by wired/cellular connections.
+         * When the user scans the QR code, the Tuya cloud delivers the
+         * activation token to the device via MQTT. */
+        tuya_iot_token_get_port_register(client, mqtt_bind_token_get);
+        /* Additionally register local provisioning (AP/BLE) if requested */
         if (netmgr_wifi->netcfg.type & NETCFG_TUYA_BLE || netmgr_wifi->netcfg.type & NETCFG_TUYA_WIFI_AP) {
             tuya_iot_token_get_port_register(client, __netconn_activate_token_get);
         }

@@ -38,3 +38,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
   commit: 28d11bb607efd616e36670e83d19f50c3b5da357
+
+- name: Kendryte_K230
+  repo: https://github.com/tuya/TuyaOpen-K230
+  branch: master
+  commit: bd524f84411da187ade0714f68ea6967d5d2ecc2  # TuyaOpen-K230 repo HEAD

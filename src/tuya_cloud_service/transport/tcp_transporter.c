@@ -91,12 +91,20 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
     }
 
     // Auto bind to netmgr IP for embedded multi-interface targets.
-    // On Linux host builds, keep default routing unless bind is explicitly set.
+    // Skip when netmgr reports LINK_DOWN (e.g. WiFi connected outside netmgr
+    // via platform shell commands) — the IP from the driver may not be safe
+    // to bind to due to byte-order differences in RTOS network stacks.
 #if OPERATING_SYSTEM != SYSTEM_LINUX
-    if (tcp_transporter->config.bindAddr == 0 && tcp_transporter->config.bindPort == 0) {
-        NW_IP_S nw_ip = {0};
-        if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip) && nw_ip.ip[0] != '\0') {
-            tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+    {
+        netmgr_status_e _st = NETMGR_LINK_DOWN;
+        netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &_st);
+        if (_st == NETMGR_LINK_UP &&
+            tcp_transporter->config.bindAddr == 0 && tcp_transporter->config.bindPort == 0) {
+            NW_IP_S nw_ip = {0};
+            if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip) && nw_ip.ip[0] != '\0') {
+                tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
+                PR_DEBUG("auto-bind to %s", nw_ip.ip);
+            }
         }
     }
 #endif

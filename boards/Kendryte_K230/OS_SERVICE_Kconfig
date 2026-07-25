@@ -1,0 +1,8 @@
+# K230 OS service Kconfig.
+
+# Use TuyaOpen's software-mbedtls config (src/libtls/port/tuya_tls_config.h),
+# which disables PSA/TLS1.3 so mbedtls builds from source without needing its
+# private library/ dir on the include path. (T5AI uses the same value.)
+config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"

@@ -1,0 +1,78 @@
+# K230 TKL capabilities. Minimal set for first bring-up (switch_demo build);
+# peripheral/Wi-Fi TKLs are enabled per stage (see platform/Kendryte_K230/PLAN.md).
+
+config LITTLE_END
+    int
+    default 1
+
+config ENABLE_FILE_SYSTEM
+    bool
+    default y
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_WIRED
+    bool
+    default n
+
+config ENABLE_NETWORK
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config ENABLE_HCI
+    bool
+    default n
+
+config ENABLE_RTC
+    bool
+    default n
+
+config ENABLE_WATCHDOG
+    bool
+    default n
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_FLASH
+    bool
+    default y
+
+config TUYA_FLASH_TYPE_MAX_PARTITION_NUM
+    int
+    default 10
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default n
+
+config ENABLE_PWM
+    bool
+    default n
+
+config ENABLE_QRCODE
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default n
+
+config ENABLE_SPI
+    bool
+    default n
+
+config ENABLE_TIMER
+    bool
+    default n
