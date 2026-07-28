@@ -155,7 +155,7 @@ static void cli_hello(int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
-    cli_print_string(s_cli_handle, "helo world");
+    cli_print_string(s_cli_handle, "hello world");
 }
 
 static void cli_help(int argc, char *argv[])
