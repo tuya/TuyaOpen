@@ -86,7 +86,7 @@ static int __lcd_st7789_spi_init(LCD_ST7789_SPI_HW_CFG_T *hw, uint16_t width, ui
     io_config.cs_gpio_num                   = hw->cs_io;
     io_config.dc_gpio_num                   = hw->dc_io;
     io_config.spi_mode                      = 0;
-    io_config.pclk_hz                       = (hw->pclk_hz > 0) ? hw->pclk_hz : (40 * 1000 * 1000);
+    io_config.pclk_hz                       = (hw->pclk_hz > 0) ? hw->pclk_hz : (80 * 1000 * 1000);
     io_config.trans_queue_depth             = 7;
     io_config.lcd_cmd_bits                  = 8;
     io_config.lcd_param_bits                = 8;
