@@ -838,7 +838,7 @@ int tal_cli_init_with_uart(uint8_t uart_num)
     cfg.open_mode = O_BLOCK;
     result = tal_uart_init(uart_num, &cfg);
     if (OPRT_OK != result) {
-        PR_ERR("uart init failed", result);
+        PR_ERR("uart init failed %d", result);
         goto __exit;
     }
     tal_cli_cmd_register((cli_cmd_t *)&s_cli_cmd, sizeof(s_cli_cmd) / sizeof(s_cli_cmd[0]));
@@ -852,6 +852,7 @@ int tal_cli_init_with_uart(uint8_t uart_num)
     result = tal_thread_create_and_start(&s_cli_handle->thread, NULL, NULL, cli_task, s_cli_handle, &param);
     if (OPRT_OK != result) {
         PR_ERR("tuya cli create thread failed %d", result);
+        tal_uart_deinit(uart_num);
         goto __exit;
     }
 

@@ -212,6 +212,7 @@ OPERATE_RET tal_uart_init(TUYA_UART_NUM_E port_num, TAL_UART_CFG_T *cfg)
     }
 
     OPERATE_RET ret = 0;
+    BOOL_T tkl_inited = FALSE;
 
     if (g_uart_list.mutex == NULL) {
         ret = tal_mutex_create_init(&g_uart_list.mutex);
@@ -251,6 +252,7 @@ OPERATE_RET tal_uart_init(TUYA_UART_NUM_E port_num, TAL_UART_CFG_T *cfg)
         PR_ERR("tkl_uart_init(port %d) failed: %d", port_num, ret);
         goto ERR_EXIT;
     }
+    tkl_inited = TRUE;
 
     ret = tuya_ring_buff_create(cfg->rx_buffer_size, OVERFLOW_STOP_TYPE, &uart_info->rx_ring);
     if (ret != OPRT_OK) {
@@ -277,11 +279,20 @@ OPERATE_RET tal_uart_init(TUYA_UART_NUM_E port_num, TAL_UART_CFG_T *cfg)
 #endif
 
     ret = uart_list_add_one_node(uart_info);
+    if (ret != OPRT_OK) {
+        /* not in the list, so tal_uart_deinit() could never reclaim it */
+        goto ERR_EXIT;
+    }
+
     tkl_uart_rx_irq_cb_reg(port_num, uart_rx_chars_in_isr);
 
     return ret;
 
 ERR_EXIT:
+    /* release the lower layer as well, it may hold a fd, a thread or a clock */
+    if (tkl_inited) {
+        tkl_uart_deinit(port_num);
+    }
     uart_free_source(uart_info);
     return ret;
 }
