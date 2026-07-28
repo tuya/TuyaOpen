@@ -39,8 +39,10 @@ static TKL_BLE_GATT_EVT_FUNC_CB tkl_bluetooth_gatt_callback;
 // 60 bytes
 static struct ble_gatt_svc_def *tuya_gatt_svcs = NULL;
 // 144 bytes
-#define TUYA_BLE_GATT_CHAR_MAX_NUM 4
-static struct ble_gatt_chr_def tuya_gatt_chars[2][TUYA_BLE_GATT_CHAR_MAX_NUM]; //*tuya_gatt_chars = NULL;
+#define TUYA_BLE_GATT_SERVICE_MAX_NUM 2
+#define TUYA_BLE_GATT_CHAR_MAX_NUM    4
+static struct ble_gatt_chr_def
+    tuya_gatt_chars[TUYA_BLE_GATT_SERVICE_MAX_NUM][TUYA_BLE_GATT_CHAR_MAX_NUM]; //*tuya_gatt_chars = NULL;
 
 // 12 bytes
 static TKL_BLUETOOTH_SERVER_PARAMS_T tuya_ble_server;
@@ -523,6 +525,33 @@ OPERATE_RET tkl_ble_stack_init(uint8_t role)
 }
 
 /**
+ * @brief   Free all service/characteristic UUIDs allocated by tkl_ble_gatts_service_add.
+ *          Shared by the stack deinit path and the service-add failure paths.
+ * */
+static void tuya_ble_gatts_uuid_free(void)
+{
+    int i, j;
+
+    if (tuya_gatt_svcs) {
+        for (i = 0; i < TKL_BLE_GATT_SERVICE_MAX_NUM; i++) {
+            if (tuya_gatt_svcs[i].uuid) {
+                tuya_ble_hs_free((void *)tuya_gatt_svcs[i].uuid);
+                tuya_gatt_svcs[i].uuid = NULL;
+            }
+        }
+    }
+
+    for (i = 0; i < TUYA_BLE_GATT_SERVICE_MAX_NUM; i++) {
+        for (j = 0; j < TUYA_BLE_GATT_CHAR_MAX_NUM; j++) {
+            if (tuya_gatt_chars[i][j].uuid) {
+                tuya_ble_hs_free((void *)tuya_gatt_chars[i][j].uuid);
+                tuya_gatt_chars[i][j].uuid = NULL;
+            }
+        }
+    }
+}
+
+/**
  * @brief   Function for de-initializing the ble stack features
  * @param   role                 Indicate the role for ble stack.
  *                               role = 1: ble peripheral
@@ -532,8 +561,6 @@ OPERATE_RET tkl_ble_stack_init(uint8_t role)
  * */
 OPERATE_RET tkl_ble_stack_deinit(uint8_t role)
 {
-    int i;
-
     if (!ble_hs_is_enabled()) {
         BLE_HS_LOG_INFO("ble_stack already deinited\r\n");
         tuya_ble_stack_event_callback(TKL_BLE_EVT_STACK_DEINIT, 0);
@@ -554,23 +581,11 @@ OPERATE_RET tkl_ble_stack_deinit(uint8_t role)
     tkl_hci_deinit();
     tuya_ble_stack_event_callback(TKL_BLE_EVT_STACK_DEINIT, 0);
 
-    for (i = 0; i < TKL_BLE_GATT_SERVICE_MAX_NUM; i++) {
-        if (tuya_gatt_svcs[i].uuid) {
-            tuya_ble_hs_free((void *)tuya_gatt_svcs[i].uuid);
-        }
-    }
-
-    for (i = 0; i < TUYA_BLE_GATT_CHAR_MAX_NUM; i++) {
-        if (tuya_gatt_chars[0][i].uuid) {
-            tuya_ble_hs_free((void *)tuya_gatt_chars[0][i].uuid);
-        }
-        if (tuya_gatt_chars[1][i].uuid) {
-            tuya_ble_hs_free((void *)tuya_gatt_chars[1][i].uuid);
-        }
-    }
+    tuya_ble_gatts_uuid_free();
 
     if (tuya_gatt_svcs) {
         tuya_ble_hs_free((void *)tuya_gatt_svcs);
+        tuya_gatt_svcs = NULL;
     }
     // if (tuya_gatt_chars) {
     //     tuya_ble_hs_free((void *)tuya_gatt_chars);
@@ -578,6 +593,7 @@ OPERATE_RET tkl_ble_stack_deinit(uint8_t role)
 
     if (tuya_ble_server.read_char[0].buffer) {
         tuya_ble_hs_free(tuya_ble_server.read_char[0].buffer);
+        tuya_ble_server.read_char[0].buffer = NULL;
     }
 
     tkl_mutex_unlock(tkl_ble_stack_mutex);
@@ -1016,20 +1032,26 @@ OPERATE_RET tkl_ble_gatts_service_add(TKL_BLE_GATTS_PARAMS_T *p_service)
         return OPRT_OK;
     int rc;
     unsigned char i = 0, j = 0;
-    unsigned char index = 0, type = 0;
+    unsigned char type = 0;
+    OPERATE_RET ret = OPRT_OK;
 
-    if (p_service->svc_num > TKL_BLE_GATT_SERVICE_MAX_NUM) {
+    /* tuya_gatt_chars provides one row of characteristics per service */
+    if (p_service->svc_num > TKL_BLE_GATT_SERVICE_MAX_NUM || p_service->svc_num > TUYA_BLE_GATT_SERVICE_MAX_NUM) {
         return OPRT_INVALID_PARM;
     }
 
     if (!tuya_gatt_svcs) {
         tuya_gatt_svcs = tuya_ble_hs_malloc(TKL_BLE_GATT_SERVICE_MAX_NUM * sizeof(struct ble_gatt_svc_def));
+        if (!tuya_gatt_svcs) {
+            return OPRT_MALLOC_FAILED;
+        }
     }
     // if (!tuya_gatt_chars) {
     //     tuya_gatt_chars = tuya_ble_hs_malloc(TKL_BLE_GATT_CHAR_MAX_NUM * sizeof(struct ble_gatt_chr_def));
     // }
+    tuya_ble_gatts_uuid_free();
     memset(tuya_gatt_svcs, 0, TKL_BLE_GATT_SERVICE_MAX_NUM * sizeof(struct ble_gatt_svc_def));
-    memset(tuya_gatt_chars, 0, 2 * TUYA_BLE_GATT_CHAR_MAX_NUM * sizeof(struct ble_gatt_chr_def));
+    memset(tuya_gatt_chars, 0, sizeof(tuya_gatt_chars));
 
     for (i = 0; i < p_service->svc_num; i++) {
         if (p_service->p_service[i].type == TKL_BLE_UUID_SERVICE_PRIMARY) {
@@ -1037,51 +1059,82 @@ OPERATE_RET tkl_ble_gatts_service_add(TKL_BLE_GATTS_PARAMS_T *p_service)
         } else if (p_service->p_service[i].type == TKL_BLE_UUID_SERVICE_SECONDARY) {
             tuya_gatt_svcs[i].type = BLE_GATT_SVC_TYPE_SECONDARY;
         } else {
-            return OPRT_INVALID_PARM;
+            ret = OPRT_INVALID_PARM;
+            goto exit_cleanup;
         }
 
         // Add Service
         if (p_service->p_service[i].svc_uuid.uuid_type == TKL_BLE_UUID_TYPE_16) {
             tuya_gatt_svcs[i].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid16_t));
+            if (!tuya_gatt_svcs[i].uuid) {
+                ret = OPRT_MALLOC_FAILED;
+                goto exit_cleanup;
+            }
             memcpy((uint8_t *)tuya_gatt_svcs[i].uuid,
                    (uint8_t *)BLE_UUID16_DECLARE(p_service->p_service[i].svc_uuid.uuid.uuid16),
                    (uint32_t)sizeof(ble_uuid16_t));
         } else if (p_service->p_service[i].svc_uuid.uuid_type == TKL_BLE_UUID_TYPE_32) {
             tuya_gatt_svcs[i].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid32_t));
+            if (!tuya_gatt_svcs[i].uuid) {
+                ret = OPRT_MALLOC_FAILED;
+                goto exit_cleanup;
+            }
             memcpy((uint8_t *)tuya_gatt_svcs[i].uuid,
                    (uint8_t *)BLE_UUID32_DECLARE(p_service->p_service[i].svc_uuid.uuid.uuid32),
                    (uint32_t)sizeof(ble_uuid32_t));
         } else if (p_service->p_service[i].svc_uuid.uuid_type == TKL_BLE_UUID_TYPE_128) {
             tuya_gatt_svcs[i].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid128_t));
+            if (!tuya_gatt_svcs[i].uuid) {
+                ret = OPRT_MALLOC_FAILED;
+                goto exit_cleanup;
+            }
             type = BLE_UUID_TYPE_128;
             memcpy((uint8_t *)tuya_gatt_svcs[i].uuid, &type, 1);
             memcpy((uint8_t *)tuya_gatt_svcs[i].uuid + 1, p_service->p_service[i].svc_uuid.uuid.uuid128,
                    (uint32_t)sizeof(ble_uuid128_t));
+        } else {
+            ret = OPRT_INVALID_PARM;
+            goto exit_cleanup;
         }
 
         // Add characteristics
         TKL_BLE_CHAR_PARAMS_T *p_char = p_service->p_service[i].p_char;
         tuya_gatt_svcs[i].characteristics = tuya_gatt_chars[i];
-        index += p_service->p_service[i].char_num;
-        if (index > TKL_BLE_GATT_CHAR_MAX_NUM) {
-            return OPRT_INVALID_PARM;
+        if (p_service->p_service[i].char_num > TUYA_BLE_GATT_CHAR_MAX_NUM) {
+            ret = OPRT_INVALID_PARM;
+            goto exit_cleanup;
         }
 
         for (j = 0; j < p_service->p_service[i].char_num; j++) {
             if (p_char[j].char_uuid.uuid_type == TKL_BLE_UUID_TYPE_16) {
                 tuya_gatt_svcs[i].characteristics[j].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid16_t));
+                if (!tuya_gatt_svcs[i].characteristics[j].uuid) {
+                    ret = OPRT_MALLOC_FAILED;
+                    goto exit_cleanup;
+                }
                 memcpy((uint8_t *)tuya_gatt_svcs[i].characteristics[j].uuid,
                        (uint8_t *)BLE_UUID16_DECLARE(p_char[j].char_uuid.uuid.uuid16), (uint32_t)sizeof(ble_uuid16_t));
             } else if (p_char[j].char_uuid.uuid_type == TKL_BLE_UUID_TYPE_32) {
                 tuya_gatt_svcs[i].characteristics[j].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid32_t));
+                if (!tuya_gatt_svcs[i].characteristics[j].uuid) {
+                    ret = OPRT_MALLOC_FAILED;
+                    goto exit_cleanup;
+                }
                 memcpy((uint8_t *)tuya_gatt_svcs[i].characteristics[j].uuid,
                        (uint8_t *)BLE_UUID32_DECLARE(p_char[j].char_uuid.uuid.uuid32), (uint32_t)sizeof(ble_uuid32_t));
             } else if (p_char[j].char_uuid.uuid_type == TKL_BLE_UUID_TYPE_128) {
                 tuya_gatt_svcs[i].characteristics[j].uuid = (ble_uuid_t *)tal_malloc(sizeof(ble_uuid128_t));
+                if (!tuya_gatt_svcs[i].characteristics[j].uuid) {
+                    ret = OPRT_MALLOC_FAILED;
+                    goto exit_cleanup;
+                }
                 type = BLE_UUID_TYPE_128;
                 memcpy((uint8_t *)tuya_gatt_svcs[i].characteristics[j].uuid, &type, 1);
                 memcpy((uint8_t *)tuya_gatt_svcs[i].characteristics[j].uuid + 1, p_char[j].char_uuid.uuid.uuid128,
                        (uint32_t)sizeof(ble_uuid128_t));
+            } else {
+                ret = OPRT_INVALID_PARM;
+                goto exit_cleanup;
             }
 
             tuya_gatt_svcs[i].characteristics[j].access_cb = tuya_ble_host_write_callback;
@@ -1112,19 +1165,27 @@ OPERATE_RET tkl_ble_gatts_service_add(TKL_BLE_GATTS_PARAMS_T *p_service)
     rc = ble_gatts_count_cfg(tuya_gatt_svcs);
     if (rc != 0) {
         BLE_HS_LOG(INFO, "rc = %d\n", rc);
-        return OPRT_INVALID_PARM;
+        ret = OPRT_INVALID_PARM;
+        goto exit_cleanup;
     }
 
     rc = ble_gatts_add_svcs(tuya_gatt_svcs);
     if (rc != 0) {
         BLE_HS_LOG(INFO, "rc = %d\n", rc);
-        return OPRT_INVALID_PARM;
+        ret = OPRT_INVALID_PARM;
+        goto exit_cleanup;
     }
 
     // FOR TEST
     // tuya_ble_test_main_run(NULL);
     gatts_service_flag = TRUE;
     return OPRT_OK;
+
+exit_cleanup:
+    tuya_ble_gatts_uuid_free();
+    memset(tuya_gatt_svcs, 0, TKL_BLE_GATT_SERVICE_MAX_NUM * sizeof(struct ble_gatt_svc_def));
+    memset(tuya_gatt_chars, 0, sizeof(tuya_gatt_chars));
+    return ret;
 }
 
 /**
