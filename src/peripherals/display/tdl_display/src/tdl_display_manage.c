@@ -104,6 +104,8 @@ static void __tdl_blacklight_init(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
 #endif
     } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
         PR_NOTICE("There is no backlight control pin on the board");
+    } else if (bl_cfg->type == TUYA_DISP_BL_TP_CUSTOM) {
+        PR_DEBUG("Custom backlight – init deferred to callback");
     } else {
         PR_NOTICE("not support bl type:%d", bl_cfg->type);
     }
@@ -148,6 +150,8 @@ static void __tdl_blacklight_deinit(TUYA_DISPLAY_BL_CTRL_T *bl_cfg)
 #endif
     } else if (bl_cfg->type == TUYA_DISP_BL_TP_NONE) {
         PR_NOTICE("There is no backlight control pin on the board");
+    } else if (bl_cfg->type == TUYA_DISP_BL_TP_CUSTOM) {
+        PR_DEBUG("Custom backlight – nothing to deinit");
     } else {
         PR_NOTICE("not support bl type:%d", bl_cfg->type);
     }

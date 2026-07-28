@@ -18,6 +18,8 @@
 #include "tkl_i2c.h"
 #include "tkl_pinmux.h"
 
+#include "board_bmi270_api.h"
+
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
 #include "tdd_button_gpio.h"
 #endif
@@ -427,6 +429,21 @@ static OPERATE_RET __board_register_button(void)
 }
 
 /**
+ * @brief Custom backlight callback for StickS3.
+ *
+ * The LCD backlight is powered by the M5PM1 L3B rail (PYG2).  Brightness
+ * is therefore on/off only – any non-zero value turns L3B on, zero turns it off.
+ */
+static OPERATE_RET __board_disp_set_backlight(uint8_t brightness, void *arg)
+{
+    (void)arg;
+    /* L3B provides the power rail for LCD backlight, mic, and speaker.
+     * The actual backlight LED enable is GPIO 38 (handled by GPIO backlight
+     * type).  This callback keeps L3B in sync with brightness requests. */
+    return board_sticks3_power_set_l3b(brightness > 0);
+}
+
+/**
  * @brief Register StickS3 display hardware.
  * @return OPRT_OK on success, error code on failure.
  */
@@ -441,7 +458,9 @@ static OPERATE_RET __board_register_display(void)
         .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
         .rotation  = TUYA_DISPLAY_ROTATION_0,
         .is_swap   = DISPLAY_SWAP_BYTES,
-        .bl.type   = TUYA_DISP_BL_TP_NONE,
+        .bl.type          = TUYA_DISP_BL_TP_GPIO,
+        .bl.gpio.pin      = DISPLAY_BACKLIGHT_PIN,
+        .bl.gpio.active_level = TUYA_GPIO_LEVEL_HIGH,
     };
 
     LCD_ST7789_SPI_HW_CFG_T hw = {
@@ -457,10 +476,61 @@ static OPERATE_RET __board_register_display(void)
         .mirror_y     = DISPLAY_MIRROR_Y,
         .offset_x     = DISPLAY_OFFSET_X,
         .offset_y     = DISPLAY_OFFSET_Y,
+        .pclk_hz      = 40 * 1000 * 1000, /* 40 MHz – flexible cable signal integrity limit */
     };
 
     TUYA_CALL_ERR_RETURN(tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg));
+    /* Keep L3B power rail on for the backlight LED power path. */
+    TUYA_CALL_ERR_RETURN(tdl_disp_custom_backlight_register(DISPLAY_NAME, __board_disp_set_backlight, NULL));
 #endif
+
+    return rt;
+}
+
+/**
+ * @brief Register StickS3 BMI270 IMU on the shared internal I2C bus.
+ * @return OPRT_OK on success, error code on failure.
+ * @note 3V3_L1 power must already be enabled (done in power init).
+ */
+static OPERATE_RET __board_register_bmi270(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    rt = board_bmi270_register();
+    if (rt != OPRT_OK) {
+        PR_ERR("StickS3 BMI270 registration failed: %d", rt);
+    }
+
+    return rt;
+}
+
+/**
+ * @brief Configure StickS3 IR TX / RX GPIOs.
+ * @return OPRT_OK on success, error code on failure.
+ * @note The TuyaOpen IR peripheral framework does not yet support ESP32.
+ *       This sets the pins as ready for application-level use.
+ */
+static OPERATE_RET __board_register_ir(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    /* IR TX (G46) – push-pull output */
+    TUYA_GPIO_BASE_CFG_T tx_cfg = {
+        .direct = TUYA_GPIO_OUTPUT,
+        .mode   = TUYA_GPIO_PUSH_PULL,
+        .level  = TUYA_GPIO_LEVEL_LOW,
+    };
+    TUYA_CALL_ERR_RETURN(tkl_gpio_init((TUYA_GPIO_NUM_E)IR_TX_IO, &tx_cfg));
+
+    /* IR RX (G42) – input */
+    TUYA_GPIO_BASE_CFG_T rx_cfg = {
+        .direct = TUYA_GPIO_INPUT,
+        .mode   = TUYA_GPIO_PULLUP,
+        .level  = TUYA_GPIO_LEVEL_LOW,
+    };
+    TUYA_CALL_ERR_RETURN(tkl_gpio_init((TUYA_GPIO_NUM_E)IR_RX_IO, &rx_cfg));
+
+    PR_NOTICE("StickS3 IR pins configured: TX:%d RX:%d", IR_TX_IO, IR_RX_IO);
 
     return rt;
 }
@@ -477,6 +547,8 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_display());
+    TUYA_CALL_ERR_LOG(__board_register_bmi270());
+    TUYA_CALL_ERR_LOG(__board_register_ir());
 
     return rt;
 }
@@ -511,6 +583,13 @@ OPERATE_RET board_display_show_red_box(void)
         return OPRT_MALLOC_FAILED;
     }
 
+    /* Set frame buffer dimensions and position */
+    fb->x_start = 0;
+    fb->y_start = 0;
+    fb->width   = DISPLAY_WIDTH;
+    fb->height  = DISPLAY_HEIGHT;
+    fb->fmt     = TUYA_PIXEL_FMT_RGB565;
+
     /* Clear to black */
     tdl_disp_draw_fill_full(fb, 0x0000, false);
 
@@ -534,7 +613,10 @@ OPERATE_RET board_display_show_red_box(void)
     PR_NOTICE("StickS3 red box displayed: %dx%d at (%d,%d)", box_w, box_h, box_x, box_y);
 
     tdl_disp_free_frame_buff(fb);
-    tdl_disp_dev_close(disp_hdl);
+
+    /* Keep the display open so the content remains visible.
+     * Closing would call esp_lcd_panel_disp_on_off(false), putting the
+     * ST7789 to sleep and blanking the screen. */
 
     return rt;
 #else

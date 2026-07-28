@@ -15,6 +15,11 @@ aux_source_directory(${MODULE_PATH} LIB_SRCS)
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH})
 
+# BMI270 IMU headers (required by board_bmi270_api.h)
+if(CONFIG_ENABLE_IMU_BMI270 STREQUAL "y")
+    list(APPEND LIB_PUBLIC_INC ${CMAKE_SOURCE_DIR}/src/peripherals/imu/bmi270)
+endif()
+
 ########################################
 # Target Configure
 ########################################

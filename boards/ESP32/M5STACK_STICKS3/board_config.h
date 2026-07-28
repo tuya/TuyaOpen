@@ -74,10 +74,11 @@ extern "C" {
 
 #define DISPLAY_MONOCHROME false
 
-/* Rotation. */
+/* Rotation.  The ST7789P3 panel on StickS3 needs only Y-axis mirroring
+ * to correct the physical panel orientation. */
 #define DISPLAY_SWAP_XY  false
 #define DISPLAY_MIRROR_X false
-#define DISPLAY_MIRROR_Y false
+#define DISPLAY_MIRROR_Y true
 
 #define DISPLAY_COLOR_FORMAT LV_COLOR_FORMAT_RGB565
 #define DISPLAY_COLOR_INVERT true
@@ -107,6 +108,15 @@ extern "C" {
 #define M5PM1_L3B_POWER_DISABLE_LEVEL false
 #define M5PM1_SPK_AMP_ENABLE_LEVEL   true
 #define M5PM1_SPK_AMP_DISABLE_LEVEL  false
+
+/* BMI270 IMU. Powered by 3V3_L1 (LDO). Shares the internal I2C bus. */
+#define BMI270_I2C_PORT    I2C_NUM
+#define BMI270_I2C_ADDR    BMI2_I2C_PRIM_ADDR  /* 0x68, ADDR pin = low */
+#define BMI270_I2C_ADDR_ALT BMI2_I2C_SEC_ADDR  /* 0x69, ADDR pin = high */
+
+/* IR transmitter / receiver. */
+#define IR_TX_IO    TUYA_GPIO_NUM_46
+#define IR_RX_IO    TUYA_GPIO_NUM_42
 
 /* Buttons. */
 #define BOARD_BUTTON_PIN         TUYA_GPIO_NUM_11

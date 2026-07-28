@@ -36,6 +36,7 @@ typedef struct {
     bool mirror_y;
     uint16_t offset_x; /* column offset for panel alignment */
     uint16_t offset_y; /* row offset for panel alignment */
+    uint32_t pclk_hz;  /* SPI clock frequency in Hz; 0 falls back to 40 MHz default */
 } LCD_ST7789_SPI_HW_CFG_T;
 
 /* ---------------------------------------------------------------------------

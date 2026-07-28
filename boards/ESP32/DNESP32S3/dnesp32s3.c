@@ -343,6 +343,7 @@ static OPERATE_RET __board_register_display(void)
         .swap_xy      = DISPLAY_SWAP_XY,
         .mirror_x     = DISPLAY_MIRROR_X,
         .mirror_y     = DISPLAY_MIRROR_Y,
+        .pclk_hz      = 80 * 1000 * 1000, /* 80 MHz – PCB-trace SPI, no flex cable limit */
     };
 
     TUYA_CALL_ERR_RETURN(tdd_disp_esp_st7789_spi_register(DISPLAY_NAME, &hw, &cfg));

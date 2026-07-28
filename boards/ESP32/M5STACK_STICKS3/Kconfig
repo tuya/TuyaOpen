@@ -9,6 +9,7 @@ config BOARD_CHOICE
 config BOARD_CONFIG
     bool
     default y
+    select ENABLE_EXT_RAM
     select ENABLE_AUDIO
     select ENABLE_ESP_DISPLAY
     select PLATFORM_FLASHSIZE_8M
@@ -17,6 +18,8 @@ config BOARD_CONFIG
     select ENABLE_PMIC_M5PM1
     select ENABLE_BUTTON
     select ENABLE_BUTTON_2
+    select ENABLE_IMU
+    select ENABLE_IMU_BMI270
 
 config BOARD_M5STACK_STICKS3_EXT_5V_OUTPUT
     bool "Enable EXT_5V output on boot"
