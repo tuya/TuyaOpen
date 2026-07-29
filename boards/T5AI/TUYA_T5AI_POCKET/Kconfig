@@ -19,6 +19,7 @@ config BOARD_CONFIG
     select ENABLE_DISPLAY
     select ENABLE_CAMERA
     select ENABLE_JOYSTICK
+    select ENABLE_POWER
     select ENABLE_PMIC
     select ENABLE_PMIC_AXP2101
     select ENABLE_IMU

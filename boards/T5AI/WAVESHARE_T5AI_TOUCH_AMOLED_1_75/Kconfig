@@ -11,8 +11,8 @@ config BOARD_CONFIG
     default y
     select ENABLE_AUDIO_CODECS
     select ENABLE_AUDIO_AEC
+    select ENABLE_POWER
     select ENABLE_BUTTON
-    select ENABLE_BUTTON_2
     select ENABLE_DISPLAY
     select ENABLE_TP
     select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)

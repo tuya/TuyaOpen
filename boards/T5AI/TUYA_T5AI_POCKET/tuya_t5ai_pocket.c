@@ -18,7 +18,21 @@
 #include "tdd_joystick.h"
 #include "board_audio_mux_api.h" // Add audio mux API header
 #include "board_bmi270_api.h"    // Add BMI270 sensor API header
-#include "board_axp2101_api.h"   // Add AXP2101 power management API header
+#include "tkl_gpio.h"
+#include "tdd_power_axp2101.h"
+#include "tdd_power_soc.h"
+#include "tdl_power_manage.h"
+
+// AXP2101 channel map (was board_axp2101_api.h)
+#define RTC_VDD        XPOWERS_LDO1
+#define VDD_CAM_2V8    XPOWERS_ALDO3
+#define VDD_SD_3V3     XPOWERS_ALDO4
+#define AVDD_CAM_2V8   XPOWERS_BLDO1
+#define DVDD_CAM_1V8   XPOWERS_BLDO2
+#define VDD_JOYCON_1V1 XPOWERS_DLDO2
+// 4G module control GPIOs (SoC): RST high=working; SIM_VDD is the CELLULAR power domain
+#define RST_4G_MODULE_CTRL     TUYA_GPIO_NUM_25
+#define SIM_VDD_4G_MODULE_CTRL TUYA_GPIO_NUM_22
 #include "tdd_camera_gc2145.h"
 /***********************************************************
 ************************macro define************************
@@ -319,14 +333,62 @@ static OPERATE_RET __board_register_axp2101(void)
     -----END-----
     */
 
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET          rt = OPRT_OK;
+    TUYA_GPIO_BASE_CFG_T gc = {.mode = TUYA_GPIO_PUSH_PULL, .direct = TUYA_GPIO_OUTPUT, .level = TUYA_GPIO_LEVEL_HIGH};
 
-    // Initialize AXP2101 power management IC
-    rt = board_axp2101_init();
+    // --- AXP2101 contributor: chip bring-up + app domains + fuel gauge + charge ---
+    // App-visible rails (role -> channel, boot voltage + state).
+    static const TDD_POWER_AXP_DOMAIN_T axp_domains[] = {
+        {TDL_PWR_DOMAIN_CAMERA,      VDD_CAM_2V8,    2800, TRUE },
+        {TDL_PWR_DOMAIN_SD,          VDD_SD_3V3,     3300, TRUE },
+        {TDL_PWR_DOMAIN_CAMERA_AVDD, AVDD_CAM_2V8,   2800, TRUE },
+        {TDL_PWR_DOMAIN_CAMERA_DVDD, DVDD_CAM_1V8,   1800, TRUE },
+        {TDL_PWR_DOMAIN_JOYSTICK,    VDD_JOYCON_1V1, 1100, FALSE},
+        {TDL_PWR_DOMAIN_RTC,         RTC_VDD,        1800, TRUE },
+    };
+    // No-role rails: DCDC1/DCDC5 are the board 3V3 core (kept on); the rest are the
+    // unused channels the original bring-up defensively disabled.
+    static const TDD_POWER_AXP_RAIL_T axp_rails[] = {
+        {XPOWERS_DCDC1, 3300, TRUE }, {XPOWERS_DCDC5, 3300, TRUE },
+        {XPOWERS_DCDC2, 0, FALSE}, {XPOWERS_DCDC3, 0, FALSE}, {XPOWERS_DCDC4, 0, FALSE},
+        {XPOWERS_ALDO1, 0, FALSE}, {XPOWERS_ALDO2, 0, FALSE},
+        {XPOWERS_DLDO1, 0, FALSE}, {XPOWERS_CPULDO, 0, FALSE}, {XPOWERS_VBACKUP, 0, FALSE},
+    };
+    rt = tdd_power_axp2101_register(POWER_NAME, &(TDD_POWER_AXP2101_CFG_T){
+        .domains = axp_domains, .domain_cnt = sizeof(axp_domains) / sizeof(axp_domains[0]),
+        .rails   = axp_rails,   .rail_cnt   = sizeof(axp_rails) / sizeof(axp_rails[0]),
+        .charge = {
+            .vbus_vol_limit    = XPOWERS_AXP2101_VBUS_VOL_LIM_4V20,
+            .vbus_cur_limit    = XPOWERS_AXP2101_VBUS_CUR_LIM_500MA,
+            .sys_power_down_mv = 3300,
+            .precharge_curr    = XPOWERS_AXP2101_PRECHARGE_200MA,
+            .term_curr         = XPOWERS_AXP2101_CHG_ITERM_25MA,
+            .const_curr        = XPOWERS_AXP2101_CHG_CUR_1000MA,
+            .target_vol        = XPOWERS_AXP2101_CHG_VOL_4V2,
+            .led_mode          = XPOWERS_CHG_LED_CTRL_CHG,
+        },
+        .pekey_on  = XPOWERS_POWERON_128MS,
+        .pekey_off = XPOWERS_POWEROFF_4S,
+        .irq_pin   = TDD_POWER_PIN_NONE, // AXP IRQ line not wired on POCKET
+        .info = {.battery = {.v_full_mv = 4200, .v_empty_mv = 3000, .v_low_mv = 3400, .v_critical_mv = 3300}},
+    });
     if (OPRT_OK != rt) {
-        PR_ERR("AXP2101 initialization failed: %d", rt);
+        PR_ERR("AXP2101 power register failed: %d", rt);
         return rt;
     }
+
+    // --- SoC contributor: 4G module supply is a plain SoC GPIO (SIM_VDD, active-low),
+    // joined as a CELLULAR domain so the app can switch 4G power via tdl_power_domain_set.
+    static const TDD_POWER_GPIO_DOMAIN_T soc_domains[] = {
+        {TDL_PWR_DOMAIN_CELLULAR, SIM_VDD_4G_MODULE_CTRL, TUYA_GPIO_LEVEL_LOW, TRUE},
+    };
+    tdd_power_soc_register(POWER_NAME, &(TDD_POWER_SOC_CFG_T){
+        .domains = soc_domains, .domain_cnt = sizeof(soc_domains) / sizeof(soc_domains[0]),
+    });
+
+    // 4G module reset line (not power): drive high = working.
+    TUYA_CALL_ERR_LOG(tkl_gpio_init(RST_4G_MODULE_CTRL, &gc));
+    tkl_gpio_write(RST_4G_MODULE_CTRL, TUYA_GPIO_LEVEL_HIGH);
 
     return rt;
 }

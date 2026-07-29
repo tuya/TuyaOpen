@@ -16,8 +16,8 @@
 #include "tdd_button_gpio.h"
 #include "tdd_disp_uc8276.h"
 #include "tdd_tp_ft6336.h"
-#include "board_power_domain_api.h"
-#include "board_charge_detect_api.h"
+#include "tdd_power_soc.h"
+#include "tdl_power_manage.h"
 #include "tkl_fs.h"
 #include "tal_log.h"
 
@@ -79,6 +79,32 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
+// Power-domain load switches (active-HIGH, on by default)
+#define BOARD_PWR_EINK_PIN TUYA_GPIO_NUM_30
+#define BOARD_PWR_SD_PIN   TUYA_GPIO_NUM_31
+
+// Battery: ADC P8 (channel 8), divider VBAT->2M->tap->510K->GND (x4.922)
+#define BOARD_BAT_ADC_CH  8
+#define BOARD_BAT_DIVIDER 4.922f
+// Charger: single detect line CHRG -> P12 (HIGH = plugged/charging), no STDBY line
+#define BOARD_CHRG_PIN    TUYA_GPIO_NUM_12
+
+static const TDD_POWER_GPIO_DOMAIN_T s_power_domains[] = {
+    {TDL_PWR_DOMAIN_DISPLAY, BOARD_PWR_EINK_PIN, TUYA_GPIO_LEVEL_HIGH, TRUE},
+    {TDL_PWR_DOMAIN_SD,      BOARD_PWR_SD_PIN,   TUYA_GPIO_LEVEL_HIGH, TRUE},
+};
+
+static const TDD_POWER_ADC_BATTERY_T s_battery = {
+    .adc_num = TUYA_ADC_NUM_0, .adc_ch = BOARD_BAT_ADC_CH, .divider_ratio = BOARD_BAT_DIVIDER,
+    .samples = 16, // no board cal -> SoC default T5 SARADC model
+};
+
+static const TDD_POWER_GPIO_CHARGER_T s_charger = {
+    .chrg_pin = BOARD_CHRG_PIN, .chrg_active = TUYA_GPIO_LEVEL_HIGH,
+    .stdby_pin = TDD_POWER_PIN_NONE, .stdby_active = TUYA_GPIO_LEVEL_HIGH, // no STDBY -> never FULL
+};
+
+static TDL_POWER_HANDLE s_pwr = NULL;
 
 /***********************************************************
 ***********************function define**********************
@@ -195,7 +221,7 @@ static OPERATE_RET __board_register_display(void)
 
 #if defined(DISPLAY_NAME)
     // Ensure E-Ink power domain is enabled and stable
-    board_power_domain_eink_3v3_enable();
+    tdl_power_domain_set(s_pwr, TDL_PWR_DOMAIN_DISPLAY, TRUE);
     tal_system_sleep(50); // Wait for power stabilization
 
     // Configure SPI pinmux for E-Ink display (CS is GPIO controlled, not SPI peripheral)
@@ -267,38 +293,21 @@ static OPERATE_RET __board_register_display(void)
     return rt;
 }
 
-static OPERATE_RET __board_register_power_domains(void)
+static OPERATE_RET __board_register_power(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-
-    // Initialize power domains (EINK 3V3 and SD card 3V3) and enable by default
-    rt = board_power_domain_init();
+    // Register EINK / SD 3V3 load switches (inited + enabled by default_on)
+    OPERATE_RET rt = tdd_power_soc_register(POWER_NAME, &(TDD_POWER_SOC_CFG_T){
+        .domains    = s_power_domains,
+        .domain_cnt = sizeof(s_power_domains) / sizeof(s_power_domains[0]),
+        .battery    = &s_battery,
+        .charger    = &s_charger,
+        .info = {.battery = {.v_full_mv = 4200, .v_empty_mv = 3000, .v_low_mv = 3400, .v_critical_mv = 3300}},
+    });
     if (OPRT_OK != rt) {
         return rt;
     }
-
-    return rt;
-}
-
-static OPERATE_RET __board_register_charge_detect(void)
-{
-    OPERATE_RET rt = OPRT_OK;
-
-    // Initialize charge detect GPIO and interrupt
-    // Disabled for now - interrupt mode not supported
-    // rt = board_charge_detect_init();
-    // if (OPRT_OK != rt) {
-    //     return rt;
-    // }
-
-    // Initialize battery ADC reading (this works independently of charge detect interrupt)
-    // rt = board_battery_adc_init();
-    // if (OPRT_OK != rt) {
-    //     PR_ERR("Failed to initialize battery ADC: %d", rt);
-    //     return rt;
-    // }
-
-    return rt;
+    s_pwr = tdl_power_find(POWER_NAME);
+    return (NULL != s_pwr) ? OPRT_OK : OPRT_COM_ERROR;
 }
 
 static OPERATE_RET __board_sdio_pin_register(void)
@@ -314,7 +323,7 @@ static OPERATE_RET __board_sdio_pin_register(void)
     tkl_io_pinmux_config(TUYA_GPIO_NUM_19, TUYA_SDIO_DATA3);
 
     // Ensure SD card power domain is enabled
-    rt = board_power_domain_sd_3v3_enable();
+    rt = tdl_power_domain_set(s_pwr, TDL_PWR_DOMAIN_SD, TRUE);
     if (OPRT_OK != rt) {
         return rt;
     }
@@ -338,7 +347,7 @@ OPERATE_RET board_sdcard_init(void)
     OPERATE_RET rt = OPRT_OK;
 
     // Ensure SD card power domain is enabled
-    rt = board_power_domain_sd_3v3_enable();
+    rt = tdl_power_domain_set(s_pwr, TDL_PWR_DOMAIN_SD, TRUE);
     if (OPRT_OK != rt) {
         return rt;
     }
@@ -358,16 +367,11 @@ OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    TUYA_CALL_ERR_LOG(__board_register_power_domains());
+    TUYA_CALL_ERR_LOG(__board_register_power());
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_led());
     TUYA_CALL_ERR_LOG(__board_register_display());
-    // Charge detection may fail if interrupt mode not supported - make it non-fatal
-    rt = __board_register_charge_detect();
-    if (OPRT_OK != rt) {
-        PR_WARN("Charge detection initialization failed: %d (continuing without it)", rt);
-    }
     TUYA_CALL_ERR_LOG(__board_sdio_pin_register());
 
     return rt;
