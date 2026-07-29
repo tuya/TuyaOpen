@@ -6,4 +6,8 @@ if (ENABLE_PMIC)
     config ENABLE_PMIC_AXP2101
         bool "Enable axp2101"
         default y
+
+    config ENABLE_PMIC_M5PM1
+        bool "Enable M5PM1"
+        default n
 endif

@@ -55,6 +55,7 @@ static int input_sample_rate_ = 0;
 static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
 static gpio_num_t pa_pin_ = 0;
+static TDD_AUDIO_PA_ENABLE_CB pa_enable_cb_ = NULL;
 static i2c_master_bus_handle_t codec_i2c_bus_ = NULL;
 static const audio_codec_data_if_t *data_if_ = NULL;
 static const audio_codec_ctrl_if_t *ctrl_if_ = NULL;
@@ -127,6 +128,8 @@ static void SetOutputVolume(int volume)
 
 static void EnableOutput(bool enable)
 {
+    OPERATE_RET rt = OPRT_OK;
+
     if (enable) {
         // Play 16bit 1 channel
         esp_codec_dev_sample_info_t fs = {
@@ -138,22 +141,32 @@ static void EnableOutput(bool enable)
         };
         ESP_ERROR_CHECK(esp_codec_dev_open(output_dev_, &fs));
         ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, output_volume_));
-        if (pa_pin_ != GPIO_NUM_NC) {
+        if (pa_enable_cb_ != NULL) {
+            rt = pa_enable_cb_(true);
+            if (rt != OPRT_OK) {
+                PR_ERR("PA enable callback failed:%d", rt);
+            }
+        } else if (pa_pin_ != GPIO_NUM_NC) {
             gpio_set_level(pa_pin_, 1);
         }
     } else {
         ESP_ERROR_CHECK(esp_codec_dev_close(output_dev_));
-        if (pa_pin_ != GPIO_NUM_NC) {
+        if (pa_enable_cb_ != NULL) {
+            rt = pa_enable_cb_(false);
+            if (rt != OPRT_OK) {
+                PR_ERR("PA disable callback failed:%d", rt);
+            }
+        } else if (pa_pin_ != GPIO_NUM_NC) {
             gpio_set_level(pa_pin_, 0);
         }
     }
 }
 
-static void CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gpio_num_t ws, gpio_num_t dout, gpio_num_t din,
-                                 uint32_t dma_desc_num, uint32_t dma_frame_num)
+static void CreateDuplexChannels(TUYA_I2S_NUM_E i2s_id, gpio_num_t mclk, gpio_num_t bclk, gpio_num_t ws,
+                                 gpio_num_t dout, gpio_num_t din, uint32_t dma_desc_num, uint32_t dma_frame_num)
 {
     i2s_chan_config_t chan_cfg = {
-        .id = I2S_NUM_0,
+        .id = (i2s_port_t)i2s_id,
         .role = I2S_ROLE_MASTER,
         .dma_desc_num = dma_desc_num,
         .dma_frame_num = dma_frame_num,
@@ -201,9 +214,15 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
 {
     OPERATE_RET rt = OPRT_OK;
     void *i2c_master_handle = NULL;
-    i2c_port_t i2c_port = (i2c_port_t)(i2s_config->i2c_id);
-    uint8_t es8311_addr = i2s_config->es8311_addr;
+    i2c_port_t i2c_port = I2C_NUM_0;
+    uint8_t es8311_addr = 0;
+
+    TUYA_CHECK_NULL_RETURN(i2s_config, OPRT_INVALID_PARM);
+
+    i2c_port = (i2c_port_t)(i2s_config->i2c_id);
+    es8311_addr = i2s_config->es8311_addr;
     pa_pin_ = i2s_config->gpio_output_pa;
+    pa_enable_cb_ = i2s_config->pa_enable_cb;
     input_sample_rate_ = i2s_config->mic_sample_rate;
     output_sample_rate_ = i2s_config->spk_sample_rate;
     output_volume_ = i2s_config->default_volume;
@@ -219,18 +238,27 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
     //          i2s_config->dma_desc_num, i2s_config->dma_frame_num);
 
     codec_i2c_bus_ = __i2c_init(i2s_config->i2c_id, i2s_config->i2c_scl_io, i2s_config->i2c_sda_io);
+    if (codec_i2c_bus_ == NULL) {
+        PR_ERR("ES8311 I2C bus init failed, port:%d scl:%d sda:%d", i2c_port, i2s_config->i2c_scl_io,
+               i2s_config->i2c_sda_io);
+        return OPRT_COM_ERROR;
+    }
     i2c_master_handle = (void *)codec_i2c_bus_;
-    CreateDuplexChannels(i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io, i2s_config->i2s_do_io,
-                         i2s_config->i2s_di_io, i2s_config->dma_desc_num, i2s_config->dma_frame_num);
+    CreateDuplexChannels(i2s_num, i2s_config->i2s_mck_io, i2s_config->i2s_bck_io, i2s_config->i2s_ws_io,
+                         i2s_config->i2s_do_io, i2s_config->i2s_di_io, i2s_config->dma_desc_num,
+                         i2s_config->dma_frame_num);
 
     // Do initialize of related interface: data_if, ctrl_if and gpio_if
     audio_codec_i2s_cfg_t i2s_cfg = {
-        .port = i2s_config->i2s_id,
+        .port = i2s_num,
         .rx_handle = rx_handle_,
         .tx_handle = tx_handle_,
     };
     data_if_ = audio_codec_new_i2s_data(&i2s_cfg);
-    assert(data_if_ != NULL);
+    if (data_if_ == NULL) {
+        PR_ERR("ES8311 I2S data interface create failed");
+        return OPRT_COM_ERROR;
+    }
 
     // Output
     audio_codec_i2c_cfg_t i2c_cfg = {
@@ -239,10 +267,16 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
         .bus_handle = i2c_master_handle,
     };
     ctrl_if_ = audio_codec_new_i2c_ctrl(&i2c_cfg);
-    assert(ctrl_if_ != NULL);
+    if (ctrl_if_ == NULL) {
+        PR_ERR("ES8311 I2C control interface create failed");
+        return OPRT_COM_ERROR;
+    }
 
     gpio_if_ = audio_codec_new_gpio();
-    assert(gpio_if_ != NULL);
+    if (gpio_if_ == NULL) {
+        PR_ERR("ES8311 GPIO interface create failed");
+        return OPRT_COM_ERROR;
+    }
 
     es8311_codec_cfg_t es8311_cfg = {};
     es8311_cfg.ctrl_if = ctrl_if_;
@@ -253,7 +287,10 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
     es8311_cfg.hw_gain.pa_voltage = 5.0;
     es8311_cfg.hw_gain.codec_dac_voltage = 3.3;
     codec_if_ = es8311_codec_new(&es8311_cfg);
-    assert(codec_if_ != NULL);
+    if (codec_if_ == NULL) {
+        PR_ERR("ES8311 codec interface create failed, addr:0x%02x port:%d", es8311_addr, i2c_port);
+        return OPRT_COM_ERROR;
+    }
 
     esp_codec_dev_cfg_t dev_cfg = {
         .dev_type = ESP_CODEC_DEV_TYPE_OUT,
@@ -261,10 +298,16 @@ OPERATE_RET codec_8311_init(TUYA_I2S_NUM_E i2s_num, const TDD_AUDIO_8311_CODEC_T
         .data_if = data_if_,
     };
     output_dev_ = esp_codec_dev_new(&dev_cfg);
-    assert(output_dev_ != NULL);
+    if (output_dev_ == NULL) {
+        PR_ERR("ES8311 output device create failed");
+        return OPRT_COM_ERROR;
+    }
     dev_cfg.dev_type = ESP_CODEC_DEV_TYPE_IN;
     input_dev_ = esp_codec_dev_new(&dev_cfg);
-    assert(input_dev_ != NULL);
+    if (input_dev_ == NULL) {
+        PR_ERR("ES8311 input device create failed");
+        return OPRT_COM_ERROR;
+    }
     esp_codec_set_disable_when_closed(output_dev_, false);
     esp_codec_set_disable_when_closed(input_dev_, false);
     ESP_LOGI(TAG, "Es8311AudioCodec initialized");
@@ -344,9 +387,13 @@ static OPERATE_RET __tdd_audio_esp_i2s_8311_open(TDD_AUDIO_HANDLE_T handle, TDL_
 
     TDD_AUDIO_8311_CODEC_T *tdd_i2s_cfg = &hdl->cfg;
 
-    hdl->i2s_id = TUYA_I2S_NUM_0;
+    hdl->i2s_id = (TUYA_I2S_NUM_E)tdd_i2s_cfg->i2s_id;
 
-    codec_8311_init(hdl->i2s_id, tdd_i2s_cfg);
+    rt = codec_8311_init(hdl->i2s_id, tdd_i2s_cfg);
+    if (rt != OPRT_OK) {
+        PR_ERR("I2S 8311 codec init failed rt:%d", rt);
+        return rt;
+    }
 
     PR_NOTICE("I2S 8311 channels created");
 

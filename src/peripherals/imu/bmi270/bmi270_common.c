@@ -35,18 +35,16 @@ static uint8_t dev_addr;
  */
 BMI2_INTF_RETURN_TYPE bmi2_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
-    // uint8_t dev_addr = *(uint8_t*)intf_ptr;
-
-    // For BMI270, we need to send the register address first, then read the data
-    // This is typically done as a combined write-read transaction
-    OPERATE_RET ret = tkl_i2c_master_send(0, dev_addr, &reg_addr, 1, TRUE);
-    if (ret != OPRT_OK) {
-        PR_DEBUG("BMI270 I2C read failed at reg 0x%02X: %d", reg_addr, ret);
-        return ret;
-    }
     uint8_t port = 0;
     if (intf_ptr != NULL) {
         port = *(uint8_t *)intf_ptr;
+    }
+
+    /* Send register address first, then read the data */
+    OPERATE_RET ret = tkl_i2c_master_send(port, dev_addr, &reg_addr, 1, TRUE);
+    if (ret != OPRT_OK) {
+        PR_DEBUG("BMI270 I2C read failed at reg 0x%02X: %d", reg_addr, ret);
+        return ret;
     }
     ret = tkl_i2c_master_receive(port, dev_addr, reg_data, (uint16_t)len, FALSE);
     return ret;
