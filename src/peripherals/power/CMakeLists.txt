@@ -11,25 +11,30 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
-# LIB_SRCS
+# LIB_SRCS: TDL layer + every TDD backend and its chip driver. The chip drivers
+# (axp2101/m5pm1) are implementation detail of this component, not a standalone one.
 file(GLOB_RECURSE LIB_SRCS
     "${MODULE_PATH}/tdl_power/src/*.c")
 
-list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_power/src/tdd_power_soc.c)
+list(APPEND LIB_SRCS
+        ${MODULE_PATH}/tdd_power/src/tdd_power_soc.c
+        ${MODULE_PATH}/tdd_power/src/tdd_power_axp2101.c
+        ${MODULE_PATH}/tdd_power/src/tdd_power_m5pm1.c
+        ${MODULE_PATH}/tdd_power/src/axp2101/axp2101_driver.c
+        ${MODULE_PATH}/tdd_power/src/m5pm1/m5pm1_driver.c
+    )
 
 # LIB_PRIVATE_INC
 set(LIB_PRIVATE_INC "")
 
-# AXP2101 backend: built when the AXP2101 chip driver (pmic component) is enabled
-if (CONFIG_ENABLE_PMIC STREQUAL "y")
-    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_power/src/tdd_power_axp2101.c)
-    list(APPEND LIB_PRIVATE_INC ${MODULE_PATH}/../pmic/axp2101/include)
-endif()
-
-# LIB_PUBLIC_INC
+# LIB_PUBLIC_INC: each chip driver keeps its header next to its source under src/<chip>/.
+# Those dirs are public so both the backends and board code that drives the PMIC directly
+# (GPIO/wake, e.g. M5STACK) can reach the chip headers.
 set(LIB_PUBLIC_INC
         ${MODULE_PATH}/tdl_power/include
         ${MODULE_PATH}/tdd_power/include
+        ${MODULE_PATH}/tdd_power/src/axp2101
+        ${MODULE_PATH}/tdd_power/src/m5pm1
     )
 
 ########################################

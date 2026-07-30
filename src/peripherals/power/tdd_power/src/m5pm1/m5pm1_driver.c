@@ -35,6 +35,8 @@
 #define M5PM1_REG_GPIO_FUNC1    (0x17)
 #define M5PM1_REG_GPIO_WAKE_EN  (0x18)
 #define M5PM1_REG_GPIO_WAKE_CFG (0x19)
+#define M5PM1_REG_VBAT_L        (0x22) // battery voltage low byte, unit mV (1:1 divider)
+#define M5PM1_REG_VBAT_H        (0x23) // battery voltage high byte
 #define M5PM1_REG_TIM_CNT_0     (0x38)
 #define M5PM1_REG_TIM_CFG       (0x3C)
 #define M5PM1_REG_TIM_KEY       (0x3D)
@@ -413,6 +415,35 @@ OPERATE_RET m5pm1_get_power_source(M5PM1_PWR_SRC_E *src)
     }
 
     *src = (M5PM1_PWR_SRC_E)(reg_val & 0x07U);
+    return OPRT_OK;
+}
+
+OPERATE_RET m5pm1_get_battery_voltage(uint16_t *mv)
+{
+    OPERATE_RET rt = OPRT_OK;
+    uint8_t     lo = 0, hi = 0;
+
+    if (mv == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    rt = __m5pm1_check_init();
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
+    // The chip samples BAT_ADC on its own and reports the result already scaled to
+    // millivolts (16-bit, low byte first). Sampling is enabled by default.
+    rt = __m5pm1_read_reg(M5PM1_REG_VBAT_L, &lo);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    rt = __m5pm1_read_reg(M5PM1_REG_VBAT_H, &hi);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
+    *mv = (uint16_t)(((uint16_t)hi << 8) | lo);
     return OPRT_OK;
 }
 
@@ -1076,6 +1107,23 @@ OPERATE_RET m5pm1_irq_set_mask_all(M5PM1_IRQ_DOMAIN_E domain, M5PM1_IRQ_MASK_E m
     }
 
     return __m5pm1_write_reg(mask_reg, (mask == M5PM1_IRQ_MASK_ENABLE) ? valid_mask : 0);
+}
+
+OPERATE_RET m5pm1_irq_set_mask(M5PM1_IRQ_DOMAIN_E domain, uint8_t mask_bits)
+{
+    uint8_t status_reg = 0;
+    uint8_t mask_reg = 0;
+    uint8_t valid_mask = 0;
+
+    if (__m5pm1_check_init() != OPRT_OK) {
+        return OPRT_COM_ERROR;
+    }
+    if (__m5pm1_get_irq_regs(domain, &status_reg, &mask_reg, &valid_mask) != OPRT_OK) {
+        return OPRT_INVALID_PARM;
+    }
+
+    // Per-bit mask: 1 = the corresponding interrupt is masked (disabled).
+    return __m5pm1_write_reg(mask_reg, mask_bits & valid_mask);
 }
 
 /**

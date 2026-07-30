@@ -160,6 +160,13 @@ OPERATE_RET m5pm1_set_led_en_level(bool high);
 OPERATE_RET m5pm1_get_power_source(M5PM1_PWR_SRC_E *src);
 
 /**
+ * @brief Get the battery voltage measured by the M5PM1.
+ * @param[out] mv battery voltage in millivolts (chip reports mV directly, 1:1 divider).
+ * @return OPRT_OK on success, error code on failure.
+ */
+OPERATE_RET m5pm1_get_battery_voltage(uint16_t *mv);
+
+/**
  * @brief Read M5PM1 wake source flags.
  * @param[out] src wake source bitmask.
  * @param[in] clean read-and-clear behavior.
@@ -395,6 +402,15 @@ OPERATE_RET m5pm1_irq_clear_all(M5PM1_IRQ_DOMAIN_E domain);
  * @return OPRT_OK on success, error code on failure.
  */
 OPERATE_RET m5pm1_irq_set_mask_all(M5PM1_IRQ_DOMAIN_E domain, M5PM1_IRQ_MASK_E mask);
+
+/**
+ * @brief Set per-bit IRQ mask in an M5PM1 IRQ domain.
+ * @param[in] domain IRQ domain.
+ * @param[in] mask_bits Bitmask; a 1 masks (disables) that interrupt, 0 enables it.
+ *                      Bits outside the domain's valid range are ignored.
+ * @return OPRT_OK on success, error code on failure.
+ */
+OPERATE_RET m5pm1_irq_set_mask(M5PM1_IRQ_DOMAIN_E domain, uint8_t mask_bits);
 
 /**
  * @brief Read raw IRQ mask bits in an M5PM1 IRQ domain.

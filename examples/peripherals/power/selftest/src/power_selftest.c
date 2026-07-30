@@ -46,8 +46,11 @@ static void __screen_update(void)
     if (NULL == g_label) {
         return;
     }
-    snprintf(buf, sizeof(buf), "POWER SELF-TEST\n%u.%02uV   %u%%\n[ %s ]\n%s\nevt %d    P%d  F%d", g_mv / 1000,
-             (g_mv % 1000) / 10, g_pct, __chg_str(g_chg), g_phase, g_evt_cnt, g_pass, g_fail);
+    // Cast the u32/u8 values to unsigned: uint32_t is unsigned int on some SoCs (T5)
+    // and unsigned long on others (ESP32), so %u alone is not portable.
+    snprintf(buf, sizeof(buf), "POWER SELF-TEST\n%u.%02uV   %u%%\n[ %s ]\n%s\nevt %d    P%d  F%d",
+             (unsigned)(g_mv / 1000), (unsigned)((g_mv % 1000) / 10), (unsigned)g_pct, __chg_str(g_chg), g_phase,
+             g_evt_cnt, g_pass, g_fail);
 
     lv_vendor_disp_lock();
     lv_label_set_text(g_label, buf);
@@ -162,8 +165,9 @@ void user_main(void)
     ui_phase("battery info");
     rt = tdl_power_get_info(h, &info);
     if (OPRT_OK == rt) {
-        PR_NOTICE("  landmarks: full=%u empty=%u low=%u critical=%u mV, curve=%u", info.battery.v_full_mv,
-                  info.battery.v_empty_mv, info.battery.v_low_mv, info.battery.v_critical_mv, info.battery.curve_cnt);
+        PR_NOTICE("  landmarks: full=%u empty=%u low=%u critical=%u mV, curve=%u", (unsigned)info.battery.v_full_mv,
+                  (unsigned)info.battery.v_empty_mv, (unsigned)info.battery.v_low_mv,
+                  (unsigned)info.battery.v_critical_mv, (unsigned)info.battery.curve_cnt);
         CHECK(info.battery.v_full_mv > info.battery.v_empty_mv, "v_full > v_empty");
     }
 
@@ -176,10 +180,10 @@ void user_main(void)
         PR_NOTICE("  no battery on this board");
     } else {
         g_mv = mv;
-        CHECK(OPRT_OK == rt && mv > 2000 && mv < 5000, "voltage plausible (2-5V): %u mV", mv);
+        CHECK(OPRT_OK == rt && mv > 2000 && mv < 5000, "voltage plausible (2-5V): %u mV", (unsigned)mv);
         rt = tdl_power_battery_get_percent(h, &pct);
         g_pct = pct;
-        CHECK(OPRT_OK == rt && pct <= 100, "percent 0-100: %u%%", pct);
+        CHECK(OPRT_OK == rt && pct <= 100, "percent 0-100: %u%%", (unsigned)pct);
     }
 
     /* charger state */
@@ -232,7 +236,7 @@ void user_main(void)
     while (1) {
         __read_live(h);
         __screen_update();
-        PR_NOTICE("[live] %u mV, %u%%, %s", g_mv, g_pct, __chg_str(g_chg));
+        PR_NOTICE("[live] %u mV, %u%%, %s", (unsigned)g_mv, (unsigned)g_pct, __chg_str(g_chg));
         tal_system_sleep(5000);
     }
 }
