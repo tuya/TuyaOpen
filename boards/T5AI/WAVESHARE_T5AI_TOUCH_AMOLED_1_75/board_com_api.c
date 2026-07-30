@@ -7,6 +7,7 @@
  */
 
 #include "tuya_cloud_types.h"
+#include "board_com_api.h"
 #include "tkl_gpio.h"
 #include "tal_api.h"
 
@@ -16,7 +17,10 @@
 
 #include "tdd_disp_co5300.h"
 #include "tdd_tp_cst92xx.h"
+#include "tdd_power_soc.h"
 
+#include "tkl_i2c.h"
+#include "tkl_pinmux.h"
 #include "qmi8658.h"
 
 /***********************************************************
@@ -50,6 +54,12 @@
 #define BOARD_TP_I2C_SCL_PIN       TUYA_GPIO_NUM_20
 #define BOARD_TP_I2C_SDA_PIN       TUYA_GPIO_NUM_21
 #define BOARD_TP_RST_PIN           TUYA_GPIO_NUM_42
+
+// QMI8658 IMU sits on the same physical I2C bus as the touch panel.
+#define BOARD_QMI8658_I2C_PORT     TUYA_I2C_NUM_0
+#define BOARD_QMI8658_I2C_SCL_PIN  TUYA_GPIO_NUM_20
+#define BOARD_QMI8658_I2C_SDA_PIN  TUYA_GPIO_NUM_21
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -102,24 +112,14 @@ static OPERATE_RET __board_register_button(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(BUTTON_NAME)
-    BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin = BOARD_BUTTON_PIN,
-        .level = BOARD_BUTTON_ACTIVE_LV,
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
-    };
-
-    TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
-#endif
-
-#if defined(BUTTON_NAME_2)
+    // Power enable pin: active HIGH to turn on the board power supply.
     TUYA_GPIO_BASE_CFG_T pin_cfg;
     pin_cfg.mode = TUYA_GPIO_PUSH_PULL;
     pin_cfg.direct = TUYA_GPIO_OUTPUT;
     pin_cfg.level = BOARD_PWR_EN_ACTIVE_LV;
     TUYA_CALL_ERR_RETURN(tkl_gpio_init(BOARD_PWR_EN_PIN, &pin_cfg));
 
+    // Power button: active LOW to request power off (long press).
     BUTTON_GPIO_CFG_T button_2_hw_cfg = {
         .pin = BOARD_BUTTON_PWR_PIN,
         .level = BOARD_BUTTON_PWR_ACTIVE_LV,
@@ -127,7 +127,7 @@ static OPERATE_RET __board_register_button(void)
         .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
     };
 
-    TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_2, &button_2_hw_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BOARD_BUTTON_PWR_NAME, &button_2_hw_cfg));
     // button create
     TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time = 3000,
                                    .long_keep_timer = 1000,
@@ -136,11 +136,19 @@ static OPERATE_RET __board_register_button(void)
                                    .button_repeat_valid_time = 500};
     TDL_BUTTON_HANDLE button_hdl = NULL;
 
-    TUYA_CALL_ERR_RETURN(tdl_button_create(BUTTON_NAME_2, &button_cfg, &button_hdl));
+    TUYA_CALL_ERR_RETURN(tdl_button_create(BOARD_BUTTON_PWR_NAME, &button_cfg, &button_hdl));
     tdl_button_event_register(button_hdl, TDL_BUTTON_PRESS_DOWN, __button_function_cb);
     tdl_button_event_register(button_hdl, TDL_BUTTON_LONG_PRESS_START, __button_function_cb);
+    
+    // Register the button with the button manager so it can be polled and events generated.
+    BUTTON_GPIO_CFG_T button_hw_cfg = {
+        .pin = BOARD_BUTTON_PIN,
+        .level = BOARD_BUTTON_ACTIVE_LV,
+        .mode = BUTTON_TIMER_SCAN_MODE,
+        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+    };
 
-#endif
+    TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
 
     return rt;
 }
@@ -204,19 +212,29 @@ static OPERATE_RET __board_register_display(void)
 
 /**
  * @brief Register QMI8658 IMU on the shared touch I2C bus (after display/touch init).
- * @return OPRT_OK on success
+ *        The IMU is optional: if it is absent/unresponsive we log and carry on, so a
+ *        missing sensor never fails board bring-up (power/display/etc. still come up).
+ * @return Always OPRT_OK.
  */
 static OPERATE_RET __board_register_qmi8658(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+    tkl_io_pinmux_config(BOARD_QMI8658_I2C_SCL_PIN, TUYA_IIC0_SCL);
+    tkl_io_pinmux_config(BOARD_QMI8658_I2C_SDA_PIN, TUYA_IIC0_SDA);
 
-    rt = qmi8658_init(&g_qmi8658_dev, QMI8658_ADDRESS_HIGH);
-    if (rt != OPRT_OK) {
-        PR_ERR("board: qmi8658_init failed rt=%d", rt);
+    TUYA_IIC_BASE_CFG_T cfg = {
+        .role       = TUYA_IIC_MODE_MASTER,
+        .speed      = TUYA_IIC_BUS_SPEED_100K,
+        .addr_width = TUYA_IIC_ADDRESS_7BIT
+    };
+    tkl_i2c_init(BOARD_QMI8658_I2C_PORT, &cfg);
+
+    if (OPRT_OK != qmi8658_init(&g_qmi8658_dev, QMI8658_ADDRESS_HIGH)) {
+        PR_WARN("board: QMI8658 IMU not present, skipping (optional)");
     } else {
         PR_NOTICE("board: QMI8658 IMU ready (addr 0x%02X)", QMI8658_ADDRESS_HIGH);
     }
-    return rt;
+    
+    return OPRT_OK;
 }
 
 /**
@@ -224,9 +242,56 @@ static OPERATE_RET __board_register_qmi8658(void)
  *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
+// Battery: ADC P13 (ch 15). Divider R12=2M 1% / R18=510K 1% -> (2M+510K)/510K = 4.922
+// (confirmed against the board schematic, so this is the true ratio, not a trim).
+#define BOARD_BAT_ADC_CH  15
+#define BOARD_BAT_DIVIDER 4.922f
+// Charger: single detect line CHRG -> P30 (LOW = charging), no STDBY line
+#define BOARD_CHRG_PIN    TUYA_GPIO_NUM_30
+
+static const TDD_POWER_ADC_BATTERY_T s_battery = {
+    .adc_num = TUYA_ADC_NUM_0, .adc_ch = BOARD_BAT_ADC_CH, .divider_ratio = BOARD_BAT_DIVIDER,
+    // Divider is exact per schematic, so the error is this chip's SAR gain+offset.
+    // Two-point cal vs meter: (fw 4.08/meter 3.78) & (fw 4.55/meter 4.18) -> low/span.
+    .cal_low = 2716, .cal_span = 2854, .samples = 16,
+};
+static const TDD_POWER_GPIO_CHARGER_T s_charger = {
+    .chrg_pin = BOARD_CHRG_PIN, .chrg_active = TUYA_GPIO_LEVEL_LOW,
+    .stdby_pin = TDD_POWER_PIN_NONE, .stdby_active = TUYA_GPIO_LEVEL_HIGH,
+};
+// LiPo OCV->SOC curve (ascending mV), from the WAVESHARE 11-point table.
+static const TDL_POWER_OCV_PT_T s_ocv[] = {
+    {2800, 0},  {3100, 10}, {3280, 20}, {3440, 30}, {3570, 40}, {3680, 50},
+    {3780, 60}, {3880, 70}, {3980, 80}, {4090, 90}, {4200, 100},
+};
+
+static OPERATE_RET __board_register_power(void)
+{
+    TDD_POWER_SOC_CFG_T soc_cfg = {
+        .battery = &s_battery,
+        .charger = &s_charger,
+        .info = {
+            .battery = {
+                .v_full_mv     = 4200, 
+                .v_empty_mv    = 2800, 
+                .v_low_mv      = 3300, 
+                .v_critical_mv = 3100,
+                .curve         = s_ocv, 
+                .curve_cnt     = sizeof(s_ocv) / sizeof(s_ocv[0]),
+            }
+        },
+    };
+
+
+    // No switchable power domains on this board; battery(ADC) + charger(GPIO) only.
+    return tdd_power_soc_register(POWER_NAME, &soc_cfg);
+}
+
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
+
+    TUYA_CALL_ERR_LOG(__board_register_power());
 
     TUYA_CALL_ERR_LOG(__board_register_audio());
 

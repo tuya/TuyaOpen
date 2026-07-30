@@ -18,6 +18,8 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+#define BOARD_BUTTON_PWR_NAME      "ws_btn_pwr"
+
 #ifndef EXAMPLE_SYS_PWR_PIN
 #define EXAMPLE_SYS_PWR_PIN TUYA_GPIO_NUM_18
 #endif

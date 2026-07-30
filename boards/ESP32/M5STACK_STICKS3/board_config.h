@@ -41,15 +41,6 @@ extern "C" {
 #define AUDIO_CODEC_ES8311_ADDR_7BIT (0x18)
 #define AUDIO_CODEC_ES8311_ADDR      (AUDIO_CODEC_ES8311_ADDR_7BIT << 1)
 
-/* Display type. */
-#define DISPLAY_TYPE_UNKNOWN        0
-#define DISPLAY_TYPE_OLED_SSD1306   1
-#define DISPLAY_TYPE_LCD_SH8601     2
-#define DISPLAY_TYPE_LCD_ST7789_80  3
-#define DISPLAY_TYPE_LCD_ST7789_SPI 4
-
-#define BOARD_DISPLAY_TYPE DISPLAY_TYPE_LCD_ST7789_SPI
-
 #ifndef DISPLAY_NAME
 #define DISPLAY_NAME "st7789_spi"
 #endif
@@ -62,30 +53,19 @@ extern "C" {
 #define LCD_RST_PIN  TUYA_GPIO_NUM_21
 
 #define DISPLAY_BACKLIGHT_PIN           TUYA_GPIO_NUM_38
-#define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
 
 #define DISPLAY_WIDTH  (135)
 #define DISPLAY_HEIGHT (240)
 #define DISPLAY_OFFSET_X (52)
 #define DISPLAY_OFFSET_Y (40)
 
-/* LVGL config. */
-#define DISPLAY_BUFFER_SIZE (DISPLAY_WIDTH * 20)
-
-#define DISPLAY_MONOCHROME false
-
-/* Rotation.  The ST7789P3 panel on StickS3 needs only Y-axis mirroring
- * to correct the physical panel orientation. */
+/* Rotation. Panel orientation is set for the LVGL render path (the one real apps use):
+ * no mirroring. The bring-up example uses direct framebuffer draws and flips Y itself. */
 #define DISPLAY_SWAP_XY  false
 #define DISPLAY_MIRROR_X false
-#define DISPLAY_MIRROR_Y true
+#define DISPLAY_MIRROR_Y false
 
-#define DISPLAY_COLOR_FORMAT LV_COLOR_FORMAT_RGB565
 #define DISPLAY_COLOR_INVERT true
-
-/* Only one of DISPLAY_BUFF_SPIRAM and DISPLAY_BUFF_DMA can be selected. */
-#define DISPLAY_BUFF_SPIRAM 0
-#define DISPLAY_BUFF_DMA    1
 
 #define DISPLAY_SWAP_BYTES 1
 
@@ -99,7 +79,6 @@ extern "C" {
 #define M5PM1_I2C_ADDR (0x6E)
 
 #define M5PM1_GPIO_CHARGE_STATUS (0)
-#define M5PM1_GPIO_IRQ           (1)
 #define M5PM1_GPIO_L3B_POWER     (2)
 #define M5PM1_GPIO_SPK_AMP_SHDN  (3)
 #define M5PM1_GPIO_IMU_INT1      (4)
@@ -127,129 +106,6 @@ extern "C" {
 #ifndef BUTTON_NAME_2
 #define BUTTON_NAME_2 "ai_chat_button_2"
 #endif
-
-/* ---------------------------------------------------------------------------
- * Function declarations
- * --------------------------------------------------------------------------- */
-/**
- * @brief Show a simple centered red box on the board display.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_display_show_red_box(void);
-
-/**
- * @brief Enable or disable StickS3 L1 IMU power.
- * @param[in] enable true to enable, false to disable.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l1(bool enable);
-
-/**
- * @brief Enable or disable StickS3 L2/L3A ESP32-S3-side power switch.
- * @param[in] enable true to enable, false to disable.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l2_l3a(bool enable);
-
-/**
- * @brief Enable or disable StickS3 EXT_5V output mode.
- * @param[in] enable true for 5V output mode, false for 5V input mode.
- * @return OPRT_OK on success, error code on failure.
- * @attention Only enable output mode when external 5V is not supplied through Grove/Hat EXT_5V/5VIN.
- */
-OPERATE_RET board_sticks3_power_set_ext_5v_output(bool enable);
-
-/**
- * @brief Enable or disable StickS3 L3B peripheral power.
- * @param[in] enable true to power LCD backlight, microphone, and speaker peripherals.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l3b(bool enable);
-
-/**
- * @brief Enable or disable StickS3 speaker amplifier.
- * @param[in] enable true to enable amplifier, false to disable amplifier.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_speaker_amp(bool enable);
-
-/**
- * @brief Enable or disable StickS3 L1 IMU power hold while M5PM1 sleeps.
- * @param[in] enable true to keep L1 held during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l1_hold(bool enable);
-
-/**
- * @brief Enable or disable StickS3 EXT_5V power hold while M5PM1 sleeps.
- * @param[in] enable true to keep EXT_5V held during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- * @attention Only hold EXT_5V output when external 5V is not supplied through Grove/Hat EXT_5V/5VIN.
- */
-OPERATE_RET board_sticks3_power_set_ext_5v_hold(bool enable);
-
-/**
- * @brief Enable or disable StickS3 L3B peripheral power hold while M5PM1 sleeps.
- * @param[in] enable true to hold L3B state during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l3b_hold(bool enable);
-
-/**
- * @brief Enable or disable StickS3 speaker amplifier hold while M5PM1 sleeps.
- * @param[in] enable true to hold speaker amplifier state during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_speaker_amp_hold(bool enable);
-
-/**
- * @brief Read and optionally clear StickS3 M5PM1 wake source flags.
- * @param[out] wake_source wake source bitmask from M5PM1.
- * @param[in] clear_after_read true to clear the returned flags.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_get_wake_source(uint8_t *wake_source, bool clear_after_read);
-
-/**
- * @brief Configure a timer wake before entering M5PM1 shutdown.
- * @param[in] seconds wake timer in seconds.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_timer_wake(uint32_t seconds);
-
-/**
- * @brief Clear the M5PM1 timer wake configuration.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_clear_timer_wake(void);
-
-/**
- * @brief Configure BMI270 INT1 via M5PM1 PYG4 as a PMIC wake source.
- * @param[in] enable true to enable IMU wake source, false to disable it.
- * @param[in] rising_edge true for rising-edge wake, false for falling-edge wake.
- * @return OPRT_OK on success, error code on failure.
- * @note The BMI270 itself must be configured separately before this wake source can fire.
- */
-OPERATE_RET board_sticks3_power_set_imu_wake(bool enable, bool rising_edge);
-
-/**
- * @brief Request StickS3 PMIC shutdown.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_shutdown(void);
-
-/**
- * @brief Request StickS3 PMIC reboot.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_reboot(void);
-
-/**
- * @brief Enable all currently supported StickS3 board power rails.
- * @return OPRT_OK on success, error code on failure.
- * @attention This enables EXT_5V output mode for bring-up. Do not feed external 5V into output interfaces.
- */
-OPERATE_RET board_sticks3_power_enable_all(void);
 
 #ifdef __cplusplus
 }

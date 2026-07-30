@@ -11,6 +11,7 @@
 #include "board_config.h"
 #include "tdd_disp_esp_st7789_spi.h"
 #include "m5pm1_driver.h"
+#include "tdd_power_m5pm1.h"
 #include "tal_api.h"
 #include "tdd_audio_8311_codec.h"
 #include "tdl_display_manage.h"
@@ -99,202 +100,43 @@ static OPERATE_RET __m5pm1_gpio_input(M5PM1_GPIO_NUM_E pin)
     return OPRT_OK;
 }
 
-/**
- * @brief Enable or disable StickS3 L1 IMU power.
- * @param[in] enable true to enable, false to disable.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l1(bool enable)
-{
-    return m5pm1_set_ldo_enable(enable);
-}
+/* --- board power rails: internal bring-up helpers over the M5PM1 --- */
 
-/**
- * @brief Enable or disable StickS3 L2/L3A ESP32-S3-side power switch.
- * @param[in] enable true to enable, false to disable.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l2_l3a(bool enable)
-{
-    return m5pm1_set_dcdc_enable(enable);
-}
-
-/**
- * @brief Enable or disable StickS3 EXT_5V output mode.
- * @param[in] enable true for 5V output mode, false for 5V input mode.
- * @return OPRT_OK on success, error code on failure.
- * @attention Only enable output mode when external 5V is not supplied through Grove/Hat EXT_5V/5VIN.
- */
-OPERATE_RET board_sticks3_power_set_ext_5v_output(bool enable)
-{
-    return m5pm1_set_boost_enable(enable);
-}
-
-/**
- * @brief Enable or disable StickS3 L3B peripheral power.
- * @param[in] enable true to power LCD backlight, microphone, and speaker peripherals.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l3b(bool enable)
+// L3B peripheral power (LCD BL / mic / spk). Also used by the display backlight callback.
+static OPERATE_RET __sticks3_set_l3b(bool enable)
 {
     bool level = enable ? M5PM1_L3B_POWER_ENABLE_LEVEL : M5PM1_L3B_POWER_DISABLE_LEVEL;
-
     return __m5pm1_gpio_output((M5PM1_GPIO_NUM_E)M5PM1_GPIO_L3B_POWER, level);
 }
 
-/**
- * @brief Enable or disable StickS3 speaker amplifier.
- * @param[in] enable true to enable amplifier, false to disable amplifier.
- * @return OPRT_OK on success, error code on failure.
- * @note StickS3 routes the amplifier SHDN signal through M5PM1 PYG3
- *       (G3_WAKEin/IRQout/PWM13 alternate function). This API forces it to
- *       GPIO push-pull output and drives high to enable the amplifier.
- */
-OPERATE_RET board_sticks3_power_set_speaker_amp(bool enable)
+// Speaker amp SHDN, routed through M5PM1 PYG3 (forced to GPIO push-pull output).
+static OPERATE_RET __sticks3_set_spk_amp(bool enable)
 {
     bool level = enable ? M5PM1_SPK_AMP_ENABLE_LEVEL : M5PM1_SPK_AMP_DISABLE_LEVEL;
-
     return __m5pm1_gpio_output((M5PM1_GPIO_NUM_E)M5PM1_GPIO_SPK_AMP_SHDN, level);
 }
 
-/**
- * @brief Enable or disable StickS3 L1 IMU power hold while M5PM1 sleeps.
- * @param[in] enable true to keep L1 held during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l1_hold(bool enable)
-{
-    return m5pm1_ldo_set_power_hold(enable);
-}
-
-/**
- * @brief Enable or disable StickS3 EXT_5V power hold while M5PM1 sleeps.
- * @param[in] enable true to keep EXT_5V held during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- * @attention Only hold EXT_5V output when external 5V is not supplied through Grove/Hat EXT_5V/5VIN.
- */
-OPERATE_RET board_sticks3_power_set_ext_5v_hold(bool enable)
-{
-    return m5pm1_boost_set_power_hold(enable);
-}
-
-/**
- * @brief Enable or disable StickS3 L3B peripheral power hold while M5PM1 sleeps.
- * @param[in] enable true to hold L3B state during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_l3b_hold(bool enable)
-{
-    return m5pm1_gpio_set_power_hold((M5PM1_GPIO_NUM_E)M5PM1_GPIO_L3B_POWER, enable);
-}
-
-/**
- * @brief Enable or disable StickS3 speaker amplifier hold while M5PM1 sleeps.
- * @param[in] enable true to hold speaker amplifier state during PMIC sleep.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_speaker_amp_hold(bool enable)
-{
-    return m5pm1_gpio_set_power_hold((M5PM1_GPIO_NUM_E)M5PM1_GPIO_SPK_AMP_SHDN, enable);
-}
-
-/**
- * @brief Read and optionally clear StickS3 M5PM1 wake source flags.
- * @param[out] wake_source wake source bitmask from M5PM1.
- * @param[in] clear_after_read true to clear the returned flags.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_get_wake_source(uint8_t *wake_source, bool clear_after_read)
-{
-    M5PM1_CLEAN_E clean = clear_after_read ? M5PM1_CLEAN_ONCE : M5PM1_CLEAN_NONE;
-
-    return m5pm1_get_wake_source(wake_source, clean);
-}
-
-/**
- * @brief Configure a timer wake before entering M5PM1 shutdown.
- * @param[in] seconds wake timer in seconds.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_set_timer_wake(uint32_t seconds)
-{
-    return m5pm1_timer_set(seconds, M5PM1_TIM_ACTION_POWERON);
-}
-
-/**
- * @brief Clear the M5PM1 timer wake configuration.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_clear_timer_wake(void)
-{
-    return m5pm1_timer_clear();
-}
-
-/**
- * @brief Configure BMI270 INT1 via M5PM1 PYG4 as a PMIC wake source.
- * @param[in] enable true to enable IMU wake source, false to disable it.
- * @param[in] rising_edge true for rising-edge wake, false for falling-edge wake.
- * @return OPRT_OK on success, error code on failure.
- * @note The BMI270 itself must be configured separately before this wake source can fire.
- */
-OPERATE_RET board_sticks3_power_set_imu_wake(bool enable, bool rising_edge)
-{
-    OPERATE_RET rt = OPRT_OK;
-    M5PM1_GPIO_WAKE_EDGE_E edge = rising_edge ? M5PM1_GPIO_WAKE_RISING : M5PM1_GPIO_WAKE_FALLING;
-
-    if (!enable) {
-        return m5pm1_gpio_set_wake_enable((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1, false);
-    }
-
-    TUYA_CALL_ERR_RETURN(m5pm1_gpio_set_func((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1, M5PM1_GPIO_FUNC_WAKE));
-    TUYA_CALL_ERR_RETURN(m5pm1_gpio_set_mode((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1, M5PM1_GPIO_MODE_INPUT));
-    TUYA_CALL_ERR_RETURN(m5pm1_gpio_set_wake_edge((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1, edge));
-    TUYA_CALL_ERR_RETURN(m5pm1_gpio_set_wake_enable((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1, true));
-
-    return OPRT_OK;
-}
-
-/**
- * @brief Request StickS3 PMIC shutdown.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_shutdown(void)
-{
-    return m5pm1_shutdown();
-}
-
-/**
- * @brief Request StickS3 PMIC reboot.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_sticks3_power_reboot(void)
-{
-    return m5pm1_reboot();
-}
-
-/**
- * @brief Enable all currently supported StickS3 board power rails.
- * @return OPRT_OK on success, error code on failure.
- * @attention This enables EXT_5V output mode for bring-up. Do not feed external 5V into output interfaces.
- */
-OPERATE_RET board_sticks3_power_enable_all(void)
+// Enable every board power rail at bring-up. L1/L2-L3A/EXT_5V are direct M5PM1 switches.
+// Caution: EXT_5V is enabled as OUTPUT — don't also feed external 5V into Grove/Hat.
+static OPERATE_RET __sticks3_enable_all(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    /* L0 is the always-on battery/PMIC domain. The rest are independent switches sourced from L0. */
     TUYA_CALL_ERR_LOG(m5pm1_set_charge_enable(true));
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_set_l1(true));
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_set_l2_l3a(true));
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_set_ext_5v_output(true));
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_set_l3b(true));
-
+    TUYA_CALL_ERR_RETURN(m5pm1_set_ldo_enable(true));   // L1 IMU power (LDO)
+    TUYA_CALL_ERR_RETURN(m5pm1_set_dcdc_enable(true));  // L2/L3A ESP32-side power (DCDC)
+    TUYA_CALL_ERR_RETURN(m5pm1_set_boost_enable(true)); // EXT_5V output (Grove/Hat)
+    TUYA_CALL_ERR_RETURN(__sticks3_set_l3b(true));      // L3B peripheral power
     return OPRT_OK;
 }
 
-/**
- * @brief Initialize StickS3 PMIC and board power rails.
- * @return OPRT_OK on success, error code on failure.
- */
+// Single-cell LiPo OCV->SOC curve (ascending mV), for the power component to derive
+// percentage from the M5PM1-reported battery voltage.
+static const TDL_POWER_OCV_PT_T s_batt_ocv[] = {
+    {3000, 0},  {3300, 10}, {3500, 20}, {3600, 30}, {3680, 40}, {3740, 50},
+    {3800, 60}, {3880, 70}, {3960, 80}, {4060, 90}, {4200, 100},
+};
+
 static OPERATE_RET __board_register_power(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -317,16 +159,31 @@ static OPERATE_RET __board_register_power(void)
     /* PYG4 is connected to the BMI270 INT1 signal for later wake-up/power-save work. */
     TUYA_CALL_ERR_RETURN(__m5pm1_gpio_input((M5PM1_GPIO_NUM_E)M5PM1_GPIO_IMU_INT1));
 
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_enable_all());
+    TUYA_CALL_ERR_RETURN(__sticks3_enable_all());
 
     /* Keep the speaker amplifier SHDN low until the audio output path opens. */
-    TUYA_CALL_ERR_RETURN(board_sticks3_power_set_speaker_amp(false));
+    TUYA_CALL_ERR_RETURN(__sticks3_set_spk_amp(false));
 
     tal_system_sleep(100);
 
     PR_NOTICE("StickS3 M5PM1 power initialized: src:%d wake:0x%02x L1 on, L2/L3A on, EXT_5V output on, "
               "3V3_L3B_AU on, PYG3_SPK_SHDN off",
               power_src, wake_src);
+
+    // Expose battery + charger through the power component (domains are board
+    // infrastructure, not exposed). CHRG status is on PYG0, active low = charging.
+    TDD_POWER_M5PM1_CFG_T pwr_cfg = {
+        // M5PM1 IRQ output (PYG1) is wired to ESP32 GPIO13 (schematic net PYG1_IRQ).
+        .irq_valid = TRUE,
+        .irq_pin   = TUYA_GPIO_NUM_13,
+        .info = {.battery = {.v_full_mv     = 4200,
+                             .v_empty_mv    = 3000,
+                             .v_low_mv      = 3300,
+                             .v_critical_mv = 3100,
+                             .curve         = s_batt_ocv,
+                             .curve_cnt     = sizeof(s_batt_ocv) / sizeof(s_batt_ocv[0])}},
+    };
+    TUYA_CALL_ERR_RETURN(tdd_power_m5pm1_register(POWER_NAME, &pwr_cfg));
 
     return OPRT_OK;
 }
@@ -338,7 +195,7 @@ static OPERATE_RET __board_register_power(void)
  */
 static OPERATE_RET __board_audio_pa_enable(bool enable)
 {
-    return board_sticks3_power_set_speaker_amp(enable);
+    return __sticks3_set_spk_amp(enable);
 }
 
 /**
@@ -440,7 +297,7 @@ static OPERATE_RET __board_disp_set_backlight(uint8_t brightness, void *arg)
     /* L3B provides the power rail for LCD backlight, mic, and speaker.
      * The actual backlight LED enable is GPIO 38 (handled by GPIO backlight
      * type).  This callback keeps L3B in sync with brightness requests. */
-    return board_sticks3_power_set_l3b(brightness > 0);
+    return __sticks3_set_l3b(brightness > 0);
 }
 
 /**
@@ -551,76 +408,5 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_ir());
 
     return rt;
-}
-
-/**
- * @brief Show a simple centered red box on the board display.
- * @return OPRT_OK on success, error code on failure.
- */
-OPERATE_RET board_display_show_red_box(void)
-{
-#if defined(DISPLAY_NAME)
-    OPERATE_RET rt = OPRT_OK;
-    TDL_DISP_HANDLE_T disp_hdl = NULL;
-    TDL_DISP_FRAME_BUFF_T *fb = NULL;
-
-    disp_hdl = tdl_disp_find_dev(DISPLAY_NAME);
-    if (disp_hdl == NULL) {
-        PR_ERR("Display not found: %s", DISPLAY_NAME);
-        return OPRT_NOT_FOUND;
-    }
-
-    rt = tdl_disp_dev_open(disp_hdl);
-    if (rt != OPRT_OK) {
-        PR_ERR("Failed to open display: %s", DISPLAY_NAME);
-        return rt;
-    }
-
-    /* Create a frame buffer for the full screen */
-    fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, DISPLAY_WIDTH * DISPLAY_HEIGHT * 2);
-    if (fb == NULL) {
-        tdl_disp_dev_close(disp_hdl);
-        return OPRT_MALLOC_FAILED;
-    }
-
-    /* Set frame buffer dimensions and position */
-    fb->x_start = 0;
-    fb->y_start = 0;
-    fb->width   = DISPLAY_WIDTH;
-    fb->height  = DISPLAY_HEIGHT;
-    fb->fmt     = TUYA_PIXEL_FMT_RGB565;
-
-    /* Clear to black */
-    tdl_disp_draw_fill_full(fb, 0x0000, false);
-
-    /* Draw a red box in the center */
-    uint16_t box_x = (DISPLAY_WIDTH - DISPLAY_WIDTH / 2) / 2;
-    uint16_t box_y = (DISPLAY_HEIGHT - DISPLAY_HEIGHT / 2) / 2;
-    uint16_t box_w = DISPLAY_WIDTH / 2;
-    uint16_t box_h = DISPLAY_HEIGHT / 2;
-
-    TDL_DISP_RECT_T rect = {
-        .x0 = box_x,
-        .y0 = box_y,
-        .x1 = box_x + box_w,
-        .y1 = box_y + box_h,
-    };
-    tdl_disp_draw_fill(fb, &rect, 0xF800, false); /* Red in RGB565 */
-
-    /* Flush to display */
-    tdl_disp_dev_flush(disp_hdl, fb);
-
-    PR_NOTICE("StickS3 red box displayed: %dx%d at (%d,%d)", box_w, box_h, box_x, box_y);
-
-    tdl_disp_free_frame_buff(fb);
-
-    /* Keep the display open so the content remains visible.
-     * Closing would call esp_lcd_panel_disp_on_off(false), putting the
-     * ST7789 to sleep and blanking the screen. */
-
-    return rt;
-#else
-    return OPRT_COM_ERROR;
-#endif
 }
 

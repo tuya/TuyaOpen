@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #if defined(ENABLE_LVGL_HARDWARE)
-#include "axp2101_driver.h"
+#include "tdl_power_manage.h"
 #include "tal_system.h"
 #include "tal_kv.h"
 #include "netmgr.h"
@@ -1218,10 +1218,18 @@ static void ui_update_timer_cb(lv_timer_t *timer)
     }
 
 #if defined(ENABLE_LVGL_HARDWARE)
-    // Read from hardware
-    uint16_t voltage_mv = axp2101_getBattVoltage();
-    uint8_t battery_percent = axp2101_getBatteryPercent();
-    current_battery_charging = axp2101_isCharging();
+    // Read from hardware via the power abstraction (handle found once, then cached).
+    static TDL_POWER_HANDLE pwr = NULL;
+    if (NULL == pwr) {
+        pwr = tdl_power_find(POWER_NAME);
+    }
+    uint32_t        voltage_mv      = 0;
+    uint8_t         battery_percent = 0;
+    TDL_CHG_STATE_E charge_state    = TDL_CHG_DISCHARGE;
+    tdl_power_battery_get_voltage(pwr, &voltage_mv);
+    tdl_power_battery_get_percent(pwr, &battery_percent);
+    tdl_power_charger_get_state(pwr, &charge_state);
+    current_battery_charging = (TDL_CHG_CHARGING == charge_state);
 
     // Update state
     current_battery_level = (uint8_t)(battery_percent / 100.0f * 7);

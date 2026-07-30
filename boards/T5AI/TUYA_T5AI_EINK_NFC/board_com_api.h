@@ -15,7 +15,6 @@
 #define __BOARD_COM_API_H__
 
 #include "tuya_cloud_types.h"
-#include "board_power_domain_api.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,9 +42,6 @@ extern "C" {
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-// Forward declarations for battery functions
-// Full declarations are in board_charge_detect_api.h
-OPERATE_RET board_battery_read(uint32_t *voltage_mv, uint8_t *percentage);
 
 /***********************************************************
 ************************macro define************************

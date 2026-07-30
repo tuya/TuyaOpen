@@ -1,0 +1,9 @@
+config ENABLE_POWER
+    bool "Enable power"
+    default n
+
+if (ENABLE_POWER)
+    config POWER_NAME
+        string "the name of the power device"
+        default "power"
+endif

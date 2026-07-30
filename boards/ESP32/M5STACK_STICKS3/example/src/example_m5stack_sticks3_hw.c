@@ -282,9 +282,31 @@ static TDL_DISP_FRAME_BUFF_T *__alloc_fb(void)
     return fb;
 }
 
+/* The panel is configured MIRROR_Y=false (for the LVGL render path that real apps use).
+ * This example draws with a top-origin coordinate system, so flip the framebuffer
+ * vertically once before flushing to present upright. */
+static void __flip_fb_y(TDL_DISP_FRAME_BUFF_T *fb)
+{
+    uint16_t *px = (uint16_t *)fb->frame;
+    uint32_t  w  = fb->width;
+    uint32_t  h  = fb->height;
+
+    if (px == NULL) return;
+    for (uint32_t r = 0; r < h / 2; r++) {
+        uint16_t *top = px + (size_t)r * w;
+        uint16_t *bot = px + (size_t)(h - 1 - r) * w;
+        for (uint32_t x = 0; x < w; x++) {
+            uint16_t t = top[x];
+            top[x]     = bot[x];
+            bot[x]     = t;
+        }
+    }
+}
+
 static void __flush_and_free(TDL_DISP_FRAME_BUFF_T *fb)
 {
     if (fb == NULL || s_disp_hdl == NULL) return;
+    __flip_fb_y(fb);
     tdl_disp_dev_flush(s_disp_hdl, fb);
     tdl_disp_free_frame_buff(fb);
 }
