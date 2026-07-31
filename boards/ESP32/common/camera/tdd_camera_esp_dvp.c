@@ -317,7 +317,8 @@ OPERATE_RET tdd_camera_esp_dvp_register(const char *name, const TDD_CAMERA_ESP_D
         .max_fps    = 30,
         .max_width  = 1600,
         .max_height = 1200,
-        .fmt        = TUYA_FRAME_FMT_YUV422,
+        /* OV2640 over DVP: raw YUV422 or on-sensor hardware JPEG. No H264 encoder. */
+        .supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG,
         .yuv_order  = TUYA_YUV422_YUYV,  /* ESP32-S3 LCD_CAM outputs YUYV */
     };
     TDD_CAMERA_INTFS_T intfs = {

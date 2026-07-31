@@ -246,7 +246,9 @@ OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg,
     dev_info.max_fps    = sr_cfg->max_fps;
     dev_info.max_width  = sr_cfg->max_width;
     dev_info.max_height = sr_cfg->max_height;
-    dev_info.fmt        = sr_cfg->fmt;
+    /* Platform DVP encoder accepts raw YUV422, hardware JPEG and H264
+     * (see __tdd_camera_dvp_open output_mode switch). */
+    dev_info.supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_H264;
 
     TDD_CAMERA_INTFS_T camera_intfs = {
         .open  = __tdd_camera_dvp_open,
