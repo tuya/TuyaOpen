@@ -30,10 +30,22 @@
 static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
 static bool sg_is_sdcard_init = false;
 static char sg_captured_frame_path[CAPTURED_FRAME_PATH_LEN] = {0};
+static TDL_CAMERA_FMT_E sg_out_fmt = TDL_CAMERA_FMT_JPEG; /* chosen at init from camera caps */
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static const char *__frame_file_ext(TDL_CAMERA_FMT_E fmt)
+{
+    switch (fmt) {
+    case TDL_CAMERA_FMT_H264:
+        return ".h264";
+    case TDL_CAMERA_FMT_JPEG:
+        return ".jpg";
+    default:
+        return ".bin";
+    }
+}
 static OPERATE_RET __sdcard_save_file(char *file_path, void *data, uint32_t data_len)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -101,8 +113,8 @@ OPERATE_RET __get_camera_h264_frame_cb(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAM
         PR_ERR("Failed to get local time, rt = %d", rt);
         return 0;
     }
-    snprintf(sg_captured_frame_path, CAPTURED_FRAME_PATH_LEN, "%s/%02d_%02d_%02d",\
-            VIDEO_FILE_DIR, local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec);
+    snprintf(sg_captured_frame_path, CAPTURED_FRAME_PATH_LEN, "%s/%02d_%02d_%02d%s",\
+            VIDEO_FILE_DIR, local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec, __frame_file_ext(sg_out_fmt));
     PR_NOTICE("File name: %s", sg_captured_frame_path);
 
     // Save the frame to a file
@@ -145,10 +157,30 @@ static OPERATE_RET __camera_init(void)
         return OPRT_NOT_FOUND;
     }
 
+    /* Pick an encoded output format the camera actually supports: prefer H264
+     * (hardware encoder, e.g. T5AI), fall back to JPEG (e.g. ESP32-S3 OV2640).
+     * A driver reporting no caps (supported_fmts == 0) is treated as JPEG. */
+    TDL_CAMERA_DEV_INFO_T dev_info;
+    memset(&dev_info, 0, sizeof(dev_info));
+    TUYA_CALL_ERR_RETURN(tdl_camera_dev_get_info(sg_tdl_camera_hdl, &dev_info));
+
+    if (dev_info.supported_fmts & TDL_CAMERA_FMT_H264) {
+        sg_out_fmt = TDL_CAMERA_FMT_H264;
+    } else if (dev_info.supported_fmts & TDL_CAMERA_FMT_JPEG) {
+        sg_out_fmt = TDL_CAMERA_FMT_JPEG;
+    } else if (0 == dev_info.supported_fmts) {
+        PR_WARN("camera caps unknown, defaulting to JPEG");
+        sg_out_fmt = TDL_CAMERA_FMT_JPEG;
+    } else {
+        PR_ERR("camera supports no encoded format (0x%x)", dev_info.supported_fmts);
+        return OPRT_NOT_SUPPORTED;
+    }
+    PR_NOTICE("selected camera output format: %s", __frame_file_ext(sg_out_fmt));
+
     cfg.fps     = EXAMPLE_CAMERA_FPS;
     cfg.width   = EXAMPLE_CAMERA_WIDTH;
     cfg.height  = EXAMPLE_CAMERA_HEIGHT;
-    cfg.out_fmt = TDL_CAMERA_FMT_H264;
+    cfg.out_fmt = sg_out_fmt;
 
     cfg.get_encoded_frame_cb = __get_camera_h264_frame_cb;
 
