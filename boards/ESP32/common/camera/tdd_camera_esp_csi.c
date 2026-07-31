@@ -610,7 +610,8 @@ OPERATE_RET tdd_camera_esp_csi_register(const char *name, const TDD_CAMERA_ESP_C
         .max_fps    = 50,
         .max_width  = 1920,
         .max_height = 1280,
-        .fmt        = TUYA_FRAME_FMT_YUV422,
+        /* P4 CSI/ISP: raw YUV422 preview + hardware JPEG capture. No H264. */
+        .supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG,
     };
     TDD_CAMERA_INTFS_T intfs = {
         .open  = __tdd_csi_open,

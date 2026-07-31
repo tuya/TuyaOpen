@@ -1,0 +1,30 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "SEEED_ESP32S3_XIAO_SENSE"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_EXT_RAM
+    select ENABLE_CAMERA
+    select ENABLE_AUDIO
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_LED if !ENABLE_SEEED_XIAO_SDCARD
+    select ENABLE_BUTTON
+    select PLATFORM_FLASHSIZE_8M
+
+config ENABLE_SEEED_XIAO_SDCARD
+    bool "enable microSD/TF card (Sense expansion board)"
+    default n
+    ---help---
+        Mux the microSD SPI pins on the Sense expansion board
+        (SCK=IO7, MISO=IO8, MOSI=IO9, CS=IO21).
+
+        NOTE: the card's chip-select shares GPIO21 with the onboard user LED,
+        so the two are mutually exclusive. This option therefore drives the
+        LED: when SD is disabled ENABLE_LED is selected (LED on GPIO21); when
+        SD is enabled ENABLE_LED is left off and GPIO21 becomes the SD CS.

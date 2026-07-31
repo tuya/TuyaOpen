@@ -76,7 +76,10 @@ typedef struct {
     uint16_t                  max_fps;
     uint32_t                  max_width;
     uint32_t                  max_height;
-    TUYA_FRAME_FMT_E          fmt;
+    TDL_CAMERA_FMT_E          supported_fmts; /**< Bitmask (TDL_CAMERA_FMT_E) of output
+                                                *  formats the driver's open() accepts,
+                                                *  e.g. TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG.
+                                                *  0 = unspecified (consumer must probe via open). */
     TUYA_YUV422_ORDER_E  yuv_order; /**< YUV422 byte order: 0=UYVY(default), 1=YUYV */
 } TDD_CAMERA_DEV_INFO_T;
 

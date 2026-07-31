@@ -315,7 +315,8 @@ OPERATE_RET tdd_camera_v4l2_register(const char *name, const char *devnode)
     dev_info.max_fps = 60;
     dev_info.max_width = 1920;
     dev_info.max_height = 1080;
-    dev_info.fmt = TUYA_FRAME_FMT_YUV422;
+    /* V4L2 capture: raw YUV422 and MJPEG (JPEG). No H264. */
+    dev_info.supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG;
 
     TDD_CAMERA_INTFS_T intfs = {
         .open = __tdd_camera_v4l2_open,

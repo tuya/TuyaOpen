@@ -131,6 +131,12 @@ choice
             rsource "./WAVESHARE_ESP32P4C6_TOUCH_LCD_4.3/Kconfig"
         endif
 
+    config BOARD_CHOICE_SEEED_ESP32S3_XIAO_SENSE
+        bool "SEEED_ESP32S3_XIAO_SENSE"
+        if (BOARD_CHOICE_SEEED_ESP32S3_XIAO_SENSE)
+            rsource "./SEEED_ESP32S3_XIAO_SENSE/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
