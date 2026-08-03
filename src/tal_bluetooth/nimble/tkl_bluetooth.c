@@ -1045,6 +1045,7 @@ OPERATE_RET tkl_ble_gatts_service_add(TKL_BLE_GATTS_PARAMS_T *p_service)
         if (!tuya_gatt_svcs) {
             return OPRT_MALLOC_FAILED;
         }
+        memset(tuya_gatt_svcs, 0, TKL_BLE_GATT_SERVICE_MAX_NUM * sizeof(struct ble_gatt_svc_def));
     }
     // if (!tuya_gatt_chars) {
     //     tuya_gatt_chars = tuya_ble_hs_malloc(TKL_BLE_GATT_CHAR_MAX_NUM * sizeof(struct ble_gatt_chr_def));
