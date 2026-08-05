@@ -54,8 +54,23 @@ Standard flow:
 
 ### Non-interactive configuration guidance
 
-- `tos.py config choice` and `tos.py config menu` are interactive TTY flows. Avoid them in non-interactive cloud runs.
-- Prefer editing `app_default.config` directly for deterministic builds.
+- `tos.py config menu` is an interactive TTY flow. Avoid it in non-interactive cloud runs; use `tos.py config set` instead.
+- Read and write individual symbols without a TTY (the `CONFIG_` prefix is optional everywhere):
+
+```bash
+tos.py config get CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN   # print one value
+tos.py config get -a CONFIG_ENABLE_WIFI                       # type, prompt, deps
+tos.py config list -p MBEDTLS                                 # filtered dump
+tos.py config list -j                                         # JSON, for scripts
+tos.py config set CONFIG_ENABLE_LIBLVGL=y CONFIG_XX=8192      # dependency-aware
+tos.py config set -u CONFIG_ENABLE_LIBLVGL                    # revert to default
+tos.py config diff T5AI                                       # vs a saved config
+tos.py config save -n my_board -f                             # no prompt
+```
+
+- `tos.py config choice -c NAME.config` / `-l` are already non-interactive and remain the right way to switch to a whole saved config.
+- Prefer `config set` over hand-editing `app_default.config`. Hand-editing bypasses kconfiglib, so `choice` symbols are not made mutually exclusive, derived symbols (`CONFIG_PLATFORM_CHOICE`, `CONFIG_CHIP_CHOICE`) are not updated, and `.build/cache/using.cmake` plus `.build/include/tuya_kconfig.h` stay stale on a warm build tree (`tools/kconfiglib/CMakeLists.txt` only generates them when absent). `config set` handles all of that.
+- `config set` exits non-zero and writes nothing when any assignment fails, so a batch is all-or-nothing.
 - To avoid prompt blocks from platform commit checks, create:
 
 ```bash
@@ -80,6 +95,17 @@ Expected packages (see `Dockerfile`):
 - For source changes, run the smallest relevant build or check for the touched area.
 - For formatting-only updates, run `tools/check_format.py` against changed files.
 - For docs-only updates, verify file content, command correctness, and path validity.
+- For `tools/cli_command/` changes, run the Python unit tests from the repo root (`-t .` is required so the `tools.cli_command.*` imports resolve):
+
+```bash
+python -m unittest discover -s tools/cli_command/tests -t . -p "test_*.py"
+```
+
+- The `tos.py config` end-to-end tests load the real Kconfig tree and are opt-in (no compilation involved):
+
+```bash
+TUYAOPEN_E2E=1 python -m unittest tools.cli_command.tests.test_config_e2e
+```
 
 ### Artifacts and output locations
 
