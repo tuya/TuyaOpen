@@ -24,9 +24,8 @@ def clean_project(log_file=None):
             return True
 
         cmd = "ninja clean_all"
-        ninja_cmd = f"cd {build_path} && {cmd}"
 
-        ret = do_subprocess(ninja_cmd)
+        ret = do_subprocess(cmd, cwd=build_path)
         if 0 != ret:
             logger.error("Clean error.")
             return False

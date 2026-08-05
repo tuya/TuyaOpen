@@ -263,8 +263,8 @@ def download_submoudules(repo_path):
         return True
 
     logger.info("Downloading submoudules ...")
-    cmd = f"cd {repo_path} && git submodule update --init"
-    if 0 != do_subprocess(cmd):
+    cmd = "git submodule update --init"
+    if 0 != do_subprocess(cmd, cwd=repo_path):
         logger.error("Download submoudules failed.")
         return False
 

@@ -9,6 +9,7 @@ import click
 import datetime
 import platform
 import logging
+import subprocess
 import contextlib
 from typing import List
 
@@ -393,7 +394,21 @@ def parse_yaml(yaml_file: str) -> dict:
         return {}
 
 
-def do_subprocess(cmd: str) -> int:
+def do_subprocess(cmd: str, cwd: str = None) -> int:
+    '''
+    Run cmd through the shell and return its exit code (0 == success).
+
+    Pass the working directory as cwd rather than prefixing the command
+    with "cd <dir> &&". On Windows, os.system runs via `cmd.exe /c`,
+    whose `cd` does not switch drives without /d, so a cross-drive
+    "cd D:\\sdk && ..." silently ran in the original directory. Handing
+    cwd to the process also means the directory never goes through the
+    shell, so paths containing spaces stop breaking.
+
+    KeyboardInterrupt is deliberately not caught: Ctrl-C during a build
+    should abort the whole command, not report a build failure and move
+    on to the next step.
+    '''
     logger = get_logger()
 
     if not cmd:
@@ -402,11 +417,11 @@ def do_subprocess(cmd: str) -> int:
 
     logger.info(f">>> subprocess >>>\n{cmd}")
 
-    ret = 1  # 0 means success
     try:
-        ret = os.system(cmd)
+        return subprocess.call(cmd, shell=True, cwd=cwd)
     except Exception as e:
+        # Usually a missing or invalid cwd, which the old shell-level
+        # `cd` reported as a non-zero exit instead of raising.
         logger.error(f"Do subprocess error: {str(e)}")
         logger.info(f"do subprocess: {cmd}")
         return 1
-    return ret
