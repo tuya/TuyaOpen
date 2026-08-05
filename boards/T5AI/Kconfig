@@ -24,6 +24,9 @@ rsource "./OS_SERVICE_Kconfig"
 
 choice
     prompt "Choice a board"
+    # Keep TUYA_T5AI_BOARD as default even if other boards are listed first.
+    # Old configs often only set LCD/camera options and omit BOARD_CHOICE_*.
+    default BOARD_CHOICE_TUYA_T5AI_BOARD
 
     config BOARD_CHOICE_SPARKLEIOT_T5AI_DEV
         bool "SPARKLEIOT_T5AI_DEV"
