@@ -13,6 +13,7 @@
 #include "tal_dma2d.h"
 
 static TAL_DMA2D_HANDLE_T sg_lvgl_dma2d_hdl = NULL;
+static bool               sg_dma2d_used     = false; // TRUE only when a format actually needs DMA2D
 
 static void __dma2d_drawbuffer_memcpy_syn(const lv_area_t *area, uint8_t *px_map,
                                           lv_color_format_t cf, TDL_DISP_FRAME_BUFF_T *fb)
@@ -232,7 +233,14 @@ void lv_port_flush_init(LV_DISP_NODE_T *node)
     node->disp_fb = tdl_disp_get_free_fb(node->fb_mag);
 
 #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
-    if (NULL == sg_lvgl_dma2d_hdl) {
+    /* DMA2D only accelerates RGB565/RGB888 framebuffer memcpy; monochrome (and any other) format
+       fills the framebuffer on the CPU and never touches DMA2D (see __dma2d_..._memcpy_async).
+       Powering up the DMA2D hardware for such panels just burns ~5mA on the VIDP_DMA2D domain
+       for nothing - and toggling that domain later interferes with GPIO wake from deep sleep.
+       So only bring DMA2D up for formats that actually use it. */
+    sg_dma2d_used = (TUYA_PIXEL_FMT_RGB565 == node->dev_info.fmt ||
+                     TUYA_PIXEL_FMT_RGB888 == node->dev_info.fmt);
+    if (sg_dma2d_used && NULL == sg_lvgl_dma2d_hdl) {
         TUYA_CALL_ERR_LOG(tal_dma2d_init(&sg_lvgl_dma2d_hdl));
     }
 #endif
@@ -279,6 +287,31 @@ void lv_port_flush_release(LV_DISP_NODE_T *node)
         tdl_disp_fb_manage_release(&node->fb_mag);
         node->fb_mag = NULL;
     }
+}
+
+/* Low-power hooks: tear down / rebuild the DMA2D that flush_init leaves running. flush_init
+   calls tal_dma2d_init once and normally nothing deinits it, so its VIDP_DMA2D power domain
+   stays on (~5mA). Release it when suspending the display, reacquire before resuming flush. */
+void lv_port_flush_dma2d_deinit(void)
+{
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+    if (sg_lvgl_dma2d_hdl) {
+        tal_dma2d_deinit(sg_lvgl_dma2d_hdl);
+        sg_lvgl_dma2d_hdl = NULL;
+    }
+#endif
+}
+
+void lv_port_flush_dma2d_reinit(void)
+{
+#if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
+    OPERATE_RET rt = OPRT_OK;
+    /* Only re-init if this display actually used DMA2D (see flush_init); never for mono panels. */
+    if (sg_dma2d_used && NULL == sg_lvgl_dma2d_hdl) {
+        TUYA_CALL_ERR_LOG(tal_dma2d_init(&sg_lvgl_dma2d_hdl));
+    }
+    (void)rt;
+#endif
 }
 
 #endif /* !ENABLE_LVGL_PARTIAL_FLUSH */

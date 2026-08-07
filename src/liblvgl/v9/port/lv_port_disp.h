@@ -38,6 +38,11 @@ void lv_port_disp_init(char *device);
 
 void lv_port_disp_deinit(char *device);
 
+/* Low-power hooks for the flush backend's HW (DMA2D on full-frame; no-op on partial).
+   Release powers the HW down for suspend; reinit brings it back before resuming flush. */
+void lv_port_flush_dma2d_deinit(void);
+void lv_port_flush_dma2d_reinit(void);
+
 /* Enable updating the screen (the flushing process) when disp_flush() is called by LVGL
  */
 void disp_enable_update(lv_display_t *lv_disp);

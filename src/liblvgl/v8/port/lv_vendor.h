@@ -20,6 +20,8 @@ typedef enum{
 void lv_vendor_init(void *device);
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size);
 void lv_vendor_stop(void);
+void lv_vendor_suspend(void);
+void lv_vendor_resume(void);
 void lv_vendor_disp_lock(void);
 void lv_vendor_disp_unlock(void);
 void lv_vendor_add_disp_dev(void *device);
