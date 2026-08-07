@@ -198,11 +198,13 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 #endif
             ai_audio_volume_upload();
         }
+        app_chat_bot_set_online(TRUE); // cloud online -> AP associated, allow ULP descent
         break;
 
     /* MQTT with tuya cloud is disconnected, device offline */
     case TUYA_EVENT_MQTT_DISCONNECT:
         PR_INFO("Device MQTT DisConnected!");
+        app_chat_bot_set_online(FALSE); // offline -> pin ACTIVE
         break;
 
     /* RECV upgrade request */
@@ -375,7 +377,12 @@ void user_main(void)
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
 
+#if defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1)
+    /* Idle low-power (set up in app_chat_bot_init) arbitrates WiFi power-save per chat
+       mode, so skip the blanket WiFi-LP disable that would defeat it. */
+#else
     tkl_wifi_set_lp_mode(0, 0);
+#endif
 
     reset_netconfig_check();
 

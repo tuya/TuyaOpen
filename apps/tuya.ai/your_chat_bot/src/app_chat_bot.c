@@ -11,6 +11,7 @@
 
 #include "ai_chat_main.h"
 #include "app_chat_bot.h"
+#include "app_lowpower.h"
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "tkl_wifi.h"
@@ -24,7 +25,13 @@
 ************************macro define************************
 ***********************************************************/
 #define PRINTF_FREE_HEAP_TTIME (10 * 1000)
-#define DISP_NET_STATUS_TIME   (1 * 1000)
+/* Net-status refresh cadence. Under idle low-power, stretch it way out: in ULP the screen is
+   usually suspended and a 1s timer would keep waking the CPU for a refresh nobody sees. */
+#if defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1)
+#define DISP_NET_STATUS_TIME (30 * 1000)
+#else
+#define DISP_NET_STATUS_TIME (1 * 1000)
+#endif
 
 /***********************************************************
 ***********************typedef define***********************
@@ -107,6 +114,8 @@ static void __display_status_tm_cb(TIMER_ID timer_id, void *arg)
 
 static void __ai_chat_handle_event(AI_NOTIFY_EVENT_T *event)
 {
+    app_lowpower_feed_event(event); // power mgmt: activity / key-mode gate
+
     switch(event->type) {
         #if defined(ENABLE_PRINTER) && (ENABLE_PRINTER == 1)
         case AI_USER_EVT_GENERATE_PICTURE:
@@ -122,16 +131,23 @@ static void __ai_chat_handle_event(AI_NOTIFY_EVENT_T *event)
 
 }
 
+void app_chat_bot_set_online(BOOL_T online)
+{
+    app_lowpower_set_online(online);
+}
+
 OPERATE_RET app_chat_bot_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
     AI_CHAT_MODE_CFG_T ai_chat_cfg = {
-        .default_mode = AI_CHAT_MODE_HOLD,
+        .default_mode = AI_CHAT_MODE_HOLD, // push-to-talk; idle low-power gates on this mode
         .default_vol  = 70,
         .evt_cb       = __ai_chat_handle_event,
     };
     TUYA_CALL_ERR_RETURN(ai_chat_init(&ai_chat_cfg));
+
+    app_lowpower_init();
 
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
     app_ui_action_register();

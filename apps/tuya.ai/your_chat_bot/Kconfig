@@ -1,17 +1,47 @@
 menu "configure app (your_chat_bot) "
 
+config APP_CONFIG
+    bool
+    default y
+    select ENABLE_AI_COMPONENTS
+
 config TUYA_PRODUCT_ID
     string "product ID of project"
     default "p320pepzvmm1ghse"
+
+rsource "src/display2/Kconfig"
 
 config ENABLE_BATTERY
     bool "enable the battery module"
     default n
 
-config APP_NEED_AI_COMPONENTS
-    bool
-    default y
-    select ENABLE_AI_COMPONENTS
-rsource "src/display2/Kconfig"
+menuconfig ENABLE_APP_LOWPOWER
+    bool "enable idle low-power (AP keep-alive / deep sleep, key-mode only)"
+    default n
+    select ENABLE_TUYA_PM
+    help
+      In HOLD / push-to-talk (按键) mode, let the device idle into low power after
+      APP_LOWPOWER_IDLE_TIME_S seconds with no conversation. The other chat modes keep
+      the mic on and stay at full power. Pulls in the tuya_pm power manager.
+
+if ENABLE_APP_LOWPOWER
+    choice
+        prompt "idle low-power mode"
+        default APP_LOWPOWER_AP_KEEPALIVE
+        help
+        What the device descends into when idle in key-mode.
+
+    config APP_LOWPOWER_AP_KEEPALIVE
+        bool "AP keep-alive (DTIM, stays online, uA)"
+
+    config APP_LOWPOWER_DEEP_SLEEP
+        bool "deep sleep (offline, wake by key)"
+
+    endchoice
+
+    config APP_LOWPOWER_IDLE_TIME_S
+        int "idle seconds before entering low-power"
+        default 30
+endif # ENABLE_APP_LOWPOWER
 
 endmenu
