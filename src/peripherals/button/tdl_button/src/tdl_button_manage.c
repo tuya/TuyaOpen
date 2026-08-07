@@ -39,6 +39,7 @@
 #include "tal_memory.h"
 #include "tal_log.h"
 #include "tal_thread.h"
+#include "tal_sleep.h" // tal_cpu_acquire/release_wakelock (keep scan cadence under tickless)
 #include "tuya_list.h"
 
 #include "tdl_button_driver.h"
@@ -962,10 +963,11 @@ static void __tdl_button_irq_thread(void *arg)
     LIST_HEAD *pos1 = NULL;
 
     while (1) {
-        PR_NOTICE("semaphore wait");
+        PR_DEBUG("button irq: wait");
         tal_semaphore_wait(tdl_button_local.irq_semaphore, SEM_WAIT_FOREVER);
         tdl_button_local.irq_scan_cnt = 0;
-        PR_NOTICE("semaphore across");
+        tal_cpu_acquire_wakelock(TAL_WAKELOCK_SDK_KEYSCAN);
+        PR_DEBUG("button irq: scanning");
 
         while (1) {
             tuya_list_for_each(pos1, &p_head->hdr)
@@ -996,6 +998,8 @@ static void __tdl_button_irq_thread(void *arg)
                 tal_system_sleep(tdl_button_scan_time);
             }
         }
+        
+        tal_cpu_release_wakelock(TAL_WAKELOCK_SDK_KEYSCAN);
     }
 }
 
