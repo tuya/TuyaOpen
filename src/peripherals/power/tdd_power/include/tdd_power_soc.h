@@ -38,6 +38,12 @@ typedef struct {
     TUYA_GPIO_LEVEL_E stdby_active;
 } TDD_POWER_GPIO_CHARGER_T;
 
+/** A GPIO deep-sleep wakeup source (used by enter_deepsleep). */
+typedef struct {
+    uint32_t gpio_num;     // wakeup GPIO
+    uint8_t  active_level; // level that wakes (0 or 1)
+} TDD_POWER_GPIO_WAKESRC_T;
+
 /* ---- ADC mechanism ---- */
 
 /** ADC voltage-divider battery sampling (landmarks/curve live in info.battery). */
@@ -57,6 +63,8 @@ typedef struct {
     uint8_t                         domain_cnt;
     const TDD_POWER_ADC_BATTERY_T  *battery; // NULL = no battery
     const TDD_POWER_GPIO_CHARGER_T *charger; // NULL = no charge detection
+    const TDD_POWER_GPIO_WAKESRC_T *wakesrc; // deep-sleep GPIO wake sources (NULL = none)
+    uint8_t                         wakesrc_cnt;
     TDL_POWER_INFO_T                info;    // device-level static facts
 } TDD_POWER_SOC_CFG_T;
 

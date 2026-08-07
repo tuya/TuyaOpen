@@ -9,10 +9,16 @@
 #include "string.h"
 #include "tal_memory.h"
 #include "tal_log.h"
+#include "tal_system.h"
 #include "tkl_gpio.h"
 #include "tkl_adc.h"
 #include "tdl_power_driver.h"
 #include "tdd_power_soc.h"
+
+#if defined(ENABLE_WAKEUP)
+#include "tkl_sleep.h"
+#include "tkl_wakeup.h"
+#endif
 
 // T5 SARADC raw->tap-voltage model V = (raw - LOW)/SPAN + 1.0V. Same chip on all
 // T5 boards; a board leaves cal_low/cal_span 0 to use these, overrides if it drifts.
@@ -235,6 +241,45 @@ static void __soc_charger_pin_init(TUYA_GPIO_NUM_E pin, TUYA_GPIO_LEVEL_E active
     tkl_gpio_init(pin, &gc);
 }
 
+#if defined(ENABLE_WAKEUP)
+/* Arm the board-declared GPIO wake sources (+ optional timer) and power the CPU
+ * down via tkl. Does not return on success (waking reboots). */
+static OPERATE_RET __soc_enter_deepsleep(TDD_POWER_DEV_HANDLE_T ctx, uint32_t timer_wake_ms)
+{
+    POWER_SOC_CTX_T *c = (POWER_SOC_CTX_T *)ctx;
+    uint8_t          i;
+    uint8_t          gpio_cnt;
+
+    if (NULL == c) {
+        return OPRT_INVALID_PARM;
+    }
+    gpio_cnt = (NULL != c->cfg.wakesrc) ? c->cfg.wakesrc_cnt : 0;
+    if (0 == gpio_cnt && 0 == timer_wake_ms) {
+        PR_ERR("power(soc): refuse DEEP sleep with no wake source (would strand the device)");
+        return OPRT_INVALID_PARM;
+    }
+    for (i = 0; NULL != c->cfg.wakesrc && i < c->cfg.wakesrc_cnt; i++) {
+        TUYA_WAKEUP_SOURCE_BASE_CFG_T wk;
+        memset(&wk, 0, sizeof(wk));
+        wk.source = TUYA_WAKEUP_SOURCE_GPIO;
+        wk.wakeup_para.gpio_param.gpio_num = (TUYA_GPIO_NUM_E)c->cfg.wakesrc[i].gpio_num;
+        wk.wakeup_para.gpio_param.level =
+            c->cfg.wakesrc[i].active_level ? TUYA_GPIO_WAKEUP_HIGH : TUYA_GPIO_WAKEUP_LOW;
+        tkl_wakeup_source_set(&wk);
+    }
+    if (0 != timer_wake_ms) {
+        TUYA_WAKEUP_SOURCE_BASE_CFG_T wk;
+        memset(&wk, 0, sizeof(wk));
+        wk.source = TUYA_WAKEUP_SOURCE_TIMER;
+        wk.wakeup_para.timer_param.timer_num = TUYA_TIMER_NUM_0;
+        wk.wakeup_para.timer_param.mode      = TUYA_TIMER_MODE_ONCE;
+        wk.wakeup_para.timer_param.ms        = timer_wake_ms;
+        tkl_wakeup_source_set(&wk);
+    }
+    return tkl_cpu_sleep_mode_set(TRUE, TUYA_CPU_DEEP_SLEEP);
+}
+#endif
+
 OPERATE_RET tdd_power_soc_register(const char *name, const TDD_POWER_SOC_CFG_T *cfg)
 {
     POWER_SOC_CTX_T  *c = NULL;
@@ -271,6 +316,9 @@ OPERATE_RET tdd_power_soc_register(const char *name, const TDD_POWER_SOC_CFG_T *
         intfs.charger_get_state  = __soc_charger_get_state;
         intfs.charger_arm_event  = __soc_charger_arm_event;
     }
+#if defined(ENABLE_WAKEUP)
+    intfs.enter_deepsleep = __soc_enter_deepsleep;
+#endif
 
     rt = tdl_power_register(name, &intfs, &c->cfg.info, c);
     if (OPRT_OK != rt) {
