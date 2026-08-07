@@ -98,3 +98,15 @@ void tuya_app_main(void)
         return;
     }
 }
+
+/**
+ * @brief Main entry point
+ * Note: Platform SDK's ap_main.c may not be linked for MicroPython demos,
+ * so we provide our own main() entry point.
+ */
+__attribute__((weak))
+int main(void)
+{
+    tuya_app_main();
+    return 0;
+}

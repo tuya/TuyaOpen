@@ -412,7 +412,7 @@ static void update_weather_data(void)
     }
 
     // Get current wind (ignore errors, use defaults)
-    rt = tuya_weather_get_current_wind(g_wind_dir, g_wind_speed);
+    rt = tuya_weather_get_current_wind(g_wind_dir, sizeof(g_wind_dir), g_wind_speed, sizeof(g_wind_speed));
     if (OPRT_OK != rt) {
         strncpy(g_wind_dir, "N/A", sizeof(g_wind_dir) - 1);
         strncpy(g_wind_speed, "N/A", sizeof(g_wind_speed) - 1);
