@@ -17,4 +17,5 @@ menu "configure tuyaopen"
     rsource "peripherals/Kconfig"
     rsource "image_album/Kconfig"
     rsource "tal_wifi_ulp/Kconfig"
+    rsource "tuya_pm/Kconfig"
 endmenu

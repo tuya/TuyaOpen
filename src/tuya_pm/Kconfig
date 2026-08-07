@@ -1,0 +1,14 @@
+config ENABLE_TUYA_PM
+    bool "Enable power-level manager (tuya_pm)"
+    default n
+    select ENABLE_WIFI_ULTRA_LOWPOWER if ENABLE_WIFI
+    help
+      Device power-level manager: a policy/arbitration layer that maps discrete
+      power levels (ACTIVE/STANDBY/DORMANT/DEEPSLEEP) onto lpmgr / tal_cpu
+      wakelock / tdl_power / tkl_wakeup. Products declare a policy and register
+      hold-locks / consumers; the manager arbitrates the effective level and
+      decays on idle.
+
+      On WiFi platforms this pulls in the WiFi ULP framework (lpmgr) as the deep
+      low-power backend, so the online levels can actually reach uA.
+
