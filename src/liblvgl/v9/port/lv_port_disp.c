@@ -269,6 +269,21 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
 
     lv_disp_node->is_enable_flush = true;
 
+    /*Set this display as the default display*/
+    lv_display_set_default(disp);
+
+    /*Create the default screen if it wasn't created during lv_display_create
+     * (lv_display_create calls lv_obj_create(NULL) which needs a default display)*/
+    if(disp->act_scr == NULL) {
+        disp->act_scr = lv_obj_create(NULL);
+        if(disp->act_scr != NULL) {
+            lv_obj_set_pos(disp->act_scr, 0, 0);
+            lv_obj_set_size(disp->act_scr,
+                           lv_display_get_horizontal_resolution(disp),
+                           lv_display_get_vertical_resolution(disp));
+        }
+    }
+
     return lv_disp_node;
 
 __CREATE_ERR:
