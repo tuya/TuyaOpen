@@ -17,6 +17,7 @@
 #include "tdd_audio.h"
 #include "tdd_button_gpio.h"
 #include "tdd_led_pwm.h"
+#include "tkl_wakeup.h" // register button pins as ULP wake sources
 #include "tdd_disp_ssd2683.h"
 #include "tdd_power_soc.h"
 #include "tdl_power_manage.h"
@@ -83,61 +84,90 @@
 #define BOARD_CHRG_PIN        TUYA_GPIO_NUM_21
 #define BOARD_STDBY_PIN       TUYA_GPIO_NUM_22
 
+// System power hold (the power-on-hold block on the schematic): PWR_ON(P44) gates
+// Q7 to hold the battery->VIN P-MOS on. It powers up HIGH by default, so the board
+// also boots on battery without this; we drive it HIGH explicitly to own the latch
+// (guaranteed hold, robust against P44 being perturbed later, and the control point
+// for a future power-off = drive LOW to cut power with the e-paper image retained).
+#define BOARD_PWR_ON_PIN      TUYA_GPIO_NUM_44
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static const TDD_POWER_GPIO_DOMAIN_T s_power_domains[] = {
+static const TDD_POWER_GPIO_DOMAIN_T cPOWER_DOMAINS_TBL[] = {
     {TDL_PWR_DOMAIN_DISPLAY, BOARD_PWR_EPD_PIN,   TUYA_GPIO_LEVEL_HIGH, TRUE},
     {TDL_PWR_DOMAIN_SD,      BOARD_PWR_SD_PIN,    TUYA_GPIO_LEVEL_HIGH, TRUE},
     {TDL_PWR_DOMAIN_AUDIO,   BOARD_PWR_AUDIO_PIN, TUYA_GPIO_LEVEL_HIGH, TRUE},
 };
 
-static const TDD_POWER_ADC_BATTERY_T s_battery = {
-    .adc_num = TUYA_ADC_NUM_0, .adc_ch = BOARD_BAT_ADC_CH, .divider_ratio = BOARD_BAT_DIVIDER,
-    .cal_low = 2469, .cal_span = 2429, .samples = 16, // NOTE4 metered two-point cal
+static const TDD_POWER_ADC_BATTERY_T cBATTERY = {
+    .adc_num       = TUYA_ADC_NUM_0, 
+    .adc_ch        = BOARD_BAT_ADC_CH, 
+    .divider_ratio = BOARD_BAT_DIVIDER,
+    .cal_low       = 2469, 
+    .cal_span      = 2429, 
+    .samples       = 16, // NOTE4 metered two-point cal
 };
 
-static const TDD_POWER_GPIO_CHARGER_T s_charger = {
-    .chrg_pin = BOARD_CHRG_PIN, .chrg_active = TUYA_GPIO_LEVEL_LOW,
-    .stdby_pin = BOARD_STDBY_PIN, .stdby_active = TUYA_GPIO_LEVEL_HIGH,
+static const TDD_POWER_GPIO_CHARGER_T cCHARGER = {
+    .chrg_pin     = BOARD_CHRG_PIN, 
+    .chrg_active  = TUYA_GPIO_LEVEL_LOW,
+    .stdby_pin    = BOARD_STDBY_PIN, 
+    .stdby_active = TUYA_GPIO_LEVEL_HIGH,
+};
+
+// Deep-sleep wakeup source(s): the ENTER key (active-low). The power manager arms
+// these via tdl_power_enter_deepsleep() when the product deep-sleeps.
+static const TDD_POWER_GPIO_WAKESRC_T cWAKESRC_TBL[] = {
+    {BOARD_BUTTON_ENTER_PIN, 0},
 };
 
 // Ternary-lithium (NMC) OCV->SOC curve, ascending mV (single-cell pack).
-static const TDL_POWER_OCV_PT_T s_ocv[] = {
+static const TDL_POWER_OCV_PT_T cOCV_TBL[] = {
     {3000, 0},  {3350, 5},  {3480, 10}, {3550, 15}, {3600, 20}, {3630, 25}, {3660, 30},
     {3680, 35}, {3710, 40}, {3730, 45}, {3760, 50}, {3790, 55}, {3820, 60}, {3860, 65},
     {3900, 70}, {3950, 75}, {4000, 80}, {4050, 85}, {4100, 90}, {4150, 95}, {4200, 100},
 };
 
-static TDL_POWER_HANDLE s_pwr = NULL;
+static TDL_POWER_HANDLE sg_pwr_hdl = NULL;
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 static OPERATE_RET __board_register_power(void)
 {
-    // Register domains + battery(ADC) + charger(IP2332 status lines)
-    OPERATE_RET rt = tdd_power_soc_register(POWER_NAME, &(TDD_POWER_SOC_CFG_T){
-        .domains    = s_power_domains,
-        .domain_cnt = sizeof(s_power_domains) / sizeof(s_power_domains[0]),
-        .battery    = &s_battery,
-        .charger    = &s_charger,
-        .info = {.battery = {.v_full_mv = 4200, .v_empty_mv = 3000, .v_low_mv = 3400, .v_critical_mv = 3300,
-                             .curve = s_ocv, .curve_cnt = sizeof(s_ocv) / sizeof(s_ocv[0])}},
-    });
-    if (OPRT_OK != rt) {
-        return rt;
-    }
-    s_pwr = tdl_power_find(POWER_NAME);
-    return (NULL != s_pwr) ? OPRT_OK : OPRT_COM_ERROR;
+    OPERATE_RET rt = OPRT_OK;
+    TDD_POWER_SOC_CFG_T power_cfg = {
+        .domains     = cPOWER_DOMAINS_TBL,
+        .domain_cnt  = sizeof(cPOWER_DOMAINS_TBL) / sizeof(cPOWER_DOMAINS_TBL[0]),
+        .battery     = &cBATTERY,
+        .charger     = &cCHARGER,
+        .wakesrc     = cWAKESRC_TBL,
+        .wakesrc_cnt = sizeof(cWAKESRC_TBL) / sizeof(cWAKESRC_TBL[0]),
+        .info = {
+            .battery = {
+                .v_full_mv     = 4200, 
+                .v_empty_mv    = 3000, 
+                .v_low_mv      = 3400, 
+                .v_critical_mv = 3300,
+                .curve         = cOCV_TBL, 
+                .curve_cnt     = sizeof(cOCV_TBL) / sizeof(cOCV_TBL[0])
+            }
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_power_soc_register(POWER_NAME, &power_cfg));
+
+    sg_pwr_hdl = tdl_power_find(POWER_NAME);
+
+    return (NULL == sg_pwr_hdl) ? OPRT_COM_ERROR : OPRT_OK;
 }
 
 static OPERATE_RET __board_register_audio(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-#if defined(AUDIO_CODEC_NAME)
     TDD_AUDIO_T5AI_T cfg = {0};
+
     memset(&cfg, 0, sizeof(TDD_AUDIO_T5AI_T));
 
     cfg.aec_enable = 1;
@@ -156,7 +186,6 @@ static OPERATE_RET __board_register_audio(void)
     cfg.spk_pin_polarity = TUYA_GPIO_LEVEL_LOW;
 
     TUYA_CALL_ERR_RETURN(tdd_audio_register(AUDIO_CODEC_NAME, cfg));
-#endif
 
     return rt;
 }
@@ -167,8 +196,11 @@ static OPERATE_RET __board_register_button(void)
     BUTTON_GPIO_CFG_T button_hw_cfg;
 
     memset(&button_hw_cfg, 0, sizeof(BUTTON_GPIO_CFG_T));
-    button_hw_cfg.mode               = BUTTON_TIMER_SCAN_MODE;
-    button_hw_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLUP;
+    // IRQ mode (not timer-scan): under ULP the scan timer stops when the CPU sleeps, so a
+    // scan-mode button can't be felt in deep sleep. A GPIO IRQ wakes the CPU. Active-low
+    // buttons -> press is a falling edge.
+    button_hw_cfg.mode              = BUTTON_IRQ_MODE;
+    button_hw_cfg.pin_type.irq_edge = TUYA_GPIO_IRQ_FALL;
 
     // Enter: logical button1 (CONFIG_BUTTON_NAME, defaults to "button1"). Apps open
     // this name via the BUTTON_NAME macro; here it is bound to the ENTER key pin.
@@ -186,15 +218,35 @@ static OPERATE_RET __board_register_button(void)
     button_hw_cfg.level = BOARD_BUTTON_PGUP_ACTIVE_LV;
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME_3, &button_hw_cfg));
 
+    // Register all button pins as ULP wake sources so a press wakes the SoC out of LV
+    // deep sleep (a plain GPIO IRQ does not wake it from deep sleep -> unresponsive
+    // buttons under ULP). Harmless when low power is unused: a wake source only acts
+    // during deep sleep and never affects the normal button IRQ/scan. Active-low -> LOW.
+    const struct {
+        TUYA_GPIO_NUM_E   pin;
+        TUYA_GPIO_LEVEL_E active_lv;
+    } wk_btn[] = {
+        {BOARD_BUTTON_ENTER_PIN, BOARD_BUTTON_ENTER_ACTIVE_LV},
+        {BOARD_BUTTON_PGDN_PIN,  BOARD_BUTTON_PGDN_ACTIVE_LV },
+        {BOARD_BUTTON_PGUP_PIN,  BOARD_BUTTON_PGUP_ACTIVE_LV },
+    };
+    for (uint32_t i = 0; i < CNTSOF(wk_btn); i++) {
+        TUYA_WAKEUP_SOURCE_BASE_CFG_T src = {0};
+        src.source                          = TUYA_WAKEUP_SOURCE_GPIO;
+        src.wakeup_para.gpio_param.gpio_num = wk_btn[i].pin;
+        src.wakeup_para.gpio_param.level =
+            (TUYA_GPIO_LEVEL_LOW == wk_btn[i].active_lv) ? TUYA_GPIO_WAKEUP_LOW : TUYA_GPIO_WAKEUP_HIGH;
+        tkl_wakeup_source_set(&src);
+    }
+
     return rt;
 }
 
 static OPERATE_RET __board_register_led(void)
 {
     OPERATE_RET rt = OPRT_OK;
-
-#if defined(LED_NAME)
     TDD_LED_PWM_CFG_T led_cfg = {0};
+
     led_cfg.pwm_ch       = BOARD_LED_PWM_CH;
     led_cfg.frequency    = BOARD_LED_PWM_FREQ;
     led_cfg.active_level = BOARD_LED_ACTIVE_LV;
@@ -203,7 +255,6 @@ static OPERATE_RET __board_register_led(void)
     led_cfg.duty_max_pct = BOARD_LED_DUTY_MAX_PCT; // 100 => breathing uses the full range
 
     TUYA_CALL_ERR_RETURN(tdd_led_pwm_register(LED_NAME, &led_cfg));
-#endif
 
     return rt;
 }
@@ -212,9 +263,8 @@ static OPERATE_RET __board_register_display(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(DISPLAY_NAME)
     // Ensure the e-paper power domain is on and stable before talking to the panel.
-    tdl_power_domain_set(s_pwr, TDL_PWR_DOMAIN_DISPLAY, TRUE);
+    tdl_power_domain_set(sg_pwr_hdl, TDL_PWR_DOMAIN_DISPLAY, TRUE);
     tal_system_sleep(50);
 
     // SSD2683 400x300 B/W, driven over software SPI (data lines are plain GPIO).
@@ -235,7 +285,6 @@ static OPERATE_RET __board_register_display(void)
     eink_cfg.full_refresh_period = 10;
 
     TUYA_CALL_ERR_RETURN(tdd_disp_sw_spi_mono_ssd2683_register(DISPLAY_NAME, &eink_cfg));
-#endif
 
     return rt;
 }
@@ -251,7 +300,7 @@ static OPERATE_RET __board_sdio_pin_register(void)
     tkl_io_pinmux_config(BOARD_SDIO_DATA2_PIN, TUYA_SDIO_DATA2);
     tkl_io_pinmux_config(BOARD_SDIO_DATA3_PIN, TUYA_SDIO_DATA3);
 
-    rt = tdl_power_domain_set(s_pwr, TDL_PWR_DOMAIN_SD, TRUE);
+    rt = tdl_power_domain_set(sg_pwr_hdl, TDL_PWR_DOMAIN_SD, TRUE);
     if (OPRT_OK != rt) {
         return rt;
     }
@@ -261,10 +310,24 @@ static OPERATE_RET __board_sdio_pin_register(void)
     return OPRT_OK;
 }
 
+/* Drive PWR_ON HIGH to own the power-hold latch (see BOARD_PWR_ON_PIN). */
+static OPERATE_RET __board_power_hold(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+    TUYA_GPIO_BASE_CFG_T cfg = {
+        .mode   = TUYA_GPIO_PUSH_PULL,
+        .direct = TUYA_GPIO_OUTPUT,
+        .level  = TUYA_GPIO_LEVEL_HIGH,
+    };
+    TUYA_CALL_ERR_RETURN(tkl_gpio_init(BOARD_PWR_ON_PIN, &cfg));
+    return tkl_gpio_write(BOARD_PWR_ON_PIN, TUYA_GPIO_LEVEL_HIGH);
+}
+
 OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
+    TUYA_CALL_ERR_LOG(__board_power_hold()); // own the power-hold latch (PWR_ON high)
     TUYA_CALL_ERR_LOG(__board_register_power());
     TUYA_CALL_ERR_LOG(__board_register_audio());
     TUYA_CALL_ERR_LOG(__board_register_button());
