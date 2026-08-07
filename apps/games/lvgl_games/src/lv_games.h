@@ -33,24 +33,29 @@ extern "C" {
     #define  LV_100ASK_2048_MATRIX_SIZE                 4
 #endif
 
-// 用于T5AI-BOARD适配
-#if LV_COLOR_DEPTH == 32 && LV_COLOR_16_SWAP == 0 && LVGL_VERSION_MAJOR == 9
+// LVGL v8 to v9 compatibility macros
+#if LVGL_VERSION_MAJOR == 9
     #ifndef LV_IMG_PX_SIZE_ALPHA_BYTE
-    #define LV_IMG_PX_SIZE_ALPHA_BYTE   4
+    #if LV_COLOR_DEPTH == 16
+    #define LV_IMG_PX_SIZE_ALPHA_BYTE   3   // RGB565A8: 2 bytes color + 1 byte alpha
+    #elif LV_COLOR_DEPTH == 32
+    #define LV_IMG_PX_SIZE_ALPHA_BYTE   4   // ARGB8888: 4 bytes
+    #endif
     #endif
 
     #ifndef LV_COLOR_SIZE
-    #define LV_COLOR_SIZE               32
+    #define LV_COLOR_SIZE               LV_COLOR_DEPTH
     #endif
 
     #ifndef LV_IMG_CF_TRUE_COLOR
-    #define LV_IMG_CF_TRUE_COLOR        LV_COLOR_FORMAT_XRGB8888
+    #define LV_IMG_CF_TRUE_COLOR        LV_COLOR_FORMAT_NATIVE
     #endif
 
     #ifndef LV_IMG_CF_TRUE_COLOR_ALPHA
-    #define LV_IMG_CF_TRUE_COLOR_ALPHA  LV_COLOR_FORMAT_ARGB8888
+    #define LV_IMG_CF_TRUE_COLOR_ALPHA  LV_COLOR_FORMAT_NATIVE_WITH_ALPHA
     #endif
 #endif
+
 
 /**********************
  *      TYPEDEFS

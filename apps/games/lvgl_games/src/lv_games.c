@@ -171,7 +171,7 @@ void user_main(void)
         y_pos += 80;
     #endif
 
-    lv_vendor_start();
+    lv_vendor_start(5, 1024*8);
 }
 
 /**
