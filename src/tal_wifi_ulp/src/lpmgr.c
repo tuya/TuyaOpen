@@ -232,15 +232,15 @@ retry:
         lp_info_p++;
     }
 
-    PR_NOTICE("enforce:%d, min_mcu_power:%d", enforce, min_mcu_power);
+    PR_TRACE("enforce:%d, min_mcu_power:%d", enforce, min_mcu_power);
     if (!enforce && min_mcu_power != lp_info_current.mcu_lp_type) {
         if (min_mcu_power == OS_LP_CLOSE) {
             ret = lpmgr_set_cpu_lp(false);
-            PR_NOTICE("ULP: CPU sleep disabled (keep awake)");
+            PR_TRACE("ULP: CPU sleep disabled (keep awake)");
         } else {
             lpmgr_set_cpu_fix_sleep_time(min_mcu_power);
             ret = lpmgr_set_cpu_lp(true);
-            PR_NOTICE("ULP: CPU sleep changed %d -> %dms", lp_info_current.mcu_lp_type, min_mcu_power);
+            PR_TRACE("ULP: CPU sleep changed %d -> %dms", lp_info_current.mcu_lp_type, min_mcu_power);
         }
     }
 
@@ -288,10 +288,10 @@ retry:
             lpmgr_set_wifi_lp(false);
             tal_wifi_set_lps_dtim(min_dtim);
             lpmgr_set_wifi_lp(true);
-            PR_NOTICE("ULP: WiFi DTIM changed %d -> %d", lp_info_current.dtim, min_dtim);
+            PR_TRACE("ULP: WiFi DTIM changed %d -> %d", lp_info_current.dtim, min_dtim);
         } else {
             lpmgr_set_wifi_lp(false);
-            PR_NOTICE("ULP: WiFi LP disabled (dtim=0)");
+            PR_TRACE("ULP: WiFi LP disabled (dtim=0)");
         }
         ret = 0;
     }
@@ -355,7 +355,7 @@ int lpmgr_unregister(TY_LP_TYPE type)
     lp_info_t* lp_info_p = NULL;
     lp_info_t *ptr = g_lp_info_map;
 
-    PR_NOTICE("ULP: unregister type=%d", type);
+    PR_TRACE("ULP: unregister type=%d", type);
     tal_mutex_lock(lp_mutex);
     for (i = 0; i < TY_LP_MAX; i++) {
         if (type == ptr->type) {
@@ -429,7 +429,7 @@ int lpmgr_register(TY_LP_TYPE type)
     lp_info_t* lp_info_p = NULL;
     lp_info_t *ptr = g_lp_info_map;
 
-    PR_NOTICE("ULP: register type=%d", type);
+    PR_TRACE("ULP: register type=%d", type);
     tal_mutex_lock(lp_mutex);
     for (i = 0; i < TY_LP_MAX; i++) {
         if (type == ptr->type) {
