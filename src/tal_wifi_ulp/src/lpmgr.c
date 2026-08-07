@@ -219,13 +219,13 @@ static int lpmgr_set_mcu_power_type(void)
     lp_info_t *lp_info_p = g_lp_info_map;
 
 retry:
-    PR_DEBUG("lpmgr_set_mcu_power_type start");
+    PR_TRACE("lpmgr_set_mcu_power_type start");
 
     while (TY_LP_MAX > i) {
         if (lp_info_p->timeout_point > current_time) {
             if (lp_info_p->mcu_lp_type < min_mcu_power) {
                 min_mcu_power = lp_info_p->mcu_lp_type;
-                PR_DEBUG("lp_info_p[%d].mcu_lp_type:%d", i, lp_info_p->mcu_lp_type);
+                PR_TRACE("lp_info_p[%d].mcu_lp_type:%d", i, lp_info_p->mcu_lp_type);
             }
         }
         i++;
@@ -240,7 +240,7 @@ retry:
         } else {
             lpmgr_set_cpu_fix_sleep_time(min_mcu_power);
             ret = lpmgr_set_cpu_lp(true);
-            PR_TRACE("ULP: CPU sleep changed %d -> %dms", lp_info_current.mcu_lp_type, min_mcu_power);
+            PR_NOTICE("ULP: CPU sleep changed %d -> %dms", lp_info_current.mcu_lp_type, min_mcu_power);
         }
     }
 
@@ -254,7 +254,7 @@ retry:
         goto retry;
     }
 
-    PR_DEBUG("lpmgr_set_mcu_power_type end");
+    PR_TRACE("lpmgr_set_mcu_power_type end");
 
     return ret;
 }
@@ -269,26 +269,26 @@ static int lpmgr_set_wifi_dtim(void)
     lp_info_t *lp_info_p = g_lp_info_map;
 
 retry:
-    PR_DEBUG("lpmgr_set_wifi_dtim start");
+    PR_TRACE("lpmgr_set_wifi_dtim start");
 
     while (TY_LP_MAX > i) {
         if (lp_info_p->timeout_point > current_time) {
             if (lp_info_p->dtim < min_dtim) {
                 min_dtim = lp_info_p->dtim;
-                PR_DEBUG("lp_info_p[%d].dtim:%d", i, lp_info_p->dtim);
+                PR_TRACE("lp_info_p[%d].dtim:%d", i, lp_info_p->dtim);
             }
         }
         i++;
         lp_info_p++;
     }
 
-    PR_DEBUG("enforce:%d, min_dtim:%d, defmin_dtim:%d, dtim:%d", enforce, min_dtim, defmin_dtim, lp_info_current.dtim);
+    PR_TRACE("enforce:%d, min_dtim:%d, defmin_dtim:%d, dtim:%d", enforce, min_dtim, defmin_dtim, lp_info_current.dtim);
     if (!enforce && min_dtim != lp_info_current.dtim) {
         if (min_dtim != 0) {
             lpmgr_set_wifi_lp(false);
             tal_wifi_set_lps_dtim(min_dtim);
             lpmgr_set_wifi_lp(true);
-            PR_TRACE("ULP: WiFi DTIM changed %d -> %d", lp_info_current.dtim, min_dtim);
+            PR_NOTICE("ULP: WiFi DTIM changed %d -> %d", lp_info_current.dtim, min_dtim);
         } else {
             lpmgr_set_wifi_lp(false);
             PR_TRACE("ULP: WiFi LP disabled (dtim=0)");
@@ -306,7 +306,7 @@ retry:
         goto retry;
     }
 
-    PR_DEBUG("lpmgr_set_wifi_dtim end");
+    PR_TRACE("lpmgr_set_wifi_dtim end");
 
     return ret;
 }
@@ -371,7 +371,7 @@ int lpmgr_unregister(TY_LP_TYPE type)
         goto exit;
     }
 
-    PR_DEBUG("cnt = %d", lp_info_p->cnt);
+    PR_TRACE("cnt = %d", lp_info_p->cnt);
 
     if (lp_info_p->cnt > 0) {
         lp_info_p->cnt--;
@@ -389,7 +389,7 @@ int lpmgr_unregister(TY_LP_TYPE type)
 exit:
     tal_mutex_unlock(lp_mutex);
 
-    PR_DEBUG("lpmgr_unregister end");
+    PR_TRACE("lpmgr_unregister end");
 
     return ret;
 }
@@ -438,7 +438,7 @@ int lpmgr_register(TY_LP_TYPE type)
                 lp_info_p->cnt = 0;
             }
             lp_info_p->cnt++;
-            PR_DEBUG("register cnt: %d", lp_info_p->cnt > lp_info_p->max_cnt ? lp_info_p->max_cnt : lp_info_p->cnt);
+            PR_TRACE("register cnt: %d", lp_info_p->cnt > lp_info_p->max_cnt ? lp_info_p->max_cnt : lp_info_p->cnt);
             if (lp_info_p->cnt > lp_info_p->max_cnt) {
                 lp_info_p->cnt = lp_info_p->max_cnt;
             }
@@ -460,14 +460,14 @@ int lpmgr_register(TY_LP_TYPE type)
 exit:
     tal_mutex_unlock(lp_mutex);
 
-    PR_DEBUG("lpmgr_register end");
+    PR_TRACE("lpmgr_register end");
 
     return ret;
 }
 
 static void lpmgr_set_lp_info_map(user_set_map_t* lp_set_info_map)
 {
-    PR_DEBUG("lpmgr_set_lp_info_map start\n");
+    PR_TRACE("lpmgr_set_lp_info_map start\n");
     int num = 0;
     int i = 0;
     int j = 0;
@@ -475,7 +475,7 @@ static void lpmgr_set_lp_info_map(user_set_map_t* lp_set_info_map)
     lp_info_t *ptr = g_lp_info_map;
 
     if (lp_set_info_map == NULL) {
-        PR_DEBUG("no user map");
+        PR_TRACE("no user map");
         return;
     }
     tal_mutex_lock(lp_mutex);
@@ -492,12 +492,12 @@ static void lpmgr_set_lp_info_map(user_set_map_t* lp_set_info_map)
             ptr++;
         }
         if (lp_info_p) {
-            PR_DEBUG("Set lp_info_map  type:%d mcu_lp_type:%d dtim:%d timeout_range:%d\n",
+            PR_TRACE("Set lp_info_map  type:%d mcu_lp_type:%d dtim:%d timeout_range:%d\n",
                      lp_info_p->type, lp_info_p->mcu_lp_type, lp_info_p->dtim, lp_info_p->timeout_range / 1000);
         }
     }
     tal_mutex_unlock(lp_mutex);
-    PR_DEBUG("lpmgr_set_lp_info_map end\n");
+    PR_TRACE("lpmgr_set_lp_info_map end\n");
 }
 
 int lpmgr_default_set(unsigned char max_dtim, user_set_map_t* lp_set_info_map)
@@ -513,7 +513,7 @@ int lpmgr_default_set(unsigned char max_dtim, user_set_map_t* lp_set_info_map)
         defmin_dtim = max_dtim;
     }
 
-    PR_DEBUG("max dtim: %d", defmin_dtim);
+    PR_TRACE("max dtim: %d", defmin_dtim);
 
     if (lp_set_info_map != NULL) {
         lpmgr_set_lp_info_map(lp_set_info_map);
@@ -523,7 +523,7 @@ int lpmgr_default_set(unsigned char max_dtim, user_set_map_t* lp_set_info_map)
 
 int lpmgr_updata_map_info(TY_LP_TYPE type, uint32_t sleep_time_s, uint32_t* cpu_sleep_time_s)
 {
-    PR_DEBUG("type:%d, sleep_time_s:%d", type, sleep_time_s);
+    PR_TRACE("type:%d, sleep_time_s:%d", type, sleep_time_s);
     uint32_t sleep_time_ms = 0;
     user_lp_info_t user_lp_info = {type, sleep_time_s * 1000, defmin_dtim, MAX_TIMEOUT};
     user_set_map_t user_set_map = {1, &user_lp_info};
@@ -599,7 +599,7 @@ void lpmgr_show_power_mode(void)
         lp_info_p++;
     }
 
-    PR_DEBUG("%s Show current lp_info:", __func__);
+    PR_TRACE("%s Show current lp_info:", __func__);
     PR_INFO("%s type:%d mcu_lp_type:%d dtim:%d", __func__,
             lp_info_current.type, lp_info_current.mcu_lp_type, lp_info_current.dtim);
     tal_mutex_unlock(lp_mutex);
