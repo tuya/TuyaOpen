@@ -1,0 +1,7 @@
+# Ktuyaconf
+menuconfig ENABLE_IPC_RING_BUFFER
+	bool "ENABLE_IPC_RING_BUFFER: IPC AV ring buffer (push model)"
+	default y
+	depends on ENABLE_TUYA_P2P
+	help
+	  Frame ring used by live/playback P2P send path (align OS svc_ring_buffer).

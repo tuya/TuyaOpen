@@ -10,6 +10,8 @@
 //
 //=====================================================================
 #include "ikcp.h"
+#include "ikcp_pacing.h"
+#include "tuya_mbuf.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -145,12 +147,26 @@ typedef struct IKCPSEG IKCPSEG;
 static void *(*ikcp_malloc_hook)(size_t) = NULL;
 static void (*ikcp_free_hook)(void *) = NULL;
 
+/*
+ * Default allocator: align OS tuya_p2p_lite_ikcp.c
+ *   ikcp_malloc → tuya_p2p_lib_malloc → tkl_system_psram_malloc
+ * when no hook is installed.
+ */
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#include "tal_memory.h"
+#define IKCP_DEFAULT_MALLOC(s) tal_psram_malloc(s)
+#define IKCP_DEFAULT_FREE(p) tal_psram_free(p)
+#else
+#define IKCP_DEFAULT_MALLOC(s) malloc(s)
+#define IKCP_DEFAULT_FREE(p) free(p)
+#endif
+
 // internal malloc
 static void *ikcp_malloc(size_t size)
 {
     if (ikcp_malloc_hook)
         return ikcp_malloc_hook(size);
-    return malloc(size);
+    return IKCP_DEFAULT_MALLOC(size);
 }
 
 // internal free
@@ -159,7 +175,7 @@ static void ikcp_free(void *ptr)
     if (ikcp_free_hook) {
         ikcp_free_hook(ptr);
     } else {
-        free(ptr);
+        IKCP_DEFAULT_FREE(ptr);
     }
 }
 
@@ -173,12 +189,22 @@ void ikcp_allocator(void *(*new_malloc)(size_t), void (*new_free)(void *))
 // allocate a new kcp segment
 static IKCPSEG *ikcp_segment_new(ikcpcb *kcp, int size)
 {
-    return (IKCPSEG *)ikcp_malloc(sizeof(IKCPSEG) + size);
+    IKCPSEG *seg = (IKCPSEG *)ikcp_malloc(sizeof(IKCPSEG) + size);
+    if (seg != NULL) {
+        seg->user1 = NULL;
+        seg->prepend = 0;
+    }
+    return seg;
 }
 
 // delete a segment
 static void ikcp_segment_delete(ikcpcb *kcp, IKCPSEG *seg)
 {
+    (void)kcp;
+    if (seg->user1 != NULL) {
+        tuya_mbuf_free((tuya_mbuf_t *)seg->user1);
+        seg->user1 = NULL;
+    }
     ikcp_free(seg);
 }
 
@@ -294,6 +320,14 @@ ikcpcb *ikcp_create(IUINT32 conv, void *user)
     kcp->dead_link = IKCP_DEADLINK;
     kcp->output = NULL;
     kcp->writelog = NULL;
+    kcp->process_pkt = NULL;
+    kcp->pacing = NULL;
+    kcp->next_send = 0;
+    if (pacing_init(kcp) != 0) {
+        ikcp_free(kcp->buffer);
+        ikcp_free(kcp);
+        return NULL;
+    }
 
     return kcp;
 }
@@ -340,6 +374,7 @@ void ikcp_release(ikcpcb *kcp)
         kcp->ackcount = 0;
         kcp->buffer = NULL;
         kcp->acklist = NULL;
+        pacing_fini(kcp);
         ikcp_free(kcp);
     }
 }
@@ -587,6 +622,46 @@ int ikcp_send(ikcpcb *kcp, const char *buffer, int len)
     return 0;
 }
 
+/**
+ * @brief Send from mbuf; KCP holds mbuf refs until segments are ACKed
+ * @param[in] kcp kcp control block
+ * @param[in] mbuf tuya_mbuf_t* (ownership transferred on success)
+ * @param[in] len payload length from mbuf->data
+ * @return 0 on success, <0 on error (mbuf not consumed)
+ * @note Caller should keep len <= mss (OS dosend already fragments to ~1300).
+ */
+int ikcp_send_mbuf(ikcpcb *kcp, void *mbuf, int len)
+{
+    tuya_mbuf_t *m = (tuya_mbuf_t *)mbuf;
+    IKCPSEG *seg;
+
+    assert(kcp->mss > 0);
+    if (m == NULL || m->data == NULL || len < 0) {
+        return -1;
+    }
+    if (len == 0) {
+        tuya_mbuf_free(m);
+        return 0;
+    }
+    /* OS dosend fragments before KCP; keep one mbuf <-> one segment. */
+    if (len > (int)kcp->mss) {
+        return -2;
+    }
+
+    seg = ikcp_segment_new(kcp, len);
+    if (seg == NULL) {
+        return -2;
+    }
+    memcpy(seg->data, m->data, (size_t)len);
+    seg->len = (IUINT32)len;
+    seg->frg = 0;
+    seg->user1 = m;
+    iqueue_init(&seg->node);
+    iqueue_add_tail(&seg->node, &kcp->snd_queue);
+    kcp->nsnd_que++;
+    return 0;
+}
+
 //---------------------------------------------------------------------
 // parse ack
 //---------------------------------------------------------------------
@@ -761,9 +836,13 @@ void ikcp_parse_data(ikcpcb *kcp, IKCPSEG *newseg, const char *data, int len)
         if (NULL != kcp->process_pkt) {
             int after = kcp->process_pkt(kcp->user, len, data, newseg->data);
             newseg->prepend = 0;
-            if (-1 != after) {
-                newseg->len = after;
+            /* Decrypt/auth failure: drop segment. Keeping ciphertext (old behavior) poisons upper layer. */
+            if (after < 0) {
+                iqueue_del(&newseg->node);
+                ikcp_segment_delete(kcp, newseg);
+                return;
             }
+            newseg->len = after;
         } else {
             newseg->prepend = 0;
             memcpy(newseg->data, data, len);
@@ -930,6 +1009,9 @@ int ikcp_input(ikcpcb *kcp, const char *data, long size)
     }
 
     if (_itimediff(kcp->snd_una, prev_una) > 0) {
+#if IKCP_PACING_RATE_LIMIT
+        pacing_update(kcp);
+#endif
         if (kcp->cwnd < kcp->rmt_wnd) {
             IUINT32 mss = kcp->mss;
             if (kcp->cwnd < kcp->ssthresh) {
@@ -1109,13 +1191,44 @@ void ikcp_flush(ikcpcb *kcp)
     for (p = kcp->snd_buf.next; p != &kcp->snd_buf; p = p->next) {
         IKCPSEG *segment = iqueue_entry(p, IKCPSEG, node);
         int needsend = 0;
+        int is_timeout = 0;
+        int is_fastack = 0;
+        int need;
+#if IKCP_PACING_RATE_LIMIT
+        int paced_size;
+#endif
+
         if (segment->xmit == 0) {
             needsend = 1;
+        } else if (_itimediff(current, segment->resendts) >= 0) {
+            needsend = 1;
+            is_timeout = 1;
+        } else if (segment->fastack >= resent) {
+            if ((int)segment->xmit <= kcp->fastlimit || kcp->fastlimit <= 0) {
+                needsend = 1;
+                is_fastack = 1;
+            }
+        }
+
+        if (!needsend) {
+            continue;
+        }
+
+        size = (int)(ptr - buffer);
+        need = IKCP_OVERHEAD + segment->len;
+#if IKCP_PACING_RATE_LIMIT
+        paced_size = (size > 0) ? (size + need) : need;
+        /* OS mid_p2p pacing: stop dumping data into UDP when rate budget empty */
+        if (!pacing_try_send(kcp, (IUINT32)paced_size)) {
+            break;
+        }
+#endif
+
+        if (segment->xmit == 0) {
             segment->xmit++;
             segment->rto = kcp->rx_rto;
             segment->resendts = current + segment->rto + rtomin;
-        } else if (_itimediff(current, segment->resendts) >= 0) {
-            needsend = 1;
+        } else if (is_timeout) {
             segment->xmit++;
             kcp->xmit++;
             if (kcp->nodelay == 0) {
@@ -1126,40 +1239,31 @@ void ikcp_flush(ikcpcb *kcp)
             }
             segment->resendts = current + segment->rto;
             lost = 1;
-        } else if (segment->fastack >= resent) {
-            if ((int)segment->xmit <= kcp->fastlimit || kcp->fastlimit <= 0) {
-                needsend = 1;
-                segment->xmit++;
-                segment->fastack = 0;
-                segment->resendts = current + segment->rto;
-                change++;
-            }
+        } else if (is_fastack) {
+            segment->xmit++;
+            segment->fastack = 0;
+            segment->resendts = current + segment->rto;
+            change++;
         }
 
-        if (needsend) {
-            int need;
-            segment->ts = current;
-            segment->wnd = seg.wnd;
-            segment->una = kcp->rcv_nxt;
+        segment->ts = current;
+        segment->wnd = seg.wnd;
+        segment->una = kcp->rcv_nxt;
 
-            size = (int)(ptr - buffer);
-            need = IKCP_OVERHEAD + segment->len;
+        if (size + need > (int)kcp->mtu) {
+            ikcp_output(kcp, buffer, size);
+            ptr = buffer;
+        }
 
-            if (size + need > (int)kcp->mtu) {
-                ikcp_output(kcp, buffer, size);
-                ptr = buffer;
-            }
+        ptr = ikcp_encode_seg(ptr, segment);
 
-            ptr = ikcp_encode_seg(ptr, segment);
+        if (segment->len > 0) {
+            memcpy(ptr, segment->data, segment->len);
+            ptr += segment->len;
+        }
 
-            if (segment->len > 0) {
-                memcpy(ptr, segment->data, segment->len);
-                ptr += segment->len;
-            }
-
-            if (segment->xmit >= kcp->dead_link) {
-                kcp->state = (IUINT32)-1;
-            }
+        if (segment->xmit >= kcp->dead_link) {
+            kcp->state = (IUINT32)-1;
         }
     }
 

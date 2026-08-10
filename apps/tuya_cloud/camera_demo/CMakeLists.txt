@@ -22,9 +22,13 @@ add_library(${EXAMPLE_LIB})
 target_sources(${EXAMPLE_LIB}
     PRIVATE
         ${APP_SRCS}
+        ${CMAKE_CURRENT_LIST_DIR}/../../../src/audio_player/src/resample/resample_fixed.c
     )
 
 target_include_directories(${EXAMPLE_LIB}
     PRIVATE
         ${APP_INC}
+        ${CMAKE_CURRENT_LIST_DIR}/../../../src/audio_player/src/resample
+        ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_LIST_DIR}/../../../platform/T5AI/tuyaos/tuyaos_adapter/include/vad
     )

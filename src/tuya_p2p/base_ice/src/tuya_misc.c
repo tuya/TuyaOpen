@@ -1,3 +1,10 @@
+/**
+ * @file tuya_misc.c
+ * @brief Misc helpers for P2P (time, TLS cert helpers)
+ */
+#if defined(__linux__) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "tuya_misc.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -5,7 +12,12 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
+#include <time.h>
+#if defined(__linux__)
 #include <sys/time.h>
+#else
+#include "tal_system.h"
+#endif
 #include "mbedtls/pk.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -22,9 +34,14 @@
 uint64_t tuya_uv_hrtime2(void)
 {
 #define NANOSEC ((uint64_t)1e9)
+#if defined(__linux__)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (((uint64_t)ts.tv_sec) * NANOSEC + ts.tv_nsec);
+#else
+    /* MCU: use TAL tick (ms) — avoid glibc-only CLOCK_* / clock_gettime decls */
+    return (uint64_t)tal_system_get_millisecond() * 1000000ULL;
+#endif
 }
 
 uint64_t tuya_p2p_misc_get_current_time_ms()

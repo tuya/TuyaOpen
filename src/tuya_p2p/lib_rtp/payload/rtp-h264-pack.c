@@ -118,13 +118,19 @@ static int rtp_h264_pack_fu_a(struct rtp_encode_h264_t *packer, const uint8_t *n
     r = 0;
     nalu += 1; // skip NAL Unit Type byte
     bytes -= 1;
-    assert(bytes > 0);
+    if (bytes <= 0) {
+        return -1;
+    }
 
     // FU-A start
     for (fu_header |= FU_START; 0 == r && bytes > 0; ++packer->pkt.rtp.seq) {
         if (bytes + RTP_FIXED_HEADER <= packer->size - N_FU_HEADER) {
-            assert(0 == (fu_header & FU_START));
-            fu_header = FU_END | (fu_header & 0x1F); // FU-A end
+            /* Last fragment of a multi-fragment NALU: END only. START was set on
+               the first fragment (loop init) and cleared by (fu_header &= 0x1F)
+               below; a single-NALU case never reaches fu_a (handled by _pack_nalu).
+               Matches TuyaOS tuya_p2p_h264_packetize_nal_fua:
+               FU_header = (first?0x80:0) | (last?0x40:0) | nal_type. */
+            fu_header = FU_END | (fu_header & 0x1F);
             packer->pkt.payloadlen = bytes;
         } else {
             packer->pkt.payloadlen = packer->size - RTP_FIXED_HEADER - N_FU_HEADER;

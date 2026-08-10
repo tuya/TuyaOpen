@@ -269,6 +269,7 @@ struct IKCPSEG {
     IUINT32 fastack;
     IUINT32 xmit;
     IUINT32 prepend;
+    void *user1; /* tuya_mbuf_t* owned until ACK (TuyaOS mid_p2p) */
     char data[1];
 };
 
@@ -303,6 +304,9 @@ struct IKCPCB {
     int (*output)(const char *buf, int len, struct IKCPCB *kcp, void *user);
     void (*writelog)(const char *log, struct IKCPCB *kcp, void *user);
     int (*process_pkt)(void *user, int length, const char *input, char *output);
+    /* TuyaOS mid_p2p pacing (bytes/ms rate limiter) */
+    void *pacing;
+    IUINT32 next_send;
 };
 
 typedef struct IKCPCB ikcpcb;
@@ -345,6 +349,15 @@ int ikcp_recv2(ikcpcb *kcp, char *buffer, int len);
 
 // user/upper level send, returns below zero for error
 int ikcp_send(ikcpcb *kcp, const char *buffer, int len);
+
+/**
+ * @brief Send from mbuf; KCP holds mbuf refs until segments are ACKed
+ * @param[in] kcp kcp control block
+ * @param[in] mbuf tuya_mbuf_t* (ownership transferred on success)
+ * @param[in] len payload length from mbuf->data
+ * @return 0 on success, <0 on error (mbuf not consumed)
+ */
+int ikcp_send_mbuf(ikcpcb *kcp, void *mbuf, int len);
 
 // update state (call it repeatedly, every 10ms-100ms), or you can ask
 // ikcp_check when to call it again (without ikcp_input/_send calling).

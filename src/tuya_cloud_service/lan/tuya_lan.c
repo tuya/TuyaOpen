@@ -886,6 +886,33 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
         cJSON_Delete(root);
         break;
     } break;
+
+    default: {
+        int i;
+        uint8_t *ext_out = NULL;
+        lan_cmd_handler_cb handler = NULL;
+
+        for (i = 0; i < LAN_CMD_EXT_COUNT; i++) {
+            if ((s_lan_cfg.cmd_ext[i].handler != NULL) && (s_lan_cfg.cmd_ext[i].frame_type == frame->type)) {
+                handler = s_lan_cfg.cmd_ext[i].handler;
+                break;
+            }
+        }
+        if (handler == NULL) {
+            PR_ERR("unsupport frame type:%d", frame->type);
+            break;
+        }
+        op_ret = handler(out, &ext_out);
+        if (ext_out != NULL) {
+            lan_send(session, frame->sequence, frame->type, (op_ret == OPRT_OK) ? 0 : 1, ext_out, strlen((char *)ext_out),
+                     true);
+            tal_free(ext_out);
+        } else if (op_ret == OPRT_OK) {
+            /* Align OS: success with empty body still ACKs the session */
+            lan_send(session, frame->sequence, frame->type, 0, NULL, 0, true);
+        }
+        break;
+    }
     }
 }
 

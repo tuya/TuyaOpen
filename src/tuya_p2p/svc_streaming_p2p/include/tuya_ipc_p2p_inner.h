@@ -247,6 +247,8 @@ typedef enum {
     TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY_GW, // 19, Set clarity
     TY_C2C_CMD_QUERY_FIXED_ABILITY_GW,   // 20, Query device capability set, sub-type see
                                          // TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
+    /* 21: App JSON capability_exchange_req (opus_encode/opus_decode). Not in older OS enum; new App protocol. */
+    TY_C2C_CMD_CAPABILITY_EXCHANGE = 21,
 
     TY_C2C_CMD_CHAN_SWITCH = 51,               // 51 Single-channel multi-channel device channel setting
     TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 = 100,    // 100 Playback speed control extension

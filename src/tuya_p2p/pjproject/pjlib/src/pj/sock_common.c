@@ -27,6 +27,10 @@
 #include <pj/string.h>
 #include <pj/compat/socket.h>
 
+#if defined(PJ_TUYAOS) && PJ_TUYAOS != 0
+#include "tal_local_ip.h"
+#endif
+
 #if 0
     /* Enable some tracing */
 #include <pj/log.h>
@@ -1006,6 +1010,18 @@ pj_getipinterface(int af, const pj_str_t *dst, pj_sockaddr *itf_addr, pj_bool_t 
 PJ_DEF(pj_status_t) pj_getdefaultipinterface(int af, pj_sockaddr *addr)
 {
     pj_str_t cp;
+
+#if defined(PJ_TUYAOS) && PJ_TUYAOS != 0
+    /* Prefer TAL WiFi STA IP; connect()+getsockname often yields 127.0.0.1 on lwIP */
+    if (af == PJ_AF_INET) {
+        unsigned int nbo;
+        if (tal_compat_get_sta_ipv4_nbo(&nbo) == 0) {
+            pj_sockaddr_init(PJ_AF_INET, addr, NULL, 0);
+            addr->ipv4.sin_addr.s_addr = nbo;
+            return PJ_SUCCESS;
+        }
+    }
+#endif
 
     if (af == PJ_AF_INET) {
         cp = pj_str("1.1.1.1");

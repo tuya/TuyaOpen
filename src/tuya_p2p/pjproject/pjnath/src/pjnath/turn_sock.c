@@ -403,6 +403,9 @@ static void show_err(pj_turn_sock *turn_sock, const char *title, pj_status_t sta
 /* On error, terminate session */
 static void sess_fail(pj_turn_sock *turn_sock, const char *title, pj_status_t status)
 {
+    char errmsg[PJ_ERR_MSG_SIZE];
+
+    pj_strerror(status, errmsg, sizeof(errmsg));
     show_err(turn_sock, title, status);
     if (turn_sock->sess) {
         pj_turn_session_destroy(turn_sock->sess, status);
@@ -671,6 +674,10 @@ static pj_bool_t on_connect_complete(pj_turn_sock *turn_sock, pj_status_t status
     else
         status = pj_ssl_sock_start_read(turn_sock->ssl_sock, turn_sock->pool, turn_sock->setting.max_pkt_size, 0);
 #endif
+    {
+        char errmsg[PJ_ERR_MSG_SIZE];
+        pj_strerror(status, errmsg, sizeof(errmsg));
+    }
 
     /* Init send_key */
     pj_ioqueue_op_key_init(&turn_sock->send_key, sizeof(turn_sock->send_key));
@@ -679,6 +686,8 @@ static pj_bool_t on_connect_complete(pj_turn_sock *turn_sock, pj_status_t status
     /* Send Allocate request */
     status = pj_turn_session_alloc(turn_sock->sess, &turn_sock->alloc_param);
     if (status != PJ_SUCCESS) {
+        char errmsg[PJ_ERR_MSG_SIZE];
+        pj_strerror(status, errmsg, sizeof(errmsg));
         sess_fail(turn_sock, "Error sending ALLOCATE", status);
         pj_grp_lock_release(turn_sock->grp_lock);
         return PJ_FALSE;
@@ -949,6 +958,8 @@ static pj_status_t send_pkt(pj_turn_session *sess, pj_bool_t internal, const pj_
     }
 
     if (status != PJ_SUCCESS && status != PJ_EPENDING) {
+        char errmsg[PJ_ERR_MSG_SIZE];
+        pj_strerror(status, errmsg, sizeof(errmsg));
         show_err(turn_sock, "socket send()", status);
     }
 

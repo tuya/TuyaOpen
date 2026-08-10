@@ -94,7 +94,6 @@ int rtp_packet_serialize_header(const struct rtp_packet_t *pkt, void *data, int 
     uint8_t *ptr;
 
     if (RTP_VERSION != pkt->rtp.v || 0 != (pkt->extlen % 4)) {
-        assert(0); // RTP version field must equal 2 (p66)
         return -1;
     }
 
@@ -114,8 +113,10 @@ int rtp_packet_serialize_header(const struct rtp_packet_t *pkt, void *data, int 
 
     // pkt header extension
     if (1 == pkt->rtp.x) {
-        // 5.3.1 RTP Header Extension
-        assert(0 == (pkt->extlen % 4));
+        /* 5.3.1 RTP Header Extension */
+        if (0 != (pkt->extlen % 4)) {
+            return -1;
+        }
         nbo_w16(ptr, pkt->extprofile);
         nbo_w16(ptr + 2, pkt->extlen / 4);
         memcpy(ptr + 4, pkt->extension, pkt->extlen);

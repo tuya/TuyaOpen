@@ -1,0 +1,29 @@
+# Ktuyaconf
+menuconfig ENABLE_LOCAL_STORE
+	bool "ENABLE_LOCAL_STORE: Enable local media storage helpers"
+	default n
+	depends on ENABLE_TUYA_P2P
+	help
+	  Path and directory helpers for large media files on the filesystem
+	  (host directory on LINUX, SD/flash via tal_fs elsewhere).
+	  Lives under tuya_p2p; uses tal_fs only.
+
+	if ENABLE_LOCAL_STORE
+		config LOCAL_STORE_ROOT
+			string "LOCAL_STORE_ROOT: storage root directory"
+			default "./media"
+			help
+			  Absolute or relative root for media files.
+			  On LINUX this is typically a host path under the process cwd.
+
+		config LOCAL_STORE_REC_SUBDIR
+			string "LOCAL_STORE_REC_SUBDIR: recording subdir under root"
+			default "rec"
+			help
+			  Recording files are placed under ROOT/REC_SUBDIR/YYYY-MM-DD/.
+
+		config LOCAL_STORE_PATH_MAX
+			int "LOCAL_STORE_PATH_MAX: max path buffer length"
+			default 256
+			range 128 1024
+	endif # ENABLE_LOCAL_STORE

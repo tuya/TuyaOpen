@@ -1,7 +1,6 @@
 #ifndef __TUYA_MISC_H__
 #define __TUYA_MISC_H__
 
-#include <pthread.h>
 #include <stdint.h>
 #include <string.h>
 #define BC_MSG_SIZE_MAX        (200 * 1024)

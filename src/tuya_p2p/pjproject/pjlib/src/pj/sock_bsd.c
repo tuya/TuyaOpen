@@ -25,6 +25,12 @@
 #include <pj/addr_resolv.h>
 #include <pj/errno.h>
 #include <pj/unicode.h>
+#include <pj/log.h>
+#if defined(PJ_TUYAOS) && PJ_TUYAOS != 0
+#include <errno.h>
+#include <stdio.h>
+#include "tal_local_ip.h"
+#endif
 
 #define THIS_FILE "sock_bsd.c"
 
@@ -554,10 +560,29 @@ PJ_DEF(pj_status_t) pj_sock_bind(pj_sock_t sock, const pj_sockaddr_t *addr, int 
 
     CHECK_ADDR_LEN(addr, len);
 
+#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
+    {
+        pj_sockaddr bind_addr;
+        int rc;
+
+        PJ_ASSERT_RETURN(len <= (int)sizeof(bind_addr), PJ_EINVAL);
+        pj_memcpy(&bind_addr, addr, len);
+        /* lwIP/BSD require sa_len; pj inits often leave it 0 via RESET_LEN */
+        PJ_SOCKADDR_SET_LEN(&bind_addr, len);
+
+        rc = bind(sock, (struct sockaddr *)&bind_addr, len);
+        if (rc != 0) {
+            PJ_LOG(1, ("sock_bsd", "bind fail errno=%d", errno));
+            return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        }
+        return PJ_SUCCESS;
+    }
+#else
     if (bind(sock, (struct sockaddr *)addr, len) != 0)
         return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
     else
         return PJ_SUCCESS;
+#endif
 }
 
 /*
@@ -622,6 +647,25 @@ PJ_DEF(pj_status_t) pj_sock_getsockname(pj_sock_t sock, pj_sockaddr_t *addr, int
     if (getsockname(sock, (struct sockaddr *)addr, (socklen_t *)namelen) != 0)
         return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
     else {
+#if defined(PJ_TUYAOS) && PJ_TUYAOS != 0
+        /*
+         * lwIP may report 127.0.0.1 (or leave 0.0.0.0) for sockets bound to
+         * INADDR_ANY. Replace with WiFi STA IPv4 so ICE host/srflx base_addr
+         * is usable. Port from getsockname is preserved.
+         */
+        {
+            pj_sockaddr *a = (pj_sockaddr *)addr;
+            if (a->addr.sa_family == PJ_AF_INET) {
+                pj_uint32_t host = pj_ntohl(a->ipv4.sin_addr.s_addr);
+                if (host == 0 || (host >> 24) == 127) {
+                    unsigned int nbo;
+                    if (tal_compat_get_sta_ipv4_nbo(&nbo) == 0) {
+                        a->ipv4.sin_addr.s_addr = nbo;
+                    }
+                }
+            }
+        }
+#endif
         PJ_SOCKADDR_RESET_LEN(addr);
         return PJ_SUCCESS;
     }
@@ -659,12 +703,62 @@ pj_sock_sendto(pj_sock_t sock, const void *buf, pj_ssize_t *len, unsigned flags,
 
     CHECK_ADDR_LEN(to, tolen);
 
+#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
+    {
+        /*
+         * Rebuild a clean lwIP sockaddr_in. Casting pj_sockaddr can leave
+         * sa_len/family layout mismatches; errno 88 is also ambiguous here
+         * (newlib ENOSYS vs lwIP ENOTSOCK).
+         */
+        struct sockaddr_in sin;
+        const pj_sockaddr *src = (const pj_sockaddr *)to;
+        pj_ssize_t sent;
+        int pkt_len;
+        static unsigned s_sendto_fail_log;
+
+        PJ_ASSERT_RETURN(to && tolen > 0, PJ_EINVAL);
+        PJ_ASSERT_RETURN(src->addr.sa_family == PJ_AF_INET, PJ_EAFNOTSUP);
+        PJ_ASSERT_RETURN(tolen >= (int)sizeof(pj_sockaddr_in), PJ_EINVAL);
+
+        pj_bzero(&sin, sizeof(sin));
+        sin.sin_len = (unsigned char)sizeof(sin);
+        sin.sin_family = AF_INET;
+        sin.sin_port = src->ipv4.sin_port;
+        sin.sin_addr.s_addr = src->ipv4.sin_addr.s_addr;
+
+        pkt_len = (int)(*len);
+        if (pkt_len < 0) {
+            return PJ_EINVAL;
+        }
+
+        /* UDP: do not pass pj/ioqueue flag bits into lwIP. */
+        errno = 0;
+        sent = lwip_sendto((int)sock, buf, (size_t)pkt_len, 0, (const struct sockaddr *)&sin,
+                           (socklen_t)sizeof(sin));
+        if (sent < 0) {
+            int e = errno;
+
+            /* lwIP may return -1 without updating errno on some TLS paths */
+            if (e == 0) {
+                e = ENOBUFS;
+            }
+            s_sendto_fail_log++;
+            if (s_sendto_fail_log <= 8 || (s_sendto_fail_log % 50) == 0) {
+                PJ_LOG(2, ("sock_bsd", "udp sendto fail n=%u errno=%d pkt=%d", s_sendto_fail_log, e, pkt_len));
+            }
+            return PJ_RETURN_OS_ERROR(e);
+        }
+        *len = sent;
+        return PJ_SUCCESS;
+    }
+#else
     *len = sendto(sock, (const char *)buf, (int)(*len), flags, (const struct sockaddr *)to, tolen);
 
     if (*len < 0)
         return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
     else
         return PJ_SUCCESS;
+#endif
 }
 
 /*
@@ -692,6 +786,43 @@ pj_sock_recvfrom(pj_sock_t sock, void *buf, pj_ssize_t *len, unsigned flags, pj_
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(buf && len, PJ_EINVAL);
 
+#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
+    {
+        struct sockaddr_in sin;
+        socklen_t sin_len = (socklen_t)sizeof(sin);
+        pj_ssize_t recvd;
+        int pkt_len;
+
+        pkt_len = (int)(*len);
+        if (pkt_len < 0) {
+            return PJ_EINVAL;
+        }
+
+        pj_bzero(&sin, sizeof(sin));
+        errno = 0;
+        /* UDP: ignore pj/ioqueue flag bits; rebuild clean lwIP sockaddr. */
+        recvd = lwip_recvfrom((int)sock, buf, (size_t)pkt_len, 0, (struct sockaddr *)&sin, &sin_len);
+        if (recvd < 0) {
+            int e = errno;
+            if (e == 0) {
+                e = EAGAIN;
+            }
+            /* EAGAIN is normal for non-blocking UDP; do not log */
+            return PJ_RETURN_OS_ERROR(e);
+        }
+        *len = recvd;
+        if (from && fromlen) {
+            pj_sockaddr *dst = (pj_sockaddr *)from;
+            pj_bzero(dst, sizeof(pj_sockaddr_in));
+            dst->addr.sa_family = PJ_AF_INET;
+            dst->ipv4.sin_port = sin.sin_port;
+            dst->ipv4.sin_addr.s_addr = sin.sin_addr.s_addr;
+            PJ_SOCKADDR_RESET_LEN(dst);
+            *fromlen = (int)sizeof(pj_sockaddr_in);
+        }
+        return PJ_SUCCESS;
+    }
+#else
     *len = recvfrom(sock, (char *)buf, (int)(*len), flags, (struct sockaddr *)from, (socklen_t *)fromlen);
 
     if (*len < 0)
@@ -702,6 +833,7 @@ pj_sock_recvfrom(pj_sock_t sock, void *buf, pj_ssize_t *len, unsigned flags, pj_
         }
         return PJ_SUCCESS;
     }
+#endif
 }
 
 /*
@@ -771,10 +903,23 @@ PJ_DEF(pj_status_t) pj_sock_setsockopt_params(pj_sock_t sockfd, const pj_sockopt
 PJ_DEF(pj_status_t) pj_sock_connect(pj_sock_t sock, const pj_sockaddr_t *addr, int namelen)
 {
     PJ_CHECK_STACK();
+#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
+    {
+        pj_sockaddr dst;
+
+        PJ_ASSERT_RETURN(addr && namelen > 0 && namelen <= (int)sizeof(dst), PJ_EINVAL);
+        pj_memcpy(&dst, addr, (unsigned)namelen);
+        PJ_SOCKADDR_SET_LEN(&dst, namelen);
+        if (connect(sock, (struct sockaddr *)&dst, namelen) != 0)
+            return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        return PJ_SUCCESS;
+    }
+#else
     if (connect(sock, (struct sockaddr *)addr, namelen) != 0)
         return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
     else
         return PJ_SUCCESS;
+#endif
 }
 
 /*

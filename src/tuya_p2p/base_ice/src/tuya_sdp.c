@@ -2,6 +2,7 @@
 #include "tuya_misc.h"
 #include "tuya_log.h"
 #include <string.h>
+#include <time.h>
 
 #define SDP_TEMPLATE_PART_SESSION_HEADER                                                                               \
     "v=0\r\n"                                                                                                          \
@@ -687,6 +688,10 @@ int tuya_p2p_rtc_sdp_set_aes_key(rtc_sdp_t *sdp, unsigned char *aes_key, uint32_
 int tuya_p2p_rtc_sdp_get_aes_key(rtc_sdp_t *sdp, unsigned char *aes_key, uint32_t len)
 {
     if (len * 2 >= sizeof(sdp->aes_key)) {
+        return -1;
+    }
+    if (strlen((char *)sdp->aes_key) < (len * 2)) {
+        tuya_p2p_log_error("p2p aes key parse fail");
         return -1;
     }
     uint32_t i;

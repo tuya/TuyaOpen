@@ -113,9 +113,16 @@
 #define PJ_WIN32 1
 #include <pj/compat/os_win32.h>
 
+#elif defined(PJ_TUYAOS) && PJ_TUYAOS != 0
+/*
+ * TuyaOpen unified profile (TAL/TKL on LINUX host and MCU/lwIP).
+ * Must be selected before the generic __linux__ branch so PJ_TUYAOS=1 wins.
+ */
+#include <pj/compat/os_tuyaos.h>
+
 #elif defined(PJ_LINUX) || defined(linux) || defined(__linux)
 /*
- * Linux
+ * Linux (legacy / non-TuyaOpen)
  */
 #undef PJ_LINUX
 #define PJ_LINUX 1
@@ -263,6 +270,8 @@
 #undef PJ_M_ARM64
 #define PJ_M_ARM64 1
 #define PJ_M_NAME  "arm64"
+#else
+#define PJ_M_NAME "arm"
 #endif
 
 #elif defined(PJ_M_POWERPC) || defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__) ||                   \

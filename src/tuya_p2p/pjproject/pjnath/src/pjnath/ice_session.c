@@ -27,6 +27,7 @@
 #include <pj/pool.h>
 #include <pj/rand.h>
 #include <pj/string.h>
+#include <stdio.h>
 
 /* String names for candidate types */
 static const char *cand_type_names[] = {"host", "srflx", "prflx", "relay"
@@ -2052,6 +2053,8 @@ static pj_status_t start_periodic_check(pj_timer_heap_t *th, pj_timer_entry *te)
         if (check->state == PJ_ICE_SESS_CHECK_STATE_WAITING) {
             status = perform_check(ice, clist, i, ice->is_nominating);
             if (status != PJ_SUCCESS) {
+                char errmsg[PJ_ERR_MSG_SIZE];
+                pj_strerror(status, errmsg, sizeof(errmsg));
                 check_set_state(ice, check, PJ_ICE_SESS_CHECK_STATE_FAILED, status);
                 on_check_complete(ice, check);
             }
@@ -2071,6 +2074,8 @@ static pj_status_t start_periodic_check(pj_timer_heap_t *th, pj_timer_entry *te)
             if (check->state == PJ_ICE_SESS_CHECK_STATE_FROZEN) {
                 status = perform_check(ice, clist, i, ice->is_nominating);
                 if (status != PJ_SUCCESS) {
+                    char errmsg[PJ_ERR_MSG_SIZE];
+                    pj_strerror(status, errmsg, sizeof(errmsg));
                     check_set_state(ice, check, PJ_ICE_SESS_CHECK_STATE_FAILED, status);
                     on_check_complete(ice, check);
                 }
@@ -2078,6 +2083,36 @@ static pj_status_t start_periodic_check(pj_timer_heap_t *th, pj_timer_entry *te)
                 ++start_count;
                 break;
             }
+        }
+    }
+
+    {
+        static unsigned s_periodic_log;
+        unsigned wait_n = 0, frozen_n = 0, prog_n = 0, ok_n = 0, fail_n = 0;
+
+        s_periodic_log++;
+        for (i = 0; i < clist->count; ++i) {
+            switch (clist->checks[i].state) {
+            case PJ_ICE_SESS_CHECK_STATE_WAITING:
+                wait_n++;
+                break;
+            case PJ_ICE_SESS_CHECK_STATE_FROZEN:
+                frozen_n++;
+                break;
+            case PJ_ICE_SESS_CHECK_STATE_IN_PROGRESS:
+                prog_n++;
+                break;
+            case PJ_ICE_SESS_CHECK_STATE_SUCCEEDED:
+                ok_n++;
+                break;
+            case PJ_ICE_SESS_CHECK_STATE_FAILED:
+                fail_n++;
+                break;
+            default:
+                break;
+            }
+        }
+        if (s_periodic_log <= 8 || (s_periodic_log % 50) == 0 || start_count == 0) {
         }
     }
 
@@ -2254,8 +2289,11 @@ PJ_DEF(pj_status_t) pj_ice_sess_start_check(pj_ice_sess *ice)
      */
     if (!pj_timer_entry_running(&clist->timer)) {
         pj_time_val delay = {0, 0};
+        char errmsg[PJ_ERR_MSG_SIZE];
         status =
             pj_timer_heap_schedule_w_grp_lock(ice->stun_cfg.timer_heap, &clist->timer, &delay, PJ_TRUE, ice->grp_lock);
+        pj_strerror(status, errmsg, sizeof(errmsg));
+    } else {
     }
 
     /* For trickle ICE, start timer for end-of-candidates indication from
@@ -2516,7 +2554,6 @@ static void on_stun_request_complete(pj_stun_session *stun_sess, pj_status_t sta
                      dump_check(ice->tmp.txt, sizeof(ice->tmp.txt),
                                 &ice->clist, check),
                      (check->nominated ? " (nominated)" : " (not nominated)")));
-
 
                 /* Local candidate does not belong to this check! Set current
                  * check state to Failed.

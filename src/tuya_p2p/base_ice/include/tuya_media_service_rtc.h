@@ -422,6 +422,14 @@ void tuya_p2p_rtc_notify_exit();
 // return value: undefined
 int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t *write_size, uint32_t *read_size,
                                   uint32_t *send_free_size);
+/**
+ * @brief Drop pending KCP send segments on a channel and recreate KCP (free mbuf budget)
+ * @param[in] handle session handle (unused; uses current g_pRtcSession)
+ * @param[in] channel_id media channel id (e.g. TUYA_VDATA_CHANNEL)
+ * @return 0 on success, negative on error
+ * @note Call on LIVE stop / PLAYBACK start so App-unread LIVE backlog does not block PB.
+ */
+int32_t tuya_p2p_rtc_clear_send_buffer(int32_t handle, uint32_t channel_id);
 // Notify p2p sdk that a device just came online
 // Mainly used for low-power devices
 int32_t tuya_p2p_rtc_set_remote_online(char *remote_id);

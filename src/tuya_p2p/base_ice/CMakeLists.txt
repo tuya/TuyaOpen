@@ -40,6 +40,8 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
+target_compile_definitions(${MODULE_NAME} PRIVATE NDEBUG)
+
 
 ########################################
 # Layer Configure

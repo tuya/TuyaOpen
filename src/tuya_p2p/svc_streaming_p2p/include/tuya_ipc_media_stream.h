@@ -104,6 +104,13 @@ OPERATE_RET tuya_ipc_media_playback_send_fragment_end(IN CONST UINT_T client, IN
 OPERATE_RET tuya_ipc_media_playback_send_finish(IN CONST UINT_T client);
 
 /**
+ * @brief Clear P2P AV send buffers (VDATA/ADATA) for current session
+ * @return none
+ * @note Call on real PB (re)start; skip when App re-sends same-seg START without mid seek
+ */
+VOID_T tuya_ipc_media_p2p_clear_send(VOID_T);
+
+/**
  * @brief put log to tuya cloud service.
  *
  * @param level

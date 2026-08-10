@@ -1,56 +1,81 @@
+/**
+ * @file pj_sync_condition.c
+ * @brief Condition-style sync via TAL (replaces pthread_cond)
+ */
 #include "pj_sync_condition.h"
+#include "tuya_cloud_types.h"
+#include <string.h>
 
+/**
+ * @brief Initialize sync condition
+ */
 int sync_cond_init(sync_cond_t *pSyncCond)
 {
-    if (pthread_mutex_init(&pSyncCond->mutex, NULL) != 0) {
-        perror("mutex init failed");
+    if (pSyncCond == NULL) {
         return -1;
     }
-
-    if (pthread_cond_init(&pSyncCond->cond, NULL) != 0) {
-        perror("cond init failed");
-        pthread_mutex_destroy(&pSyncCond->mutex);
+    memset(pSyncCond, 0, sizeof(*pSyncCond));
+    if (tal_mutex_create_init(&pSyncCond->mutex) != OPRT_OK) {
         return -1;
     }
-
-    pSyncCond->condition_met = 0;
+    if (tal_semaphore_create_init(&pSyncCond->sem, 0, 64) != OPRT_OK) {
+        tal_mutex_release(pSyncCond->mutex);
+        pSyncCond->mutex = NULL;
+        return -1;
+    }
     return 0;
 }
 
+/**
+ * @brief Signal waiters that condition is met
+ */
 void sync_cond_notify(sync_cond_t *pSyncCond)
 {
-    pthread_mutex_lock(&pSyncCond->mutex);
-
-    // Set condition to true
+    if (pSyncCond == NULL) {
+        return;
+    }
+    tal_mutex_lock(pSyncCond->mutex);
     pSyncCond->condition_met = 1;
-
-    // Notify waiting threads (you can choose one of the following methods)
-    pthread_cond_signal(&pSyncCond->cond); // Wake up at least one waiting thread
-    // pthread_cond_broadcast(&pSyncCond->cond); // Wake up all waiting threads
-
-    pthread_mutex_unlock(&pSyncCond->mutex);
+    tal_semaphore_post(pSyncCond->sem);
+    tal_mutex_unlock(pSyncCond->mutex);
 }
 
-// Wait condition function
+/**
+ * @brief Wait until condition_met (auto-reset)
+ */
 void sync_cond_wait(sync_cond_t *pSyncCond)
 {
-    pthread_mutex_lock(&pSyncCond->mutex);
-
-    while (pSyncCond->condition_met == 0) {
-        // Wait for condition variable, will automatically release mutex and reacquire on return
-        pthread_cond_wait(&pSyncCond->cond, &pSyncCond->mutex);
+    if (pSyncCond == NULL) {
+        return;
     }
-
-    // Reset condition flag (if needed)
+    tal_mutex_lock(pSyncCond->mutex);
+    while (pSyncCond->condition_met == 0) {
+        pSyncCond->waiters++;
+        tal_mutex_unlock(pSyncCond->mutex);
+        tal_semaphore_wait(pSyncCond->sem, SEM_WAIT_FOREVER);
+        tal_mutex_lock(pSyncCond->mutex);
+        if (pSyncCond->waiters > 0) {
+            pSyncCond->waiters--;
+        }
+    }
     pSyncCond->condition_met = 0;
-
-    pthread_mutex_unlock(&pSyncCond->mutex);
+    tal_mutex_unlock(pSyncCond->mutex);
 }
 
-// Cleanup function
+/**
+ * @brief Destroy sync condition
+ */
 void sync_cond_clean(sync_cond_t *pSyncCond)
 {
-    pthread_mutex_destroy(&pSyncCond->mutex);
-    pthread_cond_destroy(&pSyncCond->cond);
-    return;
+    if (pSyncCond == NULL) {
+        return;
+    }
+    if (pSyncCond->sem) {
+        tal_semaphore_release(pSyncCond->sem);
+        pSyncCond->sem = NULL;
+    }
+    if (pSyncCond->mutex) {
+        tal_mutex_release(pSyncCond->mutex);
+        pSyncCond->mutex = NULL;
+    }
 }

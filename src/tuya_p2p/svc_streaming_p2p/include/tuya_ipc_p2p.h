@@ -41,6 +41,7 @@ typedef struct tagMediaFrame {
 
 typedef INT_T (*tuya_p2p_rtc_disconnect_cb_t)();
 typedef INT_T (*tuya_p2p_rtc_get_frame_cb_t)(MEDIA_FRAME *pMediaFrame);
+typedef INT_T (*tuya_p2p_rtc_live_video_cb_t)(VOID);
 
 /**
  * @enum TRANS_DEFAULT_QUALITY_E
@@ -64,6 +65,13 @@ typedef struct {
     tuya_p2p_rtc_disconnect_cb_t on_disconnect_callback;
     tuya_p2p_rtc_get_frame_cb_t on_get_video_frame_callback;
     tuya_p2p_rtc_get_frame_cb_t on_get_audio_frame_callback;
+    /* Align TuyaOS MEDIA_STREAM_LIVE_VIDEO_START/STOP: app starts/stops H264 feed */
+    tuya_p2p_rtc_live_video_cb_t on_live_video_start_callback;
+    tuya_p2p_rtc_live_video_cb_t on_live_video_stop_callback;
+    /* Align TuyaOS MEDIA_STREAM_SPEAKER_START/STOP + on_recv_audio: downlink intercom */
+    tuya_p2p_rtc_live_video_cb_t on_live_audio_start_callback;
+    tuya_p2p_rtc_live_video_cb_t on_live_audio_stop_callback;
+    tuya_p2p_rtc_get_frame_cb_t  on_recv_audio_frame_callback;
 } TUYA_IPC_P2P_VAR_T;
 
 //////////////////////////////external interface////////////////////////////////////////////
@@ -72,7 +80,7 @@ OPERATE_RET p2p_rtc_listen_start();
 OPERATE_RET p2p_rtc_listen_stop();
 /////////////////////////////////////////////////////////////////////////////////
 
-// OPERATE_RET tuya_ipc_init_trans_av_info(TRANS_IPC_AV_INFO_T *av_info);
+OPERATE_RET tuya_ipc_init_trans_av_info(TRANS_IPC_AV_INFO_T *av_info);
 OPERATE_RET tuya_p2p_rtc_register_get_video_frame_cb(tuya_p2p_rtc_get_frame_cb_t pCallback);
 OPERATE_RET tuya_p2p_rtc_register_get_audio_frame_cb(tuya_p2p_rtc_get_frame_cb_t pCallback);
 INT_T OnGetVideoFrameCallback(MEDIA_FRAME *pMediaFrame);

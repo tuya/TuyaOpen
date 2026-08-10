@@ -37,4 +37,41 @@ bool pj_ice_session_add_remote_candidate(pj_ice_session_t *pIceSession, pj_str_t
 bool pj_ice_session_sendto(pj_ice_session_t *pIceSession, void *pkt, uint32_t len);
 bool pj_ice_session_handle_events(pj_ice_session_t *pIceSession, unsigned max_msec, unsigned *p_count);
 
+/**
+ * @brief Dump ICE transport state / candidate counts for debug
+ * @param[in] pIceSession ICE session
+ * @param[in] tag log tag
+ * @return none
+ */
+void pj_ice_session_dbg_dump(pj_ice_session_t *pIceSession, const char *tag);
+
+/**
+ * @brief Mark local candidate gathering complete and try start_ice
+ * @param[in] pIceSession ICE session
+ * @return true if start_ice ran successfully or already running / waiting remote
+ */
+bool pj_ice_session_on_local_gather_done(pj_ice_session_t *pIceSession);
+
+/**
+ * @brief Try start_ice when local gather done and remote ufrag ready
+ * @param[in] pIceSession ICE session
+ * @param[in] tag log tag
+ * @return true on success or deferred / already running
+ */
+bool pj_ice_session_try_start_ice(pj_ice_session_t *pIceSession, const char *tag);
+
+/**
+ * @brief Whether ICE negotiation finished (success or failed terminal)
+ * @param[in] pIceSession ICE session
+ * @return true if RUNNING or FAILED or complete flag set
+ */
+bool pj_ice_session_is_nego_done(pj_ice_session_t *pIceSession);
+
+/**
+ * @brief Whether ICE negotiation succeeded (media path ready)
+ * @param[in] pIceSession ICE session
+ * @return true only when transport is RUNNING
+ */
+bool pj_ice_session_is_nego_success(pj_ice_session_t *pIceSession);
+
 #endif /* PJ_ICE_H_ */

@@ -1,7 +1,6 @@
 #include "tuya_ipc_skill.h"
 #include <string.h>
 #include <stdio.h>
-#include <pthread.h>
 #include "tal_log.h"
 #include "tal_time_service.h"
 #include "tuya_ipc_media_adapter.h"

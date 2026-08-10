@@ -43,6 +43,9 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
+# Embedded: assert() reboots the device; lib_rtp must fail gracefully
+target_compile_definitions(${MODULE_NAME} PRIVATE NDEBUG)
+
 
 ########################################
 # Layer Configure

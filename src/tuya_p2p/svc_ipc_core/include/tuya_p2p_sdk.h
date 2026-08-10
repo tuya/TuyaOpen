@@ -28,6 +28,12 @@ typedef struct tagTuyaIpcSdkVar {
     INT_T (*OnSignalDisconnectCallback)();
     INT_T (*OnGetVideoFrameCallback)(MEDIA_FRAME *pMediaFrame);
     INT_T (*OnGetAudioFrameCallback)(MEDIA_FRAME *pMediaFrame);
+    INT_T (*OnLiveVideoStartCallback)(VOID);
+    INT_T (*OnLiveVideoStopCallback)(VOID);
+    /* Downlink intercom (APP -> device speaker), align TuyaOS speaker/recv_audio */
+    INT_T (*OnLiveAudioStartCallback)(VOID);
+    INT_T (*OnLiveAudioStopCallback)(VOID);
+    INT_T (*OnRecvAudioFrameCallback)(MEDIA_FRAME *pMediaFrame);
 } TUYA_IPC_SDK_VAR_S;
 
 OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar);
