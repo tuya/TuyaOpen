@@ -14,13 +14,13 @@
 
 #define PRE_TOPIC     "smart/device/in/"
 #define MQ_SERV_TOPIC "smart/device/out/"
-VOID tuya_ipc_upload_skills(VOID);
-OPERATE_RET gw_active_set_ext_param(IN CHAR_T *param);
-CHAR_T *gw_active_get_ext_param(VOID);
-OPERATE_RET httpc_gw_active(IN CONST GW_ACTV_IN_PARM_V41_S *param, OUT cJSON **result);
-OPERATE_RET __p2p_v3_login_init(INT_T preconnect, INT_T max_client, INT_T bitrate);
-VOID tuya_p2p_rtc_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len);
-VOID tuya_p2p_lan_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len);
+void tuya_ipc_upload_skills(void);
+OPERATE_RET gw_active_set_ext_param(char *param);
+char *gw_active_get_ext_param(void);
+OPERATE_RET httpc_gw_active(const GW_ACTV_IN_PARM_V41_S *param, cJSON **result);
+OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate);
+void tuya_p2p_rtc_signaling_cb(char *remote_id, char *signaling, uint32_t len);
+void tuya_p2p_lan_signaling_cb(char *remote_id, char *signaling, uint32_t len);
 static int ipc_lan_cmd_cb(const uint8_t *data, uint8_t **out);
 
 OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
@@ -46,7 +46,7 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     stream_var.max_client_num = 1;
     stream_var.def_live_mode = TRANS_DEFAULT_STANDARD;
     stream_var.recv_buffer_size = 16 * 1024;
-    INT_T preconnect = stream_var.low_power ? 0 : 1;
+    int preconnect = stream_var.low_power ? 0 : 1;
     ret = __p2p_v3_login_init(preconnect, stream_var.max_client_num, /*media_info.av_encode_info.video_bitrate[0]*/ 0);
     if (OPRT_OK != ret) {
         PR_ERR("__p2p_v3_login_init failed\n");
@@ -93,13 +93,13 @@ OPERATE_RET OnIotInited()
     TUYA_IPC_SKILL_PARAM_U skill_param = {.value = 1};
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOWPOWER, &skill_param);
     // Set activation skill parameters
-    CHAR_T *ipc_skills = NULL;
+    char *ipc_skills = NULL;
 #if defined(HARDWARE_INFO_CHECK) && (HARDWARE_INFO_CHECK == 1)
     int len = 4096;
-    ipc_skills = (CHAR_T *)malloc(len);
+    ipc_skills = (char *)malloc(len);
 #else
     int len = 256;
-    ipc_skills = (CHAR_T *)malloc(len);
+    ipc_skills = (char *)malloc(len);
 #endif
     memset(ipc_skills, 0, len);
     if (ipc_skills) {
@@ -125,24 +125,24 @@ OPERATE_RET OnIotInited()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-STATIC CHAR_T *s_ext_param = NULL; // user defined functions
-OPERATE_RET gw_active_set_ext_param(IN CHAR_T *param)
+static char *s_ext_param = NULL; // user defined functions
+OPERATE_RET gw_active_set_ext_param(char *param)
 {
     s_ext_param = param;
     return OPRT_OK;
 }
 
-CHAR_T *gw_active_get_ext_param()
+char *gw_active_get_ext_param()
 {
     return s_ext_param;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-VOID gw_p2p_mqtt_data_cb(IN cJSON *root_json)
+void gw_p2p_mqtt_data_cb(cJSON *root_json)
 {
     int ret = 0;
-    UINT32_T msg_len = 0;
+    uint32_t msg_len = 0;
     if (root_json == NULL) {
         PR_ERR("root_json is null");
         return;
@@ -155,13 +155,13 @@ VOID gw_p2p_mqtt_data_cb(IN cJSON *root_json)
     //     return ;
     // }
 
-    CHAR_T *sendBuff = NULL;
+    char *sendBuff = NULL;
     sendBuff = cJSON_PrintUnformatted(root_json);
     if (NULL == sendBuff) {
         PR_ERR("send buff is NULL");
         return;
     }
-    msg_len = (UINT32_T)strlen(sendBuff);
+    msg_len = (uint32_t)strlen(sendBuff);
 
     // GW_CNTL_S *gw_cntl = get_gw_cntl();
     ret = tuya_p2p_rtc_set_signaling(NULL, sendBuff, msg_len);
@@ -177,7 +177,7 @@ VOID gw_p2p_mqtt_data_cb(IN cJSON *root_json)
     return;
 }
 
-OPERATE_RET __p2p_v3_login_init(INT_T preconnect, INT_T max_client, INT_T bitrate)
+OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
 {
     OPERATE_RET mqttP2pRet = OPRT_OK;
 
@@ -261,7 +261,7 @@ static int ipc_lan_cmd_cb(const uint8_t *data, uint8_t **out)
  * @param[in] len signaling length in bytes
  * @return none
  */
-VOID tuya_p2p_lan_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len)
+void tuya_p2p_lan_signaling_cb(char *remote_id, char *signaling, uint32_t len)
 {
     (void)remote_id;
     if ((signaling == NULL) || (len == 0)) {
@@ -269,16 +269,16 @@ VOID tuya_p2p_lan_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len)
         return;
     }
     PR_DEBUG("lan signaling report len:%u", len);
-    (void)tuya_lan_data_report(FRM_LAN_P2P_SIGNAL, 0, (UINT8_T *)signaling, len);
+    (void)tuya_lan_data_report(FRM_LAN_P2P_SIGNAL, 0, (uint8_t *)signaling, len);
 }
 
-VOID tuya_p2p_rtc_signaling_cb(CHAR_T *remote_id, CHAR_T *signaling, UINT_T len)
+void tuya_p2p_rtc_signaling_cb(char *remote_id, char *signaling, uint32_t len)
 {
     // Send answer signaling
     tuya_iot_client_t *pIotClient = tuya_iot_client_get();
     char *dev_id = pIotClient->activate.devid;
 
-    CHAR_T send_topic[18 + GW_ID_LEN] = {0};
+    char send_topic[18 + GW_ID_LEN] = {0};
     snprintf(send_topic, SIZEOF(send_topic), "%s%s", MQ_SERV_TOPIC, dev_id);
     PR_DEBUG("mqtt send topic:%s", send_topic);
     tuya_mqtt_protocol_data_publish_with_topic(&pIotClient->mqctx, send_topic, PRO_RTC_REQ, (const uint8_t *)signaling,

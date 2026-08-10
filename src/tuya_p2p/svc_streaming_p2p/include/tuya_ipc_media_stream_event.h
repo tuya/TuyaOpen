@@ -145,12 +145,12 @@ typedef enum {
 } TRANSFER_VIDEO_CLARITY_TYPE_E;
 
 /**************************struct define***************************************/
-typedef INT_T (*MEDIA_STREAM_EVENT_CB)(IN CONST INT_T device, IN CONST INT_T channel,
-                                       IN CONST MEDIA_STREAM_EVENT_E event, IN PVOID_T args);
+typedef int (*MEDIA_STREAM_EVENT_CB)(const int device, const int channel,
+                                       const MEDIA_STREAM_EVENT_E event, void *args);
 
 typedef struct {
     TRANSFER_VIDEO_CLARITY_TYPE_E clarity;
-    VOID *pReserved;
+    void *pReserved;
 } C2C_TRANS_LIVE_CLARITY_PARAM_S;
 
 typedef struct tagC2C_TRANS_CTRL_LIVE_VIDEO {
@@ -163,8 +163,8 @@ typedef struct tagC2C_TRANS_CTRL_LIVE_AUDIO {
 } C2C_TRANS_CTRL_AUDIO_START, C2C_TRANS_CTRL_AUDIO_STOP;
 
 typedef struct {
-    UINT_T start_timestamp; /* start timestamp in second of playback */
-    UINT_T end_timestamp;   /* end timestamp in second of playback */
+    uint32_t start_timestamp; /* start timestamp in second of playback */
+    uint32_t end_timestamp;   /* end timestamp in second of playback */
 } PLAYBACK_TIME_S;
 
 typedef struct tagPLAY_BACK_ALARM_FRAGMENT {
@@ -258,7 +258,7 @@ typedef struct tagC2CCmdQueryPlaybackInfoByMonthInner {
 typedef struct tagC2C_TRANS_CTRL_PB_START {
     unsigned int channel;
     PLAYBACK_TIME_S time_sect;
-    UINT_T playTime; /* the actual playback time, in second */
+    uint32_t playTime; /* the actual playback time, in second */
     TRANSFER_SOURCE_TYPE_E type;
     unsigned int reqId; /*  request ID, need by send frame api */
     int allow_encrypt;
@@ -297,19 +297,19 @@ typedef struct tagC2C_TRANS_CTRL_PB_SET_SPEED {
  * \note NOT supported now
  */
 typedef struct {
-    INT_T client_index;
-    INT_T curr_load_level; /**< 0:best 5:worst */
-    INT_T new_load_level;  /**< 0:best 5:worst */
+    int client_index;
+    int curr_load_level; /**< 0:best 5:worst */
+    int new_load_level;  /**< 0:best 5:worst */
 
-    VOID *pReserved;
+    void *pReserved;
 } C2C_TRANS_PB_LOAD_PARAM_S;
 
 typedef struct {
-    INT_T client_index;
-    INT_T curr_load_level; /**< 0:best 5:worst */
-    INT_T new_load_level;  /**< 0:best 5:worst */
+    int client_index;
+    int curr_load_level; /**< 0:best 5:worst */
+    int new_load_level;  /**< 0:best 5:worst */
 
-    VOID *pReserved;
+    void *pReserved;
 } C2C_TRANS_LIVE_LOAD_PARAM_S;
 
 typedef struct tagC2C_TRANS_CTRL_DL_START {
@@ -342,32 +342,32 @@ typedef enum {
 } TUYA_DOWNLOAD_DATA_TYPE;
 
 typedef struct {
-    INT_T video_codec;
-    UINT_T frame_rate;
-    UINT_T video_width;
-    UINT_T video_height;
+    int video_codec;
+    uint32_t frame_rate;
+    uint32_t video_width;
+    uint32_t video_height;
 } TRANSFER_IPC_VIDEO_INFO_S;
 
 typedef struct {
-    INT_T audio_codec;
-    INT_T audio_sample;   // TUYA_AUDIO_SAMPLE_E
-    INT_T audio_databits; // TUYA_AUDIO_DATABITS_E
-    INT_T audio_channel;  // TUYA_AUDIO_CHANNEL_E
+    int audio_codec;
+    int audio_sample;   // TUYA_AUDIO_SAMPLE_E
+    int audio_databits; // TUYA_AUDIO_DATABITS_E
+    int audio_channel;  // TUYA_AUDIO_CHANNEL_E
 } TRANSFER_IPC_AUDIO_INFO_S;
 
 typedef struct {
-    INT_T encrypt;        // Whether to encrypt
-    INT_T security_level; // Security level
-    CHAR_T uuid[32];      // Device UUID
-    BYTE_T iv[16];        // Encryption vector
+    int encrypt;        // Whether to encrypt
+    int security_level; // Security level
+    char uuid[32];      // Device UUID
+    uint8_t iv[16];        // Encryption vector
 } TRANSFER_MEDIA_ENCRYPT_INFO_T;
 
 typedef struct {
-    INT_T frame_type; // MEDIA_FRAME_TYPE_E
-    BYTE_T *p_buf;
-    UINT_T size;
-    UINT64_T pts;
-    UINT64_T timestamp;
+    int frame_type; // MEDIA_FRAME_TYPE_E
+    uint8_t *p_buf;
+    uint32_t size;
+    uint64_t pts;
+    uint64_t timestamp;
     union {
         TRANSFER_IPC_VIDEO_INFO_S video;
         TRANSFER_IPC_AUDIO_INFO_S audio;
@@ -377,10 +377,10 @@ typedef struct {
 } TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T; // Used for playback
 
 typedef struct {
-    INT_T type; // MEDIA_FRAME_TYPE_E
-    UINT_T size;
-    UINT64_T timestamp;
-    UINT64_T pts;
+    int type; // MEDIA_FRAME_TYPE_E
+    uint32_t size;
+    uint64_t timestamp;
+    uint64_t pts;
     union {
         TRANSFER_IPC_VIDEO_INFO_S video;
         TRANSFER_IPC_AUDIO_INFO_S audio;
@@ -389,16 +389,16 @@ typedef struct {
 } TUYA_DOWNLOAD_FRAME_HEAD_ENCRYPT_T;
 
 typedef struct {
-    INT_T type; // See MEDIA_FRAME_TYPE_E
-    UINT_T size;
-    UINT64_T timestamp;
-    UINT64_T pts;
+    int type; // See MEDIA_FRAME_TYPE_E
+    uint32_t size;
+    uint64_t timestamp;
+    uint64_t pts;
     union {
         TRANSFER_IPC_VIDEO_INFO_S video;
         TRANSFER_IPC_AUDIO_INFO_S audio;
     } media;
     TRANSFER_MEDIA_ENCRYPT_INFO_T encrypt_info;
-    BYTE_T *p_buf; // frame data
+    uint8_t *p_buf; // frame data
 } TUYA_ALBUM_PLAY_FRAME_T;
 
 /***********************************album protocol ****************************************/
@@ -524,7 +524,7 @@ typedef struct {
  * \param[in] strBriefInfo: brief file infomation
  * \return handle , >=0 valid, -1 err
  */
-OPERATE_RET tuya_ipc_start_send_file_to_app(IN CONST TUYA_IPC_BRIEF_FILE_INFO_4_APP *pStrBriefInfo);
+OPERATE_RET tuya_ipc_start_send_file_to_app(const TUYA_IPC_BRIEF_FILE_INFO_4_APP *pStrBriefInfo);
 
 /**
  * \fn tuya_ipc_stop_send_file_to_app
@@ -532,12 +532,12 @@ OPERATE_RET tuya_ipc_start_send_file_to_app(IN CONST TUYA_IPC_BRIEF_FILE_INFO_4_
  * \param[in] handle
  * \return ret
  */
-OPERATE_RET tuya_ipc_stop_send_file_to_app(IN CONST INT_T handle);
+OPERATE_RET tuya_ipc_stop_send_file_to_app(const int handle);
 
 typedef struct {
-    CHAR_T *fileName; // Maximum 48 bytes, if null, use SDK internal naming
-    INT_T len;
-    CHAR_T *buff;
+    char *fileName; // Maximum 48 bytes, if null, use SDK internal naming
+    int len;
+    char *buff;
 } TUYA_IPC_FILE_INFO_4_APP;
 /**
  * \fn tuya_ipc_send_file_to_app
@@ -547,8 +547,8 @@ typedef struct {
  * \param[in] timeOut_s: suggest 30s, 0 no_block (current not support),
  * \return ret
  */
-OPERATE_RET tuya_ipc_send_file_to_app(IN CONST INT_T handle, IN CONST TUYA_IPC_FILE_INFO_4_APP *pStrfileInfo,
-                                      IN CONST INT_T timeOut_s);
+OPERATE_RET tuya_ipc_send_file_to_app(const int handle, const TUYA_IPC_FILE_INFO_4_APP *pStrfileInfo,
+                                      const int timeOut_s);
 
 typedef enum {
     SWEEPER_ALBUM_FILE_TYPE_MIN = 0,
@@ -631,7 +631,7 @@ typedef struct tagC2C_TRANS_CTRL_GW_PB_START {
     unsigned int idx;
     char subdid[64];
     PLAYBACK_TIME_S time_sect;
-    UINT_T playTime; /**< Actual playback start timestamp (in seconds) */
+    uint32_t playTime; /**< Actual playback start timestamp (in seconds) */
 } C2C_TRANS_CTRL_GW_PB_START;
 
 typedef struct tagC2C_TRANS_CTRL_GW_PB_STOP {
@@ -670,7 +670,7 @@ typedef struct {
     unsigned int idx;
     char subdid[64];
     TRANSFER_VIDEO_CLARITY_TYPE_E clarity; /**< Video clarity */
-    VOID *pReserved;
+    void *pReserved;
 } C2C_TRANS_LIVE_GW_CLARITY_PARAM_S;
 
 // Preview-related operation structure
@@ -778,7 +778,7 @@ typedef struct tagC2C_TRANS_CTRL_GW_DL_START {
 
 OPERATE_RET tuya_ipc_media_stream_register_event_cb(MEDIA_STREAM_EVENT_CB event_cb);
 
-OPERATE_RET tuya_ipc_media_stream_event_call(INT_T device, INT_T channel, MEDIA_STREAM_EVENT_E event, PVOID_T args);
+OPERATE_RET tuya_ipc_media_stream_event_call(int device, int channel, MEDIA_STREAM_EVENT_E event, void *args);
 
 #ifdef __cplusplus
 }

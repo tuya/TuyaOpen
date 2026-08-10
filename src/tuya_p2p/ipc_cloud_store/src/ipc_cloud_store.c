@@ -13,15 +13,15 @@
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC IPC_CLOUD_STORE_STATE_E s_state = IPC_CLOUD_STORE_IDLE;
-STATIC MUTEX_HANDLE s_lock = NULL;
-STATIC BOOL_T s_inited = FALSE;
+static IPC_CLOUD_STORE_STATE_E s_state = IPC_CLOUD_STORE_IDLE;
+static MUTEX_HANDLE s_lock = NULL;
+static BOOL_T s_inited = FALSE;
 
 /**
  * @brief Initialize cloud store module
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_init(VOID_T)
+OPERATE_RET ipc_cloud_store_init(void)
 {
     OPERATE_RET rt;
 
@@ -42,12 +42,12 @@ OPERATE_RET ipc_cloud_store_init(VOID_T)
  * @brief Deinitialize cloud store module
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_deinit(VOID_T)
+OPERATE_RET ipc_cloud_store_deinit(void)
 {
     if (!s_inited) {
         return OPRT_OK;
     }
-    (VOID)ipc_cloud_store_stop();
+    (void)ipc_cloud_store_stop();
     if (s_lock) {
         tal_mutex_release(s_lock);
         s_lock = NULL;
@@ -60,7 +60,7 @@ OPERATE_RET ipc_cloud_store_deinit(VOID_T)
  * @brief Start continuous cloud recording
  * @return OPRT_NOT_SUPPORTED until full port
  */
-OPERATE_RET ipc_cloud_store_start(VOID_T)
+OPERATE_RET ipc_cloud_store_start(void)
 {
     OPERATE_RET rt = ipc_cloud_store_init();
     if (rt != OPRT_OK) {
@@ -78,7 +78,7 @@ OPERATE_RET ipc_cloud_store_start(VOID_T)
  * @brief Stop continuous cloud recording
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_stop(VOID_T)
+OPERATE_RET ipc_cloud_store_stop(void)
 {
     if (!s_inited) {
         return OPRT_OK;
@@ -93,7 +93,7 @@ OPERATE_RET ipc_cloud_store_stop(VOID_T)
  * @brief Get current cloud store state
  * @return state enum
  */
-IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(VOID_T)
+IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(void)
 {
     return s_state;
 }
@@ -102,12 +102,12 @@ IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(VOID_T)
  * @brief Push video frame (no-op until OSS pipeline lands)
  * @return OPRT_NOT_SUPPORTED when not fully implemented
  */
-OPERATE_RET ipc_cloud_store_put_video(CONST UINT8_T *data, UINT32_T len, UINT64_T pts_ms, BOOL_T keyframe)
+OPERATE_RET ipc_cloud_store_put_video(const uint8_t *data, uint32_t len, uint64_t pts_ms, BOOL_T keyframe)
 {
-    (VOID)data;
-    (VOID)len;
-    (VOID)pts_ms;
-    (VOID)keyframe;
+    (void)data;
+    (void)len;
+    (void)pts_ms;
+    (void)keyframe;
     if (s_state != IPC_CLOUD_STORE_RUNNING) {
         return OPRT_COM_ERROR;
     }
@@ -118,11 +118,11 @@ OPERATE_RET ipc_cloud_store_put_video(CONST UINT8_T *data, UINT32_T len, UINT64_
  * @brief Push audio frame (no-op until OSS pipeline lands)
  * @return OPRT_NOT_SUPPORTED when not fully implemented
  */
-OPERATE_RET ipc_cloud_store_put_audio(CONST UINT8_T *data, UINT32_T len, UINT64_T pts_ms)
+OPERATE_RET ipc_cloud_store_put_audio(const uint8_t *data, uint32_t len, uint64_t pts_ms)
 {
-    (VOID)data;
-    (VOID)len;
-    (VOID)pts_ms;
+    (void)data;
+    (void)len;
+    (void)pts_ms;
     if (s_state != IPC_CLOUD_STORE_RUNNING) {
         return OPRT_COM_ERROR;
     }

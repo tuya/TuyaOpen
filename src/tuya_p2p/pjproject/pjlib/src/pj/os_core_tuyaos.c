@@ -356,7 +356,7 @@ pj_status_t pj_thread_init(void)
 /**
  * @brief TAL thread trampoline for pj threads
  */
-static VOID_T __pj_thread_entry(VOID_T *param)
+static void __pj_thread_entry(void *param)
 {
     pj_thread_t *rec = (pj_thread_t *)param;
 

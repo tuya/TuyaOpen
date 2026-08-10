@@ -1,6 +1,0 @@
-#ifndef __TAL_PTHREAD_NETINET_TCP_H__
-#define __TAL_PTHREAD_NETINET_TCP_H__
-#ifndef TCP_NODELAY
-#define TCP_NODELAY 0x01
-#endif
-#endif /* __TAL_PTHREAD_NETINET_TCP_H__ */

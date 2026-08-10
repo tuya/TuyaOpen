@@ -20,29 +20,29 @@ typedef enum {
     E_RBUF_WRITE,
 } RBUF_OPEN_TYPE_E;
 
-typedef VOID (*FUNC_REQUEST_KEY_FRAME_CB)(INT_T device, INT_T channel, IPC_STREAM_E stream);
+typedef void (*FUNC_REQUEST_KEY_FRAME_CB)(int device, int channel, IPC_STREAM_E stream);
 
 typedef struct {
-    UINT_T index;
+    uint32_t index;
     MEDIA_FRAME_TYPE_E type;
-    UCHAR_T *raw_data;
-    UINT_T size;
-    UINT64_T pts;
-    UINT64_T timestamp;
-    UINT_T seq_no;
-    UCHAR_T *extra_data;
-    UINT_T extra_size;
-    UINT_T seq_sync;
+    uint8_t *raw_data;
+    uint32_t size;
+    uint64_t pts;
+    uint64_t timestamp;
+    uint32_t seq_no;
+    uint8_t *extra_data;
+    uint32_t extra_size;
+    uint32_t seq_sync;
 } RING_BUFFER_NODE_T;
 
 typedef struct {
-    UINT_T bitrate;
-    UINT_T fps;
-    UINT_T max_buffer_seconds;
+    uint32_t bitrate;
+    uint32_t fps;
+    uint32_t max_buffer_seconds;
     FUNC_REQUEST_KEY_FRAME_CB request_key_frame_cb;
 } RING_BUFFER_INIT_PARAM_T;
 
-typedef VOID *RING_BUFFER_USER_HANDLE_T;
+typedef void *RING_BUFFER_USER_HANDLE_T;
 
 /**
  * @brief Initialize one ring buffer for one stream
@@ -52,7 +52,7 @@ typedef VOID *RING_BUFFER_USER_HANDLE_T;
  * @param[in] pparam init params
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E stream,
+OPERATE_RET tuya_ipc_ring_buffer_init(int device, int channel, IPC_STREAM_E stream,
                                       RING_BUFFER_INIT_PARAM_T *pparam);
 
 /**
@@ -62,7 +62,7 @@ OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E 
  * @param[in] stream stream id
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_uninit(INT_T device, INT_T channel, IPC_STREAM_E stream);
+OPERATE_RET tuya_ipc_ring_buffer_uninit(int device, int channel, IPC_STREAM_E stream);
 
 /**
  * @brief Open read or write handle
@@ -72,7 +72,7 @@ OPERATE_RET tuya_ipc_ring_buffer_uninit(INT_T device, INT_T channel, IPC_STREAM_
  * @param[in] open_type read/write
  * @return handle or NULL
  */
-RING_BUFFER_USER_HANDLE_T tuya_ipc_ring_buffer_open(INT_T device, INT_T channel, IPC_STREAM_E stream,
+RING_BUFFER_USER_HANDLE_T tuya_ipc_ring_buffer_open(int device, int channel, IPC_STREAM_E stream,
                                                     RBUF_OPEN_TYPE_E open_type);
 
 /**
@@ -91,8 +91,8 @@ OPERATE_RET tuya_ipc_ring_buffer_close(RING_BUFFER_USER_HANDLE_T handle);
  * @param[in] pts timestamp us
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, UCHAR_T *addr, UINT_T size,
-                                             MEDIA_FRAME_TYPE_E type, UINT64_T pts);
+OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, uint8_t *addr, uint32_t size,
+                                             MEDIA_FRAME_TYPE_E type, uint64_t pts);
 
 /**
  * @brief Append one frame with ms timestamp
@@ -104,9 +104,9 @@ OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, U
  * @param[in] timestamp timestamp ms
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HANDLE_T handle, UCHAR_T *addr,
-                                                           UINT_T size, MEDIA_FRAME_TYPE_E type, UINT64_T pts,
-                                                           UINT64_T timestamp);
+OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HANDLE_T handle, uint8_t *addr,
+                                                           uint32_t size, MEDIA_FRAME_TYPE_E type, uint64_t pts,
+                                                           uint64_t timestamp);
 
 /**
  * @brief Get next frame for reader (jumps to latest when delayed)
@@ -122,7 +122,7 @@ RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T han
  * @param[in] handle read handle
  * @return none
  */
-VOID_T tuya_ipc_ring_buffer_clean_user_state(RING_BUFFER_USER_HANDLE_T handle);
+void tuya_ipc_ring_buffer_clean_user_state(RING_BUFFER_USER_HANDLE_T handle);
 
 #ifdef __cplusplus
 }

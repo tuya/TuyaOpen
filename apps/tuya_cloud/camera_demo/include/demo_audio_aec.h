@@ -32,13 +32,13 @@ typedef enum {
  * @param[in] frame_bytes frame size in bytes (16k/16bit/20ms = 640)
  * @return OPRT_OK on success
  */
-OPERATE_RET demo_audio_aec_init(UINT32_T min_speech_len_ms, UINT32_T max_speech_interval_ms, UINT32_T frame_bytes);
+OPERATE_RET demo_audio_aec_init(uint32_t min_speech_len_ms, uint32_t max_speech_interval_ms, uint32_t frame_bytes);
 
 /**
  * @brief Destroy Speex/RNN resources and free linearaec buffer
  * @return none
  */
-VOID_T demo_audio_aec_deinit(VOID_T);
+void demo_audio_aec_deinit(void);
 
 /**
  * @brief Soft AEC + VAD process. Register via tkl_ai_set_vad_aec_algorithm.
@@ -48,25 +48,25 @@ VOID_T demo_audio_aec_deinit(VOID_T);
  * @return 0 on success, negative on error
  * @note Signature matches aec_vad_process_fun / OS wukong_audio_frontend_process.
  */
-INT_T demo_audio_aec_process(SHORT_T *mic_data, SHORT_T *ref_data, SHORT_T *out_data);
+int demo_audio_aec_process(int16_t *mic_data, int16_t *ref_data, int16_t *out_data);
 
 /**
  * @brief Start RNN VAD (align OS wukong_audio_frontend_vad_start)
  * @return OPRT_OK on success
  */
-OPERATE_RET demo_audio_aec_vad_start(VOID_T);
+OPERATE_RET demo_audio_aec_vad_start(void);
 
 /**
  * @brief Stop RNN VAD (align OS wukong_audio_frontend_vad_stop)
  * @return OPRT_OK on success
  */
-OPERATE_RET demo_audio_aec_vad_stop(VOID_T);
+OPERATE_RET demo_audio_aec_vad_stop(void);
 
 /**
  * @brief Get current VAD flag for uplink gating
  * @return DEMO_AUDIO_VAD_START or DEMO_AUDIO_VAD_STOP
  */
-INT_T demo_audio_aec_vad_get_flag(VOID_T);
+int demo_audio_aec_vad_get_flag(void);
 
 #ifdef __cplusplus
 }

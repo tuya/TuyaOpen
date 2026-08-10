@@ -13,14 +13,14 @@
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC MEDIA_STREAM_EVENT_CB s_event_cb = NULL;
-STATIC MUTEX_HANDLE s_event_lock = NULL;
+static MEDIA_STREAM_EVENT_CB s_event_cb = NULL;
+static MUTEX_HANDLE s_event_lock = NULL;
 
 /**
  * @brief Ensure event mutex exists
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __event_lock_init(VOID_T)
+static OPERATE_RET __event_lock_init(void)
 {
     if (s_event_lock != NULL) {
         return OPRT_OK;
@@ -54,7 +54,7 @@ OPERATE_RET tuya_ipc_media_stream_register_event_cb(MEDIA_STREAM_EVENT_CB event_
  * @param[in] args event-specific payload (may be NULL)
  * @return callback return value, or OPRT_OK if no callback
  */
-OPERATE_RET tuya_ipc_media_stream_event_call(INT_T device, INT_T channel, MEDIA_STREAM_EVENT_E event, PVOID_T args)
+OPERATE_RET tuya_ipc_media_stream_event_call(int device, int channel, MEDIA_STREAM_EVENT_E event, void *args)
 {
     MEDIA_STREAM_EVENT_CB cb;
     OPERATE_RET rt;

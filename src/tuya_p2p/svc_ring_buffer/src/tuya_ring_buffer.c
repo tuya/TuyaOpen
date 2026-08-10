@@ -17,7 +17,7 @@
 #define RBUF_MAX_SLOTS 8
 #define RBUF_DEVICE_MAX 1
 #define RBUF_CHANNEL_MAX 1
-#define RBUF_STREAM_MAX ((INT_T)E_IPC_STREAM_MAX)
+#define RBUF_STREAM_MAX ((int)E_IPC_STREAM_MAX)
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define RBUF_MALLOC(s) tal_psram_malloc(s)
@@ -32,13 +32,13 @@
  * --------------------------------------------------------------------------- */
 typedef struct {
     BOOL_T inited;
-    UINT_T bitrate_kb;
-    UINT_T fps;
-    UINT_T max_seconds;
-    UINT_T slot_cnt;
-    UINT_T max_frame_size;
-    UINT_T write_idx;
-    UINT_T seq;
+    uint32_t bitrate_kb;
+    uint32_t fps;
+    uint32_t max_seconds;
+    uint32_t slot_cnt;
+    uint32_t max_frame_size;
+    uint32_t write_idx;
+    uint32_t seq;
     RING_BUFFER_NODE_T nodes[RBUF_MAX_SLOTS];
     MUTEX_HANDLE lock;
 } RBUF_STREAM_T;
@@ -46,13 +46,13 @@ typedef struct {
 typedef struct {
     RBUF_STREAM_T *stream;
     RBUF_OPEN_TYPE_E open_type;
-    UINT_T read_seq;
+    uint32_t read_seq;
 } RBUF_USER_T;
 
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC RBUF_STREAM_T s_streams[RBUF_DEVICE_MAX][RBUF_CHANNEL_MAX][RBUF_STREAM_MAX];
+static RBUF_STREAM_T s_streams[RBUF_DEVICE_MAX][RBUF_CHANNEL_MAX][RBUF_STREAM_MAX];
 
 /* ---------------------------------------------------------------------------
  * Function implementations
@@ -64,7 +64,7 @@ STATIC RBUF_STREAM_T s_streams[RBUF_DEVICE_MAX][RBUF_CHANNEL_MAX][RBUF_STREAM_MA
  * @param[in] stream stream id
  * @return stream ptr or NULL
  */
-STATIC RBUF_STREAM_T *__rbuf_get(INT_T device, INT_T channel, IPC_STREAM_E stream)
+static RBUF_STREAM_T *__rbuf_get(int device, int channel, IPC_STREAM_E stream)
 {
     if (device < 0 || device >= RBUF_DEVICE_MAX) {
         return NULL;
@@ -72,7 +72,7 @@ STATIC RBUF_STREAM_T *__rbuf_get(INT_T device, INT_T channel, IPC_STREAM_E strea
     if (channel < 0 || channel >= RBUF_CHANNEL_MAX) {
         return NULL;
     }
-    if ((INT_T)stream < 0 || (INT_T)stream >= RBUF_STREAM_MAX) {
+    if ((int)stream < 0 || (int)stream >= RBUF_STREAM_MAX) {
         return NULL;
     }
     return &s_streams[device][channel][stream];
@@ -86,12 +86,12 @@ STATIC RBUF_STREAM_T *__rbuf_get(INT_T device, INT_T channel, IPC_STREAM_E strea
  * @param[in] pparam init params
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E stream,
+OPERATE_RET tuya_ipc_ring_buffer_init(int device, int channel, IPC_STREAM_E stream,
                                       RING_BUFFER_INIT_PARAM_T *pparam)
 {
     RBUF_STREAM_T *st;
-    UINT_T secs;
-    UINT_T i;
+    uint32_t secs;
+    uint32_t i;
     OPERATE_RET rt;
 
     if (pparam == NULL) {
@@ -136,9 +136,9 @@ OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E 
         return rt;
     }
     for (i = 0; i < st->slot_cnt; i++) {
-        st->nodes[i].raw_data = (UCHAR_T *)RBUF_MALLOC(st->max_frame_size);
+        st->nodes[i].raw_data = (uint8_t *)RBUF_MALLOC(st->max_frame_size);
         if (st->nodes[i].raw_data == NULL) {
-            UINT_T j;
+            uint32_t j;
             for (j = 0; j < i; j++) {
                 RBUF_FREE(st->nodes[j].raw_data);
                 st->nodes[j].raw_data = NULL;
@@ -150,7 +150,7 @@ OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E 
         st->nodes[i].index = i;
     }
     st->inited = TRUE;
-    PR_NOTICE("ring_buffer init d=%d c=%d s=%d slots=%u maxf=%u", device, channel, (INT_T)stream, st->slot_cnt,
+    PR_NOTICE("ring_buffer init d=%d c=%d s=%d slots=%u maxf=%u", device, channel, (int)stream, st->slot_cnt,
               st->max_frame_size);
     return OPRT_OK;
 }
@@ -162,10 +162,10 @@ OPERATE_RET tuya_ipc_ring_buffer_init(INT_T device, INT_T channel, IPC_STREAM_E 
  * @param[in] stream stream id
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_uninit(INT_T device, INT_T channel, IPC_STREAM_E stream)
+OPERATE_RET tuya_ipc_ring_buffer_uninit(int device, int channel, IPC_STREAM_E stream)
 {
     RBUF_STREAM_T *st = __rbuf_get(device, channel, stream);
-    UINT_T i;
+    uint32_t i;
 
     if (st == NULL || !st->inited) {
         return OPRT_OK;
@@ -191,7 +191,7 @@ OPERATE_RET tuya_ipc_ring_buffer_uninit(INT_T device, INT_T channel, IPC_STREAM_
  * @param[in] open_type read/write
  * @return handle or NULL
  */
-RING_BUFFER_USER_HANDLE_T tuya_ipc_ring_buffer_open(INT_T device, INT_T channel, IPC_STREAM_E stream,
+RING_BUFFER_USER_HANDLE_T tuya_ipc_ring_buffer_open(int device, int channel, IPC_STREAM_E stream,
                                                     RBUF_OPEN_TYPE_E open_type)
 {
     RBUF_STREAM_T *st = __rbuf_get(device, channel, stream);
@@ -235,9 +235,9 @@ OPERATE_RET tuya_ipc_ring_buffer_close(RING_BUFFER_USER_HANDLE_T handle)
  * @param[in] timestamp timestamp ms
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HANDLE_T handle, UCHAR_T *addr,
-                                                           UINT_T size, MEDIA_FRAME_TYPE_E type, UINT64_T pts,
-                                                           UINT64_T timestamp)
+OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HANDLE_T handle, uint8_t *addr,
+                                                           uint32_t size, MEDIA_FRAME_TYPE_E type, uint64_t pts,
+                                                           uint64_t timestamp)
 {
     RBUF_USER_T *user = (RBUF_USER_T *)handle;
     RBUF_STREAM_T *st;
@@ -284,10 +284,10 @@ OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HAN
  * @param[in] pts timestamp us
  * @return OPRT_OK on success
  */
-OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, UCHAR_T *addr, UINT_T size,
-                                             MEDIA_FRAME_TYPE_E type, UINT64_T pts)
+OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, uint8_t *addr, uint32_t size,
+                                             MEDIA_FRAME_TYPE_E type, uint64_t pts)
 {
-    UINT64_T ts_ms = pts / 1000ULL;
+    uint64_t ts_ms = pts / 1000ULL;
     return tuya_ipc_ring_buffer_append_data_with_timestamp(handle, addr, size, type, pts, ts_ms);
 }
 
@@ -302,10 +302,10 @@ RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T han
     RBUF_USER_T *user = (RBUF_USER_T *)handle;
     RBUF_STREAM_T *st;
     RING_BUFFER_NODE_T *best = NULL;
-    UINT_T i;
-    UINT_T newest_seq = 0;
+    uint32_t i;
+    uint32_t newest_seq = 0;
 
-    (VOID)is_retry;
+    (void)is_retry;
     if (user == NULL || user->open_type != E_RBUF_READ) {
         return NULL;
     }
@@ -349,7 +349,7 @@ RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T han
  * @param[in] handle read handle
  * @return none
  */
-VOID_T tuya_ipc_ring_buffer_clean_user_state(RING_BUFFER_USER_HANDLE_T handle)
+void tuya_ipc_ring_buffer_clean_user_state(RING_BUFFER_USER_HANDLE_T handle)
 {
     RBUF_USER_T *user = (RBUF_USER_T *)handle;
     if (user == NULL) {

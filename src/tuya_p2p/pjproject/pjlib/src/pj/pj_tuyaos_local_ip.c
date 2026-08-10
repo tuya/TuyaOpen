@@ -25,10 +25,10 @@
  * @param[out] nbo network-order address
  * @return 0 on success, -1 on failure
  */
-STATIC INT_T __parse_ipv4_nbo(CONST CHAR_T *s, UINT32_T *nbo)
+static int __parse_ipv4_nbo(const char *s, uint32_t *nbo)
 {
-    UINT32_T a, b, c, d;
-    UINT8_T bytes[4];
+    uint32_t a, b, c, d;
+    uint8_t bytes[4];
 
     if (s == NULL || nbo == NULL) {
         return -1;
@@ -39,10 +39,10 @@ STATIC INT_T __parse_ipv4_nbo(CONST CHAR_T *s, UINT32_T *nbo)
     if (a > 255U || b > 255U || c > 255U || d > 255U) {
         return -1;
     }
-    bytes[0] = (UINT8_T)a;
-    bytes[1] = (UINT8_T)b;
-    bytes[2] = (UINT8_T)c;
-    bytes[3] = (UINT8_T)d;
+    bytes[0] = (uint8_t)a;
+    bytes[1] = (uint8_t)b;
+    bytes[2] = (uint8_t)c;
+    bytes[3] = (uint8_t)d;
     memcpy(nbo, bytes, sizeof(bytes));
     return 0;
 }
@@ -52,14 +52,14 @@ STATIC INT_T __parse_ipv4_nbo(CONST CHAR_T *s, UINT32_T *nbo)
  * @param[in] a network-order IPv4
  * @return 0 if usable, -1 if reject
  */
-STATIC INT_T __reject_bad_host(UINT32_T a)
+static int __reject_bad_host(uint32_t a)
 {
-    UINT32_T host;
-    UINT8_T host_bytes[4];
+    uint32_t host;
+    uint8_t host_bytes[4];
 
     memcpy(host_bytes, &a, sizeof(host_bytes));
-    host = ((UINT32_T)host_bytes[0] << 24) | ((UINT32_T)host_bytes[1] << 16) |
-           ((UINT32_T)host_bytes[2] << 8) | (UINT32_T)host_bytes[3];
+    host = ((uint32_t)host_bytes[0] << 24) | ((uint32_t)host_bytes[1] << 16) |
+           ((uint32_t)host_bytes[2] << 8) | (uint32_t)host_bytes[3];
     if ((host >> 24) == 127U || (host >> 24) == 0U) {
         return -1;
     }
@@ -74,7 +74,7 @@ STATIC INT_T __reject_bad_host(UINT32_T a)
 int tal_compat_get_sta_ipv4_nbo(unsigned int *addr_nbo)
 {
     NW_IP_S ip;
-    UINT32_T a;
+    uint32_t a;
 
     if (addr_nbo == NULL) {
         return -1;

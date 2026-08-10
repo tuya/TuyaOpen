@@ -9,54 +9,54 @@
 #define IOT_SDK_VER "6.2.1"
 
 #ifdef __UT_TEST_
-#define STATIC
+#define static
 #endif
 #if (ENABLE_CLOUD_RULE == 1)
 #define MAX_AI_SKILL_NUM 5
-STATIC CHAR_T g_ai_skill_table[MAX_AI_SKILL_NUM][32] = {
+static char g_ai_skill_table[MAX_AI_SKILL_NUM][32] = {
     "ipc_human", "ipc_cat", "ipc_car", "ipc_face", "ipc_package",
 };
 #endif
 typedef struct {
-    INT_T cloud_stg;
-    INT_T webrtc;
-    INT_T low_power;
-    INT_T ai_detect;
-    INT_T local_stg;
-    INT_T cloud_gw;
-    INT_T door_bell_stg;
-    INT_T p2p;
-    INT_T px;
-    CHAR_T *cloud_gw_info;
-    CHAR_T *media_info;
-    INT_T person_flow;
-    INT_T upnp;
-    INT_T max_p2p_sessions;
-    INT_T cloud_rule;
-    INT_T local_ai_skills;
-    INT_T mobile_network;
+    int cloud_stg;
+    int webrtc;
+    int low_power;
+    int ai_detect;
+    int local_stg;
+    int cloud_gw;
+    int door_bell_stg;
+    int p2p;
+    int px;
+    char *cloud_gw_info;
+    char *media_info;
+    int person_flow;
+    int upnp;
+    int max_p2p_sessions;
+    int cloud_rule;
+    int local_ai_skills;
+    int mobile_network;
 } tuya_ipc_skill_info_s;
 
-STATIC tuya_ipc_skill_info_s g_skill_info = {0};
-STATIC BOOL_T sg_uploaded = FALSE;
+static tuya_ipc_skill_info_s g_skill_info = {0};
+static BOOL_T sg_uploaded = FALSE;
 
 #define SKILL_PARAM_LEN 1024
 // Force HTTPS POST 4.1
 #define TI_DEV_SKILL_UPDATE            "tuya.device.skill.update"
 #define TI_DEV_SKILL_MULTIMEDIA_UPDATE "tuya.device.skill.multimedia.update"
-extern VOID_T *tkl_system_psram_malloc(CONST SIZE_T size);
-extern VOID_T tkl_system_psram_free(VOID_T *ptr);
+extern void *tkl_system_psram_malloc(const size_t size);
+extern void tkl_system_psram_free(void *ptr);
 // extern int tuya_ipc_ring_buffer_get_video_num_skill(int,int);
 
-INT_T tuya_imm_get_security_ability(VOID);
+int tuya_imm_get_security_ability(void);
 
-OPERATE_RET httpc_dev_update_skill_multimedia(IN CONST CHAR_T *gw_id, IN CONST CHAR_T *skill)
+OPERATE_RET httpc_dev_update_skill_multimedia(const char *gw_id, const char *skill)
 {
     // HTTPC_NULL_CHECK(gw_id);
     // HTTPC_NULL_CHECK(skill);
 
-    INT_T buffer_len = 70 + strlen(skill);
-    CHAR_T *post_data = tkl_system_psram_malloc(buffer_len);
+    int buffer_len = 70 + strlen(skill);
+    char *post_data = tkl_system_psram_malloc(buffer_len);
     if (post_data == NULL) {
         PR_ERR("tkl_system_psram_malloc Fail");
         return OPRT_MALLOC_FAILED;
@@ -75,13 +75,13 @@ OPERATE_RET httpc_dev_update_skill_multimedia(IN CONST CHAR_T *gw_id, IN CONST C
     return op_ret;
 }
 
-OPERATE_RET httpc_dev_update_skill_v10(IN CONST CHAR_T *gw_id, IN CONST CHAR_T *sub_id, IN CONST CHAR_T *skill)
+OPERATE_RET httpc_dev_update_skill_v10(const char *gw_id, const char *sub_id, const char *skill)
 {
     // HTTPC_NULL_CHECK(gw_id);
     // HTTPC_NULL_CHECK(skill);
 
-    INT_T buffer_len = 70 + strlen(skill);
-    CHAR_T *post_data = tkl_system_psram_malloc(buffer_len);
+    int buffer_len = 70 + strlen(skill);
+    char *post_data = tkl_system_psram_malloc(buffer_len);
     if (post_data == NULL) {
         PR_ERR("tkl_system_psram_malloc Fail");
         return OPRT_MALLOC_FAILED;
@@ -108,7 +108,7 @@ OPERATE_RET httpc_dev_update_skill_v10(IN CONST CHAR_T *gw_id, IN CONST CHAR_T *
     return op_ret;
 }
 
-OPERATE_RET http_device_update_skill(IN CONST CHAR_T *dev_id, IN CONST CHAR_T *skill)
+OPERATE_RET http_device_update_skill(const char *dev_id, const char *skill)
 {
     // GW_CNTL_S *gw_cntl = get_gw_cntl();
     OPERATE_RET op_ret = OPRT_OK;
@@ -116,7 +116,7 @@ OPERATE_RET http_device_update_skill(IN CONST CHAR_T *dev_id, IN CONST CHAR_T *s
     return op_ret;
 }
 
-OPERATE_RET http_device_update_skill_multimedia(IN CONST CHAR_T *dev_id, IN CONST CHAR_T *skill)
+OPERATE_RET http_device_update_skill_multimedia(const char *dev_id, const char *skill)
 {
     // GW_CNTL_S *gw_cntl = get_gw_cntl();
     OPERATE_RET op_ret = OPRT_OK;
@@ -124,7 +124,7 @@ OPERATE_RET http_device_update_skill_multimedia(IN CONST CHAR_T *dev_id, IN CONS
     return op_ret;
 }
 
-STATIC OPERATE_RET __fill_skills(CHAR_T *skill_info, INT_T skill_len, CHAR_T *skills_buf, INT_T *buf_len)
+static OPERATE_RET __fill_skills(char *skill_info, int skill_len, char *skills_buf, int *buf_len)
 {
     if (skill_len + *buf_len >= SKILL_PARAM_LEN) {
         PR_ERR("skill buf is not enough\n");
@@ -136,23 +136,23 @@ STATIC OPERATE_RET __fill_skills(CHAR_T *skill_info, INT_T skill_len, CHAR_T *sk
     return OPRT_OK;
 }
 
-OPERATE_RET tuya_ipc_skill_enable_person_flow(VOID)
+OPERATE_RET tuya_ipc_skill_enable_person_flow(void)
 {
     TUYA_IPC_SKILL_PARAM_U param = {0};
     param.value = 1;
     return tuya_ipc_skill_enable(TUYA_IPC_SKILL_PERSON_FLOW, &param);
 }
 
-VOID tuya_ipc_upload_skills()
+void tuya_ipc_upload_skills()
 {
-    CHAR_T *skill_buf = (CHAR_T *)tkl_system_psram_malloc(SKILL_PARAM_LEN);
+    char *skill_buf = (char *)tkl_system_psram_malloc(SKILL_PARAM_LEN);
     if (skill_buf == NULL) {
         return;
     }
     skill_buf[0] = '{';
-    INT_T buf_len = 1;
+    int buf_len = 1;
 
-    CHAR_T tmp_buf[128] = {0};
+    char tmp_buf[128] = {0};
     int len = 0;
     sg_uploaded = TRUE;
 
@@ -283,7 +283,7 @@ VOID tuya_ipc_upload_skills()
         }
     }
 
-    INT_T security_ability = tuya_imm_get_security_ability();
+    int security_ability = tuya_imm_get_security_ability();
     if (security_ability) {
         len = sprintf(tmp_buf, ",\\\"security_ability\\\":%d", security_ability);
         if (OPRT_OK != __fill_skills(tmp_buf, len, skill_buf, &buf_len)) {
@@ -299,8 +299,8 @@ VOID tuya_ipc_upload_skills()
         }
     }
 
-    INT_T i = 0;
-    INT_T offset = 0;
+    int i = 0;
+    int offset = 0;
     BOOL_T need_comma = FALSE;
     if (0 != g_skill_info.local_ai_skills) {
         len = sprintf(tmp_buf, ",\\\"extSkill\\\":\\\"{");
@@ -343,10 +343,10 @@ out:
     return;
 }
 
-OPERATE_RET tuya_ipc_upload_media_info(VOID)
+OPERATE_RET tuya_ipc_upload_media_info(void)
 {
     OPERATE_RET ret = OPRT_COM_ERROR;
-    CHAR_T *skill_buf = tkl_system_psram_malloc(SKILL_PARAM_LEN);
+    char *skill_buf = tkl_system_psram_malloc(SKILL_PARAM_LEN);
     if (NULL == skill_buf) {
         PR_ERR("malloc skill buf failed");
         return ret;
@@ -374,7 +374,7 @@ OPERATE_RET tuya_ipc_upload_media_info(VOID)
     return ret;
 }
 
-OPERATE_RET tuya_ipc_skill_enable(IN TUYA_IPC_SKILL_E skill, IN TUYA_IPC_SKILL_PARAM_U *param)
+OPERATE_RET tuya_ipc_skill_enable(TUYA_IPC_SKILL_E skill, TUYA_IPC_SKILL_PARAM_U *param)
 {
     switch (skill) {
 
@@ -456,7 +456,7 @@ OPERATE_RET tuya_ipc_skill_enable(IN TUYA_IPC_SKILL_E skill, IN TUYA_IPC_SKILL_P
     return OPRT_OK;
 }
 
-VOID tuya_ipc_http_fill_skills_cb(INOUT CHAR_T *skills)
+void tuya_ipc_http_fill_skills_cb(char *skills)
 {
     if (NULL == skills) {
         return;
@@ -489,9 +489,9 @@ VOID tuya_ipc_http_fill_skills_cb(INOUT CHAR_T *skills)
         strcat(skills, ",\\\"lowPower\\\":1");
     }
 
-    INT_T security_ability = tuya_imm_get_security_ability();
+    int security_ability = tuya_imm_get_security_ability();
     if (security_ability) {
-        CHAR_T buf[40] = {0};
+        char buf[40] = {0};
         snprintf(buf, SIZEOF(buf), ",\\\"security_ability\\\":%d", security_ability);
         strcat(skills, buf);
     }
@@ -504,12 +504,12 @@ VOID tuya_ipc_http_fill_skills_cb(INOUT CHAR_T *skills)
     strcat(skills, ",\\\"sdk_version\\\":\\\"" IOT_SDK_VER "\\\"}");
 }
 
-BOOL_T tuya_ipc_is_low_power(VOID)
+BOOL_T tuya_ipc_is_low_power(void)
 {
     return g_skill_info.low_power != 0;
 }
 
-OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, INT_T *result)
+OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, int *result)
 {
     OPERATE_RET ret = OPRT_OK;
     switch (skill) {
@@ -567,7 +567,7 @@ OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, INT_T *result)
     return ret;
 }
 
-OPERATE_RET tuya_ipc_cloud_gw_kills_get(UINT_T device, UINT_T channel, CHAR_T *skill_result)
+OPERATE_RET tuya_ipc_cloud_gw_kills_get(uint32_t device, uint32_t channel, char *skill_result)
 {
     if (skill_result == NULL) {
         return OPRT_INVALID_PARM;
@@ -575,7 +575,7 @@ OPERATE_RET tuya_ipc_cloud_gw_kills_get(UINT_T device, UINT_T channel, CHAR_T *s
     DEVICE_MEDIA_INFO_T media_info;
     memset(&media_info, 0, sizeof(DEVICE_MEDIA_INFO_T));
     // tuya_ipc_media_adapter_get_media_info(device,channel,&media_info);
-    INT_T len = sprintf(skill_result, "\\\"cloudGW\\\":%d,", 1);
+    int len = sprintf(skill_result, "\\\"cloudGW\\\":%d,", 1);
     snprintf(skill_result + len, 512,
              "\\\"videos\\\":[{\\\"streamType\\\":2,\\\"codecType\\\":%d,\\\"sampleRate\\\":%d,"
              "\\\"profileId\\\":\\\"\\\",\\\"width\\\":%d,\\\"height\\\":%d},"
@@ -604,13 +604,13 @@ BOOL_T tuya_ipc_get_if_skill_uploaded()
     return sg_uploaded;
 }
 
-OPERATE_RET tuya_ipc_set_local_ai_skills(IN UINT_T local_ai_skills)
+OPERATE_RET tuya_ipc_set_local_ai_skills(uint32_t local_ai_skills)
 {
     g_skill_info.local_ai_skills = local_ai_skills;
     return OPRT_OK;
 }
 
-INT_T tuya_imm_get_security_ability(VOID)
+int tuya_imm_get_security_ability(void)
 {
     return ((1 << 1) | (1 << 2) | (1 << 3) | (1 << 4));
 }

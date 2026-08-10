@@ -30,31 +30,31 @@ typedef enum {
  * @brief Initialize cloud store module
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_init(VOID_T);
+OPERATE_RET ipc_cloud_store_init(void);
 
 /**
  * @brief Deinitialize cloud store module
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_deinit(VOID_T);
+OPERATE_RET ipc_cloud_store_deinit(void);
 
 /**
  * @brief Start continuous cloud recording (order / secret from cloud)
  * @return OPRT_OK on success, OPRT_NOT_SUPPORTED until OSS path is ported
  */
-OPERATE_RET ipc_cloud_store_start(VOID_T);
+OPERATE_RET ipc_cloud_store_start(void);
 
 /**
  * @brief Stop continuous cloud recording
  * @return OPRT_OK on success
  */
-OPERATE_RET ipc_cloud_store_stop(VOID_T);
+OPERATE_RET ipc_cloud_store_stop(void);
 
 /**
  * @brief Get current cloud store state
  * @return state enum
  */
-IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(VOID_T);
+IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(void);
 
 /**
  * @brief Push one encoded video frame into cloud store pipeline
@@ -64,7 +64,7 @@ IPC_CLOUD_STORE_STATE_E ipc_cloud_store_get_state(VOID_T);
  * @param[in] keyframe TRUE if I-frame
  * @return OPRT_OK, or OPRT_NOT_SUPPORTED if not running / not implemented
  */
-OPERATE_RET ipc_cloud_store_put_video(CONST UINT8_T *data, UINT32_T len, UINT64_T pts_ms, BOOL_T keyframe);
+OPERATE_RET ipc_cloud_store_put_video(const uint8_t *data, uint32_t len, uint64_t pts_ms, BOOL_T keyframe);
 
 /**
  * @brief Push one encoded audio frame into cloud store pipeline
@@ -73,7 +73,7 @@ OPERATE_RET ipc_cloud_store_put_video(CONST UINT8_T *data, UINT32_T len, UINT64_
  * @param[in] pts_ms timestamp ms
  * @return OPRT_OK, or OPRT_NOT_SUPPORTED if not running / not implemented
  */
-OPERATE_RET ipc_cloud_store_put_audio(CONST UINT8_T *data, UINT32_T len, UINT64_T pts_ms);
+OPERATE_RET ipc_cloud_store_put_audio(const uint8_t *data, uint32_t len, uint64_t pts_ms);
 
 #ifdef __cplusplus
 }

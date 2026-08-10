@@ -27,12 +27,12 @@
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC BOOL_T s_inited = FALSE;
-STATIC TUYA_FILE s_rec_fp = NULL;
-STATIC CHAR_T s_rec_leaf[64];
-STATIC CHAR_T s_rec_path[LOCAL_STORE_PATH_MAX];
-STATIC UINT32_T s_rec_start_ts = 0;
-STATIC UINT32_T s_rec_bytes = 0;
+static BOOL_T s_inited = FALSE;
+static TUYA_FILE s_rec_fp = NULL;
+static char s_rec_leaf[64];
+static char s_rec_path[LOCAL_STORE_PATH_MAX];
+static uint32_t s_rec_start_ts = 0;
+static uint32_t s_rec_bytes = 0;
 
 /* ---------------------------------------------------------------------------
  * Function implementations
@@ -42,9 +42,9 @@ STATIC UINT32_T s_rec_bytes = 0;
  * @param[in] filename leaf name only
  * @return TRUE if safe, FALSE otherwise
  */
-STATIC BOOL_T __filename_is_safe(CONST CHAR_T *filename)
+static BOOL_T __filename_is_safe(const char *filename)
 {
-    UINT32_T i;
+    uint32_t i;
 
     if (filename == NULL || filename[0] == '\0') {
         return FALSE;
@@ -71,21 +71,21 @@ STATIC BOOL_T __filename_is_safe(CONST CHAR_T *filename)
  * @param[in] out_len size of out
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __path_join(CONST CHAR_T *parent, CONST CHAR_T *child, CHAR_T *out, UINT32_T out_len)
+static OPERATE_RET __path_join(const char *parent, const char *child, char *out, uint32_t out_len)
 {
-    INT_T n;
-    UINT32_T plen;
+    int n;
+    uint32_t plen;
 
     if (parent == NULL || child == NULL || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
     }
-    plen = (UINT32_T)strlen(parent);
+    plen = (uint32_t)strlen(parent);
     if (plen > 0 && parent[plen - 1] == '/') {
         n = snprintf(out, out_len, "%s%s", parent, child);
     } else {
         n = snprintf(out, out_len, "%s/%s", parent, child);
     }
-    if (n < 0 || (UINT32_T)n >= out_len) {
+    if (n < 0 || (uint32_t)n >= out_len) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
     return OPRT_OK;
@@ -98,7 +98,7 @@ STATIC OPERATE_RET __path_join(CONST CHAR_T *parent, CONST CHAR_T *child, CHAR_T
  * @note Align examples/peripherals/sd: mount /sdcard then open files under it.
  *       tkl_fs_is_exist("/sdcard") often fails even when FAT is mounted.
  */
-STATIC BOOL_T __is_fs_mount_root(CONST CHAR_T *path)
+static BOOL_T __is_fs_mount_root(const char *path)
 {
     if (path == NULL) {
         return FALSE;
@@ -114,9 +114,9 @@ STATIC BOOL_T __is_fs_mount_root(CONST CHAR_T *path)
  * @param[in] path directory path
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __mkdir_one(CONST CHAR_T *path)
+static OPERATE_RET __mkdir_one(const char *path)
 {
-    INT_T rt;
+    int rt;
     BOOL_T exists = FALSE;
 
     if (path == NULL || path[0] == '\0') {
@@ -132,14 +132,14 @@ STATIC OPERATE_RET __mkdir_one(CONST CHAR_T *path)
 
     /* Like examples/camera/output_sdcard: ignore is_exist return, use flag */
     exists = FALSE;
-    (VOID)tkl_fs_is_exist(path, &exists);
+    (void)tkl_fs_is_exist(path, &exists);
     if (exists) {
         return OPRT_OK;
     }
     rt = tkl_fs_mkdir(path);
     if (rt != 0) {
         exists = FALSE;
-        (VOID)tkl_fs_is_exist(path, &exists);
+        (void)tkl_fs_is_exist(path, &exists);
         if (exists) {
             return OPRT_OK;
         }
@@ -154,17 +154,17 @@ STATIC OPERATE_RET __mkdir_one(CONST CHAR_T *path)
  * @param[in] dir absolute or relative directory path
  * @return OPRT_OK on success, error code on failure
  */
-OPERATE_RET local_store_ensure_dir(CONST CHAR_T *dir)
+OPERATE_RET local_store_ensure_dir(const char *dir)
 {
-    CHAR_T tmp[LOCAL_STORE_PATH_MAX];
-    UINT32_T i;
-    UINT32_T len;
+    char tmp[LOCAL_STORE_PATH_MAX];
+    uint32_t i;
+    uint32_t len;
     OPERATE_RET rt;
 
     if (dir == NULL || dir[0] == '\0') {
         return OPRT_INVALID_PARM;
     }
-    len = (UINT32_T)strlen(dir);
+    len = (uint32_t)strlen(dir);
     if (len >= LOCAL_STORE_PATH_MAX) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
@@ -190,7 +190,7 @@ OPERATE_RET local_store_ensure_dir(CONST CHAR_T *dir)
  * @brief Get configured storage root path
  * @return Pointer to root string (compile-time config), never NULL when enabled
  */
-CONST CHAR_T *local_store_root(VOID_T)
+const char *local_store_root(void)
 {
     return LOCAL_STORE_ROOT;
 }
@@ -200,10 +200,10 @@ CONST CHAR_T *local_store_root(VOID_T)
  * @return OPRT_OK on success, error code on failure
  * @note Safe to call more than once; subsequent calls are no-ops after success
  */
-OPERATE_RET local_store_init(VOID_T)
+OPERATE_RET local_store_init(void)
 {
     OPERATE_RET rt;
-    CHAR_T rec_base[LOCAL_STORE_PATH_MAX];
+    char rec_base[LOCAL_STORE_PATH_MAX];
 
     if (s_inited) {
         return OPRT_OK;
@@ -235,14 +235,14 @@ OPERATE_RET local_store_init(VOID_T)
  * @param[in] out_len size of out in bytes
  * @return OPRT_OK on success, OPRT_INVALID_PARM / OPRT_BUFFER_NOT_ENOUGH on failure
  */
-OPERATE_RET local_store_make_rec_path(CONST CHAR_T *filename, CHAR_T *out, UINT32_T out_len)
+OPERATE_RET local_store_make_rec_path(const char *filename, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
     POSIX_TM_S tm;
-    CHAR_T date_dir[16];
-    CHAR_T rec_base[LOCAL_STORE_PATH_MAX];
-    CHAR_T day_path[LOCAL_STORE_PATH_MAX];
-    INT_T n;
+    char date_dir[16];
+    char rec_base[LOCAL_STORE_PATH_MAX];
+    char day_path[LOCAL_STORE_PATH_MAX];
+    int n;
 
     if (!__filename_is_safe(filename) || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
@@ -261,7 +261,7 @@ OPERATE_RET local_store_make_rec_path(CONST CHAR_T *filename, CHAR_T *out, UINT3
         n = snprintf(date_dir, sizeof(date_dir), "%04d-%02d-%02d",
                      tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
     }
-    if (n < 0 || (UINT32_T)n >= sizeof(date_dir)) {
+    if (n < 0 || (uint32_t)n >= sizeof(date_dir)) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
 
@@ -288,15 +288,15 @@ OPERATE_RET local_store_make_rec_path(CONST CHAR_T *filename, CHAR_T *out, UINT3
  * @param[in] out_len size of out in bytes
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_make_tmp_path(CONST CHAR_T *final_path, CHAR_T *out, UINT32_T out_len)
+OPERATE_RET local_store_make_tmp_path(const char *final_path, char *out, uint32_t out_len)
 {
-    INT_T n;
+    int n;
 
     if (final_path == NULL || final_path[0] == '\0' || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
     }
     n = snprintf(out, out_len, "%s%s", final_path, LOCAL_STORE_TMP_SUFFIX);
-    if (n < 0 || (UINT32_T)n >= out_len) {
+    if (n < 0 || (uint32_t)n >= out_len) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
     return OPRT_OK;
@@ -308,9 +308,9 @@ OPERATE_RET local_store_make_tmp_path(CONST CHAR_T *final_path, CHAR_T *out, UIN
  * @param[in] final_path destination path
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_commit(CONST CHAR_T *tmp_path, CONST CHAR_T *final_path)
+OPERATE_RET local_store_commit(const char *tmp_path, const char *final_path)
 {
-    INT_T rt;
+    int rt;
 
     if (tmp_path == NULL || final_path == NULL) {
         return OPRT_INVALID_PARM;
@@ -326,12 +326,12 @@ OPERATE_RET local_store_commit(CONST CHAR_T *tmp_path, CONST CHAR_T *final_path)
 /**
  * @brief Build ROOT/rec/YYYY-MM-DD path and ensure dirs
  */
-STATIC OPERATE_RET __day_dir(UINT32_T year, UINT32_T month, UINT32_T day, CHAR_T *out, UINT32_T out_len)
+static OPERATE_RET __day_dir(uint32_t year, uint32_t month, uint32_t day, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
-    CHAR_T date_dir[16];
-    CHAR_T rec_base[LOCAL_STORE_PATH_MAX];
-    INT_T n;
+    char date_dir[16];
+    char rec_base[LOCAL_STORE_PATH_MAX];
+    int n;
 
     if (out == NULL || out_len == 0 || month < 1 || month > 12 || day < 1 || day > 31) {
         return OPRT_INVALID_PARM;
@@ -340,8 +340,8 @@ STATIC OPERATE_RET __day_dir(UINT32_T year, UINT32_T month, UINT32_T day, CHAR_T
     if (rt != OPRT_OK) {
         return rt;
     }
-    n = snprintf(date_dir, sizeof(date_dir), "%04u-%02u-%02u", (UINT_T)year, (UINT_T)month, (UINT_T)day);
-    if (n < 0 || (UINT32_T)n >= sizeof(date_dir)) {
+    n = snprintf(date_dir, sizeof(date_dir), "%04u-%02u-%02u", (uint32_t)year, (uint32_t)month, (uint32_t)day);
+    if (n < 0 || (uint32_t)n >= sizeof(date_dir)) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
     rt = __path_join(LOCAL_STORE_ROOT, LOCAL_STORE_REC_SUBDIR, rec_base, sizeof(rec_base));
@@ -354,10 +354,10 @@ STATIC OPERATE_RET __day_dir(UINT32_T year, UINT32_T month, UINT32_T day, CHAR_T
 /**
  * @brief Index file path under a day directory
  */
-STATIC OPERATE_RET __index_path(UINT32_T year, UINT32_T month, UINT32_T day, CHAR_T *out, UINT32_T out_len)
+static OPERATE_RET __index_path(uint32_t year, uint32_t month, uint32_t day, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
-    CHAR_T day_path[LOCAL_STORE_PATH_MAX];
+    char day_path[LOCAL_STORE_PATH_MAX];
 
     rt = __day_dir(year, month, day, day_path, sizeof(day_path));
     if (rt != OPRT_OK) {
@@ -369,16 +369,16 @@ STATIC OPERATE_RET __index_path(UINT32_T year, UINT32_T month, UINT32_T day, CHA
 /**
  * @brief Append one segment to the day index
  */
-OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_T type, CONST CHAR_T *leaf)
+OPERATE_RET local_store_index_append(uint32_t start_ts, uint32_t end_ts, uint16_t type, const char *leaf)
 {
     OPERATE_RET rt;
     POSIX_TM_S tm;
-    CHAR_T day_path[LOCAL_STORE_PATH_MAX];
-    CHAR_T idx_path[LOCAL_STORE_PATH_MAX];
-    CHAR_T line[192];
+    char day_path[LOCAL_STORE_PATH_MAX];
+    char idx_path[LOCAL_STORE_PATH_MAX];
+    char line[192];
     TUYA_FILE fp;
-    INT_T n;
-    UINT32_T year, month, day;
+    int n;
+    uint32_t year, month, day;
 
     if (!__filename_is_safe(leaf) || end_ts < start_ts) {
         return OPRT_INVALID_PARM;
@@ -392,9 +392,9 @@ OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_
             return rt;
         }
     }
-    year = (UINT32_T)(tm.tm_year + 1900);
-    month = (UINT32_T)(tm.tm_mon + 1);
-    day = (UINT32_T)tm.tm_mday;
+    year = (uint32_t)(tm.tm_year + 1900);
+    month = (uint32_t)(tm.tm_mon + 1);
+    day = (uint32_t)tm.tm_mday;
 
     rt = __day_dir(year, month, day, day_path, sizeof(day_path));
     if (rt != OPRT_OK) {
@@ -409,8 +409,8 @@ OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_
         return rt;
     }
 
-    n = snprintf(line, sizeof(line), "%u %u %u %s\n", (UINT_T)start_ts, (UINT_T)end_ts, (UINT_T)type, leaf);
-    if (n < 0 || (UINT32_T)n >= sizeof(line)) {
+    n = snprintf(line, sizeof(line), "%u %u %u %s\n", (uint32_t)start_ts, (uint32_t)end_ts, (uint32_t)type, leaf);
+    if (n < 0 || (uint32_t)n >= sizeof(line)) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
 
@@ -419,7 +419,7 @@ OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_
         TAL_PR_ERR("open index %s failed", idx_path);
         return OPRT_FILE_OPEN_FAILED;
     }
-    if (tkl_fwrite((VOID_T *)line, n, fp) != n) {
+    if (tkl_fwrite((void *)line, n, fp) != n) {
         tkl_fclose(fp);
         return OPRT_FILE_WRITE_FAILED;
     }
@@ -430,18 +430,18 @@ OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_
 /**
  * @brief Query month day bitmap from existing day directories
  */
-OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day_bitmap)
+OPERATE_RET local_store_query_month(uint32_t year, uint32_t month, uint32_t *day_bitmap)
 {
     OPERATE_RET rt;
-    CHAR_T rec_base[LOCAL_STORE_PATH_MAX];
-    CHAR_T day_path[LOCAL_STORE_PATH_MAX];
-    CHAR_T idx_path[LOCAL_STORE_PATH_MAX];
-    CHAR_T date_dir[16];
+    char rec_base[LOCAL_STORE_PATH_MAX];
+    char day_path[LOCAL_STORE_PATH_MAX];
+    char idx_path[LOCAL_STORE_PATH_MAX];
+    char date_dir[16];
     BOOL_T exists = FALSE;
-    UINT32_T d;
-    UINT32_T bits = 0;
+    uint32_t d;
+    uint32_t bits = 0;
     LOCAL_STORE_SEG_T one;
-    UINT32_T one_count;
+    uint32_t one_count;
 
     if (day_bitmap == NULL || month < 1 || month > 12) {
         return OPRT_INVALID_PARM;
@@ -456,13 +456,13 @@ OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day
         return rt;
     }
     for (d = 1; d <= 31; d++) {
-        snprintf(date_dir, sizeof(date_dir), "%04u-%02u-%02u", (UINT_T)year, (UINT_T)month, (UINT_T)d);
+        snprintf(date_dir, sizeof(date_dir), "%04u-%02u-%02u", (uint32_t)year, (uint32_t)month, (uint32_t)d);
         rt = __path_join(rec_base, date_dir, day_path, sizeof(day_path));
         if (rt != OPRT_OK) {
             continue;
         }
         exists = FALSE;
-        (VOID)tkl_fs_is_exist(day_path, &exists);
+        (void)tkl_fs_is_exist(day_path, &exists);
         if (!exists) {
             continue;
         }
@@ -472,7 +472,7 @@ OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day
             continue;
         }
         exists = FALSE;
-        (VOID)tkl_fs_is_exist(idx_path, &exists);
+        (void)tkl_fs_is_exist(idx_path, &exists);
         if (!exists) {
             continue;
         }
@@ -488,16 +488,16 @@ OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day
 /**
  * @brief Query day segments from index.txt
  */
-OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, LOCAL_STORE_SEG_T *arr, UINT32_T *count)
+OPERATE_RET local_store_query_day(uint32_t year, uint32_t month, uint32_t day, LOCAL_STORE_SEG_T *arr, uint32_t *count)
 {
     OPERATE_RET rt;
-    CHAR_T idx_path[LOCAL_STORE_PATH_MAX];
-    CHAR_T line[192];
+    char idx_path[LOCAL_STORE_PATH_MAX];
+    char line[192];
     TUYA_FILE fp;
-    UINT32_T cap;
-    UINT32_T filled = 0;
-    UINT32_T start_ts, end_ts, type;
-    CHAR_T leaf[64];
+    uint32_t cap;
+    uint32_t filled = 0;
+    uint32_t start_ts, end_ts, type;
+    char leaf[64];
 
     if (arr == NULL || count == NULL || *count == 0) {
         return OPRT_INVALID_PARM;
@@ -511,7 +511,7 @@ OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, L
     }
     {
         BOOL_T exists = FALSE;
-        (VOID)tkl_fs_is_exist(idx_path, &exists);
+        (void)tkl_fs_is_exist(idx_path, &exists);
         if (!exists) {
             return OPRT_OK;
         }
@@ -521,7 +521,7 @@ OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, L
     if (fp == NULL) {
         return OPRT_FILE_OPEN_FAILED;
     }
-    while (filled < cap && tkl_fgets(line, (INT_T)sizeof(line), fp) != NULL) {
+    while (filled < cap && tkl_fgets(line, (int)sizeof(line), fp) != NULL) {
         if (line[0] == '#' || line[0] == '\n' || line[0] == '\0') {
             continue;
         }
@@ -534,7 +534,7 @@ OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, L
         }
         arr[filled].start_ts = start_ts;
         arr[filled].end_ts = end_ts;
-        arr[filled].type = (UINT16_T)type;
+        arr[filled].type = (uint16_t)type;
         snprintf(arr[filled].leaf, sizeof(arr[filled].leaf), "%s", leaf);
         filled++;
     }
@@ -546,11 +546,11 @@ OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, L
 /**
  * @brief Full path for a day leaf file
  */
-OPERATE_RET local_store_day_file_path(UINT32_T year, UINT32_T month, UINT32_T day, CONST CHAR_T *leaf, CHAR_T *out,
-                                      UINT32_T out_len)
+OPERATE_RET local_store_day_file_path(uint32_t year, uint32_t month, uint32_t day, const char *leaf, char *out,
+                                      uint32_t out_len)
 {
     OPERATE_RET rt;
-    CHAR_T day_path[LOCAL_STORE_PATH_MAX];
+    char day_path[LOCAL_STORE_PATH_MAX];
 
     if (!__filename_is_safe(leaf) || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
@@ -570,17 +570,17 @@ OPERATE_RET local_store_day_file_path(UINT32_T year, UINT32_T month, UINT32_T da
  * @param[in] path_len out_path size
  * @return OPRT_OK on success, OPRT_NOT_FOUND if no segment
  */
-OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out_seg, CHAR_T *out_path,
-                                        UINT32_T path_len)
+OPERATE_RET local_store_find_by_play_ts(uint32_t play_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path,
+                                        uint32_t path_len)
 {
     OPERATE_RET rt;
     POSIX_TM_S tm;
     LOCAL_STORE_SEG_T segs[64];
-    UINT32_T count = 64;
-    UINT32_T i;
-    INT_T best = -1;
-    UINT32_T best_dist = 0xFFFFFFFFu;
-    UINT32_T year, month, day;
+    uint32_t count = 64;
+    uint32_t i;
+    int best = -1;
+    uint32_t best_dist = 0xFFFFFFFFu;
+    uint32_t year, month, day;
 
     if (out_path == NULL || path_len == 0 || play_ts == 0) {
         return OPRT_INVALID_PARM;
@@ -591,9 +591,9 @@ OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out
     if (rt != OPRT_OK) {
         return rt;
     }
-    year = (UINT32_T)(tm.tm_year + 1900);
-    month = (UINT32_T)(tm.tm_mon + 1);
-    day = (UINT32_T)tm.tm_mday;
+    year = (uint32_t)(tm.tm_year + 1900);
+    month = (uint32_t)(tm.tm_mon + 1);
+    day = (uint32_t)tm.tm_mday;
 
     rt = local_store_query_day(year, month, day, segs, &count);
     if (rt != OPRT_OK) {
@@ -604,11 +604,11 @@ OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out
     }
     for (i = 0; i < count; i++) {
         if (play_ts >= segs[i].start_ts && play_ts <= segs[i].end_ts) {
-            best = (INT_T)i;
+            best = (int)i;
             break;
         }
         {
-            UINT32_T dist;
+            uint32_t dist;
             if (play_ts < segs[i].start_ts) {
                 dist = segs[i].start_ts - play_ts;
             } else {
@@ -616,7 +616,7 @@ OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out
             }
             if (dist < best_dist) {
                 best_dist = dist;
-                best = (INT_T)i;
+                best = (int)i;
             }
         }
     }
@@ -636,16 +636,16 @@ OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out
  * @param[in] duration_sec indexed duration in seconds
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UINT32_T duration_sec)
+OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32_t duration_sec)
 {
     OPERATE_RET rt;
-    CHAR_T dst[LOCAL_STORE_PATH_MAX];
-    CHAR_T buf[4096];
+    char dst[LOCAL_STORE_PATH_MAX];
+    char buf[4096];
     TUYA_FILE fin = NULL;
     TUYA_FILE fout = NULL;
-    INT_T nread;
+    int nread;
     TIME_T now;
-    UINT32_T start_ts, end_ts;
+    uint32_t start_ts, end_ts;
     BOOL_T exists = FALSE;
     BOOL_T src_exists = FALSE;
 
@@ -657,7 +657,7 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
     }
     /* Require seed source before creating day dirs — avoids empty calendar dots */
     src_exists = FALSE;
-    (VOID)tkl_fs_is_exist(src_path, &src_exists);
+    (void)tkl_fs_is_exist(src_path, &src_exists);
     if (!src_exists) {
         TAL_PR_ERR("seed src missing: %s", src_path);
         return OPRT_FILE_OPEN_FAILED;
@@ -672,7 +672,7 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
     }
     /* Skip re-copy if already present */
     exists = FALSE;
-    (VOID)tkl_fs_is_exist(dst, &exists);
+    (void)tkl_fs_is_exist(dst, &exists);
     if (exists) {
         TAL_PR_NOTICE("local_store seed skip copy, exists: %s", dst);
     } else {
@@ -688,7 +688,7 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
             return OPRT_FILE_OPEN_FAILED;
         }
         for (;;) {
-            nread = tkl_fread(buf, (INT_T)sizeof(buf), fin);
+            nread = tkl_fread(buf, (int)sizeof(buf), fin);
             if (nread <= 0) {
                 break;
             }
@@ -707,22 +707,22 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
         start_ts = 1;
         end_ts = duration_sec;
     } else {
-        end_ts = (UINT32_T)now;
+        end_ts = (uint32_t)now;
         start_ts = end_ts - duration_sec;
     }
     /* Skip duplicate index lines for the same leaf on reboot */
     {
         POSIX_TM_S tm;
         LOCAL_STORE_SEG_T segs[64];
-        UINT32_T count = 64;
-        UINT32_T i;
-        UINT32_T year, month, day;
+        uint32_t count = 64;
+        uint32_t i;
+        uint32_t year, month, day;
 
         memset(&tm, 0, sizeof(tm));
         if (tal_time_get_local_time_custom((TIME_T)start_ts, &tm) == OPRT_OK) {
-            year = (UINT32_T)(tm.tm_year + 1900);
-            month = (UINT32_T)(tm.tm_mon + 1);
-            day = (UINT32_T)tm.tm_mday;
+            year = (uint32_t)(tm.tm_year + 1900);
+            month = (uint32_t)(tm.tm_mon + 1);
+            day = (uint32_t)tm.tm_mday;
             if (local_store_query_day(year, month, day, segs, &count) == OPRT_OK) {
                 for (i = 0; i < count; i++) {
                     if (strcmp(segs[i].leaf, leaf) == 0) {
@@ -746,7 +746,7 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
  * @brief Whether a recording segment is currently open
  * @return TRUE if open
  */
-BOOL_T local_store_rec_is_open(VOID_T)
+BOOL_T local_store_rec_is_open(void)
 {
     return (s_rec_fp != NULL) ? TRUE : FALSE;
 }
@@ -755,7 +755,7 @@ BOOL_T local_store_rec_is_open(VOID_T)
  * @brief Elapsed seconds of the current open segment
  * @return seconds since start, or 0
  */
-UINT32_T local_store_rec_elapsed_sec(VOID_T)
+uint32_t local_store_rec_elapsed_sec(void)
 {
     TIME_T now;
 
@@ -766,17 +766,17 @@ UINT32_T local_store_rec_elapsed_sec(VOID_T)
     if (now <= (TIME_T)s_rec_start_ts) {
         return 0;
     }
-    return (UINT32_T)now - s_rec_start_ts;
+    return (uint32_t)now - s_rec_start_ts;
 }
 
 /**
  * @brief Close current segment and append day index if non-empty
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_rec_stop(VOID_T)
+OPERATE_RET local_store_rec_stop(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    UINT32_T end_ts;
+    uint32_t end_ts;
 
     if (s_rec_fp == NULL) {
         return OPRT_OK;
@@ -784,13 +784,13 @@ OPERATE_RET local_store_rec_stop(VOID_T)
     tkl_fclose(s_rec_fp);
     s_rec_fp = NULL;
 
-    end_ts = (UINT32_T)tal_time_get_posix();
+    end_ts = (uint32_t)tal_time_get_posix();
     if (end_ts < s_rec_start_ts) {
         end_ts = s_rec_start_ts;
     }
     if (s_rec_bytes == 0) {
         TAL_PR_WARN("local_store rec discard empty %s", s_rec_path);
-        (VOID)tkl_fs_remove(s_rec_path);
+        (void)tkl_fs_remove(s_rec_path);
     } else {
         if (end_ts == s_rec_start_ts) {
             end_ts = s_rec_start_ts + 1;
@@ -815,18 +815,18 @@ OPERATE_RET local_store_rec_stop(VOID_T)
  * @param[in] leaf_prefix prefix for leaf name
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix)
+OPERATE_RET local_store_rec_start(const char *leaf_prefix)
 {
     OPERATE_RET rt;
     TIME_T now;
-    CHAR_T leaf[64];
-    INT_T n;
+    char leaf[64];
+    int n;
 
     if (leaf_prefix == NULL || leaf_prefix[0] == '\0' || !__filename_is_safe(leaf_prefix)) {
         return OPRT_INVALID_PARM;
     }
     if (s_rec_fp != NULL) {
-        (VOID)local_store_rec_stop();
+        (void)local_store_rec_stop();
     }
     rt = local_store_init();
     if (rt != OPRT_OK) {
@@ -836,8 +836,8 @@ OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix)
     if (now <= 0) {
         now = 1;
     }
-    n = snprintf(leaf, sizeof(leaf), "%s_%u.h264", leaf_prefix, (UINT_T)now);
-    if (n < 0 || (UINT32_T)n >= sizeof(leaf) || !__filename_is_safe(leaf)) {
+    n = snprintf(leaf, sizeof(leaf), "%s_%u.h264", leaf_prefix, (uint32_t)now);
+    if (n < 0 || (uint32_t)n >= sizeof(leaf) || !__filename_is_safe(leaf)) {
         return OPRT_BUFFER_NOT_ENOUGH;
     }
     rt = local_store_make_rec_path(leaf, s_rec_path, sizeof(s_rec_path));
@@ -851,7 +851,7 @@ OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix)
         return OPRT_FILE_OPEN_FAILED;
     }
     snprintf(s_rec_leaf, sizeof(s_rec_leaf), "%s", leaf);
-    s_rec_start_ts = (UINT32_T)now;
+    s_rec_start_ts = (uint32_t)now;
     s_rec_bytes = 0;
     TAL_PR_NOTICE("local_store rec start %s", s_rec_path);
     return OPRT_OK;
@@ -863,9 +863,9 @@ OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix)
  * @param[in] len length
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_rec_write(CONST UINT8_T *data, UINT32_T len)
+OPERATE_RET local_store_rec_write(const uint8_t *data, uint32_t len)
 {
-    INT_T n;
+    int n;
 
     if (data == NULL || len == 0) {
         return OPRT_INVALID_PARM;
@@ -873,8 +873,8 @@ OPERATE_RET local_store_rec_write(CONST UINT8_T *data, UINT32_T len)
     if (s_rec_fp == NULL) {
         return OPRT_RESOURCE_NOT_READY;
     }
-    n = tkl_fwrite((VOID_T *)data, (INT_T)len, s_rec_fp);
-    if (n != (INT_T)len) {
+    n = tkl_fwrite((void *)data, (int)len, s_rec_fp);
+    if (n != (int)len) {
         TAL_PR_ERR("local_store rec write fail want=%u got=%d", len, n);
         return OPRT_FILE_WRITE_FAILED;
     }

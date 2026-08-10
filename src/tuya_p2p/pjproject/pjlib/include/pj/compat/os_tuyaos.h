@@ -34,6 +34,7 @@
 #define PJ_HAS_MALLOC_H       1
 #define PJ_HAS_NETDB_H        1
 #define PJ_HAS_NETINET_IN_H   1
+#define PJ_HAS_NETINET_TCP_H  1
 #define PJ_HAS_SYS_IOCTL_H    1
 #define PJ_HAS_SYS_SELECT_H   1
 #define PJ_HAS_SYS_SOCKET_H   1
@@ -47,11 +48,12 @@
 #define PJ_SOCK_HAS_INET_ATON 1
 #define PJ_SOCK_HAS_INET_NTOP 1
 #else
-/* MCU: lwIP BSD-ish sockets */
+/* MCU: lwIP BSD-ish sockets (TCP_NODELAY comes from lwip/sockets.h) */
 #define PJ_HAS_ARPA_INET_H    0
 #define PJ_HAS_MALLOC_H       0
 #define PJ_HAS_NETDB_H        0
 #define PJ_HAS_NETINET_IN_H   0
+#define PJ_HAS_NETINET_TCP_H  0
 #define PJ_HAS_SYS_IOCTL_H    0
 #define PJ_HAS_SYS_SELECT_H   0
 #define PJ_HAS_SYS_SOCKET_H   0
@@ -66,6 +68,11 @@
 #define PJ_HAS_LOCALTIME_R 0
 #define PJ_SOCK_HAS_INET_ATON 0
 #define PJ_SOCK_HAS_INET_NTOP 1
+#endif
+
+/* Name reported by pj_gethostname() where no POSIX host database exists */
+#ifndef PJ_TUYAOS_HOSTNAME
+#define PJ_TUYAOS_HOSTNAME "tuyaos"
 #endif
 
 #define PJ_HAS_ERRNO_VAR 1

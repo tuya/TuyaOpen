@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #include "tuya_cloud_types.h"
-#include "tuya_common_types.h"
+#include "tuya_cloud_types.h"
 
 #define P2P_ID_LEN           25 /**P2P ID MAX LEN*/
 #define P2P_NAME_LEN         8  /**P2P NAME LEN*/
@@ -31,11 +31,11 @@ extern "C" {
  * @brief p2p auth info
  */
 typedef struct {
-    CHAR_T p2p_id[P2P_ID_LEN + 1];                 /** p2p id*/
-    CHAR_T p2p_name[P2P_NAME_LEN + 1];             /** p2p name*/
-    CHAR_T p2p_passwd[P2P_PASSWD_LEN + 1];         /** p2p auth passeord*/
-    CHAR_T gw_local_key[P2P_GW_LOCAL_KEY_LEN + 1]; /** p2p auth key*/
-    VOID *p_reserved;                              /** reserved ptr*/
+    char p2p_id[P2P_ID_LEN + 1];                 /** p2p id*/
+    char p2p_name[P2P_NAME_LEN + 1];             /** p2p name*/
+    char p2p_passwd[P2P_PASSWD_LEN + 1];         /** p2p auth passeord*/
+    char gw_local_key[P2P_GW_LOCAL_KEY_LEN + 1]; /** p2p auth key*/
+    void *p_reserved;                              /** reserved ptr*/
 } TUYA_IPC_P2P_AUTH_T;
 
 /**
@@ -86,9 +86,9 @@ typedef enum {
  * @brief debug cnt
  */
 typedef struct {
-    UINT_T lstCnt;    /** send cnt*/
-    UINT_T lstCnt2;   /** recv cnt*/
-    UINT_T staticCnt; /** detech cnt*/
+    uint32_t lstCnt;    /** send cnt*/
+    uint32_t lstCnt2;   /** recv cnt*/
+    uint32_t staticCnt; /** detech cnt*/
 } P2P_SESSION_DETECH_T;
 
 /**
@@ -98,16 +98,16 @@ typedef struct {
 
 * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
 */
-OPERATE_RET tuya_ipc_p2p_get_id(INOUT CHAR_T p2p_id[]);
+OPERATE_RET tuya_ipc_p2p_get_id(char p2p_id[]);
 
 /**
 * @brief check p2p auth update
 *
-* @param (VOID)
+* @param (void)
 
 * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
 */
-OPERATE_RET tuya_ipc_check_p2p_auth_update(VOID);
+OPERATE_RET tuya_ipc_check_p2p_auth_update(void);
 
 /**
 * @brief get p2p auth info
@@ -125,7 +125,7 @@ OPERATE_RET tuya_ipc_get_p2p_auth(TUYA_IPC_P2P_AUTH_T *pAuth);
 
 * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
 */
-OPERATE_RET tuya_ipc_p2p_update_pw(INOUT CHAR_T p2p_pw[]);
+OPERATE_RET tuya_ipc_p2p_update_pw(char p2p_pw[]);
 
 /**
  * @brief p2p log report
@@ -136,7 +136,7 @@ OPERATE_RET tuya_ipc_p2p_update_pw(INOUT CHAR_T p2p_pw[]);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET mqc_p2p_data_rept_v41(IN CONST CHAR_T *devid, IN CONST CHAR_T *pData, IN CONST INT_T len);
+OPERATE_RET mqc_p2p_data_rept_v41(const char *devid, const char *pData, const int len);
 
 /**
  * @brief iot reset config callback
@@ -145,7 +145,7 @@ OPERATE_RET mqc_p2p_data_rept_v41(IN CONST CHAR_T *devid, IN CONST CHAR_T *pData
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-INT_T iot_gw_reset_cb(VOID *rst_tp);
+int iot_gw_reset_cb(void *rst_tp);
 
 #ifdef __cplusplus
 }

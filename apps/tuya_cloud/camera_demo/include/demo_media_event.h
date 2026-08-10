@@ -19,7 +19,7 @@ extern "C" {
  * @return none
  * @note Call after TUYA_APP_Start()/p2p_init()
  */
-VOID_T demo_media_event_register(VOID_T);
+void demo_media_event_register(void);
 
 #ifdef __cplusplus
 }

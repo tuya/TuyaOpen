@@ -154,11 +154,11 @@ typedef enum {
 typedef struct {
     // Video part parameters
     TY_AV_CODEC_ID video_codec[8];
-    UINT_T fps[8];
-    UINT_T gop[8];
-    UINT_T bitrate[8]; // kbps
-    UINT_T width[8];
-    UINT_T height[8];
+    uint32_t fps[8];
+    uint32_t gop[8];
+    uint32_t bitrate[8]; // kbps
+    uint32_t width[8];
+    uint32_t height[8];
     // Audio part parameters
     TY_AV_CODEC_ID audio_codec;
     TRANSFER_AUDIO_SAMPLE_E audio_sample;
@@ -268,14 +268,14 @@ typedef enum tagTransferVideoClarityType {
 
 typedef enum tagIpcStreamType {
     eIpcStreamVideoMain, ///< first video stream
-    eIpcStreamVideoSub,  ///< second video stream
-    eIpcStreamVideo3rd,  ///< third video stream
-    eIpcStreamVideo4th,  ///< forth video stream
+    eIpcStreamVideoSub, ///< second video stream
+    eIpcStreamVideo3rd, ///< third video stream
+    eIpcStreamVideo4th, ///< forth video stream
     eIpcStreamVideoMax = 8,
     eIpcStreamAudioMain, ///< first audio stream
-    eIpcStreamAudioSub,  ///< second audio stream
-    eIpcStreamAudio3rd,  ///< third audio stream
-    eIpcStreamAudio4th,  ///< forth audio stream
+    eIpcStreamAudioSub, ///< second audio stream
+    eIpcStreamAudio3rd, ///< third audio stream
+    eIpcStreamAudio4th, ///< forth audio stream
     eIpcStreamMax = 16,
 } IPC_STREAM_TYPE;
 

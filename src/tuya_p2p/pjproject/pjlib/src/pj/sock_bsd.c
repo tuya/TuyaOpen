@@ -16,7 +16,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <netinet/tcp.h>
 #include <pj/sock.h>
 #include <pj/os.h>
 #include <pj/assert.h>
@@ -460,12 +459,22 @@ PJ_DEF(const pj_str_t *) pj_gethostname(void)
 
     if (hostname.ptr == NULL) {
         hostname.ptr = buf;
+#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
+        /*
+         * lwIP targets have no POSIX host database, so libc gethostname() is
+         * unresolved at link time. pj only uses this name as a label (telnet
+         * CLI prompt, pj_gethostip fallback), so report a fixed one.
+         */
+        pj_ansi_snprintf(buf, sizeof(buf), "%s", PJ_TUYAOS_HOSTNAME);
+        hostname.slen = pj_ansi_strlen(buf);
+#else
         if (gethostname(buf, sizeof(buf)) != 0) {
             hostname.ptr[0] = '\0';
             hostname.slen = 0;
         } else {
             hostname.slen = strlen(buf);
         }
+#endif
     }
     return &hostname;
 }

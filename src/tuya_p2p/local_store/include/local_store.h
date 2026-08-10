@@ -29,20 +29,20 @@ extern "C" {
  * @return OPRT_OK on success, error code on failure
  * @note Safe to call more than once; subsequent calls are no-ops after success
  */
-OPERATE_RET local_store_init(VOID_T);
+OPERATE_RET local_store_init(void);
 
 /**
  * @brief Get configured storage root path
  * @return Pointer to root string (compile-time config), never NULL when enabled
  */
-CONST CHAR_T *local_store_root(VOID_T);
+const char *local_store_root(void);
 
 /**
  * @brief Ensure directory exists (mkdir -p style via tal_fs)
  * @param[in] dir absolute or relative directory path
  * @return OPRT_OK on success, error code on failure
  */
-OPERATE_RET local_store_ensure_dir(CONST CHAR_T *dir);
+OPERATE_RET local_store_ensure_dir(const char *dir);
 
 /**
  * @brief Build dated recording path: ROOT/REC/YYYY-MM-DD/filename and create dirs
@@ -51,7 +51,7 @@ OPERATE_RET local_store_ensure_dir(CONST CHAR_T *dir);
  * @param[in] out_len size of out in bytes
  * @return OPRT_OK on success, OPRT_INVALID_PARM / OPRT_BUFFER_NOT_ENOUGH on failure
  */
-OPERATE_RET local_store_make_rec_path(CONST CHAR_T *filename, CHAR_T *out, UINT32_T out_len);
+OPERATE_RET local_store_make_rec_path(const char *filename, char *out, uint32_t out_len);
 
 /**
  * @brief Build temporary sibling path by appending ".tmp" to final_path
@@ -60,7 +60,7 @@ OPERATE_RET local_store_make_rec_path(CONST CHAR_T *filename, CHAR_T *out, UINT3
  * @param[in] out_len size of out in bytes
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_make_tmp_path(CONST CHAR_T *final_path, CHAR_T *out, UINT32_T out_len);
+OPERATE_RET local_store_make_tmp_path(const char *final_path, char *out, uint32_t out_len);
 
 /**
  * @brief Atomically promote tmp file to final path (tal_fs_rename)
@@ -68,7 +68,7 @@ OPERATE_RET local_store_make_tmp_path(CONST CHAR_T *final_path, CHAR_T *out, UIN
  * @param[in] final_path destination path
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_commit(CONST CHAR_T *tmp_path, CONST CHAR_T *final_path);
+OPERATE_RET local_store_commit(const char *tmp_path, const char *final_path);
 
 /* ---------------------------------------------------------------------------
  * Day index (align OS playback month/day query)
@@ -80,10 +80,10 @@ OPERATE_RET local_store_commit(CONST CHAR_T *tmp_path, CONST CHAR_T *final_path)
  * @brief One recording segment in the day index
  */
 typedef struct {
-    UINT32_T start_ts; /**< UTC/local epoch seconds */
-    UINT32_T end_ts;   /**< Epoch seconds */
-    UINT16_T type;     /**< 0=normal, reserved for event types */
-    CHAR_T leaf[64];   /**< Filename only under the day directory */
+    uint32_t start_ts; /**< UTC/local epoch seconds */
+    uint32_t end_ts;   /**< Epoch seconds */
+    uint16_t type;     /**< 0=normal, reserved for event types */
+    char leaf[64];   /**< Filename only under the day directory */
 } LOCAL_STORE_SEG_T;
 
 /**
@@ -94,7 +94,7 @@ typedef struct {
  * @param[in] leaf filename only (must already exist or be about to commit)
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_T type, CONST CHAR_T *leaf);
+OPERATE_RET local_store_index_append(uint32_t start_ts, uint32_t end_ts, uint16_t type, const char *leaf);
 
 /**
  * @brief Query which days of a month have recordings (bit0=day1 ... bit30=day31)
@@ -103,7 +103,7 @@ OPERATE_RET local_store_index_append(UINT32_T start_ts, UINT32_T end_ts, UINT16_
  * @param[out] day_bitmap bit mask of days that have an index or media files
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day_bitmap);
+OPERATE_RET local_store_query_month(uint32_t year, uint32_t month, uint32_t *day_bitmap);
 
 /**
  * @brief Query recording segments for one day
@@ -114,8 +114,8 @@ OPERATE_RET local_store_query_month(UINT32_T year, UINT32_T month, UINT32_T *day
  * @param[in,out] count in: capacity, out: filled count
  * @return OPRT_OK on success (count may be 0)
  */
-OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, LOCAL_STORE_SEG_T *arr,
-                                  UINT32_T *count);
+OPERATE_RET local_store_query_day(uint32_t year, uint32_t month, uint32_t day, LOCAL_STORE_SEG_T *arr,
+                                  uint32_t *count);
 
 /**
  * @brief Build full path for a day leaf: ROOT/rec/YYYY-MM-DD/leaf
@@ -127,8 +127,8 @@ OPERATE_RET local_store_query_day(UINT32_T year, UINT32_T month, UINT32_T day, L
  * @param[in] out_len buffer size
  * @return OPRT_OK on success
  */
-OPERATE_RET local_store_day_file_path(UINT32_T year, UINT32_T month, UINT32_T day, CONST CHAR_T *leaf, CHAR_T *out,
-                                      UINT32_T out_len);
+OPERATE_RET local_store_day_file_path(uint32_t year, uint32_t month, uint32_t day, const char *leaf, char *out,
+                                      uint32_t out_len);
 
 /**
  * @brief Find a recording segment covering play_ts and build its full path
@@ -139,8 +139,8 @@ OPERATE_RET local_store_day_file_path(UINT32_T year, UINT32_T month, UINT32_T da
  * @return OPRT_OK on success, OPRT_NOT_FOUND if no segment
  * @note Picks first segment with start_ts <= play_ts <= end_ts; if none, nearest by start_ts
  */
-OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out_seg, CHAR_T *out_path,
-                                        UINT32_T path_len);
+OPERATE_RET local_store_find_by_play_ts(uint32_t play_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path,
+                                        uint32_t path_len);
 
 /**
  * @brief Seed one Annex-B H264 file into today's index for PB bring-up
@@ -150,7 +150,7 @@ OPERATE_RET local_store_find_by_play_ts(UINT32_T play_ts, LOCAL_STORE_SEG_T *out
  * @return OPRT_OK on success
  * @note Copies bytes via tal_fs; safe to call once at boot for demo
  */
-OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UINT32_T duration_sec);
+OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32_t duration_sec);
 
 /**
  * @brief Start a live Annex-B H264 recording segment under today's day dir
@@ -158,7 +158,7 @@ OPERATE_RET local_store_seed_h264(CONST CHAR_T *src_path, CONST CHAR_T *leaf, UI
  * @return OPRT_OK on success
  * @note Closes any previous open segment first. Aligns OS: encode path appends while live.
  */
-OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix);
+OPERATE_RET local_store_rec_start(const char *leaf_prefix);
 
 /**
  * @brief Append one encoded frame to the current recording segment
@@ -166,26 +166,26 @@ OPERATE_RET local_store_rec_start(CONST CHAR_T *leaf_prefix);
  * @param[in] len byte length
  * @return OPRT_OK on success, OPRT_RESOURCE_NOT_READY if no segment open
  */
-OPERATE_RET local_store_rec_write(CONST UINT8_T *data, UINT32_T len);
+OPERATE_RET local_store_rec_write(const uint8_t *data, uint32_t len);
 
 /**
  * @brief Close current segment and append it to the day index
  * @return OPRT_OK on success (no-op if nothing open)
  * @note end_ts = now; empty segments (0 bytes) are discarded without index
  */
-OPERATE_RET local_store_rec_stop(VOID_T);
+OPERATE_RET local_store_rec_stop(void);
 
 /**
  * @brief Whether a recording segment is currently open
  * @return TRUE if open
  */
-BOOL_T local_store_rec_is_open(VOID_T);
+BOOL_T local_store_rec_is_open(void);
 
 /**
  * @brief Elapsed seconds of the current open segment (0 if none)
  * @return seconds since segment start_ts
  */
-UINT32_T local_store_rec_elapsed_sec(VOID_T);
+uint32_t local_store_rec_elapsed_sec(void);
 
 #ifdef __cplusplus
 }

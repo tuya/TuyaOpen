@@ -16,10 +16,10 @@ extern "C" {
  */
 typedef struct {
     MEDIA_STREAM_EVENT_CB on_event_cb;     /** p2p event callback function */
-    INT_T max_client_num;                  /** max client number supported in p2p and webrtc streaming */
+    int max_client_num;                  /** max client number supported in p2p and webrtc streaming */
     TRANS_DEFAULT_QUALITY_E def_live_mode; /** for multi-streaming ipc, the default quality for live preview */
     BOOL_T low_power;                      /** whether is lowpower device */
-    UINT_T recv_buffer_size;               /*recv app data size. if recv_buffer_size = 0,default = 16*1024*/
+    uint32_t recv_buffer_size;               /*recv app data size. if recv_buffer_size = 0,default = 16*1024*/
 } MEDIA_STREAM_VAR_T;
 
 /** @brief media stream module init
@@ -33,7 +33,7 @@ OPERATE_RET tuya_ipc_media_stream_init(MEDIA_STREAM_VAR_T *stream_var);
 /** @brief get number of clients currently streaming
  * @return number of clients
  */
-INT_T tuya_ipc_get_client_online_num();
+int tuya_ipc_get_client_online_num();
 
 /** @brief pause media streaming
  * @return error code
@@ -64,11 +64,11 @@ OPERATE_RET tuya_ipc_media_stream_deinit();
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ipc_media_playback_send_video_frame(IN CONST UINT_T client,
-                                                     IN CONST MEDIA_VIDEO_FRAME_T *p_video_frame);
+OPERATE_RET tuya_ipc_media_playback_send_video_frame(const uint32_t client,
+                                                     const MEDIA_VIDEO_FRAME_T *p_video_frame);
 OPERATE_RET
-tuya_ipc_media_playback_send_video_frame_with_encrypt(IN CONST UINT_T client, IN UINT_T reqId,
-                                                      IN CONST TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_video_frame);
+tuya_ipc_media_playback_send_video_frame_with_encrypt(const uint32_t client, uint32_t reqId,
+                                                      const TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_video_frame);
 
 /**
  * @brief send playback audio frame to APP via P2P channel
@@ -78,11 +78,11 @@ tuya_ipc_media_playback_send_video_frame_with_encrypt(IN CONST UINT_T client, IN
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ipc_media_playback_send_audio_frame(IN CONST UINT_T client,
-                                                     IN CONST MEDIA_AUDIO_FRAME_T *p_audio_frame);
+OPERATE_RET tuya_ipc_media_playback_send_audio_frame(const uint32_t client,
+                                                     const MEDIA_AUDIO_FRAME_T *p_audio_frame);
 OPERATE_RET
-tuya_ipc_media_playback_send_audio_frame_with_encrypt(IN CONST UINT_T client, IN UINT_T reqId,
-                                                      IN CONST TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_audio_frame);
+tuya_ipc_media_playback_send_audio_frame_with_encrypt(const uint32_t client, uint32_t reqId,
+                                                      const TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_audio_frame);
 
 /**
  * @brief notify client(APP) playback fragment is finished, send frag info to app
@@ -92,7 +92,7 @@ tuya_ipc_media_playback_send_audio_frame_with_encrypt(IN CONST UINT_T client, IN
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ipc_media_playback_send_fragment_end(IN CONST UINT_T client, IN CONST PLAYBACK_TIME_S *fgmt);
+OPERATE_RET tuya_ipc_media_playback_send_fragment_end(const uint32_t client, const PLAYBACK_TIME_S *fgmt);
 
 /**
  * @brief notify client(APP) playback data is finished, no more data outgoing
@@ -101,14 +101,14 @@ OPERATE_RET tuya_ipc_media_playback_send_fragment_end(IN CONST UINT_T client, IN
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_ipc_media_playback_send_finish(IN CONST UINT_T client);
+OPERATE_RET tuya_ipc_media_playback_send_finish(const uint32_t client);
 
 /**
  * @brief Clear P2P AV send buffers (VDATA/ADATA) for current session
  * @return none
  * @note Call on real PB (re)start; skip when App re-sends same-seg START without mid seek
  */
-VOID_T tuya_ipc_media_p2p_clear_send(VOID_T);
+void tuya_ipc_media_p2p_clear_send(void);
 
 /**
  * @brief put log to tuya cloud service.
@@ -116,9 +116,9 @@ VOID_T tuya_ipc_media_p2p_clear_send(VOID_T);
  * @param level
  * @param log
  * @param log_len
- * @return VOID
+ * @return void
  */
-// VOID tuya_imm_media_online_log_print(IMM_SERVICE_LOG_LV_T level, CHAR_T *p, CHAR_T* pFmt, ...);
+// void tuya_imm_media_online_log_print(IMM_SERVICE_LOG_LV_T level, char *p, char* pFmt, ...);
 
 #ifdef __cplusplus
 }

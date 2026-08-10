@@ -27,70 +27,70 @@ extern "C" {
  * @brief Initialize demo video file
  * @return none
  */
-VOID_T tuya_ipc_demo_start(VOID_T);
+void tuya_ipc_demo_start(void);
 
 /**
  * @brief Clean up demo resources
  * @return none
  */
-VOID_T tuya_ipc_demo_end(VOID_T);
+void tuya_ipc_demo_end(void);
 
 /**
  * @brief Signal disconnect callback function
  * @return 0 on success
  */
-INT_T demo_on_signal_disconnect_callback(VOID_T);
+int demo_on_signal_disconnect_callback(void);
 
 /**
  * @brief P2P live video start (align TuyaOS MEDIA_STREAM_LIVE_VIDEO_START)
  * @return 0 on success
  */
-INT_T demo_on_live_video_start_callback(VOID_T);
+int demo_on_live_video_start_callback(void);
 
 /**
  * @brief P2P live video stop (align TuyaOS MEDIA_STREAM_LIVE_VIDEO_STOP)
  * @return 0 on success
  */
-INT_T demo_on_live_video_stop_callback(VOID_T);
+int demo_on_live_video_stop_callback(void);
 
 /**
  * @brief Get video frame callback function
  * @param[in,out] media_frame Media frame structure
  * @return 0 on success, -1 on failure
  */
-INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame);
+int demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame);
 
 /**
  * @brief Get audio frame callback function
  * @param[in,out] media_frame Media frame structure
  * @return 0 on success
  */
-INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame);
+int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame);
 
 /**
  * @brief P2P downlink intercom start (APP->device speaker), align MEDIA_STREAM_SPEAKER_START
  * @return 0 on success
  */
-INT_T demo_on_live_audio_start_callback(VOID_T);
+int demo_on_live_audio_start_callback(void);
 
 /**
  * @brief P2P downlink intercom stop, align MEDIA_STREAM_SPEAKER_STOP
  * @return 0 on success
  */
-INT_T demo_on_live_audio_stop_callback(VOID_T);
+int demo_on_live_audio_stop_callback(void);
 
 /**
  * @brief P2P recv audio frame from APP (G.711U), decode+resample+play to speaker
  * @param[in] media_frame G.711 mu-law payload from APP
  * @return 0 on success
  */
-INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame);
+int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame);
 
 /**
  * @brief Pause mic uplink (for PB send path — free P2P/UDP buffer)
  * @return none
  */
-VOID_T demo_mic_uplink_pause(VOID_T);
+void demo_mic_uplink_pause(void);
 
 #ifdef __cplusplus
 }

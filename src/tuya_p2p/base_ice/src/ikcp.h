@@ -103,24 +103,24 @@ typedef unsigned long long IUINT64;
 #endif
 #endif
 
-#ifndef INLINE
+#ifndef inline
 #if defined(__GNUC__)
 
 #if (__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 1))
-#define INLINE __inline__ __attribute__((always_inline))
+#define inline __inline__ __attribute__((always_inline))
 #else
-#define INLINE __inline__
+#define inline __inline__
 #endif
 
 #elif (defined(_MSC_VER) || defined(__BORLANDC__) || defined(__WATCOMC__))
-#define INLINE __inline
+#define inline __inline
 #else
-#define INLINE
+#define inline
 #endif
 #endif
 
 #if (!defined(__cplusplus)) && (!defined(inline))
-#define inline INLINE
+#define inline inline
 #endif
 
 //=====================================================================

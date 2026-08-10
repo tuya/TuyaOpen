@@ -16,7 +16,7 @@ typedef struct {
     SEM_HANDLE join_sem;
 } __tal_thr_wrap_t;
 
-static VOID_T __tal_thr_entry(VOID_T *arg)
+static void __tal_thr_entry(void *arg)
 {
     __tal_thr_wrap_t *w = (__tal_thr_wrap_t *)arg;
     SEM_HANDLE join = NULL;

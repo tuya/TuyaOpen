@@ -20,20 +20,20 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-STATIC CHAR_T g_demo_path[512] = {0};
-STATIC UINT8_T *g_video_buf = NULL;
-STATIC INT_T g_file_size = 0;
-STATIC BOOL_T g_is_last_frame = FALSE;
-STATIC UINT32_T g_frame_len = 0, g_frame_start = 0;
-STATIC UINT32_T g_offset = 0;
-STATIC UINT32_T g_is_key_frame = 0;
-STATIC FILE *g_fp = NULL;
+static char g_demo_path[512] = {0};
+static uint8_t *g_video_buf = NULL;
+static int g_file_size = 0;
+static BOOL_T g_is_last_frame = FALSE;
+static uint32_t g_frame_len = 0, g_frame_start = 0;
+static uint32_t g_offset = 0;
+static uint32_t g_is_key_frame = 0;
+static FILE *g_fp = NULL;
 
 /**
  * @brief Initialize demo video file
  * @return none
  */
-VOID_T tuya_ipc_demo_start(VOID_T)
+void tuya_ipc_demo_start(void)
 {
     if (getcwd(g_demo_path, sizeof(g_demo_path)) == NULL) {
         PR_ERR("getcwd failed");
@@ -47,10 +47,10 @@ VOID_T tuya_ipc_demo_start(VOID_T)
     }
 
     fseek(g_fp, 0, SEEK_END);
-    g_file_size = (INT_T)ftell(g_fp);
+    g_file_size = (int)ftell(g_fp);
     fseek(g_fp, 0, SEEK_SET);
 
-    g_video_buf = (UINT8_T *)malloc((size_t)g_file_size);
+    g_video_buf = (uint8_t *)malloc((size_t)g_file_size);
     if (g_video_buf == NULL) {
         PR_ERR("malloc video buffer failed");
         fclose(g_fp);
@@ -67,7 +67,7 @@ VOID_T tuya_ipc_demo_start(VOID_T)
  * @brief Clean up demo resources
  * @return none
  */
-VOID_T tuya_ipc_demo_end(VOID_T)
+void tuya_ipc_demo_end(void)
 {
     if (g_video_buf) {
         free(g_video_buf);
@@ -95,13 +95,13 @@ VOID_T tuya_ipc_demo_end(VOID_T)
  * @param[out] frame_start absolute start
  * @return 0 on success, -1 on failure
  */
-STATIC INT_T read_one_frame_from_demo_video_file(UINT8_T *video_buf, UINT32_T offset, UINT32_T buf_size,
-                                                 UINT32_T *is_key_frame, UINT32_T *frame_len, UINT32_T *frame_start)
+static int read_one_frame_from_demo_video_file(uint8_t *video_buf, uint32_t offset, uint32_t buf_size,
+                                                 uint32_t *is_key_frame, uint32_t *frame_len, uint32_t *frame_start)
 {
-    UINT32_T pos = 0;
-    INT_T need_calc = 0;
-    UINT8_T nal_type = 0;
-    INT_T idx = 0;
+    uint32_t pos = 0;
+    int need_calc = 0;
+    uint8_t nal_type = 0;
+    int idx = 0;
 
     if (buf_size <= 5) {
         return -1;
@@ -110,24 +110,24 @@ STATIC INT_T read_one_frame_from_demo_video_file(UINT8_T *video_buf, UINT32_T of
     for (pos = 0; pos <= buf_size - 5; pos++) {
         if (video_buf[pos] == 0x00 && video_buf[pos + 1] == 0x00 && video_buf[pos + 2] == 0x00 &&
             video_buf[pos + 3] == 0x01) {
-            nal_type = (UINT8_T)(video_buf[pos + 4] & 0x1f);
+            nal_type = (uint8_t)(video_buf[pos + 4] & 0x1f);
             if (nal_type == 0x7) {
                 if (need_calc == 1) {
-                    *frame_len = pos - (UINT32_T)idx;
+                    *frame_len = pos - (uint32_t)idx;
                     return 0;
                 }
                 *is_key_frame = 1;
                 *frame_start = offset + pos;
                 need_calc = 1;
-                idx = (INT_T)pos;
+                idx = (int)pos;
             } else if (nal_type == 0x1) {
                 if (need_calc) {
-                    *frame_len = pos - (UINT32_T)idx;
+                    *frame_len = pos - (uint32_t)idx;
                     return 0;
                 }
                 *frame_start = offset + pos;
                 *is_key_frame = 0;
-                idx = (INT_T)pos;
+                idx = (int)pos;
                 need_calc = 1;
             }
         }
@@ -141,16 +141,16 @@ STATIC INT_T read_one_frame_from_demo_video_file(UINT8_T *video_buf, UINT32_T of
  * @brief Get current time in milliseconds
  * @return timestamp in ms
  */
-STATIC UINT32_T get_time_ms(VOID_T)
+static uint32_t get_time_ms(void)
 {
-    return (UINT32_T)tal_system_get_millisecond();
+    return (uint32_t)tal_system_get_millisecond();
 }
 
 /**
  * @brief Signal disconnect callback
  * @return 0 on success
  */
-INT_T demo_on_signal_disconnect_callback(VOID_T)
+int demo_on_signal_disconnect_callback(void)
 {
     tuya_ipc_demo_end();
     return 0;
@@ -161,16 +161,16 @@ INT_T demo_on_signal_disconnect_callback(VOID_T)
  * @param[in,out] media_frame media frame
  * @return 0 on success, -1 on failure
  */
-INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
 {
-    INT_T ret = 0;
+    int ret = 0;
 
     if (media_frame == NULL || g_video_buf == NULL || g_file_size <= 0) {
         return -1;
     }
 
     g_offset = g_frame_start + g_frame_len;
-    if (g_offset >= (UINT32_T)g_file_size) {
+    if (g_offset >= (uint32_t)g_file_size) {
         g_is_last_frame = FALSE;
         g_frame_len = 0;
         g_frame_start = 0;
@@ -179,7 +179,7 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
         return -1;
     }
 
-    ret = read_one_frame_from_demo_video_file(g_video_buf + g_offset, g_offset, (UINT32_T)g_file_size - g_offset,
+    ret = read_one_frame_from_demo_video_file(g_video_buf + g_offset, g_offset, (uint32_t)g_file_size - g_offset,
                                               &g_is_key_frame, &g_frame_len, &g_frame_start);
     if (ret) {
         return -1;
@@ -201,9 +201,9 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
  * @return 0 on success
  * @note Ubuntu file demo has no live mic uplink; local_record uses demo_audio.aac
  */
-INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 {
-    (VOID_T)media_frame;
+    (void)media_frame;
     return 0;
 }
 
@@ -211,7 +211,7 @@ INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
  * @brief LIVE video start (file already loaded in tuya_ipc_demo_start)
  * @return 0 on success
  */
-INT_T demo_on_live_video_start_callback(VOID_T)
+int demo_on_live_video_start_callback(void)
 {
     return 0;
 }
@@ -220,7 +220,7 @@ INT_T demo_on_live_video_start_callback(VOID_T)
  * @brief LIVE video stop
  * @return 0 on success
  */
-INT_T demo_on_live_video_stop_callback(VOID_T)
+int demo_on_live_video_stop_callback(void)
 {
     return 0;
 }
@@ -229,7 +229,7 @@ INT_T demo_on_live_video_stop_callback(VOID_T)
  * @brief LIVE speaker start (no AO on Ubuntu file demo)
  * @return 0 on success
  */
-INT_T demo_on_live_audio_start_callback(VOID_T)
+int demo_on_live_audio_start_callback(void)
 {
     return 0;
 }
@@ -238,7 +238,7 @@ INT_T demo_on_live_audio_start_callback(VOID_T)
  * @brief LIVE speaker stop
  * @return 0 on success
  */
-INT_T demo_on_live_audio_stop_callback(VOID_T)
+int demo_on_live_audio_stop_callback(void)
 {
     return 0;
 }
@@ -248,9 +248,9 @@ INT_T demo_on_live_audio_stop_callback(VOID_T)
  * @param[in] media_frame unused
  * @return 0 on success
  */
-INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
 {
-    (VOID_T)media_frame;
+    (void)media_frame;
     return 0;
 }
 
@@ -269,17 +269,17 @@ INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
 /* Must match p2p_init() media_frame buffer (300 * 1024); do not use media_frame->size as cap */
 #define DEMO_P2P_VIDEO_BUF_SIZE (300 * 1024)
 
-extern const UINT8_T demo_video_264_start[];
-extern const UINT8_T demo_video_264_end[];
+extern const uint8_t demo_video_264_start[];
+extern const uint8_t demo_video_264_end[];
 
-STATIC CONST UINT8_T *s_file_h264 = NULL;
-STATIC UINT32_T s_file_h264_size = 0;
-STATIC BOOL_T s_media_ready = FALSE;
-STATIC UINT32_T s_file_offset = 0;
-STATIC UINT32_T s_file_frame_len = 0;
-STATIC UINT32_T s_file_frame_start = 0;
-STATIC UINT32_T s_file_is_key = 0;
-STATIC UINT64_T s_file_pts_idx = 0;
+static const uint8_t *s_file_h264 = NULL;
+static uint32_t s_file_h264_size = 0;
+static BOOL_T s_media_ready = FALSE;
+static uint32_t s_file_offset = 0;
+static uint32_t s_file_frame_len = 0;
+static uint32_t s_file_frame_start = 0;
+static uint32_t s_file_is_key = 0;
+static uint64_t s_file_pts_idx = 0;
 
 /**
  * @brief Parse one H.264 AU from demo Annex-B buffer (same layout as LINUX path)
@@ -291,13 +291,13 @@ STATIC UINT64_T s_file_pts_idx = 0;
  * @param[out] frame_start absolute start offset
  * @return 0 on success, -1 on failure
  */
-STATIC INT_T __demo_read_one_au(CONST UINT8_T *video_buf, UINT32_T offset, UINT32_T buf_size, UINT32_T *is_key_frame,
-                                UINT32_T *frame_len, UINT32_T *frame_start)
+static int __demo_read_one_au(const uint8_t *video_buf, uint32_t offset, uint32_t buf_size, uint32_t *is_key_frame,
+                                uint32_t *frame_len, uint32_t *frame_start)
 {
-    UINT32_T pos = 0;
-    INT_T need_calc = 0;
-    UINT8_T nal_type = 0;
-    INT_T idx = 0;
+    uint32_t pos = 0;
+    int need_calc = 0;
+    uint8_t nal_type = 0;
+    int idx = 0;
 
     if (buf_size <= 5) {
         return -1;
@@ -305,24 +305,24 @@ STATIC INT_T __demo_read_one_au(CONST UINT8_T *video_buf, UINT32_T offset, UINT3
     for (pos = 0; pos <= buf_size - 5; pos++) {
         if (video_buf[pos] == 0x00 && video_buf[pos + 1] == 0x00 && video_buf[pos + 2] == 0x00 &&
             video_buf[pos + 3] == 0x01) {
-            nal_type = (UINT8_T)(video_buf[pos + 4] & 0x1f);
+            nal_type = (uint8_t)(video_buf[pos + 4] & 0x1f);
             if (nal_type == 0x7) {
                 if (need_calc == 1) {
-                    *frame_len = pos - (UINT32_T)idx;
+                    *frame_len = pos - (uint32_t)idx;
                     return 0;
                 }
                 *is_key_frame = 1;
                 *frame_start = offset + pos;
                 need_calc = 1;
-                idx = (INT_T)pos;
+                idx = (int)pos;
             } else if (nal_type == 0x1) {
                 if (need_calc) {
-                    *frame_len = pos - (UINT32_T)idx;
+                    *frame_len = pos - (uint32_t)idx;
                     return 0;
                 }
                 *frame_start = offset + pos;
                 *is_key_frame = 0;
-                idx = (INT_T)pos;
+                idx = (int)pos;
                 need_calc = 1;
             }
         }
@@ -335,7 +335,7 @@ STATIC INT_T __demo_read_one_au(CONST UINT8_T *video_buf, UINT32_T offset, UINT3
  * @brief Fill P2P av_info to match embedded demo bitstream
  * @return none
  */
-STATIC VOID_T __demo_init_p2p_av_info_file(VOID_T)
+static void __demo_init_p2p_av_info_file(void)
 {
     TRANS_IPC_AV_INFO_T av_info;
     OPERATE_RET rt;
@@ -368,15 +368,15 @@ STATIC VOID_T __demo_init_p2p_av_info_file(VOID_T)
  * @brief Load embedded demo_video.264 for P2P
  * @return none
  */
-VOID_T tuya_ipc_demo_start(VOID_T)
+void tuya_ipc_demo_start(void)
 {
     if (s_media_ready) {
         return;
     }
     s_file_h264 = demo_video_264_start;
-    s_file_h264_size = (UINT32_T)(demo_video_264_end - demo_video_264_start);
+    s_file_h264_size = (uint32_t)(demo_video_264_end - demo_video_264_start);
     if (s_file_h264 == NULL || s_file_h264_size < 128) {
-        PR_ERR("embedded demo_video.264 invalid size=%u", (UINT_T)s_file_h264_size);
+        PR_ERR("embedded demo_video.264 invalid size=%u", (uint32_t)s_file_h264_size);
         return;
     }
     s_file_offset = 0;
@@ -387,15 +387,15 @@ VOID_T tuya_ipc_demo_start(VOID_T)
 
     __demo_init_p2p_av_info_file();
     s_media_ready = TRUE;
-    PR_NOTICE("P2P file H264 ready: demo_video.264 %u bytes %ux%u@%u", (UINT_T)s_file_h264_size,
-              (UINT_T)DEMO_FILE_WIDTH, (UINT_T)DEMO_FILE_HEIGHT, (UINT_T)DEMO_FILE_FPS);
+    PR_NOTICE("P2P file H264 ready: demo_video.264 %u bytes %ux%u@%u", (uint32_t)s_file_h264_size,
+              (uint32_t)DEMO_FILE_WIDTH, (uint32_t)DEMO_FILE_HEIGHT, (uint32_t)DEMO_FILE_FPS);
 }
 
 /**
  * @brief Clean up demo resources
  * @return none
  */
-VOID_T tuya_ipc_demo_end(VOID_T)
+void tuya_ipc_demo_end(void)
 {
     s_media_ready = FALSE;
     s_file_h264 = NULL;
@@ -406,7 +406,7 @@ VOID_T tuya_ipc_demo_end(VOID_T)
  * @brief Signal disconnect callback
  * @return 0 on success
  */
-INT_T demo_on_signal_disconnect_callback(VOID_T)
+int demo_on_signal_disconnect_callback(void)
 {
     return 0;
 }
@@ -416,12 +416,12 @@ INT_T demo_on_signal_disconnect_callback(VOID_T)
  * @param[in,out] media_frame media frame
  * @return 0 on success, -1 on failure
  */
-INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
 {
-    INT_T ret;
-    UINT32_T rel_off;
-    UINT64_T pts_ms;
-    UINT32_T buf_cap = DEMO_P2P_VIDEO_BUF_SIZE;
+    int ret;
+    uint32_t rel_off;
+    uint64_t pts_ms;
+    uint32_t buf_cap = DEMO_P2P_VIDEO_BUF_SIZE;
 
     if (media_frame == NULL || media_frame->data == NULL || !s_media_ready || s_file_h264 == NULL) {
         return -1;
@@ -447,7 +447,7 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
         return -1;
     }
     if (s_file_frame_len > buf_cap) {
-        PR_WARN("demo AU too large len=%u cap=%u", (UINT_T)s_file_frame_len, (UINT_T)buf_cap);
+        PR_WARN("demo AU too large len=%u cap=%u", (uint32_t)s_file_frame_len, (uint32_t)buf_cap);
         return -1;
     }
 
@@ -456,7 +456,7 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
     media_frame->type = s_file_is_key ? eVideoIFrame : eVideoPBFrame;
     pts_ms = (s_file_pts_idx * 1000ULL) / DEMO_FILE_FPS;
     s_file_pts_idx++;
-    media_frame->timestamp = (UINT32_T)pts_ms;
+    media_frame->timestamp = (uint32_t)pts_ms;
     media_frame->pts = pts_ms * 1000ULL;
 
     tal_system_sleep(1000 / DEMO_FILE_FPS);
@@ -468,9 +468,9 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
  * @param[in,out] media_frame media frame
  * @return 0 on success
  */
-INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 {
-    (VOID_T)media_frame;
+    (void)media_frame;
     return 0;
 }
 
@@ -556,46 +556,46 @@ extern uint64_t tuya_p2p_misc_get_current_time_ms(void);
  * Type definitions
  * --------------------------------------------------------------------------- */
 typedef struct {
-    UINT32_T len;
+    uint32_t len;
     BOOL_T is_key;
-    UINT64_T ts_ms;
+    uint64_t ts_ms;
 } DEMO_P2P_Q_SLOT_T;
 
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC MUTEX_HANDLE s_frame_mutex = NULL;
-STATIC UINT8_T *s_q_pool[DEMO_P2P_QUEUE_DEPTH] = {0};
-STATIC DEMO_P2P_Q_SLOT_T s_q_slot[DEMO_P2P_QUEUE_DEPTH];
-STATIC UINT32_T s_q_head = 0;
-STATIC UINT32_T s_q_tail = 0;
-STATIC UINT32_T s_q_count = 0;
-STATIC UINT32_T s_frame_slot_cap = 0;
-STATIC BOOL_T s_media_ready = FALSE;
-STATIC BOOL_T s_live_push_enable = FALSE;
-STATIC BOOL_T s_queue_need_iframe = FALSE;
-STATIC TDL_CAMERA_HANDLE_T s_cam = NULL;
-STATIC UINT64_T s_frame_idx = 0;
+static MUTEX_HANDLE s_frame_mutex = NULL;
+static uint8_t *s_q_pool[DEMO_P2P_QUEUE_DEPTH] = {0};
+static DEMO_P2P_Q_SLOT_T s_q_slot[DEMO_P2P_QUEUE_DEPTH];
+static uint32_t s_q_head = 0;
+static uint32_t s_q_tail = 0;
+static uint32_t s_q_count = 0;
+static uint32_t s_frame_slot_cap = 0;
+static BOOL_T s_media_ready = FALSE;
+static BOOL_T s_live_push_enable = FALSE;
+static BOOL_T s_queue_need_iframe = FALSE;
+static TDL_CAMERA_HANDLE_T s_cam = NULL;
+static uint64_t s_frame_idx = 0;
 
 /* Audio uplink state (mic -> G.711U -> P2P) */
-STATIC MUTEX_HANDLE s_audio_mutex = NULL;
-STATIC UINT8_T s_audio_ring[DEMO_AUDIO_RING_CAP];
-STATIC UINT32_T s_audio_head = 0, s_audio_tail = 0, s_audio_count = 0;
-STATIC BOOL_T s_audio_inited = FALSE;
-STATIC BOOL_T s_mic_running = FALSE;
+static MUTEX_HANDLE s_audio_mutex = NULL;
+static uint8_t s_audio_ring[DEMO_AUDIO_RING_CAP];
+static uint32_t s_audio_head = 0, s_audio_tail = 0, s_audio_count = 0;
+static BOOL_T s_audio_inited = FALSE;
+static BOOL_T s_mic_running = FALSE;
 /* Forward decls: defined after video helpers, used by start/stop below */
-STATIC OPERATE_RET __demo_audio_uplink_init(VOID_T);
-STATIC VOID_T __demo_audio_uplink_deinit(VOID_T);
-STATIC OPERATE_RET __demo_mic_start(VOID_T);
-STATIC VOID_T __demo_mic_stop(VOID_T);
+static OPERATE_RET __demo_audio_uplink_init(void);
+static void __demo_audio_uplink_deinit(void);
+static OPERATE_RET __demo_mic_start(void);
+static void __demo_mic_stop(void);
 #if defined(ENABLE_IPC_RING_BUFFER) && (ENABLE_IPC_RING_BUFFER == 1)
-STATIC RING_BUFFER_USER_HANDLE_T s_ring_w = NULL;
-STATIC RING_BUFFER_USER_HANDLE_T s_ring_r = NULL;
-STATIC BOOL_T s_ring_ready = FALSE;
+static RING_BUFFER_USER_HANDLE_T s_ring_w = NULL;
+static RING_BUFFER_USER_HANDLE_T s_ring_r = NULL;
+static BOOL_T s_ring_ready = FALSE;
 #endif
 #if DEMO_SD_LIVE_RECORD
-STATIC BOOL_T s_rec_wait_iframe = FALSE;
-STATIC UINT_T s_rec_wr_fail = 0;
+static BOOL_T s_rec_wait_iframe = FALSE;
+static uint32_t s_rec_wr_fail = 0;
 #endif
 
 /* ---------------------------------------------------------------------------
@@ -605,7 +605,7 @@ STATIC UINT_T s_rec_wr_fail = 0;
  * @brief Drop all queued P2P video frames
  * @return none
  */
-STATIC VOID_T __demo_p2p_queue_clear(VOID_T)
+static void __demo_p2p_queue_clear(void)
 {
     s_q_head = 0;
     s_q_tail = 0;
@@ -618,13 +618,13 @@ STATIC VOID_T __demo_p2p_queue_clear(VOID_T)
  * @brief Mount SD card for local_store PB (default SDIO group P2/P3/...)
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __demo_sd_mount(VOID_T)
+static OPERATE_RET __demo_sd_mount(void)
 {
     OPERATE_RET rt;
 
     rt = (OPERATE_RET)tkl_fs_mount(DEMO_SD_MOUNT, DEV_SDCARD);
     if (rt != OPRT_OK) {
-        PR_ERR("sd mount %s failed: %d (FAT card? SDIO=P2/P3/...)", DEMO_SD_MOUNT, (INT_T)rt);
+        PR_ERR("sd mount %s failed: %d (FAT card? SDIO=P2/P3/...)", DEMO_SD_MOUNT, (int)rt);
         return rt;
     }
     PR_NOTICE("sd mount ok: %s", DEMO_SD_MOUNT);
@@ -637,7 +637,7 @@ STATIC OPERATE_RET __demo_sd_mount(VOID_T)
  * @brief Start (or restart) a live SD recording segment; wait for next I-frame
  * @return none
  */
-STATIC VOID_T __demo_sd_rec_start(VOID_T)
+static void __demo_sd_rec_start(void)
 {
     OPERATE_RET rt = local_store_rec_start("live");
     if (rt != OPRT_OK) {
@@ -652,10 +652,10 @@ STATIC VOID_T __demo_sd_rec_start(VOID_T)
  * @brief Stop live SD recording and write day index
  * @return none
  */
-STATIC VOID_T __demo_sd_rec_stop(VOID_T)
+static void __demo_sd_rec_stop(void)
 {
     s_rec_wait_iframe = FALSE;
-    (VOID)local_store_rec_stop();
+    (void)local_store_rec_stop();
 }
 
 /**
@@ -665,7 +665,7 @@ STATIC VOID_T __demo_sd_rec_stop(VOID_T)
  * @param[in] is_key I-frame flag
  * @return none
  */
-STATIC VOID_T __demo_sd_rec_on_frame(CONST UINT8_T *data, UINT32_T len, BOOL_T is_key)
+static void __demo_sd_rec_on_frame(const uint8_t *data, uint32_t len, BOOL_T is_key)
 {
     if (!local_store_rec_is_open()) {
         return;
@@ -676,7 +676,7 @@ STATIC VOID_T __demo_sd_rec_on_frame(CONST UINT8_T *data, UINT32_T len, BOOL_T i
         }
         s_rec_wait_iframe = FALSE;
     }
-    if (is_key && local_store_rec_elapsed_sec() >= (UINT32_T)CAMERA_DEMO_SD_RECORD_MAX_SEC) {
+    if (is_key && local_store_rec_elapsed_sec() >= (uint32_t)CAMERA_DEMO_SD_RECORD_MAX_SEC) {
         __demo_sd_rec_stop();
         __demo_sd_rec_start();
         if (!local_store_rec_is_open() || s_rec_wait_iframe) {
@@ -714,9 +714,9 @@ STATIC VOID_T __demo_sd_rec_on_frame(CONST UINT8_T *data, UINT32_T len, BOOL_T i
  * @return OPRT_OK on success
  * @note Align OS low-latency path: no deep backlog; after drop wait next I-frame
  */
-STATIC OPERATE_RET __demo_p2p_queue_push(CONST UINT8_T *data, UINT32_T len, BOOL_T is_key, UINT64_T ts_ms)
+static OPERATE_RET __demo_p2p_queue_push(const uint8_t *data, uint32_t len, BOOL_T is_key, uint64_t ts_ms)
 {
-    UINT8_T *dst;
+    uint8_t *dst;
 
     if (data == NULL || len == 0 || len > s_frame_slot_cap) {
         return OPRT_INVALID_PARM;
@@ -751,10 +751,10 @@ STATIC OPERATE_RET __demo_p2p_queue_push(CONST UINT8_T *data, UINT32_T len, BOOL
  * @param[out] media_frame output media frame
  * @return OPRT_OK if a frame was returned, OPRT_NOT_FOUND if queue empty
  */
-STATIC OPERATE_RET __demo_p2p_queue_pop(MEDIA_FRAME *media_frame)
+static OPERATE_RET __demo_p2p_queue_pop(MEDIA_FRAME *media_frame)
 {
-    CONST DEMO_P2P_Q_SLOT_T *slot;
-    CONST UINT8_T *src;
+    const DEMO_P2P_Q_SLOT_T *slot;
+    const uint8_t *src;
 
     if (media_frame == NULL || media_frame->data == NULL) {
         return OPRT_INVALID_PARM;
@@ -773,7 +773,7 @@ STATIC OPERATE_RET __demo_p2p_queue_pop(MEDIA_FRAME *media_frame)
     media_frame->type = slot->is_key ? eVideoIFrame : eVideoPBFrame;
     /* Match TuyaOS __p2p_h264_cb: same monotonic ms for pts and timestamp */
     media_frame->pts = slot->ts_ms;
-    media_frame->timestamp = (UINT32_T)slot->ts_ms;
+    media_frame->timestamp = (uint32_t)slot->ts_ms;
     s_q_head = (s_q_head + 1U) % DEMO_P2P_QUEUE_DEPTH;
     s_q_count--;
     return OPRT_OK;
@@ -785,9 +785,9 @@ STATIC OPERATE_RET __demo_p2p_queue_pop(MEDIA_FRAME *media_frame)
  * @param[in] len byte length
  * @return TRUE if at least one 00 00 01 / 00 00 00 01 prefix exists
  */
-STATIC BOOL_T __demo_h264_au_has_annexb(CONST UINT8_T *data, UINT32_T len)
+static BOOL_T __demo_h264_au_has_annexb(const uint8_t *data, uint32_t len)
 {
-    UINT32_T i;
+    uint32_t i;
 
     if (data == NULL || len < 4) {
         return FALSE;
@@ -809,11 +809,11 @@ STATIC BOOL_T __demo_h264_au_has_annexb(CONST UINT8_T *data, UINT32_T len)
  * @param[in] frame encoded frame
  * @return OPRT_OK
  */
-STATIC OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
+static OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
 {
     BOOL_T is_key;
 
-    (VOID_T)hdl;
+    (void)hdl;
     if (frame == NULL || frame->data == NULL || frame->data_len == 0) {
         return OPRT_OK;
     }
@@ -822,30 +822,30 @@ STATIC OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_F
         return OPRT_OK;
     }
     if (frame->data_len > s_frame_slot_cap) {
-        PR_WARN("h264 frame too large: %u > %u", (UINT_T)frame->data_len, (UINT_T)s_frame_slot_cap);
+        PR_WARN("h264 frame too large: %u > %u", (uint32_t)frame->data_len, (uint32_t)s_frame_slot_cap);
         return OPRT_OK;
     }
-    if (!__demo_h264_au_has_annexb((CONST UINT8_T *)frame->data, frame->data_len)) {
-        STATIC UINT_T s_bad_au_cnt = 0;
+    if (!__demo_h264_au_has_annexb((const uint8_t *)frame->data, frame->data_len)) {
+        static uint32_t s_bad_au_cnt = 0;
         if ((s_bad_au_cnt++ % 30) == 0) {
-            PR_NOTICE("drop AU without Annex-B start code len=%u cnt=%u", (UINT_T)frame->data_len,
+            PR_NOTICE("drop AU without Annex-B start code len=%u cnt=%u", (uint32_t)frame->data_len,
                     s_bad_au_cnt);
         }
         return OPRT_OK;
     }
     if (!frame->is_complete) {
-        STATIC UINT_T s_incomplete_cnt = 0;
+        static uint32_t s_incomplete_cnt = 0;
         if ((s_incomplete_cnt++ % 30) == 0) {
-            PR_DEBUG("drop incomplete AU len=%u total=%u cnt=%u", (UINT_T)frame->data_len,
-                    (UINT_T)frame->total_frame_len, s_incomplete_cnt);
+            PR_DEBUG("drop incomplete AU len=%u total=%u cnt=%u", (uint32_t)frame->data_len,
+                    (uint32_t)frame->total_frame_len, s_incomplete_cnt);
         }
         return OPRT_OK;
     }
     if (frame->total_frame_len > 0 && frame->data_len != frame->total_frame_len) {
-        STATIC UINT_T s_len_mismatch_cnt = 0;
+        static uint32_t s_len_mismatch_cnt = 0;
         if ((s_len_mismatch_cnt++ % 10) == 0) {
-            PR_DEBUG("drop len mismatch got=%u expect=%u cnt=%u", (UINT_T)frame->data_len,
-                    (UINT_T)frame->total_frame_len, s_len_mismatch_cnt);
+            PR_DEBUG("drop len mismatch got=%u expect=%u cnt=%u", (uint32_t)frame->data_len,
+                    (uint32_t)frame->total_frame_len, s_len_mismatch_cnt);
         }
         return OPRT_OK;
     }
@@ -855,26 +855,26 @@ STATIC OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_F
     s_frame_idx++;
 
     tal_mutex_lock(s_frame_mutex);
-    (VOID_T) __demo_p2p_queue_push((CONST UINT8_T *)frame->data, frame->data_len, is_key,
+    (void) __demo_p2p_queue_push((const uint8_t *)frame->data, frame->data_len, is_key,
                                    tuya_p2p_misc_get_current_time_ms());
     tal_mutex_unlock(s_frame_mutex);
 
 #if defined(ENABLE_IPC_RING_BUFFER) && (ENABLE_IPC_RING_BUFFER == 1)
     if (s_ring_ready && s_ring_w != NULL) {
-        UINT64_T ts = tuya_p2p_misc_get_current_time_ms();
-        (VOID_T) tuya_ipc_ring_buffer_append_data_with_timestamp(
-            s_ring_w, (UCHAR_T *)frame->data, frame->data_len,
+        uint64_t ts = tuya_p2p_misc_get_current_time_ms();
+        (void) tuya_ipc_ring_buffer_append_data_with_timestamp(
+            s_ring_w, (uint8_t *)frame->data, frame->data_len,
             is_key ? E_VIDEO_I_FRAME : E_VIDEO_PB_FRAME, ts * 1000ULL, ts);
     }
 #endif
 
 #if DEMO_SD_LIVE_RECORD
-    __demo_sd_rec_on_frame((CONST UINT8_T *)frame->data, frame->data_len, is_key);
+    __demo_sd_rec_on_frame((const uint8_t *)frame->data, frame->data_len, is_key);
 #endif
 
     if (is_key || (s_frame_idx % DEMO_FRAME_LOG_PERIOD) == 0) {
-        PR_NOTICE("h264 enc frames=%llu len=%u i=%u q=%u", (unsigned long long)s_frame_idx, (UINT_T)frame->data_len,
-                  (UINT_T)(is_key ? 1 : 0), (UINT_T)s_q_count);
+        PR_NOTICE("h264 enc frames=%llu len=%u i=%u q=%u", (unsigned long long)s_frame_idx, (uint32_t)frame->data_len,
+                  (uint32_t)(is_key ? 1 : 0), (uint32_t)s_q_count);
     }
 
     return OPRT_OK;
@@ -885,7 +885,7 @@ STATIC OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_F
  * @return none
  * @note Call after TUYA_APP_Start()/p2p_init(). Main=HIGH, Sub=STANDARD.
  */
-STATIC VOID_T __demo_init_p2p_av_info(VOID_T)
+static void __demo_init_p2p_av_info(void)
 {
     TRANS_IPC_AV_INFO_T av_info;
     OPERATE_RET rt;
@@ -923,11 +923,11 @@ STATIC VOID_T __demo_init_p2p_av_info(VOID_T)
  * @note Leave h264_cfg disabled: tkl_dvp only applies jpeg_cfg; chip uses
  *       CONFIG_H264_QUALITY_LEVEL=MIDDLE (same as TuyaOS wukong).
  */
-STATIC OPERATE_RET __demo_open_camera(VOID_T)
+static OPERATE_RET __demo_open_camera(void)
 {
     TDL_CAMERA_CFG_T cfg;
 
-    s_cam = tdl_camera_find_dev((CHAR_T *)CAMERA_NAME);
+    s_cam = tdl_camera_find_dev((char *)CAMERA_NAME);
     if (s_cam == NULL) {
         PR_ERR("camera dev '%s' not found (enable TUYA_T5AI_BOARD_CAMERA?)", CAMERA_NAME);
         return OPRT_NOT_FOUND;
@@ -948,14 +948,14 @@ STATIC OPERATE_RET __demo_open_camera(VOID_T)
  * @brief Close H264 camera if open
  * @return none
  */
-STATIC VOID_T __demo_close_camera(VOID_T)
+static void __demo_close_camera(void)
 {
     if (s_cam != NULL) {
-        (VOID_T) tdl_camera_dev_close(s_cam);
+        (void) tdl_camera_dev_close(s_cam);
         /* tdl/tdd camera close is NOT_SUPPORTED, so DVP DMA (chan 8) leaks and
          * reopen fails with "malloc dma fail / chan has been allocated".
          * Release DVP directly here to fix reopen after APP reconnect. */
-        (VOID_T) tkl_dvp_deinit();
+        (void) tkl_dvp_deinit();
         s_cam = NULL;
     }
 }
@@ -964,7 +964,7 @@ STATIC VOID_T __demo_close_camera(VOID_T)
  * @brief Initialize T5 camera buffers + P2P av_info (H264 opens on LIVE start, like OS)
  * @return none
  */
-VOID_T tuya_ipc_demo_start(VOID_T)
+void tuya_ipc_demo_start(void)
 {
     OPERATE_RET rt;
 
@@ -982,14 +982,14 @@ VOID_T tuya_ipc_demo_start(VOID_T)
     s_live_push_enable = FALSE;
     __demo_p2p_queue_clear();
 
-    for (UINT32_T i = 0; i < DEMO_P2P_QUEUE_DEPTH; i++) {
+    for (uint32_t i = 0; i < DEMO_P2P_QUEUE_DEPTH; i++) {
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-        s_q_pool[i] = (UINT8_T *)tal_psram_malloc(DEMO_FRAME_BUF_SIZE);
+        s_q_pool[i] = (uint8_t *)tal_psram_malloc(DEMO_FRAME_BUF_SIZE);
 #else
-        s_q_pool[i] = (UINT8_T *)tal_malloc(DEMO_FRAME_BUF_SIZE);
+        s_q_pool[i] = (uint8_t *)tal_malloc(DEMO_FRAME_BUF_SIZE);
 #endif
         if (s_q_pool[i] == NULL) {
-            PR_ERR("alloc p2p queue slot %u failed", (UINT_T)i);
+            PR_ERR("alloc p2p queue slot %u failed", (uint32_t)i);
             return;
         }
     }
@@ -999,7 +999,7 @@ VOID_T tuya_ipc_demo_start(VOID_T)
     __demo_init_p2p_av_info();
 
 #if DEMO_ENABLE_LOCAL_SD
-    (VOID)__demo_sd_mount();
+    (void)__demo_sd_mount();
 #endif
     demo_media_event_register();
 
@@ -1025,19 +1025,19 @@ VOID_T tuya_ipc_demo_start(VOID_T)
 
 #if DEMO_ENABLE_LOCAL_SD
     PR_NOTICE("local_store SD path: mount=%s root=/sdcard/media live_rec=%d", DEMO_SD_MOUNT,
-              (INT_T)DEMO_SD_LIVE_RECORD);
+              (int)DEMO_SD_LIVE_RECORD);
 #endif
 
     s_media_ready = TRUE;
     PR_NOTICE("tuya_ipc_demo: ready (H264 starts on LIVE, sensor %ux%u@%u, av fps %u, align OS no localStorage)",
-              (UINT_T)DEMO_CAM_WIDTH, (UINT_T)DEMO_CAM_HEIGHT, (UINT_T)DEMO_CAM_FPS, (UINT_T)DEMO_AV_FPS);
+              (uint32_t)DEMO_CAM_WIDTH, (uint32_t)DEMO_CAM_HEIGHT, (uint32_t)DEMO_CAM_FPS, (uint32_t)DEMO_AV_FPS);
 }
 
 /**
  * @brief Clean up demo resources
  * @return none
  */
-VOID_T tuya_ipc_demo_end(VOID_T)
+void tuya_ipc_demo_end(void)
 {
     s_live_push_enable = FALSE;
     __demo_mic_stop();
@@ -1048,7 +1048,7 @@ VOID_T tuya_ipc_demo_end(VOID_T)
         __demo_p2p_queue_clear();
         tal_mutex_unlock(s_frame_mutex);
     }
-    for (UINT32_T i = 0; i < DEMO_P2P_QUEUE_DEPTH; i++) {
+    for (uint32_t i = 0; i < DEMO_P2P_QUEUE_DEPTH; i++) {
         if (s_q_pool[i] != NULL) {
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
             tal_psram_free(s_q_pool[i]);
@@ -1070,7 +1070,7 @@ VOID_T tuya_ipc_demo_end(VOID_T)
  * @brief Align TuyaOS LIVE_VIDEO_START: open H264 and begin feeding P2P
  * @return 0 on success
  */
-INT_T demo_on_live_video_start_callback(VOID_T)
+int demo_on_live_video_start_callback(void)
 {
     OPERATE_RET rt;
 
@@ -1083,8 +1083,8 @@ INT_T demo_on_live_video_start_callback(VOID_T)
             PR_ERR("LIVE start: tdl_camera open failed: %d", rt);
             return -1;
         }
-        PR_NOTICE("LIVE start: GC2145 H264 opened %ux%u@%u", (UINT_T)DEMO_CAM_WIDTH, (UINT_T)DEMO_CAM_HEIGHT,
-                  (UINT_T)DEMO_CAM_FPS);
+        PR_NOTICE("LIVE start: GC2145 H264 opened %ux%u@%u", (uint32_t)DEMO_CAM_WIDTH, (uint32_t)DEMO_CAM_HEIGHT,
+                  (uint32_t)DEMO_CAM_FPS);
     }
 #if DEMO_SD_LIVE_RECORD
     if (!local_store_rec_is_open()) {
@@ -1113,7 +1113,7 @@ INT_T demo_on_live_video_start_callback(VOID_T)
  * @note Close camera first (stop encode CB), then close SD rec to avoid
  *       fwrite-after-fclose. Pause mic uplink so leftover LIVE TX can drain/clear.
  */
-INT_T demo_on_live_video_stop_callback(VOID_T)
+int demo_on_live_video_stop_callback(void)
 {
     s_live_push_enable = FALSE;
     if (s_frame_mutex != NULL) {
@@ -1134,9 +1134,9 @@ INT_T demo_on_live_video_stop_callback(VOID_T)
  * @brief Signal disconnect callback
  * @return 0 on success
  */
-INT_T demo_on_signal_disconnect_callback(VOID_T)
+int demo_on_signal_disconnect_callback(void)
 {
-    (VOID_T) demo_on_live_video_stop_callback();
+    (void) demo_on_live_video_stop_callback();
     /* Session end: release mic (OS keeps always-on AI path; demo has no such path) */
     __demo_mic_stop();
     return 0;
@@ -1147,7 +1147,7 @@ INT_T demo_on_signal_disconnect_callback(VOID_T)
  * @param[in,out] media_frame media frame (data buffer owned by P2P session)
  * @return 0 on success, -1 if no frame yet
  */
-INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
 {
     OPERATE_RET rt;
 
@@ -1164,7 +1164,7 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
             media_frame->size = node->size;
             media_frame->type = (node->type == E_VIDEO_I_FRAME) ? eVideoIFrame : eVideoPBFrame;
             media_frame->pts = node->timestamp;
-            media_frame->timestamp = (UINT32_T)node->timestamp;
+            media_frame->timestamp = (uint32_t)node->timestamp;
             return OPRT_OK;
         }
         tal_system_sleep(10);
@@ -1190,18 +1190,18 @@ INT_T demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
 /**
  * @brief G.711 mu-law encode (wrap vendor linear2ulaw)
  */
-STATIC VOID_T __demo_g711u_encode(const int16_t *pcm, size_t n, UINT8_T *out)
+static void __demo_g711u_encode(const int16_t *pcm, size_t n, uint8_t *out)
 {
     size_t i;
     for (i = 0; i < n; i++) {
-        out[i] = (UINT8_T)linear2ulaw((int)pcm[i]);
+        out[i] = (uint8_t)linear2ulaw((int)pcm[i]);
     }
 }
 
 /**
  * @brief Push G.711 bytes into ring; drop oldest when full (keep latest audio)
  */
-STATIC VOID_T __demo_audio_ring_push(CONST UINT8_T *data, size_t len)
+static void __demo_audio_ring_push(const uint8_t *data, size_t len)
 {
     size_t i;
     tal_mutex_lock(s_audio_mutex);
@@ -1220,10 +1220,10 @@ STATIC VOID_T __demo_audio_ring_push(CONST UINT8_T *data, size_t len)
 /**
  * @brief mic frame callback: PCM 16k -> resample 8k -> G.711U -> ring
  */
-STATIC int __demo_mic_frame_put_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
+static int __demo_mic_frame_put_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
 {
     static int16_t s_pcm8k[DEMO_AUDIO_PCM_MAX];
-    static UINT8_T s_g711[DEMO_AUDIO_PCM_MAX];
+    static uint8_t s_g711[DEMO_AUDIO_PCM_MAX];
     size_t in_frames, out_frames = 0;
     int ret;
 
@@ -1232,7 +1232,7 @@ STATIC int __demo_mic_frame_put_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
     }
     in_frames = pframe->used_size / 2U; /* 16bit mono -> samples */
     {
-        STATIC UINT_T s_put_cnt = 0;
+        static uint32_t s_put_cnt = 0;
         if ((s_put_cnt++ % 100) == 0) {
         }
     }
@@ -1252,7 +1252,7 @@ STATIC int __demo_mic_frame_put_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
  * @brief Init and start mic capture (called on LIVE start)
  * @note align OS wukong_audio_input_board: tkl_ai_init + tkl_ai_start
  */
-STATIC OPERATE_RET __demo_mic_start(VOID_T)
+static OPERATE_RET __demo_mic_start(void)
 {
     TKL_AUDIO_CONFIG_T cfg;
     OPERATE_RET rt;
@@ -1283,7 +1283,7 @@ STATIC OPERATE_RET __demo_mic_start(VOID_T)
     rt = tkl_ai_start(cfg.card, TKL_AI_0);
     if (rt != OPRT_OK) {
         PR_ERR("tkl_ai_start failed: %d", rt);
-        (VOID_T) tkl_ai_uninit();
+        (void) tkl_ai_uninit();
         return rt;
     }
     /* Speex+RNN VAD overflows vendor audio_element stack (kf_work Hardfault on PB entry).
@@ -1296,14 +1296,14 @@ STATIC OPERATE_RET __demo_mic_start(VOID_T)
 /**
  * @brief Stop mic capture
  */
-STATIC VOID_T __demo_mic_stop(VOID_T)
+static void __demo_mic_stop(void)
 {
     if (!s_mic_running) {
         return;
     }
     s_mic_running = FALSE;
-    (VOID_T) tkl_ai_stop(DEMO_MIC_CARD, TKL_AI_0);
-    (VOID_T) tkl_ai_uninit();
+    (void) tkl_ai_stop(DEMO_MIC_CARD, TKL_AI_0);
+    (void) tkl_ai_uninit();
     PR_NOTICE("mic stopped");
 }
 
@@ -1311,7 +1311,7 @@ STATIC VOID_T __demo_mic_stop(VOID_T)
  * @brief Pause mic uplink (for PB send path — free P2P/UDP buffer)
  * @return none
  */
-VOID_T demo_mic_uplink_pause(VOID_T)
+void demo_mic_uplink_pause(void)
 {
     __demo_mic_stop();
 }
@@ -1319,7 +1319,7 @@ VOID_T demo_mic_uplink_pause(VOID_T)
 /**
  * @brief Init audio uplink ring + mutex (called from tuya_ipc_demo_start)
  */
-STATIC OPERATE_RET __demo_audio_uplink_init(VOID_T)
+static OPERATE_RET __demo_audio_uplink_init(void)
 {
     OPERATE_RET rt;
     if (s_audio_inited) {
@@ -1337,7 +1337,7 @@ STATIC OPERATE_RET __demo_audio_uplink_init(VOID_T)
 /**
  * @brief Deinit audio uplink
  */
-STATIC VOID_T __demo_audio_uplink_deinit(VOID_T)
+static void __demo_audio_uplink_deinit(void)
 {
     if (s_audio_mutex != NULL) {
         tal_mutex_lock(s_audio_mutex);
@@ -1354,10 +1354,10 @@ STATIC VOID_T __demo_audio_uplink_deinit(VOID_T)
  * @param[in,out] media_frame media frame
  * @return 0 on success, -1 if no full frame yet
  */
-INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 {
-    UINT32_T i;
-    UINT64_T now_ms;
+    uint32_t i;
+    uint64_t now_ms;
 
     if (media_frame == NULL || media_frame->data == NULL || !s_audio_inited) {
         return -1;
@@ -1368,7 +1368,7 @@ INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
         return -1;
     }
     for (i = 0; i < DEMO_AUDIO_FRAME_BYTES; i++) {
-        ((UINT8_T *)media_frame->data)[i] = s_audio_ring[s_audio_head];
+        ((uint8_t *)media_frame->data)[i] = s_audio_ring[s_audio_head];
         s_audio_head = (s_audio_head + 1U) % DEMO_AUDIO_RING_CAP;
         s_audio_count--;
     }
@@ -1378,9 +1378,9 @@ INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
     media_frame->type = eAudioFrame;
     now_ms = tuya_p2p_misc_get_current_time_ms();
     media_frame->pts = now_ms;
-    media_frame->timestamp = (UINT32_T)now_ms;
+    media_frame->timestamp = (uint32_t)now_ms;
     {
-        STATIC UINT_T s_pull_cnt = 0;
+        static uint32_t s_pull_cnt = 0;
         if ((s_pull_cnt++ % 100) == 0) {
         }
     }
@@ -1394,7 +1394,7 @@ INT_T demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 #define DEMO_DOWNLINK_G711_MAX   640
 #define DEMO_DOWNLINK_PCM16K_MAX 1280
 
-STATIC BOOL_T s_spk_active = FALSE;
+static BOOL_T s_spk_active = FALSE;
 
 /**
  * @brief Open PA + unmute DAC for downlink intercom
@@ -1402,7 +1402,7 @@ STATIC BOOL_T s_spk_active = FALSE;
  * @note tkl_ao_set_vol drives bk_aud_dac_unmute; PA via GPIO (do not use
  *       tkl_ai_set_vol(0) on mute — that zeros mic ADC gain and kills uplink)
  */
-STATIC VOID_T __demo_spk_unmute(VOID_T)
+static void __demo_spk_unmute(void)
 {
     OPERATE_RET ao_vol;
     TUYA_GPIO_LEVEL_E pa_on;
@@ -1410,21 +1410,21 @@ STATIC VOID_T __demo_spk_unmute(VOID_T)
     ao_vol = tkl_ao_set_vol(DEMO_MIC_CARD, TKL_AO_0, NULL, DEMO_SPK_VOLUME);
     /* polarity = mute level; unmute = opposite */
     pa_on = (DEMO_SPK_GPIO_POLARITY == 0) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
-    (VOID_T) tkl_gpio_write(DEMO_SPK_GPIO, pa_on);
-    PR_DEBUG("unmute ao_vol=%d gpio=%d pa_on=%d", ao_vol, DEMO_SPK_GPIO, (INT_T)pa_on);
+    (void) tkl_gpio_write(DEMO_SPK_GPIO, pa_on);
+    PR_DEBUG("unmute ao_vol=%d gpio=%d pa_on=%d", ao_vol, DEMO_SPK_GPIO, (int)pa_on);
 }
 
 /**
  * @brief Mute DAC + close PA after intercom (keep mic gain intact)
  * @return none
  */
-STATIC VOID_T __demo_spk_mute(VOID_T)
+static void __demo_spk_mute(void)
 {
-    (VOID_T) tkl_ao_set_vol(DEMO_MIC_CARD, TKL_AO_0, NULL, 0);
-    (VOID_T) tkl_gpio_write(DEMO_SPK_GPIO, (TUYA_GPIO_LEVEL_E)DEMO_SPK_GPIO_POLARITY);
+    (void) tkl_ao_set_vol(DEMO_MIC_CARD, TKL_AO_0, NULL, 0);
+    (void) tkl_gpio_write(DEMO_SPK_GPIO, (TUYA_GPIO_LEVEL_E)DEMO_SPK_GPIO_POLARITY);
 }
 
-INT_T demo_on_live_audio_start_callback(VOID_T)
+int demo_on_live_audio_start_callback(void)
 {
     s_spk_active = TRUE;
     __demo_spk_unmute();
@@ -1432,7 +1432,7 @@ INT_T demo_on_live_audio_start_callback(VOID_T)
     return 0;
 }
 
-INT_T demo_on_live_audio_stop_callback(VOID_T)
+int demo_on_live_audio_stop_callback(void)
 {
     s_spk_active = FALSE;
     __demo_spk_mute();
@@ -1440,16 +1440,16 @@ INT_T demo_on_live_audio_stop_callback(VOID_T)
     return 0;
 }
 
-INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
+int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
 {
     static int16_t s_pcm8k[DEMO_DOWNLINK_G711_MAX];
     static int16_t s_pcm16k[DEMO_DOWNLINK_PCM16K_MAX];
-    static UINT32_T s_dl_cnt = 0;
-    UINT32_T i, n;
+    static uint32_t s_dl_cnt = 0;
+    uint32_t i, n;
     size_t out_frames = 0;
     int ret;
     OPERATE_RET ao_ret;
-    INT32_T peak = 0;
+    int32_t peak = 0;
 
     if (media_frame == NULL || media_frame->data == NULL || media_frame->size == 0 || !s_spk_active) {
         return 0;
@@ -1460,7 +1460,7 @@ INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
     }
     /* 1. G.711 mu-law decode -> 8k PCM */
     for (i = 0; i < n; i++) {
-        s_pcm8k[i] = (int16_t)ulaw2linear((int)((CONST UINT8_T *)media_frame->data)[i]);
+        s_pcm8k[i] = (int16_t)ulaw2linear((int)((const uint8_t *)media_frame->data)[i]);
         if (s_pcm8k[i] > peak) {
             peak = s_pcm8k[i];
         } else if ((-s_pcm8k[i]) > peak) {
@@ -1470,20 +1470,20 @@ INT_T demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
     /* 2. resample 8k -> 16k (spk path is 16k, align OS) */
     ret = resample_to_16k_fixed(s_pcm8k, (size_t)n, 8000, 1, s_pcm16k, &out_frames);
     if (ret != 0 || out_frames == 0) {
-        PR_ERR("resample fail ret=%d in=%u out=%u", ret, n, (UINT32_T)out_frames);
+        PR_ERR("resample fail ret=%d in=%u out=%u", ret, n, (uint32_t)out_frames);
         return 0;
     }
     /* 3. play to speaker (spk was initialized during tkl_ai_init, SPK_TYPE_ONBOARD) */
     TKL_AUDIO_FRAME_INFO_T frame;
     memset(&frame, 0, sizeof(frame));
-    frame.pbuf = (CHAR_T *)s_pcm16k;
+    frame.pbuf = (char *)s_pcm16k;
     frame.used_size = (uint32_t)(out_frames * 2);
     ao_ret = tkl_ao_put_frame(0, 0, NULL, &frame);
     s_dl_cnt++;
     if (s_dl_cnt <= 3 || (s_dl_cnt % 50) == 1 || ao_ret != OPRT_OK || peak < 200) {
-        CONST UINT8_T *raw = (CONST UINT8_T *)media_frame->data;
-        UINT32_T ff_cnt = 0;
-        UINT32_T j;
+        const uint8_t *raw = (const uint8_t *)media_frame->data;
+        uint32_t ff_cnt = 0;
+        uint32_t j;
         for (j = 0; j < n; j++) {
             if (raw[j] == 0xFFu) {
                 ff_cnt++;

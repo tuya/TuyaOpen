@@ -26,9 +26,9 @@ add_compile_options(
     -Wno-comment
 )
 
-# MCU: lwIP socket headers from chip tree; arch/cc.h comes from OpenSDK overlay
-# (no log / no bk_uart) placed BEFORE t5_os port — t5_os itself is never patched.
-# gettimeofday/clock_gettime/gethostname come from platform TKL / T5 OS.
+# MCU: lwIP headers straight from the chip tree — no overlay, no patched t5_os.
+# lwIP arch/cc.h pulls bk_uart.h, so the OEM bk_private dir joins the search path;
+# its transitive headers (driver/hal, components) already sit under t5_os/ap/include.
 if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "LINUX")
     add_compile_definitions(
         CONFIG_MSDU_RESV_HEAD_LENGTH=0
@@ -37,7 +37,6 @@ if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "LINUX")
     )
     if (DEFINED PLATFORM_PATH)
         include_directories(
-            ${PLATFORM_PATH}/tuyaos/tuyaos_adapter/include/lwip_arch_overlay
             ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2/src/include
             ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2/port
             ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2
@@ -45,6 +44,7 @@ if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "LINUX")
             ${PLATFORM_PATH}/t5_os/build/bk7258/tuya_app/bk7258_ap/config
             ${PLATFORM_PATH}/t5_os/ap/include
             ${PLATFORM_PATH}/t5_os/ap/include/common
+            ${PLATFORM_PATH}/t5_os/ap/middleware/driver/include/bk_private
         )
     endif()
 endif()

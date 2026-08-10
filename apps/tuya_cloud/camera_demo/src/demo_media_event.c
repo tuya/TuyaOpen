@@ -51,14 +51,14 @@
 /* ---------------------------------------------------------------------------
  * File scope variables
  * --------------------------------------------------------------------------- */
-STATIC THREAD_HANDLE s_pb_thread = NULL;
-STATIC BOOL_T s_pb_running = FALSE;
-STATIC BOOL_T s_pb_alive = FALSE;
-STATIC BOOL_T s_pb_pause = FALSE;
-STATIC UINT32_T s_pb_play_ts = 0;
-STATIC UINT32_T s_pb_speed = 1; /* 1=1x, App SET_SPEED */
-STATIC UINT32_T s_pb_seg_start = 0;
-STATIC UINT32_T s_pb_seg_end = 0;
+static THREAD_HANDLE s_pb_thread = NULL;
+static BOOL_T s_pb_running = FALSE;
+static BOOL_T s_pb_alive = FALSE;
+static BOOL_T s_pb_pause = FALSE;
+static uint32_t s_pb_play_ts = 0;
+static uint32_t s_pb_speed = 1; /* 1=1x, App SET_SPEED */
+static uint32_t s_pb_seg_start = 0;
+static uint32_t s_pb_seg_end = 0;
 /* event_cb return: App re-START same seg without mid playTime */
 #define DEMO_PB_START_IGNORED 1
 
@@ -73,9 +73,9 @@ STATIC UINT32_T s_pb_seg_end = 0;
  * @param[out] sc_len 3 or 4
  * @return offset of start code, or -1
  */
-STATIC INT_T __pb_find_start(CONST UINT8_T *p, UINT32_T len, UINT32_T from, UINT32_T *sc_len)
+static int __pb_find_start(const uint8_t *p, uint32_t len, uint32_t from, uint32_t *sc_len)
 {
-    UINT32_T i;
+    uint32_t i;
 
     if (p == NULL || sc_len == NULL || len < 4) {
         return -1;
@@ -83,11 +83,11 @@ STATIC INT_T __pb_find_start(CONST UINT8_T *p, UINT32_T len, UINT32_T from, UINT
     for (i = from; i + 3 < len; i++) {
         if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1) {
             *sc_len = 3;
-            return (INT_T)i;
+            return (int)i;
         }
         if (i + 4 < len && p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 0 && p[i + 3] == 1) {
             *sc_len = 4;
-            return (INT_T)i;
+            return (int)i;
         }
     }
     return -1;
@@ -104,13 +104,13 @@ STATIC INT_T __pb_find_start(CONST UINT8_T *p, UINT32_T len, UINT32_T from, UINT
  * @param[out] frame_start AU start offset
  * @return 0 ok, -1 no start code / end, DEMO_PB_NEED_MORE need refill
  */
-STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT32_T buf_size, BOOL_T at_eof,
-                                 UINT32_T *is_key_frame, UINT32_T *frame_len, UINT32_T *frame_start)
+static int __pb_read_one_frame(const uint8_t *video_buf, uint32_t offset, uint32_t buf_size, BOOL_T at_eof,
+                                 uint32_t *is_key_frame, uint32_t *frame_len, uint32_t *frame_start)
 {
-    INT_T sc0, sc1;
-    UINT32_T sc_len0 = 0, sc_len1 = 0;
-    UINT32_T nal_off;
-    UINT8_T nal_type;
+    int sc0, sc1;
+    uint32_t sc_len0 = 0, sc_len1 = 0;
+    uint32_t nal_off;
+    uint8_t nal_type;
     BOOL_T saw_vcl = FALSE;
 
     if (video_buf == NULL || offset >= buf_size || is_key_frame == NULL || frame_len == NULL || frame_start == NULL) {
@@ -121,12 +121,12 @@ STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT
     if (sc0 < 0) {
         return at_eof ? -1 : DEMO_PB_NEED_MORE;
     }
-    *frame_start = (UINT32_T)sc0;
-    nal_off = (UINT32_T)sc0 + sc_len0;
+    *frame_start = (uint32_t)sc0;
+    nal_off = (uint32_t)sc0 + sc_len0;
     if (nal_off >= buf_size) {
         return at_eof ? -1 : DEMO_PB_NEED_MORE;
     }
-    nal_type = (UINT8_T)(video_buf[nal_off] & 0x1f);
+    nal_type = (uint8_t)(video_buf[nal_off] & 0x1f);
     if (nal_type == 5 || nal_type == 7) {
         *is_key_frame = 1;
     }
@@ -140,21 +140,21 @@ STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT
             if (!at_eof) {
                 return DEMO_PB_NEED_MORE;
             }
-            *frame_len = buf_size - (UINT32_T)sc0;
+            *frame_len = buf_size - (uint32_t)sc0;
             return (*frame_len > 0) ? 0 : -1;
         }
-        nal_off = (UINT32_T)sc1 + sc_len1;
+        nal_off = (uint32_t)sc1 + sc_len1;
         if (nal_off >= buf_size) {
             if (!at_eof) {
                 return DEMO_PB_NEED_MORE;
             }
-            *frame_len = buf_size - (UINT32_T)sc0;
+            *frame_len = buf_size - (uint32_t)sc0;
             return 0;
         }
-        nal_type = (UINT8_T)(video_buf[nal_off] & 0x1f);
+        nal_type = (uint8_t)(video_buf[nal_off] & 0x1f);
         if (nal_type == 7 || nal_type == 8) {
             if (saw_vcl) {
-                *frame_len = (UINT32_T)sc1 - (UINT32_T)sc0;
+                *frame_len = (uint32_t)sc1 - (uint32_t)sc0;
                 return 0;
             }
             if (nal_type == 7) {
@@ -164,7 +164,7 @@ STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT
         }
         if (nal_type >= 1 && nal_type <= 5) {
             if (saw_vcl) {
-                *frame_len = (UINT32_T)sc1 - (UINT32_T)sc0;
+                *frame_len = (uint32_t)sc1 - (uint32_t)sc0;
                 return 0;
             }
             saw_vcl = TRUE;
@@ -174,7 +174,7 @@ STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT
             continue;
         }
         if (saw_vcl) {
-            *frame_len = (UINT32_T)sc1 - (UINT32_T)sc0;
+            *frame_len = (uint32_t)sc1 - (uint32_t)sc0;
             return 0;
         }
     }
@@ -190,11 +190,11 @@ STATIC INT_T __pb_read_one_frame(CONST UINT8_T *video_buf, UINT32_T offset, UINT
  * @param[out] at_eof set TRUE when file read returns 0
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __pb_slide_fill(TUYA_FILE fp, UINT8_T *buf, UINT32_T cap, UINT32_T *valid, UINT32_T *used,
+static OPERATE_RET __pb_slide_fill(TUYA_FILE fp, uint8_t *buf, uint32_t cap, uint32_t *valid, uint32_t *used,
                                    BOOL_T *at_eof)
 {
-    UINT32_T keep;
-    INT_T n;
+    uint32_t keep;
+    int n;
 
     if (fp == NULL || buf == NULL || valid == NULL || used == NULL || at_eof == NULL || cap == 0) {
         return OPRT_INVALID_PARM;
@@ -210,20 +210,20 @@ STATIC OPERATE_RET __pb_slide_fill(TUYA_FILE fp, UINT8_T *buf, UINT32_T cap, UIN
     *used = 0;
 
     while (*valid + DEMO_PB_FILL_CHUNK <= cap && !*at_eof) {
-        n = tkl_fread(buf + *valid, (INT_T)DEMO_PB_FILL_CHUNK, fp);
+        n = tkl_fread(buf + *valid, (int)DEMO_PB_FILL_CHUNK, fp);
         if (n <= 0) {
             *at_eof = TRUE;
             break;
         }
-        *valid += (UINT32_T)n;
+        *valid += (uint32_t)n;
     }
     /* If still room and not eof, try one smaller fill for last bytes */
     if (!*at_eof && *valid < cap) {
-        n = tkl_fread(buf + *valid, (INT_T)(cap - *valid), fp);
+        n = tkl_fread(buf + *valid, (int)(cap - *valid), fp);
         if (n <= 0) {
             *at_eof = TRUE;
         } else {
-            *valid += (UINT32_T)n;
+            *valid += (uint32_t)n;
         }
     }
     return OPRT_OK;
@@ -238,8 +238,8 @@ STATIC OPERATE_RET __pb_slide_fill(TUYA_FILE fp, UINT8_T *buf, UINT32_T cap, UIN
  * @param[out] seg_end segment end epoch (0 if unknown)
  * @return OPRT_OK on success
  */
-STATIC OPERATE_RET __pb_resolve_path(UINT32_T play_ts, CHAR_T *path, UINT32_T path_len, UINT32_T *seg_start,
-                                     UINT32_T *seg_end)
+static OPERATE_RET __pb_resolve_path(uint32_t play_ts, char *path, uint32_t path_len, uint32_t *seg_start,
+                                     uint32_t *seg_end)
 {
     if (path == NULL || path_len == 0) {
         return OPRT_INVALID_PARM;
@@ -259,7 +259,7 @@ STATIC OPERATE_RET __pb_resolve_path(UINT32_T play_ts, CHAR_T *path, UINT32_T pa
 
         memset(&seg, 0, sizeof(seg));
         if (play_ts == 0) {
-            play_ts = (UINT32_T)tal_time_get_posix();
+            play_ts = (uint32_t)tal_time_get_posix();
         }
         rt = local_store_find_by_play_ts(play_ts, &seg, path, path_len);
         if (rt == OPRT_OK) {
@@ -275,7 +275,7 @@ STATIC OPERATE_RET __pb_resolve_path(UINT32_T play_ts, CHAR_T *path, UINT32_T pa
         PR_WARN("pb find ts=%u failed: %d, fallback %s", play_ts, rt, DEMO_PB_SEED_SRC);
     }
 #else
-    (VOID)play_ts;
+    (void)play_ts;
 #endif
     snprintf(path, path_len, "%s", DEMO_PB_SEED_SRC);
     return OPRT_OK;
@@ -285,10 +285,10 @@ STATIC OPERATE_RET __pb_resolve_path(UINT32_T play_ts, CHAR_T *path, UINT32_T pa
  * @brief Compute frame sleep for current PB speed
  * @return sleep ms (>=5)
  */
-STATIC UINT32_T __pb_frame_sleep_ms(VOID_T)
+static uint32_t __pb_frame_sleep_ms(void)
 {
-    UINT32_T speed = s_pb_speed;
-    UINT32_T ms;
+    uint32_t speed = s_pb_speed;
+    uint32_t ms;
 
     if (speed == 0) {
         speed = 1;
@@ -308,27 +308,27 @@ STATIC UINT32_T __pb_frame_sleep_ms(VOID_T)
  *       On OPRT_RESOURCE_NOT_READY (-23) sleep and retry same frame (P2P buffer full).
  *       Seek: skip (play_ts-seg_start)*fps frames then wait next I-frame before send.
  */
-STATIC VOID_T __pb_send_thread(VOID_T *arg)
+static void __pb_send_thread(void *arg)
 {
-    UINT8_T *slide = NULL;
-    UINT32_T valid = 0;
-    UINT32_T used = 0;
-    UINT32_T frame_cnt = 0;
-    UINT32_T fail_cnt = 0;
-    UINT32_T file_frame_idx = 0;
-    UINT32_T skip_frames = 0;
-    UINT32_T seg_start = 0;
-    UINT32_T seg_end = 0;
-    UINT64_T base_ms;
-    CHAR_T path[DEMO_PB_PATH_MAX];
+    uint8_t *slide = NULL;
+    uint32_t valid = 0;
+    uint32_t used = 0;
+    uint32_t frame_cnt = 0;
+    uint32_t fail_cnt = 0;
+    uint32_t file_frame_idx = 0;
+    uint32_t skip_frames = 0;
+    uint32_t seg_start = 0;
+    uint32_t seg_end = 0;
+    uint64_t base_ms;
+    char path[DEMO_PB_PATH_MAX];
     TUYA_FILE fp = NULL;
     OPERATE_RET rt;
-    UINT32_T play_ts = s_pb_play_ts;
+    uint32_t play_ts = s_pb_play_ts;
     BOOL_T at_eof = FALSE;
     BOOL_T need_fill = TRUE;
     BOOL_T send_armed = FALSE;
 
-    (VOID)arg;
+    (void)arg;
     s_pb_alive = TRUE;
     memset(path, 0, sizeof(path));
 
@@ -349,9 +349,9 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
         goto __pb_exit;
     }
 
-    slide = (UINT8_T *)Malloc(DEMO_PB_SLIDE_BUF);
+    slide = (uint8_t *)Malloc(DEMO_PB_SLIDE_BUF);
     if (slide == NULL) {
-        PR_ERR("pb slide buf malloc %u failed", (UINT_T)DEMO_PB_SLIDE_BUF);
+        PR_ERR("pb slide buf malloc %u failed", (uint32_t)DEMO_PB_SLIDE_BUF);
         goto __pb_exit;
     }
 
@@ -362,14 +362,14 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
     }
     base_ms = tal_system_get_millisecond();
     PR_NOTICE("pb stream start path=%s slide=%u seek_skip=%u play_ts=%u seg=[%u,%u] speed=%u", path,
-              (UINT_T)DEMO_PB_SLIDE_BUF, skip_frames, play_ts, seg_start, seg_end, s_pb_speed);
+              (uint32_t)DEMO_PB_SLIDE_BUF, skip_frames, play_ts, seg_start, seg_end, s_pb_speed);
 
     while (s_pb_running) {
-        UINT32_T is_key = 0;
-        UINT32_T frame_len = 0;
-        UINT32_T frame_start = 0;
+        uint32_t is_key = 0;
+        uint32_t frame_len = 0;
+        uint32_t frame_start = 0;
         MEDIA_VIDEO_FRAME_T vf;
-        INT_T pr;
+        int pr;
 
         if (s_pb_pause) {
             tal_system_sleep(40);
@@ -377,7 +377,7 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
         }
 
         if (need_fill || (valid - used) < DEMO_PB_FILL_CHUNK) {
-            (VOID)__pb_slide_fill(fp, slide, DEMO_PB_SLIDE_BUF, &valid, &used, &at_eof);
+            (void)__pb_slide_fill(fp, slide, DEMO_PB_SLIDE_BUF, &valid, &used, &at_eof);
             need_fill = FALSE;
         }
 
@@ -385,11 +385,11 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
         if (pr == DEMO_PB_NEED_MORE) {
             if (at_eof) {
                 PR_NOTICE("pb EOF frames=%u", frame_cnt);
-                (VOID)tuya_ipc_media_playback_send_finish(0);
+                (void)tuya_ipc_media_playback_send_finish(0);
                 break;
             }
             if (used == 0 && valid == DEMO_PB_SLIDE_BUF) {
-                PR_ERR("pb AU exceeds slide buf %u, abort", (UINT_T)DEMO_PB_SLIDE_BUF);
+                PR_ERR("pb AU exceeds slide buf %u, abort", (uint32_t)DEMO_PB_SLIDE_BUF);
                 break;
             }
             need_fill = TRUE;
@@ -397,7 +397,7 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
         }
         if (pr != 0) {
             PR_NOTICE("pb EOF frames=%u", frame_cnt);
-            (VOID)tuya_ipc_media_playback_send_finish(0);
+            (void)tuya_ipc_media_playback_send_finish(0);
             break;
         }
 
@@ -426,9 +426,9 @@ STATIC VOID_T __pb_send_thread(VOID_T *arg)
         vf.buf_len = frame_len;
         /* Wall-clock-ish ms so App timeline can map progress within the day */
         if (seg_start != 0) {
-            vf.timestamp = ((UINT64_T)seg_start * 1000ULL) + (((UINT64_T)file_frame_idx * 1000ULL) / DEMO_PB_FPS);
+            vf.timestamp = ((uint64_t)seg_start * 1000ULL) + (((uint64_t)file_frame_idx * 1000ULL) / DEMO_PB_FPS);
         } else {
-            vf.timestamp = base_ms + (((UINT64_T)frame_cnt * 1000ULL) / DEMO_PB_FPS);
+            vf.timestamp = base_ms + (((uint64_t)frame_cnt * 1000ULL) / DEMO_PB_FPS);
         }
         vf.pts = vf.timestamp * 1000ULL;
 
@@ -487,9 +487,9 @@ __pb_exit:
  * @brief Stop PB send thread and wait for exit
  * @return none
  */
-STATIC VOID_T __pb_stop(VOID_T)
+static void __pb_stop(void)
 {
-    UINT32_T waited = 0;
+    uint32_t waited = 0;
 
     s_pb_running = FALSE;
     s_pb_pause = FALSE;
@@ -512,7 +512,7 @@ STATIC VOID_T __pb_stop(VOID_T)
  * @param[in] play_ts App requested play time (epoch sec), 0=now
  * @return none
  */
-STATIC VOID_T __pb_start(UINT32_T play_ts)
+static void __pb_start(uint32_t play_ts)
 {
     THREAD_CFG_T cfg;
 
@@ -548,11 +548,11 @@ STATIC VOID_T __pb_start(UINT32_T play_ts)
  * @param[in] args event payload
  * @return 0 on success
  */
-STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T channel,
-                                          IN CONST MEDIA_STREAM_EVENT_E event, IN PVOID_T args)
+static int __demo_media_stream_event_cb(const int device, const int channel,
+                                          const MEDIA_STREAM_EVENT_E event, void *args)
 {
-    (VOID)device;
-    (VOID)channel;
+    (void)device;
+    (void)channel;
 
     switch (event) {
     case MEDIA_STREAM_LIVE_VIDEO_START:
@@ -564,7 +564,7 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
 #if defined(ENABLE_LOCAL_STORE) && (ENABLE_LOCAL_STORE == 1)
     case MEDIA_STREAM_PLAYBACK_QUERY_MONTH_SIMPLIFY: {
         C2C_TRANS_QUERY_PB_MONTH_RESP *month = (C2C_TRANS_QUERY_PB_MONTH_RESP *)args;
-        UINT32_T bitmap = 0;
+        uint32_t bitmap = 0;
         OPERATE_RET rt;
 
         if (month == NULL) {
@@ -573,7 +573,7 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
         rt = local_store_query_month(month->year, month->month, &bitmap);
         if (rt != OPRT_OK) {
             month->day = 0;
-            return (INT_T)rt;
+            return (int)rt;
         }
         month->day = bitmap;
         PR_NOTICE("pb month %u-%02u bitmap=0x%x", month->year, month->month, bitmap);
@@ -582,10 +582,10 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
     case MEDIA_STREAM_PLAYBACK_QUERY_DAY_TS: {
         C2C_TRANS_QUERY_PB_DAY_RESP *day = (C2C_TRANS_QUERY_PB_DAY_RESP *)args;
         LOCAL_STORE_SEG_T segs[DEMO_PB_DAY_SEG_MAX];
-        UINT32_T count = DEMO_PB_DAY_SEG_MAX;
+        uint32_t count = DEMO_PB_DAY_SEG_MAX;
         OPERATE_RET rt;
-        UINT32_T i;
-        UINT32_T arr_bytes;
+        uint32_t i;
+        uint32_t arr_bytes;
         PLAY_BACK_ALARM_INFO_ARR *arr;
 
         if (day == NULL) {
@@ -594,9 +594,9 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
         day->alarm_arr = NULL;
         rt = local_store_query_day(day->year, day->month, day->day, segs, &count);
         if (rt != OPRT_OK) {
-            return (INT_T)rt;
+            return (int)rt;
         }
-        arr_bytes = (UINT32_T)(sizeof(PLAY_BACK_ALARM_INFO_ARR) + count * sizeof(PLAY_BACK_ALARM_FRAGMENT));
+        arr_bytes = (uint32_t)(sizeof(PLAY_BACK_ALARM_INFO_ARR) + count * sizeof(PLAY_BACK_ALARM_FRAGMENT));
         arr = (PLAY_BACK_ALARM_INFO_ARR *)Malloc(arr_bytes);
         if (arr == NULL) {
             return OPRT_MALLOC_FAILED;
@@ -616,10 +616,10 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
     case MEDIA_STREAM_PLAYBACK_QUERY_DAY_TS_WITH_ENCRYPT: {
         C2C_TRANS_QUERY_PB_DAY_WITH_ENCRYPT_RESP *day = (C2C_TRANS_QUERY_PB_DAY_WITH_ENCRYPT_RESP *)args;
         LOCAL_STORE_SEG_T segs[DEMO_PB_DAY_SEG_MAX];
-        UINT32_T count = DEMO_PB_DAY_SEG_MAX;
+        uint32_t count = DEMO_PB_DAY_SEG_MAX;
         OPERATE_RET rt;
-        UINT32_T i;
-        UINT32_T arr_bytes;
+        uint32_t i;
+        uint32_t arr_bytes;
         PLAY_BACK_ALARM_INFO_WITH_ENCRYPT_ARR *arr;
 
         if (day == NULL) {
@@ -628,9 +628,9 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
         day->alarm_arr = NULL;
         rt = local_store_query_day(day->year, day->month, day->day, segs, &count);
         if (rt != OPRT_OK) {
-            return (INT_T)rt;
+            return (int)rt;
         }
-        arr_bytes = (UINT32_T)(sizeof(PLAY_BACK_ALARM_INFO_WITH_ENCRYPT_ARR) +
+        arr_bytes = (uint32_t)(sizeof(PLAY_BACK_ALARM_INFO_WITH_ENCRYPT_ARR) +
                                count * sizeof(PLAY_BACK_FILE_INFOS_WITH_ENCRYPT));
         arr = (PLAY_BACK_ALARM_INFO_WITH_ENCRYPT_ARR *)Malloc(arr_bytes);
         if (arr == NULL) {
@@ -652,12 +652,12 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
 #endif
 
     case MEDIA_STREAM_PLAYBACK_START_TS: {
-        UINT32_T play_ts = 0;
-        UINT32_T hint_start = 0;
-        UINT32_T field5 = 0;
-        UINT32_T new_start = 0;
-        UINT32_T new_end = 0;
-        CHAR_T path[DEMO_PB_PATH_MAX];
+        uint32_t play_ts = 0;
+        uint32_t hint_start = 0;
+        uint32_t field5 = 0;
+        uint32_t new_start = 0;
+        uint32_t new_end = 0;
+        char path[DEMO_PB_PATH_MAX];
         BOOL_T mid_seek = FALSE;
         BOOL_T same_seg = FALSE;
 
@@ -674,7 +674,7 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
             }
             /* len=20 layout: ch|start|end|playTime|scrub_ts. scrub sits where 'type' is.
              * playTime is often segment end; dword@16 is the actual scrub epoch. */
-            memcpy(&field5, ((CONST UINT8_T *)pb) + 16, sizeof(field5));
+            memcpy(&field5, ((const uint8_t *)pb) + 16, sizeof(field5));
             if (pb->time_sect.start_timestamp == 0 && hint_start != 0 && play_ts > hint_start &&
                 field5 > hint_start && field5 < play_ts) {
                 PR_NOTICE("pb START short-pkt scrub field5=%u (was playTime=%u)", field5, play_ts);
@@ -687,7 +687,7 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
         }
 
         memset(path, 0, sizeof(path));
-        (VOID)__pb_resolve_path(play_ts, path, sizeof(path), &new_start, &new_end);
+        (void)__pb_resolve_path(play_ts, path, sizeof(path), &new_start, &new_end);
         mid_seek = (new_start != 0 && new_end > new_start && play_ts > new_start && play_ts < new_end);
         same_seg = ((s_pb_running || s_pb_alive) && s_pb_seg_start != 0 && new_start == s_pb_seg_start &&
                     new_end == s_pb_seg_end);
@@ -712,14 +712,14 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
     case MEDIA_STREAM_PLAYBACK_STOP:
         PR_NOTICE("pb STOP");
         __pb_stop();
-        (VOID)tuya_ipc_media_playback_send_finish(0);
+        (void)tuya_ipc_media_playback_send_finish(0);
         break;
     case MEDIA_STREAM_PLAYBACK_MUTE:
     case MEDIA_STREAM_PLAYBACK_UNMUTE:
-        PR_NOTICE("pb ctrl event=%d", (INT_T)event);
+        PR_NOTICE("pb ctrl event=%d", (int)event);
         break;
     case MEDIA_STREAM_PLAYBACK_SET_SPEED: {
-        UINT32_T speed = 1;
+        uint32_t speed = 1;
         if (args != NULL) {
             C2C_TRANS_CTRL_PB_SET_SPEED *sp = (C2C_TRANS_CTRL_PB_SET_SPEED *)args;
             speed = sp->speed;
@@ -744,7 +744,7 @@ STATIC INT_T __demo_media_stream_event_cb(IN CONST INT_T device, IN CONST INT_T 
  * @brief Register demo media stream event callback and seed PB demo file
  * @return none
  */
-VOID_T demo_media_event_register(VOID_T)
+void demo_media_event_register(void)
 {
     OPERATE_RET rt = tuya_ipc_media_stream_register_event_cb(__demo_media_stream_event_cb);
     if (rt != OPRT_OK) {
