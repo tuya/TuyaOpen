@@ -1,4 +1,0 @@
-config APP_CONFIG
-    bool
-    default y
-    select ENABLE_WIFI_ULTRA_LOWPOWER

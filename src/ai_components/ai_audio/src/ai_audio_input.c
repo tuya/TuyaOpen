@@ -36,6 +36,7 @@ typedef struct {
     AI_AUDIO_VAD_STATE_E     vad_flag;
     uint16_t                 vad_size;
     THREAD_HANDLE            vad_task;
+    SEM_HANDLE               task_exit_sem; // posted by the record task's exit cb; stop() waits on it
     TUYA_RINGBUFF_T          ringbuf;
     MUTEX_HANDLE             mutex;
 
@@ -48,6 +49,7 @@ typedef struct {
 ***********************************************************/
 static AI_AUDIO_RECODER_T *sg_recorder = NULL;
 static TDL_AUDIO_HANDLE_T sg_audio_hdl = NULL;
+static AI_AUDIO_INPUT_CFG_T sg_input_cfg = {0}; // saved at init, used by ai_audio_input_reinit
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -193,6 +195,10 @@ static void __audio_recorder_destroy(void)
             tuya_ring_buff_free(sg_recorder->ringbuf);
         }
 
+        if (sg_recorder->task_exit_sem) {
+            tal_semaphore_release(sg_recorder->task_exit_sem);
+        }
+
         tal_free(sg_recorder);
         sg_recorder = NULL;
     }
@@ -232,6 +238,7 @@ static AI_AUDIO_RECODER_T *__audio_recorder_create(AI_AUDIO_INPUT_CFG_T *cfg, TD
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(rb_size, OVERFLOW_STOP_TYPE, &sg_recorder->ringbuf), __error);
 #endif
     TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&sg_recorder->mutex), __error);
+    TUYA_CALL_ERR_GOTO(tal_semaphore_create_init(&sg_recorder->task_exit_sem, 0, 1), __error);
     PR_DEBUG("recorder vad mode %d", cfg->vad_mode);
     PR_DEBUG("recorder total ms %d, slice ms %d, vad active %d ms, vad off timeout %d", rb_size, cfg->slice_ms, cfg->vad_active_ms, cfg->vad_off_ms);
 
@@ -247,6 +254,16 @@ __error:
 @brief Start audio input
 @return OPERATE_RET Operation result
 */
+/* Invoked by the thread framework when __record_task actually exits. Posting here lets
+   ai_audio_input_stop() block until the task has fully unwound, so the codec/pipeline is torn
+   down only after the last mic read completes (no r_size=-3 read of a freed codec / crash). */
+static void __record_task_exit(void)
+{
+    if (sg_recorder && sg_recorder->task_exit_sem) {
+        tal_semaphore_post(sg_recorder->task_exit_sem);
+    }
+}
+
 OPERATE_RET ai_audio_input_start(void)
 {
     PR_NOTICE("audio input -> start! mode is %d, task is %p", sg_recorder->vad_mode, sg_recorder->vad_task);
@@ -259,7 +276,7 @@ OPERATE_RET ai_audio_input_start(void)
             .thrdname = "record_task",
             .psram_mode = 1,
         };
-        tal_thread_create_and_start(&sg_recorder->vad_task, NULL, NULL, __record_task, NULL, &thrd_cfg);
+        tal_thread_create_and_start(&sg_recorder->vad_task, NULL, __record_task_exit, __record_task, NULL, &thrd_cfg);
     }
 
     if (sg_recorder->vad_mode == AI_AUDIO_VAD_AUTO) {
@@ -285,6 +302,11 @@ OPERATE_RET ai_audio_input_stop(void)
 
     if (sg_recorder->vad_task) {
         tal_thread_delete(sg_recorder->vad_task);
+        /* tal_thread_delete is async; block until the record task's exit cb fires so the caller
+           can tear down the codec/pipeline without racing an in-flight mic read (timeout guard). */
+        if (sg_recorder->task_exit_sem) {
+            tal_semaphore_wait(sg_recorder->task_exit_sem, 2000);
+        }
         sg_recorder->vad_task = NULL;
     }
 
@@ -300,7 +322,8 @@ OPERATE_RET ai_audio_input_deinit(void)
     OPERATE_RET rt = OPRT_OK;
     TUYA_CHECK_NULL_RETURN(sg_recorder, OPRT_OK);
 
-    /* Stop */
+    /* Stop (ai_audio_input_stop waits for the record task to fully exit via the exit-cb
+       handshake, so the teardown below can't race an in-flight mic read). */
     TUYA_CALL_ERR_LOG(ai_audio_input_stop());
 
     /* Stop mic, speaker, audio AFE (AEC, NS, VAD) */
@@ -310,6 +333,14 @@ OPERATE_RET ai_audio_input_deinit(void)
     __audio_recorder_destroy();
 
     return rt;
+}
+
+OPERATE_RET ai_audio_input_reinit(void)
+{
+    /* Re-init from the cfg saved at the last ai_audio_input_init. Pairs with
+       ai_audio_input_deinit as a suspend/resume: deinit stops mic + codec (tdl_audio_close)
+       for low power, reinit restores capture on wake. */
+    return ai_audio_input_init(&sg_input_cfg);
 }
 
 /**
@@ -323,6 +354,8 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
     TDL_AUDIO_INFO_T audio_info;
 
     TUYA_CHECK_NULL_RETURN(cfg, OPRT_INVALID_PARM);
+
+    sg_input_cfg = *cfg; // save for reinit (resume after a low-power deinit)
 
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &audio_info));

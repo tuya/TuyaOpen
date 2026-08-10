@@ -312,6 +312,7 @@ static OPERATE_RET __ai_mode_hold_handle_key(TDL_BUTTON_TOUCH_EVENT_E event, voi
         }
         break;
         case TDL_BUTTON_LONG_PRESS_START: {
+            ai_user_event_notify(AI_USER_EVT_KEY_WAKEUP, NULL); // wake HW (e.g. resume codec from ULP) before capture
             MODE_STATE_CHANGE(sg_mode_set_state, AI_MODE_STATE_LISTEN);
         }
         break;

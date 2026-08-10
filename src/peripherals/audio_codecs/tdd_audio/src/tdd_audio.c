@@ -191,6 +191,14 @@ __EXIT:
 static OPERATE_RET __tdd_audio_close(TDD_AUDIO_HANDLE_T handle)
 {
     OPERATE_RET rt = OPRT_OK;
+    (void)handle;
+
+    /* Mirror __tdd_audio_open's tkl_ai_init + tkl_ai_start(0,0): stop and uninit the
+       audio input so the codec/DMA capture actually stops. Previously a no-op, which
+       left the mic capturing (~18mA) even after tdl_audio_close under ULP. A later
+       tdl_audio_open re-runs tkl_ai_init/start to restore capture. */
+    tkl_ai_stop(0, 0);
+    tkl_ai_uninit();
 
     return rt;
 }

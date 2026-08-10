@@ -1,7 +1,9 @@
 ##
 # @file CMakeLists.txt
-# @brief 
+# @brief
 #/
+
+if (CONFIG_ENABLE_TUYA_PM STREQUAL "y")
 
 # APP_PATH
 set(APP_PATH ${CMAKE_CURRENT_LIST_DIR})
@@ -12,10 +14,8 @@ get_filename_component(APP_NAME ${APP_PATH} NAME)
 # APP_SRCS
 aux_source_directory(${APP_PATH}/src APP_SRCS)
 
-# APP_INC
-set(APP_INC
-    ${APP_PATH}/src
-)
+add_definitions(-DSTATIC_IN_RELEASE=static)
+add_definitions(-DMAJOR_VERSION=1 -DMINOR_VERSION=0 -DMICRO_VERSION=0 -DVERSION=\"1.0.0\")
 
 ########################################
 # Target Configure
@@ -26,8 +26,6 @@ target_sources(${EXAMPLE_LIB}
     PRIVATE
         ${APP_SRCS}
     )
-
-target_include_directories(${EXAMPLE_LIB}
-    PRIVATE
-        ${APP_INC}
-    )
+else()
+message(FATAL_ERROR "tuya_pm example cannot work when CONFIG_ENABLE_TUYA_PM is not set")
+endif()

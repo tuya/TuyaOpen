@@ -78,6 +78,14 @@ OPERATE_RET ai_audio_input_stop(void);
 OPERATE_RET ai_audio_input_deinit(void);
 
 /**
+ * @brief Re-initialize the audio input from the cfg saved at the last init. Pairs with
+ *        ai_audio_input_deinit for suspend/resume (stop codec in low power, restore on wake).
+ *
+ * @return OPRT_OK on success, or an error code on failure.
+ */
+OPERATE_RET ai_audio_input_reinit(void);
+
+/**
 @brief Reset audio input ring buffer and VAD state
 @return OPERATE_RET Operation result
 */

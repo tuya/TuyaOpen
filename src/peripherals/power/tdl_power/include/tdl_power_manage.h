@@ -104,6 +104,25 @@ OPERATE_RET tdl_power_charger_get_state(TDL_POWER_HANDLE h, TDL_CHG_STATE_E *st)
  */
 OPERATE_RET tdl_power_charger_on_event(TDL_POWER_HANDLE h, TDL_CHG_EVENT_CB cb, void *arg);
 
+/* ---- deep sleep ---- */
+
+/**
+ * @brief Enter real deep sleep: arm the board-declared GPIO wakeup sources (plus an
+ *        optional one-shot timer wakeup) and power the CPU down. Waking reboots the
+ *        device. Does not return on success; returns only on failure.
+ *
+ * @param[in] h             Handle to the power device.
+ * @param[in] timer_wake_ms Optional one-shot timer wakeup in ms (0 = none). At least
+ *                          one wake source is required: this timer, or a GPIO wake
+ *                          source declared by the backend; otherwise the call is
+ *                          refused (would strand the device asleep).
+ *
+ * @return OPRT_NOT_SUPPORTED if the platform lacks TKL wakeup (ENABLE_WAKEUP off) or
+ *         no backend implements deep sleep; OPRT_INVALID_PARM if no wake source;
+ *         otherwise does not return on success (waking reboots).
+ */
+OPERATE_RET tdl_power_enter_deepsleep(TDL_POWER_HANDLE h, uint32_t timer_wake_ms);
+
 #ifdef __cplusplus
 }
 #endif

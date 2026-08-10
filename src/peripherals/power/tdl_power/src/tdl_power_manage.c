@@ -1,5 +1,5 @@
 /**
- * @file tdl_power.c
+ * @file tdl_power_manage.c
  * @brief TDL power device. A device aggregates one or more backend "contributors"
  *        (each a TDD registration), so a single "power" device can span mixed
  *        mechanisms (e.g. AXP2101 channels + SoC GPIO rails). App operations are
@@ -376,4 +376,26 @@ OPERATE_RET tdl_power_charger_on_event(TDL_POWER_HANDLE h, TDL_CHG_EVENT_CB cb, 
         }
     }
     return armed ? OPRT_OK : OPRT_NOT_SUPPORTED;
+}
+
+/***********************************************************
+*********************** deep sleep *************************
+***********************************************************/
+
+OPERATE_RET tdl_power_enter_deepsleep(TDL_POWER_HANDLE h, uint32_t timer_wake_ms)
+{
+    POWER_DEV_T *dev = (POWER_DEV_T *)h;
+    LIST_HEAD   *pos = NULL;
+
+    if (NULL == dev) {
+        return OPRT_INVALID_PARM;
+    }
+    /* hand off to whichever backend implements deep sleep (SoC, PMIC, ...) */
+    tuya_list_for_each(pos, &dev->contribs) {
+        POWER_CONTRIB_T *c = tuya_list_entry(pos, POWER_CONTRIB_T, node);
+        if (NULL != c->intfs.enter_deepsleep) {
+            return c->intfs.enter_deepsleep(c->ctx, timer_wake_ms);
+        }
+    }
+    return OPRT_NOT_SUPPORTED;
 }

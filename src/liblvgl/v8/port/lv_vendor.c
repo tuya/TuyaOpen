@@ -92,12 +92,18 @@ static void lv_tast_entry(void *arg)
 #endif
 }
 
+static uint32_t s_lvgl_task_pri   = 5;        // remembered by lv_vendor_start for lv_vendor_resume
+static uint32_t s_lvgl_stack_size = 1024 * 8;
+
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
 {
     if (lvgl_task_state == STATE_RUNNING) {
         PR_NOTICE("%s already start\n", __func__);
-        return; 
+        return;
     }
+
+    s_lvgl_task_pri   = lvgl_task_pri;
+    s_lvgl_stack_size = lvgl_stack_size;
 
 #if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
     if(OPRT_OK != tkl_thread_smp_create((TKL_THREAD_HANDLE *)&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
@@ -141,6 +147,22 @@ void lv_vendor_stop(void)
 #endif
 
     PR_NOTICE("%s complete\n", __func__);
+}
+
+/* Low-power suspend/resume: stop the render task AND power down the flush HW (DMA2D),
+   whose VIDP_DMA2D domain otherwise stays on (~5mA) even after the task stops. resume
+   reacquires the HW before restarting the task. Panel power (tdl_disp) is managed by the
+   caller. */
+void lv_vendor_suspend(void)
+{
+    lv_vendor_stop();
+    lv_port_flush_dma2d_deinit();
+}
+
+void lv_vendor_resume(void)
+{
+    lv_port_flush_dma2d_reinit();
+    lv_vendor_start(s_lvgl_task_pri, s_lvgl_stack_size);
 }
 
 void lv_vendor_add_disp_dev(void *device)

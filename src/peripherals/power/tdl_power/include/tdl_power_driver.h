@@ -36,6 +36,7 @@ typedef struct {
     OPERATE_RET (*battery_get_percent)(TDD_POWER_DEV_HANDLE_T ctx, uint8_t *pct); // only if HW fuel gauge
     OPERATE_RET (*charger_get_state)(TDD_POWER_DEV_HANDLE_T ctx, TDL_CHG_STATE_E *st);
     OPERATE_RET (*charger_arm_event)(TDD_POWER_DEV_HANDLE_T ctx); // set up HW IRQ -> notify on fire
+    OPERATE_RET (*enter_deepsleep)(TDD_POWER_DEV_HANDLE_T ctx, uint32_t timer_wake_ms);
 } TDL_POWER_INTFS_T;
 
 /**

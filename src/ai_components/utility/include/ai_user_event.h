@@ -69,6 +69,7 @@ typedef enum {
     AI_USER_EVT_GET_PICTURE_FROM_APP, 
     AI_USER_EVT_SEND_PICTURE_END,
     AI_USER_EVT_EXIT,
+    AI_USER_EVT_KEY_WAKEUP,  /* user interaction starting (e.g. hold-key press) BEFORE capture; a hook for the app to wake HW (resume codec from ULP) in time so the first utterance isn't dropped */
 } AI_USER_EVT_TYPE_E;
 
 typedef struct {

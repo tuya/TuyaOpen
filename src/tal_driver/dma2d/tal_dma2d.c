@@ -243,6 +243,7 @@ OPERATE_RET tal_dma2d_deinit(TAL_DMA2D_HANDLE_T handle)
         if (sg_dma2d.init_cnt == 0) {
             sg_dma2d.curr_sub_obj = NULL;
             __dma2d_obj_source_deinit(&sg_dma2d.hardware_dma2d);
+            tkl_dma2d_deinit(); // power down the DMA2D hardware (pairs with tkl_dma2d_init)
         }
     }
 

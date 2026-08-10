@@ -115,7 +115,7 @@ static int netmgr_api_call_with_ret(netmgr_api_callback_fn a, void* b)
 
 static void void_func(void* arg)
 {
-    PR_DEBUG("queue post trigger timer refresh");
+    PR_TRACE("queue post trigger timer refresh");
     timer_need_refresh = 1;
     tal_free(arg);
 
@@ -124,7 +124,7 @@ static void void_func(void* arg)
 
 int netmgr_timer_refresh(void)
 {
-    PR_DEBUG("timer_need_refresh: %d", timer_need_refresh);
+    PR_TRACE("timer_need_refresh: %d", timer_need_refresh);
     if (timer_need_refresh) {
         timer_need_refresh = 0;
         int ret = netmgr_api_call_with_ret(void_func, NULL);

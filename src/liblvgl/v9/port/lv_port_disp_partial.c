@@ -65,4 +65,13 @@ void lv_port_flush_release(LV_DISP_NODE_T *node)
     (void)node;
 }
 
+/* Partial flush does not use DMA2D; low-power hooks are no-ops (kept for a uniform API). */
+void lv_port_flush_dma2d_deinit(void)
+{
+}
+
+void lv_port_flush_dma2d_reinit(void)
+{
+}
+
 #endif /* ENABLE_LVGL_PARTIAL_FLUSH */
