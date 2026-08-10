@@ -249,10 +249,10 @@ pj_bool_t ioqueue_dispatch_write_event(pj_ioqueue_t *ioqueue, pj_ioqueue_key_t *
          * of suggestions from Douglas C. Schmidt and Ken Keys.
          */
         {
-            struct sockaddr_in addr;
+            pj_sockaddr addr;
             int addrlen = sizeof(addr);
 
-            status = pj_sock_getpeername(h->fd, (struct sockaddr *)&addr, &addrlen);
+            status = pj_sock_getpeername(h->fd, &addr, &addrlen);
         }
 #endif
 

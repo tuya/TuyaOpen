@@ -40,6 +40,10 @@
 #include <pj/errno.h>
 #include <pj/rand.h>
 
+/* Non-blocking mode is set through TAL instead of ioctl(FIONBIO). */
+#include "tal_api.h"
+#include "tal_network.h"
+
 /* Now that we have access to OS'es <sys/select>, lets check again that
  * PJ_IOQUEUE_MAX_HANDLES is not greater than FD_SETSIZE
  */
@@ -338,7 +342,7 @@ pj_ioqueue_register_sock2(pj_pool_t *pool, pj_ioqueue_t *ioqueue, pj_sock_t sock
      * avoid potential memory corruption caused by select() when given
      * an fd that is higher than FD_SETSIZE.
      */
-    if (sizeof(fd_set) < FD_SETSIZE && sock >= FD_SETSIZE) {
+    if (sizeof(pj_fd_set_t) * 8 < (size_t)FD_SETSIZE && sock >= FD_SETSIZE) {
         PJ_LOG(4, ("pjlib",
                    "Failed to register socket to ioqueue because "
                    "socket fd is too big (fd=%d/FD_SETSIZE=%d)",
@@ -381,12 +385,7 @@ pj_ioqueue_register_sock2(pj_pool_t *pool, pj_ioqueue_t *ioqueue, pj_sock_t sock
 
     /* Set socket to nonblocking. */
     value = 1;
-#if defined(PJ_WIN32) && PJ_WIN32 != 0 || defined(PJ_WIN64) && PJ_WIN64 != 0 ||                                        \
-    defined(PJ_WIN32_WINCE) && PJ_WIN32_WINCE != 0
-    if (ioctlsocket(sock, FIONBIO, &value)) {
-#else
-    if (ioctl(sock, FIONBIO, &value)) {
-#endif
+    if (tal_net_set_block(sock, PJ_FALSE) != OPRT_OK) {
         rc = pj_get_netos_error();
         goto on_return;
     }
@@ -777,7 +776,7 @@ static pj_status_t replace_udp_sock(pj_ioqueue_key_t *h)
          * errors, so force it with SO_REUSEADDR
          */
         val = 1;
-        status = pj_sock_setsockopt(new_sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+        status = pj_sock_setsockopt(new_sock, pj_SOL_SOCKET(), pj_SO_REUSEADDR(), &val, sizeof(val));
         if (status == PJ_STATUS_FROM_OS(EBADF) || status == PJ_STATUS_FROM_OS(EINVAL)) {
             PJ_PERROR(5, (THIS_FILE, status, "Error set socket option"));
             continue;
@@ -818,12 +817,7 @@ static pj_status_t replace_udp_sock(pj_ioqueue_key_t *h)
 
     /* Set socket to nonblocking. */
     val = 1;
-#if defined(PJ_WIN32) && PJ_WIN32 != 0 || defined(PJ_WIN64) && PJ_WIN64 != 0 ||                                        \
-    defined(PJ_WIN32_WINCE) && PJ_WIN32_WINCE != 0
-    if (ioctlsocket(new_sock, FIONBIO, &val)) {
-#else
-    if (ioctl(new_sock, FIONBIO, &val)) {
-#endif
+    if (tal_net_set_block(new_sock, PJ_FALSE) != OPRT_OK) {
         status = pj_get_netos_error();
         goto on_error;
     }

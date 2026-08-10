@@ -30,6 +30,13 @@ list(REMOVE_ITEM PJPROJECT_SRCS
     # Drop platform-specific forks — one TAL/select path for LINUX + MCU
     "${MODULE_PATH}/pjlib/src/pj/os_core_unix.c"
     "${MODULE_PATH}/pjlib/src/pj/ioqueue_epoll.c"
+    # Socket layer runs on TAL: sock_tal.c / sock_select_tal.c /
+    # addr_resolv_tal.c / ip_helper_tal.c replace the BSD implementations,
+    # so pjlib needs no BSD socket headers and no chip network stack.
+    "${MODULE_PATH}/pjlib/src/pj/sock_bsd.c"
+    "${MODULE_PATH}/pjlib/src/pj/sock_select.c"
+    "${MODULE_PATH}/pjlib/src/pj/addr_resolv_sock.c"
+    "${MODULE_PATH}/pjlib/src/pj/ip_helper_generic.c"
     "${MODULE_PATH}/pjlib/src/pj/ssl_sock_ossl.c"
     "${MODULE_PATH}/pjlib/src/pj/ssl_sock_gtls.c"
     "${MODULE_PATH}/pjlib/src/pj/ssl_sock_dump.c"

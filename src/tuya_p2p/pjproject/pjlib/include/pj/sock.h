@@ -469,7 +469,7 @@ typedef enum pj_socket_sd_type {
  * recommended as it may cause build issues for anyone who uses
  * the macro. See #2311 for more details.
  */
-#if 0
+#if defined(PJ_TUYAOS_OWN_IN_ADDR) && PJ_TUYAOS_OWN_IN_ADDR != 0
 /* Must undefine s_addr because of pj_in_addr below */
 #undef s_addr
 
@@ -527,7 +527,7 @@ struct pj_sockaddr_in {
  * recommended as it may cause build issues for anyone who uses
  * the macro. See #2311 for more details.
  */
-#if 0
+#if defined(PJ_TUYAOS_OWN_IN_ADDR) && PJ_TUYAOS_OWN_IN_ADDR != 0
 #undef s6_addr
 
 typedef union pj_in6_addr

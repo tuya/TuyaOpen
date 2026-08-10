@@ -26,28 +26,9 @@ add_compile_options(
     -Wno-comment
 )
 
-# MCU: lwIP headers straight from the chip tree — no overlay, no patched t5_os.
-# lwIP arch/cc.h pulls bk_uart.h, so the OEM bk_private dir joins the search path;
-# its transitive headers (driver/hal, components) already sit under t5_os/ap/include.
-if (NOT CONFIG_PLATFORM_CHOICE STREQUAL "LINUX")
-    add_compile_definitions(
-        CONFIG_MSDU_RESV_HEAD_LENGTH=0
-        CONFIG_MSDU_RESV_DESC_LENGTH=0
-        CONFIG_MSDU_RESV_TAIL_LENGTH=0
-    )
-    if (DEFINED PLATFORM_PATH)
-        include_directories(
-            ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2/src/include
-            ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2/port
-            ${PLATFORM_PATH}/t5_os/ap/components/lwip_intf_v2_1/lwip-2.1.2
-            ${PLATFORM_PATH}/t5_os/ap/components/bk_libs/bk7258_ap/config
-            ${PLATFORM_PATH}/t5_os/build/bk7258/tuya_app/bk7258_ap/config
-            ${PLATFORM_PATH}/t5_os/ap/include
-            ${PLATFORM_PATH}/t5_os/ap/include/common
-            ${PLATFORM_PATH}/t5_os/ap/middleware/driver/include/bk_private
-        )
-    endif()
-endif()
+# Sockets go through TAL on every target, so nothing here reaches into the
+# chip tree: no lwIP headers, no bk config dirs, no t5_os layout assumptions.
+# TAL selects the POSIX backend on LINUX and TKL on MCU.
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base_ice)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib_rtp)

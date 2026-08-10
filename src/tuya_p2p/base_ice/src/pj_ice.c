@@ -5,9 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
-#include "lwip/sockets.h"
-#endif
 
 typedef struct tagIceWorkerThreadParam {
     pj_ice_session_t *pIceSession;

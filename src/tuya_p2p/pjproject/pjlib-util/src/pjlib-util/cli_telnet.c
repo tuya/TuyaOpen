@@ -1713,7 +1713,7 @@ static pj_status_t telnet_start(cli_telnet_fe *fe)
     pj_sockaddr_in_init(&addr, NULL, fe->cfg.port);
 
     val = 1;
-    status = pj_sock_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    status = pj_sock_setsockopt(sock, pj_SOL_SOCKET(), pj_SO_REUSEADDR(), &val, sizeof(val));
 
     if (status != PJ_SUCCESS) {
         PJ_PERROR(3, (THIS_FILE, status, "Failed setting socket options"));

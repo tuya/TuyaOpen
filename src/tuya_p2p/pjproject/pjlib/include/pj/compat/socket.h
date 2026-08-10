@@ -36,18 +36,6 @@
 #include <ws2tcpip.h>
 #endif
 
-#if defined(PJ_HAS_LWIP_SOCKETS) && PJ_HAS_LWIP_SOCKETS != 0
-#include <errno.h>
-/* Skip lwIP's errno provider — it redefines newlib errno macros under -Werror */
-#ifndef LWIP_HDR_ERRNO_H
-#define LWIP_HDR_ERRNO_H
-#endif
-#include "lwip/sockets.h"
-#include "lwip/netdb.h"
-#include "lwip/inet.h"
-#include "tal_sock_compat.h"
-#endif
-
 #if (defined(PJ_WIN32_UWP) && PJ_WIN32_UWP != 0)
 #include <in6addr.h>
 #endif
@@ -226,6 +214,15 @@ typedef int socklen_t;
 #else
 #define PJ_SOCKADDR_SET_LEN(addr, len)
 #define PJ_SOCKADDR_RESET_LEN(addr)
+#endif
+
+/*
+ * With the TAL socket backend no system header defines FD_SETSIZE, so cap it
+ * at the ioqueue capacity. TAL's own descriptor set is at least this wide on
+ * every supported target.
+ */
+#ifndef FD_SETSIZE
+#define FD_SETSIZE PJ_IOQUEUE_MAX_HANDLES
 #endif
 
 #endif /* __PJ_COMPAT_SOCKET_H__ */

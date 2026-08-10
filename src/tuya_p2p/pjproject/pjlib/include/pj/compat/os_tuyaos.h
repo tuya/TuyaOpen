@@ -28,46 +28,43 @@
 #define PJ_HAS_WINSOCK_H  0
 #define PJ_HAS_WINSOCK2_H 0
 
-#if defined(__linux__)
-/* Host POSIX sockets (platform/LINUX TKL also wraps POSIX underneath) */
-#define PJ_HAS_ARPA_INET_H    1
-#define PJ_HAS_MALLOC_H       1
-#define PJ_HAS_NETDB_H        1
-#define PJ_HAS_NETINET_IN_H   1
-#define PJ_HAS_NETINET_TCP_H  1
-#define PJ_HAS_SYS_IOCTL_H    1
-#define PJ_HAS_SYS_SELECT_H   1
-#define PJ_HAS_SYS_SOCKET_H   1
-#define PJ_HAS_SYS_TIME_H     1
-#define PJ_HAS_SYS_TIMEB_H    1
-#define PJ_HAS_SEMAPHORE_H    0
-#define PJ_HAS_LWIP_SOCKETS   0
-#define PJ_SOCKADDR_HAS_LEN   0
-#define PJ_SELECT_NEEDS_NFDS  1
-#define PJ_HAS_LOCALTIME_R    1
-#define PJ_SOCK_HAS_INET_ATON 1
-#define PJ_SOCK_HAS_INET_NTOP 1
-#else
-/* MCU: lwIP BSD-ish sockets (TCP_NODELAY comes from lwip/sockets.h) */
+/*
+ * Sockets go through TAL on every target (sock_tal.c, sock_select_tal.c,
+ * addr_resolv_tal.c, ip_helper_tal.c), so pjlib pulls in no BSD socket
+ * headers and needs no chip network stack on the include path. TAL picks
+ * the POSIX or TKL backend underneath.
+ */
 #define PJ_HAS_ARPA_INET_H    0
-#define PJ_HAS_MALLOC_H       0
 #define PJ_HAS_NETDB_H        0
 #define PJ_HAS_NETINET_IN_H   0
 #define PJ_HAS_NETINET_TCP_H  0
 #define PJ_HAS_SYS_IOCTL_H    0
 #define PJ_HAS_SYS_SELECT_H   0
 #define PJ_HAS_SYS_SOCKET_H   0
-#define PJ_HAS_SYS_TIME_H     1
-#define PJ_HAS_SYS_TIMEB_H    0
+#define PJ_HAS_LWIP_SOCKETS   0
 #define PJ_HAS_SEMAPHORE_H    0
-#ifndef PJ_HAS_LWIP_SOCKETS
-#define PJ_HAS_LWIP_SOCKETS 1
-#endif
-#define PJ_SOCKADDR_HAS_LEN 1
-#define PJ_SELECT_NEEDS_NFDS 1
-#define PJ_HAS_LOCALTIME_R 0
+#define PJ_SELECT_NEEDS_NFDS  1
+#define PJ_HAS_SYS_TIME_H     1
+
+/* pj_sockaddr never reaches the OS now, so keep the plain BSD layout. */
+#define PJ_SOCKADDR_HAS_LEN 0
+
+/* sock_tal.c implements the address text conversions itself. */
 #define PJ_SOCK_HAS_INET_ATON 0
-#define PJ_SOCK_HAS_INET_NTOP 1
+#define PJ_SOCK_HAS_INET_NTOP 0
+#define PJ_SOCK_HAS_INET_PTON 0
+
+/* pj_in_addr / pj_in6_addr are declared by pjlib instead of <netinet/in.h>. */
+#define PJ_TUYAOS_OWN_IN_ADDR 1
+
+#if defined(__linux__)
+#define PJ_HAS_MALLOC_H    1
+#define PJ_HAS_SYS_TIMEB_H 1
+#define PJ_HAS_LOCALTIME_R 1
+#else
+#define PJ_HAS_MALLOC_H    0
+#define PJ_HAS_SYS_TIMEB_H 0
+#define PJ_HAS_LOCALTIME_R 0
 #endif
 
 /* Name reported by pj_gethostname() where no POSIX host database exists */
@@ -76,7 +73,12 @@
 #endif
 
 #define PJ_HAS_ERRNO_VAR 1
-#define PJ_HAS_SO_ERROR  1
+
+/*
+ * Without <sys/socket.h> there is no SO_ERROR to read, so pjlib uses its own
+ * portable connect-completion probe (pj_sock_getpeername) in the ioqueue.
+ */
+#define PJ_HAS_SO_ERROR 0
 
 #ifndef EAGAIN
 #define EAGAIN 11

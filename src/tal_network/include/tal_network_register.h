@@ -32,6 +32,7 @@ typedef struct {
     int (*get_nonblock)(const int fd);
     OPERATE_RET (*set_block)(const int fd, const BOOL_T block);
     TUYA_ERRNO (*close)(const int fd);
+    TUYA_ERRNO (*shutdown)(const int fd, const int how);
     int (*socket_create)(const TUYA_PROTOCOL_TYPE_E type);
     TUYA_ERRNO (*connect)(const int fd, const TUYA_IP_ADDR_T addr, const uint16_t port);
     TUYA_ERRNO (*connect_raw)(const int fd, void *p_socket, const int len);
@@ -53,6 +54,8 @@ typedef struct {
     OPERATE_RET (*set_keepalive)(int fd, const BOOL_T alive, const uint32_t idle, const uint32_t intr,
                                  const uint32_t cnt);
     OPERATE_RET (*get_socket_ip)(int fd, TUYA_IP_ADDR_T *addr);
+    OPERATE_RET (*getsockname)(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
+    OPERATE_RET (*getpeername)(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
     TUYA_IP_ADDR_T (*str2addr)(const char *ip_str);
     char *(*addr2str)(TUYA_IP_ADDR_T ipaddr);
     OPERATE_RET (*setsockopt)(const int fd, const TUYA_OPT_LEVEL level, const TUYA_OPT_NAME optname, const void *optval,
