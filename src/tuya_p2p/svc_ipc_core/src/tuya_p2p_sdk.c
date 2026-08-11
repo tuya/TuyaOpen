@@ -47,7 +47,9 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     stream_var.def_live_mode = TRANS_DEFAULT_STANDARD;
     stream_var.recv_buffer_size = 16 * 1024;
     int preconnect = stream_var.low_power ? 0 : 1;
-    ret = __p2p_v3_login_init(preconnect, stream_var.max_client_num, /*media_info.av_encode_info.video_bitrate[0]*/ 0);
+    /* Align TuyaOS wukong: sdkVar.media_info.video_bitrate[MAIN] = 1M, same
+     * value the demo encoder is configured with (DEMO_CAM_BITRATE_KB). */
+    ret = __p2p_v3_login_init(preconnect, stream_var.max_client_num, TUYA_VIDEO_BITRATE_1M);
     if (OPRT_OK != ret) {
         PR_ERR("__p2p_v3_login_init failed\n");
         return ret;
@@ -199,11 +201,26 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
     strOpt.max_channel_number = /*TUYA_CHANNEL_MAX*/ 6;
     strOpt.max_session_number = max_client;
     strOpt.max_pre_session_number = max_client;
-    strOpt.video_bitrate_kbps =
-        bitrate; // Current video_bitrate_kbps parameter is used for setting webrtc channel memory size in p2p library
+    /*
+     * video_bitrate_kbps sizes the video channel memory, exactly as TuyaOS
+     * does from sdkVar.media_info.video_bitrate[]. It used to be passed as 0
+     * here with send_buf_size hardcoded to 1.1 MB, which is above the OS
+     * maximum and let the queue grow to about eight seconds of video before
+     * anything was dropped.
+     */
+    strOpt.video_bitrate_kbps = bitrate;
+
+    uint32_t vsend = (bitrate * 1024u / 8u) * TUYA_P2P_SEND_BUFFER_SECONDS;
+    if (vsend > TUYA_P2P_SEND_BUFFER_SIZE_MAX) {
+        vsend = TUYA_P2P_SEND_BUFFER_SIZE_MAX;
+    } else if (vsend < TUYA_P2P_SEND_BUFFER_SIZE_MIN) {
+        vsend = TUYA_P2P_SEND_BUFFER_SIZE_MIN;
+    }
+    PR_NOTICE("p2p video send buffer %u bytes for %d kbps", vsend, bitrate);
+
     strOpt.send_buf_size[TUYA_CMD_CHANNEL] = 4096;
     strOpt.recv_buf_size[TUYA_CMD_CHANNEL] = 4096;
-    strOpt.send_buf_size[TUYA_VDATA_CHANNEL] = (1024 * 1024) * 1.1;
+    strOpt.send_buf_size[TUYA_VDATA_CHANNEL] = vsend;
     strOpt.recv_buf_size[TUYA_VDATA_CHANNEL] = 1024;
     strOpt.send_buf_size[TUYA_ADATA_CHANNEL] = 2 * P2P_WR_BF_MAX_SIZE + P2P_SEND_REDUNDANCE_LEN;
     strOpt.recv_buf_size[TUYA_ADATA_CHANNEL] = 1024 * 64;

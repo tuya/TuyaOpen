@@ -165,11 +165,13 @@ bool pj_ice_session_handle_events(pj_ice_session_t *pIceSession, unsigned max_ms
             count += c;
             s_timer_fire_log++;
             if (s_timer_fire_log <= 10 || (s_timer_fire_log % 100) == 0) {
+                PJ_LOG(5, ("pj_ice", "ice timer fired n=%u count=%d", s_timer_fire_log, count));
             }
         } else if (pending > 0) {
             static unsigned s_timer_stall_log;
             s_timer_stall_log++;
             if (s_timer_stall_log <= 8 || (s_timer_stall_log % 50) == 0) {
+                PJ_LOG(4, ("pj_ice", "ice timer pending but not due n=%u pending=%d", s_timer_stall_log, pending));
             }
         }
     }
@@ -456,6 +458,7 @@ bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceS
         if (lock_st == PJ_SUCCESS && timer_lock != NULL) {
             pj_timer_heap_set_lock(pIceSession->iceCfg.stun_cfg.timer_heap, timer_lock, PJ_TRUE);
         } else {
+            PJ_LOG(3, ("pj_ice", "ice timer lock create failed st=%d", lock_st));
         }
     }
     pj_ioqueue_create(pIceSession->pPool, 16, &pIceSession->iceCfg.stun_cfg.ioqueue);
@@ -500,7 +503,6 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
         pj_thread_join(pIceSession->pThread);
         pj_thread_destroy(pIceSession->pThread);
         pIceSession->pThread = NULL;
-    } else {
     }
 
     /* Capture ice_st BEFORE pool_release: ice_st is allocated from pPool. */
@@ -688,8 +690,6 @@ bool pj_ice_session_add_remote_candidate(pj_ice_session_t *pIceSession, pj_str_t
         return false;
     }
 
-    if (rcand_cnt > 0 && rcand != NULL) {
-    }
 
     /* Update the checklist */
     status = pj_ice_strans_update_check_list(ice_st, rem_ufrag, rem_passwd, rcand_cnt, rcand, rcand_end);

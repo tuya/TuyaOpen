@@ -32,6 +32,8 @@
 #define DEMO_PB_FPS 20
 #define DEMO_PB_FRAME_SLEEP_MS (1000 / DEMO_PB_FPS)
 #define DEMO_PB_SEND_RETRY_MS 20
+/* Fall further behind than this and the anchor is re-based instead of bursting */
+#define DEMO_PB_PACE_RESYNC_MS 1000
 #define DEMO_PB_STOP_WAIT_MS 2000
 #define DEMO_PB_SEED_LEAF "pb_demo.h264"
 #if OPERATING_SYSTEM == SYSTEM_LINUX
@@ -285,7 +287,7 @@ static OPERATE_RET __pb_resolve_path(uint32_t play_ts, char *path, uint32_t path
  * @brief Compute frame sleep for current PB speed
  * @return sleep ms (>=5)
  */
-static uint32_t __pb_frame_sleep_ms(void)
+static uint32_t __pb_frame_period_ms(void)
 {
     uint32_t speed = s_pb_speed;
     uint32_t ms;
@@ -301,6 +303,36 @@ static uint32_t __pb_frame_sleep_ms(void)
 }
 
 /**
+ * @brief Sleep until the next frame is due, measured from the stream anchor
+ *
+ * Sleeping a fixed period per frame adds the SD read and P2P send cost to
+ * every interval, so the stream drifts slower than realtime (measured ~0.85x
+ * at 20 fps) until the App starves and drops the session. Pace against a
+ * deadline instead and only sleep the remainder.
+ *
+ * @param[in,out] anchor_ms stream anchor, re-based when far behind
+ * @param[in] frames_done frames already handed to the send API
+ */
+static void __pb_pace_to_frame(uint32_t *anchor_ms, uint32_t frames_done)
+{
+    uint32_t elapsed = frames_done * __pb_frame_period_ms();
+    uint32_t now = tal_system_get_millisecond();
+    int32_t remain = (int32_t)(*anchor_ms + elapsed - now);
+
+    if (remain > 0) {
+        tal_system_sleep((uint32_t)remain);
+        return;
+    }
+    /*
+     * A long stall (SD retry, TX buffer full) must not turn into a catch-up
+     * burst that floods the App, so write the lost time off and pace from here.
+     */
+    if (remain < -(int32_t)DEMO_PB_PACE_RESYNC_MS) {
+        *anchor_ms = now - elapsed;
+    }
+}
+
+/**
  * @brief Playback send thread: stream Annex-B from SD (tkl_fread), frame by frame
  * @param[in] arg unused
  * @return none
@@ -308,6 +340,94 @@ static uint32_t __pb_frame_sleep_ms(void)
  *       On OPRT_RESOURCE_NOT_READY (-23) sleep and retry same frame (P2P buffer full).
  *       Seek: skip (play_ts-seg_start)*fps frames then wait next I-frame before send.
  */
+/**
+ * @brief Open the recording that follows the segment just finished
+ * @param[in,out] fp current file, closed and replaced when a next segment exists
+ * @param[in,out] seg_start start of the current segment, updated on success
+ * @param[in,out] seg_end end of the current segment, updated on success
+ * @return TRUE when the next segment is open, FALSE when the day has no more
+ * @note The App timeline is continuous across recordings, so ending the send
+ *       thread at every file boundary blanks the picture once a segment runs
+ *       out. Roll into the next one instead and only finish at the last.
+ */
+static BOOL_T __pb_open_next_segment(TUYA_FILE *fp, uint32_t *seg_start, uint32_t *seg_end)
+{
+    char path[DEMO_PB_PATH_MAX];
+    uint32_t next_start = 0;
+    uint32_t next_end = 0;
+    TUYA_FILE next_fp;
+
+    if (fp == NULL || seg_start == NULL || seg_end == NULL || *seg_end == 0) {
+        return FALSE;
+    }
+
+    /*
+     * Look the successor up in the day index rather than resolving seg_end + 1:
+     * local_store_find_by_play_ts() returns the *nearest* segment, so a gap
+     * between recordings makes the one that just ended win and playback stops.
+     *
+     * The day list is a few KB, far too much for the send thread's stack, so
+     * take it from the heap: this runs once per segment boundary, never in the
+     * per-frame path.
+     */
+    {
+        LOCAL_STORE_SEG_T *segs;
+        uint32_t count = DEMO_PB_DAY_SEG_MAX;
+        POSIX_TM_S tm;
+        uint32_t i;
+
+        memset(&tm, 0, sizeof(tm));
+        if (tal_time_get_local_time_custom((TIME_T)*seg_start, &tm) != OPRT_OK) {
+            return FALSE;
+        }
+        segs = (LOCAL_STORE_SEG_T *)tal_malloc(sizeof(LOCAL_STORE_SEG_T) * DEMO_PB_DAY_SEG_MAX);
+        if (segs == NULL) {
+            PR_ERR("pb next segment: day list alloc failed");
+            return FALSE;
+        }
+        if (local_store_query_day((uint32_t)(tm.tm_year + 1900), (uint32_t)(tm.tm_mon + 1), (uint32_t)tm.tm_mday,
+                                  segs, &count) != OPRT_OK) {
+            tal_free(segs);
+            return FALSE;
+        }
+        for (i = 0; i < count; i++) {
+            if (segs[i].start_ts > *seg_start && (next_start == 0 || segs[i].start_ts < next_start)) {
+                next_start = segs[i].start_ts;
+            }
+        }
+        tal_free(segs);
+        if (next_start == 0) {
+            return FALSE; /* last recording of the day */
+        }
+    }
+
+    memset(path, 0, sizeof(path));
+    if (__pb_resolve_path(next_start, path, sizeof(path), &next_start, &next_end) != OPRT_OK) {
+        return FALSE;
+    }
+    if (next_start == 0 || next_start <= *seg_start) {
+        return FALSE;
+    }
+
+    next_fp = tkl_fopen(path, "rb");
+    if (next_fp == NULL) {
+        PR_ERR("pb next segment open failed: %s", path);
+        return FALSE;
+    }
+
+    if (*fp != NULL) {
+        tkl_fclose(*fp);
+    }
+    *fp = next_fp;
+    *seg_start = next_start;
+    *seg_end = next_end;
+    s_pb_seg_start = next_start;
+    s_pb_seg_end = next_end;
+    PR_NOTICE("pb continue next segment %s [%u,%u]", path, next_start, next_end);
+
+    return TRUE;
+}
+
 static void __pb_send_thread(void *arg)
 {
     uint8_t *slide = NULL;
@@ -320,6 +440,7 @@ static void __pb_send_thread(void *arg)
     uint32_t seg_start = 0;
     uint32_t seg_end = 0;
     uint64_t base_ms;
+    uint32_t pace_base_ms;
     char path[DEMO_PB_PATH_MAX];
     TUYA_FILE fp = NULL;
     OPERATE_RET rt;
@@ -364,6 +485,10 @@ static void __pb_send_thread(void *arg)
     PR_NOTICE("pb stream start path=%s slide=%u seek_skip=%u play_ts=%u seg=[%u,%u] speed=%u", path,
               (uint32_t)DEMO_PB_SLIDE_BUF, skip_frames, play_ts, seg_start, seg_end, s_pb_speed);
 
+    /* Anchored on the first frame actually sent, so the seek scan ahead of it
+     * does not count as playback time. */
+    pace_base_ms = 0;
+
     while (s_pb_running) {
         uint32_t is_key = 0;
         uint32_t frame_len = 0;
@@ -384,6 +509,16 @@ static void __pb_send_thread(void *arg)
         pr = __pb_read_one_frame(slide, used, valid, at_eof, &is_key, &frame_len, &frame_start);
         if (pr == DEMO_PB_NEED_MORE) {
             if (at_eof) {
+                if (__pb_open_next_segment(&fp, &seg_start, &seg_end)) {
+                    valid = 0;
+                    used = 0;
+                    file_frame_idx = 0;
+                    skip_frames = 0;
+                    at_eof = FALSE;
+                    need_fill = TRUE;
+                    send_armed = FALSE;
+                    continue;
+                }
                 PR_NOTICE("pb EOF frames=%u", frame_cnt);
                 (void)tuya_ipc_media_playback_send_finish(0);
                 break;
@@ -396,6 +531,16 @@ static void __pb_send_thread(void *arg)
             continue;
         }
         if (pr != 0) {
+            if (__pb_open_next_segment(&fp, &seg_start, &seg_end)) {
+                valid = 0;
+                used = 0;
+                file_frame_idx = 0;
+                skip_frames = 0;
+                at_eof = FALSE;
+                need_fill = TRUE;
+                send_armed = FALSE;
+                continue;
+            }
             PR_NOTICE("pb EOF frames=%u", frame_cnt);
             (void)tuya_ipc_media_playback_send_finish(0);
             break;
@@ -467,7 +612,10 @@ static void __pb_send_thread(void *arg)
         }
 
         frame_cnt++;
-        tal_system_sleep(__pb_frame_sleep_ms());
+        if (pace_base_ms == 0) {
+            pace_base_ms = tal_system_get_millisecond();
+        }
+        __pb_pace_to_frame(&pace_base_ms, frame_cnt);
     }
 
 __pb_exit:
@@ -653,8 +801,6 @@ static int __demo_media_stream_event_cb(const int device, const int channel,
 
     case MEDIA_STREAM_PLAYBACK_START_TS: {
         uint32_t play_ts = 0;
-        uint32_t hint_start = 0;
-        uint32_t field5 = 0;
         uint32_t new_start = 0;
         uint32_t new_end = 0;
         char path[DEMO_PB_PATH_MAX];
@@ -663,25 +809,16 @@ static int __demo_media_stream_event_cb(const int device, const int channel,
 
         if (args != NULL) {
             C2C_TRANS_CTRL_PB_START *pb = (C2C_TRANS_CTRL_PB_START *)args;
+
+            /* The P2P layer owns the wire layout and hands over a filled-in
+             * struct, so playTime is the position the user scrubbed to. Fall
+             * back to the section start only when the App leaves it unset. */
             play_ts = pb->playTime;
-            hint_start = pb->time_sect.start_timestamp;
-            /* Short App payload len=20: start=0, end field often = fragment start */
-            if (hint_start == 0 && pb->time_sect.end_timestamp != 0) {
-                hint_start = pb->time_sect.end_timestamp;
-            }
             if (play_ts == 0) {
-                play_ts = hint_start;
+                play_ts = pb->time_sect.start_timestamp;
             }
-            /* len=20 layout: ch|start|end|playTime|scrub_ts. scrub sits where 'type' is.
-             * playTime is often segment end; dword@16 is the actual scrub epoch. */
-            memcpy(&field5, ((const uint8_t *)pb) + 16, sizeof(field5));
-            if (pb->time_sect.start_timestamp == 0 && hint_start != 0 && play_ts > hint_start &&
-                field5 > hint_start && field5 < play_ts) {
-                PR_NOTICE("pb START short-pkt scrub field5=%u (was playTime=%u)", field5, play_ts);
-                play_ts = field5;
-            }
-            PR_NOTICE("pb START playTime=%u sect=[%u,%u] use_ts=%u hint_start=%u field5=%u", pb->playTime,
-                      pb->time_sect.start_timestamp, pb->time_sect.end_timestamp, play_ts, hint_start, field5);
+            PR_NOTICE("pb START sect=[%u,%u] play_ts=%u", pb->time_sect.start_timestamp,
+                      pb->time_sect.end_timestamp, play_ts);
         } else {
             PR_NOTICE("pb START (no args)");
         }
@@ -731,7 +868,7 @@ static int __demo_media_stream_event_cb(const int device, const int channel,
             speed = 16;
         }
         s_pb_speed = speed;
-        PR_NOTICE("pb SET_SPEED raw/clamped=%u sleep=%ums", s_pb_speed, __pb_frame_sleep_ms());
+        PR_NOTICE("pb SET_SPEED raw/clamped=%u period=%ums", s_pb_speed, __pb_frame_period_ms());
         break;
     }
     default:

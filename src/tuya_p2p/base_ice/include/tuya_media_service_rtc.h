@@ -26,6 +26,18 @@ extern "C" {
 #define TUYA_P2P_VIDEO_BITRATE_MIN  (600)
 #define TUYA_P2P_VIDEO_BITRATE_MAX  (4000)
 
+/*
+ * Video send buffer bounds, matching TuyaOS mid_p2p. The OS app never sets
+ * send_buf_size itself: the library derives it from video_bitrate_kbps and
+ * clamps it here, which is what keeps the queue from growing into seconds of
+ * latency when the link cannot carry the configured bitrate.
+ */
+#define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
+#define TUYA_P2P_SEND_BUFFER_SIZE_MIN (500 * 1024)
+
+/* Seconds of the configured bitrate the video send queue is allowed to hold. */
+#define TUYA_P2P_SEND_BUFFER_SECONDS (4)
+
 #define TUYA_P2P_ERROR_SUCCESSFUL                         0
 #define TUYA_P2P_ERROR_NOT_INITIALIZED                    -1
 #define TUYA_P2P_ERROR_ALREADY_INITIALIZED                -2

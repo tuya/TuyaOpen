@@ -110,8 +110,8 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #include "tal_log.h"
 
 #define IKCP_PACKET_HEADER_SIZE       24
-#define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
-#define TUYA_P2P_SEND_BUFFER_SIZE_MIN (50 * 1024)
+/* TUYA_P2P_SEND_BUFFER_SIZE_MAX/MIN now live in tuya_media_service_rtc.h so
+ * the caller can size send_buf_size the way the TuyaOS library does. */
 #define TUYA_P2P_RECV_BUFFER_SIZE_MAX (800 * 1024)
 #define TUYA_P2P_RECV_BUFFER_SIZE_MIN (50 * 1024)
 #define RTC_SESSION_RUN_INTERVAL_MS   5
@@ -126,6 +126,8 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #define CTX_SIG_MSG_TYPE_ICE_TIMEOUT  1
 /* used_size is payload bytes; warn when backlog is large (not message count) */
 #define CTX_SIG_Q_BYTES_WARN          (8 * 1024)
+/* Back off before retrying a failed dequeue, so a persistent fault cannot spin */
+#define CTX_SIG_POP_RETRY_MS          20
 
 // CMD is transmitted using kcp's channel number field, and kcp uses little endian
 #define RTC_CHANNEL_CMD   (0x010000F3)
@@ -573,7 +575,6 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
             __rtc_destroy_current_session("offer_new_session_id");
         } else if (!__rtc_ice_media_ready(g_pRtcSession)) {
             __rtc_destroy_current_session("offer_same_session_ice_stuck");
-        } else {
         }
     }
     if (g_pRtcSession == NULL && strcmp(type, "offer") == 0) {
@@ -961,7 +962,17 @@ static void *ctx_signaling_worker_thread(void *arg)
         len = CTX_SIG_WORKER_MSG_BUF_SIZE - 1;
         n = bc_msg_queue_pop_front(s_msg_queue_incoming, &type, buf, &len);
         if (n < 0) {
-            break;
+            if (s_sig_worker_quit != 0) {
+                break; /* deinit closed the queue: the intended way out */
+            }
+            /*
+             * This thread is the queue's only consumer while the producer keeps
+             * accepting pushes, so leaving on a transient failure strands every
+             * later offer and the App can never reconnect. Log it and carry on.
+             */
+            PR_WARN("p2p signaling pop failed ret=%d, worker continues", n);
+            tal_system_sleep(CTX_SIG_POP_RETRY_MS);
+            continue;
         }
         if (len >= (CTX_SIG_WORKER_MSG_BUF_SIZE - 1)) {
             PR_ERR("mqtt msg too large: %d", len);
@@ -971,11 +982,21 @@ static void *ctx_signaling_worker_thread(void *arg)
         if (type == CTX_SIG_MSG_TYPE_INCOMING) {
             int qbytes = bc_msg_queue_get_length(s_msg_queue_incoming);
             uint64_t t0 = tuya_p2p_misc_get_timestamp_ms();
+            uint64_t spent;
+
             (void)tuya_p2p_process_signal_msg(buf, len);
+            /*
+             * This worker is the only consumer of the queue, so a slow message
+             * stalls every later offer/candidate. Surface it before the
+             * backlog grows.
+             */
+            spent = tuya_p2p_misc_get_timestamp_ms() - t0;
+            if (spent >= 200ULL) {
+                PR_WARN("p2p signaling msg took %ums, backlog was %d bytes", (unsigned)spent, qbytes);
+            }
         } else if (type == CTX_SIG_MSG_TYPE_ICE_TIMEOUT) {
             if (g_pRtcSession != NULL && !__rtc_ice_media_ready(g_pRtcSession)) {
                 __rtc_destroy_current_session("ice_nego_timeout");
-            } else {
             }
         }
     }
@@ -1473,6 +1494,7 @@ void ice_on_new_candidate(pj_ice_strans *ice_st, const pj_ice_sess_cand *cand, p
             ctx_session_send_candidate(pRtcSession, &cfg, szCand);
         }
         if (relay_n == 0) {
+            PR_WARN("p2p no relay candidate, connectivity relies on host/srflx only");
         }
         free(cands);
         free(szCand);
@@ -1716,6 +1738,7 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
             break;
         }
         if ((wait_i % 50) == 49) {
+            PR_WARN("p2p destroy waiting exit cond %dms ref=%d", (wait_i + 1) * 10, rtc_ref_cnt_get(rtc));
         }
         tal_system_sleep((10 * 1000 + 999) / 1000);
     }
@@ -1728,6 +1751,7 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
     /* Drain any late recv/send refs before free */
     for (wait_i = 0; wait_i < 100 && rtc_ref_cnt_get(rtc) > 1; wait_i++) {
         if ((wait_i % 20) == 0) {
+            PR_WARN("p2p destroy draining refs %dms ref=%d", wait_i * 10, rtc_ref_cnt_get(rtc));
         }
         tal_system_sleep((10 * 1000 + 999) / 1000);
     }
@@ -1740,7 +1764,6 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
     if (rtc->pIce != NULL) {
         pj_ice_session_destroy(rtc->pIce);
         rtc->pIce = NULL;
-    } else {
     }
 
     tuya_p2p_rtc_sdp_deinit(&rtc->local_sdp);
@@ -1845,7 +1868,6 @@ int ctx_session_channel_process_pkt(void *user, int length, const char *input, c
         } else {
             ret = -1;
         }
-    } else {
     }
 
     return ret;

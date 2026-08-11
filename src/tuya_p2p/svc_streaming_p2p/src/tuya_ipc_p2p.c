@@ -1119,9 +1119,14 @@ static int __p2p_session_trans_video_start(P2P_SESSION_T *pSession)
  ***********************************************************/
 static int __p2p_session_trans_video_stop(P2P_SESSION_T *pSession)
 {
-    if (NULL == pSession || !(P2P_VIDEO & pSession->cmd)) {
-        PR_ERR("param error or session cmd[%d]", pSession->cmd);
+    if (NULL == pSession) {
+        PR_ERR("video stop: no session");
         return OPRT_INVALID_PARM;
+    }
+    if (!(P2P_VIDEO & pSession->cmd)) {
+        /* The App repeats STOP; video is already down, so this is not a fault. */
+        PR_DEBUG("video stop ignored, already stopped cmd[%d]", pSession->cmd);
+        return OPRT_OK;
     }
     pSession->cmd &= ~P2P_VIDEO;
     pSession->video_frame_pending = FALSE;
@@ -1164,9 +1169,14 @@ static int __p2p_session_trans_audio_start(P2P_SESSION_T *pSession)
  ***********************************************************/
 static int __p2p_session_trans_audio_stop(P2P_SESSION_T *pSession)
 {
-    if (NULL == pSession || !(P2P_AUDIO & pSession->cmd)) {
-        PR_ERR("param error or audio not start");
+    if (NULL == pSession) {
+        PR_ERR("audio stop: no session");
         return OPRT_INVALID_PARM;
+    }
+    if (!(P2P_AUDIO & pSession->cmd)) {
+        /* Same repeat-STOP path as video: already stopped is the wanted state. */
+        PR_DEBUG("audio stop ignored, already stopped");
+        return OPRT_OK;
     }
     pSession->cmd &= ~P2P_AUDIO;
     (void)tuya_p2p_rtc_clear_send_buffer(pSession->session, TUYA_ADATA_CHANNEL);
@@ -1675,13 +1685,22 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
         break;
     }
     case TY_C2C_CMD_IO_CTRL_PLAYBACK:
-    case TY_C2C_CMD_IO_CTRL_PLAYBACK_GW: {
+    case TY_C2C_CMD_IO_CTRL_PLAYBACK_GW:
+    /*
+     * EXT0 (100/101) is the speed-capable variant of the playback command and
+     * carries the same layout: sub-command in low_cmd, channel first in the
+     * payload, PB_START recognised by length. Handling it here keeps the App
+     * from waiting on a command we used to ACK without acting on.
+     */
+    case TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0:
+    case TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0: {
         /* low_cmd: legacy TRANS_* (10..16) / MEDIA_STREAM_* / TY_CMD_IO_CTRL_VIDEO_* */
         uint32_t low = (uint32_t)pFixedHead->low_cmd;
         C2C_CMD_IO_CTRL_COM_RESP_T comResp;
         MEDIA_STREAM_EVENT_E ev = MEDIA_STREAM_NULL;
         void *args = pPayload;
         uint32_t ch = 0;
+        C2C_TRANS_CTRL_PB_START pb_start;
 
         if (pFixedHead->length >= sizeof(uint32_t)) {
             memcpy(&ch, pPayload, sizeof(uint32_t));
@@ -1691,12 +1710,74 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
         comResp.result = TY_C2C_CMD_IO_CTRL_COMMAND_RECV;
         __p2p_session_pack_resp(pSession, pData, &comResp, sizeof(comResp));
 
+        /*
+         * EXT0 is the speed-control variant: the payload is channel followed by
+         * the requested speed, the remainder is reserved. Playback runs at 1x
+         * only, so confirm that and refuse other rates rather than claiming a
+         * rate change that never happens.
+         */
+        if (pFixedHead->high_cmd == TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 ||
+            pFixedHead->high_cmd == TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0) {
+            uint32_t speed = 0;
+
+            if (pFixedHead->length >= 2 * sizeof(uint32_t)) {
+                memcpy(&speed, (const uint8_t *)pPayload + sizeof(uint32_t), sizeof(speed));
+            }
+            comResp.result = (speed == 1) ? TY_C2C_CMD_IO_CTRL_COMMAND_SUCCESS : TY_C2C_CMD_IO_CTRL_COMMAND_FAILED;
+            __p2p_session_pack_resp(pSession, pData, &comResp, sizeof(comResp));
+            PR_NOTICE("playback speed request x%u -> %s", speed, (speed == 1) ? "ok" : "unsupported");
+            break;
+        }
+
         if (low == 10 || low == (uint32_t)MEDIA_STREAM_PLAYBACK_START_TS || low == (uint32_t)TY_CMD_IO_CTRL_VIDEO_PLAY ||
             low == (uint32_t)TY_CMD_IO_CTRL_VIDEO_PLAY_V2) {
-            if (pFixedHead->length >= sizeof(C2C_TRANS_CTRL_PB_START)) {
-                C2C_TRANS_CTRL_PB_START *pb = (C2C_TRANS_CTRL_PB_START *)pPayload;
-                pb->reqId = (uint32_t)pCmd->reqId;
-                args = pb;
+            /*
+             * The request the App actually sends is 20 bytes and does not match
+             * C2C_TRANS_CTRL_PB_START: the time section sits one dword further
+             * in, and type/reqId/allow_encrypt are absent. Confirmed against a
+             * real request whose segment was [1786411126,1786411152]:
+             *
+             *   +0  channel
+             *   +4  reserved (observed 0)
+             *   +8  time_sect.start_timestamp
+             *   +12 time_sect.end_timestamp
+             *   +16 playTime, i.e. where the user scrubbed to
+             *
+             * Normalise it into the documented struct here, where the payload
+             * length is known, so the app layer reads named fields instead of
+             * guessing at raw offsets. A payload of any other size is dumped
+             * once so a new App layout shows itself instead of being parsed
+             * into a wrong seek position.
+             */
+            enum {
+                PB_START_OFF_START = 8,
+                PB_START_OFF_END = 12,
+                PB_START_OFF_PLAY = 16,
+                PB_START_WIRE_LEN = 20,
+            };
+
+            if (pFixedHead->length >= PB_START_WIRE_LEN) {
+                const uint8_t *wire = (const uint8_t *)pPayload;
+
+                memset(&pb_start, 0, sizeof(pb_start));
+                pb_start.channel = ch;
+                memcpy(&pb_start.time_sect.start_timestamp, wire + PB_START_OFF_START, sizeof(uint32_t));
+                memcpy(&pb_start.time_sect.end_timestamp, wire + PB_START_OFF_END, sizeof(uint32_t));
+                memcpy(&pb_start.playTime, wire + PB_START_OFF_PLAY, sizeof(uint32_t));
+                pb_start.reqId = (uint32_t)pCmd->reqId;
+                args = &pb_start;
+            } else {
+                PR_ERR("pb START payload too short: len=%d", (int)pFixedHead->length);
+                PR_HEXDUMP_ERR("pb START raw", (uint8_t *)pPayload, (int)pFixedHead->length);
+            }
+            if (pFixedHead->length != PB_START_WIRE_LEN) {
+                static unsigned s_pb_start_odd_cnt;
+
+                if (s_pb_start_odd_cnt < 3) {
+                    s_pb_start_odd_cnt++;
+                    PR_WARN("pb START unexpected len=%d (expect %d)", (int)pFixedHead->length, PB_START_WIRE_LEN);
+                    PR_HEXDUMP_WARN("pb START raw", (uint8_t *)pPayload, (int)pFixedHead->length);
+                }
             }
             PR_NOTICE("session[%d]video pb_video_start", pSession->session);
             pSession->video_req_id = pCmd->reqId;
@@ -1734,7 +1815,17 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
                       (int)pFixedHead->high_cmd, (int)low, pCmd->reqId);
             break;
         } else {
-            PR_ERR("this operation cmd [%d] is not support!", (int)low);
+            /*
+             * Only COMMAND_RECV has been sent at this point, so a bare break
+             * would leave the App waiting for a final status forever. Report a
+             * terminal failure and dump the header so the sub-command space of
+             * the EXT0 variants can be identified.
+             */
+            PR_ERR("unsupported playback op: high=%d low=%d len=%d", (int)pFixedHead->high_cmd, (int)low,
+                   (int)pFixedHead->length);
+
+            comResp.result = TY_C2C_CMD_IO_CTRL_COMMAND_FAILED;
+            __p2p_session_pack_resp(pSession, pData, &comResp, sizeof(comResp));
             break;
         }
         PR_NOTICE("client request high_cmd:[%d], operation:[%d], reqId:[%d]", (int)pFixedHead->high_cmd,

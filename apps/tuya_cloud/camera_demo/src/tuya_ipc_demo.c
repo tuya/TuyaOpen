@@ -1234,6 +1234,7 @@ static int __demo_mic_frame_put_cb(TKL_AUDIO_FRAME_INFO_T *pframe)
     {
         static uint32_t s_put_cnt = 0;
         if ((s_put_cnt++ % 100) == 0) {
+            PR_DEBUG("uplink mic put n=%u bytes=%u samples=%u", s_put_cnt, pframe->used_size, (uint32_t)in_frames);
         }
     }
     if (in_frames == 0 || in_frames > DEMO_AUDIO_PCM_MAX) {
@@ -1285,6 +1286,29 @@ static OPERATE_RET __demo_mic_start(void)
         PR_ERR("tkl_ai_start failed: %d", rt);
         (void) tkl_ai_uninit();
         return rt;
+    }
+    /*
+     * tkl_ai_stop() parks the amplifier pin at the mute level, and the
+     * tkl_ai_init() above only reconfigures that pin rather than re-asserting
+     * it, so every LIVE restart leaves the speaker muted while
+     * tkl_ao_put_frame() keeps reporting success. Drive it here instead of
+     * going through tkl_ai_set_vol(), which would also overwrite the mic gain.
+     */
+    rt = tkl_gpio_write(DEMO_SPK_GPIO,
+                        (DEMO_SPK_GPIO_POLARITY == 0) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW);
+    if (rt != OPRT_OK) {
+        PR_ERR("speaker amplifier enable failed: %d", rt);
+    }
+    /*
+     * cfg.spk_volume alone leaves the DAC muted: tdd_audio.c, the shared audio
+     * driver every other speaker example goes through, does not set that field
+     * at all and applies the gain with tkl_ao_set_vol() once the capture side
+     * is running. Follow the same order here, or the intercom downlink reaches
+     * tkl_ao_put_frame() intact and plays back silent.
+     */
+    rt = tkl_ao_set_vol(cfg.card, TKL_AO_0, NULL, DEMO_SPK_VOLUME);
+    if (rt != OPRT_OK) {
+        PR_ERR("tkl_ao_set_vol failed: %d", rt);
     }
     /* Speex+RNN VAD overflows vendor audio_element stack (kf_work Hardfault on PB entry).
      * Keep BK aec_proc; do not hook tkl_ai_set_vad_aec_algorithm. */
@@ -1382,6 +1406,8 @@ int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
     {
         static uint32_t s_pull_cnt = 0;
         if ((s_pull_cnt++ % 100) == 0) {
+            PR_DEBUG("uplink p2p pull n=%u bytes=%u ring_left=%u", s_pull_cnt, (uint32_t)DEMO_AUDIO_FRAME_BYTES,
+                     s_audio_count);
         }
     }
     return OPRT_OK;
@@ -1396,38 +1422,15 @@ int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 
 static BOOL_T s_spk_active = FALSE;
 
-/**
- * @brief Open PA + unmute DAC for downlink intercom
- * @return none
- * @note tkl_ao_set_vol drives bk_aud_dac_unmute; PA via GPIO (do not use
- *       tkl_ai_set_vol(0) on mute — that zeros mic ADC gain and kills uplink)
+/*
+ * Align TuyaOS wukong tuya_p2p_app.c: MEDIA_STREAM_SPEAKER_START/STOP only
+ * gate the downlink, they do not touch volume or the PA pin. Speaker gain and
+ * spk_gpio are configured once by tkl_ai_init() and left alone -- toggling
+ * tkl_ao_set_vol(0) here would run bk_aud_dac_mute() on every intercom press.
  */
-static void __demo_spk_unmute(void)
-{
-    OPERATE_RET ao_vol;
-    TUYA_GPIO_LEVEL_E pa_on;
-
-    ao_vol = tkl_ao_set_vol(DEMO_MIC_CARD, TKL_AO_0, NULL, DEMO_SPK_VOLUME);
-    /* polarity = mute level; unmute = opposite */
-    pa_on = (DEMO_SPK_GPIO_POLARITY == 0) ? TUYA_GPIO_LEVEL_HIGH : TUYA_GPIO_LEVEL_LOW;
-    (void) tkl_gpio_write(DEMO_SPK_GPIO, pa_on);
-    PR_DEBUG("unmute ao_vol=%d gpio=%d pa_on=%d", ao_vol, DEMO_SPK_GPIO, (int)pa_on);
-}
-
-/**
- * @brief Mute DAC + close PA after intercom (keep mic gain intact)
- * @return none
- */
-static void __demo_spk_mute(void)
-{
-    (void) tkl_ao_set_vol(DEMO_MIC_CARD, TKL_AO_0, NULL, 0);
-    (void) tkl_gpio_write(DEMO_SPK_GPIO, (TUYA_GPIO_LEVEL_E)DEMO_SPK_GPIO_POLARITY);
-}
-
 int demo_on_live_audio_start_callback(void)
 {
     s_spk_active = TRUE;
-    __demo_spk_unmute();
     PR_NOTICE("LIVE audio(speaker) start: downlink intercom on");
     return 0;
 }
@@ -1435,7 +1438,6 @@ int demo_on_live_audio_start_callback(void)
 int demo_on_live_audio_stop_callback(void)
 {
     s_spk_active = FALSE;
-    __demo_spk_mute();
     PR_NOTICE("LIVE audio(speaker) stop: downlink intercom off");
     return 0;
 }
@@ -1449,7 +1451,6 @@ int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
     size_t out_frames = 0;
     int ret;
     OPERATE_RET ao_ret;
-    int32_t peak = 0;
 
     if (media_frame == NULL || media_frame->data == NULL || media_frame->size == 0 || !s_spk_active) {
         return 0;
@@ -1458,14 +1459,15 @@ int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
     if (n > DEMO_DOWNLINK_G711_MAX) {
         n = DEMO_DOWNLINK_G711_MAX;
     }
-    /* 1. G.711 mu-law decode -> 8k PCM */
+    /*
+     * 1. G.711 mu-law decode -> 8k PCM
+     *
+     * Take ulaw2linear()'s result as the finished sample, the way the vendor's
+     * own decoder does in g711_decoder.c. Scaling it up here only clips: the
+     * downlink already arrives near full scale.
+     */
     for (i = 0; i < n; i++) {
         s_pcm8k[i] = (int16_t)ulaw2linear((int)((const uint8_t *)media_frame->data)[i]);
-        if (s_pcm8k[i] > peak) {
-            peak = s_pcm8k[i];
-        } else if ((-s_pcm8k[i]) > peak) {
-            peak = -s_pcm8k[i];
-        }
     }
     /* 2. resample 8k -> 16k (spk path is 16k, align OS) */
     ret = resample_to_16k_fixed(s_pcm8k, (size_t)n, 8000, 1, s_pcm16k, &out_frames);
@@ -1474,22 +1476,25 @@ int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
         return 0;
     }
     /* 3. play to speaker (spk was initialized during tkl_ai_init, SPK_TYPE_ONBOARD) */
+    /*
+     * Describe the frame the way tdd_audio.c does -- the shared driver every
+     * working speaker example goes through. A frame carrying only pbuf and
+     * used_size leaves type/codectype/sample/datebits/channel at zero, which
+     * the DAC accepts with OPRT_OK and then plays as silence.
+     */
     TKL_AUDIO_FRAME_INFO_T frame;
     memset(&frame, 0, sizeof(frame));
+    frame.type = TKL_AUDIO_FRAME;
+    frame.codectype = TKL_CODEC_AUDIO_PCM;
+    frame.sample = DEMO_MIC_SAMPLE_RATE;
+    frame.datebits = DEMO_MIC_DATABITS;
+    frame.channel = DEMO_MIC_CHANNEL;
     frame.pbuf = (char *)s_pcm16k;
     frame.used_size = (uint32_t)(out_frames * 2);
     ao_ret = tkl_ao_put_frame(0, 0, NULL, &frame);
     s_dl_cnt++;
-    if (s_dl_cnt <= 3 || (s_dl_cnt % 50) == 1 || ao_ret != OPRT_OK || peak < 200) {
-        const uint8_t *raw = (const uint8_t *)media_frame->data;
-        uint32_t ff_cnt = 0;
-        uint32_t j;
-        for (j = 0; j < n; j++) {
-            if (raw[j] == 0xFFu) {
-                ff_cnt++;
-            }
-        }
-        /* mu-law silence is 0xFF; dump head to distinguish App silence vs wrong payload */
+    if (ao_ret != OPRT_OK) {
+        PR_ERR("downlink play failed n=%u ret=%d", s_dl_cnt, ao_ret);
     }
     return 0;
 }

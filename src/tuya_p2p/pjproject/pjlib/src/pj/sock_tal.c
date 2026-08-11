@@ -15,6 +15,8 @@
  *
  * @copyright Copyright (c) Tuya Inc.
  */
+#include <errno.h>
+
 #include <pj/sock.h>
 #include <pj/assert.h>
 #include <pj/ctype.h>
@@ -310,6 +312,22 @@ static pj_status_t store_sockaddr(const pj_sockaddr *src, pj_sockaddr_t *dst, in
 }
 
 /*
+ * lwIP can report a failed transfer without touching errno, which would leave
+ * a stale value for pj_get_native_netos_error(). pjnath decides retry vs drop
+ * from that code, so clear it first and fall back to the expected one.
+ */
+static pj_status_t tal_xfer_error(int fallback)
+{
+    int e = errno;
+
+    if (e == 0) {
+        e = fallback;
+    }
+
+    return PJ_RETURN_OS_ERROR(e);
+}
+
+/*
  * Socket API.
  */
 PJ_DEF(pj_status_t) pj_sock_socket(int af, int type, int proto, pj_sock_t *sock)
@@ -512,10 +530,11 @@ PJ_DEF(pj_status_t) pj_sock_send(pj_sock_t sock, const void *buf, pj_ssize_t *le
     /* TAL has no flags argument; pj only passes ioqueue bookkeeping bits. */
     PJ_UNUSED_ARG(flags);
 
+    errno = 0;
     sent = tal_net_send((int)sock, buf, (uint32_t)(*len));
     if (sent < 0) {
         *len = -1;
-        return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        return tal_xfer_error(ENOBUFS);
     }
 
     *len = sent;
@@ -538,10 +557,21 @@ pj_sock_sendto(pj_sock_t sock, const void *buf, pj_ssize_t *len, unsigned flags,
     if (status != PJ_SUCCESS)
         return status;
 
+    errno = 0;
     sent = tal_net_send_to((int)sock, buf, (uint32_t)(*len), tal_addr, port);
     if (sent < 0) {
+        static unsigned s_sendto_fail_cnt;
+
+        /*
+         * A failing UDP TX is the usual reason media backs up in the KCP send
+         * queue, so keep it visible without flooding the log.
+         */
+        s_sendto_fail_cnt++;
+        if (s_sendto_fail_cnt <= 8 || (s_sendto_fail_cnt % 50) == 0) {
+            PJ_LOG(2, (THIS_FILE, "udp sendto fail n=%u errno=%d pkt=%d", s_sendto_fail_cnt, errno, (int)(*len)));
+        }
         *len = -1;
-        return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        return tal_xfer_error(ENOBUFS);
     }
 
     *len = sent;
@@ -556,10 +586,11 @@ PJ_DEF(pj_status_t) pj_sock_recv(pj_sock_t sock, void *buf, pj_ssize_t *len, uns
     PJ_ASSERT_RETURN(buf && len && *len >= 0, PJ_EINVAL);
     PJ_UNUSED_ARG(flags);
 
+    errno = 0;
     recvd = tal_net_recv((int)sock, buf, (uint32_t)(*len));
     if (recvd < 0) {
         *len = -1;
-        return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        return tal_xfer_error(EAGAIN);
     }
 
     *len = recvd;
@@ -579,10 +610,11 @@ pj_sock_recvfrom(pj_sock_t sock, void *buf, pj_ssize_t *len, unsigned flags, pj_
 
     pj_bzero(&tal_addr, sizeof(tal_addr));
 
+    errno = 0;
     recvd = tal_net_recvfrom((int)sock, buf, (uint32_t)(*len), &tal_addr, &port);
     if (recvd < 0) {
         *len = -1;
-        return PJ_RETURN_OS_ERROR(pj_get_native_netos_error());
+        return tal_xfer_error(EAGAIN);
     }
 
     *len = recvd;
