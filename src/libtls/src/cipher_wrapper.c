@@ -3,6 +3,16 @@
 #include "tal_log.h"
 #include "tal_memory.h"
 
+#if defined(ENABLE_PLATFORM_AES) && (ENABLE_PLATFORM_AES == 1)
+#include "tal_symmetry.h"
+#endif
+
+static int __is_aes_gcm(mbedtls_cipher_type_t cipher_type)
+{
+    return (cipher_type == MBEDTLS_CIPHER_AES_128_GCM || cipher_type == MBEDTLS_CIPHER_AES_192_GCM ||
+            cipher_type == MBEDTLS_CIPHER_AES_256_GCM);
+}
+
 int mbedtls_cipher_auth_encrypt_wrapper(const cipher_params_t *input, unsigned char *output, size_t *olen,
                                         unsigned char *tag, size_t tag_len)
 {
@@ -11,6 +21,27 @@ int mbedtls_cipher_auth_encrypt_wrapper(const cipher_params_t *input, unsigned c
     }
 
     int ret = OPRT_OK;
+
+#if defined(ENABLE_PLATFORM_AES) && (ENABLE_PLATFORM_AES == 1)
+    if (__is_aes_gcm(input->cipher_type)) {
+        uint32_t out_len = 0;
+        OPERATE_RET hw_ret =
+            tal_aes_gcm_encode(input->key, (uint32_t)input->key_len, input->nonce, (uint32_t)input->nonce_len,
+                               input->ad, (uint32_t)input->ad_len, input->data, (uint32_t)input->data_len, output,
+                               &out_len, tag, (uint32_t)tag_len);
+        if (hw_ret == OPRT_OK) {
+            *olen = out_len;
+            return OPRT_OK;
+        }
+        /* The platform path is only an accelerator, so never let it become a
+         * single point of failure: fall through to software mbedtls on ANY
+         * error, not just OPRT_NOT_SUPPORTED. */
+        if (hw_ret != OPRT_NOT_SUPPORTED) {
+            PR_WARN("platform aes-gcm encrypt failed (%d), using software", hw_ret);
+        }
+    }
+#endif
+
     unsigned char *enc_tmpbuf = NULL;
     mbedtls_cipher_info_t *cipher_info;
     mbedtls_cipher_context_t cipher_ctx;
@@ -75,6 +106,27 @@ int mbedtls_cipher_auth_decrypt_wrapper(const cipher_params_t *input, unsigned c
     }
 
     int ret = OPRT_OK;
+
+#if defined(ENABLE_PLATFORM_AES) && (ENABLE_PLATFORM_AES == 1)
+    if (__is_aes_gcm(input->cipher_type)) {
+        uint32_t out_len = 0;
+        OPERATE_RET hw_ret =
+            tal_aes_gcm_decode(input->key, (uint32_t)input->key_len, input->nonce, (uint32_t)input->nonce_len,
+                               input->ad, (uint32_t)input->ad_len, input->data, (uint32_t)input->data_len, output,
+                               &out_len, tag, (uint32_t)tag_len);
+        if (hw_ret == OPRT_OK) {
+            *olen = out_len;
+            return OPRT_OK;
+        }
+        /* Same as the encrypt path: the accelerator must not be a single point
+         * of failure. Falling back is also safe for a tag mismatch, because
+         * software mbedtls re-verifies the tag and rejects forged data. */
+        if (hw_ret != OPRT_NOT_SUPPORTED) {
+            PR_WARN("platform aes-gcm decrypt failed (%d), using software", hw_ret);
+        }
+    }
+#endif
+
     unsigned char *dec_tmpbuf = NULL;
     const mbedtls_cipher_info_t *cipher_info;
     mbedtls_cipher_context_t cipher_ctx;

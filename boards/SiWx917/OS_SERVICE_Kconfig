@@ -1,0 +1,32 @@
+config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"
+
+config ENABLE_SEMAPHORE
+    bool
+    default y
+ 
+config ENABLE_MUTEX
+    bool
+    default y
+ 
+config ENABLE_QUEUE
+    bool
+    default y
+ 
+config ENABLE_THREAD
+    bool
+    default y
+ 
+config ENABLE_MEMORY
+    bool
+    default y
+ 
+config ENABLE_SYSTEM_TIME
+    bool
+    default y
+ 
+config ENABLE_INIT_HARDWARE
+    bool
+    default y
+ 

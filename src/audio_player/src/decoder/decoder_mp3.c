@@ -21,6 +21,9 @@
 
 #include "tal_api.h"
 #include "decoder_cfg.h"
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+#include "tuya_mem_section.h"
+#endif
 #include "./minimp3/minimp3.h"
 
 #define MP3_HEAD_SIZE (10)
@@ -64,10 +67,16 @@ static int __mp3_find_id3(uint8_t *buf)
 
 OPERATE_RET decoder_mp3_start(void* *handle)
 {
-    DECODER_MP3_CTX_T *ctx = DECODER_MP3_MALLOC(sizeof(DECODER_MP3_CTX_T));
+    DECODER_MP3_CTX_T *ctx = NULL;
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+    static DECODER_MP3_CTX_T static_ctx_buf TUYA_MEM_SECTION_RAM __attribute__((aligned(4)));
+    ctx = &static_ctx_buf;
+#else
+    ctx = DECODER_MP3_MALLOC(sizeof(DECODER_MP3_CTX_T));
     if (!ctx) {
         return OPRT_MALLOC_FAILED;
     }
+#endif
 
     memset(ctx, 0, sizeof(DECODER_MP3_CTX_T));
     ctx->is_first_frame = true;
@@ -88,7 +97,9 @@ OPERATE_RET decoder_mp3_stop(void* handle)
     // Just reset it if needed
     memset(&ctx->decoder, 0, sizeof(mp3dec_t));
 
+#if !(defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1))
     DECODER_MP3_FREE(ctx);
+#endif
 
     return OPRT_OK;
 }

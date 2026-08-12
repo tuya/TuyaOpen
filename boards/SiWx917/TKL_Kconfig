@@ -1,0 +1,79 @@
+config ENABLE_PLATFORM_AES
+    bool
+    default y
+    help
+      Use platform AES via tkl_symmetry.c (Si91x HW GCM + software ECB/CBC).
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    select ENABLE_BT_SERVICE
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default n
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_SPI
+    bool
+    default y
+
+config ENABLE_AUDIO
+    bool
+    default y
+
+config ENABLE_AUDIO_CODECS
+    bool
+    default y
+
+# Latest TuyaOpen AI/audio path uses ENABLE_EXT_RAM for PSRAM ringbuf/stack.
+# SiWx917 also keeps CONFIG_SPIRAM for adapter-side PSRAM APIs.
+config ENABLE_EXT_RAM
+    bool
+    default y
+
+config CONFIG_SPIRAM
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+config ENABLE_WDT
+    bool
+    default y
+
+config ENABLE_RTC
+    bool
+    default n
+
+config ENABLE_FLASH
+    bool
+    default y
+    
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
