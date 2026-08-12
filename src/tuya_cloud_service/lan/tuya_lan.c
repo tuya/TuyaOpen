@@ -887,7 +887,7 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
         break;
     } break;
 
-    default: {
+    case FRM_LAN_P2P_SIGNAL: {
         int i;
         uint8_t *ext_out = NULL;
         lan_cmd_handler_cb handler = NULL;
@@ -899,7 +899,7 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
             }
         }
         if (handler == NULL) {
-            PR_ERR("unsupport frame type:%d", frame->type);
+            PR_ERR("no handler registered for frame type:%d", frame->type);
             break;
         }
         op_ret = handler(out, &ext_out);
@@ -913,6 +913,10 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
         }
         break;
     }
+
+    default:
+        PR_ERR("unsupport frame type:%d", frame->type);
+        break;
     }
 }
 
