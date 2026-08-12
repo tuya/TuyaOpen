@@ -26,6 +26,18 @@ extern "C" {
 #define TUYA_P2P_VIDEO_BITRATE_MIN  (600)
 #define TUYA_P2P_VIDEO_BITRATE_MAX  (4000)
 
+/*
+ * Video send buffer bounds, matching TuyaOS mid_p2p. The OS app never sets
+ * send_buf_size itself: the library derives it from video_bitrate_kbps and
+ * clamps it here, which is what keeps the queue from growing into seconds of
+ * latency when the link cannot carry the configured bitrate.
+ */
+#define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
+#define TUYA_P2P_SEND_BUFFER_SIZE_MIN (500 * 1024)
+
+/* Seconds of the configured bitrate the video send queue is allowed to hold. */
+#define TUYA_P2P_SEND_BUFFER_SECONDS (4)
+
 #define TUYA_P2P_ERROR_SUCCESSFUL                         0
 #define TUYA_P2P_ERROR_NOT_INITIALIZED                    -1
 #define TUYA_P2P_ERROR_ALREADY_INITIALIZED                -2
@@ -422,6 +434,14 @@ void tuya_p2p_rtc_notify_exit();
 // return value: undefined
 int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t *write_size, uint32_t *read_size,
                                   uint32_t *send_free_size);
+/**
+ * @brief Drop pending KCP send segments on a channel and recreate KCP (free mbuf budget)
+ * @param[in] handle session handle (unused; uses current g_pRtcSession)
+ * @param[in] channel_id media channel id (e.g. TUYA_VDATA_CHANNEL)
+ * @return 0 on success, negative on error
+ * @note Call on LIVE stop / PLAYBACK start so App-unread LIVE backlog does not block PB.
+ */
+int32_t tuya_p2p_rtc_clear_send_buffer(int32_t handle, uint32_t channel_id);
 // Notify p2p sdk that a device just came online
 // Mainly used for low-power devices
 int32_t tuya_p2p_rtc_set_remote_online(char *remote_id);

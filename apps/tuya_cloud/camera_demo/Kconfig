@@ -2,3 +2,47 @@ config CAMERA_DEMO
     bool
     default y
     select ENABLE_TUYA_P2P
+    select ENABLE_LOCAL_STORE if PLATFORM_LINUX
+    select ENABLE_IPC_RING_BUFFER
+
+config CAMERA_DEMO_P2P_FILE_H264
+    bool "P2P preview from embedded demo_video.264 (no live camera)"
+    depends on CAMERA_DEMO
+    depends on !PLATFORM_LINUX
+    default n
+    help
+      T5AI bring-up only: loop Annex-B demo file for P2P instead of GC2145/DVP.
+      Disable TUYA_T5AI_BOARD_CAMERA when using this. Not used on Ubuntu
+      (Ubuntu already uses demo_video.264 from the filesystem).
+
+config CAMERA_DEMO_SD_LIVE_RECORD
+    bool "Live H264 record to local_store (optional, not used by OS wukong P2P)"
+    depends on CAMERA_DEMO
+    depends on ENABLE_LOCAL_STORE
+    default n
+    help
+      Optional demo extension: while LIVE preview is on, append encoded H264
+      AUs to LOCAL_STORE_ROOT/rec/YYYY-MM-DD/live_<ts>.h264 and update index.txt.
+      OS wukong P2P does not do LIVE SD record; leave disabled to align OS.
+      On T5AI_BOARD requires SD mounted at /sdcard (default SDIO P2/P3/...).
+      Uses tkl_fs APIs like examples/peripherals/sd (not tal_fs / ENABLE_FILE_SYSTEM).
+
+config CAMERA_DEMO_SD_RECORD_MAX_SEC
+    int "Max seconds per live recording segment (roll on next I-frame)"
+    depends on CAMERA_DEMO_SD_LIVE_RECORD
+    default 120
+    range 30 3600
+    help
+      Close and index the current segment after this duration, then open a new
+      one on the next I-frame.
+
+config CAMERA_DEMO_PB_SEED
+    bool "Boot-time PB seed from a fixed H264 file (bring-up only)"
+    depends on CAMERA_DEMO
+    depends on ENABLE_LOCAL_STORE
+    default y if PLATFORM_LINUX
+    default n
+    help
+      Copy ./demo_video.264 (LINUX) or /sdcard/pb_seed.h264 (embedded) into
+      today's index for App playback without real recording.
+      Prefer CAMERA_DEMO_SD_LIVE_RECORD for product-like testing.

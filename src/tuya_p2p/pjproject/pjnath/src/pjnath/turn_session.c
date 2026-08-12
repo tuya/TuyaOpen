@@ -28,6 +28,7 @@
 #include <pj/os.h>
 #include <pj/pool.h>
 #include <pj/rand.h>
+#include <stdio.h>
 #include <pj/sock.h>
 
 #define PJ_TURN_CHANNEL_MIN         0x4000
@@ -1211,6 +1212,8 @@ static void on_session_fail(pj_turn_session *sess, enum pj_stun_method_e method,
             reason1 = pj_str(err_msg);
             reason = &reason1;
         }
+
+        PJ_LOG(1, (sess->obj_name, "TURN session fail status=%d", (int)status));
 
         PJ_LOG(4, (sess->obj_name, "%s error: %.*s", pj_stun_get_method_name(method), (int)reason->slen, reason->ptr));
 

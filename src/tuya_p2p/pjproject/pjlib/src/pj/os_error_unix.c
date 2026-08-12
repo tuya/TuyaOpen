@@ -18,7 +18,7 @@
  */
 #include <pj/errno.h>
 #include <pj/string.h>
-#include </usr/include/errno.h>
+#include <errno.h>
 
 PJ_DEF(pj_status_t) pj_get_os_error(void)
 {

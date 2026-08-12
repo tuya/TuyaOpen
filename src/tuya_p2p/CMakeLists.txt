@@ -1,16 +1,43 @@
 ##
 # @file CMakeLists.txt
-# @brief 
+# @brief tuya_p2p — unified TAL/TKL path for LINUX and MCU (zero OS-core fork)
 #/
 
 # MODULE_PATH
 if (CONFIG_ENABLE_TUYA_P2P STREQUAL "y")
+
+# pjlib treats ARM/aarch64 as bi-endian and requires these macros before
+# including pj/config.h (config_site.h is included too late for that check).
+if (CONFIG_LITTLE_END STREQUAL "1")
+    add_compile_definitions(PJ_IS_LITTLE_ENDIAN=1 PJ_IS_BIG_ENDIAN=0)
+else()
+    add_compile_definitions(PJ_IS_LITTLE_ENDIAN=0 PJ_IS_BIG_ENDIAN=1)
+endif()
+
+# One profile for all platforms: pj OS core / ICE use TAL → TKL.
+add_compile_definitions(PJ_TUYAOS=1)
+
+add_compile_options(
+    -Wno-unused-const-variable
+    -Wno-unused-variable
+    -Wno-unused-function
+    -Wno-unused-but-set-variable
+    -Wno-missing-field-initializers
+    -Wno-comment
+)
+
+# Sockets go through TAL on every target, so nothing here reaches into the
+# chip tree: no lwIP headers, no bk config dirs, no t5_os layout assumptions.
+# TAL selects the POSIX backend on LINUX and TKL on MCU.
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base_ice)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib_rtp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pjproject)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_ipc_core)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_streaming_p2p)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/local_store)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_ring_buffer)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ipc_cloud_store)
 
 ########################################
 # Layer Configure

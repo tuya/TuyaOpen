@@ -1,6 +1,12 @@
 # Ktuyaconf
-config ENABLE_TUYA_P2P
+menuconfig ENABLE_TUYA_P2P
 	bool "Enable Tuya P2P"
 	default n
-	help 
-		Enable Tuya P2P
+	help
+		Enable Tuya P2P (ICE/RTP/streaming) and optional local media helpers.
+
+	if ENABLE_TUYA_P2P
+		rsource "local_store/Kconfig"
+		rsource "svc_ring_buffer/Kconfig"
+		rsource "ipc_cloud_store/Kconfig"
+	endif # ENABLE_TUYA_P2P

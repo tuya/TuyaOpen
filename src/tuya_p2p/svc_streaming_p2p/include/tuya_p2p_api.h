@@ -23,34 +23,34 @@ extern "C" {
 
 * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
 */
-OPERATE_RET tuya_imm_p2p_init(IN CONST TUYA_IPC_P2P_VAR_T *p_var);
+OPERATE_RET tuya_imm_p2p_init(const TUYA_IPC_P2P_VAR_T *p_var);
 
 /**
 * @brief  close all P2P conections, live preivew & playback
 *
-* @param[in]VOID
+* @param[in]void
 
 * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
 */
-OPERATE_RET tuya_imm_p2p_close(VOID);
+OPERATE_RET tuya_imm_p2p_close(void);
 
 /**
  * @brief cur p2p connect num
  *
- * @param[in] VOID
+ * @param[in] void
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_alive_cnt(VOID);
+OPERATE_RET tuya_imm_p2p_alive_cnt(void);
 
 /**
  * @brief close p2p all connect
  *
- * @param[in] VOID
+ * @param[in] void
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_all_stream_close(INT_T close_reason);
+OPERATE_RET tuya_imm_p2p_all_stream_close(int close_reason);
 /**
  * @brief delete video finish v2
  *
@@ -61,7 +61,7 @@ OPERATE_RET tuya_imm_p2p_all_stream_close(INT_T close_reason);
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_delete_video_finish(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
+OPERATE_RET tuya_imm_p2p_delete_video_finish(const char *dev_id, const uint32_t client,
                                              TUYA_DOWNLOAD_DATA_TYPE type, int success);
 
 /**
@@ -73,8 +73,8 @@ OPERATE_RET tuya_imm_p2p_delete_video_finish(IN CONST CHAR_T *dev_id, IN CONST U
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_playback_send_video_frame(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
-                                                   IN CONST MEDIA_VIDEO_FRAME_T *p_video_frame);
+OPERATE_RET tuya_imm_p2p_playback_send_video_frame(const char *dev_id, const uint32_t client,
+                                                   const MEDIA_VIDEO_FRAME_T *p_video_frame);
 
 /**
  * @brief send playback audio frame to APP via P2P channel
@@ -85,8 +85,8 @@ OPERATE_RET tuya_imm_p2p_playback_send_video_frame(IN CONST CHAR_T *dev_id, IN C
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_playback_send_audio_frame(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
-                                                   IN CONST MEDIA_AUDIO_FRAME_T *p_audio_frame);
+OPERATE_RET tuya_imm_p2p_playback_send_audio_frame(const char *dev_id, const uint32_t client,
+                                                   const MEDIA_AUDIO_FRAME_T *p_audio_frame);
 
 /**
  * @brief send video frame with encrypt
@@ -98,8 +98,8 @@ OPERATE_RET tuya_imm_p2p_playback_send_audio_frame(IN CONST CHAR_T *dev_id, IN C
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET
-tuya_imm_p2p_playback_send_video_frame_with_encrypt(IN CONST UINT_T client, IN UINT_T reqId,
-                                                    IN CONST TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_video_frame);
+tuya_imm_p2p_playback_send_video_frame_with_encrypt(const uint32_t client, uint32_t reqId,
+                                                    const TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_video_frame);
 
 /**
  * @brief send audio frame with encrypt
@@ -111,8 +111,8 @@ tuya_imm_p2p_playback_send_video_frame_with_encrypt(IN CONST UINT_T client, IN U
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET
-tuya_imm_p2p_playback_send_audio_frame_with_encrypt(IN CONST UINT_T client, IN UINT_T reqId,
-                                                    IN CONST TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_audio_frame);
+tuya_imm_p2p_playback_send_audio_frame_with_encrypt(const uint32_t client, uint32_t reqId,
+                                                    const TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_audio_frame);
 
 /**
  * @brief notify client(APP) playback fragment is finished, send frag info to app
@@ -123,8 +123,8 @@ tuya_imm_p2p_playback_send_audio_frame_with_encrypt(IN CONST UINT_T client, IN U
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_playback_send_fragment_end(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
-                                                    IN CONST PLAYBACK_TIME_S *fgmt);
+OPERATE_RET tuya_imm_p2p_playback_send_fragment_end(const char *dev_id, const uint32_t client,
+                                                    const PLAYBACK_TIME_S *fgmt);
 
 /**
  * @brief notify client(APP) playback data is finished, no more data outgoing
@@ -134,7 +134,7 @@ OPERATE_RET tuya_imm_p2p_playback_send_fragment_end(IN CONST CHAR_T *dev_id, IN 
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_playback_send_finish(IN CONST CHAR_T *dev_id, IN CONST UINT_T client);
+OPERATE_RET tuya_imm_p2p_playback_send_finish(const char *dev_id, const uint32_t client);
 
 /**
  * @brief download data transfer api V2
@@ -147,8 +147,8 @@ OPERATE_RET tuya_imm_p2p_playback_send_finish(IN CONST CHAR_T *dev_id, IN CONST 
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_app_download_data(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
-                                           TUYA_DOWNLOAD_DATA_TYPE type, IN CONST void *pHead, IN CONST CHAR_T *pData);
+OPERATE_RET tuya_imm_p2p_app_download_data(const char *dev_id, const uint32_t client,
+                                           TUYA_DOWNLOAD_DATA_TYPE type, const void *pHead, const char *pData);
 
 /**
  * @brief cur download status
@@ -160,7 +160,7 @@ OPERATE_RET tuya_imm_p2p_app_download_data(IN CONST CHAR_T *dev_id, IN CONST UIN
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 
-OPERATE_RET tuya_imm_p2p_app_download_status(IN CONST CHAR_T *dev_id, IN CONST UINT_T client, IN CONST UINT_T percent);
+OPERATE_RET tuya_imm_p2p_app_download_status(const char *dev_id, const uint32_t client, const uint32_t percent);
 
 /**
  * @brief cur download status is over
@@ -170,7 +170,7 @@ OPERATE_RET tuya_imm_p2p_app_download_status(IN CONST CHAR_T *dev_id, IN CONST U
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_app_download_is_send_over(IN CONST CHAR_T *dev_id, IN CONST UINT_T client);
+OPERATE_RET tuya_imm_p2p_app_download_is_send_over(const char *dev_id, const uint32_t client);
 
 /**
  * @brief album file play data transfer api V2
@@ -181,8 +181,8 @@ OPERATE_RET tuya_imm_p2p_app_download_is_send_over(IN CONST CHAR_T *dev_id, IN C
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_app_album_play_send_data(IN CONST CHAR_T *dev_id, IN CONST UINT_T client,
-                                                  IN CONST TUYA_ALBUM_PLAY_FRAME_T *p_frame);
+OPERATE_RET tuya_imm_p2p_app_album_play_send_data(const char *dev_id, const uint32_t client,
+                                                  const TUYA_ALBUM_PLAY_FRAME_T *p_frame);
 
 /**
  * @brief notify client(APP) album play data is finished, no more data outgoing
@@ -192,7 +192,7 @@ OPERATE_RET tuya_imm_p2p_app_album_play_send_data(IN CONST CHAR_T *dev_id, IN CO
  *
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
-OPERATE_RET tuya_imm_p2p_album_play_send_finish(IN CONST CHAR_T *dev_id, IN CONST UINT_T client);
+OPERATE_RET tuya_imm_p2p_album_play_send_finish(const char *dev_id, const uint32_t client);
 
 #ifdef __cplusplus
 }

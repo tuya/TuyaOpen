@@ -16,10 +16,10 @@ extern "C" {
  */
 typedef enum {
     E_VIDEO_PB_FRAME = 0, ///< p frame
-    E_VIDEO_I_FRAME,      ///< i frame
-    E_VIDEO_TS_FRAME,     ///< ts frame
-    E_AUDIO_FRAME,        ///< audio frame
-    E_CMD_FRAME,          ///< cmd frame
+    E_VIDEO_I_FRAME,  ///< i frame
+    E_VIDEO_TS_FRAME, ///< ts frame
+    E_AUDIO_FRAME,    ///< audio frame
+    E_CMD_FRAME,      ///< cmd frame
     E_MEDIA_FRAME_TYPE_MAX
 } MEDIA_FRAME_TYPE_E;
 
@@ -28,14 +28,14 @@ typedef enum {
  */
 typedef enum {
     E_IPC_STREAM_VIDEO_MAIN, ///< first video stream
-    E_IPC_STREAM_VIDEO_SUB,  ///< second video stream
-    E_IPC_STREAM_VIDEO_3RD,  ///< third video stream
-    E_IPC_STREAM_VIDEO_4TH,  ///< forth video stream
+    E_IPC_STREAM_VIDEO_SUB, ///< second video stream
+    E_IPC_STREAM_VIDEO_3RD, ///< third video stream
+    E_IPC_STREAM_VIDEO_4TH, ///< forth video stream
     E_IPC_STREAM_VIDEO_MAX = 8,
     E_IPC_STREAM_AUDIO_MAIN, ///< first audio stream
-    E_IPC_STREAM_AUDIO_SUB,  ///< second audio stream
-    E_IPC_STREAM_AUDIO_3RD,  ///< third audio stream
-    E_IPC_STREAM_AUDIO_4TH,  ///< forth audio stream
+    E_IPC_STREAM_AUDIO_SUB, ///< second audio stream
+    E_IPC_STREAM_AUDIO_3RD, ///< third audio stream
+    E_IPC_STREAM_AUDIO_4TH, ///< forth audio stream
     E_IPC_STREAM_MAX = 16,
 } IPC_STREAM_E;
 
@@ -121,17 +121,17 @@ typedef enum {
 typedef struct {
     BOOL_T stream_enable[E_IPC_STREAM_MAX]; ///< set to true if this stream has data
 
-    UINT_T video_fps[E_IPC_STREAM_VIDEO_MAX];                   ///< video fps
-    UINT_T video_gop[E_IPC_STREAM_VIDEO_MAX];                   ///< video gop size
+    uint32_t video_fps[E_IPC_STREAM_VIDEO_MAX]; ///< video fps
+    uint32_t video_gop[E_IPC_STREAM_VIDEO_MAX]; ///< video gop size
     TUYA_VIDEO_BITRATE_E video_bitrate[E_IPC_STREAM_VIDEO_MAX]; ///< video bitrate
-    UINT_T video_width[E_IPC_STREAM_VIDEO_MAX];                 ///< video width
-    UINT_T video_height[E_IPC_STREAM_VIDEO_MAX];                ///< video height
-    UINT_T video_freq[E_IPC_STREAM_VIDEO_MAX];                  ///< video frequency
-    TUYA_CODEC_ID_E video_codec[E_IPC_STREAM_VIDEO_MAX];        ///< video codec
+    uint32_t video_width[E_IPC_STREAM_VIDEO_MAX];        ///< video width
+    uint32_t video_height[E_IPC_STREAM_VIDEO_MAX];       ///< video height
+    uint32_t video_freq[E_IPC_STREAM_VIDEO_MAX];         ///< video frequency
+    TUYA_CODEC_ID_E video_codec[E_IPC_STREAM_VIDEO_MAX]; ///< video codec
 
-    TUYA_CODEC_ID_E audio_codec[E_IPC_STREAM_MAX];          ///< audio codec
-    UINT_T audio_fps[E_IPC_STREAM_MAX];                     ///< audio fps
-    TUYA_AUDIO_SAMPLE_E audio_sample[E_IPC_STREAM_MAX];     ///< audio sample
+    TUYA_CODEC_ID_E audio_codec[E_IPC_STREAM_MAX];      ///< audio codec
+    uint32_t audio_fps[E_IPC_STREAM_MAX];               ///< audio fps
+    TUYA_AUDIO_SAMPLE_E audio_sample[E_IPC_STREAM_MAX]; ///< audio sample
     TUYA_AUDIO_DATABITS_E audio_databits[E_IPC_STREAM_MAX]; ///< audio databits
     TUYA_AUDIO_CHANNEL_E audio_channel[E_IPC_STREAM_MAX];   ///< audio channel
 } IPC_MEDIA_INFO_T;
@@ -157,8 +157,8 @@ typedef enum {
  */
 typedef struct {
     VIDEO_AVC_PROFILE_TYPE_E profile; ///< video profile type
-    UINT_T height;                    ///< video height
-    UINT_T width;                     ///< video width
+    uint32_t height; ///< video height
+    uint32_t width;  ///< video width
 } TUYA_VIDEO_DECODER_DESC_T;
 
 /** @struct TUYA_AUDIO_DECODER_DESC_T
@@ -189,10 +189,10 @@ typedef struct {
  * @brief storage frame head
  */
 typedef struct {
-    UINT_T type;        ///< type
-    UINT_T size;        ///< size
-    UINT64_T timestamp; ///< timestamp
-    UINT64_T pts;       ///< pts
+    uint32_t type; ///< type
+    uint32_t size; ///< size
+    uint64_t timestamp; ///< timestamp
+    uint64_t pts;       ///< pts
 } STORAGE_FRAME_HEAD_T;
 
 /** @struct MEDIA_FRAME_T
@@ -200,10 +200,10 @@ typedef struct {
  */
 typedef struct {
     MEDIA_FRAME_TYPE_E type; ///< frame type
-    BYTE_T *p_buf;           ///< frame data buf
-    UINT_T size;             ///< frame size
-    UINT64_T pts;            ///< timestamp in us
-    UINT64_T timestamp;      ///< timestamp is ms
+    uint8_t *p_buf;     ///< frame data buf
+    uint32_t size;      ///< frame size
+    uint64_t pts;       ///< timestamp in us
+    uint64_t timestamp; ///< timestamp is ms
 } MEDIA_FRAME_T;
 
 #ifdef __cplusplus

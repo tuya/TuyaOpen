@@ -45,6 +45,8 @@ extern "C" {
 #define FRM_SECURITY_TYPE4 0x04
 #define FRM_SECURITY_TYPE5 0x05
 
+#define FRM_LAN_P2P_SIGNAL         0x20 /* P2P signaling over LAN (align TuyaOS) */
+
 #define FRM_TYPE_REG_CENTER        0x24
 #define FRM_TYPE_APP_UDP_BOARDCAST 0x25
 

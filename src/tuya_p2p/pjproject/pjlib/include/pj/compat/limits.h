@@ -35,9 +35,7 @@
                 "LONG_MAX will be defined by the library in "                                                          \
                 "pj/compats/limits.h and overridable in config_site.h")
 #else
-// #warning "limits.h is not found or not supported. LONG_MIN and LONG_MAX " \
-//            "will be defined by the library in pj/compats/limits.h and "\
-//            "overridable in config_site.h"
+/* limits.h missing: LONG_MIN/LONG_MAX provided below (overridable in config_site.h) */
 #endif
 
 /* Minimum and maximum values a `signed long int' can hold.  */

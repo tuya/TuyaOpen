@@ -398,8 +398,11 @@ static pj_status_t add_update_turn(pj_ice_strans *ice_st, pj_ice_strans_comp *co
     status = pj_turn_sock_alloc(comp->turn[idx].sock, &turn_cfg->server, turn_cfg->port, ice_st->cfg.resolver,
                                 &turn_cfg->auth_cred, &turn_cfg->alloc_param);
     if (status != PJ_SUCCESS) {
+        char errmsg[PJ_ERR_MSG_SIZE];
         /// sess_dec_ref(ice_st);
         cand->status = status;
+        pj_strerror(status, errmsg, sizeof(errmsg));
+        PJ_LOG(1, (ice_st->obj_name, "TURN alloc start fail status=%d(%s)", (int)status, errmsg));
         return status;
     }
 
@@ -1818,6 +1821,19 @@ static void on_valid_pair(pj_ice_sess *ice)
                                i + 1));
                     pj_turn_sock_set_log(comp->turn[tp_idx].sock, msg_disable_ind);
                     comp->turn[tp_idx].log_off = PJ_TRUE;
+                } else {
+                    unsigned j;
+                    for (j = 0; j < ice_st->cfg.turn_tp_cnt; ++j) {
+                        if (comp->turn[j].sock) {
+                            PJ_LOG(4, (ice_st->obj_name,
+                                       "Comp %d: destroy unused TURN[%u] after "
+                                       "non-relay nominate (type=%s)",
+                                       i + 1, j,
+                                       pj_ice_get_cand_type_name(check->lcand->type)));
+                            pj_turn_sock_destroy(comp->turn[j].sock);
+                            comp->turn[j].sock = NULL;
+                        }
+                    }
                 }
 
                 PJ_LOG(4, (ice_st->obj_name,
@@ -1896,6 +1912,24 @@ static void on_ice_complete(pj_ice_sess *ice, pj_status_t status)
                                    i + 1));
                         pj_turn_sock_set_log(comp->turn[tp_idx].sock, msg_disable_ind);
                         comp->turn[tp_idx].log_off = PJ_TRUE;
+                    } else {
+                        /*
+                         * Align TuyaOS mid_p2p lite-ice: after host/srflx
+                         * nominate, tear down unused TURN so Refresh/ChannelBind
+                         * no longer floods lwIP (ENOBUFS).
+                         */
+                        unsigned j;
+                        for (j = 0; j < ice_st->cfg.turn_tp_cnt; ++j) {
+                            if (comp->turn[j].sock) {
+                                PJ_LOG(4, (ice_st->obj_name,
+                                           "Comp %d: destroy unused TURN[%u] after "
+                                           "non-relay nominate (type=%s)",
+                                           i + 1, j,
+                                           pj_ice_get_cand_type_name(check->lcand->type)));
+                                pj_turn_sock_destroy(comp->turn[j].sock);
+                                comp->turn[j].sock = NULL;
+                            }
+                        }
                     }
 
                     PJ_LOG(4, (ice_st->obj_name,
@@ -2411,6 +2445,7 @@ static void turn_on_state(pj_turn_sock *turn_sock, pj_turn_state_t old_state, pj
 
         /* Get allocation info */
         pj_turn_sock_get_info(turn_sock, &rel_info);
+        PJ_LOG(4, (comp->ice_st->obj_name, "TURN relay ready"));
 
         /* Wait until initialization completes */
         pj_grp_lock_acquire(comp->ice_st->grp_lock);
@@ -2547,11 +2582,21 @@ static void turn_on_state(pj_turn_sock *turn_sock, pj_turn_state_t old_state, pj
          */
         if (cand) {
             pj_turn_session_info info;
+            char errmsg[PJ_ERR_MSG_SIZE];
 
             pj_turn_sock_get_info(turn_sock, &info);
             cand->status = (old_state == PJ_TURN_STATE_RESOLVING) ? PJ_ERESOLVE : info.last_status;
+            pj_strerror(cand->status, errmsg, sizeof(errmsg));
+            PJ_LOG(1, (comp->ice_st->obj_name, "TURN failed status=%d(%s)", (int)cand->status, errmsg));
             PJ_LOG(4, (comp->ice_st->obj_name, "Comp %d/%d: TURN error (tpid=%d) during state %s", comp->comp_id,
                        cand_idx, cand->transport_id, pj_turn_state_name(old_state)));
+        } else {
+            pj_turn_session_info info;
+            char errmsg[PJ_ERR_MSG_SIZE];
+
+            pj_turn_sock_get_info(turn_sock, &info);
+            pj_strerror(info.last_status, errmsg, sizeof(errmsg));
+            PJ_LOG(1, (comp->ice_st->obj_name, "TURN failed status=%d(%s)", (int)info.last_status, errmsg));
         }
 
         sess_init_update(comp->ice_st);

@@ -167,6 +167,20 @@ OPERATE_RET tal_net_set_block(const int fd, const BOOL_T block);
 TUYA_ERRNO tal_net_close(const int fd);
 
 /**
+ * @brief Disable send and/or receive on a socket
+ *
+ * @param[in] fd: file descriptor
+ * @param[in] how: 0 to shut down receive, 1 to shut down send, 2 for both
+ *
+ * @note This API is used to shut down part of a full-duplex connection while
+ * the file descriptor stays open.
+ *
+ * @return 0 on success. Others on error, please refer to the error no of the
+ * target system
+ */
+TUYA_ERRNO tal_net_shutdown(const int fd, const int how);
+
+/**
  * @brief Create a tcp/udp socket
  *
  * @param[in] type: protocol type, tcp or udp
@@ -429,6 +443,35 @@ OPERATE_RET tal_net_set_keepalive(int fd, const BOOL_T alive, const uint32_t idl
  * tuya_error_code.h
  */
 OPERATE_RET tal_net_get_socket_ip(int fd, TUYA_IP_ADDR_T *addr);
+
+/**
+ * @brief Get the local address a socket fd is bound to
+ *
+ * @param[in] fd: file descriptor
+ * @param[out] addr: local ip address in host byte order, may be NULL
+ * @param[out] port: local port in host byte order, may be NULL
+ *
+ * @note Unlike tal_net_get_socket_ip() this also reports the port, which is
+ * the only way to learn the port the stack picked when binding to port 0.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tal_net_getsockname(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
+
+/**
+ * @brief Get the address of the peer connected to a socket fd
+ *
+ * @param[in] fd: file descriptor
+ * @param[out] addr: peer ip address in host byte order, may be NULL
+ * @param[out] port: peer port in host byte order, may be NULL
+ *
+ * @note This API is used for getting the remote name of a connected socket.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+OPERATE_RET tal_net_getpeername(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
 
 /**
  * @brief Change ip string to address

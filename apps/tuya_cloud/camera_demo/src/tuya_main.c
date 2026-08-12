@@ -33,6 +33,9 @@
 #endif
 
 #include "reset_netcfg.h"
+#ifndef BOARD_CHOICE_UBUNTU
+#include "board_com_api.h"
+#endif
 
 #if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
 #include "qrencode_print.h"
@@ -108,7 +111,12 @@ void user_upgrade_notify_on(tuya_iot_client_t *client, cJSON *upgrade)
 void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
 {
     PR_DEBUG("Tuya Event ID:%d(%s)", event->id, EVENT_ID2STR(event->id));
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+    PR_INFO("Device Free heap SRAM=%d PSRAM=%d", tal_system_get_free_heap_size(),
+            tal_psram_get_free_heap_size());
+#else
     PR_INFO("Device Free heap %d", tal_system_get_free_heap_size());
+#endif
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
@@ -267,6 +275,14 @@ void user_main(void)
 
     reset_netconfig_start();
 
+#ifndef BOARD_CHOICE_UBUNTU
+    /* Register board peripherals (audio/button/LED + GC2145 via ex_module) */
+    ret = board_register_hardware();
+    if (ret != OPRT_OK) {
+        PR_ERR("board_register_hardware failed: %d", ret);
+    }
+#endif
+
     if (OPRT_OK != tuya_authorize_read(&license)) {
         license.uuid    = TUYA_OPENSDK_UUID;
         license.authkey = TUYA_OPENSDK_AUTHKEY;
@@ -351,7 +367,8 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth   = 1024 * 4;
+    /* P2P offer is handled on this thread via MQTT yield; 4KB overflows in pj/ICE */
+    thrd_param.stackDepth   = 1024 * 48;
     thrd_param.priority     = THREAD_PRIO_1;
     thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
@@ -362,7 +379,13 @@ static void tuya_ipc_demo_thread(void *arg)
 {
     TUYA_IPC_SDK_VAR_S sdkVar      = {0};
     sdkVar.OnGetVideoFrameCallback = demo_on_get_video_frame_callback;
-    sdkVar.OnGetAudioFrameCallback = NULL;
+    sdkVar.OnGetAudioFrameCallback = demo_on_get_audio_frame_callback;
+    sdkVar.OnSignalDisconnectCallback = demo_on_signal_disconnect_callback;
+    sdkVar.OnLiveVideoStartCallback = demo_on_live_video_start_callback;
+    sdkVar.OnLiveVideoStopCallback = demo_on_live_video_stop_callback;
+    sdkVar.OnLiveAudioStartCallback = demo_on_live_audio_start_callback;
+    sdkVar.OnLiveAudioStopCallback = demo_on_live_audio_stop_callback;
+    sdkVar.OnRecvAudioFrameCallback = demo_on_recv_audio_frame_callback;
     TUYA_APP_Start(&sdkVar);
     tuya_ipc_demo_start();
     return;

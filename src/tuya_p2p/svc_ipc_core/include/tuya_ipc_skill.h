@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #include "tuya_cloud_types.h"
-#include "tuya_common_types.h"
+#include "tuya_cloud_types.h"
 
 #define SKILL_INFO_LEN 512
 
@@ -61,8 +61,8 @@ typedef enum {
  * @brief  tuya ipc skill parameter
  */
 typedef union {
-    INT_T value;
-    CHAR_T info[SKILL_INFO_LEN];
+    int value;
+    char info[SKILL_INFO_LEN];
 } TUYA_IPC_SKILL_PARAM_U;
 
 /**
@@ -73,20 +73,20 @@ typedef union {
  * - OPRT_OK   success
  * - Others    failed
  */
-OPERATE_RET tuya_ipc_skill_enable(IN TUYA_IPC_SKILL_E skill, IN TUYA_IPC_SKILL_PARAM_U *param);
+OPERATE_RET tuya_ipc_skill_enable(TUYA_IPC_SKILL_E skill, TUYA_IPC_SKILL_PARAM_U *param);
 
 /**
  * @brief        fill ipc skills in skills buf
  * @param[inout] skills    buffer used to fill ipc skills
- * @return       VOID
+ * @return       void
  */
-VOID tuya_ipc_http_fill_skills_cb(INOUT CHAR_T *skills);
+void tuya_ipc_http_fill_skills_cb(char *skills);
 
 /**
  * @brief      upload ipc media info
- * @return     VOID
+ * @return     void
  */
-OPERATE_RET tuya_ipc_upload_media_info(VOID);
+OPERATE_RET tuya_ipc_upload_media_info(void);
 
 /**
  * @brief      check whether it is low power
@@ -94,7 +94,7 @@ OPERATE_RET tuya_ipc_upload_media_info(VOID);
  * - TRUE      low power ipc
  * - FALSE     non low power ipc
  */
-BOOL_T tuya_ipc_is_low_power(VOID);
+BOOL_T tuya_ipc_is_low_power(void);
 
 /**
  * @brief      get ipc skill
@@ -104,7 +104,7 @@ BOOL_T tuya_ipc_is_low_power(VOID);
  * - OPRT_OK   success
  * - Others    failed
  */
-OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, INT_T *result);
+OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, int *result);
 /**
  * @brief      get clow gw skill
  * @param[in]  device  device number
@@ -114,10 +114,10 @@ OPERATE_RET tuya_ipc_skill_get(TUYA_IPC_SKILL_E skill, INT_T *result);
  * - OPRT_OK   success
  * - Others    failed
  */
-OPERATE_RET tuya_ipc_cloud_gw_kills_get(UINT_T device, UINT_T channel, CHAR_T *skill_result);
+OPERATE_RET tuya_ipc_cloud_gw_kills_get(uint32_t device, uint32_t channel, char *skill_result);
 
 /**
- * check if VOID tuya_ipc_upload_skills(VOID) be called.
+ * check if void tuya_ipc_upload_skills(void) be called.
  */
 BOOL_T tuya_ipc_get_if_skill_uploaded();
 
@@ -128,7 +128,7 @@ BOOL_T tuya_ipc_get_if_skill_uploaded();
  * - OPRT_OK   success
  * - Others    failed
  */
-OPERATE_RET tuya_ipc_set_local_ai_skills(IN UINT_T local_ai_skills);
+OPERATE_RET tuya_ipc_set_local_ai_skills(uint32_t local_ai_skills);
 
 #ifdef __cplusplus
 }

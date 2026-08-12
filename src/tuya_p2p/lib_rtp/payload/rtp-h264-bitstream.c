@@ -77,10 +77,10 @@ static int h264_avcc_nalu(const void *h264, int bytes, int avcc,
     end = (const uint8_t *)h264 + bytes;
     for (n = h264_avcc_length(p, (int)(end - p), avcc); 0 == r && p + n + avcc <= end;
          n = h264_avcc_length(p, (int)(end - p), avcc)) {
-        assert(n > 0);
-        if (n > 0) {
-            r = handler(param, p + avcc, (int)n, p + avcc + n < end ? 0 : 1);
+        if (n <= 0) {
+            break;
         }
+        r = handler(param, p + avcc, (int)n, p + avcc + n < end ? 0 : 1);
 
         p += n + avcc;
     }
@@ -118,10 +118,11 @@ int rtp_h264_annexb_nalu(const void *h264, int bytes,
         while (n > 0 && 0 == p[n - 1])
             n--; // filter tailing zero
 
-        assert(n > 0);
-        if (n > 0) {
-            r = handler(param, p, (int)n, next ? 0 : 1);
+        if (n <= 0) {
+            p = next;
+            continue;
         }
+        r = handler(param, p, (int)n, next ? 0 : 1);
 
         p = next;
     }

@@ -216,4 +216,13 @@ typedef int socklen_t;
 #define PJ_SOCKADDR_RESET_LEN(addr)
 #endif
 
+/*
+ * With the TAL socket backend no system header defines FD_SETSIZE, so cap it
+ * at the ioqueue capacity. TAL's own descriptor set is at least this wide on
+ * every supported target.
+ */
+#ifndef FD_SETSIZE
+#define FD_SETSIZE PJ_IOQUEUE_MAX_HANDLES
+#endif
+
 #endif /* __PJ_COMPAT_SOCKET_H__ */

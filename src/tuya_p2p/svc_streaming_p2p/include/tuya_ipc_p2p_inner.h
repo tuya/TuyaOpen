@@ -154,11 +154,11 @@ typedef enum {
 typedef struct {
     // Video part parameters
     TY_AV_CODEC_ID video_codec[8];
-    UINT_T fps[8];
-    UINT_T gop[8];
-    UINT_T bitrate[8]; // kbps
-    UINT_T width[8];
-    UINT_T height[8];
+    uint32_t fps[8];
+    uint32_t gop[8];
+    uint32_t bitrate[8]; // kbps
+    uint32_t width[8];
+    uint32_t height[8];
     // Audio part parameters
     TY_AV_CODEC_ID audio_codec;
     TRANSFER_AUDIO_SAMPLE_E audio_sample;
@@ -247,6 +247,8 @@ typedef enum {
     TY_C2C_CMD_IO_CTRL_VIDEO_CLARITY_GW, // 19, Set clarity
     TY_C2C_CMD_QUERY_FIXED_ABILITY_GW,   // 20, Query device capability set, sub-type see
                                          // TY_CMD_QUERY_IPC_FIXED_ABILITY_TYPE_E
+    /* 21: App JSON capability_exchange_req (opus_encode/opus_decode). Not in older OS enum; new App protocol. */
+    TY_C2C_CMD_CAPABILITY_EXCHANGE = 21,
 
     TY_C2C_CMD_CHAN_SWITCH = 51,               // 51 Single-channel multi-channel device channel setting
     TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 = 100,    // 100 Playback speed control extension
@@ -266,14 +268,14 @@ typedef enum tagTransferVideoClarityType {
 
 typedef enum tagIpcStreamType {
     eIpcStreamVideoMain, ///< first video stream
-    eIpcStreamVideoSub,  ///< second video stream
-    eIpcStreamVideo3rd,  ///< third video stream
-    eIpcStreamVideo4th,  ///< forth video stream
+    eIpcStreamVideoSub, ///< second video stream
+    eIpcStreamVideo3rd, ///< third video stream
+    eIpcStreamVideo4th, ///< forth video stream
     eIpcStreamVideoMax = 8,
     eIpcStreamAudioMain, ///< first audio stream
-    eIpcStreamAudioSub,  ///< second audio stream
-    eIpcStreamAudio3rd,  ///< third audio stream
-    eIpcStreamAudio4th,  ///< forth audio stream
+    eIpcStreamAudioSub, ///< second audio stream
+    eIpcStreamAudio3rd, ///< third audio stream
+    eIpcStreamAudio4th, ///< forth audio stream
     eIpcStreamMax = 16,
 } IPC_STREAM_TYPE;
 

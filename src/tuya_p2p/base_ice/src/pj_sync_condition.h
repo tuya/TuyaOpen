@@ -1,13 +1,18 @@
+/**
+ * @file pj_sync_condition.h
+ * @brief Condition-style sync using TAL mutex + semaphore
+ */
 #ifndef __SYNC_CONDITION_H__
 #define __SYNC_CONDITION_H__
 
-#include <stdio.h>
-#include <pthread.h>
+#include "tal_mutex.h"
+#include "tal_semaphore.h"
 
 typedef struct tagSyncCondition {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    int condition_met; // Condition flag
+    MUTEX_HANDLE mutex;
+    SEM_HANDLE sem;
+    int waiters;
+    int condition_met;
 } sync_cond_t;
 
 int sync_cond_init(sync_cond_t *pSyncCond);
