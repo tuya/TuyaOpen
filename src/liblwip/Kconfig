@@ -248,5 +248,8 @@ menu "configure enable/disable liblwip"
 				default n
 				help
 					For T5AI, this configuration only affects the lwip in the directory, not the platform lwip configuration
+			config ENABLE_LWIP_DHCPD
+				bool "ENABLE_LWIP_DHCPD: enable lwip dhcp server"
+				default n
 		endif
 endmenu

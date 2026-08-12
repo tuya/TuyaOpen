@@ -4,6 +4,7 @@
 import os
 import sys
 import click
+import shlex
 import shutil
 
 from tools.cli_command.util import (
@@ -145,9 +146,9 @@ def build_setup(platform, project_name, framework, chip=""):
     '''
     Execute:
     python ./platform/xxx/build_setup.py
-    $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP
+    $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP [$BUILD_PATH]
     or
-    ./build_setup.sh $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP
+    ./build_setup.sh $PROJ_NAME $PLATFORM $FRAMEWORK $CHIP [$BUILD_PATH]
     '''
     logger = get_logger()
     params = get_global_params()
@@ -165,8 +166,12 @@ def build_setup(platform, project_name, framework, chip=""):
         setup_cmd = "./build_setup.sh"
 
     logger.info("Build setup ...")
-    cmd = f"{setup_cmd} "
-    cmd += f"{project_name} {platform} {framework} {chip}"
+    # Quote every argument. chip is empty for boards without CONFIG_CHIP_CHOICE,
+    # and the shell drops an unquoted empty argument, which shifts $BUILD_PATH
+    # into the $CHIP slot. Quoting also keeps paths containing spaces intact.
+    setup_args = [project_name, platform, framework, chip,
+                  params["app_build_path"]]
+    cmd = setup_cmd + " " + " ".join(shlex.quote(a) for a in setup_args)
     ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False

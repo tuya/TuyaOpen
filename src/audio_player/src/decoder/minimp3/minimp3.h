@@ -17,6 +17,17 @@
 #define MP3_FREE   tal_free
 #endif
 
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+#if defined(__has_include)
+#if __has_include("tuya_mem_section.h")
+#include "tuya_mem_section.h"
+#endif
+#endif
+#ifndef TUYA_MEM_SECTION_RAM
+#define TUYA_MEM_SECTION_RAM __attribute__((section("tuyaopen_bss_to_ram")))
+#endif
+#endif
+
 #define MINIMP3_MAX_SAMPLES_PER_FRAME (1152 * 2)
 
 typedef struct {
@@ -1895,10 +1906,15 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
     }
 
     mp3dec_scratch_t *scratch = NULL;
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+    static mp3dec_scratch_t static_scratch_buf TUYA_MEM_SECTION_RAM __attribute__((aligned(4)));
+    scratch = &static_scratch_buf;
+#else
     scratch = (mp3dec_scratch_t *)MP3_MALLOC(sizeof(mp3dec_scratch_t));
     if (scratch == NULL) {
         return 0;
     }
+#endif
     memset(scratch, 0, sizeof(mp3dec_scratch_t));
 
     if (info->layer == 3) {
@@ -1906,7 +1922,9 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
         if (main_data_begin < 0 || bs_frame->pos > bs_frame->limit) {
             mp3dec_init(dec);
             if (scratch) {
+#if !(defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1))
                 MP3_FREE(scratch);
+#endif
                 scratch = NULL;
             }
             return 0;
@@ -1927,12 +1945,17 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
         return 0;
 #else  /* MINIMP3_ONLY_MP3 */
         // L12_scale_info sci[1];
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+        static L12_scale_info static_sci_buf TUYA_MEM_SECTION_RAM __attribute__((aligned(4)));
+        L12_scale_info *sci = &static_sci_buf;
+#else
         L12_scale_info *sci = (L12_scale_info *)MP3_MALLOC(sizeof(L12_scale_info));
         if (sci == NULL) {
             MP3_FREE(scratch);
             scratch = NULL;
             return 0;
         }
+#endif
         memset(sci, 0, sizeof(L12_scale_info));
 
         L12_read_scale_info(hdr, bs_frame, sci);
@@ -1948,6 +1971,9 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
             }
             if (bs_frame->pos > bs_frame->limit) {
                 mp3dec_init(dec);
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+                sci = NULL;
+#else
                 if (sci) {
                     MP3_FREE(sci);
                     sci = NULL;
@@ -1957,21 +1983,28 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
                     MP3_FREE(scratch);
                     scratch = NULL;
                 }
+#endif
                 return 0;
             }
         }
 
+#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
+        sci = NULL;
+#else
         if (sci) {
             MP3_FREE(sci);
             sci = NULL;
         }
+#endif
 #endif /* MINIMP3_ONLY_MP3 */
     }
 
+#if !(defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1))
     if (scratch) {
         MP3_FREE(scratch);
         scratch = NULL;
     }
+#endif
 
     return success *  hdr_frame_samples(dec->header);
 }
