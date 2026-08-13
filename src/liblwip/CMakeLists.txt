@@ -41,13 +41,6 @@ if (CONFIG_ENABLE_LWIP_PPP_SUPPORT STREQUAL "y")
     )
 endif()
 
-if (CONFIG_ENABLE_LWIP_DHCPD STREQUAL "y")
-    file(GLOB_RECURSE DHCPD_SRCS "${MODULE_PATH}/${LWIP}/src/apps/dhcpserver/dhcpserver.c")
-    list(APPEND LIB_SRCS 
-        ${DHCPD_SRCS}
-    )
-endif()
-
 ########################################
 # Target Configure
 ########################################

@@ -17,17 +17,6 @@
 #define MP3_FREE   tal_free
 #endif
 
-#if defined(MP3_DECODER_STATIC_BUF) && (MP3_DECODER_STATIC_BUF == 1)
-#if defined(__has_include)
-#if __has_include("tuya_mem_section.h")
-#include "tuya_mem_section.h"
-#endif
-#endif
-#ifndef TUYA_MEM_SECTION_RAM
-#define TUYA_MEM_SECTION_RAM __attribute__((section("tuyaopen_bss_to_ram")))
-#endif
-#endif
-
 #define MINIMP3_MAX_SAMPLES_PER_FRAME (1152 * 2)
 
 typedef struct {

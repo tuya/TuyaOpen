@@ -44,20 +44,3 @@ menuconfig ENABLE_AI_PLAYER
                 default n
         endmenu # Decoder Options
     endif # ENABLE_AI_PLAYER
-
-config MP3_DECODER_STATIC_BUF
-    bool "MP3_DECODER_STATIC_BUF: use static internal RAM for minimp3 scratch/context"
-    default n
-    help
-      Place mp3dec_scratch_t, the decoder context and L12_scale_info in static
-      buffers in TUYA_MEM_SECTION_RAM instead of allocating them per frame.
-
-      This is about memory latency, not heap pressure. With ENABLE_EXT_RAM the
-      MP3_MALLOC hook allocates from PSRAM, and decoding out of PSRAM cannot keep
-      up: mp3dec_scratch_t (grbuf/syn, ~16KB) is read and written throughout every
-      frame, which stutters audibly on SiWx917. Static internal RAM removes both
-      the per-frame allocation and the PSRAM access latency.
-
-      Costs ~24KB of internal RAM permanently and makes decoding non-reentrant,
-      so enable it only for single-stream playback. The linker script must place
-      the tuyaopen_bss_to_ram section (note: the section name has no leading dot).
