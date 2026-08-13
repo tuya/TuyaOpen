@@ -1,0 +1,15 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "NICEMCU_T5"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_I2S
+    select ENABLE_BUTTON
+    # No onboard LCD on NiceMCU-T5 breakout
