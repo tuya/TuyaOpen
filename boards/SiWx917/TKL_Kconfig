@@ -21,21 +21,28 @@ config ENABLE_LWIP_DHCPD
 # ENABLE_AI_PLAYER's Decoder Options menu in src/audio_player/Kconfig; no other
 # platform selects it.
 config MP3_DECODER_STATIC_BUF
-    bool "MP3_DECODER_STATIC_BUF: use static internal RAM for minimp3 scratch/context"
+    bool "MP3_DECODER_STATIC_BUF: allocate minimp3 scratch/context from a dedicated internal-RAM pool"
     default n
     help
-      Place mp3dec_scratch_t, the decoder context and L12_scale_info in static
-      buffers in TUYA_MEM_SECTION_RAM instead of allocating them per frame.
+      Route the decoder's MP3_MALLOC/MP3_FREE hook (src/audio_player/.../minimp3.h)
+      to a small dedicated internal-RAM pool (mcu/src/mp3_internal_pool.c, ~23KB)
+      instead of the general purpose heap.
 
       This is about memory latency, not heap pressure. With ENABLE_EXT_RAM the
       MP3_MALLOC hook allocates from PSRAM, and decoding out of PSRAM cannot keep
       up: mp3dec_scratch_t (grbuf/syn, ~16KB) is read and written throughout every
-      frame, which stutters audibly on SiWx917. Static internal RAM removes both
-      the per-frame allocation and the PSRAM access latency.
+      frame, which stutters audibly on SiWx917. The pool sits in internal RAM,
+      removing the PSRAM access latency.
 
-      Costs ~24KB of internal RAM permanently and makes decoding non-reentrant,
-      so enable it only for single-stream playback. The linker script must place
-      the tuyaopen_bss_to_ram section (note: the section name has no leading dot).
+      It is a dedicated pool rather than the shared FreeRTOS heap
+      (pvPortMalloc/ucHeap) on purpose: that heap also serves task stacks and
+      queues, and routing the decoder through it was tried and failed on real
+      hardware -- a 16KB allocation returned NULL because nothing that size was
+      free. This pool never competes with anything else.
+
+      Costs ~23KB of internal RAM permanently (reserved for the pool, not
+      freed back even when idle) and only ever holds one context + one
+      scratch buffer at a time, so enable it only for single-stream playback.
 
 config ENABLE_BLUETOOTH
     bool
