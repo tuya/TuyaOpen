@@ -35,24 +35,42 @@ extern "C" {
 
 // LVGL v8 to v9 compatibility macros
 #if LVGL_VERSION_MAJOR == 9
-    #ifndef LV_IMG_PX_SIZE_ALPHA_BYTE
-    #if LV_COLOR_DEPTH == 16
-    #define LV_IMG_PX_SIZE_ALPHA_BYTE   3   // RGB565A8: 2 bytes color + 1 byte alpha
-    #elif LV_COLOR_DEPTH == 32
-    #define LV_IMG_PX_SIZE_ALPHA_BYTE   4   // ARGB8888: 4 bytes
-    #endif
-    #endif
+    #if LV_COLOR_DEPTH == 32 && LV_COLOR_16_SWAP == 0
+        #ifndef LV_IMG_PX_SIZE_ALPHA_BYTE
+        #define LV_IMG_PX_SIZE_ALPHA_BYTE   4
+        #endif
 
-    #ifndef LV_COLOR_SIZE
-    #define LV_COLOR_SIZE               LV_COLOR_DEPTH
-    #endif
+        #ifndef LV_COLOR_SIZE
+        #define LV_COLOR_SIZE               32
+        #endif
 
-    #ifndef LV_IMG_CF_TRUE_COLOR
-    #define LV_IMG_CF_TRUE_COLOR        LV_COLOR_FORMAT_NATIVE
-    #endif
+        #ifndef LV_IMG_CF_TRUE_COLOR
+        #define LV_IMG_CF_TRUE_COLOR        LV_COLOR_FORMAT_XRGB8888
+        #endif
 
-    #ifndef LV_IMG_CF_TRUE_COLOR_ALPHA
-    #define LV_IMG_CF_TRUE_COLOR_ALPHA  LV_COLOR_FORMAT_NATIVE_WITH_ALPHA
+        #ifndef LV_IMG_CF_TRUE_COLOR_ALPHA
+        #define LV_IMG_CF_TRUE_COLOR_ALPHA  LV_COLOR_FORMAT_ARGB8888
+        #endif
+
+        #define lv_obj_del_delayed          lv_obj_delete_delayed
+    #else
+        #ifndef LV_IMG_PX_SIZE_ALPHA_BYTE
+        #define LV_IMG_PX_SIZE_ALPHA_BYTE   3
+        #endif
+
+        #ifndef LV_COLOR_SIZE
+        #define LV_COLOR_SIZE               LV_COLOR_DEPTH
+        #endif
+
+        #ifndef LV_IMG_CF_TRUE_COLOR
+        #define LV_IMG_CF_TRUE_COLOR        LV_COLOR_FORMAT_NATIVE
+        #endif
+
+        #ifndef LV_IMG_CF_TRUE_COLOR_ALPHA
+        #define LV_IMG_CF_TRUE_COLOR_ALPHA  LV_COLOR_FORMAT_ARGB8888
+        #endif
+
+        #define lv_obj_del_delayed          lv_obj_delete_delayed
     #endif
 #endif
 

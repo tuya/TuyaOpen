@@ -26,6 +26,17 @@ menuconfig ENABLE_LIBLVGL
             endchoice
         endif
 
+        config LVGL_COLOR_DEPTH
+            int "the color depth of the lvgl (1, 8, 16, 24, 32)"
+            default 16
+            help
+                Color depth:
+                1  : 1 byte per pixel (I1)
+                8  : 8-bit (L8 / RGB332)
+                16 : 16-bit (RGB565)
+                24 : 24-bit (RGB888)
+                32 : 32-bit (XRGB8888 / ARGB8888)
+
         config ENABLE_LVGL_OS_FREERTOS
             bool "enable lvgl os freertos"
             depends on LVGL_VERSION_9
