@@ -42,4 +42,4 @@ platforms:
 - name: SiWx917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
   branch: master
-  commit: d200e8ab9d76ed4b9ca8bb1976200781100ca5c6
+  commit: a656ea9f21e95361fe15d8b7e1e42fdfee44cfe7
