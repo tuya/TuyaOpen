@@ -20,7 +20,7 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
-#define LV_USE_GAME_PVZ         1   // 植物大战僵尸
+#define LV_USE_GAME_PVZ         0   // 植物大战僵尸
 #define LV_USE_GAME_2048        1   // 2048
 #define LV_USE_GAME_YANG        1   // 羊了个羊
 #define LV_USE_GAME_XIAOXIAOLE  1   // 消消乐
