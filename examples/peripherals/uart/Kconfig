@@ -1,0 +1,40 @@
+menu "Application config"
+
+    config EXAMPLE_UART_NUM
+        int "uart port"
+        default 0
+        range 0 5
+
+    config EXAMPLE_UART_BAUDRATE
+        int "uart baudrate"
+        default 115200
+
+    config EXAMPLE_UART_PINMUX
+        bool "route the port to the tx/rx pins below with tkl_io_pinmux_config"
+        default n
+        ---help---
+            Leave this off to use whatever pins the platform assigns to the port by
+            default. Turn it on when the board wires the port somewhere else.
+
+    if EXAMPLE_UART_PINMUX
+        config EXAMPLE_UART_TX_PIN
+            int "tx pin"
+            default 41
+            range 0 63
+
+        config EXAMPLE_UART_RX_PIN
+            int "rx pin"
+            default 40
+            range 0 63
+    endif
+
+    config EXAMPLE_LOW_POWER
+        bool "let the cpu sleep while waiting for input"
+        default n
+        ---help---
+            The read below blocks, so with this on the core is idle between bytes and free
+            to sleep. Whether a byte can then wake it back up is exactly what this is for:
+            on a platform whose sleep stops the uart's clock, it cannot, and the echo goes
+            quiet until something else happens.
+
+endmenu

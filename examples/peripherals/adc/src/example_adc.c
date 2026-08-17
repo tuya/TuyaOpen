@@ -58,6 +58,7 @@ void user_main(void)
 {
     OPERATE_RET rt        = OPRT_OK;
     int32_t     adc_value = 0;
+    int32_t     adc_volt  = 0;
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
@@ -77,6 +78,11 @@ void user_main(void)
 
     TUYA_CALL_ERR_LOG(tkl_adc_read_single_channel(EXAMPLE_ADC_PORT, EXAMPLE_ADC_CHANNEL, &adc_value));
     PR_DEBUG("ADC%d value = %d", EXAMPLE_ADC_PORT, adc_value);
+
+    /* same conversion expressed in millivolts; platforms that cannot scale the raw
+     * reading report OPRT_NOT_SUPPORTED here and the example carries on */
+    TUYA_CALL_ERR_LOG(tkl_adc_read_voltage(EXAMPLE_ADC_PORT, &adc_volt, 1));
+    PR_DEBUG("ADC%d voltage = %d mV", EXAMPLE_ADC_PORT, adc_volt);
 
     TUYA_CALL_ERR_LOG(tkl_adc_deinit(EXAMPLE_ADC_PORT));
 
