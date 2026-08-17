@@ -28,7 +28,9 @@
  *====================*/
 
 /*Color depth: 1 (1 byte per pixel), 8 (RGB332), 16 (RGB565), 32 (ARGB8888)*/
-#if defined (LVGL_V8_COLOR_DEPTH_16) && (LVGL_V8_COLOR_DEPTH_16 == 1)
+#ifdef LVGL_COLOR_DEPTH
+#define LV_COLOR_DEPTH LVGL_COLOR_DEPTH
+#elif defined (LVGL_V8_COLOR_DEPTH_16) && (LVGL_V8_COLOR_DEPTH_16 == 1)
 #define LV_COLOR_DEPTH 16
 #elif defined (LVGL_V8_COLOR_DEPTH_24) && (LVGL_V8_COLOR_DEPTH_24 == 1)
 #define LV_COLOR_DEPTH 24
