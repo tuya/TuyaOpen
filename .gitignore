@@ -8,6 +8,7 @@ __pycache__/
 .vscode/
 .cursor/
 .clangd
+.agents/
 .tags
 
 # CMake / Build
