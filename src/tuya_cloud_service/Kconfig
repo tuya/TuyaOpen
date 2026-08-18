@@ -13,6 +13,15 @@ menu "configure tuya cloud service"
                 3       /* security level 3,Applies to: Resource-rich equipment;Feature: Two-way authentication,Devices use security chips to protect sensitive information */
 
 
+    config ENABLE_DEVICE_TIMER
+        bool "ENABLE_DEVICE_TIMER: enable tuya device timer(cloud scheduled task) function"
+        default y
+
+        ---help---
+                Device timer module: sync timer tasks from cloud(mqtt protocol 22),
+                persist them into kv, and execute the dps action when a timer fires.
+                Disable it to trim the code size if the device does not need cloud timers.
+
     menuconfig  ENABLE_BT_SERVICE
         bool "ENABLE_BT_SERVICE: enable tuya bt iot function"
         default n

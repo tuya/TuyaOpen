@@ -54,16 +54,17 @@ static void __device_meta_event_workq(void *data)
 
     OPERATE_RET rt = OPRT_OK;
 
-    rt = tuya_device_meta_add_number("timerCapability", 1);
-    if (OPRT_OK != rt) {
-        PR_ERR("add timerCapability failed:%d", rt);
-        return;
+    /* No feature registered any meta, nothing to report. Stop the cycle
+     * instead of retrying forever. */
+    if (s_meta.json == NULL) {
+        PR_DEBUG("no device meta to report");
+        goto __STOP;
     }
 
     rt = tuya_device_meta_report();
     if (OPRT_OK != rt) {
         PR_ERR("report meta failed:%d", rt);
-        return;
+        return; /* keep retrying on the next cycle */
     }
 
     PR_DEBUG("device meta report success");
@@ -72,6 +73,7 @@ static void __device_meta_event_workq(void *data)
 
     PR_DEBUG("device meta report success, event publish");
 
+__STOP:
     tal_workq_cancel_delayed(s_meta.delayed_work);
     s_meta.delayed_work = NULL;
 }
@@ -312,15 +314,22 @@ OPERATE_RET tuya_device_meta_report(void)
     tal_free(buffer);
     buffer = NULL;
 
-    /* 3. Free the snapshot that was just reported */
-    cJSON_Delete(local_json);
-    local_json = NULL;
-
     if (rt != OPRT_OK) {
         PR_ERR("atop_base_request error:%d", rt);
     } else if (!response.success) {
         rt = OPRT_COM_ERROR;
     }
+
+    /* 3. Drop the snapshot only once the cloud has accepted it. On failure put
+     * it back so the next cycle retries instead of losing the metas. The mutex
+     * is held across the request, so no concurrent add can have refilled the
+     * slot meanwhile. */
+    if (OPRT_OK == rt) {
+        cJSON_Delete(local_json);
+    } else {
+        s_meta.json = local_json;
+    }
+    local_json = NULL;
 
 __EXIT:
     if (buffer != NULL) {
