@@ -303,6 +303,7 @@ static card_btn_type card_btn[] = {
 void pvz_start(void)
 {
 #if LVGL_VERSION_MAJOR == 9
+    lv_display_set_rotation(lv_display_get_default(), LV_DISPLAY_ROTATION_90);
     memset(zb_matrix, 0, sizeof(zb_matrix));
     memset(map_flag, 0, sizeof(map_flag));
     memset(wogua, 0, sizeof(wogua));
@@ -314,6 +315,7 @@ void pvz_start(void)
     memset(zidan, 0, sizeof(zidan));
     memset(little_car, 0, sizeof(little_car));
 #else
+    lv_disp_set_rotation(lv_disp_get_default(), LV_DISP_ROT_90);
     lv_memset_00(zb_matrix, sizeof(zb_matrix));
     lv_memset_00(map_flag, sizeof(map_flag));
     lv_memset_00(wogua, sizeof(wogua));
@@ -1849,5 +1851,10 @@ static void exit_game_cb(lv_event_t *e)
     lv_timer_del(timer_zidan_refr_pos);
     lv_timer_del(timer_car_test);
     init_all();
+#if LVGL_VERSION_MAJOR == 9
+    lv_display_set_rotation(lv_display_get_default(), LV_DISPLAY_ROTATION_0);
+#else
+    lv_disp_set_rotation(lv_disp_get_default(), LV_DISP_ROT_NONE);
+#endif
     lv_obj_del(screen);
 }

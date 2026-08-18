@@ -43,7 +43,7 @@ gated.
 ## Build & run
 
 ```shell
-cd examples/system/tuya_pm
+cd examples/lowpower/tuya_pm
 tos.py config choice          # pick the board (or copy a config/*.config to app_default.config)
 tos.py build
 ```

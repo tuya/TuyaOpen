@@ -56,7 +56,8 @@ static void __example_pwm_task(void *param)
     TUYA_PWM_BASE_CFG_T pwm_cfg = {
         .duty = EXAMPLE_PWM_DUTY, /* 1-10000 */
         .frequency = EXAMPLE_PWM_FREQUENCY,
-        .polarity = TUYA_PWM_NEGATIVE,
+        /* negative means duty describes the low time, positive the high time */
+        .polarity = (TUYA_PWM_POLARITY_E)EXAMPLE_PWM_POLARITY,
     };
     TUYA_CALL_ERR_GOTO(tkl_pwm_init(EXAMPLE_PWM_PORT, &pwm_cfg), __EXIT);
 

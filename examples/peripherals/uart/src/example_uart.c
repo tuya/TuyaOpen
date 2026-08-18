@@ -8,12 +8,22 @@
 
 #include "tkl_output.h"
 #include "tkl_pinmux.h"
+#include "board_com_api.h"
+#if defined(EXAMPLE_LOW_POWER) && (EXAMPLE_LOW_POWER == 1)
+#include "tkl_sleep.h"
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+#include "tkl_wifi.h"
+#endif
+#if defined(ENABLE_BLUETOOTH) && (ENABLE_BLUETOOTH == 1)
+#include "tkl_bluetooth.h"
+#endif
+#endif
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define USR_UART_NUM      TUYA_UART_NUM_0
+#define USR_UART_NUM      ((TUYA_UART_NUM_E)EXAMPLE_UART_NUM)
 #define READ_BUFFER_SIZE  1024
-#define START_TEXT       "Please input text: \r\n" 
+#define START_TEXT       "Please input text: \r\n"
 
 #define SCANF_ENTER_KEY   '\r'
 /***********************************************************
@@ -47,6 +57,11 @@ void user_main(void)
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
+    /* The board states its own wiring here - which pads the peripherals were routed to,
+     * what leds and buttons exist. Everything below can then ask for "uart N" without
+     * knowing, or caring, which pins that turns out to be on this board. */
+    board_register_hardware();
+
     PR_NOTICE("Application information:");
     PR_NOTICE("Project name:        %s", PROJECT_NAME);
     PR_NOTICE("App version:         %s", PROJECT_VERSION);
@@ -57,15 +72,41 @@ void user_main(void)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-#if USR_UART_NUM == TUYA_UART_NUM_2
-    /* UART2 pinmux support PIN30, 31 and PIN40, 41*/
-    tkl_io_pinmux_config(TUYA_IO_PIN_40, TUYA_UART2_RX);
-    tkl_io_pinmux_config(TUYA_IO_PIN_41, TUYA_UART2_TX);
+#if defined(EXAMPLE_UART_PINMUX) && (EXAMPLE_UART_PINMUX == 1)
+    /* the port's default pins are not the ones this board wired up */
+    tkl_io_pinmux_config(EXAMPLE_UART_RX_PIN, TUYA_UART0_RX + EXAMPLE_UART_NUM * 4);
+    tkl_io_pinmux_config(EXAMPLE_UART_TX_PIN, TUYA_UART0_TX + EXAMPLE_UART_NUM * 4);
 #endif
 
-    /* UART 0 init */
+#if defined(EXAMPLE_LOW_POWER) && (EXAMPLE_LOW_POWER == 1)
+    /* Ahead of tal_uart_init() on purpose. On a board whose log shares a port with the one
+     * this example opens, anything printed after that call lands in the middle of the user
+     * data - so all of this, prints included, has to happen first. Nothing here depends on
+     * the port being open.
+     *
+     * The read further down blocks, so the core is idle between bytes and free to sleep.
+     * Getting it to actually do so takes two unrelated things, and skipping either one leaves
+     * the sleep request silently ignored with nothing under test:
+     *
+     *   - a radio stack that is up registers a claim on the cpu for its whole lifetime, so an
+     *     application with no use for it has to hand it back explicitly
+     *   - some platforms additionally gate cpu sleep behind a wifi low power flag that only
+     *     tkl_wifi_set_lp_mode() sets, and only for a dtim of 10, 20 or 30
+     *
+     * Each is harmless where it is not needed, so ask for both. */
+#if defined(ENABLE_BLUETOOTH) && (ENABLE_BLUETOOTH == 1)
+    PR_NOTICE("ble  deinit -> %d", tkl_ble_stack_deinit(0));
+#endif
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
+    PR_NOTICE("wifi lp     -> %d", tkl_wifi_set_lp_mode(TRUE, 10));
+    PR_NOTICE("wifi down   -> %d", tkl_wifi_set_work_mode(WWM_POWERDOWN));
+#endif
+    PR_NOTICE("cpu sleep   -> %d", tkl_cpu_sleep_mode_set(TRUE, TUYA_CPU_SLEEP));
+#endif
+
+    /* uart init */
     TAL_UART_CFG_T cfg = {0};
-    cfg.base_cfg.baudrate = 115200;
+    cfg.base_cfg.baudrate = EXAMPLE_UART_BAUDRATE;
     cfg.base_cfg.databits = TUYA_UART_DATA_LEN_8BIT;
     cfg.base_cfg.stopbits = TUYA_UART_STOP_LEN_1BIT;
     cfg.base_cfg.parity = TUYA_UART_PARITY_TYPE_NONE;
@@ -74,6 +115,7 @@ void user_main(void)
     TUYA_CALL_ERR_GOTO(tal_uart_init(USR_UART_NUM, &cfg), __EXIT);
 
     tal_uart_write(USR_UART_NUM, (const uint8_t*)START_TEXT, sizeof(START_TEXT));
+
 
     while(1) {
         read_len = tal_uart_read(USR_UART_NUM, (uint8_t *)sg_read_buffer, READ_BUFFER_SIZE);

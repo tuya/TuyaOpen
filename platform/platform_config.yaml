@@ -22,7 +22,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: master
-  commit: 7605fa884de2ad8172637911f17633f8e18febfd
+  commit: c09676ba0815f036515835cf26c7e889f773ffe5
 
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h
@@ -37,7 +37,7 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: 28d11bb607efd616e36670e83d19f50c3b5da357
+  commit: c8943cf9da0acadeeaebfbfc5cee08e18b9a68a3
 
 - name: SiWx917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs

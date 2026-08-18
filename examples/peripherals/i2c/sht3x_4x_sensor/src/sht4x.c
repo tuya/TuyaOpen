@@ -32,6 +32,10 @@
 
 #define SHT4X_CMD_MEAS_PREC_H    0xFD // measurement with high precision
 #define SHT4X_CMD_READ_SERIALNBR 0x89 // read serial number
+#define SHT4X_CMD_SOFT_RESET     0x94 // soft reset, sensor is ready again after 1 ms
+
+/* the sensor needs 1 ms to come back from a soft reset */
+#define SHT4X_SOFT_RESET_MS      5
 
 /***********************************************************
 ***********************typedef define***********************
@@ -176,28 +180,41 @@ OPERATE_RET sht4x_read_temp_humi(int port, uint16_t *temp, uint16_t *humi)
     uint8_t buf[6] = {0};
     OPERATE_RET ret = OPRT_OK;
 
-    static uint8_t first_read = 0;
-    if (0 == first_read) {
+    /* cleared on any failure, so a sensor that lost its measurement mode is set up
+     * again on the next call instead of being asked for data for ever */
+    static uint8_t configured = 0;
+
+    if (0 == configured) {
         ret = __sht4x_write_cmd(port, SHT4X_CMD_MEAS_PREC_H);
         if (ret != OPRT_OK) {
-            return ret;
+            goto __RECOVER;
         }
         tal_system_sleep(20);
-        first_read = 1;
+        configured = 1;
     }
 
     ret = __sht4x_read_data(port, 6, buf);
     if (ret != OPRT_OK) {
-        return ret;
+        goto __RECOVER;
     }
 
     if ((CRC_ERR == __sht4x_check_crc8(buf, 2, buf[2])) || (CRC_ERR == __sht4x_check_crc8(buf + 3, 2, buf[5]))) {
         PR_ERR("[SHT4x] The received temp_humi data can't pass the CRC8 check.");
-        return OPRT_CRC32_FAILED;
+        ret = OPRT_CRC32_FAILED;
+        goto __RECOVER;
     }
 
     *temp = ((uint16_t)buf[0] << 8) | buf[1];
     *humi = ((uint16_t)buf[3] << 8) | buf[4];
 
     return OPRT_OK;
+
+__RECOVER:
+    /* a soft reset is the only thing that untangles a confused state machine; the
+     * reset write is allowed to fail, the sensor may not be answering yet */
+    __sht4x_write_cmd(port, SHT4X_CMD_SOFT_RESET);
+    tal_system_sleep(SHT4X_SOFT_RESET_MS);
+    configured = 0;
+
+    return ret;
 }

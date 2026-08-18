@@ -1,0 +1,43 @@
+menu "Application config"
+
+    config EXAMPLE_WIFI_SSID
+        string "access point to join"
+        default "your-ssid"
+        ---help---
+            Power save is negotiated with the access point, so the example has to be
+            associated before there is anything to turn on.
+
+    config EXAMPLE_WIFI_PASSWORD
+        string "access point password"
+        default "your-password"
+
+    config EXAMPLE_WIFI_CONNECT_TIMEOUT_S
+        int "seconds to wait for an address before giving up"
+        default 30
+        range 5 300
+
+    config EXAMPLE_WIFI_PS
+        bool "enable wifi power save"
+        default y
+        ---help---
+            Turn this off to measure what power save is worth, and note that it does not
+            mean "skip the call": platforms commonly switch power save on by themselves the
+            moment the interface becomes a station, so the example has to ask for it to be
+            off explicitly, or the comparison measures the same thing twice.
+
+    config EXAMPLE_WIFI_PS_DTIM
+        depends on EXAMPLE_WIFI_PS
+        int "DTIM interval to listen on"
+        default 1
+        range 1 10
+        ---help---
+            How many beacon intervals the radio may sleep through between wakeups. The
+            access point buffers traffic for a dozing station and delivers it on the DTIM
+            beacon, so a larger value means fewer wakeups and lower current, at the cost of
+            that much more latency for anything waiting.
+
+            1 wakes on every DTIM the access point sends, which is the lowest latency and
+            the highest current. Most access points send one every 1-3 beacons, and a
+            beacon is typically 102.4 ms.
+
+endmenu
