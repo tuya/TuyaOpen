@@ -2,12 +2,14 @@
  * @file yuv422_to_binary.h
  * @brief YUV422 to binary image conversion algorithms for thermal printer
  *
- * Provides 9 different algorithms for converting YUV422 camera data to binary format:
+ * Provides 11 different algorithms for converting YUV422 camera data to binary format:
  * 1. Fixed threshold
  * 2. Adaptive threshold
  * 3. Otsu's method
  * 4-6. Bayer dithering (4/8/16 levels)
  * 7-9. Error diffusion (Floyd-Steinberg, Stucki, Jarvis)
+ * 10. Edge-locked Atkinson dithering
+ * 11. Gamma-corrected serpentine Floyd-Steinberg
  *
  * All algorithms rotate 90° counter-clockwise and crop to desired size.
  * Output format: MSB first bitmap for thermal printer (bit=1->black, bit=0->white)
@@ -37,6 +39,8 @@ typedef enum {
     BINARY_METHOD_FLOYD_STEINBERG, // Floyd-Steinberg error diffusion
     BINARY_METHOD_STUCKI,          // Stucki error diffusion
     BINARY_METHOD_JARVIS,          // Jarvis-Judice-Ninke error diffusion
+    BINARY_METHOD_EDGE_ATKINSON,      // Edge-locked Atkinson dithering
+    BINARY_METHOD_GAMMA_SERPENTINE,   // Gamma-corrected serpentine Floyd-Steinberg
     BINARY_METHOD_COUNT            // Total number of methods
 } BINARY_METHOD_E;
 
