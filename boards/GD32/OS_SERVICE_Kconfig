@@ -1,3 +1,22 @@
+config ENABLE_GD32_OS_SERVICE
+    bool
+    default y
+    select ENABLE_BT_SERVICE
+    select ENABLE_BT_NETCFG
+    select ENABLE_BT_CTRL
+    ---help---
+        Platform level services every GD32 board gets, so an application config never
+        has to switch them on by hand.
+
+        ENABLE_BLUETOOTH (see TKL_Kconfig) already pulls src/tuya_cloud_service/ble
+        into the build, and ble_mgr.c uses BT_ADV_INTERVAL_MIN/MAX, which only exist
+        while ENABLE_BT_SERVICE is set - without this the link of any GD32 project
+        fails on those two macros.
+
+        NimBLE is deliberately not selected here: GD32 ships its own BLE stack and
+        turning NimBLE on makes tal_bluetooth pull in headers this platform does not
+        provide.
+
 config MBEDTLS_CONFIG_FILE
     string
     default "mbedtls/mbedtls_config.h"

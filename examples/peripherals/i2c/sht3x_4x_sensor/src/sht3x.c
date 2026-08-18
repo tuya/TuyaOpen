@@ -32,6 +32,11 @@
 
 #define SHT3X_CMD_FETCH_DATA    0xE000 // readout measurements for periodic mode
 #define SHT3X_CMD_MEAS_PERI_1_H 0x2130 // measurement: periodic 1 mps, high repeatability
+#define SHT3X_CMD_BREAK         0x3093 // leave periodic mode, required before most commands
+#define SHT3X_CMD_SOFT_RESET    0x30A2 // soft reset, sensor is ready again after 1.5 ms
+
+/* the sensor needs 1.5 ms to come back from a soft reset */
+#define SHT3X_SOFT_RESET_MS     5
 
 /***********************************************************
 ***********************typedef define***********************
@@ -136,33 +141,55 @@ OPERATE_RET sht3x_read_temp_humi(int port, uint16_t *temp, uint16_t *humi)
     uint8_t buf[6] = {0};
     OPERATE_RET ret = OPRT_OK;
 
-    static uint8_t first_read = 0;
+    /* Cleared on any failure so the periodic measurement is armed again next time.
+     * It used to latch at 1 after the first success: once the sensor lost that mode -
+     * a glitch on the bus, a brown-out, anything that reset it - every later fetch
+     * asked a sensor that was no longer measuring, and the driver never recovered. */
+    static uint8_t configured = 0;
 
-    if (first_read == 0) {
+    if (configured == 0) {
         ret = __sht3x_write_cmd(port, SHT3X_CMD_MEAS_PERI_1_H);
-        tal_system_sleep(20);
         if (ret != OPRT_OK) {
-            return ret;
+            goto __RECOVER;
         }
-        first_read = 1;
+        tal_system_sleep(20);
+        configured = 1;
     }
 
     ret = __sht3x_write_cmd(port, SHT3X_CMD_FETCH_DATA);
     if (ret != OPRT_OK) {
-        return ret;
+        goto __RECOVER;
     }
 
     ret = __sht3x_read_data(port, 6, buf);
-    if (ret != OPRT_OK)
-        return ret;
+    if (ret != OPRT_OK) {
+        goto __RECOVER;
+    }
 
     if ((CRC_ERR == __sht3x_check_crc8(buf, 2, buf[2])) || (CRC_ERR == __sht3x_check_crc8(buf + 3, 2, buf[5]))) {
         PR_ERR("[SHT3x] The received temp_humi data can't pass the CRC8 check.");
-        return OPRT_CRC32_FAILED;
+        ret = OPRT_CRC32_FAILED;
+        goto __RECOVER;
     }
 
     *temp = ((uint16_t)buf[0] << 8) | buf[1];
     *humi = ((uint16_t)buf[3] << 8) | buf[4];
 
     return OPRT_OK;
+
+__RECOVER:
+    /* Clocking the bus free only helps when the sensor is holding a line; it cannot
+     * put a confused state machine back in order.
+     *
+     * Break first: while periodic acquisition is running the sensor answers the fetch
+     * command and little else, so a soft reset sent on its own is simply not taken.
+     * Both writes are allowed to fail - the sensor may not be answering at all yet,
+     * and dropping `configured` already guarantees a full re-arm next time round. */
+    __sht3x_write_cmd(port, SHT3X_CMD_BREAK);
+    tal_system_sleep(1);
+    __sht3x_write_cmd(port, SHT3X_CMD_SOFT_RESET);
+    tal_system_sleep(SHT3X_SOFT_RESET_MS);
+    configured = 0;
+
+    return ret;
 }

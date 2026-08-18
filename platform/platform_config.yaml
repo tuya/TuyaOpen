@@ -37,4 +37,4 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: 28d11bb607efd616e36670e83d19f50c3b5da357
+  commit: c8943cf9da0acadeeaebfbfc5cee08e18b9a68a3
