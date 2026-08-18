@@ -1,6 +1,6 @@
 /**
  * @file board_config.h
- * @brief NiceMCU-T5 pin map for INMP441 + MAX98357
+ * @brief NiceMCU-T5-DEV pin map (button + optional I2S audio add-on)
  * @version 0.2
  * @date 2026-08-12
  * @copyright Copyright (c) Tuya Inc. All Rights Reserved.

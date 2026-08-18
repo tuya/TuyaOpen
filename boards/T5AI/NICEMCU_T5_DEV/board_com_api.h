@@ -1,6 +1,6 @@
 /**
  * @file board_com_api.h
- * @brief NiceMCU-T5 board hardware registration API
+ * @brief NiceMCU-T5-DEV board hardware registration API
  * @version 0.1
  * @date 2026-08-12
  * @copyright Copyright (c) Tuya Inc. All Rights Reserved.
@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Register board peripherals (INMP441 + MAX98357 I2S audio)
+ * @brief Register board peripherals (button; optional I2S audio if enabled)
  * @return OPRT_OK on success, error code on failure
  */
 OPERATE_RET board_register_hardware(void);

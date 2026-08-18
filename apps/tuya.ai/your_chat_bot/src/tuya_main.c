@@ -26,6 +26,11 @@
 #include "tkl_output.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
+#if defined(BOARD_CHOICE_NICEMCU_T5_0_96ISP) && (BOARD_CHOICE_NICEMCU_T5_0_96ISP == 1)
+#include "app_launcher.h"
+#elif defined(ENABLE_AI_CHAT_GUI_OLED) && (ENABLE_AI_CHAT_GUI_OLED == 1)
+#include "sand_fx.h"
+#endif
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
 #else
@@ -366,6 +371,19 @@ void user_main(void)
     if (ret != OPRT_OK) {
         PR_ERR("app_chat_bot_init failed");
     }
+
+#if defined(BOARD_CHOICE_NICEMCU_T5_0_96ISP) && (BOARD_CHOICE_NICEMCU_T5_0_96ISP == 1)
+    /* Gravity menu: 聊天 / 沙粒动画 / 设置 */
+    ret = app_launcher_start();
+    if (ret != OPRT_OK) {
+        PR_ERR("app_launcher_start failed: %d", ret);
+    }
+#elif defined(ENABLE_AI_CHAT_GUI_OLED) && (ENABLE_AI_CHAT_GUI_OLED == 1)
+    ret = sand_fx_start();
+    if (ret != OPRT_OK) {
+        PR_ERR("sand_fx_start failed: %d", ret);
+    }
+#endif
 
 #if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
     ret = app_battery_init();

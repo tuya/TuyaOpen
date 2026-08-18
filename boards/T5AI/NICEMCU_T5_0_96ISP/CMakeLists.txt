@@ -1,20 +1,24 @@
 ##
 # @file CMakeLists.txt
-# @brief NiceMCU-T5 board build
+# @brief NiceMCU-T5-0.96ISP board build
 #/
 
+# MODULE_PATH
 set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+# MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
+# LIB_SRCS
 aux_source_directory(${MODULE_PATH} LIB_SRCS)
+
+# LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH})
 
-# bk_i2s headers pull in sdkconfig.h via common/sys_config.h
-set(LIB_PRIVATE_INC
-    ${CMAKE_SOURCE_DIR}/platform/T5AI/t5_os/build/bk7258/tuya_app/bk7258_ap/config
-    ${CMAKE_SOURCE_DIR}/platform/T5AI/t5_os/ap/components/bk_libs/bk7258_ap/config
-)
 
+########################################
+# Target Configure
+########################################
 add_library(${MODULE_NAME})
 
 target_sources(${MODULE_NAME}
@@ -25,10 +29,15 @@ target_sources(${MODULE_NAME}
 target_include_directories(${MODULE_NAME}
     PRIVATE
         ${LIB_PRIVATE_INC}
+
     PUBLIC
         ${LIB_PUBLIC_INC}
     )
 
+
+########################################
+# Layer Configure
+########################################
 list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
