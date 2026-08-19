@@ -162,6 +162,10 @@ static const char *get_method_name(BINARY_METHOD_E method)
         return "Stucki";
     case BINARY_METHOD_JARVIS:
         return "Jarvis";
+    case BINARY_METHOD_EDGE_ATKINSON:
+        return "EdgeAtkinson";
+    case BINARY_METHOD_GAMMA_SERPENTINE:
+        return "GammaSerpentine";
     default:
         return "Unknown";
     }
@@ -187,7 +191,9 @@ static void update_info_display(void)
         sg_binary_config.method == BINARY_METHOD_BAYER4_DITHER ||
         sg_binary_config.method == BINARY_METHOD_BAYER16_DITHER ||
         sg_binary_config.method == BINARY_METHOD_FLOYD_STEINBERG || sg_binary_config.method == BINARY_METHOD_STUCKI ||
-        sg_binary_config.method == BINARY_METHOD_JARVIS) {
+        sg_binary_config.method == BINARY_METHOD_JARVIS ||
+        sg_binary_config.method == BINARY_METHOD_EDGE_ATKINSON ||
+        sg_binary_config.method == BINARY_METHOD_GAMMA_SERPENTINE) {
         snprintf(buf, sizeof(buf), "Threshold:\nN/A");
     } else {
         // For adaptive and otsu, show calculated threshold

@@ -19,12 +19,31 @@
 #include "camera_screen.h"
 #include "tal_api.h"
 #include <string.h>
+#include <math.h>
+#include <stdbool.h>
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
 // Crop offset is dynamically calculated based on source width and destination height
 // For camera: src=384, dst_height=168 -> offset=(384-168)/2=108
+
+// Edge magnitude uses a raw 3x3 Laplacian (cheaper than a filtered edge map).
+// Threshold 200 + brightness gate keeps edge-lock to ~3-9% of pixels; lower
+// values flag too much texture as "edge" and crush detail to solid black.
+#define EDGE_ATKINSON_THRESHOLD      200
+#define EDGE_ATKINSON_MAX_BRIGHTNESS 166 // ~0.65 * 255, only darker pixels lock to black
+// Black/white split adapts per-frame via calculate_adaptive_threshold() since
+// raw camera luma isn't gamma-corrected like a normal photo. Gamma further
+// brightens dark scenes before dithering -- diffusion otherwise preserves
+// the source's true (dark) average brightness, which reads as "crushed to
+// black" on this small screen even with an adaptive threshold.
+#define EDGE_ATKINSON_GAMMA 2.0f
+
+// Gamma brightens shadow detail before dithering; scan direction alternates
+// per row (serpentine) instead of always sweeping left-to-right.
+#define GAMMA_SERPENTINE_GAMMA     1.45f
+#define GAMMA_SERPENTINE_THRESHOLD 128
 
 /***********************************************************
 ***********************Bayer Matrices***********************
@@ -53,6 +72,10 @@ static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_h
                             int dst_width, int dst_height, int invert);
 static int yuv422_to_jarvis(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
                             int dst_width, int dst_height, int invert);
+static int yuv422_to_edge_atkinson(const uint8_t *yuv422_data, int src_width, int src_height,
+                                         uint8_t *binary_data, int dst_width, int dst_height, int invert);
+static int yuv422_to_gamma_serpentine(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                  int dst_width, int dst_height, int invert);
 
 /***********************************************************
 ***********************Main Entry Point*********************
@@ -114,6 +137,16 @@ int yuv422_to_binary(const YUV422_TO_BINARY_PARAMS_T *params)
     case BINARY_METHOD_JARVIS:
         return yuv422_to_jarvis(params->yuv422_data, params->src_width, params->src_height, params->binary_data,
                                 params->dst_width, params->dst_height, params->invert_colors);
+
+    case BINARY_METHOD_EDGE_ATKINSON:
+        return yuv422_to_edge_atkinson(params->yuv422_data, params->src_width, params->src_height,
+                                             params->binary_data, params->dst_width, params->dst_height,
+                                             params->invert_colors);
+
+    case BINARY_METHOD_GAMMA_SERPENTINE:
+        return yuv422_to_gamma_serpentine(params->yuv422_data, params->src_width, params->src_height,
+                                      params->binary_data, params->dst_width, params->dst_height,
+                                      params->invert_colors);
 
     default:
         return -1;
@@ -524,6 +557,206 @@ static int yuv422_to_stucki(const uint8_t *yuv422_data, int src_width, int src_h
         next_row1 = next_row2;
         next_row2 = temp;
         memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
+    }
+
+    tal_psram_free(error_buffer);
+    return 0;
+}
+
+/***********************************************************
+**********Edge-locked Atkinson / Gamma-corrected serpentine**********
+***********************************************************/
+static inline uint8_t get_luma_clamped(const uint8_t *yuv422_data, int src_width, int src_height, int x, int y)
+{
+    if (x < 0)
+        x = 0;
+    if (x >= src_width)
+        x = src_width - 1;
+    if (y < 0)
+        y = 0;
+    if (y >= src_height)
+        y = src_height - 1;
+    return yuv422_data[y * src_width * 2 + x * 2 + 1];
+}
+
+static int yuv422_to_edge_atkinson(const uint8_t *yuv422_data, int src_width, int src_height,
+                                         uint8_t *binary_data, int dst_width, int dst_height, int invert)
+{
+    static uint8_t edge_atkinson_gamma_lut[256];
+    static bool    edge_atkinson_gamma_lut_ready = false;
+
+    if (!edge_atkinson_gamma_lut_ready) {
+        for (int i = 0; i < 256; i++) {
+            float v = powf((float)i / 255.0f, 1.0f / EDGE_ATKINSON_GAMMA) * 255.0f;
+            edge_atkinson_gamma_lut[i] = (uint8_t)(v < 0.0f ? 0.0f : (v > 255.0f ? 255.0f : v));
+        }
+        edge_atkinson_gamma_lut_ready = true;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
+    // gamma(mean(raw)) approximates mean(gamma(raw)) without a second full-frame pass.
+    uint8_t black_thresh = edge_atkinson_gamma_lut[calculate_adaptive_threshold(yuv422_data, src_width, src_height)];
+
+    // 3 error rows with padding (Atkinson looks ahead 2 columns / 2 rows)
+    int16_t *error_buffer = (int16_t *)tal_psram_malloc((dst_width + 4) * 3 * sizeof(int16_t));
+    if (!error_buffer) {
+        return -1;
+    }
+
+    int16_t *curr_row = error_buffer + 2;
+    int16_t *next_row1 = error_buffer + dst_width + 6;
+    int16_t *next_row2 = error_buffer + 2 * (dst_width + 4) + 2;
+    memset(error_buffer, 0, (dst_width + 4) * 3 * sizeof(int16_t));
+
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+
+        for (int dst_x = 0; dst_x < dst_width; dst_x++) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            // 3x3 Laplacian edge magnitude (locks strong edges to solid black)
+            int center = get_luma_clamped(yuv422_data, src_width, src_height, src_x, src_y);
+            int sum8 = get_luma_clamped(yuv422_data, src_width, src_height, src_x - 1, src_y - 1) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x, src_y - 1) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x + 1, src_y - 1) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x - 1, src_y) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x + 1, src_y) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x - 1, src_y + 1) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x, src_y + 1) +
+                       get_luma_clamped(yuv422_data, src_width, src_height, src_x + 1, src_y + 1);
+            int edge_mag = 8 * center - sum8;
+            if (edge_mag < 0)
+                edge_mag = -edge_mag;
+
+            // edge_mag above stays on raw luma; dithering below uses gamma-corrected luma.
+            uint8_t gamma_center = edge_atkinson_gamma_lut[center];
+            int16_t luminance = (int16_t)gamma_center + curr_row[dst_x];
+            if (luminance < 0)
+                luminance = 0;
+            if (luminance > 255)
+                luminance = 255;
+
+            int is_edge = edge_mag > EDGE_ATKINSON_THRESHOLD && gamma_center < EDGE_ATKINSON_MAX_BRIGHTNESS;
+            uint8_t new_pixel = is_edge ? 0 : ((luminance >= black_thresh) ? 255 : 0);
+
+            int should_set_bit = invert ? (new_pixel == 255) : (new_pixel == 0);
+            if (should_set_bit) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+
+            // Atkinson diffusion: 6 neighbors at 1/8 each, remaining 2/8 discarded
+            // (this is what keeps Atkinson crisper/less "muddy" than Floyd-Steinberg)
+            if (!is_edge) {
+                int16_t error = luminance - new_pixel;
+                if (dst_x < dst_width - 1)
+                    curr_row[dst_x + 1] += error / 8;
+                if (dst_x < dst_width - 2)
+                    curr_row[dst_x + 2] += error / 8;
+                if (dst_x > 0)
+                    next_row1[dst_x - 1] += error / 8;
+                next_row1[dst_x] += error / 8;
+                if (dst_x < dst_width - 1)
+                    next_row1[dst_x + 1] += error / 8;
+                next_row2[dst_x] += error / 8;
+            }
+        }
+
+        // Rotate rows
+        int16_t *temp = curr_row;
+        curr_row = next_row1;
+        next_row1 = next_row2;
+        next_row2 = temp;
+        memset(next_row2 - 2, 0, (dst_width + 4) * sizeof(int16_t));
+    }
+
+    tal_psram_free(error_buffer);
+    return 0;
+}
+
+static int yuv422_to_gamma_serpentine(const uint8_t *yuv422_data, int src_width, int src_height, uint8_t *binary_data,
+                                  int dst_width, int dst_height, int invert)
+{
+    static uint8_t gamma_lut[256];
+    static bool    gamma_lut_ready = false;
+
+    if (!gamma_lut_ready) {
+        for (int i = 0; i < 256; i++) {
+            float v = powf((float)i / 255.0f, 1.0f / GAMMA_SERPENTINE_GAMMA) * 255.0f;
+            gamma_lut[i] = (uint8_t)(v < 0.0f ? 0.0f : (v > 255.0f ? 255.0f : v));
+        }
+        gamma_lut_ready = true;
+    }
+
+    int binary_stride = (dst_width + 7) / 8;
+    int crop_offset = (src_width - dst_height) / 2; // Dynamic: (src_width - dst_height) / 2
+
+    // Error rows with 1-pixel padding on both sides (needed for serpentine scan)
+    int16_t *error_buffer = (int16_t *)tal_psram_malloc((dst_width + 2) * 2 * sizeof(int16_t));
+    if (!error_buffer) {
+        return -1;
+    }
+
+    int16_t *curr_row = error_buffer + 1;
+    int16_t *next_row = error_buffer + dst_width + 3;
+    memset(error_buffer, 0, (dst_width + 2) * 2 * sizeof(int16_t));
+
+    for (int dst_y = 0; dst_y < dst_height; dst_y++) {
+        int row_offset = dst_y * binary_stride;
+        int direction = (dst_y % 2 == 0) ? 1 : -1;
+        int dst_x = (direction == 1) ? 0 : dst_width - 1;
+
+        for (int count = 0; count < dst_width; count++, dst_x += direction) {
+            int src_x = dst_y + crop_offset;
+            int src_y = src_height - 1 - dst_x;
+
+            if (src_x < 0 || src_x >= src_width || src_y < 0 || src_y >= src_height) {
+                continue;
+            }
+
+            int yuv_index = src_y * src_width * 2 + src_x * 2 + 1;
+            uint8_t gamma_corrected = gamma_lut[yuv422_data[yuv_index]];
+
+            int16_t luminance = (int16_t)gamma_corrected + curr_row[dst_x];
+            if (luminance < 0)
+                luminance = 0;
+            if (luminance > 255)
+                luminance = 255;
+
+            uint8_t new_pixel = (luminance >= GAMMA_SERPENTINE_THRESHOLD) ? 255 : 0;
+            int16_t error = luminance - new_pixel;
+
+            int should_set_bit = invert ? (new_pixel == 255) : (new_pixel == 0);
+            if (should_set_bit) {
+                int byte_index = row_offset + (dst_x >> 3);
+                int bit_position = 7 - (dst_x & 0x07);
+                binary_data[byte_index] |= (1 << bit_position);
+            }
+
+            // Serpentine Floyd-Steinberg: propagation direction flips every row
+            if (dst_x + direction >= 0 && dst_x + direction < dst_width)
+                curr_row[dst_x + direction] += (error * 7) / 16;
+            if (dst_y < dst_height - 1) {
+                if (dst_x - direction >= 0 && dst_x - direction < dst_width)
+                    next_row[dst_x - direction] += (error * 3) / 16;
+                next_row[dst_x] += (error * 5) / 16;
+                if (dst_x + direction >= 0 && dst_x + direction < dst_width)
+                    next_row[dst_x + direction] += error / 16;
+            }
+        }
+
+        // Swap rows
+        int16_t *temp = curr_row;
+        curr_row = next_row;
+        next_row = temp;
+        memset(next_row - 1, 0, (dst_width + 2) * sizeof(int16_t));
     }
 
     tal_psram_free(error_buffer);
