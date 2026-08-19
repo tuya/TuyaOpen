@@ -1,0 +1,28 @@
+config CHIP_CHOICE
+    string
+    default "esp32s3"
+
+config BOARD_CHOICE
+    string
+    default "XTEINK_X4_PRO"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select PLATFORM_FLASHSIZE_16M
+    select ENABLE_EXT_RAM
+
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 48
+    default 43
+    ---help---
+        Xteink X4 Pro console UART0. GPIO43/GPIO44 are the S3 UART0 boot pins
+        and are not used by the panel, touch, frontlight, buttons or SD slot.
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 48
+    default 44
+    ---help---
+        Paired with UART_NUM0_TX_PIN for UART0.
