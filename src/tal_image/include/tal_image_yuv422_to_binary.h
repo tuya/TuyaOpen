@@ -3,7 +3,10 @@
  * @brief YUV422 to binary image conversion interface definitions.
  *
  * This header provides function declarations and type definitions for converting
- * YUV422 format images to binary (monochrome) format using various algorithms.
+ * YUV422 format images to binary (monochrome) format using various algorithms:
+ * fixed/adaptive/Otsu thresholding, Bayer dithering (4/8/16 levels), error
+ * diffusion (Floyd-Steinberg, Stucki, Jarvis), edge-locked Atkinson dithering,
+ * and gamma-corrected serpentine Floyd-Steinberg.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  *
@@ -30,16 +33,18 @@ extern "C" {
  * @brief Binary conversion method enum
  */
 typedef enum {
-    TAL_IMAGE_MONO_MTH_FIXED = 0,       /* Fixed threshold */
-    TAL_IMAGE_MONO_MTH_ADAPTIVE,        /* Adaptive threshold */
-    TAL_IMAGE_MONO_MTH_OTSU,            /* Otsu's method */
-    TAL_IMAGE_MONO_MTH_BAYER8_DITHER,   /* 8-level grayscale Bayer dithering (3x3) */
-    TAL_IMAGE_MONO_MTH_BAYER4_DITHER,   /* 4-level grayscale Bayer dithering (2x2) */
-    TAL_IMAGE_MONO_MTH_BAYER16_DITHER,  /* 16-level grayscale Bayer dithering (4x4) */
-    TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG, /* Floyd-Steinberg error diffusion */
-    TAL_IMAGE_MONO_MTH_STUCKI,          /* Stucki error diffusion */
-    TAL_IMAGE_MONO_MTH_JARVIS,          /* Jarvis-Judice-Ninke error diffusion */
-    TAL_IMAGE_MONO_MTH_COUNT            /* Total number of methods */
+    TAL_IMAGE_MONO_MTH_FIXED = 0,          /* Fixed threshold */
+    TAL_IMAGE_MONO_MTH_ADAPTIVE,           /* Adaptive threshold */
+    TAL_IMAGE_MONO_MTH_OTSU,               /* Otsu's method */
+    TAL_IMAGE_MONO_MTH_BAYER8_DITHER,      /* 8-level grayscale Bayer dithering (3x3) */
+    TAL_IMAGE_MONO_MTH_BAYER4_DITHER,      /* 4-level grayscale Bayer dithering (2x2) */
+    TAL_IMAGE_MONO_MTH_BAYER16_DITHER,     /* 16-level grayscale Bayer dithering (4x4) */
+    TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG,    /* Floyd-Steinberg error diffusion */
+    TAL_IMAGE_MONO_MTH_STUCKI,             /* Stucki error diffusion */
+    TAL_IMAGE_MONO_MTH_JARVIS,             /* Jarvis-Judice-Ninke error diffusion */
+    TAL_IMAGE_MONO_MTH_EDGE_ATKINSON,      /* Edge-locked Atkinson dithering */
+    TAL_IMAGE_MONO_MTH_GAMMA_SERPENTINE,   /* Gamma-corrected serpentine Floyd-Steinberg */
+    TAL_IMAGE_MONO_MTH_COUNT               /* Total number of methods */
 } TAL_IMAGE_MONO_METHOD_E;
 
 /**
