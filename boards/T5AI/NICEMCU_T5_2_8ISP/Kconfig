@@ -1,0 +1,28 @@
+config CHIP_CHOICE
+    string
+    default "T5AI"
+
+config BOARD_CHOICE
+    string
+    default "NICEMCU_T5_2_8ISP"
+# This board only breaks out a single UART, wired to the T5 bootROM download pins
+# (UART0). The platform defaults the log to UART1, which is not accessible here, so
+# route the CP-core print (all platform + TuyaOpen logs) to UART0 to share log and
+# flash on the one port. The T5AI build_example.py reads this and overrides the CP
+# CONFIG_UART_PRINT_PORT; boards that do not define it keep the UART1 default.
+config BOARD_LOG_UART_PORT
+    int
+    default 0
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_AUDIO_CODECS
+    select ENABLE_AUDIO_AEC
+    select ENABLE_BUTTON
+    select ENABLE_DISPLAY
+    select ENABLE_TP
+    select ENABLE_CAMERA
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
+    select ENABLE_LVGL_DUAL_DISP_BUFF if (ENABLE_LIBLVGL)
+    select ENABLE_LVGL_V8_RGB565_SWAP if (LVGL_VERSION_8 && LVGL_V8_COLOR_DEPTH_16)
