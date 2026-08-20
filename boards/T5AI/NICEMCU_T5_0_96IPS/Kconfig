@@ -12,7 +12,7 @@ config BOARD_LOG_UART_PORT
 
 config BOARD_CHOICE
     string
-    default "NICEMCU_T5_0_96ISP"
+    default "NICEMCU_T5_0_96IPS"
 
 config BOARD_CONFIG
     bool

@@ -134,16 +134,16 @@ choice
             rsource "./NICEMCU_T5_DEV/Kconfig"
         endif
 
-    config BOARD_CHOICE_NICEMCU_T5_2_8ISP
-        bool "NiceMCU-T5-2.8ISP"
-        if (BOARD_CHOICE_NICEMCU_T5_2_8ISP)
-            rsource "./NICEMCU_T5_2_8ISP/Kconfig"
+    config BOARD_CHOICE_NICEMCU_T5_2_8IPS
+        bool "NiceMCU-T5-2.8IPS"
+        if (BOARD_CHOICE_NICEMCU_T5_2_8IPS)
+            rsource "./NICEMCU_T5_2_8IPS/Kconfig"
         endif
 
-    config BOARD_CHOICE_NICEMCU_T5_0_96ISP
-        bool "NiceMCU-T5-0.96ISP"
-        if (BOARD_CHOICE_NICEMCU_T5_0_96ISP)
-            rsource "./NICEMCU_T5_0_96ISP/Kconfig"
+    config BOARD_CHOICE_NICEMCU_T5_0_96IPS
+        bool "NiceMCU-T5-0.96IPS"
+        if (BOARD_CHOICE_NICEMCU_T5_0_96IPS)
+            rsource "./NICEMCU_T5_0_96IPS/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>

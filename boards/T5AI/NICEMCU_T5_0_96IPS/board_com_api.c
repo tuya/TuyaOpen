@@ -1,6 +1,6 @@
 /**
  * @file board_com_api.c
- * @brief NiceMCU-T5-0.96ISP board hardware registration
+ * @brief NiceMCU-T5-0.96IPS board hardware registration
  * @version 0.2
  * @date 2026-08-10
  * @copyright Copyright (c) 2026 Tuya Inc. All Rights Reserved.

@@ -1,6 +1,6 @@
 ##
 # @file CMakeLists.txt
-# @brief NiceMCU-T5-0.96ISP board build
+# @brief NiceMCU-T5-0.96IPS board build
 #/
 
 # MODULE_PATH

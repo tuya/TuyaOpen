@@ -1,6 +1,6 @@
 /**
  * @file board_com_api.h
- * @brief Common board-level hardware registration APIs for NiceMCU-T5-0.96ISP
+ * @brief Common board-level hardware registration APIs for NiceMCU-T5-0.96IPS
  * @version 0.2
  * @date 2026-08-10
  * @copyright Copyright (c) 2026 Tuya Inc. All Rights Reserved.

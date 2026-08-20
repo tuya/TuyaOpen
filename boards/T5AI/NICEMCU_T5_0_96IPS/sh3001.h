@@ -1,6 +1,6 @@
 /**
  * @file sh3001.h
- * @brief SH3001 6-axis IMU driver API (NiceMCU-T5-0.96ISP board)
+ * @brief SH3001 6-axis IMU driver API (NiceMCU-T5-0.96IPS board)
  * @version 0.1
  * @date 2026-08-10
  * @copyright Copyright (c) 2026 Tuya Inc. All Rights Reserved.
