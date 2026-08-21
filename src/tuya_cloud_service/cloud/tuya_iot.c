@@ -868,7 +868,11 @@ static OPERATE_RET __tuya_iot_link_type_change_cb(void *data)
 
     netmgr_type_e netmgr_type;
 
-    netmgr_type = (netmgr_type_e)data;
+    // netmgr publishes &s_netmgr.active, so data is a pointer to the value.
+    if (NULL == data) {
+        return OPRT_INVALID_PARM;
+    }
+    netmgr_type = *(netmgr_type_e *)data;
 
     PR_DEBUG("netmgr_type: %s", NETMGR_TYPE_TO_STR(netmgr_type));
 
