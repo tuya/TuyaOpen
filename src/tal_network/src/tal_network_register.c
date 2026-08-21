@@ -58,12 +58,6 @@ TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
 
 OPERATE_RET tal_network_card_init(void)
 {
-#if defined(ENABLE_AT_MODEM) && (ENABLE_AT_MODEM == 1)
-    extern TAL_NETWORK_CARD_T tal_network_card_at_modem;
-    tal_network_card_manager.active_card[TAL_NET_TYPE_AT_MODEM] = &tal_network_card_at_modem;
-    tal_network_card_manager.active_card_type = TAL_NET_TYPE_AT_MODEM;
-#endif
-
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
     extern TAL_NETWORK_CARD_T tal_network_card_posix;
     tal_network_card_manager.active_card[TAL_NET_TYPE_POSIX] = &tal_network_card_posix;
