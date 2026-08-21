@@ -25,18 +25,18 @@
 #include "mqtt_bind.h"
 
 netmgr_conn_wired_t s_netmgr_wired = {
-    .base = {.pri = 2,
-             .type = NETCONN_WIRED,
+    .base = {.pri    = 2,
+             .type   = NETCONN_WIRED,
              .status = NETMGR_LINK_DOWN,
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
              .card_type = TAL_NET_TYPE_POSIX,
 #else
              .card_type = TAL_NET_TYPE_PLATFORM,
 #endif
-             .open = netconn_wired_open,
+             .open  = netconn_wired_open,
              .close = netconn_wired_close,
-             .get = netconn_wired_get,
-             .set = netconn_wired_set},
+             .get   = netconn_wired_get,
+             .set   = netconn_wired_set},
 };
 
 /**

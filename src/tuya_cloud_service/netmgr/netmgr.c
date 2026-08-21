@@ -146,13 +146,13 @@ static netmgr_type_e __get_active_conn()
 void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
 {
     netmgr_status_e status = NETMGR_LINK_DOWN;
-    netmgr_type_e type = NETCONN_AUTO;
+    netmgr_type_e   type   = NETCONN_AUTO;
 
     // Snapshot under the lock, then act outside it: tuya_lan_init() is heavy and
     // has no business running with the netmgr state locked.
     tal_mutex_lock(s_netmgr.lock);
     status = s_netmgr.status;
-    type = (netmgr_type_e)s_netmgr.type;
+    type   = (netmgr_type_e)s_netmgr.type;
     tal_mutex_unlock(s_netmgr.lock);
 
     if (status != NETMGR_LINK_UP) {
@@ -305,9 +305,9 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
     // status unused
     (void)status;
 
-    BOOL_T type_chg = FALSE;
-    BOOL_T status_chg = FALSE;
-    netmgr_type_e pub_active = NETCONN_AUTO;
+    BOOL_T          type_chg   = FALSE;
+    BOOL_T          status_chg = FALSE;
+    netmgr_type_e   pub_active = NETCONN_AUTO;
     netmgr_status_e pub_status = NETMGR_LINK_DOWN;
 
     if (!(s_netmgr.type & type)) {
@@ -317,7 +317,7 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
     tal_mutex_lock(s_netmgr.lock);
 
     netmgr_status_e active_status = NETMGR_LINK_DOWN;
-    netmgr_type_e active_conn = __get_active_conn();
+    netmgr_type_e   active_conn   = __get_active_conn();
     __get_netmgr_status(active_conn, &active_status);
 
     // both changed
@@ -327,14 +327,14 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
         s_netmgr.status = active_status;
         s_netmgr.active = active_conn;
         __netmgr_set_active_card(active_conn);
-        type_chg = TRUE;
+        type_chg   = TRUE;
         status_chg = TRUE;
     } else if (active_status != s_netmgr.status) {
         // active_status changed
         PR_DEBUG("netmgr conn status changed [%s] --> [%s]", NETMGR_STATUS_TO_STR(s_netmgr.status),
                  NETMGR_STATUS_TO_STR(active_status));
         s_netmgr.status = active_status;
-        status_chg = TRUE;
+        status_chg      = TRUE;
     } else if (active_conn != s_netmgr.active) {
         // active_conn changed
         PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
@@ -382,7 +382,7 @@ OPERATE_RET __netmgr_conn_register(netmgr_type_e type, netmgr_conn_base_t *conn)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    netmgr_conn_base_t *cur_conn = NULL;
+    netmgr_conn_base_t *cur_conn  = NULL;
     netmgr_conn_base_t *prev_conn = NULL;
 
     if (NULL == conn) {
@@ -474,7 +474,7 @@ __EXIT:
 OPERATE_RET netmgr_init(netmgr_type_e type)
 {
     OPERATE_RET rt = OPRT_OK;
-    netmgr_type_e active = NETCONN_AUTO;
+    netmgr_type_e   active = NETCONN_AUTO;
     netmgr_status_e status = NETMGR_LINK_DOWN;
 
     TUYA_CALL_ERR_RETURN(tal_network_card_init());
@@ -502,7 +502,7 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 #endif
     tal_mutex_lock(s_netmgr.lock);
     s_netmgr.active = __get_active_conn();
-    active = s_netmgr.active;
+    active          = s_netmgr.active;
     tal_mutex_unlock(s_netmgr.lock);
 
     if (active == NETCONN_AUTO) {
@@ -558,7 +558,7 @@ OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
 {
     OPERATE_RET rt = OPRT_OK;
     netmgr_conn_base_t *cur_conn = NULL;
-    netmgr_type_e active = NETCONN_AUTO;
+    netmgr_type_e       active   = NETCONN_AUTO;
 
     // Checked before the lock: the handle only exists once netmgr_init() ran.
     if (!s_netmgr.inited) {
@@ -573,7 +573,7 @@ OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
         type = s_netmgr.active;
     }
     cur_conn = __get_conn_by_type(type);
-    active = s_netmgr.active;
+    active   = s_netmgr.active;
     tal_mutex_unlock(s_netmgr.lock);
 
     // No match used to fall out of the loop as OPRT_OK, so a set against an
