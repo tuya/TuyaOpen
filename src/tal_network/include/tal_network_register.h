@@ -90,6 +90,27 @@ TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void);
 
 TAL_NETWORK_OPS_T *tal_network_get_active_ops(void);
 
+/**
+ * @brief Record the source address outbound sockets should bind to.
+ *
+ * Pushed by whoever owns link selection (netmgr) when the active connection or
+ * its address changes, so the value is refreshed exactly once per link event
+ * instead of being looked up on every connect.
+ *
+ * @param[in] ipaddr the active connection address, or 0 when no link is up
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
+
+/**
+ * @brief Get the source address outbound sockets should bind to.
+ *
+ * @return the active connection address, or 0 when unknown - callers must treat
+ *         0 as "do not bind" and let the stack pick the source itself.
+ */
+TUYA_IP_ADDR_T tal_network_card_get_active_ip(void);
+
 #ifdef __cplusplus
 }
 #endif

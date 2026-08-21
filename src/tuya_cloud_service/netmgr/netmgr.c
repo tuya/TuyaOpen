@@ -187,6 +187,29 @@ static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *stat
  *
  * @param event the connection event
  */
+/**
+ * @brief Publish the active connection address down to tal_network.
+ *
+ * Outbound sockets bind to this so traffic leaves the interface netmgr picked.
+ * Pushing it here means it tracks every link event - including a cellular redial
+ * or DHCP renew that hands out a different address - whereas caching it at first
+ * use would pin the first address seen for the life of the transport.
+ */
+static void __netmgr_sync_active_ip(netmgr_type_e type, netmgr_status_e status)
+{
+    TUYA_IP_ADDR_T addr = 0;
+    NW_IP_S nw_ip = {0};
+
+    if (NETMGR_LINK_DOWN != status && OPRT_OK == netmgr_conn_get(type, NETCONN_CMD_IP, &nw_ip) &&
+        nw_ip.ip[0] != '\0') {
+        addr = tal_net_str2addr(nw_ip.ip);
+    }
+
+    // 0 means "do not bind": better an unbound socket than one pinned to an
+    // address the link no longer owns.
+    tal_network_card_set_active_ip(addr);
+}
+
 static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
 {
     // status unused
@@ -196,6 +219,17 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
         netmgr_status_e active_status = NETMGR_LINK_DOWN;
         netmgr_type_e active_conn = __get_active_conn();
         __get_netmgr_status(active_conn, &active_status);
+
+        // Refresh before the branches below, and unconditionally: any branch can
+        // mean the source address changed (a same-connection down/up cycle among
+        // them), and a connection re-reporting link-up with a new address takes no
+        // branch at all yet still has to be picked up here.
+        //
+        // This assumes a connection reports link-up only once its address is
+        // usable. That holds on T5AI, where WFE_CONNECTED is raised from
+        // EVENT_NETIF_GOT_IP4 rather than at association. A platform that reports
+        // link-up earlier would land a stale address here.
+        __netmgr_sync_active_ip(active_conn, active_status);
 
         // both changed
         if (active_status != s_netmgr.status && active_conn != s_netmgr.active) {
@@ -343,6 +377,9 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 
     s_netmgr.inited = TRUE;
 
+    // A link already up when we get here publishes no event, so seed the address.
+    __netmgr_sync_active_ip(s_netmgr.active, s_netmgr.status);
+
     // Cellular not support LAN
 #if !defined(ENABLE_CELLULAR) || (ENABLE_CELLULAR == 0)
     tal_sw_timer_create(__tuya_lan_init_tm_cb, NULL, &sg_lan_init_timer);
@@ -397,6 +434,12 @@ OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
         if (cur_conn->type == type) {
             TUYA_CHECK_NULL_RETURN(cur_conn->set, OPRT_INVALID_PARM);
             rt = cur_conn->set(cmd, param);
+            // Setting the address changes it without any link event, so refresh
+            // what outbound sockets bind to. Only meaningful for the active
+            // connection; a standby one is not what traffic leaves through.
+            if (OPRT_OK == rt && NETCONN_CMD_IP == cmd && type == s_netmgr.active) {
+                __netmgr_sync_active_ip(type, s_netmgr.status);
+            }
             break;
         }
         cur_conn = cur_conn->next;

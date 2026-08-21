@@ -21,6 +21,11 @@
 ***********************************************************/
 typedef struct {
     TAL_NETWORK_CARD_TYPE_E active_card_type;
+    /* Source address of the active connection, 0 when no link is up. Kept here
+     * rather than in TAL_NETWORK_CARD_T.ipaddr because several connections can
+     * share one card type (on T5AI both wifi and cellular are PLATFORM), so this
+     * is a property of the active link, not of the card. */
+    TUYA_IP_ADDR_T active_ipaddr;
     TAL_NETWORK_CARD_T *active_card[TAL_NET_TYPE_MAX];
 } TAL_NETWORK_CARD_MANAGER_T;
 
@@ -86,6 +91,18 @@ OPERATE_RET tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type)
 TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void)
 {
     return tal_network_card_manager.active_card_type;
+}
+
+OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr)
+{
+    tal_network_card_manager.active_ipaddr = ipaddr;
+
+    return OPRT_OK;
+}
+
+TUYA_IP_ADDR_T tal_network_card_get_active_ip(void)
+{
+    return tal_network_card_manager.active_ipaddr;
 }
 
 TAL_NETWORK_OPS_T *tal_network_get_active_ops(void)

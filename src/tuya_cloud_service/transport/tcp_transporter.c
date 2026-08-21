@@ -12,8 +12,9 @@
  *
  */
 
+#include <errno.h>
 #include "tuya_cloud_types.h"
-#include "netmgr.h"
+#include "tal_network_register.h"
 #include "tal_api.h"
 #include "tal_network.h"
 #include "tuya_transporter.h"
@@ -90,19 +91,23 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
         goto err_out;
     }
 
-    // Auto bind to netmgr IP for embedded multi-interface targets.
-    // On Linux host builds, keep default routing unless bind is explicitly set.
+    // Bind outbound traffic to the interface the link manager selected, so it
+    // leaves the right one on a multi-interface target. On Linux host builds keep
+    // default routing unless the caller asked for a bind.
+    //
+    // config.bindAddr is the caller's setting and is never written back to: the
+    // active address is owned by tal_network and refreshed on every link event, so
+    // a cellular redial or DHCP renew is picked up here immediately. 0 means no
+    // link address is known, and an unbound socket lets the stack choose.
+    TUYA_IP_ADDR_T bind_addr = tcp_transporter->config.bindAddr;
 #if OPERATING_SYSTEM != SYSTEM_LINUX
-    if (tcp_transporter->config.bindAddr == 0 && tcp_transporter->config.bindPort == 0) {
-        NW_IP_S nw_ip = {0};
-        if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &nw_ip) && nw_ip.ip[0] != '\0') {
-            tcp_transporter->config.bindAddr = tal_net_str2addr(nw_ip.ip);
-        }
+    if (bind_addr == 0 && tcp_transporter->config.bindPort == 0) {
+        bind_addr = tal_network_card_get_active_ip();
     }
 #endif
 
-    if ((tcp_transporter->config.bindPort || tcp_transporter->config.bindAddr) &&
-        (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, tcp_transporter->config.bindAddr,
+    if ((tcp_transporter->config.bindPort || bind_addr) &&
+        (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, bind_addr,
                                  tcp_transporter->config.bindPort))) { // socket bind port
         op_ret = OPRT_MID_TRANSPORT_SOCK_NET_BIND_FAILED;
         goto err_out;
@@ -123,7 +128,9 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
         // goto err_out;
     }
 
+    errno = 0;
     if (tal_net_connect(tcp_transporter->socket_fd, hostaddr, port) < 0) {
+        PR_ERR("tcp connect %s:%d failed, errno %d", tal_net_addr2str(hostaddr), port, tal_net_get_errno());
         op_ret = OPRT_MID_TRANSPORT_TCP_CONNECD_FAILED;
         goto err_out;
     }
