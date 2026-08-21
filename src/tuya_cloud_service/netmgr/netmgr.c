@@ -65,10 +65,52 @@ typedef struct {
 
 static netmgr_t s_netmgr = {0};
 
+/* Locking contract for s_netmgr
+ * =============================
+ * s_netmgr.conn / .active / .status are reached from the wifi and wired/cellular
+ * driver callbacks, from the tal_sw_timer thread and from any caller of the
+ * public netmgr_conn_get()/netmgr_conn_set(), so all of them are accessed under
+ * s_netmgr.lock. The invariant that shapes every function below:
+ *
+ *     The lock protects field access on s_netmgr and nothing else. No driver
+ *     callback - conn->open(), conn->get(), conn->set() - and no
+ *     tal_event_publish() runs while the lock is held.
+ *
+ * Both halves of that matter:
+ *
+ * - Latency. A driver callback can block for a long time: netconn_cellular_get()
+ *   servicing NETCONN_CMD_IP goes to tal_cellular_get_ip() and on into a modem
+ *   AT exchange. Holding the lock across it would park every link-event callback
+ *   on the same mutex for the duration.
+ *
+ * - Deadlock. Several of these callbacks re-enter netmgr synchronously:
+ *   netconn_{wifi,wired,cellular}_set() fire base.event_cb() inline for
+ *   NETCONN_CMD_PRI, the LINUX tkl_wired_set_status_cb() fires the status
+ *   callback before it returns, and tuya_iot's __tuya_iot_link_type_change_cb()
+ *   calls tuya_iot_reconnect(). s_netmgr.lock is not portably recursive:
+ *   tkl_mutex_create_init() only maps to a recursive primitive where the port
+ *   asks for one (the FreeRTOS ports gate it on configUSE_RECURSIVE_MUTEXES; the
+ *   LINUX port always sets PTHREAD_MUTEX_RECURSIVE), so any of those would be a
+ *   hard self-deadlock.
+ *
+ * The resulting shape: take the lock, resolve and snapshot what you need into
+ * locals, drop the lock, then call outward. Keeping a netmgr_conn_base_t *
+ * across the unlock is safe - the conn nodes are static globals that are never
+ * unlinked or freed.
+ *
+ * One bounded carve-out: __get_active_conn() and __get_netmgr_status() call
+ * conn->get(NETCONN_CMD_STATUS) while walking the list, which cannot be hoisted
+ * out of the lock without snapshotting the whole list. All three drivers answer
+ * that one command from their cached base.status with no TKL call, so it stays
+ * bounded. A port that ever makes NETCONN_CMD_STATUS blocking breaks this.
+ */
+
 static TIMER_ID sg_lan_init_timer = NULL;
 
 /**
  * @brief get active connection status and
+ *
+ * @note Caller must hold s_netmgr.lock: this walks the connection list.
  *
  * @return netconn_type_t: the connection should be used
  */
@@ -103,11 +145,20 @@ static netmgr_type_e __get_active_conn()
 
 void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
 {
-    if (s_netmgr.status != NETMGR_LINK_UP) {
+    netmgr_status_e status = NETMGR_LINK_DOWN;
+    netmgr_type_e type = NETCONN_AUTO;
+
+    // Snapshot under the lock, then act outside it: tuya_lan_init() is heavy and
+    // has no business running with the netmgr state locked.
+    tal_mutex_lock(s_netmgr.lock);
+    status = s_netmgr.status;
+    type = (netmgr_type_e)s_netmgr.type;
+    tal_mutex_unlock(s_netmgr.lock);
+
+    if (status != NETMGR_LINK_UP) {
         return;
     }
 
-    netmgr_type_e type = (netmgr_type_e)s_netmgr.type;
     tuya_iot_client_t *client = tuya_iot_client_get();
     if (client == NULL) {
         return;
@@ -122,6 +173,13 @@ void __tuya_lan_init_tm_cb(TIMER_ID timer_id, void *arg)
     return;
 }
 
+/**
+ * @brief Find a registered connection by type.
+ *
+ * @note Caller must hold s_netmgr.lock: this walks the connection list.
+ *
+ * @return NULL when @a type is NETCONN_AUTO or nothing matching is registered.
+ */
 static netmgr_conn_base_t *__get_conn_by_type(netmgr_type_e type)
 {
     netmgr_conn_base_t *cur_conn = s_netmgr.conn;
@@ -142,10 +200,15 @@ static netmgr_conn_base_t *__get_conn_by_type(netmgr_type_e type)
     return NULL;
 }
 
+/**
+ * @brief Read the link status of one registered connection.
+ *
+ * @note Caller must hold s_netmgr.lock.
+ */
 static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *status)
 {
     OPERATE_RET rt = OPRT_OK;
-    netmgr_conn_base_t *cur_conn = s_netmgr.conn;
+    netmgr_conn_base_t *cur_conn = NULL;
 
     if (NULL == status) {
         PR_ERR("netmgr get status failed, status is NULL");
@@ -164,20 +227,22 @@ static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *stat
         return OPRT_NOT_SUPPORTED;
     }
 
-    while (cur_conn) {
-        if (cur_conn->type == type) {
-            // get the connection status
-            if (NULL == cur_conn->get) {
-                PR_ERR("netmgr conn [%s] get status failed", NETMGR_TYPE_TO_STR(type));
-                return OPRT_INVALID_PARM;
-            }
-
-            cur_conn->get(NETCONN_CMD_STATUS, status);
-            PR_TRACE("netmgr conn [%s] status [%s]", NETMGR_TYPE_TO_STR(type), NETMGR_STATUS_TO_STR(*status));
-            break;
-        }
-        cur_conn = cur_conn->next;
+    // A type nobody registered is not "link down": reporting OPRT_OK here would
+    // hand the caller the default above and hide the misconfiguration.
+    cur_conn = __get_conn_by_type(type);
+    if (NULL == cur_conn) {
+        PR_ERR("netmgr get status failed, conn [%s] not registered", NETMGR_TYPE_TO_STR(type));
+        return OPRT_NOT_FOUND;
     }
+
+    // get the connection status
+    if (NULL == cur_conn->get) {
+        PR_ERR("netmgr conn [%s] get status failed", NETMGR_TYPE_TO_STR(type));
+        return OPRT_INVALID_PARM;
+    }
+
+    cur_conn->get(NETCONN_CMD_STATUS, status);
+    PR_TRACE("netmgr conn [%s] status [%s]", NETMGR_TYPE_TO_STR(type), NETMGR_STATUS_TO_STR(*status));
 
     return rt;
 }
@@ -194,6 +259,11 @@ static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *stat
  * Pushing it here means it tracks every link event - including a cellular redial
  * or DHCP renew that hands out a different address - whereas caching it at first
  * use would pin the first address seen for the life of the transport.
+ *
+ * @note Must be called with s_netmgr.lock released: it goes out to
+ *       conn->get(NETCONN_CMD_IP), which on cellular is a blocking modem
+ *       exchange. Both arguments are snapshots and the body touches no
+ *       s_netmgr field of its own, so it needs no lock.
  */
 static void __netmgr_sync_active_ip(netmgr_type_e type, netmgr_status_e status)
 {
@@ -210,53 +280,99 @@ static void __netmgr_sync_active_ip(netmgr_type_e type, netmgr_status_e status)
     tal_network_card_set_active_ip(addr);
 }
 
+/**
+ * @brief Point tal_network at the card backing @a type.
+ *
+ * @note Caller must hold s_netmgr.lock.
+ */
+static void __netmgr_set_active_card(netmgr_type_e type)
+{
+    netmgr_conn_base_t *p_conn = __get_conn_by_type(type);
+
+    // __get_conn_by_type() returns NULL for NETCONN_AUTO and for a type nothing
+    // registered. Nothing to retarget then - keep the card we had rather than
+    // dereference NULL. The caller still publishes its event.
+    if (NULL == p_conn) {
+        PR_ERR("netmgr conn [%s] not found, active card left unchanged", NETMGR_TYPE_TO_STR(type));
+        return;
+    }
+
+    tal_network_card_set_active(p_conn->card_type);
+}
+
 static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
 {
     // status unused
     (void)status;
 
-    if (s_netmgr.type & type) {
-        netmgr_status_e active_status = NETMGR_LINK_DOWN;
-        netmgr_type_e active_conn = __get_active_conn();
-        __get_netmgr_status(active_conn, &active_status);
+    BOOL_T type_chg = FALSE;
+    BOOL_T status_chg = FALSE;
+    netmgr_type_e pub_active = NETCONN_AUTO;
+    netmgr_status_e pub_status = NETMGR_LINK_DOWN;
 
-        // Refresh before the branches below, and unconditionally: any branch can
-        // mean the source address changed (a same-connection down/up cycle among
-        // them), and a connection re-reporting link-up with a new address takes no
-        // branch at all yet still has to be picked up here.
-        //
-        // This assumes a connection reports link-up only once its address is
-        // usable. That holds on T5AI, where WFE_CONNECTED is raised from
-        // EVENT_NETIF_GOT_IP4 rather than at association. A platform that reports
-        // link-up earlier would land a stale address here.
-        __netmgr_sync_active_ip(active_conn, active_status);
+    if (!(s_netmgr.type & type)) {
+        return;
+    }
 
-        // both changed
-        if (active_status != s_netmgr.status && active_conn != s_netmgr.active) {
-            PR_DEBUG("netmgr conn type changed [%s] --> [%s], status changed %d --> %d",
-                     NETMGR_TYPE_TO_STR(s_netmgr.active), NETMGR_TYPE_TO_STR(active_conn), s_netmgr.status,
-                     active_status);
-            s_netmgr.status = active_status;
-            s_netmgr.active = active_conn;
-            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
-            tal_network_card_set_active(p_conn->card_type);
-            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&s_netmgr.active);
-            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&s_netmgr.status);
-        } else if (active_status != s_netmgr.status) {
-            // active_status changed
-            PR_DEBUG("netmgr conn status changed [%s] --> [%s]", NETMGR_STATUS_TO_STR(s_netmgr.status),
-                     NETMGR_STATUS_TO_STR(active_status));
-            s_netmgr.status = active_status;
-            tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&s_netmgr.status);
-        } else if (active_conn != s_netmgr.active) {
-            // active_conn changed
-            PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
-                     NETMGR_TYPE_TO_STR(active_conn));
-            s_netmgr.active = active_conn;
-            netmgr_conn_base_t *p_conn = __get_conn_by_type(active_conn);
-            tal_network_card_set_active(p_conn->card_type);
-            tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&s_netmgr.active);
-        }
+    tal_mutex_lock(s_netmgr.lock);
+
+    netmgr_status_e active_status = NETMGR_LINK_DOWN;
+    netmgr_type_e active_conn = __get_active_conn();
+    __get_netmgr_status(active_conn, &active_status);
+
+    // both changed
+    if (active_status != s_netmgr.status && active_conn != s_netmgr.active) {
+        PR_DEBUG("netmgr conn type changed [%s] --> [%s], status changed %d --> %d",
+                 NETMGR_TYPE_TO_STR(s_netmgr.active), NETMGR_TYPE_TO_STR(active_conn), s_netmgr.status, active_status);
+        s_netmgr.status = active_status;
+        s_netmgr.active = active_conn;
+        __netmgr_set_active_card(active_conn);
+        type_chg = TRUE;
+        status_chg = TRUE;
+    } else if (active_status != s_netmgr.status) {
+        // active_status changed
+        PR_DEBUG("netmgr conn status changed [%s] --> [%s]", NETMGR_STATUS_TO_STR(s_netmgr.status),
+                 NETMGR_STATUS_TO_STR(active_status));
+        s_netmgr.status = active_status;
+        status_chg = TRUE;
+    } else if (active_conn != s_netmgr.active) {
+        // active_conn changed
+        PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
+                 NETMGR_TYPE_TO_STR(active_conn));
+        s_netmgr.active = active_conn;
+        __netmgr_set_active_card(active_conn);
+        type_chg = TRUE;
+    }
+
+    pub_active = s_netmgr.active;
+    pub_status = s_netmgr.status;
+
+    tal_mutex_unlock(s_netmgr.lock);
+
+    // Refreshed unconditionally, whichever branch above ran or none of them: any
+    // of them can mean the source address changed (a same-connection down/up
+    // cycle among them), and a connection re-reporting link-up with a new address
+    // takes no branch at all yet still has to be picked up here.
+    //
+    // This assumes a connection reports link-up only once its address is usable.
+    // That holds on T5AI, where WFE_CONNECTED is raised from EVENT_NETIF_GOT_IP4
+    // rather than at association. A platform that reports link-up earlier would
+    // land a stale address here.
+    //
+    // Runs after the unlock, on the locals decided above: it reaches
+    // conn->get(NETCONN_CMD_IP), a blocking modem exchange on cellular. Still
+    // ahead of the publishes, so subscribers already see the new bound address.
+    __netmgr_sync_active_ip(active_conn, active_status);
+
+    // Published from local copies, after the unlock: subscribers re-enter netmgr
+    // synchronously (tuya_iot's __tuya_iot_link_type_change_cb calls
+    // tuya_iot_reconnect()), and publishing under the lock would deadlock a
+    // non-recursive mutex.
+    if (type_chg) {
+        tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&pub_active);
+    }
+    if (status_chg) {
+        tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&pub_status);
     }
 
     return;
@@ -266,7 +382,7 @@ OPERATE_RET __netmgr_conn_register(netmgr_type_e type, netmgr_conn_base_t *conn)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    netmgr_conn_base_t *cur_conn = s_netmgr.conn;
+    netmgr_conn_base_t *cur_conn = NULL;
     netmgr_conn_base_t *prev_conn = NULL;
 
     if (NULL == conn) {
@@ -276,10 +392,14 @@ OPERATE_RET __netmgr_conn_register(netmgr_type_e type, netmgr_conn_base_t *conn)
 
     conn->event_cb = __netmgr_event_cb;
 
+    tal_mutex_lock(s_netmgr.lock);
+
     // check if the connection already registered
+    cur_conn = s_netmgr.conn;
     while (cur_conn) {
         if (type == cur_conn->type) {
             PR_DEBUG("netmgr [%s] already registered", NETMGR_TYPE_TO_STR(type));
+            tal_mutex_unlock(s_netmgr.lock);
             return OPRT_INVALID_PARM;
         }
         cur_conn = cur_conn->next;
@@ -327,6 +447,15 @@ OPERATE_RET __netmgr_conn_register(netmgr_type_e type, netmgr_conn_base_t *conn)
     }
 
 __EXIT:
+    tal_mutex_unlock(s_netmgr.lock);
+
+    // open() runs with the lock released on purpose: it installs the driver's
+    // status callback and some ports fire that callback inline (the LINUX
+    // tkl_wired_set_status_cb() calls it before returning), which lands in
+    // __netmgr_event_cb() and would self-deadlock on a non-recursive mutex.
+    // The list is already fully linked at this point, so the re-entrant pass
+    // sees consistent state; it just runs before s_netmgr.inited is set, which
+    // is the same window the code had before.
     if (NULL != conn->open) {
         rt = conn->open(NULL);
     }
@@ -345,6 +474,8 @@ __EXIT:
 OPERATE_RET netmgr_init(netmgr_type_e type)
 {
     OPERATE_RET rt = OPRT_OK;
+    netmgr_type_e active = NETCONN_AUTO;
+    netmgr_status_e status = NETMGR_LINK_DOWN;
 
     TUYA_CALL_ERR_RETURN(tal_network_card_init());
 
@@ -369,8 +500,12 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
         __netmgr_conn_register(NETCONN_WIFI, (netmgr_conn_base_t *)&s_netmgr_wifi);
     }
 #endif
+    tal_mutex_lock(s_netmgr.lock);
     s_netmgr.active = __get_active_conn();
-    if (s_netmgr.active == NETCONN_AUTO) {
+    active = s_netmgr.active;
+    tal_mutex_unlock(s_netmgr.lock);
+
+    if (active == NETCONN_AUTO) {
         PR_ERR("No connection available, please check your configuration");
         return OPRT_INVALID_PARM;
     }
@@ -378,7 +513,12 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
     s_netmgr.inited = TRUE;
 
     // A link already up when we get here publishes no event, so seed the address.
-    __netmgr_sync_active_ip(s_netmgr.active, s_netmgr.status);
+    // Snapshot, then sync with the lock released - the sync reaches conn->get().
+    tal_mutex_lock(s_netmgr.lock);
+    status = s_netmgr.status;
+    tal_mutex_unlock(s_netmgr.lock);
+
+    __netmgr_sync_active_ip(active, status);
 
     // Cellular not support LAN
 #if !defined(ENABLE_CELLULAR) || (ENABLE_CELLULAR == 0)
@@ -417,32 +557,52 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, void *param)
 {
     OPERATE_RET rt = OPRT_OK;
-    netmgr_conn_base_t *cur_conn = s_netmgr.conn;
+    netmgr_conn_base_t *cur_conn = NULL;
+    netmgr_type_e active = NETCONN_AUTO;
 
+    // Checked before the lock: the handle only exists once netmgr_init() ran.
     if (!s_netmgr.inited) {
         return OPRT_RESOURCE_NOT_READY;
     }
 
     PR_DEBUG("netmgr conn %s set %d", NETMGR_TYPE_TO_STR(type), cmd);
 
+    tal_mutex_lock(s_netmgr.lock);
     if (NETCONN_AUTO == type) {
         // get the active connection
         type = s_netmgr.active;
     }
+    cur_conn = __get_conn_by_type(type);
+    active = s_netmgr.active;
+    tal_mutex_unlock(s_netmgr.lock);
 
-    while (cur_conn) {
-        if (cur_conn->type == type) {
-            TUYA_CHECK_NULL_RETURN(cur_conn->set, OPRT_INVALID_PARM);
-            rt = cur_conn->set(cmd, param);
-            // Setting the address changes it without any link event, so refresh
-            // what outbound sockets bind to. Only meaningful for the active
-            // connection; a standby one is not what traffic leaves through.
-            if (OPRT_OK == rt && NETCONN_CMD_IP == cmd && type == s_netmgr.active) {
-                __netmgr_sync_active_ip(type, s_netmgr.status);
-            }
-            break;
-        }
-        cur_conn = cur_conn->next;
+    // No match used to fall out of the loop as OPRT_OK, so a set against an
+    // unregistered link silently did nothing.
+    if (NULL == cur_conn) {
+        PR_ERR("netmgr conn [%s] set failed, not registered", NETMGR_TYPE_TO_STR(type));
+        return OPRT_NOT_FOUND;
+    }
+
+    TUYA_CHECK_NULL_RETURN(cur_conn->set, OPRT_INVALID_PARM);
+
+    // Deliberately outside the lock: for NETCONN_CMD_PRI the drivers call
+    // base.event_cb() inline (netconn_wifi_set/netconn_wired_set/
+    // netconn_cellular_set), which re-enters __netmgr_event_cb(). The conn nodes
+    // are static and never unlinked, so keeping the pointer across the unlock is
+    // safe.
+    rt = cur_conn->set(cmd, param);
+
+    // Setting the address changes it without any link event, so refresh
+    // what outbound sockets bind to. Only meaningful for the active
+    // connection; a standby one is not what traffic leaves through.
+    if (OPRT_OK == rt && NETCONN_CMD_IP == cmd && type == active) {
+        netmgr_status_e status = NETMGR_LINK_DOWN;
+
+        tal_mutex_lock(s_netmgr.lock);
+        status = s_netmgr.status;
+        tal_mutex_unlock(s_netmgr.lock);
+
+        __netmgr_sync_active_ip(type, status);
     }
 
     return rt;
@@ -464,29 +624,38 @@ OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
 OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, void *param)
 {
     OPERATE_RET rt = OPRT_OK;
-    netmgr_conn_base_t *cur_conn = s_netmgr.conn;
+    netmgr_conn_base_t *cur_conn = NULL;
 
+    // Checked before the lock: the handle only exists once netmgr_init() ran.
     if (!s_netmgr.inited) {
         return OPRT_RESOURCE_NOT_READY;
     }
 
+    tal_mutex_lock(s_netmgr.lock);
     if (NETCONN_AUTO == type) {
         // get the active connection
         type = s_netmgr.active;
     }
+    cur_conn = __get_conn_by_type(type);
+    tal_mutex_unlock(s_netmgr.lock);
 
-    while (cur_conn) {
-        if (cur_conn->type == type) {
-            TUYA_CHECK_NULL_RETURN(cur_conn->get, OPRT_INVALID_PARM);
+    // Falling off the end of the list used to return OPRT_OK with *param never
+    // written, so callers formatted uninitialised stack (tal_cli's ip command
+    // printed exactly that).
+    if (NULL == cur_conn) {
+        PR_ERR("netmgr conn [%s] get failed, not registered", NETMGR_TYPE_TO_STR(type));
+        return OPRT_NOT_FOUND;
+    }
 
-            rt = cur_conn->get(cmd, param);
-            if (OPRT_OK != rt) {
-                PR_ERR("netmgr conn %s get failed, cmd %d, rt = %d", NETMGR_TYPE_TO_STR(type), cmd, rt);
-                return rt;
-            }
-            break;
-        }
-        cur_conn = cur_conn->next;
+    TUYA_CHECK_NULL_RETURN(cur_conn->get, OPRT_INVALID_PARM);
+
+    // Outside the lock, per the contract at the top of the file: on cellular
+    // NETCONN_CMD_IP is a blocking modem exchange, and every link-event callback
+    // would otherwise queue behind it on s_netmgr.lock.
+    rt = cur_conn->get(cmd, param);
+    if (OPRT_OK != rt) {
+        PR_ERR("netmgr conn %s get failed, cmd %d, rt = %d", NETMGR_TYPE_TO_STR(type), cmd, rt);
+        return rt;
     }
 
     return rt;
@@ -516,6 +685,7 @@ void netmgr_cmd(int argc, char *argv[])
 
     if (argc == 1) {
         // dump network connection
+        tal_mutex_lock(s_netmgr.lock);
         PR_NOTICE("netmgr active %d, status %d", s_netmgr.active, s_netmgr.status);
         PR_NOTICE("---------------------------------------");
         if (s_netmgr.type & NETCONN_WIFI) {
@@ -530,6 +700,7 @@ void netmgr_cmd(int argc, char *argv[])
                 PR_NOTICE("type wire pri %d status %s", p_conn->pri, NETMGR_STATUS_TO_STR(p_conn->status));
             }
         }
+        tal_mutex_unlock(s_netmgr.lock);
     } else {
         if (0 == strcmp(argv[1], "wifi")) {
 #ifdef ENABLE_WIFI
