@@ -473,16 +473,13 @@ OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param)
     OPERATE_RET rt = OPRT_OK;
 
     switch (cmd) {
-    case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
-                          // active connection
-        netmgr_wifi->base.pri = *(int *)param;
-        netmgr_wifi->base.event_cb(NETCONN_WIFI, netmgr_wifi->base.status);
+    case NETCONN_CMD_PRI:
+        *(int *)param = netmgr_wifi->base.pri;
         break;
-    case NETCONN_CMD_MAC: // set mac to the station
+    case NETCONN_CMD_MAC:
         TUYA_CALL_ERR_RETURN(tal_wifi_get_mac(WF_STATION, (NW_MAC_S *)param));
         break;
-    case NETCONN_CMD_SSID_PSWD: // set ssid&paswd will cause wifi
-                                // disconnect&connect
+    case NETCONN_CMD_SSID_PSWD:
         memcpy((netconn_wifi_info_t *)param, &netmgr_wifi->conn.wifi_conn_info, sizeof(netconn_wifi_info_t));
         break;
     case NETCONN_CMD_COUNTRYCODE:
