@@ -87,4 +87,59 @@ OPERATE_RET tal_cellular_get_ipv6(NW_IP_TYPE type, NW_IP_S *ip)
     return sg_cellular->get_ipv6((NW_IP_TYPE)type, (NW_IP_S *)ip);
 }
 
+OPERATE_RET tal_cellular_get_ccid(char *ccid)
+{
+    if (sg_cellular == NULL || sg_cellular->get_ccid == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return sg_cellular->get_ccid(ccid);
+}
+
+OPERATE_RET tal_cellular_get_rssi(uint8_t *rssi)
+{
+    if (sg_cellular == NULL || sg_cellular->get_rssi == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    // The TKL layer writes one scalar byte through a char * parameter.
+    return sg_cellular->get_rssi((char *)rssi);
+}
+
+OPERATE_RET tal_cellular_get_volt(uint32_t *volt)
+{
+    if (sg_cellular == NULL || sg_cellular->get_volt == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return sg_cellular->get_volt(volt);
+}
+
+OPERATE_RET tal_cellular_get_imei(char *imei)
+{
+    if (sg_cellular == NULL || sg_cellular->get_imei == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return sg_cellular->get_imei(imei);
+}
+
+OPERATE_RET tal_cellular_get_sn(char *sn)
+{
+    if (sg_cellular == NULL || sg_cellular->get_sn == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return sg_cellular->get_sn(sn);
+}
+
+OPERATE_RET tal_cellular_get_sw_ver(char *ver)
+{
+    if (sg_cellular == NULL || sg_cellular->get_sw_ver == NULL) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return sg_cellular->get_sw_ver(ver);
+}
+
 #endif // defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
