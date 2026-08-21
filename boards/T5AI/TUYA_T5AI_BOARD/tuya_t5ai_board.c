@@ -115,6 +115,24 @@ static OPERATE_RET __board_rx1_deinit(void)
     return rt;
 }
 
+#ifdef ENABLE_T5AI_BOARD_CELLULAR_USB
+/**
+ * @brief Registers the USB cellular module (eg. L511Y).
+ *
+ * This board routes no power-enable or reset line to the module: it is powered
+ * from the USB bus and comes up as soon as the host enumerates it, so there is
+ * nothing to drive here. The hook is kept so a revision that does wire those
+ * lines has an obvious place for them - see TUYA_T5AI_POCKET, which registers
+ * its supply as a TDL_PWR_DOMAIN_CELLULAR domain and drives a reset pin.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code on failure.
+ */
+static OPERATE_RET __board_register_cellular(void)
+{
+    return OPRT_OK;
+}
+#endif
+
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
  *
@@ -133,6 +151,10 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_led());
 
     TUYA_CALL_ERR_LOG(board_register_ex_module());
+
+#ifdef ENABLE_T5AI_BOARD_CELLULAR_USB
+    TUYA_CALL_ERR_LOG(__board_register_cellular());
+#endif
 
     return rt;
 }

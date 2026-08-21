@@ -22,6 +22,27 @@ menu "configure tuya cloud service"
                 persist them into kv, and execute the dps action when a timer fires.
                 Disable it to trim the code size if the device does not need cloud timers.
 
+    menuconfig  ENABLE_CELLULAR
+        bool "ENABLE_CELLULAR: enable cellular (4G/Cat.1) network support"
+        default n
+
+        ---help---
+                Cellular connection managed through netmgr, on its own or beside
+                wifi/wired. Boards carrying a modem select this; it has no effect on
+                a platform without a cellular TKL implementation.
+
+        if (ENABLE_CELLULAR)
+            config CELLULAR_APN
+                string "CELLULAR_APN: access point name, empty lets the network choose"
+                default ""
+
+                ---help---
+                        Sent as AT+CGDCONT=1,"ipv4v6","<APN>" before dialling. Leave
+                        empty for consumer SIMs, where the network selects a default
+                        bearer. IoT and private-network SIMs usually require a
+                        specific name and cannot attach without it.
+        endif
+
     menuconfig  ENABLE_BT_SERVICE
         bool "ENABLE_BT_SERVICE: enable tuya bt iot function"
         default n
