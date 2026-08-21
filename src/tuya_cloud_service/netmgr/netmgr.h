@@ -115,21 +115,21 @@ typedef struct netmgr_conn_base {
 OPERATE_RET netmgr_init(netmgr_type_e type);
 
 /**
- * @brief set network connection attribute
- *
- * @param type connection type
- * @param cmd attribute type
- * @param param input attribute
- * @return OPERATE_RET
- */
-OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, void *param);
-
-/**
  * @brief get network connection attribute
  *
  * @param type connection type
  * @param cmd attribute type
  * @param param output attribute
+ * @return OPERATE_RET
+ */
+OPERATE_RET netmgr_conn_get(netmgr_type_e type, netmgr_conn_config_type_e cmd, void *param);
+
+/**
+ * @brief set network connection attribute
+ *
+ * @param type connection type
+ * @param cmd attribute type
+ * @param param input attribute
  * @return OPERATE_RET
  */
 OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, void *param);

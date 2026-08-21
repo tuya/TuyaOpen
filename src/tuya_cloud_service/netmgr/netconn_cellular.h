@@ -1,8 +1,8 @@
 /**
- * @file netconn_cellular.c
+ * @file netconn_cellular.h
  * @brief netconn_cellular module is used to manage cellular network connections.
  *
- * This file provides the implementation of the netconn_cellular module,
+ * This file declares the interface of the netconn_cellular module,
  * which is responsible for managing cellular network connections.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.

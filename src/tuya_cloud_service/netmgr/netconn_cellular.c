@@ -51,8 +51,6 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
         },
 };
 
-static TIMER_ID __attribute__((unused)) cellular_status_timer = NULL;
-
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
@@ -77,22 +75,6 @@ static void __netconn_cellular_event(CELLULAR_STAT_E event)
     return;
 }
 
-static void __attribute__((unused)) __cellular_status_timer_cb(TIMER_ID timer_id, void *arg)
-{
-    OPERATE_RET rt = OPRT_OK;
-    CELLULAR_STAT_E net_status = NETMGR_LINK_DOWN;
-    TAL_CELLULAR_STAT_E stat;
-    rt = tal_cellular_get_status(&stat);
-    if (OPRT_OK == rt) {
-        net_status = (stat == TAL_CELLULAR_LINK_UP) ? NETMGR_LINK_UP : NETMGR_LINK_DOWN;
-    } else {
-        net_status = NETMGR_LINK_DOWN;
-    }
-    __netconn_cellular_event(net_status);
-
-    return;
-}
-
 OPERATE_RET netconn_cellular_open(void *config)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -109,13 +91,7 @@ OPERATE_RET netconn_cellular_open(void *config)
     tal_cellular_init(&cfg);
 
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;
-#if 1
     TUYA_CALL_ERR_RETURN(tal_cellular_set_status_cb(__netconn_cellular_event));
-#else
-    // TODO: T5AI has not implemented 4G status change callback, use software timer to poll status
-    tal_sw_timer_create(__cellular_status_timer_cb, NULL, &cellular_status_timer);
-    tal_sw_timer_start(cellular_status_timer, 3000, TAL_TIMER_CYCLE);
-#endif
 
     tuya_iot_token_get_port_register(tuya_iot_client_get(), mqtt_bind_token_get);
 
