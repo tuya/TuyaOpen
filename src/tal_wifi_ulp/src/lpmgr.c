@@ -26,7 +26,7 @@
 #include "tal_wifi.h"
 #include "tuya_iot_config.h"
 #include "tal_log.h"
-#include "netmgr.h"
+#include "ulp_apiq.h"
 #include "netmgr_timer.h"
 
 /***********************************************************

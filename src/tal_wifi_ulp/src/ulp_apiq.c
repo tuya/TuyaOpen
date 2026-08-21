@@ -1,5 +1,5 @@
 /**
- * @file netmgr.c
+ * @file ulp_apiq.c
  * @brief net manager - message queue driven API scheduling thread for ULP
  * @version 0.1
  * @date 2024-06-06
@@ -16,7 +16,7 @@
  * in all copies or substantial portions of the Software.
  *
  */
-#include "netmgr.h"
+#include "ulp_apiq.h"
 #include "netmgr_timer.h"
 #include "tal_queue.h"
 #include "tuya_iot_config.h"

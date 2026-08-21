@@ -1,5 +1,5 @@
 /**
- * @file netmgr.h
+ * @file ulp_apiq.h
  * @brief net manager - message queue driven API scheduling for ULP
  * @version 0.1
  * @date 2024-06-06
@@ -16,8 +16,8 @@
  * in all copies or substantial portions of the Software.
  *
  */
-#ifndef _TUYA_ULP_NETMGR_H
-#define _TUYA_ULP_NETMGR_H
+#ifndef _TUYA_ULP_APIQ_H
+#define _TUYA_ULP_APIQ_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -48,7 +48,7 @@ typedef struct {
 } netmgr_msg;
 
 /********************************************************************************
- *******************************netmgr.h*****************************************
+ ***********************************ulp_apiq.h***********************************
  ********************************************************************************/
 
 /**
@@ -80,4 +80,4 @@ int netmgr_timer_refresh(void);
 }
 #endif
 
-#endif /* _TUYA_ULP_NETMGR_H */
+#endif /* _TUYA_ULP_APIQ_H */
