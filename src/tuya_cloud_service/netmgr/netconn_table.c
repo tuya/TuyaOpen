@@ -168,10 +168,17 @@ static const netconn_desc_t s_netconn_default_table[] = {
     {
         .name = "cellular",
         .type = NETCONN_CELLULAR,
-        /* Billed by volume, and LAN discovery over a 4G bearer is meaningless -
-         * which is the intent behind the `#if !defined(ENABLE_CELLULAR)` still
-         * wrapped around the LAN timer in netmgr_init(). M3 replaces that test
-         * with these bits; M2 only declares them. */
+        /* Billed by volume, and LAN discovery over a 4G bearer is meaningless.
+         *
+         * Read this as intent, not as behaviour: nothing consumes the bit. The
+         * previous wording said "M3 replaces that test with these bits", and both
+         * halves of that are now wrong - M3 keyed the LAN gate on the ACTIVE
+         * link's NETCONN_CAP_LAN rather than on this bit, and the
+         * `#if !defined(ENABLE_CELLULAR)` around the LAN timer that it promised to
+         * replace was deleted outright. So the LAN half of the intent is served,
+         * by a different bit; the metered half is not served at all, because
+         * netmgr_policy.c never reads caps. See NETCONN_CAP_METERED in
+         * netconn_registry.h, which records the gap and what closing it needs. */
         .caps        = NETCONN_CAP_METERED,
         .ctrl        = NETCONN_CTRL_SUSTAINED,
         .default_pri = 0,
