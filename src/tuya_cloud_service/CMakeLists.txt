@@ -12,8 +12,14 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 # LIB_SRCS
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/lan/*.c"
-    "${MODULE_PATH}/netmgr/netmgr.c" 
-    "${MODULE_PATH}/protocol/*.c" 
+    "${MODULE_PATH}/netmgr/netmgr.c"
+    # Unconditional, both of them. netconn_table.c is the registry itself: its
+    # rows are #ifdef'd per technology inside the file, so the file always
+    # compiles even when no link driver is enabled. netmgr_cli.c is generic over
+    # the registry and needs no per-technology gate either.
+    "${MODULE_PATH}/netmgr/netconn_table.c"
+    "${MODULE_PATH}/netmgr/netmgr_cli.c"
+    "${MODULE_PATH}/protocol/*.c"
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"
     "${MODULE_PATH}/file_storage/*.c"

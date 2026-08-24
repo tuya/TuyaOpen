@@ -85,8 +85,30 @@ OPERATE_RET netconn_wired_open(void *config)
 /**
  * @brief close wired connection
  *
- * @param config: wired connection config
- * @return OPERATE_RET
+ * A no-op, and it can only be a no-op. This is what NETCONN_CTRL_OBSERVE means
+ * for this driver, stated where the caller will look for it.
+ *
+ * Nothing to release. netconn_wired_open() subscribes to no event, creates no
+ * timer and allocates nothing; it installs one status callback and registers the
+ * global activation token port.
+ *
+ * Nothing to bring down either. tal_wired.h is exactly tal_wired_get_status(),
+ * tal_wired_set_status_cb(), tal_wired_{get,set}_ip() and
+ * tal_wired_{get,set}_mac() - there is no connect, no disconnect, no
+ * enable/disable, no deinit. netmgr can prefer this link or avoid it when
+ * routing, but it can never make it go down.
+ *
+ * The one teardown that looks available is not: clearing the callback with
+ * tal_wired_set_status_cb(NULL). No TAL or TKL contract says NULL is accepted,
+ * and the reference implementation in tools/porting/template/linux/tkl_wired.c
+ * spawns a fresh detached polling thread on every call - so passing NULL would
+ * not remove the callback path, it would add another thread to it. Leave the
+ * callback installed; the driver's static state is safe to be called back into
+ * at any time, including after close().
+ *
+ * Trivially idempotent.
+ *
+ * @return OPRT_OK, always.
  */
 OPERATE_RET netconn_wired_close()
 {

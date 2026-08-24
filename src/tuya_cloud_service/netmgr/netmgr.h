@@ -118,6 +118,24 @@ typedef struct netmgr_conn_base {
 OPERATE_RET netmgr_init(netmgr_type_e type);
 
 /**
+ * @brief network manage deinit, undoing netmgr_init()
+ *
+ * Closes and unregisters every link, stops the notify work item and the LAN
+ * timer, and leaves the static connection nodes as netmgr_init() found them so a
+ * later init can reuse them. Idempotent, and safe when netmgr_init() never ran
+ * or failed part way.
+ *
+ * Must NOT be called from the WORKQ_SYSTEM thread: it waits for the notify
+ * handler to finish and would wait on itself. That rules out calling it from an
+ * EVENT_LINK_* subscriber.
+ *
+ * @return OPRT_OK on success, including when there was nothing to tear down.
+ *         OPRT_TIMEOUT when a running notify handler did not finish inside the
+ *         drain timeout; everything that can safely be torn down still is.
+ */
+OPERATE_RET netmgr_deinit(void);
+
+/**
  * @brief get network connection attribute
  *
  * @param type connection type

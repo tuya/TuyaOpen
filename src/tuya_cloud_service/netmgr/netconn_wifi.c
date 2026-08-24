@@ -12,12 +12,17 @@
  */
 
 #include "netconn_wifi.h"
+#include "netconn_registry.h"
 #include "tal_api.h"
 #include "dev_evt.h"
 #include "cJSON.h"
 #include "ap_netcfg.h"
 #include "tuya_lan.h"
 
+/* Still needed, for exactly one symbol: TAL_NET_PROVIDER_DEFAULT in the static
+ * initialiser below. The other data-plane call this file used to make -
+ * tal_network_card_get_active_type(), asked to decide a provisioning policy - is
+ * gone; see the note in __netconn_activate_token_get(). */
 #include "tal_network_register.h"
 
 #ifdef ENABLE_BLUETOOTH
@@ -56,6 +61,18 @@ netmgr_conn_wifi_t s_netmgr_wifi = {
             .table = {1, 3, 5, 10, 15, 20},
         },
 };
+
+/**
+ * TRUE once netconn_wifi_open() has brought the WiFi stack up, i.e. once
+ * tal_wifi_init() has succeeded. netconn_wifi_close() keys off this so that it
+ * is a no-op both on a second call and when open() bailed out before there was
+ * anything to tear down - netmgr_deinit() is required to be idempotent and may
+ * run on netmgr_init()'s own error paths.
+ *
+ * It lives here rather than in netmgr_conn_wifi_t because netconn_wifi.h is on
+ * the global public include path and M2 does not change it.
+ */
+static BOOL_T s_wifi_opened = FALSE;
 
 static void __netconn_wifi_connect_process(void *msg)
 {
@@ -287,14 +304,52 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
 
     // init netcfg
     netcfg_init();
-    TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
-    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM) {
+
+    /* Whether this link can raise a SoftAP for provisioning is the driver's own
+     * declaration, read back from its descriptor - not something inferred from
+     * the data plane.
+     *
+     * What this replaces:
+     *
+     *     TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
+     *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM)
+     *
+     * That was the control plane asking the data plane a control-plane question,
+     * and it was also dead: the active provider is only ever written from
+     * conn->card_type, every driver sets that to TAL_NET_PROVIDER_DEFAULT, and
+     * that expands to TAL_NET_TYPE_POSIX or TAL_NET_TYPE_PLATFORM - never to
+     * TAL_NET_TYPE_AT_MODEM. So "do not open AP provisioning while 4G is the
+     * active link" was a tautology that never once fired.
+     *
+     * The capability bit is behaviour-neutral today, because the wifi row sets
+     * NETCONN_CAP_NETCFG_AP. Its value is that a module which cannot host an AP
+     * now closes this branch by clearing one bit in its descriptor, which is the
+     * first time the original intent is actually executable.
+     *
+     * A NULL descriptor means this build registered no wifi row at all. Nothing
+     * should be able to reach this token port in that case, so both branches
+     * below treat it as "no provisioning capability" and skip - never as an
+     * implicit yes.
+     */
+    const netconn_desc_t *desc = netconn_registry_find(NETCONN_WIFI);
+    netconn_caps_t        caps = (NULL != desc) ? desc->caps : NETCONN_CAP_NONE;
+    if (NULL == desc) {
+        PR_WARN("wifi has no registry row, skipping netcfg");
+    }
+
+    if ((netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_AP) && (caps & NETCONN_CAP_NETCFG_AP)) {
         ap_netcfg_init(&netmgr_wifi->netcfg);
         netcfg_start(NETCFG_TUYA_WIFI_AP, __netconn_wifi_netcfg_finish, NULL);
     }
 
 #ifdef ENABLE_BLUETOOTH
-    if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_BLE) {
+    /* Same question as the AP branch, same source of truth. The #ifdef stays and
+     * the two are ANDed, because they answer different things: ENABLE_BLUETOOTH
+     * decides whether ble_netcfg_init() exists to link against at all, while
+     * NETCONN_CAP_NETCFG_BLE says whether this link wants to be provisioned that
+     * way. Behaviour-neutral - netconn_table.c only sets the bit under
+     * ENABLE_BLUETOOTH. */
+    if ((netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_BLE) && (caps & NETCONN_CAP_NETCFG_BLE)) {
         ble_netcfg_init(&netmgr_wifi->netcfg);
         netcfg_start(NETCFG_TUYA_BLE, __netconn_wifi_netcfg_finish, NULL);
     }
@@ -342,6 +397,13 @@ OPERATE_RET netconn_wifi_open(void *config)
 
     // init
     TUYA_CALL_ERR_RETURN(tal_wifi_init(__netconn_wifi_event));
+
+    /* Marked here, not at the end: from this point on __netconn_wifi_event() can
+     * fire from a vendor task, and every failure below leaves something for
+     * close() to undo. close() guards each individual step, so it is safe to be
+     * told about a half-built link. */
+    s_wifi_opened = TRUE;
+
     TUYA_CALL_ERR_RETURN(tal_wifi_set_country_code(netmgr_wifi->ccode));
 
     // create a connect timer --- it will triggered by netcfg or set ssid&pswd
@@ -361,14 +423,83 @@ OPERATE_RET netconn_wifi_open(void *config)
 /**
  * @brief Closes the WiFi network connection.
  *
- * This function is used to close the WiFi network connection.
+ * Releases everything netconn_wifi_open() and __netconn_activate_token_get()
+ * created. Until M2 this returned OPRT_OK without doing anything, so an
+ * init/deinit cycle leaked two event subscriptions and a software timer, and
+ * left provisioning running.
  *
- * @return The result of the operation.
- *         - OPRT_OK: The WiFi network connection was closed successfully.
- *         - Other error codes may be returned in case of failure.
+ * The order is chosen so that nothing can rearm a resource that has already been
+ * released:
+ *
+ *   1. park the reconnect state machine (conn.stat = STOP). Both the timer
+ *      callback and the WiFi event callback branch on this field, and STOP is the
+ *      one state in which neither restarts the timer nor calls
+ *      __netconn_wifi_connect();
+ *   2. unsubscribe the two events. __wifi_reset_event_cb() touches conn.timer
+ *      and __wifi_link_activete_cb() calls netcfg_stop(); if either fired during
+ *      or after the steps below it would work on state we are dismantling.
+ *      EVENT_RESET is SUBSCRIBE_TYPE_NORMAL and never self-removes;
+ *      EVENT_LINK_ACTIVATE is ONETIME, so it may already be gone - unsubscribing
+ *      an absent entry is harmless;
+ *   3. stop provisioning. A netcfg backend that completes calls
+ *      __netconn_wifi_netcfg_finish(), which calls __netconn_wifi_connect() and
+ *      would put the link straight back up;
+ *   4. drop the association. This must come after 1 and 3, or the reconnect path
+ *      simply dials again;
+ *   5. delete the timer last, because step 4 can raise WFE_DISCONNECTED on a
+ *      vendor task and that handler dereferences conn.timer. Stop before delete
+ *      so the timer thread cannot be holding it, then NULL the handle - which is
+ *      both the idempotency marker for this resource and what keeps a late
+ *      tal_sw_timer_stop() from touching freed memory (tal_sw_timer_{stop,start,
+ *      delete}() all reject NULL rather than dereferencing it).
+ *
+ * Two teardowns that are NOT possible here, deliberately:
+ *   - tal_wifi.h has no uninit/deinit and no way to unregister the
+ *     WIFI_EVENT_CB installed by tal_wifi_init(), so the vendor stack stays up
+ *     and a late event can still reach __netconn_wifi_event(). That is why step
+ *     1 exists and why every field it touches must survive close();
+ *   - netcfg.h has netcfg_init() but no netcfg_deinit(), so the netcfg session
+ *     itself is stopped, not freed.
+ *
+ * Idempotent: a second call, or a call after netconn_wifi_open() failed part way
+ * through, returns OPRT_OK having touched nothing.
+ *
+ * @return OPRT_OK. Individual steps log and continue rather than aborting the
+ *         teardown - a resource that cannot be released must not prevent the
+ *         next one from being released.
  */
 OPERATE_RET netconn_wifi_close(void)
 {
+    netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
+
+    if (!s_wifi_opened) {
+        return OPRT_OK;
+    }
+    s_wifi_opened = FALSE;
+
+    // 1. park the reconnect state machine
+    netmgr_wifi->conn.stat  = NETCONN_WIFI_CONN_STOP;
+    netmgr_wifi->conn.count = 0;
+
+    // 2. unsubscribe before releasing anything the callbacks reach
+    tal_event_unsubscribe(EVENT_RESET, "wifi", __wifi_reset_event_cb);
+    tal_event_unsubscribe(EVENT_LINK_ACTIVATE, "wifi", __wifi_link_activete_cb);
+
+    // 3. stop provisioning; fails harmlessly when netcfg_init() never ran
+    netcfg_stop(NETCFG_STOP_ALL_CFG_MODULE);
+
+    // 4. drop the association
+    tal_wifi_station_disconnect();
+
+    // 5. timer last - see the note above
+    if (NULL != netmgr_wifi->conn.timer) {
+        tal_sw_timer_stop(netmgr_wifi->conn.timer);
+        tal_sw_timer_delete(netmgr_wifi->conn.timer);
+        netmgr_wifi->conn.timer = NULL;
+    }
+
+    netmgr_wifi->base.status = NETMGR_LINK_DOWN;
+
     return OPRT_OK;
 }
 

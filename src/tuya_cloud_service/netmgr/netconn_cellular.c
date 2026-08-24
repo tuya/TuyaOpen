@@ -98,6 +98,31 @@ OPERATE_RET netconn_cellular_open(void *config)
     return rt;
 }
 
+/**
+ * @brief close the cellular connection
+ *
+ * A documented no-op, and it can only be a no-op. This is what
+ * NETCONN_CTRL_SUSTAINED means for this driver: netmgr can start the subsystem
+ * but cannot stop it, so the link is driver-sustained for the life of the
+ * process.
+ *
+ * Nothing to release. netconn_cellular_open() subscribes to no event, creates no
+ * timer and allocates nothing; it calls tal_cellular_init(), installs one status
+ * callback and registers the global activation token port.
+ *
+ * Nothing to bring down either. tal_cellular.h has tal_cellular_init() but no
+ * deinit, and no connect/disconnect pair - so the data context that init raised
+ * stays up. There is likewise no documented way to withdraw the status callback,
+ * so __netconn_cellular_event() must stay safe to enter after close(); it only
+ * touches this file's static state and the NULL-checked base.event_cb, so it is.
+ *
+ * When the TKL layer grows a PPP/modem shutdown, this is the single place it
+ * belongs - NETCONN_CMD_CLOSE already routes here for exactly that reason.
+ *
+ * Trivially idempotent.
+ *
+ * @return OPRT_OK, always.
+ */
 OPERATE_RET netconn_cellular_close(void)
 {
     OPERATE_RET rt = OPRT_OK;
