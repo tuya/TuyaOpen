@@ -2122,7 +2122,38 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
     // A failure is logged and init CONTINUES, which the header states outright: a
     // device that cannot verify its link must still be able to use it, and making
     // this fatal would turn a diagnostic into a boot failure.
+    //
+    // The #ifdef is what lets src/tuya_cloud_service/CMakeLists.txt drop
+    // netmgr_probe.c from a build that does not select ENABLE_NETMGR_PROBE. This
+    // expression is the only reference to netmgr_probe_backend_mqtt that GENERATES
+    // A RELOCATION anywhere outside netmgr_probe.c itself; every other mention in
+    // the tree is a comment or the extern declaration in netmgr_probe.h, neither
+    // of which makes the linker want the object. So without this guard, gating the
+    // file out is an undefined reference rather than a smaller image. Stated as a
+    // property rather than a hit count on purpose - a count is wrong as soon as
+    // somebody edits a comment, and the property is what the linker acts on.
+    //
+    // Why gate it at all, when the object is small. Measured on T5AI with the
+    // arm-none-eabi-10.3-2021.10 the tree ships: 408 B of .text across the four
+    // functions, 272 B of PR_* format strings, 12 B for the backend descriptor,
+    // 8 B of .bss - about 692 B of flash. That alone would not be worth an
+    // #ifdef. The reason it is worth one: with ENABLE_NETMGR_PROBE off the policy
+    // has probe_enable FALSE, and netmgr_probe_report() drops every verdict at
+    // that gate. Keeping the backend linked would mean two live tal_event
+    // subscriptions and two callbacks per MQTT session transition, all of it
+    // computing values that are thrown away. Gating makes "off" mean off instead
+    // of "on and ignored".
+    //
+    // sg_probe_backend_chosen still works with the file gone, which is the case
+    // that must not break: a product supplying its own ACTIVE backend through
+    // netmgr_probe_backend_set() gets it either way. Such a product still has to
+    // turn probe_enable on - by selecting ENABLE_NETMGR_PROBE, or at runtime via
+    // netmgr_policy_set() - or its verdicts meet the same gate.
+#if defined(ENABLE_NETMGR_PROBE) && (ENABLE_NETMGR_PROBE == 1)
     backend = sg_probe_backend_chosen ? sg_probe_backend : &netmgr_probe_backend_mqtt;
+#else
+    backend = sg_probe_backend_chosen ? sg_probe_backend : NULL;
+#endif
     if (NULL != backend) {
         sg_probe_running = backend;
         if (NULL != backend->start) {

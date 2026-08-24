@@ -13,19 +13,23 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/lan/*.c"
     "${MODULE_PATH}/netmgr/netmgr.c"
-    # Unconditional, all five. netconn_table.c is the registry itself: its rows
-    # are #ifdef'd per technology inside the file, so the file always compiles
-    # even when no link driver is enabled. netmgr_cli.c is generic over the
-    # registry and needs no per-technology gate either.
+    # Four unconditional; netmgr_probe.c is globbed here and removed again below
+    # when the board did not ask for it, which is the ENABLE_DEVICE_TIMER pattern.
     #
-    # The three M3 modules are unconditional for a stronger reason than
-    # convenience: netmgr.c references all three unconditionally, so gating any of
-    # them would be an undefined reference rather than a smaller image. They are
-    # also technology-free by construction - netmgr_policy.c and netmgr_retry.c
-    # are pure arithmetic over their arguments, and netmgr_probe.c subscribes to
-    # two event names from tal_event_info.h, which sits BELOW netmgr. None of them
-    # includes a driver header, so there is nothing for an ENABLE_<TECH> gate to
-    # protect.
+    # netconn_table.c is the registry itself: its rows are #ifdef'd per technology
+    # inside the file, so the file always compiles even when no link driver is
+    # enabled. netmgr_cli.c is generic over the registry and needs no
+    # per-technology gate either.
+    #
+    # netmgr_policy.c and netmgr_retry.c are unconditional for a stronger reason
+    # than convenience. netmgr.c's whole link-selection path goes through
+    # netmgr_policy_select_default(), so gating netmgr_policy.c would not shrink
+    # the image, it would mean reintroducing the pre-M3 list walk as a SECOND
+    # implementation of link selection - two rankings to keep in agreement, for a
+    # few hundred bytes. netmgr_retry.c backs the wifi association back-off, which
+    # predates M3 and is not optional. Both are also technology-free by
+    # construction, pure arithmetic over their arguments with no driver header
+    # included, so there is nothing for an ENABLE_<TECH> gate to protect either.
     "${MODULE_PATH}/netmgr/netconn_table.c"
     "${MODULE_PATH}/netmgr/netmgr_cli.c"
     "${MODULE_PATH}/netmgr/netmgr_policy.c"
@@ -42,6 +46,41 @@ file(GLOB_RECURSE LIB_SRCS
 
 if(NOT CONFIG_ENABLE_DEVICE_TIMER STREQUAL "y")
     list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/cloud/tuya_device_timer.c")
+endif()
+
+# The passive reachability backend, dropped when the board did not ask for it.
+#
+# This is the M4 "degrade policy/probe on small-flash platforms" item, and the
+# decision it records is: gate the PROBE, do not gate the policy, and gate on the
+# feature switch rather than on a flash-size threshold. The reasoning, written
+# here because this line is where the next reader will meet it:
+#
+#   - what it saves, measured rather than estimated. netmgr_probe.c.o built for
+#     T5AI with the tree's own platform/tools/gcc-arm-none-eabi-10.3-2021.10:
+#     408 B of .text across its four functions, 272 B of PR_* format strings,
+#     12 B for the netmgr_probe_backend_mqtt descriptor and 8 B of .bss. About
+#     692 B of flash. On T5AI that is noise; on a 2 MB part it is still 692 B a
+#     wifi-only product has no use for;
+#   - the size is not the main argument, which is why the gate is worth the
+#     #ifdef it costs in netmgr.c. With CONFIG_ENABLE_NETMGR_PROBE off the policy
+#     has probe_enable FALSE, and netmgr_probe_report() drops every verdict at
+#     that gate. A linked-in backend would hold two tal_event subscriptions and
+#     run two callbacks per MQTT session transition to produce values that are
+#     thrown away. Gating it out makes "off" mean off rather than "on and
+#     ignored";
+#   - a flash-size threshold was the alternative and it is worse: it would make
+#     the same board behave differently depending on the part it is fitted to,
+#     which is exactly the surprise a netmgr default must not spring on anyone.
+#     ENABLE_NETMGR_PROBE is one decision, taken once, by the product;
+#   - netmgr_policy.c is deliberately NOT gated. See the comment above.
+#
+# netmgr.c guards its single reference to netmgr_probe_backend_mqtt with the same
+# symbol; without that guard this removal is an undefined reference rather than a
+# smaller image. A product that installs its own backend through
+# netmgr_probe_backend_set() is unaffected, because that path never names the
+# built-in one.
+if(NOT CONFIG_ENABLE_NETMGR_PROBE STREQUAL "y")
+    list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/netmgr/netmgr_probe.c")
 endif()
 
 # LIB_PUBLIC_INC

@@ -97,8 +97,10 @@
  *
  *   (a) netmgr_policy_t.verify_timeout_ms. A link that has been active and
  *       unverified for that long is treated as if it had reported BAD. This needs
- *       no cooperation from any other layer, which is why it is the default
- *       mechanism and why it is on by default.
+ *       no cooperation from any other layer, which is why it is the mechanism the
+ *       probe leads with. It is armed only while netmgr_policy_t.probe_enable is
+ *       TRUE, i.e. only on a build that selected ENABLE_NETMGR_PROBE - nothing in
+ *       this header is on by default any more, see that field.
  *
  *   (b) ATOP. atop_base_request() (atop_base.c:354) is the single funnel every
  *       ATOP request passes through, and it already separates the two cases this
@@ -385,7 +387,16 @@ typedef struct {
  * every init/deinit cycle until M2.
  *
  * Defined in netmgr_probe.c and installed by netmgr_init() when no product
- * backend was registered, so a build that does nothing gets this one.
+ * backend was registered, so a build that selects ENABLE_NETMGR_PROBE and does
+ * nothing else gets this one.
+ *
+ * WITH THAT SYMBOL UNSET THIS DOES NOT EXIST. src/tuya_cloud_service/CMakeLists.txt
+ * drops netmgr_probe.c from the build, and netmgr_init()'s only reference to this
+ * name carries the same #if - see the note at that site for what the gate costs
+ * and buys. The declaration is left unguarded on purpose: a product that provides
+ * its own backend has no reason to care, and a guarded extern would turn a
+ * misconfiguration into a confusing "undeclared identifier" instead of a clear
+ * link error.
  */
 extern const netmgr_probe_backend_t netmgr_probe_backend_mqtt;
 
@@ -399,8 +410,16 @@ extern const netmgr_probe_backend_t netmgr_probe_backend_mqtt;
  *
  * Passing NULL selects "no probing at all", which is distinct from
  * netmgr_policy_t.probe_enable = FALSE: this removes the backend, that ignores
- * its verdicts. Use the policy flag for a runtime switch and this for a build
- * that must not link the backend at all.
+ * its verdicts. Use the policy flag for a runtime switch and this to install a
+ * DIFFERENT backend.
+ *
+ * What this cannot do, corrected here rather than dropped because the earlier
+ * wording claimed it could: passing NULL does not stop the built-in backend from
+ * being LINKED. It is a call site, and a call site cannot be a link-time
+ * decision - netmgr_init() still names netmgr_probe_backend_mqtt in the branch
+ * this call steers away from, so the object is still pulled in. A build that must
+ * not contain the passive backend leaves Kconfig's ENABLE_NETMGR_PROBE unset,
+ * which drops netmgr_probe.c from the build entirely.
  *
  * @param[in] backend the backend to install, or NULL for none
  *

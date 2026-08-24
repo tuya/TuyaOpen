@@ -13,6 +13,14 @@
  * strictly a CALLER of that API, which is what keeps it reviewable on its own:
  * two subscribes, two unsubscribes, and one uint32_t of state.
  *
+ * This file is COMPILED ONLY when Kconfig's ENABLE_NETMGR_PROBE is selected -
+ * src/tuya_cloud_service/CMakeLists.txt removes it otherwise, and netmgr.c's one
+ * reference to @ref netmgr_probe_backend_mqtt carries the matching #if. There is
+ * deliberately no #if inside this file: an empty translation unit is not a
+ * smaller image than an absent one, and a guard here would silently produce a
+ * build with the symbol missing and no explanation. The gate lives at the build
+ * system, where it can be read next to what it costs.
+ *
  * The dependency argument, re-checked rather than inherited
  * --------------------------------------------------------
  * The includes are netmgr_probe.h plus tal_event.h and tal_log.h, and that is

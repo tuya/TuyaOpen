@@ -101,8 +101,19 @@
  * product that wants hysteresis sets a parameter; a product that does nothing
  * gets today's timing.
  *
- * The one default that is NOT neutral is probing, and it is neutral where it
- * matters. See netmgr_policy_t.probe_enable.
+ * M3 shipped one default that was NOT neutral - probing - on the argument that
+ * it is neutral on a single-link board and corrective on a multi-link one. M4
+ * turned it off. NETMGR_POLICY_DEFAULT_INIT now derives probe_enable,
+ * probe_demote and min_dwell_ms from Kconfig (ENABLE_NETMGR_PROBE,
+ * NETMGR_PROBE_DEMOTE, NETMGR_POLICY_MIN_DWELL_MS in
+ * src/tuya_cloud_service/Kconfig), and every one of them is off or zero unless a
+ * board asks for it. So the neutrality argument above now covers the WHOLE
+ * default rather than all of it but one: with nothing selected,
+ * NETMGR_LINK_STATE_DEGRADED is unreachable, no deadline is ever armed, and the
+ * shared timer is never started. A product opts into the behaviour change
+ * explicitly, on the board where it is a fix. See netmgr_policy_t.probe_enable
+ * for the argument that opting in is safe - it is unchanged, it is just no
+ * longer an argument about a default.
  *
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
@@ -204,7 +215,9 @@ typedef enum {
      *
      * DEGRADED is a RANKING signal, not a liveness signal. It says "prefer
      * something else if there is something else", and on a single-link board
-     * there never is - which is why probing on by default is neutral there.
+     * there never is - which is why turning probing on is neutral there, and
+     * why ENABLE_NETMGR_PROBE's help text tells a single-link board not to
+     * bother.
      */
     NETMGR_LINK_STATE_DEGRADED = 4,
 
@@ -329,7 +342,10 @@ typedef struct {
      * dwell is abandoned, because the alternative is having no network in order
      * to honour a hysteresis parameter.
      *
-     * DEFAULT 0: no dwell, as today.
+     * DEFAULT NETMGR_POLICY_MIN_DWELL_MS, which is 0 - no dwell, as today -
+     * unless the board selected a value in Kconfig. The symbol only appears
+     * under ENABLE_NETMGR_PROBE, because the oscillation described below is what
+     * it exists to damp and that oscillation needs demotion to start it.
      *
      * A MULTI-LINK PRODUCT SHOULD SET THIS. Concretely, a wifi+4G board whose wifi
      * AP has lost its WAN will oscillate at the default of 0, and the mechanism is
@@ -356,6 +372,11 @@ typedef struct {
      * first few cycles stop being the noisiest. A board that would rather not
      * re-verify at all sets @ref revalidate to a non-NULL entry with count 0, at
      * the cost of never discovering that wifi came back.
+     *
+     * The same warning is repeated, in full, in NETMGR_POLICY_MIN_DWELL_MS's
+     * Kconfig help. Deliberate duplication: the person who needs it is the one
+     * flipping ENABLE_NETMGR_PROBE in menuconfig, and that person is not reading
+     * this header. If the two ever disagree, this one is the specification.
      */
     uint32_t min_dwell_ms;
 
@@ -374,8 +395,15 @@ typedef struct {
      * dropped, verify_timeout_ms is not armed, and NETMGR_LINK_STATE_DEGRADED is
      * unreachable.
      *
-     * DEFAULT TRUE, and this is the one non-neutral default in M3. The argument
-     * for it:
+     * DEFAULT FALSE, from Kconfig ENABLE_NETMGR_PROBE. M3 shipped this TRUE;
+     * M4 turned it off so that a build which selects nothing behaves exactly as
+     * it did before the probe existed, and so that the opt-in is a deliberate
+     * act by a product that knows it has two links.
+     *
+     * The argument below is unchanged and is still the reason the switch is
+     * offered - it says why turning it ON is safe. What it does not support is
+     * making it a default: "neutral" in it is a statement about a single-link
+     * board, and this tree contains boards of both kinds. The argument:
      *
      *   - the default backend emits no packets, so there is no traffic, power or
      *     billing cost to turn on. It observes MQTT transitions the device
@@ -391,8 +419,9 @@ typedef struct {
      *     to wifi forever.
      *
      * So: neutral where there is nothing to choose, corrective where there is.
-     * If that is judged too aggressive, this is the single flag to flip, and
-     * flipping it restores M2 behaviour exactly.
+     * FALSE is nonetheless the shipped value, because it is the one that needs
+     * no argument at all - and it remains the single flag that restores M2
+     * behaviour exactly, which is now what a default build gets.
      */
     BOOL_T probe_enable;
 
@@ -401,9 +430,17 @@ typedef struct {
      * FALSE: verdicts are still accumulated and still visible to the CLI and to
      * netmgr_probe_stat_get(), but they do not affect ranking.
      *
-     * DEFAULT TRUE. Split from probe_enable so a product can deploy the
-     * observability first and the behaviour change second, which is the only way
-     * to get field data before committing.
+     * DEFAULT FALSE, and TRUE only when ENABLE_NETMGR_PROBE and
+     * NETMGR_PROBE_DEMOTE are BOTH selected. It cannot be TRUE while
+     * probe_enable is FALSE - that would be a policy ranking links on evidence
+     * it never collects - and NETMGR_POLICY_DEFAULT_INIT enforces that by
+     * nesting the tests rather than trusting Kconfig's own nesting.
+     * NETMGR_PROBE_DEMOTE defaults y once probing is on, because a board that
+     * asked for the probe asked for the fix.
+     *
+     * Split from probe_enable so a product can deploy the observability first
+     * and the behaviour change second, which is the only way to get field data
+     * before committing.
      */
     BOOL_T probe_demote;
 
@@ -586,17 +623,93 @@ typedef struct {
 } netmgr_policy_t;
 
 /**
- * @brief The default policy: today's behaviour, plus a working priority sort,
- *        plus passive probing.
+ * @brief Where the three Kconfig-selected defaults come from, and what they are
+ *        when nothing selected them.
+ *
+ * The symbols are ENABLE_NETMGR_PROBE, NETMGR_PROBE_DEMOTE and
+ * NETMGR_POLICY_MIN_DWELL_MS, declared in src/tuya_cloud_service/Kconfig beside
+ * ENABLE_CELLULAR. They reach this header through the build-generated
+ * tuya_kconfig.h, which every platform's tuya_cloud_types.h pulls in via
+ * tuya_iot_config.h - so the `#include "tuya_cloud_types.h"` at the top of this
+ * file is enough to make them visible and nothing here needs a second include.
+ * That is the same route tal_network_register.h documents for ENABLE_LIBLWIP.
+ *
+ * They are nevertheless all tested with defined(), because this header is on the
+ * PUBLIC include path: an app, an example or an out-of-tree component may include
+ * it from a translation unit that never sees tuya_kconfig.h, and a header that
+ * only compiles inside the SDK's own build is a header that breaks somebody's
+ * build later. Undefined therefore means OFF here, silently and on purpose.
+ *
+ * `== 1` rather than a bare defined() is the lesson netconn_table.c records
+ * about ENABLE_CELLULAR: kconfiglib emits nothing at all for an unset bool, so
+ * defined() alone would be sufficient for a Kconfig-generated symbol - but a
+ * board or an app that hand-writes `#define ENABLE_NETMGR_PROBE 0` to mean off
+ * would then turn it ON. Both spellings of off work here.
+ *
+ * The probe_demote test is NESTED inside the probe_enable one rather than
+ * standing beside it, and the nesting is load-bearing: demotion with probing off
+ * is a policy that ranks links on evidence it never collects. Kconfig already
+ * prevents that by putting NETMGR_PROBE_DEMOTE under `if (ENABLE_NETMGR_PROBE)`,
+ * but this header holds the invariant on its own, for the hand-defining caller
+ * above.
+ */
+#if defined(ENABLE_NETMGR_PROBE) && (ENABLE_NETMGR_PROBE == 1)
+#define NETMGR_POLICY_DEFAULT_PROBE_ENABLE TRUE
+#if defined(NETMGR_PROBE_DEMOTE) && (NETMGR_PROBE_DEMOTE == 1)
+#define NETMGR_POLICY_DEFAULT_PROBE_DEMOTE TRUE
+#else
+#define NETMGR_POLICY_DEFAULT_PROBE_DEMOTE FALSE
+#endif
+#else
+#define NETMGR_POLICY_DEFAULT_PROBE_ENABLE FALSE
+#define NETMGR_POLICY_DEFAULT_PROBE_DEMOTE FALSE
+#endif
+
+#if defined(NETMGR_POLICY_MIN_DWELL_MS)
+#define NETMGR_POLICY_DEFAULT_MIN_DWELL_MS NETMGR_POLICY_MIN_DWELL_MS
+#else
+#define NETMGR_POLICY_DEFAULT_MIN_DWELL_MS 0
+#endif
+
+/**
+ * @brief The shipped default policy: the behaviour netmgr had before M3, plus a
+ *        priority sort that actually works.
+ *
+ * Every timing is 0 and both probe flags are FALSE unless the board selected
+ * otherwise, which is the neutrality argument at the top of this file made
+ * concrete. Traced through the code rather than asserted:
+ *
+ *   - up_debounce_ms, down_grace_ms and min_dwell_ms are 0, so netmgr.c writes 0
+ *     into netmgr_report_t.eligible_at_ms and .grace_at_ms and this module's
+ *     recheck_ms stays 0;
+ *   - verify_at_ms is armed only under `pol.probe_enable`, so with probing off it
+ *     is 0 too;
+ *   - the revalidation deadline is armed only when a link enters
+ *     NETMGR_LINK_STATE_DEGRADED, which needs a probe verdict, so it never arms;
+ *   - those four plus recheck_ms are the entire input to netmgr.c's deadline
+ *     fold, and 0 means "contributes nothing" throughout. The shared timer is
+ *     therefore stopped, not started, on every pass;
+ *   - DEGRADED being unreachable also empties the SUSPECT tier of
+ *     netmgr_policy_select_default(), so the ranking is exactly `highest pri,
+ *     registration order breaking ties`.
+ *
+ * The three non-literal fields are the three a product opts into. The rest stay
+ * literals deliberately: probe_bad_threshold, verify_timeout_ms and revalidate
+ * only do anything while probe_enable is TRUE, so a Kconfig symbol for each
+ * would be a knob with no effect in a default build. A product that needs them
+ * away from the documented values calls netmgr_policy_set(), which is the
+ * full-fidelity interface - and revalidate is a table of pointers that a Kconfig
+ * int could not express in any case.
  *
  * Designated initialisers, so a field added later defaults to 0 rather than
  * silently shifting an existing one.
  */
 #define NETMGR_POLICY_DEFAULT_INIT                                                                                     \
     {                                                                                                                  \
-        .up_debounce_ms = 0, .down_grace_ms = 0, .min_dwell_ms = 0, .preempt = TRUE, .probe_enable = TRUE,             \
-        .probe_demote = TRUE, .probe_reconnect = FALSE, .probe_bad_threshold = 3, .verify_timeout_ms = 120000,         \
-        .revalidate = {NULL, 0}, .emit_up_switch = FALSE,                                                              \
+        .up_debounce_ms = 0, .down_grace_ms = 0, .min_dwell_ms = NETMGR_POLICY_DEFAULT_MIN_DWELL_MS, .preempt = TRUE,  \
+        .probe_enable = NETMGR_POLICY_DEFAULT_PROBE_ENABLE, .probe_demote = NETMGR_POLICY_DEFAULT_PROBE_DEMOTE,        \
+        .probe_reconnect = FALSE, .probe_bad_threshold = 3, .verify_timeout_ms = 120000, .revalidate = {NULL, 0},      \
+        .emit_up_switch = FALSE,                                                                                       \
     }
 
 /**

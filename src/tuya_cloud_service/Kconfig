@@ -43,6 +43,112 @@ menu "configure tuya cloud service"
                         specific name and cannot attach without it.
         endif
 
+    menuconfig  ENABLE_NETMGR_PROBE
+        bool "ENABLE_NETMGR_PROBE: netmgr verifies that the active link reaches the cloud"
+        default n
+
+        ---help---
+                WHAT OFF MEANS, and off is the shipping default. netmgr routes
+                over the eligible link with the highest priority, registration
+                order breaking ties, and "eligible" means the driver reports an
+                association and an address. Nothing observes whether packets
+                actually arrive, so no link is ever demoted for being
+                unreachable and NETMGR_LINK_STATE_DEGRADED is not reachable at
+                all. Every policy timing is zero, so netmgr never arms its
+                shared deadline timer.
+
+                WHAT ON ADDS: the passive reachability probe described in
+                src/tuya_cloud_service/netmgr/netmgr_probe.h. It emits NO
+                traffic of its own and costs no radio time - it translates the
+                EVENT_MQTT_CONNECTED / EVENT_MQTT_DISCONNECTED the device
+                already publishes into good and bad verdicts, and synthesises a
+                bad one when a link has been active and unverified for two
+                minutes. A link with evidence against it ranks below any
+                eligible link with none, so the route moves. This switch also
+                decides whether netmgr_probe.c is compiled: with it off, the
+                backend is not in the image at all.
+
+                TURN IT ON for a board with more than one link - wifi plus
+                cellular, or wifi plus wired. The case it exists to fix is a
+                device that joins an AP whose WAN is down. Without the probe
+                that link is UP by every measure netmgr can see, so the device
+                pins itself to it permanently and the second bearer never
+                carries a byte. With the probe on, the device demotes the dead
+                link and moves.
+
+                LEAVE IT OFF on a single-link board. The ranking has one
+                candidate, so a verdict against it cannot change the outcome;
+                all that is left is the flash it costs and a code path that can
+                do nothing useful. Off also reproduces the behaviour every
+                product in this tree shipped before the probe existed, which is
+                why it is the default rather than merely an option.
+
+        if (ENABLE_NETMGR_PROBE)
+            config NETMGR_PROBE_DEMOTE
+                bool "NETMGR_PROBE_DEMOTE: a bad verdict may actually move the route"
+                default y
+
+                ---help---
+                        y: a link netmgr has evidence against ranks below every
+                        eligible link it has no evidence against, so the route
+                        moves. This is the behaviour ENABLE_NETMGR_PROBE exists
+                        to provide, which is why it follows it by default.
+
+                        n: verdicts are still accumulated and still printed by
+                        a bare `netmgr` on the serial CLI, and still readable
+                        through netmgr_probe_stat_get(), but they do not order
+                        the candidates and the route never moves because of one.
+                        Ship a release this way first if you want field evidence
+                        that the probe judges your fleet correctly before you
+                        let it act - it is the only way to collect that evidence
+                        without changing behaviour.
+
+            config NETMGR_POLICY_MIN_DWELL_MS
+                int "NETMGR_POLICY_MIN_DWELL_MS: hold a link this long before switching again, ms"
+                range 0 3600000
+                default 0
+
+                ---help---
+                        A MULTI-LINK BOARD SHOULD SET THIS. 0 is netmgr's
+                        historical timing, a switch the instant the ranking
+                        changes, and at 0 a wifi+4G board whose AP has lost its
+                        WAN will oscillate. The mechanism is inherent to passive
+                        probing rather than a defect:
+
+                          1. wifi is demoted - two minutes active with no
+                             verdict - and the route moves to cellular. Correct,
+                             and the whole point of the probe;
+                          2. netmgr promotes wifi back 30 s later. It has to: a
+                             passive probe can only ever judge the ACTIVE link,
+                             so using wifi again is the only way to find out
+                             whether it recovered;
+                          3. wifi's higher priority wins and the route moves
+                             back;
+                          4. two minutes later, step 1 again.
+
+                        Every swing tears down and re-establishes the MQTT
+                        session twice, because a link-type change makes tuya_iot
+                        reconnect. The revalidation back-off - 30, 60, 120, 300
+                        then 600 s - damps the period, so it settles at about
+                        one cycle every twelve minutes and stays there. Bounded,
+                        but visible in the logs and in the cloud's session
+                        count.
+
+                        This value damps the fast early end of that sequence. It
+                        HOLDS a switch until the dwell expires and never
+                        prevents one, and it is abandoned the moment the active
+                        link stops being eligible, so it cannot strand the
+                        device on a dead link. 30000 to 120000 is the useful
+                        range; far below the two-minute verify timeout there is
+                        little left for it to damp.
+
+                        Offered only when the probe is on, because with the
+                        probe off nothing demotes a link and there is no
+                        oscillation to damp. A board that wants dwell for some
+                        other reason sets netmgr_policy_t.min_dwell_ms through
+                        netmgr_policy_set().
+        endif
+
     menuconfig  ENABLE_BT_SERVICE
         bool "ENABLE_BT_SERVICE: enable tuya bt iot function"
         default n
