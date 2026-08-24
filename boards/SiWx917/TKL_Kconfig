@@ -16,21 +16,28 @@ config ENABLE_LWIP_DHCPD
     depends on ENABLE_LIBLWIP
     default n
 
-# decoder_mp3.c/minimp3.h reference this directly (see decoder_cfg.h and
-# tuya_mem_section.h), so it stays global rather than nested under
-# ENABLE_AI_PLAYER's Decoder Options menu in src/audio_player/Kconfig; no other
-# platform selects it.
+# Read only by this platform's build files -- platform_config.cmake, which
+# injects the redirect, and CMakeLists.txt, which links the pool. Nothing in
+# src/ references it, so it does not belong under ENABLE_AI_PLAYER's Decoder
+# Options menu in src/audio_player/Kconfig; no other platform selects it.
 config MP3_DECODER_STATIC_BUF
     bool "MP3_DECODER_STATIC_BUF: allocate minimp3 scratch/context from a dedicated internal-RAM pool"
     default n
     help
-      Route the decoder's MP3_MALLOC/MP3_FREE hook (src/audio_player/.../minimp3.h)
-      to a small dedicated internal-RAM pool (mcu/src/mp3_internal_pool.c, ~23KB)
-      instead of the general purpose heap.
+      Allocate the MP3 decoder's per-frame scratch and its long-lived context
+      from a small dedicated internal-RAM pool (mcu/src/mp3_internal_pool.c,
+      ~23KB) instead of the general purpose heap.
 
-      This is about memory latency, not heap pressure. With ENABLE_EXT_RAM the
-      MP3_MALLOC hook allocates from PSRAM, and decoding out of PSRAM cannot keep
-      up: mp3dec_scratch_t (grbuf/syn, ~16KB) is read and written throughout every
+      src/audio_player is untouched upstream and knows nothing about this:
+      decoder_mp3.c and minimp3.h both name tal_psram_malloc/tal_psram_free
+      directly under ENABLE_EXT_RAM. The platform redirects them by force-
+      including a header that redefines those two names (see
+      platform_config.cmake), scoped to decoder_mp3.c alone so that every other
+      tal_psram_malloc caller still gets PSRAM.
+
+      This is about memory latency, not heap pressure. Left alone the decoder
+      allocates from PSRAM, and decoding out of PSRAM cannot keep up:
+      mp3dec_scratch_t (grbuf/syn, ~16KB) is read and written throughout every
       frame, which stutters audibly on SiWx917. The pool sits in internal RAM,
       removing the PSRAM access latency.
 
@@ -38,7 +45,8 @@ config MP3_DECODER_STATIC_BUF
       (pvPortMalloc/ucHeap) on purpose: that heap also serves task stacks and
       queues, and routing the decoder through it was tried and failed on real
       hardware -- a 16KB allocation returned NULL because nothing that size was
-      free. This pool never competes with anything else.
+      free. Routing it to the newlib heap (_sbrk) was tried too and also
+      rejected. This pool never competes with anything else.
 
       Costs ~23KB of internal RAM permanently (reserved for the pool, not
       freed back even when idle) and only ever holds one context + one
@@ -49,9 +57,13 @@ config ENABLE_BLUETOOTH
     select ENABLE_BT_SERVICE
     default y
 
+# n, like PWM and RTC below: there is no tkl_adc.c in this platform's adapter
+# (nor an include/adc), so examples/peripherals/adc -- the only thing that
+# reads this -- would configure and then fail to link. Saying n makes it stop
+# at its own error message instead.
 config ENABLE_ADC
     bool
-    default y
+    default n
 
 config ENABLE_GPIO
     bool
@@ -92,10 +104,6 @@ config CONFIG_SPIRAM
     default y
 
 config ENABLE_TIMER
-    bool
-    default y
-
-config ENABLE_WDT
     bool
     default y
 
