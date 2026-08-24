@@ -135,11 +135,16 @@ typedef struct netmgr_conn_base {
  * The concrete counter-example, because a limit is worth naming: the serial CLI
  * thread's stack is SERIAL_CLI_STACK_SIZE, 3072 bytes by default
  * (src/tal_cli/Kconfig). netmgr_deinit() fits there; netmgr_init() does not on
- * T5AI with ENABLE_BLUETOOTH, which is why netmgr_cli.c does not offer it as a
- * plain command. Note what that means: a caller can satisfy every DOCUMENTED
- * rule - it is not on the WORKQ_SYSTEM thread, netmgr is not already up - and
- * still overflow its stack. There is no runtime check for it and this comment is
- * the only guard.
+ * T5AI with ENABLE_BLUETOOTH.
+ *
+ * `netmgr init` exists anyway, because an operator who has just run
+ * `netmgr deinit` needs a way back, and it warns instead of refusing - refusing
+ * would need a stack-headroom test this SDK has no way to make, and the stack it
+ * would overflow is the one such a check would itself be running on. So note
+ * what the limit really means: a caller can satisfy every DOCUMENTED rule - it
+ * is not on the WORKQ_SYSTEM thread, netmgr is not already up - and still
+ * overflow. There is no runtime check anywhere, and this comment plus that
+ * warning are the only guards.
  *
  * @param type bitmask of netmgr_type_e link types to bring up
  *
