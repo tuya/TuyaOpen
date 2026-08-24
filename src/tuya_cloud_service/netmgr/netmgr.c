@@ -33,6 +33,13 @@
 #include "tuya_error_code.h"
 #include "tuya_lan.h"
 
+/* The data plane, included here and not from netmgr.h: the control plane's public
+ * header must not depend on it. tal_net_route.h is the one channel netmgr uses to
+ * write the data plane; tal_network_register.h is here for tal_network_card_init()
+ * and for TAL_NET_PROVIDER_DEFAULT. */
+#include "tal_network_register.h"
+#include "tal_net_route.h"
+
 #ifdef ENABLE_WIFI
 #include "netconn_wifi.h"
 extern netmgr_conn_wifi_t s_netmgr_wifi;
@@ -247,59 +254,90 @@ static OPERATE_RET __get_netmgr_status(netmgr_type_e type, netmgr_status_e *stat
     return rt;
 }
 
+/* Pushing the active route down to the data plane
+ * ===============================================
+ * The route is one value - which socket backend, plus the source address
+ * outbound sockets bind to - and it goes down in one tal_net_route_set(). It
+ * used to be two independent pushes, the backend from inside the lock and the
+ * address from outside it, which left a window where the data plane already ran
+ * the new backend while still bound to the address of the old one.
+ *
+ * The two halves are read from different places under different rules, so every
+ * call site follows the same three steps:
+ *
+ *   1. before taking the lock: tal_net_route_get() for the route currently
+ *      installed, so a type that resolves to nothing keeps the backend it has;
+ *   2. under the lock: __netmgr_snap_provider(), which walks s_netmgr.conn;
+ *   3. after dropping the lock: __netmgr_push_route(), which reads the address
+ *      via conn->get(NETCONN_CMD_IP) - a blocking modem exchange on cellular,
+ *      so it must not run under the lock - and installs both halves at once.
+ */
+
+/**
+ * @brief Snapshot which socket backend the connection behind @a type uses.
+ *
+ * Only the provider half is resolved here; see the note above on why the source
+ * address cannot be read at this point.
+ *
+ * @note Caller must hold s_netmgr.lock: this walks the connection list.
+ *
+ * @param[in]     type  the connection to resolve
+ * @param[in,out] route provider is overwritten when @a type resolves and left
+ *                      untouched otherwise, so seed it before calling
+ */
+static void __netmgr_snap_provider(netmgr_type_e type, tal_net_route_t *route)
+{
+    netmgr_conn_base_t *p_conn = __get_conn_by_type(type);
+
+    // __get_conn_by_type() returns NULL for NETCONN_AUTO and for a type nothing
+    // registered. Nothing to retarget then - keep the backend we had rather than
+    // dereference NULL. The caller still pushes the route, which clears the
+    // source address, and still publishes its event.
+    if (NULL == p_conn) {
+        PR_ERR("netmgr conn [%s] not found, active provider left unchanged", NETMGR_TYPE_TO_STR(type));
+        return;
+    }
+
+    route->provider = p_conn->card_type;
+}
+
+/**
+ * @brief Install the active route on the data plane, both halves in one call.
+ *
+ * Outbound sockets bind to route->src_ip so traffic leaves the interface netmgr
+ * picked. Pushing it here means it tracks every link event - including a cellular
+ * redial or DHCP renew that hands out a different address - whereas caching it at
+ * first use would pin the first address seen for the life of the transport.
+ *
+ * @note Must be called with s_netmgr.lock released: it goes out to
+ *       conn->get(NETCONN_CMD_IP), which on cellular is a blocking modem
+ *       exchange. @a type and @a status are snapshots and the body touches no
+ *       s_netmgr field of its own, so it needs no lock.
+ *
+ * @param[in]     type   the active connection, whose address is read here
+ * @param[in]     status its link status; only a link that is up is asked for one
+ * @param[in,out] route  provider snapshotted under the lock; src_ip filled here
+ */
+static void __netmgr_push_route(netmgr_type_e type, netmgr_status_e status, tal_net_route_t *route)
+{
+    NW_IP_S nw_ip = {0};
+
+    // 0 means "do not bind": better an unbound socket than one pinned to an
+    // address the link no longer owns.
+    route->src_ip = 0;
+
+    if (NETMGR_LINK_DOWN != status && OPRT_OK == netmgr_conn_get(type, NETCONN_CMD_IP, &nw_ip) && nw_ip.ip[0] != '\0') {
+        route->src_ip = tal_net_str2addr(nw_ip.ip);
+    }
+
+    tal_net_route_set(route);
+}
+
 /**
  * @brief connection event callback, called when connection event happed
  *
  * @param event the connection event
  */
-/**
- * @brief Publish the active connection address down to tal_network.
- *
- * Outbound sockets bind to this so traffic leaves the interface netmgr picked.
- * Pushing it here means it tracks every link event - including a cellular redial
- * or DHCP renew that hands out a different address - whereas caching it at first
- * use would pin the first address seen for the life of the transport.
- *
- * @note Must be called with s_netmgr.lock released: it goes out to
- *       conn->get(NETCONN_CMD_IP), which on cellular is a blocking modem
- *       exchange. Both arguments are snapshots and the body touches no
- *       s_netmgr field of its own, so it needs no lock.
- */
-static void __netmgr_sync_active_ip(netmgr_type_e type, netmgr_status_e status)
-{
-    TUYA_IP_ADDR_T addr = 0;
-    NW_IP_S nw_ip = {0};
-
-    if (NETMGR_LINK_DOWN != status && OPRT_OK == netmgr_conn_get(type, NETCONN_CMD_IP, &nw_ip) &&
-        nw_ip.ip[0] != '\0') {
-        addr = tal_net_str2addr(nw_ip.ip);
-    }
-
-    // 0 means "do not bind": better an unbound socket than one pinned to an
-    // address the link no longer owns.
-    tal_network_card_set_active_ip(addr);
-}
-
-/**
- * @brief Point tal_network at the card backing @a type.
- *
- * @note Caller must hold s_netmgr.lock.
- */
-static void __netmgr_set_active_card(netmgr_type_e type)
-{
-    netmgr_conn_base_t *p_conn = __get_conn_by_type(type);
-
-    // __get_conn_by_type() returns NULL for NETCONN_AUTO and for a type nothing
-    // registered. Nothing to retarget then - keep the card we had rather than
-    // dereference NULL. The caller still publishes its event.
-    if (NULL == p_conn) {
-        PR_ERR("netmgr conn [%s] not found, active card left unchanged", NETMGR_TYPE_TO_STR(type));
-        return;
-    }
-
-    tal_network_card_set_active(p_conn->card_type);
-}
-
 static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
 {
     // status unused
@@ -309,10 +347,15 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
     BOOL_T          status_chg = FALSE;
     netmgr_type_e   pub_active = NETCONN_AUTO;
     netmgr_status_e pub_status = NETMGR_LINK_DOWN;
+    tal_net_route_t route      = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0};
 
     if (!(s_netmgr.type & type)) {
         return;
     }
+
+    // Step 1 of the route push described above: read what is installed before
+    // taking the lock. The initialiser only covers a route_get() that fails.
+    tal_net_route_get(&route);
 
     tal_mutex_lock(s_netmgr.lock);
 
@@ -326,9 +369,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
                  NETMGR_TYPE_TO_STR(s_netmgr.active), NETMGR_TYPE_TO_STR(active_conn), s_netmgr.status, active_status);
         s_netmgr.status = active_status;
         s_netmgr.active = active_conn;
-        __netmgr_set_active_card(active_conn);
-        type_chg   = TRUE;
-        status_chg = TRUE;
+        type_chg        = TRUE;
+        status_chg      = TRUE;
     } else if (active_status != s_netmgr.status) {
         // active_status changed
         PR_DEBUG("netmgr conn status changed [%s] --> [%s]", NETMGR_STATUS_TO_STR(s_netmgr.status),
@@ -340,19 +382,25 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
         PR_DEBUG("netmgr conn type changed [%s] --> [%s]", NETMGR_TYPE_TO_STR(s_netmgr.active),
                  NETMGR_TYPE_TO_STR(active_conn));
         s_netmgr.active = active_conn;
-        __netmgr_set_active_card(active_conn);
-        type_chg = TRUE;
+        type_chg        = TRUE;
     }
+
+    // Step 2: snapshot the backend behind the active connection. Done whichever
+    // branch above ran, or none of them, because the route is pushed
+    // unconditionally below and its provider half always has to be filled in;
+    // unless the active connection just changed, this is the value already
+    // installed and the push is a no-op on that half.
+    __netmgr_snap_provider(active_conn, &route);
 
     pub_active = s_netmgr.active;
     pub_status = s_netmgr.status;
 
     tal_mutex_unlock(s_netmgr.lock);
 
-    // Refreshed unconditionally, whichever branch above ran or none of them: any
-    // of them can mean the source address changed (a same-connection down/up
-    // cycle among them), and a connection re-reporting link-up with a new address
-    // takes no branch at all yet still has to be picked up here.
+    // Step 3: one push, unconditionally, whichever branch above ran or none of
+    // them: any of them can mean the source address changed (a same-connection
+    // down/up cycle among them), and a connection re-reporting link-up with a new
+    // address takes no branch at all yet still has to be picked up here.
     //
     // This assumes a connection reports link-up only once its address is usable.
     // That holds on T5AI, where WFE_CONNECTED is raised from EVENT_NETIF_GOT_IP4
@@ -361,8 +409,8 @@ static void __netmgr_event_cb(netmgr_type_e type, netmgr_status_e status)
     //
     // Runs after the unlock, on the locals decided above: it reaches
     // conn->get(NETCONN_CMD_IP), a blocking modem exchange on cellular. Still
-    // ahead of the publishes, so subscribers already see the new bound address.
-    __netmgr_sync_active_ip(active_conn, active_status);
+    // ahead of the publishes, so subscribers already see the new route.
+    __netmgr_push_route(active_conn, active_status, &route);
 
     // Published from local copies, after the unlock: subscribers re-enter netmgr
     // synchronously (tuya_iot's __tuya_iot_link_type_change_cb calls
@@ -476,6 +524,7 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
     OPERATE_RET rt = OPRT_OK;
     netmgr_type_e   active = NETCONN_AUTO;
     netmgr_status_e status = NETMGR_LINK_DOWN;
+    tal_net_route_t route  = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0};
 
     TUYA_CALL_ERR_RETURN(tal_network_card_init());
 
@@ -512,13 +561,21 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 
     s_netmgr.inited = TRUE;
 
-    // A link already up when we get here publishes no event, so seed the address.
-    // Snapshot, then sync with the lock released - the sync reaches conn->get().
+    // A link already up when we get here publishes no event, so seed the route.
+    // Same three steps as __netmgr_event_cb(): installed route first, provider
+    // snapshotted under the lock, one push once the lock is released - the push
+    // reaches conn->get(NETCONN_CMD_IP). Seeding the provider here as well as the
+    // address is new: the address used to go down on its own, leaving the backend
+    // at whatever tal_network_card_init() defaulted to until the first link event.
+    // The route is one value now, so both halves are seeded together.
+    tal_net_route_get(&route);
+
     tal_mutex_lock(s_netmgr.lock);
     status = s_netmgr.status;
+    __netmgr_snap_provider(active, &route);
     tal_mutex_unlock(s_netmgr.lock);
 
-    __netmgr_sync_active_ip(active, status);
+    __netmgr_push_route(active, status, &route);
 
     // Cellular not support LAN
 #if !defined(ENABLE_CELLULAR) || (ENABLE_CELLULAR == 0)
@@ -592,17 +649,25 @@ OPERATE_RET netmgr_conn_set(netmgr_type_e type, netmgr_conn_config_type_e cmd, v
     // safe.
     rt = cur_conn->set(cmd, param);
 
-    // Setting the address changes it without any link event, so refresh
-    // what outbound sockets bind to. Only meaningful for the active
-    // connection; a standby one is not what traffic leaves through.
+    // Setting the address changes it without any link event, so refresh the route
+    // outbound sockets follow. Only meaningful for the active connection; a
+    // standby one is not what traffic leaves through.
     if (OPRT_OK == rt && NETCONN_CMD_IP == cmd && type == active) {
         netmgr_status_e status = NETMGR_LINK_DOWN;
+        tal_net_route_t route  = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0};
+
+        // Same three steps as __netmgr_event_cb(): installed route first, then the
+        // provider under the lock, then a single push once it is released. Only
+        // the address is actually moving here - the backend is re-snapshotted
+        // rather than assumed so the push carries one consistent pair.
+        tal_net_route_get(&route);
 
         tal_mutex_lock(s_netmgr.lock);
         status = s_netmgr.status;
+        __netmgr_snap_provider(type, &route);
         tal_mutex_unlock(s_netmgr.lock);
 
-        __netmgr_sync_active_ip(type, status);
+        __netmgr_push_route(type, status, &route);
     }
 
     return rt;
