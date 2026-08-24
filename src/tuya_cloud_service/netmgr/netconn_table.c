@@ -67,11 +67,18 @@ extern netmgr_conn_cellular_t s_netmgr_cellular;
  * Two transcription rules worth stating, because both come up below:
  *
  *   - an arm that only breaks and falls through to `return OPRT_OK` still counts
- *     as supported, even when it does nothing - netconn_wired_get()'s
- *     NETCONN_CMD_CLOSE is exactly that;
+ *     as supported, even when it does nothing;
  *   - an arm that explicitly answers OPRT_NOT_SUPPORTED does not count -
  *     netconn_cellular_get()'s NETCONN_CMD_MAC. Screening it out one layer up
  *     hands the same code to the same caller.
+ *
+ * NETCONN_CMD_CLOSE is where the transcription has to agree with the row's .ctrl
+ * level, so it is called out here. Only a NETCONN_CTRL_MANAGED link can honour
+ * the command, and only wifi carries the bit. wired (OBSERVE) and cellular
+ * (SUSTAINED) leave it out deliberately: neither TAL layer exposes any way to
+ * bring the link down, so the OPRT_OK they used to answer with was a lie told to
+ * tuya_iot_destroy(). The OPRT_NOT_SUPPORTED this screen returns instead is less
+ * convenient and more true.
  */
 
 #if NETCONN_TABLE_HAS_WIFI
@@ -105,16 +112,19 @@ extern netmgr_conn_cellular_t s_netmgr_cellular;
 #define NETCONN_WIRED_SET_MASK                                                                                         \
     (NETCONN_ATTR_BIT(NETCONN_CMD_PRI) | NETCONN_ATTR_BIT(NETCONN_CMD_IP) | NETCONN_ATTR_BIT(NETCONN_CMD_MAC))
 
-/* netconn_wired_get(): PRI, IP, MAC, STATUS and CLOSE - CLOSE is an empty arm
- * that still answers OPRT_OK, so the bit has to be here. */
+/* netconn_wired_get(): PRI, IP, MAC, STATUS. No CLOSE: closing a link is not an
+ * attribute a getter can read, and no caller in the tree ever asked for it. */
 #define NETCONN_WIRED_GET_MASK                                                                                         \
     (NETCONN_ATTR_BIT(NETCONN_CMD_PRI) | NETCONN_ATTR_BIT(NETCONN_CMD_IP) | NETCONN_ATTR_BIT(NETCONN_CMD_MAC) |        \
-     NETCONN_ATTR_BIT(NETCONN_CMD_STATUS) | NETCONN_ATTR_BIT(NETCONN_CMD_CLOSE))
+     NETCONN_ATTR_BIT(NETCONN_CMD_STATUS))
 #endif /* NETCONN_TABLE_HAS_WIRED */
 
 #if NETCONN_TABLE_HAS_CELLULAR
-/* netconn_cellular_set(): PRI and CLOSE. */
-#define NETCONN_CELLULAR_SET_MASK (NETCONN_ATTR_BIT(NETCONN_CMD_PRI) | NETCONN_ATTR_BIT(NETCONN_CMD_CLOSE))
+/* netconn_cellular_set(): PRI only. No CLOSE: tal_cellular.h has
+ * tal_cellular_init() but no deinit, and no connect/disconnect pair, so nothing
+ * this driver can call brings the bearer down. That is what the row's
+ * NETCONN_CTRL_SUSTAINED records. */
+#define NETCONN_CELLULAR_SET_MASK (NETCONN_ATTR_BIT(NETCONN_CMD_PRI))
 
 /* netconn_cellular_get(): PRI, STATUS, IP. MAC is an explicit
  * OPRT_NOT_SUPPORTED arm, so it stays out. */

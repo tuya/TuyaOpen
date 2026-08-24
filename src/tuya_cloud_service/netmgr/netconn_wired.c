@@ -170,8 +170,12 @@ OPERATE_RET netconn_wired_get(netmgr_conn_config_type_e cmd, void *param)
     case NETCONN_CMD_STATUS:
         *(netmgr_status_e *)param = netmgr_wired->base.status;
         break;
-    case NETCONN_CMD_CLOSE:
-        break;
+    // No NETCONN_CMD_CLOSE arm: handling "close" in a getter is meaningless, and
+    // no caller in the tree ever issued get(NETCONN_CMD_CLOSE). The empty arm it
+    // replaces answered OPRT_OK for a command it did not perform. On the set side
+    // the command never reaches this driver at all - NETCONN_WIRED_SET_MASK has no
+    // CLOSE bit, because tal_wired.h has no way to take the link down, which is
+    // what NETCONN_CTRL_OBSERVE records for this row.
     default:
         return OPRT_NOT_SUPPORTED;
     }

@@ -117,7 +117,11 @@ OPERATE_RET netconn_cellular_open(void *config)
  * touches this file's static state and the NULL-checked base.event_cb, so it is.
  *
  * When the TKL layer grows a PPP/modem shutdown, this is the single place it
- * belongs - NETCONN_CMD_CLOSE already routes here for exactly that reason.
+ * belongs, and the moment it exists NETCONN_CMD_CLOSE can be handed back to
+ * netconn_cellular_set() and to NETCONN_CELLULAR_SET_MASK. Until then that
+ * command is refused rather than answered with a hollow OPRT_OK. This function
+ * stays, because netmgr_deinit() calls conn->close() on every link directly; it
+ * simply has nothing to dismantle.
  *
  * Trivially idempotent.
  *
@@ -141,12 +145,15 @@ OPERATE_RET netconn_cellular_set(netmgr_conn_config_type_e cmd, void *param)
         netmgr_cellular->base.pri = *(int *)param;
         netmgr_cellular->base.event_cb(NETCONN_CELLULAR, netmgr_cellular->base.status);
     } break;
-    case NETCONN_CMD_CLOSE: {
-        // tuya_iot issues this on teardown. Route it at the close handler so there
-        // is one place to add a real PPP/modem shutdown once the TKL layer exposes
-        // a deinit; today it succeeds without tearing the link down, matching wired.
-        rt = netconn_cellular_close();
-    } break;
+    // No NETCONN_CMD_CLOSE arm, on purpose. tal_cellular.h exposes
+    // tal_cellular_init() but neither a deinit nor a connect/disconnect pair, so
+    // this driver has no call that brings the bearer down - which is exactly what
+    // NETCONN_CTRL_SUSTAINED means for it. The arm that used to be here returned
+    // OPRT_OK after calling the no-op netconn_cellular_close(), telling
+    // tuya_iot_destroy() the link was closed while it was still up. Falling into
+    // default: reports OPRT_NOT_SUPPORTED, which is the truth and is what a
+    // caller can act on. This is not "not supported yet by netmgr" - there is no
+    // TKL entry point to support.
     default: {
         rt = OPRT_NOT_SUPPORTED;
     } break;
