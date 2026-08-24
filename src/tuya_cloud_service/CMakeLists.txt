@@ -13,18 +13,24 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/lan/*.c"
     "${MODULE_PATH}/netmgr/netmgr.c"
-    # Unconditional, both of them. netconn_table.c is the registry itself: its
-    # rows are #ifdef'd per technology inside the file, so the file always
-    # compiles even when no link driver is enabled. netmgr_cli.c is generic over
-    # the registry and needs no per-technology gate either.
+    # Unconditional, all five. netconn_table.c is the registry itself: its rows
+    # are #ifdef'd per technology inside the file, so the file always compiles
+    # even when no link driver is enabled. netmgr_cli.c is generic over the
+    # registry and needs no per-technology gate either.
+    #
+    # The three M3 modules are unconditional for a stronger reason than
+    # convenience: netmgr.c references all three unconditionally, so gating any of
+    # them would be an undefined reference rather than a smaller image. They are
+    # also technology-free by construction - netmgr_policy.c and netmgr_retry.c
+    # are pure arithmetic over their arguments, and netmgr_probe.c subscribes to
+    # two event names from tal_event_info.h, which sits BELOW netmgr. None of them
+    # includes a driver header, so there is nothing for an ENABLE_<TECH> gate to
+    # protect.
     "${MODULE_PATH}/netmgr/netconn_table.c"
     "${MODULE_PATH}/netmgr/netmgr_cli.c"
-    # netmgr_retry.c is unconditional for a stronger reason than convenience:
-    # netconn_wifi.c references it unconditionally, so gating it would be an
-    # undefined reference rather than a smaller image. It is technology-free by
-    # construction - pure arithmetic over its arguments, no driver header.
-    "${MODULE_PATH}/netmgr/netmgr_retry.c"
     "${MODULE_PATH}/netmgr/netmgr_policy.c"
+    "${MODULE_PATH}/netmgr/netmgr_probe.c"
+    "${MODULE_PATH}/netmgr/netmgr_retry.c"
     "${MODULE_PATH}/protocol/*.c"
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"
