@@ -816,16 +816,22 @@ static void __netmgr_cli_init(const netmgr_state_t *state)
         return;
     }
 
-    /* Said on the INIT side of the pair, not the deinit side, because init is the
-     * half that causes it and the operator looping these two is the one person who
-     * needs to know why the thread count climbs. No TAL entry point can withdraw a
-     * callback a driver installed, and the LINUX tkl_wired_set_status_cb() ends in
-     * an unconditional pthread_create() of a detached poller, so every init after
-     * the first leaves one more thread polling the same wired link. Recorded in the
-     * netmgr_deinit() design note in netmgr_priv.h as a known limitation; it cannot
-     * be fixed below netmgr, it needs a TKL entry point to retract a callback. */
+    /* Said on the INIT side of the pair, because init is the half that installs
+     * the callback. No TAL entry point can withdraw one a driver installed - the
+     * two tkl_wired implementations in the tree either ignore a NULL argument
+     * outright or spawn another thread for it, see netconn_wired_close() - so
+     * after a deinit the platform poller is still running and still calling
+     * whatever the callback now points at. Recorded in the netmgr_deinit() design
+     * note in netmgr_priv.h; it cannot be fixed below netmgr, it needs a TKL entry
+     * point to retract a callback.
+     *
+     * The warning deliberately does NOT say the thread count climbs, which an
+     * earlier version did. It does not, on the platform that ships:
+     * platform/LINUX/tuyaos_adapter/src/tkl_wired.c guards its pthread_create()
+     * with `if (!wired_event_thread)`, so there is one poller for the life of the
+     * process no matter how many times netmgr is re-initialised. */
     PR_WARN("netmgr init: a re-init cannot withdraw callbacks a driver already");
-    PR_WARN("  installed; on LINUX each one adds a wired polling thread");
+    PR_WARN("  installed, so a platform poller may outlive the netmgr it calls");
 
     /* The other half of the caveat, and the one that ends the session rather than
      * leaking a thread. netmgr_init() runs every conn->open() on THIS thread - see

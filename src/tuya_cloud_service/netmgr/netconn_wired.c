@@ -100,11 +100,18 @@ OPERATE_RET netconn_wired_open(void *config)
  *
  * The one teardown that looks available is not: clearing the callback with
  * tal_wired_set_status_cb(NULL). No TAL or TKL contract says NULL is accepted,
- * and the reference implementation in tools/porting/template/linux/tkl_wired.c
- * spawns a fresh detached polling thread on every call - so passing NULL would
- * not remove the callback path, it would add another thread to it. Leave the
- * callback installed; the driver's static state is safe to be called back into
- * at any time, including after close().
+ * and neither implementation in the tree honours it. The adapter a LINUX build
+ * compiles, platform/LINUX/tuyaos_adapter/src/tkl_wired.c, puts its whole body
+ * under `if (cb)` - a NULL argument is ignored outright and does not even clear
+ * the stored pointer. The porting template,
+ * tools/porting/template/linux/tkl_wired.c, has no guard at all and ends in an
+ * unconditional pthread_create(), so there NULL would add another polling thread
+ * to the callback path instead of removing one.
+ *
+ * So leave the callback installed. The driver's static state is safe to be called
+ * back into at any time, including after close() - which is not a nicety, it is
+ * load-bearing, because on both implementations the platform thread keeps running
+ * and keeps calling.
  *
  * Trivially idempotent.
  *

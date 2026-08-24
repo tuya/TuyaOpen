@@ -103,24 +103,42 @@ extern "C" {
  *               tal_wifi_station_disconnect().
  *   - wired:    nothing to unsubscribe, and nothing to clear either. Do NOT
  *               "clear the status callback with NULL": no TAL or TKL contract
- *               says NULL is accepted, and the reference implementation in
- *               tools/porting/template/linux/tkl_wired.c ends
- *               tkl_wired_set_status_cb() with an unconditional
- *               pthread_create() of a detached polling thread, so passing NULL
- *               would ADD a thread to the callback path rather than remove one.
+ *               says NULL is accepted, and neither implementation in the tree
+ *               treats it as a withdrawal. In
+ *               platform/LINUX/tuyaos_adapter/src/tkl_wired.c - the adapter a
+ *               LINUX build actually compiles - the whole body sits under
+ *               `if (cb)`, so a NULL argument is ignored entirely and does not
+ *               even clear the stored pointer. In
+ *               tools/porting/template/linux/tkl_wired.c, the template for a new
+ *               port, tkl_wired_set_status_cb() ends in an unconditional
+ *               pthread_create(), so there NULL would ADD a thread to the
+ *               callback path rather than remove one. Silently ignored or
+ *               actively worse, depending on the port.
  *   - cellular: nothing available - tal_cellular.h has no deinit. close() stays
  *               a documented no-op, which is exactly what
  *               NETCONN_CTRL_SUSTAINED is telling the caller.
  *
- * KNOWN LIMITATION, deinit then init again: on LINUX every netmgr_init() leaks
- * one polling thread. netconn_wired_open() calls tal_wired_set_status_cb() and
- * the tkl_wired.c above spawns a fresh detached thread on every call with no way
- * to retract the previous one, so an init/deinit/init cycle ends with two
- * threads polling the same link and calling the same callback. This cannot be
- * fixed in the driver - tal_wired.h is six functions, all status/config, no
- * uninit - it needs a TKL entry point to withdraw the callback. Nothing in the
- * tree calls netmgr_deinit() today, so M2 is not blocked by it; it is recorded
- * here so the next caller finds it written down.
+ * KNOWN LIMITATION, deinit then init again: the wired poller outlives netmgr and
+ * keeps calling into it. netconn_wired_open() installs the callback and nothing
+ * can retract it, so after netmgr_deinit() the platform thread is still running
+ * and still invoking whatever base.event_cb holds. That is the concrete
+ * use-after-free this design note exists to answer, and it is why the mutex is
+ * retained rather than freed.
+ *
+ * An earlier version of this note said something stronger and wrong: that "on
+ * LINUX every netmgr_init() leaks one polling thread", so an init/deinit/init
+ * cycle ends with two pollers. It does not, on the platform that ships -
+ * platform/LINUX/tuyaos_adapter/src/tkl_wired.c guards the create with
+ * `if (!wired_event_thread)`, so there is exactly one for the life of the
+ * process however many times netmgr is re-initialised. The claim came from
+ * reading the porting template instead of the adapter; the correction is kept
+ * rather than dropped because the wrong version is the more alarming one and
+ * would send someone hunting a leak that is not there.
+ *
+ * Either way it cannot be fixed in the driver - tal_wired.h is six functions,
+ * all status/config, no uninit - it needs a TKL entry point to withdraw a
+ * callback. Nothing in the tree calls netmgr_deinit() today, so nothing is
+ * blocked by it; it is recorded here so the next caller finds it written down.
  *
  * A related consequence for the report path: because no TAL layer can withdraw
  * a callback it installed (tal_wifi.h has no uninit for the WIFI_EVENT_CB
