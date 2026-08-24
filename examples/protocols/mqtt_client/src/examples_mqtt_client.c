@@ -151,8 +151,9 @@ static void mqtt_client_example(void)
  */
 OPERATE_RET __link_status_cb(void *data)
 {
-    PR_DEBUG("link status changed: %d", (netmgr_status_e)data);
     netmgr_status_e new_status = *((netmgr_status_e *)data);
+    // netmgr publishes &pub_status, so log the pointed-to value, not the pointer.
+    PR_DEBUG("link status changed: %d", new_status);
     if (netmgr_status == new_status && NETMGR_LINK_UP == new_status)
         return OPRT_OK;
 

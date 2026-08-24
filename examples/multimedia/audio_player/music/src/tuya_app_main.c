@@ -95,7 +95,13 @@ return OPRT_OK;
 
 OPERATE_RET __link_status_cb(void *data)
 {
-    netmgr_status_e status = (netmgr_status_e)data;
+    netmgr_status_e status;
+
+    // netmgr publishes &pub_status, so data is a pointer to the value.
+    if (NULL == data) {
+        return OPRT_INVALID_PARM;
+    }
+    status = *(netmgr_status_e *)data;
 
     if (NETMGR_LINK_UP == status || NETMGR_LINK_UP_SWITH == status) {
         is_network_connected = true;
