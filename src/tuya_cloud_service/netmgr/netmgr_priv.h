@@ -1,0 +1,245 @@
+/**
+ * @file netmgr_priv.h
+ * @brief Module-internal contract between netmgr.c and its satellites.
+ *
+ * netmgr.c is the state machine. netmgr_cli.c (new in M2) is the CLI front end
+ * and lives in a separate translation unit, so it cannot reach `s_netmgr`, which
+ * is static and stays static. This header is the narrow, read-only window it
+ * gets instead: two snapshot accessors that take s_netmgr.lock, copy out, and
+ * release it, so no caller ever holds the lock while formatting output.
+ *
+ * Not a public API. It is reachable from anywhere only because
+ * src/tuya_cloud_service/netmgr is on LIB_PUBLIC_INC; nothing outside this
+ * module should include it.
+ *
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ */
+
+#ifndef __NETMGR_PRIV_H__
+#define __NETMGR_PRIV_H__
+
+#include "tuya_cloud_types.h"
+#include "netmgr.h"
+#include "netconn_registry.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/***********************************************************
+*********************** teardown ***************************
+***********************************************************/
+
+/* Design record for netmgr_deinit(), which is DECLARED IN netmgr.h
+ * ================================================================
+ * Not a doc comment: it documents no declaration in this file, so it is opened as
+ * a plain block rather than a Doxygen one, which would bind it to the next typedef.
+ *
+ * The declaration lives in netmgr.h next to netmgr_init(), where a public
+ * teardown API belongs; it is deliberately not repeated here. What stays here is
+ * the reasoning, which was written as one reviewable block before the code
+ * existed and is worth more next to the module internals than inlined in a
+ * header 44 files include.
+ *
+ * Symmetry with netmgr_init(), item by item:
+ *
+ *   init                                   deinit
+ *   ----------------------------------     ----------------------------------
+ *   tal_network_card_init()                nothing. The route lock has no
+ *                                          teardown entry point and the data
+ *                                          plane outlives netmgr. Documented
+ *                                          gap, not fixed by M2.
+ *   tal_mutex_create_init(&lock)           nothing - the mutex is RETAINED and
+ *                                          reused by the next netmgr_init().
+ *                                          Releasing it cannot be made safe:
+ *                                          drivers read base.event_cb with no
+ *                                          lock and no TAL layer can withdraw an
+ *                                          installed callback, so every guard is
+ *                                          "test a flag, then take the lock" and
+ *                                          only narrows the window. One retained
+ *                                          mutex per process beats a freed one
+ *                                          being locked. See netmgr.c.
+ *   register each table row, each          conn->close() then unlink, in
+ *     ending in conn->open()                 reverse registration order
+ *   tal_sw_timer_create/start (LAN)        stop + tal_sw_timer_delete, handle
+ *                                            set back to NULL
+ *   tuya_ble_init()                        see the BLE note below
+ *   (new in M2) the notify work item       tal_workq_cancel() then drain
+ *
+ * Order matters, and this is the order:
+ *
+ *   1. under the lock: clear `inited` and set a `stopping` flag, so
+ *      netmgr_conn_get/set() and netmgr_notify_link() start refusing work;
+ *   2. tal_workq_cancel(WORKQ_SYSTEM, <notify handler>, NULL) to drop an item
+ *      that is queued but has not started;
+ *   3. drain: wait for a handler that is already running to finish, so it never
+ *      observes a half-dismantled s_netmgr. The handler raises a busy counter
+ *      under the lock on entry and lowers it on exit; deinit polls that counter
+ *      with tal_system_sleep() under a bounded timeout. Because the mutex is
+ *      retained, a timeout is no longer a use-after-free: log an error, return
+ *      OPRT_TIMEOUT and finish the teardown. The consequence to state in that
+ *      log is that work the late handler had already started - a
+ *      tal_net_route_set() in particular - can land after deinit returned;
+ *   4. for each registered link, newest first: conn->close(), then
+ *      conn->event_cb = NULL, unlink it, conn->next = NULL,
+ *      conn->status = NETMGR_LINK_DOWN - the conn nodes are static globals that
+ *      a later netmgr_init() will reuse, so they must be left as they were
+ *      found;
+ *   5. stop and delete the LAN timer;
+ *   6. zero s_netmgr, restoring the two fields that must survive it: the mutex
+ *      handle, and `stopping` - a straggling handler that found stopping ==
+ *      FALSE would walk an empty connection list and push a route with src_ip 0.
+ *
+ * Per-driver duties inside conn->close(), which today are all missing - every
+ * one of these is a leak across an init/deinit cycle:
+ *   - wifi:     tal_event_unsubscribe(EVENT_RESET, "wifi", ...) and
+ *               (EVENT_LINK_ACTIVATE, "wifi", ...), tal_sw_timer_delete() on
+ *               conn.timer, netcfg_stop(NETCFG_STOP_ALL_CFG_MODULE),
+ *               tal_wifi_station_disconnect().
+ *   - wired:    nothing to unsubscribe, and nothing to clear either. Do NOT
+ *               "clear the status callback with NULL": no TAL or TKL contract
+ *               says NULL is accepted, and the reference implementation in
+ *               tools/porting/template/linux/tkl_wired.c ends
+ *               tkl_wired_set_status_cb() with an unconditional
+ *               pthread_create() of a detached polling thread, so passing NULL
+ *               would ADD a thread to the callback path rather than remove one.
+ *   - cellular: nothing available - tal_cellular.h has no deinit. close() stays
+ *               a documented no-op, which is exactly what
+ *               NETCONN_CTRL_SUSTAINED is telling the caller.
+ *
+ * KNOWN LIMITATION, deinit then init again: on LINUX every netmgr_init() leaks
+ * one polling thread. netconn_wired_open() calls tal_wired_set_status_cb() and
+ * the tkl_wired.c above spawns a fresh detached thread on every call with no way
+ * to retract the previous one, so an init/deinit/init cycle ends with two
+ * threads polling the same link and calling the same callback. This cannot be
+ * fixed in the driver - tal_wired.h is six functions, all status/config, no
+ * uninit - it needs a TKL entry point to withdraw the callback. Nothing in the
+ * tree calls netmgr_deinit() today, so M2 is not blocked by it; it is recorded
+ * here so the next caller finds it written down.
+ *
+ * A related consequence for the report path: because no TAL layer can withdraw
+ * a callback it installed (tal_wifi.h has no uninit for the WIFI_EVENT_CB
+ * either), the report shim must stay safe to enter at any time after
+ * netmgr_deinit(). Setting conn->event_cb = NULL is not sufficient - drivers
+ * read that pointer with no lock - so netmgr_notify_link() gates on a flag that
+ * netmgr_deinit() sets before it touches anything and only netmgr_init() clears.
+ *
+ * BLE: netmgr_init() calls tuya_ble_init() and tuya_iot_destroy() already calls
+ * tuya_ble_deinit(). netmgr_deinit() must therefore call tuya_ble_deinit() only
+ * when its own netmgr_init() was the one that brought BLE up, tracked with an
+ * ownership flag, and M2 must not remove tuya_iot's call. That netmgr owns the
+ * BLE stack at all is a layering problem; recording it here, fixing it in a
+ * separate PR.
+ *
+ * Contract for callers:
+ *   - idempotent, and safe when netmgr_init() never ran or failed part way,
+ *     which is what lets netmgr_init() call it on its own error paths. Before
+ *     M2 those paths returned with the mutex created and links registered when
+ *     no link came up; they call netmgr_deinit() now;
+ *   - must NOT be called from the WORKQ_SYSTEM thread: step 3 would wait on
+ *     itself. That rules out calling it from an EVENT_LINK_* subscriber.
+ *
+ * Returns OPRT_OK on success, including when there was nothing to tear down, and
+ * OPRT_TIMEOUT when the drain did not complete - in which case it still tears
+ * down everything it safely can. See netmgr.h for the caller-facing contract.
+ */
+/***********************************************************
+******************* snapshot accessors *********************
+***********************************************************/
+
+/**
+ * @brief Global netmgr state, copied out under the lock.
+ */
+typedef struct {
+    /** The type mask netmgr_init() was called with. */
+    netmgr_type_e configured;
+    /** The link traffic currently leaves through, or NETCONN_AUTO for none. */
+    netmgr_type_e active;
+    /** Status of that active link. */
+    netmgr_status_e status;
+    /** FALSE before netmgr_init() finishes and after netmgr_deinit(). */
+    BOOL_T inited;
+    /** Number of links actually registered, i.e. rows netmgr_link_info_at() has. */
+    uint32_t link_num;
+} netmgr_state_t;
+
+/**
+ * @brief One registered link, descriptor metadata plus live state.
+ *
+ * Everything the CLI needs to print a row, so netmgr_cli.c needs no `#ifdef
+ * ENABLE_<TECH>` for the dump path. That also fixes the current dump, which
+ * hand-codes a wifi block and a wired block and therefore never prints cellular
+ * at all.
+ */
+typedef struct {
+    /** Descriptor name, e.g. "wifi". Never NULL. */
+    const char   *name;
+    netmgr_type_e type;
+    /** Live priority from conn->pri, which a NETCONN_CMD_PRI set can have moved. */
+    uint8_t pri;
+    /** Live status from conn->status. */
+    netmgr_status_e status;
+    /** Provider from conn->card_type. */
+    uint8_t              provider;
+    netconn_caps_t       caps;
+    netconn_ctrl_level_e ctrl;
+    netconn_attr_mask_t  set_mask;
+    netconn_attr_mask_t  get_mask;
+} netmgr_link_info_t;
+
+/**
+ * @brief Snapshot the global state.
+ *
+ * @param[out] state filled on OPRT_OK, untouched otherwise
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET netmgr_state_get(netmgr_state_t *state);
+
+/**
+ * @brief Snapshot one registered link by position, for iteration.
+ *
+ * Positions run 0 .. netmgr_state_t.link_num - 1 and follow selection order:
+ * index 0 is the link __get_active_conn() considers first. Positions are only
+ * stable for as long as nothing registers or unregisters, which between
+ * netmgr_init() and netmgr_deinit() means always.
+ *
+ * @param[in]  index position in selection order
+ * @param[out] info  filled on OPRT_OK, untouched otherwise
+ *
+ * @return OPRT_OK on success, OPRT_NOT_FOUND when @a index is past the end.
+ *         Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET netmgr_link_info_at(uint32_t index, netmgr_link_info_t *info);
+
+/**
+ * @brief Snapshot one registered link by type.
+ *
+ * @param[in]  type a single netmgr_type_e bit
+ * @param[out] info filled on OPRT_OK, untouched otherwise
+ *
+ * @return OPRT_OK on success, OPRT_NOT_FOUND when @a type is not registered.
+ *         Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET netmgr_link_info_get(netmgr_type_e type, netmgr_link_info_t *info);
+
+/***********************************************************
+*************************** CLI ****************************
+***********************************************************/
+
+/**
+ * @brief The `netmgr` console command, moved out of netmgr.c into netmgr_cli.c.
+ *
+ * The symbol does not change, so the four `extern void netmgr_cmd(int, char **)`
+ * declarations in tal_cli and the app cli_cmd.c files keep working untouched.
+ *
+ * @param[in] argc argument count
+ * @param[in] argv argument vector
+ */
+void netmgr_cmd(int argc, char *argv[]);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __NETMGR_PRIV_H__ */
