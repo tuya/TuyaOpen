@@ -9,20 +9,12 @@
 #include <stdint.h>
 #include "tal_memory.h"
 
-/* mp3dec_scratch_t (~16KB) is rewritten throughout every frame, so its access
-   latency bounds decode time. A board whose heap lives in external RAM
-   defines these as its own allocator from CMake instead. */
-#ifndef MP3_MALLOC
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define MP3_MALLOC tal_psram_malloc
 #define MP3_FREE   tal_psram_free
 #else
 #define MP3_MALLOC tal_malloc
 #define MP3_FREE   tal_free
-#endif
-#else
-void *MP3_MALLOC(size_t size);
-void  MP3_FREE(void *ptr);
 #endif
 
 #define MINIMP3_MAX_SAMPLES_PER_FRAME (1152 * 2)

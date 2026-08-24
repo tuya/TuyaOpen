@@ -25,10 +25,13 @@
 
 #define MP3_HEAD_SIZE (10)
 
-/* The context embeds mp3dec_t (mdct_overlap/qmf_state), rewritten on every
-   frame just like the scratch, so it shares its allocator. */
-#define DECODER_MP3_MALLOC MP3_MALLOC
-#define DECODER_MP3_FREE   MP3_FREE
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#define DECODER_MP3_MALLOC tal_psram_malloc
+#define DECODER_MP3_FREE   tal_psram_free
+#else
+#define DECODER_MP3_MALLOC tal_malloc
+#define DECODER_MP3_FREE   tal_free
+#endif
 
 typedef struct {
     bool is_first_frame;
