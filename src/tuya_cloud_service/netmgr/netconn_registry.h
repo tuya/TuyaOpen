@@ -169,12 +169,25 @@ typedef uint32_t netconn_caps_t;
 /**
  * Traffic on this link is billed by volume.
  *
- * M3's selection policy uses this to keep a metered link as a fallback rather
- * than a peer: it should lose to any unmetered link that is up, and chatty
- * optional traffic (LAN discovery, OTA polling) should be held back while it is
- * the active link. Today the same intent is expressed by hardcoding cellular's
- * default priority to 0 and by compiling LAN out, neither of which survives a
- * board that wants a different order.
+ * DECLARED AND SURFACED, NOT ACTED ON. An earlier version of this comment said
+ * "M3's selection policy uses this to keep a metered link as a fallback rather
+ * than a peer". It does not, and the correction is recorded rather than quietly
+ * dropped: netmgr_policy.c contains no reference to `caps` at all, so the
+ * built-in ranking cannot see this bit. What is true is narrower -
+ *
+ *   - the bit reaches a product ranking hook through netmgr_link_view_t.caps, so
+ *     a board CAN implement the intent below without patching netmgr;
+ *   - netmgr_cli.c renders it, so `netmgr` shows which links are metered;
+ *   - the shipped table expresses "cellular is a fallback" with default_pri
+ *     instead - cellular 0, wifi 1, wired 2. That is a working expression of the
+ *     ordering, it is just priority rather than capability, so it says nothing
+ *     about billing and a board reordering priorities loses the intent silently.
+ *
+ * The intent, for whoever implements it: a metered link should lose to any
+ * unmetered link that is up, and chatty optional traffic - LAN discovery, OTA
+ * polling - should be held back while it is the active link. Doing the first
+ * needs one tier in netmgr_policy_select_default() above the priority compare;
+ * the second needs consumers that today ask only "is there a link".
  */
 #define NETCONN_CAP_METERED (1u << 3)
 
@@ -214,9 +227,20 @@ typedef char netconn_attr_mask_fits_in_u32_t[(NETCONN_CMD_RECONN_TABLE < 32) ? 1
  */
 typedef struct netconn_desc {
     /**
-     * Short lowercase name for logs and CLI output, e.g. "wifi". Replaces
-     * NETMGR_TYPE_TO_STR() on every netmgr-internal log line, which is what
-     * keeps a new link type from having to touch that macro.
+     * Short lowercase name for logs and CLI output, e.g. "wifi".
+     *
+     * This is what names a REGISTERED link everywhere in the module -
+     * netmgr.c's internal log lines and, through
+     * netmgr_cli.c's __netmgr_cli_type_name(), the CLI dump and the
+     * `netmgr switch` confirmations. So a link type added by a board is named
+     * correctly without touching NETMGR_TYPE_TO_STR().
+     *
+     * Scoped deliberately: an earlier version of this comment said the field
+     * "replaces NETMGR_TYPE_TO_STR() on every netmgr-internal log line", which
+     * overstated it. That macro survives, and has to, for the two places that
+     * name a type which is NOT in the registry and therefore has no descriptor
+     * to read: netmgr_policy_pin()'s rejection of an unregistered type, and the
+     * `netmgr switch` arm for a link torn down between the lookup and the pin.
      */
     const char *name;
 
@@ -323,8 +347,17 @@ const netconn_desc_t *netconn_registry_find(netmgr_type_e type);
 /**
  * @brief Report a link state change to netmgr, from any context.
  *
- * This replaces the netmgr_conn_base_t.event_cb function pointer as the way a
- * driver tells netmgr something happened. The difference is where the work runs.
+ * The way a driver should tell netmgr something happened, and what
+ * netmgr_conn_base_t.event_cb now resolves to. The difference is where the work
+ * runs.
+ *
+ * "Replaces event_cb" is how an earlier version of this comment put it, and that
+ * overstates the mechanism: no in-tree driver calls this function. All three
+ * still call base.event_cb, which registration points at a one-line shim in
+ * netmgr.c that calls this. That indirection is deliberate and is what let the
+ * threading model change without touching a single driver - but it means the old
+ * path is still the one being exercised, so a NEW driver should call this
+ * directly rather than copy the event_cb idiom from an existing one.
  *
  * event_cb was a synchronous call, so the whole netmgr state machine - reselect
  * the active link, push the route down to the data plane, publish

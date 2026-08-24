@@ -143,7 +143,13 @@ OPERATE_RET netconn_cellular_set(netmgr_conn_config_type_e cmd, void *param)
     switch (cmd) {
     case NETCONN_CMD_PRI: {
         netmgr_cellular->base.pri = *(int *)param;
-        netmgr_cellular->base.event_cb(NETCONN_CELLULAR, netmgr_cellular->base.status);
+        /* Guarded like every other call to it in this file. Unreachable through
+         * netmgr_conn_set(), which refuses before netmgr_init() has installed the
+         * shim - but netconn_cellular_set() is on the global public include path, so
+         * "no caller does that today" is not the same as "nobody can". */
+        if (netmgr_cellular->base.event_cb) {
+            netmgr_cellular->base.event_cb(NETCONN_CELLULAR, netmgr_cellular->base.status);
+        }
     } break;
     // No NETCONN_CMD_CLOSE arm, on purpose. tal_cellular.h exposes
     // tal_cellular_init() but neither a deinit nor a connect/disconnect pair, so

@@ -129,7 +129,13 @@ OPERATE_RET netconn_wired_set(netmgr_conn_config_type_e cmd, void *param)
     switch (cmd) {
     case NETCONN_CMD_PRI:
         netmgr_wired->base.pri = *(int *)param;
-        netmgr_wired->base.event_cb(NETCONN_WIRED, netmgr_wired->base.status);
+        /* Guarded like every other call to it in this file. Unreachable through
+         * netmgr_conn_set(), which refuses before netmgr_init() has installed the
+         * shim - but netconn_wired_set() is on the global public include path, so
+         * "no caller does that today" is not the same as "nobody can". */
+        if (netmgr_wired->base.event_cb) {
+            netmgr_wired->base.event_cb(NETCONN_WIRED, netmgr_wired->base.status);
+        }
         break;
     case NETCONN_CMD_IP:
         TUYA_CALL_ERR_RETURN(tal_wired_set_ip((NW_IP_S *)param));

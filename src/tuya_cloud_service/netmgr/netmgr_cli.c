@@ -145,6 +145,29 @@ static void __netmgr_cli_caps_str(netconn_caps_t caps, char *buf, uint32_t len)
  *
  * @return the threshold a BAD count is actually compared against
  */
+/**
+ * @brief Name a link type the way the rest of the module does: from the registry.
+ *
+ * NETMGR_TYPE_TO_STR() enumerates the three in-tree technologies and answers
+ * "unknown" for anything else, which defeats the point of a registry - a board
+ * that adds a link type through netconn_registry_set_table() would see its link
+ * printed as "unknown" by every line below. Worst of it was `netmgr switch`,
+ * which resolves the argument BY NAME out of the registry and then reported the
+ * result through the macro.
+ *
+ * The macro is still the fallback and has to be, because two callers below name a
+ * type that is deliberately NOT in the registry: an unregistered pin, and the
+ * teardown race in `netmgr switch`. There is no descriptor to read a name from in
+ * either case, which is also why netmgr_policy.c keeps using the macro directly -
+ * its one call site is the arm reached only when the lookup returned NULL.
+ */
+static const char *__netmgr_cli_type_name(netmgr_type_e type)
+{
+    const netconn_desc_t *desc = netconn_registry_find(type);
+
+    return (NULL != desc && NULL != desc->name) ? desc->name : NETMGR_TYPE_TO_STR(type);
+}
+
 static uint8_t __netmgr_cli_bad_thr(const netmgr_policy_t *policy)
 {
     return (0 == policy->probe_bad_threshold) ? 1 : policy->probe_bad_threshold;
@@ -216,7 +239,7 @@ static void __netmgr_cli_dump_policy(const netmgr_policy_t *policy)
 
     __netmgr_cli_reval_str(&policy->revalidate, reval, sizeof(reval));
 
-    PR_NOTICE("policy: pin %s, preempt %s, up_switch %s", (NETCONN_AUTO == pin) ? "none" : NETMGR_TYPE_TO_STR(pin),
+    PR_NOTICE("policy: pin %s, preempt %s, up_switch %s", (NETCONN_AUTO == pin) ? "none" : __netmgr_cli_type_name(pin),
               policy->preempt ? "on" : "off", policy->emit_up_switch ? "on" : "off");
     PR_NOTICE("policy: debounce %u ms, grace %u ms, dwell %u ms", (unsigned int)policy->up_debounce_ms,
               (unsigned int)policy->down_grace_ms, (unsigned int)policy->min_dwell_ms);
@@ -304,7 +327,8 @@ static void __netmgr_cli_dump(const netmgr_state_t *state)
     uint32_t        i;
 
     PR_NOTICE("netmgr: configured 0x%02x, active %s, status %s, links %u", (unsigned int)state->configured,
-              NETMGR_TYPE_TO_STR(state->active), NETMGR_STATUS_TO_STR(state->status), (unsigned int)state->link_num);
+              __netmgr_cli_type_name(state->active), NETMGR_STATUS_TO_STR(state->status),
+              (unsigned int)state->link_num);
 
     /* Read once, for the policy lines and for every row's threshold, so the dump
      * cannot show two different thresholds if netmgr_policy_set() lands mid-dump. */
@@ -627,7 +651,7 @@ static void __netmgr_cli_switch(int argc, char *argv[], const netmgr_state_t *st
     rt = netmgr_policy_pin(type);
     switch (rt) {
     case OPRT_OK:
-        PR_NOTICE("switch: pinned to %s, which can carry traffic now", NETMGR_TYPE_TO_STR(type));
+        PR_NOTICE("switch: pinned to %s, which can carry traffic now", __netmgr_cli_type_name(type));
         break;
 
     case OPRT_RESOURCE_NOT_READY:
@@ -635,7 +659,7 @@ static void __netmgr_cli_switch(int argc, char *argv[], const netmgr_state_t *st
          * pin IS armed and takes effect the moment the link becomes eligible.
          * Reporting it as an error would send an operator looking for a bug in a
          * command that did exactly what it was asked to do. */
-        PR_NOTICE("switch: pin armed for %s, which cannot carry traffic yet", NETMGR_TYPE_TO_STR(type));
+        PR_NOTICE("switch: pin armed for %s, which cannot carry traffic yet", __netmgr_cli_type_name(type));
         PR_NOTICE("  the pin is remembered and takes effect when the link comes up;");
         PR_NOTICE("  it does not dial, so bring the link up yourself if it is managed");
         break;
@@ -644,6 +668,8 @@ static void __netmgr_cli_switch(int argc, char *argv[], const netmgr_state_t *st
         /* The name came out of the registry a moment ago, so this is a teardown
          * racing the command rather than a typo. The pin is unchanged. */
         PR_INFO("switch: %s is no longer registered, pin unchanged", NETMGR_TYPE_TO_STR(type));
+        /* The macro, not the registry helper: the lookup is what just failed,
+         * so there is no descriptor left to take a name from. */
         break;
 
     default:

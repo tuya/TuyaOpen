@@ -245,9 +245,17 @@ typedef enum {
  *
  * A reporter that can hold a value across its own network operation should read
  * the epoch before the operation and pass it back with the verdict; netmgr
- * discards a verdict whose epoch is stale. A reporter that cannot - the default
- * passive backend cannot, because it only sees an event after the fact - passes
+ * discards a verdict whose epoch is stale. A reporter that cannot passes
  * NETMGR_PROBE_EPOCH_ANY and accepts the attribution window.
+ *
+ * An earlier version of this comment put the default passive backend in that
+ * second class, "because it only sees an event after the fact". That is wrong,
+ * and understating what the code does is worth correcting because it invites
+ * someone to widen a window that is already narrow: netmgr_probe.c keeps
+ * s_session_epoch, reads the epoch when it observes CONNACK, and reports the
+ * matching disconnect under THAT session's epoch. It falls back to
+ * NETMGR_PROBE_EPOCH_ANY only for a disconnect seen with no preceding CONNACK,
+ * which is the one case where there genuinely is no session to attribute to.
  *
  * The window is survivable even unguarded, and it is worth knowing why before
  * anyone builds something more elaborate: a mis-attributed BAD costs at most one

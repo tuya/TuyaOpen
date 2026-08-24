@@ -631,7 +631,13 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
                           // active connection
         netmgr_wifi->base.pri = *(int *)param;
-        netmgr_wifi->base.event_cb(NETCONN_WIFI, netmgr_wifi->base.status);
+        /* Guarded like every other call to it in this file. Unreachable through
+         * netmgr_conn_set(), which refuses before netmgr_init() has installed the
+         * shim - but netconn_wifi_set() is on the global public include path, so
+         * "no caller does that today" is not the same as "nobody can". */
+        if (netmgr_wifi->base.event_cb) {
+            netmgr_wifi->base.event_cb(NETCONN_WIFI, netmgr_wifi->base.status);
+        }
         break;
     case NETCONN_CMD_IP:
         TUYA_CALL_ERR_RETURN(tal_wifi_set_ip(WF_STATION, (NW_IP_S *)param));
