@@ -323,11 +323,20 @@ typedef struct {
  * changed".
  *
  * It is gated behind netmgr_policy_t.emit_up_switch, default FALSE, and that
- * header explains why at length: six sites in the tree compare
- * `status == NETMGR_LINK_UP` and would read UP_SWITH as offline, one of them
- * (tuya_svc_netmgr.c:37) mapping it directly to NETWORK_STATUS_OFFLINE for the
- * AI client. Publishing it by default would take the AI apps offline on every
- * handover.
+ * header explains why at length: several sites in the tree compare
+ * `status == NETMGR_LINK_UP` and would read UP_SWITH as offline. The one that
+ * settles it is apps/tuya.ai/your_chat_bot/src/display2/app_ui_helper.c:88-90,
+ * which subscribes to EVENT_LINK_STATUS_CHG, dereferences the payload correctly
+ * and then computes `connected = (net_status == NETMGR_LINK_UP)` straight into
+ * ui_setting_wifi_update() - so publishing UP_SWITH by default would make the
+ * chat-bot UI show "wifi disconnected" on every handover.
+ *
+ * NOT tuya_svc_netmgr.c:37, which an earlier draft of both headers cited. That
+ * site asks netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, ...), i.e. the
+ * DRIVER's base.status, which is only ever DOWN or UP - it can never see UP_SWITH
+ * and cannot be broken by this flag. The correction is recorded rather than
+ * quietly removed, because a plausible-looking wrong citation is what stops the
+ * next reader from checking.
  *
  * The one consumer that asked for it cannot use it yet, and this is worth
  * stating in the header rather than in a commit message, because it will

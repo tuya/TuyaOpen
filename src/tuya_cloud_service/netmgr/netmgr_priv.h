@@ -22,6 +22,11 @@
 #include "netmgr.h"
 #include "netconn_registry.h"
 
+/* For netmgr_change_reason_e, the argument of netmgr_reselect_request(). This is
+ * the only reason netmgr_event.h is pulled in here; nothing else in this header
+ * needs it. */
+#include "netmgr_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -144,6 +149,61 @@ extern "C" {
  * down everything it safely can. See netmgr.h for the caller-facing contract.
  */
 /***********************************************************
+********************* reselect request *********************
+***********************************************************/
+
+/**
+ * @brief Ask netmgr to re-evaluate which link should be active.
+ *
+ * The seam that lets a satellite module trigger a pass without owning netmgr's
+ * work queue. netmgr_policy.c is the only caller, and it needs it twice:
+ *
+ *   - netmgr_policy_set(). netmgr_policy.h promises "a change takes effect at the
+ *     next reselect, which netmgr schedules immediately", and netmgr_policy.c has
+ *     no access to the work queue, so without this the promise was simply not
+ *     implemented - a new policy took effect at the next unrelated link event;
+ *   - netmgr_policy_pin(). A pin that only took effect at the next link event
+ *     makes `netmgr switch <link>` read as a broken command.
+ *
+ * WHY THIS EXISTS RATHER THAN A POST INSIDE netmgr_link_state_get(). That was the
+ * first shape and it was wrong: it made a read - an inspection API, documented
+ * "for the CLI and for diagnostics" - carry a side effect, so every CLI dump
+ * queued a pass and a caller had no way to ask the question without also asking
+ * for the action. Splitting them means netmgr_link_state_get() is a pure read
+ * again and the request is explicit at the two call sites that actually want it.
+ *
+ * Declared here rather than in netmgr_policy.h or netmgr.h: it is a
+ * module-internal contract between netmgr.c and its satellites, exactly what this
+ * header is for, and it has no business in a header 44 files include.
+ *
+ * Safe from any context and at any time. Like netmgr_notify_link() it only marks
+ * and posts - it never runs the state machine on the caller's thread - and it is
+ * DROPPED, returning OPRT_OK, before netmgr_init() has seeded the state or once
+ * netmgr_deinit() has started. That last case matters concretely: netmgr_deinit()
+ * calls netmgr_policy_pin(NETCONN_AUTO) to release the pin, and the gate closed in
+ * step 0 of teardown is what keeps that from queueing work into a netmgr that is
+ * being dismantled.
+ *
+ * The pass coalesces with any already-pending one, so N requests in a row cost at
+ * most one pass.
+ *
+ * @param[in] reason why, for netmgr_change_t.reason. Folded by the same rank
+ *                   order as everything the pass observes for itself, so a
+ *                   request cannot mask a real link event that lands in the same
+ *                   pass, and it is only reported when the pass actually changed
+ *                   something. Pass NETMGR_CHG_REASON_NONE for "just
+ *                   re-evaluate, the pass will name its own cause" - which is
+ *                   what the pin does, because the pass detects a moved pin by
+ *                   comparison and names PINNED or UNPINNED with the right
+ *                   subject itself.
+ *
+ * @return OPRT_OK when a pass is queued, when one already was, or when the
+ *         request was deliberately dropped. Others when the work queue refused
+ *         it.
+ */
+OPERATE_RET netmgr_reselect_request(netmgr_change_reason_e reason);
+
+/***********************************************************
 ******************* snapshot accessors *********************
 ***********************************************************/
 
@@ -199,10 +259,19 @@ OPERATE_RET netmgr_state_get(netmgr_state_t *state);
 /**
  * @brief Snapshot one registered link by position, for iteration.
  *
- * Positions run 0 .. netmgr_state_t.link_num - 1 and follow selection order:
- * index 0 is the link __get_active_conn() considers first. Positions are only
- * stable for as long as nothing registers or unregisters, which between
- * netmgr_init() and netmgr_deinit() means always.
+ * Positions run 0 .. netmgr_state_t.link_num - 1 and follow REGISTRATION order:
+ * index 0 is the first link registered, i.e. the first row of netconn_table.c
+ * that this build's type mask selected, and index i is the link whose
+ * netmgr_link_view_t.reg_index is i.
+ *
+ * It used to say "selection order: index 0 is the link __get_active_conn()
+ * considers first", and both halves of that are now wrong. That function is gone,
+ * and selection is recomputed from a snapshot on every pass, so there is no fixed
+ * selection order left to expose - which is the entire point of M3: an order
+ * baked into the container is what stopped NETCONN_CMD_PRI from working.
+ *
+ * Positions are still stable for as long as nothing registers or unregisters,
+ * which between netmgr_init() and netmgr_deinit() means always.
  *
  * @param[in]  index position in selection order
  * @param[out] info  filled on OPRT_OK, untouched otherwise

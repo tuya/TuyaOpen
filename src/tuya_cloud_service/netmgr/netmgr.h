@@ -112,18 +112,56 @@ typedef struct netmgr_conn_base {
 /**
  * @brief network manage init
  *
- * @param config all network connections
- * @return OPERATE_RET
+ * Registers every link the @a type mask selects, opens each one, starts the
+ * reachability backend and installs the initial route.
+ *
+ * Idempotent: calling it on an already-initialised netmgr logs a warning and
+ * answers OPRT_OK without touching anything. To change the type mask, call
+ * netmgr_deinit() first - a second netmgr_init() cannot widen it.
+ *
+ * STACK DEPTH. This is the half of the contract that netmgr_deinit()'s thread
+ * restriction has and this call did not, and it bites in exactly the place the
+ * thread rule does not cover.
+ *
+ * netmgr_init() runs the whole registration path ON THE CALLER'S STACK,
+ * conn->open() for every link included. That reaches straight into the driver
+ * stacks - tal_wifi_init() and the vendor WiFi bring-up, netcfg initialisation,
+ * tal_cellular_init() and its modem AT exchange - and, on an ENABLE_BLUETOOTH
+ * build, tuya_ble_init() and the BLE stack construction. Their usual caller is
+ * the application's main task, which has a large stack; none of them is written
+ * to be frugal.
+ *
+ * So call it from the app's start-up task, and not from a small worker thread.
+ * The concrete counter-example, because a limit is worth naming: the serial CLI
+ * thread's stack is SERIAL_CLI_STACK_SIZE, 3072 bytes by default
+ * (src/tal_cli/Kconfig). netmgr_deinit() fits there; netmgr_init() does not on
+ * T5AI with ENABLE_BLUETOOTH, which is why netmgr_cli.c does not offer it as a
+ * plain command. Note what that means: a caller can satisfy every DOCUMENTED
+ * rule - it is not on the WORKQ_SYSTEM thread, netmgr is not already up - and
+ * still overflow its stack. There is no runtime check for it and this comment is
+ * the only guard.
+ *
+ * @param type bitmask of netmgr_type_e link types to bring up
+ *
+ * @return OPRT_OK on success, including when netmgr was already initialised.
+ *         OPRT_INVALID_PARM when no link at all could be registered.
+ *         OPRT_NOT_SUPPORTED when this build contains no link driver. On every
+ *         error path it rolls itself back through netmgr_deinit().
  */
 OPERATE_RET netmgr_init(netmgr_type_e type);
 
 /**
  * @brief network manage deinit, undoing netmgr_init()
  *
- * Closes and unregisters every link, stops the notify work item and the LAN
- * timer, and leaves the static connection nodes as netmgr_init() found them so a
- * later init can reuse them. Idempotent, and safe when netmgr_init() never ran
- * or failed part way.
+ * Closes and unregisters every link, stops the notify work item and the shared
+ * deadline timer, stops the reachability backend, releases the manual link pin,
+ * and leaves the static connection nodes as netmgr_init() found them so a later
+ * init can reuse them. Idempotent, and safe when netmgr_init() never ran or
+ * failed part way.
+ *
+ * (It said "the LAN timer" before M3. That timer was a 500 ms poll deciding
+ * whether to start the LAN service; the LAN decision is event-driven now and the
+ * one timer netmgr owns is the shared deadline.)
  *
  * Must NOT be called from the WORKQ_SYSTEM thread: it waits for the notify
  * handler to finish and would wait on itself. That rules out calling it from an
