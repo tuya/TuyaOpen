@@ -24,6 +24,7 @@ file(GLOB_RECURSE LIB_SRCS
     # undefined reference rather than a smaller image. It is technology-free by
     # construction - pure arithmetic over its arguments, no driver header.
     "${MODULE_PATH}/netmgr/netmgr_retry.c"
+    "${MODULE_PATH}/netmgr/netmgr_policy.c"
     "${MODULE_PATH}/protocol/*.c"
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"

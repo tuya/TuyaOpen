@@ -308,6 +308,15 @@ typedef struct {
      * Applies only to the active link. A standby link that drops has nothing to
      * hold on to.
      *
+     * Consumed entirely by netmgr.c and INVISIBLE to
+     * netmgr_policy_select_default(): grace is expressed by holding the link's
+     * netmgr_link_state_e up for the duration, so by the time a snapshot is built
+     * the grace has already had its effect and there is nothing left for the
+     * ranking to read. Do not look for it in the seven rules below - it is not
+     * missing, it is upstream. Same division of labour as up_debounce_ms, which
+     * does surface, but only as the already-computed
+     * netmgr_link_view_t.eligible_at_ms.
+     *
      * DEFAULT 0: reselect immediately, as today.
      */
     uint32_t down_grace_ms;
@@ -321,6 +330,32 @@ typedef struct {
      * to honour a hysteresis parameter.
      *
      * DEFAULT 0: no dwell, as today.
+     *
+     * A MULTI-LINK PRODUCT SHOULD SET THIS. Concretely, a wifi+4G board whose wifi
+     * AP has lost its WAN will oscillate at the default of 0, and the mechanism is
+     * inherent to passive probing rather than a defect:
+     *
+     *   1. wifi is demoted to DEGRADED (verify_timeout_ms elapses with no verdict)
+     *      and the route moves to cellular. Correct, and the whole point of M3;
+     *   2. @ref revalidate promotes wifi back to NETMGR_LINK_STATE_UNVERIFIED after
+     *      30 s. It has to: a passive probe can only ever judge the ACTIVE link, so
+     *      the only way to find out whether wifi recovered is to use it again;
+     *   3. UNVERIFIED shares the not-suspect tier with ONLINE (see
+     *      NETMGR_LINK_STATE_UNVERIFIED for why separating them would deadlock), so
+     *      wifi's higher priority wins and the route moves back;
+     *   4. verify_timeout_ms elapses again and it returns to step 1.
+     *
+     * Each swing tears down and re-establishes the MQTT session, twice per cycle,
+     * because __tuya_iot_link_type_change_cb() calls tuya_iot_reconnect(). The
+     * revalidation table damps the period - 30, 60, 120, 300 then 600 s plus
+     * verify_timeout_ms - so it settles at roughly one cycle every twelve minutes
+     * and stays there. Bounded, but visible.
+     *
+     * min_dwell_ms is the knob that damps the early, fast end of that sequence: it
+     * holds a switch until the dwell expires without ever preventing one, so the
+     * first few cycles stop being the noisiest. A board that would rather not
+     * re-verify at all sets @ref revalidate to a non-NULL entry with count 0, at
+     * the cost of never discovering that wifi came back.
      */
     uint32_t min_dwell_ms;
 
@@ -389,12 +424,28 @@ typedef struct {
      * Consecutive NETMGR_PROBE_BAD verdicts needed to move a link to DEGRADED.
      * Any NETMGR_PROBE_GOOD resets the count.
      *
-     * DEFAULT 3. Must be greater than 1: EVENT_MQTT_DISCONNECTED fires on a
-     * deliberate tuya_mqtt_stop() and on ordinary cloud maintenance as well as
-     * on a keepalive timeout, and mqtt_client_disconnected_cb() cannot tell them
-     * apart. Three, against the MQTT layer's own 1 s-to-8 s reconnect back-off
-     * plus its hardcoded +10 s sleep, is on the order of half a minute of
-     * sustained failure.
+     * DEFAULT 3. Must be greater than 1, and the reason is one specific class of
+     * false BAD: a DELIBERATE tuya_mqtt_stop() that does not move the route.
+     * EVENT_MQTT_DISCONNECTED fires on it exactly as it does on a keepalive
+     * timeout, and mqtt_client_disconnect_on() cannot tell them apart. Three of
+     * those call sites matter - STATE_STOP (tuya_iot.c:1108), run_state_reset()
+     * (:555) and tuya_iot_destroy() (:789) - and the last two are gated on
+     * tuya_mqtt_connected(), so they fire with a CURRENT epoch and therefore
+     * survive the staleness check that catches switch-induced teardowns. They look
+     * like genuine evidence against a perfectly healthy link. A threshold above 1
+     * is what absorbs them. Three, against the MQTT layer's own 1 s-to-8 s
+     * reconnect back-off plus its hardcoded +10 s sleep, is on the order of half a
+     * minute of sustained failure.
+     *
+     * WHICH BACKEND THIS SERVES. The threshold is a knob for an ACTIVE backend,
+     * one that can emit several BADs in a row with no GOOD in between. With the
+     * default PASSIVE backend it is very nearly unreachable, and a reader should
+     * not go looking for a bug in that: every BAD needs a session teardown and
+     * every session establishment publishes a GOOD that zeroes the count, so the
+     * stream is GOOD/BAD/GOOD/BAD and never reaches 2. Passive demotion therefore
+     * happens through @ref verify_timeout_ms instead, on the path
+     * ONLINE --(BAD)--> UNVERIFIED --(timeout)--> DEGRADED. That is not a
+     * degradation of the design, it is which mechanism covers which backend.
      *
      * 0 is treated as 1.
      */
@@ -413,6 +464,22 @@ typedef struct {
      * FIRST ACTIVATION - MQTT never connects on an unactivated device, so neither
      * EVENT_MQTT_CONNECTED nor EVENT_MQTT_DISCONNECTED ever fires and the passive
      * backend is silent.
+     *
+     * It also covers the OTHER, commoner case, and this is the more important half
+     * in the field: a link that WAS verified and whose WAN then dies. A link at
+     * NETMGR_LINK_STATE_ONLINE that receives a BAD falls back to UNVERIFIED, which
+     * re-arms this timer. Without that fallback the link stayed ONLINE forever -
+     * one BAD is below @ref probe_bad_threshold, every later reconnect attempt is
+     * silent because mqtt_client_connect() closes its transporter and returns
+     * without calling on_disconnected (mqtt_client_wrapper.c:218-223), and this
+     * timeout did not apply because the link was ONLINE rather than UNVERIFIED. So
+     * with the default passive backend this parameter, not the threshold, is what
+     * every demotion goes through.
+     *
+     * The fallback is not itself a demotion: UNVERIFIED and ONLINE share the
+     * not-suspect tier, so it changes no ranking and moves no route. It only
+     * restarts the clock, and a GOOD inside the window puts the link back to
+     * ONLINE with nothing having happened.
      *
      * DEFAULT 120000 (2 min). Sized above one full activation attempt on a slow
      * link: token get, ATOP activate, endpoint update and MQTT connect, each of
@@ -435,8 +502,31 @@ typedef struct {
      * The last entry repeating is what bounds the cost of a link that never
      * recovers.
      *
-     * A count of 0 means a DEGRADED link is never re-verified, which is a
-     * legitimate choice for a board whose secondary link is strictly a fallback.
+     * HOW THE DEFAULT IS EXPRESSED, and it matters because the two obvious
+     * readings differ. NETMGR_POLICY_DEFAULT_INIT sets `.revalidate = {NULL, 0}`,
+     * and read as a literal table that is a table of no entries. So the sentinel
+     * is resolved at the point of use, in netmgr.c:
+     *
+     *   entry == NULL              use netmgr_retry_table_revalidate, i.e. the
+     *                              default this field documents. The `{NULL, 0}`
+     *                              in the initialiser means "unset", not "empty"
+     *   entry != NULL, count  > 0  use the product's table
+     *   entry != NULL, count == 0  never re-verify
+     *
+     * A product that wants revalidation OFF therefore points entry at any non-NULL
+     * array and sets count to 0. Without that split the documented default would
+     * be unreachable and the shipped default would be its opposite: a link demoted
+     * once could never recover for the life of the boot, which is the failure a
+     * revalidation table exists to prevent.
+     *
+     * Never re-verifying is still a legitimate choice for a board whose secondary
+     * link is strictly a fallback - it just has to be said explicitly.
+     *
+     * Note that netmgr_retry_fail() reads an empty table the other way, arming at
+     * `now` so the retry is due immediately. That is correct for its other
+     * consumer, the wifi association back-off, where "no table" has to mean "retry
+     * at once"; netmgr.c does not call it for a count-0 revalidation table, so the
+     * two readings do not collide. netmgr_retry.h records the same split.
      */
     netmgr_retry_table_t revalidate;
 
@@ -451,11 +541,31 @@ typedef struct {
      *
      *   - eleven app helpers compute `status != NETMGR_LINK_DOWN`, which reads
      *     UP_SWITH as connected. Correct;
-     *   - six sites compare `status == NETMGR_LINK_UP`, which reads UP_SWITH as
-     *     DISCONNECTED. Among them tuya_svc_netmgr.c:37 maps it straight to
-     *     NETWORK_STATUS_OFFLINE, and that feeds tuya_ai_client.c - so turning
-     *     this on by default would take the AI chat apps offline on every link
-     *     handover, which is the exact opposite of the intent.
+     *   - several sites compare `status == NETMGR_LINK_UP`, which reads UP_SWITH
+     *     as DISCONNECTED.
+     *
+     * The consumer that settles it is
+     * apps/tuya.ai/your_chat_bot/src/display2/app_ui_helper.c:88-90. It subscribes
+     * to EVENT_LINK_STATUS_CHG, dereferences the payload CORRECTLY - unlike the
+     * miscast consumers noted in netmgr_event.h - and then computes
+     *
+     *     uint8_t connected = (net_status == NETMGR_LINK_UP) ? 1 : 0;
+     *
+     * feeding ui_setting_wifi_update() and SYSTEM_MSG_WIFI_DISCONNECTED. So
+     * enabling this flag makes the chat-bot UI display "wifi disconnected" on
+     * every link handover. examples/protocols/{https,http,mqtt}_client compare the
+     * same way.
+     *
+     * An earlier draft of this note cited tuya_svc_netmgr.c:37 instead, on the
+     * grounds that it maps anything that is not NETMGR_LINK_UP to
+     * NETWORK_STATUS_OFFLINE for tuya_ai_client.c. That citation is WRONG and is
+     * corrected here rather than dropped, because a wrong citation is worse than
+     * none - it makes the next reader believe the check was done. That site reads
+     * netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, ...), which resolves AUTO
+     * to the active link and then asks the DRIVER, whose base.status only ever
+     * holds NETMGR_LINK_DOWN or NETMGR_LINK_UP. It cannot observe UP_SWITH at all,
+     * so it cannot be broken by this flag. The conclusion is unchanged; only the
+     * evidence is.
      *
      * Worse, today a handover publishes NO status event at all: s_netmgr.status
      * stays NETMGR_LINK_UP, status_chg stays FALSE, and only EVENT_LINK_TYPE_CHG
@@ -676,7 +786,20 @@ OPERATE_RET netmgr_policy_select_cb_set(netmgr_policy_select_cb_t cb, void *ctx)
  *   4. within a tier, highest pri wins; equal pri breaks to lowest reg_index.
  *      That is M2's tie-break, unchanged;
  *   5. if the winner is not the current active link, and the active link is
- *      still eligible, and policy.preempt is FALSE, keep the active link;
+ *      still eligible, and policy.preempt is FALSE, keep the active link -
+ *      EXCEPT when the active link is itself SUSPECT and a not-suspect
+ *      alternative exists, in which case stickiness is abandoned and the switch
+ *      goes ahead. The carve-out is not a refinement, it is what keeps rule 5
+ *      from silently disabling the whole refactor: DEGRADED passes the
+ *      eligibility floor, so without it a product that set preempt FALSE for
+ *      route stability would also lose fail-over - a wifi link on a WAN-less AP
+ *      would go DEGRADED, stay active because it is sticky, and the cellular link
+ *      it was meant to fall back to would never be selected. The reading of
+ *      stickiness this enforces: "do not hop between links that are equally
+ *      good", never "ignore that the current link is broken". Gated on
+ *      policy.probe_demote, because with demotion off DEGRADED is by definition
+ *      not a ranking signal, so it must not break stickiness either - one flag,
+ *      one meaning;
  *   6. if the winner is not the current active link, and the active link is
  *      still eligible, and min_dwell_ms has not elapsed since
  *      active_since_ms, keep the active link and set recheck_ms to the
@@ -700,6 +823,43 @@ OPERATE_RET netmgr_policy_select_cb_set(netmgr_policy_select_cb_t cb, void *ctx)
  * @param[out] out as netmgr_policy_select_cb_t
  */
 void netmgr_policy_select_default(const netmgr_select_in_t *in, netmgr_select_out_t *out);
+
+/**
+ * @brief Rank the candidates: the installed hook if there is one, else the
+ *        built-in rule - and VALIDATE whatever comes back.
+ *
+ * The one entry point netmgr.c uses, and the function the note at the top of this
+ * header means when it says netmgr_policy_select() "is the one thing in the module
+ * that IS allowed to be called with s_netmgr.lock held". It was missing from this
+ * header, which left the dispatch unnamed although both halves of it were
+ * specified: netmgr_policy_select_cb_set() promises a replaceable ranking and
+ * netmgr_select_out_t.choice promises the answer is validated rather than trusted.
+ *
+ * Defined in netmgr.c and not in netmgr_policy.c, for the reason that file's
+ * comment gives about netmgr_policy_select_cb_set(): validating a choice needs the
+ * live candidate set, which only netmgr.c has.
+ *
+ * What is validated, exactly:
+ *
+ *   - NETCONN_AUTO is accepted at face value. It is a legitimate answer and means
+ *     "no link should carry traffic";
+ *   - anything else must appear in @a in->links AND satisfy
+ *     NETMGR_LINK_STATE_IS_UP(). That is the eligibility floor of rule 1, the one
+ *     rule nothing overrides - not the pin, and so not a hook either;
+ *   - a choice that fails either test is logged and REPLACED by
+ *     netmgr_policy_select_default(), which also discards the hook's recheck_ms,
+ *     since a decision netmgr could not honour carries no deadline worth keeping.
+ *
+ * Debounce is deliberately NOT enforced against a hook: eligible_at_ms is given to
+ * the hook as an input and a product ranking is entitled to ignore its own
+ * hysteresis. A debouncing link is up, so honouring such a choice cannot route
+ * traffic over a dead link, which is the property the validation exists to protect.
+ *
+ * @param[in]  in  the candidates and the context
+ * @param[out] out the decision; pre-initialised to {NETCONN_AUTO, 0} here, so a
+ *                 hook that writes nothing has answered "no link"
+ */
+void netmgr_policy_select(const netmgr_select_in_t *in, netmgr_select_out_t *out);
 
 /***********************************************************
 ********************** manual override *********************
