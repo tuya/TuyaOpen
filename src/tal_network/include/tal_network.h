@@ -43,6 +43,43 @@ extern "C" {
 #define TY_IPADDR_BROADCAST ((uint32_t)0xffffffffUL)
 #endif
 
+/*
+ * Active-link source address binding
+ *
+ * A target with more than one interface UP at once - Wi-Fi and cellular, say -
+ * has a single routing table and no policy routing, so a flow only leaves the
+ * interface netmgr selected if its socket is bound to that interface's address.
+ * tal_network does this for outbound connections on its own, but it cannot do it
+ * everywhere. The boundary below is deliberate; the gaps are real and are the
+ * reason this note exists rather than being left implicit.
+ *
+ * Bound automatically to the active link source address:
+ *  - everything that goes through tal_net_connect(), which is every outbound TCP
+ *    flow in the SDK (TLS, HTTP, MQTT, ATOP) and any UDP socket the caller
+ *    connect()s. A socket the caller already bound is left alone, so an explicit
+ *    tal_net_bind() always wins, and a failed bind is logged and ignored rather
+ *    than failing the connect.
+ *
+ * NOT bound, and what that means:
+ *  - tal_net_gethostbyname(): resolution runs inside lwIP or the platform
+ *    resolver and there is no socket to bind. Steering a DNS query is an lwIP-level
+ *    setting, out of reach from this layer. So with two interfaces UP a DNS query
+ *    may leave the one netmgr did not select, and can time out or resolve against
+ *    the wrong network's DNS server even though the connection that follows does
+ *    leave the right interface. A resolve failure while the link itself is healthy
+ *    is the symptom to expect.
+ *  - tal_net_send_to() and connectionless UDP in general: there is no connect() to
+ *    hook, and pinning a source address on a datagram socket would break the
+ *    broadcast paths that bind TY_IPADDR_ANY on purpose (LAN discovery does
+ *    exactly that). Callers needing a specific source on a datagram socket must
+ *    call tal_net_bind() themselves.
+ *  - tal_net_connect_raw(): the destination is an opaque platform sockaddr that
+ *    this layer cannot portably inspect.
+ *  - Server sockets: bind/listen/accept are untouched. Binding an inbound socket
+ *    to one interface's unicast address would stop it serving the others.
+ *  - Linux host builds: skipped entirely, the host's own routing decides.
+ */
+
 /**
  * @brief Get error code of network
  *
@@ -200,6 +237,11 @@ int tal_net_socket_create(const TUYA_PROTOCOL_TYPE_E type);
  *
  * @note This API is used for connecting to network.
  *
+ * @note Unless @a fd is already bound, it is bound here to the source address of
+ * the active link so the flow leaves the interface netmgr selected. A caller that
+ * wants a specific local address or port must call tal_net_bind() before this and
+ * that binding is kept. See "Active-link source address binding" above.
+ *
  * @return 0 on success. Others on error, please refer to the error no of the
  * target system
  */
@@ -213,6 +255,10 @@ TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16
  * @param[in] len: data lenth
  *
  * @note This API is used for connecting to network with raw data.
+ *
+ * @note Outside the active-link binding described above: the destination is an
+ * opaque platform sockaddr this layer cannot inspect, so no source binding is
+ * applied. Call tal_net_bind() first if the source matters.
  *
  * @return 0 on success. Others on error, please refer to the error no of the
  * target system
@@ -270,6 +316,12 @@ TUYA_ERRNO tal_net_send(const int fd, const void *buf, const uint32_t nbytes);
  * @param[in] port: port information of server
  *
  * @note This API is used for sending data to network
+ *
+ * @note No active-link source binding is applied on this path, by design: there
+ * is no connect() to hook and pinning a source address would break the broadcast
+ * senders that bind TY_IPADDR_ANY on purpose. On a multi-interface target the
+ * datagram leaves whichever interface the stack routes it to unless the caller
+ * bound the socket itself. See "Active-link source address binding" above.
  *
  * @return >0 on num of send, <0 please refer to the error no of the target
  * system

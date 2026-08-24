@@ -14,7 +14,6 @@
 
 #include <errno.h>
 #include "tuya_cloud_types.h"
-#include "tal_network_register.h"
 #include "tal_api.h"
 #include "tal_network.h"
 #include "tuya_transporter.h"
@@ -91,23 +90,14 @@ OPERATE_RET tuya_tcp_transporter_connect(tuya_transporter_t t, const char *host,
         goto err_out;
     }
 
-    // Bind outbound traffic to the interface the link manager selected, so it
-    // leaves the right one on a multi-interface target. On Linux host builds keep
-    // default routing unless the caller asked for a bind.
-    //
-    // config.bindAddr is the caller's setting and is never written back to: the
-    // active address is owned by tal_network and refreshed on every link event, so
-    // a cellular redial or DHCP renew is picked up here immediately. 0 means no
-    // link address is known, and an unbound socket lets the stack choose.
-    TUYA_IP_ADDR_T bind_addr = tcp_transporter->config.bindAddr;
-#if OPERATING_SYSTEM != SYSTEM_LINUX
-    if (bind_addr == 0 && tcp_transporter->config.bindPort == 0) {
-        bind_addr = tal_network_card_get_active_ip();
-    }
-#endif
-
-    if ((tcp_transporter->config.bindPort || bind_addr) &&
-        (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, bind_addr,
+    // Only the caller's explicit request is honoured here. Binding outbound
+    // traffic to the interface the link manager selected used to happen in this
+    // function too, which covered this one transport and nothing else; it now
+    // lives in tal_net_connect() and covers every outbound connection in the SDK.
+    // A bind performed here still wins, because tal_net_connect() leaves an
+    // already-bound socket alone.
+    if ((tcp_transporter->config.bindPort || tcp_transporter->config.bindAddr) &&
+        (OPRT_OK != tal_net_bind(tcp_transporter->socket_fd, tcp_transporter->config.bindAddr,
                                  tcp_transporter->config.bindPort))) { // socket bind port
         op_ret = OPRT_MID_TRANSPORT_SOCK_NET_BIND_FAILED;
         goto err_out;

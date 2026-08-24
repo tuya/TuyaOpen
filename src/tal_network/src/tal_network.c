@@ -60,6 +60,23 @@
     } while (0)
 
 /**
+ * @brief IPv4 accessor fallback for the integer form of TUYA_IP_ADDR_T
+ *
+ * TUYA_IP_ADDR_T is a plain uint32_t holding the IPv4 address in host byte order
+ * on every platform of the build matrix. The IPv6-capable variant is a struct,
+ * but the platforms that ship it also ship this accessor, so take theirs when it
+ * exists and fall back to the integer form otherwise.
+ */
+#ifndef TUYA_IP_ADDR_GET_IP4
+#define TUYA_IP_ADDR_GET_IP4(addr) (addr)
+#endif
+
+/**
+ * @brief Test an IPv4 address in host byte order for 127.0.0.0/8
+ */
+#define TAL_NET_IP4_IS_LOOPBACK(v) ((((uint32_t)(v)) >> 24) == 127)
+
+/**
  * @brief Macro to execute network operation that returns void
  *
  * @param op_name: The operation name in TAL_NETWORK_OPS_T struct
@@ -293,6 +310,82 @@ int tal_net_socket_create(const TUYA_PROTOCOL_TYPE_E type)
     TAL_NET_EXEC_OP(socket_create, -1, type);
 }
 
+#if OPERATING_SYSTEM != SYSTEM_LINUX
+/**
+ * @brief Bind an about-to-connect socket to the source address of the active link
+ *
+ * A target with two interfaces UP at once (Wi-Fi plus cellular) has one routing
+ * table and no policy routing, so the only way to make a flow leave the interface
+ * netmgr selected is to bind its socket to that interface address. This used to
+ * live in tcp_transporter, where it covered exactly one caller; here it covers
+ * every outbound connection in the SDK.
+ *
+ * Why connect() and not socket_create(): a freshly created socket has no
+ * direction yet - it may still become a listener - and binding it to a unicast
+ * address there would break every server socket. connect() is unambiguously
+ * outbound, so it is the only safe place for this.
+ *
+ * Why only when nothing has bound the socket yet: a caller that manages its own
+ * local address has to win. pjproject (ICE/STUN/TURN) binds every socket itself
+ * to gather candidates, and on lwIP a second bind of a still-CLOSED pcb succeeds
+ * and silently moves the local address (tcp_bind() only rejects a pcb that left
+ * CLOSED), so an unconditional bind here would quietly corrupt candidate
+ * gathering instead of failing loudly.
+ *
+ * Why a failed bind is not fatal: not binding merely falls back to letting the
+ * stack pick the source address, which still connects on a single-interface
+ * device. Failing the connect instead would turn a routing preference into an
+ * outage.
+ *
+ * @param[in] fd: socket about to be connected
+ * @param[in] dst: destination address of the pending connect
+ *
+ * @note Compiled out on Linux host builds - see the call site.
+ */
+static void __net_connect_bind_active_src(const int fd, const TUYA_IP_ADDR_T dst)
+{
+    TUYA_IP_ADDR_T src        = tal_network_card_get_active_ip();
+    TUYA_IP_ADDR_T local      = 0;
+    uint16_t       local_port = 0;
+
+    /* 0 means no link address is known: nothing is up yet, or the provider never
+     * reported one. An unbound socket lets the stack decide, which is the best
+     * answer available. */
+    if (0 == TUYA_IP_ADDR_GET_IP4(src)) {
+        return;
+    }
+
+    /* A loopback peer is only reachable from a loopback source, so pinning the
+     * link address would make the connect fail outright. */
+    if (TAL_NET_IP4_IS_LOOPBACK(TUYA_IP_ADDR_GET_IP4(dst))) {
+        return;
+    }
+
+    /* Probe before touching anything, and treat both "probe failed" and "already
+     * bound" as hands off: an unreliable answer must not cost us a working P2P
+     * session. The outputs are pre-zeroed on purpose, so a backend whose
+     * getsockname is a stub that reports success without writing them reads as
+     * unbound and keeps the always-bind behaviour this logic replaces, rather
+     * than branching on stack garbage.
+     *
+     * The port is part of the test because bind(ANY, 0) is a real bind: lwIP
+     * assigns the ephemeral port at bind time, so such a socket reports address 0
+     * with a non-zero port and checking the address alone would call it unbound.
+     */
+    if (OPRT_OK != tal_net_getsockname(fd, &local, &local_port)) {
+        return;
+    }
+    if ((0 != TUYA_IP_ADDR_GET_IP4(local)) || (0 != local_port)) {
+        return;
+    }
+
+    if (0 != tal_net_bind(fd, src, 0)) {
+        PR_WARN("bind fd %d to active src %s failed, errno %d, falling back to stack routing", fd,
+                tal_net_addr2str(src), tal_net_get_errno());
+    }
+}
+#endif // OPERATING_SYSTEM != SYSTEM_LINUX
+
 /**
  * @brief Connect to network
  *
@@ -301,6 +394,11 @@ int tal_net_socket_create(const TUYA_PROTOCOL_TYPE_E type)
  * @param[in] port: port information of server
  *
  * @note This API is used for connecting to network.
+ *
+ * @note Unless the caller bound the socket itself, it is bound here to the source
+ * address of the active link so the flow leaves the interface netmgr selected.
+ * See "Active-link source address binding" in tal_network.h for what this does
+ * and does not cover.
  *
  * @return 0 on success. Others on error, please refer to the error no of the
  * target system
@@ -316,6 +414,13 @@ TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16
     TUYA_ERRNO rt = -1;
     TAL_NETWORK_OPS_T *ops = tal_network_get_active_ops();
     if (NULL != ops && ops->connect) {
+#if OPERATING_SYSTEM != SYSTEM_LINUX
+        /* Linux host builds keep the host routing table: it has policy rules,
+         * loopback and interfaces this SDK knows nothing about, and source-binding
+         * there breaks more than it fixes. Embedded targets are the ones with a
+         * single routing table and no way to express the choice otherwise. */
+        __net_connect_bind_active_src(fd, addr);
+#endif
         tuya_dev_evt_notify(DEV_EVT_TCP_CONNECT, ACTION_BEFORE, NULL);
         rt = ops->connect(fd, addr, port);
         tuya_dev_evt_notify(DEV_EVT_TCP_CONNECT, ACTION_AFTER, NULL);
@@ -333,6 +438,10 @@ TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16
  * @param[in] len: data lenth
  *
  * @note This API is used for connecting to network with raw data.
+ *
+ * @note No active-link source binding happens here: the destination arrives as an
+ * opaque platform sockaddr, which this layer cannot portably inspect. Callers that
+ * need a specific source address must call tal_net_bind() first.
  *
  * @return 0 on success. Others on error, please refer to the error no of the
  * target system
