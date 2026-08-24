@@ -35,6 +35,7 @@ event name max length is 16, EVENT_NAME_MAX_LEN is defined in tal_event.h
 #define EVENT_HEALTH_ALERT      "health.alert"  // health alert
 #define EVENT_LINK_STATUS_CHG   "link.status"   // link status change
 #define EVENT_LINK_TYPE_CHG     "link.type"     // link conn change
+#define EVENT_NETMGR_CHG        "netmgr.chg"    // netmgr_change_t: one link change, with the reason
 #define EVENT_RESET             "dev.reset"     // device reset
 #define EVENT_MQTT_CONNECTED    "mqtt.con"      // mqtt connect
 #define EVENT_MQTT_DISCONNECTED "mqtt.disc"     // mqtt disconnect
