@@ -1021,16 +1021,14 @@ static void cmd_sys_iot_get_devid(int argc, char *argv[])
 static void cmd_sys_netmgr(int argc, char *argv[])
 {
     tal_cli_echo("Note: output appears on log port");
-    if (argc >= 2 && strcmp(argv[1], "help") == 0) {
-        tal_cli_echo("Usage:");
-        tal_cli_echo("  sys_netmgr                           Show connection status");
-        tal_cli_echo("  sys_netmgr wifi up <ssid> <pwd>      Connect to WiFi");
-        tal_cli_echo("  sys_netmgr wifi down                 Disconnect WiFi");
-        tal_cli_echo("  sys_netmgr wifi scan                 Scan nearby APs");
-        tal_cli_echo("  sys_netmgr wired up|down             Wired link control (TBD)");
-        tal_cli_echo("  sys_netmgr switch                    Switch active interface (TBD)");
-        return;
-    }
+
+    /* No usage listing here on purpose. There used to be one, and it drifted:
+     * it advertised `switch` and `wired up|down` as "(TBD)" after switch had
+     * been implemented, and it never learned about init/deinit - so the one
+     * command an operator would run to find out what exists was the one telling
+     * them it did not. netmgr_cli.c carries the real listing, has to be kept
+     * current anyway, and prints it for any argument it does not recognise,
+     * which includes "help". One source of truth, reached by falling through. */
     netmgr_cmd(argc, argv);
 }
 
