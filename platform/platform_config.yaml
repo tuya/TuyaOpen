@@ -38,3 +38,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
   commit: c8943cf9da0acadeeaebfbfc5cee08e18b9a68a3
+
+- name: SiWx917
+  repo: https://github.com/tuya/TuyaOpen-SiliconLabs
+  branch: master
+  commit: 1995b489ef84756b100348077ae833fea0615dbc
