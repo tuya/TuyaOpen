@@ -2,7 +2,7 @@
  * @file tal_network_register.h
  * @brief tal_network_register module is used to
  * @version 0.1
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
 #ifndef __TAL_NETWORK_REGISTER_H__
@@ -70,6 +70,25 @@ typedef uint8_t TAL_NETWORK_CARD_TYPE_E;
 #define TAL_NET_TYPE_PLATFORM (1)
 #define TAL_NET_TYPE_AT_MODEM (2)
 #define TAL_NET_TYPE_MAX      (3)
+
+/**
+ * The socket ops backend this build talks to: the lwip/socket layer when one is
+ * linked in (or when we are hosted on Linux), the platform tkl layer otherwise.
+ *
+ * A build only ever links one of the two, so this is also the value every link
+ * type ends up selecting - it is the answer for wifi, wired and cellular alike.
+ * Named here rather than open-coded at each site so the whole tree agrees on one
+ * definition of "the backend this build has".
+ *
+ * ENABLE_LIBLWIP and OPERATING_SYSTEM come from the build-generated
+ * tuya_kconfig.h, which every platform's tuya_cloud_types.h pulls in through
+ * tuya_iot_config.h - so the include above is enough to make them visible here.
+ */
+#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_POSIX
+#else
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_PLATFORM
+#endif
 
 typedef struct {
     char name[16];
