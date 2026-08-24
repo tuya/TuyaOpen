@@ -24,19 +24,19 @@
 #include "tal_wired.h"
 #include "mqtt_bind.h"
 
+/* For TAL_NET_PROVIDER_DEFAULT below. netmgr.h used to pull this in; it no longer
+ * does, so that the control plane's public header stays off the data plane. */
+#include "tal_network_register.h"
+
 netmgr_conn_wired_t s_netmgr_wired = {
-    .base = {.pri    = 2,
-             .type   = NETCONN_WIRED,
-             .status = NETMGR_LINK_DOWN,
-#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
-             .card_type = TAL_NET_TYPE_POSIX,
-#else
-             .card_type = TAL_NET_TYPE_PLATFORM,
-#endif
-             .open  = netconn_wired_open,
-             .close = netconn_wired_close,
-             .get   = netconn_wired_get,
-             .set   = netconn_wired_set},
+    .base = {.pri       = 2,
+             .type      = NETCONN_WIRED,
+             .status    = NETMGR_LINK_DOWN,
+             .card_type = TAL_NET_PROVIDER_DEFAULT,
+             .open      = netconn_wired_open,
+             .close     = netconn_wired_close,
+             .get       = netconn_wired_get,
+             .set       = netconn_wired_set},
 };
 
 /**

@@ -18,6 +18,10 @@
 #include "tal_cellular.h"
 #include "mqtt_bind.h"
 
+/* For TAL_NET_PROVIDER_DEFAULT below. netmgr.h used to pull this in; it no longer
+ * does, so that the control plane's public header stays off the data plane. */
+#include "tal_network_register.h"
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -38,11 +42,7 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
         {
             .pri = 0,
             .type = NETCONN_CELLULAR,
-#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
-            .card_type = TAL_NET_TYPE_POSIX,
-#else
-            .card_type = TAL_NET_TYPE_PLATFORM,
-#endif
+            .card_type = TAL_NET_PROVIDER_DEFAULT,
             .status = NETMGR_LINK_DOWN,
             .open = netconn_cellular_open,
             .close = netconn_cellular_close,

@@ -43,11 +43,7 @@ netmgr_conn_wifi_t s_netmgr_wifi = {
             .pri = 1,
             .type = NETCONN_WIFI,
             .status = NETMGR_LINK_DOWN,
-#if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
-            .card_type = TAL_NET_TYPE_POSIX,
-#else
-            .card_type = TAL_NET_TYPE_PLATFORM,
-#endif
+            .card_type = TAL_NET_PROVIDER_DEFAULT,
             .open = netconn_wifi_open,
             .close = netconn_wifi_close,
             .get = netconn_wifi_get,

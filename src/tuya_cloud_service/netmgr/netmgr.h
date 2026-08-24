@@ -22,8 +22,6 @@
 
 #include "tuya_cloud_types.h"
 
-#include "tal_network_register.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -95,7 +93,12 @@ typedef struct netmgr_conn_base {
     uint8_t pri;
     netmgr_type_e type;
     netmgr_status_e status;
-    TAL_NETWORK_CARD_TYPE_E card_type;
+    /* Which tal_network socket backend this connection's traffic leaves through.
+     * Holds one of the TAL_NET_TYPE_* values the tal_network card registry
+     * defines - use TAL_NET_PROVIDER_DEFAULT to fill it in. Typed uint8_t, the
+     * very type TAL_NETWORK_CARD_TYPE_E is a typedef of, so this control-plane
+     * header needs no include from the data plane. */
+    uint8_t card_type;
 
     OPERATE_RET (*open)(void *config);
     OPERATE_RET (*close)(void);
