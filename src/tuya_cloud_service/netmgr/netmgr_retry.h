@@ -105,7 +105,27 @@ extern "C" {
 typedef struct {
     /** Intervals in seconds, ascending by convention but not enforced. */
     const uint32_t *entry;
-    /** Number of valid entries in @ref entry. Zero means "no back-off". */
+    /**
+     * Number of valid entries in @ref entry. Zero means "no back-off".
+     *
+     * "No back-off" is a statement about the ARITHMETIC in this module - every
+     * interval is 0 - and the two consumers legitimately read that differently,
+     * so it is spelled out here rather than being left to be discovered:
+     *
+     *   - association (netconn_wifi.c): retry IMMEDIATELY. A driver with no table
+     *     must still redial, so netmgr_retry_fail() arms an empty table at `now`
+     *     and netmgr_retry_due() answers TRUE on the next poll;
+     *   - revalidation (netmgr.c, netmgr_policy_t.revalidate): NEVER re-verify.
+     *     That is what netmgr_policy.h documents count 0 to mean, so netmgr.c does
+     *     not call netmgr_retry_fail() at all in that case and leaves the context
+     *     unarmed, where netmgr_retry_due() answers FALSE forever.
+     *
+     * Note the difference from a NULL @ref entry, which is NOT the same thing for
+     * the revalidation consumer: netmgr_policy_t.revalidate reads a NULL entry as
+     * "unset" and substitutes netmgr_retry_table_revalidate, because that is the
+     * default that field documents. This module itself treats NULL entry and
+     * count 0 identically - it has no defaults to substitute.
+     */
     uint32_t count;
 } netmgr_retry_table_t;
 
@@ -177,11 +197,27 @@ uint32_t netmgr_retry_interval_ms(const netmgr_retry_table_t *table, uint32_t at
  *
  * and that only behaves because tal_sw_timer_start() reads
  * `if (time_ms) { timer->interval = time_ms; }` - a zero argument silently keeps
- * the interval from the previous arm, which is 20 s. So the observable back-off
- * is correct by accident, and it is load-bearing on a TAL quirk that reads like
- * an oversight. netmgr_retry_table_assoc has count 6, so the saturation point
- * becomes attempt 5 and the interval is passed explicitly every time. Same
- * timing, no dependency on the quirk. Note this in the M3 changelog as a
+ * the interval from the PREVIOUS arm of that timer, which happens to be 20 s.
+ *
+ * Where that retained 20 s comes from is the part to get right, and an earlier
+ * draft of this note got it wrong by saying it was left over from arming with
+ * table[5] * 1000. It is not. conn.timer is SHARED with the connect-attempt
+ * timeout, and in the steady failure loop the most recent non-zero arm is always
+ * __netconn_wifi_connect_process():
+ *
+ *     tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
+ *
+ * so the saturated back-off is governed by WIFI_CONN_TIMEOUT_MAX
+ * (netconn_wifi.h, value 20) and coincides with table[5] only because two
+ * unrelated constants are both 20. Change WIFI_CONN_TIMEOUT_MAX to 15 today and
+ * the saturated back-off silently becomes 15 s with no edit to the back-off
+ * table. Adopting this module therefore also DECOUPLES the two: the interval is
+ * passed explicitly on every arm, so the connect timeout and the back-off table
+ * stop sharing a value by accident.
+ *
+ * netmgr_retry_table_assoc has count 6, so the saturation point becomes attempt 5
+ * and the interval is passed explicitly every time. Same timing, no dependency on
+ * the quirk, no coupling to the timeout. Note this in the M3 changelog as a
  * hardening, not as a behaviour change.
  *
  * NETCONN_CMD_RECONN_TABLE is unaffected either way: it already sets table_size
@@ -254,7 +290,12 @@ void netmgr_retry_reset(netmgr_retry_t *retry);
  *
  * @return the deadline that was armed, or 0 when @a retry is NULL or its table
  *         is empty - in which case the caller should treat the retry as due
- *         immediately, matching netmgr_retry_interval_ms()'s total contract
+ *         immediately, matching netmgr_retry_interval_ms()'s total contract.
+ *         An empty table is also ARMED at @a now_ms, so every later
+ *         netmgr_retry_due() poll keeps answering "due now" rather than "never".
+ *         A caller for which count 0 means NEVER - the revalidation consumer, see
+ *         netmgr_retry_table_t.count - must therefore not call this at all and
+ *         leave the context unarmed instead.
  */
 uint32_t netmgr_retry_fail(netmgr_retry_t *retry, uint32_t now_ms);
 

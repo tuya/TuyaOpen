@@ -19,6 +19,11 @@ file(GLOB_RECURSE LIB_SRCS
     # the registry and needs no per-technology gate either.
     "${MODULE_PATH}/netmgr/netconn_table.c"
     "${MODULE_PATH}/netmgr/netmgr_cli.c"
+    # netmgr_retry.c is unconditional for a stronger reason than convenience:
+    # netconn_wifi.c references it unconditionally, so gating it would be an
+    # undefined reference rather than a smaller image. It is technology-free by
+    # construction - pure arithmetic over its arguments, no driver header.
+    "${MODULE_PATH}/netmgr/netmgr_retry.c"
     "${MODULE_PATH}/protocol/*.c"
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"

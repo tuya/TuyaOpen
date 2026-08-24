@@ -13,6 +13,16 @@
 
 #include "netconn_wifi.h"
 #include "netconn_registry.h"
+
+/* The shared back-off arithmetic, adopted through its PURE layer only
+ * (netmgr_retry_interval_ms() / netmgr_retry_advance()). That choice is the whole
+ * reason two layers exist: the pure layer touches no state this file does not
+ * already own, so the reconnect back-off moves out of here WITHOUT any change to
+ * netconn_wifi.h - which matters, because that header is on the global public
+ * include path and app code uses its types. conn.stat, conn.count, conn.table,
+ * conn.table_size and conn.timer all stay exactly where they were. */
+#include "netmgr_retry.h"
+
 #include "tal_api.h"
 #include "dev_evt.h"
 #include "cJSON.h"
@@ -55,12 +65,82 @@ netmgr_conn_wifi_t s_netmgr_wifi = {
             .set = netconn_wifi_set,
         },
     .ccode = {"CN"},
-    .conn =
-        {
-            .table_size = NETCONN_WIFI_CONN_TABLE,
-            .table = {1, 3, 5, 10, 15, 20},
-        },
+    /* conn.table / conn.table_size are deliberately NOT initialised here any
+     * more. They used to hold
+     *
+     *     .table_size = NETCONN_WIFI_CONN_TABLE,   // 16
+     *     .table      = {1, 3, 5, 10, 15, 20},     // 6 entries, [6..15] zero
+     *
+     * i.e. a declared length that did not match the real one, which put the
+     * saturation point at attempt 15 instead of attempt 5 and made attempts 6 and
+     * up arm the timer with a literal 0. That behaved only because
+     * tal_sw_timer_start() keeps the previous interval on a 0 argument.
+     * netmgr_retry.h records the whole trace.
+     *
+     * netconn_wifi_open() seeds both fields from netmgr_retry_table_assoc instead,
+     * so the intervals have exactly one definition in the tree and the declared
+     * count is the real count. Left zeroed here so that seeding can tell "nobody
+     * set a table" from "a product set one". */
+    .conn = {0},
 };
+
+/**
+ * @brief Arm conn.timer for the next reconnect attempt and advance the counter.
+ *
+ * The eight lines this replaces appeared twice, verbatim, in __netconn_wifi_event()
+ * and __netconn_wifi_conn_timer():
+ *
+ *     tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
+ *     if (wifi->conn.count < wifi->conn.table_size - 1) {
+ *         wifi->conn.count++;
+ *     }
+ *     wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
+ *
+ * netmgr_retry_advance() is that idiom exactly: it indexes with the counter BEFORE
+ * bumping it, clamps the index at the last entry, and saturates the counter at
+ * count - 1 rather than wrapping - all three of which the original depended on.
+ *
+ * Two things change, and neither changes the observable sequence:
+ *
+ *   - the interval is passed to tal_sw_timer_start() EXPLICITLY on every arm. The
+ *     original passed 0 from attempt 6 onwards and relied on the timer keeping
+ *     its previous interval, which in the steady failure loop was
+ *     WIFI_CONN_TIMEOUT_MAX * 1000 rather than table[5] * 1000. Those two
+ *     constants are both 20, so the observable back-off is unchanged - and the
+ *     back-off table and the connect timeout stop being silently coupled, so
+ *     retuning WIFI_CONN_TIMEOUT_MAX no longer moves the back-off;
+ *   - `count - 1` cannot underflow on an empty table, because
+ *     netmgr_retry_advance() guards it. The original would have computed
+ *     `0 - 1` as UINT32_MAX and bumped the counter forever.
+ *
+ * NETCONN_CMD_RECONN_TABLE is unaffected: it writes conn.table and sets
+ * conn.table_size to the caller's own count, and the view built here reads both,
+ * so the long ULP back-off keeps its behaviour byte for byte.
+ */
+static void __netconn_wifi_backoff_wait(netmgr_conn_wifi_t *wifi)
+{
+    /* A view over the driver's existing fields - no copy, no allocation. The
+     * bound NETMGR_RETRY_TABLE_MAX and NETCONN_WIFI_CONN_TABLE are both 16, which
+     * is what makes this legal without a header change. */
+    netmgr_retry_table_t table = {
+        .entry = wifi->conn.table,
+        .count = wifi->conn.table_size,
+    };
+    uint32_t interval_ms = netmgr_retry_advance(&table, &wifi->conn.count);
+
+    /* An empty table answers 0, which means "retry immediately" for this consumer
+     * (netmgr_retry_table_t.count spells out why the revalidation consumer reads
+     * it the other way). 0 must NOT reach tal_sw_timer_start(), which would treat
+     * it as "keep the previous interval" - the very quirk this function exists to
+     * stop depending on - so "immediately" is spelled as one millisecond.
+     * Unreachable in practice: netconn_wifi_open() always leaves a table. */
+    if (0 == interval_ms) {
+        interval_ms = 1;
+    }
+
+    tal_sw_timer_start(wifi->conn.timer, interval_ms, TAL_TIMER_ONCE);
+    wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
+}
 
 /**
  * TRUE once netconn_wifi_open() has brought the WiFi stack up, i.e. once
@@ -156,11 +236,7 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
     } else {
         //! faild or disconnect auto connect
         if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
-            tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
-            if (wifi->conn.count < wifi->conn.table_size - 1) {
-                wifi->conn.count++;
-            }
-            wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
+            __netconn_wifi_backoff_wait(wifi);
         } else if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
             wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
             __netconn_wifi_connect();
@@ -191,12 +267,19 @@ static void __netconn_wifi_conn_timer(TIMER_ID timer_id, void *arg)
     } else if (NETCONN_WIFI_CONN_STOP == wifi->conn.stat) {
         wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
     } else if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat) {
-        PR_DEBUG("wifi connect wait %d-%d", wifi->conn.count, wifi->conn.table[wifi->conn.count]);
-        tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
-        if (wifi->conn.count < wifi->conn.table_size - 1) {
-            wifi->conn.count++;
-        }
-        wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
+        // The trace line moved above the arm and reads the interval through the
+        // same accessor the arm uses, rather than indexing conn.table directly:
+        // the original printed table[count] and then armed with table[count], and
+        // for count >= 6 both were 0 while the timer actually waited 20 s. So the
+        // log disagreed with the behaviour in exactly the case a reader would be
+        // reading it.
+        netmgr_retry_table_t table = {
+            .entry = wifi->conn.table,
+            .count = wifi->conn.table_size,
+        };
+
+        PR_DEBUG("wifi connect wait %d-%dms", wifi->conn.count, netmgr_retry_interval_ms(&table, wifi->conn.count));
+        __netconn_wifi_backoff_wait(wifi);
     }
 }
 
@@ -394,6 +477,27 @@ OPERATE_RET netconn_wifi_open(void *config)
 {
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
     OPERATE_RET rt = OPRT_OK;
+
+    /* Seed the reconnect back-off from the one definition of it, so the driver
+     * carries no magic numbers of its own - which is what netmgr_retry.h declares
+     * netmgr_retry_table_assoc for.
+     *
+     * Guarded on table_size, so a product-supplied NETCONN_CMD_RECONN_TABLE is
+     * never overwritten. The ordering makes that unreachable today - the command
+     * arrives through netmgr_conn_set(), which refuses until netmgr_init() has
+     * finished, i.e. strictly after this - but a close()/open() cycle must not
+     * silently revert a ULP board to the short table either, and this is what
+     * stops it. */
+    if (0 == netmgr_wifi->conn.table_size && NULL != netmgr_retry_table_assoc.entry) {
+        uint32_t n = netmgr_retry_table_assoc.count;
+
+        if (n > NETCONN_WIFI_CONN_TABLE) {
+            n = NETCONN_WIFI_CONN_TABLE;
+        }
+        memcpy(netmgr_wifi->conn.table, netmgr_retry_table_assoc.entry, n * sizeof(uint32_t));
+        netmgr_wifi->conn.table_size = n;
+        netmgr_wifi->conn.count      = 0;
+    }
 
     // init
     TUYA_CALL_ERR_RETURN(tal_wifi_init(__netconn_wifi_event));
