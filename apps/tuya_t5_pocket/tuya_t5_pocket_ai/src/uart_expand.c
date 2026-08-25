@@ -173,8 +173,8 @@ static void __camera_screen_lifecycle_handler(BOOL_T is_init)
  */
 static void __camera_photo_print_handler(const TAL_IMAGE_YUV422_TO_BINARY_T *params)
 {
-    if (!params || !params->in_buf || !params->out_buf || params->in_width <= 0 ||
-        params->in_height <= 0 || params->out_width <= 0 || params->out_height <= 0) {
+    if (!params || !params->in_buf || !params->out_buf || params->in_width == 0 ||
+        params->in_height == 0 || params->out_width == 0 || params->out_height == 0) {
         PR_ERR("Invalid parameters or missing pre-allocated buffer");
         return;
     }
@@ -182,11 +182,7 @@ static void __camera_photo_print_handler(const TAL_IMAGE_YUV422_TO_BINARY_T *par
     PR_NOTICE("Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d", params->in_width,
               params->in_height, params->out_width, params->out_height, params->method);
 
-    /* tal_image_format_yuv422_to_binary takes a non-const pointer; params here
-     * is const because the callback contract promises not to mutate the
-     * caller's config, so cast it back for the call (the function only reads
-     * the config fields and writes through out_buf, which is fine to alias). */
-    int convert_result = tal_image_format_yuv422_to_binary((TAL_IMAGE_YUV422_TO_BINARY_T *)params);
+    int convert_result = tal_image_format_yuv422_to_binary(params);
     if (convert_result != OPRT_OK) {
         PR_ERR("Failed to convert YUV422 to binary: %d", convert_result);
         return;

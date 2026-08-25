@@ -36,16 +36,16 @@ typedef struct {
     uint8_t                *out_buf;
     uint16_t                out_width;
     uint16_t                out_height;
-    TAL_IMAGE_ROTATE_E      rotate; /* CCW rotation to compensate for camera mounting angle */
+    TAL_IMAGE_ROTATE_E      rotate; /* CW rotation to compensate for camera mounting angle */
 } TAL_IMAGE_YUV422_TO_BINARY_T;
 
 /**
  * @brief Converts YUV422 format image to binary (monochrome) format.
  *
- * @param conv_cfg Pointer to the conversion configuration structure.
+ * @param conv_cfg Pointer to the conversion configuration structure. Only read, never modified.
  * @return OPERATE_RET Operation result code.
  */
-OPERATE_RET tal_image_format_yuv422_to_binary(TAL_IMAGE_YUV422_TO_BINARY_T *conv_cfg);
+OPERATE_RET tal_image_format_yuv422_to_binary(const TAL_IMAGE_YUV422_TO_BINARY_T *conv_cfg);
 
 #ifdef __cplusplus
 }

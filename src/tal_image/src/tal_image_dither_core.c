@@ -1,8 +1,11 @@
-/* src/tal_image/src/tal_image_dither_core.c */
+/**
+ * @file tal_image_dither_core.c
+ * @brief Shared monochrome dithering core implementation.
+ *
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ */
 #include <stdint.h>
 #include <string.h>
-#include <math.h>
-#include <stdbool.h>
 #include "tal_image_dither_core.h"
 
 static inline uint8_t yuv422_luma(const uint8_t *yuv422_data, int src_width, int x, int y)
@@ -15,6 +18,10 @@ void tal_image_extract_gray_from_yuv422(const uint8_t *yuv422_data, int src_widt
                                          TAL_IMAGE_ROTATE_E rotate)
 {
     int crop_x, crop_y;
+
+    if (!yuv422_data || !gray_out || src_width <= 0 || src_height <= 0 || dst_width <= 0 || dst_height <= 0) {
+        return;
+    }
 
     if (rotate == TAL_IMAGE_ROTATE_0 || rotate == TAL_IMAGE_ROTATE_180) {
         crop_x = (src_width - dst_width) / 2;
@@ -39,7 +46,8 @@ void tal_image_extract_gray_from_yuv422(const uint8_t *yuv422_data, int src_widt
                 src_y = (src_height - 1 - crop_y) - dst_y;
                 break;
             case TAL_IMAGE_ROTATE_270:
-                /* 270 CCW = 90 CW. Centered crop (new capability, no legacy to match). */
+                /* Counter-clockwise 90 (the true reverse of ROTATE_90's clockwise
+                 * 90). Centered crop (new capability, no legacy to match). */
                 src_x = (src_width - 1) - (dst_y + crop_x);
                 src_y = dst_x + crop_y;
                 break;
@@ -168,7 +176,10 @@ static int dither_bayer(const uint8_t *gray, uint16_t width, uint16_t height, ui
                                     : (gray_level < bayer_value || lum < 32);
             } else if (levels == 8) {
                 bayer_value = bayer_3x3[y % 3][x % 3];
-                gray_level = (uint8_t)((uint16_t)lum * 8 / 255);
+                /* *9/256 (not *8/255): bucket 8 needs a full 1/9th of the [0,255]
+                 * range to be reachable by real content; *8/255 gave it only
+                 * lum==255 (1 of 256 codes), leaving it effectively dead. */
+                gray_level = (uint8_t)((uint16_t)lum * 9 / 256);
                 should_set = invert ? (gray_level >= bayer_value && lum >= 16)
                                     : (gray_level < bayer_value || lum < 16);
             } else {
@@ -292,18 +303,62 @@ static int dither_jarvis(const uint8_t *gray, uint16_t width, uint16_t height, u
 
 #define EDGE_ATKINSON_THRESHOLD      200
 #define EDGE_ATKINSON_MAX_BRIGHTNESS 166 /* ~0.65 * 255 */
-#define EDGE_ATKINSON_GAMMA          2.0f
-#define GAMMA_SERPENTINE_GAMMA       1.45f
 #define GAMMA_SERPENTINE_THRESHOLD   128
 
-static void build_gamma_lut(uint8_t *lut, float gamma)
-{
-    for (int i = 0; i < 256; i++) {
-        float v = powf((float)i / 255.0f, 1.0f / gamma) * 255.0f;
-        lut[i] = (uint8_t)(v < 0.0f ? 0.0f : (v > 255.0f ? 255.0f : v));
-    }
-}
+/* gamma_lut[i] = round(pow(i/255, 1/gamma) * 255), gamma = 2.0. Precomputed
+ * (see the generating script referenced in the module's commit history)
+ * instead of built at runtime with powf(): avoids pulling libm/soft-float
+ * into every platform that links this file, and avoids the lazy-init race
+ * the runtime version had between the camera-preview and printer tasks. */
+static const uint8_t edge_atkinson_gamma_lut[256] = {
+    0,   15,  22,  27,  31,  35,  39,  42,  45,  47,  50,  52,  55,  57,  59,  61,
+    63,  65,  67,  69,  71,  73,  74,  76,  78,  79,  81,  82,  84,  85,  87,  88,
+    90,  91,  93,  94,  95,  97,  98,  99,  100, 102, 103, 104, 105, 107, 108, 109,
+    110, 111, 112, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126,
+    127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 141,
+    142, 143, 144, 145, 146, 147, 148, 148, 149, 150, 151, 152, 153, 153, 154, 155,
+    156, 157, 158, 158, 159, 160, 161, 162, 162, 163, 164, 165, 165, 166, 167, 168,
+    168, 169, 170, 171, 171, 172, 173, 174, 174, 175, 176, 177, 177, 178, 179, 179,
+    180, 181, 182, 182, 183, 184, 184, 185, 186, 186, 187, 188, 188, 189, 190, 190,
+    191, 192, 192, 193, 194, 194, 195, 196, 196, 197, 198, 198, 199, 200, 200, 201,
+    201, 202, 203, 203, 204, 205, 205, 206, 206, 207, 208, 208, 209, 210, 210, 211,
+    211, 212, 213, 213, 214, 214, 215, 216, 216, 217, 217, 218, 218, 219, 220, 220,
+    221, 221, 222, 222, 223, 224, 224, 225, 225, 226, 226, 227, 228, 228, 229, 229,
+    230, 230, 231, 231, 232, 233, 233, 234, 234, 235, 235, 236, 236, 237, 237, 238,
+    238, 239, 240, 240, 241, 241, 242, 242, 243, 243, 244, 244, 245, 245, 246, 246,
+    247, 247, 248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 255,
+};
 
+/* gamma_lut[i] = round(pow(i/255, 1/gamma) * 255), gamma = 1.45. See the
+ * comment above edge_atkinson_gamma_lut for why this is precomputed. */
+static const uint8_t gamma_serpentine_gamma_lut[256] = {
+    0,   5,   9,   11,  14,  16,  19,  21,  23,  25,  27,  29,  30,  32,  34,  36,
+    37,  39,  40,  42,  44,  45,  47,  48,  49,  51,  52,  54,  55,  56,  58,  59,
+    60,  62,  63,  64,  66,  67,  68,  69,  71,  72,  73,  74,  75,  77,  78,  79,
+    80,  81,  82,  84,  85,  86,  87,  88,  89,  90,  91,  92,  94,  95,  96,  97,
+    98,  99,  100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113,
+    114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
+    129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 140, 141, 142, 143,
+    144, 145, 146, 147, 148, 149, 149, 150, 151, 152, 153, 154, 155, 155, 156, 157,
+    158, 159, 160, 161, 161, 162, 163, 164, 165, 166, 166, 167, 168, 169, 170, 171,
+    171, 172, 173, 174, 175, 176, 176, 177, 178, 179, 180, 180, 181, 182, 183, 184,
+    184, 185, 186, 187, 188, 188, 189, 190, 191, 192, 192, 193, 194, 195, 195, 196,
+    197, 198, 199, 199, 200, 201, 202, 202, 203, 204, 205, 205, 206, 207, 208, 208,
+    209, 210, 211, 211, 212, 213, 214, 214, 215, 216, 217, 217, 218, 219, 220, 220,
+    221, 222, 223, 223, 224, 225, 225, 226, 227, 228, 228, 229, 230, 231, 231, 232,
+    233, 233, 234, 235, 236, 236, 237, 238, 238, 239, 240, 241, 241, 242, 243, 243,
+    244, 245, 245, 246, 247, 248, 248, 249, 250, 250, 251, 252, 252, 253, 254, 255,
+};
+
+/* Clamps (x, y) to the destination (post-crop/rotate) plane's own bounds --
+ * i.e. at the crop border it replicates the nearest in-bounds destination
+ * pixel. The pre-unification, app-local implementation instead clamped
+ * against the full source camera frame, so a border pixel's edge magnitude
+ * there could be influenced by real neighbours that this crop discarded.
+ * This is a real, untested structural difference from legacy (on top of the
+ * documented threshold-scope change below): fixing it would mean passing the
+ * uncropped source frame into the dither core, which the extract-then-dither
+ * architecture deliberately does not do. Accepted as a known limitation. */
 static uint8_t gray_clamped(const uint8_t *gray, uint16_t width, uint16_t height, int x, int y)
 {
     if (x < 0) x = 0;
@@ -317,12 +372,6 @@ static int dither_edge_atkinson(const uint8_t *gray, uint16_t width, uint16_t he
                                  int invert, void *scratch)
 {
     int stride = (width + 7) / 8;
-    static uint8_t gamma_lut[256];
-    static bool gamma_lut_ready = false;
-    if (!gamma_lut_ready) {
-        build_gamma_lut(gamma_lut, EDGE_ATKINSON_GAMMA);
-        gamma_lut_ready = true;
-    }
 
     /* Frame-mean adaptive black/white split, gamma-corrected to match the
      * gamma-corrected luminance channel it's compared against. Computed over
@@ -331,7 +380,7 @@ static int dither_edge_atkinson(const uint8_t *gray, uint16_t width, uint16_t he
     uint32_t sum = 0;
     uint32_t total = (uint32_t)width * height;
     for (uint32_t i = 0; i < total; i++) sum += gray[i];
-    uint8_t black_thresh = gamma_lut[(uint8_t)(sum / total)];
+    uint8_t black_thresh = edge_atkinson_gamma_lut[(uint8_t)(sum / total)];
 
     int16_t *error_buffer = (int16_t *)scratch;
     memset(error_buffer, 0, (size_t)(width + 4) * 3 * sizeof(int16_t));
@@ -353,12 +402,12 @@ static int dither_edge_atkinson(const uint8_t *gray, uint16_t width, uint16_t he
             int edge_mag = 8 * center - sum8;
             if (edge_mag < 0) edge_mag = -edge_mag;
 
-            uint8_t gamma_center = gamma_lut[center];
+            uint8_t gamma_center = edge_atkinson_gamma_lut[center];
             int16_t lum = (int16_t)gamma_center + curr_row[x];
             if (lum < 0) lum = 0;
             if (lum > 255) lum = 255;
 
-            bool is_edge = edge_mag > EDGE_ATKINSON_THRESHOLD && gamma_center < EDGE_ATKINSON_MAX_BRIGHTNESS;
+            int is_edge = edge_mag > EDGE_ATKINSON_THRESHOLD && gamma_center < EDGE_ATKINSON_MAX_BRIGHTNESS;
             uint8_t new_pixel = is_edge ? 0 : ((lum >= black_thresh) ? 255 : 0);
             int should_set = invert ? (new_pixel == 255) : (new_pixel == 0);
             if (should_set) set_bit(out_buf, stride, x, y);
@@ -383,12 +432,6 @@ static int dither_gamma_serpentine(const uint8_t *gray, uint16_t width, uint16_t
                                     int invert, void *scratch)
 {
     int stride = (width + 7) / 8;
-    static uint8_t gamma_lut[256];
-    static bool gamma_lut_ready = false;
-    if (!gamma_lut_ready) {
-        build_gamma_lut(gamma_lut, GAMMA_SERPENTINE_GAMMA);
-        gamma_lut_ready = true;
-    }
 
     int16_t *error_buffer = (int16_t *)scratch;
     memset(error_buffer, 0, (size_t)(width + 2) * 2 * sizeof(int16_t));
@@ -400,7 +443,7 @@ static int dither_gamma_serpentine(const uint8_t *gray, uint16_t width, uint16_t
         int x = (direction == 1) ? 0 : width - 1;
 
         for (int count = 0; count < width; count++, x += direction) {
-            uint8_t gamma_corrected = gamma_lut[gray[y * width + x]];
+            uint8_t gamma_corrected = gamma_serpentine_gamma_lut[gray[y * width + x]];
             int16_t lum = (int16_t)gamma_corrected + curr_row[x];
             if (lum < 0) lum = 0;
             if (lum > 255) lum = 255;

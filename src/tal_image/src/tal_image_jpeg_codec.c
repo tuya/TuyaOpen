@@ -6,6 +6,7 @@
  */
 
 #include "tal_image_jpeg_codec.h"
+#include "tal_image_jpeg_noise_clamp.h"
 #include "tuya_error_code.h"
 #include "tal_memory.h"
 #include "tal_mutex.h"
@@ -619,6 +620,9 @@ OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
     if (out->out_buf == NULL || out->out_buf_size == 0) {
         return OPRT_INVALID_PARM;
     }
+    if (method >= TAL_IMAGE_MONO_MTH_COUNT) {
+        return OPRT_INVALID_PARM;
+    }
 
     uint16_t w = out->out_width;
     uint16_t h = out->out_height;
@@ -647,34 +651,10 @@ OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
         return rt;
     }
 
-    int16_t thr = (int16_t)threshold;
-
-    /*
-     * JPEG DCT quantization introduces ±15-20 noise on flat (white/black)
-     * regions. Without clamping, these near-white pixels (e.g. 238 instead of
-     * 255) carry a small negative error that error-diffusion dithering diffuses
-     * to neighbours; the accumulated error eventually flips a pixel black,
-     * producing visible dot rows on what should be a clean white background.
-     * Snap clearly-white / clearly-black pixels to their extremes first so the
-     * dithering error is zero and cannot scatter dots. This runs for every
-     * method, not just the error-diffusion ones -- it's cheap and harmless
-     * for threshold/Bayer methods.
-     */
-    int16_t white_clamp = thr + (255 - thr) / 3;  /* ~85 % of way to white */
-    int16_t black_clamp = thr / 3;                 /* ~33 % of way to black */
-
-    for (uint16_t y = 0; y < h; y++) {
-        uint8_t *row = gray_buf + (uint32_t)y * w;
-
-        for (uint16_t x = 0; x < w; x++) {
-            int16_t px = (int16_t)row[x];
-            if (px >= white_clamp) {
-                px = 255;
-            } else if (px <= black_clamp) {
-                px = 0;
-            }
-            row[x] = (uint8_t)px;
-        }
+    /* See tal_image_jpeg_noise_clamp.h for what this does and why it's
+     * scoped to the error-diffusion methods only. */
+    if (tal_image_jpeg_should_clamp_noise(method)) {
+        tal_image_jpeg_clamp_noise(gray_buf, w, h, threshold);
     }
 
     uint32_t scratch_size = tal_image_dither_scratch_size(method, w);

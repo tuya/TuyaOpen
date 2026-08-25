@@ -10,9 +10,12 @@
 #include "tal_log.h"
 #include "tal_image_yuv422_to_binary.h"
 
-OPERATE_RET tal_image_format_yuv422_to_binary(TAL_IMAGE_YUV422_TO_BINARY_T *conv_cfg)
+OPERATE_RET tal_image_format_yuv422_to_binary(const TAL_IMAGE_YUV422_TO_BINARY_T *conv_cfg)
 {
     if (conv_cfg == NULL || conv_cfg->in_buf == NULL || conv_cfg->out_buf == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+    if (conv_cfg->method >= TAL_IMAGE_MONO_MTH_COUNT) {
         return OPRT_INVALID_PARM;
     }
 
