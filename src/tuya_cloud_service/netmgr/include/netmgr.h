@@ -94,7 +94,7 @@ typedef struct netmgr_conn_base {
     netmgr_type_e type;
     netmgr_status_e status;
     /* Which tal_network socket backend this connection's traffic leaves through.
-     * Holds one of the TAL_NET_TYPE_* values the tal_network card registry
+     * Holds one of the TAL_NET_PROVIDER_* values the tal_network provider registry
      * defines - use TAL_NET_PROVIDER_DEFAULT to fill it in. Typed uint8_t, the
      * very type tal_net_provider_id_t is a typedef of, so this control-plane
      * header needs no include from the data plane. */

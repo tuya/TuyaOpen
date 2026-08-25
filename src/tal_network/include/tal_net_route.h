@@ -33,7 +33,7 @@ extern "C" {
 ***********************************************************/
 typedef struct {
     uint8_t provider;      /* which socket ops backend; values are the existing
-                              TAL_NET_TYPE_* constants */
+                              TAL_NET_PROVIDER_* constants */
     TUYA_IP_ADDR_T src_ip; /* source address outbound sockets bind to, 0 = do not bind */
 } tal_net_route_t;
 
@@ -51,7 +51,7 @@ typedef struct {
  *                  bind" - readers then let the stack pick the source itself.
  *
  * @return OPRT_OK on success. OPRT_INVALID_PARM when @a route is NULL or its
- *         provider is not a valid TAL_NET_TYPE_* value. Others on error, please
+ *         provider is not a valid TAL_NET_PROVIDER_* value. Others on error, please
  *         refer to tuya_error_code.h
  */
 OPERATE_RET tal_net_route_set(const tal_net_route_t *route);

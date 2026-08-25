@@ -263,7 +263,7 @@ typedef struct netconn_desc {
 
     /**
      * Socket ops backend this link's traffic leaves through, copied into
-     * conn->card_type at registration. Holds a TAL_NET_TYPE_* value.
+     * conn->card_type at registration. Holds a TAL_NET_PROVIDER_* value.
      *
      * USE TAL_NET_PROVIDER_DEFAULT. An earlier version of this comment said
      * "unless the board really has a second backend", which today is a trap: the
