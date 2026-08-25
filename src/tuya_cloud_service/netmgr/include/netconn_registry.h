@@ -144,10 +144,9 @@ typedef uint32_t netconn_caps_t;
  * conn->provider) and tal_network_card_set_active() (which has zero callers in
  * the tree). Every driver initialises provider to TAL_NET_PROVIDER_DEFAULT,
  * which expands to TAL_NET_PROVIDER_POSIX or TAL_NET_PROVIDER_TKL and never to
- * TAL_NET_PROVIDER_AT_MODEM - nothing in the tree ever publishes that value; the
- * only lines naming it are its own #define and the deprecated
- * TAL_NET_TYPE_AT_MODEM alias that points at it. So the condition is a tautology
- * and the 4G branch it guards has never been taken.
+ * TAL_NET_PROVIDER_AT_MODEM - nothing in the tree ever publishes that value; it
+ * is only ever defined, never assigned. So the condition is a tautology and the
+ * 4G branch it guards has never been taken.
  *
  * This bit makes the intended meaning explicit and, unlike the original, true:
  * the driver states whether it can raise an AP, and netmgr never asks the data
