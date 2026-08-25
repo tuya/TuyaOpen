@@ -46,17 +46,14 @@ void tal_image_extract_gray_from_yuv422(const uint8_t *yuv422_data, int src_widt
                 src_y = (src_height - 1 - crop_y) - dst_y;
                 break;
             case TAL_IMAGE_ROTATE_270:
-                /* Counter-clockwise 90 (the true reverse of ROTATE_90's clockwise
-                 * 90). Centered crop (new capability, no legacy to match). */
+                /* CCW 90, the reverse of ROTATE_90. Centered crop. */
                 src_x = (src_width - 1) - (dst_y + crop_x);
                 src_y = dst_x + crop_y;
                 break;
             case TAL_IMAGE_ROTATE_90:
             default:
-                /* Legacy formula from the pre-unification code, preserved verbatim:
-                 * crop_offset = (src_width - dst_height) / 2 applied only to src_x;
-                 * src_y has NO offset (asymmetric crop -- intentional, matches
-                 * production behavior for the real dst<=src combos this ships with). */
+                /* Legacy formula, preserved verbatim: asymmetric crop (offset
+                 * only on src_x, none on src_y) matches production behavior. */
                 src_x = dst_y + (src_width - dst_height) / 2;
                 src_y = src_height - 1 - dst_x;
                 break;
@@ -77,29 +74,10 @@ static const uint8_t bayer_2x2[2][2] = {{0, 2}, {3, 1}};
 static const uint8_t bayer_3x3[3][3] = {{0, 7, 3}, {6, 4, 2}, {1, 5, 8}};
 static const uint8_t bayer_4x4[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
 
-/*
- * Threshold-scope note (Adaptive / Otsu / Edge-Atkinson):
- *
- * calc_adaptive_threshold() and calc_otsu_threshold() below, and the
- * frame-mean threshold computed inline in dither_edge_atkinson(), all derive
- * their statistics from `gray`, which by the time it reaches this file is
- * already the DESTINATION plane -- i.e. it has already been rotated and
- * cropped by tal_image_extract_gray_from_yuv422() to just the pixels that
- * will actually be displayed/printed.
- *
- * The pre-unification, app-local implementation computed the equivalent
- * statistics over the FULL source camera frame, before cropping, so pixels
- * that were discarded by the crop still influenced the threshold.
- *
- * This is a real, intentional behavior change introduced by the new
- * extract-then-dither architecture, and it affects exactly these three of
- * the 11 methods (all other methods are either fixed/local and unaffected by
- * this scope, or shown byte-identical to the legacy behavior otherwise).
- * Arguably it is the more correct behavior -- the threshold now reflects
- * what's actually on screen rather than pixels that were thrown away -- but
- * it is a visible difference from the old output and is called out here so
- * it isn't mistaken for an accidental regression.
- */
+/* Threshold-scope note (Adaptive / Otsu / Edge-Atkinson): these derive their
+ * statistics from `gray`, which is already the cropped/rotated destination
+ * plane, not the full source frame the legacy per-app code used. Intentional
+ * behavior change -- reflects what's actually shown, not discarded pixels. */
 static uint8_t calc_adaptive_threshold(const uint8_t *gray, uint16_t width, uint16_t height)
 {
     uint32_t sum = 0;
@@ -176,9 +154,8 @@ static int dither_bayer(const uint8_t *gray, uint16_t width, uint16_t height, ui
                                     : (gray_level < bayer_value || lum < 32);
             } else if (levels == 8) {
                 bayer_value = bayer_3x3[y % 3][x % 3];
-                /* *9/256 (not *8/255): bucket 8 needs a full 1/9th of the [0,255]
-                 * range to be reachable by real content; *8/255 gave it only
-                 * lum==255 (1 of 256 codes), leaving it effectively dead. */
+                /* *9/256, not *8/255: the old divisor left bucket 8 reachable
+                 * only at lum==255, effectively dead. */
                 gray_level = (uint8_t)((uint16_t)lum * 9 / 256);
                 should_set = invert ? (gray_level >= bayer_value && lum >= 16)
                                     : (gray_level < bayer_value || lum < 16);
@@ -306,10 +283,8 @@ static int dither_jarvis(const uint8_t *gray, uint16_t width, uint16_t height, u
 #define GAMMA_SERPENTINE_THRESHOLD   128
 
 /* gamma_lut[i] = round(pow(i/255, 1/gamma) * 255), gamma = 2.0. Precomputed
- * (see the generating script referenced in the module's commit history)
- * instead of built at runtime with powf(): avoids pulling libm/soft-float
- * into every platform that links this file, and avoids the lazy-init race
- * the runtime version had between the camera-preview and printer tasks. */
+ * instead of built at runtime with powf(): avoids libm and the lazy-init
+ * race the runtime version had between the camera and printer tasks. */
 static const uint8_t edge_atkinson_gamma_lut[256] = {
     0,   15,  22,  27,  31,  35,  39,  42,  45,  47,  50,  52,  55,  57,  59,  61,
     63,  65,  67,  69,  71,  73,  74,  76,  78,  79,  81,  82,  84,  85,  87,  88,
@@ -329,8 +304,7 @@ static const uint8_t edge_atkinson_gamma_lut[256] = {
     247, 247, 248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 253, 254, 255,
 };
 
-/* gamma_lut[i] = round(pow(i/255, 1/gamma) * 255), gamma = 1.45. See the
- * comment above edge_atkinson_gamma_lut for why this is precomputed. */
+/* gamma = 1.45. See edge_atkinson_gamma_lut above for why precomputed. */
 static const uint8_t gamma_serpentine_gamma_lut[256] = {
     0,   5,   9,   11,  14,  16,  19,  21,  23,  25,  27,  29,  30,  32,  34,  36,
     37,  39,  40,  42,  44,  45,  47,  48,  49,  51,  52,  54,  55,  56,  58,  59,
@@ -350,15 +324,9 @@ static const uint8_t gamma_serpentine_gamma_lut[256] = {
     244, 245, 245, 246, 247, 248, 248, 249, 250, 250, 251, 252, 252, 253, 254, 255,
 };
 
-/* Clamps (x, y) to the destination (post-crop/rotate) plane's own bounds --
- * i.e. at the crop border it replicates the nearest in-bounds destination
- * pixel. The pre-unification, app-local implementation instead clamped
- * against the full source camera frame, so a border pixel's edge magnitude
- * there could be influenced by real neighbours that this crop discarded.
- * This is a real, untested structural difference from legacy (on top of the
- * documented threshold-scope change below): fixing it would mean passing the
- * uncropped source frame into the dither core, which the extract-then-dither
- * architecture deliberately does not do. Accepted as a known limitation. */
+/* Clamps to the destination (post-crop) plane's own bounds -- legacy clamped
+ * against the full source frame instead, so border-pixel edge magnitude can
+ * differ slightly. Accepted: the core has no access to the uncropped frame. */
 static uint8_t gray_clamped(const uint8_t *gray, uint16_t width, uint16_t height, int x, int y)
 {
     if (x < 0) x = 0;
@@ -373,10 +341,8 @@ static int dither_edge_atkinson(const uint8_t *gray, uint16_t width, uint16_t he
 {
     int stride = (width + 7) / 8;
 
-    /* Frame-mean adaptive black/white split, gamma-corrected to match the
-     * gamma-corrected luminance channel it's compared against. Computed over
-     * the destination (post-crop/rotate) plane -- see the threshold-scope
-     * note above calc_adaptive_threshold(). */
+    /* Frame-mean adaptive split, gamma-corrected to match the luminance
+     * channel it's compared against -- see the threshold-scope note above. */
     uint32_t sum = 0;
     uint32_t total = (uint32_t)width * height;
     for (uint32_t i = 0; i < total; i++) sum += gray[i];

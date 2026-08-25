@@ -917,8 +917,7 @@ static void run_case(const uint8_t *yuv, int src_w, int src_h, int dst_w, int ds
             printf("PASS: %-16s %dx%d invert=%d -- differs as expected (%d/%d bits, %.2f%%)\n",
                    method_name(method), dst_w, dst_h, invert, diff_bits, total_bits, pct);
         } else if (identical && should_differ) {
-            printf("FAIL: %-16s %dx%d invert=%d -- expected a difference but got byte-identical output "
-                   "(the intentional behavior change this method carries may have regressed back to legacy)\n",
+            printf("FAIL: %-16s %dx%d invert=%d -- expected a difference but got byte-identical output\n",
                    method_name(method), dst_w, dst_h, invert);
             failures++;
         } else {

@@ -1,20 +1,9 @@
 /* src/tal_image/test/test_jpeg_noise_clamp.c
  *
- * Host-side coverage for the JPEG path's anti-dot-row noise clamp
- * (tal_image_jpeg_noise_clamp.h) -- previously the JPEG path had zero test
- * coverage at all, unlike the YUV422 path's 44-case legacy-parity harness.
- *
- * This intentionally does NOT attempt a bit-for-bit oracle against the
- * pre-unification tal_image_jpeg_decode_bitmap(): that implementation
- * re-applied the clamp per-pixel *inside* the Floyd-Steinberg diffusion loop
- * (re-evaluating row[x] against the clamp band at the moment each pixel is
- * visited, after upstream diffusion has already modified it), whereas this
- * module clamps the whole plane once, before dithering starts. That ordering
- * difference is a real, documented, accepted behavior change (see the
- * PR discussion) -- not a preserved-behavior guarantee -- so there is no
- * legacy formula to transcribe here. What IS pinned down and regression-
- * tested is the module's own, newly-introduced contract: which methods get
- * clamped, and exactly what the clamp band does to a pixel.
+ * Host-side coverage for tal_image_jpeg_noise_clamp.h. Not a legacy oracle
+ * (the old per-pixel-in-loop clamp order is an accepted, documented behavior
+ * change, not a preserved guarantee) -- just pins down this module's own
+ * contract: which methods get clamped, and what the clamp band does.
  */
 #include <stdio.h>
 #include <string.h>

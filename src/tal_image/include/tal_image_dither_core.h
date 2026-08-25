@@ -32,13 +32,8 @@ typedef enum {
     TAL_IMAGE_MONO_MTH_COUNT
 } TAL_IMAGE_MONO_METHOD_E;
 
-/* CLOCKWISE (CW) rotation applied before cropping, to compensate for a
- * camera module mounted at an angle relative to the screen. ROTATE_90 must
- * reproduce the legacy tuya_t5_pocket behavior exactly (see
- * tal_image_extract_gray_from_yuv422()) -- that legacy behavior is CW, which
- * is why this enum is CW rather than CCW: an earlier draft of this comment
- * (and of the legacy code it replaces) mislabeled it CCW; verified against
- * the actual rotation formulas using a 4-corner marker fixture. */
+/* Clockwise (CW) rotation applied before cropping, to compensate for a
+ * camera module mounted at an angle relative to the screen. */
 typedef enum {
     TAL_IMAGE_ROTATE_0 = 0,
     TAL_IMAGE_ROTATE_90,
@@ -48,9 +43,8 @@ typedef enum {
 
 /**
  * @brief Extract a dst_width x dst_height 8-bit grayscale plane from a YUV422
- * frame, applying a clockwise (CW) rotation and a centered crop (ROTATE_90
- * uses the legacy asymmetric crop for backward compatibility -- see .c for
- * details).
+ * frame, applying a CW rotation and a centered crop (ROTATE_90 uses the
+ * legacy asymmetric crop for backward compatibility -- see .c).
  *
  * @param yuv422_data Source YUV422 buffer (2 bytes/pixel, Y at odd offset).
  * @param src_width Source width.
@@ -58,7 +52,7 @@ typedef enum {
  * @param gray_out Destination buffer, must hold dst_width*dst_height bytes.
  * @param dst_width Destination width (post-rotation).
  * @param dst_height Destination height (post-rotation).
- * @param rotate Clockwise (CW) rotation to apply before cropping.
+ * @param rotate CW rotation to apply before cropping.
  */
 void tal_image_extract_gray_from_yuv422(const uint8_t *yuv422_data, int src_width, int src_height,
                                          uint8_t *gray_out, int dst_width, int dst_height,

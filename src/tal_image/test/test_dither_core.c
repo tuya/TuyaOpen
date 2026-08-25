@@ -111,15 +111,8 @@ static void test_rotate270_matches_three_legacy_steps(void)
     CHECK(gray[3 * 4 + 3] == 30, "ROTATE_270 bottom-right = source bottom-left");
 }
 
-/* Self-contained rotation-group consistency: independent of any legacy
- * formula, ROTATE_90 applied twice must equal ROTATE_180 applied once, and
- * ROTATE_90 applied four times must return the identity. This is the kind of
- * assertion that would have caught the ROTATE_90/ROTATE_270 CW-vs-CCW
- * mislabeling this module once carried: composing the *wrong* direction
- * twice still gives *some* 180-degree rotation, so it wouldn't catch a
- * swapped 90 vs 270, but it does pin the group structure so any future
- * change to the per-step formula that breaks the group is caught here rather
- * than only by re-deriving expected marker positions by hand. */
+/* Rotation-group consistency, independent of any legacy formula: ROTATE_90
+ * twice == ROTATE_180 once, and four times == identity. */
 static void gray_to_fake_yuv422(const uint8_t *gray, int w, int h, uint8_t *yuv_out)
 {
     for (int i = 0; i < w * h; i++) {

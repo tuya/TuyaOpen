@@ -110,24 +110,14 @@ OPERATE_RET tal_image_jpeg_decode_gray(const uint8_t *jpeg_data,
  * @param[in]  jpeg_data  Pointer to full JPEG data.
  * @param[in]  jpeg_size  Length of jpeg_data in bytes.
  * @param[out] out        Output: out_buf, out_buf_size, out_width, out_height. Must not be NULL.
- * @param[in]  method     Dithering method. Passing TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG
- *                        with threshold=128 matches this function's behavior before it
- *                        gained a method parameter, EXCEPT for the anti-dot-row noise
- *                        clamp described below, which now runs as a single pre-pass
- *                        instead of being re-applied per pixel inside the diffusion loop.
- * @param[in]  threshold  Binarization threshold (0-255), with two distinct uses:
- *                        (1) the actual binarization split for TAL_IMAGE_MONO_MTH_FIXED
- *                        only -- Bayer/Adaptive/Otsu compute their own split and ignore
- *                        it for this purpose, and the error-diffusion methods
- *                        (Floyd-Steinberg/Stucki/Jarvis/Edge-Atkinson/Gamma-Serpentine)
- *                        use a fixed internal split and also ignore it for this purpose;
- *                        (2) the center of a noise-clamp pre-pass applied ONLY before the
- *                        error-diffusion methods (see the implementation for why), which
- *                        snaps near-white/near-black JPEG pixels to pure white/black to
- *                        prevent DCT quantization noise from scattering into visible dot
- *                        rows -- this second use means threshold does measurably affect
- *                        error-diffusion output despite not setting their binarization
- *                        split. Typical value is 128.
+ * @param[in]  method     Dithering method (TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG matches
+ *                        this function's behavior before it gained a method parameter).
+ * @param[in]  threshold  Binarization threshold (0-255). Only the actual split for
+ *                        TAL_IMAGE_MONO_MTH_FIXED; every other method computes/uses its
+ *                        own split. Also centers the error-diffusion methods' noise-clamp
+ *                        pre-pass (see tal_image_jpeg_noise_clamp.h), so it does measurably
+ *                        affect their output despite not setting their binarization split.
+ *                        Typical value is 128.
  * @return OPERATE_RET OPRT_OK on success; otherwise see tuya_error_code.h.
  */
 OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
