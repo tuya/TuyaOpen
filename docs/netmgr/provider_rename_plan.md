@@ -1,6 +1,7 @@
 # netmgr / tal_network 术语重命名迁移计划：`card` → `provider`
 
-> 状态：**计划，一行代码都没动。** 基线 commit `0dff53e0`（`yj/refactor-netmgr`），写作日期 2026-08-24
+> 状态：**S1–S3 已执行**，`3b55d419..1935f2e3`（13 个 commit，每一步都在两个验证 target 上编过）。S4 未做 —— 它的触发条件是一次带 release note 的 tag 加足够的时间，不是树内状态，见 §4.5。
+> 写作日期 2026-08-24，写作基线 `0dff53e0`；执行日期 2026-08-25，执行起点 `3b55d419`。执行中被证伪的地方已就地更正，每处都在正文里说明了是怎么发现的。
 > 目标读者：要**执行**这次重命名的人，以及要 **review** 它的人
 > 与另三篇的分工：
 > - [`extension_guide.md`](extension_guide.md) 讲怎么往 netmgr 上面加东西，其中 §3「扩展路径二：加一个 socket provider」已经在用 `provider` 这个词讲这个概念；
@@ -16,7 +17,7 @@
 
 | 问题 | 答案 |
 | --- | --- |
-| 要改的标识符 | 17 个（§2.1），命中 **12 个源文件、80 行**，**全部在 `src/`** |
+| 要改的标识符 | 17 个（§2.1），命中 **13 个源文件、96 行**，**全部在 `src/`**（§2.2 的并集 PAT 执行中被证伪一次，见该节） |
 | `boards/` + `platform/` 命中 | **0**（§2.2；注意 `platform/*/` 被 `.gitignore` 排除，§2.4） |
 | `apps/` + `examples/` 命中 | 代码 **0**；两个 `.config` 的头注释各有几行（§2.2） |
 | `netmgr.h` 的 include 者 | **44 个参与编译的 `.c`/`.h`**，其中 **26 个在 `src/` 外**（§2.3） |
@@ -137,36 +138,57 @@ git grep -cw card_type -- 'src/tuya_cloud_service/netmgr'
 | `netconn_cellular.c` | 1 |
 | **合计** | **16** |
 
-### 2.2 并集：12 个文件，80 行，全部在 `src/`
+### 2.2 并集：13 个文件，96 行，全部在 `src/`
+
+**这条 PAT 本身在执行中被证伪过一次，先说这个，再看数字。** 写作时的 PAT 是：
+
+```
+TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|TAL_NETWORK_CARD_MANAGER_T|TAL_NETWORK_CARD_DEFAULT|tal_network_card_[a-z_]*|TAL_NET_TYPE_[A-Z_]+|card_type
+```
+
+两个缺陷，都在真的拿它做重命名时才暴露：
+
+1. `tal_network_card_[a-z_]*` 要求 `tal_network_card_` 后面紧跟这个词干，但 `tal_network_get_active_ops` 中间插了 `get_`，没有这一段就匹配不上；结构体成员 `active_card` 同理（`card` 在词尾，不在 `tal_network_card_` 这个前缀里）。S2a 落地时才发现 `src/tal_network/` 单独一个目录漏了 9 行没改全，其中 4 行是 `tal_network.c` 的热路径调用点，2 行还在 `TAL_NET_EXEC_OP` 宏里——即全部 socket 原语共用的那条路径（`413fe17d refactor(tal_network): move the data plane onto the provider names`，commit message 里写的是「49 行的计划，实测 58 行」）。
+2. `TAL_NET_TYPE_[A-Z_]+` 要求后面接标识符字符，但散文里指「这一族常量」时用的是字面的 `TAL_NET_TYPE_*`（星号），根本不是标识符，匹配不上。S2a、S2b 都拿这条 PAT 做过完整性检查并且通过了，实际漏了 4 行：`tal_net_route.h` 两处、`netconn_registry.h` 一处、`netmgr.h` 一处，直到 S2c 之后专门核对才发现并改掉（`d807df8a refactor(tal_network): finish the four mentions the S2 pattern could not match`）。
+
+把 PAT 换成：
+
+```
+PAT='TAL_NETWORK_CARD|tal_network_card_[a-z_]*|tal_network_get_active_ops|TAL_NET_TYPE_|active_card|card_type'
+```
+
+在执行起点 `3b55d419` 上重新测量（`git grep <commit>` 是唯一正确的用法——工作区已经按新名字改完了，不能拿工作区测这条历史 PAT）：
 
 ```bash
-PAT='TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|TAL_NETWORK_CARD_MANAGER_T|TAL_NETWORK_CARD_DEFAULT|tal_network_card_[a-z_]*|TAL_NET_TYPE_[A-Z_]+|card_type'
-git grep -lE "$PAT" -- '*.c' '*.h' ':!docs' ':!apps/games' | wc -l   # 12
-git grep -cE "$PAT" -- '*.c' '*.h' ':!docs' ':!apps/games'
-git grep -lE "$PAT" -- 'boards' 'platform' | wc -l                   # 0
+git grep -lE "$PAT" 3b55d419 -- '*.c' '*.h' ':!docs' ':!apps/games' | wc -l   # 13
+git grep -cE "$PAT" 3b55d419 -- '*.c' '*.h' ':!docs' ':!apps/games'
+git grep -lE "$PAT" 3b55d419 -- 'boards' 'platform' | wc -l                   # 0
 ```
 
 （`:!apps/games` 是必须的：`apps/games/lvgl_games` 里有一套跟本事无关的 `card_type` / `card_typedef`，见 §2.5。）
 
 | 文件 | 行 |
 | --- | --- |
-| `src/tal_network/include/tal_network_register.h` | 14 |
-| `src/tal_network/src/tal_network_register.c` | 30 |
+| `src/tal_network/include/tal_net_route.h` | 2 |
+| `src/tal_network/include/tal_network_register.h` | 15 |
+| `src/tal_network/src/tal_network_register.c` | 38 |
 | `src/tal_network/src/tal_platform.c` | 2 |
 | `src/tal_network/src/tal_posix.c` | 2 |
-| `src/tal_network/src/tal_network.c` | 1 |
+| `src/tal_network/src/tal_network.c` | 5 |
 | `src/tuya_cloud_service/netmgr/netmgr.c` | 7 |
 | `src/tuya_cloud_service/netmgr/include/netconn_registry.h` | 11 |
 | `src/tuya_cloud_service/netmgr/netconn_wifi.c` | 7 |
-| `src/tuya_cloud_service/netmgr/include/netmgr.h` | 2 |
+| `src/tuya_cloud_service/netmgr/include/netmgr.h` | 3 |
 | `src/tuya_cloud_service/netmgr/netmgr_priv.h` | 2 |
 | `src/tuya_cloud_service/netmgr/netconn_cellular.c` | 1 |
 | `src/tuya_cloud_service/netmgr/netconn_wired.c` | 1 |
-| **合计** | **80** |
+| **合计** | **96** |
 
-**这 80 行里有相当一部分是注释。** 这不是可以少改的部分：注释里那些「card」正是这次要修的东西，它们比代码更容易骗人（§1 里那个不存在的符号就是一条注释）。
+**这个 pattern 缺陷本身，是这次执行最值得记的一条教训。** 用标识符拼出来的 pattern，会忘记散文引用的是标识符「族」（`TAL_NET_TYPE_*`），也会忘记同一族里前缀不规整的成员（`tal_network_get_active_ops` 没有 `card_` 这一段）。而 §4.3 把这条 grep 称为「S2 完成度唯一的机械证明」——**一条有缺陷的完整性证明，比没有证明更危险，因为它会给出通过的信号。** S2a、S2b 当时都是绿的。
 
-分布上有一个对计划很重要的事实：`src/tal_network/` 49 行、`src/tuya_cloud_service/netmgr/` 31 行，两半可以各自独立编过（§4.3）。
+**这 96 行里有相当一部分是注释。** 这不是可以少改的部分：注释里那些「card」正是这次要修的东西，它们比代码更容易骗人（§1 里那个不存在的符号就是一条注释；§2.2 上面那条被证伪的 PAT 漏掉的也几乎全是注释）。
+
+分布上有一个对计划很重要的事实：`src/tal_network/`（含 `tal_net_route.h`）64 行、`src/tuya_cloud_service/netmgr/` 32 行，两半可以各自独立编过（§4.3）。
 
 ### 2.3 `netmgr.h` 的 include 者：44 是对的
 
@@ -298,10 +320,10 @@ git grep -cE "$PAT" -- 'docs'
 | 今天 | 建议 | 说明 |
 | --- | --- | --- |
 | `TAL_NETWORK_CARD_TYPE_E` | `tal_net_provider_id_t` | 「哪一个 provider」的标识符。仍然是 `typedef uint8_t`，见 §3.6 |
-| `TAL_NETWORK_CARD_T` | `tal_net_provider_t` | provider 本体：`{name, id, ops}`。和 `_id_t` 分开，因为一个是记录一个是索引 |
-| `TAL_NETWORK_CARD_T.type` | `tal_net_provider_t.id` | 字段跟着类型改；顺便这个字段今天只写不读（§5.3） |
+| `TAL_NETWORK_CARD_T` | `tal_net_provider_t` | provider 本体：`{name, type, ipaddr, ops}`。和 `_id_t` 分开，因为一个是记录一个是索引 |
+| `TAL_NETWORK_CARD_T.type` | **不变** | C 的结构体成员名没有别名机制——这正是 §3.5 论证 `.card_type` 是「唯一没有别名可用的一项」时用的理由，但 §3.5 漏了 `.type`，它是**第二个**。一旦 `TAL_NETWORK_CARD_T` typedef 成 `tal_net_provider_t`，`tal_platform.c:47` 和 `tal_posix.c:1131` 的 `.type = ...` 立刻编不过，S1 就得去碰调用方——而「不碰任何调用方」正是 §4.1 的 gate，也是 S1 存在的全部理由。这个字段只写不读，已经排在「S4 之后删三个只写不读字段」里；给一个马上要删的字段改名，换来的是第二个没有兜底的破坏点，收益为零 |
 | `TAL_NETWORK_CARD_MANAGER_T` | `tal_net_provider_registry_t` | 文件内部类型 |
-| `tal_network_card_manager` | `s_provider_registry` | 文件内部对象。**注意它今天不是 `static`**，见 §6 |
+| `tal_network_card_manager` | `tal_net_provider_registry` | 它今天是**非 `static`** 的全局（`nm` 里是 `D tal_network_card_manager`），给一个有外部链接的符号加 `s_` 前缀是撒谎。S2a 改成这个名字（保留模块前缀，如实反映它有外部链接）；`s_provider_registry` 留给 §6.2 那个单独的、排在 S4 之后的「加 `static`」commit——加 `static` 是链接属性变更，不是重命名，见 §6 |
 | `TAL_NETWORK_CARD_MANAGER_T.active_card[]` | `.providers[]` | |
 | `TAL_NETWORK_CARD_DEFAULT` | `TAL_NET_PROVIDER_DEFAULT_OBJ` | 指**对象**（`tal_net_provider_posix` / `_tkl`），与指**标识符**的 `TAL_NET_PROVIDER_DEFAULT` 区分开。今天这两个名字差一个 `CARD`/`PROVIDER`，读起来像同一个东西的两种写法，其实一个是 id 一个是对象 |
 | `tal_network_card_posix` | `tal_net_provider_posix` | |
@@ -357,6 +379,8 @@ typedef struct netmgr_conn_base {
 
 C 语言里 typedef 可以别名，宏可以转发，**结构体成员名不能**。理论上能用匿名 union 同时暴露两个名字，但那是为一个纯命名问题给一个公开结构体加一个 ABI 形状，而且 C11 匿名成员在这套工具链矩阵里不是无条件可用的。**否决。**
 
+`.card_type` 不是唯一一个没有别名机制的成员，`TAL_NETWORK_CARD_T.type` 是另一个（见 §3.3），处置方式相同：不改名。
+
 树内的暴露面是零：
 
 ```bash
@@ -411,7 +435,7 @@ typedef uint8_t tal_net_provider_id_t;
 
 typedef struct {
     char                  name[16];
-    tal_net_provider_id_t id;
+    tal_net_provider_id_t type;   /* 不改名，见 §3.3 */
     TUYA_IP_ADDR_T        ipaddr;
     TAL_NETWORK_OPS_T     ops;
 } tal_net_provider_t;
@@ -433,6 +457,8 @@ typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
 #define tal_network_get_active_ops     tal_net_provider_ops
 #define tal_network_card_get_active_ip tal_net_route_src_ip
 ```
+
+`tal_net_provider_t` 的成员保留 `type` 这个名字，不跟着改成 `.id`：结构体成员名没有别名机制，改了会让 `tal_platform.c` / `tal_posix.c` 的初始化器编不过，S1 就得碰调用方——见 §3.3、§3.5。
 
 三个零调用方 wrapper（`tal_network_card_set_active`、`_get_active_type`、`_set_active_ip`）**不动**：它们不改名，S4 直接删。
 
@@ -495,6 +521,17 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
 1. 删掉 S1 加的所有别名。
 2. 删掉三个零调用方 wrapper（§5.2）。
 3. 给 `release_notes.md` 加一节，附**完整的旧名→新名映射表**（就是 §3.3）。
+4. **删 wrapper 的同时，扫一遍点名它们的注释。** 三个函数删掉之后，函数不在了，但树里还有一批注释在**点名它们**——那些注释描述的会是不存在的函数。先把清单跑出来：
+   ```bash
+   git grep -nE 'tal_network_card_(set_active|get_active_type|set_active_ip)' -- src docs
+   ```
+   HEAD 上命中的、真正需要处理的注释（不含三个函数自己的声明/定义，那两处随 wrapper 一起删）：
+   - `src/tal_network/src/tal_network_register.c:204`
+   - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:139,142,144`
+   - `src/tuya_cloud_service/netmgr/netconn_wifi.c:34,397`
+   - `docs/netmgr/extension_guide.md:62,411,412,413,793,800,807`（本次不改，留给 S4）
+
+   这些注释记录的是一个被绕开的设计错误——控制面向数据面问了一个控制面问题，而且那个条件是恒真式（`netconn_registry.h:144`、`83b5f005`、`407bccd2`）——**内容要保留**，但不能再点名已经不存在的函数。
 
 **Gate：**
 - 两个 target 编过；
@@ -502,16 +539,30 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
   ```bash
   git grep -nwE 'TAL_NETWORK_CARD|tal_network_card|TAL_NET_TYPE_' ; echo "expect: empty"
   ```
+  这条 grep 到 S4 之前**不能**包含三个 wrapper 的名字，正是因为它们要到 S4 才删（S3 的完整性 gate，§4.3，特意把 `tal_network_card_set_active` 等排除在检查范围外）；S4 之后这条 grep 要**加上**它们，和上面第 4 条的清单一起验证为空。
 - **而且这个 gate 不足以决定 S4 什么时候做**，见下。
 
 ### 4.5 编译证明不了什么，以及这对废弃窗口意味着什么
 
-两个 target 合起来覆盖两个 socket 后端，这对这次重命名恰好是对的形状 —— 被改名的东西正好按 `TAL_NET_PROVIDER_DEFAULT` 那个 `#if` 分岔，两个 target 各走一条分支，各编一个 card 定义文件（`tal_posix.c` / `tal_platform.c`）：
+两个 target 合起来覆盖两个 socket 后端，这对这次重命名恰好是对的形状 —— 被改名的东西正好按 `TAL_NET_PROVIDER_DEFAULT` 那个 `#if` 分岔，两个 target 各走一条分支，各有一个**有内容**的 provider 文件（`tal_posix.c` / `tal_platform.c`）：
 
-| config | 平台 | provider | 编到的 card 文件 |
+| config | 平台 | provider | 有内容的 provider 文件 |
 | --- | --- | --- | --- |
 | `apps/tuya_cloud/switch_demo/config/Ubuntu.config` | LINUX / host | posix (0) | `tal_posix.c` |
 | `apps/tuya_cloud/switch_demo/config/TUYA_T5AI_BOARD_CELLULAR.config` | T5AI / `TUYA_T5AI_BOARD` | tkl (1) | `tal_platform.c` |
+
+**实测：两个 target 都编了 `tal_posix.c` 和 `tal_platform.c`，不是各编一个。**
+
+```bash
+grep -oE 'tal_(posix|platform)\.c\.o' ~/.cache/claude/logs/s0-ubuntu.log | sort -u
+# tal_platform.c.o
+# tal_posix.c.o
+grep -oE 'tal_(posix|platform)\.c\.o' ~/.cache/claude/logs/s0-t5ai.log | sort -u
+# tal_platform.c.o
+# tal_posix.c.o
+```
+
+`src/tal_network/CMakeLists.txt` 用 `aux_source_directory` 全收目录下的源文件，两个文件各自用同一个 `ENABLE_LIBLWIP` / `OPERATING_SYSTEM` 判断把**自己的整个函数体**条件编译掉（`tal_posix.c` 是 `#if defined(NET_USING_POSIX)`，`tal_platform.c` 是 `#if defined(NET_USING_TKL)`），所以两个都进编译单元，只有一个有内容。结论不变——被 `#if` 关掉的那一半不过语法检查，所以两个 target 仍然都必须编——但上一版「各编一个 card 定义文件」的措辞是不准的，改成上表这样。
 
 （两个 target 的完整覆盖差异见 [`release_notes.md`](release_notes.md) §8，不在这里重复。）
 
@@ -637,7 +688,7 @@ git grep -nE '(->|\.)(name|ipaddr|type)\b' -- 'src/tal_network/src/tal_network_r
 | 删掉 `TAL_NETWORK_CARD_T` 的 `.name` / `.type` / `.ipaddr`（§5.3） | 改公开结构体布局。而且 `.name`（`"tkl"`）是 §3.4 的证据之一，删它要排在值重命名之后 |
 | 删掉 `CELLULAR_STAT_E`（§5.1） | 两行的改动，但它属于 `tal_cellular` 的命名而不是 provider 的命名。单独一个 commit，单独 review |
 | 顺手把 `NETMGR_LINK_UP_SWITH` 的拼写修掉 | **这是另一次公开重命名，不是这一次。** 它命中 5 个文件 11 行（`git grep -cw NETMGR_LINK_UP_SWITH -- ':!docs'`），其中 `examples/multimedia/audio_player/music/src/tuya_app_main.c:106` 在 `src/` 外，而且 `netmgr_event.h:306-312` 有一整段注释在解释为什么它至今没改。它需要自己的一份 §4 那样的顺序 |
-| 把 `tal_network_card_manager` 改成 `static` | 它今天是非 `static` 的全局，但只在 `tal_network_register.c` 内被引用（9 行，全在同一个文件）。加 `static` 是**链接属性变更**，不是重命名。改名放 S2，加 `static` 另开 |
+| 把 `tal_network_card_manager` 改成 `static` | 它今天是非 `static` 的全局，但只在 `tal_network_register.c` 内被引用（9 行，全在同一个文件）。加 `static` 是**链接属性变更**，不是重命名。改名放 S2，加 `static` 另开——那个 commit 同时把它改名成 `s_provider_registry` |
 | 把 `tal_network_register.[ch]` 改名成 `tal_net_provider.[ch]`、`tal_platform.c` 改名成 `tal_tkl.c` | **文件重命名会打破树外的 `#include "tal_network_register.h"`**，而且它跟符号重命名的废弃机制完全不同（头文件可以留一个只有 `#include` 的转发壳，源文件不需要转发）。按 `173b54ec refactor(tal_wifi_ulp): rename netmgr.[ch] to ulp_apiq.[ch]` 的先例，文件重命名自己一个 commit，而且要排在 S4 之后 |
 | 把 `tal_net_provider_id_t` 改成真 `enum` | 会让 `netmgr.h` 依赖数据面头文件，撤销 `1767f10b`（§3.6） |
 | 顺手把 `netmgr_get_active_ops()` 那些不加锁的读者「修好」 | 扩展指南 §3.3 用一整节在说不要这么做（热路径 + 优先级反转）。重命名一个函数不是重新审视它的锁的时机 |
