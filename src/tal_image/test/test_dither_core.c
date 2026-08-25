@@ -111,6 +111,62 @@ static void test_rotate270_matches_three_legacy_steps(void)
     CHECK(gray[3 * 4 + 3] == 30, "ROTATE_270 bottom-right = source bottom-left");
 }
 
+/* Self-contained rotation-group consistency: independent of any legacy
+ * formula, ROTATE_90 applied twice must equal ROTATE_180 applied once, and
+ * ROTATE_90 applied four times must return the identity. This is the kind of
+ * assertion that would have caught the ROTATE_90/ROTATE_270 CW-vs-CCW
+ * mislabeling this module once carried: composing the *wrong* direction
+ * twice still gives *some* 180-degree rotation, so it wouldn't catch a
+ * swapped 90 vs 270, but it does pin the group structure so any future
+ * change to the per-step formula that breaks the group is caught here rather
+ * than only by re-deriving expected marker positions by hand. */
+static void gray_to_fake_yuv422(const uint8_t *gray, int w, int h, uint8_t *yuv_out)
+{
+    for (int i = 0; i < w * h; i++) {
+        yuv_out[i * 2]     = 0;
+        yuv_out[i * 2 + 1] = gray[i];
+    }
+}
+
+static void test_rotate90_twice_equals_rotate180(void)
+{
+    uint8_t yuv[4 * 4 * 2];
+    build_marker_yuv(yuv, 4, 4);
+
+    uint8_t once[16];
+    tal_image_extract_gray_from_yuv422(yuv, 4, 4, once, 4, 4, TAL_IMAGE_ROTATE_90);
+
+    uint8_t once_yuv[4 * 4 * 2];
+    gray_to_fake_yuv422(once, 4, 4, once_yuv);
+    uint8_t twice[16];
+    tal_image_extract_gray_from_yuv422(once_yuv, 4, 4, twice, 4, 4, TAL_IMAGE_ROTATE_90);
+
+    uint8_t direct180[16];
+    tal_image_extract_gray_from_yuv422(yuv, 4, 4, direct180, 4, 4, TAL_IMAGE_ROTATE_180);
+
+    CHECK(memcmp(twice, direct180, 16) == 0, "ROTATE_90 composed twice == ROTATE_180 applied once");
+}
+
+static void test_rotate90_four_times_is_identity(void)
+{
+    uint8_t yuv[4 * 4 * 2];
+    build_marker_yuv(yuv, 4, 4);
+
+    uint8_t cur[16] = {0};
+    uint8_t stage_yuv[4 * 4 * 2];
+    memcpy(stage_yuv, yuv, sizeof(yuv));
+
+    uint8_t original_gray[16];
+    for (int i = 0; i < 16; i++) original_gray[i] = yuv[i * 2 + 1];
+
+    for (int step = 0; step < 4; step++) {
+        tal_image_extract_gray_from_yuv422(stage_yuv, 4, 4, cur, 4, 4, TAL_IMAGE_ROTATE_90);
+        gray_to_fake_yuv422(cur, 4, 4, stage_yuv);
+    }
+
+    CHECK(memcmp(cur, original_gray, 16) == 0, "ROTATE_90 composed four times returns the identity");
+}
+
 static void test_fixed_threshold(void)
 {
     /* 1 row, 8 pixels: half dark half light, threshold 128 */
@@ -227,6 +283,8 @@ int main(void)
     test_rotate0_identity();
     test_rotate180_flips_both_axes();
     test_rotate270_matches_three_legacy_steps();
+    test_rotate90_twice_equals_rotate180();
+    test_rotate90_four_times_is_identity();
     test_fixed_threshold();
     test_bayer4_known_pattern();
     test_adaptive_threshold_uses_mean();
