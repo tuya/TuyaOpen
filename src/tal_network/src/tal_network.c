@@ -342,6 +342,62 @@ int tal_net_socket_create(const TUYA_PROTOCOL_TYPE_E type)
  *
  * @note Compiled out on Linux host builds - see the call site.
  */
+/**
+ * @brief Whether this platform's tkl_net_getsockname() can be believed.
+ *
+ * The gate below treats "reports 0.0.0.0:0" as "not bound yet, safe to bind". A
+ * stub that returns success without writing its outputs produces exactly that
+ * answer for EVERY socket, including one the caller bound itself - which turns
+ * the guard into the unconditional bind it replaced and silently moves the
+ * caller's local address. platform/T3 ships such a stub (`return 0;`), and it
+ * cannot be fixed from here: the per-platform directories are gitignored and
+ * carry no tracked files.
+ *
+ * So the implementation is measured once instead of assumed, with the same
+ * property the gate itself relies on: bind(ANY, 0) is a real bind and the stack
+ * assigns an ephemeral port, so a working getsockname MUST report a non-zero
+ * port afterwards. No stub can.
+ *
+ * Undecided is not cached. A socket-create failure here is a transient condition
+ * (out of descriptors at start-up, say), not evidence about the implementation,
+ * so the probe stays pending and the caller simply does not bind this time.
+ *
+ * @return TRUE when the answer can be trusted, FALSE while it cannot
+ */
+static BOOL_T __net_getsockname_trustworthy(void)
+{
+    /* 0 unknown, 1 trusted, 2 distrusted. Written once, read on every connect. */
+    static uint8_t s_gsn_verdict = 0;
+
+    int            fd    = -1;
+    TUYA_IP_ADDR_T addr  = 0;
+    uint16_t       port  = 0;
+    BOOL_T         works = FALSE;
+
+    if (0 != s_gsn_verdict) {
+        return (1 == s_gsn_verdict);
+    }
+
+    fd = tal_net_socket_create(PROTOCOL_UDP);
+    if (fd < 0) {
+        return FALSE;
+    }
+
+    if ((0 == tal_net_bind(fd, TY_IPADDR_ANY, 0)) && (OPRT_OK == tal_net_getsockname(fd, &addr, &port)) &&
+        (0 != port)) {
+        works = TRUE;
+    }
+
+    tal_net_close(fd);
+
+    s_gsn_verdict = works ? 1 : 2;
+    if (!works) {
+        PR_NOTICE("tkl_net_getsockname unusable here, active-link source binding disabled");
+    }
+
+    return works;
+}
+
 static void __net_connect_bind_active_src(const int fd, const TUYA_IP_ADDR_T dst)
 {
     TUYA_IP_ADDR_T src        = tal_network_card_get_active_ip();
@@ -372,6 +428,13 @@ static void __net_connect_bind_active_src(const int fd, const TUYA_IP_ADDR_T dst
      * assigns the ephemeral port at bind time, so such a socket reports address 0
      * with a non-zero port and checking the address alone would call it unbound.
      */
+    /* Asked before the probe below, because a platform whose getsockname cannot
+     * be believed makes that probe meaningless - and acting on a meaningless
+     * answer is what destroys a caller's bind on T3. */
+    if (!__net_getsockname_trustworthy()) {
+        return;
+    }
+
     if (OPRT_OK != tal_net_getsockname(fd, &local, &local_port)) {
         return;
     }
