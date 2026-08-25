@@ -61,7 +61,7 @@ extern tal_net_provider_t tal_net_provider_tkl;
  * users can reach tal_net_provider_ops() before init runs, and they must
  * find a working backend there. */
 tal_net_provider_registry_t tal_net_provider_registry = {
-    .route                                = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
+    .route                               = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
     .providers[TAL_NET_PROVIDER_DEFAULT] = &TAL_NET_PROVIDER_DEFAULT_OBJ,
 };
 
