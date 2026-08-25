@@ -11,6 +11,7 @@
 #include "tal_api.h"
 
 #include "tkl_i2s.h"
+#include "sl_tuya_i2s.h"
 
 /***********************************************************
 ************************macro define************************
@@ -148,7 +149,7 @@ static void si91x_i2s_switch_to_rx(SI91X_I2S_HANDLE_T *hdl)
 
     tkl_i2s_send_stop(hdl->i2s_id);
     tkl_i2s_recv_stop(hdl->i2s_id);
-    tkl_i2s_recv_streaming(hdl->i2s_id, si91x_i2s_buffer_ready_callback, hdl);
+    sl_tuya_i2s_recv_streaming(hdl->i2s_id, si91x_i2s_buffer_ready_callback, hdl);
     PR_NOTICE("I2S mode rx");
 }
 
@@ -175,7 +176,7 @@ static void si91x_i2s_read_task(void *args)
 
     while (1) {
         if (hdl->i2s_mode == I2S_MODE_TX) {
-            if (tkl_i2s_send_inprogress(hdl->i2s_id)) {
+            if (sl_tuya_i2s_send_inprogress(hdl->i2s_id)) {
                 /* Short poll only: SEND_COMPLETE runs in ISR, cannot post semaphore */
                 tal_system_sleep(I2S_TX_POLL_MS);
                 continue;
@@ -291,8 +292,8 @@ static OPERATE_RET __tdd_audio_no_codec_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDI
     }
 
     memset(hdl->rx_buff.buf, 0, sizeof(hdl->rx_buff.buf));
-    tkl_i2s_set_streaming_config(hdl->i2s_id, hdl->rx_buff.buf, I2S_RX_BUFF_FRAME / 2);
-    tkl_i2s_recv_streaming(hdl->i2s_id, si91x_i2s_buffer_ready_callback, hdl);
+    sl_tuya_i2s_set_streaming_config(hdl->i2s_id, hdl->rx_buff.buf, I2S_RX_BUFF_FRAME / 2);
+    sl_tuya_i2s_recv_streaming(hdl->i2s_id, si91x_i2s_buffer_ready_callback, hdl);
 
     TUYA_CALL_ERR_LOG(tal_sw_timer_create(si91x_i2s_audio_player_start, (void *)hdl, &hdl->player_timer_id));
 

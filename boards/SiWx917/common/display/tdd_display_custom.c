@@ -4,7 +4,7 @@
 #include "tdl_display_manage.h"
 #include "tdl_display_driver.h"
 #include "tdd_display_custom.h"
-#include "tkl_display.h"
+#include "sl_tuya_display.h"
 
 static OPERATE_RET __tdl_display_custom_open(TDD_DISP_DEV_HANDLE_T device)
 {
@@ -12,7 +12,7 @@ static OPERATE_RET __tdl_display_custom_open(TDD_DISP_DEV_HANDLE_T device)
         return OPRT_INVALID_PARM;
     }
 
-    tkl_display_init();
+    sl_tuya_display_init();
 
     return OPRT_OK;
 }
@@ -25,7 +25,7 @@ static OPERATE_RET __tdl_display_custom_flush(TDD_DISP_DEV_HANDLE_T device, TDL_
         return OPRT_INVALID_PARM;
     }
 
-    tkl_display_flush(frame_buff->width, frame_buff->height, frame_buff->frame, frame_buff->len);
+    sl_tuya_display_flush(frame_buff->width, frame_buff->height, frame_buff->frame, frame_buff->len);
 
     return rt;
 }
