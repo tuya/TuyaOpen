@@ -1708,9 +1708,12 @@ static OPERATE_RET __netmgr_notify_post(MUTEX_HANDLE lock)
  * expired is not recorded and does not need to be - the pass re-derives every
  * deadline from its own timestamp.
  *
- * netmgr_deinit() stops and deletes this timer without being able to join a
- * callback already inside it, so the gate check is what makes losing that race a
- * no-op, and the retained mutex is what makes it harmless rather than fatal.
+ * netmgr_deinit() stops this timer - and RETAINS it, it does not delete it, for
+ * the reason given at step 5 there - without being able to join a callback
+ * already inside it. So the gate check is what makes losing that race a no-op,
+ * and the retained mutex is what makes it harmless rather than fatal. Retaining
+ * the timer removes the third leg of the same problem: a callback that survives
+ * into teardown can no longer be arming freed memory.
  */
 static void __netmgr_deadline_tm_cb(TIMER_ID timer_id, void *arg)
 {
@@ -2413,8 +2416,11 @@ OPERATE_RET netmgr_deinit(void)
     // channel note - and it is safe because the report state is static.
     tal_workq_cancel(WORKQ_SYSTEM, __netmgr_notify_work, NULL);
 
-    // 3. Drain a handler that is already running: releasing the mutex while it is
-    // inside, or about to take it, is a use-after-free.
+    // 3. Drain a handler that is already running, so it finishes BEFORE step 4
+    // unlinks the links and step 6 zeroes the state. The hazard the drain exists
+    // for is a handler walking half-dismantled state, not a freed mutex - this
+    // function does not free the mutex, and that is the whole point of retaining
+    // it (netmgr_priv.h argues it out).
     //
     // The first sleep is unconditional and deliberate. tal_workq_cancel() only
     // blanks the callback of items still in the queue - __work_cancel_traverse()
@@ -2422,9 +2428,21 @@ OPERATE_RET netmgr_deinit(void)
     // out of its reach; there is no tal_workqueue_flush() in the TAL. So a
     // handler can be sitting between "dequeued" and "notify_busy++" right now,
     // invisible to the counter. One poll interval gives it time to become
-    // visible. That narrows the window, it does not close it, which is why step 6
-    // nulls s_netmgr.lock before releasing the mutex: a straggler then sees NULL
-    // and returns.
+    // visible.
+    //
+    // That narrows the window and does not close it. What makes losing it
+    // survivable is two things that both OUTLIVE this function rather than
+    // anything it tears down: the gate closed in step 0, which the handler tests
+    // before it touches any state, and `stopping`, which step 6 restores after the
+    // memset and the handler re-tests under the lock. A straggler therefore locks
+    // a LIVE mutex, reads stopping == TRUE and returns.
+    //
+    // (An earlier version of this comment said the window was survivable "because
+    // step 6 nulls s_netmgr.lock before releasing the mutex". Step 6 does the
+    // opposite - it restores the handle - and no mutex is released anywhere. The
+    // correction is recorded rather than swapped in silently, because that
+    // sentence was offered as the justification for accepting this window, and
+    // null-then-free is the design netmgr_priv.h rejects.)
     for (elapsed = 0; elapsed <= NETMGR_DRAIN_TIMEOUT_MS; elapsed += NETMGR_DRAIN_POLL_MS) {
         tal_system_sleep(NETMGR_DRAIN_POLL_MS);
 
