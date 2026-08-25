@@ -15,12 +15,16 @@ of retyping docs/netmgr/provider_rename_plan.md's mapping table by hand.
 It is deliberately conservative:
   - it only ever touches the directory it is given, never the whole tree;
   - it defaults to dry-run and only writes with --apply;
-  - it leaves the one field name with a real collision problem (`card_type`)
-    alone unless the rename is unambiguous (a `.card_type` / `->card_type`
-    member access), and just warns about bare-word occurrences instead of
-    guessing;
+  - it leaves the field names with a real collision problem (`card_type`,
+    `active_card`) alone unless the rename is unambiguous (a `.field` /
+    `->field` member access), and just warns about bare-word occurrences
+    instead of guessing;
   - it warns about, but does not rename, the three zero-caller compatibility
     wrappers that are deleted (not renamed) in S4.
+
+This script follows the tree, not the plan document, wherever the two
+disagree - see the tal_network_card_manager entry in IDENTIFIER_MAP below for
+the one place that matters.
 
 See the self-test instructions in docs/netmgr/provider_rename_plan.md §4.3 for
 how this script is expected to behave on a tree that has already migrated:
@@ -31,7 +35,6 @@ work it would otherwise do.
 import argparse
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -47,11 +50,12 @@ SKIP_DIR_NAMES = {".git", "build", ".build", "dist"}
 SOURCE_EXTS = {".c", ".h", ".cc", ".cpp", ".hh", ".hpp"}
 
 # ---------------------------------------------------------------------------
-# The mapping table, docs/netmgr/provider_rename_plan.md §3.3.
+# The mapping table, docs/netmgr/provider_rename_plan.md §3.3 - with one
+# deliberate departure from that document, noted inline below.
 #
-# 15 plain identifier renames here, plus the one special-cased member-access
-# rename (`card_type` -> `provider`, handled separately below because of the
-# collision list in §2.5) makes the 16 entries the plan's table lists.
+# 14 plain identifier renames here, plus the two special-cased member-access
+# renames (`card_type` -> `provider`, `active_card` -> `providers`, handled
+# separately below) makes the 16 entries the plan's table lists.
 #
 # NOT in this table on purpose, per the plan's own notes on §3.3:
 #   - `tal_net_provider_t.type` -> `.id`: that rename was never done, so a
@@ -67,8 +71,16 @@ IDENTIFIER_MAP = [
     ("TAL_NETWORK_CARD_TYPE_E", "tal_net_provider_id_t"),
     ("TAL_NETWORK_CARD_T", "tal_net_provider_t"),
     ("TAL_NETWORK_CARD_MANAGER_T", "tal_net_provider_registry_t"),
-    ("tal_network_card_manager", "s_provider_registry"),
-    ("active_card", "providers"),
+    # The plan's own table (§3.3) says this becomes `s_provider_registry`.
+    # That is NOT what S2 shipped: S2a rejected that name (413fe17d) because
+    # the object is a non-static global today, and an `s_` prefix on a symbol
+    # with external linkage is a lie about its linkage. `static` is a linkage
+    # change, out of scope until S4 - that is the commit that will actually
+    # rename this to `s_provider_registry`. Until then the tree has
+    # `tal_net_provider_registry`, and this script follows the tree: a script
+    # that rewrites a caller onto a symbol that does not exist is worse than
+    # no script at all.
+    ("tal_network_card_manager", "tal_net_provider_registry"),
     ("TAL_NETWORK_CARD_DEFAULT", "TAL_NET_PROVIDER_DEFAULT_OBJ"),
     ("tal_network_card_posix", "tal_net_provider_posix"),
     ("tal_network_card_platform", "tal_net_provider_tkl"),
@@ -81,16 +93,41 @@ IDENTIFIER_MAP = [
     ("tal_network_card_get_active_ip", "tal_net_route_src_ip"),
 ]
 
-# `netmgr_conn_base_t.card_type` -> `.provider`, but ONLY as a member access
-# (`.card_type` / `->card_type`). A bare-word `card_type` is left alone and
-# just reported, because the same bare word means something completely
-# different in 26 other files this tree happens to contain (see
-# collision_census() below) and neither verification target compiles any of
-# them, so a wrong guess here would compile clean and be silently wrong.
-MEMBER_FIELD_OLD = "card_type"
-MEMBER_FIELD_NEW = "provider"
-_MEMBER_ACCESS_RE = re.compile(r"(\.|->)\s*\b" + MEMBER_FIELD_OLD + r"\b")
-_BARE_WORD_RE = re.compile(r"\b" + MEMBER_FIELD_OLD + r"\b")
+# Fields renamed ONLY as a member access (`.field` / `->field`), never as a
+# bare word:
+#
+#   `netmgr_conn_base_t.card_type` -> `.provider`
+#       The same bare word means something else in every one of the other
+#       places it occurs on disk - an LVGL game's card-type enum, the ALSA RME
+#       HDSPM sound driver headers, SD-card drivers across five platforms.
+#       Neither verification target (Ubuntu, T5AI) compiles any of those
+#       files, so a wrong guess here would compile clean and still be wrong.
+#       print_collision_warning() below names the families; the real numbers
+#       for a given caller's tree come from the bare-word scan this script
+#       already runs over the directory it is given.
+#
+#   `active_card` -> `providers`
+#       Unlike card_type, this one has no known collision problem: it and the
+#       struct that holds it (TAL_NETWORK_CARD_MANAGER_T) are private to
+#       tal_network_register.c - the struct is declared in the .c - so no
+#       out-of-tree caller can even name them. That is exactly why a
+#       whole-word rename here has no upside (there is no caller to fix) and
+#       one downside: `providers` is a common enough word that corrupting an
+#       unrelated local by mistake would not necessarily fail to compile.
+#       Restricted to member access out of caution, not a known collision.
+MEMBER_ACCESS_FIELDS = [
+    ("card_type", "provider"),
+    ("active_card", "providers"),
+]
+# No \s* between the operator and the field: a real member access is written
+# `.field` / `->field` with no gap. Allowing a gap here made this misfire on
+# ordinary prose - a sentence ending "...anything. active_card[] is" was read
+# as a member access on the word "anything" and mangled into
+# "...anything.providers[] is", swallowing the space along with it.
+_MEMBER_ACCESS_RES = [
+    (re.compile(r"(\.|->)" + re.escape(old) + r"\b"), old, new) for old, new in MEMBER_ACCESS_FIELDS
+]
+_BARE_WORD_RES = [(re.compile(r"\b" + re.escape(old) + r"\b"), old) for old, new in MEMBER_ACCESS_FIELDS]
 
 # Zero-caller compatibility wrappers: docs/netmgr/provider_rename_plan.md §3.3
 # says explicitly these are "not renamed, deleted in S4" - giving a
@@ -103,22 +140,23 @@ RESERVED_DEPRECATED = [
     "tal_network_card_set_active_ip",
 ]
 
-# The one file this script must never rewrite: it is not a caller of the old
-# names, it is their definition. S1 turned the old names into aliases *in this
-# header* (typedefs and #defines pointing at the new names) precisely so that
-# out-of-tree callers keep compiling; S4 deletes them here, and only here. If
-# this script "renamed" TAL_NET_TYPE_POSIX inside its own #define here, it
-# would turn `#define TAL_NET_TYPE_POSIX TAL_NET_PROVIDER_POSIX` into
+# The alias-definition file (src/tal_network/include/tal_network_register.h)
+# must never be rewritten: it is not a caller of the old names, it is their
+# definition. S1 turned the old names into aliases *there* (typedefs and
+# #defines pointing at the new names) precisely so that out-of-tree callers
+# keep compiling; S4 deletes them there, and only there. If this script
+# "renamed" TAL_NET_TYPE_POSIX inside its own #define, it would turn
+# `#define TAL_NET_TYPE_POSIX TAL_NET_PROVIDER_POSIX` into
 # `#define TAL_NET_PROVIDER_POSIX TAL_NET_PROVIDER_POSIX` - a self-referential
 # no-op that quietly deletes the compatibility alias this whole script exists
-# to let old callers keep using. Every other file in the tree is a caller and
-# is fair game; this one is the alias table itself.
-EXCLUDED_SUFFIXES = ("src/tal_network/include/tal_network_register.h",)
-
-
-def is_excluded(path: Path) -> bool:
-    posix = path.as_posix()
-    return any(posix.endswith(suffix) for suffix in EXCLUDED_SUFFIXES)
+# to let old callers keep using.
+#
+# Matched by content, not by path: S3 put a `[deprecated-s4]` marker in front
+# of both #define blocks in that header for exactly this reason. A path match
+# breaks silently the moment the header is moved, renamed, or vendored under a
+# different tree layout by an out-of-tree caller; the marker travels with the
+# file no matter where it ends up.
+ALIAS_FILE_MARKER = "[deprecated-s4]"
 
 _IDENTIFIER_RES = [(re.compile(r"\b" + re.escape(old) + r"\b"), old, new) for old, new in IDENTIFIER_MAP]
 _RESERVED_RES = [(re.compile(r"\b" + re.escape(name) + r"\b"), name) for name in RESERVED_DEPRECATED]
@@ -133,74 +171,34 @@ def eprint(*args, **kwargs):
 # ---------------------------------------------------------------------------
 
 
-def _categorize(rel_path):
-    posix = rel_path.replace(os.sep, "/")
-    if posix.startswith("src/tal_network/") or posix.startswith("src/tuya_cloud_service/netmgr/"):
-        return "netmgr"
-    if "lvgl_games" in posix:
-        return "game (bare `card_type` is a card-game enum, e.g. pvz.c)"
-    if os.path.basename(posix) == "hdspm.h":
-        return "ALSA RME HDSPM sound driver headers"
-    if any(k in posix for k in ("sdcard", "sd_card", "sdmmc", "fs_init")):
-        return "SD-card drivers (multiple platforms)"
-    return "unclassified - NEW since the plan's §2.5 survey, inspect by hand"
-
-
-def collision_census(repo_root):
+def print_collision_warning():
     """
-    Live-scan repo_root for the bare word `card_type` in .c/.h files, and
-    print the breakdown. This is the same grep docs/netmgr/provider_rename_plan.md
-    §2.5 ran; it is re-run here (rather than hard-coded) so the warning stays
-    true as the tree grows, instead of quietly going stale like the comment
-    this repo's fix(netmgr) commit 407bccd2 had to correct.
+    Names the families of files where the bare word `card_type` means
+    something other than "network provider", without a file count.
+
+    A count is deliberately not printed here, in either form: a hardcoded
+    count is a snapshot of THIS tree that goes stale (31/7/24 in the plan,
+    26/0/26 by the time S2 finished, and still moving), and a live count of
+    THIS tree is meaningless to a caller running this script somewhere else -
+    the number that matters to them is about their own tree, and the
+    bare-word scan below already produces exactly that, for the directory
+    they gave it.
     """
     print("=" * 78)
     print("collision warning (docs/netmgr/provider_rename_plan.md §2.5):")
     print(
         "  the bare word `card_type` means \"which network provider\" in exactly\n"
-        "  one place (netmgr_conn_base_t) and something else everywhere else it\n"
-        "  occurs in this tree. Neither verification target (Ubuntu, T5AI) compiles\n"
-        "  the \"everywhere else\" files, so a blind rename would compile clean and\n"
-        "  still be wrong. That is why this script only rewrites `.card_type` /\n"
-        "  `->card_type` member accesses and just warns on the bare word."
+        "  one place (netmgr_conn_base_t) and something else in every one of these\n"
+        "  families, wherever they occur in a tree that vendors this SDK:\n"
+        "    - an LVGL game's card-type enum\n"
+        "    - the ALSA RME HDSPM sound driver headers\n"
+        "    - SD-card drivers across five platforms\n"
+        "  Neither verification target (Ubuntu, T5AI) compiles any of those files,\n"
+        "  so a blind rename would compile clean and still be wrong. That is why\n"
+        "  this script only rewrites `.card_type` / `->card_type` member accesses\n"
+        "  and just warns on the bare word - see the WARN lines below for the real\n"
+        "  count in the directory you gave it."
     )
-    try:
-        proc = subprocess.run(
-            ["git", "grep", "-lwE", "card_type", "--", "*.c", "*.h"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        print(f"  (could not run `git grep` to compute a live count: {exc})")
-        print("  falling back to docs/netmgr/provider_rename_plan.md's own last survey:")
-        print("    31 files on disk, 7 of them netmgr's, 24 of them not:")
-        print("    apps/games/lvgl_games/src/pvz/pvz.c, 8 ALSA RME HDSPM headers,")
-        print("    and 14 SD-card driver files across five platforms.")
-        print("=" * 78)
-        return
-
-    if proc.returncode not in (0, 1):
-        print(f"  (git grep failed: {proc.stderr.strip()})")
-        print("=" * 78)
-        return
-
-    files = [f for f in proc.stdout.splitlines() if f]
-    by_category = {}
-    for f in files:
-        by_category.setdefault(_categorize(f), []).append(f)
-
-    netmgr_files = by_category.pop("netmgr", [])
-    total = len(files)
-    print(f"  live count just now: {total} files contain the bare word `card_type`,")
-    print(f"  {len(netmgr_files)} of them under src/tal_network or src/tuya_cloud_service/netmgr.")
-    for category, flist in sorted(by_category.items()):
-        print(f"    {len(flist)} - {category}")
-        for f in flist[:3]:
-            print(f"        {f}")
-        if len(flist) > 3:
-            print(f"        ... and {len(flist) - 3} more")
     print("=" * 78)
 
 
@@ -251,29 +249,36 @@ def iter_source_files(target: Path):
 
 
 def rewrite_line(line):
-    """Return (new_line, bare_word_hit, reserved_hits) for one source line."""
+    """Return (new_line, bare_word_hits, reserved_hits) for one source line."""
     reserved_hits = [name for pattern, name in _RESERVED_RES if pattern.search(line)]
 
-    new_line = _MEMBER_ACCESS_RE.sub(lambda m: m.group(1) + MEMBER_FIELD_NEW, line)
-    bare_word_hit = bool(_BARE_WORD_RE.search(new_line))
+    new_line = line
+    for pattern, _old, new in _MEMBER_ACCESS_RES:
+        new_line = pattern.sub(lambda m, new=new: m.group(1) + new, new_line)
+
+    bare_word_hits = [old for pattern, old in _BARE_WORD_RES if pattern.search(new_line)]
 
     for pattern, _old, new in _IDENTIFIER_RES:
         new_line = pattern.sub(new, new_line)
 
-    return new_line, bare_word_hit, reserved_hits
+    return new_line, bare_word_hits, reserved_hits
 
 
 def process_file(path: Path, apply: bool):
+    """Return (changes, bare_word_warnings, reserved_warnings, is_alias_file)."""
     try:
         raw = path.read_bytes()
     except OSError as exc:
         eprint(f"skip (unreadable): {path}: {exc}")
-        return [], [], []
+        return [], [], [], False
 
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
-        return [], [], []  # binary or non-UTF-8: silently skipped, per spec
+        return [], [], [], False  # binary or non-UTF-8: silently skipped, per spec
+
+    if ALIAS_FILE_MARKER in text:
+        return [], [], [], True  # the alias-definition file itself - see ALIAS_FILE_MARKER
 
     lines = text.splitlines(keepends=True)
     changes = []
@@ -283,9 +288,9 @@ def process_file(path: Path, apply: bool):
     changed = False
 
     for i, line in enumerate(lines, start=1):
-        new_line, bare_hit, reserved_hits = rewrite_line(line)
-        if bare_hit:
-            bare_word_warnings.append((path, i, line.rstrip("\n")))
+        new_line, bare_hits, reserved_hits = rewrite_line(line)
+        for old in bare_hits:
+            bare_word_warnings.append((path, i, old, line.rstrip("\n")))
         for name in reserved_hits:
             reserved_warnings.append((path, i, name, line.rstrip("\n")))
         if new_line != line:
@@ -296,7 +301,7 @@ def process_file(path: Path, apply: bool):
     if changed and apply:
         path.write_text("".join(new_lines), encoding="utf-8", newline="")
 
-    return changes, bare_word_warnings, reserved_warnings
+    return changes, bare_word_warnings, reserved_warnings, False
 
 
 def main():
@@ -314,7 +319,7 @@ def main():
         sys.exit(2)
 
     refuse_if_too_broad(target)
-    collision_census(REPO_ROOT)
+    print_collision_warning()
 
     all_changes = []
     all_bare_warnings = []
@@ -323,20 +328,26 @@ def main():
     excluded = []
 
     for path in sorted(iter_source_files(target)):
-        if is_excluded(path):
+        changes, bare_warnings, reserved_warnings, is_alias_file = process_file(path, args.apply)
+        if is_alias_file:
             excluded.append(path)
             continue
         scanned += 1
-        changes, bare_warnings, reserved_warnings = process_file(path, args.apply)
         all_changes.extend(changes)
         all_bare_warnings.extend(bare_warnings)
         all_reserved_warnings.extend(reserved_warnings)
 
+    print("-" * 78)
     if excluded:
-        print("-" * 78)
-        print("skipping (alias definitions, not callers - see EXCLUDED_SUFFIXES):")
+        print(f"skipping (contains the `{ALIAS_FILE_MARKER}` alias-definition marker, not a caller):")
         for path in excluded:
             print(f"  {path}")
+    else:
+        print(
+            f"note: no file under {target} carries the `{ALIAS_FILE_MARKER}` alias-definition "
+            "marker. That's expected for a caller's tree - it doesn't ship "
+            "tal_network_register.h - just confirming this run didn't silently miss it."
+        )
 
     verb = "applied" if args.apply else "would change"
     files_changed = len({c.path for c in all_changes})
@@ -347,10 +358,10 @@ def main():
 
     if all_bare_warnings:
         print("-" * 78)
-        print(f"WARN: {len(all_bare_warnings)} bare-word `card_type` occurrence(s) left untouched")
-        print("      (not a `.card_type` / `->card_type` member access - inspect by hand):")
-        for path, lineno, line in all_bare_warnings:
-            print(f"  {path}:{lineno}: {line.strip()}")
+        print(f"WARN: {len(all_bare_warnings)} bare-word occurrence(s) left untouched")
+        print("      (not a `.field` / `->field` member access - inspect by hand):")
+        for path, lineno, old, line in all_bare_warnings:
+            print(f"  {path}:{lineno}: `{old}` - {line.strip()}")
 
     if all_reserved_warnings:
         print("-" * 78)
