@@ -386,7 +386,7 @@ static void __popup_dismiss(void)
 #endif
 }
 
-#if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
+#if defined(ENABLE_LVGL_TP) && (ENABLE_LVGL_TP == 1) && defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 static void __popup_camera_cb(lv_event_t *e)
 {
     (void)e;
@@ -395,7 +395,7 @@ static void __popup_camera_cb(lv_event_t *e)
 }
 #endif
 
-#if defined(ENABLE_IMAGE_ALBUM) && (ENABLE_IMAGE_ALBUM == 1)
+#if defined(ENABLE_LVGL_TP) && (ENABLE_LVGL_TP == 1) && defined(ENABLE_IMAGE_ALBUM) && (ENABLE_IMAGE_ALBUM == 1)
 static void __popup_album_cb(lv_event_t *e)
 {
     (void)e;
