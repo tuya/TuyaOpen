@@ -83,6 +83,16 @@ if(NOT CONFIG_ENABLE_NETMGR_PROBE STREQUAL "y")
     list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/netmgr/netmgr_probe.c")
 endif()
 
+# LIB_PRIVATE_INC
+#
+# The netmgr module root, so its own sources can include netmgr_priv.h while
+# nothing outside the library can. This list was referenced by
+# target_include_directories() below and never set, which is why the netmgr
+# directory had to be PUBLIC for its own .c files to compile - a PUBLIC include
+# applies to the target itself, so making the sources build also published every
+# header beside them.
+set(LIB_PRIVATE_INC ${MODULE_PATH}/netmgr)
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/cloud)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/file_storage)
@@ -90,7 +100,12 @@ list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/protocol)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/schema)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/lan)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/tls)
-list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netmgr)
+# netmgr exports include/ and not the module root, which is what keeps
+# netmgr_priv.h private. Everything else in that directory is a contract: the
+# link/policy/probe/registry headers an app or a board includes, plus
+# netmgr_retry.h, which netmgr_policy.h embeds by value and so cannot be private
+# while the policy header is public.
+list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netmgr/include)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/transport)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/authorize)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/weather)
