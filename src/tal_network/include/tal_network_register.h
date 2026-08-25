@@ -65,11 +65,22 @@ typedef struct {
 
 } TAL_NETWORK_OPS_T;
 
-typedef uint8_t TAL_NETWORK_CARD_TYPE_E;
-#define TAL_NET_TYPE_POSIX    (0)
-#define TAL_NET_TYPE_PLATFORM (1)
-#define TAL_NET_TYPE_AT_MODEM (2)
-#define TAL_NET_TYPE_MAX      (3)
+/**
+ * Which socket ops backend is meant. These are not network cards: POSIX is
+ * tal_posix.c's lwip/socket implementation, TKL is tal_platform.c's tkl
+ * implementation, and AT_MODEM is a placeholder that has a constant but no
+ * implementation. The actual network interfaces - wifi, wired, cellular - live
+ * in src/tuya_cloud_service/netmgr/netconn_*.
+ *
+ * Deliberately a typedef of uint8_t and not an enum: netmgr.h and
+ * netconn_registry.h hold this value in a plain uint8_t field so that the
+ * control-plane header does not have to include this data-plane one (1767f10b).
+ */
+typedef uint8_t tal_net_provider_id_t;
+#define TAL_NET_PROVIDER_POSIX    (0)
+#define TAL_NET_PROVIDER_TKL      (1)
+#define TAL_NET_PROVIDER_AT_MODEM (2)
+#define TAL_NET_PROVIDER_MAX      (3)
 
 /**
  * The socket ops backend this build talks to: the lwip/socket layer when one is
@@ -85,42 +96,25 @@ typedef uint8_t TAL_NETWORK_CARD_TYPE_E;
  * tuya_iot_config.h - so the include above is enough to make them visible here.
  */
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
-#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_POSIX
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_PROVIDER_POSIX
 #else
-#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_PLATFORM
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_PROVIDER_TKL
 #endif
 
 typedef struct {
-    char name[16];
-    TAL_NETWORK_CARD_TYPE_E type;
-    TUYA_IP_ADDR_T ipaddr;
-    TAL_NETWORK_OPS_T ops;
-} TAL_NETWORK_CARD_T;
+    char                  name[16];
+    tal_net_provider_id_t type;
+    TUYA_IP_ADDR_T        ipaddr;
+    TAL_NETWORK_OPS_T     ops;
+} tal_net_provider_t;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 
-OPERATE_RET tal_network_card_init(void);
+OPERATE_RET tal_net_provider_init(void);
 
-OPERATE_RET tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type);
-
-TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void);
-
-TAL_NETWORK_OPS_T *tal_network_get_active_ops(void);
-
-/**
- * @brief Record the source address outbound sockets should bind to.
- *
- * Pushed by whoever owns link selection (netmgr) when the active connection or
- * its address changes, so the value is refreshed exactly once per link event
- * instead of being looked up on every connect.
- *
- * @param[in] ipaddr the active connection address, or 0 when no link is up
- *
- * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
- */
-OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
+TAL_NETWORK_OPS_T *tal_net_provider_ops(void);
 
 /**
  * @brief Get the source address outbound sockets should bind to.
@@ -128,7 +122,52 @@ OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
  * @return the active connection address, or 0 when unknown - callers must treat
  *         0 as "do not bind" and let the stack pick the source itself.
  */
-TUYA_IP_ADDR_T tal_network_card_get_active_ip(void);
+TUYA_IP_ADDR_T tal_net_route_src_ip(void);
+
+/***********************************************************
+*******************deprecated aliases***********************
+***********************************************************/
+/*
+ * The old names, kept so that out-of-tree callers keep compiling. All of them
+ * are removed in S4 of docs/netmgr/provider_rename_plan.md; do not use them in
+ * new code.
+ *
+ * The VALUES are unchanged on purpose. An alias disappearing is a loud compile
+ * error that reaches whoever is affected; a constant changing meaning is a
+ * silent behaviour change that does not.
+ *
+ * The function aliases are #define rather than forwarding wrappers, because
+ * tal_net_provider_ops() sits on the hot path of every socket primitive in
+ * tal_network.c and a wrapper would add a call to each one. The price is that
+ * the symbol name in the .o changes, so an object compiled against the old
+ * header will not link against the new library. TuyaOpen ships source and
+ * rebuilds the whole tree, so that costs nothing here - but it is the one part
+ * of this step that is not purely additive, and it belongs in the release note.
+ */
+typedef tal_net_provider_id_t TAL_NETWORK_CARD_TYPE_E;
+typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
+
+#define TAL_NET_TYPE_POSIX    TAL_NET_PROVIDER_POSIX
+#define TAL_NET_TYPE_PLATFORM TAL_NET_PROVIDER_TKL
+#define TAL_NET_TYPE_AT_MODEM TAL_NET_PROVIDER_AT_MODEM
+#define TAL_NET_TYPE_MAX      TAL_NET_PROVIDER_MAX
+
+#define tal_network_card_init          tal_net_provider_init
+#define tal_network_get_active_ops     tal_net_provider_ops
+#define tal_network_card_get_active_ip tal_net_route_src_ip
+
+/*
+ * Three compatibility wrappers over the same state, each still touching only
+ * the half of the route it always owned. They have zero callers in the tree and
+ * are deleted in S4 rather than renamed: giving a compatibility wrapper a new
+ * name would turn it into a new public API, which is the opposite of why it
+ * exists. New code should call tal_net_route_set() - moving both halves in one
+ * call is the only way to avoid publishing a backend and an address that
+ * disagree.
+ */
+OPERATE_RET             tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type);
+TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void);
+OPERATE_RET             tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
 
 #ifdef __cplusplus
 }
