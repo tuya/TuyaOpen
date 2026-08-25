@@ -42,7 +42,7 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
         {
             .pri = 0,
             .type = NETCONN_CELLULAR,
-            .card_type = TAL_NET_PROVIDER_DEFAULT,
+            .provider = TAL_NET_PROVIDER_DEFAULT,
             .status = NETMGR_LINK_DOWN,
             .open = netconn_cellular_open,
             .close = netconn_cellular_close,

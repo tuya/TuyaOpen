@@ -32,7 +32,7 @@ netmgr_conn_wired_t s_netmgr_wired = {
     .base = {.pri       = 2,
              .type      = NETCONN_WIRED,
              .status    = NETMGR_LINK_DOWN,
-             .card_type = TAL_NET_PROVIDER_DEFAULT,
+             .provider = TAL_NET_PROVIDER_DEFAULT,
              .open      = netconn_wired_open,
              .close     = netconn_wired_close,
              .get       = netconn_wired_get,

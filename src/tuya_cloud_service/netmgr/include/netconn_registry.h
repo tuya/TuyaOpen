@@ -25,7 +25,7 @@
  * netmgr needs; the base struct stays byte-for-byte as it was.
  *
  * Ownership rule between the two: at registration time netmgr copies
- * desc->default_pri into conn->pri and desc->provider into conn->card_type. The
+ * desc->default_pri into conn->pri and desc->provider into conn->provider. The
  * descriptor is the source of truth, those two base fields become caches of it.
  * That is what lets a board retune priorities and providers without editing any
  * driver.
@@ -141,8 +141,8 @@ typedef uint32_t netconn_caps_t;
  *
  * That test never fires. tal_network_card_get_active_type() returns
  * route.provider, whose only writers are tal_net_route_set() (fed by netmgr from
- * conn->card_type) and tal_network_card_set_active() (which has zero callers in
- * the tree). Every driver initialises card_type to TAL_NET_PROVIDER_DEFAULT,
+ * conn->provider) and tal_network_card_set_active() (which has zero callers in
+ * the tree). Every driver initialises provider to TAL_NET_PROVIDER_DEFAULT,
  * which expands to TAL_NET_PROVIDER_POSIX or TAL_NET_PROVIDER_TKL and never to
  * TAL_NET_PROVIDER_AT_MODEM - nothing in the tree ever publishes that value; the
  * only lines naming it are its own #define and the deprecated
@@ -264,7 +264,7 @@ typedef struct netconn_desc {
 
     /**
      * Socket ops backend this link's traffic leaves through, copied into
-     * conn->card_type at registration. Holds a TAL_NET_PROVIDER_* value.
+     * conn->provider at registration. Holds a TAL_NET_PROVIDER_* value.
      *
      * USE TAL_NET_PROVIDER_DEFAULT. An earlier version of this comment said
      * "unless the board really has a second backend", which today is a trap: the
@@ -279,7 +279,7 @@ typedef struct netconn_desc {
      *
      * Typed uint8_t, which is what tal_net_provider_id_t is a typedef of, so
      * this control-plane header needs no include from the data plane - the same
-     * discipline netmgr_conn_base_t.card_type already follows.
+     * discipline netmgr_conn_base_t.provider already follows.
      */
     uint8_t provider;
 

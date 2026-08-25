@@ -58,7 +58,7 @@ netmgr_conn_wifi_t s_netmgr_wifi = {
             .pri = 1,
             .type = NETCONN_WIFI,
             .status = NETMGR_LINK_DOWN,
-            .card_type = TAL_NET_PROVIDER_DEFAULT,
+            .provider = TAL_NET_PROVIDER_DEFAULT,
             .open = netconn_wifi_open,
             .close = netconn_wifi_close,
             .get = netconn_wifi_get,
@@ -399,7 +399,7 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
      *
      * That was the control plane asking the data plane a control-plane question,
      * and it was also dead: the active provider is only ever written from
-     * conn->card_type, every driver sets that to TAL_NET_PROVIDER_DEFAULT, and
+     * conn->provider, every driver sets that to TAL_NET_PROVIDER_DEFAULT, and
      * that expands to TAL_NET_PROVIDER_POSIX or TAL_NET_PROVIDER_TKL - never to
      * TAL_NET_PROVIDER_AT_MODEM. So "do not open AP provisioning while 4G is the
      * active link" was a tautology that never once fired.

@@ -280,7 +280,7 @@ typedef struct {
     uint8_t pri;
     /** Live status from conn->status. */
     netmgr_status_e status;
-    /** Provider from conn->card_type. */
+    /** Provider from conn->provider. */
     uint8_t              provider;
     netconn_caps_t       caps;
     netconn_ctrl_level_e ctrl;

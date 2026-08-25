@@ -98,7 +98,7 @@ typedef struct netmgr_conn_base {
      * defines - use TAL_NET_PROVIDER_DEFAULT to fill it in. Typed uint8_t, the
      * very type tal_net_provider_id_t is a typedef of, so this control-plane
      * header needs no include from the data plane. */
-    uint8_t card_type;
+    uint8_t provider;
 
     OPERATE_RET (*open)(void *config);
     OPERATE_RET (*close)(void);

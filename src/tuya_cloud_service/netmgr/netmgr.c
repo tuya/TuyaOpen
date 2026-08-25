@@ -684,7 +684,7 @@ static netmgr_conn_base_t *__netmgr_snap_provider(netmgr_type_e type, tal_net_ro
         return NULL;
     }
 
-    route->provider = p_conn->card_type;
+    route->provider = p_conn->provider;
 
     return p_conn;
 }
@@ -1951,7 +1951,7 @@ static void __netmgr_event_shim(netmgr_type_e type, netmgr_status_e status)
  * @brief Register one link from its descriptor, at the TAIL of the list.
  *
  * The descriptor is the source of truth for priority and socket provider:
- * conn->pri and conn->card_type are overwritten from it here, which is what
+ * conn->pri and conn->provider are overwritten from it here, which is what
  * lets a board retune either without patching a driver.
  *
  * Why this appends, where M2 inserted by descending priority
@@ -1998,7 +1998,7 @@ static OPERATE_RET __netmgr_conn_register(const netconn_desc_t *desc)
     // degrade to caches of it, which is the ownership rule netconn_registry.h
     // states.
     conn->pri       = desc->default_pri;
-    conn->card_type = desc->provider;
+    conn->provider  = desc->provider;
     conn->event_cb  = __netmgr_event_shim;
 
     tal_mutex_lock(s_netmgr.lock);
@@ -2875,7 +2875,7 @@ OPERATE_RET netmgr_link_info_at(uint32_t index, netmgr_link_info_t *info)
     info->type     = cur_conn->type;
     info->pri      = cur_conn->pri;
     info->status   = cur_conn->status;
-    info->provider = cur_conn->card_type;
+    info->provider = cur_conn->provider;
     tal_mutex_unlock(lock);
 
     // Formatting-free descriptor lookup, outside the lock: the point of these
@@ -2912,7 +2912,7 @@ OPERATE_RET netmgr_link_info_get(netmgr_type_e type, netmgr_link_info_t *info)
     info->type     = cur_conn->type;
     info->pri      = cur_conn->pri;
     info->status   = cur_conn->status;
-    info->provider = cur_conn->card_type;
+    info->provider = cur_conn->provider;
     tal_mutex_unlock(lock);
 
     __netmgr_link_info_desc(info);
