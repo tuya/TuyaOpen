@@ -97,7 +97,17 @@ def init_using_config(force=False):
         pass
 
     using_config = params["using_config"]
-    if force or not os.path.exists(using_config):
+    # Regenerate whenever using.config is missing, or app_default.config was
+    # edited after using.config was last derived from it -- otherwise a
+    # hand-edit to app_default.config (e.g. in a text editor, outside
+    # `config set`/`config choice`) is silently ignored by the next build.
+    stale = (
+        not os.path.exists(using_config)
+        or os.path.getmtime(app_default_config) > os.path.getmtime(using_config)
+    )
+    if force or stale:
+        if stale and not force:
+            logger.info("app_default.config changed; regenerating using.config")
         _defconfig(app_default_config, using_config, catalog_kconfig)
     pass
 
@@ -289,6 +299,11 @@ def config_menu_exec():
     kconf = Kconfig(filename=catalog_kconfig)
     menuconfig(kconf)
     _savedefconfig(app_default_config, using_config, catalog_kconfig)
+    # _savedefconfig above writes app_default.config last, which would
+    # leave it newer than using.config and make init_using_config()'s mtime
+    # check (see its docstring) think it's stale on every subsequent build,
+    # triggering a needless re-derive. Re-sync using.config's mtime now.
+    _defconfig(app_default_config, using_config, catalog_kconfig)
     sys.exit(0)
 
 
