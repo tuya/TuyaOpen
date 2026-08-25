@@ -149,6 +149,24 @@ typedef struct {
     BOOL_T   notify_queued; // a notify work item is queued and has not started
     uint32_t notify_busy;   // notify handlers currently running
 
+    /**
+     * Mutual exclusion for __netmgr_settle(), and the reason it is needed even
+     * though every POSTED pass is serialised by the single WORKQ_SYSTEM thread:
+     * netmgr_init() calls the pass directly, on its caller's thread. Without this
+     * flag that pass can run against a work item queued moments earlier by a
+     * driver reporting from inside conn->open() - which on LINUX is the normal
+     * case, not a rare one, because tkl_wired_set_status_cb() fires its callback
+     * before returning.
+     *
+     * `settle_missed` is the re-run bit. A pass that finds the flag taken records
+     * its reason in req_reason and returns; the pass that owns the flag re-posts
+     * on the way out. Re-posting rather than looping in place keeps the whole
+     * mechanism single-exit, which is what makes the flag safe to hold across the
+     * body at all.
+     */
+    BOOL_T settle_busy;
+    BOOL_T settle_missed;
+
     /** When s_netmgr.active last changed, the base for policy.min_dwell_ms. */
     uint32_t active_since_ms;
 
@@ -1221,12 +1239,31 @@ static void __netmgr_settle(MUTEX_HANDLE lock, netmgr_change_reason_e force, BOO
     BOOL_T                 status_chg  = FALSE;
     BOOL_T                 addr_chg    = FALSE;
     BOOL_T                 emit_switch = FALSE;
+    BOOL_T                 missed       = FALSE;
+    netmgr_type_e          skip_subject = NETCONN_AUTO;
     uint32_t               now_ms      = 0;
     uint32_t               next_ms     = 0;
     uint32_t               count       = 0;
     uint32_t               i           = 0;
 
     memset(views, 0, sizeof(views));
+
+    // Take the exclusion before anything is read. A pass that cannot have the
+    // flag must not sample state either, or it would publish a decision built
+    // from a snapshot the owning pass is halfway through changing.
+    tal_mutex_lock(lock);
+    if (s_netmgr.settle_busy) {
+        // The reason is not dropped, it is handed to the re-run. Without this a
+        // skipped NETMGR_CHG_REASON_INIT would be reported as REASON_NONE.
+        if (NETMGR_CHG_REASON_NONE != force) {
+            __netmgr_reason_take(&s_netmgr.req_reason, &skip_subject, force, NETCONN_AUTO);
+        }
+        s_netmgr.settle_missed = TRUE;
+        tal_mutex_unlock(lock);
+        return;
+    }
+    s_netmgr.settle_busy = TRUE;
+    tal_mutex_unlock(lock);
 
     // Step 1 of the route push described above: read what is installed before
     // taking the lock. The initialiser only covers a route_get() that fails.
@@ -1507,6 +1544,19 @@ static void __netmgr_settle(MUTEX_HANDLE lock, netmgr_change_reason_e force, BOO
         } else {
             tal_sw_timer_stop(sg_netmgr_deadline_timer);
         }
+    }
+
+    // Release the exclusion, and give a skipped pass its re-run. Posting is safe
+    // from here whichever thread this is: on the WORKQ_SYSTEM thread it queues the
+    // next item, and from netmgr_init() it queues one the workq picks up.
+    tal_mutex_lock(lock);
+    s_netmgr.settle_busy   = FALSE;
+    missed                 = s_netmgr.settle_missed;
+    s_netmgr.settle_missed = FALSE;
+    tal_mutex_unlock(lock);
+
+    if (missed) {
+        (void)__netmgr_notify_post(lock);
     }
 }
 
