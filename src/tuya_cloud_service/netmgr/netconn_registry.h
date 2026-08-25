@@ -263,8 +263,18 @@ typedef struct netconn_desc {
 
     /**
      * Socket ops backend this link's traffic leaves through, copied into
-     * conn->card_type at registration. Holds a TAL_NET_TYPE_* value; use
-     * TAL_NET_PROVIDER_DEFAULT unless the board really has a second backend.
+     * conn->card_type at registration. Holds a TAL_NET_TYPE_* value.
+     *
+     * USE TAL_NET_PROVIDER_DEFAULT. An earlier version of this comment said
+     * "unless the board really has a second backend", which today is a trap: the
+     * backend table in tal_network_register.c is a static initialiser with one
+     * non-NULL entry and its own comment calls it immutable, so a board cannot
+     * install a second backend at all. Naming any other provider used to publish
+     * a route that silently disabled every socket; tal_net_route_set() now
+     * refuses it and netmgr logs which link was left unroutable.
+     *
+     * The field stays because the concept is right and the data plane is built
+     * for more than one backend - what is missing is a way to register one.
      *
      * Typed uint8_t, which is what TAL_NETWORK_CARD_TYPE_E is a typedef of, so
      * this control-plane header needs no include from the data plane - the same

@@ -717,7 +717,16 @@ static void __netmgr_push_route(netmgr_conn_base_t *conn, netmgr_status_e status
         route->src_ip = tal_net_str2addr(nw_ip.ip);
     }
 
-    tal_net_route_set(route);
+    /* OPRT_NOT_SUPPORTED here means the route named a socket backend this build
+     * does not contain - a board set netconn_desc_t.provider to something other
+     * than TAL_NET_PROVIDER_DEFAULT. The data plane refuses it, so the previous
+     * route stays installed and sockets keep working; without this line the
+     * board author would be left with a link that ranks fine and traffic that
+     * does not move, and nothing naming the reason. */
+    if (OPRT_NOT_SUPPORTED == tal_net_route_set(route)) {
+        PR_ERR("netmgr route rejected: provider %u has no backend in this build, link [%s] not routable",
+               (unsigned int)route->provider, (NULL != conn) ? __netmgr_link_name(conn->type) : "?");
+    }
 }
 
 /***********************************************************

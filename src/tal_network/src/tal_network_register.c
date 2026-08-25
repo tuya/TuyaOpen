@@ -141,6 +141,19 @@ OPERATE_RET tal_net_route_set(const tal_net_route_t *route)
         return OPRT_INVALID_PARM;
     }
 
+    /* In range is not the same as backed by anything. active_card[] is statically
+     * initialised with exactly one non-NULL entry and is immutable afterwards, so
+     * publishing any other provider leaves tal_network_get_active_ops() returning
+     * NULL and every socket primitive in tal_network.c failing - with no symptom
+     * that points here.
+     *
+     * Refused rather than logged, because this translation unit has no log
+     * dependency and should not grow one for a caller error. The distinct return
+     * code is what lets the caller say something useful; netmgr does. */
+    if (NULL == tal_network_card_manager.active_card[route->provider]) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
     __route_lock();
     tal_network_card_manager.route = *route;
     __route_unlock();
