@@ -70,6 +70,16 @@
 #define NETMGR_DRAIN_POLL_MS    10
 
 /**
+ * How long to wait before retrying a notify work item the workqueue refused.
+ *
+ * Short, because the state machine is not running while a post is outstanding and
+ * the route may be wrong for the whole interval. Not zero, because the only
+ * reason tal_workq_schedule() fails is a full queue or a failed allocation, and
+ * retrying either of those immediately is how a busy device stays busy.
+ */
+#define NETMGR_NOTIFY_RETRY_MS 200
+
+/**
  * @brief One link's pending report and everything netmgr knows about it, in
  *        registration order.
  *
@@ -1687,12 +1697,30 @@ static OPERATE_RET __netmgr_notify_post(MUTEX_HANDLE lock)
 
     rt = tal_workq_schedule(WORKQ_SYSTEM, __netmgr_notify_work, NULL);
     if (OPRT_OK != rt) {
-        // Drop the "queued" mark but keep whatever the caller recorded, so the
-        // next producer retries the post and nothing is lost.
+        // Drop the "queued" mark and keep whatever the caller recorded, so a later
+        // producer can retry the post. report[i].pending stays set, and a pass
+        // re-reads every link through conn->get() anyway, so no state is lost.
         tal_mutex_lock(lock);
         s_netmgr.notify_queued = FALSE;
         tal_mutex_unlock(lock);
-        PR_ERR("netmgr notify schedule failed, rt = %d", rt);
+
+        // But a later producer is not guaranteed to exist, and this used to be the
+        // only recovery - the comment here claimed "nothing is lost", which was
+        // true of the DATA and false of the pass that acts on it. A link that flaps
+        // once and settles produces no further report, and under the shipped
+        // default policy every timing is 0, so the settle pass stops the shared
+        // deadline rather than arming it. Nothing would have run the pass again.
+        //
+        // So the timer is armed here as a second, independent recovery path. The
+        // two cover each other: a producer may never come, and this arm may itself
+        // fail. If a settle pass does run first it re-arms or stops the timer from
+        // its own deadline fold, which is the correct outcome - the retry existed
+        // only until a pass happened.
+        if (NULL != sg_netmgr_deadline_timer) {
+            tal_sw_timer_start(sg_netmgr_deadline_timer, NETMGR_NOTIFY_RETRY_MS, TAL_TIMER_ONCE);
+        }
+
+        PR_ERR("netmgr notify schedule failed, rt = %d, retrying in %d ms", rt, NETMGR_NOTIFY_RETRY_MS);
     }
 
     return rt;
