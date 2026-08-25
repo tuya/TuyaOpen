@@ -50,7 +50,7 @@ extern "C" {
  *
  *   init                                   deinit
  *   ----------------------------------     ----------------------------------
- *   tal_network_card_init()                nothing. The route lock has no
+ *   tal_net_provider_init()                nothing. The route lock has no
  *                                          teardown entry point and the data
  *                                          plane outlives netmgr. Documented
  *                                          gap, not fixed by M2.

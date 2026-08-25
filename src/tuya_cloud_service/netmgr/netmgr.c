@@ -47,7 +47,7 @@
 
 /* The data plane, included here and not from netmgr.h: the control plane's public
  * header must not depend on it. tal_net_route.h is the one channel netmgr uses to
- * write the data plane; tal_network_register.h is here for tal_network_card_init()
+ * write the data plane; tal_network_register.h is here for tal_net_provider_init()
  * and for TAL_NET_PROVIDER_DEFAULT. */
 #include "tal_network_register.h"
 #include "tal_net_route.h"
@@ -2128,7 +2128,7 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
         return OPRT_OK;
     }
 
-    TUYA_CALL_ERR_RETURN(tal_network_card_init());
+    TUYA_CALL_ERR_RETURN(tal_net_provider_init());
 
     // The state machine runs on WORKQ_SYSTEM from here on, so make sure it
     // exists. tal_workq_init() is idempotent and every app already calls it;

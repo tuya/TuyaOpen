@@ -394,14 +394,14 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
      *
      * What this replaces:
      *
-     *     TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
-     *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM)
+     *     tal_net_provider_id_t active_type = tal_network_card_get_active_type();
+     *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_PROVIDER_AT_MODEM)
      *
      * That was the control plane asking the data plane a control-plane question,
      * and it was also dead: the active provider is only ever written from
      * conn->card_type, every driver sets that to TAL_NET_PROVIDER_DEFAULT, and
-     * that expands to TAL_NET_TYPE_POSIX or TAL_NET_TYPE_PLATFORM - never to
-     * TAL_NET_TYPE_AT_MODEM. So "do not open AP provisioning while 4G is the
+     * that expands to TAL_NET_PROVIDER_POSIX or TAL_NET_PROVIDER_TKL - never to
+     * TAL_NET_PROVIDER_AT_MODEM. So "do not open AP provisioning while 4G is the
      * active link" was a tautology that never once fired.
      *
      * The capability bit is behaviour-neutral today, because the wifi row sets

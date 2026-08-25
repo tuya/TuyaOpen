@@ -136,15 +136,15 @@ typedef uint32_t netconn_caps_t;
  *
  * Replaces the cross-layer query in __netconn_activate_token_get():
  *
- *     TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
- *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM)
+ *     tal_net_provider_id_t active_type = tal_network_card_get_active_type();
+ *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_PROVIDER_AT_MODEM)
  *
  * That test never fires. tal_network_card_get_active_type() returns
  * route.provider, whose only writers are tal_net_route_set() (fed by netmgr from
  * conn->card_type) and tal_network_card_set_active() (which has zero callers in
  * the tree). Every driver initialises card_type to TAL_NET_PROVIDER_DEFAULT,
- * which expands to TAL_NET_TYPE_POSIX or TAL_NET_TYPE_PLATFORM and never to
- * TAL_NET_TYPE_AT_MODEM - the only other mention of that constant in the tree is
+ * which expands to TAL_NET_PROVIDER_POSIX or TAL_NET_PROVIDER_TKL and never to
+ * TAL_NET_PROVIDER_AT_MODEM - the only other mention of that constant in the tree is
  * its own #define. So the condition is a tautology and the 4G branch it guards
  * has never been taken.
  *
@@ -276,7 +276,7 @@ typedef struct netconn_desc {
      * The field stays because the concept is right and the data plane is built
      * for more than one backend - what is missing is a way to register one.
      *
-     * Typed uint8_t, which is what TAL_NETWORK_CARD_TYPE_E is a typedef of, so
+     * Typed uint8_t, which is what tal_net_provider_id_t is a typedef of, so
      * this control-plane header needs no include from the data plane - the same
      * discipline netmgr_conn_base_t.card_type already follows.
      */
