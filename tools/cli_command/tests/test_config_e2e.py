@@ -122,6 +122,50 @@ class TestConfigGet(ConfigE2EBase):
         self.assertEqual(_digest(self.using), before_using)
 
 
+class TestInitUsingConfigStaleness(ConfigE2EBase):
+    '''
+    Regression test for the B11 fix: hand-editing app_default.config
+    outside `config set`/`config choice` (e.g. in a text editor) must not
+    be silently ignored by the next command that calls
+    init_using_config(force=False) -- which is what a plain `tos.py build`
+    does. `config get` exercises the exact same code path
+    (_load_current_kconfig -> init_using_config(force=False)) without
+    needing the full build toolchain.
+    '''
+
+    def test_hand_edited_app_default_is_picked_up(self):
+        # Materialize using.config from the tracked app_default.config.
+        result = self.run_config(
+            "get", "CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN", "-j")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)
+            ["CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN"], 4096)
+
+        # Hand-edit app_default.config directly, as a user would in a text
+        # editor -- not through `config set`, so nothing re-derives
+        # using.config as a side effect of the edit itself.
+        content = self.read(self.app_default)
+        content = content.replace(
+            "CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN=4096",
+            "CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN=9999")
+        with open(self.app_default, 'w', encoding='utf-8') as f:
+            f.write(content)
+        # Force a strictly newer mtime than using.config's, independent of
+        # the filesystem's timestamp resolution.
+        newer = os.path.getmtime(self.using) + 5
+        os.utime(self.app_default, (newer, newer))
+
+        result = self.run_config(
+            "get", "CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN", "-j")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)
+            ["CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN"], 9999,
+            "hand-edited app_default.config was not picked up by the next "
+            "command -- init_using_config() staleness check regressed")
+
+
 class TestConfigList(ConfigE2EBase):
 
     def test_list_filtered(self):
