@@ -29,14 +29,14 @@
 #include "tal_network_register.h"
 
 netmgr_conn_wired_t s_netmgr_wired = {
-    .base = {.pri       = 2,
-             .type      = NETCONN_WIRED,
-             .status    = NETMGR_LINK_DOWN,
+    .base = {.pri      = 2,
+             .type     = NETCONN_WIRED,
+             .status   = NETMGR_LINK_DOWN,
              .provider = TAL_NET_PROVIDER_DEFAULT,
-             .open      = netconn_wired_open,
-             .close     = netconn_wired_close,
-             .get       = netconn_wired_get,
-             .set       = netconn_wired_set},
+             .open     = netconn_wired_open,
+             .close    = netconn_wired_close,
+             .get      = netconn_wired_get,
+             .set      = netconn_wired_set},
 };
 
 /**
