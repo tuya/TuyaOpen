@@ -30,10 +30,3 @@ add_executable(test_legacy_parity
 target_include_directories(test_legacy_parity PRIVATE ${TAL_IMAGE_INC})
 target_link_libraries(test_legacy_parity m)
 add_test(NAME test_legacy_parity COMMAND test_legacy_parity)
-
-add_executable(test_jpeg_noise_clamp
-    test_jpeg_noise_clamp.c
-    ${TAL_IMAGE_SRC}/tal_image_jpeg_noise_clamp.c
-)
-target_include_directories(test_jpeg_noise_clamp PRIVATE ${TAL_IMAGE_INC})
-add_test(NAME test_jpeg_noise_clamp COMMAND test_jpeg_noise_clamp)

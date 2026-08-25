@@ -115,9 +115,8 @@ OPERATE_RET tal_image_jpeg_decode_gray(const uint8_t *jpeg_data,
  * @param[in]  threshold  Binarization threshold (0-255). Only the actual split for
  *                        TAL_IMAGE_MONO_MTH_FIXED; every other method computes/uses its
  *                        own split. Also centers the error-diffusion methods' noise-clamp
- *                        pre-pass (see tal_image_jpeg_noise_clamp.h), so it does measurably
- *                        affect their output despite not setting their binarization split.
- *                        Typical value is 128.
+ *                        pre-pass, so it does measurably affect their output despite not
+ *                        setting their binarization split. Typical value is 128.
  * @return OPERATE_RET OPRT_OK on success; otherwise see tuya_error_code.h.
  */
 OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
