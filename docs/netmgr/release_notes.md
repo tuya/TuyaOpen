@@ -281,8 +281,8 @@ netmgr init                       bring it back up
 
 | config | 平台 | socket 后端 | 链路 |
 | --- | --- | --- | --- |
-| `apps/tuya_cloud/switch_demo/config/Ubuntu.config` | LINUX / host | posix，`TAL_NET_PROVIDER_DEFAULT` → `TAL_NET_TYPE_POSIX` | 仅 wired |
-| `apps/tuya_cloud/switch_demo/config/TUYA_T5AI_BOARD_CELLULAR.config` | T5AI / `TUYA_T5AI_BOARD` | tkl，`TAL_NET_PROVIDER_DEFAULT` → `TAL_NET_TYPE_PLATFORM` | wifi + cellular + bluetooth + ULP |
+| `apps/tuya_cloud/switch_demo/config/Ubuntu.config` | LINUX / host | posix，`TAL_NET_PROVIDER_DEFAULT` → `TAL_NET_PROVIDER_POSIX` | 仅 wired |
+| `apps/tuya_cloud/switch_demo/config/TUYA_T5AI_BOARD_CELLULAR.config` | T5AI / `TUYA_T5AI_BOARD` | tkl，`TAL_NET_PROVIDER_DEFAULT` → `TAL_NET_PROVIDER_TKL` | wifi + cellular + bluetooth + ULP |
 
 ```
 cd apps/tuya_cloud/switch_demo

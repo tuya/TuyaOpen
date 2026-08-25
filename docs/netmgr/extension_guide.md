@@ -38,7 +38,7 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 │ 数据面  src/tal_network/                                     │
 │  tal_network_register.c  route =（socket 后端, 源地址）        │
 │  tal_posix.c / tal_platform.c  两个 socket 后端实现            │
-│  tal_network.c  所有 socket 原语，经 tal_network_get_active_ops│
+│  tal_network.c  所有 socket 原语，经 tal_net_provider_ops│
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,14 +47,14 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 | 位置 | `src/tuya_cloud_service/netmgr/` | `src/tal_network/` |
 | 决定 | **哪条链路**该承载流量 | 用**哪个 socket 后端**、绑**哪个源地址** |
 | 输入 | 驱动状态、优先级、探测判决、策略参数 | 只有一个 `tal_net_route_t` |
-| 状态 | `s_netmgr`，一把 `s_netmgr.lock` | `tal_network_card_manager`，一把 `s_route_lock` |
+| 状态 | `s_netmgr`，一把 `s_netmgr.lock` | `tal_net_provider_registry`，一把 `s_route_lock` |
 
 ### 1.1 两条铁律
 
 **铁律一：数据面从不回调控制面。**
 `src/tal_network/` 全目录不 include 任何 netmgr 头文件 —— `netmgr` 这个词只出现在注释里（`tal_net_route.h`、`tal_network_register.c`、`tal_network.h`、`tal_network.c`）。数据面拿到 route 就照做，不问是谁写的、为什么写。
 
-这条铁律同时约束控制面：`netconn_registry.h · netconn_desc_t.provider` 之所以声明成 `uint8_t` 而不是 `TAL_NETWORK_CARD_TYPE_E`，就是为了让这个控制面公共头**不需要**引入数据面的头 —— `netmgr_conn_base_t.card_type` 早就遵守同一条纪律。驱动里要用 `TAL_NET_PROVIDER_DEFAULT`，得自己 include `tal_network_register.h`（三个 in-tree 驱动都写了这句注释：`netmgr.h` 以前会捎带进来，现在不会了）。
+这条铁律同时约束控制面：`netconn_registry.h · netconn_desc_t.provider` 之所以声明成 `uint8_t` 而不是 `tal_net_provider_id_t`，就是为了让这个控制面公共头**不需要**引入数据面的头 —— `netmgr_conn_base_t.provider` 早就遵守同一条纪律。驱动里要用 `TAL_NET_PROVIDER_DEFAULT`，得自己 include `tal_network_register.h`（三个 in-tree 驱动都写了这句注释：`netmgr.h` 以前会捎带进来，现在不会了）。
 
 **铁律二：控制面只通过一个函数写数据面。**
 全树 `tal_net_route_set()` 只有一个调用点，在 `netmgr.c · __netmgr_push_route()` 里面。而 `__netmgr_push_route()` 只被 notify handler 和 `netmgr_init()` 的第一趟 pass 调用，两者都跑在同一个上下文序列上。任何能移动路由的事（链路事件、`NETCONN_CMD_PRI` 改优先级、`NETCONN_CMD_IP` 改地址）都走 `netmgr_notify_link()` 汇到这里，所以不存在"两个并发写者争谁最后落地"的问题。
@@ -129,7 +129,7 @@ netmgr_init(type);
 | `caps` | `netconn_caps_t` | `NETCONN_CAP_*` 的 OR。**编译期常量**，是关于"这项技术在这次构建里能做什么"的陈述，不是运行时状态 |
 | `ctrl` | `netconn_ctrl_level_e` | netmgr 被允许驱动这条链路生命周期的程度。见 §2.4 |
 | `default_pri` | `uint8_t` | 注册时**覆盖** `conn->pri`。数值大者优先 |
-| `provider` | `uint8_t` | 注册时**覆盖** `conn->card_type`。填 `TAL_NET_PROVIDER_DEFAULT`，除非板子真有第二个 socket 后端（见 §3） |
+| `provider` | `uint8_t` | 注册时**覆盖** `conn->provider`。填 `TAL_NET_PROVIDER_DEFAULT`，除非板子真有第二个 socket 后端（见 §3） |
 | `set_mask` | `netconn_attr_mask_t` | `conn->set()` 接受哪些命令。见 §2.5 |
 | `get_mask` | `netconn_attr_mask_t` | `conn->get()` 接受哪些命令。见 §2.5 |
 | `conn` | `netmgr_conn_base_t *` | 指向驱动自己那个静态实例的 `base` 成员。不能为 NULL，永不释放，所以 netmgr 可以跨 unlock 持有它 |
@@ -138,11 +138,11 @@ netmgr_init(type);
 
 ```c
 conn->pri       = desc->default_pri;
-conn->card_type = desc->provider;
+conn->provider  = desc->provider;
 conn->event_cb  = __netmgr_event_shim;
 ```
 
-也就是说**描述符是真相源**，`base.pri` 和 `base.card_type` 退化成它的缓存。这正是"板子能重排优先级、换 provider 而不用改任何驱动"的机制所在 —— 驱动静态初始化里写的 `.pri = 2` 会被表里的 `.default_pri` 无声盖掉，别在驱动里调它。
+也就是说**描述符是真相源**，`base.pri` 和 `base.provider` 退化成它的缓存。这正是"板子能重排优先级、换 provider 而不用改任何驱动"的机制所在 —— 驱动静态初始化里写的 `.pri = 2` 会被表里的 `.default_pri` 无声盖掉，别在驱动里调它。
 
 描述符**故意不动** `netmgr_conn_base_t`，也不动 `netmgr_conn_{wifi,wired,cellular}_t`：`netmgr.h` 被树里 40 多个文件 include，`netconn_*.h` 在全局公共 include 路径上而且 app 代码在用它们的类型，所以把 `pri`/`status`/`next`/`event_cb` 从 base 里搬出来是另一件更宽的事。描述符**并列**在既有结构体旁边，只携带 netmgr 需要的元数据；base 结构体逐字节不变。
 
@@ -253,14 +253,14 @@ if (NULL != desc && ((uint32_t)cmd >= 32 || 0 == (desc->set_mask & NETCONN_ATTR_
 
 netmgr_conn_<tech>_t s_netmgr_<tech> = {
     .base = {
-        .pri       = 0,                        /* 会被 desc->default_pri 覆盖 */
-        .type      = NETCONN_<TECH>,
-        .status    = NETMGR_LINK_DOWN,
-        .card_type = TAL_NET_PROVIDER_DEFAULT, /* 会被 desc->provider 覆盖 */
-        .open      = netconn_<tech>_open,
-        .close     = netconn_<tech>_close,
-        .get       = netconn_<tech>_get,
-        .set       = netconn_<tech>_set,
+        .pri      = 0,                        /* 会被 desc->default_pri 覆盖 */
+        .type     = NETCONN_<TECH>,
+        .status   = NETMGR_LINK_DOWN,
+        .provider = TAL_NET_PROVIDER_DEFAULT, /* 会被 desc->provider 覆盖 */
+        .open     = netconn_<tech>_open,
+        .close    = netconn_<tech>_close,
+        .get      = netconn_<tech>_get,
+        .set      = netconn_<tech>_set,
     },
 };
 
@@ -361,11 +361,11 @@ netmgr: configured 0x1a, active wifi, status link_up, links 3
 | 控制面（netmgr） | 用**哪条链路** | 排序 → `s_netmgr.active` |
 | 数据面（tal_network） | 用**哪个 socket 后端**、绑**哪个源地址** | 一个 `tal_net_route_t` |
 
-两者的接缝就是描述符的 `provider` 字段：注册时抄进 `conn->card_type`，选路选中这条链路后由 `netmgr.c · __netmgr_snap_provider()` 读出来放进 route 的 provider 半边。
+两者的接缝就是描述符的 `provider` 字段：注册时抄进 `conn->provider`，选路选中这条链路后由 `netmgr.c · __netmgr_snap_provider()` 读出来放进 route 的 provider 半边。
 
 数据面拿着 route 干两件事：
 
-- `tal_network_get_active_ops()` 用 `route.provider` 索引 `active_card[]`，返回那个后端的 `TAL_NETWORK_OPS_T *`。`tal_network.c` 里所有 socket 原语（`TAL_NET_EXEC_OP` 宏，三十多个）都从这里拿函数表。
+- `tal_net_provider_ops()` 用 `route.provider` 索引 `providers[]`，返回那个后端的 `TAL_NETWORK_OPS_T *`。`tal_network.c` 里所有 socket 原语（`TAL_NET_EXEC_OP` 宏，三十多个）都从这里拿函数表。
 - `tal_net_connect()` 在真正 connect 之前，用 route 的源地址把 socket 绑上去（`tal_network.c · __net_connect_bind_active_src()`）。四条设计约束，都值得知道：
   - **只在 connect 上做，不在 `socket_create` 上做**：刚建的 socket 还没有方向，它可能变成 listener，在那里绑单播地址会毁掉每一个 server socket。connect 明确是出向的，所以只有它是安全的位置。
   - **只在没人绑过时做**：自己管本地地址的调用者必须赢。pjproject（ICE/STUN/TURN）为收集候选自己绑每一个 socket，而在 lwIP 上对一个仍处于 CLOSED 的 pcb 二次 bind 会成功并静默移动本地地址，所以无条件绑会悄悄毁掉候选收集而不是响亮地失败。判"绑过没有"时**端口也算**，因为 `bind(ANY, 0)` 是一次真的 bind。
@@ -376,7 +376,7 @@ netmgr: configured 0x1a, active wifi, status link_up, links 3
 
 ```c
 typedef struct {
-    uint8_t provider;      /* 哪个 socket 后端，取 TAL_NET_TYPE_* */
+    uint8_t provider;      /* 哪个 socket 后端，取 TAL_NET_PROVIDER_* */
     TUYA_IP_ADDR_T src_ip; /* 出向 socket 绑的源地址，0 = 不绑 */
 } tal_net_route_t;
 
@@ -411,68 +411,68 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route);
 | `tal_network_card_set_active()` | 取 | 半更新；取锁是为了让成对读者抓不到中途状态 |
 | `tal_network_card_set_active_ip()` | 取 | 同上 |
 | `tal_network_card_get_active_type()` | **不取** | 单字段读，一个字节不会撕裂，且不看另一半 |
-| `tal_network_card_get_active_ip()` | **不取** | 同上 |
-| `tal_network_get_active_ops()` | **不取** | 热路径。见下 |
+| `tal_net_route_src_ip()` | **不取** | 同上 |
+| `tal_net_provider_ops()` | **不取** | 热路径。见下 |
 
-`tal_network_get_active_ops()` 是最要紧的那个：`tal_network.c` 的 `TAL_NET_EXEC_OP` 从**每一个** socket 原语里调它 —— send、recv、recvfrom、select、fd_isset 以及另外三十来个，其中好几个在紧凑的 select 循环里。给它加一把 mutex，等于**在每个 socket 操作下面塞一个内核级操作**，在 RTOS 上还多出一个全新的优先级反转来源。在这份状态被合并之前，那条路径本来就是一次朴素的数组读，现在依然是：
+`tal_net_provider_ops()` 是最要紧的那个：`tal_network.c` 的 `TAL_NET_EXEC_OP` 从**每一个** socket 原语里调它 —— send、recv、recvfrom、select、fd_isset 以及另外三十来个，其中好几个在紧凑的 select 循环里。给它加一把 mutex，等于**在每个 socket 操作下面塞一个内核级操作**，在 RTOS 上还多出一个全新的优先级反转来源。在这份状态被合并之前，那条路径本来就是一次朴素的数组读，现在依然是：
 
 ```c
-TAL_NETWORK_OPS_T *tal_network_get_active_ops(void)
+TAL_NETWORK_OPS_T *tal_net_provider_ops(void)
 {
-    uint8_t provider = tal_network_card_manager.route.provider;
-    TAL_NETWORK_CARD_T *card = tal_network_card_manager.active_card[provider];
-    if (NULL == card) {
+    uint8_t provider = tal_net_provider_registry.route.provider;
+    tal_net_provider_t *entry = tal_net_provider_registry.providers[provider];
+    if (NULL == entry) {
         return NULL;
     }
-    return &card->ops;
+    return &entry->ops;
 }
 ```
 
-它成立靠三件事：`provider` 是单字节、不会撕裂；`active_card[]` 静态初始化之后不可变；这两个都不需要与 `src_ip` 相符。**索引一定在范围内**，因为每个写者都对着 `TAL_NET_TYPE_MAX` 校验过 provider。
+它成立靠三件事：`provider` 是单字节、不会撕裂；`providers[]` 静态初始化之后不可变；这两个都不需要与 `src_ip` 相符。**索引一定在范围内**，因为每个写者都对着 `TAL_NET_PROVIDER_MAX` 校验过 provider。
 
 所以：**不要"修好"这些不取锁的读者。** 那只会把热路径成本加回来，而没有让任何东西更正确。真的需要两个字段互相吻合的调用者，该调 `tal_net_route_get()` —— 它就是为这个存在的。
 
-还有一处细节：`s_route_lock` 在 `tal_network_card_init()` 之前是 `NULL`，写者此时退化成不加锁访问（`__route_lock()` / `__route_unlock()` 判空）。这不是漏洞：mutex 没法在静态初始化期创建，而 route 在 init 之前就必须可用；那么早只有单线程的启动路径在跑，而写者（netmgr）在 init 之后很久才存在。同理，后端表是**静态初始化**的而不是在 `tal_network_card_init()` 里填的 —— 早期的 socket 使用者会在 init 跑之前就到 `tal_network_get_active_ops()`，它们必须在那里找到一个能用的后端。
+还有一处细节：`s_route_lock` 在 `tal_net_provider_init()` 之前是 `NULL`，写者此时退化成不加锁访问（`__route_lock()` / `__route_unlock()` 判空）。这不是漏洞：mutex 没法在静态初始化期创建，而 route 在 init 之前就必须可用；那么早只有单线程的启动路径在跑，而写者（netmgr）在 init 之后很久才存在。同理，后端表是**静态初始化**的而不是在 `tal_net_provider_init()` 里填的 —— 早期的 socket 使用者会在 init 跑之前就到 `tal_net_provider_ops()`，它们必须在那里找到一个能用的后端。
 
 ### 3.4 加一个 provider 的步骤
 
 今天树里只有两个后端，而且**一次构建只链进一个**：
 
 ```c
-typedef uint8_t TAL_NETWORK_CARD_TYPE_E;
-#define TAL_NET_TYPE_POSIX    (0)
-#define TAL_NET_TYPE_PLATFORM (1)
-#define TAL_NET_TYPE_AT_MODEM (2)
-#define TAL_NET_TYPE_MAX      (3)
+typedef uint8_t tal_net_provider_id_t;
+#define TAL_NET_PROVIDER_POSIX    (0)
+#define TAL_NET_PROVIDER_TKL      (1)
+#define TAL_NET_PROVIDER_AT_MODEM (2)
+#define TAL_NET_PROVIDER_MAX      (3)
 
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
-#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_POSIX
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_PROVIDER_POSIX
 #else
-#define TAL_NET_PROVIDER_DEFAULT TAL_NET_TYPE_PLATFORM
+#define TAL_NET_PROVIDER_DEFAULT TAL_NET_PROVIDER_TKL
 #endif
 ```
 
-`tal_posix.c` 和 `tal_platform.c` 各自用同一个 `ENABLE_LIBLWIP` / `OPERATING_SYSTEM` 判断把自己整体条件编译掉，所以恰好一个 card 会存在。`TAL_NET_PROVIDER_DEFAULT` 这个名字的意义就是**让那个判断只出现在一个地方**。
+`tal_posix.c` 和 `tal_platform.c` 各自用同一个 `ENABLE_LIBLWIP` / `OPERATING_SYSTEM` 判断把自己整体条件编译掉，所以恰好一个 provider 会存在。`TAL_NET_PROVIDER_DEFAULT` 这个名字的意义就是**让那个判断只出现在一个地方**。
 
-`TAL_NET_TYPE_AT_MODEM` 是个**只有 `#define` 没有实现**的常量 —— 全树除了这个定义没人再提它。这也是 §6.6 那条"死掉的 4G 分支"的根源。
+`TAL_NET_PROVIDER_AT_MODEM` 是个**只有 `#define` 没有实现**的常量 —— 全树没有代码真的发布过这个值；唯一提到它的地方是它自己的定义，以及几处解释这段历史的注释。这也是 §6.6 那条"死掉的 4G 分支"的根源。
 
 要加第三个后端：
 
-1. **`tal_network_register.h`**：加一个 `TAL_NET_TYPE_<X>` 常量，**并把 `TAL_NET_TYPE_MAX` 加一**。忘了加 `MAX` 的后果是 `tal_net_route_set()` 直接拒掉你的 provider（`route->provider >= TAL_NET_TYPE_MAX` → `OPRT_INVALID_PARM`）。
-2. **新一个 `src/tal_network/src/tal_<x>.c`**，定义 `TAL_NETWORK_CARD_T tal_network_card_<x>`，填满 `TAL_NETWORK_OPS_T` 的函数表（35 个函数指针）。`src/tal_network/CMakeLists.txt` 用的是 `aux_source_directory`，新文件自动进编译，**不用改 CMake**。
-3. **改 `tal_network_register.c` 的静态初始化器**，把新 card 挂进 `active_card[]`：
+1. **`tal_network_register.h`**：加一个 `TAL_NET_PROVIDER_<X>` 常量，**并把 `TAL_NET_PROVIDER_MAX` 加一**。忘了加 `MAX` 的后果是 `tal_net_route_set()` 直接拒掉你的 provider（`route->provider >= TAL_NET_PROVIDER_MAX` → `OPRT_INVALID_PARM`）。
+2. **新一个 `src/tal_network/src/tal_<x>.c`**，定义 `tal_net_provider_t tal_net_provider_<x>`，填满 `TAL_NETWORK_OPS_T` 的函数表（35 个函数指针）。`src/tal_network/CMakeLists.txt` 用的是 `aux_source_directory`，新文件自动进编译，**不用改 CMake**。
+3. **改 `tal_network_register.c` 的静态初始化器**，把新 provider 挂进 `providers[]`：
    ```c
-   TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
-       .route                                 = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
-       .active_card[TAL_NET_PROVIDER_DEFAULT] = &TAL_NETWORK_CARD_DEFAULT,
+   tal_net_provider_registry_t tal_net_provider_registry = {
+       .route                                = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
+       .providers[TAL_NET_PROVIDER_DEFAULT] = &TAL_NET_PROVIDER_DEFAULT_OBJ,
        /* 新增： */
-       .active_card[TAL_NET_TYPE_<X>]         = &tal_network_card_<x>,
+       .providers[TAL_NET_PROVIDER_<X>]     = &tal_net_provider_<x>,
    };
    ```
-   **这一步漏了最难查**：`tal_net_route_set()` 会接受你的 provider（在范围内），然后 `tal_network_get_active_ops()` 拿到 `NULL`，全部 socket 原语开始返回失败，而且没有一条日志说明是为什么。表是静态初始化的、之后永不改写，这正是读者不需要加锁的前提，所以新条目也必须放进**静态初始化器**里，不要在 `tal_network_card_init()` 里补。
-4. **让某条链路用它**：把那条链路的 `netconn_desc_t.provider` 从 `TAL_NET_PROVIDER_DEFAULT` 改成 `TAL_NET_TYPE_<X>`。**改驱动的静态初始化没用**（会被描述符盖掉），要么改 `netconn_table.c` 的默认表，要么走 §2.8 的板级覆盖 —— 后者是"板子真有第二个后端"的正规表达方式。
+   **这一步漏了最难查**：`tal_net_route_set()` 会接受你的 provider（在范围内），然后 `tal_net_provider_ops()` 拿到 `NULL`，全部 socket 原语开始返回失败，而且没有一条日志说明是为什么。表是静态初始化的、之后永不改写，这正是读者不需要加锁的前提，所以新条目也必须放进**静态初始化器**里，不要在 `tal_net_provider_init()` 里补。
+4. **让某条链路用它**：把那条链路的 `netconn_desc_t.provider` 从 `TAL_NET_PROVIDER_DEFAULT` 改成 `TAL_NET_PROVIDER_<X>`。**改驱动的静态初始化没用**（会被描述符盖掉），要么改 `netconn_table.c` 的默认表，要么走 §2.8 的板级覆盖 —— 后者是"板子真有第二个后端"的正规表达方式。
 
-> `src_ip` 之所以放在 route 里而不是 `TAL_NETWORK_CARD_T.ipaddr` 里：多条链路可以共用一个 card type（T5AI 上 wifi 和 cellular 都是 `PLATFORM`），所以源地址是**激活链路**的属性，不是 card 的属性。
+> `src_ip` 之所以放在 route 里而不是 `tal_net_provider_t.ipaddr` 里：多条链路可以共用一个 provider type（T5AI 上 wifi 和 cellular 都是 `TKL`），所以源地址是**激活链路**的属性，不是 provider 的属性。
 
 ---
 
@@ -790,21 +790,21 @@ debounce、grace、dwell、probe timeout、revalidation 全部由 `netmgr.c` 里
 
 ### 6.5 在 socket 热路径上加锁
 
-见 §3.3。不要给 `tal_network_get_active_ops()` / `tal_network_card_get_active_type()` / `tal_network_card_get_active_ip()` 加锁。
+见 §3.3。不要给 `tal_net_provider_ops()` / `tal_network_card_get_active_type()` / `tal_net_route_src_ip()` 加锁。
 
 ### 6.6 让控制面向数据面问控制面的问题
 
 被删掉的那段代码（`netconn_wifi.c:395-408` 记着原文）：
 
 ```c
-TAL_NETWORK_CARD_TYPE_E active_type = tal_network_card_get_active_type();
-if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_TYPE_AT_MODEM)
+tal_net_provider_id_t active_type = tal_network_card_get_active_type();
+if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_PROVIDER_AT_MODEM)
 ```
 
 意图是"4G 是激活链路时不要开 AP 配网"。它同时犯了两个错：
 
 - **架构上**，这是控制面向数据面问一个控制面的问题；
-- **事实上，它是死代码**。`route.provider` 的写入者只有 `tal_net_route_set()`（由 netmgr 从 `conn->card_type` 喂）和 `tal_network_card_set_active()`（**全树零调用者**），而每个驱动都把 `card_type` 设成 `TAL_NET_PROVIDER_DEFAULT`，后者展开成 `TAL_NET_TYPE_POSIX` 或 `TAL_NET_TYPE_PLATFORM`，**永远不会是** `TAL_NET_TYPE_AT_MODEM` —— 全树对这个常量的另一处提及就是它自己的 `#define`。所以这个条件是恒真式，**它守着的那个 4G 分支一次都没走过**。
+- **事实上，它是死代码**。`route.provider` 的写入者只有 `tal_net_route_set()`（由 netmgr 从 `conn->provider` 喂）和 `tal_network_card_set_active()`（**全树零调用者**），而每个驱动都把 `provider` 设成 `TAL_NET_PROVIDER_DEFAULT`，后者展开成 `TAL_NET_PROVIDER_POSIX` 或 `TAL_NET_PROVIDER_TKL`，**永远不会是** `TAL_NET_PROVIDER_AT_MODEM` —— 全树提到这个常量的只有它自己的 `#define`，以及一个指向它的、已废弃的兼容别名。所以这个条件是恒真式，**它守着的那个 4G 分支一次都没走过**。
 
 替代品是 `NETCONN_CAP_NETCFG_AP`：驱动自己声明能不能拉 AP，而 netmgr 永不向数据面问控制面的问题。这个位今天是行为中性的（wifi 那一行置了它），它的价值在于**一个拉不起 AP 的模组现在只要清掉描述符里一个位就能关掉这个分支** —— 这是原本的意图第一次真正可执行。
 
@@ -860,7 +860,7 @@ CMake 侧（`src/tuya_cloud_service/CMakeLists.txt`）：`netmgr.c`、`netconn_t
 |----------|--------|----------|
 | 一种链路技术 | 新 `netconn_<tech>.c` + `netconn_table.c` 一行 | 编译期 |
 | 一张板级链路表 | `netconn_registry_set_table()` | **`netmgr_init()` 之前**，闩死 |
-| 一个 socket 后端 | 新 `TAL_NET_TYPE_*` + card + 静态初始化器条目 + 某行的 `.provider` | 编译期 |
+| 一个 socket 后端 | 新 `TAL_NET_PROVIDER_*` + provider + 静态初始化器条目 + 某行的 `.provider` | 编译期 |
 | 一套选路排序 | `netmgr_policy_select_cb_set()` | 随时；在 `s_netmgr.lock` 下被调 |
 | 一组策略参数 | `netmgr_policy_set()` | 随时；不闩 |
 | 一个可达性后端 | `netmgr_probe_backend_set()` | **`netmgr_init()` 之前** |
