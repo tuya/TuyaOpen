@@ -144,14 +144,17 @@ TUYA_IP_ADDR_T tal_net_route_src_ip(void);
  * rebuilds the whole tree, so that costs nothing here - but it is the one part
  * of this step that is not purely additive, and it belongs in the release note.
  */
-typedef tal_net_provider_id_t TAL_NETWORK_CARD_TYPE_E;
-typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
+typedef tal_net_provider_id_t TAL_NETWORK_CARD_TYPE_E
+    __attribute__((deprecated("renamed to tal_net_provider_id_t")));
+typedef tal_net_provider_t TAL_NETWORK_CARD_T __attribute__((deprecated("renamed to tal_net_provider_t")));
 
+/* [deprecated-s4] no portable way to deprecate a macro; see tools/provider_rename.py */
 #define TAL_NET_TYPE_POSIX    TAL_NET_PROVIDER_POSIX
 #define TAL_NET_TYPE_PLATFORM TAL_NET_PROVIDER_TKL
 #define TAL_NET_TYPE_AT_MODEM TAL_NET_PROVIDER_AT_MODEM
 #define TAL_NET_TYPE_MAX      TAL_NET_PROVIDER_MAX
 
+/* [deprecated-s4] no portable way to deprecate a macro; see tools/provider_rename.py */
 #define tal_network_card_init          tal_net_provider_init
 #define tal_network_get_active_ops     tal_net_provider_ops
 #define tal_network_card_get_active_ip tal_net_route_src_ip
@@ -165,9 +168,12 @@ typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
  * call is the only way to avoid publishing a backend and an address that
  * disagree.
  */
-OPERATE_RET             tal_network_card_set_active(tal_net_provider_id_t type);
-tal_net_provider_id_t   tal_network_card_get_active_type(void);
-OPERATE_RET             tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
+OPERATE_RET tal_network_card_set_active(tal_net_provider_id_t type)
+    __attribute__((deprecated("use tal_net_route_set(); this wrapper is removed in S4")));
+tal_net_provider_id_t tal_network_card_get_active_type(void)
+    __attribute__((deprecated("use tal_net_route_get(); this wrapper is removed in S4")));
+OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr)
+    __attribute__((deprecated("use tal_net_route_set(); this wrapper is removed in S4")));
 
 #ifdef __cplusplus
 }
