@@ -141,6 +141,7 @@ choice
         bool "XTEINK_X4_PRO (ESP32-S3 e-paper reader)"
         if (BOARD_CHOICE_XTEINK_X4_PRO)
             rsource "./XTEINK_X4_PRO/Kconfig"
+        endif
 
     config BOARD_CHOICE_XTEINK_X4
         bool "XTEINK_X4 (ESP32-C3 e-paper reader)"
