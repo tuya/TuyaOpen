@@ -14,7 +14,7 @@
 
 #ifdef ENABLE_LVGL_HARDWARE
 #include "tkl_output.h"
-#include "yuv422_to_binary.h"
+#include "tal_image_yuv422_to_binary.h"
 
 #include "tdl_display_manage.h"
 #include "tdl_display_draw.h"
@@ -82,8 +82,8 @@ static volatile uint8_t    write_buffer_index = 0;     // Buffer being written b
 static volatile uint8_t    read_buffer_index  = 0;     // Buffer being read for display (0 or 1)
 static MUTEX_HANDLE        sg_buffer_mutex    = NULL;  // Mutex to protect buffer access
 
-static BINARY_CONFIG_T sg_binary_config = {
-    .method          = BINARY_METHOD_FLOYD_STEINBERG,
+static TAL_IMAGE_YUV422_TO_BINARY_T sg_binary_config = {
+    .method          = TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG,
     .fixed_threshold = 128,
 };
 
@@ -141,30 +141,30 @@ void camera_screen_register_print_cb(camera_photo_print_cb_t callback)
  * @brief Get method name string
  */
 #ifdef ENABLE_LVGL_HARDWARE
-static const char *get_method_name(BINARY_METHOD_E method)
+static const char *get_method_name(TAL_IMAGE_MONO_METHOD_E method)
 {
     switch (method) {
-    case BINARY_METHOD_FIXED:
+    case TAL_IMAGE_MONO_MTH_FIXED:
         return "Fixed";
-    case BINARY_METHOD_ADAPTIVE:
+    case TAL_IMAGE_MONO_MTH_ADAPTIVE:
         return "Adaptive";
-    case BINARY_METHOD_OTSU:
+    case TAL_IMAGE_MONO_MTH_OTSU:
         return "Otsu";
-    case BINARY_METHOD_BAYER4_DITHER:
-        return "Bayer8";
-    case BINARY_METHOD_BAYER8_DITHER:
+    case TAL_IMAGE_MONO_MTH_BAYER4_DITHER:
         return "Bayer4";
-    case BINARY_METHOD_BAYER16_DITHER:
+    case TAL_IMAGE_MONO_MTH_BAYER8_DITHER:
+        return "Bayer8";
+    case TAL_IMAGE_MONO_MTH_BAYER16_DITHER:
         return "Bayer16";
-    case BINARY_METHOD_FLOYD_STEINBERG:
+    case TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG:
         return "Floyd-Steinberg";
-    case BINARY_METHOD_STUCKI:
+    case TAL_IMAGE_MONO_MTH_STUCKI:
         return "Stucki";
-    case BINARY_METHOD_JARVIS:
+    case TAL_IMAGE_MONO_MTH_JARVIS:
         return "Jarvis";
-    case BINARY_METHOD_EDGE_ATKINSON:
+    case TAL_IMAGE_MONO_MTH_EDGE_ATKINSON:
         return "EdgeAtkinson";
-    case BINARY_METHOD_GAMMA_SERPENTINE:
+    case TAL_IMAGE_MONO_MTH_GAMMA_SERPENTINE:
         return "GammaSerpentine";
     default:
         return "Unknown";
@@ -187,13 +187,14 @@ static void update_info_display(void)
     lv_label_set_text(method_label, buf);
 
     // Update threshold label based on method
-    if (sg_binary_config.method == BINARY_METHOD_BAYER8_DITHER ||
-        sg_binary_config.method == BINARY_METHOD_BAYER4_DITHER ||
-        sg_binary_config.method == BINARY_METHOD_BAYER16_DITHER ||
-        sg_binary_config.method == BINARY_METHOD_FLOYD_STEINBERG || sg_binary_config.method == BINARY_METHOD_STUCKI ||
-        sg_binary_config.method == BINARY_METHOD_JARVIS ||
-        sg_binary_config.method == BINARY_METHOD_EDGE_ATKINSON ||
-        sg_binary_config.method == BINARY_METHOD_GAMMA_SERPENTINE) {
+    if (sg_binary_config.method == TAL_IMAGE_MONO_MTH_BAYER8_DITHER ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_BAYER4_DITHER ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_BAYER16_DITHER ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_STUCKI ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_JARVIS ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_EDGE_ATKINSON ||
+        sg_binary_config.method == TAL_IMAGE_MONO_MTH_GAMMA_SERPENTINE) {
         snprintf(buf, sizeof(buf), "Threshold:\nN/A");
     } else {
         // For adaptive and otsu, show calculated threshold
@@ -238,17 +239,19 @@ static void update_timer_cb(lv_timer_t *timer)
         TDL_DISP_FRAME_BUFF_T *output_fb = (read_buffer_index == 0) ? sg_p_display_fb_1 : sg_p_display_fb_2;
 
         // Convert YUV422 to binary using unified module
-        YUV422_TO_BINARY_PARAMS_T params = {
-            .yuv422_data   = yuv422_source,
-            .src_width     = CAMERA_WIDTH,
-            .src_height    = CAMERA_HEIGHT,
-            .binary_data   = output_fb->frame,
-            .dst_width     = CAMERA_AREA_WIDTH,
-            .dst_height    = CAMERA_AREA_HEIGHT,
-            .config        = &sg_binary_config,
-            .invert_colors = 0 // Will be overridden by yuv422_to_lvgl_binary
+        TAL_IMAGE_YUV422_TO_BINARY_T params = {
+            .method          = sg_binary_config.method,
+            .fixed_threshold = sg_binary_config.fixed_threshold,
+            .invert_colors   = 1, /* LVGL: bit=1->white (old lvgl-binary helper used to force this) */
+            .in_buf          = yuv422_source,
+            .in_width        = CAMERA_WIDTH,
+            .in_height       = CAMERA_HEIGHT,
+            .out_buf         = output_fb->frame,
+            .out_width       = CAMERA_AREA_WIDTH,
+            .out_height      = CAMERA_AREA_HEIGHT,
+            .rotate          = TAL_IMAGE_ROTATE_90,
         };
-        yuv422_to_lvgl_binary(&params);
+        tal_image_format_yuv422_to_binary(&params);
 
         // Copy processed binary data to canvas buffer
         // For LVGL I1 format: palette (8 bytes) + bitmap data
@@ -454,7 +457,7 @@ static void keyboard_event_cb(lv_event_t *e)
     case KEY_UP:
 #ifdef ENABLE_LVGL_HARDWARE
         // Increase threshold (only in fixed mode)
-        if (sg_binary_config.method == BINARY_METHOD_FIXED) {
+        if (sg_binary_config.method == TAL_IMAGE_MONO_MTH_FIXED) {
             if (sg_binary_config.fixed_threshold <= THRESHOLD_MAX - THRESHOLD_STEP) {
                 sg_binary_config.fixed_threshold += THRESHOLD_STEP;
             } else {
@@ -468,7 +471,7 @@ static void keyboard_event_cb(lv_event_t *e)
     case KEY_DOWN:
 #ifdef ENABLE_LVGL_HARDWARE
         // Decrease threshold (only in fixed mode)
-        if (sg_binary_config.method == BINARY_METHOD_FIXED) {
+        if (sg_binary_config.method == TAL_IMAGE_MONO_MTH_FIXED) {
             if (sg_binary_config.fixed_threshold >= THRESHOLD_MIN + THRESHOLD_STEP) {
                 sg_binary_config.fixed_threshold -= THRESHOLD_STEP;
             } else {
@@ -485,7 +488,7 @@ static void keyboard_event_cb(lv_event_t *e)
         if (sg_binary_config.method > 0) {
             sg_binary_config.method--;
         } else {
-            sg_binary_config.method = BINARY_METHOD_COUNT - 1;
+            sg_binary_config.method = TAL_IMAGE_MONO_MTH_COUNT - 1;
         }
         printf("Method changed to %s\n", get_method_name(sg_binary_config.method));
 #endif
@@ -494,7 +497,7 @@ static void keyboard_event_cb(lv_event_t *e)
     case KEY_RIGHT:
 #ifdef ENABLE_LVGL_HARDWARE
         // Next method
-        sg_binary_config.method = (sg_binary_config.method + 1) % BINARY_METHOD_COUNT;
+        sg_binary_config.method = (sg_binary_config.method + 1) % TAL_IMAGE_MONO_MTH_COUNT;
         printf("Method changed to %s\n", get_method_name(sg_binary_config.method));
 #endif
         break;
@@ -530,15 +533,17 @@ static void keyboard_event_cb(lv_event_t *e)
                         printf("Failed to restart camera: %d\n", rt);
                     }
                 } else {
-                    YUV422_TO_BINARY_PARAMS_T print_params = {
-                        .yuv422_data   = yuv422_source, // Direct pointer, no copy
-                        .src_width     = CAMERA_WIDTH,
-                        .src_height    = CAMERA_HEIGHT,
-                        .binary_data   = printer_bitmap, // Pre-allocated buffer
-                        .dst_width     = PRINT_WIDTH,
-                        .dst_height    = PRINT_HEIGHT,
-                        .config        = &sg_binary_config, // Use global config directly
-                        .invert_colors = 0                  // Will be overridden by printer
+                    TAL_IMAGE_YUV422_TO_BINARY_T print_params = {
+                        .method          = sg_binary_config.method,
+                        .fixed_threshold = sg_binary_config.fixed_threshold,
+                        .invert_colors   = 0, /* printer: bit=1->black, unchanged */
+                        .in_buf          = yuv422_source, // Direct pointer, no copy
+                        .in_width        = CAMERA_WIDTH,
+                        .in_height       = CAMERA_HEIGHT,
+                        .out_buf         = printer_bitmap, // Pre-allocated buffer
+                        .out_width       = PRINT_WIDTH,
+                        .out_height      = PRINT_HEIGHT,
+                        .rotate          = TAL_IMAGE_ROTATE_90,
                     };
                     sg_print_callback(&print_params); // Call print callback
                     tal_psram_free(printer_bitmap);

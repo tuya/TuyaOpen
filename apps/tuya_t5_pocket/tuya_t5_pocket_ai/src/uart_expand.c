@@ -21,7 +21,7 @@
 #include "ai_log_screen.h"
 #include "rfid_scan_screen.h"
 #include "camera_screen.h"
-#include "yuv422_to_binary.h"
+#include "tal_image_yuv422_to_binary.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -86,7 +86,7 @@ static OPERATE_RET __uart_reinit_with_baudrate(uint32_t baudrate);
 static void __ai_log_screen_lifecycle_handler(BOOL_T is_init);
 static void __ai_log_uart_data_callback(UART_MODE_E mode, const uint8_t *data, size_t len);
 static void __camera_screen_lifecycle_handler(BOOL_T is_init);
-static void __camera_photo_print_handler(const YUV422_TO_BINARY_PARAMS_T *params);
+static void __camera_photo_print_handler(const TAL_IMAGE_YUV422_TO_BINARY_T *params);
 
 /***********************************************************
 ***********************function define**********************
@@ -171,19 +171,23 @@ static void __camera_screen_lifecycle_handler(BOOL_T is_init)
  * @param params Conversion parameters with YUV422 data and pre-allocated buffer
  * @note Buffer is allocated before callback and freed after callback returns
  */
-static void __camera_photo_print_handler(const YUV422_TO_BINARY_PARAMS_T *params)
+static void __camera_photo_print_handler(const TAL_IMAGE_YUV422_TO_BINARY_T *params)
 {
-    if (!params || !params->yuv422_data || !params->binary_data || !params->config || params->src_width <= 0 ||
-        params->src_height <= 0 || params->dst_width <= 0 || params->dst_height <= 0) {
+    if (!params || !params->in_buf || !params->out_buf || params->in_width <= 0 ||
+        params->in_height <= 0 || params->out_width <= 0 || params->out_height <= 0) {
         PR_ERR("Invalid parameters or missing pre-allocated buffer");
         return;
     }
 
-    PR_NOTICE("Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d", params->src_width,
-              params->src_height, params->dst_width, params->dst_height, params->config->method);
+    PR_NOTICE("Starting camera photo print from YUV422: %dx%d -> %dx%d, method=%d", params->in_width,
+              params->in_height, params->out_width, params->out_height, params->method);
 
-    int convert_result = yuv422_to_printer_binary(params);
-    if (convert_result != 0) {
+    /* tal_image_format_yuv422_to_binary takes a non-const pointer; params here
+     * is const because the callback contract promises not to mutate the
+     * caller's config, so cast it back for the call (the function only reads
+     * the config fields and writes through out_buf, which is fine to alias). */
+    int convert_result = tal_image_format_yuv422_to_binary((TAL_IMAGE_YUV422_TO_BINARY_T *)params);
+    if (convert_result != OPRT_OK) {
         PR_ERR("Failed to convert YUV422 to binary: %d", convert_result);
         return;
     }
@@ -209,7 +213,7 @@ static void __camera_photo_print_handler(const YUV422_TO_BINARY_PARAMS_T *params
     dp48a_set_align(DP48A_ALIGN_CENTER);
     dp48a_print_line("--- Camera Photo ---");
     dp48a_feed_lines(1);
-    dp48a_print_bitmap(params->dst_width, params->dst_height, params->binary_data);
+    dp48a_print_bitmap(params->out_width, params->out_height, params->out_buf);
 
     // Wait for print to complete
     PR_DEBUG("Waiting for print to complete...");
