@@ -170,7 +170,13 @@ static const char *__netmgr_cli_type_name(netmgr_type_e type)
 
 static uint8_t __netmgr_cli_bad_thr(const netmgr_policy_t *policy)
 {
-    return (0 == policy->probe_bad_threshold) ? 1 : policy->probe_bad_threshold;
+    /* The EFFECTIVE threshold, resolved the same way netmgr.c resolves it, which
+     * is the only reason this helper exists rather than printing the field. It
+     * used to map 0 to 1 and pass everything else through - so a product that set
+     * 0 or 1 was shown a threshold the state machine no longer uses, which is the
+     * one thing a dump must never do. */
+    return (policy->probe_bad_threshold < NETMGR_PROBE_BAD_THRESHOLD_MIN) ? NETMGR_PROBE_BAD_THRESHOLD_MIN
+                                                                          : policy->probe_bad_threshold;
 }
 
 /**

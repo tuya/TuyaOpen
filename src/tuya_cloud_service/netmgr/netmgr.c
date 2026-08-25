@@ -998,7 +998,23 @@ static void __netmgr_link_step(netmgr_report_t *slot, const netmgr_policy_t *pol
         return;
     }
 
-    threshold = (0 == pol->probe_bad_threshold) ? 1 : pol->probe_bad_threshold;
+    /* The documented minimum, enforced. netmgr_policy.h requires this to be
+     * greater than 1 and nothing was holding it to that: netmgr_policy_set()
+     * stores the field verbatim, and the old mapping here turned an unset 0 into
+     * exactly the value the requirement forbids.
+     *
+     * It matters because netmgr_probe.h's survivability argument rests on it - a
+     * mis-attributed BAD is tolerable only because it costs at most one increment
+     * out of several. At a threshold of 1 a single false BAD demotes a healthy
+     * link, and the false BADs are enumerated rather than hypothetical: three
+     * deliberate tuya_mqtt_stop() call sites publish EVENT_MQTT_DISCONNECTED with
+     * a current epoch, so they survive the staleness check.
+     *
+     * Clamped here and not in netmgr_policy_set() because that module holds no
+     * state and validates nothing against live data, and because clamping there
+     * would make netmgr_policy_get() hand back something the product never set. */
+    threshold = (pol->probe_bad_threshold < NETMGR_PROBE_BAD_THRESHOLD_MIN) ? NETMGR_PROBE_BAD_THRESHOLD_MIN
+                                                                            : pol->probe_bad_threshold;
 
     if (NETMGR_PROBE_GOOD == slot->probe.last) {
         // Believed immediately and unconditionally - see NETMGR_PROBE_GOOD. One

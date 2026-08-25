@@ -459,7 +459,8 @@ typedef struct {
 
     /**
      * Consecutive NETMGR_PROBE_BAD verdicts needed to move a link to DEGRADED.
-     * Any NETMGR_PROBE_GOOD resets the count.
+     * Any NETMGR_PROBE_GOOD resets the count. Never less than
+     * NETMGR_PROBE_BAD_THRESHOLD_MIN in effect - see the note at the end.
      *
      * DEFAULT 3. Must be greater than 1, and the reason is one specific class of
      * false BAD: a DELIBERATE tuya_mqtt_stop() that does not move the route.
@@ -484,7 +485,16 @@ typedef struct {
      * ONLINE --(BAD)--> UNVERIFIED --(timeout)--> DEGRADED. That is not a
      * degradation of the design, it is which mechanism covers which backend.
      *
-     * 0 is treated as 1.
+     * ENFORCED, not merely requested: anything below
+     * NETMGR_PROBE_BAD_THRESHOLD_MIN is raised to it where the count is compared,
+     * which covers both an unset 0 and a product that writes 1. An earlier version
+     * of this block said "0 is treated as 1" - which produced exactly the value
+     * the paragraph above forbids, twenty-four lines after forbidding it, and
+     * nothing anywhere enforced the requirement.
+     *
+     * netmgr_policy_set() still stores what it is given, so netmgr_policy_get()
+     * returns the product's own value rather than a rewritten one; the floor is
+     * applied at the comparison.
      */
     uint8_t probe_bad_threshold;
 
@@ -704,6 +714,17 @@ typedef struct {
  * Designated initialisers, so a field added later defaults to 0 rather than
  * silently shifting an existing one.
  */
+/**
+ * @brief The floor under netmgr_policy_t.probe_bad_threshold.
+ *
+ * Two, because one is the value at which a single mis-attributed NETMGR_PROBE_BAD
+ * demotes a healthy link, and netmgr_probe.h's whole argument for tolerating
+ * mis-attribution is that it cannot. Applied where the count is compared, so a
+ * product that sets 0 or 1 gets a working device rather than a link that drops on
+ * the first deliberate tuya_mqtt_stop().
+ */
+#define NETMGR_PROBE_BAD_THRESHOLD_MIN 2
+
 #define NETMGR_POLICY_DEFAULT_INIT                                                                                     \
     {                                                                                                                  \
         .up_debounce_ms = 0, .down_grace_ms = 0, .min_dwell_ms = NETMGR_POLICY_DEFAULT_MIN_DWELL_MS, .preempt = TRUE,  \
