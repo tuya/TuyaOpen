@@ -51,7 +51,7 @@
  */
 #define TAL_NET_EXEC_OP(op_name, default_ret, ...)                                                                     \
     do {                                                                                                               \
-        TAL_NETWORK_OPS_T *ops = tal_network_get_active_ops();                                                         \
+        TAL_NETWORK_OPS_T *ops = tal_net_provider_ops();                                                               \
         if (NULL != ops && ops->op_name) {                                                                             \
             return ops->op_name(__VA_ARGS__);                                                                          \
         }                                                                                                              \
@@ -84,7 +84,7 @@
  */
 #define TAL_NET_EXEC_OP_VOID(op_name, ...)                                                                             \
     do {                                                                                                               \
-        TAL_NETWORK_OPS_T *ops = tal_network_get_active_ops();                                                         \
+        TAL_NETWORK_OPS_T *ops = tal_net_provider_ops();                                                               \
         if (NULL != ops && ops->op_name) {                                                                             \
             ops->op_name(__VA_ARGS__);                                                                                 \
         }                                                                                                              \
@@ -400,7 +400,7 @@ static BOOL_T __net_getsockname_trustworthy(void)
 
 static void __net_connect_bind_active_src(const int fd, const TUYA_IP_ADDR_T dst)
 {
-    TUYA_IP_ADDR_T src        = tal_network_card_get_active_ip();
+    TUYA_IP_ADDR_T src        = tal_net_route_src_ip();
     TUYA_IP_ADDR_T local      = 0;
     uint16_t       local_port = 0;
 
@@ -475,7 +475,7 @@ TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16
     /* Notify ULP around the TCP connect so it can keep the device awake for the
      * duration (covers TLS/HTTP/MQTT/ATOP socket setup - they all land here). */
     TUYA_ERRNO rt = -1;
-    TAL_NETWORK_OPS_T *ops = tal_network_get_active_ops();
+    TAL_NETWORK_OPS_T *ops = tal_net_provider_ops();
     if (NULL != ops && ops->connect) {
 #if OPERATING_SYSTEM != SYSTEM_LINUX
         /* Linux host builds keep the host routing table: it has policy rules,
@@ -847,7 +847,7 @@ OPERATE_RET tal_net_gethostbyname(const char *domain, TUYA_IP_ADDR_T *addr)
     }
 
     /* Notify ULP around the DNS lookup so it can keep the device awake for it. */
-    TAL_NETWORK_OPS_T *dns_ops = tal_network_get_active_ops();
+    TAL_NETWORK_OPS_T *dns_ops = tal_net_provider_ops();
     if (NULL != dns_ops && dns_ops->gethostbyname) {
         OPERATE_RET rt = OPRT_OK;
         tuya_dev_evt_notify(DEV_EVT_DNS_LOOKUP, ACTION_BEFORE, NULL);

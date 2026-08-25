@@ -29,15 +29,16 @@
 ***********************************************************/
 typedef struct {
     /* The active route. Its src_ip is kept here rather than in
-     * TAL_NETWORK_CARD_T.ipaddr because several connections can share one card
-     * type (on T5AI both wifi and cellular are PLATFORM), so it is a property of
-     * the active link, not of the card. Updates that move both fields at once go
-     * through s_route_lock; reads of a single field do not need it. */
+     * tal_net_provider_t.ipaddr because several connections can share one
+     * provider type (on T5AI both wifi and cellular are TKL), so it is a
+     * property of the active link, not of the provider. Updates that move both
+     * fields at once go through s_route_lock; reads of a single field do not
+     * need it. */
     tal_net_route_t route;
-    /* Available backends, indexed by TAL_NET_TYPE_*. Written once by the static
-     * initializer below and never again, so readers need no lock. */
-    TAL_NETWORK_CARD_T *active_card[TAL_NET_TYPE_MAX];
-} TAL_NETWORK_CARD_MANAGER_T;
+    /* Available backends, indexed by TAL_NET_PROVIDER_*. Written once by the
+     * static initializer below and never again, so readers need no lock. */
+    tal_net_provider_t *providers[TAL_NET_PROVIDER_MAX];
+} tal_net_provider_registry_t;
 
 /***********************************************************
 ********************function declaration********************
@@ -48,20 +49,20 @@ typedef struct {
 ***********************************************************/
 /* The one backend this build links, keyed off TAL_NET_PROVIDER_DEFAULT so the
  * ENABLE_LIBLWIP/OPERATING_SYSTEM test itself lives in exactly one place. */
-#if TAL_NET_PROVIDER_DEFAULT == TAL_NET_TYPE_POSIX
-extern TAL_NETWORK_CARD_T tal_network_card_posix;
-#define TAL_NETWORK_CARD_DEFAULT tal_network_card_posix
+#if TAL_NET_PROVIDER_DEFAULT == TAL_NET_PROVIDER_POSIX
+extern tal_net_provider_t tal_net_provider_posix;
+#define TAL_NET_PROVIDER_DEFAULT_OBJ tal_net_provider_posix
 #else
-extern TAL_NETWORK_CARD_T tal_network_card_platform;
-#define TAL_NETWORK_CARD_DEFAULT tal_network_card_platform
+extern tal_net_provider_t tal_net_provider_tkl;
+#define TAL_NET_PROVIDER_DEFAULT_OBJ tal_net_provider_tkl
 #endif
 
-/* Statically initialized, not filled in by tal_network_card_init(): early socket
- * users can reach tal_network_get_active_ops() before init runs, and they must
+/* Statically initialized, not filled in by tal_net_provider_init(): early socket
+ * users can reach tal_net_provider_ops() before init runs, and they must
  * find a working backend there. */
-TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
-    .route                                 = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
-    .active_card[TAL_NET_PROVIDER_DEFAULT] = &TAL_NETWORK_CARD_DEFAULT,
+tal_net_provider_registry_t tal_net_provider_registry = {
+    .route                                = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
+    .providers[TAL_NET_PROVIDER_DEFAULT] = &TAL_NET_PROVIDER_DEFAULT_OBJ,
 };
 
 /*
@@ -79,7 +80,7 @@ TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
  *     route midway through an update.
  *   - The single-field readers do NOT take it. Each returns one naturally atomic
  *     word that cannot tear, and none of them looks at the other field, so the
- *     lock would buy nothing at all. tal_network_get_active_ops() matters most
+ *     lock would buy nothing at all. tal_net_provider_ops() matters most
  *     here: TAL_NET_EXEC_OP in tal_network.c calls it from every socket
  *     primitive - send, recv, recvfrom, select, fd_isset and some thirty more,
  *     several of them from inside tight select loops. A mutex per call would put
@@ -92,7 +93,7 @@ TAL_NETWORK_CARD_MANAGER_T tal_network_card_manager = {
  * needs the two fields to agree with each other should call tal_net_route_get(),
  * which is exactly what it is for.
  *
- * The handle stays NULL until tal_network_card_init() arms it. A mutex cannot be
+ * The handle stays NULL until tal_net_provider_init() arms it. A mutex cannot be
  * created at static initialization time, and the route must stay usable before
  * init, so the writers fall back to unguarded access while the handle is NULL -
  * which is what this code did before the lock existed. Nothing is lost by it:
@@ -119,7 +120,7 @@ static void __route_unlock(void)
     }
 }
 
-OPERATE_RET tal_network_card_init(void)
+OPERATE_RET tal_net_provider_init(void)
 {
     /* The backend table and the default route come from the static initializer
      * above, so there is nothing to publish here. What is left is arming the
@@ -137,25 +138,25 @@ OPERATE_RET tal_net_route_set(const tal_net_route_t *route)
         return OPRT_INVALID_PARM;
     }
 
-    if (route->provider >= TAL_NET_TYPE_MAX) {
+    if (route->provider >= TAL_NET_PROVIDER_MAX) {
         return OPRT_INVALID_PARM;
     }
 
-    /* In range is not the same as backed by anything. active_card[] is statically
+    /* In range is not the same as backed by anything. providers[] is statically
      * initialised with exactly one non-NULL entry and is immutable afterwards, so
-     * publishing any other provider leaves tal_network_get_active_ops() returning
+     * publishing any other provider leaves tal_net_provider_ops() returning
      * NULL and every socket primitive in tal_network.c failing - with no symptom
      * that points here.
      *
      * Refused rather than logged, because this translation unit has no log
      * dependency and should not grow one for a caller error. The distinct return
      * code is what lets the caller say something useful; netmgr does. */
-    if (NULL == tal_network_card_manager.active_card[route->provider]) {
+    if (NULL == tal_net_provider_registry.providers[route->provider]) {
         return OPRT_NOT_SUPPORTED;
     }
 
     __route_lock();
-    tal_network_card_manager.route = *route;
+    tal_net_provider_registry.route = *route;
     __route_unlock();
 
     return OPRT_OK;
@@ -168,15 +169,15 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route)
     }
 
     __route_lock();
-    *route = tal_network_card_manager.route;
+    *route = tal_net_provider_registry.route;
     __route_unlock();
 
     return OPRT_OK;
 }
 
-OPERATE_RET tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type)
+OPERATE_RET tal_network_card_set_active(tal_net_provider_id_t type)
 {
-    if (type >= TAL_NET_TYPE_MAX) {
+    if (type >= TAL_NET_PROVIDER_MAX) {
         return OPRT_INVALID_PARM;
     }
 
@@ -186,50 +187,50 @@ OPERATE_RET tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type)
      * tal_net_route_set() in new code - moving both halves in one call is the
      * only way to avoid publishing a backend and an address that disagree. */
     __route_lock();
-    tal_network_card_manager.route.provider = type;
+    tal_net_provider_registry.route.provider = type;
     __route_unlock();
 
     return OPRT_OK;
 }
 
-TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void)
+tal_net_provider_id_t tal_network_card_get_active_type(void)
 {
     /* One byte, read unlocked on purpose - see the locking discipline above. */
-    return tal_network_card_manager.route.provider;
+    return tal_net_provider_registry.route.provider;
 }
 
 OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr)
 {
     /* Address half only, same reasoning as tal_network_card_set_active(). */
     __route_lock();
-    tal_network_card_manager.route.src_ip = ipaddr;
+    tal_net_provider_registry.route.src_ip = ipaddr;
     __route_unlock();
 
     return OPRT_OK;
 }
 
-TUYA_IP_ADDR_T tal_network_card_get_active_ip(void)
+TUYA_IP_ADDR_T tal_net_route_src_ip(void)
 {
     /* One word, read unlocked on purpose - see the locking discipline above. A
      * caller that needs this address to agree with the provider it belongs to
      * must use tal_net_route_get() instead. */
-    return tal_network_card_manager.route.src_ip;
+    return tal_net_provider_registry.route.src_ip;
 }
 
-TAL_NETWORK_OPS_T *tal_network_get_active_ops(void)
+TAL_NETWORK_OPS_T *tal_net_provider_ops(void)
 {
     /* The hot path: every socket primitive in tal_network.c lands here. Both
      * reads below are unlocked by design - provider is a single byte that cannot
-     * tear, active_card[] is immutable after static initialization, and neither
+     * tear, providers[] is immutable after static initialization, and neither
      * has to agree with src_ip. */
-    uint8_t provider = tal_network_card_manager.route.provider;
+    uint8_t provider = tal_net_provider_registry.route.provider;
 
-    /* Every writer validates provider against TAL_NET_TYPE_MAX, so it always
+    /* Every writer validates provider against TAL_NET_PROVIDER_MAX, so it always
      * indexes in range. */
-    TAL_NETWORK_CARD_T *card = tal_network_card_manager.active_card[provider];
-    if (NULL == card) {
+    tal_net_provider_t *entry = tal_net_provider_registry.providers[provider];
+    if (NULL == entry) {
         return NULL;
     }
 
-    return &card->ops;
+    return &entry->ops;
 }

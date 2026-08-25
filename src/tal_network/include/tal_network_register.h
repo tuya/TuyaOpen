@@ -165,8 +165,8 @@ typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
  * call is the only way to avoid publishing a backend and an address that
  * disagree.
  */
-OPERATE_RET             tal_network_card_set_active(TAL_NETWORK_CARD_TYPE_E type);
-TAL_NETWORK_CARD_TYPE_E tal_network_card_get_active_type(void);
+OPERATE_RET             tal_network_card_set_active(tal_net_provider_id_t type);
+tal_net_provider_id_t   tal_network_card_get_active_type(void);
 OPERATE_RET             tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr);
 
 #ifdef __cplusplus

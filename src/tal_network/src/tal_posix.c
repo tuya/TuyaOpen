@@ -1126,9 +1126,9 @@ OPERATE_RET tal_net_posix_getpeername(int fd, TUYA_IP_ADDR_T *addr, uint16_t *po
     return OPRT_OK;
 }
 
-TAL_NETWORK_CARD_T tal_network_card_posix = {
+tal_net_provider_t tal_net_provider_posix = {
     .name = "posix",
-    .type = TAL_NET_TYPE_POSIX,
+    .type = TAL_NET_PROVIDER_POSIX,
     .ipaddr = 0,
     .ops =
         {

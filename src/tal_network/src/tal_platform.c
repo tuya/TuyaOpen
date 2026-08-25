@@ -42,9 +42,9 @@
 ***********************function define**********************
 ***********************************************************/
 
-TAL_NETWORK_CARD_T tal_network_card_platform = {
+tal_net_provider_t tal_net_provider_tkl = {
     .name = "tkl",
-    .type = TAL_NET_TYPE_PLATFORM,
+    .type = TAL_NET_PROVIDER_TKL,
     .ipaddr = 0,
     .ops =
         {
