@@ -89,7 +89,7 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 | 2 | `src/tuya_cloud_service/netmgr/netconn_table.c` | 一个 `#if defined(ENABLE_<TECH>)` 块（include + `extern` + `HAS_` 宏）、两个 mask 宏、**表里一行** |
 | 3 | `src/tuya_cloud_service/CMakeLists.txt` | 一个 `if(CONFIG_ENABLE_<TECH> STREQUAL "y")` 块，照文件里 wifi / wired / cellular 三段的样子写 |
 | 4 | Kconfig | 一个 `ENABLE_<TECH>` 条目，见 §2.9 |
-| 5 | `src/tuya_cloud_service/netmgr/netmgr.h` | `netmgr_type_e` 加一个枚举位（`1 << 4`）。**不需要**补 `NETMGR_TYPE_TO_STR()` —— 已注册链路的名字全部来自描述符，见 §8.1 |
+| 5 | `src/tuya_cloud_service/netmgr/include/netmgr.h` | `netmgr_type_e` 加一个枚举位（`1 << 4`）。**不需要**补 `NETMGR_TYPE_TO_STR()` —— 已注册链路的名字全部来自描述符，见 §8.1 |
 
 **不需要改**：`netmgr.c`、`netmgr_policy.c/.h`、`netmgr_probe.c/.h`、`netmgr_retry.c/.h`、`netmgr_cli.c`、`netmgr_priv.h`。
 

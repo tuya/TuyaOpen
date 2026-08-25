@@ -3,9 +3,9 @@
 > 状态：**计划，一行代码都没动。** 基线 commit `0dff53e0`（`yj/refactor-netmgr`），写作日期 2026-08-24
 > 目标读者：要**执行**这次重命名的人，以及要 **review** 它的人
 > 与另三篇的分工：
-> - [`netmgr_extension_guide.md`](netmgr_extension_guide.md) 讲怎么往 netmgr 上面加东西，其中 §3「扩展路径二：加一个 socket provider」已经在用 `provider` 这个词讲这个概念；
-> - [`netmgr_refactor_release_notes.md`](netmgr_refactor_release_notes.md) 讲升级后调用方能观察到什么变化，本文的 S4 会给它加一节；
-> - [`netmgr_known_gaps.md`](netmgr_known_gaps.md) 讲重构撞到但故意没修的东西，本文 §6 把它们**逐条排除**在这次重命名之外；
+> - [`extension_guide.md`](extension_guide.md) 讲怎么往 netmgr 上面加东西，其中 §3「扩展路径二：加一个 socket provider」已经在用 `provider` 这个词讲这个概念；
+> - [`release_notes.md`](release_notes.md) 讲升级后调用方能观察到什么变化，本文的 S4 会给它加一节；
+> - [`known_gaps.md`](known_gaps.md) 讲重构撞到但故意没修的东西，本文 §6 把它们**逐条排除**在这次重命名之外；
 > - 本文只讲一件事：把「socket 后端」这个概念的名字从 `card` 改成 `provider`，怎么分步落地，以及哪些东西不许跟着一起进来。
 
 **计数约定**：本文每一个数字后面都跟着产生它的命令。**重跑它，不要相信它。** 一个看起来很权威的过期数字比没有数字更糟。所有数字的基线是 commit `0dff53e0`，在仓库根目录执行。
@@ -156,9 +156,9 @@ git grep -lE "$PAT" -- 'boards' 'platform' | wc -l                   # 0
 | `src/tal_network/src/tal_posix.c` | 2 |
 | `src/tal_network/src/tal_network.c` | 1 |
 | `src/tuya_cloud_service/netmgr/netmgr.c` | 7 |
-| `src/tuya_cloud_service/netmgr/netconn_registry.h` | 11 |
+| `src/tuya_cloud_service/netmgr/include/netconn_registry.h` | 11 |
 | `src/tuya_cloud_service/netmgr/netconn_wifi.c` | 7 |
-| `src/tuya_cloud_service/netmgr/netmgr.h` | 2 |
+| `src/tuya_cloud_service/netmgr/include/netmgr.h` | 2 |
 | `src/tuya_cloud_service/netmgr/netmgr_priv.h` | 2 |
 | `src/tuya_cloud_service/netmgr/netconn_cellular.c` | 1 |
 | `src/tuya_cloud_service/netmgr/netconn_wired.c` | 1 |
@@ -191,7 +191,7 @@ git grep -l '#include "netmgr.h"' -- '*.c' '*.h' ':!src' | wc -l      # 26
 | **合计（参与编译）** | **44** |
 | **其中在 `src/` 外** | **26** |
 
-不加 `'*.c' '*.h'` 限定会得到 **45**，多出来的第 45 个是 `docs/netmgr_extension_guide.md` —— 文档里引了一段 include 骨架。它不参与编译，不该计入。
+不加 `'*.c' '*.h'` 限定会得到 **45**，多出来的第 45 个是 `docs/netmgr/extension_guide.md` —— 文档里引了一段 include 骨架。它不参与编译，不该计入。
 
 结论，逐条：
 
@@ -202,14 +202,14 @@ git grep -l '#include "netmgr.h"' -- '*.c' '*.h' ':!src' | wc -l      # 26
 - **但这句话不在 `netmgr.h` 里。** 它在四个别的地方，四处都对：
   ```bash
   git grep -n '44 files' -- 'src'
-  # src/tuya_cloud_service/netmgr/netconn_registry.h:21
+  # src/tuya_cloud_service/netmgr/include/netconn_registry.h:21
   # src/tuya_cloud_service/netmgr/netmgr.c:437
   # src/tuya_cloud_service/netmgr/netmgr_priv.h:47
   # src/tuya_cloud_service/netmgr/netmgr_priv.h:195
   ```
   `netmgr.h` 自己一个数字都没写。**没有需要更正的已提交声明** —— 「`netmgr.h` 自己的注释说 44」这个印象本身是记错了位置，不是记错了数字。
-- **「40 多个」也是对的。** 扩展指南 §2.3（`docs/netmgr_extension_guide.md:147`）写的是「`netmgr.h` 被树里 40 多个文件 include」，44 落在这句话里。
-- **「32」与本事无关。** 树里的 32 是 `netconn_attr_mask_t` 的位宽上限（`docs/netmgr_extension_guide.md:183/195/197`、`netconn_registry.h` 的编译期断言），限制的是 `netmgr_conn_config_type_e` 的**命令个数**，不是任何 include 计数。
+- **「40 多个」也是对的。** 扩展指南 §2.3（`docs/netmgr/extension_guide.md:147`）写的是「`netmgr.h` 被树里 40 多个文件 include」，44 落在这句话里。
+- **「32」与本事无关。** 树里的 32 是 `netconn_attr_mask_t` 的位宽上限（`docs/netmgr/extension_guide.md:183/195/197`、`netconn_registry.h` 的编译期断言），限制的是 `netmgr_conn_config_type_e` 的**命令个数**，不是任何 include 计数。
 - **这四处「44」会随这次重命名一起漂。** S2 不动 `netmgr.h` 的 include 者集合，所以 44 不会变；但如果将来有人拆 `netmgr.h`，这四处要一起改。它们已经被数过一次了，本文是第二次 —— **第三次应该改成一条命令而不是一个数字**（建议：把注释改成「a header the whole tree includes」，把精确数字留给这份文档和它的命令）。
 
 ### 2.4 `git grep` 看不见的两块地方
@@ -257,8 +257,8 @@ grep -rlwE 'card_type' --include=*.c --include=*.h . | wc -l    # 31
 
 ```bash
 git grep -cE "$PAT" -- 'docs'
-# docs/netmgr_extension_guide.md:35
-# docs/netmgr_refactor_release_notes.md:2
+# docs/netmgr/extension_guide.md:35
+# docs/netmgr/release_notes.md:2
 ```
 
 扩展指南 §3 整节（「加一个 socket provider」）在讲这个概念，35 行命中里包括两段代码块的原文引用。**它们必须和代码在同一个 commit 里改**，否则指南会教人写一个不存在的符号 —— 这个错误这棵树已经犯过一次了（§1 第 2 条）。
@@ -279,7 +279,7 @@ git grep -cE "$PAT" -- 'docs'
 | `tal_network_register.h:88/90` | `TAL_NET_PROVIDER_DEFAULT` |
 | `netconn_table.c:161/185/198` | `.provider = TAL_NET_PROVIDER_DEFAULT` |
 | `netmgr.c:646` | `__netmgr_snap_provider()` |
-| `docs/netmgr_extension_guide.md:355` | 「§3 扩展路径二：**加一个 socket provider**」 |
+| `docs/netmgr/extension_guide.md:355` | 「§3 扩展路径二：**加一个 socket provider**」 |
 
 **它适合做类型名，理由是它已经在做这件事了。** 三个字段、一个宏、一个函数、一整节文档都叫它 provider；今天唯一还叫 card 的是**类型和数据面的内部命名**。把类型也改成 provider，不是引入一个新词，而是**删掉一个多余的词**。字段名和类型名用同一个词，是 §1 那个 `conn->card_type = desc->provider;` 唯一的解。
 
@@ -456,7 +456,7 @@ git grep -lE "$PAT" -- 'src/tal_network' 'src/tuya_cloud_service/netmgr'
 | S2a | `src/tal_network/` | 5 / 49 |
 | S2b | `src/tuya_cloud_service/netmgr/`，**除** `.card_type` | 7 / 15 |
 | S2c | **只**改 `netmgr_conn_base_t.card_type` → `.provider` | 7 / 16 |
-| S2d | `docs/netmgr_extension_guide.md`、`docs/netmgr_refactor_release_notes.md` | 2 / 37 |
+| S2d | `docs/netmgr/extension_guide.md`、`docs/netmgr/release_notes.md` | 2 / 37 |
 | S2e | 两个 `.config` 的头注释 | 2 / 4 |
 
 S2c 单独一个 commit，因为它是**唯一一个没有别名兜底的改动**（§3.5）—— review 它的人应该只看它，回滚它的人应该只回滚它。
@@ -494,7 +494,7 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
 内容：
 1. 删掉 S1 加的所有别名。
 2. 删掉三个零调用方 wrapper（§5.2）。
-3. 给 `netmgr_refactor_release_notes.md` 加一节，附**完整的旧名→新名映射表**（就是 §3.3）。
+3. 给 `release_notes.md` 加一节，附**完整的旧名→新名映射表**（就是 §3.3）。
 
 **Gate：**
 - 两个 target 编过；
@@ -513,7 +513,7 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
 | `apps/tuya_cloud/switch_demo/config/Ubuntu.config` | LINUX / host | posix (0) | `tal_posix.c` |
 | `apps/tuya_cloud/switch_demo/config/TUYA_T5AI_BOARD_CELLULAR.config` | T5AI / `TUYA_T5AI_BOARD` | tkl (1) | `tal_platform.c` |
 
-（两个 target 的完整覆盖差异见 [`netmgr_refactor_release_notes.md`](netmgr_refactor_release_notes.md) §8，不在这里重复。）
+（两个 target 的完整覆盖差异见 [`release_notes.md`](release_notes.md) §8，不在这里重复。）
 
 **但它们能证明的只有「树内完整」这一件事。** 三个具体的盲区：
 
@@ -563,7 +563,7 @@ git grep -nw '<symbol>' -- '*.c' '*.h'
 
 | 函数 | 声明 / 定义 | 调用方 | 建议 |
 | --- | --- | --- | --- |
-| `tuya_lan_enable()` | `tuya_lan.c:1470` | **0** | **留。** 不重数 —— [`netmgr_known_gaps.md`](netmgr_known_gaps.md) §4 已经确认过零调用方（`:233`、`:240`），而且它正是那一节缺口的**修法所需**（`ap_netcfg_stop()` 应该调它）。删掉它等于删掉那个修法。**不属于本 PR。** |
+| `tuya_lan_enable()` | `tuya_lan.c:1470` | **0** | **留。** 不重数 —— [`known_gaps.md`](known_gaps.md) §4 已经确认过零调用方（`:233`、`:240`），而且它正是那一节缺口的**修法所需**（`ap_netcfg_stop()` 应该调它）。删掉它等于删掉那个修法。**不属于本 PR。** |
 | `tal_network_card_set_active()` | `tal_network_register.h:106` / `.c:164` | **0**（另有 2 处注释：`.c:190`、`netconn_registry.h:144`，后者明确写了「which has zero callers in the tree」） | **S4 删。** |
 | `tal_network_card_get_active_type()` | `tal_network_register.h:108` / `.c:182` | **0**（另有 4 处注释：`netconn_registry.h:139/142`、`netconn_wifi.c:34/397`，都在解释那个死掉的 4G 分支） | **S4 删。** 删函数，**保留那些注释** —— 它们记录的是一个被绕开的设计错误，不是这个函数 |
 | `tal_network_card_set_active_ip()` | `tal_network_register.h:123` / `.c:188` | **0**，连注释都没有 | **S4 删。** 这三个里最干净的一个 |
@@ -609,7 +609,7 @@ git grep -nE '(->|\.)(name|ipaddr|type)\b' -- 'src/tal_network/src/tal_network_r
 
 **一个既重命名又修 bug 的 PR 是不可 review 的。** 重命名的 review 方式是「逐个替换看对不对，然后看那条 grep 是不是空」；修 bug 的 review 方式是「这个改动是不是真的修了那个问题」。混在一起，两种 review 都做不了：读的人无法判断某一处改动是重命名的机械后果还是一个有意的行为变更，而这正是重命名唯一的风险来源。
 
-### 6.1 来自 [`netmgr_known_gaps.md`](netmgr_known_gaps.md) 的，全部排除
+### 6.1 来自 [`known_gaps.md`](known_gaps.md) 的，全部排除
 
 十二项全部在 netmgr 之下（TAL/TKL、LAN、netcfg、`tuya_iot`、`tal_cli`），一项都不许进来。
 

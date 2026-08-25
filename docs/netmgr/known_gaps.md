@@ -3,8 +3,8 @@
 > 状态：随 netmgr M0–M4 重构落地，对应 `yj/feat-4G` 分支；全文校对基线 commit `27072238`
 > 目标读者：要**修**这些东西的人 —— 维护 TAL / TKL 适配层、LAN 服务、netcfg、`tuya_iot` 的人
 > 与另两篇的分工：
-> - [`netmgr_extension_guide.md`](netmgr_extension_guide.md) 讲怎么往 netmgr **上面加东西**（加链路技术、加 socket 后端、换排序、换探测）；
-> - [`netmgr_refactor_release_notes.md`](netmgr_refactor_release_notes.md) 讲升级之后**调用方能观察到什么变化**；
+> - [`extension_guide.md`](extension_guide.md) 讲怎么往 netmgr **上面加东西**（加链路技术、加 socket 后端、换排序、换探测）；
+> - [`release_notes.md`](release_notes.md) 讲升级之后**调用方能观察到什么变化**；
 > - 本文讲重构过程中**撞到、确认、但故意没修**的东西。它们几乎全部在 netmgr 之下（TAL/TKL、LAN、netcfg、`tuya_iot`、`tal_cli`），修它们要动 netmgr 以外的模块，不属于这次重构的范围。今天这些结论只存在于源码注释和 commit message 里，那正是它们会被丢掉的地方。
 
 **引用约定**：本文所有 `文件:行` 都在 commit `27072238` 上逐条核过，核的是**参与编译的那个文件**，不是同名的模板或另一个平台的副本。如果行号将来漂了，以符号名为准。
@@ -461,7 +461,7 @@ LN882H 也有一个 `OPRT_NOT_SUPPORTED` 的桩（`platform/LN882H/tuyaos/tuyaos
 - `src/tal_cellular/include/tal_cellular.h:79` —— `tal_cellular_init()`，之后 `:88`–`:175` 全是 getter 和一个状态回调（`:97`）
 - `platform/T5AI/tuyaos/tuyaos_adapter/include/cellular/tkl_cellular.h` —— 13 个函数，没有一个能把承载降下来
 - `platform/T5AI/tuyaos/tuyaos_adapter/src/driver/tkl_cellular.c:47` / `:399` / `:424` —— 能力其实存在，但只在产测路径上
-- `src/tuya_cloud_service/netmgr/netconn_registry.h:73-85` —— `NETCONN_CTRL_SUSTAINED` 的定义与文档
+- `src/tuya_cloud_service/netmgr/include/netconn_registry.h:73-85` —— `NETCONN_CTRL_SUSTAINED` 的定义与文档
 - `src/tuya_cloud_service/netmgr/netconn_table.c:176` —— 蜂窝行的控制级别
 - `src/tuya_cloud_service/netmgr/netconn_cellular.c:130-135` / `:154-162`
 
@@ -560,7 +560,7 @@ int tuya_mqtt_stop(tuya_mqtt_context_t *context)
 ### 涉及文件
 
 - `src/tuya_cloud_service/cloud/tuya_iot.c:798-800`
-- `src/tuya_cloud_service/netmgr/netconn_registry.h:304` —— `netconn_registry_get_table(&count)`
+- `src/tuya_cloud_service/netmgr/include/netconn_registry.h:304` —— `netconn_registry_get_table(&count)`
 - `src/tuya_cloud_service/netmgr/netconn_table.c:87-91`、`:112-113`、`:127`
 
 ### 问题是什么
@@ -631,11 +631,11 @@ netmgr_conn_set(NETCONN_CELLULAR, NETCONN_CMD_CLOSE, NULL);  // :800
 
 ### 涉及文件
 
-- `src/tuya_cloud_service/netmgr/netconn_registry.h:192` —— `#define NETCONN_CAP_METERED (1u << 3)`
-- `src/tuya_cloud_service/netmgr/netconn_registry.h:169-191` —— 它自己的文档，已经诚实地写了"DECLARED AND SURFACED, NOT ACTED ON"
+- `src/tuya_cloud_service/netmgr/include/netconn_registry.h:192` —— `#define NETCONN_CAP_METERED (1u << 3)`
+- `src/tuya_cloud_service/netmgr/include/netconn_registry.h:169-191` —— 它自己的文档，已经诚实地写了"DECLARED AND SURFACED, NOT ACTED ON"
 - `src/tuya_cloud_service/netmgr/netconn_table.c:175` —— 唯一置这个位的地方（蜂窝行）
 - `src/tuya_cloud_service/netmgr/netmgr_cli.c:92` —— 渲染成字符串 `"metered"`
-- `src/tuya_cloud_service/netmgr/netmgr_policy.h:772` —— `netmgr_link_view_t.caps`，交到产品排序钩子手里
+- `src/tuya_cloud_service/netmgr/include/netmgr_policy.h:772` —— `netmgr_link_view_t.caps`，交到产品排序钩子手里
 - `src/tuya_cloud_service/netmgr/netmgr_policy.c` —— **全文 `caps` 出现 0 次**
 - `src/tuya_cloud_service/netmgr/netmgr_policy.c:135-146` —— `__ranks_above()`
 - `src/tuya_cloud_service/netmgr/netmgr_policy.c:171` —— `netmgr_policy_select_default()`
