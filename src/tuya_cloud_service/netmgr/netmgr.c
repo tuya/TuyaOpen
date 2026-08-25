@@ -2262,7 +2262,6 @@ OPERATE_RET netmgr_deinit(void)
     uint32_t                      busy                    = 0;
     BOOL_T                        drained                 = FALSE;
     BOOL_T                        ble_owned               = FALSE;
-    TIMER_ID                      deadline_timer          = NULL;
 
     // 0. Close the gate before anything else, and without the lock. From here on
     // the report shim and the deadline timer callback return immediately instead
@@ -2274,11 +2273,11 @@ OPERATE_RET netmgr_deinit(void)
     // downstream of it was ever set up either, and the struct is already the
     // zeroed state a fresh netmgr_init() expects.
     if (NULL == lock) {
-        deadline_timer           = sg_netmgr_deadline_timer;
-        sg_netmgr_deadline_timer = NULL;
-        if (NULL != deadline_timer) {
-            tal_sw_timer_stop(deadline_timer);
-            tal_sw_timer_delete(deadline_timer);
+        /* Stopped, not deleted - same rule as step 5 below. Unreachable with a
+         * live timer today, since the handle only becomes non-NULL after the
+         * mutex exists, but the two paths must not disagree about ownership. */
+        if (NULL != sg_netmgr_deadline_timer) {
+            tal_sw_timer_stop(sg_netmgr_deadline_timer);
         }
         memset(&s_netmgr, 0, sizeof(s_netmgr));
         s_netmgr.stopping = TRUE;
@@ -2450,16 +2449,31 @@ OPERATE_RET netmgr_deinit(void)
 #endif
 
     // 5. The shared deadline timer, in the slot the LAN poll timer used to occupy.
-    // Stopped and deleted outside the lock; a callback already inside it cannot be
-    // joined, so it is the gate closed in step 0 that turns it into a no-op - and
-    // the retained mutex that makes losing that race harmless rather than fatal.
-    // Its callback only calls __netmgr_notify_post(), which re-checks `stopping`
-    // under the lock, so even a straggler that wins both races queues nothing.
-    deadline_timer           = sg_netmgr_deadline_timer;
-    sg_netmgr_deadline_timer = NULL;
-    if (NULL != deadline_timer) {
-        tal_sw_timer_stop(deadline_timer);
-        tal_sw_timer_delete(deadline_timer);
+    // STOPPED, AND DELIBERATELY NOT DELETED, for the same reason the mutex below
+    // is retained - and it is the same race, which is why the two must be treated
+    // alike.
+    //
+    // __netmgr_settle() finishes by arming or stopping this timer, and it reads
+    // the handle and calls into tal_sw_timer OUTSIDE the lock; that is stated
+    // where it happens and it is what keeps a UART write off the lock. So a settle
+    // pass can be between the NULL check and tal_sw_timer_start() right now.
+    // Deleting the timer here frees it under that pass.
+    //
+    // Not hypothetical, and not covered by the gate: step 1 drains the notify work
+    // item with a bounded budget and returns OPRT_TIMEOUT when the drain does not
+    // finish, after which this function tears down anyway. That is precisely the
+    // case the retained mutex exists for. An earlier version of this comment said
+    // the gate in step 0 "turns it into a no-op" - the gate stops the CALLBACK
+    // from queueing work, it does nothing about a pass already past the handle
+    // read.
+    //
+    // Retaining costs one timer for the life of the process instead of one per
+    // init/deinit cycle, and netmgr_init() already reuses it: its create is
+    // guarded on the handle being NULL. A straggler that re-arms a retained timer
+    // is harmless - the callback only calls __netmgr_notify_post(), which
+    // re-checks `stopping` under the lock and queues nothing.
+    if (NULL != sg_netmgr_deadline_timer) {
+        tal_sw_timer_stop(sg_netmgr_deadline_timer);
     }
 
     // 6. Zero the state - then put back the two fields that must survive it.

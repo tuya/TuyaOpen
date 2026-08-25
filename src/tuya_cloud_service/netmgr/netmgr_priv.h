@@ -66,8 +66,14 @@ extern "C" {
  *                                          being locked. See netmgr.c.
  *   register each table row, each          conn->close() then unlink, in
  *     ending in conn->open()                 reverse registration order
- *   tal_sw_timer_create/start (LAN)        stop + tal_sw_timer_delete, handle
- *                                            set back to NULL
+ *   tal_sw_timer_create/start              stop ONLY, handle retained - the same
+ *     (the shared deadline)                    argument as the mutex above, and
+ *                                              the same race: __netmgr_settle()
+ *                                              reads the handle and arms it
+ *                                              outside the lock, so deleting it
+ *                                              here frees it under a pass that is
+ *                                              already past the NULL check.
+ *                                              netmgr_init() reuses the handle.
  *   tuya_ble_init()                        see the BLE note below
  *   (new in M2) the notify work item       tal_workq_cancel() then drain
  *
@@ -90,7 +96,9 @@ extern "C" {
  *      conn->status = NETMGR_LINK_DOWN - the conn nodes are static globals that
  *      a later netmgr_init() will reuse, so they must be left as they were
  *      found;
- *   5. stop and delete the LAN timer;
+ *   5. stop the shared deadline timer, and do NOT delete it - see the row above.
+ *      (It said "the LAN timer" before M3. That timer was a 500 ms poll deciding
+ *      whether to start the LAN service; the LAN decision is event-driven now.);
  *   6. zero s_netmgr, restoring the two fields that must survive it: the mutex
  *      handle, and `stopping` - a straggling handler that found stopping ==
  *      FALSE would walk an empty connection list and push a route with src_ip 0.
