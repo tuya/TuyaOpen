@@ -468,7 +468,7 @@ typedef tal_net_provider_t    TAL_NETWORK_CARD_T;
 
 ### 4.2 S2：机械重命名（按目录分 commit）
 
-12 个文件、80 行。**禁止全树 `sed`**（§2.5）。范围限定：
+13 个文件、96 行——这两个数字跟着 §2.2 的 PAT 修正一起变了，见该节。**禁止全树 `sed`**（§2.5）。范围限定：
 
 ```bash
 # 只在这两个目录里替换，不要用 grep -rl 的结果喂 sed
@@ -479,11 +479,11 @@ git grep -lE "$PAT" -- 'src/tal_network' 'src/tuya_cloud_service/netmgr'
 
 | commit | 范围 | 文件 / 行 |
 | --- | --- | --- |
-| S2a | `src/tal_network/` | 5 / 49 |
-| S2b | `src/tuya_cloud_service/netmgr/`，**除** `.card_type` | 7 / 15 |
+| S2a | `src/tal_network/` | 6 / 64 |
+| S2b | `src/tuya_cloud_service/netmgr/`，**除** `.card_type` | 5 / 16 |
 | S2c | **只**改 `netmgr_conn_base_t.card_type` → `.provider` | 7 / 16 |
-| S2d | `docs/netmgr/extension_guide.md`、`docs/netmgr/release_notes.md` | 2 / 37 |
-| S2e | 两个 `.config` 的头注释 | 2 / 4 |
+| S2d | `docs/netmgr/extension_guide.md`、`docs/netmgr/release_notes.md` | 2 / 46 |
+| S2e | 两个 `.config` 的头注释 | 2 / 2 |
 
 S2c 单独一个 commit，因为它是**唯一一个没有别名兜底的改动**（§3.5）—— review 它的人应该只看它，回滚它的人应该只回滚它。
 
@@ -703,11 +703,29 @@ git grep -nE '(->|\.)(name|ipaddr|type)\b' -- 'src/tal_network/src/tal_network_r
 
 1. **S0** 重跑 §2 的每条命令，确认数字没漂；把两个 target 各编一次留基线。
 2. **S1** 一个 commit，只改 `tal_network_register.h`：加新名字，旧名字变别名，**数值不动**。gate：两个 target 编过，且**没改任何调用方**。
-3. **S2a** `src/tal_network/`（5 文件 49 行）。**S2b** `src/tuya_cloud_service/netmgr/` 除 `.card_type`（7 文件 15 行）。**S2c** 只改 `.card_type` → `.provider`（7 文件 16 行，唯一没有别名兜底的一步，单独 commit）。**S2d** 两份文档（37 行）。**S2e** 两个 `.config` 的头注释（提交前 `git diff` 确认没被构建改写）。格式化单独 commit，只格式化动过的行。gate：每个 commit 之后两个 target 编过 + `tools/check_format.py` 过。
+3. **S2a** `src/tal_network/`（6 文件 64 行）。**S2b** `src/tuya_cloud_service/netmgr/` 除 `.card_type`（5 文件 16 行）。**S2c** 只改 `.card_type` → `.provider`（7 文件 16 行，唯一没有别名兜底的一步，单独 commit）。**S2d** 两份文档（46 行）。**S2e** 两个 `.config` 的头注释（2 行，提交前 `git diff` 确认没被构建改写）。格式化单独 commit，只格式化动过的行。gate：每个 commit 之后两个 target 编过 + `tools/check_format.py` 过。
+
+   **实际执行比这个切分多出了三处，都是落地时当场发现当场修，不是重新规划：** S2a 之后多了一个补对齐的 style commit（`64cdd072`——`TAL_NETWORK_CARD_TYPE_E` 换成更短的 `tal_net_provider_id_t` 挪动了 clang-format 的对齐列，S2a 自己漏排了一处）；S2b 之后多了两个 commit：`d807df8a` 补上 §2.2 那条旧 PAT 因为不认 `TAL_NET_TYPE_*` 通配写法而漏掉的 4 行，`83b5f005` 修正一句被 S1 自己的别名弄假的断言（`netconn_registry.h` 原来说 `TAL_NET_TYPE_AT_MODEM` "全树只有它自己的 `#define` 提到过"，S1 落地的废弃别名让这句话在四个 commit 前就已经不成立了）；S2c 之后多了一个补对齐的 style commit（`60c8d27f`）。实际序列（`git log --oneline 3b55d419..1935f2e3`，从旧到新）：
+   ```
+   501cf7ce refactor(tal_network): introduce the provider names, keep the card names as aliases   -- S1
+   413fe17d refactor(tal_network): move the data plane onto the provider names                    -- S2a
+   64cdd072 style(tal_network): restore the alignment S2a shifted by one column                    -- 对齐修复
+   8b151bbf refactor(netmgr): move the control plane onto the provider names                       -- S2b
+   d807df8a refactor(tal_network): finish the four mentions the S2 pattern could not match          -- PAT 缺陷修复
+   83b5f005 fix(netmgr): correct a claim S1's alias made false                                     -- 断言修复
+   73c133e2 refactor(netmgr): rename netmgr_conn_base_t.card_type to .provider                     -- S2c
+   60c8d27f style(netmgr): re-align the wired initializer S2c narrowed                              -- 对齐修复
+   59403a1b docs(netmgr): move the two netmgr guides onto the provider names                        -- S2d
+   91dd44f3 docs(switch_demo): move the two matrix configs' header comments onto the provider names -- S2e
+   407bccd2 fix(netmgr): stop the AT_MODEM note from naming the alias that will outlive it          -- 另一处断言修复
+   785f2f32 refactor(tal_network): mark the compatibility names deprecated and ship the rewrite script -- S3
+   1935f2e3 fix(tools): make the rewrite script follow the tree instead of the plan                 -- 修 S3 自己的脚本
+   ```
+   13 个 commit，不是计划设想的 6 个（S1、S2a-e、S3）。`407bccd2` 修的是 `83b5f005` 自己落地时新引入的问题——同一类「修正的措辞里又带出一个旧名字」，和 §4.4 第 4 条那种「点名 wrapper 的注释」是同一类坑。下一个执行这份计划的人应该预期这种形状：机械重命名的每一步都在验证前一步的完整性检查有没有漏洞，漏洞暴露出来就地修一个 commit，而不是留到下一轮或者悄悄改前一个 commit。
 4. **S3** 给 typedef 和函数别名加 `__attribute__((deprecated))`；宏别名不加（做不到），只加文档和可 grep 的标记；在 `tools/` 下放替换脚本，脚本里带上 §2.5 的碰撞名单。gate：`git grep` 旧名字，除 `tal_network_register.h` 外零命中 —— **这是 S2 改全了的唯一机械证明。**
 5. **发一次带 release note 的 tag**，附 §3.3 的完整映射表。这一步不是可选的，它是 S4 唯一合法的触发条件。
 6. **S4** 独立 PR：删掉全部别名，删掉三个零调用方 wrapper。gate：全树旧名字零命中 + 两个 target 编过。
-7. **S4 之后**才轮到：删 `TAL_NET_TYPE_AT_MODEM` 并调 `MAX`、删三个只写不读的字段、`tal_network_card_manager` 加 `static`、文件重命名。每项一个 commit。
+7. **S4 之后**才轮到：删 `TAL_NET_TYPE_AT_MODEM` 并调 `MAX`、删三个只写不读的字段、`tal_net_provider_registry` 加 `static` 并同时改名成 `s_provider_registry`（§3.3、§6.2）、文件重命名。每项一个 commit。
 8. **全程不做**：§6 那两张表里的任何一项。
 
 三条贯穿全程的约束，如果只记三句话就记这三句：
