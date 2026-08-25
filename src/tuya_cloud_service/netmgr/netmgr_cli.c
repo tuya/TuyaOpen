@@ -817,13 +817,13 @@ static void __netmgr_cli_init(const netmgr_state_t *state)
     }
 
     /* Said on the INIT side of the pair, because init is the half that installs
-     * the callback. No TAL entry point can withdraw one a driver installed - the
-     * two tkl_wired implementations in the tree either ignore a NULL argument
-     * outright or spawn another thread for it, see netconn_wired_close() - so
-     * after a deinit the platform poller is still running and still calling
-     * whatever the callback now points at. Recorded in the netmgr_deinit() design
-     * note in netmgr_priv.h; it cannot be fixed below netmgr, it needs a TKL entry
-     * point to retract a callback.
+     * the callback. netmgr does not withdraw one it installed, because what NULL
+     * means is undefined across the four tkl_wired implementations - two withdraw
+     * cleanly, one ignores it, one crashes; see the table in
+     * netconn_wired_close(). So on some platforms a callback stays live across a
+     * deinit, and on LINUX a poller thread stays live with it. Recorded in the
+     * netmgr_deinit() design note in netmgr_priv.h; closing it needs a TKL
+     * contract for NULL, not a change here.
      *
      * The warning deliberately does NOT say the thread count climbs, which an
      * earlier version did. It does not, on the platform that ships:

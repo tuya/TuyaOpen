@@ -98,20 +98,37 @@ OPERATE_RET netconn_wired_open(void *config)
  * enable/disable, no deinit. netmgr can prefer this link or avoid it when
  * routing, but it can never make it go down.
  *
- * The one teardown that looks available is not: clearing the callback with
- * tal_wired_set_status_cb(NULL). No TAL or TKL contract says NULL is accepted,
- * and neither implementation in the tree honours it. The adapter a LINUX build
- * compiles, platform/LINUX/tuyaos_adapter/src/tkl_wired.c, puts its whole body
- * under `if (cb)` - a NULL argument is ignored outright and does not even clear
- * the stored pointer. The porting template,
- * tools/porting/template/linux/tkl_wired.c, has no guard at all and ends in an
- * unconditional pthread_create(), so there NULL would add another polling thread
- * to the callback path instead of removing one.
+ * The one teardown that looks available is not PORTABLE: clearing the callback
+ * with tal_wired_set_status_cb(NULL). No TAL or TKL contract says NULL is
+ * accepted, and the four implementations on disk do four different things.
  *
- * So leave the callback installed. The driver's static state is safe to be called
- * back into at any time, including after close() - which is not a nicety, it is
- * load-bearing, because on both implementations the platform thread keeps running
- * and keeps calling.
+ *   platform/T5AI/.../driver/tkl_wired.c        assigns and returns OPRT_OK, no
+ *   platform/T3/.../driver/tkl_wired.c          thread anywhere. NULL here IS a
+ *                                               clean withdrawal.
+ *   platform/LINUX/tuyaos_adapter/src/tkl_wired.c
+ *                                               whole body under `if (cb)`, so
+ *                                               NULL is ignored outright and does
+ *                                               not even clear the stored pointer.
+ *   tools/porting/template/linux/tkl_wired.c    no guard at all: NULL is stored
+ *                                               AND a thread is spawned, which
+ *                                               then calls the NULL pointer.
+ *
+ * So the callback stays installed, and the reason is portability rather than
+ * impossibility. On T5AI and T3 withdrawing it would work and would be the right
+ * thing; on LINUX it is a silent no-op; on anything derived from the template it
+ * crashes. A driver in the common tree cannot tell which one it is linked
+ * against, so it must assume the worst.
+ *
+ * That makes this a gap rather than a law - closing it needs a TKL contract that
+ * says what NULL means, at which point two of the four platforms already comply.
+ * Until then the driver's static state must stay safe to be called back into at
+ * any time, including after close().
+ *
+ * (Twice-corrected note. The first version cited only the template and claimed a
+ * per-init thread leak on LINUX; the second corrected that but said "neither
+ * implementation in the tree honours NULL", having looked at the same two files.
+ * Both times the error was reading a same-named file from the wrong directory.
+ * `find . -name tkl_wired.c` answers it in one command.)
  *
  * Trivially idempotent.
  *

@@ -101,29 +101,38 @@ extern "C" {
  *               (EVENT_LINK_ACTIVATE, "wifi", ...), tal_sw_timer_delete() on
  *               conn.timer, netcfg_stop(NETCFG_STOP_ALL_CFG_MODULE),
  *               tal_wifi_station_disconnect().
- *   - wired:    nothing to unsubscribe, and nothing to clear either. Do NOT
+ *   - wired:    nothing to unsubscribe, and nothing portable to clear. Do NOT
  *               "clear the status callback with NULL": no TAL or TKL contract
- *               says NULL is accepted, and neither implementation in the tree
- *               treats it as a withdrawal. In
- *               platform/LINUX/tuyaos_adapter/src/tkl_wired.c - the adapter a
- *               LINUX build actually compiles - the whole body sits under
- *               `if (cb)`, so a NULL argument is ignored entirely and does not
- *               even clear the stored pointer. In
- *               tools/porting/template/linux/tkl_wired.c, the template for a new
- *               port, tkl_wired_set_status_cb() ends in an unconditional
- *               pthread_create(), so there NULL would ADD a thread to the
- *               callback path rather than remove one. Silently ignored or
- *               actively worse, depending on the port.
+ *               says what NULL means, and the four tkl_wired.c on disk disagree.
+ *               T5AI and T3 assign and return OPRT_OK with no thread involved,
+ *               so NULL is a clean withdrawal there. LINUX puts the body under
+ *               `if (cb)`, so NULL is ignored without even clearing the pointer.
+ *               The porting template has no guard, so NULL is stored and a
+ *               thread is spawned that then calls it. See netconn_wired_close()
+ *               for the full table. A common-tree driver cannot tell which it is
+ *               linked against, so it assumes the worst.
  *   - cellular: nothing available - tal_cellular.h has no deinit. close() stays
  *               a documented no-op, which is exactly what
  *               NETCONN_CTRL_SUSTAINED is telling the caller.
  *
- * KNOWN LIMITATION, deinit then init again: the wired poller outlives netmgr and
- * keeps calling into it. netconn_wired_open() installs the callback and nothing
- * can retract it, so after netmgr_deinit() the platform thread is still running
- * and still invoking whatever base.event_cb holds. That is the concrete
- * use-after-free this design note exists to answer, and it is why the mutex is
- * retained rather than freed.
+ * KNOWN LIMITATION, deinit then init again: netmgr cannot retract a callback it
+ * installed, so after netmgr_deinit() a platform may still invoke whatever
+ * base.event_cb holds.
+ *
+ * Which platform, precisely, because the previous version of this note named the
+ * wrong one. It said "the wired poller outlives netmgr" and called that "the
+ * concrete use-after-free this design note exists to answer". On T5AI - the
+ * primary target - there IS no wired poller: tkl_wired_set_status_cb() assigns
+ * and returns, and passing NULL would withdraw the callback cleanly if the driver
+ * were allowed to try. The wired poller exists only on the LINUX adapter, where
+ * it also cannot be stopped.
+ *
+ * The DECISION to retain the mutex survives that correction, on an example that
+ * holds everywhere: tal_wifi.h has no uninit at all (see netmgr.c, where the
+ * close duties are listed), so a vendor WiFi task can call back after teardown on
+ * every platform. Anyone re-deriving this from the old wired example would have
+ * concluded the retention was unnecessary, which is why the correction is
+ * recorded rather than swapped in silently.
  *
  * An earlier version of this note said something stronger and wrong: that "on
  * LINUX every netmgr_init() leaks one polling thread", so an init/deinit/init
@@ -137,8 +146,14 @@ extern "C" {
  *
  * Either way it cannot be fixed in the driver - tal_wired.h is six functions,
  * all status/config, no uninit - it needs a TKL entry point to withdraw a
- * callback. Nothing in the tree calls netmgr_deinit() today, so nothing is
- * blocked by it; it is recorded here so the next caller finds it written down.
+ * callback.
+ *
+ * This used to end "nothing in the tree calls netmgr_deinit() today, so nothing
+ * is blocked by it". That stopped being true in the same series that wrote it:
+ * netmgr_cli.c offers `netmgr deinit`, and netmgr_init() calls deinit on its own
+ * error paths. So the window is reachable from the serial console on any build
+ * with the CLI, which is every debug build. It is still not FATAL - that is what
+ * the retained mutex and the gate are for - but it is exercised, not theoretical.
  *
  * A related consequence for the report path: because no TAL layer can withdraw
  * a callback it installed (tal_wifi.h has no uninit for the WIFI_EVENT_CB
