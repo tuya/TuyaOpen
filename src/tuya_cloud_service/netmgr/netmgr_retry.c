@@ -3,74 +3,14 @@
  * @brief Back-off arithmetic, extracted from netconn_wifi.c. See netmgr_retry.h
  *        for why it exists and who the two callers are.
  *
- * This translation unit has no dependency beyond tuya_cloud_types.h: no timer,
- * no mutex, no allocation, no logging, no clock. Every function is a total
- * function of its arguments. That is what lets it be unit-tested on the host
- * with nothing linked in, and it is why NULL is answered with a defined value
- * everywhere instead of with OPRT_INVALID_PARM.
+ * No dependency beyond tuya_cloud_types.h: no timer, no mutex, no allocation,
+ * no logging, no clock. Every function is total, which is what lets it be
+ * unit-tested on the host with nothing linked in, and why NULL is answered
+ * with a defined value everywhere instead of OPRT_INVALID_PARM.
  *
- * Timing equivalence with today's netconn_wifi.c
- * ----------------------------------------------
- * The table below reproduces the CURRENT observable back-off exactly. That claim
- * needs proof, because today's saturation does not come from the table at all.
- *
- * Today, s_netmgr_wifi initialises
- *
- *     .table_size = NETCONN_WIFI_CONN_TABLE,        // 16
- *     .table      = {1, 3, 5, 10, 15, 20},          // 6 entries, [6..15] zero
- *
- * and both back-off sites (netconn_wifi.c:159 in __netconn_wifi_event(), :195 in
- * __netconn_wifi_conn_timer()) run
- *
- *     tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
- *     if (wifi->conn.count < wifi->conn.table_size - 1) { wifi->conn.count++; }
- *
- * so the saturation point is attempt 15, not attempt 5, and attempts 6..15 arm
- * the timer with a literal 0. That is not a no-op and it is not a zero-length
- * timer, because tal_sw_timer_start() (src/tal_system/src/tal_sw_timer.c:411)
- * reads
- *
- *     if (time_ms) {
- *         timer->interval = time_ms;
- *     }
- *     timer->expire_time = (uint64_t)secTime * 1000 + (uint64_t)msTime + timer->interval;
- *
- * A zero argument silently REUSES the interval from the previous arm of that
- * timer. The retained value is 20 000 ms, so the observed back-off saturates at
- * 20 s and the sequence really is 1, 3, 5, 10, 15, 20, 20, 20, ...
- *
- * Where the retained 20 000 comes from is the part worth writing down, because
- * netmgr_retry.h's own note gets it slightly wrong. It is NOT the leftover from
- * arming with table[5] * 1000. conn.timer is shared with the connect-attempt
- * timeout, and in the steady failure loop the most recent NON-ZERO arm is always
- * netconn_wifi.c:86 in __netconn_wifi_connect_process():
- *
- *     tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
- *
- * Trace one cycle at count >= 6: stat WAIT, timer fires -> __netconn_wifi_connect()
- * -> :86 arms 20 000 and stat becomes CHECK -> the attempt resolves either as a
- * failure event (:159) or as a connect timeout (:195), and both arm 0, which
- * retains that 20 000. So the saturated back-off is governed by
- * WIFI_CONN_TIMEOUT_MAX (netconn_wifi.h:73, value 20), and it matches
- * table[5] (value 20) only because two unrelated constants happen to be equal.
- * Change WIFI_CONN_TIMEOUT_MAX to 15 today and the saturated back-off silently
- * becomes 15 s with no edit to the back-off table.
- *
- * netmgr_retry_table_assoc therefore declares count 6, which moves the
- * saturation point to attempt 5 and makes the interval explicit on every arm:
- *
- *     attempt   0   1   2   3   4   5   6   7  ...
- *     today     1   3   5  10  15  20  20* 20*     (* = arm 0, interval retained)
- *     here      1   3   5  10  15  20  20  20      (* clamped to entry[5])
- *
- * Identical timing, no dependency on `time_ms == 0`, and no coupling between the
- * back-off table and the connect timeout. Record this in the M3 changelog as a
- * hardening, not as a behaviour change.
- *
- * NETCONN_CMD_RECONN_TABLE was never affected either way: netconn_wifi.c:574
- * sets table_size to the caller's own entry count, so a product-supplied table
- * always saturated on its real last entry. The long ULP back-off path keeps its
- * behaviour byte for byte.
+ * netmgr_retry_table_assoc reproduces netconn_wifi.c's pre-extraction
+ * sequence (1, 3, 5, 10, 15, 20, 20, ...) exactly; see 2eae2654 for the
+ * analysis this replaced.
  *
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
@@ -83,17 +23,9 @@
 
 /**
  * @brief Largest interval, in seconds, that keeps __netmgr_retry_reached()'s
- *        signed-difference wrap idiom correct once multiplied by 1000.
- *
- * NETCONN_CMD_RECONN_TABLE clamps the NUMBER of product-supplied entries but not
- * their VALUES (netconn_wifi.c:572-574 only bounds rc->size), so a nonsense
- * entry can reach a table. Clamping here means such an entry produces the
- * longest interval the idiom can still get right, instead of either wrapping
- * round to a very short one (a busy retry loop) or exceeding the 2^31 ms bound
- * __netmgr_retry_reached() needs (a deadline that reads as already due before
- * it is). See the comment on __netmgr_retry_reached() for that bound;
- * 0x7FFFFFFF / 1000 = 2147483 s, so a clamped entry arms 2147483000 ms, 648 ms
- * inside the 2^31 ms (2147483648 ms) limit.
+ *        signed-difference idiom correct (see its [-2^31, 2^31) bound below).
+ *        A product-supplied table's entry count is bounded but its values are
+ *        never validated, so a nonsense entry is clamped here.
  */
 #define NETMGR_RETRY_INTERVAL_MAX_S (0x7FFFFFFFU / 1000U)
 
@@ -102,20 +34,13 @@
 ***********************************************************/
 
 /**
- * @brief The wifi association intervals, in seconds.
- *
- * The literal initialiser from s_netmgr_wifi, unchanged. Six entries, so the
- * declared count and the real length agree - which is exactly the mismatch the
- * file comment above describes removing.
+ * @brief The wifi association intervals, in seconds. The literal initialiser
+ *        from s_netmgr_wifi, unchanged - six entries, so the declared count
+ *        and the real length agree.
  */
 static const uint32_t s_retry_assoc_entry[] = {1, 3, 5, 10, 15, 20};
 
-/**
- * @brief The revalidation intervals, in seconds.
- *
- * New in M3; nothing in the tree had revalidation back-off before, so there is
- * no legacy timing to preserve here.
- */
+/** @brief The revalidation intervals, in seconds. No legacy timing to preserve. */
 static const uint32_t s_retry_revalidate_entry[] = {30, 60, 120, 300, 600};
 
 const netmgr_retry_table_t netmgr_retry_table_assoc = {
@@ -135,29 +60,16 @@ const netmgr_retry_table_t netmgr_retry_table_revalidate = {
 /**
  * @brief How many entries of a table may actually be read.
  *
- * Folds the three ways a table can be unusable into one number, so every public
- * function can start from "count == 0 means no back-off":
+ * Folds three ways a table can be unusable into one number: table NULL,
+ * table->entry NULL (an unbound netmgr_retry_t lands here), or count over
+ * NETMGR_RETRY_TABLE_MAX - clamped down rather than trusted, so a garbage
+ * count reads as a bounded, if truncated, table instead of an out-of-bounds
+ * one.
  *
- *   - table itself NULL             -> 0
- *   - table->entry NULL             -> 0, whatever count says. A caller that
- *                                      zeroed a netmgr_retry_t and never called
- *                                      netmgr_retry_bind() lands here;
- *   - count > NETMGR_RETRY_TABLE_MAX -> clamped to NETMGR_RETRY_TABLE_MAX.
- *
- * The last clamp deserves a word. netmgr_retry.h fixes NETMGR_RETRY_TABLE_MAX as
- * the upper bound on entries, so an over-long count is already a contract
- * violation; clamping only ever makes the module read FEWER entries than it was
- * told about, so it can never read past a table that respects the bound, and it
- * turns a garbage count (an uninitialised field, a wild 0xFFFFFFFF) into a
- * bounded read rather than an out-of-bounds one. The cost is that a caller who
- * deliberately passes 20 entries sees entries 16..19 ignored, which is the
- * documented bound being enforced rather than a surprise.
- *
- * Note what CANNOT be checked: whether count agrees with the real length of
- * @a entry. C offers no way to ask, so count is trusted up to the bound. A
- * caller that declares more entries than it allocated gets an out-of-bounds read
- * and that is the caller's bug; sizeof-derived counts, as used for both tables
- * above, make it unrepresentable.
+ * What can't be checked: whether count agrees with the real length of
+ * @a entry. A caller that declares more entries than it allocated gets an
+ * out-of-bounds read - that is the caller's bug; sizeof-derived counts, as
+ * used for both tables above, make it unrepresentable.
  *
  * @param[in] table the table to measure; NULL is treated as empty
  *
@@ -175,33 +87,15 @@ static uint32_t __netmgr_retry_count(const netmgr_retry_table_t *table)
 /**
  * @brief Has an armed deadline been reached, in a way that survives wrap-around?
  *
- * The millisecond base netmgr.c uses is a uint32_t and wraps every 49.7 days, so
- * a plain `now_ms >= deadline_ms` would report "not due" for the whole 49.7 days
- * after a deadline armed just before the wrap. The signed-difference idiom below
- * reads `now_ms - deadline_ms` as a two's-complement int32_t, which is correct
- * exactly when the true (unwrapped) difference falls inside [-2^31, 2^31) ms --
- * outside that range the truncation to int32_t flips its sign, and the idiom
- * answers the opposite of reality. That one interval splits into the two cases
- * that matter here:
- *
- *   - Before the deadline, the true difference is in [-I, 0), where I is the
- *     interval this deadline was armed with, so the idiom needs I <= 2^31 ms.
- *     An interval past that bound is misread as already due, before it really
- *     is -- exactly what an under-clamped NETMGR_RETRY_INTERVAL_MAX_S used to
- *     allow (see its definition above).
- *   - After the deadline, the same 2^31 ms bound applies on the other side: a
- *     deadline that has genuinely passed but goes unpolled for 2^31 ms (24.8
- *     days) reads as not-yet-due again once the true difference crosses back
- *     out of range. Nothing here schedules polls that far apart -- both
- *     callers share a deadline with a scheduler that polls far more often --
- *     but the idiom itself does not guarantee it, so the bound is worth
- *     stating rather than leaving implicit.
- *
- * NETMGR_RETRY_INTERVAL_MAX_S now enforces the first bound: it clamps any
- * table entry, however implausible, to an interval that keeps I <= 2^31 ms, so
- * this function's precondition holds for every deadline this module can arm --
- * not because no table can express a larger value, but because the clamp does
- * not let one through.
+ * The millisecond base wraps every 49.7 days, so a plain `now_ms >=
+ * deadline_ms` misreads for the whole 49.7 days after a deadline armed just
+ * before the wrap. Reading `now_ms - deadline_ms` as a two's-complement
+ * int32_t instead is correct only while the true difference stays inside
+ * [-2^31, 2^31) ms - past that bound before the deadline an over-long
+ * interval reads as already due, and past it after the deadline one left
+ * unpolled for 2^31 ms (24.8 days) reads as not yet due again.
+ * NETMGR_RETRY_INTERVAL_MAX_S keeps every interval this module arms inside
+ * the near-side bound.
  *
  * @param[in] deadline_ms the armed deadline; must be non-zero (armed)
  * @param[in] now_ms      current time in the same base
@@ -318,13 +212,9 @@ uint32_t netmgr_retry_fail(netmgr_retry_t *retry, uint32_t now_ms)
 
     retry->deadline_ms = deadline_ms;
 
-    /* An empty table is armed at `now`, so netmgr_retry_due() answers TRUE on
-     * the very next poll. netmgr_retry.h specifies only the RETURN value for
-     * this case ("0 ... the caller should treat the retry as due immediately"),
-     * and leaving the context unarmed instead would make due() answer FALSE
-     * forever - turning "no table" into "never retry", the opposite of the
-     * degenerate-build intent that a count-0 table switches back-off OFF. Both
-     * the return value and every later poll now say "due now". */
+    /* Arming at `now` (rather than leaving the context unarmed) is what makes
+     * every later netmgr_retry_due() poll answer TRUE too, not just this call's
+     * return value - "no table" means "retry immediately", not "never". */
     return (0 == interval_ms) ? 0 : deadline_ms;
 }
 

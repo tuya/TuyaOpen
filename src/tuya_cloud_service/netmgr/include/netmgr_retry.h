@@ -3,65 +3,16 @@
  * @brief Back-off arithmetic, extracted from netconn_wifi.c so more than one
  *        caller can have it.
  *
- * What is being extracted
- * -----------------------
- * netconn_wifi.c carries the only back-off state machine in the module, spread
- * over four fields of netconn_wifi_conn_t (`stat`, `count`, `table`,
- * `table_size`) and three functions that all mutate them: __netconn_wifi_event(),
- * __netconn_wifi_conn_timer() and __netconn_wifi_connect_process(). The same
- * eight lines appear twice, once in the event handler and once in the timer
- * handler:
+ * Computes intervals and deadlines; never arms anything. The pure layer
+ * (netmgr_retry_interval_ms(), netmgr_retry_advance()) touches no state a
+ * caller does not already own, so netconn_wifi.c can adopt it WITHOUT any
+ * change to netconn_wifi.h, which is on the public include path. The bundled
+ * layer (netmgr_retry_t and its helpers) is for netmgr.c, which has no legacy
+ * fields to preserve.
  *
- *     tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
- *     if (wifi->conn.count < wifi->conn.table_size - 1) {
- *         wifi->conn.count++;
- *     }
- *     wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
- *
- * Nothing else in netmgr has any back-off at all. netconn_wired.c and
- * netconn_cellular.c have none, and cannot be given association back-off (see
- * "What this does NOT solve" below), but they do need REVALIDATION back-off once
- * netmgr_probe.h can mark a link as unreachable - a link that failed its
- * reachability check must not be retried immediately or forever.
- *
- * Shape: no timer, no thread, no global state
- * ------------------------------------------
- * This module computes intervals and deadlines. It never arms anything. That is
- * deliberate and it is what lets the same code serve two callers whose timing
- * mechanisms are unrelated:
- *
- *   - netconn_wifi.c keeps its own tal_sw_timer (conn.timer). Its back-off is
- *     interleaved with a connect-attempt timeout on the same timer, which is
- *     driver business and stays there;
- *   - netmgr.c drives revalidation off the single shared deadline the whole
- *     module now uses (see the deadline scheduler note in netmgr_policy.h), so
- *     it needs the NEXT DEADLINE as a number, not a timer of its own.
- *
- * Two layers are offered for exactly that reason. The pure layer
- * (netmgr_retry_interval_ms(), netmgr_retry_advance()) touches no state a caller
- * does not already own, so netconn_wifi.c can adopt it WITHOUT any change to
- * netconn_wifi.h - which matters, because that header is on the global public
- * include path and app code uses its types. The bundled layer
- * (netmgr_retry_t and its helpers) is for netmgr.c, which has no legacy fields
- * to preserve.
- *
- * What this does NOT solve
- * ------------------------
- * "Shared by all three links" is only true for revalidation, not for
- * association. netconn_registry.h's control levels say why, and they are not
- * negotiable from here:
- *
- *   - NETCONN_CTRL_OBSERVE (wired): tal_wired.h has no connect and no
- *     disconnect. There is no attempt to retry. A back-off module cannot invent
- *     one;
- *   - NETCONN_CTRL_SUSTAINED (cellular): tal_cellular.h has tal_cellular_init()
- *     and no deinit, no connect/disconnect pair. Calling tal_cellular_init() a
- *     second time is not a documented re-dial and must not be used as one;
- *   - NETCONN_CTRL_MANAGED (wifi): the only link with an attempt to retry.
- *
- * So association back-off has exactly one user today and will have more only
- * when a TAL grows the verbs. Revalidation back-off has three users immediately.
- * State that plainly rather than shipping two empty adapters.
+ * Association back-off applies only to NETCONN_CTRL_MANAGED links - see
+ * netconn_registry.h for why wired and cellular can't have it. Revalidation
+ * back-off applies to all three.
  *
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
@@ -80,51 +31,35 @@ extern "C" {
 ***********************************************************/
 
 /**
- * @brief Upper bound on entries in a back-off table.
- *
- * Matches NETCONN_WIFI_CONN_TABLE, which netconn_wifi.h already fixes at 16 and
- * which NETCONN_CMD_RECONN_TABLE already clamps user input to. Keeping the two
- * equal is what lets netconn_wifi.c pass a pointer to its existing
- * `conn.table[]` here with no reallocation and no header change.
+ * @brief Upper bound on entries in a back-off table. Matches
+ *        NETCONN_WIFI_CONN_TABLE (netconn_wifi.h, 16), so netconn_wifi.c can
+ *        pass its existing `conn.table[]` here with no reallocation.
  */
 #define NETMGR_RETRY_TABLE_MAX 16
 
 /**
- * @brief A sequence of back-off intervals, in SECONDS.
+ * @brief A sequence of back-off intervals, in SECONDS - the unit
+ *        netmgr_reconn_table_t (netmgr.h) and the wifi driver already use.
+ *        The interval accessors below return milliseconds, what
+ *        tal_sw_timer_start() takes.
  *
- * Seconds, not milliseconds, because that is the unit netmgr_reconn_table_t
- * already uses in netmgr.h and the unit the wifi driver already stores. A
- * conversion here would put two units in one module for no gain; the interval
- * accessors below return milliseconds because that is what tal_sw_timer_start()
- * takes.
- *
- * @a entry is NOT copied. The caller owns the storage and it must outlive every
- * netmgr_retry_* call made against it - which for both in-tree callers is a
- * `static` array or a field of a static struct.
+ * @a entry is NOT copied. The caller owns the storage and it must outlive
+ * every netmgr_retry_* call made against it - a `static` array or struct
+ * field for both in-tree callers.
  */
 typedef struct {
     /** Intervals in seconds, ascending by convention but not enforced. */
     const uint32_t *entry;
     /**
-     * Number of valid entries in @ref entry. Zero means "no back-off".
+     * Number of valid entries in @ref entry. Zero means "no back-off" - every
+     * interval computes to 0 - but the two consumers read that differently:
      *
-     * "No back-off" is a statement about the ARITHMETIC in this module - every
-     * interval is 0 - and the two consumers legitimately read that differently,
-     * so it is spelled out here rather than being left to be discovered:
-     *
-     *   - association (netconn_wifi.c): retry IMMEDIATELY. A driver with no table
-     *     must still redial, so netmgr_retry_fail() arms an empty table at `now`
-     *     and netmgr_retry_due() answers TRUE on the next poll;
+     *   - association (netconn_wifi.c): retry IMMEDIATELY. netmgr_retry_fail()
+     *     arms an empty table at `now`, so netmgr_retry_due() answers TRUE on
+     *     the next poll;
      *   - revalidation (netmgr.c, netmgr_policy_t.revalidate): NEVER re-verify.
-     *     That is what netmgr_policy.h documents count 0 to mean, so netmgr.c does
-     *     not call netmgr_retry_fail() at all in that case and leaves the context
-     *     unarmed, where netmgr_retry_due() answers FALSE forever.
-     *
-     * Note the difference from a NULL @ref entry, which is NOT the same thing for
-     * the revalidation consumer: netmgr_policy_t.revalidate reads a NULL entry as
-     * "unset" and substitutes netmgr_retry_table_revalidate, because that is the
-     * default that field documents. This module itself treats NULL entry and
-     * count 0 identically - it has no defaults to substitute.
+     *     netmgr.c leaves the context unarmed instead of calling
+     *     netmgr_retry_fail(), so netmgr_retry_due() answers FALSE forever.
      */
     uint32_t count;
 } netmgr_retry_table_t;
@@ -132,26 +67,20 @@ typedef struct {
 /**
  * @brief The wifi association table that netconn_wifi.c ships today.
  *
- * {1, 3, 5, 10, 15, 20} - the literal initialiser in s_netmgr_wifi. Declared
- * here so the driver and any future MANAGED driver share one definition instead
- * of each carrying its own magic numbers, and so a reviewer can see that
- * adopting this module changes no timing.
+ * {1, 3, 5, 10, 15, 20}, the literal initialiser in s_netmgr_wifi - declared
+ * here so any future MANAGED driver can share it instead of carrying its own
+ * magic numbers.
  */
 extern const netmgr_retry_table_t netmgr_retry_table_assoc;
 
 /**
  * @brief The revalidation table, used when a link has been marked unreachable.
  *
- * {30, 60, 120, 300, 600}. Deliberately an order of magnitude slower than the
- * association table, because a revalidation attempt is expensive in a way an
- * association attempt is not: promoting a link back to
- * NETMGR_LINK_STATE_UNVERIFIED makes it win selection again, which moves the
- * route, which makes tuya_iot tear down and re-establish its MQTT session (see
- * __tuya_iot_link_type_change_cb() calling tuya_iot_reconnect()). A one-second
- * revalidation would put the device in a permanent reconnect loop.
- *
- * The last entry repeats forever, so a link whose network never comes back is
- * retried every ten minutes and no more often.
+ * {30, 60, 120, 300, 600}, an order of magnitude slower than the association
+ * table: promoting a link back to reachable moves the route, which makes
+ * tuya_iot tear down and re-establish its MQTT session, so retrying too fast
+ * would put the device in a permanent reconnect loop. The last entry repeats
+ * forever.
  */
 extern const netmgr_retry_table_t netmgr_retry_table_revalidate;
 
@@ -162,14 +91,11 @@ extern const netmgr_retry_table_t netmgr_retry_table_revalidate;
 /**
  * @brief Interval for a given attempt number, in milliseconds.
  *
- * The table is indexed by @a attempt and CLAMPED at the last entry, which is
- * what "grows to the last entry and then repeats it" in netmgr.h means. So
- * attempt 0 gets entry[0], attempt 99 gets entry[count - 1].
- *
- * Deliberately total: an empty or NULL table answers 0 rather than failing, so a
- * caller that has not been configured degrades to "retry immediately" instead of
- * having to branch. That is also what makes the M4 degenerate build trivial - a
- * table of count 0 turns every back-off in the module off.
+ * Indexed by @a attempt and CLAMPED at the last entry - "grows to the last
+ * entry and then repeats it" in netmgr.h. Deliberately total: an empty or
+ * NULL table answers 0 rather than failing, so an unconfigured caller
+ * degrades to "retry immediately" instead of having to branch - which is
+ * also what turns every back-off in the module off for a count-0 table.
  *
  * @param[in] table   the table to read; NULL is treated as empty
  * @param[in] attempt zero-based attempt number
@@ -181,47 +107,9 @@ uint32_t netmgr_retry_interval_ms(const netmgr_retry_table_t *table, uint32_t at
 /**
  * @brief Bump an attempt counter the way the wifi driver bumps it today.
  *
- * The counter saturates at count - 1 rather than wrapping, which is the exact
- * behaviour of the `if (count < table_size - 1) count++;` idiom this replaces.
- * Preserving the saturation matters: the wifi driver INDEXES with the counter
- * before bumping it, so a wrapping counter would restart the back-off from one
- * second every sixteen failures.
- *
- * One latent hazard in the original is worth recording, because adopting this
- * module removes it and a reviewer should know that is not an accident.
- * s_netmgr_wifi initialises `table_size = NETCONN_WIFI_CONN_TABLE` (16) while
- * giving only six entries, so table[6..15] are zero and the driver's saturation
- * point is attempt 15, not attempt 5. Attempts 6 and up therefore call
- *
- *     tal_sw_timer_start(wifi->conn.timer, 0, TAL_TIMER_ONCE);
- *
- * and that only behaves because tal_sw_timer_start() reads
- * `if (time_ms) { timer->interval = time_ms; }` - a zero argument silently keeps
- * the interval from the PREVIOUS arm of that timer, which happens to be 20 s.
- *
- * Where that retained 20 s comes from is the part to get right, and an earlier
- * draft of this note got it wrong by saying it was left over from arming with
- * table[5] * 1000. It is not. conn.timer is SHARED with the connect-attempt
- * timeout, and in the steady failure loop the most recent non-zero arm is always
- * __netconn_wifi_connect_process():
- *
- *     tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
- *
- * so the saturated back-off is governed by WIFI_CONN_TIMEOUT_MAX
- * (netconn_wifi.h, value 20) and coincides with table[5] only because two
- * unrelated constants are both 20. Change WIFI_CONN_TIMEOUT_MAX to 15 today and
- * the saturated back-off silently becomes 15 s with no edit to the back-off
- * table. Adopting this module therefore also DECOUPLES the two: the interval is
- * passed explicitly on every arm, so the connect timeout and the back-off table
- * stop sharing a value by accident.
- *
- * netmgr_retry_table_assoc has count 6, so the saturation point becomes attempt 5
- * and the interval is passed explicitly every time. Same timing, no dependency on
- * the quirk, no coupling to the timeout. Note this in the M3 changelog as a
- * hardening, not as a behaviour change.
- *
- * NETCONN_CMD_RECONN_TABLE is unaffected either way: it already sets table_size
- * to the caller's count, so a product-supplied table never had the mismatch.
+ * The counter saturates at count - 1 rather than wrapping: the caller INDEXES
+ * with the counter before bumping it, so a wrapping counter would restart the
+ * back-off from the first entry every time it fills the table.
  *
  * @param[in]     table   the table whose length bounds the counter
  * @param[in,out] attempt bumped in place, saturating at count - 1
@@ -238,15 +126,11 @@ uint32_t netmgr_retry_advance(const netmgr_retry_table_t *table, uint32_t *attem
 /**
  * @brief Table, attempt counter and absolute deadline in one place.
  *
- * For netmgr.c, which keeps one of these per registered link and evaluates all
- * of them from the single shared deadline. A zeroed instance is valid and means
- * "no table, no attempts, not armed", so it needs no constructor beyond
- * netmgr_retry_bind().
- *
- * Not thread-safe and deliberately not made so. Every instance netmgr.c owns
- * lives inside s_netmgr and is therefore covered by s_netmgr.lock; the arithmetic
- * here is short and non-blocking, so it is one of the few things that IS allowed
- * to run under that lock (contrast conn->get(), which is not).
+ * For netmgr.c, which keeps one of these per registered link and evaluates
+ * all of them from the single shared deadline. A zeroed instance is valid
+ * ("no table, no attempts, not armed"), so it needs no constructor beyond
+ * netmgr_retry_bind(). Not thread-safe, and deliberately not made so - the
+ * caller is responsible for serializing access.
  */
 typedef struct {
     /** Which intervals to use. Bound once by netmgr_retry_bind(). */
@@ -255,11 +139,10 @@ typedef struct {
     uint32_t attempt;
     /**
      * Absolute deadline in the same millisecond base netmgr.c passes to
-     * netmgr_retry_due(), or 0 for "not armed".
-     *
-     * Absolute rather than remaining, because the shared deadline scheduler
-     * re-evaluates every link on every wake-up and a remaining-time field would
-     * have to be decremented by each of them.
+     * netmgr_retry_due(), or 0 for "not armed". Absolute rather than
+     * remaining, because the shared scheduler re-evaluates every link on
+     * every wake-up and a remaining-time field would have to be decremented
+     * by each of them.
      */
     uint32_t deadline_ms;
 } netmgr_retry_t;
@@ -289,13 +172,11 @@ void netmgr_retry_reset(netmgr_retry_t *retry);
  * @param[in]     now_ms current time in the caller's millisecond base
  *
  * @return the deadline that was armed, or 0 when @a retry is NULL or its table
- *         is empty - in which case the caller should treat the retry as due
- *         immediately, matching netmgr_retry_interval_ms()'s total contract.
- *         An empty table is also ARMED at @a now_ms, so every later
- *         netmgr_retry_due() poll keeps answering "due now" rather than "never".
- *         A caller for which count 0 means NEVER - the revalidation consumer, see
- *         netmgr_retry_table_t.count - must therefore not call this at all and
- *         leave the context unarmed instead.
+ *         is empty. An empty table is still ARMED at @a now_ms, so every later
+ *         netmgr_retry_due() poll answers "due now" rather than "never" - the
+ *         revalidation consumer, for which count 0 means NEVER (see
+ *         netmgr_retry_table_t.count), must not call this at all and leave the
+ *         context unarmed instead.
  */
 uint32_t netmgr_retry_fail(netmgr_retry_t *retry, uint32_t now_ms);
 
@@ -312,16 +193,15 @@ BOOL_T netmgr_retry_due(const netmgr_retry_t *retry, uint32_t now_ms);
 /**
  * @brief Milliseconds until the armed deadline, for the shared scheduler.
  *
- * This is the value netmgr.c folds into the minimum it arms its one
- * tal_sw_timer with, so the contract at the boundary matters:
+ * netmgr.c folds this into the minimum it arms its one tal_sw_timer with:
  *
- *   - not armed        -> 0, meaning "contributes no deadline"
- *   - armed and due    -> 0, meaning the same thing, because the caller is about
- *                         to act on it in this very pass
- *   - armed and future -> the remaining milliseconds, never 0
+ *   - not armed, or armed and already due -> 0 either way, because "no
+ *     deadline to contribute" and "the caller acts on it this very pass"
+ *     both fold the same way;
+ *   - armed and future -> the remaining milliseconds, never 0.
  *
- * A caller therefore folds with "ignore zero, take the minimum of the rest",
- * and cannot accidentally arm a zero-length timer.
+ * So a caller folds with "ignore zero, take the minimum of the rest" and
+ * cannot accidentally arm a zero-length timer.
  *
  * @param[in] retry  the context; NULL answers 0
  * @param[in] now_ms current time in the caller's millisecond base
