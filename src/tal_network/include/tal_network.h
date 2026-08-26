@@ -1,25 +1,14 @@
 /**
  * @file tal_network.h
- * @brief Network utilities interface for Tuya SDK.
- *
- * This header file defines the network utilities interface for the Tuya SDK,
- * providing essential network functionalities such as IP address definitions
- * and network error handling. It includes definitions for loopback address, any
- * address, and broadcast address in the context of the Tuya SDK. Additionally,
- * it offers an API for retrieving the last network error code, which is crucial
- * for diagnosing network-related issues in Tuya-based applications.
- *
- * The interface abstracts underlying network operations, offering a simplified
- * and unified way of handling network communications across different platforms
- * supported by the Tuya SDK. This ensures that applications built on the Tuya
- * platform can manage network operations efficiently and consistently.
- *
- * @note This file is part of the Tuya IoT Development Platform and is intended
- * for use in Tuya-based applications. It requires the Tuya Cloud Types
- * definitions for proper functionality.
+ * @brief POSIX-shaped socket interface for Tuya SDK: send/recv/bind/listen/
+ *        accept/select and friends. Most of it needs no more explanation than
+ *        the POSIX call it mirrors, so this file documents only where
+ *        TuyaOpen deviates: TUYA_ERRNO's convention (see
+ *        tal_net_get_errno()), active-link source address binding (below),
+ *        tal_net_select()'s millisecond timeout, tal_net_recv_nd_size() (not
+ *        POSIX at all), and tal_net_getsockname()'s per-platform reliability.
  *
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
- *
  */
 #ifndef __TAL_NETWORK_H__
 #define __TAL_NETWORK_H__
@@ -46,100 +35,64 @@ extern "C" {
 /*
  * Active-link source address binding
  *
- * A target with more than one interface UP at once - Wi-Fi and cellular, say -
- * has a single routing table and no policy routing, so a flow only leaves the
- * interface netmgr selected if its socket is bound to that interface's address.
- * tal_network does this for outbound connections on its own, but it cannot do it
- * everywhere. The boundary below is deliberate; the gaps are real and are the
- * reason this note exists rather than being left implicit.
+ * A target with more than one interface UP at once (Wi-Fi and cellular, say)
+ * has one routing table and no policy routing, so a flow leaves the interface
+ * netmgr selected only if its socket is bound to that interface's address.
+ * tal_network does this automatically for outbound connections, but not
+ * everywhere - the gaps below are real, not oversights.
  *
- * Bound automatically to the active link source address:
- *  - everything that goes through tal_net_connect(), which is every outbound TCP
- *    flow in the SDK (TLS, HTTP, MQTT, ATOP) and any UDP socket the caller
- *    connect()s. A socket the caller already bound is left alone, so an explicit
- *    tal_net_bind() always wins, and a failed bind is logged and ignored rather
- *    than failing the connect.
+ * Bound automatically:
+ *  - everything through tal_net_connect(): every outbound TCP flow in the SDK
+ *    (TLS, HTTP, MQTT, ATOP) and any UDP socket the caller connect()s. A
+ *    socket the caller already bound is left alone, and a failed bind is
+ *    logged and ignored rather than failing the connect.
  *
- * NOT bound, and what that means:
+ * NOT bound:
  *  - tal_net_gethostbyname(): resolution runs inside lwIP or the platform
- *    resolver and there is no socket to bind. Steering a DNS query is an lwIP-level
- *    setting, out of reach from this layer. So with two interfaces UP a DNS query
- *    may leave the one netmgr did not select, and can time out or resolve against
- *    the wrong network's DNS server even though the connection that follows does
- *    leave the right interface. A resolve failure while the link itself is healthy
- *    is the symptom to expect.
- *  - tal_net_send_to() and connectionless UDP in general: there is no connect() to
- *    hook, and pinning a source address on a datagram socket would break the
- *    broadcast paths that bind TY_IPADDR_ANY on purpose (LAN discovery does
- *    exactly that). Callers needing a specific source on a datagram socket must
- *    call tal_net_bind() themselves.
- *  - tal_net_connect_raw(): the destination is an opaque platform sockaddr that
- *    this layer cannot portably inspect.
- *  - Server sockets: bind/listen/accept are untouched. Binding an inbound socket
- *    to one interface's unicast address would stop it serving the others.
+ *    resolver, with no socket to bind - a DNS query can leave the inactive
+ *    interface even though the connection that follows leaves the right one;
+ *  - tal_net_send_to() and connectionless UDP in general: there is no
+ *    connect() to hook, and pinning a source would break the broadcast paths
+ *    that bind TY_IPADDR_ANY on purpose. Call tal_net_bind() first if the
+ *    source matters;
+ *  - tal_net_connect_raw(): the destination is an opaque platform sockaddr
+ *    this layer cannot inspect;
+ *  - server sockets: bind/listen/accept are untouched;
  *  - Linux host builds: skipped entirely, the host's own routing decides.
  */
 
 /**
- * @brief Get error code of network
+ * @brief The last network error, in TuyaOpen's own error space.
  *
- * @param void
+ * Not POSIX errno: there is no global variable to read, and the values are
+ * this SDK's own UNW_* constants (tuya_cloud_types.h - UNW_EAGAIN, UNW_EINTR,
+ * ...), which do not share POSIX's numeric assignments. Compare against
+ * UNW_*, never against <errno.h>'s EAGAIN/EINTR.
  *
- * @note This API is used for getting error code of network.
+ * When to call it: a function typed TUYA_ERRNO that returns a plain 0-or-
+ * error (tal_net_close(), tal_net_connect(), tal_net_bind(), ...) already
+ * carries the code in its own return value. A function that returns a byte
+ * count or a file descriptor (tal_net_send(), tal_net_recv(),
+ * tal_net_accept(), ...) does not - call this right after it fails to learn
+ * why, the same shape as checking errno after a POSIX call, minus the global.
  *
- * @return UNW_SUCCESS on success. Others on error, please refer to
- * tuya_os_adapter_error_code.h
+ * @return UNW_SUCCESS on success, else an UNW_* code.
  */
 TUYA_ERRNO tal_net_get_errno(void);
 
-/**
- * @brief Add file descriptor to set
- *
- * @param[in] fd: file descriptor
- * @param[in] fds: set of file descriptor
- *
- * @note This API is used to add file descriptor to set.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX FD_SET(), backed by TUYA_FD_SET_T. See TAL_FD_SET() below.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_fd_set(int fd, TUYA_FD_SET_T *fds);
 
-/**
- * @brief Clear file descriptor from set
- *
- * @param[in] fd: file descriptor
- * @param[in] fds: set of file descriptor
- *
- * @note This API is used to clear file descriptor from set.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX FD_CLR(). See TAL_FD_CLR() below.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_fd_clear(int fd, TUYA_FD_SET_T *fds);
 
-/**
- * @brief Check file descriptor is in set
- *
- * @param[in] fd: file descriptor
- * @param[in] fds: set of file descriptor
- *
- * @note This API is used to check the file descriptor is in set.
- *
- * @return TRUE or FALSE
- */
+/** @brief POSIX FD_ISSET(). See TAL_FD_ISSET() below. @return TRUE or FALSE */
 OPERATE_RET tal_net_fd_isset(int fd, TUYA_FD_SET_T *fds);
 
-/**
- * @brief Clear all file descriptor in set
- *
- * @param[in] fds: set of file descriptor
- *
- * @note This API is used to clear all file descriptor in set.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX FD_ZERO(). See TAL_FD_ZERO() below.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_fd_zero(TUYA_FD_SET_T *fds);
 
 // Add file descriptor to set
@@ -152,176 +105,79 @@ OPERATE_RET tal_net_fd_zero(TUYA_FD_SET_T *fds);
 #define TAL_FD_ZERO(p) tal_net_fd_zero(p)
 
 /**
- * @brief Get available file descriptors
- *
- * @param[in] maxfd: max count of file descriptor
- * @param[out] readfds: a set of readalbe file descriptor
- * @param[out] writefds: a set of writable file descriptor
- * @param[out] errorfds: a set of except file descriptor
- * @param[in] ms_timeout: time out
- *
- * @note This API is used to get available file descriptors.
+ * @brief POSIX select(), with one difference: @a ms_timeout is a plain
+ *        millisecond count, not a struct timeval.
  *
  * @return >0 the count of available file descriptors, <=0 error.
  */
 int tal_net_select(const int maxfd, TUYA_FD_SET_T *readfds, TUYA_FD_SET_T *writefds, TUYA_FD_SET_T *errorfds,
                    const uint32_t ms_timeout);
 
-/**
- * @brief Get no block file descriptors
- *
- * @param[in] fd: file descriptor
- *
- * @note This API is used to get no block file descriptors.
- *
- * @return >0 the count of no block file descriptors, <=0 error.
- */
+/** @brief Whether @a fd is currently in non-blocking mode.
+ *  @return >0 the count of non-block descriptors, <=0 error. */
 int tal_net_get_nonblock(const int fd);
 
-/**
- * @brief Set block flag for file descriptors
- *
- * @param[in] fd: file descriptor
- * @param[in] block: block flag
- *
- * @note This API is used to set block flag for file descriptors.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief Set or clear non-blocking mode on @a fd.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_set_block(const int fd, const BOOL_T block);
 
-/**
- * @brief Close file descriptors
- *
- * @param[in] fd: file descriptor
- *
- * @note This API is used to close file descriptors.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
- */
+/** @brief POSIX close(). @return 0 on success, else the target's error no. */
 TUYA_ERRNO tal_net_close(const int fd);
 
 /**
- * @brief Disable send and/or receive on a socket
- *
- * @param[in] fd: file descriptor
- * @param[in] how: 0 to shut down receive, 1 to shut down send, 2 for both
- *
- * @note This API is used to shut down part of a full-duplex connection while
- * the file descriptor stays open.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
+ * @brief POSIX shutdown(): disable send and/or receive while @a fd stays
+ *        open. @a how: 0 = receive, 1 = send, 2 = both.
+ * @return 0 on success, else the target's error no.
  */
 TUYA_ERRNO tal_net_shutdown(const int fd, const int how);
 
-/**
- * @brief Create a tcp/udp socket
- *
- * @param[in] type: protocol type, tcp or udp
- *
- * @note This API is used for creating a tcp/udp socket.
- *
- * @return file descriptor
- */
+/** @brief POSIX socket(), collapsed to TCP-or-UDP; family/protocol are fixed
+ *         by the platform layer. @return the file descriptor */
 int tal_net_socket_create(const TUYA_PROTOCOL_TYPE_E type);
 
 /**
- * @brief Connect to network
+ * @brief POSIX connect().
  *
- * @param[in] fd: file descriptor
- * @param[in] addr: address information of server
- * @param[in] port: port information of server
+ * @note Unless @a fd is already bound, it is bound here to the source
+ * address of the active link so the flow leaves the interface netmgr
+ * selected. An explicit tal_net_bind() before this call always wins. See
+ * "Active-link source address binding" above.
  *
- * @note This API is used for connecting to network.
- *
- * @note Unless @a fd is already bound, it is bound here to the source address of
- * the active link so the flow leaves the interface netmgr selected. A caller that
- * wants a specific local address or port must call tal_net_bind() before this and
- * that binding is kept. See "Active-link source address binding" above.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
+ * @return 0 on success, else the target's error no.
  */
 TUYA_ERRNO tal_net_connect(const int fd, const TUYA_IP_ADDR_T addr, const uint16_t port);
 
 /**
- * @brief Connect to network with raw data
+ * @brief connect() taking a raw, already-built platform sockaddr instead of
+ *        a TUYA_IP_ADDR_T + port pair. Not part of POSIX.
  *
- * @param[in] fd: file descriptor
- * @param[in] p_socket: raw socket data
- * @param[in] len: data lenth
+ * @note No active-link source binding: the destination is an opaque platform
+ * sockaddr this layer cannot inspect. Call tal_net_bind() first if the
+ * source matters.
  *
- * @note This API is used for connecting to network with raw data.
- *
- * @note Outside the active-link binding described above: the destination is an
- * opaque platform sockaddr this layer cannot inspect, so no source binding is
- * applied. Call tal_net_bind() first if the source matters.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
+ * @return 0 on success, else the target's error no.
  */
 TUYA_ERRNO tal_net_connect_raw(const int fd, void *p_socket, const int len);
 
-/**
- * @brief Bind to network
- *
- * @param[in] fd: file descriptor
- * @param[in] addr: address information of server
- * @param[in] port: port information of server
- *
- * @note This API is used for binding to network.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
- */
+/** @brief POSIX bind(). @return 0 on success, else the target's error no. */
 TUYA_ERRNO tal_net_bind(const int fd, const TUYA_IP_ADDR_T addr, const uint16_t port);
 
-/**
- * @brief Listen to network
- *
- * @param[in] fd: file descriptor
- * @param[in] backlog: max count of backlog connection
- *
- * @note This API is used for listening to network.
- *
- * @return 0 on success. Others on error, please refer to the error no of the
- * target system
- */
+/** @brief POSIX listen(). @return 0 on success, else the target's error no. */
 TUYA_ERRNO tal_net_listen(const int fd, const int backlog);
 
 /**
- * @brief Send data to network
- *
- * @param[in] fd: file descriptor
- * @param[in] buf: send data buffer
- * @param[in] nbytes: buffer lenth
- *
- * @note This API is used for sending data to network
- *
+ * @brief POSIX send().
  * @return >0 on num of send, <0 please refer to the error no of the target
  * system
  */
 TUYA_ERRNO tal_net_send(const int fd, const void *buf, const uint32_t nbytes);
 
 /**
- * @brief Send data to specified server
+ * @brief POSIX sendto().
  *
- * @param[in] fd: file descriptor
- * @param[in] buf: send data buffer
- * @param[in] nbytes: buffer lenth
- * @param[in] addr: address information of server
- * @param[in] port: port information of server
- *
- * @note This API is used for sending data to network
- *
- * @note No active-link source binding is applied on this path, by design: there
- * is no connect() to hook and pinning a source address would break the broadcast
- * senders that bind TY_IPADDR_ANY on purpose. On a multi-interface target the
- * datagram leaves whichever interface the stack routes it to unless the caller
- * bound the socket itself. See "Active-link source address binding" above.
+ * @note No active-link source binding, by design: there is no connect() to
+ * hook, and pinning a source would break the broadcast senders that bind
+ * TY_IPADDR_ANY on purpose. See "Active-link source address binding" above.
  *
  * @return >0 on num of send, <0 please refer to the error no of the target
  * system
@@ -329,256 +185,116 @@ TUYA_ERRNO tal_net_send(const int fd, const void *buf, const uint32_t nbytes);
 TUYA_ERRNO tal_net_send_to(const int fd, const void *buf, const uint32_t nbytes, const TUYA_IP_ADDR_T addr,
                            const uint16_t port);
 
-/**
- * @brief Accept the coming socket connection of the server fd
- *
- * @param[in] fd: file descriptor
- * @param[in] addr: address information of server
- * @param[in] port: port information of server
- *
- * @note This API is used for accepting the coming socket connection of the
- * server fd.
- *
- * @return >0 the file descriptor, <=0 means failed
- */
+/** @brief POSIX accept(). @return >0 the file descriptor, <=0 means failed */
 int tal_net_accept(const int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
 
 /**
- * @brief Receive data from network
- *
- * @param[in] fd: file descriptor
- * @param[in] buf: receive data buffer
- * @param[in] nbytes: buffer lenth
- *
- * @note This API is used for receiving data from network
- *
+ * @brief POSIX recv().
  * @return >0 on num of recv, <0 please refer to the error no of the target
  * system
  */
 TUYA_ERRNO tal_net_recv(const int fd, void *buf, const uint32_t nbytes);
 
 /**
- * @brief Receive data from network with need size
+ * @brief Not POSIX: loops internally (retrying on a transient error, sleeping
+ *        between attempts) until exactly @a nd_size bytes have been read into
+ *        @a buf, instead of returning as soon as any data is available the
+ *        way tal_net_recv() does. The closest POSIX equivalent is a caller-
+ *        side read loop, or MSG_WAITALL where the platform's socket layer
+ *        supports it.
  *
- * @param[in] fd: file descriptor
- * @param[in] buf: receive data buffer
- * @param[in] nbytes: buffer lenth
- * @param[in] nd_size: the need size
- *
- * @note This API is used for receiving data from network with need size
+ * @param[in] buf_size: capacity of @a buf; must be >= @a nd_size
+ * @param[in] nd_size: bytes to read before returning
  *
  * @return >0 on success. Others on error
  */
 int tal_net_recv_nd_size(const int fd, void *buf, const uint32_t buf_size, const uint32_t nd_size);
 
 /**
- * @brief Receive data from specified server
- *
- * @param[in] fd: file descriptor
- * @param[in] buf: receive data buffer
- * @param[in] nbytes: buffer lenth
- * @param[in] addr: address information of server
- * @param[in] port: port information of server
- *
- * @note This API is used for receiving data from specified server
- *
+ * @brief POSIX recvfrom().
  * @return >0 on num of recv, <0 please refer to the error no of the target
  * system
  */
 TUYA_ERRNO tal_net_recvfrom(const int fd, void *buf, const uint32_t nbytes, TUYA_IP_ADDR_T *addr, uint16_t *port);
 
-/**
- * @brief Set timeout option of socket fd
- *
- * @param[in] fd: file descriptor
- * @param[in] ms_timeout: timeout in ms
- * @param[in] type: transfer type, receive or send
- *
- * @note This API is used for setting timeout option of socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief SO_RCVTIMEO/SO_SNDTIMEO, selected by @a type instead of a separate
+ *         setsockopt() per direction.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_set_timeout(const int fd, const int ms_timeout, const TUYA_TRANS_TYPE_E type);
 
-/**
- * @brief Set buffer_size option of socket fd
- *
- * @param[in] fd: file descriptor
- * @param[in] buf_size: buffer size in byte
- * @param[in] type: transfer type, receive or send
- *
- * @note This API is used for setting buffer_size option of socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief SO_RCVBUF/SO_SNDBUF, selected by @a type.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_set_bufsize(const int fd, const int buf_size, const TUYA_TRANS_TYPE_E type);
 
-/**
- * @brief Enable reuse option of socket fd
- *
- * @param[in] fd: file descriptor
- *
- * @note This API is used to enable reuse option of socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief SO_REUSEADDR. @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_set_reuse(const int fd);
 
-/**
- * @brief Disable nagle option of socket fd
- *
- * @param[in] fd: file descriptor
- *
- * @note This API is used to disable nagle option of socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief TCP_NODELAY. @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_disable_nagle(const int fd);
 
-/**
- * @brief Enable broadcast option of socket fd
- *
- * @param[in] fd: file descriptor
- *
- * @note This API is used to enable broadcast option of socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief SO_BROADCAST. @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_set_broadcast(const int fd);
 
-/**
- * @brief Get address information by domain
- *
- * @param[in] domain: domain information
- * @param[in] addr: address information
- *
- * @note This API is used for getting address information by domain.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX gethostbyname(), collapsed to the one address a caller here
+ *         ever wants instead of a full hostent list.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_gethostbyname(const char *domain, TUYA_IP_ADDR_T *addr);
 
 /**
- * @brief Set keepalive option of socket fd to monitor the connection
+ * @brief SO_KEEPALIVE plus TCP_KEEPIDLE/TCP_KEEPINTVL/TCP_KEEPCNT in one call
+ *        instead of four separate setsockopt()s.
  *
- * @param[in] fd: file descriptor
- * @param[in] alive: keepalive option, enable or disable option
- * @param[in] idle: keep idle option, if the connection has no data exchange
- * with the idle time(in seconds), start probe.
- * @param[in] intr: keep interval option, the probe time interval.
- * @param[in] cnt: keep count option, probe count.
+ * @param[in] idle: seconds of silence before the first probe
+ * @param[in] intr: seconds between probes
+ * @param[in] cnt: probes sent before the connection is declared dead
  *
- * @note This API is used to set keepalive option of socket fd to monitor the
- * connection.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
+ * @return OPRT_OK on success, else tuya_error_code.h.
  */
 OPERATE_RET tal_net_set_keepalive(int fd, const BOOL_T alive, const uint32_t idle, const uint32_t intr,
                                   const uint32_t cnt);
 
-/**
- * @brief Get ip address by socket fd
- *
- * @param[in] fd: file descriptor
- * @param[out] addr: ip address
- *
- * @note This API is used for getting ip address by socket fd.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief The local address @a fd is bound to, without the port - see
+ *         tal_net_getsockname() for both.
+ *  @return OPRT_OK on success, else tuya_error_code.h. */
 OPERATE_RET tal_net_get_socket_ip(int fd, TUYA_IP_ADDR_T *addr);
 
 /**
- * @brief Get the local address a socket fd is bound to
+ * @brief POSIX getsockname(). Unlike tal_net_get_socket_ip() this also
+ *        reports the port, the only way to learn the port the stack picked
+ *        when binding to port 0.
  *
- * @param[in] fd: file descriptor
+ * @note Trust this return value, not just its OPRT_OK: commit b9c931b5 found
+ * a platform implementation that answers success without writing @a addr or
+ * @a port at all, which is why the source-binding logic in tal_net_connect()
+ * runs a one-time probe before ever trusting this call. A caller reading the
+ * output directly has no such probe and should treat OPRT_OK plus an
+ * all-zero @a addr and @a port with suspicion on an unfamiliar platform.
+ *
  * @param[out] addr: local ip address in host byte order, may be NULL
  * @param[out] port: local port in host byte order, may be NULL
  *
- * @note Unlike tal_net_get_socket_ip() this also reports the port, which is
- * the only way to learn the port the stack picked when binding to port 0.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
+ * @return OPRT_OK on success, else tuya_error_code.h.
  */
 OPERATE_RET tal_net_getsockname(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
 
-/**
- * @brief Get the address of the peer connected to a socket fd
- *
- * @param[in] fd: file descriptor
- * @param[out] addr: peer ip address in host byte order, may be NULL
- * @param[out] port: peer port in host byte order, may be NULL
- *
- * @note This API is used for getting the remote name of a connected socket.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX getpeername(). @return OPRT_OK on success, else
+ *         tuya_error_code.h. */
 OPERATE_RET tal_net_getpeername(int fd, TUYA_IP_ADDR_T *addr, uint16_t *port);
 
-/**
- * @brief Change ip string to address
- *
- * @param[in] ip_str: ip string
- *
- * @note This API is used to change ip string to address.
- *
- * @return ip address
- */
+/** @brief POSIX inet_addr()/inet_pton(AF_INET, ...), IPv4 only.
+ *  @return ip address */
 TUYA_IP_ADDR_T tal_net_str2addr(const char *ip_str);
 
-/**
- * @brief Change ip address to string
- *
- * @param[in] ipaddr: ip address
- *
- * @note This API is used to change ip address(in host byte order) to string(in
- * IPv4 numbers-and-dots(xx.xx.xx.xx) notion).
- *
- * @return ip string
- */
+/** @brief POSIX inet_ntoa(), IPv4 only. @return ip string */
 char *tal_net_addr2str(TUYA_IP_ADDR_T ipaddr);
 
-/**
- * @brief Set socket options
- *
- * @param[in] fd: file descriptor
- * @param[in] level: setting level
- * @param[in] optname: the name of the option
- * @param[in] optval: the value of option
- * @param[in] optlen: the length of the option value
- *
- * @note This API is used for setting socket options.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX setsockopt(). @return OPRT_OK on success, else
+ *         tuya_error_code.h. */
 OPERATE_RET tal_net_setsockopt(const int fd, const TUYA_OPT_LEVEL level, const TUYA_OPT_NAME optname,
                                const void *optval, const int optlen);
 
-/**
- * @brief Get socket options
- *
- * @param[in] fd: file descriptor
- * @param[in] level: getting level
- * @param[in] optname: the name of the option
- * @param[out] optval: the value of option
- * @param[out] optlen: the length of the option value
- *
- * @note This API is used for getting socket options.
- *
- * @return OPRT_OK on success. Others on error, please refer to
- * tuya_error_code.h
- */
+/** @brief POSIX getsockopt(). @return OPRT_OK on success, else
+ *         tuya_error_code.h. */
 OPERATE_RET tal_net_getsockopt(const int fd, const TUYA_OPT_LEVEL level, const TUYA_OPT_NAME optname, void *optval,
                                int *optlen);
 
