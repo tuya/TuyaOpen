@@ -204,7 +204,7 @@ static void lan_session_close_all(void)
         tuya_unreg_lan_sock(lan->udp_serv_fd);
         lan->udp_serv_fd = -1;
     }
-    for (i = 0; i < lan->cfg->client_num; i++) {
+    for (i = 0; lan->session && i < lan->cfg->client_num; i++) {
         if (lan->session[i].active) {
             tal_event_publish(EVENT_LAN_CLIENT_CLOSE, &lan->session[i].fd);
             tuya_unreg_lan_sock(lan->session[i].fd);
@@ -1349,7 +1349,7 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     s_lan_mgr->cfg = &s_lan_cfg;
     // INIT_LIST_HEAD(&s_lan_mgr->lan_ext_proto);
 
-    int op_ret;
+    int op_ret = OPRT_COM_ERROR;
     op_ret = tuya_sock_loop_init();
     if (OPRT_OK != op_ret) {
         goto __exit;
