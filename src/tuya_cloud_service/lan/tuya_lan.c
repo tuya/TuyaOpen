@@ -1469,23 +1469,39 @@ int tuya_lan_disable(void)
      * with the AI monitor and must not know LAN exists, so the owner now
      * finishes its own teardown here instead.
      *
-     * This has to run after the wait above, not before it: while the loop
-     * thread is still alive it keeps invoking reader callbacks
-     * (lan_tcp_serv_sock_pre_select, lan_tcp_serv_sock_read,
-     * lan_udp_serv_sock_read, ...) that dereference s_lan_mgr without a NULL
-     * check. Freeing s_lan_mgr here before the loop has actually stopped
-     * would turn those into use-after-free/NULL derefs. By the time
-     * tuya_sock_loop_is_inited() is confirmed false, the loop thread has
-     * already run its own quit callbacks and __ty_sock_loop_deinit(), so no
-     * more reader callbacks can fire and it is safe to release s_lan_mgr.
+     * The wait above has two distinct exits, and they are not safe to treat
+     * the same way:
      *
-     * tuya_lan_exit() itself never closes tcp_serv_fd/udp_serv_fd/session
-     * fds directly -- those are only ever closed via the loop's reader
-     * table (__ty_del_sock_reader()/__ty_sock_loop_deinit(), both already
-     * run by this point), and udp_client_fd was already closed above and
-     * set to -1, so calling it here does not double-close anything.
+     *   - tuya_sock_loop_is_inited() went false: the loop thread has already
+     *     run its own quit callbacks and __ty_sock_loop_deinit(), so no more
+     *     reader callbacks can fire. It is safe to release s_lan_mgr here.
+     *
+     *     tuya_lan_exit() itself never closes tcp_serv_fd/udp_serv_fd/session
+     *     fds directly -- those are only ever closed via the loop's reader
+     *     table (__ty_del_sock_reader()/__ty_sock_loop_deinit(), both already
+     *     run by this point), and udp_client_fd was already closed above and
+     *     set to -1, so calling it here does not double-close anything.
+     *
+     *   - wait_ms hit the 3000 ms cap while the loop thread is still alive:
+     *     it keeps invoking reader callbacks (lan_tcp_serv_sock_pre_select,
+     *     lan_tcp_serv_sock_read, lan_udp_serv_sock_read, ...) that
+     *     dereference s_lan_mgr with no NULL check. Freeing s_lan_mgr here
+     *     would be a use-after-free on a path that is already abnormal (the
+     *     loop thread failing to stop in 3s), so we deliberately leak
+     *     s_lan_mgr instead and leave it non-NULL. That is recoverable: LAN
+     *     just goes silently inert (tuya_lan_init()'s `if (s_lan_mgr) return
+     *     OPRT_OK;` guard makes future init calls "succeed" without
+     *     registering a socket again), which beats crashing or corrupting
+     *     memory on top of a loop that is already stuck.
      */
-    tuya_lan_exit();
+    if (!tuya_sock_loop_is_inited()) {
+        tuya_lan_exit();
+    } else {
+        PR_ERR("lan disable: sock loop still alive after %ums wait, leaking "
+               "s_lan_mgr instead of freeing it under a live reader "
+               "callback; LAN stays inert until reboot",
+               wait_ms);
+    }
 
     return OPRT_OK;
 }
