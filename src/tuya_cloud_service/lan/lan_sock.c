@@ -274,7 +274,6 @@ Err:
         tal_free(efds);
     }
 
-    tuya_lan_exit();
     __ty_sock_loop_deinit();
 
     return;

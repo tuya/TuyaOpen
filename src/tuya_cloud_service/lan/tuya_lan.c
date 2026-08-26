@@ -1462,6 +1462,31 @@ int tuya_lan_disable(void)
         wait_ms += 50;
     }
 
+    /*
+     * The shared socket loop used to call tuya_lan_exit() for us as the last
+     * thing its thread did before tearing itself down (lan_sock.c used to
+     * hardcode that call in its generic shutdown path). That loop is shared
+     * with the AI monitor and must not know LAN exists, so the owner now
+     * finishes its own teardown here instead.
+     *
+     * This has to run after the wait above, not before it: while the loop
+     * thread is still alive it keeps invoking reader callbacks
+     * (lan_tcp_serv_sock_pre_select, lan_tcp_serv_sock_read,
+     * lan_udp_serv_sock_read, ...) that dereference s_lan_mgr without a NULL
+     * check. Freeing s_lan_mgr here before the loop has actually stopped
+     * would turn those into use-after-free/NULL derefs. By the time
+     * tuya_sock_loop_is_inited() is confirmed false, the loop thread has
+     * already run its own quit callbacks and __ty_sock_loop_deinit(), so no
+     * more reader callbacks can fire and it is safe to release s_lan_mgr.
+     *
+     * tuya_lan_exit() itself never closes tcp_serv_fd/udp_serv_fd/session
+     * fds directly -- those are only ever closed via the loop's reader
+     * table (__ty_del_sock_reader()/__ty_sock_loop_deinit(), both already
+     * run by this point), and udp_client_fd was already closed above and
+     * set to -1, so calling it here does not double-close anything.
+     */
+    tuya_lan_exit();
+
     return OPRT_OK;
 }
 
