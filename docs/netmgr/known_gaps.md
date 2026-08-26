@@ -25,7 +25,7 @@
 | # | 缺口 | 类别 | 改动量 | 不修的代价 |
 | --- | --- | --- | --- | --- |
 | 1 | porting 模板的 `tkl_wired_set_status_cb()` 无保护 | 活的 bug | ~6 行 | 随新 port 数量线性增长 |
-| 2 | `tuya_lan_init()` 三条失败路径返回 `OPRT_OK` | 活的 bug | 1 行 + 1 个判空 | LAN 静默且永久地死掉 |
+| 2 | `tuya_lan_init()` 三条失败路径返回 `OPRT_OK` | 活的 bug | 3 处赋码 + 1 条日志 + 1 个判空 | LAN 静默且永久地死掉 |
 | 3 | LAN 与 AI monitor 共用 socket loop，无引用计数 | 活的 bug | 中（要加引用计数） | 崩溃；且是 §4 和 netmgr LAN 门控的根因 |
 | 4 | AP 配网关掉 LAN，没人开回来 | 活的 bug | 小，但依赖 §3 | 每次重新配网后 LAN 功能消失到重启 |
 | 5 | `ENABLE_BLUETOOTH=y` + `ENABLE_WIFI=n` 编译不过 | 活的 bug | CMake + 1 个 include 位置 | 纯 BLE 产品做不出来 |
@@ -148,7 +148,17 @@ netmgr 做了它能做的全部：`netmgr.c:558-566` 先置位再调用、失败
 
 ### 建议的修法与影响面
 
-`:1352` 改成 `int op_ret = OPRT_COM_ERROR;`，一行同时修掉三条路径；`lan_session_close_all()` 在 `:207` 的循环前加 `lan->session` 判空。
+**`:1352` 改成 `int op_ret = OPRT_COM_ERROR;` 不能修掉这三条路径 —— 不要这么做。** 这是一个死存储：下一行 `:1353` 就是 `op_ret = tuya_sock_loop_init();`，在任何一条 `goto __exit` 有机会被执行到之前，`op_ret` 已经被这一行和随后两个互斥锁的赋值覆盖了三次。等控制流走到 `:1367`（session 判空）、`:1374`（tcp socket）、`:1379`（udp socket）任何一条失败路径时，`op_ret` 已经是 `OPRT_OK`。初始值唯一能生效的场景 —— 第一次赋值之前就发生 `goto __exit` —— 在这个函数里不存在。
+
+正确的修法是三条路径各自在 `goto __exit` 之前赋一个有意义的错误码，而不是依赖一个走不到的初始值：
+
+- `:1367` session 数组 `tal_malloc()` 失败 → `op_ret = OPRT_MALLOC_FAILED;`，并补一条 `PR_ERR`（这条路径是三条里唯一连日志都没有的，见上表）；
+- `:1374` `lan_tcp_create_serv_socket()` 失败 → `op_ret = OPRT_SOCK_ERR;`，已有的 `PR_ERR("init tcp serv fd err")` 保留；
+- `:1379` `lan_udp_create_serv_socket()` 失败 → `op_ret = OPRT_SOCK_ERR;`，已有的 `PR_ERR("init udp serv fd err")` 保留。
+
+`:1352` 的初始值可以保留，但它的角色是给未来编辑的兜底（万一以后有人在第一次赋值之前加一条新的失败路径又忘了赋值），不是这三条路径的修法。
+
+另外 `lan_session_close_all()` 在 `:207` 的循环前加 `lan->session` 判空，这一条判空修法是对的。
 
 影响面：`tuya_lan_init()` 的返回值变成可信的，于是 `netmgr.c:564` 的回滚开始生效，LAN 会在下一次链路变化时重试 —— 这本来就是已经写好的预期行为。没有其他调用方，所以影响面就到这里。
 
