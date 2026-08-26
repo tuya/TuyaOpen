@@ -146,7 +146,8 @@ exit_end:
     return ret;
 }
 
-TKL_WIRED_STATUS_CHANGE_CB status_cb;
+static TKL_WIRED_STATUS_CHANGE_CB status_cb;
+static pthread_t wired_status_thread;
 /**
  * @brief  set the status change callback
  *
@@ -170,7 +171,9 @@ static void *link_status_thread(void *arg)
         }
         old_status = status;
 
-        status_cb(status);
+        if (status_cb) {
+            status_cb(status);
+        }
         sleep(1);
     }
 }
@@ -278,11 +281,15 @@ OPERATE_RET tkl_wired_get_status(TKL_WIRED_STAT_E *status)
 OPERATE_RET tkl_wired_set_status_cb(TKL_WIRED_STATUS_CHANGE_CB cb)
 {
     // --- BEGIN: user implements ---
-    pthread_t thread;
+    if (cb) {
+        status_cb = cb;
 
-    status_cb = cb;
+        if (!wired_status_thread) {
+            return pthread_create(&wired_status_thread, NULL, link_status_thread, NULL);
+        }
+    }
 
-    return pthread_create(&thread, NULL, link_status_thread, NULL);
+    return OPRT_OK;
     // --- END: user implements ---
 }
 
