@@ -29,7 +29,6 @@
 #endif
 #include <string.h>
 #include "tal_api.h"
-#include "tal_kv.h"
 #include "tal_network.h"
 #include "mbedtls/error.h"
 #include "mbedtls/debug.h"
@@ -38,7 +37,6 @@
 #include "mbedtls/oid.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
-#include "mbedtls/hkdf.h"
 #include "mbedtls/aes.h"
 
 #define TLS_URL_LEN (128 + 16)
@@ -159,61 +157,6 @@ int __tuya_tls_random(void *p_rng, unsigned char *output, size_t output_len)
     (void)p_rng;
 
     return tuya_tls_random(output, output_len);
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                 TLS NV seed                                */
-/* -------------------------------------------------------------------------- */
-#define TY_RANDOM_SEED      "tuya_seed"
-#define TY_RANDOM_HKDF_INFO "entropy nv seed"
-
-/**
- * @brief The function pointers for reading from a seed file to
- * Non-Volatile storage (NV) in a platform-independent way
- *
- * @param buf  buffer to read
- * @param buf_len buffer length
- * @return On success, the number of bytes read is returned.
- * On error, OPRT_COM_ERROR is returned.
- */
-int __tuya_tls_nv_seed_read(unsigned char *buf, size_t buf_len)
-{
-    int      ret;
-    size_t   len;
-    uint8_t *seed;
-
-    // /* fetch seed */
-    ret = tal_kv_get(TY_RANDOM_SEED, &seed, &len);
-    if (OPRT_OK != ret) {
-        tuya_tls_random(buf, buf_len);
-        tal_kv_set(TY_RANDOM_SEED, buf, buf_len);
-        return buf_len;
-    }
-    memcpy(buf, seed, buf_len);
-    tal_kv_free(seed);
-
-    return buf_len;
-}
-
-/**
- * @brief The function pointers for writing a seed file to
- * Non-Volatile storage (NV) in a platform-independent way
- *
- * @param buf buffer to write
- * @param buf_len buffer length
- * @return On success, the number of bytes written is returned.
- * On error, OPRT_COM_ERROR is returned.
- */
-int __tuya_tls_nv_seed_write(unsigned char *buf, size_t buf_len)
-{
-    int ret;
-
-    ret = tal_kv_set(TY_RANDOM_SEED, buf, buf_len);
-    if (ret) {
-        return OPRT_COM_ERROR;
-    }
-
-    return buf_len;
 }
 
 /**

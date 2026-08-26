@@ -631,7 +631,7 @@
  *
  * Uncomment to use your own hardware entropy collector.
  */
-//#define MBEDTLS_ENTROPY_HARDWARE_ALT
+#define MBEDTLS_ENTROPY_HARDWARE_ALT
 
 /**
  * \def MBEDTLS_AES_ROM_TABLES
@@ -1424,7 +1424,7 @@
  * \note The entropy collector will write to the seed file before entropy is
  *       given to an external source, to update it.
  */
-#define MBEDTLS_ENTROPY_NV_SEED
+//#define MBEDTLS_ENTROPY_NV_SEED
 
 /**
  * \def MBEDTLS_MEMORY_DEBUG
@@ -3587,12 +3587,6 @@
 //printf macro to use, can be undefined */
 /* Note: your snprintf must correctly zero-terminate the buffer! */
 //#define MBEDTLS_PLATFORM_SNPRINTF_MACRO    snprintf /**< Default snprintf macro to use, can be undefined */
-extern int __tuya_tls_nv_seed_write(unsigned char *buf, size_t buf_len);
-extern int __tuya_tls_nv_seed_read(unsigned char *buf, size_t buf_len);
-#define MBEDTLS_PLATFORM_NV_SEED_READ_MACRO                                                                            \
-    __tuya_tls_nv_seed_read /**< Default nv_seed_read function to use, can be undefined */
-#define MBEDTLS_PLATFORM_NV_SEED_WRITE_MACRO                                                                           \
-    __tuya_tls_nv_seed_write /**< Default nv_seed_write function to use, can be undefined */
 
 /**
  * \brief       This macro is invoked by the library when an invalid parameter
