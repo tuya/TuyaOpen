@@ -355,6 +355,10 @@ Err:
 OPERATE_RET tuya_reg_lan_sock(sloop_sock_t sock_info)
 {
     OPERATE_RET op_ret = OPRT_OK;
+    if (NULL == g_sloop) {
+        PR_ERR("sock loop not ready");
+        return OPRT_RESOURCE_NOT_READY;
+    }
     op_ret = tal_queue_post(g_sloop->queue, &sock_info, 0);
     if (OPRT_OK != op_ret) {
         PR_ERR("queue post err");
@@ -379,6 +383,10 @@ OPERATE_RET tuya_unreg_lan_sock(int sock)
 {
     OPERATE_RET op_ret = OPRT_OK;
     sloop_sock_t sock_info = {0};
+    if (NULL == g_sloop) {
+        PR_ERR("sock loop not ready");
+        return OPRT_RESOURCE_NOT_READY;
+    }
     sock_info.sock = sock;
     op_ret = tal_queue_post(g_sloop->queue, &sock_info, 0);
     if (OPRT_OK != op_ret) {
