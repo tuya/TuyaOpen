@@ -26,7 +26,7 @@ extern "C" {
 
 #include "screen_manager.h"
 #ifdef ENABLE_LVGL_HARDWARE
-#include "yuv422_to_binary.h"
+#include "tal_image_yuv422_to_binary.h"
 #endif
 /**
  * @brief Camera screen lifecycle callback type
@@ -43,7 +43,7 @@ typedef void (*camera_screen_lifecycle_cb_t)(BOOL_T is_init);
  * @param params Conversion parameters for printing
  * @note The yuv422_data buffer will be freed after callback returns
  */
-typedef void (*camera_photo_print_cb_t)(const YUV422_TO_BINARY_PARAMS_T *params);
+typedef void (*camera_photo_print_cb_t)(const TAL_IMAGE_YUV422_TO_BINARY_T *params);
 #endif
 
 extern Screen_t camera_screen;

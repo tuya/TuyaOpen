@@ -6,6 +6,7 @@ import sys
 import json
 import yaml
 import click
+import shlex
 import datetime
 import platform
 import logging
@@ -394,16 +395,22 @@ def parse_yaml(yaml_file: str) -> dict:
         return {}
 
 
-def do_subprocess(cmd: str, cwd: str = None) -> int:
+def do_subprocess(cmd, cwd: str = None) -> int:
     '''
-    Run cmd through the shell and return its exit code (0 == success).
+    Run cmd and return its exit code (0 == success).
+
+    cmd may be a str (run through the shell, kept for call sites not yet
+    migrated) or a list/tuple of args (run directly, shell=False -- no
+    shell means no injection risk from an unquoted/unsanitized argument,
+    e.g. a project or platform name containing shell metacharacters).
 
     Pass the working directory as cwd rather than prefixing the command
     with "cd <dir> &&". On Windows, os.system runs via `cmd.exe /c`,
     whose `cd` does not switch drives without /d, so a cross-drive
     "cd D:\\sdk && ..." silently ran in the original directory. Handing
     cwd to the process also means the directory never goes through the
-    shell, so paths containing spaces stop breaking.
+    shell, so paths containing spaces stop breaking -- true for both the
+    str and list forms, since neither prefixes a "cd".
 
     KeyboardInterrupt is deliberately not caught: Ctrl-C during a build
     should abort the whole command, not report a build failure and move
@@ -414,6 +421,16 @@ def do_subprocess(cmd: str, cwd: str = None) -> int:
     if not cmd:
         logger.warning("Subprocess cmd is empty.")
         return 0
+
+    if isinstance(cmd, (list, tuple)):
+        printable = " ".join(shlex.quote(str(c)) for c in cmd)
+        logger.info(f">>> subprocess >>>\n{printable}")
+        try:
+            return subprocess.call(cmd, shell=False, cwd=cwd)
+        except Exception as e:
+            logger.error(f"Do subprocess error: {str(e)}")
+            logger.info(f"do subprocess: {printable}")
+            return 1
 
     logger.info(f">>> subprocess >>>\n{cmd}")
 

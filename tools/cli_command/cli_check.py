@@ -139,10 +139,16 @@ def update_submodules():
     if code == "China":
         set_repo_mirro(unset=False)
 
-    ret = download_submoudules(open_root)
-
-    if code == "China":
-        set_repo_mirro(unset=True)
+    # try/finally so an exception (e.g. a corrupted submodule repo) or a
+    # Ctrl-C during the download can't skip the unset below and leave the
+    # global github->gitee mirror rewrite stuck in ~/.gitconfig, affecting
+    # every other git operation on this machine. Mirrors the same pattern
+    # already used around download_platform() in cli_build.py.
+    try:
+        ret = download_submoudules(open_root)
+    finally:
+        if code == "China":
+            set_repo_mirro(unset=True)
     return ret
 
 

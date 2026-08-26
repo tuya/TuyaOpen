@@ -13,6 +13,7 @@
 #define __TAL_IMAGE_JPEG_CODEC_H__
 
 #include "tuya_cloud_types.h"
+#include "tal_image_dither_core.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,7 +100,7 @@ OPERATE_RET tal_image_jpeg_decode_gray(const uint8_t *jpeg_data,
                                        TAL_IMAGE_JPEG_OUTPUT_T *out);
 
 /**
- * @brief Decode JPEG to 1-bit monochrome bitmap with Floyd-Steinberg dithering.
+ * @brief Decode JPEG to a 1-bit monochrome bitmap using the selected dithering method.
  *
  * Output is packed 1-bit-per-pixel, MSB first (bit 7 = leftmost pixel).
  * Black pixels (dark) are set to 1, white pixels (light) are set to 0.
@@ -109,12 +110,19 @@ OPERATE_RET tal_image_jpeg_decode_gray(const uint8_t *jpeg_data,
  * @param[in]  jpeg_data  Pointer to full JPEG data.
  * @param[in]  jpeg_size  Length of jpeg_data in bytes.
  * @param[out] out        Output: out_buf, out_buf_size, out_width, out_height. Must not be NULL.
- * @param[in]  threshold  Binarization threshold (0-255). Typical value is 128.
+ * @param[in]  method     Dithering method (TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG matches
+ *                        this function's behavior before it gained a method parameter).
+ * @param[in]  threshold  Binarization threshold (0-255). Only the actual split for
+ *                        TAL_IMAGE_MONO_MTH_FIXED; every other method computes/uses its
+ *                        own split. Also centers the error-diffusion methods' noise-clamp
+ *                        pre-pass, so it does measurably affect their output despite not
+ *                        setting their binarization split. Typical value is 128.
  * @return OPERATE_RET OPRT_OK on success; otherwise see tuya_error_code.h.
  */
 OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
                                           uint32_t jpeg_size,
                                           TAL_IMAGE_JPEG_OUTPUT_T *out,
+                                          TAL_IMAGE_MONO_METHOD_E method,
                                           uint8_t threshold);
 
 #ifdef __cplusplus

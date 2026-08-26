@@ -129,12 +129,17 @@ def prepare_platform(platform, chip=""):
         return True
 
     if os.path.exists(prepare_py):
-        parpare_cmd = "python platform_prepare.py"
+        cmd = ["python", "platform_prepare.py"]
     else:
-        parpare_cmd = "./platform_prepare.sh"
+        cmd = ["./platform_prepare.sh"]
 
     logger.info(f"Preparing platform [{platform}] ...")
-    cmd = f"{parpare_cmd} {chip}"
+    # chip defaults to "" (some platforms don't take one); appended only
+    # when set, since a passed-through empty string would otherwise become
+    # a real (unwanted) extra argument once shell=True string interpolation
+    # is replaced by an argv list.
+    if chip:
+        cmd.append(chip)
     ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
@@ -160,13 +165,15 @@ def build_setup(platform, project_name, framework, chip=""):
         return True
 
     if os.path.exists(setup_py):
-        setup_cmd = "python build_setup.py"
+        cmd = ["python", "build_setup.py"]
     else:
-        setup_cmd = "./build_setup.sh"
+        cmd = ["./build_setup.sh"]
 
     logger.info("Build setup ...")
-    cmd = f"{setup_cmd} "
-    cmd += f"{project_name} {platform} {framework} {chip}"
+    cmd += [project_name, platform, framework]
+    # See prepare_platform() above: chip is optional, only append when set.
+    if chip:
+        cmd.append(chip)
     ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
@@ -185,9 +192,9 @@ def cmake_configure(using_data, verbose=False):
     '''
     params = get_global_params()
     open_root = params["open_root"]
-    cmd = f"cmake -G Ninja {open_root} "
+    cmd = ["cmake", "-G", "Ninja", open_root]
     if verbose:
-        cmd += "-DCMAKE_VERBOSE_MAKEFILE=ON "
+        cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
 
     project_name = using_data.get("CONFIG_PROJECT_NAME", "")
     app_root = params["app_root"]
@@ -224,7 +231,7 @@ def cmake_configure(using_data, verbose=False):
         f"-DTOS_PROJECT_BOARD={board_name}",
     ]
 
-    cmd += " ".join(defines)
+    cmd += defines
 
     build_path = params["app_build_path"]
     ret = do_subprocess(cmd, cwd=build_path)

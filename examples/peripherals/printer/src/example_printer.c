@@ -138,7 +138,7 @@ static OPERATE_RET __demo_image(uint32_t print_width)
         .out_height   = out_h,
     };
     PR_NOTICE("decoding + dithering ...");
-    rt = tal_image_jpeg_decode_bitmap(test_flower_jpeg, TEST_FLOWER_JPEG_SIZE, &dec, 128);
+    rt = tal_image_jpeg_decode_bitmap(test_flower_jpeg, TEST_FLOWER_JPEG_SIZE, &dec, TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG, 128);
     if (rt != OPRT_OK) {
         PR_ERR("jpeg_decode_bitmap failed: %d", rt);
         tal_free(bmp_buf);

@@ -1,24 +1,15 @@
 /**
- * @file tal_image.h
- * @brief Image processing module interface definitions.
- *
- * This header provides a unified interface for image processing operations
- * including rotation, color space conversion, and binary conversion.
+ * @file board_com_api.h
+ * @author Tuya Inc.
+ * @brief Header file for common board-level hardware registration APIs.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
- *
  */
 
-#ifndef __TAL_IMAGE_H__
-#define __TAL_IMAGE_H__
+#ifndef __BOARD_COM_API_H__
+#define __BOARD_COM_API_H__
 
 #include "tuya_cloud_types.h"
-#include "tal_image_dither_core.h"
-#include "tal_image_yuv422_to_rgb.h"
-#include "tal_image_yuv422_to_binary.h"
-#include "tal_image_rotate.h"
-#include "tal_image_jpeg_codec.h"
-#include "tal_image_scale.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,19 +19,23 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
+//DS Team TODO
+/**
+ * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
+ * 
+ * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
+ */
+OPERATE_RET board_register_hardware(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TAL_IMAGE_H__ */
+#endif /* __BOARD_COM_API_H__ */

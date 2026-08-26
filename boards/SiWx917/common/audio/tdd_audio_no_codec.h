@@ -1,24 +1,9 @@
-/**
- * @file tal_image.h
- * @brief Image processing module interface definitions.
- *
- * This header provides a unified interface for image processing operations
- * including rotation, color space conversion, and binary conversion.
- *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
- *
- */
-
-#ifndef __TAL_IMAGE_H__
-#define __TAL_IMAGE_H__
+#ifndef __TDD_AUDIO_NO_CODEC_H__
+#define __TDD_AUDIO_NO_CODEC_H__
 
 #include "tuya_cloud_types.h"
-#include "tal_image_dither_core.h"
-#include "tal_image_yuv422_to_rgb.h"
-#include "tal_image_yuv422_to_binary.h"
-#include "tal_image_rotate.h"
-#include "tal_image_jpeg_codec.h"
-#include "tal_image_scale.h"
+
+#include "tdl_audio_driver.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,20 +12,24 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
+typedef struct {
+    uint8_t i2s_id;
+    uint32_t mic_sample_rate;
+    uint32_t spk_sample_rate;
+} TDD_AUDIO_NO_CODEC_T;
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
 
+OPERATE_RET tdd_audio_no_codec_register(char *name, TDD_AUDIO_NO_CODEC_T cfg);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TAL_IMAGE_H__ */
+#endif /* __TDD_AUDIO_NO_CODEC_H__ */
