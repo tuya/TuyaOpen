@@ -81,7 +81,18 @@ section:
    armed and future → the actual remainder, **never** 0, including at the
    1ms boundary.
 
-128 assertions in total (exact count printed at the end of a run).
+8. **`__netmgr_retry_reached()`'s clamp bound** -- three checks, not one:
+   `netmgr_retry_interval_ms()` of a table entry of `UINT32_MAX` seconds
+   must answer an interval under `2^31` ms (the invariant the idiom needs,
+   not the exact clamped value); armed against that same table at
+   `now_ms = 0` and polled at `now_ms = 2,000,000,000`,
+   `netmgr_retry_due()` must be `FALSE` and `netmgr_retry_remain_ms()` must
+   be nonzero; and `netmgr_retry_fail()`'s armed deadline, measured from
+   the arming instant, must itself stay under `2^31` ms. See "Fixed: a
+   false-positive due() on an oversized table entry" below for what these
+   guard against.
+
+132 assertions in total (exact count printed at the end of a run).
 
 ### Probed but not asserted
 
@@ -94,71 +105,85 @@ happens to do today" into a contract nobody actually wrote down:
   only the `.c` file's comment does. Observed: it does not crash, and
   returns `netmgr_retry_interval_ms(table, 0)` — i.e. the attempt-0 interval
   — without touching any counter.
-- **`uint32_t` millisecond-base arithmetic**, both at the ordinary wrap
-  point and with an oversized table entry. See "A finding" below — this one
-  turned up a real correctness question, not just an absence of
-  documentation.
+- **`uint32_t` millisecond-base arithmetic at the ordinary wrap point**
+  (a deadline armed just before the counter rolls over at `0xFFFFFFFF`,
+  `now_ms` just after). Probe B confirms `due()` and `remain_ms()` agree
+  with reality there.
 
-## A finding: `netmgr_retry_due()` / `remain_ms()` can misfire on an
-oversized table entry
+A third probe used to live here: an oversized caller-supplied table entry,
+exercised and printed but never asserted, reported as "a finding" because
+it exposed a real bug rather than an absence of documentation. It is not a
+probe anymore -- section 8 above asserts the bound it was measuring, and
+"Fixed: a false-positive `due()` on an oversized table entry" below covers
+what was wrong and what now guards it.
+
+## Fixed: a false-positive `due()` on an oversized table entry
 
 `__netmgr_retry_reached()` in `netmgr_retry.c` compares deadlines with a
 signed-difference idiom specifically so it survives the ordinary uint32_t
 millisecond wrap (the counter rolls over every ~49.7 days). Its own comment
-states the idiom needs the interval to stay "far below 2^31 ms (24.8 days)"
-and then claims that bound holds because "the longest interval this module
-can produce is 600s ... and even a clamped `NETMGR_RETRY_INTERVAL_MAX_S`
-entry stays under 2^32 ms, so the only way to break the assumption is a
-deadline armed more than 24.8 days in the future, which no table here can
-express."
+used to state the idiom needs the interval to stay "far below 2^31 ms
+(24.8 days)" and then argued the bound held because "the longest interval
+this module can produce is 600s ... and even a clamped
+`NETMGR_RETRY_INTERVAL_MAX_S` entry stays under 2^32 ms, so the only way to
+break the assumption is a deadline armed more than 24.8 days in the future,
+which no table here can express."
 
-That last clause does not follow from the arithmetic. `NETMGR_RETRY_INTERVAL_MAX_S`
-is `0xFFFFFFFF / 1000 = 4294967` seconds — clamped there only so the
-`seconds * 1000` multiplication does not silently overflow — and 4294967
-seconds is **~49.7 days**, which is comfortably under 2^32ms but nearly
-**double** the 2^31ms/24.8-day bound the wrap-safety comment itself
-requires. `netmgr_retry.h`'s own text on `NETCONN_CMD_RECONN_TABLE` says
-the entry *count* is clamped, not the entry *values* ("a nonsense entry can
-reach a table"), so a product-supplied table (the only route into this
-module for caller-chosen values; the two built-in tables never exceed 600s)
-can legally carry such an entry.
+That conclusion did not follow from the arithmetic it was built on. The old
+`NETMGR_RETRY_INTERVAL_MAX_S` was `0xFFFFFFFF / 1000 = 4294967` seconds --
+clamped there only so the `seconds * 1000` multiplication would not
+silently overflow -- and 4294967 seconds is ~49.7 days: comfortably under
+2^32 ms, but nearly **double** the 2^31 ms / 24.8-day bound the comment
+itself required. The clamp named as the reason the bound could not be
+broken was the very thing breaking it, because `netmgr_retry.h`'s own text
+on `NETCONN_CMD_RECONN_TABLE` says the entry *count* is clamped, not the
+entry *values* ("a nonsense entry can reach a table"), so a
+product-supplied table -- the only route into this module for
+caller-chosen values; the two built-in tables never exceed 600s -- could
+legally carry one.
 
-`tests/netmgr/test_netmgr_retry.c`'s probe C reproduces it directly:
+Reproduced: armed at `now_ms = 0` against a table with one entry of
+`NETMGR_RETRY_INTERVAL_MAX_S` seconds (the old value, 4294967s), the
+deadline lands at `4294967000` ms. Polled at `now_ms = 2000000000`
+(~23.1 days after arming; the real deadline was still ~26.6 days out),
+`netmgr_retry_due()` answered `TRUE` and `netmgr_retry_remain_ms()`
+answered `0` -- a false-positive fire more than three weeks early, from the
+signed-difference compare overflowing `int32_t` once the gap between
+`now_ms` and `deadline_ms` exceeded `2^31 - 1` ms.
 
-```c
-static const uint32_t huge_entry[] = {4294967u}; /* NETMGR_RETRY_INTERVAL_MAX_S */
-netmgr_retry_table_t huge_table = {huge_entry, 1};
+The fix is at the clamp, not at the comparison: `NETMGR_RETRY_INTERVAL_MAX_S`
+is now `0x7FFFFFFF / 1000 = 2147483` seconds, so a clamped entry arms
+`2147483000` ms -- `648` ms inside the `2^31` ms (`2147483648` ms) limit the
+idiom actually needs. The comment above `__netmgr_retry_reached()` now
+states that bound on both sides instead of the disproved one: an interval
+armed above `2^31` ms reads as already due before it is, and a deadline
+left unpolled for `2^31` ms (24.8 days) *after* it genuinely passed reads
+as not-yet-due again -- the same truncation, on the other side of zero.
+`NETMGR_RETRY_INTERVAL_MAX_S` enforces the first half for every table this
+module can be handed; the reason it holds is no longer "no table here can
+express that value" but "the clamp does not let one through."
 
-netmgr_retry_t ctx;
-netmgr_retry_bind(&ctx, &huge_table);
-uint32_t deadline = netmgr_retry_fail(&ctx, 0);       /* deadline_ms = 4294967000 */
-
-netmgr_retry_due(&ctx, 2000000000u);                  /* -> TRUE  */
-netmgr_retry_remain_ms(&ctx, 2000000000u);             /* -> 0     */
-```
-
-Real elapsed time since arming is 2,000,000,000ms (~23.1 days); the real
-remaining time to the deadline is ~2,294,967,000ms (~26.6 days). Both calls
-should answer "not due yet" / "~26.6 days remaining." Instead `due()`
-reports `TRUE` and `remain_ms()` reports `0` — a false-positive fire more
-than three weeks early, purely from the signed-difference compare
-overflowing `int32_t` once the gap between `now_ms` and `deadline_ms`
-(remaining *or* elapsed) exceeds `2^31 - 1` ms.
+Section 8's three assertions are the regression: a `UINT32_MAX`-second
+entry must yield an interval under `2^31` ms; the exact repro above
+(`due()` at `now_ms = 2000000000` after arming at `0`) must answer `FALSE`,
+with a nonzero `remain_ms()`; and `netmgr_retry_fail()`'s armed deadline
+must itself stay under `2^31` ms past the arming instant. Reverting the
+clamp to `0xFFFFFFFF / 1000` turns all three of those checks red -- the
+first thing this harness has paid for: a proof that used to live only in a
+comment, and was wrong, now goes red when it breaks again.
 
 Contrast with the *ordinary* wrap case (deadline armed just before the
 uint32_t counter rolls over, `now_ms` just after) using a realistic interval
-from either shipped table (max 600000ms): that case is handled correctly —
-probe B in the test confirms `due()` and `remain_ms()` agree with reality
-there. The bug is specifically about the *magnitude* of the gap between
-`now_ms` and `deadline_ms`, not about crossing the wrap point per se, and it
-is only reachable through a caller-supplied table with an entry close to
-`NETMGR_RETRY_INTERVAL_MAX_S` — not through `netmgr_retry_table_assoc` or
-`netmgr_retry_table_revalidate`, and not through long-running use of either
-of those. This test does not assert on it (asserting a bug's current
-behaviour would document it as intended), does not attempt a fix, and does
-not touch `src/`; it is reported here as a finding for someone who owns that
-code to decide what to do with, per the instructions this test was written
-under.
+from either shipped table (max 600000ms): that case was always handled
+correctly -- probe B in the test confirms `due()` and `remain_ms()` agree
+with reality there. The bug was specifically about the *magnitude* of the
+gap between `now_ms` and `deadline_ms`, not about crossing the wrap point
+per se, and it was only reachable through a caller-supplied table with an
+entry close to the old `NETMGR_RETRY_INTERVAL_MAX_S` -- not through
+`netmgr_retry_table_assoc` or `netmgr_retry_table_revalidate`, and not
+through long-running use of either of those. Latent, not live -- and now
+fixed at the clamp instead of left as a comment asserting it could not
+happen.
 
 ## The type shim — the one assumption this whole approach rests on
 

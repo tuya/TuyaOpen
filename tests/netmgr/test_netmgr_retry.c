@@ -11,11 +11,14 @@
  *
  * A second section, clearly marked PROBE, exercises behaviour the header does
  * NOT document (netmgr_retry_advance() with a NULL attempt pointer, and the
- * uint32_t millisecond-base arithmetic near its wrap point / near 2^31 ms).
+ * uint32_t millisecond-base arithmetic at the ordinary 49.7-day wrap point).
  * Those probes print what the code actually does; they never fail the run,
  * because asserting undocumented behaviour would turn "this is what happens
  * to happen today" into a contract nobody wrote. See the run_all.sh output
- * and tests/netmgr/README.md for how to read the results.
+ * and tests/netmgr/README.md for how to read the results. Section 8 below is
+ * different: it asserts the 2^31 ms bound __netmgr_retry_reached()'s comment
+ * states and NETMGR_RETRY_INTERVAL_MAX_S now enforces -- fixed, documented
+ * behaviour, not an open question.
  *
  * Compiled against tests/netmgr/shim/tuya_cloud_types.h, not the real
  * tuya_cloud_types.h -- see that file and the README for why and what was
@@ -68,6 +71,35 @@ static int g_fail = 0;
             g_fail++;                                                                                 \
             fprintf(stderr, "FAIL: %s\n    expected ptr: %p\n    actual ptr:   %p\n", (desc), _e, _a); \
         }                                                                                              \
+    } while (0)
+
+/* Bound checks for section 8: netmgr_retry.c's clamp now guarantees an
+ * interval property (stays under 2^31 ms), not an exact value, so these
+ * assert "<" and "!=" rather than "==". */
+#define CHECK_U32_LT(desc, bound, actual)                                                         \
+    do {                                                                                            \
+        uint32_t _b = (uint32_t)(bound);                                                            \
+        uint32_t _a = (uint32_t)(actual);                                                           \
+        if (_a < _b) {                                                                              \
+            g_pass++;                                                                               \
+        } else {                                                                                    \
+            g_fail++;                                                                                \
+            fprintf(stderr, "FAIL: %s\n    expected: < %" PRIu32 "\n    actual:   %" PRIu32 "\n",  \
+                    (desc), _b, _a);                                                                  \
+        }                                                                                             \
+    } while (0)
+
+#define CHECK_U32_NE(desc, not_expected, actual)                                                   \
+    do {                                                                                            \
+        uint32_t _n = (uint32_t)(not_expected);                                                     \
+        uint32_t _a = (uint32_t)(actual);                                                           \
+        if (_a != _n) {                                                                             \
+            g_pass++;                                                                               \
+        } else {                                                                                    \
+            g_fail++;                                                                                \
+            fprintf(stderr, "FAIL: %s\n    expected: != %" PRIu32 "\n    actual:   %" PRIu32 "\n", \
+                    (desc), _n, _a);                                                                  \
+        }                                                                                             \
     } while (0)
 
 /***********************************************************
@@ -384,6 +416,58 @@ static void test_remain_ms(void)
 }
 
 /***********************************************************
+ * 8. __netmgr_retry_reached()'s wrap-safety bound (netmgr_retry.c's comment
+ *    above __netmgr_retry_reached(), and NETMGR_RETRY_INTERVAL_MAX_S)
+ ***********************************************************/
+static void test_reached_bound(void)
+{
+    printf("-- __netmgr_retry_reached() 2^31 ms clamp bound --\n");
+
+    /* Black-box clamp invariant: whatever a caller-supplied table entry is,
+     * netmgr_retry_interval_ms() must answer an interval strictly under
+     * 2^31 ms, because that is the bound __netmgr_retry_reached()'s
+     * signed-difference idiom needs (see the comment above it in the .c).
+     * Assert the invariant, not the exact clamped value -- the precise
+     * clamped number is an implementation detail the header does not
+     * promise. */
+    {
+        static const uint32_t huge_entry[] = {0xFFFFFFFFu};
+        netmgr_retry_table_t huge_table = {huge_entry, 1};
+        uint32_t iv = netmgr_retry_interval_ms(&huge_table, 0);
+        CHECK_U32_LT("interval_ms() of a UINT32_MAX-second entry stays under 2^31 ms",
+                     2147483648u /* 2^31 */, iv);
+    }
+
+    /* The repro itself, now asserted instead of only printed: armed at
+     * now_ms=0 against that same table, due() must answer FALSE and
+     * remain_ms() must answer a nonzero remainder at
+     * now_ms=2,000,000,000 -- 23.1 days after arming, with the real
+     * deadline still ~26.6 days out. Before the clamp fix this pair
+     * answered TRUE / 0: a false-positive fire more than three weeks
+     * early. */
+    {
+        static const uint32_t huge_entry[] = {0xFFFFFFFFu};
+        netmgr_retry_table_t huge_table = {huge_entry, 1};
+        netmgr_retry_t ctx;
+        uint32_t deadline;
+
+        netmgr_retry_bind(&ctx, &huge_table);
+        deadline = netmgr_retry_fail(&ctx, 0);
+
+        CHECK_BOOL("due() at now=2,000,000,000ms on a huge-entry table is FALSE", FALSE,
+                   netmgr_retry_due(&ctx, 2000000000u));
+        CHECK_U32_NE("remain_ms() at now=2,000,000,000ms on a huge-entry table is nonzero", 0,
+                     netmgr_retry_remain_ms(&ctx, 2000000000u));
+
+        /* fail()'s armed deadline itself, measured from the instant it was
+         * armed (now_ms=0 here, so deadline - 0 == deadline), must stay
+         * inside the same bound. */
+        CHECK_U32_LT("fail()'s armed deadline stays under 2^31 ms past the arming instant",
+                     2147483648u /* 2^31 */, deadline - 0u);
+    }
+}
+
+/***********************************************************
  * PROBE -- undocumented behaviour. Printed, never asserted.
  ***********************************************************/
 static void probe_undocumented(void)
@@ -417,39 +501,6 @@ static void probe_undocumented(void)
                netmgr_retry_due(&ctx, 5) ? "TRUE" : "FALSE");
         printf("   remain_ms() = %" PRIu32 "\n", netmgr_retry_remain_ms(&ctx, 5));
     }
-
-    /* Probe C: an oversized caller-supplied table entry. netmgr_retry.h says
-     * NETCONN_CMD_RECONN_TABLE "clamps user input" only for NETMGR_RETRY_TABLE_MAX
-     * (the entry COUNT); netmgr_retry.c's own comment on
-     * NETMGR_RETRY_INTERVAL_MAX_S says entry VALUES are not clamped by the
-     * caller, "so a nonsense entry can reach a table," and this module then
-     * clamps that value to NETMGR_RETRY_INTERVAL_MAX_S seconds (0xFFFFFFFF/1000)
-     * so the *1000 multiplication does not overflow. That clamped result is
-     * ~4294967000ms (~49.7 days) -- comfortably under 2^32ms, but far above
-     * the 2^31ms (~24.8 day) bound that same file's comment on
-     * __netmgr_retry_reached() says the signed-diff wrap-safe compare needs.
-     */
-    {
-        static const uint32_t huge_entry[] = {4294967u}; /* NETMGR_RETRY_INTERVAL_MAX_S */
-        netmgr_retry_table_t huge_table = {huge_entry, 1};
-        uint32_t iv = netmgr_retry_interval_ms(&huge_table, 0);
-        printf("C) oversized entry: interval_ms(huge_table, attempt=0) = %" PRIu32
-               " ms (~%.1f days)\n",
-               iv, iv / 86400000.0);
-
-        netmgr_retry_t ctx;
-        netmgr_retry_bind(&ctx, &huge_table);
-        uint32_t deadline = netmgr_retry_fail(&ctx, 0);
-        printf("   fail(now_ms=0) armed deadline_ms = %" PRIu32 "\n", deadline);
-
-        uint32_t probe_now = 2000000000u; /* ~23.1 days after arming; real remainder ~26.5 days */
-        double real_remaining_days = (deadline - (double)probe_now) / 86400000.0;
-        printf("   due(now_ms=%" PRIu32 ")       = %s (real remaining ~%.1f days -- 'due' would be wrong)\n",
-               probe_now, netmgr_retry_due(&ctx, probe_now) ? "TRUE" : "FALSE", real_remaining_days);
-        printf("   remain_ms(now_ms=%" PRIu32 ") = %" PRIu32
-               " (a correct answer would be close to %" PRIu32 ")\n",
-               probe_now, netmgr_retry_remain_ms(&ctx, probe_now), deadline - probe_now);
-    }
 }
 
 int main(void)
@@ -461,6 +512,7 @@ int main(void)
     test_fail();
     test_due();
     test_remain_ms();
+    test_reached_bound();
 
     probe_undocumented();
 

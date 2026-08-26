@@ -82,17 +82,20 @@
 ***********************************************************/
 
 /**
- * @brief Largest interval, in seconds, that still fits a uint32_t once
- *        multiplied by 1000.
+ * @brief Largest interval, in seconds, that keeps __netmgr_retry_reached()'s
+ *        signed-difference wrap idiom correct once multiplied by 1000.
  *
  * NETCONN_CMD_RECONN_TABLE clamps the NUMBER of product-supplied entries but not
  * their VALUES (netconn_wifi.c:572-574 only bounds rc->size), so a nonsense
  * entry can reach a table. Clamping here means such an entry produces the
- * longest representable wait instead of wrapping round to a very short one,
- * which is the failure direction that matters: a wrapped interval turns a
- * back-off into a busy retry loop.
+ * longest interval the idiom can still get right, instead of either wrapping
+ * round to a very short one (a busy retry loop) or exceeding the 2^31 ms bound
+ * __netmgr_retry_reached() needs (a deadline that reads as already due before
+ * it is). See the comment on __netmgr_retry_reached() for that bound;
+ * 0x7FFFFFFF / 1000 = 2147483 s, so a clamped entry arms 2147483000 ms, 648 ms
+ * inside the 2^31 ms (2147483648 ms) limit.
  */
-#define NETMGR_RETRY_INTERVAL_MAX_S (0xFFFFFFFFU / 1000U)
+#define NETMGR_RETRY_INTERVAL_MAX_S (0x7FFFFFFFU / 1000U)
 
 /***********************************************************
 *********************** back-off tables ********************
@@ -174,13 +177,31 @@ static uint32_t __netmgr_retry_count(const netmgr_retry_table_t *table)
  *
  * The millisecond base netmgr.c uses is a uint32_t and wraps every 49.7 days, so
  * a plain `now_ms >= deadline_ms` would report "not due" for the whole 49.7 days
- * after a deadline armed just before the wrap. The signed-difference idiom
- * answers correctly across the wrap as long as the interval is far below 2^31 ms
- * (24.8 days); the longest interval this module can produce is 600 s from
- * netmgr_retry_table_revalidate, and even a clamped
- * NETMGR_RETRY_INTERVAL_MAX_S entry stays under 2^32 ms, so the only way to
- * break the assumption is a deadline armed more than 24.8 days in the future,
- * which no table here can express.
+ * after a deadline armed just before the wrap. The signed-difference idiom below
+ * reads `now_ms - deadline_ms` as a two's-complement int32_t, which is correct
+ * exactly when the true (unwrapped) difference falls inside [-2^31, 2^31) ms --
+ * outside that range the truncation to int32_t flips its sign, and the idiom
+ * answers the opposite of reality. That one interval splits into the two cases
+ * that matter here:
+ *
+ *   - Before the deadline, the true difference is in [-I, 0), where I is the
+ *     interval this deadline was armed with, so the idiom needs I <= 2^31 ms.
+ *     An interval past that bound is misread as already due, before it really
+ *     is -- exactly what an under-clamped NETMGR_RETRY_INTERVAL_MAX_S used to
+ *     allow (see its definition above).
+ *   - After the deadline, the same 2^31 ms bound applies on the other side: a
+ *     deadline that has genuinely passed but goes unpolled for 2^31 ms (24.8
+ *     days) reads as not-yet-due again once the true difference crosses back
+ *     out of range. Nothing here schedules polls that far apart -- both
+ *     callers share a deadline with a scheduler that polls far more often --
+ *     but the idiom itself does not guarantee it, so the bound is worth
+ *     stating rather than leaving implicit.
+ *
+ * NETMGR_RETRY_INTERVAL_MAX_S now enforces the first bound: it clamps any
+ * table entry, however implausible, to an interval that keeps I <= 2^31 ms, so
+ * this function's precondition holds for every deadline this module can arm --
+ * not because no table can express a larger value, but because the clamp does
+ * not let one through.
  *
  * @param[in] deadline_ms the armed deadline; must be non-zero (armed)
  * @param[in] now_ms      current time in the same base
