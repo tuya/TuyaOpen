@@ -83,6 +83,7 @@ typedef struct {
     BOOL_T               running;            // running flag
     ai_monitor_config_t  config;             // server configuration
     netmgr_linkage_t    *linkage;            // default lan linkage
+    lan_sloop_t          sock_loop;          // this owner's own socket loop instance
     int                  server_fd;          // server socket fd
     ai_monitor_client_t *clients;            // client array
     uint32_t             client_count;       // current client count
@@ -185,7 +186,7 @@ STATIC VOID __cleanup_client(ai_monitor_client_t *client)
     }
 
     if (client->fd >= 0) {
-        tuya_unreg_lan_sock(client->fd);
+        tuya_unreg_lan_sock(g_ai_monitor_server.sock_loop, client->fd);
         // tal_net_close(client->fd);
         client->fd = -1;
     }
@@ -668,7 +669,7 @@ STATIC int __tcp_create_serv_fd(VOID)
                                   .err        = __accept_err,
                                   .quit       = NULL};
 
-        rt = tuya_reg_lan_sock(sock_info);
+        rt = tuya_reg_lan_sock(g_ai_monitor_server.sock_loop, sock_info);
         if (rt != OPRT_OK) {
             PR_ERR("register server socket failed: %d", rt);
             tal_net_close(g_ai_monitor_server.server_fd);
@@ -737,7 +738,7 @@ STATIC VOID __accept_handler(int32_t server_sock)
                               .err        = __socket_error_handler,
                               .quit       = NULL};
 
-    ret = tuya_reg_lan_sock(sock_info);
+    ret = tuya_reg_lan_sock(g_ai_monitor_server.sock_loop, sock_info);
     if (ret != OPRT_OK) {
         PR_ERR("register socket failed: %d", ret);
         __cleanup_client(client);
@@ -868,7 +869,7 @@ STATIC OPERATE_RET __ai_monitor_start(VOID)
     rt = tuya_ai_biz_monitor_register(__ai_biz_recv_handler, __ai_biz_send_handler, &g_ai_monitor_server);
     if (rt != OPRT_OK) {
         PR_ERR("set AI biz monitor callback failed: %d", rt);
-        tuya_unreg_lan_sock(g_ai_monitor_server.server_fd);
+        tuya_unreg_lan_sock(g_ai_monitor_server.sock_loop, g_ai_monitor_server.server_fd);
         // tal_net_close(g_ai_monitor_server.server_fd);
         g_ai_monitor_server.server_fd = -1;
         tal_mutex_unlock(g_ai_monitor_server.mutex);
@@ -879,6 +880,24 @@ STATIC OPERATE_RET __ai_monitor_start(VOID)
 
     PR_INFO("AI monitor started, listening on port %d", g_ai_monitor_server.config.port);
     return OPRT_OK;
+}
+
+/**
+ * @brief disable this instance's socket loop and wait (bounded) for its
+ * thread to fully self-destruct before the caller frees anything the
+ * loop's reader callbacks may still dereference.
+ */
+STATIC VOID __ai_monitor_stop_sock_loop(VOID)
+{
+    tuya_sock_loop_disable(g_ai_monitor_server.sock_loop);
+    uint32_t wait_ms = 0;
+    while (tuya_sock_loop_is_inited(g_ai_monitor_server.sock_loop) && wait_ms < 3000) {
+        tal_system_sleep(50);
+        wait_ms += 50;
+    }
+    if (tuya_sock_loop_is_inited(g_ai_monitor_server.sock_loop)) {
+        PR_ERR("ai monitor: sock loop still alive after %ums wait", wait_ms);
+    }
 }
 
 /**
@@ -898,21 +917,27 @@ OPERATE_RET tuya_ai_monitor_init(CONST ai_monitor_config_t *config)
     // init default writer
     s_monitor_writer_cfg.writer = &s_default_writer;
 
-    OPERATE_RET rt = tuya_sock_loop_init();
-    if (rt != OPRT_OK) {
-        PR_ERR("sock loop init failed: %d", rt);
-        return rt;
-    }
-
     memset(&g_ai_monitor_server, 0, sizeof(g_ai_monitor_server));
 
     // Copy configuration
     memcpy(&g_ai_monitor_server.config, config, sizeof(ai_monitor_config_t));
 
+    // This instance owns its own socket loop: server_fd plus up to
+    // max_clients client fds.
+    OPERATE_RET rt = tuya_sock_loop_create(config->max_clients + 1, &g_ai_monitor_server.sock_loop);
+    if (rt != OPRT_OK) {
+        PR_ERR("sock loop init failed: %d", rt);
+        return rt;
+    }
+
     // Allocate client array
     g_ai_monitor_server.clients = OS_MALLOC(sizeof(ai_monitor_client_t) * config->max_clients);
     if (!g_ai_monitor_server.clients) {
         PR_ERR("malloc clients failed");
+        // No reader has ever been registered on this loop yet, so its
+        // thread cannot be touching g_ai_monitor_server -- no need to wait
+        // for anything before returning, just ask it to tear itself down.
+        __ai_monitor_stop_sock_loop();
         return OPRT_MALLOC_FAILED;
     }
 
@@ -928,6 +953,7 @@ OPERATE_RET tuya_ai_monitor_init(CONST ai_monitor_config_t *config)
     if (rt != OPRT_OK) {
         PR_ERR("create mutex failed: %d", rt);
         OS_FREE(g_ai_monitor_server.clients);
+        __ai_monitor_stop_sock_loop();
         return rt;
     }
 
@@ -937,6 +963,7 @@ OPERATE_RET tuya_ai_monitor_init(CONST ai_monitor_config_t *config)
         PR_ERR("create timer failed: %d", rt);
         OS_FREE(g_ai_monitor_server.clients);
         tal_mutex_release(g_ai_monitor_server.mutex);
+        __ai_monitor_stop_sock_loop();
         return rt;
     }
 
@@ -959,7 +986,7 @@ STATIC VOID __session_close_all(VOID)
 
     // Unregister and close server socket
     if (g_ai_monitor_server.server_fd >= 0) {
-        tuya_unreg_lan_sock(g_ai_monitor_server.server_fd);
+        tuya_unreg_lan_sock(g_ai_monitor_server.sock_loop, g_ai_monitor_server.server_fd);
         // tal_net_close(g_ai_monitor_server.server_fd);
         g_ai_monitor_server.server_fd = -1;
     }
@@ -967,7 +994,7 @@ STATIC VOID __session_close_all(VOID)
     // Disconnect all clients
     for (uint32_t i = 0; i < g_ai_monitor_server.config.max_clients; i++) {
         if (g_ai_monitor_server.clients[i].connected) {
-            tuya_unreg_lan_sock(g_ai_monitor_server.clients[i].fd);
+            tuya_unreg_lan_sock(g_ai_monitor_server.sock_loop, g_ai_monitor_server.clients[i].fd);
             __cleanup_client(&g_ai_monitor_server.clients[i]);
         }
     }
@@ -1010,6 +1037,18 @@ OPERATE_RET tuya_ai_monitor_deinit(VOID)
     // Stop server first
     if (g_ai_monitor_server.running) {
         __ai_monitor_stop();
+    }
+
+    // Tear down this instance's own socket loop before touching memory its
+    // reader callbacks (server_fd accept, client reads) still reference.
+    __ai_monitor_stop_sock_loop();
+    if (tuya_sock_loop_is_inited(g_ai_monitor_server.sock_loop)) {
+        // The loop thread is still alive and may still invoke reader
+        // callbacks that dereference g_ai_monitor_server.clients. Freeing
+        // it now would be a use-after-free on an already-abnormal path, so
+        // leave everything as-is (mirrors tuya_lan_disable()'s handling of
+        // the same hazard) and let the caller retry deinit later.
+        return OPRT_COM_ERROR;
     }
 
     // Free resources

@@ -37,6 +37,10 @@
 
 #define UDP_T_ITRV         5 // s
 #define CLIENT_LMT         3
+// Extra reader-table headroom beyond the client session limit, for this
+// owner's own socket loop instance (tcp_serv_fd/udp_serv_fd plus margin).
+// Moved here from lan_sock.c: that module no longer knows what LAN is.
+#define LAN_UDP_READER_CNT 5
 #define RECV_BUF_LMT       512
 #define LAN_FRAME_MAX_LEN  (4 * 1024)
 #define HEART_BEAT_TIMEOUT 30
@@ -88,6 +92,8 @@ typedef struct {
     int tcp_serv_fd;
     BOOL_T serv_fd_switch;
 
+    lan_sloop_t sock_loop; // this owner's own socket loop instance
+
     NW_IP_S ip;
 
     tuya_iot_client_t *iot_client;
@@ -132,7 +138,7 @@ static void lan_session_close(lan_session_t *session)
     tal_mutex_lock(lan->mutex);
     if (session->fd != -1) {
         tal_event_publish(EVENT_LAN_CLIENT_CLOSE, &session->fd);
-        tuya_unreg_lan_sock(session->fd);
+        tuya_unreg_lan_sock(lan->sock_loop, session->fd);
         lan_session_free(session);
         lan->fd_num--;
     }
@@ -197,17 +203,17 @@ static void lan_session_close_all(void)
 
     tal_mutex_lock(lan->mutex);
     if (lan->tcp_serv_fd != -1) {
-        tuya_unreg_lan_sock(lan->tcp_serv_fd);
+        tuya_unreg_lan_sock(lan->sock_loop, lan->tcp_serv_fd);
         lan->tcp_serv_fd = -1;
     }
     if (lan->udp_serv_fd != -1) {
-        tuya_unreg_lan_sock(lan->udp_serv_fd);
+        tuya_unreg_lan_sock(lan->sock_loop, lan->udp_serv_fd);
         lan->udp_serv_fd = -1;
     }
     for (i = 0; lan->session && i < lan->cfg->client_num; i++) {
         if (lan->session[i].active) {
             tal_event_publish(EVENT_LAN_CLIENT_CLOSE, &lan->session[i].fd);
-            tuya_unreg_lan_sock(lan->session[i].fd);
+            tuya_unreg_lan_sock(lan->sock_loop, lan->session[i].fd);
             lan_session_free(&lan->session[i]);
         }
     }
@@ -1123,7 +1129,7 @@ static void lan_tcp_serv_sock_read(int32_t fd)
                               .err = lan_tcp_client_sock_err,
                               .quit = NULL};
 
-    ret = tuya_reg_lan_sock(sock_info);
+    ret = tuya_reg_lan_sock(lan->sock_loop, sock_info);
     if (OPRT_OK != ret) {
         tal_net_close(cfd);
         PR_ERR("register lan sock err");
@@ -1250,7 +1256,7 @@ static void lan_udp_serv_sock_err(int fd)
 {
     if (s_lan_mgr->udp_serv_fd != -1) {
         PR_DEBUG("udp serv sock err");
-        tuya_unreg_lan_sock(s_lan_mgr->udp_serv_fd);
+        tuya_unreg_lan_sock(s_lan_mgr->sock_loop, s_lan_mgr->udp_serv_fd);
         s_lan_mgr->udp_serv_fd = -1;
     }
 }
@@ -1273,7 +1279,7 @@ static int lan_udp_create_serv_socket(void)
                                   .err = lan_udp_serv_sock_err,
                                   .quit = NULL};
 
-    if (OPRT_OK != tuya_reg_lan_sock(udp_sock_info)) {
+    if (OPRT_OK != tuya_reg_lan_sock(s_lan_mgr->sock_loop, udp_sock_info)) {
         PR_ERR("register lan sock err");
         tal_net_close(s_lan_mgr->udp_serv_fd);
         s_lan_mgr->udp_serv_fd = -1;
@@ -1309,7 +1315,7 @@ static int lan_tcp_create_serv_socket(lan_mgr_t *lan)
                                   .err = lan_tcp_serv_sock_err,
                                   .quit = lan_tcp_serv_sock_quit};
 
-    if (OPRT_OK != tuya_reg_lan_sock(tcp_sock_info)) {
+    if (OPRT_OK != tuya_reg_lan_sock(lan->sock_loop, tcp_sock_info)) {
         tal_net_close(lan->tcp_serv_fd);
         lan->tcp_serv_fd = -1;
         PR_ERR("register lan sock err");
@@ -1350,7 +1356,7 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     // INIT_LIST_HEAD(&s_lan_mgr->lan_ext_proto);
 
     int op_ret = OPRT_COM_ERROR;
-    op_ret = tuya_sock_loop_init();
+    op_ret = tuya_sock_loop_create(LAN_UDP_READER_CNT + tuya_lan_get_client_num(), &s_lan_mgr->sock_loop);
     if (OPRT_OK != op_ret) {
         goto __exit;
     }
@@ -1391,7 +1397,7 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
 __exit:
     PR_DEBUG("init error");
 
-    tuya_lan_exit();
+    tuya_lan_disable();
 
     return op_ret;
 }
@@ -1441,12 +1447,12 @@ int tuya_lan_disable(void)
     lan_session_close_all();
 
     if (s_lan_mgr->tcp_serv_fd >= 0) {
-        tuya_unreg_lan_sock(s_lan_mgr->tcp_serv_fd);
+        tuya_unreg_lan_sock(s_lan_mgr->sock_loop, s_lan_mgr->tcp_serv_fd);
         s_lan_mgr->tcp_serv_fd = -1;
     }
 
     if (s_lan_mgr->udp_serv_fd >= 0) {
-        tuya_unreg_lan_sock(s_lan_mgr->udp_serv_fd);
+        tuya_unreg_lan_sock(s_lan_mgr->sock_loop, s_lan_mgr->udp_serv_fd);
         s_lan_mgr->udp_serv_fd = -1;
     }
 
@@ -1455,9 +1461,9 @@ int tuya_lan_disable(void)
         s_lan_mgr->udp_client_fd = -1;
     }
 
-    tuya_sock_loop_disable();
+    tuya_sock_loop_disable(s_lan_mgr->sock_loop);
     uint32_t wait_ms = 0;
-    while (tuya_sock_loop_is_inited() && wait_ms < 3000) {
+    while (tuya_sock_loop_is_inited(s_lan_mgr->sock_loop) && wait_ms < 3000) {
         tal_system_sleep(50);
         wait_ms += 50;
     }
@@ -1472,7 +1478,7 @@ int tuya_lan_disable(void)
      * The wait above has two distinct exits, and they are not safe to treat
      * the same way:
      *
-     *   - tuya_sock_loop_is_inited() went false: the loop thread has already
+     *   - tuya_sock_loop_is_inited(s_lan_mgr->sock_loop) went false: the loop thread has already
      *     run its own quit callbacks and __ty_sock_loop_deinit(), so no more
      *     reader callbacks can fire. It is safe to release s_lan_mgr here.
      *
@@ -1494,7 +1500,7 @@ int tuya_lan_disable(void)
      *     registering a socket again), which beats crashing or corrupting
      *     memory on top of a loop that is already stuck.
      */
-    if (!tuya_sock_loop_is_inited()) {
+    if (!tuya_sock_loop_is_inited(s_lan_mgr->sock_loop)) {
         tuya_lan_exit();
     } else {
         PR_ERR("lan disable: sock loop still alive after %ums wait, leaking "
