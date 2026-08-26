@@ -370,6 +370,12 @@ static OPERATE_RET __disp_fb_convert_yuv422_to_mono(uint8_t *in_buf, uint16_t in
     conv_cfg.out_buf         = p_tmp_fb->frame;
     conv_cfg.out_width       = p_tmp_fb->width;
     conv_cfg.out_height      = p_tmp_fb->height;
+    /* Rotation happens in tdl_disp_draw_rotate() below, same as the
+     * RGB565/RGB888 paths in this file. NOTE: this path used to silently
+     * rotate 90 degrees here instead (a tuya_t5_pocket-specific quirk);
+     * callers relying on that (e.g. output_display) now need their own
+     * tdl_disp_draw_rotate() call. */
+    conv_cfg.rotate          = TAL_IMAGE_ROTATE_0;
 
     rt = tal_image_format_yuv422_to_binary(&conv_cfg);
     if(rt != OPRT_OK) {

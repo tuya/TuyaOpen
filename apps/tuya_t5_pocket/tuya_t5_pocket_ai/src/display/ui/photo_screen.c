@@ -13,7 +13,7 @@
 #include <stdio.h>
 
 // Declare the PHOTO image
-LV_IMG_DECLARE(tuya_floyd);
+LV_IMG_DECLARE(photo_image2_gamma_serpentine_dither);
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -83,7 +83,7 @@ void photo_screen_init(void)
 
     // Create and display PHOTO image
     lv_obj_t *img = lv_image_create(ui_photo_screen);
-    lv_image_set_src(img, &tuya_floyd);
+    lv_image_set_src(img, &photo_image2_gamma_serpentine_dither);
     lv_obj_center(img);
     lv_obj_clear_flag(img, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(img, LV_OBJ_FLAG_SCROLLABLE);

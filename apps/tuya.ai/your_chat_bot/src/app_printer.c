@@ -150,7 +150,7 @@ OPERATE_RET app_print_jpeg_img(uint8_t *jpeg, uint32_t len)
         .out_width    = out_w,
         .out_height   = out_h,
     };
-    rt = tal_image_jpeg_decode_bitmap(jpeg, (uint32_t)len, &out, 128);
+    rt = tal_image_jpeg_decode_bitmap(jpeg, (uint32_t)len, &out, TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG, 128);
     if (rt != OPRT_OK) {
         PR_ERR("print: jpeg_decode_bitmap failed, rt:%d", rt);
         Free(bitmap_buf);
