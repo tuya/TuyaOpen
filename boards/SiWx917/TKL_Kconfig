@@ -125,3 +125,7 @@ config LITTLE_END
     ---help---
         0       /* big endian */
         1       /* little endian */
+
+config SIWX917_FREERTOS_HEAP_SIZE
+    int "FreeRTOS heap in SRAM (bytes)"
+    default 131072
