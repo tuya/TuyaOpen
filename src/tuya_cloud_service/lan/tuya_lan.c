@@ -1366,6 +1366,8 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     uint32_t client_len = sizeof(lan_session_t) * s_lan_mgr->cfg->client_num;
     s_lan_mgr->session = tal_malloc(client_len);
     if (NULL == s_lan_mgr->session) {
+        PR_ERR("session tal_malloc fail");
+        op_ret = OPRT_MALLOC_FAILED;
         goto __exit;
     }
     memset(s_lan_mgr->session, 0, client_len);
@@ -1373,11 +1375,13 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
 
     if (lan_tcp_create_serv_socket(s_lan_mgr) < 0) {
         PR_ERR("init tcp serv fd err");
+        op_ret = OPRT_SOCK_ERR;
         goto __exit;
     }
 
     if (lan_udp_create_serv_socket() < 0) {
         PR_ERR("init udp serv fd err");
+        op_ret = OPRT_SOCK_ERR;
         goto __exit;
     }
 
