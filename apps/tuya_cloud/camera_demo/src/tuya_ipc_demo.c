@@ -951,11 +951,9 @@ static OPERATE_RET __demo_open_camera(void)
 static void __demo_close_camera(void)
 {
     if (s_cam != NULL) {
+        /* close() now stops the DVP; the tkl_dvp_deinit that used to be needed
+         * here forced a full bring-up, and with it a fresh frame pool. */
         (void) tdl_camera_dev_close(s_cam);
-        /* tdl/tdd camera close is NOT_SUPPORTED, so DVP DMA (chan 8) leaks and
-         * reopen fails with "malloc dma fail / chan has been allocated".
-         * Release DVP directly here to fix reopen after APP reconnect. */
-        (void) tkl_dvp_deinit();
         s_cam = NULL;
     }
 }
