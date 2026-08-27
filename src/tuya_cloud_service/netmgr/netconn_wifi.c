@@ -33,7 +33,7 @@
  * initialiser below. The other data-plane call this file used to make - a read of
  * the active provider, asked to decide a provisioning policy - is gone, and so is
  * the getter it used; see the note in __netconn_activate_token_get(). */
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"

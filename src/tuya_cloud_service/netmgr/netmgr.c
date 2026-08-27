@@ -47,9 +47,9 @@
 
 /* The data plane, included here and not from netmgr.h: the control plane's public
  * header must not depend on it. tal_net_route.h is the one channel netmgr uses to
- * write the data plane; tal_network_register.h is here for tal_net_provider_init()
+ * write the data plane; tal_net_provider.h is here for tal_net_provider_init()
  * and for TAL_NET_PROVIDER_DEFAULT. */
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 #include "tal_net_route.h"
 
 #ifdef ENABLE_BLUETOOTH

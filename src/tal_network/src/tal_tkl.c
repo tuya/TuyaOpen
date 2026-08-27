@@ -1,6 +1,6 @@
 /**
- * @file tal_platform.c
- * @brief tal_platform module is used to
+ * @file tal_tkl.c
+ * @brief The tkl socket ops backend: tal_net_provider_tkl.
  * @version 0.1
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -18,7 +18,7 @@
 #if defined(NET_USING_TKL) && (NET_USING_TKL == 1)
 
 #include "tal_api.h"
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 #include "tkl_network.h"
 

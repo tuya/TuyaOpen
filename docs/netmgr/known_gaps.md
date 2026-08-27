@@ -354,8 +354,8 @@ endif()
 - `src/tal_network/src/tal_network.c:345` —— `__net_connect_bind_active_src()`，从 `tal_net_connect()` 的 `:422` 调用
 - `src/tal_network/src/tal_network.c:364-374` —— 记录"输出参数预先清零"的那段注释
 - `src/tal_network/src/tal_network.c:375` / `:378` / `:382` —— 三个分支
-- `src/tal_network/include/tal_network_register.h:87-91` —— 决定哪个后端应答
-- `src/tal_network/src/tal_platform.c:80` —— TKL 后端把 `.getsockname` 接到 `tkl_net_getsockname`
+- `src/tal_network/include/tal_net_provider.h:87-91` —— 决定哪个后端应答
+- `src/tal_network/src/tal_tkl.c:80` —— TKL 后端把 `.getsockname` 接到 `tkl_net_getsockname`
 - 各平台实现，见下表
 - 第二个消费者：`src/tuya_p2p/pjproject/pjlib/src/pj/sock_tal.c:483`
 
@@ -373,7 +373,7 @@ if ((0 != TUYA_IP_ADDR_GET_IP4(local)) || (0 != local_port)) {   // :378
 if (0 != tal_net_bind(fd, src, 0)) { ... }                       // :382
 ```
 
-哪个后端来应答由 `tal_network_register.h:87-91` 决定：`ENABLE_LIBLWIP == 1` 或 `OPERATING_SYSTEM == SYSTEM_LINUX` 用 POSIX 后端，否则用 TKL 后端。逐平台核下来：
+哪个后端来应答由 `tal_net_provider.h:87-91` 决定：`ENABLE_LIBLWIP == 1` 或 `OPERATING_SYSTEM == SYSTEM_LINUX` 用 POSIX 后端，否则用 TKL 后端。逐平台核下来：
 
 | 平台 | 后端 | `getsockname` 实现 | 源地址绑定的实际效果 |
 | --- | --- | --- | --- |

@@ -22,7 +22,7 @@
 #define __TAL_NET_ROUTE_H__
 
 #include "tuya_cloud_types.h"
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 #ifdef __cplusplus
 extern "C" {

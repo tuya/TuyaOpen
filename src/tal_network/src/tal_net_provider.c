@@ -1,5 +1,5 @@
 /**
- * @file tal_network_register.c
+ * @file tal_net_provider.c
  * @brief Registry of socket ops backends, plus the route the data plane follows.
  *
  * Holds the one copy of "which backend and which source address are in force"
@@ -15,7 +15,7 @@
 
 #include "tal_mutex.h"
 
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 #include "tal_net_route.h"
 
 /***********************************************************

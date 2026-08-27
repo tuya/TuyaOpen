@@ -26,7 +26,7 @@
 
 /* For TAL_NET_PROVIDER_DEFAULT below. netmgr.h used to pull this in; it no longer
  * does, so that the control plane's public header stays off the data plane. */
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 netmgr_conn_wired_t s_netmgr_wired = {
     .base = {.pri      = 2,

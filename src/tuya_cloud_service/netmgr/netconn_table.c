@@ -26,7 +26,7 @@
 #include "tal_api.h"
 
 /* For TAL_NET_PROVIDER_DEFAULT, the provider every in-tree driver starts at. */
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"

@@ -63,7 +63,7 @@ SOURCE_EXTS = {".c", ".h", ".cc", ".cpp", ".hh", ".hpp"}
 #     script that "corrects" it would be inventing a change nobody asked for.
 #   - `TAL_NET_PROVIDER_DEFAULT`, `netconn_desc_t.provider`,
 #     `tal_net_route_t.provider`, `netmgr_link_info_t.provider`,
-#     `TAL_NETWORK_OPS_T`, and the `tal_network_register.[ch]` / `tal_platform.c`
+#     `TAL_NETWORK_OPS_T`, and the `tal_net_provider.[ch]` / `tal_tkl.c`
 #     filenames: all listed in §3.3 as "unchanged".
 #   - the three zero-caller wrappers: listed in §3.3 as "not renamed, deleted
 #     in S4" - see RESERVED_DEPRECATED below. That deletion has happened.
@@ -101,7 +101,7 @@ IDENTIFIER_MAP = [
 #   `active_card` -> `providers`
 #       Unlike card_type, this one has no known collision problem: it and the
 #       struct that holds it (TAL_NETWORK_CARD_MANAGER_T) are private to
-#       tal_network_register.c - the struct is declared in the .c - so no
+#       tal_net_provider.c - the struct is declared in the .c - so no
 #       out-of-tree caller can even name them. That is exactly why a
 #       whole-word rename here has no upside (there is no caller to fix) and
 #       one downside: `providers` is a common enough word that corrupting an
@@ -139,7 +139,7 @@ RESERVED_DEPRECATED = [
     "tal_network_card_manager",
 ]
 
-# The alias-definition file (src/tal_network/include/tal_network_register.h)
+# The alias-definition file (src/tal_network/include/tal_net_provider.h)
 # must never be rewritten: it is not a caller of the old names, it is their
 # definition. S1 turned the old names into aliases *there* (typedefs and
 # #defines pointing at the new names) precisely so that out-of-tree callers
@@ -345,7 +345,7 @@ def main():
         print(
             f"note: no file under {target} carries the `{ALIAS_FILE_MARKER}` alias-definition "
             "marker. That's expected for a caller's tree - it doesn't ship "
-            "tal_network_register.h - just confirming this run didn't silently miss it."
+            "tal_net_provider.h - just confirming this run didn't silently miss it."
         )
 
     verb = "applied" if args.apply else "would change"

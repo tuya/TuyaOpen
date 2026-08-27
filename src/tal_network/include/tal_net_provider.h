@@ -1,12 +1,23 @@
 /**
- * @file tal_network_register.h
- * @brief tal_network_register module is used to
+ * @file tal_net_provider.h
+ * @brief The socket ops backend interface, and the registry that selects one.
+ *
+ * A provider is one implementation of the socket primitives - tal_posix.c's
+ * lwip/socket layer, tal_tkl.c's platform tkl layer - published as a table of
+ * function pointers. A build links exactly one; TAL_NET_PROVIDER_DEFAULT names
+ * which. Callers reach the active one through tal_net_provider_ops(), which is
+ * on the hot path of every socket primitive in tal_network.c.
+ *
+ * Which provider is active is half of the route; the other half is the source
+ * address. Both live in tal_net_route.h - do not add a second way to set them
+ * here.
+ *
  * @version 0.1
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
-#ifndef __TAL_NETWORK_REGISTER_H__
-#define __TAL_NETWORK_REGISTER_H__
+#ifndef __TAL_NET_PROVIDER_H__
+#define __TAL_NET_PROVIDER_H__
 
 #include "tuya_cloud_types.h"
 
@@ -67,7 +78,7 @@ typedef struct {
 
 /**
  * Which socket ops backend is meant. These are not network cards: POSIX is
- * tal_posix.c's lwip/socket implementation, TKL is tal_platform.c's tkl
+ * tal_posix.c's lwip/socket implementation, TKL is tal_tkl.c's tkl
  * implementation, and AT_MODEM is a placeholder that has a constant but no
  * implementation. The actual network interfaces - wifi, wired, cellular - live
  * in src/tuya_cloud_service/netmgr/netconn_*.
@@ -123,4 +134,4 @@ TAL_NETWORK_OPS_T *tal_net_provider_ops(void);
 }
 #endif
 
-#endif /* __TAL_NETWORK_REGISTER_H__ */
+#endif /* __TAL_NET_PROVIDER_H__ */

@@ -31,7 +31,7 @@
  */
 #include "tuya_iot_config.h"
 #include "tal_api.h"
-#include "tal_network_register.h"
+#include "tal_net_provider.h"
 
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
 #define NET_USING_POSIX        1
