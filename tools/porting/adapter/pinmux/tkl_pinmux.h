@@ -8,7 +8,7 @@ extern "C" {
 #include "tuya_cloud_types.h"
 
 #define TUYA_IO_GET_PORT_ID(data) (((data) >> 8) & 0xFF)
-#define TUYA_IO_GET_CHANNEL_ID(data)    (((data) & 0xFF)
+#define TUYA_IO_GET_CHANNEL_ID(data)    (((data) & 0xFF))
 
 /**
  * @brief tuya pin type
