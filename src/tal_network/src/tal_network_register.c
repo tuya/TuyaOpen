@@ -3,9 +3,7 @@
  * @brief Registry of socket ops backends, plus the route the data plane follows.
  *
  * Holds the one copy of "which backend and which source address are in force"
- * (see tal_net_route.h) and the table of backends a build has available. The
- * tal_network_card_* entry points are compatibility wrappers over that same
- * state, each still touching only the half of the route it always owned.
+ * (see tal_net_route.h) and the table of backends a build has available.
  *
  * See "Locking discipline" below before adding or removing a lock here: the lock
  * protects the consistency of a pair of fields, not the visibility of any single
@@ -76,8 +74,6 @@ tal_net_provider_registry_t tal_net_provider_registry = {
  *     fields as one unit is their entire contract: a link switch must never be
  *     observed as the new backend paired with the address of the link that just
  *     went away.
- *   - The two half-setters take it as well, so a paired reader cannot catch the
- *     route midway through an update.
  *   - The single-field readers do NOT take it. Each returns one naturally atomic
  *     word that cannot tear, and none of them looks at the other field, so the
  *     lock would buy nothing at all. tal_net_provider_ops() matters most
@@ -170,40 +166,6 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route)
 
     __route_lock();
     *route = tal_net_provider_registry.route;
-    __route_unlock();
-
-    return OPRT_OK;
-}
-
-OPERATE_RET tal_network_card_set_active(tal_net_provider_id_t type)
-{
-    if (type >= TAL_NET_PROVIDER_MAX) {
-        return OPRT_INVALID_PARM;
-    }
-
-    /* Half-update kept deliberately: this entry point has never owned the source
-     * address, so it must leave that half of the route alone. Locked so that a
-     * tal_net_route_get() cannot observe the route midway through. Prefer
-     * tal_net_route_set() in new code - moving both halves in one call is the
-     * only way to avoid publishing a backend and an address that disagree. */
-    __route_lock();
-    tal_net_provider_registry.route.provider = type;
-    __route_unlock();
-
-    return OPRT_OK;
-}
-
-tal_net_provider_id_t tal_network_card_get_active_type(void)
-{
-    /* One byte, read unlocked on purpose - see the locking discipline above. */
-    return tal_net_provider_registry.route.provider;
-}
-
-OPERATE_RET tal_network_card_set_active_ip(TUYA_IP_ADDR_T ipaddr)
-{
-    /* Address half only, same reasoning as tal_network_card_set_active(). */
-    __route_lock();
-    tal_net_provider_registry.route.src_ip = ipaddr;
     __route_unlock();
 
     return OPRT_OK;

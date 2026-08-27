@@ -30,9 +30,9 @@
 #include "tuya_lan.h"
 
 /* Still needed, for exactly one symbol: TAL_NET_PROVIDER_DEFAULT in the static
- * initialiser below. The other data-plane call this file used to make -
- * tal_network_card_get_active_type(), asked to decide a provisioning policy - is
- * gone; see the note in __netconn_activate_token_get(). */
+ * initialiser below. The other data-plane call this file used to make - a read of
+ * the active provider, asked to decide a provisioning policy - is gone, and so is
+ * the getter it used; see the note in __netconn_activate_token_get(). */
 #include "tal_network_register.h"
 
 #ifdef ENABLE_BLUETOOTH
@@ -392,9 +392,10 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
      * declaration, read back from its descriptor - not something inferred from
      * the data plane.
      *
-     * What this replaces:
+     * What this replaces (the data-plane getter it called has since been deleted
+     * along with the rest of the old compatibility surface):
      *
-     *     tal_net_provider_id_t active_type = tal_network_card_get_active_type();
+     *     tal_net_provider_id_t active_type = <active provider, read from the data plane>;
      *     if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_PROVIDER_AT_MODEM)
      *
      * That was the control plane asking the data plane a control-plane question,

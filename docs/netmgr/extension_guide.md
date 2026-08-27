@@ -59,7 +59,7 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 **铁律二：控制面只通过一个函数写数据面。**
 全树 `tal_net_route_set()` 只有一个调用点，在 `netmgr.c · __netmgr_push_route()` 里面。而 `__netmgr_push_route()` 只被 notify handler 和 `netmgr_init()` 的第一趟 pass 调用，两者都跑在同一个上下文序列上。任何能移动路由的事（链路事件、`NETCONN_CMD_PRI` 改优先级、`NETCONN_CMD_IP` 改地址）都走 `netmgr_notify_link()` 汇到这里，所以不存在"两个并发写者争谁最后落地"的问题。
 
-> 加扩展时最容易犯的错，是在自己的新代码里直接调 `tal_network_card_set_active()` 或 `tal_network_card_set_active_ip()` 去"顺手"改一下路由。这两个半更新入口是兼容包装，各自只碰它历史上拥有的那一半（`tal_network_register.c:164-196`），新代码不要用。
+> 加扩展时最容易犯的错，是想在自己的新代码里"顺手"改一下路由。以前有两个半更新入口（`tal_network_card_set_active()` / `_set_active_ip()`）能做到这件事，各自只碰路由的一半 —— 它们已经删除。今天路由**只能整体发布**，走 `tal_net_route_set()`，这正是为了让"后端和源地址各说各话"这个状态无法被表达出来。
 
 ### 1.2 一条报告通道
 
@@ -408,10 +408,7 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route);
 |------|--------|--------|
 | `tal_net_route_set()` | 取 | 成对移动就是它的全部契约 |
 | `tal_net_route_get()` | 取 | 成对读取就是它的全部契约 |
-| `tal_network_card_set_active()` | 取 | 半更新；取锁是为了让成对读者抓不到中途状态 |
-| `tal_network_card_set_active_ip()` | 取 | 同上 |
-| `tal_network_card_get_active_type()` | **不取** | 单字段读，一个字节不会撕裂，且不看另一半 |
-| `tal_net_route_src_ip()` | **不取** | 同上 |
+| `tal_net_route_src_ip()` | **不取** | 单字段读，一个字并不会撕裂，且不看另一半 |
 | `tal_net_provider_ops()` | **不取** | 热路径。见下 |
 
 `tal_net_provider_ops()` 是最要紧的那个：`tal_network.c` 的 `TAL_NET_EXEC_OP` 从**每一个** socket 原语里调它 —— send、recv、recvfrom、select、fd_isset 以及另外三十来个，其中好几个在紧凑的 select 循环里。给它加一把 mutex，等于**在每个 socket 操作下面塞一个内核级操作**，在 RTOS 上还多出一个全新的优先级反转来源。在这份状态被合并之前，那条路径本来就是一次朴素的数组读，现在依然是：
@@ -790,21 +787,23 @@ debounce、grace、dwell、probe timeout、revalidation 全部由 `netmgr.c` 里
 
 ### 6.5 在 socket 热路径上加锁
 
-见 §3.3。不要给 `tal_net_provider_ops()` / `tal_network_card_get_active_type()` / `tal_net_route_src_ip()` 加锁。
+见 §3.3。不要给 `tal_net_provider_ops()` / `tal_net_route_src_ip()` 加锁。
 
 ### 6.6 让控制面向数据面问控制面的问题
 
 被删掉的那段代码（`netconn_wifi.c:395-408` 记着原文）：
 
 ```c
-tal_net_provider_id_t active_type = tal_network_card_get_active_type();
+tal_net_provider_id_t active_type = <active provider, read from the data plane>;
 if (netcfg.type & TUYA_NETMGR_NETCFG_AP && active_type != TAL_NET_PROVIDER_AT_MODEM)
 ```
+
+（那个读取入口本身也已经删除，见 §3.3 的锁表；这里保留原文的形状是为了说明它错在哪。）
 
 意图是"4G 是激活链路时不要开 AP 配网"。它同时犯了两个错：
 
 - **架构上**，这是控制面向数据面问一个控制面的问题；
-- **事实上，它是死代码**。`route.provider` 的写入者只有 `tal_net_route_set()`（由 netmgr 从 `conn->provider` 喂）和 `tal_network_card_set_active()`（**全树零调用者**），而每个驱动都把 `provider` 设成 `TAL_NET_PROVIDER_DEFAULT`，后者展开成 `TAL_NET_PROVIDER_POSIX` 或 `TAL_NET_PROVIDER_TKL`，**永远不会是** `TAL_NET_PROVIDER_AT_MODEM` —— 全树提到这个常量的只有它自己的 `#define`，以及一个指向它的、已废弃的兼容别名。所以这个条件是恒真式，**它守着的那个 4G 分支一次都没走过**。
+- **事实上，它是死代码**。`route.provider` 今天的写入者只有 `tal_net_route_set()`（由 netmgr 从 `conn->provider` 喂）；当年还有一个半更新入口，但它全树零调用者，现已删除。而每个驱动都把 `provider` 设成 `TAL_NET_PROVIDER_DEFAULT`，后者展开成 `TAL_NET_PROVIDER_POSIX` 或 `TAL_NET_PROVIDER_TKL`，**永远不会是** `TAL_NET_PROVIDER_AT_MODEM` —— 全树提到这个常量的只有它自己的 `#define`。所以这个条件是恒真式，**它守着的那个 4G 分支一次都没走过**。
 
 替代品是 `NETCONN_CAP_NETCFG_AP`：驱动自己声明能不能拉 AP，而 netmgr 永不向数据面问控制面的问题。这个位今天是行为中性的（wifi 那一行置了它），它的价值在于**一个拉不起 AP 的模组现在只要清掉描述符里一个位就能关掉这个分支** —— 这是原本的意图第一次真正可执行。
 

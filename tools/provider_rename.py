@@ -4,13 +4,12 @@ tools/provider_rename.py - mechanical rewrite of the tal_network `card` names
 to their `provider` replacements, for callers who cannot just apply a patch.
 
 Background: docs/netmgr/provider_rename_plan.md. S1 introduced the new names
-in src/tal_network/include/tal_network_register.h and turned the old ones into
-aliases (typedefs and #defines). S2 mechanically rewrote every caller inside
-this tree, in two directories: src/tal_network and
-src/tuya_cloud_service/netmgr. S3 marks the aliases deprecated. This script is
-the third leg: an out-of-tree caller who still has source using the old names
-can point this at their own tree and get the same mechanical rewrite, instead
-of retyping docs/netmgr/provider_rename_plan.md's mapping table by hand.
+and turned the old ones into aliases; S2 rewrote every caller inside this tree;
+S3 marked the aliases deprecated; S4 deleted them. **The aliases no longer
+exist**, so an out-of-tree tree still using the old names does not get a
+deprecation warning any more - it gets a hard compile error. This script is
+that tree's migration path: point it at your own source and get the same
+mechanical rewrite, instead of retyping the mapping table by hand.
 
 It is deliberately conservative:
   - it only ever touches the directory it is given, never the whole tree;
@@ -20,7 +19,9 @@ It is deliberately conservative:
     `->field` member access), and just warns about bare-word occurrences
     instead of guessing;
   - it warns about, but does not rename, the three zero-caller compatibility
-    wrappers that are deleted (not renamed) in S4.
+    wrappers, which were deleted rather than renamed - a call to one of them
+    has no mechanical replacement and has to be rewritten onto
+    tal_net_route_set() / tal_net_route_get() by hand.
 
 This script follows the tree, not the plan document, wherever the two
 disagree - see the tal_network_card_manager entry in IDENTIFIER_MAP below for
@@ -65,7 +66,7 @@ SOURCE_EXTS = {".c", ".h", ".cc", ".cpp", ".hh", ".hpp"}
 #     `TAL_NETWORK_OPS_T`, and the `tal_network_register.[ch]` / `tal_platform.c`
 #     filenames: all listed in §3.3 as "unchanged".
 #   - the three zero-caller wrappers: listed in §3.3 as "not renamed, deleted
-#     in S4" - see RESERVED_DEPRECATED below.
+#     in S4" - see RESERVED_DEPRECATED below. That deletion has happened.
 # ---------------------------------------------------------------------------
 IDENTIFIER_MAP = [
     ("TAL_NETWORK_CARD_TYPE_E", "tal_net_provider_id_t"),
@@ -132,8 +133,10 @@ _BARE_WORD_RES = [(re.compile(r"\b" + re.escape(old) + r"\b"), old) for old, new
 # Zero-caller compatibility wrappers: docs/netmgr/provider_rename_plan.md §3.3
 # says explicitly these are "not renamed, deleted in S4" - giving a
 # compatibility wrapper a new name would turn it into a new public API, which
-# is the opposite of why it exists. The script must not rename these; it only
-# warns that they are on their way out.
+# is the opposite of why it exists. They are now gone. The script must not
+# rename these: there is nothing to rename them TO. It reports them so the
+# caller knows these call sites need a hand rewrite onto tal_net_route_set() /
+# tal_net_route_get(), which move both halves of the route at once.
 RESERVED_DEPRECATED = [
     "tal_network_card_set_active",
     "tal_network_card_get_active_type",
@@ -366,7 +369,8 @@ def main():
     if all_reserved_warnings:
         print("-" * 78)
         seen = set()
-        print("WARN: reserved compatibility wrappers found (not renamed; deleted in S4):")
+        print("WARN: deleted compatibility wrappers found (no mechanical replacement;")
+        print("      rewrite these onto tal_net_route_set() / tal_net_route_get() by hand):")
         for path, lineno, name, line in all_reserved_warnings:
             key = (path, lineno, name)
             if key in seen:

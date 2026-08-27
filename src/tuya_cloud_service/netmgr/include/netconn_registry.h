@@ -87,7 +87,7 @@ typedef uint32_t netconn_caps_t;
  *
  * Replaces a control-plane-asks-data-plane-a-question bug:
  * __netconn_activate_token_get() used to gate SoftAP eligibility on
- * `tal_network_card_get_active_type() != TAL_NET_PROVIDER_AT_MODEM`, but
+ * `<the active provider, read from the data plane> != TAL_NET_PROVIDER_AT_MODEM`, but
  * every driver initialises provider to POSIX or TKL and nothing in the tree
  * ever assigns AT_MODEM to route.provider - the condition was a tautology
  * and the 4G branch it guarded was never taken. This bit is the driver
