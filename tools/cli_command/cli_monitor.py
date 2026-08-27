@@ -19,6 +19,7 @@ from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
     parse_config_file,
 )
+from tools.cli_command.cli_config import init_using_config
 from tools.cli_command.cli_flash import (
     get_configure_baudrate
 )
@@ -209,6 +210,10 @@ def cli(port, baud, log):
     logger.info("Monitor: Press Ctrl+] to quit.")
     check_proj_dir()
 
+    # Derive using.config from app_default.config (same as `tos.py build`)
+    # so the correct board's baudrate is known even if the project has
+    # never been built yet.
+    init_using_config(force=False)
     params = get_global_params()
     using_config = params["using_config"]
     using_data = parse_config_file(using_config)
