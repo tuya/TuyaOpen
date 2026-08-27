@@ -36,7 +36,7 @@ build_and_run_test_netmgr_retry() {
         -I "$SRC_DIR/include" \
         -o "$TMPDIR/test_netmgr_retry" \
         "$DIR/test_netmgr_retry.c" \
-        "$SRC_DIR/netmgr_retry.c" \
+        "$SRC_DIR/policy/netmgr_retry.c" \
         || return 1
     "$TMPDIR/test_netmgr_retry"
 }

@@ -93,7 +93,7 @@ OPERATE_RET tkl_wired_set_status_cb(TKL_WIRED_STATUS_CHANGE_CB cb)
 
 ### netmgr 今天怎么处理
 
-不处理，只记录并明确禁止。`netmgr_priv.h:104-116` 在 `netmgr_deinit()` 的设计记录里写明：**不要**用 `NULL` 去清 wired 状态回调，并且点名了这个模板文件作为理由之一。所以 `netconn_wired_close()`（`src/tuya_cloud_service/netmgr/netconn_wired.c:120-123`）是一个有注释的空实现。
+不处理，只记录并明确禁止。`netmgr_priv.h:104-116` 在 `netmgr_deinit()` 的设计记录里写明：**不要**用 `NULL` 去清 wired 状态回调，并且点名了这个模板文件作为理由之一。所以 `netconn_wired_close()`（`src/tuya_cloud_service/netmgr/conn/netconn_wired.c:120-123`）是一个有注释的空实现。
 
 ### 建议的修法与影响面
 
@@ -306,7 +306,7 @@ netcfg 的构建门是 **wifi**，而不是"支持配网的技术的并集"：
 ```cmake
 if(CONFIG_ENABLE_WIFI STREQUAL "y")                          # :98
     file(GLOB_RECURSE WIFI_SRCS
-        "${MODULE_PATH}/netmgr/netconn_wifi.c"
+        "${MODULE_PATH}/netmgr/conn/netconn_wifi.c"
         "${MODULE_PATH}/netcfg/*.c")                         # :101
     list(APPEND LIB_SRCS ${WIFI_SRCS})
     list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)       # :103
@@ -421,8 +421,8 @@ LN882H 也有一个 `OPRT_NOT_SUPPORTED` 的桩（`platform/LN882H/tuyaos/tuyaos
 - `src/tal_wired/include/tal_wired.h:37`、`:47`、`:57`、`:67`、`:77`、`:87` —— 全部 6 个函数，都是状态/配置，没有 uninit
 - `src/tal_wired/src/tal_wired.c:54-57` —— 纯转发到 `tkl_wired_set_status_cb()`
 - `platform/LINUX/tuyaos_adapter/src/tkl_wired.c:129`、`:156`、`:158` —— `NULL` 不被当作注销
-- `src/tuya_cloud_service/netmgr/netconn_wired.c:78` —— 安装回调
-- `src/tuya_cloud_service/netmgr/netconn_wired.c:120-123` —— `close()` 是有注释的空实现
+- `src/tuya_cloud_service/netmgr/conn/netconn_wired.c:78` —— 安装回调
+- `src/tuya_cloud_service/netmgr/conn/netconn_wired.c:120-123` —— `close()` 是有注释的空实现
 - `src/tuya_cloud_service/netmgr/netmgr_priv.h:38-168` —— `netmgr_deinit()` 的设计记录，其中 `:121-126` 就是这一条
 
 ### 问题是什么
@@ -473,8 +473,8 @@ LN882H 也有一个 `OPRT_NOT_SUPPORTED` 的桩（`platform/LN882H/tuyaos/tuyaos
 - `platform/T5AI/tuyaos/tuyaos_adapter/include/cellular/tkl_cellular.h` —— 13 个函数，没有一个能把承载降下来
 - `platform/T5AI/tuyaos/tuyaos_adapter/src/driver/tkl_cellular.c:47` / `:399` / `:424` —— 能力其实存在，但只在产测路径上
 - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:73-85` —— `NETCONN_CTRL_SUSTAINED` 的定义与文档
-- `src/tuya_cloud_service/netmgr/netconn_table.c:176` —— 蜂窝行的控制级别
-- `src/tuya_cloud_service/netmgr/netconn_cellular.c:130-135` / `:154-162`
+- `src/tuya_cloud_service/netmgr/conn/netconn_table.c:176` —— 蜂窝行的控制级别
+- `src/tuya_cloud_service/netmgr/conn/netconn_cellular.c:130-135` / `:154-162`
 
 ### 问题是什么
 
@@ -518,7 +518,7 @@ LN882H 也有一个 `OPRT_NOT_SUPPORTED` 的桩（`platform/LN882H/tuyaos/tuyaos
 - `src/tuya_cloud_service/cloud/mqtt_service.c:511` —— `context->manual_disconnect = true;`
 - `src/tuya_cloud_service/cloud/mqtt_service.c:837` —— 这个标志唯一的消费点
 - `src/tuya_cloud_service/cloud/tuya_iot.c:443` —— `tal_event_publish(EVENT_MQTT_DISCONNECTED, ...)`
-- `src/tuya_cloud_service/netmgr/netmgr_probe.c:104-115` —— netmgr 对这件事的记录
+- `src/tuya_cloud_service/netmgr/probe/netmgr_probe.c:104-115` —— netmgr 对这件事的记录
 
 ### 问题是什么
 
@@ -572,7 +572,7 @@ int tuya_mqtt_stop(tuya_mqtt_context_t *context)
 
 - `src/tuya_cloud_service/cloud/tuya_iot.c:798-800`
 - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:304` —— `netconn_registry_get_table(&count)`
-- `src/tuya_cloud_service/netmgr/netconn_table.c:87-91`、`:112-113`、`:127`
+- `src/tuya_cloud_service/netmgr/conn/netconn_table.c:87-91`、`:112-113`、`:127`
 
 ### 问题是什么
 
@@ -612,7 +612,7 @@ netmgr_conn_set(NETCONN_CELLULAR, NETCONN_CMD_CLOSE, NULL);  // :800
 - `src/tal_cli/src/tal_cli.c:826`、`:830` —— `cli_t` 只分配一次并清零，此后不释放
 - `src/tal_cli/src/tal_cli.c:533-536` —— 只填 `argv[0..argc-1]`
 - `src/tal_cli/src/tal_cli.c:573` —— 每条命令之后 memset `cli->buffer`
-- `src/tuya_cloud_service/netmgr/netmgr_cli.c:23-26` —— netmgr 侧的记录
+- `src/tuya_cloud_service/netmgr/cli/netmgr_cli.c:23-26` —— netmgr 侧的记录
 
 ### 问题是什么
 
@@ -644,13 +644,13 @@ netmgr_conn_set(NETCONN_CELLULAR, NETCONN_CMD_CLOSE, NULL);  // :800
 
 - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:192` —— `#define NETCONN_CAP_METERED (1u << 3)`
 - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:169-191` —— 它自己的文档，已经诚实地写了"DECLARED AND SURFACED, NOT ACTED ON"
-- `src/tuya_cloud_service/netmgr/netconn_table.c:175` —— 唯一置这个位的地方（蜂窝行）
-- `src/tuya_cloud_service/netmgr/netmgr_cli.c:92` —— 渲染成字符串 `"metered"`
+- `src/tuya_cloud_service/netmgr/conn/netconn_table.c:175` —— 唯一置这个位的地方（蜂窝行）
+- `src/tuya_cloud_service/netmgr/cli/netmgr_cli.c:92` —— 渲染成字符串 `"metered"`
 - `src/tuya_cloud_service/netmgr/include/netmgr_policy.h:772` —— `netmgr_link_view_t.caps`，交到产品排序钩子手里
-- `src/tuya_cloud_service/netmgr/netmgr_policy.c` —— **全文 `caps` 出现 0 次**
-- `src/tuya_cloud_service/netmgr/netmgr_policy.c:135-146` —— `__ranks_above()`
-- `src/tuya_cloud_service/netmgr/netmgr_policy.c:171` —— `netmgr_policy_select_default()`
-- `src/tuya_cloud_service/netmgr/netconn_table.c:160`、`:177`、`:190` —— 三个 `default_pri`
+- `src/tuya_cloud_service/netmgr/policy/netmgr_policy.c` —— **全文 `caps` 出现 0 次**
+- `src/tuya_cloud_service/netmgr/policy/netmgr_policy.c:135-146` —— `__ranks_above()`
+- `src/tuya_cloud_service/netmgr/policy/netmgr_policy.c:171` —— `netmgr_policy_select_default()`
+- `src/tuya_cloud_service/netmgr/conn/netconn_table.c:160`、`:177`、`:190` —— 三个 `default_pri`
 
 ### 问题是什么
 
@@ -696,7 +696,7 @@ netmgr 能提供答案（活跃链路的 caps 就在注册表里，`netconn_regi
 
 这两处都会让后来的读者相信这个功能已经存在：
 
-1. `src/tuya_cloud_service/netmgr/netconn_table.c:171-174` 的注释说 "M3 replaces that test with these bits"，`these bits` 指的是这一行的 `.caps`，即 METERED。但 M3 实际是用 `NETCONN_CAP_LAN` 做的门控（蜂窝**没有**那个位才是它被排除的原因，和它的 METERED 位无关）；而同一句里 "still wrapped around the LAN timer in `netmgr_init()`" 提到的那个 `#if !defined(ENABLE_CELLULAR)` 已经被删了（`netmgr.c:458-467` 记录了删除过程）。这句话在机制和现状两方面都过期了。
+1. `src/tuya_cloud_service/netmgr/conn/netconn_table.c:171-174` 的注释说 "M3 replaces that test with these bits"，`these bits` 指的是这一行的 `.caps`，即 METERED。但 M3 实际是用 `NETCONN_CAP_LAN` 做的门控（蜂窝**没有**那个位才是它被排除的原因，和它的 METERED 位无关）；而同一句里 "still wrapped around the LAN timer in `netmgr_init()`" 提到的那个 `#if !defined(ENABLE_CELLULAR)` 已经被删了（`netmgr.c:458-467` 记录了删除过程）。这句话在机制和现状两方面都过期了。
 2. `apps/tuya_cloud/switch_demo/config/TUYA_T5AI_BOARD_CELLULAR.config:13-15` 把 "NETCONN_CAP_METERED avoidance" 列进了这个 config 所验证的内容里。那个行为不存在，这一行是过度宣称。
 
 ---
