@@ -26,12 +26,11 @@
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    /* The active route. Its src_ip is kept here rather than in
-     * tal_net_provider_t.ipaddr because several connections can share one
-     * provider type (on T5AI both wifi and cellular are TKL), so it is a
-     * property of the active link, not of the provider. Updates that move both
-     * fields at once go through s_route_lock; reads of a single field do not
-     * need it. */
+    /* The active route. src_ip lives here, not on the backend: several
+     * connections can share one provider (on T5AI both wifi and cellular are
+     * TKL), so a source address is a property of the active link, not of the
+     * backend. Updates that move both fields at once go through s_route_lock;
+     * reads of a single field do not need it. */
     tal_net_route_t route;
     /* Available backends, indexed by TAL_NET_PROVIDER_*. Written once by the
      * static initializer below and never again, so readers need no lock. */

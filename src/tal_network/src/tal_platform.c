@@ -43,9 +43,6 @@
 ***********************************************************/
 
 tal_net_provider_t tal_net_provider_tkl = {
-    .name = "tkl",
-    .type = TAL_NET_PROVIDER_TKL,
-    .ipaddr = 0,
     .ops =
         {
             .get_errno = tkl_net_get_errno,

@@ -469,7 +469,7 @@ typedef uint8_t tal_net_provider_id_t;
    **这一步漏了最难查**：`tal_net_route_set()` 会接受你的 provider（在范围内），然后 `tal_net_provider_ops()` 拿到 `NULL`，全部 socket 原语开始返回失败，而且没有一条日志说明是为什么。表是静态初始化的、之后永不改写，这正是读者不需要加锁的前提，所以新条目也必须放进**静态初始化器**里，不要在 `tal_net_provider_init()` 里补。
 4. **让某条链路用它**：把那条链路的 `netconn_desc_t.provider` 从 `TAL_NET_PROVIDER_DEFAULT` 改成 `TAL_NET_PROVIDER_<X>`。**改驱动的静态初始化没用**（会被描述符盖掉），要么改 `netconn_table.c` 的默认表，要么走 §2.8 的板级覆盖 —— 后者是"板子真有第二个后端"的正规表达方式。
 
-> `src_ip` 之所以放在 route 里而不是 `tal_net_provider_t.ipaddr` 里：多条链路可以共用一个 provider type（T5AI 上 wifi 和 cellular 都是 `TKL`），所以源地址是**激活链路**的属性，不是 provider 的属性。
+> `src_ip` 之所以放在 route 里而不是放在 provider 上：多条链路可以共用一个 provider（T5AI 上 wifi 和 cellular 都是 `TKL`），所以源地址是**激活链路**的属性，不是 provider 的属性。`tal_net_provider_t` 因此只剩一张函数表 —— 它曾经带过 `.name` / `.type` / `.ipaddr` 三个字段，全都只写不读，已删除。
 
 ---
 

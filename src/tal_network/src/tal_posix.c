@@ -1127,9 +1127,6 @@ OPERATE_RET tal_net_posix_getpeername(int fd, TUYA_IP_ADDR_T *addr, uint16_t *po
 }
 
 tal_net_provider_t tal_net_provider_posix = {
-    .name = "posix",
-    .type = TAL_NET_PROVIDER_POSIX,
-    .ipaddr = 0,
     .ops =
         {
             .get_errno = tal_net_posix_get_errno,

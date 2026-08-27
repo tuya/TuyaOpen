@@ -101,11 +101,14 @@ typedef uint8_t tal_net_provider_id_t;
 #define TAL_NET_PROVIDER_DEFAULT TAL_NET_PROVIDER_TKL
 #endif
 
+/**
+ * One socket ops backend. The registry indexes these by TAL_NET_PROVIDER_*, so
+ * a backend does not carry its own id, and the source address belongs to the
+ * active route rather than to a backend (see tal_net_route.h) - which is why
+ * this is a table of function pointers and nothing else.
+ */
 typedef struct {
-    char                  name[16];
-    tal_net_provider_id_t type;
-    TUYA_IP_ADDR_T        ipaddr;
-    TAL_NETWORK_OPS_T     ops;
+    TAL_NETWORK_OPS_T ops;
 } tal_net_provider_t;
 
 /***********************************************************
