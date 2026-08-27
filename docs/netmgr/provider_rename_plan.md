@@ -527,7 +527,7 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
    ```
    HEAD 上命中的、真正需要处理的注释（不含三个函数自己的声明/定义，那两处随 wrapper 一起删）：
    - `src/tal_network/src/tal_network_register.c:204`
-   - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:139,142,144`
+   - `src/tuya_cloud_service/netmgr/include/netconn_registry.h:90`（原为 `:139,142,144` 三处，后来合并成一处；**清单以上面那条命令现取为准，不要照抄行号**）
    - `src/tuya_cloud_service/netmgr/netconn_wifi.c:34,397`
    - `docs/netmgr/extension_guide.md:62,411,412,413,793,800,807`（本次不改，留给 S4）
 
@@ -537,8 +537,14 @@ git grep -nwE 'TAL_NETWORK_CARD_T|TAL_NETWORK_CARD_TYPE_E|tal_network_card_init|
 - 两个 target 编过；
 - 全树（含 `docs/` 与 `.config` 注释）旧名字零命中：
   ```bash
-  git grep -nwE 'TAL_NETWORK_CARD|tal_network_card|TAL_NET_TYPE_' ; echo "expect: empty"
+  # 注意没有 -w。这三个都是前缀，而 -w 要求整词匹配：它们后面永远跟着 `_` 或后缀
+  # （`tal_network_card_set_active`、`TAL_NET_TYPE_POSIX`），下划线是词字符，所以
+  # `git grep -nwE` 的版本一行都匹配不上。这跟 §2.2 记下的那条教训是同一个形状 ——
+  # 用标识符前缀拼 pattern，再加 -w，等于造一条恒绿的证明。
+  git grep -nE 'TAL_NETWORK_CARD|tal_network_card|TAL_NET_TYPE_' ; echo "expect: empty"
   ```
+  **自检：S4 动手之前这条 grep 必须是非空的。** 如果它在 S4 还没开始时就返回空，
+  那是 grep 坏了，不是树干净了 —— 曾经写成 `-nwE` 的那一版正是如此。
   这条 grep 到 S4 之前**不能**包含三个 wrapper 的名字，正是因为它们要到 S4 才删（S3 的完整性 gate，§4.3，特意把 `tal_network_card_set_active` 等排除在检查范围外）；S4 之后这条 grep 要**加上**它们，和上面第 4 条的清单一起验证为空。
 - **而且这个 gate 不足以决定 S4 什么时候做**，见下。
 
@@ -615,8 +621,8 @@ git grep -nw '<symbol>' -- '*.c' '*.h'
 | 函数 | 声明 / 定义 | 调用方 | 建议 |
 | --- | --- | --- | --- |
 | `tuya_lan_enable()` | `tuya_lan.c:1470` | **0** | **留。** 不重数 —— [`known_gaps.md`](known_gaps.md) §4 已经确认过零调用方（`:233`、`:240`），而且它正是那一节缺口的**修法所需**（`ap_netcfg_stop()` 应该调它）。删掉它等于删掉那个修法。**不属于本 PR。** |
-| `tal_network_card_set_active()` | `tal_network_register.h:106` / `.c:164` | **0**（另有 2 处注释：`.c:190`、`netconn_registry.h:144`，后者明确写了「which has zero callers in the tree」） | **S4 删。** |
-| `tal_network_card_get_active_type()` | `tal_network_register.h:108` / `.c:182` | **0**（另有 4 处注释：`netconn_registry.h:139/142`、`netconn_wifi.c:34/397`，都在解释那个死掉的 4G 分支） | **S4 删。** 删函数，**保留那些注释** —— 它们记录的是一个被绕开的设计错误，不是这个函数 |
+| `tal_network_card_set_active()` | `tal_network_register.h:106` / `.c:164` | **0**（另有注释若干，清单用 §4.4 那条命令现取；原先写死的「2 处 `.c:190`、`netconn_registry.h:144`」已经漂了） | **S4 删。** |
+| `tal_network_card_get_active_type()` | `tal_network_register.h:108` / `.c:182` | **0**（另有注释若干，都在解释那个死掉的 4G 分支；清单用 §4.4 那条命令现取。原先写死的「4 处」已经漂成 3 处 —— `netconn_registry.h` 的两处后来合并成一处 `:90`。按 §2.3 的教训，这里不再写数字） | **S4 删。** 删函数，**保留那些注释** —— 它们记录的是一个被绕开的设计错误，不是这个函数 |
 | `tal_network_card_set_active_ip()` | `tal_network_register.h:123` / `.c:188` | **0**，连注释都没有 | **S4 删。** 这三个里最干净的一个 |
 | `netmgr_policy_select_cb_set()` | `netmgr_policy.h:880` / `netmgr.c:2818` | **0** | **留。** 树内零调用方是**设计意图**：它是板级/产品级的排序钩子，扩展指南 §4.1、release notes §4.1 和 §9.8 都在教人用它 |
 | `netconn_registry_set_table()` | `netconn_registry.h:328` / `netconn_table.c:274` | **0**（`netmgr.c:3020` 一处注释） | **留。** 同上，板级链路表覆盖入口（扩展指南 §2.8、release notes §4.3） |
