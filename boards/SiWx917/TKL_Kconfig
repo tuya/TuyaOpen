@@ -57,13 +57,9 @@ config ENABLE_BLUETOOTH
     select ENABLE_BT_SERVICE
     default y
 
-# n, like PWM and RTC below: there is no tkl_adc.c in this platform's adapter
-# (nor an include/adc), so examples/peripherals/adc -- the only thing that
-# reads this -- would configure and then fail to link. Saying n makes it stop
-# at its own error message instead.
 config ENABLE_ADC
     bool
-    default n
+    default y
 
 config ENABLE_GPIO
     bool
@@ -71,7 +67,11 @@ config ENABLE_GPIO
 
 config ENABLE_PWM
     bool
-    default n
+    default y
+
+config ENABLE_DAC
+    bool
+    default y
 
 config ENABLE_UART
     bool
@@ -108,6 +108,10 @@ config ENABLE_TIMER
     default y
 
 config ENABLE_RTC
+    bool
+    default y
+
+config ENABLE_QSPI
     bool
     default n
 
