@@ -509,20 +509,30 @@ static const char *__netmgr_link_name(netmgr_type_e type)
  * finally TRUE.
  *
  * What this deliberately does NOT do: stop LAN when the route moves to a link
- * without NETCONN_CAP_LAN, and restart it on the way back. Four independent
+ * without NETCONN_CAP_LAN, and restart it on the way back. Three independent
  * reasons, any one of them sufficient:
  *
- *   - tuya_lan_disable() closes every reader fd on the shared socket loop, which
- *     the AI monitor also uses, and there is no reference count. After it runs the
- *     AI monitor dereferences g_sloop == NULL;
- *   - tuya_lan_disable() blocks for up to 3000 ms. Called from here it would park
- *     the system work queue for that long and blow netmgr_deinit()'s 2000 ms drain
- *     budget;
+ *   - tuya_lan_disable() blocks for up to 3000 ms waiting for LAN's socket loop
+ *     thread to wind down (the tuya_sock_loop_is_inited() poll in tuya_lan.c).
+ *     Called from here it would park the system work queue for that long and blow
+ *     netmgr_deinit()'s 2000 ms drain budget;
  *   - it is not needed for correctness. Both LAN server sockets bind to the
  *     wildcard address, and LAN reads the active address per packet through
  *     netmgr_conn_get(), so a link switch heals itself;
- *   - the "clean" alternative is broken TODAY, so adopting it would be trading a
- *     working behaviour for a crash.
+ *   - a stop/restart cycle can leave LAN inert until reboot. When that 3000 ms
+ *     wait times out, tuya_lan_disable() deliberately leaks s_lan_mgr rather than
+ *     free it under a live reader callback, and tuya_lan_init()'s
+ *     `if (s_lan_mgr) return OPRT_OK;` guard then makes every later restart
+ *     "succeed" without registering a socket. That path is survivable as a rare
+ *     abnormality; driving it once per link switch would make it routine.
+ *
+ * A fourth reason used to head this list and no longer holds. While the socket
+ * loop was a process-wide singleton, tuya_lan_disable() closed reader fds out
+ * from under the AI monitor, which shared the loop with no reference count, and
+ * the monitor then dereferenced a NULL g_sloop - known_gaps.md section 3. Each
+ * owner now creates its own loop via tuya_sock_loop_create(), so that crash is
+ * gone, and with it the old fourth reason that stopping LAN was "broken TODAY".
+ * Stopping is no longer a crash; it is still the three things above.
  *
  * So the gate governs STARTING only. A device that boots on cellular never opens
  * the LAN ports at all, which is the whole of what the `#if` was reaching for.
