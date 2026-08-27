@@ -81,20 +81,23 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 
 ```
 src/tuya_cloud_service/netmgr/
-├── include/          公开契约。唯一被导出的目录
-├── conn/             扩展路径一：链路驱动 + 内置链路表
-├── policy/           扩展路径三：默认排序，以及它用的退避表
-├── probe/            扩展路径四：内置探测后端
-├── cli/              调试命令，不是扩展点
-├── netmgr.c          状态机本体
-└── netmgr_priv.h     库内共享声明，不导出
+├── include/              公开契约。唯一被导出的目录
+└── src/
+    ├── conn/             扩展路径一：链路驱动 + 内置链路表
+    ├── policy/           扩展路径三：默认排序，以及它用的退避表
+    ├── probe/            扩展路径四：内置探测后端
+    ├── cli/              调试命令，不是扩展点
+    ├── netmgr.c          状态机本体
+    └── netmgr_priv.h     库内共享声明，不导出
 ```
 
 划分依据是**"我来这个目录是要换掉什么"**，不是文件类型。§2～§5 四条扩展路径里有三条各自对应一个子目录，装的都是那条路径要替换的那一件东西：`policy/netmgr_policy.c` 是 `netmgr_policy_select_cb_set()` 要替换的默认实现，`probe/netmgr_probe.c` 是 `netmgr_probe_backend_set()` 要替换的内置后端，`conn/` 是新增一种链路技术要照抄的模板。
 
 **`netmgr.c` 在根目录，而且不会被拆开。** 它 3000 多行不是失控：`s_netmgr`、`s_netmgr.lock` 和 `sg_netmgr_gate_closed` 构成一条不变量（见 §3.1 的锁契约），而"锁只保护 `s_netmgr` 的字段访问，此外什么都不保护"这句话，**只有在所有访问都在同一个编译单元里时才是可审计的**。把它拆到几个文件里，就必须把这三样东西放进一个私有头暴露给多个 TU，那恰好毁掉这条契约唯一的执行机制。它不是可替换件，它是消费所有替换件的那个中心 —— 所以它不进子目录。
 
-**`include/` 故意不镜像这些子目录。** `netmgr_policy.h` 在 `include/`、实现在 `policy/`，看起来像该"修"的错配，但它不是：整个模块只导出一个目录，这是 `netmgr_priv.h` 保持私有的机制（见 `src/tuya_cloud_service/CMakeLists.txt` 里 `LIB_PUBLIC_INC` 那段注释）。把头文件也按子目录切开，就得导出四个目录，那条保证随即消失。
+外层只有 `include/` 和 `src/`，这是这棵树在 component 层的既有写法（`src/tal_network/`、`src/tal_cellular/`、`src/tal_cli/`、`src/tal_system/`、`src/tal_wifi/` 都是这个形状），所以读者不需要学一套 netmgr 专用的布局。它还顺带收紧了一处：私有 include 路径现在指向 `netmgr/src` 而不是模块根，而模块根是**包含 `include/`** 的 —— 指向根意味着源文件可以写 `#include "include/netmgr.h"` 并且能编过，那是个不该存在的拼法。`netmgr/src` 里除了实现什么都没有。
+
+**`include/` 故意不镜像 `src/` 下面的子目录。** `netmgr_policy.h` 在 `include/`、实现在 `src/policy/`，看起来像该"修"的错配，但它不是：整个模块只导出一个目录，这是 `netmgr_priv.h` 保持私有的机制（见 `src/tuya_cloud_service/CMakeLists.txt` 里 `LIB_PUBLIC_INC` 那段注释）。把头文件也按子目录切开，就得导出四个目录，那条保证随即消失。
 
 ---
 
@@ -107,7 +110,7 @@ src/tuya_cloud_service/netmgr/
 | # | 文件 | 改动 |
 |---|------|------|
 | 1 | `src/tuya_cloud_service/netmgr/netconn_<tech>.c` `.h` | 新驱动。一个 `netmgr_conn_<tech>_t s_netmgr_<tech>`，填好 `open/close/set/get` |
-| 2 | `src/tuya_cloud_service/netmgr/conn/netconn_table.c` | 一个 `#if defined(ENABLE_<TECH>)` 块（include + `extern` + `HAS_` 宏）、两个 mask 宏、**表里一行** |
+| 2 | `src/tuya_cloud_service/netmgr/src/conn/netconn_table.c` | 一个 `#if defined(ENABLE_<TECH>)` 块（include + `extern` + `HAS_` 宏）、两个 mask 宏、**表里一行** |
 | 3 | `src/tuya_cloud_service/CMakeLists.txt` | 一个 `if(CONFIG_ENABLE_<TECH> STREQUAL "y")` 块，照文件里 wifi / wired / cellular 三段的样子写 |
 | 4 | Kconfig | 一个 `ENABLE_<TECH>` 条目，见 §2.9 |
 | 5 | `src/tuya_cloud_service/netmgr/include/netmgr.h` | `netmgr_type_e` 加一个枚举位（`1 << 4`）。**不需要**补 `NETMGR_TYPE_TO_STR()` —— 已注册链路的名字全部来自描述符，见 §8.1 |

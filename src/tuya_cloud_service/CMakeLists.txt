@@ -12,7 +12,7 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 # LIB_SRCS
 file(GLOB_RECURSE LIB_SRCS 
     "${MODULE_PATH}/lan/*.c"
-    "${MODULE_PATH}/netmgr/netmgr.c"
+    "${MODULE_PATH}/netmgr/src/netmgr.c"
     # Four unconditional; netmgr_probe.c is globbed here and removed again below
     # when the board did not ask for it, which is the ENABLE_DEVICE_TIMER pattern.
     #
@@ -30,11 +30,11 @@ file(GLOB_RECURSE LIB_SRCS
     # predates M3 and is not optional. Both are also technology-free by
     # construction, pure arithmetic over their arguments with no driver header
     # included, so there is nothing for an ENABLE_<TECH> gate to protect either.
-    "${MODULE_PATH}/netmgr/conn/netconn_table.c"
-    "${MODULE_PATH}/netmgr/cli/netmgr_cli.c"
-    "${MODULE_PATH}/netmgr/policy/netmgr_policy.c"
-    "${MODULE_PATH}/netmgr/probe/netmgr_probe.c"
-    "${MODULE_PATH}/netmgr/policy/netmgr_retry.c"
+    "${MODULE_PATH}/netmgr/src/conn/netconn_table.c"
+    "${MODULE_PATH}/netmgr/src/cli/netmgr_cli.c"
+    "${MODULE_PATH}/netmgr/src/policy/netmgr_policy.c"
+    "${MODULE_PATH}/netmgr/src/probe/netmgr_probe.c"
+    "${MODULE_PATH}/netmgr/src/policy/netmgr_retry.c"
     "${MODULE_PATH}/protocol/*.c"
     "${MODULE_PATH}/schema/*.c" 
     "${MODULE_PATH}/cloud/*.c"
@@ -80,21 +80,28 @@ endif()
 # netmgr_probe_backend_set() is unaffected, because that path never names the
 # built-in one.
 if(NOT CONFIG_ENABLE_NETMGR_PROBE STREQUAL "y")
-    list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/netmgr/probe/netmgr_probe.c")
+    list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/netmgr/src/probe/netmgr_probe.c")
 endif()
 
 # LIB_PRIVATE_INC
 #
-# The netmgr module root, so its own sources can include netmgr_priv.h while
-# nothing outside the library can. netmgr's sources sit in per-function
-# subdirectories (conn/, policy/, probe/, cli/) but netmgr_priv.h stays at the
-# module root, so this one entry keeps working for all of them and no
-# subdirectory needs an include path of its own. This list was referenced by
-# target_include_directories() below and never set, which is why the netmgr
-# directory had to be PUBLIC for its own .c files to compile - a PUBLIC include
-# applies to the target itself, so making the sources build also published every
-# header beside them.
-set(LIB_PRIVATE_INC ${MODULE_PATH}/netmgr)
+# netmgr's implementation root, so its own sources can include netmgr_priv.h
+# while nothing outside the library can.
+#
+# It points at netmgr/src, not at the module root, on purpose: the module root
+# also contains include/, so a source could reach a public header as
+# "include/netmgr.h" - a spelling that should not exist. netmgr/src holds
+# nothing but implementation, so this entry grants exactly what it says.
+#
+# netmgr_priv.h sits directly in netmgr/src while the sources sit one level
+# further down (conn/, policy/, probe/, cli/), so this one entry serves all of
+# them and no subdirectory needs an include path of its own.
+#
+# This list was referenced by target_include_directories() below and never set,
+# which is why the netmgr directory had to be PUBLIC for its own .c files to
+# compile - a PUBLIC include applies to the target itself, so making the sources
+# build also published every header beside them.
+set(LIB_PRIVATE_INC ${MODULE_PATH}/netmgr/src)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/cloud)
@@ -106,7 +113,7 @@ list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/tls)
 # netmgr exports include/ and not the module root, which is what keeps
 # netmgr_priv.h private. include/ deliberately does NOT mirror the source
 # subdirectories - netmgr_policy.h lives here while netmgr_policy.c lives in
-# netmgr/policy/. Splitting the headers to match would mean exporting four
+# netmgr/src/policy/. Splitting the headers to match would mean exporting four
 # directories instead of one, and the single exported directory is the whole
 # mechanism behind the previous sentence. The mismatch is the price, and it is
 # the cheaper side of the trade. Everything else in that directory is a contract: the
@@ -120,7 +127,7 @@ list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/weather)
 
 if(CONFIG_ENABLE_WIFI STREQUAL "y")
     file(GLOB_RECURSE WIFI_SRCS 
-        "${MODULE_PATH}/netmgr/conn/netconn_wifi.c" 
+        "${MODULE_PATH}/netmgr/src/conn/netconn_wifi.c" 
         "${MODULE_PATH}/netcfg/*.c")
     list(APPEND LIB_SRCS ${WIFI_SRCS})
     list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)
@@ -128,13 +135,13 @@ endif()
 
 if(CONFIG_ENABLE_WIRED STREQUAL "y")
     file(GLOB_RECURSE WIRED_SRCS 
-        "${MODULE_PATH}/netmgr/conn/netconn_wired.c")
+        "${MODULE_PATH}/netmgr/src/conn/netconn_wired.c")
     list(APPEND LIB_SRCS ${WIRED_SRCS})
 endif()
 
 if (CONFIG_ENABLE_CELLULAR STREQUAL "y")
     file(GLOB_RECURSE WIRED_SRCS 
-        "${MODULE_PATH}/netmgr/conn/netconn_cellular.c")
+        "${MODULE_PATH}/netmgr/src/conn/netconn_cellular.c")
     list(APPEND LIB_SRCS ${WIRED_SRCS})
 endif()
 

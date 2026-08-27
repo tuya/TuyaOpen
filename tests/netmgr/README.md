@@ -1,7 +1,7 @@
 # netmgr_retry host unit test
 
 A host-side (no target, no build tree) unit test for
-`src/tuya_cloud_service/netmgr/policy/netmgr_retry.c`.
+`src/tuya_cloud_service/netmgr/src/policy/netmgr_retry.c`.
 
 ## Why this exists
 
