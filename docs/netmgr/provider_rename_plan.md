@@ -1,6 +1,10 @@
 # netmgr / tal_network 术语重命名迁移计划：`card` → `provider`
 
-> 状态：**S1–S3 已执行**，`3b55d419..1935f2e3`（13 个 commit，每一步都在两个验证 target 上编过）。S4 未做 —— 它的触发条件是一次带 release note 的 tag 加足够的时间，不是树内状态，见 §4.5。
+> 状态：**全部已执行，包括 S4 与 §7 第 7 条的后续项。** S1–S3 见 `3b55d419..1935f2e3`（13 个 commit）；S4 及其后续在本分支上一次做完，两个验证 target 都做过干净构建。
+>
+> **执行时偏离了本文一处关键决定：跳过了废弃窗口。** §4.5 论证 S4 必须等一次带 release note 的 tag 加足够时间，因为编译证明不了树外。这个论证没有被推翻 —— 是产品上选择了另一条路：**不发别名，直接破坏，让树外在升级的那一刻拿到编译错误而不是警告**，代价写进 `release_notes.md` §2.4，迁移路径是 `tools/provider_rename.py`。选它的理由和 §4.5 的理由其实是同一条：编译证明不了树外完整性，而一个只在废弃窗口内存在的别名层，会让"改完了没有"这件事既无法机械验证、又推迟到没人再看的时候。**如果下一次重命名要走废弃窗口，§4.5 依然是对的，不要拿这次当先例。**
+>
+> 本文其余部分保持写作时的样子，包括 `tal_network_register.[ch]` 这个文件名 —— 那是它当时的名字（现已改为 `tal_net_provider.[ch]`）。改写正文会毁掉这份文档存在的理由。
 > 写作日期 2026-08-24，写作基线 `0dff53e0`；执行日期 2026-08-25，执行起点 `3b55d419`。执行中被证伪的地方已就地更正，每处都在正文里说明了是怎么发现的。
 > 目标读者：要**执行**这次重命名的人，以及要 **review** 它的人
 > 与另三篇的分工：
@@ -689,13 +693,13 @@ git grep -nE '(->|\.)(name|ipaddr|type)\b' -- 'src/tal_network/src/tal_network_r
 
 | 诱惑 | 为什么不行 |
 | --- | --- |
-| 删掉 `TAL_NET_TYPE_AT_MODEM` 并把 `MAX` 从 3 改成 2 | **这是行为变更。** `tal_net_route_set()` 用 `route->provider >= TAL_NET_TYPE_MAX` 做校验（`tal_network_register.c:140`），把 `MAX` 改小会让 provider = 2 从「合法但没实现」变成 `OPRT_INVALID_PARM`。S2 只重命名它，删除另开 |
+| 删掉 `TAL_NET_TYPE_AT_MODEM` 并把 `MAX` 从 3 改成 2 —— **仍然没做，见 §3.3/§3.6** | **这是行为变更。** `tal_net_route_set()` 用 `route->provider >= TAL_NET_TYPE_MAX` 做校验（`tal_network_register.c:140`），把 `MAX` 改小会让 provider = 2 从「合法但没实现」变成 `OPRT_INVALID_PARM`。S2 只重命名它，删除另开 |
 | 删掉三个零调用方 wrapper（§5.2） | 删公开 API ≠ 重命名。它们排在 **S4**，和别名一起走同一个废弃窗口 |
 | 删掉 `TAL_NETWORK_CARD_T` 的 `.name` / `.type` / `.ipaddr`（§5.3） | 改公开结构体布局。而且 `.name`（`"tkl"`）是 §3.4 的证据之一，删它要排在值重命名之后 |
-| 删掉 `CELLULAR_STAT_E`（§5.1） | 两行的改动，但它属于 `tal_cellular` 的命名而不是 provider 的命名。单独一个 commit，单独 review |
-| 顺手把 `NETMGR_LINK_UP_SWITH` 的拼写修掉 | **这是另一次公开重命名，不是这一次。** 它命中 5 个文件 11 行（`git grep -cw NETMGR_LINK_UP_SWITH -- ':!docs'`），其中 `examples/multimedia/audio_player/music/src/tuya_app_main.c:106` 在 `src/` 外，而且 `netmgr_event.h:306-312` 有一整段注释在解释为什么它至今没改。它需要自己的一份 §4 那样的顺序 |
+| ~~删掉 `CELLULAR_STAT_E`（§5.1）~~ **已执行**，单独一个 commit | 当时的理由：两行的改动，但它属于 `tal_cellular` 的命名而不是 provider 的命名。单独一个 commit，单独 review |
+| ~~顺手把 `NETMGR_LINK_UP_SWITH` 的拼写修掉~~ **已执行**，单独一个 commit，含一次对齐修复 | 当时的理由：**这是另一次公开重命名，不是这一次。** 它命中 5 个文件 11 行（`git grep -cw NETMGR_LINK_UP_SWITH -- ':!docs'`），其中 `examples/multimedia/audio_player/music/src/tuya_app_main.c:106` 在 `src/` 外，而且 `netmgr_event.h:306-312` 有一整段注释在解释为什么它至今没改。它需要自己的一份 §4 那样的顺序 |
 | 把 `tal_network_card_manager` 改成 `static` | 它今天是非 `static` 的全局，但只在 `tal_network_register.c` 内被引用（9 行，全在同一个文件）。加 `static` 是**链接属性变更**，不是重命名。改名放 S2，加 `static` 另开——那个 commit 同时把它改名成 `s_provider_registry` |
-| 把 `tal_network_register.[ch]` 改名成 `tal_net_provider.[ch]`、`tal_platform.c` 改名成 `tal_tkl.c` | **文件重命名会打破树外的 `#include "tal_network_register.h"`**，而且它跟符号重命名的废弃机制完全不同（头文件可以留一个只有 `#include` 的转发壳，源文件不需要转发）。按 `173b54ec refactor(tal_wifi_ulp): rename netmgr.[ch] to ulp_apiq.[ch]` 的先例，文件重命名自己一个 commit，而且要排在 S4 之后 |
+| ~~把 `tal_network_register.[ch]` 改名成 `tal_net_provider.[ch]`、`tal_platform.c` 改名成 `tal_tkl.c`~~ **已执行**，单独一个 commit | 当时的理由：**文件重命名会打破树外的 `#include "tal_network_register.h"`**，而且它跟符号重命名的废弃机制完全不同（头文件可以留一个只有 `#include` 的转发壳，源文件不需要转发）。按 `173b54ec refactor(tal_wifi_ulp): rename netmgr.[ch] to ulp_apiq.[ch]` 的先例，文件重命名自己一个 commit，而且要排在 S4 之后 |
 | 把 `tal_net_provider_id_t` 改成真 `enum` | 会让 `netmgr.h` 依赖数据面头文件，撤销 `1767f10b`（§3.6） |
 | 顺手把 `netmgr_get_active_ops()` 那些不加锁的读者「修好」 | 扩展指南 §3.3 用一整节在说不要这么做（热路径 + 优先级反转）。重命名一个函数不是重新审视它的锁的时机 |
 | 全文件 clang-format | 只格式化动过的行，先例是 `00cb9215`（§4.2） |
@@ -729,7 +733,7 @@ git grep -nE '(->|\.)(name|ipaddr|type)\b' -- 'src/tal_network/src/tal_network_r
    ```
    13 个 commit，不是计划设想的 6 个（S1、S2a-e、S3）。`407bccd2` 修的是 `83b5f005` 自己落地时新引入的问题——同一类「修正的措辞里又带出一个旧名字」，和 §4.4 第 4 条那种「点名 wrapper 的注释」是同一类坑。下一个执行这份计划的人应该预期这种形状：机械重命名的每一步都在验证前一步的完整性检查有没有漏洞，漏洞暴露出来就地修一个 commit，而不是留到下一轮或者悄悄改前一个 commit。
 4. **S3** 给 typedef 和函数别名加 `__attribute__((deprecated))`；宏别名不加（做不到），只加文档和可 grep 的标记；在 `tools/` 下放替换脚本，脚本里带上 §2.5 的碰撞名单。gate：`git grep` 旧名字，除 `tal_network_register.h` 外零命中 —— **这是 S2 改全了的唯一机械证明。**
-5. **发一次带 release note 的 tag**，附 §3.3 的完整映射表。这一步不是可选的，它是 S4 唯一合法的触发条件。
+5. ~~**发一次带 release note 的 tag**，附 §3.3 的完整映射表。这一步不是可选的，它是 S4 唯一合法的触发条件。~~ **没有这么做** —— 见文首状态说明：映射表直接进了 `release_notes.md` §2.4，随本次变更一起发布，别名层不再存在。这一步是被换掉，不是被跳过：公告仍然要发，只是它公告的是“已经删除”而不是“即将删除”。
 6. **S4** 独立 PR：删掉全部别名，删掉三个零调用方 wrapper。gate：全树旧名字零命中 + 两个 target 编过。
 7. **S4 之后**才轮到：删 `TAL_NET_TYPE_AT_MODEM` 并调 `MAX`、删三个只写不读的字段、`tal_net_provider_registry` 加 `static` 并同时改名成 `s_provider_registry`（§3.3、§6.2）、文件重命名。每项一个 commit。
 8. **全程不做**：§6 那两张表里的任何一项。

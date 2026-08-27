@@ -92,6 +92,57 @@ OPERATE_RET __link_status_cb(void *data)
 
 ---
 
+### 2.4 `card` 术语全部消失，旧名字**不保留兼容别名**
+
+「socket 后端」这个概念以前叫 `card`（网卡），但它从来不是网卡：`POSIX` 是 lwip/socket 实现，`TKL` 是平台 tkl 实现，`AT_MODEM` 是一个只有常量没有实现的 AT 模组占位。真正的网络接口（wifi / wired / cellular）在 `netconn_*` 里。这次把这个概念统一改名成 `provider`。
+
+**这一节是本次升级中唯一会让「编不过」的改动，而且没有过渡期。** 中间版本里曾经有一层废弃别名，本版本把它一起删了：升级时旧名字不是产生警告，而是直接编译错误。这样做是因为编译错误会准确指出每一处待改的地方，而一个只在废弃窗口内存在的别名层，会让"改完了没有"这件事无法被机械验证。
+
+**自动迁移**：`tools/provider_rename.py --apply <你的源码目录>`。它默认 dry-run，只动你指定的目录，对有歧义的裸词只警告不改。
+
+#### 完整映射表
+
+| 旧名字 | 新名字 |
+| --- | --- |
+| `TAL_NETWORK_CARD_TYPE_E` | `tal_net_provider_id_t` |
+| `TAL_NETWORK_CARD_T` | `tal_net_provider_t` |
+| `TAL_NET_TYPE_POSIX` | `TAL_NET_PROVIDER_POSIX` |
+| `TAL_NET_TYPE_PLATFORM` | `TAL_NET_PROVIDER_TKL` |
+| `TAL_NET_TYPE_AT_MODEM` | `TAL_NET_PROVIDER_AT_MODEM` |
+| `TAL_NET_TYPE_MAX` | `TAL_NET_PROVIDER_MAX` |
+| `tal_network_card_init()` | `tal_net_provider_init()` |
+| `tal_network_get_active_ops()` | `tal_net_provider_ops()` |
+| `tal_network_card_get_active_ip()` | `tal_net_route_src_ip()` |
+| `tal_network_card_posix` | `tal_net_provider_posix` |
+| `tal_network_card_platform` | `tal_net_provider_tkl` |
+| `netmgr_conn_base_t.card_type` | `.provider` |
+| `#include "tal_network_register.h"` | `#include "tal_net_provider.h"` |
+| `CELLULAR_STAT_E` | `TAL_CELLULAR_STAT_E`（来自 `tal_cellular.h`） |
+| `NETMGR_LINK_UP_SWITH` | `NETMGR_LINK_UP_SWITCH`（补上漏掉的 C） |
+
+**数值一个都没有改。** 常量的值、枚举的序号都和上一个版本一致，所以不存在"名字换了、意思也悄悄换了"的情况。
+
+#### 没有等价替换的四项
+
+这四项不是改个名字就行，需要动代码：
+
+| 删除的东西 | 怎么办 |
+| --- | --- |
+| `tal_network_card_set_active()`<br>`tal_network_card_get_active_type()`<br>`tal_network_card_set_active_ip()` | 三个半更新入口，各自只碰"后端"或"源地址"其中一半。用 `tal_net_route_set()` / `tal_net_route_get()`（`tal_net_route.h`）**成对**读写 —— 分两次写会留下一个窗口：新后端配着上一条链路的源地址 |
+| `tal_net_provider_t` 的 `.name` / `.type` / `.ipaddr` | 三个只写不读的字段，直接删掉初始化器。后端的 id 由它在注册表里的下标决定；源地址属于当前路由，不属于后端 |
+| `tal_network_card_manager` 全局 | 现在是 file-private 的 `s_provider_registry`。通过 `tal_net_provider_ops()` / `tal_net_route_get()` 访问 |
+| `tal_platform.c` | 改名为 `tal_tkl.c`。只影响直接引用文件名的构建脚本 |
+
+#### 一条自查命令
+
+```bash
+git grep -nE 'TAL_NETWORK_CARD|tal_network_card|TAL_NET_TYPE_|NETMGR_LINK_UP_SWITH|\bCELLULAR_STAT_E|tal_network_register'
+```
+
+两个细节：`CELLULAR_STAT_E` 前面的 `\b` 是必须的，否则它会匹配到保留下来的 `TAL_CELLULAR_STAT_E`；而其余几项**不要**加 `-w` —— 它们都是前缀，后面跟着的下划线是词字符，加了 `-w` 这条命令会在你一行都没改的情况下返回空。
+
+---
+
 ## 3. 行为不变，但机制换了地方
 
 ### 3.1 wifi 重连退避
