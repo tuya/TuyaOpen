@@ -73,15 +73,6 @@ IDENTIFIER_MAP = [
     ("TAL_NETWORK_CARD_T", "tal_net_provider_t"),
     ("TAL_NETWORK_CARD_MANAGER_T", "tal_net_provider_registry_t"),
     # The plan's own table (§3.3) says this becomes `s_provider_registry`.
-    # That is NOT what S2 shipped: S2a rejected that name (413fe17d) because
-    # the object is a non-static global today, and an `s_` prefix on a symbol
-    # with external linkage is a lie about its linkage. `static` is a linkage
-    # change, out of scope until S4 - that is the commit that will actually
-    # rename this to `s_provider_registry`. Until then the tree has
-    # `tal_net_provider_registry`, and this script follows the tree: a script
-    # that rewrites a caller onto a symbol that does not exist is worse than
-    # no script at all.
-    ("tal_network_card_manager", "tal_net_provider_registry"),
     ("TAL_NETWORK_CARD_DEFAULT", "TAL_NET_PROVIDER_DEFAULT_OBJ"),
     ("tal_network_card_posix", "tal_net_provider_posix"),
     ("tal_network_card_platform", "tal_net_provider_tkl"),
@@ -141,6 +132,11 @@ RESERVED_DEPRECATED = [
     "tal_network_card_set_active",
     "tal_network_card_get_active_type",
     "tal_network_card_set_active_ip",
+    # Not a wrapper, same problem: this global became `s_provider_registry` AND
+    # `static` in the same step, so it is now file-private. There is no symbol
+    # to rewrite a caller onto - reach the state through tal_net_route_get() /
+    # tal_net_route_set() / tal_net_provider_ops() instead.
+    "tal_network_card_manager",
 ]
 
 # The alias-definition file (src/tal_network/include/tal_network_register.h)

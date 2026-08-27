@@ -47,7 +47,7 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 | 位置 | `src/tuya_cloud_service/netmgr/` | `src/tal_network/` |
 | 决定 | **哪条链路**该承载流量 | 用**哪个 socket 后端**、绑**哪个源地址** |
 | 输入 | 驱动状态、优先级、探测判决、策略参数 | 只有一个 `tal_net_route_t` |
-| 状态 | `s_netmgr`，一把 `s_netmgr.lock` | `tal_net_provider_registry`，一把 `s_route_lock` |
+| 状态 | `s_netmgr`，一把 `s_netmgr.lock` | `s_provider_registry`（file-private），一把 `s_route_lock` |
 
 ### 1.1 两条铁律
 
@@ -416,8 +416,8 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route);
 ```c
 TAL_NETWORK_OPS_T *tal_net_provider_ops(void)
 {
-    uint8_t provider = tal_net_provider_registry.route.provider;
-    tal_net_provider_t *entry = tal_net_provider_registry.providers[provider];
+    uint8_t provider = s_provider_registry.route.provider;
+    tal_net_provider_t *entry = s_provider_registry.providers[provider];
     if (NULL == entry) {
         return NULL;
     }
@@ -459,7 +459,7 @@ typedef uint8_t tal_net_provider_id_t;
 2. **新一个 `src/tal_network/src/tal_<x>.c`**，定义 `tal_net_provider_t tal_net_provider_<x>`，填满 `TAL_NETWORK_OPS_T` 的函数表（35 个函数指针）。`src/tal_network/CMakeLists.txt` 用的是 `aux_source_directory`，新文件自动进编译，**不用改 CMake**。
 3. **改 `tal_network_register.c` 的静态初始化器**，把新 provider 挂进 `providers[]`：
    ```c
-   tal_net_provider_registry_t tal_net_provider_registry = {
+   static tal_net_provider_registry_t s_provider_registry = {
        .route                                = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
        .providers[TAL_NET_PROVIDER_DEFAULT] = &TAL_NET_PROVIDER_DEFAULT_OBJ,
        /* 新增： */

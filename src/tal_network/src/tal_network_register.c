@@ -55,9 +55,14 @@ extern tal_net_provider_t tal_net_provider_tkl;
 #endif
 
 /* Statically initialized, not filled in by tal_net_provider_init(): early socket
- * users can reach tal_net_provider_ops() before init runs, and they must
- * find a working backend there. */
-tal_net_provider_registry_t tal_net_provider_registry = {
+ * users can reach tal_net_provider_ops() before init runs, and they must find a
+ * working backend there.
+ *
+ * File-private. Every access goes through the accessors below, so nothing
+ * outside this translation unit needs the object itself - and the unlocked
+ * reads documented above are only safe while the set of writers is the short
+ * list in this file. `static` is what keeps that list short. */
+static tal_net_provider_registry_t s_provider_registry = {
     .route                               = {.provider = TAL_NET_PROVIDER_DEFAULT, .src_ip = 0},
     .providers[TAL_NET_PROVIDER_DEFAULT] = &TAL_NET_PROVIDER_DEFAULT_OBJ,
 };
@@ -146,12 +151,12 @@ OPERATE_RET tal_net_route_set(const tal_net_route_t *route)
      * Refused rather than logged, because this translation unit has no log
      * dependency and should not grow one for a caller error. The distinct return
      * code is what lets the caller say something useful; netmgr does. */
-    if (NULL == tal_net_provider_registry.providers[route->provider]) {
+    if (NULL == s_provider_registry.providers[route->provider]) {
         return OPRT_NOT_SUPPORTED;
     }
 
     __route_lock();
-    tal_net_provider_registry.route = *route;
+    s_provider_registry.route = *route;
     __route_unlock();
 
     return OPRT_OK;
@@ -164,7 +169,7 @@ OPERATE_RET tal_net_route_get(tal_net_route_t *route)
     }
 
     __route_lock();
-    *route = tal_net_provider_registry.route;
+    *route = s_provider_registry.route;
     __route_unlock();
 
     return OPRT_OK;
@@ -175,7 +180,7 @@ TUYA_IP_ADDR_T tal_net_route_src_ip(void)
     /* One word, read unlocked on purpose - see the locking discipline above. A
      * caller that needs this address to agree with the provider it belongs to
      * must use tal_net_route_get() instead. */
-    return tal_net_provider_registry.route.src_ip;
+    return s_provider_registry.route.src_ip;
 }
 
 TAL_NETWORK_OPS_T *tal_net_provider_ops(void)
@@ -184,11 +189,11 @@ TAL_NETWORK_OPS_T *tal_net_provider_ops(void)
      * reads below are unlocked by design - provider is a single byte that cannot
      * tear, providers[] is immutable after static initialization, and neither
      * has to agree with src_ip. */
-    uint8_t provider = tal_net_provider_registry.route.provider;
+    uint8_t provider = s_provider_registry.route.provider;
 
     /* Every writer validates provider against TAL_NET_PROVIDER_MAX, so it always
      * indexes in range. */
-    tal_net_provider_t *entry = tal_net_provider_registry.providers[provider];
+    tal_net_provider_t *entry = s_provider_registry.providers[provider];
     if (NULL == entry) {
         return NULL;
     }
