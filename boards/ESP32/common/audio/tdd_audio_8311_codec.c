@@ -360,15 +360,17 @@ static void esp32_i2s_8311_read_task(void *args)
             continue;
         }
 
-        int bytes_read = 0;
+        /* From the read, not from mic_cb: a NULL cb used to feed the AFE 0. */
+        int bytes_read = data_len * sizeof(int16_t);
 
         if (hdl->mic_cb) {
             // Call the callback function with the read data
-            bytes_read = data_len * sizeof(int16_t);
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, bytes_read);
         }
 
+#if defined(ENABLE_AUDIO_AFE) && (ENABLE_AUDIO_AFE == 1)
         auio_afe_processor_feed(hdl->data_buf, bytes_read);
+#endif
 
         tal_system_sleep(I2S_READ_TIME_MS);
     }
@@ -411,11 +413,14 @@ static OPERATE_RET __tdd_audio_esp_i2s_8311_open(TDD_AUDIO_HANDLE_T handle, TDL_
         return OPRT_COM_ERROR;
     }
 
+#if defined(ENABLE_AUDIO_AFE) && (ENABLE_AUDIO_AFE == 1)
     rt = audio_afe_processor_init();
-    if(rt != OPRT_OK) {
-        PR_ERR("audio_afe_processor_init err:%d",  rt);
-        return rt;
+    if (rt != OPRT_OK) {
+        /* Optional stage: losing it must not take the audio device down. */
+        PR_ERR("audio_afe_processor_init err:%d", rt);
+        rt = OPRT_OK;
     }
+#endif
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname = "esp32_i2s_8311_read",

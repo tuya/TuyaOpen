@@ -16,6 +16,14 @@ if (ENABLE_AUDIO_CODECS)
         bool "audio support AEC"
         default n
 
+    config ENABLE_AUDIO_AFE
+        bool "audio support AFE (ESP32: noise suppression + VAD + wake word)"
+        default y
+        ---help---
+            ESP-SR front end (noise suppression + VAD + wake word), started from
+            tdl_audio_open(). Costs internal RAM; its only consumers are the VAD
+            and KWS adapters. Turn off for playback-only products.
+
     config ENABLE_AUDIO_ALSA
         bool "enable ALSA audio support"
         default n
