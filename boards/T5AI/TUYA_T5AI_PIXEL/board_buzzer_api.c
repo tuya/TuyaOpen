@@ -70,10 +70,8 @@ OPERATE_RET board_buzzer_init(void)
         return OPRT_NOT_SUPPORTED;
     }
 
-    // Extract PWM channel from the returned value
-    // The return value format: | rsv | port | channel |
-    // Note: TUYA_IO_GET_CHANNEL_ID macro is missing closing paren, so we extract manually
-    g_buzzer_pwm_channel = (TUYA_PWM_NUM_E)((pwm_id) & 0xFF);
+    // Extract PWM channel from the returned value, format: | rsv | port | channel |
+    g_buzzer_pwm_channel = (TUYA_PWM_NUM_E)TUYA_IO_GET_CHANNEL_ID(pwm_id);
 
     PR_DEBUG("GPIO pin %d mapped to PWM channel %d (pwm_id: 0x%x)", BOARD_BUZZER_PIN, g_buzzer_pwm_channel, pwm_id);
 
