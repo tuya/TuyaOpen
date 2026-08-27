@@ -360,11 +360,11 @@ static void esp32_i2s_8311_read_task(void *args)
             continue;
         }
 
-        int bytes_read = 0;
+        /* From the read, not from mic_cb: a NULL cb used to feed the AFE 0. */
+        int bytes_read = data_len * sizeof(int16_t);
 
         if (hdl->mic_cb) {
             // Call the callback function with the read data
-            bytes_read = data_len * sizeof(int16_t);
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, bytes_read);
         }
 
