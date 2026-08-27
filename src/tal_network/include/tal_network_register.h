@@ -119,14 +119,6 @@ OPERATE_RET tal_net_provider_init(void);
 
 TAL_NETWORK_OPS_T *tal_net_provider_ops(void);
 
-/**
- * @brief Get the source address outbound sockets should bind to.
- *
- * @return the active connection address, or 0 when unknown - callers must treat
- *         0 as "do not bind" and let the stack pick the source itself.
- */
-TUYA_IP_ADDR_T tal_net_route_src_ip(void);
-
 #ifdef __cplusplus
 }
 #endif

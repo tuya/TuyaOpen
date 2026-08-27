@@ -15,6 +15,7 @@
 #include "tal_api.h"
 
 #include "tal_network_register.h"
+#include "tal_net_route.h"
 #include "dev_evt.h"
 
 /***********************************************************

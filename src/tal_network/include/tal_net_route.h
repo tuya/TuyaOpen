@@ -66,6 +66,18 @@ OPERATE_RET tal_net_route_set(const tal_net_route_t *route);
  */
 OPERATE_RET tal_net_route_get(tal_net_route_t *route);
 
+/**
+ * @brief Get just the source address outbound sockets should bind to.
+ *
+ * Reads one field without taking the route lock, which is why it exists at all:
+ * it sits on the connect path and does not have to agree with the provider. A
+ * caller that needs the two halves to agree must use tal_net_route_get().
+ *
+ * @return the active connection address, or 0 when unknown - callers must treat
+ *         0 as "do not bind" and let the stack pick the source itself.
+ */
+TUYA_IP_ADDR_T tal_net_route_src_ip(void);
+
 #ifdef __cplusplus
 }
 #endif
