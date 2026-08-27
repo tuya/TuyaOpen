@@ -54,7 +54,7 @@ netmgr_conn_cellular_t s_netmgr_cellular = {
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void __netconn_cellular_event(CELLULAR_STAT_E event)
+static void __netconn_cellular_event(TAL_CELLULAR_STAT_E event)
 {
     netmgr_conn_cellular_t *netmgr_cellular = &s_netmgr_cellular;
 
