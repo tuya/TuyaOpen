@@ -98,6 +98,27 @@ OPERATE_RET tkl_adc_read_single_channel(TUYA_ADC_NUM_E port_num, uint8_t ch_id, 
  */
 OPERATE_RET tkl_adc_read_voltage(TUYA_ADC_NUM_E port_num, int32_t *buff, uint16_t len);
 
+typedef enum {
+    ADC_DIV_RESIS,   // divider resistance for adc
+} ADC_IOCTL_CMD_E;
+
+// ADC_DIV_RESIS struct define, ref
+typedef struct {
+    TUYA_ADC_NUM_E    port;
+    uint8_t     channel;
+    uint8_t     data;   // 1: connect the divider resistor, 0: disconnect
+} ADC_IOCTL_DIV_RESIS_T;
+
+/**
+ * @brief adc ioctl
+ *
+ * @param[in] cmd:  refer to ADC_IOCTL_CMD_E
+ * @param[in] args: refer to cmd define
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ *
+ */
+OPERATE_RET tkl_adc_ioctl(ADC_IOCTL_CMD_E cmd,  void *args);
+
 #ifdef __cplusplus
 }
 #endif
