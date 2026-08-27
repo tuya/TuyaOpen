@@ -1551,7 +1551,7 @@ static void __netmgr_settle(MUTEX_HANDLE lock, netmgr_change_reason_e force, BOO
         tal_event_publish(EVENT_LINK_TYPE_CHG, (void *)&pub_active);
     }
     if (legacy && (status_chg || emit_switch)) {
-        // NETMGR_LINK_UP_SWITH is produced HERE and only here, as an event
+        // NETMGR_LINK_UP_SWITCH is produced HERE and only here, as an event
         // payload, and is deliberately never stored in s_netmgr.status. Storing it
         // would make the next pass see UP != UP_SWITH and publish a spurious
         // change back to UP, and it would leak a third value into
@@ -1563,7 +1563,7 @@ static void __netmgr_settle(MUTEX_HANDLE lock, netmgr_change_reason_e force, BOO
         // Note the shape of the condition: a handover alone leaves status_chg
         // FALSE (UP -> UP), so with emit_up_switch set this ADDS an event that
         // never existed. That is exactly why the flag defaults to FALSE.
-        netmgr_status_e legacy_status = emit_switch ? NETMGR_LINK_UP_SWITH : pub_status;
+        netmgr_status_e legacy_status = emit_switch ? NETMGR_LINK_UP_SWITCH : pub_status;
 
         tal_event_publish(EVENT_LINK_STATUS_CHG, (void *)&legacy_status);
     }

@@ -103,7 +103,7 @@ OPERATE_RET __link_status_cb(void *data)
     }
     status = *(netmgr_status_e *)data;
 
-    if (NETMGR_LINK_UP == status || NETMGR_LINK_UP_SWITH == status) {
+    if (NETMGR_LINK_UP == status || NETMGR_LINK_UP_SWITCH == status) {
         is_network_connected = true;
     } else {
         is_network_connected = false;

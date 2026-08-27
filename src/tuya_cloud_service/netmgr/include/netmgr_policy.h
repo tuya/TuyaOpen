@@ -130,7 +130,7 @@ typedef enum {
  * conn->get(NETCONN_CMD_STATUS) is unaffected - it is answered by the driver
  * from base.status and never consults this enum. netmgr_conn_get(NETCONN_AUTO,
  * NETCONN_CMD_STATUS) can now resolve to a different link than before, but its
- * range is still just these two values. NETMGR_LINK_UP_SWITH is a property of a
+ * range is still just these two values. NETMGR_LINK_UP_SWITCH is a property of a
  * TRANSITION, not a link state, so it is produced from netmgr_event.h's terms
  * and never appears here. With probing off, DEGRADED is unreachable, so the
  * internal machine has exactly UNVERIFIED and ONLINE as up-states, both mapping
@@ -335,7 +335,7 @@ typedef struct {
     netmgr_retry_table_t revalidate;
 
     /**
-     * TRUE: publish NETMGR_LINK_UP_SWITH in EVENT_LINK_STATUS_CHG when the
+     * TRUE: publish NETMGR_LINK_UP_SWITCH in EVENT_LINK_STATUS_CHG when the
      * aggregate moves from one up link to a different up link without an
      * intervening down.
      *

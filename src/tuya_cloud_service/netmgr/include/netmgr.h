@@ -49,15 +49,15 @@ typedef enum {
  *
  */
 #define NETMGR_STATUS_TO_STR(status)                                                                                   \
-    ((status) == NETMGR_LINK_DOWN       ? "link_down"                                                                  \
-     : (status) == NETMGR_LINK_UP       ? "link_up"                                                                    \
-     : (status) == NETMGR_LINK_UP_SWITH ? "link_up_switch"                                                             \
-                                        : "unknown")
+    ((status) == NETMGR_LINK_DOWN        ? "link_down"                                                                 \
+     : (status) == NETMGR_LINK_UP        ? "link_up"                                                                   \
+     : (status) == NETMGR_LINK_UP_SWITCH ? "link_up_switch"                                                            \
+                                         : "unknown")
 
 typedef enum {
-    NETMGR_LINK_DOWN,     // network was disconnected
-    NETMGR_LINK_UP,       // network was connected
-    NETMGR_LINK_UP_SWITH, // network was connected but connection changed
+    NETMGR_LINK_DOWN,      // network was disconnected
+    NETMGR_LINK_UP,        // network was connected
+    NETMGR_LINK_UP_SWITCH, // network was connected but connection changed
 } netmgr_status_e;
 
 typedef enum {

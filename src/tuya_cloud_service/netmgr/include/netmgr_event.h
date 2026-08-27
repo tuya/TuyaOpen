@@ -237,7 +237,7 @@ typedef struct {
     /**
      * TRUE when this is a handover: both old_active and new_active were up,
      * they differ, and there was no down state between them - the same
-     * condition NETMGR_LINK_UP_SWITH (netmgr.h) represents in
+     * condition NETMGR_LINK_UP_SWITCH (netmgr.h) represents in
      * EVENT_LINK_STATUS_CHG (see netmgr_policy_t.emit_up_switch), but
      * reported here unconditionally. Prefer this field over enabling that
      * flag to reach a consumer: at least one waiting consumer

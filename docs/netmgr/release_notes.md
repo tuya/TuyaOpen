@@ -183,7 +183,7 @@ OPERATE_RET __link_status_cb(void *data)
 - `epoch` / `src_ip`——刚刚装上的路由代次和源地址，也就是订阅者下一个出向 socket 会绑的地址；
 - `handover`——这次是不是一次切换（两条链路都是 up、不同、中间没有 down）。**它是无条件上报的**，所以识别切换不需要打开 `emit_up_switch`，这也是推荐的消费方式。
 
-`emit_up_switch` 默认 `FALSE`，而且这个默认值是有原因的：`NETMGR_LINK_UP_SWITH` 会让「把 `net_status == NETMGR_LINK_UP` 直接算成 connected」的消费者在每次切换时显示「wifi 已断开」——`your_chat_bot` 的 `app_ui_helper.c` 就是这么写的。
+`emit_up_switch` 默认 `FALSE`，而且这个默认值是有原因的：`NETMGR_LINK_UP_SWITCH` 会让「把 `net_status == NETMGR_LINK_UP` 直接算成 connected」的消费者在每次切换时显示「wifi 已断开」——`your_chat_bot` 的 `app_ui_helper.c` 就是这么写的。
 
 载荷生命周期同 §2.3：只在回调期间有效，要留就拷。订阅者**不要**在回调里调 `netmgr_deinit()`。
 
