@@ -76,7 +76,9 @@ static void __pdm_mic_read_task(void *args)
             hdl->mic_cb(TDL_AUDIO_FRAME_FORMAT_PCM, TDL_AUDIO_STATUS_RECEIVING, hdl->data_buf, bytes_read);
         }
 
+#if defined(ENABLE_AUDIO_AFE) && (ENABLE_AUDIO_AFE == 1)
         auio_afe_processor_feed(hdl->data_buf, bytes_read);
+#endif
     }
 }
 
@@ -124,11 +126,14 @@ static OPERATE_RET __tdd_audio_pdm_mic_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO
     TUYA_CHECK_NULL_RETURN(hdl->data_buf, OPRT_MALLOC_FAILED);
     memset(hdl->data_buf, 0, hdl->data_buf_len);
 
+#if defined(ENABLE_AUDIO_AFE) && (ENABLE_AUDIO_AFE == 1)
     rt = audio_afe_processor_init();
     if (rt != OPRT_OK) {
+        /* Optional stage: losing it must not take the audio device down. */
         PR_ERR("audio_afe_processor_init err:%d", rt);
-        return rt;
+        rt = OPRT_OK;
     }
+#endif
 
     const THREAD_CFG_T thread_cfg = {
         .thrdname   = "pdm_mic_read",
