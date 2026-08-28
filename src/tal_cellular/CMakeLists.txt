@@ -6,7 +6,7 @@
 # TAL_CELLULAR_BASE_CFG_T reaches for TUYA_CELLULAR_IF_E / TUYA_CELLULAR_PROTOCOL_E,
 # which only the platforms carrying a modem declare, so the module cannot be
 # parsed on a platform without one. Gate it the way netconn_cellular.c is gated
-# in src/tuya_cloud_service/CMakeLists.txt - its only consumer.
+# in src/tuya_cloud_service/netmgr/CMakeLists.txt - its only consumer.
 if (CONFIG_ENABLE_CELLULAR STREQUAL "y")
 
 # MODULE_PATH
