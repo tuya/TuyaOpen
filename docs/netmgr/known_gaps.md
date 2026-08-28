@@ -355,7 +355,7 @@ endif()
 - `src/tal_network/src/tal_network.c:364-374` —— 记录"输出参数预先清零"的那段注释
 - `src/tal_network/src/tal_network.c:375` / `:378` / `:382` —— 三个分支
 - `src/tal_network/include/tal_net_provider.h:87-91` —— 决定哪个后端应答
-- `src/tal_network/src/tal_tkl.c:80` —— TKL 后端把 `.getsockname` 接到 `tkl_net_getsockname`
+- `src/tal_network/src/tal_net_tkl.c:80` —— TKL 后端把 `.getsockname` 接到 `tkl_net_getsockname`
 - 各平台实现，见下表
 - 第二个消费者：`src/tuya_p2p/pjproject/pjlib/src/pj/sock_tal.c:483`
 
@@ -380,7 +380,7 @@ if (0 != tal_net_bind(fd, src, 0)) { ... }                       // :382
 | T5AI | TKL（`default.config` 未开 liblwip） | 真实实现，`platform/T5AI/tuyaos/tuyaos_adapter/src/system/tkl_network.c:857-880` | 正常 |
 | **T3** | TKL（`platform/T3/default.config:26` 未开 liblwip） | **`return 0;`，不写任何输出**，`platform/T3/tuyaos/tuyaos_adapter/src/system/tkl_network.c:846-849` | 见下，一半靠运气一半是坏的 |
 | **ESP32** | TKL（`platform/ESP32/default.config:27` 未开 liblwip） | **`OPRT_NOT_SUPPORTED`**，`platform/ESP32/tuya_open_sdk/tuyaos_adapter/src/drivers/tkl_network.c:961-964` | **静默完全不生效** |
-| T2 / BK7231X / LN882H | POSIX（`boards/*/config/*.config` 里 `CONFIG_ENABLE_LIBLWIP=y`） | 真实实现，`src/tal_network/src/tal_posix.c:1071-1093` | 正常 |
+| T2 / BK7231X / LN882H | POSIX（`boards/*/config/*.config` 里 `CONFIG_ENABLE_LIBLWIP=y`） | 真实实现，`src/tal_network/src/tal_net_posix.c:1071-1093` | 正常 |
 | LINUX | POSIX | 同上 | 整个 helper 被 `#if OPERATING_SYSTEM != SYSTEM_LINUX` 编译掉（`tal_network.c:387`），这是故意的 |
 
 LN882H 也有一个 `OPRT_NOT_SUPPORTED` 的桩（`platform/LN882H/tuyaos/tuyaos_adapter/src/tkl_network.c:963-968`），但默认配置绕开了它（`platform/LN882H/default.config:27` 是 `CONFIG_ENABLE_LIBLWIP=y`）。它今天是死代码，谁把 liblwip 关掉它就活。

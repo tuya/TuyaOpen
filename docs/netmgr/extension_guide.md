@@ -37,7 +37,7 @@ netmgr 这次重构只有一个目的：**让"加一种链路"变成加文件而
 ┌─────────────────────────────────────────────────────────────┐
 │ 数据面  src/tal_network/                                     │
 │  tal_net_provider.c  route =（socket 后端, 源地址）        │
-│  tal_posix.c / tal_tkl.c  两个 socket 后端实现            │
+│  tal_net_posix.c / tal_net_tkl.c  两个 socket 后端实现            │
 │  tal_network.c  所有 socket 原语，经 tal_net_provider_ops│
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -473,14 +473,14 @@ typedef uint8_t tal_net_provider_id_t;
 #endif
 ```
 
-`tal_posix.c` 和 `tal_tkl.c` 各自用同一个 `ENABLE_LIBLWIP` / `OPERATING_SYSTEM` 判断把自己整体条件编译掉，所以恰好一个 provider 会存在。`TAL_NET_PROVIDER_DEFAULT` 这个名字的意义就是**让那个判断只出现在一个地方**。
+`tal_net_posix.c` 和 `tal_net_tkl.c` 各自用同一个 `ENABLE_LIBLWIP` / `OPERATING_SYSTEM` 判断把自己整体条件编译掉，所以恰好一个 provider 会存在。`TAL_NET_PROVIDER_DEFAULT` 这个名字的意义就是**让那个判断只出现在一个地方**。
 
 `TAL_NET_PROVIDER_AT_MODEM` 是个**只有 `#define` 没有实现**的常量 —— 全树没有代码真的发布过这个值；唯一提到它的地方是它自己的定义，以及几处解释这段历史的注释。这也是 §6.6 那条"死掉的 4G 分支"的根源。
 
 要加第三个后端：
 
 1. **`tal_net_provider.h`**：加一个 `TAL_NET_PROVIDER_<X>` 常量，**并把 `TAL_NET_PROVIDER_MAX` 加一**。忘了加 `MAX` 的后果是 `tal_net_route_set()` 直接拒掉你的 provider（`route->provider >= TAL_NET_PROVIDER_MAX` → `OPRT_INVALID_PARM`）。
-2. **新一个 `src/tal_network/src/tal_<x>.c`**，定义 `tal_net_provider_t tal_net_provider_<x>`，填满 `TAL_NETWORK_OPS_T` 的函数表（35 个函数指针）。`src/tal_network/CMakeLists.txt` 用的是 `aux_source_directory`，新文件自动进编译，**不用改 CMake**。
+2. **新一个 `src/tal_network/src/tal_net_<x>.c`**，定义 `tal_net_provider_t tal_net_provider_<x>`，填满 `TAL_NETWORK_OPS_T` 的函数表（35 个函数指针）。`src/tal_network/CMakeLists.txt` 用的是 `aux_source_directory`，新文件自动进编译，**不用改 CMake**。
 3. **改 `tal_net_provider.c` 的静态初始化器**，把新 provider 挂进 `providers[]`：
    ```c
    static tal_net_provider_registry_t s_provider_registry = {
@@ -871,7 +871,7 @@ pin 的语义也照这个诚实性设计：pin **压过**优先级、分层、�
 | `netmgr_event.h` | 事件契约 | 不能 |
 | `tal_net_provider.c/.h` | socket 后端表 + route 状态 | 不能 |
 | `tal_net_route.h` | route 契约 | 不能 |
-| `tal_posix.c` / `tal_tkl.c` | 两个 socket 后端 | 就是它自己 |
+| `tal_net_posix.c` / `tal_net_tkl.c` | 两个 socket 后端 | 就是它自己 |
 
 CMake 侧（`src/tuya_cloud_service/CMakeLists.txt`）：`netmgr.c`、`netconn_table.c`、`netmgr_cli.c`、`netmgr_policy.c`、`netmgr_retry.c` **无条件**编译；`netconn_wifi.c` / `netconn_wired.c` / `netconn_cellular.c` 按各自的 `CONFIG_ENABLE_*` 门控；`netmgr_probe.c` 按 `CONFIG_ENABLE_NETMGR_PROBE` 门控。
 

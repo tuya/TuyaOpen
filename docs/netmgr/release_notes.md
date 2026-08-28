@@ -131,7 +131,7 @@ OPERATE_RET __link_status_cb(void *data)
 | `tal_network_card_set_active()`<br>`tal_network_card_get_active_type()`<br>`tal_network_card_set_active_ip()` | 三个半更新入口，各自只碰"后端"或"源地址"其中一半。用 `tal_net_route_set()` / `tal_net_route_get()`（`tal_net_route.h`）**成对**读写 —— 分两次写会留下一个窗口：新后端配着上一条链路的源地址 |
 | `tal_net_provider_t` 的 `.name` / `.type` / `.ipaddr` | 三个只写不读的字段，直接删掉初始化器。后端的 id 由它在注册表里的下标决定；源地址属于当前路由，不属于后端 |
 | `tal_network_card_manager` 全局 | 现在是 file-private 的 `s_provider_registry`。通过 `tal_net_provider_ops()` / `tal_net_route_get()` 访问 |
-| `tal_platform.c` | 改名为 `tal_tkl.c`。只影响直接引用文件名的构建脚本 |
+| `tal_platform.c`<br>`tal_posix.c` | 分别改名为 `tal_net_tkl.c` / `tal_net_posix.c`，与它们各自定义的 `tal_net_provider_tkl` / `tal_net_provider_posix` 和 `tal_net_posix_*` 一族对齐。只影响直接引用文件名的构建脚本 |
 
 #### 一条自查命令
 

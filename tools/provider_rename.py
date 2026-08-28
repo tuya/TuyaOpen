@@ -63,7 +63,7 @@ SOURCE_EXTS = {".c", ".h", ".cc", ".cpp", ".hh", ".hpp"}
 #     script that "corrects" it would be inventing a change nobody asked for.
 #   - `TAL_NET_PROVIDER_DEFAULT`, `netconn_desc_t.provider`,
 #     `tal_net_route_t.provider`, `netmgr_link_info_t.provider`,
-#     `TAL_NETWORK_OPS_T`, and the `tal_net_provider.[ch]` / `tal_tkl.c`
+#     `TAL_NETWORK_OPS_T`, and the `tal_net_provider.[ch]` / `tal_net_tkl.c`
 #     filenames: all listed in §3.3 as "unchanged".
 #   - the three zero-caller wrappers: listed in §3.3 as "not renamed, deleted
 #     in S4" - see RESERVED_DEPRECATED below. That deletion has happened.

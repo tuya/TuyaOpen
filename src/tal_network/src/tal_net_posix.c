@@ -1,6 +1,6 @@
 /**
- * @file tal_network.c
- * @brief Network utilities implementation for Tuya SDK.
+ * @file tal_net_posix.c
+ * @brief The lwip/socket ops backend: tal_net_provider_posix.
  *
  * This source file implements the network utilities for the Tuya SDK, providing
  * a layer of abstraction over different network operations such as socket
