@@ -56,6 +56,10 @@ typedef struct {
 
     struct tuya_list_head       raw_frame_node_list;
     struct tuya_list_head       encoded_frame_node_list;
+    /* The list cannot say: it is also empty when every node is out with the
+     * driver. */
+    bool                        raw_pool_inited;
+    bool                        encoded_pool_inited;
 
     TDD_CAMERA_DEV_HANDLE_T     tdd_hdl;
     TDD_CAMERA_INTFS_T          intfs;
@@ -348,16 +352,23 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
 
     raw_buf_len = cfg->width * cfg->height * CAMERA_RAW_PER_PIXEL_MAX_BYTE;
 
+    /* The pool belongs to the registered device, not to one session. */
     if(cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {
-        TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->raw_frame_node_list, \
-                                                      CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
+        if(!camera_dev->raw_pool_inited) {
+            TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->raw_frame_node_list, \
+                                                          CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
+            camera_dev->raw_pool_inited = true;
+        }
         camera_dev->get_raw_frame_cb = cfg->get_frame_cb;
     }
 
     if(cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
         uint32_t encoded_buf_len = (raw_buf_len * CAMERA_ENCODE_MIN_COMP_PCT + 99) / 100;
-        TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->encoded_frame_node_list, \
-                                                      CAMERA_ENCODE_FRAME_BUFF_CNT, encoded_buf_len));
+        if(!camera_dev->encoded_pool_inited) {
+            TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->encoded_frame_node_list, \
+                                                          CAMERA_ENCODE_FRAME_BUFF_CNT, encoded_buf_len));
+            camera_dev->encoded_pool_inited = true;
+        }
         camera_dev->get_encoded_frame_cb = cfg->get_encoded_frame_cb;
     }  
     
@@ -385,13 +396,32 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
 }
 
 /**
- * @brief Close camera device
+ * @brief Stop the camera's output, leaving the device open
  * @param camera_hdl Camera handle
- * @return OPRT_NOT_SUPPORTED (function not implemented)
+ * @return OPRT_OK on success
+ *
+ * The frame pool is left standing: nothing records where a node is between
+ * create_tdd_frame and release_tdd_frame, so no moment here is a safe one to
+ * free them in.
  */
 OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
 {
-    return OPRT_NOT_SUPPORTED;
+    CAMERA_DEVICE_T *camera_dev = (CAMERA_DEVICE_T *)camera_hdl;
+
+    if (NULL == camera_dev) {
+        return OPRT_INVALID_PARM;
+    }
+    if (false == camera_dev->is_open) {
+        return OPRT_OK;
+    }
+    /* Cleared first, so queued frames drain without reaching a closed app. */
+    camera_dev->is_open = false;
+
+    if (camera_dev->intfs.close) {
+        return camera_dev->intfs.close(camera_dev->tdd_hdl);
+    }
+
+    return OPRT_OK;
 }
 
 /**
