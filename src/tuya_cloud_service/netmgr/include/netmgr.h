@@ -60,11 +60,18 @@ typedef enum {
     NETMGR_LINK_UP_SWITCH, // network was connected but connection changed
 } netmgr_status_e;
 
+/**
+ * @brief netmgr_conn_get() / netmgr_conn_set() commands.
+ *
+ * The comment on each line is the type @a param points at - pass the address of
+ * a value of exactly that type, not of something that converts to it. The
+ * parameter is void *, so nothing here is checked by the compiler.
+ */
 typedef enum {
-    NETCONN_CMD_PRI,           // int
+    NETCONN_CMD_PRI,           // uint8_t: link priority, HIGHER WINS. See netmgr_conn_base_t.pri
     NETCONN_CMD_IP,            // NW_IP_S
     NETCONN_CMD_MAC,           // NW_MAC_S
-    NETCONN_CMD_STATUS,        // netmgr_type_e
+    NETCONN_CMD_STATUS,        // netmgr_status_e
     NETCONN_CMD_SSID_PSWD,     // netconn_wifi_info_t
     NETCONN_CMD_COUNTRYCODE,   // "US"/"CN"/"EU"/"JP"
     NETCONN_CMD_NETCFG,        // netconn_wifi_netcfg_t
@@ -90,6 +97,18 @@ typedef struct {
  *
  */
 typedef struct netmgr_conn_base {
+    /**
+     * Selection priority. HIGHER WINS - 2 outranks 1 outranks 0. Seeded from
+     * netconn_desc_t.default_pri at registration and movable afterwards through
+     * netmgr_conn_set(NETCONN_CMD_PRI); the built-in table ships wired = 2,
+     * wifi = 1, cellular = 0.
+     *
+     * The range is 0..255 because this is where the value is stored, which is
+     * also why NETCONN_CMD_PRI's payload is uint8_t and not int: a wider payload
+     * would let a caller pass 300, or -1, and get it silently truncated to 44 or
+     * to 255 - the latter being the HIGHEST priority, the exact opposite of what
+     * someone writing -1 means.
+     */
     uint8_t pri;
     netmgr_type_e type;
     netmgr_status_e status;

@@ -143,6 +143,27 @@ git grep -nE 'TAL_NETWORK_CARD|tal_network_card|TAL_NET_TYPE_|NETMGR_LINK_UP_SWI
 
 ---
 
+### 2.5 `NETCONN_CMD_PRI` 的载荷类型从 `int` 改成 `uint8_t`
+
+`netmgr_conn_set/get(type, NETCONN_CMD_PRI, param)` 的 `param` 现在指向 `uint8_t`，与 `netmgr_conn_base_t.pri` 的存储类型一致。
+
+**要改什么**：
+
+```c
+/* 旧 */ int     pri = 2;  netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_PRI, &pri);
+/* 新 */ uint8_t pri = 2;  netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_PRI, &pri);
+```
+
+**这一条编译器不会替你发现。** `param` 是 `void *`，传 `int *` 照样编过：在小端平台上它读到的是低字节，0..255 全范围都正确，所以行为不变；只有在大端移植上才会恒读到 0，让该链路静默降到最低优先级。TuyaOpen 今天支持的平台全是小端，但**不要因此就不改** —— 依赖字节序巧合的代码没有第二次机会。
+
+**为什么改**：旧的 `int` 载荷让越界值可以进来又被静默截断。`pri = 300` 会变成 44；而 `pri = -1` 会变成 255，也就是**最高优先级** —— 恰好是写 `-1` 的人想表达的反面。载荷改成 `uint8_t` 之后这两个值根本传不进来，不是被拒绝，是不存在。
+
+顺带修正：`NETCONN_CMD_STATUS` 的载荷类型注释一直写着 `netmgr_type_e`，实际三个驱动写入的都是 `netmgr_status_e`。注释已改正，代码没有变化 —— 按旧注释传 `netmgr_type_e *` 的代码本来就是错的，只是同样没有编译器报警。
+
+**优先级的方向**：数字**大**的优先级**高**。内置表是 wired = 2、wifi = 1、cellular = 0。这一点以前只写在 `netconn_registry.h` 和 `netmgr_policy.h` 里，没有写在应用真正会碰的 `netmgr.h` 上，现在补齐了。
+
+---
+
 ## 3. 行为不变，但机制换了地方
 
 ### 3.1 wifi 重连退避

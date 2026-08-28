@@ -631,7 +631,7 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
     switch (cmd) {
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
                           // active connection
-        netmgr_wifi->base.pri = *(int *)param;
+        netmgr_wifi->base.pri = *(uint8_t *)param;
         /* Guarded like every other call to it in this file. Unreachable through
          * netmgr_conn_set(), which refuses before netmgr_init() has installed the
          * shim - but netconn_wifi_set() is on the global public include path, so
@@ -712,7 +712,7 @@ OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param)
 
     switch (cmd) {
     case NETCONN_CMD_PRI:
-        *(int *)param = netmgr_wifi->base.pri;
+        *(uint8_t *)param = netmgr_wifi->base.pri;
         break;
     case NETCONN_CMD_MAC:
         TUYA_CALL_ERR_RETURN(tal_wifi_get_mac(WF_STATION, (NW_MAC_S *)param));

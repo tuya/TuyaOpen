@@ -142,7 +142,7 @@ OPERATE_RET netconn_cellular_set(netmgr_conn_config_type_e cmd, void *param)
 
     switch (cmd) {
     case NETCONN_CMD_PRI: {
-        netmgr_cellular->base.pri = *(int *)param;
+        netmgr_cellular->base.pri = *(uint8_t *)param;
         /* Guarded like every other call to it in this file. Unreachable through
          * netmgr_conn_set(), which refuses before netmgr_init() has installed the
          * shim - but netconn_cellular_set() is on the global public include path, so
@@ -176,7 +176,7 @@ OPERATE_RET netconn_cellular_get(netmgr_conn_config_type_e cmd, void *param)
 
     switch (cmd) {
     case NETCONN_CMD_PRI: {
-        *(int *)param = netmgr_cellular->base.pri;
+        *(uint8_t *)param = netmgr_cellular->base.pri;
     } break;
     case NETCONN_CMD_STATUS: {
         *(netmgr_status_e *)param = netmgr_cellular->base.status;

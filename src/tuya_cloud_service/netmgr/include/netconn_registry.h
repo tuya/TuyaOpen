@@ -158,9 +158,18 @@ typedef struct netconn_desc {
 
     /**
      * Priority this link starts at, copied into conn->pri at registration.
-     * Higher wins. Kept here rather than in the driver's static initialiser
-     * so a board can reorder links (e.g. drop cellular below wifi) without
-     * patching drivers.
+     *
+     * HIGHER WINS: 2 outranks 1 outranks 0. The built-in table in
+     * netconn_table.c ships wired = 2, wifi = 1, cellular = 0, so a board that
+     * wants cellular preferred over wifi gives cellular the BIGGER number.
+     *
+     * Beware the neighbouring tie-break, which runs the other way on purpose:
+     * netmgr_policy.c's __ranks_above() takes the higher pri, and when two
+     * links tie it takes the LOWER reg_index (registration order, first
+     * registered wins). Two comparisons, opposite directions, one function.
+     *
+     * Kept here rather than in the driver's static initialiser so a board can
+     * reorder links without patching drivers.
      */
     uint8_t default_pri;
 
