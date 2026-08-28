@@ -6,10 +6,6 @@ config BOARD_CHOICE
     string
     default "SIWX917_AI_DEV_KIT"
 
-config BOARD_NAME
-    string
-    default "siwx917_ai_dev_kit"
-
 config BOARD_CONFIG
     bool
     default y

@@ -6,10 +6,6 @@ config BOARD_CHOICE
     string
     default "BRD2605A"
 
-config BOARD_NAME
-    string
-    default "brd2605a"
-
 config BOARD_CONFIG
     bool
     default y
