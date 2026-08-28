@@ -123,8 +123,8 @@ static OPERATE_RET __board_register_button(void)
     BUTTON_GPIO_CFG_T button_2_hw_cfg = {
         .pin = BOARD_BUTTON_PWR_PIN,
         .level = BOARD_BUTTON_PWR_ACTIVE_LV,
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+        .mode = BUTTON_IRQ_MODE,
+        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BOARD_BUTTON_PWR_NAME, &button_2_hw_cfg));
@@ -144,8 +144,8 @@ static OPERATE_RET __board_register_button(void)
     BUTTON_GPIO_CFG_T button_hw_cfg = {
         .pin = BOARD_BUTTON_PIN,
         .level = BOARD_BUTTON_ACTIVE_LV,
-        .mode = BUTTON_TIMER_SCAN_MODE,
-        .pin_type.gpio_pull = TUYA_GPIO_PULLUP,
+        .mode = BUTTON_IRQ_MODE,
+        .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
     };
 
     TUYA_CALL_ERR_RETURN(tdd_gpio_button_register(BUTTON_NAME, &button_hw_cfg));
