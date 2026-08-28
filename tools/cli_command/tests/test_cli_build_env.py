@@ -13,17 +13,42 @@ import sys
 import unittest
 from unittest.mock import patch
 
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
 
-class TestChildInterpreter(unittest.TestCase):
+
+def read_source(rel):
+    """Return a repo file's text, for asserting on call-site shape."""
+    with open(os.path.join(REPO_ROOT, rel), encoding='utf-8') as f:
+        return f.read()
+
+
+class GlobalParamsIsolation(unittest.TestCase):
+    """Restore GLOBAL_PARAMS for tests that call the real setter.
+
+    set_global_params() derives from sys.argv[0] and cwd, which differ under
+    the test runner, so leaving it mutated would leak into the modules that
+    run after this one.
+    """
+
+    def setUp(self):
+        import tools.cli_command.util as util
+        self.util = util
+        snapshot = dict(util.GLOBAL_PARAMS)
+
+        def restore():
+            util.GLOBAL_PARAMS.clear()
+            util.GLOBAL_PARAMS.update(snapshot)
+
+        self.addCleanup(restore)
+
+
+class TestChildInterpreter(GlobalParamsIsolation):
     '''
     A bare "python" resolves through PATH, which on Windows reaches uv's
     base interpreter instead of .venv, and the child then dies importing
     the SDK's dependencies. Every call site must use params["python"].
     '''
-
-    def setUp(self):
-        import tools.cli_command.util as util
-        self.util = util
 
     def test_defaults_to_the_running_interpreter(self):
         with patch.dict(os.environ, {}, clear=True):
@@ -51,12 +76,6 @@ class TestChildInterpreter(unittest.TestCase):
 
 class TestCallSitesUseIt(unittest.TestCase):
 
-    def _source(self, rel):
-        root = os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__)))))
-        with open(os.path.join(root, rel), encoding='utf-8') as f:
-            return f.read()
-
     def test_no_bare_python_argv_in_python_call_sites(self):
         # An argv list opening with the literal name, e.g. ["python", ...].
         # The lookbehind excludes params["python"], which is the fix: there
@@ -64,7 +83,7 @@ class TestCallSitesUseIt(unittest.TestCase):
         bare = re.compile(r'(?<![\w\]])\[\s*"python"\s*[,\]]')
         for rel in ("tools/cli_command/cli_build.py",
                     "tools/cli_command/cli_new.py"):
-            hit = bare.search(self._source(rel))
+            hit = bare.search(read_source(rel))
             self.assertIsNone(hit, f"{rel}: {hit.group() if hit else ''}")
 
     def test_cmake_call_sites_use_tos_python(self):
@@ -74,17 +93,17 @@ class TestCallSitesUseIt(unittest.TestCase):
         '''
         for rel in ("CMakeLists.txt",
                     "tools/kconfiglib/gen_build_param.cmake"):
-            source = self._source(rel)
+            source = read_source(rel)
             self.assertNotIn("COMMAND python ", source, rel)
             self.assertNotIn("BUILD_COMMAND python ", source, rel)
             self.assertNotIn("\n    python ", source, rel)
 
     def test_configure_passes_the_interpreter_to_cmake(self):
         self.assertIn("-DTOS_PYTHON=",
-                      self._source("tools/cli_command/cli_build.py"))
+                      read_source("tools/cli_command/cli_build.py"))
 
     def test_cmake_keeps_a_fallback_for_a_hand_run_configure(self):
-        self.assertIn("set(TOS_PYTHON python)", self._source("CMakeLists.txt"))
+        self.assertIn("set(TOS_PYTHON python)", read_source("CMakeLists.txt"))
 
 
 class TestRegionHandoff(unittest.TestCase):
@@ -117,8 +136,7 @@ class TestRegionHandoff(unittest.TestCase):
 
     def test_build_hands_the_region_to_platform_children(self):
         self.assertIn("export_country_code()",
-                      TestCallSitesUseIt()._source(
-                          "tools/cli_command/cli_build.py"))
+                      read_source("tools/cli_command/cli_build.py"))
 
 
 class TestBuildPreparesTheEnvironment(unittest.TestCase):
@@ -160,15 +178,36 @@ class TestBuildPreparesTheEnvironment(unittest.TestCase):
         host.assert_called_once()
         venv.assert_called_once()
 
-    def test_ensure_build_env_fails_when_host_tools_fail(self):
+    def test_host_tool_failure_warns_but_does_not_veto_the_build(self):
+        '''
+        Only cmake/ninja are needed by every platform. Make is not, and this
+        runs before the platform is known, so a failed make install must not
+        block an ESP32 or LINUX build that never calls make.
+        '''
         with patch.object(self.prepare, "download_host_tools",
                           return_value=False), \
                 patch.object(self.prepare, "ensure_build_tools",
                              return_value=True):
+            self.assertTrue(self.prepare.ensure_build_env())
+
+    def test_missing_cmake_or_ninja_is_still_fatal(self):
+        with patch.object(self.prepare, "download_host_tools",
+                          return_value=True), \
+                patch.object(self.prepare, "ensure_build_tools",
+                             return_value=False):
             self.assertFalse(self.prepare.ensure_build_env())
 
+    def test_clean_prepares_the_same_environment_as_build(self):
+        '''
+        clean_all depends on platform_clean, which runs the platform hook --
+        `make clean` for T5AI. Without this, clean fails on a missing make
+        and the stale build directory survives.
+        '''
+        self.assertIn("ensure_build_env",
+                      read_source("tools/cli_command/cli_clean.py"))
+
     def test_build_uses_ensure_build_env(self):
-        source = TestCallSitesUseIt()._source("tools/cli_command/cli_build.py")
+        source = read_source("tools/cli_command/cli_build.py")
         self.assertIn("ensure_build_env", source)
         self.assertNotIn("import ensure_build_tools", source)
 

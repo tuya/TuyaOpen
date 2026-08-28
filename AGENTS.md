@@ -52,6 +52,19 @@ Standard flow:
 3. `tos.py build`
 4. Use binaries from `<project>/dist/` (LINUX target produces native ELF)
 
+### Environment handed to platform hooks
+
+Platforms (`platform/<NAME>/`) are separate repositories that receive only
+argv and the environment. `tos.py build` and `tos.py clean` guarantee the
+following before invoking `platform_prepare.*`, `build_setup.*` or
+`build_example.*`:
+
+| Variable / property | Guarantee |
+|---|---|
+| the interpreter | Hooks named `*.py` are run with the SDK's own interpreter (an absolute path), never a bare `python` resolved through PATH. CMake receives it as `-DTOS_PYTHON`. |
+| `PATH` | Starts with the SDK venv's `Scripts`/`bin` directory, so a hook calling a bare `python3`, `cmake` or `ninja` gets the SDK's. On Windows the bundled GNU Make directory is added too, when available. |
+| `OPEN_COUNTRY_CODE` | `China` or `Other`. A hook choosing a download mirror should read this and treat any non-empty value as authoritative -- an empty value means unset, not "overseas". Do not re-detect the region, and never over the network. |
+
 ### Non-interactive configuration guidance
 
 - `tos.py config menu` is an interactive TTY flow. Avoid it in non-interactive cloud runs; use `tos.py config set` instead.

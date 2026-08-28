@@ -333,10 +333,18 @@ def ensure_build_env() -> bool:
     off PATH unless export had been sourced: a T5AI build then compiled
     every source and died with "make: command not found" in the single make
     invocation that packages it, on the last ninja edge.
+
+    Only cmake/ninja are required by every platform, so only they are fatal.
+    Make is needed by some (T5AI, T3) and not others (ESP32 drives ninja
+    through idf.py), and this runs before using.config is read -- there is
+    no way to tell yet which platform is being built, so a failed make
+    install warns and lets the build proceed rather than vetoing platforms
+    that never call make.
     """
     if not download_host_tools():
-        get_logger().error("[prepare] host tools unavailable.")
-        return False
+        get_logger().warning(
+            "[prepare] GNU Make is unavailable; platforms that need it "
+            "will fail later in the build.")
     if not ensure_build_tools():
         return False
     prepend_venv_scripts_to_path()
