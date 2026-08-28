@@ -40,8 +40,14 @@ ELSEIF (UNIX)
 	MESSAGE(STATUS "Now is UNIX-like OS's.")
 ENDIF ()
 
+# Set by tos.py to its own interpreter. The literal fallback keeps a
+# hand-run cmake working, and matches the pre-TOS_PYTHON behaviour.
+if(NOT TOS_PYTHON)
+    set(TOS_PYTHON python)
+endif()
+
 execute_process(
-    COMMAND python ${TOP_SOURCE_DIR}/tools/cmake/get_system_processor.py
+    COMMAND ${TOS_PYTHON} ${TOP_SOURCE_DIR}/tools/cmake/get_system_processor.py
     OUTPUT_VARIABLE OPEN_SYSTEM_PROCESSOR
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_QUIET
@@ -198,7 +204,7 @@ include("${TOP_SOURCE_DIR}/tools/kconfiglib/gen_build_param.cmake")
 ########################################
 set(BUILD_COMMAND "./build_example.sh")
 if(EXISTS "${TOP_SOURCE_DIR}/platform/${TOS_PROJECT_PLATFORM}/build_example.py")
-    set(BUILD_COMMAND python -u ./build_example.py)
+    set(BUILD_COMMAND ${TOS_PYTHON} -u ./build_example.py)
 endif()
 
 add_custom_target(example

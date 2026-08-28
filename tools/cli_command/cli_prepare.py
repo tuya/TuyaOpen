@@ -55,15 +55,29 @@ def get_windows_make_bin_dir() -> str:
     return get_make_tool_install_dir()
 
 
-def prepend_windows_make_to_path() -> None:
-    install_dir = get_windows_make_bin_dir()
-    if not os.path.isdir(install_dir):
+def _prepend_to_path(directory: str) -> None:
+    """Put an existing directory first on PATH, at most once."""
+    if not os.path.isdir(directory):
         return
     path = os.environ.get("PATH", "")
     parts = path.split(os.pathsep)
-    target = os.path.normcase(install_dir)
+    target = os.path.normcase(directory)
     if all(os.path.normcase(p) != target for p in parts):
-        os.environ["PATH"] = install_dir + os.pathsep + path
+        os.environ["PATH"] = directory + os.pathsep + path
+
+
+def prepend_windows_make_to_path() -> None:
+    _prepend_to_path(get_windows_make_bin_dir())
+
+
+def prepend_venv_scripts_to_path() -> None:
+    """Put the running interpreter's Scripts/bin dir first on PATH.
+
+    Grandchildren resolve tools by name -- armino's makefiles call a bare
+    ``python3``, and cmake/ninja are venv-provided -- so the venv has to be
+    on PATH even when the caller never sourced export.
+    """
+    _prepend_to_path(os.path.dirname(os.path.abspath(sys.executable)))
 
 
 def _find_version_string(version: str) -> str:
@@ -310,6 +324,23 @@ def ensure_build_tools() -> bool:
             )
             ok = False
     return ok
+
+
+def ensure_build_env() -> bool:
+    """Prepare the environment a build's child processes will inherit.
+
+    ``build`` used to verify cmake/ninja only, leaving the bundled GNU Make
+    off PATH unless export had been sourced: a T5AI build then compiled
+    every source and died with "make: command not found" in the single make
+    invocation that packages it, on the last ninja edge.
+    """
+    if not download_host_tools():
+        get_logger().error("[prepare] host tools unavailable.")
+        return False
+    if not ensure_build_tools():
+        return False
+    prepend_venv_scripts_to_path()
+    return True
 
 
 PREPARE_STEPS: List[Tuple[str, PrepareStep]] = [
