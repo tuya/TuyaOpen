@@ -142,7 +142,12 @@ def redirect_stdout_stderr_to(filepath, encoding="utf-8", append=False):
 def set_global_params():
     global GLOBAL_PARAMS
 
-    GLOBAL_PARAMS["python"] = os.environ.get("OPEN_SDK_PYTHON", "python")
+    # Children must run under the SAME interpreter as tos.py. A bare
+    # "python" resolves through PATH, which on Windows reaches uv's base
+    # interpreter (.tools/python/<ver>/) rather than .venv, where the SDK's
+    # dependencies live -- so the child dies on ModuleNotFoundError.
+    GLOBAL_PARAMS["python"] = (
+        os.environ.get("OPEN_SDK_PYTHON") or sys.executable)
     open_root = os.path.dirname(os.path.abspath(sys.argv[0]))
     app_root = os.getcwd()
 
@@ -284,6 +289,20 @@ def get_country_code():
     if len(COUNTRY_CODE):
         return COUNTRY_CODE
     return set_country_code()
+
+
+def export_country_code() -> str:
+    '''
+    Publish the detected region to child processes via OPEN_COUNTRY_CODE.
+
+    Platforms are separate repositories and cannot call into the SDK, so
+    without this they re-detect on their own -- historically over the
+    network. "" is indistinguishable from unset, so export a definite
+    value; a child treats any non-empty value as authoritative.
+    '''
+    code = get_country_code() or "Other"
+    os.environ["OPEN_COUNTRY_CODE"] = code
+    return code
 
 
 RUNNING_ENV = ""

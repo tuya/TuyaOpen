@@ -306,7 +306,8 @@ def porting_platform(new_platform_path, new_platform_name):
     porting_root = params["porting_root"]
     porting_script = os.path.join(porting_root, "kernel_porting.py")
 
-    cmd = ["python", porting_script, new_platform_path, new_platform_name]
+    cmd = [params["python"], porting_script,
+           new_platform_path, new_platform_name]
     ret = do_subprocess(cmd)
     if 0 != ret:
         return False
