@@ -49,3 +49,7 @@ tuyadb/
 # full demo suite. Useful when a board question needs an authoritative answer, but far
 # too large to carry in the repo.
 boards/GD32/*/GD32VW55x_Demo_Suites_*/
+
+# Agent tooling
+.agents/
+.claude/
