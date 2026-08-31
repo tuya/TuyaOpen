@@ -1,7 +1,7 @@
 #Ktuyaconf
 config PLATFORM_CHOICE
     string
-    default "SiWx917"
+    default "SIWX917"
 
 config OPERATING_SYSTEM
     int 

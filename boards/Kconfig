@@ -106,9 +106,9 @@ endif
 
 if (BOARD_ENABLE_SIWX917)
     config BOARD_CHOICE_SIWX917
-        bool "SiWx917"
+        bool "SIWX917"
     if (BOARD_CHOICE_SIWX917)
-    rsource "./SiWx917/Kconfig"
+    rsource "./SIWX917/Kconfig"
     endif
 endif
 
