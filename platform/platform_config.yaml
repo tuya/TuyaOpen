@@ -47,4 +47,4 @@ platforms:
 - name: L511G
   repo: https://github.com/tuya/TuyaOpen-LYNQ
   branch: L511G
-  commit: 52a84c93af85660fecd4c66cb2fb1a54551f5caf
+  commit: 719021386c4ea294e80296d57fa6e812c05d0ed1

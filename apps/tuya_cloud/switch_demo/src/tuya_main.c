@@ -112,11 +112,17 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
         PR_INFO("Device Bind Start!");
         break;
 
-    /* Print the QRCode for Tuya APP bind */
+    /* Log the bind URL for the Tuya APP. The QR bitmap that
+     * qrcode_string_output() draws does not survive a compile-time-ID log
+     * transport such as this module's unilog -- each row becomes its own record
+     * and the block characters are dropped -- so the URL itself is what gets
+     * logged; paste it into any QR generator to get the same code. */
     case TUYA_EVENT_DIRECT_MQTT_CONNECTED: {
-#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
         char buffer[255];
-        sprintf(buffer, "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID, license.uuid);
+        snprintf(buffer, sizeof(buffer), "https://smartapp.tuya.com/s/p?p=%s&uuid=%s&v=2.0", TUYA_PRODUCT_ID,
+                 license.uuid);
+        PR_NOTICE("Bind URL: %s", buffer);
+#if defined(ENABLE_QRCODE) && (ENABLE_QRCODE == 1)
         qrcode_string_output(buffer, user_log_output_cb, 0);
 #endif
     } break;
@@ -227,6 +233,9 @@ void user_main(void)
 
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
+    /* Before the log: every log line timestamps itself through the time
+     * service, whose mutex this creates. */
+    tal_time_service_init();
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");

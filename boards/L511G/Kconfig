@@ -21,6 +21,12 @@ rsource "./OS_SERVICE_Kconfig"
 choice
     prompt "Choice a board"
 
+    config BOARD_CHOICE_L511G_Y7PM
+        bool "L511G_Y7PM"
+        if (BOARD_CHOICE_L511G_Y7PM)
+            rsource "./L511G_Y7PM/Kconfig"
+        endif
+
     config BOARD_CHOICE_L511G_Y7PVM
         bool "L511G_Y7PVM"
         if (BOARD_CHOICE_L511G_Y7PVM)
