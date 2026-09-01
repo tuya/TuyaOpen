@@ -23,10 +23,10 @@ choice
             rsource "./GD32_MC_FOC_VWS_VW553/Kconfig"
         endif
 
-    config BOARD_CHOICE_LCKFB_GD32VM553
-        bool "LCKFB_GD32VM553"
-        if (BOARD_CHOICE_LCKFB_GD32VM553)
-            rsource "./LCKFB_GD32VM553/Kconfig"
+    config BOARD_CHOICE_LCKFB_GD32VW553
+        bool "LCKFB_GD32VW553"
+        if (BOARD_CHOICE_LCKFB_GD32VW553)
+            rsource "./LCKFB_GD32VW553/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>
