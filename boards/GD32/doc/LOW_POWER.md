@@ -1,7 +1,7 @@
 # GD32VW553 低功耗能力与限制
 
 > 适用：`boards/GD32/*`（GD32VW553 系列）
-> 结论来源：GD32VW55x User Manual Rev1.6、GD32VW553-UNIFI Datasheet Rev1.0、LCKFB_GD32VM553 实测
+> 结论来源：GD32VW55x User Manual Rev1.6、GD32VW553-UNIFI Datasheet Rev1.0、LCKFB_GD32VW553 实测
 > 最后更新：2026-08-14
 
 ## 一句话
@@ -53,7 +53,7 @@ TuyaOpen 的 `TUYA_CPU_SLEEP` 映射到芯片的 **Deep-sleep（stop）模式**�
 
 `uart.h` 里 USART0 走 `#elif CONFIG_BOARD == PLATFORM_BOARD_32VW55X_EVAL` 分支。选 PB15/PA8 有三个一致的来源：芯片数据手册 AF 表、LCKFB 板文档、GigaDevice EVAL 的 `Utilities/gd32vw553h_eval.h`。UART1 从 PB15/PA8 让到 PA4/PA5，否则两个口抢同一对焊盘 —— 谁后初始化谁赢，且无声。
 
-> **LCKFB_GD32VM553 只有一路 USB 转串口，在 Type-C 上，接的就是 PB15/PA8。** 它同时是下载口（ROM boot loader 在 USART0 上听）、日志口和用户串口，三者时间上不重叠。日志口由 `CONFIG_GD32_LOG_UART_PORT` 选（默认 0 = USART0，免飞线）。PA0/PA1、PA4/PA5、PA6/PA7 都没有桥接。
+> **LCKFB_GD32VW553 只有一路 USB 转串口，在 Type-C 上，接的就是 PB15/PA8。** 它同时是下载口（ROM boot loader 在 USART0 上听）、日志口和用户串口，三者时间上不重叠。日志口由 `CONFIG_GD32_LOG_UART_PORT` 选（默认 0 = USART0，免飞线）。PA0/PA1、PA4/PA5、PA6/PA7 都没有桥接。
 
 ### UART 的差别
 

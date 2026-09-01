@@ -4,7 +4,7 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "LCKFB_GD32VM553"
+    default "LCKFB_GD32VW553"
 
 # The board has exactly one usb-serial bridge, on the type-c connector, and its schematic
 # wires it to PB15/PA8 - the pads the datasheet, the LCKFB documentation and GigaDevice's
