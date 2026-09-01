@@ -1,0 +1,72 @@
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
+# The module is a cellular (Cat.1) NB module: no wifi, no wired, no BLE.
+config ENABLE_WIFI
+    bool
+    default n
+
+config ENABLE_WIRED
+    bool
+    default n
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config ENABLE_CELLULAR
+    bool
+    default y
+
+config ENABLE_FILE_SYSTEM
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+config ENABLE_RTC
+    bool
+    default y
+
+# There is no external SPI flash on this board, so the adapter's ext-flash
+# paths (tkl_flash, tkl_storage, the SPI port they reserve) stay out of the
+# build. Storage is the module's own file system, reached through tkl_fs; with
+# ENABLE_FILE_SYSTEM=y above, TuyaOpen's key-value store keeps its keys as
+# files there instead of mounting a second littlefs of its own.
+config ENABLE_FLASH
+    bool
+    default n
+
+config ENABLE_STORAGE
+    bool
+    default n
+
+config ENABLE_SPI
+    bool
+    default n

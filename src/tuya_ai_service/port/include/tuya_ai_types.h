@@ -52,6 +52,12 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+/* A platform adapter may already provide these aliases (the tkl headers are
+ * written against them), and it has to define INT32_T as int32_t -- which is
+ * long int, not int, in an arm-none-eabi newlib. Defining them twice with
+ * different underlying types is an error, so whoever gets there first wins. */
+#ifndef TUYAOS_COMPAT_TYPES_DEFINED
+#define TUYAOS_COMPAT_TYPES_DEFINED
 typedef long long DLONG_T;
 typedef DLONG_T *PDLONG_T;
 typedef float FLOAT_T;
@@ -95,6 +101,7 @@ typedef WORD_T *PWORD_T;
 typedef unsigned int DWORD_T;
 typedef DWORD_T *PDWORD_T;
 typedef size_t SIZE_T;
+#endif /* TUYAOS_COMPAT_TYPES_DEFINED */
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/

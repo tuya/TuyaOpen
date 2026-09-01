@@ -10,19 +10,22 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-set(LITTLEFS ${MODULE_PATH}/littlefs/lfs_util.c ${MODULE_PATH}/littlefs/lfs.c)
 set(LIB_SRCS ${MODULE_PATH}/src/tal_kv.c ${MODULE_PATH}/src/kv_serialize.c)
 
-list(APPEND LIB_SRCS ${LITTLEFS})
-
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC 
-    ${MODULE_PATH}/include
-    ${MODULE_PATH}/littlefs)
+set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
 
 set(LIB_PRIVATE_INC  ${MODULE_PATH}/port)
 
-add_definitions(-DLFS_CONFIG=lfs_config.h)
+# With a platform file system (tkl_fs) the key-value store keeps its keys as
+# files there, so TuyaOpen's own littlefs is not built -- which also keeps it
+# from colliding with a vendor SDK that ships its own copy of littlefs.
+if(NOT CONFIG_ENABLE_FILE_SYSTEM STREQUAL "y")
+    set(LITTLEFS ${MODULE_PATH}/littlefs/lfs_util.c ${MODULE_PATH}/littlefs/lfs.c)
+    list(APPEND LIB_SRCS ${LITTLEFS})
+    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/littlefs)
+    add_definitions(-DLFS_CONFIG=lfs_config.h)
+endif()
 
 
 ########################################

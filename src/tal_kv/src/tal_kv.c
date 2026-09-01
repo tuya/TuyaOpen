@@ -25,20 +25,29 @@
  */
 
 #include "tal_kv.h"
-#include "lfs_config.h"
-#include "tkl_flash.h"
 #include "tal_api.h"
 #include "tal_security.h"
+
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+/* The platform provides the file system (tkl_fs), so a key is simply an
+ * encrypted file in it and littlefs is not built at all. */
+#include "tal_fs.h"
+#else
+#include "lfs_config.h"
+#include "tkl_flash.h"
 
 // variables used by the filesystem
 static lfs_t lfs;
 static lfs_size_t lfs_flash_addr;
+#endif
+
 static tal_kv_cfg_t lfs_kv_cfg;
 static MUTEX_HANDLE lfs_mutex;
 
 extern int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *out_len);
 extern int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt);
 
+#if !(defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1))
 /**
  * Reads data from a user-provided block device.
  *
@@ -125,6 +134,7 @@ int user_provided_block_device_sync(const struct lfs_config *c)
 {
     return LFS_ERR_OK;
 }
+#endif
 
 /**
  * @brief Initializes the TAL Key-Value (KV) module.
@@ -148,6 +158,10 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
 
     tal_mutex_create_init(&lfs_mutex);
 
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+    /* Nothing to mount: the platform brings its file system up itself. */
+    return OPRT_OK;
+#else
     TUYA_FLASH_BASE_INFO_T info;
     tkl_flash_get_one_type_info(TUYA_FLASH_TYPE_UF, &info);
     lfs_flash_addr = info.partition[0].start_addr;
@@ -179,6 +193,7 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
     }
 
     return err;
+#endif
 }
 
 /**
@@ -196,6 +211,48 @@ int tal_kv_init(tal_kv_cfg_t *kv_cfg)
  */
 int tal_kv_set(const char *key, const uint8_t *value, size_t length)
 {
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+    int result;
+    TUYA_FILE file = NULL;
+    uint8_t *ec_data = NULL;
+    uint32_t ec_len = 0;
+    uint8_t iv[16];
+
+    PR_DEBUG("key:%s, len %d", key, length);
+
+    if (NULL == key || NULL == value || 0 == length) {
+        return OPRT_INVALID_PARM;
+    }
+
+    memcpy(iv, lfs_kv_cfg.seed, 16);
+    result =
+        tal_aes128_cbc_encode((uint8_t *)value, length, (uint8_t *)lfs_kv_cfg.key, iv, &ec_data, (uint32_t *)&ec_len);
+    if (OPRT_OK != result) {
+        PR_DEBUG("key %s encrypt failed", key);
+        return result;
+    }
+
+    tal_mutex_lock(lfs_mutex);
+    file = tal_fopen(key, "wb+");
+    if (NULL == file) {
+        tal_mutex_unlock(lfs_mutex);
+        tal_aes_free_data(ec_data);
+        PR_ERR("fs open %s err", key);
+        return OPRT_FILE_OPEN_FAILED;
+    }
+    result = tal_fwrite(ec_data, ec_len, file);
+    tal_fsync(file);
+    tal_fclose(file);
+    tal_mutex_unlock(lfs_mutex);
+    tal_aes_free_data(ec_data);
+
+    if (result != (int)ec_len) {
+        PR_ERR("kv write fail %d", result);
+        return OPRT_KVS_WR_FAIL;
+    }
+
+    return OPRT_OK;
+#else
     int result;
     lfs_file_t file;
 
@@ -236,6 +293,7 @@ int tal_kv_set(const char *key, const uint8_t *value, size_t length)
     }
 
     return OPRT_OK;
+#endif
 }
 
 /**
@@ -256,6 +314,65 @@ int tal_kv_set(const char *key, const uint8_t *value, size_t length)
  */
 int tal_kv_get(const char *key, uint8_t **value, size_t *length)
 {
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+    int result;
+    TUYA_FILE file = NULL;
+    uint8_t *ec_data = NULL;
+    int ec_len = 0;
+    uint8_t *dec_data = NULL;
+    uint32_t dec_len = 0;
+    uint8_t iv[16];
+
+    if (NULL == key || NULL == value || NULL == length) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(lfs_mutex);
+    ec_len = tal_fgetsize(key);
+    if (ec_len <= 0) {
+        tal_mutex_unlock(lfs_mutex);
+        PR_DEBUG("fs key not found: %s", key);
+        return OPRT_NOT_FOUND;
+    }
+
+    file = tal_fopen(key, "rb");
+    if (NULL == file) {
+        tal_mutex_unlock(lfs_mutex);
+        PR_DEBUG("fs open %s err", key);
+        return OPRT_FILE_OPEN_FAILED;
+    }
+
+    ec_data = tal_malloc(ec_len + 1);
+    if (NULL == ec_data) {
+        tal_fclose(file);
+        tal_mutex_unlock(lfs_mutex);
+        return OPRT_MALLOC_FAILED;
+    }
+
+    result = tal_fread(ec_data, ec_len, file);
+    tal_fclose(file);
+    tal_mutex_unlock(lfs_mutex);
+    if (result <= 0) {
+        *length = 0;
+        tal_free(ec_data);
+        PR_ERR("kv read error %d", result);
+        return OPRT_KVS_RD_FAIL;
+    }
+
+    memcpy(iv, lfs_kv_cfg.seed, 16);
+    result = tal_aes128_cbc_decode(ec_data, ec_len, (uint8_t *)lfs_kv_cfg.key, iv, &dec_data, (uint32_t *)&dec_len);
+    dec_len = tal_aes_get_actual_length(dec_data, dec_len);
+    tal_free(ec_data);
+    if (OPRT_OK != result || dec_len > (uint32_t)ec_len) {
+        PR_ERR("key %s decrypt failed %d, %d-%d", key, result, dec_len, ec_len);
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+    *value = dec_data;
+    *length = (size_t)dec_len;
+    dec_data[dec_len] = 0;
+
+    return OPRT_OK;
+#else
     int result;
     lfs_file_t file;
 
@@ -310,6 +427,7 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
     dec_data[dec_len] = 0;
 
     return OPRT_OK;
+#endif
 }
 
 /**
@@ -323,6 +441,25 @@ int tal_kv_get(const char *key, uint8_t **value, size_t *length)
  */
 int tal_kv_del(const char *key)
 {
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+    int result;
+
+    if (NULL == key) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(lfs_mutex);
+    result = tal_fs_remove(key);
+    tal_mutex_unlock(lfs_mutex);
+    if (OPRT_OK == result) {
+        PR_DEBUG("Deleted successfully");
+        return OPRT_OK;
+    }
+
+    PR_DEBUG("Deleted failed %d", result);
+
+    return OPRT_COM_ERROR;
+#else
     tal_mutex_lock(lfs_mutex);
     int result = lfs_remove(&lfs, key);
     tal_mutex_unlock(lfs_mutex);
@@ -334,6 +471,7 @@ int tal_kv_del(const char *key)
     PR_DEBUG("Deleted failed %d", result);
 
     return OPRT_COM_ERROR;
+#endif
 }
 
 /**
@@ -383,6 +521,22 @@ void tal_kv_cmd(int argc, char *argv[])
     } else if (0 == strcmp("del", argv[1])) {
         tal_kv_del(argv[2]);
     } else if (0 == strcmp("list", argv[1])) {
+#if defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1)
+        TUYA_DIR dir = NULL;
+        TUYA_FILEINFO info = NULL;
+        const char *name = NULL;
+
+        if (OPRT_OK != tal_dir_open(argv[2], &dir)) {
+            return;
+        }
+        while (OPRT_OK == tal_dir_read(dir, &info) && info) {
+            if (OPRT_OK == tal_dir_name(info, &name) && name) {
+                PR_DEBUG_RAW("%s  ", name);
+            }
+        }
+        PR_DEBUG_RAW("\r\n");
+        tal_dir_close(dir);
+#else
         lfs_dir_t dir;
         lfs_dir_open(&lfs, &dir, argv[2]);
         struct lfs_info info;
@@ -391,6 +545,7 @@ void tal_kv_cmd(int argc, char *argv[])
         }
         PR_DEBUG_RAW("\r\n", info.name);
         lfs_dir_close(&lfs, &dir);
+#endif
     }
 }
 
@@ -469,6 +624,7 @@ int tal_kv_serialize_get(const char *key, kv_db_t *db, size_t dbcnt)
     return ret;
 }
 
+#if !(defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1))
 /**
  * @brief Get the LFS handle, can be used for file system opeation
  *
@@ -478,3 +634,4 @@ lfs_t *tal_lfs_get()
 {
     return &lfs;
 }
+#endif
