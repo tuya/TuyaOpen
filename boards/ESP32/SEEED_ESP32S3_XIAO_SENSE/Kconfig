@@ -17,9 +17,27 @@ config BOARD_CONFIG
     select ENABLE_BUTTON
     select PLATFORM_FLASHSIZE_8M
 
+config ENABLE_SEEED_XIAO_MAX98357A
+    bool "enable MAX98357A I2S amplifier (external module)"
+    default y
+    ---help---
+        External MAX98357A I2S DAC/amp wired to the XIAO expansion pins:
+          BCLK -> GPIO7 (D8)
+          LRC  -> GPIO4 (D3)
+          DIN  -> GPIO2 (D1)
+          VIN  -> 5V (recommended), GND -> GND
+
+        Prefer wiring SD (shutdown) to a free GPIO and leave it LOW until
+        I2S clocks are ready; tying SD to 3V3 keeps the amp unmuted from
+        power-on and will amplify floating DIN as boot noise.
+
+        NOTE: GPIO7 is also the microSD SPI SCK when the TF card option is
+        enabled, so the SD card and this amplifier are mutually exclusive.
+
 config ENABLE_SEEED_XIAO_SDCARD
     bool "enable microSD/TF card (Sense expansion board)"
     default n
+    depends on !ENABLE_SEEED_XIAO_MAX98357A
     ---help---
         Mux the microSD SPI pins on the Sense expansion board
         (SCK=IO7, MISO=IO8, MOSI=IO9, CS=IO21).
@@ -28,3 +46,5 @@ config ENABLE_SEEED_XIAO_SDCARD
         so the two are mutually exclusive. This option therefore drives the
         LED: when SD is disabled ENABLE_LED is selected (LED on GPIO21); when
         SD is enabled ENABLE_LED is left off and GPIO21 becomes the SD CS.
+
+        Also mutually exclusive with the MAX98357A amp (both use GPIO7).

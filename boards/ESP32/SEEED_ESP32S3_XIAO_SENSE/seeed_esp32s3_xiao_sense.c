@@ -4,7 +4,8 @@
  *
  * ESP32-S3R8 (8MB flash / 8MB PSRAM) carrier with the Sense expansion board:
  *   - DVP camera (OV2640 / OV3660, auto-detected by esp32-camera)
- *   - PDM digital microphone (no codec, capture only)
+ *   - PDM digital microphone (onboard Sense mic)
+ *   - optional MAX98357A I2S amplifier (external, GPIO2/4/7)
  *   - onboard user LED (GPIO21)
  *   - optional microSD/TF card over SPI
  *
@@ -24,7 +25,11 @@
 #endif
 
 #if defined(AUDIO_CODEC_NAME)
+#if defined(ENABLE_SEEED_XIAO_MAX98357A) && (ENABLE_SEEED_XIAO_MAX98357A == 1)
+#include "tdd_audio_pdm_i2s_spk.h"
+#else
 #include "tdd_audio_pdm_mic.h"
+#endif
 #endif
 
 #if defined(ENABLE_LED) && (ENABLE_LED == 1)
@@ -57,11 +62,20 @@
 #define CAM_D6_IO (11)
 #define CAM_D7_IO (48)
 
-/* PDM microphone */
+/* PDM microphone (onboard Sense expansion) */
 #define MIC_I2S_NUM     (0)
 #define MIC_CLK_IO      (42)
 #define MIC_DATA_IO     (41)
 #define MIC_SAMPLE_RATE (16000)
+
+/* MAX98357A I2S amplifier (external module on XIAO header pins) */
+#define SPK_I2S_NUM       (1)
+#define SPK_BCLK_IO       (7)  /* D8 */
+#define SPK_WS_IO         (4)  /* D3 / LRC */
+#define SPK_DOUT_IO       (2)  /* D1 / DIN */
+#define SPK_SAMPLE_RATE   (16000)
+#define SPK_SD_PIN        (TUYA_GPIO_NUM_MAX) /* SD tied to 3V3 on module */
+#define SPK_SD_POLARITY   (1)                 /* HIGH enables amp when GPIO wired */
 
 /* Onboard user LED — active-low, shared with SD chip-select (see below). */
 #define LED_IO (21)
@@ -112,6 +126,22 @@ static OPERATE_RET __board_register_camera(void)
 static OPERATE_RET __board_register_audio(void)
 {
 #if defined(AUDIO_CODEC_NAME)
+#if defined(ENABLE_SEEED_XIAO_MAX98357A) && (ENABLE_SEEED_XIAO_MAX98357A == 1)
+    TDD_AUDIO_PDM_I2S_SPK_T audio_cfg = {
+        .mic_i2s_id       = MIC_I2S_NUM,
+        .mic_clk_io       = MIC_CLK_IO,
+        .mic_din_io       = MIC_DATA_IO,
+        .mic_sample_rate  = MIC_SAMPLE_RATE,
+        .spk_i2s_id       = SPK_I2S_NUM,
+        .spk_bclk_io      = SPK_BCLK_IO,
+        .spk_ws_io        = SPK_WS_IO,
+        .spk_dout_io      = SPK_DOUT_IO,
+        .spk_sample_rate  = SPK_SAMPLE_RATE,
+        .spk_sd_pin       = SPK_SD_PIN,
+        .spk_sd_polarity  = SPK_SD_POLARITY,
+    };
+    return tdd_audio_pdm_i2s_spk_register(AUDIO_CODEC_NAME, audio_cfg);
+#else
     TDD_AUDIO_PDM_MIC_T mic_cfg = {
         .i2s_id          = MIC_I2S_NUM,
         .clk_io          = MIC_CLK_IO,
@@ -119,6 +149,7 @@ static OPERATE_RET __board_register_audio(void)
         .mic_sample_rate = MIC_SAMPLE_RATE,
     };
     return tdd_audio_pdm_mic_register(AUDIO_CODEC_NAME, mic_cfg);
+#endif
 #else
     return OPRT_OK;
 #endif
