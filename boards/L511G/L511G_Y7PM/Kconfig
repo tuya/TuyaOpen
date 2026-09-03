@@ -5,3 +5,141 @@ config CHIP_CHOICE
 config BOARD_CHOICE
     string
     default "L511G_Y7PM"
+
+# The e-paper hangs off SPI1, so the SPI adapter and TuyaOpen's SPI display
+# layer have to be in the build whenever a display is asked for. ENABLE_SPI has
+# no prompt of its own (see ../TKL_Kconfig), so this is how it gets turned on.
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_SPI if ENABLE_DISPLAY
+
+# The pad numbers below are the ones tkl_gpio's pinMap accepts (module pad, not
+# the chip GPIO index next to it in that table): 5, 6, 16, 19, 20, 21, 22, 25,
+# 26, 28, 29, 30, 31, 32, 33, 49..58, 79..82, 100. Of those only pads below 64
+# are usable here, because TUYA_GPIO_NUM_MAX is 64 and every driver treats a
+# larger number as "not wired".
+if ENABLE_BUTTON
+
+config BOARD_BUTTON_PIN
+    int "module pad the button is wired to"
+    default 57
+    ---help---
+        Pad 57 is CAM_I2C_SCL (chip GPIO18). The button is scanned by timer
+        rather than driven by an IRQ, so any pad tkl_gpio can read will do --
+        pinMap notes that several of them never deliver an edge interrupt.
+
+config BOARD_BUTTON_ACTIVE_LOW
+    bool "button pulls the pad low when pressed"
+    default y
+
+endif # ENABLE_BUTTON
+
+if ENABLE_CATX_PLAYER
+
+config BOARD_SPEAKER_PA_PIN
+    int "module pad that enables the speaker amplifier (-1: no amplifier)"
+    default -1
+    ---help---
+        The prebuilt codec driver asks for this pad through pad_hook() as soon
+        as the codec powers up, capture-only builds included. Leave it at -1
+        unless the board really drives an amplifier: naming a pad here switches
+        that line to an output and turns the amplifier on, which on a board that
+        plays nothing is just an amplified noise floor.
+
+endif # ENABLE_CATX_PLAYER
+
+# Waveshare 4.2" e-paper module, 400x300, one bit per pixel.
+#
+# The bus is Tuya SPI1, whose pads the chip pinmux fixes -- api_spi.c maps SPI1
+# to chip pads 27/28/29/30, which are module pads 64 (CS), 63 (MOSI), 62 (MISO,
+# unused by the panel) and 49 (SCLK). None of those are choices, and none of
+# them are GPIOs any more once the port is open: CS is driven by the SPI block
+# itself, which tkl_spi.c asserts around every transfer. Only the panel's three
+# control lines are wired by hand, so only they appear here.
+if ENABLE_DISPLAY
+
+# Which controller is behind the glass. The two are not variants of one part:
+# they use different command sets and opposite senses of the BUSY line, so a
+# panel driven by the wrong one never answers and the driver sits in its BUSY
+# wait until it times out. The board silkscreen or the order page says which.
+choice
+    prompt "e-paper controller"
+    default BOARD_EINK_PANEL_UC8276
+
+config BOARD_EINK_PANEL_UC8176
+    bool "UC8176 / IL0398 (Waveshare 4.2 inch, first revision)"
+    ---help---
+        BUSY is low while the panel is busy and high when it is idle, and it
+        only updates when the controller is polled with GET_STATUS. Nothing
+        responds before POWER_ON. Full refreshes only.
+
+config BOARD_EINK_PANEL_UC8276
+    bool "SSD1683 (Waveshare 4.2 inch V2)"
+    ---help---
+        BUSY is high while busy. Supports the fast partial refresh, at the cost
+        of ghosting until the next full one. This is the part TuyaOpen's own
+        TUYA_T5AI_EINK_NFC board carries, so tdd_disp_spi_uc8276.c is the
+        best-travelled of the two drivers.
+
+endchoice
+
+config BOARD_EINK_DC_PIN
+    int "module pad wired to the panel's DC line"
+    default 51
+    ---help---
+        Pad 51 is LCD_SPI_RS, which is the same signal under the module's own
+        name. It sits next to pad 49, the SPI1 clock the panel already needs.
+
+config BOARD_EINK_RST_PIN
+    int "module pad wired to the panel's RST line"
+    default 50
+    ---help---
+        Pad 50 is LCD_SPI_OUT, free because the panel's data line is SPI1's own
+        MOSI on pad 63. Pad 49, the module's LCD_RST, cannot be used for this:
+        it is the SPI1 clock.
+
+config BOARD_EINK_BUSY_PIN
+    int "module pad wired to the panel's BUSY line (64: not wired)"
+    default 52
+    ---help---
+        Pad 52 is LCD_SPI_CS, read as an input here. BUSY is polled, not an
+        interrupt source, so the pads pinMap marks as unable to deliver an edge
+        are fine too.
+
+        64 means the line is not wired: the driver then runs the panel blind,
+        on fixed delays long enough for the worst case. That is slower and
+        cannot notice a panel that stopped answering, but it is how a broken
+        BUSY wire is told apart from everything else being broken -- if the
+        glass updates like that, only BUSY is at fault.
+
+config BOARD_EINK_PWR_PIN
+    int "module pad that enables the panel's 3V3 load switch (64: always on)"
+    default 53
+    ---help---
+        The panel is fed through a load switch and this pad is its ACTIVE HIGH
+        enable. The board closes it once at start-up, waits 50 ms for the rail,
+        and leaves it closed -- the same arrangement as TuyaOpen's own
+        TUYA_T5AI_EINK_NFC board, where the switch belongs to a separate power
+        driver and the display is handed TUYA_GPIO_NUM_MAX for its power pin.
+
+        Giving the pad to the display driver instead would look tidier and be
+        wrong: that driver cuts power in its sleep path, and the application
+        reopens the device periodically to clear partial-refresh ghosting, so
+        every one of those would become a power cycle of the panel.
+
+        Pad 53 is LCD_SPI_CLK, free because the panel's clock is SPI1 on pad 49.
+        It sits in the same group as DC, RST and BUSY.
+
+        64 means there is no switch and the panel is wired to a permanent 3V3.
+
+config BOARD_EINK_SPI_CLK_HZ
+    int "SPI clock for the panel, in Hz"
+    default 4000000
+    ---help---
+        The panel controller takes up to 20 MHz and SPI1 tops out at 26 MHz
+        (spiList in api_spi.c), but 4 MHz is what a module on flying leads
+        survives. The refresh itself takes seconds on e-paper, so the bus speed
+        is not what makes an update slow.
+
+endif # ENABLE_DISPLAY

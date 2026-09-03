@@ -67,6 +67,26 @@ config ENABLE_STORAGE
     bool
     default n
 
+# No prompt: nothing on this module needs SPI by default, and the one thing
+# that does -- the e-paper panel on SPI1 -- turns it on with a select, so the
+# port stays out of builds that have no display. See L511G_Y7PM/Kconfig.
 config ENABLE_SPI
     bool
+    default n
+
+# The module carries an ES8311 codec reached through the vendor audio subsystem
+# (the OEM build has AUDIO_ENABLE=true, so libsubsys_audio.a is always linked).
+# The adapter's tkl_audio.c and volume_ctl.c are wrapped in ENABLE_CATX_PLAYER,
+# so this is the switch that decides whether the module has audio at all --
+# leave it off for products that never record or play, and their firmware keeps
+# the recorder, the PCM cache and the codec driver glue out.
+config ENABLE_CATX_PLAYER
+    bool "enable the module audio path (mic record / speaker playback)"
+    default n
+
+# TuyaOpen's TDD/TDL audio layer keys off ENABLE_MEDIA; on this module the
+# tkl_audio it drives exists only with the switch above.
+config ENABLE_MEDIA
+    bool
+    default y if ENABLE_CATX_PLAYER
     default n
