@@ -429,6 +429,11 @@ int pj_sdp_token_url_parse(const char *token_url, const char *type, char **addr,
     return 0;
 }
 
+/* Turns of the event loop given to deferred socket teardown before the
+ * ioqueue is destroyed. */
+#define ICE_DESTROY_DRAIN_ROUNDS 10u
+#define ICE_DESTROY_DRAIN_MS     10u
+
 bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceSession)
 {
     pj_init();
@@ -485,8 +490,9 @@ bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceS
 
 bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
 {
-    pj_status_t status = PJ_SUCCESS;
     pj_ice_strans *ice_st = NULL;
+    bool ok = true;
+    unsigned i;
 
     if (pIceSession == NULL) {
         return false;
@@ -496,6 +502,7 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
 
     pj_thread_register2();
 
+    /* The worker polls the ioqueue and timer heap torn down below. */
     if (pIceSession->pIceThreadParam != NULL) {
         pIceSession->pIceThreadParam->bThreadQuitFlag = true;
     }
@@ -505,37 +512,51 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
         pIceSession->pThread = NULL;
     }
 
-    /* Capture ice_st BEFORE pool_release: ice_st is allocated from pPool. */
     ice_st = pIceSession->pIceSTransport;
+    pIceSession->pIceSTransport = NULL;
+    if (ice_st != NULL) {
+        if (pj_ice_strans_has_sess(ice_st)) {
+            pj_status_t status = pj_ice_strans_stop_ice(ice_st);
+            if (status != PJ_SUCCESS) {
+                pj_print_error("error stopping session", status);
+                ok = false;
+            }
+        }
+        /* stop_ice only ends the negotiation - pjnath deliberately keeps the
+         * sockets open so the transport can be reused. Nothing here reuses it,
+         * so without this every session leaks its UDP sockets and its pool. */
+        pj_ice_strans_destroy(ice_st);
+    }
 
+    /* Socket close is reference counted and completes in a group lock handler,
+     * so give the ioqueue and timer a few turns before taking them away. */
+    for (i = 0; i < ICE_DESTROY_DRAIN_ROUNDS; i++) {
+        unsigned handled = 0;
+        pj_ice_session_handle_events(pIceSession, ICE_DESTROY_DRAIN_MS, &handled);
+    }
+
+    if (pIceSession->iceCfg.stun_cfg.ioqueue != NULL) {
+        pj_ioqueue_destroy(pIceSession->iceCfg.stun_cfg.ioqueue);
+        pIceSession->iceCfg.stun_cfg.ioqueue = NULL;
+    }
+    if (pIceSession->iceCfg.stun_cfg.timer_heap != NULL) {
+        pj_timer_heap_destroy(pIceSession->iceCfg.stun_cfg.timer_heap);
+        pIceSession->iceCfg.stun_cfg.timer_heap = NULL;
+    }
     if (pIceSession->pPool != NULL) {
         pj_pool_release(pIceSession->pPool);
         pIceSession->pPool = NULL;
     }
+    pj_caching_pool_destroy(&pIceSession->cachePool);
 
     if (pIceSession->pIceThreadParam != NULL) {
         free(pIceSession->pIceThreadParam);
         pIceSession->pIceThreadParam = NULL;
     }
+    free(pIceSession);
 
-    if (ice_st == NULL) {
-        PJ_LOG(1, (THIS_FILE, "Error: No ICE instance, create it first"));
-        return false;
-    }
-
-    if (!pj_ice_strans_has_sess(ice_st)) {
-        PJ_LOG(1, (THIS_FILE, "Error: No ICE session, initialize first"));
-        return false;
-    }
-
-    status = pj_ice_strans_stop_ice(ice_st);
-    if (status != PJ_SUCCESS) {
-        pj_print_error("error stopping session", status);
-        return false;
-    }
-
-    PJ_LOG(3, (THIS_FILE, "ICE session stopped"));
-    return true;
+    PJ_LOG(3, (THIS_FILE, "ICE session destroyed"));
+    return ok;
 }
 
 bool pj_ice_session_init(pj_ice_session_t *pIceSession, pj_ice_session_cfg_t *pCfg)

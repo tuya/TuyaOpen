@@ -34,6 +34,14 @@ typedef struct tagTuyaIpcSdkVar {
     int (*OnLiveAudioStartCallback)(void);
     int (*OnLiveAudioStopCallback)(void);
     int (*OnRecvAudioFrameCallback)(MEDIA_FRAME *pMediaFrame);
+    /*
+     * Optional, but they are what lets the stream respond to the network
+     * instead of only suffering it: one produces a key frame on demand so a
+     * viewer does not wait out a GOP to see anything, the other moves the
+     * encoder's bitrate when the transport cannot carry what it is making.
+     */
+    int (*OnRequestIFrameCallback)(void);
+    int (*OnSetVideoBitrateCallback)(uint32_t kbps);
 } TUYA_IPC_SDK_VAR_S;
 
 OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar);

@@ -56,10 +56,11 @@ typedef struct {
 
     struct tuya_list_head       raw_frame_node_list;
     struct tuya_list_head       encoded_frame_node_list;
-    /* The list cannot say: it is also empty when every node is out with the
-     * driver. */
-    bool                        raw_pool_inited;
-    bool                        encoded_pool_inited;
+    /* Non-zero once the pool behind each list exists. The lists themselves
+     * cannot answer this: a list is also empty when every node is out with the
+     * driver, and re-filling one then would double the pool every session. */
+    uint32_t                    raw_node_buf_len;
+    uint32_t                    encoded_node_buf_len;
 
     TDD_CAMERA_DEV_HANDLE_T     tdd_hdl;
     TDD_CAMERA_INTFS_T          intfs;
@@ -352,22 +353,36 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
 
     raw_buf_len = cfg->width * cfg->height * CAMERA_RAW_PER_PIXEL_MAX_BYTE;
 
-    /* The pool belongs to the registered device, not to one session. */
+    /*
+     * The pool belongs to the registered device, which outlives any one
+     * session: close() stops the stream and leaves it standing, so a second
+     * open must not build a second one. Allocating per open was a megabyte a
+     * session on a 480x480 H.264 stream, and six reconnects left the board
+     * without enough PSRAM to open the camera at all.
+     */
     if(cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {
-        if(!camera_dev->raw_pool_inited) {
+        if(0 == camera_dev->raw_node_buf_len) {
             TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->raw_frame_node_list, \
                                                           CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
-            camera_dev->raw_pool_inited = true;
+            camera_dev->raw_node_buf_len = raw_buf_len;
+        } else if(raw_buf_len > camera_dev->raw_node_buf_len) {
+            /* Nodes already out with the driver cannot be grown under it. */
+            PR_ERR("camera reopened larger than its pool: %u > %u", raw_buf_len, camera_dev->raw_node_buf_len);
+            return OPRT_COM_ERROR;
         }
         camera_dev->get_raw_frame_cb = cfg->get_frame_cb;
     }
 
     if(cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
         uint32_t encoded_buf_len = (raw_buf_len * CAMERA_ENCODE_MIN_COMP_PCT + 99) / 100;
-        if(!camera_dev->encoded_pool_inited) {
+        if(0 == camera_dev->encoded_node_buf_len) {
             TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->encoded_frame_node_list, \
                                                           CAMERA_ENCODE_FRAME_BUFF_CNT, encoded_buf_len));
-            camera_dev->encoded_pool_inited = true;
+            camera_dev->encoded_node_buf_len = encoded_buf_len;
+        } else if(encoded_buf_len > camera_dev->encoded_node_buf_len) {
+            PR_ERR("camera reopened larger than its pool: %u > %u", encoded_buf_len,
+                   camera_dev->encoded_node_buf_len);
+            return OPRT_COM_ERROR;
         }
         camera_dev->get_encoded_frame_cb = cfg->get_encoded_frame_cb;
     }  
@@ -380,10 +395,16 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
     if(camera_dev->intfs.open) {
         TDD_CAMERA_OPEN_CFG_T open_cfg;
 
-        open_cfg.fps     = camera_dev->info.fps;
-        open_cfg.width   = camera_dev->info.width;
-        open_cfg.height  = camera_dev->info.height;
-        open_cfg.out_fmt = camera_dev->info.out_fmt;
+        /* Cleared first so a field added later cannot reach a driver as stack
+         * garbage just because this mapping was not updated with it. */
+        memset(&open_cfg, 0, sizeof(open_cfg));
+
+        open_cfg.fps          = camera_dev->info.fps;
+        open_cfg.width        = camera_dev->info.width;
+        open_cfg.height       = camera_dev->info.height;
+        open_cfg.out_fmt      = camera_dev->info.out_fmt;
+        open_cfg.bitrate_kbps = cfg->bitrate_kbps;
+        open_cfg.gop          = cfg->gop;
 
         memcpy(&open_cfg.encoded_quality, &cfg->encoded_quality, sizeof(TUYA_DVP_ENCODED_QUALITY));
 
@@ -400,9 +421,13 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
  * @param camera_hdl Camera handle
  * @return OPRT_OK on success
  *
- * The frame pool is left standing: nothing records where a node is between
- * create_tdd_frame and release_tdd_frame, so no moment here is a safe one to
- * free them in.
+ * The frame pool is deliberately left standing. Its nodes are handed out to
+ * the driver by tdl_camera_create_tdd_frame and come back only through
+ * tdl_camera_release_tdd_frame, and nothing records where one is in between -
+ * so there is no moment here at which freeing them is known to be safe, and a
+ * node released after the free would be linked back into memory that is gone.
+ * Keeping the pool costs the device's buffers for as long as it is registered,
+ * which is what a registered device is for, and it makes the next open cheap.
  */
 OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
 {
@@ -414,7 +439,11 @@ OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
     if (false == camera_dev->is_open) {
         return OPRT_OK;
     }
-    /* Cleared first, so queued frames drain without reaching a closed app. */
+    /*
+     * Cleared before the driver stops, so that frames already queued drain
+     * through the flow task without reaching an application that considers
+     * itself closed. The task releases them either way.
+     */
     camera_dev->is_open = false;
 
     if (camera_dev->intfs.close) {
@@ -422,6 +451,32 @@ OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
     }
 
     return OPRT_OK;
+}
+
+OPERATE_RET tdl_camera_dev_request_i_frame(TDL_CAMERA_HANDLE_T camera_hdl)
+{
+    CAMERA_DEVICE_T *camera_dev = (CAMERA_DEVICE_T *)camera_hdl;
+
+    if (NULL == camera_dev) {
+        return OPRT_INVALID_PARM;
+    }
+    if (NULL == camera_dev->intfs.request_i_frame) {
+        return OPRT_NOT_SUPPORTED;
+    }
+    return camera_dev->intfs.request_i_frame(camera_dev->tdd_hdl);
+}
+
+OPERATE_RET tdl_camera_dev_set_bitrate(TDL_CAMERA_HANDLE_T camera_hdl, uint32_t kbps)
+{
+    CAMERA_DEVICE_T *camera_dev = (CAMERA_DEVICE_T *)camera_hdl;
+
+    if (NULL == camera_dev || 0 == kbps) {
+        return OPRT_INVALID_PARM;
+    }
+    if (NULL == camera_dev->intfs.set_bitrate) {
+        return OPRT_NOT_SUPPORTED;
+    }
+    return camera_dev->intfs.set_bitrate(camera_dev->tdd_hdl, kbps);
 }
 
 /**

@@ -304,9 +304,10 @@ struct IKCPCB {
     int (*output)(const char *buf, int len, struct IKCPCB *kcp, void *user);
     void (*writelog)(const char *log, struct IKCPCB *kcp, void *user);
     int (*process_pkt)(void *user, int length, const char *input, char *output);
-    /* TuyaOS mid_p2p pacing (bytes/ms rate limiter) */
+    /* Send pacing state; NULL sends the whole window in one burst */
     void *pacing;
-    IUINT32 next_send;
+    /* CUBIC congestion control state; NULL falls back to stock KCP growth */
+    void *cong;
 };
 
 typedef struct IKCPCB ikcpcb;
@@ -391,6 +392,12 @@ int ikcp_wndsize(ikcpcb *kcp, int sndwnd, int rcvwnd);
 // get how many packet is waiting to be sent
 int ikcp_waitsnd(const ikcpcb *kcp);
 
+// payload bytes queued for send, waiting and in flight alike
+int ikcp_waitsnd_bytes(const ikcpcb *kcp);
+
+// discard queued data the peer has not been told about yet; returns bytes freed
+int ikcp_drop_unsent(ikcpcb *kcp);
+
 // fastest: ikcp_nodelay(kcp, 1, 20, 2, 1)
 // nodelay: 0:disable(default), 1:enable
 // interval: internal update timer interval in millisec, default is 100ms
@@ -402,6 +409,12 @@ void ikcp_log(ikcpcb *kcp, int mask, const char *fmt, ...);
 
 // setup allocator
 void ikcp_allocator(void *(*new_malloc)(size_t), void (*new_free)(void *));
+
+/* The allocator KCP itself uses, honouring whatever ikcp_allocator installed.
+ * Exposed so companion modules - congestion control, pacing - keep their state
+ * in the same pool as the transport rather than in the C library heap. */
+void *ikcp_malloc(size_t size);
+void  ikcp_free(void *ptr);
 
 // read conv
 IUINT32 ikcp_getconv(const void *ptr);

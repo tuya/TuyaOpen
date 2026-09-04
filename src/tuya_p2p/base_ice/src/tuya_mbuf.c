@@ -15,6 +15,7 @@
 #include "tal_mutex.h"
 #include "tal_memory.h"
 #include "tuya_cloud_types.h"
+#include "tal_log.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -90,6 +91,17 @@ void tuya_mbuf_queue_destroy(tuya_mbuf_queue_t *q)
 {
     if (q == NULL) {
         return;
+    }
+    /*
+     * Nothing here can free the mbufs themselves: they are not held by this
+     * queue but by whoever took them, one per KCP segment, and the queue only
+     * charges for them. So the count standing here is the count that no longer
+     * has an owner, and saying so is the only way it is ever noticed - the
+     * queue this belonged to is about to become unreachable either way.
+     */
+    if (q->used_size != 0) {
+        PR_ERR("mbuf queue destroyed with %d bytes outstanding (in=%lld out=%lld)", q->used_size,
+               (long long)q->total_bytes_in, (long long)q->total_bytes_out);
     }
     q->close_flag = 1;
     tal_mutex_release(q->lock);

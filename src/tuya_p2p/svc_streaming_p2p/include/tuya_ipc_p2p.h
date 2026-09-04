@@ -44,6 +44,28 @@ typedef int (*tuya_p2p_rtc_get_frame_cb_t)(MEDIA_FRAME *pMediaFrame);
 typedef int (*tuya_p2p_rtc_live_video_cb_t)(void);
 
 /**
+ * @brief Ask the encoder for an immediate key frame.
+ *
+ * A viewer can only start decoding at a key frame, and after frames have been
+ * dropped it can only resume at one. Without this the stream has to wait for
+ * the next scheduled key frame, which at a two second GOP means up to two
+ * seconds of black screen on connect and the same again after every congestion
+ * event. Optional: where it is not provided the wait is simply the old one.
+ */
+typedef int (*tuya_p2p_rtc_req_i_frame_cb_t)(void);
+
+/**
+ * @brief Ask the encoder to produce @p kbps from now on.
+ *
+ * The transport can only carry what the link allows; when the send queue backs
+ * up, the source has to slow down or the queue is worked off by discarding
+ * video. This is the one lever that lets the picture degrade smoothly instead.
+ * Optional: without it the encoder keeps its configured rate and congestion is
+ * handled by dropping frames alone.
+ */
+typedef int (*tuya_p2p_rtc_set_bitrate_cb_t)(uint32_t kbps);
+
+/**
  * @enum TRANS_DEFAULT_QUALITY_E
  *
  * @brief default quality for live P2P transferring
@@ -72,6 +94,11 @@ typedef struct {
     tuya_p2p_rtc_live_video_cb_t on_live_audio_start_callback;
     tuya_p2p_rtc_live_video_cb_t on_live_audio_stop_callback;
     tuya_p2p_rtc_get_frame_cb_t  on_recv_audio_frame_callback;
+    /* Both optional - see the typedefs. Supplying them turns the transport's
+     * congestion state into something the encoder can act on, instead of the
+     * stream only ever reacting by dropping what it cannot send. */
+    tuya_p2p_rtc_req_i_frame_cb_t on_request_i_frame_callback;
+    tuya_p2p_rtc_set_bitrate_cb_t on_set_video_bitrate_callback;
 } TUYA_IPC_P2P_VAR_T;
 
 //////////////////////////////external interface////////////////////////////////////////////
@@ -120,6 +147,9 @@ OPERATE_RET tuya_ipc_stop_send_data_to_app(int client);
 OPERATE_RET tuya_sweeper_send_data_with_buff(int client, char *name, int fileLen, char *fileBuff,
                                              int timeout_ms);
 OPERATE_RET tuya_p2p_keep_alive(int client);
+
+/* Uplink audio counters, for the app to print alongside its own. */
+void tuya_ipc_p2p_audio_stats_get(uint32_t *shed, uint32_t *send_fail, uint32_t *queued);
 
 #ifdef __cplusplus
 }

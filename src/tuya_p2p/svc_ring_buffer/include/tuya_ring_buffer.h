@@ -114,11 +114,36 @@ OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HAN
  * @param[in] is_retry unused (keep for API compat)
  * @return node pointer valid until next get/append on same stream, or NULL
  * @note Caller must not free raw_data; owned by ring until overwritten
+ * @warning The payload is only borrowed, and the writer may overwrite this very
+ *          slot the moment this call returns. Prefer
+ *          tuya_ipc_ring_buffer_read_frame(), which copies under the lock;
+ *          reach for this only where the caller can guarantee it consumes the
+ *          data before the ring can wrap.
  */
 RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T handle, BOOL_T is_retry);
 
 /**
- * @brief Reset reader to newest frame
+ * @brief Get next frame for reader, copied out of the ring
+ *
+ * Same selection as tuya_ipc_ring_buffer_get_frame, but the payload is copied
+ * while the ring is locked, so the caller owns what it gets. The writer runs on
+ * another thread and reuses slots in place; borrowing a pointer and copying it
+ * afterwards is a race that shows up as a torn frame precisely when the reader
+ * is slow, which is when the writer is most likely to be lapping it.
+ *
+ * @param[in]  handle read handle
+ * @param[out] dst    buffer to receive the payload
+ * @param[in]  dst_cap capacity of @p dst
+ * @param[out] out    frame metadata (size, type, pts, timestamp); payload
+ *                    pointers inside are not set
+ * @return OPRT_OK when a frame was copied, OPRT_RESOURCE_NOT_READY when the
+ *         ring holds nothing new, OPRT_INVALID_PARM when @p dst is too small
+ */
+OPERATE_RET tuya_ipc_ring_buffer_read_frame(RING_BUFFER_USER_HANDLE_T handle, uint8_t *dst, uint32_t dst_cap,
+                                            RING_BUFFER_NODE_T *out);
+
+/**
+ * @brief Reset reader to the newest frame in the ring
  * @param[in] handle read handle
  * @return none
  */

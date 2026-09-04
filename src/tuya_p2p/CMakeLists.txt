@@ -37,7 +37,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_ipc_core)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_streaming_p2p)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/local_store)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/svc_ring_buffer)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ipc_cloud_store)
 
 ########################################
 # Layer Configure

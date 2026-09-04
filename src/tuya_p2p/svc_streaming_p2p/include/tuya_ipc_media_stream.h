@@ -111,6 +111,18 @@ OPERATE_RET tuya_ipc_media_playback_send_finish(const uint32_t client);
 void tuya_ipc_media_p2p_clear_send(void);
 
 /**
+ * @brief Drop unsent AV bytes without rebuilding KCP (safe mid-stream, e.g. PB seek)
+ */
+void tuya_ipc_media_p2p_drop_unsent(void);
+
+/**
+ * @brief Notify App that playback video is ready (TY_CMD_IO_CTRL_VIDEO_SEND_START=50).
+ * @note Call after the first I-frame of a START/switch has gone on the wire.
+ *       Do not send COMMAND_SUCCESS on START — App treats that as playback finished.
+ */
+void tuya_ipc_media_p2p_video_send_start(void);
+
+/**
  * @brief put log to tuya cloud service.
  *
  * @param level

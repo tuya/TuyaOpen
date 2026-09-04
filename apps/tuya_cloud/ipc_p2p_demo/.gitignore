@@ -1,0 +1,4 @@
+include/tuya_config_secrets.h
+
+# Capture/playback artefacts produced by running the demo, not sources
+media/

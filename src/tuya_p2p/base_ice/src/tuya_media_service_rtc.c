@@ -71,11 +71,25 @@ static int __tal_thread_spawn(THREAD_HANDLE *tid, SEM_HANDLE *join_sem, void *(*
 
 static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 {
-    (void)tid;
     if (join_sem && *join_sem) {
         tal_semaphore_wait(*join_sem, SEM_WAIT_FOREVER);
         tal_semaphore_release(*join_sem);
         *join_sem = NULL;
+    }
+    /*
+     * The semaphore says the thread body has returned, which is not the same as
+     * the thread being gone. tal_thread's wrapper polls its own state every
+     * 10 ms once the body returns and only leaves that loop for THREAD_STATE_STOP,
+     * which nothing but tal_thread_delete sets - so a joined-but-undeleted
+     * thread stays alive forever, spinning, holding its stack. These run with
+     * psram_mode, so each session that ended left 24 KB of PSRAM and a live
+     * 100 Hz poller behind: measured on hardware, a session that never got past
+     * ICE still cost 24976 bytes, and a handful of reconnects ran the free pool
+     * from 6.1 MB down to 2188, at which point every 1600-byte mbuf allocation
+     * failed and both streams stopped.
+     */
+    if (tid != NULL) {
+        tal_thread_delete(tid);
     }
 }
 
@@ -1605,12 +1619,8 @@ static int on_kcp_output(const char *buf, int len, ikcpcb *kcp, void *user_data)
     // tuya_p2p_log_trace("channel_id: %08x, sn: %d, cmd: %d\n", channel_id, sn, cmd);
 
     if (cmd != KCP_CMD_PUSH || channel_id != RTC_CHANNEL_CMD) {
-        if (!pj_ice_session_sendto(rtc->pIce, (void *)buf, len + md_size)) {
-#if IKCP_PACING_RATE_LIMIT
-            /* UDP ENOBUFS / send fail: back off pacing so flush stops blasting */
-            pacing_on_send_fail(kcp, 50);
-#endif
-        }
+        /* Pacing bounds what reaches the socket, so a failed send needs no backoff here. */
+        (void)pj_ice_session_sendto(rtc->pIce, (void *)buf, len + md_size);
     }
 
     chan->socket_send_bytes += (len + md_size);
@@ -1916,9 +1926,43 @@ int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc)
         ikcp_setoutput(chan->kcp, on_kcp_output);
         ikcp_wndsize(chan->kcp, send_buf_size / 1600  /*TUYA_MBUF_HUGE_SIZE*/,
                      recv_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/);
-        /* Align TuyaOS mid_p2p: ikcp_nodelay(kcp, 0, 5, 20, nc);
-         * nc = !preconnect_enable (OS: clz of preconnect field). */
-        ikcp_nodelay(chan->kcp, 0, 5, 20, g_options.preconnect_enable ? 0 : 1);
+        /*
+         * ikcp_nodelay(kcp, nodelay, interval, resend, nocwnd).
+         *
+         * nocwnd is 1, which retires KCP's own AIMD window. That is not the
+         * same as sending uncontrolled: ikcp_pacing.c governs what may be
+         * outstanding from the measured BDP and paces it out at the delivery
+         * rate, so there is still a brake - just one brake instead of two
+         * fighting. KCP's window was the cruder of the pair: any timeout put
+         * it back to 1, and measured on hardware it then took fourteen seconds
+         * to climb back while the link was losing about one packet a second,
+         * so the flow spent most of its life in recovery and averaged an
+         * effective window of 6 against peaks of 27.
+         *
+         * resend is the duplicate-ACK count that triggers fast retransmit, and
+         * TuyaOS ships 20. A segment only accumulates a fastack per later
+         * segment acknowledged, so the count cannot exceed the number in
+         * flight, which is cwnd - measured at 1..18 for almost this whole
+         * session. At 20 the threshold is therefore unreachable in practice and
+         * fast retransmit never runs: every loss, and every spurious timeout,
+         * falls through to RTO instead, and RTO restarts cwnd from 1 where a
+         * fast retransmit would only have taken it to 0.7x. Measured cost was
+         * 277 RTO events in 267 seconds - one per second, each one flattening
+         * the window - which is what held a LAN peer to ~275 kbps. 2 is the
+         * value KCP documents for this ("2 ACK spans and retransmit"), and 0,
+         * not 20, is how KCP spells "off".
+         *
+         * interval is written as the 10 ms it will actually be: ikcp_nodelay
+         * clamps anything below 10 upwards, so the 5 that used to be here never
+         * took effect and only misled.
+         *
+         * nodelay is 1, the value KCP documents for real time use. At 0 the RTO
+         * floor is 100 ms rather than 30, and a timeout doubles the segment's
+         * RTO where 1 raises it by half. Measured on hardware: the RTO reached
+         * 1463 ms, so a single loss bought over a second of silence on a link
+         * whose unloaded round trip was 42 ms.
+         */
+        ikcp_nodelay(chan->kcp, 1, 10, 2, 1);
         ikcp_setmtu(chan->kcp, 1400);
         ikcp_setprocesspkt(chan->kcp, ctx_session_channel_process_pkt);
         // ikcp_setwritelog(chan->kcp, ctx_session_kcp_writelog);
@@ -1973,8 +2017,13 @@ void *rtc_worker_thread(void *arg)
     uint64_t last_dump_ms = 0;
     int timeout_logged = 0;
     int nego_done_logged = 0;
+    /* DBG throughput: see the 2s block below */
+    uint32_t dbg_loops      = 0;
+    int64_t  dbg_last_write = 0;
+    int64_t  dbg_last_wire  = 0;
 
     while (!rtc->bQuitKCPThread) {
+        dbg_loops++;
         if (rtc->pIce != NULL) {
             pj_ice_session_handle_events(rtc->pIce, 5, NULL); // Drive ICE state update and execute KCP receive operation
         }
@@ -1993,6 +2042,23 @@ void *rtc_worker_thread(void *arg)
             uint64_t now = tuya_p2p_misc_get_timestamp_ms();
             if ((now - last_dump_ms) >= 2000ULL) {
                 uint64_t elapsed = now - start_ms;
+                /* DBG: which send-side limit is binding. srtt minus minrtt is the standing
+                 * queue, the one number that separates a slow link from a bloated one. */
+                tal_mutex_lock(rtc->channel_lock);
+                if (rtc->channels != NULL && rtc->channels[1].kcp != NULL) {
+                    rtc_channel_t *vch = &rtc->channels[1]; /* TUYA_VDATA_CHANNEL */
+                    ikcpcb        *k   = vch->kcp;
+                    PR_NOTICE("DBG p2p tx 2s: loops=%u kcp_in=%lld wire=%lld cwnd=%u snd=%u rmt=%u "
+                              "rto=%d srtt=%d minrtt=%u bw=%u xmit=%u que=%u buf=%u",
+                              dbg_loops, (long long)(vch->write_bytes - dbg_last_write),
+                              (long long)(vch->socket_send_bytes - dbg_last_wire), k->cwnd, k->snd_wnd, k->rmt_wnd,
+                              k->rx_rto, k->rx_srtt, pacing_min_rtt(k), pacing_bw(k), k->xmit, k->nsnd_que,
+                              k->nsnd_buf);
+                    dbg_last_write = vch->write_bytes;
+                    dbg_last_wire  = vch->socket_send_bytes;
+                }
+                tal_mutex_unlock(rtc->channel_lock);
+                dbg_loops    = 0;
                 last_dump_ms = now;
                 if (rtc->pIce != NULL && !pj_ice_session_is_nego_done(rtc->pIce)) {
                     pj_ice_session_dbg_dump(rtc->pIce, "worker_pending");
@@ -2180,6 +2246,9 @@ dosend_out:
 
 int32_t tuya_p2p_rtc_send_data(int32_t handle, uint32_t channel_id, char *buf, int32_t len, int32_t timeout_ms)
 {
+    if (g_p2p_session_mutex == NULL) {
+        return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
     tal_mutex_lock(g_p2p_session_mutex);
     tuya_p2p_rtc_session_t *rtc = g_pRtcSession;
     if (rtc == NULL) {
@@ -2297,6 +2366,9 @@ int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, i
 
     *len = 0;
 
+    if (g_p2p_session_mutex == NULL) {
+        return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
     tal_mutex_lock(g_p2p_session_mutex);
     rtc = g_pRtcSession;
     if (rtc == NULL) {
@@ -2343,6 +2415,9 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
 {
     int ret = 0;
     (void)handle;
+    if (g_p2p_session_mutex == NULL) {
+        return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
     tal_mutex_lock(g_p2p_session_mutex);
     if (g_pRtcSession == NULL) {
         tal_mutex_unlock(g_p2p_session_mutex);
@@ -2354,7 +2429,12 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
         rtc_channel_t *chan = &rtc->channels[channel_id];
         /* Align TuyaOS mid_p2p: sizes from mbuf_queue */
         if (write_size != NULL) {
-            *write_size = (chan->send_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_used_size(chan->send_queue) : 0;
+            /* Every queued packet is one mbuf held by one KCP segment, so the
+             * pool's used size and the segment count are two views of the same
+             * backlog - adding them counted it twice, and the pool's view is
+             * inflated anyway because it charges a whole TUYA_MBUF_HUGE_SIZE
+             * for a packet of any length. Ask KCP for the payload bytes. */
+            *write_size = (chan->kcp != NULL) ? (uint32_t)ikcp_waitsnd_bytes(chan->kcp) : 0;
         }
         if (read_size != NULL) {
             *read_size = (chan->recv_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_used_size(chan->recv_queue) : 0;
@@ -2363,6 +2443,40 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
             *send_free_size = (chan->send_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_free_size(chan->send_queue) : 0;
         }
     } else {
+        ret = TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
+    tal_mutex_unlock(rtc->channel_lock);
+    tal_mutex_unlock(g_p2p_session_mutex);
+    return ret;
+}
+
+int32_t tuya_p2p_rtc_get_link_rate(int32_t handle, uint32_t channel_id, uint32_t *bw_bps, uint32_t *min_rtt_ms)
+{
+    int ret = 0;
+    (void)handle;
+
+    tal_mutex_lock(g_p2p_session_mutex);
+    if (g_pRtcSession == NULL) {
+        tal_mutex_unlock(g_p2p_session_mutex);
+        return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
+    tuya_p2p_rtc_session_t *rtc = g_pRtcSession;
+    tal_mutex_lock(rtc->channel_lock);
+    if (rtc->channels != NULL && rtc->channels[channel_id].kcp != NULL) {
+        ikcpcb *k = rtc->channels[channel_id].kcp;
+        if (bw_bps != NULL) {
+            *bw_bps = pacing_bw(k);
+        }
+        if (min_rtt_ms != NULL) {
+            *min_rtt_ms = pacing_min_rtt(k);
+        }
+    } else {
+        if (bw_bps != NULL) {
+            *bw_bps = 0;
+        }
+        if (min_rtt_ms != NULL) {
+            *min_rtt_ms = 0;
+        }
         ret = TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
     }
     tal_mutex_unlock(rtc->channel_lock);
@@ -2411,9 +2525,42 @@ static int __rtc_channel_recreate_kcp(rtc_channel_t *chan, uint32_t conv)
     }
     ikcp_setoutput(chan->kcp, on_kcp_output);
     ikcp_wndsize(chan->kcp, send_wnd, recv_wnd);
-    ikcp_nodelay(chan->kcp, 0, 5, 20, g_options.preconnect_enable ? 0 : 1);
+    /* A channel rebuilt mid-session must keep the same congestion control. */
+    ikcp_nodelay(chan->kcp, 1, 10, 2, 1);
     ikcp_setmtu(chan->kcp, 1400);
     ikcp_setprocesspkt(chan->kcp, ctx_session_channel_process_pkt);
+    return 0;
+}
+
+/* Unlike clear_send_buffer this keeps the KCP object, so it is safe mid-stream:
+ * rebuilding one resets snd_nxt to 0 while the peer's rcv_nxt stays where it
+ * was, and every later segment is then discarded as a duplicate. */
+int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *p_dropped)
+{
+    int32_t dropped = 0;
+    (void)handle;
+
+    if (p_dropped != NULL) {
+        *p_dropped = 0;
+    }
+    tal_mutex_lock(g_p2p_session_mutex);
+    if (g_pRtcSession == NULL || g_pRtcSession->channels == NULL) {
+        tal_mutex_unlock(g_p2p_session_mutex);
+        return TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
+    }
+    if (channel_id > g_pRtcSession->cfg.channel_number) {
+        tal_mutex_unlock(g_p2p_session_mutex);
+        return TUYA_P2P_ERROR_INVALID_PARAMETER;
+    }
+
+    tal_mutex_lock(g_pRtcSession->channel_lock);
+    dropped = ikcp_drop_unsent(g_pRtcSession->channels[channel_id].kcp);
+    tal_mutex_unlock(g_pRtcSession->channel_lock);
+    tal_mutex_unlock(g_p2p_session_mutex);
+
+    if (p_dropped != NULL && dropped > 0) {
+        *p_dropped = (uint32_t)dropped;
+    }
     return 0;
 }
 

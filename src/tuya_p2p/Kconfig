@@ -8,5 +8,4 @@ menuconfig ENABLE_TUYA_P2P
 	if ENABLE_TUYA_P2P
 		rsource "local_store/Kconfig"
 		rsource "svc_ring_buffer/Kconfig"
-		rsource "ipc_cloud_store/Kconfig"
 	endif # ENABLE_TUYA_P2P
