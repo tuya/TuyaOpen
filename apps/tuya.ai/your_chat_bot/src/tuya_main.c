@@ -35,6 +35,9 @@
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
 #include "netconn_wired.h"
 #endif
+#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+#include "netconn_cellular.h"
+#endif
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
 #include "lwip_init.h"
 #endif
@@ -349,6 +352,9 @@ void user_main(void)
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
     type |= NETCONN_WIRED;
+#endif
+#if defined(ENABLE_CELLULAR) && (ENABLE_CELLULAR == 1)
+    type |= NETCONN_CELLULAR;
 #endif
     netmgr_init(type);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
