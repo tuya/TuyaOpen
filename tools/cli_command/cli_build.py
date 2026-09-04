@@ -2,6 +2,7 @@
 # coding=utf-8
 
 import os
+import re
 import sys
 import click
 import shutil
@@ -287,6 +288,50 @@ def copy_compile_commands(build_path):
         return True  # Don't fail the build if copy fails
 
 
+# {app_name}_{QIO|UA|UG}_{app_ver}.bin -- every platform's
+# build_example.py writes its final artifacts into .build/bin under this
+# rule (see platform/*/build_example.py).
+_ARTIFACT_RE = re.compile(r"^(?P<name>.+?)_(?P<kind>QIO|UA|UG)_(?P<ver>.+)\.bin$")
+
+
+def _prune_stale_bins(bin_dir, app_name, app_ver):
+    '''
+    Drop artifacts left by an earlier build whose PROJECT_NAME or
+    PROJECT_VERSION differed. Their file names carry the version, so a
+    version bump creates NEW files instead of overwriting the old ones,
+    and the copytree in check_bin_file would drag both versions into
+    dist/<app>_<ver>/.
+
+    Only top-level files matching <name>_<KIND>_<ver>.bin are touched;
+    debug/ and any platform extras are left alone.
+
+    os.remove rather than rm_rf: these are single files, and rm_rf
+    shells out to `del /F /Q` on Windows for no benefit here.
+    '''
+    logger = get_logger()
+    if not os.path.isdir(bin_dir):
+        return []
+    dropped = []
+    for entry in sorted(os.listdir(bin_dir)):
+        target = os.path.join(bin_dir, entry)
+        if not os.path.isfile(target):
+            continue
+        matched = _ARTIFACT_RE.match(entry)
+        if not matched:
+            continue
+        if (matched.group("name") == app_name
+                and matched.group("ver") == app_ver):
+            continue
+        try:
+            os.remove(target)
+        except OSError as e:
+            logger.warning(f"Cannot remove [{target}]: {e}")
+            continue
+        dropped.append(entry)
+        logger.info(f"Dropped stale artifact: {entry}")
+    return dropped
+
+
 def check_bin_file(using_data,):
     '''
     check bin file exists
@@ -306,6 +351,11 @@ def check_bin_file(using_data,):
     if not os.path.exists(app_bin_file):
         logger.error(f"Not found {app_bin_file}")
         return False
+
+    # This build's artifacts are confirmed present; now drop what an
+    # earlier PROJECT_NAME/PROJECT_VERSION left behind, or the copytree
+    # below would ship several versions in one dist directory.
+    _prune_stale_bins(app_bin_path, app_name, app_ver)
 
     dist_path = os.path.join(dist_root, f"{app_name}_{app_ver}")
     os.makedirs(dist_root, exist_ok=True)

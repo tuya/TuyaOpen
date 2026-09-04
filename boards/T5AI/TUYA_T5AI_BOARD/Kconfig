@@ -73,3 +73,9 @@ config TUYA_T5AI_BOARD_PRINTER_DP48
     default n
     select ENABLE_PRINTER
     select ENABLE_PRINTER_DP48
+
+# ---- 4G Module ----
+config ENABLE_T5AI_BOARD_CELLULAR_USB
+    bool "4G cellular module on USB port (e.g. L511Y)"
+    default n
+    select ENABLE_CELLULAR

@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#if defined(ENABLE_DEVICE_TIMER) && (ENABLE_DEVICE_TIMER == 1)
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -77,6 +79,8 @@ void tuya_device_timer_dump(void);
  * @return OPRT_OK on success, other values on failure.
  */
 OPERATE_RET tuya_device_timer_kv_delete(void);
+
+#endif /* ENABLE_DEVICE_TIMER */
 
 #ifdef __cplusplus
 }

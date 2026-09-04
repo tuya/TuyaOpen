@@ -22,6 +22,10 @@ file(GLOB_RECURSE LIB_SRCS
     "${MODULE_PATH}/authorize/*.c"
     "${MODULE_PATH}/weather/*.c")
 
+if(NOT CONFIG_ENABLE_DEVICE_TIMER STREQUAL "y")
+    list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/cloud/tuya_device_timer.c")
+endif()
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/cloud)
 list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/file_storage)

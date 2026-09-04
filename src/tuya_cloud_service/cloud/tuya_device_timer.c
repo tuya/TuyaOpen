@@ -6,12 +6,15 @@
  */
 
 #include "tuya_device_timer.h"
+
+#if defined(ENABLE_DEVICE_TIMER) && (ENABLE_DEVICE_TIMER == 1)
 #include "tal_log.h"
 #include "tal_mutex.h"
 #include "tal_sw_timer.h"
 #include "tal_time_service.h"
 #include "tal_workq_service.h"
 #include "tuya_mqtt_dispatch.h"
+#include "tuya_device_meta.h"
 #include "tal_api.h"
 #include "tuya_iot.h"
 #include "tuya_iot_dp.h"
@@ -1115,6 +1118,14 @@ int tuya_device_timer_init(void)
     tuya_mqtt_dispatch_register(PRO_DEV_DA_RESP, "timer_full_syn", "device timer full sync", __on_timer_full_syn_ack_callback, NULL);
     tuya_mqtt_dispatch_register(PRO_IOT_DA_REQ, "timer_sync", "device timer sync", __on_timer_sync_callback, NULL);
 
+    /* Declare timer capability, reported by tuya_device_meta after time sync.
+     * Changing this value only takes effect after the device is removed in the
+     * APP and re-provisioned with its data cleared. */
+    rt = tuya_device_meta_add_number("timerCapability", 1);
+    if (OPRT_OK != rt) {
+        PR_ERR("add timerCapability failed:%d", rt);
+    }
+
     tal_event_subscribe(EVENT_DEVICE_META_REPORT, "tuya_device_timer", __device_timer_task_event_cb, SUBSCRIBE_TYPE_ONETIME);
     tal_event_subscribe(EVENT_RESET, "tuya_device_timer", __device_timer_reset_event_cb, SUBSCRIBE_TYPE_ONETIME);
 
@@ -1309,3 +1320,5 @@ OPERATE_RET tuya_device_timer_kv_delete(void)
 
     return rt;
 }
+
+#endif /* ENABLE_DEVICE_TIMER */

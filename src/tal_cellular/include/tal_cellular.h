@@ -23,17 +23,32 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 #define TAL_CELLULAR_APN_LEN         64
+#define TAL_CELLULAR_CCID_LEN        20
 #define TAL_CELLULAR_USER_NAME_LEN   32
 #define TAL_CELLULAR_USER_PASSWD_LEN 32
 #define TAL_CELLULAR_DIAL_UP_CMD_LEN 32
+#define TAL_CELLULAR_IMEI_LEN        15
+#define TAL_CELLULAR_SN_LEN          10
+#define TAL_CELLULAR_SW_VER_LEN      40 ///< 40, not the 22-char version string: the TKL layer writes all 40
 
 typedef enum {
     TAL_CELLULAR_LINK_DOWN = 0, ///< the network cable is unplugged
     TAL_CELLULAR_LINK_UP,       ///< the network cable is plugged and IP is got
 } TAL_CELLULAR_STAT_E;
 
+typedef enum {
+    TAL_CELLULAR_NO_SLEEP = 0,
+    TAL_CELLULAR_IDLE,
+    TAL_CELLULAR_MODE1,
+    TAL_CELLULAR_MODE2,
+    TAL_CELLULAR_HIBERNATE,
+} TAL_CELLULAR_SLEEP_MODE_E;
+
 typedef struct {
     char apn[TAL_CELLULAR_APN_LEN + 1]; ///< Access Point Name
+    TUYA_CELLULAR_IF_E iface;
+    TUYA_CELLULAR_PROTOCOL_E protocol;
+    TAL_CELLULAR_SLEEP_MODE_E sleep_mode;
 } TAL_CELLULAR_BASE_CFG_T;
 
 /***********************************************************
@@ -99,6 +114,65 @@ OPERATE_RET tal_cellular_get_ip(NW_IP_S *ip);
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tal_cellular_get_ipv6(NW_IP_TYPE type, NW_IP_S *ip);
+
+/**
+ * @brief  get the ICCID of the SIM card
+ *
+ * @param[out]  ccid: the ICCID string, buffer must be TAL_CELLULAR_CCID_LEN + 1 bytes
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_ccid(char *ccid);
+
+/**
+ * @brief  get the signal strength of the cellular link
+ *
+ * @param[out]  rssi: the AT+CSQ RSSI index, 0..31, or 99 when unknown.
+ *                    Note the TKL layer types this as char *, but it is a single
+ *                    scalar byte rather than a string.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_rssi(uint8_t *rssi);
+
+/**
+ * @brief  get the supply voltage of the cellular module, in millivolts
+ *
+ * @param[out]  volt: the voltage value
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_volt(uint32_t *volt);
+
+/**
+ * @brief  get the IMEI of the cellular module
+ *
+ * @param[out]  imei: the IMEI string, buffer must be TAL_CELLULAR_IMEI_LEN + 1 bytes
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_imei(char *imei);
+
+/**
+ * @brief  get the serial number of the cellular module
+ *
+ * @param[out]  sn: the serial number string, buffer must be TAL_CELLULAR_SN_LEN + 1 bytes
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_sn(char *sn);
+
+/**
+ * @brief  get the firmware version of the cellular module
+ *
+ * @param[out]  ver: the version string, buffer must be TAL_CELLULAR_SW_VER_LEN + 1 bytes.
+ *                   The module reports at most 22 characters, but tkl_cellular_get_sw_ver()
+ *                   strncpy()s a full TAL_CELLULAR_SW_VER_LEN bytes and NUL-pads the rest,
+ *                   so a buffer sized to the string length instead overflows.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
+ */
+OPERATE_RET tal_cellular_get_sw_ver(char *ver);
 
 #ifdef __cplusplus
 }

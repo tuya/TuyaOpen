@@ -102,7 +102,10 @@ OPERATE_RET netconn_cellular_open(void *config)
     // init
     TAL_CELLULAR_BASE_CFG_T cfg;
     memset(&cfg, 0, sizeof(cfg));
-    snprintf(cfg.apn, sizeof(cfg.apn), "%s", "");
+#if defined(CELLULAR_APN)
+    snprintf(cfg.apn, sizeof(cfg.apn), "%s", CELLULAR_APN);
+#endif
+    PR_NOTICE("cellular open, apn [%s]", cfg.apn);
     tal_cellular_init(&cfg);
 
     netmgr_cellular->base.status = NETMGR_LINK_DOWN;
@@ -136,6 +139,12 @@ OPERATE_RET netconn_cellular_set(netmgr_conn_config_type_e cmd, void *param)
     case NETCONN_CMD_PRI: {
         netmgr_cellular->base.pri = *(int *)param;
         netmgr_cellular->base.event_cb(NETCONN_CELLULAR, netmgr_cellular->base.status);
+    } break;
+    case NETCONN_CMD_CLOSE: {
+        // tuya_iot issues this on teardown. Route it at the close handler so there
+        // is one place to add a real PPP/modem shutdown once the TKL layer exposes
+        // a deinit; today it succeeds without tearing the link down, matching wired.
+        rt = netconn_cellular_close();
     } break;
     default: {
         rt = OPRT_NOT_SUPPORTED;

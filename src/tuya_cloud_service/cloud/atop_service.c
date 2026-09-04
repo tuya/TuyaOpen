@@ -719,7 +719,7 @@ int atop_service_outdoors_property_upload(const char *id, const char *key, const
         return OPRT_MALLOC_FAILED;
     }
 
-    // {"countryCode":"86","phone":"15656065877"}
+    // {"countryCode":"86","phone":"156xxxxxxxx"}
     buffer_len = snprintf(buffer, UPDATE_PROPERTY_BUFFER_LEN,
                           "{\"devId\":\"%s\",\"property\":{\"code\":\"phoneInfo\",\"value\":{"
                           "\"countryCode\":\"%s\",\"phone\":\"%s\"}},\"t\":%" PRIu32 "}",
@@ -791,7 +791,7 @@ int atop_service_iccid_upload(const char *id, const char *key, const char *iccid
         return OPRT_MALLOC_FAILED;
     }
 
-    // {"countryCode":"86","phone":"15656065877"}
+    // {"countryCode":"86","phone":"156xxxxxxxx"}
     buffer_len = snprintf(buffer, UPDATE_PROPERTY_BUFFER_LEN, "{\"metas\":{\"catIccId\":\"%s\"},\"t\":%" PRIu32 "}",
                           iccid, timestamp);
     PR_DEBUG("POST JSON:%s", buffer);

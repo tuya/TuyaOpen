@@ -29,7 +29,9 @@
 #include "dev_evt.h"
 #include "tuya_iot_dp.h"
 #include "tuya_device_meta.h"
+#if defined(ENABLE_DEVICE_TIMER) && (ENABLE_DEVICE_TIMER == 1)
 #include "tuya_device_timer.h"
+#endif /* ENABLE_DEVICE_TIMER */
 #include "tuya_mqtt_dispatch.h"
 #include "tuya_register_center.h"
 #include "tuya_tls.h"
@@ -652,10 +654,12 @@ int tuya_iot_init(tuya_iot_client_t *client, const tuya_iot_config_t *config)
         return ret;
     }
 
+#if defined(ENABLE_DEVICE_TIMER) && (ENABLE_DEVICE_TIMER == 1)
     ret = tuya_device_timer_init();
     if (OPRT_OK != ret) {
         return ret;
     }
+#endif /* ENABLE_DEVICE_TIMER */
     s_iot_client_solo = client;
 
     client->state = STATE_IDLE;
@@ -864,7 +868,11 @@ static OPERATE_RET __tuya_iot_link_type_change_cb(void *data)
 
     netmgr_type_e netmgr_type;
 
-    netmgr_type = (netmgr_type_e)data;
+    // netmgr publishes &s_netmgr.active, so data is a pointer to the value.
+    if (NULL == data) {
+        return OPRT_INVALID_PARM;
+    }
+    netmgr_type = *(netmgr_type_e *)data;
 
     PR_DEBUG("netmgr_type: %s", NETMGR_TYPE_TO_STR(netmgr_type));
 
