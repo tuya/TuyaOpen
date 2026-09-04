@@ -18,6 +18,47 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
+#include <errno.h>
+#include <sys/types.h>
+
+#if defined(__linux__) && defined(__GLIBC__) && \
+    (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 25))
+#include <sys/random.h>
+#define TKL_HAS_GETRANDOM 1
+#endif
+
+// Kernel CSPRNG, so the values are not a fixed sequence like unseeded rand().
+static int __sys_random_bytes(uint8_t *buf, size_t len)
+{
+#if defined(TKL_HAS_GETRANDOM)
+    size_t done = 0;
+
+    while (done < len) {
+        ssize_t got = getrandom(buf + done, len - done, 0);
+        if (got <= 0) {
+            if (EINTR == errno) {
+                continue;
+            }
+            break;
+        }
+        done += (size_t)got;
+    }
+
+    if (done == len) {
+        return 0;
+    }
+#endif
+
+    FILE *fp = fopen("/dev/urandom", "rb");
+    if (NULL == fp) {
+        return -1;
+    }
+
+    size_t rd = fread(buf, 1, len, fp);
+    fclose(fp);
+
+    return (rd == len) ? 0 : -1;
+}
 // --- END: user defines and implements ---
 
 /**
@@ -76,7 +117,23 @@ SYS_TIME_T tkl_system_get_millisecond(void)
 int tkl_system_get_random(uint32_t range)
 {
     // --- BEGIN: user implements ---
-    return rand() % range;
+    uint32_t value = 0;
+
+    if (0 != __sys_random_bytes((uint8_t *)&value, sizeof(value))) {
+        // Both kernel sources are gone; seed rand() once so it is at least not a constant.
+        static int s_seeded = 0;
+        if (!s_seeded) {
+            struct timespec ts = {0, 0};
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            srand((unsigned int)ts.tv_nsec ^ (unsigned int)getpid());
+            s_seeded = 1;
+        }
+        value = (uint32_t)rand();
+    }
+
+    value &= 0x7FFFFFFF; // keep the documented non-negative int contract
+
+    return (0 == range) ? (int)(value & 0xFF) : (int)(value % range);
     // --- END: user implements ---
 }
 

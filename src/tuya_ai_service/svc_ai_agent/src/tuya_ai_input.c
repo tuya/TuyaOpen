@@ -132,6 +132,9 @@ STATIC TUYA_RINGBUFF_T __ai_crt_ringbuf(CHAR_T *scode)
 {
     OPERATE_RET rt = OPRT_OK;
     AI_INPUT_SESSION_CTX_T *sctx = __ai_get_sctx(scode);
+    if (sctx == NULL) {
+        return NULL;
+    }
     if (sctx && sctx->ringbuf) {
         return sctx->ringbuf;
     }

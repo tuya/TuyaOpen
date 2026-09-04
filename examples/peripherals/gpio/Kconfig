@@ -14,4 +14,9 @@ menu "Application config"
         int "irq pin"
         default 5
         range 0 63
+
+    config EXAMPLE_IRQ_MODE
+        int "irq trigger (0: rising, 1: falling, 2: both, 3: low, 4: high)"
+        default 1
+        range 0 4
 endmenu

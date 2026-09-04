@@ -129,6 +129,52 @@ class TestDoSubprocess(unittest.TestCase):
         with open(marker, encoding='utf-8') as f:
             self.assertIn("hello", f.read())
 
+    def test_list_form_returns_the_child_exit_code(self):
+        ret = self.m.do_subprocess(
+            [sys.executable, self.script, "3"], cwd=self.work_dir)
+        self.assertEqual(ret, 3)
+
+    def test_list_form_applies_cwd(self):
+        ret = self.m.do_subprocess(
+            [sys.executable, self.script, "0"], cwd=self.work_dir)
+        self.assertEqual(ret, 0)
+        self.assertTrue(
+            os.path.exists(os.path.join(self.work_dir, "marker.txt")))
+
+    def test_list_form_missing_cwd_returns_nonzero_without_raising(self):
+        missing = os.path.join(self._tmp.name, "no_such_dir")
+        ret = self.m.do_subprocess(
+            [sys.executable, self.script, "0"], cwd=missing)
+        self.assertNotEqual(ret, 0)
+
+    def test_empty_list_returns_zero(self):
+        self.assertEqual(self.m.do_subprocess([]), 0)
+        self.assertEqual(self.m.do_subprocess(()), 0)
+
+    def test_list_form_does_not_go_through_a_shell(self):
+        '''
+        The core of the B1 fix: an argument containing shell
+        metacharacters must reach the child as one literal argv entry
+        (shell=False), never be interpreted/split/expanded by a shell.
+        '''
+        marker = os.path.join(self.work_dir, "argv.txt")
+        argv_script = os.path.join(self.script_dir, "print_argv.py")
+        with open(argv_script, 'w', encoding='utf-8') as f:
+            f.write(
+                "import sys\n"
+                "with open(sys.argv[1], 'w', encoding='utf-8') as out:\n"
+                "    out.write(repr(sys.argv[2:]))\n"
+            )
+        dangerous = "a_name; touch INJECTED && echo $(whoami)"
+        ret = self.m.do_subprocess(
+            [sys.executable, argv_script, marker, dangerous],
+            cwd=self.work_dir)
+        self.assertEqual(ret, 0)
+        with open(marker, encoding='utf-8') as f:
+            self.assertEqual(f.read(), repr([dangerous]))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.work_dir, "INJECTED")))
+
 
 class TestCallSitesPassCwd(unittest.TestCase):
     '''

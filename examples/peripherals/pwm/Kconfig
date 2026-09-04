@@ -2,16 +2,21 @@ menu "Application config"
 
     config EXAMPLE_PWM_PORT
         int "pwm port"
-        default 0
+        default 1
         range 0 11
 
     config EXAMPLE_PWM_DUTY
         int "pwm duty"
-        default 5000
+        default 2000
         range 0 10000
 
     config EXAMPLE_PWM_FREQUENCY
         int "pwm frequency"
-        default 10000   
+        default 10000
+
+    config EXAMPLE_PWM_POLARITY
+        int "pwm polarity (0: negative, duty is the low time; 1: positive, duty is the high time)"
+        default 1
+        range 0 1
 
 endmenu

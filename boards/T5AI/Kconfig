@@ -28,11 +28,6 @@ choice
     # Old configs often only set LCD/camera options and omit BOARD_CHOICE_*.
     default BOARD_CHOICE_TUYA_T5AI_BOARD
 
-    config BOARD_CHOICE_SPARKLEIOT_T5AI_DEV
-        bool "SPARKLEIOT_T5AI_DEV"
-        if (BOARD_CHOICE_SPARKLEIOT_T5AI_DEV)
-            rsource "./SPARKLEIOT_T5AI_DEV/Kconfig"
-        endif
     config BOARD_CHOICE_TUYA_T5AI_BOARD
         bool "TUYA_T5AI_BOARD"
         if (BOARD_CHOICE_TUYA_T5AI_BOARD)
@@ -131,6 +126,24 @@ choice
         bool "ZECTRIX_T5AI_NOTE_4"
         if (BOARD_CHOICE_ZECTRIX_T5AI_NOTE_4)
             rsource "./ZECTRIX_T5AI_NOTE_4/Kconfig"
+        endif
+
+    config BOARD_CHOICE_NICEMCU_T5_DEV
+        bool "NiceMCU-T5-DEV"
+        if (BOARD_CHOICE_NICEMCU_T5_DEV)
+            rsource "./NICEMCU_T5_DEV/Kconfig"
+        endif
+
+    config BOARD_CHOICE_NICEMCU_T5_2_8ISP
+        bool "NiceMCU-T5-2.8ISP"
+        if (BOARD_CHOICE_NICEMCU_T5_2_8ISP)
+            rsource "./NICEMCU_T5_2_8ISP/Kconfig"
+        endif
+
+    config BOARD_CHOICE_NICEMCU_T5_0_96ISP
+        bool "NiceMCU-T5-0.96ISP"
+        if (BOARD_CHOICE_NICEMCU_T5_0_96ISP)
+            rsource "./NICEMCU_T5_0_96ISP/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>

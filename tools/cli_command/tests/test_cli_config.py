@@ -123,5 +123,44 @@ class TestDerivedArtifactsList(unittest.TestCase):
         self.assertIn("tuya_kconfig.h", names)
 
 
+class TestConfigMenuResyncsUsingConfigMtime(unittest.TestCase):
+    '''
+    Regression test for the B11 follow-up: config_menu_exec must not
+    leave app_default.config newer than using.config, or the very next
+    init_using_config(force=False) call (e.g. from a plain `tos.py build`)
+    would treat a menuconfig session as if the user had hand-edited
+    app_default.config and pay for a needless full re-derive.
+    '''
+
+    def test_defconfig_runs_after_savedefconfig(self):
+        import tools.cli_command.cli_config as m
+
+        calls = []
+        params = {
+            "using_config": "using.config",
+            "catalog_kconfig": "Catalog.Kconfig",
+            "app_default_config": "app_default.config",
+        }
+
+        with patch('tools.cli_command.cli_config.full_clean_project'), \
+             patch('tools.cli_command.cli_config.init_using_config'), \
+             patch('tools.cli_command.cli_config.get_global_params',
+                   return_value=params), \
+             patch('tools.cli_command.cli_config.Kconfig'), \
+             patch('tools.cli_command.cli_config.menuconfig'), \
+             patch('tools.cli_command.cli_config._savedefconfig',
+                   side_effect=lambda *a, **k: calls.append('savedefconfig')), \
+             patch('tools.cli_command.cli_config._defconfig',
+                   side_effect=lambda *a, **k: calls.append('defconfig')):
+            with self.assertRaises(SystemExit):
+                m.config_menu_exec.callback()
+
+        self.assertEqual(
+            calls, ['savedefconfig', 'defconfig'],
+            "using.config must be re-derived AFTER app_default.config is "
+            "written, or its mtime is left stale relative to "
+            "app_default.config")
+
+
 if __name__ == "__main__":
     unittest.main()

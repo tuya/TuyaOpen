@@ -1,0 +1,25 @@
+menu "Application config"
+
+    config EXAMPLE_QSPI_PORT
+        int "qspi port"
+        default 0
+        range 0 1
+
+    config EXAMPLE_QSPI_FREQ_HZ
+        int "qspi clock in Hz"
+        default 1000000
+        range 100000 100000000
+        ---help---
+            Left low on purpose. With no memory attached there is nothing to keep up with,
+            and a slow clock is what makes the trace readable - flying leads and a single
+            ground turn a fast bus into crosstalk long before the controller is the problem.
+
+    config EXAMPLE_QSPI_QUAD
+        bool "also issue a transaction with the data phase on four lines"
+        default n
+        ---help---
+            IO2 and IO3 are on PB3 and PB4, which are JTDO and NJTRST. Turning this on takes
+            the debug port with it, so it is off unless the four-line case is what you came
+            to look at.
+
+endmenu

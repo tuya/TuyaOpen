@@ -1,0 +1,30 @@
+config CHIP_CHOICE
+    string
+    default "gd32vw553"
+
+config BOARD_CHOICE
+    string
+    default "LCKFB_GD32VW553"
+
+# The board has exactly one usb-serial bridge, on the type-c connector, and its schematic
+# wires it to PB15/PA8 - the pads the datasheet, the LCKFB documentation and GigaDevice's
+# own eval board all call USART0 (TX PB15 AF8, RX PA8 AF2). That is also where the rom boot
+# loader listens, so the type-c is the download port whatever this is set to.
+# See https://wiki.lckfb.com/zh-hans/gd32vw553/beginner/uart-communication.html
+config GD32_LOG_UART_PORT
+    int "uart carrying the log (0 = USART0 PB15/PA8, 1 = UART1 PA4/PA5, 2 = UART2 PA6/PA7)"
+    default 0
+    range 0 2
+    ---help---
+        Only USART0 reaches the type-c bridge on this board, so 0 is the one choice that
+        needs no wiring - the log then shares the connector with the download, which they
+        can do because they never run at the same time.
+
+        Pick 1 or 2 to free the type-c for an application uart instead, at the cost of
+        having to bring the log out on flying leads: UART1 is PA4/PA5, UART2 is PA6/PA7.
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_LED
+    select ENABLE_BUTTON

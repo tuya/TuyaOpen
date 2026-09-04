@@ -276,21 +276,26 @@ tuya_uv_run_stream() {
         # watchdog explains total silence after 10 seconds.
         _tuya_uv_sentinel="$fifo.out"
         rm -f "$_tuya_uv_sentinel" 2>/dev/null || true
-        (
-            sleep 10
-            [ -e "$_tuya_uv_sentinel" ] && exit 0
-            kill -0 "$uv_pid" 2>/dev/null || exit 0
-            tuya_warn_uv_lock_contention 'uv has produced no output for 10+ seconds; it may be waiting to acquire a lock held by another uv process.'
-        ) &
-        _tuya_uv_watchdog=$!
+        _tuya_uv_watchdog=0
+        if [ "${_tuya_uv_no_watchdog:-0}" -ne 1 ]; then
+            (
+                sleep 10
+                [ -e "$_tuya_uv_sentinel" ] && exit 0
+                kill -0 "$uv_pid" 2>/dev/null || exit 0
+                tuya_warn_uv_lock_contention 'uv has produced no output for 10+ seconds; it may be waiting to acquire a lock held by another uv process.'
+            ) &
+            _tuya_uv_watchdog=$!
+        fi
         while IFS= read -r line; do
             [ -e "$_tuya_uv_sentinel" ] || : > "$_tuya_uv_sentinel"
             tuya_uv_capture_diag "$line"
             [ -n "$line" ] && "$on_line" "$line"
         done <"$fifo"
         wait "$uv_pid" || rc=$?
-        kill "$_tuya_uv_watchdog" 2>/dev/null || true
-        wait "$_tuya_uv_watchdog" 2>/dev/null || true
+        if [ "$_tuya_uv_watchdog" -ne 0 ]; then
+            kill "$_tuya_uv_watchdog" 2>/dev/null || true
+            wait "$_tuya_uv_watchdog" 2>/dev/null || true
+        fi
         trap - INT TERM
         [ -n "$_tuya_saved_traps" ] && eval "$_tuya_saved_traps" 2>/dev/null
         rm -f "$_tuya_uv_sentinel" 2>/dev/null || true
@@ -475,7 +480,7 @@ tuya_cleanup() {
     unset _tuya_sync_current _tuya_sync_last_name _tuya_sync_pkg_total
     unset _tuya_py_artifact _tuya_py_total_mib _tuya_py_recv_mib
     unset _tuya_prog_last_text _tuya_prog_last_at _tuya_prog_last_pct
-    unset _tuya_uv_diag
+    unset _tuya_uv_diag _tuya_uv_no_watchdog
     unset -f tuya_debug tuya_error \
              tuya_is_sdk_root tuya_print_version tuya_has_cmd \
              tuya_ensure_dir tuya_path_add \
@@ -1012,15 +1017,16 @@ tuya_uv_source_label() {
 }
 
 tuya_download_uv() {
-    local url attempt mirror=0 total=0 rc=1 src=''
+    local url attempt mirror=0 total=0 rc=1 src='' size_human=''
+    size_human=$(tuya_human_size "${_tuya_uv_dl_size:-0}")
     total=$(tuya_get_uv_download_urls | wc -l | awk '{print $1}')
     for url in $(tuya_get_uv_download_urls); do
         mirror=$((mirror + 1))
         src=$(tuya_uv_source_label "$url")
-        if [ "$total" -gt 1 ]; then
-            tuya_info "[TuyaOpen] Downloading ${_tuya_uv_artifact} from ${src} (source ${mirror}/${total})"
+        if [ "$mirror" -eq 1 ]; then
+            tuya_info "[TuyaOpen] Downloading uv v${_tuya_uv_ver} (${size_human}) from ${src}..."
         else
-            tuya_info "[TuyaOpen] Downloading ${_tuya_uv_artifact} from ${src}"
+            tuya_info "[TuyaOpen] Downloading uv v${_tuya_uv_ver} from ${src} (source ${mirror}/${total})..."
         fi
         tuya_debug "[TuyaOpen] URL: $url"
         attempt=1
@@ -1057,10 +1063,7 @@ tuya_resolve_uv() {
     fi
 
     tuya_ensure_dir "$(dirname "$_tuya_uv_archive")" || return 1
-    local size_human
-    size_human=$(tuya_human_size "${_tuya_uv_dl_size:-0}")
     [ -n "${_tuya_region_msg:-}" ] && tuya_info "$_tuya_region_msg"
-    tuya_info "[TuyaOpen] Downloading uv v${_tuya_uv_ver} (${size_human})..."
     if ! tuya_download_uv; then
         tuya_error Uv 'uv download failed.' 'All mirrors and retries exhausted.' \
             'Check network or proxy.' 'See manual install below.'
@@ -1212,8 +1215,10 @@ tuya_install_python_ide() {
     _tuya_prog_last_text=''
     _tuya_prog_last_at=0
     _tuya_prog_last_pct=-1
+    _tuya_uv_no_watchdog=1
     tuya_uv_run_stream tuya_parse_python_install_line \
         python install "$TUYA_PYTHON_VERSION" --install-dir "$install_dir" --no-registry --no-bin || rc=$?
+    _tuya_uv_no_watchdog=0
     return "$rc"
 }
 
@@ -1238,10 +1243,13 @@ tuya_python_install_error() {
 # Run one `uv python install` attempt, announcing the source it downloads from
 # (so the origin is visible in logs for later diagnosis).
 tuya_run_python_install() {
-    local install_dir="$1" src="$2" rc=0
+    # $3=1 routes uv through the progress parser instead of letting it write to
+    # the terminal: used for an attempt that still has a fallback left, so a
+    # recoverable mirror failure shows a summary line, not uv's raw error chain.
+    local install_dir="$1" src="$2" quiet="${3:-0}" rc=0
     tuya_uv_reset_diag
     tuya_info "[TuyaOpen] Installing Python $TUYA_PYTHON_VERSION from ${src}..."
-    if tuya_is_ide_host; then
+    if tuya_is_ide_host || [ "$quiet" -eq 1 ]; then
         tuya_install_python_ide || rc=$?
     else
         tuya_uv --with-progress python install "$TUYA_PYTHON_VERSION" \
@@ -1251,7 +1259,7 @@ tuya_run_python_install() {
 }
 
 tuya_install_python() {
-    local install_dir rc=0 saved_py_mirror=""
+    local install_dir rc=0 saved_py_mirror="" reason=""
     install_dir=$(tuya_python_install_dir)
     saved_py_mirror="${UV_PYTHON_INSTALL_MIRROR:-}"
 
@@ -1269,13 +1277,20 @@ tuya_install_python() {
         UV_PYTHON_INSTALL_MIRROR="$TUYA_PYTHON_INSTALL_MIRROR_CN"
         export UV_PYTHON_INSTALL_MIRROR
         tuya_debug "[TuyaOpen] Python mirror URL: $TUYA_PYTHON_INSTALL_MIRROR_CN"
-        tuya_run_python_install "$install_dir" 'npmmirror (CN mirror)'
+        tuya_run_python_install "$install_dir" 'npmmirror (CN mirror)' 1
         rc=$?
         unset UV_PYTHON_INSTALL_MIRROR
         if [ "$rc" -eq 0 ]; then
             return 0
         fi
-        tuya_info "[TuyaOpen] CN Python mirror failed (exit ${rc}); falling back to default source (GitHub)..."
+        if tuya_uv_diag_is_network; then
+            reason='network error'
+        else
+            reason="exit ${rc}"
+        fi
+        tuya_info "[TuyaOpen] CN Python mirror failed (${reason}); falling back to default source (GitHub)..."
+        # uv's full error chain is noise on a recoverable fallback; keep it for -v.
+        [ -n "${TUYAOPEN_EXPORT_VERBOSE:-}" ] && tuya_uv_print_diag
     fi
 
     # Default source (GitHub) — first choice overseas, fallback in CN.

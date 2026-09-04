@@ -27,6 +27,19 @@
 #include "crc_16.h"
 #include "uni_random.h"
 
+/* This module is compiled whenever the chip has a BLE controller
+ * (CONFIG_ENABLE_BLUETOOTH, see the CMakeLists), but the advertising interval comes
+ * from Kconfig symbols that only exist while ENABLE_BT_SERVICE is on. Building with
+ * bluetooth hardware but without the Tuya BT service therefore failed on these two
+ * identifiers. Fall back to the same values Kconfig defaults to so the file stands on
+ * its own compile gate. */
+#ifndef BT_ADV_INTERVAL_MIN
+#define BT_ADV_INTERVAL_MIN 30
+#endif
+#ifndef BT_ADV_INTERVAL_MAX
+#define BT_ADV_INTERVAL_MAX 60
+#endif
+
 /** GAP - scan response data (max size = 31 bytes) */
 #define BLE_SCAN_RSP_DATA_LEN 31
 /** GAP - Advertisement data (max size = 31 bytes, best kept short to conserve

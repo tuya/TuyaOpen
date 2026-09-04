@@ -607,15 +607,52 @@ OPERATE_RET tal_image_jpeg_decode_gray(const uint8_t *jpeg_data,
     return OPRT_OK;
 }
 
+/* JPEG DCT quantization leaves +-15-20 noise on flat regions; error-diffusion
+ * dithering would diffuse that noise until it flips a pixel, producing
+ * visible dot rows. Snapping near-extreme pixels to their extremes first
+ * makes the diffused error zero. Only the error-diffusion methods need this --
+ * Threshold/Bayer/Adaptive/Otsu make an independent per-pixel decision, and
+ * clamping first would distort Adaptive/Otsu's own histogram/mean. */
+static int __jpeg_should_clamp_noise(TAL_IMAGE_MONO_METHOD_E method)
+{
+    return (method == TAL_IMAGE_MONO_MTH_FLOYD_STEINBERG) ||
+           (method == TAL_IMAGE_MONO_MTH_STUCKI) ||
+           (method == TAL_IMAGE_MONO_MTH_JARVIS) ||
+           (method == TAL_IMAGE_MONO_MTH_EDGE_ATKINSON) ||
+           (method == TAL_IMAGE_MONO_MTH_GAMMA_SERPENTINE);
+}
+
+static void __jpeg_clamp_noise(uint8_t *gray_buf, uint16_t width, uint16_t height, uint8_t threshold)
+{
+    int16_t thr = (int16_t)threshold;
+    int16_t white_clamp = thr + (255 - thr) / 3; /* ~85% of way to white */
+    int16_t black_clamp = thr / 3;               /* ~33% of way to black */
+    uint32_t total = (uint32_t)width * height;
+
+    for (uint32_t i = 0; i < total; i++) {
+        int16_t px = (int16_t)gray_buf[i];
+        if (px >= white_clamp) {
+            px = 255;
+        } else if (px <= black_clamp) {
+            px = 0;
+        }
+        gray_buf[i] = (uint8_t)px;
+    }
+}
+
 OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
                                           uint32_t       jpeg_size,
                                           TAL_IMAGE_JPEG_OUTPUT_T *out,
+                                          TAL_IMAGE_MONO_METHOD_E method,
                                           uint8_t        threshold)
 {
     if (jpeg_data == NULL || out == NULL) {
         return OPRT_INVALID_PARM;
     }
     if (out->out_buf == NULL || out->out_buf_size == 0) {
+        return OPRT_INVALID_PARM;
+    }
+    if (method >= TAL_IMAGE_MONO_MTH_COUNT) {
         return OPRT_INVALID_PARM;
     }
 
@@ -646,63 +683,26 @@ OPERATE_RET tal_image_jpeg_decode_bitmap(const uint8_t *jpeg_data,
         return rt;
     }
 
-    int16_t thr = (int16_t)threshold;
-    uint8_t *bmp = out->out_buf;
-    memset(bmp, 0, bmp_need);
+    if (__jpeg_should_clamp_noise(method)) {
+        __jpeg_clamp_noise(gray_buf, w, h, threshold);
+    }
 
-    /*
-     * JPEG DCT quantization introduces ±15-20 noise on flat (white/black)
-     * regions. Without clamping, these near-white pixels (e.g. 238 instead of
-     * 255) carry a small negative error that Floyd-Steinberg diffuses to
-     * neighbours; the accumulated error eventually flips a pixel black,
-     * producing visible dot rows on what should be a clean white background.
-     * Snap clearly-white / clearly-black pixels to their extremes first so the
-     * dithering error is zero and cannot scatter dots.
-     */
-    int16_t white_clamp = thr + (255 - thr) / 3;  /* ~85 % of way to white */
-    int16_t black_clamp = thr / 3;                 /* ~33 % of way to black */
-
-    for (uint16_t y = 0; y < h; y++) {
-        uint8_t *row  = gray_buf + (uint32_t)y * w;
-        uint8_t *orow = bmp + (uint32_t)y * bytes_per_line;
-
-        for (uint16_t x = 0; x < w; x++) {
-            int16_t old_px = (int16_t)row[x];
-            /* Clamp near-white / near-black to absorb JPEG quantization noise */
-            if (old_px >= white_clamp) {
-                old_px = 255;
-            } else if (old_px <= black_clamp) {
-                old_px = 0;
-            }
-            uint8_t new_px = (old_px < thr) ? 0 : 255;
-            int16_t err    = old_px - (int16_t)new_px;
-
-            if (new_px == 0) {
-                orow[x >> 3] |= (0x80u >> (x & 7));
-            }
-
-            if (x + 1 < w) {
-                int16_t v = (int16_t)row[x + 1] + (err * 7 / 16);
-                row[x + 1] = (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
-            }
-            if (y + 1 < h) {
-                uint8_t *next = gray_buf + (uint32_t)(y + 1) * w;
-                if (x > 0) {
-                    int16_t v = (int16_t)next[x - 1] + (err * 3 / 16);
-                    next[x - 1] = (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
-                }
-                {
-                    int16_t v = (int16_t)next[x] + (err * 5 / 16);
-                    next[x] = (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
-                }
-                if (x + 1 < w) {
-                    int16_t v = (int16_t)next[x + 1] + (err * 1 / 16);
-                    next[x + 1] = (uint8_t)(v < 0 ? 0 : (v > 255 ? 255 : v));
-                }
-            }
+    uint32_t scratch_size = tal_image_dither_scratch_size(method, w);
+    void *scratch = NULL;
+    if (scratch_size > 0) {
+        scratch = Malloc(scratch_size);
+        if (!scratch) {
+            Free(gray_buf);
+            return OPRT_MALLOC_FAILED;
         }
     }
 
+    int dr = tal_image_dither_gray_to_binary(gray_buf, w, h, out->out_buf, out->out_buf_size,
+                                              method, threshold, 0 /* printer: bit=1->black */,
+                                              scratch, scratch_size);
+
+    if (scratch) Free(scratch);
     Free(gray_buf);
-    return OPRT_OK;
+
+    return (dr == 0) ? OPRT_OK : OPRT_COM_ERROR;
 }

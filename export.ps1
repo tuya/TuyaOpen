@@ -1287,11 +1287,15 @@ function Invoke-TuyaPythonInstallAttempt {
         [Parameter(Mandatory)][string]$UvExe,
         [Parameter(Mandatory)][string]$Version,
         [Parameter(Mandatory)][string]$InstallDir,
-        [Parameter(Mandatory)][string]$Source
+        [Parameter(Mandatory)][string]$Source,
+        # Route uv through the progress parser instead of letting it write to
+        # the console: used for an attempt that still has a fallback left, so a
+        # recoverable mirror failure shows a summary line, not uv's error chain.
+        [switch]$Streamed
     )
     Reset-TuyaUvDiag
     Write-TuyaOpenInfo "[TuyaOpen] Installing Python $Version from $Source..."
-    if ($script:TuyaOpenIdeHost) {
+    if ($script:TuyaOpenIdeHost -or $Streamed) {
         return (Invoke-TuyaUvPythonInstallWithIdeProgress -UvExe $UvExe -Version $Version -InstallDir $InstallDir)
     }
     Invoke-TuyaUvNative -UvExe $UvExe -WithProgress -ArgumentList @(
@@ -1322,12 +1326,15 @@ function Install-TuyaPython {
         $env:UV_PYTHON_INSTALL_MIRROR = $script:TuyaPythonInstallMirrorCn
         Write-TuyaOpenDebug "[TuyaOpen] Python mirror URL: $($script:TuyaPythonInstallMirrorCn)"
         try {
-            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'npmmirror (CN mirror)'
+            $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'npmmirror (CN mirror)' -Streamed
         } finally {
             Remove-Item Env:UV_PYTHON_INSTALL_MIRROR -ErrorAction SilentlyContinue
         }
         if ($exitCode -ne 0) {
-            Write-TuyaOpenInfo "[TuyaOpen] CN Python mirror failed (exit $exitCode); falling back to default source (GitHub)..."
+            $cnReason = if (Test-TuyaUvDiagIsNetwork) { 'network error' } else { "exit $exitCode" }
+            Write-TuyaOpenInfo "[TuyaOpen] CN Python mirror failed ($cnReason); falling back to default source (GitHub)..."
+            # uv's full error chain is noise on a recoverable fallback; keep it for -v.
+            if ($script:TuyaOpenVerbose) { Write-TuyaUvDiag }
             $exitCode = Invoke-TuyaPythonInstallAttempt -UvExe $UvExe -Version $version -InstallDir $installDir -Source 'GitHub (default)'
         }
     } else {

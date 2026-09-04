@@ -12,7 +12,7 @@ platforms:
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 6a782b1e3516bbdd6edf17059a20493fd0b51642
+  commit: 78dc4701791acd645083d618093d6c07c5782524
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
@@ -22,7 +22,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: master
-  commit: 7605fa884de2ad8172637911f17633f8e18febfd
+  commit: c09676ba0815f036515835cf26c7e889f773ffe5
 
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h
@@ -37,4 +37,9 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: 28d11bb607efd616e36670e83d19f50c3b5da357
+  commit: 259b8dae81c019906730df1329e76deaba411a3e
+
+- name: SIWX917
+  repo: https://github.com/tuya/TuyaOpen-SiliconLabs
+  branch: master
+  commit: c4894d98c120c1e7d973b53b5d78ed83205ed37b

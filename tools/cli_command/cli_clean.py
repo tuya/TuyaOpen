@@ -23,6 +23,18 @@ def clean_project(log_file=None):
             logger.debug("No need clean.")
             return True
 
+        # clean_all depends on platform_clean, which runs the platform's
+        # own hook -- for T5AI that is `make clean`. Without this, a clean
+        # in a shell that never sourced export fails on a missing make, and
+        # the stale build directory silently survives; `clean -f` appeared
+        # to be the only thing that worked because it deletes the directory
+        # regardless of the hook's exit code.
+        from tools.cli_command.cli_prepare import ensure_build_env
+        if not ensure_build_env():
+            logger.error("Build tools are missing or broken. "
+                         "Re-run export to repair.")
+            return False
+
         cmd = "ninja clean_all"
 
         ret = do_subprocess(cmd, cwd=build_path)

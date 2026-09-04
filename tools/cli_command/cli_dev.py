@@ -9,7 +9,7 @@ from tools.cli_command.util import (
     set_clis, get_logger, get_global_params,
     parse_config_file
 )
-from tools.cli_command.cli_config import get_board_config_dir
+from tools.cli_command.cli_config import get_board_config_dir, init_using_config
 from tools.cli_command.util_files import (
     get_files_from_path, copy_file, rm_rf
 )
@@ -93,7 +93,12 @@ def _save_product(dist, config_file):
 @click.option('-s', '--skip',
               multiple=True,
               help="Skip config(s) by name. Repeatable; comma-separated names are supported.")
-def build_all_config_exec(dist, log_dir, skip):
+@click.option('--force-clean-backup',
+              is_flag=True, default=False,
+              help="Discard a leftover backup from a previous interrupted "
+                   "[dev bac] run and proceed. Only use this after you have "
+                   "manually confirmed the leftover backup is not needed.")
+def build_all_config_exec(dist, log_dir, skip, force_clean_backup):
     logger = get_logger()
     params = get_global_params()
     dist_abs = os.path.abspath(dist)
@@ -114,6 +119,31 @@ def build_all_config_exec(dist, log_dir, skip):
 
     # build all config
     app_default_config = params["app_default_config"]
+
+    # A leftover backup means a previous `bac` run was killed mid-way
+    # (SIGKILL, power loss, etc.) before its `finally` block below could
+    # restore app_default.config and clean up. Refuse to proceed by
+    # default: today's app_default.config may already be mid-loop test
+    # content, and blindly overwriting the leftover backup with it would
+    # silently destroy the last copy of the user's real original config.
+    backup_path = app_default_config + ".bac_backup"
+    if os.path.exists(backup_path) and not force_clean_backup:
+        logger.error(
+            f"Found a leftover backup from an interrupted [tos.py dev bac] run:\n"
+            f"  {backup_path}\n"
+            f"Not touching it automatically, to avoid overwriting your real "
+            f"original config. Please resolve manually:\n"
+            f"  1) If this backup IS your original config: copy it back over\n"
+            f"     {app_default_config}, then delete the backup file.\n"
+            f"  2) If {app_default_config} is already what you want to keep\n"
+            f"     (the backup is stale): delete {backup_path}, or re-run\n"
+            f"     with --force-clean-backup to skip this check."
+        )
+        sys.exit(1)
+    if os.path.exists(backup_path):
+        # --force-clean-backup: user has looked and confirmed it's safe.
+        os.remove(backup_path)
+
     build_result_list = []
     exit_flag = 0
     full_clean_project()
@@ -132,24 +162,51 @@ def build_all_config_exec(dist, log_dir, skip):
         logger.error("No config to build after filtering.")
         sys.exit(1)
 
-    for idx, config in enumerate(config_list):
-        config_file_name = os.path.basename(config)
-        copy_file(config, app_default_config)
-        logger.info(f"Build [{idx + 1}/{len(config_list)}] {config_file_name}")
+    # Every config in the loop below overwrites app_default_config; back it
+    # up first (unless this is a brand-new project that doesn't have one
+    # yet) and restore it in `finally` so `bac` never leaves the user's real
+    # config permanently replaced by whichever test config ran last.
+    have_backup = os.path.exists(app_default_config)
+    if have_backup:
+        copy_file(app_default_config, backup_path)
 
-        log_file = os.path.join(log_dir, f"{config_file_name}.log") if log_dir else None
-        ok = build_project(log_file=log_file, log_file_append=False)
+    try:
+        for idx, config in enumerate(config_list):
+            config_file_name = os.path.basename(config)
+            copy_file(config, app_default_config)
+            logger.info(f"Build [{idx + 1}/{len(config_list)}] {config_file_name}")
 
-        if ok:
-            logger.note(f"Build {config_file_name} success")
-            build_result_list.append(f"Build {config_file_name} success")
-            if dist:
-                _save_product(dist_abs, config)
+            log_file = os.path.join(log_dir, f"{config_file_name}.log") if log_dir else None
+            ok = build_project(log_file=log_file, log_file_append=False)
+
+            if ok:
+                logger.note(f"Build {config_file_name} success")
+                build_result_list.append(f"Build {config_file_name} success")
+                if dist:
+                    _save_product(dist_abs, config)
+            else:
+                logger.error(f"Build {config_file_name} failed")
+                build_result_list.append(f"Build {config_file_name} failed")
+                exit_flag = 1
+            full_clean_project(log_file=log_file, log_file_append=True)
+    finally:
+        if have_backup:
+            if copy_file(backup_path, app_default_config):
+                os.remove(backup_path)
+            else:
+                logger.error(
+                    f"Restore failed. Your original config is still at "
+                    f"{backup_path} -- restore it manually."
+                )
         else:
-            logger.error(f"Build {config_file_name} failed")
-            build_result_list.append(f"Build {config_file_name} failed")
-            exit_flag = 1
-        full_clean_project(log_file=log_file, log_file_append=True)
+            # app_default.config did not exist before this run (brand-new
+            # project); return to that same "absent" state instead of
+            # leaving the last test config behind.
+            rm_rf(app_default_config)
+        # using.config was left stale by whichever config ran last in the
+        # loop; force it to be re-derived from the just-restored
+        # app_default.config so build state matches on-disk config again.
+        init_using_config(force=True)
 
     # print build result
     BORDER = "================================"

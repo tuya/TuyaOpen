@@ -1,0 +1,67 @@
+#Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "SIWX917"
+
+config OPERATING_SYSTEM
+    int 
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+ 
+    config BOARD_CHOICE_SIWX917_AI_DEV_KIT
+        bool "SIWX917_AI_DEV_KIT"
+        if (BOARD_CHOICE_SIWX917_AI_DEV_KIT)
+            rsource "./SIWX917_AI_DEV_KIT/Kconfig"
+        endif
+
+    config BOARD_CHOICE_BRD2605A
+        bool "BRD2605A"
+        if (BOARD_CHOICE_BRD2605A)
+            rsource "./BRD2605A/Kconfig"
+        endif
+endchoice
+
+menu "Peripherals config"
+    rsource "./common/Kconfig"
+endmenu
+
+choice
+    prompt "Core M4 Flash Size (KB)"
+    default CORE_M4_FLASH_SIZE_2040
+    help
+      Select the M4 flash size for the SiWx917 platform.
+      
+      IMPORTANT: When changing M4 Flash Size, please follow the guide 
+      to write new MBR on README to ensure proper flash partitioning.
+
+    config CORE_M4_FLASH_SIZE_2040
+        bool "2048 KB"
+        help
+          Use 2048 KB flash size for M4 core.
+
+    config CORE_M4_FLASH_SIZE_3008
+        bool "3008 KB"
+        help
+          Use 3008 KB flash size for M4 core.
+endchoice
+
+config CORE_M4_FLASH_SIZE
+    int
+    default 2040 if CORE_M4_FLASH_SIZE_2040
+    default 3008 if CORE_M4_FLASH_SIZE_3008
+
+config ENABLE_TDD_DISP_ST7789
+    bool "Enable ST7789 Display Support"
+    default n
+    help
+      Enable support for ST7789 TFT LCD display controller.
+      This enables the TDD (Tuya Display Driver) for ST7789.

@@ -5,7 +5,7 @@
 
 ## 原则
 
-- **每步独立提交、每步 `tos build ZECTRIX_T5AI_NOTE_4` 通过**；两个消费者（`examples/system/tuya_pm`、`apps/tuya_cloud/tuya_pm_ulp_demo`）每步都能编。
+- **每步独立提交、每步 `tos build ZECTRIX_T5AI_NOTE_4` 通过**；两个消费者（`examples/lowpower/tuya_pm`、`apps/tuya_cloud/tuya_pm_ulp_demo`）每步都能编。
 - **内部重构先行、行为等价优先、公共 API 最后切**：Step 1–2 不动公共 API（消费者零改动），Step 3 一次性切 API + 消费者跟进，中间不留「编不过」的状态。
 - 改 Kconfig 符号后记得 `rm -rf .build`（见 [t5ai-tos-build-gotchas]）。
 

@@ -10,7 +10,8 @@ import shutil
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
     env_read, env_write, parse_config_file, parse_yaml,
-    do_subprocess, get_country_code, redirect_stdout_stderr_to
+    do_subprocess, get_country_code, export_country_code,
+    redirect_stdout_stderr_to
 )
 from tools.cli_command.util_git import (
     git_clone, git_checkout, set_repo_mirro, git_get_commit
@@ -130,12 +131,17 @@ def prepare_platform(platform, chip=""):
         return True
 
     if os.path.exists(prepare_py):
-        parpare_cmd = "python platform_prepare.py"
+        cmd = [params["python"], "platform_prepare.py"]
     else:
-        parpare_cmd = "./platform_prepare.sh"
+        cmd = ["./platform_prepare.sh"]
 
     logger.info(f"Preparing platform [{platform}] ...")
-    cmd = f"{parpare_cmd} {chip}"
+    # chip defaults to "" (some platforms don't take one); appended only
+    # when set, since a passed-through empty string would otherwise become
+    # a real (unwanted) extra argument once shell=True string interpolation
+    # is replaced by an argv list.
+    if chip:
+        cmd.append(chip)
     ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
@@ -161,13 +167,15 @@ def build_setup(platform, project_name, framework, chip=""):
         return True
 
     if os.path.exists(setup_py):
-        setup_cmd = "python build_setup.py"
+        cmd = [params["python"], "build_setup.py"]
     else:
-        setup_cmd = "./build_setup.sh"
+        cmd = ["./build_setup.sh"]
 
     logger.info("Build setup ...")
-    cmd = f"{setup_cmd} "
-    cmd += f"{project_name} {platform} {framework} {chip}"
+    cmd += [project_name, platform, framework]
+    # See prepare_platform() above: chip is optional, only append when set.
+    if chip:
+        cmd.append(chip)
     ret = do_subprocess(cmd, cwd=platform_root)
     if 0 != ret:
         return False
@@ -186,9 +194,12 @@ def cmake_configure(using_data, verbose=False):
     '''
     params = get_global_params()
     open_root = params["open_root"]
-    cmd = f"cmake -G Ninja {open_root} "
+    cmd = ["cmake", "-G", "Ninja", open_root]
     if verbose:
-        cmd += "-DCMAKE_VERBOSE_MAKEFILE=ON "
+        cmd.append("-DCMAKE_VERBOSE_MAKEFILE=ON")
+    # Baked into build.ninja at configure time, so -- unlike the subprocess
+    # call sites -- this cannot be corrected later from the environment.
+    cmd.append(f"-DTOS_PYTHON={params['python']}")
 
     project_name = using_data.get("CONFIG_PROJECT_NAME", "")
     app_root = params["app_root"]
@@ -225,7 +236,7 @@ def cmake_configure(using_data, verbose=False):
         f"-DTOS_PROJECT_BOARD={board_name}",
     ]
 
-    cmd += " ".join(defines)
+    cmd += defines
 
     build_path = params["app_build_path"]
     ret = do_subprocess(cmd, cwd=build_path)
@@ -379,13 +390,20 @@ def build_project(verbose=False, log_file=None, log_file_append=False):
         check_proj_dir()
 
         # export.{sh,ps1,bat} is always the entry point and already prepares
-        # cmake/ninja; re-verify here so a toolchain broken AFTER export (e.g.
-        # antivirus removed cmake, or an interrupted sync) fails fast with a
-        # clear, self-healing message instead of a cryptic cmake error later.
-        from tools.cli_command.cli_prepare import ensure_build_tools
-        if not ensure_build_tools():
-            logger.error("Build tools (cmake/ninja) are missing or broken.")
+        # the host tools; redo it here so a toolchain broken AFTER export
+        # (antivirus removed cmake, an interrupted sync) or a shell that never
+        # got export's PATH additions fails fast -- and self-heals -- instead
+        # of surfacing much later, or not until the final packaging step.
+        from tools.cli_command.cli_prepare import ensure_build_env
+        if not ensure_build_env():
+            logger.error("Build tools are missing or broken. "
+                         "Re-run export to repair.")
             return False
+
+        # Platforms are separate repositories that only receive argv and the
+        # environment; hand them the region we just detected so they do not
+        # probe for it themselves.
+        export_country_code()
 
         if not env_check():
             logger.error("Env check error.")

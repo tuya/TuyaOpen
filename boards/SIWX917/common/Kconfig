@@ -1,0 +1,795 @@
+config TUYAOPEN_PERIPHERAL_CONFIG
+    bool
+    default y
+
+#ULP_UART Configuration(TUYA_UART_NUM_0)
+    config ENABLE_ULP_UART
+        bool "Enable TUYA_UART_NUM_0 (ULP_UART)"
+        default n
+        help
+            Enable ULP UART interface for ultra-low-power serial communication.
+
+    if ENABLE_ULP_UART
+        choice RTE_ULP_UART_TX_PORT_ID
+            prompt "ULP_UART_TX_PIN"
+            default ULP_UART_TX_PIN_11
+
+            config ULP_UART_TX_PIN_7
+                bool "ULP_GPIO_7/GPIO_71"
+            config ULP_UART_TX_PIN_11
+                bool "ULP_GPIO_11/GPIO_75"
+            config ULP_UART_TX_PIN_9
+                bool "GPIO_9"
+            config ULP_UART_TX_PIN_15
+                bool "GPIO_15"
+            config ULP_UART_TX_PIN_49
+                bool "GPIO_49"
+        endchoice
+
+        config RTE_ULP_UART_TX_PORT_ID
+            int
+            default 0 if ULP_UART_TX_PIN_7
+            default 1 if ULP_UART_TX_PIN_11
+            default 2 if ULP_UART_TX_PIN_9
+            default 3 if ULP_UART_TX_PIN_15
+            default 5 if ULP_UART_TX_PIN_49
+
+        choice RTE_ULP_UART_RX_PORT_ID
+            prompt "ULP_UART_RX_PIN"
+            default ULP_UART_RX_PIN_9
+
+            config ULP_UART_RX_PIN_6
+                bool "ULP_GPIO_6/GPIO_70"
+            config ULP_UART_RX_PIN_9
+                bool "ULP_GPIO_9/GPIO_73"
+            config ULP_UART_RX_PIN_2
+                bool "GPIO_2/GPIO_66"
+            config ULP_UART_RX_PIN_8
+                bool "GPIO_8"
+            config ULP_UART_RX_PIN_12
+                bool "GPIO_12"
+            config ULP_UART_RX_PIN_47
+                bool "GPIO_47"
+        endchoice
+
+        config RTE_ULP_UART_RX_PORT_ID
+            int
+            default 1 if ULP_UART_RX_PIN_6
+            default 2 if ULP_UART_RX_PIN_9
+            default 0 if ULP_UART_RX_PIN_2
+            default 3 if ULP_UART_RX_PIN_8
+            default 4 if ULP_UART_RX_PIN_12
+            default 5 if ULP_UART_RX_PIN_47
+    endif
+
+#USART0 Configuration(TUYA_UART_NUM_1)
+    config ENABLE_USART0
+        bool "Enable TUYA_UART_NUM_1 (USART0)"
+        default n
+        help
+            Enable USART0 interface for serial communication.
+
+    if ENABLE_USART0
+#USART0_TX < 0 = > P0_15 < 1 = > P0_30 < 2 = > P0_54 < 3 = > P0_68 < 4 = > P0_71
+        choice RTE_USART0_TX_PORT_ID
+            prompt "USART0_TX_PIN"
+            default USART0_TX_PIN_30
+
+            config USART0_TX_PIN_15
+                bool "GPIO_15"
+            config USART0_TX_PIN_30
+                bool "GPIO_30"
+            config USART0_TX_PIN_54
+                bool "GPIO_54"
+            config USART0_TX_PIN_4
+                bool "ULP_GPIO_4/GPIO_68"
+            config USART0_TX_PIN_7
+                bool "ULP_GPIO_7/GPIO_71"
+        endchoice
+
+        config RTE_USART0_TX_PORT_ID
+            int
+            default 0 if USART0_TX_PIN_15
+            default 1 if USART0_TX_PIN_30
+            default 2 if USART0_TX_PIN_54
+            default 3 if USART0_TX_PIN_4
+            default 4 if USART0_TX_PIN_7
+
+#USART0_RX < 0 = > P0_10 < 1 = > P0_29 < 2 = > P0_55 < 3 = > P0_65 < 4 = > P0_70
+        choice RTE_USART0_RX_PORT_ID
+            prompt "USART0_RX_PIN"
+            default USART0_RX_PIN_29
+
+            config USART0_RX_PIN_10
+                bool "GPIO_10"
+            config USART0_RX_PIN_29
+                bool "GPIO_29"
+            config USART0_RX_PIN_55
+                bool "GPIO_55"
+            config USART0_RX_PIN_1
+                bool "ULP_GPIO_1/GPIO_65"
+            config USART0_RX_PIN_6
+                bool "ULP_GPIO_6/GPIO_70"
+        endchoice
+
+        config RTE_USART0_RX_PORT_ID
+            int
+            default 0 if USART0_RX_PIN_10
+            default 1 if USART0_RX_PIN_29
+            default 2 if USART0_RX_PIN_55
+            default 3 if USART0_RX_PIN_1
+            default 4 if USART0_RX_PIN_6
+    endif
+
+#UART1 Configuration(TUYA_UART_NUM_2)
+    config ENABLE_UART1
+        bool "Enable TUYA_UART_NUM_2 (UART1)"
+        default n
+        help
+            Enable UART1 interface for serial communication.
+
+    if ENABLE_UART1
+#UART1_TX < 0 = > P0_7 < 1 = > P0_30 < 2 = > P0_67 < 3 = > P0_69 < 4 = > P0_73 < 5 = > P0_75 < 6 = > P0_34
+        choice RTE_UART1_TX_PORT_ID
+            prompt "UART1_TX_PIN"
+            default UART1_TX_PIN_7
+
+            config UART1_TX_PIN_7
+                bool "GPIO_7"
+            config UART1_TX_PIN_30
+                bool "GPIO_30"
+            config UART1_TX_PIN_5
+                bool "ULP_GPIO_5/GPIO_69"
+            config UART1_TX_PIN_9
+                bool "ULP_GPIO_9/GPIO_73"
+            config UART1_TX_PIN_11
+                bool "ULP_GPIO_11/GPIO_75"
+            config UART1_TX_PIN_34
+                bool "GPIO_34"
+        endchoice
+
+        config RTE_UART1_TX_PORT_ID
+            int
+            default 0 if UART1_TX_PIN_7
+            default 1 if UART1_TX_PIN_30
+            default 3 if UART1_TX_PIN_5
+            default 4 if UART1_TX_PIN_9
+            default 5 if UART1_TX_PIN_11
+            default 6 if UART1_TX_PIN_34
+
+#UART1_RX < 0 = > P0_6 < 1 = > P0_29 < 2 = > P0_66 < 3 = > P0_68 < 4 = > P0_72 < 5 = > P0_74 < 6 = > P0_33
+        choice RTE_UART1_RX_PORT_ID
+            prompt "UART1_RX_PIN"
+            default UART1_RX_PIN_6
+
+            config UART1_RX_PIN_6
+                bool "GPIO_6"
+            config UART1_RX_PIN_29
+                bool "GPIO_29"
+            config UART1_RX_PIN_4
+                bool "ULP_GPIO_4/GPIO_68"
+            config UART1_RX_PIN_8
+                bool "ULP_GPIO_8/GPIO_72"
+            config UART1_RX_PIN_10
+                bool "ULP_GPIO_10/GPIO_74"
+            config UART1_RX_PIN_33
+                bool "GPIO_33"
+        endchoice
+
+        config RTE_UART1_RX_PORT_ID
+            int
+            default 0 if UART1_RX_PIN_6
+            default 1 if UART1_RX_PIN_29
+            default 3 if UART1_RX_PIN_4
+            default 4 if UART1_RX_PIN_8
+            default 5 if UART1_RX_PIN_10
+            default 6 if UART1_RX_PIN_33
+    endif
+
+#SSI_ULP_MASTER Configuration(TUYA_SPI_NUM_0)
+    config ENABLE_SSI_ULP_MASTER
+        bool "Enable TUYA_SPI_NUM_0 (SSI_ULP_MASTER)"
+        default n
+        help
+            Enable SSI ULP Master interface for ultra-low-power SPI communication.
+
+    if ENABLE_SSI_ULP_MASTER
+#SSI_ULP_MASTER_MISO < 0 = > ULP_GPIO_2 < 2 = > ULP_GPIO_9
+        choice RTE_SSI_ULP_MASTER_MISO_PORT_ID
+            prompt "SSI_ULP_MASTER_MISO_PIN"
+            default SSI_ULP_MASTER_MISO_PIN_66
+
+            config SSI_ULP_MASTER_MISO_PIN_66
+                bool "ULP_GPIO_2/GPIO_66"
+            config SSI_ULP_MASTER_MISO_PIN_70
+                bool "ULP_GPIO_6/GPIO_70"
+            config SSI_ULP_MASTER_MISO_PIN_73
+                bool "ULP_GPIO_9/GPIO_73"
+            config SSI_ULP_MASTER_MISO_PIN_8
+                bool "ULP_GPIO_8"
+            config SSI_ULP_MASTER_MISO_PIN_47
+                bool "ULP_GPIO_47"
+        endchoice
+
+        config RTE_SSI_ULP_MASTER_MISO_PORT_ID
+            int
+            default 0 if SSI_ULP_MASTER_MISO_PIN_66
+            default 1 if SSI_ULP_MASTER_MISO_PIN_70
+            default 2 if SSI_ULP_MASTER_MISO_PIN_73
+            default 3 if SSI_ULP_MASTER_MISO_PIN_8
+            default 4 if SSI_ULP_MASTER_MISO_PIN_47
+
+#SSI_ULP_MASTER_MOSI < < 0 = > ULP_GPIO_1 < 2 = > ULP_GPIO_11
+        choice RTE_SSI_ULP_MASTER_MOSI_PORT_ID
+            prompt "SSI_ULP_MASTER_MOSI_PIN"
+            default SSI_ULP_MASTER_MOSI_PIN_65
+
+            config SSI_ULP_MASTER_MOSI_PIN_65
+                bool "ULP_GPIO_1/GPIO_65"
+            config SSI_ULP_MASTER_MOSI_PIN_69
+                bool "ULP_GPIO_5/GPIO_69"
+            config SSI_ULP_MASTER_MOSI_PIN_75
+                bool "ULP_GPIO_11/GPIO_75"
+            config SSI_ULP_MASTER_MOSI_PIN_7
+                bool "GPIO_7"
+            config SSI_ULP_MASTER_MOSI_PIN_49
+                bool "GPIO_49"
+        endchoice
+
+        config RTE_SSI_ULP_MASTER_MOSI_PORT_ID
+            int
+            default 0 if SSI_ULP_MASTER_MOSI_PIN_65
+            default 1 if SSI_ULP_MASTER_MOSI_PIN_69
+            default 2 if SSI_ULP_MASTER_MOSI_PIN_75
+            default 3 if SSI_ULP_MASTER_MOSI_PIN_7
+            default 4 if SSI_ULP_MASTER_MOSI_PIN_49
+
+#SSI_ULP_MASTER_SCK < 0 = > ULP_GPIO_0 < 2 = > ULP_GPIO_8
+        choice RTE_SSI_ULP_MASTER_SCK_PORT_ID
+            prompt "SSI_ULP_MASTER_SCK_PIN"
+            default SSI_ULP_MASTER_SCK_PIN_64
+
+            config SSI_ULP_MASTER_SCK_PIN_64
+                bool "ULP_GPIO_0/GPIO_64"
+            config SSI_ULP_MASTER_SCK_PIN_68
+                bool "ULP_GPIO_4/GPIO_68"
+            config SSI_ULP_MASTER_SCK_PIN_72
+                bool "ULP_GPIO_8/GPIO_72"
+            config SSI_ULP_MASTER_SCK_PIN_6
+                bool "GPIO_6"
+            config SSI_ULP_MASTER_SCK_PIN_46
+                bool "GPIO_46"
+        endchoice
+
+        config RTE_SSI_ULP_MASTER_SCK_PORT_ID
+            int
+            default 0 if SSI_ULP_MASTER_SCK_PIN_64
+            default 1 if SSI_ULP_MASTER_SCK_PIN_68
+            default 2 if SSI_ULP_MASTER_SCK_PIN_72
+            default 3 if SSI_ULP_MASTER_SCK_PIN_6
+            default 4 if SSI_ULP_MASTER_SCK_PIN_46
+
+#SSI_ULP_MASTER_CS0 
+        choice RTE_SSI_ULP_MASTER_CS0_PORT_ID
+            prompt "SSI_ULP_MASTER_CS0_PIN"
+            default SSI_ULP_MASTER_CS0_NOT_USE
+
+            config SSI_ULP_MASTER_CS0_NOT_USE
+                bool "Not Used/Software CS"
+            config SSI_ULP_MASTER_CS0_PIN_71
+                bool "ULP_GPIO_3/GPIO_67"
+            config SSI_ULP_MASTER_CS0_PIN_71
+                bool "ULP_GPIO_7/GPIO_71"
+            config SSI_ULP_MASTER_CS0_PIN_74
+                bool "ULP_GPIO_10/GPIO_74"
+            config SSI_ULP_MASTER_CS0_PIN_48
+                bool "GPIO_48"
+        endchoice
+
+        config RTE_SSI_ULP_MASTER_CS0_PORT_ID
+            int
+            default 0 if SSI_ULP_MASTER_CS0_PIN_67
+            default 1 if SSI_ULP_MASTER_CS0_PIN_71
+            default 2 if SSI_ULP_MASTER_CS0_PIN_74
+            default 3 if SSI_ULP_MASTER_CS0_PIN_48
+            default 4 if SSI_ULP_MASTER_CS0_NOT_USE
+    endif
+
+#SSI_MASTER Configuration(TUYA_SPI_NUM_1)
+    config ENABLE_SSI_MASTER
+        bool "Enable TUYA_SPI_NUM_1 (SSI_MASTER)"
+        default n
+        help
+            Enable SSI Master interface for SPI communication.
+
+    if ENABLE_SSI_MASTER
+#SSI_MASTER_MISO < 0 = > GPIO_12 < 1 = > GPIO_27 < 2 = > GPIO_57
+        choice RTE_SSI_MASTER_MISO_PORT_ID
+            prompt "SSI_MASTER_MISO_PIN"
+            default SSI_MASTER_MISO_PIN_27
+
+            config SSI_MASTER_MISO_PIN_12
+                bool "GPIO_12"
+            config SSI_MASTER_MISO_PIN_27
+                bool "GPIO_27"
+            config SSI_MASTER_MISO_PIN_57
+                bool "GPIO_57"
+        endchoice
+
+        config RTE_SSI_MASTER_MISO_PORT_ID
+            int
+            default 0 if SSI_MASTER_MISO_PIN_12
+            default 1 if SSI_MASTER_MISO_PIN_27
+            default 2 if SSI_MASTER_MISO_PIN_57
+
+#SSI_MASTER_MOSI < 0 = > GPIO_11 < 1 = > GPIO_26 < 2 = > GPIO_56
+        choice RTE_SSI_MASTER_MOSI_PORT_ID
+            prompt "SSI_MASTER_MOSI_PIN"
+            default SSI_MASTER_MOSI_PIN_26
+
+            config SSI_MASTER_MOSI_PIN_11
+                bool "GPIO_11"
+            config SSI_MASTER_MOSI_PIN_26
+                bool "GPIO_26"
+            config SSI_MASTER_MOSI_PIN_56
+                bool "GPIO_56"
+        endchoice
+
+        config RTE_SSI_MASTER_MOSI_PORT_ID
+            int
+            default 0 if SSI_MASTER_MOSI_PIN_11
+            default 1 if SSI_MASTER_MOSI_PIN_26
+            default 2 if SSI_MASTER_MOSI_PIN_56
+
+#SSI_MASTER_SCK < 0 = > GPIO_8 < 1 = > GPIO_25 < 2 = > GPIO_52
+        choice RTE_SSI_MASTER_SCK_PORT_ID
+            prompt "SSI_MASTER_SCK_PIN"
+            default SSI_MASTER_SCK_PIN_25
+
+            config SSI_MASTER_SCK_PIN_8
+                bool "GPIO_8"
+            config SSI_MASTER_SCK_PIN_25
+                bool "GPIO_25"
+            config SSI_MASTER_SCK_PIN_52
+                bool "GPIO_52"
+        endchoice
+
+        config RTE_SSI_MASTER_SCK_PORT_ID
+            int
+            default 0 if SSI_MASTER_SCK_PIN_8
+            default 1 if SSI_MASTER_SCK_PIN_25
+            default 2 if SSI_MASTER_SCK_PIN_52
+
+#SSI_MASTER_CS < 0 = > GPIO_9 < 1 = > GPIO_28 < 2 = > GPIO_53 < 3 = > GPIO_10 < 4 = > GPIO_15 < 5 = > GPIO_50 < 6 =    \
+                                                                                                        > GPIO_51
+        choice RTE_SSI_MASTER_CS0_PORT_ID
+            prompt "SSI_MASTER_CS_PIN"
+            default SSI_MASTER_CS_PIN_28
+
+            config SSI_MASTER_CS_PIN_9
+                bool "GPIO_9"
+            config SSI_MASTER_CS_PIN_28
+                bool "GPIO_28"
+            config SSI_MASTER_CS_PIN_53
+                bool "GPIO_53"
+        endchoice
+
+        config RTE_SSI_MASTER_CS0_PORT_ID
+            int
+            default 0 if SSI_MASTER_CS_PIN_9
+            default 1 if SSI_MASTER_CS_PIN_28
+            default 2 if SSI_MASTER_CS_PIN_53
+    endif
+
+#SSI_SLAVE Configuration(TUYA_SPI_NUM_2)
+    config ENABLE_SSI_SLAVE
+        bool "Enable TUYA_SPI_NUM_2 (SSI_SLAVE)"
+        default n
+        help
+            Enable SSI Slave interface for SPI communication.
+
+    if ENABLE_SSI_SLAVE
+#SSI_SLAVE_MISO < 0 = > Not Used < 1 = > GPIO_11 < 2 = > GPIO_28 < 3 = > GPIO_49 < 4 = > GPIO_57
+        choice RTE_SSI_SLAVE_MISO_PORT_ID
+            prompt "SSI_SLAVE_MISO_PIN"
+            default SSI_SLAVE_MISO_PIN_28
+
+            config SSI_SLAVE_MISO_PIN_11
+                bool "GPIO_11"
+            config SSI_SLAVE_MISO_PIN_28
+                bool "GPIO_28"
+            config SSI_SLAVE_MISO_PIN_49
+                bool "GPIO_49"
+            config SSI_SLAVE_MISO_PIN_57
+                bool "GPIO_57"
+        endchoice
+
+        config RTE_SSI_SLAVE_MISO_PORT_ID
+            int
+            default 1 if SSI_SLAVE_MISO_PIN_11
+            default 2 if SSI_SLAVE_MISO_PIN_28
+            default 3 if SSI_SLAVE_MISO_PIN_49
+            default 4 if SSI_SLAVE_MISO_PIN_57
+
+#SSI_SLAVE_MOSI < 0 = > Not Used < 1 = > GPIO_10 < 2 = > GPIO_27 < 3 = > GPIO_48 < 4 = > GPIO_56
+        choice RTE_SSI_SLAVE_MOSI_PORT_ID
+            prompt "SSI_SLAVE_MOSI_PIN"
+            default SSI_SLAVE_MOSI_PIN_27
+
+            config SSI_SLAVE_MOSI_PIN_10
+                bool "GPIO_10"
+            config SSI_SLAVE_MOSI_PIN_27
+                bool "GPIO_27"
+            config SSI_SLAVE_MOSI_PIN_48
+                bool "GPIO_48"
+            config SSI_SLAVE_MOSI_PIN_56
+                bool "GPIO_56"
+        endchoice
+
+        config RTE_SSI_SLAVE_MOSI_PORT_ID
+            int
+            default 1 if SSI_SLAVE_MOSI_PIN_10
+            default 2 if SSI_SLAVE_MOSI_PIN_27
+            default 3 if SSI_SLAVE_MOSI_PIN_48
+            default 4 if SSI_SLAVE_MOSI_PIN_56
+
+#SSI_SLAVE_SCK < 0 = > Not Used < 1 = > GPIO_8 < 2 = > GPIO_26 < 3 = > GPIO_47 < 4 = > GPIO_52
+        choice RTE_SSI_SLAVE_SCK_PORT_ID
+            prompt "SSI_SLAVE_SCK_PIN"
+            default SSI_SLAVE_SCK_PIN_26
+
+            config SSI_SLAVE_SCK_PIN_8
+                bool "GPIO_8"
+            config SSI_SLAVE_SCK_PIN_26
+                bool "GPIO_26"
+            config SSI_SLAVE_SCK_PIN_47
+                bool "GPIO_47"
+            config SSI_SLAVE_SCK_PIN_52
+                bool "GPIO_52"
+        endchoice
+
+        config RTE_SSI_SLAVE_SCK_PORT_ID
+            int
+            default 1 if SSI_SLAVE_SCK_PIN_8
+            default 2 if SSI_SLAVE_SCK_PIN_26
+            default 3 if SSI_SLAVE_SCK_PIN_47
+            default 4 if SSI_SLAVE_SCK_PIN_52
+
+#SSI_SLAVE_CS < 0 = > Not Used < 1 = > GPIO_9 < 2 = > GPIO_25 < 3 = > GPIO_46 < 4 = > GPIO_53
+        choice RTE_SSI_SLAVE_CS_PORT_ID
+            prompt "SSI_SLAVE_CS_PIN"
+            default SSI_SLAVE_CS_PIN_25
+
+            config SSI_SLAVE_CS_PIN_NOT_USED
+                bool "Not Used"
+            config SSI_SLAVE_CS_PIN_9
+                bool "GPIO_9"
+            config SSI_SLAVE_CS_PIN_25
+                bool "GPIO_25"
+            config SSI_SLAVE_CS_PIN_46
+                bool "GPIO_46"
+            config SSI_SLAVE_CS_PIN_53
+                bool "GPIO_53"
+        endchoice
+
+        config RTE_SSI_SLAVE_CS_PORT_ID
+            int
+            default 1 if SSI_SLAVE_CS_PIN_9
+            default 2 if SSI_SLAVE_CS_PIN_25
+            default 3 if SSI_SLAVE_CS_PIN_46
+            default 4 if SSI_SLAVE_CS_PIN_53
+            default 0 if SSI_SLAVE_CS_PIN_NOT_USED
+    endif
+
+#GSPI_MASTER Configuration(TUYA_SPI_NUM_3)
+    config ENABLE_GSPI_MASTER
+        bool "Enable TUYA_SPI_NUM_3 (GSPI_MASTER)"
+        default n
+        help
+            Enable GSPI Master interface for general-purpose SPI communication.
+
+    if ENABLE_GSPI_MASTER
+#GSPI_MISO < 0 = > P0_11 < 1 = > P0_26 < 2 = > P0_47 < 3 = > P0_56
+        choice RTE_GSPI_MASTER_MISO_PORT_ID
+            prompt "GSPI_MASTER_MISO_PIN"
+            default GSPI_MASTER_MISO_PIN_26
+
+            config GSPI_MASTER_MISO_PIN_11
+                bool "GPIO_11"
+            config GSPI_MASTER_MISO_PIN_26
+                bool "GPIO_26"
+            config GSPI_MASTER_MISO_PIN_47
+                bool "GPIO_47"
+            config GSPI_MASTER_MISO_PIN_56
+                bool "GPIO_56"
+        endchoice
+
+        config RTE_GSPI_MASTER_MISO_PORT_ID
+            int
+            default 0 if GSPI_MASTER_MISO_PIN_11
+            default 1 if GSPI_MASTER_MISO_PIN_26
+            default 2 if GSPI_MASTER_MISO_PIN_47
+            default 3 if GSPI_MASTER_MISO_PIN_56
+
+#GSPI_MOSI < 0 = > P0_12 < 1 = > P0_27 < 2 = > P0_48 < 3 = > P0_57 < 4 = > P0_6
+        choice RTE_GSPI_MASTER_MOSI_PORT_ID
+            prompt "GSPI_MASTER_MOSI_PIN"
+            default GSPI_MASTER_MOSI_PIN_27
+
+            config GSPI_MASTER_MOSI_PIN_12
+                bool "GPIO_12"
+            config GSPI_MASTER_MOSI_PIN_27
+                bool "GPIO_27"
+            config GSPI_MASTER_MOSI_PIN_48
+                bool "GPIO_48"
+            config GSPI_MASTER_MOSI_PIN_57
+                bool "GPIO_57"
+            config GSPI_MASTER_MOSI_PIN_6
+                bool "GPIO_6"
+        endchoice
+
+        config RTE_GSPI_MASTER_MOSI_PORT_ID
+            int
+            default 0 if GSPI_MASTER_MOSI_PIN_12
+            default 1 if GSPI_MASTER_MOSI_PIN_27
+            default 2 if GSPI_MASTER_MOSI_PIN_48
+            default 3 if GSPI_MASTER_MOSI_PIN_57
+            default 4 if GSPI_MASTER_MOSI_PIN_6
+
+#GSPI_SCK < 0 = > P0_8 < 1 = > P0_25 < 2 = > P0_46 < 3 = > P0_52
+        choice RTE_GSPI_MASTER_SCK_PORT_ID
+            prompt "GSPI_MASTER_SCK_PIN"
+            default GSPI_MASTER_SCK_PIN_25
+
+            config GSPI_MASTER_SCK_PIN_8
+                bool "GPIO_8"
+            config GSPI_MASTER_SCK_PIN_25
+                bool "GPIO_25"
+            config GSPI_MASTER_SCK_PIN_46
+                bool "GPIO_46"
+            config GSPI_MASTER_SCK_PIN_52
+                bool "GPIO_52"
+        endchoice
+
+        config RTE_GSPI_MASTER_SCK_PORT_ID
+            int
+            default 0 if GSPI_MASTER_SCK_PIN_8
+            default 1 if GSPI_MASTER_SCK_PIN_25
+            default 2 if GSPI_MASTER_SCK_PIN_46
+            default 3 if GSPI_MASTER_SCK_PIN_52
+
+#GSPI_CS0 < 0 = > P0_9 < 1 = > P0_28 < 2 = > P0_49 < 3 = > P0_53
+        choice RTE_GSPI_MASTER_CS0_PORT_ID
+            prompt "GSPI_MASTER_CS0_PIN"
+            default GSPI_MASTER_CS0_NOT_USE
+
+            config GSPI_MASTER_CS0_NOT_USE
+                bool "Not Used/Software CS"
+            config GSPI_MASTER_CS0_PIN_9
+                bool "GPIO_9"
+            config GSPI_MASTER_CS0_PIN_28
+                bool "GPIO_28"
+            config GSPI_MASTER_CS0_PIN_49
+                bool "GPIO_49"
+            config GSPI_MASTER_CS0_PIN_53
+                bool "GPIO_53"
+        endchoice
+
+        config RTE_GSPI_MASTER_CS0_PORT_ID
+            int
+            default 0 if GSPI_MASTER_CS0_PIN_9
+            default 1 if GSPI_MASTER_CS0_PIN_28
+            default 2 if GSPI_MASTER_CS0_PIN_49
+            default 3 if GSPI_MASTER_CS0_PIN_53
+            default 4 if GSPI_MASTER_CS0_NOT_USE
+    endif
+
+#I2C0 Configuration
+    config ENABLE_I2C0
+        bool "Enable TUYA_I2C_NUM_0 (SL_I2C0)"
+        default n
+        help
+            Enable I2C0 interface for inter-integrated circuit communication.
+
+    if ENABLE_I2C0
+#I2C0_SCL < 0 = > P0_7 < 1 = > P0_65 < 2 = > P0_66 < 3 = > P0_75 < 4 = > P0_32
+        choice RTE_I2C0_SCL_PORT_ID
+            prompt "I2C0_SCL_PIN"
+            default I2C0_SCL_PIN_65
+
+            config I2C0_SCL_PIN_7
+                bool "GPIO_7"
+            config I2C0_SCL_PIN_65
+                bool "ULP_GPIO_1/GPIO_65"
+            config I2C0_SCL_PIN_66
+                bool "ULP_GPIO_2/GPIO_66"
+            config I2C0_SCL_PIN_75
+                bool "ULP_GPIO_11/GPIO_75"
+            config I2C0_SCL_PIN_32
+                bool "GPIO_32"
+        endchoice
+
+        config RTE_I2C0_SCL_PORT_ID
+            int
+            default 0 if I2C0_SCL_PIN_7
+            default 1 if I2C0_SCL_PIN_65
+            default 2 if I2C0_SCL_PIN_66
+            default 3 if I2C0_SCL_PIN_75
+            default 4 if I2C0_SCL_PIN_32
+
+#I2C0_SDA < 0 = > P0_6 < 1 = > P0_64 < 2 = > P0_67 < 3 = > P0_74 < 4 = > P0_31
+        choice RTE_I2C0_SDA_PORT_ID
+            prompt "I2C0_SDA_PIN"
+            default I2C0_SDA_PIN_74
+
+            config I2C0_SDA_PIN_6
+                bool "GPIO_6"
+            config I2C0_SDA_PIN_64
+                bool "ULP_GPIO_0/GPIO_64"
+            config I2C0_SDA_PIN_67
+                bool "ULP_GPIO_3/GPIO_67"
+            config I2C0_SDA_PIN_74
+                bool "ULP_GPIO_10/GPIO_74"
+            config I2C0_SDA_PIN_31
+                bool "GPIO_31"
+        endchoice
+
+        config RTE_I2C0_SDA_PORT_ID
+            int
+            default 0 if I2C0_SDA_PIN_6
+            default 1 if I2C0_SDA_PIN_64
+            default 2 if I2C0_SDA_PIN_67
+            default 3 if I2C0_SDA_PIN_74
+            default 4 if I2C0_SDA_PIN_31
+    endif
+
+#I2C1 Configuration  
+    config ENABLE_I2C1
+        bool "Enable TUYA_I2C_NUM_1 (SL_I2C1)"
+        default n
+        help
+            Enable I2C1 interface for inter-integrated circuit communication.
+
+    if ENABLE_I2C1
+#I2C1_SCL < 0 = > P0_6 < 1 = > P0_29 < 2 = > P0_50 < 3 = > P0_54 < 4 = > P0_64 < 5 = > P0_66 < 6 = > P0_70 < 7 = > P0_33
+        choice RTE_I2C1_SCL_PORT_ID
+            prompt "I2C1_SCL_PIN"
+            default I2C1_SCL_PIN_50
+
+            config I2C1_SCL_PIN_6
+                bool "GPIO_6"
+            config I2C1_SCL_PIN_29
+                bool "GPIO_29"
+            config I2C1_SCL_PIN_50
+                bool "GPIO_50"
+            config I2C1_SCL_PIN_54
+                bool "GPIO_54"
+            config I2C1_SCL_PIN_64
+                bool "ULP_GPIO_0/GPIO_64"
+            config I2C1_SCL_PIN_66
+                bool "ULP_GPIO_2/GPIO_66"
+            config I2C1_SCL_PIN_70
+                bool "ULP_GPIO_6/GPIO_70"
+            config I2C1_SCL_PIN_33
+                bool "GPIO_33"
+        endchoice
+
+        config RTE_I2C1_SCL_PORT_ID
+            int
+            default 0 if I2C1_SCL_PIN_6
+            default 1 if I2C1_SCL_PIN_29
+            default 2 if I2C1_SCL_PIN_50
+            default 3 if I2C1_SCL_PIN_54
+            default 4 if I2C1_SCL_PIN_64
+            default 5 if I2C1_SCL_PIN_66
+            default 6 if I2C1_SCL_PIN_70
+            default 7 if I2C1_SCL_PIN_33
+
+#I2C1_SDA < 0 = > P0_7 < 1 = > P0_30 < 2 = > P0_51 < 3 = > P0_55 < 4 = > P0_65 < 5 = > P0_67 < 6 = > P0_71 < 7 = > P0_34
+        choice RTE_I2C1_SDA_PORT_ID
+            prompt "I2C1_SDA_PIN"
+            default I2C1_SDA_PIN_51
+
+            config I2C1_SDA_PIN_7
+                bool "GPIO_7"
+            config I2C1_SDA_PIN_30
+                bool "GPIO_30"
+            config I2C1_SDA_PIN_51
+                bool "GPIO_51"
+            config I2C1_SDA_PIN_55
+                bool "GPIO_55"
+            config I2C1_SDA_PIN_65
+                bool "ULP_GPIO_1/GPIO_65"
+            config I2C1_SDA_PIN_67
+                bool "ULP_GPIO_3/GPIO_67"
+            config I2C1_SDA_PIN_71
+                bool "ULP_GPIO_7/GPIO_71"
+            config I2C1_SDA_PIN_34
+                bool "GPIO_34"
+        endchoice
+
+        config RTE_I2C1_SDA_PORT_ID
+            int
+            default 0 if I2C1_SDA_PIN_7
+            default 1 if I2C1_SDA_PIN_30
+            default 2 if I2C1_SDA_PIN_51
+            default 3 if I2C1_SDA_PIN_55
+            default 4 if I2C1_SDA_PIN_65
+            default 5 if I2C1_SDA_PIN_67
+            default 6 if I2C1_SDA_PIN_71
+            default 7 if I2C1_SDA_PIN_34
+    endif
+
+#I2C2 Configuration(ULP I2C)
+    config ENABLE_I2C2
+        bool "Enable TUYA_I2C_NUM_2 (ULP_I2C)"
+        default n
+        help
+            Enable ULP I2C2 interface for ultra-low-power inter-integrated circuit communication.
+
+    if ENABLE_I2C2
+#I2C2_SCL < 0 = > P0_1 < 1 = > P0_5 < 2 = > P0_7 < 3 = > P0_8 < 4 = > P0_11 < 5 = > P0_15 < 6 = > P0_46
+        choice RTE_I2C2_SCL_PORT_ID
+            prompt "I2C2_SCL_PIN"
+            default I2C2_SCL_PIN_7
+
+            config I2C2_SCL_PIN_1
+                bool "GPIO_1"
+            config I2C2_SCL_PIN_5
+                bool "GPIO_5"  
+            config I2C2_SCL_PIN_7
+                bool "GPIO_7"
+            config I2C2_SCL_PIN_8
+                bool "GPIO_8"
+            config I2C2_SCL_PIN_11
+                bool "GPIO_11"
+            config I2C2_SCL_PIN_15
+                bool "GPIO_15"
+            config I2C2_SCL_PIN_46
+                bool "GPIO_46"
+        endchoice
+
+        config RTE_I2C2_SCL_PORT_ID
+            int
+            default 0 if I2C2_SCL_PIN_1
+            default 1 if I2C2_SCL_PIN_5
+            default 2 if I2C2_SCL_PIN_7
+            default 3 if I2C2_SCL_PIN_8
+            default 4 if I2C2_SCL_PIN_11
+            default 5 if I2C2_SCL_PIN_15
+            default 6 if I2C2_SCL_PIN_46
+
+#I2C2_SDA < 0 = > P0_0 < 1 = > P0_4 < 2 = > P0_6 < 3 = > P0_9 < 4 = > P0_10 < 5 = > P0_12 < 6 = > P0_47 < 7 = > P0_49
+        choice RTE_I2C2_SDA_PORT_ID
+            prompt "I2C2_SDA_PIN"
+            default I2C2_SDA_PIN_6
+
+            config I2C2_SDA_PIN_0
+                bool "GPIO_0"
+            config I2C2_SDA_PIN_4
+                bool "GPIO_4"
+            config I2C2_SDA_PIN_6
+                bool "GPIO_6"
+            config I2C2_SDA_PIN_9
+                bool "GPIO_9"
+            config I2C2_SDA_PIN_10
+                bool "GPIO_10"
+            config I2C2_SDA_PIN_12
+                bool "GPIO_12"
+            config I2C2_SDA_PIN_47
+                bool "GPIO_47"
+            config I2C2_SDA_PIN_49
+                bool "GPIO_49"
+        endchoice
+
+        config RTE_I2C2_SDA_PORT_ID
+            int
+            default 0 if I2C2_SDA_PIN_0
+            default 1 if I2C2_SDA_PIN_4
+            default 2 if I2C2_SDA_PIN_6
+            default 3 if I2C2_SDA_PIN_9
+            default 4 if I2C2_SDA_PIN_10
+            default 5 if I2C2_SDA_PIN_12
+            default 6 if I2C2_SDA_PIN_47
+            default 7 if I2C2_SDA_PIN_49
+    endif

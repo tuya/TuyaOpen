@@ -1,0 +1,64 @@
+config CHIP_CHOICE
+    string
+    default "SIWG917M111MGTBA"
+
+config BOARD_CHOICE
+    string
+    default "BRD2605A"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_BUTTON
+    select ENABLE_LED
+    select ENABLE_AUDIO
+    select ENABLE_AUDIO_CODECS
+    select MP3_DECODER_STATIC_BUF
+
+config BOARD_SW1_PIN
+    int "BOARD_SW1_PIN"
+    default 49
+
+config BOARD_SW1_NAME
+    string
+    default "SW1"
+
+config BOARD_SW2_PIN
+    int "BOARD_SW2_PIN"
+    default 2
+
+config BOARD_SW2_NAME
+    string
+    default "SW2"
+
+config BOARD_SW3_PIN
+    int "BOARD_SW3_PIN"
+    default 3
+
+config BOARD_SW3_NAME
+    string
+    default "SW3"
+
+config BOARD_LEDR_PIN
+    int "BOARD_LEDR_PIN"
+    default 50
+
+config BOARD_LEDR_NAME
+    string
+    default "LEDR"
+
+config BOARD_LEDG_PIN
+    int "BOARD_LEDG_PIN"
+    default 51
+
+config BOARD_LEDG_NAME
+    string
+    default "LEDG"
+
+config BOARD_LEDB_PIN
+    int "BOARD_LEDB_PIN"
+    default 15
+
+config BOARD_LEDB_NAME
+    string
+    default "LEDB"

@@ -1,0 +1,34 @@
+menu "Application config"
+
+    config EXAMPLE_WAKEUP_RTC
+        bool "arm an RTC alarm as a wakeup source"
+        default y
+
+    if EXAMPLE_WAKEUP_RTC
+        config EXAMPLE_WAKEUP_RTC_SECONDS
+            int "seconds until the RTC alarm fires"
+            default 10
+            range 1 3600
+    endif
+
+    config EXAMPLE_WAKEUP_GPIO
+        bool "arm a pin as a wakeup source"
+        default y
+
+    if EXAMPLE_WAKEUP_GPIO
+        config EXAMPLE_WAKEUP_GPIO_PIN
+            int "wakeup pin"
+            default 0
+            range 0 63
+            ---help---
+                Deep sleep powers most of the chip down, so only pins with a dedicated
+                wakeup path can bring it back. On GD32VW553 those are PA0, PA15, PA7
+                and PA12, and they only react to a rising edge.
+
+        config EXAMPLE_WAKEUP_GPIO_EDGE
+            int "wakeup edge (0: low, 1: high, 2: rising, 3: falling)"
+            default 2
+            range 0 3
+    endif
+
+endmenu

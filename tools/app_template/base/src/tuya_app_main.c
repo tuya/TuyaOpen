@@ -1,10 +1,17 @@
 #include "tal_api.h"
 #include "tkl_output.h"
 #include "tal_cli.h"
+#include "board_com_api.h"
 
 static void user_main(void)
 {
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+
+    /* Everything the board has to say about its own wiring happens in here - which pins the
+     * peripherals were routed to, what leds and buttons exist. Call it before touching any
+     * peripheral, and an application never has to name a pin or know which board it is on. */
+    board_register_hardware();
+
     PR_DEBUG("hello world\r\n");
 
     int cnt = 0;

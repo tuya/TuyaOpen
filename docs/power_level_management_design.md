@@ -311,4 +311,4 @@ effective   = 最浅( idle_target, lock_floor, deepest_allowed )
 
 **相对 v2 的核心变化**：v2 是「固定 4 档 + 每档 cfg 数据 + 三个机制后端（组件内 `__mech_set` 统一实现机制）」；v3 把「档」升级为「方案对象」，机制从组件核心下放进方案实现，组件退化为纯调度器，并引入方案库 / 自定义方案注册 / 使用者组链。
 
-**实现状态：v3 已落地（2026-08-05，NOTE 构建通过）。** `src/tuya_pm/` 现为：`tuya_pm.c`（纯调度器，chain-index 仲裁/decay/consumer/lock/battery + register/chain/chain_default）+ `tuya_pm_schemes.c`（4 预设方案，`enter` 直调 lpmgr/tal_wifi/tuya_ble_deinit/tdl_power，含关蓝牙）+ `tuya_pm_scheme.h`（内部契约）。两个消费者（`examples/system/tuya_pm`、`apps/tuya_cloud/tuya_pm_ulp_demo`）已适配 v3 并构建通过。v2 备份在仓库根 `tuya_pm_v2_backup.tar.gz`。深浅比较全部锚在链中位置；`min_residency` 由方案携带；机制全在方案 `enter` 里，调度器核心零生态头依赖。
+**实现状态：v3 已落地（2026-08-05，NOTE 构建通过）。** `src/tuya_pm/` 现为：`tuya_pm.c`（纯调度器，chain-index 仲裁/decay/consumer/lock/battery + register/chain/chain_default）+ `tuya_pm_schemes.c`（4 预设方案，`enter` 直调 lpmgr/tal_wifi/tuya_ble_deinit/tdl_power，含关蓝牙）+ `tuya_pm_scheme.h`（内部契约）。两个消费者（`examples/lowpower/tuya_pm`、`apps/tuya_cloud/tuya_pm_ulp_demo`）已适配 v3 并构建通过。v2 备份在仓库根 `tuya_pm_v2_backup.tar.gz`。深浅比较全部锚在链中位置；`min_residency` 由方案携带；机制全在方案 `enter` 里，调度器核心零生态头依赖。

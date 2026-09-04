@@ -13,6 +13,7 @@
 #define __TAL_IMAGE_H__
 
 #include "tuya_cloud_types.h"
+#include "tal_image_dither_core.h"
 #include "tal_image_yuv422_to_rgb.h"
 #include "tal_image_yuv422_to_binary.h"
 #include "tal_image_rotate.h"

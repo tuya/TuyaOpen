@@ -1,0 +1,131 @@
+config ENABLE_PLATFORM_AES
+    bool
+    default y
+    help
+      Use platform AES via tkl_symmetry.c (Si91x HW GCM + software ECB/CBC).
+
+config ENABLE_WIFI
+    bool
+    default y
+
+# Only the SiWx917 AP-mode netcfg path (currently unreachable: WIFI_INIT_MODE_STA
+# locks out SoftAP on this platform) references the lwIP DHCP server, so this
+# option and its dhcpserver.c compilation both live here instead of src/liblwip.
+config ENABLE_LWIP_DHCPD
+    bool "ENABLE_LWIP_DHCPD: enable lwip dhcp server"
+    depends on ENABLE_LIBLWIP
+    default n
+
+# Read only by this platform's build files -- platform_config.cmake, which
+# injects the redirect, and CMakeLists.txt, which links the pool. Nothing in
+# src/ references it, so it does not belong under ENABLE_AI_PLAYER's Decoder
+# Options menu in src/audio_player/Kconfig; no other platform selects it.
+config MP3_DECODER_STATIC_BUF
+    bool "MP3_DECODER_STATIC_BUF: allocate minimp3 scratch/context from a dedicated internal-RAM pool"
+    default n
+    help
+      Allocate the MP3 decoder's per-frame scratch and its long-lived context
+      from a small dedicated internal-RAM pool (mcu/src/mp3_internal_pool.c,
+      ~23KB) instead of the general purpose heap.
+
+      src/audio_player is untouched upstream and knows nothing about this:
+      decoder_mp3.c and minimp3.h both name tal_psram_malloc/tal_psram_free
+      directly under ENABLE_EXT_RAM. The platform redirects them by force-
+      including a header that redefines those two names (see
+      platform_config.cmake), scoped to decoder_mp3.c alone so that every other
+      tal_psram_malloc caller still gets PSRAM.
+
+      This is about memory latency, not heap pressure. Left alone the decoder
+      allocates from PSRAM, and decoding out of PSRAM cannot keep up:
+      mp3dec_scratch_t (grbuf/syn, ~16KB) is read and written throughout every
+      frame, which stutters audibly on SiWx917. The pool sits in internal RAM,
+      removing the PSRAM access latency.
+
+      It is a dedicated pool rather than the shared FreeRTOS heap
+      (pvPortMalloc/ucHeap) on purpose: that heap also serves task stacks and
+      queues, and routing the decoder through it was tried and failed on real
+      hardware -- a 16KB allocation returned NULL because nothing that size was
+      free. Routing it to the newlib heap (_sbrk) was tried too and also
+      rejected. This pool never competes with anything else.
+
+      Costs ~23KB of internal RAM permanently (reserved for the pool, not
+      freed back even when idle) and only ever holds one context + one
+      scratch buffer at a time, so enable it only for single-stream playback.
+
+config ENABLE_BLUETOOTH
+    bool
+    select ENABLE_BT_SERVICE
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_DAC
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_SPI
+    bool
+    default y
+
+config ENABLE_AUDIO
+    bool
+    default y
+
+config ENABLE_AUDIO_CODECS
+    bool
+    default y
+
+# Latest TuyaOpen AI/audio path uses ENABLE_EXT_RAM for PSRAM ringbuf/stack.
+# SiWx917 also keeps CONFIG_SPIRAM for adapter-side PSRAM APIs.
+config ENABLE_EXT_RAM
+    bool
+    default y
+
+config CONFIG_SPIRAM
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+config ENABLE_RTC
+    bool
+    default y
+
+config ENABLE_QSPI
+    bool
+    default n
+
+config ENABLE_FLASH
+    bool
+    default y
+    
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
+config SIWX917_FREERTOS_HEAP_SIZE
+    int "FreeRTOS heap in SRAM (bytes)"
+    default 131072

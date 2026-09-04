@@ -1,5 +1,0 @@
-# SPARKLEIOT TF card VDD is wired to 3V3 directly (no GPIO13 LDO)
-CONFIG_SDCARD_POWER_GPIO_CTRL=n
-# SDIO MODE1: GPIO14~GPIO19 (must match board_sdcard_prepare / app_resource_config.json)
-CONFIG_PIN_SDIO_GROUP_1=y
-CONFIG_SDCARD_DEBUG_SUPPORT=y

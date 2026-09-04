@@ -30,6 +30,10 @@ config BOARD_ENABLE_GD32
     bool
     default y
 
+config BOARD_ENABLE_SIWX917
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -97,6 +101,14 @@ if (BOARD_ENABLE_GD32)
         bool "GD32"
     if (BOARD_CHOICE_GD32)
     rsource "./GD32/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_SIWX917)
+    config BOARD_CHOICE_SIWX917
+        bool "SIWX917"
+    if (BOARD_CHOICE_SIWX917)
+    rsource "./SIWX917/Kconfig"
     endif
 endif
 

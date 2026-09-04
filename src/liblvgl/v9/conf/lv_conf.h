@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file lv_conf.h
  * Configuration file for v9.1.0
  */
@@ -34,7 +34,13 @@
  *====================*/
 
 /*Color depth: 1 (I1), 8 (L8), 16 (RGB565), 24 (RGB888), 32 (XRGB8888)*/
+#ifdef LVGL_COLOR_DEPTH
+#define LV_COLOR_DEPTH LVGL_COLOR_DEPTH
+#else
+#ifndef LV_COLOR_DEPTH
 #define LV_COLOR_DEPTH 16
+#endif
+#endif
 
 #define LV_COLOR_16_SWAP    0
 
