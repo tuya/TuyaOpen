@@ -1,0 +1,92 @@
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
+# The module is a cellular (Cat.1) NB module: no wifi, no wired, no BLE.
+config ENABLE_WIFI
+    bool
+    default n
+
+config ENABLE_WIRED
+    bool
+    default n
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config ENABLE_CELLULAR
+    bool
+    default y
+
+config ENABLE_FILE_SYSTEM
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+config ENABLE_RTC
+    bool
+    default y
+
+# There is no external SPI flash on this board, so the adapter's ext-flash
+# paths (tkl_flash, tkl_storage, the SPI port they reserve) stay out of the
+# build. Storage is the module's own file system, reached through tkl_fs; with
+# ENABLE_FILE_SYSTEM=y above, TuyaOpen's key-value store keeps its keys as
+# files there instead of mounting a second littlefs of its own.
+config ENABLE_FLASH
+    bool
+    default n
+
+config ENABLE_STORAGE
+    bool
+    default n
+
+# No prompt: nothing on this module needs SPI by default, and the one thing
+# that does -- the e-paper panel on SPI1 -- turns it on with a select, so the
+# port stays out of builds that have no display. See L511G_Y7PM/Kconfig.
+config ENABLE_SPI
+    bool
+    default n
+
+# The module carries an ES8311 codec reached through the vendor audio subsystem
+# (the OEM build has AUDIO_ENABLE=true, so libsubsys_audio.a is always linked).
+# The adapter's tkl_audio.c and volume_ctl.c are wrapped in ENABLE_CATX_PLAYER,
+# so this is the switch that decides whether the module has audio at all --
+# leave it off for products that never record or play, and their firmware keeps
+# the recorder, the PCM cache and the codec driver glue out.
+config ENABLE_CATX_PLAYER
+    bool "enable the module audio path (mic record / speaker playback)"
+    default n
+
+# TuyaOpen's TDD/TDL audio layer keys off ENABLE_MEDIA; on this module the
+# tkl_audio it drives exists only with the switch above.
+config ENABLE_MEDIA
+    bool
+    default y if ENABLE_CATX_PLAYER
+    default n

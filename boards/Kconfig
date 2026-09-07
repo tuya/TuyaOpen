@@ -34,6 +34,10 @@ config BOARD_ENABLE_SIWX917
     bool
     default y
 
+config BOARD_ENABLE_L511G
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -109,6 +113,14 @@ if (BOARD_ENABLE_SIWX917)
         bool "SIWX917"
     if (BOARD_CHOICE_SIWX917)
     rsource "./SIWX917/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_L511G)
+    config BOARD_CHOICE_L511G
+        bool "L511G"
+    if (BOARD_CHOICE_L511G)
+    rsource "./L511G/Kconfig"
     endif
 endif
 

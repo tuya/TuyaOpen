@@ -43,3 +43,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
   branch: master
   commit: c4894d98c120c1e7d973b53b5d78ed83205ed37b
+
+- name: L511G
+  repo: https://github.com/tuya/TuyaOpen-LYNQ
+  branch: L511G
+  commit: 5b357406df5ebcb7b68b15549edf3b93139aac5c

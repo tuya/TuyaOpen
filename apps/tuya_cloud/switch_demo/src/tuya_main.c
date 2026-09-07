@@ -227,6 +227,9 @@ void user_main(void)
 
     //! open iot development kit runtim init
     cJSON_InitHooks(&(cJSON_Hooks){.malloc_fn = tal_malloc, .free_fn = tal_free});
+    /* Before the log: every log line timestamps itself through the time
+     * service, whose mutex this creates. */
+    tal_time_service_init();
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");

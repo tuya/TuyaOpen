@@ -23,7 +23,9 @@ extern "C" {
 #endif
 
 #include "tuya_cloud_types.h"
+#if !(defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1))
 #include "lfs.h"
+#endif
 /**
  * @brief tuya key-value database type define, used for serialize/deserialize
  * data to json format
@@ -169,7 +171,9 @@ void tal_kv_cmd(int argc, char *argv[]);
  *
  * @return lfs_t *
  */
+#if !(defined(ENABLE_FILE_SYSTEM) && (ENABLE_FILE_SYSTEM == 1))
 lfs_t *tal_lfs_get();
+#endif
 
 #ifdef __cplusplus
 }
