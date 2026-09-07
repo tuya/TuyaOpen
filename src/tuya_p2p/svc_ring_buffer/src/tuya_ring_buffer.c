@@ -350,14 +350,7 @@ static RING_BUFFER_NODE_T *__rbuf_pick_locked(RBUF_USER_T *user, RBUF_STREAM_T *
     return best;
 }
 
-/**
- * @brief Report skipped frames, outside the lock
- *
- * Dropping frames is a real quality event, so say so instead of hiding it.
- * The counter lives on the stream rather than in this function: a static one
- * would be shared by the main and sub streams and never reset, so the rate
- * limit fires against a mixture of both.
- */
+/** @brief Report skipped frames, outside the lock */
 static void __rbuf_report_skip(RBUF_STREAM_T *st, uint32_t skip_from, uint32_t skip_to)
 {
     if (skip_to == 0) {
@@ -429,8 +422,7 @@ OPERATE_RET tuya_ipc_ring_buffer_read_frame(RING_BUFFER_USER_HANDLE_T handle, ui
             PR_ERR("ring frame %u exceeds reader buffer %u", best->size, dst_cap);
             rt = OPRT_INVALID_PARM;
         } else {
-            /* Copied here rather than by the caller: the slot is the writer's
-             * to reuse the instant this lock is dropped. */
+
             memcpy(dst, best->raw_data, best->size);
             *out           = *best;
             out->raw_data  = dst;

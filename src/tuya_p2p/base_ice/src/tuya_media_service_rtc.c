@@ -76,18 +76,7 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
         tal_semaphore_release(*join_sem);
         *join_sem = NULL;
     }
-    /*
-     * The semaphore says the thread body has returned, which is not the same as
-     * the thread being gone. tal_thread's wrapper polls its own state every
-     * 10 ms once the body returns and only leaves that loop for THREAD_STATE_STOP,
-     * which nothing but tal_thread_delete sets - so a joined-but-undeleted
-     * thread stays alive forever, spinning, holding its stack. These run with
-     * psram_mode, so each session that ended left 24 KB of PSRAM and a live
-     * 100 Hz poller behind: measured on hardware, a session that never got past
-     * ICE still cost 24976 bytes, and a handful of reconnects ran the free pool
-     * from 6.1 MB down to 2188, at which point every 1600-byte mbuf allocation
-     * failed and both streams stopped.
-     */
+
     if (tid != NULL) {
         tal_thread_delete(tid);
     }
@@ -124,8 +113,7 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #include "tal_log.h"
 
 #define IKCP_PACKET_HEADER_SIZE       24
-/* TUYA_P2P_SEND_BUFFER_SIZE_MAX/MIN now live in tuya_media_service_rtc.h so
- * the caller can size send_buf_size the way the TuyaOS library does. */
+
 #define TUYA_P2P_RECV_BUFFER_SIZE_MAX (800 * 1024)
 #define TUYA_P2P_RECV_BUFFER_SIZE_MIN (50 * 1024)
 #define RTC_SESSION_RUN_INTERVAL_MS   5
@@ -577,12 +565,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     // create new session if necessary
     // static pj_session_cfg_t cfg;
     // tuya_p2p_rtc_session_t *rtc = ctx_session_get(ctx, remote_id, session_id);
-    /*
-     * Reconnect / duplicate offer:
-     * - Different session_id while old still alive: destroy old first, then create
-     * - Same session_id but ICE not RUNNING: App retry while stuck — destroy and recreate
-     * - Same session_id and ICE RUNNING: keep session (answer dedup below)
-     */
+
     if (strcmp(type, "offer") == 0 && g_pRtcSession != NULL) {
         if (strcmp(g_pRtcSession->cfg.session_id, session_id) != 0) {
             PR_NOTICE("p2p new offer replaces session");
@@ -735,11 +718,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
             }
             return -1;
         }
-        /*
-         * Never hold g_p2p_session_mutex across ICE update_check_list / start_ice.
-         * ICE worker callbacks (on_new_candidate) also send signaling and used to
-         * take the same mutex → deadlock (hang after "local_cand send", then reboot).
-         */
+
         if (g_p2p_session_mutex != NULL) {
             tal_mutex_lock(g_p2p_session_mutex);
             rtc_cand = g_pRtcSession;
@@ -979,11 +958,7 @@ static void *ctx_signaling_worker_thread(void *arg)
             if (s_sig_worker_quit != 0) {
                 break; /* deinit closed the queue: the intended way out */
             }
-            /*
-             * This thread is the queue's only consumer while the producer keeps
-             * accepting pushes, so leaving on a transient failure strands every
-             * later offer and the App can never reconnect. Log it and carry on.
-             */
+
             PR_WARN("p2p signaling pop failed ret=%d, worker continues", n);
             tal_system_sleep(CTX_SIG_POP_RETRY_MS);
             continue;
@@ -999,11 +974,7 @@ static void *ctx_signaling_worker_thread(void *arg)
             uint64_t spent;
 
             (void)tuya_p2p_process_signal_msg(buf, len);
-            /*
-             * This worker is the only consumer of the queue, so a slow message
-             * stalls every later offer/candidate. Surface it before the
-             * backlog grows.
-             */
+
             spent = tuya_p2p_misc_get_timestamp_ms() - t0;
             if (spent >= 200ULL) {
                 PR_WARN("p2p signaling msg took %ums, backlog was %d bytes", (unsigned)spent, qbytes);
@@ -1147,10 +1118,7 @@ int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg)
     if (signaling == NULL) {
         goto finish;
     }
-    /*
-     * Invoke MQTT/LAN send without g_p2p_session_mutex. Holding that lock here
-     * deadlocks with signaling thread blocked inside ICE add_remote.
-     */
+
     ctx_session_dispatch_signaling(rtc, cfg, signaling);
 
 finish:
@@ -1460,11 +1428,6 @@ void ice_on_new_candidate(pj_ice_strans *ice_st, const pj_ice_sess_cand *cand, p
         ctx_session_send_candidate(pRtcSession, &cfg, szCand);
     }
 
-    /*
-     * Host candidates are added during create but not trickled via this cb.
-     * When gathering finishes, dump all session local candidates (correct prio)
-     * so LAN host and relay are advertised to the peer.
-     */
     if (last) {
         pj_ice_sess_cand *cands = NULL;
         char *szCand = NULL;
@@ -1729,10 +1692,6 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
         rtc->tid = NULL;
     }
 
-    /*
-     * 3) Wait upper layer (p2p_cmd_recv) to leave dorecv and call notify_exit.
-     *    Must happen BEFORE channels_destroy or cmd_recv UAF on kcp.
-     */
     t0 = tuya_p2p_misc_get_timestamp_ms();
     for (wait_i = 0; wait_i < 300; wait_i++) {
         int met = 0;
@@ -1926,42 +1885,7 @@ int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc)
         ikcp_setoutput(chan->kcp, on_kcp_output);
         ikcp_wndsize(chan->kcp, send_buf_size / 1600  /*TUYA_MBUF_HUGE_SIZE*/,
                      recv_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/);
-        /*
-         * ikcp_nodelay(kcp, nodelay, interval, resend, nocwnd).
-         *
-         * nocwnd is 1, which retires KCP's own AIMD window. That is not the
-         * same as sending uncontrolled: ikcp_pacing.c governs what may be
-         * outstanding from the measured BDP and paces it out at the delivery
-         * rate, so there is still a brake - just one brake instead of two
-         * fighting. KCP's window was the cruder of the pair: any timeout put
-         * it back to 1, and measured on hardware it then took fourteen seconds
-         * to climb back while the link was losing about one packet a second,
-         * so the flow spent most of its life in recovery and averaged an
-         * effective window of 6 against peaks of 27.
-         *
-         * resend is the duplicate-ACK count that triggers fast retransmit, and
-         * TuyaOS ships 20. A segment only accumulates a fastack per later
-         * segment acknowledged, so the count cannot exceed the number in
-         * flight, which is cwnd - measured at 1..18 for almost this whole
-         * session. At 20 the threshold is therefore unreachable in practice and
-         * fast retransmit never runs: every loss, and every spurious timeout,
-         * falls through to RTO instead, and RTO restarts cwnd from 1 where a
-         * fast retransmit would only have taken it to 0.7x. Measured cost was
-         * 277 RTO events in 267 seconds - one per second, each one flattening
-         * the window - which is what held a LAN peer to ~275 kbps. 2 is the
-         * value KCP documents for this ("2 ACK spans and retransmit"), and 0,
-         * not 20, is how KCP spells "off".
-         *
-         * interval is written as the 10 ms it will actually be: ikcp_nodelay
-         * clamps anything below 10 upwards, so the 5 that used to be here never
-         * took effect and only misled.
-         *
-         * nodelay is 1, the value KCP documents for real time use. At 0 the RTO
-         * floor is 100 ms rather than 30, and a timeout doubles the segment's
-         * RTO where 1 raises it by half. Measured on hardware: the RTO reached
-         * 1463 ms, so a single loss bought over a second of silence on a link
-         * whose unloaded round trip was 42 ms.
-         */
+
         ikcp_nodelay(chan->kcp, 1, 10, 2, 1);
         ikcp_setmtu(chan->kcp, 1400);
         ikcp_setprocesspkt(chan->kcp, ctx_session_channel_process_pkt);
@@ -2042,8 +1966,7 @@ void *rtc_worker_thread(void *arg)
             uint64_t now = tuya_p2p_misc_get_timestamp_ms();
             if ((now - last_dump_ms) >= 2000ULL) {
                 uint64_t elapsed = now - start_ms;
-                /* DBG: which send-side limit is binding. srtt minus minrtt is the standing
-                 * queue, the one number that separates a slow link from a bloated one. */
+
                 tal_mutex_lock(rtc->channel_lock);
                 if (rtc->channels != NULL && rtc->channels[1].kcp != NULL) {
                     rtc_channel_t *vch = &rtc->channels[1]; /* TUYA_VDATA_CHANNEL */
@@ -2429,11 +2352,7 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
         rtc_channel_t *chan = &rtc->channels[channel_id];
         /* Align TuyaOS mid_p2p: sizes from mbuf_queue */
         if (write_size != NULL) {
-            /* Every queued packet is one mbuf held by one KCP segment, so the
-             * pool's used size and the segment count are two views of the same
-             * backlog - adding them counted it twice, and the pool's view is
-             * inflated anyway because it charges a whole TUYA_MBUF_HUGE_SIZE
-             * for a packet of any length. Ask KCP for the payload bytes. */
+
             *write_size = (chan->kcp != NULL) ? (uint32_t)ikcp_waitsnd_bytes(chan->kcp) : 0;
         }
         if (read_size != NULL) {
@@ -2532,9 +2451,6 @@ static int __rtc_channel_recreate_kcp(rtc_channel_t *chan, uint32_t conv)
     return 0;
 }
 
-/* Unlike clear_send_buffer this keeps the KCP object, so it is safe mid-stream:
- * rebuilding one resets snd_nxt to 0 while the peer's rcv_nxt stays where it
- * was, and every later segment is then discarded as a duplicate. */
 int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *p_dropped)
 {
     int32_t dropped = 0;

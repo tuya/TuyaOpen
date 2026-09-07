@@ -106,10 +106,6 @@ int rtp_packet_getsize()
     return s_max_packet_size;
 }
 
-/* Tuya assigns H.265 payload type 95 (H265_PAY_LOAD in TuyaOS mid_rtp), one
- * below the RFC 3551 dynamic range the rest of this table assumes. The App
- * identifies the codec by that number, so it has to reach the lookup by name
- * below rather than fall through to "not support". Nothing else claims 95. */
 #define RTP_PAYLOAD_TUYA_H265 95
 
 static int rtp_payload_find(int payload, const char *encoding, struct rtp_payload_delegate_t *codec)

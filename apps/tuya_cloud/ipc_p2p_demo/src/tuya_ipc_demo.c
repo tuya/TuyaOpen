@@ -133,8 +133,7 @@ extern const uint8_t demo_video_264_end[];
 #endif
 
 #if DEMO_HAS_AUDIO
-/* Mic is 20 ms. P2P used to pull 8000/DEMO_AV_FPS (40 ms), so a leftover
- * 20 ms frame sat in the ring and the next pull saw a half-frame. */
+
 #define DEMO_AUDIO_FRAME_MS      20
 #define DEMO_AUDIO_FRAME_BYTES   (8000 * DEMO_AUDIO_FRAME_MS / 1000)
 #define DEMO_AUDIO_RING_MS       320
@@ -175,7 +174,6 @@ static RING_BUFFER_USER_HANDLE_T s_ring_w = NULL;
 static RING_BUFFER_USER_HANDLE_T s_ring_r = NULL;
 static BOOL_T                    s_ring_ready = FALSE;
 #endif
-
 
 #if DEMO_HAS_FILE_PLAYBACK
 static const uint8_t *s_file_h264 = NULL;

@@ -26,12 +26,6 @@ extern "C" {
 #define TUYA_P2P_VIDEO_BITRATE_MIN  (600)
 #define TUYA_P2P_VIDEO_BITRATE_MAX  (4000)
 
-/*
- * Video send buffer bounds, matching TuyaOS mid_p2p. The OS app never sets
- * send_buf_size itself: the library derives it from video_bitrate_kbps and
- * clamps it here, which is what keeps the queue from growing into seconds of
- * latency when the link cannot carry the configured bitrate.
- */
 #define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
 #define TUYA_P2P_SEND_BUFFER_SIZE_MIN (500 * 1024)
 
@@ -440,9 +434,6 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
  * @param[in] channel_id channel number
  * @param[out] p_dropped bytes discarded, may be NULL
  * @return 0 on success, negative if there is no transport to ask
- * @note For the moment a key frame is about to be queued: everything behind it
- *       decodes into nothing once the receiver resynchronises, so retransmitting
- *       it spends a scarce link on frames that will never be shown.
  */
 int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *p_dropped);
 /**
@@ -452,10 +443,6 @@ int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *
  * @param[out] bw_bps bottleneck bandwidth in bytes per second, 0 if not yet measured
  * @param[out] min_rtt_ms smallest round trip seen recently, 0 if not yet measured
  * @return 0 on success, negative if there is no transport to ask
- * @note This is the delivery rate pacing works from - what the peer actually
- *       acknowledged, not what was handed to the socket. The encoder rate
- *       control uses it directly; queue occupancy only says a queue is full,
- *       never how much the link can carry.
  */
 int32_t tuya_p2p_rtc_get_link_rate(int32_t handle, uint32_t channel_id, uint32_t *bw_bps, uint32_t *min_rtt_ms);
 

@@ -21,11 +21,7 @@ extern "C" {
  */
 void demo_media_event_register(void);
 
-/**
- * @brief Stop the playback send thread if it is running (join, bounded wait).
- * @note Call when LIVE starts or the P2P session dies, so PB cannot keep
- *       feeding VDATA / retrying I-frames after the session is gone.
- */
+/** @brief Stop the playback send thread if it is running. */
 void demo_media_pb_stop(void);
 
 #ifdef __cplusplus

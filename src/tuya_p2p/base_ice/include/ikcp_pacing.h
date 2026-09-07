@@ -10,20 +10,7 @@
 
 #include <stdint.h>
 
-/**
- * @brief Compile-time switch for KCP send pacing.
- *
- * On means ikcp_flush spreads the congestion window across the RTT instead of
- * handing it to the socket all at once. Off restores the burst behaviour, which
- * is only useful for reproducing the loss pattern it was introduced to fix.
- *
- * This was once off for good reason: the original implementation advanced its
- * next-send deadline off kcp->current, which does not move within a flush, so
- * it let exactly one segment through per flush whatever rate it had computed,
- * and the caller charged it the accumulated output buffer rather than the
- * segment. Both faults are gone. The rate is measured from what the peer
- * acknowledges - see ikcp_pacing.c for why that is preferred over cwnd/srtt.
- */
+/** @brief Compile-time switch for KCP send pacing. */
 #ifndef IKCP_PACING_RATE_LIMIT
 #define IKCP_PACING_RATE_LIMIT 1
 #endif
@@ -32,8 +19,6 @@
 extern "C" {
 #endif
 
-/* ikcp.h sits next to ikcp.c rather than on the include path, so it cannot be
- * pulled in from here - forward declare instead, as this header always has. */
 struct IKCPCB;
 typedef struct IKCPCB ikcpcb;
 
@@ -59,9 +44,6 @@ void pacing_fini(ikcpcb *kcp);
  * @param[in,out] kcp kcp control block
  * @param[in] wire_bytes on-the-wire length of the segment being retired
  * @return none
- * @note Call wherever a segment leaves snd_buf because it was acked. This is
- *       the only input to the rate estimate; without it pacing falls back to
- *       cwnd/srtt forever.
  */
 void pacing_on_acked(ikcpcb *kcp, uint32_t wire_bytes);
 
@@ -70,8 +52,6 @@ void pacing_on_acked(ikcpcb *kcp, uint32_t wire_bytes);
  * @param[in,out] kcp kcp control block
  * @param[in] rtt measured round trip, milliseconds
  * @return none
- * @note Feeds the windowed minimum the bandwidth-delay product is built from.
- *       Without it pacing sets no in-flight ceiling and cannot drain a queue.
  */
 void pacing_on_rtt(ikcpcb *kcp, uint32_t rtt);
 
@@ -87,9 +67,6 @@ void pacing_flush_begin(ikcpcb *kcp);
  * @brief Smallest round trip seen recently, milliseconds
  * @param[in] kcp kcp control block
  * @return the windowed minimum, 0 before anything has been measured
- * @note Worth logging next to rx_srtt: the gap between the two is the standing
- *       queue, which is the one number that separates a slow link from a bloated
- *       one and is not otherwise visible from outside.
  */
 uint32_t pacing_min_rtt(const ikcpcb *kcp);
 

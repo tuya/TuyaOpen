@@ -31,18 +31,11 @@
 /* Must outlast any queue the flow builds, or min_rtt is just the queue. */
 #define PACING_RTT_WIN_MS 10000U
 
-/* In-flight ceiling in BDPs. Rate alone holds a queue at its current depth;
- * this is what drains it, and the only brake left when nothing is ever dropped. */
 #define PACING_INFLIGHT_BDP      2U
 #define PACING_INFLIGHT_MIN_PKTS 4U
 
-/* Longest smoothed round trip the ceiling will size itself for. Bounds the
- * srtt term against a stalled link, where srtt runs to seconds; past this the
- * data in flight is older than anything a live stream would still show. */
 #define PACING_RTT_FOLLOW_MAX_MS 1000U
 
-/* ProbeRTT: drain the queue periodically so min_rtt sees an unloaded path.
- * Without it the filter latches onto a queued sample and the BDP is meaningless. */
 /* Opening in-flight allowance before anything is measured, as TCP's IW10. */
 #define PACING_INIT_INFLIGHT_PKTS 10U
 
@@ -103,11 +96,7 @@ int pacing_init(ikcpcb *kcp)
         return -1;
     }
     memset(p, 0, sizeof(*p));
-    /*
-     * One packet of credit to open with. Without it the first flush of a flow
-     * whose rate rounds to less than a packet per period would send nothing at
-     * all, and nothing would ever be delivered to build an estimate from.
-     */
+
     p->tokens   = kcp->mtu;
     kcp->pacing = p;
     return 0;
@@ -143,13 +132,7 @@ void pacing_on_rtt(ikcpcb *kcp, uint32_t rtt)
         return;
     }
     p = (struct pacing *)kcp->pacing;
-    /*
-     * The minimum, not the average: the smallest round trip seen recently is
-     * the path without a queue in it, which is what the BDP has to be built
-     * from. kcp->rx_srtt cannot serve here - on a bloated link it is mostly
-     * queue, and a BDP computed from it would licence exactly the backlog it
-     * was measuring.
-     */
+
     minmax_running_min(&p->rtt, PACING_RTT_WIN_MS, kcp->current, rtt);
 }
 
@@ -197,12 +180,6 @@ static void pacing_sample(struct pacing *p, const ikcpcb *kcp, IUINT32 now)
     delta = (IUINT32)pacing_tdiff(now, p->sample_stamp);
     acked = p->delivered - p->sample_delivered;
 
-    /*
-     * Only a window that actually delivered something says anything about the
-     * link. An idle stretch - the encoder between key frames, a paused viewer -
-     * would otherwise enter the filter as a low rate and hold the flow down
-     * long after there is data to send again.
-     */
     if (acked > 0) {
         bw = (IUINT32)(((IUINT64)acked * 1000u) / delta);
         minmax_running_max(&p->bw, srtt * PACING_BW_WIN_RTTS, now, bw);
@@ -271,21 +248,9 @@ static IUINT32 pacing_inflight_cap(struct pacing *p, const ikcpcb *kcp, IUINT32 
     IUINT32 bw, min_rtt;
     IUINT64 cap;
 
-    /*
-     * Due for a probe: squeeze in flight down to a few packets so the queue
-     * ahead of us empties and the next round trip measures the path instead of
-     * the backlog. Held for a fixed spell rather than until a sample arrives,
-     * because on a badly bloated link the sample that ends it is itself stuck
-     * behind the queue being drained.
-     */
     if (pacing_tdiff(now, p->probe_at) >= 0) {
         if (p->probe_until == 0) {
-            /*
-             * Long enough to drain what is actually queued, not a fixed spell.
-             * srtt is a measure of that backlog on a bloated link, so it is the
-             * right scale; a constant 200 ms was measured ending the probe with
-             * five seconds of queue still ahead of it.
-             */
+
             IUINT32 hold = pacing_srtt(kcp);
             if (hold < PACING_PROBERTT_MS) {
                 hold = PACING_PROBERTT_MS;
@@ -306,30 +271,6 @@ static IUINT32 pacing_inflight_cap(struct pacing *p, const ikcpcb *kcp, IUINT32 
     }
     cap = (((IUINT64)bw * min_rtt) / 1000u) * PACING_INFLIGHT_BDP;
 
-    /*
-     * A second floor, from the round trip a packet actually experiences.
-     *
-     * The BDP above is built from the unloaded latency on purpose - that is
-     * what stops the ceiling licencing a queue it is measuring. But it assumes
-     * every queue on the path is one this flow put there and can therefore see.
-     * Where the backlog sits somewhere else - a radio's own transmit queue, an
-     * access point - min_rtt keeps reading the empty path while packets wait
-     * far longer, and the ceiling shrinks to a size that cannot sustain the
-     * bandwidth already measured. It then throttles the flow, which lowers the
-     * delivery rate, which lowers the estimate: the better the path's unloaded
-     * latency, the harder this holds it down.
-     *
-     * Measured on hardware, same firmware a minute apart: over a relay with
-     * min_rtt 142 ms the ceiling was 45 packets and the flow ran at 1.0 Mbps;
-     * on the LAN beside it, min_rtt 20 ms against a 141 ms smoothed round trip
-     * put the ceiling on its four packet floor and the same flow managed
-     * 318 kbps, with 22 pct of frames shed for want of anywhere to go.
-     *
-     * Little's law gives the fix its size: sustaining bw at a round trip of
-     * srtt needs exactly bw * srtt outstanding, no more. Sending stays paced at
-     * bw either way, so this cannot feed a queue - it only stops the ceiling
-     * from being the thing in the way.
-     */
     {
         IUINT32 srtt = pacing_srtt(kcp);
         IUINT64 sustain;
@@ -369,14 +310,6 @@ void pacing_flush_begin(ikcpcb *kcp)
     pacing_advance_cycle(p, kcp, now);
     p->rate = pacing_target_rate(p, kcp);
 
-    /*
-     * Credit accrues with time rather than being reset each flush. A rate below
-     * one packet per flush period is common on a poor link - version 2 rounded
-     * that up to a whole packet every period, which put a floor of about
-     * 1.1 Mbit/s under the pacer and made it unable to slow down at all on the
-     * link that needed it most. Carrying the remainder lets the flow send one
-     * packet every few periods instead.
-     */
     elapsed = pacing_tdiff(now, p->token_stamp);
     if (elapsed > 0) {
         topup = ((IUINT64)p->rate * (IUINT32)elapsed) / 1000u;
@@ -391,12 +324,6 @@ void pacing_flush_begin(ikcpcb *kcp)
         p->token_stamp = now;
     }
 
-    /*
-     * Cap the credit at one flush period's worth plus a packet. Any more and an
-     * idle flow would bank enough to burst on its first frame back, which is
-     * the behaviour pacing exists to prevent; any less and a fast link could
-     * not spend a period's allowance within the period.
-     */
     cap = (IUINT32)(((IUINT64)p->rate * kcp->interval) / 1000u);
     if (cap > 0xFFFFFFFFu - kcp->mtu) {
         cap = 0xFFFFFFFFu - kcp->mtu;
@@ -409,11 +336,6 @@ void pacing_flush_begin(ikcpcb *kcp)
         p->tokens = cap;
     }
 
-    /*
-     * Ceiling on what may be outstanding, from the measured BDP. Left at zero
-     * until both terms have been measured, so a flow that has not yet learned
-     * anything is governed by cwnd alone rather than by a guess.
-     */
     p->inflight_cap = pacing_inflight_cap(p, kcp, now);
 }
 
@@ -442,13 +364,6 @@ int pacing_try_send(ikcpcb *kcp, uint32_t pkt_len, int is_new)
     }
     p = (struct pacing *)kcp->pacing;
 
-    /*
-     * The ceiling applies to new data only. A retransmission replaces something
-     * already counted as outstanding, so charging it again would let a lossy
-     * spell starve the very repairs that end it - and kcp->nsnd_buf cannot serve
-     * as the measure here either, since it counts segments still waiting for
-     * their first transmission alongside those actually in flight.
-     */
     if (is_new && p->inflight_cap > 0 && p->inflight >= p->inflight_cap) {
         return 0;
     }

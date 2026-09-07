@@ -148,11 +148,6 @@ typedef struct IKCPSEG IKCPSEG;
 static void *(*ikcp_malloc_hook)(size_t) = NULL;
 static void (*ikcp_free_hook)(void *)    = NULL;
 
-/*
- * Default allocator: align OS tuya_p2p_lite_ikcp.c
- *   ikcp_malloc → tuya_p2p_lib_malloc → tkl_system_psram_malloc
- * when no hook is installed.
- */
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #include "tal_memory.h"
 #define IKCP_DEFAULT_MALLOC(s) tal_psram_malloc(s)
@@ -162,9 +157,6 @@ static void (*ikcp_free_hook)(void *)    = NULL;
 #define IKCP_DEFAULT_FREE(p)   free(p)
 #endif
 
-/* Not static: the congestion control module allocates its per-connection state
- * and must go through the same hook, or that state lands in a different memory
- * pool than the rest of the transport. */
 void *ikcp_malloc(size_t size)
 {
     if (ikcp_malloc_hook)
@@ -330,8 +322,7 @@ ikcpcb *ikcp_create(IUINT32 conv, void *user)
         ikcp_free(kcp);
         return NULL;
     }
-    /* CUBIC is what the shipping TuyaOS mid_p2p registers here; fall back to
-     * stock growth rather than failing the connection. */
+
     (void)ikcp_cong_cubic_init(kcp);
 
     return kcp;
@@ -1208,8 +1199,7 @@ void ikcp_flush(ikcpcb *kcp)
     rtomin = (kcp->nodelay == 0) ? (kcp->rx_rto >> 3) : 0;
 
 #if IKCP_PACING_RATE_LIMIT
-    /* One flush period's share of the cwnd/srtt rate, so a full window reaches
-     * the wire over an RTT rather than in a single burst the queue cannot hold. */
+
     pacing_flush_begin(kcp);
 #endif
 
@@ -1240,9 +1230,7 @@ void ikcp_flush(ikcpcb *kcp)
         size = (int)(ptr - buffer);
         need = IKCP_OVERHEAD + segment->len;
 #if IKCP_PACING_RATE_LIMIT
-        /* Charge this segment only. The old call passed the accumulated output
-         * buffer plus the segment, which counted the earlier segments again
-         * every time round and drained the budget far faster than the wire. */
+
         if (!pacing_try_send(kcp, (IUINT32)need, segment->xmit == 0)) {
             break;
         }
@@ -1479,10 +1467,6 @@ int ikcp_waitsnd(const ikcpcb *kcp)
     return kcp->nsnd_buf + kcp->nsnd_que;
 }
 
-/* Segment count says nothing about delay when segments are short, and the mbuf
- * pool cannot answer either: it charges a fixed TUYA_MBUF_HUGE_SIZE per buffer
- * whatever the packet holds. Payload bytes are what a playout budget is spent
- * in, so count those. */
 int ikcp_waitsnd_bytes(const ikcpcb *kcp)
 {
     struct IQUEUEHEAD *p;
@@ -1500,12 +1484,6 @@ int ikcp_waitsnd_bytes(const ikcpcb *kcp)
     return bytes;
 }
 
-/* Segments are given a sequence number in ikcp_flush, so whatever is still in
- * snd_queue is unknown to the peer and can be discarded without leaving a hole.
- * Fragments are the one constraint: ikcp_peeksize withholds a message until it
- * sees frg == 0, so orphaning the tail of one stalls the receiver for good.
- * Only snd_buf can hold a message that far, so its last segment decides whether
- * the head of snd_queue has to be kept. */
 int ikcp_drop_unsent(ikcpcb *kcp)
 {
     struct IQUEUEHEAD *p;

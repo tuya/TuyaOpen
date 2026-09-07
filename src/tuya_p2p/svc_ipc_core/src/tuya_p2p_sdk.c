@@ -28,8 +28,6 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     OPERATE_RET ret = OPRT_OK;
     static BOOL_T started = FALSE;
 
-    /* Bring-up is a one-off. Callers hang this off "device online", which fires
-     * again on every MQTT reconnect and would allocate another set of buffers. */
     if (started) {
         PR_WARN("IPC stack already started, ignoring");
         return OPRT_OK;
@@ -40,8 +38,7 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     skill_param.value = tuya_p2p_rtc_get_skill();
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_P2P, &skill_param);
     skill_param.value = 1;
-    /* lowPower is not announced on purpose: this build runs the always-on path,
-     * and claiming one while behaving as the other is worse than claiming neither. */
+
 #if defined(ENABLE_LOCAL_STORE) && (ENABLE_LOCAL_STORE == 1)
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOCALSTG, &skill_param);
 #endif
@@ -53,8 +50,7 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     stream_var.def_live_mode = TRANS_DEFAULT_STANDARD;
     stream_var.recv_buffer_size = 16 * 1024;
     int preconnect = stream_var.low_power ? 0 : 1;
-    /* Align TuyaOS wukong: sdkVar.media_info.video_bitrate[MAIN] = 1M, same
-     * value the demo encoder is configured with (DEMO_CAM_BITRATE_KB). */
+
     ret = __p2p_v3_login_init(preconnect, stream_var.max_client_num, TUYA_VIDEO_BITRATE_1M);
     if (OPRT_OK != ret) {
         PR_ERR("__p2p_v3_login_init failed\n");
@@ -85,8 +81,6 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
         return ret;
     }
 
-    /* Listen only after p2p_init allocated the session context: the listen thread
-     * wakes on ICE success and dereferences it immediately. */
     p2p_rtc_listen_start();
 
     /* Latched only once everything is up, so an early failure can still be retried. */
@@ -214,13 +208,7 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
     strOpt.max_channel_number = /*TUYA_CHANNEL_MAX*/ 6;
     strOpt.max_session_number = max_client;
     strOpt.max_pre_session_number = max_client;
-    /*
-     * video_bitrate_kbps sizes the video channel memory, exactly as TuyaOS
-     * does from sdkVar.media_info.video_bitrate[]. It used to be passed as 0
-     * here with send_buf_size hardcoded to 1.1 MB, which is above the OS
-     * maximum and let the queue grow to about eight seconds of video before
-     * anything was dropped.
-     */
+
     strOpt.video_bitrate_kbps = bitrate;
 
     /* Doubling this on Linux did not help: the limit is the link, not the buffer. */

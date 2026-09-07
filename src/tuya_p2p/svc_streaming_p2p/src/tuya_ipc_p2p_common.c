@@ -188,10 +188,7 @@ OPERATE_RET tuya_ipc_p2p_get_pw(char p2p_pw[])
             } while (--wait_times);
         }
     } else {
-        /*
-         * KV already has password. Still push to cloud so App/localkey MD5
-         * matches; stale cloud password caused first-connect auth failed.
-         */
+
         snprintf(p2p_pw, P2P_PASSWD_LEN + 1, "%s", (char *)old_pwd);
         tal_kv_free(old_pwd);
         if (sg_p2p_pwd_cloud_synced == FALSE && sg_p2p_passwd_update_flag == FALSE) {

@@ -132,8 +132,6 @@ OPERATE_RET demo_audio_port_open(DEMO_AUDIO_PORT_MIC_CB cb)
         return (rt != OPRT_OK) ? rt : OPRT_NOT_FOUND;
     }
 
-    /* Vendor VAD stops frames after silence and never resumes. tdl_audio_open
-     * calls tkl_ai_init(), which reads the flag. */
     tkl_ai_disable_vendor_vad();
 
     s_running = TRUE;

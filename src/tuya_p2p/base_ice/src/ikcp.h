@@ -410,9 +410,6 @@ void ikcp_log(ikcpcb *kcp, int mask, const char *fmt, ...);
 // setup allocator
 void ikcp_allocator(void *(*new_malloc)(size_t), void (*new_free)(void *));
 
-/* The allocator KCP itself uses, honouring whatever ikcp_allocator installed.
- * Exposed so companion modules - congestion control, pacing - keep their state
- * in the same pool as the transport rather than in the C library heap. */
 void *ikcp_malloc(size_t size);
 void  ikcp_free(void *ptr);
 

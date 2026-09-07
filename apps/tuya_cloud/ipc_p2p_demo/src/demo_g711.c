@@ -4,11 +4,6 @@
  * @version 1.0
  * @date 2026-09-02
  * @copyright Copyright (c) Tuya Inc.
- *
- * T5AI has this in modules/g711.h and Linux has nothing, so carrying the codec
- * with the demo is what lets one audio implementation serve both. It is the
- * same reference algorithm either way; the names differ from the platform's so
- * the two cannot collide at link time.
  */
 #include "demo_g711.h"
 

@@ -32,8 +32,6 @@ extern "C" {
 #define DEMO_ENABLE_AUDIO 0
 #endif
 
-/* Recording and playback need both: the option is on, and the library it
- * selects actually got built. */
 #if defined(CAMERA_DEMO_LOCAL_STORE) && (CAMERA_DEMO_LOCAL_STORE == 1) &&                                          \
     defined(ENABLE_LOCAL_STORE) && (ENABLE_LOCAL_STORE == 1)
 #define DEMO_HAS_LOCAL_STORE 1

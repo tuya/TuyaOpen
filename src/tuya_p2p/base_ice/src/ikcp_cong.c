@@ -44,14 +44,7 @@ struct ikcp_cubic {
     IUINT32 bic_K;            /* time to reach the plateau, BICTCP_HZ fixed point */
     IUINT32 delay_min;        /* smallest RTT seen (ms) */
     IUINT32 epoch_start;      /* start of the current congestion epoch (ms) */
-    /*
-     * Two counters, deliberately. ack_cnt feeds the TCP-friendliness estimate,
-     * which consumes from it; cwnd_cnt paces the cubic increase itself. Sharing
-     * one - as this first did - lets the friendliness loop drain the ACKs the
-     * cubic step is waiting on, and congestion avoidance then barely grows at
-     * all: the window sits where a loss left it. The kernel keeps these apart
-     * for the same reason (ca->ack_cnt versus tp->snd_cwnd_cnt).
-     */
+
     IUINT32 ack_cnt;  /* ACKs counted toward the Reno comparison */
     IUINT32 cwnd_cnt; /* ACKs counted toward the next cubic increment */
     IUINT32 tcp_cwnd; /* cwnd a Reno flow would have (TCP friendliness) */
@@ -145,11 +138,6 @@ static void __cubic_update(ikcpcb *kcp, struct ikcp_cubic *ca, IUINT32 cwnd, IUI
         return;
     }
 
-    /*
-     * Once the epoch has started and this is still the same millisecond, the
-     * previously computed cnt is still valid - recomputing would only add
-     * rounding noise.
-     */
     if (ca->epoch_start != 0 && now == ca->last_time) {
         return;
     }
@@ -167,10 +155,7 @@ static void __cubic_update(ikcpcb *kcp, struct ikcp_cubic *ca, IUINT32 cwnd, IUI
             ca->bic_K            = 0;
             ca->bic_origin_point = cwnd;
         } else {
-            /*
-             * K = cbrt((W_max - cwnd) * cube_factor), the time still needed to
-             * climb back to the window that last caused a loss.
-             */
+
             ca->bic_K            = __cubic_root(CUBIC_CUBE_FACTOR * (IUINT64)(ca->last_max_cwnd - cwnd));
             ca->bic_origin_point = ca->last_max_cwnd;
         }
@@ -202,28 +187,12 @@ static void __cubic_update(ikcpcb *kcp, struct ikcp_cubic *ca, IUINT32 cwnd, IUI
         ca->cnt = 100 * cwnd;
     }
 
-    /*
-     * Very start of a connection with no loss history: be aggressive so the
-     * first seconds of a stream are not spent ramping.
-     */
     if (ca->last_max_cwnd == 0 && ca->cnt > 20) {
         ca->cnt = 20;
     }
 
-    /*
-     * TCP friendliness - if a Reno flow would have grown faster by now, use
-     * its window instead so CUBIC never loses to plain Reno on short links.
-     */
     if (ca->delay_min > 0) {
-        /*
-         * Reno's window after the same number of ACKs, tracked alongside the
-         * cubic one; where it would have been ahead, grow at its pace instead.
-         * The step is (cwnd * beta_scale) >> 3 ACKs per additional packet, and
-         * the surplus is carried rather than discarded - dropping it, as an
-         * earlier version here did by zeroing ack_cnt, loses part of every
-         * increment and quietly makes the flow less aggressive than Reno,
-         * which is the opposite of what this is for.
-         */
+
         IUINT32 delta = (cwnd * CUBIC_BETA_SCALE_C) >> 3;
 
         while (delta > 0 && ca->ack_cnt > delta) {
@@ -256,9 +225,7 @@ int ikcp_cong_cubic_init(ikcpcb *kcp)
     if (kcp->cong != NULL) {
         return 0;
     }
-    /* Through KCP's own hooks, not bare malloc: the SDK overrides them to put
-     * transport allocations where it wants them (PSRAM on parts that have it)
-     * and to account for them. */
+
     ca = (struct ikcp_cubic *)ikcp_malloc(sizeof(*ca));
     if (ca == NULL) {
         return -1;
@@ -333,11 +300,6 @@ void ikcp_cong_cubic_on_loss(ikcpcb *kcp, int is_timeout)
 
     ca->epoch_start = 0; /* a new epoch begins after this loss */
 
-    /*
-     * Fast convergence: when we lose below the previous loss point, the
-     * available bandwidth has probably dropped, so pull W_max down further to
-     * let the flow settle instead of aiming at a window that no longer fits.
-     */
     if (cwnd < ca->last_max_cwnd) {
         ca->last_max_cwnd = (cwnd * (BICTCP_BETA_SCALE + CUBIC_BETA)) / (2 * BICTCP_BETA_SCALE);
     } else {
