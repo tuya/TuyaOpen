@@ -83,13 +83,6 @@ typedef struct {
     TUYA_DVP_ENCODED_QUALITY  encoded_quality;
     TDL_CAMERA_GET_FRAME_CB   get_frame_cb;
     TDL_CAMERA_GET_FRAME_CB   get_encoded_frame_cb;
-    /* Target bitrate for drivers that drive a hardware video encoder. Only the
-     * caller knows the budget the stream has to fit (P2P send window, storage),
-     * so a driver default is a guess. 0 keeps the driver's own default. */
-    uint32_t                  bitrate_kbps;
-    /* Frames between I-frames. Sets how long a lossy link stays frozen after it
-     * has to resync, so the caller that knows the link picks it. 0 = default. */
-    uint32_t                  gop;
 }TDL_CAMERA_CFG_T;
 
 
@@ -127,28 +120,6 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
  * @return OPRT_NOT_SUPPORTED (function not implemented)
  */
 OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl);
-
-/**
- * @brief Ask the camera's encoder for an immediate key frame
- *
- * A decoder can only begin, or resume after loss, at a key frame. Waiting for
- * the next scheduled one costs up to a full GOP of blank video.
- *
- * @param camera_hdl camera handle
- * @return OPRT_OK when the request was accepted, OPRT_NOT_SUPPORTED when this
- *         camera has no encoder to ask
- */
-OPERATE_RET tdl_camera_dev_request_i_frame(TDL_CAMERA_HANDLE_T camera_hdl);
-
-/**
- * @brief Change the target bitrate of the camera's encoder
- *
- * @param camera_hdl camera handle
- * @param kbps new target bitrate
- * @return OPRT_OK on success, OPRT_NOT_SUPPORTED when this camera has no
- *         encoder whose rate can be changed
- */
-OPERATE_RET tdl_camera_dev_set_bitrate(TDL_CAMERA_HANDLE_T camera_hdl, uint32_t kbps);
 
 #ifdef __cplusplus
 }

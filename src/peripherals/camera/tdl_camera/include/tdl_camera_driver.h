@@ -89,23 +89,11 @@ typedef struct {
     uint16_t                  height;
     TDL_CAMERA_FMT_E          out_fmt;
     TUYA_DVP_ENCODED_QUALITY  encoded_quality;
-    uint32_t                  bitrate_kbps; /**< Target bitrate for drivers with a
-                                             *  hardware encoder; 0 = driver default. */
-    uint32_t                  gop;          /**< Frames between I-frames; 0 = driver default. */
 } TDD_CAMERA_OPEN_CFG_T;
 
 typedef struct {
     OPERATE_RET (*open )(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN_CFG_T *cfg);
     OPERATE_RET (*close)(TDD_CAMERA_DEV_HANDLE_T device);
-    /**
-     * Optional, and only meaningful where the driver owns a hardware encoder.
-     * They exist so a streaming stack can react to the network: ask for a key
-     * frame when a viewer needs somewhere to start decoding, and move the
-     * bitrate when the link cannot carry what is being produced. Leave NULL
-     * and the camera simply keeps the settings it was opened with.
-     */
-    OPERATE_RET (*request_i_frame)(TDD_CAMERA_DEV_HANDLE_T device);
-    OPERATE_RET (*set_bitrate)(TDD_CAMERA_DEV_HANDLE_T device, uint32_t kbps);
 } TDD_CAMERA_INTFS_T;
 
 typedef struct {

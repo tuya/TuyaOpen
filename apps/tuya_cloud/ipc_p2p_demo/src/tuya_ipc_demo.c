@@ -442,8 +442,6 @@ static OPERATE_RET __demo_camera_open(void)
     cfg.width = DEMO_CAM_WIDTH;
     cfg.height = DEMO_CAM_HEIGHT;
     cfg.fps = DEMO_CAM_FPS;
-    cfg.bitrate_kbps = DEMO_CAM_KBPS;
-    cfg.gop = DEMO_CAM_GOP;
     /* TDL_CAMERA_FMT_E has no H.265 member; the board encoder decides the codec. */
     cfg.out_fmt = TDL_CAMERA_FMT_H264;
     cfg.get_encoded_frame_cb = __demo_encoded_frame_cb;
@@ -473,18 +471,14 @@ static void __demo_camera_close(void)
 
 static OPERATE_RET __demo_camera_request_i_frame(void)
 {
-    if (s_cam == NULL) {
-        return OPRT_NOT_SUPPORTED;
-    }
-    return tdl_camera_dev_request_i_frame(s_cam);
+    (void)s_cam;
+    return OPRT_NOT_SUPPORTED;
 }
 
 static OPERATE_RET __demo_camera_set_bitrate(uint32_t kbps)
 {
-    if (s_cam == NULL) {
-        return OPRT_NOT_SUPPORTED;
-    }
-    return tdl_camera_dev_set_bitrate(s_cam, kbps);
+    (void)kbps;
+    return OPRT_NOT_SUPPORTED;
 }
 
 #else /* !DEMO_HAS_CAMERA - the demo bitstream is the only source */
