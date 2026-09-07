@@ -128,7 +128,6 @@ static int rtp_h264_pack_fu_a(struct rtp_encode_h264_t *packer, const uint8_t *n
             /* Last fragment of a multi-fragment NALU: END only. START was set on
                the first fragment (loop init) and cleared by (fu_header &= 0x1F)
                below; a single-NALU case never reaches fu_a (handled by _pack_nalu).
-               Matches TuyaOS tuya_p2p_h264_packetize_nal_fua:
                FU_header = (first?0x80:0) | (last?0x40:0) | nal_type. */
             fu_header = FU_END | (fu_header & 0x1F);
             packer->pkt.payloadlen = bytes;

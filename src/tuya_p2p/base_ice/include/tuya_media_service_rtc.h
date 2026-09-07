@@ -26,12 +26,6 @@ extern "C" {
 #define TUYA_P2P_VIDEO_BITRATE_MIN  (600)
 #define TUYA_P2P_VIDEO_BITRATE_MAX  (4000)
 
-/*
- * Video send buffer bounds, matching TuyaOS mid_p2p. The OS app never sets
- * send_buf_size itself: the library derives it from video_bitrate_kbps and
- * clamps it here, which is what keeps the queue from growing into seconds of
- * latency when the link cannot carry the configured bitrate.
- */
 #define TUYA_P2P_SEND_BUFFER_SIZE_MAX (800 * 1024)
 #define TUYA_P2P_SEND_BUFFER_SIZE_MIN (500 * 1024)
 
@@ -428,12 +422,30 @@ void tuya_p2p_rtc_notify_exit();
 // Check the current send/receive buffer status of a connection:
 // handle: connection handle
 // channel_id: channel number
-// write_size: after function returns, updated to current bytes written to send buffer but not sent successfully
+// write_size: after function returns, total bytes queued for send - the mbuf queue plus KCP's own backlog
 // read_size: after function returns, updated to current bytes received successfully but not read by application layer
 // send_free_size: after function returns, updated to remaining space in send buffer
 // return value: undefined
 int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t *write_size, uint32_t *read_size,
                                   uint32_t *send_free_size);
+/**
+ * @brief Discard queued data the peer has not been told about yet
+ * @param[in] handle session handle (unused; uses the current session)
+ * @param[in] channel_id channel number
+ * @param[out] p_dropped bytes discarded, may be NULL
+ * @return 0 on success, negative if there is no transport to ask
+ */
+int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *p_dropped);
+/**
+ * @brief What the transport has measured the link to be capable of
+ * @param[in] handle session handle (unused; uses the current session)
+ * @param[in] channel_id media channel id (e.g. TUYA_VDATA_CHANNEL)
+ * @param[out] bw_bps bottleneck bandwidth in bytes per second, 0 if not yet measured
+ * @param[out] min_rtt_ms smallest round trip seen recently, 0 if not yet measured
+ * @return 0 on success, negative if there is no transport to ask
+ */
+int32_t tuya_p2p_rtc_get_link_rate(int32_t handle, uint32_t channel_id, uint32_t *bw_bps, uint32_t *min_rtt_ms);
+
 /**
  * @brief Drop pending KCP send segments on a channel and recreate KCP (free mbuf budget)
  * @param[in] handle session handle (unused; uses current g_pRtcSession)

@@ -14,7 +14,12 @@
 /* ---------------------------------------------------------------------------
  * Macros
  * --------------------------------------------------------------------------- */
+/* Slot count is a memory budget: one encoded frame per slot. */
+#if defined(SYSTEM_LINUX) && (OPERATING_SYSTEM == SYSTEM_LINUX)
+#define RBUF_MAX_SLOTS 64
+#else
 #define RBUF_MAX_SLOTS 8
+#endif
 #define RBUF_DEVICE_MAX 1
 #define RBUF_CHANNEL_MAX 1
 #define RBUF_STREAM_MAX ((int)E_IPC_STREAM_MAX)
@@ -39,6 +44,7 @@ typedef struct {
     uint32_t max_frame_size;
     uint32_t write_idx;
     uint32_t seq;
+    uint32_t           skip_cnt; /* frames skipped because the reader fell behind */
     RING_BUFFER_NODE_T nodes[RBUF_MAX_SLOTS];
     MUTEX_HANDLE lock;
 } RBUF_STREAM_T;
@@ -292,29 +298,19 @@ OPERATE_RET tuya_ipc_ring_buffer_append_data(RING_BUFFER_USER_HANDLE_T handle, u
 }
 
 /**
- * @brief Get next frame for reader
- * @param[in] handle read handle
- * @param[in] is_retry unused
- * @return node or NULL
+ * @brief Choose the next frame for a reader. Caller holds st->lock.
+ * @param[out] skip_from,skip_to set when frames were skipped, for reporting
+ * @return chosen node, or NULL when the ring holds nothing new
  */
-RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T handle, BOOL_T is_retry)
+static RING_BUFFER_NODE_T *__rbuf_pick_locked(RBUF_USER_T *user, RBUF_STREAM_T *st, uint32_t *skip_from,
+                                              uint32_t *skip_to)
 {
-    RBUF_USER_T *user = (RBUF_USER_T *)handle;
-    RBUF_STREAM_T *st;
-    RING_BUFFER_NODE_T *best = NULL;
-    uint32_t i;
+    RING_BUFFER_NODE_T *best       = NULL;
     uint32_t newest_seq = 0;
+    uint32_t            i;
 
-    (void)is_retry;
-    if (user == NULL || user->open_type != E_RBUF_READ) {
-        return NULL;
-    }
-    st = user->stream;
-    if (st == NULL || !st->inited) {
-        return NULL;
-    }
-
-    tal_mutex_lock(st->lock);
+    *skip_from = 0;
+    *skip_to   = 0;
     for (i = 0; i < st->slot_cnt; i++) {
         RING_BUFFER_NODE_T *n = &st->nodes[i];
         if (n->seq_no == 0 || n->size == 0) {
@@ -330,30 +326,143 @@ RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T han
         }
     }
     if (best != NULL && newest_seq > 0 && (newest_seq - best->seq_no) > (st->slot_cnt / 2)) {
+        RING_BUFFER_NODE_T *newest_key = NULL;
+
+        /* Too far behind to catch up in sequence; resume at the newest key frame. */
         for (i = 0; i < st->slot_cnt; i++) {
-            if (st->nodes[i].seq_no == newest_seq) {
-                best = &st->nodes[i];
-                break;
+            RING_BUFFER_NODE_T *n = &st->nodes[i];
+            if (n->seq_no == 0 || n->size == 0 || n->seq_no <= user->read_seq) {
+                continue;
+            }
+            if (n->type != E_VIDEO_I_FRAME) {
+                continue;
+            }
+            if (newest_key == NULL || n->seq_no > newest_key->seq_no) {
+                newest_key = n;
             }
         }
+        if (newest_key != NULL) {
+            *skip_from = best->seq_no;
+            *skip_to   = newest_key->seq_no;
+            best       = newest_key;
+        }
     }
+    return best;
+}
+
+/** @brief Report skipped frames, outside the lock */
+static void __rbuf_report_skip(RBUF_STREAM_T *st, uint32_t skip_from, uint32_t skip_to)
+{
+    if (skip_to == 0) {
+        return;
+    }
+    if ((st->skip_cnt++ % 30) == 0) {
+        PR_WARN("ring reader behind, skip seq %u -> %u (I-frame), count %u", skip_from, skip_to, st->skip_cnt);
+    }
+}
+
+/**
+ * @brief Get next frame for reader (borrowed pointer, see header warning)
+ * @param[in] handle read handle
+ * @param[in] is_retry unused
+ * @return node or NULL
+ */
+RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T handle, BOOL_T is_retry)
+{
+    RBUF_USER_T        *user = (RBUF_USER_T *)handle;
+    RBUF_STREAM_T      *st;
+    RING_BUFFER_NODE_T *best;
+    uint32_t            skip_from = 0, skip_to = 0;
+
+    (void)is_retry;
+    if (user == NULL || user->open_type != E_RBUF_READ) {
+        return NULL;
+    }
+    st = user->stream;
+    if (st == NULL || !st->inited) {
+        return NULL;
+    }
+
+    tal_mutex_lock(st->lock);
+    best = __rbuf_pick_locked(user, st, &skip_from, &skip_to);
     if (best != NULL) {
         user->read_seq = best->seq_no;
     }
     tal_mutex_unlock(st->lock);
+
+    __rbuf_report_skip(st, skip_from, skip_to);
     return best;
 }
 
 /**
- * @brief Reset reader to newest frame
+ * @brief Select and copy the next frame out of the ring, under the lock
+ * @return OPRT_OK when a frame was copied
+ */
+OPERATE_RET tuya_ipc_ring_buffer_read_frame(RING_BUFFER_USER_HANDLE_T handle, uint8_t *dst, uint32_t dst_cap,
+                                            RING_BUFFER_NODE_T *out)
+{
+    RBUF_USER_T        *user = (RBUF_USER_T *)handle;
+    RBUF_STREAM_T      *st;
+    RING_BUFFER_NODE_T *best;
+    OPERATE_RET         rt        = OPRT_RESOURCE_NOT_READY;
+    uint32_t            skip_from = 0, skip_to = 0;
+
+    if (user == NULL || user->open_type != E_RBUF_READ || dst == NULL || out == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+    st = user->stream;
+    if (st == NULL || !st->inited) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(st->lock);
+    best = __rbuf_pick_locked(user, st, &skip_from, &skip_to);
+    if (best != NULL) {
+        if (best->size > dst_cap) {
+            PR_ERR("ring frame %u exceeds reader buffer %u", best->size, dst_cap);
+            rt = OPRT_INVALID_PARM;
+        } else {
+
+            memcpy(dst, best->raw_data, best->size);
+            *out           = *best;
+            out->raw_data  = dst;
+            user->read_seq = best->seq_no;
+            rt             = OPRT_OK;
+        }
+    }
+    tal_mutex_unlock(st->lock);
+
+    __rbuf_report_skip(st, skip_from, skip_to);
+    return rt;
+}
+
+/**
+ * @brief Reset reader to the newest frame in the ring
  * @param[in] handle read handle
  * @return none
  */
 void tuya_ipc_ring_buffer_clean_user_state(RING_BUFFER_USER_HANDLE_T handle)
 {
     RBUF_USER_T *user = (RBUF_USER_T *)handle;
+    RBUF_STREAM_T *st;
+    uint32_t       i;
+
     if (user == NULL) {
         return;
     }
+    st = user->stream;
+    if (st == NULL || !st->inited) {
+        user->read_seq = 0;
+        return;
+    }
+
+    /* Forward to the newest frame held, which is what a late reader wants. */
+    tal_mutex_lock(st->lock);
     user->read_seq = 0;
+    for (i = 0; i < st->slot_cnt; i++) {
+        if (st->nodes[i].seq_no > user->read_seq) {
+            user->read_seq = st->nodes[i].seq_no;
+        }
+    }
+    tal_mutex_unlock(st->lock);
 }

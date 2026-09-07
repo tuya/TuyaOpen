@@ -1,6 +1,6 @@
 /**
  * @file bc_msg_queue.h
- * @brief Byte-oriented signaling message queue (align TuyaOS mid_p2p bc_msg_queue)
+ * @brief Byte-oriented signaling message queue
  * @version 1.0
  * @date 2026-08-04
  * @copyright Copyright (c) Tuya Inc.

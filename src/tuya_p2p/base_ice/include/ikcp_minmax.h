@@ -1,6 +1,6 @@
 /**
  * @file ikcp_minmax.h
- * @brief Windowed min/max tracker (TuyaOS mid_p2p win_minmax)
+ * @brief Windowed min/max tracker
  * @version 1.0
  * @date 2026-08-04
  * @copyright Copyright (c) Tuya Inc.

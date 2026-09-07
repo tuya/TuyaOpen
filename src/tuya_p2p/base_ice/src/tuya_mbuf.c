@@ -1,20 +1,19 @@
 /**
  * @file tuya_mbuf.c
- * @brief mbuf queue aligned with TuyaOS mid_p2p kcppool semantics
+ * @brief Byte-budget mbuf queue for KCP send
  * @version 1.0
  * @date 2026-08-04
  * @copyright Copyright (c) Tuya Inc.
  *
- * OS behavior (from libtuyaos.a / tuya_p2p_lite_kcppool):
- * - Buffer memory comes from tuya_p2p_lib_malloc → tkl_system_psram_malloc
+ * - Buffer memory comes from PSRAM when ENABLE_EXT_RAM
  * - Each alloc charges a fixed TUYA_MBUF_HUGE_SIZE (1600) against the queue budget
- * - Payload lives in a 1600-byte slab (mem_cache); OpenSDK has no slab source, so
- *   allocate a 1600-byte PSRAM block per mbuf instead of per-request SRAM sizes
+ * - Payload lives in a 1600-byte block
  */
 #include "tuya_mbuf.h"
 #include "tal_mutex.h"
 #include "tal_memory.h"
 #include "tuya_cloud_types.h"
+#include "tal_log.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -25,7 +24,7 @@
 #define TUYA_MBUF_HUGE_SIZE 1600
 #endif
 
-/* Align OS tuya_p2p_lib_malloc / free (always PSRAM when EXT_RAM) */
+/* Prefer PSRAM when ENABLE_EXT_RAM */
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define TUYA_MBUF_MALLOC(s) tal_psram_malloc(s)
 #define TUYA_MBUF_CALLOC(n, s) tal_psram_calloc(n, s)
@@ -90,6 +89,11 @@ void tuya_mbuf_queue_destroy(tuya_mbuf_queue_t *q)
 {
     if (q == NULL) {
         return;
+    }
+
+    if (q->used_size != 0) {
+        PR_ERR("mbuf queue destroyed with %d bytes outstanding (in=%lld out=%lld)", q->used_size,
+               (long long)q->total_bytes_in, (long long)q->total_bytes_out);
     }
     q->close_flag = 1;
     tal_mutex_release(q->lock);

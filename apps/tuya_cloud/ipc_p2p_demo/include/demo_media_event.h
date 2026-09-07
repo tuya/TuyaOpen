@@ -21,6 +21,9 @@ extern "C" {
  */
 void demo_media_event_register(void);
 
+/** @brief Stop the playback send thread if it is running. */
+void demo_media_pb_stop(void);
+
 #ifdef __cplusplus
 }
 #endif

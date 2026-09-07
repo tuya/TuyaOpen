@@ -1,11 +1,11 @@
 /**
  * @file ikcp_minmax.c
- * @brief Windowed min/max tracker aligned with TuyaOS tuya_p2p_lite_win_minmax
+ * @brief Windowed min/max tracker
  * @version 1.0
  * @date 2026-08-04
  * @copyright Copyright (c) Tuya Inc.
  *
- * @note Algorithm matches Linux kernel lib/minmax.c (used by BBR / OS mid_p2p).
+ * @note Algorithm matches Linux kernel lib/minmax.c (used by BBR).
  */
 #include "ikcp_minmax.h"
 

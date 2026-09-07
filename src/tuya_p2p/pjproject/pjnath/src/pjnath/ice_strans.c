@@ -1914,9 +1914,8 @@ static void on_ice_complete(pj_ice_sess *ice, pj_status_t status)
                         comp->turn[tp_idx].log_off = PJ_TRUE;
                     } else {
                         /*
-                         * Align TuyaOS mid_p2p lite-ice: after host/srflx
-                         * nominate, tear down unused TURN so Refresh/ChannelBind
-                         * no longer floods lwIP (ENOBUFS).
+                         * After host/srflx nominate, tear down unused TURN so
+                         * Refresh/ChannelBind no longer floods lwIP (ENOBUFS).
                          */
                         unsigned j;
                         for (j = 0; j < ice_st->cfg.turn_tp_cnt; ++j) {
