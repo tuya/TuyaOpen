@@ -30,10 +30,7 @@
 #define P2P_SESSION_IDLE    (0)
 #define P2P_SESSION_RUNNING (1)
 #define P2P_SESSION_CLOSING (2)
-#define P2P_SESSION_INITING (3)
 
-/* Tuya c2c intercom audio operations (sub-type of TY_C2C_CMD_IO_CTRL_AUDIO, high=8).
- * Align TuyaOS APP<->device speaker protocol. Adjust values per App cmd log if mismatched. */
 typedef enum {
     TY_CMD_IO_CTRL_AUDIO_SPEAKER_START = 0,
     TY_CMD_IO_CTRL_AUDIO_SPEAKER_STOP = 1,
@@ -89,6 +86,8 @@ typedef struct {
     int channel;
     char *p_rtp_buff;                         // RTP data buffer, reference size MTU+100
     int fix_len;                              // Supplementary private header data
+
+    int  sent_pkts;
     char ext_head_buff[P2P_EXT_HEAD_MAX_LEN]; // According to extended video header protocol head+ext(8)+rtp_len
 } RTP_PACK_NAL_ARG_T;
 
@@ -108,6 +107,12 @@ typedef struct {
     int cur_read; // Current read length
     int flag;     // READ_HEADER_PART/READ_PAYLOAD_PART
 } P2P_DATA_PARSE_T;
+
+typedef enum {
+    RC_STATE_INCREASE = 0,
+    RC_STATE_HOLD,
+    RC_STATE_DECREASE,
+} RC_STATE_E;
 
 typedef struct {
     MUTEX_HANDLE cmutex;
@@ -143,6 +148,26 @@ typedef struct {
     uint32_t dbg_vsend_ok;                             // DBG: successful video RTP sends
     uint32_t dbg_vsend_skip;                           // DBG: skipped non-I before first key
     uint32_t dbg_vget_fail;                            // DBG: get-frame callback failures
+    uint32_t                  dbg_vsend_fail;                           // video sends that returned an error
+    uint32_t                  dbg_asend_fail;                           // audio sends that returned an error
+    uint32_t                  dbg_ashed;                                // audio frames dropped past the deadline
+    uint32_t                  dbg_aq_used;                              // bytes the audio channel last had in flight
+
+    uint32_t   tx_fill_pct;                             // occupancy of the video send queue, 0-100
+    uint32_t   tx_full_cnt;                             // times a frame did not fit, this session
+    uint32_t   tx_max_frame;                            // largest frame offered, sizes the queue floor
+    uint32_t   tx_drop_cnt;                             // key frames that shed a stale backlog
+    uint32_t   rc_fill_peak;                            // worst occupancy seen in the current window
+    uint32_t   rc_fill_sum;                             // occupancy accumulated over the window
+    uint32_t   rc_fill_samples;                         // samples behind rc_fill_sum
+    uint32_t   rc_full_at_start;                        // tx_full_cnt when the window opened
+    uint32_t   rc_warmup;                               // windows skipped while the link settles
+    RC_STATE_E rc_state;                                // increase / hold / decrease, see the draft
+    uint64_t   rc_window_ms;                            // when the current window opened
+    uint32_t   rc_bw_kbps;                              // smoothed link capacity the transport measured
+    uint32_t   rc_base_kbps;                            // configured rate, the ceiling to return to
+    uint32_t   rc_cur_kbps;                             // rate currently commanded
+    uint64_t   iframe_req_ms;                           // last key frame request, to rate limit them
     BOOL_T video_frame_pending;                     // Hold last get_frame until RTP send succeeds
 
     tuya_p2p_rtc_disconnect_cb_t on_disconnect_callback;
@@ -153,6 +178,8 @@ typedef struct {
     tuya_p2p_rtc_live_video_cb_t on_live_audio_start_callback;
     tuya_p2p_rtc_live_video_cb_t on_live_audio_stop_callback;
     tuya_p2p_rtc_get_frame_cb_t  on_recv_audio_frame_callback;
+    tuya_p2p_rtc_req_i_frame_cb_t on_request_i_frame_callback;
+    tuya_p2p_rtc_set_bitrate_cb_t on_set_video_bitrate_callback;
     THREAD_HANDLE cmd_recv_proc_thread;   // Command receive thread handle
     THREAD_HANDLE video_send_proc_thread; // Video send thread handle
     THREAD_HANDLE audio_downlink_thread;  // Downlink audio (APP->spk) recv thread
@@ -200,7 +227,9 @@ void ctx_listen_thread_func(void *arg)
         PR_NOTICE("__p2p_deal_with_listen, session[%d]", session_id);
         p2p_deal_with_listen(session_id);
     }
-    PR_NOTICE("p2p listen task exit");
+
+    g_listen_start = 0;
+    PR_ERR("p2p listen task exit - no further peers will be accepted until listen is restarted");
     return;
 }
 
@@ -238,29 +267,27 @@ OPERATE_RET p2p_rtc_listen_stop()
     return OPRT_OK;
 }
 
-P2P_SESSION_T *p2p_get_idle_session(int *index)
-{
-    int status = -1;
-    int i = 0;
-    if (sg_p2p_session == NULL)
-        return NULL;
-    PR_DEBUG("p2p_get_idle_session begin\n");
-    status = sg_p2p_session->status;
-    if (P2P_SESSION_IDLE == status) {
-        *index = i;
-        sg_p2p_session->status = P2P_SESSION_INITING;
-        return sg_p2p_session;
-    }
-    PR_DEBUG("p2p_get_idle_session end\n");
-    return NULL;
-}
-
 OPERATE_RET p2p_deal_with_listen(int session)
 {
     OPERATE_RET ret = OPRT_OK;
     BOOL_T userCheckEnable = FALSE;
 
     PR_NOTICE("__p2p_deal_with_listen, session[%d]", session);
+
+    // Every branch below dereferences the session context, so refuse the
+    // connection instead of faulting if it is not up yet.
+    if (NULL == sg_p2p_session) {
+        PR_ERR("p2p session not initialized, reject session[%d]", session);
+        __p2p_rtc_close(session, RTC_CLOSE_REASON_SESSION_FULL, NULL);
+        return OPRT_COM_ERROR;
+    }
+
+    if (P2P_SESSION_IDLE != sg_p2p_session->status) {
+        PR_WARN("session[%d] already active (status %d), reject session[%d]", sg_p2p_session->session,
+                sg_p2p_session->status, session);
+        __p2p_rtc_close(session, RTC_CLOSE_REASON_SESSION_FULL, NULL);
+        return OPRT_COM_ERROR;
+    }
 
     // First verify user information, close corresponding session if not qualified
     if (OPRT_OK != p2p_get_userinfo(session, 1)) {
@@ -272,9 +299,10 @@ OPERATE_RET p2p_deal_with_listen(int session)
             }
         }
         PR_ERR("Close session[%d]", session);
+        // Close just this session. Tearing the RTC stack down here would
+        // destroy the global message queue, worker and session mutex, so one
+        // rejected peer would leave P2P dead until the process restarts.
         __p2p_rtc_close(session, RTC_CLOSE_REASON_AUTH_FAIL, NULL);
-        tuya_p2p_rtc_notify_exit();
-        tuya_p2p_rtc_deinit();
         return OPRT_COM_ERROR;
     } else {
         // Once verification is successful, no more authentication exception handling
@@ -295,8 +323,11 @@ OPERATE_RET p2p_deal_with_listen(int session)
     sg_p2p_session->session = session;
     sg_p2p_session->status = P2P_SESSION_RUNNING;
     PR_NOTICE("create p2p sessions. cur online session num = %d", 1);
+    return OPRT_OK;
 
 RET:
+
+    __p2p_rtc_close(session, RTC_CLOSE_REASON_SESSION_FULL, NULL);
     return ret;
 }
 
@@ -319,7 +350,9 @@ OPERATE_RET p2p_get_userinfo(int session, int p2pType)
     int32_t tmpSize = 0;
     BOOL_T flag = FALSE;
     int timeout = P2P_RECV_TIMEOUT; // ms
-    int retry = P2P_CHECK_USER_TIMES * 6 / timeout;
+
+    int retry      = P2P_CHECK_USER_TIMES / timeout;
+    int total_read = 0;
 
     memset(&strUserInfo, 0x00, sizeof(P2P_CMD_PASSWD_T));
     read_buff = (char *)&strUserInfo;
@@ -367,6 +400,7 @@ OPERATE_RET p2p_get_userinfo(int session, int p2pType)
                 flag = TRUE;
                 break;
             } else if (sizeof(P2P_CMD_PASSWD_T) > (read_size + cur_read)) {
+                total_read += read_size;
                 cur_read += read_size;
                 read_size = sizeof(P2P_CMD_PASSWD_T) - cur_read;
             } else {
@@ -377,7 +411,9 @@ OPERATE_RET p2p_get_userinfo(int session, int p2pType)
     } // while (retry > 0)
 
     if (FALSE == flag) {
-        PR_ERR("get userinfo timeout session[%d]", session);
+
+        PR_ERR("get userinfo timeout session[%d]: %d of %d bytes arrived in %dms", session, total_read,
+               (int)sizeof(P2P_CMD_PASSWD_T), P2P_CHECK_USER_TIMES);
         return OPRT_COM_ERROR;
     }
 
@@ -583,7 +619,9 @@ OPERATE_RET p2p_send_rtp_data(int client, int channel, char *buff, int length)
         return OPRT_RESOURCE_NOT_READY;
     }
     if (ret > 0 && ret < length) {
-        return OPRT_RESOURCE_NOT_READY;
+
+        PR_ERR("partial write %d of %d on channel %d, frame abandoned", ret, length, channel);
+        return OPRT_COM_ERROR;
     }
     return OPRT_COM_ERROR;
 }
@@ -622,6 +660,10 @@ static void __p2p_ext_protocol_pack(int client, int type, char *p_result, int *p
                 (int16_t)sg_p2p_session->av_Info.height[curClirtyChn];
             *(int16_t *)&p_result[sizeof(C2C_AV_TRANS_FIXED_HEADER) + 6] =
                 (int16_t)sg_p2p_session->av_Info.fps[curClirtyChn];
+            /* DBG: what geometry the App is actually told, per I-frame. */
+            PR_DEBUG("DBG video ext-header chn=%d w=%u h=%u fps=%u", curClirtyChn,
+                     sg_p2p_session->av_Info.width[curClirtyChn], sg_p2p_session->av_Info.height[curClirtyChn],
+                     sg_p2p_session->av_Info.fps[curClirtyChn]);
         } else {
             fix_len = sizeof(C2C_AV_TRANS_FIXED_HEADER) + 4;
             pav_Info->extension_length = 0;
@@ -643,29 +685,349 @@ static void __p2p_ext_protocol_pack(int client, int type, char *p_result, int *p
     return;
 }
 
+#define P2P_TX_LATENCY_BUDGET_MS 700u
+
+#define P2P_TX_KEYFRAME_ROOM 3u
+
+/**
+ * @brief Recompute how full the video send queue is against the latency budget
+ * @param[in]  len frame about to be offered, 0 when only polling
+ * @param[out] write_size backlog in bytes, may be NULL
+ * @param[out] send_free_size room left in the send queue, may be NULL
+ * @return occupancy in percent, above 100 when over budget, -1 if unavailable
+ */
+static int __p2p_video_fill_pct(int len, int *write_size, int *send_free_size)
+{
+    uint32_t used = 0;
+    uint32_t kbps;
+    int      budget, keyframe_room, pct;
+
+    if (sg_p2p_session == NULL) {
+        return -1;
+    }
+    if (OPRT_OK != tuya_p2p_rtc_check_buffer(sg_p2p_session->session, TUYA_VDATA_CHANNEL, &used, NULL,
+                                             (uint32_t *)send_free_size)) {
+        return -1;
+    }
+    if (write_size != NULL) {
+        *write_size = (int)used;
+    }
+
+    if ((uint32_t)len > sg_p2p_session->tx_max_frame) {
+        sg_p2p_session->tx_max_frame = (uint32_t)len;
+    }
+
+    kbps = sg_p2p_session->rc_cur_kbps ? sg_p2p_session->rc_cur_kbps : 1024u;
+    /* kbps * ms / 8 == bytes of playout time */
+    budget = (int)((kbps * P2P_TX_LATENCY_BUDGET_MS) / 8u);
+    /* A budget below one key frame reads as permanent congestion. */
+    keyframe_room = (int)(sg_p2p_session->tx_max_frame * P2P_TX_KEYFRAME_ROOM);
+    if (budget < keyframe_room) {
+        budget = keyframe_room;
+    }
+    if (budget < 1) {
+        budget = 1;
+    }
+
+    pct = (int)((int64_t)used * 100 / budget);
+    sg_p2p_session->tx_fill_pct = (pct > 100) ? 100u : (uint32_t)pct;
+    return pct;
+}
+
+#define P2P_AUDIO_LATENCY_BUDGET_MS 900u
+
+#define P2P_AUDIO_FRAME_OVERHEAD_PCT 15u
+
+/**
+ * @brief Bytes of audio the codec produces in a second
+ */
+static uint32_t __p2p_audio_byte_rate(void)
+{
+    static const uint32_t hz[] = {8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 96000};
+    uint32_t              rate, width = 1;
+    TRANS_IPC_AV_INFO_T  *info = &sg_p2p_session->av_Info;
+
+    if ((unsigned)info->audio_sample >= sizeof(hz) / sizeof(hz[0])) {
+        return hz[0];
+    }
+    rate = hz[info->audio_sample];
+    /* G.711 is a byte a sample whatever the frame says its width is. */
+    if (TY_AV_CODEC_AUDIO_PCM == info->audio_codec) {
+        width = (TY_AUDIO_DATABITS_16 == info->audio_databits) ? 2u : 1u;
+        width *= (TY_AUDIO_CHANNEL_STERO == info->audio_channel) ? 2u : 1u;
+    }
+    return rate * width;
+}
+
+/**
+ * @brief Has the audio queue run further ahead than the budget allows?
+ */
+static BOOL_T __p2p_audio_over_budget(void)
+{
+    uint32_t used = 0;
+    uint32_t budget;
+
+    if (sg_p2p_session == NULL) {
+        return FALSE;
+    }
+
+    if (OPRT_OK != tuya_p2p_rtc_check_buffer(sg_p2p_session->session, TUYA_ADATA_CHANNEL, &used, NULL, NULL)) {
+        return FALSE;
+    }
+    sg_p2p_session->dbg_aq_used = used;
+    budget = (__p2p_audio_byte_rate() * P2P_AUDIO_LATENCY_BUDGET_MS) / 1000u;
+    budget += (budget * P2P_AUDIO_FRAME_OVERHEAD_PCT) / 100u;
+    return (used > budget) ? TRUE : FALSE;
+}
+
+void tuya_ipc_p2p_audio_stats_get(uint32_t *shed, uint32_t *send_fail, uint32_t *queued)
+{
+    P2P_SESSION_T *pSession = sg_p2p_session;
+
+    if (shed) {
+        *shed = pSession ? pSession->dbg_ashed : 0;
+    }
+    if (send_fail) {
+        *send_fail = pSession ? pSession->dbg_asend_fail : 0;
+    }
+    if (queued) {
+        *queued = pSession ? pSession->dbg_aq_used : 0;
+    }
+}
+
+/**
+ * @brief May another frame of @p len be queued without falling too far behind?
+ *
+ * Also records how full the video queue is relative to that latency budget,
+ * which is the congestion signal the encoder bitrate is driven from.
+ */
 static OPERATE_RET __p2p_check_free_buffer_size(int client, int channel, int len)
 {
     OPERATE_RET ret = OPRT_OK;
     int sendFreeSize = 0;
     int writeSize = 0;
 
-    ret = tuya_p2p_rtc_check_buffer(sg_p2p_session->session, channel, (uint32_t *)&writeSize, NULL,
-                                    (uint32_t *)&sendFreeSize);
-    if (OPRT_OK != ret) {
-        return ret;
+    (void)client; /* one session, one transport - the id comes from the context */
+
+    if (channel == TUYA_VDATA_CHANNEL) {
+        int pct = __p2p_video_fill_pct(len, &writeSize, &sendFreeSize);
+
+        if (pct < 0) {
+            return OPRT_COM_ERROR;
+        }
+
+        if (pct > 100) {
+            if ((sg_p2p_session->tx_full_cnt % 100) == 0) {
+                PR_WARN("video queue %d bytes is %d pct of the %ums budget, shedding frames", writeSize, pct,
+                        P2P_TX_LATENCY_BUDGET_MS);
+            }
+            sg_p2p_session->tx_full_cnt++;
+            return OPRT_RESOURCE_NOT_READY;
+        }
+    } else {
+        ret = tuya_p2p_rtc_check_buffer(sg_p2p_session->session, channel, (uint32_t *)&writeSize, NULL,
+                                        (uint32_t *)&sendFreeSize);
+        if (OPRT_OK != ret) {
+            return ret;
+        }
     }
 
     int need_size = (int)((double)len * 1.1); /* align TuyaOS svc_streaming_p2p check */
     if (need_size > sendFreeSize) {
-        static int retry_sum = 0; // Total retry count when buffer is full
-        if (retry_sum % 100 == 0) {
+
+        if ((sg_p2p_session->tx_full_cnt % 100) == 0) {
             PR_ERR("Check_Buffer not enough writeSize[%d] sendFreeSize[%d] len[%d] session[%d] channel[%d]", writeSize,
                    sendFreeSize, len, sg_p2p_session->session, channel);
         }
-        retry_sum++;
+        sg_p2p_session->tx_full_cnt++;
         ret = OPRT_RESOURCE_NOT_READY;
     }
     return ret;
+}
+
+/* Constants follow draft-ietf-rmcat-gcc-02. */
+#define RC_WINDOW_MS       1000u /* one decision per second: slower than the queue moves */
+#define RC_FILL_HIGH_PCT   70u   /* sustained, not a momentary spike */
+#define RC_FILL_LOW_PCT    20u
+#define RC_DOWN_NUM        85u /* x0.85 on congestion, per the draft */
+#define RC_DOWN_DEN        100u
+#define RC_UP_NUM          108u /* x1.08 per second while the link is clear */
+#define RC_UP_DEN          100u
+#define RC_MIN_PCT         25u /* never fall below a quarter of the configured rate */
+#define RC_FILL_EVENTS_MIN 3u  /* shed frames in a window before believing congestion */
+
+#define RC_BW_SHARE_NUM 85u
+#define RC_BW_SHARE_DEN 100u
+
+#define RC_BW_SMOOTH_OLD 3u
+#define RC_BW_SMOOTH_DEN 4u
+
+#define RC_MIN_CHANGE_PCT 5u
+
+#define RC_WARMUP_WINDOWS 2u
+
+static void __p2p_rate_control(P2P_SESSION_T *pSession)
+{
+    uint64_t now = (uint64_t)tal_system_get_millisecond();
+    uint32_t fills, want, floor_kbps, avg_fill;
+
+    if (pSession->on_set_video_bitrate_callback == NULL || pSession->rc_base_kbps == 0) {
+        return;
+    }
+
+    pSession->rc_fill_sum += pSession->tx_fill_pct;
+    pSession->rc_fill_samples++;
+    if (pSession->tx_fill_pct > pSession->rc_fill_peak) {
+        pSession->rc_fill_peak = pSession->tx_fill_pct;
+    }
+    if (pSession->rc_window_ms == 0) {
+        pSession->rc_window_ms     = now;
+        pSession->rc_full_at_start = pSession->tx_full_cnt;
+        return;
+    }
+    if (now - pSession->rc_window_ms < RC_WINDOW_MS) {
+        return;
+    }
+
+    fills      = pSession->tx_full_cnt - pSession->rc_full_at_start;
+    avg_fill   = pSession->rc_fill_samples ? (pSession->rc_fill_sum / pSession->rc_fill_samples) : 0;
+    want       = pSession->rc_cur_kbps;
+    floor_kbps = pSession->rc_base_kbps * RC_MIN_PCT / 100u;
+    if (floor_kbps == 0) {
+        floor_kbps = 1;
+    }
+
+    {
+        uint32_t bw_bps = 0;
+        if (tuya_p2p_rtc_get_link_rate(pSession->session, TUYA_VDATA_CHANNEL, &bw_bps, NULL) == 0 && bw_bps > 0) {
+            uint32_t bw_kbps     = (uint32_t)(((uint64_t)bw_bps * 8u) / 1000u);
+            pSession->rc_bw_kbps = (pSession->rc_bw_kbps == 0)
+                                       ? bw_kbps
+                                       : ((pSession->rc_bw_kbps * RC_BW_SMOOTH_OLD) + bw_kbps) / RC_BW_SMOOTH_DEN;
+        }
+    }
+
+    if (pSession->rc_warmup < RC_WARMUP_WINDOWS) {
+        pSession->rc_warmup++;
+    } else {
+
+        BOOL_T overuse = (fills >= RC_FILL_EVENTS_MIN || avg_fill >= RC_FILL_HIGH_PCT) ? TRUE : FALSE;
+        BOOL_T drained = (avg_fill <= RC_FILL_LOW_PCT) ? TRUE : FALSE;
+
+        if (pSession->rc_bw_kbps > 0) {
+
+            want = pSession->rc_bw_kbps * RC_BW_SHARE_NUM / RC_BW_SHARE_DEN;
+            if (overuse) {
+                uint32_t backoff = pSession->rc_cur_kbps * RC_DOWN_NUM / RC_DOWN_DEN;
+                if (want > backoff) {
+                    want = backoff;
+                }
+                pSession->rc_state = RC_STATE_DECREASE;
+            } else {
+
+                uint32_t ceiling = pSession->rc_cur_kbps * RC_UP_NUM / RC_UP_DEN;
+                uint32_t floor_step = pSession->rc_cur_kbps * RC_DOWN_NUM / RC_DOWN_DEN;
+
+                if (want > ceiling) {
+                    want = ceiling;
+                }
+                if (want < floor_step) {
+                    want = floor_step;
+                }
+                pSession->rc_state = drained ? RC_STATE_INCREASE : RC_STATE_HOLD;
+            }
+        } else {
+            /* Nothing measured yet - the queue heuristic is all there is. */
+            switch (pSession->rc_state) {
+            case RC_STATE_DECREASE:
+
+                if (overuse) {
+                    want = want * RC_DOWN_NUM / RC_DOWN_DEN;
+                } else {
+                    pSession->rc_state = RC_STATE_HOLD;
+                }
+                break;
+
+            case RC_STATE_HOLD:
+                /* Rate stays put until the backlog has genuinely gone. */
+                if (overuse) {
+                    want               = want * RC_DOWN_NUM / RC_DOWN_DEN;
+                    pSession->rc_state = RC_STATE_DECREASE;
+                } else if (drained) {
+                    pSession->rc_state = RC_STATE_INCREASE;
+                }
+                break;
+
+            case RC_STATE_INCREASE:
+            default:
+                if (overuse) {
+                    want               = want * RC_DOWN_NUM / RC_DOWN_DEN;
+                    pSession->rc_state = RC_STATE_DECREASE;
+                } else if (drained && want < pSession->rc_base_kbps) {
+                    want = want * RC_UP_NUM / RC_UP_DEN;
+                } else if (!drained) {
+                    /* Neither congested nor empty: leave it alone. */
+                    pSession->rc_state = RC_STATE_HOLD;
+                }
+                break;
+            }
+        }
+
+        if (want < floor_kbps) {
+            want = floor_kbps;
+        }
+        if (want > pSession->rc_base_kbps) {
+            want = pSession->rc_base_kbps;
+        }
+    }
+
+    if (want != pSession->rc_cur_kbps) {
+        uint32_t delta =
+            (want > pSession->rc_cur_kbps) ? (want - pSession->rc_cur_kbps) : (pSession->rc_cur_kbps - want);
+
+        if (delta * 100u >= pSession->rc_cur_kbps * RC_MIN_CHANGE_PCT || want == floor_kbps ||
+            want == pSession->rc_base_kbps) {
+            /* No literal percent sign: the log formatter renders "%%" as '?'. */
+            PR_NOTICE("rate control: %u -> %u kbps [%s] (link %u kbps, queue avg %u pct, peak %u pct, %u full events)",
+                      pSession->rc_cur_kbps, want,
+                      (pSession->rc_state == RC_STATE_DECREASE)
+                          ? "decrease"
+                          : ((pSession->rc_state == RC_STATE_HOLD) ? "hold" : "increase"),
+                      pSession->rc_bw_kbps, avg_fill, pSession->rc_fill_peak, fills);
+            if (pSession->on_set_video_bitrate_callback(want) == 0) {
+                pSession->rc_cur_kbps = want;
+            }
+        }
+    }
+
+    pSession->rc_window_ms     = now;
+    pSession->rc_full_at_start = pSession->tx_full_cnt;
+    pSession->rc_fill_peak     = pSession->tx_fill_pct;
+    pSession->rc_fill_sum      = 0;
+    pSession->rc_fill_samples  = 0;
+}
+
+#define P2P_IFRAME_REQ_MIN_GAP_MS 1500u
+
+#define P2P_TX_DRAINED_PCT 40u
+
+/**
+ * @brief Ask the source for a key frame, if it can provide one on demand.
+ * @return TRUE when the request was accepted
+ */
+static BOOL_T __p2p_request_i_frame(P2P_SESSION_T *pSession)
+{
+    uint64_t now;
+
+    if (pSession->on_request_i_frame_callback == NULL) {
+        return FALSE;
+    }
+    now = (uint64_t)tal_system_get_millisecond();
+    if (pSession->iframe_req_ms != 0 && (now - pSession->iframe_req_ms) < P2P_IFRAME_REQ_MIN_GAP_MS) {
+        return FALSE;
+    }
+    pSession->iframe_req_ms = now;
+    return (pSession->on_request_i_frame_callback() == 0) ? TRUE : FALSE;
 }
 
 #define P2P_VIDEO_RTP_CLOCK_HZ 90
@@ -787,6 +1149,7 @@ static OPERATE_RET __p2p_pack_h265_rtp_and_send(int client, char *pData, int len
     rtp_pack_nal_arg.client = client;
     rtp_pack_nal_arg.channel = TUYA_VDATA_CHANNEL;
     rtp_pack_nal_arg.p_rtp_buff = sg_p2p_session->p_video_rtp_buff;
+    rtp_pack_nal_arg.sent_pkts  = 0;
     memset(rtp_pack_nal_arg.ext_head_buff, 0, P2P_EXT_HEAD_MAX_LEN);
     __p2p_ext_protocol_pack(client, 0, rtp_pack_nal_arg.ext_head_buff, &rtp_pack_nal_arg.fix_len);
 
@@ -798,15 +1161,22 @@ static OPERATE_RET __p2p_pack_h265_rtp_and_send(int client, char *pData, int len
     uint16_t seq = sg_p2p_session->video_seq_num;
     uint32_t ssrc = 10;
     uint32_t timestamp = __p2p_video_rtp_timestamp_ms90();
+
     pRtpDelegate = rtp_payload_encode_create(/*H265_PAY_LOAD*/ 95, "H265", seq, ssrc, &rtp_packer, &rtp_pack_nal_arg);
-    ret = rtp_payload_encode_input(pRtpDelegate, pData, len, timestamp);
-    if (OPRT_OK != ret) {
-        PR_ERR("rtp_payload_encode_input h264 error:%d", ret);
+    if (NULL == pRtpDelegate) {
+        PR_ERR("rtp_payload_encode_create h265 failed");
+        return OPRT_COM_ERROR;
     }
+    ret                = rtp_payload_encode_input(pRtpDelegate, pData, len, timestamp);
     rtp_payload_encode_getinfo(pRtpDelegate, &sg_p2p_session->video_seq_num, &timestamp);
     rtp_payload_encode_destroy(pRtpDelegate);
+    if (0 != ret) {
 
-    return ret;
+        PR_ERR("rtp_payload_encode_input h265 error:%d after %d packets", ret, rtp_pack_nal_arg.sent_pkts);
+        return (rtp_pack_nal_arg.sent_pkts == 0) ? OPRT_RESOURCE_NOT_READY : OPRT_COM_ERROR;
+    }
+
+    return OPRT_OK;
 }
 
 /***********************************************************
@@ -851,6 +1221,7 @@ static OPERATE_RET __p2p_pack_h264_rtp_and_send(int client, char *pData, int len
     rtp_pack_nal_arg.client = client;
     rtp_pack_nal_arg.channel = TUYA_VDATA_CHANNEL;
     rtp_pack_nal_arg.p_rtp_buff = sg_p2p_session->p_video_rtp_buff;
+    rtp_pack_nal_arg.sent_pkts  = 0;
     memset(rtp_pack_nal_arg.ext_head_buff, 0, P2P_EXT_HEAD_MAX_LEN);
     __p2p_ext_protocol_pack(client, 0, rtp_pack_nal_arg.ext_head_buff, &rtp_pack_nal_arg.fix_len);
 
@@ -865,10 +1236,11 @@ static OPERATE_RET __p2p_pack_h264_rtp_and_send(int client, char *pData, int len
     pRtpDelegate = rtp_payload_encode_create(/*H264_PAY_LOAD*/ 96, "H264", seq, ssrc, &rtp_packer, &rtp_pack_nal_arg);
     ret = rtp_payload_encode_input(pRtpDelegate, pData, len, timestamp);
     if (ret != 0) {
-        PR_ERR("rtp_payload_encode_input h264 error:%d", ret);
+        PR_ERR("rtp_payload_encode_input h264 error:%d after %d packets", ret, rtp_pack_nal_arg.sent_pkts);
         rtp_payload_encode_getinfo(pRtpDelegate, &sg_p2p_session->video_seq_num, &timestamp);
         rtp_payload_encode_destroy(pRtpDelegate);
-        return OPRT_RESOURCE_NOT_READY;
+
+        return (rtp_pack_nal_arg.sent_pkts == 0) ? OPRT_RESOURCE_NOT_READY : OPRT_COM_ERROR;
     }
     rtp_payload_encode_getinfo(pRtpDelegate, &sg_p2p_session->video_seq_num, &timestamp);
     rtp_payload_encode_destroy(pRtpDelegate);
@@ -981,6 +1353,7 @@ static OPERATE_RET __p2p_pack_g711_rtp_and_send(int client, char *pData, int len
     rtp_pack_nal_arg.client = client;
     rtp_pack_nal_arg.channel = TUYA_ADATA_CHANNEL;
     rtp_pack_nal_arg.p_rtp_buff = sg_p2p_session->p_audio_rtp_buff;
+    rtp_pack_nal_arg.sent_pkts  = 0;
     memset(rtp_pack_nal_arg.ext_head_buff, 0, P2P_EXT_HEAD_MAX_LEN);
     __p2p_ext_protocol_pack(client, 1, rtp_pack_nal_arg.ext_head_buff, &rtp_pack_nal_arg.fix_len);
 
@@ -1005,14 +1378,15 @@ static OPERATE_RET __p2p_pack_g711_rtp_and_send(int client, char *pData, int len
         payload = 99 /*RTP_PCM_PAYLOAD*/;
     }
     pRtpDelegate = rtp_payload_encode_create(payload, codec_name, seq, ssrc, &rtp_packer, &rtp_pack_nal_arg);
-    ret = rtp_payload_encode_input(pRtpDelegate, pData, len, timestamp);
-    if (OPRT_OK != ret) {
-        PR_ERR("rtp_payload_encode_input h264 error:%d", ret);
-    }
+    ret          = rtp_payload_encode_input(pRtpDelegate, pData, len, timestamp);
     rtp_payload_encode_getinfo(pRtpDelegate, &sg_p2p_session->audio_seq_num, &timestamp);
     rtp_payload_encode_destroy(pRtpDelegate);
+    if (0 != ret) {
+        PR_ERR("rtp_payload_encode_input %s error:%d after %d packets", codec_name, ret, rtp_pack_nal_arg.sent_pkts);
+        return (rtp_pack_nal_arg.sent_pkts == 0) ? OPRT_RESOURCE_NOT_READY : OPRT_COM_ERROR;
+    }
 
-    return ret;
+    return OPRT_OK;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1089,12 +1463,30 @@ OPERATE_RET tuya_p2p_rtc_register_get_audio_frame_cb(tuya_p2p_rtc_get_frame_cb_t
  ***********************************************************/
 static int __p2p_session_trans_video_start(P2P_SESSION_T *pSession)
 {
-    if (NULL == pSession || (P2P_VIDEO & pSession->cmd)) {
-        PR_ERR("param error or video started");
+    if (NULL == pSession) {
+        PR_ERR("video start: no session");
         return OPRT_INVALID_PARM;
+    }
+    if (P2P_VIDEO & pSession->cmd) {
+
+        (void)__p2p_request_i_frame(pSession);
+        PR_DEBUG("session[%d] video start repeated, key frame requested", pSession->session);
+        return OPRT_OK;
     }
     // Wait for previous data transmission to end
     PR_DEBUG("session[%d]video video_start wait_concurr_idle", pSession->session);
+    if (pSession->cmd & (P2P_PB_VIDEO | P2P_PB_PAUSE | P2P_PB_AUDIO)) {
+        uint32_t vdrop = 0;
+        uint32_t adrop = 0;
+
+        PR_NOTICE("live start: clear playback cmd=0x%x", (unsigned)pSession->cmd);
+        pSession->cmd = (P2P_CMD_E)(pSession->cmd & ~(P2P_PB_VIDEO | P2P_PB_PAUSE | P2P_PB_AUDIO));
+        (void)tuya_p2p_rtc_drop_unsent(pSession->session, TUYA_VDATA_CHANNEL, &vdrop);
+        (void)tuya_p2p_rtc_drop_unsent(pSession->session, TUYA_ADATA_CHANNEL, &adrop);
+        if (vdrop != 0 || adrop != 0) {
+            PR_NOTICE("live start: drop leftover pb v=%u a=%u", vdrop, adrop);
+        }
+    }
     pSession->cmd |= P2P_VIDEO;
     pSession->video_need_iframe = TRUE;
     pSession->key_frame = FALSE;
@@ -1102,11 +1494,32 @@ static int __p2p_session_trans_video_start(P2P_SESSION_T *pSession)
     pSession->dbg_vsend_skip = 0;
     pSession->dbg_vget_fail = 0;
     pSession->video_frame_pending = FALSE;
+
+    pSession->rc_base_kbps = pSession->av_Info.bitrate[p2p_get_chn_idx(pSession->cur_clarity)];
+    pSession->rc_cur_kbps  = pSession->rc_base_kbps;
+
+    pSession->rc_bw_kbps       = 0;
+    pSession->rc_window_ms     = 0;
+    pSession->rc_fill_peak     = 0;
+    pSession->rc_fill_sum      = 0;
+    pSession->rc_fill_samples  = 0;
+    pSession->rc_warmup        = 0;
+    pSession->rc_state         = RC_STATE_INCREASE;
+    pSession->tx_max_frame     = 0;
+    pSession->rc_full_at_start = pSession->tx_full_cnt;
+    pSession->iframe_req_ms    = 0;
+
+    /* Stop PB before bringing the camera up, so both do not sit on VDATA. */
+    (void)tuya_ipc_media_stream_event_call(0, 0, MEDIA_STREAM_LIVE_VIDEO_START, NULL);
     if (pSession->on_live_video_start_callback) {
         (void)pSession->on_live_video_start_callback();
     }
-    (void)tuya_ipc_media_stream_event_call(0, 0, MEDIA_STREAM_LIVE_VIDEO_START, NULL);
-    PR_DEBUG("session[%d] video start success (wait first I-frame)", pSession->session);
+
+    if (__p2p_request_i_frame(pSession)) {
+        PR_DEBUG("session[%d] video start, key frame requested", pSession->session);
+    } else {
+        PR_DEBUG("session[%d] video start success (wait first I-frame)", pSession->session);
+    }
     return OPRT_OK;
 }
 
@@ -1242,6 +1655,50 @@ static OPERATE_RET __p2p_parse_downlink_audio(char *buf, int len, void **out_dat
     return OPRT_OK;
 }
 
+static BOOL_T __p2p_audio_downlink_session_dead(int32_t ret)
+{
+    return (ret == ERROR_P2P_INVALID_SESSION_HANDLE || ret == ERROR_P2P_SESSION_CLOSED_REMOTE ||
+            ret == ERROR_P2P_SESSION_CLOSED_TIMEOUT || ret == ERROR_P2P_SESSION_CLOSED_CALLED ||
+            ret == ERROR_P2P_NOT_INITIALIZED)
+               ? TRUE
+               : FALSE;
+}
+
+/**
+ * @brief Stop downlink recv + app speaker. Safe to call twice.
+ * @note Must not run on p2p_audio_dl itself (it deletes that thread).
+ */
+static void __p2p_audio_downlink_stop(P2P_SESSION_T *pSession, int channel)
+{
+    THREAD_HANDLE h = NULL;
+    BOOL_T        was_on = FALSE;
+
+    if (pSession == NULL) {
+        return;
+    }
+
+    tal_mutex_lock(pSession->cmutex);
+    was_on = (pSession->audio_downlink_on || pSession->audio_downlink_thread != NULL) ? TRUE : FALSE;
+    pSession->audio_downlink_on = FALSE;
+    pSession->cmd = (P2P_CMD_E)(pSession->cmd & ~P2P_SPEAKER);
+    pSession->speak_req_id = -1;
+    h = pSession->audio_downlink_thread;
+    pSession->audio_downlink_thread = NULL;
+    tal_mutex_unlock(pSession->cmutex);
+
+    if (h != NULL) {
+        tal_thread_delete(h);
+    }
+    if (!was_on) {
+        return;
+    }
+    PR_NOTICE("p2p audio downlink stop");
+    if (pSession->on_live_audio_stop_callback) {
+        (void)pSession->on_live_audio_stop_callback();
+    }
+    (void)tuya_ipc_media_stream_event_call(0, channel, MEDIA_STREAM_SPEAKER_STOP, NULL);
+}
+
 /**
  * @brief Downlink audio recv thread: APP -> device speaker (align TuyaOS on_recv_audio)
  * @note Recv SPEAKER_FRAME / RTP on ADATA, parse payload, callback app to decode+play.
@@ -1285,6 +1742,9 @@ static void __p2p_audio_downlink_recv_proc(void *pArg)
             }
         } else if (ret == 0) {
             empty_cnt++;
+        } else if (__p2p_audio_downlink_session_dead(ret)) {
+            PR_ERR("__p2p_rtc_recv_data failed [%d], stop downlink", ret);
+            break;
         } else {
             fail_cnt++;
             if (fail_cnt <= 3 || (fail_cnt % 50) == 1) {
@@ -1557,11 +2017,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
         break;
     }
     case TY_C2C_CMD_CAPABILITY_EXCHANGE: {
-        /*
-         * App negotiates optional codecs. Opus != P2P speaker codec here:
-         * OS wukong P2P on_recv_audio uses G711U only; Opus is for AI voice player.
-         * We still reply 1/1 for App handshake compatibility; QUERY_AUDIO_PARAMS = G711U.
-         */
+
         static const char s_cap_exch_resp[] =
             "{\"cmd\":\"capability_exchange_resp\",\"protocol_version\":1,"
             "\"data\":{\"capabilities\":{\"opus_encode\":1,\"opus_decode\":1}}}";
@@ -1602,18 +2058,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
                                             __p2p_audio_downlink_recv_proc, NULL, &thrd_param);
             }
         } else if (parm->operation == TY_CMD_IO_CTRL_AUDIO_SPEAKER_STOP) {
-            pSession->audio_downlink_on = FALSE;
-            pSession->cmd = (P2P_CMD_E)(pSession->cmd & ~P2P_SPEAKER);
-            pSession->speak_req_id = -1;
-            if (pSession->audio_downlink_thread) {
-                THREAD_HANDLE h = pSession->audio_downlink_thread;
-                pSession->audio_downlink_thread = NULL;
-                tal_thread_delete(h);
-            }
-            if (pSession->on_live_audio_stop_callback) {
-                (void) pSession->on_live_audio_stop_callback();
-            }
-            (void)tuya_ipc_media_stream_event_call(0, (int)parm->channel, MEDIA_STREAM_SPEAKER_STOP, NULL);
+            __p2p_audio_downlink_stop(pSession, (int)parm->channel);
         } else {
             PR_DEBUG("unknown speaker op=%u", (uint32_t)parm->operation);
         }
@@ -1686,12 +2131,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
     }
     case TY_C2C_CMD_IO_CTRL_PLAYBACK:
     case TY_C2C_CMD_IO_CTRL_PLAYBACK_GW:
-    /*
-     * EXT0 (100/101) is the speed-capable variant of the playback command and
-     * carries the same layout: sub-command in low_cmd, channel first in the
-     * payload, PB_START recognised by length. Handling it here keeps the App
-     * from waiting on a command we used to ACK without acting on.
-     */
+
     case TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0:
     case TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0: {
         /* low_cmd: legacy TRANS_* (10..16) / MEDIA_STREAM_* / TY_CMD_IO_CTRL_VIDEO_* */
@@ -1710,12 +2150,6 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
         comResp.result = TY_C2C_CMD_IO_CTRL_COMMAND_RECV;
         __p2p_session_pack_resp(pSession, pData, &comResp, sizeof(comResp));
 
-        /*
-         * EXT0 is the speed-control variant: the payload is channel followed by
-         * the requested speed, the remainder is reserved. Playback runs at 1x
-         * only, so confirm that and refuse other rates rather than claiming a
-         * rate change that never happens.
-         */
         if (pFixedHead->high_cmd == TY_C2C_CMD_IO_CTRL_PLAYBACK_EXT0 ||
             pFixedHead->high_cmd == TY_C2C_CMD_IO_CTRL_PLAYBACK_GW_EXT0) {
             uint32_t speed = 0;
@@ -1731,24 +2165,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
 
         if (low == 10 || low == (uint32_t)MEDIA_STREAM_PLAYBACK_START_TS || low == (uint32_t)TY_CMD_IO_CTRL_VIDEO_PLAY ||
             low == (uint32_t)TY_CMD_IO_CTRL_VIDEO_PLAY_V2) {
-            /*
-             * The request the App actually sends is 20 bytes and does not match
-             * C2C_TRANS_CTRL_PB_START: the time section sits one dword further
-             * in, and type/reqId/allow_encrypt are absent. Confirmed against a
-             * real request whose segment was [1786411126,1786411152]:
-             *
-             *   +0  channel
-             *   +4  reserved (observed 0)
-             *   +8  time_sect.start_timestamp
-             *   +12 time_sect.end_timestamp
-             *   +16 playTime, i.e. where the user scrubbed to
-             *
-             * Normalise it into the documented struct here, where the payload
-             * length is known, so the app layer reads named fields instead of
-             * guessing at raw offsets. A payload of any other size is dumped
-             * once so a new App layout shows itself instead of being parsed
-             * into a wrong seek position.
-             */
+
             enum {
                 PB_START_OFF_START = 8,
                 PB_START_OFF_END = 12,
@@ -1781,6 +2198,10 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
             }
             PR_NOTICE("session[%d]video pb_video_start", pSession->session);
             pSession->video_req_id = pCmd->reqId;
+            memcpy(&pSession->pb_resp_head, pData, sizeof(pSession->pb_resp_head));
+            if (pSession->cmd & P2P_VIDEO) {
+                (void)__p2p_session_trans_video_stop(pSession);
+            }
             /* clear_send deferred to demo on real (re)start; ignore path must not flush */
             pSession->cmd = (P2P_CMD_E)(pSession->cmd | P2P_PB_VIDEO);
             ev = MEDIA_STREAM_PLAYBACK_START_TS;
@@ -1815,12 +2236,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
                       (int)pFixedHead->high_cmd, (int)low, pCmd->reqId);
             break;
         } else {
-            /*
-             * Only COMMAND_RECV has been sent at this point, so a bare break
-             * would leave the App waiting for a final status forever. Report a
-             * terminal failure and dump the header so the sub-command space of
-             * the EXT0 variants can be identified.
-             */
+
             PR_ERR("unsupported playback op: high=%d low=%d len=%d", (int)pFixedHead->high_cmd, (int)low,
                    (int)pFixedHead->length);
 
@@ -1834,10 +2250,7 @@ static int __p2p_session_cmd_parse_server(P2P_SESSION_T *pSession, void *pData)
         break;
     }
     default: {
-        /* Newer App may send cmds we don't implement yet.
-         * Returning INVALID maps to App -20001 and often aborts preview UI
-         * even if live video already started. ACK SUCCESS and log for analysis.
-         */
+
         PR_ERR("this high cmd [%d] is not support!", (int)pFixedHead->high_cmd);
         C2C_CMD_IO_CTRL_COM_RESP_T comResp;
         memset(&comResp, 0x00, sizeof(comResp));
@@ -1982,7 +2395,9 @@ static void __p2p_cmd_recv_proc(void *pArg)
             continue;
         }
         if (P2P_SESSION_RUNNING != pSession->status) {
+
             tal_mutex_unlock(pSession->cmutex);
+            tal_system_sleep(5);
             continue;
         }
         tal_mutex_unlock(pSession->cmutex);
@@ -2018,9 +2433,6 @@ static void __p2p_media_send_proc(void *pArg)
     uint32_t runCnt = 0;
     P2P_SESSION_T *pSession = NULL;
     OPERATE_RET op_ret = -1;
-    TY_AV_CODEC_ID type;
-    type = sg_p2p_session->av_Info.audio_codec;
-    // type = TY_AV_CODEC_AUDIO_PCM;
 
     PR_DEBUG("into p2p video send");
 
@@ -2046,7 +2458,9 @@ static void __p2p_media_send_proc(void *pArg)
             continue;
         }
         if (P2P_SESSION_RUNNING != status) {
+
             tal_mutex_unlock(pSession->cmutex);
+            tal_system_sleep(5);
             continue;
         }
 
@@ -2062,114 +2476,140 @@ static void __p2p_media_send_proc(void *pArg)
         }
         tal_mutex_unlock(pSession->cmutex);
 
-        /*
-         * Align TuyaOS push path: audio must not be starved by video sleep/backoff.
-         * Drain uplink audio first (up to a few frames), then try one video frame.
-         */
-        if (P2P_AUDIO & cmd) {
-            if (sg_p2p_session->on_get_audio_frame_callback == NULL) {
-                tal_system_sleep(10);
+        if ((P2P_VIDEO & cmd) && !(P2P_PB_VIDEO & cmd)) {
+            __p2p_rate_control(pSession);
+        }
+
+        uint32_t yield_ms = 0;
+
+        if ((P2P_VIDEO & cmd) && !(P2P_PB_VIDEO & cmd)) {
+            if (sg_p2p_session->on_get_video_frame_callback == NULL) {
+                yield_ms = 10;
             } else {
-                int a_burst;
+                MEDIA_FRAME *pMediaFrame = &sg_p2p_session->media_frame;
+                OPERATE_RET  buf_ret;
 
-                for (a_burst = 0; a_burst < 4; a_burst++) {
-                    MEDIA_FRAME *pAudioFrame = &sg_p2p_session->media_audio_frame;
-
-                    op_ret = sg_p2p_session->on_get_audio_frame_callback(pAudioFrame);
+                if (!pSession->video_frame_pending) {
+                    op_ret = sg_p2p_session->on_get_video_frame_callback(pMediaFrame);
                     if (op_ret != OPRT_OK) {
-                        break;
+                        yield_ms = 10;
+                    } else {
+                        pSession->video_frame_pending = TRUE;
                     }
-                    pSession->a_pts = (pAudioFrame->pts == 0) ? pAudioFrame->timestamp * 1000 : pAudioFrame->pts;
-                    pSession->a_timestamp = pAudioFrame->timestamp;
-                    if (TY_AV_CODEC_AUDIO_AAC_ADTS == type) {
-                        /* AAC path unused on this demo */
-                    } else if (TY_AV_CODEC_AUDIO_G711A == type || TY_AV_CODEC_AUDIO_G711U == type ||
-                               TY_AV_CODEC_AUDIO_PCM == type) {
-                        (void) __p2p_pack_g711_rtp_and_send(index, (char *)pAudioFrame->data, pAudioFrame->size,
-                                                              type);
+                }
+
+                if (pSession->video_frame_pending) {
+                    pSession->v_pts = (pMediaFrame->pts == 0) ? pMediaFrame->timestamp * 1000 : pMediaFrame->pts;
+                    pSession->v_timestamp = pMediaFrame->timestamp;
+                    if (eVideoIFrame == pMediaFrame->type) {
+                        pSession->key_frame = TRUE;
+                        pSession->video_need_iframe = FALSE;
+                    } else {
+                        pSession->key_frame = FALSE;
+                    }
+                    if (TRUE == pSession->video_need_iframe) {
+                        pSession->video_frame_pending = FALSE;
+
+                        (void)__p2p_video_fill_pct(0, NULL, NULL);
+                        if (pSession->tx_fill_pct < P2P_TX_DRAINED_PCT) {
+                            (void)__p2p_request_i_frame(pSession);
+                        }
+                    } else {
+
+                        if (pSession->key_frame && pSession->tx_fill_pct >= P2P_TX_DRAINED_PCT) {
+                            uint32_t dropped = 0;
+                            if (tuya_p2p_rtc_drop_unsent(pSession->session, TUYA_VDATA_CHANNEL, &dropped) == 0 &&
+                                dropped > 0) {
+                                if ((pSession->tx_drop_cnt % 20) == 0) {
+                                    PR_DEBUG("key frame shed %u bytes of stale backlog (queue %u pct)", dropped,
+                                             pSession->tx_fill_pct);
+                                }
+                                pSession->tx_drop_cnt++;
+                            }
+                        }
+
+                        buf_ret = __p2p_check_free_buffer_size(index, TUYA_VDATA_CHANNEL, (int)pMediaFrame->size);
+                        if (buf_ret != OPRT_OK) {
+
+                            pSession->video_need_iframe = TRUE;
+                            pSession->video_frame_pending = FALSE;
+                            yield_ms = 200;
+                        } else if (TY_AV_CODEC_VIDEO_H265 != sg_p2p_session->av_Info.video_codec[0]) {
+                            op_ret = __p2p_pack_h264_rtp_and_send(index, (char *)pMediaFrame->data,
+                                                                 (int)pMediaFrame->size);
+                        } else {
+                            op_ret = __p2p_pack_h265_rtp_and_send(index, (char *)pMediaFrame->data,
+                                                                 (int)pMediaFrame->size);
+                        }
+                        if (buf_ret == OPRT_OK) {
+                            if (OPRT_OK == op_ret) {
+                                pSession->video_frame_pending = FALSE;
+                                pSession->dbg_vsend_ok++;
+                                if ((pSession->dbg_vsend_ok % 100) == 0) {
+                                    PR_DEBUG("session send video cnt [%d]", (int)pSession->dbg_vsend_ok);
+                                }
+
+                            } else {
+                                pSession->dbg_vsend_fail++;
+                                if ((pSession->dbg_vsend_fail % 10) == 1) {
+                                    PR_ERR("video send failed count = [%u] ret=%d", pSession->dbg_vsend_fail, op_ret);
+                                }
+
+                                if (OPRT_RESOURCE_NOT_READY != op_ret) {
+                                    PR_WARN("dropping unsendable frame (%u bytes, ret %d)",
+                                            (uint32_t)pMediaFrame->size, op_ret);
+                                    pSession->video_frame_pending = FALSE;
+                                }
+                                yield_ms = 200;
+                            }
+                        }
                     }
                 }
             }
         }
 
-        if (P2P_VIDEO & cmd) {
-            if (sg_p2p_session->on_get_video_frame_callback == NULL) {
-                tal_system_sleep(10);
-            } else {
-                MEDIA_FRAME *pMediaFrame = &sg_p2p_session->media_frame;
-                OPERATE_RET buf_ret;
-                int video_fps;
-                uint32_t pace_ms;
-                uint32_t backoff_ms;
+        if ((P2P_AUDIO & cmd) && sg_p2p_session->on_get_audio_frame_callback != NULL) {
+            MEDIA_FRAME *pAudioFrame = &sg_p2p_session->media_audio_frame;
+            int          a;
 
-                if (!pSession->video_frame_pending) {
-                    op_ret = sg_p2p_session->on_get_video_frame_callback(pMediaFrame);
-                    if (op_ret != OPRT_OK) {
-                        /* Short sleep only; next loop drains audio again */
-                        tal_system_sleep(10);
-                        continue;
-                    }
-                    pSession->video_frame_pending = TRUE;
+            for (a = 0; a < 2; a++) {
+                op_ret = sg_p2p_session->on_get_audio_frame_callback(pAudioFrame);
+                if (op_ret != OPRT_OK) {
+                    break;
                 }
 
-                pSession->v_pts = (pMediaFrame->pts == 0) ? pMediaFrame->timestamp * 1000 : pMediaFrame->pts;
-                pSession->v_timestamp = pMediaFrame->timestamp;
-                if (eVideoIFrame == pMediaFrame->type) {
-                    pSession->key_frame = TRUE;
-                    pSession->video_need_iframe = FALSE;
+                if (__p2p_audio_over_budget()) {
+                    pSession->dbg_ashed++;
                 } else {
-                    pSession->key_frame = FALSE;
-                }
-                if (TRUE == pSession->video_need_iframe) {
-                    pSession->video_frame_pending = FALSE;
-                    continue;
-                }
+                    pSession->a_pts = (pAudioFrame->pts == 0) ? pAudioFrame->timestamp * 1000 : pAudioFrame->pts;
+                    pSession->a_timestamp = pAudioFrame->timestamp;
 
-                buf_ret = __p2p_check_free_buffer_size(index, TUYA_VDATA_CHANNEL, (int)pMediaFrame->size);
-                if (buf_ret != OPRT_OK) {
-                    /* Align live preview: drop until next I-frame when send queue full */
-                    pSession->video_need_iframe = TRUE;
-                    pSession->video_frame_pending = FALSE;
-                    /* Keep audio alive while video TX is congested */
-                    backoff_ms = (P2P_AUDIO & cmd) ? 20 : 200;
-                    tal_system_sleep(backoff_ms);
-                    continue;
-                }
+                    TY_AV_CODEC_ID type = sg_p2p_session->av_Info.audio_codec;
 
-                if (TY_AV_CODEC_VIDEO_H265 != sg_p2p_session->av_Info.video_codec[0]) {
-                    op_ret = __p2p_pack_h264_rtp_and_send(index, (char *)pMediaFrame->data, (int)pMediaFrame->size);
-                } else {
-                    op_ret = __p2p_pack_h265_rtp_and_send(index, (char *)pMediaFrame->data, (int)pMediaFrame->size);
-                }
-                if (OPRT_OK == op_ret) {
-                    pSession->video_frame_pending = FALSE;
-                    pSession->dbg_vsend_ok++;
-                    if ((pSession->dbg_vsend_ok % 100) == 0) {
-                        PR_DEBUG("session send video cnt [%d]", (int)pSession->dbg_vsend_ok);
+                    if (TY_AV_CODEC_AUDIO_AAC_ADTS == type) {
+                        /* AAC path unused on this demo */
+                    } else if (TY_AV_CODEC_AUDIO_G711A == type || TY_AV_CODEC_AUDIO_G711U == type ||
+                               TY_AV_CODEC_AUDIO_PCM == type) {
+                        OPERATE_RET a_ret;
+
+                        a_ret = __p2p_pack_g711_rtp_and_send(index, (char *)pAudioFrame->data, pAudioFrame->size, type);
+                        if (OPRT_OK != a_ret) {
+                            pSession->dbg_asend_fail++;
+                        }
+                    } else {
+                        pSession->dbg_asend_fail++;
+                        if ((pSession->dbg_asend_fail % 50) == 1) {
+                            PR_ERR("audio codec 0x%x unhandled, frame dropped (count %u)", (unsigned)type,
+                                   pSession->dbg_asend_fail);
+                        }
                     }
-                    video_fps = sg_p2p_session->av_Info.fps[0];
-                    if (video_fps <= 0 || video_fps > 60) {
-                        video_fps = 15;
-                    }
-                    pace_ms = (uint32_t)(1000 / video_fps);
-                    if (pace_ms < 20) {
-                        pace_ms = 20;
-                    }
-                    tal_system_sleep(pace_ms);
-                } else {
-                    static uint32_t s_vsend_fail_cnt = 0;
-                    s_vsend_fail_cnt++;
-                    if ((s_vsend_fail_cnt % 10) == 1) {
-                        PR_ERR("video send failed count = [%d]", (int)s_vsend_fail_cnt);
-                    }
-                    backoff_ms = (P2P_AUDIO & cmd) ? 20 : 500;
-                    tal_system_sleep(backoff_ms);
                 }
             }
-        } else if (!(P2P_AUDIO & cmd)) {
-            tal_system_sleep(5);
-        } else {
-            /* Audio-only: brief yield when ring empty */
+        }
+
+        if (yield_ms != 0) {
+            tal_system_sleep(yield_ms);
+        } else if (!(P2P_VIDEO & cmd)) {
             tal_system_sleep(10);
         }
     } // while
@@ -2195,12 +2635,12 @@ int __p2p_session_all_stop(P2P_SESSION_T *pSession)
 {
     BOOL_T video_was_on = FALSE;
 
-    tal_mutex_lock(pSession->cmutex);
     if (NULL == pSession) {
         PR_ERR("param error");
-        tal_mutex_unlock(pSession->cmutex);
         return OPRT_INVALID_PARM;
     }
+
+    tal_mutex_lock(pSession->cmutex);
     if (P2P_VIDEO & pSession->cmd) {
         pSession->cmd &= ~P2P_VIDEO;
         video_was_on = TRUE;
@@ -2212,6 +2652,8 @@ int __p2p_session_all_stop(P2P_SESSION_T *pSession)
         pSession->cmd &= ~P2P_PB_VIDEO;
     }
     tal_mutex_unlock(pSession->cmutex);
+    /* MQTT/ICE teardown never sends SPEAKER_STOP; reap the downlink thread here. */
+    __p2p_audio_downlink_stop(pSession, 0);
     if (video_was_on && pSession->on_live_video_stop_callback) {
         (void)pSession->on_live_video_stop_callback();
     }
@@ -2220,19 +2662,12 @@ int __p2p_session_all_stop(P2P_SESSION_T *pSession)
 
 int __p2p_session_release_va(P2P_SESSION_T *pSession)
 {
+    tuya_p2p_rtc_disconnect_cb_t notify;
+
     // All functions closed
     PR_DEBUG("release va session[%d]", pSession->session);
     tal_mutex_lock(pSession->cmutex);
-    if (pSession->p_video_rtp_buff) {
-        Free(pSession->p_video_rtp_buff);
-        pSession->p_video_rtp_buff = NULL;
-    }
-    if (pSession->p_audio_rtp_buff) {
-        Free(pSession->p_audio_rtp_buff);
-        pSession->p_audio_rtp_buff = NULL;
-    }
-    // memset(&pSession->session, 0x00, sizeof(P2P_SESSION_T) - OFFSET(P2P_SESSION_T, session));//Clear variables
-    // outside the lock memset(&pSession->str_P2p_auth, 0, sizeof(pSession->str_P2p_auth));
+
     pSession->cur_clarity = TY_VIDEO_CLARITY_INNER_HIGH;
     pSession->status = P2P_SESSION_IDLE;
     pSession->cmd = P2P_IDLE;
@@ -2246,10 +2681,7 @@ int __p2p_session_release_va(P2P_SESSION_T *pSession)
     pSession->a_timestamp = 0;
     pSession->video_req_id = 0;
     pSession->audio_req_id = 0;
-    /*
-     * Keep media_frame / media_audio_frame buffers across reconnect (allocated once in
-     * p2p_init via Malloc/PSRAM). Only wipe payload bookkeeping on release_va.
-     */
+
     memset(&pSession->proto_parse, 0, sizeof(pSession->proto_parse));
     /* Keep av_Info: device static encode params (align OS — do not wipe across reconnect) */
     pSession->video_need_iframe = FALSE;
@@ -2257,15 +2689,23 @@ int __p2p_session_release_va(P2P_SESSION_T *pSession)
     pSession->dbg_vsend_ok = 0;
     pSession->dbg_vsend_skip = 0;
     pSession->dbg_vget_fail = 0;
-    if (pSession->on_disconnect_callback)
-        pSession->on_disconnect_callback(); // Notify upper layer when receiving disconnect signal from cloud
+    notify                        = pSession->on_disconnect_callback;
     tal_mutex_unlock(pSession->cmutex);
+
+    if (notify) {
+        notify();
+    }
     return 0;
 }
 
 OPERATE_RET p2p_init(const TUYA_IPC_P2P_VAR_T *p_var)
 {
     OPERATE_RET ret = OPRT_OK;
+
+    if (NULL != sg_p2p_session) {
+        PR_ERR("p2p already initialised, ignoring re-init");
+        return OPRT_COM_ERROR;
+    }
 
     // Initialize session information
     sg_p2p_session = (P2P_SESSION_T *)Malloc(sizeof(P2P_SESSION_T));
@@ -2346,6 +2786,8 @@ OPERATE_RET p2p_init(const TUYA_IPC_P2P_VAR_T *p_var)
     sg_p2p_session->on_live_audio_start_callback = p_var->on_live_audio_start_callback;
     sg_p2p_session->on_live_audio_stop_callback = p_var->on_live_audio_stop_callback;
     sg_p2p_session->on_recv_audio_frame_callback = p_var->on_recv_audio_frame_callback;
+    sg_p2p_session->on_request_i_frame_callback   = p_var->on_request_i_frame_callback;
+    sg_p2p_session->on_set_video_bitrate_callback = p_var->on_set_video_bitrate_callback;
     sg_p2p_session->on_live_video_start_callback = p_var->on_live_video_start_callback;
     sg_p2p_session->on_live_video_stop_callback = p_var->on_live_video_stop_callback;
 
@@ -2359,6 +2801,9 @@ RET:
         p2p_release_audio_send_resource(sg_p2p_session);
     }
     __p2p_thread_exit(sg_p2p_session->cmd_recv_proc_thread);
+
+    __p2p_thread_exit(sg_p2p_session->video_send_proc_thread);
+
     return ret;
 }
 
@@ -2426,8 +2871,11 @@ OPERATE_RET tuya_imm_p2p_playback_send_video_frame(const char *dev_id, const uin
     if (p_video_frame == NULL || p_video_frame->p_video_buf == NULL || p_video_frame->buf_len == 0) {
         return OPRT_INVALID_PARM;
     }
-    if (sg_p2p_session == NULL || !(sg_p2p_session->cmd & P2P_PB_VIDEO)) {
-        return OPRT_RESOURCE_NOT_READY;
+    if (sg_p2p_session == NULL) {
+        return OPRT_SOCK_CONN_ERR;
+    }
+    if (!(sg_p2p_session->cmd & P2P_PB_VIDEO)) {
+        return OPRT_NOT_EXIST;
     }
     if (p2p_prepare_video_send_resource(sg_p2p_session) != OPRT_OK) {
         return OPRT_MALLOC_FAILED;
@@ -2467,8 +2915,11 @@ OPERATE_RET tuya_imm_p2p_playback_send_audio_frame(const char *dev_id, const uin
     if (p_audio_frame == NULL || p_audio_frame->p_audio_buf == NULL || p_audio_frame->buf_len == 0) {
         return OPRT_INVALID_PARM;
     }
-    if (sg_p2p_session == NULL || !(sg_p2p_session->cmd & (P2P_PB_AUDIO | P2P_PB_VIDEO))) {
-        return OPRT_RESOURCE_NOT_READY;
+    if (sg_p2p_session == NULL) {
+        return OPRT_SOCK_CONN_ERR;
+    }
+    if (!(sg_p2p_session->cmd & (P2P_PB_AUDIO | P2P_PB_VIDEO))) {
+        return OPRT_NOT_EXIST;
     }
     if (p_audio_frame->audio_codec == TUYA_CODEC_AUDIO_G711A) {
         type = TY_AV_CODEC_AUDIO_G711A;
@@ -2536,6 +2987,66 @@ void tuya_ipc_media_p2p_clear_send(void)
     (void)tuya_p2p_rtc_clear_send_buffer(sg_p2p_session->session, TUYA_ADATA_CHANNEL);
 }
 
+void tuya_ipc_media_p2p_drop_unsent(void)
+{
+    uint32_t vdrop = 0;
+    uint32_t adrop = 0;
+
+    if (sg_p2p_session == NULL) {
+        return;
+    }
+    (void)tuya_p2p_rtc_drop_unsent(sg_p2p_session->session, TUYA_VDATA_CHANNEL, &vdrop);
+    (void)tuya_p2p_rtc_drop_unsent(sg_p2p_session->session, TUYA_ADATA_CHANNEL, &adrop);
+    if (vdrop != 0 || adrop != 0) {
+        PR_NOTICE("pb drop unsent v=%u a=%u", vdrop, adrop);
+    }
+}
+
+void tuya_ipc_media_p2p_video_send_start(void)
+{
+    P2P_CMD_PARSE_T head;
+    C2C_CMD_IO_CTRL_COM_RESP_T comResp;
+    char *sendBuff = NULL;
+    int packLen;
+    int ret;
+
+    if (sg_p2p_session == NULL) {
+        return;
+    }
+
+    memset(&head, 0, sizeof(head));
+    if (sg_p2p_session->pb_resp_head.mark == P2P_CMD_MARK) {
+        memcpy(&head, &sg_p2p_session->pb_resp_head, sizeof(head));
+    } else {
+        head.mark = P2P_CMD_MARK;
+        head.reqId = sg_p2p_session->video_req_id;
+        head.str_header.high_cmd = TY_C2C_CMD_IO_CTRL_PLAYBACK;
+    }
+    /* Device notify: App waits for 50 after START RECV; SUCCESS on START is "play ended". */
+    head.str_header.type = 0;
+    head.str_header.low_cmd = TY_CMD_IO_CTRL_VIDEO_SEND_START;
+    memset(&comResp, 0, sizeof(comResp));
+    comResp.channel = 0;
+    comResp.result = TY_C2C_CMD_IO_CTRL_COMMAND_SUCCESS;
+    head.str_header.length = (unsigned int)sizeof(comResp);
+
+    packLen = P2P_CMD_HEAD_LEN + (int)sizeof(comResp);
+    sendBuff = (char *)Malloc(packLen);
+    if (sendBuff == NULL) {
+        PR_ERR("pb VIDEO_SEND_START malloc failed");
+        return;
+    }
+    memcpy(sendBuff, &head, P2P_CMD_HEAD_LEN);
+    memcpy(sendBuff + P2P_CMD_HEAD_LEN, &comResp, sizeof(comResp));
+    ret = tuya_p2p_rtc_send_data(sg_p2p_session->session, TUYA_CMD_CHANNEL, sendBuff, packLen, -1);
+    Free(sendBuff);
+    if (ret < 0) {
+        PR_ERR("pb VIDEO_SEND_START send failed ret=%d reqId=%d", ret, head.reqId);
+        return;
+    }
+    PR_NOTICE("pb VIDEO_SEND_START reqId=%d", head.reqId);
+}
+
 OPERATE_RET
 tuya_imm_p2p_playback_send_video_frame_with_encrypt(const uint32_t client, uint32_t reqId,
                                                     const TRANSFER_MEDIA_FRAME_WIHT_ENCRYPT_T *p_video_frame)
@@ -2601,6 +3112,7 @@ int rtp_pack_packet_handler(void *param, const void *packet, int bytes, uint32_t
     if (p2p_send_rtp_data(nal_arg->client, nal_arg->channel, nal_arg->p_rtp_buff, total) != OPRT_OK) {
         return -1;
     }
+    nal_arg->sent_pkts++;
     return 0;
 }
 

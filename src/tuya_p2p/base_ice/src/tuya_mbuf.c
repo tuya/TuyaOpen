@@ -15,6 +15,7 @@
 #include "tal_mutex.h"
 #include "tal_memory.h"
 #include "tuya_cloud_types.h"
+#include "tal_log.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -90,6 +91,11 @@ void tuya_mbuf_queue_destroy(tuya_mbuf_queue_t *q)
 {
     if (q == NULL) {
         return;
+    }
+
+    if (q->used_size != 0) {
+        PR_ERR("mbuf queue destroyed with %d bytes outstanding (in=%lld out=%lld)", q->used_size,
+               (long long)q->total_bytes_in, (long long)q->total_bytes_out);
     }
     q->close_flag = 1;
     tal_mutex_release(q->lock);

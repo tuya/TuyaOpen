@@ -34,6 +34,9 @@ typedef struct tagTuyaIpcSdkVar {
     int (*OnLiveAudioStartCallback)(void);
     int (*OnLiveAudioStopCallback)(void);
     int (*OnRecvAudioFrameCallback)(MEDIA_FRAME *pMediaFrame);
+
+    int (*OnRequestIFrameCallback)(void);
+    int (*OnSetVideoBitrateCallback)(uint32_t kbps);
 } TUYA_IPC_SDK_VAR_S;
 
 OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar);

@@ -118,7 +118,20 @@ OPERATE_RET tuya_ipc_ring_buffer_append_data_with_timestamp(RING_BUFFER_USER_HAN
 RING_BUFFER_NODE_T *tuya_ipc_ring_buffer_get_frame(RING_BUFFER_USER_HANDLE_T handle, BOOL_T is_retry);
 
 /**
- * @brief Reset reader to newest frame
+ * @brief Get next frame for reader, copied out of the ring
+ * @param[in]  handle read handle
+ * @param[out] dst    buffer to receive the payload
+ * @param[in]  dst_cap capacity of @p dst
+ * @param[out] out    frame metadata (size, type, pts, timestamp); payload
+ *                    pointers inside are not set
+ * @return OPRT_OK when a frame was copied, OPRT_RESOURCE_NOT_READY when the
+ *         ring holds nothing new, OPRT_INVALID_PARM when @p dst is too small
+ */
+OPERATE_RET tuya_ipc_ring_buffer_read_frame(RING_BUFFER_USER_HANDLE_T handle, uint8_t *dst, uint32_t dst_cap,
+                                            RING_BUFFER_NODE_T *out);
+
+/**
+ * @brief Reset reader to the newest frame in the ring
  * @param[in] handle read handle
  * @return none
  */

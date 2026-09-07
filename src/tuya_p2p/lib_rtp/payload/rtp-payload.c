@@ -106,10 +106,12 @@ int rtp_packet_getsize()
     return s_max_packet_size;
 }
 
+#define RTP_PAYLOAD_TUYA_H265 95
+
 static int rtp_payload_find(int payload, const char *encoding, struct rtp_payload_delegate_t *codec)
 {
     assert(payload >= 0 && payload <= 127);
-    if (payload >= RTP_PAYLOAD_DYNAMIC && encoding) {
+    if ((payload >= RTP_PAYLOAD_DYNAMIC || RTP_PAYLOAD_TUYA_H265 == payload) && encoding) {
         if (0 == strcasecmp(encoding, "H264")) {
             // H.264 video (MPEG-4 Part 10) (RFC 6184)
             codec->encoder = rtp_h264_encode();

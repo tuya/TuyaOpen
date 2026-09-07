@@ -10,20 +10,9 @@
 
 #include <stdint.h>
 
-/**
- * @brief Compile-time switch for KCP send rate-limiting (pacing).
- *
- * TuyaOS libtuyaos.a ships pacing_init/fini but never calls pacing_update /
- * pacing_try_send / pacing_on_send_fail — they are dead code; the OS sends at
- * full rate and relies on KCP cwnd for congestion control. OpenSDK wired those
- * calls in, which throttles the ~1Mbps video stream whenever the bandwidth
- * estimate runs low and accumulates latency.
- *
- * Default 0 (OFF) matches the OS low-latency behavior. Define to 1 to re-enable
- * pacing (weak-network tuning / debugging).
- */
+/** @brief Compile-time switch for KCP send pacing. */
 #ifndef IKCP_PACING_RATE_LIMIT
-#define IKCP_PACING_RATE_LIMIT 0
+#define IKCP_PACING_RATE_LIMIT 1
 #endif
 
 #ifdef __cplusplus
@@ -51,34 +40,51 @@ int pacing_init(ikcpcb *kcp);
 void pacing_fini(ikcpcb *kcp);
 
 /**
- * @brief Update bandwidth estimate from delivered segments (call on ACK)
+ * @brief Account wire bytes the peer has acknowledged
  * @param[in,out] kcp kcp control block
+ * @param[in] wire_bytes on-the-wire length of the segment being retired
  * @return none
  */
-void pacing_update(ikcpcb *kcp);
+void pacing_on_acked(ikcpcb *kcp, uint32_t wire_bytes);
 
 /**
- * @brief Get current pacing rate in bytes per millisecond
+ * @brief Account a round-trip sample
+ * @param[in,out] kcp kcp control block
+ * @param[in] rtt measured round trip, milliseconds
+ * @return none
+ */
+void pacing_on_rtt(ikcpcb *kcp, uint32_t rtt);
+
+/**
+ * @brief Refresh the pacing rate and top up the send credit
+ * @param[in,out] kcp kcp control block
+ * @return none
+ * @note Call once per ikcp_flush, before any data segment is considered.
+ */
+void pacing_flush_begin(ikcpcb *kcp);
+
+/**
+ * @brief Smallest round trip seen recently, milliseconds
  * @param[in] kcp kcp control block
- * @return rate (bytes/ms), minimum 100 when pacing is active
+ * @return the windowed minimum, 0 before anything has been measured
  */
-uint32_t pacing_rate(ikcpcb *kcp);
+uint32_t pacing_min_rtt(const ikcpcb *kcp);
 
 /**
- * @brief Push next_send forward after UDP send failure (ENOBUFS backoff)
- * @param[in,out] kcp kcp control block
- * @param[in] backoff_ms delay to add from kcp->current
- * @return none
+ * @brief Estimated bottleneck bandwidth, bytes per second
+ * @param[in] kcp kcp control block
+ * @return the windowed maximum delivery rate, 0 before anything has been measured
  */
-void pacing_on_send_fail(ikcpcb *kcp, uint32_t backoff_ms);
+uint32_t pacing_bw(const ikcpcb *kcp);
 
 /**
- * @brief Account a paced data packet and advance next_send
+ * @brief Charge a packet against this flush's budget
  * @param[in,out] kcp kcp control block
- * @param[in] pkt_len packet length in bytes
- * @return 1 if packet may be sent now, 0 if paced out (caller should stop data flush)
+ * @param[in] pkt_len wire length of the packet, retransmissions included
+ * @param[in] is_new non-zero if this is the segment's first transmission
+ * @return 1 if it may be sent now, 0 if it must wait (stop the flush)
  */
-int pacing_try_send(ikcpcb *kcp, uint32_t pkt_len);
+int pacing_try_send(ikcpcb *kcp, uint32_t pkt_len, int is_new);
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,12 @@ typedef int (*tuya_p2p_rtc_disconnect_cb_t)();
 typedef int (*tuya_p2p_rtc_get_frame_cb_t)(MEDIA_FRAME *pMediaFrame);
 typedef int (*tuya_p2p_rtc_live_video_cb_t)(void);
 
+/** @brief Ask the encoder for an immediate key frame. Optional. */
+typedef int (*tuya_p2p_rtc_req_i_frame_cb_t)(void);
+
+/** @brief Ask the encoder to produce @p kbps from now on. Optional. */
+typedef int (*tuya_p2p_rtc_set_bitrate_cb_t)(uint32_t kbps);
+
 /**
  * @enum TRANS_DEFAULT_QUALITY_E
  *
@@ -72,6 +78,9 @@ typedef struct {
     tuya_p2p_rtc_live_video_cb_t on_live_audio_start_callback;
     tuya_p2p_rtc_live_video_cb_t on_live_audio_stop_callback;
     tuya_p2p_rtc_get_frame_cb_t  on_recv_audio_frame_callback;
+
+    tuya_p2p_rtc_req_i_frame_cb_t on_request_i_frame_callback;
+    tuya_p2p_rtc_set_bitrate_cb_t on_set_video_bitrate_callback;
 } TUYA_IPC_P2P_VAR_T;
 
 //////////////////////////////external interface////////////////////////////////////////////
@@ -120,6 +129,9 @@ OPERATE_RET tuya_ipc_stop_send_data_to_app(int client);
 OPERATE_RET tuya_sweeper_send_data_with_buff(int client, char *name, int fileLen, char *fileBuff,
                                              int timeout_ms);
 OPERATE_RET tuya_p2p_keep_alive(int client);
+
+/* Uplink audio counters, for the app to print alongside its own. */
+void tuya_ipc_p2p_audio_stats_get(uint32_t *shed, uint32_t *send_fail, uint32_t *queued);
 
 #ifdef __cplusplus
 }
