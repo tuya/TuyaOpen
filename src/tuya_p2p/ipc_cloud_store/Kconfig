@@ -1,8 +1,0 @@
-# Ktuyaconf
-menuconfig ENABLE_IPC_CLOUD_STORE
-	bool "ENABLE_IPC_CLOUD_STORE: IPC continuous cloud recording (skeleton)"
-	default n
-	depends on ENABLE_TUYA_P2P
-	help
-	  Skeleton for OS-aligned IPC cloud storage (order/OSS/slice).
-	  Upload path is not fully ported yet; APIs are stable for app wiring.

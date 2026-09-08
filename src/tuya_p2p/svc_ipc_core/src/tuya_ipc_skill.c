@@ -324,7 +324,12 @@ void tuya_ipc_upload_skills()
     }
 #endif
     skill_buf[buf_len] = '}';
-    http_device_update_skill(NULL, skill_buf);
+    {
+
+        OPERATE_RET skill_rt = http_device_update_skill(NULL, skill_buf);
+
+        PR_NOTICE("skill.update rt=%d: %s", skill_rt, skill_buf);
+    }
 
 #if defined(ENABLE_TMM_LINK) && (ENABLE_TMM_LINK == 1)
     PR_DEBUG("upload data: %s", skill_buf);

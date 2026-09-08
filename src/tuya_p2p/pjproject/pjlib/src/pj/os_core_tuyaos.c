@@ -205,7 +205,7 @@ PJ_DEF(pj_status_t) pj_init(void)
 
     ++initialized;
     pj_assert(initialized == 1);
-    PJ_LOG(4, (THIS_FILE, "pjlib %s for TuyaOS/TAL initialized", PJ_VERSION));
+    PJ_LOG(4, (THIS_FILE, "pjlib %s for TAL initialized", PJ_VERSION));
     return PJ_SUCCESS;
 }
 
@@ -430,7 +430,6 @@ pj_thread_create(pj_pool_t *pool, const char *thread_name, pj_thread_proc *proc,
     cfg.priority = THREAD_PRIO_2;
     cfg.thrdname = rec->obj_name;
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    /* Align OS tuya_p2p_lib_pthread_create → tkl_thread_create_in_psram */
     cfg.psram_mode = 1;
 #endif
 

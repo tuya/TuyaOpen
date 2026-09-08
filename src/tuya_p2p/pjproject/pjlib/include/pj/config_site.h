@@ -14,7 +14,7 @@
 
 #endif /* THIRD_PARTY_MEDIA */
 
-/* lwIP on TuyaOS: setsockopt(IP_TOS/SO_PRIORITY) often returns ENOSYS.
+/* lwIP: setsockopt(IP_TOS/SO_PRIORITY) often returns ENOSYS.
  * Use dummy QoS so TURN/STUN never depend on unsupported sockopts. */
 #define PJ_QOS_IMPLEMENTATION PJ_QOS_DUMMY
 

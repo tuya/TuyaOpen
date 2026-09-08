@@ -1,6 +1,6 @@
 /**
  * @file tuya_ipc_media_stream_event.c
- * @brief Media stream event register/dispatch (align OS svc_streaming_p2p)
+ * @brief Media stream event register/dispatch
  * @version 1.0
  * @date 2026-08-06
  * @copyright Copyright (c) Tuya Inc.

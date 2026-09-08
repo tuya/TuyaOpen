@@ -255,7 +255,7 @@ PJ_DEF(const pj_str_t *) pj_gethostname(void)
     if (hostname.ptr == NULL) {
         hostname.ptr = buf;
         /*
-         * TuyaOS has no POSIX host database; pj only uses this as a label
+         * No POSIX host database; pj only uses this as a label
          * (telnet CLI prompt, pj_gethostip fallback).
          */
         pj_ansi_snprintf(buf, sizeof(buf), "%s", PJ_TUYAOS_HOSTNAME);
@@ -649,7 +649,7 @@ pj_sock_setsockopt(pj_sock_t sock, pj_uint16_t level, pj_uint16_t optname, const
         } else if (optname == PJ_SO_REUSEADDR) {
             rt = val ? tal_net_set_reuse((int)sock) : OPRT_OK;
         } else if (optname == PJ_SO_NOSIGPIPE) {
-            /* TuyaOS never raises SIGPIPE, so this is a no-op. */
+            /* This stack does not raise SIGPIPE, so this is a no-op. */
             rt = OPRT_OK;
         }
     } else if (level == PJ_SOL_TCP && optname == PJ_TCP_NODELAY) {

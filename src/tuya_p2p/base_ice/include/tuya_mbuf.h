@@ -1,6 +1,6 @@
 /**
  * @file tuya_mbuf.h
- * @brief Byte-budget mbuf queue aligned with TuyaOS mid_p2p kcppool
+ * @brief Byte-budget mbuf queue for KCP send
  * @version 1.0
  * @date 2026-08-04
  * @copyright Copyright (c) Tuya Inc.
@@ -14,7 +14,7 @@ extern "C" {
 
 #include <stdint.h>
 
-/* Align TuyaOS mid_p2p kcppool slab / budget unit */
+/* Slab / budget unit charged per allocated mbuf */
 #ifndef TUYA_MBUF_HUGE_SIZE
 #define TUYA_MBUF_HUGE_SIZE 1600
 #endif

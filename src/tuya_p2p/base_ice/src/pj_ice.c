@@ -134,10 +134,6 @@ static bool is_ipv6_n(const char *ip_str, size_t len)
     return is_ipv6(tmp);
 }
 
-/*
- * This function checks for events from both timer and ioqueue (for
- * network events). It is invoked by the worker thread.
- */
 bool pj_ice_session_handle_events(pj_ice_session_t *pIceSession, unsigned max_msec, unsigned *p_count)
 {
     if (pIceSession == NULL) {
@@ -176,30 +172,13 @@ bool pj_ice_session_handle_events(pj_ice_session_t *pIceSession, unsigned max_ms
         }
     }
 
-    /* timer_heap_poll should never ever returns negative value, or otherwise
-     * ioqueue_poll() will block forever!
-     */
     pj_assert(timeout.sec >= 0 && timeout.msec >= 0);
     if (timeout.msec >= 1000)
         timeout.msec = 999;
 
-    /* compare the value with the timeout to wait from timer, and use the
-     * minimum value.
-     */
     if (PJ_TIME_VAL_GT(timeout, max_timeout))
         timeout = max_timeout;
 
-    /* Poll ioqueue.
-     * Repeat polling the ioqueue while we have immediate events, because
-     * timer heap may process more than one events, so if we only process
-     * one network events at a time (such as when IOCP backend is used),
-     * the ioqueue may have trouble keeping up with the request rate.
-     *
-     * For example, for each send() request, one network event will be
-     *   reported by ioqueue for the send() completion. If we don't poll
-     *   the ioqueue often enough, the send() completion will not be
-     *   reported in timely manner.
-     */
     do {
         c = pj_ioqueue_poll(pIceStransCfg->stun_cfg.ioqueue, &timeout);
         if (c < 0) {
@@ -225,9 +204,6 @@ bool pj_ice_session_handle_events(pj_ice_session_t *pIceSession, unsigned max_ms
     return true;
 }
 
-/*
- * This is the worker thread that polls event in the background.
- */
 int ice_worker_thread(void *pParam)
 {
     ICE_WORKER_THREAD_PARAM *pThis = (ICE_WORKER_THREAD_PARAM *)(pParam);
@@ -249,11 +225,6 @@ int print_cand(char buffer[], unsigned maxlen, const pj_ice_sess_cand *cand)
     int printed;
     pj_uint32_t prio = cand->prio;
 
-    /*
-     * ice_strans cand_list entries often still have prio==0 when trickled via
-     * on_new_candidate (prio is only stored on ice_sess lcand). Compute RFC5245
-     * priority so the peer does not discard the candidate.
-     */
     if (prio == 0 && cand->type <= PJ_ICE_CAND_TYPE_RELAYED) {
         static const pj_uint32_t type_prefs[] = {
             126, /* HOST */
@@ -429,6 +400,9 @@ int pj_sdp_token_url_parse(const char *token_url, const char *type, char **addr,
     return 0;
 }
 
+#define ICE_DESTROY_DRAIN_ROUNDS 10u
+#define ICE_DESTROY_DRAIN_MS     10u
+
 bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceSession)
 {
     pj_init();
@@ -485,8 +459,9 @@ bool pj_ice_session_create(pj_ice_session_cfg_t *pCfg, pj_ice_session_t **ppIceS
 
 bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
 {
-    pj_status_t status = PJ_SUCCESS;
     pj_ice_strans *ice_st = NULL;
+    bool ok = true;
+    unsigned i;
 
     if (pIceSession == NULL) {
         return false;
@@ -496,6 +471,7 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
 
     pj_thread_register2();
 
+    /* The worker polls the ioqueue and timer heap torn down below. */
     if (pIceSession->pIceThreadParam != NULL) {
         pIceSession->pIceThreadParam->bThreadQuitFlag = true;
     }
@@ -505,37 +481,47 @@ bool pj_ice_session_destroy(pj_ice_session_t *pIceSession)
         pIceSession->pThread = NULL;
     }
 
-    /* Capture ice_st BEFORE pool_release: ice_st is allocated from pPool. */
     ice_st = pIceSession->pIceSTransport;
+    pIceSession->pIceSTransport = NULL;
+    if (ice_st != NULL) {
+        if (pj_ice_strans_has_sess(ice_st)) {
+            pj_status_t status = pj_ice_strans_stop_ice(ice_st);
+            if (status != PJ_SUCCESS) {
+                pj_print_error("error stopping session", status);
+                ok = false;
+            }
+        }
 
+        pj_ice_strans_destroy(ice_st);
+    }
+
+    for (i = 0; i < ICE_DESTROY_DRAIN_ROUNDS; i++) {
+        unsigned handled = 0;
+        pj_ice_session_handle_events(pIceSession, ICE_DESTROY_DRAIN_MS, &handled);
+    }
+
+    if (pIceSession->iceCfg.stun_cfg.ioqueue != NULL) {
+        pj_ioqueue_destroy(pIceSession->iceCfg.stun_cfg.ioqueue);
+        pIceSession->iceCfg.stun_cfg.ioqueue = NULL;
+    }
+    if (pIceSession->iceCfg.stun_cfg.timer_heap != NULL) {
+        pj_timer_heap_destroy(pIceSession->iceCfg.stun_cfg.timer_heap);
+        pIceSession->iceCfg.stun_cfg.timer_heap = NULL;
+    }
     if (pIceSession->pPool != NULL) {
         pj_pool_release(pIceSession->pPool);
         pIceSession->pPool = NULL;
     }
+    pj_caching_pool_destroy(&pIceSession->cachePool);
 
     if (pIceSession->pIceThreadParam != NULL) {
         free(pIceSession->pIceThreadParam);
         pIceSession->pIceThreadParam = NULL;
     }
+    free(pIceSession);
 
-    if (ice_st == NULL) {
-        PJ_LOG(1, (THIS_FILE, "Error: No ICE instance, create it first"));
-        return false;
-    }
-
-    if (!pj_ice_strans_has_sess(ice_st)) {
-        PJ_LOG(1, (THIS_FILE, "Error: No ICE session, initialize first"));
-        return false;
-    }
-
-    status = pj_ice_strans_stop_ice(ice_st);
-    if (status != PJ_SUCCESS) {
-        pj_print_error("error stopping session", status);
-        return false;
-    }
-
-    PJ_LOG(3, (THIS_FILE, "ICE session stopped"));
-    return true;
+    PJ_LOG(3, (THIS_FILE, "ICE session destroyed"));
+    return ok;
 }
 
 bool pj_ice_session_init(pj_ice_session_t *pIceSession, pj_ice_session_cfg_t *pCfg)
@@ -596,11 +582,7 @@ bool pj_ice_session_init(pj_ice_session_t *pIceSession, pj_ice_session_cfg_t *pC
                 pj_ice_strans_turn_cfg_default(&pIceCfg->turn_tp[0]);
                 pj_strdup_with_null(pIceSession->pPool, &pIceCfg->turn_tp[0].server, &pjstrServerHost);
                 pIceCfg->turn_tp[0].port = server_port;
-                /*
-                 * Must copy username/credential into pool: valuestring is owned
-                 * by cJSON and freed by cJSON_Delete below. Dangling TURN auth
-                 * caused intermittent missing local relay (cross-subnet flaky).
-                 */
+
                 pjstrUser = pj_str(el_username->valuestring);
                 pjstrCred = pj_str(el_credential->valuestring);
                 pIceCfg->turn_tp[0].auth_cred.type = PJ_STUN_AUTH_CRED_STATIC;
@@ -690,7 +672,6 @@ bool pj_ice_session_add_remote_candidate(pj_ice_session_t *pIceSession, pj_str_t
         return false;
     }
 
-
     /* Update the checklist */
     status = pj_ice_strans_update_check_list(ice_st, rem_ufrag, rem_passwd, rcand_cnt, rcand, rcand_end);
     if (status != PJ_SUCCESS) {
@@ -698,10 +679,7 @@ bool pj_ice_session_add_remote_candidate(pj_ice_session_t *pIceSession, pj_str_t
         pj_ice_session_dbg_dump(pIceSession, "update_fail");
         return false;
     }
-    /*
-     * Checklist can be updated while local gathering is still running.
-     * Only call start_ice after local INIT OK (bLocalGatherDone) and remote ufrag.
-     */
+
     return pj_ice_session_try_start_ice(pIceSession, "add_remote");
 }
 

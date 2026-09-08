@@ -70,14 +70,14 @@ jobs:
           cd ${{ github.workspace }}/apps/tuya.ai/your_otto_robot
           tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
-      - name: Check [camera_demo] Build
+      - name: Check [ipc_p2p_demo] Build
         env:
-          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/camera_demo
+          BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/ipc_p2p_demo
         run: |
-          echo "::group::Building camera_demo"
+          echo "::group::Building ipc_p2p_demo"
           cd ${{ github.workspace }}
           . ./export.sh
-          cd ${{ github.workspace }}/apps/tuya_cloud/camera_demo
+          cd ${{ github.workspace }}/apps/tuya_cloud/ipc_p2p_demo
           tos.py dev bac -d ${{ github.workspace }}/dist -o "$BUILD_LOG_DIR"
           echo "::endgroup::"
       - name: Check [weather_get_demo] Build

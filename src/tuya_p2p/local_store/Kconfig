@@ -1,20 +1,19 @@
 # Ktuyaconf
 menuconfig ENABLE_LOCAL_STORE
-	bool "ENABLE_LOCAL_STORE: Enable local media storage helpers"
+	bool "ENABLE_LOCAL_STORE: Enable local media storage"
 	default n
 	depends on ENABLE_TUYA_P2P
 	help
-	  Path and directory helpers for large media files on the filesystem
-	  (host directory on LINUX, SD/flash via tal_fs elsewhere).
-	  Lives under tuya_p2p; uses tal_fs only.
+	  Segment recorder, day index and segment reader for media files on the
+	  filesystem (host directory on LINUX, SD/flash via tkl_fs elsewhere).
 
 	if ENABLE_LOCAL_STORE
 		config LOCAL_STORE_ROOT
 			string "LOCAL_STORE_ROOT: storage root directory"
+			default "/sdcard/media" if PLATFORM_T5
 			default "./media"
 			help
-			  Absolute or relative root for media files.
-			  On LINUX this is typically a host path under the process cwd.
+			  T5 boards store under the SD mount. LINUX uses a host relative path.
 
 		config LOCAL_STORE_REC_SUBDIR
 			string "LOCAL_STORE_REC_SUBDIR: recording subdir under root"
@@ -26,4 +25,36 @@ menuconfig ENABLE_LOCAL_STORE
 			int "LOCAL_STORE_PATH_MAX: max path buffer length"
 			default 256
 			range 128 1024
+
+		config LOCAL_STORE_STAGE_KB
+			int "LOCAL_STORE_STAGE_KB: recorder ring between encoder and writer, KB"
+			default 512
+			range 64 4096
+			help
+			  Frames wait here while the writer is blocked on the card. Size it
+			  for the longest write stall you expect at the encoder bitrate;
+			  1 Mbps for 2 s is 256 KB. Allocated from PSRAM when ENABLE_EXT_RAM.
+
+		config LOCAL_STORE_WRITE_KB
+			int "LOCAL_STORE_WRITE_KB: bytes gathered before one fwrite, KB"
+			default 64
+			range 8 512
+
+		config LOCAL_STORE_SYNC_MS
+			int "LOCAL_STORE_SYNC_MS: fsync and index flush period while recording, ms"
+			default 3000
+			range 500 60000
+
+		config LOCAL_STORE_KEEP_DAYS
+			int "LOCAL_STORE_KEEP_DAYS: delete day directories older than this (0 = never)"
+			default 0
+			range 0 3650
+			help
+			  Also used when a write fails for lack of space: the oldest day
+			  other than today is removed and the write retried.
+
+		config LOCAL_STORE_READ_KB
+			int "LOCAL_STORE_READ_KB: reader buffer, KB (must hold the largest frame)"
+			default 320
+			range 64 2048
 	endif # ENABLE_LOCAL_STORE

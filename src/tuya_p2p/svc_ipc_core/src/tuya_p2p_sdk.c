@@ -26,18 +26,21 @@ static int ipc_lan_cmd_cb(const uint8_t *data, uint8_t **out);
 OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
 {
     OPERATE_RET ret = OPRT_OK;
+    static BOOL_T started = FALSE;
+
+    if (started) {
+        PR_WARN("IPC stack already started, ignoring");
+        return OPRT_OK;
+    }
 
     // Set activation skill parameters and report
     TUYA_IPC_SKILL_PARAM_U skill_param = {.value = 0};
     skill_param.value = tuya_p2p_rtc_get_skill();
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_P2P, &skill_param);
     skill_param.value = 1;
-    tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOWPOWER, &skill_param);
+
 #if defined(ENABLE_LOCAL_STORE) && (ENABLE_LOCAL_STORE == 1)
     tuya_ipc_skill_enable(TUYA_IPC_SKILL_LOCALSTG, &skill_param);
-#endif
-#if defined(ENABLE_IPC_CLOUD_STORE) && (ENABLE_IPC_CLOUD_STORE == 1)
-    tuya_ipc_skill_enable(TUYA_IPC_SKILL_CLOUDSTG, &skill_param);
 #endif
     tuya_ipc_upload_skills();
 
@@ -47,15 +50,12 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     stream_var.def_live_mode = TRANS_DEFAULT_STANDARD;
     stream_var.recv_buffer_size = 16 * 1024;
     int preconnect = stream_var.low_power ? 0 : 1;
-    /* Align TuyaOS wukong: sdkVar.media_info.video_bitrate[MAIN] = 1M, same
-     * value the demo encoder is configured with (DEMO_CAM_BITRATE_KB). */
+
     ret = __p2p_v3_login_init(preconnect, stream_var.max_client_num, TUYA_VIDEO_BITRATE_1M);
     if (OPRT_OK != ret) {
         PR_ERR("__p2p_v3_login_init failed\n");
         return ret;
     }
-
-    p2p_rtc_listen_start();
 
     TUYA_IPC_P2P_VAR_T var = {0};
     var.max_client_num = stream_var.max_client_num;
@@ -70,6 +70,8 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
     var.on_live_audio_start_callback = pSdkVar->OnLiveAudioStartCallback;
     var.on_live_audio_stop_callback = pSdkVar->OnLiveAudioStopCallback;
     var.on_recv_audio_frame_callback = pSdkVar->OnRecvAudioFrameCallback;
+    var.on_request_i_frame_callback   = pSdkVar->OnRequestIFrameCallback;
+    var.on_set_video_bitrate_callback = pSdkVar->OnSetVideoBitrateCallback;
     if (var.recv_buffer_size == 0) {
         var.recv_buffer_size = 16 * 1024;
     }
@@ -78,6 +80,11 @@ OPERATE_RET TUYA_APP_Start(TUYA_IPC_SDK_VAR_S *pSdkVar)
         PR_ERR("tuya_ipc_p2p_init failed \n");
         return ret;
     }
+
+    p2p_rtc_listen_start();
+
+    /* Latched only once everything is up, so an early failure can still be retried. */
+    started = TRUE;
     return ret;
 }
 
@@ -191,7 +198,7 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
     memcpy(strOpt.local_id, /*gw_cntl->gw_if.id*/ dev_id, /*sizeof(gw_cntl->gw_if.id)*/ strlen(dev_id));
 
     strOpt.preconnect_enable = preconnect;
-    strOpt.fragement_len = 1300; /* align TuyaOS mid_p2p dosend fragment */
+    strOpt.fragement_len = 1300; /* KCP/RTP fragment size */
     // strOpt.cb.on_moto_signaling = tuya_p2p_rtc_moto_signaling_cb;
     strOpt.cb.on_signaling = tuya_p2p_rtc_signaling_cb;
     strOpt.cb.on_lan_signaling = tuya_p2p_lan_signaling_cb;
@@ -201,15 +208,10 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
     strOpt.max_channel_number = /*TUYA_CHANNEL_MAX*/ 6;
     strOpt.max_session_number = max_client;
     strOpt.max_pre_session_number = max_client;
-    /*
-     * video_bitrate_kbps sizes the video channel memory, exactly as TuyaOS
-     * does from sdkVar.media_info.video_bitrate[]. It used to be passed as 0
-     * here with send_buf_size hardcoded to 1.1 MB, which is above the OS
-     * maximum and let the queue grow to about eight seconds of video before
-     * anything was dropped.
-     */
+
     strOpt.video_bitrate_kbps = bitrate;
 
+    /* Doubling this on Linux did not help: the limit is the link, not the buffer. */
     uint32_t vsend = (bitrate * 1024u / 8u) * TUYA_P2P_SEND_BUFFER_SECONDS;
     if (vsend > TUYA_P2P_SEND_BUFFER_SIZE_MAX) {
         vsend = TUYA_P2P_SEND_BUFFER_SIZE_MAX;
@@ -233,7 +235,7 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
         PR_ERR("mqtt p2p init failed");
         return -2;
     }
-    /* Align TuyaOS media_stream: App LAN retry/signaling uses frame type 0x20 */
+    /* App LAN retry/signaling uses frame type 0x20 */
     mqttP2pRet = tuya_lan_register_cb(FRM_LAN_P2P_SIGNAL, ipc_lan_cmd_cb);
     if (OPRT_OK != mqttP2pRet) {
         PR_ERR("tuya_lan_register_cb(0x20) failed:%d", mqttP2pRet);
@@ -247,7 +249,7 @@ OPERATE_RET __p2p_v3_login_init(int preconnect, int max_client, int bitrate)
  * @param[in] data decrypted LAN payload (NUL-terminated JSON)
  * @param[out] out optional reply body (unused, keep NULL)
  * @return OPRT_OK on success
- * @note Align OS: only enqueue via tuya_p2p_rtc_set_signaling (worker does ICE).
+ * @note Enqueue via tuya_p2p_rtc_set_signaling; the worker runs ICE.
  */
 static int ipc_lan_cmd_cb(const uint8_t *data, uint8_t **out)
 {
