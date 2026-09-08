@@ -1,7 +1,0 @@
-config CHIP_CHOICE
-    string
-    default "L511G_Y7PVM"
-
-config BOARD_CHOICE
-    string
-    default "L511G_Y7PVM"

@@ -27,12 +27,6 @@ choice
             rsource "./L511G_Y7PM/Kconfig"
         endif
 
-    config BOARD_CHOICE_L511G_Y7PVM
-        bool "L511G_Y7PVM"
-        if (BOARD_CHOICE_L511G_Y7PVM)
-            rsource "./L511G_Y7PVM/Kconfig"
-        endif
-
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice
