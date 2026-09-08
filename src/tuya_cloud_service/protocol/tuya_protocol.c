@@ -18,6 +18,7 @@
  *
  */
 
+#include <inttypes.h>
 #include "tuya_protocol.h"
 #include "tal_api.h"
 #include "crc32i.h"
