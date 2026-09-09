@@ -95,9 +95,9 @@ int ble_channel_del(ble_channel_type_t type)
     return OPRT_INVALID_PARM;
 }
 
-static void ble_channel_process(void *data)
+static void ble_channel_process(void *data, uint32_t len)
 {
-    if (NULL == data) {
+    if (NULL == data || len < 2) {
         return;
     }
     uint8_t *user_data = (uint8_t *)data;
@@ -297,7 +297,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 }
                 uint32_t extracted_len =
                     __extract_packet_len(pRawData + offset, pRawLen - offset, &s_channel_total_len);
-                if (extracted_len == 0 || s_channel_total_len == 0 || s_channel_total_len > TUYA_BLE_AIR_FRAME_MAX) {
+                if (extracted_len == 0 || s_channel_total_len < 2 || s_channel_total_len > TUYA_BLE_AIR_FRAME_MAX) {
                     PR_ERR("invalid channel totalLen: %u", s_channel_total_len);
                     ble_channel_reset();
                     return;
@@ -390,13 +390,13 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
 
                 s_channel_buffer[s_channel_total_len] = 0;
                 tuya_ble_raw_print("recv_donwlink_cmd", 16, s_channel_buffer, s_channel_total_len);
-                ble_channel_process(s_channel_buffer);
+                ble_channel_process(s_channel_buffer, s_channel_total_len);
                 ble_channel_reset();
             }
         } else { // not subpacket process
-            if (pRawLen >= 2) {
+            if (pRawLen >= 4) {
                 tuya_ble_raw_print("recv_downlink_cmd", 16, pRawData, pRawLen);
-                ble_channel_process(pRawData + 2);
+                ble_channel_process(pRawData + 2, pRawLen - 2);
             }
         }
     } else if (FRM_UPLINK_TRANSPARENT_REQ == req->type || FRM_UPLINK_TRANSPARENT_SPEC_REQ == req->type) {

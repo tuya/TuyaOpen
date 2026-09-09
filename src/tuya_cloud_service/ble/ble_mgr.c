@@ -1033,14 +1033,25 @@ static void tal_ble_event_callback(void *data)
         tal_sw_timer_stop(ble->pair_timer);
         ble->is_paired = false;
         ble_frame_packet_len_set(TUYA_BLE_AIR_FRAME_MAX);
-        if (ble->packet_recv && ble->packet_recv->trsmitr) {
-            uint8_t *default_subpkg = (uint8_t *)tal_malloc(TUYA_BLE_AIR_FRAME_MAX);
-            if (default_subpkg) {
-                memset(default_subpkg, 0, TUYA_BLE_AIR_FRAME_MAX);
-                if (ble->packet_recv->trsmitr->subpkg) {
-                    tal_free(ble->packet_recv->trsmitr->subpkg);
+        if (ble->packet_recv) {
+            ble->packet_recv->raw_len = 0;
+            memset(ble->packet_recv->raw_buf, 0, sizeof(ble->packet_recv->raw_buf));
+            if (ble->packet_recv->trsmitr) {
+                uint8_t *default_subpkg = (uint8_t *)tal_malloc(TUYA_BLE_AIR_FRAME_MAX);
+                if (default_subpkg) {
+                    memset(default_subpkg, 0, TUYA_BLE_AIR_FRAME_MAX);
+                    if (ble->packet_recv->trsmitr->subpkg) {
+                        tal_free(ble->packet_recv->trsmitr->subpkg);
+                    }
+                    ble->packet_recv->trsmitr->subpkg = default_subpkg;
                 }
-                ble->packet_recv->trsmitr->subpkg = default_subpkg;
+                ble->packet_recv->trsmitr->total = 0;
+                ble->packet_recv->trsmitr->version = 0;
+                ble->packet_recv->trsmitr->seq = 0;
+                ble->packet_recv->trsmitr->pkg_trsmitr_cnt = 0;
+                ble->packet_recv->trsmitr->subpkg_num = 0;
+                ble->packet_recv->trsmitr->subpkg_len = 0;
+                ble->packet_recv->trsmitr->pkg_desc = BLE_FRAME_PKG_INIT;
             }
         }
         ble_channel_reset();

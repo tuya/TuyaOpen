@@ -377,12 +377,16 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     if (recv_data > pkg_max_len) {
         recv_data = pkg_max_len;
     }
-    if ((trsmitr->total - trsmitr->pkg_trsmitr_cnt) < recv_data) {
-        recv_data = trsmitr->total - trsmitr->pkg_trsmitr_cnt;
+    uint32_t remain_data =
+        (trsmitr->total > trsmitr->pkg_trsmitr_cnt) ? (trsmitr->total - trsmitr->pkg_trsmitr_cnt) : 0;
+    if (remain_data < recv_data) {
+        recv_data = (uint16_t)remain_data;
     }
 
     // decode data cp to transmitter subpackage buf
-    memcpy(trsmitr->subpkg, &raw_data[sunpkg_offset], recv_data);
+    if (recv_data > 0) {
+        memcpy(trsmitr->subpkg, &raw_data[sunpkg_offset], recv_data);
+    }
     trsmitr->subpkg_len = recv_data;
     trsmitr->pkg_trsmitr_cnt += recv_data;
 
