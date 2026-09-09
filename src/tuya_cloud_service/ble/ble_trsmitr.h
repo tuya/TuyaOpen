@@ -52,6 +52,10 @@ typedef uint8_t ble_frame_pkg_desc_t;
 #define BLE_FRAME_PKG_MIDDLE 2 // frame package middle
 #define BLE_FRAME_PKG_END    3 // frame package end
 
+#ifndef OPRT_SVC_BT_API_TRSMITR_DUPLICATE
+#define OPRT_SVC_BT_API_TRSMITR_DUPLICATE (-0x1f03)
+#endif
+
 // frame transmitter process
 typedef struct {
     ble_frame_total_t total;           // 4 bytes, total data length, excluding header
@@ -63,6 +67,7 @@ typedef struct {
     uint32_t pkg_trsmitr_cnt;          // package process count, number of bytes sent
     ble_frame_subpkg_len_t subpkg_len; // 1 byte, data length in the current subpackage
     uint8_t *subpkg;
+    uint32_t subpkg_capacity;          // allocated capacity of subpkg buffer
 } ble_frame_trsmitr_t;
 
 /***********************************************************
