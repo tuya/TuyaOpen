@@ -60,6 +60,7 @@ int ble_channel_del(ble_channel_type_t type);
  * channel.
  */
 void ble_session_channel_process(ble_packet_t *req, void *priv_data);
+void ble_channel_reset(void);
 
 #ifdef __cplusplus
 }

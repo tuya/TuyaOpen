@@ -162,7 +162,16 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         trsmitr->pkg_trsmitr_cnt = 0;
     }
 
+    if (NULL == buf || NULL == trsmitr || NULL == trsmitr->subpkg) {
+        return OPRT_INVALID_PARM;
+    }
+
     if (trsmitr->subpkg_num >= 0x10000000 || len >= 0x10000000) {
+        return OPRT_COM_ERROR;
+    }
+
+    uint16_t pkg_max_len = ble_frame_packet_len_get();
+    if (pkg_max_len < 10) {
         return OPRT_COM_ERROR;
     }
 
@@ -174,6 +183,9 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     unsigned int tmp = 0;
     tmp = trsmitr->subpkg_num;
     for (i = 0; i < 4; i++) {
+        if (sunpkg_offset >= pkg_max_len) {
+            return OPRT_COM_ERROR;
+        }
         trsmitr->subpkg[sunpkg_offset] = tmp % 0x80;
         if ((tmp / 0x80)) {
             trsmitr->subpkg[sunpkg_offset] |= 0x80;
@@ -190,6 +202,9 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         // frame len encode
         tmp = len;
         for (i = 0; i < 4; i++) {
+            if (sunpkg_offset >= pkg_max_len) {
+                return OPRT_COM_ERROR;
+            }
             trsmitr->subpkg[sunpkg_offset] = tmp % 0x80;
             if ((tmp / 0x80)) {
                 trsmitr->subpkg[sunpkg_offset] |= 0x80;
@@ -201,17 +216,24 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
             }
         }
 
+        if (sunpkg_offset >= pkg_max_len) {
+            return OPRT_COM_ERROR;
+        }
         // frame type and frame seq
         trsmitr->subpkg[sunpkg_offset++] = (trsmitr->version << 0x04) | (trsmitr->seq & 0x0f);
     }
 
     // frame data transfer
-    uint16_t send_data = (ble_frame_packet_len_get() - sunpkg_offset);
-    if ((len - trsmitr->pkg_trsmitr_cnt) < send_data) {
-        send_data = len - trsmitr->pkg_trsmitr_cnt;
+    if (sunpkg_offset >= pkg_max_len) {
+        return OPRT_COM_ERROR;
+    }
+    uint16_t send_data = pkg_max_len - sunpkg_offset;
+    uint32_t remain_data = (len > trsmitr->pkg_trsmitr_cnt) ? (len - trsmitr->pkg_trsmitr_cnt) : 0;
+    if (remain_data < send_data) {
+        send_data = (uint16_t)remain_data;
     }
 
-    PR_TRACE("pkg max len:%d, sunpkg_offset:%d, send_data:%d", ble_frame_packet_len_get(), sunpkg_offset, send_data);
+    PR_TRACE("pkg max len:%d, sunpkg_offset:%d, send_data:%d", pkg_max_len, sunpkg_offset, send_data);
 
     memcpy(&(trsmitr->subpkg[sunpkg_offset]), buf + trsmitr->pkg_trsmitr_cnt, send_data);
     trsmitr->subpkg_len = sunpkg_offset + send_data;
@@ -229,6 +251,7 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     }
 
     trsmitr->pkg_desc = BLE_FRAME_PKG_END;
+
     return OPRT_OK;
 }
 
@@ -257,7 +280,8 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
  */
 int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned char *raw_data, uint16_t raw_data_len)
 {
-    if (NULL == raw_data || NULL == trsmitr) { //|| (raw_data_len > ble_frame_packet_len_get())
+    if (NULL == raw_data || NULL == trsmitr || NULL == trsmitr->subpkg || 0 == raw_data_len ||
+        raw_data_len > ble_frame_packet_len_get()) {
         return OPRT_INVALID_PARM;
     }
 
@@ -277,6 +301,9 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     ble_frame_subpkg_num_t subpkg_num = 0;
     // Package number
     for (i = 0; i < 4; i++) {
+        if (sunpkg_offset >= raw_data_len) {
+            return OPRT_INVALID_PARM;
+        }
         digit = raw_data[sunpkg_offset++];
         subpkg_num += (digit & 0x7f) * multiplier;
         multiplier *= 0x80;
@@ -318,6 +345,9 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         // frame len decode
         multiplier = 1;
         for (i = 0; i < 4; i++) {
+            if (sunpkg_offset >= raw_data_len) {
+                return OPRT_INVALID_PARM;
+            }
             digit = raw_data[sunpkg_offset++];
             trsmitr->total += (digit & 0x7f) * multiplier;
             multiplier *= 0x80;
@@ -331,12 +361,22 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
             return OPRT_COM_ERROR;
         }
 
+        if (sunpkg_offset >= raw_data_len) {
+            return OPRT_INVALID_PARM;
+        }
         // frame type and frame seq decode
         trsmitr->version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
         trsmitr->seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
     }
 
+    if (sunpkg_offset >= raw_data_len) {
+        return OPRT_INVALID_PARM;
+    }
     uint16_t recv_data = raw_data_len - sunpkg_offset;
+    uint16_t pkg_max_len = ble_frame_packet_len_get();
+    if (recv_data > pkg_max_len) {
+        recv_data = pkg_max_len;
+    }
     if ((trsmitr->total - trsmitr->pkg_trsmitr_cnt) < recv_data) {
         recv_data = trsmitr->total - trsmitr->pkg_trsmitr_cnt;
     }

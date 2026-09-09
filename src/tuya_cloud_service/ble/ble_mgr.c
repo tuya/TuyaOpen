@@ -50,6 +50,9 @@
 #define BLE_CONN_MONITOR_TIME 30000
 /* ID  (id == uuid)*/
 #define BLE_ID_LEN 16
+#define BLE_DEV_INFO_MAX_LEN 121
+#define BLE_FRAME_PKG_LEN_MIN 20
+#define BLE_FRAME_PKG_LEN_MAX TUYA_BLE_AIR_FRAME_MAX
 typedef struct {
     ble_session_fn_t function;
     void *priv_data;
@@ -295,6 +298,10 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         PR_ERR("ble trsmitr version not compatibility! %d", packet_recv->trsmitr->version);
         return OPRT_INVALID_PARM;
     }
+    if (*ble->is_bound && packet_recv->raw_buf[0] == ENCRYPTION_MODE_NONE) {
+        PR_ERR("ble packet rejected: plaintext mode not allowed on bound device");
+        return OPRT_SVC_BT_API_TRSMITR_ERROR;
+    }
     tuya_ble_raw_print("ble raw packet", 8, packet_recv->raw_buf, packet_recv->raw_len);
     memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
@@ -341,12 +348,13 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
     packet->data = NULL;
     packet->encrypt_mode = packet_recv->raw_buf[0];
     if (0 != packet->len) {
-        packet->data = (uint8_t *)tal_malloc(packet->len);
+        packet->data = (uint8_t *)tal_malloc(packet->len + 1);
         if (packet->data == NULL) {
             PR_DEBUG("ble packet malloc err");
             return OPRT_MALLOC_FAILED;
         }
         memcpy(packet->data, &packet_recv->dec_buf[BLE_PACKET_DATA_IND], packet->len);
+        packet->data[packet->len] = 0;
     }
 
     return OPRT_OK;
@@ -599,6 +607,10 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
             goto __exit;
         }
         uint32_t send_len = ble_frame_subpacket_len_get(trsmitr);
+        if (send_len > buf_len) {
+            PR_ERR("send_len %u > buf_len %u", send_len, buf_len);
+            send_len = buf_len;
+        }
         memcpy(pbuf, ble_frame_subpacket_get(trsmitr), send_len);
         // tuya_ble_raw_print("ble trsmitr pbuf", 8, pbuf, send_len);
         TAL_BLE_DATA_T ble_data;
@@ -694,6 +706,21 @@ static int ble_unbind_req(ble_packet_t *req, void *priv_data)
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
     ble_packet_t resp;
 
+    if (!ble->is_paired) {
+        PR_ERR("ble unbind req rejected: not paired");
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    if (!(*ble->is_bound)) {
+        PR_ERR("ble unbind req rejected: device not bound");
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    if (req->encrypt_mode == ENCRYPTION_MODE_NONE) {
+        PR_ERR("ble unbind req rejected: plaintext not allowed");
+        return OPRT_NOT_SUPPORTED;
+    }
+
     resp.sn = req->sn;
     resp.type = req->type;
     resp.len = 1;
@@ -701,8 +728,11 @@ static int ble_unbind_req(ble_packet_t *req, void *priv_data)
     resp.encrypt_mode = req->encrypt_mode;
 
     ble_packet_resp(ble, &resp);
-    tuya_iot_reset(tuya_iot_client_get());
-    tuya_iot_client_get()->is_activated = false;
+    tuya_iot_client_t *client = tuya_iot_client_get();
+    if (client) {
+        tuya_iot_reset(client);
+        client->is_activated = false;
+    }
     tal_ble_disconnect(ble->peer_info);
 
     return OPRT_OK;
@@ -710,9 +740,14 @@ static int ble_unbind_req(ble_packet_t *req, void *priv_data)
 
 static int ble_pair_req(ble_packet_t *req, void *priv_data)
 {
-    int rt;
+    int rt = OPRT_OK;
     uint8_t result;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
+
+    if (req == NULL || req->data == NULL || req->len < BLE_ID_LEN) {
+        PR_ERR("ble pair req invalid param");
+        return OPRT_INVALID_PARM;
+    }
 
     if (0 == memcmp(req->data, ble->crypto_param.uuid, BLE_ID_LEN)) {
         tal_sw_timer_stop(ble->pair_timer);
@@ -754,6 +789,9 @@ __exit:
 
 static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buflen)
 {
+    if (NULL == pbuf || buflen < BLE_DEV_INFO_MAX_LEN) {
+        return 0;
+    }
     uint8_t payload_len = 0;
 
     //! protocol version
@@ -814,25 +852,34 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
 
 static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
 {
-    int rt;
+    int rt = OPRT_OK;
     uint8_t *pbuf = NULL;
     uint8_t buf_len = 128;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
 
+    if (req == NULL || req->len < 2 || req->data == NULL) {
+        PR_ERR("ble dev info req invalid param");
+        return OPRT_INVALID_PARM;
+    }
+
     // Gets the Bluetooth subcontract length from the protocol
     uint16_t pkg_len = (req->data[0] << 8 & 0xff00) + (req->data[1] & 0xff);
-    ble_frame_packet_len_set(pkg_len);
-    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
-    if (trsmitr->subpkg) {
-        tal_free(trsmitr->subpkg);
-        trsmitr->subpkg = NULL;
+    if (pkg_len < BLE_FRAME_PKG_LEN_MIN || pkg_len > BLE_FRAME_PKG_LEN_MAX) {
+        PR_WARN("invalid pkg_len %u, using default %d", pkg_len, TUYA_BLE_AIR_FRAME_MAX);
+        pkg_len = TUYA_BLE_AIR_FRAME_MAX;
     }
-    trsmitr->subpkg = (uint8_t *)tal_malloc(pkg_len);
-    if (trsmitr->subpkg == NULL) {
+    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
+    uint8_t *new_subpkg = (uint8_t *)tal_malloc(pkg_len);
+    if (new_subpkg == NULL) {
         PR_ERR("malloc err:%d", pkg_len);
         return OPRT_MALLOC_FAILED;
     }
-    memset(trsmitr->subpkg, 0, pkg_len);
+    memset(new_subpkg, 0, pkg_len);
+    if (trsmitr->subpkg) {
+        tal_free(trsmitr->subpkg);
+    }
+    trsmitr->subpkg = new_subpkg;
+    ble_frame_packet_len_set(pkg_len);
     PR_NOTICE("ble dev info: state:%d, pkg_len:%d", *ble->is_bound, ble_frame_packet_len_get());
 
     pbuf = (uint8_t *)tal_malloc(buf_len);
@@ -842,6 +889,11 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     }
     memset(pbuf, 0, buf_len);
     buf_len = ble_dev_info_make(ble, pbuf, buf_len);
+    if (buf_len == 0) {
+        PR_ERR("ble_dev_info_make failed");
+        tal_free(pbuf);
+        return OPRT_COM_ERROR;
+    }
     // tuya_ble_raw_print("ble dev info:", 8, pbuf, buf_len);
 
     ble_packet_t resp;
@@ -878,10 +930,18 @@ void ble_session_system_process(ble_packet_t *packet, void *priv_data)
     switch (packet->type) {
 
     case FRM_QRY_DEV_INFO_REQ:
+        if (packet->len < 2 || packet->data == NULL) {
+            PR_ERR("ble dev info req invalid len %d", packet->len);
+            break;
+        }
         TUYA_CALL_ERR_LOG(ble_dev_info_req(packet, priv_data));
         break;
 
     case FRM_PAIR_REQ:
+        if (packet->len < BLE_ID_LEN || packet->data == NULL) {
+            PR_ERR("ble pair req invalid len %d", packet->len);
+            break;
+        }
         TUYA_CALL_ERR_LOG(ble_pair_req(packet, priv_data));
         break;
 
@@ -972,6 +1032,18 @@ static void tal_ble_event_callback(void *data)
         memset(ble->pair_rand, 0x00, sizeof(ble->pair_rand));
         tal_sw_timer_stop(ble->pair_timer);
         ble->is_paired = false;
+        ble_frame_packet_len_set(TUYA_BLE_AIR_FRAME_MAX);
+        if (ble->packet_recv && ble->packet_recv->trsmitr) {
+            uint8_t *default_subpkg = (uint8_t *)tal_malloc(TUYA_BLE_AIR_FRAME_MAX);
+            if (default_subpkg) {
+                memset(default_subpkg, 0, TUYA_BLE_AIR_FRAME_MAX);
+                if (ble->packet_recv->trsmitr->subpkg) {
+                    tal_free(ble->packet_recv->trsmitr->subpkg);
+                }
+                ble->packet_recv->trsmitr->subpkg = default_subpkg;
+            }
+        }
+        ble_channel_reset();
         if (!tuya_iot_is_connected()) {
             ble_adv_update(ble);
         }
@@ -995,6 +1067,13 @@ static void tal_ble_event_callback(void *data)
                 break;
             }
             PR_DEBUG("ble recv req type 0x%04x", packet.type);
+            if (!ble->is_paired && packet.type != FRM_QRY_DEV_INFO_REQ && packet.type != FRM_PAIR_REQ) {
+                PR_ERR("ble cmd 0x%04x requires pairing", packet.type);
+                if (packet.data) {
+                    tal_free(packet.data);
+                }
+                break;
+            }
             int i;
             for (i = 0; i < BLE_SESSION_MAX; i++) {
                 if (ble->session[i].function) {
