@@ -47,13 +47,15 @@ ble_frame_trsmitr_t *ble_frame_trsmitr_create(void)
         return NULL;
     }
     memset(trsmitr, 0, sizeof(ble_frame_trsmitr_t));
-    trsmitr->subpkg = (uint8_t *)tal_malloc(ble_frame_packet_len_get());
+    uint16_t packet_len = ble_frame_packet_len_get();
+    trsmitr->subpkg = (uint8_t *)tal_malloc(packet_len);
     if (trsmitr->subpkg == NULL) {
-        PR_ERR("malloc err:%d", ble_frame_packet_len_get());
+        PR_ERR("malloc err:%d", packet_len);
         tal_free(trsmitr);
         return NULL;
     }
-    memset(trsmitr->subpkg, 0, ble_frame_packet_len_get());
+    trsmitr->subpkg_capacity = packet_len;
+    memset(trsmitr->subpkg, 0, packet_len);
 
     return trsmitr;
 }
@@ -150,7 +152,7 @@ static ble_frame_seq_t ble_frame_seq_get(void)
 int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned char version, unsigned char *buf,
                                       unsigned int len)
 {
-    if (((void *)0) == trsmitr) {
+    if (NULL == trsmitr || NULL == buf || NULL == trsmitr->subpkg || 0 == len) {
         return OPRT_INVALID_PARM;
     }
 
@@ -162,15 +164,14 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         trsmitr->pkg_trsmitr_cnt = 0;
     }
 
-    if (NULL == buf || NULL == trsmitr || NULL == trsmitr->subpkg) {
-        return OPRT_INVALID_PARM;
-    }
-
     if (trsmitr->subpkg_num >= 0x10000000 || len >= 0x10000000) {
         return OPRT_COM_ERROR;
     }
 
     uint16_t pkg_max_len = ble_frame_packet_len_get();
+    if (trsmitr->subpkg_capacity > 0 && pkg_max_len > trsmitr->subpkg_capacity) {
+        pkg_max_len = (uint16_t)trsmitr->subpkg_capacity;
+    }
     if (pkg_max_len < 10) {
         return OPRT_COM_ERROR;
     }
@@ -285,21 +286,22 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         return OPRT_INVALID_PARM;
     }
 
-    if (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
-        trsmitr->pkg_trsmitr_cnt = 0;
+    uint16_t pkg_max_len = ble_frame_packet_len_get();
+    if (trsmitr->subpkg_capacity > 0 && pkg_max_len > trsmitr->subpkg_capacity) {
+        pkg_max_len = (uint16_t)trsmitr->subpkg_capacity;
+    }
+    if (raw_data_len > pkg_max_len) {
+        return OPRT_INVALID_PARM;
     }
 
     unsigned char sunpkg_offset = 0;
-    // package code
-    // subpackage num decode
     int i;
     unsigned int multiplier = 1;
-    unsigned char digit;
+    unsigned char digit = 0;
     ble_frame_subpkg_num_t subpkg_num = 0;
-    // Package number
+    bool subpkg_num_terminated = false;
+
+    // Decode subpackage number (varint, max 4 bytes)
     for (i = 0; i < 4; i++) {
         if (sunpkg_offset >= raw_data_len) {
             return OPRT_INVALID_PARM;
@@ -309,88 +311,101 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         multiplier *= 0x80;
 
         if (0 == (digit & 0x80)) {
+            subpkg_num_terminated = true;
             break;
         }
     }
-    // PR_DEBUG("subpkg_num:%d, trsmitr->subpkg_num:%d", subpkg_num,
-    // trsmitr->subpkg_num);
-    if (0 == subpkg_num) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
-        trsmitr->pkg_trsmitr_cnt = 0;
-        trsmitr->pkg_desc = BLE_FRAME_PKG_FIRST;
+    if (!subpkg_num_terminated) {
+        return OPRT_INVALID_PARM;
+    }
+
+    // State machine check
+    uint8_t cur_desc = trsmitr->pkg_desc;
+    if (BLE_FRAME_PKG_INIT == cur_desc || BLE_FRAME_PKG_END == cur_desc) {
+        // Must start with subpacket 0
+        if (0 != subpkg_num) {
+            return OPRT_SVC_BT_API_TRSMITR_ERROR;
+        }
     } else {
-        trsmitr->pkg_desc = BLE_FRAME_PKG_MIDDLE;
-    }
-
-    if (trsmitr->subpkg_num >= 0x10000000) {
-        return OPRT_COM_ERROR;
-    }
-    // is receive the subpackage num valid?
-    if (trsmitr->pkg_desc != BLE_FRAME_PKG_FIRST) {
-        if (subpkg_num < trsmitr->subpkg_num) {
-            return OPRT_SVC_BT_API_TRSMITR_ERROR;
-        } else if (subpkg_num == trsmitr->subpkg_num) {
-            return OPRT_SVC_BT_API_TRSMITR_CONTINUE;
+        // In the middle of an active reception (FIRST or MIDDLE)
+        if (subpkg_num == trsmitr->subpkg_num) {
+            // Duplicate subpacket
+            trsmitr->subpkg_len = 0;
+            return OPRT_SVC_BT_API_TRSMITR_DUPLICATE;
         }
-
-        if (subpkg_num - trsmitr->subpkg_num > 1) {
+        if (subpkg_num != trsmitr->subpkg_num + 1) {
+            // Out of order or gap
             return OPRT_SVC_BT_API_TRSMITR_ERROR;
         }
     }
-    trsmitr->subpkg_num = subpkg_num;
 
-    if (0 == trsmitr->subpkg_num) {
-        // frame len decode
+    uint32_t next_total = trsmitr->total;
+    uint8_t next_version = trsmitr->version;
+    uint8_t next_seq = trsmitr->seq;
+    uint32_t next_pkg_cnt = trsmitr->pkg_trsmitr_cnt;
+
+    if (0 == subpkg_num) {
+        next_total = 0;
+        next_pkg_cnt = 0;
         multiplier = 1;
+        bool total_terminated = false;
         for (i = 0; i < 4; i++) {
             if (sunpkg_offset >= raw_data_len) {
                 return OPRT_INVALID_PARM;
             }
             digit = raw_data[sunpkg_offset++];
-            trsmitr->total += (digit & 0x7f) * multiplier;
+            next_total += (digit & 0x7f) * multiplier;
             multiplier *= 0x80;
 
             if (0 == (digit & 0x80)) {
+                total_terminated = true;
                 break;
             }
         }
+        if (!total_terminated) {
+            return OPRT_INVALID_PARM;
+        }
 
-        if (trsmitr->total >= 0x10000000) {
-            return OPRT_COM_ERROR;
+        if (next_total == 0 || next_total > TUYA_BLE_AIR_FRAME_MAX) {
+            return OPRT_INVALID_PARM;
         }
 
         if (sunpkg_offset >= raw_data_len) {
             return OPRT_INVALID_PARM;
         }
         // frame type and frame seq decode
-        trsmitr->version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
-        trsmitr->seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
+        next_version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
+        next_seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
     }
 
     if (sunpkg_offset >= raw_data_len) {
         return OPRT_INVALID_PARM;
     }
+
     uint16_t recv_data = raw_data_len - sunpkg_offset;
-    uint16_t pkg_max_len = ble_frame_packet_len_get();
     if (recv_data > pkg_max_len) {
         recv_data = pkg_max_len;
     }
     uint32_t remain_data =
-        (trsmitr->total > trsmitr->pkg_trsmitr_cnt) ? (trsmitr->total - trsmitr->pkg_trsmitr_cnt) : 0;
+        (next_total > next_pkg_cnt) ? (next_total - next_pkg_cnt) : 0;
     if (remain_data < recv_data) {
         recv_data = (uint16_t)remain_data;
     }
 
-    // decode data cp to transmitter subpackage buf
+    // All checks passed! Now commit to trsmitr atomically
+    trsmitr->subpkg_num = subpkg_num;
+    trsmitr->total = next_total;
+    trsmitr->version = next_version;
+    trsmitr->seq = next_seq;
+
     if (recv_data > 0) {
         memcpy(trsmitr->subpkg, &raw_data[sunpkg_offset], recv_data);
     }
     trsmitr->subpkg_len = recv_data;
-    trsmitr->pkg_trsmitr_cnt += recv_data;
+    trsmitr->pkg_trsmitr_cnt = next_pkg_cnt + recv_data;
 
     if (trsmitr->pkg_trsmitr_cnt < trsmitr->total) {
+        trsmitr->pkg_desc = (0 == subpkg_num) ? BLE_FRAME_PKG_FIRST : BLE_FRAME_PKG_MIDDLE;
         return OPRT_SVC_BT_API_TRSMITR_CONTINUE;
     }
     trsmitr->pkg_desc = BLE_FRAME_PKG_END;

@@ -224,9 +224,14 @@ static uint32_t ble_packet_trsmitr(ble_packet_recv_t *packet_recv, uint8_t *buf,
     uint32_t subpkg_len = 0;
 
     int rt = ble_frame_trsmitr_recv_pkg_decode(packet_recv->trsmitr, buf, len);
+    if (OPRT_SVC_BT_API_TRSMITR_DUPLICATE == rt) {
+        PR_DEBUG("ble recv duplicate subpacket %d, ignored", packet_recv->trsmitr->subpkg_num);
+        return OPRT_SVC_BT_API_TRSMITR_CONTINUE;
+    }
     if (OPRT_OK != rt && OPRT_SVC_BT_API_TRSMITR_CONTINUE != rt) { // decode error
         packet_recv->raw_len = 0;
         memset(packet_recv->raw_buf, 0, sizeof(packet_recv->raw_buf));
+        packet_recv->trsmitr->pkg_desc = BLE_FRAME_PKG_INIT;
         return rt;
     }
     // For the first packet of a multi-packet transmission, or in the case of a
@@ -243,13 +248,17 @@ static uint32_t ble_packet_trsmitr(ble_packet_recv_t *packet_recv, uint8_t *buf,
              subpkg_len, packet_recv->raw_len + subpkg_len);
 
     if ((packet_recv->raw_len + subpkg_len) <= TUYA_BLE_AIR_FRAME_MAX) {
-        memcpy(packet_recv->raw_buf + packet_recv->raw_len, ble_frame_subpacket_get(packet_recv->trsmitr), subpkg_len);
+        if (subpkg_len > 0) {
+            memcpy(packet_recv->raw_buf + packet_recv->raw_len, ble_frame_subpacket_get(packet_recv->trsmitr), subpkg_len);
+            packet_recv->raw_len += subpkg_len;
+        }
     } else {
-        rt = OPRT_INVALID_PARM;
         PR_ERR("ble unpack overflow, desc:%d, pack_len:%d", packet_recv->trsmitr->pkg_desc, subpkg_len);
+        packet_recv->raw_len = 0;
+        memset(packet_recv->raw_buf, 0, sizeof(packet_recv->raw_buf));
+        packet_recv->trsmitr->pkg_desc = BLE_FRAME_PKG_INIT;
+        return OPRT_INVALID_PARM;
     }
-
-    packet_recv->raw_len += subpkg_len;
 
     return rt;
 }
@@ -875,16 +884,11 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
         return OPRT_MALLOC_FAILED;
     }
     memset(new_subpkg, 0, pkg_len);
-    if (trsmitr->subpkg) {
-        tal_free(trsmitr->subpkg);
-    }
-    trsmitr->subpkg = new_subpkg;
-    ble_frame_packet_len_set(pkg_len);
-    PR_NOTICE("ble dev info: state:%d, pkg_len:%d", *ble->is_bound, ble_frame_packet_len_get());
 
     pbuf = (uint8_t *)tal_malloc(buf_len);
     if (NULL == pbuf) {
         PR_ERR("malloc err");
+        tal_free(new_subpkg);
         return OPRT_MALLOC_FAILED;
     }
     memset(pbuf, 0, buf_len);
@@ -892,8 +896,18 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     if (buf_len == 0) {
         PR_ERR("ble_dev_info_make failed");
         tal_free(pbuf);
+        tal_free(new_subpkg);
         return OPRT_COM_ERROR;
     }
+
+    // All resources prepared successfully, commit changes atomically
+    if (trsmitr->subpkg) {
+        tal_free(trsmitr->subpkg);
+    }
+    trsmitr->subpkg = new_subpkg;
+    trsmitr->subpkg_capacity = pkg_len;
+    ble_frame_packet_len_set(pkg_len);
+    PR_NOTICE("ble dev info: state:%d, pkg_len:%d", *ble->is_bound, ble_frame_packet_len_get());
     // tuya_ble_raw_print("ble dev info:", 8, pbuf, buf_len);
 
     ble_packet_t resp;
@@ -1032,7 +1046,6 @@ static void tal_ble_event_callback(void *data)
         memset(ble->pair_rand, 0x00, sizeof(ble->pair_rand));
         tal_sw_timer_stop(ble->pair_timer);
         ble->is_paired = false;
-        ble_frame_packet_len_set(TUYA_BLE_AIR_FRAME_MAX);
         if (ble->packet_recv) {
             ble->packet_recv->raw_len = 0;
             memset(ble->packet_recv->raw_buf, 0, sizeof(ble->packet_recv->raw_buf));
@@ -1044,6 +1057,13 @@ static void tal_ble_event_callback(void *data)
                         tal_free(ble->packet_recv->trsmitr->subpkg);
                     }
                     ble->packet_recv->trsmitr->subpkg = default_subpkg;
+                    ble->packet_recv->trsmitr->subpkg_capacity = TUYA_BLE_AIR_FRAME_MAX;
+                    ble_frame_packet_len_set(TUYA_BLE_AIR_FRAME_MAX);
+                } else {
+                    PR_ERR("malloc default_subpkg failed on disconnect!");
+                    if (ble->packet_recv->trsmitr->subpkg_capacity > 0) {
+                        ble_frame_packet_len_set(ble->packet_recv->trsmitr->subpkg_capacity);
+                    }
                 }
                 ble->packet_recv->trsmitr->total = 0;
                 ble->packet_recv->trsmitr->version = 0;
@@ -1129,6 +1149,7 @@ int tuya_ble_deinit(void)
         return OPRT_OK;
     }
     PR_NOTICE("ble deinit...");
+    ble_channel_reset();
     if (ble->pair_timer) {
         tal_sw_timer_delete(ble->pair_timer);
     }

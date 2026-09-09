@@ -119,8 +119,9 @@ static void ble_channel_process(void *data, uint32_t len)
 static uint32_t s_channel_total_len = 0;
 static uint8_t *s_channel_buffer = NULL;
 static uint32_t s_channel_received_len = 0;
+static uint32_t s_channel_expected_no = 0;
 
-void ble_channel_reset(void)
+void ble_channel_rx_reset(void)
 {
     if (s_channel_buffer) {
         tal_free(s_channel_buffer);
@@ -128,11 +129,22 @@ void ble_channel_reset(void)
     }
     s_channel_total_len = 0;
     s_channel_received_len = 0;
+    s_channel_expected_no = 0;
+}
+
+void ble_channel_tx_reset(void)
+{
     if (s_ble_channel_mgr.rsp_data) {
         tal_free(s_ble_channel_mgr.rsp_data);
         s_ble_channel_mgr.rsp_data = NULL;
     }
     memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
+}
+
+void ble_channel_reset(void)
+{
+    ble_channel_rx_reset();
+    ble_channel_tx_reset();
 }
 
 uint32_t __extract_packet_len(uint8_t *raw_data, uint32_t max_len, uint32_t *pNum)
@@ -234,8 +246,13 @@ static void __response_to_app_by_subpack(uint16_t type)
  * @param data The data of the response.
  * @param len The length of the response.
  */
-void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
+int ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
 {
+    if (NULL == data || len < 4) {
+        PR_ERR("invalid ack params: data=%p, len=%u", data, len);
+        return OPRT_INVALID_PARM;
+    }
+
     if (s_ble_channel_mgr.rsp_data) {
         PR_ERR("pre subpack data overwrite!");
         tal_free(s_ble_channel_mgr.rsp_data);
@@ -248,6 +265,7 @@ void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
 
     PR_DEBUG("start to send subpack cmd:%x, subcmd:%x", type, data[3]);
     __response_to_app_by_subpack(type);
+    return OPRT_OK;
 }
 
 /**
@@ -289,17 +307,18 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
 
             if (pRawData[2] == 0) { // first subpacket
                 offset = 3;         // skip flag and first subpacket no, total 3B
-                ble_channel_reset();
+                ble_channel_rx_reset();
 
                 if (offset >= pRawLen) {
                     PR_ERR("pRawLen %u <= offset %u", pRawLen, offset);
+                    ble_channel_rx_reset();
                     return;
                 }
                 uint32_t extracted_len =
                     __extract_packet_len(pRawData + offset, pRawLen - offset, &s_channel_total_len);
                 if (extracted_len == 0 || s_channel_total_len < 2 || s_channel_total_len > TUYA_BLE_AIR_FRAME_MAX) {
                     PR_ERR("invalid channel totalLen: %u", s_channel_total_len);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 offset += extracted_len;
@@ -308,7 +327,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 s_channel_buffer = tal_malloc(s_channel_total_len + 1);
                 if (NULL == s_channel_buffer) {
                     PR_ERR("malloc error for s_channel_buffer");
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 memset(s_channel_buffer, 0, s_channel_total_len + 1);
@@ -316,49 +335,76 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 offset += 1; // skip version and reserve, total 1B
                 if (offset > pRawLen) {
                     PR_ERR("offset %u > pRawLen %u", offset, pRawLen);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 curSubpacketLen = pRawLen - offset;
                 if (curSubpacketLen > s_channel_total_len) {
                     PR_ERR("curSubpacketLen %u > totalLen %u", curSubpacketLen, s_channel_total_len);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 memcpy(s_channel_buffer + s_channel_received_len, pRawData + offset, curSubpacketLen);
                 s_channel_received_len += curSubpacketLen;
                 curSubpacketNo = 0;
+                s_channel_expected_no = 1;
             } else { // subsequent subpackets
                 if (NULL == s_channel_buffer || s_channel_total_len == 0) {
                     PR_ERR("s_channel_buffer is NULL in subsequent subpacket");
+                    ble_channel_rx_reset();
                     return;
                 }
 
                 offset = 2; // skip flag, total 2B
                 if (offset >= pRawLen) {
                     PR_ERR("pRawLen %u <= offset %u", pRawLen, offset);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 uint32_t extracted_len = __extract_packet_len(pRawData + offset, pRawLen - offset, &curSubpacketNo);
                 if (extracted_len == 0) {
                     PR_ERR("extract curSubpacketNo failed");
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 offset += extracted_len;
                 if (offset > pRawLen) {
                     PR_ERR("offset %u > pRawLen %u", offset, pRawLen);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
                 curSubpacketLen = pRawLen - offset;
                 if (curSubpacketLen > s_channel_total_len - s_channel_received_len) {
                     PR_ERR("curSubpacketLen %u > remaining space %u", curSubpacketLen,
                            s_channel_total_len - s_channel_received_len);
-                    ble_channel_reset();
+                    ble_channel_rx_reset();
                     return;
                 }
+
+                // Verify subpacket sequence
+                if (curSubpacketNo == s_channel_expected_no - 1) {
+                    // Duplicate packet received; re-ack without re-appending
+                    PR_DEBUG("duplicate subpacket %u received, re-sending ack", curSubpacketNo);
+                    ble_channel_ack_t *pAck = tal_malloc(sizeof(ble_channel_ack_t));
+                    if (pAck) {
+                        pAck->flag = (pRawData[1] << 8) | pRawData[0];
+                        pAck->curSubpacketNo = curSubpacketNo;
+                        pAck->cursubpacketLen = curSubpacketLen;
+                        pAck->receivedLen = s_channel_received_len;
+                        pAck->totalLen = s_channel_total_len;
+                        pAck->status = (s_channel_received_len < s_channel_total_len) ? SUBPACKET_RECV_ONE_AND_NEXT : SUBPACKET_RECV_ALL_DONE;
+                        tuya_ble_send(req->type, req->sn, (uint8_t *)pAck, sizeof(ble_channel_ack_t));
+                        tal_free(pAck);
+                    }
+                    return;
+                }
+                if (curSubpacketNo != s_channel_expected_no) {
+                    PR_ERR("subpacket order error: got %u, expected %u", curSubpacketNo, s_channel_expected_no);
+                    ble_channel_rx_reset();
+                    return;
+                }
+
+                s_channel_expected_no++;
                 memcpy(s_channel_buffer + s_channel_received_len, pRawData + offset, curSubpacketLen);
                 s_channel_received_len += curSubpacketLen;
             }
@@ -370,7 +416,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
             ble_channel_ack_t *pAck = tal_malloc(sizeof(ble_channel_ack_t));
             if (pAck == NULL) {
                 PR_ERR("malloc error for pAck");
-                ble_channel_reset();
+                ble_channel_rx_reset();
                 return;
             }
             pAck->flag = (pRawData[1] << 8) | pRawData[0];
@@ -391,7 +437,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 s_channel_buffer[s_channel_total_len] = 0;
                 tuya_ble_raw_print("recv_donwlink_cmd", 16, s_channel_buffer, s_channel_total_len);
                 ble_channel_process(s_channel_buffer, s_channel_total_len);
-                ble_channel_reset();
+                ble_channel_rx_reset();
             }
         } else { // not subpacket process
             if (pRawLen >= 4) {
@@ -404,10 +450,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
             tuya_ble_raw_print("recv_uplink_frame", 16, pRawData, pRawLen);
             uint8_t status = pRawData[2];
             if (status == 0) { // complete subpack send
-                if (s_ble_channel_mgr.rsp_data) {
-                    tal_free(s_ble_channel_mgr.rsp_data);
-                }
-                memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
+                ble_channel_tx_reset();
             } else if (status == 1) { // continue subpack send
                 __response_to_app_by_subpack(req->type);
             } else if (status == 2) { // restart subpack send
