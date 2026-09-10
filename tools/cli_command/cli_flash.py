@@ -15,6 +15,7 @@ from tools.cli_command.util import (
 )
 from tools.cli_command.util_tyutool import ensure_tyutool
 from tools.cli_command.cli_build import download_platform
+from tools.cli_command.cli_config import init_using_config
 
 
 _PROGRESS_RE = re.compile(r'^\[progress\]\s*(\d+)%\s*$')
@@ -169,12 +170,12 @@ def check_bin_file(using_data) -> bool:
     params = get_global_params()
 
     bin_path = params["app_bin_path"]
-    project_name = using_data["CONFIG_PROJECT_NAME"]
-    project_ver = using_data["CONFIG_PROJECT_VERSION"]
+    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    project_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
     bin_file = os.path.join(
         bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
-    if not os.path.isfile(bin_file):
+    if not project_name or not project_ver or not os.path.isfile(bin_file):
         logger.error("Not found bin file, please use [tos.py build].")
         return False
     return True
@@ -254,8 +255,10 @@ def get_configure_baudrate(using_data, key, baudrate: int) -> int:
     logger = get_logger()
     params = get_global_params()
 
-    platform = using_data["CONFIG_PLATFORM_CHOICE"]
-    board = using_data["CONFIG_BOARD_CHOICE"]
+    platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
+    board = using_data.get("CONFIG_BOARD_CHOICE", "")
+    if not platform or not board:
+        return baudrate
     boards_root = params["boards_root"]
     config_file = os.path.join(boards_root, platform,
                                board, "tyutool.cfg")
@@ -294,7 +297,7 @@ def get_flash_cmd(using_data,
         cmd = f"{cmd} --debug"
     cmd = f"{cmd} write"
 
-    platform = using_data["CONFIG_PLATFORM_CHOICE"]
+    platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     chip = using_data.get("CONFIG_CHIP_CHOICE", "")
     device = _normalize_device(chip if chip else platform)
     cmd = f"{cmd} -d {device}"
@@ -332,11 +335,19 @@ def cli(debug, port, baud):
     logger = get_logger()
     check_proj_dir()
 
+    # Derive using.config from app_default.config (same as `tos.py build`)
+    # so an unbuilt project fails with the friendly "please use tos.py
+    # build" message below instead of a KeyError on a missing config key.
+    init_using_config(force=False)
     params = get_global_params()
     using_config = params["using_config"]
     using_data = parse_config_file(using_config)
 
     if not check_bin_file(using_data):
+        sys.exit(1)
+
+    if not using_data.get("CONFIG_PLATFORM_CHOICE", ""):
+        logger.error("Not found platform, please use [tos.py config].")
         sys.exit(1)
 
     bridge_result = _try_platform_flash(using_data, debug, port, baud)
