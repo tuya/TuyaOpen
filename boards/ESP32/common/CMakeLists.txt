@@ -32,10 +32,11 @@ file(GLOB_RECURSE BUTTON_SRCS "${COMMON_PATH}/button/*.c")
 # add camera source files — pick the right driver per target:
 #   ESP32-P4 : MIPI-CSI (tdd_camera_esp_csi.c)
 #   ESP32/S3 : DVP via esp32-camera component (tdd_camera_esp_dvp.c)
-#   ESP32-S31: no driver yet — esp32-camera has no esp32s31 target;
-#              the S31 DVP path needs the esp_video ~2.2 stack.
+#   ESP32-S31: DVP via the esp_video 2.2 V4L2 component.
 if(IDF_TARGET STREQUAL "esp32p4")
     set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_csi.c")
+elseif(IDF_TARGET STREQUAL "esp32s31")
+    set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_video_dvp.c")
 elseif(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32")
     set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_dvp.c")
 else()

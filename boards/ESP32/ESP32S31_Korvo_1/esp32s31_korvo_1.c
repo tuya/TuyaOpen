@@ -10,8 +10,7 @@
  *   - 4.3" 800x480 RGB LCD subboard (ESP32-S3-LCD-EV-Board-SUB3):
  *       PCLK=40 DE=43 HSYNC=44 VSYNC=45 DISP=38,
  *       DATA0-15 = 8..19 / 33..36, PCLK 18 MHz sampled on the falling edge
- *   - Camera (OV3660 DVP on GPIO46-57) is not registered: S31 DVP needs the
- *     esp_video ~2.2 stack; espressif/esp32-camera has no esp32s31 target.
+ *   - OV3660 DVP camera on GPIO46-57, using Espressif esp_video.
  *
  * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
  */
@@ -42,6 +41,10 @@
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
 #include "tdl_button_driver.h"
+#endif
+
+#if defined(ENABLE_CAMERA) && (ENABLE_CAMERA == 1)
+#include "tdd_camera_esp_video_dvp.h"
 #endif
 
 /***********************************************************
@@ -93,6 +96,14 @@
 /* Function keys: resistor ladder on GPIO42 = ADC1_CH0 */
 #define BUTTON_ADC_PORT (TUYA_ADC_NUM_0)
 #define BUTTON_ADC_CH   (0)
+
+/* OV3660 DVP camera, matching the official Espressif S31 Korvo BSP */
+#define CAMERA_I2C_NUM    (AUDIO_I2C_NUM)
+#define CAMERA_XCLK_IO    (55)
+#define CAMERA_PCLK_IO    (54)
+#define CAMERA_VSYNC_IO   (56)
+#define CAMERA_HSYNC_IO   (57)
+#define CAMERA_XCLK_HZ    (20000000)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -324,6 +335,27 @@ static OPERATE_RET __board_register_button(void)
 #endif
 }
 
+static OPERATE_RET __board_register_camera(void)
+{
+#if defined(ENABLE_CAMERA) && (ENABLE_CAMERA == 1)
+    TDD_CAMERA_ESP_VIDEO_DVP_CFG_T camera_cfg = {
+        .i2c_port = CAMERA_I2C_NUM,
+        .sccb_freq_hz = 100000,
+        .reset_pin = -1,
+        .pwdn_pin = -1,
+        .xclk_pin = CAMERA_XCLK_IO,
+        .xclk_freq_hz = CAMERA_XCLK_HZ,
+        .data_io = {46, 47, 48, 49, 50, 51, 52, 53},
+        .vsync_io = CAMERA_VSYNC_IO,
+        .de_io = CAMERA_HSYNC_IO,
+        .pclk_io = CAMERA_PCLK_IO,
+    };
+    return tdd_camera_esp_video_dvp_register(CAMERA_NAME, &camera_cfg);
+#else
+    return OPRT_OK;
+#endif
+}
+
 /**
  * @brief Registers all board peripherals (audio, display, LED, buttons).
  *
@@ -335,6 +367,7 @@ OPERATE_RET board_register_hardware(void)
 
     TUYA_CALL_ERR_LOG(__board_register_button());
     TUYA_CALL_ERR_LOG(__board_register_audio());
+    TUYA_CALL_ERR_LOG(__board_register_camera());
     TUYA_CALL_ERR_LOG(__board_register_display());
     PR_NOTICE("[INIT] DISPLAY registered");
     TUYA_CALL_ERR_LOG(__board_register_touch());

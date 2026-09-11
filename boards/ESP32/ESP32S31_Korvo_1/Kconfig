@@ -13,6 +13,7 @@ config BOARD_CONFIG
     select ENABLE_AUDIO
     select ENABLE_AUDIO_AEC
     select ENABLE_AUDIO_CODECS
+    select ENABLE_CAMERA
     select ENABLE_DISPLAY
     select ENABLE_TP
     select ENABLE_BUTTON
@@ -21,8 +22,6 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_4
     select ENABLE_LED
     select PLATFORM_FLASHSIZE_16M
-    # Camera (OV3660 DVP) not enabled: the S31 DVP path needs the esp_video
-    # ~2.2 stack; espressif/esp32-camera has no esp32s31 target support.
 
 config AUDIO_CODEC_NAME
     string
