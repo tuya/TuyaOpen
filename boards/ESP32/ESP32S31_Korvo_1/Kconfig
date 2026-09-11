@@ -11,6 +11,7 @@ config BOARD_CONFIG
     default y
     select ENABLE_EXT_RAM
     select ENABLE_AUDIO
+    select ENABLE_AUDIO_AEC
     select ENABLE_AUDIO_CODECS
     select ENABLE_DISPLAY
     select ENABLE_TP
