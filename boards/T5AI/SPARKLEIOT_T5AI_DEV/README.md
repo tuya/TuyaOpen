@@ -1,4 +1,4 @@
-# NiceMCU-T5-DEV — T5 pin breakout
+# SPARKLEIOT_T5AI_DEV — T5 pin breakout
 
 T5 引脚全引出裸板（无屏、无板载 codec）。外接 INMP441 + MAX98357 是可选外设，默认关闭。
 
@@ -7,7 +7,7 @@ T5 引脚全引出裸板（无屏、无板载 codec）。外接 INMP441 + MAX983
 在 `menuconfig` / 保存的 config 里打开：
 
 ```
-CONFIG_NICEMCU_T5_DEV_I2S_AUDIO=y
+CONFIG_SPARKLEIOT_T5AI_DEV_I2S_AUDIO=y
 ```
 
 会自动 `select ENABLE_AUDIO_CODECS` 和 `ENABLE_I2S`。
@@ -33,6 +33,6 @@ CONFIG_NICEMCU_T5_DEV_I2S_AUDIO=y
 
 ```bash
 cd apps/tuya.ai/your_chat_bot
-cp config/NICEMCU_T5_DEV.config app_default.config
+cp config/SPARKLEIOT_T5AI_DEV.config app_default.config
 tos.py build
 ```

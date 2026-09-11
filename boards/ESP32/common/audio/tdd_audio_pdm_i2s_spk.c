@@ -5,7 +5,7 @@
  * PDM RX and I2S STD TX use separate I2S ports so onboard PDM mic and an external
  * MAX98357A amp can run concurrently without sharing BCLK/WS lines.
  *
- * MAX98357A notes (same lessons as NICEMCU_T5_DEV):
+ * MAX98357A notes (same lessons as SPARKLEIOT_T5AI_DEV):
  * - Amp stays unmuted when SD is tied to 3V3, so TX must never underrun with
  *   garbage DMA. Use auto_clear_after_cb and prime silence after enable.
  * - Philips I2S 16-bit stereo with L=R matches the T5 continuous-silence path.

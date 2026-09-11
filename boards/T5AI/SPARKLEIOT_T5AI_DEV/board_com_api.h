@@ -1,6 +1,6 @@
 /**
  * @file board_com_api.h
- * @brief NiceMCU-T5-DEV board hardware registration API
+ * @brief SPARKLEIOT_T5AI_DEV board hardware registration API
  * @version 0.1
  * @date 2026-08-12
  * @copyright Copyright (c) Tuya Inc. All Rights Reserved.

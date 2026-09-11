@@ -1,24 +1,24 @@
 ##
 # @file CMakeLists.txt
-# @brief NiceMCU-T5-0.96ISP board build
+# @brief SPARKLEIOT_T5AI_DEV board build
 #/
 
-# MODULE_PATH
 set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
-
-# MODULE_NAME
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
-# LIB_SRCS
-aux_source_directory(${MODULE_PATH} LIB_SRCS)
-
-# LIB_PUBLIC_INC
+set(LIB_SRCS ${MODULE_PATH}/sparkleiot_t5ai_dev.c)
 set(LIB_PUBLIC_INC ${MODULE_PATH})
+set(LIB_PRIVATE_INC)
 
+# Optional INMP441 + MAX98357 driver; bk_i2s headers need sdkconfig.h
+if (CONFIG_SPARKLEIOT_T5AI_DEV_I2S_AUDIO STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio_i2s_ext.c)
+    list(APPEND LIB_PRIVATE_INC
+        ${CMAKE_SOURCE_DIR}/platform/T5AI/t5_os/build/bk7258/tuya_app/bk7258_ap/config
+        ${CMAKE_SOURCE_DIR}/platform/T5AI/t5_os/ap/components/bk_libs/bk7258_ap/config
+    )
+endif()
 
-########################################
-# Target Configure
-########################################
 add_library(${MODULE_NAME})
 
 target_sources(${MODULE_NAME}
@@ -29,15 +29,10 @@ target_sources(${MODULE_NAME}
 target_include_directories(${MODULE_NAME}
     PRIVATE
         ${LIB_PRIVATE_INC}
-
     PUBLIC
         ${LIB_PUBLIC_INC}
     )
 
-
-########################################
-# Layer Configure
-########################################
 list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
