@@ -25,7 +25,7 @@ config BOARD_CONFIG
 
 config AUDIO_CODEC_NAME
     string
-    default "audio_codec_es8389"
+    default "audio_es8389"
 
 config LED_NAME
     string
