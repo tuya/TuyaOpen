@@ -159,7 +159,8 @@ OPERATE_RET codec_es8389_init(TDD_AUDIO_ES8389_CODEC_T *cfg)
     es8389_cfg.codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH;
     es8389_cfg.hw_gain.pa_voltage = 5.0;
     es8389_cfg.hw_gain.codec_dac_voltage = 3.3;
-    es8389_cfg.use_mclk = true;
+    /* ESP32-S31-Korvo-1 leaves MCLK unconnected; ES8389 uses its internal clock. */
+    es8389_cfg.use_mclk = false;
 
     const audio_codec_if_t *codec_if = es8389_codec_new(&es8389_cfg);
     assert(codec_if != NULL);
