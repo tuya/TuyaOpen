@@ -5,7 +5,7 @@
  * including encoding and decoding BLE packets for communication between
  * devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -13,6 +13,8 @@
 #include "ble_trsmitr.h"
 #include "ble_mgr.h"
 #include "ble_dp.h"
+
+#include <stdbool.h>
 
 #define __MUTLI_TSF_PROTOCOL_GLOBALS
 
@@ -23,8 +25,43 @@
 /***********************************************************
 *************************variable define********************
 ***********************************************************/
-static ble_frame_seq_t s_ble_frame_seq = 0;
-static uint16_t s_ble_frame_packet_len = 1024;
+static ble_frame_seq_t s_ble_frame_seq        = 0;
+static uint16_t        s_ble_frame_packet_len = 1024;
+
+static int ble_frame_varint_decode(const uint8_t *data, uint16_t data_len, uint16_t *offset, uint32_t *value)
+{
+    uint32_t result = 0;
+
+    for (uint8_t i = 0; i < 4; i++) {
+        if (*offset >= data_len) {
+            return OPRT_SVC_BT_API_TRSMITR_ERROR;
+        }
+
+        uint8_t digit = data[(*offset)++];
+        result |= (uint32_t)(digit & 0x7f) << (i * 7);
+        if ((digit & 0x80) == 0) {
+            *value = result;
+            return OPRT_OK;
+        }
+    }
+
+    return OPRT_SVC_BT_API_TRSMITR_ERROR;
+}
+
+static int ble_frame_varint_encode(uint32_t value, uint8_t *data, uint16_t capacity, uint16_t *offset)
+{
+    do {
+        if (*offset >= capacity) {
+            return OPRT_INVALID_PARM;
+        }
+
+        uint8_t digit = value & 0x7f;
+        value >>= 7;
+        data[(*offset)++] = digit | (value != 0 ? 0x80 : 0);
+    } while (value != 0);
+
+    return OPRT_OK;
+}
 
 /***********************************************************
 *************************function define********************
@@ -47,13 +84,19 @@ ble_frame_trsmitr_t *ble_frame_trsmitr_create(void)
         return NULL;
     }
     memset(trsmitr, 0, sizeof(ble_frame_trsmitr_t));
-    trsmitr->subpkg = (uint8_t *)tal_malloc(ble_frame_packet_len_get());
+    trsmitr->subpkg_capacity = ble_frame_packet_len_get();
+    if (trsmitr->subpkg_capacity == 0 || trsmitr->subpkg_capacity > TUYA_BLE_AIR_FRAME_MAX) {
+        tal_free(trsmitr);
+        return NULL;
+    }
+
+    trsmitr->subpkg = (uint8_t *)tal_malloc(trsmitr->subpkg_capacity);
     if (trsmitr->subpkg == NULL) {
         PR_ERR("malloc err:%d", ble_frame_packet_len_get());
         tal_free(trsmitr);
         return NULL;
     }
-    memset(trsmitr->subpkg, 0, ble_frame_packet_len_get());
+    memset(trsmitr->subpkg, 0, trsmitr->subpkg_capacity);
 
     return trsmitr;
 }
@@ -68,8 +111,24 @@ ble_frame_trsmitr_t *ble_frame_trsmitr_create(void)
  */
 void ble_frame_trsmitr_delete(ble_frame_trsmitr_t *trsmitr)
 {
+    if (trsmitr == NULL) {
+        return;
+    }
+
     tal_free(trsmitr->subpkg);
     tal_free(trsmitr);
+}
+
+void ble_frame_trsmitr_reset(ble_frame_trsmitr_t *trsmitr)
+{
+    if (trsmitr == NULL) {
+        return;
+    }
+    uint8_t *subpkg   = trsmitr->subpkg;
+    uint32_t capacity = trsmitr->subpkg_capacity;
+    memset(trsmitr, 0, sizeof(*trsmitr));
+    trsmitr->subpkg          = subpkg;
+    trsmitr->subpkg_capacity = capacity;
 }
 
 /**
@@ -127,7 +186,9 @@ unsigned char *ble_frame_subpacket_get(ble_frame_trsmitr_t *trsmitr)
 
 static ble_frame_seq_t ble_frame_seq_get(void)
 {
-    return (s_ble_frame_seq >= BLE_FRAME_SEQ_LMT) ? 0 : s_ble_frame_seq++;
+    ble_frame_seq_t seq = s_ble_frame_seq;
+    s_ble_frame_seq     = (s_ble_frame_seq + 1) % BLE_FRAME_SEQ_LMT;
+    return seq;
 }
 
 /**
@@ -150,78 +211,64 @@ static ble_frame_seq_t ble_frame_seq_get(void)
 int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned char version, unsigned char *buf,
                                       unsigned int len)
 {
-    if (((void *)0) == trsmitr) {
+    if (trsmitr == NULL || trsmitr->subpkg == NULL || (buf == NULL && len != 0)) {
         return OPRT_INVALID_PARM;
     }
 
-    if (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc) {
-        trsmitr->total = len;
-        trsmitr->version = version;
-        trsmitr->seq = ble_frame_seq_get();
-        trsmitr->subpkg_num = 0;
-        trsmitr->pkg_trsmitr_cnt = 0;
+    if (trsmitr->subpkg_capacity < BLE_FRAME_HEADER_MAX_LEN + 1U || trsmitr->subpkg_capacity > TUYA_BLE_AIR_FRAME_MAX) {
+        return OPRT_INVALID_PARM;
     }
-
-    if (trsmitr->subpkg_num >= 0x10000000 || len >= 0x10000000) {
+    if (len == 0 || len > TUYA_BLE_AIR_FRAME_MAX) {
         return OPRT_COM_ERROR;
     }
 
-    unsigned char sunpkg_offset = 0;
+    bool is_first = (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc);
+    if (!is_first &&
+        (trsmitr->total != len || trsmitr->pkg_trsmitr_cnt > len || trsmitr->pkg_desc == BLE_FRAME_PKG_END)) {
+        return OPRT_INVALID_PARM;
+    }
 
-    // package code
-    // subpackage num encode
-    int i;
-    unsigned int tmp = 0;
-    tmp = trsmitr->subpkg_num;
-    for (i = 0; i < 4; i++) {
-        trsmitr->subpkg[sunpkg_offset] = tmp % 0x80;
-        if ((tmp / 0x80)) {
-            trsmitr->subpkg[sunpkg_offset] |= 0x80;
+    uint32_t subpkg_num    = is_first ? 0 : trsmitr->subpkg_num;
+    uint16_t subpkg_offset = 0;
+    int      rt = ble_frame_varint_encode(subpkg_num, trsmitr->subpkg, trsmitr->subpkg_capacity, &subpkg_offset);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
+    if (is_first) {
+        rt = ble_frame_varint_encode(len, trsmitr->subpkg, trsmitr->subpkg_capacity, &subpkg_offset);
+        if (rt != OPRT_OK || subpkg_offset >= trsmitr->subpkg_capacity) {
+            return OPRT_INVALID_PARM;
         }
-        sunpkg_offset++;
-        tmp /= 0x80;
-        if (0 == tmp) {
-            break;
-        }
     }
 
-    // the first package include the frame total len
-    if (0 == trsmitr->subpkg_num) {
-        // frame len encode
-        tmp = len;
-        for (i = 0; i < 4; i++) {
-            trsmitr->subpkg[sunpkg_offset] = tmp % 0x80;
-            if ((tmp / 0x80)) {
-                trsmitr->subpkg[sunpkg_offset] |= 0x80;
-            }
-            sunpkg_offset++;
-            tmp /= 0x80;
-            if (0 == tmp) {
-                break;
-            }
-        }
-
-        // frame type and frame seq
-        trsmitr->subpkg[sunpkg_offset++] = (trsmitr->version << 0x04) | (trsmitr->seq & 0x0f);
+    uint32_t sent      = is_first ? 0 : trsmitr->pkg_trsmitr_cnt;
+    uint32_t remaining = len - sent;
+    if (remaining != 0 && subpkg_offset >= trsmitr->subpkg_capacity - (is_first ? 1 : 0)) {
+        return OPRT_INVALID_PARM;
     }
 
-    // frame data transfer
-    uint16_t send_data = (ble_frame_packet_len_get() - sunpkg_offset);
-    if ((len - trsmitr->pkg_trsmitr_cnt) < send_data) {
-        send_data = len - trsmitr->pkg_trsmitr_cnt;
+    ble_frame_seq_t seq = is_first ? ble_frame_seq_get() : trsmitr->seq;
+    if (is_first) {
+        trsmitr->subpkg[subpkg_offset++] = (version << 4) | (seq & 0x0f);
     }
 
-    PR_TRACE("pkg max len:%d, sunpkg_offset:%d, send_data:%d", ble_frame_packet_len_get(), sunpkg_offset, send_data);
-
-    memcpy(&(trsmitr->subpkg[sunpkg_offset]), buf + trsmitr->pkg_trsmitr_cnt, send_data);
-    trsmitr->subpkg_len = sunpkg_offset + send_data;
-
-    trsmitr->pkg_trsmitr_cnt += send_data;
-    if (0 == trsmitr->subpkg_num) {
-        trsmitr->pkg_desc = BLE_FRAME_PKG_FIRST;
-    } else {
-        trsmitr->pkg_desc = BLE_FRAME_PKG_MIDDLE;
+    uint32_t available = trsmitr->subpkg_capacity - subpkg_offset;
+    uint16_t send_data = remaining < available ? remaining : available;
+    PR_TRACE("pkg max len:%d, subpkg_offset:%d, send_data:%d", trsmitr->subpkg_capacity, subpkg_offset, send_data);
+    if (send_data != 0) {
+        memcpy(&trsmitr->subpkg[subpkg_offset], buf + sent, send_data);
     }
+
+    if (is_first) {
+        trsmitr->total      = len;
+        trsmitr->version    = version;
+        trsmitr->seq        = seq;
+        trsmitr->subpkg_num = 0;
+    }
+    trsmitr->subpkg_len      = subpkg_offset + send_data;
+    trsmitr->pkg_trsmitr_cnt = sent + send_data;
+    trsmitr->pkg_desc        = is_first ? BLE_FRAME_PKG_FIRST : BLE_FRAME_PKG_MIDDLE;
 
     if (trsmitr->pkg_trsmitr_cnt < trsmitr->total) {
         trsmitr->subpkg_num++;
@@ -257,94 +304,68 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
  */
 int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned char *raw_data, uint16_t raw_data_len)
 {
-    if (NULL == raw_data || NULL == trsmitr) { //|| (raw_data_len > ble_frame_packet_len_get())
+    if (raw_data == NULL || trsmitr == NULL || trsmitr->subpkg == NULL || raw_data_len == 0 ||
+        raw_data_len > trsmitr->subpkg_capacity || raw_data_len > TUYA_BLE_AIR_FRAME_MAX) {
         return OPRT_INVALID_PARM;
     }
 
-    if (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
-        trsmitr->pkg_trsmitr_cnt = 0;
+    uint16_t               subpkg_offset = 0;
+    ble_frame_subpkg_num_t subpkg_num    = 0;
+    if (ble_frame_varint_decode(raw_data, raw_data_len, &subpkg_offset, &subpkg_num) != OPRT_OK) {
+        return OPRT_SVC_BT_API_TRSMITR_ERROR;
     }
 
-    unsigned char sunpkg_offset = 0;
-    // package code
-    // subpackage num decode
-    int i;
-    unsigned int multiplier = 1;
-    unsigned char digit;
-    ble_frame_subpkg_num_t subpkg_num = 0;
-    // Package number
-    for (i = 0; i < 4; i++) {
-        digit = raw_data[sunpkg_offset++];
-        subpkg_num += (digit & 0x7f) * multiplier;
-        multiplier *= 0x80;
-
-        if (0 == (digit & 0x80)) {
-            break;
-        }
-    }
-    // PR_DEBUG("subpkg_num:%d, trsmitr->subpkg_num:%d", subpkg_num,
-    // trsmitr->subpkg_num);
-    if (0 == subpkg_num) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
-        trsmitr->pkg_trsmitr_cnt = 0;
-        trsmitr->pkg_desc = BLE_FRAME_PKG_FIRST;
-    } else {
-        trsmitr->pkg_desc = BLE_FRAME_PKG_MIDDLE;
-    }
-
-    if (trsmitr->subpkg_num >= 0x10000000) {
-        return OPRT_COM_ERROR;
-    }
-    // is receive the subpackage num valid?
-    if (trsmitr->pkg_desc != BLE_FRAME_PKG_FIRST) {
-        if (subpkg_num < trsmitr->subpkg_num) {
-            return OPRT_SVC_BT_API_TRSMITR_ERROR;
-        } else if (subpkg_num == trsmitr->subpkg_num) {
-            return OPRT_SVC_BT_API_TRSMITR_CONTINUE;
-        }
-
-        if (subpkg_num - trsmitr->subpkg_num > 1) {
+    bool              is_first = (subpkg_num == 0);
+    ble_frame_total_t total    = trsmitr->total;
+    uint32_t          received = trsmitr->pkg_trsmitr_cnt;
+    uint8_t           version  = trsmitr->version;
+    ble_frame_seq_t   seq      = trsmitr->seq;
+    if (is_first) {
+        if (ble_frame_varint_decode(raw_data, raw_data_len, &subpkg_offset, &total) != OPRT_OK || total == 0 ||
+            total > TUYA_BLE_AIR_FRAME_MAX || subpkg_offset >= raw_data_len) {
             return OPRT_SVC_BT_API_TRSMITR_ERROR;
         }
+
+        version  = (raw_data[subpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
+        seq      = raw_data[subpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
+        received = 0;
     }
-    trsmitr->subpkg_num = subpkg_num;
 
-    if (0 == trsmitr->subpkg_num) {
-        // frame len decode
-        multiplier = 1;
-        for (i = 0; i < 4; i++) {
-            digit = raw_data[sunpkg_offset++];
-            trsmitr->total += (digit & 0x7f) * multiplier;
-            multiplier *= 0x80;
+    uint16_t recv_data       = raw_data_len - subpkg_offset;
+    bool     exact_duplicate = trsmitr->pkg_desc != BLE_FRAME_PKG_INIT && subpkg_num == trsmitr->subpkg_num &&
+                           total == trsmitr->total && version == trsmitr->version && seq == trsmitr->seq &&
+                           recv_data == trsmitr->subpkg_len &&
+                           (recv_data == 0 || memcmp(trsmitr->subpkg, &raw_data[subpkg_offset], recv_data) == 0);
+    if (exact_duplicate) {
+        return OPRT_SVC_BT_API_TRSMITR_CONTINUE;
+    }
 
-            if (0 == (digit & 0x80)) {
-                break;
-            }
+    if (received > total || recv_data > total - received || recv_data > trsmitr->subpkg_capacity) {
+        return OPRT_SVC_BT_API_TRSMITR_ERROR;
+    }
+    if (recv_data == 0 && received < total) {
+        return OPRT_SVC_BT_API_TRSMITR_ERROR;
+    }
+
+    if (is_first) {
+        if (trsmitr->pkg_desc != BLE_FRAME_PKG_INIT && trsmitr->pkg_desc != BLE_FRAME_PKG_END) {
+            return OPRT_SVC_BT_API_TRSMITR_ERROR;
         }
-
-        if (trsmitr->total >= 0x10000000) {
-            return OPRT_COM_ERROR;
-        }
-
-        // frame type and frame seq decode
-        trsmitr->version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
-        trsmitr->seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
+    } else if ((trsmitr->pkg_desc != BLE_FRAME_PKG_FIRST && trsmitr->pkg_desc != BLE_FRAME_PKG_MIDDLE) ||
+               trsmitr->subpkg_num >= 0x0fffffff || subpkg_num != trsmitr->subpkg_num + 1) {
+        return OPRT_SVC_BT_API_TRSMITR_ERROR;
     }
 
-    uint16_t recv_data = raw_data_len - sunpkg_offset;
-    if ((trsmitr->total - trsmitr->pkg_trsmitr_cnt) < recv_data) {
-        recv_data = trsmitr->total - trsmitr->pkg_trsmitr_cnt;
+    if (recv_data != 0) {
+        memcpy(trsmitr->subpkg, &raw_data[subpkg_offset], recv_data);
     }
-
-    // decode data cp to transmitter subpackage buf
-    memcpy(trsmitr->subpkg, &raw_data[sunpkg_offset], recv_data);
-    trsmitr->subpkg_len = recv_data;
-    trsmitr->pkg_trsmitr_cnt += recv_data;
+    trsmitr->total           = total;
+    trsmitr->version         = version;
+    trsmitr->seq             = seq;
+    trsmitr->subpkg_num      = subpkg_num;
+    trsmitr->subpkg_len      = recv_data;
+    trsmitr->pkg_trsmitr_cnt = received + recv_data;
+    trsmitr->pkg_desc        = is_first ? BLE_FRAME_PKG_FIRST : BLE_FRAME_PKG_MIDDLE;
 
     if (trsmitr->pkg_trsmitr_cnt < trsmitr->total) {
         return OPRT_SVC_BT_API_TRSMITR_CONTINUE;

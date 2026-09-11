@@ -8,7 +8,7 @@
  * a larger framework aimed at device management and communication in IoT
  * applications.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -28,9 +28,9 @@
 
 typedef struct {
     // DELAYED_WORK_HANDLE tmm_dp_sync;
-    uint16_t serial_no;
+    uint16_t     serial_no;
     MUTEX_HANDLE mutex;
-    uint8_t schema_num;
+    uint8_t      schema_num;
     dp_schema_t *schema_list[DP_SCHEMA_NUM_MAX];
 } dp_schema_mgr_t;
 
@@ -96,8 +96,8 @@ int dp_rept_json_append(dp_schema_t *schema, char *data, char *time, char *type,
     memset(tmp, 0, len);
 
     int offset = 0;
-    int ret = 0;
-    ret = snprintf(tmp + offset, len - offset, "{\"dps\":%s,\"devId\":\"%s\"", data, schema->devid);
+    int ret    = 0;
+    ret        = snprintf(tmp + offset, len - offset, "{\"dps\":%s,\"devId\":\"%s\"", data, schema->devid);
     if (ret < 0 || ret >= len - offset) {
         goto __err_exit;
     }
@@ -124,7 +124,7 @@ int dp_rept_json_append(dp_schema_t *schema, char *data, char *time, char *type,
         offset += ret;
     }
     tmp[offset] = '}';
-    *pp_out = tmp;
+    *pp_out     = tmp;
 
     return OPRT_OK;
 
@@ -143,8 +143,12 @@ __err_exit:
  */
 dp_node_t *dp_node_find(dp_schema_t *schema, int id)
 {
-    int i;
+    int        i;
     dp_node_t *dpnode = NULL;
+
+    if (schema == NULL || schema->num == 0) {
+        return NULL;
+    }
 
     for (i = 0; i < schema->num; i++) {
         if (schema->node[i].desc.id == id) {
@@ -193,7 +197,7 @@ dp_schema_t *dp_schema_find(const char *devid)
  */
 dp_node_t *dp_node_find_by_devid(char *devid, int id)
 {
-    int i;
+    int        i;
     dp_node_t *dpnode = NULL;
 
     dp_schema_t *schema = dp_schema_find(devid);
@@ -227,7 +231,7 @@ static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema
     int i;
     tal_mutex_lock(schema->mutex);
     for (i = 0; i < num; i++) {
-        int id = dpid[i];
+        int        id     = dpid[i];
         dp_node_t *dpnode = dp_node_find(schema, id);
         if (dpnode == NULL) {
             PR_ERR("dp id Invalid %d", id);
@@ -274,7 +278,7 @@ static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema
     tal_mutex_unlock(schema->mutex);
 
     char *tmp = NULL;
-    tmp = cJSON_PrintUnformatted(qr_data);
+    tmp       = cJSON_PrintUnformatted(qr_data);
     cJSON_Delete(qr_data);
     if (NULL == tmp) {
         PR_ERR("json err");
@@ -332,13 +336,13 @@ static __attribute__((unused)) OPERATE_RET dp_obj_equal_resp(dp_schema_t *schema
  */
 int dp_data_recv_parse(dp_recv_msg_t *msg, dp_recv_cb_t dp_recv_cb)
 {
-    OPERATE_RET op_ret = OPRT_OK;
-    uint16_t dpscnt = 0;
-    dp_obj_recv_t *dpobj = NULL;
-    dp_node_t *dpnode = NULL;
-    cJSON *item = NULL;
-    dp_schema_t *schema = dp_schema_find(msg->devid);
-    cJSON *dps_js = cJSON_GetObjectItem(msg->data_js, "dps");
+    OPERATE_RET    op_ret = OPRT_OK;
+    uint16_t       dpscnt = 0;
+    dp_obj_recv_t *dpobj  = NULL;
+    dp_node_t     *dpnode = NULL;
+    cJSON         *item   = NULL;
+    dp_schema_t   *schema = dp_schema_find(msg->devid);
+    cJSON         *dps_js = cJSON_GetObjectItem(msg->data_js, "dps");
 
     if (NULL == schema || NULL == dps_js) {
         PR_ERR("dev null or no dps");
@@ -372,7 +376,7 @@ int dp_data_recv_parse(dp_recv_msg_t *msg, dp_recv_cb_t dp_recv_cb)
         memset(dpobj, 0, (sizeof(dp_obj_recv_t) + (dpscnt * sizeof(dp_obj_t))));
         dpobj->cmd_tp = msg->cmd;
         dpobj->dtt_tp = (dp_trans_type_t)msg->dt_tp;
-        dpobj->devid = msg->devid;
+        dpobj->devid  = msg->devid;
         dpobj->dpscnt = dpscnt;
     }
     /*
@@ -389,17 +393,17 @@ int dp_data_recv_parse(dp_recv_msg_t *msg, dp_recv_cb_t dp_recv_cb)
         }
         if (T_RAW == dpnode->desc.type && cJSON_String == item->type) { // raw dp process
             // dp_raw_t
-            int data_len = sizeof(dp_raw_recv_t) + strlen(item->valuestring);
-            dp_raw_recv_t *dpraw = tal_malloc(data_len);
+            int            data_len = sizeof(dp_raw_recv_t) + strlen(item->valuestring);
+            dp_raw_recv_t *dpraw    = tal_malloc(data_len);
             if (NULL == dpraw) {
                 tal_mutex_unlock(schema->mutex);
                 goto __err_exit;
             }
             memset(dpraw, 0, data_len);
 
-            dpraw->devid = msg->devid;
+            dpraw->devid  = msg->devid;
             dpraw->cmd_tp = msg->cmd;
-            dpraw->dp.id = dpnode->desc.id;
+            dpraw->dp.id  = dpnode->desc.id;
             dpraw->dtt_tp = msg->dt_tp;
             dpraw->dp.len = tuya_base64_decode(item->valuestring, dpraw->dp.data);
 
@@ -472,8 +476,8 @@ int dp_data_recv_parse(dp_recv_msg_t *msg, dp_recv_cb_t dp_recv_cb)
             continue;
         }
         } /* end of switch */
-        dpobj->dps[i].id = dpnode->desc.id;
-        dpobj->dps[i].type = dpnode->desc.prop_tp;
+        dpobj->dps[i].id         = dpnode->desc.id;
+        dpobj->dps[i].type       = dpnode->desc.prop_tp;
         dpobj->dps[i].time_stamp = tal_time_get_posix();
         i++;
     } /* end of for */
@@ -594,7 +598,7 @@ static bool dp_rept_update(dp_rept_type_t rept_type, dp_obj_t *dp, dp_node_t *dp
                         dpnode->prop.prop_str.value = NULL;
                     }
                     dpnode->prop.prop_str.cur_len = strlen(dp->value.dp_str);
-                    dpnode->prop.prop_str.value = tal_malloc(dpnode->prop.prop_str.cur_len + 1);
+                    dpnode->prop.prop_str.value   = tal_malloc(dpnode->prop.prop_str.cur_len + 1);
                     if (dpnode->prop.prop_str.value) {
                         memcpy(dpnode->prop.prop_str.value, dp->value.dp_str, dpnode->prop.prop_str.cur_len);
                         dpnode->prop.prop_str.value[dpnode->prop.prop_str.cur_len] = '\0';
@@ -654,7 +658,7 @@ static bool dp_rept_update(dp_rept_type_t rept_type, dp_obj_t *dp, dp_node_t *dp
         break;
     }
     case T_RAW: {
-        is_need_update = TRUE;
+        is_need_update  = TRUE;
         dpnode->pv_stat = PV_STAT_LOCAL;
         break;
     }
@@ -778,7 +782,7 @@ int dp_rept_valid_check(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
 
     tal_mutex_lock(schema->mutex);
     for (i = 0; i < dpin->dpscnt; i++) {
-        dp_obj_t *dp = &(dpin->dps[i]);
+        dp_obj_t  *dp     = &(dpin->dps[i]);
         dp_node_t *dpnode = dp_node_find(schema, dp->id);
         if (NULL == dpnode) {
             PR_ERR("dpnode[%d]: dpid %d not find", i, dp->id);
@@ -867,13 +871,13 @@ int dp_rept_valid_check(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
  */
 int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t *dpvalid, dp_rept_out_t *dpout)
 {
-    uint16_t i, j;
-    size_t offset = 0;
-    size_t time_offset = 0;
-    OPERATE_RET op_ret = OPRT_OK;
-    char *dpstr = NULL;
-    char *dptimestr = NULL;
-    bool is_need_time = false;
+    uint16_t    i, j;
+    size_t      offset       = 0;
+    size_t      time_offset  = 0;
+    OPERATE_RET op_ret       = OPRT_OK;
+    char       *dpstr        = NULL;
+    char       *dptimestr    = NULL;
+    bool        is_need_time = false;
 
     dpstr = (char *)tal_malloc(dpvalid->len);
     if (NULL == dpstr) {
@@ -955,8 +959,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
         }
 
         case PROP_BITMAP: {
-            if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%" PRIu32 ",", dp->id,
-                                    dp->value.dp_bitmap)) {
+            if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%" PRIu32 ",", dp->id, dp->value.dp_bitmap)) {
                 op_ret = OPRT_BUFFER_NOT_ENOUGH;
                 goto __err_exit;
             }
@@ -965,7 +968,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
 
         case PROP_STR: {
             cJSON *temp_str = cJSON_CreateString(dp->value.dp_str);
-            char *tmp_data = cJSON_PrintUnformatted(temp_str);
+            char  *tmp_data = cJSON_PrintUnformatted(temp_str);
             if (tmp_data) {
                 if (!dp_snprintf_append(dpstr, dpvalid->len, &offset, "\"%d\":%s,", dp->id, tmp_data)) {
                     cJSON_free(tmp_data);
@@ -1002,7 +1005,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
     }
 
     dpstr[offset - 1] = '}';
-    dpstr[offset] = 0;
+    dpstr[offset]     = 0;
 
     dpout->dpsjson = dpstr;
 
@@ -1014,7 +1017,7 @@ int dp_rept_json_output(dp_schema_t *schema, dp_rept_in_t *dpin, dp_rept_valid_t
             goto __err_exit;
         }
         dptimestr[time_offset - 1] = '}';
-        dptimestr[time_offset] = 0;
+        dptimestr[time_offset]     = 0;
         PR_DEBUG("dptimestr:%s", dptimestr);
         dpout->timejson = dptimestr;
     }
@@ -1139,10 +1142,10 @@ static int dp_obj_json_create(cJSON *root, dp_node_t *dpnode)
  */
 int dp_obj_dump_stat_local_json(char *devid, dp_rept_valid_t **outdpvalid, char **outjson, int flags)
 {
-    int i;
-    size_t length = 0;
-    dp_schema_t *schema = dp_schema_find(devid);
-    uint8_t dp_stat_local_num = 0;
+    int          i;
+    size_t       length            = 0;
+    dp_schema_t *schema            = dp_schema_find(devid);
+    uint8_t      dp_stat_local_num = 0;
 
     for (i = 0; i < schema->num; i++) {
         dp_node_t *dpnode = &(schema->node[i]);
@@ -1206,10 +1209,10 @@ int dp_obj_dump_stat_local_json(char *devid, dp_rept_valid_t **outdpvalid, char 
     if (flags & DP_APPEND_HEADER_FLAG) {
         dp_rept_json_append(schema, jsonstr, NULL, NULL, 0, &out);
         cJSON_free(jsonstr);
-    }else {
+    } else {
         size_t jsonstr_len = strlen(jsonstr);
-        out = tal_malloc(jsonstr_len + 1);
-        if(out) {
+        out                = tal_malloc(jsonstr_len + 1);
+        if (out) {
             memset(out, 0, jsonstr_len + 1);
             memcpy(out, jsonstr, jsonstr_len);
         }
@@ -1252,7 +1255,7 @@ char *dp_obj_dump_all_json(char *devid, int flags)
         return NULL;
     }
 
-    size_t length = 0;
+    size_t       length = 0;
     dp_schema_t *schema = dp_schema_find(devid);
     if (NULL == schema) {
         cJSON_Delete(cjson);
@@ -1294,7 +1297,7 @@ char *dp_obj_dump_all_json(char *devid, int flags)
         PR_ERR("malloc err");
         cJSON_free(tmp);
         return NULL;
-    }else {
+    } else {
         memset(out_str, 0, strlen(tmp) + 1);
         strcpy(out_str, tmp);
         cJSON_free(tmp);
@@ -1350,13 +1353,13 @@ static int dp_node_pos_decode(char *schema_json, dp_node_pos_t pos[], int pos_nu
 static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint16_t nodenum, dp_node_t *dpnode,
                                  SCHEMA_OTHER_ATTR_S *other_attr)
 {
-    OPERATE_RET op_ret = OPRT_OK;
-    dp_desc_t *dp_desc;
+    OPERATE_RET      op_ret = OPRT_OK;
+    dp_desc_t       *dp_desc;
     dp_prop_vaule_t *prop;
 
     cJSON *cjson = NULL;
-    cJSON *item = NULL;
-    char *pBuf = NULL;
+    cJSON *item  = NULL;
+    char  *pBuf  = NULL;
 
     pBuf = (char *)tal_malloc(MAX_ITEM_LEN);
     if (NULL == pBuf) {
@@ -1369,7 +1372,7 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
 
     for (i = 0; i < nodenum; i++) {
         dp_desc = &(dpnode[i].desc);
-        prop = &(dpnode[i].prop);
+        prop    = &(dpnode[i].prop);
 
         memset(pBuf, 0, MAX_ITEM_LEN);
         memcpy(pBuf, schema_json + nodepos[i].start, nodepos[i].end - nodepos[i].start + 1);
@@ -1485,8 +1488,8 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
             dp_desc->prop_tp = PROP_BOOL;
         } else if (!strcmp(child->valuestring, "value")) {
             dp_desc->prop_tp = PROP_VALUE;
-            char *str[] = {"max", "min", "scale"};
-            int i;
+            char *str[]      = {"max", "min", "scale"};
+            int   i;
             for (i = 0; i < CNTSOF(str); i++) {
                 child = cJSON_GetObjectItem(item, str[i]);
                 if (NULL == child && (i != CNTSOF(str) - 1)) {
@@ -1511,16 +1514,16 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
             }
         } else if (!strcmp(child->valuestring, "string")) {
             dp_desc->prop_tp = PROP_STR;
-            child = cJSON_GetObjectItem(item, "maxlen");
+            child            = cJSON_GetObjectItem(item, "maxlen");
             if (NULL == child) {
                 PR_ERR("get maxlen null");
                 op_ret = OPRT_CJSON_GET_ERR;
                 goto __exit;
             }
             prop->prop_str.max_len = child->valueint;
-            prop->prop_str.value = NULL;
+            prop->prop_str.value   = NULL;
             prop->prop_str.cur_len = 0;
-            op_ret = tal_mutex_create_init(&prop->prop_str.dp_str_mutex);
+            op_ret                 = tal_mutex_create_init(&prop->prop_str.dp_str_mutex);
             if (OPRT_OK != op_ret) {
                 PR_ERR("mutex init fail:%d", op_ret);
                 op_ret = OPRT_CR_MUTEX_ERR;
@@ -1528,7 +1531,7 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
             }
         } else if (!strcmp(child->valuestring, "enum")) {
             dp_desc->prop_tp = PROP_ENUM;
-            child = cJSON_GetObjectItem(item, "range");
+            child            = cJSON_GetObjectItem(item, "range");
             if (NULL == child) {
                 PR_ERR("get range null");
                 op_ret = OPRT_CJSON_GET_ERR;
@@ -1564,7 +1567,7 @@ static OPERATE_RET dp_node_parse(char *schema_json, dp_node_pos_t *nodepos, uint
             }
         } else if (!strcmp(child->valuestring, "bitmap")) {
             dp_desc->prop_tp = PROP_BITMAP;
-            child = cJSON_GetObjectItem(item, "maxlen");
+            child            = cJSON_GetObjectItem(item, "maxlen");
             if (NULL == child) {
                 PR_ERR("get maxlen null");
                 op_ret = OPRT_CJSON_GET_ERR;
@@ -1613,9 +1616,9 @@ __exit:
  */
 int dp_schema_create(char *devid, char *schema_json, dp_schema_t **dp_schema_out)
 {
-    OPERATE_RET op_ret = OPRT_OK;
+    OPERATE_RET    op_ret  = OPRT_OK;
     dp_node_pos_t *nodepos = NULL;
-    int nodenum;
+    int            nodenum;
 
     nodepos = tal_malloc(sizeof(dp_node_pos_t) * 255);
     if (NULL == nodepos) {
@@ -1659,7 +1662,7 @@ int dp_schema_create(char *devid, char *schema_json, dp_schema_t **dp_schema_out
         PR_ERR("dp_node_parse fail:%d", op_ret);
         goto __exit;
     }
-    dp_schema->actv.preprocess = other_attr.preprocess;
+    dp_schema->actv.preprocess   = other_attr.preprocess;
     dp_schema->actv.attach_dp_if = TRUE;
     strncpy(dp_schema->devid, devid, DEV_ID_LEN);
     if (dp_schema_out) {

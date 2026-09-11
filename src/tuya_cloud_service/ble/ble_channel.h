@@ -13,7 +13,7 @@
  * efficient and organized data transmission mechanisms.
  *
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -60,6 +60,9 @@ int ble_channel_del(ble_channel_type_t type);
  * channel.
  */
 void ble_session_channel_process(ble_packet_t *req, void *priv_data);
+void ble_channel_rx_reset(void);
+void ble_channel_tx_reset(void);
+void ble_channel_reset(void);
 
 #ifdef __cplusplus
 }

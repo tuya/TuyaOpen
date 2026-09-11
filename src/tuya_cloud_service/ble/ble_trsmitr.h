@@ -8,7 +8,7 @@
  * for module-wide use. The module facilitates the encoding and transmission of
  * BLE frames between devices.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -35,6 +35,7 @@ extern "C" {
 #define BLE_FRAME_VERSION_OFFSET (0x0f << 4)
 #define BLE_FRAME_SEQ_OFFSET     (0x0f << 0)
 #define BLE_FRAME_SEQ_LMT        16
+#define BLE_FRAME_HEADER_MAX_LEN 9U
 
 // frame total len
 typedef uint32_t ble_frame_total_t;
@@ -54,15 +55,16 @@ typedef uint8_t ble_frame_pkg_desc_t;
 
 // frame transmitter process
 typedef struct {
-    ble_frame_total_t total;           // 4 bytes, total data length, excluding header
-    uint8_t version;                   // 1 byte, protocol major version number
-    ble_frame_seq_t seq;               // 1 byte,
-    ble_frame_pkg_desc_t pkg_desc;     // 1 byte, current subpackage frame type
-                                       // (init/first/middle/end)
-    ble_frame_subpkg_num_t subpkg_num; // 4 bytes, current subpackage number
-    uint32_t pkg_trsmitr_cnt;          // package process count, number of bytes sent
-    ble_frame_subpkg_len_t subpkg_len; // 1 byte, data length in the current subpackage
-    uint8_t *subpkg;
+    ble_frame_total_t    total;             // 4 bytes, total data length, excluding header
+    uint8_t              version;           // 1 byte, protocol major version number
+    ble_frame_seq_t      seq;               // 1 byte,
+    ble_frame_pkg_desc_t pkg_desc;          // 1 byte, current subpackage frame type
+                                            // (init/first/middle/end)
+    ble_frame_subpkg_num_t subpkg_num;      // 4 bytes, current subpackage number
+    uint32_t               pkg_trsmitr_cnt; // package process count, number of bytes sent
+    ble_frame_subpkg_len_t subpkg_len;      // 1 byte, data length in the current subpackage
+    uint32_t               subpkg_capacity; // allocated size of subpkg
+    uint8_t               *subpkg;
 } ble_frame_trsmitr_t;
 
 /***********************************************************
@@ -91,6 +93,8 @@ ble_frame_trsmitr_t *ble_frame_trsmitr_create(void);
  */
 __BLE_TRSMITR_EXT
 void ble_frame_trsmitr_delete(ble_frame_trsmitr_t *frm_trsmitr);
+__BLE_TRSMITR_EXT
+void ble_frame_trsmitr_reset(ble_frame_trsmitr_t *frm_trsmitr);
 
 /**
  * @brief Get the length of the subpacket in a BLE frame transmitter.

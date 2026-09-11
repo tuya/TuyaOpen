@@ -10,7 +10,7 @@
  * devices over BLE, ensuring a seamless setup process for connecting Tuya smart
  * devices to the network.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -22,8 +22,8 @@
 #include "ble_channel.h"
 
 typedef struct {
-    netcfg_args_t netcfg_args;
-    netcfg_info_t netcfg_info;
+    netcfg_args_t      netcfg_args;
+    netcfg_info_t      netcfg_info;
     netcfg_finish_cb_t netcfg_finish_cb;
 } ble_netcfg_t;
 
@@ -33,17 +33,24 @@ extern int tuya_ble_adv_update(void);
 
 static void __handle_net_cfg(void *data, void *user_data)
 {
-    uint8_t result = 0;
-    uint8_t resp[5];
+    (void)user_data;
+    uint8_t result  = 0;
+    uint8_t resp[5] = {0};
+    cJSON  *json    = NULL;
 
-    cJSON *json = cJSON_Parse(data);
+    if (data == NULL) {
+        result = (uint8_t)OPRT_CJSON_PARSE_ERR;
+        goto __exit;
+    }
+
+    json = cJSON_Parse(data);
     if (NULL == json) {
         PR_ERR(" json parse error.");
         result = (uint8_t)OPRT_CJSON_PARSE_ERR;
         goto __exit;
     }
 
-    cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
+    cJSON *ssid_item  = cJSON_GetObjectItem(json, "ssid");
     cJSON *token_item = cJSON_GetObjectItem(json, "token");
     if (!cJSON_IsString(ssid_item) || !cJSON_IsString(token_item)) {
         PR_ERR(" json get error.");
@@ -51,9 +58,9 @@ static void __handle_net_cfg(void *data, void *user_data)
         goto __exit;
     }
 
-    char *ssid = ssid_item->valuestring;
-    char *token = token_item->valuestring;
-    char *passwd = NULL;
+    char  *ssid        = ssid_item->valuestring;
+    char  *token       = token_item->valuestring;
+    char  *passwd      = NULL;
     cJSON *passwd_item = cJSON_GetObjectItem(json, "pwd");
     if (passwd_item != NULL && cJSON_IsString(passwd_item)) {
         passwd = passwd_item->valuestring;
@@ -77,7 +84,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.ssid, ssid, s_len);
     g_bt_netcfg_handle.netcfg_info.ssid[s_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.s_len = (uint8_t)s_len;
+    g_bt_netcfg_handle.netcfg_info.s_len       = (uint8_t)s_len;
 
     // Copy password
     size_t p_len = strnlen(passwd, WIFI_PASSWD_LEN + 1);
@@ -88,7 +95,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.passwd, passwd, p_len);
     g_bt_netcfg_handle.netcfg_info.passwd[p_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.p_len = (uint8_t)p_len;
+    g_bt_netcfg_handle.netcfg_info.p_len         = (uint8_t)p_len;
 
     // Copy token
     size_t t_len = strnlen(token, WL_TOKEN_LEN + 1);
@@ -99,7 +106,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.token, token, t_len);
     g_bt_netcfg_handle.netcfg_info.token[t_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.t_len = (uint8_t)t_len;
+    g_bt_netcfg_handle.netcfg_info.t_len        = (uint8_t)t_len;
     g_bt_netcfg_handle.netcfg_finish_cb(NETCFG_TUYA_BLE, &g_bt_netcfg_handle.netcfg_info);
 
     cJSON *reg = cJSON_GetObjectItem(json, "reg");
@@ -111,6 +118,7 @@ __exit:
     if (json) {
         cJSON_Delete(json);
     }
+    resp[0] = 0x00;
     resp[1] = 0x00; // for blt timer task, set as not subpacket, not response
     resp[2] = 0x00;
     resp[3] = FRM_DATA_TRANS_SUBCMD_BT_NETCFG;
