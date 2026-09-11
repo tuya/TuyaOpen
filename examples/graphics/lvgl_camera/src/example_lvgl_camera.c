@@ -104,7 +104,7 @@ static OPERATE_RET __example_camera_display_init(void)
 
     TUYA_CALL_ERR_RETURN(tdl_disp_dev_get_info(sg_tdl_disp_hdl, &sg_display_info));
 
-    TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage));
+    TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage, sg_tdl_disp_hdl));
 
     /*create frame buffer*/
     if (sg_display_info.rotation != TUYA_DISPLAY_ROTATION_0) {

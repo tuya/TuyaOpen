@@ -200,7 +200,7 @@ OPERATE_RET app_display_camera_start(uint16_t width, uint16_t height)
     tdl_disp_dev_get_info(sg_disp_handle, &sg_disp_info);
 
     if(NULL == sg_fb_manage) {
-        TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage));
+        TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage, sg_disp_handle));
     }
 
     for(uint8_t i=0; i<2; i++) {

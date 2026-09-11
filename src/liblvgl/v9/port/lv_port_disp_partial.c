@@ -25,11 +25,31 @@ static void __disp_partial_flush_done(TDL_DISP_FRAME_BUFF_T *frame_buff)
  *  INTERFACE IMPL
  **********************/
 
-void lv_port_flush_init(LV_DISP_NODE_T *node)
+OPERATE_RET lv_port_flush_init(LV_DISP_NODE_T *node)
 {
     node->partial_fb.fmt      = node->dev_info.fmt;
     node->partial_fb.free_cb  = __disp_partial_flush_done;
     node->partial_fb.free_arg = (void *)node;
+
+    return OPRT_OK;
+}
+
+OPERATE_RET lv_port_disp_set_buffers(LV_DISP_NODE_T *node, lv_display_t *disp)
+{
+    uint32_t buf_len = (node->dev_info.height / LV_DRAW_BUF_PARTS) *
+                       node->dev_info.width *
+                       lv_color_format_get_size(lv_display_get_color_format(disp));
+
+    node->buf_2_1 = lv_port_disp_draw_buf_alloc(buf_len);
+    node->buf_2_2 = lv_port_disp_draw_buf_alloc(buf_len);
+    if (NULL == node->buf_2_1 || NULL == node->buf_2_2) {
+        return OPRT_MALLOC_FAILED;
+    }
+
+    lv_display_set_buffers(disp, node->buf_2_1, node->buf_2_2,
+                           buf_len, LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    return OPRT_OK;
 }
 
 void lv_port_flush_execute(LV_DISP_NODE_T *node, lv_display_t *disp,

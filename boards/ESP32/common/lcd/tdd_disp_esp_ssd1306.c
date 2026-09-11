@@ -77,7 +77,7 @@ static int __oled_ssd1306_init(OLED_SSD1306_HW_CFG_T *hw)
             },
         .scl_speed_hz = 400 * 1000,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c_v2(sg_lcd_config.i2c_bus, &io_config, &sg_lcd_config.panel_io));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(sg_lcd_config.i2c_bus, &io_config, &sg_lcd_config.panel_io));
     ESP_LOGI(TAG, "I2C panel initialize successfully");
 
     esp_lcd_panel_dev_config_t panel_config = {0};

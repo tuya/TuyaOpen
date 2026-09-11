@@ -5,7 +5,11 @@
  *
  * Actual flush strategy is implemented in:
  *   - lv_port_disp_partial.c    (ENABLE_LVGL_PARTIAL_FLUSH == 1)
- *   - lv_port_disp_full_frame.c (otherwise)
+ *   - lv_port_disp_direct.c     (ENABLE_LVGL_DIRECT_FLUSH == 1)
+ *   - lv_port_disp_full_frame.c (otherwise, default)
+ *
+ * Each mode file owns its buffer setup (lv_port_disp_set_buffers) and flush
+ * behaviour; this file only manages nodes and dispatches.
  */
 
 /*Copy this file as "lv_port_disp.c" and set this value to "1" to enable content*/
@@ -148,7 +152,7 @@ lv_disp_t *lv_port_get_lv_disp_by_name(char *device)
  *   STATIC FUNCTIONS
  **********************/
 
-static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
+uint8_t *lv_port_disp_draw_buf_alloc(uint32_t size_bytes)
 {
     uint8_t *buf_u8 = NULL;
     size_bytes += DISP_DRAW_BUF_ALIGN - 1;
@@ -223,7 +227,6 @@ static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp_drv(lv_disp_drv_t *lv_disp
 
 static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
 {
-    uint8_t per_pixel_byte = 0;
     LV_DISP_NODE_T *lv_disp_node = NULL;
     OPERATE_RET rt = OPRT_OK;
 
@@ -244,19 +247,7 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     lv_disp_node->dev_hdl = dev_hdl;
     TUYA_CALL_ERR_GOTO(tdl_disp_dev_get_info(lv_disp_node->dev_hdl, &lv_disp_node->dev_info), __CREATE_ERR);
 
-    lv_port_flush_init(lv_disp_node);
-
-    per_pixel_byte = LV_COLOR_DEPTH / 8;
-
-    uint32_t buf_len = (lv_disp_node->dev_info.height / LV_DRAW_BUF_PARTS) * lv_disp_node->dev_info.width * per_pixel_byte;
-
-    lv_disp_node->buf_2_1 = __disp_draw_buf_align_alloc(buf_len);
-    TUYA_CHECK_NULL_GOTO(lv_disp_node->buf_2_1, __CREATE_ERR);
-
-    lv_disp_node->buf_2_2 = __disp_draw_buf_align_alloc(buf_len);
-    TUYA_CHECK_NULL_GOTO(lv_disp_node->buf_2_2, __CREATE_ERR);
-
-    lv_disp_draw_buf_init(&lv_disp_node->draw_buf_dsc, lv_disp_node->buf_2_1, lv_disp_node->buf_2_2, buf_len / per_pixel_byte);
+    TUYA_CALL_ERR_GOTO(lv_port_flush_init(lv_disp_node), __CREATE_ERR);
 
     lv_disp_drv_init(&lv_disp_node->lv_disp_drv);
 
@@ -266,6 +257,10 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     lv_disp_node->lv_disp_drv.flush_cb = disp_flush;
 
     lv_disp_node->lv_disp_drv.draw_buf = &lv_disp_node->draw_buf_dsc;
+
+    /* draw buffers belong to the active flush mode (sets draw_buf_dsc, and
+     * direct_mode/full_refresh flags for direct) */
+    TUYA_CALL_ERR_GOTO(lv_port_disp_set_buffers(lv_disp_node), __CREATE_ERR);
 
     lv_disp_node->lv_disp = lv_disp_drv_register(&lv_disp_node->lv_disp_drv);
 
@@ -278,7 +273,8 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     }
 
     if (lv_disp_node->dev_info.rotation != TUYA_DISPLAY_ROTATION_0) {
-        lv_disp_node->rotate_buf = __disp_draw_buf_align_alloc(buf_len);
+        lv_disp_node->rotate_buf = lv_port_disp_draw_buf_alloc(
+            (lv_disp_node->dev_info.height / LV_DRAW_BUF_PARTS) * lv_disp_node->dev_info.width * (LV_COLOR_DEPTH / 8));
         TUYA_CHECK_NULL_GOTO(lv_disp_node->rotate_buf, __CREATE_ERR);
     }
 
@@ -425,7 +421,7 @@ static void disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_
         if (rotation != LV_DISP_ROT_NONE) {
             if (node->rotate_buf == NULL) {
                 uint32_t buf_len = (node->dev_info.height / LV_DRAW_BUF_PARTS) * node->dev_info.width * (LV_COLOR_DEPTH / 8);
-                node->rotate_buf = __disp_draw_buf_align_alloc(buf_len);
+                node->rotate_buf = lv_port_disp_draw_buf_alloc(buf_len);
             }
             if (node->rotate_buf != NULL) {
                 __disp_draw_buf_rotate(&node->dev_info, rotation, target_area, color_ptr, node->rotate_buf);

@@ -16,7 +16,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-
+#define FILL_COLOR_FB_NUM 2
 
 /***********************************************************
 ***********************typedef define***********************
@@ -24,7 +24,7 @@
 typedef struct {
     TDL_DISP_HANDLE_T       hdl;
     TDL_DISP_DEV_INFO_T     info;
-    TDL_DISP_FRAME_BUFF_T  *fb;
+    TDL_FB_MANAGE_HANDLE_T  fb_mag;
 }DISP_CTRL_T;
 /***********************************************************
 ***********************variable define**********************
@@ -46,8 +46,6 @@ static uint32_t __disp_get_random_color(uint32_t range)
 static OPERATE_RET __disp_init(char *dev_name, DISP_CTRL_T *disp_ctrl)
 {
     OPERATE_RET rt = OPRT_OK;
-    uint8_t bytes_per_pixel = 0, pixels_per_byte = 0, bpp = 0;
-    uint32_t frame_len = 0;
 
     memset(disp_ctrl, 0, sizeof(DISP_CTRL_T));
 
@@ -71,31 +69,13 @@ static OPERATE_RET __disp_init(char *dev_name, DISP_CTRL_T *disp_ctrl)
 
     tdl_disp_set_brightness(disp_ctrl->hdl, 100); // Set brightness to 100%
 
-    /*get frame len*/
-    bpp = tdl_disp_get_fmt_bpp(disp_ctrl->info.fmt);
-    if (bpp == 0) {
-        PR_ERR("Unsupported pixel format: %d", disp_ctrl->info.fmt);
-        return OPRT_COM_ERROR;
-    }
-    if(bpp < 8) {
-        pixels_per_byte = 8 / bpp; // Calculate pixels per byte
-        frame_len = (disp_ctrl->info.width + pixels_per_byte - 1) / pixels_per_byte * disp_ctrl->info.height;
-    }else {
-        bytes_per_pixel = (bpp+7) / 8; // Calculate bytes per pixel
-        frame_len = disp_ctrl->info.width * disp_ctrl->info.height * bytes_per_pixel;
-    }
+    /*create frame buffer pool*/
+    TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&disp_ctrl->fb_mag, disp_ctrl->hdl));
 
-    /*create frame buffer*/
-    disp_ctrl->fb = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, frame_len);
-    if(NULL == disp_ctrl->fb) {
-        PR_ERR("create display frame buff failed");
-        return OPRT_COM_ERROR;
+    for(uint8_t i = 0; i < FILL_COLOR_FB_NUM; i++) {
+        TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_add(disp_ctrl->fb_mag, disp_ctrl->info.fmt, \
+                                                    disp_ctrl->info.width, disp_ctrl->info.height));
     }
-    disp_ctrl->fb->x_start = 0;
-    disp_ctrl->fb->y_start = 0;
-    disp_ctrl->fb->fmt    = disp_ctrl->info.fmt;
-    disp_ctrl->fb->width  = disp_ctrl->info.width;
-    disp_ctrl->fb->height = disp_ctrl->info.height;
 
     return OPRT_OK;
 }
@@ -124,14 +104,18 @@ void user_main(void)
 #endif
 
     while(1) {
-        tdl_disp_draw_fill_full(sg_disp_ctrl.fb, __disp_get_random_color(0xFFFFFFFF), sg_disp_ctrl.info.is_swap);
+        TDL_DISP_FRAME_BUFF_T *fb = tdl_disp_get_free_fb(sg_disp_ctrl.fb_mag);
 
-        tdl_disp_dev_flush(sg_disp_ctrl.hdl, sg_disp_ctrl.fb);
+        tdl_disp_draw_fill_full(fb, __disp_get_random_color(0xFFFFFFFF), sg_disp_ctrl.info.is_swap);
+
+        tdl_disp_dev_flush(sg_disp_ctrl.hdl, fb);
 
 #if defined(DISPLAY_NAME_2)
-        tdl_disp_draw_fill_full(sg_disp_ctrl_2.fb, __disp_get_random_color(0xFFFFFFFF), sg_disp_ctrl_2.info.is_swap);
+        TDL_DISP_FRAME_BUFF_T *fb_2 = tdl_disp_get_free_fb(sg_disp_ctrl_2.fb_mag);
 
-        tdl_disp_dev_flush(sg_disp_ctrl_2.hdl, sg_disp_ctrl_2.fb);
+        tdl_disp_draw_fill_full(fb_2, __disp_get_random_color(0xFFFFFFFF), sg_disp_ctrl_2.info.is_swap);
+
+        tdl_disp_dev_flush(sg_disp_ctrl_2.hdl, fb_2);
 #endif
 
         tal_system_sleep(1000);

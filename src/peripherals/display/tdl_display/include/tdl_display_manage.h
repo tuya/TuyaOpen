@@ -126,6 +126,22 @@ void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff);
 OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T *frame_buff);
 
 /**
+ * @brief Gets the driver-internal frame buffers (VRAM) of a display device.
+ *
+ * Only fb-type drivers can hand out their internal buffers; flushing one of them
+ * makes the driver switch the scan without any copy. The device must be opened first.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param max_num  Max number of buffers to retrieve.
+ * @param fbs      Output array of buffer pointers (caller allocated).
+ * @param fb_num   Output, number of buffers actually filled in.
+ *
+ * @return Returns OPRT_OK on success, OPRT_NOT_SUPPORTED if the driver owns no
+ *         addressable fbs, or OPRT_COM_ERROR if the device is not open.
+ */
+OPERATE_RET tdl_disp_get_vram(TDL_DISP_HANDLE_T disp_hdl, uint8_t max_num, void **fbs, uint8_t *fb_num);
+
+/**
  * @brief Closes and deinitializes a display device.
  *
  * This function shuts down the specified display device by invoking the device-specific 

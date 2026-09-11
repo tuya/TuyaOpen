@@ -149,7 +149,7 @@ static U8G2_PORT_DISP_T *__u8x8_create_port_disp(void *disp_name)
         goto __CREATE_FAILE;
     }
 
-    TUYA_CALL_ERR_GOTO(tdl_disp_fb_manage_init(&disp->fb_mag_hdl), __CREATE_FAILE);
+    TUYA_CALL_ERR_GOTO(tdl_disp_fb_manage_init(&disp->fb_mag_hdl, disp->hdl), __CREATE_FAILE);
 
     TUYA_CALL_ERR_GOTO(tdl_disp_fb_manage_add(disp->fb_mag_hdl, disp->info.fmt,\
                                               disp->info.width, disp->info.height),\

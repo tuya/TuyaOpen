@@ -54,19 +54,34 @@ typedef struct {
     TDL_DISP_FRAME_BUFF_T  *disp_fb;      /* full-frame: current fb from fb_mag */
     TDL_FB_MANAGE_HANDLE_T  fb_mag;       /* full-frame: fb pool */
     TDL_DISP_FRAME_BUFF_T   partial_fb;   /* partial: reusable flush descriptor */
+    TDL_DISP_FRAME_BUFF_T  *direct_fb[2]; /* direct: shells over the driver's vram fbs */
 } LV_DISP_NODE_T;
 
 /**********************
  * FLUSH IMPL INTERFACE
  *
- * Each flush strategy (partial / full-frame) implements these functions.
- * Only one implementation is compiled based on ENABLE_LVGL_PARTIAL_FLUSH.
+ * Each flush strategy (partial / full-frame / direct) implements these
+ * functions. Only one is compiled, by the LIBLVGL_FLUSH_MODE choice.
  **********************/
 
 /**
  * @brief Initialize flush-specific resources for a display node
+ * @brief direct mode fails when the driver offers no vram fbs (no fallback)
  */
-void lv_port_flush_init(LV_DISP_NODE_T *node);
+OPERATE_RET lv_port_flush_init(LV_DISP_NODE_T *node);
+
+/**
+ * @brief Set up the LVGL draw buffers for the active flush mode
+ * @brief each mode file implements its own: partial/full allocate, direct
+ *        hands the driver's vram fbs to LVGL. Called after lv_disp_drv_init
+ *        and before lv_disp_drv_register.
+ */
+OPERATE_RET lv_port_disp_set_buffers(LV_DISP_NODE_T *node);
+
+/**
+ * @brief Aligned draw buffer allocation (shared by the mode files)
+ */
+uint8_t *lv_port_disp_draw_buf_alloc(uint32_t size_bytes);
 
 /**
  * @brief Execute flush operation

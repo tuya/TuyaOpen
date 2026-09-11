@@ -187,3 +187,65 @@ exit:
     mbedtls_md_free(&md_ctx);
     return ret;
 }
+
+int mbedtls_hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len,
+                        const uint8_t *info, size_t info_len, uint8_t *okm, size_t okm_len)
+{
+    const mbedtls_md_info_t *sha256 = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+    unsigned char prk[32];
+    unsigned char t[32];
+    mbedtls_md_context_t ctx;
+    size_t off = 0;
+    uint8_t counter = 1;
+    int ret = 0;
+
+    if (sha256 == NULL || (salt == NULL && salt_len != 0) || (ikm == NULL && ikm_len != 0) ||
+        (info == NULL && info_len != 0) || (okm == NULL && okm_len != 0) || okm_len > 255 * sizeof(t)) {
+        return OPRT_INVALID_PARM;
+    }
+
+    if (okm_len == 0) {
+        return OPRT_OK;
+    }
+
+    /* extract: PRK = HMAC-SHA256(salt, IKM) */
+    ret = mbedtls_md_hmac(sha256, salt, salt_len, ikm, ikm_len, prk);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* expand: T(i) = HMAC-SHA256(PRK, T(i-1) | info | i) */
+    while (off < okm_len) {
+        mbedtls_md_init(&ctx);
+        ret = mbedtls_md_setup(&ctx, sha256, 1);
+        if (ret == 0) {
+            ret = mbedtls_md_hmac_starts(&ctx, prk, sizeof(prk));
+            if (ret == 0 && off > 0) {
+                ret = mbedtls_md_hmac_update(&ctx, t, sizeof(t));
+            }
+            if (ret == 0 && info_len > 0) {
+                ret = mbedtls_md_hmac_update(&ctx, info, info_len);
+            }
+            if (ret == 0) {
+                ret = mbedtls_md_hmac_update(&ctx, &counter, 1);
+            }
+            if (ret == 0) {
+                ret = mbedtls_md_hmac_finish(&ctx, t);
+            }
+        }
+        mbedtls_md_free(&ctx);
+        if (ret != 0) {
+            return ret;
+        }
+
+        size_t n = okm_len - off;
+        if (n > sizeof(t)) {
+            n = sizeof(t);
+        }
+        memcpy(okm + off, t, n);
+        off += n;
+        counter++;
+    }
+
+    return 0;
+}

@@ -2,14 +2,15 @@
  * @file lv_port_disp_full_frame.c
  * @brief Full-frame flush implementation with framebuffer pool management
  *
- * Compiled only when ENABLE_LVGL_PARTIAL_FLUSH is NOT enabled.
+ * Compiled only when neither ENABLE_LVGL_PARTIAL_FLUSH nor ENABLE_LVGL_DIRECT_FLUSH is enabled.
  * Accumulates draw calls into a full-size framebuffer, then flushes
  * the entire frame to the display on the last LVGL chunk.
  */
 
 #include "lv_port_disp_internal.h"
 
-#if !defined(ENABLE_LVGL_PARTIAL_FLUSH) || (ENABLE_LVGL_PARTIAL_FLUSH != 1)
+#if (!defined(ENABLE_LVGL_PARTIAL_FLUSH) || (ENABLE_LVGL_PARTIAL_FLUSH != 1)) && \
+    (!defined(ENABLE_LVGL_DIRECT_FLUSH) || (ENABLE_LVGL_DIRECT_FLUSH != 1))
 
 #if defined(ENABLE_DMA2D) && (ENABLE_DMA2D == 1)
 #include "tal_dma2d.h"
@@ -210,12 +211,12 @@ static void __disp_fill_display_framebuffer(const lv_area_t *area, uint8_t *px_m
  *  INTERFACE IMPL
  **********************/
 
-void lv_port_flush_init(LV_DISP_NODE_T *node)
+OPERATE_RET lv_port_flush_init(LV_DISP_NODE_T *node)
 {
     OPERATE_RET rt = OPRT_OK;
     uint8_t disp_fb_num = 0;
 
-    TUYA_CALL_ERR_LOG(tdl_disp_fb_manage_init(&node->fb_mag));
+    TUYA_CALL_ERR_LOG(tdl_disp_fb_manage_init(&node->fb_mag, node->dev_hdl));
 
 #if defined(ENABLE_LVGL_DUAL_DISP_BUFF) && (ENABLE_LVGL_DUAL_DISP_BUFF == 1)
     disp_fb_num = 3;
@@ -241,6 +242,25 @@ void lv_port_flush_init(LV_DISP_NODE_T *node)
         TUYA_CALL_ERR_LOG(tal_dma2d_init(&sg_lvgl_dma2d_hdl));
     }
 #endif
+
+    return OPRT_OK;
+}
+
+OPERATE_RET lv_port_disp_set_buffers(LV_DISP_NODE_T *node)
+{
+    uint32_t buf_len = (node->dev_info.height / LV_DRAW_BUF_PARTS) *
+                       node->dev_info.width * (LV_COLOR_DEPTH / 8);
+
+    node->buf_2_1 = lv_port_disp_draw_buf_alloc(buf_len);
+    node->buf_2_2 = lv_port_disp_draw_buf_alloc(buf_len);
+    if (NULL == node->buf_2_1 || NULL == node->buf_2_2) {
+        return OPRT_MALLOC_FAILED;
+    }
+
+    lv_disp_draw_buf_init(&node->draw_buf_dsc, node->buf_2_1, node->buf_2_2,
+                          buf_len / (LV_COLOR_DEPTH / 8));
+
+    return OPRT_OK;
 }
 
 void lv_port_flush_execute(LV_DISP_NODE_T *node, lv_disp_drv_t *disp_drv,

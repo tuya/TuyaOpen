@@ -166,7 +166,7 @@ static void CreateDuplexChannels(TUYA_I2S_NUM_E i2s_id, gpio_num_t mclk, gpio_nu
                                  gpio_num_t dout, gpio_num_t din, uint32_t dma_desc_num, uint32_t dma_frame_num)
 {
     i2s_chan_config_t chan_cfg = {
-        .id = (i2s_port_t)i2s_id,
+        .id = i2s_id, /* IDF 6.x: i2s_chan_config_t.id is a plain int (i2s_port_t is gone) */
         .role = I2S_ROLE_MASTER,
         .dma_desc_num = dma_desc_num,
         .dma_frame_num = dma_frame_num,

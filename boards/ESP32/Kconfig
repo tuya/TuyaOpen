@@ -69,6 +69,12 @@ choice
             rsource "./ESP32-S3/Kconfig"
         endif
 
+    config BOARD_CHOICE_ESP32_S31
+        bool "ESP32-S31"
+        if (BOARD_CHOICE_ESP32_S31)
+            rsource "./ESP32-S31/Kconfig"
+        endif
+
     config BOARD_CHOICE_BREAD_COMPACT_WIFI
         bool "ESP32S3_BREAD_COMPACT_WIFI"
         if (BOARD_CHOICE_BREAD_COMPACT_WIFI)
@@ -147,6 +153,12 @@ choice
         bool "XTEINK_X4 (ESP32-C3 e-paper reader)"
         if (BOARD_CHOICE_XTEINK_X4)
             rsource "./XTEINK_X4/Kconfig"
+        endif
+
+    config BOARD_CHOICE_ESP32S31_KORVO_1
+        bool "ESP32S31-Korvo-1"
+        if (BOARD_CHOICE_ESP32S31_KORVO_1)
+            rsource "./ESP32S31_Korvo_1/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>

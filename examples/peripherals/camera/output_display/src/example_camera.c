@@ -92,7 +92,7 @@ static OPERATE_RET __display_init(void)
 
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
 
-    TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage));
+    TUYA_CALL_ERR_RETURN(tdl_disp_fb_manage_init(&sg_fb_manage, sg_tdl_disp_hdl));
 
     /*create frame buffer*/
     width  = sg_display_info.width;

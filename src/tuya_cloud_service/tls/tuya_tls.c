@@ -38,6 +38,11 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/aes.h"
+#if MBEDTLS_VERSION_MAJOR >= 4
+/* mbedtls 4.x dropped the entropy module; ESP-IDF's port provides the
+ * 4-arg hardware RNG hook mbedtls_hardware_poll (esp_fill_random backed). */
+#include "entropy_poll.h"
+#endif
 
 #define TLS_URL_LEN (128 + 16)
 
@@ -57,12 +62,29 @@ typedef struct {
 #define TLS_HANDSHAKE_TIMEOUT (18) // s
 
 static tuya_tls_pre_conn_cb     s_pre_conn_cb = NULL;
-static mbedtls_entropy_context  ty_entropy;
 static mbedtls_ctr_drbg_context ty_ctr_drbg;
+#if MBEDTLS_VERSION_MAJOR >= 4
+/* f_entropy adapter: mbedtls 4.x wants int (*)(void *, unsigned char *, size_t),
+ * the port hook has a trailing olen out-param. */
+static int __tuya_tls_entropy(void *ctx, unsigned char *buf, size_t len)
+{
+    size_t olen = 0;
+    (void)ctx;
+    if (mbedtls_hardware_poll(NULL, buf, len, &olen) != 0 || olen != len) {
+        return MBEDTLS_ERR_CTR_DRBG_ENTROPY_SOURCE_FAILED;
+    }
+    return 0;
+}
+#endif
+#if MBEDTLS_VERSION_MAJOR < 4
+static mbedtls_entropy_context  ty_entropy;
+#endif
 
 /* -------------------------------------------------------------------------- */
 /*                                  TLS Mutex                                 */
 /* -------------------------------------------------------------------------- */
+/* mbedtls 4.x removed the threading-alt mechanism (PSA handles locking). */
+#if MBEDTLS_VERSION_MAJOR < 4
 static void __tuya_tls_mutex_init(mbedtls_threading_mutex_t *mutex)
 {
     if (mutex == NULL) {
@@ -106,6 +128,7 @@ static int __tuya_tls_mutex_unlock(mbedtls_threading_mutex_t *mutex)
 
     return 0;
 }
+#endif /* MBEDTLS_VERSION_MAJOR < 4 */
 
 /* -------------------------------------------------------------------------- */
 /*                                   Calloc                                   */
@@ -329,8 +352,14 @@ static OPERATE_RET mbedtls_cert_pkey_parse(tuya_tls_hander p_tls_handler)
         }
         client_pkey = &(tls_context->client_pkey);
         mbedtls_pk_init(client_pkey);
+#if MBEDTLS_VERSION_MAJOR < 4
         op_ret = mbedtls_pk_parse_key(client_pkey, (const unsigned char *)tls_context->config.client_pkey,
                                       tls_context->config.client_pkey_size, NULL, 0, NULL, 0);
+#else
+        /* mbedtls 4.x dropped the f_rng/p_rng params */
+        op_ret = mbedtls_pk_parse_key(client_pkey, (const unsigned char *)tls_context->config.client_pkey,
+                                      tls_context->config.client_pkey_size, NULL, 0);
+#endif
         if (op_ret != 0) {
             PR_ERR("client pkey parse fail. ret: %d", op_ret);
             return op_ret;
@@ -370,8 +399,10 @@ OPERATE_RET tuya_tls_init(void)
 {
     OPERATE_RET op_ret = OPRT_OK;
 
+#if MBEDTLS_VERSION_MAJOR < 4
     mbedtls_threading_set_alt(__tuya_tls_mutex_init, __tuya_tls_mutex_free, __tuya_tls_mutex_lock,
                               __tuya_tls_mutex_unlock);
+#endif
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM)
     op_ret = mbedtls_platform_set_calloc_free(tal_psram_calloc, tal_psram_free);
@@ -385,8 +416,12 @@ OPERATE_RET tuya_tls_init(void)
 
     /* init entropy and seed random */
     mbedtls_ctr_drbg_init(&ty_ctr_drbg);
+#if MBEDTLS_VERSION_MAJOR < 4
     mbedtls_entropy_init(&ty_entropy); // init and add entropy sources
     op_ret = mbedtls_ctr_drbg_seed(&ty_ctr_drbg, mbedtls_entropy_func, &ty_entropy, (const unsigned char *)"TUYA", 4);
+#else
+    op_ret = mbedtls_ctr_drbg_seed(&ty_ctr_drbg, __tuya_tls_entropy, NULL, (const unsigned char *)"TUYA", 4);
+#endif
     if (op_ret) {
         PR_ERR("mbedtls_ctr_drbg_seed fail. %d", op_ret);
         goto exit;
@@ -399,7 +434,9 @@ OPERATE_RET tuya_tls_init(void)
 
 exit:
     mbedtls_ctr_drbg_free(&ty_ctr_drbg);
+#if MBEDTLS_VERSION_MAJOR < 4
     mbedtls_entropy_free(&ty_entropy);
+#endif
     return op_ret;
 }
 
@@ -564,7 +601,9 @@ OPERATE_RET tuya_tls_connect(tuya_tls_hander p_tls_handler, char *hostname, int 
     mbedtls_ssl_config_init(p_conf_ctx);
 
     mbedtls_ssl_conf_dbg(p_conf_ctx, __tuya_tls_log, NULL);
+#if MBEDTLS_VERSION_MAJOR < 4
     mbedtls_ssl_conf_rng(p_conf_ctx, __tuya_tls_random, NULL);
+#endif
 
 #if defined(ENABLE_MBEDTLS_DEBUG) && (ENABLE_MBEDTLS_DEBUG == 1)
     mbedtls_debug_set_threshold(3);

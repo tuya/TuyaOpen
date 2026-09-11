@@ -5,7 +5,11 @@
  *
  * Actual flush strategy is implemented in:
  *   - lv_port_disp_partial.c    (ENABLE_LVGL_PARTIAL_FLUSH == 1)
- *   - lv_port_disp_full_frame.c (otherwise)
+ *   - lv_port_disp_direct.c     (ENABLE_LVGL_DIRECT_FLUSH == 1)
+ *   - lv_port_disp_full_frame.c (otherwise, default)
+ *
+ * Each mode file owns its buffer setup (lv_port_disp_set_buffers) and flush
+ * behaviour; this file only manages nodes and dispatches.
  */
 
 /*Copy this file as "lv_port_disp.c" and set this value to "1" to enable content*/
@@ -142,7 +146,7 @@ lv_display_t *lv_port_get_lv_disp_by_name(char *device)
  *   STATIC FUNCTIONS
  **********************/
 
-static uint8_t *__disp_draw_buf_align_alloc(uint32_t size_bytes)
+uint8_t *lv_port_disp_draw_buf_alloc(uint32_t size_bytes)
 {
     uint8_t *buf_u8 = NULL;
     size_bytes += DISP_DRAW_BUF_ALIGN - 1;
@@ -214,7 +218,6 @@ static LV_DISP_NODE_T *__find_lv_disp_node_by_lv_disp(lv_display_t *lv_disp)
 
 static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
 {
-    uint8_t per_pixel_byte = 0;
     LV_DISP_NODE_T *lv_disp_node = NULL;
     OPERATE_RET rt = OPRT_OK;
 
@@ -235,7 +238,7 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     lv_disp_node->dev_hdl = dev_hdl;
     TUYA_CALL_ERR_GOTO(tdl_disp_dev_get_info(lv_disp_node->dev_hdl, &lv_disp_node->dev_info), __CREATE_ERR);
 
-    lv_port_flush_init(lv_disp_node);
+    TUYA_CALL_ERR_GOTO(lv_port_flush_init(lv_disp_node), __CREATE_ERR);
 
     lv_display_t *disp = lv_display_create(lv_disp_node->dev_info.width, lv_disp_node->dev_info.height);
     lv_display_set_flush_cb(disp, disp_flush);
@@ -245,17 +248,8 @@ static LV_DISP_NODE_T *__create_lv_disp_dev(TDL_DISP_HANDLE_T dev_hdl)
     PR_NOTICE("lv_color_format:%d", color_format);
     lv_display_set_color_format(disp, color_format);
 
-    per_pixel_byte = lv_color_format_get_size(color_format);
-
-    uint32_t buf_len = (lv_disp_node->dev_info.height / LV_DRAW_BUF_PARTS) * lv_disp_node->dev_info.width * per_pixel_byte;
-
-    lv_disp_node->buf_2_1 = __disp_draw_buf_align_alloc(buf_len);
-    TUYA_CHECK_NULL_GOTO(lv_disp_node->buf_2_1, __CREATE_ERR);
-
-    lv_disp_node->buf_2_2 = __disp_draw_buf_align_alloc(buf_len);
-    TUYA_CHECK_NULL_GOTO(lv_disp_node->buf_2_2, __CREATE_ERR);
-
-    lv_display_set_buffers(disp, lv_disp_node->buf_2_1, lv_disp_node->buf_2_2, buf_len, LV_DISPLAY_RENDER_MODE_PARTIAL);
+    /* draw buffers belong to the active flush mode */
+    TUYA_CALL_ERR_GOTO(lv_port_disp_set_buffers(lv_disp_node, disp), __CREATE_ERR);
 
     if (lv_disp_node->dev_info.rotation == TUYA_DISPLAY_ROTATION_90) {
         lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_90);

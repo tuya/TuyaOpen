@@ -74,6 +74,30 @@ static void example_task(void *args)
     return;
 }
 
+/* PSRAM-stack probe: mirrors how the lvgl_v9 thread runs (psram_mode=1).
+ * Touch the stack heavily each loop; if PSRAM stacks misbehave on this SoC
+ * the thread stalls/faults here instead of inside LVGL. */
+static THREAD_HANDLE sg_psram_probe_hdl = NULL;
+
+static void psram_stack_probe_task(void *args)
+{
+    volatile uint32_t buf[256]; /* ~1KB on the PSRAM stack */
+    uint32_t loop = 0;
+    PR_NOTICE("PSRAM-stack probe start, buf@%p", buf);
+    for (;;) {
+        uint32_t sum = 0;
+        for (int i = 0; i < 256; i++) {
+            buf[i] = loop + i;
+        }
+        for (int i = 0; i < 256; i++) {
+            sum += buf[i];
+        }
+        PR_NOTICE("PSRAM-stack probe loop=%u sum=%u", loop, sum);
+        loop++;
+        tal_system_sleep(1000);
+    }
+}
+
 /**
  * @brief user_main
  *
@@ -102,6 +126,15 @@ void user_main(void)
     thread_cfg.priority = THREAD_PRIO_2;
     thread_cfg.thrdname = "example_task";
     TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&example_thrd_hdl, NULL, NULL, example_task, NULL, &thread_cfg));
+
+    /* PSRAM-stack probe: same psram_mode=1 + 8KB stack as the lvgl_v9 thread */
+    THREAD_CFG_T psram_cfg = {0};
+    psram_cfg.stackDepth = 1024 * 8;
+    psram_cfg.priority   = THREAD_PRIO_2;
+    psram_cfg.thrdname   = "psram_probe";
+    psram_cfg.psram_mode = 1;
+    TUYA_CALL_ERR_LOG(tal_thread_create_and_start(&sg_psram_probe_hdl, NULL, NULL,
+                                                  psram_stack_probe_task, NULL, &psram_cfg));
 
     return;
 }

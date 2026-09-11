@@ -6,6 +6,12 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#if defined(MBEDTLS_CONFIG_FILE)
+/* mbedTLS 4.x's PSA platform header is reached while build_info.h is being
+ * loaded. Read the target config first so its external RNG context is defined
+ * before the PSA include guard is set. */
+#include MBEDTLS_CONFIG_FILE
+#endif
 #include "mbedtls/platform.h"
 #include "mbedtls/cipher.h"
 #include "mbedtls/md.h"
@@ -32,6 +38,11 @@ int mbedtls_message_digest(mbedtls_md_type_t md_type, const uint8_t *input, size
 
 int mbedtls_message_digest_hmac(mbedtls_md_type_t md_type, const uint8_t *key, size_t keylen, const uint8_t *input,
                                 size_t ilen, uint8_t *digest);
+
+/* RFC 5869 HKDF with SHA-256. mbedtls 4.x removed mbedtls_hkdf(); this
+ * portable implementation covers both 3.x and 4.x. */
+int mbedtls_hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm, size_t ikm_len,
+                        const uint8_t *info, size_t info_len, uint8_t *okm, size_t okm_len);
 
 #ifdef __cplusplus
 }

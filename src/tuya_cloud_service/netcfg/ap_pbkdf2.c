@@ -20,6 +20,7 @@
  */
 
 #include "tuya_cloud_types.h"
+#include "mbedtls/build_info.h"
 #include "mbedtls/md.h"
 #include "mbedtls/pkcs5.h"
 #include "tal_log.h"
@@ -44,7 +45,9 @@
  * @return 0 if the key derivation is successful, or a negative value if an
  * error occurs.
  */
-int pbkdf2_sha256(const char *passphrase, size_t passphrase_len, const char *salt, size_t salt_len, int iterations,
+/* file-local: same symbol name as wpa_supplicant's crypto_mbedtls.c variant
+ * (different signature) — keep it static to avoid a link-time clash on IDF */
+static int pbkdf2_sha256(const char *passphrase, size_t passphrase_len, const char *salt, size_t salt_len, int iterations,
                   uint32_t key_length, unsigned char *buf, size_t buflen)
 
 {

@@ -29,6 +29,7 @@
 #include "examples/lv_examples.h"
 #include "lv_vendor.h"
 #include "board_com_api.h"
+
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
@@ -72,9 +73,9 @@ void user_main(void)
 
     lv_vendor_disp_lock();
 
-    lv_demo_widgets();
-    // lv_demo_benchmark();
-    
+    // lv_demo_widgets();
+    lv_demo_benchmark();
+
     lv_vendor_disp_unlock();
 
     lv_vendor_start(5, 1024*8);

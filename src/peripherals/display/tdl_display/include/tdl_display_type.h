@@ -37,6 +37,7 @@ typedef void*  TDL_DISP_HANDLE_T;
 typedef enum {
     DISP_FB_TP_SRAM = 0,
     DISP_FB_TP_PSRAM,
+    DISP_FB_TP_VRAM, /* driver-internal fb, zero-copy; free only releases the shell */
 } DISP_FB_RAM_TP_E;
 
 typedef struct TDL_DISP_FRAME_BUFF_T TDL_DISP_FRAME_BUFF_T;

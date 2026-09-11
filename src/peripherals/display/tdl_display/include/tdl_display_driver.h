@@ -74,6 +74,8 @@ typedef struct {
     OPERATE_RET (*open)(TDD_DISP_DEV_HANDLE_T device);
     OPERATE_RET (*flush)(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff);
     OPERATE_RET (*close)(TDD_DISP_DEV_HANDLE_T device);
+    /* optional: expose driver-internal fbs for zero-copy; NULL if unsupported */
+    OPERATE_RET (*get_frame_buffer)(TDD_DISP_DEV_HANDLE_T device, uint8_t max_num, void **fbs, uint8_t *fb_num);
 } TDD_DISP_INTFS_T;
 
 typedef TDL_DISP_FRAME_BUFF_T *(*TDD_DISP_CONVERT_FB_CB)(TDL_DISP_FRAME_BUFF_T *frame_buff);

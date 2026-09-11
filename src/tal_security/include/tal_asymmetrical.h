@@ -33,6 +33,12 @@ extern "C" {
 
 #include "tuya_iot_config.h"
 #include "tuya_tls.h"
+#if defined(MBEDTLS_CONFIG_FILE)
+/* Load the platform configuration before PSA/private headers. mbedTLS 4.x
+ * defines the external RNG context from this configuration. */
+#include MBEDTLS_CONFIG_FILE
+#endif
+#include "mbedtls/build_info.h"
 #include "mbedtls/rsa.h"
 #include "mbedtls/ecdsa.h"
 #include "mbedtls/pk.h"
@@ -55,7 +61,11 @@ extern "C" {
  *
  * @return          0 on success, or a negative error code on failure.
  */
+/* mbedtls 4.x removed mbedtls_pk_type_t and the legacy pk setup API.
+ * PSA-based reimplementation pending; no in-tree callers today. */
+#if MBEDTLS_VERSION_MAJOR < 4
 int tal_gen_key(mbedtls_pk_type_t type, mbedtls_ecp_group_id grp_id, int rsa_keysize, mbedtls_pk_context *key);
+#endif
 /**
  * @brief Converts a public key to a specified output format and stores it in a
  * buffer.

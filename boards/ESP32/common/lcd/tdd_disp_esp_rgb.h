@@ -38,12 +38,17 @@ typedef struct {
     int de_gpio;
     int hsync_gpio;
     int vsync_gpio;
+    int disp_gpio;
+
+    /* Sample on the falling PCLK edge (panel-dependent timing flag) */
+    bool pclk_active_neg;
 
     /* Data pins (16 for RGB565) */
     int data_gpio[16];
 
-    /* Bounce buffer size (0 = use default).
-     * ESP32-S3 RGB panel needs bounce buffers in internal SRAM for PSRAM access. */
+    /* Bounce buffer size in bytes.
+     * 0  = direct scan from PSRAM: zero-copy double-fb mode, fbs exposed to the fb pool.
+     * >0 = bounce mode: DMA scans internal SRAM only, fbs not exposed (S3-era workaround). */
     uint32_t bounce_buffer_size;
 } TDD_DISP_ESP_RGB_HW_CFG_T;
 

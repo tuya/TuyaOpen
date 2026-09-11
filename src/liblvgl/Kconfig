@@ -64,20 +64,36 @@ menuconfig ENABLE_LIBLVGL
             bool "enable lvgl LODEPNG decoder library"
             default n
 
-        config ENABLE_LVGL_PARTIAL_FLUSH
-            bool "enable partial flush (bypass full-frame buffer)"
-            default n
-            help
-                When enabled and the display driver reports has_vram=true,
-                LVGL flushes each partial area directly to the panel without
-                allocating a full-frame intermediate buffer. This saves significant
-                memory (e.g. 768KB for 800x480 RGB565) and reduces latency.
-                If the driver does not support partial writes (has_vram=false),
-                this option has no effect and full-frame mode is used.
+        choice LIBLVGL_FLUSH_MODE
+            prompt "the lvgl flush mode"
+            default ENABLE_LVGL_FULL_FLUSH
+
+            config ENABLE_LVGL_PARTIAL_FLUSH
+                bool "partial flush: render dirty regions, send each one"
+                help
+                    LVGL renders small dirty-region buffers, the port sends
+                    every region straight to the driver. Lowest memory, works
+                    on all panels.
+
+            config ENABLE_LVGL_FULL_FLUSH
+                bool "full-frame flush: render small, copy into pool fb"
+                help
+                    LVGL renders small buffers, the port copies them into a
+                    full-frame fb from the fb pool, then flushes the pool fb.
+
+            config ENABLE_LVGL_DIRECT_FLUSH
+                bool "direct flush: render into driver vram, zero-copy"
+                help
+                    LVGL renders straight into the display driver's internal
+                    frame buffers (tdl_disp_get_vram, needs >= 2 fbs, e.g. RGB
+                    panel in direct-scan mode). Zero copy, anti-tearing: the
+                    flush waits for the scan switch. Init fails when the
+                    driver cannot provide the fbs - no fallback.
+        endchoice
 
         config ENABLE_LVGL_DUAL_DISP_BUFF
             bool "enable lvgl dual display buffer"
-            depends on !ENABLE_LVGL_PARTIAL_FLUSH
+            depends on ENABLE_LVGL_FULL_FLUSH
             default n
 
         config ENABLE_LVGL_DRAW_BUF_PSRAM

@@ -252,6 +252,38 @@ OPERATE_RET tdl_disp_dev_flush(TDL_DISP_HANDLE_T disp_hdl, TDL_DISP_FRAME_BUFF_T
 }
 
 /**
+ * @brief Gets the driver-internal frame buffers (VRAM) of a display device.
+ *
+ * @param disp_hdl Handle to the display device.
+ * @param max_num  Max number of buffers to retrieve.
+ * @param fbs      Output array of buffer pointers (caller allocated).
+ * @param fb_num   Output, number of buffers actually filled in.
+ *
+ * @return OPRT_OK on success, OPRT_NOT_SUPPORTED if the driver owns no addressable
+ *         fbs, OPRT_COM_ERROR if the device is not open.
+ */
+OPERATE_RET tdl_disp_get_vram(TDL_DISP_HANDLE_T disp_hdl, uint8_t max_num, void **fbs, uint8_t *fb_num)
+{
+    DISPLAY_DEVICE_T *display_dev = NULL;
+
+    if (NULL == disp_hdl || NULL == fbs || NULL == fb_num || 0 == max_num) {
+        return OPRT_INVALID_PARM;
+    }
+
+    display_dev = (DISPLAY_DEVICE_T *)disp_hdl;
+
+    if (false == display_dev->is_open) {
+        return OPRT_COM_ERROR;
+    }
+
+    if (NULL == display_dev->intfs.get_frame_buffer) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return display_dev->intfs.get_frame_buffer(display_dev->tdd_hdl, max_num, fbs, fb_num);
+}
+
+/**
  * @brief Retrieves information about a registered display device.
  *
  * This function copies the display device's information, such as type, width, height, 
@@ -441,7 +473,10 @@ TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_
 void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
     if (frame_buff) {
-        if (frame_buff->type == DISP_FB_TP_SRAM) {
+        if (frame_buff->type == DISP_FB_TP_VRAM) {
+            /* shell only; the fb itself belongs to the driver */
+            tkl_system_free(frame_buff);
+        } else if (frame_buff->type == DISP_FB_TP_SRAM) {
             tkl_system_free(frame_buff);
         } else {
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)

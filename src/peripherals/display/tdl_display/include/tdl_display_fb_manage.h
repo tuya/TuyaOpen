@@ -37,9 +37,10 @@ typedef void* TDL_FB_MANAGE_HANDLE_T;
 /**
  * @brief Initialize frame buffer manager
  * @param handle Pointer to store the frame buffer manager handle
+ * @param disp_hdl Display device this pool serves; NULL = heap-only pool
  * @return OPRT_OK on success, OPRT_MALLOC_FAILED on memory allocation failure
  */
-OPERATE_RET tdl_disp_fb_manage_init(TDL_FB_MANAGE_HANDLE_T *handle);
+OPERATE_RET tdl_disp_fb_manage_init(TDL_FB_MANAGE_HANDLE_T *handle, TDL_DISP_HANDLE_T disp_hdl);
 
 /**
  * @brief Add a frame buffer to the manager

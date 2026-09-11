@@ -76,8 +76,7 @@ static int __lcd_st7789_80_init(LCD_ST7789_80_HW_CFG_T *hw, uint16_t width, uint
             },
         .bus_width          = 8,
         .max_transfer_bytes = (size_t)width * (size_t)height * sizeof(uint16_t),
-        .psram_trans_align  = 64,
-        .sram_trans_align   = 4,
+        .dma_burst_size     = 64,
     };
     ESP_ERROR_CHECK(esp_lcd_new_i80_bus(&bus_config, &i80_bus));
 

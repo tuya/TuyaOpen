@@ -20,7 +20,6 @@
 #include "tal_event.h"
 #include "tuya_protocol.h"
 #include "cipher_wrapper.h"
-#include "mbedtls/hkdf.h"
 #include "mbedtls/md.h"
 #include "uni_random.h"
 #include "tuya_lan.h"

@@ -126,11 +126,9 @@ static const esp_lcd_dpi_panel_config_t dpi_config = {
     .dpi_clk_src        = MIPI_DSI_DPI_CLK_SRC_DEFAULT,
     .dpi_clock_freq_mhz = 30,
     .virtual_channel    = 0,
-    /* Match the official Waveshare BSP exactly: use .pixel_format (not
-     * .in_color_format, which is a different color_hal enum) and a single
-     * frame buffer. Using in_color_format configured the DSI bridge pixel
-     * packing differently and produced faint vertical streaks on light fills. */
-    .pixel_format       = LCD_COLOR_PIXEL_FORMAT_RGB565,
+    /* IDF 6.x uses the color_hal FourCC-based input/output format fields. */
+    .in_color_format    = LCD_COLOR_FMT_RGB565,
+    .out_color_format   = LCD_COLOR_FMT_RGB565,
     .num_fbs            = 1,
     .video_timing = {
         .h_size            = 480,
@@ -143,10 +141,6 @@ static const esp_lcd_dpi_panel_config_t dpi_config = {
         .vsync_front_porch = 60,
     },
     .flags = {
-        /* Hardware-accelerated (2D-DMA / esp_async_fbcpy) copy of the draw buffer
-         * into the internal frame buffer. Note: if the PPA (ENABLE_DMA2D) is ever
-         * used concurrently it shares the same ESP32-P4 2D-DMA peripheral. */
-        .use_dma2d  = 1,
         .disable_lp = 0,
     },
 };
@@ -263,6 +257,8 @@ static int __dbi_io_init(void)
     return 0;
 }
 
+static void __cleanup(void);
+
 /**
  * @brief Create the ST7701 panel via esp_lcd_new_panel_st7701().
  *
@@ -297,6 +293,14 @@ static int __st7701_panel_init(int rst_io)
                                                   &sg_lcd_config.panel);
     if (esp_rt != ESP_OK) {
         ESP_LOGE(TAG, "esp_lcd_new_panel_st7701 failed: 0x%x", esp_rt);
+        return -1;
+    }
+
+    /* IDF 6.x enables the DPI DMA2D copy hook after panel creation. */
+    esp_rt = esp_lcd_dpi_panel_enable_dma2d(sg_lcd_config.panel);
+    if (esp_rt != ESP_OK) {
+        ESP_LOGE(TAG, "esp_lcd_dpi_panel_enable_dma2d failed: 0x%x", esp_rt);
+        __cleanup();
         return -1;
     }
 

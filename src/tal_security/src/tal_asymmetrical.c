@@ -48,6 +48,9 @@ int __tuya_tls_random(void *p_rng, unsigned char *output, size_t output_len);
  *
  * @return          0 on success, or a negative error code on failure.
  */
+/* mbedtls 4.x removed mbedtls_pk_type_t / mbedtls_pk_setup; gated out with the
+ * prototype in tal_asymmetrical.h until a PSA-based port lands. */
+#if MBEDTLS_VERSION_MAJOR < 4
 int tal_gen_key(mbedtls_pk_type_t type, mbedtls_ecp_group_id grp_id, int rsa_keysize, mbedtls_pk_context *key)
 {
     int ret = 1;
@@ -100,6 +103,7 @@ exit:
 
     return ret;
 }
+#endif /* MBEDTLS_VERSION_MAJOR < 4 */
 
 /**
  * @brief Converts a public key to a specified output format and stores it in a

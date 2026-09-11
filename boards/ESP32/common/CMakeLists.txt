@@ -12,8 +12,8 @@ if(NOT IDF_TARGET STREQUAL "esp32p4")
     list(FILTER LCD_SRCS EXCLUDE REGEX ".*_dpi\\.c$")
 endif()
 # *_rgb.c adapters use the RGB LCD peripheral (SOC_LCDCAM_RGB_LCD_SUPPORTED),
-# which only exists on ESP32-S3 and ESP32-P4.
-if(NOT IDF_TARGET STREQUAL "esp32s3" AND NOT IDF_TARGET STREQUAL "esp32p4")
+# which only exists on ESP32-S31/S3/P4.
+if(NOT IDF_TARGET STREQUAL "esp32s31" AND NOT IDF_TARGET STREQUAL "esp32s3" AND NOT IDF_TARGET STREQUAL "esp32p4")
     list(FILTER LCD_SRCS EXCLUDE REGEX ".*_rgb\\.c$")
 endif()
 
@@ -32,6 +32,8 @@ file(GLOB_RECURSE BUTTON_SRCS "${COMMON_PATH}/button/*.c")
 # add camera source files — pick the right driver per target:
 #   ESP32-P4 : MIPI-CSI (tdd_camera_esp_csi.c)
 #   ESP32/S3 : DVP via esp32-camera component (tdd_camera_esp_dvp.c)
+#   ESP32-S31: no driver yet — esp32-camera has no esp32s31 target;
+#              the S31 DVP path needs the esp_video ~2.2 stack.
 if(IDF_TARGET STREQUAL "esp32p4")
     set(CAMERA_SRCS "${COMMON_PATH}/camera/tdd_camera_esp_csi.c")
 elseif(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32")

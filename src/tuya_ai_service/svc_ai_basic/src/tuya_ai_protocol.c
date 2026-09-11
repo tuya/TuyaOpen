@@ -19,7 +19,7 @@
  */
 #include "tuya_transporter.h"
 #include "tuya_iot_config.h"
-#include "mbedtls/hkdf.h"
+/* mbedtls 4.x removed mbedtls/hkdf.h; mbedtls_hkdf_sha256() in cipher_wrapper.h covers it */
 #include "mbedtls/chacha20.h"
 #include "gw_intf.h"
 #include "uni_log.h"
@@ -192,11 +192,10 @@ STATIC OPERATE_RET __ai_generate_crypt_key()
     CHAR_T *info = NULL;
     size_t info_len = 0;
 
-    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                      (const unsigned char *)slat, salt_len,
-                      (const unsigned char *)ikm, ikm_len,
-                      (const unsigned char *)info, info_len,
-                      (unsigned char *)ai_basic_proto->crypt_key, AI_KEY_LEN);
+    rt = mbedtls_hkdf_sha256((const uint8_t *)slat, salt_len,
+                             (const uint8_t *)ikm, ikm_len,
+                             (const uint8_t *)info, info_len,
+                             (uint8_t *)ai_basic_proto->crypt_key, AI_KEY_LEN);
     memcpy(ai_basic_proto->iv_mask, ai_basic_proto->crypt_key, AI_IV_LEN);
     // tuya_debug_hex_dump("iv_mask ", 64, (UCHAR_T *)ai_basic_proto->crypt_key, AI_IV_LEN);
 
@@ -223,11 +222,10 @@ STATIC OPERATE_RET __ai_generate_sign_key()
     CHAR_T *info = NULL;
     size_t info_len = 0;
 
-    rt = mbedtls_hkdf(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256),
-                      (const unsigned char *)slat, salt_len,
-                      (const unsigned char *)ikm, ikm_len,
-                      (const unsigned char *)info, info_len,
-                      (unsigned char *)ai_basic_proto->sign_key, AI_KEY_LEN);
+    rt = mbedtls_hkdf_sha256((const uint8_t *)slat, salt_len,
+                             (const uint8_t *)ikm, ikm_len,
+                             (const uint8_t *)info, info_len,
+                             (uint8_t *)ai_basic_proto->sign_key, AI_KEY_LEN);
     return rt;
 }
 
