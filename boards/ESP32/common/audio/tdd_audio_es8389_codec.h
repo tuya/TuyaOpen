@@ -29,6 +29,7 @@ typedef struct {
     uint8_t es8389_addr;
     int pa_pin;
     int default_volume;
+    uint16_t spk_channel_mask;
 } TDD_AUDIO_ES8389_CODEC_T;
 
 /***********************************************************

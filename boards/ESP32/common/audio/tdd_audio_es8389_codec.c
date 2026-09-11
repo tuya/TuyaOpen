@@ -54,6 +54,7 @@ typedef struct {
 static int input_sample_rate_ = 0;
 static int output_sample_rate_ = 0;
 static int output_volume_ = 0;
+static uint16_t output_channel_mask_ = 0;
 static gpio_num_t pa_pin_ = 0;
 
 static const audio_codec_gpio_if_t *gpio_if_ = NULL;
@@ -96,8 +97,9 @@ static void enable_output_device(bool enable)
         // Play 16bit 1 channel
         esp_codec_dev_sample_info_t fs = {
             .bits_per_sample = 16,
-            .channel = 1,
-            .channel_mask = 0,
+            /* Korvo-1 exposes the connected speaker on the right DAC slot. */
+            .channel = output_channel_mask_ ? 2 : 1,
+            .channel_mask = output_channel_mask_,
             .sample_rate = (uint32_t)output_sample_rate_,
             .mclk_multiple = 0,
         };
@@ -122,6 +124,7 @@ OPERATE_RET codec_es8389_init(TDD_AUDIO_ES8389_CODEC_T *cfg)
     input_sample_rate_ = cfg->mic_sample_rate;
     output_sample_rate_ = cfg->spk_sample_rate;
     output_volume_ = cfg->default_volume;
+    output_channel_mask_ = cfg->spk_channel_mask;
 
     if (cfg->i2c_handle == NULL || cfg->i2s_tx_handle == NULL || cfg->i2s_rx_handle == NULL) {
         PR_ERR("i2c_handle/i2s_tx_handle/i2s_rx_handle is NULL");

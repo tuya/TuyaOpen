@@ -163,6 +163,7 @@ static OPERATE_RET __board_register_audio(void)
         .es8389_addr     = ES8389_I2C_ADDR,
         .pa_pin          = ES8389_PA_IO,
         .default_volume  = DEFAULT_VOLUME,
+        .spk_channel_mask = 2, /* speaker_r is the ES8389 right DAC slot */
     };
     return tdd_audio_es8389_codec_register(AUDIO_CODEC_NAME, codec);
 #else
