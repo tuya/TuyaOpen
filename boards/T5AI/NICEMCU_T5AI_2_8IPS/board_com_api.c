@@ -31,7 +31,7 @@ extern void user_sdio_gpio_init(void);
 #define BOARD_BUTTON_PIN             TUYA_GPIO_NUM_8
 #define BOARD_BUTTON_ACTIVE_LV       TUYA_GPIO_LEVEL_LOW
 
-#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_GPIO 
+#define BOARD_LCD_BL_TYPE            TUYA_DISP_BL_TP_GPIO
 #define BOARD_LCD_BL_PIN             TUYA_GPIO_NUM_9
 #define BOARD_LCD_BL_ACTIVE_LV       TUYA_GPIO_LEVEL_HIGH
 
@@ -221,8 +221,8 @@ static OPERATE_RET __board_register_camera(void)
         .clk = BOARD_CAMERA_CLK,
     };
 
-    // TUYA_CALL_ERR_RETURN(tdd_camera_dvp_ov2640_register(CAMERA_NAME, &camera_cfg)); 
-    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg)); 
+    // TUYA_CALL_ERR_RETURN(tdd_camera_dvp_ov2640_register(CAMERA_NAME, &camera_cfg));
+    TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg));
 #endif
 
     return OPRT_OK;
