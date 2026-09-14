@@ -20,7 +20,6 @@ from tools.cli_command.cli_clean import full_clean_project
 BAC_SKIP_CONFIGS = [
     # "RaspberryPi",
     # "DNESP32S3_BOX2_WIFI",
-   "GD32.config",
 ]
 
 
