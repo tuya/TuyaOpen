@@ -84,6 +84,17 @@ struct JDEC {
 
 
 
+/*
+ * Keep the Tuya image decoder symbols separate from LVGL's bundled tjpgd.
+ * Both implementations export the same jd_* names, but their JDEC layouts
+ * are not interchangeable.
+ */
+#define jd_prepare    tal_tjpgd_prepare
+#define jd_decomp     tal_tjpgd_decomp
+#define jd_mcu_load   tal_tjpgd_mcu_load
+#define jd_mcu_output tal_tjpgd_mcu_output
+#define jd_restart    tal_tjpgd_restart
+
 /* TJpgDec API functions */
 JRESULT jd_prepare(JDEC * jd, size_t (*infunc)(JDEC *, uint8_t *, size_t), void * pool, size_t sz_pool, void * dev);
 

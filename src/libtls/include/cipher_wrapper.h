@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include "mbedtls/version.h"
 #if defined(MBEDTLS_CONFIG_FILE)
 /* mbedTLS 4.x's PSA platform header is reached while build_info.h is being
  * loaded. Read the target config first so its external RNG context is defined

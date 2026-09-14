@@ -156,9 +156,9 @@ choice
         endif
 
     config BOARD_CHOICE_ESP32S31_KORVO_1
-        bool "ESP32S31-Korvo-1"
+        bool "ESP32S31-KORVO-1"
         if (BOARD_CHOICE_ESP32S31_KORVO_1)
-            rsource "./ESP32S31_Korvo_1/Kconfig"
+            rsource "./ESP32S31_KORVO_1/Kconfig"
         endif
 
 # <new-board-add: This line cannot be deleted or modified>

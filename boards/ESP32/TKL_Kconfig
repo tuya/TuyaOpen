@@ -58,10 +58,12 @@ config ENABLE_EXT_RAM
 
 config ENABLE_DMA2D
     bool
+    default y if CHIP_CHOICE = "esp32s31"
     default n
     ---help---
         2D-DMA / pixel-processing hardware acceleration (tkl_dma2d).
-        Backed by the PPA on ESP32-P4; has no effect on other ESP32 targets.
+        Enabled automatically on ESP32-S31, which provides the PPA hardware
+        used by the ESP32 DMA2D adapter.
 
 config ENABLE_ESP_DISPLAY
     bool

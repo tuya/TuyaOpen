@@ -389,6 +389,9 @@ void user_main(void)
     for (;;) {
         /* Loop to receive packets, and handles client keepalive */
         tuya_iot_yield(&ai_client);
+        /* Keep the app task from starving the idle task on the S31 CPU it is
+         * scheduled on. */
+        tal_system_sleep(10);
     }
 }
 
@@ -426,7 +429,8 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth   = 4096;
+    /* TLS activation/Wi-Fi provisioning can use more than 4 KB on this target. */
+    thrd_param.stackDepth   = 8192;
     thrd_param.priority     = 4;
     thrd_param.thrdname     = "tuya_app_main";
     /* Stack must be internal DRAM: esp_partition_mmap / flash pause cache (ESP-SR) asserts

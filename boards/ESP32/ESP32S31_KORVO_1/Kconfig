@@ -4,13 +4,12 @@ config CHIP_CHOICE
 
 config BOARD_CHOICE
     string
-    default "ESP32S31_Korvo_1"
+    default "ESP32S31_KORVO_1"
 
 config BOARD_CONFIG
     bool
     default y
     select ENABLE_EXT_RAM
-    select ENABLE_AUDIO
     select ENABLE_AUDIO_AEC
     select ENABLE_AUDIO_CODECS
     select ENABLE_CAMERA
@@ -22,6 +21,16 @@ config BOARD_CONFIG
     select ENABLE_BUTTON_4
     select ENABLE_LED
     select PLATFORM_FLASHSIZE_16M
+
+# ESP32-S31 KORVO routes U0TXD/U0RXD to GPIO58/GPIO59.
+# GPIO43/GPIO44 are used by the RGB LCD and must not be used by the CLI UART.
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 61
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 61
 
 config AUDIO_CODEC_NAME
     string

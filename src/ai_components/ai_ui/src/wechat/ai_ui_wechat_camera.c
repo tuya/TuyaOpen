@@ -4,6 +4,8 @@
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
+#include <stdint.h>
+
 #include "tal_api.h"
 
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
@@ -28,6 +30,7 @@ LV_IMG_DECLARE(icon_ai_camera_on);
 #define CAMERA_THUMB_SIZE   60
 #define CAMERA_SHUTTER_SIZE 72
 #define CAMERA_CLOSE_SIZE   48
+#define CAMERA_PREVIEW_DMA_ALIGN 64
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define CAMERA_UI_MALLOC    tal_psram_malloc
@@ -36,6 +39,33 @@ LV_IMG_DECLARE(icon_ai_camera_on);
 #define CAMERA_UI_MALLOC    tal_malloc
 #define CAMERA_UI_FREE      tal_free
 #endif
+
+/* PPA requires the output address to be cache-line aligned. Keep this
+ * platform-neutral by storing the original allocation just before the
+ * aligned address, so it can still be released with the matching TAL API. */
+static uint8_t *__camera_preview_alloc(size_t size)
+{
+    if (size > SIZE_MAX - sizeof(void *) - (CAMERA_PREVIEW_DMA_ALIGN - 1)) {
+        return NULL;
+    }
+
+    uint8_t *raw = (uint8_t *)CAMERA_UI_MALLOC(size + sizeof(void *) + CAMERA_PREVIEW_DMA_ALIGN - 1);
+    if (NULL == raw) {
+        return NULL;
+    }
+
+    uintptr_t aligned_addr = ((uintptr_t)raw + sizeof(void *) + CAMERA_PREVIEW_DMA_ALIGN - 1) &
+                             ~(uintptr_t)(CAMERA_PREVIEW_DMA_ALIGN - 1);
+    ((void **)aligned_addr)[-1] = raw;
+    return (uint8_t *)aligned_addr;
+}
+
+static void __camera_preview_free(void *ptr)
+{
+    if (NULL != ptr) {
+        CAMERA_UI_FREE(((void **)ptr)[-1]);
+    }
+}
 
 /***********************************************************
 ***********************typedef define***********************
@@ -141,7 +171,7 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
 
     /* Allocate a new RGB565 buffer for this frame */
     uint32_t buf_size = (uint32_t)video->width * video->height * 2;
-    uint8_t *rgb565_buf = (uint8_t *)CAMERA_UI_MALLOC(buf_size);
+    uint8_t *rgb565_buf = __camera_preview_alloc(buf_size);
     if (NULL == rgb565_buf) {
         PR_ERR("camera preview: malloc rgb565 failed, size=%u", buf_size);
         return;
@@ -158,7 +188,7 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
 
     if (tal_image_convert_yuv422_to_rgb565(&conv) != OPRT_OK) {
         PR_ERR("camera preview: yuv422 to rgb565 failed");
-        CAMERA_UI_FREE(rgb565_buf);
+        __camera_preview_free(rgb565_buf);
         return;
     }
 
@@ -168,7 +198,7 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
 
     /* Swap buffer and update canvas */
     if (sg_camera.preview_buf) {
-        CAMERA_UI_FREE(sg_camera.preview_buf);
+        __camera_preview_free(sg_camera.preview_buf);
     }
     sg_camera.preview_buf = rgb565_buf;
 
@@ -263,7 +293,7 @@ static void __disp_close(void)
     lv_vendor_disp_unlock();
 
     if (sg_camera.preview_buf) {
-        CAMERA_UI_FREE(sg_camera.preview_buf);
+        __camera_preview_free(sg_camera.preview_buf);
         sg_camera.preview_buf = NULL;
         sg_camera.preview_w = 0;
         sg_camera.preview_h = 0;

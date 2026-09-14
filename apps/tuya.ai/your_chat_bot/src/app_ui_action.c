@@ -91,7 +91,7 @@ static void __app_ui_action_handle(AI_UI_ACTION_E action, uint8_t *data, uint32_
                 ai_picture_input_recognize(jpeg, jpeg_len);
 #endif
             } else {
-                ai_ui_disp_msg_sync(AI_UI_DISP_CAMERA_THUMB, jpeg, jpeg_len);
+                /* The thumbnail was already sent before the AI branch. */
             }
 
             ai_video_jpeg_image_free(&jpeg);

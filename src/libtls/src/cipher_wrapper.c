@@ -3,6 +3,10 @@
 #include "tal_log.h"
 #include "tal_memory.h"
 
+#if MBEDTLS_VERSION_NUMBER >= 0x04000000
+#include "psa/crypto.h"
+#endif
+
 int mbedtls_cipher_auth_encrypt_wrapper(const cipher_params_t *input, unsigned char *output, size_t *olen,
                                         unsigned char *tag, size_t tag_len)
 {
@@ -208,14 +212,98 @@ int mbedtls_hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm
         return OPRT_OK;
     }
 
+#if MBEDTLS_VERSION_NUMBER >= 0x04000000
+    /*
+     * mbedTLS 4.x routes the legacy MD HMAC API through PSA. On ESP32-S3,
+     * that path can reject valid HKDF inputs with PSA_ERROR_INVALID_ARGUMENT.
+     * Use the PSA MAC API directly for 4.x and keep the mbedTLS 3.x path
+     * below unchanged for platforms such as T5AI.
+     */
+    psa_status_t status = psa_crypto_init();
+    if (status != PSA_SUCCESS) {
+        return (int)status;
+    }
+
+    uint8_t zero_salt[sizeof(prk)] = {0};
+    const uint8_t *extract_salt = salt;
+    size_t extract_salt_len = salt_len;
+    if (extract_salt_len == 0) {
+        extract_salt = zero_salt;
+        extract_salt_len = sizeof(zero_salt);
+    }
+
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_key_id_t key_id = 0;
+    psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
+    size_t mac_len = 0;
+
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+    psa_set_key_algorithm(&attributes, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_HMAC);
+    psa_set_key_bits(&attributes, PSA_BYTES_TO_BITS(extract_salt_len));
+    status = psa_import_key(&attributes, extract_salt, extract_salt_len, &key_id);
+    psa_reset_key_attributes(&attributes);
+    if (status == PSA_SUCCESS) {
+        status = psa_mac_sign_setup(&operation, key_id, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+    }
+    if (status == PSA_SUCCESS && ikm_len > 0) {
+        status = psa_mac_update(&operation, ikm, ikm_len);
+    }
+    if (status == PSA_SUCCESS) {
+        status = psa_mac_sign_finish(&operation, prk, sizeof(prk), &mac_len);
+    }
+    psa_mac_abort(&operation);
+    if (key_id != 0) {
+        psa_destroy_key(key_id);
+    }
+    if (status != PSA_SUCCESS || mac_len != sizeof(prk)) {
+        return status != PSA_SUCCESS ? (int)status : OPRT_COM_ERROR;
+    }
+#else
     /* extract: PRK = HMAC-SHA256(salt, IKM) */
     ret = mbedtls_md_hmac(sha256, salt, salt_len, ikm, ikm_len, prk);
     if (ret != 0) {
         return ret;
     }
+#endif
 
     /* expand: T(i) = HMAC-SHA256(PRK, T(i-1) | info | i) */
     while (off < okm_len) {
+#if MBEDTLS_VERSION_NUMBER >= 0x04000000
+        psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+        psa_key_id_t key_id = 0;
+        psa_mac_operation_t operation = PSA_MAC_OPERATION_INIT;
+        size_t mac_len = 0;
+
+        psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
+        psa_set_key_algorithm(&attributes, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+        psa_set_key_type(&attributes, PSA_KEY_TYPE_HMAC);
+        psa_set_key_bits(&attributes, PSA_BYTES_TO_BITS(sizeof(prk)));
+        status = psa_import_key(&attributes, prk, sizeof(prk), &key_id);
+        psa_reset_key_attributes(&attributes);
+        if (status == PSA_SUCCESS) {
+            status = psa_mac_sign_setup(&operation, key_id, PSA_ALG_HMAC(PSA_ALG_SHA_256));
+        }
+        if (status == PSA_SUCCESS && off > 0) {
+            status = psa_mac_update(&operation, t, sizeof(t));
+        }
+        if (status == PSA_SUCCESS && info_len > 0) {
+            status = psa_mac_update(&operation, info, info_len);
+        }
+        if (status == PSA_SUCCESS) {
+            status = psa_mac_update(&operation, &counter, 1);
+        }
+        if (status == PSA_SUCCESS) {
+            status = psa_mac_sign_finish(&operation, t, sizeof(t), &mac_len);
+        }
+        psa_mac_abort(&operation);
+        if (key_id != 0) {
+            psa_destroy_key(key_id);
+        }
+        if (status != PSA_SUCCESS || mac_len != sizeof(t)) {
+            return status != PSA_SUCCESS ? (int)status : OPRT_COM_ERROR;
+        }
+#else
         mbedtls_md_init(&ctx);
         ret = mbedtls_md_setup(&ctx, sha256, 1);
         if (ret == 0) {
@@ -237,6 +325,7 @@ int mbedtls_hkdf_sha256(const uint8_t *salt, size_t salt_len, const uint8_t *ikm
         if (ret != 0) {
             return ret;
         }
+#endif
 
         size_t n = okm_len - off;
         if (n > sizeof(t)) {

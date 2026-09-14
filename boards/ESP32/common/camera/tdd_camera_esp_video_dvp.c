@@ -27,6 +27,7 @@
 #include "esp_video_device.h"
 #include "esp_video_init.h"
 #include "esp_cam_sensor_xclk.h"
+#include "esp_heap_caps.h"
 #include "driver/ledc.h"
 #include "driver/i2c_master.h"
 #include "linux/videodev2.h"
@@ -45,14 +46,22 @@ typedef struct {
     char name[CAMERA_DEV_NAME_MAX_LEN + 1];
     TDD_CAMERA_ESP_VIDEO_DVP_CFG_T cfg;
     int fd;
+    int jpeg_fd;
     volatile bool running;
     THREAD_HANDLE thread;
     DVP_VIDEO_BUF_T bufs[DVP_VIDEO_BUF_COUNT];
+    DVP_VIDEO_BUF_T jpeg_buf;
+    uint8_t *jpeg_input;
+    size_t jpeg_input_len;
     uint8_t buf_count;
     uint32_t width;
     uint32_t height;
     uint32_t pixfmt;
     uint32_t frame_id;
+    bool need_raw;
+    bool need_encoded;
+    bool jpeg_capture_started;
+    bool jpeg_output_started;
 } DVP_VIDEO_CAMERA_T;
 
 static bool sg_video_inited;
@@ -140,6 +149,149 @@ static void __release_buffers(DVP_VIDEO_CAMERA_T *dev)
     dev->buf_count = 0;
 }
 
+static void __jpeg_close(DVP_VIDEO_CAMERA_T *dev)
+{
+    int type;
+
+    if (dev->jpeg_fd >= 0) {
+        if (dev->jpeg_output_started) {
+            type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+            (void)ioctl(dev->jpeg_fd, VIDIOC_STREAMOFF, &type);
+            dev->jpeg_output_started = false;
+        }
+        if (dev->jpeg_capture_started) {
+            type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            (void)ioctl(dev->jpeg_fd, VIDIOC_STREAMOFF, &type);
+            dev->jpeg_capture_started = false;
+        }
+    }
+
+    if (dev->jpeg_buf.addr != MAP_FAILED && dev->jpeg_buf.addr != NULL) {
+        munmap(dev->jpeg_buf.addr, dev->jpeg_buf.len);
+        dev->jpeg_buf.addr = NULL;
+    }
+    dev->jpeg_buf.len = 0;
+
+    if (dev->jpeg_input != NULL) {
+        heap_caps_free(dev->jpeg_input);
+        dev->jpeg_input = NULL;
+    }
+    dev->jpeg_input_len = 0;
+
+    if (dev->jpeg_fd >= 0) {
+        close(dev->jpeg_fd);
+        dev->jpeg_fd = -1;
+    }
+}
+
+static OPERATE_RET __jpeg_open(DVP_VIDEO_CAMERA_T *dev)
+{
+    struct v4l2_format fmt;
+    struct v4l2_requestbuffers req;
+    struct v4l2_buffer buf;
+    int type;
+
+    dev->jpeg_fd = open(ESP_VIDEO_JPEG_DEVICE_NAME, O_RDWR);
+    if (dev->jpeg_fd < 0) {
+        PR_ERR("open %s failed: errno=%d", ESP_VIDEO_JPEG_DEVICE_NAME, errno);
+        return OPRT_COM_ERROR;
+    }
+
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    fmt.fmt.pix.width = dev->width;
+    fmt.fmt.pix.height = dev->height;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
+    if (ioctl(dev->jpeg_fd, VIDIOC_S_FMT, &fmt) != 0) {
+        PR_ERR("JPEG VIDIOC_S_FMT(output UYVY) failed: errno=%d", errno);
+        goto err;
+    }
+
+    memset(&req, 0, sizeof(req));
+    req.count = 1;
+    req.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    req.memory = V4L2_MEMORY_USERPTR;
+    if (ioctl(dev->jpeg_fd, VIDIOC_REQBUFS, &req) != 0 || req.count < 1) {
+        PR_ERR("JPEG VIDIOC_REQBUFS(output USERPTR) failed: errno=%d count=%u", errno, req.count);
+        goto err;
+    }
+
+    memset(&fmt, 0, sizeof(fmt));
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.width = dev->width;
+    fmt.fmt.pix.height = dev->height;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;
+    if (ioctl(dev->jpeg_fd, VIDIOC_S_FMT, &fmt) != 0) {
+        PR_ERR("JPEG VIDIOC_S_FMT(capture JPEG) failed: errno=%d", errno);
+        goto err;
+    }
+
+    memset(&req, 0, sizeof(req));
+    req.count = 1;
+    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req.memory = V4L2_MEMORY_MMAP;
+    if (ioctl(dev->jpeg_fd, VIDIOC_REQBUFS, &req) != 0 || req.count < 1) {
+        PR_ERR("JPEG VIDIOC_REQBUFS(capture MMAP) failed: errno=%d count=%u", errno, req.count);
+        goto err;
+    }
+
+    memset(&buf, 0, sizeof(buf));
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index = 0;
+    if (ioctl(dev->jpeg_fd, VIDIOC_QUERYBUF, &buf) != 0) {
+        PR_ERR("JPEG VIDIOC_QUERYBUF failed: errno=%d", errno);
+        goto err;
+    }
+    dev->jpeg_buf.len = buf.length;
+    dev->jpeg_buf.addr = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED,
+                              dev->jpeg_fd, buf.m.offset);
+    if (dev->jpeg_buf.addr == MAP_FAILED) {
+        PR_ERR("JPEG mmap failed: errno=%d", errno);
+        dev->jpeg_buf.addr = NULL;
+        goto err;
+    }
+
+    dev->jpeg_input_len = (size_t)dev->width * dev->height * 2;
+    dev->jpeg_input = (uint8_t *)heap_caps_aligned_alloc(
+        64, dev->jpeg_input_len, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+    if (dev->jpeg_input == NULL) {
+        PR_ERR("JPEG input buffer allocation failed: size=%u", (unsigned)dev->jpeg_input_len);
+        goto err;
+    }
+
+    memset(&buf, 0, sizeof(buf));
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.memory = V4L2_MEMORY_MMAP;
+    buf.index = 0;
+    if (ioctl(dev->jpeg_fd, VIDIOC_QBUF, &buf) != 0) {
+        PR_ERR("JPEG VIDIOC_QBUF(capture) failed: errno=%d", errno);
+        goto err;
+    }
+
+    type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    if (ioctl(dev->jpeg_fd, VIDIOC_STREAMON, &type) != 0) {
+        PR_ERR("JPEG VIDIOC_STREAMON(capture) failed: errno=%d", errno);
+        goto err;
+    }
+    dev->jpeg_capture_started = true;
+
+    type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    if (ioctl(dev->jpeg_fd, VIDIOC_STREAMON, &type) != 0) {
+        PR_ERR("JPEG VIDIOC_STREAMON(output) failed: errno=%d", errno);
+        goto err;
+    }
+    dev->jpeg_output_started = true;
+
+    PR_NOTICE("JPEG M2M opened: %ux%u input=UYVY output=JPEG buffer=%u", dev->width,
+              dev->height, (unsigned)dev->jpeg_buf.len);
+    return OPRT_OK;
+
+err:
+    __jpeg_close(dev);
+    return OPRT_COM_ERROR;
+}
+
 static OPERATE_RET __request_buffers(DVP_VIDEO_CAMERA_T *dev)
 {
     struct v4l2_requestbuffers req = {
@@ -183,6 +335,16 @@ static OPERATE_RET __request_buffers(DVP_VIDEO_CAMERA_T *dev)
     return OPRT_OK;
 }
 
+static void __yuyv_to_uyvy(const uint8_t *src, uint8_t *dst, uint32_t len)
+{
+    for (uint32_t i = 0; i + 3 < len; i += 4) {
+        dst[i]     = src[i + 1];
+        dst[i + 1] = src[i];
+        dst[i + 2] = src[i + 3];
+        dst[i + 3] = src[i + 2];
+    }
+}
+
 static void __post_raw_frame(DVP_VIDEO_CAMERA_T *dev, const uint8_t *data, uint32_t len)
 {
     uint32_t frame_len = dev->width * dev->height * 2;
@@ -198,7 +360,14 @@ static void __post_raw_frame(DVP_VIDEO_CAMERA_T *dev, const uint8_t *data, uint3
         return;
     }
 
-    memcpy(frame->frame.data, data, frame_len);
+    /* Tuya's generic YUV422 contract is UYVY. The S31 DVP commonly exposes
+     * YUYV, so normalize it at the driver boundary before publishing the raw
+     * frame. This keeps DMA2D and all generic image consumers consistent. */
+    if (dev->pixfmt == V4L2_PIX_FMT_YUYV) {
+        __yuyv_to_uyvy(data, frame->frame.data, frame_len);
+    } else {
+        memcpy(frame->frame.data, data, frame_len);
+    }
     frame->frame.id = (uint16_t)(dev->frame_id++);
     frame->frame.is_i_frame = 1;
     frame->frame.is_complete = 1;
@@ -211,6 +380,97 @@ static void __post_raw_frame(DVP_VIDEO_CAMERA_T *dev, const uint8_t *data, uint3
     if (tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)dev, frame) != OPRT_OK) {
         tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)dev, frame);
     }
+}
+
+static void __post_jpeg_frame(DVP_VIDEO_CAMERA_T *dev, const uint8_t *data, uint32_t len)
+{
+    uint32_t frame_len = dev->width * dev->height * 2;
+    struct v4l2_buffer out_buf;
+    struct v4l2_buffer cap_buf;
+
+    if (dev->jpeg_fd < 0 || dev->jpeg_input == NULL || dev->jpeg_buf.addr == NULL ||
+        len < frame_len || dev->jpeg_input_len < frame_len) {
+        return;
+    }
+
+    if (dev->pixfmt == V4L2_PIX_FMT_YUYV) {
+        __yuyv_to_uyvy(data, dev->jpeg_input, frame_len);
+    } else {
+        memcpy(dev->jpeg_input, data, frame_len);
+    }
+
+    memset(&out_buf, 0, sizeof(out_buf));
+    out_buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    out_buf.memory = V4L2_MEMORY_USERPTR;
+    out_buf.index = 0;
+    out_buf.m.userptr = (unsigned long)dev->jpeg_input;
+    out_buf.length = frame_len;
+    out_buf.bytesused = frame_len;
+    if (ioctl(dev->jpeg_fd, VIDIOC_QBUF, &out_buf) != 0) {
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            PR_WARN("JPEG VIDIOC_QBUF(output) failed: errno=%d", errno);
+        }
+        return;
+    }
+
+    memset(&cap_buf, 0, sizeof(cap_buf));
+    cap_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cap_buf.memory = V4L2_MEMORY_MMAP;
+    if (ioctl(dev->jpeg_fd, VIDIOC_DQBUF, &cap_buf) != 0) {
+        static bool warned = false;
+        if (!warned) {
+            warned = true;
+            PR_WARN("JPEG VIDIOC_DQBUF(capture) failed: errno=%d", errno);
+        }
+        return;
+    }
+
+    uint32_t jpeg_len = cap_buf.bytesused;
+    if (jpeg_len > 0 && jpeg_len <= dev->jpeg_buf.len) {
+        static bool logged_jpeg_sample;
+        if (!logged_jpeg_sample && jpeg_len >= 8) {
+            const uint8_t *jpeg_data = (const uint8_t *)dev->jpeg_buf.addr;
+            PR_NOTICE("JPEG sample: %02x %02x %02x %02x ... %02x %02x %02x %02x, len=%u",
+                      jpeg_data[0], jpeg_data[1], jpeg_data[2], jpeg_data[3],
+                      jpeg_data[jpeg_len - 4], jpeg_data[jpeg_len - 3],
+                      jpeg_data[jpeg_len - 2], jpeg_data[jpeg_len - 1], (unsigned)jpeg_len);
+            logged_jpeg_sample = true;
+        }
+        TDD_CAMERA_FRAME_T *frame = tdl_camera_create_tdd_frame(
+            (TDD_CAMERA_DEV_HANDLE_T)dev, TUYA_FRAME_FMT_JPEG);
+        if (frame != NULL) {
+            if (jpeg_len <= frame->frame.data_len) {
+                memcpy(frame->frame.data, dev->jpeg_buf.addr, jpeg_len);
+                frame->frame.id = (uint16_t)(dev->frame_id);
+                frame->frame.is_i_frame = 1;
+                frame->frame.is_complete = 1;
+                frame->frame.fmt = TUYA_FRAME_FMT_JPEG;
+                frame->frame.width = (uint16_t)dev->width;
+                frame->frame.height = (uint16_t)dev->height;
+                frame->frame.data_len = jpeg_len;
+                frame->frame.total_frame_len = jpeg_len;
+                if (tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)dev, frame) != OPRT_OK) {
+                    tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)dev, frame);
+                }
+            } else {
+                tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)dev, frame);
+            }
+        }
+    }
+
+    memset(&cap_buf, 0, sizeof(cap_buf));
+    cap_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    cap_buf.memory = V4L2_MEMORY_MMAP;
+    cap_buf.index = 0;
+    (void)ioctl(dev->jpeg_fd, VIDIOC_QBUF, &cap_buf);
+
+    memset(&out_buf, 0, sizeof(out_buf));
+    out_buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    out_buf.memory = V4L2_MEMORY_USERPTR;
+    out_buf.index = 0;
+    (void)ioctl(dev->jpeg_fd, VIDIOC_DQBUF, &out_buf);
 }
 
 static void __capture_task(void *args)
@@ -234,7 +494,13 @@ static void __capture_task(void *args)
         }
         if (buf.index < dev->buf_count && dev->bufs[buf.index].addr != NULL) {
             uint32_t len = buf.bytesused ? buf.bytesused : (uint32_t)dev->bufs[buf.index].len;
-            __post_raw_frame(dev, (const uint8_t *)dev->bufs[buf.index].addr, len);
+            const uint8_t *data = (const uint8_t *)dev->bufs[buf.index].addr;
+            if (dev->need_raw) {
+                __post_raw_frame(dev, data, len);
+            }
+            if (dev->need_encoded) {
+                __post_jpeg_frame(dev, data, len);
+            }
         }
         (void)ioctl(dev->fd, VIDIOC_QBUF, &buf);
     }
@@ -252,9 +518,15 @@ static OPERATE_RET __camera_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN
     if (dev->running) {
         return OPRT_OK;
     }
-    if (cfg->out_fmt != TDL_CAMERA_FMT_YUV422) {
-        PR_ERR("S31 DVP camera supports YUV422 only");
+    if (cfg->out_fmt & TDL_CAMERA_FMT_H264) {
+        PR_ERR("S31 DVP camera does not support H264 output");
         return OPRT_NOT_SUPPORTED;
+    }
+
+    dev->need_raw = (cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) != 0;
+    dev->need_encoded = (cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) != 0;
+    if (!dev->need_raw && !dev->need_encoded) {
+        return OPRT_INVALID_PARM;
     }
 
     TUYA_CALL_ERR_RETURN(__video_init_once(&dev->cfg));
@@ -290,6 +562,10 @@ static OPERATE_RET __camera_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN
         goto err;
     }
 
+    if (dev->need_encoded && __jpeg_open(dev) != OPRT_OK) {
+        goto err;
+    }
+
     int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     if (ioctl(dev->fd, VIDIOC_STREAMON, &type) != 0) {
         PR_ERR("VIDIOC_STREAMON failed: errno=%d", errno);
@@ -310,6 +586,7 @@ static OPERATE_RET __camera_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN
     return OPRT_OK;
 
 err:
+    __jpeg_close(dev);
     __release_buffers(dev);
     if (dev->fd >= 0) {
         close(dev->fd);
@@ -337,6 +614,7 @@ static OPERATE_RET __camera_close(TDD_CAMERA_DEV_HANDLE_T device)
 
     int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     (void)ioctl(dev->fd, VIDIOC_STREAMOFF, &type);
+    __jpeg_close(dev);
     __release_buffers(dev);
     close(dev->fd);
     dev->fd = -1;
@@ -356,6 +634,7 @@ OPERATE_RET tdd_camera_esp_video_dvp_register(const char *name,
     }
     memset(dev, 0, sizeof(*dev));
     dev->fd = -1;
+    dev->jpeg_fd = -1;
     dev->cfg = *cfg;
     strncpy(dev->name, name, CAMERA_DEV_NAME_MAX_LEN);
 
@@ -364,8 +643,9 @@ OPERATE_RET tdd_camera_esp_video_dvp_register(const char *name,
         .max_fps = 24,
         .max_width = 640,
         .max_height = 480,
-        .supported_fmts = TDL_CAMERA_FMT_YUV422,
-        .yuv_order = TUYA_YUV422_YUYV,
+        .supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG,
+        /* Raw frames are normalized to UYVY in __post_raw_frame(). */
+        .yuv_order = TUYA_YUV422_UYVY,
     };
     TDD_CAMERA_INTFS_T intfs = {
         .open = __camera_open,

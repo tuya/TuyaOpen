@@ -69,7 +69,7 @@ if (CONFIG_ENABLE_TP)
     )
 endif()
 
-if (CONFIG_ENABLE_AUDIO)
+if (CONFIG_ENABLE_AUDIO_CODECS)
     list(APPEND BOARD_SRC
         "${AUDIO_SRCS}"
     )
