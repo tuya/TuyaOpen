@@ -330,10 +330,13 @@ static OPERATE_RET __result_code_resp(uint16_t type, uint32_t ack_sn, uint8_t re
     return tuya_ble_send(type, ack_sn, &result_code, 1);
 }
 
-static OPERATE_RET __result_code_resp_v4(uint16_t type, uint32_t ack_sn, uint8_t *data, uint8_t result_code)
+static OPERATE_RET __result_code_resp_v4(uint16_t type, uint32_t ack_sn, uint8_t *data, uint16_t data_len,
+                                         uint8_t result_code)
 {
     uint8_t data_code[6] = {0}; // version(1byte)+R_SN(4byte)+STATE(1byte)
-    memcpy(data_code, data, 5);
+    if (data != NULL && data_len >= 5) {
+        memcpy(data_code, data, 5);
+    }
     data_code[5] = result_code;
 
     return tuya_ble_send(type, ack_sn, data_code, 6);
@@ -531,10 +534,15 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
     uint8_t *data = NULL;
     uint16_t len = 0;
 
+    if (NULL == req || NULL == req->data || req->len < 5) {
+        PR_ERR("ble dp req invalid len");
+        return OPRT_INVALID_PARM;
+    }
+
     tuya_ble_raw_print("ble dp", 32, req->data, req->len);
 
     if (req->type == FRM_DP_CMD_SEND_V4) {
-        __result_code_resp_v4(FRM_DP_CMD_SEND_V4, req->sn, req->data, 0);
+        __result_code_resp_v4(FRM_DP_CMD_SEND_V4, req->sn, req->data, req->len, 0);
         data = req->data + 5;
         len = req->len - 5;
     } else {
@@ -568,6 +576,9 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
         snprintf(dp_id_str, 5, "%d", p_tmp->id);
         switch (p_tmp->type) {
         case DT_RAW: {
+            if (NULL == p_tmp->data || 0 == p_tmp->len) {
+                break;
+            }
             char *p_base64 = tal_malloc(p_tmp->len / 3 * 4 + 5);
             if (NULL == p_base64) {
                 PR_ERR("malloc base64 failed, len:%d", p_tmp->len);
@@ -580,20 +591,33 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
             break;
         }
         case DT_BOOL: {
+            if (NULL == p_tmp->data || p_tmp->len < 1) {
+                break;
+            }
             cJSON_AddBoolToObject(p_dps, dp_id_str, *(p_tmp->data));
             break;
         }
         case DT_BITMAP:
         case DT_VALUE: {
+            if (NULL == p_tmp->data || p_tmp->len < 4) {
+                break;
+            }
             int val = (p_tmp->data[0] << 24) + (p_tmp->data[1] << 16) + (p_tmp->data[2] << 8) + (p_tmp->data[3] << 0);
             cJSON_AddNumberToObject(p_dps, dp_id_str, val);
             break;
         }
         case DT_ENUM: {
+            if (NULL == p_tmp->data || p_tmp->len < 1) {
+                break;
+            }
             int val = p_tmp->data[0];
             dp_node_t *dpnode = dp_node_find(tuya_iot_client_get()->schema, p_tmp->id);
             if (NULL == dpnode) {
                 PR_ERR("invalid dp id[%d]", p_tmp->id);
+                break;
+            }
+            if (val >= dpnode->prop.prop_enum.cnt || NULL == dpnode->prop.prop_enum.pp_enum) {
+                PR_ERR("invalid enum val[%d], max cnt[%d]", val, dpnode->prop.prop_enum.cnt);
                 break;
             }
             cJSON_AddStringToObject(p_dps, dp_id_str, dpnode->prop.prop_enum.pp_enum[val]);
@@ -738,6 +762,10 @@ int tuya_ble_dp_report(dp_rept_in_t *dpin)
 void ble_session_dp_process(ble_packet_t *packet, void *priv_data)
 {
     int rt;
+
+    if (NULL == packet || NULL == packet->data || 0 == packet->len) {
+        return;
+    }
 
     switch (packet->type) {
 
