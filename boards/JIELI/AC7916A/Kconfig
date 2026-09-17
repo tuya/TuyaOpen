@@ -1,0 +1,17 @@
+config BOARD_CONFIG
+    bool
+    default y
+
+config CHIP_WL82
+    bool
+    default y
+
+config JIELI_UART_LOG_PORT
+    int "wl82 UART log port"
+    default 0
+    range 0 5
+
+config JIELI_UART_LOG_BAUDRATE
+    int "wl82 UART log baudrate"
+    default 115200
+    range 1200 4000000

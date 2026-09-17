@@ -34,10 +34,10 @@
 #endif
 
 #ifndef TUYA_OPENSDK_UUID
-#define TUYA_OPENSDK_UUID      "uuidxxxxxxxxxxxxxxxx"                    // Please change the correct uuid
+#define TUYA_OPENSDK_UUID      "uuid5ff159bdb94f3b8c"                    // Please change the correct uuid
 #endif
 #ifndef TUYA_OPENSDK_AUTHKEY
-#define TUYA_OPENSDK_AUTHKEY   "keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"        // Please change the correct authkey
+#define TUYA_OPENSDK_AUTHKEY   "2MFUOajvyI8hPuGBgyTwCpIC7b4Du5f8"        // Please change the correct authkey
 #endif
 
 /**

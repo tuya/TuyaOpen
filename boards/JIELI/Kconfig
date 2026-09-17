@@ -1,0 +1,56 @@
+config PLATFORM_CHOICE
+    string
+    default "JIELI"
+
+config CHIP_CHOICE
+    string
+    default "wl82"
+
+config BOARD_CHOICE
+    string
+    default "AC7916A"
+
+config PLATFORM_JIELI
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+
+config LITTLE_END
+    int
+    default 1
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default y
+
+config JIELI_UART_LOG_PORT
+    int
+    default 0
+    range 0 5
+
+config JIELI_UART_LOG_BAUDRATE
+    int
+    default 115200
+    range 1200 4000000
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_AC7916A
+        bool "AC7916A"
+        if (BOARD_CHOICE_AC7916A)
+            rsource "./AC7916A/Kconfig"
+        endif
+
+endchoice

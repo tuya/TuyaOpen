@@ -1,34 +1,69 @@
-__pycache__
-.vscode
-.tags
-.env.json
-.cache
+# Python
+__pycache__/
+/.venv/
+/.tools/
+.pytest_cache/
+
+# Editor / IDE
+.vscode/
+.cursor/
 .clangd
-.cursor
-.claude
-.target_logging
+.agents/
+.tags
 
+# CMake / Build
 CMakeCache.txt
-/CMakeFiles
+/CMakeFiles/
 compile_commands.json
+.build/
+/build/
+/output/
 
-/.venv
-/tmp
-/.cache
-/cache
-/output
-/build
+# Logs
+*monitor.log
+*_capture.log
+*_bak.log
+
+# Distribution / Packages
+dist/
+
+# Project specific
+.env.json
+.target_logging
+.mirror
+.cache/
+*.using_config
 tuyadb/
 /platform/*/
-__pycache__
-.build
-*.using_config
-.mirror
-dist
-
-/arduino-tuyaopen
+/arduino-tuyaopen/
 /tools/tyutool/
 /.set_example
+/tmp/
+/cache/
 /dist
 *monitor.log
+/.omc
 
+# Docs
+/docs/superpowers/
+
+# Vendor reference material kept locally for lookup - schematics, user guides and the
+# full demo suite. Useful when a board question needs an authoritative answer, but far
+# too large to carry in the repo.
+boards/GD32/*/GD32VW55x_Demo_Suites_*/
+
+# Local Jieli vendor SDK; keep it under the platform directory for builds, but never track it.
+platform/JIELI/AC79_AIoT_SDK/
+
+# Local Tuya/Jieli reference project copied from Z: for adapter comparison only.
+ipc_ac7916a/
+
+# Agent tooling
+.agents/
+.claude/
+
+# Local recovery and generated diagnostics
+_code_backup_*/
+.git-index-*
+compile_commands.json
+tmp.txt
