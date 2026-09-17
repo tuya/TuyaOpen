@@ -55,6 +55,10 @@ target_compile_options(${MODULE_NAME}
     PRIVATE
         ${LIB_OPTIONS}
     )
+
+if (CONFIG_LV_USE_QRCODE STREQUAL "y")
+    target_compile_definitions(${MODULE_NAME} PRIVATE LV_USE_QRCODE=1)
+endif()
 ########################################
 # Layer Configure
 ########################################

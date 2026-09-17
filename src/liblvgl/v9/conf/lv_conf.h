@@ -812,7 +812,13 @@
 #define LV_USE_RLE 0
 
 /*QR code library*/
-#define LV_USE_QRCODE 0
+#ifndef LV_USE_QRCODE
+    #ifdef CONFIG_LV_USE_QRCODE
+        #define LV_USE_QRCODE CONFIG_LV_USE_QRCODE
+    #else
+        #define LV_USE_QRCODE 0
+    #endif
+#endif
 
 /*Barcode code library*/
 #define LV_USE_BARCODE 0

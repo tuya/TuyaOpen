@@ -46,6 +46,9 @@
 
 #include "app_chat_bot.h"
 #include "reset_netcfg.h"
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+#include "guided_wechat_state.h"
+#endif
 
 #if defined(ENABLE_BATTERY) && (ENABLE_BATTERY == 1)
 #include "app_battery.h"
@@ -169,6 +172,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
 
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        guided_wechat_pairing_begin();
+#endif
+
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         ai_audio_player_alert(AI_AUDIO_ALERT_NETWORK_CFG);
 #endif
@@ -185,11 +192,18 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     } break;
 
     case TUYA_EVENT_BIND_TOKEN_ON:
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        guided_wechat_pairing_data_received();
+#endif
         break;
 
     /* MQTT with tuya cloud is connected, device online */
     case TUYA_EVENT_MQTT_CONNECTED:
         PR_INFO("Device MQTT Connected!");
+
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        guided_wechat_pairing_complete();
+#endif
 
         static uint8_t first = 1;
         if (first) {
@@ -224,6 +238,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     case TUYA_EVENT_RESET: {
         tuya_reset_type_t reset_type = (tuya_reset_type_t)event->value.asInteger;
         PR_INFO("Device Reset:%d", reset_type);
+
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        guided_wechat_pairing_reset();
+#endif
 
         // TUYA_RESET_TYPE_FACTORY, TUYA_RESET_TYPE_REMOTE_FACTORY, TUYA_RESET_TYPE_DATA_FACTORY
         // Need remove the device application data from the kv store

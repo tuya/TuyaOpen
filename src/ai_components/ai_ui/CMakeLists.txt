@@ -22,6 +22,9 @@ elseif (CONFIG_ENABLE_AI_CHAT_GUI_CHATBOT STREQUAL "y")
 elseif (CONFIG_ENABLE_AI_CHAT_GUI_OLED STREQUAL "y")
     file(GLOB OLED_SRCS ${MODULE_PATH}/src/oled/*.c)
     list(APPEND LIB_SRCS ${OLED_SRCS})
+elseif (CONFIG_ENABLE_AI_CHAT_GUI_GUIDED_WECHAT STREQUAL "y")
+    file(GLOB GUIDED_WECHAT_SRCS CONFIGURE_DEPENDS ${MODULE_PATH}/src/guided_wechat/*.c)
+    list(APPEND LIB_SRCS ${GUIDED_WECHAT_SRCS})
 endif()
 
 # Font sources
@@ -49,6 +52,8 @@ set(LIB_PUBLIC_INC
 
 if (CONFIG_ENABLE_AI_CHAT_GUI_WECHAT STREQUAL "y")
     list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/src/wechat)
+elseif (CONFIG_ENABLE_AI_CHAT_GUI_GUIDED_WECHAT STREQUAL "y")
+    list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/src/guided_wechat)
 endif()
 
 ########################################
