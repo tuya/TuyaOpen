@@ -15,6 +15,7 @@
 #include "font_awesome_symbols.h"
 #include "guided_wechat_core.h"
 #include "guided_wechat_common.h"
+#include "guided_wechat_state.h"
 #include "ai_ui_locale.h"
 
 LV_FONT_DECLARE(font_puhui_14_1);
@@ -170,6 +171,32 @@ static void __ui_set_chat_mode(char *chat_mode)
     lv_vendor_disp_unlock();
 }
 
+/* Pairing-guide state notifications, routed from AI_UI_DISP_NETCFG_* messages.
+ * The application only knows the generic AI_UI_DISP commands; this UI variant
+ * translates them into its own pairing state machine. */
+static void __ui_other_msg(uint32_t type, uint8_t *data, int len)
+{
+    (void)data;
+    (void)len;
+
+    switch ((AI_UI_DISP_TYPE_E)type) {
+    case AI_UI_DISP_NETCFG_BEGIN:
+        guided_wechat_pairing_begin();
+        break;
+    case AI_UI_DISP_NETCFG_TOKEN_RECEIVED:
+        guided_wechat_pairing_data_received();
+        break;
+    case AI_UI_DISP_NETCFG_COMPLETE:
+        guided_wechat_pairing_complete();
+        break;
+    case AI_UI_DISP_NETCFG_RESET:
+        guided_wechat_pairing_reset();
+        break;
+    default:
+        break;
+    }
+}
+
 /* 鈹€鈹€ UI init 鈹€鈹€ */
 
 OPERATE_RET guided_wechat_core_init(void)
@@ -288,6 +315,7 @@ OPERATE_RET guided_wechat_register_with_init(OPERATE_RET (*disp_init)(void))
     intfs.disp_notification = __ui_set_notification;
     intfs.disp_wifi_state   = __ui_set_network;
     intfs.disp_ai_chat_mode = __ui_set_chat_mode;
+    intfs.disp_other_msg    = __ui_other_msg;
 
     ai_ui_register(&intfs);
 
