@@ -835,6 +835,24 @@ static void __menu_button_cb(lv_event_t *event)
     }
 }
 
+void guided_wechat_menu_btn_set_hidden(bool hidden)
+{
+    if (NULL == sg_ui.menu_button) {
+        return;
+    }
+
+    lv_vendor_disp_lock();
+    if (hidden) {
+        lv_obj_add_flag(sg_ui.menu_button, LV_OBJ_FLAG_HIDDEN);
+    } else if (lv_obj_has_flag(sg_ui.overlay, LV_OBJ_FLAG_HIDDEN)) {
+        /* Overlay hidden means the chat surface is active; guided pages keep
+         * the menu button hidden via __show_page(). */
+        lv_obj_clear_flag(sg_ui.menu_button, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(sg_ui.menu_button);
+    }
+    lv_vendor_disp_unlock();
+}
+
 static void __refresh_cb(lv_timer_t *timer)
 {
     guided_wechat_device_state_t next;

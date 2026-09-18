@@ -43,6 +43,9 @@ extern "C" {
 void guided_wechat_chat_init(lv_obj_t *parent);
 void guided_wechat_chat_register(void);
 
+/* Shell chrome (chat-surface menu button owned by the guided shell) */
+void guided_wechat_menu_btn_set_hidden(bool hidden);
+
 /* Camera page */
 #if defined(ENABLE_COMP_AI_VIDEO) && (ENABLE_COMP_AI_VIDEO == 1)
 void guided_wechat_camera_init(lv_obj_t *parent);

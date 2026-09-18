@@ -697,6 +697,9 @@ static void __create_select_page(lv_obj_t *parent)
 
 static void __disp_open(void)
 {
+    /* Full-screen album page: hide the shell menu button while active. */
+    guided_wechat_menu_btn_set_hidden(true);
+
     lv_vendor_disp_lock();
     lv_obj_clear_flag(sg_album.view_page, LV_OBJ_FLAG_HIDDEN);
     lv_vendor_disp_unlock();
@@ -852,6 +855,10 @@ static void __disp_select_img_thumb_list(AI_UI_IMG_T *item_arr, uint32_t arr_cnt
 {
     (void)select_num_max;
 
+    /* Select mode can be entered directly from chat (add-image) without
+     * disp_open(): hide the shell menu button on this path too. */
+    guided_wechat_menu_btn_set_hidden(true);
+
     lv_vendor_disp_lock();
 
     /* Show select page, hide others */
@@ -921,6 +928,9 @@ static void __disp_close(void)
     lv_obj_add_flag(sg_album.print_overlay, LV_OBJ_FLAG_HIDDEN);
 #endif
     lv_vendor_disp_unlock();
+
+    /* Restore the shell menu button (only when back on the chat surface). */
+    guided_wechat_menu_btn_set_hidden(false);
 }
 
 /* 鈹€鈹€ public API 鈹€鈹€ */

@@ -120,6 +120,9 @@ static void __disp_open(void)
         return;
     }
 
+    /* Full-screen camera page: hide the shell menu button while active. */
+    guided_wechat_menu_btn_set_hidden(true);
+
     lv_vendor_disp_lock();
     lv_obj_clear_flag(sg_camera.page, LV_OBJ_FLAG_HIDDEN);
     /* Always restore controls 鈥?they may have been hidden by a preview tap before close */
@@ -261,6 +264,9 @@ static void __disp_close(void)
     lv_vendor_disp_lock();
     lv_obj_add_flag(sg_camera.page, LV_OBJ_FLAG_HIDDEN);
     lv_vendor_disp_unlock();
+
+    /* Restore the shell menu button (only when back on the chat surface). */
+    guided_wechat_menu_btn_set_hidden(false);
 
     if (sg_camera.preview_buf) {
         CAMERA_UI_FREE(sg_camera.preview_buf);
