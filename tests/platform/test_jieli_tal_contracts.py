@@ -71,6 +71,38 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("wifi_on", source)
         self.assertIn("COUNTRY_CODE_CN", source)
 
+    def test_wifi_init_disables_saved_sta_autoconnect_before_wifi_on(self):
+        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_init")
+        end = source.index("OPERATE_RET tkl_wifi_scan_ap", start)
+        init_source = source[start:end]
+        self.assertIn("wifi_set_sta_connect_best_ssid(0)", init_source)
+        self.assertNotIn("result = wifi_on()", init_source)
+        self.assertIn("WiFi start is deferred", init_source)
+
+    def test_wifi_station_connect_starts_deferred_native_wifi(self):
+        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_station_connect")
+        end = source.index("OPERATE_RET tkl_wifi_station_disconnect", start)
+        station_source = source[start:end]
+        # The deferred module bring-up runs on a resident worker thread fed by
+        # a queue: creating a task (or driving wifi_on()) from the BLE
+        # workqueue context crashed the FreeRTOS list code (2026-09-18 logs,
+        # identical with 5120 and 11264 byte stacks).
+        station_start = start
+        worker_start = source.index("static void jieli_sta_connect_work")
+        worker_source = source[worker_start:station_start] if station_start > worker_start \
+            else source[worker_start:source.index("OPERATE_RET tkl_wifi_station_connect", worker_start)]
+        self.assertIn("tkl_queue_post", station_source)
+        self.assertIn("wifi_is_on()", worker_source)
+        self.assertIn("wifi_on()", worker_source)
+        self.assertIn("wifi_enter_sta_mode", worker_source)
+        # set_work_mode(WWM_STATION) must not power the module up inline.
+        mode_start = source.index("OPERATE_RET tkl_wifi_set_work_mode")
+        mode_end = source.index("OPERATE_RET tkl_wifi_get_work_mode", mode_start)
+        mode_source = source[mode_start:mode_end]
+        self.assertNotIn("wifi_on()", mode_source)
+
     def test_wifi_low_power_is_a_safe_noop_on_wl82(self):
         source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_set_lp_mode")
@@ -93,6 +125,26 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("wifi_set_sta_connect_best_ssid(0)", ap_source)
         self.assertNotIn("wifi_off", ap_source)
 
+    def test_wifi_ap_start_disables_sta_autoconnect_after_mode_switch(self):
+        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_start_ap")
+        end = source.index("OPERATE_RET tkl_wifi_stop_ap", start)
+        ap_source = source[start:end]
+        self.assertGreater(
+            ap_source.rindex("wifi_set_sta_connect_best_ssid(0)"),
+            ap_source.index("wifi_enter_ap_mode"),
+        )
+
+    def test_wifi_ap_start_event_disables_sta_autoconnect(self):
+        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        callback_start = source.index("static int jieli_wifi_event_cb")
+        callback_end = source.index("static uint8_t jieli_auth_mode", callback_start)
+        callback_source = source[callback_start:callback_end]
+        self.assertIn("case JIELI_WIFI_AP_START:", callback_source)
+        ap_event = callback_source.index("case JIELI_WIFI_AP_START:")
+        disable = callback_source.index("wifi_set_sta_connect_best_ssid(0)", ap_event)
+        self.assertGreater(disable, ap_event)
+
     def test_bluetooth_advertising_waits_for_controller_ready(self):
         source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
         self.assertIn("BT_STATUS_INIT_OK", source)
@@ -111,6 +163,60 @@ class JieliTalContractTest(unittest.TestCase):
                        "user_client_report_data_callback", "user_client_search_descriptor_is_enable"):
             self.assertIn(symbol, source)
         self.assertIn("ADV_DIRECT_IND_LOW", source)
+
+    def test_bluetooth_att_transport_matches_jieli_net_cfg(self):
+        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        self.assertIn("#define JIELI_ATT_LOCAL_PAYLOAD_SIZE (200)", source)
+        self.assertIn("#define JIELI_ATT_SEND_CBUF_SIZE     (512)", source)
+        self.assertIn("(ATT_CTRL_BLOCK_SIZE + JIELI_ATT_LOCAL_PAYLOAD_SIZE + JIELI_ATT_SEND_CBUF_SIZE)", source)
+        self.assertIn("ble_vendor_set_default_att_mtu(JIELI_ATT_LOCAL_PAYLOAD_SIZE)", source)
+        self.assertIn("ATT_EVENT_MTU_EXCHANGE_COMPLETE", source)
+
+    def test_kv_and_authorize_diagnostics_keep_both_key_results_visible(self):
+        kv_source = (ROOT / "src/tal_kv/src/tal_kv.c").read_text(encoding="utf-8")
+        auth_source = (ROOT / "src/tuya_cloud_service/authorize/tuya_authorize.c").read_text(encoding="utf-8")
+        main_source = (ROOT / "apps/tuya_cloud/switch_demo/src/tuya_main.c").read_text(encoding="utf-8")
+        self.assertIn("[KV] partition", kv_source)
+        self.assertIn("[KV] mount", kv_source)
+        self.assertIn("uuid_rt", auth_source)
+        self.assertIn("authkey_rt", auth_source)
+        self.assertIn('tuya_debug_log_license("compile_fallback"', main_source)
+
+    def test_ble_crypto_diagnostics_track_session_key_state(self):
+        crypto_source = (ROOT / "src/tuya_cloud_service/ble/ble_cryption.c").read_text(encoding="utf-8")
+        crypto_header = (ROOT / "src/tuya_cloud_service/ble/ble_cryption.h").read_text(encoding="utf-8")
+        manager_source = (ROOT / "src/tuya_cloud_service/ble/ble_mgr.c").read_text(encoding="utf-8")
+        self.assertIn("key_out_key11_valid", crypto_source)
+        self.assertIn("tuya_ble_crypto_reset", crypto_header)
+        self.assertIn("tuya_ble_crypto_reset", manager_source)
+
+    def test_ble_write_event_reports_workqueue_result(self):
+        manager_source = (ROOT / "src/tuya_cloud_service/ble/ble_mgr.c").read_text(encoding="utf-8")
+        self.assertIn("[BLE][QUEUE] write event", manager_source)
+        self.assertIn("[BLE][QUEUE] write event process", manager_source)
+        self.assertIn("ble event queue schedule failed", manager_source)
+
+    def test_jieli_write_callback_stays_quiet_on_btstack_task(self):
+        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        start = source.index("jieli_ble_att_write_callback")
+        end = source.index("void ble_profile_init", start)
+        callback = source[start:end]
+        # One UART line costs ~5ms at 115200; printing from the ATT write
+        # callback stalled the host and triggered the controller NACK
+        # livelock on the 197-byte provisioning write (2026-09-18 log).
+        # The workqueue side in ble_mgr reports the queued payload instead.
+        self.assertNotIn("printf(", callback)
+        self.assertNotIn("[JIELI][BLE] write dispatch", source)
+        # The wide TKL event must stay off the btstack task stack; ATT
+        # callbacks are serialized so a shared static is safe.
+        self.assertIn("static TKL_BLE_GATT_PARAMS_EVT_T event", callback)
+        self.assertIn("s_gatt_callback(&event)", callback)
+
+    def test_switch_demo_starts_ble_netcfg_without_concurrent_softap(self):
+        source = (ROOT / "apps/tuya_cloud/switch_demo/src/tuya_main.c").read_text(encoding="utf-8")
+        self.assertIn("netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});",
+                      source)
+        self.assertNotIn("NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP", source)
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tuya_cloud_types.h"
 #include "tuya_config_defaults.h"
 #include "tuya_endpoint.h"
@@ -38,6 +39,46 @@
     "{\"config\":[{\"key\":\"httpsSelfUrl\",\"need_ca\":true},{\"key\":"                                               \
     "\"mqttsSelfUrl\",\"need_ca\":true}],\"env\":\"%s\"}"
 
+/**
+ * @brief Split register-center style "host" or "host:port"
+ * @param[in] url input host string
+ * @param[out] host output hostname buffer
+ * @param[in] host_len size of host buffer
+ * @return resolved port, 443 when url has no port suffix
+ */
+static uint16_t iotdns_split_host_port(const char *url, char *host, size_t host_len)
+{
+    const char *colon;
+    unsigned long port;
+
+    if (url == NULL || host == NULL || host_len == 0) {
+        return 443;
+    }
+
+    /* The pi32v2 libc does not implement the sscanf %[ scan-set conversion,
+     * so the previous sscanf("%63[^:]:%u") based split returned an empty
+     * host on this platform (2026-09-18 log). Split by hand instead. */
+    colon = strchr(url, ':');
+    if (colon == NULL) {
+        snprintf(host, host_len, "%s", url);
+        return 443;
+    }
+
+    port = strtoul(colon + 1, NULL, 10);
+    if (port > 0 && port <= 65535) {
+        size_t len = (size_t)(colon - url);
+        if (len >= host_len) {
+            len = host_len - 1;
+        }
+        memcpy(host, url, len);
+        host[len] = '\0';
+        return (uint16_t)port;
+    }
+
+    snprintf(host, host_len, "%s", url);
+    return 443;
+}
+
 static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoint_t *endport)
 {
     cJSON *root = cJSON_Parse((const char *)input);
@@ -56,17 +97,56 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
     PR_DEBUG("httpsSelfUrl:%s", httpsSelfUrl);
     PR_DEBUG("mqttsSelfUrl:%s", mqttsSelfUrl);
 
-    /* ATOP url decode */
-    int port = 443;
-    sscanf(httpsSelfUrl, "https://%64[^/]%16[^\n]", endport->atop.host, endport->atop.path);
-    endport->atop.port = (uint16_t)port;
+    /* ATOP url decode: https://host[:port][/path]
+     * Hand-rolled for the same scan-set reason as iotdns_split_host_port(). */
+    {
+        const char *body = httpsSelfUrl;
+        const char *host_end;
+        const char *path_begin;
+        unsigned long port;
+
+        if (strncmp(body, "https://", 8) == 0) {
+            body += 8;
+        }
+        host_end = strchr(body, ':');
+        path_begin = strchr(body, '/');
+
+        if (host_end != NULL && (path_begin == NULL || host_end < path_begin)) {
+            port = strtoul(host_end + 1, NULL, 10);
+            if (port == 0 || port > 65535) {
+                port = 443;
+            }
+        } else {
+            port = 443;
+            host_end = (path_begin != NULL) ? path_begin : (body + strlen(body));
+        }
+        endport->atop.port = (uint16_t)port;
+
+        {
+            size_t len = (size_t)(host_end - body);
+            if (len >= sizeof(endport->atop.host)) {
+                len = sizeof(endport->atop.host) - 1;
+            }
+            memcpy(endport->atop.host, body, len);
+            endport->atop.host[len] = '\0';
+        }
+        if (path_begin != NULL) {
+            size_t len = strlen(path_begin);
+            if (len >= sizeof(endport->atop.path)) {
+                len = sizeof(endport->atop.path) - 1;
+            }
+            memcpy(endport->atop.path, path_begin, len);
+            endport->atop.path[len] = '\0';
+        } else {
+            endport->atop.path[0] = '\0';
+        }
+    }
     PR_DEBUG("endport->atop.host = \"%s\"", endport->atop.host);
     PR_DEBUG("endport->atop.port = %d", endport->atop.port);
     PR_DEBUG("endport->atop.path = \"%s\"", endport->atop.path);
 
     /* MQTT host decode */
-    sscanf(mqttsSelfUrl, "%64[^:]:%5d[^\n]", endport->mqtt.host, &port);
-    endport->mqtt.port = (uint16_t)port;
+    endport->mqtt.port = iotdns_split_host_port(mqttsSelfUrl, endport->mqtt.host, sizeof(endport->mqtt.host));
     PR_DEBUG("endport->mqtt.host = \"%s\"", endport->mqtt.host);
     PR_DEBUG("endport->mqtt.port = %d", endport->mqtt.port);
 
@@ -100,6 +180,9 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
 static int iotdns_base_request(char *body, char *path, http_client_response_t *http_response)
 {
     http_client_status_t http_status;
+    char rcs_host[MAX_LENGTH_TUYA_HOST + 1] = {0};
+    uint16_t rcs_port = 443;
+    const char *rcs_url = NULL;
 
     /* HTTP headers */
     http_client_header_t headers[] = {
@@ -110,6 +193,11 @@ static int iotdns_base_request(char *body, char *path, http_client_response_t *h
 
     register_center_t rcs;
     tuya_register_center_get(&rcs);
+    rcs_url = rcs.urlx ? rcs.urlx : rcs.url0;
+    if (rcs_url == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
@@ -117,8 +205,8 @@ static int iotdns_base_request(char *body, char *path, http_client_response_t *h
         &(const http_client_request_t){
             .cacert = rcs.ca_cert,
             .cacert_len = rcs.ca_cert_len,
-            .host = rcs.urlx ? rcs.urlx : rcs.url0,
-            .port = 443,
+            .host = rcs_host,
+            .port = rcs_port,
             .method = "POST",
             .path = path,
             .headers = headers,
@@ -193,9 +281,18 @@ int iotdns_cloud_endpoint_get(const char *region, const char *env, tuya_endpoint
     uint8_t headers_count = sizeof(headers) / sizeof(http_client_header_t);
 
     http_client_response_t http_response = {0};
+    char rcs_host[MAX_LENGTH_TUYA_HOST + 1] = {0};
+    uint16_t rcs_port = 443;
+    const char *rcs_url = NULL;
 
     register_center_t rcs;
     tuya_register_center_get(&rcs);
+    rcs_url = rcs.urlx ? rcs.urlx : rcs.url0;
+    if (rcs_url == NULL) {
+        tal_free(body_buffer);
+        return OPRT_INVALID_PARM;
+    }
+    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
@@ -203,8 +300,8 @@ int iotdns_cloud_endpoint_get(const char *region, const char *env, tuya_endpoint
         &(const http_client_request_t){
             .cacert = rcs.ca_cert,
             .cacert_len = rcs.ca_cert_len,
-            .host = rcs.urlx ? rcs.urlx : rcs.url0,
-            .port = 443,
+            .host = rcs_host,
+            .port = rcs_port,
             .method = "POST",
             .path = "/v2/url_config",
             .headers = headers,

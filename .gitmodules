@@ -10,3 +10,6 @@
 [submodule "src/common/backoffAlgorithm"]
 	path = src/common/backoffAlgorithm
 	url = https://github.com/FreeRTOS/backoffAlgorithm.git
+[submodule "platform/JIELI"]
+	path = platform/JIELI
+	url = https://github.com/maidang-xing/TuyaOpen-JIELI.git

@@ -27,6 +27,19 @@
 #include "crc_16.h"
 #include "uni_random.h"
 
+/* This module is compiled whenever the chip has a BLE controller
+ * (CONFIG_ENABLE_BLUETOOTH, see the CMakeLists), but the advertising interval comes
+ * from Kconfig symbols that only exist while ENABLE_BT_SERVICE is on. Building with
+ * bluetooth hardware but without the Tuya BT service therefore failed on these two
+ * identifiers. Fall back to the same values Kconfig defaults to so the file stands on
+ * its own compile gate. */
+#ifndef BT_ADV_INTERVAL_MIN
+#define BT_ADV_INTERVAL_MIN 30
+#endif
+#ifndef BT_ADV_INTERVAL_MAX
+#define BT_ADV_INTERVAL_MAX 60
+#endif
+
 /** GAP - scan response data (max size = 31 bytes) */
 #define BLE_SCAN_RSP_DATA_LEN 31
 /** GAP - Advertisement data (max size = 31 bytes, best kept short to conserve
@@ -59,7 +72,6 @@ typedef struct {
 
     TIMER_ID pair_timer; //! Illegal pairing detection
     TIMER_ID monitor_timer;
-    bool pair_monitor_disabled; //! If true, the pair_timer is never (re)started on connect
 
     uint8_t pair_rand[6];
     bool is_paired;
@@ -80,6 +92,11 @@ typedef struct {
 } tuya_ble_mgr_t;
 
 static tuya_ble_mgr_t *s_ble_mgr = NULL;
+
+static uint32_t ble_debug_text_len(const char *text)
+{
+    return text != NULL ? (uint32_t)strlen(text) : 0U;
+}
 static bool s_ble_debug = false;
 
 /**
@@ -113,42 +130,6 @@ void tuya_ble_raw_print(char *title, uint8_t width, uint8_t *buf, uint16_t size)
 void tuya_ble_enable_debug(bool enable)
 {
     s_ble_debug = enable;
-}
-
-/**
- * @brief Disable or re-enable Tuya's pair-timeout monitor.
- *
- * By default, ble_mgr starts a 30 s pair_timer on every peripheral connect.
- * If the remote peer does not complete Tuya's pairing handshake within that
- * window, the device is forced to disconnect. For third-party peers that use
- * a different application protocol (e.g. the Claude Desktop Buddy NUS profile),
- * this timer would spuriously tear down the link. Call this with `disable=true`
- * to suppress that behavior globally.
- *
- * @param[in] disable true to prevent pair_timer from starting on future connects
- *                    and stop any currently running pair_timer; false to restore
- *                    the default behavior.
- * @return OPRT_OK on success, OPRT_COM_ERROR if ble_mgr is not initialized
- */
-OPERATE_RET tuya_ble_pair_monitor_disable(bool disable)
-{
-    if (s_ble_mgr == NULL) {
-        return OPRT_COM_ERROR;
-    }
-    s_ble_mgr->pair_monitor_disabled = disable;
-    if (disable) {
-        if (s_ble_mgr->pair_timer) {
-            tal_sw_timer_stop(s_ble_mgr->pair_timer);
-        }
-        /* The periodic monitor_timer would stop our advertising once the
-         * device connects to the cloud; kill it so buddy_ble can own the
-         * advertising stack uninterrupted. */
-        if (s_ble_mgr->monitor_timer) {
-            tal_sw_timer_stop(s_ble_mgr->monitor_timer);
-        }
-    }
-    PR_INFO("pair monitor %s", disable ? "disabled" : "enabled");
-    return OPRT_OK;
 }
 
 static int ble_adv_set(tuya_ble_mgr_t *ble)
@@ -320,6 +301,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         return OPRT_INVALID_PARM;
     }
     tuya_ble_raw_print("ble raw packet", 8, packet_recv->raw_buf, packet_recv->raw_len);
+    PR_DEBUG("ble rx raw_len:%u mode:%u", packet_recv->raw_len, packet_recv->raw_buf[0]);
     memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
                              packet_recv->dec_buf);
@@ -331,6 +313,7 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
     uint16_t data_len = 0;
     data_len = packet_recv->dec_buf[BLE_PACKET_DLEN_IND] << 8;
     data_len += packet_recv->dec_buf[BLE_PACKET_DLEN_IND + 1];
+    PR_DEBUG("ble rx dec_len:%u data_len:%u", packet_recv->dec_len, data_len);
     if (data_len + BLE_PACKET_MIN_LEN > TUYA_BLE_AIR_FRAME_MAX) {
         PR_ERR("ble packet len err:%d", (data_len + BLE_PACKET_MIN_LEN));
         return OPRT_INVALID_PARM;
@@ -899,6 +882,9 @@ void ble_session_system_process(ble_packet_t *packet, void *priv_data)
 {
     int rt;
 
+    PR_NOTICE("[BLE][PROTO] accepted cmd:0x%04x len:%u mode:%u sn:%u", packet->type, packet->len,
+              packet->encrypt_mode, packet->sn);
+
     switch (packet->type) {
 
     case FRM_QRY_DEV_INFO_REQ:
@@ -970,6 +956,12 @@ static void tal_ble_event_callback(void *data)
 
     TAL_BLE_EVT_PARAMS_T *msg = data;
 
+    if (msg->type == TAL_BLE_EVT_WRITE_REQ) {
+        PR_NOTICE("[BLE][QUEUE] write event process len:%u char:0x%04x",
+                  (unsigned int)msg->ble_event.write_report.report.len,
+                  msg->ble_event.write_report.peer.char_handle[0]);
+    }
+
     PR_TRACE("rev ble event %d", msg->type);
 
     switch (msg->type) {
@@ -981,14 +973,11 @@ static void tal_ble_event_callback(void *data)
 
     case TAL_BLE_EVT_PERIPHERAL_CONNECT: {
         if (msg->ble_event.connect.result == 0) {
+            tuya_ble_crypto_reset();
             memcpy(&ble->peer_info, &msg->ble_event.connect.peer, sizeof(TAL_BLE_PEER_INFO_T));
             ble->recv_sn = 0;
             ble->send_sn = 1;
-            if (!ble->pair_monitor_disabled) {
-                tal_sw_timer_start(ble->pair_timer, BLE_CONN_MONITOR_TIME, TAL_TIMER_ONCE);
-            } else {
-                PR_DEBUG("pair monitor disabled, skip pair_timer start");
-            }
+            tal_sw_timer_start(ble->pair_timer, BLE_CONN_MONITOR_TIME, TAL_TIMER_ONCE);
             PR_NOTICE("Ble Connected");
         } else {
             memset(&ble->peer_info, 0, sizeof(TAL_BLE_PEER_INFO_T));
@@ -996,6 +985,7 @@ static void tal_ble_event_callback(void *data)
     } break;
 
     case TAL_BLE_EVT_DISCONNECT: {
+        tuya_ble_crypto_reset();
         memset(&ble->peer_info, 0x00, sizeof(TAL_BLE_PEER_INFO_T));
         memset(ble->pair_rand, 0x00, sizeof(ble->pair_rand));
         tal_sw_timer_stop(ble->pair_timer);
@@ -1093,13 +1083,32 @@ static void tal_ble_event_on_worq(TAL_BLE_EVT_PARAMS_T *msg)
 {
     TAL_BLE_EVT_PARAMS_T *data;
 
+    /* This runs on the platform BLE stack task (called synchronously from the
+     * TKL GATT callback). Log here only at TRACE level: printing from this
+     * context stalled the host long enough to trigger the controller NACK
+     * livelock seen on the 197-byte provisioning write. The workqueue side
+     * logs the same payload safely in tal_ble_event_callback(). */
+    if (msg != NULL && msg->type == TAL_BLE_EVT_WRITE_REQ) {
+        PR_TRACE("[BLE][QUEUE] write event len:%u char:0x%04x",
+                 (unsigned int)msg->ble_event.write_report.report.len,
+                 msg->ble_event.write_report.peer.char_handle[0]);
+    }
+
     data = ble_event_msg_copy(msg);
     if (NULL == data) {
         PR_ERR("ble event msg copy fail");
         return;
     }
 
-    tal_workq_schedule(WORKQ_HIGHTPRI, tal_ble_event_callback, data);
+    OPERATE_RET rt = tal_workq_schedule(WORKQ_HIGHTPRI, tal_ble_event_callback, data);
+    if (msg != NULL && msg->type == TAL_BLE_EVT_WRITE_REQ) {
+        PR_TRACE("[BLE][QUEUE] write event queued len:%u rt:%d",
+                 (unsigned int)msg->ble_event.write_report.report.len, rt);
+    }
+    if (rt != OPRT_OK) {
+        PR_ERR("ble event queue schedule failed:%d", rt);
+        ble_event_msg_free(data);
+    }
 }
 
 /**
@@ -1158,6 +1167,10 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     ble->crypto_param.sec_key = (uint8_t *)ble->cfg.client->activate.seckey;
     ble->crypto_param.login_key = (uint8_t *)ble->cfg.client->activate.localkey;
     ble->crypto_param.pair_rand = (uint8_t *)ble->pair_rand;
+    PR_NOTICE("[BLE][CRYPTO] init uuid_len:%u authkey_len:%u uuid_compressed:%u auth_present:%u", 
+              (unsigned int)ble_debug_text_len(ble->cfg.client->config.uuid),
+              (unsigned int)ble_debug_text_len(ble->cfg.client->config.authkey), ble->is_id_comp ? 1U : 0U,
+              ble->crypto_param.auth_key != NULL ? 1U : 0U);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(ble_pair_timeout_cb, ble, &ble->pair_timer), __exit);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(ble_mointor_timer_cb, ble, &ble->monitor_timer), __exit);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_start(ble->monitor_timer, 3000, TAL_TIMER_CYCLE), __exit);

@@ -52,6 +52,33 @@ tuya_iot_client_t client;
 /* Tuya license information (uuid authkey) */
 tuya_iot_license_t license;
 
+static uint32_t tuya_debug_text_fingerprint(const char *text)
+{
+    uint32_t value = 2166136261U;
+
+    if (text == NULL) {
+        return 0U;
+    }
+    while (*text != '\0') {
+        value ^= (uint8_t)*text++;
+        value *= 16777619U;
+    }
+    return value;
+}
+
+static void tuya_debug_log_license(const char *source, const tuya_iot_license_t *value)
+{
+    const char *uuid = value != NULL ? value->uuid : NULL;
+    const char *authkey = value != NULL ? value->authkey : NULL;
+
+    PR_NOTICE("[AUTH] source=%s uuid_present:%u uuid_len:%u uuid_fp:0x%08x authkey_present:%u "
+              "authkey_len:%u authkey_fp:0x%08x product_len:%u product_fp:0x%08x",
+              source, uuid != NULL ? 1U : 0U, uuid != NULL ? (unsigned int)strlen(uuid) : 0U,
+              tuya_debug_text_fingerprint(uuid), authkey != NULL ? 1U : 0U,
+              authkey != NULL ? (unsigned int)strlen(authkey) : 0U, tuya_debug_text_fingerprint(authkey),
+              (unsigned int)strlen(TUYA_PRODUCT_ID), tuya_debug_text_fingerprint(TUYA_PRODUCT_ID));
+}
+
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
  *
@@ -242,10 +269,11 @@ void user_main(void)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    tal_kv_init(&(tal_kv_cfg_t){
+    OPERATE_RET kv_rt = tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
         .key  = "dflfuap134ddlduq",
     });
+    PR_NOTICE("[KV] app init result:%d", kv_rt);
     tal_sw_timer_init();
     tal_workq_init();
 
@@ -257,11 +285,20 @@ void user_main(void)
 
     reset_netconfig_start();
 
-    if (OPRT_OK != tuya_authorize_read(&license)) {
+    OPERATE_RET auth_rt = OPRT_COM_ERROR;
+    if (OPRT_OK == kv_rt) {
+        auth_rt = tuya_authorize_read(&license);
+    } else {
+        PR_ERR("[AUTH] skip KV/license lookup because KV init failed:%d", kv_rt);
+    }
+    if (OPRT_OK != auth_rt) {
         license.uuid    = TUYA_OPENSDK_UUID;
         license.authkey = TUYA_OPENSDK_AUTHKEY;
+        tuya_debug_log_license("compile_fallback", &license);
         PR_WARN("Replace the TUYA_OPENSDK_UUID and TUYA_OPENSDK_AUTHKEY contents, otherwise the demo cannot work.\n \
                 Visit https://platform.tuya.com/purchase/index?type=6 to get the open-sdk uuid and authkey.");
+    } else {
+        tuya_debug_log_license("authorize_storage", &license);
     }
     // PR_DEBUG("uuid %s, authkey %s", license.uuid, license.authkey);
     /* Initialize Tuya device configuration */
@@ -274,6 +311,7 @@ void user_main(void)
                                     .network_check = user_network_check,
                                 });
     assert(rt == OPRT_OK);
+    PR_NOTICE("[AUTH] tuya_iot_init result:%d source_rt:%d", rt, auth_rt);
 
 #if defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)
     TUYA_LwIP_Init();
@@ -293,7 +331,11 @@ void user_main(void)
     netmgr_init(type);
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
+    /* Keep BLE provisioning independent from the wl82 SoftAP.  The native
+     * WiFi driver starts an empty-SSID reconnect/scan loop during AP startup,
+     * which starves the Jieli BLE link while Tuya sends the first large packet.
+     * WiFi is started as STA only after credentials arrive through BLE. */
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
@@ -342,7 +384,11 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth   = 1024 * 4;
+    /* The tuya_iot_yield() loop drives the TLS handshake (mbedtls), HTTP and
+     * MQTT from this thread; the stock 4 KB stack overflowed during the
+     * iotdns TLS connect (2026-09-18 log: stackoverflow in tuya_app_main
+     * right after "TUYA_TLS Begin Connect"). */
+    thrd_param.stackDepth   = 1024 * 16;
     thrd_param.priority     = THREAD_PRIO_1;
     thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
