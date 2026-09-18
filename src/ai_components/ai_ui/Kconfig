@@ -24,6 +24,15 @@ if(!ENABLE_AI_CHAT_CUSTOM_UI)
         config ENABLE_AI_CHAT_GUI_OLED
             select ENABLE_LIBLVGL
             bool "Use OLED ui"
+
+        config ENABLE_AI_CHAT_GUI_GUIDED_WECHAT
+            select ENABLE_LIBLVGL
+            select LV_USE_QRCODE
+            bool "Use guided full WeChat-like ui"
+            help
+                Keep the complete WeChat chat/camera/album UI and add a
+                first-run language, authorization and network guide together
+                with device settings and about pages.
     endchoice
 
     config ENABLE_CIRCLE_UI_STYLE
@@ -32,7 +41,7 @@ if(!ENABLE_AI_CHAT_CUSTOM_UI)
         default n
 
     config AI_UI_WECHAT_SCREEN_CORNER_RADIUS
-        depends on ENABLE_AI_CHAT_GUI_WECHAT
+        depends on ENABLE_AI_CHAT_GUI_WECHAT || ENABLE_AI_CHAT_GUI_GUIDED_WECHAT
         int "WeChat UI rounded-screen corner radius in pixels (NOT degrees)"
         range 0 120
         default 0
@@ -124,7 +133,7 @@ if(ENABLE_AI_UI_ICON_FONT)
 
     choice 
         prompt "choose emo font type"
-        default FONT_EMOJI_SIZE_32 if(ENABLE_AI_CHAT_GUI_WECHAT)
+        default FONT_EMOJI_SIZE_32 if(ENABLE_AI_CHAT_GUI_WECHAT || ENABLE_AI_CHAT_GUI_GUIDED_WECHAT)
         default FONT_EMOJI_SIZE_64 if(ENABLE_AI_CHAT_GUI_CHATBOT)
         default FONT_EMO_AWESOME   if(ENABLE_AI_CHAT_GUI_OLED)
 

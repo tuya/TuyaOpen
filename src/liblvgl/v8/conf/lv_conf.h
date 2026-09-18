@@ -758,7 +758,13 @@
 #define LV_USE_GIF 1
 
 /*QR code library*/
-#define LV_USE_QRCODE 1
+#ifndef LV_USE_QRCODE
+    #ifdef CONFIG_LV_USE_QRCODE
+        #define LV_USE_QRCODE CONFIG_LV_USE_QRCODE
+    #else
+        #define LV_USE_QRCODE 0
+    #endif
+#endif
 
 /*FreeType library*/
 #define LV_USE_FREETYPE 0

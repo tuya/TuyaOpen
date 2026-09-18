@@ -47,6 +47,11 @@ menuconfig ENABLE_LIBLVGL
             select ENABLE_TP
             default n
 
+        config LV_USE_QRCODE
+            bool "enable lvgl QR code library"
+            default y if LVGL_VERSION_8
+            default n
+
         config ENABLE_LVGL_DEMO
             bool "enable lvgl demo"
             default n

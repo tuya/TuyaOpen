@@ -16,9 +16,17 @@
 #include "ai_ui_chat_chatbot.h"
 #elif defined(ENABLE_AI_CHAT_GUI_OLED) && (ENABLE_AI_CHAT_GUI_OLED == 1)
 #include "ai_ui_chat_oled.h"
+#elif defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+#include "ai_ui_chat_guided_wechat.h"
+#include "ai_ui_locale.h"
 #endif
 
 #include "ai_chat_main.h"
+
+static AI_MODE_STATE_E sg_last_mode_state = AI_MODE_STATE_INIT;
+static AI_CHAT_MODE_E  sg_last_chat_mode;
+static bool            sg_last_mode_state_valid = false;
+static bool            sg_last_chat_mode_valid = false;
 
 /***********************************************************
 ************************macro define************************
@@ -37,20 +45,45 @@
 ***********************************************************/
 static void __ai_chat_disp_mode_state(AI_MODE_STATE_E state)
 {
+    const char *status;
+
+    sg_last_mode_state = state;
+    sg_last_mode_state_valid = true;
+
     switch (state) {
     case AI_MODE_STATE_INIT:
     case AI_MODE_STATE_IDLE:
         ai_ui_disp_msg(AI_UI_DISP_EMOTION, (uint8_t *)EMOJI_NEUTRAL, strlen(EMOJI_NEUTRAL));
-        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)STANDBY, strlen(STANDBY));
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        status = ai_ui_locale_tr(STANDBY, "Standby");
+#else
+        status = STANDBY;
+#endif
+        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)status, strlen(status));
         break;
     case AI_MODE_STATE_LISTEN:
-        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)LISTENING, strlen(LISTENING));
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        status = ai_ui_locale_tr(LISTENING, "Listening");
+#else
+        status = LISTENING;
+#endif
+        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)status, strlen(status));
         break;
     case AI_MODE_STATE_SPEAK:
-        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)SPEAKING, strlen(SPEAKING));
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        status = ai_ui_locale_tr(SPEAKING, "Speaking");
+#else
+        status = SPEAKING;
+#endif
+        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)status, strlen(status));
         break;
     case AI_MODE_STATE_UPLOAD:
-        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)UPLOADING, strlen(UPLOADING));
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        status = ai_ui_locale_tr(UPLOADING, "Uploading");
+#else
+        status = UPLOADING;
+#endif
+        ai_ui_disp_msg(AI_UI_DISP_STATUS, (uint8_t *)status, strlen(status));
         break;
     default:
         break;
@@ -114,12 +147,36 @@ void ai_chat_ui_handle_event(AI_NOTIFY_EVENT_T *event)
     case AI_USER_EVT_MODE_SWITCH: {
         AI_CHAT_MODE_E mode = (AI_CHAT_MODE_E)(event->data);
         char          *name = ai_get_mode_name_str(mode);
+        const char    *localized_name = name;
+
+        sg_last_chat_mode = mode;
+        sg_last_chat_mode_valid = true;
         if (NULL == name) {
             PR_NOTICE("mode name str is null");
             break;
         }
 
-        ai_ui_disp_msg(AI_UI_DISP_CHAT_MODE, (uint8_t *)name, strlen(name));
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+        if (ai_ui_locale_is_english()) {
+            switch (mode) {
+            case AI_CHAT_MODE_HOLD:
+                localized_name = "Hold to talk";
+                break;
+            case AI_CHAT_MODE_ONE_SHOT:
+                localized_name = "Push to talk";
+                break;
+            case AI_CHAT_MODE_WAKEUP:
+                localized_name = "Wake word";
+                break;
+            case AI_CHAT_MODE_FREE:
+                localized_name = "Free talk";
+                break;
+            default:
+                break;
+            }
+        }
+#endif
+        ai_ui_disp_msg(AI_UI_DISP_CHAT_MODE, (uint8_t *)localized_name, strlen(localized_name));
     } break;
 
 #if defined(ENABLE_COMP_AI_PICTURE) && (ENABLE_COMP_AI_PICTURE == 1)
@@ -138,6 +195,21 @@ void ai_chat_ui_handle_event(AI_NOTIFY_EVENT_T *event)
     }
 }
 
+void ai_chat_ui_refresh_locale(void)
+{
+    if (sg_last_mode_state_valid) {
+        __ai_chat_disp_mode_state(sg_last_mode_state);
+    }
+
+    if (sg_last_chat_mode_valid) {
+        AI_NOTIFY_EVENT_T mode_event = {
+            .type = AI_USER_EVT_MODE_SWITCH,
+            .data = (void *)(uintptr_t)sg_last_chat_mode,
+        };
+        ai_chat_ui_handle_event(&mode_event);
+    }
+}
+
 OPERATE_RET ai_chat_ui_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -146,12 +218,18 @@ OPERATE_RET ai_chat_ui_init(void)
     PR_NOTICE("use custom ai chat ui, need register ui by user");
 #else
 
+#if defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+    ai_ui_locale_load();
+#endif
+
 #if defined(ENABLE_AI_CHAT_GUI_WECHAT) && (ENABLE_AI_CHAT_GUI_WECHAT == 1)
     TUYA_CALL_ERR_RETURN(ai_ui_chat_wechat_register());
 #elif defined(ENABLE_AI_CHAT_GUI_CHATBOT) && (ENABLE_AI_CHAT_GUI_CHATBOT == 1)
     TUYA_CALL_ERR_RETURN(ai_ui_chat_chatbot_register());
 #elif defined(ENABLE_AI_CHAT_GUI_OLED) && (ENABLE_AI_CHAT_GUI_OLED == 1)
     TUYA_CALL_ERR_RETURN(ai_ui_chat_oled_register());
+#elif defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)
+    TUYA_CALL_ERR_RETURN(ai_ui_chat_guided_wechat_register());
 #else
 #error "please select ai chat present ui"
 #endif
