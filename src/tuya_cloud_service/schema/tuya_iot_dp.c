@@ -316,7 +316,10 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
     
     if (tuya_iot_is_connected()) {
         PR_DEBUG("mqtt channel report");
-        ret = tuya_iot_dp_report_json_with_notify(client, dpout.dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
+        //! Queue the report and let the mqtt loop task publish it, so the caller
+        //! thread is not blocked by the TLS/TCP write and no longer races with
+        //! MQTT_ProcessLoop on the shared mqtt client context.
+        ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
         need_free_dpvalid = false;
     }
 
