@@ -22,7 +22,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: support/esp32s31-korvo1
-  commit: 099c083b20bb47fc5792e16a274b0d6ab78787da
+  commit: 477edb38bb2b3a69437a9dcc5c80e91c52bb985e
 
 - name: LN882H
   repo: https://github.com/tuya/TuyaOpen-ln882h
