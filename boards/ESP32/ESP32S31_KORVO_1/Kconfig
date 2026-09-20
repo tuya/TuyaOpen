@@ -23,19 +23,12 @@ config BOARD_CONFIG
     select PLATFORM_FLASHSIZE_16M
 
 # ESP32-S31 KORVO routes U0TXD/U0RXD to GPIO58/GPIO59.
-# GPIO43/GPIO44 are used by the RGB LCD and must not be used by the CLI UART.
 config UART_NUM0_TX_PIN
     int "UART_NUM0_TX_PIN"
+    default 58
     range 0 61
 
 config UART_NUM0_RX_PIN
     int "UART_NUM0_RX_PIN"
+    default 59
     range 0 61
-
-config AUDIO_CODEC_NAME
-    string
-    default "audio_es8389"
-
-config LED_NAME
-    string
-    default "led_rgb"
