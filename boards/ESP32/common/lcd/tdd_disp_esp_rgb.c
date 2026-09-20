@@ -16,6 +16,7 @@
 #include "tdd_disp_esp_rgb.h"
 
 #include "tal_memory.h"
+#include "esp_idf_version.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_rgb.h"
 #include "esp_log.h"
@@ -101,10 +102,15 @@ static OPERATE_RET __esp_rgb_open(TDD_DISP_DEV_HANDLE_T device)
 
     esp_lcd_rgb_panel_config_t panel_cfg = {
         .clk_src = LCD_CLK_SRC_DEFAULT,
-        /* IDF 6.x: trans_align/bits_per_pixel replaced by color formats */
+        /* IDF 6.x replaced bits_per_pixel with in/out color formats */
+#if ESP_IDF_VERSION_MAJOR >= 6
         .data_width        = 16,
         .in_color_format   = LCD_COLOR_FMT_RGB565,
         .out_color_format  = LCD_COLOR_FMT_RGB565,
+#else
+        .data_width        = 16,
+        .bits_per_pixel    = 16,
+#endif
         .num_fbs           = direct_scan ? 2 : 1,
         .dma_burst_size    = 64,
         .bounce_buffer_size_px = bounce_buf_size / 2,
