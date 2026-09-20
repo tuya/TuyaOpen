@@ -1,0 +1,20 @@
+menu "Pinmux example"
+
+    config EXAMPLE_PINMUX_I2C_PORT
+        int "I2C controller index"
+        default 0
+        range 0 5
+        ---help---
+            The selected platform validates whether this I2C controller exists.
+
+    config EXAMPLE_PINMUX_I2C_SCL_PIN
+        int "I2C SCL GPIO"
+        default 0
+        range 0 60
+
+    config EXAMPLE_PINMUX_I2C_SDA_PIN
+        int "I2C SDA GPIO"
+        default 1
+        range 0 60
+
+endmenu
