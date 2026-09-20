@@ -916,7 +916,10 @@
 // #define MBEDTLS_ECP_DP_SECP192R1_ENABLED
 // #define MBEDTLS_ECP_DP_SECP224R1_ENABLED
 #define MBEDTLS_ECP_DP_SECP256R1_ENABLED
-// #define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+/* US-region cloud chains (e.g. rtc-ai*.iot-wus.com -> DigiCert Global Root G3)
+ * carry an ECDSA P-384 root; without this curve parsing fails with
+ * MBEDTLS_ERR_PK_UNKNOWN_NAMED_CURVE (-0x3a00). */
+#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
 // #define MBEDTLS_ECP_DP_SECP521R1_ENABLED
 // #define MBEDTLS_ECP_DP_SECP192K1_ENABLED
 // #define MBEDTLS_ECP_DP_SECP224K1_ENABLED
