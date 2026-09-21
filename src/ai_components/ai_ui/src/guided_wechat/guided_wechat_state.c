@@ -13,6 +13,7 @@
 #include "netmgr.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
+#include "ap_netcfg.h"
 #endif
 
 #include "guided_wechat_state.h"
@@ -209,6 +210,15 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
     if (state->link_up &&
         OPRT_OK == netmgr_conn_get(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info)) {
         snprintf(state->ssid, sizeof(state->ssid), "%s", wifi_info.ssid);
+    }
+
+    /* SoftAP provisioning info: only exists while AP netcfg is running. The
+     * getter copies from RAM, so the 1 Hz refresh stays cheap; failure just
+     * leaves the "-" placeholder until the hotspot comes up. */
+    if (OPRT_OK != ap_netcfg_get_hotspot_info(state->ap_ssid, sizeof(state->ap_ssid),
+                                              state->ap_ip, sizeof(state->ap_ip))) {
+        __copy_value(state->ap_ssid, sizeof(state->ap_ssid), NULL);
+        __copy_value(state->ap_ip, sizeof(state->ap_ip), NULL);
     }
 #endif
 }
