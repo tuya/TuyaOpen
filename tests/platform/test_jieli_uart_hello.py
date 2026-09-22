@@ -17,9 +17,9 @@ class JieliUartHelloTest(unittest.TestCase):
 
     def test_adapter_sources_are_present(self):
         adapter = ROOT / "platform" / "JIELI" / "tuyaos" / "tuyaos_adapter"
-        self.assertTrue((adapter / "src/tkl_output.c").is_file())
-        self.assertTrue((adapter / "src/tkl_uart.c").is_file())
-        self.assertTrue((adapter / "src/tkl_system.c").is_file())
+        self.assertTrue((adapter / "src/system/tkl_output.c").is_file())
+        self.assertTrue((adapter / "src/driver/tkl_uart.c").is_file())
+        self.assertTrue((adapter / "src/system/tkl_system.c").is_file())
         self.assertTrue((adapter / "CMakeLists.txt").is_file())
 
 

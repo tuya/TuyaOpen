@@ -11,36 +11,36 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertFalse(list((ADAPTER / "src").glob("tal_*.c")))
         self.assertFalse(list((ADAPTER / "include").glob("tal_*_port.h")))
         for relative in (
-            "src/tkl_thread.c",
-            "src/tkl_mutex.c",
-            "src/tkl_semaphore.c",
-            "src/tkl_queue.c",
-            "src/tkl_sleep.c",
-            "src/tkl_uart.c",
+            "src/system/tkl_thread.c",
+            "src/system/tkl_mutex.c",
+            "src/system/tkl_semaphore.c",
+            "src/system/tkl_queue.c",
+            "src/system/tkl_sleep.c",
+            "src/driver/tkl_uart.c",
         ):
             self.assertTrue((ADAPTER / relative).is_file(), relative)
 
     def test_tkl_sources_do_not_reference_platform_tal_port(self):
-        for source in (ADAPTER / "src").glob("tkl_*.c"):
+        for source in (ADAPTER / "src").rglob("tkl_*.c"):
             text = source.read_text(encoding="utf-8")
             self.assertNotIn("tal_system_port", text, source.name)
             self.assertNotIn("tal_uart_port", text, source.name)
 
     def test_uart_contract_keeps_jieli_device_api_private(self):
-        source = (ADAPTER / "src/tkl_uart.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_uart.c").read_text(encoding="utf-8")
         self.assertIn("dev_open", source)
         self.assertIn("dev_read", source)
         self.assertIn("dev_write", source)
 
     def test_network_layer_uses_lwip_socket_api(self):
-        source = (ADAPTER / "src/tkl_network.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_network.c").read_text(encoding="utf-8")
         self.assertIn("<lwip/sockets.h>", source)
         for symbol in ("tkl_net_socket_create", "tkl_net_connect", "tkl_net_send", "tkl_net_recv",
                        "tkl_net_gethostbyname"):
             self.assertIn(symbol, source)
 
     def test_wifi_layer_uses_wl82_native_station_api(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         for symbol in ("wifi_set_event_callback", "wifi_enter_sta_mode", "wifi_get_sta_connect_state",
                        "wifi_scan_req", "lwip_get_netif_info"):
             self.assertIn(symbol, source)
@@ -55,7 +55,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn('{ "btstack", 18, 768, 384 }', source)
 
     def test_bluetooth_sets_derived_mac_before_stack_start(self):
-        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_ble_stack_init")
         end = source.index("OPERATE_RET tkl_ble_stack_deinit", start)
         init_source = source[start:end]
@@ -66,13 +66,13 @@ class JieliTalContractTest(unittest.TestCase):
             self.assertIn(symbol, source)
 
     def test_wifi_startup_accepts_vendor_async_start(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         self.assertIn("wifi_is_on", source)
         self.assertIn("wifi_on", source)
         self.assertIn("COUNTRY_CODE_CN", source)
 
     def test_wifi_init_disables_saved_sta_autoconnect_before_wifi_on(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_init")
         end = source.index("OPERATE_RET tkl_wifi_scan_ap", start)
         init_source = source[start:end]
@@ -81,7 +81,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("WiFi start is deferred", init_source)
 
     def test_wifi_station_connect_starts_deferred_native_wifi(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_station_connect")
         end = source.index("OPERATE_RET tkl_wifi_station_disconnect", start)
         station_source = source[start:end]
@@ -104,13 +104,13 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertNotIn("wifi_on()", mode_source)
 
     def test_wifi_low_power_is_a_safe_noop_on_wl82(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_set_lp_mode")
         end = source.index("OPERATE_RET tkl_wifi_station_fast_connect", start)
         self.assertIn("return OPRT_OK", source[start:end])
 
     def test_wifi_softap_mode_is_started_by_ap_config(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_set_work_mode")
         end = source.index("OPERATE_RET tkl_wifi_get_work_mode", start)
         self.assertIn("case WWM_SOFTAP:", source[start:end])
@@ -118,7 +118,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("wifi_enter_ap_mode", source)
 
     def test_wifi_ap_start_does_not_shutdown_shared_network_stack(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_start_ap")
         end = source.index("OPERATE_RET tkl_wifi_stop_ap", start)
         ap_source = source[start:end]
@@ -126,7 +126,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertNotIn("wifi_off", ap_source)
 
     def test_wifi_ap_start_disables_sta_autoconnect_after_mode_switch(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_start_ap")
         end = source.index("OPERATE_RET tkl_wifi_stop_ap", start)
         ap_source = source[start:end]
@@ -136,7 +136,7 @@ class JieliTalContractTest(unittest.TestCase):
         )
 
     def test_wifi_ap_start_event_disables_sta_autoconnect(self):
-        source = (ADAPTER / "src/tkl_wifi.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         callback_start = source.index("static int jieli_wifi_event_cb")
         callback_end = source.index("static uint8_t jieli_auth_mode", callback_start)
         callback_source = source[callback_start:callback_end]
@@ -146,7 +146,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertGreater(disable, ap_event)
 
     def test_bluetooth_advertising_waits_for_controller_ready(self):
-        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         self.assertIn("BT_STATUS_INIT_OK", source)
         self.assertIn("s_ble_stack_ready", source)
         self.assertIn("jieli_ble_apply_advertising", source)
@@ -157,7 +157,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("BLE advertising enabled", source)
 
     def test_bluetooth_layer_uses_wl82_native_le_api(self):
-        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         for symbol in ("btstack_init", "ble_user_cmd_prepare", "ll_hci_adv_enable",
                        "gatt_client_write_value_of_characteristic", "user_client_report_search_result",
                        "user_client_report_data_callback", "user_client_search_descriptor_is_enable"):
@@ -165,7 +165,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("ADV_DIRECT_IND_LOW", source)
 
     def test_bluetooth_att_transport_matches_jieli_net_cfg(self):
-        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         self.assertIn("#define JIELI_ATT_LOCAL_PAYLOAD_SIZE (200)", source)
         self.assertIn("#define JIELI_ATT_SEND_CBUF_SIZE     (512)", source)
         self.assertIn("(ATT_CTRL_BLOCK_SIZE + JIELI_ATT_LOCAL_PAYLOAD_SIZE + JIELI_ATT_SEND_CBUF_SIZE)", source)
@@ -197,7 +197,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("ble event queue schedule failed", manager_source)
 
     def test_jieli_write_callback_stays_quiet_on_btstack_task(self):
-        source = (ADAPTER / "src/tkl_bluetooth.c").read_text(encoding="utf-8")
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         start = source.index("jieli_ble_att_write_callback")
         end = source.index("void ble_profile_init", start)
         callback = source[start:end]

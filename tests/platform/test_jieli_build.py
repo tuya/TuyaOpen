@@ -81,7 +81,9 @@ class JieliBuildTest(unittest.TestCase):
             content = staged_makefile.read_text()
             self.assertIn("../../../../../tuyaos_app_main.c", content)
             self.assertIn("../../../../../tuyaopen_uart_hello.c", content)
-            self.assertIn("../../../../../tuyaos_adapter/src/tkl_output.c", content)
+            self.assertIn("../../../../../tuyaos_adapter/src/system/tkl_output.c", content)
+            self.assertIn("../../../../../tuyaos_adapter/src/driver/tkl_wifi.c", content)
+            self.assertIn("-I../../../../../tuyaos_adapter/include/system", content)
 
     def test_reference_log_uart_is_applied_to_staging(self):
         with tempfile.TemporaryDirectory() as temp:
