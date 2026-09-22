@@ -1,0 +1,74 @@
+config PLATFORM_CHOICE
+    string
+    default "JIELI"
+
+config CHIP_CHOICE
+    string
+    default "wl83" if BOARD_CHOICE_AC7921A
+    default "wl82"
+
+config BOARD_CHOICE
+    string
+    default "AC7921A" if BOARD_CHOICE_AC7921A
+    default "AC7916A"
+
+config PLATFORM_JIELI
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+
+config LITTLE_END
+    int
+    default 1
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default y
+
+config JIELI_UART_LOG_PORT
+    int
+    default 0
+    range 0 5
+
+config JIELI_UART_LOG_BAUDRATE
+    int
+    default 115200
+    range 1200 4000000
+
+config ENABLE_CHIP_WL83
+    bool "Expose the wl83 (AC792N) board choice"
+    default n
+    help
+        The wl83/AC792N port is a placeholder: the platform carries its chip
+        slot (platform/JIELI/chip/wl83) but no validated build yet. Enable
+        only when starting the bring-up; flash and build bridges must be
+        pinned first (see chip/wl83/README.md).
+
+choice
+    prompt "Choice a board"
+
+    config BOARD_CHOICE_AC7916A
+        bool "AC7916A"
+        if (BOARD_CHOICE_AC7916A)
+            rsource "./AC7916A/Kconfig"
+        endif
+
+    config BOARD_CHOICE_AC7921A
+        bool "AC7921A (wl83 bring-up slot)"
+        depends on ENABLE_CHIP_WL83
+        if (BOARD_CHOICE_AC7921A)
+            rsource "./AC7921A/Kconfig"
+        endif
+
+endchoice
