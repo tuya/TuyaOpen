@@ -34,9 +34,16 @@ extern int tuya_ble_adv_update(void);
 static void __handle_net_cfg(void *data, void *user_data)
 {
     uint8_t result = 0;
-    uint8_t resp[5];
+    uint8_t resp[5] = {0};
+    cJSON *json = NULL;
 
-    cJSON *json = cJSON_Parse(data);
+    if (NULL == data) {
+        PR_ERR("netcfg data is NULL");
+        result = (uint8_t)OPRT_INVALID_PARM;
+        goto __exit;
+    }
+
+    json = cJSON_Parse(data);
     if (NULL == json) {
         PR_ERR(" json parse error.");
         result = (uint8_t)OPRT_CJSON_PARSE_ERR;
@@ -111,6 +118,7 @@ __exit:
     if (json) {
         cJSON_Delete(json);
     }
+    resp[0] = 0x00;
     resp[1] = 0x00; // for blt timer task, set as not subpacket, not response
     resp[2] = 0x00;
     resp[3] = FRM_DATA_TRANS_SUBCMD_BT_NETCFG;
