@@ -6,10 +6,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class JieliConfigTest(unittest.TestCase):
+    def test_switch_demo_disables_generic_nimble_for_jieli_btstack(self):
+        app_config = (ROOT / "apps/tuya_cloud/switch_demo/app_default.config").read_text()
+        self.assertIn("CONFIG_ENABLE_NIMBLE=n", app_config)
+
     def test_platform_registry_contains_jieli(self):
         config = (ROOT / "platform" / "platform_config.yaml").read_text()
         self.assertIn("name: JIELI", config)
-        self.assertIn("repo: local", config)
+        self.assertIn("repo: https://github.com/maidang-xing/TuyaOpen-JIELI.git", config)
+        self.assertIn("branch: master", config)
 
     def test_board_catalog_contains_ac7916a(self):
         board_kconfig = (ROOT / "boards" / "Kconfig").read_text()

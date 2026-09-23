@@ -54,6 +54,46 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn('{ "btctrler", 19, 512, 384 }', source)
         self.assertIn('{ "btstack", 18, 768, 384 }', source)
 
+    def test_bluetooth_avoids_vendor_bt_get_mac_addr(self):
+        source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
+        # The vendor bt_get_mac_addr() falls back to the WiFi MAC and polls
+        # forever while the deferred TKL WiFi start keeps the module off
+        # (2026-09-23: "wifi get mac pending" livelock); its syscfg_write()
+        # persistence does not survive a reboot either.  The adapter must
+        # not call it and must not depend on syscfg storage: derive the
+        # address from the factory flash UUID instead (deterministic).
+        body = source[source.index("OPERATE_RET tkl_ble_stack_init"):source.index("OPERATE_RET tkl_ble_stack_deinit")]
+        self.assertNotIn("bt_get_mac_addr", body)
+        self.assertNotIn("syscfg_read", source)
+        self.assertIn("jieli_chip_mac", source)
+        init = source[source.index("OPERATE_RET tkl_ble_stack_init"):]
+        mac_use = init.index("jieli_local_bt_mac(source_mac")
+        make_addr = init.index("lib_make_ble_address(ble_addr")
+        stack_start = init.index("btstack_init()")
+        self.assertLess(mac_use, make_addr)
+        self.assertLess(make_addr, stack_start)
+
+    def test_wifi_pins_deterministic_chip_mac_before_association(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        # The vendor fallback derives the WiFi MAC from flash_uid XOR
+        # rand32(), so it drifts on every boot ("wifi use flash_uid+random
+        # mac" changed between two 2026-09-23 boots).  The station worker
+        # must pin the deterministic flash-UUID MAC after wifi_on so the
+        # on-air and reported addresses stay stable.
+        self.assertIn('#include "tkl_jieli_chip_mac.h"', source)
+        worker = source[source.index("static void jieli_sta_connect_work"):]
+        mac_set = worker.index("wifi_set_mac((char *)chip_mac)")
+        assoc = worker.index("wifi_enter_sta_mode(")
+        self.assertLess(mac_set, assoc, "MAC must be pinned before association")
+
+    def test_chip_mac_header_is_deterministic_and_safe(self):
+        header = (ADAPTER / "include/driver/tkl_jieli_chip_mac.h").read_text(encoding="utf-8")
+        # No randomness: only the factory UUID feeds the fold.
+        self.assertIn("get_norflash_uuid", header)
+        self.assertNotIn("rand32", header)
+        self.assertNotIn("pseudo_random", header)
+        self.assertIn("mac[0] |= 0x02", header)
+
     def test_bluetooth_sets_derived_mac_before_stack_start(self):
         source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_ble_stack_init")
@@ -62,7 +102,7 @@ class JieliTalContractTest(unittest.TestCase):
         address_setup = init_source.index("lib_make_ble_address")
         stack_start = init_source.index("btstack_init()")
         self.assertLess(address_setup, stack_start)
-        for symbol in ("bt_get_mac_addr", "le_controller_set_mac", "lmp_set_sniff_disable"):
+        for symbol in ("le_controller_set_mac", "lmp_set_sniff_disable"):
             self.assertIn(symbol, source)
 
     def test_wifi_startup_accepts_vendor_async_start(self):
@@ -217,6 +257,63 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE});",
                       source)
         self.assertNotIn("NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP", source)
+
+    def test_ota_layer_bridges_vendor_net_update_api(self):
+        source = (ADAPTER / "src/driver/tkl_ota.c").read_text(encoding="utf-8")
+        # Same bridge as the official ipc_ac7916a reference: the streamed
+        # cloud bytes are the vendor dual-bank OTA package, so the whole
+        # adapter is the net_fopen/net_fwrite/net_fclose triple.
+        self.assertIn('#include "update/net_update.h"', source)
+        self.assertIn("net_fopen(CONFIG_UPGRADE_OTA_FILE_NAME", source)
+        self.assertIn("net_fwrite", source)
+        self.assertIn("net_fclose", source)
+
+    def test_ota_rejects_out_of_order_resume_offsets(self):
+        source = (ADAPTER / "src/driver/tkl_ota.c").read_text(encoding="utf-8")
+        # The vendor staging path is append-only; a resumed download that
+        # jumps the offset would corrupt the bank, so the adapter must abort
+        # and let the cloud restart the transfer instead of seeking.
+        self.assertIn("pack->offset != s_written", source)
+
+    def test_ota_reports_full_image_ability(self):
+        source = (ADAPTER / "src/driver/tkl_ota.c").read_text(encoding="utf-8")
+        # Differential OTA is not supported by the vendor update library;
+        # the ability probe must offer the full-package path to the cloud.
+        self.assertIn("*type = TUYA_OTA_FULL", source)
+        self.assertIn("TKL_OTA_MAX_IMAGE_SIZE", source)
+
+    def test_flash_partitions_stay_inside_tuya_reserved_window(self):
+        import re
+
+        source = (ADAPTER / "src/driver/tkl_flash.c").read_text(encoding="utf-8")
+
+        def macro_int(name):
+            match = re.search(rf"#define\s+{name}\s+\(?(\w+)", source)
+            token = match.group(1)
+            if token.startswith("0x"):
+                return int(token.rstrip("Uu"), 16)
+            if token == "JIELI_FLASH_BLOCK":
+                return 4 * 1024
+            kilo = re.search(rf"#define\s+{name}\s+\(?\s*(\d+)U?\s*\*\s*1024", source)
+            self.assertIsNotNone(kilo, name)
+            return int(kilo.group(1)) * 1024
+
+        # The dual-bank OTA layout owns [0x1FC000, TUYA window) and the
+        # vendor VM starts at 0x3F5000; TuyaOpen data must stay inside the
+        # reserved window so flashing never erases it (2026-09-22: the old
+        # 0x300000 partitions were wiped by "Erase app2 core data" and left
+        # unwritable under the code protection).
+        window_start, window_end = 0x3A0000, 0x3F5000
+        for start_name, size_name in (
+            ("JIELI_KV_KEY_START", "JIELI_KV_KEY_SIZE"),
+            ("JIELI_KV_DATA_START", "JIELI_KV_DATA_SIZE"),
+            ("JIELI_UF_START", "JIELI_UF_SIZE"),
+            ("JIELI_RCD_START", "JIELI_RCD_SIZE"),
+        ):
+            start = macro_int(start_name)
+            end = start + macro_int(size_name)
+            self.assertGreaterEqual(start, window_start, f"{start_name}={start:#x}")
+            self.assertLessEqual(end, window_end, f"{start_name} end={end:#x}")
 
 
 if __name__ == "__main__":

@@ -119,5 +119,124 @@ class JieliBuildTest(unittest.TestCase):
         self.assertIn('.port = PORTB_3_4', content)
         self.assertIn('{"uart1", &uart_dev_ops, (void *)&uart1_data }', content)
 
+    def test_full_stack_staging_enables_dual_bank_ota(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            sdk = root / "sdk"
+            board = sdk / "apps/demo/demo_hello/board/wl82"
+            board.mkdir(parents=True)
+            (board / "Makefile").write_text(
+                "c_SRC_FILES := ../../../../../apps/demo/demo_hello/app_main.c\n"
+                "c_OBJS    := $(c_SRC_FILES:%.c=%.c.o)\n"
+            )
+            (board / "board.c").write_text(
+                "UART2_PLATFORM_DATA_BEGIN(uart2_data)\n"
+                "    .baudrate = 1000000,\n"
+                "    .port = PORT_REMAP,\n"
+                "    .tx_pin = IO_PORTB_03,\n"
+                "UART2_PLATFORM_DATA_END();\n"
+                "REGISTER_DEVICES(device_table) = {\n"
+                '    {"uart2", &uart_dev_ops, (void *)&uart2_data },\n'
+                "};\n"
+                "/**************************  POWER config ****************************/\n"
+                "void board_init()\n"
+                "{\n"
+                "\tboard_power_init();\n"
+                "}\n"
+            )
+            include = sdk / "apps/demo/demo_hello/include"
+            include.mkdir(parents=True)
+            (include / "app_config.h").write_text("#ifndef APP_CONFIG_H\n#define APP_CONFIG_H\n#endif\n")
+            (sdk / "apps/demo/demo_hello/app_main.c").write_text("void app_main(void) {}")
+            (sdk / "apps/common/update").mkdir(parents=True)
+            (sdk / "apps/common/update/net_update.c").write_text("void net_update(void) {}")
+            for name in ("cpu", "include_lib", "lib", "tools"):
+                (sdk / name).mkdir()
+            tuyaopen = root / "tuyaopen"
+            jieli_platform = tuyaopen / "platform/JIELI"
+            jieli_platform.mkdir(parents=True)
+            (jieli_platform / "tuyaos_switch_app_main.c").write_text("void app_main(void) {}")
+            adapter = tuyaopen / "platform/JIELI/tuyaos/tuyaos_adapter"
+            adapter.mkdir(parents=True)
+            staging = root / "staging"
+
+            jieli_build.create_staging_tree(
+                sdk, staging, tuyaopen, full_stack=True, tuya_lib_dir=root / "libs"
+            )
+
+            content = (staging / "build/apps/demo/demo_hello/board/wl82/Makefile").read_text()
+            self.assertIn("../../../../../apps/common/update/net_update.c", content)
+            self.assertIn("-DCONFIG_DOUBLE_BANK_ENABLE=1", content)
+
+    def test_find_ug_artifact_accepts_db_update_package(self):
+        with tempfile.TemporaryDirectory() as temp:
+            tools = pathlib.Path(temp)
+            package = tools / "db_update_files_data.bin"
+            package.write_bytes(b"ota")
+            self.assertEqual(package, jieli_build.find_ug_artifact(tools))
+
+    def test_elf_alone_is_not_a_ug_artifact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            tools = pathlib.Path(temp)
+            (tools / "sdk.elf").write_bytes(b"elf")
+            with self.assertRaises(jieli_build.BuildError):
+                jieli_build.find_ug_artifact(tools)
+
+    def test_tuya_ug_name_follows_project_and_version(self):
+        self.assertEqual(
+            "switch_demo_UG_1.0.0.bin",
+            jieli_build.tuya_ug_name(
+                {"CONFIG_PROJECT_NAME": "switch_demo", "CONFIG_PROJECT_VERSION": "1.0.0"}
+            ),
+        )
+
+    def test_sanitize_host_path_drops_posix_shells(self):
+        # GNU make for Windows picks sh.exe as its SHELL whenever a POSIX
+        # shell is on PATH (tos.py launched from Git Bash), and the vendor
+        # recipes then mangle Windows paths (C:\JL\... -> C:JL...).
+        raw = (
+            "C:\\Program Files\\Git\\usr\\bin;C:\\Windows\\system32;"
+            "C:\\Program Files\\Git\\cmd;D:\\tools\\bin"
+        )
+        cleaned = jieli_build.sanitize_host_path(raw)
+        entries = cleaned.split(os.pathsep)
+        self.assertNotIn("C:\\Program Files\\Git\\usr\\bin", entries)
+        self.assertIn("C:\\Windows\\system32", entries)
+        self.assertIn("C:\\Program Files\\Git\\cmd", entries)
+        self.assertIn("D:\\tools\\bin", entries)
+
+    def test_configure_tuya_reserved_area_inserts_window(self):
+        # The dual-bank layout gives the second bank the whole upper half of
+        # the flash ([0x1FC000, 0x3F5000)), which covers the old TuyaOpen
+        # partitions at 0x300000: the flasher erased them and code protection
+        # made them unwritable.  TuyaOpen data must live in a vendor reserved
+        # area with OPT=1 so flashing and OTA leave it alone.
+        with tempfile.TemporaryDirectory() as temp:
+            ini = pathlib.Path(temp) / "isd_config.ini"
+            ini.write_text(
+                "[RESERVED_CONFIG]\n"
+                "VM_ADR=0; [vm]\n"
+                "VM_LEN=32K;\n"
+                "VM_OPT=0;\n"
+                "BTIF_ADR=AUTO; [bt]\n"
+                "BTIF_LEN=0x1000;\n"
+                "BTIF_OPT=1;\n"
+                "PRCT_ADR=0;\n"
+                "PRCT_LEN=CODE_LEN;\n"
+                "PRCT_OPT=2;\n",
+                encoding="utf-8",
+            )
+            changed = jieli_build.configure_tuya_reserved_area(ini)
+            content = ini.read_text(encoding="utf-8")
+            self.assertTrue(changed)
+            self.assertIn("TUYA_ADR=0x3A0000;", content)
+            self.assertIn("TUYA_LEN=0x55000;", content)
+            self.assertIn("TUYA_OPT=1;", content)
+            # stays inside [RESERVED_CONFIG], ahead of the PRCT block
+            self.assertLess(content.index("TUYA_ADR"), content.index("PRCT_ADR"))
+            # idempotent on a regenerated ini
+            self.assertFalse(jieli_build.configure_tuya_reserved_area(ini))
+
+
 if __name__ == "__main__":
     unittest.main()
