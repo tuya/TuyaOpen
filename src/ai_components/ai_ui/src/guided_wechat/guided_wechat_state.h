@@ -31,6 +31,10 @@ typedef struct {
     bool activated;
     bool cloud_online;
     char ssid[GUIDED_WECHAT_SSID_LEN];
+    /* SoftAP provisioning guidance: hotspot identity published by the AP
+     * netcfg module ("-" while the hotspot is not running). */
+    char ap_ssid[GUIDED_WECHAT_SSID_LEN];
+    char ap_ip[16];
     char version[GUIDED_WECHAT_VALUE_LEN];
     char sdk_version[GUIDED_WECHAT_VALUE_LEN];
     char product_id[GUIDED_WECHAT_VALUE_LEN];
