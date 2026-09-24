@@ -26,6 +26,13 @@ class JieliTalContractTest(unittest.TestCase):
             self.assertNotIn("tal_system_port", text, source.name)
             self.assertNotIn("tal_uart_port", text, source.name)
 
+    def test_queue_post_passes_message_pointer_not_pointer_variable_address(self):
+        source = (ADAPTER / "src/system/tkl_queue.c").read_text(encoding="utf-8")
+        self.assertRegex(
+            source,
+            r"os_q_post_to_back\(&jieli_queue->queue,\s*copy\s*,",
+        )
+
     def test_uart_contract_keeps_jieli_device_api_private(self):
         source = (ADAPTER / "src/driver/tkl_uart.c").read_text(encoding="utf-8")
         self.assertIn("dev_open", source)
@@ -54,22 +61,78 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn('{ "btctrler", 19, 512, 384 }', source)
         self.assertIn('{ "btstack", 18, 768, 384 }', source)
 
-    def test_bluetooth_sets_derived_mac_before_stack_start(self):
+    def test_switch_entry_registers_jieli_wifi_stack_tasks(self):
+        source = (ROOT / "platform/JIELI/tuyaos_switch_app_main.c").read_text(encoding="utf-8")
+        for task in (
+            '{ "tcpip_thread", 16, 800, 0 }',
+            '{ "tasklet", 10, 1400, 0 }',
+            '{ "RtmpMlmeTask", 17, 900, 0 }',
+            '{ "RtmpCmdQTask", 17, 300, 0 }',
+            '{ "wl_rx_irq_thread", 5, 256, 0 }',
+        ):
+            self.assertIn(task, source)
+
+    def test_bluetooth_uses_stable_random_mac_before_stack_start(self):
         source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_ble_stack_init")
         end = source.index("OPERATE_RET tkl_ble_stack_deinit", start)
         init_source = source[start:end]
-        address_setup = init_source.index("lib_make_ble_address")
+        address_setup = init_source.index("jieli_chip_mac_get_ble")
         stack_start = init_source.index("btstack_init()")
         self.assertLess(address_setup, stack_start)
-        for symbol in ("bt_get_mac_addr", "le_controller_set_mac", "lmp_set_sniff_disable"):
-            self.assertIn(symbol, source)
+        self.assertIn("le_controller_set_random_mac", init_source)
+        self.assertNotIn("bt_get_mac_addr", init_source)
+        self.assertNotIn("le_controller_get_mac", init_source)
+        self.assertIn("ble_op_set_own_address_type(s_ble_own_address_type)", source)
+        self.assertIn("lmp_set_sniff_disable", source)
+
+    def test_wifi_mac_getter_does_not_wait_for_wifi_start(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_get_mac")
+        end = source.index("OPERATE_RET tkl_wifi_set_work_mode", start)
+        getter_source = source[start:end]
+        self.assertIn("jieli_chip_mac_get_wifi", getter_source)
+        self.assertNotIn("wifi_get_mac(mac->mac)", getter_source)
+
+    def test_deferred_station_start_applies_stable_mac_before_association(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("static void jieli_sta_connect_work")
+        end = source.index("static void jieli_wifi_worker", start)
+        worker_source = source[start:end]
+        wifi_on = worker_source.index("wifi_on()")
+        set_mac = worker_source.index("wifi_set_mac")
+        associate = worker_source.index("wifi_enter_sta_mode")
+        self.assertLess(wifi_on, set_mac)
+        self.assertLess(set_mac, associate)
+
+    def test_stable_mac_provider_uses_chip_uid_without_random_or_vm(self):
+        source = (ADAPTER / "src/driver/tkl_jieli_chip_mac.c").read_text(encoding="utf-8")
+        self.assertIn("get_norflash_uuid()", source)
+        self.assertIn("get_norflash_uuid(0)", source)
+        self.assertNotIn("rand32", source)
+        self.assertNotIn("syscfg_write", source)
+        self.assertNotIn("CFG_BT_MAC_ADDR", source)
+        self.assertNotIn("VM_TUYA_MAC_IDX", source)
+        self.assertIn("0x02U", source)
+        self.assertIn("0xC0U", source)
 
     def test_wifi_startup_accepts_vendor_async_start(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         self.assertIn("wifi_is_on", source)
         self.assertIn("wifi_on", source)
         self.assertIn("COUNTRY_CODE_CN", source)
+
+    def test_wifi_native_timeout_precedes_tuya_retry_timeout(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        module_init_start = source.index("case JIELI_WIFI_MODULE_INIT:")
+        module_init_end = source.index("case JIELI_WIFI_AP_START:", module_init_start)
+        module_init_source = source[module_init_start:module_init_end]
+
+        self.assertRegex(source, r"#define JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC\s+10")
+        self.assertIn(
+            "wifi_set_sta_connect_timeout(JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC)",
+            module_init_source,
+        )
 
     def test_wifi_init_disables_saved_sta_autoconnect_before_wifi_on(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
@@ -102,6 +165,20 @@ class JieliTalContractTest(unittest.TestCase):
         mode_end = source.index("OPERATE_RET tkl_wifi_get_work_mode", mode_start)
         mode_source = source[mode_start:mode_end]
         self.assertNotIn("wifi_on()", mode_source)
+
+    def test_wifi_async_station_request_waits_for_native_result_event(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        worker_start = source.index("static void jieli_sta_connect_work")
+        worker_end = source.index("static void jieli_wifi_worker", worker_start)
+        worker_source = source[worker_start:worker_end]
+        request_start = worker_source.index("result = wifi_enter_sta_mode")
+        request_source = worker_source[request_start:]
+
+        # The vendor API starts an asynchronous STA connection. Its return
+        # value is not the association result; only native Wi-Fi events should
+        # drive Tuya's connect-failed callback.
+        self.assertIn("native_result:%d", request_source)
+        self.assertNotIn("result != 0 && s_wifi_event_cb", request_source)
 
     def test_wifi_low_power_is_a_safe_noop_on_wl82(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")

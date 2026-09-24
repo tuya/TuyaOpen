@@ -66,11 +66,21 @@ static OPERATE_RET kv_storage_init(void)
     static struct lfs_config lfs_cfg;
     int result;
 
-    if (OPRT_OK != tkl_flash_get_one_type_info(TUYA_FLASH_TYPE_UF, &info) || 0 == info.partition[0].block_size) {
+    result = tkl_flash_get_one_type_info(TUYA_FLASH_TYPE_UF, &info);
+    if (OPRT_OK != result) {
+        PR_ERR("[KV] partition lookup failed:%d", result);
+        return OPRT_COM_ERROR;
+    }
+    if (0 == info.partition[0].block_size) {
+        PR_ERR("[KV] partition has zero block size");
         return OPRT_COM_ERROR;
     }
 
     lfs_flash_addr = info.partition[0].start_addr;
+    PR_NOTICE("[KV] partition start:0x%08x size:%u block:%u",
+              (unsigned int)info.partition[0].start_addr,
+              (unsigned int)info.partition[0].size,
+              (unsigned int)info.partition[0].block_size);
     memset(&lfs_cfg, 0, sizeof(lfs_cfg));
     lfs_cfg.read = user_provided_block_device_read;
     lfs_cfg.prog = user_provided_block_device_prog;
@@ -85,10 +95,13 @@ static OPERATE_RET kv_storage_init(void)
     lfs_cfg.block_cycles = 500;
 
     result = lfs_mount(&lfs, &lfs_cfg);
+    PR_NOTICE("[KV] mount result:%d", result);
     if (LFS_ERR_OK != result) {
         result = lfs_format(&lfs, &lfs_cfg);
+        PR_NOTICE("[KV] format result:%d", result);
         if (LFS_ERR_OK == result) {
             result = lfs_mount(&lfs, &lfs_cfg);
+            PR_NOTICE("[KV] remount result:%d", result);
         }
     }
 

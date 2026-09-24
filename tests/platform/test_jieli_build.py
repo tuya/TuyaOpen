@@ -64,9 +64,6 @@ class JieliBuildTest(unittest.TestCase):
             (sdk / "include_lib").mkdir()
             (sdk / "lib").mkdir()
             tuyaopen = root / "tuyaopen"
-            example = tuyaopen / "examples/get-started/jieli_uart_hello/src"
-            example.mkdir(parents=True)
-            (example / "example_jieli_uart_hello.c").write_text("void hello(void) {}")
             jieli_platform = tuyaopen / "platform/JIELI"
             jieli_platform.mkdir(parents=True)
             (jieli_platform / "tuyaos_app_main.c").write_text("void app_main(void) {}")
@@ -75,17 +72,16 @@ class JieliBuildTest(unittest.TestCase):
             (adapter / "tkl_output.c").write_text("void output(void) {}")
             staging = root / "staging"
 
-            jieli_build.create_staging_tree(sdk, staging, tuyaopen)
+            jieli_build.create_staging_tree(sdk, staging, tuyaopen, uart_log_port=1)
 
             staged_makefile = staging / "build/apps/demo/demo_hello/board/wl82/Makefile"
             content = staged_makefile.read_text()
             self.assertIn("../../../../../tuyaos_app_main.c", content)
-            self.assertIn("../../../../../tuyaopen_uart_hello.c", content)
             self.assertIn("../../../../../tuyaos_adapter/src/system/tkl_output.c", content)
             self.assertIn("../../../../../tuyaos_adapter/src/driver/tkl_wifi.c", content)
             self.assertIn("-I../../../../../tuyaos_adapter/include/system", content)
 
-    def test_reference_log_uart_is_applied_to_staging(self):
+    def test_ac79_official_pb3_log_uart_is_applied_to_staging(self):
         with tempfile.TemporaryDirectory() as temp:
             board = pathlib.Path(temp) / "board.c"
             board.write_text(
@@ -94,19 +90,26 @@ class JieliBuildTest(unittest.TestCase):
                 "    .port = PORT_REMAP,\n"
                 "    .tx_pin = IO_PORTB_03,\n"
                 "UART2_PLATFORM_DATA_END();\n"
+                "void debug_uart_init() { uart_init(&uart2_data); }\n"
             )
-            jieli_build.configure_reference_log_uart(board)
+            jieli_build.configure_ac79_log_uart(board, uart_port=1, baudrate=1000000)
             content = board.read_text()
 
-        self.assertIn(".baudrate = 115200", content)
-        self.assertIn(".port = PORTB_6_7", content)
-        self.assertIn(".tx_pin = IO_PORTB_06", content)
+        self.assertIn("UART1_PLATFORM_DATA_BEGIN(uart1_data)", content)
+        self.assertIn(".baudrate = 1000000", content)
+        self.assertIn(".tx_pin = IO_PORTB_03", content)
+        self.assertIn("uart_init(&uart1_data);", content)
 
-    def test_service_uart_is_added_separately_from_log_uart(self):
+    def test_service_uart_uses_uart2_away_from_pb3_log_uart(self):
         with tempfile.TemporaryDirectory() as temp:
             board = pathlib.Path(temp) / "board.c"
             board.write_text(
                 "UART2_PLATFORM_DATA_BEGIN(uart2_data)\n"
+                "    .baudrate = 1000000,\n"
+                "    .port = PORT_REMAP,\n"
+                "    .tx_pin = IO_PORTB_03,\n"
+                "    .rx_pin = -1,\n"
+                "    .flags = UART_DEBUG,\n"
                 "UART2_PLATFORM_DATA_END();\n"
                 "REGISTER_DEVICES(device_table) = {\n"
                 "    {\"uart2\", &uart_dev_ops, (void *)&uart2_data },\n"
@@ -115,9 +118,11 @@ class JieliBuildTest(unittest.TestCase):
             jieli_build.configure_service_uart(board)
             content = board.read_text()
 
-        self.assertIn("UART1_PLATFORM_DATA_BEGIN(uart1_data)", content)
-        self.assertIn('.port = PORTB_3_4', content)
-        self.assertIn('{"uart1", &uart_dev_ops, (void *)&uart1_data }', content)
+        self.assertIn(".baudrate = 115200", content)
+        self.assertIn(".port = PORTB_6_7", content)
+        self.assertIn(".tx_pin = IO_PORTB_06", content)
+        self.assertIn(".rx_pin = IO_PORTB_07", content)
+        self.assertIn('{"uart2", &uart_dev_ops, (void *)&uart2_data }', content)
 
 if __name__ == "__main__":
     unittest.main()

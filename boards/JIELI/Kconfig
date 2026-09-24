@@ -4,13 +4,13 @@ config PLATFORM_CHOICE
 
 config CHIP_CHOICE
     string
-    default "wl83" if BOARD_CHOICE_AC7921A
+    default "wl83" if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
     default "wl82"
 
 config BOARD_CHOICE
     string
-    default "AC7921A" if BOARD_CHOICE_AC7921A
-    default "AC7916A"
+    default "AC792N_Develop_Board" if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+    default "AC79_DevKitBoard"
 
 config PLATFORM_JIELI
     bool
@@ -37,38 +37,56 @@ config ENABLE_BLUETOOTH
     default y
 
 config JIELI_UART_LOG_PORT
-    int
+    int "SDK UART controller used for logging"
+    default 1 if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
     default 0
     range 0 5
 
 config JIELI_UART_LOG_BAUDRATE
-    int
+    int "UART log baud rate"
+    default 1000000 if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
+    default 1000000 if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
     default 115200
     range 1200 4000000
 
-config ENABLE_CHIP_WL83
-    bool "Expose the wl83 (AC792N) board choice"
+config JIELI_MINIMAL_HELLO
+    bool "Build the minimal UART board bring-up image"
+    default y if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
     default n
     help
-        The wl83/AC792N port is a placeholder: the platform carries its chip
-        slot (platform/JIELI/chip/wl83) but no validated build yet. Enable
-        only when starting the bring-up; flash and build bridges must be
-        pinned first (see chip/wl83/README.md).
+        Build a small UART-only image for initial AC792 board bring-up.
+        Disable this option when enabling the full TuyaOpen application stack.
+
+config ENABLE_CHIP_WL83
+    bool "Enable the AC792N board"
+    default y
+    help
+        Enable the AC792N_Develop_Board (AC7926A reference profile).
 
 choice
-    prompt "Choice a board"
+    prompt "Choice a Jieli board"
+    default BOARD_CHOICE_AC79_DEVKITBOARD
+
+    config BOARD_CHOICE_AC79_DEVKITBOARD
+        bool "AC79_DevKitBoard (AC791)"
 
     config BOARD_CHOICE_AC7916A
-        bool "AC7916A"
-        if (BOARD_CHOICE_AC7916A)
-            rsource "./AC7916A/Kconfig"
-        endif
+        bool "AC7916A (legacy config alias; same board)"
+
+    config BOARD_CHOICE_AC792N_DEVELOP_BOARD
+        bool "AC792N_Develop_Board (AC7926A reference profile)"
+        depends on ENABLE_CHIP_WL83
 
     config BOARD_CHOICE_AC7921A
-        bool "AC7921A (wl83 bring-up slot)"
+        bool "AC7921A (legacy config alias; AC792N profile)"
         depends on ENABLE_CHIP_WL83
-        if (BOARD_CHOICE_AC7921A)
-            rsource "./AC7921A/Kconfig"
-        endif
 
 endchoice
+
+if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
+    rsource "./AC79_DevKitBoard/Kconfig"
+endif
+
+if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+    rsource "./AC792N_Develop_Board/Kconfig"
+endif
