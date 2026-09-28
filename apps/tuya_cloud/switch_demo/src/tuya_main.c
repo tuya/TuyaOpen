@@ -295,8 +295,9 @@ void user_main(void)
         license.uuid    = TUYA_OPENSDK_UUID;
         license.authkey = TUYA_OPENSDK_AUTHKEY;
         tuya_debug_log_license("compile_fallback", &license);
-        PR_WARN("Replace the TUYA_OPENSDK_UUID and TUYA_OPENSDK_AUTHKEY contents, otherwise the demo cannot work.\n \
-                Visit https://platform.tuya.com/purchase/index?type=6 to get the open-sdk uuid and authkey.");
+        PR_WARN("[AUTH] Stored license unavailable (ret:%d); using build-time UUID/AUTHKEY. "
+                "Verify credentials if activation fails.",
+                auth_rt);
     } else {
         tuya_debug_log_license("authorize_storage", &license);
     }
