@@ -69,6 +69,7 @@ static SESSION_ID  http_session_create_tls(const char *url, BOOL_T is_persistent
 static OPERATE_RET http_session_destroy(SESSION_ID id);
 static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t *req, http_hdr_field_sel_t field_flags);
 static OPERATE_RET http_session_receive(SESSION_ID session, http_resp_t **resp);
+static int         http_session_read_content(SESSION_ID session, void *buf, unsigned int max_len);
 static OPERATE_RET http_session_receive_data(SESSION_ID session, http_resp_t *pResp, uint8_t **pDataOut);
 static OPERATE_RET http_parse_url(const char *url, char **host, char **path, uint16_t *port, BOOL_T *use_tls);
 static const char *http_method_to_string(http_method_t method);
@@ -91,6 +92,7 @@ S_HTTP_MANAGER *get_http_manager_instance(VOID_T)
         s_http_manager.create_http_session_tls = http_session_create_tls;
         s_http_manager.send_http_request       = http_session_send;
         s_http_manager.receive_http_response   = http_session_receive;
+        s_http_manager.read_http_content       = http_session_read_content;
         s_http_manager.destory_http_session    = http_session_destroy;
         s_http_manager.receive_http_data       = http_session_receive_data;
     }
@@ -541,6 +543,44 @@ static OPERATE_RET http_session_receive(SESSION_ID session, http_resp_t **resp)
     *resp          = &ctx->resp_info;
     session->state = HTTP_CONNECTED;
     return OPRT_OK;
+}
+
+static int http_session_read_content(SESSION_ID session, void *buf, unsigned int max_len)
+{
+    if (!session || !session->s || !buf || max_len == 0) {
+        return -1;
+    }
+
+    http_session_ctx_t *ctx = (http_session_ctx_t *)session->s;
+    if (!ctx->streaming_mode || !ctx->response_ready) {
+        return -1;
+    }
+
+    if (ctx->total_body_length > 0 && ctx->bytes_read >= ctx->total_body_length) {
+        return 0;
+    }
+
+    size_t read_len = max_len;
+    if (ctx->total_body_length > 0 && read_len > ctx->total_body_length - ctx->bytes_read) {
+        read_len = ctx->total_body_length - ctx->bytes_read;
+    }
+
+    int32_t bytes_read = HTTPClient_Recv(&ctx->transport, &ctx->http_response, (uint8_t *)buf, read_len);
+    if (bytes_read < 0) {
+        PR_ERR("HTTPClient_Recv failed: %d", (int)bytes_read);
+        return -1;
+    }
+    if (bytes_read == 0) {
+        if (ctx->total_body_length > 0 && ctx->bytes_read < ctx->total_body_length) {
+            PR_WARN("http_session_read_content premature close: %u/%u", (unsigned int)ctx->bytes_read,
+                    (unsigned int)ctx->total_body_length);
+            return -1;
+        }
+        return 0;
+    }
+
+    ctx->bytes_read += (size_t)bytes_read;
+    return (int)bytes_read;
 }
 
 static OPERATE_RET http_session_receive_data(SESSION_ID session, http_resp_t *pResp, uint8_t **pDataOut)
