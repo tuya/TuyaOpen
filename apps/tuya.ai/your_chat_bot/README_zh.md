@@ -140,3 +140,22 @@
   | ------------------- | ---- | --------------------------- |
   | OLED_SSD1306_128X32 | 布尔 | oled 屏幕的尺寸大小为128*32 |
   | OLED_SSD1306_128X64 | 布尔 | oled 屏幕的尺寸大小为128*64 |
+
+### 杰理 AC79 / AC792 按键语音对话
+
+本项目提供两份杰理板级配置，使用板载 MIC 采集、板载 SPK 输出，并只启用 HOLD 按键对话模式：
+
+| 配置文件 | 开发板 | K1 输入 |
+| --- | --- | --- |
+| `JIELI_AC79_DevKitBoard.config` | AC79_DevKitBoard（AC791） | PB1 / ADC3 ADKEY |
+| `JIELI_AC792N_Develop_Board.config` | AC792N_Develop_Board（AC7926A 参考板） | PD00 ADKEY |
+
+在工程根目录执行：
+
+```powershell
+cd apps/tuya.ai/your_chat_bot
+tos.py config choice -c JIELI_AC79_DevKitBoard.config
+tos.py build
+```
+
+AC792 使用 `JIELI_AC792N_Develop_Board.config` 替换上述配置名。长按 K1 开始录音，松开 K1 提交本轮语音；单击 K1 中止当前播报/对话。KWS 和其他对话模式当前关闭。杰理 SDK 通过原生 ADKEY 事件接入 K1，不走 GPIO 按键驱动。

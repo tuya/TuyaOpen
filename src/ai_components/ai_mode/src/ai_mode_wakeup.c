@@ -100,6 +100,24 @@ static void __ai_mode_enter_listen(void)
     ai_audio_input_wakeup_set(true);
 }
 
+static OPERATE_RET __ai_mode_kws_start(void)
+{
+    OPERATE_RET rt = tkl_kws_init();
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
+    rt = tkl_kws_reg_wakeup_cb(__ai_mode_kws_wakeup);
+    if (rt == OPRT_OK) {
+        rt = tkl_kws_enable();
+    }
+    if (rt != OPRT_OK) {
+        TUYA_CALL_ERR_LOG(tkl_kws_disable());
+        TUYA_CALL_ERR_LOG(tkl_kws_deinit());
+    }
+    return rt;
+}
+
 static void __ai_mode_enter_upload(void)
 {
     PR_DEBUG("[====ai_wakeup] upload");
@@ -163,11 +181,10 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
     }
 #endif
 
+    TUYA_CALL_ERR_RETURN(__ai_mode_kws_start());
+
     //set vad mode
     ai_audio_input_wakeup_mode_set(AI_AUDIO_VAD_AUTO);
-
-    tkl_kws_reg_wakeup_cb(__ai_mode_kws_wakeup);
-    tkl_kws_enable();
 
     //create idle timer
     TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__ai_mode_enter_idle_time_cb, NULL, &sg_enter_idle_timer));
@@ -180,7 +197,8 @@ static OPERATE_RET __ai_mode_wakeup_init(void)
 
 static OPERATE_RET __ai_mode_wakeup_deinit(void)
 {
-    tkl_kws_disable();
+    TUYA_CALL_ERR_LOG(tkl_kws_disable());
+    TUYA_CALL_ERR_LOG(tkl_kws_deinit());
 
     tuya_ai_input_stop();
 

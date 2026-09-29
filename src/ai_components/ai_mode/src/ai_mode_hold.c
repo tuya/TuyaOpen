@@ -312,6 +312,10 @@ static OPERATE_RET __ai_mode_hold_handle_key(TDL_BUTTON_TOUCH_EVENT_E event, voi
         }
         break;
         case TDL_BUTTON_LONG_PRESS_START: {
+            /* Mark the key as active before the mode worker applies LISTEN.
+             * A quick release must still queue UPLOAD instead of being lost. */
+            sg_is_wakeup = true;
+            ai_audio_input_wakeup_set(true);
             ai_user_event_notify(AI_USER_EVT_KEY_WAKEUP, NULL); // wake HW (e.g. resume codec from ULP) before capture
             MODE_STATE_CHANGE(sg_mode_set_state, AI_MODE_STATE_LISTEN);
         }

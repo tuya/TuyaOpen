@@ -36,6 +36,33 @@ config ENABLE_BLUETOOTH
     bool
     default y
 
+# Tuya's generic audio codec layer compiles tdd_audio.c only when this
+# platform-scoped media switch is enabled. Keep it opt-in for Jieli boards.
+config ENABLE_MEDIA
+    bool "Enable Jieli media/audio codecs"
+    default n
+    select ENABLE_AUDIO_CODECS
+    help
+        Enable the TuyaOpen TDD audio codec on Jieli WL82/WL83 targets.
+        This option is scoped to the Jieli board catalog.
+
+config ENABLE_JIELI_NATIVE_KEY
+    bool "Use the native Jieli ADKEY event as the AI chat button"
+    default y
+    depends on ENABLE_MEDIA
+    help
+        Route the board K1 ADKEY events from the Jieli SDK to Tuya's AI HOLD
+        mode. Jieli board keys are ADC ladder inputs, not GPIO buttons.
+
+config ENABLE_JIELI_ADKEY_BUTTON
+    bool "Register the Jieli K1 ADKEY through Tuya Button TDL"
+    default n
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_ADC
+    help
+        Register the board K1 ADC ladder as a standard Tuya ADC button so apps
+        can receive debounced press and release events through TDL.
+
 config JIELI_UART_LOG_PORT
     int "SDK UART controller used for logging"
     default 1 if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A

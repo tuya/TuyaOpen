@@ -88,6 +88,13 @@ typedef struct {
 OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg);
 
 /**
+@brief Dispatch a native Jieli ADKEY event to the active AI chat mode.
+@param event TDL_BUTTON_TOUCH_EVENT_E value (HOLD/UP/SINGLE_CLICK)
+@return none
+*/
+void ai_chat_jieli_key_event(int event);
+
+/**
 @brief Set chat volume
 @param volume Volume value (0-100)
 @return OPERATE_RET Operation result

@@ -464,7 +464,13 @@ static OPERATE_RET __handle_player_streaming(void)
     // No mixing
     rt = __handle_player_streaming_source(active_player);
     if((OPRT_OK == rt) && active_player->decode_size && s_ai_player_ctx.consumer.write) {
-        s_ai_player_ctx.consumer.write(s_ai_player_ctx.consumer_handle, active_player->decode_buf, active_player->decode_size);
+        rt = s_ai_player_ctx.consumer.write(s_ai_player_ctx.consumer_handle, active_player->decode_buf,
+                                            active_player->decode_size);
+        if (OPRT_OK != rt) {
+            PR_ERR("ai player consumer write failed: %d", rt);
+            active_player->decode_size = 0;
+            return rt;
+        }
     }
     active_player->decode_size = 0;
 
@@ -639,8 +645,26 @@ OPERATE_RET tuya_ai_player_create(AI_PLAYER_MODE_E mode, AI_PLAYER_HANDLE *handl
     player->mute = false;
     player->volume = PLAYER_MAX_VOLUME;
     player->has_pending_output = FALSE;
-    ai_player_datasink_init(&player->sink);
-    ai_player_decoder_init(&player->decoder);
+    OPERATE_RET rt = ai_player_datasink_init(&player->sink);
+    if (rt != OPRT_OK) {
+        PR_ERR("player datasink init failed: %d", rt);
+        Free(player->decode_buf);
+        Free(player->framebuf);
+        Free(player);
+        return rt;
+    }
+
+    rt = ai_player_decoder_init(&player->decoder);
+    if (rt != OPRT_OK) {
+        PR_ERR("player decoder init failed: %d", rt);
+        (void)ai_player_datasink_deinit(player->sink);
+        Free(player->decode_buf);
+        Free(player->framebuf);
+        Free(player);
+        return rt;
+    }
+
+    PR_DEBUG("player contexts ready: sink=%p decoder=%p", player->sink, player->decoder);
     s_ai_player_ctx.player[mode] = player;
 
     *handle = (AI_PLAYER_HANDLE)player;

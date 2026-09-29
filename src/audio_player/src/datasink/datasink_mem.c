@@ -47,14 +47,26 @@ OPERATE_RET datasink_mem_start(char *value, void* *handle)
     }
 
     memset(ctx, 0, sizeof(MEM_DATASINK_CTX_T));
-    TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&ctx->mutex));
+    rt = tal_mutex_create_init(&ctx->mutex);
+    if (rt != OPRT_OK) {
+        PR_ERR("memory datasink mutex init failed: %d", rt);
+        Free(ctx);
+        return rt;
+    }
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ctx->ringbuf));
+    rt = tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ctx->ringbuf);
 #else
-    TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ctx->ringbuf));
+    rt = tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ctx->ringbuf);
 #endif
+    if (rt != OPRT_OK) {
+        PR_ERR("memory datasink ringbuf init failed: size=%d ret=%d", AI_PLAYER_RINGBUF_SIZE, rt);
+        (void)tal_mutex_release(ctx->mutex);
+        Free(ctx);
+        return rt;
+    }
 
     *handle = (void*)ctx;
+    PR_DEBUG("memory datasink ready: ctx=%p ringbuf=%p size=%d", ctx, ctx->ringbuf, AI_PLAYER_RINGBUF_SIZE);
     return OPRT_OK;
 }
 

@@ -293,6 +293,10 @@ OPERATE_RET ai_audio_input_start(void)
 */
 OPERATE_RET ai_audio_input_stop(void)
 {
+    OPERATE_RET rt;
+    if (sg_recorder == NULL) {
+        return OPRT_OK;
+    }
     PR_NOTICE("audio input -> stop! mode is %d, task is %p", sg_recorder->vad_mode, sg_recorder->vad_task);
     sg_recorder->enable = false;
     if (sg_recorder->vad_mode == AI_AUDIO_VAD_AUTO) {
@@ -304,8 +308,14 @@ OPERATE_RET ai_audio_input_stop(void)
         tal_thread_delete(sg_recorder->vad_task);
         /* tal_thread_delete is async; block until the record task's exit cb fires so the caller
            can tear down the codec/pipeline without racing an in-flight mic read (timeout guard). */
-        if (sg_recorder->task_exit_sem) {
-            tal_semaphore_wait(sg_recorder->task_exit_sem, 2000);
+        if (sg_recorder->task_exit_sem == NULL) {
+            PR_ERR("record task has no exit semaphore; keeping recorder buffers alive");
+            return OPRT_COM_ERROR;
+        }
+        rt = tal_semaphore_wait(sg_recorder->task_exit_sem, 2000);
+        if (rt != OPRT_OK) {
+            PR_ERR("record task exit wait failed: %d", rt);
+            return rt;
         }
         sg_recorder->vad_task = NULL;
     }
@@ -324,10 +334,17 @@ OPERATE_RET ai_audio_input_deinit(void)
 
     /* Stop (ai_audio_input_stop waits for the record task to fully exit via the exit-cb
        handshake, so the teardown below can't race an in-flight mic read). */
-    TUYA_CALL_ERR_LOG(ai_audio_input_stop());
+    rt = ai_audio_input_stop();
+    if (rt != OPRT_OK) {
+        return rt;
+    }
 
     /* Stop mic, speaker, audio AFE (AEC, NS, VAD) */
-    TUYA_CALL_ERR_LOG(tdl_audio_close(sg_audio_hdl));
+    rt = tdl_audio_close(sg_audio_hdl);
+    if (rt != OPRT_OK) {
+        PR_ERR("tdl_audio_close failed; keeping recorder buffers alive: %d", rt);
+        return rt;
+    }
 
     /* Release resource */
     __audio_recorder_destroy();
