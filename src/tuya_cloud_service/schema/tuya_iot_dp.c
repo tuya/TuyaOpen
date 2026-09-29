@@ -179,7 +179,7 @@ int tuya_iot_dp_parse(tuya_iot_client_t *client, dp_cmd_type_t cmd_tp, cJSON *cm
     char *devId = NULL;
     cJSON *item = cJSON_GetObjectItem(data, "devId");
     if (NULL == item) {
-        PR_WARN("devid is null");
+        PR_DEBUG("devId missing; using activated device id");
         devId = client->activate.devid;
     } else {
         devId = item->valuestring;
