@@ -29,7 +29,12 @@ class JieliBuildTest(unittest.TestCase):
         )
         expected_board = pathlib.Path("/sdk") / "apps/demo/demo_hello/board/wl82"
         self.assertEqual(command[0:3], ["make", "-C", str(expected_board)])
-        self.assertIn(f"TOOL_DIR={pathlib.Path('/toolchain/bin')}", command)
+        # TOOL_DIR is interpolated into vendor Makefile recipes, which make may
+        # run through sh when one is on PATH; a Windows path with backslashes
+        # gets mangled there, so the value must be shell-neutral.
+        tool_dir_arg = next(arg for arg in command if arg.startswith("TOOL_DIR="))
+        self.assertEqual(tool_dir_arg, "TOOL_DIR=/toolchain/bin")
+        self.assertNotIn("\\", tool_dir_arg)
         self.assertIn("-j3", command)
         self.assertEqual(command[-2:], ["pre_build", "../../../../../cpu/wl82/tools/sdk.elf"])
 

@@ -29,7 +29,8 @@ class JieliConfigTest(unittest.TestCase):
         self.assertIn("config ENABLE_BLUETOOTH", platform_kconfig_text)
 
         platform_config = ROOT / "platform" / "JIELI" / "platform_config.cmake"
-        self.assertIn("PLATFORM_SKIP_DEFAULT_COMPONENTS ON", platform_config.read_text())
+        self.assertNotIn("JIELI_MINIMAL_HELLO", platform_kconfig_text)
+        self.assertNotIn("PLATFORM_SKIP_DEFAULT_COMPONENTS ON", platform_config.read_text())
 
         root_cmake = ROOT / "CMakeLists.txt"
         self.assertIn("PLATFORM_SKIP_DEFAULT_COMPONENTS", root_cmake.read_text())

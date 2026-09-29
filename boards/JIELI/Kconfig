@@ -49,14 +49,6 @@ config JIELI_UART_LOG_BAUDRATE
     default 115200
     range 1200 4000000
 
-config JIELI_MINIMAL_HELLO
-    bool "Build the minimal UART board bring-up image"
-    default y if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
-    default n
-    help
-        Build a small UART-only image for initial AC792 board bring-up.
-        Disable this option when enabling the full TuyaOpen application stack.
-
 config ENABLE_CHIP_WL83
     bool "Enable the AC792N board"
     default y
