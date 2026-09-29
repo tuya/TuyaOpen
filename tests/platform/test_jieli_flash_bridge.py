@@ -48,8 +48,18 @@ class JieliFlashBridgeTest(unittest.TestCase):
         self.assertIn("firmware image not found", result["message"])
 
     def test_default_windows_downloader_is_constructed(self):
-        with patch.object(platform_flash_bridge.os, "name", "nt"):
-            command = platform_flash_bridge._default_flash_command(pathlib.Path("D:/build/app.bin"))
+        with tempfile.TemporaryDirectory() as temp:
+            tools_dir = pathlib.Path(temp)
+            for filename in ("isd_download.exe", "isd_config.ini", "uboot.boot", "cfg_tool.bin"):
+                (tools_dir / filename).touch()
+            with patch.object(platform_flash_bridge.os, "name", "nt"), \
+                    patch.object(
+                        platform_flash_bridge, "_resolve_flash_chip",
+                        return_value=("wl82", tools_dir, "wl82", "0x1c02000", "500"),
+                    ):
+                command = platform_flash_bridge._default_flash_command(
+                    pathlib.Path("D:/build/app.bin"), "wl82"
+                )
         self.assertIsNotNone(command)
         args, tools_dir = command
         self.assertEqual(args[0], str(tools_dir / "isd_download.exe"))

@@ -8,15 +8,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 class JieliConfigTest(unittest.TestCase):
     def test_switch_demo_disables_generic_nimble_for_jieli_btstack(self):
         app_config = (ROOT / "apps/tuya_cloud/switch_demo/app_default.config").read_text()
-        self.assertIn("CONFIG_ENABLE_NIMBLE=n", app_config)
+        disabled_forms = ("CONFIG_ENABLE_NIMBLE=n", "# CONFIG_ENABLE_NIMBLE is not set")
+        self.assertTrue(any(line in app_config.splitlines() for line in disabled_forms))
 
     def test_platform_registry_contains_jieli(self):
         config = (ROOT / "platform" / "platform_config.yaml").read_text()
         self.assertIn("name: JIELI", config)
-        self.assertIn("repo: https://github.com/maidang-xing/TuyaOpen-JIELI.git", config)
+        self.assertIn("repo: https://github.com/tuya/TuyaOpen-JieLi", config)
         self.assertIn("branch: master", config)
 
-    def test_board_catalog_contains_ac7916a(self):
+    def test_board_catalog_points_at_current_ac79_devkit_profile(self):
         board_kconfig = (ROOT / "boards" / "Kconfig").read_text()
         self.assertIn("BOARD_ENABLE_JIELI", board_kconfig)
         self.assertIn('rsource "./JIELI/Kconfig"', board_kconfig)
@@ -30,12 +31,9 @@ class JieliConfigTest(unittest.TestCase):
 
         platform_config = ROOT / "platform" / "JIELI" / "platform_config.cmake"
         self.assertNotIn("JIELI_MINIMAL_HELLO", platform_kconfig_text)
-        self.assertNotIn("PLATFORM_SKIP_DEFAULT_COMPONENTS ON", platform_config.read_text())
+        self.assertIn('set(PLATFORM_NEED_LIBS "")', platform_config.read_text())
 
-        root_cmake = ROOT / "CMakeLists.txt"
-        self.assertIn("PLATFORM_SKIP_DEFAULT_COMPONENTS", root_cmake.read_text())
-
-        board_config = ROOT / "boards" / "JIELI" / "AC7916A" / "Kconfig"
+        board_config = ROOT / "boards" / "JIELI" / "AC79_DevKitBoard" / "Kconfig"
         self.assertTrue(board_config.is_file())
         self.assertIn("CHIP_WL82", board_config.read_text())
 
