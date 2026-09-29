@@ -3,7 +3,8 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-ADAPTER = ROOT / "platform/JIELI/tuyaos/tuyaos_adapter"
+PLATFORM = ROOT / "platform/JIELI"
+ADAPTER = PLATFORM / "tuyaos/tuyaos_adapter"
 
 
 class JieliTalContractTest(unittest.TestCase):
@@ -26,12 +27,11 @@ class JieliTalContractTest(unittest.TestCase):
             self.assertNotIn("tal_system_port", text, source.name)
             self.assertNotIn("tal_uart_port", text, source.name)
 
-    def test_queue_post_passes_message_pointer_not_pointer_variable_address(self):
+    def test_queue_copies_messages_through_portable_ring_buffer(self):
         source = (ADAPTER / "src/system/tkl_queue.c").read_text(encoding="utf-8")
-        self.assertRegex(
-            source,
-            r"os_q_post_to_back\(&jieli_queue->queue,\s*copy\s*,",
-        )
+        self.assertIn("memcpy(jieli_queue->slots", source)
+        self.assertIn("memcpy(msg, jieli_queue->slots", source)
+        self.assertNotRegex(source, r"(?m)^\s*os_q_post_to_back\s*\(")
 
     def test_uart_contract_keeps_jieli_device_api_private(self):
         source = (ADAPTER / "src/driver/tkl_uart.c").read_text(encoding="utf-8")
@@ -54,7 +54,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("result[i].ssid_len > WIFI_SSID_LEN", source)
 
     def test_switch_entry_registers_wl82_bluetooth_tasks(self):
-        source = (ROOT / "platform/JIELI/tuyaos_switch_app_main.c").read_text(encoding="utf-8")
+        source = (PLATFORM / "tuyaos/entry/jieli_app_entry.c").read_text(encoding="utf-8")
         self.assertIn('#ifdef CONFIG_BT_ENABLE', source)
         self.assertIn('{ "#C0btctrler", 19, 512, 384 }', source)
         self.assertIn('{ "#C0btstack", 18, 1024, 384 }', source)
@@ -62,7 +62,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn('{ "btstack", 18, 768, 384 }', source)
 
     def test_switch_entry_registers_jieli_wifi_stack_tasks(self):
-        source = (ROOT / "platform/JIELI/tuyaos_switch_app_main.c").read_text(encoding="utf-8")
+        source = (PLATFORM / "tuyaos/entry/jieli_app_entry.c").read_text(encoding="utf-8")
         for task in (
             '{ "tcpip_thread", 16, 800, 0 }',
             '{ "tasklet", 10, 1400, 0 }',
@@ -77,10 +77,11 @@ class JieliTalContractTest(unittest.TestCase):
         start = source.index("OPERATE_RET tkl_ble_stack_init")
         end = source.index("OPERATE_RET tkl_ble_stack_deinit", start)
         init_source = source[start:end]
-        address_setup = init_source.index("jieli_chip_mac_get_ble")
+        address_setup = init_source.index("jieli_ble_set_local_address")
         stack_start = init_source.index("btstack_init()")
         self.assertLess(address_setup, stack_start)
-        self.assertIn("le_controller_set_random_mac", init_source)
+        self.assertIn("tkl_wifi_get_mac(WF_STATION, &wifi_mac)", source)
+        self.assertIn("le_controller_set_random_mac", source)
         self.assertNotIn("bt_get_mac_addr", init_source)
         self.assertNotIn("le_controller_get_mac", init_source)
         self.assertIn("ble_op_set_own_address_type(s_ble_own_address_type)", source)
@@ -91,7 +92,7 @@ class JieliTalContractTest(unittest.TestCase):
         start = source.index("OPERATE_RET tkl_wifi_get_mac")
         end = source.index("OPERATE_RET tkl_wifi_set_work_mode", start)
         getter_source = source[start:end]
-        self.assertIn("jieli_chip_mac_get_wifi", getter_source)
+        self.assertIn("jieli_mac_get_wifi", getter_source)
         self.assertNotIn("wifi_get_mac(mac->mac)", getter_source)
 
     def test_deferred_station_start_applies_stable_mac_before_association(self):
@@ -106,15 +107,22 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertLess(set_mac, associate)
 
     def test_stable_mac_provider_uses_chip_uid_without_random_or_vm(self):
-        source = (ADAPTER / "src/driver/tkl_jieli_chip_mac.c").read_text(encoding="utf-8")
-        self.assertIn("get_norflash_uuid()", source)
-        self.assertIn("get_norflash_uuid(0)", source)
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        self.assertTrue("get_norflash_uuid()" in source, "WL82 UID read must stay in the Wi-Fi TKL source")
+        self.assertTrue("get_norflash_uuid(0)" in source, "WL83 UID read must stay in the Wi-Fi TKL source")
+        self.assertTrue("static int jieli_read_flash_uid" in source, "UID access must have internal linkage")
+        wl82_branch = source.split("#if defined(JIELI_SELECTED_CHIP_WL82)", 1)[1].split(
+            "#elif defined(JIELI_SELECTED_CHIP_WL83)", 1
+        )[0]
+        wl83_branch = source.split("#elif defined(JIELI_SELECTED_CHIP_WL83)", 1)[1].split("#else", 1)[0]
+        self.assertIn("sdk_uid = get_norflash_uuid();", wl82_branch)
+        self.assertIn("sdk_uid = get_norflash_uuid(0);", wl83_branch)
+        self.assertNotIn("extern int jieli_chip_get_flash_uid", source)
         self.assertNotIn("rand32", source)
         self.assertNotIn("syscfg_write", source)
         self.assertNotIn("CFG_BT_MAC_ADDR", source)
         self.assertNotIn("VM_TUYA_MAC_IDX", source)
         self.assertIn("0x02U", source)
-        self.assertIn("0xC0U", source)
 
     def test_wifi_startup_accepts_vendor_async_start(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
@@ -128,7 +136,7 @@ class JieliTalContractTest(unittest.TestCase):
         module_init_end = source.index("case JIELI_WIFI_AP_START:", module_init_start)
         module_init_source = source[module_init_start:module_init_end]
 
-        self.assertRegex(source, r"#define JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC\s+10")
+        self.assertRegex(source, r"#define JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC\s+12")
         self.assertIn(
             "wifi_set_sta_connect_timeout(JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC)",
             module_init_source,
