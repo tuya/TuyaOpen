@@ -284,7 +284,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
             }
         }
         PR_DEBUG("ble channel report");
-        ret = tuya_ble_dp_report(ble_dpin);
+        ret = tuya_ble_dp_report_async(ble_dpin);
         tal_free(ble_dpin);
         tal_free(dpvalid);
         tuya_iot_dp_sync_start(client, 5);
@@ -430,7 +430,7 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
         dpin.dp = dp;
         dpin.rept_type = T_RAW_REPT;
 
-        ret = tuya_ble_dp_report(&dpin);
+        ret = tuya_ble_dp_report_async(&dpin);
         return ret;
     }
 #endif

@@ -1039,6 +1039,7 @@ int tuya_ble_deinit(void)
         return OPRT_OK;
     }
     PR_NOTICE("ble deinit...");
+    tuya_ble_dp_report_async_release();
     if (ble->pair_timer) {
         tal_sw_timer_delete(ble->pair_timer);
     }
@@ -1138,6 +1139,7 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
+    TUYA_CALL_ERR_GOTO(tuya_ble_dp_report_async_init(), __exit);
     PR_NOTICE("tuya ble init success finish");
 
     return OPRT_OK;
