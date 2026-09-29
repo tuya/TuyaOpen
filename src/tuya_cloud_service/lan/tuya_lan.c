@@ -27,6 +27,7 @@
 #include "tal_network.h"
 #include "mix_method.h"
 #include "lan_sock.h"
+#include "tuya_queue.h"
 #include "tuya_iot_dp.h"
 #include "crc32i.h"
 #include "cJSON.h"
@@ -41,6 +42,8 @@
 #define LAN_FRAME_MAX_LEN  (4 * 1024)
 #define HEART_BEAT_TIMEOUT 30
 #define ALLOW_NO_KEY_NUM   3
+
+#define LAN_DP_REPT_QUEUE_NUM 16
 
 #define HMAC_LEN       32
 #define RAND_LEN       16
@@ -105,6 +108,8 @@ static lan_cfg_t s_lan_cfg = {.client_num = CLIENT_LMT,
                               .bufsize = RECV_BUF_LMT,
                               .heart_timeout = HEART_BEAT_TIMEOUT,
                               .allow_no_session_key_num = ALLOW_NO_KEY_NUM};
+
+static TUYA_QUEUE_HANDLE s_lan_dp_rept_queue = NULL;
 
 static lan_mgr_t *lan_mgr_get(void)
 {
@@ -733,6 +738,50 @@ int tuya_lan_dp_report(char *dpstr)
     return OPRT_OK;
 }
 
+/**
+ * @brief Queue a DP report for asynchronous delivery on the LAN channel.
+ *
+ * @param dpstr The DP report string, same format as tuya_lan_dp_report.
+ * @return Returns 0 when the report is queued, a negative error code on error.
+ */
+int tuya_lan_dp_report_async(char *dpstr)
+{
+    if (NULL == dpstr || NULL == s_lan_dp_rept_queue) {
+        return OPRT_INVALID_PARM;
+    }
+
+    char *dpstr_copy = tal_malloc(strlen(dpstr) + 1);
+    if (NULL == dpstr_copy) {
+        return OPRT_MALLOC_FAILED;
+    }
+    memcpy(dpstr_copy, dpstr, strlen(dpstr) + 1);
+
+    int op_ret = tuya_queue_input(s_lan_dp_rept_queue, &dpstr_copy);
+    if (OPRT_OK != op_ret) {
+        tal_free(dpstr_copy);
+        PR_WARN("lan dp report queue full, dropped");
+    }
+
+    return op_ret;
+}
+
+/**
+ * @brief Drain the async DP report queue; called from the lan_sock_loop.
+ */
+void tuya_lan_dp_report_flush(void)
+{
+    char *dpstr = NULL;
+
+    if (NULL == s_lan_dp_rept_queue) {
+        return;
+    }
+
+    while (OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
+        tuya_lan_dp_report(dpstr);
+        tal_free(dpstr);
+    }
+}
+
 static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_frame_object_t *frame)
 {
     int op_ret = OPRT_OK;
@@ -1350,6 +1399,10 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     // INIT_LIST_HEAD(&s_lan_mgr->lan_ext_proto);
 
     int op_ret;
+    op_ret = tuya_queue_create(LAN_DP_REPT_QUEUE_NUM, sizeof(char *), &s_lan_dp_rept_queue);
+    if (OPRT_OK != op_ret) {
+        goto __exit;
+    }
     op_ret = tuya_sock_loop_init();
     if (OPRT_OK != op_ret) {
         goto __exit;
@@ -1402,6 +1455,14 @@ int tuya_lan_exit(void)
 {
     if (s_lan_mgr == NULL) {
         return OPRT_OK;
+    }
+    if (s_lan_dp_rept_queue) {
+        char *dpstr = NULL;
+        while (OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
+            tal_free(dpstr);
+        }
+        tuya_queue_release(s_lan_dp_rept_queue);
+        s_lan_dp_rept_queue = NULL;
     }
     lan_session_close_all();
     if (s_lan_mgr->session) {
