@@ -29,7 +29,7 @@ class JieliBuildTest(unittest.TestCase):
         )
         expected_board = pathlib.Path("/sdk") / "apps/demo/demo_hello/board/wl82"
         self.assertEqual(command[0:3], ["make", "-C", str(expected_board)])
-        self.assertIn(f"TOOL_DIR={pathlib.Path('/toolchain/bin')}", command)
+        self.assertIn(f"TOOL_DIR={pathlib.Path('/toolchain/bin').as_posix()}", command)
         self.assertIn("-j3", command)
         self.assertEqual(command[-2:], ["pre_build", "../../../../../cpu/wl82/tools/sdk.elf"])
 
