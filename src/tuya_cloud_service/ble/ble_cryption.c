@@ -16,6 +16,15 @@
 #define KEY_IN_BUFFER_LEN_MAX 64
 
 static uint8_t service_rand[16] = {0};
+static uint8_t key_out_key11[16] = {0};
+static bool key_out_key11_valid = false;
+
+void tuya_ble_crypto_reset(void)
+{
+    memset(service_rand, 0, sizeof(service_rand));
+    memset(key_out_key11, 0, sizeof(key_out_key11));
+    key_out_key11_valid = false;
+}
 
 static bool ble_key_generate(ble_crypto_param_t *p, uint8_t mode, uint8_t *key_out)
 {
@@ -23,8 +32,6 @@ static bool ble_key_generate(ble_crypto_param_t *p, uint8_t mode, uint8_t *key_o
     uint8_t uuid_key[16] = {0};
     uint8_t key_out_hex[16] = {0};
     uint8_t key_in_buffer[KEY_IN_BUFFER_LEN_MAX] = {0};
-    static uint8_t key_out_key11[16] = {0};
-
     if (mode >= ENCRYPTION_MODE_MAX) {
         return false;
     }
@@ -46,6 +53,7 @@ static bool ble_key_generate(ble_crypto_param_t *p, uint8_t mode, uint8_t *key_o
 
     switch (mode) {
     case ENCRYPTION_MODE_KEY_11:
+        key_out_key11_valid = false;
         memcpy(key_in_buffer + len, p->auth_key, AUTH_KEY_LEN);
         len += AUTH_KEY_LEN;
         memcpy(key_in_buffer + len, p->uuid, 16);
@@ -54,6 +62,10 @@ static bool ble_key_generate(ble_crypto_param_t *p, uint8_t mode, uint8_t *key_o
         len += 16;
         break;
     case ENCRYPTION_MODE_KEY_12:
+        if (!key_out_key11_valid) {
+            PR_ERR("ble_key_generate KEY_12 requested before KEY_11");
+            return false;
+        }
         memcpy(key_in_buffer, key_out_key11, 16);
         len += 16;
         memcpy(key_in_buffer + len, p->pair_rand, PAIR_RANDOM_LEN);
@@ -99,6 +111,7 @@ static bool ble_key_generate(ble_crypto_param_t *p, uint8_t mode, uint8_t *key_o
 
     if (ENCRYPTION_MODE_KEY_11 == mode) {
         memcpy(key_out_key11, key_out_hex, 16);
+        key_out_key11_valid = true;
     }
 
     return true;

@@ -38,6 +38,10 @@ config BOARD_ENABLE_L511G
     bool
     default y
 
+config BOARD_ENABLE_JIELI
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -121,6 +125,14 @@ if (BOARD_ENABLE_L511G)
         bool "L511G"
     if (BOARD_CHOICE_L511G)
     rsource "./L511G/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_JIELI)
+    config BOARD_CHOICE_JIELI
+        bool "JIELI"
+    if (BOARD_CHOICE_JIELI)
+    rsource "./JIELI/Kconfig"
     endif
 endif
 

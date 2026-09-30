@@ -188,13 +188,19 @@ OPERATE_RET tuya_authorize_write_with_storage(tuya_iot_license_t *license, char 
 OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license)
 {
     OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET uuid_rt;
+    OPERATE_RET authkey_rt;
 
     char *uuid = NULL;
     char *authkey = NULL;
-    size_t readlen = 0;
+    size_t uuid_readlen = 0;
+    size_t authkey_readlen = 0;
 
-    if ((OPRT_OK == tal_kv_get(KVKEY_TYOPEN_UUID, (uint8_t **)&uuid, &readlen)) &&
-        (OPRT_OK == tal_kv_get(KVKEY_TYOPEN_AUTHKEY, (uint8_t **)&authkey, &readlen))) {
+    uuid_rt = tal_kv_get(KVKEY_TYOPEN_UUID, (uint8_t **)&uuid, &uuid_readlen);
+    authkey_rt = tal_kv_get(KVKEY_TYOPEN_AUTHKEY, (uint8_t **)&authkey, &authkey_readlen);
+    PR_NOTICE("[AUTH] KV read uuid_rt:%d authkey_rt:%d", uuid_rt, authkey_rt);
+    if ((OPRT_OK == uuid_rt) && (OPRT_OK == authkey_rt) && (uuid_readlen >= UUID_LENGTH) &&
+        (authkey_readlen >= AUTHKEY_LENGTH)) {
         // KV read
         memcpy(UUID_BUF, uuid, UUID_LENGTH);
         UUID_BUF[UUID_LENGTH] = '\0';
@@ -206,60 +212,71 @@ OPERATE_RET tuya_authorize_read(tuya_iot_license_t *license)
         tal_kv_free((uint8_t *)authkey);
         PR_INFO("Authorization read succeeds.");
         return OPRT_OK;
-    } else {
-        // KV read failed, try other read
-        char *data = NULL;
-        uint32_t data_len = 0;
-        rt = tuyaopen_license_read(&data, &data_len);
-        if (OPRT_OK != rt) {
-            PR_ERR("tuyaopen_license_read read failure.");
-            return OPRT_COM_ERROR;
-        }
+    }
 
-        // Parse license JSON, e.g.
-        // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx",
-        //  "prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
-        cJSON *root = cJSON_ParseWithLength((const char *)data, data_len);
-        if (root == NULL) {
-            PR_ERR("Authorization license JSON parse failure.");
-            tal_free(data);
-            return OPRT_COM_ERROR;
-        }
+    if (uuid != NULL) {
+        tal_kv_free((uint8_t *)uuid);
+    }
+    if (authkey != NULL) {
+        tal_kv_free((uint8_t *)authkey);
+    }
+    if ((OPRT_OK == uuid_rt) && (OPRT_OK == authkey_rt)) {
+        PR_ERR("[AUTH] KV credential length invalid uuid:%u authkey:%u",
+               (unsigned int)uuid_readlen, (unsigned int)authkey_readlen);
+    }
 
-        cJSON *j_uuid    = cJSON_GetObjectItemCaseSensitive(root, "uuid");
-        cJSON *j_authkey = cJSON_GetObjectItemCaseSensitive(root, "auzkey");
-        if (!cJSON_IsString(j_uuid) || !cJSON_IsString(j_authkey)) {
-            PR_ERR("Authorization license JSON missing uuid/auzkey.");
-            cJSON_Delete(root);
-            tal_free(data);
-            return OPRT_COM_ERROR;
-        }
+    // KV read failed, try other read
+    char *data = NULL;
+    uint32_t data_len = 0;
+    rt = tuyaopen_license_read(&data, &data_len);
+    if (OPRT_OK != rt) {
+        PR_ERR("tuyaopen_license_read read failure.");
+        return OPRT_COM_ERROR;
+    }
 
-        char *uuid_str    = j_uuid->valuestring;
-        char *authkey_str = j_authkey->valuestring;
-        size_t uuid_len    = strlen(uuid_str);
-        size_t authkey_len = strlen(authkey_str);
+    // Parse license JSON, e.g.
+    // {"auzkey":"keyxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","uuid":"uuidxxxxxxxxxxxxxxxx",
+    //  "prod_test":false,"ap_ssid":"SmartLife","mac":"001122334455"}
+    cJSON *root = cJSON_ParseWithLength((const char *)data, data_len);
+    if (root == NULL) {
+        PR_ERR("Authorization license JSON parse failure.");
+        tal_free(data);
+        return OPRT_COM_ERROR;
+    }
 
-        memset(UUID_BUF, 0, sizeof(UUID_BUF));
-        memcpy(UUID_BUF, uuid_str, (uuid_len < UUID_LENGTH) ? uuid_len : UUID_LENGTH);
-        memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
-        memcpy(AUTHKEY_BUF, authkey_str, (authkey_len < AUTHKEY_LENGTH) ? authkey_len : AUTHKEY_LENGTH);
-
+    cJSON *j_uuid    = cJSON_GetObjectItemCaseSensitive(root, "uuid");
+    cJSON *j_authkey = cJSON_GetObjectItemCaseSensitive(root, "auzkey");
+    if (!cJSON_IsString(j_uuid) || !cJSON_IsString(j_authkey)) {
+        PR_ERR("Authorization license JSON missing uuid/auzkey.");
         cJSON_Delete(root);
         tal_free(data);
-
-        // Write back to KV so subsequent reads can be served from KV directly.
-        // Failure here does not invalidate the license read result.
-        if (OPRT_OK != tuya_authorize_write(UUID_BUF, AUTHKEY_BUF)) {
-            PR_WARN("Authorization license->KV writeback failed, will retry on next read.");
-        }
-
-        license->uuid    = UUID_BUF;
-        license->authkey = AUTHKEY_BUF;
-
-        PR_INFO("Authorization license read succeeds.");
-        return OPRT_OK;
+        return OPRT_COM_ERROR;
     }
+
+    char *uuid_str    = j_uuid->valuestring;
+    char *authkey_str = j_authkey->valuestring;
+    size_t uuid_len    = strlen(uuid_str);
+    size_t authkey_len = strlen(authkey_str);
+
+    memset(UUID_BUF, 0, sizeof(UUID_BUF));
+    memcpy(UUID_BUF, uuid_str, (uuid_len < UUID_LENGTH) ? uuid_len : UUID_LENGTH);
+    memset(AUTHKEY_BUF, 0, sizeof(AUTHKEY_BUF));
+    memcpy(AUTHKEY_BUF, authkey_str, (authkey_len < AUTHKEY_LENGTH) ? authkey_len : AUTHKEY_LENGTH);
+
+    cJSON_Delete(root);
+    tal_free(data);
+
+    // Write back to KV so subsequent reads can be served from KV directly.
+    // Failure here does not invalidate the license read result.
+    if (OPRT_OK != tuya_authorize_write(UUID_BUF, AUTHKEY_BUF)) {
+        PR_WARN("Authorization license->KV writeback failed, will retry on next read.");
+    }
+
+    license->uuid    = UUID_BUF;
+    license->authkey = AUTHKEY_BUF;
+
+    PR_INFO("Authorization license read succeeds.");
+    return OPRT_OK;
 }
 
 /**

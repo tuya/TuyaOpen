@@ -57,6 +57,9 @@ typedef struct {
     uint8_t *pair_rand;
 } ble_crypto_param_t;
 
+/** Clear cached BLE session material between connections. */
+void tuya_ble_crypto_reset(void);
+
 uint8_t tuya_ble_encryption(ble_crypto_param_t *p, uint8_t encryption_mode, uint8_t *iv, uint8_t *in_buf,
                             uint32_t in_len, uint32_t *out_len, uint8_t *out_buf);
 

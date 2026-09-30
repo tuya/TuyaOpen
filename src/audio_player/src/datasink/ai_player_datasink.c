@@ -75,7 +75,9 @@ OPERATE_RET ai_player_datasink_start(PLAYER_DATASINK handle, AI_PLAYER_SRC_E src
     DATASINK_T *datasink = NULL;
     DATASINK_CTX_T *ctx = (DATASINK_CTX_T *)handle;
 
+    PR_DEBUG("datasink start: handle=%p src=%d value=%p", handle, src, (void *)value);
     if (ctx == NULL) {
+        PR_ERR("datasink start rejected: context is NULL (src=%d)", src);
         return OPRT_INVALID_PARM;
     }
 
@@ -96,10 +98,13 @@ OPERATE_RET ai_player_datasink_start(PLAYER_DATASINK handle, AI_PLAYER_SRC_E src
             break;
 #endif
         default:
+            PR_ERR("datasink start rejected: unsupported source=%d mask=0x%x",
+                   src, (unsigned int)AI_PLAYER_DATASINK);
             return OPRT_INVALID_PARM;
     }
 
     if (datasink == NULL || datasink->start == NULL) {
+        PR_ERR("datasink start rejected: no implementation for source=%d sink=%p", src, datasink);
         return OPRT_INVALID_PARM;
     }
 
@@ -118,6 +123,13 @@ OPERATE_RET ai_player_datasink_start(PLAYER_DATASINK handle, AI_PLAYER_SRC_E src
 
     ctx->sink = datasink;
     rt = datasink->start(value, &ctx->priv);
+    if (rt != OPRT_OK) {
+        PR_ERR("datasink start failed: source=%d sink=%p private=%p ret=%d",
+               src, datasink, ctx->priv, rt);
+    } else {
+        PR_DEBUG("datasink start ready: source=%d sink=%p private=%p",
+                 src, datasink, ctx->priv);
+    }
     return rt;
 }
 
