@@ -945,7 +945,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             p += strlen("a=msid-semantic:");
             char wms_name[65] = {0};
             char wms_id[65] = {0};
-            int cnt = sscanf(p, "%s %s", wms_name, wms_id);
+            int cnt = sscanf(p, "%64s %64s", wms_name, wms_id);
             if (cnt != 2 || strcmp(wms_name, "WMS") != 0) {
                 continue;
             }
@@ -956,7 +956,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             p += strlen("a=msid:");
             char msid[65] = {0};
             char track_id[65] = {0};
-            int cnt = sscanf(p, "%s %s", msid, track_id);
+            int cnt = sscanf(p, "%64s %64s", msid, track_id);
             if (cnt != 2 || strcmp(msid, sdp->wms_id) != 0) {
                 continue;
             }
@@ -972,7 +972,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             char m1[65] = {0};
             char m2[65] = {0};
             char m3[65] = {0};
-            int cnt = sscanf(p, "%s %s %s", m1, m2, m3);
+            int cnt = sscanf(p, "%64s %64s %64s", m1, m2, m3);
             if (cnt >= 1) {
                 tuya_p2p_rtc_sdp_add_media(sdp, m1, "");
             }
@@ -1067,7 +1067,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             p += strlen("a=fmtp:");
             char str_pt[32] = {0};
             char str_attr[256] = {0};
-            int cnt = sscanf(p, "%s %s", str_pt, str_attr);
+            int cnt = sscanf(p, "%31s %255s", str_pt, str_attr);
             if (cnt == 2) {
                 if (strncmp(str_attr, "apt=", strlen("apt=")) == 0) {
                     int pt = atoi(str_pt);
@@ -1081,7 +1081,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             char *p1 = p + strlen("a=ssrc-group:FID");
             char ssrc[65] = {0};
             char ssrc_rtx[65] = {0};
-            int cnt = sscanf(p1, "%s %s", ssrc, ssrc_rtx);
+            int cnt = sscanf(p1, "%64s %64s", ssrc, ssrc_rtx);
             if (cnt == 2) {
                 if (m == 'a') {
                     sdp->audio.negotiated_codec.ssrc = strtoul(ssrc, NULL, 10);
