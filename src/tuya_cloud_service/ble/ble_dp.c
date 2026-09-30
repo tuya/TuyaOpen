@@ -19,6 +19,8 @@
 #include "tuya_protocol.h"
 #include "tuya_iot_dp.h"
 #include "mix_method.h"
+#include "tuya_queue.h"
+#include "tal_workq_service.h"
 
 // dp type describe
 typedef uint8_t dp_type;
@@ -723,6 +725,160 @@ static int ble_dp_query(ble_packet_t *req, void *priv_data)
 int tuya_ble_dp_report(dp_rept_in_t *dpin)
 {
     return ble_dp_report(dpin);
+}
+
+#define BLE_DP_REPT_QUEUE_NUM 16
+
+static TUYA_QUEUE_HANDLE s_ble_dp_rept_queue = NULL;
+
+static char *__ble_dp_str_dup(const char *str)
+{
+    uint32_t len = strlen(str) + 1;
+
+    char *copy = tal_malloc(len);
+    if (NULL == copy) {
+        return NULL;
+    }
+    memcpy(copy, str, len);
+
+    return copy;
+}
+
+static dp_rept_in_t *__ble_dp_rept_copy(const dp_rept_in_t *dpin)
+{
+    dp_rept_in_t *copy = tal_malloc(sizeof(dp_rept_in_t));
+    if (NULL == copy) {
+        return NULL;
+    }
+    *copy = *dpin;
+
+    if ((T_OBJ_REPT == dpin->rept_type) && (NULL != dpin->dps) && (0 != dpin->dpscnt)) {
+        copy->dps = tal_malloc(sizeof(dp_obj_t) * dpin->dpscnt);
+        if (NULL == copy->dps) {
+            tal_free(copy);
+            return NULL;
+        }
+        memcpy(copy->dps, dpin->dps, sizeof(dp_obj_t) * dpin->dpscnt);
+
+        uint8_t idx;
+        for (idx = 0; idx < dpin->dpscnt; idx++) {
+            if ((PROP_STR == dpin->dps[idx].type) && (NULL != dpin->dps[idx].value.dp_str)) {
+                copy->dps[idx].value.dp_str = __ble_dp_str_dup(dpin->dps[idx].value.dp_str);
+                if (NULL == copy->dps[idx].value.dp_str) {
+                    while (idx-- > 0) {
+                        if ((PROP_STR == copy->dps[idx].type) && (NULL != copy->dps[idx].value.dp_str)) {
+                            tal_free(copy->dps[idx].value.dp_str);
+                        }
+                    }
+                    tal_free(copy->dps);
+                    tal_free(copy);
+                    return NULL;
+                }
+            }
+        }
+    } else if ((T_RAW_REPT == dpin->rept_type) && (NULL != dpin->dp)) {
+        copy->dp = tal_malloc(sizeof(dp_raw_t) + dpin->dp->len);
+        if (NULL == copy->dp) {
+            tal_free(copy);
+            return NULL;
+        }
+        copy->dp->id = dpin->dp->id;
+        copy->dp->len = dpin->dp->len;
+        memcpy(copy->dp->data, dpin->dp->data, dpin->dp->len);
+    }
+
+    return copy;
+}
+
+static void __ble_dp_rept_free(dp_rept_in_t *dpin)
+{
+    if ((T_OBJ_REPT == dpin->rept_type) && (NULL != dpin->dps)) {
+        uint8_t idx;
+        for (idx = 0; idx < dpin->dpscnt; idx++) {
+            if ((PROP_STR == dpin->dps[idx].type) && (NULL != dpin->dps[idx].value.dp_str)) {
+                tal_free(dpin->dps[idx].value.dp_str);
+            }
+        }
+        tal_free(dpin->dps);
+    } else if ((T_RAW_REPT == dpin->rept_type) && (NULL != dpin->dp)) {
+        tal_free(dpin->dp);
+    }
+
+    tal_free(dpin);
+}
+
+/**
+ * @brief Drain the async DP report queue; runs on WORKQ_SYSTEM.
+ */
+static void tuya_ble_dp_report_flush(void *data)
+{
+    dp_rept_in_t *dpin = NULL;
+
+    if (NULL == s_ble_dp_rept_queue) {
+        return;
+    }
+
+    while (OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
+        tuya_ble_dp_report(dpin);
+        __ble_dp_rept_free(dpin);
+    }
+}
+
+/**
+ * @brief Queue a DP report for asynchronous delivery on the BLE channel.
+ *
+ * @param dpin The DP report, same layout as tuya_ble_dp_report.
+ * @return Returns 0 when the report is queued, a negative error code on error.
+ */
+int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
+{
+    if (NULL == dpin || NULL == s_ble_dp_rept_queue) {
+        return OPRT_INVALID_PARM;
+    }
+
+    dp_rept_in_t *copy = __ble_dp_rept_copy(dpin);
+    if (NULL == copy) {
+        return OPRT_MALLOC_FAILED;
+    }
+
+    int op_ret = tuya_queue_input(s_ble_dp_rept_queue, &copy);
+    if (OPRT_OK != op_ret) {
+        __ble_dp_rept_free(copy);
+        PR_WARN("ble dp report queue full, dropped");
+        return op_ret;
+    }
+
+    return tal_workq_schedule(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+}
+
+/**
+ * @brief Create the async DP report queue; called from tuya_ble_init.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_ble_dp_report_async_init(void)
+{
+    return tuya_queue_create(BLE_DP_REPT_QUEUE_NUM, sizeof(dp_rept_in_t *), &s_ble_dp_rept_queue);
+}
+
+/**
+ * @brief Drain and release the async DP report queue; called from
+ * tuya_ble_deinit.
+ */
+void tuya_ble_dp_report_async_release(void)
+{
+    dp_rept_in_t *dpin = NULL;
+
+    if (NULL == s_ble_dp_rept_queue) {
+        return;
+    }
+
+    while (OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
+        __ble_dp_rept_free(dpin);
+    }
+    tuya_queue_release(s_ble_dp_rept_queue);
+    s_ble_dp_rept_queue = NULL;
 }
 
 /**
