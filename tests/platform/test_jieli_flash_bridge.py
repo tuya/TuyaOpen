@@ -49,7 +49,9 @@ class JieliFlashBridgeTest(unittest.TestCase):
 
     def test_default_windows_downloader_is_constructed(self):
         with patch.object(platform_flash_bridge.os, "name", "nt"):
-            command = platform_flash_bridge._default_flash_command(pathlib.Path("D:/build/app.bin"))
+            command = platform_flash_bridge._default_flash_command(
+                pathlib.Path("D:/build/app.bin"), "wl82"
+            )
         self.assertIsNotNone(command)
         args, tools_dir = command
         self.assertEqual(args[0], str(tools_dir / "isd_download.exe"))

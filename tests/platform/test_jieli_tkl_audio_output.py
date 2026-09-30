@@ -5,8 +5,27 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TKL_AUDIO = ROOT / "platform/JIELI/tuyaos/tuyaos_adapter/src/driver/tkl_audio.c"
-NATIVE_AUDIO = ROOT / "platform/JIELI/tuyaos/tuyaos_adapter/src/driver/tkl_audio_jieli_wl83_native.c"
 PLAYER_HEADER = ROOT / "src/audio_player/include/svc_ai_player.h"
+
+
+def _tkl_source():
+    return TKL_AUDIO.read_text(encoding="utf-8")
+
+
+def _wl83_native_source():
+    """The WL83 (AC792) SoC provider region of tkl_audio.c.
+
+    The refactor folded the former tkl_audio_jieli_wl83_native.c provider into
+    tkl_audio.c behind #if defined(JIELI_SELECTED_CHIP_WL83). Scoping to that
+    region keeps the shared forward declarations (which precede it) out of the
+    function-anchor search.
+    """
+    source = _tkl_source()
+    end = source.index("#elif defined(JIELI_SELECTED_CHIP_WL82)")
+    # The chip guard appears twice: once around the shared includes at the top
+    # of the file and once around the provider itself. Take the last one.
+    start = source.rindex("#if defined(JIELI_SELECTED_CHIP_WL83)", 0, end)
+    return source[start:end]
 
 
 def _byte_capacity(source, macro):
@@ -27,7 +46,7 @@ def _without_comments(source):
 
 class JieliTklAudioOutputContractTest(unittest.TestCase):
     def test_tkl_accepts_a_full_ai_player_decode_chunk(self):
-        tkl_source = TKL_AUDIO.read_text(encoding="utf-8")
+        tkl_source = _tkl_source()
         player_source = PLAYER_HEADER.read_text(encoding="utf-8")
 
         tkl_capacity = _byte_capacity(tkl_source, "JIELI_AUDIO_MAX_PLAY_BYTES")
@@ -36,21 +55,23 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         self.assertGreaterEqual(tkl_capacity, player_capacity)
 
     def test_tkl_frame_limit_fits_in_wl83_playback_queue(self):
-        tkl_source = TKL_AUDIO.read_text(encoding="utf-8")
-        native_source = NATIVE_AUDIO.read_text(encoding="utf-8")
+        tkl_source = _tkl_source()
+        wl83_native_source = _wl83_native_source()
 
         tkl_capacity = _byte_capacity(tkl_source, "JIELI_AUDIO_MAX_PLAY_BYTES")
-        queue_capacity = _byte_capacity(native_source, "WL83_PLAY_QUEUE_SIZE")
+        queue_capacity = _byte_capacity(wl83_native_source, "WL83_PLAY_QUEUE_SIZE")
 
         self.assertLessEqual(tkl_capacity, queue_capacity)
 
     def test_playback_stop_drains_before_closing_the_output(self):
-        tkl_source = TKL_AUDIO.read_text(encoding="utf-8")
+        tkl_source = _tkl_source()
         stop_start = tkl_source.index("OPERATE_RET tkl_ao_stop(")
         stop_end = tkl_source.index("OPERATE_RET tkl_ao_uninit(", stop_start)
         stop_source = tkl_source[stop_start:stop_end]
-        self.assertLess(stop_source.index("s_backend.ops.ao_flush"),
-                        stop_source.index("s_backend.ops.ao_stop"))
+        self.assertLess(
+            stop_source.index("jieli_audio_native_ao_flush(s_ao.stream)"),
+            stop_source.index("jieli_audio_native_ao_stop(s_ao.stream)"),
+        )
 
     def test_native_playback_initializes_the_jieli_volume_state_machine(self):
         """audio_dac_set_volume() alone leaves the DAC at zero gain.
@@ -67,7 +88,7 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         adapter has to perform that state switch itself or the DAC plays
         silence no matter what volume is requested.
         """
-        native_source = _without_comments(NATIVE_AUDIO.read_text(encoding="utf-8"))
+        native_source = _without_comments(_wl83_native_source())
         start = native_source.index("int jieli_audio_native_ao_init(")
         end = native_source.index("\n}", start) + 2
         init_source = native_source[start:end]
@@ -96,7 +117,7 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         anything written before it, so the gain is applied after
         audio_dac_channel_start().
         """
-        native_source = _without_comments(NATIVE_AUDIO.read_text(encoding="utf-8"))
+        native_source = _without_comments(_wl83_native_source())
 
         helper_start = native_source.index("static void __play_apply_digital_volume(")
         helper_end = native_source.index("\n}", helper_start) + 2
@@ -131,7 +152,7 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         turned the 80% default into a gain of 12, which is inaudible on the
         dev board's amplifier.
         """
-        native_source = _without_comments(NATIVE_AUDIO.read_text(encoding="utf-8"))
+        native_source = _without_comments(_wl83_native_source())
         start = native_source.index("int jieli_audio_native_ao_set_volume(")
         end = native_source.index("\n}", start) + 2
         set_volume_source = native_source[start:end]
@@ -156,7 +177,7 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         match the playback path. Both capture entry points must feed the ADC a
         rescaled gain rather than the raw 0-100 level.
         """
-        native_source = _without_comments(NATIVE_AUDIO.read_text(encoding="utf-8"))
+        native_source = _without_comments(_wl83_native_source())
         self.assertIn("(volume * 19 + 50) / 100", native_source)
 
         for call in re.findall(r"audio_adc_mic_set_gain\([^;]+\);", native_source):
@@ -167,7 +188,7 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
             )
 
     def test_native_flush_waits_for_software_queue_and_dac_completion(self):
-        native_source = NATIVE_AUDIO.read_text(encoding="utf-8")
+        native_source = _wl83_native_source()
         flush_start = native_source.index("int jieli_audio_native_ao_flush(")
         flush_end = native_source.index("\n}", flush_start) + 2
         flush_source = native_source[flush_start:flush_end]
