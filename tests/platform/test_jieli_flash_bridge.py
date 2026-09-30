@@ -1,7 +1,9 @@
+import os
 import pathlib
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -80,8 +82,8 @@ class JieliFlashBridgeTest(unittest.TestCase):
             for filename in ("isd_download.exe", "isd_config.ini", "uboot.boot", "cfg_tool.bin"):
                 (tools_dir / filename).touch()
             completed = type("Completed", (), {"returncode": 0})()
-            with patch.object(platform_flash_bridge.os, "name", "nt"), \
-                    patch.dict(platform_flash_bridge.os.environ, {"JIELI_FLASH_CMD": ""}), \
+            with patch.object(platform_flash_bridge, "os", SimpleNamespace(name="nt", environ=os.environ)), \
+                    patch.dict(os.environ, {"JIELI_FLASH_CMD": ""}), \
                     patch.object(
                         platform_flash_bridge, "_resolve_flash_chip",
                         return_value=("wl82", tools_dir, "wl82", "0x1c02000", "500"),
@@ -96,7 +98,7 @@ class JieliFlashBridgeTest(unittest.TestCase):
                     logger=logger,
                 )
 
-        self.assertTrue(result["success"])
+        self.assertTrue(result["success"], result)
         command = run.call_args.args[0]
         self.assertTrue(command[0].endswith("isd_download.exe"))
         self.assertIn("-app", command)
