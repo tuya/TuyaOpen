@@ -5,6 +5,7 @@ on:
     branches:
       - master  # 当分支有提交时执行此工作流
       - dev
+      - xb/tuyaopen-jl
 jobs:
   Check-Build-Apps:
     runs-on: self-hosted
@@ -40,6 +41,34 @@ jobs:
             echo "Cache copy script not found, skip: $SCRIPT_PATH"
           fi
           echo "::endgroup::"
+      - name: Prepare JieLi platform for tests
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          mkdir -p .cache
+          touch .cache/.dont_prompt_update_platform
+          "$OPEN_SDK_PYTHON" - <<'PY'
+          import logging
+          import os
+
+          from tools.cli_command.cli_build import download_platform, get_platform_info
+          from tools.cli_command.util import get_global_params, set_global_params, set_logger
+          from tools.cli_command.util_git import git_checkout
+
+          set_logger(logging.INFO)
+          set_global_params()
+          info = get_platform_info("JIELI")
+          if not info or not download_platform("JIELI"):
+              raise SystemExit("Could not prepare the JieLi platform checkout")
+          platform_root = os.path.join(get_global_params()["platforms_root"], "JIELI")
+          if not git_checkout(platform_root, info["commit"]):
+              raise SystemExit("Could not check out the pinned JieLi platform commit")
+          PY
+      - name: Run JieLi platform tests
+        run: |
+          cd ${{ github.workspace }}
+          . ./export.sh
+          "$OPEN_SDK_PYTHON" -m unittest discover -s tests/platform -t . -p 'test_jieli_*.py'
       - name: Check [switch_demo] Build
         env:
           BUILD_LOG_DIR: ${{ env.BUILD_LOG_BASE }}/switch_demo

@@ -63,28 +63,63 @@ class JieliBuildTest(unittest.TestCase):
                 "INCLUDES := -I../../../../../include_lib\n"
                 "c_OBJS    := $(c_SRC_FILES:%.c=%.c.o)\n"
             )
-            (demo.parent / "app_main.c").write_text("void app_main(void) {}")
+            demo_root = demo.parents[1]
+            (demo_root / "app_main.c").write_text("void app_main(void) {}")
+            app_include = demo_root / "include"
+            app_include.mkdir()
+            (app_include / "app_config.h").write_text(
+                "#define __FLASH_SIZE__ 0\n#define __SDRAM_SIZE__ 0\n#endif\n"
+            )
+            (demo / "board.c").write_text(
+                "UART2_PLATFORM_DATA_BEGIN(uart2_data)\n"
+                "    .baudrate = 1000000,\n"
+                "    .port = PORT_REMAP,\n"
+                "    .tx_pin = IO_PORTB_03,\n"
+                "UART2_PLATFORM_DATA_END();\n"
+                "void debug_uart_init() { uart_init(&uart2_data); }\n"
+                "REGISTER_DEVICES(device_table) = {\n};\n"
+                "void board_init(void)\n{\n}\n"
+            )
             (sdk / "apps/common").mkdir(parents=True)
-            (sdk / "cpu").mkdir()
+            (sdk / "cpu/wl82").mkdir(parents=True)
             (sdk / "include_lib").mkdir()
             (sdk / "lib").mkdir()
+            (sdk / "tools").mkdir()
             tuyaopen = root / "tuyaopen"
             jieli_platform = tuyaopen / "platform/JIELI"
             jieli_platform.mkdir(parents=True)
-            (jieli_platform / "tuyaos_app_main.c").write_text("void app_main(void) {}")
+            entry = jieli_platform / "tuyaos/entry"
+            entry.mkdir(parents=True)
+            (entry / "jieli_app_entry.c").write_text("void app_main(void) {}")
             adapter = tuyaopen / "platform/JIELI/tuyaos/tuyaos_adapter/src"
-            adapter.mkdir(parents=True)
-            (adapter / "tkl_output.c").write_text("void output(void) {}")
+            (adapter / "system").mkdir(parents=True)
+            (adapter / "driver").mkdir(parents=True)
+            (adapter / "system/tkl_output.c").write_text("void output(void) {}")
+            (adapter / "driver/tkl_wifi.c").write_text("void wifi(void) {}")
+            adapter_root = adapter.parent
+            (adapter_root / "include/system").mkdir(parents=True)
+            (adapter_root / "adapter_sources.txt").write_text(
+                "src/system/tkl_output.c\nsrc/driver/tkl_wifi.c\n"
+            )
             staging = root / "staging"
 
-            jieli_build.create_staging_tree(sdk, staging, tuyaopen, uart_log_port=1)
+            jieli_build.create_staging_tree(
+                sdk,
+                staging,
+                tuyaopen,
+                tuya_lib_dir=root / "tuya_lib",
+                uart_log_port=1,
+                platform_root=jieli_platform,
+            )
 
             staged_makefile = staging / "build/apps/demo/demo_hello/board/wl82/Makefile"
             content = staged_makefile.read_text()
-            self.assertIn("../../../../../tuyaos_app_main.c", content)
+            self.assertIn("../../../../../tuyaos/entry/jieli_app_entry.c", content)
             self.assertIn("../../../../../tuyaos_adapter/src/system/tkl_output.c", content)
             self.assertIn("../../../../../tuyaos_adapter/src/driver/tkl_wifi.c", content)
             self.assertIn("-I../../../../../tuyaos_adapter/include/system", content)
+            self.assertIn("--start-group", content)
+            self.assertIn((root / "tuya_lib" / "libtuyaapp.a").as_posix(), content)
 
     def test_ac79_official_pb3_log_uart_is_applied_to_staging(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -124,9 +159,10 @@ class JieliBuildTest(unittest.TestCase):
             content = board.read_text()
 
         self.assertIn(".baudrate = 115200", content)
-        self.assertIn(".port = PORTB_6_7", content)
-        self.assertIn(".tx_pin = IO_PORTB_06", content)
-        self.assertIn(".rx_pin = IO_PORTB_07", content)
+        self.assertIn("UART0_PLATFORM_DATA_BEGIN(uart0_data)", content)
+        self.assertIn(".port = PORTA_5_6", content)
+        self.assertIn(".tx_pin = IO_PORTA_05", content)
+        self.assertIn(".rx_pin = IO_PORTA_06", content)
         self.assertIn('{"uart2", &uart_dev_ops, (void *)&uart2_data }', content)
 
 if __name__ == "__main__":

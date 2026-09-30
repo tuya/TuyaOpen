@@ -10,8 +10,8 @@
 
 | 内容 | 仓库 / 分支 | 说明 |
 | --- | --- | --- |
-| TuyaOpen 主工程 | [tuya/TuyaOpen](https://github.com/tuya/TuyaOpen) | 当前本地工作分支为 `xb/TuyaOpen-jl`；分支链接未作为公开远程 ref 验证 |
-| JieLi 平台适配 | [tuya/TuyaOpen-JieLi `master`](https://github.com/tuya/TuyaOpen-JieLi/tree/master) | 平台 PR 目标分支；当前本地工作分支为 `codex/ac792-switch-demo-work` |
+| TuyaOpen 主工程 | [tuya/TuyaOpen](https://github.com/tuya/TuyaOpen) | 当前主仓分支为 `xb/tuyaopen-jl`；2026-09-29 已通过 `git ls-remote origin refs/heads/xb/tuyaopen-jl` 核对远端 ref，提交为 `c05e4d142ac9007fac76037e31c9cf53f7743449` |
+| JieLi 平台适配 | [tuya/TuyaOpen-JieLi `master`](https://github.com/tuya/TuyaOpen-JieLi/tree/master) | `platform/JIELI/` 是主仓中的嵌套 Git 工作树（非 submodule）；本地分支 `pr7-for-test` 跟踪 `origin/codex/jieli-adapter-architecture-refactor`。平台上游仓库及目标分支见平台仓库记录 |
 | AC791x 芯片 SDK | [fw-AC79_AIoT_SDK](https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK) | 本地源码标识 `release/AC79NN_SDK_V1.2.0` / `AC79NN_SDK_V1.2.13_2026-04-20`；SDK 的 `doc/` 中含硬件资料/原理图 |
 | AC792x 芯片 SDK | [fw-AC792_SDK](https://gitee.com/Jieli-Tech/fw-AC792_SDK) | 本地源码标识 `release/AC792N_SDK_V3` / `AC792N_SDK_BETA_V3.1.7_2026-08-25`；来源提交见 `platform/JIELI/chip/wl83/README.md`，SDK 的 `doc/` 中含硬件资料/原理图 |
 
@@ -27,9 +27,9 @@
 
 ### 当前工作区可见状态
 
-当前 TuyaOpen 工作区分支为 `xb/TuyaOpen-jl`；独立 JieLi 平台仓库位于 `platform/JIELI/`，本地分支为 `codex/ac792-switch-demo-work`。两个 SDK 都是平台仓库 `chip/` 下的普通受版本控制文件；平台仓库没有 `.gitmodules`，不是 submodule。上游 SDK 仓库、分支和本地版本见本表及 [JieLi 平台说明](../platform/JIELI/README_zh.md)。
+当前主仓工作区分支为 `xb/tuyaopen-jl`，已核对同名远端 ref；`platform/JIELI/` 是嵌套 Git 工作树，当前分支为 `pr7-for-test`，跟踪 `origin/codex/jieli-adapter-architecture-refactor`。该目录不是主仓 submodule。AC79/AC792 SDK 源码位于平台工作树的 `chip/` 下；上游 SDK 仓库、分支和版本见本表及 [JieLi 平台说明](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/README_zh.md)。
 
-截至 2026-09-24，Windows 下 AC792N_Develop_Board 的完整 `switch_demo` 已重新构建并通过 `tos.py flash` 经 USB 下载，下载器识别 Flash ID `5E4017`、容量 8 MiB，写入完成并触发重启。AC79_DevKitBoard 的历史烧录/日志记录见下方；AC79 原始日志文件当前不在工作区可定位路径中，因此本文只保留已核对的历史记录，不把缺失文件写成仓库内附件。
+截至 2026-09-24，Windows 下 AC792N_Develop_Board 的完整 `switch_demo` 已构建并通过 `tos.py flash` 经 USB 下载，下载器识别 Flash ID `5E4017`、容量 8 MiB，写入完成并触发重启。AC792 改为 UART0/115200 后的固件尚缺本次冷启动串口日志。AC79_DevKitBoard 的历史烧录/日志记录见下方；AC79 原始日志文件当前不在工作区可定位路径中。当前执行环境没有可用实板，也没有可用于 Tuya 激活的凭据，因此本指南列出的待验收项目均未在本轮执行。
 
 ## 4. 杰理官方文档可访问性检查
 
@@ -86,7 +86,7 @@ AC792 官方开发板概述以 AC7926A / AC792N 开发板为例，列出最高 3
 | 统一名称 | 芯片/旧名称 | 当前用途 | 配置状态 |
 | --- | --- | --- | --- |
 | `AC79_DevKitBoard` | AC791 / AC7916A / WL82 | 当前 AC791 主开发与调试板 | 现有 AC791 构建适配；沿用 `AC7916A` 的旧配置符号作为兼容别名 |
-| `AC792N_Develop_Board` | AC792N / WL83 | 当前 AC792 主开发目标 | 完整 `switch_demo` 已构建并 USB 烧录；此前日志记录有联网、激活和 DP 通信，UART 改为共用 UART0/115200 后的最新镜像已重烧，需补抓本次启动日志 |
+| `AC792N_Develop_Board` | AC792N / WL83 | 当前 AC792 主开发目标 | 完整 `switch_demo` 已构建并 USB 烧录；旧日志记录过联网、激活和 DP 通信。UART0/115200 最新镜像仍待补抓冷启动日志并重新验收 |
 
 AC792 完整 Tuya `switch_demo` 的软件构建命令（在示例目录执行）：
 
@@ -95,7 +95,7 @@ tos.py config set CONFIG_BOARD_CHOICE_AC792N_DEVELOP_BOARD=y CONFIG_JIELI_UART_L
 tos.py build
 ```
 
-2026-09-24 已确认该命令生成并链接 `switch_demo_QIO_1.0.0.bin`，并通过 `tos.py flash` USB 烧录成功。此前 `monitor.log` 曾记录 AC792 实板完成 Wi-Fi、Tuya 激活及 DP 收发；UART 改为共用 UART0/115200 后的最新固件已重烧，当前仍需重新抓取启动日志确认串口配置。示例中的 Tuya PID/授权信息来自本机被忽略的 secrets 头文件；该凭据文件不应提交。
+2026-09-24 已确认该命令生成并链接 `switch_demo_QIO_1.0.0.bin`，并通过 `tos.py flash` USB 烧录成功。旧 `monitor.log` 记录过 AC792 实板 Wi-Fi、Tuya 激活及 DP 收发；这些记录不能替代 UART0/115200 最新固件的冷启动日志和复测。示例中的 Tuya PID/授权信息来自本机被忽略的 secrets 头文件；该凭据文件不应提交。当前环境没有可用实板或激活凭据，以下待验收项尚未完成。
 
 `AC7916A` 是曾在 `D:\tuya_proj\jieli\ipc_ac7916a` 项目中使用的板卡/配置名，对应当前的 `AC79_DevKitBoard`。保留它用于历史索引和旧配置兼容；当前调试记录统一记为 `AC79_DevKitBoard`。不要把历史项目的 UART 配置套用到当前板卡。
 
@@ -105,13 +105,13 @@ tos.py build
 
 | 板卡 | 日志串口（官方资料/代码参考） | Flash | RAM / 外部内存 |
 | --- | --- | --- | --- |
-| `AC79_DevKitBoard` | 日志：硬件 UART1，TX=PB3、RX 未使用、115200 baud；TAL CLI：硬件 UART0，TX=PA5、RX=PA6、115200 baud。官方核心板 IO 表列出 PA5/PA6 与 PB3 引脚复用。旧 `ipc_ac7916a` 工程 UART2/PB6 配置仅作历史记录。 | **实板已确认**：Flash ID `5E4017`、8 MiB；2026-09-23 通过官方 SDK `isd_download.exe` USB 下载成功。官方核心板资料也标注 8 MiB Flash。 | 官方标准 JL_AC79_WIFI V1.0 核心板标注 8 MiB SDRAM。AC79 SDK 原始 `demo_hello/app_config.h` 为 `__FLASH_SIZE__=4 MiB`、`__SDRAM_SIZE__=2 MiB`；Tuya 构建现在只在 staging 副本中覆盖为 8 MiB / 8 MiB，不改 SDK 源文件。AC79 新固件的启动 `SDRAM_SIZE` 将反映此链接配置，不是硬件探测结果。实板 SDRAM 芯片完整丝印/全容量读写测试尚未记录。 |
-| `AC792N_Develop_Board` | TuyaOpen WL83 staging 使用 UART0 共用日志/CLI，TX=PD1、RX=PE11，115200 baud；上游 `board_demo.h` 默认 1 Mbps，构建脚本按 Kconfig 覆盖。 | **实板已确认**：Flash ID `5E4017`、容量 `8192K`（8 MiB），见 `apps/tuya_cloud/switch_demo/monitor.log`。 | 官方 AC792N 开发板资料说明封装支持 8/16 MiB DDR1。SDK 原始 `chip_cfg.h` 是 1 MiB Flash / 2 MiB SDRAM 默认值；平台构建脚本在 staging 副本中改为 8 MiB / 16 MiB，当前固件启动日志的 `DDR_SIZE=16777216` 与此一致，均为配置值、不是容量探测。实板 DDR 封装容量仍待芯片完整丝印或全容量测试确认。SDK 随附 AC7926A Datasheet V1.5 的片上 SRAM 标称与官网板卡概述不同，需依准确芯片料号确认。 |
+| `AC79_DevKitBoard` | 日志：硬件 UART1，TX=PB3，115200 baud；TAL CLI：硬件 UART0，TX=PA5、RX=PA6，115200 baud。官方核心板 IO 表列出 PA5/PA6 与 PB3 引脚复用。旧 `ipc_ac7916a` 工程 UART2/PB6 配置仅作历史记录。 | **历史实测**：Flash ID `5E4017`、8 MiB；2026-09-23 通过官方 SDK `isd_download.exe` USB 下载成功。官方核心板资料也标注 8 MiB Flash。 | 官方标准 JL_AC79_WIFI V1.0 核心板标注 8 MiB SDRAM。AC79 SDK 原始 `demo_hello/app_config.h` 为 `__FLASH_SIZE__=4 MiB`、`__SDRAM_SIZE__=2 MiB`；Tuya 构建在 staging 副本中覆盖为 8 MiB / 8 MiB，不改 SDK 源文件。启动 `SDRAM_SIZE` 是链接配置，不是硬件探测。实板 SDRAM 芯片完整丝印和全容量读写结果待验收。 |
+| `AC792N_Develop_Board` | TuyaOpen WL83 staging 使用 UART0 共用日志/CLI，TX=PD1、RX=PE11，115200 baud；上游 `board_demo.h` 默认 1 Mbps，构建按 Kconfig 覆盖。 | **历史实测**：Flash ID `5E4017`、容量 `8192K`（8 MiB），见 `apps/tuya_cloud/switch_demo/monitor.log`。 | 官方 AC792N 开发板资料说明封装支持 8/16 MiB DDR1。SDK 原始 `chip_cfg.h` 为 1 MiB Flash / 2 MiB SDRAM 默认值；staging 配置为 8 MiB Flash / 16 MiB DDR1。日志 `DDR_SIZE=16777216` 是配置值，不是容量探测。实板 DDR 封装容量与完整地址范围读写结果待验收。AC7926A Datasheet V1.5 与官网板卡概述对片上 SRAM 的规格表述不一致，须按实板完整芯片料号核定。 |
 
 容量依据与直达来源：
 
-- AC79：[官方功能框图](https://doc.zh-jieli.com/AC79/zh-cn/release_v1.2.0/board_description/function_diagram/index.html)说明 JL_AC79_WIFI V1.0 核心板为 8 MiB SDRAM + 8 MiB Flash；[SDRAM 配置说明](https://doc.zh-jieli.com/AC79/zh-cn/release_v1.2.0/module_example/system/sdram_cfg.html)明确要求按实际内存设置 `__SDRAM_SIZE__`，并举例说明物理 8 MiB、软件配置 2 MiB 时，访问超过 2 MiB 会异常。SDK 原始配置见[本地 app_config.h](../platform/JIELI/chip/wl82/AC79_AIoT_SDK/apps/demo/demo_hello/include/app_config.h)，AC79 staging 覆盖见[jieli_build.py](../platform/JIELI/jieli_build.py)。
-- AC792：[官方 AC792N 开发板概述](https://doc.zh-jieli.com/AC792/zh-cn/wifi_video_master/board_description/board_overview/index.html)说明封装支持 8/16 MiB DDR1；原始 SDK 配置见[chip_cfg.h](../platform/JIELI/chip/wl83/AC792_SDK/sdk/apps/demo/demo_hello/board/wl83/chip_cfg.h)，平台构建时的 staging 覆盖逻辑见[jieli_build.py](../platform/JIELI/jieli_build.py)。
+- AC79：[官方功能框图](https://doc.zh-jieli.com/AC79/zh-cn/release_v1.2.0/board_description/function_diagram/index.html)说明 JL_AC79_WIFI V1.0 核心板为 8 MiB SDRAM + 8 MiB Flash；[SDRAM 配置说明](https://doc.zh-jieli.com/AC79/zh-cn/release_v1.2.0/module_example/system/sdram_cfg.html)要求按实际内存设置 `__SDRAM_SIZE__`。SDK 原始配置见[本地 app_config.h](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/chip/wl82/AC79_AIoT_SDK/apps/demo/demo_hello/include/app_config.h)。`platform/JIELI/jieli_build.py` 是兼容 shim；板级内存配置与 staging 树实现位于 [`board_config.py`](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/tools/jieli_build/board_config.py) 和 [`sdk_overlay.py`](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/tools/jieli_build/sdk_overlay.py)。
+- AC792：[官方 AC792N 开发板概述](https://doc.zh-jieli.com/AC792/zh-cn/wifi_video_master/board_description/board_overview/index.html)说明封装支持 8/16 MiB DDR1；原始 SDK 配置见[chip_cfg.h](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/chip/wl83/AC792_SDK/sdk/apps/demo/demo_hello/board/wl83/chip_cfg.h)。`platform/JIELI/jieli_build.py` 是兼容 shim；staging 树实现位于 [`sdk_overlay.py`](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/tools/jieli_build/sdk_overlay.py)，板级内存覆写见 [`board_config.py`](https://github.com/tuya/TuyaOpen-JieLi/blob/d770248e2b2b63b3561bb7791f43d255858a8fb1/tools/jieli_build/board_config.py)。
 - Flash ID/容量是下载器或板上驱动的实测识别值；`SDRAM_SIZE`/`DDR_SIZE` 是固件链接配置值，两者不可混为一谈。
 
 #### 历史项目：`ipc_ac7916a`
@@ -124,11 +124,22 @@ tos.py build
 
 每次实板验证按统一名称单独记录：板卡丝印/硬件版本、芯片完整料号/封装后缀、SDK 分支与提交、Flash ID/容量、片上 SRAM 规格、外部 RAM 芯片/封装规格、链接配置的 `SDRAM_SIZE`/`DDR_SIZE`、RAM 地址范围读写测试结果、日志接口与 TX/RX 引脚、UART 号/波特率/数据位/校验/停止位、COM 号、抓取工具、启动日志片段、验证日期。确认前写“待实板验证”，不要用 SDK 默认配置或链接日志替代物理容量确认。
 
+### 待执行的实板验收与证据归档
+
+截至 2026-09-29，当前工作环境没有可用的 AC791/AC792 实板，也没有 Tuya 激活凭据；本清单尚未执行，所有项目保持“待实板验证”。完成后按板卡和日期保存原始证据，例如 `docs/evidence/jieli/<board>/<YYYYMMDD>/`，并在目录中附 `README.md` 记录硬件版本、芯片完整料号、固件提交、配置、测试步骤、结果和工具版本。保留原始日志；截图仅作补充。日志中的 Wi-Fi 密码、AuthKey、token 等敏感值必须脱敏，凭据本身不归档、不提交。
+
+| 验收项 | 可执行步骤与通过条件 | 应保存的证据 | 当前状态 |
+| --- | --- | --- | --- |
+| AC792 UART0/115200 启动日志 | 按 AC792 配置构建并烧录当前固件；配置 UART0、115200 baud、8N1，冷启动后完整抓取日志。确认串口可读、板卡/芯片识别正确、系统和 KV 初始化完成、无启动循环；日志需来自 UART0/115200 最新镜像。 | 完整原始串口 `.log`、抓取工具/COM 参数、板卡与芯片照片、构建提交和配置快照；记录冷启动时间及复位方式。 | 待实板验证；旧日志和烧录成功记录不能替代此项。 |
+| AC791 联网、Tuya 激活与 DP | 使用 `AC79_DevKitBoard` 和有效但不归档的 PID/AuthKey；完成 BLE 配网后观察 Wi-Fi STA 关联、DHCP、云连接和激活成功，再执行至少一次 DP 查询/上报并由设备日志及手机端/云端状态交叉确认。 | 完整 UART1/115200 原始日志；BLE 配网、STA/DHCP、云连接/激活、DP 操作的时间线及脱敏截图/日志；不保存秘密凭据。 | 待实板和有效凭据；2026-09-23 历史日志未证明 BLE 配网、激活或 DP 成功。 |
+| 两板外部 RAM 实际容量 | 分别拍摄 SDRAM/DDR 芯片完整丝印，按确切器件料号查对应数据手册；运行覆盖完整声明地址范围的读写/边界测试，记录起止地址、测试长度、算法、迭代次数和错误数。通过条件是器件资料与全范围测试相符；日志 `SDRAM_SIZE`/`DDR_SIZE` 只能作为固件配置记录。 | 芯片丝印照片、板卡/原理图位置、对应数据手册版本、测试固件提交和配置、完整测试输出及实际可用容量计算。 | AC791 SDRAM、AC792 DDR 容量均待确认；8 MiB/16 MiB staging 设置不构成实测证据。 |
+| AC792 片上 SRAM 规格 | 先读取开发板上完整芯片料号及封装后缀，再对照该料号的正式 datasheet/官方板卡资料；解释 AC7926A Datasheet V1.5 与官网板卡概述中 SRAM 数值差异后，才记录最终规格。 | 芯片丝印照片、精确料号、匹配的数据手册版本和页码、官方板卡资料链接，以及差异判定说明。 | 待确认；当前资料分别出现 352 KB 与 256 KB，不据此预选其一。 |
+
 ## 6. 构建、烧录与日志记录
 
 - TuyaOpen 项目统一使用 `tos.py` 入口完成配置和构建；烧录目前以 Windows 为目标环境。命令及所需工具以目标分支的 `platform/JIELI/README_zh.md` 和相应平台脚本为准。
 - 逐块板记录实际开发板型号/版本、芯片丝印、固件/SDK 提交、构建命令、烧录器与烧录方式、串口设备号和参数。
-- `tos.py monitor -p COMx` 会读取当前目标板 Kconfig 的 `CONFIG_JIELI_UART_LOG_BAUDRATE` 作为默认波特率；AC79 与 AC792 均为 115,200。AC79 日志为 UART1/TX=PB3，TAL CLI 为 UART0/TX=PA5、RX=PA6；AC792 继续使用 UART0 日志/CLI（TX=PD1、RX=PE11）。AC792 USB 烧录模式可按 SDK 文档使用板上 `UPDATE` 键并重新上电；本地 `tos.py flash` 已自动识别 USB 下载设备并烧录成功。
+- `tos.py monitor -p COMx` 会读取当前目标板 Kconfig 的 `CONFIG_JIELI_UART_LOG_BAUDRATE` 作为默认波特率；AC79 与 AC792 均为 115,200。AC79 日志为 UART1/TX=PB3，TAL CLI 为 UART0/TX=PA5、RX=PA6；AC792 使用 UART0 日志/CLI（TX=PD1、RX=PE11）。AC792 USB 烧录模式可按 SDK 文档使用板上 `UPDATE` 键并重新上电；历史记录中的 USB 烧录成功不代表 UART0/115200 启动日志验收已完成。
 - **AC791 实测记录（2026-09-23）**：构建 `apps/tuya_cloud/switch_demo` 成功；按官方 WL82 USB 下载模式识别到 `WL82 UBOOT1.00 USB Device`，`isd_download.exe` 报告 Chip Version B、Flash ID `5E4017`、8 MiB，固件下载并重启成功。SerialDebug 当时抓取的启动日志确认 `AC79_DevKitBoard`/`wl82` 固件正常启动、KV init result 为 0；启动打印 RAM_SIZE 523596 字节、SDRAM_SIZE 2097152 字节。该日志中 `wifi get mac pending...` 持续约 90 秒，未见 Wi-Fi STA connect、DHCP、Tuya cloud connect 或 DP 上报记录。此 switch_demo 配置在 Tuya BLE 配网凭据到达后才启动 Wi-Fi；该日志没有证明已完成 BLE 配网。授权部分显示 `tuyaopen_license_read` 失败、使用编译 fallback UUID/AuthKey，并警告需替换 demo 授权内容；`activate config not found:-6`，因此本轮未验证 Tuya 云激活及 DP。原日志曾由 SerialDebug 保存至 `apps/tuya_cloud/switch_demo/src/monitor.log`，但该文件当前不在工作区。
 - **AC792 实板记录（2026-09-24）**：`apps/tuya_cloud/switch_demo/monitor.log` 的启动日志识别 Flash ID `5E4017`、容量 `8192K`，并打印 `DDR_SIZE=16777216`；该值是当前 staging 链接配置。当天完整 `switch_demo` 重新构建、USB 烧录成功并触发重启。DDR 实物容量、烧录后 UART 运行日志及完整 Wi-Fi/BLE/云端验证记录仍需继续补录。
 
