@@ -399,12 +399,24 @@ class JieliBuildTest(unittest.TestCase):
                 (ROOT / "boards/JIELI/AC792N_Develop_Board/audio_config.h").read_bytes(),
             )
 
-    def test_full_stack_audio_provider_is_registered_before_tkl_init(self):
+    def test_full_stack_audio_provider_is_brought_up_by_tkl_init(self):
+        # The audio bring-up used to be called from the vendor entry, before
+        # tkl_init(). It now lives inside tkl_init() itself, which satisfies the
+        # old ordering requirement by construction and leaves the entry with
+        # only what the vendor SDK requires. The entry-side pins invert to
+        # record that.
         entry = (ROOT / "platform/JIELI/tuyaos/entry/jieli_app_entry.c").read_text(
             encoding="utf-8"
         )
-        self.assertIn("tkl_jieli_audio_prepare()", entry)
-        self.assertLess(entry.index("tkl_jieli_audio_prepare()"), entry.index("tkl_init()"))
+        self.assertNotIn("tkl_jieli_audio_prepare", entry)
+        self.assertIn("(void)tkl_init();", entry)
+
+        tkl_system = (
+            ROOT / "platform/JIELI/tuyaos/tuyaos_adapter/src/system/tkl_system.c"
+        ).read_text(encoding="utf-8")
+        init_start = tkl_system.index("OPERATE_RET tkl_init(void)")
+        init_body = tkl_system[init_start:tkl_system.index("\n}", init_start)]
+        self.assertIn("tkl_jieli_audio_prepare()", init_body)
 
         tkl_source = _tkl_audio_source()
 
