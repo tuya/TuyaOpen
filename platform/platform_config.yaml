@@ -42,7 +42,7 @@ platforms:
 - name: SIWX917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
   branch: master
-  commit: c4894d98c120c1e7d973b53b5d78ed83205ed37b
+  commit: 7d70ea68ca7da24778ef9760355a92644046ffa2
 
 - name: L511G
   repo: https://github.com/tuya/TuyaOpen-LYNQ
