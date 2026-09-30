@@ -4,6 +4,13 @@ set(MODULE_NAME AC792N_Develop_Board)
 add_library(${MODULE_NAME} INTERFACE)
 target_include_directories(${MODULE_NAME} INTERFACE ${MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/..")
 
+# The wl83 audio adapter's capture path reads this board's JIELI_AUDIO_* mic
+# routing macros; the staged vendor Makefile stages this header as
+# tuya_board_audio_config.h and force-includes it for tkl_audio.c. Hand the
+# CMake adapter target the same header so both builds compile the source with
+# identical board data.
+set(JIELI_BOARD_AUDIO_CONFIG "${CMAKE_CURRENT_LIST_DIR}/audio_config.h")
+
 # The TKL adapter sources are shared across Jieli chips; per-chip deltas are
 # funnelled through tuyaos_adapter/include/chip_conf.h.
 add_subdirectory(
