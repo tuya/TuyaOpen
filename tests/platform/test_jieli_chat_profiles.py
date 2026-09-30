@@ -5,7 +5,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PROFILE_DIR = ROOT / "apps/tuya.ai/your_chat_bot/config"
 CHAT_MAIN = ROOT / "src/ai_components/ai_main/src/ai_chat_main.c"
-JIELI_APP_MAIN = ROOT / "platform/JIELI/tuyaos_switch_app_main.c"
+JIELI_APP_MAIN = ROOT / "platform/JIELI/tuyaos/entry/jieli_app_entry.c"
 
 
 class JieliChatProfileTest(unittest.TestCase):
