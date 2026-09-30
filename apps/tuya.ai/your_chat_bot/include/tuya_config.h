@@ -26,8 +26,20 @@
 #define TUYA_PRODUCT_ID "p320pepzvmm1ghse"
 #endif
 
+/* Real credentials live in a gitignored tuya_config_secrets.h, as they do for
+ * the other apps in this tree. Keeping them out of the tracked header is what
+ * lets the placeholders below stay committed while a board still has a working
+ * license; the guards are what let the secrets file win. */
+#if __has_include("tuya_config_secrets.h")
+#include "tuya_config_secrets.h"
+#endif
+
+#ifndef TUYA_OPENSDK_UUID
 #define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
+#endif
+#ifndef TUYA_OPENSDK_AUTHKEY
 #define TUYA_OPENSDK_AUTHKEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey
+#endif
 
 /**
  * @brief PINCODE for AP provisioning
