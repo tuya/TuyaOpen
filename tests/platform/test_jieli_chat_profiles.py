@@ -22,7 +22,7 @@ class JieliChatProfileTest(unittest.TestCase):
                     "CONFIG_ENABLE_AUDIO_CODECS=y",
                     "CONFIG_ENABLE_AI_COMPONENTS=y",
                     "CONFIG_ENABLE_COMP_AI_MODE_HOLD=y",
-                    "CONFIG_ENABLE_JIELI_NATIVE_KEY=y",
+                    "CONFIG_ENABLE_JIELI_ADKEY_BUTTON=y",
                 ):
                     self.assertIn(setting, config)
                 self.assertIn("# CONFIG_ENABLE_COMP_AI_MODE_ONESHOT is not set", config)
@@ -32,16 +32,27 @@ class JieliChatProfileTest(unittest.TestCase):
                 self.assertIn("# CONFIG_ENABLE_DISPLAY is not set", config)
                 self.assertIn("# CONFIG_ENABLE_LIBLVGL is not set", config)
 
-    def test_native_k1_events_drive_ai_hold_mode(self):
+    def test_tdl_button_events_drive_ai_hold_mode(self):
         chat_main = CHAT_MAIN.read_text(encoding="utf-8")
         platform_main = JIELI_APP_MAIN.read_text(encoding="utf-8")
-        self.assertIn("void ai_chat_jieli_key_event(int event)", chat_main)
+        # The board is the only key path: it registers K1 through
+        # tdd_adc_button_register and the app consumes it through TDL. The app
+        # must open its TDL button unconditionally under ENABLE_BUTTON -- no
+        # native-key opt-out may return -- and the platform entry must carry
+        # neither a vendor key handler nor any app symbol.
+        self.assertNotIn("ai_chat_jieli_key_event", chat_main)
+        self.assertNotIn("ENABLE_JIELI_NATIVE_KEY", chat_main)
         self.assertIn("__ai_button_function_cb", chat_main)
-        self.assertIn("!defined(ENABLE_JIELI_NATIVE_KEY)", chat_main)
-        self.assertIn("key->value != KEY_K1", platform_main)
-        self.assertIn("KEY_EVENT_HOLD", platform_main)
-        self.assertIn("KEY_EVENT_UP", platform_main)
-        self.assertIn("register_sys_event_handler(SYS_KEY_EVENT", platform_main)
+        self.assertIn("tdl_button_create(AI_CHAT_BUTTON_NAME", chat_main)
+        self.assertRegex(
+            chat_main,
+            r"#if defined\(ENABLE_BUTTON\) && \(ENABLE_BUTTON == 1\)\s*"
+            r"\n\s*TUYA_CALL_ERR_LOG\(__ai_chat_mode_open_button\(\)\);\s*"
+            r"\n#endif",
+        )
+        self.assertNotIn("register_sys_event_handler", platform_main)
+        self.assertNotIn("ai_chat", platform_main)
+        self.assertIn("tuya_app_main();", platform_main)
 
 
 if __name__ == "__main__":

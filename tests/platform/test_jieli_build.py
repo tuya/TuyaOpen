@@ -216,15 +216,21 @@ class JieliBuildTest(unittest.TestCase):
         kconfig = (ROOT / "boards/JIELI/Kconfig").read_text(encoding="utf-8")
         self.assertIn("config ENABLE_JIELI_ADKEY_BUTTON", kconfig)
         self.assertIn("select ENABLE_BUTTON_ADC", kconfig)
-        self.assertIn("config ENABLE_JIELI_NATIVE_KEY", kconfig)
+        # The vendor native-key path is gone; the TDD ADC button is the only
+        # key config and it defaults on.
+        self.assertNotIn("ENABLE_JIELI_NATIVE_KEY", kconfig)
+        self.assertRegex(
+            kconfig, r"config ENABLE_JIELI_ADKEY_BUTTON\s+bool[^\n]*\n\s+default y"
+        )
 
     def test_ac792_board_k1_uses_slot_zero_of_the_native_adkey_driver(self):
-        """AC792N's K1 is the first slot of the SDK ADKEY ladder.
+        """AC792N's K1 is the first slot of the ADC ladder.
 
         SDK ADKEY V0 is midpoint(0, V1=192), so slot 0 covers raw values
-        0..96 - the calibration header must keep K1 there, and the staged
-        entry must translate the driver's KEY_K1 sys events into Tuya TDL
-        button codes for the AI chat chain.
+        0..96 - the calibration header must keep K1 there, and the board's
+        tdd_adc_button_register is the sole key source: the staged entry must
+        stay out of the key path entirely, with no vendor handler and no app
+        symbol.
         """
         ladder = (ROOT / "boards/JIELI/AC792N_Develop_Board/adkey_button_config.h").read_text(
             encoding="utf-8"
@@ -233,16 +239,18 @@ class JieliBuildTest(unittest.TestCase):
         self.assertRegex(ladder, r"#define\s+JIELI_K1_PRESSED_MIN\s+0U")
         self.assertRegex(ladder, r"#define\s+JIELI_K1_PRESSED_MAX\s+96U")
 
+        board_api = (ROOT / "boards/JIELI/board_com_api.c").read_text(encoding="utf-8")
+        self.assertIn("tdd_adc_button_register", board_api)
+
         entry = (ROOT / "platform/JIELI/tuyaos/entry/jieli_app_entry.c").read_text(
             encoding="utf-8"
         )
-        self.assertIn("KEY_K1", entry)
-        self.assertIn("ai_chat_jieli_key_event", entry)
-        self.assertIn("TDL_BUTTON_LONG_PRESS_START", entry)
-        self.assertLess(
-            entry.index("register_sys_event_handler(SYS_KEY_EVENT"),
-            entry.index("tuya_app_main();"),
-        )
+        self.assertNotIn("KEY_K1", entry)
+        self.assertNotIn("register_sys_event_handler", entry)
+        self.assertNotIn("ai_chat_jieli_key_event", entry)
+        self.assertNotIn("event/key_event.h", entry)
+        self.assertNotIn("__attribute__((weak))", entry)
+        self.assertIn("tuya_app_main();", entry)
 
     def test_wl83_audio_source_is_available_in_staged_sdk_layout(self):
         with tempfile.TemporaryDirectory() as temp:

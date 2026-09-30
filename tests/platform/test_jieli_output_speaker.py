@@ -51,8 +51,16 @@ class JieliOutputSpeakerProfileTest(unittest.TestCase):
 
     def test_full_stack_entry_supports_apps_without_ai_components(self):
         source = PLATFORM_MAIN.read_text(encoding="utf-8")
-        self.assertRegex(source, r"ai_chat_jieli_key_event\(int event\).*weak")
-        self.assertIn("if (ai_chat_jieli_key_event == NULL) return;", source)
+        # The entry no longer bridges to the app through a weak hook: it only
+        # chains tkl_init() into tuya_app_main(), so it links whether or not
+        # the AI components (and their app symbols) are present.
+        self.assertNotIn("__attribute__((weak))", source)
+        self.assertNotIn("ai_chat", source)
+        self.assertIn("(void)tkl_init();", source)
+        self.assertIn("tuya_app_main();", source)
+        self.assertLess(
+            source.index("(void)tkl_init();"), source.index("tuya_app_main();")
+        )
 
     def test_jieli_assert_adapter_does_not_duplicate_sdk_random32(self):
         source = TKL_ASSERT.read_text(encoding="utf-8")
