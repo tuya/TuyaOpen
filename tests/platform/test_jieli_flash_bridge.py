@@ -75,9 +75,17 @@ class JieliFlashBridgeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             image = pathlib.Path(temp) / "app.bin"
             image.write_bytes(b"firmware")
+            tools_dir = pathlib.Path(temp) / "tools"
+            tools_dir.mkdir()
+            for filename in ("isd_download.exe", "isd_config.ini", "uboot.boot", "cfg_tool.bin"):
+                (tools_dir / filename).touch()
             completed = type("Completed", (), {"returncode": 0})()
             with patch.object(platform_flash_bridge.os, "name", "nt"), \
                     patch.dict(platform_flash_bridge.os.environ, {"JIELI_FLASH_CMD": ""}), \
+                    patch.object(
+                        platform_flash_bridge, "_resolve_flash_chip",
+                        return_value=("wl82", tools_dir, "wl82", "0x1c02000", "500"),
+                    ), \
                     patch.object(platform_flash_bridge.subprocess, "run", return_value=completed) as run:
                 result = platform_flash_bridge.platform_flash(
                     using_data={"CONFIG_BOARD_CHOICE": "AC7916A"},
