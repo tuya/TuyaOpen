@@ -12,7 +12,8 @@ target_include_directories(${MODULE_NAME} INTERFACE ${MODULE_PATH} "${CMAKE_CURR
 set(JIELI_BOARD_AUDIO_CONFIG "${CMAKE_CURRENT_LIST_DIR}/audio_config.h")
 
 # The TKL adapter sources are shared across Jieli chips; per-chip deltas are
-# funnelled through tuyaos_adapter/include/chip_conf.h.
+# selected inside the adapter target itself (chip-scoped source filtering and
+# JIELI_ADAPTER_CHIP_INCLUDES in platform/JIELI/tuyaos/tuyaos_adapter/CMakeLists.txt).
 add_subdirectory(
     "${TOP_SOURCE_DIR}/platform/JIELI/tuyaos/tuyaos_adapter"
     "${CMAKE_CURRENT_BINARY_DIR}/jieli_tuya_adapter"
