@@ -19,6 +19,11 @@ endif()
 
 # add led source files
 file(GLOB_RECURSE LED_SRCS "${COMMON_PATH}/led/*.c")
+# The ws1280 driver uses RMT, which esp32c2 lacks (link error on empty
+# esp_driver_rmt); the SPI backend driver covers it there.
+if(IDF_TARGET STREQUAL "esp32c2")
+    list(FILTER LED_SRCS EXCLUDE REGEX ".*ws1280\\.c$")
+endif()
 
 # add io_expander source files
 file(GLOB_RECURSE IO_EXPANDER_SRCS "${COMMON_PATH}/io_expander/*.c")
