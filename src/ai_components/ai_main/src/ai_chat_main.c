@@ -33,7 +33,9 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define AI_CHAT_BUTTON_NAME    "ai_chat_button"
+/* The board registers this button through TDD, so the name must be the one the
+ * board used -- the configured BUTTON_NAME, not a local literal. */
+#define AI_CHAT_BUTTON_NAME    BUTTON_NAME
 
 #define TUYA_AI_CHAT_PAR       "ty_ai_chat_par"
 
@@ -281,18 +283,6 @@ static void __ai_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, 
     ai_mode_handle_key(event, arg);
 }
 
-void ai_chat_jieli_key_event(int event)
-{
-#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
-    if (event == TDL_BUTTON_PRESS_UP || event == TDL_BUTTON_LONG_PRESS_START ||
-        event == TDL_BUTTON_PRESS_SINGLE_CLICK) {
-        __ai_button_function_cb((char *)AI_CHAT_BUTTON_NAME, (TDL_BUTTON_TOUCH_EVENT_E)event, NULL);
-    }
-#else
-    (void)event;
-#endif
-}
-
 /**
 @brief Open button functionality for AI chat mode
 @return OPERATE_RET Operation result
@@ -443,9 +433,7 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
                                                      __ai_chat_mode_task, NULL, &thrd_cfg));
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
-#if !defined(ENABLE_JIELI_NATIVE_KEY) || (ENABLE_JIELI_NATIVE_KEY != 1)
     TUYA_CALL_ERR_LOG(__ai_chat_mode_open_button());
-#endif
 #endif
     PR_DEBUG("ai chat mode init mode %d success", mode);
 

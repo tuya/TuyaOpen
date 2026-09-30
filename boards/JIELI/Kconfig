@@ -46,17 +46,9 @@ config ENABLE_MEDIA
         Enable the TuyaOpen TDD audio codec on Jieli WL82/WL83 targets.
         This option is scoped to the Jieli board catalog.
 
-config ENABLE_JIELI_NATIVE_KEY
-    bool "Use the native Jieli ADKEY event as the AI chat button"
-    default y
-    depends on ENABLE_MEDIA
-    help
-        Route the board K1 ADKEY events from the Jieli SDK to Tuya's AI HOLD
-        mode. Jieli board keys are ADC ladder inputs, not GPIO buttons.
-
 config ENABLE_JIELI_ADKEY_BUTTON
     bool "Register the Jieli K1 ADKEY through Tuya Button TDL"
-    default n
+    default y
     select ENABLE_BUTTON
     select ENABLE_BUTTON_ADC
     help

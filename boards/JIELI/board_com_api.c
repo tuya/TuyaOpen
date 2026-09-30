@@ -6,7 +6,6 @@
 #endif
 
 #if defined(ENABLE_MEDIA) && (ENABLE_MEDIA == 1)
-#include "tdl_audio_driver.h"
 #include "tdd_audio.h"
 #include "tkl_audio.h"
 
