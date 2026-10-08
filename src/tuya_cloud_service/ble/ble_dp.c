@@ -20,6 +20,7 @@
 #include "tuya_iot_dp.h"
 #include "mix_method.h"
 #include "tuya_queue.h"
+#include "tal_mutex.h"
 #include "tal_workq_service.h"
 
 // dp type describe
@@ -730,6 +731,9 @@ int tuya_ble_dp_report(dp_rept_in_t *dpin)
 #define BLE_DP_REPT_QUEUE_NUM 16
 
 static TUYA_QUEUE_HANDLE s_ble_dp_rept_queue = NULL;
+/* Retained across BLE reinitialization so a cancelled worker can safely observe a released queue. */
+static MUTEX_HANDLE s_ble_dp_rept_mutex = NULL;
+static BOOL_T s_ble_dp_rept_scheduled = FALSE;
 
 static char *__ble_dp_str_dup(const char *str)
 {
@@ -746,6 +750,18 @@ static char *__ble_dp_str_dup(const char *str)
 
 static dp_rept_in_t *__ble_dp_rept_copy(const dp_rept_in_t *dpin)
 {
+    if (NULL == dpin) {
+        return NULL;
+    }
+
+    if (T_OBJ_REPT == dpin->rept_type && (NULL == dpin->dps || 0 == dpin->dpscnt)) {
+        return NULL;
+    }
+
+    if (T_RAW_REPT == dpin->rept_type && NULL == dpin->dp) {
+        return NULL;
+    }
+
     dp_rept_in_t *copy = tal_malloc(sizeof(dp_rept_in_t));
     if (NULL == copy) {
         return NULL;
@@ -814,14 +830,17 @@ static void tuya_ble_dp_report_flush(void *data)
 {
     dp_rept_in_t *dpin = NULL;
 
-    if (NULL == s_ble_dp_rept_queue) {
+    if (NULL == s_ble_dp_rept_mutex) {
         return;
     }
 
-    while (OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
+    tal_mutex_lock(s_ble_dp_rept_mutex);
+    while (NULL != s_ble_dp_rept_queue && OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
         tuya_ble_dp_report(dpin);
         __ble_dp_rept_free(dpin);
     }
+    s_ble_dp_rept_scheduled = FALSE;
+    tal_mutex_unlock(s_ble_dp_rept_mutex);
 }
 
 /**
@@ -832,7 +851,11 @@ static void tuya_ble_dp_report_flush(void *data)
  */
 int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
 {
-    if (NULL == dpin || NULL == s_ble_dp_rept_queue) {
+    if (NULL == dpin || NULL == s_ble_dp_rept_mutex) {
+        return OPRT_INVALID_PARM;
+    }
+    if ((T_OBJ_REPT == dpin->rept_type && (NULL == dpin->dps || 0 == dpin->dpscnt)) ||
+        (T_RAW_REPT == dpin->rept_type && NULL == dpin->dp)) {
         return OPRT_INVALID_PARM;
     }
 
@@ -841,14 +864,35 @@ int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
         return OPRT_MALLOC_FAILED;
     }
 
-    int op_ret = tuya_queue_input(s_ble_dp_rept_queue, &copy);
+    tal_mutex_lock(s_ble_dp_rept_mutex);
+    if (NULL == s_ble_dp_rept_queue) {
+        tal_mutex_unlock(s_ble_dp_rept_mutex);
+        __ble_dp_rept_free(copy);
+        return OPRT_INVALID_PARM;
+    }
+
+    int op_ret = OPRT_OK;
+    if (FALSE == s_ble_dp_rept_scheduled) {
+        op_ret = tal_workq_schedule(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+        if (OPRT_OK != op_ret) {
+            tal_mutex_unlock(s_ble_dp_rept_mutex);
+            __ble_dp_rept_free(copy);
+            PR_WARN("ble dp report work schedule failed");
+            return op_ret;
+        }
+        s_ble_dp_rept_scheduled = TRUE;
+    }
+
+    op_ret = tuya_queue_input(s_ble_dp_rept_queue, &copy);
     if (OPRT_OK != op_ret) {
+        tal_mutex_unlock(s_ble_dp_rept_mutex);
         __ble_dp_rept_free(copy);
         PR_WARN("ble dp report queue full, dropped");
         return op_ret;
     }
+    tal_mutex_unlock(s_ble_dp_rept_mutex);
 
-    return tal_workq_schedule(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+    return OPRT_OK;
 }
 
 /**
@@ -859,7 +903,24 @@ int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
  */
 int tuya_ble_dp_report_async_init(void)
 {
-    return tuya_queue_create(BLE_DP_REPT_QUEUE_NUM, sizeof(dp_rept_in_t *), &s_ble_dp_rept_queue);
+    OPERATE_RET op_ret;
+
+    if (NULL == s_ble_dp_rept_mutex) {
+        op_ret = tal_mutex_create_init(&s_ble_dp_rept_mutex);
+        if (OPRT_OK != op_ret) {
+            return op_ret;
+        }
+    }
+
+    tal_mutex_lock(s_ble_dp_rept_mutex);
+    if (NULL == s_ble_dp_rept_queue) {
+        op_ret = tuya_queue_create(BLE_DP_REPT_QUEUE_NUM, sizeof(dp_rept_in_t *), &s_ble_dp_rept_queue);
+    } else {
+        op_ret = OPRT_OK;
+    }
+    tal_mutex_unlock(s_ble_dp_rept_mutex);
+
+    return op_ret;
 }
 
 /**
@@ -870,15 +931,22 @@ void tuya_ble_dp_report_async_release(void)
 {
     dp_rept_in_t *dpin = NULL;
 
-    if (NULL == s_ble_dp_rept_queue) {
+    if (NULL == s_ble_dp_rept_mutex) {
         return;
     }
 
-    while (OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
+    tal_workq_cancel(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+
+    tal_mutex_lock(s_ble_dp_rept_mutex);
+    while (NULL != s_ble_dp_rept_queue && OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
         __ble_dp_rept_free(dpin);
     }
-    tuya_queue_release(s_ble_dp_rept_queue);
+    if (NULL != s_ble_dp_rept_queue) {
+        tuya_queue_release(s_ble_dp_rept_queue);
+    }
     s_ble_dp_rept_queue = NULL;
+    s_ble_dp_rept_scheduled = FALSE;
+    tal_mutex_unlock(s_ble_dp_rept_mutex);
 }
 
 /**
