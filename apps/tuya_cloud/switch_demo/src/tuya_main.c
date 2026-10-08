@@ -52,6 +52,39 @@ tuya_iot_client_t client;
 /* Tuya license information (uuid authkey) */
 tuya_iot_license_t license;
 
+#define MEMORY_MONITOR_INTERVAL_MS 10000
+
+static TIMER_ID memory_monitor_timer = NULL;
+
+static void memory_monitor_timer_cb(TIMER_ID timer_id, void *arg)
+{
+    (void)timer_id;
+    (void)arg;
+
+    PR_INFO("Memory monitor: free heap=%d", tal_system_get_free_heap_size());
+}
+
+static void memory_monitor_start(void)
+{
+    OPERATE_RET rt;
+
+    if (memory_monitor_timer == NULL) {
+        rt = tal_sw_timer_create(memory_monitor_timer_cb, NULL, &memory_monitor_timer);
+        if (rt != OPRT_OK) {
+            PR_ERR("Create memory monitor timer failed: %d", rt);
+            return;
+        }
+    }
+
+    PR_INFO("Memory monitor: free heap=%d", tal_system_get_free_heap_size());
+    if (!tal_sw_timer_is_running(memory_monitor_timer)) {
+        rt = tal_sw_timer_start(memory_monitor_timer, MEMORY_MONITOR_INTERVAL_MS, TAL_TIMER_CYCLE);
+        if (rt != OPRT_OK) {
+            PR_ERR("Start memory monitor timer failed: %d", rt);
+        }
+    }
+}
+
 /**
  * @brief user defined log output api, in this demo, it will use uart0 as log-tx
  *
@@ -110,6 +143,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
+        break;
+
+    case TUYA_EVENT_MQTT_CONNECTED:
+        memory_monitor_start();
         break;
 
     /* Print the QRCode for Tuya APP bind */
