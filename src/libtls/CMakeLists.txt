@@ -27,6 +27,7 @@ else()
     file(GLOB_RECURSE MBEDTLS_SRCS "${MODULE_PATH}/${MBEDTLS}/library/*.c")
 
     list(APPEND LIB_SRCS "${MBEDTLS_SRCS}")
+    list(APPEND LIB_PRIVATE_INC "${MODULE_PATH}/${MBEDTLS}/library")
     list(APPEND LIB_PUBLIC_INC "${MODULE_PATH}/${MBEDTLS}/include")
 endif()
 
@@ -47,6 +48,13 @@ target_include_directories(${MODULE_NAME}
     PUBLIC
         ${LIB_PUBLIC_INC}
     )
+
+if(CONFIG_PLATFORM_JIELI STREQUAL "y")
+    target_compile_definitions(${MODULE_NAME}
+        PUBLIC
+            MBEDTLS_CONFIG_FILE=\"jieli_mbedtls_config.h\"
+    )
+endif()
 
 
 ########################################

@@ -218,8 +218,11 @@ def cli(port, baud, log):
     if not baudrate:
         platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
         chip = using_data.get("CONFIG_CHIP_CHOICE", "")
-        device = (chip or platform).upper()
-        baudrate = _CHIP_MONITOR_BAUDRATE.get(device, _DEFAULT_BAUDRATE)
+        if platform == "JIELI" and chip in ("wl82", "wl83"):
+            baudrate = int(using_data.get("CONFIG_JIELI_UART_LOG_BAUDRATE", 0) or 0)
+        if not baudrate:
+            device = (chip or platform).upper()
+            baudrate = _CHIP_MONITOR_BAUDRATE.get(device, _DEFAULT_BAUDRATE)
 
     if not port:
         port = _choose_port()

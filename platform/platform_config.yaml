@@ -48,3 +48,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-LYNQ
   branch: L511G
   commit: a58b1b85317b922e43c131f070f4f754d2b19b27
+
+- name: JIELI
+  repo: https://github.com/tuya/TuyaOpen-JieLi
+  branch: master
+  commit: 7d24da286cddd40db0bc22c9d6f9dd1f7623e7ab

@@ -1,0 +1,7 @@
+config BOARD_CONFIG
+    bool
+    default y
+
+config CHIP_WL82
+    bool
+    default y

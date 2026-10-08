@@ -1,1 +1,3 @@
 app_default.config
+# Real Tuya license for this board; see tuya_config_secrets.h.example.
+tuya_config_secrets.h

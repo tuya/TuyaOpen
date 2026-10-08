@@ -69,6 +69,9 @@ static void __netconn_wifi_connect_process(void *msg)
     switch (wifi_msg->type) {
     case NETCONN_WIFI_MSG_CONNECT:
         PR_DEBUG("wifi connnet %s", wifi->conn.wifi_conn_info.ssid);
+        PR_DEBUG("wifi credential lengths ssid:%u passwd:%u",
+                 (unsigned int)strnlen(wifi->conn.wifi_conn_info.ssid, sizeof(wifi->conn.wifi_conn_info.ssid)),
+                 (unsigned int)strnlen(wifi->conn.wifi_conn_info.pswd, sizeof(wifi->conn.wifi_conn_info.pswd)));
         tal_wifi_station_disconnect();
         tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
         wifi->conn.stat = NETCONN_WIFI_CONN_CHECK;
