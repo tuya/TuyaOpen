@@ -3,6 +3,10 @@ config ENABLE_BUTTON
     default n
 
 if (ENABLE_BUTTON) 
+    config ENABLE_BUTTON_ADC
+        bool "enable ADC ladder button support"
+        default n
+
     config BUTTION_STACK_SIZE
         int "button task stack size"
         default 2048

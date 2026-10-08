@@ -18,11 +18,19 @@ if (CONFIG_ENABLE_GPIO STREQUAL "y" AND (NOT DEFINED CONFIG_ENABLE_KEYBOARD_INPU
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_button/src/tdd_button_gpio.c)
 endif()
 
+if (CONFIG_ENABLE_BUTTON_ADC STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_button/src/tdd_button_adc.c)
+endif()
+
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
         ${MODULE_PATH}/tdl_button/include
         ${MODULE_PATH}/tdd_button/include
     )
+
+if (CONFIG_ENABLE_BUTTON_ADC STREQUAL "y")
+    list(APPEND LIB_PRIVATE_INC ${TOP_SOURCE_DIR}/tools/porting/adapter/adc)
+endif()
 
 
 ########################################
