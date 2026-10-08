@@ -450,7 +450,17 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth   = 4096;
+    /* The tuya_iot_yield() loop drives the mbedtls handshake, HTTP and MQTT
+     * from this thread. The stock 4 KB is enough on T5AI but overflowed on
+     * JieLi during the iotdns TLS connect (2026-10-08 log: stackoverflow in
+     * tuya_app_main right after "TUYA_TLS Begin Connect").
+     *
+     * Measured on AC792N with a pre-connect SP probe: the yield chain has
+     * consumed 1504 B by the time mbedtls_ssl_handshake() is entered, leaving
+     * 2516 B of the stock 4 KB for the handshake itself - which is not enough
+     * (SP ran >=116 B past the stack floor). So this path needs a little over
+     * 4 KB here. 8 KB keeps ~2x headroom over the measured requirement. */
+    thrd_param.stackDepth   = 1024 * 8;
     thrd_param.priority     = 4;
     thrd_param.thrdname     = "tuya_app_main";
     /* Stack must be internal DRAM: esp_partition_mmap / flash pause cache (ESP-SR) asserts

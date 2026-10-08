@@ -3,8 +3,8 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-PLATFORM = ROOT / "platform/JIELI"
-ADAPTER = PLATFORM / "tuyaos/tuyaos_adapter"
+ADAPTER = ROOT / "platform/JIELI/tuyaos/tuyaos_adapter"
+ENTRY = ROOT / "platform/JIELI/tuyaos/entry/jieli_app_entry.c"
 
 
 class JieliTalContractTest(unittest.TestCase):
@@ -27,11 +27,23 @@ class JieliTalContractTest(unittest.TestCase):
             self.assertNotIn("tal_system_port", text, source.name)
             self.assertNotIn("tal_uart_port", text, source.name)
 
-    def test_queue_copies_messages_through_portable_ring_buffer(self):
+    def test_queue_post_copies_message_contents_into_queue_owned_storage(self):
         source = (ADAPTER / "src/system/tkl_queue.c").read_text(encoding="utf-8")
-        self.assertIn("memcpy(jieli_queue->slots", source)
-        self.assertIn("memcpy(msg, jieli_queue->slots", source)
-        self.assertNotRegex(source, r"(?m)^\s*os_q_post_to_back\s*\(")
+        # The vendor os_q_* API was dropped: the two SDKs disagree on
+        # os_q_post_to_back()'s message semantics, so TKL queues are a local
+        # ring buffer now. The contract that survives is that the message
+        # contents land in the queue's own slot storage -- queueing the
+        # address of a caller-local variable would store a dead stack
+        # pointer.
+        post_source = source[
+            source.index("OPERATE_RET tkl_queue_post"):
+            source.index("OPERATE_RET tkl_queue_fetch")
+        ]
+        self.assertNotIn("os_q_", post_source)
+        self.assertIn(
+            "memcpy(jieli_queue->slots + (size_t)slot * jieli_queue->message_size, data, jieli_queue->message_size)",
+            source,
+        )
 
     def test_uart_contract_keeps_jieli_device_api_private(self):
         source = (ADAPTER / "src/driver/tkl_uart.c").read_text(encoding="utf-8")
@@ -54,7 +66,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("result[i].ssid_len > WIFI_SSID_LEN", source)
 
     def test_switch_entry_registers_wl82_bluetooth_tasks(self):
-        source = (PLATFORM / "tuyaos/entry/jieli_app_entry.c").read_text(encoding="utf-8")
+        source = ENTRY.read_text(encoding="utf-8")
         self.assertIn('#ifdef CONFIG_BT_ENABLE', source)
         self.assertIn('{ "#C0btctrler", 19, 512, 384 }', source)
         self.assertIn('{ "#C0btstack", 18, 1024, 384 }', source)
@@ -62,7 +74,7 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn('{ "btstack", 18, 768, 384 }', source)
 
     def test_switch_entry_registers_jieli_wifi_stack_tasks(self):
-        source = (PLATFORM / "tuyaos/entry/jieli_app_entry.c").read_text(encoding="utf-8")
+        source = ENTRY.read_text(encoding="utf-8")
         for task in (
             '{ "tcpip_thread", 16, 800, 0 }',
             '{ "tasklet", 10, 1400, 0 }',
@@ -77,13 +89,21 @@ class JieliTalContractTest(unittest.TestCase):
         start = source.index("OPERATE_RET tkl_ble_stack_init")
         end = source.index("OPERATE_RET tkl_ble_stack_deinit", start)
         init_source = source[start:end]
-        address_setup = init_source.index("jieli_ble_set_local_address")
+        # The BLE address provider folded into the WiFi TKL's stable MAC: the
+        # old jieli_chip_mac_get_ble() call was replaced by the in-file
+        # jieli_ble_set_local_address() helper, which derives the random-static
+        # address from tkl_wifi_get_mac()'s UID-derived MAC.
+        address_setup = init_source.index("jieli_ble_set_local_address()")
         stack_start = init_source.index("btstack_init()")
         self.assertLess(address_setup, stack_start)
-        self.assertIn("tkl_wifi_get_mac(WF_STATION, &wifi_mac)", source)
-        self.assertIn("le_controller_set_random_mac", source)
-        self.assertNotIn("bt_get_mac_addr", init_source)
-        self.assertNotIn("le_controller_get_mac", init_source)
+        helper = source[
+            source.index("static int jieli_ble_set_local_address"):
+            source.index("wl82 BLE integration notes")
+        ]
+        self.assertIn("tkl_wifi_get_mac(WF_STATION", helper)
+        self.assertIn("le_controller_set_random_mac(ble_mac)", helper)
+        self.assertNotIn("bt_get_mac_addr", source)
+        self.assertNotIn("le_controller_get_mac", helper)
         self.assertIn("ble_op_set_own_address_type(s_ble_own_address_type)", source)
         self.assertIn("lmp_set_sniff_disable", source)
 
@@ -92,8 +112,16 @@ class JieliTalContractTest(unittest.TestCase):
         start = source.index("OPERATE_RET tkl_wifi_get_mac")
         end = source.index("OPERATE_RET tkl_wifi_set_work_mode", start)
         getter_source = source[start:end]
-        self.assertIn("jieli_mac_get_wifi", getter_source)
+        self.assertIn("jieli_mac_get_wifi(mac->mac)", getter_source)
         self.assertNotIn("wifi_get_mac(mac->mac)", getter_source)
+        # The MAC provider folded into the WiFi TKL: the getter serves the
+        # locally UID-derived MAC and must never touch the deferred native
+        # WiFi start.
+        provider_start = source.index("static int jieli_mac_get_wifi")
+        provider_end = source.index("static int jieli_mac_set_wifi", provider_start)
+        provider_source = source[provider_start:provider_end]
+        self.assertNotIn("wifi_is_on", provider_source)
+        self.assertNotIn("wifi_on(", provider_source)
 
     def test_deferred_station_start_applies_stable_mac_before_association(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
@@ -107,22 +135,25 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertLess(set_mac, associate)
 
     def test_stable_mac_provider_uses_chip_uid_without_random_or_vm(self):
-        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
-        self.assertTrue("get_norflash_uuid()" in source, "WL82 UID read must stay in the Wi-Fi TKL source")
-        self.assertTrue("get_norflash_uuid(0)" in source, "WL83 UID read must stay in the Wi-Fi TKL source")
-        self.assertTrue("static int jieli_read_flash_uid" in source, "UID access must have internal linkage")
-        wl82_branch = source.split("#if defined(JIELI_SELECTED_CHIP_WL82)", 1)[1].split(
-            "#elif defined(JIELI_SELECTED_CHIP_WL83)", 1
-        )[0]
-        wl83_branch = source.split("#elif defined(JIELI_SELECTED_CHIP_WL83)", 1)[1].split("#else", 1)[0]
-        self.assertIn("sdk_uid = get_norflash_uuid();", wl82_branch)
-        self.assertIn("sdk_uid = get_norflash_uuid(0);", wl83_branch)
-        self.assertNotIn("extern int jieli_chip_get_flash_uid", source)
-        self.assertNotIn("rand32", source)
-        self.assertNotIn("syscfg_write", source)
-        self.assertNotIn("CFG_BT_MAC_ADDR", source)
-        self.assertNotIn("VM_TUYA_MAC_IDX", source)
-        self.assertIn("0x02U", source)
+        wifi_source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        ble_source = (ADAPTER / "src/driver/tkl_bluetooth.c").read_text(encoding="utf-8")
+        # src/driver/tkl_jieli_chip_mac.c was folded away with the private
+        # headers: the UID-derived stable MAC now lives in the WiFi TKL
+        # (jieli_read_flash_uid + jieli_mac_initialize), and the BLE TKL
+        # derives its random-static address from that WiFi MAC.
+        self.assertIn("static int jieli_read_flash_uid", wifi_source)
+        self.assertIn("hash = jieli_uid_hash(uid)", wifi_source)
+        self.assertIn("get_norflash_uuid()", wifi_source)
+        self.assertIn("get_norflash_uuid(0)", wifi_source)
+        # Locally administered unicast for the WiFi MAC; locally administered
+        # random-static for the BLE address.
+        self.assertIn("0x02U", wifi_source)
+        self.assertIn("0xC0U", ble_source)
+        for source in (wifi_source, ble_source):
+            self.assertNotIn("rand32", source)
+            self.assertNotIn("syscfg_write", source)
+            self.assertNotIn("CFG_BT_MAC_ADDR", source)
+            self.assertNotIn("VM_TUYA_MAC_IDX", source)
 
     def test_wifi_startup_accepts_vendor_async_start(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
@@ -136,6 +167,8 @@ class JieliTalContractTest(unittest.TestCase):
         module_init_end = source.index("case JIELI_WIFI_AP_START:", module_init_start)
         module_init_source = source[module_init_start:module_init_end]
 
+        # 12s association + 5s DHCP stays under the 20s netmgr watchdog (see
+        # the budget comment above the define in tkl_wifi.c).
         self.assertRegex(source, r"#define JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC\s+12")
         self.assertIn(
             "wifi_set_sta_connect_timeout(JIELI_WIFI_STA_CONNECT_TIMEOUT_SEC)",

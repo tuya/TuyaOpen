@@ -4,12 +4,12 @@ config PLATFORM_CHOICE
 
 config CHIP_CHOICE
     string
-    default "wl83" if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+    default "wl83" if BOARD_CHOICE_AC792N_DEVELOP_BOARD
     default "wl82"
 
 config BOARD_CHOICE
     string
-    default "AC792N_Develop_Board" if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+    default "AC792N_Develop_Board" if BOARD_CHOICE_AC792N_DEVELOP_BOARD
     default "AC79_DevKitBoard"
 
 config PLATFORM_JIELI
@@ -36,24 +36,37 @@ config ENABLE_BLUETOOTH
     bool
     default y
 
+# Tuya's generic audio codec layer compiles tdd_audio.c only when this
+# platform-scoped media switch is enabled. Keep it opt-in for Jieli boards.
+config ENABLE_MEDIA
+    bool "Enable Jieli media/audio codecs"
+    default n
+    select ENABLE_AUDIO_CODECS
+    help
+        Enable the TuyaOpen TDD audio codec on Jieli WL82/WL83 targets.
+        This option is scoped to the Jieli board catalog.
+
+config ENABLE_JIELI_ADKEY_BUTTON
+    bool "Register the Jieli K1 ADKEY through Tuya Button TDL"
+    default y
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_ADC
+    help
+        Register the board K1 ADC ladder as a standard Tuya ADC button so apps
+        can receive debounced press and release events through TDL.
+
 config JIELI_UART_LOG_PORT
     int "SDK UART controller used for logging"
-    default 1 if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
+    default 1 if BOARD_CHOICE_AC79_DEVKITBOARD
     default 0
     range 0 5
 
 config JIELI_UART_LOG_BAUDRATE
     int "UART log baud rate"
-    default 115200 if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
-    default 115200 if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+    default 115200 if BOARD_CHOICE_AC79_DEVKITBOARD
+    default 115200 if BOARD_CHOICE_AC792N_DEVELOP_BOARD
     default 115200
     range 1200 4000000
-
-config ENABLE_CHIP_WL83
-    bool "Enable the AC792N board"
-    default y
-    help
-        Enable the AC792N_Develop_Board (AC7926A reference profile).
 
 choice
     prompt "Choice a Jieli board"
@@ -62,23 +75,15 @@ choice
     config BOARD_CHOICE_AC79_DEVKITBOARD
         bool "AC79_DevKitBoard (AC791)"
 
-    config BOARD_CHOICE_AC7916A
-        bool "AC7916A (legacy config alias; same board)"
-
     config BOARD_CHOICE_AC792N_DEVELOP_BOARD
         bool "AC792N_Develop_Board (AC7926A reference profile)"
-        depends on ENABLE_CHIP_WL83
-
-    config BOARD_CHOICE_AC7921A
-        bool "AC7921A (legacy config alias; AC792N profile)"
-        depends on ENABLE_CHIP_WL83
 
 endchoice
 
-if BOARD_CHOICE_AC79_DEVKITBOARD || BOARD_CHOICE_AC7916A
+if BOARD_CHOICE_AC79_DEVKITBOARD
     rsource "./AC79_DevKitBoard/Kconfig"
 endif
 
-if BOARD_CHOICE_AC792N_DEVELOP_BOARD || BOARD_CHOICE_AC7921A
+if BOARD_CHOICE_AC792N_DEVELOP_BOARD
     rsource "./AC792N_Develop_Board/Kconfig"
 endif

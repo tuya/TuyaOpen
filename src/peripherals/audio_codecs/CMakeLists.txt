@@ -16,6 +16,19 @@ file(GLOB_RECURSE LIB_SRCS
 
 if (CONFIG_ENABLE_MEDIA STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio.c)
+    if (CONFIG_PLATFORM_CHOICE STREQUAL "JIELI")
+        # TKL media APIs are supplied by the platform adapter, not this module.
+        # Keep these headers scoped to Jieli media builds so other platforms
+        # continue to resolve their own TKL audio interfaces. kws and vad are
+        # part of the same TKL surface: the ai_components sources include their
+        # headers directly, so the paths have to be exported even though the
+        # Jieli adapter does not implement every entry.
+        list(APPEND LIB_PRIVATE_INC
+            ${CMAKE_SOURCE_DIR}/tools/porting/adapter/media
+            ${CMAKE_SOURCE_DIR}/tools/porting/adapter/vad
+            ${CMAKE_SOURCE_DIR}/tools/porting/adapter/kws
+        )
+    endif()
 endif()
 
 # Add ALSA support for Ubuntu platform
@@ -63,6 +76,7 @@ endif()
 list(APPEND COMPONENT_LIBS ${MODULE_NAME})
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
+list(APPEND COMPONENT_PUBINC ${LIB_PRIVATE_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
 
 endif()

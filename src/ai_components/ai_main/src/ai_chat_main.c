@@ -416,7 +416,11 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
 
-    TUYA_CALL_ERR_RETURN(tkl_kws_init());
+    /* KWS is optional: a platform that has not ported it returns
+     * OPRT_NOT_SUPPORTED, and the HOLD/oneshot modes work without it. Failing
+     * here would abort the rest of the mode init -- including the mode task and
+     * the button registration below -- so log and carry on. */
+    TUYA_CALL_ERR_LOG(tkl_kws_init());
 
     TUYA_CALL_ERR_LOG(ai_audio_player_set_vol(vol));
 
