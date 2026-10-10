@@ -30,6 +30,7 @@ extern "C" {
 #include "cJSON.h"
 #include "mqtt_client_interface.h"
 #include "backoff_algorithm.h"
+#include "tal_mutex.h"
 
 // data max len
 #define TUYA_MQTT_CLIENTID_MAXLEN   (32U)
@@ -174,6 +175,9 @@ typedef struct {
     tuya_protocol_handle_t *protocol_list;
     mqtt_subscribe_handle_t *subscribe_list;
     mqtt_publish_handle_t *publish_list;
+    MUTEX_HANDLE publish_mutex; //!< protect publish_list: producers append from
+                                //!< caller threads while the mqtt loop task
+                                //!< flushes/completes entries
     BackoffAlgorithmContext_t backoff_algorithm;
     uint32_t sequence_in;
     uint32_t sequence_out;
