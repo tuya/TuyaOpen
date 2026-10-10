@@ -13,6 +13,25 @@
 #endif
 #endif
 
+#if defined(ENABLE_MIPI_DSI) && (ENABLE_MIPI_DSI == 1)
+#include "tdd_display_mipi.h"
+
+#ifndef DISPLAY_NAME
+#define DISPLAY_NAME "display"
+#endif
+
+/* Panel geometry and the backlight/power lines. The reset and backlight pins
+ * live in the platform board profile, not here: the vendor LCD driver drives
+ * them from the panel's own board config, and duplicating them in the TuyaOpen
+ * board would let the two drift apart.
+ *
+ * The panel is fixed on this board, so the geometry is stated once rather than
+ * probed. It matches the MIPI_480x800_ST7701S panel the platform profile
+ * selects; a different panel would need both sides changed together. */
+#define JIELI_DISPLAY_WIDTH  480
+#define JIELI_DISPLAY_HEIGHT 800
+#endif
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -54,6 +73,27 @@ OPERATE_RET board_register_hardware(void)
     ret = tdd_adc_button_register((char *)BUTTON_NAME, &button_cfg);
     if (ret != OPRT_OK) {
         return ret;
+    }
+#endif
+
+#if defined(ENABLE_MIPI_DSI) && (ENABLE_MIPI_DSI == 1)
+    {
+        /* The backlight is a plain GPIO on this board, driven by the vendor
+         * panel config; the TDL brightness control is left to that path rather
+         * than claimed here. */
+        TDD_DISP_MIPI_CFG_T disp_cfg = {
+            .width = JIELI_DISPLAY_WIDTH,
+            .height = JIELI_DISPLAY_HEIGHT,
+            .fmt = TUYA_PIXEL_FMT_RGB565,
+            .rotation = TUYA_DISPLAY_ROTATION_0,
+            .is_swap = false,
+            .bl = { .type = TUYA_DISP_BL_TP_NONE },
+            .power = { .pin = TUYA_GPIO_NUM_MAX, .active_level = TUYA_GPIO_LEVEL_LOW },
+        };
+        ret = tdd_disp_mipi_device_register((char *)DISPLAY_NAME, &disp_cfg);
+        if (ret != OPRT_OK) {
+            return ret;
+        }
     }
 #endif
 
