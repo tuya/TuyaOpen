@@ -1,6 +1,6 @@
 /**
  * @file tdd_disp_spi_ssd2677.c
- * @brief SSD2677ZB full-refresh driver for the SEEKINK E0397A09-A0 panel.
+ * @brief SSD2677ZB full/partial-refresh driver for the SEEKINK E0397A09-A0 panel.
  *
  * Uses hardware SPI for commands and image data, with GPIO SDA temperature reads.
  * The panel-specific OTP settings and 1bpp-to-2bpp encoding follow the supplied
@@ -11,6 +11,7 @@
 #include "tdd_disp_ssd2677.h"
 #include "tal_log.h"
 #include "tal_memory.h"
+#include "tal_mutex.h"
 #include "tal_system.h"
 #include "tkl_gpio.h"
 #include "tkl_spi.h"
@@ -30,6 +31,7 @@
 #define SSD2677_CMD_TEMPERATURE_SENSOR          0x40 /* TSC */
 #define SSD2677_CMD_VCOM_DATA_INTERVAL          0x50 /* CDI */
 #define SSD2677_CMD_RESOLUTION_SETTING          0x61 /* TRES */
+#define SSD2677_CMD_PARTIAL_WINDOW              0x83 /* PTLW */
 #define SSD2677_CMD_GATE_SOURCE_START           0x65 /* GSST */
 #define SSD2677_CMD_CASCADE_TEMPERATURE_SETTING 0xE0 /* CCSET */
 #define SSD2677_CMD_TEMPERATURE_OVERRIDE        0xE6 /* TS_SET */
@@ -50,7 +52,9 @@ typedef struct {
     DISP_EINK_SSD2677_CFG_T cfg;
     uint16_t                scan_height;
     OPERATE_RET             io_result;
+    MUTEX_HANDLE            mutex;
     bool                    opened;
+    bool                    frame_ready;
     bool                    spi_initialized;
     uint8_t                 initialized_pins;
 } DISP_SSD2677_DEV_T;
@@ -98,7 +102,7 @@ static OPERATE_RET wait_ready(DISP_SSD2677_DEV_T *dev, const char *stage, uint32
 {
     OPERATE_RET rt = OPRT_OK;
     if (dev->io_result != OPRT_OK) {
-        PR_ERR("SSD2677 GPIO error at %s: %d", stage, dev->io_result);
+        PR_ERR("SSD2677 I/O error at %s: %d", stage, dev->io_result);
         return dev->io_result;
     }
     TUYA_GPIO_LEVEL_E level;
@@ -106,7 +110,7 @@ static OPERATE_RET wait_ready(DISP_SSD2677_DEV_T *dev, const char *stage, uint32
     do {
         TUYA_CALL_ERR_RETURN(tkl_gpio_read(dev->cfg.busy_pin, &level));
         if (level == TUYA_GPIO_LEVEL_HIGH) {
-            PR_NOTICE("SSD2677 %s ready after %u ms (BUSY=1)", stage, elapsed);
+            PR_DEBUG("SSD2677 %s ready after %u ms (BUSY=1)", stage, elapsed);
             return OPRT_OK;
         }
         tal_system_sleep(10);
@@ -189,8 +193,9 @@ static void release_pins(DISP_SSD2677_DEV_T *dev)
 /** @brief Reset and configure the validated E0397A09-A0 OTP profile. */
 static OPERATE_RET panel_init(DISP_SSD2677_DEV_T *dev)
 {
-    OPERATE_RET rt = OPRT_OK;
-    dev->io_result = OPRT_OK;
+    OPERATE_RET rt   = OPRT_OK;
+    dev->io_result   = OPRT_OK;
+    dev->frame_ready = false;
     TUYA_CALL_ERR_RETURN(stop_spi(dev));
     TUYA_CALL_ERR_RETURN(init_pin(dev, dev->cfg.cs_pin, false, TUYA_GPIO_LEVEL_HIGH));
     TUYA_CALL_ERR_RETURN(init_pin(dev, dev->cfg.clk_pin, false, TUYA_GPIO_LEVEL_LOW));
@@ -243,8 +248,18 @@ static OPERATE_RET read_temperature(DISP_SSD2677_DEV_T *dev, uint8_t *value)
     tal_system_sleep(10);
     TUYA_CALL_ERR_RETURN(wait_ready(dev, "temperature", 3000));
     TUYA_CALL_ERR_RETURN(stop_spi(dev));
-    TUYA_CALL_ERR_RETURN(init_pin(dev, dev->cfg.clk_pin, false, TUYA_GPIO_LEVEL_LOW));
-    TUYA_CALL_ERR_RETURN(init_pin(dev, dev->cfg.sda_pin, true, TUYA_GPIO_LEVEL_LOW));
+    rt = init_pin(dev, dev->cfg.clk_pin, false, TUYA_GPIO_LEVEL_LOW);
+    if (rt == OPRT_OK) {
+        rt = init_pin(dev, dev->cfg.sda_pin, true, TUYA_GPIO_LEVEL_LOW);
+    }
+    if (rt != OPRT_OK) {
+        /* Attempt restoration even when GPIO handover only partially succeeded. */
+        OPERATE_RET restore_rt = start_spi(dev);
+        if (restore_rt != OPRT_OK) {
+            PR_ERR("SSD2677 SPI restoration failed: %d", restore_rt);
+        }
+        return rt;
+    }
     pin_write(dev, dev->cfg.cs_pin, TUYA_GPIO_LEVEL_HIGH);
     pin_write(dev, dev->cfg.cs_pin, TUYA_GPIO_LEVEL_LOW);
     uint8_t data = 0;
@@ -258,13 +273,16 @@ static OPERATE_RET read_temperature(DISP_SSD2677_DEV_T *dev, uint8_t *value)
         pin_write(dev, dev->cfg.clk_pin, TUYA_GPIO_LEVEL_HIGH);
         pin_write(dev, dev->cfg.clk_pin, TUYA_GPIO_LEVEL_LOW);
     }
-    tkl_gpio_write(dev->cfg.cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    OPERATE_RET cs_rt = tkl_gpio_write(dev->cfg.cs_pin, TUYA_GPIO_LEVEL_HIGH);
+    if (rt == OPRT_OK) {
+        rt = dev->io_result != OPRT_OK ? dev->io_result : cs_rt;
+    }
     OPERATE_RET restore_rt = start_spi(dev);
     if (rt != OPRT_OK || restore_rt != OPRT_OK) {
         return rt != OPRT_OK ? rt : restore_rt;
     }
     *value = data;
-    PR_NOTICE("SSD2677 temperature raw=0x%02x (%d C)", data, (int)(int8_t)data);
+    PR_DEBUG("SSD2677 temperature raw=0x%02x (%d C)", data, (int)(int8_t)data);
     return dev->io_result;
 }
 
@@ -293,13 +311,16 @@ static OPERATE_RET load_full_waveform(DISP_SSD2677_DEV_T *dev)
 }
 
 /** @brief Power on, require a real BUSY pulse, refresh and power off. */
-static OPERATE_RET refresh(DISP_SSD2677_DEV_T *dev)
+static OPERATE_RET refresh_sequence(DISP_SSD2677_DEV_T *dev)
 {
     OPERATE_RET rt = OPRT_OK;
     command(dev, SSD2677_CMD_POWER_ON, NULL, 0);
     tal_system_sleep(10);
     TUYA_CALL_ERR_RETURN(wait_ready(dev, "power on", 5000));
     command(dev, SSD2677_CMD_DISPLAY_REFRESH, (const uint8_t[]){0x00}, 1);
+    if (dev->io_result != OPRT_OK) {
+        return dev->io_result;
+    }
     /* A disconnected BUSY input is pulled high. Require an actual busy pulse
      * so a floating input cannot be mistaken for a successful screen update.
      */
@@ -317,11 +338,31 @@ static OPERATE_RET refresh(DISP_SSD2677_DEV_T *dev)
         PR_ERR("SSD2677 refresh did not assert BUSY; check SPI, reset and BUSY wiring");
         return OPRT_COM_ERROR;
     }
-    PR_NOTICE("SSD2677 refresh BUSY asserted");
-    TUYA_CALL_ERR_RETURN(wait_ready(dev, "full refresh", 60000));
+    PR_DEBUG("SSD2677 refresh BUSY asserted");
+    TUYA_CALL_ERR_RETURN(wait_ready(dev, "refresh", 60000));
     command(dev, SSD2677_CMD_POWER_OFF, (const uint8_t[]){0x00}, 1);
     tal_system_sleep(20);
     return wait_ready(dev, "power off", 5000);
+}
+
+/** @brief On refresh failure, attempt power-off only when BUSY confirms idle. */
+static OPERATE_RET refresh(DISP_SSD2677_DEV_T *dev)
+{
+    OPERATE_RET rt = refresh_sequence(dev);
+    if (rt != OPRT_OK) {
+        TUYA_GPIO_LEVEL_E level;
+        if (tkl_gpio_read(dev->cfg.busy_pin, &level) == OPRT_OK && level == TUYA_GPIO_LEVEL_HIGH) {
+            dev->io_result = OPRT_OK;
+            command(dev, SSD2677_CMD_POWER_OFF, (const uint8_t[]){0x00}, 1);
+            tal_system_sleep(20);
+            OPERATE_RET cleanup_rt = wait_ready(dev, "error power off", 5000);
+            if (cleanup_rt != OPRT_OK) {
+                PR_ERR("SSD2677 error power off failed: %d", cleanup_rt);
+            }
+        }
+        /* Preserve the original failure; only a full refresh restores the baseline. */
+    }
+    return rt;
 }
 
 /** @brief Initialize one registered display and unwind partial GPIO acquisition. */
@@ -331,6 +372,9 @@ static OPERATE_RET panel_open(TDD_DISP_DEV_HANDLE_T device)
     if (NULL == dev) {
         return OPRT_INVALID_PARM;
     }
+    if (dev->opened) {
+        return OPRT_OK;
+    }
     OPERATE_RET rt = panel_init(dev);
     if (rt != OPRT_OK) {
         release_pins(dev);
@@ -339,45 +383,12 @@ static OPERATE_RET panel_open(TDD_DISP_DEV_HANDLE_T device)
     return rt;
 }
 
-/** @brief Synchronously expand and refresh a complete monochrome framebuffer. */
-static OPERATE_RET panel_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *fb)
+/** @brief Expand packed TDL rows into controller 2-bit pixels without copying a frame. */
+static OPERATE_RET send_frame(DISP_SSD2677_DEV_T *dev, const TDL_DISP_FRAME_BUFF_T *fb)
 {
-    OPERATE_RET         rt  = OPRT_OK;
-    DISP_SSD2677_DEV_T *dev = (DISP_SSD2677_DEV_T *)device;
-    if (NULL == dev) {
-        return OPRT_INVALID_PARM;
-    }
-    if (!dev->opened) {
-        return OPRT_COM_ERROR;
-    }
-    if (!fb || !fb->frame || fb->fmt != TUYA_PIXEL_FMT_MONOCHROME || fb->x_start || fb->y_start ||
-        fb->width != dev->cfg.width || fb->height != dev->cfg.height ||
-        fb->len != (uint32_t)(dev->cfg.width / 8) * dev->cfg.height) {
-        return OPRT_INVALID_PARM;
-    }
-    TUYA_CALL_ERR_RETURN(load_full_waveform(dev));
-    command(dev, SSD2677_CMD_DATA_START_TRANSMISSION, NULL, 0);
-    /* Bound stack use for any configured width; chunks never cross rows. */
-    uint8_t  wire[256];
-    size_t   row_bytes = dev->cfg.width / 8;
-    uint16_t pad_rows  = dev->scan_height - dev->cfg.height;
-    /* UD=0 aligns the visible image to the end of the scan domain. Writing
-     * only 480 rows into an 800x680 domain leaves clipped/offset content and
-     * uninitialized pixels. Initialize the leading 200 rows as wire white
-     * (01b per pixel), then send the visible image in normal row order.
-     * The padding is derived from configuration; it is not another frame. */
-    memset(wire, 0x55, sizeof(wire));
-    for (uint16_t y = 0; y < pad_rows; ++y) {
-        for (size_t remaining = dev->cfg.width / 4; remaining;) {
-            size_t count = remaining > sizeof(wire) ? sizeof(wire) : remaining;
-            send_bytes(dev, wire, count);
-            if (dev->io_result != OPRT_OK) {
-                return dev->io_result;
-            }
-            remaining -= count;
-        }
-    }
-    for (size_t y = 0; y < dev->cfg.height; ++y) {
+    uint8_t wire[256];
+    size_t  row_bytes = fb->width / 8;
+    for (size_t y = 0; y < fb->height; ++y) {
         /* TDL pixels are LSB-first,
          * 1 black / 0 white; wire pixels are MSB-first 00 black / 01 white. */
         for (size_t offset = 0; offset < row_bytes;) {
@@ -401,13 +412,68 @@ static OPERATE_RET panel_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF
             offset += count;
         }
     }
-    PR_NOTICE("SSD2677 image: %u mono bytes, %u leading white rows, %u total wire bytes", (unsigned)fb->len,
-              (unsigned)pad_rows, (unsigned)dev->cfg.width * dev->scan_height / 4);
+    return OPRT_OK;
+}
+
+/** @brief Set an inclusive controller window with the validated UD=0 row offset. */
+static void partial_window(DISP_SSD2677_DEV_T *dev, const TDL_DISP_FRAME_BUFF_T *fb)
+{
+    uint16_t      x0 = fb->x_start, x1 = x0 + fb->width - 1;
+    uint16_t      y0       = dev->scan_height - dev->cfg.height + fb->y_start;
+    uint16_t      y1       = y0 + fb->height - 1;
+    const uint8_t window[] = {x0 >> 8, x0 & 0xFF, x1 >> 8, x1 & 0xFF, y0 >> 8, y0 & 0xFF, y1 >> 8, y1 & 0xFF, 1};
+    command(dev, SSD2677_CMD_PARTIAL_WINDOW, window, sizeof(window));
+}
+
+/** @brief Refresh a full frame, or a byte-aligned window after a successful full frame. */
+static OPERATE_RET panel_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    OPERATE_RET         rt  = OPRT_OK;
+    DISP_SSD2677_DEV_T *dev = (DISP_SSD2677_DEV_T *)device;
+    if (!dev) {
+        return OPRT_INVALID_PARM;
+    }
+    if (!dev->opened) {
+        return OPRT_COM_ERROR;
+    }
+    if (!fb || !fb->frame || fb->fmt != TUYA_PIXEL_FMT_MONOCHROME || !fb->width || !fb->height || fb->x_start % 8 ||
+        fb->width % 8 || (uint32_t)fb->x_start + fb->width > dev->cfg.width ||
+        (uint32_t)fb->y_start + fb->height > dev->cfg.height || fb->len != (uint32_t)(fb->width / 8) * fb->height) {
+        return OPRT_INVALID_PARM;
+    }
+    bool full = !fb->x_start && !fb->y_start && fb->width == dev->cfg.width && fb->height == dev->cfg.height;
+    if (!full && !dev->frame_ready) {
+        PR_ERR("SSD2677 partial refresh requires a successful full frame first");
+        return OPRT_COM_ERROR;
+    }
+    dev->frame_ready = false;
+    if (full) {
+        TUYA_CALL_ERR_RETURN(load_full_waveform(dev));
+    } else {
+        /* Preserve SRAM and the loaded waveform; reset would discard the baseline. */
+        partial_window(dev, fb);
+    }
+    command(dev, SSD2677_CMD_DATA_START_TRANSMISSION, NULL, 0);
+    uint16_t pad_rows = full ? dev->scan_height - dev->cfg.height : 0;
+    uint8_t  white[256];
+    memset(white, 0x55, sizeof(white));
+    for (uint16_t y = 0; y < pad_rows; ++y) {
+        for (size_t remaining = dev->cfg.width / 4; remaining;) {
+            size_t count = remaining > sizeof(white) ? sizeof(white) : remaining;
+            send_bytes(dev, white, count);
+            if (dev->io_result != OPRT_OK) {
+                return dev->io_result;
+            }
+            remaining -= count;
+        }
+    }
+    TUYA_CALL_ERR_RETURN(send_frame(dev, fb));
+    PR_DEBUG("SSD2677 %s: x=%u y=%u %ux%u, %u mono bytes, %u padding rows, %u wire bytes", full ? "full" : "partial",
+             fb->x_start, fb->y_start, fb->width, fb->height, (unsigned)fb->len, pad_rows,
+             (unsigned)fb->width * (fb->height + pad_rows) / 4);
     TUYA_CALL_ERR_RETURN(wait_ready(dev, "image data", 3000));
     TUYA_CALL_ERR_RETURN(refresh(dev));
-    if (fb->free_cb) {
-        fb->free_cb(fb);
-    }
+    dev->frame_ready = true;
     return OPRT_OK;
 }
 
@@ -421,10 +487,17 @@ static OPERATE_RET panel_close(TDD_DISP_DEV_HANDLE_T device)
     if (!dev->opened) {
         return OPRT_OK;
     }
+    /* A past transfer error must not prevent a fresh close attempt. */
+    dev->io_result = OPRT_OK;
     OPERATE_RET rt = wait_ready(dev, "sleep", 3000);
     if (rt != OPRT_OK) {
         return rt;
     }
+    rt = dev->spi_initialized ? OPRT_OK : start_spi(dev);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    dev->frame_ready = false;
     command(dev, SSD2677_CMD_DEEP_SLEEP, (const uint8_t[]){0xA5}, 1);
     pin_write(dev, dev->cfg.cs_pin, TUYA_GPIO_LEVEL_HIGH);
     if (dev->io_result != OPRT_OK) {
@@ -432,9 +505,62 @@ static OPERATE_RET panel_close(TDD_DISP_DEV_HANDLE_T device)
     }
     tal_system_sleep(20);
     rt = stop_spi(dev);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
     release_pins(dev);
-    dev->opened = false;
-    PR_NOTICE("SSD2677 deep sleep");
+    dev->opened      = false;
+    dev->frame_ready = false;
+    PR_DEBUG("SSD2677 deep sleep");
+    return rt;
+}
+
+/** @brief Serialize lifecycle operations and release frames outside the device lock. */
+static OPERATE_RET locked_open(TDD_DISP_DEV_HANDLE_T device)
+{
+    DISP_SSD2677_DEV_T *dev = device;
+    if (!dev) {
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = tal_mutex_lock(dev->mutex);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    rt = panel_open(device);
+    tal_mutex_unlock(dev->mutex);
+    return rt;
+}
+
+static OPERATE_RET locked_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    DISP_SSD2677_DEV_T *dev = device;
+    if (!dev) {
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = tal_mutex_lock(dev->mutex);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    rt = panel_flush(device, fb);
+    tal_mutex_unlock(dev->mutex);
+    if (rt == OPRT_OK && fb->free_cb) {
+        fb->free_cb(fb);
+    }
+    return rt;
+}
+
+static OPERATE_RET locked_close(TDD_DISP_DEV_HANDLE_T device)
+{
+    DISP_SSD2677_DEV_T *dev = device;
+    if (!dev) {
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = tal_mutex_lock(dev->mutex);
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    rt = panel_close(device);
+    tal_mutex_unlock(dev->mutex);
     return rt;
 }
 
@@ -479,9 +605,14 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
         return OPRT_MALLOC_FAILED;
     }
     memset(dev, 0, sizeof(*dev));
-    dev->cfg                  = *dev_cfg;
-    dev->scan_height          = scan_height;
-    TDD_DISP_INTFS_T    intfs = {.open = panel_open, .flush = panel_flush, .close = panel_close};
+    dev->cfg         = *dev_cfg;
+    dev->scan_height = scan_height;
+    OPERATE_RET rt   = tal_mutex_create_init(&dev->mutex);
+    if (rt != OPRT_OK) {
+        tal_free(dev);
+        return rt;
+    }
+    TDD_DISP_INTFS_T    intfs = {.open = locked_open, .flush = locked_flush, .close = locked_close};
     TDD_DISP_DEV_INFO_T info  = {
          .type     = TUYA_DISPLAY_SPI,
          .width    = dev_cfg->width,
@@ -492,8 +623,9 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
          .bl       = {.type = TUYA_DISP_BL_TP_NONE},
          .power    = dev_cfg->power,
     };
-    OPERATE_RET rt = tdl_disp_device_register(name, dev, &intfs, &info);
+    rt = tdl_disp_device_register(name, dev, &intfs, &info);
     if (rt != OPRT_OK) {
+        tal_mutex_release(dev->mutex);
         tal_free(dev);
     }
     return rt;

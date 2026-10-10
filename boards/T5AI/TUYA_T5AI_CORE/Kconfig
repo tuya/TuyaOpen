@@ -13,3 +13,12 @@ config BOARD_CONFIG
     select ENABLE_AUDIO_AEC
     select ENABLE_LED
     select ENABLE_BUTTON
+
+config BOARD_T5AI_CORE_SSD2677
+    bool "External SSD2677 E0397A09-A0 display on SPI1"
+    default n
+    select ENABLE_DISPLAY
+    help
+        Optional external 800x480 panel with 680 controller scan rows.
+        CLK=2, SDA=4, CS=3, DC=7, RST=8, BUSY=6; no PWR control pin.
+        Reserve the unused MISO GPIO5 and use a dedicated SPI bus.
