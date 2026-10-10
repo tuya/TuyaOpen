@@ -13,6 +13,17 @@
 #define JIELI_AUDIO_DAC_CHANNEL_COUNT 4
 #define JIELI_AUDIO_DAC_VCM_INIT_DELAY_MS 1000
 
+/* The vendor's own board profile sets these four
+ * (apps/demo/demo_DevKitBoard/board/wl82/DevKitBoard.c:363-391) but the TuyaOpen
+ * staging omitted them, so the platform structs were zero-initialised: isel and
+ * dump_num became 0, and the SDK's PA auto-mute was switched off. isel is the AD
+ * current step - the vendor annotates it "generally should not be changed" - and
+ * dump_num is how many samples to discard right after the ADC opens. */
+#define JIELI_AUDIO_ADC_ISEL 2
+#define JIELI_AUDIO_ADC_DUMP_NUM 480
+#define JIELI_AUDIO_DAC_PA_AUTO_MUTE 1
+#define JIELI_AUDIO_DAC_MUTE_DELAY_MS 200
+
 /* PB2 is active-low mute. Hold muted while the DAC VCM settles. */
 #define JIELI_AUDIO_PA_MUTE_PORT IO_PORTB_02
 #define JIELI_AUDIO_PA_MUTE_LEVEL 0

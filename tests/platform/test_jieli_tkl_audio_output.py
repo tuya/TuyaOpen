@@ -198,6 +198,19 @@ class JieliTklAudioOutputContractTest(unittest.TestCase):
         self.assertNotIn("s_play.used = 0", flush_source)
         self.assertNotIn("s_play.read_pos = s_play.write_pos", flush_source)
 
+    def test_wl82_never_registers_a_server_event_handler(self):
+        # server_register_event_handler() binds the callback to the *calling*
+        # task and requires that task to service a vendor message queue. Our
+        # callers are TuyaOpen threads (tuya_app_main, ai_player) that never do,
+        # so the server spins in "wait_send_event: <task>" and the next
+        # server_request() deadlocks - measured on AC791 as tdl_audio_close()
+        # never returning during a repeated open/close loop. The handler was a
+        # no-op, so the registration is simply not made. The vendor uses
+        # server_register_event_handler_to_task(..., "app_core"); if this ever
+        # needs to come back it must take that form.
+        source = _without_comments(_tkl_source())
+        self.assertNotIn("server_register_event_handler(", source)
+
 
 if __name__ == "__main__":
     unittest.main()
