@@ -115,6 +115,12 @@ function code, data length, CRC
 // Large data sub-packet size for transparent transmission command (length set
 // to the total length of the underlying sub-packet assembly - header length)
 #define TUYA_BLE_TRANS_DATA_SUBPACK_LEN (TUYA_BLE_AIR_FRAME_MAX - 64)
+// Largest reassembled transparent-channel message the device will accept
+#define TUYA_BLE_TRANS_DATA_TOTAL_LEN_MAX (TUYA_BLE_AIR_FRAME_MAX * 16)
+// largest header the encoder writes: sub-packet no(4) + frame len(4) + ver/seq(1)
+#define TUYA_BLE_SUBPACK_HEADER_MAX 9
+// smallest sub-packet size the APP may request, header plus one payload byte
+#define TUYA_BLE_SUBPACK_LEN_MIN (TUYA_BLE_SUBPACK_HEADER_MAX + 1)
 // BLE communication protocol version is set here
 // The APP parses the message based on the major and minor version numbers, thus
 // the Bluetooth version is changed to 3.7/4.4

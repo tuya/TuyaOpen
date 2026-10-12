@@ -166,6 +166,12 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         return OPRT_COM_ERROR;
     }
 
+    // the header below is written before any length is consulted
+    if (ble_frame_packet_len_get() < TUYA_BLE_SUBPACK_LEN_MIN) {
+        PR_ERR("ble sub packet len too small:%d", ble_frame_packet_len_get());
+        return OPRT_COM_ERROR;
+    }
+
     unsigned char sunpkg_offset = 0;
 
     // package code
@@ -276,7 +282,8 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     unsigned char digit;
     ble_frame_subpkg_num_t subpkg_num = 0;
     // Package number
-    for (i = 0; i < 4; i++) {
+    // stop at the received length, not after four bytes
+    for (i = 0; i < 4 && sunpkg_offset < raw_data_len; i++) {
         digit = raw_data[sunpkg_offset++];
         subpkg_num += (digit & 0x7f) * multiplier;
         multiplier *= 0x80;
@@ -317,7 +324,8 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     if (0 == trsmitr->subpkg_num) {
         // frame len decode
         multiplier = 1;
-        for (i = 0; i < 4; i++) {
+        // same bound as the sub-packet number varint above
+        for (i = 0; i < 4 && sunpkg_offset < raw_data_len; i++) {
             digit = raw_data[sunpkg_offset++];
             trsmitr->total += (digit & 0x7f) * multiplier;
             multiplier *= 0x80;
@@ -332,11 +340,22 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         }
 
         // frame type and frame seq decode
+        // the varint loops above may have consumed the whole frame
+        if (sunpkg_offset >= raw_data_len) {
+            return OPRT_INVALID_PARM;
+        }
         trsmitr->version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
         trsmitr->seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
     }
 
+    // a header that consumed more than the frame carries wraps the subtraction
+    if (sunpkg_offset >= raw_data_len) {
+        return OPRT_INVALID_PARM;
+    }
     uint16_t recv_data = raw_data_len - sunpkg_offset;
+    if (recv_data > ble_frame_packet_len_get()) {
+        recv_data = ble_frame_packet_len_get();
+    }
     if ((trsmitr->total - trsmitr->pkg_trsmitr_cnt) < recv_data) {
         recv_data = trsmitr->total - trsmitr->pkg_trsmitr_cnt;
     }
