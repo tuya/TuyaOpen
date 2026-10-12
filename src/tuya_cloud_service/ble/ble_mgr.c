@@ -21,6 +21,7 @@
 #include "ble_dp.h"
 #include "mix_method.h"
 #include "ble_channel.h"
+#include "ble_wifi_list.h"
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
@@ -178,6 +179,7 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
 
     uint8_t *flag = (uint8_t *)&ble->rsp_data[ble->rsp_len++];
     *flag = 0x00; // bond flag bit7 (8)
+    *flag |= ADV_FLAG_WIFI_LIST;
     if (ble->is_id_comp) {
         *flag |= ADV_FLAG_UUID_COMP;
     }
@@ -807,7 +809,7 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     //  support. bit1: 1 - Supports reporting of various states during network
     //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
     //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = 0;
+    pbuf[payload_len++] = (uint8_t)(1 << 0);
 
     return payload_len;
 }
@@ -1054,6 +1056,7 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_SYSTEM);
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
+    ble_channel_del(BLE_CHANNLE_WIFI_LST);
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;
@@ -1136,6 +1139,7 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_SYSTEM, ble_session_system_process, ble);
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
+    ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
     PR_NOTICE("tuya ble init success finish");

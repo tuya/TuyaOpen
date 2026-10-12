@@ -28,6 +28,7 @@ extern "C" {
 
 typedef enum {
     BLE_CHANNLE_NETCFG = 1,
+    BLE_CHANNLE_WIFI_LST = 3,
     BLE_CHANNEL_MAX,
 } ble_channel_type_t;
 
@@ -48,6 +49,8 @@ typedef void (*ble_channel_fn_t)(void *data, void *user_data);
  */
 int ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_data);
 int ble_channel_del(ble_channel_type_t type);
+
+void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len);
 
 /**
  * @brief Processes the BLE session channel.
