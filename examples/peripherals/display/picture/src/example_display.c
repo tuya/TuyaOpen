@@ -2,7 +2,7 @@
  * @file example_display.c
  * @brief example_display module is used to demonstrate the usage of display peripherals.
  * @version 0.1
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
 #include "tuya_cloud_types.h"
@@ -98,7 +98,11 @@ void user_main(void)
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 4096, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     /*hardware register*/
-    board_register_hardware();
+    rt = board_register_hardware();
+    if (rt != OPRT_OK) {
+        PR_ERR("hardware registration failed: %d", rt);
+        return;
+    }
 
     memset(&sg_display_info, 0, sizeof(TDL_DISP_DEV_INFO_T));
 
@@ -121,6 +125,37 @@ void user_main(void)
     }
 
     tdl_disp_set_brightness(sg_tdl_disp_hdl, 100); // Set brightness to 100%
+
+    /* Establish a white full-screen background before drawing the picture. */
+    uint8_t bpp = tdl_disp_get_fmt_bpp(sg_display_info.fmt);
+    if (!bpp || !sg_display_info.width || !sg_display_info.height) {
+        PR_ERR("invalid display format or dimensions");
+        return;
+    }
+    uint32_t row_bytes =
+        bpp < 8 ? ((uint32_t)sg_display_info.width * bpp + 7) / 8 : (uint32_t)sg_display_info.width * ((bpp + 7) / 8);
+    TDL_DISP_FRAME_BUFF_T *white = tdl_disp_create_frame_buff(DISP_FB_TP_PSRAM, row_bytes * sg_display_info.height);
+    if (!white) {
+        PR_ERR("white background allocation failed");
+        return;
+    }
+    white->fmt    = sg_display_info.fmt;
+    white->width  = sg_display_info.width;
+    white->height = sg_display_info.height;
+    rt            = tdl_disp_draw_fill_full(white, 0xFFFFFFFF, sg_display_info.is_swap);
+    if (rt != OPRT_OK) {
+        tdl_disp_free_frame_buff(white);
+        PR_ERR("white background drawing failed: %d", rt);
+        return;
+    }
+    /* Let the driver release the frame after synchronous or asynchronous use. */
+    white->free_cb = tdl_disp_free_frame_buff;
+    rt             = tdl_disp_dev_flush(sg_tdl_disp_hdl, white);
+    if (rt != OPRT_OK) {
+        tdl_disp_free_frame_buff(white);
+        PR_ERR("white background refresh failed: %d", rt);
+        return;
+    }
 
     /*get frame buffer*/
     sg_p_display_fb = __get_disp_image((uint16_t *)imga_data, imga_width, imga_height, sg_display_info.is_swap);
@@ -148,7 +183,10 @@ void user_main(void)
         target_fb = sg_p_display_fb;
     }
 
-    tdl_disp_dev_flush(sg_tdl_disp_hdl, target_fb);
+    rt = tdl_disp_dev_flush(sg_tdl_disp_hdl, target_fb);
+    if (rt != OPRT_OK) {
+        PR_ERR("picture refresh failed: %d", rt);
+    }
 
     while(1) {
 
