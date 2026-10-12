@@ -353,6 +353,7 @@ static void mqtt_client_puback_cb(void *client, uint16_t msgid, void *userdata)
         if (msgid == entry->msgid) {
             matched = entry;
             *next_handle = entry->next;
+            context->publish_count--;
             break;
         }
     }
@@ -442,7 +443,13 @@ int tuya_mqtt_init(tuya_mqtt_context_t *context, const tuya_mqtt_config_t *confi
 
     /* publish_list is appended by producer threads and walked/freed by the
      * mqtt loop task, create its guard before the context goes live */
-    TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&context->publish_mutex));
+    rt = tal_mutex_create_init(&context->publish_mutex);
+    if (OPRT_OK != rt) {
+        mqtt_client_deinit(context->mqtt_client);
+        mqtt_client_free(context->mqtt_client);
+        context->mqtt_client = NULL;
+        return rt;
+    }
 
     /* Wait start task */
     context->is_inited = true;
@@ -655,7 +662,8 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
                                     size_t payload_length, mqtt_publish_notify_cb_t cb, void *user_data, int timeout_ms,
                                     bool async)
 {
-    if (context == NULL || topic == NULL || payload == NULL || (cb == NULL && async == true)) {
+    if (context == NULL || !context->is_inited || topic == NULL || payload == NULL || (cb == NULL && async == true) ||
+        timeout_ms < 0) {
         return OPRT_INVALID_PARM;
     }
 
@@ -669,12 +677,15 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
         return OPRT_OK;
     }
 
-    mqtt_publish_handle_t *handle = tal_malloc(sizeof(mqtt_publish_handle_t));
+    /* The caller may reuse both payload and topic after an async submission. */
+    size_t                 topic_size = strlen(topic) + 1;
+    mqtt_publish_handle_t *handle     = tal_malloc(sizeof(mqtt_publish_handle_t) + topic_size);
     TUYA_CHECK_NULL_RETURN(handle, OPRT_MALLOC_FAILED);
     handle->next = NULL;
     handle->msgid = 0;
-    handle->topic = (char *)topic;
-    handle->timeout = tal_time_get_posix() + timeout_ms;
+    handle->topic = (char *)(handle + 1);
+    memcpy(handle->topic, topic, topic_size);
+    handle->timeout        = (uint32_t)tal_system_get_millisecond() + (uint32_t)timeout_ms;
     handle->cb = cb;
     handle->user_data = user_data;
     handle->payload_length = payload_length;
@@ -688,6 +699,17 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
     } else {
         handle->payload = NULL;
     }
+
+    /* Reserve a bounded slot before sending or making the handle visible. */
+    tal_mutex_lock(context->publish_mutex);
+    if (context->publish_count >= MQTT_PUBLISH_MAX_PENDING) {
+        tal_mutex_unlock(context->publish_mutex);
+        tal_free(handle->payload);
+        tal_free(handle);
+        return OPRT_RESOURCE_NOT_READY;
+    }
+    context->publish_count++;
+    tal_mutex_unlock(context->publish_mutex);
 
     if (async == false) {
         tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
@@ -842,6 +864,50 @@ int tuya_mqtt_protocol_data_publish(tuya_mqtt_context_t *context, uint16_t proto
  * @param context Pointer to the Tuya MQTT context structure.
  * @return Returns 0 on success, or a negative error code on failure.
  */
+static void mqtt_publish_process(tuya_mqtt_context_t *context)
+{
+    /* Only the MQTT loop consumes entries. Producers can append while the
+     * detached batch is sent; no network write is performed under this lock. */
+    tal_mutex_lock(context->publish_mutex);
+    mqtt_publish_handle_t *batch = context->publish_list;
+    context->publish_list        = NULL;
+    tal_mutex_unlock(context->publish_mutex);
+
+    mqtt_publish_handle_t  *expired       = NULL;
+    mqtt_publish_handle_t **next          = &batch;
+    unsigned int            expired_count = 0;
+    while (*next) {
+        mqtt_publish_handle_t *entry = *next;
+        if ((int32_t)((uint32_t)tal_system_get_millisecond() - entry->timeout) >= 0) {
+            *next       = entry->next;
+            entry->next = expired;
+            expired     = entry;
+            expired_count++;
+            continue;
+        }
+        if (context->is_connected && entry->msgid == 0) {
+            entry->msgid = mqtt_client_publish(context->mqtt_client, entry->topic, entry->payload,
+                                               entry->payload_length, MQTT_QOS_1);
+        }
+        next = &entry->next;
+    }
+
+    /* Reattach before processing PUBACKs or invoking reentrant callbacks. */
+    tal_mutex_lock(context->publish_mutex);
+    *next                 = context->publish_list;
+    context->publish_list = batch;
+    context->publish_count -= expired_count;
+    tal_mutex_unlock(context->publish_mutex);
+
+    while (expired) {
+        mqtt_publish_handle_t *entry = expired;
+        expired                      = entry->next;
+        entry->cb(OPRT_TIMEOUT, entry->user_data);
+        tal_free(entry->payload);
+        tal_free(entry);
+    }
+}
+
 int tuya_mqtt_loop(tuya_mqtt_context_t *context)
 {
     if (context == NULL) {
@@ -854,6 +920,9 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
     if (context->is_inited == false || context->manual_disconnect == true) {
         return rt;
     }
+
+    /* Expire accepted reports even while reconnecting. */
+    mqtt_publish_process(context);
 
     /* reconnect */
     if (context->is_connected == false) {
@@ -880,40 +949,6 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
         return rt;
     }
 
-    /* publish async process */
-    /* flush queued entries under the lock; expired entries are detached to a
-     * local list and notified after unlock so their callbacks (which may
-     * publish again) cannot deadlock on publish_mutex */
-    mqtt_publish_handle_t *expired = NULL;
-
-    tal_mutex_lock(context->publish_mutex);
-    mqtt_publish_handle_t **next_handle = &context->publish_list;
-    while (*next_handle) {
-        mqtt_publish_handle_t *entry = *next_handle;
-
-        if (entry->timeout <= tal_time_get_posix()) {
-            *next_handle = entry->next;
-            entry->next = expired;
-            expired = entry;
-            continue;
-        }
-
-        if (entry->msgid <= 0) {
-            entry->msgid = mqtt_client_publish(context->mqtt_client,
-                entry->topic, entry->payload, entry->payload_length, 1);
-        }
-        next_handle = &entry->next;
-    }
-    tal_mutex_unlock(context->publish_mutex);
-
-    while (expired) {
-        mqtt_publish_handle_t *entry = expired;
-        expired = entry->next;
-        entry->cb(OPRT_TIMEOUT, entry->user_data);
-        tal_free(entry->payload);
-        tal_free(entry);
-    }
-
     /* yield */
     mqtt_client_yield(context->mqtt_client);
 
@@ -935,7 +970,24 @@ int tuya_mqtt_destory(tuya_mqtt_context_t *context)
         return OPRT_COM_ERROR;
     }
 
+    /* Lifecycle is serialized with loop and all publishers by the owner.
+     * Reject callback re-submission before disposing accepted reports. */
     tuya_mqtt_protocol_unregister_all(context);
+    context->is_inited         = false;
+    context->is_connected      = false;
+    context->manual_disconnect = true;
+    tal_mutex_lock(context->publish_mutex);
+    mqtt_publish_handle_t *pending = context->publish_list;
+    context->publish_list          = NULL;
+    context->publish_count         = 0;
+    tal_mutex_unlock(context->publish_mutex);
+    while (pending) {
+        mqtt_publish_handle_t *entry = pending;
+        pending                      = entry->next;
+        entry->cb(OPRT_COM_ERROR, entry->user_data);
+        tal_free(entry->payload);
+        tal_free(entry);
+    }
 
     if (context->publish_mutex) {
         tal_mutex_release(context->publish_mutex);

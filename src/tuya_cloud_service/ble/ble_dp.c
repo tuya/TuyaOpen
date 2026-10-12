@@ -776,6 +776,9 @@ static TUYA_QUEUE_HANDLE s_ble_dp_rept_queue = NULL;
 /* Retained across BLE reinitialization so a cancelled worker can safely observe a released queue. */
 static MUTEX_HANDLE s_ble_dp_rept_mutex = NULL;
 static BOOL_T s_ble_dp_rept_scheduled = FALSE;
+static BOOL_T       s_ble_dp_rept_stopping   = TRUE;
+static BOOL_T       s_ble_dp_rept_active     = FALSE;
+static uintptr_t    s_ble_dp_rept_generation = 0;
 
 static char *__ble_dp_str_dup(const char *str)
 {
@@ -823,7 +826,8 @@ static dp_rept_in_t *__ble_dp_rept_copy(const dp_rept_in_t *dpin)
             if ((PROP_STR == dpin->dps[idx].type) && (NULL != dpin->dps[idx].value.dp_str)) {
                 copy->dps[idx].value.dp_str = __ble_dp_str_dup(dpin->dps[idx].value.dp_str);
                 if (NULL == copy->dps[idx].value.dp_str) {
-                    while (idx-- > 0) {
+                    while (idx > 0) {
+                        idx--;
                         if ((PROP_STR == copy->dps[idx].type) && (NULL != copy->dps[idx].value.dp_str)) {
                             tal_free(copy->dps[idx].value.dp_str);
                         }
@@ -877,9 +881,21 @@ static void tuya_ble_dp_report_flush(void *data)
     }
 
     tal_mutex_lock(s_ble_dp_rept_mutex);
-    while (NULL != s_ble_dp_rept_queue && OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
-        tuya_ble_dp_report(dpin);
+    if ((uintptr_t)data != s_ble_dp_rept_generation) {
+        tal_mutex_unlock(s_ble_dp_rept_mutex);
+        return;
+    }
+    while (!s_ble_dp_rept_stopping && NULL != s_ble_dp_rept_queue &&
+           OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
+        s_ble_dp_rept_active = TRUE;
+        tal_mutex_unlock(s_ble_dp_rept_mutex);
+        int ret = tuya_ble_dp_report(dpin);
+        if (OPRT_OK != ret) {
+            PR_WARN("ble async dp send failed: %d", ret);
+        }
         __ble_dp_rept_free(dpin);
+        tal_mutex_lock(s_ble_dp_rept_mutex);
+        s_ble_dp_rept_active = FALSE;
     }
     s_ble_dp_rept_scheduled = FALSE;
     tal_mutex_unlock(s_ble_dp_rept_mutex);
@@ -897,8 +913,16 @@ int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
         return OPRT_INVALID_PARM;
     }
     if ((T_OBJ_REPT == dpin->rept_type && (NULL == dpin->dps || 0 == dpin->dpscnt)) ||
-        (T_RAW_REPT == dpin->rept_type && NULL == dpin->dp)) {
+        (T_RAW_REPT == dpin->rept_type && NULL == dpin->dp) ||
+        (T_OBJ_REPT != dpin->rept_type && T_RAW_REPT != dpin->rept_type)) {
         return OPRT_INVALID_PARM;
+    }
+    if (T_OBJ_REPT == dpin->rept_type) {
+        for (unsigned int i = 0; i < dpin->dpscnt; i++) {
+            if (PROP_STR == dpin->dps[i].type && NULL == dpin->dps[i].value.dp_str) {
+                return OPRT_INVALID_PARM;
+            }
+        }
     }
 
     dp_rept_in_t *copy = __ble_dp_rept_copy(dpin);
@@ -907,7 +931,7 @@ int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
     }
 
     tal_mutex_lock(s_ble_dp_rept_mutex);
-    if (NULL == s_ble_dp_rept_queue) {
+    if (s_ble_dp_rept_stopping || NULL == s_ble_dp_rept_queue) {
         tal_mutex_unlock(s_ble_dp_rept_mutex);
         __ble_dp_rept_free(copy);
         return OPRT_INVALID_PARM;
@@ -915,7 +939,7 @@ int tuya_ble_dp_report_async(dp_rept_in_t *dpin)
 
     int op_ret = OPRT_OK;
     if (FALSE == s_ble_dp_rept_scheduled) {
-        op_ret = tal_workq_schedule(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+        op_ret = tal_workq_schedule(WORKQ_SYSTEM, tuya_ble_dp_report_flush, (void *)s_ble_dp_rept_generation);
         if (OPRT_OK != op_ret) {
             tal_mutex_unlock(s_ble_dp_rept_mutex);
             __ble_dp_rept_free(copy);
@@ -957,6 +981,10 @@ int tuya_ble_dp_report_async_init(void)
     tal_mutex_lock(s_ble_dp_rept_mutex);
     if (NULL == s_ble_dp_rept_queue) {
         op_ret = tuya_queue_create(BLE_DP_REPT_QUEUE_NUM, sizeof(dp_rept_in_t *), &s_ble_dp_rept_queue);
+        if (OPRT_OK == op_ret) {
+            s_ble_dp_rept_generation++;
+            s_ble_dp_rept_stopping = FALSE;
+        }
     } else {
         op_ret = OPRT_OK;
     }
@@ -977,9 +1005,17 @@ void tuya_ble_dp_report_async_release(void)
         return;
     }
 
-    tal_workq_cancel(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
-
     tal_mutex_lock(s_ble_dp_rept_mutex);
+    s_ble_dp_rept_stopping = TRUE;
+    tal_workq_cancel(WORKQ_SYSTEM, tuya_ble_dp_report_flush, NULL);
+    /* Cancellation cannot stop an already-running callback. Wait without the
+     * queue lock so it can finish before BLE manager teardown. Lifecycle calls
+     * are serialized and must not be made from a report-send callback. */
+    while (s_ble_dp_rept_active) {
+        tal_mutex_unlock(s_ble_dp_rept_mutex);
+        tal_system_sleep(1);
+        tal_mutex_lock(s_ble_dp_rept_mutex);
+    }
     while (NULL != s_ble_dp_rept_queue && OPRT_OK == tuya_queue_output(s_ble_dp_rept_queue, &dpin)) {
         __ble_dp_rept_free(dpin);
     }
