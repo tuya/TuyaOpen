@@ -146,6 +146,10 @@ dp_node_t *dp_node_find(dp_schema_t *schema, int id)
     int i;
     dp_node_t *dpnode = NULL;
 
+    if (NULL == schema) {
+        return NULL;
+    }
+
     for (i = 0; i < schema->num; i++) {
         if (schema->node[i].desc.id == id) {
             dpnode = &schema->node[i];
