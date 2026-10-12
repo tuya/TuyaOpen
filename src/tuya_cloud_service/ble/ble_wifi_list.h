@@ -6,7 +6,7 @@
  * channel used by the app to query the WiFi hotspot list scanned by the
  * device.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -25,7 +25,7 @@ extern "C" {
  * @param data The request payload received on the channel.
  * @param user_data Private data bound to the channel.
  */
-void ble_wifi_list_query(void *data, void *user_data);
+void ble_wifi_list_query(void *data, uint32_t len, void *user_data);
 
 #ifdef __cplusplus
 }

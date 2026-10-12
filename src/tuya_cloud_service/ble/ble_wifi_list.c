@@ -1,6 +1,14 @@
 /**
  * @file ble_wifi_list.c
  * @brief BLE WiFi hotspot list query over the large data transparent channel.
+ *
+ * The app asks for the surrounding hotspots on subcommand 0x0003 and gets a
+ * {"wifi_list":[{"ssid","rssi","sec"}]} reply back on 0x801F. The scan blocks
+ * for several seconds, so the request is only copied here and the scan runs on
+ * WORKQ_SYSTEM.
+ *
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ *
  */
 
 #include "tal_log.h"
@@ -125,7 +133,7 @@ static void __ble_wifi_list_task(void *data)
     ble_channle_ack(FRM_UPLINK_TRANSPARENT_SPEC_REQ, resp, resp_len);
 }
 
-void ble_wifi_list_query(void *data, void *user_data)
+void ble_wifi_list_query(void *data, uint32_t len, void *user_data)
 {
     ble_wifi_list_req_t *req = (ble_wifi_list_req_t *)tal_malloc(sizeof(ble_wifi_list_req_t));
 
@@ -137,8 +145,8 @@ void ble_wifi_list_query(void *data, void *user_data)
     memset(req, 0, sizeof(ble_wifi_list_req_t));
     req->max_cnt = BLE_WIFI_LIST_MAX_CNT;
 
-    if (data) {
-        cJSON *root = cJSON_Parse((char *)data);
+    if (data && len) {
+        cJSON *root = cJSON_ParseWithLength((const char *)data, len);
         if (root) {
             cJSON *cnt   = cJSON_GetObjectItem(root, "cnt");
             cJSON *ccode = cJSON_GetObjectItem(root, "ccode");

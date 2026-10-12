@@ -13,7 +13,7 @@
  * efficient and organized data transmission mechanisms.
  *
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -27,12 +27,20 @@ extern "C" {
 #endif
 
 typedef enum {
-    BLE_CHANNLE_NETCFG = 1,
-    BLE_CHANNLE_WIFI_LST = 3,
-    BLE_CHANNEL_MAX,
+    BLE_CHANNLE_NETCFG       = 1,
+    BLE_CHANNLE_WIFI_LST     = 3,
+    BLE_CHANNLE_WIFI_PROTECT = 0x000F,
+    BLE_CHANNEL_MAX          = 0x0010,
 } ble_channel_type_t;
 
-typedef void (*ble_channel_fn_t)(void *data, void *user_data);
+/**
+ * @brief Callback of a BLE channel.
+ *
+ * @param[in] data      the payload, it is NOT NUL terminated
+ * @param[in] len       length of @p data in bytes
+ * @param[in] user_data the private data given to @ref ble_channel_add
+ */
+typedef void (*ble_channel_fn_t)(void *data, uint32_t len, void *user_data);
 
 /**
  * @brief Adds a BLE channel.

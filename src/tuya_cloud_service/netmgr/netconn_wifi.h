@@ -11,7 +11,7 @@
  * connections, including the configuration of network parameters and handling
  * of dynamic network events to ensure stable and reliable device connectivity.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -87,6 +87,7 @@ typedef struct {
     uint32_t table[NETCONN_WIFI_CONN_TABLE];
     TIMER_ID timer;
     netconn_wifi_info_t wifi_conn_info; // the connected wifi info
+    bool                       suspend;        //!< auto reconnect paused, the station is owned by the caller
 } netconn_wifi_conn_t;
 
 /**
@@ -135,6 +136,40 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param);
  * @return OPERATE_RET
  */
 OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param);
+
+/**
+ * @brief Persist a wifi credential without touching the current connection.
+ *
+ * @param[in] ssid   wifi ap ssid
+ * @param[in] pswd   wifi passwd, NULL is treated as an open network
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_info_save(const char *ssid, const char *pswd);
+
+/**
+ * @brief Switch the station to the given ap, reconnecting even when already link up.
+ *
+ * @param[in] ssid    wifi ap ssid
+ * @param[in] pswd    wifi passwd, NULL is treated as an open network
+ * @param[in] persist also write the credential to flash
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool persist);
+
+/**
+ * @brief Pause or resume the netmgr automatic reconnect.
+ *
+ * While suspended the caller owns the station: the back-off table is not run and
+ * no reconnect is issued. Explicit @ref netconn_wifi_station_set still works, and
+ * the link status is still reported to netmgr.
+ *
+ * @param[in] suspend true to pause, false to resume
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_suspend(bool suspend);
 
 #ifdef __cplusplus
 }

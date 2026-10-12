@@ -7,7 +7,7 @@
  * data into subpackets, managing subpacket transmission, and reassembling
  * received subpackets.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -95,18 +95,24 @@ int ble_channel_del(ble_channel_type_t type)
     return OPRT_INVALID_PARM;
 }
 
-static void ble_channel_process(void *data)
+static void ble_channel_process(void *data, uint32_t len)
 {
     uint8_t *user_data = (uint8_t *)data;
-    uint16_t type = (user_data[0] << 8) | (user_data[1]);
+    uint16_t type      = 0;
 
     ble_channel_t *channel = s_ble_channel;
+
+    if (NULL == user_data || len < 2) {
+        return;
+    }
+
+    type = (user_data[0] << 8) | (user_data[1]);
 
     PR_DEBUG("ble channel type:%x", type);
 
     if (type < BLE_CHANNEL_MAX) {
         if (channel[type].function) {
-            channel[type].function(user_data + 2, channel[type].priv_data);
+            channel[type].function(user_data + 2, len - 2, channel[type].priv_data);
         } else {
             PR_DEBUG("ble channel not add :%x", type);
         }
@@ -333,11 +339,11 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 tal_free(pAck);
 
                 tuya_ble_raw_print("recv_donwlink_cmd", 16, pBuffer, totalLen);
-                ble_channel_process(pBuffer);
+                ble_channel_process(pBuffer, totalLen);
             }
         } else { // not subpacket process
             tuya_ble_raw_print("recv_downlink_cmd", 16, pRawData, pRawLen);
-            ble_channel_process(pRawData + 2);
+            ble_channel_process(pRawData + 2, pRawLen - 2);
         }
     } else if (FRM_UPLINK_TRANSPARENT_REQ == req->type || FRM_UPLINK_TRANSPARENT_SPEC_REQ == req->type) {
         tuya_ble_raw_print("recv_uplink_frame", 16, pRawData, pRawLen);
