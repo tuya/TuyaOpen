@@ -158,10 +158,13 @@ typedef struct mqtt_subscribe_handle {
 
 typedef void (*mqtt_publish_notify_cb_t)(int result, void *user_data);
 
+/* Includes queued reports and reports awaiting PUBACK. */
+#define MQTT_PUBLISH_MAX_PENDING 64U
+
 typedef struct mqtt_publish_handle {
     struct mqtt_publish_handle *next;
     uint16_t msgid;
-    int timeout;
+    uint32_t timeout; //!< Monotonic millisecond deadline (wrap-safe).
     char *topic;
     uint8_t *payload;
     size_t payload_length;
@@ -188,6 +191,7 @@ typedef struct {
     void (*on_connected)(void *context, void *user_data);
     void (*on_disconnect)(void *context, void *user_data);
     void (*on_unbind)(void *context, void *user_data);
+    unsigned int publish_count; //!< guarded by publish_mutex
 } tuya_mqtt_context_t;
 
 /**
@@ -239,6 +243,12 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context);
 /**
  * @brief Destroys the MQTT context and releases any resources associated with
  * it.
+ *
+ * @note The owner must stop/join publishers and the MQTT loop before calling
+ * this function. Do not destroy the context from a publish callback. Pending
+ * accepted reports complete with OPRT_COM_ERROR; callback re-submission is
+ * rejected. The owner must serialize init/start/stop/destroy and synchronous
+ * publishing with the loop.
  *
  * @param context Pointer to the MQTT context.
  * @return Returns 0 on success, or a negative error code on failure.

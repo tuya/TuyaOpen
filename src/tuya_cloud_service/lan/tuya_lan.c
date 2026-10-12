@@ -110,6 +110,33 @@ static lan_cfg_t s_lan_cfg = {.client_num = CLIENT_LMT,
                               .allow_no_session_key_num = ALLOW_NO_KEY_NUM};
 
 static TUYA_QUEUE_HANDLE s_lan_dp_rept_queue = NULL;
+/* Process-lifetime guard: producers may still be rejecting reports at exit. */
+static MUTEX_HANDLE s_lan_dp_rept_mutex    = NULL;
+static BOOL_T       s_lan_dp_rept_active   = FALSE;
+static BOOL_T       s_lan_dp_rept_stopping = TRUE;
+
+static void lan_dp_report_queue_release(void)
+{
+    if (NULL == s_lan_dp_rept_mutex) {
+        return;
+    }
+    tal_mutex_lock(s_lan_dp_rept_mutex);
+    s_lan_dp_rept_stopping = TRUE;
+    while (s_lan_dp_rept_active) {
+        tal_mutex_unlock(s_lan_dp_rept_mutex);
+        tal_system_sleep(1);
+        tal_mutex_lock(s_lan_dp_rept_mutex);
+    }
+    if (s_lan_dp_rept_queue) {
+        char *dpstr = NULL;
+        while (OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
+            tal_free(dpstr);
+        }
+        tuya_queue_release(s_lan_dp_rept_queue);
+        s_lan_dp_rept_queue = NULL;
+    }
+    tal_mutex_unlock(s_lan_dp_rept_mutex);
+}
 
 static lan_mgr_t *lan_mgr_get(void)
 {
@@ -746,7 +773,7 @@ int tuya_lan_dp_report(char *dpstr)
  */
 int tuya_lan_dp_report_async(char *dpstr)
 {
-    if (NULL == dpstr || NULL == s_lan_dp_rept_queue) {
+    if (NULL == dpstr || NULL == s_lan_dp_rept_mutex) {
         return OPRT_INVALID_PARM;
     }
 
@@ -756,10 +783,15 @@ int tuya_lan_dp_report_async(char *dpstr)
     }
     memcpy(dpstr_copy, dpstr, strlen(dpstr) + 1);
 
-    int op_ret = tuya_queue_input(s_lan_dp_rept_queue, &dpstr_copy);
+    tal_mutex_lock(s_lan_dp_rept_mutex);
+    int op_ret = OPRT_INVALID_PARM;
+    if (!s_lan_dp_rept_stopping && NULL != s_lan_dp_rept_queue) {
+        op_ret = tuya_queue_input(s_lan_dp_rept_queue, &dpstr_copy);
+    }
+    tal_mutex_unlock(s_lan_dp_rept_mutex);
     if (OPRT_OK != op_ret) {
         tal_free(dpstr_copy);
-        PR_WARN("lan dp report queue full, dropped");
+        PR_WARN("lan dp report rejected: %d", op_ret);
     }
 
     return op_ret;
@@ -772,14 +804,24 @@ void tuya_lan_dp_report_flush(void)
 {
     char *dpstr = NULL;
 
-    if (NULL == s_lan_dp_rept_queue) {
+    if (NULL == s_lan_dp_rept_mutex) {
         return;
     }
 
-    while (OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
-        tuya_lan_dp_report(dpstr);
+    tal_mutex_lock(s_lan_dp_rept_mutex);
+    while (!s_lan_dp_rept_stopping && NULL != s_lan_dp_rept_queue &&
+           OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
+        s_lan_dp_rept_active = TRUE;
+        tal_mutex_unlock(s_lan_dp_rept_mutex);
+        int ret = tuya_lan_dp_report(dpstr);
+        if (OPRT_OK != ret) {
+            PR_WARN("lan async dp send failed: %d", ret);
+        }
         tal_free(dpstr);
+        tal_mutex_lock(s_lan_dp_rept_mutex);
+        s_lan_dp_rept_active = FALSE;
     }
+    tal_mutex_unlock(s_lan_dp_rept_mutex);
 }
 
 static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_frame_object_t *frame)
@@ -1399,9 +1441,11 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     // INIT_LIST_HEAD(&s_lan_mgr->lan_ext_proto);
 
     int op_ret;
-    op_ret = tuya_queue_create(LAN_DP_REPT_QUEUE_NUM, sizeof(char *), &s_lan_dp_rept_queue);
-    if (OPRT_OK != op_ret) {
-        goto __exit;
+    if (NULL == s_lan_dp_rept_mutex) {
+        op_ret = tal_mutex_create_init(&s_lan_dp_rept_mutex);
+        if (OPRT_OK != op_ret) {
+            goto __exit;
+        }
     }
     op_ret = tuya_sock_loop_init();
     if (OPRT_OK != op_ret) {
@@ -1434,6 +1478,14 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
         goto __exit;
     }
 
+    /* Publish the queue only after the manager and sockets are ready. */
+    tal_mutex_lock(s_lan_dp_rept_mutex);
+    op_ret                 = tuya_queue_create(LAN_DP_REPT_QUEUE_NUM, sizeof(char *), &s_lan_dp_rept_queue);
+    s_lan_dp_rept_stopping = (OPRT_OK != op_ret);
+    tal_mutex_unlock(s_lan_dp_rept_mutex);
+    if (OPRT_OK != op_ret) {
+        goto __exit;
+    }
     PR_DEBUG("lan init success");
     return OPRT_OK;
 
@@ -1456,14 +1508,7 @@ int tuya_lan_exit(void)
     if (s_lan_mgr == NULL) {
         return OPRT_OK;
     }
-    if (s_lan_dp_rept_queue) {
-        char *dpstr = NULL;
-        while (OPRT_OK == tuya_queue_output(s_lan_dp_rept_queue, &dpstr)) {
-            tal_free(dpstr);
-        }
-        tuya_queue_release(s_lan_dp_rept_queue);
-        s_lan_dp_rept_queue = NULL;
-    }
+    lan_dp_report_queue_release();
     lan_session_close_all();
     if (s_lan_mgr->session) {
         tal_free(s_lan_mgr->session);
