@@ -16,7 +16,7 @@ platform change.
 | `memory.flash_mib` / `memory.sdram_mib` | On-chip flash and external SDRAM, in MiB. |
 | `memory.external_ddr` | `true` when the board actually populates the external DDR. The vendor SDK otherwise disables it via `CONFIG_NO_SDRAM_ENABLE`. |
 | `log_uart.port` | SDK UART index used for the log. The platform asserts the board's documented port. |
-| `log_uart.tx_pin` | Optional. Set it only when the platform has to rewrite the pin; a board that keeps the vendor default omits it. |
+| `log_uart.tx_pin` | Required when the chip's board file has to be rewritten, which is the wl82 path; omit it on a chip that only sets the baudrate, as wl83 does. A chip that rewrites the pin rejects a board that omits it, because it would have no pin to write. |
 | `service_uart` | `null` when the board has no second UART. Otherwise `port`, `tx_pin` and `rx_pin` for the UART the TAL CLI is routed to. |
 | `display` | `null` for a board with no panel. Otherwise `panel_macro`, `device_name`, `reset_io` and `backlight_io`. |
 
