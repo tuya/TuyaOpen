@@ -608,7 +608,12 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         ble_data.p_data = pbuf;
         ble_data.len = send_len;
 
-        TUYA_CALL_ERR_GOTO(tal_ble_server_common_send(&ble_data), __exit);
+        int send_ret = tal_ble_server_common_send(&ble_data);
+        if (OPRT_OK != send_ret) {
+            PR_ERR("bt hal send fail.%d", send_ret);
+            rt = send_ret;
+            goto __exit;
+        }
         tal_system_sleep(20);
     } while (rt == OPRT_SVC_BT_API_TRSMITR_CONTINUE);
 
