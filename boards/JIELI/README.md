@@ -1,30 +1,37 @@
 # JieLi boards
 
 Each board directory carries the hardware facts the platform stages into the
-vendor SDK. `Kconfig` selects the board; `jieli_board.json` describes it.
+vendor SDK. `Kconfig` selects the board and describes it; `audio_config.h`
+carries the audio data, which is a vendor C initialisation table rather than a
+set of scalar facts.
 
-## `jieli_board.json`
+## Board facts
 
-`schema_version` is `1`. The platform reads this file while building the staging
-tree and fails if a required field is missing, so a board added here needs no
-platform change.
+They are ordinary Kconfig symbols, so the platform reads them from the
+evaluated config the same way it reads every other setting and `tos.py config
+menu` shows them. A board added here needs no platform change.
 
-| Field | Meaning |
+| Symbol | Meaning |
 | :--- | :--- |
-| `board` | Must equal the directory name. |
-| `usb_device` | Vendor USB device macro: `TCFG_HUSB_DEVICE` for a host port, `TCFG_FUSB_DEVICE` for a full-speed device port. |
-| `memory.flash_mib` / `memory.sdram_mib` | On-chip flash and external SDRAM, in MiB. |
-| `memory.external_ddr` | `true` when the board actually populates the external DDR. The vendor SDK otherwise disables it via `CONFIG_NO_SDRAM_ENABLE`. |
-| `log_uart.port` | SDK UART index used for the log. The platform asserts the board's documented port. |
-| `log_uart.tx_pin` | Required when the chip's board file has to be rewritten, which is the wl82 path; omit it on a chip that only sets the baudrate, as wl83 does. A chip that rewrites the pin rejects a board that omits it, because it would have no pin to write. |
-| `service_uart` | `null` when the board has no second UART. Otherwise `port`, `tx_pin` and `rx_pin` for the UART the TAL CLI is routed to. |
-| `display` | `null` for a board with no panel. Otherwise `panel_macro`, `device_name`, `reset_io` and `backlight_io`. |
+| `JIELI_BOARD_USB_ROLE` | `host` or `device`. The platform maps this to the vendor's `TCFG_HUSB_DEVICE` / `TCFG_FUSB_DEVICE`. |
+| `JIELI_BOARD_FLASH_MIB` / `JIELI_BOARD_SDRAM_MIB` | On-chip flash and external SDRAM, in MiB. |
+| `JIELI_BOARD_EXTERNAL_DDR` | Whether the board populates the external DDR. The vendor SDK disables it with `CONFIG_NO_SDRAM_ENABLE` unless this says otherwise. |
+| `JIELI_BOARD_LOG_UART_PORT` | SDK UART index used for the log. |
+| `JIELI_BOARD_LOG_UART_TX_PIN` | Empty unless the staged board file has to be rewritten. A chip that only sets the baudrate leaves the vendor header's pin alone and leaves this empty. |
+| `JIELI_BOARD_HAS_SERVICE_UART` | Whether the board carries the second UART the TAL CLI is routed to. When set, `JIELI_BOARD_SERVICE_UART_{PORT,TX_PIN,RX_PIN}` apply. |
+| `JIELI_BOARD_HAS_DISPLAY` | Whether the board has a panel. When set, `JIELI_BOARD_DISPLAY_{PANEL,RESET_IO,BACKLIGHT_IO}` apply. |
 
-Fields the platform does not read are a mistake, not a harmless extra: they
-suggest a fact is being honoured when it is not.
+None of these has a prompt: they are facts about the board, not choices for
+whoever builds it. Every board declares the same names, so the platform reads
+one set whichever is selected; Kconfig resolves the value from the node that
+the board choice makes visible.
+
+Values that would name a vendor macro stay semantic - `usb_role`, the panel -
+and the platform owns the mapping. Pin names are the SDK's own vocabulary and
+are written as the vendor headers spell them.
 
 ## `audio_config.h`
 
-Boards with audio declare it there rather than in the JSON, because the values
+Boards with audio declare it there rather than in Kconfig, because the values
 are a vendor C initialisation table. `AUDIO_PROFILES` in the platform names the
 chip's audio profile; the board supplies the data.

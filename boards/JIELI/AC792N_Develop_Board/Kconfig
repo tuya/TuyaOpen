@@ -5,3 +5,73 @@ config BOARD_CONFIG
 config CHIP_WL83
     bool
     default y
+
+# ---------------------------------------------------------------------------
+# Hardware facts the platform stages into the vendor SDK.
+#
+# The platform reads these from the evaluated config, the same way it reads
+# every other setting, so a board describes itself here rather than in a file
+# of its own. Nothing here has a prompt: they are facts about the board, not
+# choices for whoever builds it.
+#
+# Values that would name a vendor macro stay semantic - usb_role, the display
+# panel - and the platform owns the mapping. Pin names are the SDK's own
+# vocabulary and are written as the vendor headers spell them.
+# ---------------------------------------------------------------------------
+
+config JIELI_BOARD_USB_ROLE
+    string
+    default "host"
+    help
+        "host" for a host port (the vendor's TCFG_HUSB_DEVICE), "device" for a
+        full-speed device port (TCFG_FUSB_DEVICE).
+
+config JIELI_BOARD_FLASH_MIB
+    int
+    default 8
+
+config JIELI_BOARD_SDRAM_MIB
+    int
+    default 16
+
+config JIELI_BOARD_EXTERNAL_DDR
+    bool
+    default y
+    help
+        Whether the board populates the external DDR. The vendor SDK disables
+        it with CONFIG_NO_SDRAM_ENABLE unless this says otherwise.
+
+config JIELI_BOARD_LOG_UART_PORT
+    int
+    default 0
+
+config JIELI_BOARD_LOG_UART_TX_PIN
+    string
+    default ""
+    help
+        Only a chip whose staged board file has to be rewritten needs this.
+        Empty means the vendor header keeps the pin it already has.
+
+config JIELI_BOARD_HAS_SERVICE_UART
+    bool
+    default n
+    help
+        Whether the board carries the second UART the TAL CLI is routed to.
+
+config JIELI_BOARD_HAS_DISPLAY
+    bool
+    default y
+
+if JIELI_BOARD_HAS_DISPLAY
+    config JIELI_BOARD_DISPLAY_PANEL
+        string
+        default "MIPI_480x800_ST7701S"
+
+    config JIELI_BOARD_DISPLAY_RESET_IO
+        string
+        default "IO_PORTB_00"
+
+    config JIELI_BOARD_DISPLAY_BACKLIGHT_IO
+        string
+        default "IO_PORTB_01"
+endif
