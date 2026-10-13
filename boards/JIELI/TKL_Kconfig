@@ -1,0 +1,56 @@
+# TKL capabilities Jieli provides.
+#
+# The platform catalog declares these here, without a prompt, and examples gate
+# on them: examples/peripherals/adc/CMakeLists.txt refuses to configure when
+# CONFIG_ENABLE_ADC is not set, rather than building and failing at run time.
+# Every other platform in boards/ has this file; Jieli did not.
+#
+# Only what the adapter actually implements is declared. A peripheral that is
+# not ported stays undeclared, so the example driving it refuses honestly
+# instead of building against a stub.
+#
+# Undeclared on purpose:
+#
+#   ENABLE_PWM, ENABLE_I2C, ENABLE_SPI, ENABLE_QSPI, ENABLE_TIMER,
+#   ENABLE_WATCHDOG, ENABLE_PINMUX, ENABLE_TOUCH, ENABLE_RTC
+#       There is no matching tkl_*.c under tuyaos_adapter/src/driver.
+#       examples/peripherals/{pwm,touch,watchdog} therefore stop with
+#       "cannot work when CONFIG_ENABLE_X is not set", which is the truth.
+#
+#   ENABLE_MEDIA
+#       Declared in Kconfig beside this file instead. There it is not a bare
+#       capability but an opt-in switch that selects ENABLE_AUDIO_CODECS, and
+#       src/peripherals/audio_codecs/CMakeLists.txt gates on it.
+#
+#   tkl_mipi_dsi
+#       Implemented for WL83 only. A platform-level switch has no chip
+#       dimension, so declaring it here would claim WL82 support that the
+#       adapter reports as OPRT_NOT_SUPPORTED. The display path is declared
+#       through the board's display facts instead.
+#
+#   tkl_ota
+#       No platform in the catalog declares an OTA switch.
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default y
+
+config ENABLE_FLASH
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
