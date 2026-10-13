@@ -179,7 +179,9 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
 
     uint8_t *flag = (uint8_t *)&ble->rsp_data[ble->rsp_len++];
     *flag = 0x00; // bond flag bit7 (8)
+    if (ble_wifi_list_is_enable()) {
     *flag |= ADV_FLAG_WIFI_LIST;
+    }
     if (ble->is_id_comp) {
         *flag |= ADV_FLAG_UUID_COMP;
     }
@@ -915,8 +917,7 @@ static TAL_BLE_EVT_PARAMS_T * ble_event_msg_copy(TAL_BLE_EVT_PARAMS_T *evt)
     memcpy(msg, evt, sizeof(TAL_BLE_EVT_PARAMS_T));
 
     if (TAL_BLE_EVT_WRITE_REQ == evt->type && evt->ble_event.write_report.report.len > 0) {
-        msg->ble_event.write_report.report.p_data =
-            tal_malloc(evt->ble_event.write_report.report.len);
+        msg->ble_event.write_report.report.p_data = tal_malloc(evt->ble_event.write_report.report.len);
         if (NULL == msg->ble_event.write_report.report.p_data) {
             tal_free(msg);
             return NULL;
@@ -1062,6 +1063,7 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
     ble_channel_del(BLE_CHANNLE_WIFI_LST);
+    ble_wifi_list_cache_clear();
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;

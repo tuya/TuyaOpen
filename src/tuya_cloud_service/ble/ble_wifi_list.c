@@ -11,17 +11,24 @@
 #include "string.h"
 #include "tal_memory.h"
 #include "tal_wifi.h"
+#include "tal_system.h"
 #include "stdio.h"
 #include "ble_channel.h"
 
 #define BLE_WIFI_LIST_MAX_CNT    10
 #define BLE_WIFI_LIST_BUF_SIZE   1024
 #define BLE_WIFI_LIST_AP_RESERVE 96
+#define BLE_WIFI_LIST_CACHE_TTL_MS (60 * 1000)
 
 typedef struct {
     uint32_t max_cnt;
     char     ccode[COUNTRY_CODE_LEN + 1];
 } ble_wifi_list_req_t;
+
+static bool       s_wifi_list_enable = true;
+static AP_IF_S   *s_ap_cache         = NULL;
+static uint32_t   s_ap_cache_num     = 0;
+static SYS_TIME_T s_ap_cache_time    = 0;
 
 static void __ble_wifi_list_sort(AP_IF_S *ap_arr, uint32_t ap_num)
 {
@@ -40,6 +47,68 @@ static void __ble_wifi_list_sort(AP_IF_S *ap_arr, uint32_t ap_num)
     }
 }
 
+void ble_wifi_list_cache_clear(void)
+{
+    if (s_ap_cache) {
+        tal_wifi_release_ap(s_ap_cache);
+        s_ap_cache = NULL;
+    }
+    s_ap_cache_num  = 0;
+    s_ap_cache_time = 0;
+}
+
+void ble_wifi_list_enable(bool enable)
+{
+    if (s_wifi_list_enable == enable) {
+        return;
+    }
+
+    s_wifi_list_enable = enable;
+    tuya_ble_adv_update();
+}
+
+bool ble_wifi_list_is_enable(void)
+{
+    return s_wifi_list_enable;
+}
+
+static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
+{
+    SYS_TIME_T now = tal_system_get_millisecond();
+    AP_IF_S   *arr = NULL;
+    uint32_t   num = 0;
+
+    if (s_ap_cache && (now - s_ap_cache_time) < BLE_WIFI_LIST_CACHE_TTL_MS) {
+        *ap_arr = s_ap_cache;
+        *ap_num = s_ap_cache_num;
+        return OPRT_OK;
+    }
+
+    ble_wifi_list_cache_clear();
+
+    if (OPRT_OK != tal_wifi_set_work_mode(WWM_STATION)) {
+        PR_ERR("set station mode err");
+    }
+
+    if (OPRT_OK != tal_wifi_all_ap_scan(&arr, &num) || NULL == arr || 0 == num) {
+        if (arr) {
+            tal_wifi_release_ap(arr);
+        }
+        return OPRT_COM_ERROR;
+    }
+
+    __ble_wifi_list_sort(arr, num);
+
+    s_ap_cache      = arr;
+    s_ap_cache_num  = num;
+    s_ap_cache_time = now;
+
+    *ap_arr = s_ap_cache;
+    *ap_num = s_ap_cache_num;
+
+    return OPRT_OK;
+}
+
 static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt)
 {
     AP_IF_S *ap_arr = NULL;
@@ -49,15 +118,11 @@ static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt
     bool     first  = true;
     int      n      = 0;
 
-    if (OPRT_OK != tal_wifi_all_ap_scan(&ap_arr, &ap_num) || NULL == ap_arr || 0 == ap_num) {
-        if (ap_arr) {
-            tal_wifi_release_ap(ap_arr);
-        }
+    if (!s_wifi_list_enable || OPRT_OK != __ble_wifi_list_ap_get(&ap_arr, &ap_num) || NULL == ap_arr || 0 == ap_num) {
         n = snprintf(json, size, "{\"wifi_list\":[]}");
         return (n > 0) ? (uint32_t)n : 0;
     }
 
-    __ble_wifi_list_sort(ap_arr, ap_num);
     offset = (uint32_t)snprintf(json, size, "{\"wifi_list\":[");
     if (max_cnt > ap_num) {
         max_cnt = ap_num;
@@ -78,8 +143,6 @@ static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt
         first = false;
     }
     offset += (uint32_t)snprintf(json + offset, size - offset, "]}");
-
-    tal_wifi_release_ap(ap_arr);
 
     return offset;
 }

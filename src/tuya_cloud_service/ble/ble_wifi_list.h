@@ -27,6 +27,12 @@ extern "C" {
  */
 void ble_wifi_list_query(void *data, void *user_data);
 
+void ble_wifi_list_enable(bool enable);
+
+bool ble_wifi_list_is_enable(void);
+
+void ble_wifi_list_cache_clear(void);
+
 #ifdef __cplusplus
 }
 #endif
