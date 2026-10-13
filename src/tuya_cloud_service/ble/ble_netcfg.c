@@ -34,7 +34,8 @@ extern int tuya_ble_adv_update(void);
 static void __handle_net_cfg(void *data, void *user_data)
 {
     uint8_t result = 0;
-    uint8_t resp[5];
+    // resp[0] is never assigned below
+    uint8_t resp[5] = {0};
 
     cJSON *json = cJSON_Parse(data);
     if (NULL == json) {

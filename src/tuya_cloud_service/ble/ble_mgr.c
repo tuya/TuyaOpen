@@ -295,6 +295,11 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         PR_ERR("ble trsmitr version not compatibility! %d", packet_recv->trsmitr->version);
         return OPRT_INVALID_PARM;
     }
+    // a bound device must not accept keyless frames
+    if (*ble->is_bound && ENCRYPTION_MODE_NONE == packet_recv->raw_buf[0]) {
+        PR_ERR("ble plaintext frame rejected on bound device");
+        return OPRT_INVALID_PARM;
+    }
     tuya_ble_raw_print("ble raw packet", 8, packet_recv->raw_buf, packet_recv->raw_len);
     memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
@@ -341,12 +346,14 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
     packet->data = NULL;
     packet->encrypt_mode = packet_recv->raw_buf[0];
     if (0 != packet->len) {
-        packet->data = (uint8_t *)tal_malloc(packet->len);
+        // spare byte terminates the payload for cJSON_Parse
+        packet->data = (uint8_t *)tal_malloc(packet->len + 1);
         if (packet->data == NULL) {
             PR_DEBUG("ble packet malloc err");
             return OPRT_MALLOC_FAILED;
         }
         memcpy(packet->data, &packet_recv->dec_buf[BLE_PACKET_DATA_IND], packet->len);
+        packet->data[packet->len] = 0;
     }
 
     return OPRT_OK;
@@ -694,6 +701,12 @@ static int ble_unbind_req(ble_packet_t *req, void *priv_data)
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
     ble_packet_t resp;
 
+    // this handler destroys device state, so it needs a paired session
+    if (!ble->is_paired) {
+        PR_ERR("ble unbind req before pairing");
+        return OPRT_INVALID_PARM;
+    }
+
     resp.sn = req->sn;
     resp.type = req->type;
     resp.len = 1;
@@ -819,20 +832,31 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     uint8_t buf_len = 128;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
 
+    // req->data is NULL for a zero-length frame
+    if (req->len < 2) {
+        PR_ERR("ble dev info req len err:%d", req->len);
+        return OPRT_INVALID_PARM;
+    }
     // Gets the Bluetooth subcontract length from the protocol
     uint16_t pkg_len = (req->data[0] << 8 & 0xff00) + (req->data[1] & 0xff);
-    ble_frame_packet_len_set(pkg_len);
-    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
-    if (trsmitr->subpkg) {
-        tal_free(trsmitr->subpkg);
-        trsmitr->subpkg = NULL;
+    // this sizes the reassembly buffer and the transmit encoder's capacity
+    if (pkg_len < TUYA_BLE_SUBPACK_LEN_MIN || pkg_len > TUYA_BLE_AIR_FRAME_MAX) {
+        PR_ERR("ble sub packet len out of range:%d", pkg_len);
+        return OPRT_INVALID_PARM;
     }
-    trsmitr->subpkg = (uint8_t *)tal_malloc(pkg_len);
-    if (trsmitr->subpkg == NULL) {
+    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
+    // allocate before releasing, so a failure cannot leave subpkg NULL
+    uint8_t *subpkg = (uint8_t *)tal_malloc(pkg_len);
+    if (subpkg == NULL) {
         PR_ERR("malloc err:%d", pkg_len);
         return OPRT_MALLOC_FAILED;
     }
-    memset(trsmitr->subpkg, 0, pkg_len);
+    memset(subpkg, 0, pkg_len);
+    if (trsmitr->subpkg) {
+        tal_free(trsmitr->subpkg);
+    }
+    trsmitr->subpkg = subpkg;
+    ble_frame_packet_len_set(pkg_len);
     PR_NOTICE("ble dev info: state:%d, pkg_len:%d", *ble->is_bound, ble_frame_packet_len_get());
 
     pbuf = (uint8_t *)tal_malloc(buf_len);
@@ -882,6 +906,11 @@ void ble_session_system_process(ble_packet_t *packet, void *priv_data)
         break;
 
     case FRM_PAIR_REQ:
+        // ble_pair_req() memcmp()s the body against the device UUID
+        if (packet->len < BLE_ID_LEN) {
+            PR_ERR("ble pair req too short:%d", packet->len);
+            break;
+        }
         TUYA_CALL_ERR_LOG(ble_pair_req(packet, priv_data));
         break;
 
