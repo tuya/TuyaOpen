@@ -1182,7 +1182,8 @@ static void __switch_give_up(void)
  */
 static void __switch_commit(const wifi_backup_ap_t *ap)
 {
-    wifi_backup_ap_t *found = __list_find(ap->hash);
+    wifi_backup_ap_t  target = *ap;
+    wifi_backup_ap_t *found  = __list_find(target.hash);
 
     if (NULL != found) {
         __list_remove_at((uint8_t)(found - s_mgr.list));
@@ -1191,7 +1192,7 @@ static void __switch_commit(const wifi_backup_ap_t *ap)
     __kv_save();
 
     /* persist the new network so the next boot connects to it directly */
-    netconn_wifi_station_info_save(ap->ssid, ap->passwd);
+    netconn_wifi_station_info_save(target.ssid, target.passwd);
 }
 
 static void __switch_fsm_run(wifi_backup_switch_fsm_t *fsm)
