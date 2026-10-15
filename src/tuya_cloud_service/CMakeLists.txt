@@ -46,6 +46,11 @@ if(CONFIG_ENABLE_WIFI STREQUAL "y")
     list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/netcfg)
 endif()
 
+# the backup network belongs to the wifi connection, it needs wifi to be there
+if(CONFIG_ENABLE_WIFI STREQUAL "y" AND CONFIG_ENABLE_WIFI_BACKUP STREQUAL "y")
+    list(APPEND LIB_SRCS "${MODULE_PATH}/netmgr/tuya_wifi_backup.c")
+endif()
+
 if(CONFIG_ENABLE_WIRED STREQUAL "y")
     file(GLOB_RECURSE WIRED_SRCS 
         "${MODULE_PATH}/netmgr/netconn_wired.c")
@@ -62,7 +67,13 @@ if(CONFIG_ENABLE_BLUETOOTH STREQUAL "y")
     file(GLOB_RECURSE BLE_SRCS  
         "${MODULE_PATH}/ble/*.c")
     list(APPEND LIB_SRCS ${BLE_SRCS})
-    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/ble) 
+    list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/ble)
+
+    # ble_wifi_backup.c is only a transport for the backup network, it is empty
+    # without the service behind it
+    if(NOT (CONFIG_ENABLE_WIFI STREQUAL "y" AND CONFIG_ENABLE_WIFI_BACKUP STREQUAL "y"))
+        list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/ble/ble_wifi_backup.c")
+    endif()
 endif()
 
 

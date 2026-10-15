@@ -8,7 +8,7 @@
  * BLE sessions, and processing received BLE packets. It also includes
  * encryption and decryption of BLE packets for secure communication.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -22,6 +22,9 @@
 #include "mix_method.h"
 #include "ble_channel.h"
 #include "ble_wifi_list.h"
+#ifdef ENABLE_WIFI_BACKUP
+#include "ble_wifi_backup.h"
+#endif
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
@@ -1068,6 +1071,9 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_DP);
     ble_channel_del(BLE_CHANNLE_WIFI_LST);
     ble_wifi_list_cache_clear();
+#ifdef ENABLE_WIFI_BACKUP
+    ble_wifi_backup_unregister();
+#endif
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;
@@ -1151,6 +1157,9 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
     ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
+#ifdef ENABLE_WIFI_BACKUP
+    ble_wifi_backup_register();
+#endif
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
     PR_NOTICE("tuya ble init success finish");
