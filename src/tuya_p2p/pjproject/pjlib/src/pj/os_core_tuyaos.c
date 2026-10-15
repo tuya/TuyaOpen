@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <string.h>
 
-#define THIS_FILE "os_core_tuyaos.c"
+#define THIS_FILE  "os_core_tuyaos.c"
 #define SIGNATURE1 0xDEAFBEEF
 #define SIGNATURE2 0xDEADC0DE
 
@@ -44,54 +44,54 @@
 #endif
 
 struct pj_thread_t {
-    char obj_name[PJ_MAX_OBJ_NAME];
-    THREAD_HANDLE thread;
-    SEM_HANDLE join_sem;
+    char            obj_name[PJ_MAX_OBJ_NAME];
+    THREAD_HANDLE   thread;
+    SEM_HANDLE      join_sem;
     pj_thread_proc *proc;
-    void *arg;
-    pj_uint32_t signature1;
-    pj_uint32_t signature2;
-    pj_mutex_t *suspended_mutex;
-    int joined;
+    void           *arg;
+    pj_uint32_t     signature1;
+    pj_uint32_t     signature2;
+    pj_mutex_t     *suspended_mutex;
+    int             joined;
 };
 
 struct pj_atomic_t {
-    pj_mutex_t *mutex;
+    pj_mutex_t       *mutex;
     pj_atomic_value_t value;
 };
 
 struct pj_mutex_t {
     MUTEX_HANDLE mutex;
-    char obj_name[PJ_MAX_OBJ_NAME];
+    char         obj_name[PJ_MAX_OBJ_NAME];
 };
 
 #if defined(PJ_HAS_SEMAPHORE) && PJ_HAS_SEMAPHORE != 0
 struct pj_sem_t {
     SEM_HANDLE sem;
-    char obj_name[PJ_MAX_OBJ_NAME];
+    char       obj_name[PJ_MAX_OBJ_NAME];
 };
 #endif
 
 typedef struct pj_tuyaos_tls_row {
     TKL_THREAD_HANDLE task; /* FreeRTOS task handle from tkl_thread_get_id() */
-    int in_use;
-    void *vals[PJ_TUYAOS_TLS_KEYS];
+    int               in_use;
+    void             *vals[PJ_TUYAOS_TLS_KEYS];
 } pj_tuyaos_tls_row;
 
-static int initialized;
+static int         initialized;
 static pj_thread_t main_thread;
-static long thread_tls_id = -1;
-static pj_mutex_t critical_section;
-static unsigned atexit_count;
+static long        thread_tls_id = -1;
+static pj_mutex_t  critical_section;
+static unsigned    atexit_count;
 static void (*atexit_func[32])(void);
 
 static pj_tuyaos_tls_row s_tls_rows[PJ_TUYAOS_TLS_ROWS];
-static MUTEX_HANDLE s_tls_lock;
-static int s_tls_key_used[PJ_TUYAOS_TLS_KEYS];
-static pj_thread_t *s_current_hint;
+static MUTEX_HANDLE      s_tls_lock;
+static int               s_tls_key_used[PJ_TUYAOS_TLS_KEYS];
+static pj_thread_t      *s_current_hint;
 
 static pj_status_t init_mutex(pj_mutex_t *mutex, const char *name, int type);
-pj_status_t pj_thread_init(void);
+pj_status_t        pj_thread_init(void);
 
 static pj_status_t map_oprt(OPERATE_RET rt)
 {
@@ -119,7 +119,7 @@ static TKL_THREAD_HANDLE __tls_self_task(void)
  */
 static pj_tuyaos_tls_row *__tls_row_current(int create)
 {
-    int i;
+    int               i;
     TKL_THREAD_HANDLE self = __tls_self_task();
 
     if (s_tls_lock) {
@@ -143,7 +143,7 @@ static pj_tuyaos_tls_row *__tls_row_current(int create)
         if (!s_tls_rows[i].in_use) {
             memset(&s_tls_rows[i], 0, sizeof(s_tls_rows[i]));
             s_tls_rows[i].in_use = 1;
-            s_tls_rows[i].task = self;
+            s_tls_rows[i].task   = self;
             if (s_tls_lock) {
                 tal_mutex_unlock(s_tls_lock);
             }
@@ -158,8 +158,8 @@ static pj_tuyaos_tls_row *__tls_row_current(int create)
 
 PJ_DEF(pj_status_t) pj_init(void)
 {
-    char dummy_guid[PJ_GUID_MAX_LENGTH];
-    pj_str_t guid;
+    char        dummy_guid[PJ_GUID_MAX_LENGTH];
+    pj_str_t    guid;
     pj_status_t rc;
 
     if (initialized) {
@@ -301,9 +301,9 @@ PJ_DEF(void *) pj_thread_get_os_handle(pj_thread_t *thread)
 PJ_DEF(pj_status_t) pj_thread_register(const char *cstr_thread_name, pj_thread_desc desc, pj_thread_t **ptr_thread)
 {
 #if PJ_HAS_THREADS
-    pj_status_t rc;
-    pj_thread_t *thread = (pj_thread_t *)desc;
-    pj_str_t thread_name = pj_str((char *)cstr_thread_name);
+    pj_status_t  rc;
+    pj_thread_t *thread      = (pj_thread_t *)desc;
+    pj_str_t     thread_name = pj_str((char *)cstr_thread_name);
 
     if (sizeof(pj_thread_desc) < sizeof(pj_thread_t)) {
         pj_assert(!"Not enough pj_thread_desc size!");
@@ -311,7 +311,7 @@ PJ_DEF(pj_status_t) pj_thread_register(const char *cstr_thread_name, pj_thread_d
     }
 
     pj_bzero(desc, sizeof(struct pj_thread_t));
-    thread->thread = NULL;
+    thread->thread     = NULL;
     thread->signature1 = SIGNATURE1;
     thread->signature2 = SIGNATURE2;
 
@@ -327,7 +327,7 @@ PJ_DEF(pj_status_t) pj_thread_register(const char *cstr_thread_name, pj_thread_d
         return rc;
     }
     s_current_hint = thread;
-    *ptr_thread = thread;
+    *ptr_thread    = thread;
     return PJ_SUCCESS;
 #else
     PJ_UNUSED_ARG(cstr_thread_name);
@@ -339,7 +339,7 @@ PJ_DEF(pj_status_t) pj_thread_register(const char *cstr_thread_name, pj_thread_d
 pj_status_t pj_thread_init(void)
 {
 #if PJ_HAS_THREADS
-    pj_status_t rc;
+    pj_status_t  rc;
     pj_thread_t *dummy;
 
     rc = pj_thread_local_alloc(&thread_tls_id);
@@ -385,8 +385,8 @@ pj_thread_create(pj_pool_t *pool, const char *thread_name, pj_thread_proc *proc,
 #if PJ_HAS_THREADS
     pj_thread_t *rec;
     THREAD_CFG_T cfg;
-    OPERATE_RET ort;
-    pj_status_t rc;
+    OPERATE_RET  ort;
+    pj_status_t  rc;
 
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(pool && proc && ptr_thread, PJ_EINVAL);
@@ -424,13 +424,13 @@ pj_thread_create(pj_pool_t *pool, const char *thread_name, pj_thread_proc *proc,
     }
 
     rec->proc = proc;
-    rec->arg = arg;
+    rec->arg  = arg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.stackDepth = (uint32_t)stack_size;
-    cfg.priority = THREAD_PRIO_2;
-    cfg.thrdname = rec->obj_name;
+    cfg.priority   = THREAD_PRIO_2;
+    cfg.thrdname   = rec->obj_name;
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.psram_mode = 1;
+    cfg.ex_ram_mode = 1;
 #endif
 
     ort = tal_thread_create_and_start(&rec->thread, NULL, NULL, __pj_thread_entry, rec, &cfg);
@@ -577,7 +577,7 @@ PJ_DEF(pj_status_t) pj_thread_get_stack_info(pj_thread_t *thread, const char **f
 
 PJ_DEF(pj_status_t) pj_atomic_create(pj_pool_t *pool, pj_atomic_value_t initial, pj_atomic_t **ptr_atomic)
 {
-    pj_status_t rc;
+    pj_status_t  rc;
     pj_atomic_t *atomic_var;
 
     PJ_ASSERT_RETURN(pool && ptr_atomic, PJ_EINVAL);
@@ -588,7 +588,7 @@ PJ_DEF(pj_status_t) pj_atomic_create(pj_pool_t *pool, pj_atomic_value_t initial,
         return rc;
     }
     atomic_var->value = initial;
-    *ptr_atomic = atomic_var;
+    *ptr_atomic       = atomic_var;
     return PJ_SUCCESS;
 }
 
@@ -672,7 +672,7 @@ PJ_DEF(pj_status_t) pj_thread_local_alloc(long *p_index)
     for (i = 0; i < PJ_TUYAOS_TLS_KEYS; i++) {
         if (!s_tls_key_used[i]) {
             s_tls_key_used[i] = 1;
-            *p_index = i;
+            *p_index          = i;
             if (s_tls_lock) {
                 tal_mutex_unlock(s_tls_lock);
             }
@@ -853,7 +853,7 @@ PJ_DEF(pj_status_t) pj_sem_create(pj_pool_t *pool, const char *name, unsigned in
 {
 #if PJ_HAS_THREADS
     pj_sem_t *sem;
-    unsigned sem_max;
+    unsigned  sem_max;
 
     PJ_CHECK_STACK();
     PJ_ASSERT_RETURN(pool != NULL && ptr_sem != NULL, PJ_EINVAL);

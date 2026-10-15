@@ -1272,7 +1272,7 @@ STATIC OPERATE_RET __start_log_server(VOID)
     thrd_param.thrdname = "ai_mon_log";
     thrd_param.stackDepth = 4096;
 #if defined(AI_STACK_IN_PSRAM) && (AI_STACK_IN_PSRAM == 1)
-    thrd_param.psram_mode = 1;
+    thrd_param.ex_ram_mode = 1;
 #endif
 
     rt = tal_thread_create_and_start(&g_ai_monitor_server.log_thread,

@@ -126,14 +126,39 @@ include("${PLATFORM_PATH}/platform_config.cmake")
 set(COMPONENT_LIBS "")
 set(COMPONENT_PUBINC "")
 list_components(COMPONENT_LIST "${TOP_SOURCE_DIR}/src")
+# [tuyaopen-core integration] exclude upstream components replaced by the core submodule
+# (common kept: its CMakeLists now only carries qrcode; utilities/backoffAlgorithm
+#  symbols come from tuyaopen-core)
+list(REMOVE_ITEM COMPONENT_LIST
+    tal_system libcjson tuya_cloud_service tuya_ai_service
+    tal_security tal_network libhttp libmqtt libtls
+    tal_kv tal_bluetooth tal_wifi tal_wired tal_cellular tal_wifi_ulp tal_cli
+    tuya_p2p image_album)
 foreach(comp ${COMPONENT_LIST})
     # message(STATUS "comp: ${comp}")
     add_subdirectory("${TOP_SOURCE_DIR}/src/${comp}")
 endforeach(comp)
+
 # add board
 if(EXISTS "${TOP_SOURCE_DIR}/boards/${TOS_PROJECT_PLATFORM}/${TOS_PROJECT_BOARD}/CMakeLists.txt")
     add_subdirectory("${TOP_SOURCE_DIR}/boards/${TOS_PROJECT_PLATFORM}/${TOS_PROJECT_BOARD}")
 endif()
+
+# [tuyaopen-core integration] ① core 接入（须在 deal_with_components 之前：
+# 上游组件/board 不声明依赖，include 面靠 COMPONENT_PUBINC 目录传播；
+# 置于 board 之后，使下面的 foreach 同时覆盖 src 组件与 board target）
+include(${TOP_SOURCE_DIR}/tuyaopen-core/tuyaopen-core.cmake)   # 含 TuyaOpenOptions.cmake
+# core 的环境基底（core 契约：宿主注入 tuyaopen-headers）：动态 tuya_kconfig.h +
+# 上游 common 头（tuya_cloud_types.h→tuya_iot_config.h→tuya_kconfig.h 链）+ 平台公共头
+target_include_directories(tuyaopen-headers INTERFACE
+    ${TOP_BINARY_DIR}/include
+    ${TOP_SOURCE_DIR}/src/common/include
+    ${PLATFORM_PUBINC}
+)
+# 上游保留组件补 core 头/宏/链接面（tuyaopen-headers 携带开关宏）
+foreach(c ${COMPONENT_LIBS})
+    target_link_libraries(${c} PRIVATE tuyaopen-core tuyaopen-headers)
+endforeach()
 
 # add arduino src
 if(TOS_FRAMEWORK STREQUAL "arduino")
@@ -154,6 +179,11 @@ set(all_need)
 foreach(c ${COMPONENT_LIBS})
     list(APPEND all_need $<TARGET_OBJECTS:${c}>)
 endforeach(c)
+# [tuyaopen-core integration] ② core 对象进 tuyaos 聚合（循环引用在同一 .a 内消失；
+# 平台侧的 port 由平台自己的构建编入最终 ELF，见 platform/<PLATFORM>/）
+foreach(c ${TUYAOPEN_CORE_LIBS})
+    list(APPEND all_need $<TARGET_OBJECTS:${c}>)
+endforeach()
 add_library(${COMPONENTS_ALL_LIB} STATIC ${all_need})
 
 
@@ -181,6 +211,8 @@ target_include_directories(${EXAMPLE_LIB}
     ${HEADER_DIR}
     )
 target_link_libraries(${EXAMPLE_LIB} ${COMPONENTS_ALL_LIB})
+# [tuyaopen-core integration] ③ app 补 core 头/宏/链接面（plain 签名，与上行一致）
+target_link_libraries(${EXAMPLE_LIB} tuyaopen-core tuyaopen-headers)
 
 ########################################
 # Generate build parameters file

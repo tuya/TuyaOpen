@@ -85,10 +85,10 @@ typedef enum {
  *
  */
 typedef struct {
-    uint32_t stackDepth; // stack size
-    uint8_t priority;    // thread priority
-    char *thrdname;      // thread name
-    uint8_t psram_mode : 1; // run in psram
+    uint32_t stackDepth;      // stack size
+    uint8_t  priority;        // thread priority
+    char    *thrdname;        // thread name
+    uint8_t  ex_ram_mode : 1; // run in external RAM
 } THREAD_CFG_T;
 
 /**

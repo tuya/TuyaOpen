@@ -40,24 +40,24 @@
 #include "tal_system.h"
 #include "tuya_kconfig.h"
 typedef struct {
-    THREAD_HANDLE thrdID;
-    int thrdRunSta;
-    THREAD_FUNC_CB pThrdFunc;
-    void *pThrdFuncArg;
-    uint32_t stackDepth;
+    THREAD_HANDLE   thrdID;
+    int             thrdRunSta;
+    THREAD_FUNC_CB  pThrdFunc;
+    void           *pThrdFuncArg;
+    uint32_t        stackDepth;
     THREAD_ENTER_CB enter;
-    THREAD_EXIT_CB exit;
-    char thread_name[TAL_THREAD_MAX_NAME_LEN];
-    LIST_HEAD node;
+    THREAD_EXIT_CB  exit;
+    char            thread_name[TAL_THREAD_MAX_NAME_LEN];
+    LIST_HEAD       node;
 } THRD_MANAGE, *P_THRD_MANAGE;
 
 typedef struct {
-    LIST_HEAD list;
+    LIST_HEAD    list;
     MUTEX_HANDLE mutex;
 } DEL_THRD_MAG_S;
 
 static DEL_THRD_MAG_S *s_del_thrd_mag = NULL;
-static LIST_HEAD s_all_thrd_mag;
+static LIST_HEAD       s_all_thrd_mag;
 
 static void __WrapRunFunc(void *pArg);
 static void __inner_del_thread(THREAD_HANDLE thrdID);
@@ -76,7 +76,7 @@ static OPERATE_RET __cr_and_init_del_thrd_mag(void)
     memset(tmp_del_thrd_mag, 0, sizeof(DEL_THRD_MAG_S));
     INIT_LIST_HEAD(&(tmp_del_thrd_mag->list));
     OPERATE_RET op_ret = OPRT_OK;
-    op_ret = tal_mutex_create_init(&(tmp_del_thrd_mag->mutex));
+    op_ret             = tal_mutex_create_init(&(tmp_del_thrd_mag->mutex));
     if (OPRT_OK != op_ret) {
         PR_ERR("Create Mutex err");
         tal_free(tmp_del_thrd_mag);
@@ -112,10 +112,10 @@ static void __free_all_del_thrd_node(void)
         return;
     }
 
-    THRD_MANAGE *tmp_node = NULL;
-    THRD_MANAGE *self_node = NULL;
-    BOOL_T is_self = FALSE;
-    THREAD_HANDLE thrdID = NULL;
+    THRD_MANAGE  *tmp_node  = NULL;
+    THRD_MANAGE  *self_node = NULL;
+    BOOL_T        is_self   = FALSE;
+    THREAD_HANDLE thrdID    = NULL;
 
     tal_mutex_lock(s_del_thrd_mag->mutex);
 
@@ -188,13 +188,13 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
     memset(pMgr, 0, sizeof(THRD_MANAGE));
     INIT_LIST_HEAD(&(pMgr->node));
 
-    pMgr->thrdRunSta = THREAD_STATE_EMPTY;
-    pMgr->pThrdFunc = func;
+    pMgr->thrdRunSta   = THREAD_STATE_EMPTY;
+    pMgr->pThrdFunc    = func;
     pMgr->pThrdFuncArg = (void *)func_args;
-    pMgr->enter = enter;
-    pMgr->exit = exit;
+    pMgr->enter        = enter;
+    pMgr->exit         = exit;
     strncpy(pMgr->thread_name, cfg->thrdname, TAL_THREAD_MAX_NAME_LEN - 1);
-    *handle = pMgr;
+    *handle          = pMgr;
     pMgr->stackDepth = cfg->stackDepth;
 
     tal_mutex_lock(s_del_thrd_mag->mutex);
@@ -203,8 +203,8 @@ OPERATE_RET tal_thread_create_and_start(THREAD_HANDLE *handle, const THREAD_ENTE
 
     int opRet;
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    if (cfg->psram_mode == 1) {
-        PR_INFO("thread_create %s: psram_mode=1, using PSRAM stack", cfg->thrdname);
+    if (cfg->ex_ram_mode == 1) {
+        PR_INFO("thread_create %s: ex_ram_mode=1, using external RAM stack", cfg->thrdname);
         opRet = tkl_thread_create_in_psram(&(pMgr->thrdID), cfg->thrdname, cfg->stackDepth, cfg->priority,
                                            __WrapRunFunc, pMgr);
     } else {
@@ -341,8 +341,8 @@ OPERATE_RET tal_thread_is_self(const THREAD_HANDLE handle, BOOL_T *bl)
     }
 
     P_THRD_MANAGE pThrdManage = (P_THRD_MANAGE)handle;
-    BOOL_T is_self = false;
-    int ret = tkl_thread_is_self(pThrdManage->thrdID, &is_self);
+    BOOL_T        is_self     = false;
+    int           ret         = tkl_thread_is_self(pThrdManage->thrdID, &is_self);
     if (ret != 0) {
         return ret;
     }
@@ -375,7 +375,7 @@ OPERATE_RET tal_thread_diagnose(const THREAD_HANDLE handle)
     }
 
     P_THRD_MANAGE pThrdManage = (P_THRD_MANAGE)handle;
-    ret = tkl_thread_diagnose(pThrdManage->thrdID);
+    ret                       = tkl_thread_diagnose(pThrdManage->thrdID);
 
     return ret;
 }
@@ -393,16 +393,16 @@ void tal_thread_dump_watermark(void)
         return;
     }
 
-    LIST_HEAD *pos = NULL;
-    THRD_MANAGE *tmp_node = NULL;
-    uint32_t watermark = 0;
-    int op_ret;
+    LIST_HEAD   *pos       = NULL;
+    THRD_MANAGE *tmp_node  = NULL;
+    uint32_t     watermark = 0;
+    int          op_ret;
 
     tal_mutex_lock(s_del_thrd_mag->mutex);
     tuya_list_for_each(pos, &s_all_thrd_mag)
     {
         tmp_node = tuya_list_entry(pos, THRD_MANAGE, node);
-        op_ret = tkl_thread_get_watermark(tmp_node->thrdID, &watermark);
+        op_ret   = tkl_thread_get_watermark(tmp_node->thrdID, &watermark);
         if (OPRT_OK == op_ret) {
             PR_DEBUG("thread[%-16s] stack[%5d] free[%5d]", tmp_node->thread_name, tmp_node->stackDepth, watermark);
         } else {

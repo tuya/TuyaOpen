@@ -30,11 +30,11 @@ LV_IMG_DECLARE(icon_ai_camera_on);
 #define CAMERA_CLOSE_SIZE   48
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define CAMERA_UI_MALLOC    tal_psram_malloc
-#define CAMERA_UI_FREE      tal_psram_free
+#define CAMERA_UI_MALLOC tal_ex_ram_malloc
+#define CAMERA_UI_FREE   tal_ex_ram_free
 #else
-#define CAMERA_UI_MALLOC    tal_malloc
-#define CAMERA_UI_FREE      tal_free
+#define CAMERA_UI_MALLOC tal_malloc
+#define CAMERA_UI_FREE   tal_free
 #endif
 
 /***********************************************************
@@ -97,11 +97,13 @@ static void __ai_vision_btn_click_cb(lv_event_t *e)
     lv_obj_t *img = lv_obj_get_child(btn, 0);
     if (lv_obj_get_state(btn) & LV_STATE_CHECKED) {
         lv_obj_clear_state(btn, LV_STATE_CHECKED);
-        if (img) lv_img_set_src(img, &icon_ai_camera_off);
+        if (img)
+            lv_img_set_src(img, &icon_ai_camera_off);
         ai_ui_notify_action(AI_UI_ACT_CAMERA_AI_OFF, NULL, 0);
     } else {
         lv_obj_add_state(btn, LV_STATE_CHECKED);
-        if (img) lv_img_set_src(img, &icon_ai_camera_on);
+        if (img)
+            lv_img_set_src(img, &icon_ai_camera_on);
         ai_ui_notify_action(AI_UI_ACT_CAMERA_AI_ON, NULL, 0);
     }
 }
@@ -124,12 +126,13 @@ static void __disp_open(void)
     lv_obj_clear_flag(sg_camera.page, LV_OBJ_FLAG_HIDDEN);
     /* Always restore controls — they may have been hidden by a preview tap before close */
     lv_obj_clear_flag(sg_camera.shutter_btn, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(sg_camera.thumb_img,   LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(sg_camera.close_btn,   LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_camera.thumb_img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(sg_camera.close_btn, LV_OBJ_FLAG_HIDDEN);
     /* Reset AI vision toggle to off on each camera open */
     lv_obj_clear_state(sg_camera.ai_vision_btn, LV_STATE_CHECKED);
     lv_obj_t *ai_vision_img = lv_obj_get_child(sg_camera.ai_vision_btn, 0);
-    if (ai_vision_img) lv_img_set_src(ai_vision_img, &icon_ai_camera_off);
+    if (ai_vision_img)
+        lv_img_set_src(ai_vision_img, &icon_ai_camera_off);
     lv_vendor_disp_unlock();
 }
 
@@ -140,7 +143,7 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
     }
 
     /* Allocate a new RGB565 buffer for this frame */
-    uint32_t buf_size = (uint32_t)video->width * video->height * 2;
+    uint32_t buf_size   = (uint32_t)video->width * video->height * 2;
     uint8_t *rgb565_buf = (uint8_t *)CAMERA_UI_MALLOC(buf_size);
     if (NULL == rgb565_buf) {
         PR_ERR("camera preview: malloc rgb565 failed, size=%u", buf_size);
@@ -149,12 +152,12 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
 
     /* Convert YUV422 to RGB565 (outside display lock) */
     TAL_IMAGE_YUV422_TO_RGB_T conv = {0};
-    conv.in_buf     = video->yuv422;
-    conv.in_width   = video->width;
-    conv.in_height  = video->height;
-    conv.out_buf    = rgb565_buf;
-    conv.out_width  = video->width;
-    conv.out_height = video->height;
+    conv.in_buf                    = video->yuv422;
+    conv.in_width                  = video->width;
+    conv.in_height                 = video->height;
+    conv.out_buf                   = rgb565_buf;
+    conv.out_width                 = video->width;
+    conv.out_height                = video->height;
 
     if (tal_image_convert_yuv422_to_rgb565(&conv) != OPRT_OK) {
         PR_ERR("camera preview: yuv422 to rgb565 failed");
@@ -163,8 +166,7 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
     }
 
     lv_vendor_disp_lock();
-    lv_canvas_set_buffer(sg_camera.preview_canvas, rgb565_buf,
-                         video->width, video->height, LV_COLOR_FORMAT_RGB565);
+    lv_canvas_set_buffer(sg_camera.preview_canvas, rgb565_buf, video->width, video->height, LV_COLOR_FORMAT_RGB565);
 
     /* Swap buffer and update canvas */
     if (sg_camera.preview_buf) {
@@ -172,8 +174,8 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
     }
     sg_camera.preview_buf = rgb565_buf;
 
-    sg_camera.preview_w   = video->width;
-    sg_camera.preview_h   = video->height;
+    sg_camera.preview_w = video->width;
+    sg_camera.preview_h = video->height;
     lv_obj_center(sg_camera.preview_canvas);
     lv_vendor_disp_unlock();
 }
@@ -207,15 +209,15 @@ static void __disp_set_thumbnail_jpeg(uint8_t *jpeg, uint32_t len)
 
     /* Decode JPEG and scale to thumbnail in one step */
     TAL_IMAGE_JPEG_SCALE_IN_T scale_in = {0};
-    scale_in.method     = TAL_IMAGE_SCALE_MTH_NEAREST;
-    scale_in.mode       = TAL_IMAGE_SCALE_MODE_SIZE;
-    scale_in.data       = jpeg;
-    scale_in.size       = len;
-    scale_in.out_width  = CAMERA_THUMB_SIZE;
-    scale_in.out_height = CAMERA_THUMB_SIZE;
+    scale_in.method                    = TAL_IMAGE_SCALE_MTH_NEAREST;
+    scale_in.mode                      = TAL_IMAGE_SCALE_MODE_SIZE;
+    scale_in.data                      = jpeg;
+    scale_in.size                      = len;
+    scale_in.out_width                 = CAMERA_THUMB_SIZE;
+    scale_in.out_height                = CAMERA_THUMB_SIZE;
 
     TAL_IMAGE_SCALE_OUT_T scale_out = {0};
-    OPERATE_RET rt = tal_image_jpeg_scale_rgb565(&scale_in, &scale_out);
+    OPERATE_RET           rt        = tal_image_jpeg_scale_rgb565(&scale_in, &scale_out);
     if (rt != OPRT_OK) {
         PR_ERR("jpeg scale failed, rt:%d", rt);
         lv_vendor_disp_unlock();
@@ -245,8 +247,7 @@ static void __disp_set_thumbnail_jpeg(uint8_t *jpeg, uint32_t len)
     lv_obj_t *canvas = lv_canvas_create(sg_camera.thumb_img);
     lv_obj_set_style_border_width(canvas, 0, 0);
     lv_obj_set_style_pad_all(canvas, 0, 0);
-    lv_canvas_set_buffer(canvas, sg_camera.thumb_buf,
-                         CAMERA_THUMB_SIZE, CAMERA_THUMB_SIZE, LV_COLOR_FORMAT_RGB565);
+    lv_canvas_set_buffer(canvas, sg_camera.thumb_buf, CAMERA_THUMB_SIZE, CAMERA_THUMB_SIZE, LV_COLOR_FORMAT_RGB565);
     lv_obj_center(canvas);
 
     lv_vendor_disp_unlock();
@@ -265,8 +266,8 @@ static void __disp_close(void)
     if (sg_camera.preview_buf) {
         CAMERA_UI_FREE(sg_camera.preview_buf);
         sg_camera.preview_buf = NULL;
-        sg_camera.preview_w = 0;
-        sg_camera.preview_h = 0;
+        sg_camera.preview_w   = 0;
+        sg_camera.preview_h   = 0;
     }
 }
 

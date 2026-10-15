@@ -12,14 +12,14 @@
 
 typedef struct {
     void *(*proc)(void *);
-    void *arg;
+    void      *arg;
     SEM_HANDLE join_sem;
 } __tal_thr_wrap_t;
 
 static void __tal_thr_entry(void *arg)
 {
-    __tal_thr_wrap_t *w = (__tal_thr_wrap_t *)arg;
-    SEM_HANDLE join = NULL;
+    __tal_thr_wrap_t *w    = (__tal_thr_wrap_t *)arg;
+    SEM_HANDLE        join = NULL;
     if (w != NULL) {
         join = w->join_sem;
         if (w->proc != NULL) {
@@ -32,10 +32,10 @@ static void __tal_thr_entry(void *arg)
     }
 }
 
-static int __tal_thread_spawn(THREAD_HANDLE *tid, SEM_HANDLE *join_sem, void *(*proc)(void *), void *arg, uint32_t stack,
-                              const char *name)
+static int __tal_thread_spawn(THREAD_HANDLE *tid, SEM_HANDLE *join_sem, void *(*proc)(void *), void *arg,
+                              uint32_t stack, const char *name)
 {
-    THREAD_CFG_T cfg;
+    THREAD_CFG_T      cfg;
     __tal_thr_wrap_t *w;
     if (tid == NULL || proc == NULL || join_sem == NULL) {
         return -1;
@@ -48,15 +48,15 @@ static int __tal_thread_spawn(THREAD_HANDLE *tid, SEM_HANDLE *join_sem, void *(*
         tal_free(w);
         return -1;
     }
-    w->proc = proc;
-    w->arg = arg;
+    w->proc     = proc;
+    w->arg      = arg;
     w->join_sem = *join_sem;
     memset(&cfg, 0, sizeof(cfg));
     cfg.stackDepth = stack ? stack : (24 * 1024);
-    cfg.priority = THREAD_PRIO_2;
-    cfg.thrdname = (char *)(name ? name : "rtc");
+    cfg.priority   = THREAD_PRIO_2;
+    cfg.thrdname   = (char *)(name ? name : "rtc");
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.psram_mode = 1;
+    cfg.ex_ram_mode = 1;
 #endif
     if (tal_thread_create_and_start(tid, NULL, NULL, __tal_thr_entry, w, &cfg) != OPRT_OK) {
         tal_semaphore_release(*join_sem);
@@ -111,7 +111,7 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #include <pj/errno.h>
 #include "tal_log.h"
 
-#define IKCP_PACKET_HEADER_SIZE       24
+#define IKCP_PACKET_HEADER_SIZE 24
 
 #define TUYA_P2P_RECV_BUFFER_SIZE_MAX (800 * 1024)
 #define TUYA_P2P_RECV_BUFFER_SIZE_MIN (50 * 1024)
@@ -121,14 +121,14 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #define SRTP_MASTER_LENGTH            (SRTP_MASTER_KEY_LENGTH + SRTP_MASTER_SALT_LENGTH)
 #define ENCRYPT_MD5_LEN               16
 /* Signaling worker: pop buffer 8KB; ICE offer runs on this thread → large stack */
-#define CTX_SIG_WORKER_STACK_SIZE     (48 * 1024)
-#define CTX_SIG_WORKER_MSG_BUF_SIZE   8192
-#define CTX_SIG_MSG_TYPE_INCOMING     0
-#define CTX_SIG_MSG_TYPE_ICE_TIMEOUT  1
+#define CTX_SIG_WORKER_STACK_SIZE    (48 * 1024)
+#define CTX_SIG_WORKER_MSG_BUF_SIZE  8192
+#define CTX_SIG_MSG_TYPE_INCOMING    0
+#define CTX_SIG_MSG_TYPE_ICE_TIMEOUT 1
 /* used_size is payload bytes; warn when backlog is large (not message count) */
-#define CTX_SIG_Q_BYTES_WARN          (8 * 1024)
+#define CTX_SIG_Q_BYTES_WARN (8 * 1024)
 /* Back off before retrying a failed dequeue, so a persistent fault cannot spin */
-#define CTX_SIG_POP_RETRY_MS          20
+#define CTX_SIG_POP_RETRY_MS 20
 
 // CMD is transmitted using kcp's channel number field, and kcp uses little endian
 #define RTC_CHANNEL_CMD   (0x010000F3)
@@ -146,65 +146,65 @@ static void __tal_thread_join(THREAD_HANDLE tid, SEM_HANDLE *join_sem)
 #define DOSEND_ENCRYPT_SCRATCH_SIZE 2048
 
 typedef enum rtc_session_close_reason {
-    RTC_SESSION_CLOSE_REASON_OK = 0,
-    RTC_SESSION_CLOSE_REASON_ICE_FAILED = 1,
-    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_FAILED = 2,
-    RTC_SESSION_CLOSE_REASON_LOCAL_CANCEL = 3,
-    RTC_SESSION_CLOSE_REASON_LOCAL_CLOSE = 4,
-    RTC_SESSION_CLOSE_REASON_REMOTE_CLOSE = 5,
-    RTC_SESSION_CLOSE_REASON_KEEPALIVE_TIMEOUT = 6,
-    RTC_SESSION_CLOSE_REASON_AUTH_FAILED = 7,
-    RTC_SESSION_CLOSE_REASON_MEMORY_ALLOC = 8,
+    RTC_SESSION_CLOSE_REASON_OK                                = 0,
+    RTC_SESSION_CLOSE_REASON_ICE_FAILED                        = 1,
+    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_FAILED             = 2,
+    RTC_SESSION_CLOSE_REASON_LOCAL_CANCEL                      = 3,
+    RTC_SESSION_CLOSE_REASON_LOCAL_CLOSE                       = 4,
+    RTC_SESSION_CLOSE_REASON_REMOTE_CLOSE                      = 5,
+    RTC_SESSION_CLOSE_REASON_KEEPALIVE_TIMEOUT                 = 6,
+    RTC_SESSION_CLOSE_REASON_AUTH_FAILED                       = 7,
+    RTC_SESSION_CLOSE_REASON_MEMORY_ALLOC                      = 8,
     RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_FAILED_FINGERPRINT = 9,
-    RTC_SESSION_CLOSE_REASON_ICE_UDP_TCP_ALL_FAILED = 10,
-    RTC_SESSION_CLOSE_REASON_RESET = 11,
-    RTC_SESSION_CLOSE_REASON_REFUSED = 12,
-    RTC_SESSION_CLOSE_REASON_PRE_CMD_TIMEOUT = 13,
-    RTC_SESSION_CLOSE_REASON_GET_TOKEN_TIMEOUT = 14,
-    RTC_SESSION_CLOSE_REASON_RESERVE_TIMEOUT = 15,
-    RTC_SESSION_CLOSE_REASON_PRECONNECT_UNSUPPORTED = 16,
-    RTC_SESSION_CLOSE_REASON_HTTP_FAILED = 17,
-    RTC_SESSION_CLOSE_REASON_PRE_MESS = 18,
-    RTC_SESSION_CLOSE_REASON_SECURITY_NEGOTIATE_FAIL = 19,
-    RTC_SESSION_CLOSE_REASON_INIT_MBEDTLS_MD_AND_AES = 20,
-    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_TIMEOUT = 21,
-    RTC_SESSION_CLOSE_REASON_UNDEFINED = 99
+    RTC_SESSION_CLOSE_REASON_ICE_UDP_TCP_ALL_FAILED            = 10,
+    RTC_SESSION_CLOSE_REASON_RESET                             = 11,
+    RTC_SESSION_CLOSE_REASON_REFUSED                           = 12,
+    RTC_SESSION_CLOSE_REASON_PRE_CMD_TIMEOUT                   = 13,
+    RTC_SESSION_CLOSE_REASON_GET_TOKEN_TIMEOUT                 = 14,
+    RTC_SESSION_CLOSE_REASON_RESERVE_TIMEOUT                   = 15,
+    RTC_SESSION_CLOSE_REASON_PRECONNECT_UNSUPPORTED            = 16,
+    RTC_SESSION_CLOSE_REASON_HTTP_FAILED                       = 17,
+    RTC_SESSION_CLOSE_REASON_PRE_MESS                          = 18,
+    RTC_SESSION_CLOSE_REASON_SECURITY_NEGOTIATE_FAIL           = 19,
+    RTC_SESSION_CLOSE_REASON_INIT_MBEDTLS_MD_AND_AES           = 20,
+    RTC_SESSION_CLOSE_REASON_DTLS_HANDSHAKE_TIMEOUT            = 21,
+    RTC_SESSION_CLOSE_REASON_UNDEFINED                         = 99
 } rtc_session_close_reason_e;
 
 typedef struct tagTuyaBuf {
-    char *base;
+    char  *base;
     size_t len;
 } tuya_uv_buf_t;
 
 typedef struct tuya_p2p_rtc_dtls_cert {
     unsigned char cert[8 * 1024];
     unsigned char pkey[8 * 1024];
-    char fingerprint[1024];
-    int cert_len;
-    int pkey_len;
+    char          fingerprint[1024];
+    int           cert_len;
+    int           pkey_len;
 } tuya_p2p_rtc_dtls_cert_t;
 
 typedef struct rtc_channel {
     struct tuya_p2p_rtc_session *rtc;
-    tuya_mbuf_queue_t *send_queue;
-    tuya_mbuf_queue_t *recv_queue;
-    int has_receiver;
-    ikcpcb *kcp;
-    int channel_id;
-    uint32_t send_buf_capacity;
-    uint32_t has_sent_to_tcp;
-    uint32_t highest_seq_tcp_has_sent;
-    int64_t write_bytes;
-    int64_t read_bytes;
-    int64_t send_bytes;
-    int64_t recv_bytes;
-    int64_t socket_send_bytes;
-    int64_t socket_recv_bytes;
-    int64_t first_send_time_ms;
-    int64_t first_write_time_ms;
-    int64_t first_read_time_ms;
-    int64_t first_read_try_time_ms;
-    int64_t first_data_time_ms;
+    tuya_mbuf_queue_t           *send_queue;
+    tuya_mbuf_queue_t           *recv_queue;
+    int                          has_receiver;
+    ikcpcb                      *kcp;
+    int                          channel_id;
+    uint32_t                     send_buf_capacity;
+    uint32_t                     has_sent_to_tcp;
+    uint32_t                     highest_seq_tcp_has_sent;
+    int64_t                      write_bytes;
+    int64_t                      read_bytes;
+    int64_t                      send_bytes;
+    int64_t                      recv_bytes;
+    int64_t                      socket_send_bytes;
+    int64_t                      socket_recv_bytes;
+    int64_t                      first_send_time_ms;
+    int64_t                      first_write_time_ms;
+    int64_t                      first_read_time_ms;
+    int64_t                      first_read_try_time_ms;
+    int64_t                      first_data_time_ms;
 
     void *aes_ctx_enc;
     void *aes_ctx_dec;
@@ -213,19 +213,19 @@ typedef struct rtc_channel {
 #if (MBEDTLS_VERSION_NUMBER > 0x03000000)
 #define MBEDTLS_TLS_SRTP_MAX_KEY_MATERIAL_LENGTH 60
 typedef struct dtls_srtp_keys {
-    unsigned char master_secret[48];
-    unsigned char randbytes[64];
+    unsigned char         master_secret[48];
+    unsigned char         randbytes[64];
     mbedtls_tls_prf_types tls_prf_type;
 } dtls_srtp_keys;
 #endif
 typedef struct rtc_dtls {
-    int inited;
-    int remote_cert_verified;
-    tuya_p2p_rtc_dtls_cert_t cert;
-    mbedtls_ssl_context ssl;
-    mbedtls_ssl_config conf;
-    mbedtls_x509_crt x509_crt;
-    mbedtls_pk_context pkey;
+    int                          inited;
+    int                          remote_cert_verified;
+    tuya_p2p_rtc_dtls_cert_t     cert;
+    mbedtls_ssl_context          ssl;
+    mbedtls_ssl_config           conf;
+    mbedtls_x509_crt             x509_crt;
+    mbedtls_pk_context           pkey;
     mbedtls_timing_delay_context timer;
 #if (MBEDTLS_VERSION_NUMBER > 0x03000000)
     dtls_srtp_keys dtls_srtp_keying;
@@ -266,35 +266,35 @@ typedef enum { PJ_ROLE_CALLER, PJ_ROLE_CALLEE } pj_role_e;
 
 typedef struct tuya_p2p_rtc_session_cfg {
     // tuya_uv_loop_t *loop;
-    uint32_t offline_timeout_seconds;
-    uint32_t connect_limit_time_ms;
-    uint32_t lan_mode;
-    int p2p_skill;
-    int preconnect_enable;
-    int is_pre;
-    int is_webrtc;
+    uint32_t  offline_timeout_seconds;
+    uint32_t  connect_limit_time_ms;
+    uint32_t  lan_mode;
+    int       p2p_skill;
+    int       preconnect_enable;
+    int       is_pre;
+    int       is_webrtc;
     pj_role_e role;
-    char local_id[64]; // Added by Langdon
-    char remote_id[64];
-    char session_id[64];
-    char connect_session[64];
-    char connect_api[64];
-    char dev_id[64];
-    char node_id[64];
-    char moto_id[64];
-    char trace_id[256];
-    char auth[128];
-    char ice_ufrag[32];
-    char ice_password[32];
-    char aes_key[64];
-    uint32_t channel_number;
-    int32_t stream_type;
-    int32_t is_replay;
-    char start_time[32];
-    char end_time[32];
-    char ice_server_tokens[2048];
-    char udp_server_tokens[2048];
-    char tcp_server_tokens[2048];
+    char      local_id[64]; // Added by Langdon
+    char      remote_id[64];
+    char      session_id[64];
+    char      connect_session[64];
+    char      connect_api[64];
+    char      dev_id[64];
+    char      node_id[64];
+    char      moto_id[64];
+    char      trace_id[256];
+    char      auth[128];
+    char      ice_ufrag[32];
+    char      ice_password[32];
+    char      aes_key[64];
+    uint32_t  channel_number;
+    int32_t   stream_type;
+    int32_t   is_replay;
+    char      start_time[32];
+    char      end_time[32];
+    char      ice_server_tokens[2048];
+    char      udp_server_tokens[2048];
+    char      tcp_server_tokens[2048];
     // rtc_token_t *rtc_token;
     // rtc_token_type_e token_type;
     // tuya_p2p_rtc_security_level_e security_level;
@@ -304,61 +304,61 @@ typedef struct tuya_p2p_rtc_session_cfg {
 typedef struct tuya_p2p_rtc_session {
     tuya_p2p_rtc_cb_t cb; // Callback interface
 
-    int ref_cnt;
+    int          ref_cnt;
     MUTEX_HANDLE ref_lock;
 
     sync_cond_t syncCondExit;
 
-    rtc_sdp_t local_sdp;
-    rtc_sdp_t remote_sdp;
+    rtc_sdp_t            local_sdp;
+    rtc_sdp_t            remote_sdp;
     pjmedia_sdp_session *pLocalSdp;
     pjmedia_sdp_session *pRemoteSdp;
-    MUTEX_HANDLE channel_lock;
-    rtc_channel_t *channels;
+    MUTEX_HANDLE         channel_lock;
+    rtc_channel_t       *channels;
     // tuya_uv_timer_t *te;
     // rtc_state_entry_t state;
     rtc_session_cfg_t cfg;
-    void *queue[2];
+    void             *queue[2];
 
     int active_handle;
     int local_cmd_seq;
 
     // kcp channel
-    unsigned char aes_key[16];
-    unsigned char iv[16];
-    mbedtls_md_info_t *md_info;
+    unsigned char        aes_key[16];
+    unsigned char        iv[16];
+    mbedtls_md_info_t   *md_info;
     mbedtls_md_context_t md_ctx;
 
     struct {
-        char recv_buf[4096];
+        char     recv_buf[4096];
         uint32_t recv_already;
     } cmd_channel;
 
     pj_ice_session_t *pIce;
-    THREAD_HANDLE tid;
-    SEM_HANDLE tid_join;
-    bool bQuitKCPThread;
+    THREAD_HANDLE     tid;
+    SEM_HANDLE        tid_join;
+    bool              bQuitKCPThread;
     /* Dedup MQTT/LAN duplicate offer: answer already sent for this session */
     int answer_sent;
 } tuya_p2p_rtc_session_t;
 
-tuya_p2p_rtc_options_t g_options;
-static uint32_t g_uP2PSkill = TUYA_P2P_SDK_SKILL_BASIC /*TUYA_P2P_SDK_SKILL_NUMBER*/;
-tuya_p2p_rtc_session_t *g_pRtcSession = NULL;
+tuya_p2p_rtc_options_t  g_options;
+static uint32_t         g_uP2PSkill         = TUYA_P2P_SDK_SKILL_BASIC /*TUYA_P2P_SDK_SKILL_NUMBER*/;
+tuya_p2p_rtc_session_t *g_pRtcSession       = NULL;
 MUTEX_HANDLE            g_p2p_session_mutex = NULL;
 /* Session being destroyed: notify_exit may race after g_pRtcSession cleared */
 static tuya_p2p_rtc_session_t *s_exiting_rtc = NULL;
-rtc_session_cfg_t cfg;
-pj_ice_session_cfg_t iceSessionCfg;
+rtc_session_cfg_t              cfg;
+pj_ice_session_cfg_t           iceSessionCfg;
 /* Incoming signaling queue + worker thread */
 static bc_msg_queue_t *s_msg_queue_incoming = NULL;
-static THREAD_HANDLE s_sig_worker_tid;
-static SEM_HANDLE s_sig_worker_join;
-static int s_sig_worker_started = 0;
-static volatile int s_sig_worker_quit = 0;
+static THREAD_HANDLE   s_sig_worker_tid;
+static SEM_HANDLE      s_sig_worker_join;
+static int             s_sig_worker_started = 0;
+static volatile int    s_sig_worker_quit    = 0;
 
 static const unsigned char KCP_CMD_PUSH = 81; // cmd: push data
-static const unsigned char KCP_CMD_ACK = 82;  // cmd: ack
+static const unsigned char KCP_CMD_ACK  = 82; // cmd: ack
 static const unsigned char KCP_CMD_WASK = 83; // cmd: window probe (ask)
 static const unsigned char KCP_CMD_WINS = 84; // cmd: window size (tell)
 
@@ -373,12 +373,12 @@ void ice_on_rx_data(pj_ice_strans *ice_st, unsigned comp_id, void *buffer, pj_si
                     const pj_sockaddr_t *src_addr, unsigned src_addr_len);
 
 tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e state, int32_t *err_code);
-void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc);
-static int tuya_p2p_process_signal_msg(char *msg, int msglen);
-static void *ctx_signaling_worker_thread(void *arg);
-static int ctx_init_msg_queue_and_worker(void);
-static void ctx_deinit_msg_queue_and_worker(void);
-static void ctx_deinit_msg_queue_and_worker(void);
+void                    ctx_session_destroy(tuya_p2p_rtc_session_t *rtc);
+static int              tuya_p2p_process_signal_msg(char *msg, int msglen);
+static void            *ctx_signaling_worker_thread(void *arg);
+static int              ctx_init_msg_queue_and_worker(void);
+static void             ctx_deinit_msg_queue_and_worker(void);
+static void             ctx_deinit_msg_queue_and_worker(void);
 /**
  * @brief Destroy current RTC session and drop session mutex (sig-worker only)
  * @return none
@@ -404,15 +404,16 @@ static int __rtc_ice_media_ready(tuya_p2p_rtc_session_t *rtc)
     }
     return pj_ice_session_is_nego_success(rtc->pIce) ? 1 : 0;
 }
-void ctx_session_channel_set_send_time(struct rtc_channel *chan);
-int ctx_session_channel_process_data(struct rtc_channel *chan, char *data, int len);
-int ctx_session_channel_process_pkt(void *user, int length, const char *input, char *output);
-int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg); // For example, send Answer SDP
-int ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *cand_str);
-int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *remote_sdp, char *candidate);
-int ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error);
-int ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local, rtc_session_close_reason_e close_reason);
-int ctx_session_send_signaling(tuya_p2p_rtc_session_t *rtc, char *signaling);
+void  ctx_session_channel_set_send_time(struct rtc_channel *chan);
+int   ctx_session_channel_process_data(struct rtc_channel *chan, char *data, int len);
+int   ctx_session_channel_process_pkt(void *user, int length, const char *input, char *output);
+int   ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg); // For example, send Answer SDP
+int   ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *cand_str);
+int   ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *remote_sdp, char *candidate);
+int   ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error);
+int   ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local,
+                                  rtc_session_close_reason_e close_reason);
+int   ctx_session_send_signaling(tuya_p2p_rtc_session_t *rtc, char *signaling);
 char *ctx_signaling_add_path(char *signaling, char *path);
 /**
  * @brief Dispatch outbound signaling via LAN or MQTT based on session lan_mode
@@ -423,7 +424,7 @@ char *ctx_signaling_add_path(char *signaling, char *path);
  */
 static void ctx_session_dispatch_signaling(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *signaling)
 {
-    char *to_send = signaling;
+    char *to_send   = signaling;
     char *with_path = NULL;
 
     if ((rtc == NULL) || (cfg == NULL) || (signaling == NULL)) {
@@ -444,7 +445,7 @@ static void ctx_session_dispatch_signaling(tuya_p2p_rtc_session_t *rtc, rtc_sess
         cJSON_free(with_path);
     }
 }
-int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc);
+int  tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc);
 void tuya_p2p_rtc_channels_destroy(tuya_p2p_rtc_session_t *rtc);
 
 void rtc_process_kcp_data(tuya_p2p_rtc_session_t *rtc, const tuya_uv_buf_t *pkt);
@@ -461,7 +462,7 @@ void *rtc_worker_thread(void *arg);
 
 void rtc_ref_cnt_add(tuya_p2p_rtc_session_t *rtc);
 void rtc_ref_cnt_del(tuya_p2p_rtc_session_t *rtc);
-int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc);
+int  rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc);
 
 int32_t tuya_p2p_rtc_init(tuya_p2p_rtc_options_t *opt)
 {
@@ -505,16 +506,16 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         }
         return -1;
     }
-    cJSON *el_from = cJSON_GetObjectItemCaseSensitive(el_header, "from");
-    cJSON *el_to = cJSON_GetObjectItemCaseSensitive(el_header, "to");
-    cJSON *el_node_id = cJSON_GetObjectItemCaseSensitive(el_header, "sub_dev_id");
-    cJSON *el_sessionid = cJSON_GetObjectItemCaseSensitive(el_header, "sessionid");
-    cJSON *el_trace_id = cJSON_GetObjectItemCaseSensitive(el_header, "trace_id");
-    cJSON *el_moto_id = cJSON_GetObjectItemCaseSensitive(el_header, "moto_id");
-    cJSON *el_path = cJSON_GetObjectItemCaseSensitive(el_header, "path");
-    cJSON *el_type = cJSON_GetObjectItemCaseSensitive(el_header, "type");
-    cJSON *el_is_pre = cJSON_GetObjectItemCaseSensitive(el_header, "is_pre");
-    cJSON *el_p2p_skill = cJSON_GetObjectItemCaseSensitive(el_header, "p2p_skill");
+    cJSON *el_from           = cJSON_GetObjectItemCaseSensitive(el_header, "from");
+    cJSON *el_to             = cJSON_GetObjectItemCaseSensitive(el_header, "to");
+    cJSON *el_node_id        = cJSON_GetObjectItemCaseSensitive(el_header, "sub_dev_id");
+    cJSON *el_sessionid      = cJSON_GetObjectItemCaseSensitive(el_header, "sessionid");
+    cJSON *el_trace_id       = cJSON_GetObjectItemCaseSensitive(el_header, "trace_id");
+    cJSON *el_moto_id        = cJSON_GetObjectItemCaseSensitive(el_header, "moto_id");
+    cJSON *el_path           = cJSON_GetObjectItemCaseSensitive(el_header, "path");
+    cJSON *el_type           = cJSON_GetObjectItemCaseSensitive(el_header, "type");
+    cJSON *el_is_pre         = cJSON_GetObjectItemCaseSensitive(el_header, "is_pre");
+    cJSON *el_p2p_skill      = cJSON_GetObjectItemCaseSensitive(el_header, "p2p_skill");
     cJSON *el_security_level = cJSON_GetObjectItemCaseSensitive(el_header, "security_level");
     if ((!cJSON_IsString(el_from)) || (!cJSON_IsString(el_to)) || (!cJSON_IsString(el_sessionid)) ||
         (!(cJSON_IsString(el_type)))) {
@@ -524,16 +525,16 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         }
         return -1;
     }
-    char *remote_id = el_from->valuestring;
-    char *local_id = el_to->valuestring;
+    char *remote_id  = el_from->valuestring;
+    char *local_id   = el_to->valuestring;
     char *session_id = el_sessionid->valuestring;
-    char *trace_id = cJSON_IsString(el_trace_id) ? el_trace_id->valuestring : "";
-    char *moto_id = cJSON_IsString(el_moto_id) ? el_moto_id->valuestring : "";
-    char *str_path = cJSON_IsString(el_path) ? el_path->valuestring : "";
-    char *node_id = cJSON_IsString(el_node_id) ? el_node_id->valuestring : "";
-    char *type = el_type->valuestring;
-    int is_pre = cJSON_IsNumber(el_is_pre) ? el_is_pre->valueint : 0;
-    int p2p_skill = cJSON_IsNumber(el_p2p_skill) ? el_p2p_skill->valueint : 0;
+    char *trace_id   = cJSON_IsString(el_trace_id) ? el_trace_id->valuestring : "";
+    char *moto_id    = cJSON_IsString(el_moto_id) ? el_moto_id->valuestring : "";
+    char *str_path   = cJSON_IsString(el_path) ? el_path->valuestring : "";
+    char *node_id    = cJSON_IsString(el_node_id) ? el_node_id->valuestring : "";
+    char *type       = el_type->valuestring;
+    int   is_pre     = cJSON_IsNumber(el_is_pre) ? el_is_pre->valueint : 0;
+    int   p2p_skill  = cJSON_IsNumber(el_p2p_skill) ? el_p2p_skill->valueint : 0;
 
     // parse msg
     cJSON *el_msg = cJSON_GetObjectItemCaseSensitive(root, "msg");
@@ -544,21 +545,21 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         }
         return -1;
     }
-    cJSON *el_replay = cJSON_GetObjectItemCaseSensitive(el_msg, "replay");
-    cJSON *el_sdp = cJSON_GetObjectItemCaseSensitive(el_msg, "sdp");
-    cJSON *el_token = cJSON_GetObjectItemCaseSensitive(el_msg, "token");
+    cJSON *el_replay    = cJSON_GetObjectItemCaseSensitive(el_msg, "replay");
+    cJSON *el_sdp       = cJSON_GetObjectItemCaseSensitive(el_msg, "sdp");
+    cJSON *el_token     = cJSON_GetObjectItemCaseSensitive(el_msg, "token");
     cJSON *el_udp_token = cJSON_GetObjectItemCaseSensitive(el_msg, "udp_token");
     cJSON *el_tcp_token = cJSON_GetObjectItemCaseSensitive(el_msg, "tcp_token");
     cJSON *el_candidate = cJSON_GetObjectItemCaseSensitive(el_msg, "candidate");
-    cJSON *el_mode = cJSON_GetObjectItemCaseSensitive(el_msg, "mode");
-    cJSON *el_auth = cJSON_GetObjectItemCaseSensitive(el_msg, "auth");
+    cJSON *el_mode      = cJSON_GetObjectItemCaseSensitive(el_msg, "mode");
+    cJSON *el_auth      = cJSON_GetObjectItemCaseSensitive(el_msg, "auth");
     if (el_auth == NULL) {
         el_auth = cJSON_GetObjectItemCaseSensitive(el_msg, "Auth");
     }
-    cJSON *el_stream_type = cJSON_GetObjectItemCaseSensitive(el_msg, "stream_type");
-    char *auth = cJSON_IsString(el_auth) ? el_auth->valuestring : "";
-    int32_t stream_type = cJSON_IsNumber(el_stream_type) ? el_stream_type->valueint : -1;
-    cJSON *el_preconnect = cJSON_GetObjectItemCaseSensitive(el_msg, "preconnect");
+    cJSON  *el_stream_type = cJSON_GetObjectItemCaseSensitive(el_msg, "stream_type");
+    char   *auth           = cJSON_IsString(el_auth) ? el_auth->valuestring : "";
+    int32_t stream_type    = cJSON_IsNumber(el_stream_type) ? el_stream_type->valueint : -1;
+    cJSON  *el_preconnect  = cJSON_GetObjectItemCaseSensitive(el_msg, "preconnect");
 
     PR_NOTICE("process signaling %s", type);
     // create new session if necessary
@@ -634,18 +635,18 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         // create rtc session
         // cfg.loop = &ctx->loop;
         cfg.offline_timeout_seconds = 30;
-        cfg.role = PJ_ROLE_CALLEE;
+        cfg.role                    = PJ_ROLE_CALLEE;
         // cfg.channel_number = ctx->opt.max_channel_number;
         cfg.connect_limit_time_ms = 15000;
-        cfg.stream_type = stream_type >= 0 ? stream_type : 0;
-        cfg.is_pre = is_pre;
-        cfg.p2p_skill = 0 /*p2p_skill*/;
-        cfg.preconnect_enable = 0;
+        cfg.stream_type           = stream_type >= 0 ? stream_type : 0;
+        cfg.is_pre                = is_pre;
+        cfg.p2p_skill             = 0 /*p2p_skill*/;
+        cfg.preconnect_enable     = 0;
         // if (cJSON_IsBool(el_preconnect)) {
         //     cfg.preconnect_enable = el_preconnect->valueint;
         // }
         cfg.security_level = peer_security_level;
-        cfg.lan_mode = (strcmp(str_path, "lan") == 0) ? 1 : 0;
+        cfg.lan_mode       = (strcmp(str_path, "lan") == 0) ? 1 : 0;
         snprintf(cfg.local_id, sizeof(cfg.local_id), "%s", local_id);
         snprintf(cfg.remote_id, sizeof(cfg.remote_id), "%s", remote_id);
         snprintf(cfg.session_id, sizeof(cfg.session_id), "%s", session_id);
@@ -657,9 +658,9 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         tuya_p2p_misc_rand_string(cfg.ice_password, 25);
 
         if (cJSON_IsObject(el_replay)) {
-            cJSON *el_is_replay = cJSON_GetObjectItemCaseSensitive(el_replay, "is_replay");
+            cJSON *el_is_replay  = cJSON_GetObjectItemCaseSensitive(el_replay, "is_replay");
             cJSON *el_start_time = cJSON_GetObjectItemCaseSensitive(el_replay, "start_time");
-            cJSON *el_end_time = cJSON_GetObjectItemCaseSensitive(el_replay, "end_time");
+            cJSON *el_end_time   = cJSON_GetObjectItemCaseSensitive(el_replay, "end_time");
             if (cJSON_IsNumber(el_is_replay)) {
                 cfg.is_replay = el_is_replay->valueint;
             }
@@ -676,13 +677,13 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         g_pRtcSession = ctx_session_create(&cfg, RTC_STATE_P2P_CONNECT, &err_code);
         memcpy(&g_pRtcSession->cb, &g_options.cb, sizeof(g_options.cb));
 
-        iceSessionCfg.cb.ice_on_rx_data = ice_on_rx_data;
-        iceSessionCfg.cb.ice_on_ice_complete = ice_on_ice_complete;
+        iceSessionCfg.cb.ice_on_rx_data       = ice_on_rx_data;
+        iceSessionCfg.cb.ice_on_ice_complete  = ice_on_ice_complete;
         iceSessionCfg.cb.ice_on_new_candidate = ice_on_new_candidate;
-        iceSessionCfg.rolechar = 'o';
-        iceSessionCfg.local_ufrag = cfg.ice_ufrag;
-        iceSessionCfg.local_passwd = cfg.ice_password;
-        iceSessionCfg.user_data = g_pRtcSession;
+        iceSessionCfg.rolechar                = 'o';
+        iceSessionCfg.local_ufrag             = cfg.ice_ufrag;
+        iceSessionCfg.local_passwd            = cfg.ice_password;
+        iceSessionCfg.user_data               = g_pRtcSession;
         memcpy(iceSessionCfg.server_tokens, cfg.ice_server_tokens, sizeof(iceSessionCfg.server_tokens));
         pj_ice_session_create(&iceSessionCfg, &g_pRtcSession->pIce);
         pj_ice_session_init(g_pRtcSession->pIce, &iceSessionCfg);
@@ -732,8 +733,8 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
             }
         }
     } else if (strcmp(type, "offer") == 0) {
-        tuya_p2p_rtc_session_t *rtc_offer = NULL;
-        int skip_dup_offer = 0;
+        tuya_p2p_rtc_session_t *rtc_offer      = NULL;
+        int                     skip_dup_offer = 0;
         if (!cJSON_IsString(el_sdp)) {
             PR_ERR("invalid signaling: type sdp");
             if (root != NULL) {
@@ -783,15 +784,15 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         tal_mutex_unlock(g_p2p_session_mutex);
     } else if (strcmp(type, "disconnect") == 0) {
         cJSON *jclose_reason_local = cJSON_GetObjectItemCaseSensitive(el_msg, "close_reason_local");
-        cJSON *jclose_reason = cJSON_GetObjectItemCaseSensitive(el_msg, "close_reason");
-        int close_reason =
+        cJSON *jclose_reason       = cJSON_GetObjectItemCaseSensitive(el_msg, "close_reason");
+        int    close_reason =
             cJSON_IsNumber(jclose_reason) ? jclose_reason->valueint : 99 /*RTC_SESSION_CLOSE_REASON_UNDEFINED*/;
         int close_reason_local = cJSON_IsNumber(jclose_reason_local) ? jclose_reason_local->valueint : 0;
         PR_NOTICE("p2p disconnect reason=%d", close_reason);
         __rtc_destroy_current_session("mqtt_disconnect");
     } else if (strcmp(type, "activate") == 0) {
         cJSON *el_handle = cJSON_GetObjectItemCaseSensitive(el_msg, "handle");
-        cJSON *el_seq = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
+        cJSON *el_seq    = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
         if (!cJSON_IsNumber(el_handle) || !cJSON_IsNumber(el_seq)) {
             tuya_p2p_log_debug("invalid signaling: type: handle or seq\n");
             if (root != NULL) {
@@ -852,7 +853,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
     } else if (strcmp(type, "suspend") == 0) {
         cJSON *el_handle = cJSON_GetObjectItemCaseSensitive(el_msg, "handle");
         cJSON *el_reason = cJSON_GetObjectItemCaseSensitive(el_msg, "reason");
-        cJSON *el_seq = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
+        cJSON *el_seq    = cJSON_GetObjectItemCaseSensitive(el_msg, "seq");
         if (!cJSON_IsNumber(el_handle) || !cJSON_IsNumber(el_reason) || !cJSON_IsNumber(el_seq)) {
             tuya_p2p_log_debug("invalid signaling: type: handle or seq\n");
             if (root != NULL) {
@@ -861,8 +862,8 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
             return -1;
         }
         int active_handle = el_handle->valueint;
-        int reason = el_reason->valueint;
-        int seq = el_seq->valueint;
+        int reason        = el_reason->valueint;
+        int seq           = el_seq->valueint;
         // if (rtc->remote_cmd_seq >= seq) {
         //     tuya_p2p_log_warn("rtc session %08x got old %s: %d >= %d\n", rtc->handle, type, rtc->remote_cmd_seq,
         //     seq); return -1;
@@ -873,7 +874,7 @@ static int tuya_p2p_process_signal_msg(char *msg, int msglen)
         // tuya_p2p_log_info("remote %s pre session number %d\n", rtc->cfg.remote_id, pre_session_number_remote);
         tal_mutex_lock(g_p2p_session_mutex);
         tuya_p2p_rtc_session_t *rtc = g_pRtcSession;
-        rtc->active_handle = active_handle;
+        rtc->active_handle          = active_handle;
         ctx_session_send_suspend_resp(rtc, TUYA_P2P_ERROR_SUCCESSFUL);
         tal_mutex_unlock(g_p2p_session_mutex);
     }
@@ -899,8 +900,8 @@ static int ctx_init_msg_queue_and_worker(void)
         return -1;
     }
     s_sig_worker_quit = 0;
-    ret = __tal_thread_spawn(&s_sig_worker_tid, &s_sig_worker_join, ctx_signaling_worker_thread, NULL,
-                             CTX_SIG_WORKER_STACK_SIZE, "ctx_sig");
+    ret               = __tal_thread_spawn(&s_sig_worker_tid, &s_sig_worker_join, ctx_signaling_worker_thread, NULL,
+                                           CTX_SIG_WORKER_STACK_SIZE, "ctx_sig");
     if (ret != 0) {
         bc_msg_queue_destroy(s_msg_queue_incoming);
         s_msg_queue_incoming = NULL;
@@ -939,9 +940,9 @@ static void ctx_deinit_msg_queue_and_worker(void)
 static void *ctx_signaling_worker_thread(void *arg)
 {
     char *buf;
-    int type;
-    int len;
-    int n;
+    int   type;
+    int   len;
+    int   n;
 
     (void)arg;
     buf = (char *)malloc(CTX_SIG_WORKER_MSG_BUF_SIZE);
@@ -951,8 +952,8 @@ static void *ctx_signaling_worker_thread(void *arg)
     }
     while (s_sig_worker_quit == 0) {
         type = 0;
-        len = CTX_SIG_WORKER_MSG_BUF_SIZE - 1;
-        n = bc_msg_queue_pop_front(s_msg_queue_incoming, &type, buf, &len);
+        len  = CTX_SIG_WORKER_MSG_BUF_SIZE - 1;
+        n    = bc_msg_queue_pop_front(s_msg_queue_incoming, &type, buf, &len);
         if (n < 0) {
             if (s_sig_worker_quit != 0) {
                 break; /* deinit closed the queue: the intended way out */
@@ -968,8 +969,8 @@ static void *ctx_signaling_worker_thread(void *arg)
         }
         buf[len] = '\0';
         if (type == CTX_SIG_MSG_TYPE_INCOMING) {
-            int qbytes = bc_msg_queue_get_length(s_msg_queue_incoming);
-            uint64_t t0 = tuya_p2p_misc_get_timestamp_ms();
+            int      qbytes = bc_msg_queue_get_length(s_msg_queue_incoming);
+            uint64_t t0     = tuya_p2p_misc_get_timestamp_ms();
             uint64_t spent;
 
             (void)tuya_p2p_process_signal_msg(buf, len);
@@ -1016,9 +1017,9 @@ int32_t tuya_p2p_rtc_set_signaling(char *remote_id, char *msg, uint32_t msglen)
 
 int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *remote_sdp, char *candidate)
 {
-    pj_ice_session_t *pIceSession = rtc->pIce;
-    int iCandidateLen = strlen(candidate);
-    char buf[PJ_INET6_ADDRSTRLEN + 10] = {0};
+    pj_ice_session_t *pIceSession                   = rtc->pIce;
+    int               iCandidateLen                 = strlen(candidate);
+    char              buf[PJ_INET6_ADDRSTRLEN + 10] = {0};
 
     if (candidate == NULL || iCandidateLen == 0) {
         return -1;
@@ -1028,8 +1029,7 @@ int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *rem
         return 0;
     }
     pj_str_t pjstrCand = pj_str(candidate);
-    if (iCandidateLen >= 2 && *(candidate + iCandidateLen - 2) == '\r' &&
-        *(candidate + iCandidateLen - 1) == '\n') {
+    if (iCandidateLen >= 2 && *(candidate + iCandidateLen - 2) == '\r' && *(candidate + iCandidateLen - 1) == '\n') {
         pjstrCand.slen -= 2; // Remove trailing \r\n character length
     }
     pj_ice_sess_cand cand;
@@ -1043,7 +1043,7 @@ int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *rem
     }
     /* Only queue parse-OK IPv4 candidates (string-dedup inside) */
     tuya_p2p_rtc_sdp_add_candidate(remote_sdp, candidate);
-    pj_str_t pjstrUFrag = pj_str(remote_sdp->ufrag);
+    pj_str_t pjstrUFrag  = pj_str(remote_sdp->ufrag);
     pj_str_t pjstrPasswd = pj_str(remote_sdp->password);
     pj_ice_session_add_remote_candidate(pIceSession, &pjstrUFrag, &pjstrPasswd, 1, &cand, false);
     return 0;
@@ -1051,26 +1051,26 @@ int ctx_session_add_remote_candidate(tuya_p2p_rtc_session_t *rtc, rtc_sdp_t *rem
 
 int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg)
 {
-    char *type = (cfg->role == PJ_ROLE_CALLER ? "offer" : "answer");
-    char sdp[4 * 1024] = {0};
-    int ret = tuya_p2p_rtc_sdp_encode(&rtc->local_sdp, type, sdp, sizeof(sdp));
+    char *type          = (cfg->role == PJ_ROLE_CALLER ? "offer" : "answer");
+    char  sdp[4 * 1024] = {0};
+    int   ret           = tuya_p2p_rtc_sdp_encode(&rtc->local_sdp, type, sdp, sizeof(sdp));
     if (ret < 0) {
         return -1;
     }
 
-    char *signaling = NULL;
+    char  *signaling  = NULL;
     cJSON *jsignaling = NULL;
 
-    cJSON *jfrom = cJSON_CreateString(cfg->local_id);
-    cJSON *jto = cJSON_CreateString(cfg->remote_id);
-    cJSON *jsession_id = cJSON_CreateString(cfg->session_id);
-    cJSON *jmoto_id = cJSON_CreateString(cfg->moto_id);
-    cJSON *jtype = cJSON_CreateString(type);
-    cJSON *jtrace_id = cJSON_CreateString(cfg->trace_id);
-    cJSON *jis_pre = cJSON_CreateNumber(cfg->is_pre);
+    cJSON *jfrom           = cJSON_CreateString(cfg->local_id);
+    cJSON *jto             = cJSON_CreateString(cfg->remote_id);
+    cJSON *jsession_id     = cJSON_CreateString(cfg->session_id);
+    cJSON *jmoto_id        = cJSON_CreateString(cfg->moto_id);
+    cJSON *jtype           = cJSON_CreateString(type);
+    cJSON *jtrace_id       = cJSON_CreateString(cfg->trace_id);
+    cJSON *jis_pre         = cJSON_CreateNumber(cfg->is_pre);
     cJSON *jsecurity_level = cJSON_CreateNumber(cfg->security_level);
-    cJSON *jp2p_skill = cJSON_CreateNumber(g_uP2PSkill);
-    cJSON *jheader = cJSON_CreateObject();
+    cJSON *jp2p_skill      = cJSON_CreateNumber(g_uP2PSkill);
+    cJSON *jheader         = cJSON_CreateObject();
     if (jfrom == NULL || jto == NULL || jsession_id == NULL || jmoto_id == NULL || jtype == NULL || jtrace_id == NULL ||
         jis_pre == NULL || jp2p_skill == NULL || jheader == NULL) {
         goto finish;
@@ -1085,12 +1085,12 @@ int ctx_session_send_sdp(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg)
     cJSON_AddItemToObject(jheader, "p2p_skill", jp2p_skill);
     cJSON_AddItemToObject(jheader, "security_level", jsecurity_level);
 
-    cJSON *jsdp = cJSON_CreateString(sdp);
+    cJSON *jsdp        = cJSON_CreateString(sdp);
     cJSON *jpreconnect = cJSON_CreateBool(cfg->preconnect_enable);
-    cJSON *jtoken = cJSON_Parse(cfg->ice_server_tokens);
-    cJSON *judp_token = cJSON_Parse(cfg->udp_server_tokens);
-    cJSON *jtcp_token = cJSON_Parse(cfg->tcp_server_tokens);
-    cJSON *jmsg = cJSON_CreateObject();
+    cJSON *jtoken      = cJSON_Parse(cfg->ice_server_tokens);
+    cJSON *judp_token  = cJSON_Parse(cfg->udp_server_tokens);
+    cJSON *jtcp_token  = cJSON_Parse(cfg->tcp_server_tokens);
+    cJSON *jmsg        = cJSON_CreateObject();
     if (jsdp == NULL || jmsg == NULL || jpreconnect == NULL) {
         goto finish;
     }
@@ -1132,17 +1132,17 @@ finish:
 
 int ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *cfg, char *cand_str)
 {
-    char *type = "candidate";
-    char *signaling = NULL;
+    char  *type       = "candidate";
+    char  *signaling  = NULL;
     cJSON *jsignaling = NULL;
 
-    cJSON *jfrom = cJSON_CreateString(cfg->local_id);
-    cJSON *jto = cJSON_CreateString(cfg->remote_id);
+    cJSON *jfrom       = cJSON_CreateString(cfg->local_id);
+    cJSON *jto         = cJSON_CreateString(cfg->remote_id);
     cJSON *jsession_id = cJSON_CreateString(cfg->session_id);
-    cJSON *jmoto_id = cJSON_CreateString(cfg->moto_id);
-    cJSON *jtype = cJSON_CreateString(type);
-    cJSON *jtrace_id = cJSON_CreateString(cfg->trace_id);
-    cJSON *jheader = cJSON_CreateObject();
+    cJSON *jmoto_id    = cJSON_CreateString(cfg->moto_id);
+    cJSON *jtype       = cJSON_CreateString(type);
+    cJSON *jtrace_id   = cJSON_CreateString(cfg->trace_id);
+    cJSON *jheader     = cJSON_CreateObject();
     if (jfrom == NULL || jto == NULL || jsession_id == NULL || jmoto_id == NULL || jtype == NULL || jtrace_id == NULL ||
         jheader == NULL) {
         goto finish;
@@ -1155,7 +1155,7 @@ int ctx_session_send_candidate(tuya_p2p_rtc_session_t *rtc, rtc_session_cfg_t *c
     cJSON_AddItemToObject(jheader, "trace_id", jtrace_id);
 
     cJSON *jcand = cJSON_CreateString(cand_str);
-    cJSON *jmsg = cJSON_CreateObject();
+    cJSON *jmsg  = cJSON_CreateObject();
     if (jcand == NULL || jmsg == NULL) {
         goto finish;
     }
@@ -1187,17 +1187,17 @@ finish:
 
 int ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error)
 {
-    char *type = "suspend_resp";
-    char *signaling = NULL;
+    char  *type       = "suspend_resp";
+    char  *signaling  = NULL;
     cJSON *jsignaling = NULL;
 
-    cJSON *jfrom = cJSON_CreateString(rtc->cfg.local_id);
-    cJSON *jto = cJSON_CreateString(rtc->cfg.remote_id);
+    cJSON *jfrom       = cJSON_CreateString(rtc->cfg.local_id);
+    cJSON *jto         = cJSON_CreateString(rtc->cfg.remote_id);
     cJSON *jsession_id = cJSON_CreateString(rtc->cfg.session_id);
-    cJSON *jmoto_id = cJSON_CreateString(rtc->cfg.moto_id);
-    cJSON *jtype = cJSON_CreateString(type);
-    cJSON *jtrace_id = cJSON_CreateString(rtc->cfg.trace_id);
-    cJSON *jheader = cJSON_CreateObject();
+    cJSON *jmoto_id    = cJSON_CreateString(rtc->cfg.moto_id);
+    cJSON *jtype       = cJSON_CreateString(type);
+    cJSON *jtrace_id   = cJSON_CreateString(rtc->cfg.trace_id);
+    cJSON *jheader     = cJSON_CreateObject();
     if (jfrom == NULL || jto == NULL || jsession_id == NULL || jmoto_id == NULL || jtype == NULL || jtrace_id == NULL ||
         jheader == NULL) {
         goto finish;
@@ -1210,9 +1210,9 @@ int ctx_session_send_suspend_resp(tuya_p2p_rtc_session_t *rtc, int error)
     cJSON_AddItemToObject(jheader, "trace_id", jtrace_id);
 
     cJSON *jhandle = cJSON_CreateNumber(rtc->active_handle);
-    cJSON *jerror = cJSON_CreateNumber(error);
-    cJSON *jseq = cJSON_CreateNumber(++rtc->local_cmd_seq);
-    cJSON *jmsg = cJSON_CreateObject();
+    cJSON *jerror  = cJSON_CreateNumber(error);
+    cJSON *jseq    = cJSON_CreateNumber(++rtc->local_cmd_seq);
+    cJSON *jmsg    = cJSON_CreateObject();
     if (jhandle == NULL || jerror == NULL || jseq == NULL || jmsg == NULL) {
         goto finish;
     }
@@ -1244,25 +1244,25 @@ finish:
     return 0;
 }
 
-int ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local, rtc_session_close_reason_e close_reason)
+int ctx_session_send_disconnect(tuya_p2p_rtc_session_t *rtc, int32_t close_reason_local,
+                                rtc_session_close_reason_e close_reason)
 {
-    char *type = "disconnect";
-    char *signaling = NULL;
+    char  *type       = "disconnect";
+    char  *signaling  = NULL;
     cJSON *jsignaling = NULL;
 
-    cJSON *jfrom = cJSON_CreateString(rtc->cfg.local_id);
-    cJSON *jto = cJSON_CreateString(rtc->cfg.remote_id);
-    cJSON *jnode_id = cJSON_CreateString(rtc->cfg.node_id);
-    cJSON *jsession_id = cJSON_CreateString(rtc->cfg.session_id);
-    cJSON *jmoto_id = cJSON_CreateString(rtc->cfg.moto_id);
-    cJSON *jtype = cJSON_CreateString(type);
-    cJSON *jtrace_id = cJSON_CreateString(rtc->cfg.trace_id);
+    cJSON *jfrom               = cJSON_CreateString(rtc->cfg.local_id);
+    cJSON *jto                 = cJSON_CreateString(rtc->cfg.remote_id);
+    cJSON *jnode_id            = cJSON_CreateString(rtc->cfg.node_id);
+    cJSON *jsession_id         = cJSON_CreateString(rtc->cfg.session_id);
+    cJSON *jmoto_id            = cJSON_CreateString(rtc->cfg.moto_id);
+    cJSON *jtype               = cJSON_CreateString(type);
+    cJSON *jtrace_id           = cJSON_CreateString(rtc->cfg.trace_id);
     cJSON *jclose_reason_local = cJSON_CreateNumber(close_reason_local);
-    cJSON *jclose_reason = cJSON_CreateNumber(close_reason);
-    cJSON *jheader = cJSON_CreateObject();
-    if (jfrom == NULL || jto == NULL || jsession_id == NULL || jnode_id == NULL || jmoto_id == NULL ||
-        jtype == NULL || jtrace_id == NULL || jheader == NULL || jclose_reason_local == NULL ||
-        jclose_reason == NULL) {
+    cJSON *jclose_reason       = cJSON_CreateNumber(close_reason);
+    cJSON *jheader             = cJSON_CreateObject();
+    if (jfrom == NULL || jto == NULL || jsession_id == NULL || jnode_id == NULL || jmoto_id == NULL || jtype == NULL ||
+        jtrace_id == NULL || jheader == NULL || jclose_reason_local == NULL || jclose_reason == NULL) {
         goto finish;
     }
     cJSON_AddItemToObject(jheader, "from", jfrom);
@@ -1312,9 +1312,10 @@ int ctx_session_send_signaling(tuya_p2p_rtc_session_t *rtc, char *signaling)
     return 0;
 }
 
-char *ctx_signaling_add_path(char *signaling, char *path) {
-    char *new_signaling = NULL;
-    cJSON *jsignaling = cJSON_Parse(signaling);
+char *ctx_signaling_add_path(char *signaling, char *path)
+{
+    char  *new_signaling = NULL;
+    cJSON *jsignaling    = cJSON_Parse(signaling);
     if (!cJSON_IsObject(jsignaling)) {
         goto finish;
     }
@@ -1343,8 +1344,8 @@ finish:
 void ice_on_ice_complete(pj_ice_strans *ice_st, pj_ice_strans_op op, pj_status_t status)
 {
     tuya_p2p_rtc_session_t *pRtcSession = (tuya_p2p_rtc_session_t *)pj_ice_strans_get_user_data(ice_st);
-    pj_ice_session_t *pIceSession = (pj_ice_session_t *)pRtcSession->pIce;
-    char errmsg[PJ_ERR_MSG_SIZE];
+    pj_ice_session_t       *pIceSession = (pj_ice_session_t *)pRtcSession->pIce;
+    char                    errmsg[PJ_ERR_MSG_SIZE];
 
     if (!pIceSession)
         return;
@@ -1363,9 +1364,9 @@ void ice_on_ice_complete(pj_ice_strans *ice_st, pj_ice_strans_op op, pj_status_t
     }
     case PJ_ICE_STRANS_OP_NEGOTIATION: {
         if (status == PJ_SUCCESS) {
-            char szLCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
-            char szRCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
-            unsigned comp_id = 1; // Component starting ID number is 1
+            char                     szLCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
+            char                     szRCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
+            unsigned                 comp_id                               = 1; // Component starting ID number is 1
             const pj_ice_sess_check *pIceSessCheck = pj_ice_strans_get_valid_pair(ice_st, comp_id);
             if (pIceSessCheck == NULL || pIceSessCheck->lcand == NULL || pIceSessCheck->rcand == NULL) {
                 PR_ERR("ICE negotiation OK but valid pair missing");
@@ -1405,7 +1406,7 @@ void ice_on_ice_complete(pj_ice_strans *ice_st, pj_ice_strans_op op, pj_status_t
 void ice_on_new_candidate(pj_ice_strans *ice_st, const pj_ice_sess_cand *cand, pj_bool_t last)
 {
     tuya_p2p_rtc_session_t *pRtcSession = (tuya_p2p_rtc_session_t *)pj_ice_strans_get_user_data(ice_st);
-    pj_ice_session_t *pIceSession = (pj_ice_session_t *)pRtcSession->pIce;
+    pj_ice_session_t       *pIceSession = (pj_ice_session_t *)pRtcSession->pIce;
     if (!pIceSession)
         return;
 
@@ -1428,16 +1429,16 @@ void ice_on_new_candidate(pj_ice_strans *ice_st, const pj_ice_sess_cand *cand, p
     }
 
     if (last) {
-        pj_ice_sess_cand *cands = NULL;
-        char *szCand = NULL;
-        unsigned count = PJ_ICE_MAX_CAND;
-        unsigned i;
-        unsigned host_n = 0, srflx_n = 0, relay_n = 0;
-        pj_status_t st;
-        char buf[PJ_INET6_ADDRSTRLEN + 10];
+        pj_ice_sess_cand *cands  = NULL;
+        char             *szCand = NULL;
+        unsigned          count  = PJ_ICE_MAX_CAND;
+        unsigned          i;
+        unsigned          host_n = 0, srflx_n = 0, relay_n = 0;
+        pj_status_t       st;
+        char              buf[PJ_INET6_ADDRSTRLEN + 10];
 
         /* Heap buffers: stack overflow was observed on 8KB rtc_worker */
-        cands = (pj_ice_sess_cand *)malloc(sizeof(pj_ice_sess_cand) * PJ_ICE_MAX_CAND);
+        cands  = (pj_ice_sess_cand *)malloc(sizeof(pj_ice_sess_cand) * PJ_ICE_MAX_CAND);
         szCand = (char *)malloc(1024);
         if (cands == NULL || szCand == NULL) {
             free(cands);
@@ -1491,7 +1492,7 @@ void ice_on_rx_data(pj_ice_strans *ice_st, unsigned comp_id, void *buffer, pj_si
     }
     tuya_uv_buf_t pkt;
     pkt.base = buffer;
-    pkt.len = size;
+    pkt.len  = size;
     rtc_process_kcp_data(rtc, &pkt);
     return;
 }
@@ -1519,7 +1520,7 @@ void rtc_process_kcp_data(tuya_p2p_rtc_session_t *rtc, const tuya_uv_buf_t *pkt)
 
     if (digest_len > 0) {
         unsigned char digest[digest_len];
-        int ret;
+        int           ret;
         ret = mbedtls_md_hmac_starts(&rtc->md_ctx, rtc->aes_key, sizeof(rtc->aes_key));
         if (ret != 0) {
             return;
@@ -1552,8 +1553,8 @@ static int on_kcp_output(const char *buf, int len, ikcpcb *kcp, void *user_data)
     if (user_data == NULL) {
         return 0;
     }
-    rtc_channel_t *chan = (rtc_channel_t *)user_data;
-    tuya_p2p_rtc_session_t *rtc = chan->rtc;
+    rtc_channel_t          *chan = (rtc_channel_t *)user_data;
+    tuya_p2p_rtc_session_t *rtc  = chan->rtc;
 
     int md_size = 0;
     if (rtc->cfg.security_level == TUYA_P2P_SECURITY_LEVEL_3) {
@@ -1574,10 +1575,10 @@ static int on_kcp_output(const char *buf, int len, ikcpcb *kcp, void *user_data)
     }
 
     ctx_session_channel_set_send_time(chan);
-    uint32_t r = (rand() % 99) + 1;
-    uint32_t channel_id = ikcp_getconv(buf);
-    unsigned char cmd = ikcp_getcmd(buf);
-    uint32_t sn = ikcp_getsn(buf);
+    uint32_t      r          = (rand() % 99) + 1;
+    uint32_t      channel_id = ikcp_getconv(buf);
+    unsigned char cmd        = ikcp_getcmd(buf);
+    uint32_t      sn         = ikcp_getsn(buf);
     // tuya_p2p_log_trace("channel_id: %08x, sn: %d, cmd: %d\n", channel_id, sn, cmd);
 
     if (cmd != KCP_CMD_PUSH || channel_id != RTC_CHANNEL_CMD) {
@@ -1589,19 +1590,22 @@ static int on_kcp_output(const char *buf, int len, ikcpcb *kcp, void *user_data)
     return len;
 }
 
-void rtc_ref_cnt_add(tuya_p2p_rtc_session_t *rtc) {
+void rtc_ref_cnt_add(tuya_p2p_rtc_session_t *rtc)
+{
     tal_mutex_lock(rtc->ref_lock);
     rtc->ref_cnt++;
     tal_mutex_unlock(rtc->ref_lock);
 }
 
-void rtc_ref_cnt_del(tuya_p2p_rtc_session_t *rtc) {
+void rtc_ref_cnt_del(tuya_p2p_rtc_session_t *rtc)
+{
     tal_mutex_lock(rtc->ref_lock);
     rtc->ref_cnt--;
     tal_mutex_unlock(rtc->ref_lock);
 }
 
-int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc) {
+int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc)
+{
     int ref_cnt;
     tal_mutex_lock(rtc->ref_lock);
     ref_cnt = rtc->ref_cnt;
@@ -1612,7 +1616,7 @@ int rtc_ref_cnt_get(tuya_p2p_rtc_session_t *rtc) {
 tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e state, int32_t *err_code)
 {
     tuya_p2p_rtc_session_t *rtc = NULL;
-    rtc = (tuya_p2p_rtc_session_t *)malloc(sizeof(tuya_p2p_rtc_session_t));
+    rtc                         = (tuya_p2p_rtc_session_t *)malloc(sizeof(tuya_p2p_rtc_session_t));
     if (rtc == NULL) {
         *err_code = TUYA_P2P_ERROR_OUT_OF_MEMORY;
         goto finish;
@@ -1624,10 +1628,10 @@ tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e s
     tal_mutex_create_init(&rtc->ref_lock);
     tal_mutex_create_init(&rtc->channel_lock);
     rtc->cfg.channel_number = 3;
-    rtc->active_handle = 0;
-    rtc->local_cmd_seq = 0;
-    rtc->tid = NULL;
-    rtc->bQuitKCPThread = false;
+    rtc->active_handle      = 0;
+    rtc->local_cmd_seq      = 0;
+    rtc->tid                = NULL;
+    rtc->bQuitKCPThread     = false;
 
     sync_cond_init(&rtc->syncCondExit);
 
@@ -1636,7 +1640,7 @@ tuya_p2p_rtc_session_t *ctx_session_create(rtc_session_cfg_t *cfg, rtc_state_e s
         goto finish;
     }
 
-    int ret = 0;
+    int                      ret = 0;
     tuya_p2p_rtc_dtls_role_e local_dtls_role =
         DTLS_ROLE_CLIENT /*rtc->cfg.role == RTC_ROLE_CALLER ? DTLS_ROLE_BOTH : DTLS_ROLE_CLIENT*/;
     tuya_p2p_rtc_dtls_role_e remote_dtls_role =
@@ -1664,7 +1668,7 @@ finish:
 
 void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
 {
-    int wait_i;
+    int      wait_i;
     uint64_t t0;
 
     if (rtc == NULL) {
@@ -1678,7 +1682,7 @@ void ctx_session_destroy(tuya_p2p_rtc_session_t *rtc)
     if (g_pRtcSession == rtc) {
         g_pRtcSession = NULL;
     }
-    s_exiting_rtc = rtc;
+    s_exiting_rtc       = rtc;
     rtc->bQuitKCPThread = true;
     if (g_p2p_session_mutex != NULL) {
         tal_mutex_unlock(g_p2p_session_mutex);
@@ -1786,15 +1790,15 @@ int ctx_session_channel_process_data(struct rtc_channel *chan, char *data, int l
 
 int ctx_session_channel_process_pkt(void *user, int length, const char *input, char *output)
 {
-    char *encrypted = (char *)input;
-    char *decrypted = output;
-    int iv_size = 16;
-    int keylen = 16;
-    char *iv = encrypted;
-    int msg_size = length - iv_size;
-    rtc_channel_t *chan = (rtc_channel_t *)user;
-    tuya_p2p_rtc_session_t *rtc = chan->rtc;
-    int ret = -1;
+    char                   *encrypted = (char *)input;
+    char                   *decrypted = output;
+    int                     iv_size   = 16;
+    int                     keylen    = 16;
+    char                   *iv        = encrypted;
+    int                     msg_size  = length - iv_size;
+    rtc_channel_t          *chan      = (rtc_channel_t *)user;
+    tuya_p2p_rtc_session_t *rtc       = chan->rtc;
+    int                     ret       = -1;
 
     if (chan->aes_ctx_dec == NULL) {
         return -1;
@@ -1813,8 +1817,8 @@ int ctx_session_channel_process_pkt(void *user, int length, const char *input, c
 
         if (ret == 0) {
             unsigned char padding_size = (unsigned char)decrypted[msg_size - 1];
-            int pad_ok = 1;
-            int i;
+            int           pad_ok       = 1;
+            int           i;
             if (padding_size == 0 || padding_size > 16 || padding_size > msg_size) {
                 pad_ok = 0;
             } else {
@@ -1858,11 +1862,11 @@ int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc)
         uint32_t send_buf_size;
         uint32_t recv_buf_size;
         if (i == rtc->cfg.channel_number) {
-            channel_id = RTC_CHANNEL_CMD;
+            channel_id    = RTC_CHANNEL_CMD;
             send_buf_size = 100 * 1024;
             recv_buf_size = 100 * 1024;
         } else {
-            channel_id = i;
+            channel_id    = i;
             send_buf_size = g_options.send_buf_size[i];
             recv_buf_size = g_options.recv_buf_size[i];
             // if (rtc->cfg.is_pre) {
@@ -1871,18 +1875,18 @@ int tuya_p2p_rtc_channels_init(tuya_p2p_rtc_session_t *rtc)
         }
         rtc_channel_t *chan = &rtc->channels[i];
         memset(chan, 0, sizeof(*chan));
-        chan->rtc = rtc;
-        chan->channel_id = i;
+        chan->rtc               = rtc;
+        chan->channel_id        = i;
         chan->send_buf_capacity = send_buf_size;
-        chan->send_queue = tuya_mbuf_queue_create((int)send_buf_size, NULL);
-        chan->recv_queue = tuya_mbuf_queue_create((int)recv_buf_size, NULL);
-        chan->kcp = ikcp_create(channel_id, chan);
+        chan->send_queue        = tuya_mbuf_queue_create((int)send_buf_size, NULL);
+        chan->recv_queue        = tuya_mbuf_queue_create((int)recv_buf_size, NULL);
+        chan->kcp               = ikcp_create(channel_id, chan);
         if (chan->kcp == NULL || chan->send_queue == NULL || chan->recv_queue == NULL) {
             goto finish;
         }
 
         ikcp_setoutput(chan->kcp, on_kcp_output);
-        ikcp_wndsize(chan->kcp, send_buf_size / 1600  /*TUYA_MBUF_HUGE_SIZE*/,
+        ikcp_wndsize(chan->kcp, send_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/,
                      recv_buf_size / 1600 /*TUYA_MBUF_HUGE_SIZE*/);
 
         ikcp_nodelay(chan->kcp, 1, 10, 2, 1);
@@ -1935,15 +1939,16 @@ void *rtc_worker_thread(void *arg)
 {
     // Execute KCP sending and receiving in the same thread
     pj_thread_register2();
-    tuya_p2p_rtc_session_t *rtc = (tuya_p2p_rtc_session_t *)arg;
-    uint64_t start_ms = tuya_p2p_misc_get_timestamp_ms();
-    uint64_t last_dump_ms = 0;
-    int timeout_logged = 0;
-    int nego_done_logged = 0;
+    tuya_p2p_rtc_session_t *rtc              = (tuya_p2p_rtc_session_t *)arg;
+    uint64_t                start_ms         = tuya_p2p_misc_get_timestamp_ms();
+    uint64_t                last_dump_ms     = 0;
+    int                     timeout_logged   = 0;
+    int                     nego_done_logged = 0;
 
     while (!rtc->bQuitKCPThread) {
         if (rtc->pIce != NULL) {
-            pj_ice_session_handle_events(rtc->pIce, 5, NULL); // Drive ICE state update and execute KCP receive operation
+            pj_ice_session_handle_events(rtc->pIce, 5,
+                                         NULL); // Drive ICE state update and execute KCP receive operation
         }
         for (int i = 0; i < 3; ++i) //(rtc->cfg.channel_number + 1)
         {
@@ -1960,7 +1965,7 @@ void *rtc_worker_thread(void *arg)
             uint64_t now = tuya_p2p_misc_get_timestamp_ms();
             if ((now - last_dump_ms) >= 2000ULL) {
                 uint64_t elapsed = now - start_ms;
-                last_dump_ms = now;
+                last_dump_ms     = now;
                 if (rtc->pIce != NULL && !pj_ice_session_is_nego_done(rtc->pIce)) {
                     pj_ice_session_dbg_dump(rtc->pIce, "worker_pending");
                     if (!timeout_logged && rtc->cfg.connect_limit_time_ms > 0 &&
@@ -1998,11 +2003,11 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
     if (rtc == NULL) {
         return TUYA_P2P_ERROR_SESSION_CLOSED_TIMEOUT;
     }
-    int remain = len;
-    int already = 0;
-    int rc = 0;
-    uint64_t begin_time = 0;
-    int fragement_len = (int)g_options.fragement_len;
+    int      remain        = len;
+    int      already       = 0;
+    int      rc            = 0;
+    uint64_t begin_time    = 0;
+    int      fragement_len = (int)g_options.fragement_len;
     if (fragement_len <= 0 || fragement_len > 1300) {
         fragement_len = 1300;
     }
@@ -2067,16 +2072,16 @@ int32_t tuya_p2p_rtc_dosend_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
         }
 
         {
-            int current = (remain > fragement_len) ? fragement_len : remain;
-            int iv_size = (int)sizeof(rtc->iv);
-            int keylen = 16;
-            int sign_size = 0;
+            int           current      = (remain > fragement_len) ? fragement_len : remain;
+            int           iv_size      = (int)sizeof(rtc->iv);
+            int           keylen       = 16;
+            int           sign_size    = 0;
             unsigned char padding_size = (unsigned char)(keylen - (current % keylen));
-            int buflen = current + (int)padding_size;
-            int wire_len;
-            int headroom = 168; /* OS alloc size = payload + 168 */
-            tuya_mbuf_t *mbuf;
-            char tmp_iv[16];
+            int           buflen       = current + (int)padding_size;
+            int           wire_len;
+            int           headroom = 168; /* OS alloc size = payload + 168 */
+            tuya_mbuf_t  *mbuf;
+            char          tmp_iv[16];
 
             if (rtc->cfg.security_level == TUYA_P2P_SECURITY_LEVEL_4) {
                 sign_size = 16;
@@ -2167,9 +2172,9 @@ int32_t tuya_p2p_rtc_dorecv_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
     if (rtc == NULL) {
         return TUYA_P2P_ERROR_SESSION_CLOSED_TIMEOUT;
     }
-    int ret = 0;
+    int      ret        = 0;
     uint64_t begin_time = 0;
-    int buflen = *len;
+    int      buflen     = *len;
 
     *len = 0;
 
@@ -2213,10 +2218,10 @@ int32_t tuya_p2p_rtc_dorecv_data(tuya_p2p_rtc_session_t *rtc, uint32_t channel_i
 int32_t tuya_p2p_rtc_dorecv_data2(tuya_p2p_rtc_session_t *rtc, uint32_t channel_id, char *buf, int32_t *len,
                                   int32_t timeout_ms)
 {
-    int ret = 0;
+    int      ret        = 0;
     uint64_t begin_time = 0;
-    int buflen = *len;
-    *len = 0;
+    int      buflen     = *len;
+    *len                = 0;
 
     while (1) {
         tal_mutex_lock(rtc->channel_lock);
@@ -2260,8 +2265,8 @@ int32_t tuya_p2p_rtc_dorecv_data2(tuya_p2p_rtc_session_t *rtc, uint32_t channel_
 
 int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, int32_t *len, int32_t timeout_ms)
 {
-    int buflen = *len;
-    int32_t ret;
+    int                     buflen = *len;
+    int32_t                 ret;
     tuya_p2p_rtc_session_t *rtc;
 
     *len = 0;
@@ -2286,7 +2291,7 @@ int32_t tuya_p2p_rtc_recv_data(int32_t handle, uint32_t channel_id, char *buf, i
     tal_mutex_unlock(g_p2p_session_mutex);
 
     *len = buflen;
-    ret = tuya_p2p_rtc_dorecv_data2(rtc, channel_id, buf, len, timeout_ms);
+    ret  = tuya_p2p_rtc_dorecv_data2(rtc, channel_id, buf, len, timeout_ms);
     rtc_ref_cnt_del(rtc);
     return ret;
 }
@@ -2336,7 +2341,8 @@ int32_t tuya_p2p_rtc_check_buffer(int32_t handle, uint32_t channel_id, uint32_t 
             *read_size = (chan->recv_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_used_size(chan->recv_queue) : 0;
         }
         if (send_free_size != NULL) {
-            *send_free_size = (chan->send_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_free_size(chan->send_queue) : 0;
+            *send_free_size =
+                (chan->send_queue != NULL) ? (uint32_t)tuya_mbuf_queue_get_free_size(chan->send_queue) : 0;
         }
     } else {
         ret = TUYA_P2P_ERROR_INVALID_SESSION_HANDLE;
@@ -2459,10 +2465,10 @@ int32_t tuya_p2p_rtc_drop_unsent(int32_t handle, uint32_t channel_id, uint32_t *
 
 int32_t tuya_p2p_rtc_clear_send_buffer(int32_t handle, uint32_t channel_id)
 {
-    int32_t ret = 0;
+    int32_t  ret         = 0;
     uint32_t used_before = 0;
-    uint32_t used_after = 0;
-    uint32_t free_after = 0;
+    uint32_t used_after  = 0;
+    uint32_t free_after  = 0;
     uint32_t conv;
     (void)handle;
 
@@ -2614,10 +2620,10 @@ int32_t tuya_p2p_rtc_deinit()
     if (g_pRtcSession == NULL) {
         return TUYA_P2P_ERROR_NOT_INITIALIZED;
     }
-    //tal_mutex_lock(g_p2p_session_mutex);
+    // tal_mutex_lock(g_p2p_session_mutex);
     ctx_session_destroy(g_pRtcSession);
     g_pRtcSession = NULL;
-    //tal_mutex_unlock(g_p2p_session_mutex);
+    // tal_mutex_unlock(g_p2p_session_mutex);
     tal_mutex_release(g_p2p_session_mutex);
     g_p2p_session_mutex = NULL;
     return 0;
@@ -2673,9 +2679,9 @@ void tuya_p2p_log_log(int level, const char *file, int line, const char *fmt, ..
     vsprintf(buf, fmt, args);
 
     cJSON *jlog = cJSON_CreateObject();
-    cJSON *jt = cJSON_CreateNumber(tuya_p2p_misc_get_timestamp_ms());
-    cJSON *jp = cJSON_CreateString(level_names[level]);
-    cJSON *jm = cJSON_CreateString(buf);
+    cJSON *jt   = cJSON_CreateNumber(tuya_p2p_misc_get_timestamp_ms());
+    cJSON *jp   = cJSON_CreateString(level_names[level]);
+    cJSON *jm   = cJSON_CreateString(buf);
     // cJSON *jf = cJSON_CreateString(file);
     cJSON *jl = cJSON_CreateNumber(line);
 

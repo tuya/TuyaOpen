@@ -1,20 +1,20 @@
 /**
  * @file decoder_mp3.c
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2025-11-06
- * 
+ *
  * @copyright Copyright (c) 2025 Tuya Inc. All Rights Reserved.
- * 
+ *
  * Permission is hereby granted, to any person obtaining a copy of this software and
- * associated documentation files (the "Software"), Under the premise of complying 
+ * associated documentation files (the "Software"), Under the premise of complying
  * with the license of the third-party open source software contained in the software,
  * to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software.
  * The above copyright notice and this permission notice shall be included
  * in all copies or substantial portions of the Software.
- * 
+ *
  */
 #include <stdint.h>
 #define MINIMP3_IMPLEMENTATION
@@ -26,15 +26,15 @@
 #define MP3_HEAD_SIZE (10)
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define DECODER_MP3_MALLOC tal_psram_malloc
-#define DECODER_MP3_FREE   tal_psram_free
+#define DECODER_MP3_MALLOC tal_ex_ram_malloc
+#define DECODER_MP3_FREE   tal_ex_ram_free
 #else
 #define DECODER_MP3_MALLOC tal_malloc
 #define DECODER_MP3_FREE   tal_free
 #endif
 
 typedef struct {
-    bool is_first_frame;
+    bool     is_first_frame;
     mp3dec_t decoder;
     uint32_t id3_size;
 } DECODER_MP3_CTX_T;
@@ -42,7 +42,7 @@ typedef struct {
 static int __mp3_find_id3(uint8_t *buf)
 {
     char tag_header[MP3_HEAD_SIZE];
-    int tag_size = 0;
+    int  tag_size = 0;
 
     // Check buffer validity and length
     if (!buf) {
@@ -52,7 +52,8 @@ static int __mp3_find_id3(uint8_t *buf)
     memcpy(tag_header, buf, sizeof(tag_header));
 
     if (tag_header[0] == 'I' && tag_header[1] == 'D' && tag_header[2] == '3') {
-        tag_size = ((tag_header[6] & 0x7F) << 21) | ((tag_header[7] & 0x7F) << 14) | ((tag_header[8] & 0x7F) << 7) | (tag_header[9] & 0x7F);
+        tag_size = ((tag_header[6] & 0x7F) << 21) | ((tag_header[7] & 0x7F) << 14) | ((tag_header[8] & 0x7F) << 7) |
+                   (tag_header[9] & 0x7F);
         PR_DEBUG("ID3 tag_size = %d", tag_size);
         return tag_size + sizeof(tag_header);
     } else {
@@ -62,7 +63,7 @@ static int __mp3_find_id3(uint8_t *buf)
     }
 }
 
-OPERATE_RET decoder_mp3_start(void* *handle)
+OPERATE_RET decoder_mp3_start(void **handle)
 {
     DECODER_MP3_CTX_T *ctx = DECODER_MP3_MALLOC(sizeof(DECODER_MP3_CTX_T));
     if (!ctx) {
@@ -71,13 +72,13 @@ OPERATE_RET decoder_mp3_start(void* *handle)
 
     memset(ctx, 0, sizeof(DECODER_MP3_CTX_T));
     ctx->is_first_frame = true;
-    ctx->id3_size = 0;
+    ctx->id3_size       = 0;
     mp3dec_init(&ctx->decoder);
     *handle = ctx;
     return OPRT_OK;
 }
 
-OPERATE_RET decoder_mp3_stop(void* handle)
+OPERATE_RET decoder_mp3_stop(void *handle)
 {
     DECODER_MP3_CTX_T *ctx = (DECODER_MP3_CTX_T *)handle;
     if (!ctx) {
@@ -93,7 +94,8 @@ OPERATE_RET decoder_mp3_stop(void* handle)
     return OPRT_OK;
 }
 
-int decoder_mp3_process(void* handle, uint8_t *in_buf, int in_len, uint8_t *out_buf, int out_size, DECODER_OUTPUT_T *output)
+int decoder_mp3_process(void *handle, uint8_t *in_buf, int in_len, uint8_t *out_buf, int out_size,
+                        DECODER_OUTPUT_T *output)
 {
     DECODER_MP3_CTX_T *ctx = (DECODER_MP3_CTX_T *)handle;
 
@@ -102,14 +104,14 @@ int decoder_mp3_process(void* handle, uint8_t *in_buf, int in_len, uint8_t *out_
         return -1;
     }
 
-    int samples = 0;
-    int temp_len = (int)in_len;
-    mp3dec_frame_info_t frame_info = {0};
-    mp3d_sample_t *pcm_buf = (mp3d_sample_t *)out_buf;
-    int pcm_buf_samples = out_size / sizeof(mp3d_sample_t);
+    int                 samples         = 0;
+    int                 temp_len        = (int)in_len;
+    mp3dec_frame_info_t frame_info      = {0};
+    mp3d_sample_t      *pcm_buf         = (mp3d_sample_t *)out_buf;
+    int                 pcm_buf_samples = out_size / sizeof(mp3d_sample_t);
 
-    if(ctx->is_first_frame) {
-        if(in_len < MP3_HEAD_SIZE) {
+    if (ctx->is_first_frame) {
+        if (in_len < MP3_HEAD_SIZE) {
             return in_len;
         }
 
@@ -142,9 +144,9 @@ DECODE_MORE:
 
     // mp3dec_decode_frame automatically finds sync word and decodes one frame
     samples = mp3dec_decode_frame(&ctx->decoder, in_buf, in_len, pcm_buf, &frame_info);
-    if(samples <= 0) {
+    if (samples <= 0) {
         // No frame decoded or error
-        if(frame_info.frame_bytes == 0) {
+        if (frame_info.frame_bytes == 0) {
             // Need more data - frame_bytes=0 means no valid frame found, need more input
             return temp_len;
         } else {
@@ -157,17 +159,17 @@ DECODE_MORE:
     in_buf += frame_info.frame_bytes;
     in_len -= frame_info.frame_bytes;
 
-    if(frame_info.channels > 0 && samples > 0) {
+    if (frame_info.channels > 0 && samples > 0) {
         // mp3dec_decode_frame returns samples per channel, not total samples
         // Total samples written to pcm buffer = samples * channels
         uint32_t total_samples = samples * frame_info.channels;
-        uint32_t used_size = total_samples * sizeof(mp3d_sample_t);
+        uint32_t used_size     = total_samples * sizeof(mp3d_sample_t);
 
         output->used_size += used_size;
-        output->samples += samples;  // samples is already per channel
-        output->sample = frame_info.hz;
+        output->samples += samples; // samples is already per channel
+        output->sample   = frame_info.hz;
         output->datebits = 16; // minimp3 outputs 16-bit samples by default
-        output->channel = frame_info.channels;
+        output->channel  = frame_info.channels;
 
         // pcm_buf needs to advance by total_samples (samples * channels)
         // because mp3dec_decode_frame writes samples * channels samples to the buffer
@@ -176,7 +178,7 @@ DECODE_MORE:
         out_size -= used_size;
 
         // Try to decode more frames if there's space and data
-        if((out_size > used_size) && (in_len > 2)) { // at least 2 bytes for next frame
+        if ((out_size > used_size) && (in_len > 2)) { // at least 2 bytes for next frame
             temp_len = in_len;
             goto DECODE_MORE;
         }
@@ -185,9 +187,4 @@ DECODE_MORE:
     return in_len;
 }
 
-
-DECODER_T g_decoder_mp3 = {
-    .start = decoder_mp3_start,
-    .stop = decoder_mp3_stop,
-    .process = decoder_mp3_process
-};
+DECODER_T g_decoder_mp3 = {.start = decoder_mp3_start, .stop = decoder_mp3_stop, .process = decoder_mp3_process};

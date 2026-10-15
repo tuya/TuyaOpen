@@ -25,31 +25,27 @@
 #include "./opus/opus.h"
 #include "ogg/ogg.h"
 
-#define OPUS_HEAD_MAGIC "OpusHead"
-#define OPUS_TAGS_MAGIC "OpusTags"
-#define OPUS_HEAD_SIZE  19
-#define OPUS_DECODER_SAMPLE_RATE 16000  // Fixed output sample rate for decoder
+#define OPUS_HEAD_MAGIC          "OpusHead"
+#define OPUS_TAGS_MAGIC          "OpusTags"
+#define OPUS_HEAD_SIZE           19
+#define OPUS_DECODER_SAMPLE_RATE 16000 // Fixed output sample rate for decoder
 
 #define OPUS_PR_DEBUG PR_TRACE
 
-typedef enum {
-    OPUS_STATE_NEED_HEADER,
-    OPUS_STATE_NEED_TAGS,
-    OPUS_STATE_DECODING
-} OPUS_DECODE_STATE_E;
+typedef enum { OPUS_STATE_NEED_HEADER, OPUS_STATE_NEED_TAGS, OPUS_STATE_DECODING } OPUS_DECODE_STATE_E;
 
 typedef struct {
-    BOOL_T is_first_frame;
-    OpusDecoder *decoder;
-    ogg_sync_state sync_state;
-    ogg_stream_state stream_state;
-    BOOL_T stream_initialized;
+    BOOL_T              is_first_frame;
+    OpusDecoder        *decoder;
+    ogg_sync_state      sync_state;
+    ogg_stream_state    stream_state;
+    BOOL_T              stream_initialized;
     OPUS_DECODE_STATE_E state;
-    int sample_rate;
-    int channels;
-    int pre_skip;
-    int output_gain;
-    BOOL_T need_more_data;
+    int                 sample_rate;
+    int                 channels;
+    int                 pre_skip;
+    int                 output_gain;
+    BOOL_T              need_more_data;
 } DECODER_OGGOPUS_CTX_T;
 
 /**
@@ -89,7 +85,7 @@ static int __parse_opus_head(uint8_t *data, int len, DECODER_OGGOPUS_CTX_T *ctx)
     ctx->pre_skip = data[10] | (data[11] << 8);
 
     uint32_t input_sample_rate = data[12] | (data[13] << 8) | (data[14] << 16) | (data[15] << 24);
-    ctx->output_gain = (SHORT_T)(data[16] | (data[17] << 8));
+    ctx->output_gain           = (SHORT_T)(data[16] | (data[17] << 8));
 
     uint8_t channel_mapping = data[18];
 
@@ -106,13 +102,13 @@ static int __parse_opus_head(uint8_t *data, int len, DECODER_OGGOPUS_CTX_T *ctx)
     // fixed output sample rate
     ctx->sample_rate = OPUS_DECODER_SAMPLE_RATE;
 
-    PR_DEBUG("OpusHead: channels=%d, pre_skip=%d, input_rate=%d, gain=%d",
-             ctx->channels, ctx->pre_skip, input_sample_rate, ctx->output_gain);
+    PR_DEBUG("OpusHead: channels=%d, pre_skip=%d, input_rate=%d, gain=%d", ctx->channels, ctx->pre_skip,
+             input_sample_rate, ctx->output_gain);
 
     return 0;
 }
 
-static OPERATE_RET decoder_oggopus_start(void* *handle)
+static OPERATE_RET decoder_oggopus_start(void **handle)
 {
     DECODER_OGGOPUS_CTX_T *ctx = tal_malloc(sizeof(DECODER_OGGOPUS_CTX_T));
     if (!ctx) {
@@ -127,16 +123,16 @@ static OPERATE_RET decoder_oggopus_start(void* *handle)
         return OPRT_COM_ERROR;
     }
 
-    ctx->is_first_frame = true;
+    ctx->is_first_frame     = true;
     ctx->stream_initialized = false;
-    ctx->state = OPUS_STATE_NEED_HEADER;
-    ctx->need_more_data = false;
+    ctx->state              = OPUS_STATE_NEED_HEADER;
+    ctx->need_more_data     = false;
 
     *handle = ctx;
     return OPRT_OK;
 }
 
-static OPERATE_RET decoder_oggopus_stop(void* handle)
+static OPERATE_RET decoder_oggopus_stop(void *handle)
 {
     DECODER_OGGOPUS_CTX_T *ctx = (DECODER_OGGOPUS_CTX_T *)handle;
     if (!ctx) {
@@ -162,10 +158,10 @@ static OPERATE_RET decoder_oggopus_stop(void* handle)
     return OPRT_OK;
 }
 
-static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
-                                     uint8_t *out_buf, int out_size, DECODER_OUTPUT_T *output)
+static int decoder_oggopus_process(void *handle, uint8_t *in_buf, int in_len, uint8_t *out_buf, int out_size,
+                                   DECODER_OUTPUT_T *output)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET            rt  = OPRT_OK;
     DECODER_OGGOPUS_CTX_T *ctx = (DECODER_OGGOPUS_CTX_T *)handle;
 
     if (!ctx || !out_buf || out_size <= 0 || !output) {
@@ -196,7 +192,7 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
         OPUS_PR_DEBUG("Fed %d bytes to Ogg sync buffer", in_len);
     }
 
-    ogg_page page;
+    ogg_page   page;
     ogg_packet packet;
 
     // Process Ogg pages first to ensure stream is initialized and packets are available
@@ -269,8 +265,8 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
                 }
 
                 // Create Opus decoder
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
-                ctx->decoder = tal_psram_malloc(opus_decoder_get_size(ctx->channels));
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+                ctx->decoder = tal_ex_ram_malloc(opus_decoder_get_size(ctx->channels));
 #else
                 ctx->decoder = tal_malloc(opus_decoder_get_size(ctx->channels));
 #endif
@@ -307,15 +303,16 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
             // Decode audio packet
             if (ctx->state == OPUS_STATE_DECODING) {
                 int samples_per_channel_available = out_size / (ctx->channels * sizeof(SHORT_T));
-                int max_frame_samples = ctx->sample_rate * 60 / 1000;
+                int max_frame_samples             = ctx->sample_rate * 60 / 1000;
 
                 if (samples_per_channel_available < max_frame_samples) {
-                    OPUS_PR_DEBUG("Buffer too small, need %d samples, have %d", max_frame_samples, samples_per_channel_available);
+                    OPUS_PR_DEBUG("Buffer too small, need %d samples, have %d", max_frame_samples,
+                                  samples_per_channel_available);
                     break;
                 }
 
-                int samples_decoded = opus_decode(ctx->decoder, packet.packet, packet.bytes,
-                                                     (SHORT_T *)out_buf, samples_per_channel_available, 0);
+                int samples_decoded = opus_decode(ctx->decoder, packet.packet, packet.bytes, (SHORT_T *)out_buf,
+                                                  samples_per_channel_available, 0);
                 if (samples_decoded < 0) {
                     PR_ERR("opus_decode failed: %d", samples_decoded);
                     continue;
@@ -324,9 +321,9 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
 
                 if (samples_decoded > 0) {
                     uint32_t decoded_bytes = samples_decoded * ctx->channels * sizeof(SHORT_T);
-                    output->sample = (TKL_AUDIO_SAMPLE_E)ctx->sample_rate;
-                    output->datebits = TKL_AUDIO_DATABITS_16;
-                    output->channel = (ctx->channels == 1) ? TKL_AUDIO_CHANNEL_MONO : TKL_AUDIO_CHANNEL_STEREO;
+                    output->sample         = (TKL_AUDIO_SAMPLE_E)ctx->sample_rate;
+                    output->datebits       = TKL_AUDIO_DATABITS_16;
+                    output->channel        = (ctx->channels == 1) ? TKL_AUDIO_CHANNEL_MONO : TKL_AUDIO_CHANNEL_STEREO;
                     output->samples += samples_decoded;
                     output->used_size += decoded_bytes;
                     out_buf += decoded_bytes;
@@ -334,7 +331,8 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
 
                     // Check if we have enough space for another frame
                     if (samples_per_channel_available < max_frame_samples) {
-                        OPUS_PR_DEBUG("Buffer too small, need %d samples, have %d", max_frame_samples, samples_per_channel_available);
+                        OPUS_PR_DEBUG("Buffer too small, need %d samples, have %d", max_frame_samples,
+                                      samples_per_channel_available);
                         break;
                     }
                 }
@@ -347,19 +345,16 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
         ogg_packet peek_packet;
         if (ogg_stream_packetpeek(&ctx->stream_state, &peek_packet) == 1) {
             // Still have packets waiting, return BUFFER_NOT_ENOUGH to signal caller to continue
-            OPUS_PR_DEBUG("Decode: output=%d samples (%d bytes), has pending packets",
-                     output->samples, output->used_size);
+            OPUS_PR_DEBUG("Decode: output=%d samples (%d bytes), has pending packets", output->samples,
+                          output->used_size);
             return OPRT_BUFFER_NOT_ENOUGH;
         }
     }
 
     OPUS_PR_DEBUG("Decode: output=%d samples (%d bytes)", output->samples, output->used_size);
-    return 0;  // All data processed successfully
+    return 0; // All data processed successfully
 }
 
 DECODER_T g_decoder_oggopus = {
-    .start = decoder_oggopus_start,
-    .stop = decoder_oggopus_stop,
-    .process = decoder_oggopus_process
-};
+    .start = decoder_oggopus_start, .stop = decoder_oggopus_stop, .process = decoder_oggopus_process};
 #endif

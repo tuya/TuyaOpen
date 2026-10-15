@@ -10,3 +10,6 @@
 [submodule "src/common/backoffAlgorithm"]
 	path = src/common/backoffAlgorithm
 	url = https://github.com/FreeRTOS/backoffAlgorithm.git
+[submodule "tuyaopen-core"]
+	path = tuyaopen-core
+	url = https://github.com/flyingcys/TuyaOpen-Core.git

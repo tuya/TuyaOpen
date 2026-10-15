@@ -10,16 +10,10 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-# aux_source_directory(${MODULE_PATH}/utilities LIB_SRCS)
-# aux_source_directory(${MODULE_PATH}/backoffAlgorithm/source BACKOFLIBS)
-# aux_source_directory(${MODULE_PATH}/event EVENTLIBS)
-# LIB_SRCS
-file(GLOB_RECURSE 
-    LIB_SRCS 
-    "${MODULE_PATH}/utilities/*.c"
-    "${MODULE_PATH}/backoffAlgorithm/source/*.c")
-
-# list(APPEND LIB_SRCS ${BACKOFLIBS})
+# [tuyaopen-core integration] utilities/backoffAlgorithm sources removed:
+# their symbols are provided by tuyaopen-core (tuya_utilities / backoff_algorithm);
+# this module now only carries qrcode (added below under CONFIG_ENABLE_QRCODE).
+set(LIB_SRCS)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 

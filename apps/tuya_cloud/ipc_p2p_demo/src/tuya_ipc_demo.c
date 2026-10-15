@@ -60,7 +60,7 @@ extern uint64_t tuya_p2p_misc_get_current_time_ms(void);
 #define DEMO_LIVE_RECORD 0
 #endif
 
-#if !defined(CAMERA_DEMO_WIDTH) || !defined(CAMERA_DEMO_HEIGHT) || !defined(CAMERA_DEMO_FPS) ||                    \
+#if !defined(CAMERA_DEMO_WIDTH) || !defined(CAMERA_DEMO_HEIGHT) || !defined(CAMERA_DEMO_FPS) ||                        \
     !defined(CAMERA_DEMO_KBPS)
 #error "the board .config must set CONFIG_CAMERA_DEMO_{WIDTH,HEIGHT,FPS,KBPS} - Kconfig carries no default"
 #endif
@@ -84,21 +84,21 @@ extern uint64_t tuya_p2p_misc_get_current_time_ms(void);
 #define CAMERA_NAME_ALT "camera_dvp"
 
 /* Must match p2p_init()'s media_frame buffer; do not read media_frame->size */
-#define DEMO_P2P_FRAME_CAP    (300 * 1024)
-#define DEMO_FRAME_BUF_SIZE   (256 * 1024)
+#define DEMO_P2P_FRAME_CAP   (300 * 1024)
+#define DEMO_FRAME_BUF_SIZE  (256 * 1024)
 #define DEMO_P2P_QUEUE_DEPTH 2
 
 #if DEMO_HAS_AUDIO
 
-#define DEMO_AUDIO_FRAME_MS      20
-#define DEMO_AUDIO_FRAME_BYTES   (8000 * DEMO_AUDIO_FRAME_MS / 1000)
-#define DEMO_AUDIO_RING_MS       320
-#define DEMO_AUDIO_RING_FRAMES   (DEMO_AUDIO_RING_MS / DEMO_AUDIO_FRAME_MS)
-#define DEMO_AUDIO_PCM_MAX       1024
-#define DEMO_DOWNLINK_G711_MAX   640
-#define DEMO_DL_PCM_MS           300
-#define DEMO_DL_PCM_CAP          (8000 * DEMO_DL_PCM_MS / 1000)
-#define DEMO_DL_PLAY_SAMPLES     (8000 * DEMO_AUDIO_FRAME_MS / 1000)
+#define DEMO_AUDIO_FRAME_MS    20
+#define DEMO_AUDIO_FRAME_BYTES (8000 * DEMO_AUDIO_FRAME_MS / 1000)
+#define DEMO_AUDIO_RING_MS     320
+#define DEMO_AUDIO_RING_FRAMES (DEMO_AUDIO_RING_MS / DEMO_AUDIO_FRAME_MS)
+#define DEMO_AUDIO_PCM_MAX     1024
+#define DEMO_DOWNLINK_G711_MAX 640
+#define DEMO_DL_PCM_MS         300
+#define DEMO_DL_PCM_CAP        (8000 * DEMO_DL_PCM_MS / 1000)
+#define DEMO_DL_PLAY_SAMPLES   (8000 * DEMO_AUDIO_FRAME_MS / 1000)
 #endif
 
 typedef struct {
@@ -107,26 +107,26 @@ typedef struct {
     uint64_t ts_ms;
 } DEMO_P2P_Q_SLOT_T;
 
-static MUTEX_HANDLE        s_frame_mutex = NULL;
-static uint8_t            *s_q_pool[DEMO_P2P_QUEUE_DEPTH] = {0};
-static DEMO_P2P_Q_SLOT_T   s_q_slot[DEMO_P2P_QUEUE_DEPTH];
-static uint32_t            s_q_head = 0;
-static uint32_t            s_q_tail = 0;
-static uint32_t            s_q_count = 0;
-static uint32_t            s_frame_slot_cap = 0;
-static BOOL_T              s_media_ready = FALSE;
-static BOOL_T              s_live_push_enable = FALSE;
-static BOOL_T              s_live_want_cam = FALSE;
-static MUTEX_HANDLE        s_cam_lock = NULL;
-static BOOL_T              s_queue_need_iframe = FALSE;
-static BOOL_T              s_cam_running = FALSE;
+static MUTEX_HANDLE      s_frame_mutex                  = NULL;
+static uint8_t          *s_q_pool[DEMO_P2P_QUEUE_DEPTH] = {0};
+static DEMO_P2P_Q_SLOT_T s_q_slot[DEMO_P2P_QUEUE_DEPTH];
+static uint32_t          s_q_head            = 0;
+static uint32_t          s_q_tail            = 0;
+static uint32_t          s_q_count           = 0;
+static uint32_t          s_frame_slot_cap    = 0;
+static BOOL_T            s_media_ready       = FALSE;
+static BOOL_T            s_live_push_enable  = FALSE;
+static BOOL_T            s_live_want_cam     = FALSE;
+static MUTEX_HANDLE      s_cam_lock          = NULL;
+static BOOL_T            s_queue_need_iframe = FALSE;
+static BOOL_T            s_cam_running       = FALSE;
 #if DEMO_HAS_CAMERA
 static TDL_CAMERA_HANDLE_T s_cam = NULL;
 #endif
 
 #if DEMO_HAS_RING_BUFFER
-static RING_BUFFER_USER_HANDLE_T s_ring_w = NULL;
-static RING_BUFFER_USER_HANDLE_T s_ring_r = NULL;
+static RING_BUFFER_USER_HANDLE_T s_ring_w     = NULL;
+static RING_BUFFER_USER_HANDLE_T s_ring_r     = NULL;
 static BOOL_T                    s_ring_ready = FALSE;
 #endif
 
@@ -142,13 +142,13 @@ static uint32_t        s_ul_head = 0, s_ul_tail = 0, s_ul_count = 0;
 static uint32_t        s_ul_ovf = 0;
 static int16_t         s_dl_pcm[DEMO_DL_PCM_CAP];
 static uint32_t        s_dl_head = 0, s_dl_tail = 0, s_dl_count = 0;
-static uint32_t        s_dl_ovf = 0;
+static uint32_t        s_dl_ovf       = 0;
 static BOOL_T          s_audio_inited = FALSE;
-static BOOL_T          s_mic_running = FALSE;
-static volatile BOOL_T s_spk_active = FALSE;
-static volatile BOOL_T s_play_run = FALSE;
-static volatile BOOL_T s_play_alive = FALSE;
-static THREAD_HANDLE   s_play_th = NULL;
+static BOOL_T          s_mic_running  = FALSE;
+static volatile BOOL_T s_spk_active   = FALSE;
+static volatile BOOL_T s_play_run     = FALSE;
+static volatile BOOL_T s_play_alive   = FALSE;
+static THREAD_HANDLE   s_play_th      = NULL;
 
 static OPERATE_RET __demo_audio_uplink_init(void);
 static void        __demo_audio_uplink_deinit(void);
@@ -159,9 +159,9 @@ static void        __demo_play_stop(void);
 
 static void __demo_p2p_queue_clear(void)
 {
-    s_q_head = 0;
-    s_q_tail = 0;
-    s_q_count = 0;
+    s_q_head            = 0;
+    s_q_tail            = 0;
+    s_q_count           = 0;
     s_queue_need_iframe = TRUE;
 }
 
@@ -185,10 +185,10 @@ static OPERATE_RET __demo_p2p_queue_push(const uint8_t *data, uint32_t len, BOOL
         return OPRT_COM_ERROR;
     }
     memcpy(dst, data, len);
-    s_q_slot[s_q_tail].len = len;
+    s_q_slot[s_q_tail].len    = len;
     s_q_slot[s_q_tail].is_key = is_key;
-    s_q_slot[s_q_tail].ts_ms = ts_ms;
-    s_q_tail = (s_q_tail + 1U) % DEMO_P2P_QUEUE_DEPTH;
+    s_q_slot[s_q_tail].ts_ms  = ts_ms;
+    s_q_tail                  = (s_q_tail + 1U) % DEMO_P2P_QUEUE_DEPTH;
     s_q_count++;
     if (is_key) {
         s_queue_need_iframe = FALSE;
@@ -208,17 +208,17 @@ static OPERATE_RET __demo_p2p_queue_pop(MEDIA_FRAME *media_frame)
         return OPRT_NOT_FOUND;
     }
     slot = &s_q_slot[s_q_head];
-    src = s_q_pool[s_q_head];
+    src  = s_q_pool[s_q_head];
     if (src == NULL || slot->len == 0 || slot->len > DEMO_P2P_FRAME_CAP) {
         __demo_p2p_queue_clear();
         return OPRT_COM_ERROR;
     }
     memcpy(media_frame->data, src, slot->len);
-    media_frame->size = slot->len;
-    media_frame->type = slot->is_key ? eVideoIFrame : eVideoPBFrame;
-    media_frame->pts = slot->ts_ms;
+    media_frame->size      = slot->len;
+    media_frame->type      = slot->is_key ? eVideoIFrame : eVideoPBFrame;
+    media_frame->pts       = slot->ts_ms;
     media_frame->timestamp = (uint32_t)slot->ts_ms;
-    s_q_head = (s_q_head + 1U) % DEMO_P2P_QUEUE_DEPTH;
+    s_q_head               = (s_q_head + 1U) % DEMO_P2P_QUEUE_DEPTH;
     s_q_count--;
     return OPRT_OK;
 }
@@ -302,7 +302,7 @@ static OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_F
     }
 
     is_key = frame->is_i_frame ? TRUE : FALSE;
-    ts_ms = tuya_p2p_misc_get_current_time_ms();
+    ts_ms  = tuya_p2p_misc_get_current_time_ms();
 
     if (s_live_push_enable) {
         tal_mutex_lock(s_frame_mutex);
@@ -313,8 +313,8 @@ static OPERATE_RET __demo_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_F
 #if DEMO_HAS_RING_BUFFER
     if (s_live_push_enable && s_ring_ready && s_ring_w != NULL) {
         (void)tuya_ipc_ring_buffer_append_data_with_timestamp(s_ring_w, (uint8_t *)frame->data, frame->data_len,
-                                                             is_key ? E_VIDEO_I_FRAME : E_VIDEO_PB_FRAME,
-                                                             ts_ms * 1000ULL, ts_ms);
+                                                              is_key ? E_VIDEO_I_FRAME : E_VIDEO_PB_FRAME,
+                                                              ts_ms * 1000ULL, ts_ms);
     }
 #endif
 
@@ -365,11 +365,11 @@ static OPERATE_RET __demo_camera_open(void)
     }
 
     memset(&cfg, 0, sizeof(cfg));
-    cfg.width = DEMO_CAM_WIDTH;
+    cfg.width  = DEMO_CAM_WIDTH;
     cfg.height = DEMO_CAM_HEIGHT;
-    cfg.fps = DEMO_CAM_FPS;
+    cfg.fps    = DEMO_CAM_FPS;
     /* TDL_CAMERA_FMT_E has no H.265 member; the board encoder decides the codec. */
-    cfg.out_fmt = TDL_CAMERA_FMT_H264;
+    cfg.out_fmt              = TDL_CAMERA_FMT_H264;
     cfg.get_encoded_frame_cb = __demo_encoded_frame_cb;
 
     rt = tdl_camera_dev_open(s_cam, &cfg);
@@ -409,11 +409,24 @@ static OPERATE_RET __demo_camera_set_bitrate(uint32_t kbps)
 
 #else /* !DEMO_HAS_CAMERA */
 
-static BOOL_T      __demo_camera_present(void)              { return FALSE; }
-static OPERATE_RET __demo_camera_open(void)                 { return OPRT_NOT_SUPPORTED; }
-static void        __demo_camera_close(void)                { }
-static OPERATE_RET __demo_camera_request_i_frame(void)      { return OPRT_NOT_SUPPORTED; }
-static OPERATE_RET __demo_camera_set_bitrate(uint32_t kbps) { (void)kbps; return OPRT_NOT_SUPPORTED; }
+static BOOL_T __demo_camera_present(void)
+{
+    return FALSE;
+}
+static OPERATE_RET __demo_camera_open(void)
+{
+    return OPRT_NOT_SUPPORTED;
+}
+static void        __demo_camera_close(void) {}
+static OPERATE_RET __demo_camera_request_i_frame(void)
+{
+    return OPRT_NOT_SUPPORTED;
+}
+static OPERATE_RET __demo_camera_set_bitrate(uint32_t kbps)
+{
+    (void)kbps;
+    return OPRT_NOT_SUPPORTED;
+}
 
 #endif /* DEMO_HAS_CAMERA */
 
@@ -438,7 +451,6 @@ static void __demo_camera_sync(void)
     tal_mutex_unlock(s_cam_lock);
 }
 
-
 static void __demo_init_p2p_av_info(BOOL_T from_camera)
 {
     TRANS_IPC_AV_INFO_T av_info;
@@ -447,10 +459,10 @@ static void __demo_init_p2p_av_info(BOOL_T from_camera)
     int                 i;
 
     if (from_camera) {
-        w = DEMO_CAM_WIDTH;
-        h = DEMO_CAM_HEIGHT;
-        fps = DEMO_AV_FPS;
-        gop = DEMO_CAM_GOP;
+        w    = DEMO_CAM_WIDTH;
+        h    = DEMO_CAM_HEIGHT;
+        fps  = DEMO_AV_FPS;
+        gop  = DEMO_CAM_GOP;
         kbps = DEMO_CAM_KBPS;
     } else {
         return;
@@ -461,17 +473,17 @@ static void __demo_init_p2p_av_info(BOOL_T from_camera)
         int s = (i == 0) ? eIpcStreamVideoMain : eIpcStreamVideoSub;
 
         av_info.video_codec[s] = DEMO_VIDEO_CODEC;
-        av_info.fps[s] = fps;
-        av_info.gop[s] = gop;
-        av_info.bitrate[s] = kbps;
-        av_info.width[s] = w;
-        av_info.height[s] = h;
+        av_info.fps[s]         = fps;
+        av_info.gop[s]         = gop;
+        av_info.bitrate[s]     = kbps;
+        av_info.width[s]       = w;
+        av_info.height[s]      = h;
     }
 #if DEMO_HAS_AUDIO
-    av_info.audio_codec = TY_AV_CODEC_AUDIO_G711U;
-    av_info.audio_sample = TY_AUDIO_SAMPLE_8K;
+    av_info.audio_codec    = TY_AV_CODEC_AUDIO_G711U;
+    av_info.audio_sample   = TY_AUDIO_SAMPLE_8K;
     av_info.audio_databits = TY_AUDIO_DATABITS_16;
-    av_info.audio_channel = TY_AUDIO_CHANNEL_MONO;
+    av_info.audio_channel  = TY_AUDIO_CHANNEL_MONO;
 #endif
 
     rt = tuya_ipc_init_trans_av_info(&av_info);
@@ -502,7 +514,7 @@ void tuya_ipc_demo_start(void)
     }
 
     s_live_push_enable = FALSE;
-    s_live_want_cam = FALSE;
+    s_live_want_cam    = FALSE;
     __demo_p2p_queue_clear();
 
     for (i = 0; i < DEMO_P2P_QUEUE_DEPTH; i++) {
@@ -530,12 +542,12 @@ void tuya_ipc_demo_start(void)
     {
         RING_BUFFER_INIT_PARAM_T rp = {0};
 
-        rp.bitrate = DEMO_CAM_KBPS;
-        rp.fps = DEMO_AV_FPS;
+        rp.bitrate            = DEMO_CAM_KBPS;
+        rp.fps                = DEMO_AV_FPS;
         rp.max_buffer_seconds = 2;
         if (tuya_ipc_ring_buffer_init(0, 0, E_IPC_STREAM_VIDEO_MAIN, &rp) == OPRT_OK) {
-            s_ring_w = tuya_ipc_ring_buffer_open(0, 0, E_IPC_STREAM_VIDEO_MAIN, E_RBUF_WRITE);
-            s_ring_r = tuya_ipc_ring_buffer_open(0, 0, E_IPC_STREAM_VIDEO_MAIN, E_RBUF_READ);
+            s_ring_w     = tuya_ipc_ring_buffer_open(0, 0, E_IPC_STREAM_VIDEO_MAIN, E_RBUF_WRITE);
+            s_ring_r     = tuya_ipc_ring_buffer_open(0, 0, E_IPC_STREAM_VIDEO_MAIN, E_RBUF_READ);
             s_ring_ready = (s_ring_w != NULL && s_ring_r != NULL) ? TRUE : FALSE;
             PR_NOTICE("ring_buffer live video %s", s_ring_ready ? "ready" : "open fail");
         }
@@ -572,7 +584,7 @@ void tuya_ipc_demo_end(void)
     uint32_t i;
 
     s_live_push_enable = FALSE;
-    s_live_want_cam = FALSE;
+    s_live_want_cam    = FALSE;
 #if DEMO_HAS_AUDIO
     __demo_mic_stop();
 #endif
@@ -654,7 +666,7 @@ int demo_on_live_video_start_callback(void)
 
 int demo_on_live_video_stop_callback(void)
 {
-    s_live_want_cam = FALSE;
+    s_live_want_cam    = FALSE;
     s_live_push_enable = FALSE;
     if (s_frame_mutex != NULL) {
         tal_mutex_lock(s_frame_mutex);
@@ -697,9 +709,9 @@ int demo_on_get_video_frame_callback(MEDIA_FRAME *media_frame)
 
         if (node != NULL && node->raw_data != NULL && node->size > 0 && node->size <= DEMO_P2P_FRAME_CAP) {
             memcpy(media_frame->data, node->raw_data, node->size);
-            media_frame->size = node->size;
-            media_frame->type = (node->type == E_VIDEO_I_FRAME) ? eVideoIFrame : eVideoPBFrame;
-            media_frame->pts = node->timestamp;
+            media_frame->size      = node->size;
+            media_frame->type      = (node->type == E_VIDEO_I_FRAME) ? eVideoIFrame : eVideoPBFrame;
+            media_frame->pts       = node->timestamp;
             media_frame->timestamp = (uint32_t)node->timestamp;
             return 0;
         }
@@ -737,9 +749,9 @@ int demo_on_set_video_bitrate_callback(uint32_t kbps)
 #define DEMO_NOISE_PK_TH   800
 #define DEMO_NOISE_HANG_MS 500
 
-static int32_t s_noise_hang_ms = 0;
-static volatile BOOL_T  s_far_active = FALSE;
-static volatile int32_t s_far_hold_ms = 0;
+static int32_t          s_noise_hang_ms = 0;
+static volatile BOOL_T  s_far_active    = FALSE;
+static volatile int32_t s_far_hold_ms   = 0;
 
 static int32_t __demo_frame_peak(const int16_t *pcm, size_t n)
 {
@@ -796,7 +808,7 @@ static void __demo_ul_push(const uint8_t *data, uint64_t ts_ms)
     }
     memcpy(s_ul_ring[s_ul_tail].data, data, DEMO_AUDIO_FRAME_BYTES);
     s_ul_ring[s_ul_tail].ts_ms = ts_ms;
-    s_ul_tail = (s_ul_tail + 1U) % DEMO_AUDIO_RING_FRAMES;
+    s_ul_tail                  = (s_ul_tail + 1U) % DEMO_AUDIO_RING_FRAMES;
     s_ul_count++;
     tal_mutex_unlock(s_audio_mutex);
 }
@@ -814,7 +826,7 @@ static void __demo_dl_push(const int16_t *pcm, uint32_t n)
             dropped = TRUE;
         }
         s_dl_pcm[s_dl_tail] = pcm[i];
-        s_dl_tail = (s_dl_tail + 1U) % DEMO_DL_PCM_CAP;
+        s_dl_tail           = (s_dl_tail + 1U) % DEMO_DL_PCM_CAP;
         s_dl_count++;
     }
     if (dropped) {
@@ -829,7 +841,7 @@ static uint32_t __demo_dl_pull(int16_t *pcm, uint32_t n)
 
     tal_mutex_lock(s_audio_mutex);
     for (i = 0; i < n && s_dl_count > 0; i++) {
-        pcm[i] = s_dl_pcm[s_dl_head];
+        pcm[i]    = s_dl_pcm[s_dl_head];
         s_dl_head = (s_dl_head + 1U) % DEMO_DL_PCM_CAP;
         s_dl_count--;
         got++;
@@ -866,18 +878,18 @@ static OPERATE_RET __demo_play_start(void)
     if (s_play_th != NULL) {
         return OPRT_OK;
     }
-    s_play_run = TRUE;
+    s_play_run   = TRUE;
     s_play_alive = FALSE;
     memset(&cfg, 0, sizeof(cfg));
     cfg.stackDepth = 4096;
-    cfg.priority = THREAD_PRIO_3;
-    cfg.thrdname = "dl_play";
+    cfg.priority   = THREAD_PRIO_3;
+    cfg.thrdname   = "dl_play";
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.psram_mode = 1;
+    cfg.ex_ram_mode = 1;
 #endif
     if (tal_thread_create_and_start(&s_play_th, NULL, NULL, __demo_play_thread, NULL, &cfg) != OPRT_OK) {
         s_play_run = FALSE;
-        s_play_th = NULL;
+        s_play_th  = NULL;
         PR_ERR("downlink play thread create failed");
         return OPRT_COM_ERROR;
     }
@@ -893,7 +905,7 @@ static void __demo_play_stop(void)
     for (wait = 0; s_play_alive && wait < 50; wait++) {
         tal_system_sleep(10);
     }
-    h = s_play_th;
+    h         = s_play_th;
     s_play_th = NULL;
     if (h != NULL) {
         tal_thread_delete(h);
@@ -905,9 +917,9 @@ static void __demo_mic_frame_cb(const int16_t *pcm, uint32_t samples)
 {
     static int16_t pcm8k[DEMO_AUDIO_PCM_MAX];
     uint8_t        g711[DEMO_AUDIO_FRAME_BYTES];
-    uint32_t in_n, off;
-    int32_t  frame_ms;
-    uint64_t ts0;
+    uint32_t       in_n, off;
+    int32_t        frame_ms;
+    uint64_t       ts0;
 
     if (!s_mic_running || pcm == NULL || samples == 0) {
         return;
@@ -919,7 +931,7 @@ static void __demo_mic_frame_cb(const int16_t *pcm, uint32_t samples)
     }
     memcpy(pcm8k, pcm, in_n * sizeof(int16_t));
     frame_ms = (int32_t)(in_n * 1000u / DEMO_AUDIO_PORT_RATE);
-    ts0 = tuya_p2p_misc_get_current_time_ms();
+    ts0      = tuya_p2p_misc_get_current_time_ms();
     if (ts0 > (uint64_t)frame_ms) {
         ts0 -= (uint64_t)frame_ms;
     }
@@ -947,12 +959,12 @@ static void __demo_mic_frame_cb(const int16_t *pcm, uint32_t samples)
 
     if (__demo_dl_queued_ms() > 0) {
         s_far_hold_ms = DEMO_DUPLEX_HANG_MS;
-        s_far_active = TRUE;
+        s_far_active  = TRUE;
     } else if (s_far_hold_ms > 0) {
         s_far_hold_ms -= frame_ms;
         if (s_far_hold_ms <= 0) {
             s_far_hold_ms = 0;
-            s_far_active = FALSE;
+            s_far_active  = FALSE;
         }
     }
     {
@@ -995,9 +1007,9 @@ static OPERATE_RET __demo_mic_start(void)
         return rt;
     }
     s_noise_hang_ms = 0;
-    s_ul_ovf = 0;
-    s_dl_ovf = 0;
-    s_mic_running = TRUE;
+    s_ul_ovf        = 0;
+    s_dl_ovf        = 0;
+    s_mic_running   = TRUE;
     PR_NOTICE("mic started: %uHz 20ms G.711U dtx pk<%d SRAM=%u", (uint32_t)DEMO_AUDIO_PORT_RATE, DEMO_NOISE_PK_TH,
               (unsigned)tal_system_get_free_heap_size());
     return OPRT_OK;
@@ -1010,11 +1022,10 @@ static void __demo_mic_stop(void)
         return;
     }
     s_mic_running = FALSE;
-    s_spk_active = FALSE;
+    s_spk_active  = FALSE;
     __demo_play_stop();
     demo_audio_port_close();
-    PR_NOTICE("mic stopped SRAM=%u ul_ovf=%u dl_ovf=%u", (unsigned)tal_system_get_free_heap_size(), s_ul_ovf,
-              s_dl_ovf);
+    PR_NOTICE("mic stopped SRAM=%u ul_ovf=%u dl_ovf=%u", (unsigned)tal_system_get_free_heap_size(), s_ul_ovf, s_dl_ovf);
 }
 
 static OPERATE_RET __demo_audio_uplink_init(void)
@@ -1030,7 +1041,7 @@ static OPERATE_RET __demo_audio_uplink_init(void)
     }
     s_ul_head = s_ul_tail = s_ul_count = 0;
     s_dl_head = s_dl_tail = s_dl_count = 0;
-    s_audio_inited = TRUE;
+    s_audio_inited                     = TRUE;
     return OPRT_OK;
 }
 
@@ -1066,24 +1077,24 @@ int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
         return -1;
     }
     memcpy(media_frame->data, s_ul_ring[s_ul_head].data, DEMO_AUDIO_FRAME_BYTES);
-    ts_ms = s_ul_ring[s_ul_head].ts_ms;
+    ts_ms     = s_ul_ring[s_ul_head].ts_ms;
     s_ul_head = (s_ul_head + 1U) % DEMO_AUDIO_RING_FRAMES;
     s_ul_count--;
     tal_mutex_unlock(s_audio_mutex);
 
-    media_frame->size = DEMO_AUDIO_FRAME_BYTES;
-    media_frame->type = eAudioFrame;
+    media_frame->size      = DEMO_AUDIO_FRAME_BYTES;
+    media_frame->type      = eAudioFrame;
     media_frame->timestamp = ts_ms;
-    media_frame->pts = ts_ms * 1000ULL;
+    media_frame->pts       = ts_ms * 1000ULL;
     return 0;
 }
 
 int demo_on_live_audio_start_callback(void)
 {
-    s_spk_active = TRUE;
+    s_spk_active    = TRUE;
     s_noise_hang_ms = 0;
-    s_far_active = FALSE;
-    s_far_hold_ms = 0;
+    s_far_active    = FALSE;
+    s_far_hold_ms   = 0;
     __demo_ul_clear();
     __demo_dl_clear();
     if (__demo_play_start() != OPRT_OK) {
@@ -1096,10 +1107,10 @@ int demo_on_live_audio_start_callback(void)
 int demo_on_live_audio_stop_callback(void)
 {
     __demo_play_stop();
-    s_spk_active = FALSE;
+    s_spk_active    = FALSE;
     s_noise_hang_ms = 0;
-    s_far_active = FALSE;
-    s_far_hold_ms = 0;
+    s_far_active    = FALSE;
+    s_far_hold_ms   = 0;
     __demo_ul_clear();
     PR_NOTICE("LIVE audio(speaker) stop: uplink resume");
     return 0;
@@ -1122,7 +1133,7 @@ int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
     }
     if (__demo_frame_peak(pcm8k, n) > DEMO_DUPLEX_FAR_THRESH) {
         s_far_hold_ms = DEMO_DUPLEX_HANG_MS;
-        s_far_active = TRUE;
+        s_far_active  = TRUE;
     }
     __demo_dl_push(pcm8k, n);
     return 0;
@@ -1130,9 +1141,7 @@ int demo_on_recv_audio_frame_callback(MEDIA_FRAME *media_frame)
 
 #else /* !DEMO_HAS_AUDIO */
 
-void demo_mic_uplink_pause(void)
-{
-}
+void demo_mic_uplink_pause(void) {}
 
 int demo_on_get_audio_frame_callback(MEDIA_FRAME *media_frame)
 {

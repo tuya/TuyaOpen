@@ -31,11 +31,11 @@
 ************************macro define************************
 ***********************************************************/
 #ifdef ENABLE_EXT_RAM
-#define AI_MCP_MALLOC    tal_psram_malloc
-#define AI_MCP_FREE      tal_psram_free
+#define AI_MCP_MALLOC tal_ex_ram_malloc
+#define AI_MCP_FREE   tal_ex_ram_free
 #else
-#define AI_MCP_MALLOC    tal_malloc
-#define AI_MCP_FREE      tal_free
+#define AI_MCP_MALLOC tal_malloc
+#define AI_MCP_FREE   tal_free
 #endif
 
 /***********************************************************
@@ -44,7 +44,7 @@
 /**
  * typedef MCP_SEND_MESSAGE_CB - Message sending callback
  * @message: JSON-RPC message to send
- * 
+ *
  * This callback is called when the MCP server needs to send a message
  * back to the client (e.g., response or notification).
  */
@@ -59,20 +59,20 @@ typedef void (*MCP_SEND_MESSAGE_CB)(char *sid, char *eid, const char *message);
  * @server_version: Server version
  */
 typedef struct {
-    bool initialized;
-    char *name;
-    char *version;
-    MCP_TOOL_T *tools;
-    int tool_count;
+    bool                initialized;
+    char               *name;
+    char               *version;
+    MCP_TOOL_T         *tools;
+    int                 tool_count;
     MCP_SEND_MESSAGE_CB send_message;
 } MCP_SERVER_CTX_T;
 
 typedef struct {
-    char *sid;
-    char *eid;
-    char *id;
+    char                *sid;
+    char                *eid;
+    char                *id;
     MCP_PROPERTY_LIST_T *arguments;
-    MCP_TOOL_T *tool;
+    MCP_TOOL_T          *tool;
 } TOOL_CALL_MSG_T;
 
 /***********************************************************
@@ -172,8 +172,8 @@ OPERATE_RET ai_mcp_property_set_default_bool(MCP_PROPERTY_T *prop, bool value)
     if (!prop || prop->type != MCP_PROPERTY_TYPE_BOOLEAN)
         return OPRT_INVALID_PARM;
 
-    prop->has_default = true;
-    prop->default_val.type = MCP_PROPERTY_TYPE_BOOLEAN;
+    prop->has_default          = true;
+    prop->default_val.type     = MCP_PROPERTY_TYPE_BOOLEAN;
     prop->default_val.bool_val = value;
 
     return OPRT_OK;
@@ -184,8 +184,8 @@ OPERATE_RET ai_mcp_property_set_default_int(MCP_PROPERTY_T *prop, int value)
     if (!prop || prop->type != MCP_PROPERTY_TYPE_INTEGER)
         return OPRT_INVALID_PARM;
 
-    prop->has_default = true;
-    prop->default_val.type = MCP_PROPERTY_TYPE_INTEGER;
+    prop->has_default         = true;
+    prop->default_val.type    = MCP_PROPERTY_TYPE_INTEGER;
     prop->default_val.int_val = value;
 
     return OPRT_OK;
@@ -196,8 +196,8 @@ OPERATE_RET ai_mcp_property_set_default_str(MCP_PROPERTY_T *prop, const char *va
     if (!prop || !value || prop->type != MCP_PROPERTY_TYPE_STRING)
         return OPRT_INVALID_PARM;
 
-    prop->has_default = true;
-    prop->default_val.type = MCP_PROPERTY_TYPE_STRING;
+    prop->has_default         = true;
+    prop->default_val.type    = MCP_PROPERTY_TYPE_STRING;
     prop->default_val.str_val = mm_strdup(value);
     if (!prop->default_val.str_val)
         return OPRT_MALLOC_FAILED;
@@ -214,8 +214,8 @@ OPERATE_RET ai_mcp_property_set_range(MCP_PROPERTY_T *prop, int min_val, int max
         return OPRT_INVALID_PARM;
 
     prop->has_range = true;
-    prop->min_val = min_val;
-    prop->max_val = max_val;
+    prop->min_val   = min_val;
+    prop->max_val   = max_val;
 
     return OPRT_OK;
 }
@@ -319,7 +319,6 @@ VOID ai_mcp_property_list_destroy(MCP_PROPERTY_LIST_T *list)
     AI_MCP_FREE(list);
 }
 
-
 OPERATE_RET ai_mcp_property_list_add(MCP_PROPERTY_LIST_T *list, MCP_PROPERTY_T *prop)
 {
     if (!list || !prop)
@@ -351,7 +350,7 @@ const MCP_PROPERTY_T *ai_mcp_property_list_find(const MCP_PROPERTY_LIST_T *list,
 MCP_PROPERTY_LIST_T *ai_mcp_property_list_dup(const MCP_PROPERTY_LIST_T *src)
 {
     MCP_PROPERTY_LIST_T *dest;
-    int i;
+    int                  i;
 
     if (!src)
         return NULL;
@@ -375,7 +374,7 @@ MCP_PROPERTY_LIST_T *ai_mcp_property_list_dup(const MCP_PROPERTY_LIST_T *src)
 cJSON *ai_mcp_property_list_to_json(const MCP_PROPERTY_LIST_T *list)
 {
     cJSON *json;
-    int i;
+    int    i;
 
     if (!list)
         return NULL;
@@ -409,7 +408,7 @@ VOID ai_mcp_return_value_set_bool(MCP_RETURN_VALUE_T *ret_val, bool value)
     if (!ret_val)
         return;
 
-    ret_val->type = MCP_RETURN_TYPE_BOOLEAN;
+    ret_val->type     = MCP_RETURN_TYPE_BOOLEAN;
     ret_val->bool_val = value;
 }
 
@@ -418,7 +417,7 @@ VOID ai_mcp_return_value_set_int(MCP_RETURN_VALUE_T *ret_val, int value)
     if (!ret_val)
         return;
 
-    ret_val->type = MCP_RETURN_TYPE_INTEGER;
+    ret_val->type    = MCP_RETURN_TYPE_INTEGER;
     ret_val->int_val = value;
 }
 
@@ -433,9 +432,9 @@ OPERATE_RET ai_mcp_return_value_set_str(MCP_RETURN_VALUE_T *ret_val, const char 
         ret_val->str_val = NULL;
     }
 
-    ret_val->type = MCP_RETURN_TYPE_STRING;
+    ret_val->type    = MCP_RETURN_TYPE_STRING;
     ret_val->str_val = mm_strdup(value);
-    
+
     return ret_val->str_val ? OPRT_OK : OPRT_MALLOC_FAILED;
 }
 
@@ -450,16 +449,15 @@ VOID ai_mcp_return_value_set_json(MCP_RETURN_VALUE_T *ret_val, cJSON *json)
         ret_val->json_val = NULL;
     }
 
-    ret_val->type = MCP_RETURN_TYPE_JSON;
+    ret_val->type     = MCP_RETURN_TYPE_JSON;
     ret_val->json_val = json;
 }
 
-OPERATE_RET ai_mcp_return_value_set_image(MCP_RETURN_VALUE_T *ret_val,
-                                            const char *mime_type,
-                                            const VOID *data, uint32_t data_len)
+OPERATE_RET ai_mcp_return_value_set_image(MCP_RETURN_VALUE_T *ret_val, const char *mime_type, const VOID *data,
+                                          uint32_t data_len)
 {
     uint32_t encoded_len;
-    int ret;
+    int      ret;
 
     if (!ret_val || !mime_type || !data || data_len == 0)
         return OPRT_INVALID_PARM;
@@ -479,8 +477,8 @@ OPERATE_RET ai_mcp_return_value_set_image(MCP_RETURN_VALUE_T *ret_val,
         return OPRT_MALLOC_FAILED;
 
     /* Calculate base64 encoded length */
-    encoded_len = ((data_len + 2) / 3) * 4 + 1;  /* +1 for null terminator */
-    
+    encoded_len = ((data_len + 2) / 3) * 4 + 1; /* +1 for null terminator */
+
     ret_val->image_val.data = AI_MCP_MALLOC(encoded_len);
     if (!ret_val->image_val.data) {
         AI_MCP_FREE(ret_val->image_val.mime_type);
@@ -528,7 +526,7 @@ VOID ai_mcp_return_value_cleanup(MCP_RETURN_VALUE_T *ret_val)
 cJSON *ai_mcp_return_value_to_json(const MCP_RETURN_VALUE_T *ret_val)
 {
     cJSON *json, *content, *item;
-    char *json_str;
+    char  *json_str;
 
     if (!ret_val)
         return NULL;
@@ -610,8 +608,7 @@ cJSON *ai_mcp_return_value_to_json(const MCP_RETURN_VALUE_T *ret_val)
 
 /* === Tool Management Functions === */
 
-MCP_TOOL_T *ai_mcp_tool_create(const char *name, const char *description,
-                                 MCP_TOOL_CALLBACK callback, VOID *user_data)
+MCP_TOOL_T *ai_mcp_tool_create(const char *name, const char *description, MCP_TOOL_CALLBACK callback, VOID *user_data)
 {
     MCP_TOOL_T *tool;
 
@@ -622,7 +619,7 @@ MCP_TOOL_T *ai_mcp_tool_create(const char *name, const char *description,
     if (!tool)
         return NULL;
 
-    tool->name = mm_strdup(name);
+    tool->name        = mm_strdup(name);
     tool->description = mm_strdup(description);
     if (!tool->name || !tool->description) {
         if (tool->name)
@@ -632,15 +629,15 @@ MCP_TOOL_T *ai_mcp_tool_create(const char *name, const char *description,
         AI_MCP_FREE(tool);
         return NULL;
     }
-    tool->callback = callback;
+    tool->callback  = callback;
     tool->user_data = user_data;
     ai_mcp_property_list_init(&tool->properties);
 
     return tool;
 }
 
-OPERATE_RET ai_mcp_tool_register(const char *name, const char *description,
-                                 MCP_TOOL_CALLBACK callback, VOID *user_data, ...)
+OPERATE_RET ai_mcp_tool_register(const char *name, const char *description, MCP_TOOL_CALLBACK callback, VOID *user_data,
+                                 ...)
 {
     OPERATE_RET rt;
     MCP_TOOL_T *tool = ai_mcp_tool_create(name, description, callback, user_data);
@@ -697,7 +694,7 @@ OPERATE_RET ai_mcp_tool_add_property(MCP_TOOL_T *tool, MCP_PROPERTY_T *prop)
 cJSON *ai_mcp_tool_to_json(const MCP_TOOL_T *tool)
 {
     cJSON *json, *input_schema, *properties, *required;
-    int i;
+    int    i;
 
     if (!tool)
         return NULL;
@@ -727,8 +724,7 @@ cJSON *ai_mcp_tool_to_json(const MCP_TOOL_T *tool)
     if (required) {
         for (i = 0; i < tool->properties.count; i++) {
             if (!tool->properties.properties[i]->has_default) {
-                cJSON_AddItemToArray(required, 
-                    cJSON_CreateString(tool->properties.properties[i]->name));
+                cJSON_AddItemToArray(required, cJSON_CreateString(tool->properties.properties[i]->name));
             }
         }
         if (cJSON_GetArraySize(required) > 0)
@@ -744,7 +740,7 @@ cJSON *ai_mcp_tool_to_json(const MCP_TOOL_T *tool)
 
 /* === Server Management Functions === */
 
-void __send_message_default(char *sid, char*eid, const char *message)
+void __send_message_default(char *sid, char *eid, const char *message)
 {
     tuya_ai_agent_mcp_response(sid, eid, (char *)message);
 }
@@ -812,7 +808,7 @@ OPERATE_RET ai_mcp_server_add_tool(MCP_TOOL_T *tool)
     }
 
     /* Add to linked list */
-    tool->next = s_server_ctx.tools;
+    tool->next         = s_server_ctx.tools;
     s_server_ctx.tools = tool;
     s_server_ctx.tool_count++;
 
@@ -840,7 +836,7 @@ MCP_TOOL_T *ai_mcp_server_find_tool(const char *name)
 static OPERATE_RET __reply_result(char *sid, char *eid, const char *id, cJSON *result)
 {
     cJSON *response;
-    char *json_str;
+    char  *json_str;
 
     if (!result || !id)
         return OPRT_INVALID_PARM;
@@ -868,7 +864,7 @@ static OPERATE_RET __reply_result(char *sid, char *eid, const char *id, cJSON *r
 static OPERATE_RET __reply_error(char *sid, char *eid, const char *id, int error_code, const char *message)
 {
     cJSON *response, *error;
-    char *json_str;
+    char  *json_str;
 
     if (!message || !id)
         return OPRT_INVALID_PARM;
@@ -902,9 +898,9 @@ static OPERATE_RET __reply_error(char *sid, char *eid, const char *id, int error
 
 static VOID_T __tool_call(VOID_T *data)
 {
-    OPERATE_RET rt;
+    OPERATE_RET        rt;
     MCP_RETURN_VALUE_T ret_val;
-    cJSON *result;
+    cJSON             *result;
 
     TOOL_CALL_MSG_T *msg = (TOOL_CALL_MSG_T *)data;
     if (!msg || !msg->tool || !msg->arguments) {
@@ -977,11 +973,11 @@ static OPERATE_RET __handle_initialize(char *sid, char *eid, cJSON *params, cons
 
 static OPERATE_RET __handle_tools_list(char *sid, char *eid, cJSON *params, const char *id)
 {
-    const char *cursor_str = "";
-    bool found_cursor = false;
+    const char *cursor_str   = "";
+    bool        found_cursor = false;
     MCP_TOOL_T *tool;
-    cJSON *result, *tools_array;
-    int json_len = 0;
+    cJSON      *result, *tools_array;
+    int         json_len = 0;
 
     /* Parse parameters */
     if (params) {
@@ -1005,8 +1001,8 @@ static OPERATE_RET __handle_tools_list(char *sid, char *eid, cJSON *params, cons
     /* Iterate through tools */
     for (tool = s_server_ctx.tools; tool; tool = tool->next) {
         cJSON *tool_json;
-        char *tool_str;
-        int tool_len;
+        char  *tool_str;
+        int    tool_len;
 
         /* Skip until we find the cursor */
         if (!found_cursor) {
@@ -1042,12 +1038,11 @@ static OPERATE_RET __handle_tools_list(char *sid, char *eid, cJSON *params, cons
     return __reply_result(sid, eid, id, result);
 }
 
-static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
-                    const char *name, cJSON *value)
+static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list, const char *name, cJSON *value)
 {
     const MCP_PROPERTY_T *prop_def;
-    MCP_PROPERTY_T *prop;
-    int i;
+    MCP_PROPERTY_T       *prop;
+    int                   i;
 
     /* Find property definition */
     prop_def = ai_mcp_property_list_find(prop_list, name);
@@ -1069,21 +1064,20 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
     case MCP_PROPERTY_TYPE_BOOLEAN:
         if (!cJSON_IsBool(value))
             return OPRT_INVALID_PARM;
-        prop->default_val.type = MCP_PROPERTY_TYPE_BOOLEAN;
+        prop->default_val.type     = MCP_PROPERTY_TYPE_BOOLEAN;
         prop->default_val.bool_val = cJSON_IsTrue(value);
-        prop->has_default = true;
+        prop->has_default          = true;
         break;
 
     case MCP_PROPERTY_TYPE_INTEGER:
         if (!cJSON_IsNumber(value))
             return OPRT_INVALID_PARM;
-        prop->default_val.type = MCP_PROPERTY_TYPE_INTEGER;
+        prop->default_val.type    = MCP_PROPERTY_TYPE_INTEGER;
         prop->default_val.int_val = value->valueint;
-        
+
         /* Validate range */
         if (prop_def->has_range) {
-            if (prop->default_val.int_val < prop_def->min_val ||
-                prop->default_val.int_val > prop_def->max_val)
+            if (prop->default_val.int_val < prop_def->min_val || prop->default_val.int_val > prop_def->max_val)
                 return OPRT_INVALID_PARM;
         }
         prop->has_default = true;
@@ -1094,7 +1088,7 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
             return OPRT_INVALID_PARM;
         prop->default_val.type = MCP_PROPERTY_TYPE_STRING;
         if (prop->has_default && prop->default_val.str_val)
-            AI_MCP_FREE(prop->default_val.str_val);    // Free existing string
+            AI_MCP_FREE(prop->default_val.str_val); // Free existing string
         prop->default_val.str_val = mm_strdup(value->valuestring);
         if (!prop->default_val.str_val)
             return OPRT_MALLOC_FAILED;
@@ -1110,25 +1104,25 @@ static OPERATE_RET __parse_property_value(MCP_PROPERTY_LIST_T *prop_list,
 
 static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, const char *id)
 {
-    int ret, i;
-    cJSON *tool_name_json, *tool_arguments;
-    const char *tool_name;
-    MCP_TOOL_T *tool;
-    MCP_PROPERTY_LIST_T *arguments = NULL;
-    TOOL_CALL_MSG_T *msg = NULL;
-    const char *error_msg = NULL;
-    int error_code = MCP_ERROR_INTERNAL;
+    int                  ret, i;
+    cJSON               *tool_name_json, *tool_arguments;
+    const char          *tool_name;
+    MCP_TOOL_T          *tool;
+    MCP_PROPERTY_LIST_T *arguments  = NULL;
+    TOOL_CALL_MSG_T     *msg        = NULL;
+    const char          *error_msg  = NULL;
+    int                  error_code = MCP_ERROR_INTERNAL;
 
     if (!cJSON_IsObject(params)) {
         error_code = MCP_ERROR_INVALID_PARAMS;
-        error_msg = "Missing params";
+        error_msg  = "Missing params";
         goto err;
     }
 
     tool_name_json = cJSON_GetObjectItem(params, "name");
     if (!cJSON_IsString(tool_name_json)) {
         error_code = MCP_ERROR_INVALID_PARAMS;
-        error_msg = "Missing tool name";
+        error_msg  = "Missing tool name";
         goto err;
     }
     tool_name = tool_name_json->valuestring;
@@ -1136,7 +1130,7 @@ static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, cons
     tool_arguments = cJSON_GetObjectItem(params, "arguments");
     if (tool_arguments && !cJSON_IsObject(tool_arguments)) {
         error_code = MCP_ERROR_INVALID_PARAMS;
-        error_msg = "Invalid arguments";
+        error_msg  = "Invalid arguments";
         goto err;
     }
 
@@ -1144,7 +1138,7 @@ static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, cons
     tool = ai_mcp_server_find_tool(tool_name);
     if (!tool) {
         error_code = MCP_ERROR_METHOD_NOT_FOUND;
-        error_msg = "Unknown tool";
+        error_msg  = "Unknown tool";
         goto err;
     }
 
@@ -1178,15 +1172,16 @@ static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, cons
         goto err;
     }
     msg->arguments = arguments;
-    msg->tool = tool;
+    msg->tool      = tool;
 
     if (tool_arguments) {
         cJSON *arg;
-        cJSON_ArrayForEach(arg, tool_arguments) {
+        cJSON_ArrayForEach(arg, tool_arguments)
+        {
             ret = __parse_property_value(arguments, arg->string, arg);
             if (ret != OPRT_OK) {
                 error_code = MCP_ERROR_INVALID_PARAMS;
-                error_msg = "Failed to parse argument";
+                error_msg  = "Failed to parse argument";
                 goto err;
             }
         }
@@ -1196,7 +1191,7 @@ static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, cons
     for (i = 0; i < arguments->count; i++) {
         if (!arguments->properties[i]->has_default) {
             error_code = MCP_ERROR_INVALID_PARAMS;
-            error_msg = "Missing required argument";
+            error_msg  = "Missing required argument";
             goto err;
         }
     }
@@ -1204,7 +1199,7 @@ static OPERATE_RET __handle_tools_call(char *sid, char *eid, cJSON *params, cons
     /* Call the tool in workqueue */
     ret = tal_workq_schedule(WORKQ_SYSTEM, __tool_call, msg);
     if (ret != OPRT_OK) {
-        error_msg = "Failed to schedule tool call";
+        error_msg  = "Failed to schedule tool call";
         error_code = MCP_ERROR_INTERNAL;
         goto err;
     }
@@ -1227,7 +1222,7 @@ err:
 
 OPERATE_RET ai_mcp_server_parse_message(char *sid, char *eid, const cJSON *json, void *user_data)
 {
-    cJSON *node;
+    cJSON      *node;
     const char *method;
     const char *id = NULL;
 
@@ -1288,8 +1283,7 @@ OPERATE_RET ai_mcp_server_parse_message(char *sid, char *eid, const cJSON *json,
 
 /* === Utility Functions === */
 
-OPERATE_RET ai_mcp_base64_encode(const VOID *input, uint32_t input_len,
-                                   char *output, uint32_t output_len)
+OPERATE_RET ai_mcp_base64_encode(const VOID *input, uint32_t input_len, char *output, uint32_t output_len)
 {
     if (!input || !output || input_len == 0 || output_len == 0)
         return OPRT_INVALID_PARM;

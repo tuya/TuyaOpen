@@ -31,16 +31,16 @@
 #include "mix_method.h"
 
 #ifndef AI_OUTPUT_STACK_SIZE
-#define AI_OUTPUT_STACK_SIZE (4*1024)
+#define AI_OUTPUT_STACK_SIZE (4 * 1024)
 #endif
 #ifndef AI_OUTPUT_RINGBUF_SIZE
-#define AI_OUTPUT_RINGBUF_SIZE (20*1024)
+#define AI_OUTPUT_RINGBUF_SIZE (20 * 1024)
 #endif
 #ifndef AI_OUTPUT_BUF_SIZE
-#define AI_OUTPUT_BUF_SIZE (5*1024)
+#define AI_OUTPUT_BUF_SIZE (5 * 1024)
 #endif
 
-#define AI_OUTPUT_TASK_DELAY  (100)
+#define AI_OUTPUT_TASK_DELAY (100)
 
 typedef enum {
     AI_OUTPUT_STOPPED,
@@ -51,14 +51,14 @@ typedef enum {
 } AI_OUTPUT_STATUS_E;
 
 typedef struct {
-    THREAD_HANDLE thread;
-    AI_OUTPUT_CBS_T cbs;
+    THREAD_HANDLE      thread;
+    AI_OUTPUT_CBS_T    cbs;
     AI_OUTPUT_STATUS_E status;
-    TUYA_RINGBUFF_T ringbuf;
-    MUTEX_HANDLE mutex;
-    CHAR_T *output_buf;
-    UINT32_T offset;
-    BOOL_T terminate;
+    TUYA_RINGBUFF_T    ringbuf;
+    MUTEX_HANDLE       mutex;
+    CHAR_T            *output_buf;
+    UINT32_T           offset;
+    BOOL_T             terminate;
 } AUDIO_PLAYER_CTX_T;
 STATIC AUDIO_PLAYER_CTX_T ai_output_ctx;
 
@@ -90,13 +90,13 @@ STATIC VOID __ai_output_free(VOID)
     PR_DEBUG("ai output deinit");
 }
 
-STATIC VOID __ai_output_thread(void* arg)
+STATIC VOID __ai_output_thread(void *arg)
 {
-    OPERATE_RET rt = OPRT_OK;
-    AI_OUTPUT_STATUS_E cur_state = AI_OUTPUT_STOPPED;
+    OPERATE_RET        rt         = OPRT_OK;
+    AI_OUTPUT_STATUS_E cur_state  = AI_OUTPUT_STOPPED;
     AI_OUTPUT_STATUS_E last_state = AI_OUTPUT_STOPPED;
-    ai_output_ctx.offset = 0;
-    UINT_T last_offset = 0;
+    ai_output_ctx.offset          = 0;
+    UINT_T last_offset            = 0;
     TIME_T time_now = 0, time_last = 0;
 
     while (!ai_output_ctx.terminate && tal_thread_get_state(ai_output_ctx.thread) == THREAD_STATE_RUNNING) {
@@ -105,7 +105,8 @@ STATIC VOID __ai_output_thread(void* arg)
         case AI_OUTPUT_PLAYING:
         case AI_OUTPUT_STOPPING: {
             tal_mutex_lock(ai_output_ctx.mutex);
-            rt = tuya_ring_buff_read(ai_output_ctx.ringbuf, ai_output_ctx.output_buf + ai_output_ctx.offset, AI_OUTPUT_BUF_SIZE - ai_output_ctx.offset);
+            rt = tuya_ring_buff_read(ai_output_ctx.ringbuf, ai_output_ctx.output_buf + ai_output_ctx.offset,
+                                     AI_OUTPUT_BUF_SIZE - ai_output_ctx.offset);
             if ((AI_OUTPUT_PLAYING == cur_state) && (0 == rt)) {
                 if (0 == ai_output_ctx.offset) {
                     tal_mutex_unlock(ai_output_ctx.mutex);
@@ -124,14 +125,15 @@ STATIC VOID __ai_output_thread(void* arg)
                         }
                     } else {
                         last_offset = ai_output_ctx.offset;
-                        time_last = tal_time_get_posix();
+                        time_last   = tal_time_get_posix();
                     }
                 }
             } else {
                 last_offset = 0;
             }
             ai_output_ctx.offset += rt;
-            rt = tuya_ai_output_media(AI_PT_AUDIO, ai_output_ctx.output_buf, ai_output_ctx.offset, ai_output_ctx.offset);
+            rt =
+                tuya_ai_output_media(AI_PT_AUDIO, ai_output_ctx.output_buf, ai_output_ctx.offset, ai_output_ctx.offset);
             if (rt > 0) { // buf is not completely consumed
                 if ((AI_OUTPUT_STOPPING == cur_state) && (rt == ai_output_ctx.offset)) {
                     ai_output_ctx.status = AI_OUTPUT_STOPPED;
@@ -153,8 +155,7 @@ STATIC VOID __ai_output_thread(void* arg)
                 tuya_ring_buff_reset(ai_output_ctx.ringbuf);
             }
             tal_mutex_unlock(ai_output_ctx.mutex);
-        }
-        break;
+        } break;
         case AI_OUTPUT_STOPPED: {
             ai_output_ctx.offset = 0;
             if (last_state != AI_OUTPUT_STOPPED) {
@@ -162,12 +163,10 @@ STATIC VOID __ai_output_thread(void* arg)
                 tuya_ai_output_event(AI_EVENT_END, AI_PT_AUDIO, NULL);
                 tal_mutex_unlock(ai_output_ctx.mutex);
             }
-        }
-        break;
+        } break;
         case AI_OUTPUT_IDLE: {
             tal_system_sleep(AI_OUTPUT_TASK_DELAY);
-        }
-        break;
+        } break;
         default:
             break;
         }
@@ -199,7 +198,8 @@ OPERATE_RET tuya_ai_output_init(AI_OUTPUT_CBS_T *cbs)
     TUYA_CHECK_NULL_GOTO(ai_output_ctx.output_buf, EXIT);
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
     PR_DEBUG("ai output: ENABLE_EXT_RAM=1, ringbuf from PSRAM");
-    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_OUTPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ai_output_ctx.ringbuf), EXIT);
+    TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_OUTPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ai_output_ctx.ringbuf),
+                       EXIT);
     PR_DEBUG("ai output: ringbuf=%p output_buf=%p", ai_output_ctx.ringbuf, ai_output_ctx.output_buf);
 #else
     PR_DEBUG("ai output: ENABLE_EXT_RAM=0, ringbuf from SRAM");
@@ -207,11 +207,11 @@ OPERATE_RET tuya_ai_output_init(AI_OUTPUT_CBS_T *cbs)
 #endif
 
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "ai_agent_output";
-    thrd_param.stackDepth = AI_OUTPUT_STACK_SIZE;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "ai_agent_output";
+    thrd_param.stackDepth   = AI_OUTPUT_STACK_SIZE;
 #if defined(AI_STACK_IN_PSRAM) && (AI_STACK_IN_PSRAM == 1)
-    thrd_param.psram_mode = 1;
+    thrd_param.ex_ram_mode = 1;
 #endif
     PR_DEBUG("ai output: free internal heap before thread create: %d", tal_system_get_free_heap_size());
     rt = tal_thread_create_and_start(&ai_output_ctx.thread, NULL, NULL, __ai_output_thread, NULL, &thrd_param);
@@ -351,7 +351,7 @@ OPERATE_RET tuya_ai_output_write(AI_PACKET_PT type, UINT8_T *data, UINT_T len)
         rt = tuya_ring_buff_write(ai_output_ctx.ringbuf, data, len);
         tal_mutex_unlock(ai_output_ctx.mutex);
 
-        if (cnt ++ > 500) {
+        if (cnt++ > 500) {
             PR_ERR("output ring buf write failed");
             break;
         }

@@ -53,11 +53,11 @@ void tuya_app_main(void)
 {
     // THREAD_CFG_T thrd_param = {4096, 4, "tuya_app_main"};
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 128*1024;  // 增加到 128KB 以容纳 TensorFlow Lite 对象
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 128 * 1024; // 增加到 128KB 以容纳 TensorFlow Lite 对象
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    thrd_param.psram_mode = TRUE;
+    thrd_param.ex_ram_mode  = TRUE;
 #endif
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }

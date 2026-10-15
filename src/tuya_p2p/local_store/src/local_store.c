@@ -40,21 +40,21 @@
 #define LOCAL_STORE_READ_KB 320
 #endif
 
-#define LS_TMP_SUFFIX   ".tmp"
-#define LS_MEDIA_EXT    ".media"
-#define LS_IDX_EXT      ".idx"
-#define LS_INDEX_FILE   "index.txt"
-#define LS_STAGE_BYTES  ((uint32_t)LOCAL_STORE_STAGE_KB * 1024u)
-#define LS_WRITE_BYTES  ((uint32_t)LOCAL_STORE_WRITE_KB * 1024u)
-#define LS_READ_BYTES   ((uint32_t)LOCAL_STORE_READ_KB * 1024u)
-#define LS_IDX_MAX      1024u
-#define LS_SEG_DFLT_SEC 120u
+#define LS_TMP_SUFFIX    ".tmp"
+#define LS_MEDIA_EXT     ".media"
+#define LS_IDX_EXT       ".idx"
+#define LS_INDEX_FILE    "index.txt"
+#define LS_STAGE_BYTES   ((uint32_t)LOCAL_STORE_STAGE_KB * 1024u)
+#define LS_WRITE_BYTES   ((uint32_t)LOCAL_STORE_WRITE_KB * 1024u)
+#define LS_READ_BYTES    ((uint32_t)LOCAL_STORE_READ_KB * 1024u)
+#define LS_IDX_MAX       1024u
+#define LS_SEG_DFLT_SEC  120u
 #define LS_IDLE_FLUSH_MS 200u
-#define LS_WAIT_MS      50u
-#define LS_STOP_WAIT_MS 5000u
-#define LS_THREAD_STACK 12288
-#define LS_MAX_FRAME    (LS_READ_BYTES - sizeof(LOCAL_STORE_FRAME_HDR_T))
-#define LS_START_TS_CAP 4096u
+#define LS_WAIT_MS       50u
+#define LS_STOP_WAIT_MS  5000u
+#define LS_THREAD_STACK  12288
+#define LS_MAX_FRAME     (LS_READ_BYTES - sizeof(LOCAL_STORE_FRAME_HDR_T))
+#define LS_START_TS_CAP  4096u
 
 #define LS_REC_DATA 1u
 #define LS_REC_CUT  2u
@@ -74,52 +74,52 @@ typedef BOOL_T (*LS_SEG_CB)(const LOCAL_STORE_SEG_T *seg, void *ctx);
 
 struct LOCAL_STORE_READER {
     TUYA_FILE fp;
-    uint8_t *buf;
-    uint32_t valid;
-    uint32_t used;
-    uint64_t base; /* file offset of buf[0] */
-    BOOL_T eof;
-    char path[LOCAL_STORE_PATH_MAX];
+    uint8_t  *buf;
+    uint32_t  valid;
+    uint32_t  used;
+    uint64_t  base; /* file offset of buf[0] */
+    BOOL_T    eof;
+    char      path[LOCAL_STORE_PATH_MAX];
 };
 
 static BOOL_T s_inited = FALSE;
 
-static MUTEX_HANDLE  s_lock = NULL;
-static SEM_HANDLE    s_wake = NULL;
-static THREAD_HANDLE s_worker = NULL;
-static volatile BOOL_T s_run = FALSE;
-static volatile BOOL_T s_alive = FALSE;
+static MUTEX_HANDLE    s_lock   = NULL;
+static SEM_HANDLE      s_wake   = NULL;
+static THREAD_HANDLE   s_worker = NULL;
+static volatile BOOL_T s_run    = FALSE;
+static volatile BOOL_T s_alive  = FALSE;
 static volatile BOOL_T s_accept = FALSE;
 
-static uint8_t *s_ring = NULL;
-static uint32_t s_ring_head = 0;
-static uint32_t s_ring_tail = 0;
-static volatile uint32_t s_ring_used = 0;
-static uint8_t *s_stage = NULL;
-static uint32_t s_stage_used = 0;
-static LS_IDX_ENT_T *s_idx = NULL;
-static uint32_t s_idx_cnt = 0;
+static uint8_t          *s_ring       = NULL;
+static uint32_t          s_ring_head  = 0;
+static uint32_t          s_ring_tail  = 0;
+static volatile uint32_t s_ring_used  = 0;
+static uint8_t          *s_stage      = NULL;
+static uint32_t          s_stage_used = 0;
+static LS_IDX_ENT_T     *s_idx        = NULL;
+static uint32_t          s_idx_cnt    = 0;
 
 static char     s_prefix[32];
 static uint32_t s_seg_sec = LS_SEG_DFLT_SEC;
 
 /* producer side, under s_lock */
-static BOOL_T   s_seg_open = FALSE;
-static volatile BOOL_T s_force_cut = FALSE;
-static BOOL_T   s_wait_key = FALSE;
-static uint32_t s_seg_start = 0;
-static uint64_t s_seg_first_ms = 0;
+static BOOL_T          s_seg_open     = FALSE;
+static volatile BOOL_T s_force_cut    = FALSE;
+static BOOL_T          s_wait_key     = FALSE;
+static uint32_t        s_seg_start    = 0;
+static uint64_t        s_seg_first_ms = 0;
 
 /* writer side */
 static TUYA_FILE s_fp = NULL;
-static char     s_path[LOCAL_STORE_PATH_MAX];
-static char     s_leaf[64];
-static uint32_t s_file_start = 0;
-static uint64_t s_file_bytes = 0;
-static uint32_t s_last_rel_ms = 0;
-static BOOL_T   s_dirty = FALSE;
-static uint32_t s_last_sync_ms = 0;
-static uint32_t s_last_data_ms = 0;
+static char      s_path[LOCAL_STORE_PATH_MAX];
+static char      s_leaf[64];
+static uint32_t  s_file_start   = 0;
+static uint64_t  s_file_bytes   = 0;
+static uint32_t  s_last_rel_ms  = 0;
+static BOOL_T    s_dirty        = FALSE;
+static uint32_t  s_last_sync_ms = 0;
+static uint32_t  s_last_data_ms = 0;
 
 static LOCAL_STORE_REC_STAT_T s_stat;
 
@@ -149,7 +149,7 @@ static BOOL_T __filename_is_safe(const char *filename)
 
 static OPERATE_RET __path_join(const char *parent, const char *child, char *out, uint32_t out_len)
 {
-    int n;
+    int      n;
     uint32_t plen;
 
     if (parent == NULL || child == NULL || out == NULL || out_len == 0) {
@@ -175,7 +175,7 @@ static BOOL_T __is_fs_mount_root(const char *path)
 
 static OPERATE_RET __mkdir_one(const char *path)
 {
-    int rt;
+    int    rt;
     BOOL_T exists = FALSE;
 
     if (path == NULL || path[0] == '\0') {
@@ -203,9 +203,9 @@ static OPERATE_RET __mkdir_one(const char *path)
 
 OPERATE_RET local_store_ensure_dir(const char *dir)
 {
-    char tmp[LOCAL_STORE_PATH_MAX];
-    uint32_t i;
-    uint32_t len;
+    char        tmp[LOCAL_STORE_PATH_MAX];
+    uint32_t    i;
+    uint32_t    len;
     OPERATE_RET rt;
 
     if (dir == NULL || dir[0] == '\0') {
@@ -222,7 +222,7 @@ OPERATE_RET local_store_ensure_dir(const char *dir)
             continue;
         }
         tmp[i] = '\0';
-        rt = __mkdir_one(tmp);
+        rt     = __mkdir_one(tmp);
         tmp[i] = '/';
         if (rt != OPRT_OK) {
             return rt;
@@ -243,7 +243,7 @@ static OPERATE_RET __rec_base(char *out, uint32_t out_len)
 
 static OPERATE_RET __ts_to_ymd(uint32_t ts, uint32_t *y, uint32_t *m, uint32_t *d)
 {
-    POSIX_TM_S tm;
+    POSIX_TM_S  tm;
     OPERATE_RET rt;
 
     memset(&tm, 0, sizeof(tm));
@@ -263,9 +263,9 @@ static OPERATE_RET __ts_to_ymd(uint32_t ts, uint32_t *y, uint32_t *m, uint32_t *
 static OPERATE_RET __day_dir(uint32_t year, uint32_t month, uint32_t day, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
-    char date_dir[16];
-    char rec_base[LOCAL_STORE_PATH_MAX];
-    int n;
+    char        date_dir[16];
+    char        rec_base[LOCAL_STORE_PATH_MAX];
+    int         n;
 
     if (out == NULL || out_len == 0 || month < 1 || month > 12 || day < 1 || day > 31) {
         return OPRT_INVALID_PARM;
@@ -284,7 +284,7 @@ static OPERATE_RET __day_dir(uint32_t year, uint32_t month, uint32_t day, char *
 static OPERATE_RET __index_path(uint32_t year, uint32_t month, uint32_t day, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
-    char day_path[LOCAL_STORE_PATH_MAX];
+    char        day_path[LOCAL_STORE_PATH_MAX];
 
     rt = __day_dir(year, month, day, day_path, sizeof(day_path));
     if (rt != OPRT_OK) {
@@ -298,7 +298,7 @@ static OPERATE_RET __idx_path_of(const char *media_path, char *out, uint32_t out
 {
     uint32_t len;
     uint32_t ext = (uint32_t)strlen(LS_MEDIA_EXT);
-    int n;
+    int      n;
 
     if (media_path == NULL || out == NULL) {
         return OPRT_INVALID_PARM;
@@ -326,8 +326,8 @@ static BOOL_T __leaf_is_media(const char *leaf)
 /* "<prefix>_<start>.media" -> start */
 static BOOL_T __leaf_start_ts(const char *leaf, uint32_t *start)
 {
-    const char *us = strrchr(leaf, '_');
-    char *end = NULL;
+    const char   *us  = strrchr(leaf, '_');
+    char         *end = NULL;
     unsigned long v;
 
     if (us == NULL || !__leaf_is_media(leaf)) {
@@ -344,8 +344,8 @@ static BOOL_T __leaf_start_ts(const char *leaf, uint32_t *start)
 OPERATE_RET local_store_make_rec_path(const char *filename, char *out, uint32_t out_len)
 {
     OPERATE_RET rt;
-    uint32_t y, m, d;
-    char day_path[LOCAL_STORE_PATH_MAX];
+    uint32_t    y, m, d;
+    char        day_path[LOCAL_STORE_PATH_MAX];
 
     if (!__filename_is_safe(filename) || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
@@ -404,12 +404,12 @@ OPERATE_RET local_store_commit(const char *tmp_path, const char *final_path)
 OPERATE_RET local_store_index_append(uint32_t start_ts, uint32_t end_ts, uint16_t type, const char *leaf)
 {
     OPERATE_RET rt;
-    char day_path[LOCAL_STORE_PATH_MAX];
-    char idx_path[LOCAL_STORE_PATH_MAX];
-    char line[192];
-    TUYA_FILE fp;
-    int n;
-    uint32_t y, m, d;
+    char        day_path[LOCAL_STORE_PATH_MAX];
+    char        idx_path[LOCAL_STORE_PATH_MAX];
+    char        line[192];
+    TUYA_FILE   fp;
+    int         n;
+    uint32_t    y, m, d;
 
     if (!__filename_is_safe(leaf) || end_ts < start_ts) {
         return OPRT_INVALID_PARM;
@@ -449,14 +449,14 @@ OPERATE_RET local_store_index_append(uint32_t start_ts, uint32_t end_ts, uint16_
 
 static OPERATE_RET __index_scan(uint32_t year, uint32_t month, uint32_t day, LS_SEG_CB cb, void *ctx)
 {
-    OPERATE_RET rt;
-    char idx_path[LOCAL_STORE_PATH_MAX];
-    char line[192];
-    char leaf[64];
-    TUYA_FILE fp;
+    OPERATE_RET       rt;
+    char              idx_path[LOCAL_STORE_PATH_MAX];
+    char              line[192];
+    char              leaf[64];
+    TUYA_FILE         fp;
     LOCAL_STORE_SEG_T seg;
-    uint32_t start_ts, end_ts, type;
-    BOOL_T exists = FALSE;
+    uint32_t          start_ts, end_ts, type;
+    BOOL_T            exists = FALSE;
 
     rt = __index_path(year, month, day, idx_path, sizeof(idx_path));
     if (rt != OPRT_OK) {
@@ -480,8 +480,8 @@ static OPERATE_RET __index_scan(uint32_t year, uint32_t month, uint32_t day, LS_
             continue;
         }
         seg.start_ts = start_ts;
-        seg.end_ts = end_ts;
-        seg.type = (uint16_t)type;
+        seg.end_ts   = end_ts;
+        seg.type     = (uint16_t)type;
         snprintf(seg.leaf, sizeof(seg.leaf), "%s", leaf);
         if (!cb(&seg, ctx)) {
             break;
@@ -493,8 +493,8 @@ static OPERATE_RET __index_scan(uint32_t year, uint32_t month, uint32_t day, LS_
 
 typedef struct {
     LOCAL_STORE_SEG_T *arr;
-    uint32_t cap;
-    uint32_t filled;
+    uint32_t           cap;
+    uint32_t           filled;
 } LS_COLLECT_CTX_T;
 
 static BOOL_T __collect_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
@@ -508,20 +508,19 @@ static BOOL_T __collect_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
     return TRUE;
 }
 
-OPERATE_RET local_store_query_day(uint32_t year, uint32_t month, uint32_t day, LOCAL_STORE_SEG_T *arr,
-                                  uint32_t *count)
+OPERATE_RET local_store_query_day(uint32_t year, uint32_t month, uint32_t day, LOCAL_STORE_SEG_T *arr, uint32_t *count)
 {
     LS_COLLECT_CTX_T c;
-    OPERATE_RET rt;
+    OPERATE_RET      rt;
 
     if (arr == NULL || count == NULL || *count == 0) {
         return OPRT_INVALID_PARM;
     }
-    c.arr = arr;
-    c.cap = *count;
+    c.arr    = arr;
+    c.cap    = *count;
     c.filled = 0;
-    *count = 0;
-    rt = __index_scan(year, month, day, __collect_cb, &c);
+    *count   = 0;
+    rt       = __index_scan(year, month, day, __collect_cb, &c);
     if (rt != OPRT_OK) {
         return rt;
     }
@@ -531,17 +530,17 @@ OPERATE_RET local_store_query_day(uint32_t year, uint32_t month, uint32_t day, L
 
 OPERATE_RET local_store_query_month(uint32_t year, uint32_t month, uint32_t *day_bitmap)
 {
-    OPERATE_RET rt;
-    uint32_t d;
-    uint32_t bits = 0;
+    OPERATE_RET       rt;
+    uint32_t          d;
+    uint32_t          bits = 0;
     LOCAL_STORE_SEG_T one;
-    uint32_t one_count;
+    uint32_t          one_count;
 
     if (day_bitmap == NULL || month < 1 || month > 12) {
         return OPRT_INVALID_PARM;
     }
     *day_bitmap = 0;
-    rt = local_store_init();
+    rt          = local_store_init();
     if (rt != OPRT_OK) {
         return rt;
     }
@@ -559,7 +558,7 @@ OPERATE_RET local_store_day_file_path(uint32_t year, uint32_t month, uint32_t da
                                       uint32_t out_len)
 {
     OPERATE_RET rt;
-    char day_path[LOCAL_STORE_PATH_MAX];
+    char        day_path[LOCAL_STORE_PATH_MAX];
 
     if (!__filename_is_safe(leaf) || out == NULL || out_len == 0) {
         return OPRT_INVALID_PARM;
@@ -572,50 +571,49 @@ OPERATE_RET local_store_day_file_path(uint32_t year, uint32_t month, uint32_t da
 }
 
 typedef struct {
-    uint32_t play_ts;
-    uint32_t best_dist;
-    BOOL_T found;
+    uint32_t          play_ts;
+    uint32_t          best_dist;
+    BOOL_T            found;
     LOCAL_STORE_SEG_T best;
 } LS_FIND_CTX_T;
 
 static BOOL_T __find_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
 {
     LS_FIND_CTX_T *c = (LS_FIND_CTX_T *)ctx;
-    uint32_t dist;
+    uint32_t       dist;
 
     if (c->play_ts >= seg->start_ts && c->play_ts <= seg->end_ts) {
-        c->best = *seg;
+        c->best      = *seg;
         c->best_dist = 0;
-        c->found = TRUE;
+        c->found     = TRUE;
         return FALSE;
     }
     dist = (c->play_ts < seg->start_ts) ? seg->start_ts - c->play_ts : c->play_ts - seg->end_ts;
     if (!c->found || dist < c->best_dist) {
-        c->best = *seg;
+        c->best      = *seg;
         c->best_dist = dist;
-        c->found = TRUE;
+        c->found     = TRUE;
     }
     return TRUE;
 }
 
-OPERATE_RET local_store_find_by_play_ts(uint32_t play_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path,
-                                        uint32_t path_len)
+OPERATE_RET local_store_find_by_play_ts(uint32_t play_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path, uint32_t path_len)
 {
-    OPERATE_RET rt;
+    OPERATE_RET   rt;
     LS_FIND_CTX_T c;
-    uint32_t y, m, d;
+    uint32_t      y, m, d;
 
     if (out_path == NULL || path_len == 0 || play_ts == 0) {
         return OPRT_INVALID_PARM;
     }
     out_path[0] = '\0';
-    rt = __ts_to_ymd(play_ts, &y, &m, &d);
+    rt          = __ts_to_ymd(play_ts, &y, &m, &d);
     if (rt != OPRT_OK) {
         return rt;
     }
     memset(&c, 0, sizeof(c));
     c.play_ts = play_ts;
-    rt = __index_scan(y, m, d, __find_cb, &c);
+    rt        = __index_scan(y, m, d, __find_cb, &c);
     if (rt != OPRT_OK) {
         return rt;
     }
@@ -629,8 +627,8 @@ OPERATE_RET local_store_find_by_play_ts(uint32_t play_ts, LOCAL_STORE_SEG_T *out
 }
 
 typedef struct {
-    uint32_t after;
-    BOOL_T found;
+    uint32_t          after;
+    BOOL_T            found;
     LOCAL_STORE_SEG_T best;
 } LS_NEXT_CTX_T;
 
@@ -639,30 +637,29 @@ static BOOL_T __next_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
     LS_NEXT_CTX_T *c = (LS_NEXT_CTX_T *)ctx;
 
     if (seg->start_ts > c->after && (!c->found || seg->start_ts < c->best.start_ts)) {
-        c->best = *seg;
+        c->best  = *seg;
         c->found = TRUE;
     }
     return TRUE;
 }
 
-OPERATE_RET local_store_find_next_seg(uint32_t start_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path,
-                                      uint32_t path_len)
+OPERATE_RET local_store_find_next_seg(uint32_t start_ts, LOCAL_STORE_SEG_T *out_seg, char *out_path, uint32_t path_len)
 {
-    OPERATE_RET rt;
+    OPERATE_RET   rt;
     LS_NEXT_CTX_T c;
-    uint32_t y, m, d;
+    uint32_t      y, m, d;
 
     if (out_path == NULL || path_len == 0 || start_ts == 0) {
         return OPRT_INVALID_PARM;
     }
     out_path[0] = '\0';
-    rt = __ts_to_ymd(start_ts, &y, &m, &d);
+    rt          = __ts_to_ymd(start_ts, &y, &m, &d);
     if (rt != OPRT_OK) {
         return rt;
     }
     memset(&c, 0, sizeof(c));
     c.after = start_ts;
-    rt = __index_scan(y, m, d, __next_cb, &c);
+    rt      = __index_scan(y, m, d, __next_cb, &c);
     if (rt != OPRT_OK) {
         return rt;
     }
@@ -680,11 +677,11 @@ OPERATE_RET local_store_find_next_seg(uint32_t start_ts, LOCAL_STORE_SEG_T *out_
  * --------------------------------------------------------------------------- */
 static OPERATE_RET __remove_dir_files(const char *dir_path)
 {
-    TUYA_DIR dir = NULL;
+    TUYA_DIR      dir  = NULL;
     TUYA_FILEINFO info = NULL;
-    const char *name = NULL;
-    char path[LOCAL_STORE_PATH_MAX];
-    BOOL_T is_dir = FALSE;
+    const char   *name = NULL;
+    char          path[LOCAL_STORE_PATH_MAX];
+    BOOL_T        is_dir = FALSE;
 
     if (tkl_dir_open(dir_path, &dir) != 0) {
         return OPRT_FILE_OPEN_FAILED;
@@ -712,8 +709,8 @@ static OPERATE_RET __remove_dir_files(const char *dir_path)
 OPERATE_RET local_store_remove_day(uint32_t year, uint32_t month, uint32_t day)
 {
     OPERATE_RET rt;
-    char day_path[LOCAL_STORE_PATH_MAX];
-    BOOL_T exists = FALSE;
+    char        day_path[LOCAL_STORE_PATH_MAX];
+    BOOL_T      exists = FALSE;
 
     rt = __day_dir(year, month, day, day_path, sizeof(day_path));
     if (rt != OPRT_OK) {
@@ -756,8 +753,8 @@ static BOOL_T __parse_day_name(const char *name, uint32_t *y, uint32_t *m, uint3
 
 static int32_t __days_from_civil(uint32_t y, uint32_t m, uint32_t d)
 {
-    int32_t yy = (int32_t)y - (m <= 2 ? 1 : 0);
-    int32_t era = (yy >= 0 ? yy : yy - 399) / 400;
+    int32_t  yy  = (int32_t)y - (m <= 2 ? 1 : 0);
+    int32_t  era = (yy >= 0 ? yy : yy - 399) / 400;
     uint32_t yoe = (uint32_t)(yy - era * 400);
     uint32_t doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
     uint32_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
@@ -769,11 +766,11 @@ typedef BOOL_T (*LS_DAY_CB)(uint32_t y, uint32_t m, uint32_t d, void *ctx);
 
 static OPERATE_RET __for_each_day(LS_DAY_CB cb, void *ctx)
 {
-    char rec_base[LOCAL_STORE_PATH_MAX];
-    TUYA_DIR dir = NULL;
+    char          rec_base[LOCAL_STORE_PATH_MAX];
+    TUYA_DIR      dir  = NULL;
     TUYA_FILEINFO info = NULL;
-    const char *name = NULL;
-    uint32_t y, m, d;
+    const char   *name = NULL;
+    uint32_t      y, m, d;
 
     if (__rec_base(rec_base, sizeof(rec_base)) != OPRT_OK) {
         return OPRT_COM_ERROR;
@@ -797,26 +794,26 @@ static OPERATE_RET __for_each_day(LS_DAY_CB cb, void *ctx)
 }
 
 typedef struct {
-    int32_t today;
-    int32_t oldest;
+    int32_t  today;
+    int32_t  oldest;
     uint32_t y, m, d;
-    BOOL_T found;
+    BOOL_T   found;
 } LS_OLDEST_CTX_T;
 
 static BOOL_T __oldest_cb(uint32_t y, uint32_t m, uint32_t d, void *ctx)
 {
-    LS_OLDEST_CTX_T *c = (LS_OLDEST_CTX_T *)ctx;
-    int32_t days = __days_from_civil(y, m, d);
+    LS_OLDEST_CTX_T *c    = (LS_OLDEST_CTX_T *)ctx;
+    int32_t          days = __days_from_civil(y, m, d);
 
     if (days >= c->today) {
         return TRUE;
     }
     if (!c->found || days < c->oldest) {
         c->oldest = days;
-        c->y = y;
-        c->m = m;
-        c->d = d;
-        c->found = TRUE;
+        c->y      = y;
+        c->m      = m;
+        c->d      = d;
+        c->found  = TRUE;
     }
     return TRUE;
 }
@@ -847,7 +844,7 @@ static BOOL_T __prune_oldest(void)
 static void __prune_keep_days(void)
 {
     LS_OLDEST_CTX_T c;
-    uint32_t guard = 0;
+    uint32_t        guard = 0;
 
     if (LOCAL_STORE_KEEP_DAYS <= 0) {
         return;
@@ -872,9 +869,9 @@ static void __prune_keep_days(void)
  * --------------------------------------------------------------------------- */
 static OPERATE_RET __idx_write(const char *media_path, const LS_IDX_ENT_T *ents, uint32_t cnt)
 {
-    char path[LOCAL_STORE_PATH_MAX];
+    char      path[LOCAL_STORE_PATH_MAX];
     TUYA_FILE fp;
-    int32_t bytes = (int32_t)(cnt * sizeof(LS_IDX_ENT_T));
+    int32_t   bytes = (int32_t)(cnt * sizeof(LS_IDX_ENT_T));
 
     if (__idx_path_of(media_path, path, sizeof(path)) != OPRT_OK) {
         return OPRT_COM_ERROR;
@@ -894,9 +891,9 @@ static OPERATE_RET __idx_write(const char *media_path, const LS_IDX_ENT_T *ents,
 /* Returns entry count read into ents (<= cap), 0 when missing */
 static uint32_t __idx_read(const char *media_path, LS_IDX_ENT_T *ents, uint32_t cap)
 {
-    char path[LOCAL_STORE_PATH_MAX];
+    char      path[LOCAL_STORE_PATH_MAX];
     TUYA_FILE fp;
-    int32_t n;
+    int32_t   n;
 
     if (__idx_path_of(media_path, path, sizeof(path)) != OPRT_OK) {
         return 0;
@@ -928,7 +925,7 @@ static void __idx_remove(const char *media_path)
 static void __reader_fill(LOCAL_STORE_READER_T *rd)
 {
     uint32_t keep = rd->valid - rd->used;
-    int32_t n;
+    int32_t  n;
 
     if (rd->used > 0) {
         if (keep > 0) {
@@ -936,7 +933,7 @@ static void __reader_fill(LOCAL_STORE_READER_T *rd)
         }
         rd->base += rd->used;
         rd->valid = keep;
-        rd->used = 0;
+        rd->used  = 0;
     }
     while (!rd->eof && rd->valid < LS_READ_BYTES) {
         n = tkl_fread(rd->buf + rd->valid, (int32_t)(LS_READ_BYTES - rd->valid), rd->fp);
@@ -951,10 +948,10 @@ static void __reader_fill(LOCAL_STORE_READER_T *rd)
 static void __reader_reposition(LOCAL_STORE_READER_T *rd, uint64_t off)
 {
     (void)tkl_fseek(rd->fp, (int64_t)off, SEEK_SET);
-    rd->base = off;
+    rd->base  = off;
     rd->valid = 0;
-    rd->used = 0;
-    rd->eof = FALSE;
+    rd->used  = 0;
+    rd->eof   = FALSE;
 }
 
 LOCAL_STORE_READER_T *local_store_reader_open(const char *path)
@@ -1012,9 +1009,9 @@ OPERATE_RET local_store_reader_next(LOCAL_STORE_READER_T *rd, LOCAL_STORE_FRAME_
         }
     }
     memcpy(&h, rd->buf + rd->used, sizeof(h));
-    if (h.size == 0 || h.size > LS_MAX_FRAME || (h.type != LOCAL_STORE_FRAME_VIDEO_P &&
-                                                 h.type != LOCAL_STORE_FRAME_VIDEO_I &&
-                                                 h.type != LOCAL_STORE_FRAME_AUDIO)) {
+    if (h.size == 0 || h.size > LS_MAX_FRAME ||
+        (h.type != LOCAL_STORE_FRAME_VIDEO_P && h.type != LOCAL_STORE_FRAME_VIDEO_I &&
+         h.type != LOCAL_STORE_FRAME_AUDIO)) {
         TAL_PR_ERR("reader: bad frame hdr type=%u size=%u at %llu", h.type, h.size,
                    (unsigned long long)(rd->base + rd->used));
         return OPRT_COM_ERROR;
@@ -1025,7 +1022,7 @@ OPERATE_RET local_store_reader_next(LOCAL_STORE_READER_T *rd, LOCAL_STORE_FRAME_
             return OPRT_NOT_FOUND;
         }
     }
-    *hdr = h;
+    *hdr     = h;
     *payload = rd->buf + rd->used + sizeof(h);
     rd->used += sizeof(h) + h.size;
     return OPRT_OK;
@@ -1033,14 +1030,14 @@ OPERATE_RET local_store_reader_next(LOCAL_STORE_READER_T *rd, LOCAL_STORE_FRAME_
 
 OPERATE_RET local_store_reader_seek(LOCAL_STORE_READER_T *rd, uint32_t rel_ms)
 {
-    LS_IDX_ENT_T *ents;
-    uint32_t cnt, i;
-    uint64_t target_off = 0;
+    LS_IDX_ENT_T           *ents;
+    uint32_t                cnt, i;
+    uint64_t                target_off = 0;
     LOCAL_STORE_FRAME_HDR_T h;
-    const uint8_t *p;
-    uint64_t first_ts = 0;
-    uint64_t key_off = 0;
-    BOOL_T have_key = FALSE;
+    const uint8_t          *p;
+    uint64_t                first_ts = 0;
+    uint64_t                key_off  = 0;
+    BOOL_T                  have_key = FALSE;
 
     if (rd == NULL) {
         return OPRT_INVALID_PARM;
@@ -1077,7 +1074,7 @@ OPERATE_RET local_store_reader_seek(LOCAL_STORE_READER_T *rd, uint32_t rel_ms)
             break;
         }
         if (h.type == LOCAL_STORE_FRAME_VIDEO_I) {
-            key_off = frame_off;
+            key_off  = frame_off;
             have_key = TRUE;
         }
     }
@@ -1088,14 +1085,14 @@ OPERATE_RET local_store_reader_seek(LOCAL_STORE_READER_T *rd, uint32_t rel_ms)
 /* Last frame's ms offset from the first frame; FALSE when the file holds no frame */
 static BOOL_T __media_last_rel_ms(const char *path, uint32_t *rel_ms)
 {
-    LOCAL_STORE_READER_T *rd;
+    LOCAL_STORE_READER_T   *rd;
     LOCAL_STORE_FRAME_HDR_T h;
-    const uint8_t *p;
-    uint64_t first = 0, last = 0;
-    BOOL_T any = FALSE;
-    LS_IDX_ENT_T ent;
-    LS_IDX_ENT_T *ents;
-    uint32_t cnt;
+    const uint8_t          *p;
+    uint64_t                first = 0, last = 0;
+    BOOL_T                  any = FALSE;
+    LS_IDX_ENT_T            ent;
+    LS_IDX_ENT_T           *ents;
+    uint32_t                cnt;
 
     ents = (LS_IDX_ENT_T *)tal_malloc(LS_IDX_MAX * sizeof(LS_IDX_ENT_T));
     if (ents != NULL) {
@@ -1115,7 +1112,7 @@ static BOOL_T __media_last_rel_ms(const char *path, uint32_t *rel_ms)
     while (local_store_reader_next(rd, &h, &p) == OPRT_OK) {
         if (!any) {
             first = h.timestamp;
-            any = TRUE;
+            any   = TRUE;
         }
         last = h.timestamp;
     }
@@ -1132,7 +1129,7 @@ static BOOL_T __media_last_rel_ms(const char *path, uint32_t *rel_ms)
  * --------------------------------------------------------------------------- */
 typedef struct {
     uint32_t *starts;
-    uint32_t cnt;
+    uint32_t  cnt;
 } LS_STARTS_CTX_T;
 
 static BOOL_T __starts_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
@@ -1160,12 +1157,12 @@ static BOOL_T __starts_has(const LS_STARTS_CTX_T *c, uint32_t start)
 static BOOL_T __recover_day_cb(uint32_t y, uint32_t m, uint32_t d, void *ctx)
 {
     LS_STARTS_CTX_T *c = (LS_STARTS_CTX_T *)ctx;
-    char day_path[LOCAL_STORE_PATH_MAX];
-    char path[LOCAL_STORE_PATH_MAX];
-    TUYA_DIR dir = NULL;
-    TUYA_FILEINFO info = NULL;
-    const char *name = NULL;
-    uint32_t start, rel_ms;
+    char             day_path[LOCAL_STORE_PATH_MAX];
+    char             path[LOCAL_STORE_PATH_MAX];
+    TUYA_DIR         dir  = NULL;
+    TUYA_FILEINFO    info = NULL;
+    const char      *name = NULL;
+    uint32_t         start, rel_ms;
 
     c->cnt = 0;
     if (__index_scan(y, m, d, __starts_cb, c) != OPRT_OK) {
@@ -1214,7 +1211,7 @@ static void __recover_all(void)
 OPERATE_RET local_store_init(void)
 {
     OPERATE_RET rt;
-    char rec_base[LOCAL_STORE_PATH_MAX];
+    char        rec_base[LOCAL_STORE_PATH_MAX];
 
     if (s_inited) {
         return OPRT_OK;
@@ -1292,8 +1289,8 @@ static void __ring_put(uint16_t type, const void *a, uint32_t alen, const void *
     LS_REC_HDR_T hdr;
 
     hdr.type = type;
-    hdr.rsv = 0;
-    hdr.len = alen + blen;
+    hdr.rsv  = 0;
+    hdr.len  = alen + blen;
     __ring_write((const uint8_t *)&hdr, sizeof(hdr));
     if (alen > 0) {
         __ring_write((const uint8_t *)a, alen);
@@ -1319,14 +1316,14 @@ static void __seg_abort_after_error(void)
 static OPERATE_RET __stage_flush(void)
 {
     uint32_t t0, dt;
-    int32_t n;
+    int32_t  n;
 
     if (s_fp == NULL || s_stage_used == 0) {
         s_stage_used = 0;
         return OPRT_OK;
     }
     t0 = tal_system_get_millisecond();
-    n = tkl_fwrite(s_stage, (int32_t)s_stage_used, s_fp);
+    n  = tkl_fwrite(s_stage, (int32_t)s_stage_used, s_fp);
     if (n != (int32_t)s_stage_used) {
         TAL_PR_WARN("local_store write %u got %d, pruning oldest day", s_stage_used, n);
         if (__prune_oldest()) {
@@ -1345,7 +1342,7 @@ static OPERATE_RET __stage_flush(void)
     s_file_bytes += s_stage_used;
     s_stat.bytes_written += s_stage_used;
     s_stage_used = 0;
-    s_dirty = TRUE;
+    s_dirty      = TRUE;
     return OPRT_OK;
 }
 
@@ -1357,7 +1354,7 @@ static void __file_sync(void)
     (void)tkl_fflush(s_fp);
     (void)tkl_fsync(tkl_fileno(s_fp));
     (void)__idx_write(s_path, s_idx, s_idx_cnt);
-    s_dirty = FALSE;
+    s_dirty        = FALSE;
     s_last_sync_ms = tal_system_get_millisecond();
 }
 
@@ -1379,7 +1376,7 @@ static void __maybe_sync(void)
 
 static void __seg_close(void)
 {
-    uint32_t end_ts;
+    uint32_t    end_ts;
     OPERATE_RET rt;
 
     if (s_fp == NULL) {
@@ -1399,7 +1396,7 @@ static void __seg_close(void)
         __idx_remove(s_path);
     } else {
         end_ts = s_file_start + s_last_rel_ms / 1000u + 1u;
-        rt = local_store_index_append(s_file_start, end_ts, 0, s_leaf);
+        rt     = local_store_index_append(s_file_start, end_ts, 0, s_leaf);
         if (rt != OPRT_OK) {
             TAL_PR_ERR("local_store rec index_append failed: %d", rt);
         } else {
@@ -1407,20 +1404,20 @@ static void __seg_close(void)
                           (unsigned long long)s_file_bytes, s_idx_cnt, s_file_start, end_ts);
         }
     }
-    s_file_bytes = 0;
-    s_idx_cnt = 0;
+    s_file_bytes  = 0;
+    s_idx_cnt     = 0;
     s_last_rel_ms = 0;
-    s_dirty = FALSE;
-    s_path[0] = '\0';
-    s_leaf[0] = '\0';
+    s_dirty       = FALSE;
+    s_path[0]     = '\0';
+    s_leaf[0]     = '\0';
 }
 
 static void __seg_open(uint32_t start_sec)
 {
     OPERATE_RET rt;
-    uint32_t y, m, d;
-    char day_path[LOCAL_STORE_PATH_MAX];
-    int n;
+    uint32_t    y, m, d;
+    char        day_path[LOCAL_STORE_PATH_MAX];
+    int         n;
 
     __prune_keep_days();
 
@@ -1449,12 +1446,12 @@ static void __seg_open(uint32_t start_sec)
         TAL_PR_ERR("local_store rec open failed: %s", s_path);
         goto fail;
     }
-    s_file_start = start_sec;
-    s_file_bytes = 0;
-    s_idx_cnt = 0;
-    s_last_rel_ms = 0;
-    s_stage_used = 0;
-    s_dirty = FALSE;
+    s_file_start   = start_sec;
+    s_file_bytes   = 0;
+    s_idx_cnt      = 0;
+    s_last_rel_ms  = 0;
+    s_stage_used   = 0;
+    s_dirty        = FALSE;
     s_last_sync_ms = tal_system_get_millisecond();
     s_stat.segments++;
     TAL_PR_NOTICE("local_store rec start %s", s_path);
@@ -1462,7 +1459,7 @@ static void __seg_open(uint32_t start_sec)
 
 fail:
     s_stat.write_errors++;
-    s_path[0] = '\0';
+    s_path[0]   = '\0';
     s_force_cut = TRUE;
 }
 
@@ -1482,9 +1479,9 @@ static void __stage_put(const void *p, uint32_t n)
 
 static void __rec_worker(void *arg)
 {
-    LS_REC_HDR_T h;
+    LS_REC_HDR_T            h;
     LOCAL_STORE_FRAME_HDR_T fh;
-    uint32_t remaining, n, now;
+    uint32_t                remaining, n, now;
 
     (void)arg;
     s_alive = TRUE;
@@ -1521,11 +1518,11 @@ static void __rec_worker(void *arg)
         __ring_read((uint8_t *)&fh, sizeof(fh));
         tal_mutex_unlock(s_lock);
 
-        remaining = h.len - (uint32_t)sizeof(fh);
+        remaining     = h.len - (uint32_t)sizeof(fh);
         s_last_rel_ms = (uint32_t)(fh.timestamp - (uint64_t)s_file_start * 1000ULL);
         if (fh.type == LOCAL_STORE_FRAME_VIDEO_I && s_idx_cnt < LS_IDX_MAX) {
             s_idx[s_idx_cnt].rel_ms = s_last_rel_ms;
-            s_idx[s_idx_cnt].off = (uint32_t)(s_file_bytes + s_stage_used);
+            s_idx[s_idx_cnt].off    = (uint32_t)(s_file_bytes + s_stage_used);
             s_idx_cnt++;
         }
         __stage_put(&fh, sizeof(fh));
@@ -1589,7 +1586,7 @@ static OPERATE_RET __rec_alloc_once(void)
 
 OPERATE_RET local_store_rec_start(const char *leaf_prefix, uint32_t seg_sec)
 {
-    OPERATE_RET rt;
+    OPERATE_RET  rt;
     THREAD_CFG_T cfg;
 
     if (leaf_prefix == NULL || leaf_prefix[0] == '\0' || !__filename_is_safe(leaf_prefix) ||
@@ -1616,20 +1613,20 @@ OPERATE_RET local_store_rec_start(const char *leaf_prefix, uint32_t seg_sec)
     s_seg_sec = (seg_sec == 0) ? LS_SEG_DFLT_SEC : seg_sec;
 
     tal_mutex_lock(s_lock);
-    s_ring_head = 0;
-    s_ring_tail = 0;
-    s_ring_used = 0;
-    s_stage_used = 0;
-    s_idx_cnt = 0;
-    s_seg_open = FALSE;
-    s_force_cut = FALSE;
-    s_wait_key = FALSE;
-    s_seg_start = 0;
+    s_ring_head    = 0;
+    s_ring_tail    = 0;
+    s_ring_used    = 0;
+    s_stage_used   = 0;
+    s_idx_cnt      = 0;
+    s_seg_open     = FALSE;
+    s_force_cut    = FALSE;
+    s_wait_key     = FALSE;
+    s_seg_start    = 0;
     s_seg_first_ms = 0;
-    s_fp = NULL;
-    s_file_bytes = 0;
-    s_last_rel_ms = 0;
-    s_dirty = FALSE;
+    s_fp           = NULL;
+    s_file_bytes   = 0;
+    s_last_rel_ms  = 0;
+    s_dirty        = FALSE;
     s_last_data_ms = tal_system_get_millisecond();
     memset(&s_stat, 0, sizeof(s_stat));
     s_stat.ring_cap = LS_STAGE_BYTES;
@@ -1637,15 +1634,15 @@ OPERATE_RET local_store_rec_start(const char *leaf_prefix, uint32_t seg_sec)
 
     memset(&cfg, 0, sizeof(cfg));
     cfg.stackDepth = LS_THREAD_STACK;
-    cfg.priority = THREAD_PRIO_3;
-    cfg.thrdname = "local_store_wr";
+    cfg.priority   = THREAD_PRIO_3;
+    cfg.thrdname   = "local_store_wr";
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.psram_mode = 1;
+    cfg.ex_ram_mode = 1;
 #endif
-    s_run = TRUE;
+    s_run   = TRUE;
     s_alive = FALSE;
     if (tal_thread_create_and_start(&s_worker, NULL, NULL, __rec_worker, NULL, &cfg) != OPRT_OK) {
-        s_run = FALSE;
+        s_run    = FALSE;
         s_worker = NULL;
         return OPRT_COM_ERROR;
     }
@@ -1660,11 +1657,11 @@ OPERATE_RET local_store_rec_start(const char *leaf_prefix, uint32_t seg_sec)
 static OPERATE_RET __rec_put_frame(uint32_t type, const uint8_t *data, uint32_t len, uint64_t ts_ms)
 {
     LOCAL_STORE_FRAME_HDR_T fh;
-    uint32_t now_sec;
-    uint32_t need;
-    BOOL_T cut = FALSE;
-    BOOL_T is_video = (type != LOCAL_STORE_FRAME_AUDIO) ? TRUE : FALSE;
-    BOOL_T is_key = (type == LOCAL_STORE_FRAME_VIDEO_I) ? TRUE : FALSE;
+    uint32_t                now_sec;
+    uint32_t                need;
+    BOOL_T                  cut      = FALSE;
+    BOOL_T                  is_video = (type != LOCAL_STORE_FRAME_AUDIO) ? TRUE : FALSE;
+    BOOL_T                  is_key   = (type == LOCAL_STORE_FRAME_VIDEO_I) ? TRUE : FALSE;
 
     if (data == NULL || len == 0) {
         return OPRT_INVALID_PARM;
@@ -1705,15 +1702,15 @@ static OPERATE_RET __rec_put_frame(uint32_t type, const uint8_t *data, uint32_t 
     }
     if (cut) {
         __ring_put((uint16_t)LS_REC_CUT, &now_sec, sizeof(now_sec), NULL, 0);
-        s_seg_open = TRUE;
-        s_seg_start = now_sec;
+        s_seg_open     = TRUE;
+        s_seg_start    = now_sec;
         s_seg_first_ms = ts_ms;
-        s_force_cut = FALSE;
+        s_force_cut    = FALSE;
     }
-    fh.type = type;
-    fh.size = len;
+    fh.type      = type;
+    fh.size      = len;
     fh.timestamp = (uint64_t)s_seg_start * 1000ULL + ((ts_ms > s_seg_first_ms) ? (ts_ms - s_seg_first_ms) : 0);
-    fh.pts = ts_ms * 1000ULL;
+    fh.pts       = ts_ms * 1000ULL;
     __ring_put((uint16_t)LS_REC_DATA, &fh, sizeof(fh), data, len);
     if (is_key) {
         s_wait_key = FALSE;
@@ -1741,7 +1738,7 @@ OPERATE_RET local_store_rec_stop(void)
 
     if (s_lock != NULL) {
         tal_mutex_lock(s_lock);
-        s_accept = FALSE;
+        s_accept   = FALSE;
         s_seg_open = FALSE;
         tal_mutex_unlock(s_lock);
     }
@@ -1793,7 +1790,7 @@ void local_store_rec_get_stat(LOCAL_STORE_REC_STAT_T *st)
     if (st == NULL) {
         return;
     }
-    *st = s_stat;
+    *st           = s_stat;
     st->ring_used = s_ring_used;
 }
 
@@ -1825,11 +1822,11 @@ static int __annexb_find_start(const uint8_t *p, uint32_t len, uint32_t from, ui
 static int __annexb_next_au(const uint8_t *buf, uint32_t offset, uint32_t size, BOOL_T at_eof, BOOL_T *is_key,
                             uint32_t *au_len, uint32_t *au_start)
 {
-    int sc0, sc1;
+    int      sc0, sc1;
     uint32_t sc_len0 = 0, sc_len1 = 0;
     uint32_t nal_off;
-    uint8_t nal_type;
-    BOOL_T saw_vcl = FALSE;
+    uint8_t  nal_type;
+    BOOL_T   saw_vcl = FALSE;
 
     *is_key = FALSE;
     if (offset >= size) {
@@ -1840,7 +1837,7 @@ static int __annexb_next_au(const uint8_t *buf, uint32_t offset, uint32_t size, 
         return at_eof ? -1 : LS_NEED_MORE;
     }
     *au_start = (uint32_t)sc0;
-    nal_off = (uint32_t)sc0 + sc_len0;
+    nal_off   = (uint32_t)sc0 + sc_len0;
     if (nal_off >= size) {
         return at_eof ? -1 : LS_NEED_MORE;
     }
@@ -1899,22 +1896,22 @@ static int __annexb_next_au(const uint8_t *buf, uint32_t offset, uint32_t size, 
 
 typedef struct {
     TUYA_FILE fin;
-    uint8_t *buf;
-    uint32_t valid;
-    uint32_t used;
-    BOOL_T eof;
+    uint8_t  *buf;
+    uint32_t  valid;
+    uint32_t  used;
+    BOOL_T    eof;
 } LS_ANNEXB_T;
 
 static void __annexb_fill(LS_ANNEXB_T *a)
 {
     uint32_t keep = a->valid - a->used;
-    int32_t n;
+    int32_t  n;
 
     if (keep > 0 && a->used > 0) {
         memmove(a->buf, a->buf + a->used, keep);
     }
     a->valid = keep;
-    a->used = 0;
+    a->used  = 0;
     while (!a->eof && a->valid < LS_SEED_BUF) {
         n = tkl_fread(a->buf + a->valid, (int32_t)(LS_SEED_BUF - a->valid), a->fin);
         if (n <= 0) {
@@ -1979,7 +1976,7 @@ static void __annexb_close(LS_ANNEXB_T *a)
 
 typedef struct {
     const char *leaf;
-    BOOL_T found;
+    BOOL_T      found;
 } LS_LEAF_CTX_T;
 
 static BOOL_T __leaf_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
@@ -1995,22 +1992,22 @@ static BOOL_T __leaf_cb(const LOCAL_STORE_SEG_T *seg, void *ctx)
 
 OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32_t duration_sec)
 {
-    OPERATE_RET rt;
-    LS_ANNEXB_T a;
-    TUYA_FILE fout = NULL;
-    char dst[LOCAL_STORE_PATH_MAX];
-    char media_leaf[64];
-    uint32_t total_au = 0, i = 0;
-    uint32_t start_ts, end_ts, y, m, d;
-    uint32_t au_start, au_len;
-    BOOL_T is_key, src_exists = FALSE, dst_exists = FALSE;
-    LS_IDX_ENT_T *idx = NULL;
-    uint32_t idx_cnt = 0;
-    uint64_t off = 0;
+    OPERATE_RET             rt;
+    LS_ANNEXB_T             a;
+    TUYA_FILE               fout = NULL;
+    char                    dst[LOCAL_STORE_PATH_MAX];
+    char                    media_leaf[64];
+    uint32_t                total_au = 0, i = 0;
+    uint32_t                start_ts, end_ts, y, m, d;
+    uint32_t                au_start, au_len;
+    BOOL_T                  is_key, src_exists = FALSE, dst_exists = FALSE;
+    LS_IDX_ENT_T           *idx     = NULL;
+    uint32_t                idx_cnt = 0;
+    uint64_t                off     = 0;
     LOCAL_STORE_FRAME_HDR_T fh;
-    LS_LEAF_CTX_T lc;
-    TIME_T now;
-    int n;
+    LS_LEAF_CTX_T           lc;
+    TIME_T                  now;
+    int                     n;
 
     if (src_path == NULL || !__filename_is_safe(leaf)) {
         return OPRT_INVALID_PARM;
@@ -2030,8 +2027,8 @@ OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32
 
     /* "<name>.h264" -> "<name>.media" so every segment shares one reader */
     {
-        const char *dot = strrchr(leaf, '.');
-        uint32_t stem = (dot != NULL) ? (uint32_t)(dot - leaf) : (uint32_t)strlen(leaf);
+        const char *dot  = strrchr(leaf, '.');
+        uint32_t    stem = (dot != NULL) ? (uint32_t)(dot - leaf) : (uint32_t)strlen(leaf);
 
         if (stem + strlen(LS_MEDIA_EXT) >= sizeof(media_leaf)) {
             return OPRT_BUFFER_NOT_ENOUGH;
@@ -2043,13 +2040,13 @@ OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32
     now = tal_time_get_posix();
     if (now < (TIME_T)duration_sec) {
         start_ts = 1;
-        end_ts = duration_sec;
+        end_ts   = duration_sec;
     } else {
-        end_ts = (uint32_t)now;
+        end_ts   = (uint32_t)now;
         start_ts = end_ts - duration_sec;
     }
     if (__ts_to_ymd(start_ts, &y, &m, &d) == OPRT_OK) {
-        lc.leaf = media_leaf;
+        lc.leaf  = media_leaf;
         lc.found = FALSE;
         (void)__index_scan(y, m, d, __leaf_cb, &lc);
         if (lc.found) {
@@ -2083,7 +2080,7 @@ OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32
         return OPRT_FILE_OPEN_FAILED;
     }
     fout = tkl_fopen(dst, "wb");
-    idx = (LS_IDX_ENT_T *)tal_malloc(LS_IDX_MAX * sizeof(LS_IDX_ENT_T));
+    idx  = (LS_IDX_ENT_T *)tal_malloc(LS_IDX_MAX * sizeof(LS_IDX_ENT_T));
     if (fout == NULL || idx == NULL) {
         __annexb_close(&a);
         if (fout != NULL) {
@@ -2098,13 +2095,13 @@ OPERATE_RET local_store_seed_h264(const char *src_path, const char *leaf, uint32
     while (__annexb_read_au(&a, &is_key, &au_start, &au_len) == 0) {
         uint32_t rel_ms = (uint32_t)(((uint64_t)i * duration_sec * 1000ULL) / total_au);
 
-        fh.type = is_key ? LOCAL_STORE_FRAME_VIDEO_I : LOCAL_STORE_FRAME_VIDEO_P;
-        fh.size = au_len;
+        fh.type      = is_key ? LOCAL_STORE_FRAME_VIDEO_I : LOCAL_STORE_FRAME_VIDEO_P;
+        fh.size      = au_len;
         fh.timestamp = (uint64_t)start_ts * 1000ULL + rel_ms;
-        fh.pts = fh.timestamp * 1000ULL;
+        fh.pts       = fh.timestamp * 1000ULL;
         if (is_key && idx_cnt < LS_IDX_MAX) {
             idx[idx_cnt].rel_ms = rel_ms;
-            idx[idx_cnt].off = (uint32_t)off;
+            idx[idx_cnt].off    = (uint32_t)off;
             idx_cnt++;
         }
         n = tkl_fwrite(&fh, (int32_t)sizeof(fh), fout);

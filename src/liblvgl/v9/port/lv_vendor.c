@@ -10,11 +10,11 @@
 #include "tkl_thread.h"
 #endif
 
-static THREAD_HANDLE g_disp_thread_handle = NULL;
-static MUTEX_HANDLE g_disp_mutex = NULL;
-static SEM_HANDLE lvgl_sem = NULL;
-static uint8_t lvgl_task_state = STATE_INIT;
-static bool lv_vendor_initialized = false;
+static THREAD_HANDLE g_disp_thread_handle  = NULL;
+static MUTEX_HANDLE  g_disp_mutex          = NULL;
+static SEM_HANDLE    lvgl_sem              = NULL;
+static uint8_t       lvgl_task_state       = STATE_INIT;
+static bool          lv_vendor_initialized = false;
 
 static uint32_t lv_tick_get_callback(void)
 {
@@ -69,20 +69,20 @@ static void lv_tast_entry(void *arg)
 
     tal_semaphore_post(lvgl_sem);
 
-    while(lvgl_task_state == STATE_RUNNING) {
+    while (lvgl_task_state == STATE_RUNNING) {
         lv_vendor_disp_lock();
         sleep_time = lv_task_handler();
         lv_vendor_disp_unlock();
 
-        #if CONFIG_LVGL_TASK_SLEEP_TIME_CUSTOMIZE
-            sleep_time = CONFIG_LVGL_TASK_SLEEP_TIME;
-        #else
-            if (sleep_time > 500) {
-                sleep_time = 500;
-            } else if (sleep_time < 4) {
-                sleep_time = 4;
-            }
-        #endif
+#if CONFIG_LVGL_TASK_SLEEP_TIME_CUSTOMIZE
+        sleep_time = CONFIG_LVGL_TASK_SLEEP_TIME;
+#else
+        if (sleep_time > 500) {
+            sleep_time = 500;
+        } else if (sleep_time < 4) {
+            sleep_time = 4;
+        }
+#endif
 
         tal_system_sleep(sleep_time);
         // Modified by TUYA Start
@@ -99,7 +99,7 @@ static void lv_tast_entry(void *arg)
 #endif
 }
 
-static uint32_t s_lvgl_task_pri   = 5;        // remembered by lv_vendor_start for lv_vendor_resume
+static uint32_t s_lvgl_task_pri   = 5; // remembered by lv_vendor_start for lv_vendor_resume
 static uint32_t s_lvgl_stack_size = 1024 * 8;
 
 void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
@@ -113,18 +113,19 @@ void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
     s_lvgl_stack_size = lvgl_stack_size;
 
 #if defined(ENABLE_SMP) && (ENABLE_SMP == 1)
-    if(OPRT_OK != tkl_thread_smp_create((TKL_THREAD_HANDLE *)&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size, lvgl_task_pri, lv_tast_entry, NULL)) {
+    if (OPRT_OK != tkl_thread_smp_create((TKL_THREAD_HANDLE *)&g_disp_thread_handle, 0, "lvgl", lvgl_stack_size,
+                                         lvgl_task_pri, lv_tast_entry, NULL)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
 #else
     THREAD_CFG_T thrd_cfg = {
         .stackDepth = lvgl_stack_size,
-        .priority   = lvgl_task_pri,
-        .thrdname   = "lvgl_v9",
-        .psram_mode = 1,
+        .priority = lvgl_task_pri,
+        .thrdname = "lvgl_v9",
+        .ex_ram_mode = 1,
     };
-    if(OPRT_OK != tal_thread_create_and_start(&g_disp_thread_handle, NULL, NULL, lv_tast_entry, NULL, &thrd_cfg)) {
+    if (OPRT_OK != tal_thread_create_and_start(&g_disp_thread_handle, NULL, NULL, lv_tast_entry, NULL, &thrd_cfg)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);
         return;
     }
@@ -174,7 +175,7 @@ void lv_vendor_resume(void)
 
 void lv_vendor_add_disp_dev(void *device)
 {
-    if(false == lv_vendor_initialized) {
+    if (false == lv_vendor_initialized) {
         PR_ERR("%s lv vendor not init\n", __func__);
         return;
     }
@@ -184,31 +185,21 @@ void lv_vendor_add_disp_dev(void *device)
     lv_port_indev_init((char *)device);
 
     lv_display_t *lv_display = lv_port_get_lv_disp_by_name((char *)device);
-    lv_indev_t *lv_indev = lv_port_get_lv_indev_by_name((char *)device);
+    lv_indev_t   *lv_indev   = lv_port_get_lv_indev_by_name((char *)device);
 
-    if(lv_display && lv_indev) {
+    if (lv_display && lv_indev) {
         lv_indev_set_display(lv_indev, lv_display);
     }
 
     PR_NOTICE("add display device:%s complete\n", device);
 }
 
-
 // Modified by TUYA Start
-void __attribute__((weak)) tuya_app_gui_feed_watchdog(void)
-{
+void __attribute__((weak)) tuya_app_gui_feed_watchdog(void) {}
 
-}
+void __attribute__((weak)) lvMsgHandle(void) {}
 
-void __attribute__((weak)) lvMsgHandle(void)
-{
-}
+void __attribute__((weak)) lvMsgEventReg(lv_obj_t *obj, lv_event_code_t eventCode) {}
 
-void __attribute__((weak)) lvMsgEventReg(lv_obj_t *obj, lv_event_code_t eventCode)
-{
-}
-
-void __attribute__((weak)) lvMsgEventDel(lv_obj_t *obj)
-{
-}
+void __attribute__((weak)) lvMsgEventDel(lv_obj_t *obj) {}
 // Modified by TUYA End
