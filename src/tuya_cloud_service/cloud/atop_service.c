@@ -195,7 +195,7 @@ int atop_service_activate_request(const tuya_activite_request_t *request, atop_b
 #ifdef ENABLE_WIFI_BACKUP
     dev_attribute |= 1 << ATTRIBUTE_WIFI_PROTECT;
 #endif
-    write_len = snprintf(buffer + offset, remain, ",\"devAttribute\":%u", dev_attribute);
+    write_len = snprintf(buffer + offset, remain, ",\"devAttribute\":%" PRIu32, dev_attribute);
     if (write_len < 0 || (size_t)write_len >= remain) {
         tal_free(buffer);
         return OPRT_BUFFER_NOT_ENOUGH;
