@@ -652,6 +652,10 @@ int tuya_ble_send_packet(ble_packet_t *packet)
 {
     tuya_ble_mgr_t *ble = s_ble_mgr;
 
+    if (NULL == ble) {
+        return OPRT_OK;
+    }
+
     if (!ble->is_paired) {
         PR_NOTICE("ble not paired");
         return OPRT_OK;
