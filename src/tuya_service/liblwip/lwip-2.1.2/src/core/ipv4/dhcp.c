@@ -815,7 +815,7 @@ err_t dhcp_start(struct netif *netif)
             result                = dhcp_reboot(netif);
             return result;
         }
-#endif  /* LWIP_CONFIG_FAST_DHCP */
+#endif /* LWIP_CONFIG_FAST_DHCP */
         /* dhcp is cleared below, no need to reset flag*/
     }
 
