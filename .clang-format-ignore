@@ -1,5 +1,4 @@
 src/tuya_service/tal_kv/littlefs
-src/common/backoffAlgorithm
 src/tuya_service/liblwip/lwip-2.1.2
 apps/tuya.ai/your_chat_bot/src/display/material
 src/common/qrcode

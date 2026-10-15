@@ -126,14 +126,11 @@ include("${PLATFORM_PATH}/platform_config.cmake")
 set(COMPONENT_LIBS "")
 set(COMPONENT_PUBINC "")
 list_components(COMPONENT_LIST "${TOP_SOURCE_DIR}/src")
-# [tuyaopen-core integration] exclude upstream components replaced by the core submodule
-# (common kept: its CMakeLists now only carries qrcode; utilities/backoffAlgorithm
-#  symbols come from tuyaopen-core)
+# [tuyaopen-core integration] 被 core 子模块覆盖的上游组件副本已从 src/ 删除
+# （tal_system/tal_security/tal_network/lib*/tuya_*_service 等，见历次提交）；
+# 这里只剩仍需排除的组件：image_album（T5AI 屏幕相册，本仓不编）
 list(REMOVE_ITEM COMPONENT_LIST
-    tal_system libcjson tuya_cloud_service tuya_ai_service
-    tal_security tal_network libhttp libmqtt libtls
-    tal_kv tal_bluetooth tal_wifi tal_wired tal_cellular tal_wifi_ulp tal_cli
-    tuya_p2p image_album)
+    image_album)
 foreach(comp ${COMPONENT_LIST})
     # message(STATUS "comp: ${comp}")
     add_subdirectory("${TOP_SOURCE_DIR}/src/${comp}")

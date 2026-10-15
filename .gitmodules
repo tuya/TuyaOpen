@@ -3,9 +3,6 @@
 	# 收编到 src/tuya_service/tal_kv
 	path = src/tuya_service/tal_kv/littlefs
 	url = https://github.com/littlefs-project/littlefs.git
-[submodule "src/common/backoffAlgorithm"]
-	path = src/common/backoffAlgorithm
-	url = https://github.com/FreeRTOS/backoffAlgorithm.git
 [submodule "tuyaopen-core"]
 	path = tuyaopen-core
 	url = https://github.com/flyingcys/TuyaOpen-Core.git
