@@ -1,6 +1,5 @@
 src/libcjson/cJSON
-src/tal_kv/FlashDB
-src/tal_kv/littlefs
+src/tuya_service/tal_kv/littlefs
 src/common/backoffAlgorithm
 src/liblwip/lwip-2.1.2
 src/libhttp/coreHTTP

@@ -68,7 +68,7 @@ int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *
     len += 3; // 3 == {}\0
 
     uint32_t offset = 0;
-    char *buf = tal_malloc(len);
+    char    *buf    = tal_malloc(len);
     if (NULL == buf) {
         PR_ERR("maloc fails %d", len);
         return OPRT_MALLOC_FAILED;
@@ -142,9 +142,9 @@ int kv_serialize(const kv_db_t *db, const uint32_t dbcnt, char **out, uint32_t *
     }
 
     buf[offset++] = '}';
-    buf[offset] = 0;
+    buf[offset]   = 0;
 
-    *out = buf;
+    *out     = buf;
     *out_len = offset;
 
     return OPRT_OK;
@@ -173,9 +173,9 @@ int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt)
         return OPRT_CJSON_PARSE_ERR;
     }
 
-    int op_ret = OPRT_OK;
-    int i = 0;
-    cJSON *json = NULL;
+    int    op_ret = OPRT_OK;
+    int    i      = 0;
+    cJSON *json   = NULL;
     for (i = 0; i < dbcnt; i++) {
         json = cJSON_GetObjectItem(root, db[i].key);
         if (json != NULL) {
@@ -239,7 +239,7 @@ int kv_deserialize(const char *in, kv_db_t *db, const uint32_t dbcnt)
         case KV_STRING: {
             if (json->type == cJSON_NULL) {
                 char *tmp = (char *)db[i].val;
-                tmp[0] = 0;
+                tmp[0]    = 0;
             } else {
                 uint32_t len = strlen(json->valuestring) + 1;
                 if (db[i].len < len) {

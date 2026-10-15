@@ -15,7 +15,6 @@ _INSTEADOF_KEY_RE = re.compile(r"^url\.(.+)\.insteadOf$", re.IGNORECASE)
 
 
 MIRROR_LIST = [
-    "armink/FlashDB",
     "littlefs-project/littlefs",
     "DaveGamble/cJSON",
     "FreeRTOS/backoffAlgorithm",

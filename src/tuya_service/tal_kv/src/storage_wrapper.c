@@ -57,7 +57,7 @@ int posix_storage_set(const char *key, const uint8_t *buffer, size_t length)
     FILE *fptr = NULL;
 
     char name[128];
-    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    int  written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
     if (written < 0 || written >= (int)sizeof(name)) {
         PR_ERR("key path too long");
         return OPRT_BUFFER_NOT_ENOUGH;
@@ -108,7 +108,7 @@ int posix_storage_get(const char *key, uint8_t *buffer, size_t *length)
     }
 
     char name[128];
-    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    int  written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
     if (written < 0 || written >= (int)sizeof(name)) {
         PR_ERR("key path too long");
         return OPRT_BUFFER_NOT_ENOUGH;
@@ -124,7 +124,7 @@ int posix_storage_get(const char *key, uint8_t *buffer, size_t *length)
     }
 
     int read_len = *length; // ?
-    read_len = fread(buffer, 1, (size_t)read_len, fptr);
+    read_len     = fread(buffer, 1, (size_t)read_len, fptr);
     fclose(fptr);
     if (read_len <= 0) {
         *length = 0;
@@ -148,7 +148,7 @@ int posix_storage_get(const char *key, uint8_t *buffer, size_t *length)
 int posix_storage_del(const char *key)
 {
     char name[128];
-    int written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
+    int  written = snprintf(name, sizeof(name), "%s/%s", tuya_db_path, key);
     if (written < 0 || written >= (int)sizeof(name)) {
         PR_ERR("key path too long");
         return OPRT_BUFFER_NOT_ENOUGH;

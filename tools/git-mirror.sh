@@ -4,7 +4,6 @@ set -e
 set -u
 ## repos group
 REPOS_ARRAY=(
-    armink/FlashDB
     littlefs-project/littlefs
     DaveGamble/cJSON
     FreeRTOS/backoffAlgorithm
