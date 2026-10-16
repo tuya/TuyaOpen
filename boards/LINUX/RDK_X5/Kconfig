@@ -1,0 +1,14 @@
+menu "RDK_X5 Board Configuration"
+    config CHIP_CHOICE
+        string
+        default "X5"
+
+    config BOARD_CHOICE
+        string
+        default "RDK_X5"
+
+    config BOARD_CONFIG
+        bool
+        default y
+        select ENABLE_QRCODE
+endmenu
