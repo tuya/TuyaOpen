@@ -416,7 +416,10 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
 
+#if (defined(ENABLE_COMP_AI_MODE_WAKEUP) && (ENABLE_COMP_AI_MODE_WAKEUP == 1)) || \
+    (defined(ENABLE_COMP_AI_MODE_FREE) && (ENABLE_COMP_AI_MODE_FREE == 1))
     TUYA_CALL_ERR_RETURN(tkl_kws_init());
+#endif
 
     TUYA_CALL_ERR_LOG(ai_audio_player_set_vol(vol));
 

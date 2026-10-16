@@ -167,6 +167,7 @@ static void __record_task(void *arg)
         __audio_slice_check_and_send(&more_data);
 
         /* Manual mode don't need send VAD stat change */
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
         if (sg_recorder->vad_mode == AI_AUDIO_VAD_AUTO) {
             AI_AUDIO_VAD_STATE_E stat = (tkl_vad_get_status() == TKL_VAD_STATUS_SPEECH) ?\
                                         AI_AUDIO_VAD_START : AI_AUDIO_VAD_STOP;
@@ -177,6 +178,7 @@ static void __record_task(void *arg)
                 __update_vad_flag(sg_recorder->vad_flag);
             }
         }
+#endif
     }
 }
 
@@ -279,10 +281,12 @@ OPERATE_RET ai_audio_input_start(void)
         tal_thread_create_and_start(&sg_recorder->vad_task, NULL, __record_task_exit, __record_task, NULL, &thrd_cfg);
     }
 
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
     if (sg_recorder->vad_mode == AI_AUDIO_VAD_AUTO) {
         PR_DEBUG("need human voice detect, start __record_task");
         tkl_vad_start();
     }
+#endif
 
     return OPRT_OK;    
 }
@@ -295,10 +299,12 @@ OPERATE_RET ai_audio_input_stop(void)
 {
     PR_NOTICE("audio input -> stop! mode is %d, task is %p", sg_recorder->vad_mode, sg_recorder->vad_task);
     sg_recorder->enable = false;
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
     if (sg_recorder->vad_mode == AI_AUDIO_VAD_AUTO) {
         /* Stop VAD detect */
         tkl_vad_stop();
     }
+#endif
 
     if (sg_recorder->vad_task) {
         tal_thread_delete(sg_recorder->vad_task);
@@ -366,6 +372,7 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
 
     TUYA_CALL_ERR_RETURN(tdl_audio_open(sg_audio_hdl, __audio_frame_put));
 
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
     TKL_VAD_CONFIG_T vad_cfg = {0};
     memset(&vad_cfg, 0, sizeof(TKL_VAD_CONFIG_T));
     vad_cfg.sample_rate     = audio_info.sample_rate;
@@ -375,6 +382,7 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
     vad_cfg.frame_duration_ms = 10;
     vad_cfg.scale           = 1.0f;
     TUYA_CALL_ERR_RETURN(tkl_vad_init(&vad_cfg));
+#endif
 
     TUYA_CALL_ERR_RETURN(ai_audio_input_start());
 
@@ -415,12 +423,14 @@ OPERATE_RET ai_audio_input_reset(void)
     tal_mutex_unlock(sg_recorder->mutex);
     //sg_recorder->vad_flag = AI_AUDIO_VAD_STOP;
 
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
     if (AI_AUDIO_VAD_AUTO == sg_recorder->vad_mode) {
         PR_NOTICE("audio input -> vad stop!");
         tkl_vad_stop();
         tkl_vad_start();
         PR_NOTICE("audio input -> vad start!");
     }
+#endif
 
     return OPRT_OK;
 }
