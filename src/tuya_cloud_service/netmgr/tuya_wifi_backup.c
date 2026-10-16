@@ -97,6 +97,7 @@ typedef struct {
     uint8_t                   count;
     wifi_backup_ap_t          list[TUYA_WIFI_BACKUP_AP_NUM];
     uint8_t                   ecdh_secret[WIFI_BACKUP_HASH_LEN];
+    bool                      ecdh_ready;
     char                      orig_ssid[WIFI_SSID_LEN + 1];
     char                      orig_passwd[WIFI_PASSWD_LEN + 1];
     wifi_backup_switch_fsm_t  switch_fsm;
@@ -762,8 +763,10 @@ static OPERATE_RET __on_wifi_secure(cJSON *root, tuya_wifi_backup_trans_t trans)
     if (0 != ret) {
         PR_ERR("ecdh failed: -0x%04X", -ret);
         memset(s_mgr.ecdh_secret, 0, sizeof(s_mgr.ecdh_secret));
+        s_mgr.ecdh_ready = false;
         return OPRT_COM_ERROR;
     }
+    s_mgr.ecdh_ready = true;
 
     /* reply with the bare point as well, so both sides stay symmetric */
     tuya_base64_encode(pub + 1, pub_b64, pub[0]);
@@ -827,7 +830,7 @@ static OPERATE_RET __data_decrypt(const char *hmac_b64, const char *cipher_b64, 
     const char        *local_key = NULL;
     OPERATE_RET        rt;
 
-    if (0 == s_mgr.ecdh_secret[0]) {
+    if (false == s_mgr.ecdh_ready) {
         return OPRT_AUTHENTICATION_NOT_FOUND;
     }
 
@@ -1412,7 +1415,7 @@ static void __offline_scan_task(void *data)
 
 static void __offline_tick(TIMER_ID timer_id, void *arg)
 {
-    bool trigger = false;
+    bool    trigger = false;
     uint8_t count   = 0;
 
     s_mgr.local_num = __link_up() ? 0 : s_mgr.local_num + 1;
@@ -1647,8 +1650,23 @@ OPERATE_RET tuya_wifi_backup_proto_process(const char *json, uint32_t len, tuya_
 static OPERATE_RET __reset_event_cb(void *data)
 {
     PR_DEBUG("wifi backup list cleared by reset");
+
+    /* the fsm would push the old network back once the list is gone; stop it first */
+    if (WIFI_BACKUP_STATUS_IDLE != s_mgr.status) {
+        s_mgr.status = WIFI_BACKUP_STATUS_IDLE;
+        tal_workq_stop_delayed(s_mgr.fsm_work);
+        netconn_wifi_station_suspend(false);
+    }
+
     __list_clear();
+    s_mgr.orig_ssid[0]   = '\0';
+    s_mgr.orig_passwd[0] = '\0';
     memset(s_mgr.ecdh_secret, 0, sizeof(s_mgr.ecdh_secret));
+    s_mgr.ecdh_ready = false;
+
+    tal_sw_timer_stop(s_mgr.offline_timer);
+    s_mgr.local_num = 0;
+    s_mgr.cloud_num = 0;
 
     return tal_kv_del(WIFI_BACKUP_KV_KEY);
 }
