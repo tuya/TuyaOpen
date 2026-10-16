@@ -10,6 +10,8 @@
  */
 #include "tuya_cloud_types.h"
 
+#include <stdio.h>
+
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
 
 #include "mix_method.h"
@@ -27,16 +29,13 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************function define**********************
@@ -205,12 +204,12 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
     TUYA_CHECK_NULL_RETURN(json, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(music, OPRT_INVALID_PARM);
 
-    int audio_num = 0;
-    cJSON *skill_general = cJSON_GetObjectItem(json, "general");
-    cJSON *skill_custom = cJSON_GetObjectItem(json, "custom");
-    cJSON *action = NULL, *skill_data = NULL, *audios = NULL, *node = NULL;
-    const char *action_str = NULL;
-    AI_MUSIC_SRC_T *music_src;
+    int               audio_num     = 0;
+    cJSON            *skill_general = cJSON_GetObjectItem(json, "general");
+    cJSON            *skill_custom  = cJSON_GetObjectItem(json, "custom");
+    cJSON            *action = NULL, *skill_data = NULL, *audios = NULL, *node = NULL;
+    const char       *action_str = NULL;
+    AI_MUSIC_SRC_T   *music_src;
     AI_AUDIO_MUSIC_T *music_ptr;
 
     if (skill_custom && cJSON_IsObject(skill_custom) && (action = cJSON_GetObjectItem(skill_custom, "action"))) {
@@ -223,7 +222,7 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
     }
 
     if (action == NULL && skill_general && cJSON_IsObject(skill_general)) {
-        action = cJSON_GetObjectItem(skill_general, "action");
+        action     = cJSON_GetObjectItem(skill_general, "action");
         skill_data = cJSON_GetObjectItem(skill_general, "data");
         if (skill_data && cJSON_IsObject(skill_data)) {
             if ((audios = cJSON_GetObjectItem(skill_data, "audios")) != NULL && cJSON_IsArray(audios)) {
@@ -275,7 +274,7 @@ OPERATE_RET ai_skill_parse_music(cJSON *json, AI_AUDIO_MUSIC_T **music)
         int i = 0;
         for (i = 0; i < music_ptr->src_cnt; i++) {
             music_src = &music_ptr->src_array[i];
-            node = cJSON_GetArrayItem(audios, i);
+            node      = cJSON_GetArrayItem(audios, i);
             if (_parse_music_item(i, node, music_src) != OPRT_OK) {
                 PR_ERR("parse audio %d fail.", i);
                 ai_skill_parse_music_free(music_ptr);
@@ -300,8 +299,8 @@ void ai_skill_parse_music_free(AI_AUDIO_MUSIC_T *music)
         return;
     }
 
-    if(music->src_array) {
-        for(int i = 0; i < music->src_cnt; i++) {
+    if (music->src_array) {
+        for (int i = 0; i < music->src_cnt; i++) {
             _music_src_free(&music->src_array[i]);
         }
 
@@ -323,11 +322,10 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
         return;
     }
 
-    int i = 0;
+    int             i         = 0;
     AI_MUSIC_SRC_T *media_src = NULL;
 
-    PR_INFO("media info: has tts:%d, action:%s, count:%d", 
-        music->has_tts, music->action, music->src_cnt);
+    PR_INFO("media info: has tts:%d, action:%s, count:%d", music->has_tts, music->action, music->src_cnt);
 
     for (i = 0; i < music->src_cnt; i++) {
         media_src = &music->src_array[i];
@@ -338,8 +336,8 @@ void ai_skill_parse_music_dump(AI_AUDIO_MUSIC_T *music)
         PR_INFO("  format:%d", media_src->format);
         PR_INFO("  artist:%s", media_src->artist ? media_src->artist : "NULL");
         PR_INFO("  song_name:%s", media_src->song_name ? media_src->song_name : "NULL");
-        PR_INFO("  audio_id:%s", media_src->audio_id  ? media_src->audio_id : "NULL");
-        PR_INFO("  img_url:%s\n", media_src->img_url  ? media_src->img_url : "NULL");
+        PR_INFO("  audio_id:%s", media_src->audio_id ? media_src->audio_id : "NULL");
+        PR_INFO("  img_url:%s\n", media_src->img_url ? media_src->img_url : "NULL");
     }
 }
 
@@ -362,15 +360,13 @@ static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_A
     }
 
     cJSON *action = cJSON_GetObjectItem(skill_data, "action");
-    action_str = _json_get_string(action);
+    action_str    = _json_get_string(action);
     if (action_str == NULL || action_str[0] == '\0') {
         return OPRT_CJSON_GET_ERR;
     }
 
-    if (strcmp(action_str, "next") == 0 ||
-        strcmp(action_str, "prev") == 0 ||
-        strcmp(action_str, "play") == 0 ||
-        strcmp(action_str, "stop") == 0 ) {
+    if (strcmp(action_str, "next") == 0 || strcmp(action_str, "prev") == 0 || strcmp(action_str, "play") == 0 ||
+        strcmp(action_str, "stop") == 0) {
         return ai_skill_parse_music(data, music);
     }
 
@@ -395,7 +391,7 @@ static OPERATE_RET __parse_playcontrol_data(cJSON *data, cJSON *skill_data, AI_A
 OPERATE_RET ai_skill_parse_playcontrol(cJSON *json, AI_AUDIO_MUSIC_T **music)
 {
     cJSON *skill_general = cJSON_GetObjectItem(json, "general");
-    cJSON *skill_custom = cJSON_GetObjectItem(json, "custom");
+    cJSON *skill_custom  = cJSON_GetObjectItem(json, "custom");
 
     if (__parse_playcontrol_data(json, skill_custom, music) != 0) {
         return __parse_playcontrol_data(json, skill_general, music);
@@ -423,7 +419,6 @@ void ai_skill_playcontrol_music(AI_AUDIO_MUSIC_T *music)
         if (music->src_cnt > 0) {
             ai_audio_play_music(music);
         } else {
-
         }
     } else if (strcmp(music->action, "single_loop") == 0) {
         ai_user_event_notify(AI_USER_EVT_PLAY_CTL_SINGLE_LOOP, NULL);

@@ -12,6 +12,8 @@
 
 #include "tuya_cloud_types.h"
 
+#include <stdio.h>
+
 #include "tal_api.h"
 #include "cJSON.h"
 #include "atop_service.h"
@@ -274,13 +276,13 @@ OPERATE_RET ai_agent_send_text(char *content)
 */
 OPERATE_RET ai_agent_send_file(uint8_t *data, uint32_t len)
 {
-    OPERATE_RET rt = OPRT_OK;
-
-    tuya_ai_input_start(true);
-    TUYA_CALL_ERR_RETURN(tuya_ai_file_input((uint8_t *)data, len, len));
-    tuya_ai_input_stop();
-
-    return rt;
+    /* [tuyaopen-core 适配] core 的 tuya_ai_input.h 只提供 audio/text 输入，
+     * 未提供 file/image 输入（上游经 tuya_ai_file_input/tuya_ai_image_input）；
+     * 本仓暂无调用方，保留接口、按不支持返回，待 core 补齐输入面后恢复实现。
+     * 原实现：tuya_ai_input_start(true); tuya_ai_file_input(data, len, len); tuya_ai_input_stop(); */
+    (void)data;
+    (void)len;
+    return OPRT_NOT_SUPPORTED;
 }
 
 /**
@@ -291,14 +293,11 @@ OPERATE_RET ai_agent_send_file(uint8_t *data, uint32_t len)
 */
 OPERATE_RET ai_agent_send_image(uint8_t *data, uint32_t len)
 {
-    OPERATE_RET rt        = OPRT_OK;
-    uint64_t    timestamp = tal_system_get_millisecond();
-
-    tuya_ai_input_start(true);
-    TUYA_CALL_ERR_RETURN(tuya_ai_image_input(timestamp, (uint8_t *)data, len, len));
-    tuya_ai_input_stop();
-
-    return rt;
+    /* [tuyaopen-core 适配] 同 ai_agent_send_file：core 无 tuya_ai_image_input。
+     * 原实现：tuya_ai_input_start(true); tuya_ai_image_input(timestamp, data, len, len); tuya_ai_input_stop(); */
+    (void)data;
+    (void)len;
+    return OPRT_NOT_SUPPORTED;
 }
 
 /**
