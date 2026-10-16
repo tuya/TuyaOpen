@@ -24,17 +24,7 @@ config LITTLE_END
     int
     default 1
 
-config ENABLE_UART
-    bool
-    default y
-
-config ENABLE_WIFI
-    bool
-    default y
-
-config ENABLE_BLUETOOTH
-    bool
-    default y
+rsource "./TKL_Kconfig"
 
 # Tuya's generic audio codec layer compiles tdd_audio.c only when this
 # platform-scoped media switch is enabled. Keep it opt-in for Jieli boards.

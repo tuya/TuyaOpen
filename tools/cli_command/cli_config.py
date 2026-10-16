@@ -74,6 +74,37 @@ def _savedefconfig(config, dconfig=".config", kconfig="Kconfig"):
     pass
 
 
+def _newest_kconfig_mtime(*roots):
+    '''
+    Newest mtime among the Kconfig sources the catalog is built from.
+
+    A board or a module declares its defaults in Kconfig, so editing one is a
+    configuration change. Comparing only app_default.config misses it, and the
+    derived files then keep the value the tree no longer has -- a board whose
+    flash size was edited silently builds with the old one, or fails somewhere
+    unrelated because a symbol the tree now declares is absent from the header.
+    '''
+    newest = 0.0
+    for root in roots:
+        if not root or not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, filenames in os.walk(root):
+            # Build output and VCS metadata are not Kconfig sources; walking
+            # them would make every build look stale.
+            dirnames[:] = [
+                name for name in dirnames
+                if name not in (".git", ".build", "dist", "__pycache__")
+            ]
+            for name in filenames:
+                if not name.startswith("Kconfig"):
+                    continue
+                try:
+                    newest = max(newest, os.path.getmtime(os.path.join(dirpath, name)))
+                except OSError:
+                    continue
+    return newest
+
+
 def init_using_config(force=False):
     '''
     1. Generate CatalogKconfig file
@@ -97,18 +128,28 @@ def init_using_config(force=False):
         pass
 
     using_config = params["using_config"]
-    # Regenerate whenever using.config is missing, or app_default.config was
-    # edited after using.config was last derived from it -- otherwise a
-    # hand-edit to app_default.config (e.g. in a text editor, outside
-    # `config set`/`config choice`) is silently ignored by the next build.
-    stale = (
-        not os.path.exists(using_config)
-        or os.path.getmtime(app_default_config) > os.path.getmtime(using_config)
-    )
+    # Regenerate whenever using.config is missing, app_default.config was edited
+    # after using.config was last derived from it, or the Kconfig tree was --
+    # otherwise a hand-edit to app_default.config (e.g. in a text editor, outside
+    # `config set`/`config choice`), or a board's own default, is silently
+    # ignored by the next build.
+    if not os.path.exists(using_config):
+        stale = True
+    else:
+        derived_at = os.path.getmtime(using_config)
+        stale = (
+            os.path.getmtime(app_default_config) > derived_at
+            or _newest_kconfig_mtime(board_path, src_path, app_root) > derived_at
+        )
     if force or stale:
         if stale and not force:
-            logger.info("app_default.config changed; regenerating using.config")
+            logger.info("configuration changed; regenerating using.config")
         _defconfig(app_default_config, using_config, catalog_kconfig)
+        # The cmake variables and the C header are derived from using.config by
+        # tools/kconfiglib/CMakeLists.txt, which only regenerates them when they
+        # are absent. Removing them here is what the config commands already do
+        # for the same reason, and without it they keep the previous value.
+        _invalidate_derived_artifacts()
     pass
 
 
