@@ -8,7 +8,8 @@ Windows or `. ./export.sh` on Linux), then build:
 
 ```text
 cd apps/tuya_cloud/switch_demo
-tos.py config choice -d -c RDK_X5.config
+tos.py config choice -d -c Linux.config
+tos.py config set CONFIG_BOARD_CHOICE_RDK_X5=y
 tos.py build
 ```
 
