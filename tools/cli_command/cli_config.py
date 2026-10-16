@@ -109,6 +109,12 @@ def init_using_config(force=False):
         if stale and not force:
             logger.info("app_default.config changed; regenerating using.config")
         _defconfig(app_default_config, using_config, catalog_kconfig)
+        # 派生产物（using.cmake / tuya_kconfig.h）由 tools/kconfiglib 只在
+        # 不存在时生成：using.config 一变必须一并移除，否则下一次构建会用
+        # 旧宏/旧组件清单静默编过（`config set` 分支已有同样处理，这里补齐
+        # 手改 app_default.config / config choice 走的构建路径）
+        for path in _invalidate_derived_artifacts():
+            logger.info(f"Invalidated: {path}")
     pass
 
 
