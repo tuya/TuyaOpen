@@ -155,6 +155,11 @@ target_include_directories(tuyaopen-headers INTERFACE
 # 上游保留组件补 core 头/宏/链接面（tuyaopen-headers 携带开关宏）
 foreach(c ${COMPONENT_LIBS})
     target_link_libraries(${c} PRIVATE tuyaopen-core tuyaopen-headers)
+    # [交付仓兼容层] 组件与 app 一致地预包含 tal_compat.h：上游 tal_* 接口
+    # （tal_system_get_free_heap_size / tal_kv_free / tal_psram_* 等）重定向到
+    # 本仓等价实现，使上游组件源码保持原样（见 src/tuya_service/include/tal_compat.h；
+    # 头路径经 deal_with_components 的 HEADER_DIR 传播，此处只补 -include）
+    target_compile_options(${c} PRIVATE -include tal_compat.h)
 endforeach()
 
 # add arduino src
@@ -194,6 +199,23 @@ if(NOT DEFINED CONFIG_PROJECT_VERSION)
 endif()
 set(EXAMPLE_LIB "tuyaapp")
 list(APPEND PLATFORM_NEED_HDIR ${COMPONENT_PUBINC})
+# [tuyaopen-core integration] 平台二次构建也会编译**平台/板级层**（如 ESP32 的
+# boards/ESP32/common TDD 显示驱动），它们会 include core 头（tal_memory.h 等）：
+# 把 core 各库的公开 include 面（BUILD_INTERFACE）一并交给平台构建
+# （OPEN_HEADER_DIR → 平台侧 -I；core 头经 genex 包裹，这里剥壳取路径）
+foreach(_core_lib ${TUYAOPEN_CORE_LIBS})
+    get_target_property(_core_lib_incs ${_core_lib} INTERFACE_INCLUDE_DIRECTORIES)
+    if(_core_lib_incs)
+        foreach(_inc ${_core_lib_incs})
+            string(REGEX REPLACE "^\\$<BUILD_INTERFACE:(.*)>$" "\\1" _inc "${_inc}")
+            string(REGEX REPLACE "^\\$<INSTALL_INTERFACE:.*>$" "" _inc "${_inc}")
+            if(_inc AND IS_DIRECTORY "${_inc}")
+                list(APPEND PLATFORM_NEED_HDIR "${_inc}")
+            endif()
+        endforeach()
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES PLATFORM_NEED_HDIR)
 string(REPLACE ";" " " PLATFORM_NEED_HDIR "${PLATFORM_NEED_HDIR}")
 set(PLATFORM_NEED_LIBS "${EXAMPLE_LIB} ${COMPONENTS_ALL_LIB}")
 if(TOS_FRAMEWORK STREQUAL "arduino")
@@ -210,6 +232,10 @@ target_include_directories(${EXAMPLE_LIB}
 target_link_libraries(${EXAMPLE_LIB} ${COMPONENTS_ALL_LIB})
 # [tuyaopen-core integration] ③ app 补 core 头/宏/链接面（plain 签名，与上行一致）
 target_link_libraries(${EXAMPLE_LIB} tuyaopen-core tuyaopen-headers)
+# [交付仓兼容层] 应用源文件统一预包含 tal_compat.h：把上游 tal_* 接口
+# （tal_system_get_free_heap_size / tal_kv_free 等）重定向到本仓等价实现，
+# 让 apps/ 下应用保持上游写法 0 改动（见 src/tuya_service/include/tal_compat.h）
+target_compile_options(${EXAMPLE_LIB} PRIVATE -include tal_compat.h)
 
 ########################################
 # Generate build parameters file
