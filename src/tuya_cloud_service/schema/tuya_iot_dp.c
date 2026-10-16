@@ -42,7 +42,7 @@ static void dp_sync_cb(int result, void *user_data)
         for (int i = 0; i < dpvalid->num; i++) {
             dp_pv_stat_set(dpvalid->schema, dpvalid->dpid[i], PV_STAT_CLOUD);
         }
-    } else {
+    } else if (tuya_iot_client_get()->mqctx.is_inited) {
         //! start mqtt cloud sync
         tuya_iot_dp_sync_start(tuya_iot_client_get(), 5);
     }
@@ -78,7 +78,12 @@ void tuya_iot_dp_sync_process(void *data)
         return;
     }
 
-    tuya_iot_dp_report_json_async(client, dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
+    ret = tuya_iot_dp_report_json_async(client, dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
+    if (OPRT_OK != ret) {
+        /* Rejected submissions do not invoke dp_sync_cb. */
+        tal_free(dpvalid);
+        tal_workq_start_delayed(s_tmm_dp_sync, 5000, LOOP_ONCE);
+    }
     tal_free(dpsjson);
 }
 
@@ -284,7 +289,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
             }
         }
         PR_DEBUG("ble channel report");
-        ret = tuya_ble_dp_report(ble_dpin);
+        ret = tuya_ble_dp_report_async(ble_dpin);
         tal_free(ble_dpin);
         tal_free(dpvalid);
         tuya_iot_dp_sync_start(client, 5);
@@ -300,6 +305,7 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
     ret = dp_rept_json_output(schema, &dpin, dpvalid, &dpout);
     if (OPRT_OK != ret) {
         PR_DEBUG("dp rept json output error %d", ret);
+        tal_free(dpvalid);
         return ret;
     }
 
@@ -309,15 +315,22 @@ int tuya_iot_dp_obj_report(tuya_iot_client_t *client, const char *devid, dp_obj_
         char *out = NULL;
         PR_DEBUG("lan channel report");
         dp_rept_json_append(schema, dpout.dpsjson, NULL, NULL, 0, &out);
-        ret = tuya_lan_dp_report(out);
+        ret = tuya_lan_dp_report_async(out);
         tal_free(out);
         tuya_iot_dp_sync_start(client, 5);
-    } 
+    }
     
     if (tuya_iot_is_connected()) {
         PR_DEBUG("mqtt channel report");
-        ret = tuya_iot_dp_report_json_with_notify(client, dpout.dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
-        need_free_dpvalid = false;
+        //! Queue the report and let the mqtt loop task publish it, so the caller
+        //! thread is not blocked by the TLS/TCP write and no longer races with
+        //! MQTT_ProcessLoop on the shared mqtt client context.
+        ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
+        /* Only an accepted submission transfers ownership to dp_sync_cb. */
+        need_free_dpvalid = (OPRT_OK != ret);
+        if (OPRT_OK != ret) {
+            tuya_iot_dp_sync_start(client, 5);
+        }
     }
 
     if (need_free_dpvalid) {
@@ -427,7 +440,7 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
         dpin.dp = dp;
         dpin.rept_type = T_RAW_REPT;
 
-        ret = tuya_ble_dp_report(&dpin);
+        ret = tuya_ble_dp_report_async(&dpin);
         return ret;
     }
 #endif
@@ -467,9 +480,9 @@ int tuya_iot_dp_raw_report(tuya_iot_client_t *client, const char *devid, dp_raw_
     if (tuya_lan_is_connected()) {
         char *out = NULL;
         dp_rept_json_append(schema, dpout.dpsjson, NULL, NULL, 0, &out);
-        ret = tuya_lan_dp_report(out);
+        ret = tuya_lan_dp_report_async(out);
         tal_free(out);
-    } 
+    }
     
     if (tuya_iot_is_connected()) {
         ret = tuya_iot_dp_report_json_async(client, dpout.dpsjson, NULL, dp_raw_async_cb, NULL, timeout);

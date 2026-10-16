@@ -164,6 +164,21 @@ int tuya_lan_data_com_send(const int32_t socket, const uint32_t fr_num, const ui
 int tuya_lan_dp_report(char *dpstr);
 
 /**
+ * @brief Queue a DP report for asynchronous LAN delivery.
+ *
+ * @param[in] dpstr The DP report string, same format as tuya_lan_dp_report.
+ *
+ * @return OPRT_OK on queued, others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_lan_dp_report_async(char *dpstr);
+
+/**
+ * @brief Drain the async DP report queue and send the pending reports.
+ */
+void tuya_lan_dp_report_flush(void);
+
+/**
  * @brief judge if lan connect
  *
  * @return TRUE/FALSE

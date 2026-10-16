@@ -37,6 +37,30 @@ extern "C" {
 int tuya_ble_dp_report(dp_rept_in_t *dpin);
 
 /**
+ * @brief Queue a DP report for asynchronous BLE delivery.
+ *
+ * @param[in] dpin The DP report, same layout as tuya_ble_dp_report.
+ *
+ * @return OPRT_OK on queued, others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_ble_dp_report_async(dp_rept_in_t *dpin);
+
+/**
+ * @brief Create the async DP report queue; called from tuya_ble_init.
+ *
+ * @return OPRT_OK on success. Others on error, please refer to
+ * tuya_error_code.h
+ */
+int tuya_ble_dp_report_async_init(void);
+
+/**
+ * @brief Drain and release the async DP report queue; called from
+ * tuya_ble_deinit.
+ */
+void tuya_ble_dp_report_async_release(void);
+
+/**
  * @brief Processes the BLE session data point (DP) packet.
  *
  * This function is responsible for processing the BLE session data point
