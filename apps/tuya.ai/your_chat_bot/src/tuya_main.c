@@ -24,6 +24,7 @@
 #include "tuya_iot_dp.h"
 #include "netmgr.h"
 #include "tkl_output.h"
+#include "tkl_ota.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
@@ -305,6 +306,17 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
+/* ---------------------------------------------------------------------------
+ * OTA 回调注册：绑定平台自带的 tkl_ota 实现（同 switch_demo 写法），
+ * 经 tal_ota_register_cbs 注入 core；不注册即不支持 OTA
+ * （tal_ota_* 返回 OPRT_NOT_SUPPORTED）
+ * --------------------------------------------------------------------------- */
+static const TAL_OTA_CBS_T s_ota_cbs = {
+    .start_notify = tkl_ota_start_notify,
+    .data_process = tkl_ota_data_process,
+    .end_notify   = tkl_ota_end_notify,
+};
+
 void user_main(void)
 {
     int ret = OPRT_OK;
@@ -337,6 +349,10 @@ void user_main(void)
     tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
+
+    /* OTA 回调注入：须在云连接建立前注册，云端升级指令经 core 的 tuya_ota
+     * 流程分发到注册的平台回调（tkl_ota）；不注册的应用即不支持 OTA */
+    tal_ota_register_cbs(&s_ota_cbs);
 
     reset_netconfig_start();
 
