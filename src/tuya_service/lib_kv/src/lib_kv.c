@@ -1,6 +1,6 @@
 /**
- * @file tal_kv.c
- * @brief tal_kv 组件实现：LittleFS 介质 + AES-128-CBC 加密的键值存储，
+ * @file lib_kv.c
+ * @brief lib_kv 组件实现：LittleFS 介质 + AES-128-CBC 加密的键值存储，
  *        并为 core 提供 tal_kv 平台 ops 卡（tal_kv_ops_platform）
  *
  * 交付仓分层定位（C2）：
@@ -33,7 +33,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "tal_kv.h"
+#include "lib_kv.h"
 #include "tal_api.h"
 #include "tal_security.h"
 

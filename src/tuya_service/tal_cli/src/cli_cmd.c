@@ -6,13 +6,17 @@
  * @copyright Copyright (c) Tuya Inc. All Rights Reserved.
  */
 
-#include "netmgr.h"
 #include "tal_api.h"
 #include "tal_cli.h"
+#if defined(CLI_CMD_FS)
 #include "tal_fs.h"
+#endif
 #include "tal_kv.h"
 #include "tal_log.h"
+#include "tal_netif.h"
 #include "tal_sw_timer.h"
+#include "tkl_memory.h"
+#include "tkl_system.h"
 #include "tuya_iot.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
@@ -24,8 +28,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern void netmgr_cmd(int argc, char *argv[]);
-extern void tal_thread_dump_watermark(void);
+/* [交付仓适配] 上游版经 tal_api.h 链带入的若干接口本仓不提供，故：
+ * netmgr 命令组由应用层注册（见 apps/<app>/src/cli_cmd.c 的 netmgr 表项）；
+ * 网络信息走 core 的 tal_netif；heap 走兼容层（tal_system_get_free_heap_size）；
+ * tick/reset_reason/thread watermark 走平台 tkl_*。 */
 
 /* ---------------------------------------------------------------------------
  * Macros
@@ -54,11 +60,10 @@ static void cmd_sys_iot_stop(int argc, char *argv[]);
 static void cmd_sys_iot_restart(int argc, char *argv[]);
 static void cmd_sys_iot_reset(int argc, char *argv[]);
 static void cmd_sys_iot_get_devid(int argc, char *argv[]);
-static void cmd_sys_netmgr(int argc, char *argv[]);
+static void cmd_sys_iot_report_dp(int argc, char *argv[]);
 #if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
 static void cmd_sys_exec(int argc, char *argv[]);
 #endif
-static void cmd_sys_iot_report_dp(int argc, char *argv[]);
 static void cmd_sys_timer_count(int argc, char *argv[]);
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 static void cmd_sys_wifi_info(int argc, char *argv[]);
@@ -85,10 +90,10 @@ static void cmd_kv_del(int argc, char *argv[]);
 static void cmd_kv_list(int argc, char *argv[]);
 #endif /* CLI_CMD_KV */
 
-#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1)
+#if defined(ENABLE_SERIAL_CLI_CMD) && (ENABLE_SERIAL_CLI_CMD == 1) && defined(CLI_CMD_FS)
 static OPERATE_RET cli_fs_list_dir_recursive_(const char *path, int depth, int max_depth, uint32_t *count);
 static void        cli_fs_build_tree_prefix_(int depth, char *out, size_t out_size);
-#endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
+#endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) && CLI_CMD_FS */
 
 /* ---------------------------------------------------------------------------
  * Internal helpers (always available)
@@ -293,31 +298,15 @@ static bool cli_parse_log_level_(const char *text, TAL_LOG_LEVEL_E *level)
 }
 
 /**
- * @brief Format a MAC address for CLI display.
- * @param[in] mac MAC address structure
- * @param[out] out output text buffer
- * @param[in] out_size output buffer size
- * @return none
- */
-static void cli_format_mac_(const NW_MAC_S *mac, char *out, size_t out_size)
-{
-    if (mac == NULL || out == NULL || out_size == 0) {
-        return;
-    }
-
-    snprintf(out, out_size, "%02X:%02X:%02X:%02X:%02X:%02X", mac->mac[0], mac->mac[1], mac->mac[2], mac->mac[3],
-             mac->mac[4], mac->mac[5]);
-}
-
-/**
  * @brief Print current heap information.
  * @return none
  */
 static void cli_print_heap_info_(void)
 {
+    /* tal_system_get_free_heap_size 由兼容层（tal_compat.h）重定向到平台 tkl_* */
     cli_echof_("heap.free         %d", tal_system_get_free_heap_size());
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cli_echof_("psram.free        %d", tal_psram_get_free_heap_size());
+    cli_echof_("psram.free        %d", tkl_system_psram_get_free_heap_size());
 #endif
 }
 
@@ -359,42 +348,19 @@ static void cli_print_wifi_info_(void)
  */
 static void cli_print_network_info_(void)
 {
-    netmgr_status_e status       = NETMGR_LINK_DOWN;
-    NW_IP_S         ip           = {0};
-    NW_MAC_S        mac          = {0};
-    char            mac_text[32] = {0};
-    OPERATE_RET     rt;
+    /* [交付仓适配] 上游经 netmgr_conn_get(NETCONN_AUTO, ...) 取网络信息；本组件
+     * 不依赖 netmgr（netmgr 命令组由应用层注册），IP 走 core 的 tal_netif */
+    NW_IP_S     ip = {0};
+    OPERATE_RET rt;
 
-    rt = netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status);
-    if (rt == OPRT_OK) {
-        cli_echof_("network.status   %s", NETMGR_STATUS_TO_STR(status));
-    } else {
-        cli_echof_("network.status   unavailable (rt=%d)", rt);
-    }
-
-    rt = netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_IP, &ip);
-    if (rt == OPRT_OK) {
-#if defined(ENABLE_IPv6) && (ENABLE_IPv6 == 1)
-        if (IS_NW_IPV6_ADDR(&ip)) {
-            cli_echof_("network.ip       %s", ip.addr.ip6.ip);
-        } else {
-            cli_echof_("network.ip       %s", ip.nwipstr);
-            cli_echof_("network.mask     %s", ip.nwmaskstr);
-            cli_echof_("network.gw       %s", ip.nwgwstr);
-        }
-#else
+    rt = tal_netif_get_ip(&ip);
+    if (rt == OPRT_OK && ip.ip[0] != '\0') {
         cli_echof_("network.ip       %s", ip.ip);
         cli_echof_("network.mask     %s", ip.mask);
         cli_echof_("network.gw       %s", ip.gw);
         cli_echof_("network.dns      %s", ip.dns);
-        cli_echof_("network.dhcp     %s", cli_bool_to_str_(ip.dhcpen == TRUE));
-#endif
-    }
-
-    rt = netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_MAC, &mac);
-    if (rt == OPRT_OK) {
-        cli_format_mac_(&mac, mac_text, sizeof(mac_text));
-        cli_echof_("network.mac      %s", mac_text);
+    } else {
+        cli_echof_("network.ip       unavailable (rt=%d)", rt);
     }
 
     cli_print_wifi_info_();
@@ -505,6 +471,10 @@ static bool cli_kv_value_is_text_(const uint8_t *value, size_t length)
     return true;
 }
 
+/* [交付仓适配] fs 辅助函数依赖 core 的 tal_fs（tal_fopen/tal_dir_* 等）——
+ * 本仓平台没有 tal_fs 卡，CLI_CMD_FS 关闭时这些辅助函数必须一并排除，
+ * 否则链接期会拉入 tal_fs 分发器导致缺 tal_fs_ops_platform 符号 */
+#if defined(CLI_CMD_FS)
 /**
  * @brief Join a parent path and child node name.
  * @param[in] dir parent directory
@@ -713,6 +683,7 @@ static void cli_fs_write_impl_(const char *path, const char *mode, int argc, cha
     tal_free(content_ptr);
     content_ptr = NULL;
 }
+#endif /* CLI_CMD_FS */
 
 #endif /* ENABLE_SERIAL_CLI_CMD && (ENABLE_SERIAL_CLI_CMD == 1) */
 
@@ -784,7 +755,8 @@ static void cmd_sys_status(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    tick_count = tal_system_get_tick_count();
+    /* [交付仓适配] core 无 tal_system_get_tick_count / get_reset_reason，走平台 tkl_* */
+    tick_count = tkl_system_get_tick_count();
     uptime_ms  = tal_system_get_millisecond();
     posix_time = tal_time_get_posix();
     tal_time_get_local_time_custom(posix_time, &tm);
@@ -808,7 +780,7 @@ static void cmd_sys_status(int argc, char *argv[])
     }
     cli_echof_("log.enabled       %s", cli_bool_to_str_(tal_log_is_enabled()));
 
-    reset_reason = tal_system_get_reset_reason(&reason);
+    reset_reason = tkl_system_get_reset_reason(&reason);
     cli_echof_("reset.reason      %d (%s)", (int)reset_reason, (reason != NULL) ? reason : "unknown");
 
     cli_print_heap_info_();
@@ -842,8 +814,9 @@ static void cmd_sys_thread(int argc, char *argv[])
     (void)argv;
 
     tal_cli_echo("--- Thread watermark ---");
-    tal_cli_echo("Note: output appears on log port");
-    tal_thread_dump_watermark();
+    /* [交付仓适配] core 无 tal_thread_dump_watermark；平台侧仅提供
+     * tkl_thread_get_watermark(handle)，无按名字遍历的 dump 接口 */
+    tal_cli_echo("Note: thread watermark dump not supported on this platform");
 }
 
 /**
@@ -886,7 +859,7 @@ static void cmd_sys_tick(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    tick_count = tal_system_get_tick_count();
+    tick_count = tkl_system_get_tick_count();
     uptime_ms  = tal_system_get_millisecond();
     posix_time = tal_time_get_posix();
     tal_time_get_local_time_custom(posix_time, &tm);
@@ -1006,28 +979,6 @@ static void cmd_sys_iot_get_devid(int argc, char *argv[])
     } else {
         tal_cli_echo("device_id: (not available — device not activated)");
     }
-}
-
-/**
- * @brief Forward arguments to the SDK netmgr CLI.
- * @param[in] argc CLI argc
- * @param[in] argv CLI argv
- * @return none
- */
-static void cmd_sys_netmgr(int argc, char *argv[])
-{
-    tal_cli_echo("Note: output appears on log port");
-    if (argc >= 2 && strcmp(argv[1], "help") == 0) {
-        tal_cli_echo("Usage:");
-        tal_cli_echo("  sys_netmgr                           Show connection status");
-        tal_cli_echo("  sys_netmgr wifi up <ssid> <pwd>      Connect to WiFi");
-        tal_cli_echo("  sys_netmgr wifi down                 Disconnect WiFi");
-        tal_cli_echo("  sys_netmgr wifi scan                 Scan nearby APs");
-        tal_cli_echo("  sys_netmgr wired up|down             Wired link control (TBD)");
-        tal_cli_echo("  sys_netmgr switch                    Switch active interface (TBD)");
-        return;
-    }
-    netmgr_cmd(argc, argv);
 }
 
 #if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
@@ -1754,7 +1705,6 @@ static cli_cmd_t s_cli_cmd[] = {
     {.name = "sys_iot_reset", .help = "Reset Tuya IoT activation", .func = cmd_sys_iot_reset},
     {.name = "sys_iot_get_devid", .help = "Get Tuya device ID", .func = cmd_sys_iot_get_devid},
     {.name = "sys_iot_report_dp", .help = "Report DP (bool/int/str)", .func = cmd_sys_iot_report_dp},
-    {.name = "sys_netmgr", .help = "Network manager (output on log port)", .func = cmd_sys_netmgr},
 #if defined(PLATFORM_LINUX) && (PLATFORM_LINUX == 1)
     {.name = "sys_exec", .help = "Execute shell command", .func = cmd_sys_exec},
 #endif

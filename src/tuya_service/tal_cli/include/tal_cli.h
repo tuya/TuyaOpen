@@ -22,6 +22,8 @@ extern "C" {
 
 #include "stdint.h"
 
+#include "tal_compat.h"
+
 /**
  * @brief callback for one cli command
  *

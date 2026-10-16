@@ -1,6 +1,9 @@
 ##
 # @file CMakeLists.txt
-# @brief 
+# @brief tal_sleep：CPU 睡眠/低功耗管理（上游 tal_system 的一部分，core 有意
+#        未纳入——tal_wifi 的低功耗接口（tal_wifi_lp_enable/disable）依赖其
+#        tal_cpu_lp_enable/disable，故随 tal_wifi 一并恢复；实现走平台
+#        tkl_cpu_sleep_mode_set（platform/LINUX 已有）
 #/
 
 # MODULE_PATH
@@ -10,21 +13,10 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-set(LIB_SRCS ${MODULE_PATH}/src/tal_kv.c ${MODULE_PATH}/src/kv_serialize.c)
+aux_source_directory(${MODULE_PATH}/src LIB_SRCS)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
-
-set(LIB_PRIVATE_INC  ${MODULE_PATH}/port)
-
-# [交付仓收编] 存储后端固定为 TuyaOpen 自带 littlefs（随组件编入）：
-# 本仓平台没有 tal_fs 卡，上游的 ENABLE_FILE_SYSTEM（键=平台文件系统里的文件）
-# 分支不可用，tal_kv.c 只保留 littlefs 直连路径。
-set(LITTLEFS ${MODULE_PATH}/littlefs/lfs_util.c ${MODULE_PATH}/littlefs/lfs.c)
-list(APPEND LIB_SRCS ${LITTLEFS})
-list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/littlefs)
-add_definitions(-DLFS_CONFIG=lfs_config.h)
-
 
 ########################################
 # Target Configure

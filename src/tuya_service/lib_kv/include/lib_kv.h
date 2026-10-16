@@ -1,23 +1,29 @@
 /**
- * @file tal_kv.h
- * @brief 交付仓 tal_kv 组件对外头（src/tuya_service/tal_kv）：上游风格的 KV 门面。
+ * @file lib_kv.h
+ * @brief 交付仓 lib_kv 组件对外头（src/tuya_service/lib_kv）：core 的 tal_kv 接口在本仓的上游风格门面。
  *
  * 说明（交付仓分层，C2）：
  *  - KV 的 4 个公开 API（tal_kv_init/set/get/del）由 core 持有并分发
  *    （tuyaopen-core iot-core/tal_system/tal_kv.c → tal_kv_ops_platform），
- *    此处保留其声明：本头在 include 路径上先于 core 的 tal_kv.h 被命中，
- *    上游风格代码（#include "tal_kv.h"）据此拿到完整 API 面；
+ *    此处保留其声明，供组件内部与直接包含本头的调用方使用；
  *  - tal_kv_cfg_t / TAL_LV_KEY_LEN 来自契约层 tal_kv_ops.h（平台
  *    port/interface/，core 与组件共用的同一份定义，不再重复定义）；
  *  - 本头另导出组件侧扩展：kv_db_t 序列化（kv_serialize.c）、tal_kv_free、
  *    tal_kv_cmd（tal_cli 的 kv 命令）、tal_lfs_get（audio_player 等直接用
  *    lfs 的调用方）。
  *
+ * 命名（与 core 的 tal_kv.h 并存，刻意区分）：core 侧另有一份**同名内容不同**的
+ * tal_kv.h（只有 4 个 API）。同名文件共存会让 `#include "tal_kv.h"` 命中不确定
+ * （core 的 tal_api.h 用引号包含优先命中自己同目录那份）；同名保护宏还会让后
+ * 包含的一方整份跳过。故本头文件名与保护宏均带 COMPONENT 后缀；
+ * 兼容层 tal_compat.h 统一包含本头，使 `#include "tal_kv.h"` 的上游代码
+ * （app/组件）仍能拿到完整 API 面。
+ *
  * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
-#ifndef __TAL_KV_H__
-#define __TAL_KV_H__
+#ifndef __LIB_KV_H__
+#define __LIB_KV_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,6 +125,10 @@ int tal_kv_del(const char *key);
  */
 int tal_kv_free(uint8_t *value);
 
+/* 兼容层：本头在 core 版 tal_kv.h 被遮蔽时，借 tal_compat.h 带入其余上游接口
+ * （tal_system_get_free_heap_size / tal_psram_* 等） */
+#include "tal_compat.h"
+
 /**
  * @brief Serializes and sets the value of a key in the key-value database.
  *
@@ -159,4 +169,4 @@ lfs_t *tal_lfs_get(void);
 }
 #endif
 
-#endif /* __TAL_KV_H__ */
+#endif /* __LIB_KV_H__ */

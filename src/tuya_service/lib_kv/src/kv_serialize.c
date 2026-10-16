@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "tuya_cloud_types.h"
-#include "tal_kv.h"
+#include "lib_kv.h"
 #include "tal_api.h"
 #include "cJSON.h"
 #include "mix_method.h"

@@ -1,7 +1,7 @@
 [submodule "src/tal_kv/littlefs"]
 	# 名称沿用旧路径（复用 .git/modules/src/tal_kv/littlefs），检出路径随组件
 	# 收编到 src/tuya_service/tal_kv
-	path = src/tuya_service/tal_kv/littlefs
+	path = src/tuya_service/lib_kv/littlefs
 	url = https://github.com/littlefs-project/littlefs.git
 [submodule "tuyaopen-core"]
 	path = tuyaopen-core

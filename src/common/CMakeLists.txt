@@ -28,27 +28,35 @@ endif()
 ########################################
 # Target Configure
 ########################################
-add_library(${MODULE_NAME})
+# [tuyaopen-core integration] 本组件可能"零源文件"：utilities/backoffAlgorithm 已由 core
+# 顶替，只剩 qrcode，而 qrcode 受 CONFIG_ENABLE_QRCODE 门控（默认 n，仅部分板 select）。
+# 无源文件时 CMake 的 add_library 会报 "No SOURCES given to target: common"（ESP32 板即如此），
+# 故按需建 target；头路径照常上抛（common/include 另由根 CMakeLists 直接挂给
+# tuyaopen-headers，不依赖本 target）。
+if (LIB_SRCS)
+    add_library(${MODULE_NAME})
 
-target_sources(${MODULE_NAME}
-    PRIVATE
-        ${LIB_SRCS}
-    )
+    target_sources(${MODULE_NAME}
+        PRIVATE
+            ${LIB_SRCS}
+        )
 
-target_include_directories(${MODULE_NAME}
-    PRIVATE
-        ${LIB_PRIVATE_INC}
+    target_include_directories(${MODULE_NAME}
+        PRIVATE
+            ${LIB_PRIVATE_INC}
 
-    PUBLIC
-        ${LIB_PUBLIC_INC}
-    )
+        PUBLIC
+            ${LIB_PUBLIC_INC}
+        )
 
 
-########################################
-# Layer Configure
-########################################
-list(APPEND COMPONENT_LIBS ${MODULE_NAME})
-set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
+    ########################################
+    # Layer Configure
+    ########################################
+    list(APPEND COMPONENT_LIBS ${MODULE_NAME})
+    set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
+endif()
+
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
 

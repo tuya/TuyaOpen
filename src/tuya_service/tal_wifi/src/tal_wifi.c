@@ -14,6 +14,7 @@
 #include "tuya_iot_config.h"
 #include "tal_wifi.h"
 #include "tal_api.h"
+#include "tal_sleep.h"
 #if defined(TUYA_HOSTAPD_SUPPORT) && (TUYA_HOSTAPD_SUPPORT == 1)
 #include "tuya_wlan_auth.h"
 #endif
