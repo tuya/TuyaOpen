@@ -1,6 +1,7 @@
 menu "AI Agent Config"
 	config AI_INPUT_STACK_SIZE
 		int "AI_INPUT_STACK_SIZE: input stack size"
+        default 65536 if ENABLE_TUYAOPEN_OPUS && ENABLE_TUYA_CODEC_OPUS && !ENABLE_TUYA_CODEC_OPUS_IPC
         default 4608
     config AI_INPUT_RINGBUF_SIZE
         int "AI_INPUT_RING_BUF_SIZE: input ringbuf size"
