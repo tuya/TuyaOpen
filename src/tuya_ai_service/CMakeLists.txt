@@ -13,6 +13,8 @@ set(LIB_SRCS)
 set(LIB_PUBLIC_INC)
 set(LIB_PRIVATE_INC)
 
+add_subdirectory(${MODULE_PATH}/thirdparty)
+
 # tuya ai port start
 list(APPEND LIB_PUBLIC_INC ${MODULE_PATH}/port/include)
 file(GLOB_RECURSE AI_PORT_SRC "${MODULE_PATH}/port/src/*.c")
