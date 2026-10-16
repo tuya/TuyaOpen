@@ -23,9 +23,10 @@
 #include "stdio.h"
 #include "ble_channel.h"
 
-#define BLE_WIFI_LIST_MAX_CNT    10
-#define BLE_WIFI_LIST_BUF_SIZE   1024
-#define BLE_WIFI_LIST_AP_RESERVE 96
+#define BLE_WIFI_LIST_MAX_CNT      10
+#define BLE_WIFI_LIST_BUF_SIZE     1024
+#define BLE_WIFI_LIST_AP_RESERVE   128
+#define BLE_WIFI_LIST_SSID_ESC_LEN ((WIFI_SSID_LEN * 2) + 1)
 #define BLE_WIFI_LIST_CACHE_TTL_MS (60 * 1000)
 
 typedef struct {
@@ -55,14 +56,31 @@ static void __ble_wifi_list_sort(AP_IF_S *ap_arr, uint32_t ap_num)
     }
 }
 
+static void __ble_wifi_list_cache_free_task(void *data)
+{
+    AP_IF_S *ap_arr = (AP_IF_S *)data;
+
+    if (ap_arr) {
+        tal_wifi_release_ap(ap_arr);
+    }
+}
+
 void ble_wifi_list_cache_clear(void)
 {
-    if (s_ap_cache) {
-        tal_wifi_release_ap(s_ap_cache);
-        s_ap_cache = NULL;
-    }
+    AP_IF_S *stale = s_ap_cache;
+
+    s_ap_cache      = NULL;
     s_ap_cache_num  = 0;
     s_ap_cache_time = 0;
+
+    if (NULL == stale) {
+        return;
+    }
+
+    /* the walk runs on WORKQ_SYSTEM, so queue the free behind it; keep the reader on that queue */
+    if (OPRT_OK != tal_workq_schedule(WORKQ_SYSTEM, __ble_wifi_list_cache_free_task, stale)) {
+        PR_ERR("schedule ap cache free err");
+    }
 }
 
 void ble_wifi_list_enable(bool enable)
@@ -117,6 +135,38 @@ static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
     return OPRT_OK;
 }
 
+/* escape quotes, backslashes and control chars so an ssid cannot break the json */
+static uint32_t __ble_wifi_list_escape(const uint8_t *src, uint32_t src_len, char *dst, uint32_t dst_size)
+{
+    uint32_t i;
+    uint32_t offset = 0;
+
+    for (i = 0; i < src_len; i++) {
+        uint8_t ch = src[i];
+
+        if ('"' == ch || '\\' == ch) {
+            if (offset + 2 >= dst_size) {
+                break;
+            }
+            dst[offset++] = '\\';
+            dst[offset++] = (char)ch;
+        } else if (ch < 0x20) {
+            if (offset + 6 >= dst_size) {
+                break;
+            }
+            offset += (uint32_t)snprintf(dst + offset, dst_size - offset, "\\u%04x", (unsigned)ch);
+        } else {
+            if (offset + 1 >= dst_size) {
+                break;
+            }
+            dst[offset++] = (char)ch;
+        }
+    }
+    dst[offset] = '\0';
+
+    return offset;
+}
+
 static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt)
 {
     AP_IF_S *ap_arr = NULL;
@@ -124,7 +174,8 @@ static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt
     uint32_t offset = 0;
     uint32_t loop   = 0;
     bool     first  = true;
-    int      n      = 0;
+    char     ssid[BLE_WIFI_LIST_SSID_ESC_LEN];
+    int      n = 0;
 
     if (!s_wifi_list_enable || OPRT_OK != __ble_wifi_list_ap_get(&ap_arr, &ap_num) || NULL == ap_arr || 0 == ap_num) {
         n = snprintf(json, size, "{\"wifi_list\":[]}");
@@ -146,8 +197,9 @@ static uint32_t __ble_wifi_list_make(char *json, uint32_t size, uint32_t max_cnt
         if (!first) {
             offset += (uint32_t)snprintf(json + offset, size - offset, ",");
         }
-        offset += (uint32_t)snprintf(json + offset, size - offset, "{\"ssid\":\"%s\",\"rssi\":%d,\"sec\":%u}",
-                                     (char *)ap_arr[loop].ssid, ap_arr[loop].rssi, (unsigned)ap_arr[loop].security);
+        __ble_wifi_list_escape(ap_arr[loop].ssid, (uint32_t)strlen((char *)ap_arr[loop].ssid), ssid, sizeof(ssid));
+        offset += (uint32_t)snprintf(json + offset, size - offset, "{\"ssid\":\"%s\",\"rssi\":%d,\"sec\":%u}", ssid,
+                                     ap_arr[loop].rssi, (unsigned)ap_arr[loop].security);
         first = false;
     }
     offset += (uint32_t)snprintf(json + offset, size - offset, "]}");
