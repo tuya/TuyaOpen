@@ -43,6 +43,14 @@ config ENABLE_BLUETOOTH
     bool
     default y
 
+# The adapter implements tkl_bluetooth but not tkl_hci, and the NimBLE host
+# needs the latter: src/tal_bluetooth/nimble/host/ble_hs.c includes tkl_hci.h,
+# which no Jieli adapter provides. ENABLE_NIMBLE defaults to y in
+# src/tuya_cloud_service/Kconfig, so a board that cannot host NimBLE has to say
+# so rather than fail on a missing header. GD32 takes the same opt-out.
+config ENABLE_NIMBLE
+    default n
+
 config ENABLE_FLASH
     bool
     default y
