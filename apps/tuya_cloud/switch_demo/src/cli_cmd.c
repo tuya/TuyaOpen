@@ -26,6 +26,7 @@
  */
 
 #include "tal_api.h"
+#include "tal_cli.h"
 #include "tuya_iot.h"
 #include <stdlib.h>
 
@@ -102,7 +103,7 @@ static void system_cmd(int argc, char *argv[])
 static void mem(int argc, char *argv[])
 {
     int free_heap = 0;
-    free_heap = tal_system_get_free_heap_size();
+    free_heap     = tal_system_get_free_heap_size();
     PR_NOTICE("cur free heap: %d", free_heap);
 }
 
@@ -143,16 +144,14 @@ static void stop(int argc, char *argv[])
  * @brief cli cmd list
  *
  */
-static cli_cmd_t s_cli_cmd[] = {
-    {.name = "switch", .func = switch_test, .help = "switch test"},
-    {.name = "kv", .func = tal_kv_cmd, .help = "kv test"},
-    {.name = "sys", .func = system_cmd, .help = "system  cmd"},
-    {.name = "reset", .func = reset, .help = "reset iot"},
-    {.name = "stop", .func = stop, .help = "stop iot"},
-    {.name = "start", .func = start, .help = "start iot"},
-    {.name = "mem", .func = mem, .help = "mem size"},
-    {.name = "netmgr", .func = netmgr_cmd, .help = "netmgr cmd"}
-};
+static cli_cmd_t s_cli_cmd[] = {{.name = "switch", .func = switch_test, .help = "switch test"},
+                                {.name = "kv", .func = tal_kv_cmd, .help = "kv test"},
+                                {.name = "sys", .func = system_cmd, .help = "system  cmd"},
+                                {.name = "reset", .func = reset, .help = "reset iot"},
+                                {.name = "stop", .func = stop, .help = "stop iot"},
+                                {.name = "start", .func = start, .help = "start iot"},
+                                {.name = "mem", .func = mem, .help = "mem size"},
+                                {.name = "netmgr", .func = netmgr_cmd, .help = "netmgr cmd"}};
 
 /**
  * @brief

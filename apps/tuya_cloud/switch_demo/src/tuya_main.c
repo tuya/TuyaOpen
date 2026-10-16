@@ -14,6 +14,7 @@
 #include "netmgr.h"
 #include "tal_api.h"
 #include "tkl_output.h"
+#include "tkl_ota.h"
 #include "tuya_config.h"
 #include "tuya_iot.h"
 #include "tuya_iot_dp.h"
@@ -244,6 +245,14 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     }
 }
 
+/* OTA 回调注册：绑定平台自带的 tkl_ota 实现，经 tal_ota_register_cbs 注入 core；
+ * 不注册即不支持 OTA（tal_ota_* 返回 OPRT_NOT_SUPPORTED） */
+static const TAL_OTA_CBS_T s_ota_cbs = {
+    .start_notify = tkl_ota_start_notify,
+    .data_process = tkl_ota_data_process,
+    .end_notify   = tkl_ota_end_notify,
+};
+
 /**
  * @brief user defined network check callback, it will check the network every
  * 1sec, in this demo it alwasy return ture due to it's a wired demo
@@ -291,6 +300,10 @@ void user_main(void)
     tuya_authorize_init();
     tuya_app_cli_init();
 #endif
+
+    /* OTA 回调注入：须在云连接建立前注册（云端升级指令经 core 的 tuya_ota
+     * 流程分发到注册的平台回调 tkl_ota） */
+    tal_ota_register_cbs(&s_ota_cbs);
 
     reset_netconfig_start();
 
