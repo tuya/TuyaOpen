@@ -8,7 +8,7 @@
  * BLE sessions, and processing received BLE packets. It also includes
  * encryption and decryption of BLE packets for secure communication.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -21,6 +21,10 @@
 #include "ble_dp.h"
 #include "mix_method.h"
 #include "ble_channel.h"
+#include "ble_wifi_list.h"
+#ifdef ENABLE_WIFI_BACKUP
+#include "ble_wifi_backup.h"
+#endif
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
@@ -613,7 +617,12 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         ble_data.p_data = pbuf;
         ble_data.len = send_len;
 
-        TUYA_CALL_ERR_GOTO(tal_ble_server_common_send(&ble_data), __exit);
+        int send_ret = tal_ble_server_common_send(&ble_data);
+        if (OPRT_OK != send_ret) {
+            PR_ERR("bt hal send fail.%d", send_ret);
+            rt = send_ret;
+            goto __exit;
+        }
         tal_system_sleep(20);
     } while (rt == OPRT_SVC_BT_API_TRSMITR_CONTINUE);
 
@@ -649,6 +658,10 @@ __exit:
 int tuya_ble_send_packet(ble_packet_t *packet)
 {
     tuya_ble_mgr_t *ble = s_ble_mgr;
+
+    if (NULL == ble) {
+        return OPRT_OK;
+    }
 
     if (!ble->is_paired) {
         PR_NOTICE("ble not paired");
@@ -820,7 +833,7 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     //  support. bit1: 1 - Supports reporting of various states during network
     //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
     //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = 0;
+    pbuf[payload_len++] = ble_wifi_list_is_enable() ? (uint8_t)(1 << 0) : 0;
 
     return payload_len;
 }
@@ -937,8 +950,7 @@ static TAL_BLE_EVT_PARAMS_T * ble_event_msg_copy(TAL_BLE_EVT_PARAMS_T *evt)
     memcpy(msg, evt, sizeof(TAL_BLE_EVT_PARAMS_T));
 
     if (TAL_BLE_EVT_WRITE_REQ == evt->type && evt->ble_event.write_report.report.len > 0) {
-        msg->ble_event.write_report.report.p_data =
-            tal_malloc(evt->ble_event.write_report.report.len);
+        msg->ble_event.write_report.report.p_data = tal_malloc(evt->ble_event.write_report.report.len);
         if (NULL == msg->ble_event.write_report.report.p_data) {
             tal_free(msg);
             return NULL;
@@ -1083,6 +1095,11 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_SYSTEM);
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
+    ble_channel_del(BLE_CHANNLE_WIFI_LST);
+    ble_wifi_list_cache_clear();
+#ifdef ENABLE_WIFI_BACKUP
+    ble_wifi_backup_unregister();
+#endif
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;
@@ -1165,6 +1182,10 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_SYSTEM, ble_session_system_process, ble);
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
+    ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
+#ifdef ENABLE_WIFI_BACKUP
+    ble_wifi_backup_register();
+#endif
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
     PR_NOTICE("tuya ble init success finish");
