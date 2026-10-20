@@ -221,11 +221,106 @@ class JieliTalContractTest(unittest.TestCase):
         self.assertIn("native_result:%d", request_source)
         self.assertNotIn("result != 0 && s_wifi_event_cb", request_source)
 
-    def test_wifi_low_power_is_a_safe_noop_on_wl82(self):
+    def test_wifi_low_power_reaches_the_vendor_gate_on_wl82(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
         start = source.index("OPERATE_RET tkl_wifi_set_lp_mode")
         end = source.index("OPERATE_RET tkl_wifi_station_fast_connect", start)
-        self.assertIn("return OPRT_OK", source[start:end])
+        body = source[start:end]
+        # The radio is gated by the SDK's own Wi-Fi sleep lock - the pair
+        # apps/common/example/wifi/low_power/main.c toggles, commented
+        # "不允许WIFI进入休眠" / "允许WIFI进入休眠". It is counted inside the SDK,
+        # so it may only be touched on a state change.
+        self.assertIn("low_power_hw_unsleep_lock()", body)
+        self.assertIn("low_power_hw_unsleep_unlock()", body)
+        self.assertIn("s_rf_awake_held", body)
+
+    def test_wifi_low_power_refuses_a_dtim_it_cannot_apply(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_set_lp_mode")
+        end = source.index("OPERATE_RET tkl_wifi_station_fast_connect", start)
+        body = source[start:end]
+        # The SDK's other knob is the listen interval, a different 802.11
+        # dimension from the AP's DTIM period, and no mapping between them is
+        # established. Answering OPRT_OK to every value would tell the power
+        # manager that CEC_T20 (dtim 1) and ULP_ONLINE (dtim 10) reached
+        # different depths when both run the same strategy.
+        self.assertIn("JIELI_WIFI_LP_MAX_DTIM", source)
+        self.assertIn("dtim > JIELI_WIFI_LP_MAX_DTIM", body)
+        self.assertIn("return OPRT_NOT_SUPPORTED;", body)
+        # Refused before any state is touched.
+        self.assertLess(
+            body.index("return OPRT_NOT_SUPPORTED;"),
+            body.index("tkl_mutex_lock"),
+        )
+        # The parameter must not be silently forwarded to the SDK.
+        self.assertNotIn("(void)dtim;", body)
+
+    def test_wifi_low_power_uses_the_listen_policy_on_wl83(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_wifi_set_lp_mode")
+        end = source.index("OPERATE_RET tkl_wifi_station_fast_connect", start)
+        body = source[start:end]
+        # WL83 has no RF keep-awake symbol anywhere in cpu/wl83/liba, so the
+        # runtime control is the beacon listening policy from wl_wifi_sta.a.
+        self.assertIn("wifi_psmode_enable_listen_dtim()", body)
+        self.assertIn("wl_enable_listen_each_tim()", body)
+        # The RF sleep lock is the WL82 branch only.
+        self.assertLess(body.index("low_power_hw_unsleep_lock()"), body.index("#else"))
+        self.assertLess(body.index("#else"), body.index("wifi_psmode_enable_listen_dtim()"))
+
+    def test_wifi_power_save_symbols_are_declared_from_a_vendor_source(self):
+        source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")
+        start = source.index("Wi-Fi station power save.")
+        end = source.index("OPERATE_RET tkl_wifi_set_lp_mode", start)
+        block = source[start:end]
+        # No header declares these, so the prototypes are restated here. The
+        # comment has to name where each set comes from: the WL82 setters are
+        # in the staged apps/common/net/wifi_conf.c, the WL83 ones are library
+        # symbols the vendor documents in a comment beside its own copy.
+        self.assertIn("extern void wl_enabled_listen_dtim(void);", block)
+        self.assertIn("extern void wl_enabled_listen_each_tim(void);", block)
+        self.assertIn("extern void wifi_psmode_enable_listen_dtim(void);", block)
+        self.assertIn("apps/common/net/wifi_conf.c", block)
+        self.assertIn("wl_wifi_sta.a", block)
+
+    def test_sleep_tkl_uses_the_per_chip_vendor_primitive(self):
+        source = (ADAPTER / "src/system/tkl_sleep.c").read_text(encoding="utf-8")
+        # WL82 counts lock/unlock; WL83 has only a global enable/disable.
+        self.assertIn("low_power_sys_unsleep_lock()", source)
+        self.assertIn("low_power_sys_unsleep_unlock()", source)
+        self.assertIn("low_power_disable()", source)
+        self.assertIn("low_power_enable()", source)
+
+    def test_sleep_tkl_refuses_deep_sleep_instead_of_degrading_it(self):
+        source = (ADAPTER / "src/system/tkl_sleep.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_cpu_sleep_mode_set")
+        end = source.index("OPERATE_RET tkl_cpu_sleep_callback_register", start)
+        body = source[start:end]
+        # A caller that asked for deep sleep must not be told it got an
+        # ordinary one.
+        self.assertIn("TUYA_CPU_SLEEP != mode", body)
+        self.assertIn("return OPRT_NOT_SUPPORTED;", body)
+
+    def test_sleep_tkl_calls_the_vendor_api_only_on_a_state_change(self):
+        source = (ADAPTER / "src/system/tkl_sleep.c").read_text(encoding="utf-8")
+        helper_start = source.index("static OPERATE_RET jieli_sleep_allowed_set")
+        helper_end = source.index("void tkl_system_sleep", helper_start)
+        helper = source[helper_start:helper_end]
+        # The vendor pair is counted (WL82) or a global switch (WL83), so a
+        # second call without a matching one would leave the core stuck awake.
+        self.assertIn("if (s_sleep_allowed == allow)", helper)
+        self.assertLess(
+            helper.index("if (s_sleep_allowed == allow)"),
+            helper.index("low_power_sys_unsleep_lock()"),
+        )
+
+    def test_sleep_tkl_keeps_the_callback_registration_unsupported(self):
+        source = (ADAPTER / "src/system/tkl_sleep.c").read_text(encoding="utf-8")
+        start = source.index("OPERATE_RET tkl_cpu_sleep_callback_register")
+        end = source.index("void tkl_cpu_allow_sleep", start)
+        # Neither SDK exposes a usable pre/post sleep hook to an adapter, so
+        # this stays refused rather than pretending a callback is installed.
+        self.assertIn("return OPRT_NOT_SUPPORTED;", source[start:end])
 
     def test_wifi_softap_mode_is_started_by_ap_config(self):
         source = (ADAPTER / "src/driver/tkl_wifi.c").read_text(encoding="utf-8")

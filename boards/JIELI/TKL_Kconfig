@@ -62,3 +62,17 @@ config ENABLE_GPIO
 config ENABLE_ADC
     bool
     default y
+
+# tkl_sleep is real on both chips now: WL82 holds the core awake with
+# low_power_sys_unsleep_lock()/unlock(), WL83 with low_power_disable()/enable(),
+# and tkl_wifi_set_lp_mode() drives the radio's sleep gate. T5AI and T3 declare
+# the same symbol and nothing consumes it - it records what the adapter
+# implements, which is what this file is for.
+#
+# It does NOT mean a build sleeps by default. The board's own low-power macro
+# stays at the vendor's sleep-closed value unless CONFIG_ENABLE_TUYA_PM asks for
+# the power manager, so the runtime path is only reachable when a product wants
+# it.
+config ENABLE_PM
+    bool
+    default y
