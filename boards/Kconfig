@@ -38,7 +38,7 @@ config BOARD_ENABLE_L511G
     bool
     default y
 
-config BOARD_ENABLE_L511C
+config BOARD_ENABLE_L511C_Y6E
     bool
     default y
 
@@ -128,11 +128,11 @@ if (BOARD_ENABLE_L511G)
     endif
 endif
 
-if (BOARD_ENABLE_L511C)
-    config BOARD_CHOICE_L511C
-        bool "L511C"
-    if (BOARD_CHOICE_L511C)
-    rsource "./L511C/Kconfig"
+if (BOARD_ENABLE_L511C_Y6E)
+    config BOARD_CHOICE_L511C_Y6E
+        bool "L511C_Y6E"
+    if (BOARD_CHOICE_L511C_Y6E)
+    rsource "./L511C_Y6E/Kconfig"
     endif
 endif
 
