@@ -28,11 +28,11 @@ config OPUS_BENCH_HIGH_RES
 
 config OPUS_BENCH_PROFILE
     bool "Profile fixed-point SILK stages and bitrate-control iterations"
-    depends on ENABLE_TUYAOPEN_OPUS && (OPUS_BENCH_HIGH_RES || PLATFORM_CHOICE = "L511G")
+    depends on ENABLE_TUYAOPEN_OPUS && (OPUS_BENCH_HIGH_RES || PLATFORM_CHOICE = "L511G_Y7PM")
     default n
     help
         Adds timing callbacks to a generated build-tree copy of SILK.
-        L511G uses millisecond ticks; accumulate many frames to identify
+        L511G_Y7PM uses millisecond ticks; accumulate many frames to identify
         large hotspots. Sub-millisecond calls may measure as zero.
         Profiling adds overhead; disable it for baseline library comparisons.
 
