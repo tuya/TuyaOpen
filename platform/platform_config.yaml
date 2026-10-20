@@ -48,3 +48,8 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-LYNQ
   branch: L511G
   commit: 73caed6cad0d922e84566490a7cc8a40e76f82b0
+
+- name: L511C
+  repo: https://github.com/tuya/TuyaOpen-LYNQ
+  branch: L511C
+  commit: 8e844a4c2c9be3235d79520f0aa8c0bf14d0b9b3
