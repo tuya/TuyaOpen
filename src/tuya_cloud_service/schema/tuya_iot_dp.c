@@ -78,6 +78,11 @@ void tuya_iot_dp_sync_process(void *data)
         return;
     }
 
+    /* No pending local DPs is a successful no-op, not a failed submission. */
+    if (NULL == dpvalid && NULL == dpsjson) {
+        return;
+    }
+
     ret = tuya_iot_dp_report_json_async(client, dpsjson, NULL, dp_sync_cb, dpvalid, 5000);
     if (OPRT_OK != ret) {
         /* Rejected submissions do not invoke dp_sync_cb. */
