@@ -8,6 +8,7 @@ import re
 import sys
 import click
 import subprocess
+import locale
 
 from tools.cli_command.util import (
     get_logger, get_global_params, check_proj_dir,
@@ -122,10 +123,13 @@ def _do_flash_pipe(cmd: str) -> int:
     on_progress_line = False
 
     try:
+        # On Windows, tyutool and external tools may output ANSI/OEM bytes (e.g. GBK/CP936) or UTF-8.
+        # Use errors="replace" so non-decodable bytes never throw UnicodeDecodeError.
+        encoding = "utf-8" if sys.platform != "win32" else (locale.getpreferredencoding(False) or "utf-8")
         proc = subprocess.Popen(
             cmd, shell=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1,
+            text=True, encoding=encoding, errors="replace", bufsize=1,
         )
         for line in proc.stdout:
             line = line.rstrip('\n').rstrip('\r')
