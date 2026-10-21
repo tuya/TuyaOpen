@@ -166,5 +166,70 @@ class TestDoFlashSubprocessDispatch(unittest.TestCase):
         self.assertEqual(ret, 0)
 
 
+# ---------------------------------------------------------------------------
+# Stream decoding & safe print (Windows CP936 / UTF-8 robustness)
+# ---------------------------------------------------------------------------
+
+class TestStreamDecodingAndSafePrint(unittest.TestCase):
+
+    def test_decode_utf8_chinese(self):
+        import tools.cli_command.cli_flash as m
+        raw = '这是一个测试中文字符串'.encode('utf-8')
+        decoded = m._decode_stream_line(raw)
+        self.assertEqual(decoded, '这是一个测试中文字符串')
+
+    def test_decode_gbk_chinese(self):
+        import tools.cli_command.cli_flash as m
+        with patch('tools.cli_command.cli_flash.sys.platform', 'win32'), \
+             patch('tools.cli_command.cli_flash.locale.getpreferredencoding',
+                   return_value='cp936'):
+            raw = '这是一个测试中文字符串'.encode('gbk')
+            decoded = m._decode_stream_line(raw)
+            self.assertEqual(decoded, '这是一个测试中文字符串')
+
+    def test_decode_malformed_lone_byte(self):
+        import tools.cli_command.cli_flash as m
+        with patch('tools.cli_command.cli_flash.sys.platform', 'win32'), \
+             patch('tools.cli_command.cli_flash.locale.getpreferredencoding',
+                   return_value='cp936'):
+            raw = b'err: \xd2 test\n'
+            decoded = m._decode_stream_line(raw)
+            self.assertIn('\ufffd', decoded)
+            self.assertTrue(decoded.startswith('err:'))
+
+    def test_safe_print_does_not_crash_on_strict_gbk_stream(self):
+        import tools.cli_command.cli_flash as m
+
+        class FakeStrictGbkStdout(io.TextIOWrapper):
+            def __init__(self):
+                super().__init__(io.BytesIO(), encoding='gbk', errors='strict')
+
+        mock_stdout = FakeStrictGbkStdout()
+        with patch('tools.cli_command.cli_flash.sys.stdout', mock_stdout):
+            # Print string containing \ufffd that cannot be represented in GBK
+            m._safe_print('err: \ufffd test')
+            # Print Chinese string that can be represented in GBK
+            m._safe_print('中文测试')
+            mock_stdout.flush()
+
+        output_bytes = mock_stdout.buffer.getvalue()
+        self.assertIn(b'err: ? test\n', output_bytes)
+        self.assertIn('中文测试'.encode('gbk'), output_bytes)
+
+    def test_pipe_runs_with_byte_streams_without_error(self):
+        # End-to-end pipe test with byte lines containing both valid UTF-8 and lone 0xd2
+        lines = [
+            b'[phase] Handshake\r\n',
+            b'[progress] 50%\r\n',
+            b'err: \xd2 test\r\n',
+            '这是一个UTF-8测试\n'.encode('utf-8'),
+        ]
+        ret, out = _run_pipe(lines, returncode=0)
+        self.assertEqual(ret, 0)
+        self.assertIn('[phase] Handshake', out)
+        self.assertIn('50%', out)
+        self.assertIn('这是一个UTF-8测试', out)
+
+
 if __name__ == '__main__':
     unittest.main()

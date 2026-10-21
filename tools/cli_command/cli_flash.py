@@ -117,22 +117,57 @@ def _do_flash_pty(cmd: str) -> int:
     return proc.returncode
 
 
+def _decode_stream_line(raw) -> str:
+    """Decode a stream line from subprocess, handling UTF-8, GBK/CP936, and malformed bytes."""
+    if isinstance(raw, str):
+        return raw.rstrip('\r\n')
+    raw = raw.rstrip(b'\r\n')
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError:
+        pass
+    if sys.platform == "win32":
+        pref = locale.getpreferredencoding(False) or 'utf-8'
+        try:
+            return raw.decode(pref)
+        except (UnicodeDecodeError, LookupError):
+            pass
+    return raw.decode('utf-8', errors='replace')
+
+
+def _safe_print(line: str) -> None:
+    """Safely print a string to stdout, handling terminal encoding limitations (e.g. \\ufffd on CP936)."""
+    try:
+        print(line, flush=True)
+    except UnicodeEncodeError:
+        encoding = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+        if hasattr(sys.stdout, 'buffer'):
+            sys.stdout.buffer.write(line.encode(encoding, errors='replace') + b'\n')
+            sys.stdout.buffer.flush()
+        else:
+            print(line.encode('ascii', errors='replace').decode('ascii'), flush=True)
+
+
 def _do_flash_pipe(cmd: str) -> int:
     logger = get_logger()
     last_pct = -1
     on_progress_line = False
 
+    # On Windows, configure stdout to replace unencodable characters instead of crashing
+    if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(errors="replace")
+        except Exception:
+            pass
+
     try:
-        # On Windows, tyutool and external tools may output ANSI/OEM bytes (e.g. GBK/CP936) or UTF-8.
-        # Use errors="replace" so non-decodable bytes never throw UnicodeDecodeError.
-        encoding = "utf-8" if sys.platform != "win32" else (locale.getpreferredencoding(False) or "utf-8")
         proc = subprocess.Popen(
             cmd, shell=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding=encoding, errors="replace", bufsize=1,
+            bufsize=1,
         )
-        for line in proc.stdout:
-            line = line.rstrip('\n').rstrip('\r')
+        for raw_line in proc.stdout:
+            line = _decode_stream_line(raw_line)
 
             m = _PROGRESS_RE.match(line)
             if m:
@@ -149,14 +184,14 @@ def _do_flash_pipe(cmd: str) -> int:
                 if on_progress_line:
                     sys.stdout.write('\n')
                     on_progress_line = False
-                print(f"[phase] {mp.group(1)}")
+                _safe_print(f"[phase] {mp.group(1)}")
                 last_pct = -1
                 continue
 
             if on_progress_line:
                 sys.stdout.write('\n')
                 on_progress_line = False
-            print(line)
+            _safe_print(line)
 
         if on_progress_line:
             sys.stdout.write('\n')
