@@ -27,5 +27,21 @@ A simple, cross-platform, cross-system, and multi-connection switch example. By 
 * tuya_config.h: the tuya PID and license, to get the license, you need create a product on Tuya AI+IoT Platfrom following [TuyaOS quickstart](https://developer.tuya.com/en/docs/iot-device-dev/application-creation?id=Kbxw7ket3aujc)
 
 
-## Supported Hardware  
+## L511C_Y7PM first-stage bring-up
+
+Configure valid product PID and device authorization in the existing demo configuration before use; this guide does not change those values.
+
+From the TuyaOpen SDK root, initialize the environment, apply the platform bridge once, then select the demo preset and build:
+
+```sh
+. ./export.sh
+.venv/bin/python tools/porting/l511c_y7pm/apply.py
+cd apps/tuya_cloud/switch_demo
+tos.py config choice -c L511C_Y7PM
+tos.py build
+```
+
+This stage covers cellular registration, cloud binding, App DP commands and reports, CLI `switch on/off`, and KV persistence across restart; these behaviors remain to be accepted on hardware. The demo reports the logical switch DP only and does not drive a physical switch. The generated `<app>_QIO_<version>.bin` is a TuyaOpen QIO alias of the vendor `.binpkg`; use the vendor tool with the `.binpkg` package.
+
+## Supported Hardware
 The current project can run on all currently supported chips and development boards.
