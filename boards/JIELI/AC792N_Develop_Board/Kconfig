@@ -75,3 +75,17 @@ if JIELI_BOARD_HAS_DISPLAY
         string
         default "IO_PORTB_01"
 endif
+
+config ENABLE_BOARD_CAMERA_DVP
+    bool "Register DVP0 camera on AC792N develop board J49"
+    default n
+    select ENABLE_CAMERA
+    help
+        Register CAM2 DVP0 (J49 SEN_FPC) camera on AC792N Develop Board V1.21.
+
+config ENABLE_BOARD_CAMERA_CSI2
+    bool "Register MIPI CSI2 camera on AC792N develop board J47"
+    default n
+    select ENABLE_CAMERA
+    help
+        Register CAM1 MIPI CSI2 (J47 MIPI_FPC) camera on AC792N Develop Board V1.21.

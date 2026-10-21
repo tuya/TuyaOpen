@@ -1,3 +1,11 @@
+/**
+ * @file board_com_api.c
+ * @brief AC792N develop board hardware registration
+ *
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ *
+ */
+
 #include "board_com_api.h"
 
 #if defined(ENABLE_JIELI_ADKEY_BUTTON) && (ENABLE_JIELI_ADKEY_BUTTON == 1)
@@ -11,6 +19,15 @@
 #ifndef AUDIO_CODEC_NAME
 #define AUDIO_CODEC_NAME "audio_codec"
 #endif
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_DVP) && (ENABLE_BOARD_CAMERA_DVP == 1)
+#include "tdd_camera_dvp.h"
+#include "tdd_camera_gc0308.h"
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_CSI2) && (ENABLE_BOARD_CAMERA_CSI2 == 1)
+#include "tdd_camera_csi2.h"
 #endif
 
 /***********************************************************
@@ -29,13 +46,13 @@ OPERATE_RET board_register_hardware(void)
 
 #if defined(ENABLE_MEDIA) && (ENABLE_MEDIA == 1)
     TDD_AUDIO_T5AI_T audio_cfg = {
-        .aec_enable = FALSE,
-        .ai_chn = TKL_AI_0,
-        .sample_rate = TKL_AUDIO_SAMPLE_16K,
-        .data_bits = TKL_AUDIO_DATABITS_16,
-        .channel = TKL_AUDIO_CHANNEL_MONO,
-        .spk_sample_rate = TKL_AUDIO_SAMPLE_16K,
-        .spk_pin = 0,
+        .aec_enable       = FALSE,
+        .ai_chn           = TKL_AI_0,
+        .sample_rate      = TKL_AUDIO_SAMPLE_16K,
+        .data_bits        = TKL_AUDIO_DATABITS_16,
+        .channel          = TKL_AUDIO_CHANNEL_MONO,
+        .spk_sample_rate  = TKL_AUDIO_SAMPLE_16K,
+        .spk_pin          = 0,
         .spk_pin_polarity = 0,
     };
     ret = tdd_audio_register((char *)AUDIO_CODEC_NAME, audio_cfg);
@@ -46,12 +63,77 @@ OPERATE_RET board_register_hardware(void)
 
 #if defined(ENABLE_JIELI_ADKEY_BUTTON) && (ENABLE_JIELI_ADKEY_BUTTON == 1)
     BUTTON_ADC_CFG_T button_cfg = {
-        .adc_num = JIELI_K1_ADC_NUM,
-        .adc_ch = JIELI_K1_ADC_CHANNEL,
+        .adc_num     = JIELI_K1_ADC_NUM,
+        .adc_ch      = JIELI_K1_ADC_CHANNEL,
         .pressed_min = JIELI_K1_PRESSED_MIN,
         .pressed_max = JIELI_K1_PRESSED_MAX,
     };
     ret = tdd_adc_button_register((char *)BUTTON_NAME, &button_cfg);
+    if (ret != OPRT_OK) {
+        return ret;
+    }
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_DVP) && (ENABLE_BOARD_CAMERA_DVP == 1)
+    /* CAM2 DVP0 (J49 SEN_FPC): IIC1, XCLK PD8, RESET PE9.
+     * Note: PORTE pins (PE9) exceed TUYA_GPIO_NUM_MAX (64), so power/reset pins
+     * are left to the platform / vendor board control. */
+    TDD_DVP_SR_CFG_T dvp_cfg = {
+        .usr_cfg =
+            {
+                .pwr =
+                    {
+                        .pin          = TUYA_GPIO_NUM_MAX,
+                        .active_level = TUYA_GPIO_LEVEL_HIGH,
+                    },
+                .rst =
+                    {
+                        .pin          = TUYA_GPIO_NUM_MAX,
+                        .active_level = TUYA_GPIO_LEVEL_LOW,
+                    },
+                .i2c =
+                    {
+                        .port = TUYA_I2C_NUM_MAX,
+                        .clk  = TUYA_GPIO_NUM_MAX,
+                        .sda  = TUYA_GPIO_NUM_MAX,
+                    },
+                .clk = 24000000,
+            },
+        .max_fps    = 30,
+        .max_width  = 1280,
+        .max_height = 720,
+        .fmt        = TUYA_FRAME_FMT_JPEG,
+    };
+    TDD_DVP_SR_INTFS_T dvp_intfs = {0};
+    ret                          = tdl_camera_dvp_device_register("camera_dvp0", &dvp_cfg, &dvp_intfs);
+    if (ret != OPRT_OK) {
+        return ret;
+    }
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_CSI2) && (ENABLE_BOARD_CAMERA_CSI2 == 1)
+    /* CAM1 MIPI CSI2 (J47 MIPI_FPC): IIC2, XCLK PE10, PWDN PE11, RESET PE12. */
+    TDD_CSI2_SR_USR_CFG_T csi2_cfg = {
+        .pwr =
+            {
+                .pin          = TUYA_GPIO_NUM_MAX,
+                .active_level = TUYA_GPIO_LEVEL_HIGH,
+            },
+        .rst =
+            {
+                .pin          = TUYA_GPIO_NUM_MAX,
+                .active_level = TUYA_GPIO_LEVEL_LOW,
+            },
+        .i2c =
+            {
+                .port = TUYA_I2C_NUM_MAX,
+                .clk  = TUYA_GPIO_NUM_MAX,
+                .sda  = TUYA_GPIO_NUM_MAX,
+            },
+        .clk        = 24000000,
+        .data_lanes = 1,
+    };
+    ret = tdd_camera_csi2_register("camera_csi2", &csi2_cfg);
     if (ret != OPRT_OK) {
         return ret;
     }

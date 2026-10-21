@@ -17,12 +17,15 @@ if (CONFIG_ENABLE_DVP STREQUAL "y")
     file(GLOB_RECURSE tdd_camera_dvp_srcs "${MODULE_PATH}/tdd_camera/src/dvp/*.c")
 endif()
 
-set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs})
+file(GLOB_RECURSE tdd_camera_csi2_srcs "${MODULE_PATH}/tdd_camera/src/csi2/*.c")
+
+set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs} ${tdd_camera_csi2_srcs})
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 
     ${MODULE_PATH}/tdl_camera/include
     ${MODULE_PATH}/tdd_camera/include
+    ${TOP_SOURCE_DIR}/tools/porting/adapter/media
     )
 
 ########################################

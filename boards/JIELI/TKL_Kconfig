@@ -62,3 +62,7 @@ config ENABLE_GPIO
 config ENABLE_ADC
     bool
     default y
+
+config ENABLE_DVP
+    bool
+    default y
