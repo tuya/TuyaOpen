@@ -1,0 +1,56 @@
+config LITTLE_END
+    int
+    default 1
+
+config ENABLE_WIFI
+    bool
+    default n
+
+config ENABLE_WIRED
+    bool
+    default n
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config ENABLE_CELLULAR
+    bool
+    default y
+
+config ENABLE_FILE_SYSTEM
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_PWM
+    bool
+    default y
+
+config ENABLE_I2C
+    bool
+    default y
+
+config ENABLE_TIMER
+    bool
+    default y
+
+# The platform uses its native filesystem; raw flash access is unsupported.
+config ENABLE_FLASH
+    bool
+    default n
+
+config ENABLE_STORAGE
+    bool
+    default n

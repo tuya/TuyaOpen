@@ -18,7 +18,7 @@
 #define OPUS_BENCH_PACKET_SIZE   1275
 #define OPUS_BENCH_U64_TEXT_SIZE 21
 
-/* Newlib-nano on L511G does not support %llu. Keep the full 64-bit value
+/* Newlib-nano on L511G_Y7PM does not support %llu. Keep the full 64-bit value
  * and pass decimal text to the logger using caller-owned buffers. */
 static const char *benchmark_u64_text(uint64_t value, char buffer[OPUS_BENCH_U64_TEXT_SIZE])
 {
@@ -385,11 +385,11 @@ int user_main(void)
 #else
     PR_NOTICE("Fixed-point path: portable C");
 #endif
-#if defined(BOARD_CHOICE_L511G) && BOARD_CHOICE_L511G
-    PR_NOTICE("L511G Opus build: -O3, function inlining enabled");
+#if defined(BOARD_CHOICE_L511G_Y7PM) && BOARD_CHOICE_L511G_Y7PM
+    PR_NOTICE("L511G_Y7PM Opus build: -O3, function inlining enabled");
 #endif
 #if defined(ENABLE_TUYAOPEN_OPUS_NSQ_CACHE) && ENABLE_TUYAOPEN_OPUS_NSQ_CACHE
-#if defined(BOARD_CHOICE_L511G) && BOARD_CHOICE_L511G
+#if defined(BOARD_CHOICE_L511G_Y7PM) && BOARD_CHOICE_L511G_Y7PM
     PR_NOTICE("Normal NSQ: shaping buffer index cached (Cortex-M3)");
 #else
     PR_NOTICE("Normal NSQ: scalar state cached inside the sample loop");

@@ -22,8 +22,8 @@ config ENABLE_TUYAOPEN_OPUS_ARM_DSP
         No NEON or runtime CPU detection is required.
 
 config ENABLE_TUYAOPEN_OPUS_CORTEX_M3_MUL
-    bool "Use bit-exact Cortex-M3 SILK multiplication on L511G"
-    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G"
+    bool "Use bit-exact Cortex-M3 SILK multiplication on L511G_Y7PM"
+    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G_Y7PM"
     default n
     help
         Experimental SMULL implementations of SILK's four halfword
@@ -34,17 +34,17 @@ config ENABLE_TUYAOPEN_OPUS_CORTEX_M3_MUL
 
 config ENABLE_TUYAOPEN_OPUS_NSQ_CACHE
     bool "Cache scalar state inside the normal NSQ sample loop"
-    depends on ENABLE_TUYAOPEN_OPUS && (ENABLE_TUYAOPEN_OPUS_ARM_DSP || PLATFORM_CHOICE = "L511G")
+    depends on ENABLE_TUYAOPEN_OPUS && (ENABLE_TUYAOPEN_OPUS_ARM_DSP || PLATFORM_CHOICE = "L511G_Y7PM")
     default n
     help
-        Experimental T5AI/L511G normal-NSQ optimization. Preserve per-product
+        Experimental T5AI/L511G_Y7PM normal-NSQ optimization. Preserve per-product
         rounding and final state updates; reduce scalar state memory traffic.
-        T5AI caches five scalars; L511G caches only the shaping buffer index
+        T5AI caches five scalars; L511G_Y7PM caches only the shaping buffer index
         to limit Cortex-M3 register pressure.
 
 config ENABLE_TUYAOPEN_OPUS_NSQ_RAM
-    bool "Run normal NSQ from L511G internal MSMB RAM"
-    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G"
+    bool "Run normal NSQ from L511G_Y7PM internal MSMB RAM"
+    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G_Y7PM"
     default n
     help
         Place silk_NSQ_c in the platform's existing MSMB RAM code section.
