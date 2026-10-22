@@ -29,13 +29,8 @@ LV_IMG_DECLARE(icon_ai_camera_on);
 #define CAMERA_SHUTTER_SIZE 72
 #define CAMERA_CLOSE_SIZE   48
 
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
 #define CAMERA_UI_MALLOC tal_psram_malloc
 #define CAMERA_UI_FREE   tal_psram_free
-#else
-#define CAMERA_UI_MALLOC tal_malloc
-#define CAMERA_UI_FREE   tal_free
-#endif
 
 /***********************************************************
 ***********************typedef define***********************
