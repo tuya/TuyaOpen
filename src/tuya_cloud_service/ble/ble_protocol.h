@@ -85,6 +85,7 @@ bit1: Shared class flag, 1: Tuya shared class device, 0: Non-shared class device
 #define ADV_FLAG_BOND            (1 << 7)
 #define ADV_FLAG_ENCRPT_V2_START (1 << 6)
 #define ADV_FLAG_ENCRPT_V2       (1 << 5)
+#define ADV_FLAG_WIFI_LIST       (1 << 5)
 #define ADV_FLAG_PLUG_PLAY       (1 << 3)
 #define ADV_FLAG_BLE_FIRST       (1 << 4)
 #define ADV_FLAG_SHARE           (1 << 1)
