@@ -147,9 +147,12 @@ endif()
 include(${TOP_SOURCE_DIR}/tuyaopen-core/tuyaopen-core.cmake)   # 含 TuyaOpenOptions.cmake
 # core 的环境基底（core 契约：宿主注入 tuyaopen-headers）：动态 tuya_kconfig.h +
 # 上游 common 头（tuya_cloud_types.h→tuya_iot_config.h→tuya_kconfig.h 链）+ 平台公共头
+# ESP32/T5AI 的核心 TU 会 include lwIP 头：根构建先于平台二阶构建，平台的
+# lwipopts.h/arch/cc.h 依赖 sdkconfig.h/FreeRTOS/armino 内部头，这里改用本仓的
+# 最小 lwIP 视图（只覆盖 lwipopts.h 与 arch/cc.h，栈头文件仍取平台自带）
 set(_tuyaopen_lwip_inc)
 if(TOS_PROJECT_PLATFORM STREQUAL "ESP32" OR TOS_PROJECT_PLATFORM STREQUAL "T5AI")
-    set(_tuyaopen_lwip_inc "${TOP_SOURCE_DIR}/tuyaopen-core/port/tuyaopen/lwip")
+    set(_tuyaopen_lwip_inc "${TOP_SOURCE_DIR}/tools/cmake/lwip_view")
 endif()
 target_include_directories(tuyaopen-headers INTERFACE
     ${_tuyaopen_lwip_inc}
