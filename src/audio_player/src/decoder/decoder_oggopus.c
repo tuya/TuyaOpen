@@ -266,7 +266,7 @@ static int decoder_oggopus_process(void *handle, uint8_t *in_buf, int in_len, ui
 
                 // Create Opus decoder
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-                ctx->decoder = tal_ex_ram_malloc(opus_decoder_get_size(ctx->channels));
+                ctx->decoder = tal_psram_malloc(opus_decoder_get_size(ctx->channels));
 #else
                 ctx->decoder = tal_malloc(opus_decoder_get_size(ctx->channels));
 #endif

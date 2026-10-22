@@ -27,8 +27,8 @@ extern "C" {
 
 /* General large-buffer allocation (rotate buf, etc.) - always PSRAM when available */
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define LV_MEM_CUSTOM_ALLOC   tal_ex_ram_malloc
-#define LV_MEM_CUSTOM_FREE    tal_ex_ram_free
+#define LV_MEM_CUSTOM_ALLOC   tal_psram_malloc
+#define LV_MEM_CUSTOM_FREE    tal_psram_free
 #define LV_MEM_CUSTOM_REALLOC tal_psram_realloc
 #else
 #define LV_MEM_CUSTOM_ALLOC   tal_malloc
@@ -38,8 +38,8 @@ extern "C" {
 
 /* Draw buffer allocation - SRAM for higher throughput when configured */
 #if defined(ENABLE_LVGL_DRAW_BUF_PSRAM) && (ENABLE_LVGL_DRAW_BUF_PSRAM == 1)
-#define LV_DRAW_BUF_ALLOC tal_ex_ram_malloc
-#define LV_DRAW_BUF_FREE  tal_ex_ram_free
+#define LV_DRAW_BUF_ALLOC tal_psram_malloc
+#define LV_DRAW_BUF_FREE  tal_psram_free
 #else
 #define LV_DRAW_BUF_ALLOC tal_malloc
 #define LV_DRAW_BUF_FREE  tal_free

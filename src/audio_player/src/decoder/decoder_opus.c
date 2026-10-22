@@ -52,7 +52,7 @@ static OPERATE_RET decoder_opus_start(void **handle)
 
     // Initialize Opus decoder
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    ctx->decoder = tal_ex_ram_malloc(opus_decoder_get_size(ctx->channels));
+    ctx->decoder = tal_psram_malloc(opus_decoder_get_size(ctx->channels));
 #else
     ctx->decoder = tal_malloc(opus_decoder_get_size(ctx->channels));
 #endif

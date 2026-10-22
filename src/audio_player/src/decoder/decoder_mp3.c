@@ -26,8 +26,8 @@
 #define MP3_HEAD_SIZE (10)
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-#define DECODER_MP3_MALLOC tal_ex_ram_malloc
-#define DECODER_MP3_FREE   tal_ex_ram_free
+#define DECODER_MP3_MALLOC tal_psram_malloc
+#define DECODER_MP3_FREE   tal_psram_free
 #else
 #define DECODER_MP3_MALLOC tal_malloc
 #define DECODER_MP3_FREE   tal_free
