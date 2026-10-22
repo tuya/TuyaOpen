@@ -116,7 +116,6 @@ void lv_vendor_start(uint32_t lvgl_task_pri, uint32_t lvgl_stack_size)
         .stackDepth = lvgl_stack_size,
         .priority = lvgl_task_pri,
         .thrdname = "lvgl_v8",
-        .ex_ram_mode = 1,
     };
     if (OPRT_OK != tal_thread_create_and_start(&g_disp_thread_handle, NULL, NULL, lv_tast_entry, NULL, &thrd_cfg)) {
         LV_LOG_ERROR("%s lvgl task create failed\n", __func__);

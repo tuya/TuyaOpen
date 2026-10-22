@@ -444,9 +444,6 @@ static void __pb_start(uint32_t play_ts)
     cfg.stackDepth = 12288;
     cfg.priority   = THREAD_PRIO_3;
     cfg.thrdname   = "p2p_pb_send";
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.ex_ram_mode = 1;
-#endif
     if (tal_thread_create_and_start(&s_pb_thread, NULL, NULL, __pb_send_thread, NULL, &cfg) != OPRT_OK) {
         PR_ERR("pb thread create failed");
         s_pb_running = FALSE;

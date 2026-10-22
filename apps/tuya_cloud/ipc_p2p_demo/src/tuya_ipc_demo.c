@@ -884,9 +884,6 @@ static OPERATE_RET __demo_play_start(void)
     cfg.stackDepth = 4096;
     cfg.priority   = THREAD_PRIO_3;
     cfg.thrdname   = "dl_play";
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    cfg.ex_ram_mode = 1;
-#endif
     if (tal_thread_create_and_start(&s_play_th, NULL, NULL, __demo_play_thread, NULL, &cfg) != OPRT_OK) {
         s_play_run = FALSE;
         s_play_th  = NULL;

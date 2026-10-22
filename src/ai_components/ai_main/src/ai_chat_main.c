@@ -422,10 +422,9 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 #endif
 
     THREAD_CFG_T thrd_cfg = {
-        .priority    = THREAD_PRIO_5,
-        .stackDepth  = 3 * 1024,
-        .thrdname    = "ai_chat_mode",
-        .ex_ram_mode = 1,
+        .priority   = THREAD_PRIO_5,
+        .stackDepth = 3 * 1024,
+        .thrdname   = "ai_chat_mode",
     };
 
     TUYA_CALL_ERR_RETURN(

@@ -1014,10 +1014,9 @@ static OPERATE_RET __tdl_button_scan_task(uint8_t enable)
 
                 THREAD_CFG_T thrd_param = {0};
 
-                thrd_param.thrdname    = "button_scan";
-                thrd_param.priority    = THREAD_PRIO_1;
-                thrd_param.stackDepth  = sg_bt_task_stack_size;
-                thrd_param.ex_ram_mode = 1;
+                thrd_param.thrdname   = "button_scan";
+                thrd_param.priority   = THREAD_PRIO_1;
+                thrd_param.stackDepth = sg_bt_task_stack_size;
                 if (NULL == scan_thread_handle) {
                     ret = tal_thread_create_and_start(&scan_thread_handle, NULL, NULL, __tdl_button_scan_thread, NULL,
                                                       &thrd_param);
@@ -1048,10 +1047,9 @@ static OPERATE_RET __tdl_button_irq_task(uint8_t enable)
             if (tdl_button_local.irq_task_flag == FALSE) {
                 THREAD_CFG_T thrd_param = {0};
 
-                thrd_param.thrdname    = "button_irq";
-                thrd_param.priority    = THREAD_PRIO_1;
-                thrd_param.stackDepth  = sg_bt_task_stack_size;
-                thrd_param.ex_ram_mode = 1;
+                thrd_param.thrdname   = "button_irq";
+                thrd_param.priority   = THREAD_PRIO_1;
+                thrd_param.stackDepth = sg_bt_task_stack_size;
                 if (NULL == irq_thread_handle) {
                     ret = tal_thread_create_and_start(&irq_thread_handle, NULL, NULL, __tdl_button_irq_thread, NULL,
                                                       &thrd_param);
