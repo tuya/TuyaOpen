@@ -15,7 +15,7 @@
 #include "tuya_list.h"
 #include "tal_api.h"
 
-#if defined(CONFIG_ENABLE_DVP) && (CONFIG_ENABLE_DVP==1)
+#if defined(CONFIG_ENABLE_DVP) && (CONFIG_ENABLE_DVP == 1)
 #include "tkl_dvp.h"
 #endif
 
@@ -27,67 +27,67 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define CAMERA_RAW_FRAME_BUFF_CNT           (2)
-#define CAMERA_ENCODE_FRAME_BUFF_CNT        (CAMERA_RAW_FRAME_BUFF_CNT << 2)
+#define CAMERA_RAW_FRAME_BUFF_CNT    (2)
+#define CAMERA_ENCODE_FRAME_BUFF_CNT (CAMERA_RAW_FRAME_BUFF_CNT << 2)
 
-#define CAMERA_RAW_PER_PIXEL_MAX_BYTE       (3)
-#define CAMERA_ENCODE_MIN_COMP_PCT          (20) // Unit: percentage
+#define CAMERA_RAW_PER_PIXEL_MAX_BYTE (3)
+#define CAMERA_ENCODE_MIN_COMP_PCT    (20) // Unit: percentage
 
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
-#define TDL_CAMERA_FRAME_MALLOC    tal_psram_malloc
-#define TDL_CAMERA_FRAME_FREE      tal_psram_free
+#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#define TDL_CAMERA_FRAME_MALLOC tal_psram_malloc
+#define TDL_CAMERA_FRAME_FREE   tal_psram_free
 #else
-#define TDL_CAMERA_FRAME_MALLOC    tal_malloc
-#define TDL_CAMERA_FRAME_FREE      tal_free
+#define TDL_CAMERA_FRAME_MALLOC tal_malloc
+#define TDL_CAMERA_FRAME_FREE   tal_free
 #endif
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    struct tuya_list_head       node;
-    bool                        is_open;
-    char                        name[CAMERA_DEV_NAME_MAX_LEN + 1];
-    MUTEX_HANDLE                mutex;
-   
-    TDL_CAMERA_DEV_INFO_T       info;
-    TDL_CAMERA_GET_FRAME_CB     get_raw_frame_cb;
-    TDL_CAMERA_GET_FRAME_CB     get_encoded_frame_cb;
+    struct tuya_list_head node;
+    bool                  is_open;
+    char                  name[CAMERA_DEV_NAME_MAX_LEN + 1];
+    MUTEX_HANDLE          mutex;
 
-    struct tuya_list_head       raw_frame_node_list;
-    struct tuya_list_head       encoded_frame_node_list;
+    TDL_CAMERA_DEV_INFO_T   info;
+    TDL_CAMERA_GET_FRAME_CB get_raw_frame_cb;
+    TDL_CAMERA_GET_FRAME_CB get_encoded_frame_cb;
+
+    struct tuya_list_head raw_frame_node_list;
+    struct tuya_list_head encoded_frame_node_list;
     /* The list cannot say: it is also empty when every node is out with the
      * driver. */
-    bool                        raw_pool_inited;
-    bool                        encoded_pool_inited;
+    bool raw_pool_inited;
+    bool encoded_pool_inited;
 
-    TDD_CAMERA_DEV_HANDLE_T     tdd_hdl;
-    TDD_CAMERA_INTFS_T          intfs;
+    TDD_CAMERA_DEV_HANDLE_T tdd_hdl;
+    TDD_CAMERA_INTFS_T      intfs;
 } CAMERA_DEVICE_T;
 
 typedef struct {
-    struct tuya_list_head       node;
-    uint32_t                    buf_len;
-    TDD_CAMERA_FRAME_T          tdd_frame;
+    struct tuya_list_head node;
+    uint32_t              buf_len;
+    TDD_CAMERA_FRAME_T    tdd_frame;
 } CAMERA_FRAME_NODE_T;
 
 typedef struct {
-    QUEUE_HANDLE                raw_frame_queue;
-    QUEUE_HANDLE                encoded_frame_queue;
-    THREAD_HANDLE               raw_thrd;
-    THREAD_HANDLE               encoded_thrd;
-}CAMERA_MANAGE_INFO_T;
+    QUEUE_HANDLE  raw_frame_queue;
+    QUEUE_HANDLE  encoded_frame_queue;
+    THREAD_HANDLE raw_thrd;
+    THREAD_HANDLE encoded_thrd;
+} CAMERA_MANAGE_INFO_T;
 
 typedef struct {
-    TDD_CAMERA_FRAME_T         *tdd_frame;
-    CAMERA_DEVICE_T            *dev;
+    TDD_CAMERA_FRAME_T *tdd_frame;
+    CAMERA_DEVICE_T    *dev;
 } CAMERA_MSG_T;
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
 static struct tuya_list_head sg_camera_list = LIST_HEAD_INIT(sg_camera_list);
-static CAMERA_MANAGE_INFO_T sg_camera_manage;
+static CAMERA_MANAGE_INFO_T  sg_camera_manage;
 
 /***********************************************************
 ***********************function define**********************
@@ -99,15 +99,16 @@ static CAMERA_MANAGE_INFO_T sg_camera_manage;
  */
 static CAMERA_DEVICE_T *__find_camera_device(char *name)
 {
-    CAMERA_DEVICE_T *camera_dev = NULL;
-    struct tuya_list_head *pos = NULL;
-    struct tuya_list_head *tmp = NULL;
+    CAMERA_DEVICE_T       *camera_dev = NULL;
+    struct tuya_list_head *pos        = NULL;
+    struct tuya_list_head *tmp        = NULL;
 
     if (NULL == name) {
         return NULL;
     }
 
-    tuya_list_for_each_safe(pos, tmp, &sg_camera_list){
+    tuya_list_for_each_safe(pos, tmp, &sg_camera_list)
+    {
         camera_dev = tuya_list_entry(pos, CAMERA_DEVICE_T, node);
         if (0 == strncmp(camera_dev->name, name, CAMERA_DEV_NAME_MAX_LEN)) {
             return camera_dev;
@@ -124,15 +125,16 @@ static CAMERA_DEVICE_T *__find_camera_device(char *name)
  */
 static CAMERA_DEVICE_T *__find_camera_device_from_tdd(TDD_CAMERA_DEV_HANDLE_T tdd_hdl)
 {
-    CAMERA_DEVICE_T *camera_dev = NULL;
-    struct tuya_list_head *pos = NULL;
-    struct tuya_list_head *tmp = NULL;
+    CAMERA_DEVICE_T       *camera_dev = NULL;
+    struct tuya_list_head *pos        = NULL;
+    struct tuya_list_head *tmp        = NULL;
 
     if (NULL == tdd_hdl) {
         return NULL;
     }
 
-    tuya_list_for_each_safe(pos, tmp, &sg_camera_list){
+    tuya_list_for_each_safe(pos, tmp, &sg_camera_list)
+    {
         camera_dev = tuya_list_entry(pos, CAMERA_DEVICE_T, node);
         if (camera_dev->tdd_hdl == tdd_hdl) {
             return camera_dev;
@@ -151,23 +153,22 @@ static bool __is_camera_frame_encoded(TUYA_FRAME_FMT_E fmt)
 {
     bool is_encoded = false;
 
-	switch (fmt)
-	{
-	case TUYA_FRAME_FMT_YUV422:
-	case TUYA_FRAME_FMT_YUV420:
+    switch (fmt) {
+    case TUYA_FRAME_FMT_YUV422:
+    case TUYA_FRAME_FMT_YUV420:
     case TUYA_FRAME_FMT_RGB565:
     case TUYA_FRAME_FMT_RGB888:
         is_encoded = false;
-		break;
+        break;
     case TUYA_FRAME_FMT_JPEG:
     case TUYA_FRAME_FMT_H264:
-		is_encoded = true;
-		break;
-	default:
-		break;
-	}
+        is_encoded = true;
+        break;
+    default:
+        break;
+    }
 
-	return is_encoded;
+    return is_encoded;
 }
 
 /**
@@ -178,13 +179,12 @@ static bool __is_camera_frame_encoded(TUYA_FRAME_FMT_E fmt)
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
  *         OPRT_MALLOC_FAILED on memory allocation failure
  */
-static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32_t node_num,\
-                                            uint32_t buf_len)
+static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32_t node_num, uint32_t buf_len)
 {
     CAMERA_FRAME_NODE_T *frame_node = NULL;
-    uint32_t i;
+    uint32_t             i;
 
-    if(NULL == phead || 0 == buf_len || 0 == node_num) {
+    if (NULL == phead || 0 == buf_len || 0 == node_num) {
         return OPRT_INVALID_PARM;
     }
 
@@ -203,7 +203,7 @@ static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32
             return OPRT_MALLOC_FAILED;
         }
         frame_node->tdd_frame.frame.data_len = buf_len;
-        frame_node->tdd_frame.sys_param = (void *)frame_node;
+        frame_node->tdd_frame.sys_param      = (void *)frame_node;
 
         tuya_list_add(&frame_node->node, phead);
     }
@@ -220,20 +220,19 @@ static void __raw_flow_task(void *args)
 {
     CAMERA_MSG_T msg;
 
-	while (1)
-	{
+    while (1) {
 
-		tal_queue_fetch(sg_camera_manage.raw_frame_queue, &msg, SEM_WAIT_FOREVER);
-		if(NULL == msg.dev || NULL == msg.tdd_frame) {
+        tal_queue_fetch(sg_camera_manage.raw_frame_queue, &msg, SEM_WAIT_FOREVER);
+        if (NULL == msg.dev || NULL == msg.tdd_frame) {
             continue;
         }
 
-		if((true == msg.dev->is_open) && msg.dev->get_raw_frame_cb) {
+        if ((true == msg.dev->is_open) && msg.dev->get_raw_frame_cb) {
             msg.dev->get_raw_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
-		tdl_camera_release_tdd_frame(msg.dev->tdd_hdl, msg.tdd_frame);
-	}
+        tdl_camera_release_tdd_frame(msg.dev->tdd_hdl, msg.tdd_frame);
+    }
 }
 
 /**
@@ -245,19 +244,18 @@ static void __encoded_flow_task(void *args)
 {
     CAMERA_MSG_T msg;
 
-	while (1)
-	{
-		tal_queue_fetch(sg_camera_manage.encoded_frame_queue, &msg, SEM_WAIT_FOREVER);
-		if(NULL == msg.dev || NULL == msg.tdd_frame) {
+    while (1) {
+        tal_queue_fetch(sg_camera_manage.encoded_frame_queue, &msg, SEM_WAIT_FOREVER);
+        if (NULL == msg.dev || NULL == msg.tdd_frame) {
             continue;
         }
 
-		if ((true == msg.dev->is_open) && msg.dev->get_encoded_frame_cb) {
+        if ((true == msg.dev->is_open) && msg.dev->get_encoded_frame_cb) {
             msg.dev->get_encoded_frame_cb((TDL_CAMERA_HANDLE_T)msg.dev, &msg.tdd_frame->frame);
         }
 
-		tdl_camera_release_tdd_frame(msg.dev->tdd_hdl, msg.tdd_frame);
-	}
+        tdl_camera_release_tdd_frame(msg.dev->tdd_hdl, msg.tdd_frame);
+    }
 }
 
 /**
@@ -270,28 +268,28 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
 {
     OPERATE_RET rt;
 
-    if(out_fmt & TDL_IMG_FMT_RAW_MASK) {
-        if(NULL == sg_camera_manage.raw_frame_queue) {
-            TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_camera_manage.raw_frame_queue),\
-                                                     sizeof(CAMERA_MSG_T), CAMERA_RAW_FRAME_BUFF_CNT));
+    if (out_fmt & TDL_IMG_FMT_RAW_MASK) {
+        if (NULL == sg_camera_manage.raw_frame_queue) {
+            TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_camera_manage.raw_frame_queue), sizeof(CAMERA_MSG_T),
+                                                       CAMERA_RAW_FRAME_BUFF_CNT));
         }
-    
-        if(NULL == sg_camera_manage.raw_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task", 0};
-            TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.raw_thrd), NULL, NULL,\
-                                                             __raw_flow_task, NULL, &thread_cfg));
+
+        if (NULL == sg_camera_manage.raw_thrd) {
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task"};
+            TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.raw_thrd), NULL, NULL, __raw_flow_task,
+                                                             NULL, &thread_cfg));
         }
     }
 
-    if(out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
-        if(NULL == sg_camera_manage.encoded_frame_queue) {
-            TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_camera_manage.encoded_frame_queue),\
-                                                     sizeof(CAMERA_MSG_T), CAMERA_RAW_FRAME_BUFF_CNT));
+    if (out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
+        if (NULL == sg_camera_manage.encoded_frame_queue) {
+            TUYA_CALL_ERR_RETURN(tal_queue_create_init(&(sg_camera_manage.encoded_frame_queue), sizeof(CAMERA_MSG_T),
+                                                       CAMERA_RAW_FRAME_BUFF_CNT));
         }
-    
-        if(NULL == sg_camera_manage.encoded_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task", 0};
-            TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.encoded_thrd), NULL, NULL,\
+
+        if (NULL == sg_camera_manage.encoded_thrd) {
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task"};
+            TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.encoded_thrd), NULL, NULL,
                                                              __encoded_flow_task, NULL, &thread_cfg));
         }
     }
@@ -336,13 +334,13 @@ OPERATE_RET tdl_camera_dev_get_info(TDL_CAMERA_HANDLE_T camera_hdl, TDL_CAMERA_D
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
  *         or other error codes on initialization failure
  */
-OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_T *cfg)
+OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl, TDL_CAMERA_CFG_T *cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
-    CAMERA_DEVICE_T *camera_dev = NULL;
-    uint32_t raw_buf_len = 0;
+    OPERATE_RET      rt          = OPRT_OK;
+    CAMERA_DEVICE_T *camera_dev  = NULL;
+    uint32_t         raw_buf_len = 0;
 
-    if(NULL == camera_hdl || NULL == cfg) {
+    if (NULL == camera_hdl || NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -353,31 +351,31 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
     raw_buf_len = cfg->width * cfg->height * CAMERA_RAW_PER_PIXEL_MAX_BYTE;
 
     /* The pool belongs to the registered device, not to one session. */
-    if(cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {
-        if(!camera_dev->raw_pool_inited) {
-            TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->raw_frame_node_list, \
-                                                          CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
+    if (cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {
+        if (!camera_dev->raw_pool_inited) {
+            TUYA_CALL_ERR_RETURN(
+                __camera_frame_node_init(&camera_dev->raw_frame_node_list, CAMERA_RAW_FRAME_BUFF_CNT, raw_buf_len));
             camera_dev->raw_pool_inited = true;
         }
         camera_dev->get_raw_frame_cb = cfg->get_frame_cb;
     }
 
-    if(cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
+    if (cfg->out_fmt & TDL_IMG_FMT_ENCODED_MASK) {
         uint32_t encoded_buf_len = (raw_buf_len * CAMERA_ENCODE_MIN_COMP_PCT + 99) / 100;
-        if(!camera_dev->encoded_pool_inited) {
-            TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->encoded_frame_node_list, \
+        if (!camera_dev->encoded_pool_inited) {
+            TUYA_CALL_ERR_RETURN(__camera_frame_node_init(&camera_dev->encoded_frame_node_list,
                                                           CAMERA_ENCODE_FRAME_BUFF_CNT, encoded_buf_len));
             camera_dev->encoded_pool_inited = true;
         }
         camera_dev->get_encoded_frame_cb = cfg->get_encoded_frame_cb;
-    }  
-    
+    }
+
     camera_dev->info.fps     = cfg->fps;
     camera_dev->info.width   = cfg->width;
     camera_dev->info.height  = cfg->height;
     camera_dev->info.out_fmt = cfg->out_fmt;
 
-    if(camera_dev->intfs.open) {
+    if (camera_dev->intfs.open) {
         TDD_CAMERA_OPEN_CFG_T open_cfg;
 
         open_cfg.fps     = camera_dev->info.fps;
@@ -434,8 +432,8 @@ OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
  *         OPRT_MALLOC_FAILED on memory allocation failure
  */
-OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_hdl, \
-                                       TDD_CAMERA_INTFS_T *intfs, TDD_CAMERA_DEV_INFO_T *dev_info)
+OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_INTFS_T *intfs,
+                                       TDD_CAMERA_DEV_INFO_T *dev_info)
 {
     CAMERA_DEVICE_T *camera_dev = NULL;
 
@@ -451,18 +449,18 @@ OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_h
 
     strncpy(camera_dev->name, name, CAMERA_DEV_NAME_MAX_LEN);
 
-    camera_dev->info.type        = dev_info->type;
-    camera_dev->info.max_fps     = dev_info->max_fps;
-    camera_dev->info.max_width   = dev_info->max_width;
-    camera_dev->info.max_height  = dev_info->max_height;
+    camera_dev->info.type           = dev_info->type;
+    camera_dev->info.max_fps        = dev_info->max_fps;
+    camera_dev->info.max_width      = dev_info->max_width;
+    camera_dev->info.max_height     = dev_info->max_height;
     camera_dev->info.supported_fmts = dev_info->supported_fmts;
-    camera_dev->info.yuv_order   = dev_info->yuv_order;
+    camera_dev->info.yuv_order      = dev_info->yuv_order;
 
     INIT_LIST_HEAD(&(camera_dev->raw_frame_node_list));
     INIT_LIST_HEAD(&(camera_dev->encoded_frame_node_list));
 
-    PR_DEBUG("raw_frame_node_list:%p next:%p pre:%p", &camera_dev->raw_frame_node_list, \
-            camera_dev->raw_frame_node_list.next,camera_dev->raw_frame_node_list.prev);
+    PR_DEBUG("raw_frame_node_list:%p next:%p pre:%p", &camera_dev->raw_frame_node_list,
+             camera_dev->raw_frame_node_list.next, camera_dev->raw_frame_node_list.prev);
 
     camera_dev->tdd_hdl = tdd_hdl;
 
@@ -482,9 +480,9 @@ OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_h
  */
 TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TUYA_FRAME_FMT_E fmt)
 {
-    CAMERA_DEVICE_T *camera_dev = NULL;
+    CAMERA_DEVICE_T       *camera_dev  = NULL;
     struct tuya_list_head *pframe_list = NULL;
-    CAMERA_FRAME_NODE_T *pnode = NULL;
+    CAMERA_FRAME_NODE_T   *pnode       = NULL;
 
     camera_dev = __find_camera_device_from_tdd(tdd_hdl);
     if (NULL == camera_dev) {
@@ -493,10 +491,10 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
 
     TAL_ENTER_CRITICAL();
 
-    pframe_list = (false == __is_camera_frame_encoded(fmt)) ? \
-                    &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
+    pframe_list = (false == __is_camera_frame_encoded(fmt)) ? &camera_dev->raw_frame_node_list
+                                                            : &camera_dev->encoded_frame_node_list;
 
-    if(tuya_list_empty(pframe_list)) {
+    if (tuya_list_empty(pframe_list)) {
         TAL_EXIT_CRITICAL();
         return NULL;
     }
@@ -521,16 +519,16 @@ TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl,
  * @param frame Pointer to TDD frame structure to release
  */
 void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FRAME_T *frame)
-{    
-    CAMERA_DEVICE_T *camera_dev = NULL;
+{
+    CAMERA_DEVICE_T       *camera_dev  = NULL;
     struct tuya_list_head *pframe_list = NULL;
-    CAMERA_FRAME_NODE_T *pnode = NULL;
+    CAMERA_FRAME_NODE_T   *pnode       = NULL;
 
-    if(NULL == frame || NULL == tdd_hdl) {
+    if (NULL == frame || NULL == tdd_hdl) {
         return;
     }
 
-    if(NULL == frame->sys_param) {
+    if (NULL == frame->sys_param) {
         PR_ERR("frame sys_param is NULL");
         return;
     }
@@ -541,18 +539,18 @@ void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FR
     }
     TAL_ENTER_CRITICAL();
 
-    pframe_list = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? \
-                  &camera_dev->raw_frame_node_list : &camera_dev->encoded_frame_node_list;
+    pframe_list = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? &camera_dev->raw_frame_node_list
+                                                                         : &camera_dev->encoded_frame_node_list;
 
     pnode = (CAMERA_FRAME_NODE_T *)frame->sys_param;
 
     tuya_list_add_tail(&pnode->node, pframe_list);
 
-    frame->frame.id = 0;
-    frame->frame.is_complete = 0;
-    frame->frame.data_len = 0;
-    frame->frame.width = 0;
-    frame->frame.height = 0;
+    frame->frame.id              = 0;
+    frame->frame.is_complete     = 0;
+    frame->frame.data_len        = 0;
+    frame->frame.width           = 0;
+    frame->frame.height          = 0;
     frame->frame.total_frame_len = 0;
 
     TAL_EXIT_CRITICAL();
@@ -570,21 +568,21 @@ void tdl_camera_release_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FR
  */
 OPERATE_RET tdl_camera_post_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TDD_CAMERA_FRAME_T *frame)
 {
-    CAMERA_MSG_T msg;
-    QUEUE_HANDLE queue;
+    CAMERA_MSG_T     msg;
+    QUEUE_HANDLE     queue;
     CAMERA_DEVICE_T *camera_dev = NULL;
 
-    if(NULL == frame || NULL == tdd_hdl) {
+    if (NULL == frame || NULL == tdd_hdl) {
         return OPRT_INVALID_PARM;
     }
 
-    if(NULL == frame->sys_param) {
+    if (NULL == frame->sys_param) {
         return OPRT_INVALID_PARM;
     }
 
-    queue = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? \
-                sg_camera_manage.raw_frame_queue : sg_camera_manage.encoded_frame_queue;
-    if(NULL == queue) {
+    queue = (false == __is_camera_frame_encoded(frame->frame.fmt)) ? sg_camera_manage.raw_frame_queue
+                                                                   : sg_camera_manage.encoded_frame_queue;
+    if (NULL == queue) {
         return OPRT_COM_ERROR;
     }
 

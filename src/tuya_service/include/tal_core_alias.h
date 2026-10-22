@@ -101,8 +101,8 @@
 #define tal_event_publish                     core_event_publish
 #define tal_event_subscribe                   core_event_subscribe
 #define tal_event_unsubscribe                 core_event_unsubscribe
-#define tal_ex_ram_free                       core_ex_ram_free
-#define tal_ex_ram_malloc                     core_ex_ram_malloc
+#define tal_ex_ram_free                       core_free
+#define tal_ex_ram_malloc                     core_malloc
 #define tal_fclose                            core_fclose
 #define tal_fflush                            core_fflush
 #define tal_fgets                             core_fgets
