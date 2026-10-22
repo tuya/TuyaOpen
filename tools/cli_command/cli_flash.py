@@ -205,12 +205,10 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int, mode: str
     platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     bridge_path = _get_platform_bridge_path(using_data)
 
-    # For dedicated bridge platforms like JIELI, ensure platform repository is available
-    if platform.upper() == "JIELI" and (not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0):
-        logger = get_logger()
-        if not download_platform(platform):
-            logger.error("Download platform error.")
-            return False
+    # For JieLi in USB/auto mode, route to tyutool directly (port-free USB Mass Storage BOT).
+    # Serial UART mode falls back to platform_flash_bridge.py.
+    if platform.upper() == "JIELI" and mode != "serial":
+        return None
 
     if not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0:
         return None
@@ -285,6 +283,11 @@ def get_configure_baudrate(using_data, key, baudrate: int) -> int:
 _DEVICE_ALIAS = {
     "T5AI": "t5",
     "BK7231X": "bk7231n",
+    "JIELI": "jieli",
+    "WL82": "jieli",
+    "WL83": "jieli",
+    "AC791N": "jieli",
+    "AC792N": "jieli",
 }
 
 
