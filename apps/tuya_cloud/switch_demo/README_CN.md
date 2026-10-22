@@ -29,13 +29,13 @@
 
 使用前须在现有 demo 配置中填写有效的产品 PID 和设备授权信息；本说明不修改这些值。
 
-在 TuyaOpen SDK 仓库根目录初始化环境、首次应用平台桥接，再选择 demo 专用配置并编译：
+在 TuyaOpen SDK 仓库根目录初始化环境、首次应用平台桥接，再选择开发板默认配置并编译：
 
 ```sh
 . ./export.sh
 .venv/bin/python tools/porting/l511c_y7pm/apply.py
 cd apps/tuya_cloud/switch_demo
-tos.py config choice -c L511C_Y7PM
+tos.py config choice -d -c L511C_Y7PM
 tos.py build
 ```
 

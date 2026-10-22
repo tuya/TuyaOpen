@@ -18,11 +18,11 @@ patch applicability and overlay target hashes before writing, and can be
 rerun safely. The tracked patch and overlay are the persistence source; the
 vendor checkout itself is ignored.
 
-Select the board's saved project preset, then build from the switch demo:
+Select the board's default configuration, then build from the switch demo:
 
 ```sh
 cd apps/tuya_cloud/switch_demo
-tos.py config choice -c L511C_Y7PM
+tos.py config choice -d -c L511C_Y7PM
 tos.py build
 ```
 

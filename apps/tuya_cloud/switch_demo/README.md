@@ -31,13 +31,13 @@ A simple, cross-platform, cross-system, and multi-connection switch example. By 
 
 Configure valid product PID and device authorization in the existing demo configuration before use; this guide does not change those values.
 
-From the TuyaOpen SDK root, initialize the environment, apply the platform bridge once, then select the demo preset and build:
+From the TuyaOpen SDK root, initialize the environment, apply the platform bridge once, then select the board's default configuration and build:
 
 ```sh
 . ./export.sh
 .venv/bin/python tools/porting/l511c_y7pm/apply.py
 cd apps/tuya_cloud/switch_demo
-tos.py config choice -c L511C_Y7PM
+tos.py config choice -d -c L511C_Y7PM
 tos.py build
 ```
 
