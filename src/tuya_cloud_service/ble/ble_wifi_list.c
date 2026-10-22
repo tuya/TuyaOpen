@@ -27,7 +27,6 @@
 #define BLE_WIFI_LIST_BUF_SIZE     1024
 #define BLE_WIFI_LIST_AP_RESERVE   128
 #define BLE_WIFI_LIST_SSID_ESC_LEN ((WIFI_SSID_LEN * 2) + 1)
-#define BLE_WIFI_LIST_CACHE_TTL_MS (60 * 1000)
 
 typedef struct {
     uint32_t max_cnt;
@@ -37,7 +36,6 @@ typedef struct {
 static bool       s_wifi_list_enable = true;
 static AP_IF_S   *s_ap_cache         = NULL;
 static uint32_t   s_ap_cache_num     = 0;
-static SYS_TIME_T s_ap_cache_time    = 0;
 
 static void __ble_wifi_list_sort(AP_IF_S *ap_arr, uint32_t ap_num)
 {
@@ -71,7 +69,6 @@ void ble_wifi_list_cache_clear(void)
 
     s_ap_cache      = NULL;
     s_ap_cache_num  = 0;
-    s_ap_cache_time = 0;
 
     if (NULL == stale) {
         return;
@@ -100,15 +97,8 @@ bool ble_wifi_list_is_enable(void)
 
 static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
 {
-    SYS_TIME_T now = tal_system_get_millisecond();
     AP_IF_S   *arr = NULL;
     uint32_t   num = 0;
-
-    if (s_ap_cache && (now - s_ap_cache_time) < BLE_WIFI_LIST_CACHE_TTL_MS) {
-        *ap_arr = s_ap_cache;
-        *ap_num = s_ap_cache_num;
-        return OPRT_OK;
-    }
 
     ble_wifi_list_cache_clear();
 
@@ -123,7 +113,6 @@ static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
 
     s_ap_cache      = arr;
     s_ap_cache_num  = num;
-    s_ap_cache_time = now;
 
     *ap_arr = s_ap_cache;
     *ap_num = s_ap_cache_num;

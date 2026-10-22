@@ -16,10 +16,13 @@
 
 #include "tal_api.h"
 #include "netcfg.h"
+#include "netmgr.h"
+#include "tuya_iot.h"
 #include "tal_event_info.h"
 #include "ble_mgr.h"
 #include "tuya_register_center.h"
 #include "ble_channel.h"
+#include <stdio.h>
 
 typedef struct {
     netcfg_args_t netcfg_args;
@@ -116,6 +119,31 @@ __exit:
     resp[3] = FRM_DATA_TRANS_SUBCMD_BT_NETCFG;
     resp[4] = result; // result code: 0x00 - success, other - fail
     tuya_ble_send(FRM_UPLINK_TRANSPARENT_REQ, 0, resp, 5);
+}
+
+void ble_netcfg_stat_query(void *data, uint32_t len, void *user_data)
+{
+    uint8_t        *resp;
+    uint32_t        stage = 0;
+    int             json_len;
+    netmgr_status_e status = NETMGR_LINK_DOWN;
+
+    if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status) && NETMGR_LINK_DOWN != status) {
+        stage = tuya_iot_activated(tuya_iot_client_get()) ? 3 : 2;
+    }
+
+    resp = (uint8_t *)tal_malloc(64);
+    if (NULL == resp) {
+        PR_ERR("malloc err");
+        return;
+    }
+    resp[0] = 0x00;
+    resp[1] = 0x00;
+    resp[2] = 0x00;
+    resp[3] = FRM_DATA_TRANS_SUBCMD_NETCFG_STAT;
+    json_len = snprintf((char *)resp + 4, 60, "{\"type\":1,\"stage\":%u,\"status\":0}", (unsigned)stage);
+
+    ble_channle_ack(FRM_UPLINK_TRANSPARENT_SPEC_REQ, resp, 4 + (uint32_t)json_len);
 }
 
 /**

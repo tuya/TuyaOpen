@@ -29,6 +29,7 @@ extern "C" {
 typedef enum {
     BLE_CHANNLE_NETCFG = 1,
     BLE_CHANNLE_WIFI_LST = 3,
+    BLE_CHANNLE_NETCFG_STAT = 4,
     BLE_CHANNLE_WIFI_PROTECT = 0x000F,
     BLE_CHANNEL_MAX          = 0x0010,
 } ble_channel_type_t;

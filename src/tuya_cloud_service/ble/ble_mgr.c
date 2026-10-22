@@ -22,6 +22,7 @@
 #include "mix_method.h"
 #include "ble_channel.h"
 #include "ble_wifi_list.h"
+#include "ble_netcfg.h"
 #ifdef ENABLE_WIFI_BACKUP
 #include "ble_wifi_backup.h"
 #endif
@@ -1070,6 +1071,7 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
     ble_channel_del(BLE_CHANNLE_WIFI_LST);
+    ble_channel_del(BLE_CHANNLE_NETCFG_STAT);
     ble_wifi_list_cache_clear();
 #ifdef ENABLE_WIFI_BACKUP
     ble_wifi_backup_unregister();
@@ -1157,6 +1159,7 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
     ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
+    ble_channel_add(BLE_CHANNLE_NETCFG_STAT, ble_netcfg_stat_query, NULL);
 #ifdef ENABLE_WIFI_BACKUP
     ble_wifi_backup_register();
 #endif
