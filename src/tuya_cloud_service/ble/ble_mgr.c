@@ -834,7 +834,7 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     //  support. bit1: 1 - Supports reporting of various states during network
     //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
     //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = (uint8_t)(1 << 0);
+    pbuf[payload_len++] = ble_wifi_list_is_enable() ? (uint8_t)((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3)) : 0;
 
     return payload_len;
 }
