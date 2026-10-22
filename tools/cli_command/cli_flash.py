@@ -196,18 +196,26 @@ def _get_platform_bridge_path(using_data) -> str:
     return os.path.join(params["platforms_root"], platform, "platform_flash_bridge.py")
 
 
-def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
+def _try_platform_flash(using_data, debug: bool, port: str, baud: int, mode: str = "auto"):
     """
     Call platform_flash_bridge.py when present.
 
     Returns None to fall back to tyutool; True/False for bridge result.
     """
+    platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     bridge_path = _get_platform_bridge_path(using_data)
+
+    # For dedicated bridge platforms like JIELI, ensure platform repository is available
+    if platform.upper() == "JIELI" and (not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0):
+        logger = get_logger()
+        if not download_platform(platform):
+            logger.error("Download platform error.")
+            return False
+
     if not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0:
         return None
 
     logger = get_logger()
-    platform = using_data["CONFIG_PLATFORM_CHOICE"]
     if not download_platform(platform):
         logger.error("Download platform error.")
         return False
@@ -228,6 +236,11 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
 
     params = get_global_params()
     logger.info(f"Using platform flash bridge: {platform}/platform_flash_bridge.py")
+
+    # Set mode in environment if specified
+    if mode:
+        os.environ["JIELI_FLASH_MODE"] = mode
+
     result = bridge.platform_flash(
         using_data=using_data,
         binfile=_get_bin_file(using_data),
@@ -328,7 +341,11 @@ def get_flash_cmd(using_data,
 @click.option('-b', '--baud',
               type=int, default=0,
               help="Uart baud rate.")
-def cli(debug, port, baud):
+@click.option('-m', '--mode',
+              type=click.Choice(['auto', 'usb', 'serial'], case_sensitive=False),
+              default='auto',
+              help="Flash mode: auto (default), usb (Mass Storage BOT), serial (UART).")
+def cli(debug, port, baud, mode):
     logger = get_logger()
     check_proj_dir()
 
@@ -339,7 +356,7 @@ def cli(debug, port, baud):
     if not check_bin_file(using_data):
         sys.exit(1)
 
-    bridge_result = _try_platform_flash(using_data, debug, port, baud)
+    bridge_result = _try_platform_flash(using_data, debug, port, baud, mode)
     if bridge_result is not None:
         sys.exit(0 if bridge_result else 1)
 
