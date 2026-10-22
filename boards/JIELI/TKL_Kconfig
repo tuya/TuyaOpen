@@ -11,10 +11,16 @@
 #
 # Undeclared on purpose:
 #
-#   ENABLE_PWM, ENABLE_I2C, ENABLE_SPI, ENABLE_QSPI, ENABLE_TIMER,
+#   ENABLE_PWM, ENABLE_I2C, ENABLE_SPI, ENABLE_QSPI,
 #   ENABLE_WATCHDOG, ENABLE_PINMUX, ENABLE_TOUCH, ENABLE_RTC
-#       There is no matching tkl_*.c under tuyaos_adapter/src/driver.
-#       examples/peripherals/{pwm,touch,watchdog} therefore stop with
+#       ENABLE_PWM / ENABLE_I2C / ENABLE_SPI have backends in the adapter, but
+#       neither staged board registers the vendor device (wl83 gates each one
+#       behind a commented-out USE_*_TEST_DEMO; the wl82 board file that
+#       declares them is not the profile the platform stages). Declaring the
+#       capability would advertise a device that dev_open() cannot return.
+#       ENABLE_PINMUX is wl83-only, and a platform-level switch has no chip
+#       dimension. The rest have no tkl_*.c under tuyaos_adapter/src/driver.
+#       examples/peripherals/{pwm,spi,touch,watchdog} therefore stop with
 #       "cannot work when CONFIG_ENABLE_X is not set", which is the truth.
 #
 #   ENABLE_MEDIA
@@ -74,5 +80,13 @@ config ENABLE_ADC
 # the power manager, so the runtime path is only reachable when a product wants
 # it.
 config ENABLE_PM
+    bool
+    default y
+
+# tkl_timer drives the vendor's microsecond timer service, so it needs no board
+# device and no pin - there is nothing to register. Its callback runs in the
+# SDK's timer task rather than in the interrupt, which is what lets the stock
+# examples/peripherals/timer stop and deinit its own timer from the callback.
+config ENABLE_TIMER
     bool
     default y
