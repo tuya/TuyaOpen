@@ -1,23 +1,56 @@
 /**
  * @file tal_compat.c
- * @brief 交付仓兼容层的**函数级实现**（tal_compat.h 负责宏重定向/声明，这里提供真实符号）。
+ * @brief Function-level compatibility symbols for legacy tal_* interfaces.
  *
- * 为什么需要真实符号（而不是纯宏）：平台自带的**预编译静态库**是按上游
- * `tal_psram_*` 名字编好的（例：platform/LINUX/.../tkl_audio/libs/<board>/audio_subsys/
- * libaudio_subsys.a 里的 speexdsp/rnn_vad/mfcc 引用 tal_psram_malloc/free/calloc）。
- * 宏只能改源码，改不了 .a 里的重定位符号，因此必须在链接期提供同名函数。
- *
- * 实现口径与上游 `src/tal_system/src/tal_system.c` 一致：直绑平台 tkl 的 psram 接口
- * （上游 tal_psram_malloc → tkl_system_psram_malloc 等）。**刻意不走 core 的
- * tal_ex_ram_***：core 的 ex_ram 接口在 `ENABLE_EXT_RAM` 关闭时整体编掉
- * （iot-core/tal_system/src/tal_api.c:182-193），而本兼容层要无条件可链接。
+ * Platform prebuilt libraries reference tal_psram_* and tal_log_print_* by
+ * their legacy names; the platform tkl API and core_log provide the
+ * implementations.
  *
  * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
 #include "tal_compat.h"
-#include "tkl_memory.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
+#include "core_log.h"
+
+#if defined(TUYAOPEN_PLATFORM_ESP32)
+#include "esp_heap_caps.h"
+#else
+#include "tkl_memory.h"
+#endif
+
+#if defined(TUYAOPEN_PLATFORM_ESP32)
+void *tal_psram_malloc(size_t size)
+{
+    return heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+}
+
+void tal_psram_free(void *ptr)
+{
+    if (NULL == ptr) {
+        return;
+    }
+    heap_caps_free(ptr);
+}
+
+void *tal_psram_calloc(size_t nitems, size_t size)
+{
+    return heap_caps_calloc(nitems, size, MALLOC_CAP_SPIRAM);
+}
+
+void *tal_psram_realloc(void *ptr, size_t size)
+{
+    return heap_caps_realloc(ptr, size, MALLOC_CAP_SPIRAM);
+}
+
+INT_T tal_psram_get_free_heap_size(VOID_T)
+{
+    return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+}
+#else
 void *tal_psram_malloc(size_t size)
 {
     return tkl_system_psram_malloc(size);
@@ -44,4 +77,36 @@ void *tal_psram_realloc(void *ptr, size_t size)
 INT_T tal_psram_get_free_heap_size(VOID_T)
 {
     return tkl_system_psram_get_free_heap_size();
+}
+#endif
+
+/* legacy names referenced by platform prebuilt libraries */
+#undef tal_log_print_raw
+#undef tal_log_print_secure
+
+OPERATE_RET tal_log_print_raw(const char *pFmt, ...)
+{
+    va_list     ap;
+    OPERATE_RET ret;
+
+    va_start(ap, pFmt);
+    ret = core_log_vprint_raw(pFmt, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+OPERATE_RET tal_log_print_secure(BOOL_T is_const_fmt, const CORE_LOG_LEVEL_E level, const char *file, const int line,
+                                 const char *fmt, ...)
+{
+    char    buf[512];
+    va_list ap;
+
+    (void)is_const_fmt;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+
+    return core_log_print_secure(TRUE, level, file, line, "%s", buf);
 }

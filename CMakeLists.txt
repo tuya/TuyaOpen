@@ -147,11 +147,17 @@ endif()
 include(${TOP_SOURCE_DIR}/tuyaopen-core/tuyaopen-core.cmake)   # 含 TuyaOpenOptions.cmake
 # core 的环境基底（core 契约：宿主注入 tuyaopen-headers）：动态 tuya_kconfig.h +
 # 上游 common 头（tuya_cloud_types.h→tuya_iot_config.h→tuya_kconfig.h 链）+ 平台公共头
+set(_tuyaopen_lwip_inc)
+if(TOS_PROJECT_PLATFORM STREQUAL "ESP32" OR TOS_PROJECT_PLATFORM STREQUAL "T5AI")
+    set(_tuyaopen_lwip_inc "${TOP_SOURCE_DIR}/tuyaopen-core/port/tuyaopen/lwip")
+endif()
 target_include_directories(tuyaopen-headers INTERFACE
+    ${_tuyaopen_lwip_inc}
     ${TOP_BINARY_DIR}/include
     ${TOP_SOURCE_DIR}/src/common/include
     ${PLATFORM_PUBINC}
 )
+unset(_tuyaopen_lwip_inc)
 # 上游保留组件补 core 头/宏/链接面（tuyaopen-headers 携带开关宏）
 foreach(c ${COMPONENT_LIBS})
     target_link_libraries(${c} PRIVATE tuyaopen-core tuyaopen-headers)
