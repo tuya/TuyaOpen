@@ -57,4 +57,4 @@ platforms:
 - name: L511C_Y7PM
   repo: https://github.com/tuya/TuyaOpen-LYNQ
   branch: l511c-y7pm
-  commit: 350c04d12d8b8f50463134c2c2e966bf43d60f3b
+  commit: d589d331b4e70f8bec3bb35d372d21c48136f63d
