@@ -21,7 +21,7 @@ config JIELI_BOARD_USB_ROLE
 
 config JIELI_BOARD_FLASH_MIB
     int
-    default 16
+    default 8
 
 config JIELI_BOARD_SDRAM_MIB
     int
