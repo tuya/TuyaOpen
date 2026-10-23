@@ -196,8 +196,9 @@ class TestJieLiTyutoolRouting(unittest.TestCase):
     def test_try_platform_flash_falls_back_to_tyutool_when_bridge_absent(self):
         import tools.cli_command.cli_flash as m
         using_data = {"CONFIG_PLATFORM_CHOICE": "JIELI"}
-        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
-        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
+        with patch("os.path.isfile", return_value=False):
+            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
+            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
 
     def test_try_platform_flash_prioritizes_bridge_when_present(self):
         import os
