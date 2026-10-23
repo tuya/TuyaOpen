@@ -42,10 +42,6 @@ config BOARD_ENABLE_L511C_Y6E
     bool
     default y
 
-config BOARD_ENABLE_L511C_Y7PM
-    bool
-    default y
-
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -137,14 +133,6 @@ if (BOARD_ENABLE_L511C_Y6E)
         bool "L511C_Y6E"
     if (BOARD_CHOICE_L511C_Y6E)
     rsource "./L511C_Y6E/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_L511C_Y7PM)
-    config BOARD_CHOICE_L511C_Y7PM
-        bool "L511C_Y7PM"
-    if (BOARD_CHOICE_L511C_Y7PM)
-    rsource "./L511C_Y7PM/Kconfig"
     endif
 endif
 
