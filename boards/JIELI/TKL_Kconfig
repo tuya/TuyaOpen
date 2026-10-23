@@ -69,6 +69,10 @@ config ENABLE_ADC
     bool
     default y
 
+config ENABLE_I2C
+    bool
+    default y
+
 # tkl_sleep is real on both chips now: WL82 holds the core awake with
 # low_power_sys_unsleep_lock()/unlock(), WL83 with low_power_disable()/enable(),
 # and tkl_wifi_set_lp_mode() drives the radio's sleep gate. T5AI and T3 declare

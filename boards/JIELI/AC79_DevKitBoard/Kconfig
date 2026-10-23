@@ -1,6 +1,10 @@
 config BOARD_CONFIG
     bool
     default y
+    select ENABLE_DISPLAY
+    select ENABLE_EMI_WL82
+    select ENABLE_TP
+    select ENABLE_I2C
 
 config CHIP_WL82
     bool
