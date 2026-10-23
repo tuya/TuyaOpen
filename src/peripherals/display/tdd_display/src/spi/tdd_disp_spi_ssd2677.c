@@ -644,7 +644,9 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
     const TUYA_GPIO_NUM_E pins[] = {dev_cfg->clk_pin, dev_cfg->sda_pin, dev_cfg->cs_pin,
                                     dev_cfg->dc_pin,  dev_cfg->rst_pin, dev_cfg->busy_pin};
     for (size_t i = 0; i < sizeof(pins) / sizeof(pins[0]); ++i) {
-        if ((unsigned)pins[i] >= TUYA_GPIO_NUM_MAX) {
+        /* Platform GPIO adapters validate module pin numbers, which may
+         * exceed the common enum range. The no-pin sentinel is still invalid. */
+        if (pins[i] == TUYA_GPIO_NUM_MAX) {
             return OPRT_INVALID_PARM;
         }
         for (size_t j = 0; j < i; ++j) {
