@@ -84,8 +84,24 @@ class JieliFlashBridgeTest(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertTrue(command[0].endswith("isd_download.exe"))
         self.assertIn("-app", command)
-        self.assertIn(str(image), command)
+        self.assertTrue(any(arg.endswith("app.bin") for arg in command))
         self.assertEqual(run.call_args.kwargs["cwd"].name, "tools")
+
+    def test_default_linux_command_uses_python_flasher(self):
+        with patch.object(platform_flash_bridge.os, "name", "posix"):
+            command = platform_flash_bridge._default_flash_command(
+                pathlib.Path("/build/app.bin"), "wl82", port="/dev/ttyUSB0", baud=1000000
+            )
+        self.assertIsNotNone(command)
+        args, tools_dir = command
+        self.assertEqual(args[0], platform_flash_bridge.sys.executable)
+        self.assertTrue(args[1].endswith("jieli_flasher.py"))
+        self.assertIn("-dev", args)
+        self.assertIn("wl82", args)
+        self.assertIn("-p", args)
+        self.assertIn("/dev/ttyUSB0", args)
+        self.assertIn("-b", args)
+        self.assertIn("1000000", args)
 
 
 if __name__ == "__main__":

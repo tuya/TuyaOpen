@@ -166,5 +166,39 @@ class TestDoFlashSubprocessDispatch(unittest.TestCase):
         self.assertEqual(ret, 0)
 
 
+class TestJieLiTyutoolRouting(unittest.TestCase):
+
+    def test_normalize_device_jieli_aliases(self):
+        import tools.cli_command.cli_flash as m
+        self.assertEqual(m._normalize_device("JIELI"), "jieli")
+        self.assertEqual(m._normalize_device("jieli"), "jieli")
+        self.assertEqual(m._normalize_device("WL82"), "jieli")
+        self.assertEqual(m._normalize_device("wl83"), "jieli")
+        self.assertEqual(m._normalize_device("AC791N"), "jieli")
+        self.assertEqual(m._normalize_device("AC792N"), "jieli")
+
+    def test_get_flash_cmd_jieli_port_free(self):
+        import tools.cli_command.cli_flash as m
+        using_data = {
+            "CONFIG_PLATFORM_CHOICE": "JIELI",
+            "CONFIG_PROJECT_NAME": "demo_app",
+            "CONFIG_PROJECT_VERSION": "1.0.0",
+        }
+        with patch('tools.cli_command.cli_flash.get_global_params', return_value={
+            "tyutool_bin": "/usr/local/bin/tyutool",
+            "app_bin_path": "/workspace/build/bin",
+        }):
+            cmd = m.get_flash_cmd(using_data, debug=False, port="", baudrate=0)
+            self.assertIn('"/usr/local/bin/tyutool" write -d jieli -f', cmd)
+            self.assertNotIn("-p", cmd)
+            self.assertNotIn("-b", cmd)
+
+    def test_try_platform_flash_routes_to_tyutool_on_auto_and_usb(self):
+        import tools.cli_command.cli_flash as m
+        using_data = {"CONFIG_PLATFORM_CHOICE": "JIELI"}
+        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
+        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
+
+
 if __name__ == '__main__':
     unittest.main()
