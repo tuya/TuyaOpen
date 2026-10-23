@@ -202,6 +202,7 @@ void tuya_sock_loop_run(void *data)
                 __ty_del_sock_reader(queue_data.sock);
             }
         }
+        tuya_lan_dp_report_flush();
         for (idx = 0; idx < __ty_sock_get_reader_num(); idx++) {
             if (g_sloop->readers[idx].pre_select) {
                 g_sloop->readers[idx].pre_select();
@@ -215,7 +216,7 @@ void tuya_sock_loop_run(void *data)
         tal_net_fd_zero(rfds);
         tal_net_fd_zero(efds);
         __sock_table_set_fds(rfds, efds);
-        actv_cnt = tal_net_select(g_sloop->max_sock + 1, rfds, NULL, efds, 1 * 1000);
+        actv_cnt = tal_net_select(g_sloop->max_sock + 1, rfds, NULL, efds, 100);
         if (actv_cnt < 0) {
             PR_ERR("errno:%d", tal_net_get_errno());
             __sock_select_err_handle();
