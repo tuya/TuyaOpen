@@ -24,19 +24,18 @@ extern "C" {
 
 /** @brief Panel dimensions, SPI settings and six required signal pins. */
 typedef struct {
-    uint16_t                width;             /**< Visible width: nonzero, <= 960 and divisible by eight. */
-    uint16_t                height;            /**< Visible height: nonzero and <= the effective controller_height. */
-    uint16_t                controller_height; /**< Scan height (0x61): 420..680; 0 uses height. */
-    TUYA_SPI_NUM_E          port;              /**< Dedicated hardware SPI port. */
-    uint32_t                spi_clk;           /**< SPI frequency in Hz; validated T5AI setting: 4000000. */
-    TUYA_GPIO_NUM_E         clk_pin;           /**< SPI CLK; also used as GPIO for temperature reads. */
-    TUYA_GPIO_NUM_E         sda_pin;           /**< Bidirectional SPI data. */
-    TUYA_GPIO_NUM_E         cs_pin;            /**< Active-low chip select. */
-    TUYA_GPIO_NUM_E         dc_pin;            /**< LOW for command, HIGH for data. */
-    TUYA_GPIO_NUM_E         rst_pin;           /**< Active-low reset. */
-    TUYA_GPIO_NUM_E         busy_pin;          /**< LOW while busy, HIGH when ready. */
-    TUYA_DISPLAY_IO_CTRL_T  power;             /**< Optional enable; set pin = TUYA_GPIO_NUM_MAX when absent. */
-    TUYA_DISPLAY_ROTATION_E rotation;          /**< Clockwise software rotation; default 0. */
+    uint16_t        width;             /**< Visible width: nonzero, <= 960 and divisible by eight. */
+    uint16_t        height;            /**< Visible height: nonzero and <= the effective controller_height. */
+    uint16_t        controller_height; /**< Scan height (0x61): 420..680; 0 uses height. */
+    TUYA_SPI_NUM_E  port;              /**< Dedicated hardware SPI port. */
+    uint32_t        spi_clk;           /**< SPI frequency in Hz; validated T5AI setting: 4000000. */
+    TUYA_GPIO_NUM_E clk_pin;           /**< SPI CLK; also used as GPIO for temperature reads. */
+    TUYA_GPIO_NUM_E sda_pin;           /**< Bidirectional SPI data. */
+    TUYA_GPIO_NUM_E cs_pin;            /**< Active-low chip select. */
+    TUYA_GPIO_NUM_E dc_pin;            /**< LOW for command, HIGH for data. */
+    TUYA_GPIO_NUM_E rst_pin;           /**< Active-low reset. */
+    TUYA_GPIO_NUM_E busy_pin;          /**< LOW while busy, HIGH when ready. */
+    TUYA_DISPLAY_IO_CTRL_T power;      /**< Optional enable; set pin = TUYA_GPIO_NUM_MAX when absent. */
 } DISP_EINK_SSD2677_CFG_T;
 
 /**
@@ -45,16 +44,6 @@ typedef struct {
  * Frames use TUYA_PIXEL_FMT_MONOCHROME: LSB-first pixels, 1 = black, 0 = white,
  * with a top-left origin. x_start and width must be multiples of eight; windows
  * must fit within the visible screen and len must equal width * height / 8.
- *
- * cfg.width/height always describe the physical panel. For rotation 90/270,
- * TDL publishes logical width=cfg.height, height=cfg.width; cfg.height must then
- * be divisible by eight. Other angles retain physical dimensions. The driver
- * rotates the logical input clockwise into a temporary physical frame; callers
- * must not rotate it again. TDL info.rotation is deliberately 0, meaning no
- * further upper-layer rotation is needed (including existing LVGL ports).
- * Configure rotation before registration; no runtime set/get API is provided.
- * Nonzero rotations accept full logical frames only and return OPRT_NOT_SUPPORTED
- * for valid partial windows. Rotation 0 retains the existing partial behavior.
  *
  * A successful full-screen refresh is required before partial updates and after
  * reset, close/reopen or a failed refresh. Partial updates reuse the last full
