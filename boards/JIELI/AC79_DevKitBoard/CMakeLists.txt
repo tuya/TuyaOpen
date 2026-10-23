@@ -11,9 +11,22 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
 aux_source_directory(${MODULE_PATH} LIB_SRCS)
+list(APPEND LIB_SRCS
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/apps/common/iic/iic.c
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/apps/common/iic/software_iic.c
+)
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC ${MODULE_PATH})
+
+list(APPEND LIB_PRIVATE_INC
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib/driver
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib/driver/device
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib/driver/cpu/wl82
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib/system
+    ${TOP_SOURCE_DIR}/platform/JIELI/chip/wl82/AC79_AIoT_SDK/include_lib/system/generic
+)
 
 ########################################
 # Target Configure

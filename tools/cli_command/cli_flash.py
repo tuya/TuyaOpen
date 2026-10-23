@@ -182,9 +182,11 @@ def check_bin_file(using_data) -> bool:
 
 def _get_bin_file(using_data) -> str:
     params = get_global_params()
-    bin_path = params["app_bin_path"]
-    project_name = using_data["CONFIG_PROJECT_NAME"]
-    project_ver = using_data["CONFIG_PROJECT_VERSION"]
+    bin_path = params.get("app_bin_path", "")
+    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    project_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
+    if not bin_path or not project_name:
+        return ""
     return os.path.join(bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
 
@@ -205,11 +207,8 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int, mode: str
     platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     bridge_path = _get_platform_bridge_path(using_data)
 
-    # For JieLi in USB/auto mode, route to tyutool directly (port-free USB Mass Storage BOT).
-    # Serial UART mode falls back to platform_flash_bridge.py.
-    if platform.upper() == "JIELI" and mode != "serial":
-        return None
-
+    # Prioritize platform_flash_bridge.py when present (e.g. JIELI cross-platform
+    # USB zero-touch flasher and vendor tools). Falls back to tyutool if absent.
     if not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0:
         return None
 

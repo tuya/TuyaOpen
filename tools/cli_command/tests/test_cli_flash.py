@@ -193,11 +193,39 @@ class TestJieLiTyutoolRouting(unittest.TestCase):
             self.assertNotIn("-p", cmd)
             self.assertNotIn("-b", cmd)
 
-    def test_try_platform_flash_routes_to_tyutool_on_auto_and_usb(self):
+    def test_try_platform_flash_falls_back_to_tyutool_when_bridge_absent(self):
         import tools.cli_command.cli_flash as m
         using_data = {"CONFIG_PLATFORM_CHOICE": "JIELI"}
-        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
-        self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
+        with patch("os.path.isfile", return_value=False):
+            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
+            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
+
+    def test_try_platform_flash_prioritizes_bridge_when_present(self):
+        import os
+        import tools.cli_command.cli_flash as m
+        using_data = {
+            "CONFIG_PLATFORM_CHOICE": "JIELI",
+            "CONFIG_PROJECT_NAME": "demo_app",
+            "CONFIG_PROJECT_VERSION": "1.0.0",
+        }
+        mock_bridge = MagicMock()
+        mock_bridge.platform_flash.return_value = {"success": True}
+
+        with patch("os.path.isfile", return_value=True), \
+             patch("os.path.getsize", return_value=1024), \
+             patch("tools.cli_command.cli_flash.download_platform", return_value=True), \
+             patch("importlib.util.spec_from_file_location") as mock_spec_from_file, \
+             patch("importlib.util.module_from_spec", return_value=mock_bridge), \
+             patch("tools.cli_command.cli_flash.get_global_params", return_value={"platforms_root": "/mock", "boards_root": "/mock"}), \
+             patch("tools.cli_command.cli_flash._get_bin_file", return_value="/mock/app.bin"):
+
+            spec_obj = MagicMock()
+            mock_spec_from_file.return_value = spec_obj
+
+            res = m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto")
+            self.assertTrue(res)
+            self.assertEqual(os.environ.get("JIELI_FLASH_MODE"), "auto")
+            mock_bridge.platform_flash.assert_called_once()
 
 
 if __name__ == '__main__':
