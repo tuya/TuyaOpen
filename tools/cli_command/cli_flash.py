@@ -182,9 +182,11 @@ def check_bin_file(using_data) -> bool:
 
 def _get_bin_file(using_data) -> str:
     params = get_global_params()
-    bin_path = params["app_bin_path"]
-    project_name = using_data["CONFIG_PROJECT_NAME"]
-    project_ver = using_data["CONFIG_PROJECT_VERSION"]
+    bin_path = params.get("app_bin_path", "")
+    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    project_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
+    if not bin_path or not project_name:
+        return ""
     return os.path.join(bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
 
