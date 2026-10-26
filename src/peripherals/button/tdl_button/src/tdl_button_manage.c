@@ -86,8 +86,7 @@
 
 #define TDL_BUTTON_EVENT_ARG(val) ((void *)(uintptr_t)(val))
 
-
-#if defined(BUTTION_STACK_SIZE) && (BUTTION_STACK_SIZE > 0)    
+#if defined(BUTTION_STACK_SIZE) && (BUTTION_STACK_SIZE > 0)
 #define TDL_BUTTON_TASK_STACK_SIZE BUTTION_STACK_SIZE
 #else
 #define TDL_BUTTON_TASK_STACK_SIZE 2048
@@ -105,72 +104,72 @@ typedef struct {
 } TDL_BUTTON_HARDWARE_CFG_T;
 
 typedef struct {
-    uint8_t pre_event : 4; // Previous event
-    uint8_t now_event : 4; // Currently generated event
-    uint8_t flag : 3;      // Button processing flow state
-    uint8_t debounce_cnt;  // Debounce count
-    uint16_t ticks;        // Press and hold count
-    uint8_t status;        // Actual button status
-    uint8_t repeat;        // Repeat press count
-    uint8_t ready;         // Flag indicating if the button is ready after power-on
-    uint8_t init_flag;     // Button initialized successfully
+    uint8_t  pre_event : 4; // Previous event
+    uint8_t  now_event : 4; // Currently generated event
+    uint8_t  flag : 3;      // Button processing flow state
+    uint8_t  debounce_cnt;  // Debounce count
+    uint16_t ticks;         // Press and hold count
+    uint8_t  status;        // Actual button status
+    uint8_t  repeat;        // Repeat press count
+    uint8_t  ready;         // Flag indicating if the button is ready after power-on
+    uint8_t  init_flag;     // Button initialized successfully
 
-    TDL_BUTTON_CTRL_INFO ctrl_info;    // Driver mount information
-    DEVICE_BUTTON_HANDLE dev_handle;   // Driver handle
-    TDL_BUTTON_HARDWARE_CFG_T dev_cfg; // Hardware configuration
+    TDL_BUTTON_CTRL_INFO      ctrl_info;  // Driver mount information
+    DEVICE_BUTTON_HANDLE      dev_handle; // Driver handle
+    TDL_BUTTON_HARDWARE_CFG_T dev_cfg;    // Hardware configuration
 } BUTTON_DRIVER_DATA_T;
 
 typedef struct {
-    TDL_BUTTON_CFG_T button_cfg;                       /*button data*/
+    TDL_BUTTON_CFG_T    button_cfg;                    /*button data*/
     TDL_BUTTON_EVENT_CB list_cb[TDL_BUTTON_PRESS_MAX]; /*button cb*/
 } BUTTON_USER_DATA_T;                                  // user data
 
 typedef struct {
-    LIST_HEAD hdr; /* list node */
-    char *name;    /* node name */
-    MUTEX_HANDLE button_mutex;
-    BUTTON_USER_DATA_T user_data;     /* user data */
+    LIST_HEAD            hdr;  /* list node */
+    char                *name; /* node name */
+    MUTEX_HANDLE         button_mutex;
+    BUTTON_USER_DATA_T   user_data;   /* user data */
     BUTTON_DRIVER_DATA_T device_data; /* driver data */
 } TDL_BUTTON_LIST_NODE_T;             // Single button node
 
 #if (COMBINE_BUTTON_ENABLE == 1)
 typedef struct {
-    LIST_HEAD hdr;                 /* list node */
-    char *name;                    /* node name */
+    LIST_HEAD          hdr;        /* list node */
+    char              *name;       /* node name */
     TDL_BUTTON_FUNC_CB combine_cb; /*combine button cb*/
 } TDL_BUTTON_COMBINE_LIST_NODE_T;  // Combination button node
 #endif
 
 typedef struct {
-    uint8_t scan_task_flag;   /*Scan thread flag*/
-    uint8_t irq_task_flag;    /*Interrupt thread flag*/
-    uint8_t task_mode;        /*Thread type*/
-    SEM_HANDLE irq_semaphore; /*Interrupt semaphore*/
-    uint32_t irq_scan_cnt;    /*Interrupt thread disconnection count*/
-    MUTEX_HANDLE mutex;       /*Mutex lock*/
-} TDL_BUTTON_LOCAL_T;         // TDL local parameters
+    uint8_t      scan_task_flag; /*Scan thread flag*/
+    uint8_t      irq_task_flag;  /*Interrupt thread flag*/
+    uint8_t      task_mode;      /*Thread type*/
+    SEM_HANDLE   irq_semaphore;  /*Interrupt semaphore*/
+    uint32_t     irq_scan_cnt;   /*Interrupt thread disconnection count*/
+    MUTEX_HANDLE mutex;          /*Mutex lock*/
+} TDL_BUTTON_LOCAL_T;            // TDL local parameters
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-TDL_BUTTON_LOCAL_T tdl_button_local = {.irq_task_flag = FALSE,
+TDL_BUTTON_LOCAL_T tdl_button_local = {.irq_task_flag  = FALSE,
                                        .scan_task_flag = FALSE,
-                                       .task_mode = FALSE,
-                                       .irq_semaphore = NULL,
-                                       .irq_scan_cnt = TDL_BUTTON_IRQ_SCAN_TIME / TDL_BUTTON_SCAN_TIME,
-                                       .mutex = NULL};
+                                       .task_mode      = FALSE,
+                                       .irq_semaphore  = NULL,
+                                       .irq_scan_cnt   = TDL_BUTTON_IRQ_SCAN_TIME / TDL_BUTTON_SCAN_TIME,
+                                       .mutex          = NULL};
 
 THREAD_HANDLE scan_thread_handle = NULL; // Scan thread handle
-THREAD_HANDLE irq_thread_handle = NULL;  // Interrupt scan thread handle
+THREAD_HANDLE irq_thread_handle  = NULL; // Interrupt scan thread handle
 
 TDL_BUTTON_LIST_HEAD_T *p_button_list = NULL; // Single button list head
 // TDL_BUTTON_LIST_HEAD_T *p_combine_button_list = NULL;//Combination button list head
 
 static uint8_t g_tdl_button_list_exist = FALSE; // Single button list head initialization flag
 // static uint8_t g_tdl_combine_button_list_exist = FALSE;//Combination button list head initialization flag
-static uint8_t g_tdl_button_scan_mode_exist = 0xFF;
-static uint32_t sg_bt_task_stack_size = TDL_BUTTON_TASK_STACK_SIZE;
-static uint8_t tdl_button_scan_time = TDL_BUTTON_SCAN_TIME;
+static uint8_t  g_tdl_button_scan_mode_exist = 0xFF;
+static uint32_t sg_bt_task_stack_size        = TDL_BUTTON_TASK_STACK_SIZE;
+static uint8_t  tdl_button_scan_time         = TDL_BUTTON_SCAN_TIME;
 
 /***********************************************************
 ***********************function define**********************
@@ -228,7 +227,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node(TDL_BUTTON_HANDLE handle)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    LIST_HEAD *pos = NULL;
+    LIST_HEAD              *pos    = NULL;
 
     if (NULL == p_head) {
         PR_ERR("__tdl_button_find_node err");
@@ -249,9 +248,9 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node(TDL_BUTTON_HANDLE handle)
 // Find combination button node by handle
 static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_combine_node(TDL_BUTTON_HANDLE handle)
 {
-    TDL_BUTTON_LIST_HEAD_T *p_head = p_combine_button_list;
+    TDL_BUTTON_LIST_HEAD_T         *p_head = p_combine_button_list;
     TDL_BUTTON_COMBINE_LIST_NODE_T *p_node = NULL;
-    LIST_HEAD *pos = NULL;
+    LIST_HEAD                      *pos    = NULL;
 
     if (NULL == p_head) {
         PR_ERR("__tdl_button_find_combine_node err");
@@ -274,7 +273,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node_name(char *name)
 {
     TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    LIST_HEAD *pos = NULL;
+    LIST_HEAD              *pos    = NULL;
 
     if (NULL == p_head) {
         PR_ERR("__tdl_button_find_node_name err");
@@ -295,9 +294,9 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_find_node_name(char *name)
 // Find combination button node by name
 static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_node_combine_name(char *name)
 {
-    TDL_BUTTON_LIST_HEAD_T *p_head = p_combine_button_list;
+    TDL_BUTTON_LIST_HEAD_T         *p_head = p_combine_button_list;
     TDL_BUTTON_COMBINE_LIST_NODE_T *p_node = NULL;
-    LIST_HEAD *pos = NULL;
+    LIST_HEAD                      *pos    = NULL;
 
     if (NULL == p_head) {
         PR_ERR("__tdl_button_find_node_combine_name err");
@@ -319,9 +318,9 @@ static TDL_BUTTON_COMBINE_LIST_NODE_T *__tdl_button_find_node_combine_name(char 
 static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL_INFO *info,
                                                      TDL_BUTTON_DEVICE_INFO_T *cfg)
 {
-    TDL_BUTTON_LIST_HEAD_T *p_head = p_button_list;
-    TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    uint8_t name_len = 0;
+    TDL_BUTTON_LIST_HEAD_T *p_head   = p_button_list;
+    TDL_BUTTON_LIST_NODE_T *p_node   = NULL;
+    uint8_t                 name_len = 0;
 
     if (NULL == p_head) {
         PR_ERR("__tdl_button_add_node err");
@@ -367,7 +366,7 @@ static TDL_BUTTON_LIST_NODE_T *__tdl_button_add_node(char *name, TDL_BUTTON_CTRL
     memcpy(p_node->name, name, name_len);
     memcpy(&(p_node->device_data.ctrl_info), info, sizeof(TDL_BUTTON_CTRL_INFO));
     p_node->device_data.dev_cfg.button_mode = cfg->mode;
-    p_node->device_data.dev_handle = cfg->dev_handle;
+    p_node->device_data.dev_handle          = cfg->dev_handle;
 
     // Add new node
     tal_mutex_lock(tdl_button_local.mutex);
@@ -392,13 +391,13 @@ static TDL_BUTTON_LIST_NODE_T *__button_updata_userdata(char *name, TDL_BUTTON_C
     if (NULL == button_cfg) {
         PR_NOTICE("user button_cfg NULL");
         p_node->user_data.button_cfg.long_start_valid_time = TDL_LONG_START_VAILD_TIMER;
-        p_node->user_data.button_cfg.long_keep_timer = TDL_LONG_KEEP_TIMER;
-        p_node->user_data.button_cfg.button_debounce_time = TDL_BUTTON_DEBOUNCE_TIME;
+        p_node->user_data.button_cfg.long_keep_timer       = TDL_LONG_KEEP_TIMER;
+        p_node->user_data.button_cfg.button_debounce_time  = TDL_BUTTON_DEBOUNCE_TIME;
     } else {
-        p_node->user_data.button_cfg.long_start_valid_time = button_cfg->long_start_valid_time;
-        p_node->user_data.button_cfg.long_keep_timer = button_cfg->long_keep_timer;
-        p_node->user_data.button_cfg.button_debounce_time = button_cfg->button_debounce_time;
-        p_node->user_data.button_cfg.button_repeat_valid_time = button_cfg->button_repeat_valid_time;
+        p_node->user_data.button_cfg.long_start_valid_time     = button_cfg->long_start_valid_time;
+        p_node->user_data.button_cfg.long_keep_timer           = button_cfg->long_keep_timer;
+        p_node->user_data.button_cfg.button_debounce_time      = button_cfg->button_debounce_time;
+        p_node->user_data.button_cfg.button_repeat_valid_time  = button_cfg->button_repeat_valid_time;
         p_node->user_data.button_cfg.button_repeat_valid_count = button_cfg->button_repeat_valid_count;
     }
 
@@ -426,9 +425,9 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             }
             /*Trigger press down event*/
             /*Trigger press down event*/
-            p_node->device_data.ticks = 0;
-            p_node->device_data.repeat = BTN_REPEAT_SINGLE;
-            p_node->device_data.flag = BTN_FSM_PRESSED;
+            p_node->device_data.ticks     = 0;
+            p_node->device_data.repeat    = BTN_REPEAT_SINGLE;
+            p_node->device_data.flag      = BTN_FSM_PRESSED;
             p_node->device_data.pre_event = p_node->device_data.now_event;
             p_node->device_data.now_event = TDL_BUTTON_PRESS_DOWN;
             PR_DEBUG("[btn] %s pressed down", p_node->name);
@@ -475,7 +474,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                      (uint32_t)p_node->device_data.ticks * tdl_button_scan_time);
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
                          TDL_BUTTON_EVENT_ARG(p_node->device_data.repeat));
-            p_node->device_data.flag = BTN_FSM_WAIT_REPEAT;
+            p_node->device_data.flag  = BTN_FSM_WAIT_REPEAT;
             p_node->device_data.ticks = 0;
         }
     } break;
@@ -547,7 +546,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
                 // PR_NOTICE("%d",repeat_tick);
                 p_node->device_data.flag = BTN_FSM_IDLE;
             } else {
-                p_node->device_data.flag = BTN_FSM_WAIT_REPEAT;
+                p_node->device_data.flag  = BTN_FSM_WAIT_REPEAT;
                 p_node->device_data.ticks = 0;
             }
         } else {
@@ -592,7 +591,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_PRESS_UP,
                          TDL_BUTTON_EVENT_ARG(p_node->device_data.ticks * tdl_button_scan_time));
             p_node->device_data.ticks = 0;
-            p_node->device_data.flag = BTN_FSM_IDLE;
+            p_node->device_data.flag  = BTN_FSM_IDLE;
         }
     } break;
     case BTN_FSM_POWERON_RECOVER: {
@@ -600,7 +599,7 @@ static void __tdl_button_state_handle(TDL_BUTTON_LIST_NODE_T *p_node)
         /*If the power is continuously maintained at an effective level and triggered after recovery*/
         PUT_EVENT_CB(p_node->user_data, p_node->name, TDL_BUTTON_RECOVER_PRESS_UP, NULL);
         p_node->device_data.ticks = 0;
-        p_node->device_data.flag = BTN_FSM_IDLE;
+        p_node->device_data.flag  = BTN_FSM_IDLE;
     } break;
 
     default:
@@ -631,7 +630,7 @@ static OPERATE_RET __tdl_get_operate_info(TDL_BUTTON_LIST_NODE_T *p_node, TDL_BU
 
     memset(oprt_info, 0, sizeof(TDL_BUTTON_OPRT_INFO));
     oprt_info->dev_handle = p_node->device_data.dev_handle;
-    oprt_info->irq_cb = __tdl_button_irq_cb;
+    oprt_info->irq_cb     = __tdl_button_irq_cb;
 
     return OPRT_OK;
 }
@@ -639,9 +638,9 @@ static OPERATE_RET __tdl_get_operate_info(TDL_BUTTON_LIST_NODE_T *p_node, TDL_BU
 // Create a single button and return the handle for user use
 OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTTON_HANDLE *p_handle)
 {
-    OPERATE_RET ret = OPRT_COM_ERROR;
+    OPERATE_RET             ret    = OPRT_COM_ERROR;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    TDL_BUTTON_OPRT_INFO button_oprt;
+    TDL_BUTTON_OPRT_INFO    button_oprt;
 
     if (NULL == p_handle) {
         PR_ERR("tdl create handle err");
@@ -720,9 +719,9 @@ OPERATE_RET tdl_button_create(char *name, TDL_BUTTON_CFG_T *button_cfg, TDL_BUTT
 // Create a combination key: return a handle for user use
 OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
 {
-    OPERATE_RET ret = OPRT_COM_ERROR;
-    TDL_BUTTON_COMBINE_LIST_NODE_T *p_node = NULL;
-    uint8_t name_len = 0;
+    OPERATE_RET                     ret      = OPRT_COM_ERROR;
+    TDL_BUTTON_COMBINE_LIST_NODE_T *p_node   = NULL;
+    uint8_t                         name_len = 0;
 
     if (NULL == p_handle) {
         PR_ERR("tdl create handle err");
@@ -782,9 +781,9 @@ OPERATE_RET tdl_combine_button_create(char *name, TDL_BUTTON_HANDLE *p_handle)
 // Delete a single button: for user deletion
 OPERATE_RET tdl_button_delete(TDL_BUTTON_HANDLE p_handle)
 {
-    OPERATE_RET ret = OPRT_COM_ERROR;
+    OPERATE_RET             ret    = OPRT_COM_ERROR;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    TDL_BUTTON_OPRT_INFO button_oprt;
+    TDL_BUTTON_OPRT_INFO    button_oprt;
 
     if (NULL == p_handle) {
         return OPRT_INVALID_PARM;
@@ -819,7 +818,7 @@ OPERATE_RET tdl_button_delete(TDL_BUTTON_HANDLE p_handle)
 
 OPERATE_RET tdl_button_delete_without_hardware(TDL_BUTTON_HANDLE handle)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET             rt     = OPRT_OK;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
 
     TUYA_CHECK_NULL_RETURN(handle, OPRT_INVALID_PARM);
@@ -830,15 +829,15 @@ OPERATE_RET tdl_button_delete_without_hardware(TDL_BUTTON_HANDLE handle)
     tal_mutex_lock(p_node->button_mutex);
 
     memset(&p_node->user_data, 0, sizeof(BUTTON_USER_DATA_T));
-    p_node->device_data.pre_event = 0;
-    p_node->device_data.now_event = 0;
-    p_node->device_data.flag = 0;
+    p_node->device_data.pre_event    = 0;
+    p_node->device_data.now_event    = 0;
+    p_node->device_data.flag         = 0;
     p_node->device_data.debounce_cnt = 0;
-    p_node->device_data.ticks = 0;
-    p_node->device_data.status = 0;
-    p_node->device_data.repeat = 0;
-    p_node->device_data.ready = 0;
-    p_node->device_data.init_flag = 0;
+    p_node->device_data.ticks        = 0;
+    p_node->device_data.status       = 0;
+    p_node->device_data.repeat       = 0;
+    p_node->device_data.ready        = 0;
+    p_node->device_data.init_flag    = 0;
 
     tal_mutex_unlock(p_node->button_mutex);
 
@@ -875,8 +874,8 @@ OPERATE_RET tdl_combine_button_delete(TDL_BUTTON_HANDLE p_handle)
 // Button flow: read, debounce, generate event
 static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
 {
-    OPERATE_RET ret = OPRT_COM_ERROR;
-    uint8_t status = 0;
+    OPERATE_RET          ret    = OPRT_COM_ERROR;
+    uint8_t              status = 0;
     TDL_BUTTON_OPRT_INFO button_oprt;
 
     ret = __tdl_get_operate_info(p_node, &button_oprt);
@@ -885,7 +884,10 @@ static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
     }
 
     if (p_node->device_data.init_flag == TRUE) {
-        p_node->device_data.ctrl_info.read_value(&button_oprt, &status);
+        ret = p_node->device_data.ctrl_info.read_value(&button_oprt, &status);
+        if (OPRT_OK != ret) {
+            return;
+        }
     } else {
         // PR_NOTICE("button is no init over, name=%s",p_node->name);
         return;
@@ -898,7 +900,7 @@ static void __tdl_button_handle(TDL_BUTTON_LIST_NODE_T *p_node)
             return;
         } else {
             // PR_NOTICE("device_data.ready=TRUE,%s,status=%d",p_node->name,status);
-            p_node->device_data.flag = 6;
+            p_node->device_data.flag  = 6;
             p_node->device_data.ready = TRUE;
         }
     }
@@ -998,7 +1000,7 @@ static void __tdl_button_irq_thread(void *arg)
                 tal_system_sleep(tdl_button_scan_time);
             }
         }
-        
+
         tal_cpu_release_wakelock(TAL_WAKELOCK_SDK_KEYSCAN);
     }
 }
@@ -1015,8 +1017,8 @@ static OPERATE_RET __tdl_button_scan_task(uint8_t enable)
 
                 THREAD_CFG_T thrd_param = {0};
 
-                thrd_param.thrdname = "button_scan";
-                thrd_param.priority = THREAD_PRIO_1;
+                thrd_param.thrdname   = "button_scan";
+                thrd_param.priority   = THREAD_PRIO_1;
                 thrd_param.stackDepth = sg_bt_task_stack_size;
                 thrd_param.psram_mode = 1;
                 if (NULL == scan_thread_handle) {
@@ -1049,8 +1051,8 @@ static OPERATE_RET __tdl_button_irq_task(uint8_t enable)
             if (tdl_button_local.irq_task_flag == FALSE) {
                 THREAD_CFG_T thrd_param = {0};
 
-                thrd_param.thrdname = "button_irq";
-                thrd_param.priority = THREAD_PRIO_1;
+                thrd_param.thrdname   = "button_irq";
+                thrd_param.priority   = THREAD_PRIO_1;
                 thrd_param.stackDepth = sg_bt_task_stack_size;
                 thrd_param.psram_mode = 1;
                 if (NULL == irq_thread_handle) {
@@ -1201,7 +1203,7 @@ void tdl_button_get_event(TDL_BUTTON_HANDLE handle, TDL_BUTTON_TOUCH_EVENT_E *pr
 OPERATE_RET tdl_button_register(char *name, TDL_BUTTON_CTRL_INFO *button_ctrl_info,
                                 TDL_BUTTON_DEVICE_INFO_T *button_cfg_info)
 {
-    OPERATE_RET ret = OPRT_COM_ERROR;
+    OPERATE_RET             ret    = OPRT_COM_ERROR;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
 
     if (NULL == button_ctrl_info) {
@@ -1265,9 +1267,9 @@ OPERATE_RET tdl_button_set_ready_flag(char *name, uint8_t status)
 
 OPERATE_RET tdl_button_read_status(TDL_BUTTON_HANDLE handle, uint8_t *status)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET             rt     = OPRT_OK;
     TDL_BUTTON_LIST_NODE_T *p_node = NULL;
-    TDL_BUTTON_OPRT_INFO button_oprt;
+    TDL_BUTTON_OPRT_INFO    button_oprt;
 
     TUYA_CHECK_NULL_RETURN(handle, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(status, OPRT_INVALID_PARM);
@@ -1286,7 +1288,7 @@ OPERATE_RET tdl_button_set_scan_time(uint8_t time_ms)
 {
     if (time_ms < TDL_BUTTON_SCAN_TIME)
         return OPRT_INVALID_PARM;
-    tdl_button_scan_time = time_ms;
+    tdl_button_scan_time          = time_ms;
     tdl_button_local.irq_scan_cnt = TDL_BUTTON_IRQ_SCAN_TIME / time_ms;
     return OPRT_OK;
 }
