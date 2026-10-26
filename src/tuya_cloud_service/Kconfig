@@ -56,6 +56,17 @@ menu "configure tuya cloud service"
                 bool "ENABLE_BT_CTRL: enable tuya Bluetooth control"
                 default y
 
+            config ENABLE_BT_WIFI_LIST
+                bool "ENABLE_BT_WIFI_LIST: enable the WiFi hotspot list query over BLE"
+                default n
+
+                ---help---
+                        Answers the app's hotspot list request on the BLE transparent
+                        channel, and advertises the capability in the adv flag and
+                        combos flag. It runs a blocking all-AP scan, so a board whose
+                        WiFi driver cannot scan while connected (no APSTA) should turn
+                        it off.
+
             config BT_ADV_INTERVAL_MIN
                 int "BT_ADV_INTERVAL_MIN: tuya Bluetooth min adv interval,bet:ms"
                 range 10 2000
