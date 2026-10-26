@@ -58,6 +58,13 @@ config JIELI_UART_LOG_BAUDRATE
     default 115200
     range 1200 4000000
 
+config ENABLE_JIELI_USB_CDC_LOG
+    bool "Route log output to USB CDC virtual serial port"
+    default n
+    help
+        When enabled, tkl_log_output routes system logs to the USB CDC-ACM
+        virtual serial port instead of the default hardware UART port.
+
 choice
     prompt "Choice a Jieli board"
     default BOARD_CHOICE_AC79_DEVKITBOARD

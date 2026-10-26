@@ -19,7 +19,7 @@ class JieliConfigTest(unittest.TestCase):
         # The registry entry must point at the exact commit the platform is
         # pinned to; a drifted registry entry would silently build against a
         # different platform tree than the one checked out on disk.
-        self.assertIn("commit: 7d24da286cddd40db0bc22c9d6f9dd1f7623e7ab", config)
+        self.assertIn("commit: d3a20fdb4f4bfdc62ef1891d1ea5d3ee42a20803", config)
 
     def test_board_catalog_contains_ac7916a(self):
         board_kconfig = (ROOT / "boards" / "Kconfig").read_text()
@@ -47,9 +47,10 @@ class JieliConfigTest(unittest.TestCase):
         # The board catalog split into the AC79 DevKit (wl82) and the AC792N
         # Develop Board (wl83); AC7916A/AC7921A survive as legacy aliases.
         board_catalog = (ROOT / "boards" / "JIELI" / "Kconfig").read_text()
-        self.assertIn("BOARD_CHOICE_AC7916A", board_catalog)
+        self.assertIn("BOARD_CHOICE_AC79_DEVKITBOARD", board_catalog)
         self.assertIn('rsource "./AC79_DevKitBoard/Kconfig"', board_catalog)
         self.assertIn('rsource "./AC792N_Develop_Board/Kconfig"', board_catalog)
+        self.assertIn("config ENABLE_JIELI_USB_CDC_LOG", board_catalog)
 
         devkit_kconfig = ROOT / "boards" / "JIELI" / "AC79_DevKitBoard" / "Kconfig"
         self.assertTrue(devkit_kconfig.is_file())
