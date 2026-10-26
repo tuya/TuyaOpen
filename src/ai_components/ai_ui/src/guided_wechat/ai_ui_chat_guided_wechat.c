@@ -22,14 +22,15 @@
 #include "ai_ui_chat_guided_wechat.h"
 #include "guided_wechat_locale.h"
 #include "guided_wechat_state.h"
+#include "guided_wechat_common.h"
 
 extern void ai_chat_ui_refresh_locale(void);
 
-#define GUIDED_GREEN          0x07C160
-#define GUIDED_BG             0xF4F5F7
-#define GUIDED_TEXT           0x202124
-#define GUIDED_MUTED          0x71757A
-#define GUIDED_BORDER         0xE2E5E9
+#define GUIDED_GREEN          WECHAT_COLOR_ACCENT
+#define GUIDED_BG             WECHAT_COLOR_BG
+#define GUIDED_TEXT           WECHAT_COLOR_TEXT
+#define GUIDED_MUTED          WECHAT_COLOR_MUTED
+#define GUIDED_BORDER         WECHAT_COLOR_BORDER
 #define GUIDED_DANGER         0xD94248
 #define GUIDED_HEADER_HEIGHT  44
 #define GUIDED_STEPPER_HEIGHT 64
@@ -179,7 +180,7 @@ static lv_obj_t *__make_card(lv_obj_t *parent)
     lv_obj_t *card = lv_obj_create(parent);
     lv_obj_set_width(card, LV_PCT(100));
     lv_obj_set_height(card, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(card, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(card, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(card, lv_color_hex(GUIDED_BORDER), 0);
     lv_obj_set_style_border_width(card, 1, 0);
@@ -232,7 +233,7 @@ static void __make_stepper(uint8_t current_step)
     lv_obj_set_style_pad_all(stepper, 0, 0);
     lv_obj_set_style_radius(stepper, 0, 0);
     lv_obj_set_style_border_width(stepper, 0, 0);
-    lv_obj_set_style_bg_color(stepper, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(stepper, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_clear_flag(stepper, LV_OBJ_FLAG_SCROLLABLE);
 
     for (i = 0; i < GUIDED_STEP_COUNT - 1; i++) {
@@ -469,7 +470,7 @@ static lv_obj_t *__make_button(lv_obj_t *parent, const char *text, guided_action
     lv_obj_set_style_border_width(button, secondary ? 1 : 0, 0);
     lv_obj_set_style_border_color(button, lv_color_hex(danger ? GUIDED_DANGER : GUIDED_BORDER), 0);
     lv_obj_set_style_bg_color(button,
-                              secondary ? lv_color_white()
+                              secondary ? lv_color_hex(WECHAT_COLOR_BUBBLE)
                                         : lv_color_hex(danger ? GUIDED_DANGER : GUIDED_GREEN),
                               0);
     lv_obj_set_ext_click_area(button, 8);
@@ -610,7 +611,7 @@ static void __make_list_row(lv_obj_t *parent, const char *name, const char *valu
     lv_obj_set_style_pad_top(row, 8, 0);
     lv_obj_set_style_pad_bottom(row, 8, 0);
     lv_obj_set_style_radius(row, 0, 0);
-    lv_obj_set_style_bg_color(row, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(row, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_border_color(row, lv_color_hex(GUIDED_BORDER), 0);
     lv_obj_set_style_border_width(row, 1, 0);
     lv_obj_set_style_border_side(row, LV_BORDER_SIDE_BOTTOM, 0);
@@ -934,11 +935,11 @@ static OPERATE_RET __guided_ui_init(void)
     lv_obj_set_size(sg_ui.menu_button, 42, 42);
     lv_obj_align(sg_ui.menu_button, LV_ALIGN_BOTTOM_LEFT, 18, -18);
     lv_obj_set_style_radius(sg_ui.menu_button, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(sg_ui.menu_button, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(sg_ui.menu_button, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_border_color(sg_ui.menu_button, lv_color_hex(GUIDED_BORDER), 0);
     lv_obj_set_style_border_width(sg_ui.menu_button, 1, 0);
     lv_obj_set_style_shadow_width(sg_ui.menu_button, 8, 0);
-    lv_obj_set_style_shadow_color(sg_ui.menu_button, lv_color_hex(0xB8BCC2), 0);
+    lv_obj_set_style_shadow_color(sg_ui.menu_button, lv_color_hex(WECHAT_COLOR_BG), 0);
     lv_obj_set_ext_click_area(sg_ui.menu_button, 8);
     menu_icon = lv_label_create(sg_ui.menu_button);
     lv_obj_set_style_text_font(menu_icon, ai_ui_get_icon_font(), 0);
