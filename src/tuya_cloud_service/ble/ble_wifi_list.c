@@ -84,10 +84,6 @@ static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
 
     ble_wifi_list_cache_clear();
 
-    if (OPRT_OK != tal_wifi_set_work_mode(WWM_STATION)) {
-        PR_ERR("set station mode err");
-    }
-
     if (OPRT_OK != tal_wifi_all_ap_scan(&arr, &num) || NULL == arr || 0 == num) {
         if (arr) {
             tal_wifi_release_ap(arr);
