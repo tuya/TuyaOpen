@@ -19,7 +19,7 @@ class JieliConfigTest(unittest.TestCase):
         # The registry entry must point at the exact commit the platform is
         # pinned to; a drifted registry entry would silently build against a
         # different platform tree than the one checked out on disk.
-        self.assertIn("commit: d3a20fdb4f4bfdc62ef1891d1ea5d3ee42a20803", config)
+        self.assertIn("commit: f6c8a6de4d582ff2a6dd4214ce04f1397cd72912", config)
 
     def test_board_catalog_contains_ac7916a(self):
         board_kconfig = (ROOT / "boards" / "Kconfig").read_text()
