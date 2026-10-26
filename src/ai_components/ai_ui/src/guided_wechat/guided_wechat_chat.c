@@ -38,6 +38,21 @@ LV_IMG_DECLARE(icon_printer_app);
 ************************macro define************************
 ***********************************************************/
 #define MAX_MESSAGE_NUM           20
+
+/* PuHui is a Chinese font (气). Japanese weather is 天気 — rewrite 气→気
+ * so the JP fallback glyph is used. Same UTF-8 length (E6 B0 94 → E6 B0 97). */
+static void __jp_weather_ki(char *s)
+{
+    if (s == NULL) {
+        return;
+    }
+    while (s[0] != '\0' && s[1] != '\0' && s[2] != '\0') {
+        if ((uint8_t)s[0] == 0xE6 && (uint8_t)s[1] == 0xB0 && (uint8_t)s[2] == 0x94) {
+            s[2] = (char)0x97;
+        }
+        s++;
+    }
+}
 #define ATTACH_THUMB_SIZE         48
 #define ATTACH_BAR_HEIGHT         56
 #define MAX_ATTACH_NUM            4
@@ -162,6 +177,7 @@ static lv_obj_t *__create_ai_msg_label(lv_obj_t *parent, char *text)
     lv_obj_set_flex_flow(text_cont, LV_FLEX_FLOW_COLUMN);
 
     lv_obj_t *label = lv_label_create(text_cont);
+    __jp_weather_ki(text);
     lv_label_set_text(label, text);
     lv_obj_set_width(label, LV_PCT(100));
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
@@ -213,6 +229,7 @@ static lv_obj_t *__create_user_msg_label(lv_obj_t *parent, char *text)
     lv_obj_set_flex_flow(text_cont, LV_FLEX_FLOW_COLUMN);
 
     lv_obj_t *label = lv_label_create(text_cont);
+    __jp_weather_ki(text);
     lv_label_set_text(label, text);
     lv_obj_set_width(label, LV_PCT(100));
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
@@ -578,6 +595,7 @@ static void __ui_set_ai_msg_stream_data(char *text)
 
     lv_vendor_disp_lock();
 
+    __jp_weather_ki(text);
     lv_label_ins_text(sg_chat.stream_label, LV_LABEL_POS_LAST, text);
 
     lv_coord_t content_height = lv_obj_get_height(sg_chat.stream_msg_cont);
@@ -775,7 +793,7 @@ static void __ui_disp_image(AI_UI_IMG_T *img)
         /* Confirm button */
         lv_obj_t *confirm_btn = lv_obj_create(btn_row);
         lv_obj_set_size(confirm_btn, 80, 36);
-        lv_obj_set_style_bg_color(confirm_btn, lv_color_hex(0x07C160), 0);
+        lv_obj_set_style_bg_color(confirm_btn, lv_color_hex(WECHAT_COLOR_ACCENT), 0);
         lv_obj_set_style_bg_opa(confirm_btn, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(confirm_btn, 0, 0);
         lv_obj_set_style_radius(confirm_btn, 8, 0);
@@ -1052,24 +1070,26 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     /* Style init 鈥?already inside disp lock, safe to call LVGL style APIs */
     lv_style_init(&sg_chat.style_avatar);
     lv_style_set_radius(&sg_chat.style_avatar, LV_RADIUS_CIRCLE);
-    lv_style_set_bg_color(&sg_chat.style_avatar, lv_palette_main(LV_PALETTE_GREY));
+    lv_style_set_bg_color(&sg_chat.style_avatar, lv_color_hex(WECHAT_COLOR_BUBBLE));
     lv_style_set_border_width(&sg_chat.style_avatar, 1);
-    lv_style_set_border_color(&sg_chat.style_avatar, lv_palette_darken(LV_PALETTE_GREY, 2));
+    lv_style_set_border_color(&sg_chat.style_avatar, lv_color_hex(WECHAT_COLOR_BORDER));
+    lv_style_set_text_color(&sg_chat.style_avatar, lv_color_hex(WECHAT_COLOR_TEXT));
 
     lv_style_init(&sg_chat.style_ai_bubble);
-    lv_style_set_bg_color(&sg_chat.style_ai_bubble, lv_color_white());
+    lv_style_set_bg_color(&sg_chat.style_ai_bubble, lv_color_hex(WECHAT_COLOR_BUBBLE));
+    lv_style_set_text_color(&sg_chat.style_ai_bubble, lv_color_hex(WECHAT_COLOR_TEXT));
     lv_style_set_radius(&sg_chat.style_ai_bubble, 15);
     lv_style_set_pad_all(&sg_chat.style_ai_bubble, 12);
-    lv_style_set_shadow_width(&sg_chat.style_ai_bubble, 12);
-    lv_style_set_shadow_color(&sg_chat.style_ai_bubble, lv_color_hex(0xCCCCCC));
+    lv_style_set_shadow_width(&sg_chat.style_ai_bubble, 4);
+    lv_style_set_shadow_color(&sg_chat.style_ai_bubble, lv_color_hex(WECHAT_COLOR_BG));
 
     lv_style_init(&sg_chat.style_user_bubble);
-    lv_style_set_bg_color(&sg_chat.style_user_bubble, lv_palette_main(LV_PALETTE_GREEN));
-    lv_style_set_text_color(&sg_chat.style_user_bubble, lv_color_white());
+    lv_style_set_bg_color(&sg_chat.style_user_bubble, lv_color_hex(WECHAT_COLOR_ACCENT));
+    lv_style_set_text_color(&sg_chat.style_user_bubble, lv_color_hex(WECHAT_COLOR_TEXT));
     lv_style_set_radius(&sg_chat.style_user_bubble, 15);
     lv_style_set_pad_all(&sg_chat.style_user_bubble, 12);
-    lv_style_set_shadow_width(&sg_chat.style_user_bubble, 12);
-    lv_style_set_shadow_color(&sg_chat.style_user_bubble, lv_palette_darken(LV_PALETTE_GREEN, 2));
+    lv_style_set_shadow_width(&sg_chat.style_user_bubble, 4);
+    lv_style_set_shadow_color(&sg_chat.style_user_bubble, lv_color_hex(WECHAT_COLOR_ACCENT_DIM));
 
     lv_style_init(&sg_chat.style_link);
     lv_style_set_text_color(&sg_chat.style_link, lv_color_hex(0x0066CC));
@@ -1104,9 +1124,9 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     sg_chat.attach_bar = lv_obj_create(parent);
     lv_obj_set_size(sg_chat.attach_bar, attach_w, ATTACH_BAR_HEIGHT);
     lv_obj_align(sg_chat.attach_bar, LV_ALIGN_BOTTOM_MID, 0, -WECHAT_SAFE_INSET);
-    lv_obj_set_style_bg_color(sg_chat.attach_bar, lv_color_hex(0xF5F5F5), 0);
+    lv_obj_set_style_bg_color(sg_chat.attach_bar, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_bg_opa(sg_chat.attach_bar, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(sg_chat.attach_bar, lv_color_hex(0xDDDDDD), 0);
+    lv_obj_set_style_border_color(sg_chat.attach_bar, lv_color_hex(WECHAT_COLOR_BORDER), 0);
     lv_obj_set_style_border_width(sg_chat.attach_bar, 1, 0);
     lv_obj_set_style_border_side(sg_chat.attach_bar, LV_BORDER_SIDE_TOP, 0);
     lv_obj_set_style_pad_all(sg_chat.attach_bar, 6, 0);
@@ -1125,13 +1145,13 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     sg_chat.plus_btn = lv_btn_create(parent);
     lv_obj_set_size(sg_chat.plus_btn, PLUS_BTN_SIZE, PLUS_BTN_SIZE);
     lv_obj_align(sg_chat.plus_btn, LV_ALIGN_BOTTOM_RIGHT, -24 - WECHAT_SAFE_INSET, -20 - WECHAT_SAFE_INSET);
-    lv_obj_set_style_bg_color(sg_chat.plus_btn, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(sg_chat.plus_btn, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_bg_opa(sg_chat.plus_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(sg_chat.plus_btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_shadow_width(sg_chat.plus_btn, 8, 0);
-    lv_obj_set_style_shadow_color(sg_chat.plus_btn, lv_color_hex(0xB8BCC2), 0);
+    lv_obj_set_style_shadow_color(sg_chat.plus_btn, lv_color_hex(WECHAT_COLOR_BG), 0);
     lv_obj_set_style_border_width(sg_chat.plus_btn, 1, 0);
-    lv_obj_set_style_border_color(sg_chat.plus_btn, lv_color_hex(0xE2E5E9), 0);
+    lv_obj_set_style_border_color(sg_chat.plus_btn, lv_color_hex(WECHAT_COLOR_BORDER), 0);
     lv_obj_set_style_pad_all(sg_chat.plus_btn, 0, 0);
     lv_obj_clear_flag(sg_chat.plus_btn, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_clear_flag(sg_chat.plus_btn, LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_SCROLL_CHAIN);
@@ -1139,7 +1159,7 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     lv_obj_set_ext_click_area(sg_chat.plus_btn, 10);
 
     lv_obj_t *plus_label = lv_label_create(sg_chat.plus_btn);
-    lv_obj_set_style_text_color(plus_label, lv_color_black(), 0);
+    lv_obj_set_style_text_color(plus_label, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_label_set_text(plus_label, "+");
     lv_obj_center(plus_label);
     lv_obj_add_event_cb(sg_chat.plus_btn, __plus_btn_click_cb, LV_EVENT_CLICKED, NULL);
@@ -1148,13 +1168,13 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     sg_chat.popup_menu = lv_obj_create(parent);
     lv_obj_set_size(sg_chat.popup_menu, POPUP_WIDTH, POPUP_ITEM_H * 3 + 4);
     lv_obj_align_to(sg_chat.popup_menu, sg_chat.plus_btn, LV_ALIGN_OUT_TOP_RIGHT, 0, -4);
-    lv_obj_set_style_bg_color(sg_chat.popup_menu, lv_color_white(), 0);
+    lv_obj_set_style_bg_color(sg_chat.popup_menu, lv_color_hex(WECHAT_COLOR_BUBBLE), 0);
     lv_obj_set_style_bg_opa(sg_chat.popup_menu, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(sg_chat.popup_menu, 8, 0);
     lv_obj_set_style_border_width(sg_chat.popup_menu, 1, 0);
-    lv_obj_set_style_border_color(sg_chat.popup_menu, lv_color_hex(0xDDDDDD), 0);
+    lv_obj_set_style_border_color(sg_chat.popup_menu, lv_color_hex(WECHAT_COLOR_BORDER), 0);
     lv_obj_set_style_shadow_width(sg_chat.popup_menu, 8, 0);
-    lv_obj_set_style_shadow_color(sg_chat.popup_menu, lv_color_hex(0xBBBBBB), 0);
+    lv_obj_set_style_shadow_color(sg_chat.popup_menu, lv_color_hex(WECHAT_COLOR_BG), 0);
     lv_obj_set_style_pad_all(sg_chat.popup_menu, 2, 0);
     lv_obj_set_style_pad_row(sg_chat.popup_menu, 0, 0);
     lv_obj_set_flex_flow(sg_chat.popup_menu, LV_FLEX_FLOW_COLUMN);
@@ -1183,12 +1203,12 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     lv_obj_clear_flag(cam_icon_wrap, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_t *cam_icon = lv_img_create(cam_icon_wrap);
     lv_img_set_src(cam_icon, &icon_camera_app);
-    lv_obj_set_style_img_recolor(cam_icon, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_img_recolor(cam_icon, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_obj_set_style_img_recolor_opa(cam_icon, LV_OPA_COVER, 0);
     lv_obj_center(cam_icon);
 
     lv_obj_t *cam_label = lv_label_create(cam_btn);
-    lv_obj_set_style_text_color(cam_label, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_text_color(cam_label, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_label_set_text(cam_label, CAMERA);
     lv_obj_add_event_cb(cam_btn, __popup_camera_cb, LV_EVENT_CLICKED, NULL);
 #endif /* ENABLE_COMP_AI_VIDEO */
@@ -1215,12 +1235,12 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     lv_obj_clear_flag(album_icon_wrap, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_t *album_icon = lv_img_create(album_icon_wrap);
     lv_img_set_src(album_icon, &icon_photo_app);
-    lv_obj_set_style_img_recolor(album_icon, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_img_recolor(album_icon, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_obj_set_style_img_recolor_opa(album_icon, LV_OPA_COVER, 0);
     lv_obj_center(album_icon);
 
     lv_obj_t *album_label = lv_label_create(album_btn);
-    lv_obj_set_style_text_color(album_label, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_text_color(album_label, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_label_set_text(album_label, ALBUM);
     lv_obj_add_event_cb(album_btn, __popup_album_cb, LV_EVENT_CLICKED, NULL);
 
@@ -1245,12 +1265,12 @@ void guided_wechat_chat_init(lv_obj_t *parent)
     lv_obj_clear_flag(add_img_icon_wrap, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_t *add_img_icon = lv_img_create(add_img_icon_wrap);
     lv_img_set_src(add_img_icon, &icon_add_img);
-    lv_obj_set_style_img_recolor(add_img_icon, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_img_recolor(add_img_icon, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_obj_set_style_img_recolor_opa(add_img_icon, LV_OPA_COVER, 0);
     lv_obj_center(add_img_icon);
 
     lv_obj_t *add_img_label = lv_label_create(add_img_btn);
-    lv_obj_set_style_text_color(add_img_label, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_text_color(add_img_label, lv_color_hex(WECHAT_COLOR_TEXT), 0);
     lv_label_set_text(add_img_label, ADD_IMAGE);
     lv_obj_add_event_cb(add_img_btn, __popup_add_img_cb, LV_EVENT_CLICKED, NULL);
 #endif /* ENABLE_IMAGE_ALBUM */

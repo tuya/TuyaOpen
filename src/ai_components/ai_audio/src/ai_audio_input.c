@@ -413,7 +413,9 @@ OPERATE_RET ai_audio_input_reset(void)
     tal_mutex_lock(sg_recorder->mutex);
     tuya_ring_buff_reset(sg_recorder->ringbuf);
     tal_mutex_unlock(sg_recorder->mutex);
-    //sg_recorder->vad_flag = AI_AUDIO_VAD_STOP;
+    /* Next speech must emit VAD_START. Leaving this latched START after KWS
+     * meant the wake-word itself ate the edge and the first utterance was lost. */
+    sg_recorder->vad_flag = AI_AUDIO_VAD_STOP;
 
     if (AI_AUDIO_VAD_AUTO == sg_recorder->vad_mode) {
         PR_NOTICE("audio input -> vad stop!");
