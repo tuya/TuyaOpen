@@ -33,7 +33,11 @@ typedef struct {
     char     ccode[COUNTRY_CODE_LEN + 1];
 } ble_wifi_list_req_t;
 
+#if defined(ENABLE_BT_WIFI_LIST) && (ENABLE_BT_WIFI_LIST == 1)
 static bool       s_wifi_list_enable = true;
+#else
+static bool       s_wifi_list_enable = false;
+#endif
 static AP_IF_S   *s_ap_cache         = NULL;
 static uint32_t   s_ap_cache_num     = 0;
 static SYS_TIME_T s_ap_cache_time    = 0;
