@@ -1158,6 +1158,13 @@ BOOL_T __udp_serv_is_in_packet_vaild(uint8_t *frame_buffer, uint32_t recv_datale
     lpv35_fixed_head_t *fixed_head = (lpv35_fixed_head_t *)(frame_buffer + LPV35_FRAME_HEAD_SIZE);
     uint32_t length = UNI_NTOHL(fixed_head->length);
 
+    // the frame described by length must fit in the received datagram
+    uint32_t fixed_len = LPV35_FRAME_HEAD_SIZE + sizeof(lpv35_fixed_head_t) + LPV35_FRAME_TAIL_SIZE;
+    if (length > recv_datalen - fixed_len) {
+        PR_ERR("udp length err:%d recv:%d", length, recv_datalen);
+        return FALSE;
+    }
+
     if (memcmp(frame_buffer + LPV35_FRAME_HEAD_SIZE + sizeof(lpv35_fixed_head_t) + length, LPV35_FRAME_TAIL,
                LPV35_FRAME_TAIL_SIZE) != 0) {
         PR_ERR("udp tail err");

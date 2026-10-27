@@ -8,6 +8,10 @@
 
 #include "tuya_cloud_types.h"
 
+#if __has_include("tuya_config_secrets.h")
+#include "tuya_config_secrets.h"
+#endif
+
 /**
  * @brief configure the product information
  *

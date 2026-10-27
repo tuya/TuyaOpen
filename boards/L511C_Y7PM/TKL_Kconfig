@@ -1,0 +1,57 @@
+config LITTLE_END
+    int
+    default 1
+
+config ENABLE_WIFI
+    bool
+    default n
+
+config ENABLE_WIRED
+    bool
+    default n
+
+config ENABLE_BLUETOOTH
+    bool
+    default n
+
+config ENABLE_CELLULAR
+    bool
+    default y
+
+config ENABLE_FILE_SYSTEM
+    bool
+    default y
+
+config ENABLE_UART
+    bool
+    default y
+
+# Pin-level peripherals remain disabled until L511C_Y7PM wiring is verified.
+config ENABLE_GPIO
+    bool
+    default n
+
+config ENABLE_ADC
+    bool
+    default n
+
+config ENABLE_PWM
+    bool
+    default n
+
+config ENABLE_I2C
+    bool
+    default n
+
+config ENABLE_TIMER
+    bool
+    default n
+
+# Internal filesystem backs KV; external flash/storage are not enabled.
+config ENABLE_FLASH
+    bool
+    default n
+
+config ENABLE_STORAGE
+    bool
+    default n

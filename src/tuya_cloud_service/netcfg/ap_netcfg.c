@@ -64,6 +64,11 @@ typedef struct {
     uint8_t tls_psk[AP_TLS_PSK_LEN + 1];
 
     TIMER_ID broadcast_timer;
+
+    /* Hotspot identity published by ap_mode_start(); read back by
+     * ap_netcfg_get_hotspot_info() for provisioning guidance UIs. */
+    char hotspot_ssid[WIFI_SSID_LEN + 1];
+    char hotspot_ip[16];
 } ap_netcfg_t;
 
 static ap_netcfg_t *s_ap_netcfg = NULL;
@@ -842,8 +847,29 @@ static int ap_mode_start(ap_netcfg_t *ap)
         return op_ret;
     } else {
         PR_DEBUG("start ap success:%s", ap_cfg.ssid);
+        snprintf(ap->hotspot_ssid, sizeof(ap->hotspot_ssid), "%s", (char *)ap_cfg.ssid);
+        snprintf(ap->hotspot_ip, sizeof(ap->hotspot_ip), "%s", ap_cfg.ip.ip);
     }
 
+    return OPRT_OK;
+}
+
+OPERATE_RET ap_netcfg_get_hotspot_info(char *ssid, int ssid_len, char *ip, int ip_len)
+{
+    ap_netcfg_t *ap = ap_netcfg_get();
+
+    if (ssid == NULL || ssid_len <= 0 || ip == NULL || ip_len <= 0) {
+        return OPRT_INVALID_PARM;
+    }
+
+    ssid[0] = '\0';
+    ip[0] = '\0';
+    if (ap == NULL || ap->hotspot_ssid[0] == '\0') {
+        return OPRT_COM_ERROR;
+    }
+
+    snprintf(ssid, ssid_len, "%s", ap->hotspot_ssid);
+    snprintf(ip, ip_len, "%s", ap->hotspot_ip);
     return OPRT_OK;
 }
 

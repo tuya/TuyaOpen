@@ -534,6 +534,11 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
     tuya_ble_raw_print("ble dp", 32, req->data, req->len);
 
     if (req->type == FRM_DP_CMD_SEND_V4) {
+        // the V4 header is read and subtracted below
+        if (req->len < 5) { // version(1) + R_SN(4)
+            PR_ERR("ble dp req len err:%d", req->len);
+            return OPRT_INVALID_PARM;
+        }
         __result_code_resp_v4(FRM_DP_CMD_SEND_V4, req->sn, req->data, 0);
         data = req->data + 5;
         len = req->len - 5;
@@ -580,20 +585,57 @@ static int ble_dp_req(ble_packet_t *req, void *priv_data)
             break;
         }
         case DT_BOOL: {
+            // a zero-length value leaves the pointer NULL
+            if (NULL == p_tmp->data) {
+                PR_ERR("dp bool data is NULL, id:%d", p_tmp->id);
+                break;
+            }
             cJSON_AddBoolToObject(p_dps, dp_id_str, *(p_tmp->data));
             break;
         }
-        case DT_BITMAP:
+        case DT_BITMAP: {
+            // a bitmap carries 1, 2 or 4 bytes, so assemble only those
+            if (NULL == p_tmp->data) {
+                PR_ERR("dp bitmap data is NULL, id:%d", p_tmp->id);
+                break;
+            }
+            int val = 0;
+            for (int i = 0; i < p_tmp->len && i < DT_BITMAP_MAX; i++) {
+                val = (val << 8) | p_tmp->data[i];
+            }
+            cJSON_AddNumberToObject(p_dps, dp_id_str, val);
+            break;
+        }
         case DT_VALUE: {
+            // the word below reads four bytes, and a zero-length value is NULL
+            if (NULL == p_tmp->data || p_tmp->len < DT_VALUE_LEN) {
+                PR_ERR("dp value len err:%d", p_tmp->len);
+                break;
+            }
             int val = (p_tmp->data[0] << 24) + (p_tmp->data[1] << 16) + (p_tmp->data[2] << 8) + (p_tmp->data[3] << 0);
             cJSON_AddNumberToObject(p_dps, dp_id_str, val);
             break;
         }
         case DT_ENUM: {
+            // a zero-length value leaves the pointer NULL
+            if (NULL == p_tmp->data) {
+                PR_ERR("dp enum data is NULL, id:%d", p_tmp->id);
+                break;
+            }
             int val = p_tmp->data[0];
             dp_node_t *dpnode = dp_node_find(tuya_iot_client_get()->schema, p_tmp->id);
             if (NULL == dpnode) {
                 PR_ERR("invalid dp id[%d]", p_tmp->id);
+                break;
+            }
+            // prop is a union, so only an enum dp has a valid cnt and pp_enum
+            if (PROP_ENUM != dpnode->desc.prop_tp || NULL == dpnode->prop.prop_enum.pp_enum) {
+                PR_ERR("dp id[%d] is not an enum", p_tmp->id);
+                break;
+            }
+            // val is a payload byte indexing pp_enum[]
+            if (val >= dpnode->prop.prop_enum.cnt) {
+                PR_ERR("dp enum exceed:%d %d", val, dpnode->prop.prop_enum.cnt);
                 break;
             }
             cJSON_AddStringToObject(p_dps, dp_id_str, dpnode->prop.prop_enum.pp_enum[val]);

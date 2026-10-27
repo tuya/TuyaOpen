@@ -13,6 +13,7 @@
 #include "netmgr.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
+#include "ap_netcfg.h"
 #endif
 
 #include "guided_wechat_state.h"
@@ -65,6 +66,34 @@ static void __mask_value(char *out, size_t out_len, const char *value)
         return;
     }
     snprintf(out, out_len, "%.3s***%s", value, value + len - 3);
+}
+
+/* The storage license (uuid/authkey in KV) never changes at runtime: no code
+ * path writes it after boot and the UI offers no authorization reset. Read it
+ * once and serve the cached pointers - state_read() runs from the 1 Hz UI
+ * refresh timer, so a per-call flash read would be wasted IO. */
+static struct {
+    bool loaded;
+    bool valid;
+    const char *uuid;
+    const char *authkey;
+} sg_storage_license;
+
+static void __storage_license_load(void)
+{
+    tuya_iot_license_t license = {0};
+
+    if (sg_storage_license.loaded) {
+        return;
+    }
+
+    sg_storage_license.valid =
+        (OPRT_OK == tuya_authorize_read(&license)) && __license_valid(license.uuid, license.authkey);
+    /* tuya_authorize_read() hands out pointers to its own persistent buffers,
+     * so the cached pointers stay valid for the lifetime of the firmware. */
+    sg_storage_license.uuid = license.uuid;
+    sg_storage_license.authkey = license.authkey;
+    sg_storage_license.loaded = true;
 }
 
 void guided_wechat_pairing_request(void)
@@ -129,7 +158,6 @@ void guided_wechat_reprovision_clear(void)
 
 void guided_wechat_state_read(guided_wechat_device_state_t *state)
 {
-    tuya_iot_license_t license = {0};
     tuya_iot_client_t *client;
     netmgr_status_e link_status = NETMGR_LINK_DOWN;
     const char *uuid = NULL;
@@ -143,10 +171,11 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
     __copy_value(state->version, sizeof(state->version), PROJECT_VERSION);
     __copy_value(state->sdk_version, sizeof(state->sdk_version), OPEN_VERSION);
 
-    if (OPRT_OK == tuya_authorize_read(&license) && __license_valid(license.uuid, license.authkey)) {
+    __storage_license_load();
+    if (sg_storage_license.valid) {
         state->auth_source = GUIDED_WECHAT_AUTH_STORAGE;
-        uuid = license.uuid;
-        authkey = license.authkey;
+        uuid = sg_storage_license.uuid;
+        authkey = sg_storage_license.authkey;
     }
 
     client = tuya_iot_client_get();
@@ -181,6 +210,15 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
     if (state->link_up &&
         OPRT_OK == netmgr_conn_get(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info)) {
         snprintf(state->ssid, sizeof(state->ssid), "%s", wifi_info.ssid);
+    }
+
+    /* SoftAP provisioning info: only exists while AP netcfg is running. The
+     * getter copies from RAM, so the 1 Hz refresh stays cheap; failure just
+     * leaves the "-" placeholder until the hotspot comes up. */
+    if (OPRT_OK != ap_netcfg_get_hotspot_info(state->ap_ssid, sizeof(state->ap_ssid),
+                                              state->ap_ip, sizeof(state->ap_ip))) {
+        __copy_value(state->ap_ssid, sizeof(state->ap_ssid), NULL);
+        __copy_value(state->ap_ip, sizeof(state->ap_ip), NULL);
     }
 #endif
 }
