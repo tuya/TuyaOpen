@@ -15,7 +15,7 @@
 #endif
 
 #if defined(ENABLE_DISPLAY) && (ENABLE_DISPLAY == 1)
-#include "tdd_display_emi_wl82.h"
+#include "tdd_disp_ili9488.h"
 
 #ifndef DISPLAY_NAME
 #define DISPLAY_NAME "display"
@@ -198,9 +198,9 @@ OPERATE_RET board_register_hardware(void)
 #endif
 
 #if defined(ENABLE_DISPLAY) && (ENABLE_DISPLAY == 1)
-    ret = tdd_disp_emi_wl82_register((char *)DISPLAY_NAME);
+    ret = tdd_disp_mcu8080_ili9488_register((char *)DISPLAY_NAME);
     if (ret != OPRT_OK) {
-        PR_ERR("WL82 EMI display register failed: %d", ret);
+        PR_ERR("MCU8080 ILI9488 display register failed: %d", ret);
         return ret;
     }
 #endif

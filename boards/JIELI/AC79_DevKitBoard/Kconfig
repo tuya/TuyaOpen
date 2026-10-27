@@ -2,7 +2,7 @@ config BOARD_CONFIG
     bool
     default y
     select ENABLE_DISPLAY
-    select ENABLE_EMI_WL82
+    select ENABLE_MCU8080_ILI9488
     select ENABLE_TP
     select ENABLE_I2C
 

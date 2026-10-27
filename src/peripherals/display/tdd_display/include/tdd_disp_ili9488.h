@@ -110,6 +110,23 @@ OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
  */
 OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev_cfg);
 
+/**
+ * @brief Registers an ILI9488 LCD display device via MCU 8080 parallel interface.
+ *
+ * Supports auto-detection and driving of ILI9488 (320x480), ILI9341 (240x320),
+ * and ILI9481 panels via 8-bit MCU 8080 parallel bus.
+ *
+ * @param name Name of the display device (used for identification).
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
+OPERATE_RET tdd_disp_mcu8080_ili9488_register(char *name);
+
+/**
+ * @brief Backward compatibility alias for tdd_disp_mcu8080_ili9488_register.
+ */
+OPERATE_RET tdd_disp_emi_wl82_register(char *name);
+
 #ifdef __cplusplus
 }
 #endif

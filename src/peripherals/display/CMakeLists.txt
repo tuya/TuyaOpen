@@ -33,16 +33,15 @@ if (CONFIG_ENABLE_MCU8080 STREQUAL "y")
     file(GLOB_RECURSE tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/*.c")
 endif()
 
+if (CONFIG_ENABLE_MCU8080_ILI9488 STREQUAL "y")
+    list(APPEND tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/tdd_disp_mcu8080_ili9488.c")
+endif()
+
 if (CONFIG_ENABLE_MIPI_DSI STREQUAL "y")
     file(GLOB_RECURSE tdd_disp_mipi_srcs "${MODULE_PATH}/tdd_display/src/mipi/*.c")
 endif()
 
-if (CONFIG_ENABLE_EMI_WL82 STREQUAL "y")
-    file(GLOB_RECURSE tdd_disp_emi_srcs "${MODULE_PATH}/tdd_display/src/emi/*.c")
-endif()
-
-
-set(LIB_SRCS ${disp_srcs} ${tdd_disp_spi_srcs} ${tdd_disp_i2c_srcs} ${tdd_disp_qspi_srcs} ${tdd_disp_rgb_srcs} ${tdd_disp_8080_srcs} ${tdd_disp_mipi_srcs} ${tdd_disp_emi_srcs})
+set(LIB_SRCS ${disp_srcs} ${tdd_disp_spi_srcs} ${tdd_disp_i2c_srcs} ${tdd_disp_qspi_srcs} ${tdd_disp_rgb_srcs} ${tdd_disp_8080_srcs} ${tdd_disp_mipi_srcs})
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC

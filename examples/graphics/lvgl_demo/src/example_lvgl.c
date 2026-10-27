@@ -122,7 +122,7 @@ void tuya_app_main(void)
     THREAD_CFG_T thrd_param;
     
     memset(&thrd_param, 0, sizeof(THREAD_CFG_T));
-    thrd_param.stackDepth = 1024 * 4;
+    thrd_param.stackDepth = 1024 * 16;
     thrd_param.priority = THREAD_PRIO_1;
     thrd_param.thrdname = "tuya_app_main";
 
