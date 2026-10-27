@@ -19,6 +19,15 @@ menu "configure ai components"
             bool "English"
     endchoice
 
+    config ENABLE_AI_ALERT_TONE
+        bool "use language-neutral alert tones instead of speech"
+        default y
+        help
+            Play short language-neutral tones for all local alerts instead of
+            the localized voice pack (Chinese/English speech). While enabled,
+            the localized speech packs are excluded from the build entirely.
+            Set to n to restore the voice prompts.
+
     rsource "ai_mode/Kconfig"
     rsource "ai_audio/Kconfig"
     rsource "ai_mcp/Kconfig"

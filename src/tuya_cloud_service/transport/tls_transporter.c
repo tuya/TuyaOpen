@@ -27,6 +27,7 @@
 #include "tal_network.h"
 #include "tal_memory.h"
 #include "tuya_tls.h"
+#include "mbedtls/ssl.h"
 
 typedef struct tls_transporter_inter_t {
     struct tuya_transporter_inter_t base;
@@ -48,8 +49,15 @@ static int __tls_transporter_send_cb(void *ctx, const unsigned char *buf, size_t
 static int __tls_transporter_recv_cb(void *ctx, unsigned char *buf, size_t len)
 {
     tuya_tls_transporter_t tls_transporter = (tuya_tls_transporter_t)ctx;
+    int ret = tuya_transporter_read(tls_transporter->tcp_transporter, buf, len, tls_transporter->read_timeout);
 
-    return tuya_transporter_read(tls_transporter->tcp_transporter, buf, len, tls_transporter->read_timeout);
+    /*
+     * A timeout in the TCP transporter is not a TLS transport error.  mbedTLS
+     * expects MBEDTLS_ERR_SSL_WANT_READ for this case; returning Tuya's
+     * OPRT_RESOURCE_NOT_READY leaks -23 into mbedTLS (and the ESP-IDF dynamic
+     * buffer implementation reports it as an error on every idle MQTT read).
+     */
+    return ret == OPRT_RESOURCE_NOT_READY ? MBEDTLS_ERR_SSL_WANT_READ : ret;
 }
 
 /**
@@ -156,7 +164,10 @@ OPERATE_RET tuya_tls_transporter_read(tuya_transporter_t t, uint8_t *buf, int le
 
     tls_transporter->read_timeout = timeout_ms;
 
-    return tuya_tls_read(tls_transporter->tls_handler, buf, len);
+    int ret = tuya_tls_read(tls_transporter->tls_handler, buf, len);
+
+    /* Keep the transport API's established no-data result for MQTT callers. */
+    return ret == MBEDTLS_ERR_SSL_WANT_READ ? OPRT_RESOURCE_NOT_READY : ret;
 }
 
 /**

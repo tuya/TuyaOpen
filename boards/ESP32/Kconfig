@@ -57,6 +57,18 @@ choice
             rsource "./ESP32-C3/Kconfig"
         endif
 
+    config BOARD_CHOICE_ESP32_C2
+        bool "ESP32-C2"
+        if (BOARD_CHOICE_ESP32_C2)
+            rsource "./ESP32-C2/Kconfig"
+        endif
+
+    config BOARD_CHOICE_ESP32C2_DEVKITM_1
+        bool "ESP32C2_DEVKITM_1"
+        if (BOARD_CHOICE_ESP32C2_DEVKITM_1)
+            rsource "./ESP32C2_DEVKITM_1/Kconfig"
+        endif
+
     config BOARD_CHOICE_ESP32_C6
         bool "ESP32-C6"
         if (BOARD_CHOICE_ESP32_C6)

@@ -224,6 +224,11 @@ typedef OPERATE_RET (*FUNC_HTTP_SESSION_SEND)(IN CONST SESSION_ID session, IN CO
  */
 typedef OPERATE_RET (*FUNC_HTTP_SESSION_RECEIVE)(SESSION_ID session, http_resp_t **resp);
 
+/** Read response body bytes from a session created by this manager.
+ * Returns the number of bytes read, 0 at end of response, or -1 on error.
+ */
+typedef int (*FUNC_HTTP_SESSION_READ_CONTENT)(SESSION_ID session, void *buf, unsigned int max_len);
+
 /**
  * @brief This API is used to destroy HTTP session
  *
@@ -264,6 +269,8 @@ typedef struct {
     FUNC_HTTP_SESSION_SEND send_http_request;
     /** handler to recv response header from HTTP session */
     FUNC_HTTP_SESSION_RECEIVE receive_http_response;
+    /** handler to read response body from HTTP session */
+    FUNC_HTTP_SESSION_READ_CONTENT read_http_content;
     /** handler to destroy HTTP session */
     FUNC_HTTP_SESSION_DESTORY destory_http_session;
     /** handler to recv response content from HTTP session */

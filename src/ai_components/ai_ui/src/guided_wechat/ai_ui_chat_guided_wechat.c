@@ -698,6 +698,23 @@ static const char *__network_stage(void)
     return __tr("未联网", "Not connected");
 }
 
+/* SoftAP provisioning hint: while pairing runs, BLE and AP netcfg work in
+ * parallel; surfacing the live hotspot name gives app-less phones a path to
+ * the captive setup page (join the hotspot, portal pops automatically). */
+static void __make_hotspot_hint(lv_obj_t *card)
+{
+    char hotspot_line[GUIDED_WECHAT_SSID_LEN + 24];
+
+    if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_IDLE ||
+        sg_ui.state.ap_ssid[0] == '\0' || strcmp(sg_ui.state.ap_ssid, "-") == 0) {
+        return;
+    }
+
+    snprintf(hotspot_line, sizeof(hotspot_line), "%s%s",
+             __tr("配网热点：", "Setup hotspot: "), sg_ui.state.ap_ssid);
+    __make_label(card, hotspot_line, lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
+}
+
 static void __render_network(void)
 {
     char current_network[100];
@@ -715,6 +732,7 @@ static void __render_network(void)
 
     if (!sg_ui.state.cloud_online) {
         __make_guide_qr(card, __network_guide_url());
+        __make_hotspot_hint(card);
     }
 
     if (sg_ui.state.activated) {

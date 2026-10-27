@@ -37,6 +37,19 @@ extern "C" {
  */
 int ap_netcfg_init(netcfg_args_t *netcfg);
 
+/**
+ * @brief get the SoftAP hotspot info used while AP netcfg is running
+ *
+ * @param[in/out] ssid buffer receiving the hotspot ssid ("SmartLife-XXXX")
+ * @param[in] ssid_len size of the ssid buffer
+ * @param[in/out] ip buffer receiving the hotspot gateway address
+ * @param[in] ip_len size of the ip buffer
+ *
+ * @return OPRT_OK when the hotspot is up and the info was copied. Others when
+ * AP netcfg has not started yet (buffers left as empty strings).
+ */
+OPERATE_RET ap_netcfg_get_hotspot_info(char *ssid, int ssid_len, char *ip, int ip_len);
+
 #ifdef __cplusplus
 }
 #endif

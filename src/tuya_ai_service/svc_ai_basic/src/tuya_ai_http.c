@@ -157,7 +157,7 @@ STATIC VOID __ai_http_dld_work(VOID *data)
     memset(buf, 0, unit_len);
 
     while (1) {
-        read_len = http_read_content(http_sesion->s, &buf[have_read_len], unit_len - have_read_len);
+        read_len = http_manager->read_http_content(http_sesion, &buf[have_read_len], unit_len - have_read_len);
         if (read_len <= 0) {
             rt = OPRT_COM_ERROR;
             break;

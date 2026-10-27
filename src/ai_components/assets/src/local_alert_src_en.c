@@ -4,7 +4,8 @@
 
 #include "local_alert_src.h"
 
-#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1)
+#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1) && \
+    !(defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1))
 
 // ai_en
 const char media_src_ai_en[7605] = {

@@ -100,6 +100,10 @@ static void __ui_notification_timeout_cb(lv_timer_t *timer)
 static void __ui_init_128X64(void)
 {
     lv_obj_t *screen = lv_screen_active();
+    if (NULL == screen) {
+        PR_ERR("screen is null");
+        return;
+    }
     lv_obj_set_style_text_font(screen, sg_font.text, 0);
     lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 

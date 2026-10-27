@@ -1,0 +1,32 @@
+config CHIP_CHOICE
+    string
+    default "esp32c2"
+
+config BOARD_CHOICE
+    string
+    default "ESP32C2_DEVKITM_1"
+
+config UART_NUM0_TX_PIN
+    int "UART_NUM0_TX_PIN"
+    range 0 20
+    default 20
+    ---help---
+        ESP8684-DevKitM-1 UART0 TXD0 (GPIO20)
+
+config UART_NUM0_RX_PIN
+    int "UART_NUM0_RX_PIN"
+    range 0 20
+    default 19
+    ---help---
+        ESP8684-DevKitM-1 UART0 RXD0 (GPIO19)
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_LED
+    select ENABLE_BUTTON
+    ---help---
+        ESP8684-DevKitM-1: ESP8684-MINI-1 module, 4MB flash, 26MHz crystal
+        (chip seed sdkconfig_esp32c2 selects CONFIG_XTAL_FREQ_26 accordingly).
+        Onboard peripherals: BOOT button on GPIO9, addressable RGB LED on
+        GPIO8. GPIO11-17 are SPI flash pins.

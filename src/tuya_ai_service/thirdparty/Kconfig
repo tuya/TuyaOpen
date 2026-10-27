@@ -1,0 +1,4 @@
+menu "configure tuya AI third-party libraries"
+    # Each library owns its options in <library>/Kconfig.
+    rsource "opus/Kconfig"
+endmenu

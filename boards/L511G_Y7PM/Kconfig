@@ -1,9 +1,9 @@
 # Ktuyaconf
 config PLATFORM_CHOICE
     string
-    default "L511G"
+    default "L511G_Y7PM"
 
-config PLATFORM_L511G
+config PLATFORM_L511G_Y7PM
     bool
     default y
 
@@ -21,9 +21,9 @@ rsource "./OS_SERVICE_Kconfig"
 choice
     prompt "Choice a board"
 
-    config BOARD_CHOICE_L511G_Y7PM
-        bool "L511G_Y7PM"
-        if (BOARD_CHOICE_L511G_Y7PM)
+    config BOARD_CHOICE_L511G_Y7PM_BOARD
+        bool "L511G_Y7PM board"
+        if (BOARD_CHOICE_L511G_Y7PM_BOARD)
             rsource "./L511G_Y7PM/Kconfig"
         endif
 

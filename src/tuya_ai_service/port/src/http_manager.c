@@ -49,7 +49,7 @@ static S_HTTP_MANAGER s_http_manager = {0};
 static void *http_mem_calloc(size_t count, size_t size)
 {
     size_t total = count * size;
-    void *ptr = HTTP_MEMORY_MALLOC(total);
+    void  *ptr   = HTTP_MEMORY_MALLOC(total);
     if (ptr) {
         memset(ptr, 0, total);
     }
@@ -63,16 +63,17 @@ static inline void http_safe_free(void *ptr)
     }
 }
 
-static SESSION_ID http_session_create_internal(const char *url, BOOL_T is_persistent);
-static SESSION_ID http_session_create(const char *url, BOOL_T is_persistent);
-static SESSION_ID http_session_create_tls(const char *url, BOOL_T is_persistent, tuya_tls_config_t *config);
+static SESSION_ID  http_session_create_internal(const char *url, BOOL_T is_persistent);
+static SESSION_ID  http_session_create(const char *url, BOOL_T is_persistent);
+static SESSION_ID  http_session_create_tls(const char *url, BOOL_T is_persistent, tuya_tls_config_t *config);
 static OPERATE_RET http_session_destroy(SESSION_ID id);
 static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t *req, http_hdr_field_sel_t field_flags);
 static OPERATE_RET http_session_receive(SESSION_ID session, http_resp_t **resp);
+static int         http_session_read_content(SESSION_ID session, void *buf, unsigned int max_len);
 static OPERATE_RET http_session_receive_data(SESSION_ID session, http_resp_t *pResp, uint8_t **pDataOut);
 static OPERATE_RET http_parse_url(const char *url, char **host, char **path, uint16_t *port, BOOL_T *use_tls);
 static const char *http_method_to_string(http_method_t method);
-static void http_session_ctx_reset_response(http_session_ctx_t *ctx);
+static void        http_session_ctx_reset_response(http_session_ctx_t *ctx);
 
 /***********************************************************
 ***********************function define**********************
@@ -86,13 +87,14 @@ S_HTTP_MANAGER *get_http_manager_instance(VOID_T)
             return NULL;
         }
 
-        s_http_manager.inited = true;
-        s_http_manager.create_http_session = http_session_create;
+        s_http_manager.inited                  = true;
+        s_http_manager.create_http_session     = http_session_create;
         s_http_manager.create_http_session_tls = http_session_create_tls;
-        s_http_manager.send_http_request = http_session_send;
-        s_http_manager.receive_http_response = http_session_receive;
-        s_http_manager.destory_http_session = http_session_destroy;
-        s_http_manager.receive_http_data = http_session_receive_data;
+        s_http_manager.send_http_request       = http_session_send;
+        s_http_manager.receive_http_response   = http_session_receive;
+        s_http_manager.read_http_content       = http_session_read_content;
+        s_http_manager.destory_http_session    = http_session_destroy;
+        s_http_manager.receive_http_data       = http_session_receive_data;
     }
 
     return &s_http_manager;
@@ -111,7 +113,7 @@ static SESSION_ID http_session_create_internal(const char *url, BOOL_T is_persis
     }
 
     size_t url_len = strlen(url);
-    ctx->url = HTTP_MEMORY_MALLOC(url_len + 1);
+    ctx->url       = HTTP_MEMORY_MALLOC(url_len + 1);
     if (!ctx->url) {
         PR_ERR("alloc session url failed");
         HTTP_MEMORY_FREE(ctx);
@@ -128,9 +130,9 @@ static SESSION_ID http_session_create_internal(const char *url, BOOL_T is_persis
         return NULL;
     }
 
-    session->s = (http_session_t)ctx;
+    session->s             = (http_session_t)ctx;
     session->is_persistent = is_persistent;
-    session->state = HTTP_DISCONNECT;
+    session->state         = HTTP_DISCONNECT;
     strncpy(session->url, url, MAX_HTTP_URL_LEN - 1);
     session->url[MAX_HTTP_URL_LEN - 1] = '\0';
 
@@ -201,17 +203,17 @@ static void http_session_ctx_reset_response(http_session_ctx_t *ctx)
         memset(&ctx->transport, 0, sizeof(TransportInterface_t));
         memset(&ctx->request_headers, 0, sizeof(HTTPRequestHeaders_t));
 
-        ctx->streaming_mode = false;
+        ctx->streaming_mode    = false;
         ctx->total_body_length = 0;
-        ctx->bytes_read = 0;
+        ctx->bytes_read        = 0;
     }
 
     ctx->resp_info.content_length = 0;
-    ctx->resp_info.status_code = 0;
-    ctx->resp_info.chunked = false;
+    ctx->resp_info.status_code    = 0;
+    ctx->resp_info.chunked        = false;
     ctx->resp_info.keep_alive_ack = false;
-    ctx->read_offset = 0;
-    ctx->response_ready = false;
+    ctx->read_offset              = 0;
+    ctx->response_ready           = false;
 
     http_safe_free(ctx->host);
     ctx->host = NULL;
@@ -282,7 +284,7 @@ static OPERATE_RET http_parse_url(const char *url, char **host, char **path, uin
     }
 
     size_t schema_len = parsed.field_data[UF_SCHEMA].len;
-    *use_tls = false;
+    *use_tls          = false;
     if (schema_len) {
         const char *schema = url + parsed.field_data[UF_SCHEMA].off;
         if ((schema_len == strlen("https")) && (strncasecmp(schema, "https", schema_len) == 0)) {
@@ -302,10 +304,10 @@ static OPERATE_RET http_parse_url(const char *url, char **host, char **path, uin
     }
     memcpy(*host, url + parsed.field_data[UF_HOST].off, host_len);
 
-    size_t path_len = parsed.field_data[UF_PATH].len;
+    size_t path_len  = parsed.field_data[UF_PATH].len;
     size_t query_len = parsed.field_data[UF_QUERY].len;
     size_t total_len = (path_len ? path_len : 1) + (query_len ? (query_len + 1) : 0);
-    *path = http_mem_calloc(1, total_len + 1);
+    *path            = http_mem_calloc(1, total_len + 1);
     if (!*path) {
         http_safe_free(*host);
         *host = NULL;
@@ -318,7 +320,7 @@ static OPERATE_RET http_parse_url(const char *url, char **host, char **path, uin
         offset = path_len;
     } else {
         (*path)[0] = '/';
-        offset = 1;
+        offset     = 1;
     }
 
     if (query_len) {
@@ -346,10 +348,10 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
     /* Clean up any previous session state before starting new request */
     http_session_ctx_reset_response(ctx);
 
-    char *host = NULL;
-    char *path = NULL;
-    uint16_t port = 0;
-    BOOL_T use_tls = false;
+    char    *host    = NULL;
+    char    *path    = NULL;
+    uint16_t port    = 0;
+    BOOL_T   use_tls = false;
 
     OPERATE_RET rt = http_parse_url(req->resource, &host, &path, &port, &use_tls);
     if (OPRT_OK != rt) {
@@ -364,14 +366,14 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
     }
 
     /* Store host and path in context for cleanup */
-    ctx->host = host;
-    ctx->path = path;
-    ctx->port = port;
+    ctx->host    = host;
+    ctx->path    = path;
+    ctx->port    = port;
     ctx->use_tls = use_tls;
 
     /* Create and connect network transport */
     TUYA_TRANSPORT_TYPE_E transport_type = use_tls ? TRANSPORT_TYPE_TLS : TRANSPORT_TYPE_TCP;
-    ctx->network = tuya_transporter_create(transport_type, NULL);
+    ctx->network                         = tuya_transporter_create(transport_type, NULL);
     if (!ctx->network) {
         PR_ERR("Failed to create transporter");
         http_safe_free(host);
@@ -379,9 +381,13 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
         return OPRT_MALLOC_FAILED;
     }
 
-    /* Configure TLS if needed */
+    /* Configure TLS if needed.
+     * The TLS layer only keeps a pointer to the CA buffer: tuya_tls_config_set()
+     * copies the config struct itself, not the certificate data. The CA is parsed
+     * during tuya_transporter_connect(), so cacert must stay alive until that call
+     * returns -- it is freed right after, below. */
+    uint8_t *cacert = NULL;
     if (use_tls) {
-        uint8_t *cacert = NULL;
         uint16_t cacert_len = 0;
         rt = tuya_iotdns_query_domain_certs(req->resource ? (char *)req->resource : ctx->url, &cacert, &cacert_len);
         if (OPRT_OK != rt) {
@@ -391,22 +397,30 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
             http_safe_free(path);
             return rt;
         }
+        if (NULL == cacert || 0 == cacert_len) {
+            PR_ERR("invalid ca cert from iotdns, len:%d", cacert_len);
+            http_safe_free(cacert);
+            tuya_transporter_destroy(ctx->network);
+            ctx->network = NULL;
+            http_safe_free(host);
+            http_safe_free(path);
+            return OPRT_COM_ERROR;
+        }
 
         tuya_tls_config_t tls_config = {
-            .ca_cert = (char *)cacert,
+            .ca_cert      = (char *)cacert,
             .ca_cert_size = cacert_len,
-            .hostname = host,
-            .port = port,
-            .timeout = HTTP_TIMEOUT_MS_DEFAULT,
-            .mode = TUYA_TLS_SERVER_CERT_MODE,
-            .verify = true,
+            .hostname     = host,
+            .port         = port,
+            .timeout      = HTTP_TIMEOUT_MS_DEFAULT,
+            .mode         = TUYA_TLS_SERVER_CERT_MODE,
+            .verify       = true,
         };
 
         rt = tuya_transporter_ctrl(ctx->network, TUYA_TRANSPORTER_SET_TLS_CONFIG, &tls_config);
-        http_safe_free(cacert);
-
         if (OPRT_OK != rt) {
             PR_ERR("Failed to set TLS config: %d", rt);
+            http_safe_free(cacert);
             tuya_transporter_destroy(ctx->network);
             ctx->network = NULL;
             http_safe_free(host);
@@ -415,8 +429,9 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
         }
     }
 
-    /* Connect to server */
+    /* Connect to server (the CA cert is parsed inside this call) */
     rt = tuya_transporter_connect(ctx->network, host, port, HTTP_TIMEOUT_MS_DEFAULT);
+    http_safe_free(cacert);
     if (OPRT_OK != rt) {
         PR_ERR("Failed to connect to server: %d", rt);
         tuya_transporter_close(ctx->network);
@@ -429,8 +444,8 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
 
     /* Setup transport interface for coreHTTP */
     ctx->transport.pNetworkContext = &ctx->network;
-    ctx->transport.send = (TransportSend_t)NetworkTransportSend;
-    ctx->transport.recv = (TransportRecv_t)NetworkTransportRecv;
+    ctx->transport.send            = (TransportSend_t)NetworkTransportSend;
+    ctx->transport.recv            = (TransportRecv_t)NetworkTransportRecv;
 
     /* Allocate header buffer */
     ctx->header_buffer = HTTP_MEMORY_MALLOC(512);
@@ -446,18 +461,18 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
 
     /* Setup HTTP request */
     HTTPRequestInfo_t requestInfo = {
-        .pHost = host,
-        .hostLen = strlen(host),
-        .pMethod = method,
+        .pHost     = host,
+        .hostLen   = strlen(host),
+        .pMethod   = method,
         .methodLen = strlen(method),
-        .pPath = path,
-        .pathLen = strlen(path),
-        .reqFlags = 0,
+        .pPath     = path,
+        .pathLen   = strlen(path),
+        .reqFlags  = 0,
     };
 
     /* Initialize request headers */
     ctx->request_headers.bufferLen = 512;
-    ctx->request_headers.pBuffer = ctx->header_buffer;
+    ctx->request_headers.pBuffer   = ctx->header_buffer;
 
     HTTPStatus_t httpStatus = HTTPClient_InitializeRequestHeaders(&ctx->request_headers, &requestInfo);
     if (httpStatus != HTTPSuccess) {
@@ -474,7 +489,7 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
 
     /* Initialize HTTP response structure */
     memset(&ctx->http_response, 0, sizeof(HTTPResponse_t));
-    ctx->http_response.pBuffer = ctx->header_buffer;
+    ctx->http_response.pBuffer   = ctx->header_buffer;
     ctx->http_response.bufferLen = 512;
 
     /* Send request with HTTP_SEND_DISABLE_RECV_BODY_FLAG to only receive headers */
@@ -496,17 +511,17 @@ static OPERATE_RET http_session_send(const SESSION_ID session, const http_req_t 
 
     /* Setup response info (don't call http_session_ctx_reset_response as it would cleanup our streaming resources) */
     ctx->resp_info.status_code = ctx->http_response.statusCode;
-    ctx->resp_info.version = HTTP_VER_1_1;
-    ctx->resp_info.chunked = (ctx->http_response.respFlags & HTTP_RESPONSE_CONNECTION_CLOSE_FLAG) ? false : false;
+    ctx->resp_info.version     = HTTP_VER_1_1;
+    ctx->resp_info.chunked     = (ctx->http_response.respFlags & HTTP_RESPONSE_CONNECTION_CLOSE_FLAG) ? false : false;
     ctx->resp_info.content_length = ctx->http_response.contentLength;
     ctx->resp_info.keep_alive_ack =
         (ctx->http_response.respFlags & HTTP_RESPONSE_CONNECTION_KEEP_ALIVE_FLAG) ? true : false;
 
     /* Enable streaming mode */
-    ctx->streaming_mode = true;
+    ctx->streaming_mode    = true;
     ctx->total_body_length = ctx->http_response.contentLength;
-    ctx->bytes_read = 0;
-    ctx->response_ready = true;
+    ctx->bytes_read        = 0;
+    ctx->response_ready    = true;
 
     session->state = HTTP_UPLOADING;
     memcpy(&session->req, req, sizeof(http_req_t));
@@ -525,9 +540,47 @@ static OPERATE_RET http_session_receive(SESSION_ID session, http_resp_t **resp)
         return OPRT_COM_ERROR;
     }
 
-    *resp = &ctx->resp_info;
+    *resp          = &ctx->resp_info;
     session->state = HTTP_CONNECTED;
     return OPRT_OK;
+}
+
+static int http_session_read_content(SESSION_ID session, void *buf, unsigned int max_len)
+{
+    if (!session || !session->s || !buf || max_len == 0) {
+        return -1;
+    }
+
+    http_session_ctx_t *ctx = (http_session_ctx_t *)session->s;
+    if (!ctx->streaming_mode || !ctx->response_ready) {
+        return -1;
+    }
+
+    if (ctx->total_body_length > 0 && ctx->bytes_read >= ctx->total_body_length) {
+        return 0;
+    }
+
+    size_t read_len = max_len;
+    if (ctx->total_body_length > 0 && read_len > ctx->total_body_length - ctx->bytes_read) {
+        read_len = ctx->total_body_length - ctx->bytes_read;
+    }
+
+    int32_t bytes_read = HTTPClient_Recv(&ctx->transport, &ctx->http_response, (uint8_t *)buf, read_len);
+    if (bytes_read < 0) {
+        PR_ERR("HTTPClient_Recv failed: %d", (int)bytes_read);
+        return -1;
+    }
+    if (bytes_read == 0) {
+        if (ctx->total_body_length > 0 && ctx->bytes_read < ctx->total_body_length) {
+            PR_WARN("http_session_read_content premature close: %u/%u", (unsigned int)ctx->bytes_read,
+                    (unsigned int)ctx->total_body_length);
+            return -1;
+        }
+        return 0;
+    }
+
+    ctx->bytes_read += (size_t)bytes_read;
+    return (int)bytes_read;
 }
 
 static OPERATE_RET http_session_receive_data(SESSION_ID session, http_resp_t *pResp, uint8_t **pDataOut)
@@ -541,8 +594,8 @@ static OPERATE_RET http_session_receive_data(SESSION_ID session, http_resp_t *pR
         return OPRT_COM_ERROR;
     }
 
-    size_t total = ctx->response.body_length;
-    uint8_t *buf = HTTP_MEMORY_MALLOC(total + 1);
+    size_t   total = ctx->response.body_length;
+    uint8_t *buf   = HTTP_MEMORY_MALLOC(total + 1);
     if (!buf) {
         return OPRT_MALLOC_FAILED;
     }

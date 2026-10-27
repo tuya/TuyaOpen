@@ -28,9 +28,7 @@
 #include "tuya_authorize.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
-#else
-// Stub WiFi functions for non-WiFi platforms (e.g., Ubuntu with wired)
-#include "tkl_wifi_stub.h"
+#include "tkl_wifi.h"
 #endif
 #if defined(ENABLE_WIRED) && (ENABLE_WIRED == 1)
 #include "netconn_wired.h"
@@ -401,10 +399,9 @@ void user_main(void)
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
 
-#if defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1)
-    /* Idle low-power (set up in app_chat_bot_init) arbitrates WiFi power-save per chat
-       mode, so skip the blanket WiFi-LP disable that would defeat it. */
-#else
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1) && \
+    !(defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1))
+    /* With app low-power enabled, app_chat_bot_init manages Wi-Fi power saving per chat mode. */
     tkl_wifi_set_lp_mode(0, 0);
 #endif
 

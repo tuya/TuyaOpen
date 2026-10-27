@@ -976,6 +976,33 @@ STATIC OPERATE_RET __ai_parse_biz_attr(AI_PACKET_PT type, CHAR_T *attr_buf, UINT
 
 STATIC OPERATE_RET __ai_parse_biz_head(AI_PACKET_PT type, CHAR_T *payload, AI_BIZ_HEAD_INFO_T *biz_head, UINT_T *offset, UINT_T payload_len)
 {
+    UINT_T media_head_len = 0;
+
+    if (type == AI_PT_VIDEO) {
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+        media_head_len = SIZEOF(AI_VIDEO_HEAD_T);
+#else
+        media_head_len = SIZEOF(AI_VIDEO_HEAD_T_V2);
+#endif
+    } else if (type == AI_PT_AUDIO) {
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+        media_head_len = SIZEOF(AI_AUDIO_HEAD_T);
+#else
+        media_head_len = SIZEOF(AI_AUDIO_HEAD_T_V2);
+#endif
+    } else if (type == AI_PT_IMAGE) {
+#if defined(AI_VERSION) && (0x01 == AI_VERSION)
+        media_head_len = SIZEOF(AI_IMAGE_HEAD_T);
+#else
+        media_head_len = SIZEOF(AI_IMAGE_HEAD_T_V2);
+#endif
+    }
+
+    if (media_head_len && payload_len < media_head_len) {
+        PR_ERR("payload too short, type:%d, payload_len:%u, head_len:%u", type, payload_len, media_head_len);
+        return OPRT_INVALID_PARM;
+    }
+
 #if defined(AI_VERSION) && (0x01 == AI_VERSION)
     if (type == AI_PT_VIDEO) {
         AI_VIDEO_HEAD_T *video_head     = (AI_VIDEO_HEAD_T *)payload;

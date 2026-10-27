@@ -159,6 +159,11 @@ static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB 
 
     TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 0));
     TUYA_CALL_ERR_RETURN(tkl_ai_start(0, 0));
+#if defined(PLATFORM_L511G_Y7PM) && (PLATFORM_L511G_Y7PM == 1)
+    /* L511G_Y7PM capture and playback have separate initialization paths. */
+    TUYA_CALL_ERR_RETURN(tkl_ao_init(&config, 0, NULL));
+    TUYA_CALL_ERR_RETURN(tkl_ao_start(0, 0, NULL));
+#endif
 
     if (hdl->play_volume) {
         TUYA_CALL_ERR_RETURN(tkl_ao_set_vol(TKL_AUDIO_TYPE_BOARD, 0, NULL, hdl->play_volume));

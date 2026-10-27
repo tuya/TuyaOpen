@@ -23,7 +23,8 @@ extern "C" {
 /***********************************************************
 ***********************extern define***********************
 ***********************************************************/
-#if defined(ENABLE_AI_LANGUAGE_CHINESE) && (ENABLE_AI_LANGUAGE_CHINESE == 1)
+#if defined(ENABLE_AI_LANGUAGE_CHINESE) && (ENABLE_AI_LANGUAGE_CHINESE == 1) && \
+    !(defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1))
 
 extern const char media_src_ai_zh[4257];
 extern const char media_src_free_chat_zh[10413];
@@ -41,7 +42,8 @@ extern const char media_src_wakeup_chat_zh[11277];
 extern const char media_src_wakeup_zh[3933];
 #endif
 
-#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1)
+#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1) && \
+    !(defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1))
 
 extern const char media_src_ai_en[7605];
 extern const char media_src_free_chat_en[8469];
@@ -56,6 +58,15 @@ extern const char media_src_please_again_en[12608];
 extern const char media_src_press_talk_en[8037];
 extern const char media_src_prologue_en[16352];
 extern const char media_src_wakeup_chat_en[8685];
+
+#endif
+
+#if defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1)
+
+extern const uint8_t media_src_tone_success[3780];
+extern const uint8_t media_src_tone_wait[2520];
+extern const uint8_t media_src_tone_fail[4032];
+extern const uint8_t media_src_tone_wake[4032];
 
 #endif
 

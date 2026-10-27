@@ -18,10 +18,11 @@
  */
 #include <string.h>
 #include "tal_api.h"
+#include "tal_fs.h"
 #include "datasink_cfg.h"
 
 typedef struct {
-    lfs_file_t file;
+    TUYA_FILE file;
     bool_t file_opened;
     int file_size;
 } FILE_DATASINK_CTX_T;
@@ -29,12 +30,10 @@ typedef struct {
 OPERATE_RET datasink_file_start(char *value, void* *handle)
 {
     FILE_DATASINK_CTX_T *ctx = (FILE_DATASINK_CTX_T *)(*handle);
-    lfs_t *lfs = NULL;
-    int ret = 0;
 
     if(ctx) {
         if(ctx->file_opened) {
-            lfs_file_close(tal_lfs_get(), &ctx->file);
+            tal_fclose(ctx->file);
             ctx->file_opened = FALSE;
             ctx->file_size = 0;
         }
@@ -47,16 +46,8 @@ OPERATE_RET datasink_file_start(char *value, void* *handle)
 
     memset(ctx, 0, sizeof(FILE_DATASINK_CTX_T));
     
-    lfs = tal_lfs_get();
-    if (lfs == NULL) {
-        if (*handle == NULL) {
-            Free(ctx);
-        }
-        return OPRT_FILE_OPEN_FAILED;
-    }
-
-    ret = lfs_file_open(lfs, &ctx->file, value, LFS_O_RDONLY);
-    if (ret != LFS_ERR_OK) {
+    ctx->file = tal_fopen(value, "rb");
+    if (ctx->file == NULL) {
         if (*handle == NULL) {
             Free(ctx);
         }
@@ -76,7 +67,7 @@ OPERATE_RET datasink_file_stop(void* handle)
     }
 
     if(ctx->file_opened) {
-        lfs_file_close(tal_lfs_get(), &ctx->file);
+        tal_fclose(ctx->file);
         ctx->file_opened = FALSE;
         ctx->file_size = 0;
     }
@@ -95,19 +86,12 @@ OPERATE_RET datasink_file_exit(void* handle)
 OPERATE_RET datasink_file_read(void* handle, uint8_t *data, uint32_t len, uint32_t *out_len)
 {
     FILE_DATASINK_CTX_T *ctx = (FILE_DATASINK_CTX_T *)handle;
-    lfs_t *lfs = NULL;
-    lfs_ssize_t rt = 0;
 
     if(!ctx || !ctx->file_opened) {
         return OPRT_INVALID_PARM;
     }
 
-    lfs = tal_lfs_get();
-    if (lfs == NULL) {
-        return OPRT_FILE_READ_FAILED;
-    }
-
-    rt = lfs_file_read(lfs, &ctx->file, data, len);
+    int rt = tal_fread(data, len, ctx->file);
     if(rt == 0) {
         *out_len = 0;
         PR_DEBUG("eof file size %d", ctx->file_size);
