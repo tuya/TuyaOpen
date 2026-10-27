@@ -26,6 +26,10 @@
 #include "tuya_ble_service.h"
 #endif
 
+#ifdef ENABLE_WIFI_BACKUP
+#include "tuya_wifi_backup.h"
+#endif
+
 typedef enum {
     NETCONN_WIFI_MSG_CONNECT,
     NETCONN_WIFI_MSG_DISCONNECT,
@@ -142,15 +146,18 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
         wifi->base.status = NETMGR_LINK_UP;
     } else {
         //! faild or disconnect auto connect
-        if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
+        if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
+            wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
+            if (false == wifi->conn.suspend) {
+                __netconn_wifi_connect();
+            }
+        } else if (false == wifi->conn.suspend &&
+                   (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat)) {
             tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
             if (wifi->conn.count < wifi->conn.table_size - 1) {
                 wifi->conn.count++;
             }
             wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
-        } else if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
-            wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
-            __netconn_wifi_connect();
         }
 
         wifi->base.status = NETMGR_LINK_DOWN;
@@ -170,6 +177,11 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 static void __netconn_wifi_conn_timer(TIMER_ID timer_id, void *arg)
 {
     netmgr_conn_wifi_t *wifi = (netmgr_conn_wifi_t *)arg;
+
+    if (wifi->conn.suspend) {
+        PR_DEBUG("wifi station suspended, skip auto reconnect");
+        return;
+    }
 
     PR_DEBUG("auto conn timeout cnt %d, stat %d", wifi->conn.count, wifi->conn.stat);
     if (NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
@@ -232,6 +244,67 @@ err_exit:
         json = NULL;
     }
     return OPRT_CJSON_PARSE_ERR;
+}
+
+/**
+ * @brief Store a credential into the live connection info.
+ *
+ * @param[in] ssid    wifi ap ssid
+ * @param[in] pswd    wifi passwd, NULL is treated as an open network
+ * @param[in] persist also write it to flash
+ */
+static OPERATE_RET __netconn_wifi_info_store(const char *ssid, const char *pswd, bool persist)
+{
+    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+
+    if (NULL == ssid || '\0' == ssid[0]) {
+        return OPRT_INVALID_PARM;
+    }
+
+    memset(&wifi->conn.wifi_conn_info, 0, sizeof(wifi->conn.wifi_conn_info));
+    strncpy(wifi->conn.wifi_conn_info.ssid, ssid, WIFI_SSID_LEN);
+    strncpy(wifi->conn.wifi_conn_info.pswd, (NULL == pswd) ? "" : pswd, WIFI_PASSWD_LEN);
+
+    if (persist) {
+        return __netconn_wifi_info_set(&wifi->conn.wifi_conn_info);
+    }
+
+    return OPRT_OK;
+}
+
+OPERATE_RET netconn_wifi_station_info_save(const char *ssid, const char *pswd)
+{
+    return __netconn_wifi_info_store(ssid, pswd, true);
+}
+
+OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool persist)
+{
+    OPERATE_RET rt = __netconn_wifi_info_store(ssid, pswd, persist);
+
+    if (OPRT_OK != rt) {
+        return rt;
+    }
+
+    /* __netconn_wifi_connect() bails out while the station is link up, but a
+     * switch to another ap must go through even then */
+    s_netmgr_wifi.conn.stat = NETCONN_WIFI_CONN_REDAY;
+
+    return __netconn_wifi_connect();
+}
+
+OPERATE_RET netconn_wifi_station_suspend(bool suspend)
+{
+    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+
+    PR_DEBUG("wifi station %s", suspend ? "suspend" : "resume");
+
+    wifi->conn.suspend = suspend;
+    if (suspend) {
+        wifi->conn.count = 0;
+        tal_sw_timer_stop(wifi->conn.timer);
+    }
+
+    return OPRT_OK;
 }
 
 static OPERATE_RET __wifi_link_activete_cb(void *data)
@@ -358,6 +431,12 @@ OPERATE_RET netconn_wifi_open(void *config)
         __netconn_wifi_info_get(&netmgr_wifi->conn.wifi_conn_info);
         __netconn_wifi_connect();
     }
+
+#ifdef ENABLE_WIFI_BACKUP
+    /* after the normal connect path, so the backup list only takes over when the
+     * device really has no network of its own */
+    tuya_wifi_backup_init();
+#endif
 
     return rt;
 }

@@ -51,6 +51,8 @@
 #define FRM_DATA_TRANS_SUBCMD_DEV_LOG 0x0005 // APP<->BLE
 // Query AP hotspot name
 #define FRM_DATA_TRANS_SUBCMD_GET_AP_NAME 0x0006 // APP<->BLE
+// Backup network management
+#define FRM_DATA_TRANS_SUBCMD_WIFI_PROTECT 0x000F // APP<->BLE
 
 /** @defgroup TUY_BLE_DEVICE_COMMUNICATION_ABILITY tuya ble device communication
  * ability
