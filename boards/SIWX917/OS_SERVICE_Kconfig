@@ -29,4 +29,12 @@ config ENABLE_SYSTEM_TIME
 config ENABLE_INIT_HARDWARE
     bool
     default y
- 
+
+config ENABLE_WIFI_BACKUP
+    bool
+    default y
+
+config ENABLE_BT_WIFI_LIST
+    bool
+    default y
+    depends on ENABLE_BLUETOOTH
