@@ -36,6 +36,7 @@ if (ENABLE_DISPLAY)
     config ENABLE_MCU8080_ILI9488
         bool "enable MCU8080 ILI9488 parallel display driver"
         default n
+        select ENABLE_MCU8080
         help
             MCU8080 8-bit parallel panel driver for ILI9488 / ILI9341 displays.
 

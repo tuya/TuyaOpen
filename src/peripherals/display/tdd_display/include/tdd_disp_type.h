@@ -76,6 +76,8 @@ typedef struct {
     uint8_t  y_offset;
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
+    TUYA_GPIO_NUM_E dc_pin;
+    TUYA_GPIO_NUM_E rst_pin;
     TUYA_GPIO_NUM_E te_pin;
     TUYA_GPIO_IRQ_E te_mode;
     uint32_t clk;

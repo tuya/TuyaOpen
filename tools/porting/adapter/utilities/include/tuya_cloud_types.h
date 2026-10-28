@@ -1439,6 +1439,8 @@ typedef struct {
     uint16_t width;
     uint16_t height;
 	TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
+    TUYA_GPIO_NUM_E dc_pin;  /**< Data/command select pin. */
+    TUYA_GPIO_NUM_E rst_pin; /**< Display reset pin. */
 } TUYA_8080_BASE_CFG_T;
 
 typedef enum {

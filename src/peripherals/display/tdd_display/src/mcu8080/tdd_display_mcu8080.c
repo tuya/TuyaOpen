@@ -31,7 +31,6 @@ typedef struct {
     TUYA_DISPLAY_PIXEL_FMT_E fmt;
     SEM_HANDLE tx_sem;
     SEM_HANDLE te_sem;
-    bool has_flushed_flag;
     bool flush_start_flag;
 } TDD_DISP_8080_MANAGE_T;
 
@@ -119,63 +118,56 @@ static OPERATE_RET __display_8080_gpio_deinit(DISP_8080_DEV_T *device)
     return rt;
 }
 
-static void __tdd_disp_init_seq(const uint32_t *init_seq)
+static OPERATE_RET __tdd_disp_init_seq(const uint32_t *init_seq)
 {
-    uint32_t *init_line = (uint32_t *)init_seq, *p_data = NULL;
+    const uint32_t *init_line = init_seq;
+    uint32_t *p_data = NULL;
     uint32_t data_len = 0, sleep_time = 0, cmd = 0;
+    OPERATE_RET rt = OPRT_OK;
+
+    if (NULL == init_line) {
+        return OPRT_INVALID_PARM;
+    }
 
     while (*init_line) {
         data_len = init_line[0] - 1;
         sleep_time = init_line[1];
         cmd = init_line[2];
-
-        if (data_len) {
-            p_data = &init_line[3];
-        } else {
-            p_data = NULL;
+        p_data = data_len ? (uint32_t *)&init_line[3] : NULL;
+        TUYA_CALL_ERR_RETURN(tkl_8080_cmd_send_with_param(cmd, p_data, (uint8_t)data_len));
+        if (sleep_time) {
+            tal_system_sleep(sleep_time);
         }
-
-        tkl_8080_cmd_send_with_param(cmd, p_data, (uint8_t)data_len);
-
-        tal_system_sleep(sleep_time);
         init_line += init_line[0] + 2;
     }
+    return OPRT_OK;
 }
 
-static void __disp_8080_set_window(DISP_8080_DEV_T *p_cfg,  uint16_t x_start, uint16_t y_start,\
-                                   uint16_t x_end, uint16_t y_end)
+static OPERATE_RET __disp_8080_set_window(DISP_8080_DEV_T *p_cfg, uint16_t x_start, uint16_t y_start,
+                                          uint16_t x_end, uint16_t y_end)
 {
     uint32_t lcd_data[4];
-    static uint16_t x1=0, x2=0, y1=0, y2=0;
+    OPERATE_RET rt = OPRT_OK;
 
     if (NULL == p_cfg) {
-        return;
+        return OPRT_INVALID_PARM;
     }
-
     x_start += p_cfg->x_offset;
     x_end   += p_cfg->x_offset;
     y_start += p_cfg->y_offset;
     y_end   += p_cfg->y_offset;
 
-    if(x1 != x_start || x2 != x_end) {
-        lcd_data[0] = (x_start >> 8) & 0xFF;
-        lcd_data[1] = (x_start & 0xFF);
-        lcd_data[2] = (x_end >> 8) & 0xFF;
-        lcd_data[3] = (x_end & 0xFF);
-        tkl_8080_cmd_send_with_param(p_cfg->cmd_caset, lcd_data, 4);
-        x1 = x_start;
-        x2 = x_end;
-    }
-
-    if(y1 != y_start || y2 != y_end) {
-        lcd_data[0] = (y_start >> 8) & 0xFF;
-        lcd_data[1] = (y_start & 0xFF);
-        lcd_data[2] = (y_end >> 8) & 0xFF;
-        lcd_data[3] = (y_end & 0xFF);
-        tkl_8080_cmd_send_with_param(p_cfg->cmd_raset, lcd_data, 4);
-        y1 = y_start;
-        y2 = y_end;
-    }
+    lcd_data[0] = (x_start >> 8) & 0xFF;
+    lcd_data[1] = (x_start & 0xFF);
+    lcd_data[2] = (x_end >> 8) & 0xFF;
+    lcd_data[3] = (x_end & 0xFF);
+    TUYA_CALL_ERR_RETURN(tkl_8080_cmd_send_with_param(p_cfg->cmd_caset, lcd_data, 4));
+    lcd_data[0] = (y_start >> 8) & 0xFF;
+    lcd_data[1] = (y_start & 0xFF);
+    lcd_data[2] = (y_end >> 8) & 0xFF;
+    lcd_data[3] = (y_end & 0xFF);
+    TUYA_CALL_ERR_RETURN(tkl_8080_cmd_send_with_param(p_cfg->cmd_raset, lcd_data, 4));
+    return OPRT_OK;
 }
 
 static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
@@ -195,7 +187,7 @@ static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
 
     TUYA_CALL_ERR_RETURN(tkl_8080_init(&(tdd_8080->cfg)));
 
-    __tdd_disp_init_seq(tdd_8080->init_seq);
+    TUYA_CALL_ERR_RETURN(__tdd_disp_init_seq(tdd_8080->init_seq));
 
     TUYA_CALL_ERR_RETURN(tkl_8080_irq_cb_register(__display_8080_isr));
 
@@ -224,17 +216,17 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
     }
 
     if (sg_display_8080.width != target_fb->width || sg_display_8080.height != target_fb->height) {
-        tkl_8080_ppi_set(target_fb->width, target_fb->height);
+        TUYA_CALL_ERR_RETURN(tkl_8080_ppi_set(target_fb->width, target_fb->height));
         sg_display_8080.width = target_fb->width;
         sg_display_8080.height = target_fb->height;
     }
 
     if (sg_display_8080.fmt != target_fb->fmt) {
-        tkl_8080_pixel_mode_set(target_fb->fmt);
+        TUYA_CALL_ERR_RETURN(tkl_8080_pixel_mode_set(target_fb->fmt));
         sg_display_8080.fmt = target_fb->fmt;
     }
 
-    tkl_8080_base_addr_set((uint32_t)target_fb->frame);
+    TUYA_CALL_ERR_RETURN(tkl_8080_base_addr_set((uint32_t)target_fb->frame));
 
     /*Wait for the TE interrupt to be given after a frame is completely scanned inside the screen,
      *and then start sending data to rewrite the frame buffer of the screen to avoid screen display tearing. */
@@ -249,18 +241,13 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
         }
     }
 
-    if (false == sg_display_8080.has_flushed_flag) {
-        __disp_8080_set_window(tdd_8080, frame_buff->x_start, \
-                               frame_buff->y_start, \
-                               frame_buff->width-1, frame_buff->height-1);
+    TUYA_CALL_ERR_RETURN(__disp_8080_set_window(tdd_8080, target_fb->x_start,
+                                                 target_fb->y_start,
+                                                 target_fb->x_start + target_fb->width - 1,
+                                                 target_fb->y_start + target_fb->height - 1));
+    TUYA_CALL_ERR_RETURN(tkl_8080_cmd_send(tdd_8080->cmd_ramwr));
 
-        tkl_8080_cmd_send(tdd_8080->cmd_ramwr);
-        sg_display_8080.has_flushed_flag = true;
-    } else {
-        tkl_8080_cmd_send(tdd_8080->cmd_ramwrc);
-    }
-
-    tkl_8080_transfer_start();
+    TUYA_CALL_ERR_RETURN(tkl_8080_transfer_start());
 
     return tal_semaphore_wait(sg_display_8080.tx_sem, SEM_WAIT_FOREVER);
 }
@@ -285,7 +272,6 @@ static OPERATE_RET __tdd_display_mcu8080_close(TDD_DISP_DEV_HANDLE_T device)
     rt |= tal_semaphore_release(sg_display_8080.te_sem);
     sg_display_8080.te_sem = NULL;
 
-    sg_display_8080.has_flushed_flag = 0;
     sg_display_8080.flush_start_flag = 0;
     sg_display_8080.fmt = 0xff;
     sg_display_8080.width = 0;

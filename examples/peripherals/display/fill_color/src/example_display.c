@@ -113,9 +113,6 @@ void user_main(void)
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 4096, (TAL_LOG_OUTPUT_CB)tkl_log_output);
-    PR_NOTICE("==================================================");
-    PR_NOTICE("==== AC791N DevKitBoard Screen Demo Start ====");
-    PR_NOTICE("==================================================");
 
     /*hardware register*/
     board_register_hardware();
@@ -126,11 +123,8 @@ void user_main(void)
     TUYA_CALL_ERR_LOG(__disp_init(DISPLAY_NAME_2, &sg_disp_ctrl_2));   
 #endif
 
-    uint32_t loop_count = 0;
     while(1) {
-        uint32_t color = __disp_get_random_color(0xFFFFFFFF);
-        PR_NOTICE("fill_color: flush screen color 0x%08X (loop %u)", color, ++loop_count);
-        tdl_disp_draw_fill_full(sg_disp_ctrl.fb, color, sg_disp_ctrl.info.is_swap);
+        tdl_disp_draw_fill_full(sg_disp_ctrl.fb, __disp_get_random_color(0xFFFFFFFF), sg_disp_ctrl.info.is_swap);
 
         tdl_disp_dev_flush(sg_disp_ctrl.hdl, sg_disp_ctrl.fb);
 

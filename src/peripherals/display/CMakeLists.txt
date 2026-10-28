@@ -30,7 +30,7 @@ if (CONFIG_ENABLE_RGB STREQUAL "y")
 endif()
 
 if (CONFIG_ENABLE_MCU8080 STREQUAL "y")
-    file(GLOB_RECURSE tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/*.c")
+    list(APPEND tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/tdd_display_mcu8080.c")
 endif()
 
 if (CONFIG_ENABLE_MCU8080_ILI9488 STREQUAL "y")

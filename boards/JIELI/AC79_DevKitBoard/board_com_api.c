@@ -35,17 +35,6 @@
 #include "tkl_i2c.h"
 #endif
 
-/* JieLi vendor device and bus headers */
-#undef BIT
-#undef LIST_HEAD
-#undef LIST_HEAD_INIT
-#undef INIT_LIST_HEAD
-#include "system/init.h"
-#include "device/device.h"
-#include "asm/emi.h"
-#include "device/iic.h"
-#include "asm/gpio.h"
-
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -55,29 +44,6 @@
 /* SDK ADKEY V6..V7 are 823..1007; the press range is (V6, V7]. */
 #define JIELI_K1_PRESSED_MIN 824U
 #define JIELI_K1_PRESSED_MAX 1007U
-
-/* 8-bit parallel EMI platform configuration for DevKitLCD */
-#define EMI_BAUD EMI_BAUD_DIV8
-static const struct emi_platform_data emi_data = {
-    .bits_mode   = EMI_8BITS_MODE,
-    .baudrate    = EMI_BAUD,
-    .colection   = EMI_FALLING_COLT,
-    .time_out    = 1 * 1000,
-    .th          = EMI_TWIDTH_NO_HALF,
-    .ts          = 0,
-    .tw          = EMI_BAUD,
-    .data_bit_en = 0,
-};
-
-/* Software I2C platform data on PORTH_00 (SCL) and PORTH_01 (SDA) */
-SW_IIC_PLATFORM_DATA_BEGIN(sw_iic0_data).clk_pin = IO_PORTH_00, .dat_pin = IO_PORTH_01, .sw_iic_delay = 50,
-                                                                SW_IIC_PLATFORM_DATA_END()
-
-                                                                /* Register devices into JieLi SDK .device section */
-                                                                REGISTER_DEVICES(ac79_devices) = {
-                                                                    {"emi", &emi_dev_ops, (void *)&emi_data},
-                                                                    {"iic0", &iic_dev_ops, (void *)&sw_iic0_data},
-};
 
 #if defined(ENABLE_TP) && (ENABLE_TP == 1)
 static OPERATE_RET __board_register_touch(void)
@@ -97,12 +63,12 @@ static OPERATE_RET __board_register_touch(void)
             /* PB0 is shared with the ILI9488 reset line; do not pulse it again
              * when LVGL opens the touch device after the display. */
             .rst_pin  = TUYA_GPIO_NUM_MAX,
-            .intr_pin = IO_PORTB_04,
+            .intr_pin = TUYA_GPIO_NUM_20,
             .i2c_cfg =
                 {
                     .port    = TUYA_I2C_NUM_0,
-                    .scl_pin = IO_PORTH_00,
-                    .sda_pin = IO_PORTH_01,
+                    .scl_pin = (TUYA_GPIO_NUM_E)112, /* PH0 */
+                    .sda_pin = (TUYA_GPIO_NUM_E)113, /* PH1 */
                 },
             .tp_cfg =
                 {
@@ -132,8 +98,8 @@ static OPERATE_RET __board_register_touch(void)
                     .i2c_cfg =
                         {
                             .port    = TUYA_I2C_NUM_0,
-                            .scl_pin = IO_PORTH_00,
-                            .sda_pin = IO_PORTH_01,
+                            .scl_pin = (TUYA_GPIO_NUM_E)112, /* PH0 */
+                            .sda_pin = (TUYA_GPIO_NUM_E)113, /* PH1 */
                         },
                     .tp_cfg =
                         {
@@ -157,12 +123,12 @@ static OPERATE_RET __board_register_touch(void)
         /* PB0 is shared with the ILI9488 reset line; do not pulse it again
          * when LVGL opens the touch device after the display. */
         .rst_pin  = TUYA_GPIO_NUM_MAX,
-        .intr_pin = IO_PORTB_04,
+        .intr_pin = TUYA_GPIO_NUM_20,
         .i2c_cfg =
             {
                 .port    = TUYA_I2C_NUM_0,
-                .scl_pin = IO_PORTH_00,
-                .sda_pin = IO_PORTH_01,
+                .scl_pin = (TUYA_GPIO_NUM_E)112, /* PH0 */
+                .sda_pin = (TUYA_GPIO_NUM_E)113, /* PH1 */
             },
         .tp_cfg =
             {

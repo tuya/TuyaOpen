@@ -41,6 +41,11 @@ config ENABLE_UART
     bool
     default y
 
+# WL82 AC79 DevKit exposes its ILI9488 panel through the TKL MCU8080 adapter.
+config ENABLE_MCU8080
+    bool
+    default y if BOARD_CHOICE_AC79_DEVKITBOARD
+
 config ENABLE_WIFI
     bool
     default y
