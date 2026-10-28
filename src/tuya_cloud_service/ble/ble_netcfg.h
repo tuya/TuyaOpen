@@ -34,6 +34,11 @@ extern "C" {
  */
 int ble_netcfg_init(netcfg_args_t *netcfg_args);
 
+/**
+ * @brief Reply the network configuration stage to the app.
+ */
+void ble_netcfg_stat_query(void *data, uint32_t len, void *user_data);
+
 #ifdef __cplusplus
 }
 #endif

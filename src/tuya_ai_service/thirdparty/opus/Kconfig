@@ -1,0 +1,56 @@
+menu "Opus"
+
+config ENABLE_TUYAOPEN_OPUS
+    bool "use TuyaOpen Opus instead of the platform libopus.a"
+    default n
+    help
+        Disabled by default to use the platform SDK's prebuilt libopus.a.
+
+        When enabled, CMake checks the Opus sources under
+        src/tuya_ai_service/thirdparty/opus/upstream/ and downloads them if missing.
+        Downloading requires Git and network access on the build host.
+        Builds the portable fixed-point implementation with float APIs
+        disabled. Opus objects are included in the SDK tuyaos archive.
+
+config ENABLE_TUYAOPEN_OPUS_ARM_DSP
+    bool "Use ARM DSP inline assembly for TuyaOpen Opus on T5AI"
+    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "T5AI"
+    default n
+    help
+        Use upstream ARM fixed-point multiply and saturating arithmetic.
+        CMake verifies DSP support with the selected cross compiler.
+        No NEON or runtime CPU detection is required.
+
+config ENABLE_TUYAOPEN_OPUS_CORTEX_M3_MUL
+    bool "Use bit-exact Cortex-M3 SILK multiplication on L511G_Y7PM"
+    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G_Y7PM"
+    default n
+    help
+        Experimental SMULL implementations of SILK's four halfword
+        multiply/accumulate macros. Preserve per-product rounding and
+        the existing full-word multiplication definitions.
+        CMake checks the selected compiler for ARMv7-M support.
+        Disable this option to restore the portable fixed-point macros.
+
+config ENABLE_TUYAOPEN_OPUS_NSQ_CACHE
+    bool "Cache scalar state inside the normal NSQ sample loop"
+    depends on ENABLE_TUYAOPEN_OPUS && (ENABLE_TUYAOPEN_OPUS_ARM_DSP || PLATFORM_CHOICE = "L511G_Y7PM")
+    default n
+    help
+        Experimental T5AI/L511G_Y7PM normal-NSQ optimization. Preserve per-product
+        rounding and final state updates; reduce scalar state memory traffic.
+        T5AI caches five scalars; L511G_Y7PM caches only the shaping buffer index
+        to limit Cortex-M3 register pressure.
+
+config ENABLE_TUYAOPEN_OPUS_NSQ_RAM
+    bool "Run normal NSQ from L511G_Y7PM internal MSMB RAM"
+    depends on ENABLE_TUYAOPEN_OPUS && PLATFORM_CHOICE = "L511G_Y7PM"
+    default n
+    help
+        Place silk_NSQ_c in the platform's existing MSMB RAM code section.
+        The platform loader copies/decompresses it at boot and restores it
+        on wake. Uses several KiB of internal RAM; the platform linker
+        checks its shared RAM boundary. No codec arithmetic is changed.
+        Independent of NSQ_CACHE so each optimization can be measured.
+
+endmenu

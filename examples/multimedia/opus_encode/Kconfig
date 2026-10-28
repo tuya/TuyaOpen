@@ -1,0 +1,50 @@
+menu "Opus benchmark"
+
+config OPUS_BENCH_COMPLEXITY
+    int "Encoder complexity (0-10)"
+    range 0 10
+    default 0
+
+config OPUS_BENCH_REPEAT
+    int "Number of audio repetitions"
+    range 1 1000
+    default 20
+
+config OPUS_BENCH_ROUNDS
+    int "Number of independent benchmark rounds"
+    range 1 20
+    default 20
+    help
+        Recreate and warm up the encoder for each round. Report per-round
+        timings and a summary including the median frame average.
+
+config OPUS_BENCH_HIGH_RES
+    bool "Use T5AI AON RTC and DWT timing"
+    depends on PLATFORM_CHOICE = "T5AI"
+    default y
+    help
+        Measure wall time with the AON RTC (about 30 us resolution) and
+        collect DWT cycle counts. Includes interrupts and preemption.
+
+config OPUS_BENCH_PROFILE
+    bool "Profile fixed-point SILK stages and bitrate-control iterations"
+    depends on ENABLE_TUYAOPEN_OPUS && (OPUS_BENCH_HIGH_RES || PLATFORM_CHOICE = "L511G_Y7PM")
+    default n
+    help
+        Adds timing callbacks to a generated build-tree copy of SILK.
+        L511G_Y7PM uses millisecond ticks; accumulate many frames to identify
+        large hotspots. Sub-millisecond calls may measure as zero.
+        Profiling adds overhead; disable it for baseline library comparisons.
+
+config OPUS_BENCH_SWEEP
+    bool "Benchmark all complexities from 0 to 10"
+    default n
+
+config OPUS_BENCH_DUMP_PACKETS
+    bool "Print encoded packet bytes for output comparison"
+    default n
+    help
+        Print packet lengths and hexadecimal bytes outside the timed region.
+        Intended for short validation runs; logging can affect cache behavior.
+
+endmenu

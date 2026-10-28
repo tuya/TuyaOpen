@@ -104,14 +104,14 @@ static tuya_p2p_rtc_media_direction_e tuya_p2p_rtc_media_direction_number(char *
 #endif
 static int tuya_p2p_rtc_sdp_encode_session(rtc_sdp_t *sdp, char *buf, int size)
 {
-    int ret;
-    int index = 0;
-    char bundle[64] = {0};
+    int    ret;
+    int    index      = 0;
+    char   bundle[64] = {0};
     QUEUE *q;
     QUEUE_FOREACH(q, &sdp->media_info_list.queue)
     {
         media_info_t *info = QUEUE_DATA(q, media_info_t, queue);
-        ret = snprintf(bundle + index, sizeof(bundle) - index, " %s", info->mid);
+        ret                = snprintf(bundle + index, sizeof(bundle) - index, " %s", info->mid);
         if (ret < 0 || ret >= (int)sizeof(bundle) - index) {
             return -1;
         }
@@ -128,9 +128,9 @@ static int tuya_p2p_rtc_sdp_encode_session(rtc_sdp_t *sdp, char *buf, int size)
 static int tuya_p2p_rtc_sdp_encode_media_audio(rtc_sdp_t *sdp, char *type, char *mid, char *buf, int size)
 {
     int ret;
-    int index = 0;
+    int index   = 0;
     int already = 0;
-    int remain = size;
+    int remain  = size;
 
     char pt[128] = {0};
     if (strcmp(type, "offer") == 0) {
@@ -138,7 +138,7 @@ static int tuya_p2p_rtc_sdp_encode_media_audio(rtc_sdp_t *sdp, char *type, char 
         QUEUE_FOREACH(q, &sdp->audio.codec_list)
         {
             rtc_audio_codec_t *codec = QUEUE_DATA(q, rtc_audio_codec_t, queue);
-            ret = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
+            ret                      = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
             if (ret < 0 || ret >= (int)sizeof(pt) - index) {
                 return -1;
             }
@@ -254,9 +254,9 @@ static int tuya_p2p_rtc_sdp_encode_media_audio(rtc_sdp_t *sdp, char *type, char 
 static int tuya_p2p_rtc_sdp_encode_media_video(rtc_sdp_t *sdp, char *type, char *mid, char *buf, int size)
 {
     int ret;
-    int index = 0;
+    int index   = 0;
     int already = 0;
-    int remain = size;
+    int remain  = size;
 
     char pt[128] = {0};
     if (strcmp(type, "offer") == 0) {
@@ -264,7 +264,7 @@ static int tuya_p2p_rtc_sdp_encode_media_video(rtc_sdp_t *sdp, char *type, char 
         QUEUE_FOREACH(q, &sdp->video.codec_list)
         {
             rtc_video_codec_t *codec = QUEUE_DATA(q, rtc_video_codec_t, queue);
-            ret = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
+            ret                      = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
             if (ret < 0 || ret >= (int)sizeof(pt) - index) {
                 return -1;
             }
@@ -492,9 +492,9 @@ static int tuya_p2p_rtc_sdp_encode_media_tuya(rtc_sdp_t *sdp, char *type, char *
     (void)sdp;
     (void)type;
     int ret;
-    int index = 0;
+    int index   = 0;
     int already = 0;
-    int remain = size;
+    int remain  = size;
 
     char pt[128] = {0};
     if (strcmp(type, "offer") == 0) {
@@ -502,7 +502,7 @@ static int tuya_p2p_rtc_sdp_encode_media_tuya(rtc_sdp_t *sdp, char *type, char *
         QUEUE_FOREACH(q, &sdp->tuya.codec_list)
         {
             rtc_tuya_codec_t *codec = QUEUE_DATA(q, rtc_tuya_codec_t, queue);
-            ret = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
+            ret                     = snprintf(pt + index, sizeof(pt) - index, " %d", codec->pt);
             if (ret < 0 || ret >= (int)sizeof(pt) - index) {
                 return -1;
             }
@@ -613,15 +613,15 @@ int tuya_p2p_rtc_sdp_init(rtc_sdp_t *sdp, char *session_id, char *local_id, char
 
     // audio
     tuya_p2p_misc_rand_string(sdp->audio.track_id, 32);
-    sdp->audio.rtx_mode = RTX_MODE_DISABLED;
-    sdp->audio.direction = MEDIA_DIRECTION_SENDRECV;
+    sdp->audio.rtx_mode     = RTX_MODE_DISABLED;
+    sdp->audio.direction    = MEDIA_DIRECTION_SENDRECV;
     sdp->audio.rtx_codec.pt = -1;
     QUEUE_INIT(&sdp->audio.codec_list);
 
     // video
     tuya_p2p_misc_rand_string(sdp->video.track_id, 32);
-    sdp->video.rtx_mode = RTX_MODE_REPLAY;
-    sdp->video.direction = MEDIA_DIRECTION_SENDONLY;
+    sdp->video.rtx_mode     = RTX_MODE_REPLAY;
+    sdp->video.direction    = MEDIA_DIRECTION_SENDONLY;
     sdp->video.rtx_codec.pt = -1;
     QUEUE_INIT(&sdp->video.codec_list);
 
@@ -679,7 +679,7 @@ int tuya_p2p_rtc_sdp_set_aes_key(rtc_sdp_t *sdp, unsigned char *aes_key, uint32_
     memset(sdp->aes_key, 0, sizeof(sdp->aes_key));
     uint32_t i;
     for (i = 0; i < len; i++) {
-        sdp->aes_key[2 * i] = tuya_p2p_misc_hex_to_char((aes_key[i] & 0xf0) >> 4);
+        sdp->aes_key[2 * i]     = tuya_p2p_misc_hex_to_char((aes_key[i] & 0xf0) >> 4);
         sdp->aes_key[2 * i + 1] = tuya_p2p_misc_hex_to_char(aes_key[i] & 0x0f);
     }
     return 0;
@@ -757,15 +757,15 @@ int tuya_p2p_rtc_sdp_add_audio_codec(rtc_sdp_t *sdp, char *name, int pt, uint32_
             return -1;
         }
         snprintf(codec->name, sizeof(codec->name), "%s", default_codec->name);
-        codec->pt = default_codec->pt;
-        codec->ssrc = default_codec->ssrc;
-        codec->sample_rate = default_codec->sample_rate;
+        codec->pt             = default_codec->pt;
+        codec->ssrc           = default_codec->ssrc;
+        codec->sample_rate    = default_codec->sample_rate;
         codec->channel_number = default_codec->channel_number;
     } else {
         snprintf(codec->name, sizeof(codec->name), "%s", name);
-        codec->pt = pt;
-        codec->ssrc = ssrc;
-        codec->sample_rate = sample_rate;
+        codec->pt             = pt;
+        codec->ssrc           = ssrc;
+        codec->sample_rate    = sample_rate;
         codec->channel_number = channel_number;
     }
 
@@ -784,9 +784,9 @@ int tuya_p2p_rtc_sdp_add_video_codec(rtc_sdp_t *sdp, char *name, int pt, uint32_
 
     snprintf(codec->name, sizeof(codec->name), "%s", name);
     codec->original_pt = -1;
-    codec->pt = pt;
-    codec->ssrc = ssrc;
-    codec->clock_rate = clock_rate;
+    codec->pt          = pt;
+    codec->ssrc        = ssrc;
+    codec->clock_rate  = clock_rate;
     snprintf(codec->profile_level_id, sizeof(codec->profile_level_id), "%s", profile_level_id);
 
     QUEUE_INSERT_TAIL(&sdp->video.codec_list, &codec->queue);
@@ -803,9 +803,9 @@ int tuya_p2p_rtc_sdp_add_video_rtx_codec(rtc_sdp_t *sdp, int origin_pt, int pt, 
 
     snprintf(codec->name, sizeof(codec->name), "%s", "rtx");
     codec->original_pt = origin_pt;
-    codec->pt = pt;
-    codec->ssrc = ssrc;
-    codec->clock_rate = clock_rate;
+    codec->pt          = pt;
+    codec->ssrc        = ssrc;
+    codec->clock_rate  = clock_rate;
 
     QUEUE_INSERT_TAIL(&sdp->video.codec_list, &codec->queue);
     return 0;
@@ -819,7 +819,7 @@ int tuya_p2p_rtc_sdp_add_tuya_codec(rtc_sdp_t *sdp, char *name, int pt, int chan
     }
     memset(codec, 0, sizeof(*codec));
     snprintf(codec->name, sizeof(codec->name), "%s", name);
-    codec->pt = pt;
+    codec->pt             = pt;
     codec->channel_number = channel_number;
 
     QUEUE_INSERT_TAIL(&sdp->tuya.codec_list, &codec->queue);
@@ -897,8 +897,8 @@ int tuya_p2p_rtc_sdp_encode(rtc_sdp_t *sdp, char *type, char *buf, int size)
 {
     int ret;
     int already = 0;
-    int remain = size;
-    ret = tuya_p2p_rtc_sdp_encode_session(sdp, buf + already, remain);
+    int remain  = size;
+    ret         = tuya_p2p_rtc_sdp_encode_session(sdp, buf + already, remain);
     if (ret < 0 || ret >= remain) {
         return -1;
     }
@@ -931,7 +931,7 @@ int tuya_p2p_rtc_sdp_encode(rtc_sdp_t *sdp, char *type, char *buf, int size)
 int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
 {
     char *lasts = NULL;
-    char *p = strtok_r(buf, "\r\n", &lasts);
+    char *p     = strtok_r(buf, "\r\n", &lasts);
     if (p == NULL) {
         return 0;
     }
@@ -944,8 +944,8 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
         if (strncmp(p, "a=msid-semantic:", strlen("a=msid-semantic:")) == 0) {
             p += strlen("a=msid-semantic:");
             char wms_name[65] = {0};
-            char wms_id[65] = {0};
-            int cnt = sscanf(p, "%s %s", wms_name, wms_id);
+            char wms_id[65]   = {0};
+            int  cnt          = sscanf(p, "%64s %64s", wms_name, wms_id);
             if (cnt != 2 || strcmp(wms_name, "WMS") != 0) {
                 continue;
             }
@@ -954,9 +954,9 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
         }
         if (strncmp(p, "a=msid:", strlen("a=msid:")) == 0) {
             p += strlen("a=msid:");
-            char msid[65] = {0};
+            char msid[65]     = {0};
             char track_id[65] = {0};
-            int cnt = sscanf(p, "%s %s", msid, track_id);
+            int  cnt          = sscanf(p, "%64s %64s", msid, track_id);
             if (cnt != 2 || strcmp(msid, sdp->wms_id) != 0) {
                 continue;
             }
@@ -972,7 +972,7 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             char m1[65] = {0};
             char m2[65] = {0};
             char m3[65] = {0};
-            int cnt = sscanf(p, "%s %s %s", m1, m2, m3);
+            int  cnt    = sscanf(p, "%64s %64s %64s", m1, m2, m3);
             if (cnt >= 1) {
                 tuya_p2p_rtc_sdp_add_media(sdp, m1, "");
             }
@@ -986,14 +986,14 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             continue;
         }
         if (strncmp(p, "m=audio", strlen("m=audio")) == 0) {
-            m = 'a';
-            char tmp[128] = {0};
-            char *ptmp = strstr(p, "SAVPF");
+            m              = 'a';
+            char  tmp[128] = {0};
+            char *ptmp     = strstr(p, "SAVPF");
             if (ptmp != NULL) {
                 snprintf(tmp, sizeof(tmp), "%s", ptmp + strlen("SAVPF") + 1);
             }
             char *tmplasts = NULL;
-            char *pt = strtok_r(tmp, " ", &tmplasts);
+            char *pt       = strtok_r(tmp, " ", &tmplasts);
             while (pt != NULL) {
                 tuya_p2p_rtc_sdp_add_audio_codec(sdp, NULL, atoi(pt), 0, 0, 0);
                 pt = strtok_r(NULL, " ", &tmplasts);
@@ -1001,14 +1001,14 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             continue;
         }
         if (strncmp(p, "m=video", strlen("m=video")) == 0) {
-            m = 'v';
-            char tmp[128] = {0};
-            char *ptmp = strstr(p, "SAVPF");
+            m              = 'v';
+            char  tmp[128] = {0};
+            char *ptmp     = strstr(p, "SAVPF");
             if (ptmp != NULL) {
                 snprintf(tmp, sizeof(tmp), "%s", ptmp + strlen("SAVPF") + 1);
             }
             char *tmplasts = NULL;
-            char *pt = strtok_r(tmp, " ", &tmplasts);
+            char *pt       = strtok_r(tmp, " ", &tmplasts);
             while (pt != NULL) {
                 tuya_p2p_rtc_sdp_add_video_codec(sdp, "", atoi(pt), 0, 0, "");
                 pt = strtok_r(NULL, " ", &tmplasts);
@@ -1016,14 +1016,14 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
             continue;
         }
         if (strncmp(p, "m=application", strlen("m=application")) == 0) {
-            m = 't';
-            char tmp[128] = {0};
-            char *ptmp = strstr(p, "tuya");
+            m              = 't';
+            char  tmp[128] = {0};
+            char *ptmp     = strstr(p, "tuya");
             if (ptmp != NULL) {
                 snprintf(tmp, sizeof(tmp), "%s", ptmp + strlen("tuya") + 1);
             }
             char *tmplasts = NULL;
-            char *pt = strtok_r(tmp, " ", &tmplasts);
+            char *pt       = strtok_r(tmp, " ", &tmplasts);
             while (pt != NULL) {
                 tuya_p2p_rtc_sdp_add_tuya_codec(sdp, "", atoi(pt), 0);
                 pt = strtok_r(NULL, " ", &tmplasts);
@@ -1065,12 +1065,12 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
         }
         if (strncmp(p, "a=fmtp:", strlen("a=fmtp:")) == 0) {
             p += strlen("a=fmtp:");
-            char str_pt[32] = {0};
+            char str_pt[32]    = {0};
             char str_attr[256] = {0};
-            int cnt = sscanf(p, "%s %s", str_pt, str_attr);
+            int  cnt           = sscanf(p, "%31s %255s", str_pt, str_attr);
             if (cnt == 2) {
                 if (strncmp(str_attr, "apt=", strlen("apt=")) == 0) {
-                    int pt = atoi(str_pt);
+                    int pt          = atoi(str_pt);
                     int original_pt = atoi(str_attr + strlen("apt="));
                     tuya_p2p_rtc_sdp_set_original_pt(sdp, pt, original_pt);
                 }
@@ -1078,17 +1078,17 @@ int tuya_p2p_rtc_sdp_decode(rtc_sdp_t *sdp, char *buf)
         }
 
         if (strncmp(p, "a=ssrc-group:FID", strlen("a=ssrc-group:FID")) == 0) {
-            char *p1 = p + strlen("a=ssrc-group:FID");
-            char ssrc[65] = {0};
-            char ssrc_rtx[65] = {0};
-            int cnt = sscanf(p1, "%s %s", ssrc, ssrc_rtx);
+            char *p1           = p + strlen("a=ssrc-group:FID");
+            char  ssrc[65]     = {0};
+            char  ssrc_rtx[65] = {0};
+            int   cnt          = sscanf(p1, "%64s %64s", ssrc, ssrc_rtx);
             if (cnt == 2) {
                 if (m == 'a') {
                     sdp->audio.negotiated_codec.ssrc = strtoul(ssrc, NULL, 10);
-                    sdp->audio.rtx_codec.ssrc = strtoul(ssrc_rtx, NULL, 10);
+                    sdp->audio.rtx_codec.ssrc        = strtoul(ssrc_rtx, NULL, 10);
                 } else if (m == 'v') {
                     sdp->video.negotiated_codec.ssrc = strtoul(ssrc, NULL, 10);
-                    sdp->video.rtx_codec.ssrc = strtoul(ssrc_rtx, NULL, 10);
+                    sdp->video.rtx_codec.ssrc        = strtoul(ssrc_rtx, NULL, 10);
                 } else {
                     // do nothing
                 }
@@ -1205,14 +1205,14 @@ int tuya_p2p_rtc_sdp_negotiate(rtc_sdp_t *local_sdp, rtc_sdp_t *remote_sdp, char
                 (codec->sample_rate == tmp_codec->sample_rate) &&
                 (codec->channel_number == tmp_codec->channel_number)) {
                 local_sdp->audio.negotiated_codec.channel_number = codec->channel_number;
-                local_sdp->audio.negotiated_codec.sample_rate = codec->sample_rate;
-                local_sdp->audio.negotiated_codec.pt = tmp_codec->pt;
-                local_sdp->audio.negotiated_codec.ssrc = codec->ssrc;
+                local_sdp->audio.negotiated_codec.sample_rate    = codec->sample_rate;
+                local_sdp->audio.negotiated_codec.pt             = tmp_codec->pt;
+                local_sdp->audio.negotiated_codec.ssrc           = codec->ssrc;
                 snprintf(local_sdp->audio.negotiated_codec.name, sizeof(local_sdp->audio.negotiated_codec.name), "%s",
                          codec->name);
                 remote_sdp->audio.negotiated_codec.channel_number = tmp_codec->channel_number;
-                remote_sdp->audio.negotiated_codec.sample_rate = tmp_codec->sample_rate;
-                remote_sdp->audio.negotiated_codec.pt = tmp_codec->pt;
+                remote_sdp->audio.negotiated_codec.sample_rate    = tmp_codec->sample_rate;
+                remote_sdp->audio.negotiated_codec.pt             = tmp_codec->pt;
                 // remote_sdp->audio.negotiated_codec.ssrc = tmp_codec->ssrc;
                 snprintf(remote_sdp->audio.negotiated_codec.name, sizeof(remote_sdp->audio.negotiated_codec.name), "%s",
                          tmp_codec->name);
@@ -1234,16 +1234,16 @@ finish_audio:
             rtc_video_codec_t *tmp_codec = QUEUE_DATA(tmp_q, rtc_video_codec_t, queue);
             if ((strncmp(codec->name, tmp_codec->name, sizeof(codec->name)) == 0) &&
                 (codec->clock_rate == tmp_codec->clock_rate)) {
-                local_sdp->video.negotiated_codec.clock_rate = codec->clock_rate;
-                local_sdp->video.negotiated_codec.pt = tmp_codec->pt;
-                local_sdp->video.negotiated_codec.ssrc = codec->ssrc;
+                local_sdp->video.negotiated_codec.clock_rate  = codec->clock_rate;
+                local_sdp->video.negotiated_codec.pt          = tmp_codec->pt;
+                local_sdp->video.negotiated_codec.ssrc        = codec->ssrc;
                 local_sdp->video.negotiated_codec.original_pt = -1;
                 snprintf(local_sdp->video.negotiated_codec.profile_level_id,
                          sizeof(local_sdp->video.negotiated_codec.profile_level_id), "%s", codec->profile_level_id);
                 snprintf(local_sdp->video.negotiated_codec.name, sizeof(local_sdp->video.negotiated_codec.name), "%s",
                          codec->name);
                 remote_sdp->video.negotiated_codec.clock_rate = tmp_codec->clock_rate;
-                remote_sdp->video.negotiated_codec.pt = tmp_codec->pt;
+                remote_sdp->video.negotiated_codec.pt         = tmp_codec->pt;
                 // remote_sdp->video.negotiated_codec.ssrc = tmp_codec->ssrc;
                 remote_sdp->video.negotiated_codec.original_pt = -1;
                 snprintf(remote_sdp->video.negotiated_codec.profile_level_id,
@@ -1265,9 +1265,9 @@ finish_video:
         // printf("remote video codec: %s %d %d (negotiated_codec pt = %d)\n",
         // codec->name, codec->pt, codec->original_pt, local_sdp->video.negotiated_codec.pt);
         if (strcmp(codec->name, "rtx") == 0 && codec->original_pt == remote_sdp->video.negotiated_codec.pt) {
-            remote_sdp->video.rtx_codec.pt = codec->pt;
+            remote_sdp->video.rtx_codec.pt   = codec->pt;
             remote_sdp->video.rtx_codec.ssrc = codec->ssrc;
-            remote_sdp->video.rtx_mode = RTX_MODE_SSRC_MULTIPLEX;
+            remote_sdp->video.rtx_mode       = RTX_MODE_SSRC_MULTIPLEX;
         }
     }
     QUEUE_FOREACH(q, &local_sdp->video.codec_list)
@@ -1276,17 +1276,17 @@ finish_video:
         // printf("local video codec: %s %d %d (negotiated_codec pt = %d)\n",
         // codec->name, codec->pt, codec->original_pt, local_sdp->video.negotiated_codec.pt);
         if (strcmp(codec->name, "rtx") == 0) {
-            local_sdp->video.rtx_codec.ssrc = codec->ssrc;
+            local_sdp->video.rtx_codec.ssrc       = codec->ssrc;
             local_sdp->video.rtx_codec.clock_rate = codec->clock_rate;
         }
     }
     local_sdp->video.rtx_codec.pt = remote_sdp->video.rtx_codec.pt;
-    local_sdp->video.rtx_mode = remote_sdp->video.rtx_mode;
+    local_sdp->video.rtx_mode     = remote_sdp->video.rtx_mode;
 
     // tuya media (hardcode)
     local_sdp->tuya.negotiated_codec.channel_number = 3;
     snprintf(local_sdp->tuya.negotiated_codec.name, sizeof(local_sdp->tuya.negotiated_codec.name), "AES/KCP");
-    local_sdp->tuya.negotiated_codec.pt = 6001;
+    local_sdp->tuya.negotiated_codec.pt              = 6001;
     remote_sdp->tuya.negotiated_codec.channel_number = 3;
     snprintf(remote_sdp->tuya.negotiated_codec.name, sizeof(remote_sdp->tuya.negotiated_codec.name), "AES/KCP");
     remote_sdp->tuya.negotiated_codec.pt = 6001;

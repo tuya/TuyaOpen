@@ -4,6 +4,10 @@ menuconfig ENABLE_COMP_AI_AUDIO
     default y
 
 if (ENABLE_COMP_AI_AUDIO)
+    config ENABLE_COMP_AI_AUDIO_VAD
+        bool
+        default y if ENABLE_COMP_AI_MODE_ONESHOT || ENABLE_COMP_AI_MODE_WAKEUP || ENABLE_COMP_AI_MODE_FREE
+
     choice
         prompt "select ai audio input codec"
         default ENABLE_COMP_AI_AUDIO_CODEC_PCM

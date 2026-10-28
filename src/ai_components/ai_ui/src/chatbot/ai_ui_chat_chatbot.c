@@ -36,7 +36,7 @@ typedef struct {
     lv_color_t system_text;
     lv_color_t border;
     lv_color_t low_battery;
-}UI_THEME_COLORS_T;
+} UI_THEME_COLORS_T;
 
 typedef struct {
     lv_obj_t *container;
@@ -51,20 +51,18 @@ typedef struct {
     lv_obj_t *chat_mode_label;
 } AI_UI_CHATBOT_T;
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 static UI_THEME_COLORS_T sg_theme_colors;
 static AI_UI_CHATBOT_T   sg_ui;
-static AI_UI_FONT_LIST_T sg_font = {0};
+static AI_UI_FONT_LIST_T sg_font            = {0};
 static lv_timer_t       *sg_notification_tm = NULL;
-static bool              sg_is_streaming = false;
+static bool              sg_is_streaming    = false;
 
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************function define**********************
@@ -76,7 +74,7 @@ static void __lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
 
-    lv_vendor_start(5, 1024*8);
+    lv_vendor_start(5, 1024 * 8);
 }
 
 /**
@@ -101,15 +99,15 @@ static void __ui_light_theme_init(UI_THEME_COLORS_T *theme)
         return;
     }
 
-    theme->background = lv_color_white();
-    theme->text = lv_color_black();
-    theme->chat_background = lv_color_hex(0xE0E0E0);
-    theme->user_bubble = lv_color_hex(0x95EC69);
+    theme->background       = lv_color_white();
+    theme->text             = lv_color_black();
+    theme->chat_background  = lv_color_hex(0xE0E0E0);
+    theme->user_bubble      = lv_color_hex(0x95EC69);
     theme->assistant_bubble = lv_color_white();
-    theme->system_bubble = lv_color_hex(0xE0E0E0);
-    theme->system_text = lv_color_hex(0x666666);
-    theme->border = lv_color_hex(0xE0E0E0);
-    theme->low_battery = lv_color_black();
+    theme->system_bubble    = lv_color_hex(0xE0E0E0);
+    theme->system_text      = lv_color_hex(0x666666);
+    theme->border           = lv_color_hex(0xE0E0E0);
+    theme->low_battery      = lv_color_black();
 }
 
 /**
@@ -123,15 +121,15 @@ static __attribute__((unused)) void __ui_dark_theme_init(UI_THEME_COLORS_T *them
         return;
     }
 
-    theme->background = lv_color_hex(0x121212);
-    theme->text = lv_color_white();
-    theme->chat_background = lv_color_hex(0x1E1E1E);
-    theme->user_bubble = lv_color_hex(0x1A6C37);
+    theme->background       = lv_color_hex(0x121212);
+    theme->text             = lv_color_white();
+    theme->chat_background  = lv_color_hex(0x1E1E1E);
+    theme->user_bubble      = lv_color_hex(0x1A6C37);
     theme->assistant_bubble = lv_color_hex(0x333333);
-    theme->system_bubble = lv_color_hex(0x2A2A2A);
-    theme->system_text = lv_color_hex(0xAAAAAA);
-    theme->border = lv_color_hex(0x333333);
-    theme->low_battery = lv_color_hex(0x333333);
+    theme->system_bubble    = lv_color_hex(0x2A2A2A);
+    theme->system_text      = lv_color_hex(0xAAAAAA);
+    theme->border           = lv_color_hex(0x333333);
+    theme->low_battery      = lv_color_hex(0x333333);
 }
 
 /**
@@ -163,6 +161,11 @@ static OPERATE_RET __ui_init(void)
     __ui_font_init();
 
     lv_obj_t *screen = lv_screen_active();
+    if (NULL == screen) {
+        PR_ERR("screen is null");
+        lv_vendor_disp_unlock();
+        return OPRT_COM_ERROR;
+    }
     lv_obj_set_style_text_font(screen, sg_font.text, 0);
     lv_obj_set_style_text_color(screen, sg_theme_colors.text, 0);
     lv_obj_set_style_bg_color(screen, sg_theme_colors.background, 0);
@@ -200,7 +203,7 @@ static OPERATE_RET __ui_init(void)
     sg_ui.chat_message_label = lv_label_create(sg_ui.content);
     lv_label_set_text(sg_ui.chat_message_label, "");
     lv_obj_set_width(sg_ui.chat_message_label, LV_HOR_RES * 0.9);         /* Limit width to 90% of screen width */
-    lv_obj_set_height(sg_ui.chat_message_label, LV_VER_RES * 0.5);         /* Limit height to 50% of screen height */
+    lv_obj_set_height(sg_ui.chat_message_label, LV_VER_RES * 0.5);        /* Limit height to 50% of screen height */
     lv_label_set_long_mode(sg_ui.chat_message_label, LV_LABEL_LONG_WRAP); /* Set to automatic line break mode */
     lv_obj_set_style_text_align(sg_ui.chat_message_label, LV_TEXT_ALIGN_CENTER, 0); /* Set text to center alignment */
     lv_label_set_text(sg_ui.chat_message_label, "");
@@ -242,7 +245,7 @@ static OPERATE_RET __ui_init(void)
     lv_obj_set_style_text_color(sg_ui.network_label, sg_theme_colors.text, 0);
     lv_obj_align(sg_ui.network_label, LV_ALIGN_RIGHT_MID, -5, 0);
 
-#if defined(ENABLE_CIRCLE_UI_STYLE) && (ENABLE_CIRCLE_UI_STYLE == 1)    
+#if defined(ENABLE_CIRCLE_UI_STYLE) && (ENABLE_CIRCLE_UI_STYLE == 1)
     lv_obj_set_style_pad_left(sg_ui.status_bar, LV_HOR_RES * 0.1, 0);
     lv_obj_set_style_pad_right(sg_ui.status_bar, LV_HOR_RES * 0.1, 0);
 #endif
@@ -262,7 +265,7 @@ static void __ui_set_user_msg(char *text)
     if (sg_ui.chat_message_label == NULL) {
         return;
     }
-    
+
     lv_vendor_disp_lock();
     lv_label_set_text(sg_ui.chat_message_label, text);
     lv_obj_set_style_bg_color(sg_ui.chat_message_label, sg_theme_colors.user_bubble, 0);
@@ -313,7 +316,7 @@ static void __ui_set_ai_msg_stream_data(char *text)
         return;
     }
 
-    lv_vendor_disp_lock(); 
+    lv_vendor_disp_lock();
     lv_label_ins_text(sg_ui.chat_message_label, LV_LABEL_POS_LAST, text);
     lv_vendor_disp_unlock();
 }
@@ -454,12 +457,12 @@ OPERATE_RET ai_ui_chat_chatbot_register(void)
     AI_UI_INTFS_T intfs;
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
-    intfs.disp_init         = __ui_init;
-    intfs.disp_emotion      = __ui_set_emotion;
+    intfs.disp_init          = __ui_init;
+    intfs.disp_emotion       = __ui_set_emotion;
     intfs.disp_ai_mode_state = __ui_set_status;
-    intfs.disp_notification = __ui_set_notification;
-    intfs.disp_wifi_state   = __ui_set_network;
-    intfs.disp_ai_chat_mode = __ui_set_chat_mode;
+    intfs.disp_notification  = __ui_set_notification;
+    intfs.disp_wifi_state    = __ui_set_network;
+    intfs.disp_ai_chat_mode  = __ui_set_chat_mode;
 
     ai_ui_register(&intfs);
 

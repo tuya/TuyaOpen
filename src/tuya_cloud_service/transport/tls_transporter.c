@@ -27,11 +27,12 @@
 #include "tal_network.h"
 #include "tal_memory.h"
 #include "tuya_tls.h"
+#include "mbedtls/ssl.h"
 
 typedef struct tls_transporter_inter_t {
     struct tuya_transporter_inter_t base;
-    tuya_transporter_t tcp_transporter;
-    tuya_tls_hander tls_handler;
+    tuya_transporter_t              tcp_transporter;
+    tuya_tls_hander                 tls_handler;
 
     int socket_fd;
     int write_timeout;
@@ -48,8 +49,15 @@ static int __tls_transporter_send_cb(void *ctx, const unsigned char *buf, size_t
 static int __tls_transporter_recv_cb(void *ctx, unsigned char *buf, size_t len)
 {
     tuya_tls_transporter_t tls_transporter = (tuya_tls_transporter_t)ctx;
+    int ret = tuya_transporter_read(tls_transporter->tcp_transporter, buf, len, tls_transporter->read_timeout);
 
-    return tuya_transporter_read(tls_transporter->tcp_transporter, buf, len, tls_transporter->read_timeout);
+    /*
+     * A timeout in the TCP transporter is not a TLS transport error.  mbedTLS
+     * expects MBEDTLS_ERR_SSL_WANT_READ for this case; returning Tuya's
+     * OPRT_RESOURCE_NOT_READY leaks -23 into mbedTLS (and the ESP-IDF dynamic
+     * buffer implementation reports it as an error on every idle MQTT read).
+     */
+    return ret == OPRT_RESOURCE_NOT_READY ? MBEDTLS_ERR_SSL_WANT_READ : ret;
 }
 
 /**
@@ -71,7 +79,7 @@ static int __tls_transporter_recv_cb(void *ctx, unsigned char *buf, size_t len)
 OPERATE_RET tuya_tls_transporter_connect(tuya_transporter_t t, const char *host, int port, int timeout_ms)
 {
 
-    OPERATE_RET op_ret = OPRT_OK;
+    OPERATE_RET            op_ret          = OPRT_OK;
     tuya_tls_transporter_t tls_transporter = (tuya_tls_transporter_t)t;
 
     op_ret = tuya_transporter_connect(tls_transporter->tcp_transporter, host, port, timeout_ms);
@@ -86,8 +94,8 @@ OPERATE_RET tuya_tls_transporter_connect(tuya_transporter_t t, const char *host,
     /* default config tls bio */
     tuya_tls_config_t *config = tuya_tls_config_get(tls_transporter->tls_handler);
     if (config->f_send == NULL || config->f_recv == NULL) {
-        config->f_send = __tls_transporter_send_cb;
-        config->f_recv = __tls_transporter_recv_cb;
+        config->f_send    = __tls_transporter_send_cb;
+        config->f_recv    = __tls_transporter_recv_cb;
         config->user_data = tls_transporter;
         tuya_tls_transporter_ctrl((tuya_transporter_t)tls_transporter, TUYA_TRANSPORTER_SET_TLS_CONFIG, config);
     }
@@ -156,7 +164,10 @@ OPERATE_RET tuya_tls_transporter_read(tuya_transporter_t t, uint8_t *buf, int le
 
     tls_transporter->read_timeout = timeout_ms;
 
-    return tuya_tls_read(tls_transporter->tls_handler, buf, len);
+    int ret = tuya_tls_read(tls_transporter->tls_handler, buf, len);
+
+    /* Keep the transport API's established no-data result for MQTT callers. */
+    return ret == MBEDTLS_ERR_SSL_WANT_READ ? OPRT_RESOURCE_NOT_READY : ret;
 }
 
 /**
@@ -217,15 +228,15 @@ OPERATE_RET tuya_tls_transporter_poll_read(tuya_transporter_t t, int timeout_ms)
  */
 OPERATE_RET tuya_tls_transporter_ctrl(tuya_transporter_t t, uint32_t cmd, void *args)
 {
-    OPERATE_RET ret = OPRT_OK;
+    OPERATE_RET            ret             = OPRT_OK;
     tuya_tls_transporter_t tls_transporter = (tuya_tls_transporter_t)t;
 
     switch (cmd) {
     case TUYA_TRANSPORTER_SET_TLS_CERT: {
-        char *cert_data = (char *)args;
-        tuya_tls_config_t *config = tuya_tls_config_get(tls_transporter->tls_handler);
-        config->ca_cert = cert_data;
-        config->ca_cert_size = strlen(cert_data) + 1;
+        char              *cert_data = (char *)args;
+        tuya_tls_config_t *config    = tuya_tls_config_get(tls_transporter->tls_handler);
+        config->ca_cert              = cert_data;
+        config->ca_cert_size         = strlen(cert_data) + 1;
         tuya_tls_config_set(tls_transporter->tls_handler, config);
         break;
     }
@@ -234,9 +245,9 @@ OPERATE_RET tuya_tls_transporter_ctrl(tuya_transporter_t t, uint32_t cmd, void *
         break;
     }
     case TUYA_TRANSPORTER_GET_TLS_CONFIG: {
-        tuya_tls_config_t *config = tuya_tls_config_get(tls_transporter->tls_handler);
-        tuya_tls_config_t **s = args;
-        *s = (void *)config;
+        tuya_tls_config_t  *config = tuya_tls_config_get(tls_transporter->tls_handler);
+        tuya_tls_config_t **s      = args;
+        *s                         = (void *)config;
         break;
     }
 
@@ -271,7 +282,7 @@ tuya_transporter_t tuya_tls_transporter_create(void)
                               tuya_tls_transporter_read, tuya_tls_transporter_write, tuya_tls_transporter_poll_read,
                               NULL, tuya_tls_transporter_destroy, tuya_tls_transporter_ctrl);
     t->tcp_transporter = tuya_tcp_transporter_create();
-    t->tls_handler = tuya_tls_connect_create();
+    t->tls_handler     = tuya_tls_connect_create();
     if (t->tls_handler == NULL) {
         tuya_tcp_transporter_destroy(t->tcp_transporter);
         return NULL;
@@ -280,7 +291,7 @@ tuya_transporter_t tuya_tls_transporter_create(void)
     /* Default config */
     tuya_tls_transporter_ctrl((tuya_transporter_t)&t->base, TUYA_TRANSPORTER_SET_TLS_CONFIG,
                               &(tuya_tls_config_t){
-                                  .mode = TUYA_TLS_SERVER_CERT_MODE,
+                                  .mode   = TUYA_TLS_SERVER_CERT_MODE,
                                   .verify = true,
                               });
 

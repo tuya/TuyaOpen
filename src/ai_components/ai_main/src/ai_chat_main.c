@@ -34,13 +34,13 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define AI_CHAT_BUTTON_NAME    "ai_chat_button"
+#define AI_CHAT_BUTTON_NAME "ai_chat_button"
 
-#define TUYA_AI_CHAT_PAR       "ty_ai_chat_par"
+#define TUYA_AI_CHAT_PAR "ty_ai_chat_par"
 
-#define AI_AUDIO_SLICE_TIME         80     
-#define AI_AUDIO_VAD_ACTIVE_TIME    200 
-#define AI_AUDIO_VAD_OFF_TIME       1000
+#define AI_AUDIO_SLICE_TIME      80
+#define AI_AUDIO_VAD_ACTIVE_TIME 200
+#define AI_AUDIO_VAD_OFF_TIME    1000
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -48,11 +48,11 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static AI_USER_EVENT_NOTIFY   sg_evt_notify_cb = NULL;
-static THREAD_HANDLE          sg_ai_chat_mode_task = NULL;
-static AI_CHAT_MODE_E         sg_ai_default_mode = AI_CHAT_MODE_HOLD;
-static int                    sg_ai_default_vol = 70;
-static bool                   sg_ai_agent_inited = false;
+static AI_USER_EVENT_NOTIFY sg_evt_notify_cb     = NULL;
+static THREAD_HANDLE        sg_ai_chat_mode_task = NULL;
+static AI_CHAT_MODE_E       sg_ai_default_mode   = AI_CHAT_MODE_HOLD;
+static int                  sg_ai_default_vol    = 70;
+static bool                 sg_ai_agent_inited   = false;
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
 static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
@@ -63,7 +63,7 @@ static TDL_BUTTON_HANDLE sg_button_hdl = NULL;
 ***********************************************************/
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
 extern OPERATE_RET ai_chat_ui_init(void);
-extern void ai_chat_ui_handle_event(AI_NOTIFY_EVENT_T *event);
+extern void        ai_chat_ui_handle_event(AI_NOTIFY_EVENT_T *event);
 #endif
 
 /**
@@ -74,8 +74,8 @@ extern void ai_chat_ui_handle_event(AI_NOTIFY_EVENT_T *event);
 */
 static OPERATE_RET __ai_chat_save_config(uint32_t mode, int volume)
 {
-    OPERATE_RET rt = OPRT_OK;
-    char buf[64] = {0};
+    OPERATE_RET rt      = OPRT_OK;
+    char        buf[64] = {0};
 
     memset(buf, 0, sizeof(buf));
     snprintf(buf, sizeof(buf), "{\"volume\": %d, \"chat_mode\":%d}", volume, (int)mode);
@@ -93,13 +93,13 @@ static OPERATE_RET __ai_chat_save_config(uint32_t mode, int volume)
 */
 static OPERATE_RET __ai_chat_load_config(uint32_t *mode, int *volume)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint8_t *value = NULL;
-    size_t len = 0;
-    uint32_t read_mode = 0;
-    int read_vol = sg_ai_default_vol;
+    OPERATE_RET rt        = OPRT_OK;
+    uint8_t    *value     = NULL;
+    size_t      len       = 0;
+    uint32_t    read_mode = 0;
+    int         read_vol  = sg_ai_default_vol;
 
-    if(NULL == mode || NULL == volume) {
+    if (NULL == mode || NULL == volume) {
         return OPRT_INVALID_PARM;
     }
 
@@ -127,7 +127,7 @@ static OPERATE_RET __ai_chat_load_config(uint32_t *mode, int *volume)
 
     cJSON_Delete(root);
 
-    *mode = read_mode;
+    *mode   = read_mode;
     *volume = read_vol;
 
     return OPRT_OK;
@@ -140,42 +140,38 @@ static OPERATE_RET __ai_chat_load_config(uint32_t *mode, int *volume)
 */
 static void __ai_handle_event(AI_NOTIFY_EVENT_T *event)
 {
-    if(NULL == event) {
+    if (NULL == event) {
         return;
     }
 
     ai_mode_handle_event(event);
 
-    switch(event->type) {
+    switch (event->type) {
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
-        case AI_USER_EVT_PLAY_CTL_PLAY:
-        case AI_USER_EVT_PLAY_CTL_RESUME:{
-            ai_audio_player_set_resume(true);
-        }
-        break;
-        case AI_USER_EVT_PLAY_CTL_PAUSE:{
-            ai_audio_player_stop(AI_AUDIO_PLAYER_BG);
-        }
-        break;
-        case AI_USER_EVT_PLAY_CTL_REPLAY:{
-            ai_audio_player_set_replay(true);
-        }
-        break;
-        case AI_USER_EVT_PLAY_ALERT:{
-            ai_audio_player_alert((AI_AUDIO_ALERT_TYPE_E)event->data);
-        }
-        break;
+    case AI_USER_EVT_PLAY_CTL_PLAY:
+    case AI_USER_EVT_PLAY_CTL_RESUME: {
+        ai_audio_player_set_resume(true);
+    } break;
+    case AI_USER_EVT_PLAY_CTL_PAUSE: {
+        ai_audio_player_stop(AI_AUDIO_PLAYER_BG);
+    } break;
+    case AI_USER_EVT_PLAY_CTL_REPLAY: {
+        ai_audio_player_set_replay(true);
+    } break;
+    case AI_USER_EVT_PLAY_ALERT: {
+        ai_audio_player_alert((AI_AUDIO_ALERT_TYPE_E)event->data);
+    } break;
 #endif
-        default:
+    default:
 #if defined(ENABLE_COMP_AI_DISPLAY) && (ENABLE_COMP_AI_DISPLAY == 1)
-            ai_chat_ui_handle_event(event);
+        ai_chat_ui_handle_event(event);
 #endif
         break;
     }
 
     if (sg_evt_notify_cb) {
         sg_evt_notify_cb(event);
-    }   
+    }
 }
 
 /**
@@ -185,7 +181,7 @@ static void __ai_handle_event(AI_NOTIFY_EVENT_T *event)
 */
 static void __ai_chat_mode_task(void *args)
 {
-    while(tal_thread_get_state(sg_ai_chat_mode_task) == THREAD_STATE_RUNNING) {
+    while (tal_thread_get_state(sg_ai_chat_mode_task) == THREAD_STATE_RUNNING) {
         ai_mode_task_running(args);
         tal_system_sleep(20);
     }
@@ -200,19 +196,19 @@ static void __ai_chat_mode_task(void *args)
 */
 static int __ai_audio_output(uint8_t *data, uint16_t datalen)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint64_t   pts = 0;
-    uint64_t   timestamp = 0;
+    OPERATE_RET rt        = OPRT_OK;
+    uint64_t    pts       = 0;
+    uint64_t    timestamp = 0;
 
-    if(false == sg_ai_agent_inited) {
+    if (false == sg_ai_agent_inited) {
         return OPRT_OK;
     }
 
 #if defined(ENABLE_AUDIO_AEC) && (ENABLE_AUDIO_AEC == 1)
     timestamp = pts = tal_system_get_millisecond();
     TUYA_CALL_ERR_LOG(tuya_ai_audio_input(timestamp, pts, data, datalen, datalen));
-#else 
-    if(false == ai_audio_player_is_playing()) {
+#else
+    if (false == ai_audio_player_is_playing()) {
         timestamp = pts = tal_system_get_millisecond();
         TUYA_CALL_ERR_LOG(tuya_ai_audio_input(timestamp, pts, data, datalen, datalen));
     }
@@ -253,10 +249,10 @@ static void __ai_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, 
 {
     PR_DEBUG("ai chat button event: %d", event);
 
-    if(TDL_BUTTON_PRESS_DOUBLE_CLICK == event) {
-        #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+    if (TDL_BUTTON_PRESS_DOUBLE_CLICK == event) {
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         ai_audio_player_stop(AI_AUDIO_PLAYER_ALL);
-        #endif
+#endif
 
         /* AI agent interrupt */
         tuya_ai_agent_event(AI_EVENT_CHAT_BREAK, 0);
@@ -266,15 +262,15 @@ static void __ai_button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, 
         /* Save trigger mode */
         int volume = sg_ai_default_vol;
 
-        #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         ai_audio_player_get_vol(&volume);
-        #endif
+#endif
         __ai_chat_save_config(nxt_mode, volume);
 
-        #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
         /* Player alert */
         ai_audio_player_alert(AI_AUDIO_ALERT_LONG_KEY_TALK + nxt_mode);
-        #endif
+#endif
 
         return;
     }
@@ -292,11 +288,11 @@ static OPERATE_RET __ai_chat_mode_open_button(void)
 
     tdl_button_set_task_stack_size(4096);
 
-    TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time = 400,
-                                   .long_keep_timer = 0,
-                                   .button_debounce_time = 50,
+    TDL_BUTTON_CFG_T button_cfg = {.long_start_valid_time     = 400,
+                                   .long_keep_timer           = 0,
+                                   .button_debounce_time      = 50,
                                    .button_repeat_valid_count = 2,
-                                   .button_repeat_valid_time = 300};
+                                   .button_repeat_valid_time  = 300};
     TUYA_CALL_ERR_RETURN(tdl_button_create(AI_CHAT_BUTTON_NAME, &button_cfg, &sg_button_hdl));
 
     tdl_button_event_register(sg_button_hdl, TDL_BUTTON_PRESS_DOWN, __ai_button_function_cb);
@@ -316,9 +312,9 @@ static OPERATE_RET __ai_chat_mode_open_button(void)
 */
 static int __ai_mqtt_connected_evt(void *data)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint32_t mode = sg_ai_default_mode;
-    int vol = sg_ai_default_vol;
+    OPERATE_RET rt   = OPRT_OK;
+    uint32_t    mode = sg_ai_default_mode;
+    int         vol  = sg_ai_default_vol;
 
     TUYA_CALL_ERR_RETURN(ai_agent_init());
 
@@ -354,7 +350,6 @@ static OPERATE_RET __ai_chat_mode_register(void)
     return rt;
 }
 
-
 /**
 @brief Initialize AI chat module
 @param cfg Chat mode configuration
@@ -362,12 +357,12 @@ static OPERATE_RET __ai_chat_mode_register(void)
 */
 OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint32_t mode = 0;
-    int vol = 0;
-    bool is_need_save = false;
+    OPERATE_RET rt           = OPRT_OK;
+    uint32_t    mode         = 0;
+    int         vol          = 0;
+    bool        is_need_save = false;
 
-    if(NULL == cfg) {
+    if (NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -382,18 +377,18 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 
     rt = __ai_chat_load_config(&mode, &vol);
     if (OPRT_OK != rt) {
-        mode = sg_ai_default_mode;
-        vol  = sg_ai_default_vol;
+        mode         = sg_ai_default_mode;
+        vol          = sg_ai_default_vol;
         is_need_save = true;
     }
 
-    if(false ==ai_mode_is_in_register_list(mode)) {
+    if (false == ai_mode_is_in_register_list(mode)) {
         TUYA_CALL_ERR_RETURN(ai_get_first_mode(&sg_ai_default_mode));
-        mode = sg_ai_default_mode;
+        mode         = sg_ai_default_mode;
         is_need_save = true;
     }
 
-    if(is_need_save) {
+    if (is_need_save) {
         __ai_chat_save_config(mode, vol);
     }
 
@@ -401,41 +396,47 @@ OPERATE_RET ai_chat_init(AI_CHAT_MODE_CFG_T *cfg)
 
     ai_user_event_notify_register(__ai_handle_event);
 
-    TUYA_CALL_ERR_RETURN(tal_event_subscribe(EVENT_MQTT_CONNECTED, "ai_agent_init", __ai_mqtt_connected_evt, SUBSCRIBE_TYPE_EMERGENCY));
-    TUYA_CALL_ERR_RETURN(tal_event_subscribe(EVENT_AI_CLIENT_RUN, "client_run", ai_mode_client_run, SUBSCRIBE_TYPE_NORMAL));
+    TUYA_CALL_ERR_RETURN(
+        tal_event_subscribe(EVENT_MQTT_CONNECTED, "ai_agent_init", __ai_mqtt_connected_evt, SUBSCRIBE_TYPE_EMERGENCY));
+    TUYA_CALL_ERR_RETURN(
+        tal_event_subscribe(EVENT_AI_CLIENT_RUN, "client_run", ai_mode_client_run, SUBSCRIBE_TYPE_NORMAL));
 
 #if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1)
-    AI_AUDIO_INPUT_CFG_T input_cfg= {
+    AI_AUDIO_INPUT_CFG_T input_cfg = {
         .vad_mode      = AI_AUDIO_VAD_MANUAL,
         .vad_off_ms    = AI_AUDIO_VAD_OFF_TIME,
         .vad_active_ms = AI_AUDIO_VAD_ACTIVE_TIME,
         .slice_ms      = AI_AUDIO_SLICE_TIME,
-        .output_cb     = __ai_audio_output,  
+        .output_cb     = __ai_audio_output,
     };
     TUYA_CALL_ERR_RETURN(ai_audio_input_init(&input_cfg));
 
     TUYA_CALL_ERR_RETURN(ai_audio_player_init());
 
+#if (defined(ENABLE_COMP_AI_MODE_WAKEUP) && (ENABLE_COMP_AI_MODE_WAKEUP == 1)) ||                                      \
+    (defined(ENABLE_COMP_AI_MODE_FREE) && (ENABLE_COMP_AI_MODE_FREE == 1))
     /* KWS is optional: a platform that has not ported it returns
      * OPRT_NOT_SUPPORTED, and the HOLD/oneshot modes work without it. Failing
      * here would abort the rest of the mode init -- including the mode task and
      * the button registration below -- so log and carry on. */
     TUYA_CALL_ERR_LOG(tkl_kws_init());
+#endif
 
     TUYA_CALL_ERR_LOG(ai_audio_player_set_vol(vol));
 
-    TUYA_CALL_ERR_RETURN(tal_event_subscribe(EVENT_AUDIO_VAD, "vad_change", __ai_vad_change_evt, SUBSCRIBE_TYPE_NORMAL));
+    TUYA_CALL_ERR_RETURN(
+        tal_event_subscribe(EVENT_AUDIO_VAD, "vad_change", __ai_vad_change_evt, SUBSCRIBE_TYPE_NORMAL));
 #endif
 
     THREAD_CFG_T thrd_cfg = {
-        .priority = THREAD_PRIO_5,
-        .stackDepth = 3* 1024,
-        .thrdname = "ai_chat_mode",
+        .priority   = THREAD_PRIO_5,
+        .stackDepth = 3 * 1024,
+        .thrdname   = "ai_chat_mode",
         .psram_mode = 1,
     };
 
-    TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&sg_ai_chat_mode_task, NULL, NULL,\
-                                                     __ai_chat_mode_task, NULL, &thrd_cfg));
+    TUYA_CALL_ERR_RETURN(
+        tal_thread_create_and_start(&sg_ai_chat_mode_task, NULL, NULL, __ai_chat_mode_task, NULL, &thrd_cfg));
 
 #if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
     TUYA_CALL_ERR_LOG(__ai_chat_mode_open_button());
@@ -483,4 +484,3 @@ int ai_chat_get_volume(void)
 
     return volume;
 }
-

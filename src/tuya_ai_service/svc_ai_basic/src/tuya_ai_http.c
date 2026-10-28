@@ -45,7 +45,8 @@ typedef struct {
 
 STATIC BOOL_T sg_ai_dld_stop = FALSE;
 
-STATIC OPERATE_RET __ai_http_output_media(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, CHAR_T *data, AI_BIZ_RECV_CB cb)
+STATIC OPERATE_RET __ai_http_output_media(AI_BIZ_ATTR_INFO_T *attr, AI_BIZ_HEAD_INFO_T *head, CHAR_T *data,
+                                          AI_BIZ_RECV_CB cb)
 {
     OPERATE_RET  rt   = OPRT_OK;
     AI_PACKET_PT type = attr->type;
@@ -108,7 +109,7 @@ STATIC VOID __ai_http_dld_work(VOID *data)
             attr.value.file.base.format = FILE_FORMAT_MP4;
         }
 #else
-        attr.value.file.base.format = FILE_FORMAT_MP4;
+        attr.value.file.base.format  = FILE_FORMAT_MP4;
 #endif
     }
 
@@ -123,12 +124,7 @@ STATIC VOID __ai_http_dld_work(VOID *data)
     TUYA_CHECK_NULL_GOTO(http_sesion, EXIT);
 
     http_req_t req = {
-        .type = HTTP_GET,
-        .resource = hu_h->buf,
-        .version = HTTP_VER_1_1,
-        .add_head_cb = NULL,
-        .add_head_data = NULL
-    };
+        .type = HTTP_GET, .resource = hu_h->buf, .version = HTTP_VER_1_1, .add_head_cb = NULL, .add_head_data = NULL};
 
     rt = http_manager->send_http_request(http_sesion, &req, 0);
     if (OPRT_OK != rt) {
@@ -137,7 +133,7 @@ STATIC VOID __ai_http_dld_work(VOID *data)
     }
 
     http_resp_t *resp = NULL;
-    rt = http_manager->receive_http_response(http_sesion, &resp);
+    rt                = http_manager->receive_http_response(http_sesion, &resp);
     if ((OPRT_OK != rt) || (!resp) || (resp->status_code != 200 && resp->status_code != 201)) {
         PR_ERR("put fail %d,code %d", rt, resp ? resp->status_code : 0xff);
         // PR_ERR("http max header size:%d,security level:%d", HTTP_MAX_REQ_RESP_HDR_SIZE, TUYA_SECURITY_LEVEL);
@@ -157,14 +153,15 @@ STATIC VOID __ai_http_dld_work(VOID *data)
     memset(buf, 0, unit_len);
 
     while (1) {
-        read_len = http_read_content(http_sesion->s, &buf[have_read_len], unit_len - have_read_len);
+        read_len = http_manager->read_http_content(http_sesion, &buf[have_read_len], unit_len - have_read_len);
         if (read_len <= 0) {
             rt = OPRT_COM_ERROR;
             break;
         }
 
         have_read_len += read_len;
-        AI_PROTO_D("sum_read_len:%d,have_read_len:%d,read_len:%d,total_len:%d", sum_read_len, have_read_len, read_len, total_len);
+        AI_PROTO_D("sum_read_len:%d,have_read_len:%d,read_len:%d,total_len:%d", sum_read_len, have_read_len, read_len,
+                   total_len);
         if (sum_read_len + have_read_len >= total_len) {
             if (first_pkt) {
                 first_pkt        = TRUE;
@@ -289,8 +286,7 @@ OPERATE_RET tuya_ai_http_get_secret_key(UCHAR_T *key)
     ty_cJSON   *result  = NULL;
 
     memset(key, 0, TUYA_AI_SECRET_KEY_LEN);
-    rt = iot_httpc_common_post("thing.km.secret.get.device", "1.0", NULL, get_gw_dev_id(),
-                NULL, NULL, &result);
+    rt = iot_httpc_common_post("thing.km.secret.get.device", "1.0", NULL, get_gw_dev_id(), NULL, NULL, &result);
     if ((rt != OPRT_OK) || (result == NULL)) {
         PR_ERR("http get secret failed, rt:%d", rt);
         return rt;

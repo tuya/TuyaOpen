@@ -45,6 +45,12 @@ choice
             rsource "./TaishanPi_3/Kconfig"
         endif
 
+    config BOARD_CHOICE_RDK_X5
+        bool "RDK_X5"
+        if (BOARD_CHOICE_RDK_X5)
+            rsource "./RDK_X5/Kconfig"
+        endif
+
 # <new-board-add: This line cannot be deleted or modified>
 
 endchoice

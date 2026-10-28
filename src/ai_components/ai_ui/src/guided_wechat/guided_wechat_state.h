@@ -25,12 +25,16 @@ typedef enum {
 } guided_wechat_pairing_state_t;
 
 typedef struct {
-    guided_wechat_auth_source_t auth_source;
+    guided_wechat_auth_source_t   auth_source;
     guided_wechat_pairing_state_t pairing_state;
-    bool link_up;
-    bool activated;
-    bool cloud_online;
-    char ssid[GUIDED_WECHAT_SSID_LEN];
+    bool                          link_up;
+    bool                          activated;
+    bool                          cloud_online;
+    char                          ssid[GUIDED_WECHAT_SSID_LEN];
+    /* SoftAP provisioning guidance: hotspot identity published by the AP
+     * netcfg module ("-" while the hotspot is not running). */
+    char ap_ssid[GUIDED_WECHAT_SSID_LEN];
+    char ap_ip[16];
     char version[GUIDED_WECHAT_VALUE_LEN];
     char sdk_version[GUIDED_WECHAT_VALUE_LEN];
     char product_id[GUIDED_WECHAT_VALUE_LEN];
@@ -40,8 +44,7 @@ typedef struct {
 } guided_wechat_device_state_t;
 
 void guided_wechat_state_read(guided_wechat_device_state_t *state);
-bool guided_wechat_state_equal(const guided_wechat_device_state_t *left,
-                               const guided_wechat_device_state_t *right);
+bool guided_wechat_state_equal(const guided_wechat_device_state_t *left, const guided_wechat_device_state_t *right);
 
 /* Pairing state notifications from the application/SDK event boundary. */
 void guided_wechat_pairing_request(void);

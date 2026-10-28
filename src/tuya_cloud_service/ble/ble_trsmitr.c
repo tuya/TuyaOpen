@@ -23,8 +23,8 @@
 /***********************************************************
 *************************variable define********************
 ***********************************************************/
-static ble_frame_seq_t s_ble_frame_seq = 0;
-static uint16_t s_ble_frame_packet_len = 1024;
+static ble_frame_seq_t s_ble_frame_seq        = 0;
+static uint16_t        s_ble_frame_packet_len = 1024;
 
 /***********************************************************
 *************************function define********************
@@ -155,10 +155,10 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     }
 
     if (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc) {
-        trsmitr->total = len;
-        trsmitr->version = version;
-        trsmitr->seq = ble_frame_seq_get();
-        trsmitr->subpkg_num = 0;
+        trsmitr->total           = len;
+        trsmitr->version         = version;
+        trsmitr->seq             = ble_frame_seq_get();
+        trsmitr->subpkg_num      = 0;
         trsmitr->pkg_trsmitr_cnt = 0;
     }
 
@@ -166,13 +166,19 @@ int ble_frame_trsmitr_send_pkg_encode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         return OPRT_COM_ERROR;
     }
 
+    // the header below is written before any length is consulted
+    if (ble_frame_packet_len_get() < TUYA_BLE_SUBPACK_LEN_MIN) {
+        PR_ERR("ble sub packet len too small:%d", ble_frame_packet_len_get());
+        return OPRT_COM_ERROR;
+    }
+
     unsigned char sunpkg_offset = 0;
 
     // package code
     // subpackage num encode
-    int i;
+    int          i;
     unsigned int tmp = 0;
-    tmp = trsmitr->subpkg_num;
+    tmp              = trsmitr->subpkg_num;
     for (i = 0; i < 4; i++) {
         trsmitr->subpkg[sunpkg_offset] = tmp % 0x80;
         if ((tmp / 0x80)) {
@@ -262,21 +268,22 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     }
 
     if (BLE_FRAME_PKG_INIT == trsmitr->pkg_desc) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
+        trsmitr->total           = 0;
+        trsmitr->version         = 0;
+        trsmitr->seq             = 0;
         trsmitr->pkg_trsmitr_cnt = 0;
     }
 
     unsigned char sunpkg_offset = 0;
     // package code
     // subpackage num decode
-    int i;
-    unsigned int multiplier = 1;
-    unsigned char digit;
+    int                    i;
+    unsigned int           multiplier = 1;
+    unsigned char          digit;
     ble_frame_subpkg_num_t subpkg_num = 0;
     // Package number
-    for (i = 0; i < 4; i++) {
+    // stop at the received length, not after four bytes
+    for (i = 0; i < 4 && sunpkg_offset < raw_data_len; i++) {
         digit = raw_data[sunpkg_offset++];
         subpkg_num += (digit & 0x7f) * multiplier;
         multiplier *= 0x80;
@@ -288,11 +295,11 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     // PR_DEBUG("subpkg_num:%d, trsmitr->subpkg_num:%d", subpkg_num,
     // trsmitr->subpkg_num);
     if (0 == subpkg_num) {
-        trsmitr->total = 0;
-        trsmitr->version = 0;
-        trsmitr->seq = 0;
+        trsmitr->total           = 0;
+        trsmitr->version         = 0;
+        trsmitr->seq             = 0;
         trsmitr->pkg_trsmitr_cnt = 0;
-        trsmitr->pkg_desc = BLE_FRAME_PKG_FIRST;
+        trsmitr->pkg_desc        = BLE_FRAME_PKG_FIRST;
     } else {
         trsmitr->pkg_desc = BLE_FRAME_PKG_MIDDLE;
     }
@@ -317,7 +324,8 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
     if (0 == trsmitr->subpkg_num) {
         // frame len decode
         multiplier = 1;
-        for (i = 0; i < 4; i++) {
+        // same bound as the sub-packet number varint above
+        for (i = 0; i < 4 && sunpkg_offset < raw_data_len; i++) {
             digit = raw_data[sunpkg_offset++];
             trsmitr->total += (digit & 0x7f) * multiplier;
             multiplier *= 0x80;
@@ -332,11 +340,22 @@ int ble_frame_trsmitr_recv_pkg_decode(ble_frame_trsmitr_t *trsmitr, unsigned cha
         }
 
         // frame type and frame seq decode
+        // the varint loops above may have consumed the whole frame
+        if (sunpkg_offset >= raw_data_len) {
+            return OPRT_INVALID_PARM;
+        }
         trsmitr->version = (raw_data[sunpkg_offset] & BLE_FRAME_VERSION_OFFSET) >> 4;
-        trsmitr->seq = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
+        trsmitr->seq     = raw_data[sunpkg_offset++] & BLE_FRAME_SEQ_OFFSET;
     }
 
+    // a header that consumed more than the frame carries wraps the subtraction
+    if (sunpkg_offset >= raw_data_len) {
+        return OPRT_INVALID_PARM;
+    }
     uint16_t recv_data = raw_data_len - sunpkg_offset;
+    if (recv_data > ble_frame_packet_len_get()) {
+        recv_data = ble_frame_packet_len_get();
+    }
     if ((trsmitr->total - trsmitr->pkg_trsmitr_cnt) < recv_data) {
         recv_data = trsmitr->total - trsmitr->pkg_trsmitr_cnt;
     }

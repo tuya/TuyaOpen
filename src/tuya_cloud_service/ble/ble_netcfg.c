@@ -10,20 +10,23 @@
  * devices over BLE, ensuring a seamless setup process for connecting Tuya smart
  * devices to the network.
  *
- * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
 #include "tal_api.h"
 #include "netcfg.h"
+#include "netmgr.h"
+#include "tuya_iot.h"
 #include "tal_event_info.h"
 #include "ble_mgr.h"
 #include "tuya_register_center.h"
 #include "ble_channel.h"
+#include <stdio.h>
 
 typedef struct {
-    netcfg_args_t netcfg_args;
-    netcfg_info_t netcfg_info;
+    netcfg_args_t      netcfg_args;
+    netcfg_info_t      netcfg_info;
     netcfg_finish_cb_t netcfg_finish_cb;
 } ble_netcfg_t;
 
@@ -31,19 +34,20 @@ static ble_netcfg_t g_bt_netcfg_handle;
 
 extern int tuya_ble_adv_update(void);
 
-static void __handle_net_cfg(void *data, void *user_data)
+static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
 {
     uint8_t result = 0;
-    uint8_t resp[5];
+    // resp[0] is never assigned below
+    uint8_t resp[5] = {0};
 
-    cJSON *json = cJSON_Parse(data);
+    cJSON *json = cJSON_ParseWithLength((const char *)data, len);
     if (NULL == json) {
         PR_ERR(" json parse error.");
         result = (uint8_t)OPRT_CJSON_PARSE_ERR;
         goto __exit;
     }
 
-    cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
+    cJSON *ssid_item  = cJSON_GetObjectItem(json, "ssid");
     cJSON *token_item = cJSON_GetObjectItem(json, "token");
     if (!cJSON_IsString(ssid_item) || !cJSON_IsString(token_item)) {
         PR_ERR(" json get error.");
@@ -51,9 +55,9 @@ static void __handle_net_cfg(void *data, void *user_data)
         goto __exit;
     }
 
-    char *ssid = ssid_item->valuestring;
-    char *token = token_item->valuestring;
-    char *passwd = NULL;
+    char  *ssid        = ssid_item->valuestring;
+    char  *token       = token_item->valuestring;
+    char  *passwd      = NULL;
     cJSON *passwd_item = cJSON_GetObjectItem(json, "pwd");
     if (passwd_item != NULL && cJSON_IsString(passwd_item)) {
         passwd = passwd_item->valuestring;
@@ -77,7 +81,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.ssid, ssid, s_len);
     g_bt_netcfg_handle.netcfg_info.ssid[s_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.s_len = (uint8_t)s_len;
+    g_bt_netcfg_handle.netcfg_info.s_len       = (uint8_t)s_len;
 
     // Copy password
     size_t p_len = strnlen(passwd, WIFI_PASSWD_LEN + 1);
@@ -88,7 +92,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.passwd, passwd, p_len);
     g_bt_netcfg_handle.netcfg_info.passwd[p_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.p_len = (uint8_t)p_len;
+    g_bt_netcfg_handle.netcfg_info.p_len         = (uint8_t)p_len;
 
     // Copy token
     size_t t_len = strnlen(token, WL_TOKEN_LEN + 1);
@@ -99,7 +103,7 @@ static void __handle_net_cfg(void *data, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.token, token, t_len);
     g_bt_netcfg_handle.netcfg_info.token[t_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.t_len = (uint8_t)t_len;
+    g_bt_netcfg_handle.netcfg_info.t_len        = (uint8_t)t_len;
     g_bt_netcfg_handle.netcfg_finish_cb(NETCFG_TUYA_BLE, &g_bt_netcfg_handle.netcfg_info);
 
     cJSON *reg = cJSON_GetObjectItem(json, "reg");
@@ -116,6 +120,31 @@ __exit:
     resp[3] = FRM_DATA_TRANS_SUBCMD_BT_NETCFG;
     resp[4] = result; // result code: 0x00 - success, other - fail
     tuya_ble_send(FRM_UPLINK_TRANSPARENT_REQ, 0, resp, 5);
+}
+
+void ble_netcfg_stat_query(void *data, uint32_t len, void *user_data)
+{
+    uint8_t        *resp;
+    uint32_t        stage = 0;
+    int             json_len;
+    netmgr_status_e status = NETMGR_LINK_DOWN;
+
+    if (OPRT_OK == netmgr_conn_get(NETCONN_AUTO, NETCONN_CMD_STATUS, &status) && NETMGR_LINK_DOWN != status) {
+        stage = tuya_iot_activated(tuya_iot_client_get()) ? 3 : 2;
+    }
+
+    resp = (uint8_t *)tal_malloc(64);
+    if (NULL == resp) {
+        PR_ERR("malloc err");
+        return;
+    }
+    resp[0]  = 0x00;
+    resp[1]  = 0x00;
+    resp[2]  = 0x00;
+    resp[3]  = FRM_DATA_TRANS_SUBCMD_NETCFG_STAT;
+    json_len = snprintf((char *)resp + 4, 60, "{\"type\":1,\"stage\":%u,\"status\":0}", (unsigned)stage);
+
+    ble_channle_ack(FRM_UPLINK_TRANSPARENT_SPEC_REQ, resp, 4 + (uint32_t)json_len);
 }
 
 /**

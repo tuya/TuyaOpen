@@ -25,25 +25,23 @@
 
 extern void ai_chat_ui_refresh_locale(void);
 
-#define GUIDED_GREEN          0x07C160
-#define GUIDED_BG             0xF4F5F7
-#define GUIDED_TEXT           0x202124
-#define GUIDED_MUTED          0x71757A
-#define GUIDED_BORDER         0xE2E5E9
-#define GUIDED_DANGER         0xD94248
-#define GUIDED_HEADER_HEIGHT  44
-#define GUIDED_STEPPER_HEIGHT 64
-#define GUIDED_STEPPER_CIRCLE 28
-#define GUIDED_STEPPER_LINE   4
-#define GUIDED_STEP_COUNT     3
-#define GUIDED_BUTTON_HEIGHT  44
-#define GUIDED_RADIUS         14
-#define GUIDED_NETWORK_GUIDE_URL_ZH \
-    "https://tuyaopen.ai/zh/docs/quick-start/device-network-configuration#add-device"
-#define GUIDED_NETWORK_GUIDE_URL_EN \
-    "https://tuyaopen.ai/docs/quick-start/device-network-configuration"
-#define GUIDED_AUTH_GUIDE_URL_ZH "https://tuyaopen.ai/zh/pricing"
-#define GUIDED_AUTH_GUIDE_URL_EN "https://tuyaopen.ai/pricing"
+#define GUIDED_GREEN                0x07C160
+#define GUIDED_BG                   0xF4F5F7
+#define GUIDED_TEXT                 0x202124
+#define GUIDED_MUTED                0x71757A
+#define GUIDED_BORDER               0xE2E5E9
+#define GUIDED_DANGER               0xD94248
+#define GUIDED_HEADER_HEIGHT        44
+#define GUIDED_STEPPER_HEIGHT       64
+#define GUIDED_STEPPER_CIRCLE       28
+#define GUIDED_STEPPER_LINE         4
+#define GUIDED_STEP_COUNT           3
+#define GUIDED_BUTTON_HEIGHT        44
+#define GUIDED_RADIUS               14
+#define GUIDED_NETWORK_GUIDE_URL_ZH "https://tuyaopen.ai/zh/docs/quick-start/device-network-configuration#add-device"
+#define GUIDED_NETWORK_GUIDE_URL_EN "https://tuyaopen.ai/docs/quick-start/device-network-configuration"
+#define GUIDED_AUTH_GUIDE_URL_ZH    "https://tuyaopen.ai/zh/pricing"
+#define GUIDED_AUTH_GUIDE_URL_EN    "https://tuyaopen.ai/pricing"
 
 typedef enum {
     GUIDED_PAGE_LANGUAGE_FIRST = 0,
@@ -76,17 +74,17 @@ typedef enum {
 } guided_action_t;
 
 typedef struct {
-    lv_obj_t *overlay;
-    lv_obj_t *menu_button;
-    lv_obj_t *status_label;
-    guided_page_t page;
-    guided_page_t back_page;
+    lv_obj_t                    *overlay;
+    lv_obj_t                    *menu_button;
+    lv_obj_t                    *status_label;
+    guided_page_t                page;
+    guided_page_t                back_page;
     guided_wechat_device_state_t state;
-    lv_timer_t *refresh_timer;
-    lv_obj_t *back_button;
-    bool reset_pending;
-    guided_page_t reset_parent_page;
-    guided_page_t reset_parent_back_page;
+    lv_timer_t                  *refresh_timer;
+    lv_obj_t                    *back_button;
+    bool                         reset_pending;
+    guided_page_t                reset_parent_page;
+    guided_page_t                reset_parent_back_page;
 } guided_ui_t;
 
 static guided_ui_t sg_ui = {0};
@@ -109,10 +107,7 @@ static uint8_t __guide_step(guided_page_t page)
     case GUIDED_PAGE_AUTH_READY:
         return 2;
     case GUIDED_PAGE_NETWORK:
-        return (sg_ui.back_page == GUIDED_PAGE_AUTH_READY ||
-                sg_ui.back_page == GUIDED_PAGE_AUTH_MISSING)
-                   ? 3
-                   : 0;
+        return (sg_ui.back_page == GUIDED_PAGE_AUTH_READY || sg_ui.back_page == GUIDED_PAGE_AUTH_MISSING) ? 3 : 0;
     default:
         return 0;
     }
@@ -121,12 +116,9 @@ static uint8_t __guide_step(guided_page_t page)
 static bool __enter_chat(void)
 {
     if (!__setup_complete()) {
-        __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_AUTH_MISSING
-                        : GUIDED_PAGE_NETWORK,
-                    sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_LANGUAGE_FIRST
-                        : GUIDED_PAGE_AUTH_READY);
+        __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING : GUIDED_PAGE_NETWORK,
+                    sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_LANGUAGE_FIRST
+                                                                       : GUIDED_PAGE_AUTH_READY);
         return false;
     }
 
@@ -143,16 +135,13 @@ static const char *__tr(const char *zh, const char *en)
 
 static const char *__network_guide_url(void)
 {
-    return guided_wechat_locale_get() == GUIDED_WECHAT_LANG_EN
-               ? GUIDED_NETWORK_GUIDE_URL_EN
-               : GUIDED_NETWORK_GUIDE_URL_ZH;
+    return guided_wechat_locale_get() == GUIDED_WECHAT_LANG_EN ? GUIDED_NETWORK_GUIDE_URL_EN
+                                                               : GUIDED_NETWORK_GUIDE_URL_ZH;
 }
 
 static const char *__auth_guide_url(void)
 {
-    return guided_wechat_locale_get() == GUIDED_WECHAT_LANG_EN
-               ? GUIDED_AUTH_GUIDE_URL_EN
-               : GUIDED_AUTH_GUIDE_URL_ZH;
+    return guided_wechat_locale_get() == GUIDED_WECHAT_LANG_EN ? GUIDED_AUTH_GUIDE_URL_EN : GUIDED_AUTH_GUIDE_URL_ZH;
 }
 
 static void __set_text_font(lv_obj_t *obj)
@@ -160,8 +149,7 @@ static void __set_text_font(lv_obj_t *obj)
     lv_obj_set_style_text_font(obj, ai_ui_get_text_font(), 0);
 }
 
-static lv_obj_t *__make_label(lv_obj_t *parent, const char *text, lv_color_t color,
-                              lv_text_align_t align)
+static lv_obj_t *__make_label(lv_obj_t *parent, const char *text, lv_color_t color, lv_text_align_t align)
 {
     lv_obj_t *label = lv_label_create(parent);
     lv_obj_set_width(label, LV_PCT(100));
@@ -196,8 +184,7 @@ static void __make_guide_qr(lv_obj_t *card, const char *url)
     lv_obj_t *qr_wrap;
     lv_obj_t *qr;
 
-    __make_label(card, __tr("扫码看教程", "Scan for guide"),
-                 lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
+    __make_label(card, __tr("扫码看教程", "Scan for guide"), lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
     qr_wrap = lv_obj_create(card);
     lv_obj_set_width(qr_wrap, LV_PCT(100));
     lv_obj_set_height(qr_wrap, 184);
@@ -218,13 +205,13 @@ static void __make_guide_qr(lv_obj_t *card, const char *url)
 static void __make_stepper(uint8_t current_step)
 {
     static const char *step_numbers[] = {"1", "2", "3"};
-    const char *step_names[] = {
-        __tr("语言", "Language"),
-        __tr("授权", "Auth"),
-        __tr("联网", "Network"),
+    const char        *step_names[]   = {
+                 __tr("语言", "Language"),
+                 __tr("授权", "Auth"),
+                 __tr("联网", "Network"),
     };
     lv_obj_t *stepper;
-    int i;
+    int       i;
 
     stepper = lv_obj_create(sg_ui.overlay);
     lv_obj_set_size(stepper, LV_PCT(100), GUIDED_STEPPER_HEIGHT);
@@ -238,23 +225,19 @@ static void __make_stepper(uint8_t current_step)
     for (i = 0; i < GUIDED_STEP_COUNT - 1; i++) {
         lv_obj_t *line = lv_obj_create(stepper);
         lv_obj_set_size(line, LV_HOR_RES / 3 - GUIDED_STEPPER_CIRCLE, GUIDED_STEPPER_LINE);
-        lv_obj_align(line, LV_ALIGN_TOP_MID,
-                     i == 0 ? -(LV_HOR_RES / 6) : (LV_HOR_RES / 6), 19);
+        lv_obj_align(line, LV_ALIGN_TOP_MID, i == 0 ? -(LV_HOR_RES / 6) : (LV_HOR_RES / 6), 19);
         lv_obj_set_style_pad_all(line, 0, 0);
         lv_obj_set_style_radius(line, GUIDED_STEPPER_LINE / 2, 0);
         lv_obj_set_style_border_width(line, 0, 0);
-        lv_obj_set_style_bg_color(line,
-                                  current_step > (uint8_t)(i + 1)
-                                      ? lv_color_hex(GUIDED_GREEN)
-                                      : lv_color_hex(0xDDE7E1),
-                                  0);
+        lv_obj_set_style_bg_color(
+            line, current_step > (uint8_t)(i + 1) ? lv_color_hex(GUIDED_GREEN) : lv_color_hex(0xDDE7E1), 0);
         lv_obj_clear_flag(line, LV_OBJ_FLAG_SCROLLABLE);
     }
 
     for (i = 0; i < GUIDED_STEP_COUNT; i++) {
-        lv_obj_t *circle = lv_obj_create(stepper);
-        lv_obj_t *number = lv_label_create(circle);
-        bool completed = current_step > (uint8_t)i;
+        lv_obj_t *circle    = lv_obj_create(stepper);
+        lv_obj_t *number    = lv_label_create(circle);
+        bool      completed = current_step > (uint8_t)i;
 
         lv_obj_set_size(circle, GUIDED_STEPPER_CIRCLE, GUIDED_STEPPER_CIRCLE);
         lv_obj_align(circle, LV_ALIGN_TOP_MID, (i - 1) * (LV_HOR_RES / 3), 7);
@@ -262,16 +245,11 @@ static void __make_stepper(uint8_t current_step)
         lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(circle, completed ? 0 : 1, 0);
         lv_obj_set_style_border_color(circle, lv_color_hex(0xB8C8BE), 0);
-        lv_obj_set_style_bg_color(circle,
-                                  completed ? lv_color_hex(GUIDED_GREEN)
-                                            : lv_color_hex(0xF3F6F4),
-                                  0);
+        lv_obj_set_style_bg_color(circle, completed ? lv_color_hex(GUIDED_GREEN) : lv_color_hex(0xF3F6F4), 0);
         lv_obj_clear_flag(circle, LV_OBJ_FLAG_SCROLLABLE);
 
         __set_text_font(number);
-        lv_obj_set_style_text_color(number,
-                                     completed ? lv_color_white() : lv_color_hex(GUIDED_MUTED),
-                                     0);
+        lv_obj_set_style_text_color(number, completed ? lv_color_white() : lv_color_hex(GUIDED_MUTED), 0);
         lv_label_set_text(number, step_numbers[i]);
         lv_obj_center(number);
         lv_obj_set_ext_click_area(circle, 8);
@@ -283,10 +261,7 @@ static void __make_stepper(uint8_t current_step)
         lv_obj_set_height(name, LV_SIZE_CONTENT);
         __set_text_font(name);
         lv_obj_set_style_text_align(name, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_text_color(name,
-                                    completed ? lv_color_hex(GUIDED_GREEN)
-                                              : lv_color_hex(GUIDED_MUTED),
-                                    0);
+        lv_obj_set_style_text_color(name, completed ? lv_color_hex(GUIDED_GREEN) : lv_color_hex(GUIDED_MUTED), 0);
         lv_label_set_long_mode(name, LV_LABEL_LONG_DOT);
         lv_label_set_text(name, step_names[i]);
         lv_obj_align(name, LV_ALIGN_TOP_MID, (i - 1) * (LV_HOR_RES / 3), 39);
@@ -306,9 +281,8 @@ static void __action_cb(lv_event_t *event)
             if (sg_ui.state.activated) {
                 __enter_chat();
             } else {
-                __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                                ? GUIDED_PAGE_AUTH_MISSING
-                                : GUIDED_PAGE_AUTH_READY,
+                __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING
+                                                                               : GUIDED_PAGE_AUTH_READY,
                             GUIDED_PAGE_LANGUAGE_FIRST);
             }
         } else {
@@ -323,9 +297,8 @@ static void __action_cb(lv_event_t *event)
             if (sg_ui.state.activated) {
                 __enter_chat();
             } else {
-                __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                                ? GUIDED_PAGE_AUTH_MISSING
-                                : GUIDED_PAGE_AUTH_READY,
+                __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING
+                                                                               : GUIDED_PAGE_AUTH_READY,
                             GUIDED_PAGE_LANGUAGE_FIRST);
             }
         } else {
@@ -352,7 +325,7 @@ static void __action_cb(lv_event_t *event)
         __show_page(GUIDED_PAGE_ABOUT, GUIDED_PAGE_MENU);
         break;
     case GUIDED_ACTION_RESET:
-        sg_ui.reset_parent_page = sg_ui.page;
+        sg_ui.reset_parent_page      = sg_ui.page;
         sg_ui.reset_parent_back_page = sg_ui.back_page;
         __show_page(GUIDED_PAGE_RESET_CONFIRM, sg_ui.page);
         break;
@@ -361,9 +334,8 @@ static void __action_cb(lv_event_t *event)
             break;
         }
         if (tuya_iot_client_get() == NULL) {
-            lv_label_set_text(sg_ui.status_label,
-                              __tr("设备服务尚未就绪，暂不能解绑。",
-                                   "Device service is not ready; unbind is unavailable."));
+            lv_label_set_text(sg_ui.status_label, __tr("设备服务尚未就绪，暂不能解绑。",
+                                                       "Device service is not ready; unbind is unavailable."));
             break;
         }
         {
@@ -381,8 +353,7 @@ static void __action_cb(lv_event_t *event)
                 PR_WARN("native Tuya IoT reset returned: %d; local reset continues", reset_rt);
             }
             sg_ui.reset_pending = true;
-            lv_label_set_text(sg_ui.status_label,
-                              __tr("正在清理并重启。", "Clearing settings and restarting."));
+            lv_label_set_text(sg_ui.status_label, __tr("正在清理并重启。", "Clearing settings and restarting."));
             if (sg_ui.back_button != NULL) {
                 lv_obj_add_state(sg_ui.back_button, LV_STATE_DISABLED);
             }
@@ -391,7 +362,7 @@ static void __action_cb(lv_event_t *event)
     case GUIDED_ACTION_PAIRING:
         guided_wechat_state_read(&sg_ui.state);
         if (sg_ui.state.activated) {
-            sg_ui.reset_parent_page = sg_ui.page;
+            sg_ui.reset_parent_page      = sg_ui.page;
             sg_ui.reset_parent_back_page = sg_ui.back_page;
             __show_page(GUIDED_PAGE_RESET_CONFIRM, sg_ui.page);
         } else if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_IDLE) {
@@ -404,17 +375,14 @@ static void __action_cb(lv_event_t *event)
         break;
     case GUIDED_ACTION_STEP_AUTH:
         guided_wechat_state_read(&sg_ui.state);
-        __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_AUTH_MISSING
-                        : GUIDED_PAGE_AUTH_READY,
+        __show_page(sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING
+                                                                       : GUIDED_PAGE_AUTH_READY,
                     GUIDED_PAGE_LANGUAGE_FIRST);
         break;
     case GUIDED_ACTION_STEP_NETWORK:
         guided_wechat_state_read(&sg_ui.state);
-        __show_page(GUIDED_PAGE_NETWORK,
-                    sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_AUTH_MISSING
-                        : GUIDED_PAGE_AUTH_READY);
+        __show_page(GUIDED_PAGE_NETWORK, sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING
+                                                                                            : GUIDED_PAGE_AUTH_READY);
         break;
     case GUIDED_ACTION_BACK:
         if (sg_ui.reset_pending) {
@@ -427,8 +395,7 @@ static void __action_cb(lv_event_t *event)
         if (sg_ui.back_page == GUIDED_PAGE_MENU && sg_ui.page == GUIDED_PAGE_MENU) {
             __enter_chat();
         } else if (sg_ui.page == GUIDED_PAGE_NETWORK &&
-                   (sg_ui.back_page == GUIDED_PAGE_AUTH_READY ||
-                    sg_ui.back_page == GUIDED_PAGE_AUTH_MISSING)) {
+                   (sg_ui.back_page == GUIDED_PAGE_AUTH_READY || sg_ui.back_page == GUIDED_PAGE_AUTH_MISSING)) {
             __show_page(sg_ui.back_page, GUIDED_PAGE_LANGUAGE_FIRST);
         } else {
             __show_page(sg_ui.back_page, GUIDED_PAGE_MENU);
@@ -439,8 +406,7 @@ static void __action_cb(lv_event_t *event)
         if (sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE) {
             __show_page(GUIDED_PAGE_AUTH_MISSING, GUIDED_PAGE_LANGUAGE_FIRST);
         } else if (__setup_complete()) {
-            if (sg_ui.page == GUIDED_PAGE_NETWORK &&
-                sg_ui.back_page == GUIDED_PAGE_AUTH_READY) {
+            if (sg_ui.page == GUIDED_PAGE_NETWORK && sg_ui.back_page == GUIDED_PAGE_AUTH_READY) {
                 __enter_chat();
             } else {
                 __show_page(GUIDED_PAGE_NETWORK, sg_ui.back_page);
@@ -456,8 +422,7 @@ static void __action_cb(lv_event_t *event)
     }
 }
 
-static lv_obj_t *__make_button(lv_obj_t *parent, const char *text, guided_action_t action,
-                               bool secondary, bool danger)
+static lv_obj_t *__make_button(lv_obj_t *parent, const char *text, guided_action_t action, bool secondary, bool danger)
 {
     lv_obj_t *button = lv_btn_create(parent);
     lv_obj_t *label;
@@ -469,16 +434,12 @@ static lv_obj_t *__make_button(lv_obj_t *parent, const char *text, guided_action
     lv_obj_set_style_border_width(button, secondary ? 1 : 0, 0);
     lv_obj_set_style_border_color(button, lv_color_hex(danger ? GUIDED_DANGER : GUIDED_BORDER), 0);
     lv_obj_set_style_bg_color(button,
-                              secondary ? lv_color_white()
-                                        : lv_color_hex(danger ? GUIDED_DANGER : GUIDED_GREEN),
-                              0);
+                              secondary ? lv_color_white() : lv_color_hex(danger ? GUIDED_DANGER : GUIDED_GREEN), 0);
     lv_obj_set_ext_click_area(button, 8);
     label = lv_label_create(button);
     __set_text_font(label);
     lv_obj_set_style_text_color(label,
-                                secondary ? lv_color_hex(danger ? GUIDED_DANGER : GUIDED_TEXT)
-                                          : lv_color_white(),
-                                0);
+                                secondary ? lv_color_hex(danger ? GUIDED_DANGER : GUIDED_TEXT) : lv_color_white(), 0);
     lv_label_set_text(label, text);
     lv_obj_center(label);
     lv_obj_add_event_cb(button, __action_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)action);
@@ -487,15 +448,15 @@ static lv_obj_t *__make_button(lv_obj_t *parent, const char *text, guided_action
 
 static lv_obj_t *__begin_page(const char *title, bool allow_back)
 {
-    lv_obj_t *header;
-    lv_obj_t *body;
-    lv_obj_t *title_label;
-    uint8_t guide_step = __guide_step(sg_ui.page);
-    lv_coord_t body_top = GUIDED_HEADER_HEIGHT;
+    lv_obj_t  *header;
+    lv_obj_t  *body;
+    lv_obj_t  *title_label;
+    uint8_t    guide_step = __guide_step(sg_ui.page);
+    lv_coord_t body_top   = GUIDED_HEADER_HEIGHT;
 
     lv_obj_clean(sg_ui.overlay);
     sg_ui.status_label = NULL;
-    sg_ui.back_button = NULL;
+    sg_ui.back_button  = NULL;
     if (sg_ui.page != GUIDED_PAGE_RESET_CONFIRM) {
         sg_ui.reset_pending = false;
     }
@@ -524,8 +485,7 @@ static lv_obj_t *__begin_page(const char *title, bool allow_back)
         lv_label_set_text(back_label, "<");
         lv_obj_center(back_label);
         sg_ui.back_button = back;
-        lv_obj_add_event_cb(back, __action_cb, LV_EVENT_CLICKED,
-                            (void *)(uintptr_t)GUIDED_ACTION_BACK);
+        lv_obj_add_event_cb(back, __action_cb, LV_EVENT_CLICKED, (void *)(uintptr_t)GUIDED_ACTION_BACK);
     }
 
     title_label = lv_label_create(header);
@@ -538,12 +498,10 @@ static lv_obj_t *__begin_page(const char *title, bool allow_back)
     lv_obj_center(title_label);
 
     {
-        lv_obj_t *wifi_icon = lv_label_create(header);
+        lv_obj_t   *wifi_icon   = lv_label_create(header);
         const char *wifi_symbol = sg_ui.state.cloud_online || sg_ui.state.link_up
                                       ? FONT_AWESOME_WIFI
-                                      : (sg_ui.state.ssid[0] != '\0'
-                                             ? FONT_AWESOME_WIFI_WEAK
-                                             : FONT_AWESOME_WIFI_OFF);
+                                      : (sg_ui.state.ssid[0] != '\0' ? FONT_AWESOME_WIFI_WEAK : FONT_AWESOME_WIFI_OFF);
         lv_obj_set_style_text_font(wifi_icon, ai_ui_get_icon_font(), 0);
         lv_obj_set_style_text_color(wifi_icon, lv_color_white(), 0);
         lv_label_set_text(wifi_icon, wifi_symbol);
@@ -597,8 +555,8 @@ static void __make_info_row(lv_obj_t *parent, const char *name, const char *valu
 
 static void __make_list_row(lv_obj_t *parent, const char *name, const char *value)
 {
-    lv_obj_t *row = lv_obj_create(parent);
-    lv_obj_t *name_label = lv_label_create(row);
+    lv_obj_t *row         = lv_obj_create(parent);
+    lv_obj_t *name_label  = lv_label_create(row);
     lv_obj_t *value_label = lv_label_create(row);
 
     lv_obj_set_width(row, LV_PCT(100));
@@ -638,14 +596,10 @@ static void __render_language_first(void)
 {
     lv_obj_t *body = __begin_page("TuyaOpen", false);
     lv_obj_t *card = __make_card(body);
-    __make_label(card, "欢迎使用 TuyaOpen AI\nWelcome to TuyaOpen AI",
-                 lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_CENTER);
-    __make_label(card, "请选择设备语言\nChoose device language",
-                 lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
-    __make_button(card, "中文", GUIDED_ACTION_LANG_ZH,
-                  guided_wechat_locale_get() != GUIDED_WECHAT_LANG_ZH, false);
-    __make_button(card, "English", GUIDED_ACTION_LANG_EN,
-                  guided_wechat_locale_get() != GUIDED_WECHAT_LANG_EN, false);
+    __make_label(card, "欢迎使用 TuyaOpen AI\nWelcome to TuyaOpen AI", lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_CENTER);
+    __make_label(card, "请选择设备语言\nChoose device language", lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
+    __make_button(card, "中文", GUIDED_ACTION_LANG_ZH, guided_wechat_locale_get() != GUIDED_WECHAT_LANG_ZH, false);
+    __make_button(card, "English", GUIDED_ACTION_LANG_EN, guided_wechat_locale_get() != GUIDED_WECHAT_LANG_EN, false);
 }
 
 static void __render_auth_missing(void)
@@ -653,9 +607,7 @@ static void __render_auth_missing(void)
     lv_obj_t *body = __begin_page(__tr("设备授权", "Device authorization"), true);
     lv_obj_t *card = __make_card(body);
     __make_badge(card, __tr("设备未授权", "Device not authorized"), false);
-    __make_label(card,
-                 __tr("请先完成设备授权，才能使用 AI 云服务。",
-                      "Authorize the device to use AI cloud services."),
+    __make_label(card, __tr("请先完成设备授权，才能使用 AI 云服务。", "Authorize the device to use AI cloud services."),
                  lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_LEFT);
     __make_guide_qr(card, __auth_guide_url());
     __make_button(card, __tr("重新检测", "Check again"), GUIDED_ACTION_REFRESH, false, false);
@@ -663,8 +615,8 @@ static void __render_auth_missing(void)
 
 static void __render_auth_ready(void)
 {
-    lv_obj_t *body = __begin_page(__tr("设备授权", "Device authorization"), true);
-    lv_obj_t *card = __make_card(body);
+    lv_obj_t   *body   = __begin_page(__tr("设备授权", "Device authorization"), true);
+    lv_obj_t   *card   = __make_card(body);
     const char *source = sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_STORAGE
                              ? __tr("设备存储 / 模组授权", "Device storage / module")
                              : __tr("固件配置", "Firmware configuration");
@@ -672,8 +624,7 @@ static void __render_auth_ready(void)
     __make_info_row(card, __tr("授权来源", "Authorization source"), source);
     __make_info_row(card, "UUID", sg_ui.state.uuid_masked);
     __make_info_row(card, "AuthKey", sg_ui.state.authkey_masked);
-    __make_button(card, __tr("开始联网", "Connect now"), GUIDED_ACTION_NEXT,
-                  false, false);
+    __make_button(card, __tr("开始联网", "Connect now"), GUIDED_ACTION_NEXT, false, false);
 }
 
 static const char *__network_stage(void)
@@ -684,45 +635,54 @@ static const char *__network_stage(void)
     if (sg_ui.state.link_up && sg_ui.state.cloud_online) {
         return __tr("已联网", "Connected");
     }
-    if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_WAITING_PHONE &&
-        !sg_ui.state.link_up) {
+    if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_WAITING_PHONE && !sg_ui.state.link_up) {
         return __tr("等待手机配网", "Waiting for phone setup");
     }
     if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_STARTING) {
         return __tr("正在准备", "Preparing");
     }
-    if (sg_ui.state.link_up ||
-        sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_CONNECTING) {
+    if (sg_ui.state.link_up || sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_CONNECTING) {
         return __tr("正在联网", "Connecting");
     }
     return __tr("未联网", "Not connected");
 }
 
+/* SoftAP provisioning hint: while pairing runs, BLE and AP netcfg work in
+ * parallel; surfacing the live hotspot name gives app-less phones a path to
+ * the captive setup page (join the hotspot, portal pops automatically). */
+static void __make_hotspot_hint(lv_obj_t *card)
+{
+    char hotspot_line[GUIDED_WECHAT_SSID_LEN + 24];
+
+    if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_IDLE || sg_ui.state.ap_ssid[0] == '\0' ||
+        strcmp(sg_ui.state.ap_ssid, "-") == 0) {
+        return;
+    }
+
+    snprintf(hotspot_line, sizeof(hotspot_line), "%s%s", __tr("配网热点：", "Setup hotspot: "), sg_ui.state.ap_ssid);
+    __make_label(card, hotspot_line, lv_color_hex(GUIDED_MUTED), LV_TEXT_ALIGN_CENTER);
+}
+
 static void __render_network(void)
 {
-    char current_network[100];
+    char      current_network[100];
     lv_obj_t *body = __begin_page(__tr("设备联网", "Device network"), true);
     lv_obj_t *card = __make_card(body);
 
-    __make_badge(card, __network_stage(),
-                 sg_ui.state.link_up && sg_ui.state.cloud_online);
-    snprintf(current_network, sizeof(current_network), "%s: %s",
-             __tr("当前网络", "Current network"),
-             sg_ui.state.link_up && sg_ui.state.ssid[0] != '\0'
-                 ? sg_ui.state.ssid
-                 : __tr("未连接", "Not connected"));
+    __make_badge(card, __network_stage(), sg_ui.state.link_up && sg_ui.state.cloud_online);
+    snprintf(current_network, sizeof(current_network), "%s: %s", __tr("当前网络", "Current network"),
+             sg_ui.state.link_up && sg_ui.state.ssid[0] != '\0' ? sg_ui.state.ssid : __tr("未连接", "Not connected"));
     __make_label(card, current_network, lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_CENTER);
 
     if (!sg_ui.state.cloud_online) {
         __make_guide_qr(card, __network_guide_url());
+        __make_hotspot_hint(card);
     }
 
     if (sg_ui.state.activated) {
-        __make_button(card, __tr("重新配网", "Reconfigure"),
-                      GUIDED_ACTION_PAIRING, false, false);
+        __make_button(card, __tr("重新配网", "Reconfigure"), GUIDED_ACTION_PAIRING, false, false);
     } else if (sg_ui.state.pairing_state == GUIDED_WECHAT_PAIRING_IDLE) {
-        __make_button(card, __tr("开始配网", "Start pairing"),
-                      GUIDED_ACTION_PAIRING, false, false);
+        __make_button(card, __tr("开始配网", "Start pairing"), GUIDED_ACTION_PAIRING, false, false);
     }
 }
 
@@ -730,8 +690,7 @@ static void __render_menu(void)
 {
     lv_obj_t *body = __begin_page(__tr("设备设置", "Device settings"), true);
     lv_obj_t *card = __make_card(body);
-    __make_button(card, __tr("设备联网", "Device network"),
-                  GUIDED_ACTION_NETWORK, true, false);
+    __make_button(card, __tr("设备联网", "Device network"), GUIDED_ACTION_NETWORK, true, false);
     __make_button(card, __tr("选择语言", "Language"), GUIDED_ACTION_LANGUAGE, true, false);
     __make_button(card, __tr("关于设备", "About device"), GUIDED_ACTION_ABOUT, true, false);
 }
@@ -740,12 +699,10 @@ static void __render_language(void)
 {
     lv_obj_t *body = __begin_page(__tr("语言", "Language"), true);
     lv_obj_t *card = __make_card(body);
-    __make_label(card, __tr("选择界面语言", "Choose interface language"),
-                 lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_CENTER);
-    __make_button(card, "中文", GUIDED_ACTION_LANG_ZH,
-                  guided_wechat_locale_get() != GUIDED_WECHAT_LANG_ZH, false);
-    __make_button(card, "English", GUIDED_ACTION_LANG_EN,
-                  guided_wechat_locale_get() != GUIDED_WECHAT_LANG_EN, false);
+    __make_label(card, __tr("选择界面语言", "Choose interface language"), lv_color_hex(GUIDED_TEXT),
+                 LV_TEXT_ALIGN_CENTER);
+    __make_button(card, "中文", GUIDED_ACTION_LANG_ZH, guided_wechat_locale_get() != GUIDED_WECHAT_LANG_ZH, false);
+    __make_button(card, "English", GUIDED_ACTION_LANG_EN, guided_wechat_locale_get() != GUIDED_WECHAT_LANG_EN, false);
 }
 
 static void __render_about(void)
@@ -760,8 +717,7 @@ static void __render_about(void)
     __make_list_row(card, "Device ID", sg_ui.state.device_id);
     __make_list_row(card, "UUID", sg_ui.state.uuid_masked);
     __make_list_row(card, "AuthKey", sg_ui.state.authkey_masked);
-    __make_list_row(card, __tr("Wi-Fi", "Wi-Fi"),
-                    sg_ui.state.ssid[0] != '\0' ? sg_ui.state.ssid : "-");
+    __make_list_row(card, __tr("Wi-Fi", "Wi-Fi"), sg_ui.state.ssid[0] != '\0' ? sg_ui.state.ssid : "-");
     __make_list_row(card, __tr("云端状态", "Cloud state"),
                     sg_ui.state.cloud_online ? __tr("在线", "Online") : __tr("离线", "Offline"));
 }
@@ -776,19 +732,17 @@ static void __render_reset_confirm(void)
                       "The current network and device binding will be cleared. The device will restart for setup."),
                  lv_color_hex(GUIDED_TEXT), LV_TEXT_ALIGN_LEFT);
     sg_ui.status_label = __make_label(card, "", lv_color_hex(GUIDED_DANGER), LV_TEXT_ALIGN_CENTER);
-    __make_button(card, __tr("确认重配", "Confirm"),
-                  GUIDED_ACTION_RESET_CONFIRM, false, true);
+    __make_button(card, __tr("确认重配", "Confirm"), GUIDED_ACTION_RESET_CONFIRM, false, true);
 }
 
 static void __show_page(guided_page_t page, guided_page_t back_page)
 {
     if (page == GUIDED_PAGE_MENU && !__setup_complete()) {
         page = GUIDED_PAGE_NETWORK;
-        back_page = sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_AUTH_MISSING
-                        : GUIDED_PAGE_AUTH_READY;
+        back_page =
+            sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING : GUIDED_PAGE_AUTH_READY;
     }
-    sg_ui.page = page;
+    sg_ui.page      = page;
     sg_ui.back_page = back_page;
     guided_wechat_state_read(&sg_ui.state);
     lv_obj_clear_flag(sg_ui.overlay, LV_OBJ_FLAG_HIDDEN);
@@ -864,8 +818,7 @@ static void __refresh_cb(lv_timer_t *timer)
     }
     sg_ui.state = next;
 
-    if (sg_ui.page == GUIDED_PAGE_AUTH_MISSING &&
-        sg_ui.state.auth_source != GUIDED_WECHAT_AUTH_NONE) {
+    if (sg_ui.page == GUIDED_PAGE_AUTH_MISSING && sg_ui.state.auth_source != GUIDED_WECHAT_AUTH_NONE) {
         __show_page(GUIDED_PAGE_AUTH_READY, GUIDED_PAGE_LANGUAGE_FIRST);
     } else if (sg_ui.page == GUIDED_PAGE_NETWORK && __setup_complete()) {
         if (sg_ui.back_page == GUIDED_PAGE_AUTH_READY) {
@@ -873,8 +826,7 @@ static void __refresh_cb(lv_timer_t *timer)
         } else {
             __show_page(GUIDED_PAGE_NETWORK, sg_ui.back_page);
         }
-    } else if (sg_ui.page == GUIDED_PAGE_AUTH_READY &&
-               !sg_ui.state.activated &&
+    } else if (sg_ui.page == GUIDED_PAGE_AUTH_READY && !sg_ui.state.activated &&
                sg_ui.state.pairing_state != GUIDED_WECHAT_PAIRING_IDLE) {
         /* A bind event means the phone-provisioning flow has started. Keep
          * the guided stepper visible even when the previous page was the
@@ -890,12 +842,12 @@ static void __refresh_cb(lv_timer_t *timer)
 static OPERATE_RET __guided_ui_init(void)
 {
     OPERATE_RET rt = OPRT_OK;
-    bool language_selected;
-    bool reprovision_pending;
-    lv_obj_t *menu_icon;
+    bool        language_selected;
+    bool        reprovision_pending;
+    lv_obj_t   *menu_icon;
 
     TUYA_CALL_ERR_RETURN(guided_wechat_core_init());
-    language_selected = guided_wechat_locale_load();
+    language_selected   = guided_wechat_locale_load();
     reprovision_pending = guided_wechat_reprovision_pending();
     if (reprovision_pending) {
         guided_wechat_reprovision_clear();
@@ -930,10 +882,8 @@ static OPERATE_RET __guided_ui_init(void)
     lv_obj_add_event_cb(sg_ui.menu_button, __menu_button_cb, LV_EVENT_CLICKED, NULL);
 
     if (reprovision_pending) {
-        __show_page(GUIDED_PAGE_NETWORK,
-                    sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE
-                        ? GUIDED_PAGE_AUTH_MISSING
-                        : GUIDED_PAGE_AUTH_READY);
+        __show_page(GUIDED_PAGE_NETWORK, sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE ? GUIDED_PAGE_AUTH_MISSING
+                                                                                            : GUIDED_PAGE_AUTH_READY);
     } else if (!language_selected) {
         __show_page(GUIDED_PAGE_LANGUAGE_FIRST, GUIDED_PAGE_LANGUAGE_FIRST);
     } else if (sg_ui.state.auth_source == GUIDED_WECHAT_AUTH_NONE) {

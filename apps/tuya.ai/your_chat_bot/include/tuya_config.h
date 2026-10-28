@@ -8,6 +8,10 @@
 
 #include "tuya_cloud_types.h"
 
+#if __has_include("tuya_config_secrets.h")
+#include "tuya_config_secrets.h"
+#endif
+
 /**
  * @brief configure the product information
  *
@@ -35,7 +39,7 @@
 #endif
 
 #ifndef TUYA_OPENSDK_UUID
-#define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
+#define TUYA_OPENSDK_UUID "uuidxxxxxxxxxxxxxxxx" // Please change the correct uuid
 #endif
 #ifndef TUYA_OPENSDK_AUTHKEY
 #define TUYA_OPENSDK_AUTHKEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey

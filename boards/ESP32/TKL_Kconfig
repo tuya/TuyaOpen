@@ -3,9 +3,12 @@ config ENABLE_WIFI
     default y
 
 config ENABLE_BLUETOOTH
-    bool
+    bool "Enable Bluetooth"
     select ENABLE_BT_SERVICE
     select ENABLE_NIMBLE
+    # esp32c2 has only 132KB heap; WiFi + BLE controller do not fit together,
+    # so default BT off there (can still be enabled manually).
+    default n if CHIP_CHOICE = "esp32c2"
     default y
 
 config ENABLE_ADC
@@ -62,16 +65,6 @@ config ENABLE_DMA2D
     ---help---
         2D-DMA / pixel-processing hardware acceleration (tkl_dma2d).
         Backed by the PPA on ESP32-P4; has no effect on other ESP32 targets.
-
-config ENABLE_ESP_DISPLAY
-    bool
-    default n
-    
-if (ENABLE_ESP_DISPLAY)
-    config DISPLAY_NAME
-        string "the name of display 1"
-        default "display"
-endif
 
 config LITTLE_END
     int

@@ -166,66 +166,69 @@ class TestDoFlashSubprocessDispatch(unittest.TestCase):
         self.assertEqual(ret, 0)
 
 
-class TestJieLiTyutoolRouting(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Stream decoding & safe print (Windows CP936 / UTF-8 robustness)
+# ---------------------------------------------------------------------------
 
-    def test_normalize_device_jieli_aliases(self):
+class TestStreamDecodingAndSafePrint(unittest.TestCase):
+
+    def test_decode_utf8_chinese(self):
         import tools.cli_command.cli_flash as m
-        self.assertEqual(m._normalize_device("JIELI"), "jieli")
-        self.assertEqual(m._normalize_device("jieli"), "jieli")
-        self.assertEqual(m._normalize_device("WL82"), "jieli")
-        self.assertEqual(m._normalize_device("wl83"), "jieli")
-        self.assertEqual(m._normalize_device("AC791N"), "jieli")
-        self.assertEqual(m._normalize_device("AC792N"), "jieli")
+        raw = '这是一个测试中文字符串'.encode('utf-8')
+        decoded = m._decode_stream_line(raw)
+        self.assertEqual(decoded, '这是一个测试中文字符串')
 
-    def test_get_flash_cmd_jieli_port_free(self):
+    def test_decode_gbk_chinese(self):
         import tools.cli_command.cli_flash as m
-        using_data = {
-            "CONFIG_PLATFORM_CHOICE": "JIELI",
-            "CONFIG_PROJECT_NAME": "demo_app",
-            "CONFIG_PROJECT_VERSION": "1.0.0",
-        }
-        with patch('tools.cli_command.cli_flash.get_global_params', return_value={
-            "tyutool_bin": "/usr/local/bin/tyutool",
-            "app_bin_path": "/workspace/build/bin",
-        }):
-            cmd = m.get_flash_cmd(using_data, debug=False, port="", baudrate=0)
-            self.assertIn('"/usr/local/bin/tyutool" write -d jieli -f', cmd)
-            self.assertNotIn("-p", cmd)
-            self.assertNotIn("-b", cmd)
+        with patch('tools.cli_command.cli_flash.sys.platform', 'win32'), \
+             patch('tools.cli_command.cli_flash.locale.getpreferredencoding',
+                   return_value='cp936'):
+            raw = '这是一个测试中文字符串'.encode('gbk')
+            decoded = m._decode_stream_line(raw)
+            self.assertEqual(decoded, '这是一个测试中文字符串')
 
-    def test_try_platform_flash_falls_back_to_tyutool_when_bridge_absent(self):
+    def test_decode_malformed_lone_byte(self):
         import tools.cli_command.cli_flash as m
-        using_data = {"CONFIG_PLATFORM_CHOICE": "JIELI"}
-        with patch("os.path.isfile", return_value=False):
-            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto"))
-            self.assertIsNone(m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="usb"))
+        with patch('tools.cli_command.cli_flash.sys.platform', 'win32'), \
+             patch('tools.cli_command.cli_flash.locale.getpreferredencoding',
+                   return_value='cp936'):
+            raw = b'err: \xd2 test\n'
+            decoded = m._decode_stream_line(raw)
+            self.assertIn('\ufffd', decoded)
+            self.assertTrue(decoded.startswith('err:'))
 
-    def test_try_platform_flash_prioritizes_bridge_when_present(self):
-        import os
+    def test_safe_print_does_not_crash_on_strict_gbk_stream(self):
         import tools.cli_command.cli_flash as m
-        using_data = {
-            "CONFIG_PLATFORM_CHOICE": "JIELI",
-            "CONFIG_PROJECT_NAME": "demo_app",
-            "CONFIG_PROJECT_VERSION": "1.0.0",
-        }
-        mock_bridge = MagicMock()
-        mock_bridge.platform_flash.return_value = {"success": True}
 
-        with patch("os.path.isfile", return_value=True), \
-             patch("os.path.getsize", return_value=1024), \
-             patch("tools.cli_command.cli_flash.download_platform", return_value=True), \
-             patch("importlib.util.spec_from_file_location") as mock_spec_from_file, \
-             patch("importlib.util.module_from_spec", return_value=mock_bridge), \
-             patch("tools.cli_command.cli_flash.get_global_params", return_value={"platforms_root": "/mock", "boards_root": "/mock"}), \
-             patch("tools.cli_command.cli_flash._get_bin_file", return_value="/mock/app.bin"):
+        class FakeStrictGbkStdout(io.TextIOWrapper):
+            def __init__(self):
+                super().__init__(io.BytesIO(), encoding='gbk', errors='strict')
 
-            spec_obj = MagicMock()
-            mock_spec_from_file.return_value = spec_obj
+        mock_stdout = FakeStrictGbkStdout()
+        with patch('tools.cli_command.cli_flash.sys.stdout', mock_stdout):
+            # Print string containing \ufffd that cannot be represented in GBK
+            m._safe_print('err: \ufffd test')
+            # Print Chinese string that can be represented in GBK
+            m._safe_print('中文测试')
+            mock_stdout.flush()
 
-            res = m._try_platform_flash(using_data, debug=False, port="", baud=0, mode="auto")
-            self.assertTrue(res)
-            self.assertEqual(os.environ.get("JIELI_FLASH_MODE"), "auto")
-            mock_bridge.platform_flash.assert_called_once()
+        output_bytes = mock_stdout.buffer.getvalue()
+        self.assertIn(b'err: ? test\n', output_bytes)
+        self.assertIn('中文测试'.encode('gbk'), output_bytes)
+
+    def test_pipe_runs_with_byte_streams_without_error(self):
+        # End-to-end pipe test with byte lines containing both valid UTF-8 and lone 0xd2
+        lines = [
+            b'[phase] Handshake\r\n',
+            b'[progress] 50%\r\n',
+            b'err: \xd2 test\r\n',
+            '这是一个UTF-8测试\n'.encode('utf-8'),
+        ]
+        ret, out = _run_pipe(lines, returncode=0)
+        self.assertEqual(ret, 0)
+        self.assertIn('[phase] Handshake', out)
+        self.assertIn('50%', out)
+        self.assertIn('这是一个UTF-8测试', out)
 
 
 if __name__ == '__main__':

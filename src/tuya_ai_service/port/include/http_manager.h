@@ -64,11 +64,11 @@ typedef struct {
     /** The length of the data pointed to by \a content above. This is
      * don't-care if the content is set to NULL
      */
-    int content_len;
+    int              content_len;
     HTTP_HEAD_ADD_CB add_head_cb;
-    void *add_head_data;
-    unsigned int download_offset;
-    unsigned int download_size;
+    void            *add_head_data;
+    unsigned int     download_offset;
+    unsigned int     download_size;
 
     http_custom_content_ctx_s *p_custom_content_ctx;
 } http_req_t;
@@ -196,8 +196,7 @@ typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE)(IN CONST char *url, BOOL_T is_per
  *
  * @return SESSION_ID on success, NULL on error
  */
-typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE_TLS)(IN CONST char *url, BOOL_T is_persistent,
-                                                   tuya_tls_config_t *config);
+typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE_TLS)(IN CONST char *url, BOOL_T is_persistent, tuya_tls_config_t *config);
 
 /**
  * @brief This API is used to send HTTP session request
@@ -223,6 +222,11 @@ typedef OPERATE_RET (*FUNC_HTTP_SESSION_SEND)(IN CONST SESSION_ID session, IN CO
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 typedef OPERATE_RET (*FUNC_HTTP_SESSION_RECEIVE)(SESSION_ID session, http_resp_t **resp);
+
+/** Read response body bytes from a session created by this manager.
+ * Returns the number of bytes read, 0 at end of response, or -1 on error.
+ */
+typedef int (*FUNC_HTTP_SESSION_READ_CONTENT)(SESSION_ID session, void *buf, unsigned int max_len);
 
 /**
  * @brief This API is used to destroy HTTP session
@@ -264,6 +268,8 @@ typedef struct {
     FUNC_HTTP_SESSION_SEND send_http_request;
     /** handler to recv response header from HTTP session */
     FUNC_HTTP_SESSION_RECEIVE receive_http_response;
+    /** handler to read response body from HTTP session */
+    FUNC_HTTP_SESSION_READ_CONTENT read_http_content;
     /** handler to destroy HTTP session */
     FUNC_HTTP_SESSION_DESTORY destory_http_session;
     /** handler to recv response content from HTTP session */

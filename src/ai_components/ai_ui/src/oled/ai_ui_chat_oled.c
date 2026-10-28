@@ -27,7 +27,6 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -51,9 +50,9 @@ typedef struct {
 ***********************variable define**********************
 ***********************************************************/
 static AI_UI_OLED_T      sg_ui;
-static AI_UI_FONT_LIST_T sg_font = {0};
+static AI_UI_FONT_LIST_T sg_font            = {0};
 static lv_timer_t       *sg_notification_tm = NULL;
-static bool              sg_is_streaming = false;
+static bool              sg_is_streaming    = false;
 
 /***********************************************************
 ***********************function define**********************
@@ -65,7 +64,7 @@ static void __lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
 
-    lv_vendor_start(5, 1024*8);
+    lv_vendor_start(5, 1024 * 8);
 }
 
 /**
@@ -100,6 +99,10 @@ static void __ui_notification_timeout_cb(lv_timer_t *timer)
 static void __ui_init_128X64(void)
 {
     lv_obj_t *screen = lv_screen_active();
+    if (NULL == screen) {
+        PR_ERR("screen is null");
+        return;
+    }
     lv_obj_set_style_text_font(screen, sg_font.text, 0);
     lv_obj_set_style_text_color(screen, lv_color_black(), 0);
 
@@ -187,12 +190,12 @@ static void __ui_init_128X64(void)
 static void __ui_init_128X32(void)
 {
     lv_obj_t *screen = lv_screen_active();
-    if(NULL == screen) {
+    if (NULL == screen) {
         PR_ERR("screen is null");
         return;
     }
 
-    if(NULL == sg_font.text) {
+    if (NULL == sg_font.text) {
         PR_ERR("sg_font.text is null");
         return;
     }
@@ -286,8 +289,8 @@ static OPERATE_RET __ui_init(void)
     __ui_init_128X64();
 #elif defined(AI_CHAT_GUI_OLED_SIZE_128_32) && (AI_CHAT_GUI_OLED_SIZE_128_32 == 1)
     __ui_init_128X32();
-#else   
-    #error "Please define OLED size in ai_ui_config.h"
+#else
+#error "Please define OLED size in ai_ui_config.h"
 #endif
 
     lv_vendor_disp_unlock();
@@ -352,7 +355,7 @@ static void __ui_set_ai_msg_stream_data(char *text)
         return;
     }
 
-    lv_vendor_disp_lock(); 
+    lv_vendor_disp_lock();
     // lv_label_ins_text(sg_ui.chat_message_label, LV_LABEL_POS_LAST, text);
     lv_label_set_text(sg_ui.chat_message_label, text);
     lv_vendor_disp_unlock();
@@ -403,7 +406,7 @@ static void __ui_set_emotion(char *emotion)
     lv_vendor_disp_lock();
     lv_obj_set_style_text_font(sg_ui.emotion_label, sg_font.emoji, 0);
     lv_label_set_text(sg_ui.emotion_label, emo_icon);
-    lv_vendor_disp_unlock();    
+    lv_vendor_disp_unlock();
 }
 
 /**
@@ -463,7 +466,7 @@ static void __ui_set_network(AI_UI_WIFI_STATUS_E wifi_status)
 
     lv_vendor_disp_lock();
     lv_label_set_text(sg_ui.network_label, wifi_icon);
-    lv_vendor_disp_unlock();    
+    lv_vendor_disp_unlock();
 }
 
 /**
@@ -476,11 +479,11 @@ OPERATE_RET ai_ui_chat_oled_register(void)
     AI_UI_INTFS_T intfs;
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
-    intfs.disp_init         = __ui_init;
-    intfs.disp_emotion      = __ui_set_emotion;
+    intfs.disp_init          = __ui_init;
+    intfs.disp_emotion       = __ui_set_emotion;
     intfs.disp_ai_mode_state = __ui_set_status;
-    intfs.disp_notification = __ui_set_notification;
-    intfs.disp_wifi_state   = __ui_set_network;
+    intfs.disp_notification  = __ui_set_notification;
+    intfs.disp_wifi_state    = __ui_set_network;
 
     ai_ui_register(&intfs);
 

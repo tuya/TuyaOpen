@@ -68,7 +68,7 @@ static uint32_t tuya_debug_text_fingerprint(const char *text)
 
 static void tuya_debug_log_license(const char *source, const tuya_iot_license_t *value)
 {
-    const char *uuid = value != NULL ? value->uuid : NULL;
+    const char *uuid    = value != NULL ? value->uuid : NULL;
     const char *authkey = value != NULL ? value->authkey : NULL;
 
     PR_NOTICE("[AUTH] source=%s uuid_present:%u uuid_len:%u uuid_fp:0x%08x authkey_present:%u "
@@ -77,6 +77,39 @@ static void tuya_debug_log_license(const char *source, const tuya_iot_license_t 
               tuya_debug_text_fingerprint(uuid), authkey != NULL ? 1U : 0U,
               authkey != NULL ? (unsigned int)strlen(authkey) : 0U, tuya_debug_text_fingerprint(authkey),
               (unsigned int)strlen(TUYA_PRODUCT_ID), tuya_debug_text_fingerprint(TUYA_PRODUCT_ID));
+}
+
+#define MEMORY_MONITOR_INTERVAL_MS 10000
+
+static TIMER_ID memory_monitor_timer = NULL;
+
+static void memory_monitor_timer_cb(TIMER_ID timer_id, void *arg)
+{
+    (void)timer_id;
+    (void)arg;
+
+    PR_INFO("Memory monitor: free heap=%d", tal_system_get_free_heap_size());
+}
+
+static void memory_monitor_start(void)
+{
+    OPERATE_RET rt;
+
+    if (memory_monitor_timer == NULL) {
+        rt = tal_sw_timer_create(memory_monitor_timer_cb, NULL, &memory_monitor_timer);
+        if (rt != OPRT_OK) {
+            PR_ERR("Create memory monitor timer failed: %d", rt);
+            return;
+        }
+    }
+
+    PR_INFO("Memory monitor: free heap=%d", tal_system_get_free_heap_size());
+    if (!tal_sw_timer_is_running(memory_monitor_timer)) {
+        rt = tal_sw_timer_start(memory_monitor_timer, MEMORY_MONITOR_INTERVAL_MS, TAL_TIMER_CYCLE);
+        if (rt != OPRT_OK) {
+            PR_ERR("Start memory monitor timer failed: %d", rt);
+        }
+    }
 }
 
 /**
@@ -137,6 +170,10 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
+        break;
+
+    case TUYA_EVENT_MQTT_CONNECTED:
+        memory_monitor_start();
         break;
 
     /* Print the QRCode for Tuya APP bind */
@@ -389,9 +426,9 @@ void tuya_app_main(void)
      * MQTT from this thread; the stock 4 KB stack overflowed during the
      * iotdns TLS connect (2026-09-18 log: stackoverflow in tuya_app_main
      * right after "TUYA_TLS Begin Connect"). */
-    thrd_param.stackDepth   = 1024 * 16;
-    thrd_param.priority     = THREAD_PRIO_1;
-    thrd_param.thrdname     = "tuya_app_main";
+    thrd_param.stackDepth = 1024 * 16;
+    thrd_param.priority   = THREAD_PRIO_1;
+    thrd_param.thrdname   = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif
