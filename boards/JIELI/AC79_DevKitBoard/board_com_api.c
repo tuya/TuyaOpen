@@ -1,3 +1,10 @@
+/**
+ * @file board_com_api.c
+ * @brief Hardware registration for the AC79 DevKitBoard.
+ *
+ * @copyright Copyright (c) 2026 Tuya Inc. All Rights Reserved.
+ */
+
 #include "board_com_api.h"
 #include "tal_api.h"
 
@@ -50,29 +57,26 @@
 #define JIELI_K1_PRESSED_MAX 1007U
 
 /* 8-bit parallel EMI platform configuration for DevKitLCD */
-#define EMI_BAUD             EMI_BAUD_DIV8
+#define EMI_BAUD EMI_BAUD_DIV8
 static const struct emi_platform_data emi_data = {
-    .bits_mode      = EMI_8BITS_MODE,
-    .baudrate       = EMI_BAUD,
-    .colection      = EMI_FALLING_COLT,
-    .time_out       = 1 * 1000,
-    .th             = EMI_TWIDTH_NO_HALF,
-    .ts             = 0,
-    .tw             = EMI_BAUD,
-    .data_bit_en    = 0,
+    .bits_mode   = EMI_8BITS_MODE,
+    .baudrate    = EMI_BAUD,
+    .colection   = EMI_FALLING_COLT,
+    .time_out    = 1 * 1000,
+    .th          = EMI_TWIDTH_NO_HALF,
+    .ts          = 0,
+    .tw          = EMI_BAUD,
+    .data_bit_en = 0,
 };
 
 /* Software I2C platform data on PORTH_00 (SCL) and PORTH_01 (SDA) */
-SW_IIC_PLATFORM_DATA_BEGIN(sw_iic0_data)
-    .clk_pin        = IO_PORTH_00,
-    .dat_pin        = IO_PORTH_01,
-    .sw_iic_delay   = 50,
-SW_IIC_PLATFORM_DATA_END()
+SW_IIC_PLATFORM_DATA_BEGIN(sw_iic0_data).clk_pin = IO_PORTH_00, .dat_pin = IO_PORTH_01, .sw_iic_delay = 50,
+                                                                SW_IIC_PLATFORM_DATA_END()
 
-/* Register devices into JieLi SDK .device section */
-REGISTER_DEVICES(ac79_devices) = {
-    { "emi",  &emi_dev_ops,  (void *)&emi_data },
-    { "iic0", &iic_dev_ops,  (void *)&sw_iic0_data },
+                                                                /* Register devices into JieLi SDK .device section */
+                                                                REGISTER_DEVICES(ac79_devices) = {
+                                                                    {"emi", &emi_dev_ops, (void *)&emi_data},
+                                                                    {"iic0", &iic_dev_ops, (void *)&sw_iic0_data},
 };
 
 #if defined(ENABLE_TP) && (ENABLE_TP == 1)
@@ -90,50 +94,58 @@ static OPERATE_RET __board_register_touch(void)
     if (tkl_i2c_master_receive(TUYA_I2C_NUM_0, 0x38, &chip_id, 1, FALSE) == OPRT_OK) {
         PR_NOTICE("AC79_DevKitBoard TP probe: detected FT6236/FT6336 (0x38)");
         TDD_TP_FT6336_INFO_T ft_cfg = {
-            .rst_pin  = IO_PORTB_00,
+            /* PB0 is shared with the ILI9488 reset line; do not pulse it again
+             * when LVGL opens the touch device after the display. */
+            .rst_pin  = TUYA_GPIO_NUM_MAX,
             .intr_pin = IO_PORTB_04,
-            .i2c_cfg  = {
-                .port    = TUYA_I2C_NUM_0,
-                .scl_pin = IO_PORTH_00,
-                .sda_pin = IO_PORTH_01,
-            },
-            .tp_cfg   = {
-                .x_max = 320,
-                .y_max = 480,
-                .flags = {
-                    .mirror_x = 0,
-                    .mirror_y = 0,
-                    .swap_xy  = 0,
+            .i2c_cfg =
+                {
+                    .port    = TUYA_I2C_NUM_0,
+                    .scl_pin = IO_PORTH_00,
+                    .sda_pin = IO_PORTH_01,
                 },
-            },
+            .tp_cfg =
+                {
+                    .x_max = 320,
+                    .y_max = 480,
+                    .flags =
+                        {
+                            .mirror_x = 0,
+                            .mirror_y = 0,
+                            .swap_xy  = 0,
+                        },
+                },
         };
         return tdd_tp_i2c_ft6336_register((char *)DISPLAY_NAME, &ft_cfg);
     }
 
     /* 2. Try probing GT911 at 7-bit addresses 0x14 or 0x5D */
-    uint8_t reg_addr[2] = {0x81, 0x40};
-    uint8_t id_buf[4]   = {0};
-    const uint16_t gt_addrs[] = {0x14, 0x5D};
+    uint8_t        reg_addr[2] = {0x81, 0x40};
+    uint8_t        id_buf[4]   = {0};
+    const uint16_t gt_addrs[]  = {0x14, 0x5D};
 
     for (int i = 0; i < 2; i++) {
         if (tkl_i2c_master_send(TUYA_I2C_NUM_0, gt_addrs[i], reg_addr, 2, FALSE) == OPRT_OK) {
             if (tkl_i2c_master_receive(TUYA_I2C_NUM_0, gt_addrs[i], id_buf, 4, FALSE) == OPRT_OK) {
                 PR_NOTICE("AC79_DevKitBoard TP probe: detected GT911 (0x%02X)", gt_addrs[i]);
                 TDD_TP_GT911_INFO_T gt_cfg = {
-                    .i2c_cfg  = {
-                        .port    = TUYA_I2C_NUM_0,
-                        .scl_pin = IO_PORTH_00,
-                        .sda_pin = IO_PORTH_01,
-                    },
-                    .tp_cfg   = {
-                        .x_max = 240,
-                        .y_max = 320,
-                        .flags = {
-                            .mirror_x = 0,
-                            .mirror_y = 0,
-                            .swap_xy  = 0,
+                    .i2c_cfg =
+                        {
+                            .port    = TUYA_I2C_NUM_0,
+                            .scl_pin = IO_PORTH_00,
+                            .sda_pin = IO_PORTH_01,
                         },
-                    },
+                    .tp_cfg =
+                        {
+                            .x_max = 240,
+                            .y_max = 320,
+                            .flags =
+                                {
+                                    .mirror_x = 0,
+                                    .mirror_y = 0,
+                                    .swap_xy  = 0,
+                                },
+                        },
                 };
                 return tdd_tp_i2c_gt911_register((char *)DISPLAY_NAME, &gt_cfg);
             }
@@ -142,22 +154,27 @@ static OPERATE_RET __board_register_touch(void)
 
     PR_NOTICE("AC79_DevKitBoard TP probe: no touch chip detected, using default FT6236");
     TDD_TP_FT6336_INFO_T ft_default = {
-        .rst_pin  = IO_PORTB_00,
+        /* PB0 is shared with the ILI9488 reset line; do not pulse it again
+         * when LVGL opens the touch device after the display. */
+        .rst_pin  = TUYA_GPIO_NUM_MAX,
         .intr_pin = IO_PORTB_04,
-        .i2c_cfg  = {
-            .port    = TUYA_I2C_NUM_0,
-            .scl_pin = IO_PORTH_00,
-            .sda_pin = IO_PORTH_01,
-        },
-        .tp_cfg   = {
-            .x_max = 320,
-            .y_max = 480,
-            .flags = {
-                .mirror_x = 0,
-                .mirror_y = 0,
-                .swap_xy  = 0,
+        .i2c_cfg =
+            {
+                .port    = TUYA_I2C_NUM_0,
+                .scl_pin = IO_PORTH_00,
+                .sda_pin = IO_PORTH_01,
             },
-        },
+        .tp_cfg =
+            {
+                .x_max = 320,
+                .y_max = 480,
+                .flags =
+                    {
+                        .mirror_x = 0,
+                        .mirror_y = 0,
+                        .swap_xy  = 0,
+                    },
+            },
     };
     return tdd_tp_i2c_ft6336_register((char *)DISPLAY_NAME, &ft_default);
 }
