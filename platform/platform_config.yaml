@@ -62,4 +62,4 @@ platforms:
 - name: JIELI
   repo: https://github.com/tuya/TuyaOpen-JieLi
   branch: master
-  commit: cebc08acbada3320ba6c70975677f29ae7f67165
+  commit: c850cb4cb1b47e308d0011192d9e2680595a4676
