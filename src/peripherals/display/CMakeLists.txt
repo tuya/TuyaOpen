@@ -30,13 +30,16 @@ if (CONFIG_ENABLE_RGB STREQUAL "y")
 endif()
 
 if (CONFIG_ENABLE_MCU8080 STREQUAL "y")
-    file(GLOB_RECURSE tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/*.c")
+    list(APPEND tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/tdd_display_mcu8080.c")
+endif()
+
+if (CONFIG_ENABLE_MCU8080_ILI9488 STREQUAL "y")
+    list(APPEND tdd_disp_8080_srcs "${MODULE_PATH}/tdd_display/src/mcu8080/tdd_disp_mcu8080_ili9488.c")
 endif()
 
 if (CONFIG_ENABLE_MIPI_DSI STREQUAL "y")
     file(GLOB_RECURSE tdd_disp_mipi_srcs "${MODULE_PATH}/tdd_display/src/mipi/*.c")
 endif()
-
 
 set(LIB_SRCS ${disp_srcs} ${tdd_disp_spi_srcs} ${tdd_disp_i2c_srcs} ${tdd_disp_qspi_srcs} ${tdd_disp_rgb_srcs} ${tdd_disp_8080_srcs} ${tdd_disp_mipi_srcs})
 
@@ -61,6 +64,12 @@ list(APPEND LIB_PRIVATE_INC
 if(CONFIG_PLATFORM_CHOICE STREQUAL "JIELI")
     list(APPEND LIB_PRIVATE_INC
         ${PLATFORM_PATH}/tuyaos/tuyaos_adapter/include/mipi_dsi
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib/driver
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib/driver/device
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib/driver/cpu/wl82
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib/system
+        ${PLATFORM_PATH}/chip/wl82/AC79_AIoT_SDK/include_lib/system/generic
         )
 endif()
 

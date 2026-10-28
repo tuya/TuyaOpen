@@ -32,4 +32,18 @@ if (ENABLE_DISPLAY)
             MIPI-DSI panel support. A DSI panel has no GRAM and is refreshed
             continuously from a host-side frame buffer, so the driver shape
             follows the RGB one rather than the SPI/I2C command buses.
+
+    config ENABLE_MCU8080_ILI9488
+        bool "enable MCU8080 ILI9488 parallel display driver"
+        default n
+        select ENABLE_MCU8080
+        help
+            MCU8080 8-bit parallel panel driver for ILI9488 / ILI9341 displays.
+
+    config ENABLE_EMI_WL82
+        bool "enable JieLi WL82 EMI parallel display bus (legacy alias)"
+        default n
+        select ENABLE_MCU8080_ILI9488
+        help
+            Legacy alias for CONFIG_ENABLE_MCU8080_ILI9488.
 endif

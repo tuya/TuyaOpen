@@ -89,9 +89,9 @@ extern "C" {
 ***********************************************************/
 /**
  * @brief Sets the initialization sequence for the ILI9488 display
- * 
+ *
  * @param init_seq Pointer to the initialization sequence array
- * 
+ *
  * @return OPERATE_RET Returns OPRT_OK on success, or OPRT_INVALID_PARM if init_seq is NULL
  */
 OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
@@ -99,8 +99,8 @@ OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
 /**
  * @brief Registers an ILI9488 RGB LCD display device with the display management system.
  *
- * This function configures and registers a display device for the ILI9488 series of RGB LCDs 
- * using software SPI. It copies configuration parameters from the provided device configuration 
+ * This function configures and registers a display device for the ILI9488 series of RGB LCDs
+ * using software SPI. It copies configuration parameters from the provided device configuration
  * and sets up the initialization sequence specific to ILI9488.
  *
  * @param name Name of the display device (used for identification).
@@ -109,6 +109,23 @@ OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
 OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev_cfg);
+
+/**
+ * @brief Registers an ILI9488 LCD display device via MCU 8080 parallel interface.
+ *
+ * Registers the configured ILI9488 panel through the generic MCU8080 TDD and
+ * the platform's TKL 8080 adapter.
+ *
+ * @param name Name of the display device (used for identification).
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
+OPERATE_RET tdd_disp_mcu8080_ili9488_register(char *name);
+
+/**
+ * @brief Backward compatibility alias for tdd_disp_mcu8080_ili9488_register.
+ */
+OPERATE_RET tdd_disp_emi_wl82_register(char *name);
 
 #ifdef __cplusplus
 }
