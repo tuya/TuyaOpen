@@ -51,13 +51,13 @@ OPERATE_RET __board_register_audio(void)
 
     cfg.aec_enable = 1;
 
-    cfg.ai_chn      = TKL_AI_0;
+    cfg.ai_chn = TKL_AI_0;
     cfg.sample_rate = TKL_AUDIO_SAMPLE_16K;
-    cfg.data_bits   = TKL_AUDIO_DATABITS_16;
-    cfg.channel     = TKL_AUDIO_CHANNEL_MONO;
+    cfg.data_bits = TKL_AUDIO_DATABITS_16;
+    cfg.channel = TKL_AUDIO_CHANNEL_MONO;
 
-    cfg.spk_sample_rate  = TKL_AUDIO_SAMPLE_16K;
-    cfg.spk_pin          = BOARD_SPEAKER_EN_PIN;
+    cfg.spk_sample_rate = TKL_AUDIO_SAMPLE_16K;
+    cfg.spk_pin = BOARD_SPEAKER_EN_PIN;
     cfg.spk_pin_polarity = TUYA_GPIO_LEVEL_LOW;
 
     TUYA_CALL_ERR_RETURN(tdd_audio_register(AUDIO_CODEC_NAME, cfg));
@@ -71,9 +71,9 @@ static OPERATE_RET __board_register_button(void)
 
 #if defined(BUTTON_NAME)
     BUTTON_GPIO_CFG_T button_hw_cfg = {
-        .pin               = BOARD_BUTTON_PIN,
-        .level             = BOARD_BUTTON_ACTIVE_LV,
-        .mode              = BUTTON_IRQ_MODE,
+        .pin = BOARD_BUTTON_PIN,
+        .level = BOARD_BUTTON_ACTIVE_LV,
+        .mode  = BUTTON_IRQ_MODE,
         .pin_type.irq_edge = TUYA_GPIO_IRQ_FALL,
     };
 
@@ -90,9 +90,9 @@ static OPERATE_RET __board_register_led(void)
 #if defined(LED_NAME)
     TDD_LED_GPIO_CFG_T led_gpio;
 
-    led_gpio.pin   = BOARD_LED_PIN;
+    led_gpio.pin = BOARD_LED_PIN;
     led_gpio.level = BOARD_LED_ACTIVE_LV;
-    led_gpio.mode  = TUYA_GPIO_PUSH_PULL;
+    led_gpio.mode = TUYA_GPIO_PUSH_PULL;
 
     TUYA_CALL_ERR_RETURN(tdd_led_gpio_register(LED_NAME, &led_gpio));
 #endif

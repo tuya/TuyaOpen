@@ -68,7 +68,7 @@ static uint32_t tuya_debug_text_fingerprint(const char *text)
 
 static void tuya_debug_log_license(const char *source, const tuya_iot_license_t *value)
 {
-    const char *uuid    = value != NULL ? value->uuid : NULL;
+    const char *uuid = value != NULL ? value->uuid : NULL;
     const char *authkey = value != NULL ? value->authkey : NULL;
 
     PR_NOTICE("[AUTH] source=%s uuid_present:%u uuid_len:%u uuid_fp:0x%08x authkey_present:%u "
@@ -426,9 +426,9 @@ void tuya_app_main(void)
      * MQTT from this thread; the stock 4 KB stack overflowed during the
      * iotdns TLS connect (2026-09-18 log: stackoverflow in tuya_app_main
      * right after "TUYA_TLS Begin Connect"). */
-    thrd_param.stackDepth = 1024 * 16;
-    thrd_param.priority   = THREAD_PRIO_1;
-    thrd_param.thrdname   = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 16;
+    thrd_param.priority     = THREAD_PRIO_1;
+    thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

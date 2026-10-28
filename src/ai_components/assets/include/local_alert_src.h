@@ -19,10 +19,11 @@ extern "C" {
 ************************macro define************************
 ***********************************************************/
 
+
 /***********************************************************
 ***********************extern define***********************
 ***********************************************************/
-#if defined(ENABLE_AI_LANGUAGE_CHINESE) && (ENABLE_AI_LANGUAGE_CHINESE == 1) &&                                        \
+#if defined(ENABLE_AI_LANGUAGE_CHINESE) && (ENABLE_AI_LANGUAGE_CHINESE == 1) && \
     !(defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1))
 
 extern const char media_src_ai_zh[4257];
@@ -41,7 +42,7 @@ extern const char media_src_wakeup_chat_zh[11277];
 extern const char media_src_wakeup_zh[3933];
 #endif
 
-#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1) &&                                        \
+#if defined(ENABLE_AI_LANGUAGE_ENGLISH) && (ENABLE_AI_LANGUAGE_ENGLISH == 1) && \
     !(defined(ENABLE_AI_ALERT_TONE) && (ENABLE_AI_ALERT_TONE == 1))
 
 extern const char media_src_ai_en[7605];

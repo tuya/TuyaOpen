@@ -37,26 +37,26 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define AUDIO_PCM_FRAME_MS 20
+#define AUDIO_PCM_FRAME_MS       20
 
 #if defined(PLATFORM_JIELI)
-#define JIELI_AUDIO_PLAY_RETRY_LIMIT    300u
-#define JIELI_AUDIO_PLAY_RETRY_DELAY_MS 10u
+#define JIELI_AUDIO_PLAY_RETRY_LIMIT       300u
+#define JIELI_AUDIO_PLAY_RETRY_DELAY_MS    10u
 #endif
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    TDD_AUDIO_T5AI_T   cfg;
-    TDL_AUDIO_MIC_CB   mic_cb;
+    TDD_AUDIO_T5AI_T cfg;
+    TDL_AUDIO_MIC_CB mic_cb;
     TKL_AUDIO_CONFIG_T ao_config;
-    void              *ao_handle;
-    uint8_t            play_volume;
-    uint8_t            ai_initialized;
-    uint8_t            ai_started;
-    uint8_t            ao_initialized;
-    uint8_t            ao_started;
+    void *ao_handle;
+    uint8_t play_volume;
+    uint8_t ai_initialized;
+    uint8_t ai_started;
+    uint8_t ao_initialized;
+    uint8_t ao_started;
 } TDD_AUDIO_DATA_HANDLE_T;
 
 /***********************************************************
@@ -124,7 +124,7 @@ static int __tkl_audio_frame_put(TKL_AUDIO_FRAME_INFO_T *pframe)
 
 static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB mic_cb)
 {
-    OPERATE_RET              rt;
+    OPERATE_RET rt;
     TDD_AUDIO_DATA_HANDLE_T *hdl = (TDD_AUDIO_DATA_HANDLE_T *)handle;
 
     if (NULL == hdl) {
@@ -143,18 +143,18 @@ static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB 
     /* Keep the established T5AI/other-platform TKL contract unchanged. */
     config.enable = tdd_audio_cfg->aec_enable;
 #endif
-    config.ai_chn    = tdd_audio_cfg->ai_chn;
-    config.sample    = tdd_audio_cfg->sample_rate;
-    config.datebits  = tdd_audio_cfg->data_bits;
-    config.channel   = tdd_audio_cfg->channel;
+    config.ai_chn = tdd_audio_cfg->ai_chn;
+    config.sample = tdd_audio_cfg->sample_rate;
+    config.datebits = tdd_audio_cfg->data_bits;
+    config.channel = tdd_audio_cfg->channel;
     config.codectype = TKL_CODEC_AUDIO_PCM;
 #if !defined(PLATFORM_JIELI)
     config.card = TKL_AUDIO_TYPE_BOARD;
 #endif
     config.put_cb = __tkl_audio_frame_put;
 #if !defined(PLATFORM_JIELI)
-    config.spk_sample        = tdd_audio_cfg->spk_sample_rate;
-    config.spk_gpio          = tdd_audio_cfg->spk_pin;
+    config.spk_sample = tdd_audio_cfg->spk_sample_rate;
+    config.spk_gpio = tdd_audio_cfg->spk_pin;
     config.spk_gpio_polarity = tdd_audio_cfg->spk_pin_polarity;
 
     TUYA_CALL_ERR_RETURN(tkl_ai_init(&config, 0));
@@ -178,9 +178,9 @@ static OPERATE_RET __tdd_audio_open(TDD_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB 
     }
     hdl->ai_initialized = TRUE;
 
-    hdl->ao_config        = config;
+    hdl->ao_config = config;
     hdl->ao_config.put_cb = NULL;
-    rt                    = __tdd_audio_start_output(hdl);
+    rt = __tdd_audio_start_output(hdl);
     if (OPRT_OK != rt) {
         PR_ERR("speaker init/start failed: %d", rt);
         goto __error;
@@ -221,12 +221,12 @@ static OPERATE_RET __tdd_audio_play(TDD_AUDIO_HANDLE_T handle, uint8_t *data, ui
     TKL_AUDIO_FRAME_INFO_T frame;
 #endif
 
-    frame.type      = TKL_AUDIO_FRAME;
+    frame.type = TKL_AUDIO_FRAME;
     frame.codectype = TKL_CODEC_AUDIO_PCM;
-    frame.sample    = hdl->cfg.sample_rate;
-    frame.datebits  = hdl->cfg.data_bits;
-    frame.channel   = hdl->cfg.channel;
-    frame.pbuf      = (char *)data;
+    frame.sample = hdl->cfg.sample_rate;
+    frame.datebits = hdl->cfg.data_bits;
+    frame.channel = hdl->cfg.channel;
+    frame.pbuf = (char *)data;
 #if defined(PLATFORM_JIELI)
     frame.buf_size = len;
 #endif
@@ -245,7 +245,8 @@ static OPERATE_RET __tdd_audio_play(TDD_AUDIO_HANDLE_T handle, uint8_t *data, ui
             PR_DEBUG("speaker queue full, waiting for DAC: frame=%u bytes", (unsigned)len);
         }
         if (retry_count >= JIELI_AUDIO_PLAY_RETRY_LIMIT) {
-            PR_ERR("speaker queue remained full: frame=%u bytes retries=%u", (unsigned)len, (unsigned)retry_count);
+            PR_ERR("speaker queue remained full: frame=%u bytes retries=%u", (unsigned)len,
+                   (unsigned)retry_count);
             return OPRT_TIMEOUT;
         }
 
@@ -293,7 +294,7 @@ static OPERATE_RET __tdd_audio_set_volume(TDD_AUDIO_HANDLE_T handle, uint8_t vol
 
 static OPERATE_RET __tdd_audio_config(TDD_AUDIO_HANDLE_T handle, TDD_AUDIO_CMD_E cmd, void *args)
 {
-    OPERATE_RET              rt  = OPRT_OK;
+    OPERATE_RET rt = OPRT_OK;
     TDD_AUDIO_DATA_HANDLE_T *hdl = (TDD_AUDIO_DATA_HANDLE_T *)handle;
 
     TUYA_CHECK_NULL_RETURN(hdl, OPRT_COM_ERROR);
@@ -327,9 +328,9 @@ __EXIT:
 
 static OPERATE_RET __tdd_audio_close(TDD_AUDIO_HANDLE_T handle)
 {
-    OPERATE_RET              rt  = OPRT_OK;
+    OPERATE_RET rt = OPRT_OK;
     TDD_AUDIO_DATA_HANDLE_T *hdl = (TDD_AUDIO_DATA_HANDLE_T *)handle;
-    OPERATE_RET              cleanup_rt;
+    OPERATE_RET cleanup_rt;
 
     TUYA_CHECK_NULL_RETURN(hdl, OPRT_INVALID_PARM);
 
@@ -360,7 +361,7 @@ static OPERATE_RET __tdd_audio_close(TDD_AUDIO_HANDLE_T handle)
             return cleanup_rt;
         }
         hdl->ao_initialized = FALSE;
-        hdl->ao_handle      = NULL;
+        hdl->ao_handle = NULL;
     }
 
     if (hdl->ai_initialized) {
@@ -384,10 +385,10 @@ static OPERATE_RET __tdd_audio_close(TDD_AUDIO_HANDLE_T handle)
 
 OPERATE_RET tdd_audio_register(char *name, TDD_AUDIO_T5AI_T cfg)
 {
-    OPERATE_RET              rt    = OPRT_OK;
-    TDD_AUDIO_DATA_HANDLE_T *_hdl  = NULL;
-    TDD_AUDIO_INTFS_T        intfs = {0};
-    TDD_AUDIO_INFO_T         info  = {0};
+    OPERATE_RET rt = OPRT_OK;
+    TDD_AUDIO_DATA_HANDLE_T *_hdl = NULL;
+    TDD_AUDIO_INTFS_T intfs = {0};
+    TDD_AUDIO_INFO_T info = {0};
 
     _hdl = (TDD_AUDIO_DATA_HANDLE_T *)tal_malloc(sizeof(TDD_AUDIO_DATA_HANDLE_T));
     TUYA_CHECK_NULL_RETURN(_hdl, OPRT_MALLOC_FAILED);
@@ -404,10 +405,10 @@ OPERATE_RET tdd_audio_register(char *name, TDD_AUDIO_T5AI_T cfg)
     info.sample_bits   = cfg.data_bits;
     info.sample_tm_ms  = AUDIO_PCM_FRAME_MS;
 
-    intfs.open   = __tdd_audio_open;
-    intfs.play   = __tdd_audio_play;
+    intfs.open = __tdd_audio_open;
+    intfs.play = __tdd_audio_play;
     intfs.config = __tdd_audio_config;
-    intfs.close  = __tdd_audio_close;
+    intfs.close = __tdd_audio_close;
 
     TUYA_CALL_ERR_GOTO(tdl_audio_driver_register(name, (TDD_AUDIO_HANDLE_T)_hdl, &intfs, &info), __ERR);
 

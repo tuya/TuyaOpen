@@ -399,7 +399,8 @@ void user_main(void)
     /* Start tuya iot task */
     tuya_iot_start(&ai_client);
 
-#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1) && !(defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1))
+#if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1) && \
+    !(defined(ENABLE_APP_LOWPOWER) && (ENABLE_APP_LOWPOWER == 1))
     /* With app low-power enabled, app_chat_bot_init manages Wi-Fi power saving per chat mode. */
     tkl_wifi_set_lp_mode(0, 0);
 #endif
@@ -456,12 +457,12 @@ void tuya_app_main(void)
      * 2516 B of the stock 4 KB for the handshake itself - which is not enough
      * (SP ran >=116 B past the stack floor). So this path needs a little over
      * 4 KB here. 8 KB keeps ~2x headroom over the measured requirement. */
-    thrd_param.stackDepth = 1024 * 8;
-    thrd_param.priority = 4;
-    thrd_param.thrdname = "tuya_app_main";
+    thrd_param.stackDepth   = 1024 * 8;
+    thrd_param.priority     = 4;
+    thrd_param.thrdname     = "tuya_app_main";
     /* Stack must be internal DRAM: esp_partition_mmap / flash pause cache (ESP-SR) asserts
      * esp_task_stack_is_sane_cache_disabled() — PSRAM stacks fail that check (see IDF cache_utils.c). */
-    thrd_param.psram_mode = 0;
+    thrd_param.psram_mode   = 0;
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

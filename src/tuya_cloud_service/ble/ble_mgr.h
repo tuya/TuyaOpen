@@ -37,7 +37,7 @@ typedef enum {
 
 typedef struct {
     tuya_iot_client_t *client;
-    char               device_name[TUYA_BLE_NAME_LEN + 1];
+    char device_name[TUYA_BLE_NAME_LEN + 1];
 } tuya_ble_cfg_t;
 
 typedef struct {
@@ -45,7 +45,7 @@ typedef struct {
     uint16_t type;
     uint16_t len;
     uint8_t *data;
-    uint8_t  encrypt_mode;
+    uint8_t encrypt_mode;
 } ble_packet_t;
 
 typedef void (*ble_session_fn_t)(ble_packet_t *packet, void *priv_data);

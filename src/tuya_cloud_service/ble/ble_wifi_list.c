@@ -33,12 +33,12 @@ typedef struct {
 } ble_wifi_list_req_t;
 
 #if defined(ENABLE_BT_WIFI_LIST) && (ENABLE_BT_WIFI_LIST == 1)
-static bool s_wifi_list_enable = true;
+static bool       s_wifi_list_enable = true;
 #else
-static bool s_wifi_list_enable = false;
+static bool       s_wifi_list_enable = false;
 #endif
-static AP_IF_S *s_ap_cache     = NULL;
-static uint32_t s_ap_cache_num = 0;
+static AP_IF_S   *s_ap_cache         = NULL;
+static uint32_t   s_ap_cache_num     = 0;
 
 static void __ble_wifi_list_sort(AP_IF_S *ap_arr, uint32_t ap_num)
 {
@@ -63,7 +63,7 @@ void ble_wifi_list_cache_clear(void)
         tal_wifi_release_ap(s_ap_cache);
         s_ap_cache = NULL;
     }
-    s_ap_cache_num = 0;
+    s_ap_cache_num  = 0;
 }
 
 void ble_wifi_list_enable(bool enable)
@@ -83,8 +83,8 @@ bool ble_wifi_list_is_enable(void)
 
 static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
 {
-    AP_IF_S *arr = NULL;
-    uint32_t num = 0;
+    AP_IF_S   *arr = NULL;
+    uint32_t   num = 0;
 
     ble_wifi_list_cache_clear();
 
@@ -97,8 +97,8 @@ static OPERATE_RET __ble_wifi_list_ap_get(AP_IF_S **ap_arr, uint32_t *ap_num)
 
     __ble_wifi_list_sort(arr, num);
 
-    s_ap_cache     = arr;
-    s_ap_cache_num = num;
+    s_ap_cache      = arr;
+    s_ap_cache_num  = num;
 
     *ap_arr = s_ap_cache;
     *ap_num = s_ap_cache_num;

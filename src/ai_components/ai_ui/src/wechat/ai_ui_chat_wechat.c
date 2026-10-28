@@ -18,7 +18,7 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define STATUS_BAR_HEIGHT 40
+#define STATUS_BAR_HEIGHT  40
 
 /***********************************************************
 ***********************typedef define***********************
@@ -36,8 +36,8 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static AI_UI_WECHAT_MAIN_T sg_main            = {0};
-static lv_timer_t         *sg_notification_tm = NULL;
+static AI_UI_WECHAT_MAIN_T sg_main = {0};
+static lv_timer_t *sg_notification_tm = NULL;
 
 /***********************************************************
 ***********************function define**********************
@@ -248,12 +248,12 @@ OPERATE_RET ai_ui_chat_wechat_register(void)
     AI_UI_INTFS_T intfs;
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
-    intfs.disp_init          = __ui_init;
-    intfs.disp_emotion       = __ui_set_emotion;
+    intfs.disp_init         = __ui_init;
+    intfs.disp_emotion      = __ui_set_emotion;
     intfs.disp_ai_mode_state = __ui_set_status;
-    intfs.disp_notification  = __ui_set_notification;
-    intfs.disp_wifi_state    = __ui_set_network;
-    intfs.disp_ai_chat_mode  = __ui_set_chat_mode;
+    intfs.disp_notification = __ui_set_notification;
+    intfs.disp_wifi_state   = __ui_set_network;
+    intfs.disp_ai_chat_mode = __ui_set_chat_mode;
 
     ai_ui_register(&intfs);
 

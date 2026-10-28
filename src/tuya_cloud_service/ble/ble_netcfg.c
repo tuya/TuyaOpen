@@ -25,8 +25,8 @@
 #include <stdio.h>
 
 typedef struct {
-    netcfg_args_t      netcfg_args;
-    netcfg_info_t      netcfg_info;
+    netcfg_args_t netcfg_args;
+    netcfg_info_t netcfg_info;
     netcfg_finish_cb_t netcfg_finish_cb;
 } ble_netcfg_t;
 
@@ -47,7 +47,7 @@ static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
         goto __exit;
     }
 
-    cJSON *ssid_item  = cJSON_GetObjectItem(json, "ssid");
+    cJSON *ssid_item = cJSON_GetObjectItem(json, "ssid");
     cJSON *token_item = cJSON_GetObjectItem(json, "token");
     if (!cJSON_IsString(ssid_item) || !cJSON_IsString(token_item)) {
         PR_ERR(" json get error.");
@@ -55,9 +55,9 @@ static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
         goto __exit;
     }
 
-    char  *ssid        = ssid_item->valuestring;
-    char  *token       = token_item->valuestring;
-    char  *passwd      = NULL;
+    char *ssid = ssid_item->valuestring;
+    char *token = token_item->valuestring;
+    char *passwd = NULL;
     cJSON *passwd_item = cJSON_GetObjectItem(json, "pwd");
     if (passwd_item != NULL && cJSON_IsString(passwd_item)) {
         passwd = passwd_item->valuestring;
@@ -81,7 +81,7 @@ static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.ssid, ssid, s_len);
     g_bt_netcfg_handle.netcfg_info.ssid[s_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.s_len       = (uint8_t)s_len;
+    g_bt_netcfg_handle.netcfg_info.s_len = (uint8_t)s_len;
 
     // Copy password
     size_t p_len = strnlen(passwd, WIFI_PASSWD_LEN + 1);
@@ -92,7 +92,7 @@ static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.passwd, passwd, p_len);
     g_bt_netcfg_handle.netcfg_info.passwd[p_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.p_len         = (uint8_t)p_len;
+    g_bt_netcfg_handle.netcfg_info.p_len = (uint8_t)p_len;
 
     // Copy token
     size_t t_len = strnlen(token, WL_TOKEN_LEN + 1);
@@ -103,7 +103,7 @@ static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
     }
     memcpy(g_bt_netcfg_handle.netcfg_info.token, token, t_len);
     g_bt_netcfg_handle.netcfg_info.token[t_len] = '\0';
-    g_bt_netcfg_handle.netcfg_info.t_len        = (uint8_t)t_len;
+    g_bt_netcfg_handle.netcfg_info.t_len = (uint8_t)t_len;
     g_bt_netcfg_handle.netcfg_finish_cb(NETCFG_TUYA_BLE, &g_bt_netcfg_handle.netcfg_info);
 
     cJSON *reg = cJSON_GetObjectItem(json, "reg");
@@ -138,10 +138,10 @@ void ble_netcfg_stat_query(void *data, uint32_t len, void *user_data)
         PR_ERR("malloc err");
         return;
     }
-    resp[0]  = 0x00;
-    resp[1]  = 0x00;
-    resp[2]  = 0x00;
-    resp[3]  = FRM_DATA_TRANS_SUBCMD_NETCFG_STAT;
+    resp[0] = 0x00;
+    resp[1] = 0x00;
+    resp[2] = 0x00;
+    resp[3] = FRM_DATA_TRANS_SUBCMD_NETCFG_STAT;
     json_len = snprintf((char *)resp + 4, 60, "{\"type\":1,\"stage\":%u,\"status\":0}", (unsigned)stage);
 
     ble_channle_ack(FRM_UPLINK_TRANSPARENT_SPEC_REQ, resp, 4 + (uint32_t)json_len);

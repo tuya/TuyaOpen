@@ -6,7 +6,7 @@
 
 #include "tal_api.h"
 
-#if (defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)) ||                          \
+#if (defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1)) || \
     (defined(ENABLE_AI_CHAT_GUI_GUIDED_WECHAT) && (ENABLE_AI_CHAT_GUI_GUIDED_WECHAT == 1))
 #include "lv_vendor.h"
 
@@ -23,11 +23,11 @@ LV_FONT_DECLARE(font_puhui_14_1);
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define STATUS_BAR_HEIGHT               40
-#define STATUS_BAR_MODE_WIDTH_PERCENT   30
+#define STATUS_BAR_HEIGHT  40
+#define STATUS_BAR_MODE_WIDTH_PERCENT 30
 #define STATUS_BAR_CENTER_WIDTH_PERCENT 50
-#define STATUS_BAR_CENTER_LEFT_PERCENT  25
-#define STATUS_BAR_EMOTION_GAP          5
+#define STATUS_BAR_CENTER_LEFT_PERCENT 25
+#define STATUS_BAR_EMOTION_GAP 5
 
 /***********************************************************
 ***********************typedef define***********************
@@ -46,8 +46,8 @@ typedef struct {
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static GUIDED_WECHAT_MAIN_T sg_main            = {0};
-static lv_timer_t          *sg_notification_tm = NULL;
+static GUIDED_WECHAT_MAIN_T sg_main = {0};
+static lv_timer_t *sg_notification_tm = NULL;
 
 static const lv_font_t *__status_bar_text_font(void)
 {
@@ -100,7 +100,8 @@ static void __ui_set_emotion(char *emotion)
     lv_obj_set_style_text_font(sg_main.emotion_label, sg_font.emoji, 0);
     lv_label_set_text(sg_main.emotion_label, emo_icon);
     if (sg_main.status_label != NULL) {
-        lv_obj_align_to(sg_main.emotion_label, sg_main.status_label, LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
+        lv_obj_align_to(sg_main.emotion_label, sg_main.status_label,
+                        LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
     }
     lv_vendor_disp_unlock();
 }
@@ -116,7 +117,8 @@ static void __ui_set_status(char *status)
     lv_label_set_text(sg_main.status_label, status);
     lv_obj_set_style_text_align(sg_main.status_label, LV_TEXT_ALIGN_CENTER, 0);
     if (sg_main.emotion_label != NULL) {
-        lv_obj_align_to(sg_main.emotion_label, sg_main.status_label, LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
+        lv_obj_align_to(sg_main.emotion_label, sg_main.status_label,
+                        LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
     }
     lv_vendor_disp_unlock();
 }
@@ -248,8 +250,11 @@ OPERATE_RET guided_wechat_core_init(void)
     /* Reserve independent regions so long English labels cannot overlap the
      * emotion/status pair or the Wi-Fi indicator. */
     sg_main.status_group = lv_obj_create(sg_main.status_bar);
-    lv_obj_set_size(sg_main.status_group, LV_HOR_RES * STATUS_BAR_CENTER_WIDTH_PERCENT / 100, STATUS_BAR_HEIGHT);
-    lv_obj_align(sg_main.status_group, LV_ALIGN_TOP_LEFT, LV_HOR_RES * STATUS_BAR_CENTER_LEFT_PERCENT / 100, 0);
+    lv_obj_set_size(sg_main.status_group,
+                    LV_HOR_RES * STATUS_BAR_CENTER_WIDTH_PERCENT / 100,
+                    STATUS_BAR_HEIGHT);
+    lv_obj_align(sg_main.status_group, LV_ALIGN_TOP_LEFT,
+                 LV_HOR_RES * STATUS_BAR_CENTER_LEFT_PERCENT / 100, 0);
     lv_obj_set_style_pad_all(sg_main.status_group, 0, 0);
     lv_obj_set_style_radius(sg_main.status_group, 0, 0);
     lv_obj_set_style_border_width(sg_main.status_group, 0, 0);
@@ -258,7 +263,8 @@ OPERATE_RET guided_wechat_core_init(void)
 
     sg_main.mode_label = lv_label_create(sg_main.status_bar);
     lv_obj_set_style_text_font(sg_main.mode_label, __status_bar_text_font(), 0);
-    lv_obj_set_width(sg_main.mode_label, LV_HOR_RES * STATUS_BAR_MODE_WIDTH_PERCENT / 100);
+    lv_obj_set_width(sg_main.mode_label,
+                     LV_HOR_RES * STATUS_BAR_MODE_WIDTH_PERCENT / 100);
     lv_label_set_long_mode(sg_main.mode_label, LV_LABEL_LONG_DOT);
     lv_label_set_text(sg_main.mode_label, "");
     lv_obj_align(sg_main.mode_label, LV_ALIGN_LEFT_MID, WECHAT_SAFE_INSET, 0);
@@ -272,7 +278,8 @@ OPERATE_RET guided_wechat_core_init(void)
     sg_main.emotion_label = lv_label_create(sg_main.status_group);
     lv_obj_set_style_text_font(sg_main.emotion_label, icon_font, 0);
     lv_label_set_text(sg_main.emotion_label, FONT_AWESOME_AI_CHIP);
-    lv_obj_align_to(sg_main.emotion_label, sg_main.status_label, LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
+    lv_obj_align_to(sg_main.emotion_label, sg_main.status_label,
+                    LV_ALIGN_OUT_LEFT_MID, -STATUS_BAR_EMOTION_GAP, 0);
 
     sg_main.notification_label = lv_label_create(sg_main.status_group);
     lv_obj_set_style_text_font(sg_main.notification_label, __status_bar_text_font(), 0);
@@ -309,13 +316,13 @@ OPERATE_RET guided_wechat_register_with_init(OPERATE_RET (*disp_init)(void))
     AI_UI_INTFS_T intfs;
     memset(&intfs, 0, sizeof(AI_UI_INTFS_T));
 
-    intfs.disp_init          = disp_init != NULL ? disp_init : guided_wechat_core_init;
-    intfs.disp_emotion       = __ui_set_emotion;
+    intfs.disp_init         = disp_init != NULL ? disp_init : guided_wechat_core_init;
+    intfs.disp_emotion      = __ui_set_emotion;
     intfs.disp_ai_mode_state = __ui_set_status;
-    intfs.disp_notification  = __ui_set_notification;
-    intfs.disp_wifi_state    = __ui_set_network;
-    intfs.disp_ai_chat_mode  = __ui_set_chat_mode;
-    intfs.disp_other_msg     = __ui_other_msg;
+    intfs.disp_notification = __ui_set_notification;
+    intfs.disp_wifi_state   = __ui_set_network;
+    intfs.disp_ai_chat_mode = __ui_set_chat_mode;
+    intfs.disp_other_msg    = __ui_other_msg;
 
     ai_ui_register(&intfs);
 

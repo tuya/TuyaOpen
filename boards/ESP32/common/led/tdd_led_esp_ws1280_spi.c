@@ -25,10 +25,10 @@
 #define TAG "WS1280_SPI_DRIVER"
 
 #define WS1280_SPI_HOST        SPI2_HOST
-#define WS1280_SPI_CLK_HZ      8000000 // 10 SPI bits per 1.25us WS1280 bit
-#define WS1280_SPI_BITS_PER_WS 10      // 0: 0b1110000000, 1: 0b1111110000
+#define WS1280_SPI_CLK_HZ      8000000  // 10 SPI bits per 1.25us WS1280 bit
+#define WS1280_SPI_BITS_PER_WS 10       // 0: 0b1110000000, 1: 0b1111110000
 #define WS1280_COLOR_BYTES     3
-#define WS1280_RESET_BYTES     64 // >50us low level latch (64B = 512bit = 64us @8MHz)
+#define WS1280_RESET_BYTES     64       // >50us low level latch (64B = 512bit = 64us @8MHz)
 #define WS1280_TIMEOUT_MS      100
 
 #define WS1280_CODE_0 0x380 // 0b1110000000
@@ -97,9 +97,9 @@ static esp_err_t __ws1280_init(gpio_num_t gpio_num)
 {
     esp_err_t err = spi_bus_initialize(WS1280_SPI_HOST,
                                        &(spi_bus_config_t){
-                                           .mosi_io_num   = gpio_num,
-                                           .miso_io_num   = -1,
-                                           .sclk_io_num   = -1,
+                                           .mosi_io_num = gpio_num,
+                                           .miso_io_num = -1,
+                                           .sclk_io_num = -1,
                                            .quadwp_io_num = -1,
                                            .quadhd_io_num = -1,
                                        },
@@ -134,9 +134,9 @@ static esp_err_t __ws1280_init(gpio_num_t gpio_num)
 static esp_err_t __ws1280_show(TDD_LED_WS1280_SPI_INFO_T *info)
 {
     esp_err_t err = spi_device_polling_transmit(sg_spi_dev, &(spi_transaction_t){
-                                                                .tx_buffer = info->frame_buf,
-                                                                .length    = info->frame_len * 8,
-                                                            });
+        .tx_buffer = info->frame_buf,
+        .length    = info->frame_len * 8,
+    });
     if (err != ESP_OK) {
         PR_ERR("spi_device_polling_transmit failed: %s", esp_err_to_name(err));
         return err;
@@ -246,7 +246,7 @@ static OPERATE_RET __tdd_led_ws1280_close(TDD_LED_HANDLE_T dev)
 OPERATE_RET tdd_led_esp_ws1280_spi_register(char *dev_name, TDD_LED_WS1280_SPI_CFG_T *cfg)
 {
     TDD_LED_WS1280_SPI_INFO_T *info      = NULL;
-    uint32_t                   frame_len = 0;
+    uint32_t                  frame_len = 0;
 
     if (dev_name == NULL || cfg == NULL) {
         return OPRT_INVALID_PARM;

@@ -64,11 +64,11 @@ typedef struct {
     /** The length of the data pointed to by \a content above. This is
      * don't-care if the content is set to NULL
      */
-    int              content_len;
+    int content_len;
     HTTP_HEAD_ADD_CB add_head_cb;
-    void            *add_head_data;
-    unsigned int     download_offset;
-    unsigned int     download_size;
+    void *add_head_data;
+    unsigned int download_offset;
+    unsigned int download_size;
 
     http_custom_content_ctx_s *p_custom_content_ctx;
 } http_req_t;
@@ -196,7 +196,8 @@ typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE)(IN CONST char *url, BOOL_T is_per
  *
  * @return SESSION_ID on success, NULL on error
  */
-typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE_TLS)(IN CONST char *url, BOOL_T is_persistent, tuya_tls_config_t *config);
+typedef SESSION_ID (*FUNC_HTTP_SESSION_CREATE_TLS)(IN CONST char *url, BOOL_T is_persistent,
+                                                   tuya_tls_config_t *config);
 
 /**
  * @brief This API is used to send HTTP session request

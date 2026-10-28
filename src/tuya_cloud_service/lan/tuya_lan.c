@@ -47,20 +47,20 @@
 #define SESSIONKEY_LEN 16
 
 typedef struct {
-    BOOL_T   active;
-    BOOL_T   fault;
-    int      fd;
-    TIME_T   time;
+    BOOL_T active;
+    BOOL_T fault;
+    int fd;
+    TIME_T time;
     uint32_t sequence_in;
     uint32_t sequence_out;
-    uint8_t  randA[RAND_LEN];
-    uint8_t  randB[RAND_LEN];
-    uint8_t  hmac[HMAC_LEN];
-    uint8_t  secret_key[SESSIONKEY_LEN];
+    uint8_t randA[RAND_LEN];
+    uint8_t randB[RAND_LEN];
+    uint8_t hmac[HMAC_LEN];
+    uint8_t secret_key[SESSIONKEY_LEN];
 } lan_session_t;
 
 typedef struct {
-    uint32_t           frame_type;
+    uint32_t frame_type;
     lan_cmd_handler_cb handler;
 } lan_cmd_cb_t;
 
@@ -69,42 +69,42 @@ typedef struct {
 #define LAN_CMD_EXT_COUNT 5
 
 typedef struct {
-    uint32_t     client_num;                 // client number limit
-    uint32_t     bufsize;                    // rev buffer size
-    uint32_t     heart_timeout;              // heat beat timeout
-    uint32_t     sequence_err_threshold;     // sequence err threshold
-    uint32_t     allow_no_session_key_num;   // allow no session key num
+    uint32_t client_num;                     // client number limit
+    uint32_t bufsize;                        // rev buffer size
+    uint32_t heart_timeout;                  // heat beat timeout
+    uint32_t sequence_err_threshold;         // sequence err threshold
+    uint32_t allow_no_session_key_num;       // allow no session key num
     lan_cmd_cb_t cmd_ext[LAN_CMD_EXT_COUNT]; // ext lan cmd
 } lan_cfg_t;
 
 typedef struct {
-    int            fd_num;
+    int fd_num;
     lan_session_t *session;
-    MUTEX_HANDLE   mutex;
-    MUTEX_HANDLE   tcp_mutex;
+    MUTEX_HANDLE mutex;
+    MUTEX_HANDLE tcp_mutex;
 
-    int    udp_serv_fd;
-    int    udp_client_fd; // udp socket fd
-    int    tcp_serv_fd;
+    int udp_serv_fd;
+    int udp_client_fd; // udp socket fd
+    int tcp_serv_fd;
     BOOL_T serv_fd_switch;
 
     NW_IP_S ip;
 
     tuya_iot_client_t *iot_client;
-    lan_cfg_t         *cfg;
+    lan_cfg_t *cfg;
     // extension
     uint32_t recv_offset;
-    uint8_t  recv_buf[0]; // keep it last !!!
+    uint8_t recv_buf[0]; // keep it last !!!
 } lan_mgr_t;
 
 static uint8_t app_key2[APP_KEY_LEN] = {0};
 static uint8_t app_key3[APP_KEY_LEN] = {0};
 
 static lan_mgr_t *s_lan_mgr = NULL;
-static lan_cfg_t  s_lan_cfg = {.client_num               = CLIENT_LMT,
-                               .bufsize                  = RECV_BUF_LMT,
-                               .heart_timeout            = HEART_BEAT_TIMEOUT,
-                               .allow_no_session_key_num = ALLOW_NO_KEY_NUM};
+static lan_cfg_t s_lan_cfg = {.client_num = CLIENT_LMT,
+                              .bufsize = RECV_BUF_LMT,
+                              .heart_timeout = HEART_BEAT_TIMEOUT,
+                              .allow_no_session_key_num = ALLOW_NO_KEY_NUM};
 
 static lan_mgr_t *lan_mgr_get(void)
 {
@@ -157,10 +157,10 @@ static void lan_sesison_add(int socket, TIME_T time)
         }
         PR_TRACE("add session[%d] socket:%d", i, socket);
         lan_session_free(&lan->session[i]);
-        lan->session[i].active       = true;
-        lan->session[i].fd           = socket;
-        lan->session[i].fault        = false;
-        lan->session[i].time         = time;
+        lan->session[i].active = true;
+        lan->session[i].fd = socket;
+        lan->session[i].fault = false;
+        lan->session[i].time = time;
         lan->session[i].sequence_out = uni_random_range(0xFFFF);
         lan->fd_num++;
         break;
@@ -294,12 +294,12 @@ int lan_msg_gcm_encrpt(uint8_t *data, uint32_t len, uint8_t **ec_data, uint32_t 
                        uint32_t frame_type)
 {
     int op_ret = OPRT_OK;
-    int olen   = 0;
+    int olen = 0;
 
     lpv35_frame_object_t frame = {
         .sequence = 0,
-        .type     = frame_type,
-        .data     = (uint8_t *)data,
+        .type = frame_type,
+        .data = (uint8_t *)data,
         .data_len = len,
     };
 
@@ -312,7 +312,7 @@ int lan_msg_gcm_encrpt(uint8_t *data, uint32_t len, uint8_t **ec_data, uint32_t 
     op_ret = lpv35_frame_serialize(key, APP_KEY_LEN, &frame, send_buf, &olen);
     if (OPRT_OK == op_ret) {
         *ec_data = send_buf;
-        *ec_len  = olen;
+        *ec_len = olen;
     }
 
     return op_ret;
@@ -321,35 +321,35 @@ int lan_msg_gcm_encrpt(uint8_t *data, uint32_t len, uint8_t **ec_data, uint32_t 
 static void lan_app_key_make(void)
 {
     uint8_t app_key_encode[APP_KEY_LEN] = {0};
-    app_key2[0]                         = 'y';
-    app_key2[1]                         = 'G';
-    app_key2[2]                         = 'A';
-    app_key2[3]                         = 'd';
-    app_key2[4]                         = 'l';
-    app_key2[5]                         = 'o';
-    app_key2[6]                         = 'p';
-    app_key2[7]                         = 'o';
-    app_key2[8]                         = 'P';
-    app_key2[9]                         = 'V';
-    app_key2[10]                        = 'l';
-    app_key2[11]                        = 'd';
-    app_key2[12]                        = 'A';
-    app_key2[13]                        = 'B';
-    app_key2[14]                        = 'f';
-    app_key2[15]                        = 'n';
+    app_key2[0] = 'y';
+    app_key2[1] = 'G';
+    app_key2[2] = 'A';
+    app_key2[3] = 'd';
+    app_key2[4] = 'l';
+    app_key2[5] = 'o';
+    app_key2[6] = 'p';
+    app_key2[7] = 'o';
+    app_key2[8] = 'P';
+    app_key2[9] = 'V';
+    app_key2[10] = 'l';
+    app_key2[11] = 'd';
+    app_key2[12] = 'A';
+    app_key2[13] = 'B';
+    app_key2[14] = 'f';
+    app_key2[15] = 'n';
     tal_md5_ret(app_key2, APP_KEY_LEN, app_key_encode);
     memcpy(app_key2, app_key_encode, APP_KEY_LEN);
 
-    app_key3[0]  = 'W';
-    app_key3[1]  = 'z';
-    app_key3[2]  = 'Y';
-    app_key3[3]  = 'w';
-    app_key3[4]  = 'F';
-    app_key3[5]  = 'x';
-    app_key3[6]  = 'I';
-    app_key3[7]  = 'U';
-    app_key3[8]  = 'b';
-    app_key3[9]  = 'i';
+    app_key3[0] = 'W';
+    app_key3[1] = 'z';
+    app_key3[2] = 'Y';
+    app_key3[3] = 'w';
+    app_key3[4] = 'F';
+    app_key3[5] = 'x';
+    app_key3[6] = 'I';
+    app_key3[7] = 'U';
+    app_key3[8] = 'b';
+    app_key3[9] = 'i';
     app_key3[10] = 'F';
     app_key3[11] = 'h';
     app_key3[12] = 'M';
@@ -365,7 +365,7 @@ static int lan_tcp_setup_serv_socket(int port)
     int fd = 0;
     // NW_IP_S ip;
     TUYA_IP_ADDR_T ip_addr = TY_IPADDR_ANY;
-    int            ret     = OPRT_OK;
+    int ret = OPRT_OK;
 
     /* create listening TCP socket */
     fd = tal_net_socket_create(PROTOCOL_TCP);
@@ -452,7 +452,7 @@ static int lan_send(lan_session_t *session, uint32_t fr_num, uint32_t fr_type, u
 
     PR_TRACE("tcp sendbuf socket:%d fr_num:%u fr_type:%d ret:%d len:%d", session->fd, fr_num, fr_type, ret_code, len);
 
-    uint8_t   *key = NULL;
+    uint8_t *key = NULL;
     lan_mgr_t *lan = lan_mgr_get();
     if (lan->iot_client->is_activated) {
         if (session->secret_key[0]) {
@@ -464,7 +464,7 @@ static int lan_send(lan_session_t *session, uint32_t fr_num, uint32_t fr_type, u
         //! TODO:
         return OPRT_COM_ERROR;
     }
-    int                     plaintext_len  = sizeof(lpv35_plaintext_data_t) + len;
+    int plaintext_len = sizeof(lpv35_plaintext_data_t) + len;
     lpv35_plaintext_data_t *plaintext_data = tal_malloc(plaintext_len);
     if (plaintext_data == NULL) {
         PR_ERR("plaintext_data fail");
@@ -475,10 +475,10 @@ static int lan_send(lan_session_t *session, uint32_t fr_num, uint32_t fr_type, u
     memcpy(plaintext_data->data, data, len);
     // lpv3.5 test arch
     lpv35_frame_object_t frame = {.sequence = session->sequence_out++,
-                                  .type     = fr_type,
-                                  .data     = (void *)plaintext_data,
+                                  .type = fr_type,
+                                  .data = (void *)plaintext_data,
                                   .data_len = plaintext_len};
-    send_buf                   = tal_malloc(lpv35_frame_buffer_size_get(&frame));
+    send_buf = tal_malloc(lpv35_frame_buffer_size_get(&frame));
     if (send_buf == NULL) {
         PR_ERR("send_buf malloc fail");
         tal_free(plaintext_data);
@@ -546,7 +546,7 @@ __exit:
 
 static void lan_make_udp_packets(uint8_t **out, int *p_olen)
 {
-    int     op_ret = OPRT_OK;
+    int op_ret = OPRT_OK;
     NW_IP_S ip;
 
     memset(&ip, 0, sizeof(NW_IP_S));
@@ -561,7 +561,7 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     }
 
     size_t offset = 0;
-    char  *id     = NULL;
+    char *id = NULL;
     if (lan->iot_client->is_activated) {
         id = lan->iot_client->activate.devid;
     } else {
@@ -569,7 +569,7 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     }
 
     uint32_t data_len = 256;
-    char    *json_buf = tal_malloc(data_len);
+    char *json_buf = tal_malloc(data_len);
     if (NULL == json_buf) {
         PR_ERR("tal_malloc Fail");
         return;
@@ -577,8 +577,8 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     memset(json_buf, 0, data_len);
 
     size_t remain = data_len;
-    int    ret    = snprintf(json_buf + offset, remain, "{\"ip\":\"%s\",\"gwId\":\"%s\",\"uuid\":\"%s\"", ip.ip, id,
-                             lan->iot_client->config.uuid);
+    int ret = snprintf(json_buf + offset, remain, "{\"ip\":\"%s\",\"gwId\":\"%s\",\"uuid\":\"%s\"", ip.ip, id,
+                       lan->iot_client->config.uuid);
     if (ret < 0 || (size_t)ret >= remain) {
         PR_ERR("json_buf overflow when writing ip info");
         tal_free(json_buf);
@@ -587,7 +587,8 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     offset += ret;
     remain = data_len - offset;
 
-    ret = snprintf(json_buf + offset, remain, ",\"active\":%d,\"ablilty\":0", lan->iot_client->is_activated ? 2 : 0);
+    ret = snprintf(json_buf + offset, remain, ",\"active\":%d,\"ablilty\":0",
+                   lan->iot_client->is_activated ? 2 : 0);
     if (ret < 0 || (size_t)ret >= remain) {
         PR_ERR("json_buf overflow when writing active");
         tal_free(json_buf);
@@ -638,10 +639,10 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
         return;
     }
     json_buf[offset++] = '}';
-    json_buf[offset]   = 0;
+    json_buf[offset] = 0;
 
     // PR_DEBUG("BufToSend %d %d:%s",data_len, offset, json_buf);
-    int                     plaintext_len  = sizeof(lpv35_plaintext_data_t) + strlen(json_buf);
+    int plaintext_len = sizeof(lpv35_plaintext_data_t) + strlen(json_buf);
     lpv35_plaintext_data_t *plaintext_data = tal_malloc(plaintext_len);
     if (plaintext_data == NULL) {
         PR_ERR("plaintext_data fail");
@@ -656,8 +657,8 @@ static void lan_make_udp_packets(uint8_t **out, int *p_olen)
     // lpv3.5 test arch
     lpv35_frame_object_t frame = {
         .sequence = 0,
-        .type     = FRM_TYPE_ENCRYPTION,
-        .data     = (uint8_t *)plaintext_data,
+        .type = FRM_TYPE_ENCRYPTION,
+        .data = (uint8_t *)plaintext_data,
         .data_len = plaintext_len,
     };
 
@@ -703,8 +704,8 @@ int tuya_lan_dp_report(char *dpstr)
         PR_DEBUG("lan socket num is 0. skip send");
         return OPRT_INVALID_PARM;
     }
-    int      op_ret  = OPRT_OK;
-    uint8_t *out     = NULL;
+    int op_ret = OPRT_OK;
+    uint8_t *out = NULL;
     uint32_t out_len = 0;
 
     op_ret = tuya_pack_protocol_data(DP_CMD_LAN, (const char *)dpstr, PRO_DATA_PUSH,
@@ -717,7 +718,7 @@ int tuya_lan_dp_report(char *dpstr)
     }
 
     lan_session_t *session = lan_sessions_get();
-    int            i       = 0;
+    int i = 0;
 
     for (i = 0; i < lan->cfg->client_num; i++) {
         if (session[i].active && session[i].fault == false && session[i].secret_key[0] != '\0') {
@@ -734,8 +735,8 @@ int tuya_lan_dp_report(char *dpstr)
 
 static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_frame_object_t *frame)
 {
-    int      op_ret  = OPRT_OK;
-    uint8_t *out     = frame->data;
+    int op_ret = OPRT_OK;
+    uint8_t *out = frame->data;
     uint32_t out_len = frame->data_len;
 
     PR_DEBUG("Process Data. FD:%d, Num:%d, Type:%d, Len:%d", session->fd, frame->sequence, frame->type,
@@ -745,9 +746,9 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
     case FRM_TP_CMD:
     case FRM_TP_NEW_CMD: {
         PR_TRACE("Rev TP CMD %d", frame->type);
-        cJSON *root      = NULL;
+        cJSON *root = NULL;
         cJSON *data_json = NULL;
-        char  *describe  = NULL;
+        char *describe = NULL;
 
         char *jsonstr = NULL;
         op_ret =
@@ -834,19 +835,19 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
         for (i = 0; i < SESSIONKEY_LEN; i++) {
             session->secret_key[i] = session->randA[i] ^ session->randB[i];
         }
-        size_t  encrypt_olen = 0;
+        size_t encrypt_olen = 0;
         uint8_t tag_tmp[LPV35_FRAME_TAG_SIZE];
         // encrytp data, make session key
         op_ret = mbedtls_cipher_auth_encrypt_wrapper(
             &(const cipher_params_t){.cipher_type = MBEDTLS_CIPHER_AES_128_GCM,
-                                     .key         = (unsigned char *)(lan->iot_client->activate.localkey),
-                                     .key_len     = 16,
-                                     .nonce       = session->randA,
-                                     .nonce_len   = LPV35_FRAME_NONCE_SIZE,
-                                     .ad          = NULL,
-                                     .ad_len      = 0,
-                                     .data        = session->secret_key,
-                                     .data_len    = SESSIONKEY_LEN},
+                                     .key = (unsigned char *)(lan->iot_client->activate.localkey),
+                                     .key_len = 16,
+                                     .nonce = session->randA,
+                                     .nonce_len = LPV35_FRAME_NONCE_SIZE,
+                                     .ad = NULL,
+                                     .ad_len = 0,
+                                     .data = session->secret_key,
+                                     .data_len = SESSIONKEY_LEN},
             session->secret_key, &encrypt_olen, tag_tmp, LPV35_FRAME_TAG_SIZE);
         if (op_ret != OPRT_OK) {
             PR_ERR("aes128_gcm_encode error:%d", op_ret);
@@ -887,8 +888,8 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
     } break;
 
     case FRM_LAN_P2P_SIGNAL: {
-        int                i;
-        uint8_t           *ext_out = NULL;
+        int i;
+        uint8_t *ext_out = NULL;
         lan_cmd_handler_cb handler = NULL;
 
         for (i = 0; i < LAN_CMD_EXT_COUNT; i++) {
@@ -903,8 +904,8 @@ static void lan_protocol_process(lan_mgr_t *lan, lan_session_t *session, lpv35_f
         }
         op_ret = handler(out, &ext_out);
         if (ext_out != NULL) {
-            lan_send(session, frame->sequence, frame->type, (op_ret == OPRT_OK) ? 0 : 1, ext_out,
-                     strlen((char *)ext_out), true);
+            lan_send(session, frame->sequence, frame->type, (op_ret == OPRT_OK) ? 0 : 1, ext_out, strlen((char *)ext_out),
+                     true);
             tal_free(ext_out);
         } else if (op_ret == OPRT_OK) {
             /* Align OS: success with empty body still ACKs the session */
@@ -936,19 +937,19 @@ static void lan_tcp_client_sock_err(int fd)
 
 static void lan_tcp_client_sock_read(int32_t fd)
 {
-    int      ret          = 0;
+    int ret = 0;
     uint8_t *frame_buffer = NULL;
     uint8_t *tmp_recv_buf = NULL;
 
-    lan_mgr_t     *lan     = lan_mgr_get();
+    lan_mgr_t *lan = lan_mgr_get();
     lan_session_t *session = lan_session_get_by_fd(fd);
 
     if (NULL == lan || NULL == session || !session->active) {
         return;
     }
 
-    uint32_t offset       = 0;
-    int      recv_datalen = 0;
+    uint32_t offset = 0;
+    int recv_datalen = 0;
 
     lan->recv_offset = 0;
 
@@ -966,7 +967,7 @@ recv_again:
         return;
     }
 
-    offset       = 0;
+    offset = 0;
     frame_buffer = NULL;
     tmp_recv_buf = NULL;
     while (recv_datalen >= LPV35_FRAME_MINI_SIZE + offset) {
@@ -977,7 +978,7 @@ recv_again:
             offset++;
             continue;
         }
-        frame_buffer                   = lan->recv_buf + offset;
+        frame_buffer = lan->recv_buf + offset;
         lpv35_fixed_head_t *fixed_head = (lpv35_fixed_head_t *)(frame_buffer + LPV35_FRAME_HEAD_SIZE);
         // verify sequence
         uint32_t fr_sequence = UNI_NTOHL(fixed_head->sequence);
@@ -1007,9 +1008,9 @@ recv_again:
             memset(tmp_recv_buf, 0, frame_len + 1);
             memcpy(tmp_recv_buf, lan->recv_buf + offset, recv_datalen - offset);
             recv_datalen = recv_datalen - offset;
-            offset       = 0;
-            ret          = tal_net_recv_nd_size(session->fd, tmp_recv_buf + recv_datalen, frame_len + 1 - recv_datalen,
-                                                frame_len - recv_datalen);
+            offset = 0;
+            ret = tal_net_recv_nd_size(session->fd, tmp_recv_buf + recv_datalen, frame_len + 1 - recv_datalen,
+                                       frame_len - recv_datalen);
             if (ret < 0) {
                 PR_ERR("tuya_hal_net_recv_nd_size error ret:%d", ret);
                 break;
@@ -1018,7 +1019,7 @@ recv_again:
         }
 
         uint32_t fr_type = UNI_NTOHL(fixed_head->type);
-        uint8_t *key     = NULL;
+        uint8_t *key = NULL;
 
         //! TODO:
         if (lan->iot_client->is_activated) {
@@ -1063,7 +1064,7 @@ recv_again:
         }
         //! TODO:
         lpv35_frame_object_t frame_out = {0};
-        ret                            = lpv35_frame_parse(key, SESSIONKEY_LEN, frame_buffer, frame_len, &frame_out);
+        ret = lpv35_frame_parse(key, SESSIONKEY_LEN, frame_buffer, frame_len, &frame_out);
         if (ret != OPRT_OK) {
             PR_ERR("lpv35_frame_parse fail:%d", ret);
             break;
@@ -1091,7 +1092,7 @@ recv_again:
 
 static void lan_tcp_serv_sock_read(int32_t fd)
 {
-    int            ret  = OPRT_OK;
+    int ret = OPRT_OK;
     TUYA_IP_ADDR_T addr = 0;
 
     int cfd = tal_net_accept(fd, &addr, NULL);
@@ -1116,11 +1117,11 @@ static void lan_tcp_serv_sock_read(int32_t fd)
     lan_sesison_add(cfd, tal_time_get_posix());
     PR_DEBUG("new session connect. nums:%d cfd:%d ip:0x%x", lan_session_active_num_get(), cfd, addr);
     // reg cfd to lan sock
-    sloop_sock_t sock_info = {.sock       = cfd,
+    sloop_sock_t sock_info = {.sock = cfd,
                               .pre_select = NULL,
-                              .read       = lan_tcp_client_sock_read,
-                              .err        = lan_tcp_client_sock_err,
-                              .quit       = NULL};
+                              .read = lan_tcp_client_sock_read,
+                              .err = lan_tcp_client_sock_err,
+                              .quit = NULL};
 
     ret = tuya_reg_lan_sock(sock_info);
     if (OPRT_OK != ret) {
@@ -1155,7 +1156,7 @@ BOOL_T __udp_serv_is_in_packet_vaild(uint8_t *frame_buffer, uint32_t recv_datale
     }
 
     lpv35_fixed_head_t *fixed_head = (lpv35_fixed_head_t *)(frame_buffer + LPV35_FRAME_HEAD_SIZE);
-    uint32_t            length     = UNI_NTOHL(fixed_head->length);
+    uint32_t length = UNI_NTOHL(fixed_head->length);
 
     // the frame described by length must fit in the received datagram
     uint32_t fixed_len = LPV35_FRAME_HEAD_SIZE + sizeof(lpv35_fixed_head_t) + LPV35_FRAME_TAIL_SIZE;
@@ -1181,11 +1182,11 @@ BOOL_T __udp_serv_is_in_packet_vaild(uint8_t *frame_buffer, uint32_t recv_datale
 
 static void lan_udp_serv_sock_read(int32_t fd)
 {
-    int            op_ret       = OPRT_OK;
-    int            recv_datalen = 0;
-    TUYA_IP_ADDR_T addr         = 0;
-    TUYA_IP_ADDR_T addr_json    = 0;
-    uint16_t       port         = 0;
+    int op_ret = OPRT_OK;
+    int recv_datalen = 0;
+    TUYA_IP_ADDR_T addr = 0;
+    TUYA_IP_ADDR_T addr_json = 0;
+    uint16_t port = 0;
 
     lan_mgr_t *lan = lan_mgr_get();
 
@@ -1201,16 +1202,16 @@ static void lan_udp_serv_sock_read(int32_t fd)
         return;
     }
     lpv35_fixed_head_t *fixed_head = (lpv35_fixed_head_t *)(frame_buffer + LPV35_FRAME_HEAD_SIZE);
-    uint32_t            frame_len =
+    uint32_t frame_len =
         LPV35_FRAME_HEAD_SIZE + sizeof(lpv35_fixed_head_t) + UNI_NTOHL(fixed_head->length) + LPV35_FRAME_TAIL_SIZE;
     lpv35_frame_object_t frame_out = {0};
-    op_ret                         = lpv35_frame_parse(app_key2, APP_KEY_LEN, frame_buffer, frame_len, &frame_out);
+    op_ret = lpv35_frame_parse(app_key2, APP_KEY_LEN, frame_buffer, frame_len, &frame_out);
     if (op_ret != OPRT_OK) {
         PR_ERR("lpv35_frame_parse fail:%d", op_ret);
         return;
     }
     cJSON *root = NULL;
-    root        = cJSON_Parse((char *)frame_out.data);
+    root = cJSON_Parse((char *)frame_out.data);
     if (NULL == root) {
         PR_ERR("Json err");
         tal_free(frame_out.data);
@@ -1228,7 +1229,7 @@ static void lan_udp_serv_sock_read(int32_t fd)
     cJSON_Delete(root);
     tal_free(frame_out.data);
 
-    int      olen     = 0;
+    int olen = 0;
     uint8_t *send_buf = NULL;
     lan_make_udp_packets(&send_buf, &olen);
     if (NULL == send_buf) {
@@ -1273,11 +1274,11 @@ static int lan_udp_create_serv_socket(void)
         return -1;
     }
 
-    sloop_sock_t udp_sock_info = {.sock       = s_lan_mgr->udp_serv_fd,
+    sloop_sock_t udp_sock_info = {.sock = s_lan_mgr->udp_serv_fd,
                                   .pre_select = NULL,
-                                  .read       = lan_udp_serv_sock_read,
-                                  .err        = lan_udp_serv_sock_err,
-                                  .quit       = NULL};
+                                  .read = lan_udp_serv_sock_read,
+                                  .err = lan_udp_serv_sock_err,
+                                  .quit = NULL};
 
     if (OPRT_OK != tuya_reg_lan_sock(udp_sock_info)) {
         PR_ERR("register lan sock err");
@@ -1309,11 +1310,11 @@ static int lan_tcp_create_serv_socket(lan_mgr_t *lan)
         return -1;
     }
 
-    sloop_sock_t tcp_sock_info = {.sock       = lan->tcp_serv_fd,
+    sloop_sock_t tcp_sock_info = {.sock = lan->tcp_serv_fd,
                                   .pre_select = lan_tcp_serv_sock_pre_select,
-                                  .read       = lan_tcp_serv_sock_read,
-                                  .err        = lan_tcp_serv_sock_err,
-                                  .quit       = lan_tcp_serv_sock_quit};
+                                  .read = lan_tcp_serv_sock_read,
+                                  .err = lan_tcp_serv_sock_err,
+                                  .quit = lan_tcp_serv_sock_quit};
 
     if (OPRT_OK != tuya_reg_lan_sock(tcp_sock_info)) {
         tal_net_close(lan->tcp_serv_fd);
@@ -1349,10 +1350,10 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
         return OPRT_MALLOC_FAILED;
     }
     memset(s_lan_mgr, 0, sizeof(lan_mgr_t) + s_lan_cfg.bufsize);
-    s_lan_mgr->tcp_serv_fd   = -1;
+    s_lan_mgr->tcp_serv_fd = -1;
     s_lan_mgr->udp_client_fd = -1;
-    s_lan_mgr->udp_serv_fd   = -1;
-    s_lan_mgr->cfg           = &s_lan_cfg;
+    s_lan_mgr->udp_serv_fd = -1;
+    s_lan_mgr->cfg = &s_lan_cfg;
     // INIT_LIST_HEAD(&s_lan_mgr->lan_ext_proto);
 
     int op_ret;
@@ -1370,7 +1371,7 @@ int tuya_lan_init(tuya_iot_client_t *iot_client)
     }
 
     uint32_t client_len = sizeof(lan_session_t) * s_lan_mgr->cfg->client_num;
-    s_lan_mgr->session  = tal_malloc(client_len);
+    s_lan_mgr->session = tal_malloc(client_len);
     if (NULL == s_lan_mgr->session) {
         goto __exit;
     }
@@ -1501,7 +1502,7 @@ int tuya_lan_enable(void)
 int tuya_lan_data_report(uint32_t fr_type, uint32_t ret_code, uint8_t *data, uint32_t len)
 {
     int op_ret = OPRT_OK;
-    int i      = 0;
+    int i = 0;
 
     lan_mgr_t *lan = lan_mgr_get();
     if (NULL == lan) {
@@ -1562,7 +1563,7 @@ int tuya_lan_disconnect_all(void)
 int tuya_lan_register_cb(uint32_t frame_type, lan_cmd_handler_cb handler)
 {
     int ret = OPRT_EXCEED_UPPER_LIMIT;
-    int i   = 0;
+    int i = 0;
 
     for (i = 0; i < LAN_CMD_EXT_COUNT; i++) {
         if ((handler == s_lan_cfg.cmd_ext[i].handler) && (frame_type == s_lan_cfg.cmd_ext[i].frame_type)) {
@@ -1576,9 +1577,9 @@ int tuya_lan_register_cb(uint32_t frame_type, lan_cmd_handler_cb handler)
 
     for (i = 0; i < LAN_CMD_EXT_COUNT; i++) {
         if (NULL == s_lan_cfg.cmd_ext[i].handler) {
-            s_lan_cfg.cmd_ext[i].handler    = handler;
+            s_lan_cfg.cmd_ext[i].handler = handler;
             s_lan_cfg.cmd_ext[i].frame_type = frame_type;
-            ret                             = OPRT_OK;
+            ret = OPRT_OK;
             break;
         }
     }
@@ -1597,13 +1598,13 @@ int tuya_lan_register_cb(uint32_t frame_type, lan_cmd_handler_cb handler)
 int tuya_lan_unregister_cb(uint32_t frame_type)
 {
     int ret = OPRT_NOT_FOUND;
-    int i   = 0;
+    int i = 0;
 
     for (i = 0; i < LAN_CMD_EXT_COUNT; i++) {
         if (frame_type == s_lan_cfg.cmd_ext[i].frame_type) {
-            s_lan_cfg.cmd_ext[i].handler    = NULL;
+            s_lan_cfg.cmd_ext[i].handler = NULL;
             s_lan_cfg.cmd_ext[i].frame_type = 0;
-            ret                             = OPRT_OK;
+            ret = OPRT_OK;
             break;
         }
     }

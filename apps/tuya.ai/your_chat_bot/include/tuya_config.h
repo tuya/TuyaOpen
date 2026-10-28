@@ -39,7 +39,7 @@
 #endif
 
 #ifndef TUYA_OPENSDK_UUID
-#define TUYA_OPENSDK_UUID "uuidxxxxxxxxxxxxxxxx" // Please change the correct uuid
+#define TUYA_OPENSDK_UUID    "uuidxxxxxxxxxxxxxxxx"             // Please change the correct uuid
 #endif
 #ifndef TUYA_OPENSDK_AUTHKEY
 #define TUYA_OPENSDK_AUTHKEY "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" // Please change the correct authkey

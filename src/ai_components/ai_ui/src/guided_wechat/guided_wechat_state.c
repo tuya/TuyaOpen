@@ -24,8 +24,8 @@ static volatile guided_wechat_pairing_state_t sg_pairing_state = GUIDED_WECHAT_P
 
 static bool __contains_placeholder(const char *value)
 {
-    return value == NULL || value[0] == '\0' || strstr(value, "xxx") != NULL || strstr(value, "your_") != NULL ||
-           strstr(value, "here") != NULL;
+    return value == NULL || value[0] == '\0' || strstr(value, "xxx") != NULL ||
+           strstr(value, "your_") != NULL || strstr(value, "here") != NULL;
 }
 
 static bool __license_valid(const char *uuid, const char *authkey)
@@ -73,8 +73,8 @@ static void __mask_value(char *out, size_t out_len, const char *value)
  * once and serve the cached pointers - state_read() runs from the 1 Hz UI
  * refresh timer, so a per-call flash read would be wasted IO. */
 static struct {
-    bool        loaded;
-    bool        valid;
+    bool loaded;
+    bool valid;
     const char *uuid;
     const char *authkey;
 } sg_storage_license;
@@ -91,9 +91,9 @@ static void __storage_license_load(void)
         (OPRT_OK == tuya_authorize_read(&license)) && __license_valid(license.uuid, license.authkey);
     /* tuya_authorize_read() hands out pointers to its own persistent buffers,
      * so the cached pointers stay valid for the lifetime of the firmware. */
-    sg_storage_license.uuid    = license.uuid;
+    sg_storage_license.uuid = license.uuid;
     sg_storage_license.authkey = license.authkey;
-    sg_storage_license.loaded  = true;
+    sg_storage_license.loaded = true;
 }
 
 void guided_wechat_pairing_request(void)
@@ -134,12 +134,12 @@ void guided_wechat_reprovision_mark(void)
 
 bool guided_wechat_reprovision_pending(void)
 {
-    uint8_t *value   = NULL;
-    size_t   length  = 0;
-    bool     pending = false;
+    uint8_t *value = NULL;
+    size_t length = 0;
+    bool pending = false;
 
-    if (OPRT_OK == tal_kv_get(GUIDED_WECHAT_REPROVISION_KEY, &value, &length) && value != NULL && length > 0 &&
-        value[0] == 1) {
+    if (OPRT_OK == tal_kv_get(GUIDED_WECHAT_REPROVISION_KEY, &value, &length) &&
+        value != NULL && length > 0 && value[0] == 1) {
         pending = true;
     }
 
@@ -159,9 +159,9 @@ void guided_wechat_reprovision_clear(void)
 void guided_wechat_state_read(guided_wechat_device_state_t *state)
 {
     tuya_iot_client_t *client;
-    netmgr_status_e    link_status = NETMGR_LINK_DOWN;
-    const char        *uuid        = NULL;
-    const char        *authkey     = NULL;
+    netmgr_status_e link_status = NETMGR_LINK_DOWN;
+    const char *uuid = NULL;
+    const char *authkey = NULL;
 
     if (state == NULL) {
         return;
@@ -174,13 +174,13 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
     __storage_license_load();
     if (sg_storage_license.valid) {
         state->auth_source = GUIDED_WECHAT_AUTH_STORAGE;
-        uuid               = sg_storage_license.uuid;
-        authkey            = sg_storage_license.authkey;
+        uuid = sg_storage_license.uuid;
+        authkey = sg_storage_license.authkey;
     }
 
     client = tuya_iot_client_get();
     if (client != NULL) {
-        state->activated    = tuya_iot_activated(client);
+        state->activated = tuya_iot_activated(client);
         state->cloud_online = tuya_iot_is_connected();
         __copy_value(state->version, sizeof(state->version), client->config.software_ver);
         __copy_value(state->product_id, sizeof(state->product_id), client->config.productkey);
@@ -189,8 +189,8 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
         if (state->auth_source == GUIDED_WECHAT_AUTH_NONE &&
             __license_valid(client->config.uuid, client->config.authkey)) {
             state->auth_source = GUIDED_WECHAT_AUTH_COMPILED;
-            uuid               = client->config.uuid;
-            authkey            = client->config.authkey;
+            uuid = client->config.uuid;
+            authkey = client->config.authkey;
         }
     }
 
@@ -207,22 +207,24 @@ void guided_wechat_state_read(guided_wechat_device_state_t *state)
      * expose it as the current network while the link is actually up; when
      * the station is down this value would otherwise make the UI report a
      * stale SSID as if the device were still connecting to it. */
-    if (state->link_up && OPRT_OK == netmgr_conn_get(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info)) {
+    if (state->link_up &&
+        OPRT_OK == netmgr_conn_get(NETCONN_WIFI, NETCONN_CMD_SSID_PSWD, &wifi_info)) {
         snprintf(state->ssid, sizeof(state->ssid), "%s", wifi_info.ssid);
     }
 
     /* SoftAP provisioning info: only exists while AP netcfg is running. The
      * getter copies from RAM, so the 1 Hz refresh stays cheap; failure just
      * leaves the "-" placeholder until the hotspot comes up. */
-    if (OPRT_OK !=
-        ap_netcfg_get_hotspot_info(state->ap_ssid, sizeof(state->ap_ssid), state->ap_ip, sizeof(state->ap_ip))) {
+    if (OPRT_OK != ap_netcfg_get_hotspot_info(state->ap_ssid, sizeof(state->ap_ssid),
+                                              state->ap_ip, sizeof(state->ap_ip))) {
         __copy_value(state->ap_ssid, sizeof(state->ap_ssid), NULL);
         __copy_value(state->ap_ip, sizeof(state->ap_ip), NULL);
     }
 #endif
 }
 
-bool guided_wechat_state_equal(const guided_wechat_device_state_t *left, const guided_wechat_device_state_t *right)
+bool guided_wechat_state_equal(const guided_wechat_device_state_t *left,
+                               const guided_wechat_device_state_t *right)
 {
     return left != NULL && right != NULL && memcmp(left, right, sizeof(*left)) == 0;
 }
