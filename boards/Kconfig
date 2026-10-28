@@ -34,15 +34,7 @@ config BOARD_ENABLE_SIWX917
     bool
     default y
 
-config BOARD_ENABLE_L511G_Y7PM
-    bool
-    default y
-
-config BOARD_ENABLE_L511C_Y6E
-    bool
-    default y
-
-config BOARD_ENABLE_L511C_Y7PM
+config BOARD_ENABLE_L511
     bool
     default y
 
@@ -124,27 +116,28 @@ if (BOARD_ENABLE_SIWX917)
     endif
 endif
 
-if (BOARD_ENABLE_L511G_Y7PM)
-    config BOARD_CHOICE_L511G_Y7PM
-        bool "L511G_Y7PM"
-    if (BOARD_CHOICE_L511G_Y7PM)
-    rsource "./L511G_Y7PM/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_L511C_Y6E)
-    config BOARD_CHOICE_L511C_Y6E
-        bool "L511C_Y6E"
-    if (BOARD_CHOICE_L511C_Y6E)
-    rsource "./L511C_Y6E/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_L511C_Y7PM)
-    config BOARD_CHOICE_L511C_Y7PM
-        bool "L511C_Y7PM"
-    if (BOARD_CHOICE_L511C_Y7PM)
-    rsource "./L511C_Y7PM/Kconfig"
+if (BOARD_ENABLE_L511)
+    config BOARD_CHOICE_L511
+        bool "L511"
+    if (BOARD_CHOICE_L511)
+    choice
+        prompt "Choice an L511 model"
+        config L511_MODEL_L511G_Y7PM
+            bool "L511G_Y7PM"
+        if (L511_MODEL_L511G_Y7PM)
+            rsource "./L511G_Y7PM/Kconfig"
+        endif
+        config L511_MODEL_L511C_Y6E
+            bool "L511C_Y6E"
+        if (L511_MODEL_L511C_Y6E)
+            rsource "./L511C_Y6E/Kconfig"
+        endif
+        config L511_MODEL_L511C_Y7PM
+            bool "L511C_Y7PM"
+        if (L511_MODEL_L511C_Y7PM)
+            rsource "./L511C_Y7PM/Kconfig"
+        endif
+    endchoice
     endif
 endif
 
