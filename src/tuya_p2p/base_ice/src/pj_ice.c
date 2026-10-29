@@ -790,6 +790,10 @@ bool pj_ice_session_is_nego_success(pj_ice_session_t *pIceSession)
 
 bool pj_ice_session_sendto(pj_ice_session_t *pIceSession, void *pkt, uint32_t len)
 {
+    if (pIceSession == NULL || pIceSession->pIceSTransport == NULL || pkt == NULL || len == 0) {
+        return false;
+    }
+
     pj_thread_register2();
 
     pj_status_t status = PJ_FALSE;
@@ -798,6 +802,10 @@ bool pj_ice_session_sendto(pj_ice_session_t *pIceSession, void *pkt, uint32_t le
     char szRCandAddr[PJ_INET6_ADDRSTRLEN + 10] = {0};
     unsigned comp_id = 1; // Component starts with ID 1
     const pj_ice_sess_check *pIceSessCheck = pj_ice_strans_get_valid_pair(ice_st, comp_id);
+    if (pIceSessCheck == NULL || pIceSessCheck->lcand == NULL || pIceSessCheck->rcand == NULL) {
+        /* ICE negotiation not finished yet, drop the packet instead of dereferencing NULL */
+        return false;
+    }
     pj_sockaddr_print(&pIceSessCheck->lcand->addr, szLCandAddr, sizeof(szLCandAddr), 3);
     pj_sockaddr_print(&pIceSessCheck->rcand->addr, szRCandAddr, sizeof(szRCandAddr), 3);
     status = pj_ice_strans_sendto2(ice_st, comp_id, pkt, len, &pIceSessCheck->rcand->addr,
