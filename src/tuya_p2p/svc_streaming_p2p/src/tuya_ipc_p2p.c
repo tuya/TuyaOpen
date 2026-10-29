@@ -2272,6 +2272,14 @@ static int __p2p_read_cmd(P2P_SESSION_T *pSession)
     P2P_DATA_PARSE_T *pDataParse = &pSession->proto_parse;
     P2P_CMD_PARSE_T *pReadBuff = (P2P_CMD_PARSE_T *)(pDataParse->read_buff);
     int32_t recv_len = (int32_t)pDataParse->read_size;
+
+    if ((pDataParse->cur_read < 0) || (pDataParse->read_size < 0) ||
+        (pDataParse->read_size > (int32_t)sizeof(pDataParse->read_buff) - pDataParse->cur_read)) {
+        PR_ERR("session[%d] invalid parse state cur[%d] size[%d]", pSession->session, pDataParse->cur_read,
+               pDataParse->read_size);
+        return -4;
+    }
+
     ret = tuya_p2p_rtc_recv_data(pSession->session, TUYA_CMD_CHANNEL, pDataParse->read_buff + pDataParse->cur_read,
                                  &recv_len, P2P_RECV_TIMEOUT);
     pDataParse->read_size = (int)recv_len;
@@ -2302,7 +2310,11 @@ static int __p2p_read_cmd(P2P_SESSION_T *pSession)
                 }
                 // Extract data portion
                 pFixedHeader = &(pReadBuff->str_header);
-                pDataParse->read_size = pFixedHeader->length;
+                if (pFixedHeader->length > (unsigned int)(sizeof(pDataParse->read_buff) - P2P_CMD_HEAD_LEN)) {
+                    PR_ERR("session[%d] payload too large[%u]", pSession->session, pFixedHeader->length);
+                    return -4;
+                }
+                pDataParse->read_size = (int)pFixedHeader->length;
                 pDataParse->cur_read = P2P_CMD_HEAD_LEN;
                 pDataParse->flag = READ_PAYLOAD_PART;
                 // PR_DEBUG("recv session[%d] cmd size[%d]",pSession->session,pDataParse->read_size);
