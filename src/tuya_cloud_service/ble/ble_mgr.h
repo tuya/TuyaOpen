@@ -127,6 +127,8 @@ void tuya_ble_enable_debug(bool enable);
  */
 void tuya_ble_raw_print(char *title, uint8_t width, uint8_t *buf, uint16_t size);
 
+int tuya_ble_adv_update(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -16,6 +16,7 @@
 #include "tkl_gpio.h"
 #include "tkl_spi.h"
 #include "tdl_display_manage.h"
+#include "tal_image_rotate.h"
 #include <string.h>
 
 /* Command names follow the SSD2677 Rev 1.0 command table.
@@ -477,6 +478,58 @@ static OPERATE_RET panel_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF
     return OPRT_OK;
 }
 
+/** @brief Convert a full logical frame while preserving caller ownership and the physical scan domain. */
+static OPERATE_RET logical_flush(DISP_SSD2677_DEV_T *dev, TDL_DISP_FRAME_BUFF_T *fb)
+{
+    if (dev->cfg.rotation == TUYA_DISPLAY_ROTATION_0) {
+        return panel_flush(dev, fb);
+    }
+    if (!dev->opened) {
+        return OPRT_COM_ERROR;
+    }
+    bool     portrait = dev->cfg.rotation == TUYA_DISPLAY_ROTATION_90 || dev->cfg.rotation == TUYA_DISPLAY_ROTATION_270;
+    uint16_t width    = portrait ? dev->cfg.height : dev->cfg.width;
+    uint16_t height   = portrait ? dev->cfg.width : dev->cfg.height;
+    if (!fb || !fb->frame || fb->fmt != TUYA_PIXEL_FMT_MONOCHROME || !fb->width || !fb->height || fb->x_start % 8 ||
+        fb->width % 8 || (uint32_t)fb->x_start + fb->width > width || (uint32_t)fb->y_start + fb->height > height ||
+        fb->len != (uint32_t)(fb->width / 8) * fb->height) {
+        return OPRT_INVALID_PARM;
+    }
+    if (fb->x_start || fb->y_start || fb->width != width || fb->height != height) {
+        return OPRT_NOT_SUPPORTED;
+    }
+    uint32_t bytes  = (uint32_t)(dev->cfg.width / 8) * dev->cfg.height;
+    uint8_t *pixels = tal_malloc(bytes);
+    if (!pixels) {
+        return OPRT_MALLOC_FAILED;
+    }
+    TDL_DISP_FRAME_BUFF_T physical = {
+        .fmt    = TUYA_PIXEL_FMT_MONOCHROME,
+        .width  = dev->cfg.width,
+        .height = dev->cfg.height,
+        .len    = bytes,
+        .frame  = pixels,
+    };
+    /* Both row strides are byte aligned. These routines write every output bit. */
+    switch (dev->cfg.rotation) {
+    case TUYA_DISPLAY_ROTATION_90:
+        tal_image_mono_rotate90(fb->frame, pixels, width, height);
+        break;
+    case TUYA_DISPLAY_ROTATION_180:
+        tal_image_mono_rotate180(fb->frame, pixels, width, height);
+        break;
+    case TUYA_DISPLAY_ROTATION_270:
+        tal_image_mono_rotate270(fb->frame, pixels, width, height);
+        break;
+    default:
+        tal_free(pixels);
+        return OPRT_INVALID_PARM;
+    }
+    OPERATE_RET rt = panel_flush(dev, &physical);
+    tal_free(pixels);
+    return rt;
+}
+
 /** @brief Enter deep sleep only when idle, then release bus pins. */
 static OPERATE_RET panel_close(TDD_DISP_DEV_HANDLE_T device)
 {
@@ -541,7 +594,7 @@ static OPERATE_RET locked_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUF
     if (rt != OPRT_OK) {
         return rt;
     }
-    rt = panel_flush(device, fb);
+    rt = logical_flush(dev, fb);
     tal_mutex_unlock(dev->mutex);
     if (rt == OPRT_OK && fb->free_cb) {
         fb->free_cb(fb);
@@ -577,6 +630,12 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
         return OPRT_INVALID_PARM;
     }
     uint16_t scan_height = dev_cfg->controller_height ? dev_cfg->controller_height : dev_cfg->height;
+    bool     portrait = dev_cfg->rotation == TUYA_DISPLAY_ROTATION_90 || dev_cfg->rotation == TUYA_DISPLAY_ROTATION_270;
+    if ((dev_cfg->rotation != TUYA_DISPLAY_ROTATION_0 && dev_cfg->rotation != TUYA_DISPLAY_ROTATION_90 &&
+         dev_cfg->rotation != TUYA_DISPLAY_ROTATION_180 && dev_cfg->rotation != TUYA_DISPLAY_ROTATION_270) ||
+        (portrait && dev_cfg->height % 8)) {
+        return OPRT_INVALID_PARM;
+    }
     if ((unsigned)dev_cfg->port >= TUYA_SPI_NUM_MAX || !dev_cfg->spi_clk || !dev_cfg->width || (dev_cfg->width % 8) ||
         dev_cfg->width > SSD2677_SOURCE_MAX || !dev_cfg->height || dev_cfg->height > scan_height ||
         scan_height < SSD2677_GATE_MIN || scan_height > SSD2677_GATE_MAX) {
@@ -585,7 +644,9 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
     const TUYA_GPIO_NUM_E pins[] = {dev_cfg->clk_pin, dev_cfg->sda_pin, dev_cfg->cs_pin,
                                     dev_cfg->dc_pin,  dev_cfg->rst_pin, dev_cfg->busy_pin};
     for (size_t i = 0; i < sizeof(pins) / sizeof(pins[0]); ++i) {
-        if ((unsigned)pins[i] >= TUYA_GPIO_NUM_MAX) {
+        /* Platform GPIO adapters validate module pin numbers, which may
+         * exceed the common enum range. The no-pin sentinel is still invalid. */
+        if (pins[i] == TUYA_GPIO_NUM_MAX) {
             return OPRT_INVALID_PARM;
         }
         for (size_t j = 0; j < i; ++j) {
@@ -615,11 +676,11 @@ OPERATE_RET tdd_disp_spi_mono_ssd2677_register(char *name, const DISP_EINK_SSD26
     TDD_DISP_INTFS_T    intfs = {.open = locked_open, .flush = locked_flush, .close = locked_close};
     TDD_DISP_DEV_INFO_T info  = {
          .type     = TUYA_DISPLAY_SPI,
-         .width    = dev_cfg->width,
-         .height   = dev_cfg->height,
+         .width    = portrait ? dev_cfg->height : dev_cfg->width,
+         .height   = portrait ? dev_cfg->width : dev_cfg->height,
          .has_vram = true,
          .fmt      = TUYA_PIXEL_FMT_MONOCHROME,
-         .rotation = TUYA_DISPLAY_ROTATION_0,
+         .rotation = TUYA_DISPLAY_ROTATION_0, /* Already handled here; prevent LVGL port double rotation. */
          .bl       = {.type = TUYA_DISP_BL_TP_NONE},
          .power    = dev_cfg->power,
     };

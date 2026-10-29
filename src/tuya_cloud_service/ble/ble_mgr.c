@@ -21,6 +21,8 @@
 #include "ble_dp.h"
 #include "mix_method.h"
 #include "ble_channel.h"
+#include "ble_wifi_list.h"
+#include "ble_netcfg.h"
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
@@ -178,6 +180,9 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
 
     uint8_t *flag = (uint8_t *)&ble->rsp_data[ble->rsp_len++];
     *flag = 0x00; // bond flag bit7 (8)
+    if (ble_wifi_list_is_enable()) {
+    *flag |= ADV_FLAG_WIFI_LIST;
+    }
     if (ble->is_id_comp) {
         *flag |= ADV_FLAG_UUID_COMP;
     }
@@ -295,6 +300,11 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
         PR_ERR("ble trsmitr version not compatibility! %d", packet_recv->trsmitr->version);
         return OPRT_INVALID_PARM;
     }
+    // a bound device must not accept keyless frames
+    if (*ble->is_bound && ENCRYPTION_MODE_NONE == packet_recv->raw_buf[0]) {
+        PR_ERR("ble plaintext frame rejected on bound device");
+        return OPRT_INVALID_PARM;
+    }
     tuya_ble_raw_print("ble raw packet", 8, packet_recv->raw_buf, packet_recv->raw_len);
     memset(packet_recv->dec_buf, 0, TUYA_BLE_AIR_FRAME_MAX);
     rt = tuya_ble_decryption(&ble->crypto_param, packet_recv->raw_buf, packet_recv->raw_len, &packet_recv->dec_len,
@@ -341,12 +351,14 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
     packet->data = NULL;
     packet->encrypt_mode = packet_recv->raw_buf[0];
     if (0 != packet->len) {
-        packet->data = (uint8_t *)tal_malloc(packet->len);
+        // spare byte terminates the payload for cJSON_Parse
+        packet->data = (uint8_t *)tal_malloc(packet->len + 1);
         if (packet->data == NULL) {
             PR_DEBUG("ble packet malloc err");
             return OPRT_MALLOC_FAILED;
         }
         memcpy(packet->data, &packet_recv->dec_buf[BLE_PACKET_DATA_IND], packet->len);
+        packet->data[packet->len] = 0;
     }
 
     return OPRT_OK;
@@ -606,7 +618,12 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         ble_data.p_data = pbuf;
         ble_data.len = send_len;
 
-        TUYA_CALL_ERR_GOTO(tal_ble_server_common_send(&ble_data), __exit);
+        int send_ret = tal_ble_server_common_send(&ble_data);
+        if (OPRT_OK != send_ret) {
+            PR_ERR("bt hal send fail.%d", send_ret);
+            rt = send_ret;
+            goto __exit;
+        }
         tal_system_sleep(20);
     } while (rt == OPRT_SVC_BT_API_TRSMITR_CONTINUE);
 
@@ -642,6 +659,10 @@ __exit:
 int tuya_ble_send_packet(ble_packet_t *packet)
 {
     tuya_ble_mgr_t *ble = s_ble_mgr;
+
+    if (NULL == ble) {
+        return OPRT_OK;
+    }
 
     if (!ble->is_paired) {
         PR_NOTICE("ble not paired");
@@ -693,6 +714,12 @@ static int ble_unbind_req(ble_packet_t *req, void *priv_data)
     uint8_t result_code = 1;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
     ble_packet_t resp;
+
+    // this handler destroys device state, so it needs a paired session
+    if (!ble->is_paired) {
+        PR_ERR("ble unbind req before pairing");
+        return OPRT_INVALID_PARM;
+    }
 
     resp.sn = req->sn;
     resp.type = req->type;
@@ -807,7 +834,7 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     //  support. bit1: 1 - Supports reporting of various states during network
     //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
     //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = 0;
+    pbuf[payload_len++] = ble_wifi_list_is_enable() ? (uint8_t)((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3)) : 0;
 
     return payload_len;
 }
@@ -819,20 +846,31 @@ static int ble_dev_info_req(ble_packet_t *req, void *priv_data)
     uint8_t buf_len = 128;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)priv_data;
 
+    // req->data is NULL for a zero-length frame
+    if (req->len < 2) {
+        PR_ERR("ble dev info req len err:%d", req->len);
+        return OPRT_INVALID_PARM;
+    }
     // Gets the Bluetooth subcontract length from the protocol
     uint16_t pkg_len = (req->data[0] << 8 & 0xff00) + (req->data[1] & 0xff);
-    ble_frame_packet_len_set(pkg_len);
-    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
-    if (trsmitr->subpkg) {
-        tal_free(trsmitr->subpkg);
-        trsmitr->subpkg = NULL;
+    // this sizes the reassembly buffer and the transmit encoder's capacity
+    if (pkg_len < TUYA_BLE_SUBPACK_LEN_MIN || pkg_len > TUYA_BLE_AIR_FRAME_MAX) {
+        PR_ERR("ble sub packet len out of range:%d", pkg_len);
+        return OPRT_INVALID_PARM;
     }
-    trsmitr->subpkg = (uint8_t *)tal_malloc(pkg_len);
-    if (trsmitr->subpkg == NULL) {
+    ble_frame_trsmitr_t *trsmitr = ble->packet_recv->trsmitr;
+    // allocate before releasing, so a failure cannot leave subpkg NULL
+    uint8_t *subpkg = (uint8_t *)tal_malloc(pkg_len);
+    if (subpkg == NULL) {
         PR_ERR("malloc err:%d", pkg_len);
         return OPRT_MALLOC_FAILED;
     }
-    memset(trsmitr->subpkg, 0, pkg_len);
+    memset(subpkg, 0, pkg_len);
+    if (trsmitr->subpkg) {
+        tal_free(trsmitr->subpkg);
+    }
+    trsmitr->subpkg = subpkg;
+    ble_frame_packet_len_set(pkg_len);
     PR_NOTICE("ble dev info: state:%d, pkg_len:%d", *ble->is_bound, ble_frame_packet_len_get());
 
     pbuf = (uint8_t *)tal_malloc(buf_len);
@@ -882,6 +920,11 @@ void ble_session_system_process(ble_packet_t *packet, void *priv_data)
         break;
 
     case FRM_PAIR_REQ:
+        // ble_pair_req() memcmp()s the body against the device UUID
+        if (packet->len < BLE_ID_LEN) {
+            PR_ERR("ble pair req too short:%d", packet->len);
+            break;
+        }
         TUYA_CALL_ERR_LOG(ble_pair_req(packet, priv_data));
         break;
 
@@ -908,8 +951,7 @@ static TAL_BLE_EVT_PARAMS_T * ble_event_msg_copy(TAL_BLE_EVT_PARAMS_T *evt)
     memcpy(msg, evt, sizeof(TAL_BLE_EVT_PARAMS_T));
 
     if (TAL_BLE_EVT_WRITE_REQ == evt->type && evt->ble_event.write_report.report.len > 0) {
-        msg->ble_event.write_report.report.p_data =
-            tal_malloc(evt->ble_event.write_report.report.len);
+        msg->ble_event.write_report.report.p_data = tal_malloc(evt->ble_event.write_report.report.len);
         if (NULL == msg->ble_event.write_report.report.p_data) {
             tal_free(msg);
             return NULL;
@@ -1054,6 +1096,9 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_SYSTEM);
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
+    ble_channel_del(BLE_CHANNLE_WIFI_LST);
+    ble_channel_del(BLE_CHANNLE_NETCFG_STAT);
+    ble_wifi_list_cache_clear();
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;
@@ -1136,6 +1181,8 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     tuya_ble_session_add(BLE_SESSION_SYSTEM, ble_session_system_process, ble);
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
+    ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
+    ble_channel_add(BLE_CHANNLE_NETCFG_STAT, ble_netcfg_stat_query, NULL);
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
     PR_NOTICE("tuya ble init success finish");

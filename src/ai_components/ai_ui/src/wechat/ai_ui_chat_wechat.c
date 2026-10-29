@@ -156,14 +156,21 @@ static OPERATE_RET __ui_init(void)
 
     lv_vendor_disp_lock();
 
+    lv_obj_t *act_screen = lv_scr_act();
+    if (NULL == act_screen) {
+        PR_ERR("active screen is null");
+        lv_vendor_disp_unlock();
+        return OPRT_COM_ERROR;
+    }
+
     /* Disable scrolling on the root screen so gesture events are not blocked */
-    lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(act_screen, LV_OBJ_FLAG_SCROLLABLE);
 
     const lv_font_t *text_font = ai_ui_get_text_font();
     const lv_font_t *icon_font = ai_ui_get_icon_font();
 
     /* Screen */
-    lv_obj_t *screen = lv_obj_create(lv_scr_act());
+    lv_obj_t *screen = lv_obj_create(act_screen);
     lv_obj_set_size(screen, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(screen, lv_color_hex(0xF0F0F0), 0);
     lv_obj_set_style_pad_all(screen, 0, 0);

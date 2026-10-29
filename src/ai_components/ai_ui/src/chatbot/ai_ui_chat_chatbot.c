@@ -163,6 +163,11 @@ static OPERATE_RET __ui_init(void)
     __ui_font_init();
 
     lv_obj_t *screen = lv_screen_active();
+    if (NULL == screen) {
+        PR_ERR("screen is null");
+        lv_vendor_disp_unlock();
+        return OPRT_COM_ERROR;
+    }
     lv_obj_set_style_text_font(screen, sg_font.text, 0);
     lv_obj_set_style_text_color(screen, sg_theme_colors.text, 0);
     lv_obj_set_style_bg_color(screen, sg_theme_colors.background, 0);
