@@ -26,6 +26,7 @@
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
+#include "tal_mutex.h"
 #include "crc_16.h"
 #include "uni_random.h"
 
@@ -95,6 +96,8 @@ typedef struct {
 
 static tuya_ble_mgr_t *s_ble_mgr = NULL;
 static bool s_ble_debug = false;
+/* Shared by async reports and command responses; retained across BLE reinit. */
+static MUTEX_HANDLE s_ble_send_mutex = NULL;
 
 /**
  * @brief Prints the raw data in hexadecimal format.
@@ -598,6 +601,12 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
     uint8_t *outbuf = NULL;
     uint32_t outlen;
 
+    /* Serialize the whole frame, including sequence allocation. Locking each
+     * notification separately would still allow two frames to interleave. */
+    rt = tal_mutex_lock(s_ble_send_mutex);
+    if (OPRT_OK != rt) {
+        return rt;
+    }
     TUYA_CALL_ERR_GOTO(ble_packet_encode(ble, resp, &outbuf, &outlen), __exit);
     uint16_t buf_len = ble_frame_packet_len_get();
     rt = OPRT_MALLOC_FAILED;
@@ -618,6 +627,7 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         ble_data.p_data = pbuf;
         ble_data.len = send_len;
 
+        /* Keep the fragment encoder's CONTINUE status for the loop below. */
         int send_ret = tal_ble_server_common_send(&ble_data);
         if (OPRT_OK != send_ret) {
             PR_ERR("bt hal send fail.%d", send_ret);
@@ -640,6 +650,7 @@ __exit:
         ble_frame_trsmitr_delete(trsmitr);
     }
 
+    tal_mutex_unlock(s_ble_send_mutex);
     return rt;
 }
 
@@ -1081,6 +1092,7 @@ int tuya_ble_deinit(void)
         return OPRT_OK;
     }
     PR_NOTICE("ble deinit...");
+    tuya_ble_dp_report_async_release();
     if (ble->pair_timer) {
         tal_sw_timer_delete(ble->pair_timer);
     }
@@ -1144,6 +1156,12 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     if (s_ble_mgr) {
         return OPRT_OK;
     }
+    if (NULL == s_ble_send_mutex) {
+        rt = tal_mutex_create_init(&s_ble_send_mutex);
+        if (OPRT_OK != rt) {
+            return rt;
+        }
+    }
     tuya_ble_mgr_t *ble = NULL;
     ble = tal_malloc(sizeof(tuya_ble_mgr_t));
     if (NULL == ble) {
@@ -1185,6 +1203,7 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     ble_channel_add(BLE_CHANNLE_NETCFG_STAT, ble_netcfg_stat_query, NULL);
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
+    TUYA_CALL_ERR_GOTO(tuya_ble_dp_report_async_init(), __exit);
     PR_NOTICE("tuya ble init success finish");
 
     return OPRT_OK;
