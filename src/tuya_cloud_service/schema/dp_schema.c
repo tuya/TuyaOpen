@@ -732,7 +732,7 @@ static bool dp_type_check(dp_rept_type_t dp_rept_type, dp_obj_t *dp, dp_node_t *
         }
 
         case PROP_BITMAP:
-            if (dp->type != cJSON_Number) {
+            if (dp->type != PROP_BITMAP) {
                 PR_ERR("bitmap check fail %d %d %d", dp->type, dp->value.dp_bitmap, node->prop.prop_bitmap.max_len);
                 return FALSE;
             }
