@@ -731,12 +731,19 @@ static bool dp_type_check(dp_rept_type_t dp_rept_type, dp_obj_t *dp, dp_node_t *
             break;
         }
 
-        case PROP_BITMAP:
-            if (dp->type != cJSON_Number) {
-                PR_ERR("bitmap check fail %d %d %d", dp->type, dp->value.dp_bitmap, node->prop.prop_bitmap.max_len);
+        case PROP_BITMAP: {
+            /* dp->type is a Tuya property type (PROP_*), already matched to the
+             * schema by dp_rept_valid_check(). Do not compare it to cJSON node
+             * types — that always rejects valid Object bitmap/Fault DPs
+             * (PROP_BITMAP=4 vs cJSON_Number=8). Validate bit width instead. */
+            uint32_t max_len = node->prop.prop_bitmap.max_len;
+            if (max_len > 0 && max_len < 32 &&
+                (dp->value.dp_bitmap & ~((1u << max_len) - 1u)) != 0) {
+                PR_ERR("bitmap check fail %u %u", dp->value.dp_bitmap, max_len);
                 return FALSE;
             }
             break;
+        }
 
         default: {
             PR_ERR("prop_tp err:%d", node->desc.prop_tp);
