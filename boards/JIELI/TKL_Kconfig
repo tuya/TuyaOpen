@@ -11,17 +11,13 @@
 #
 # Undeclared on purpose:
 #
-#   ENABLE_PWM, ENABLE_I2C, ENABLE_SPI, ENABLE_QSPI,
+#   ENABLE_QSPI,
 #   ENABLE_WATCHDOG, ENABLE_PINMUX, ENABLE_TOUCH, ENABLE_RTC
-#       ENABLE_PWM / ENABLE_I2C / ENABLE_SPI have backends in the adapter, but
-#       neither staged board registers the vendor device (wl83 gates each one
-#       behind a commented-out USE_*_TEST_DEMO; the wl82 board file that
-#       declares them is not the profile the platform stages). Declaring the
-#       capability would advertise a device that dev_open() cannot return.
 #       ENABLE_PINMUX is wl83-only, and a platform-level switch has no chip
 #       dimension. The rest have no tkl_*.c under tuyaos_adapter/src/driver.
-#       examples/peripherals/{pwm,spi,touch,watchdog} therefore stop with
-#       "cannot work when CONFIG_ENABLE_X is not set", which is the truth.
+#       examples/peripherals/{spi,touch,watchdog} therefore stop with
+#       "cannot work when CONFIG_ENABLE_X is not set". PWM has a compile gate
+#       below; that gate does not claim runtime or board support on either chip.
 #
 #   ENABLE_MEDIA
 #       Declared in Kconfig beside this file instead. There it is not a bare
@@ -41,6 +37,14 @@ config ENABLE_UART
     bool
     default y
 
+config ENABLE_SPI
+    bool "Compile Jieli TKL SPI adapter"
+    default n
+    help
+        Include the Jieli TKL SPI adapter source in the firmware.
+        This is a compile-time switch only. It does not claim that the
+        selected board provides or registers a usable SPI device.
+
 config ENABLE_WIFI
     bool
     default y
@@ -51,11 +55,11 @@ config ENABLE_BLUETOOTH
 
 # The adapter implements tkl_bluetooth but not tkl_hci, and the NimBLE host
 # needs the latter: src/tal_bluetooth/nimble/host/ble_hs.c includes tkl_hci.h,
-# which no Jieli adapter provides. ENABLE_NIMBLE defaults to y in
-# src/tuya_cloud_service/Kconfig, so a board that cannot host NimBLE has to say
-# so rather than fail on a missing header. GD32 takes the same opt-out.
-config ENABLE_NIMBLE
-    default n
+# which no Jieli adapter provides. src/tuya_cloud_service/Kconfig therefore
+# carries "depends on !BOARD_CHOICE_JIELI" for ENABLE_NIMBLE, making the symbol
+# structurally unreachable on this board family. No local default is kept here:
+# a second declaration would be dead weight that silently diverges if the
+# common Kconfig ever changes.
 
 config ENABLE_FLASH
     bool
@@ -68,6 +72,26 @@ config ENABLE_GPIO
 config ENABLE_ADC
     bool
     default y
+
+config ENABLE_I2C
+    bool "Compile Jieli TKL I2C adapter"
+    default y
+
+config ENABLE_PWM
+    bool "Compile Jieli TKL PWM adapter"
+    default y
+    help
+        Compile-gate the Jieli TKL PWM adapter on both chips. This does not
+        claim runtime or board PWM support; WL82 is not supported at runtime.
+
+config ENABLE_MCU8080
+    bool "Compile Jieli TKL MCU8080 adapter"
+    default y if BOARD_CHOICE_AC79_DEVKITBOARD
+    default n
+    help
+        Compile the MCU8080 adapter for the AC79 DevKit board. This adapter
+        is implemented only for WL82 AC79_DevKitBoard; WL83 builds must leave
+        this option disabled.
 
 # tkl_sleep is real on both chips now: WL82 holds the core awake with
 # low_power_sys_unsleep_lock()/unlock(), WL83 with low_power_disable()/enable(),

@@ -117,6 +117,12 @@ message(STATUS "[TOP] Using toolchain file [${CMAKE_TOOLCHAIN_FILE}].")
 project(opensdk)
 
 # add platform
+#
+# PLATFORM_TKL_ROOT is the directory holding the TKL contract headers a module
+# may include. Platforms that vendor their own copies override it inside
+# platform_config.cmake; the rest use the shared porting adapters, so modules
+# never have to know which platform they are compiled for.
+set(PLATFORM_TKL_ROOT "${TOP_SOURCE_DIR}/tools/porting/adapter")
 include("${PLATFORM_PATH}/platform_config.cmake")
 
 

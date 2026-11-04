@@ -27,8 +27,13 @@ set(APP_MODULE_INC
     ${APP_MODULE_PATH}
     ${APP_MODULE_PATH}/status
     ${APP_MODULE_PATH}/emotion
-    ${PROJECT_SOURCE_DIR}/tools/porting/adapter/display
 )
+
+if (EXISTS ${PLATFORM_TKL_ROOT}/display)
+    list(APPEND APP_MODULE_INC
+        ${PLATFORM_TKL_ROOT}/display
+    )
+endif()
 
 if (EXISTS ${AI_UI_FONT_PATH})
     list(APPEND APP_MODULE_INC ${AI_UI_FONT_PATH})
