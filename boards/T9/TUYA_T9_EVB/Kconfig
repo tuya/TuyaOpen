@@ -1,0 +1,11 @@
+config CHIP_CHOICE
+    string
+    default "T9"
+
+config BOARD_CHOICE
+    string
+    default "TUYA_T9_EVB"
+
+config BOARD_CONFIG
+    bool
+    default y

@@ -1,0 +1,12 @@
+config ENABLE_T9_OS_SERVICE
+    bool
+    default y
+    select ENABLE_BT_SERVICE
+    select ENABLE_BT_NETCFG
+    select ENABLE_BT_CTRL
+    select ENABLE_BT_WIFI_LIST
+    select ENABLE_NIMBLE
+
+config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"

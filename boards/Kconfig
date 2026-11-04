@@ -38,6 +38,10 @@ config BOARD_ENABLE_L511
     bool
     default y
 
+config BOARD_ENABLE_T9
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -138,6 +142,14 @@ if (BOARD_ENABLE_L511)
             rsource "./L511C_Y7PM/Kconfig"
         endif
     endchoice
+    endif
+endif
+
+if (BOARD_ENABLE_T9)
+    config BOARD_CHOICE_T9
+        bool "T9"
+    if (BOARD_CHOICE_T9)
+    rsource "./T9/Kconfig"
     endif
 endif
 
