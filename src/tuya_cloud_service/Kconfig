@@ -89,6 +89,7 @@ menu "configure tuya cloud service"
 
             menuconfig ENABLE_NIMBLE
                 bool "ENABLE_NIMBLE: enable nimble stack instead of ble stack in board"
+                depends on !BOARD_CHOICE_JIELI
                 default y
                 if (ENABLE_NIMBLE) 
                     config TUYA_HS_BLE_HOST_TASK_PRIORITY

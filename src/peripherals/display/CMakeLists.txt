@@ -46,21 +46,17 @@ set(LIB_PUBLIC_INC
     ${MODULE_PATH}/tdd_display/include
     )
 
-# The MIPI-DSI TDD reaches the platform through the TKL MIPI-DSI contract, and
-# TDL's power-pin handling uses the GPIO contract. Other bus families get these
-# from their own platform headers, which is why this was not needed before.
+# TDL's power-pin handling uses the GPIO contract, which every TKL root
+# provides.
 list(APPEND LIB_PRIVATE_INC
-    ${TOP_SOURCE_DIR}/tools/porting/adapter/gpio
+    ${PLATFORM_TKL_ROOT}/gpio
     )
 
-# Unlike the other display contracts, tkl_mipi_dsi.h ships with the platform
-# that implements it rather than with the shared adapters, so the TDD needs the
-# platform's own include directory. This is the one place a module has to know
-# where a platform keeps its headers; the GPIO contract above does not, because
-# it is shared. The audio module conditions on the platform the same way.
-if(CONFIG_PLATFORM_CHOICE STREQUAL "JIELI")
+# tkl_mipi_dsi.h is optional: it ships only with the platform that implements
+# the contract, so a platform without MIPI-DSI has no mipi_dsi directory.
+if(EXISTS ${PLATFORM_TKL_ROOT}/mipi_dsi)
     list(APPEND LIB_PRIVATE_INC
-        ${PLATFORM_PATH}/tuyaos/tuyaos_adapter/include/mipi_dsi
+        ${PLATFORM_TKL_ROOT}/mipi_dsi
         )
 endif()
 

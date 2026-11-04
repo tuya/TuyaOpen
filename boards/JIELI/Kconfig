@@ -26,15 +26,23 @@ config LITTLE_END
 
 rsource "./TKL_Kconfig"
 
-# Tuya's generic audio codec layer compiles tdd_audio.c only when this
-# platform-scoped media switch is enabled. Keep it opt-in for Jieli boards.
+# The WL83 vendor CVP configuration depends on media support. Enable it by
+# default for Jieli boards, while keeping the option user-configurable.
 config ENABLE_MEDIA
     bool "Enable Jieli media/audio codecs"
-    default n
+    default y
     select ENABLE_AUDIO_CODECS
     help
         Enable the TuyaOpen TDD audio codec on Jieli WL82/WL83 targets.
-        This option is scoped to the Jieli board catalog.
+        This option defaults to enabled but is not forced on. WL83 vendor
+        builds depend on media support for their CVP configuration, so
+        setting this option to n is unsupported on WL83.
+
+# ENABLE_LIBLVGL is deliberately left at its upstream default (n) here. The
+# per-board snapshots in boards/JIELI/config/ set CONFIG_ENABLE_LIBLVGL=y, so a
+# board build still gets LVGL by default. A `default y` at this level would
+# combine with src/liblvgl/Kconfig's `select ENABLE_DISPLAY` and make
+# ENABLE_DISPLAY impossible to turn off, which breaks audio-only builds.
 
 config ENABLE_JIELI_ADKEY_BUTTON
     bool "Register the Jieli K1 ADKEY through Tuya Button TDL"
@@ -60,7 +68,9 @@ config JIELI_UART_LOG_BAUDRATE
 
 config ENABLE_JIELI_USB_CDC_LOG
     bool "Route log output to USB CDC virtual serial port"
-    default y
+    # USB CDC logging is not supported by the current JieLi build baseline.
+    # Track CDC transport and SDK linkage as an independent follow-up feature.
+    default n
     help
         When enabled, tkl_log_output routes system logs to the USB CDC-ACM
         virtual serial port instead of the default hardware UART port.

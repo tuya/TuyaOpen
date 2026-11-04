@@ -29,7 +29,7 @@ set(LIB_PUBLIC_INC
     )
 
 if (CONFIG_ENABLE_BUTTON_ADC STREQUAL "y")
-    list(APPEND LIB_PRIVATE_INC ${TOP_SOURCE_DIR}/tools/porting/adapter/adc)
+    list(APPEND LIB_PRIVATE_INC ${PLATFORM_TKL_ROOT}/adc)
 endif()
 
 

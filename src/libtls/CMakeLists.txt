@@ -49,10 +49,12 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
-if(CONFIG_PLATFORM_JIELI STREQUAL "y")
+# A platform that needs its own mbedtls configuration names the header here.
+# It lives in this module's port directory, which is already a public include.
+if(DEFINED PLATFORM_MBEDTLS_CONFIG_FILE)
     target_compile_definitions(${MODULE_NAME}
         PUBLIC
-            MBEDTLS_CONFIG_FILE=\"jieli_mbedtls_config.h\"
+            MBEDTLS_CONFIG_FILE=\"${PLATFORM_MBEDTLS_CONFIG_FILE}\"
     )
 endif()
 
