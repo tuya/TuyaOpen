@@ -62,6 +62,6 @@ platforms:
 - name: T9
   repo: https://github.com/tuya/TuyaOpen-T9
   branch: master
-  commit: 0854b4ee8b70901ecf90a50143ee6f9db751b8bb
+  commit: ceaad8c88da0de5169db003f0ee0a80f9e8e83aa
 
 
