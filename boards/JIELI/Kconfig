@@ -68,8 +68,10 @@ config JIELI_UART_LOG_BAUDRATE
 
 config ENABLE_JIELI_USB_CDC_LOG
     bool "Route log output to USB CDC virtual serial port"
-    # USB CDC logging is not supported by the current JieLi build baseline.
-    # Track CDC transport and SDK linkage as an independent follow-up feature.
+    # Off by default: enabling it moves the system log off the hardware UART,
+    # which is the only console on a board with no USB host attached. The CDC
+    # class and cdc_write_data() are staged (usb/device/cdc.c), so a board that
+    # wants the virtual serial console can enable it per project.
     default n
     help
         When enabled, tkl_log_output routes system logs to the USB CDC-ACM
