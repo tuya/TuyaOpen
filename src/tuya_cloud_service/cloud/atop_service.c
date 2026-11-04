@@ -29,9 +29,10 @@
 
 #define ATOP_DEFAULT_POST_BUFFER_LEN (128)
 
-#define CAD_VER       "1.0.3"
-#define CD_VER        "1.0.0"
-#define ATTRIBUTE_OTA (11)
+#define CAD_VER                "1.0.3"
+#define CD_VER                 "1.0.0"
+#define ATTRIBUTE_OTA          (11)
+#define ATTRIBUTE_WIFI_PROTECT (12)
 
 /**
  * @brief Sends an activate request to the ATOP service.
@@ -190,7 +191,11 @@ int atop_service_activate_request(const tuya_activite_request_t *request, atop_b
     }
 
     /* default support device OTA */
-    write_len = snprintf(buffer + offset, remain, ",\"devAttribute\":%u", 1 << ATTRIBUTE_OTA);
+    uint32_t dev_attribute = 1 << ATTRIBUTE_OTA;
+#ifdef ENABLE_WIFI_BACKUP
+    dev_attribute |= 1 << ATTRIBUTE_WIFI_PROTECT;
+#endif
+    write_len = snprintf(buffer + offset, remain, ",\"devAttribute\":%" PRIu32, dev_attribute);
     if (write_len < 0 || (size_t)write_len >= remain) {
         tal_free(buffer);
         return OPRT_BUFFER_NOT_ENOUGH;
