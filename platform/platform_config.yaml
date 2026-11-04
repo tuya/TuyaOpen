@@ -58,3 +58,10 @@ platforms:
   repo: https://github.com/tuya/TuyaOpen-LYNQ
   branch: l511c-y7pm
   commit: 9293fa94fdc1cf95d61df0129be52ddfc6d2082b
+
+- name: T9
+  repo: https://github.com/tuya/TuyaOpen-T9
+  branch: master
+  commit: 0854b4ee8b70901ecf90a50143ee6f9db751b8bb
+
+

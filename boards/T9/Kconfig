@@ -1,0 +1,34 @@
+# Ktuyaconf
+config PLATFORM_CHOICE
+    string
+    default "T9"
+
+config PLATFORM_T9
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+        3       /* Non-OS */
+
+rsource "./TKL_Kconfig"
+
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a board"
+    default BOARD_CHOICE_TUYA_T9_EVB
+
+    config BOARD_CHOICE_TUYA_T9_EVB
+        bool "TUYA_T9_EVB"
+        if (BOARD_CHOICE_TUYA_T9_EVB)
+            rsource "./TUYA_T9_EVB/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice
