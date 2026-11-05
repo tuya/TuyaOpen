@@ -336,6 +336,11 @@ static OPERATE_RET __board_register_axp2101(void)
     OPERATE_RET          rt = OPRT_OK;
     TUYA_GPIO_BASE_CFG_T gc = {.mode = TUYA_GPIO_PUSH_PULL, .direct = TUYA_GPIO_OUTPUT, .level = TUYA_GPIO_LEVEL_HIGH};
 
+    // AXP2101 is the first board device initialized, so claim I2C0 pins before
+    // the power driver opens the bus (BMI270 configures the same pins later).
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_20, TUYA_IIC0_SCL);
+    tkl_io_pinmux_config(TUYA_GPIO_NUM_21, TUYA_IIC0_SDA);
+
     // --- AXP2101 contributor: chip bring-up + app domains + fuel gauge + charge ---
     // App-visible rails (role -> channel, boot voltage + state).
     static const TDD_POWER_AXP_DOMAIN_T axp_domains[] = {
@@ -346,13 +351,10 @@ static OPERATE_RET __board_register_axp2101(void)
         {TDL_PWR_DOMAIN_JOYSTICK,    VDD_JOYCON_1V1, 1100, FALSE},
         {TDL_PWR_DOMAIN_RTC,         RTC_VDD,        1800, TRUE },
     };
-    // No-role rails: DCDC1/DCDC5 are the board 3V3 core (kept on); the rest are the
-    // unused channels the original bring-up defensively disabled.
+    // No-role rails: DCDC1/DCDC5 are the board 3V3 core supplies.
     static const TDD_POWER_AXP_RAIL_T axp_rails[] = {
-        {XPOWERS_DCDC1, 3300, TRUE }, {XPOWERS_DCDC5, 3300, TRUE },
-        {XPOWERS_DCDC2, 0, FALSE}, {XPOWERS_DCDC3, 0, FALSE}, {XPOWERS_DCDC4, 0, FALSE},
-        {XPOWERS_ALDO1, 0, FALSE}, {XPOWERS_ALDO2, 0, FALSE},
-        {XPOWERS_DLDO1, 0, FALSE}, {XPOWERS_CPULDO, 0, FALSE}, {XPOWERS_VBACKUP, 0, FALSE},
+        {XPOWERS_DCDC1, 3300, TRUE },
+        {XPOWERS_DCDC5, 3300, TRUE },
     };
     rt = tdd_power_axp2101_register(POWER_NAME, &(TDD_POWER_AXP2101_CFG_T){
         .domains = axp_domains, .domain_cnt = sizeof(axp_domains) / sizeof(axp_domains[0]),
@@ -361,9 +363,12 @@ static OPERATE_RET __board_register_axp2101(void)
             .vbus_vol_limit    = XPOWERS_AXP2101_VBUS_VOL_LIM_4V20,
             .vbus_cur_limit    = XPOWERS_AXP2101_VBUS_CUR_LIM_500MA,
             .sys_power_down_mv = 3300,
-            .precharge_curr    = XPOWERS_AXP2101_PRECHARGE_200MA,
-            .term_curr         = XPOWERS_AXP2101_CHG_ITERM_25MA,
-            .const_curr        = XPOWERS_AXP2101_CHG_CUR_1000MA,
+            // 3.7 V / 525 mAh single cell: 0.5C fast charge, <=0.1C precharge.
+            // The VBUS limit covers the whole input (system load + charge), so
+            // the charge current has to stay well below it.
+            .precharge_curr    = XPOWERS_AXP2101_PRECHARGE_50MA,    // 0.095C
+            .term_curr         = XPOWERS_AXP2101_CHG_ITERM_25MA,    // 0.048C
+            .const_curr        = XPOWERS_AXP2101_CHG_CUR_300MA,     // 0.57C
             .target_vol        = XPOWERS_AXP2101_CHG_VOL_4V2,
             .led_mode          = XPOWERS_CHG_LED_CTRL_CHG,
         },

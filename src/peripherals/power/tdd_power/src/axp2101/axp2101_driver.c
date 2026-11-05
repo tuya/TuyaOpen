@@ -20,6 +20,13 @@
 ************************macro define************************
 ***********************************************************/
 #define IS_BIT_SET(val, mask) (((val) & (mask)) == (mask))
+
+/* Temporary bring-up diagnostics: log every I2C transaction result so a bus
+ * failure can be told apart from a device returning zero. Set to 0 when done. */
+#ifndef AXP2101_I2C_DIAG
+#define AXP2101_I2C_DIAG 0
+#endif
+
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
@@ -32,6 +39,54 @@ static uint32_t __protectedMask = 0;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+#if AXP2101_I2C_DIAG
+/* Read the two bus lines as plain GPIO inputs before the controller owns them.
+ * A healthy idle I2C bus is pulled high on both lines. */
+static void __axp_i2c_line_probe(void)
+{
+    TUYA_GPIO_BASE_CFG_T cfg = {
+        .mode = TUYA_GPIO_PULLUP, .direct = TUYA_GPIO_INPUT, .level = TUYA_GPIO_LEVEL_HIGH};
+    TUYA_GPIO_LEVEL_E scl = TUYA_GPIO_LEVEL_LOW;
+    TUYA_GPIO_LEVEL_E sda = TUYA_GPIO_LEVEL_LOW;
+
+    tkl_gpio_init(TUYA_GPIO_NUM_20, &cfg);
+    tkl_gpio_init(TUYA_GPIO_NUM_21, &cfg);
+    tal_system_sleep(2);
+    tkl_gpio_read(TUYA_GPIO_NUM_20, &scl);
+    tkl_gpio_read(TUYA_GPIO_NUM_21, &sda);
+    PR_ERR("[AXP-DBG] idle lines: SCL(GPIO20)=%d SDA(GPIO21)=%d (healthy = 1/1)", scl, sda);
+}
+
+/* Raw transactions with return codes, before the driver does anything else.
+ * Style A = write register address with STOP, then read (what the driver uses).
+ * Style B = write register address with pending/repeated-start, then read. */
+static void __axp_i2c_bus_probe(void)
+{
+    OPERATE_RET tx, rx;
+    uint8_t     reg = XPOWERS_AXP2101_IC_TYPE;
+    uint8_t     val = 0xEE;
+
+    tx = tkl_i2c_master_send(TUYA_I2C_NUM_0, AXP2101_SLAVE_ADDRESS, &reg, 1, FALSE);
+    rx = tkl_i2c_master_receive(TUYA_I2C_NUM_0, AXP2101_SLAVE_ADDRESS, &val, 1, FALSE);
+    PR_ERR("[AXP-DBG] split TX=%d RX=%d val=0x%02X", tx, rx, val);
+
+    val = 0xEE;
+    tx  = tkl_i2c_master_send(TUYA_I2C_NUM_0, AXP2101_SLAVE_ADDRESS, &reg, 1, TRUE);
+    rx  = tkl_i2c_master_receive(TUYA_I2C_NUM_0, AXP2101_SLAVE_ADDRESS, &val, 1, FALSE);
+    PR_ERR("[AXP-DBG] pending TX=%d RX=%d val=0x%02X", tx, rx, val);
+
+    /* Which addresses ACK a single address byte at all? */
+    {
+        static const uint8_t addrs[] = {0x34, 0x68, 0x69, 0x3C, 0x3D, 0x1A};
+        uint8_t              dummy   = 0x00;
+        for (uint32_t i = 0; i < sizeof(addrs) / sizeof(addrs[0]); i++) {
+            OPERATE_RET r = tkl_i2c_master_send(TUYA_I2C_NUM_0, addrs[i], &dummy, 1, FALSE);
+            PR_ERR("[AXP-DBG] scan 0x%02X -> %d (%s)", addrs[i], r, (r == OPRT_OK) ? "ACK" : "no ack");
+        }
+    }
+}
+#endif
+
 static OPERATE_RET __i2c_init(void)
 {
     OPERATE_RET op_ret = OPRT_OK;
@@ -63,6 +118,9 @@ OPERATE_RET axp2101_write_reg(axp2101_dev_t *dev, uint8_t reg, uint8_t data)
     buf[1] = data;
 
     ret = tkl_i2c_master_send(dev->i2c_port, dev->i2c_addr, buf, 2, FALSE);
+#if AXP2101_I2C_DIAG
+    PR_ERR("[AXP-DBG] W 0x%02X = 0x%02X -> %d", reg, data, ret);
+#endif
     if (ret < 0) {
         return ret;
     }
@@ -78,12 +136,23 @@ OPERATE_RET axp2101_read_regs(axp2101_dev_t *dev, uint8_t reg, uint8_t *data, ui
         return OPRT_INVALID_PARM;
     }
 
-    ret = tkl_i2c_master_send(dev->i2c_port, dev->i2c_addr, &reg, 1, FALSE);
+    ret = tkl_i2c_master_send(dev->i2c_port, dev->i2c_addr, &reg, 1, TRUE);
     if (ret < 0) {
+#if AXP2101_I2C_DIAG
+        PR_ERR("[AXP-DBG] R 0x%02X: addr write failed -> %d", reg, ret);
+#endif
         return ret;
     }
 
+#if AXP2101_I2C_DIAG
+    /* Pre-fill so the dump below is unambiguous for every caller: 0x5A means
+     * the RX path never delivered a byte, anything else is real bus data. */
+    memset(data, 0x5A, len);
+#endif
     ret = tkl_i2c_master_receive(dev->i2c_port, dev->i2c_addr, data, len, FALSE);
+#if AXP2101_I2C_DIAG
+    PR_ERR("[AXP-DBG] R 0x%02X = 0x%02X -> %d buf=%p", reg, data[0], ret, (void *)data);
+#endif
     if (ret < 0) {
         return ret;
     }
@@ -98,7 +167,7 @@ OPERATE_RET axp2101_read_regs(axp2101_dev_t *dev, uint8_t reg, uint8_t *data, ui
  */
 uint8_t readRegister(uint8_t reg)
 {
-    uint8_t data;
+    uint8_t data = 0xEE; /* sentinel: stays 0xEE if the ISR never filled the buffer */
     if (axp2101_read_regs(&axp2101_dev, reg, &data, 1) == OPRT_OK) {
         return data;
     }
@@ -144,6 +213,9 @@ bool setRegisterBit(uint8_t reg, uint8_t bit)
         return false;
     }
     value |= (1U << bit);
+    if (reg == XPOWERS_AXP2101_DC_ONOFF_DVM_CTRL) {
+        value |= (1U << 0); // Always keep DCDC1 (MCU 3V3 core) enabled
+    }
     return (axp2101_write_reg(&axp2101_dev, reg, value) == OPRT_OK);
 }
 
@@ -160,6 +232,9 @@ bool clrRegisterBit(uint8_t reg, uint8_t bit)
         return false;
     }
     value &= ~(1U << bit);
+    if (reg == XPOWERS_AXP2101_DC_ONOFF_DVM_CTRL) {
+        value |= (1U << 0); // Always keep DCDC1 (MCU 3V3 core) enabled
+    }
     return (axp2101_write_reg(&axp2101_dev, reg, value) == OPRT_OK);
 }
 
@@ -251,6 +326,30 @@ bool isPowerOff(void)
 bool axp2101_isVbusIn(void)
 {
     return getRegisterBit(XPOWERS_AXP2101_STATUS2, 3) == 0 && isVbusGood();
+}
+
+void axp2101_getStatus(axp2101_status_t *st)
+{
+    int status1;
+    int status2;
+
+    if (st == NULL) {
+        return;
+    }
+
+    status1 = readRegister(XPOWERS_AXP2101_STATUS1);
+    status2 = readRegister(XPOWERS_AXP2101_STATUS2);
+    if (status1 == -1 || status2 == -1) {
+        memset(st, 0, sizeof(*st));
+        st->chg_status = XPOWERS_AXP2101_CHG_STOP_STATE;
+        return;
+    }
+
+    st->battery_connect = (status1 >> 3) & 0x01;
+    st->vbus_good       = (status1 >> 5) & 0x01;
+    st->charging        = ((status2 >> 5) & 0x03) == 0x01;
+    st->vbus_in         = (((status2 >> 3) & 0x01) == 0) && st->vbus_good;
+    st->chg_status      = (xpowers_chg_status_t)(status2 & 0x07);
 }
 
 xpowers_chg_status_t getChargerStatus(void)
@@ -453,13 +552,13 @@ uint8_t axp2101_getVbusVoltageLimit(void)
  *              parameters in "XPowersParams.hpp"
  * @retval true valid false invalid
  */
-bool axp2101_setVbusCurrentLimit(xpower_apx2101_vbus_vol_limit_t opt)
+bool axp2101_setVbusCurrentLimit(xpowers_axp2101_vbus_cur_limit_t opt)
 {
     int val = readRegister(XPOWERS_AXP2101_INPUT_CUR_LIMIT_CTRL);
     if (val == -1)
         return false;
     val &= 0xF8;
-    return 0 == writeRegister(XPOWERS_AXP2101_INPUT_CUR_LIMIT_CTRL, val | (opt & 0x07));
+    return writeRegister(XPOWERS_AXP2101_INPUT_CUR_LIMIT_CTRL, val | (opt & 0x07));
 }
 
 /**
@@ -540,7 +639,7 @@ bool setButtonBatteryChargeVoltage(uint16_t millivolt)
         return 0;
     val &= 0xF8;
     val |= (millivolt - XPOWERS_AXP2101_BTN_VOL_MIN) / XPOWERS_AXP2101_BTN_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_BTN_BAT_CHG_VOL_SET, val);
+    return writeRegister(XPOWERS_AXP2101_BTN_BAT_CHG_VOL_SET, val);
 }
 
 uint16_t getButtonBatteryVoltage(void)
@@ -890,7 +989,7 @@ bool axp2101_setSysPowerDownVoltage(uint16_t millivolt)
     if (val == -1)
         return false;
     val &= 0xF8;
-    return 0 == writeRegister(XPOWERS_AXP2101_VOFF_SET, val | ((millivolt - XPOWERS_AXP2101_VSYS_VOL_THRESHOLD_MIN) /
+    return writeRegister(XPOWERS_AXP2101_VOFF_SET, val | ((millivolt - XPOWERS_AXP2101_VSYS_VOL_THRESHOLD_MIN) /
                                                                XPOWERS_AXP2101_VSYS_VOL_THRESHOLD_STEPS));
 }
 
@@ -945,7 +1044,7 @@ bool setPwrOkDelay(xpower_pwrok_delay_t opt)
     if (val == -1)
         return false;
     val &= 0xFC;
-    return 0 == writeRegister(XPOWERS_AXP2101_PWROK_SEQU_CTRL, val | opt);
+    return writeRegister(XPOWERS_AXP2101_PWROK_SEQU_CTRL, val | opt);
 }
 
 xpower_pwrok_delay_t getPwrOkDelay()
@@ -1388,7 +1487,8 @@ bool enableDC1(void)
 
 bool disableDC1(void)
 {
-    return clrRegisterBit(XPOWERS_AXP2101_DC_ONOFF_DVM_CTRL, 0);
+    PR_WARN("AXP2101 disable DC1 ignored (core supply protection)");
+    return true;
 }
 
 bool setDC1Voltage(uint16_t millivolt)
@@ -1404,7 +1504,7 @@ bool setDC1Voltage(uint16_t millivolt)
         PR_ERR("Mistake ! DC1 maximum voltage is %u mV", XPOWERS_AXP2101_DCDC1_VOL_MAX);
         return false;
     }
-    return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL0_CTRL,
+    return writeRegister(XPOWERS_AXP2101_DC_VOL0_CTRL,
                               (millivolt - XPOWERS_AXP2101_DCDC1_VOL_MIN) / XPOWERS_AXP2101_DCDC1_VOL_STEPS);
 }
 
@@ -1454,7 +1554,7 @@ bool setDC2Voltage(uint16_t millivolt)
             PR_ERR("Mistake !  The steps is must %umV", XPOWERS_AXP2101_DCDC2_VOL_STEPS1);
             return false;
         }
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL1_CTRL, val | (millivolt - XPOWERS_AXP2101_DCDC2_VOL1_MIN) /
+        return writeRegister(XPOWERS_AXP2101_DC_VOL1_CTRL, val | (millivolt - XPOWERS_AXP2101_DCDC2_VOL1_MIN) /
                                                                           XPOWERS_AXP2101_DCDC2_VOL_STEPS1);
     } else if (millivolt >= XPOWERS_AXP2101_DCDC2_VOL2_MIN && millivolt <= XPOWERS_AXP2101_DCDC2_VOL2_MAX) {
         if (millivolt % XPOWERS_AXP2101_DCDC2_VOL_STEPS2) {
@@ -1463,7 +1563,7 @@ bool setDC2Voltage(uint16_t millivolt)
         }
         val |= (((millivolt - XPOWERS_AXP2101_DCDC2_VOL2_MIN) / XPOWERS_AXP2101_DCDC2_VOL_STEPS2) +
                 XPOWERS_AXP2101_DCDC2_VOL_STEPS2_BASE);
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL1_CTRL, val);
+        return writeRegister(XPOWERS_AXP2101_DC_VOL1_CTRL, val);
     }
     return false;
 }
@@ -1532,7 +1632,7 @@ bool setDC3Voltage(uint16_t millivolt)
             PR_ERR("Mistake ! The steps is must %umV", XPOWERS_AXP2101_DCDC3_VOL_STEPS1);
             return false;
         }
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL,
+        return writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL,
                                   val | (millivolt - XPOWERS_AXP2101_DCDC3_VOL_MIN) / XPOWERS_AXP2101_DCDC3_VOL_STEPS1);
     } else if (millivolt >= XPOWERS_AXP2101_DCDC3_VOL2_MIN && millivolt <= XPOWERS_AXP2101_DCDC3_VOL2_MAX) {
         if (millivolt % XPOWERS_AXP2101_DCDC3_VOL_STEPS2) {
@@ -1541,7 +1641,7 @@ bool setDC3Voltage(uint16_t millivolt)
         }
         val |= (((millivolt - XPOWERS_AXP2101_DCDC3_VOL2_MIN) / XPOWERS_AXP2101_DCDC3_VOL_STEPS2) +
                 XPOWERS_AXP2101_DCDC3_VOL_STEPS2_BASE);
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL, val);
+        return writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL, val);
     } else if (millivolt >= XPOWERS_AXP2101_DCDC3_VOL3_MIN && millivolt <= XPOWERS_AXP2101_DCDC3_VOL3_MAX) {
         if (millivolt % XPOWERS_AXP2101_DCDC3_VOL_STEPS3) {
             PR_ERR("Mistake ! The steps is must %umV", XPOWERS_AXP2101_DCDC3_VOL_STEPS3);
@@ -1549,7 +1649,7 @@ bool setDC3Voltage(uint16_t millivolt)
         }
         val |= (((millivolt - XPOWERS_AXP2101_DCDC3_VOL3_MIN) / XPOWERS_AXP2101_DCDC3_VOL_STEPS3) +
                 XPOWERS_AXP2101_DCDC3_VOL_STEPS3_BASE);
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL, val);
+        return writeRegister(XPOWERS_AXP2101_DC_VOL2_CTRL, val);
     }
     return false;
 }
@@ -1618,7 +1718,7 @@ bool setDC4Voltage(uint16_t millivolt)
             PR_ERR("Mistake ! The steps is must %umV", XPOWERS_AXP2101_DCDC4_VOL_STEPS1);
             return false;
         }
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL3_CTRL, val | (millivolt - XPOWERS_AXP2101_DCDC4_VOL1_MIN) /
+        return writeRegister(XPOWERS_AXP2101_DC_VOL3_CTRL, val | (millivolt - XPOWERS_AXP2101_DCDC4_VOL1_MIN) /
                                                                           XPOWERS_AXP2101_DCDC4_VOL_STEPS1);
 
     } else if (millivolt >= XPOWERS_AXP2101_DCDC4_VOL2_MIN && millivolt <= XPOWERS_AXP2101_DCDC4_VOL2_MAX) {
@@ -1628,7 +1728,7 @@ bool setDC4Voltage(uint16_t millivolt)
         }
         val |= (((millivolt - XPOWERS_AXP2101_DCDC4_VOL2_MIN) / XPOWERS_AXP2101_DCDC4_VOL_STEPS2) +
                 XPOWERS_AXP2101_DCDC4_VOL_STEPS2_BASE);
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL3_CTRL, val);
+        return writeRegister(XPOWERS_AXP2101_DC_VOL3_CTRL, val);
     }
     return false;
 }
@@ -1696,10 +1796,10 @@ bool setDC5Voltage(uint16_t millivolt)
         return false;
     val &= 0xE0;
     if (millivolt == XPOWERS_AXP2101_DCDC5_VOL_1200MV) {
-        return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL4_CTRL, val | XPOWERS_AXP2101_DCDC5_VOL_VAL);
+        return writeRegister(XPOWERS_AXP2101_DC_VOL4_CTRL, val | XPOWERS_AXP2101_DCDC5_VOL_VAL);
     }
     val |= (millivolt - XPOWERS_AXP2101_DCDC5_VOL_MIN) / XPOWERS_AXP2101_DCDC5_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_DC_VOL4_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_DC_VOL4_CTRL, val);
 }
 
 uint16_t getDC5Voltage(void)
@@ -1772,7 +1872,7 @@ bool setALDO1Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL0_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_ALDO1_VOL_MIN) / XPOWERS_AXP2101_ALDO1_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL0_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL0_CTRL, val);
 }
 
 uint16_t getALDO1Voltage(void)
@@ -1814,7 +1914,7 @@ bool setALDO2Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL1_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_ALDO2_VOL_MIN) / XPOWERS_AXP2101_ALDO2_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL1_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL1_CTRL, val);
 }
 
 uint16_t getALDO2Voltage(void)
@@ -1856,7 +1956,7 @@ bool setALDO3Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL2_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_ALDO3_VOL_MIN) / XPOWERS_AXP2101_ALDO3_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL2_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL2_CTRL, val);
 }
 
 uint16_t getALDO3Voltage(void)
@@ -1898,7 +1998,7 @@ bool setALDO4Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL3_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_ALDO4_VOL_MIN) / XPOWERS_AXP2101_ALDO4_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL3_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL3_CTRL, val);
 }
 
 uint16_t getALDO4Voltage(void)
@@ -1943,7 +2043,7 @@ bool setBLDO1Voltage(uint16_t millivolt)
         return false;
     val &= 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_BLDO1_VOL_MIN) / XPOWERS_AXP2101_BLDO1_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL4_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL4_CTRL, val);
 }
 
 uint16_t getBLDO1Voltage(void)
@@ -1988,7 +2088,7 @@ bool setBLDO2Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL5_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_BLDO2_VOL_MIN) / XPOWERS_AXP2101_BLDO2_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL5_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL5_CTRL, val);
 }
 
 uint16_t getBLDO2Voltage(void)
@@ -2033,7 +2133,7 @@ bool setCPUSLDOVoltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL6_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_CPUSLDO_VOL_MIN) / XPOWERS_AXP2101_CPUSLDO_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL6_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL6_CTRL, val);
 }
 
 uint16_t getCPUSLDOVoltage(void)
@@ -2078,7 +2178,7 @@ bool setDLDO1Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL7_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_DLDO1_VOL_MIN) / XPOWERS_AXP2101_DLDO1_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL7_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL7_CTRL, val);
 }
 
 uint16_t getDLDO1Voltage(void)
@@ -2123,7 +2223,7 @@ bool setDLDO2Voltage(uint16_t millivolt)
     }
     uint16_t val = readRegister(XPOWERS_AXP2101_LDO_VOL8_CTRL) & 0xE0;
     val |= (millivolt - XPOWERS_AXP2101_DLDO2_VOL_MIN) / XPOWERS_AXP2101_DLDO2_VOL_STEPS;
-    return 0 == writeRegister(XPOWERS_AXP2101_LDO_VOL8_CTRL, val);
+    return writeRegister(XPOWERS_AXP2101_LDO_VOL8_CTRL, val);
 }
 
 uint16_t getDLDO2Voltage(void)
@@ -2164,7 +2264,7 @@ bool axp2101_setPowerKeyPressOnTime(xpowers_press_on_time_t opt)
     if (val == -1)
         return false;
     val &= 0xFC;
-    return 0 == writeRegister(XPOWERS_AXP2101_IRQ_OFF_ON_LEVEL_CTRL, val | opt);
+    return writeRegister(XPOWERS_AXP2101_IRQ_OFF_ON_LEVEL_CTRL, val | opt);
 }
 
 /**
@@ -2190,7 +2290,7 @@ bool axp2101_setPowerKeyPressOffTime(xpowers_press_off_time_t opt)
     if (val == -1)
         return false;
     val &= 0xF3;
-    return 0 == writeRegister(XPOWERS_AXP2101_IRQ_OFF_ON_LEVEL_CTRL, val | (opt << 2));
+    return writeRegister(XPOWERS_AXP2101_IRQ_OFF_ON_LEVEL_CTRL, val | (opt << 2));
 }
 
 /**
@@ -2428,7 +2528,7 @@ bool axp2101_setChargerConstantCurr(xpowers_axp2101_chg_curr_t opt)
     if (val == -1)
         return false;
     val &= 0xE0;
-    return 0 == writeRegister(XPOWERS_AXP2101_ICC_CHG_SET, val | opt);
+    return writeRegister(XPOWERS_AXP2101_ICC_CHG_SET, val | opt);
 }
 
 /**
@@ -2496,7 +2596,7 @@ bool axp2101_setChargeTargetVoltage(xpowers_axp2101_chg_vol_t opt)
     if (val == -1)
         return false;
     val &= 0xF8;
-    return 0 == writeRegister(XPOWERS_AXP2101_CV_CHG_VOL_SET, val | opt);
+    return writeRegister(XPOWERS_AXP2101_CV_CHG_VOL_SET, val | opt);
 }
 
 /**
@@ -3189,17 +3289,72 @@ bool axp2101_setInterruptMask(uint32_t option, bool enable)
 
 OPERATE_RET axp2101_init(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+    uint8_t     chip_id = 0;
+    OPERATE_RET rt;
 
-    TUYA_CALL_ERR_RETURN(__i2c_init());
+#if AXP2101_I2C_DIAG
+    __axp_i2c_line_probe();
+#endif
 
-    if (XPOWERS_AXP2101_CHIP_ID == axp2101_getChipID()) {
-        PR_DEBUG("AXP2101 detected");
-    } else {
-        PR_ERR("AXP2101 not detected, chip id is 0x%02X, expect 0x%02X", axp2101_getChipID(), XPOWERS_AXP2101_CHIP_ID);
+    rt = __i2c_init();
+    if (OPRT_OK != rt) {
+        return rt;
     }
 
-    return rt;
+#if AXP2101_I2C_DIAG
+    tal_system_sleep(5);
+    __axp_i2c_bus_probe();
+#endif
+
+    tal_system_sleep(10);
+
+    for (int retry = 0; retry < 5; retry++) {
+        chip_id = axp2101_getChipID();
+        if (chip_id == XPOWERS_AXP2101_CHIP_ID || chip_id == 0x47) {
+            PR_NOTICE("AXP2101 detected, chip id: 0x%02X (retry %d)", chip_id, retry);
+            return OPRT_OK;
+        }
+        tal_system_sleep(10);
+    }
+
+    PR_ERR("AXP2101 not detected, chip id is 0x%02X, expect 0x47/0x%02X", chip_id, XPOWERS_AXP2101_CHIP_ID);
+
+#if AXP2101_I2C_DIAG
+    /* Diagnostic: does the bus simply need more time after bring-up? */
+    tal_system_sleep(1000);
+    chip_id = axp2101_getChipID();
+    PR_ERR("[AXP-DBG] chip id after 1s delay = 0x%02X", chip_id);
+    if (chip_id == XPOWERS_AXP2101_CHIP_ID || chip_id == 0x47) {
+        return OPRT_OK;
+    }
+#endif
+
+#if AXP2101_I2C_DIAG
+    /* Write/read-back self test: does a write actually reach the chip? */
+    {
+        uint8_t rb = 0;
+        uint8_t orig = 0;
+        axp2101_read_regs(&axp2101_dev, XPOWERS_AXP2101_DC_VOL0_CTRL, &orig, 1);
+        writeRegister(XPOWERS_AXP2101_DC_VOL0_CTRL, 0x12); /* 3300 mV */
+        axp2101_read_regs(&axp2101_dev, XPOWERS_AXP2101_DC_VOL0_CTRL, &rb, 1);
+        PR_ERR("[AXP-DBG] selftest 0x82: orig=0x%02X wrote 0x12 read 0x%02X", orig, rb);
+
+        /* Which addresses are alive between 0x30 and 0x40 (PMIC range)? */
+        {
+            uint8_t dummy = 0x00;
+            for (uint8_t a = 0x30; a <= 0x40; a++) {
+                if (OPRT_OK == tkl_i2c_master_send(TUYA_I2C_NUM_0, a, &dummy, 1, FALSE)) {
+                    PR_ERR("[AXP-DBG] alive 0x%02X", a);
+                }
+            }
+        }
+    }
+#endif
+
+    /* Do not report success for a chip that never answered: the caller would
+     * happily configure charge parameters on a PMIC that is not there, every
+     * write would fail silently and the board would boot on power-on defaults. */
+    return OPRT_COM_ERROR;
 }
 
 OPERATE_RET axp2101_deinit(void)

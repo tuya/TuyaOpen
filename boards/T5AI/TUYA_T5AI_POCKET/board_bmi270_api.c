@@ -93,13 +93,13 @@ OPERATE_RET bmi270_read_regs(bmi270_dev_t *dev, uint8_t reg, uint8_t *data, uint
         return OPRT_INVALID_PARM;
     }
 
-    ret = tkl_i2c_master_send(dev->i2c_port, dev->i2c_addr, &reg, 1, FALSE);
+    ret = tkl_i2c_master_send(dev->i2c_port, dev->i2c_addr, &reg, 1, TRUE);
     if (ret < 0) {
         PR_ERR("BMI270 read reg 0x%02X failed: %d", reg, ret);
         return ret;
     }
     
-    ret = tkl_i2c_master_receive(dev->i2c_port, dev->i2c_addr, data, len, TRUE);
+    ret = tkl_i2c_master_receive(dev->i2c_port, dev->i2c_addr, data, len, FALSE);
     if (ret < 0) {
         PR_ERR("BMI270 read data failed: %d", ret);
         return ret;
