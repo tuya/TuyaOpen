@@ -412,6 +412,23 @@ bool axp2101_isVbusIn(void);
 bool axp2101_isBatteryConnect(void);
 bool axp2101_isDischarge(void);
 
+/**
+ * @brief Decoded snapshot of STATUS1/STATUS2.
+ *
+ * The individual helpers each start their own I2C transaction, so asking
+ * "charging?", "vbus in?" and "charger status?" costs three register reads.
+ * This collects all of it from the two status registers in one go.
+ */
+typedef struct {
+    bool                 battery_connect; // STATUS1 bit3
+    bool                 vbus_good;       // STATUS1 bit5
+    bool                 vbus_in;         // STATUS2 bit3 == 0 && vbus_good
+    bool                 charging;        // STATUS2 bits6:5 == 01
+    xpowers_chg_status_t chg_status;      // STATUS2 bits2:0
+} axp2101_status_t;
+
+void axp2101_getStatus(axp2101_status_t *st);
+
 // Power channel control functions
 bool axp2101_enablePowerOutput(XPowersPowerChannel_t channel);
 bool axp2101_disablePowerOutput(XPowersPowerChannel_t channel);
@@ -434,7 +451,12 @@ uint16_t axp2101_getVbusVoltage(void);
 void axp2101_setPrechargeCurr(xpowers_prechg_t opt);
 void axp2101_setChargerTerminationCurr(xpowers_axp2101_chg_iterm_t opt);
 
-bool axp2101_setVbusCurrentLimit(xpower_apx2101_vbus_vol_limit_t opt);
+// Fuel gauge (BAT_PERCENT_DATA only updates while this is enabled)
+void enableGauge(void);
+void disableGauge(void);
+void resetGauge(void);
+
+bool axp2101_setVbusCurrentLimit(xpowers_axp2101_vbus_cur_limit_t opt);
 uint8_t axp2101_getVbusCurrentLimit(void);
 void axp2101_setVbusVoltageLimit(uint8_t opt);
 uint8_t axp2101_getVbusVoltageLimit(void);

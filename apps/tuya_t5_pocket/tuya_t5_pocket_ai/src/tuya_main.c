@@ -268,7 +268,7 @@ void user_main(void)
     PR_NOTICE("Application information:");
     PR_NOTICE("Project name:        %s", PROJECT_NAME);
     PR_NOTICE("App version:         %s", PROJECT_VERSION);
-    PR_NOTICE("Compile time:        %s", __DATE__);
+    PR_NOTICE("Compile time:        %s %s", __DATE__, __TIME__);
     PR_NOTICE("TuyaOpen version:    %s", OPEN_VERSION);
     PR_NOTICE("TuyaOpen commit-id:  %s", OPEN_COMMIT);
     PR_NOTICE("Platform chip:       %s", PLATFORM_CHIP);

@@ -74,17 +74,39 @@ static OPERATE_RET __axp_battery_get_percent(TDD_POWER_DEV_HANDLE_T ctx, uint8_t
 
 static OPERATE_RET __axp_charger_get_state(TDD_POWER_DEV_HANDLE_T ctx, TDL_CHG_STATE_E *st)
 {
-    (void)ctx;
-    if (axp2101_isCharging()) {
+    POWER_AXP_CTX_T *c = (POWER_AXP_CTX_T *)ctx;
+    axp2101_status_t s;
+    static BOOL_T    fault_logged = FALSE;
+
+    if (NULL == c || NULL == st) {
+        return OPRT_INVALID_PARM;
+    }
+
+    /* One snapshot instead of isCharging() + isVbusIn() + getChargerStatus(),
+     * which would read the same two status registers three times. */
+    axp2101_getStatus(&s);
+
+    if (s.charging) {
         *st = TDL_CHG_CHARGING;
-    } else if (axp2101_isVbusIn()) {
-        *st = TDL_CHG_FULL; // plugged in but not charging -> charge complete
+    } else if (s.vbus_in && (XPOWERS_AXP2101_CHG_DONE_STATE == s.chg_status)) {
+        *st = TDL_CHG_FULL;
     } else {
+        /* Vbus present but the charger is not running: no battery, thermal
+         * regulation, safety timer or a fault condition. TDL_CHG_STATE_E has
+         * no value for this, so report discharge and say why once. */
+        if (s.vbus_in && !fault_logged) {
+            fault_logged = TRUE;
+            PR_WARN("AXP2101: charger stopped with VBUS in (status=%d, battery=%d)",
+                    s.chg_status, s.battery_connect);
+        }
         *st = TDL_CHG_DISCHARGE;
     }
-    // Reading the state also acks any pending charge IRQ (so the AXP IRQ line
-    // releases and can fire again). Runs in the TDL worker / app thread, not the ISR.
-    axp2101_clearIrqStatus();
+
+    /* Only ack the AXP interrupt when its IRQ line is actually wired; on boards
+     * without it this would be three I2C writes per poll for nothing. */
+    if (TDD_POWER_PIN_NONE != c->cfg.irq_pin) {
+        axp2101_clearIrqStatus();
+    }
     return OPRT_OK;
 }
 
@@ -142,17 +164,27 @@ OPERATE_RET tdd_power_axp2101_register(const char *name, const TDD_POWER_AXP2101
     axp2101_enableBattVoltageMeasure();
     axp2101_enableSystemVoltageMeasure();
     axp2101_enableTemperatureMeasure();
+    // The fuel gauge only updates BAT_PERCENT_DATA while it runs.
+    enableGauge();
 
-    // Charge configuration.
+    // Charge configuration. The bool setters reject out-of-range values and
+    // report failed writes; surfacing that beats silently running on defaults.
+    if (!axp2101_setVbusCurrentLimit(cfg->charge.vbus_cur_limit)) {
+        PR_ERR("AXP2101: VBUS current limit rejected (%d)", cfg->charge.vbus_cur_limit);
+    }
+    if (!axp2101_setChargerConstantCurr(cfg->charge.const_curr)) {
+        PR_ERR("AXP2101: charge current rejected (%d)", cfg->charge.const_curr);
+    }
+    if (!axp2101_setChargeTargetVoltage(cfg->charge.target_vol)) {
+        PR_ERR("AXP2101: charge target voltage rejected (%d)", cfg->charge.target_vol);
+    }
+
     axp2101_setVbusVoltageLimit(cfg->charge.vbus_vol_limit);
-    axp2101_setVbusCurrentLimit(cfg->charge.vbus_cur_limit);
     if (0 != cfg->charge.sys_power_down_mv) {
         axp2101_setSysPowerDownVoltage(cfg->charge.sys_power_down_mv);
     }
     axp2101_setPrechargeCurr(cfg->charge.precharge_curr);
     axp2101_setChargerTerminationCurr(cfg->charge.term_curr);
-    axp2101_setChargerConstantCurr(cfg->charge.const_curr);
-    axp2101_setChargeTargetVoltage(cfg->charge.target_vol);
     axp2101_enableCellbatteryCharge();
     axp2101_enableChargingLed();
     axp2101_setChargingLedMode(cfg->charge.led_mode);
@@ -186,6 +218,9 @@ OPERATE_RET tdd_power_axp2101_register(const char *name, const TDD_POWER_AXP2101
     // Power-key press timing.
     axp2101_setPowerKeyPressOnTime(cfg->pekey_on);
     axp2101_setPowerKeyPressOffTime(cfg->pekey_off);
+
+    axp2101_print_pwr_info();
+    axp2101_print_chg_info();
 
     c = (POWER_AXP_CTX_T *)tal_malloc(sizeof(POWER_AXP_CTX_T));
     if (NULL == c) {
