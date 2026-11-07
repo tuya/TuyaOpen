@@ -68,14 +68,23 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
         return OPRT_CJSON_PARSE_ERR;
     }
 
-    if (cJSON_GetObjectItem(root, "httpsSelfUrl") == NULL || cJSON_GetObjectItem(root, "mqttsSelfUrl") == NULL) {
+    cJSON *https_obj = cJSON_GetObjectItem(root, "httpsSelfUrl");
+    cJSON *mqtts_obj = cJSON_GetObjectItem(root, "mqttsSelfUrl");
+    cJSON *ca_arr = cJSON_GetObjectItem(root, "caArr");
+    cJSON *https_addr = (https_obj != NULL) ? cJSON_GetObjectItem(https_obj, "addr") : NULL;
+    cJSON *mqtts_addr = (mqtts_obj != NULL) ? cJSON_GetObjectItem(mqtts_obj, "addr") : NULL;
+    cJSON *ca_arr0 = (ca_arr != NULL) ? cJSON_GetArrayItem(ca_arr, 0) : NULL;
+
+    if (!cJSON_IsString(https_addr) || !cJSON_IsString(mqtts_addr) || !cJSON_IsString(ca_arr0) ||
+        https_addr->valuestring[0] == '\0' || mqtts_addr->valuestring[0] == '\0' ||
+        ca_arr0->valuestring[0] == '\0') {
         cJSON_Delete(root);
         return OPRT_CR_CJSON_ERR;
     }
 
-    char *httpsSelfUrl = cJSON_GetObjectItem(cJSON_GetObjectItem(root, "httpsSelfUrl"), "addr")->valuestring;
-    char *mqttsSelfUrl = cJSON_GetObjectItem(cJSON_GetObjectItem(root, "mqttsSelfUrl"), "addr")->valuestring;
-    char *caArr0 = cJSON_GetArrayItem(cJSON_GetObjectItem(root, "caArr"), 0)->valuestring;
+    const char *httpsSelfUrl = https_addr->valuestring;
+    const char *mqttsSelfUrl = mqtts_addr->valuestring;
+    const char *caArr0 = ca_arr0->valuestring;
     PR_DEBUG("httpsSelfUrl:%s", httpsSelfUrl);
     PR_DEBUG("mqttsSelfUrl:%s", mqttsSelfUrl);
 
