@@ -35,6 +35,15 @@ extern "C" {
  */
 #define WECHAT_BTN_EXT_CLICK  12
 
+/* Wake / chat dark mode */
+#define WECHAT_COLOR_BG          0x000000   /* screen background */
+#define WECHAT_COLOR_BUBBLE      0x2C2C2C   /* dark grey text boxes */
+#define WECHAT_COLOR_TEXT        0xC8C8C8   /* light grey text */
+#define WECHAT_COLOR_ACCENT      0x123A6B   /* dark blue (was WeChat green) */
+#define WECHAT_COLOR_ACCENT_DIM  0x0C284C
+#define WECHAT_COLOR_BORDER      0x3A3A3A
+#define WECHAT_COLOR_MUTED       0x8A8A8A
+
 /* ---------------------------------------------------------------------------
  * Function declarations
  * --------------------------------------------------------------------------- */
