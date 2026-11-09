@@ -30,13 +30,13 @@ extern "C" {
 /**
  * @brief Prepare SD card SDIO pinmux before mount
  * @return OPRT_OK on success
- * @note Call before tkl_fs_mount() on NiceMCU-T5-2.8ISP
+ * @note Call before tkl_fs_mount() on NICEMCU_T5AI_2_8IPS
  */
 OPERATE_RET board_sdcard_prepare(void);
 
 /**
  * @brief Registers all the hardware peripherals (audio, button, LED) on the board.
- * 
+ *
  * @return Returns OPERATE_RET_OK on success, or an appropriate error code on failure.
  */
 OPERATE_RET board_register_hardware(void);
