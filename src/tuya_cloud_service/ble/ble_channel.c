@@ -39,6 +39,7 @@ typedef struct {
 } ble_channel_mgr_t;
 
 static ble_channel_mgr_t s_ble_channel_mgr = {0}; // APP downlink channel transparent transmission
+static MUTEX_HANDLE s_ble_channel_mutex = NULL;
 
 typedef struct {
     ble_channel_fn_t function;
@@ -62,6 +63,12 @@ static ble_channel_t s_ble_channel[BLE_CHANNEL_MAX];
 int ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_data)
 {
     ble_channel_t *channel = s_ble_channel;
+
+    if (NULL == s_ble_channel_mutex) {
+        if (OPRT_OK != tal_mutex_create_init(&s_ble_channel_mutex)) {
+            PR_ERR("create ble channel mutex failed");
+        }
+    }
 
     if (type < BLE_CHANNEL_MAX) {
         channel[type].function = fn;
@@ -164,7 +171,7 @@ static void __response_to_app_by_subpack(uint16_t type)
     }
     memset(pkg_buff, 0, TUYA_BLE_TRANS_DATA_SUBPACK_LEN);
 
-    if (subpack_len > TUYA_BLE_TRANS_DATA_SUBPACK_LEN) {
+    if (subpack_len > (TUYA_BLE_TRANS_DATA_SUBPACK_LEN - 2)) {
         flag = 0x02;
     }
 
@@ -225,6 +232,13 @@ void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
         return;
     }
 
+    if (NULL == s_ble_channel_mutex) {
+        tal_mutex_create_init(&s_ble_channel_mutex);
+    }
+
+    /* the reply may come from another task, serialize the buffer and cursor */
+    tal_mutex_lock(s_ble_channel_mutex);
+
     if (s_ble_channel_mgr.rsp_data) {
         tal_free(s_ble_channel_mgr.rsp_data);
     }
@@ -233,11 +247,15 @@ void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
     s_ble_channel_mgr.subpack_data = data + 2;
     s_ble_channel_mgr.subpack_len = len - 2;
 
-    PR_DEBUG("start to send subpack cmd:%x, subcmd:%x", type, data[3]);
+    if (len > 3) {
+        PR_DEBUG("start to send subpack cmd:%x, subcmd:%x", type, data[3]);
+    }
     __response_to_app_by_subpack(type);
 
     tal_free(s_ble_channel_mgr.rsp_data);
     memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
+
+    tal_mutex_unlock(s_ble_channel_mutex);
 }
 
 /**
@@ -377,6 +395,9 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
     } else if (FRM_UPLINK_TRANSPARENT_REQ == req->type || FRM_UPLINK_TRANSPARENT_SPEC_REQ == req->type) {
         tuya_ble_raw_print("recv_uplink_frame", 16, pRawData, pRawLen);
         uint8_t status = pRawData[2];
+        if (NULL != s_ble_channel_mutex) {
+            tal_mutex_lock(s_ble_channel_mutex);
+        }
         if (status == 0) { // complete subpack send
             if (s_ble_channel_mgr.rsp_data) {
                 tal_free(s_ble_channel_mgr.rsp_data);
@@ -389,6 +410,9 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
             s_ble_channel_mgr.subpack_sent = 0;
             __response_to_app_by_subpack(req->type);
         } else {
+        }
+        if (NULL != s_ble_channel_mutex) {
+            tal_mutex_unlock(s_ble_channel_mutex);
         }
     }
 }

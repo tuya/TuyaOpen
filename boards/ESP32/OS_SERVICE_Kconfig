@@ -6,3 +6,7 @@ config ENABLE_ESP_OS_SERVICE
     bool
     default y
     select ENABLE_BT_WIFI_LIST if ENABLE_BLUETOOTH
+
+config ENABLE_WIFI_BACKUP
+    bool
+    default y
