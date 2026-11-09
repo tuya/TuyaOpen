@@ -80,3 +80,37 @@ config ENABLE_WAKEUP
 config ENABLE_PINMUX
     bool
     default y
+
+# Audio front end lane map. The ADC delivers three interleaved lanes per frame;
+# these name the two near-end microphone lanes and the speaker loopback used as
+# the AEC reference. The front end delay-and-sum steers both mics into one beam
+# (das_bf) before the AEC. The values are board wiring, not something the
+# algorithm can infer: verify them on the target before trusting the defaults.
+config TKL_AF_MIC0_LANE
+    int "Audio front end: capture lane for mic0"
+    range 0 2
+    default 0
+
+config TKL_AF_MIC1_LANE
+    int "Audio front end: capture lane for mic1"
+    range 0 2
+    default 1
+
+config TKL_AF_REF_LANE
+    int "Audio front end: capture lane for the speaker loopback reference"
+    range 0 2
+    default 2
+
+# Beamformer geometry. das_bf assumes an equispaced linear array with mic0 at
+# index 0. 90 deg is endfire (talker on the mic0-to-mic1 axis), 0 deg is
+# broadside. These describe the physical board and must be measured, not
+# guessed; runtime re-steering is possible via the AEC ioctl.
+config TKL_AF_BF_AZIMUTH_DEG
+    int "Audio front end: beamformer steering angle (degrees)"
+    range 0 180
+    default 90
+
+config TKL_AF_BF_MIC_SPACING_MM
+    int "Audio front end: mic spacing (millimeters)"
+    range 1 200
+    default 30
