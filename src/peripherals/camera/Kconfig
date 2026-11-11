@@ -4,6 +4,20 @@ config ENABLE_CAMERA
 
 if (ENABLE_CAMERA)
     config CAMERA_NAME
-        string "the name of camera"
+        string "the name of camera 1"
         default "camera"
+
+    config ENABLE_CAMERA_2
+        bool "enable camera 2"
+        default n
+
+    config CAMERA_NAME_2
+        string "the name of camera 2"
+        default "camera2"
+        depends on ENABLE_CAMERA_2
+
+    config CAMERA_RAW_FRAME_BUFF_CNT
+        int "raw frame buffer count"
+        range 1 4
+        default 2
 endif

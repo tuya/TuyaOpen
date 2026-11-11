@@ -1,0 +1,17 @@
+config CHIP_CHOICE
+    string
+    default "GD32H779IW"
+
+config BOARD_CHOICE
+    string
+    default "GD32H779I_WATCH_EVAL"
+
+config BOARD_CONFIG
+    bool
+    default y
+    select ENABLE_DISPLAY
+    select ENABLE_CAMERA
+    select ENABLE_CAMERA_2
+    select ENABLE_TP
+    select ENABLE_LVGL_PARTIAL_FLUSH if (ENABLE_LIBLVGL)
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)

@@ -93,9 +93,25 @@ OPERATE_RET tdd_dvp_i2c_read(DVP_I2C_REG_CFG_T *cfg, uint16_t read_len, uint8_t 
         write_data_len = 1;
     }
 
-    tkl_i2c_master_send(cfg->port, cfg->addr, write_data, write_data_len, 1);
+    uint32_t start_ms = (uint32_t)tal_system_get_millisecond();
+    OPERATE_RET rt = tkl_i2c_master_send(cfg->port, cfg->addr, write_data,
+                                         write_data_len, TRUE);
+    if (rt != OPRT_OK) {
+        PR_ERR("dvp i2c addr=0x%02X reg=0x%04X send failed rt=%d elapsed=%ums",
+               cfg->addr, cfg->reg, rt,
+               (unsigned)((uint32_t)tal_system_get_millisecond() - start_ms));
+        return rt;
+    }
 
-    return tkl_i2c_master_receive(cfg->port, cfg->addr, buf, read_len, 0);
+    start_ms = (uint32_t)tal_system_get_millisecond();
+    rt = tkl_i2c_master_receive(cfg->port, cfg->addr, buf, read_len, 0);
+    if (rt != OPRT_OK) {
+        PR_ERR("dvp i2c addr=0x%02X reg=0x%04X receive failed rt=%d elapsed=%ums",
+               cfg->addr, cfg->reg, rt,
+               (unsigned)((uint32_t)tal_system_get_millisecond() - start_ms));
+    }
+
+    return rt;
 }
 
 /**
