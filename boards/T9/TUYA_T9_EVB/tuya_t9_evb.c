@@ -45,7 +45,6 @@ static OPERATE_RET __board_register_audio(void)
     TDD_AUDIO_T5AI_T cfg = {0};
     memset(&cfg, 0, sizeof(TDD_AUDIO_T5AI_T));
 
-    /* The T9 media TKL uses the ADC's single talk lane and has no AEC path. */
     cfg.aec_enable = 0;
 
     cfg.ai_chn      = TKL_AI_0;
