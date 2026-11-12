@@ -221,9 +221,11 @@ def check_bin_file(using_data) -> bool:
 
 def _get_bin_file(using_data) -> str:
     params = get_global_params()
-    bin_path = params["app_bin_path"]
-    project_name = using_data["CONFIG_PROJECT_NAME"]
-    project_ver = using_data["CONFIG_PROJECT_VERSION"]
+    bin_path = params.get("app_bin_path", "")
+    project_name = using_data.get("CONFIG_PROJECT_NAME", "")
+    project_ver = using_data.get("CONFIG_PROJECT_VERSION", "")
+    if not bin_path or not project_name:
+        return ""
     return os.path.join(bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
 
@@ -241,12 +243,13 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
 
     Returns None to fall back to tyutool; True/False for bridge result.
     """
+    platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     bridge_path = _get_platform_bridge_path(using_data)
+
     if not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0:
         return None
 
     logger = get_logger()
-    platform = using_data["CONFIG_PLATFORM_CHOICE"]
     if not download_platform(platform):
         logger.error("Download platform error.")
         return False
@@ -267,6 +270,7 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
 
     params = get_global_params()
     logger.info(f"Using platform flash bridge: {platform}/platform_flash_bridge.py")
+
     result = bridge.platform_flash(
         using_data=using_data,
         binfile=_get_bin_file(using_data),

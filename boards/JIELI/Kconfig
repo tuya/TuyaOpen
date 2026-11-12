@@ -1,0 +1,100 @@
+config PLATFORM_CHOICE
+    string
+    default "JIELI"
+
+config CHIP_CHOICE
+    string
+    default "wl83" if BOARD_CHOICE_AC792N_DEVELOP_BOARD
+    default "wl82"
+
+config BOARD_CHOICE
+    string
+    default "AC792N_Develop_Board" if BOARD_CHOICE_AC792N_DEVELOP_BOARD
+    default "AC79_DevKitBoard"
+
+config PLATFORM_JIELI
+    bool
+    default y
+
+config OPERATING_SYSTEM
+    int
+    default 98
+
+config LITTLE_END
+    int
+    default 1
+
+rsource "./TKL_Kconfig"
+
+# The WL83 vendor CVP configuration depends on media support. Enable it by
+# default for Jieli boards, while keeping the option user-configurable.
+config ENABLE_MEDIA
+    bool "Enable Jieli media/audio codecs"
+    default y
+    select ENABLE_AUDIO_CODECS
+    help
+        Enable the TuyaOpen TDD audio codec on Jieli WL82/WL83 targets.
+        This option defaults to enabled but is not forced on. WL83 vendor
+        builds depend on media support for their CVP configuration, so
+        setting this option to n is unsupported on WL83.
+
+# ENABLE_LIBLVGL is deliberately left at its upstream default (n) here. The
+# per-board snapshots in boards/JIELI/config/ set CONFIG_ENABLE_LIBLVGL=y, so a
+# board build still gets LVGL by default. A `default y` at this level would
+# combine with src/liblvgl/Kconfig's `select ENABLE_DISPLAY` and make
+# ENABLE_DISPLAY impossible to turn off, which breaks audio-only builds.
+
+config ENABLE_JIELI_ADKEY_BUTTON
+    bool "Register the Jieli K1 ADKEY through Tuya Button TDL"
+    default y
+    select ENABLE_BUTTON
+    select ENABLE_BUTTON_ADC
+    help
+        Register the board K1 ADC ladder as a standard Tuya ADC button so apps
+        can receive debounced press and release events through TDL.
+
+config JIELI_UART_LOG_PORT
+    int "SDK UART controller used for logging"
+    default 1 if BOARD_CHOICE_AC79_DEVKITBOARD
+    default 0
+    range 0 5
+
+config JIELI_UART_LOG_BAUDRATE
+    int "UART log baud rate"
+    default 115200 if BOARD_CHOICE_AC79_DEVKITBOARD
+    default 115200 if BOARD_CHOICE_AC792N_DEVELOP_BOARD
+    default 115200
+    range 1200 4000000
+
+config ENABLE_JIELI_USB_CDC_LOG
+    bool "Route log output to USB CDC virtual serial port"
+    # A board-level fact, off by default: the hardware UART is the console
+    # unless the board's config says otherwise, because moving the log to USB
+    # takes the console away from a board with no USB host attached. A board
+    # that wants the CDC console sets this to y in
+    # boards/JIELI/config/<board>.config. The CDC class and cdc_write_data()
+    # are staged from usb/device/cdc.c on both chips.
+    default n
+    help
+        When enabled, tkl_log_output routes system logs to the USB CDC-ACM
+        virtual serial port instead of the default hardware UART port.
+
+choice
+    prompt "Choice a Jieli board"
+    default BOARD_CHOICE_AC79_DEVKITBOARD
+
+    config BOARD_CHOICE_AC79_DEVKITBOARD
+        bool "AC79_DevKitBoard (AC791)"
+
+    config BOARD_CHOICE_AC792N_DEVELOP_BOARD
+        bool "AC792N_Develop_Board (AC7926A reference profile)"
+
+endchoice
+
+if BOARD_CHOICE_AC79_DEVKITBOARD
+    rsource "./AC79_DevKitBoard/Kconfig"
+endif
+
+if BOARD_CHOICE_AC792N_DEVELOP_BOARD
+    rsource "./AC792N_Develop_Board/Kconfig"
+endif

@@ -51,6 +51,7 @@ extern "C" {
 #define ILI9488_PASET 0x2B
 #define ILI9488_RAMWR 0x2C
 #define ILI9488_RAMRD 0x2E
+#define ILI9488_RAMWRC 0x3C
 
 #define ILI9488_PTLAR  0x30
 #define ILI9488_MADCTL 0x36
@@ -109,6 +110,20 @@ OPERATE_RET tdd_disp_rgb_ili9488_set_init_seq(const uint8_t *init_seq);
  * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
  */
 OPERATE_RET tdd_disp_rgb_ili9488_register(char *name, DISP_RGB_DEVICE_CFG_T *dev_cfg);
+
+/**
+ * @brief Registers an ILI9488 TFT display device using the MCU8080 interface
+ *
+ * Configures an ILI9488 panel driven over the 8080 parallel bus. The default
+ * initialization sequence selects 16-bit (RGB565) pixel format and the DBI
+ * (8080) interface, so the panel matches TUYA_PIXEL_FMT_RGB565.
+ *
+ * @param name Name of the display device (used for identification).
+ * @param dev_cfg Pointer to the MCU8080 device configuration structure.
+ *
+ * @return Returns OPRT_OK on success, or an appropriate error code if registration fails.
+ */
+OPERATE_RET tdd_disp_mcu8080_ili9488_register(char *name, DISP_MCU8080_DEVICE_CFG_T *dev_cfg);
 
 #ifdef __cplusplus
 }

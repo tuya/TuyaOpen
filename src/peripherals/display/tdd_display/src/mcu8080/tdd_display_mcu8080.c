@@ -202,6 +202,17 @@ static OPERATE_RET __tdd_display_mcu8080_open(TDD_DISP_DEV_HANDLE_T device)
     return rt;
 }
 
+static void __disp_8080_release_fb(TDL_DISP_FRAME_BUFF_T *fb)
+{
+    /* The frame buffer manager hands out a single buffer when the panel keeps
+     * its own GRAM, so the flush is the only place that can return it to the
+     * pool. Every other TDD does this once its transfer completes; without it
+     * the LVGL full-frame port waits 5 s for a free buffer on every frame. */
+    if (fb != NULL && fb->free_cb != NULL) {
+        fb->free_cb(fb);
+    }
+}
+
 static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL_DISP_FRAME_BUFF_T *frame_buff)
 {
     TDL_DISP_FRAME_BUFF_T *target_fb = NULL;
@@ -245,6 +256,7 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
         sg_display_8080.flush_start_flag = false;
         if (rt) {
             PR_ERR("flush error(%d)...", rt);
+            __disp_8080_release_fb(frame_buff);
             return rt;
         }
     }
@@ -262,7 +274,10 @@ static OPERATE_RET __tdd_display_mcu8080_flush(TDD_DISP_DEV_HANDLE_T device, TDL
 
     tkl_8080_transfer_start();
 
-    return tal_semaphore_wait(sg_display_8080.tx_sem, SEM_WAIT_FOREVER);
+    rt = tal_semaphore_wait(sg_display_8080.tx_sem, SEM_WAIT_FOREVER);
+    __disp_8080_release_fb(frame_buff);
+
+    return rt;
 }
 
 static OPERATE_RET __tdd_display_mcu8080_close(TDD_DISP_DEV_HANDLE_T device)

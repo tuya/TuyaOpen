@@ -29,7 +29,9 @@ _DEFAULT_BAUDRATE = 115200
 _CHIP_MONITOR_BAUDRATE = {
     "T5": 460800,
     "T5AI": 460800,
-    "T9": 460800
+    "T9": 460800,
+    "WL82": 115200,
+    "WL83": 115200
 }
 
 _SERIAL_IO_EXCEPTIONS = (serial.SerialException, OSError)

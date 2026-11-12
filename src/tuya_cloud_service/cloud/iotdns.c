@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tuya_cloud_types.h"
 #include "tuya_config_defaults.h"
 #include "tuya_endpoint.h"
@@ -39,26 +40,62 @@
     "\"mqttsSelfUrl\",\"need_ca\":true}],\"env\":\"%s\"}"
 
 /**
- * @brief Split register-center style "host" or "host:port"
- * @param[in] url input host string
+ * @brief Parse "scheme://host[:port][/path]" into host, port and path.
+ * @param[in] url input url, scheme and path are optional
  * @param[out] host output hostname buffer
  * @param[in] host_len size of host buffer
- * @return resolved port, 443 when url has no port suffix
+ * @param[out] path output path buffer, may be NULL
+ * @param[in] path_len size of path buffer
+ * @param[out] port output port, 0 when the url has no port suffix
  */
-static uint16_t iotdns_split_host_port(const char *url, char *host, size_t host_len)
+static void iotdns_parse_url(const char *url, char *host, size_t host_len, char *path, size_t path_len, uint16_t *port)
 {
-    unsigned int port = 443;
+    const char *body;
+    const char *colon;
+    const char *slash;
+    const char *host_end;
+    unsigned long value;
+    size_t len;
 
-    if (url == NULL || host == NULL || host_len == 0) {
-        return 443;
+    if (url == NULL || host == NULL || host_len == 0 || port == NULL) {
+        return;
     }
 
-    if (sscanf(url, "%63[^:]:%u", host, &port) >= 2 && port > 0 && port <= 65535) {
-        return (uint16_t)port;
+    body = strstr(url, "://");
+    body = (body != NULL) ? body + 3 : url;
+
+    slash = strchr(body, '/');
+    colon = strchr(body, ':');
+    if (colon != NULL && slash != NULL && colon > slash) {
+        colon = NULL;
     }
 
-    snprintf(host, host_len, "%s", url);
-    return 443;
+    *port = 0;
+    if (colon != NULL) {
+        value = strtoul(colon + 1, NULL, 10);
+        if (value > 0 && value <= 65535) {
+            *port = (uint16_t)value;
+        }
+    }
+
+    host_end = (colon != NULL) ? colon : ((slash != NULL) ? slash : body + strlen(body));
+    len = (size_t)(host_end - body);
+    if (len >= host_len) {
+        len = host_len - 1;
+    }
+    memcpy(host, body, len);
+    host[len] = '\0';
+
+    if (path != NULL && path_len > 0) {
+        len = (slash != NULL) ? strlen(slash) : 0;
+        if (len >= path_len) {
+            len = path_len - 1;
+        }
+        if (len != 0) {
+            memcpy(path, slash, len);
+        }
+        path[len] = '\0';
+    }
 }
 
 static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoint_t *endport)
@@ -79,26 +116,21 @@ static int iotdns_response_decode(const uint8_t *input, size_t ilen, tuya_endpoi
     PR_DEBUG("httpsSelfUrl:%s", httpsSelfUrl);
     PR_DEBUG("mqttsSelfUrl:%s", mqttsSelfUrl);
 
-    /* ATOP url decode: https://host[:port]/path */
-    int port = 443;
-    int n = 0;
-
-    endport->atop.path[0] = '\0';
-    n = sscanf(httpsSelfUrl, "https://%64[^:]:%d%16[^\n]", endport->atop.host, &port, endport->atop.path);
-    if (n >= 2) {
-        endport->atop.port = (uint16_t)port;
-    } else {
-        port = 443;
-        sscanf(httpsSelfUrl, "https://%64[^/]%16[^\n]", endport->atop.host, endport->atop.path);
-        endport->atop.port = (uint16_t)port;
+    /* ATOP url decode: https://host[:port][/path] */
+    iotdns_parse_url(httpsSelfUrl, endport->atop.host, sizeof(endport->atop.host), endport->atop.path,
+                     sizeof(endport->atop.path), &endport->atop.port);
+    if (endport->atop.port == 0) {
+        endport->atop.port = 443;
     }
     PR_DEBUG("endport->atop.host = \"%s\"", endport->atop.host);
     PR_DEBUG("endport->atop.port = %d", endport->atop.port);
     PR_DEBUG("endport->atop.path = \"%s\"", endport->atop.path);
 
     /* MQTT host decode */
-    sscanf(mqttsSelfUrl, "%64[^:]:%5d[^\n]", endport->mqtt.host, &port);
-    endport->mqtt.port = (uint16_t)port;
+    iotdns_parse_url(mqttsSelfUrl, endport->mqtt.host, sizeof(endport->mqtt.host), NULL, 0, &endport->mqtt.port);
+    if (endport->mqtt.port == 0) {
+        endport->mqtt.port = 443;
+    }
     PR_DEBUG("endport->mqtt.host = \"%s\"", endport->mqtt.host);
     PR_DEBUG("endport->mqtt.port = %d", endport->mqtt.port);
 
@@ -149,7 +181,10 @@ static int iotdns_base_request(char *body, char *path, http_client_response_t *h
     if (rcs_url == NULL) {
         return OPRT_INVALID_PARM;
     }
-    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
+    iotdns_parse_url(rcs_url, rcs_host, sizeof(rcs_host), NULL, 0, &rcs_port);
+    if (rcs_port == 0) {
+        rcs_port = 443;
+    }
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
@@ -244,7 +279,10 @@ int iotdns_cloud_endpoint_get(const char *region, const char *env, tuya_endpoint
         tal_free(body_buffer);
         return OPRT_INVALID_PARM;
     }
-    rcs_port = iotdns_split_host_port(rcs_url, rcs_host, sizeof(rcs_host));
+    iotdns_parse_url(rcs_url, rcs_host, sizeof(rcs_host), NULL, 0, &rcs_port);
+    if (rcs_port == 0) {
+        rcs_port = 443;
+    }
 
     /* HTTP Request send */
     PR_DEBUG("http request send!");
