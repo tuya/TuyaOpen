@@ -17,7 +17,7 @@ bool ai_ui_locale_load(void)
     size_t len = 0;
     OPERATE_RET rt;
 
-    sg_english = false;
+    sg_english = true;
     rt = tal_kv_get(AI_UI_LOCALE_KEY, &value, &len);
     if (rt != OPRT_OK || value == NULL || len == 0) {
         if (value != NULL) {
