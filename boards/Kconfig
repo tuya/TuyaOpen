@@ -42,6 +42,10 @@ config BOARD_ENABLE_T9
     bool
     default y
 
+config BOARD_ENABLE_JIELI
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -150,6 +154,14 @@ if (BOARD_ENABLE_T9)
         bool "T9"
     if (BOARD_CHOICE_T9)
     rsource "./T9/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_JIELI)
+    config BOARD_CHOICE_JIELI
+        bool "JIELI"
+    if (BOARD_CHOICE_JIELI)
+    rsource "./JIELI/Kconfig"
     endif
 endif
 

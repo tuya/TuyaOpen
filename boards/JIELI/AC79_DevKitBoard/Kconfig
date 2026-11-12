@@ -1,0 +1,133 @@
+config BOARD_CONFIG
+    bool
+    default y
+
+config CHIP_WL82
+    bool
+    default y
+
+# ---------------------------------------------------------------------------
+# Hardware facts the platform stages into the vendor SDK. See
+# ../AC792N_Develop_Board/Kconfig for what the fields mean; the two boards
+# declare the same names so the platform reads one set either way.
+# ---------------------------------------------------------------------------
+
+config JIELI_BOARD_USB_ROLE
+    string
+    default "device"
+    help
+        "host" for a host port (the vendor's TCFG_HUSB_DEVICE), "device" for a
+        full-speed device port (TCFG_FUSB_DEVICE).
+
+config JIELI_BOARD_FLASH_MIB
+    int
+    default 8
+
+config JIELI_BOARD_SDRAM_MIB
+    int
+    default 8
+
+config JIELI_BOARD_EXTERNAL_DDR
+    bool
+    default n
+    help
+        Whether the board populates the external DDR. The vendor SDK disables
+        it with CONFIG_NO_SDRAM_ENABLE unless this says otherwise.
+
+config JIELI_BOARD_DUAL_BANK
+    bool
+    default n
+    help
+        Build the vendor dual-bank (A/B) OTA engine: stages
+        CONFIG_DOUBLE_BANK_ENABLE into the vendor app config, so
+        support_dual_bank_update_en is 1. The flasher then lays out two 64 KiB
+        uboot copies, two application banks and a 32 KiB VM below 0x300000.
+        Off by default: the wl82 boundaries have not been measured on this
+        board, so read them from the flasher's FLASH INFO the first time.
+
+config JIELI_BOARD_LOG_UART_PORT
+    int
+    default 1
+
+config JIELI_BOARD_LOG_UART_TX_PIN
+    string
+    default "IO_PORTB_03"
+    help
+        Only a chip whose staged board file has to be rewritten needs this.
+        Empty means the vendor header keeps the pin it already has.
+
+config JIELI_BOARD_HAS_SERVICE_UART
+    bool
+    default y
+    help
+        Whether the board carries the second UART the TAL CLI is routed to.
+
+if JIELI_BOARD_HAS_SERVICE_UART
+    config JIELI_BOARD_SERVICE_UART_PORT
+        int
+        default 0
+
+    config JIELI_BOARD_SERVICE_UART_TX_PIN
+        string
+        default "IO_PORTA_05"
+
+    config JIELI_BOARD_SERVICE_UART_RX_PIN
+        string
+        default "IO_PORTA_06"
+endif
+
+config JIELI_BOARD_HAS_DISPLAY
+    bool
+    default n
+
+# TKL UART1 is the SDK's uart2 block, which has one fixed pin group on this
+# chip: PH2 (TX) / PH3 (RX). PH2 is also the PWM0 timer output, so a project
+# uses one or the other, not both.
+#
+# Off by default because opening uart2 on this SDK stops the vendor debug
+# console: output stops on PB3 and does not move to the uart2 pins either. That
+# is tolerable for a product that does not need logs and needs a second UART,
+# and unacceptable while developing. PORT_REMAP behaves the same way.
+config JIELI_BOARD_UART1_ENABLE
+    bool "Expose TKL UART1 (SDK uart2, replaces the debug console)"
+    default n
+
+if JIELI_BOARD_UART1_ENABLE
+config JIELI_BOARD_UART1_TX_PIN
+    int "UART1 TX pin (flat GPIO number)"
+    range 0 127
+    default 114
+
+config JIELI_BOARD_UART1_RX_PIN
+    int "UART1 RX pin (flat GPIO number)"
+    range 0 127
+    default 115
+endif
+
+# TKL PWM0 is the TIMER2 output, which takes a single pin (no H/L pair).
+config JIELI_BOARD_PWM0_PIN
+    int "PWM0 (TIMER2 output) pin (flat GPIO number)"
+    range 0 127
+    default 114
+
+# TKL IIC pins. IIC0 is the software (bit-banged) port on this chip and IIC1
+# the hardware one; both take their pins from platform data.
+config JIELI_BOARD_IIC0_SCL_PIN
+    int "IIC0 (software IIC) SCL pin (flat GPIO number)"
+    range 0 127
+    default 0
+
+config JIELI_BOARD_IIC0_SDA_PIN
+    int "IIC0 (software IIC) SDA pin (flat GPIO number)"
+    range 0 127
+    default 1
+
+config JIELI_BOARD_IIC1_SCL_PIN
+    int "IIC1 SCL pin (flat GPIO number)"
+    range 0 127
+    default 7
+
+config JIELI_BOARD_IIC1_SDA_PIN
+    int "IIC1 SDA pin (flat GPIO number)"
+    range 0 127
+    default 8

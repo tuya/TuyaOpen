@@ -24,4 +24,12 @@ if (ENABLE_DISPLAY)
             Applied by tdl_disp_dev_open() after backlight hardware is initialized.
             0 turns backlight off where supported; 100 is maximum. For GPIO on/off
             backlight, any non-zero value turns the backlight on.
+
+    config ENABLE_MIPI_DSI
+        bool "enable MIPI-DSI display bus"
+        default n
+        help
+            MIPI-DSI panel support. A DSI panel has no GRAM and is refreshed
+            continuously from a host-side frame buffer, so the driver shape
+            follows the RGB one rather than the SPI/I2C command buses.
 endif

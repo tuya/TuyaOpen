@@ -1,0 +1,120 @@
+# TKL capabilities Jieli provides.
+#
+# The platform catalog declares these here, without a prompt, and examples gate
+# on them: examples/peripherals/adc/CMakeLists.txt refuses to configure when
+# CONFIG_ENABLE_ADC is not set, rather than building and failing at run time.
+# Every other platform in boards/ has this file; Jieli did not.
+#
+# Only what the adapter actually implements is declared. A peripheral that is
+# not ported stays undeclared, so the example driving it refuses honestly
+# instead of building against a stub.
+#
+# Undeclared on purpose:
+#
+#   ENABLE_QSPI,
+#   ENABLE_WATCHDOG, ENABLE_PINMUX, ENABLE_TOUCH, ENABLE_RTC
+#       ENABLE_PINMUX is wl83-only, and a platform-level switch has no chip
+#       dimension. The rest have no tkl_*.c under tuyaos_adapter/src/driver.
+#       examples/peripherals/{spi,touch,watchdog} therefore stop with
+#       "cannot work when CONFIG_ENABLE_X is not set". PWM has a compile gate
+#       below; that gate does not claim runtime or board support on either chip.
+#
+#   ENABLE_MEDIA
+#       Declared in Kconfig beside this file instead. There it is not a bare
+#       capability but an opt-in switch that selects ENABLE_AUDIO_CODECS, and
+#       src/peripherals/audio_codecs/CMakeLists.txt gates on it.
+#
+#   tkl_mipi_dsi
+#       Implemented for WL83 only. A platform-level switch has no chip
+#       dimension, so declaring it here would claim WL82 support that the
+#       adapter reports as OPRT_NOT_SUPPORTED. The display path is declared
+#       through the board's display facts instead.
+#
+#   tkl_ota
+#       No platform in the catalog declares an OTA switch.
+
+config ENABLE_UART
+    bool
+    default y
+
+config ENABLE_SPI
+    bool "Compile Jieli TKL SPI adapter"
+    default n
+    help
+        Include the Jieli TKL SPI adapter source in the firmware.
+        This is a compile-time switch only. It does not claim that the
+        selected board provides or registers a usable SPI device.
+
+config ENABLE_WIFI
+    bool
+    default y
+
+config ENABLE_BLUETOOTH
+    bool
+    default y
+
+# The adapter implements tkl_bluetooth but not tkl_hci, and the NimBLE host
+# needs the latter: src/tal_bluetooth/nimble/host/ble_hs.c includes tkl_hci.h,
+# which no Jieli adapter provides. src/tuya_cloud_service/Kconfig therefore
+# carries "depends on !BOARD_CHOICE_JIELI" for ENABLE_NIMBLE, making the symbol
+# structurally unreachable on this board family. No local default is kept here:
+# a second declaration would be dead weight that silently diverges if the
+# common Kconfig ever changes.
+
+config ENABLE_FLASH
+    bool
+    default y
+
+config ENABLE_EXT_RAM
+    bool
+    default y
+
+config ENABLE_GPIO
+    bool
+    default y
+
+config ENABLE_ADC
+    bool
+    default y
+
+config ENABLE_I2C
+    bool "Compile Jieli TKL I2C adapter"
+    default y
+
+config ENABLE_PWM
+    bool "Compile Jieli TKL PWM adapter"
+    default y
+    help
+        Compile-gate the Jieli TKL PWM adapter on both chips. This does not
+        claim runtime or board PWM support; WL82 is not supported at runtime.
+
+config ENABLE_MCU8080
+    bool "Compile Jieli TKL MCU8080 adapter"
+    default y if BOARD_CHOICE_AC79_DEVKITBOARD
+    default n
+    help
+        Compile the MCU8080 adapter for the AC79 DevKit board. This adapter
+        is implemented only for WL82 AC79_DevKitBoard; WL83 builds must leave
+        this option disabled.
+
+# tkl_sleep is real on both chips now: WL82 holds the core awake with
+# low_power_sys_unsleep_lock()/unlock(), WL83 with low_power_disable()/enable(),
+# and tkl_wifi_set_lp_mode() drives the radio's sleep gate. T5AI and T3 declare
+# the same symbol and nothing consumes it - it records what the adapter
+# implements, which is what this file is for.
+#
+# It does NOT mean a build sleeps by default. The board's own low-power macro
+# stays at the vendor's sleep-closed value unless CONFIG_ENABLE_TUYA_PM asks for
+# the power manager, so the runtime path is only reachable when a product wants
+# it.
+config ENABLE_PM
+    bool
+    default y
+
+# tkl_timer drives the vendor's microsecond timer service, so it needs no board
+# device and no pin - there is nothing to register. Its callback runs in the
+# SDK's timer task rather than in the interrupt, which is what lets the stock
+# examples/peripherals/timer stop and deinit its own timer from the callback.
+config ENABLE_TIMER
+    bool
+    default y

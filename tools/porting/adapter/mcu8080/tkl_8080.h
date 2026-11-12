@@ -16,13 +16,6 @@ extern "C" {
 
 #include "tuya_cloud_types.h"
 
-typedef enum {
-    TUYA_MCU8080_OUTPUT_FINISH = 0,
-} TUYA_MCU8080_EVENT_E;
-
-
-typedef void (*TUYA_MCU8080_ISR_CB)(TUYA_MCU8080_EVENT_E event);
-
 /**
  * @brief 8080 init
  * 

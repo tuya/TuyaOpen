@@ -1,0 +1,217 @@
+config BOARD_CONFIG
+    bool
+    default y
+    # The board carries a fixed MIPI-DSI panel, so the display stack is part of
+    # the board definition rather than an application choice.
+    select ENABLE_DISPLAY
+    select ENABLE_MIPI_DSI
+
+config CHIP_WL83
+    bool
+    default y
+
+# ---------------------------------------------------------------------------
+# Hardware facts the platform stages into the vendor SDK.
+#
+# The platform reads these from the evaluated config, the same way it reads
+# every other setting, so a board describes itself here rather than in a file
+# of its own. Nothing here has a prompt: they are facts about the board, not
+# choices for whoever builds it.
+#
+# Values that would name a vendor macro stay semantic - usb_role, the display
+# panel - and the platform owns the mapping. Pin names are the SDK's own
+# vocabulary and are written as the vendor headers spell them.
+# ---------------------------------------------------------------------------
+
+config JIELI_BOARD_USB_ROLE
+    string
+    default "host"
+    help
+        "host" for a host port (the vendor's TCFG_HUSB_DEVICE), "device" for a
+        full-speed device port (TCFG_FUSB_DEVICE).
+
+config JIELI_BOARD_FLASH_MIB
+    int
+    default 8
+
+config JIELI_BOARD_SDRAM_MIB
+    int
+    default 16
+
+config JIELI_BOARD_EXTERNAL_DDR
+    bool
+    default y
+    help
+        Whether the board populates the external DDR. The vendor SDK disables
+        it with CONFIG_NO_SDRAM_ENABLE unless this says otherwise.
+
+config JIELI_BOARD_DUAL_BANK
+    bool
+    default n
+    help
+        Build the vendor dual-bank (A/B) OTA engine: stages
+        CONFIG_DOUBLE_BANK_ENABLE into the vendor app config, so
+        support_dual_bank_update_en is 1 and tkl_ota can write the inactive
+        bank. Needs the flasher to split the application area in two, which
+        halves it to 1.42 MiB; code plus resources have to fit that. Off by
+        default because the chat bot demo alone is 2.46 MiB.
+
+config JIELI_BOARD_LOG_UART_PORT
+    int
+    default 0
+
+config JIELI_BOARD_LOG_UART_TX_PIN
+    string
+    default ""
+    help
+        Only a chip whose staged board file has to be rewritten needs this.
+        Empty means the vendor header keeps the pin it already has.
+
+config JIELI_BOARD_HAS_SERVICE_UART
+    bool
+    default n
+    help
+        Whether the board carries the second UART the TAL CLI is routed to.
+
+config JIELI_BOARD_HAS_DISPLAY
+    bool
+    default y
+
+if JIELI_BOARD_HAS_DISPLAY
+    config JIELI_BOARD_DISPLAY_PANEL
+        string
+        default "MIPI_480x800_ST7701S"
+
+    config JIELI_BOARD_DISPLAY_RESET_IO
+        string
+        default "IO_PORTB_00"
+
+    config JIELI_BOARD_DISPLAY_BACKLIGHT_IO
+        string
+        default "IO_PORTB_01"
+endif
+
+# TKL SPI pins, one block per controller. The board states them once here; the
+# platform stages them into tuya_board_periph_config.h, which the adapter uses
+# to build the platform data for spi0/spi1/spi2. An application can still move
+# them at run time with tkl_io_pinmux_config() before the matching
+# tkl_spi_init().
+config JIELI_BOARD_SPI0_CLK_PIN
+    int "SPI0 CLK pin (flat GPIO number)"
+    range 0 127
+    default 35
+
+config JIELI_BOARD_SPI0_DO_PIN
+    int "SPI0 MOSI/DO pin (flat GPIO number)"
+    range 0 127
+    default 36
+
+config JIELI_BOARD_SPI0_DI_PIN
+    int "SPI0 MISO/DI pin (flat GPIO number)"
+    range 0 127
+    default 37
+
+config JIELI_BOARD_SPI1_CLK_PIN
+    int "SPI1 CLK pin (flat GPIO number)"
+    range 0 127
+    default 32
+
+config JIELI_BOARD_SPI1_DO_PIN
+    int "SPI1 MOSI/DO pin (flat GPIO number)"
+    range 0 127
+    default 33
+
+config JIELI_BOARD_SPI1_DI_PIN
+    int "SPI1 MISO/DI pin (flat GPIO number)"
+    range 0 127
+    default 34
+
+config JIELI_BOARD_SPI2_CLK_PIN
+    int "SPI2 CLK pin (flat GPIO number)"
+    range 0 127
+    default 50
+
+config JIELI_BOARD_SPI2_DO_PIN
+    int "SPI2 MOSI/DO pin (flat GPIO number)"
+    range 0 127
+    default 51
+
+config JIELI_BOARD_SPI2_DI_PIN
+    int "SPI2 MISO/DI pin (flat GPIO number)"
+    range 0 127
+    default 52
+
+# TKL PWM pins, one complementary H/L pair per MCPWM channel. Staged into
+# tuya_board_periph_config.h like the SPI pins.
+config JIELI_BOARD_PWM0_H_PIN
+    int "PWM0 (MCPWM0) H pin (flat GPIO number)"
+    range 0 127
+    default 24
+
+config JIELI_BOARD_PWM0_L_PIN
+    int "PWM0 (MCPWM0) L pin (flat GPIO number)"
+    range 0 127
+    default 25
+
+config JIELI_BOARD_PWM1_H_PIN
+    int "PWM1 (MCPWM1) H pin (flat GPIO number)"
+    range 0 127
+    default 8
+
+config JIELI_BOARD_PWM1_L_PIN
+    int "PWM1 (MCPWM1) L pin (flat GPIO number)"
+    range 0 127
+    default 10
+
+config JIELI_BOARD_PWM2_H_PIN
+    int "PWM2 (MCPWM2) H pin (flat GPIO number)"
+    range 0 127
+    default 26
+
+config JIELI_BOARD_PWM2_L_PIN
+    int "PWM2 (MCPWM2) L pin (flat GPIO number)"
+    range 0 127
+    default 27
+
+config JIELI_BOARD_PWM3_H_PIN
+    int "PWM3 (MCPWM3) H pin (flat GPIO number)"
+    range 0 127
+    default 28
+
+config JIELI_BOARD_PWM3_L_PIN
+    int "PWM3 (MCPWM3) L pin (flat GPIO number)"
+    range 0 127
+    default 29
+
+# TKL IIC pins. IIC0/IIC1 are the hardware ports; IIC2 is the software
+# (bit-banged) one, whose pins the SDK takes from platform data rather than the
+# crossbar. All six are staged into tuya_board_periph_config.h.
+config JIELI_BOARD_IIC0_SCL_PIN
+    int "IIC0 SCL pin (flat GPIO number)"
+    range 0 127
+    default 4
+
+config JIELI_BOARD_IIC0_SDA_PIN
+    int "IIC0 SDA pin (flat GPIO number)"
+    range 0 127
+    default 5
+
+config JIELI_BOARD_IIC1_SCL_PIN
+    int "IIC1 SCL pin (flat GPIO number)"
+    range 0 127
+    default 6
+
+config JIELI_BOARD_IIC1_SDA_PIN
+    int "IIC1 SDA pin (flat GPIO number)"
+    range 0 127
+    default 7
+
+config JIELI_BOARD_IIC2_SCL_PIN
+    int "IIC2 (software IIC) SCL pin (flat GPIO number)"
+    range 0 127
+    default 2
+
+config JIELI_BOARD_IIC2_SDA_PIN
+    int "IIC2 (software IIC) SDA pin (flat GPIO number)"
+    range 0 127
+    default 3
