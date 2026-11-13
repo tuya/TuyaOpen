@@ -19,12 +19,13 @@
 #include "tal_api.h"
 #include "tkl_output.h"
 #include "tkl_adc.h"
+#include "board_com_api.h"
 
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
 #define EXAMPLE_ADC_PORT    TUYA_ADC_NUM_0
-#define EXAMPLE_ADC_CHANNEL 2
+#define EXAMPLE_ADC_CHANNEL 10
 #define EXAMPLE_ADC_MODE    TUYA_ADC_CONTINUOUS
 #define EXAMPLE_ADC_TYPE    TUYA_ADC_INNER_SAMPLE_VOL
 
@@ -62,6 +63,7 @@ void user_main(void)
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+    TUYA_CALL_ERR_GOTO(board_register_hardware(), __EXIT);
 
     PR_NOTICE("Application information:");
     PR_NOTICE("Project name:        %s", PROJECT_NAME);

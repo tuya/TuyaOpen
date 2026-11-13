@@ -32,6 +32,7 @@ extern "C" {
 #define SC7A20_REG_CTRL_REG3         0x22  /* INT1 route */
 #define SC7A20_REG_CTRL_REG4         0x23  /* FS[5:4] | HR[3] */
 #define SC7A20_REG_CTRL_REG5         0x24  /* FIFO_EN[6] */
+#define SC7A20_REG_CTRL_REG6         0x25  /* interrupt polarity */
 #define SC7A20_REG_STATUS            0x27  /* ZYXDA[3] data-ready */
 #define SC7A20_REG_OUT_X_L           0x28  /* auto-increment: X_L/X_H/Y_L/Y_H/Z_L/Z_H */
 #define SC7A20_REG_FIFO_CTRL_REG     0x2E  /* FM[7:6] mode | FTH[5:0] watermark */
@@ -53,6 +54,8 @@ extern "C" {
 #define SC7A20_CTRL3_I1_IA1          0x40  /* route AOI1 interrupt to INT1 pin */
 /* CTRL_REG5 bits */
 #define SC7A20_CTRL5_LIR_INT1        0x08  /* latch INT1 until INT1_SRC is read */
+/* CTRL_REG6 bits */
+#define SC7A20_CTRL6_H_LACTIVE       0x02  /* 1: interrupt pins active low */
 /* INT1_SRC bits */
 #define SC7A20_INT1_IA               0x40  /* interrupt active */
 
@@ -108,6 +111,7 @@ typedef struct {
 typedef struct {
     TUYA_I2C_NUM_E   i2c_port;
     uint8_t          i2c_addr;      /* 7-bit, e.g. SC7A20_I2C_ADDR_SA0_HIGH */
+    uint32_t         i2c_speed_hz;  /* 0 selects the default 400 kHz */
     SC7A20_RANGE_E   range;         /* full-scale range */
     SC7A20_ODR_E     odr;           /* output data rate */
     bool             low_power;     /* LPen (CTRL_REG1 bit3): low-power mode */
@@ -175,6 +179,17 @@ OPERATE_RET tdd_sc7a20_deinit(const TDD_SC7A20_CFG_T *cfg);
  *        INT1_SRC via tdd_sc7a20_int_read_src().
  */
 OPERATE_RET tdd_sc7a20_int_config(const TDD_SC7A20_CFG_T *cfg, const TDD_SC7A20_INT_CFG_T *int_cfg);
+
+/**
+ * @brief Enable or disable routing the accelerometer data-ready signal to INT1.
+ */
+OPERATE_RET tdd_sc7a20_data_ready_int_config(const TDD_SC7A20_CFG_T *cfg, bool enable);
+
+/**
+ * @brief Configure INT1/INT2 electrical polarity.
+ */
+OPERATE_RET tdd_sc7a20_int_polarity_config(const TDD_SC7A20_CFG_T *cfg,
+                                           bool active_low);
 
 /**
  * @brief Read INT1_SRC (reading clears the latched INT1 pin). bit

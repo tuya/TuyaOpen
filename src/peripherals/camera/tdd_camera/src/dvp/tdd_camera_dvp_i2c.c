@@ -45,14 +45,26 @@
  */
 OPERATE_RET tdd_dvp_i2c_init(DVP_I2C_CFG_T *cfg)
 {
+    OPERATE_RET rt;
+
     if (NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
     PR_INFO("set dvp i2c, clk: %d sda: %d, idx: %d\r\n", cfg->clk, cfg->sda, cfg->port);
 
-    tkl_io_pinmux_config(cfg->clk, DVP_I2C_SCL(cfg->port));
-    tkl_io_pinmux_config(cfg->sda, DVP_I2C_SDA(cfg->port));
+    if (cfg->clk < TUYA_GPIO_NUM_MAX) {
+        rt = tkl_io_pinmux_config(cfg->clk, DVP_I2C_SCL(cfg->port));
+        if (rt != OPRT_OK) {
+            return rt;
+        }
+    }
+    if (cfg->sda < TUYA_GPIO_NUM_MAX) {
+        rt = tkl_io_pinmux_config(cfg->sda, DVP_I2C_SDA(cfg->port));
+        if (rt != OPRT_OK) {
+            return rt;
+        }
+    }
 
     TUYA_IIC_BASE_CFG_T i2c_cfg = {
         .role = TUYA_IIC_MODE_MASTER,

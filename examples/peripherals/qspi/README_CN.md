@@ -26,28 +26,33 @@ QSPI 和普通 SPI 的区别不在速度，在**结构**：一笔事务分成**�
 
 | 配置 | 默认 | 说明 |
 |---|---|---|
-| `EXAMPLE_QSPI_PORT` | 0 | QSPI 端口 |
+| `EXAMPLE_QSPI_PORT` | 0 | QSPI 端口，H779V_START 映射到 SPI3 |
 | `EXAMPLE_QSPI_FREQ_HZ` | 1000000 | 时钟频率 |
+| `EXAMPLE_QSPI_USE_DMA` | y | 数据阶段使用 DMA；1 线为 8 bit，4 线为 32 bit |
 | `EXAMPLE_QSPI_QUAD` | n | 是否发第 3 笔（数据 4 线） |
 
 频率默认压得很低是有意的 —— 没有器件要跟上，而**慢时钟才好抓**。飞线加一根共地，在高速下会把总线变成串扰源，那时候查到的问题往往不在控制器上。
 
 ```bash
-tos.py config set EXAMPLE_QSPI_FREQ_HZ=10000000 EXAMPLE_QSPI_QUAD=y
+tos.py config set EXAMPLE_QSPI_FREQ_HZ=10000000 EXAMPLE_QSPI_USE_DMA=y EXAMPLE_QSPI_QUAD=y
 ```
 
-## 引脚（GD32VW553）
+## 引脚（GD32H779V_START）
 
-| 信号 | 引脚 | AF |
+| 信号 | 引脚 | GPIO ID / AF |
 |---|---|---|
-| SCK | PA4 | AF3 |
-| CSN | PA5 | AF3 |
-| IO0 | PA6 | AF3 |
-| IO1 | PA7 | AF3 |
-| **IO2** | **PB3** | AF3 |
-| **IO3** | **PB4** | AF3 |
+| SCK | PE12 | GPIO ID 76 / AF5 |
+| CSN / NSS | PE11 | GPIO ID 75 / AF5，硬件 NSS |
+| IO0 | PE14 | GPIO ID 78 / AF5 |
+| IO1 | PE13 | GPIO ID 77 / AF5 |
+| IO2 | PE9 | GPIO ID 73 / AF5 |
+| IO3 | PE10 | GPIO ID 74 / AF5 |
 
-⚠️ **IO2/IO3 是 PB3(JTDO) 和 PB4(NJTRST)** —— 开启 `EXAMPLE_QSPI_QUAD` 会把调试口占掉。这就是它默认关闭的原因。串口烧录不受影响。
+QSPI TKL 默认使用 PE11 的硬件 NSS，SCK/IO0-IO3 默认由 TKL 在 `tkl_qspi_init()` 中自动配置。START 的引脚映射统一在 `board_register_hardware()` 中完成，例程不再包含 pinmux 配置或调用。软件 CS 属于应用/板级职责；使用软件 CS 时应在板级使用与硬件 NSS 不同的独立 GPIO。
+
+开启 `EXAMPLE_QSPI_QUAD` 后，例程会发出第三笔四线数据事务；IO2/IO3 的 AF5 映射由板级完成。PE9/PE10 不占用 SWD，因此不需要为了调试口关闭四线测试。
+
+`EXAMPLE_QSPI_USE_DMA` 只影响数据阶段。四线 DMA 要求数据长度和缓冲区地址都按 4 字节对齐；不满足时 TKL 自动回退到轮询路径。
 
 ## 预期输出
 
@@ -64,7 +69,7 @@ cmd + addr 1-wire, data 4    cmd 0x02, addr 3 byte, data 8 byte on 4-wire -> 0
 
 **位序固定 MSB first。** QSPI 没有位序选项（`TUYA_QSPI_CMD_T` 里没有这个字段），串行存储器协议就是 MSB 先出，命令、地址、数据都一样。
 
-> 注意别和隔壁的 [spi](../spi/) 例程混淆 —— 那个例程显式设了 `TUYA_SPI_ORDER_LSB2MSB`，是 LSB。
+> 注意别和隔壁的 [spi](../spi/) 例程混淆 —— 那个例程显式设了 `TUYA_SPI_ORDER_MSB2LSB`，与本例程一致。
 
 **第 1、2 笔用 SPI 解码器解更省事。** 它们全在 IO0 一根线上，电气上就是普通 SPI：CLK + MOSI(IO0) + CS，CPOL=0/CPHA=0，MSB first。QSPI 解码器反而需要你手工配全每个阶段的字节数和线数，配不对就是乱码 —— 线上没有任何自描述结构，解码器猜不出来。
 

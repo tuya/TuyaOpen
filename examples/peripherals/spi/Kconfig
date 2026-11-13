@@ -3,10 +3,19 @@ menu "Application config"
     config EXAMPLE_SPI_PORT
         int "spi port"
         default 0
-        range 0 4
+        range 0 5
 
     config EXAMPLE_SPI_BAUDRATE
         int "spi baudrate"
-        default 20000000
-        range 1000000 100000000 
+        default 1000000
+        range 1 100000000
+
+    config EXAMPLE_SPI_IRQ_ENABLE
+        bool "use asynchronous SPI IRQ mode"
+        default n
+
+    config EXAMPLE_SPI_DMA
+        bool "use SPI DMA mode"
+        default n
+
 endmenu

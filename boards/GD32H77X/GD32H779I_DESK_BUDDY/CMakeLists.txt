@@ -1,6 +1,6 @@
 ##
 # @file CMakeLists.txt
-# @brief GD32H779I Watch EVAL board component.
+# @brief GD32H779I DESK BUDDY board component.
 #/
 
 set(MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})

@@ -14,12 +14,15 @@ menu "Application config"
             and a slow clock is what makes the trace readable - flying leads and a single
             ground turn a fast bus into crosstalk long before the controller is the problem.
 
+    config EXAMPLE_QSPI_USE_DMA
+        bool "use QSPI DMA for payload transfers"
+        default n
+
     config EXAMPLE_QSPI_QUAD
         bool "also issue a transaction with the data phase on four lines"
         default n
         ---help---
-            IO2 and IO3 are on PB3 and PB4, which are JTDO and NJTRST. Turning this on takes
-            the debug port with it, so it is off unless the four-line case is what you came
-            to look at.
+            Enable this to issue the four-line payload transaction.  Pin mapping itself
+            remains board-owned; on GD32H779V_START IO2/IO3 are PE9 and PE10.
 
 endmenu

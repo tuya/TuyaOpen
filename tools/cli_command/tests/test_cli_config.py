@@ -49,8 +49,8 @@ class TestNormalizeSaveName(unittest.TestCase):
 class TestInvalidateDerivedArtifacts(unittest.TestCase):
     '''
     tools/kconfiglib/CMakeLists.txt only regenerates using.cmake and
-    tuya_kconfig.h when they are absent, so `config set` has to remove
-    them. It must never remove using.config, which it just wrote.
+    tuya_kconfig.h when they are absent, so config changes must remove them.
+    It must never remove using.config.
     '''
 
     def setUp(self):
@@ -107,6 +107,39 @@ class TestInvalidateDerivedArtifacts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             build_path = os.path.join(tmp, "no_such_build")
             self.assertEqual(self._run(build_path), [])
+
+
+class TestInitUsingConfigInvalidatesDerived(unittest.TestCase):
+
+    def test_rebuild_removes_stale_cmake_and_header(self):
+        import tools.cli_command.cli_config as m
+
+        with tempfile.TemporaryDirectory() as tmp:
+            app_default = os.path.join(tmp, "app_default.config")
+            using = os.path.join(tmp, ".build", "cache", "using.config")
+            with open(app_default, 'w', encoding='utf-8') as f:
+                f.write("CONFIG_BOARD_CHOICE_GD32H77X=y\n")
+            os.makedirs(os.path.dirname(using))
+            params = {
+                "app_default_config": app_default,
+                "app_root": tmp,
+                "boards_root": os.path.join(tmp, "boards"),
+                "catalog_kconfig": os.path.join(tmp, "CatalogKconfig"),
+                "src_root": os.path.join(tmp, "src"),
+                "tools_root": os.path.join(tmp, "tools"),
+                "using_config": using,
+            }
+            with patch('tools.cli_command.cli_config.get_global_params',
+                       return_value=params), \
+                 patch('tools.cli_command.cli_config.get_logger',
+                       return_value=MagicMock()), \
+                 patch('tools.cli_command.cli_config.set_catalog_config'), \
+                 patch('tools.cli_command.cli_config._defconfig'), \
+                 patch('tools.cli_command.cli_config._invalidate_derived_artifacts',
+                       return_value=["using.cmake"]) as invalidate:
+                m.init_using_config(force=True)
+
+            invalidate.assert_called_once_with()
 
 
 class TestDerivedArtifactsList(unittest.TestCase):

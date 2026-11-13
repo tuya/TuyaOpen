@@ -72,4 +72,4 @@ platforms:
 - name: GD32H77X
   repo: https://github.com/tuya/TuyaOpen-GD32H77x.git
   branch: master
-  commit: 8c4d2f71a1f35c98a4e201268c9570be1f2c08b8
+  commit: 4eec9ff8d74d09c031c92da11ca0e864e991decd

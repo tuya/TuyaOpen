@@ -4,6 +4,7 @@
 import importlib.util
 import logging
 import os
+import inspect
 import re
 import sys
 import click
@@ -203,18 +204,12 @@ def _do_flash_pipe(cmd: str) -> int:
         return 1
 
 
-def check_bin_file(using_data) -> bool:
+def check_bin_file(using_data, artifact=None) -> bool:
     logger = get_logger()
-    params = get_global_params()
-
-    bin_path = params["app_bin_path"]
-    project_name = using_data["CONFIG_PROJECT_NAME"]
-    project_ver = using_data["CONFIG_PROJECT_VERSION"]
-    bin_file = os.path.join(
-        bin_path, f"{project_name}_QIO_{project_ver}.bin")
-
-    if not os.path.isfile(bin_file):
-        logger.error("Not found bin file, please use [tos.py build].")
+    if artifact is None:
+        artifact, _bridge = _resolve_flash_artifact(using_data)
+    if not artifact or not os.path.isfile(artifact):
+        logger.error("Not found firmware artifact, please use [tos.py build].")
         return False
     return True
 
@@ -229,6 +224,52 @@ def _get_bin_file(using_data) -> str:
     return os.path.join(bin_path, f"{project_name}_QIO_{project_ver}.bin")
 
 
+_PLATFORM_BRIDGE_CACHE = {}
+
+
+def _load_platform_bridge(using_data):
+    """Load and cache the optional platform bridge used by the flash command."""
+    bridge_path = _get_platform_bridge_path(using_data)
+    if not bridge_path or not os.path.isfile(bridge_path) or os.path.getsize(bridge_path) == 0:
+        return None
+    stamp = os.stat(bridge_path).st_mtime_ns
+    cached = _PLATFORM_BRIDGE_CACHE.get(bridge_path)
+    if cached and cached[0] == stamp:
+        return cached[1]
+    platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
+    spec = importlib.util.spec_from_file_location(
+        "platform_flash_bridge_" + platform, bridge_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load platform flash bridge: {bridge_path}")
+    bridge = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bridge)
+    _PLATFORM_BRIDGE_CACHE[bridge_path] = (stamp, bridge)
+    return bridge
+
+
+def _resolve_flash_artifact(using_data):
+    """Return (artifact path, bridge module), honoring an optional platform hook.
+
+    A hook exception is fatal. Falling back to a BIN after a platform package
+    resolver failed could flash a different artifact than the user selected.
+    """
+    default_bin = _get_bin_file(using_data)
+    bridge = _load_platform_bridge(using_data)
+    hook = getattr(bridge, "get_flash_artifact", None) if bridge else None
+    if not callable(hook):
+        return default_bin, bridge
+    artifact = hook(using_data, default_bin)
+    if artifact is None:
+        return default_bin, bridge
+    try:
+        artifact = os.fspath(artifact)
+    except TypeError as exc:
+        raise RuntimeError("Platform get_flash_artifact() must return a path or None") from exc
+    if not isinstance(artifact, str) or not artifact:
+        raise RuntimeError("Platform get_flash_artifact() returned an empty artifact path")
+    return artifact, bridge
+
+
 def _get_platform_bridge_path(using_data) -> str:
     platform = using_data.get("CONFIG_PLATFORM_CHOICE", "")
     if not platform:
@@ -237,7 +278,8 @@ def _get_platform_bridge_path(using_data) -> str:
     return os.path.join(params["platforms_root"], platform, "platform_flash_bridge.py")
 
 
-def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
+def _try_platform_flash(using_data, debug: bool, port: str, baud: int,
+                        verify: bool, artifact=None, bridge=None):
     """
     Call platform_flash_bridge.py when present.
 
@@ -257,28 +299,32 @@ def _try_platform_flash(using_data, debug: bool, port: str, baud: int):
     if debug:
         logger.setLevel(logging.DEBUG)
 
-    spec = importlib.util.spec_from_file_location(
-        "platform_flash_bridge_" + platform, bridge_path)
-    if spec is None or spec.loader is None:
+    if bridge is None:
+        try:
+            bridge = _load_platform_bridge(using_data)
+        except Exception as exc:
+            logger.error(f"Invalid platform flash bridge: {exc}")
+            return False
+    if bridge is None:
         return None
-
-    bridge = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(bridge)
     if not callable(getattr(bridge, "platform_flash", None)):
         logger.error(f"Invalid bridge (no platform_flash): {bridge_path}")
         return False
 
     params = get_global_params()
     logger.info(f"Using platform flash bridge: {platform}/platform_flash_bridge.py")
-
-    result = bridge.platform_flash(
-        using_data=using_data,
-        binfile=_get_bin_file(using_data),
-        port=port,
-        baud=baud,
-        boards_root=params["boards_root"],
-        logger=logger,
-    )
+    kwargs = {
+        "using_data": using_data,
+        "binfile": artifact or _get_bin_file(using_data),
+        "port": port,
+        "baud": baud,
+        "boards_root": params["boards_root"],
+        "logger": logger,
+    }
+    parameters = inspect.signature(bridge.platform_flash).parameters
+    if "verify" in parameters:
+        kwargs["verify"] = verify
+    result = bridge.platform_flash(**kwargs)
     if isinstance(result, dict) and result.get("success"):
         logger.info("Platform flash success.")
         return True
@@ -367,11 +413,15 @@ def get_flash_cmd(using_data,
               help="Show flash debug message.")
 @click.option('-p', '--port',
               type=str, default="",
-              help="Target port.")
+              help="Backend endpoint: UART serial port, SWD probe ID, "
+                   "or DFU USB bus path.")
 @click.option('-b', '--baud',
               type=int, default=0,
-              help="Uart baud rate.")
-def cli(debug, port, baud):
+              help="UART ROM-ISP baud rate. Omit or use 0 for auto-detect.")
+@click.option('--no-verify',
+              is_flag=True, default=False,
+              help="Skip readback verification when the platform supports it.")
+def cli(debug, port, baud, no_verify):
     logger = get_logger()
     check_proj_dir()
 
@@ -379,10 +429,17 @@ def cli(debug, port, baud):
     using_config = params["using_config"]
     using_data = parse_config_file(using_config)
 
-    if not check_bin_file(using_data):
+    try:
+        artifact, bridge = _resolve_flash_artifact(using_data)
+    except Exception as exc:
+        logger.error(f"Cannot resolve platform firmware artifact: {exc}")
+        sys.exit(1)
+    if not check_bin_file(using_data, artifact):
         sys.exit(1)
 
-    bridge_result = _try_platform_flash(using_data, debug, port, baud)
+    bridge_result = _try_platform_flash(
+        using_data, debug, port, baud, not no_verify,
+        artifact=artifact, bridge=bridge)
     if bridge_result is not None:
         sys.exit(0 if bridge_result else 1)
 

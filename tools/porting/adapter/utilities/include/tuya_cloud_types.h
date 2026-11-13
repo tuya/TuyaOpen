@@ -511,6 +511,22 @@ typedef uint16_t TUYA_PIN_FUNC_E;
 #define  TUYA_UART3_RX       0x10D
 #define  TUYA_UART3_RTS      0x10E
 #define  TUYA_UART3_CTS      0x10F
+#define  TUYA_UART4_TX       0x110
+#define  TUYA_UART4_RX       0x111
+#define  TUYA_UART4_RTS      0x112
+#define  TUYA_UART4_CTS      0x113
+#define  TUYA_UART5_TX       0x114
+#define  TUYA_UART5_RX       0x115
+#define  TUYA_UART5_RTS      0x116
+#define  TUYA_UART5_CTS      0x117
+#define  TUYA_UART6_TX       0x118
+#define  TUYA_UART6_RX       0x119
+#define  TUYA_UART6_RTS      0x11A
+#define  TUYA_UART6_CTS      0x11B
+#define  TUYA_UART7_TX       0x11C
+#define  TUYA_UART7_RX       0x11D
+#define  TUYA_UART7_RTS      0x11E
+#define  TUYA_UART7_CTS      0x11F
 
 #define  TUYA_SPI0_MISO      0x200
 #define  TUYA_SPI0_MOSI      0x201
@@ -524,6 +540,37 @@ typedef uint16_t TUYA_PIN_FUNC_E;
 #define  TUYA_SPI2_MOSI      0x209
 #define  TUYA_SPI2_CLK       0x20A
 #define  TUYA_SPI2_CS        0x20B
+#define  TUYA_SPI3_MISO      0x20C
+#define  TUYA_SPI3_MOSI      0x20D
+#define  TUYA_SPI3_CLK       0x20E
+#define  TUYA_SPI3_CS        0x20F
+#define  TUYA_SPI4_MISO      0x210
+#define  TUYA_SPI4_MOSI      0x211
+#define  TUYA_SPI4_CLK       0x212
+#define  TUYA_SPI4_CS        0x213
+#define  TUYA_SPI5_MISO      0x214
+#define  TUYA_SPI5_MOSI      0x215
+#define  TUYA_SPI5_CLK       0x216
+#define  TUYA_SPI5_CS        0x217
+
+#define  TUYA_QSPI0_SCK      0x900
+#define  TUYA_QSPI0_IO0      0x901
+#define  TUYA_QSPI0_IO1      0x902
+#define  TUYA_QSPI0_IO2      0x903
+#define  TUYA_QSPI0_IO3      0x904
+#define  TUYA_QSPI0_CS       0x905
+
+#define  TUYA_DVP0_D0        0xA00
+#define  TUYA_DVP0_D1        0xA01
+#define  TUYA_DVP0_D2        0xA02
+#define  TUYA_DVP0_D3        0xA03
+#define  TUYA_DVP0_D4        0xA04
+#define  TUYA_DVP0_D5        0xA05
+#define  TUYA_DVP0_D6        0xA06
+#define  TUYA_DVP0_D7        0xA07
+#define  TUYA_DVP0_PIXCLK    0xA08
+#define  TUYA_DVP0_HSYNC     0xA09
+#define  TUYA_DVP0_VSYNC     0xA0A
 
 #define  TUYA_PWM0           0x300
 #define  TUYA_PWM1           0x301
@@ -531,6 +578,12 @@ typedef uint16_t TUYA_PIN_FUNC_E;
 #define  TUYA_PWM3           0x303
 #define  TUYA_PWM4           0x304
 #define  TUYA_PWM5           0x305
+#define  TUYA_PWM6           0x306
+#define  TUYA_PWM7           0x307
+#define  TUYA_PWM8           0x308
+#define  TUYA_PWM9           0x309
+#define  TUYA_PWM10          0x30A
+#define  TUYA_PWM11          0x30B
 
 #define  TUYA_ADC0           0x400
 #define  TUYA_ADC1           0x401
@@ -1278,6 +1331,8 @@ typedef enum {
     TUYA_UART_NUM_3,	        // UART 3
     TUYA_UART_NUM_4,	        // UART 4
     TUYA_UART_NUM_5,	        // UART 5
+    TUYA_UART_NUM_6,	        // UART 6
+    TUYA_UART_NUM_7,	        // UART 7
     TUYA_UART_NUM_MAX,
 } TUYA_UART_NUM_E;
 

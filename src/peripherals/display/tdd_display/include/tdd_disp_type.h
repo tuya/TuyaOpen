@@ -63,10 +63,18 @@ typedef struct {
     TUYA_DISPLAY_PIXEL_FMT_E pixel_fmt;
     TUYA_DISPLAY_ROTATION_E rotation;
     TUYA_GPIO_NUM_E rst_pin;
+    TUYA_GPIO_NUM_E cs_pin;
     TUYA_QSPI_NUM_E port;
     uint32_t spi_clk;
+    TUYA_QSPI_MODE_E mode;
+    TUYA_QSPI_WIRE_MODE_E data_lines;
+    TUYA_GPIO_NUM_E te_pin;
+    TUYA_GPIO_LEVEL_E te_active_level;
     TUYA_DISPLAY_BL_CTRL_T bl;
     TUYA_DISPLAY_IO_CTRL_T power;
+    bool use_dma;
+    bool te_sync_enable;
+    uint8_t te_wait_div;
 } DISP_QSPI_DEVICE_CFG_T;
 
 typedef struct {

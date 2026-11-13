@@ -1,0 +1,23 @@
+config ENABLE_MOTION
+    bool "Enable motion sensor"
+    default n
+    depends on !ENABLE_IMU
+
+if (ENABLE_MOTION)
+    config MOTION_NAME
+        string "the name of motion sensor"
+        default "motion"
+
+    config MOTION_MAX_DEVICES
+        int "maximum motion devices"
+        range 1 16
+        default 4
+
+    config ENABLE_MOTION_SC7A20
+        bool "Enable SC7A20 accelerometer"
+        default n
+
+    config ENABLE_MOTION_BMI270
+        bool "Enable BMI270 accelerometer and gyroscope"
+        default n
+endif

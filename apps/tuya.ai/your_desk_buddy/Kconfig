@@ -1,0 +1,13 @@
+menu "configure app (your_desk_buddy)"
+
+config APP_CONFIG
+    bool
+    default y
+    select ENABLE_LIBLVGL
+    select ENABLE_LVGL_TP
+
+config DESK_BUDDY_SD_MOUNT_PATH
+    string "SD card mount path"
+    default "/sdcard"
+
+endmenu

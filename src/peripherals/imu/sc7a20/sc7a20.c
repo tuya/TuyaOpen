@@ -21,6 +21,7 @@
 #define SC7A20_CTRL2_FDS             0x04   /* filtered data selection (HPF -> data) */
 
 /* CTRL_REG4 bits */
+#define SC7A20_CTRL4_BDU             0x80   /* block data update */
 #define SC7A20_CTRL4_HR              0x08   /* high-resolution (12-bit) */
 
 /* CTRL_REG5 bits */
@@ -32,28 +33,28 @@
 static OPERATE_RET __sc7a20_write_reg(TUYA_I2C_NUM_E port, uint8_t addr, uint8_t reg, uint8_t val)
 {
     uint8_t buf[2] = {reg, val};
-    return tkl_i2c_master_send(port, addr, buf, 2, TRUE);
+    return tkl_i2c_master_send(port, addr, buf, 2, FALSE);
 }
 
 static OPERATE_RET __sc7a20_read_reg(TUYA_I2C_NUM_E port, uint8_t addr, uint8_t reg, uint8_t *val)
 {
     OPERATE_RET rt;
-    rt = tkl_i2c_master_send(port, addr, &reg, 1, FALSE);
+    rt = tkl_i2c_master_send(port, addr, &reg, 1, TRUE);
     if (rt != OPRT_OK) {
         return rt;
     }
-    return tkl_i2c_master_receive(port, addr, val, 1, TRUE);
+    return tkl_i2c_master_receive(port, addr, val, 1, FALSE);
 }
 
 static OPERATE_RET __sc7a20_read_multi(TUYA_I2C_NUM_E port, uint8_t addr, uint8_t reg, uint8_t *buf, uint8_t len)
 {
     OPERATE_RET rt;
     uint8_t reg_auto = reg | SC7A20_MULTI_READ;
-    rt = tkl_i2c_master_send(port, addr, &reg_auto, 1, FALSE);
+    rt = tkl_i2c_master_send(port, addr, &reg_auto, 1, TRUE);
     if (rt != OPRT_OK) {
         return rt;
     }
-    return tkl_i2c_master_receive(port, addr, buf, len, TRUE);
+    return tkl_i2c_master_receive(port, addr, buf, len, FALSE);
 }
 
 /* read-modify-write: set bits <mask> of <reg> */
@@ -67,21 +68,61 @@ static OPERATE_RET __sc7a20_reg_set_mask(TUYA_I2C_NUM_E port, uint8_t addr, uint
     return __sc7a20_write_reg(port, addr, reg, (uint8_t)(v | mask));
 }
 
+static OPERATE_RET __sc7a20_reg_update_mask(TUYA_I2C_NUM_E port, uint8_t addr,
+                                            uint8_t reg, uint8_t mask, bool enable)
+{
+    uint8_t v = 0;
+    OPERATE_RET rt = __sc7a20_read_reg(port, addr, reg, &v);
+
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+    v = enable ? (uint8_t)(v | mask) : (uint8_t)(v & ~mask);
+    return __sc7a20_write_reg(port, addr, reg, v);
+}
+
+static OPERATE_RET __sc7a20_i2c_speed_enum(uint32_t speed_hz,
+                                           TUYA_IIC_SPEED_E *speed)
+{
+    if (speed == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    switch (speed_hz) {
+    case 0U:
+    case 400000U:
+        *speed = TUYA_IIC_BUS_SPEED_400K;
+        return OPRT_OK;
+    case 100000U:
+        *speed = TUYA_IIC_BUS_SPEED_100K;
+        return OPRT_OK;
+    default:
+        return OPRT_NOT_SUPPORTED;
+    }
+}
+
 /***********************************************************
 ***********************public functions*********************
 ***********************************************************/
 OPERATE_RET tdd_sc7a20_init(const TDD_SC7A20_CFG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
+    TUYA_IIC_SPEED_E i2c_speed;
 
     if (NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
+    rt = __sc7a20_i2c_speed_enum(cfg->i2c_speed_hz, &i2c_speed);
+    if (rt != OPRT_OK) {
+        PR_ERR("SC7A20 unsupported I2C speed: %u Hz", cfg->i2c_speed_hz);
+        return rt;
+    }
+
     /* I2C bus init */
     TUYA_IIC_BASE_CFG_T i2c_cfg = {
         .role       = TUYA_IIC_MODE_MASTER,
-        .speed      = TUYA_IIC_BUS_SPEED_400K,
+        .speed      = i2c_speed,
         .addr_width = TUYA_IIC_ADDRESS_7BIT,
     };
     TUYA_CALL_ERR_RETURN(tkl_i2c_init(cfg->i2c_port, &i2c_cfg));
@@ -101,8 +142,8 @@ OPERATE_RET tdd_sc7a20_init(const TDD_SC7A20_CFG_T *cfg)
     }
     TUYA_CALL_ERR_RETURN(__sc7a20_write_reg(cfg->i2c_port, cfg->i2c_addr, SC7A20_REG_CTRL_REG1, reg1));
 
-    /* CTRL_REG4: FS(range<<4) | HR(12-bit, unless low-power) */
-    uint8_t reg4 = (uint8_t)(cfg->range << 4);
+    /* CTRL_REG4: BDU | FS(range<<4) | HR(12-bit, unless low-power) */
+    uint8_t reg4 = SC7A20_CTRL4_BDU | (uint8_t)(cfg->range << 4);
     if (!cfg->low_power) {
         reg4 |= SC7A20_CTRL4_HR;
     }
@@ -269,4 +310,36 @@ OPERATE_RET tdd_sc7a20_int_read_src(const TDD_SC7A20_CFG_T *cfg, uint8_t *src)
     }
     /* Reading INT1_SRC clears the latched interrupt on the INT1 pin */
     return __sc7a20_read_reg(cfg->i2c_port, cfg->i2c_addr, SC7A20_REG_INT1_SRC, src);
+}
+
+OPERATE_RET tdd_sc7a20_data_ready_int_config(const TDD_SC7A20_CFG_T *cfg, bool enable)
+{
+    OPERATE_RET rt;
+    uint8_t ctrl3 = 0;
+
+    if (cfg == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    rt = __sc7a20_write_reg(cfg->i2c_port, cfg->i2c_addr,
+                            SC7A20_REG_CTRL_REG3, enable ? 0x10 : 0x00);
+    if (rt == OPRT_OK) {
+        rt = __sc7a20_read_reg(cfg->i2c_port, cfg->i2c_addr,
+                               SC7A20_REG_CTRL_REG3, &ctrl3);
+        PR_NOTICE("SC7A20 CTRL_REG3=0x%02X (data-ready route %s)",
+                  ctrl3, enable ? "on" : "off");
+    }
+    return rt;
+}
+
+OPERATE_RET tdd_sc7a20_int_polarity_config(const TDD_SC7A20_CFG_T *cfg,
+                                           bool active_low)
+{
+    if (cfg == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    return __sc7a20_reg_update_mask(cfg->i2c_port, cfg->i2c_addr,
+                                    SC7A20_REG_CTRL_REG6,
+                                    SC7A20_CTRL6_H_LACTIVE, active_low);
 }

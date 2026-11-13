@@ -16,9 +16,8 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tkl_output.h"
-#include "tkl_gpio.h"
 #include "tkl_i2c.h"
-#include "tkl_pinmux.h"
+#include "board_com_api.h"
 
 /***********************************************************
 *************************micro define***********************
@@ -26,7 +25,6 @@
 #define TASK_GPIO_PRIORITY THREAD_PRIO_2
 #define TASK_GPIO_SIZE     4096
 
-#define SCAN_TEST_SIZE 0
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
@@ -40,25 +38,21 @@ static THREAD_HANDLE sg_i2c_handle;
 ***********************function define**********************
 ***********************************************************/
 
-OPERATE_RET __i2c_scan()
+static OPERATE_RET __i2c_scan(void)
 {
     OPERATE_RET op_ret = OPRT_COM_ERROR;
-    uint8_t i2c_addr = 0;
-    uint8_t dev_num = 0;
-    for (i2c_addr = 0X00; i2c_addr <= 0X7F; i2c_addr++) {
-        uint8_t data_buf[1] = {0};
-        if (OPRT_OK == tkl_i2c_master_send(EXAMPLE_I2C_PORT, i2c_addr, data_buf, SCAN_TEST_SIZE, TRUE)) {
-            dev_num++;
-            if (dev_num >= i2c_addr) {
-                op_ret = OPRT_INVALID_PARM;
-                continue;
-            }
+
+    for (uint8_t i2c_addr = 0x08U; i2c_addr <= 0x77U; ++i2c_addr) {
+        uint8_t data = 0U;
+        if (tkl_i2c_master_receive(EXAMPLE_I2C_PORT, i2c_addr, &data, 1U,
+                                   FALSE) == OPRT_OK) {
             PR_NOTICE("i2c device found at address: 0x%02X", i2c_addr);
             op_ret = OPRT_OK;
         }
     }
     return op_ret;
 }
+
 /**
  * @brief i2c task
  *
@@ -82,18 +76,7 @@ static void __example_i2c_task(void *param)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    if(TUYA_I2C_NUM_0 == EXAMPLE_I2C_PORT) {
-        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC0_SCL);
-        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC0_SDA);
-    } else if(TUYA_I2C_NUM_1 == EXAMPLE_I2C_PORT) {
-        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC1_SCL);
-        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC1_SDA);
-    }else if(TUYA_I2C_NUM_3 == EXAMPLE_I2C_PORT) {
-        tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC2_SCL);
-        tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC2_SDA);
-    }
-
-    /*i2c init*/
+    /* i2c init */
     cfg.role = TUYA_IIC_MODE_MASTER;
     cfg.speed = TUYA_IIC_BUS_SPEED_100K;
     cfg.addr_width = TUYA_IIC_ADDRESS_7BIT;
@@ -128,6 +111,7 @@ void user_main(void)
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 4096, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+    TUYA_CALL_ERR_LOG(board_register_hardware());
 
     static THREAD_CFG_T thrd_param = {0};
     thrd_param.stackDepth = TASK_GPIO_SIZE;

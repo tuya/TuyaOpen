@@ -18,6 +18,13 @@ config ENABLE_BLUETOOTH
     bool "Enable BLE adapter"
     default y
 
+config ENABLE_NIMBLE
+    bool
+    default n
+    help
+      GD32H77X exposes Bluetooth through the AT-based tkl_bluetooth backend.
+      Do not build the NimBLE host unless the platform also provides tkl_hci.
+
 config ENABLE_WIRED
     bool "Enable wired network adapter"
     default n
@@ -37,6 +44,10 @@ config ENABLE_ADC
 config ENABLE_DVP
     bool "Enable DVP adapter"
     default y
+
+config ENABLE_FILE_SYSTEM
+    bool "Enable file system adapter"
+    default n
 
 config ENABLE_PWM
     bool "Enable PWM adapter"

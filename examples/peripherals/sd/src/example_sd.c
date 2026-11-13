@@ -17,8 +17,8 @@
 #define TASK_SD_PRIORITY THREAD_PRIO_2
 #define TASK_SD_SIZE     4096
 
-#define SDCARD_MOUNT_PATH "/sdcard"
-#define RANDOM_FILE_PATH  "/sdcard/random.txt"
+#define SDCARD_MOUNT_PATH EXAMPLE_SD_MOUNT_PATH
+#define RANDOM_FILE_PATH  SDCARD_MOUNT_PATH "/random.txt"
 
 /***********************************************************
 ***********************typedef define***********************

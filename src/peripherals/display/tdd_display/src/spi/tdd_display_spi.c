@@ -135,7 +135,14 @@ static OPERATE_RET __disp_spi_init(TUYA_SPI_NUM_E port, uint32_t spi_clk)
                                    .type = TUYA_SPI_AUTO_TYPE,
                                    .spi_dma_flags = 1};
 
-    TUYA_CALL_ERR_RETURN(tkl_spi_init(port, &spi_cfg));
+    rt = tkl_spi_init(port, &spi_cfg);
+    if (rt == OPRT_NOT_SUPPORTED && spi_cfg.spi_dma_flags != 0U) {
+        /* Some TKL backends, including GD32H77X, do not expose SPI DMA.
+         * The display transport can still use its IRQ path without DMA. */
+        spi_cfg.spi_dma_flags = 0U;
+        rt = tkl_spi_init(port, &spi_cfg);
+    }
+    TUYA_CALL_ERR_RETURN(rt);
     TUYA_CALL_ERR_RETURN(tkl_spi_irq_init(port, __disp_spi_isr_cb));
     TUYA_CALL_ERR_RETURN(tkl_spi_irq_enable(port));
 
@@ -196,6 +203,12 @@ static OPERATE_RET __disp_spi_send(TUYA_SPI_NUM_E port, uint8_t *data, uint32_t 
     OPERATE_RET rt = OPRT_OK;
     uint32_t left_len = size, send_len = 0;
     uint32_t dma_max_size = tkl_spi_get_max_dma_data_length();
+
+    /* Non-DMA backends return zero here.  They still need a bounded chunk so
+     * each IRQ-backed transfer can complete and release the TX semaphore. */
+    if (dma_max_size == 0U || dma_max_size > 0xFFFFU) {
+        dma_max_size = 0xFFFFU;
+    }
 
     if(NULL == sg_disp_spi_sync[port].tx_sem) {
         PR_ERR("tx sem not init, port:%d\r\n", port);

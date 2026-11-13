@@ -1,6 +1,6 @@
 /**
  * @file board_com_api.h
- * @brief Common board hardware registration for GD32H779I Watch EVAL.
+ * @brief Common board hardware registration for GD32H779I DESK BUDDY.
  *
  * @copyright Copyright (c) 2026 Tuya Inc. All Rights Reserved.
  */

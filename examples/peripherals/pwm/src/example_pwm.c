@@ -22,6 +22,7 @@
 #include "tal_api.h"
 #include "tkl_output.h"
 #include "tkl_pwm.h"
+#include "board_com_api.h"
 
 /***********************************************************
 *************************micro define***********************
@@ -86,6 +87,7 @@ void user_main(void)
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+    TUYA_CALL_ERR_LOG(board_register_hardware());
 
     PR_NOTICE("Application information:");
     PR_NOTICE("Project name:        %s", PROJECT_NAME);

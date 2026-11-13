@@ -1,53 +1,104 @@
 # Python
 __pycache__/
+*.py[cod]
 /.venv/
 /.tools/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
 
-# Editor / IDE
-.vscode/
-.cursor/
-.clangd
-.agents/
-.tags
-
-# CMake / Build
+# C/C++ and CMake build output
+*.o
+*.obj
+*.su
+*.gcda
+*.gcno
+*.gcov
+*.dSYM/
 CMakeCache.txt
-/CMakeFiles/
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+cmake_install.cmake
+cmake-build-*/
+CMakeUserPresets.json
 compile_commands.json
+.ninja_deps
+.ninja_log
 .build/
 /build/
 /output/
-
-# Logs
-*monitor.log
-
-# Distribution / Packages
 dist/
 
-# Project specific
-.env.json
+# Runtime caches and generated state
+.cache/
+/cache/
+/tmp/
+/app_default.config
 .target_logging
 .mirror
-.cache/
 *.using_config
 tuyadb/
+
+# Logs and crash artifacts
+/log/
+*.log
+/core
+/core.*
+vgcore.*
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+.env.json
+
+# Editor / IDE / agent tooling
+.vscode/
+.idea/
+.cursor/
+.clangd
+.tags
+.history/
+*.swp
+*.swo
+*~
+.agents/
+.claude/
+/MEMORY.md
+/.omc
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# TuyaOpen project-specific output and external checkouts
 /platform/*/
 /arduino-tuyaopen/
 /tools/tyutool/
 /.set_example
-/tmp/
-/cache/
-/dist
-*monitor.log
-/.omc
 
-# Docs
+# Local temporary/backup files
+/.tmp_*
+*.tmp
+*.orig
+*.rej
+boards/GD32H77X/*/tmp/
+/GD32H779I*SCHEMATIC*.pdf
+/boards/GD32H77X/DS-*.pdf
+/boards/GD32H77X/doc/
+/boards/GD32H77X/GD32H779I_DESK_BUDDY/doc/
+/boards/GD32/LCKFB_GD32VW553/LCKFB_GD32VW553.pdf
+
+# Local-only documentation workspace
 /docs/superpowers/
 
-# Vendor reference material kept locally for lookup - schematics, user guides and the
-# full demo suite. Useful when a board question needs an authoritative answer, but far
-# too large to carry in the repo.
+# Vendor reference material kept locally for lookup. These demo suites are useful
+# when a board question needs an authoritative answer, but are too large to commit.
 boards/GD32/*/GD32VW55x_Demo_Suites_*/
 
 # Agent tooling and project-local skills (installed from the IDE manifests)

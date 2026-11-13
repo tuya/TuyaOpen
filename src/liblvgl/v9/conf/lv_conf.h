@@ -1107,7 +1107,7 @@
 #define LV_USE_DEMO_WIDGETS 1
 
 /*Demonstrate the usage of encoder and keyboard*/
-#define LV_USE_DEMO_KEYPAD_AND_ENCODER 0
+#define LV_USE_DEMO_KEYPAD_AND_ENCODER 1
 
 /*Benchmark your system*/
 #define LV_USE_DEMO_BENCHMARK 1

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # coding=utf-8
 import io
+import os
 import sys
+import tempfile
+from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -230,6 +233,112 @@ class TestStreamDecodingAndSafePrint(unittest.TestCase):
         self.assertIn('50%', out)
         self.assertIn('这是一个UTF-8测试', out)
 
+class TestPlatformFlashArtifactHook(unittest.TestCase):
+    def setUp(self):
+        import tools.cli_command.cli_flash as m
+        self.module = m
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.bin_dir = self.root / "app" / ".build" / "bin"
+        self.bin_dir.mkdir(parents=True)
+        self.platform_dir = self.root / "platforms" / "GD32H77X"
+        self.platform_dir.mkdir(parents=True)
+        self.bridge_path = self.platform_dir / "platform_flash_bridge.py"
+        self.using = {
+            "CONFIG_PLATFORM_CHOICE": "GD32H77X",
+            "CONFIG_PROJECT_NAME": "demo",
+            "CONFIG_PROJECT_VERSION": "2.0",
+        }
+        self.bin_path = self.bin_dir / "demo_QIO_2.0.bin"
+        self.bin_path.write_bytes(b"legacy bin")
+        self.module._PLATFORM_BRIDGE_CACHE.clear()
+        self.params_patch = patch(
+            "tools.cli_command.cli_flash.get_global_params",
+            return_value={"app_bin_path": str(self.bin_dir),
+                          "platforms_root": str(self.root / "platforms"),
+                          "boards_root": str(self.root / "boards")})
+        self.params_patch.start()
+        self.addCleanup(self.params_patch.stop)
+        self.addCleanup(self.temp.cleanup)
+
+    def _write_bridge(self, source):
+        self.bridge_path.write_text(source, encoding="utf-8")
+        os.utime(self.bridge_path, None)
+
+    def test_platform_flash_receives_no_verify_flag_when_supported(self):
+        self._write_bridge(
+            "def platform_flash(using_data, binfile, port, baud, boards_root, "
+            "logger, verify=True):\n"
+            "    return {'success': verify is False, 'message': 'verify flag'}\n")
+        bridge = self.module._load_platform_bridge(self.using)
+        with patch('tools.cli_command.cli_flash.download_platform',
+                   return_value=True), \
+             patch('tools.cli_command.cli_flash.get_logger',
+                   return_value=MagicMock()):
+            result = self.module._try_platform_flash(
+                self.using, False, "", 0, False,
+                artifact=str(self.bin_path), bridge=bridge)
+        self.assertTrue(result)
+
+    def test_platform_without_hook_keeps_standard_bin(self):
+        self._write_bridge("def platform_flash(**kwargs): return {'success': True}\n")
+        artifact, _bridge = self.module._resolve_flash_artifact(self.using)
+        self.assertEqual(artifact, str(self.bin_path))
+
+    def test_hook_can_select_self_contained_package_without_bin(self):
+        package = self.bin_dir / "demo_QIO_2.0.tufw"
+        package.write_bytes(b"package")
+        self.bin_path.unlink()
+        self._write_bridge(
+            "def get_flash_artifact(using_data, default_bin):\n"
+            "    return default_bin[:-4] + '.tufw'\n"
+            "def platform_flash(**kwargs): return {'success': True}\n")
+        artifact, bridge = self.module._resolve_flash_artifact(self.using)
+        self.assertEqual(artifact, str(package))
+        self.assertTrue(self.module.check_bin_file(self.using, artifact))
+        self.assertIs(bridge, self.module._load_platform_bridge(self.using))
+
+    def test_hook_error_is_not_silently_fallen_back_to_bin(self):
+        self._write_bridge(
+            "def get_flash_artifact(using_data, default_bin):\n"
+            "    raise RuntimeError('package index is corrupt')\n")
+        with self.assertRaisesRegex(RuntimeError, "package index is corrupt"):
+            self.module._resolve_flash_artifact(self.using)
+
+    def test_invalid_hook_results_are_rejected(self):
+        for literal in ("''", "[]", "b'bad'"):
+            with self.subTest(result=literal):
+                self.module._PLATFORM_BRIDGE_CACHE.clear()
+                self._write_bridge(
+                    "def get_flash_artifact(using_data, default_bin):\n"
+                    f"    return {literal}\n")
+                with self.assertRaises(RuntimeError):
+                    self.module._resolve_flash_artifact(self.using)
+
+    def test_missing_hook_selected_package_fails_presence_check(self):
+        self._write_bridge(
+            "def get_flash_artifact(using_data, default_bin):\n"
+            "    return default_bin[:-4] + '.tufw'\n")
+        artifact, _bridge = self.module._resolve_flash_artifact(self.using)
+        self.assertNotEqual(artifact, str(self.bin_path))
+        with patch("tools.cli_command.cli_flash.get_logger",
+                   return_value=MagicMock()):
+            self.assertFalse(self.module.check_bin_file(self.using, artifact))
+
+    def test_hook_can_require_package_when_external_csv_exists(self):
+        app_root = self.bin_dir.parent.parent
+        (app_root / "flash_payloads.csv").write_text(
+            "partition,file\nfilesystem,image.bin\n", encoding="utf-8")
+        self._write_bridge(
+            "from pathlib import Path\n"
+            "def get_flash_artifact(using_data, default_bin):\n"
+            "    package = Path(default_bin).with_suffix('.tufw')\n"
+            "    csv = Path(default_bin).resolve().parent.parent.parent / 'flash_payloads.csv'\n"
+            "    if package.is_file(): return package\n"
+            "    if csv.is_file(): raise ValueError('external payload package is missing')\n"
+            "    return None\n")
+        with self.assertRaisesRegex(ValueError, "external payload package is missing"):
+            self.module._resolve_flash_artifact(self.using)
 
 if __name__ == '__main__':
     unittest.main()

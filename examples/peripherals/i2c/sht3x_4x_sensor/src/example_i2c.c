@@ -19,9 +19,8 @@
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
 #include "tkl_output.h"
-#include "tkl_gpio.h"
 #include "tkl_i2c.h"
-#include "tkl_pinmux.h"
+#include "board_com_api.h"
 
 /***********************************************************
 *************************micro define***********************
@@ -65,10 +64,7 @@ static void __example_i2c_task(void *param)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    tkl_io_pinmux_config(EXAMPLE_I2C_SCL_PIN, TUYA_IIC0_SCL);
-    tkl_io_pinmux_config(EXAMPLE_I2C_SDA_PIN, TUYA_IIC0_SDA);
-
-    /*i2c init*/
+    /* i2c init */
     cfg.role = TUYA_IIC_MODE_MASTER;
     cfg.speed = TUYA_IIC_BUS_SPEED_100K;
     cfg.addr_width = TUYA_IIC_ADDRESS_7BIT;
@@ -120,6 +116,7 @@ void user_main(void)
 
     /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 4096, (TAL_LOG_OUTPUT_CB)tkl_log_output);
+    TUYA_CALL_ERR_LOG(board_register_hardware());
 
     static THREAD_CFG_T thrd_param = {0};
     thrd_param.stackDepth = TASK_GPIO_SIZE;

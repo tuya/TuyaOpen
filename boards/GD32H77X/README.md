@@ -8,7 +8,7 @@
 boards/GD32H77X/
 ├── Kconfig                    # 平台族公共配置入口
 ├── config/                    # config choice 使用的板型选择片段
-│   ├── GD32H779I_WATCH_EVAL.config
+│   ├── GD32H779I_DESK_BUDDY.config
 │   └── GD32H779V.config
 └── <BOARD>/
     ├── Kconfig                # 必须留在板级根目录，框架入口
@@ -43,7 +43,7 @@ boards/GD32H77X/
 
 ### 可选配置
 
-- `partitions.csv` 可省略并使用芯片默认分区。`GD32H779I_WATCH_EVAL` 不保留板级
+- `partitions.csv` 可省略并使用芯片默认分区。`GD32H779I_DESK_BUDDY` 不保留板级
   分区覆盖，直接使用 `GD32H779IW` 与 H779VW 对齐的 CNVM+ECNVM 默认布局。外置
   OSPI 仅通过 `partitions.csv` 和 `ospi_profiles.csv` 描述，不再维护独立设备表。
 - `ospi_profiles.csv` 只在外置 OSPI 且使用 UART ROM-ISP 时需要。
@@ -174,16 +174,16 @@ platform/GD32H77X/Kconfig
 
 | 板卡 | 芯片 | 控制台 | VW553 | 主要布局 | 默认烧录 |
 |---|---|---|---|---|---|
-| `GD32H779I_WATCH_EVAL` | `GD32H779IW` | USART0，PF4/PF5，AF4 | SPI1，待 transport 适配 | 使用 `GD32H779IW` 芯片默认布局，KV 位于 ECNVM 末尾 | DFU（CNVM+ECNVM） |
+| `GD32H779I_DESK_BUDDY` | `GD32H779IW` | USART0，PF4/PF5，AF4 | SPI1，待 transport 适配 | 使用 `GD32H779IW` 芯片默认布局，KV 位于 ECNVM 末尾 | DFU（CNVM+ECNVM） |
 | `GD32H779V_START` | `GD32H779VW` | USART5，PC6/PC7，AF7 | UART4，PB13/PB12，AF14，NRST PC5 | 使用 `GD32H779VW` 芯片默认布局，KV 位于 ECNVM 末尾 | SWD |
 
-### GD32H779I_WATCH_EVAL bring-up
+### GD32H779I_DESK_BUDDY bring-up
 
 选择板型并构建：
 
 ```bash
 cd <应用目录>
-tos.py config choice -c GD32H779I_WATCH_EVAL.config
+tos.py config choice -c GD32H779I_DESK_BUDDY.config
 tos.py build
 ```
 
