@@ -1,0 +1,39 @@
+# TuyaOpen-side configuration for the GD32H77X board family.
+#
+# This Kconfig is independent from platform/GD32H77X/Kconfig. It defines the
+# board-family identity, then sources the TKL capabilities and TuyaOpen OS
+# service defaults before the board selection.
+
+config PLATFORM_CHOICE
+    string
+    default "GD32H77X"
+
+config OPERATING_SYSTEM
+    int
+    default 98
+    ---help---
+        100     /* LINUX */
+        98      /* RTOS */
+
+rsource "./TKL_Kconfig"
+rsource "./OS_SERVICE_Kconfig"
+
+choice
+    prompt "Choice a GD32H77X board"
+    default BOARD_CHOICE_GD32H779V_START
+
+    config BOARD_CHOICE_GD32H779V_START
+        bool "GD32H779V START"
+        if (BOARD_CHOICE_GD32H779V_START)
+            rsource "./GD32H779V_START/Kconfig"
+        endif
+
+    config BOARD_CHOICE_GD32H779I_DESK_BUDDY
+        bool "GD32H779I DESK BUDDY"
+        if (BOARD_CHOICE_GD32H779I_DESK_BUDDY)
+            rsource "./GD32H779I_DESK_BUDDY/Kconfig"
+        endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
+endchoice

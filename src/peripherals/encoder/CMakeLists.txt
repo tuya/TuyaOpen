@@ -4,7 +4,7 @@
 #/
 
 # MODULE_PATH
-if (CONFIG_ENABLE_ENCODER_DRIVER STREQUAL "y")
+if (CONFIG_ENABLE_ENCODER STREQUAL "y")
 
 set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -12,12 +12,18 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-set(LIB_SRCS 
-        "${MODULE_PATH}/drv_encoder.c"
-)
+file(GLOB_RECURSE LIB_SRCS
+    "${MODULE_PATH}/tdl_encoder/src/*.c")
+
+if (CONFIG_ENABLE_GPIO STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_encoder/src/tdd_encoder_gpio.c)
+endif()
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC ${MODULE_PATH})
+set(LIB_PUBLIC_INC
+    ${MODULE_PATH}/tdl_encoder/include
+    ${MODULE_PATH}/tdd_encoder/include
+)
 
 ########################################
 # Target Configure

@@ -46,6 +46,10 @@ config BOARD_ENABLE_JIELI
     bool
     default y
 
+config BOARD_ENABLE_GD32H77X
+    bool
+    default y
+
 # <new-board-enable: This line cannot be deleted or modified>
 
 
@@ -162,6 +166,14 @@ if (BOARD_ENABLE_JIELI)
         bool "JIELI"
     if (BOARD_CHOICE_JIELI)
     rsource "./JIELI/Kconfig"
+    endif
+endif
+
+if (BOARD_ENABLE_GD32H77X)
+    config BOARD_CHOICE_GD32H77X
+        bool "GD32H77X"
+    if (BOARD_CHOICE_GD32H77X)
+        rsource "./GD32H77X/Kconfig"
     endif
 endif
 

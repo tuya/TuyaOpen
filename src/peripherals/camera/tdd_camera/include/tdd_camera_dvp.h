@@ -43,11 +43,14 @@ typedef struct {
     uint32_t              max_width;
     uint32_t              max_height;
     TUYA_FRAME_FMT_E      fmt;
+    TUYA_YUV422_ORDER_E   yuv_order;
+    TUYA_DVP_SYNC_MODE    sync_polarity;
 }TDD_DVP_SR_CFG_T;
 
 typedef struct {
     void *arg;
-    OPERATE_RET (*rst     )(TUYA_CAMERA_IO_CTRL_T *rst_pin, void *arg);
+    OPERATE_RET (*rst     )(TUYA_CAMERA_IO_CTRL_T *pwr_pin,
+                            TUYA_CAMERA_IO_CTRL_T *rst_pin, void *arg);
     OPERATE_RET (*init    )(DVP_I2C_CFG_T *i2c, void *arg);
     OPERATE_RET (*set_ppi )(DVP_I2C_CFG_T *i2c, TUYA_CAMERA_PPI_E ppi, uint16_t fps, void *arg);
 }TDD_DVP_SR_INTFS_T;

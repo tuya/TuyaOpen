@@ -115,7 +115,12 @@ static void __example_qspi_task(void *param)
         .role    = TUYA_QSPI_ROLE_MASTER,
         .mode    = TUYA_QSPI_MODE0,
         .freq_hz = EXAMPLE_QSPI_FREQ_HZ,
-        .use_dma = FALSE,
+        .use_dma = EXAMPLE_QSPI_USE_DMA,
+#if EXAMPLE_QSPI_QUAD
+        .dma_data_lines = TUYA_QSPI_4WIRE,
+#else
+        .dma_data_lines = TUYA_QSPI_1WIRE,
+#endif
         .type    = TUYA_QSPI_TYPE_FLASH,
     };
 
@@ -161,8 +166,7 @@ void user_main(void)
 
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
-    /* The board states its own wiring here, so nothing below has to name a pin. */
-    board_register_hardware();
+    TUYA_CALL_ERR_LOG(board_register_hardware());
 
     PR_NOTICE("Application information:");
     PR_NOTICE("Project name:        %s", PROJECT_NAME);

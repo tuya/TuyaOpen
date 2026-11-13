@@ -1,0 +1,7 @@
+menu "Application config"
+
+    config EXAMPLE_SD_MOUNT_PATH
+        string "SD card mount path"
+        default "/sdcard"
+
+endmenu

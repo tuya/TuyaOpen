@@ -1,0 +1,26 @@
+menu "Application config"
+
+    config SELF_TEST_FRAME_COUNT
+        int "frames captured per camera"
+        range 1 30
+        default 3
+
+    config SELF_TEST_TIMEOUT_MS
+        int "capture timeout per camera in milliseconds"
+        range 500 30000
+        default 3000
+
+    config SELF_TEST_WIDTH
+        int "self-test capture width"
+        default 320
+
+    config SELF_TEST_HEIGHT
+        int "self-test capture height"
+        default 240
+
+    config SELF_TEST_FPS
+        int "self-test capture fps"
+        range 1 30
+        default 15
+
+endmenu

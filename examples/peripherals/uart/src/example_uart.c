@@ -7,7 +7,6 @@
 #include "tal_api.h"
 
 #include "tkl_output.h"
-#include "tkl_pinmux.h"
 #include "board_com_api.h"
 #if defined(EXAMPLE_LOW_POWER) && (EXAMPLE_LOW_POWER == 1)
 #include "tkl_sleep.h"
@@ -71,12 +70,6 @@ void user_main(void)
     PR_NOTICE("Platform chip:       %s", PLATFORM_CHIP);
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
-
-#if defined(EXAMPLE_UART_PINMUX) && (EXAMPLE_UART_PINMUX == 1)
-    /* the port's default pins are not the ones this board wired up */
-    tkl_io_pinmux_config(EXAMPLE_UART_RX_PIN, TUYA_UART0_RX + EXAMPLE_UART_NUM * 4);
-    tkl_io_pinmux_config(EXAMPLE_UART_TX_PIN, TUYA_UART0_TX + EXAMPLE_UART_NUM * 4);
-#endif
 
 #if defined(EXAMPLE_LOW_POWER) && (EXAMPLE_LOW_POWER == 1)
     /* Ahead of tal_uart_init() on purpose. On a board whose log shares a port with the one

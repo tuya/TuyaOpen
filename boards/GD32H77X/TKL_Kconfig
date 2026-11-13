@@ -1,0 +1,74 @@
+# TKL adapter capabilities for the GD32H77X board family.
+config LITTLE_END
+    int
+    default 1
+    ---help---
+        0       /* big endian */
+        1       /* little endian */
+
+config ENABLE_PLATFORM_MBEDTLS
+    bool
+    default n
+
+config ENABLE_WIFI
+    bool "Enable Wi-Fi adapter"
+    default y
+
+config ENABLE_BLUETOOTH
+    bool "Enable BLE adapter"
+    default y
+
+config ENABLE_NIMBLE
+    bool
+    default n
+    help
+      GD32H77X exposes Bluetooth through the AT-based tkl_bluetooth backend.
+      Do not build the NimBLE host unless the platform also provides tkl_hci.
+
+config ENABLE_WIRED
+    bool "Enable wired network adapter"
+    default n
+
+config ENABLE_FLASH
+    bool "Enable flash adapter"
+    default y
+
+config ENABLE_GPIO
+    bool "Enable GPIO adapter"
+    default y
+
+config ENABLE_ADC
+    bool "Enable ADC adapter"
+    default n
+
+config ENABLE_DVP
+    bool "Enable DVP adapter"
+    default y
+
+config ENABLE_FILE_SYSTEM
+    bool "Enable file system adapter"
+    default n
+
+config ENABLE_PWM
+    bool "Enable PWM adapter"
+    default n
+
+config ENABLE_DMA2D
+    bool "Enable DMA2D (IPA) adapter"
+    default n
+
+config ENABLE_I2C
+    bool "Enable I2C adapter"
+    default y
+
+config ENABLE_SPI
+    bool "Enable SPI adapter"
+    default y
+
+config ENABLE_UART
+    bool "Enable UART adapter"
+    default y
+
+config ENABLE_QSPI
+    bool "Enable QSPI adapter"
+    default y

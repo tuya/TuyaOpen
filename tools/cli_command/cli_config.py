@@ -52,13 +52,15 @@ DERIVED_ARTIFACTS = (
 def _defconfig(config, dconfig=".config", kconfig="Kconfig",
                save_old=False):
     '''
-    minimum config -> .config, with kconfig
+    minimum TuyaOpen config -> full TuyaOpen config, with kconfig.
+
+    Platform-owned defaults and platform config fragments are intentionally
+    not handled here. They are resolved independently by the platform build.
     '''
     os.environ['KCONFIG_CONFIG'] = dconfig
     kconf = Kconfig(kconfig, suppress_traceback=True)
     kconf.load_config(config)
     kconf.write_config(dconfig, save_old=save_old)
-    pass
 
 
 def _savedefconfig(config, dconfig=".config", kconfig="Kconfig"):
@@ -146,13 +148,14 @@ def init_using_config(force=False):
         )
     if force or stale:
         if stale and not force:
-            logger.info("configuration changed; regenerating using.config")
+            logger.info("configuration inputs changed; regenerating using.config")
         _defconfig(app_default_config, using_config, catalog_kconfig)
         # The cmake variables and the C header are derived from using.config by
         # tools/kconfiglib/CMakeLists.txt, which only regenerates them when they
         # are absent. Removing them here is what the config commands already do
         # for the same reason, and without it they keep the previous value.
-        _invalidate_derived_artifacts()
+        for path in _invalidate_derived_artifacts():
+            logger.info(f"Invalidated: {path}")
     pass
 
 

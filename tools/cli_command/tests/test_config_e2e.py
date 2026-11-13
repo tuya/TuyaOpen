@@ -27,6 +27,11 @@ OPEN_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 TOS_PY = os.path.join(OPEN_ROOT, "tos.py")
 SOURCE_APP = os.path.join(OPEN_ROOT, "apps", "tuya_cloud", "switch_demo")
+T5AI_MIN_CONFIG = """\
+CONFIG_BOARD_CHOICE_T5AI=y
+CONFIG_TUYA_T5AI_BOARD_EX_MODULE_NONE=y
+CONFIG_ENABLE_MBEDTLS_SSL_MAX_CONTENT_LEN=4096
+"""
 
 
 def _digest(path):
@@ -51,13 +56,15 @@ class ConfigE2EBase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.app = os.path.join(self._tmp.name, "switch_demo")
         os.makedirs(self.app)
-        # Only these two files matter to the config commands: the
-        # CMakeLists.txt satisfies check_proj_dir() and the config is
-        # the state under test. switch_demo has no app Kconfig.
-        for name in ("CMakeLists.txt", "app_default.config"):
-            shutil.copy(os.path.join(SOURCE_APP, name),
-                        os.path.join(self.app, name))
+        # CMakeLists.txt satisfies check_proj_dir(); the minimal config is a
+        # stable test fixture so the suite does not depend on the app's
+        # currently checked-out board selection. switch_demo has no app
+        # Kconfig.
+        shutil.copy(os.path.join(SOURCE_APP, "CMakeLists.txt"),
+                    os.path.join(self.app, "CMakeLists.txt"))
         self.app_default = os.path.join(self.app, "app_default.config")
+        with open(self.app_default, 'w', encoding='utf-8') as f:
+            f.write(T5AI_MIN_CONFIG)
         self.using = os.path.join(self.app, ".build", "cache",
                                   "using.config")
 
@@ -69,6 +76,26 @@ class ConfigE2EBase(unittest.TestCase):
     def read(self, path):
         with open(path, encoding='utf-8') as f:
             return f.read()
+
+
+class TestTuyaPlatformConfigBoundary(ConfigE2EBase):
+
+    def test_gd32_platform_symbols_are_not_in_tuyaopen_kconfig(self):
+        with open(self.app_default, 'w', encoding='utf-8') as f:
+            f.write("CONFIG_BOARD_CHOICE_GD32H77X=y\n")
+            f.write("CONFIG_BOARD_CHOICE_GD32H779V_START=y\n")
+
+        identity = self.run_config(
+            "get", "CHIP_CHOICE", "BOARD_CHOICE", "-j")
+        self.assertEqual(identity.returncode, 0, identity.stderr)
+        payload = json.loads(identity.stdout)
+        self.assertEqual(payload["CONFIG_CHIP_CHOICE"], "GD32H779VW")
+        self.assertEqual(payload["CONFIG_BOARD_CHOICE"], "GD32H779V_START")
+
+        platform_symbol = self.run_config(
+            "get", "CONFIG_GD32H77X_ECNVM_CODE")
+        self.assertNotEqual(platform_symbol.returncode, 0)
+        self.assertIn("unknown symbol", platform_symbol.stderr)
 
 
 class TestConfigGet(ConfigE2EBase):

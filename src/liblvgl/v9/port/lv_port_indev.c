@@ -14,6 +14,10 @@
 #include "tdl_tp_manage.h"
 #endif
 
+#ifdef ENABLE_LVGL_ENCODER
+#include "tdl_encoder_manage.h"
+#endif
+
 /*********************
  *      DEFINES
  *********************/
@@ -45,12 +49,14 @@ static void touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 #ifdef ENABLE_LVGL_ENCODER
 static void encoder_init(void);
 static void encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
-static void encoder_handler(void);
 #endif
 /**********************
  *  STATIC VARIABLES
  **********************/
-lv_indev_t *indev_encoder;
+#ifdef ENABLE_LVGL_ENCODER
+static lv_indev_t *indev_encoder;
+static TDL_ENCODER_HANDLE sg_encoder_handle;
+#endif
 
 #ifdef ENABLE_LVGL_TP
 static struct tuya_list_head sg_lv_indev_tp_list = LIST_HEAD_INIT(sg_lv_indev_tp_list);
@@ -274,32 +280,46 @@ static void touchpad_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
  * Encoder
  * -----------------*/
 #ifdef ENABLE_LVGL_ENCODER
-int32_t encoder_diff = 0;
-lv_indev_state_t encoder_state;
-/*Initialize your encoder*/
 static void encoder_init(void)
 {
-    drv_encoder_init();
-}
+    TDL_ENCODER_CFG_T cfg = {
+        .click_ms = 300U,
+        .long_press_ms = 1500U,
+        .long_hold_ms = 100U,
+    };
+    OPERATE_RET rt;
 
-/*Will be called by the library to read the encoder*/
-static void encoder_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
-{
-    static int32_t last_diff = 0;
-    int32_t diff;
-    if (encoder_get_pressed()) {
-        encoder_diff = 0;
-        encoder_state = LV_INDEV_STATE_PRESSED;
-    } else {
-        diff = encoder_get_angle();
-
-        encoder_diff = diff - last_diff;
-        last_diff = diff;
-
-        encoder_state = LV_INDEV_STATE_RELEASED;
+    sg_encoder_handle = tdl_encoder_find_dev(ENCODER_NAME);
+    if (sg_encoder_handle == NULL) {
+        PR_ERR("encoder dev %s not found", ENCODER_NAME);
+        return;
     }
 
-    data->enc_diff = encoder_diff;
-    data->state = encoder_state;
+    rt = tdl_encoder_open(&sg_encoder_handle, &cfg);
+    if (rt != OPRT_OK) {
+        PR_ERR("open encoder %s failed: %d", ENCODER_NAME, rt);
+        sg_encoder_handle = NULL;
+    }
+}
+
+static void encoder_read(lv_indev_t *indev_drv, lv_indev_data_t *data)
+{
+    int32_t delta = 0;
+    uint8_t pressed = 0;
+
+    (void)indev_drv;
+    if (sg_encoder_handle != NULL) {
+        (void)tdl_encoder_read_delta(sg_encoder_handle, &delta);
+        (void)tdl_encoder_read_button(sg_encoder_handle, &pressed);
+    }
+
+    if (delta > INT16_MAX) {
+        delta = INT16_MAX;
+    } else if (delta < INT16_MIN) {
+        delta = INT16_MIN;
+    }
+
+    data->enc_diff = (int16_t)delta;
+    data->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 #endif

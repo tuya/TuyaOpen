@@ -19,7 +19,7 @@ menu "Application config"
         config EXAMPLE_WAKEUP_GPIO_PIN
             int "wakeup pin"
             default 0
-            range 0 63
+            range 0 159
             ---help---
                 Deep sleep powers most of the chip down, so only pins with a dedicated
                 wakeup path can bring it back. On GD32VW553 those are PA0, PA15, PA7

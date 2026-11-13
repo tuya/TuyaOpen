@@ -1,0 +1,47 @@
+menu "Application config"
+
+    config EXAMPLE_CAMERA_WIDTH
+        int "camera width"
+        range 1 4096
+        default 320
+
+    config EXAMPLE_CAMERA_HEIGHT
+        int "camera height"
+        range 1 4096
+        default 240
+
+    config EXAMPLE_CAMERA_FPS
+        int "camera fps"
+        range 1 60
+        default 15
+
+    config EXAMPLE_CAMERA_NAME
+        string "camera device name"
+        default "camera"
+
+    config EXAMPLE_CAMERA_OUTPUT_X
+        int "display ROI x"
+        range 0 4095
+        default 0
+
+    config EXAMPLE_CAMERA_OUTPUT_Y
+        int "display ROI y"
+        range 0 4095
+        default 0
+
+    config EXAMPLE_CAMERA_OUTPUT_WIDTH
+        int "display ROI width"
+        range 1 4096
+        default 320
+
+    config EXAMPLE_CAMERA_OUTPUT_HEIGHT
+        int "display ROI height"
+        range 1 4096
+        default 240
+
+    config EXAMPLE_CAMERA_BAND_LINES
+        int "display band lines"
+        range 1 64
+        default 24
+
+endmenu

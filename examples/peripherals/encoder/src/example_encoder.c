@@ -1,119 +1,60 @@
 /**
  * @file example_encoder.c
- * @brief Rotary encoder input handling example for the Tuya SDK
+ * @brief Rotary encoder example.
  *
- * This file provides an example implementation of rotary encoder input handling using the Tuya SDK.
- * It demonstrates the configuration and usage of rotary encoder peripherals for detecting rotation
- * and button press events. The example shows how to initialize the encoder driver, continuously
- * monitor encoder angle changes, and detect button press events.
- *
- * The encoder example is designed to help developers understand how to integrate rotary encoder
- * functionality into their Tuya-based IoT projects for user interface and control applications.
- *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
- *
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  */
 
-#include "tuya_cloud_types.h"
-#include "tkl_output.h"
 #include "tal_api.h"
-
-#include "drv_encoder.h"
-
+#include "tkl_output.h"
+#include "tdl_encoder_manage.h"
 #include "board_com_api.h"
 
-/***********************************************************
-*************************micro define***********************
-***********************************************************/
-
-// Encoder pin definitions with fallback defaults
-#ifndef DECODER_INPUT_A
-#define DECODER_INPUT_A TUYA_GPIO_NUM_4 // Default: GPIO 4
-#endif
-
-#ifndef DECODER_INPUT_B
-#define DECODER_INPUT_B TUYA_GPIO_NUM_5 // Default: GPIO 5
-#endif
-
-#ifndef DECODER_INPUT_P
-#define DECODER_INPUT_P TUYA_GPIO_NUM_6 // Default: GPIO 6
-#endif
-
-#define ENCODER_POLL_INTERVAL_MS 100 // Poll encoder every 100ms
-
-/***********************************************************
-***********************typedef define***********************
-***********************************************************/
-
-/***********************************************************
-***********************variable define**********************
-***********************************************************/
-static int32_t last_angle = 0;
-static uint8_t last_button_state = 0;
-
-/***********************************************************
-***********************function define**********************
-***********************************************************/
-
-/**
- * @brief Monitor encoder angle changes and button presses
- *
- * This function continuously monitors the encoder for angle changes and button
- * press events. It prints messages when the encoder is rotated or the button
- * is pressed.
- *
- * @return none
- */
-static void __encoder_monitor_task(void)
+static void __encoder_event_cb(TDL_ENCODER_HANDLE handle,
+                               const TDL_ENCODER_EVENT_T *event,
+                               void *user_data)
 {
-    int32_t current_angle = 0;
-    uint8_t button_pressed = 0;
-    int32_t angle_delta = 0;
+    (void)handle;
+    (void)user_data;
 
-    while (1) {
-        // Get current encoder angle
-        current_angle = encoder_get_angle();
-
-        // Check if angle has changed
-        if (current_angle != last_angle) {
-            angle_delta = current_angle - last_angle;
-
-            if (angle_delta > 0) {
-                PR_NOTICE("Encoder rotated clockwise: angle = %d (delta: +%d)", current_angle, angle_delta);
-            } else {
-                PR_NOTICE("Encoder rotated counter-clockwise: angle = %d (delta: %d)", current_angle, angle_delta);
-            }
-
-            last_angle = current_angle;
-        }
-
-        // Check button state
-        button_pressed = encoder_get_pressed();
-
-        if (button_pressed && !last_button_state) {
-            PR_NOTICE("Encoder button pressed! Current angle: %d", current_angle);
-            last_button_state = 1;
-        } else if (!button_pressed && last_button_state) {
-            PR_NOTICE("Encoder button released");
-            last_button_state = 0;
-        }
-
-        // Sleep for a short interval
-        tal_system_sleep(ENCODER_POLL_INTERVAL_MS);
+    switch (event->type) {
+        case TDL_ENCODER_EVENT_ROTATE:
+            PR_NOTICE("encoder rotate: delta=%d position=%d",
+                      event->delta, event->position);
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_DOWN:
+            PR_NOTICE("encoder button down");
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_UP:
+            PR_NOTICE("encoder button up");
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_CLICK:
+            PR_NOTICE("encoder button click");
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_DOUBLE_CLICK:
+            PR_NOTICE("encoder button double click");
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_LONG_START:
+            PR_NOTICE("encoder button long press");
+            break;
+        case TDL_ENCODER_EVENT_BUTTON_LONG_HOLD:
+            PR_NOTICE("encoder button long hold");
+            break;
+        default:
+            break;
     }
 }
 
-/**
- * @brief user_main
- *
- * @param[in] param:Task parameters
- * @return none
- */
 void user_main(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+    TDL_ENCODER_HANDLE encoder;
+    TDL_ENCODER_CFG_T cfg = {
+        .click_ms = 300U,
+        .long_press_ms = 1500U,
+        .long_hold_ms = 100U,
+    };
+    OPERATE_RET rt;
 
-    /* basic init */
     tal_log_init(TAL_LOG_LEVEL_DEBUG, 1024, (TAL_LOG_OUTPUT_CB)tkl_log_output);
 
     PR_NOTICE("Application information:");
@@ -121,82 +62,66 @@ void user_main(void)
     PR_NOTICE("App version:         %s", PROJECT_VERSION);
     PR_NOTICE("Compile time:        %s", __DATE__);
     PR_NOTICE("TuyaOpen version:    %s", OPEN_VERSION);
-    PR_NOTICE("TuyaOpen commit-id:  %s", OPEN_COMMIT);
     PR_NOTICE("Platform chip:       %s", PLATFORM_CHIP);
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
-    PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    /*hardware register*/
-    board_register_hardware();
-
-    PR_NOTICE("Encoder Configuration:");
-    PR_NOTICE("- Input A Pin (clockwise):        GPIO %d", DECODER_INPUT_A);
-    PR_NOTICE("- Input B Pin (counter-clockwise): GPIO %d", DECODER_INPUT_B);
-    PR_NOTICE("- Button Press Pin:                GPIO %d", DECODER_INPUT_P);
-    PR_NOTICE("");
-    PR_NOTICE("Initializing encoder driver...");
-
-    // Initialize the encoder
-    tkl_encoder_init();
+    rt = board_register_hardware();
     if (rt != OPRT_OK) {
-        PR_ERR("Failed to initialize encoder driver, error: %d", rt);
+        PR_ERR("board hardware register failed: %d", rt);
         return;
     }
 
-    PR_NOTICE("Encoder initialized successfully!");
-    PR_NOTICE("Starting encoder monitoring...");
-    PR_NOTICE("- Rotate the encoder to see angle changes");
-    PR_NOTICE("- Press the encoder button to see button events");
+    encoder = tdl_encoder_find_dev(ENCODER_NAME);
+    if (encoder == NULL) {
+        PR_ERR("encoder %s not found", ENCODER_NAME);
+        return;
+    }
 
-    // Get initial angle
-    last_angle = encoder_get_angle();
-    PR_NOTICE("Initial encoder angle: %d", last_angle);
+    rt = tdl_encoder_set_callback(encoder, __encoder_event_cb, NULL);
+    if (rt != OPRT_OK) {
+        PR_ERR("encoder callback register failed: %d", rt);
+        return;
+    }
 
-    // Start monitoring encoder
-    __encoder_monitor_task();
+    rt = tdl_encoder_open(&encoder, &cfg);
+    if (rt != OPRT_OK) {
+        PR_ERR("encoder open failed: %d", rt);
+        return;
+    }
+
+    PR_NOTICE("encoder started");
+    while (1) {
+        tal_system_sleep(1000);
+    }
 }
 
-/**
- * @brief main
- *
- * @param argc
- * @param argv
- * @return void
- */
 #if OPERATING_SYSTEM == SYSTEM_LINUX
 void main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
     user_main();
-
-    while (1) {
-        tal_system_sleep(500);
-    }
 }
 #else
+static THREAD_HANDLE sg_app_thread;
 
-/* Tuya thread handle */
-static THREAD_HANDLE ty_app_thread = NULL;
-
-/**
- * @brief  task thread
- *
- * @param[in] arg:Parameters when creating a task
- * @return none
- */
-static void tuya_app_thread(void *arg)
+static void __app_thread(void *arg)
 {
+    (void)arg;
     user_main();
-
-    tal_thread_delete(ty_app_thread);
-    ty_app_thread = NULL;
+    tal_thread_delete(sg_app_thread);
+    sg_app_thread = NULL;
 }
 
 void tuya_app_main(void)
 {
-    THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth = 1024 * 4;
-    thrd_param.priority = THREAD_PRIO_1;
-    thrd_param.thrdname = "tuya_app_main";
-    tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
+    THREAD_CFG_T thread_cfg = {
+        .stackDepth = 4096,
+        .priority = THREAD_PRIO_1,
+        .thrdname = "encoder_app",
+    };
+
+    tal_thread_create_and_start(&sg_app_thread, NULL, NULL,
+                                __app_thread, NULL, &thread_cfg);
 }
 #endif

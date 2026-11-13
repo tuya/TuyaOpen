@@ -10,6 +10,7 @@
 
 #include "tuya_cloud_types.h"
 #include "tdl_display_driver.h"
+#include "tdd_disp_type.h"
 
 #if defined(ENABLE_QSPI) && (ENABLE_QSPI == 1)
 
@@ -42,26 +43,37 @@ typedef struct {
 typedef struct {
     uint8_t cmd;
     uint8_t cmd_lines;
-    uint8_t addr[7];
-    TUYA_QSPI_WIRE_MODE_E addr_size;
+    uint8_t addr[4];
+    uint8_t addr_size;
     TUYA_QSPI_WIRE_MODE_E addr_lines;
-} QSPI_PIXEL_CMD_T;
+    uint8_t command_index;
+    uint32_t dummy_cycle;
+} QSPI_CMD_FRAME_T;
 
 typedef struct {
     uint16_t                    width;
     uint16_t                    height;
     TUYA_DISPLAY_PIXEL_FMT_E    pixel_fmt;
     TUYA_GPIO_NUM_E             rst_pin;
+    TUYA_GPIO_NUM_E             cs_pin;
     TUYA_QSPI_NUM_E             port;
     uint32_t                    freq_hz;
+    TUYA_QSPI_MODE_E            mode;
+    TUYA_QSPI_WIRE_MODE_E       data_lines;
+    TUYA_GPIO_NUM_E             te_pin;
+    TUYA_GPIO_LEVEL_E           te_active_level;
     QSPI_REFRESH_METHOD_E       refresh_method;
-    QSPI_PIXEL_CMD_T            pixel_pre_cmd;
+    QSPI_CMD_FRAME_T            pixel_cmd_1wire;
+    QSPI_CMD_FRAME_T            pixel_cmd_4wire;
     uint8_t                     has_vram;
     uint8_t                     cmd_caset;
     uint8_t                     cmd_raset;
-    uint8_t                     cmd_ramwr;
+    uint8_t                     cmd_opcode;
     uint8_t                     x_offset;
     uint8_t                     y_offset;
+    bool                        use_dma;
+    bool                        te_sync_enable;
+    uint8_t                     te_wait_div;
 }DISP_QSPI_BASE_CFG_T;
 
 typedef struct { 
@@ -84,6 +96,14 @@ typedef struct {
  * @return OPERATE_RET Operation result code.
  */
 OPERATE_RET tdd_disp_qspi_device_register(char *name, TDD_DISP_QSPI_CFG_T *spi);
+
+/**
+ * @brief Register a QSPI panel by combining its static protocol template with
+ *        board-provided port, pin and timing settings.
+ */
+OPERATE_RET tdd_disp_qspi_panel_register(char *name,
+                                         const TDD_DISP_QSPI_CFG_T *panel_cfg,
+                                         const DISP_QSPI_DEVICE_CFG_T *dev_cfg);
 
 /**
  * @brief Sends a command with optional data to the display via QSPI interface.

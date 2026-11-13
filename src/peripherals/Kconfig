@@ -11,5 +11,6 @@ menu "configure device driver"
     rsource "ir/Kconfig"
     rsource "leds_pixel/Kconfig"
     rsource "imu/Kconfig"
+    rsource "motion/Kconfig"
     rsource "printer/Kconfig"
 endmenu

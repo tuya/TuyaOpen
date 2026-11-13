@@ -3,17 +3,17 @@ menu "Application config"
     config EXAMPLE_OUTPUT_PIN
         int "output pin"
         default 18
-        range 0 63
+        range 0 159
 
     config EXAMPLE_INPUT_PIN
         int "input pin"
         default 4
-        range 0 63
+        range 0 159
 
     config EXAMPLE_IRQ_PIN
         int "irq pin"
         default 5
-        range 0 63
+        range 0 159
 
     config EXAMPLE_IRQ_MODE
         int "irq trigger (0: rising, 1: falling, 2: both, 3: low, 4: high)"

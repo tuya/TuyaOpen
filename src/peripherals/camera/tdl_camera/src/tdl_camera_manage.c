@@ -27,10 +27,12 @@
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
+#ifndef CAMERA_RAW_FRAME_BUFF_CNT
 #define CAMERA_RAW_FRAME_BUFF_CNT           (2)
+#endif
 #define CAMERA_ENCODE_FRAME_BUFF_CNT        (CAMERA_RAW_FRAME_BUFF_CNT << 2)
 
-#define CAMERA_RAW_PER_PIXEL_MAX_BYTE       (3)
+#define CAMERA_RAW_FALLBACK_BYTES_PER_PIXEL (3U)
 #define CAMERA_ENCODE_MIN_COMP_PCT          (20) // Unit: percentage
 
 #if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM==1)
@@ -68,6 +70,7 @@ typedef struct {
 typedef struct {
     struct tuya_list_head       node;
     uint32_t                    buf_len;
+    void                       *alloc_ptr;
     TDD_CAMERA_FRAME_T          tdd_frame;
 } CAMERA_FRAME_NODE_T;
 
@@ -88,6 +91,53 @@ typedef struct {
 ***********************************************************/
 static struct tuya_list_head sg_camera_list = LIST_HEAD_INIT(sg_camera_list);
 static CAMERA_MANAGE_INFO_T sg_camera_manage;
+static TDL_CAMERA_FRAME_MEM_OPS_T sg_camera_frame_mem_ops;
+
+void tdl_camera_set_frame_mem_ops(const TDL_CAMERA_FRAME_MEM_OPS_T *ops)
+{
+    if (ops == NULL || ops->alloc == NULL) {
+        memset(&sg_camera_frame_mem_ops, 0, sizeof(sg_camera_frame_mem_ops));
+    } else {
+        sg_camera_frame_mem_ops = *ops;
+    }
+}
+
+static void *__camera_frame_alloc(size_t size)
+{
+    if (sg_camera_frame_mem_ops.alloc != NULL) {
+        return sg_camera_frame_mem_ops.alloc(size);
+    }
+    return TDL_CAMERA_FRAME_MALLOC(size);
+}
+
+static void *__camera_frame_alloc_aligned(size_t size, void **alloc_ptr)
+{
+    const size_t align = 32U;
+    uintptr_t aligned;
+    void *raw;
+
+    if (alloc_ptr == NULL || size > (size_t)-1 - (align - 1U)) {
+        return NULL;
+    }
+    raw = __camera_frame_alloc(size + align - 1U);
+    if (raw == NULL) {
+        return NULL;
+    }
+    aligned = ((uintptr_t)raw + align - 1U) & ~(uintptr_t)(align - 1U);
+    *alloc_ptr = raw;
+    return (void *)aligned;
+}
+
+static uint32_t __camera_raw_frame_size(const TDL_CAMERA_CFG_T *cfg)
+{
+    uint32_t pixels = (uint32_t)cfg->width * cfg->height;
+
+    if ((cfg->out_fmt & TDL_CAMERA_FMT_YUV422) != 0U) {
+        return pixels * 2U;
+    }
+    /* Conservative fallback for a future raw format without an explicit size rule. */
+    return pixels * CAMERA_RAW_FALLBACK_BYTES_PER_PIXEL;
+}
 
 /***********************************************************
 ***********************function define**********************
@@ -197,7 +247,8 @@ static OPERATE_RET __camera_frame_node_init(struct tuya_list_head *phead, uint32
 
         frame_node->buf_len = buf_len;
 
-        frame_node->tdd_frame.frame.data = TDL_CAMERA_FRAME_MALLOC(buf_len);
+        frame_node->tdd_frame.frame.data =
+            __camera_frame_alloc_aligned(buf_len, &frame_node->alloc_ptr);
         if (NULL == frame_node->tdd_frame.frame.data) {
             FreeNode(frame_node);
             return OPRT_MALLOC_FAILED;
@@ -350,7 +401,7 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
 
     TUYA_CALL_ERR_RETURN(__camera_manage_init(cfg->out_fmt));
 
-    raw_buf_len = cfg->width * cfg->height * CAMERA_RAW_PER_PIXEL_MAX_BYTE;
+    raw_buf_len = __camera_raw_frame_size(cfg);
 
     /* The pool belongs to the registered device, not to one session. */
     if(cfg->out_fmt & TDL_IMG_FMT_RAW_MASK) {

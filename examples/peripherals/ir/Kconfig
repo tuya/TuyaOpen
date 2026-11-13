@@ -27,14 +27,14 @@ menu "Application config"
     config EXAMPLE_IR_TX_PIN
         int "IR tx pin"
         default 24
-        range 0 63
+        range 0 159
         help
           Select the TX pin for IR driver.
 
     config EXAMPLE_IR_RX_PIN
         int "IR rx pin"
         default 26
-        range 0 63
+        range 0 159
         help
           Select the RX pin for IR driver.
 endmenu

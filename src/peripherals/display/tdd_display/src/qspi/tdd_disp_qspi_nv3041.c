@@ -140,19 +140,28 @@ const uint8_t cNV3041_INIT_SEQ[] = {
 static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
     .cfg = {
         .refresh_method = QSPI_REFRESH_BY_FRAME,
-        .pixel_pre_cmd = {
+        .pixel_cmd_1wire = {
+            .cmd = NV3041_WRITE_REG,
+            .addr[0] = NV3041_ADDR_0,
+            .addr[1] = NV3041_ADDR_1,
+            .addr[2] = NV3041_ADDR_2,
+            .addr_size = NV3041_ADDR_LEN,
+            .cmd_lines = TUYA_QSPI_1WIRE,
+            .addr_lines = TUYA_QSPI_1WIRE,
+        },
+        .pixel_cmd_4wire = {
             .cmd = NV3041_WRITE_COLOR,
             .addr[0] = NV3041_ADDR_0,
             .addr[1] = NV3041_ADDR_1,
             .addr[2] = NV3041_ADDR_2,
-            .addr_size  = NV3041_ADDR_LEN,
-            .cmd_lines  = TUYA_QSPI_1WIRE,
+            .addr_size = NV3041_ADDR_LEN,
+            .cmd_lines = TUYA_QSPI_1WIRE,
             .addr_lines = TUYA_QSPI_1WIRE,
         },
         .has_vram = true,
         .cmd_caset = NV3041_CASET,
         .cmd_raset = NV3041_RASET,
-        .cmd_ramwr = NV3041_WRITE_REG,
+        .cmd_opcode = NV3041_WRITE_REG,
     },
     .is_swap = true,
     .init_seq = cNV3041_INIT_SEQ,
@@ -190,25 +199,6 @@ OPERATE_RET tdd_disp_qspi_nv3041_set_init_seq(const uint8_t *init_seq)
  */
 OPERATE_RET tdd_disp_qspi_nv3041_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
-    if (NULL == name || NULL == dev_cfg) {
-        return OPRT_INVALID_PARM;
-    }
-
-    PR_NOTICE("tdd_disp_qspi_nv3041_register: %s", name);
-
-    sg_disp_qspi_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_qspi_cfg.cfg.height    = dev_cfg->height;
-    sg_disp_qspi_cfg.cfg.x_offset  = dev_cfg->x_offset;
-    sg_disp_qspi_cfg.cfg.y_offset  = dev_cfg->y_offset;
-
-    sg_disp_qspi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_qspi_cfg.cfg.port      = dev_cfg->port;
-    sg_disp_qspi_cfg.cfg.freq_hz   = dev_cfg->spi_clk;
-    sg_disp_qspi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
-    sg_disp_qspi_cfg.rotation      = dev_cfg->rotation;
-
-    memcpy(&sg_disp_qspi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
-    memcpy(&sg_disp_qspi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
-
-    return tdd_disp_qspi_device_register(name, &sg_disp_qspi_cfg);
+    PR_NOTICE("tdd_disp_qspi_nv3041_register: %s", name ? name : "(null)");
+    return tdd_disp_qspi_panel_register(name, &sg_disp_qspi_cfg, dev_cfg);
 }

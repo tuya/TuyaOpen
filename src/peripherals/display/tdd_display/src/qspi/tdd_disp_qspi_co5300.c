@@ -48,19 +48,28 @@ const uint8_t cCO5300_INIT_SEQ[] = {
 static TDD_DISP_QSPI_CFG_T sg_disp_qspi_cfg = {
     .cfg = {
         .refresh_method = QSPI_REFRESH_BY_FRAME,
-        .pixel_pre_cmd = {
+        .pixel_cmd_1wire = {
+            .cmd = CO5300_WRITE_REG,
+            .addr[0] = CO5300_ADDR_0,
+            .addr[1] = CO5300_ADDR_1,
+            .addr[2] = CO5300_ADDR_2,
+            .addr_size = CO5300_ADDR_LEN,
+            .cmd_lines = TUYA_QSPI_1WIRE,
+            .addr_lines = TUYA_QSPI_1WIRE,
+        },
+        .pixel_cmd_4wire = {
             .cmd = CO5300_WRITE_COLOR,
             .addr[0] = CO5300_ADDR_0,
             .addr[1] = CO5300_ADDR_1,
             .addr[2] = CO5300_ADDR_2,
-            .addr_size  = CO5300_ADDR_LEN,
-            .cmd_lines  = TUYA_QSPI_1WIRE,
+            .addr_size = CO5300_ADDR_LEN,
+            .cmd_lines = TUYA_QSPI_1WIRE,
             .addr_lines = TUYA_QSPI_1WIRE,
         },
         .has_vram = true,
         .cmd_caset = CO5300_CASET,
         .cmd_raset = CO5300_RASET,
-        .cmd_ramwr = CO5300_WRITE_REG,
+        .cmd_opcode = CO5300_WRITE_REG,
     },
     .is_swap = true,
     .init_seq = cCO5300_INIT_SEQ,
@@ -117,29 +126,6 @@ OPERATE_RET tdd_disp_qspi_co5300_set_init_seq(const uint8_t *init_seq)
  */
 OPERATE_RET tdd_disp_qspi_co5300_register(char *name, DISP_QSPI_DEVICE_CFG_T *dev_cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
-
-    if (NULL == name || NULL == dev_cfg) {
-        return OPRT_INVALID_PARM;
-    }
-
-    PR_NOTICE("tdd_disp_qspi_co5300_register: %s", name);
-
-    sg_disp_qspi_cfg.cfg.width     = dev_cfg->width;
-    sg_disp_qspi_cfg.cfg.height    = dev_cfg->height;
-    sg_disp_qspi_cfg.cfg.x_offset  = dev_cfg->x_offset;
-    sg_disp_qspi_cfg.cfg.y_offset  = dev_cfg->y_offset;
-
-    sg_disp_qspi_cfg.cfg.pixel_fmt = dev_cfg->pixel_fmt;
-    sg_disp_qspi_cfg.cfg.port      = dev_cfg->port;
-    sg_disp_qspi_cfg.cfg.freq_hz   = dev_cfg->spi_clk;
-    sg_disp_qspi_cfg.cfg.rst_pin   = dev_cfg->rst_pin;
-    sg_disp_qspi_cfg.rotation      = dev_cfg->rotation;
-
-    memcpy(&sg_disp_qspi_cfg.power, &dev_cfg->power, sizeof(TUYA_DISPLAY_IO_CTRL_T));
-    memcpy(&sg_disp_qspi_cfg.bl, &dev_cfg->bl, sizeof(TUYA_DISPLAY_BL_CTRL_T));
-
-    TUYA_CALL_ERR_RETURN(tdd_disp_qspi_device_register(name, &sg_disp_qspi_cfg));
-
-    return OPRT_OK;
+    PR_NOTICE("tdd_disp_qspi_co5300_register: %s", name ? name : "(null)");
+    return tdd_disp_qspi_panel_register(name, &sg_disp_qspi_cfg, dev_cfg);
 }

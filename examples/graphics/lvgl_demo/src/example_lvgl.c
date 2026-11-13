@@ -72,8 +72,11 @@ void user_main(void)
 
     lv_vendor_disp_lock();
 
-    lv_demo_widgets();
-    // lv_demo_benchmark();
+#if defined(ENABLE_LVGL_ENCODER) && ENABLE_LVGL_ENCODER
+    lv_demo_keypad_encoder();
+#else
+    lv_demo_benchmark();
+#endif
     
     lv_vendor_disp_unlock();
 

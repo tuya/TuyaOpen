@@ -18,9 +18,12 @@ def clean_project(log_file=None):
         logger = get_logger()
         params = get_global_params()
         build_path = params["app_build_path"]
+        compile_commands = os.path.join(params["open_root"], "compile_commands.json")
         build_file = os.path.join(build_path, "build.ninja")
         if not os.path.isfile(build_file):
             logger.debug("No need clean.")
+            if os.path.isfile(compile_commands):
+                rm_rf(compile_commands)
             return True
 
         # clean_all depends on platform_clean, which runs the platform's
@@ -42,6 +45,8 @@ def clean_project(log_file=None):
             logger.error("Clean error.")
             return False
 
+        if os.path.isfile(compile_commands):
+            rm_rf(compile_commands)
         logger.note("Clean success.")
         return True
 

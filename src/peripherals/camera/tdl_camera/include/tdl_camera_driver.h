@@ -84,6 +84,11 @@ typedef struct {
 } TDD_CAMERA_DEV_INFO_T;
 
 typedef struct {
+    void *(*alloc)(size_t size);
+    void (*free)(void *ptr);
+} TDL_CAMERA_FRAME_MEM_OPS_T;
+
+typedef struct {
     uint16_t                  fps;
     uint16_t                  width;
     uint16_t                  height;
@@ -124,6 +129,15 @@ OPERATE_RET tdl_camera_device_register(char *name, TDD_CAMERA_DEV_HANDLE_T tdd_h
  * @return Pointer to TDD frame structure, or NULL if no frame available or device not found
  */
 TDD_CAMERA_FRAME_T *tdl_camera_create_tdd_frame(TDD_CAMERA_DEV_HANDLE_T tdd_hdl, TUYA_FRAME_FMT_E fmt);
+
+/**
+ * @brief Override camera raw/encoded frame allocation.
+ *
+ * Passing NULL restores the default TDL_CAMERA_FRAME_MALLOC/FREE behavior.
+ * Platform board code may provide a fixed DMA-safe pool without changing the
+ * default policy used by other boards.
+ */
+void tdl_camera_set_frame_mem_ops(const TDL_CAMERA_FRAME_MEM_OPS_T *ops);
 
 /**
  * @brief Release TDD frame back to frame node pool

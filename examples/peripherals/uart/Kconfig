@@ -3,30 +3,11 @@ menu "Application config"
     config EXAMPLE_UART_NUM
         int "uart port"
         default 0
-        range 0 5
+        range 0 7
 
     config EXAMPLE_UART_BAUDRATE
         int "uart baudrate"
         default 115200
-
-    config EXAMPLE_UART_PINMUX
-        bool "route the port to the tx/rx pins below with tkl_io_pinmux_config"
-        default n
-        ---help---
-            Leave this off to use whatever pins the platform assigns to the port by
-            default. Turn it on when the board wires the port somewhere else.
-
-    if EXAMPLE_UART_PINMUX
-        config EXAMPLE_UART_TX_PIN
-            int "tx pin"
-            default 41
-            range 0 63
-
-        config EXAMPLE_UART_RX_PIN
-            int "rx pin"
-            default 40
-            range 0 63
-    endif
 
     config EXAMPLE_LOW_POWER
         bool "let the cpu sleep while waiting for input"

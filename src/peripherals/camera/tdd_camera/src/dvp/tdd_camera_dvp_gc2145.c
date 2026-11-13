@@ -113,8 +113,20 @@ static void __dvp_gc2145_update_reg(TUYA_I2C_NUM_E port, const uint8_t sensor_re
  * @param arg User argument (unused)
  * @return OPRT_OK on success
  */
-static OPERATE_RET __dvp_gc2145_reset(TUYA_CAMERA_IO_CTRL_T *rst_pin, void *arg)
+static OPERATE_RET __dvp_gc2145_reset(TUYA_CAMERA_IO_CTRL_T *pwr_pin,
+                                      TUYA_CAMERA_IO_CTRL_T *rst_pin,
+                                      void *arg)
 {
+    if(pwr_pin != NULL && pwr_pin->pin < TUYA_GPIO_NUM_MAX) {
+        TUYA_GPIO_BASE_CFG_T pwr_cfg = {
+            .direct = TUYA_GPIO_OUTPUT,
+            .level = pwr_pin->active_level == TUYA_GPIO_LEVEL_NONE ?
+                     TUYA_GPIO_LEVEL_LOW : pwr_pin->active_level,
+        };
+        tkl_gpio_init(pwr_pin->pin, &pwr_cfg);
+        tkl_gpio_write(pwr_pin->pin, pwr_cfg.level);
+    }
+
     if(NULL == rst_pin) {
         return OPRT_OK;
     }

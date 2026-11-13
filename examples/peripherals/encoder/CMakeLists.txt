@@ -26,8 +26,3 @@ target_sources(${EXAMPLE_LIB}
         ${APP_SRCS}
     )
 
-target_include_directories(${EXAMPLE_LIB}
-    PRIVATE
-        ${PROJECT_SOURCE_DIR}/src/peripherals/encoder
-    )
-

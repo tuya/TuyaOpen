@@ -1,0 +1,19 @@
+# TuyaOpen OS service configuration for the GD32H77X board family.
+config ENABLE_GD32H77X_OS_SERVICE
+    bool
+    default y
+    select ENABLE_BT_SERVICE
+    select ENABLE_BT_NETCFG
+    select ENABLE_BT_CTRL
+    ---help---
+        TuyaOpen services required by the GD32H77X BLE provisioning path.
+        ENABLE_BLUETOOTH is a TKL capability and defaults to y in TKL_Kconfig.
+        BLE service symbols are SDK-level defaults, so applications should not
+        have to enable them individually.
+
+        NimBLE is not selected: GD32H77X uses the BLE stack exposed through the
+        AT adapter, matching the generic GD32 board-family convention.
+
+config MBEDTLS_CONFIG_FILE
+    string
+    default "tuya_tls_config.h"
