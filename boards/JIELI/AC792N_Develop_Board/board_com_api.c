@@ -138,6 +138,10 @@ OPERATE_RET board_register_hardware(void)
                     },
                 .clk = 24000000,
             },
+        /* TODO(task 06): 1280x720 is the PR's placeholder geometry. The
+         * candidate GC0308 module on J49 tops out at 640x480, and the
+         * schematic does not name the sensor. Confirm the module before
+         * enabling ENABLE_BOARD_CAMERA_DVP and set the real size here. */
         .max_fps    = 30,
         .max_width  = 1280,
         .max_height = 720,
