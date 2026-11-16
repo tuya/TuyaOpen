@@ -53,6 +53,14 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
+if (CONFIG_CHIP_WL83 STREQUAL "y")
+    # wl83's newlib stubs have neither dirent nor the Unix timing module; see
+    # config_wl83_user.h. Certificates are embedded, so neither is needed.
+    target_compile_definitions(${MODULE_NAME} PRIVATE
+        MBEDTLS_USER_CONFIG_FILE="config_wl83_user.h")
+    target_include_directories(${MODULE_NAME} PRIVATE ${MODULE_PATH})
+endif()
+
 
 ########################################
 # Layer Configure
