@@ -118,3 +118,11 @@ config ENABLE_PM
 config ENABLE_TIMER
     bool
     default y
+
+config ENABLE_DVP
+    bool "Compile Jieli TKL DVP camera adapter"
+    default y
+
+config ENABLE_CSI2
+    bool "Compile Jieli TKL CSI2 camera adapter"
+    default y

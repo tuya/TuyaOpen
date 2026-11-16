@@ -40,6 +40,14 @@
 #define JIELI_DISPLAY_HEIGHT 800
 #endif
 
+#if defined(ENABLE_BOARD_CAMERA_DVP) && (ENABLE_BOARD_CAMERA_DVP == 1)
+#include "tdd_camera_dvp.h"
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_CSI2) && (ENABLE_BOARD_CAMERA_CSI2 == 1)
+#include "tdd_camera_csi2.h"
+#endif
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -102,6 +110,71 @@ OPERATE_RET board_register_hardware(void)
         if (ret != OPRT_OK) {
             return ret;
         }
+    }
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_DVP) && (ENABLE_BOARD_CAMERA_DVP == 1)
+    /* CAM2 DVP0 (J49 SEN_FPC): IIC1, XCLK PD8, RESET PE9.
+     * Note: PORTE pins (PE9) exceed TUYA_GPIO_NUM_MAX (64), so power/reset pins
+     * are left to the platform / vendor board control. */
+    TDD_DVP_SR_CFG_T dvp_cfg = {
+        .usr_cfg =
+            {
+                .pwr =
+                    {
+                        .pin          = TUYA_GPIO_NUM_MAX,
+                        .active_level = TUYA_GPIO_LEVEL_HIGH,
+                    },
+                .rst =
+                    {
+                        .pin          = TUYA_GPIO_NUM_MAX,
+                        .active_level = TUYA_GPIO_LEVEL_LOW,
+                    },
+                .i2c =
+                    {
+                        .port = TUYA_I2C_NUM_MAX,
+                        .clk  = TUYA_GPIO_NUM_MAX,
+                        .sda  = TUYA_GPIO_NUM_MAX,
+                    },
+                .clk = 24000000,
+            },
+        .max_fps    = 30,
+        .max_width  = 1280,
+        .max_height = 720,
+        .fmt        = TUYA_FRAME_FMT_JPEG,
+    };
+    TDD_DVP_SR_INTFS_T dvp_intfs = {0};
+    ret                          = tdl_camera_dvp_device_register("camera_dvp0", &dvp_cfg, &dvp_intfs);
+    if (ret != OPRT_OK) {
+        return ret;
+    }
+#endif
+
+#if defined(ENABLE_BOARD_CAMERA_CSI2) && (ENABLE_BOARD_CAMERA_CSI2 == 1)
+    /* CAM1 MIPI CSI2 (J47 MIPI_FPC): IIC2, XCLK PE10, PWDN PE11, RESET PE12. */
+    TDD_CSI2_SR_USR_CFG_T csi2_cfg = {
+        .pwr =
+            {
+                .pin          = TUYA_GPIO_NUM_MAX,
+                .active_level = TUYA_GPIO_LEVEL_HIGH,
+            },
+        .rst =
+            {
+                .pin          = TUYA_GPIO_NUM_MAX,
+                .active_level = TUYA_GPIO_LEVEL_LOW,
+            },
+        .i2c =
+            {
+                .port = TUYA_I2C_NUM_MAX,
+                .clk  = TUYA_GPIO_NUM_MAX,
+                .sda  = TUYA_GPIO_NUM_MAX,
+            },
+        .clk        = 24000000,
+        .data_lanes = 1,
+    };
+    ret = tdd_camera_csi2_register("camera_csi2", &csi2_cfg);
+    if (ret != OPRT_OK) {
+        return ret;
     }
 #endif
 

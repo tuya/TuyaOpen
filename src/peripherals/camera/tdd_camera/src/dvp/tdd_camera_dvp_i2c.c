@@ -6,34 +6,32 @@
  * I2C initialization, register read and write operations. It provides low-level
  * I2C communication functions for camera sensor configuration.
  *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
 #include "tuya_cloud_types.h"
 #include "tal_api.h"
+#include "tdd_camera_dvp_i2c.h"
 
 #if defined(ENABLE_I2C) && (ENABLE_I2C == 1)
 
 #include "tkl_i2c.h"
 #include "tkl_pinmux.h"
-#include "tdd_camera_dvp_i2c.h"
 
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define DVP_I2C_SCL(port) 		((port) << 1)
-#define DVP_I2C_SDA(port) 		(((port) << 1) + 1)
+#define DVP_I2C_SCL(port) ((port) << 1)
+#define DVP_I2C_SDA(port) (((port) << 1) + 1)
 
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-
 
 /***********************************************************
 ***********************function define**********************
@@ -55,8 +53,8 @@ OPERATE_RET tdd_dvp_i2c_init(DVP_I2C_CFG_T *cfg)
     tkl_io_pinmux_config(cfg->sda, DVP_I2C_SDA(cfg->port));
 
     TUYA_IIC_BASE_CFG_T i2c_cfg = {
-        .role = TUYA_IIC_MODE_MASTER,
-        .speed = TUYA_IIC_BUS_SPEED_100K,
+        .role       = TUYA_IIC_MODE_MASTER,
+        .speed      = TUYA_IIC_BUS_SPEED_100K,
         .addr_width = TUYA_IIC_ADDRESS_7BIT,
     };
 
@@ -81,15 +79,15 @@ OPERATE_RET tdd_dvp_i2c_read(DVP_I2C_REG_CFG_T *cfg, uint16_t read_len, uint8_t 
         return OPRT_EXCEED_UPPER_LIMIT;
     }
 
-    uint8_t write_data[2] = {0};
+    uint8_t write_data[2]  = {0};
     uint8_t write_data_len = 0;
 
     if (cfg->is_16_reg) {
-        write_data[0] = (uint8_t)((cfg->reg >> 8) & 0xFF);
-        write_data[1] = (uint8_t)(cfg->reg & 0xFF);
+        write_data[0]  = (uint8_t)((cfg->reg >> 8) & 0xFF);
+        write_data[1]  = (uint8_t)(cfg->reg & 0xFF);
         write_data_len = 2;
-    }else {
-        write_data[0] = (uint8_t)(cfg->reg & 0xFF);
+    } else {
+        write_data[0]  = (uint8_t)(cfg->reg & 0xFF);
         write_data_len = 1;
     }
 
@@ -114,23 +112,48 @@ OPERATE_RET tdd_dvp_i2c_write(DVP_I2C_REG_CFG_T *cfg, uint16_t write_len, uint8_
         return OPRT_INVALID_PARM;
     }
 
-    reg_len = cfg->is_16_reg ? 2 : 1;
+    reg_len        = cfg->is_16_reg ? 2 : 1;
     write_data_len = reg_len + write_len;
     if (write_data_len > DVP_I2C_WRITE_MAX_LEN) {
-        PR_ERR("%s, write_data_len(%d+%d) is overflow the limit(%d)\r\n", __func__, write_len, reg_len, DVP_I2C_WRITE_MAX_LEN);
+        PR_ERR("%s, write_data_len(%d+%d) is overflow the limit(%d)\r\n", __func__, write_len, reg_len,
+               DVP_I2C_WRITE_MAX_LEN);
         return OPRT_EXCEED_UPPER_LIMIT;
     }
 
-    if (cfg->is_16_reg ) {
+    if (cfg->is_16_reg) {
         write_buff[0] = (uint8_t)((cfg->reg >> 8) & 0xFF);
         write_buff[1] = (uint8_t)(cfg->reg & 0xFF);
-    }else {
+    } else {
         write_buff[0] = (uint8_t)(cfg->reg & 0xFF);
     }
 
     memcpy(write_buff + reg_len, buf, write_len);
 
     return tkl_i2c_master_send(cfg->port, cfg->addr, write_buff, write_data_len, 0);
+}
+
+#else
+
+OPERATE_RET tdd_dvp_i2c_init(DVP_I2C_CFG_T *cfg)
+{
+    (void)cfg;
+    return OPRT_NOT_SUPPORTED;
+}
+
+OPERATE_RET tdd_dvp_i2c_read(DVP_I2C_REG_CFG_T *cfg, uint16_t read_len, uint8_t *buf)
+{
+    (void)cfg;
+    (void)read_len;
+    (void)buf;
+    return OPRT_NOT_SUPPORTED;
+}
+
+OPERATE_RET tdd_dvp_i2c_write(DVP_I2C_REG_CFG_T *cfg, uint16_t write_len, uint8_t *buf)
+{
+    (void)cfg;
+    (void)write_len;
+    (void)buf;
+    return OPRT_NOT_SUPPORTED;
 }
 
 #endif

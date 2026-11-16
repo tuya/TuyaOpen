@@ -24,67 +24,66 @@ extern "C" {
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
-#define TDL_IMG_FMT_RAW_MASK       0x00FF
-#define TDL_IMG_FMT_ENCODED_MASK   0xFF00
-#define ENCODED_SHIFT(value)      ((value) << 8)
+#define TDL_IMG_FMT_RAW_MASK     0x00FF
+#define TDL_IMG_FMT_ENCODED_MASK 0xFF00
+#define ENCODED_SHIFT(value)     ((value) << 8)
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef enum  {
-    TDL_CAMERA_DVP= 0,
-}TDL_CAMERA_TYPE_E;
+typedef enum {
+    TDL_CAMERA_DVP  = 0,
+    TDL_CAMERA_CSI2 = 1,
+} TDL_CAMERA_TYPE_E;
 
 typedef enum {
-    TDL_CAMERA_FMT_YUV422 = 1,
-    TDL_CAMERA_FMT_JPEG   = ENCODED_SHIFT(1),
-    TDL_CAMERA_FMT_H264   = ENCODED_SHIFT(2),
-    TDL_CAMERA_FMT_JPEG_YUV422_BOTH =  (TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_YUV422),
-    TDL_CAMERA_FMT_H264_YUV422_BOTH =  (TDL_CAMERA_FMT_H264 | TDL_CAMERA_FMT_YUV422),
+    TDL_CAMERA_FMT_YUV422           = 1,
+    TDL_CAMERA_FMT_JPEG             = ENCODED_SHIFT(1),
+    TDL_CAMERA_FMT_H264             = ENCODED_SHIFT(2),
+    TDL_CAMERA_FMT_JPEG_YUV422_BOTH = (TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_YUV422),
+    TDL_CAMERA_FMT_H264_YUV422_BOTH = (TDL_CAMERA_FMT_H264 | TDL_CAMERA_FMT_YUV422),
 } TDL_CAMERA_FMT_E;
 
-typedef void*  TDL_CAMERA_HANDLE_T;
+typedef void *TDL_CAMERA_HANDLE_T;
 
 typedef struct {
-    TDL_CAMERA_TYPE_E         type;
-    uint16_t                  fps;
-    uint16_t                  width;
-    uint16_t                  height;
-    TDL_CAMERA_FMT_E          out_fmt;
-    uint16_t                  max_fps;
-    uint16_t                  max_width;
-    uint16_t                  max_height;
-    TDL_CAMERA_FMT_E          supported_fmts; /**< Bitmask of output formats this camera
-                                                *  supports (see TDL_CAMERA_FMT_E). Query via
-                                                *  tdl_camera_dev_get_info() before open to
-                                                *  pick a format. 0 = unspecified. */
-    TUYA_YUV422_ORDER_E       yuv_order; /**< YUV422 byte order: 0=UYVY(default), 1=YUYV */
+    TDL_CAMERA_TYPE_E type;
+    uint16_t          fps;
+    uint16_t          width;
+    uint16_t          height;
+    TDL_CAMERA_FMT_E  out_fmt;
+    uint16_t          max_fps;
+    uint16_t          max_width;
+    uint16_t          max_height;
+    TDL_CAMERA_FMT_E  supported_fmts; /**< Bitmask of output formats this camera
+                                       *  supports (see TDL_CAMERA_FMT_E). Query via
+                                       *  tdl_camera_dev_get_info() before open to
+                                       *  pick a format. 0 = unspecified. */
+    TUYA_YUV422_ORDER_E yuv_order;    /**< YUV422 byte order: 0=UYVY(default), 1=YUYV */
 } TDL_CAMERA_DEV_INFO_T;
 
-typedef struct
-{
-    uint16_t            id;
-    uint8_t             is_i_frame;
-    uint8_t             is_complete;
-    TUYA_FRAME_FMT_E    fmt;
-    uint16_t            width;
-	uint16_t            height;
-    uint32_t            data_len;
-    uint8_t            *data;
-    uint32_t            total_frame_len;
+typedef struct {
+    uint16_t         id;
+    uint8_t          is_i_frame;
+    uint8_t          is_complete;
+    TUYA_FRAME_FMT_E fmt;
+    uint16_t         width;
+    uint16_t         height;
+    uint32_t         data_len;
+    uint8_t         *data;
+    uint32_t         total_frame_len;
 } TDL_CAMERA_FRAME_T;
 
-typedef OPERATE_RET (*TDL_CAMERA_GET_FRAME_CB)(TDL_CAMERA_HANDLE_T hdl,  TDL_CAMERA_FRAME_T *frame);
+typedef OPERATE_RET (*TDL_CAMERA_GET_FRAME_CB)(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame);
 
 typedef struct {
-    uint16_t                  fps;
-    uint16_t                  width;
-    uint16_t                  height;
-    TDL_CAMERA_FMT_E          out_fmt;
-    TUYA_DVP_ENCODED_QUALITY  encoded_quality;
-    TDL_CAMERA_GET_FRAME_CB   get_frame_cb;
-    TDL_CAMERA_GET_FRAME_CB   get_encoded_frame_cb;
-}TDL_CAMERA_CFG_T;
-
+    uint16_t                 fps;
+    uint16_t                 width;
+    uint16_t                 height;
+    TDL_CAMERA_FMT_E         out_fmt;
+    TUYA_DVP_ENCODED_QUALITY encoded_quality;
+    TDL_CAMERA_GET_FRAME_CB  get_frame_cb;
+    TDL_CAMERA_GET_FRAME_CB  get_encoded_frame_cb;
+} TDL_CAMERA_CFG_T;
 
 /***********************************************************
 ********************function declaration********************
@@ -112,7 +111,7 @@ OPERATE_RET tdl_camera_dev_get_info(TDL_CAMERA_HANDLE_T camera_hdl, TDL_CAMERA_D
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid,
  *         or other error codes on initialization failure
  */
-OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_T *cfg);
+OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl, TDL_CAMERA_CFG_T *cfg);
 
 /**
  * @brief Close camera device
