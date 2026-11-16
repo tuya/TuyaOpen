@@ -1,6 +1,8 @@
 name: TuyaOpen CI - PR Review
 # Repository variable: comma-separated numeric IDs, without spaces.
 # Keep MAINTAINER_GITHUB_IDS in sync with the service configuration.
+# Command prefix is case-insensitive; do not trim the body or accept line breaks.
+# The service uses the same format and reports malformed command attempts in English.
 run-name: >-
   ${{ github.event_name == 'issue_comment' &&
       (github.event.comment.user.type == 'Bot' &&
