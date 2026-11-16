@@ -1,0 +1,61 @@
+name: TuyaOpen CI - Nightly
+run-name: "${{ inputs.report_run_id && format('Nightly evidence #{0}', inputs.report_run_id) || 'Nightly submission' }}"
+
+on:
+  schedule:
+    - cron: '0 18 * * *' # 02:00 Asia/Shanghai; GitHub cron uses UTC
+  workflow_dispatch:
+    inputs:
+      report_run_id:
+        description: Terminal nightly batch run ID to publish as evidence; leave empty to submit a manual batch
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  submit:
+    name: Quick nightly submission
+    if: >-
+      github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && inputs.report_run_id == ''))
+    runs-on: [tuyaopen-ci-events, linux, x64]
+    timeout-minutes: 5
+    steps:
+      - name: Persist nightly batch and release runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /app/infra/build/nightly_job.py submit
+
+  report:
+    name: Publish terminal nightly evidence
+    if: >-
+      github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
+      github.event_name == 'workflow_dispatch' && inputs.report_run_id != ''
+    runs-on: [tuyaopen-ci-events, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - name: Download and safely extract nightly evidence
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /app/infra/build/nightly_job.py report
+      - name: Upload nightly logs and firmware
+        id: artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-evidence-${{ inputs.report_run_id }}
+          path: ${{ steps.evidence.outputs.root }}
+          if-no-files-found: error
+          compression-level: 0
+      - name: Attach evidence link to nightly Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /app/infra/build/nightly_job.py report-links

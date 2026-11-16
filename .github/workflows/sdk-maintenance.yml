@@ -1,0 +1,23 @@
+name: TuyaOpen CI - SDK Maintenance
+run-name: SDK ${{ inputs.mode || 'update' }}
+on:
+  schedule:
+    - cron: '0 17 * * *' # 01:00 Asia/Shanghai
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: SDK operation
+        type: choice
+        options: [update, initialize]
+        default: update
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  sdk:
+    if: github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master'
+    runs-on: [tuyaopen-ci-build, linux, x64]
+    timeout-minutes: 2880
+    steps:
+      - name: Synchronize SDK workspace
+        run: python /app/infra/build/sdk_maintenance_job.py
