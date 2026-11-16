@@ -28,6 +28,11 @@ else()
 
     list(APPEND LIB_SRCS "${MBEDTLS_SRCS}")
     list(APPEND LIB_PUBLIC_INC "${MODULE_PATH}/${MBEDTLS}/include")
+    # Some 3.1 sources (psa_crypto_cipher.c) pull their private headers with
+    # angle brackets, so the library directory must be on the private include
+    # path. wl82 does not define MBEDTLS_PSA_CRYPTO_C and never noticed; the
+    # wl83 profile does.
+    list(APPEND LIB_PRIVATE_INC "${MODULE_PATH}/${MBEDTLS}/library")
 endif()
 
 ########################################
