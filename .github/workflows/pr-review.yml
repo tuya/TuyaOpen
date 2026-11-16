@@ -5,7 +5,9 @@ run-name: >-
   ${{ github.event_name == 'issue_comment' &&
       (github.event.comment.user.type == 'Bot' &&
        format('Skipped comment - #{0}: bot comments are ignored', github.event.issue.number) ||
-       contains(github.event.comment.body, '/build') &&
+       (startsWith(github.event.comment.body, '/build ') &&
+        !contains(github.event.comment.body, fromJSON('"\n"')) &&
+        !contains(github.event.comment.body, fromJSON('"\r"'))) &&
        (vars.MAINTAINER_GITHUB_IDS == '' &&
         format('Skipped build request - PR #{0}: build maintainer list is not configured', github.event.issue.number) ||
         !contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.comment.user.id)) &&
@@ -35,7 +37,9 @@ jobs:
       github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
       (github.event_name != 'issue_comment' ||
        (github.event.comment.user.type != 'Bot' &&
-        (!contains(github.event.comment.body, '/build') ||
+        (!(startsWith(github.event.comment.body, '/build ') &&
+           !contains(github.event.comment.body, fromJSON('"\n"')) &&
+           !contains(github.event.comment.body, fromJSON('"\r"'))) ||
          contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.comment.user.id)))))
     runs-on: [tuyaopen-ci-events, linux, x64]
     timeout-minutes: 30
