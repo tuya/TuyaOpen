@@ -1,24 +1,13 @@
 name: TuyaOpen CI - PR Build
-# Repository variable: comma-separated numeric IDs, without spaces.
-# The service independently verifies maintainer permission before approving builds.
+# Maintainer authorization is verified by the service for manual and Review requests.
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch' &&
-      (vars.MAINTAINER_GITHUB_IDS == '' &&
-       format('Skipped build - PR #{0}: build maintainer list is not configured', inputs.pr_number) ||
-       !contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.actor_id)) &&
-       format('Skipped build - PR #{0}: user is not a build maintainer', inputs.pr_number) ||
-       format('PR #{0} - TuyaOpen build', inputs.pr_number)) ||
+      format('PR #{0} - TuyaOpen build', inputs.pr_number) ||
       github.event.workflow_run.conclusion != 'success' &&
       format('Skipped build: upstream review {0} - {1}', github.event.workflow_run.conclusion, github.event.workflow_run.display_title) ||
       (github.event.workflow_run.event != 'issue_comment' ||
        !startsWith(github.event.workflow_run.display_title, 'Build request - PR #')) &&
       format('Skipped build: no approved build request - {0}', github.event.workflow_run.display_title) ||
-      vars.MAINTAINER_GITHUB_IDS == '' &&
-      format('Skipped build: build maintainer list is not configured - {0}', github.event.workflow_run.display_title) ||
-      !github.event.workflow_run.actor.id &&
-      format('Skipped build: original review actor is unavailable - {0}', github.event.workflow_run.display_title) ||
-      !contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.workflow_run.actor.id)) &&
-      format('Skipped build: original review actor is not a build maintainer - {0}', github.event.workflow_run.display_title) ||
       format('{0} - TuyaOpen build', github.event.workflow_run.display_title) }}
 
 on:
@@ -55,13 +44,10 @@ jobs:
   build:
     if: >-
       github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
-      ((github.event_name == 'workflow_dispatch' &&
-        contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.actor_id))) ||
+      (github.event_name == 'workflow_dispatch' ||
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.event == 'issue_comment' &&
-        startsWith(github.event.workflow_run.display_title, 'Build request - PR #') &&
-        github.event.workflow_run.actor.id > 0 &&
-        contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.workflow_run.actor.id))))
+        startsWith(github.event.workflow_run.display_title, 'Build request - PR #')))
     runs-on: [tuyaopen-ci-build, linux, x64]
     timeout-minutes: 1440
     steps:
