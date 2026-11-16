@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on:
   pull_request:
     branches:
-      - master  # 当分支有提交时执行此工作流
+      # master PRs use pr-review.yml and the approved pr-build.yml flow.
       - dev
 jobs:
   Check-Build-Apps:

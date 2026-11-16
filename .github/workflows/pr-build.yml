@@ -1,0 +1,76 @@
+name: TuyaOpen CI - PR Build
+run-name: "${{ inputs.pr_number && format('PR #{0}', inputs.pr_number) || github.event.workflow_run.display_title }} - TuyaOpen build"
+
+on:
+  workflow_run:
+    workflows: ['TuyaOpen CI - PR Review']
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: string
+      switch_demo_all:
+        description: switch_demo - all configurations
+        required: false
+        type: boolean
+        default: false
+      your_chat_bot_all:
+        description: your_chat_bot - all configurations
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: tuyaopen-ci-build-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'issue_comment' &&
+        startsWith(github.event.workflow_run.display_title, 'Build request - PR #')))
+    runs-on: [tuyaopen-ci-build, linux, x64]
+    timeout-minutes: 1440
+    steps:
+      - name: Build milestones
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /app/infra/build/actions_job.py
+      - name: Upload build logs
+        id: logs
+        if: always() && steps.build.outputs.logs_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-logs-${{ steps.build.outputs.scope }}
+          path: ${{ steps.build.outputs.logs_path }}
+          if-no-files-found: error
+          compression-level: 3
+      - name: Upload firmware
+        id: firmware
+        if: always() && steps.build.outputs.firmware_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: firmware-${{ steps.build.outputs.scope }}
+          path: ${{ steps.build.outputs.firmware_path }}
+          if-no-files-found: error
+          compression-level: 0
+      - name: Results and cleanup
+        if: always()
+        shell: bash
+        env:
+          BUILD_OUTPUT_DIR: ${{ steps.build.outputs.root }}
+          LOG_ARTIFACT_URL: ${{ steps.logs.outputs.artifact-url }}
+          FIRMWARE_ARTIFACT_URL: ${{ steps.firmware.outputs.artifact-url }}
+        run: python /app/infra/build/actions_job.py --summary

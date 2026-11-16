@@ -1,0 +1,30 @@
+name: TuyaOpen CI - PR Review
+run-name: "${{ github.event_name == 'issue_comment' && contains(github.event.comment.body, '/build ') && 'Build request - PR' || github.event_name }} #${{ github.event.number || github.event.issue.number || github.run_id }}"
+
+on:
+  pull_request_target:
+    branches: [master]
+    types: [opened, synchronize, reopened, edited, closed, converted_to_draft, ready_for_review]
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  review:
+    if: >-
+      github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
+      (github.event_name != 'issue_comment' || github.event.comment.user.type != 'Bot')
+    runs-on: [tuyaopen-ci-events, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - name: Review, validate commands and hand over
+        id: build
+        shell: bash
+        run: python /app/infra/build/actions_event.py
