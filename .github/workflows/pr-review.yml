@@ -1,5 +1,22 @@
 name: TuyaOpen CI - PR Review
-run-name: "${{ github.event_name == 'issue_comment' && contains(github.event.comment.body, '/build ') && 'Build request - PR' || github.event_name }} #${{ github.event.number || github.event.issue.number || github.run_id }}"
+# Repository variable: comma-separated numeric IDs, without spaces.
+# Keep MAINTAINER_GITHUB_IDS in sync with the service configuration.
+# Command prefix is case-insensitive; do not trim the body or accept line breaks.
+# The service uses the same format and reports malformed command attempts in English.
+run-name: >-
+  ${{ github.event_name == 'issue_comment' &&
+      (github.event.comment.user.type == 'Bot' &&
+       format('Skipped comment - #{0}: bot comments are ignored', github.event.issue.number) ||
+       (startsWith(github.event.comment.body, '/build ') &&
+        !contains(github.event.comment.body, fromJSON('"\n"')) &&
+        !contains(github.event.comment.body, fromJSON('"\r"'))) &&
+       (vars.MAINTAINER_GITHUB_IDS == '' &&
+        format('Skipped build request - PR #{0}: build maintainer list is not configured', github.event.issue.number) ||
+        !contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.comment.user.id)) &&
+        format('Skipped build request - PR #{0}: user is not a build maintainer', github.event.issue.number) ||
+        format('Build request - PR #{0}', github.event.issue.number)) ||
+       format('issue_comment #{0}', github.event.issue.number)) ||
+      format('{0} #{1}', github.event_name, github.event.number || github.event.issue.number || github.run_id) }}
 
 on:
   pull_request_target:
@@ -20,7 +37,12 @@ jobs:
   review:
     if: >-
       github.repository == 'tuya/TuyaOpen' && github.ref == 'refs/heads/master' &&
-      (github.event_name != 'issue_comment' || github.event.comment.user.type != 'Bot')
+      (github.event_name != 'issue_comment' ||
+       (github.event.comment.user.type != 'Bot' &&
+        (!(startsWith(github.event.comment.body, '/build ') &&
+           !contains(github.event.comment.body, fromJSON('"\n"')) &&
+           !contains(github.event.comment.body, fromJSON('"\r"'))) ||
+         contains(format(',{0},', vars.MAINTAINER_GITHUB_IDS), format(',{0},', github.event.comment.user.id)))))
     runs-on: [tuyaopen-ci-events, linux, x64]
     timeout-minutes: 30
     steps:
