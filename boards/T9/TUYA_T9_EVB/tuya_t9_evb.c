@@ -45,7 +45,11 @@ static OPERATE_RET __board_register_audio(void)
     TDD_AUDIO_T5AI_T cfg = {0};
     memset(&cfg, 0, sizeof(TDD_AUDIO_T5AI_T));
 
+#if defined(ENABLE_AUDIO_AEC) && (ENABLE_AUDIO_AEC == 1)
+    cfg.aec_enable = 1;
+#else
     cfg.aec_enable = 0;
+#endif
 
     cfg.ai_chn      = TKL_AI_0;
     cfg.sample_rate = TKL_AUDIO_SAMPLE_16K;
