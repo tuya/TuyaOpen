@@ -22,16 +22,15 @@
 ************************macro define************************
 ***********************************************************/
 
-
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
 typedef struct {
-    TDD_DVP_SR_CFG_T          sensor;
-    TDD_DVP_SR_INTFS_T        intfs;
-    TUYA_DVP_CFG_T            dvp_cfg;
-    bool                      is_inited;
-}CAMERA_DVP_DEV_T;
+    TDD_DVP_SR_CFG_T   sensor;
+    TDD_DVP_SR_INTFS_T intfs;
+    TUYA_DVP_CFG_T     dvp_cfg;
+    bool               is_inited;
+} CAMERA_DVP_DEV_T;
 
 /***********************************************************
 ***********************variable define**********************
@@ -54,16 +53,16 @@ OPERATE_RET __tdd_dvp_setup_callback(void *args)
  */
 static TUYA_DVP_FRAME_MANAGE_T *__tdd_dvp_frame_manage_malloc(TUYA_FRAME_FMT_E fmt, void *args)
 {
-    TDD_CAMERA_FRAME_T *tdd_frame;
+    TDD_CAMERA_FRAME_T      *tdd_frame;
     TUYA_DVP_FRAME_MANAGE_T *dvp_frame;
 
     tdd_frame = tdl_camera_create_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_dvp_dev, fmt);
-    if(NULL == tdd_frame) {
+    if (NULL == tdd_frame) {
         dvp_frame = NULL;
         goto __EXIT;
     }
 
-    if(sizeof(TUYA_DVP_FRAME_MANAGE_T) > sizeof(tdd_frame->rsv)) {
+    if (sizeof(TUYA_DVP_FRAME_MANAGE_T) > sizeof(tdd_frame->rsv)) {
         dvp_frame = NULL;
         goto __EXIT;
     }
@@ -91,7 +90,7 @@ static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_fra
 {
     TDD_CAMERA_FRAME_T *tdd_frame = NULL;
 
-    if(NULL == dvp_frame || NULL == dvp_frame->arg) {
+    if (NULL == dvp_frame || NULL == dvp_frame->arg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -114,43 +113,43 @@ static OPERATE_RET __tdd_dvp_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *dvp_fra
  * @param cfg Pointer to camera open configuration structure
  * @return OPRT_OK on success, OPRT_INVALID_PARM if parameters are invalid
  */
-static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_CFG_T *cfg) 
+static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_CFG_T *cfg)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    if(NULL == dev || NULL == cfg) {
+    if (NULL == dev || NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
-    switch(cfg->out_fmt) {
-        case TDL_CAMERA_FMT_YUV422:
-            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_YUV422;
+    switch (cfg->out_fmt) {
+    case TDL_CAMERA_FMT_YUV422:
+        dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_YUV422;
         break;
-        case TDL_CAMERA_FMT_JPEG:
-            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG;
+    case TDL_CAMERA_FMT_JPEG:
+        dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG;
         break;
-        case TDL_CAMERA_FMT_H264:
-            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264;
+    case TDL_CAMERA_FMT_H264:
+        dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264;
         break;
-        case TDL_CAMERA_FMT_JPEG_YUV422_BOTH:
-            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH;
+    case TDL_CAMERA_FMT_JPEG_YUV422_BOTH:
+        dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_JPEG_YUV422_BOTH;
         break;
-        case TDL_CAMERA_FMT_H264_YUV422_BOTH:
-            dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH;
+    case TDL_CAMERA_FMT_H264_YUV422_BOTH:
+        dev->dvp_cfg.output_mode = TUYA_CAMERA_OUTPUT_H264_YUV422_BOTH;
         break;
-        default:
-            PR_ERR("unsupported frame format: %d", cfg->out_fmt);
-            return OPRT_INVALID_PARM;
+    default:
+        PR_ERR("unsupported frame format: %d", cfg->out_fmt);
+        return OPRT_INVALID_PARM;
     }
 
-    dev->dvp_cfg.width     = cfg->width;
-    dev->dvp_cfg.height    = cfg->height;
-    dev->dvp_cfg.fps       = cfg->fps;
+    dev->dvp_cfg.width                = cfg->width;
+    dev->dvp_cfg.height               = cfg->height;
+    dev->dvp_cfg.fps                  = cfg->fps;
     dev->dvp_cfg.inter_cfg.sensor_clk = dev->sensor.usr_cfg.clk;
-    dev->dvp_cfg.inter_cfg.setup_cb = __tdd_dvp_setup_callback;
-    dev->dvp_cfg.inter_cfg.assign_cb = __tdd_dvp_frame_manage_malloc;
-    dev->dvp_cfg.inter_cfg.post_cb = __tdd_dvp_frame_post_handler;
-    dev->dvp_cfg.inter_cfg.cb_param = NULL;
+    dev->dvp_cfg.inter_cfg.setup_cb   = __tdd_dvp_setup_callback;
+    dev->dvp_cfg.inter_cfg.assign_cb  = __tdd_dvp_frame_manage_malloc;
+    dev->dvp_cfg.inter_cfg.post_cb    = __tdd_dvp_frame_post_handler;
+    dev->dvp_cfg.inter_cfg.cb_param   = NULL;
 
     memcpy(&dev->dvp_cfg.encoded_quality, &cfg->encoded_quality, sizeof(TUYA_DVP_ENCODED_QUALITY));
 
@@ -168,12 +167,12 @@ static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_
  */
 static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN_CFG_T *cfg)
 {
-    OPERATE_RET rt = OPRT_OK;
-    CAMERA_DVP_DEV_T *dvp_dev = (CAMERA_DVP_DEV_T *)device;
-    TUYA_GPIO_BASE_CFG_T gpio_cfg = {.direct = TUYA_GPIO_OUTPUT};
+    OPERATE_RET           rt        = OPRT_OK;
+    CAMERA_DVP_DEV_T     *dvp_dev   = (CAMERA_DVP_DEV_T *)device;
+    TUYA_GPIO_BASE_CFG_T  gpio_cfg  = {.direct = TUYA_GPIO_OUTPUT};
     TDD_DVP_SR_USR_CFG_T *p_usr_cfg = NULL;
 
-    if(NULL == device || NULL == cfg) {
+    if (NULL == device || NULL == cfg) {
         return OPRT_INVALID_PARM;
     }
 
@@ -182,31 +181,31 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
 
     /* Power, I2C, reset and the sensor's registers are board state, not session
      * state: bring them up once and let open/close be start/stop. */
-    if(dvp_dev->is_inited) {
+    if (dvp_dev->is_inited) {
         return tkl_dvp_start();
     }
 
-    if(p_usr_cfg->i2c.port < TUYA_I2C_NUM_MAX) {
+    if (p_usr_cfg->i2c.port < TUYA_I2C_NUM_MAX) {
         TUYA_CALL_ERR_RETURN(tdd_dvp_i2c_init(&p_usr_cfg->i2c));
     }
 
-	if (p_usr_cfg->pwr.pin < TUYA_GPIO_NUM_MAX) {
-		gpio_cfg.level = p_usr_cfg->pwr.active_level;
-		tkl_gpio_init(p_usr_cfg->pwr.pin, &gpio_cfg);
+    if (p_usr_cfg->pwr.pin < TUYA_GPIO_NUM_MAX) {
+        gpio_cfg.level = p_usr_cfg->pwr.active_level;
+        tkl_gpio_init(p_usr_cfg->pwr.pin, &gpio_cfg);
         PR_NOTICE("dvp pwr on:%d", p_usr_cfg->pwr.pin);
-	}
+    }
 
-    if(dvp_dev->intfs.rst) {
+    if (dvp_dev->intfs.rst) {
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.rst(&p_usr_cfg->rst, dvp_dev->intfs.arg));
     }
-    
+
     TUYA_CALL_ERR_RETURN(__tdd_camera_dvp_init(dvp_dev, cfg));
 
-    if(dvp_dev->intfs.init) {
+    if (dvp_dev->intfs.init) {
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.init(&p_usr_cfg->i2c, dvp_dev->intfs.arg));
     }
 
-    if(dvp_dev->intfs.set_ppi) {
+    if (dvp_dev->intfs.set_ppi) {
         TUYA_CAMERA_PPI_E ppi = (TUYA_CAMERA_PPI_E)((cfg->width << 16) | cfg->height);
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.set_ppi(&p_usr_cfg->i2c, ppi, cfg->fps, dvp_dev->intfs.arg));
     }
@@ -223,7 +222,7 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
  */
 static OPERATE_RET __tdd_camera_dvp_close(TDD_CAMERA_DEV_HANDLE_T device)
 {
-    if(NULL == device) {
+    if (NULL == device) {
         return OPRT_INVALID_PARM;
     }
     /* Stop, not teardown - tkl_dvp_deinit belongs to shutting the board down. */
@@ -240,21 +239,21 @@ static OPERATE_RET __tdd_camera_dvp_close(TDD_CAMERA_DEV_HANDLE_T device)
  */
 OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg, TDD_DVP_SR_INTFS_T *sr_intfs)
 {
-    CAMERA_DVP_DEV_T *dvp_dev = NULL;
+    CAMERA_DVP_DEV_T     *dvp_dev = NULL;
     TDD_CAMERA_DEV_INFO_T dev_info;
 
-    if(NULL == name || NULL == sr_cfg) {
+    if (NULL == name || NULL == sr_cfg) {
         return OPRT_INVALID_PARM;
     }
 
     dvp_dev = (CAMERA_DVP_DEV_T *)tal_malloc(sizeof(CAMERA_DVP_DEV_T));
-    if(NULL == dvp_dev) {
+    if (NULL == dvp_dev) {
         return OPRT_MALLOC_FAILED;
     }
     memset(dvp_dev, 0, sizeof(CAMERA_DVP_DEV_T));
 
-    memcpy(&dvp_dev->sensor, sr_cfg,   sizeof(TDD_DVP_SR_CFG_T));
-    memcpy(&dvp_dev->intfs,  sr_intfs, sizeof(TDD_DVP_SR_INTFS_T));
+    memcpy(&dvp_dev->sensor, sr_cfg, sizeof(TDD_DVP_SR_CFG_T));
+    memcpy(&dvp_dev->intfs, sr_intfs, sizeof(TDD_DVP_SR_INTFS_T));
 
     dev_info.type       = TDL_CAMERA_DVP;
     dev_info.max_fps    = sr_cfg->max_fps;
@@ -263,6 +262,7 @@ OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg,
     /* Platform DVP encoder accepts raw YUV422, hardware JPEG and H264
      * (see __tdd_camera_dvp_open output_mode switch). */
     dev_info.supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_H264;
+    dev_info.yuv_order      = sr_cfg->yuv_order;
 
     TDD_CAMERA_INTFS_T camera_intfs = {
         .open  = __tdd_camera_dvp_open,

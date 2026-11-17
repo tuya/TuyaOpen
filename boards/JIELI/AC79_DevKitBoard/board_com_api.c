@@ -157,6 +157,10 @@ OPERATE_RET board_register_hardware(void)
             .max_width  = JIELI_BOARD_CAMERA_WIDTH,
             .max_height = JIELI_BOARD_CAMERA_HEIGHT,
             .fmt        = TUYA_FRAME_FMT_YUV422,
+            /* The TKL delivers packed YUYV on both paths: the GC0310 SPI
+             * stream is already YUYV, and tkl_dvp interleaves the DVP
+             * sensor's planar YUV422P before handing frames to TDD. */
+            .yuv_order = TUYA_YUV422_YUYV,
         };
         TDD_DVP_SR_INTFS_T camera_intfs = {0};
 
