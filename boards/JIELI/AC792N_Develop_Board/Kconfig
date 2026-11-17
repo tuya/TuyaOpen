@@ -199,22 +199,22 @@ config JIELI_BOARD_IIC0_SDA_PIN
 config JIELI_BOARD_IIC1_SCL_PIN
     int "IIC1 SCL pin (flat GPIO number)"
     range 0 127
-    default 6
+    default 72 # PE8, J49 DVP0 camera connector (vendor CAM2 IIC)
 
 config JIELI_BOARD_IIC1_SDA_PIN
     int "IIC1 SDA pin (flat GPIO number)"
     range 0 127
-    default 7
+    default 71 # PE7
 
 config JIELI_BOARD_IIC2_SCL_PIN
     int "IIC2 (software IIC) SCL pin (flat GPIO number)"
     range 0 127
-    default 2
+    default 78 # PE14, J47 CSI-2 camera connector (vendor CAM1 IIC)
 
 config JIELI_BOARD_IIC2_SDA_PIN
     int "IIC2 (software IIC) SDA pin (flat GPIO number)"
     range 0 127
-    default 3
+    default 77 # PE13
 
 # Camera connectors on the AC792N develop board V1.21. J49 is the DVP0
 # SEN_FPC (PORT-A, IIC1, XCLK PD8, RESET PE9); J47 is the MIPI CSI-2 FPC
