@@ -71,27 +71,84 @@ static OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA
 }
 
 #if defined(EXAMPLE_CAMERA_JPEG) && (EXAMPLE_CAMERA_JPEG == 1)
-/**
- * @brief Handle an encoded (JPEG) frame.
- *
- * The JIELI WL83 DVP backend streams MJPEG, so those frames arrive on the
- * encoded queue. Decode into a reusable buffer and copy the region that fits
- * the panel, mirroring the crop the YUV422 path gets from the converter.
- * Rotation is not applied here: the boards that stream JPEG use rotation 0.
- */
-static OPERATE_RET __get_camera_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
+/* Decode one JPEG into the panel buffer and copy the overlapping region. The
+ * JPEG's own header decides the decode size: the transport reports the
+ * configured geometry, which need not be what the encoder produced. */
+static OPERATE_RET __show_jpeg_frame(TDL_DISP_FRAME_BUFF_T *fb, const TDL_CAMERA_FRAME_T *frame)
 {
-    OPERATE_RET             rt         = OPRT_OK;
-    TDL_DISP_FRAME_BUFF_T  *convert_fb = NULL;
+    TAL_IMAGE_JPEG_INFO_T   info;
     TAL_IMAGE_JPEG_OUTPUT_T jpeg_out;
+    OPERATE_RET             rt;
     uint32_t                decode_len;
     uint16_t                copy_w;
     uint16_t                copy_h;
     uint16_t                row;
 
+    if (tal_image_jpeg_get_info(frame->data, frame->data_len, &info) != OPRT_OK || 0 == info.width ||
+        0 == info.height) {
+        PR_WARN("jpeg frame header is unreadable");
+        return OPRT_COM_ERROR;
+    }
+
+    decode_len = (uint32_t)info.width * info.height * 2u;
+    if (decode_len > sg_jpeg_decode_buf_len) {
+        tal_free(sg_jpeg_decode_buf);
+        sg_jpeg_decode_buf     = tal_malloc(decode_len);
+        sg_jpeg_decode_buf_len = (NULL == sg_jpeg_decode_buf) ? 0u : decode_len;
+    }
+    if (NULL == sg_jpeg_decode_buf) {
+        PR_ERR("no memory for the jpeg decode buffer (%u B)", (unsigned)decode_len);
+        return OPRT_MALLOC_FAILED;
+    }
+
+    memset(&jpeg_out, 0, sizeof(jpeg_out));
+    jpeg_out.out_buf      = sg_jpeg_decode_buf;
+    jpeg_out.out_buf_size = sg_jpeg_decode_buf_len;
+    jpeg_out.out_width    = info.width;
+    jpeg_out.out_height   = info.height;
+
+    rt = tal_image_jpeg_decode_rgb565(frame->data, frame->data_len, &jpeg_out);
+    if (rt != OPRT_OK) {
+        PR_ERR("jpeg decode failed: %d", rt);
+        return rt;
+    }
+
+    if (EXAMPLE_CAMERA_IMG_ROTATION != TUYA_DISPLAY_ROTATION_0) {
+        static bool warned;
+        if (!warned) {
+            warned = true;
+            PR_WARN("jpeg frames are displayed unrotated");
+        }
+    }
+
+    copy_w = (info.width < fb->width) ? info.width : fb->width;
+    copy_h = (info.height < fb->height) ? info.height : fb->height;
+    for (row = 0; row < copy_h; row++) {
+        memcpy(fb->frame + (uint32_t)row * fb->width * 2u, sg_jpeg_decode_buf + (uint32_t)row * info.width * 2u,
+               (uint32_t)copy_w * 2u);
+    }
+    if (sg_display_info.is_swap) {
+        (void)tdl_disp_dev_rgb565_swap((uint16_t *)fb->frame, fb->len / 2u);
+    }
+
+    return OPRT_OK;
+}
+
+/**
+ * @brief Handle an encoded (JPEG) frame.
+ *
+ * The JIELI WL83 DVP backend streams MJPEG, so those frames arrive on the
+ * encoded queue. Rotation is not applied here: the boards that stream JPEG
+ * use rotation 0.
+ */
+static OPERATE_RET __get_camera_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
+{
+    OPERATE_RET            rt         = OPRT_OK;
+    TDL_DISP_FRAME_BUFF_T *convert_fb = NULL;
+
     (void)hdl;
 
-    if (NULL == frame->data || 0 == frame->data_len || 0 == frame->width || 0 == frame->height) {
+    if (NULL == frame->data || 0 == frame->data_len) {
         return OPRT_INVALID_PARM;
     }
     if (TUYA_FRAME_FMT_JPEG != frame->fmt) {
@@ -102,40 +159,7 @@ static OPERATE_RET __get_camera_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CA
     convert_fb = tdl_disp_get_free_fb(sg_fb_manage);
     TUYA_CHECK_NULL_RETURN(convert_fb, OPRT_COM_ERROR);
 
-    decode_len = (uint32_t)frame->width * frame->height * 2u;
-    if (decode_len > sg_jpeg_decode_buf_len) {
-        tal_free(sg_jpeg_decode_buf);
-        sg_jpeg_decode_buf     = tal_malloc(decode_len);
-        sg_jpeg_decode_buf_len = (NULL == sg_jpeg_decode_buf) ? 0u : decode_len;
-    }
-    if (NULL == sg_jpeg_decode_buf) {
-        PR_ERR("no memory for the jpeg decode buffer (%u B)", (unsigned)decode_len);
-        rt = OPRT_MALLOC_FAILED;
-    } else {
-        memset(&jpeg_out, 0, sizeof(jpeg_out));
-        jpeg_out.out_buf      = sg_jpeg_decode_buf;
-        jpeg_out.out_buf_size = sg_jpeg_decode_buf_len;
-        jpeg_out.out_width    = frame->width;
-        jpeg_out.out_height   = frame->height;
-
-        rt = tal_image_jpeg_decode_rgb565(frame->data, frame->data_len, &jpeg_out);
-        if (rt != OPRT_OK) {
-            PR_ERR("jpeg decode failed: %d", rt);
-        } else {
-            if (EXAMPLE_CAMERA_IMG_ROTATION != TUYA_DISPLAY_ROTATION_0) {
-                PR_WARN("jpeg frames are displayed unrotated");
-            }
-            copy_w = (frame->width < convert_fb->width) ? frame->width : convert_fb->width;
-            copy_h = (frame->height < convert_fb->height) ? frame->height : convert_fb->height;
-            for (row = 0; row < copy_h; row++) {
-                memcpy(convert_fb->frame + (uint32_t)row * convert_fb->width * 2u,
-                       sg_jpeg_decode_buf + (uint32_t)row * frame->width * 2u, (uint32_t)copy_w * 2u);
-            }
-            if (sg_display_info.is_swap) {
-                (void)tdl_disp_dev_rgb565_swap((uint16_t *)convert_fb->frame, convert_fb->len / 2u);
-            }
-        }
-    }
+    rt = __show_jpeg_frame(convert_fb, frame);
 
     /* The display flush is what returns the buffer to the free pool; flush
      * even after an error so a broken stream cannot exhaust the pool. */
