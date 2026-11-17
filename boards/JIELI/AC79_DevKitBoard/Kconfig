@@ -80,6 +80,90 @@ config JIELI_BOARD_HAS_DISPLAY
     bool
     default n
 
+# ---------------------------------------------------------------------------
+# Cameras. The board has two camera connectors and they share pins, so at most
+# one path can be built at a time:
+#
+#   J1  24-pin DVP  -> camera0 (video0), PA0-PA10 + PH0-PH3
+#   J4  12-pin SPI  -> camera1 (video1), PA2/PA3/PA4 + PH0-PH3
+#
+# PA2/PA3/PA4 (DVP D5/D4/D3) and PH0-PH3 (I2C/XCLK/RESET) are wired to both
+# connectors, so DVP and SPI cannot run together. The choice below is what
+# makes that exclusivity explicit in Kconfig rather than a runtime surprise.
+# ---------------------------------------------------------------------------
+choice
+    prompt "Camera path"
+    default JIELI_CAMERA_PATH_NONE
+
+    config JIELI_CAMERA_PATH_NONE
+        bool "No camera"
+
+    config JIELI_CAMERA_PATH_DVP
+        bool "24-pin DVP camera on J1 (video0)"
+        # PH2/PH3 are the camera XCLK/RESET and also TKL UART1's fixed pins.
+        depends on !JIELI_BOARD_UART1_ENABLE
+        select ENABLE_CAMERA
+        select ENABLE_DVP
+
+    config JIELI_CAMERA_PATH_SPI
+        bool "12-pin SPI camera on J4 (video1)"
+        # Same XCLK/RESET pins as the DVP path, same UART1 conflict.
+        depends on !JIELI_BOARD_UART1_ENABLE
+        select ENABLE_CAMERA
+        select ENABLE_DVP
+
+endchoice
+
+if JIELI_CAMERA_PATH_DVP || JIELI_CAMERA_PATH_SPI
+    config JIELI_BOARD_CAMERA_WIDTH
+        int "Camera frame width"
+        default 640 if JIELI_CAMERA_PATH_DVP
+        default 320 if JIELI_CAMERA_PATH_SPI
+        range 64 640
+
+    config JIELI_BOARD_CAMERA_HEIGHT
+        int "Camera frame height"
+        default 480 if JIELI_CAMERA_PATH_DVP
+        default 240 if JIELI_CAMERA_PATH_SPI
+        range 64 480
+
+    config JIELI_BOARD_CAMERA_FPS
+        int "Camera frame rate"
+        default 20 if JIELI_CAMERA_PATH_DVP
+        default 12 if JIELI_CAMERA_PATH_SPI
+        range 1 30
+
+    # The SPI sensor samples the two data lines on a different clock edge per
+    # model. The vendor ships two board profiles with different answers:
+    #   demo_DevKitBoard/board/wl82/DevKitBoard.c:199  SMPH
+    #   wifi_camera/board/wl82/board_dev_kit_cfg.h:45  SMPL (GC0310 default)
+    # and BYD3901 uses the high-level/update-low combination. Keep the board
+    # demo's value as the default and let the selected module override it;
+    # the I2C probe happens before any SPI data is read, so this only matters
+    # once a sensor answers on iic1.
+    choice
+        prompt "SPI camera sample edge"
+        default JIELI_CAMERA_SPI_EDGE_SMPH
+
+        config JIELI_CAMERA_SPI_EDGE_SMPH
+            bool "SMPH: CLK low, update low, sample high (vendor demo_DevKitBoard)"
+
+        config JIELI_CAMERA_SPI_EDGE_SMPL
+            bool "SMPL: CLK low, update low, sample low (GC0310 per board_dev_kit_cfg.h)"
+
+        config JIELI_CAMERA_SPI_EDGE_H_SMPH
+            bool "H/SMPH: CLK high, update low, sample high (BYD3901)"
+    endchoice
+
+    # Diagnostic-only SPI image: scan iic1 (software IIC on PH0/PH1) before
+    # the vendor video1 sensor check, so an address ACK can be separated from
+    # a sensor-driver failure. Not used by the DVP path or the product image.
+    config JIELI_CAMERA_I2C_SCAN
+        bool "Scan iic1 at boot before the SPI sensor probe"
+        depends on JIELI_CAMERA_PATH_SPI
+        default n
+endif
+
 # TKL UART1 is the SDK's uart2 block, which has one fixed pin group on this
 # chip: PH2 (TX) / PH3 (RX). PH2 is also the PWM0 timer output, so a project
 # uses one or the other, not both.
@@ -115,19 +199,29 @@ config JIELI_BOARD_PWM0_PIN
 config JIELI_BOARD_IIC0_SCL_PIN
     int "IIC0 (software IIC) SCL pin (flat GPIO number)"
     range 0 127
+    # The DVP sensor's I2C is wired to PH0. The vendor sensor drivers open
+    # iic0 for ISP_DEV_0, so the adapter's software-IIC node must move there
+    # when the DVP path is selected; the PA0/PA1 default would not probe.
+    default 112 if JIELI_CAMERA_PATH_DVP
     default 0
 
 config JIELI_BOARD_IIC0_SDA_PIN
     int "IIC0 (software IIC) SDA pin (flat GPIO number)"
     range 0 127
+    default 113 if JIELI_CAMERA_PATH_DVP
     default 1
 
 config JIELI_BOARD_IIC1_SCL_PIN
     int "IIC1 SCL pin (flat GPIO number)"
     range 0 127
+    # The SPI sensor's I2C is wired to PH0. Its vendor drivers open iic1 for
+    # a sensor whose isp_dev is not ISP_DEV_0 (GC0310/GC6133), so the hardware
+    # IIC node must move there for the SPI path.
+    default 112 if JIELI_CAMERA_PATH_SPI
     default 7
 
 config JIELI_BOARD_IIC1_SDA_PIN
     int "IIC1 SDA pin (flat GPIO number)"
     range 0 127
+    default 113 if JIELI_CAMERA_PATH_SPI
     default 8
