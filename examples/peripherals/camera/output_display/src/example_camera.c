@@ -17,8 +17,8 @@
 /***********************************************************
 *************************micro define***********************
 ***********************************************************/
-#ifdef CONFIG_EXAMPLE_DISPLAY_FRAME_BUFF_NUM
-#define DISPLAY_FRAME_BUFF_NUM CONFIG_EXAMPLE_DISPLAY_FRAME_BUFF_NUM
+#ifdef EXAMPLE_DISPLAY_FRAME_BUFF_NUM
+#define DISPLAY_FRAME_BUFF_NUM EXAMPLE_DISPLAY_FRAME_BUFF_NUM
 #else
 #define DISPLAY_FRAME_BUFF_NUM 2
 #endif
