@@ -43,6 +43,30 @@ menu "configure tuya cloud service"
                         specific name and cannot attach without it.
         endif
 
+    menuconfig ENABLE_WIFI_BACKUP
+        bool "ENABLE_WIFI_BACKUP: enable wifi backup network function"
+        depends on ENABLE_WIFI
+        default n
+
+        ---help---
+                Backup network: keep a list of known good APs besides the one in
+                use, fall back to them when the current one is lost, and let the
+                APP manage that list over the cloud or over BLE. Off by default:
+                enable it per board (boards/<platform>/OS_SERVICE_Kconfig) once
+                the board has been validated, so the code size is only paid where
+                it is used.
+
+        if (ENABLE_WIFI_BACKUP)
+            config WIFI_BACKUP_AP_NUM
+                int "WIFI_BACKUP_AP_NUM: number of backup APs kept"
+                range 1 8
+                default 3
+
+                ---help---
+                        Maximum number of APs in the backup list, the oldest one
+                        is dropped when the list is full.
+        endif
+
     menuconfig  ENABLE_BT_SERVICE
         bool "ENABLE_BT_SERVICE: enable tuya bt iot function"
         default n
