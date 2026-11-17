@@ -43,10 +43,12 @@ static TDL_DISP_HANDLE_T      sg_tdl_disp_hdl = NULL;
 static TDL_DISP_DEV_INFO_T    sg_display_info;
 static TDL_FB_MANAGE_HANDLE_T sg_fb_manage = NULL;
 
-static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl      = NULL;
-static TUYA_YUV422_ORDER_E sg_yuv_order           = TUYA_YUV422_UYVY;
-static uint8_t            *sg_jpeg_decode_buf     = NULL;
-static uint32_t            sg_jpeg_decode_buf_len = 0;
+static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
+static TUYA_YUV422_ORDER_E sg_yuv_order      = TUYA_YUV422_UYVY;
+#if defined(EXAMPLE_CAMERA_JPEG) && (EXAMPLE_CAMERA_JPEG == 1)
+static uint8_t *sg_jpeg_decode_buf     = NULL;
+static uint32_t sg_jpeg_decode_buf_len = 0;
+#endif
 
 /***********************************************************
 ***********************function define**********************
@@ -68,6 +70,7 @@ static OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA
     return rt;
 }
 
+#if defined(EXAMPLE_CAMERA_JPEG) && (EXAMPLE_CAMERA_JPEG == 1)
 /**
  * @brief Handle an encoded (JPEG) frame.
  *
@@ -140,6 +143,7 @@ static OPERATE_RET __get_camera_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CA
 
     return rt;
 }
+#endif /* EXAMPLE_CAMERA_JPEG */
 
 static OPERATE_RET __display_init(void)
 {
