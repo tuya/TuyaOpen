@@ -58,12 +58,20 @@ static TUYA_DVP_FRAME_MANAGE_T *__tdd_csi2_frame_manage_malloc(TUYA_FRAME_FMT_E 
 static OPERATE_RET __tdd_csi2_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *csi_frame, void *args)
 {
     TDD_CAMERA_FRAME_T *tdd_frame = NULL;
+    OPERATE_RET         rt;
 
     if (NULL == csi_frame || NULL == csi_frame->arg) {
         return OPRT_INVALID_PARM;
     }
 
-    tdd_frame                        = (TDD_CAMERA_FRAME_T *)csi_frame->arg;
+    tdd_frame = (TDD_CAMERA_FRAME_T *)csi_frame->arg;
+
+    if (TUYA_FRAME_FMT_JPEG == csi_frame->frame_fmt && 0 == csi_frame->is_frame_complete) {
+        /* A torn JPEG cannot be decoded; return the node to the pool. */
+        tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_csi2_dev, tdd_frame);
+        return OPRT_COM_ERROR;
+    }
+
     tdd_frame->frame.id              = csi_frame->frame_id;
     tdd_frame->frame.is_i_frame      = csi_frame->is_i_frame;
     tdd_frame->frame.is_complete     = csi_frame->is_frame_complete;
@@ -72,7 +80,14 @@ static OPERATE_RET __tdd_csi2_frame_post_handler(TUYA_DVP_FRAME_MANAGE_T *csi_fr
     tdd_frame->frame.data_len        = csi_frame->data_len;
     tdd_frame->frame.total_frame_len = csi_frame->total_frame_len;
 
-    return tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_csi2_dev, tdd_frame);
+    rt = tdl_camera_post_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_csi2_dev, tdd_frame);
+    if (rt != OPRT_OK) {
+        /* The node left the pool in create_tdd_frame(); a full queue must not
+         * leak it. */
+        tdl_camera_release_tdd_frame((TDD_CAMERA_DEV_HANDLE_T)sg_csi2_dev, tdd_frame);
+    }
+
+    return rt;
 }
 
 static OPERATE_RET __tdd_camera_csi2_init(CAMERA_CSI2_DEV_T *dev, TDD_CAMERA_OPEN_CFG_T *cfg)
