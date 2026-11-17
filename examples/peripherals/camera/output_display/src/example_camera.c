@@ -13,6 +13,7 @@
 
 #include "tdl_display_manage.h"
 #include "tdl_camera_manage.h"
+#include "tal_image.h"
 
 /***********************************************************
 *************************micro define***********************
@@ -23,9 +24,9 @@
 #define EXAMPLE_CAMERA_IMG_ROTATION TUYA_DISPLAY_ROTATION_0
 #elif defined(EXAMPLE_CAMERA_IMG_ROTATION_90) && (EXAMPLE_CAMERA_IMG_ROTATION_90 == 1)
 #define EXAMPLE_CAMERA_IMG_ROTATION TUYA_DISPLAY_ROTATION_90
-#elif defined(EXAMPLE_CAMERA_IMG_ROTATION_180) && (EXAMPLE_CAMERA_IMG_ROTATION_180  == 1)
+#elif defined(EXAMPLE_CAMERA_IMG_ROTATION_180) && (EXAMPLE_CAMERA_IMG_ROTATION_180 == 1)
 #define EXAMPLE_CAMERA_IMG_ROTATION TUYA_DISPLAY_ROTATION_180
-#elif defined(EXAMPLE_CAMERA_IMG_ROTATION_270) && (EXAMPLE_CAMERA_IMG_ROTATION_270  == 1)
+#elif defined(EXAMPLE_CAMERA_IMG_ROTATION_270) && (EXAMPLE_CAMERA_IMG_ROTATION_270 == 1)
 #define EXAMPLE_CAMERA_IMG_ROTATION TUYA_DISPLAY_ROTATION_270
 #else
 #define EXAMPLE_CAMERA_IMG_ROTATION TUYA_DISPLAY_ROTATION_0
@@ -38,28 +39,28 @@
 /***********************************************************
 ***********************variable define**********************
 ***********************************************************/
-static TDL_DISP_HANDLE_T sg_tdl_disp_hdl = NULL;
-static TDL_DISP_DEV_INFO_T sg_display_info;
+static TDL_DISP_HANDLE_T      sg_tdl_disp_hdl = NULL;
+static TDL_DISP_DEV_INFO_T    sg_display_info;
 static TDL_FB_MANAGE_HANDLE_T sg_fb_manage = NULL;
 
-static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl = NULL;
-static TUYA_YUV422_ORDER_E sg_yuv_order = TUYA_YUV422_UYVY;
+static TDL_CAMERA_HANDLE_T sg_tdl_camera_hdl      = NULL;
+static TUYA_YUV422_ORDER_E sg_yuv_order           = TUYA_YUV422_UYVY;
+static uint8_t            *sg_jpeg_decode_buf     = NULL;
+static uint32_t            sg_jpeg_decode_buf_len = 0;
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
 static OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET            rt         = OPRT_OK;
     TDL_DISP_FRAME_BUFF_T *convert_fb = NULL;
-
 
     convert_fb = tdl_disp_get_free_fb(sg_fb_manage);
     TUYA_CHECK_NULL_RETURN(convert_fb, OPRT_COM_ERROR);
 
-    TUYA_CALL_ERR_LOG(tdl_disp_convert_yuv422_to_fb(frame->data, frame->width, frame->height, \
-                                                    convert_fb, sg_display_info.is_swap,\
-                                                    EXAMPLE_CAMERA_IMG_ROTATION, \
+    TUYA_CALL_ERR_LOG(tdl_disp_convert_yuv422_to_fb(frame->data, frame->width, frame->height, convert_fb,
+                                                    sg_display_info.is_swap, EXAMPLE_CAMERA_IMG_ROTATION,
                                                     sg_yuv_order));
 
     tdl_disp_dev_flush(sg_tdl_disp_hdl, convert_fb);
@@ -67,11 +68,84 @@ static OPERATE_RET __get_camera_raw_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA
     return rt;
 }
 
+/**
+ * @brief Handle an encoded (JPEG) frame.
+ *
+ * The JIELI WL83 DVP backend streams MJPEG, so those frames arrive on the
+ * encoded queue. Decode into a reusable buffer and copy the region that fits
+ * the panel, mirroring the crop the YUV422 path gets from the converter.
+ * Rotation is not applied here: the boards that stream JPEG use rotation 0.
+ */
+static OPERATE_RET __get_camera_encoded_frame_cb(TDL_CAMERA_HANDLE_T hdl, TDL_CAMERA_FRAME_T *frame)
+{
+    OPERATE_RET             rt         = OPRT_OK;
+    TDL_DISP_FRAME_BUFF_T  *convert_fb = NULL;
+    TAL_IMAGE_JPEG_OUTPUT_T jpeg_out;
+    uint32_t                decode_len;
+    uint16_t                copy_w;
+    uint16_t                copy_h;
+    uint16_t                row;
+
+    (void)hdl;
+
+    if (NULL == frame->data || 0 == frame->data_len || 0 == frame->width || 0 == frame->height) {
+        return OPRT_INVALID_PARM;
+    }
+    if (TUYA_FRAME_FMT_JPEG != frame->fmt) {
+        PR_WARN("encoded frame format %d is not supported", frame->fmt);
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    convert_fb = tdl_disp_get_free_fb(sg_fb_manage);
+    TUYA_CHECK_NULL_RETURN(convert_fb, OPRT_COM_ERROR);
+
+    decode_len = (uint32_t)frame->width * frame->height * 2u;
+    if (decode_len > sg_jpeg_decode_buf_len) {
+        tal_free(sg_jpeg_decode_buf);
+        sg_jpeg_decode_buf     = tal_malloc(decode_len);
+        sg_jpeg_decode_buf_len = (NULL == sg_jpeg_decode_buf) ? 0u : decode_len;
+    }
+    if (NULL == sg_jpeg_decode_buf) {
+        PR_ERR("no memory for the jpeg decode buffer (%u B)", (unsigned)decode_len);
+        rt = OPRT_MALLOC_FAILED;
+    } else {
+        memset(&jpeg_out, 0, sizeof(jpeg_out));
+        jpeg_out.out_buf      = sg_jpeg_decode_buf;
+        jpeg_out.out_buf_size = sg_jpeg_decode_buf_len;
+        jpeg_out.out_width    = frame->width;
+        jpeg_out.out_height   = frame->height;
+
+        rt = tal_image_jpeg_decode_rgb565(frame->data, frame->data_len, &jpeg_out);
+        if (rt != OPRT_OK) {
+            PR_ERR("jpeg decode failed: %d", rt);
+        } else {
+            if (EXAMPLE_CAMERA_IMG_ROTATION != TUYA_DISPLAY_ROTATION_0) {
+                PR_WARN("jpeg frames are displayed unrotated");
+            }
+            copy_w = (frame->width < convert_fb->width) ? frame->width : convert_fb->width;
+            copy_h = (frame->height < convert_fb->height) ? frame->height : convert_fb->height;
+            for (row = 0; row < copy_h; row++) {
+                memcpy(convert_fb->frame + (uint32_t)row * convert_fb->width * 2u,
+                       sg_jpeg_decode_buf + (uint32_t)row * frame->width * 2u, (uint32_t)copy_w * 2u);
+            }
+            if (sg_display_info.is_swap) {
+                (void)tdl_disp_dev_rgb565_swap((uint16_t *)convert_fb->frame, convert_fb->len / 2u);
+            }
+        }
+    }
+
+    /* The display flush is what returns the buffer to the free pool; flush
+     * even after an error so a broken stream cannot exhaust the pool. */
+    tdl_disp_dev_flush(sg_tdl_disp_hdl, convert_fb);
+
+    return rt;
+}
+
 static OPERATE_RET __display_init(void)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint16_t width = EXAMPLE_CAMERA_WIDTH;
-    uint16_t height = EXAMPLE_CAMERA_HEIGHT;
+    OPERATE_RET rt     = OPRT_OK;
+    uint16_t    width  = EXAMPLE_CAMERA_WIDTH;
+    uint16_t    height = EXAMPLE_CAMERA_HEIGHT;
 
     memset(&sg_display_info, 0, sizeof(TDL_DISP_DEV_INFO_T));
 
@@ -98,7 +172,7 @@ static OPERATE_RET __display_init(void)
     width  = sg_display_info.width;
     height = sg_display_info.height;
 
-    for(uint8_t i=0; i<DISPLAY_FRAME_BUFF_NUM; i++) {
+    for (uint8_t i = 0; i < DISPLAY_FRAME_BUFF_NUM; i++) {
         TUYA_CALL_ERR_LOG(tdl_disp_fb_manage_add(sg_fb_manage, sg_display_info.fmt, width, height));
     }
 
@@ -107,7 +181,7 @@ static OPERATE_RET __display_init(void)
 
 static OPERATE_RET __camera_init(void)
 {
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET      rt = OPRT_OK;
     TDL_CAMERA_CFG_T cfg;
 
     memset(&cfg, 0, sizeof(TDL_CAMERA_CFG_T));
@@ -123,12 +197,19 @@ static OPERATE_RET __camera_init(void)
     tdl_camera_dev_get_info(sg_tdl_camera_hdl, &cam_info);
     sg_yuv_order = cam_info.yuv_order;
 
-    cfg.fps = EXAMPLE_CAMERA_FPS;
-    cfg.width = EXAMPLE_CAMERA_WIDTH;
+    cfg.fps    = EXAMPLE_CAMERA_FPS;
+    cfg.width  = EXAMPLE_CAMERA_WIDTH;
     cfg.height = EXAMPLE_CAMERA_HEIGHT;
-    cfg.out_fmt = TDL_CAMERA_FMT_YUV422;
 
+#if defined(EXAMPLE_CAMERA_JPEG) && (EXAMPLE_CAMERA_JPEG == 1)
+    /* Encoded backends (the JIELI WL83 DVP streams MJPEG) need the encoded
+     * frame pool and callback; the display decodes each frame to RGB565. */
+    cfg.out_fmt              = TDL_CAMERA_FMT_JPEG;
+    cfg.get_encoded_frame_cb = __get_camera_encoded_frame_cb;
+#else
+    cfg.out_fmt      = TDL_CAMERA_FMT_YUV422;
     cfg.get_frame_cb = __get_camera_raw_frame_cb;
+#endif
 
     TUYA_CALL_ERR_RETURN(tdl_camera_dev_open(sg_tdl_camera_hdl, &cfg));
 

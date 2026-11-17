@@ -27,6 +27,15 @@ menu "Application config"
 
         config EXAMPLE_CAMERA_IMG_ROTATION_270
             bool "camera output image rotation 270"
-    endchoice 
+    endchoice
+
+    config EXAMPLE_CAMERA_JPEG
+        bool "camera outputs JPEG frames"
+        default n
+        help
+          Some camera backends hand out encoded frames instead of raw
+          YUV422 (the JIELI WL83 DVP backend streams MJPEG). Select this
+          to open the camera with the JPEG format and decode every frame
+          to RGB565 for the panel. Leave it off for YUV422 backends.
 
 endmenu
