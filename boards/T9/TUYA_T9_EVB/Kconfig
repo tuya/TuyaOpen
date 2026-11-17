@@ -12,3 +12,5 @@ config BOARD_CONFIG
     select ENABLE_AUDIO_CODECS
     select ENABLE_AUDIO_AEC
     select ENABLE_BUTTON
+    select ENABLE_DISPLAY
+    select ENABLE_MIPI_DSI

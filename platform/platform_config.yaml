@@ -62,7 +62,7 @@ platforms:
 - name: T9
   repo: https://github.com/tuya/TuyaOpen-T9
   branch: master
-  commit: f66311e243dc9b7eb4204f6501a8a5e668c7d3a8
+  commit: cc6b1634b32699eae5b594e08489c20666146c69
 
 - name: JIELI
   repo: https://github.com/tuya/TuyaOpen-JieLi

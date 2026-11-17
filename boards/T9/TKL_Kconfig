@@ -37,6 +37,10 @@ config ENABLE_EXT_RAM
     bool
     default y
 
+config ENABLE_DMA2D
+    bool
+    default y
+
 config ENABLE_ADC
     bool
     default y
@@ -58,6 +62,10 @@ config ENABLE_SPI
     default y
 
 config ENABLE_QSPI
+    bool
+    default y
+
+config ENABLE_MIPI_DSI
     bool
     default y
 
