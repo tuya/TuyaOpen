@@ -98,6 +98,10 @@ static void file_download_event_cb(http_download_event_id_t id, http_download_ev
                     PR_ERR("tal_ota_data_process failed: %d at %u", rt, (unsigned)event->offset);
                     ota->tal_failed = 1;
                     remain_len      = 0;
+                    /* This branch is entered once: tal_failed keeps the next
+                     * data events out. Report here, or the cloud waits in
+                     * TUS_UPGRDING until its own timeout. */
+                    tuya_ota_upgrade_status_report(ota, TUS_DOWNLOAD_ERROR_UNKONW);
                 }
                 event->remain_len = remain_len;
             } else {
