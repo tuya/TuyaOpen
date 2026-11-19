@@ -24,6 +24,7 @@
 #include "tuya_iot_dp.h"
 #include "netmgr.h"
 #include "tkl_output.h"
+#include "tkl_ota.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
@@ -303,6 +304,14 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
+/* Platform OTA callbacks injected into core; without them tal_ota_* reports
+ * OPRT_NOT_SUPPORTED. */
+static const TAL_OTA_CBS_T s_ota_cbs = {
+    .start_notify = tkl_ota_start_notify,
+    .data_process = tkl_ota_data_process,
+    .end_notify   = tkl_ota_end_notify,
+};
+
 void user_main(void)
 {
     int ret = OPRT_OK;
@@ -335,6 +344,9 @@ void user_main(void)
     tal_time_service_init();
     tal_cli_init();
     tuya_authorize_init();
+
+    /* Register before the cloud connection so OTA commands reach the platform. */
+    tal_ota_register_cbs(&s_ota_cbs);
 
     reset_netconfig_start();
 
@@ -452,7 +464,6 @@ void tuya_app_main(void)
     thrd_param.thrdname     = "tuya_app_main";
     /* Stack must be internal DRAM: esp_partition_mmap / flash pause cache (ESP-SR) asserts
      * esp_task_stack_is_sane_cache_disabled() — PSRAM stacks fail that check (see IDF cache_utils.c). */
-    thrd_param.psram_mode   = 0;
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);
 }
 #endif

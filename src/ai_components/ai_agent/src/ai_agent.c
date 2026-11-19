@@ -218,14 +218,14 @@ OPERATE_RET ai_agent_init(void)
 
     TDL_AUDIO_HANDLE_T audio_hdl = NULL;
     TDL_AUDIO_INFO_T audio_info = {0};
-    TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
-    TUYA_CALL_ERR_RETURN(tdl_audio_get_info(audio_hdl, &audio_info));
-
-    ai_agent_cfg.attr.audio.sample_rate = audio_info.sample_rate;
-    ai_agent_cfg.attr.audio.channels = audio_info.sample_ch_num;
-    ai_agent_cfg.attr.audio.bit_depth = audio_info.sample_bits;
-
-    ai_agent_cfg.codec_enable         = TRUE;
+    /* The codec layer is optional on hosts without an audio device; keep the
+     * protocol defaults rather than failing the whole agent init. */
+    if ((tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl) == OPRT_OK) &&
+        (tdl_audio_get_info(audio_hdl, &audio_info) == OPRT_OK)) {
+        ai_agent_cfg.attr.audio.sample_rate = audio_info.sample_rate;
+        ai_agent_cfg.attr.audio.channels = audio_info.sample_ch_num;
+        ai_agent_cfg.attr.audio.bit_depth = audio_info.sample_bits;
+    }
 #endif
 
     ai_agent_cfg.output.alert_cb      = __ai_agent_alert_cb;
@@ -281,13 +281,11 @@ OPERATE_RET ai_agent_send_text(char *content)
 */
 OPERATE_RET ai_agent_send_file(uint8_t *data, uint32_t len)
 {
-    OPERATE_RET rt = OPRT_OK;
-
-    tuya_ai_input_start(true);
-    TUYA_CALL_ERR_RETURN(tuya_ai_file_input((uint8_t *)data, len, len));
-    tuya_ai_input_stop();
-
-    return rt;
+    /* tuyaopen-core exposes audio/text input only; there is no file input.
+     * Keep the API (no caller today) and report unsupported. */
+    (void)data;
+    (void)len;
+    return OPRT_NOT_SUPPORTED;
 }
 
 /**
@@ -298,14 +296,10 @@ OPERATE_RET ai_agent_send_file(uint8_t *data, uint32_t len)
 */
 OPERATE_RET ai_agent_send_image(uint8_t *data, uint32_t len)
 {
-    OPERATE_RET rt = OPRT_OK;
-    uint64_t   timestamp = tal_system_get_millisecond();
-
-    tuya_ai_input_start(true);
-    TUYA_CALL_ERR_RETURN(tuya_ai_image_input(timestamp, (uint8_t *)data, len, len));
-    tuya_ai_input_stop();
-
-    return rt;
+    /* Same as ai_agent_send_file: core has no image input. */
+    (void)data;
+    (void)len;
+    return OPRT_NOT_SUPPORTED;
 }
 
 /**

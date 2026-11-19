@@ -104,7 +104,6 @@ static OPERATE_RET __ai_ui_action_manage_init(void)
     thrd_cfg.thrdname = "ai_ui_action";
     thrd_cfg.priority = THREAD_PRIO_2;
     thrd_cfg.stackDepth = 1024 * 4;
-    thrd_cfg.psram_mode = 1;
     TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&sg_action_thrd_hdl, NULL, NULL, __ai_ui_action_task, NULL, &thrd_cfg));
 
     return OPRT_OK;
@@ -524,7 +523,6 @@ OPERATE_RET ai_ui_init(void)
     thrd_cfg.thrdname = "ai_ui";
     thrd_cfg.priority = THREAD_PRIO_2;
     thrd_cfg.stackDepth = 1024 * 4;
-    thrd_cfg.psram_mode = 1;
 
     TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&sg_ui_thrd_hdl, NULL, NULL, __ai_chat_ui_task, NULL, &thrd_cfg));
 

@@ -59,6 +59,15 @@ endmenu
     if os.path.exists(config_path):
         context += f'source \"{config_path}\"\n'
 
+    # [tuyaopen-core integration] source the core submodule Kconfig
+    # (<repo>/tuyaopen-core/Kconfig) so core's symbols (e.g. AI_BIZ_MAX_NUM)
+    # land in using.config / tuya_kconfig.h; without it core headers that
+    # reference those macros fail to compile in the new host.
+    core_config_path = os.path.join(os.path.dirname(src_dir), "tuyaopen-core", KCONFIG)
+    core_config_path = core_config_path.replace('\\', '/')  # win
+    if os.path.exists(core_config_path):
+        context += f'source \"{core_config_path}\"\n'
+
     output_dir = os.path.dirname(output_config)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)

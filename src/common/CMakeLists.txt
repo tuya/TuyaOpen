@@ -10,22 +10,15 @@ set(MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 
 # LIB_SRCS
-# aux_source_directory(${MODULE_PATH}/utilities LIB_SRCS)
-# aux_source_directory(${MODULE_PATH}/backoffAlgorithm/source BACKOFLIBS)
-# aux_source_directory(${MODULE_PATH}/event EVENTLIBS)
-# LIB_SRCS
-file(GLOB_RECURSE 
-    LIB_SRCS 
-    "${MODULE_PATH}/utilities/*.c"
-    "${MODULE_PATH}/backoffAlgorithm/source/*.c")
-
-# list(APPEND LIB_SRCS ${BACKOFLIBS})
+# [tuyaopen-core integration] utilities/backoffAlgorithm sources removed:
+# their symbols are provided by tuyaopen-core (tuya_utilities / backoff_algorithm,
+# 见 tuyaopen-core/third_party/CMakeLists.txt 的 BUILD_INTERFACE 头路径)；
+# 本地副本已删除，本模块只保留 qrcode（按 CONFIG_ENABLE_QRCODE 编入）。
+set(LIB_SRCS)
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC 
-    ${MODULE_PATH}/include 
-    ${MODULE_PATH}/backoffAlgorithm/source/include
-    ${MODULE_PATH}/utilities)
+set(LIB_PUBLIC_INC
+    ${MODULE_PATH}/include)
 
 if (CONFIG_ENABLE_QRCODE STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/qrcode/qrcodegen.c ${MODULE_PATH}/qrcode/qrencode_print.c)
@@ -35,27 +28,35 @@ endif()
 ########################################
 # Target Configure
 ########################################
-add_library(${MODULE_NAME})
+# [tuyaopen-core integration] 本组件可能"零源文件"：utilities/backoffAlgorithm 已由 core
+# 顶替，只剩 qrcode，而 qrcode 受 CONFIG_ENABLE_QRCODE 门控（默认 n，仅部分板 select）。
+# 无源文件时 CMake 的 add_library 会报 "No SOURCES given to target: common"（ESP32 板即如此），
+# 故按需建 target；头路径照常上抛（common/include 另由根 CMakeLists 直接挂给
+# tuyaopen-headers，不依赖本 target）。
+if (LIB_SRCS)
+    add_library(${MODULE_NAME})
 
-target_sources(${MODULE_NAME}
-    PRIVATE
-        ${LIB_SRCS}
-    )
+    target_sources(${MODULE_NAME}
+        PRIVATE
+            ${LIB_SRCS}
+        )
 
-target_include_directories(${MODULE_NAME}
-    PRIVATE
-        ${LIB_PRIVATE_INC}
+    target_include_directories(${MODULE_NAME}
+        PRIVATE
+            ${LIB_PRIVATE_INC}
 
-    PUBLIC
-        ${LIB_PUBLIC_INC}
-    )
+        PUBLIC
+            ${LIB_PUBLIC_INC}
+        )
 
 
-########################################
-# Layer Configure
-########################################
-list(APPEND COMPONENT_LIBS ${MODULE_NAME})
-set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
+    ########################################
+    # Layer Configure
+    ########################################
+    list(APPEND COMPONENT_LIBS ${MODULE_NAME})
+    set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
+endif()
+
 list(APPEND COMPONENT_PUBINC ${LIB_PUBLIC_INC})
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
 

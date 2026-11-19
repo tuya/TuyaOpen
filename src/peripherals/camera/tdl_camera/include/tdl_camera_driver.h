@@ -94,6 +94,8 @@ typedef struct {
 typedef struct {
     OPERATE_RET (*open )(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAMERA_OPEN_CFG_T *cfg);
     OPERATE_RET (*close)(TDD_CAMERA_DEV_HANDLE_T device);
+    /* Optional: change the encoder target bitrate while the stream is running. */
+    OPERATE_RET (*set_bitrate)(TDD_CAMERA_DEV_HANDLE_T device, uint32_t kbps);
 } TDD_CAMERA_INTFS_T;
 
 typedef struct {

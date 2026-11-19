@@ -231,6 +231,21 @@ static OPERATE_RET __tdd_camera_dvp_close(TDD_CAMERA_DEV_HANDLE_T device)
 }
 
 /**
+ * @brief Change the H.264 encoder target bitrate while streaming
+ * @param device DVP camera device handle
+ * @param kbps target bitrate in kbps
+ * @return OPRT_OK when accepted, OPRT_RESOURCE_NOT_READY when the encoder is
+ *         still applying a previous request, or another error code
+ */
+static OPERATE_RET __tdd_camera_dvp_set_bitrate(TDD_CAMERA_DEV_HANDLE_T device, uint32_t kbps)
+{
+    if (NULL == device || 0 == kbps) {
+        return OPRT_INVALID_PARM;
+    }
+    return tkl_dvp_set_h264_bitrate(kbps);
+}
+
+/**
  * @brief Register a DVP camera device
  * @param name Camera device name
  * @param sr_cfg Pointer to DVP sensor configuration structure
@@ -265,8 +280,9 @@ OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg,
     dev_info.supported_fmts = TDL_CAMERA_FMT_YUV422 | TDL_CAMERA_FMT_JPEG | TDL_CAMERA_FMT_H264;
 
     TDD_CAMERA_INTFS_T camera_intfs = {
-        .open  = __tdd_camera_dvp_open,
-        .close = __tdd_camera_dvp_close,
+        .open        = __tdd_camera_dvp_open,
+        .close       = __tdd_camera_dvp_close,
+        .set_bitrate = __tdd_camera_dvp_set_bitrate,
     };
 
     return tdl_camera_device_register(name, (TDD_CAMERA_DEV_HANDLE_T)dvp_dev, &camera_intfs, &dev_info);

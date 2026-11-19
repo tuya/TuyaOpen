@@ -263,7 +263,10 @@ def download_submoudules(repo_path):
         return True
 
     logger.info("Downloading submoudules ...")
-    cmd = "git submodule update --init"
+    # [tuyaopen-core integration] --recursive: nested submodules (e.g. the
+    # tuyaopen-core submodule's third_party/) must be fetched too, otherwise
+    # the first build fails on missing vendored sources.
+    cmd = "git submodule update --init --recursive"
     if 0 != do_subprocess(cmd, cwd=repo_path):
         logger.error("Download submoudules failed.")
         return False

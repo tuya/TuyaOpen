@@ -121,6 +121,16 @@ OPERATE_RET tdl_camera_dev_open(TDL_CAMERA_HANDLE_T camera_hdl,  TDL_CAMERA_CFG_
  */
 OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl);
 
+/**
+ * @brief Change the encoder target bitrate while the stream is running
+ * @param camera_hdl Camera handle
+ * @param kbps target bitrate in kbps
+ * @return OPRT_OK when accepted, OPRT_RESOURCE_NOT_READY when the encoder is
+ *         still applying a previous request, OPRT_NOT_SUPPORTED when the
+ *         device has no such control, or another error code
+ */
+OPERATE_RET tdl_camera_dev_set_bitrate(TDL_CAMERA_HANDLE_T camera_hdl, uint32_t kbps);
+
 #ifdef __cplusplus
 }
 #endif
