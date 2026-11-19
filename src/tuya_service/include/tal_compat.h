@@ -25,6 +25,9 @@
 
 #define tal_system_get_free_heap_size() tkl_system_get_free_heap_size()
 
+/* legacy heap API used by the bundled NimBLE host */
+void *tal_realloc(void *ptr, size_t size);
+
 /* external RAM */
 void *tal_psram_malloc(size_t size);
 void  tal_psram_free(void *ptr);

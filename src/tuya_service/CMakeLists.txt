@@ -42,6 +42,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/authorize)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wifi)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wired)
 
+# tal_bluetooth: bundled NimBLE host + TKL BLE port (enabled by ENABLE_NIMBLE).
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_bluetooth)
+
 # tal_wifi_ulp: WiFi ultra-low-power/lpmgr backend; tuya_pm builds on it.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wifi_ulp)
 

@@ -22,6 +22,15 @@
 #include "tkl_memory.h"
 #endif
 
+void *tal_realloc(void *ptr, size_t size)
+{
+#if defined(TUYAOPEN_PLATFORM_ESP32)
+    return heap_caps_realloc(ptr, size, MALLOC_CAP_DEFAULT);
+#else
+    return tkl_system_realloc(ptr, size);
+#endif
+}
+
 #if defined(TUYAOPEN_PLATFORM_ESP32)
 void *tal_psram_malloc(size_t size)
 {

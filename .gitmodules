@@ -6,3 +6,4 @@
 [submodule "tuyaopen-core"]
 	path = tuyaopen-core
 	url = https://github.com/tuya/TuyaOpen-Core.git
+	branch = develop/p2p

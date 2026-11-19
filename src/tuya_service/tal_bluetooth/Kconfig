@@ -1,0 +1,12 @@
+menu "Bluetooth"
+
+config ENABLE_NIMBLE
+    bool "ENABLE_NIMBLE: enable the bundled NimBLE host for BLE"
+    default n
+    help
+      Build the bundled NimBLE host and the TKL BLE port from
+      src/tuya_service/tal_bluetooth/nimble. Select this on platforms whose
+      TKL provides only the HCI transport and rely on this host stack for
+      BLE GAP/GATT. Other platforms keep their own BLE stack.
+
+endmenu

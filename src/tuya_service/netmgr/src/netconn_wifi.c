@@ -275,6 +275,33 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     return OPRT_OK;
 }
 
+#ifdef ENABLE_BLUETOOTH
+/**
+ * @brief Bridge the core BLE netcfg payload into the WiFi netcfg finish path.
+ *
+ * core's ble_netcfg is self-contained (tuya_ble_init -> ble_netcfg_start(cb));
+ * it is not registered in the old netcfg framework.
+ */
+static int __netconn_wifi_ble_netcfg_finish(ble_netcfg_info_t *info)
+{
+    netcfg_info_t netcfg_info = {0};
+
+    if (NULL == info) {
+        return OPRT_INVALID_PARM;
+    }
+
+    memcpy(netcfg_info.ssid, info->ssid, sizeof(netcfg_info.ssid));
+    netcfg_info.s_len = info->s_len;
+    memcpy(netcfg_info.passwd, info->passwd, sizeof(netcfg_info.passwd));
+    netcfg_info.p_len = info->p_len;
+    memcpy(netcfg_info.token, info->token, sizeof(netcfg_info.token));
+    netcfg_info.t_len = info->t_len;
+
+    ble_netcfg_stop();
+    return __netconn_wifi_netcfg_finish(NETCFG_TUYA_BLE, &netcfg_info);
+}
+#endif
+
 int __netconn_activate_token_get(tuya_iot_config_t *config)
 {
     int rt = OPRT_OK;
@@ -297,12 +324,10 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
 
 #ifdef ENABLE_BLUETOOTH
     if (netmgr_wifi->netcfg.type & TUYA_NETMGR_NETCFG_BLE) {
-        /* [交付仓适配] 上游 ble_netcfg_init 走 netcfg 框架注册配网策略；core 的
-         * iot-core/ble/ble_netcfg 是自包含模块（tuya_ble_init → ble_netcfg_start(cb)，
-         * 接口形态不同），且本仓 ESP32 port 的 BLE 卡为空卡（成员全 NULL，见
-         * platform/ESP32/port/src/port_bluetooth_ops.c）——BLE 配网待专门接线（二期），
-         * 此处保留 AP 配网路径，BLE 请求显式跳过。 */
-        PR_WARN("ble netcfg is not wired in this delivery build, skip");
+        int ble_rt = ble_netcfg_start(__netconn_wifi_ble_netcfg_finish);
+        if (OPRT_OK != ble_rt) {
+            PR_ERR("ble netcfg start failed: %d", ble_rt);
+        }
     }
 #endif
 
