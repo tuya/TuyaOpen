@@ -50,6 +50,7 @@ static void __display_camera_yuv_fram(TDL_CAMERA_FRAME_T *frame)
 
     video.width  = frame->width;
     video.height = frame->height;
+    video.fmt    = frame->fmt;
     video.yuv422 = frame->data;
     video.len    = frame->data_len;
 
