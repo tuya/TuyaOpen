@@ -276,7 +276,6 @@ OPERATE_RET ai_audio_input_start(void)
             .priority = THREAD_PRIO_5,
             .stackDepth = 2 * 1024 + 512,  /* Support opus encode */
             .thrdname = "record_task",
-            .psram_mode = 1,
         };
         tal_thread_create_and_start(&sg_recorder->vad_task, NULL, __record_task_exit, __record_task, NULL, &thrd_cfg);
     }

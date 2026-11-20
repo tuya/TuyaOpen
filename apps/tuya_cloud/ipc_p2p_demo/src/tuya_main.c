@@ -20,6 +20,7 @@
 #include "tuya_authorize.h"
 #include "tuya_p2p_sdk.h"
 #include "tuya_ipc_p2p.h"
+#include "tuya_ipc_p2p_common.h"
 #include "tuya_ipc_demo.h"
 #include <assert.h>
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
@@ -118,6 +119,14 @@ void user_event_handler_on(tuya_iot_client_t *client, tuya_event_msg_t *event)
     switch (event->id) {
     case TUYA_EVENT_BIND_START:
         PR_INFO("Device Bind Start!");
+        break;
+
+    /* A (re-)activation creates or resets the cloud device record. Push the
+     * stored P2P password now, before the App fetches it for the first P2P
+     * connection after provisioning; otherwise that connection is rejected
+     * with "auth failed" until the next password resend is picked up. */
+    case TUYA_EVENT_ACTIVATE_SUCCESSED:
+        tuya_ipc_p2p_passwd_sync();
         break;
 
     /* Print the QRCode for Tuya APP bind */

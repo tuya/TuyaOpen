@@ -1,3 +1,9 @@
+config ENABLE_T3_OS_SERVICE
+    bool
+    default y
+    select ENABLE_BT_SERVICE
+    select ENABLE_NIMBLE
+
 config MBEDTLS_CONFIG_FILE
     string
     default "tuya_tls_config.h"

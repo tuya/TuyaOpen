@@ -24,6 +24,11 @@
 #include "tdl_camera_manage.h"
 #include "tdl_camera_driver.h"
 
+/* The platform exposes TKL_* names; the camera code uses the TAL_* names. */
+#include "tkl_system.h"
+#define TAL_ENTER_CRITICAL() TKL_ENTER_CRITICAL()
+#define TAL_EXIT_CRITICAL()  TKL_EXIT_CRITICAL()
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -277,7 +282,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.raw_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task", 0};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "raw_flow_task"};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.raw_thrd), NULL, NULL,\
                                                              __raw_flow_task, NULL, &thread_cfg));
         }
@@ -290,7 +295,7 @@ static OPERATE_RET __camera_manage_init(TDL_CAMERA_FMT_E out_fmt)
         }
     
         if(NULL == sg_camera_manage.encoded_thrd) {
-            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task", 0};
+            THREAD_CFG_T thread_cfg = {8192, THREAD_PRIO_1, "encoded_flow_task"};
             TUYA_CALL_ERR_RETURN(tal_thread_create_and_start(&(sg_camera_manage.encoded_thrd), NULL, NULL,\
                                                              __encoded_flow_task, NULL, &thread_cfg));
         }
@@ -422,6 +427,31 @@ OPERATE_RET tdl_camera_dev_close(TDL_CAMERA_HANDLE_T camera_hdl)
     }
 
     return OPRT_OK;
+}
+
+/**
+ * @brief Change the encoder target bitrate while the stream is running
+ * @param camera_hdl Camera handle
+ * @param kbps target bitrate in kbps
+ * @return OPRT_OK when accepted, OPRT_RESOURCE_NOT_READY when the encoder is
+ *         still applying a previous request, OPRT_NOT_SUPPORTED when the
+ *         device has no such control, or another error code
+ */
+OPERATE_RET tdl_camera_dev_set_bitrate(TDL_CAMERA_HANDLE_T camera_hdl, uint32_t kbps)
+{
+    CAMERA_DEVICE_T *camera_dev = (CAMERA_DEVICE_T *)camera_hdl;
+
+    if (NULL == camera_dev || 0 == kbps) {
+        return OPRT_INVALID_PARM;
+    }
+    if (false == camera_dev->is_open) {
+        return OPRT_COM_ERROR;
+    }
+    if (NULL == camera_dev->intfs.set_bitrate) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    return camera_dev->intfs.set_bitrate(camera_dev->tdd_hdl, kbps);
 }
 
 /**

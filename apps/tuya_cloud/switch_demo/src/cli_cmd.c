@@ -26,6 +26,7 @@
  */
 
 #include "tal_api.h"
+#include "tal_cli.h"
 #include "tuya_iot.h"
 #include <stdlib.h>
 
