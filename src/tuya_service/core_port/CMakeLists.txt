@@ -15,8 +15,11 @@ target_sources(${MODULE_NAME}
         ${TUYAOPEN_CORE_PORT_DIR}/tuyaopen-core_ops.c
     )
 
+# The ops contract headers (core_api_ops.h, core_kv_ops.h, core_netif_ops.h,
+# ...) live in core's port directory; expose them from this single place so no
+# platform has to add the include path itself.
 target_include_directories(${MODULE_NAME}
-    PRIVATE
+    PUBLIC
         ${TUYAOPEN_CORE_PORT_DIR}/interface
     )
 

@@ -146,10 +146,13 @@ include(${TOP_SOURCE_DIR}/tuyaopen-core/tuyaopen-core.cmake)
 foreach(c ${TUYAOPEN_CORE_LIBS})
     target_compile_options(${c} PRIVATE -Wno-error)
 endforeach()
-# Core headers and the platform include path feed tuyaopen-headers.
+# Core headers and the platform include path feed tuyaopen-headers. The ops
+# contract headers (core_api_ops.h, core_kv_ops.h, core_netif_ops.h, ...) live
+# in one place for every platform.
 target_include_directories(tuyaopen-headers INTERFACE
     ${TOP_BINARY_DIR}/include
     ${TOP_SOURCE_DIR}/src/common/include
+    ${TOP_SOURCE_DIR}/tuyaopen-core/port/tuyaopen/interface
     ${PLATFORM_PUBINC}
 )
 # Optional platform-owned lwIP view for core translation units only (it must
