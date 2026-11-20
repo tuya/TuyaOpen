@@ -1,65 +1,63 @@
 ##
 # @file CMakeLists.txt
-# @brief 交付仓保留的服务组件（core 未覆盖的部分），由平台构建统一编入
+# @brief Service components not covered by tuyaopen-core, built by the platform.
 #/
 
-# lib_kv：KV 存储实现组件（目录名刻意不带 tal_ 前缀，避免与 core 的 tal_kv
-# 模块（iot-core/tal_system/tal_kv.c 分发器 + tal_kv.h）混淆）。
-# 本组件提供：core 分发器所需的 ops 卡（LittleFS 介质 + AES-128-CBC 加密）、
-# 组件侧扩展（tal_kv_free / tal_kv_cmd / tal_kv_serialize_* / tal_lfs_get，
-# 见 lib_kv/src/lib_kv.c）与 littlefs 介质本身。
+# lib_kv: KV storage (LittleFS medium + AES-128-CBC encryption) and the ops card
+# consumed by core's tal_kv dispatcher. The directory name intentionally has no
+# tal_ prefix to avoid confusion with core's tal_kv module.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/lib_kv)
 
-# liblwip: bundled lwIP used by platforms with ENABLE_LIBLWIP.
+# liblwip: bundled lwIP for platforms with ENABLE_LIBLWIP.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/liblwip)
 
-# tal_driver：TAL 驱动层（uart/dma2d）——tal_cli 的串口控制台依赖其 tal_uart_*，
-# 由本组件提供（core 无 tal_uart；实现走平台 tkl_uart）
+# tal_driver: TAL driver layer (uart/dma2d). tal_cli depends on tal_uart_*.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_driver)
 
-# tal_image：图像工具层（jpeg 编解码 tjpgd / 缩放 / 旋转 / dither / yuv422），
-# 供 src/peripherals 的 tdl_display、app_printer 等使用（core 无此层）
+# tal_image: image utilities (jpeg codec, scale, rotate, dither, yuv422) used by
+# tdl_display and app_printer.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_image)
 
-# tal_cli：串口命令行（sys_*/kv_* 命令组；netmgr/fs 组已按本仓适配摘除/门控），
-# 由应用调用 tal_cli_init() 启用（开关 CONFIG_ENABLE_SERIAL_CLI_CMD）
+# tal_cli: serial command line, enabled by the application via tal_cli_init()
+# (CONFIG_ENABLE_SERIAL_CLI_CMD).
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_cli)
 
-# netmgr：网络管理（netmgr + netconn_wifi/wired + netcfg/ap_netcfg 配网框架），
-# 连接体按 CONFIG_ENABLE_WIFI/WIRED 门控（见组件内 CMakeLists）
+# netmgr: network manager and netcfg/ap_netcfg framework; connection bodies are
+# gated by CONFIG_ENABLE_WIFI/WIRED.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/netmgr)
 
-# tal_sleep：CPU 睡眠/低功耗管理（tal_wifi 的 lp 接口依赖 tal_cpu_lp_*）
+# tal_sleep: CPU sleep / low-power management; tal_wifi LP interfaces use
+# tal_cpu_lp_*.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_sleep)
 
-# authorize：设备授权码读写（KV + 平台 OTP），上游随 tuya_cloud_service 编译，
-# 本仓 tuya_cloud_service 已被 core 覆盖，故独立成组件（apps 的
-# tuya_authorize_init/read 调用面不变）
+# authorize: device license read/write (KV + platform OTP).
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/authorize)
 
-# tal_wifi / tal_wired：netmgr 连接体的下层 TAL 层（各自按 CONFIG_ENABLE_WIFI/
-# WIRED 门控，组件自身 CMakeLists 已带条件）
+# tal_wifi / tal_wired: TAL network layers under netmgr, gated by
+# CONFIG_ENABLE_WIFI/WIRED.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wifi)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wired)
 
-# tal_bluetooth: bundled NimBLE host + TKL BLE port (enabled by ENABLE_NIMBLE).
+# tal_bluetooth: bundled NimBLE host + TKL BLE port (ENABLE_NIMBLE).
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_bluetooth)
 
-# tal_wifi_ulp: WiFi ultra-low-power/lpmgr backend; tuya_pm builds on it.
+# tal_wifi_ulp: Wi-Fi ultra-low-power/lpmgr backend used by tuya_pm.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_wifi_ulp)
 
-# tuya_pm: device power-level policy manager moved here from src/tuya_pm.
+# tuya_pm: device power-level policy manager.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tuya_pm)
 
-# 兼容层（tal_compat.h）：把上游 tal_* 接口重定向到本仓等价实现（tkl/契约），
-# 减少 apps/ 应用改动；目录随服务组件统一 include 路径全局可见
+# core_port: shared core ops card (port/tuyaopen/tuyaopen-core_ops.c).
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/core_port)
+
+# Compatibility layer (tal_compat.h): redirects upstream tal_* interfaces to
+# this repository's equivalents; the include directory is globally visible.
 list(APPEND COMPONENT_PUBINC "${CMAKE_CURRENT_LIST_DIR}/include")
 
-# compat：兼容层的函数级实现（上游 tal_psram_* 等——平台预编译库按旧名引用，
-# 必须提供同名真实符号；宏级重定向见 include/tal_compat.h）
+# compat: function-level implementations of the compatibility layer (e.g.
+# tal_psram_*), required as real symbols by prebuilt platform libraries.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/compat)
 
-# 子目录把各自的库/include 追加到本作用域，这里再上抛给顶层
-# （与 src/ai_components/CMakeLists.txt 的传播方式一致）
+# Propagate libraries and include paths collected by the subdirectories.
 set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
 set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)
