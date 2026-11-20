@@ -12,6 +12,8 @@
 
 #include "tdd_audio.h"
 #include "tdd_button_gpio.h"
+
+#include "tuya_t9_ex_module.h"
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -97,6 +99,8 @@ OPERATE_RET board_register_hardware(void)
     TUYA_CALL_ERR_LOG(__board_register_audio());
 
     TUYA_CALL_ERR_LOG(__board_register_button());
+
+    TUYA_CALL_ERR_LOG(board_register_ex_module());
 
     return rt;
 }
