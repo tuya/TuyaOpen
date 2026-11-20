@@ -145,6 +145,10 @@ static OPERATE_RET __tdd_camera_dvp_init(CAMERA_DVP_DEV_T *dev, TDD_CAMERA_OPEN_
     dev->dvp_cfg.width                = cfg->width;
     dev->dvp_cfg.height               = cfg->height;
     dev->dvp_cfg.fps                  = cfg->fps;
+    /* The T5 platform derives the sensor MCLK from this and only runs the
+     * setup replay once that clock is on; a zero here leaves the sensor
+     * clockless, so it cannot answer on I2C. */
+    dev->dvp_cfg.inter_cfg.sensor_clk = dev->sensor.usr_cfg.clk;
     dev->dvp_cfg.inter_cfg.setup_cb   = __tdd_dvp_setup_callback;
     dev->dvp_cfg.inter_cfg.assign_cb  = __tdd_dvp_frame_manage_malloc;
     dev->dvp_cfg.inter_cfg.post_cb    = __tdd_dvp_frame_post_handler;
