@@ -2,22 +2,22 @@ platforms:
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
   branch: master
-  commit: 6d63341c50e86dadbfae676df2485b7e77722cb5
+  commit: 649c3aaacc405c55cf94fc0bf56fee754e1d5c86
 
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
-  branch: feat/tuyaopen-core
-  commit: 355089d94af1e2e26a0b57704ca3c6fd8d1c5e46
+  branch: platform_ubuntu
+  commit: 90a944c625d4e442db40056b67103c8e23fb7304
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
-  branch: feat/tuyaopen-core
-  commit: 4aa60b4eae499e2ccc208649bbc5b0def1261c83
+  branch: master
+  commit: 5d1ec7d11659e59b7d90e2d041bfdccd628b9d4e
 
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
-  branch: feat/tuyaopen-core
-  commit: 98388043c5246243a098810e291b94b9d209d8be
+  branch: master
+  commit: cd4a3dae9393da9259323c7b93c2bfd09138236c
 
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
