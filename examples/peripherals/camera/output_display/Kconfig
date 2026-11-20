@@ -12,6 +12,15 @@ menu "Application config"
         int "camera fps"
         default 20
 
+    config EXAMPLE_DISPLAY_FRAME_BUFF_NUM
+        int "display frame buffers"
+        default 2
+        help
+            Number of full-size framebuffers. Two is enough when a flush hands
+            the next buffer to the panel before the producer reuses the old
+            one; slow capture paths (a few fps) need a third so the panel is
+            never scanning the buffer being converted.
+
     choice 
         prompt "choose camera output image rotation"
         default EXAMPLE_CAMERA_IMG_ROTATION_0
