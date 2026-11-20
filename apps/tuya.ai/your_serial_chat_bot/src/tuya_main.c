@@ -19,6 +19,7 @@
 #include <assert.h>
 #include "cJSON.h"
 #include "tal_api.h"
+#include "tkl_ota.h"
 #include "tuya_config.h"
 #include "tuya_iot.h"
 #include "tuya_iot_dp.h"
@@ -229,6 +230,14 @@ bool user_network_check(void)
     return status == NETMGR_LINK_DOWN ? false : true;
 }
 
+/* Platform OTA callbacks injected into core; without them tal_ota_* reports
+ * OPRT_NOT_SUPPORTED. */
+static const TAL_OTA_CBS_T s_ota_cbs = {
+    .start_notify = tkl_ota_start_notify,
+    .data_process = tkl_ota_data_process,
+    .end_notify   = tkl_ota_end_notify,
+};
+
 void user_main(void)
 {
     int ret = OPRT_OK;
@@ -261,6 +270,9 @@ void user_main(void)
     tal_time_service_init();
     // tal_cli_init();
     tuya_authorize_init();
+
+    /* Register before the cloud connection so OTA commands reach the platform. */
+    tal_ota_register_cbs(&s_ota_cbs);
 
     reset_netconfig_start();
 
