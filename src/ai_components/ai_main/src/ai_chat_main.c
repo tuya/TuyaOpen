@@ -40,7 +40,7 @@
 
 #define AI_AUDIO_SLICE_TIME         80     
 #define AI_AUDIO_VAD_ACTIVE_TIME    200 
-#define AI_AUDIO_VAD_OFF_TIME       1000
+#define AI_AUDIO_VAD_OFF_TIME       4000
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/

@@ -36,7 +36,8 @@ LV_FONT_DECLARE(font_puhui_14_1);
 #endif
 
 #if defined(FONT_TEXT_SIZE_18_2) && (FONT_TEXT_SIZE_18_2 == 1)
-LV_FONT_DECLARE(font_puhui_18_2);
+LV_FONT_DECLARE(font_jp_kana_18_2);
+LV_FONT_DECLARE(font_puhui_20_2);
 #endif
 
 #if defined(FONT_TEXT_SIZE_20_4) && (FONT_TEXT_SIZE_20_4 == 1)
@@ -101,7 +102,8 @@ lv_font_t *ai_ui_get_text_font(void)
 #if defined(FONT_TEXT_SIZE_14_1) && (FONT_TEXT_SIZE_14_1 == 1)
     font = (lv_font_t *)&font_puhui_14_1;
 #elif defined(FONT_TEXT_SIZE_18_2) && (FONT_TEXT_SIZE_18_2 == 1)
-    font = (lv_font_t *)&font_puhui_18_2;
+    /* Noto Sans JP first (天気 uses 気). ASCII / missing glyphs fall back to PuHui. */
+    font = (lv_font_t *)&font_jp_kana_18_2;
 #elif defined(FONT_TEXT_SIZE_20_4) && (FONT_TEXT_SIZE_20_4 == 1)
     font = (lv_font_t *)&font_puhui_20_4;    
 #elif defined(FONT_TEXT_SIZE_30_4) && (FONT_TEXT_SIZE_30_4 == 1)
