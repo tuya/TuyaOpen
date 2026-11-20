@@ -109,6 +109,9 @@ static void __video_init_workq(void *args)
 {
     OPERATE_RET       rt  = OPRT_OK;
     TDL_CAMERA_CFG_T *cfg = (TDL_CAMERA_CFG_T *)args;
+#if defined(ENABLE_NV12_TO_RGB565) && (ENABLE_NV12_TO_RGB565 == 1)
+    TDL_CAMERA_DEV_INFO_T dev_info;
+#endif
 
     PR_DEBUG("video -> camera init event");
 
@@ -118,6 +121,13 @@ static void __video_init_workq(void *args)
         PR_ERR("camera dev %s not found", CAMERA_NAME);
         return;
     }
+
+#if defined(ENABLE_NV12_TO_RGB565) && (ENABLE_NV12_TO_RGB565 == 1)
+    if (OPRT_OK == tdl_camera_dev_get_info(sg_camera_hdl, &dev_info) &&
+        (dev_info.supported_fmts & TDL_CAMERA_FMT_NV12)) {
+        cfg->out_fmt = TDL_CAMERA_FMT_JPEG_NV12_BOTH;
+    }
+#endif
 
     TUYA_CALL_ERR_LOG(tdl_camera_dev_open(sg_camera_hdl, cfg));
 

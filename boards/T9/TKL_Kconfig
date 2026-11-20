@@ -69,6 +69,14 @@ config ENABLE_MEDIA
     bool
     default y
 
+config ENABLE_NV12_TO_RGB565
+    bool
+    default y
+    ---help---
+        The platform can convert an NV12 frame to RGB565 (T9 hardware PP).
+        Enable only where tkl_image_codec_convert() implements that
+        conversion; otherwise keep NV12 frames out of the preview path.
+
 config ENABLE_I2S
     bool
     default n

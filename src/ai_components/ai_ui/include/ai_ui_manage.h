@@ -120,6 +120,7 @@ typedef struct {
 typedef struct {
     uint16_t width;
     uint16_t height;
+    TUYA_FRAME_FMT_E fmt;
     uint8_t *yuv422;
     uint32_t len;
 } AI_UI_VIDEO_T;

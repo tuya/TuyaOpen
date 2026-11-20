@@ -133,6 +133,8 @@ static void __disp_open(void)
     lv_vendor_disp_unlock();
 }
 
+static uint32_t sg_conv_fail_cnt = 0;
+
 static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
 {
     if (NULL == video || NULL == video->yuv422 || 0 == video->width || 0 == video->height) {
@@ -140,24 +142,23 @@ static void __disp_yuv_flush(AI_UI_VIDEO_T *video)
     }
 
     /* Allocate a new RGB565 buffer for this frame */
-    uint32_t buf_size = (uint32_t)video->width * video->height * 2;
+    uint32_t buf_size = tal_image_frame_to_rgb565_size(video->fmt, video->width, video->height);
+    if (0 == buf_size) {
+        return;
+    }
+
     uint8_t *rgb565_buf = (uint8_t *)CAMERA_UI_MALLOC(buf_size);
     if (NULL == rgb565_buf) {
         PR_ERR("camera preview: malloc rgb565 failed, size=%u", buf_size);
         return;
     }
 
-    /* Convert YUV422 to RGB565 (outside display lock) */
-    TAL_IMAGE_YUV422_TO_RGB_T conv = {0};
-    conv.in_buf     = video->yuv422;
-    conv.in_width   = video->width;
-    conv.in_height  = video->height;
-    conv.out_buf    = rgb565_buf;
-    conv.out_width  = video->width;
-    conv.out_height = video->height;
-
-    if (tal_image_convert_yuv422_to_rgb565(&conv) != OPRT_OK) {
-        PR_ERR("camera preview: yuv422 to rgb565 failed");
+    /* Convert to RGB565 (outside display lock) */
+    if (tal_image_frame_to_rgb565(video->fmt, video->yuv422, video->len, video->width, video->height,
+                                  rgb565_buf, buf_size) != OPRT_OK) {
+        if (0 == (sg_conv_fail_cnt++ % 100U)) {
+            PR_ERR("camera preview: convert to rgb565 failed, fmt=%u", (unsigned)video->fmt);
+        }
         CAMERA_UI_FREE(rgb565_buf);
         return;
     }
