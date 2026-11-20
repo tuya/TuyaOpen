@@ -80,6 +80,61 @@ config JIELI_BOARD_HAS_DISPLAY
     bool
     default n
 
+# ---------------------------------------------------------------------------
+# Camera modules. Two connectors share PA2/PA3/PA4 and PH0-PH3 (I2C/XCLK/RESET),
+# and both modules answer on I2C 0x42, so exactly one can be fitted and built:
+#
+#   J1  24-pin DVP  -> GC2145, PA0-PA10 + PH0-PH3
+#   J4  12-pin SPI  -> GC0310, PA2/PA3/PA4 + PH0-PH3
+#
+# A different module is a new entry plus its TDD sensor driver. The platform
+# only sees which capture backend the selected module needs, staged as
+# JIELI_BOARD_CAMERA_DVP / JIELI_BOARD_CAMERA_SPI.
+# ---------------------------------------------------------------------------
+choice
+    prompt "Camera module"
+    # The 24-pin DVP module (J1) is the one the devkit ships with.
+    default JIELI_BOARD_CAMERA_GC2145
+
+    config JIELI_BOARD_CAMERA_NONE
+        bool "None"
+
+    config JIELI_BOARD_CAMERA_GC2145
+        bool "GC2145 on J1 (24-pin DVP)"
+        # PH2/PH3 are the camera XCLK/RESET and also TKL UART1's fixed pins.
+        depends on !JIELI_BOARD_UART1_ENABLE
+        select ENABLE_CAMERA
+        select ENABLE_DVP
+
+    config JIELI_BOARD_CAMERA_GC0310
+        bool "GC0310 on J4 (12-pin SPI)"
+        # Same XCLK/RESET pins as the DVP module, same UART1 conflict.
+        depends on !JIELI_BOARD_UART1_ENABLE
+        select ENABLE_CAMERA
+        select ENABLE_DVP
+
+endchoice
+
+if JIELI_BOARD_CAMERA_GC2145 || JIELI_BOARD_CAMERA_GC0310
+    config JIELI_BOARD_CAMERA_WIDTH
+        int "Camera frame width"
+        default 640 if JIELI_BOARD_CAMERA_GC2145
+        default 320 if JIELI_BOARD_CAMERA_GC0310
+        range 64 640
+
+    config JIELI_BOARD_CAMERA_HEIGHT
+        int "Camera frame height"
+        default 480 if JIELI_BOARD_CAMERA_GC2145
+        default 240 if JIELI_BOARD_CAMERA_GC0310
+        range 64 480
+
+    config JIELI_BOARD_CAMERA_FPS
+        int "Camera frame rate"
+        default 20 if JIELI_BOARD_CAMERA_GC2145
+        default 12 if JIELI_BOARD_CAMERA_GC0310
+        range 1 30
+endif
+
 # TKL UART1 is the SDK's uart2 block, which has one fixed pin group on this
 # chip: PH2 (TX) / PH3 (RX). PH2 is also the PWM0 timer output, so a project
 # uses one or the other, not both.
@@ -115,19 +170,32 @@ config JIELI_BOARD_PWM0_PIN
 config JIELI_BOARD_IIC0_SCL_PIN
     int "IIC0 (software IIC) SCL pin (flat GPIO number)"
     range 0 127
+    # The camera module's I2C is wired to PH0. The vendor DVP driver opens
+    # iic0 for ISP_DEV_0, so the adapter's software-IIC node must move there
+    # when the DVP module is fitted; the PA0/PA1 default would not probe. The
+    # SPI module keeps iic0 on the same pads: a vendor probe that still runs
+    # as ISP_DEV_0 would otherwise NACK there.
+    default 112 if JIELI_BOARD_CAMERA_GC2145 || JIELI_BOARD_CAMERA_GC0310
     default 0
 
 config JIELI_BOARD_IIC0_SDA_PIN
     int "IIC0 (software IIC) SDA pin (flat GPIO number)"
     range 0 127
+    default 113 if JIELI_BOARD_CAMERA_GC2145 || JIELI_BOARD_CAMERA_GC0310
     default 1
 
 config JIELI_BOARD_IIC1_SCL_PIN
     int "IIC1 SCL pin (flat GPIO number)"
     range 0 127
+    # The SPI sensor's control bus is wired to PH0/PH1. Those pads also carry
+    # the sensor's 2-wire SPI output, so the adapter bit-bangs them instead of
+    # handing them to the hardware controller; the pin choice alone makes that
+    # call, there is no separate switch to set.
+    default 112 if JIELI_BOARD_CAMERA_GC0310
     default 7
 
 config JIELI_BOARD_IIC1_SDA_PIN
     int "IIC1 SDA pin (flat GPIO number)"
     range 0 127
+    default 113 if JIELI_BOARD_CAMERA_GC0310
     default 8

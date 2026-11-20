@@ -83,7 +83,7 @@ static OPERATE_RET __display_8080_gpio_init(DISP_8080_DEV_T *device)
 {
     OPERATE_RET rt = OPRT_OK;
     TUYA_GPIO_IRQ_T irq_cfg;
-    TUYA_GPIO_BASE_CFG_T gpio_cfg;
+    TUYA_GPIO_BASE_CFG_T gpio_cfg = {0};
 
     if (device->te_pin < TUYA_GPIO_NUM_MAX) {
         gpio_cfg.direct = TUYA_GPIO_INPUT;
