@@ -206,8 +206,6 @@ This example code functions to echo the content sent to UART0 and supports the f
 | T3            | General-purpose high-performance MCU platform, based on ARM Cortex-M series cores | Smart appliances and industrial control requiring strong processing capabilities |
 | T2            | Cost-optimized general-purpose MCU platform | Basic smart home devices, sensor nodes |
 | ESP32         | Popular IoT platform with integrated Wi-Fi and Bluetooth | Various IoT devices requiring wireless connectivity |
-| LN882H        | Domestic RISC-V architecture Wi-Fi SoC | Smart home, consumer electronics |
-| BK7231X       | Broadcom-integrated Wi-Fi IoT chip | Smart lighting, smart sockets, etc. |
 
 For more information, go to Link
 https://tuyaopen.ai/zh/docs/peripheral/support_peripheral_list

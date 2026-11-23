@@ -79,25 +79,21 @@ Before compiling the example, select the configuration file corresponding to you
 
   ```
   --------------------
-  1. BK7231X.config
-  2. ESP32-C3.config
-  3. ESP32-S3.config
-  4. ESP32.config
-  5. EWT103-W15.config
-  6. LN882H.config
-  7. T2.config
-  8. T3.config
-  9. T5AI.config
-  10. Ubuntu.config
+  1. ESP32-C3.config
+  2. ESP32-S3.config
+  3. ESP32.config
+  4. T3.config
+  5. T5AI.config
+  6. Ubuntu.config
   --------------------
   Input "q" to exit.
   Choice config file:
   ```
 
-- Enter the number corresponding to your target platform and press Enter. For example, to select T5AI, enter "9" and press Enter:
+- Enter the number corresponding to your target platform and press Enter. For example, to select T5AI, enter "5" and press Enter:
 
   ```shell
-  Choice config file: 9
+  Choice config file: 5
   [INFO]: Initialing using.config ...
   [NOTE]: Choice config: /home/share/samba/TuyaOpen/boards/T5AI/config/T5AI.config
   ```

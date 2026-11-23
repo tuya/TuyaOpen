@@ -9,7 +9,7 @@
  * practices for IR hardware configuration, protocol handling, and data communication.
  *
  * Key implementation features:
- * - Multi-platform hardware configuration support (BK7231N, RTL8720CF)
+ * - Platform-specific IR driver selection
  * - Dual protocol support (NEC protocol and raw timecode transmission)
  * - Bidirectional IR communication with transmit and receive capabilities
  * - Configurable timing parameters and error tolerance settings

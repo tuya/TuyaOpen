@@ -51,7 +51,7 @@ typedef unsigned char           IR_DRIVER_STATE_E;
 #define IR_DRV_SEND_HW_RESET        4
 #define IR_DRV_RECV_HW_INIT         5
 #define IR_DRV_RECV_HW_DEINIT       6
-#define IR_DRV_IRQ_ENABLE_TIME_SET  7 // for/bk7231n
+#define IR_DRV_IRQ_ENABLE_TIME_SET  7
 // #define IR_DRV_CODE_INTER_DELAY_SET 8 // Set the delay between continuous transmission of infrared code
 
 /***********************************************************

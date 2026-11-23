@@ -243,7 +243,5 @@ Please input text:
 |​T3|通用高性能 MCU 平台，基于 ARM Cortex-M 系列内核|需要较强处理能力的智能家电、工业控制|
 |​T2​​ |成本优化的通用 MCU 平台 |基础的智能家居设备、传感器节点|
 |​ESP32​​| 集成 Wi-Fi 和蓝牙的流行物联网平台| 需要无线连接的各种物联网设备|
-|LN882H​​ |国产 RISC-V| 架构 Wi-Fi SoC 智能家居、消费电子|
-|​BK7231X​​ |博通集成 Wi-Fi 的物联网芯片 |智能照明、智能插座等|
 
 获取更多信息，请到 https://tuyaopen.ai/zh/docs/peripheral/support_peripheral_list
