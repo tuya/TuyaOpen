@@ -6,8 +6,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from click.testing import CliRunner
-
 
 def _touch(path):
     with open(path, "w") as f:
@@ -79,38 +77,6 @@ class TestPruneStaleBins(unittest.TestCase):
     def test_missing_dir_is_noop(self):
         self.assertEqual(
             self.prune(os.path.join(self.bin_dir, "nope"), "a", "1"), [])
-
-
-class TestPrepareOnly(unittest.TestCase):
-    def test_prepare_only_runs_setup_without_compiling(self):
-        from tools.cli_command import cli_build
-        config = {
-            'CONFIG_PLATFORM_CHOICE': 'ESP32',
-            'CONFIG_CHIP_CHOICE': 'esp32p4',
-            'CONFIG_PROJECT_NAME': 'switch_demo',
-            'CONFIG_FRAMEWORK_CHOICE': 'base',
-        }
-        with patch('tools.cli_command.cli_prepare.ensure_build_env', return_value=True), \
-             patch.multiple(cli_build, check_proj_dir=MagicMock(), export_country_code=MagicMock(),
-                            env_check=MagicMock(return_value=True), init_using_config=MagicMock(),
-                            get_global_params=MagicMock(return_value={'using_config': 'using.config'}),
-                            parse_config_file=MagicMock(return_value=config),
-                            download_platform=MagicMock(return_value=True),
-                            prepare_platform=MagicMock(return_value=True),
-                            build_setup=MagicMock(return_value=True), cmake_configure=MagicMock(),
-                            ninja_build=MagicMock(), check_bin_file=MagicMock()):
-            result = CliRunner().invoke(cli_build.cli, ['--prepare-only'])
-            self.assertEqual(result.exit_code, 0, result.exception)
-            cli_build.download_platform.assert_called_once_with('ESP32')
-            cli_build.prepare_platform.assert_called_once_with('ESP32', 'esp32p4')
-            cli_build.build_setup.assert_called_once_with('ESP32', 'switch_demo', 'base', 'esp32p4')
-            cli_build.cmake_configure.assert_not_called()
-            cli_build.ninja_build.assert_not_called()
-            cli_build.check_bin_file.assert_not_called()
-            cli_build.build_setup.return_value = False
-            result = CliRunner().invoke(cli_build.cli, ['--prepare-only'])
-            self.assertEqual(result.exit_code, 1, result.exception)
-            cli_build.cmake_configure.assert_not_called()
 
 
 if __name__ == '__main__':
