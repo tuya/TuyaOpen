@@ -15,12 +15,8 @@ file(GLOB_RECURSE LIB_SRCS
     "${MODULE_PATH}/tdl_ir_device/src/*.c"
     )
 
-if (CONFIG_PLATFORM_T2 STREQUAL "y")
-    list(APPEND LIB_SRCS "${MODULE_PATH}/tdd_ir_driver/src/tdd_ir_driver_T2.c")
-elseif (CONFIG_PLATFORM_T5 STREQUAL "y")
+if (CONFIG_PLATFORM_T5 STREQUAL "y")
     list(APPEND LIB_SRCS "${MODULE_PATH}/tdd_ir_driver/src/tdd_ir_driver_T5.c")
-elseif (CONFIG_PLATFORM_BK7231X STREQUAL "y")
-    list(APPEND LIB_SRCS "${MODULE_PATH}/tdd_ir_driver/src/tdd_ir_driver_bk7231n.c")
 elseif (CONFIG_PLATFORM_T1 STREQUAL "y")
     list(APPEND LIB_SRCS "${MODULE_PATH}/tdd_ir_driver/src/tdd_ir_driver_T1.c")
 else()
