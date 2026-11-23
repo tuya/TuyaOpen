@@ -30,6 +30,8 @@ typedef struct {
     TDD_DVP_SR_CFG_T          sensor;
     TDD_DVP_SR_INTFS_T        intfs;
     TUYA_DVP_CFG_T            dvp_cfg;
+    TUYA_CAMERA_PPI_E         ppi;      /* last geometry, for the setup replay */
+    uint16_t                  fps;
     bool                      is_inited;
 }CAMERA_DVP_DEV_T;
 
@@ -43,7 +45,31 @@ static CAMERA_DVP_DEV_T *sg_dvp_dev = NULL;
 ***********************************************************/
 OPERATE_RET __tdd_dvp_setup_callback(void *args)
 {
+    CAMERA_DVP_DEV_T     *dev = sg_dvp_dev;
+    TDD_DVP_SR_USR_CFG_T *usr = NULL;
+    OPERATE_RET           rt  = OPRT_OK;
+
     (void)args;
+    (void)rt;
+
+    if (NULL == dev) {
+        return OPRT_COM_ERROR;
+    }
+    usr = &dev->sensor.usr_cfg;
+
+    /* The platform calls this once the sensor clock and its frame receiver are
+     * up; replay reset, tables and geometry so the first frame it sees starts
+     * at a frame head. */
+    if (dev->intfs.rst) {
+        TUYA_CALL_ERR_RETURN(dev->intfs.rst(&usr->rst, dev->intfs.arg));
+    }
+    if (dev->intfs.init) {
+        TUYA_CALL_ERR_RETURN(dev->intfs.init(&usr->i2c, dev->intfs.arg));
+    }
+    if (dev->intfs.set_ppi) {
+        TUYA_CALL_ERR_RETURN(dev->intfs.set_ppi(&usr->i2c, dev->ppi, dev->fps, dev->intfs.arg));
+    }
+
     return OPRT_OK;
 }
 
@@ -208,6 +234,9 @@ static OPERATE_RET __tdd_camera_dvp_open(TDD_CAMERA_DEV_HANDLE_T device, TDD_CAM
 
     if(dvp_dev->intfs.set_ppi) {
         TUYA_CAMERA_PPI_E ppi = (TUYA_CAMERA_PPI_E)((cfg->width << 16) | cfg->height);
+
+        dvp_dev->ppi = ppi;
+        dvp_dev->fps = cfg->fps;
         TUYA_CALL_ERR_RETURN(dvp_dev->intfs.set_ppi(&p_usr_cfg->i2c, ppi, cfg->fps, dvp_dev->intfs.arg));
     }
 
@@ -256,7 +285,7 @@ static OPERATE_RET __tdd_camera_dvp_set_bitrate(TDD_CAMERA_DEV_HANDLE_T device, 
 OPERATE_RET tdl_camera_dvp_device_register(char *name, TDD_DVP_SR_CFG_T *sr_cfg, TDD_DVP_SR_INTFS_T *sr_intfs)
 {
     CAMERA_DVP_DEV_T *dvp_dev = NULL;
-    TDD_CAMERA_DEV_INFO_T dev_info;
+    TDD_CAMERA_DEV_INFO_T dev_info = {0};
 
     if(NULL == name || NULL == sr_cfg) {
         return OPRT_INVALID_PARM;

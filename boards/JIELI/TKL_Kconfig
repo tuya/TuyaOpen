@@ -88,6 +88,17 @@ config ENABLE_PWM
         Compile-gate the Jieli TKL PWM adapter on both chips. This does not
         claim runtime or board PWM support; WL82 is not supported at runtime.
 
+config ENABLE_DVP
+    bool "Compile Jieli TKL DVP camera adapter"
+    default n
+    help
+        Compile tuyaos_adapter/src/driver/tkl_dvp.c, the bridge between the
+        camera TDD and the vendor video pipeline. It is implemented for WL82
+        only; the board declares which camera module it carries (see the
+        JIELI_BOARD_CAMERA_* choice in the board Kconfig). This is a
+        compile-time switch: it does not claim that the selected board has a
+        camera connector or a sensor fitted.
+
 config ENABLE_MCU8080
     bool "Compile Jieli TKL MCU8080 adapter"
     default y if BOARD_CHOICE_AC79_DEVKITBOARD
