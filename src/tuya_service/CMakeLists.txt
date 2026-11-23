@@ -26,6 +26,9 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_cli)
 # gated by CONFIG_ENABLE_WIFI/WIRED.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/netmgr)
 
+# Weather data service.
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/weather)
+
 # tal_sleep: CPU sleep / low-power management; tal_wifi LP interfaces use
 # tal_cpu_lp_*.
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tal_sleep)
