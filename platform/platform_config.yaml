@@ -17,7 +17,7 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: master
-  commit: cd4a3dae9393da9259323c7b93c2bfd09138236c
+  commit: b4e609ba8a360b42c6e877bbc8860b9745ce188f
 
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
