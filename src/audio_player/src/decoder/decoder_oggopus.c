@@ -324,9 +324,9 @@ static int decoder_oggopus_process(void* handle, uint8_t *in_buf, int in_len,
 
                 if (samples_decoded > 0) {
                     uint32_t decoded_bytes = samples_decoded * ctx->channels * sizeof(SHORT_T);
-                    output->sample = (TKL_AUDIO_SAMPLE_E)ctx->sample_rate;
-                    output->datebits = TKL_AUDIO_DATABITS_16;
-                    output->channel = (ctx->channels == 1) ? TKL_AUDIO_CHANNEL_MONO : TKL_AUDIO_CHANNEL_STEREO;
+                    output->sample = ctx->sample_rate;
+                    output->datebits = 16U;
+                    output->channel = (uint8_t)ctx->channels;
                     output->samples += samples_decoded;
                     output->used_size += decoded_bytes;
                     out_buf += decoded_bytes;

@@ -72,3 +72,22 @@ config ENABLE_UART
 config ENABLE_QSPI
     bool "Enable QSPI adapter"
     default y
+
+config ENABLE_EXT_RAM
+    bool
+    depends on GD32H77X_PSRAM_ACCESS_MAPPED
+    default n
+    help
+      Enable the pointer-based TKL PSRAM heap. This is valid only when the
+      OSPI PSRAM is configured for memory-mapped access. Indirect mode uses
+      the explicit offset-based driver API instead.
+
+config ENABLE_PSRAM
+    bool "Enable mapped PSRAM block allocator"
+    default y if BOARD_CHOICE_GD32H779I_DESK_BUDDY
+    default n
+    help
+      Expose tkl_system_psram_malloc/free for explicitly selected large
+      blocks. Allocations are 32-byte aligned and the region is mapped as
+      non-cacheable Device memory. Use the PSRAM ring or copy helpers for
+      data movement; do not treat these blocks as a general C pointer heap.

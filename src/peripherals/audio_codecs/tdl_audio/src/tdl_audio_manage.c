@@ -45,6 +45,8 @@ typedef struct list_node {
     TDD_AUDIO_HANDLE_T tdd_hdl;
     TDD_AUDIO_INTFS_T  tdd_intfs;
     TDD_AUDIO_INFO_T   tdd_info;
+    TDL_AUDIO_EVENT_CB event_cb;
+    void *event_user_data;
 } TDL_AUDIO_NODE_T;
 
 typedef struct {
@@ -129,19 +131,27 @@ OPERATE_RET tdl_audio_find(char *name, TDL_AUDIO_HANDLE_T *handle)
 OPERATE_RET tdl_audio_get_info(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_INFO_T *info)
 {
     TDL_AUDIO_NODE_T *node = (TDL_AUDIO_NODE_T *)handle;
-    uint32_t per_ms_size = 0;
 
     TUYA_CHECK_NULL_RETURN(node, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(info, OPRT_INVALID_PARM);
 
-    info->sample_rate   = node->tdd_info.sample_rate;
-    info->sample_bits   = node->tdd_info.sample_bits;
-    info->sample_ch_num = node->tdd_info.sample_ch_num;
-    info->sample_tm_ms  = node->tdd_info.sample_tm_ms;
-    
-    per_ms_size = node->tdd_info.sample_rate * node->tdd_info.sample_ch_num *\
-                  (node->tdd_info.sample_bits / 8) / 1000;
-    info->frame_size = node->tdd_info.sample_tm_ms * per_ms_size;
+    memcpy(info, &node->tdd_info, sizeof(*info));
+    for (uint32_t i = 0U; i < 2U; ++i) {
+        TDL_AUDIO_STREAM_INFO_T *stream = i == 0U ? &info->capture : &info->playback;
+
+        if (stream->format != TDL_AUDIO_FRAME_FORMAT_PCM) {
+            stream->frame_size = 0U;
+            continue;
+        }
+
+        uint32_t per_ms_size = (uint32_t)stream->sample_rate *
+                               stream->sample_ch_num *
+                               (stream->sample_bits / 8U) / 1000U;
+        stream->frame_size = (uint16_t)(stream->sample_tm_ms * per_ms_size);
+        if (stream->max_payload_size == 0U) {
+            stream->max_payload_size = stream->frame_size;
+        }
+    }
 
     return OPRT_OK;
 }
@@ -201,6 +211,20 @@ OPERATE_RET tdl_audio_play_stop(TDL_AUDIO_HANDLE_T handle)
     }
 
     return node->tdd_intfs.config(node->tdd_hdl, TDD_AUDIO_CMD_PLAY_STOP, NULL);
+}
+
+OPERATE_RET tdl_audio_event_register(TDL_AUDIO_HANDLE_T handle,
+                                     TDL_AUDIO_EVENT_CB cb, void *user_data)
+{
+    TDL_AUDIO_NODE_T *node = (TDL_AUDIO_NODE_T *)handle;
+
+    TUYA_CHECK_NULL_RETURN(node, OPRT_INVALID_PARM);
+    node->event_cb = cb;
+    node->event_user_data = user_data;
+    if (node->tdd_intfs.event_register != NULL) {
+        return node->tdd_intfs.event_register(node->tdd_hdl, cb, user_data);
+    }
+    return OPRT_OK;
 }
 
 OPERATE_RET tdl_audio_volume_set(TDL_AUDIO_HANDLE_T handle, uint8_t volume)

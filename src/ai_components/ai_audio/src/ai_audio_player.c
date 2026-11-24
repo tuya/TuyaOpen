@@ -15,8 +15,6 @@
 #include "tuya_ringbuf.h"
 #include "svc_ai_player.h"
 
-#include "tdl_audio_manage.h"
-
 #include "media_src.h"
 #include "ai_user_event.h"
 #include "ai_agent.h"
@@ -44,6 +42,8 @@
 static bool __s_music_continuous = false;
 static bool __s_music_replay = false;
 static bool __s_tts_play_flag = false;
+static bool __s_tts_passthrough = false;
+static bool __s_tone_passthrough = false;
 static AI_PLAYER_HANDLE __s_tone_player = NULL;
 static AI_PLAYLIST_HANDLE __s_tone_playlist = NULL;
 static AI_PLAYER_HANDLE __s_music_player = NULL;
@@ -52,6 +52,17 @@ static AI_PLAYER_ALERT_CUSTOM_CB __s_alert_custom_cb = NULL;
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
+static bool __audio_can_passthrough(AI_AUDIO_CODEC_E codec)
+{
+    AI_PLAYER_CONSUMER_CAPS_T caps;
+
+    if (codec >= AI_AUDIO_CODEC_MAX ||
+        tuya_ai_player_get_consumer_caps(&caps) != OPRT_OK) {
+        return false;
+    }
+    return (caps.passthrough_codec_mask & AI_PLAYER_CODEC_MASK(codec)) != 0U;
+}
+
 #if defined(AI_PLAYER_ALERT_SOURCE_LOCAL) && (AI_PLAYER_ALERT_SOURCE_LOCAL == 1)
 
 OPERATE_RET __player_local_alert(AI_AUDIO_ALERT_TYPE_E type)
@@ -174,6 +185,14 @@ static OPERATE_RET __player_event(void *data)
         /* If TTS play stop, reset play flag */
         if(event->handle == __s_tone_player && __s_tts_play_flag) {
             __s_tts_play_flag = FALSE;
+        }
+        if (event->handle == __s_tone_player && __s_tts_passthrough) {
+            TUYA_CALL_ERR_LOG(tuya_ai_player_set_decoder_mode(true));
+            __s_tts_passthrough = false;
+        }
+        if (event->handle == __s_tone_player && __s_tone_passthrough) {
+            TUYA_CALL_ERR_LOG(tuya_ai_player_set_decoder_mode(true));
+            __s_tone_passthrough = false;
         }
     }
     else if (event->state == AI_PLAYER_PLAYING) {
@@ -358,6 +377,11 @@ OPERATE_RET ai_audio_play_data(AI_AUDIO_CODEC_E format, uint8_t *data, uint32_t 
 
     if (data && len > 0) {
         PR_NOTICE("audio player -> player tts mem data len %d", len);
+        __s_tone_passthrough = __audio_can_passthrough(format);
+        TUYA_CALL_ERR_LOG(tuya_ai_player_set_decoder_mode(!__s_tone_passthrough));
+        if (__s_tone_passthrough) {
+            PR_NOTICE("audio player -> alert passthrough format=%u", format);
+        }
         TUYA_CALL_ERR_LOG(tuya_ai_player_start(__s_tone_player, AI_PLAYER_SRC_MEM, NULL, format));
         TUYA_CALL_ERR_LOG(tuya_ai_player_feed(__s_tone_player, (uint8_t *)data, len));
         TUYA_CALL_ERR_LOG(tuya_ai_player_feed(__s_tone_player, NULL, 0));
@@ -382,7 +406,12 @@ OPERATE_RET ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_STATE_E state, AI_AUDIO
     case AI_AUDIO_PLAYER_TTS_START:
         PR_DEBUG("audio player -> tts stream start");
         __s_tts_play_flag = TRUE;
+        __s_tts_passthrough = __audio_can_passthrough(codec);
         ai_user_event_notify(AI_USER_EVT_TTS_PRE, NULL);
+        TUYA_CALL_ERR_LOG(tuya_ai_player_set_decoder_mode(!__s_tts_passthrough));
+        if (__s_tts_passthrough) {
+            PR_NOTICE("audio player -> encoded passthrough format=%u", codec);
+        }
         TUYA_CALL_ERR_LOG(tuya_ai_playlist_clear(__s_tone_playlist));
         TUYA_CALL_ERR_LOG(tuya_ai_player_start(__s_tone_player, AI_PLAYER_SRC_MEM, NULL, codec));
         ai_user_event_notify(AI_USER_EVT_TTS_START, NULL);
@@ -397,11 +426,13 @@ OPERATE_RET ai_audio_play_tts_stream(AI_AUDIO_PLAYER_TTS_STATE_E state, AI_AUDIO
     case AI_AUDIO_PLAYER_TTS_STOP:
         PR_DEBUG("audio player -> tts stream stop");
         TUYA_CALL_ERR_LOG(tuya_ai_player_feed(__s_tone_player, NULL, 0));
+        __s_tts_play_flag = false;
         ai_user_event_notify(AI_USER_EVT_TTS_STOP, NULL);
         break;
     case AI_AUDIO_PLAYER_TTS_ABORT:
         PR_DEBUG("audio player -> tts stream abort");
         TUYA_CALL_ERR_LOG(tuya_ai_player_feed(__s_tone_player, NULL, 0));
+        __s_tts_play_flag = false;
         ai_user_event_notify(AI_USER_EVT_TTS_ABORT, NULL);
         break;
     default:
@@ -446,6 +477,7 @@ OPERATE_RET ai_audio_player_stop(AI_AUDIO_PLAYER_TYPE_E type)
     switch (type)
     {
     case AI_AUDIO_PLAYER_FG:
+        __s_tts_play_flag = false;
         TUYA_CALL_ERR_LOG(tuya_ai_playlist_clear(__s_tone_playlist));
         TUYA_CALL_ERR_LOG(tuya_ai_player_stop(__s_tone_player));
         break;
@@ -454,6 +486,7 @@ OPERATE_RET ai_audio_player_stop(AI_AUDIO_PLAYER_TYPE_E type)
         TUYA_CALL_ERR_LOG(tuya_ai_player_stop(__s_music_player));
         break;
     case AI_AUDIO_PLAYER_ALL:
+        __s_tts_play_flag = false;
         TUYA_CALL_ERR_LOG(tuya_ai_playlist_clear(__s_tone_playlist));
         TUYA_CALL_ERR_LOG(tuya_ai_player_stop(__s_tone_player));
         TUYA_CALL_ERR_LOG(tuya_ai_playlist_clear(__s_music_playlist));

@@ -18,6 +18,10 @@ if (CONFIG_ENABLE_MEDIA STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio.c)
 endif()
 
+if (CONFIG_ENABLE_TDD_AUDIO_TY_UART STREQUAL "y")
+    list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio_ty_uart.c)
+endif()
+
 # Add ALSA support for Ubuntu platform
 if (CONFIG_ENABLE_AUDIO_ALSA STREQUAL "y")
     list(APPEND LIB_SRCS ${MODULE_PATH}/tdd_audio/src/tdd_audio_alsa.c)

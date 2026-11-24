@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-OPERATE_RET ai_player_resample_init(TKL_AUDIO_SAMPLE_E sample, TKL_AUDIO_DATABITS_E datebits, TKL_AUDIO_CHANNEL_E channel);
+OPERATE_RET ai_player_resample_init(uint32_t sample, uint8_t datebits, uint8_t channel);
 OPERATE_RET ai_player_resample_deinit(void);
 OPERATE_RET ai_player_resample_process(uint8_t *in_buf, DECODER_OUTPUT_T *in_cfg, uint8_t *out_buf, int *out_size);
 

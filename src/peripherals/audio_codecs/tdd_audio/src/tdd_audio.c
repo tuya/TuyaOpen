@@ -225,10 +225,13 @@ OPERATE_RET tdd_audio_register(char *name, TDD_AUDIO_T5AI_T cfg)
 
     memcpy(&_hdl->cfg, &cfg, sizeof(TDD_AUDIO_T5AI_T));
 
-    info.sample_rate   = cfg.sample_rate;
-    info.sample_ch_num = cfg.channel;
-    info.sample_bits   = cfg.data_bits;
-    info.sample_tm_ms  = AUDIO_PCM_FRAME_MS;
+    info.capture.format = TDL_AUDIO_FRAME_FORMAT_PCM;
+    info.capture.sample_rate   = cfg.sample_rate;
+    info.capture.sample_ch_num = cfg.channel;
+    info.capture.sample_bits   = cfg.data_bits;
+    info.capture.sample_tm_ms  = AUDIO_PCM_FRAME_MS;
+
+    info.playback = info.capture;
 
     intfs.open = __tdd_audio_open;
     intfs.play = __tdd_audio_play;

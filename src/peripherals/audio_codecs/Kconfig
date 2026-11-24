@@ -12,6 +12,14 @@ if (ENABLE_AUDIO_CODECS)
         string "the name of audio codec"
         default "audio_codec"
 
+    config ENABLE_TDD_AUDIO_TY_UART
+        bool "enable Tuya offline voice UART audio driver"
+        default n
+        ---help---
+            Enable the generic TDD audio driver for offline voice chips that
+            implement the Tuya offline voice UART protocol (0x55AA / 0x92).
+            Board code supplies UART pins, reset GPIO and PCM format.
+
     config ENABLE_AUDIO_AEC
         bool "audio support AEC"
         default n

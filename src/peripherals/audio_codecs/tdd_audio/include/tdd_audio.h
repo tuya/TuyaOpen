@@ -36,23 +36,35 @@ extern "C" {
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
+/**
+ * @brief T5AI audio device configuration.
+ */
 typedef struct {
-    uint8_t aec_enable;
-    TKL_AI_CHN_E ai_chn;
-    TKL_AUDIO_SAMPLE_E sample_rate;
-    TKL_AUDIO_DATABITS_E data_bits;
-    TKL_AUDIO_CHANNEL_E channel;
+    uint8_t aec_enable;                  /**< Enable hardware AEC. */
+    TKL_AI_CHN_E ai_chn;                 /**< Audio input channel. */
+    TKL_AUDIO_SAMPLE_E sample_rate;      /**< Capture sample rate. */
+    TKL_AUDIO_DATABITS_E data_bits;      /**< Capture bits per sample. */
+    TKL_AUDIO_CHANNEL_E channel;         /**< Capture channel mode. */
 
-    // spk
-    TKL_AUDIO_SAMPLE_E spk_sample_rate;
-    int spk_pin;
-    int spk_pin_polarity;
+    TKL_AUDIO_SAMPLE_E spk_sample_rate;  /**< Playback sample rate. */
+    int spk_pin;                         /**< Speaker enable GPIO, or -1 if unused. */
+    int spk_pin_polarity;                /**< Active level of the speaker enable GPIO. */
 } TDD_AUDIO_T5AI_T;
 
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
+/**
+ * @brief Register the T5AI audio driver.
+ *
+ * This function is called by board initialization code only. Application code
+ * must use the tdl_audio_* abstraction.
+ *
+ * @param[in] name Unique TDL audio device name, normally AUDIO_CODEC_NAME.
+ * @param[in] cfg  T5AI audio hardware configuration.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdd_audio_register(char *name, TDD_AUDIO_T5AI_T cfg);
 
 #ifdef __cplusplus

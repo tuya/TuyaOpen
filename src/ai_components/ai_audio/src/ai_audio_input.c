@@ -12,7 +12,9 @@
 
 #include "tuya_cloud_types.h"
 #include "tuya_ringbuf.h"
+#if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
 #include "tkl_vad.h"
+#endif
 
 #include "tal_api.h"
 
@@ -229,12 +231,12 @@ static AI_AUDIO_RECODER_T *__audio_recorder_create(AI_AUDIO_INPUT_CFG_T *cfg, TD
     sg_recorder->vad_task       = NULL;
     sg_recorder->vad_mode       = cfg->vad_mode;
 
-    uint32_t audio_1ms_size     = audio_info->sample_rate * audio_info->sample_bits * audio_info->sample_ch_num / 8 / 1000;
+    uint32_t audio_1ms_size     = audio_info->capture.sample_rate * audio_info->capture.sample_bits * audio_info->capture.sample_ch_num / 8 / 1000;
     sg_recorder->vad_size       = (cfg->vad_active_ms + 300) * audio_1ms_size + 1;
     sg_recorder->slice_size     = cfg->slice_ms * audio_1ms_size;
 
     uint32_t rb_size = sg_recorder->vad_size;
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if TUYA_RINGBUF_PSRAM_ENABLED
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(rb_size, OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder->ringbuf), __error);
 #else
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(rb_size, OVERFLOW_STOP_TYPE, &sg_recorder->ringbuf), __error);
@@ -366,7 +368,7 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &audio_info));
 
-    PR_DEBUG("sample %d, databits %d, channel %d", audio_info.sample_rate, audio_info.sample_bits, audio_info.sample_ch_num);
+    PR_DEBUG("sample %d, databits %d, channel %d", audio_info.capture.sample_rate, audio_info.capture.sample_bits, audio_info.capture.sample_ch_num);
 
     TUYA_CHECK_NULL_RETURN(sg_recorder = __audio_recorder_create(cfg, &audio_info), OPRT_MALLOC_FAILED);
 
@@ -375,8 +377,8 @@ OPERATE_RET ai_audio_input_init(AI_AUDIO_INPUT_CFG_T *cfg)
 #if defined(ENABLE_COMP_AI_AUDIO_VAD) && (ENABLE_COMP_AI_AUDIO_VAD == 1)
     TKL_VAD_CONFIG_T vad_cfg = {0};
     memset(&vad_cfg, 0, sizeof(TKL_VAD_CONFIG_T));
-    vad_cfg.sample_rate     = audio_info.sample_rate;
-    vad_cfg.channel_num     = audio_info.sample_ch_num;
+    vad_cfg.sample_rate     = audio_info.capture.sample_rate;
+    vad_cfg.channel_num     = audio_info.capture.sample_ch_num;
     vad_cfg.speech_min_ms   = cfg->vad_active_ms;
     vad_cfg.noise_min_ms    = cfg->vad_off_ms;
     vad_cfg.frame_duration_ms = 10;

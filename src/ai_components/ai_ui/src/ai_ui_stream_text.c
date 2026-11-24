@@ -174,7 +174,7 @@ OPERATE_RET ai_ui_stream_text_init(AI_UI_STREAM_TEXT_DISP_CB disp_cb)
     }
 
     if (NULL == sg_text_stream.text_ringbuff) {
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if TUYA_RINGBUF_PSRAM_ENABLED
         TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, \
                                                    OVERFLOW_PSRAM_STOP_TYPE, \
                                                    &sg_text_stream.text_ringbuff));
@@ -263,4 +263,4 @@ void ai_ui_stream_text_reset(void)
         tuya_ring_buff_reset(sg_text_stream.text_ringbuff);
         tal_mutex_unlock(sg_text_stream.rb_mutex);
     }
-} 
+}

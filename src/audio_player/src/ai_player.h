@@ -51,6 +51,7 @@ typedef struct {
             AI_PLAYER_SRC_E src;
             char *value;
             AI_AUDIO_CODEC_E codec;
+            bool decoder_mode;
         } cmd_start;
     } param;
 } AI_PLAYER_MSG_T;
@@ -66,6 +67,7 @@ typedef struct {
     uint32_t decode_size;
     int volume;
     bool mute;
+    bool decoder_mode;
     bool has_pending_output;  // TRUE: decoder has pending data, skip reading new input
     AI_PLAYLIST_HANDLE playlist;
     void (*playlist_cb)(AI_PLAYLIST_HANDLE playlist, AI_PLAYER_STATE_T state);

@@ -21,7 +21,6 @@
 #define __SVC_AI_PLAYER_H__
 
 #include "tuya_cloud_types.h"
-#include "tkl_audio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,6 +203,13 @@ typedef enum {
     AI_AUDIO_CODEC_MAX
 } AI_AUDIO_CODEC_E;
 
+#define AI_PLAYER_CODEC_MASK(codec) (1UL << (uint32_t)(codec))
+
+/** @brief Capabilities of the currently bound player output consumer. */
+typedef struct {
+    uint32_t passthrough_codec_mask; /**< Encoded codecs the consumer accepts as-is. */
+} AI_PLAYER_CONSUMER_CAPS_T;
+
 /**
  * @brief Audio output consumer interface definition.
  *
@@ -232,6 +238,8 @@ typedef enum {
 typedef struct {
     OPERATE_RET (*open)(PLAYER_CONSUMER_HANDLE *handle);
     OPERATE_RET (*close)(PLAYER_CONSUMER_HANDLE handle);
+    OPERATE_RET (*get_caps)(PLAYER_CONSUMER_HANDLE handle,
+                            AI_PLAYER_CONSUMER_CAPS_T *caps);
     OPERATE_RET (*start)(PLAYER_CONSUMER_HANDLE handle);
     OPERATE_RET (*write)(PLAYER_CONSUMER_HANDLE handle, const void *buf, uint32_t len);
     OPERATE_RET (*stop)(PLAYER_CONSUMER_HANDLE handle);
@@ -245,9 +253,9 @@ typedef struct {
  * These settings will be applied to consumers when starting playback.
  */
 typedef struct {
-    TKL_AUDIO_SAMPLE_E sample;      // Audio sample rate
-    TKL_AUDIO_DATABITS_E datebits;  // Audio data bits per sample
-    TKL_AUDIO_CHANNEL_E channel;    // Audio channel count
+    uint32_t sample;                // Audio sample rate
+    uint8_t  datebits;              // Audio data bits per sample
+    uint8_t  channel;               // Audio channel count
 } AI_PLAYER_CFG_T;
 
 /**
@@ -386,6 +394,15 @@ AI_AUDIO_CODEC_E tuya_ai_player_get_codec(AI_PLAYER_HANDLE handle);
  * @return OPRT_OK on success. Others on error, please refer to tuya_error_code.h
  */
 OPERATE_RET tuya_ai_player_set_consumer(AI_PLAYER_CONSUMER_T *consumer);
+
+/**
+ * @brief Get the capabilities of the currently bound output consumer.
+ *
+ * @param[out] caps Receives the supported passthrough formats.
+ *
+ * @return OPRT_OK on success.
+ */
+OPERATE_RET tuya_ai_player_get_consumer_caps(AI_PLAYER_CONSUMER_CAPS_T *caps);
 
 /**
  * @brief Set playback volume.

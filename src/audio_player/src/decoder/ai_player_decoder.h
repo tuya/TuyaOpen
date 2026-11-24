@@ -20,7 +20,6 @@
 #ifndef __AI_PLAYER_DECODER_H__
 #define __AI_PLAYER_DECODER_H__
 #include "tuya_cloud_types.h"
-#include "tkl_audio.h"
 #include "svc_ai_player.h"
 
 #ifdef __cplusplus
@@ -30,9 +29,9 @@ extern "C" {
 typedef void* PLAYER_DECODER;
 
 typedef struct {
-    TKL_AUDIO_SAMPLE_E sample;      // Audio sample rate
-    TKL_AUDIO_DATABITS_E datebits;  // Audio data bits per sample
-    TKL_AUDIO_CHANNEL_E channel;    // Audio channel count
+    uint32_t sample;                // Audio sample rate
+    uint8_t  datebits;              // Audio data bits per sample
+    uint8_t  channel;               // Audio channel count
     uint32_t samples;                 // Audio samples
     uint32_t used_size;               // Audio frame size in bytes
 } DECODER_OUTPUT_T;

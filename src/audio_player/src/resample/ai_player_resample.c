@@ -23,14 +23,14 @@
 #include "resample_fixed.h"
 
 typedef struct {
-    TKL_AUDIO_SAMPLE_E sample;
-    TKL_AUDIO_DATABITS_E datebits;
-    TKL_AUDIO_CHANNEL_E channel;
+    uint32_t sample;
+    uint8_t datebits;
+    uint8_t channel;
 } RESAMPLE_CTX_T;
 
 static RESAMPLE_CTX_T s_resample_ctx = {0};
 
-OPERATE_RET ai_player_resample_init(TKL_AUDIO_SAMPLE_E sample, TKL_AUDIO_DATABITS_E datebits, TKL_AUDIO_CHANNEL_E channel)
+OPERATE_RET ai_player_resample_init(uint32_t sample, uint8_t datebits, uint8_t channel)
 {
     s_resample_ctx.sample = sample;
     s_resample_ctx.datebits = datebits;

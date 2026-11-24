@@ -77,14 +77,14 @@ static void __switch_player_mode(void)
 
     if(active_player) {
         if(s_ai_player_ctx.active_player != active_player) {
-            if(!s_ai_player_ctx.active_player && s_ai_player_ctx.decoder_mode && s_ai_player_ctx.consumer.start) {
+            if(!s_ai_player_ctx.active_player && active_player->decoder_mode && s_ai_player_ctx.consumer.start) {
                 s_ai_player_ctx.consumer.start(s_ai_player_ctx.consumer_handle);
             }
             s_ai_player_ctx.active_player = active_player;
             s_ai_player_ctx.is_playing = true;
         }
     } else {
-        if(s_ai_player_ctx.active_player && s_ai_player_ctx.decoder_mode && s_ai_player_ctx.consumer.stop) {
+        if(s_ai_player_ctx.active_player && s_ai_player_ctx.active_player->decoder_mode && s_ai_player_ctx.consumer.stop) {
             s_ai_player_ctx.consumer.stop(s_ai_player_ctx.consumer_handle);
         }
         s_ai_player_ctx.active_player = NULL;
@@ -104,8 +104,11 @@ static OPERATE_RET __cmd_player_start(AI_PLAYER_T *player, AI_PLAYER_MSG_T *msg)
 
     PR_DEBUG("start player %s value=%s", s_player_mode_str[player->mode], msg->param.cmd_start.value ? msg->param.cmd_start.value : "null");
 
+    player->decoder_mode = msg->param.cmd_start.decoder_mode;
     TUYA_CALL_ERR_RETURN(ai_player_datasink_start(player->sink, msg->param.cmd_start.src, msg->param.cmd_start.value));
-    TUYA_CALL_ERR_RETURN(ai_player_decoder_start(player->decoder, msg->param.cmd_start.codec));
+    if(player->decoder_mode) {
+        TUYA_CALL_ERR_RETURN(ai_player_decoder_start(player->decoder, msg->param.cmd_start.codec));
+    }
 
     player->state = AI_PLAYER_PLAYING;
     player->offset = 0;
@@ -114,7 +117,7 @@ static OPERATE_RET __cmd_player_start(AI_PLAYER_T *player, AI_PLAYER_MSG_T *msg)
         Free(msg->param.cmd_start.value);
     }
 
-    if(!s_ai_player_ctx.decoder_mode) {
+    if(!player->decoder_mode) {
         if(s_ai_player_ctx.consumer.start) {
             s_ai_player_ctx.consumer.start(s_ai_player_ctx.consumer_handle);
         }
@@ -141,7 +144,7 @@ static OPERATE_RET __cmd_player_stop(AI_PLAYER_T *player)
         player->playlist_cb(player->playlist, player->state);
     }
 
-    if(!s_ai_player_ctx.decoder_mode) {
+    if(!player->decoder_mode) {
         if(s_ai_player_ctx.consumer.stop) {
             s_ai_player_ctx.consumer.stop(s_ai_player_ctx.consumer_handle);
         }
@@ -250,7 +253,7 @@ static OPERATE_RET __handle_player_streaming_source(AI_PLAYER_T *player)
         return OPRT_OK;
     }
 
-    if(!s_ai_player_ctx.decoder_mode) {
+    if(!player->decoder_mode) {
         player->decode_size = (player->offset > AI_PLAYER_DECODEBUF_SIZE) ? AI_PLAYER_DECODEBUF_SIZE : player->offset;
         memcpy(player->decode_buf, player->framebuf, player->decode_size);
         player->offset -= player->decode_size;
@@ -702,6 +705,7 @@ OPERATE_RET tuya_ai_player_start(AI_PLAYER_HANDLE handle, AI_PLAYER_SRC_E src, c
     msg.cmd  = PLAYER_CMD_START;
     msg.param.cmd_start.src = src;
     msg.param.cmd_start.codec = codec;
+    msg.param.cmd_start.decoder_mode = s_ai_player_ctx.decoder_mode;
     msg.param.cmd_start.value = value ? mm_strdup(value) : NULL;
     TUYA_CALL_ERR_RETURN(tal_queue_post(s_ai_player_ctx.queue, &msg, 0));
     if(src == AI_PLAYER_SRC_MEM) {
@@ -882,6 +886,20 @@ OPERATE_RET tuya_ai_player_set_consumer(AI_PLAYER_CONSUMER_T *consumer)
         s_ai_player_ctx.consumer.open(&s_ai_player_ctx.consumer_handle);
     }
 
+    return OPRT_OK;
+}
+
+OPERATE_RET tuya_ai_player_get_consumer_caps(AI_PLAYER_CONSUMER_CAPS_T *caps)
+{
+    if (caps == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    memset(caps, 0, sizeof(*caps));
+    if (s_ai_player_ctx.consumer.get_caps != NULL) {
+        return s_ai_player_ctx.consumer.get_caps(s_ai_player_ctx.consumer_handle,
+                                                 caps);
+    }
     return OPRT_OK;
 }
 

@@ -197,12 +197,12 @@ OPERATE_RET tuya_ai_output_init(AI_OUTPUT_CBS_T *cbs)
 #if (AI_OUTPUT_RINGBUF_SIZE > 0)
     ai_output_ctx.output_buf = Malloc(AI_OUTPUT_BUF_SIZE);
     TUYA_CHECK_NULL_GOTO(ai_output_ctx.output_buf, EXIT);
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    PR_DEBUG("ai output: ENABLE_EXT_RAM=1, ringbuf from PSRAM");
+#if TUYA_RINGBUF_PSRAM_ENABLED
+    PR_DEBUG("ai output: ringbuf from PSRAM");
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_OUTPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ai_output_ctx.ringbuf), EXIT);
     PR_DEBUG("ai output: ringbuf=%p output_buf=%p", ai_output_ctx.ringbuf, ai_output_ctx.output_buf);
 #else
-    PR_DEBUG("ai output: ENABLE_EXT_RAM=0, ringbuf from SRAM");
+    PR_DEBUG("ai output: ringbuf from SRAM");
     TUYA_CALL_ERR_GOTO(tuya_ring_buff_create(AI_OUTPUT_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ai_output_ctx.ringbuf), EXIT);
 #endif
 

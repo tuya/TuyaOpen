@@ -10,7 +10,11 @@
  */
 
 #include "tal_api.h"
+#if defined(ENABLE_COMP_AI_AUDIO) && (ENABLE_COMP_AI_AUDIO == 1) && \
+    ((defined(ENABLE_COMP_AI_MODE_WAKEUP) && (ENABLE_COMP_AI_MODE_WAKEUP == 1)) || \
+     (defined(ENABLE_COMP_AI_MODE_FREE) && (ENABLE_COMP_AI_MODE_FREE == 1)))
 #include "tkl_kws.h"
+#endif
 
 #include "cJSON.h"
 #include "tuya_ai_agent.h"
