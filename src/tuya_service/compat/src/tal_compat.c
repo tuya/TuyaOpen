@@ -55,7 +55,7 @@ void *tal_psram_realloc(void *ptr, size_t size)
     return heap_caps_realloc(ptr, size, MALLOC_CAP_SPIRAM);
 }
 
-INT_T tal_psram_get_free_heap_size(VOID_T)
+int tal_psram_get_free_heap_size(void)
 {
     return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 }
@@ -83,7 +83,7 @@ void *tal_psram_realloc(void *ptr, size_t size)
     return tkl_system_psram_realloc(ptr, size);
 }
 
-INT_T tal_psram_get_free_heap_size(VOID_T)
+int tal_psram_get_free_heap_size(void)
 {
     return tkl_system_psram_get_free_heap_size();
 }
