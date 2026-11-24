@@ -2,7 +2,7 @@ platforms:
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
   branch: master
-  commit: 649c3aaacc405c55cf94fc0bf56fee754e1d5c86
+  commit: 2b34abe830bb9920ccdb94f1449d17ddd1e50a1a
 
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
