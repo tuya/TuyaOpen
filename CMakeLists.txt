@@ -126,9 +126,6 @@ include("${PLATFORM_PATH}/platform_config.cmake")
 set(COMPONENT_LIBS "")
 set(COMPONENT_PUBINC "")
 list_components(COMPONENT_LIST "${TOP_SOURCE_DIR}/src")
-# image_album is not part of this build.
-list(REMOVE_ITEM COMPONENT_LIST
-    image_album)
 foreach(comp ${COMPONENT_LIST})
     # message(STATUS "comp: ${comp}")
     add_subdirectory("${TOP_SOURCE_DIR}/src/${comp}")
