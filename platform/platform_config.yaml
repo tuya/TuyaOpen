@@ -7,7 +7,7 @@ platforms:
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 90a944c625d4e442db40056b67103c8e23fb7304
+  commit: 5618f25cdae02f3adb44dec40284c0b46fa800da
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
@@ -22,7 +22,7 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: 384d835ca9ac3a7bae7fdf4548c5488230b55c05
+  commit: b0b66cae2f8eacdb5d22722ab6137b8ea93574b7
 
 - name: SIWX917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
