@@ -362,10 +362,13 @@ OPERATE_RET tdd_audio_es8388_codec_register(char *name, TDD_AUDIO_ES8388_CODEC_T
     // default play volume
     _hdl->play_volume = 80;
 
-    info.sample_rate    = cfg.mic_sample_rate;
-    info.sample_ch_num  = 1;
-    info.sample_bits    = SAMPLE_DATABITS;
-    info.sample_tm_ms   = I2S_READ_TIME_MS;
+    info.capture.format = TDL_AUDIO_FRAME_FORMAT_PCM;
+    info.capture.sample_rate = cfg.mic_sample_rate;
+    info.capture.sample_ch_num = 1;
+    info.capture.sample_bits = SAMPLE_DATABITS;
+    info.capture.sample_tm_ms = I2S_READ_TIME_MS;
+    info.playback = info.capture;
+    info.playback.sample_rate = cfg.spk_sample_rate;
 
     memcpy(&_hdl->cfg, &cfg, sizeof(TDD_AUDIO_ES8388_CODEC_T));
 
