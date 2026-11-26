@@ -273,6 +273,22 @@ OPERATE_RET tdl_audio_driver_register(char *name, TDD_AUDIO_HANDLE_T tdd_hdl,\
     TUYA_CHECK_NULL_RETURN(name, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(intfs, OPRT_INVALID_PARM);
     TUYA_CHECK_NULL_RETURN(tdd_hdl, OPRT_INVALID_PARM);
+    TUYA_CHECK_NULL_RETURN(info, OPRT_INVALID_PARM);
+
+    if (info->playback.format == TDL_AUDIO_FRAME_FORMAT_PCM) {
+        if (info->playback.sample_rate == 0U) {
+            info->playback.sample_rate = info->capture.sample_rate;
+        }
+        if (info->playback.sample_ch_num == 0U) {
+            info->playback.sample_ch_num = info->capture.sample_ch_num;
+        }
+        if (info->playback.sample_bits == 0U) {
+            info->playback.sample_bits = info->capture.sample_bits;
+        }
+        if (info->playback.sample_tm_ms == 0U) {
+            info->playback.sample_tm_ms = info->capture.sample_tm_ms;
+        }
+    }
 
     TDL_AUDIO_NODE_T *node = __audio_node_find(name);
     if (NULL != node) {

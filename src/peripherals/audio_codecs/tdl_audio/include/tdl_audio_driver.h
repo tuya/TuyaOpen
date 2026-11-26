@@ -158,7 +158,9 @@ typedef TDL_AUDIO_INFO_T TDD_AUDIO_INFO_T;
  * @param[in] name     Unique audio device name; maximum TDL_AUDIO_NAME_LEN_MAX.
  * @param[in] tdd_hdl  Driver-private handle passed back to every TDD callback.
  * @param[in] intfs    Driver operation table.
- * @param[in] info     Advertised audio format.
+ * @param[in] info     Advertised audio format. For PCM playback, zero-valued
+ *                     rate/channel/bit-width/frame-duration fields inherit the
+ *                     corresponding capture value.
  *
  * @return OPRT_OK on success, otherwise an error code.
  */
