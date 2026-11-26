@@ -40,6 +40,7 @@
 #define BOARD_LCD_RST_PIN          TUYA_GPIO_NUM_29
 #define BOARD_LCD_QSPI_PORT        TUYA_QSPI_NUM_0
 #define BOARD_LCD_QSPI_CLK         (80 * 1000000)
+#define BOARD_LCD_QSPI_CS_PIN      TUYA_GPIO_NUM_23
 
 #define BOARD_LCD_POWER_PIN        TUYA_GPIO_NUM_MAX
    
@@ -174,6 +175,10 @@ static OPERATE_RET __board_register_display(void)
     display_cfg.port = BOARD_LCD_QSPI_PORT;
     display_cfg.spi_clk = BOARD_LCD_QSPI_CLK;
     display_cfg.rst_pin = BOARD_LCD_RST_PIN;
+    display_cfg.cs_pin = BOARD_LCD_QSPI_CS_PIN;
+    display_cfg.mode = TUYA_QSPI_MODE0;
+    display_cfg.data_lines = TUYA_QSPI_4WIRE;
+    display_cfg.use_dma = true;
 
     display_cfg.power.pin = BOARD_LCD_POWER_PIN;
 
