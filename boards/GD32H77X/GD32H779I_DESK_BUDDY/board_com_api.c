@@ -23,8 +23,7 @@
 #define BOARD_LCD_WIDTH                 360U
 #define BOARD_LCD_HEIGHT                360U
 #define BOARD_LCD_QSPI_PORT             TUYA_QSPI_NUM_0
-/* PLL0Q is 375 MHz; Quad-SPI supports /8 minimum, so 46.875 MHz
- * is the highest available SCK without changing the clock tree. */
+/* Validated stable LCD QSPI clock. 75 MHz caused corrupted frames on this board. */
 #define BOARD_LCD_QSPI_CLK_HZ           46875000U
 
 #if defined(ENABLE_DESK_BUDDY_AUDIO) && (ENABLE_DESK_BUDDY_AUDIO == 1)
@@ -129,7 +128,7 @@ static OPERATE_RET __board_register_audio(void)
             .sample_ch_num = 1U,
             .sample_bits = 16U,
             .sample_tm_ms = BOARD_AUDIO_PLAYBACK_FRAME_MS,
-            .max_payload_size = 1152U,
+            .max_payload_size = 1024U,
         },
     };
 
@@ -157,14 +156,14 @@ static OPERATE_RET __board_register_display(void)
         .x_offset = 0U,
         .y_offset = 0U,
         .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
-        .rotation = TUYA_DISPLAY_ROTATION_0,
+        .rotation = TUYA_DISPLAY_ROTATION_90,
         .rst_pin = BOARD_LCD_RST_PIN,
         .cs_pin = BOARD_LCD_CS_PIN,
         .port = BOARD_LCD_QSPI_PORT,
         .spi_clk = BOARD_LCD_QSPI_CLK_HZ,
         .mode = TUYA_QSPI_MODE0,
         .data_lines = TUYA_QSPI_4WIRE,
-        .te_pin = TUYA_GPIO_NUM_MAX,
+        .te_pin = TUYA_GPIO_NUM_79, /* PE15 */
         .te_active_level = TUYA_GPIO_LEVEL_HIGH,
         .bl = {
             .type = TUYA_DISP_BL_TP_GPIO,
