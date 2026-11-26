@@ -180,7 +180,7 @@ list(APPEND HEADER_DIR ${COMPONENT_PUBINC})
 deal_with_components("${COMPONENT_LIBS}" "${HEADER_DIR}")
 
 # build components_all lib
-set(COMPONENTS_ALL_LIB "tuyaos")
+set(COMPONENTS_ALL_LIB "tuyaopen")
 set(all_need)
 foreach(c ${COMPONENT_LIBS})
     list(APPEND all_need $<TARGET_OBJECTS:${c}>)
