@@ -1,9 +1,9 @@
 {
-  "id": "vw553-desk-buddy-spi-v2-ble-urc-fix-20261120",
+  "id": "vw553-desk-buddy-spi-v2-v1.0.3g-20261124",
   "board": "GD32H779I_DESK_BUDDY",
   "file": "vw553_desk_buddy_spi_v2.bin",
-  "bytes": 1050516,
-  "sha256": "42092cd347688924661e680015c1661e1f92e589cd2b174abe29eb5f0795ba0b",
+  "bytes": 1051028,
+  "sha256": "0791590ef08c5bc175fff5e8dabb37dd25dc02dec459e59b34a2eca1ca9f4a58",
   "image_type": "full_image_with_bootloader",
   "flash_address": "0x08000000",
   "source_project": "platform/GD32/gd32_os/MSDK/vw553_at_gateway",
@@ -48,7 +48,16 @@
   "notes": [
     "BLE +BLEDATA 为异步事件，帧尾只有 CRLF，不附加命令结束 OK；正常命令响应保持不变。",
     "该镜像含诊断功能，不作为量产或长稳验收声明。",
-    "H779 设备授权保存在其 KV 中，不包含在本固件内。"
+    "H779 设备授权保存在其 KV 中，不包含在本固件内。",
+    "2026-11-24 最新镜像已更新；本轮实板烧录、联网、BLE 与长稳回归尚未执行。"
   ],
-  "fix": "BLE +BLEDATA asynchronous frames end with CRLF only; no command-terminal OK"
+  "fix": "2026-11-24 AT gateway rebuild on GD32VW55x V1.0.3g",
+  "build_version": "v1.0.3g-04f35186ae4a8741",
+  "build_date": "2026-11-24 22:58:18",
+  "build_validation": {
+    "date": "2026-11-24",
+    "status": "build_complete_hardware_validation_pending",
+    "source_commit": "04f35186ae4a8741",
+    "sha256_verified": true
+  }
 }
