@@ -22,7 +22,7 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: dc8a83082065d5d8b27ff4da8ea8f5753d639aa6
+  commit: 421c3f2d00fd16ae70575657f32c8431af44bb75
 
 - name: SIWX917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
