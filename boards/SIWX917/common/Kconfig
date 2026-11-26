@@ -5,7 +5,7 @@ config TUYAOPEN_PERIPHERAL_CONFIG
 #ULP_UART Configuration(TUYA_UART_NUM_0)
     config ENABLE_ULP_UART
         bool "Enable TUYA_UART_NUM_0 (ULP_UART)"
-        default n
+        default y
         help
             Enable ULP UART interface for ultra-low-power serial communication.
 
