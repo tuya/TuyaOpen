@@ -2,12 +2,12 @@ platforms:
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
   branch: master
-  commit: 2b34abe830bb9920ccdb94f1449d17ddd1e50a1a
+  commit: 2e265abc432de65c15010f13aeda45365898e274
 
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 5618f25cdae02f3adb44dec40284c0b46fa800da
+  commit: 47acd27cbbbb0ac9718b2711eb6309d84a8be1a2
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
@@ -22,19 +22,19 @@ platforms:
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: b0b66cae2f8eacdb5d22722ab6137b8ea93574b7
+  commit: dc8a83082065d5d8b27ff4da8ea8f5753d639aa6
 
 - name: SIWX917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
   branch: master
-  commit: 6ca53f2490a582078345b75296cfc046516a2046
+  commit: 93e7ffb203d3a40f35c369dbe9a3f14f69470542
 
 - name: T9
   repo: https://github.com/tuya/TuyaOpen-T9
   branch: master
-  commit: 88b5b3d4e4998f06bf79fc7be4bb838cdea607d5
+  commit: d74ea152d348eb4f23edeaf6d75ae7ffe5008e69
 
 - name: JIELI
   repo: https://github.com/tuya/TuyaOpen-JieLi
   branch: master
-  commit: 8521d32608e3723b4016b1bf5a5e93c5de5674bc
+  commit: 3b67b45e32e0dad8fb09816bfd0b1ca50b2771dd
