@@ -76,7 +76,9 @@ static void __lvgl_init(void)
 {
     lv_vendor_init(DISPLAY_NAME);
 
-    lv_vendor_start(5, 1024*8);
+    /* Keep UI rendering below the AT/network workers so QSPI refreshes and
+     * animations cannot delay CIPSEND/ACK processing during voice upload. */
+    lv_vendor_start(4, 1024 * 8);
 }
 
 /**
