@@ -9,4 +9,11 @@ config APP_NEED_AI_COMPONENTS
     default y
     select ENABLE_AI_COMPONENTS
 
+config USER_CHAT_UART_NUMBER
+    int "Chat UART number"
+    range 0 7
+    default 0
+    help
+      TKL UART instance for UTF-8 text chat (115200, 8N1).
+
 endmenu
