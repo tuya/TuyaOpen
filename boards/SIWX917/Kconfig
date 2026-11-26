@@ -3,6 +3,10 @@ config PLATFORM_CHOICE
     string
     default "SIWX917"
 
+config PLATFORM_SIWX917
+    bool
+    default y
+
 config OPERATING_SYSTEM
     int 
     default 98
@@ -16,7 +20,8 @@ rsource "./OS_SERVICE_Kconfig"
 
 choice
     prompt "Choice a board"
- 
+    default BOARD_CHOICE_SIWX917_AI_DEV_KIT
+
     config BOARD_CHOICE_SIWX917_AI_DEV_KIT
         bool "SIWX917_AI_DEV_KIT"
         if (BOARD_CHOICE_SIWX917_AI_DEV_KIT)
@@ -28,6 +33,9 @@ choice
         if (BOARD_CHOICE_BRD2605A)
             rsource "./BRD2605A/Kconfig"
         endif
+
+# <new-board-add: This line cannot be deleted or modified>
+
 endchoice
 
 menu "Peripherals config"

@@ -13,7 +13,6 @@ config BOARD_CONFIG
     select ENABLE_LED
     select ENABLE_AUDIO
     select ENABLE_AUDIO_CODECS
-    select MP3_DECODER_STATIC_BUF
 
 config BOARD_SW1_PIN
     int "BOARD_SW1_PIN"
