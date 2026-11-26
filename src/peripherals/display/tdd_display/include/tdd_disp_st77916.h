@@ -24,6 +24,7 @@ extern "C" {
 #define ST77916_COLMOD 0x3A
 #define ST77916_MADCTL 0x36
 
+#define ST77916_MADCTL_ROTATE_0      0x00
 #define ST77916_MADCTL_ROTATE_90_CCW 0xA0
 
 /***********************************************************

@@ -28,7 +28,7 @@
  */
 static const uint8_t cST77916_PANEL_INIT_SEQ[] = {
     2,   0,   0x3A, 0x55, /* RGB565 */
-    2,   0,   ST77916_MADCTL, ST77916_MADCTL_ROTATE_90_CCW,
+    2,   0,   ST77916_MADCTL, ST77916_MADCTL_ROTATE_0,
     2,   0, 0xF0, 0x28,
     2,   0, 0xF2, 0x28,
     2,   0, 0x73, 0xF0,
