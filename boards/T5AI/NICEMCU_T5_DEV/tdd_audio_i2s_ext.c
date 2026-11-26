@@ -753,10 +753,13 @@ OPERATE_RET tdd_audio_i2s_ext_register(char *name, TDD_AUDIO_I2S_EXT_T cfg)
         _hdl->cfg.spk_sample_rate = I2S_SAMPLE_RATE_HZ;
     }
 
-    info.sample_rate = (uint16_t)_hdl->cfg.mic_sample_rate;
-    info.sample_ch_num = 1;
-    info.sample_bits = SAMPLE_BITS_PCM;
-    info.sample_tm_ms = I2S_FRAME_MS;
+    info.capture.format = TDL_AUDIO_FRAME_FORMAT_PCM;
+    info.capture.sample_rate = _hdl->cfg.mic_sample_rate;
+    info.capture.sample_ch_num = 1;
+    info.capture.sample_bits = SAMPLE_BITS_PCM;
+    info.capture.sample_tm_ms = I2S_FRAME_MS;
+    info.playback = info.capture;
+    info.playback.sample_rate = _hdl->cfg.spk_sample_rate;
 
     intfs.open = __tdd_audio_i2s_ext_open;
     intfs.play = __tdd_audio_i2s_ext_play;

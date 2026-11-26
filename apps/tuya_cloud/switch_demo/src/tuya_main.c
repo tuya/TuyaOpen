@@ -19,6 +19,7 @@
 #include "tuya_iot_dp.h"
 #include "tal_cli.h"
 #include "tuya_authorize.h"
+#include "board_com_api.h"
 #include <assert.h>
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
 #include "netconn_wifi.h"
@@ -279,15 +280,32 @@ void user_main(void)
     PR_NOTICE("Platform board:      %s", PLATFORM_BOARD);
     PR_NOTICE("Platform commit-id:  %s", PLATFORM_COMMIT);
 
-    tal_kv_init(&(tal_kv_cfg_t){
+    /* Establish the board UART route before tal_cli opens UART0. */
+    rt = board_register_hardware();
+    if (rt != OPRT_OK) {
+        PR_ERR("board_register_hardware failed: %d", rt);
+        return;
+    }
+
+#if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
+    rt = tal_cli_init();
+    if (rt != OPRT_OK) {
+        PR_ERR("CLI initialization failed: %d", rt);
+        return;
+    }
+#endif
+
+    rt = tal_kv_init(&(tal_kv_cfg_t){
         .seed = "vmlkasdh93dlvlcy",
         .key  = "dflfuap134ddlduq",
     });
+    if (OPRT_OK != rt) {
+        PR_ERR("Initialize key-value storage failed: %d; CLI retained, network deferred", rt);
+        return;
+    }
     tal_sw_timer_init();
     tal_workq_init();
-
 #if !defined(PLATFORM_UBUNTU) || (PLATFORM_UBUNTU == 0)
-    tal_cli_init();
     tuya_authorize_init();
     tuya_app_cli_init();
 #endif
@@ -330,7 +348,8 @@ void user_main(void)
     netmgr_init(type);
 
 #if defined(ENABLE_WIFI) && (ENABLE_WIFI == 1)
-    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG, &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
+    netmgr_conn_set(NETCONN_WIFI, NETCONN_CMD_NETCFG,
+                    &(netcfg_args_t){.type = NETCFG_TUYA_BLE | NETCFG_TUYA_WIFI_AP});
 #endif
 
     PR_DEBUG("tuya_iot_init success");
@@ -379,7 +398,7 @@ static void tuya_app_thread(void *arg)
 void tuya_app_main(void)
 {
     THREAD_CFG_T thrd_param = {0};
-    thrd_param.stackDepth   = 1024 * 4;
+    thrd_param.stackDepth   = 1024 * 8;
     thrd_param.priority     = THREAD_PRIO_1;
     thrd_param.thrdname     = "tuya_app_main";
     tal_thread_create_and_start(&ty_app_thread, NULL, NULL, tuya_app_thread, NULL, &thrd_param);

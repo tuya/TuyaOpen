@@ -670,10 +670,13 @@ OPERATE_RET tdd_audio_alsa_register(char *name, TDD_AUDIO_ALSA_CFG_T cfg)
     // Set default play volume
     _hdl->play_volume = 80;
 
-    info.sample_rate   = cfg.sample_rate;
-    info.sample_ch_num = cfg.channels;
-    info.sample_bits   = cfg.data_bits;
-    info.sample_tm_ms   = AUDIO_PCM_FRAME_MS;
+    info.capture.format = TDL_AUDIO_FRAME_FORMAT_PCM;
+    info.capture.sample_rate   = cfg.sample_rate;
+    info.capture.sample_ch_num = cfg.channels;
+    info.capture.sample_bits   = cfg.data_bits;
+    info.capture.sample_tm_ms   = AUDIO_PCM_FRAME_MS;
+
+    info.playback = info.capture;
 
     // Setup interface functions
     intfs.open = __tdd_audio_alsa_open;

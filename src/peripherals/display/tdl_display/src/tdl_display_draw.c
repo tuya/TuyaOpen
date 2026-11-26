@@ -10,10 +10,20 @@
  */
 
 #include "tuya_cloud_types.h"
-#include "tal_api.h"
+#include "tal_log.h"
+#include "tkl_memory.h"
 
 #include "tdl_display_format.h"
 #include "tdl_display_draw.h"
+
+#define TDL_DISP_PATTERN_BLOCK 64U
+
+#if (defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)) || \
+    (defined(ENABLE_PSRAM) && (ENABLE_PSRAM == 1))
+#define TDL_DISP_SAFE_PSRAM_ACCESS 1
+#else
+#define TDL_DISP_SAFE_PSRAM_ACCESS 0
+#endif
 
 /***********************************************************
 ************************macro define************************
@@ -33,81 +43,6 @@
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-/**
- * @brief Writes a point to monochrome format frame buffer.
- *
- * @param x X coordinate relative to frame buffer start.
- * @param y Y coordinate relative to frame buffer start.
- * @param enable Whether to set the pixel (true) or clear it (false).
- * @param fb Pointer to the frame buffer structure.
- */
-static void __disp_mono_write_point(uint32_t x, uint32_t y, bool enable, TDL_DISP_FRAME_BUFF_T *fb)
-{
-    uint32_t write_byte_index = y * (fb->width/8) + x/8;
-    uint8_t write_bit = x%8;
-
-    if (enable) {
-        fb->frame[write_byte_index] |= (1 << write_bit);
-    } else {
-        fb->frame[write_byte_index] &= ~(1 << write_bit);
-    }
-}
-
-/**
- * @brief Writes a point to I2 (2-bit grayscale) format frame buffer.
- *
- * @param x X coordinate relative to frame buffer start.
- * @param y Y coordinate relative to frame buffer start.
- * @param color Color value (2-bit, 0-3).
- * @param fb Pointer to the frame buffer structure.
- */
-static void __disp_i2_write_point(uint32_t x, uint32_t y, uint8_t color, TDL_DISP_FRAME_BUFF_T *fb)
-{
-    uint32_t write_byte_index = y * (fb->width/4) + x/4;
-    uint8_t write_bit = (x%4)*2;
-    uint8_t cleared = fb->frame[write_byte_index] & (~(0x03 << write_bit)); /* Clear the bits we are going to write */
-
-    fb->frame[write_byte_index] = cleared | ((color & 0x03) << write_bit);
-}
-
-/**
- * @brief Writes a point to RGB565 format frame buffer.
- *
- * @param x X coordinate relative to frame buffer start.
- * @param y Y coordinate relative to frame buffer start.
- * @param color Color value (16-bit RGB565).
- * @param fb Pointer to the frame buffer structure.
- * @param is_swap Whether to swap byte order.
- */
-static void __disp_rgb565_write_point(uint32_t x, uint32_t y, uint16_t color, TDL_DISP_FRAME_BUFF_T *fb, bool is_swap)
-{
-    uint32_t write_byte_index = (y * fb->width + x);
-    uint16_t *p_buf16 = (uint16_t *)fb->frame;
-
-    if(is_swap) {
-        p_buf16[write_byte_index] = WORD_SWAP(color);
-    }else {
-        p_buf16[write_byte_index] = color;
-    }
-}
-
-/**
- * @brief Writes a point to RGB888 format frame buffer.
- *
- * @param x X coordinate relative to frame buffer start.
- * @param y Y coordinate relative to frame buffer start.
- * @param color Color value (24-bit RGB888).
- * @param fb Pointer to the frame buffer structure.
- */
-static void __disp_rgb888_write_point(uint32_t x, uint32_t y, uint32_t color, TDL_DISP_FRAME_BUFF_T *fb)
-{
-    uint32_t write_byte_index = (y * fb->width + x)*3;
-
-    fb->frame[write_byte_index]     =  color & 0xFF; /* B */
-    fb->frame[write_byte_index + 1] = (color >> 8) & 0xFF; /* G */
-    fb->frame[write_byte_index + 2] = (color >> 16) & 0xFF; /* R */
-}
-
 /**
  * @brief Validates if a rectangle is within the frame buffer bounds.
  *
@@ -144,6 +79,122 @@ static bool __is_rect_valid(TDL_DISP_RECT_T *rect, TDL_DISP_FRAME_BUFF_T *fb)
     return false;
 }
 
+static OPERATE_RET __disp_fb_write(TDL_DISP_FRAME_BUFF_T *fb, uint32_t offset,
+                                   const void *src, uint32_t len)
+{
+    if (fb == NULL || fb->frame == NULL || src == NULL ||
+        offset > fb->len || len > fb->len - offset) {
+        return OPRT_INVALID_PARM;
+    }
+    if (len == 0U) {
+        return OPRT_OK;
+    }
+
+#if TDL_DISP_SAFE_PSRAM_ACCESS
+    if (fb->type == DISP_FB_TP_PSRAM) {
+        return tkl_system_memcpy(fb->frame + offset, src, len) != NULL ?
+               OPRT_OK : OPRT_COM_ERROR;
+    }
+#endif
+    memcpy(fb->frame + offset, src, len);
+    return OPRT_OK;
+}
+
+static OPERATE_RET __disp_fb_read(TDL_DISP_FRAME_BUFF_T *fb, uint32_t offset,
+                                  void *dst, uint32_t len)
+{
+    if (fb == NULL || fb->frame == NULL || dst == NULL ||
+        offset > fb->len || len > fb->len - offset) {
+        return OPRT_INVALID_PARM;
+    }
+    if (len == 0U) {
+        return OPRT_OK;
+    }
+
+#if TDL_DISP_SAFE_PSRAM_ACCESS
+    if (fb->type == DISP_FB_TP_PSRAM) {
+        return tkl_system_memcpy(dst, fb->frame + offset, len) != NULL ?
+               OPRT_OK : OPRT_COM_ERROR;
+    }
+#endif
+    memcpy(dst, fb->frame + offset, len);
+    return OPRT_OK;
+}
+
+static OPERATE_RET __disp_fb_write_pattern(TDL_DISP_FRAME_BUFF_T *fb, uint32_t offset,
+                                           const uint8_t *pattern, uint8_t pattern_len,
+                                           uint32_t len)
+{
+    uint8_t block[TDL_DISP_PATTERN_BLOCK];
+    uint32_t block_len = 0U;
+
+    if (pattern == NULL || pattern_len == 0U || pattern_len > sizeof(block)) {
+        return OPRT_INVALID_PARM;
+    }
+    if (offset > fb->len || len > fb->len - offset) {
+        return OPRT_INVALID_PARM;
+    }
+    if (len == 0U) {
+        return OPRT_OK;
+    }
+
+    block_len = (sizeof(block) / pattern_len) * pattern_len;
+    for (uint32_t i = 0U; i < block_len; ++i) {
+        block[i] = pattern[i % pattern_len];
+    }
+
+    while (len != 0U) {
+        uint32_t chunk = len < block_len ? len : block_len;
+        OPERATE_RET rt = __disp_fb_write(fb, offset, block, chunk);
+        if (rt != OPRT_OK) {
+            return rt;
+        }
+        offset += chunk;
+        len -= chunk;
+    }
+    return OPRT_OK;
+}
+
+static bool __disp_fb_color_pattern(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color,
+                                    bool is_swap, uint8_t pattern[4], uint8_t *pattern_len)
+{
+    switch (fb->fmt) {
+        case TUYA_PIXEL_FMT_RGB565: {
+            uint16_t color16 = (uint16_t)(color & 0xFFFFU);
+            if (is_swap) {
+                color16 = WORD_SWAP(color16);
+            }
+            pattern[0] = (uint8_t)color16;
+            pattern[1] = (uint8_t)(color16 >> 8U);
+            *pattern_len = 2U;
+            return true;
+        }
+        case TUYA_PIXEL_FMT_RGB888:
+            pattern[0] = (uint8_t)color;
+            pattern[1] = (uint8_t)(color >> 8U);
+            pattern[2] = (uint8_t)(color >> 16U);
+            *pattern_len = 3U;
+            return true;
+        case TUYA_PIXEL_FMT_MONOCHROME:
+            pattern[0] = color ? 0xFFU : 0x00U;
+            *pattern_len = 1U;
+            return true;
+        case TUYA_PIXEL_FMT_I2: {
+            uint8_t color2 = (uint8_t)(color & 0x03U);
+            pattern[0] = (uint8_t)(color2 | (color2 << 2U) | (color2 << 4U) | (color2 << 6U));
+            *pattern_len = 1U;
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+static uint32_t __disp_fb_packed_bytes(uint32_t pixels, uint8_t bpp)
+{
+    return bpp < 8U ? (pixels * bpp + 7U) / 8U : pixels * (bpp / 8U);
+}
+
 /**
  * @brief Draws a point on the display frame buffer.
  *
@@ -173,31 +224,41 @@ OPERATE_RET tdl_disp_draw_point(TDL_DISP_FRAME_BUFF_T *fb, uint16_t x, uint16_t 
         return OPRT_INVALID_PARM;
     }
 
-    switch(fb->fmt) {
-        case TUYA_PIXEL_FMT_RGB565: {
-            uint16_t color_16 = (uint16_t)(color & 0xFFFF);
-            __disp_rgb565_write_point(x - fb->x_start, y - fb->y_start, color_16, fb, is_swap);
-        }
-        break;
-        case TUYA_PIXEL_FMT_RGB888: {
-            __disp_rgb888_write_point(x - fb->x_start, y - fb->y_start, color, fb);
-        }
-        break;
-        case TUYA_PIXEL_FMT_MONOCHROME: {
-            bool enable = (color) ? false : true;
-            __disp_mono_write_point(x - fb->x_start, y - fb->y_start, enable, fb);
-        }
-        break;
-        case TUYA_PIXEL_FMT_I2: {
-            uint8_t color_2 = (uint8_t)(color & 0x03);
-            __disp_i2_write_point(x - fb->x_start, y - fb->y_start, color_2, fb);
-        }
-        break;
-        default:
-            PR_ERR("Unsupported pixel format for draw point: %d", fb->fmt);
+    uint32_t pixel_index = (uint32_t)(y - fb->y_start) * fb->width +
+                           (uint32_t)(x - fb->x_start);
+    if (fb->fmt == TUYA_PIXEL_FMT_RGB565 || fb->fmt == TUYA_PIXEL_FMT_RGB888) {
+        uint8_t pattern[4] = {0};
+        uint8_t pattern_len = 0U;
+        if (!__disp_fb_color_pattern(fb, color, is_swap, pattern, &pattern_len)) {
             return OPRT_NOT_SUPPORTED;
+        }
+        return __disp_fb_write(fb, pixel_index * pattern_len, pattern, pattern_len);
     }
 
+    if (fb->fmt != TUYA_PIXEL_FMT_MONOCHROME && fb->fmt != TUYA_PIXEL_FMT_I2) {
+        PR_ERR("Unsupported pixel format for draw point: %d", fb->fmt);
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    uint8_t bits_per_pixel = (fb->fmt == TUYA_PIXEL_FMT_MONOCHROME) ? 1U : 2U;
+    uint32_t byte_index = (pixel_index * bits_per_pixel) / 8U;
+    uint8_t bit_offset = (uint8_t)((pixel_index * bits_per_pixel) % 8U);
+    uint8_t value = 0U;
+    if (__disp_fb_read(fb, byte_index, &value, 1U) != OPRT_OK) {
+        return OPRT_COM_ERROR;
+    }
+
+    if (fb->fmt == TUYA_PIXEL_FMT_MONOCHROME) {
+        if (color) {
+            value |= (uint8_t)(1U << bit_offset);
+        } else {
+            value &= (uint8_t)~(1U << bit_offset);
+        }
+    } else if (fb->fmt == TUYA_PIXEL_FMT_I2) {
+        uint8_t mask = (uint8_t)(0x03U << bit_offset);
+        value = (uint8_t)((value & ~mask) | ((color & 0x03U) << bit_offset));
+    }
+    rt = __disp_fb_write(fb, byte_index, &value, 1U);
     return rt;
 }
 
@@ -214,6 +275,7 @@ OPERATE_RET tdl_disp_draw_fill(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect,
 {
     OPERATE_RET rt = OPRT_OK;
     uint32_t width = 0, height = 0;
+    uint8_t bpp = 0;
 
     if(NULL == fb || NULL == fb->frame || NULL == rect ||\
        fb->width == 0 || fb->height == 0) {
@@ -227,12 +289,33 @@ OPERATE_RET tdl_disp_draw_fill(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect,
     width = rect->x1 - rect->x0 + 1;
     height = rect->y1 - rect->y0 + 1;
 
-    for(uint32_t j = 0; j < height ; j++) {
-        for(uint32_t i = 0; i < width; i++) {
-            TUYA_CALL_ERR_RETURN(tdl_disp_draw_point(fb, rect->x0+i, rect->y0+j, color, is_swap));
-        }
+    bpp = tdl_disp_get_fmt_bpp(fb->fmt);
+    if (bpp == 0U) {
+        return OPRT_NOT_SUPPORTED;
     }
 
+    if (bpp < 8U) {
+        for(uint32_t j = 0; j < height ; j++) {
+            for(uint32_t i = 0; i < width; i++) {
+                TUYA_CALL_ERR_RETURN(tdl_disp_draw_point(fb, rect->x0+i, rect->y0+j, color, is_swap));
+            }
+        }
+        return OPRT_OK;
+    }
+
+    uint8_t pattern[4] = {0};
+    uint8_t pattern_len = 0U;
+    if (!__disp_fb_color_pattern(fb, color, is_swap, pattern, &pattern_len)) {
+        return OPRT_NOT_SUPPORTED;
+    }
+    uint32_t bytes_per_pixel = bpp / 8U;
+    uint32_t dst_line_sz = fb->width * bytes_per_pixel;
+    uint32_t fill_len = width * bytes_per_pixel;
+    for (uint32_t j = 0U; j < height; ++j) {
+        uint32_t offset = (uint32_t)(rect->y0 - fb->y_start + j) * dst_line_sz +
+                          (uint32_t)(rect->x0 - fb->x_start) * bytes_per_pixel;
+        TUYA_CALL_ERR_RETURN(__disp_fb_write_pattern(fb, offset, pattern, pattern_len, fill_len));
+    }
     return rt;
 }
 
@@ -246,20 +329,24 @@ OPERATE_RET tdl_disp_draw_fill(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect,
  */
 OPERATE_RET tdl_disp_draw_fill_full(TDL_DISP_FRAME_BUFF_T *fb, uint32_t color, bool is_swap)
 {
-    OPERATE_RET rt = OPRT_OK;
-
     if(NULL == fb || NULL == fb->frame ||\
        fb->width == 0 || fb->height == 0) {
         return OPRT_INVALID_PARM;
     }
 
-    for(uint32_t j = 0; j < fb->height ; j++) {
-        for(uint32_t i = 0; i < fb->width; i++) {
-            TUYA_CALL_ERR_RETURN(tdl_disp_draw_point(fb, fb->x_start+i, fb->y_start+j, color, is_swap));
-        }
+    uint8_t bpp = tdl_disp_get_fmt_bpp(fb->fmt);
+    if (bpp == 0U) {
+        return OPRT_NOT_SUPPORTED;
     }
 
-    return rt;
+    uint8_t pattern[4] = {0};
+    uint8_t pattern_len = 0U;
+    if (!__disp_fb_color_pattern(fb, color, is_swap, pattern, &pattern_len)) {
+        return OPRT_NOT_SUPPORTED;
+    }
+
+    uint32_t fill_len = __disp_fb_packed_bytes((uint32_t)fb->width * fb->height, bpp);
+    return __disp_fb_write_pattern(fb, 0U, pattern, pattern_len, fill_len);
 }
 
 /**
@@ -315,7 +402,11 @@ OPERATE_RET tdl_disp_draw_copy(TDL_DISP_FRAME_BUFF_T *fb, TDL_DISP_RECT_T *rect,
      */
     for(uint32_t j = 0; j < dst_height ; j++) {
         src_buf_offset = (rect->y0 - fb->y_start + j) * src_line_sz + src_line_offset;
-        memcpy(&fb->frame[src_buf_offset], &buf[j * dst_line_sz], dst_line_sz);
+        OPERATE_RET rt = __disp_fb_write(fb, src_buf_offset,
+                                         &buf[j * dst_line_sz], dst_line_sz);
+        if (rt != OPRT_OK) {
+            return rt;
+        }
     }
 
     return OPRT_OK;

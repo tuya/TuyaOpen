@@ -8,16 +8,34 @@
 #include "board_com_api.h"
 #include "tal_api.h"
 #include "tkl_gpio.h"
+#include "tkl_memory.h"
 #include "tkl_pinmux.h"
+#if defined(ENABLE_DISPLAY) && (ENABLE_DISPLAY == 1)
 #include "tdd_disp_st77916.h"
+#endif
+#include "tdd_audio_ty_uart.h"
+#include "tdd_button_gpio.h"
 
 #define BOARD_LCD_WIDTH                 360U
 #define BOARD_LCD_HEIGHT                360U
 #define BOARD_LCD_QSPI_PORT             TUYA_QSPI_NUM_0
-#define BOARD_LCD_QSPI_CLK_HZ           37500000U
+/* Validated stable LCD QSPI clock. 75 MHz caused corrupted frames on this board. */
+#define BOARD_LCD_QSPI_CLK_HZ           46875000U
+
+/* Voice module UART2 is cross-connected to GD32 UART3:
+ * voice TX -> PD0/UART3_RX, voice RX <- PD1/UART3_TX. */
+#define BOARD_AUDIO_UART_PORT          TUYA_UART_NUM_3
+#define BOARD_AUDIO_UART_RX_PIN        TUYA_GPIO_NUM_48 /* PD0 */
+#define BOARD_AUDIO_UART_TX_PIN        TUYA_GPIO_NUM_49 /* PD1 */
+#define BOARD_AUDIO_SPK_FLOW_PIN       TUYA_GPIO_NUM_15 /* PA15 */
+#define BOARD_AUDIO_BAUDRATE           1000000U
 #define BOARD_LCD_CS_PIN                TUYA_GPIO_NUM_36 /* PC4 */
 #define BOARD_LCD_RST_PIN               TUYA_GPIO_NUM_94 /* PF14 */
 #define BOARD_LCD_BL_PIN                TUYA_GPIO_NUM_118 /* PH6 */
+
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+#define BOARD_BUTTON_PIN                TUYA_GPIO_NUM_0   /* PA0 */
+#endif
 
 #if defined(ENABLE_ENCODER) && (ENABLE_ENCODER == 1)
 #include "tdd_encoder_gpio.h"
@@ -41,7 +59,6 @@
 #if defined(ENABLE_CAMERA) && (ENABLE_CAMERA == 1) && \
     defined(ENABLE_DVP) && (ENABLE_DVP == 1)
 #include "tdd_camera_ov5640.h"
-#include "tdl_camera_driver.h"
 
 #define BOARD_CAMERA_CN3_I2C_PORT   TUYA_I2C_NUM_2
 #define BOARD_CAMERA_CN4_I2C_PORT   TUYA_I2C_NUM_3
@@ -53,26 +70,6 @@
 #define BOARD_CAMERA_CN4_RST_PIN    TUYA_GPIO_NUM_10 /* PA10 */
 #define BOARD_CAMERA_PWR_PIN        TUYA_GPIO_NUM_101 /* PG5 */
 
-#define BOARD_CAMERA_FRAME_ALIGN    32U
-#define BOARD_CAMERA_FRAME_WIDTH    320U
-#define BOARD_CAMERA_FRAME_HEIGHT   240U
-#define BOARD_CAMERA_FRAME_COUNT    2U
-#define BOARD_CAMERA_FRAME_BYTES    \
-    (BOARD_CAMERA_FRAME_WIDTH * BOARD_CAMERA_FRAME_HEIGHT * 2U)
-#define BOARD_CAMERA_FRAME_SLOT_SIZE \
-    ((BOARD_CAMERA_FRAME_BYTES + BOARD_CAMERA_FRAME_ALIGN) & \
-     ~(BOARD_CAMERA_FRAME_ALIGN - 1U))
-#define BOARD_CAMERA_FRAME_POOL_SIZE (0x4C000U)
-
-static uint8_t s_camera_frame_pool[BOARD_CAMERA_FRAME_POOL_SIZE]
-    __attribute__((aligned(BOARD_CAMERA_FRAME_ALIGN)));
-static size_t s_camera_frame_independent_used;
-static size_t s_camera_frame_shared_next;
-static bool s_camera_frame_shared_mode;
-
-_Static_assert(BOARD_CAMERA_FRAME_COUNT * BOARD_CAMERA_FRAME_SLOT_SIZE <=
-                   BOARD_CAMERA_FRAME_POOL_SIZE,
-               "camera frame pool is too small");
 
 #endif
 
@@ -80,13 +77,66 @@ _Static_assert(BOARD_CAMERA_FRAME_COUNT * BOARD_CAMERA_FRAME_SLOT_SIZE <=
 #include "tdd_tp_cst816x.h"
 
 #define BOARD_TP_I2C_PORT            TUYA_I2C_NUM_2
-#define BOARD_TP_I2C_SCL_PIN         TUYA_IO_PIN_MAX
-#define BOARD_TP_I2C_SDA_PIN         TUYA_IO_PIN_MAX
+#define BOARD_TP_I2C_SCL_PIN         TUYA_GPIO_NUM_119 /* PH7 */
+#define BOARD_TP_I2C_SDA_PIN         TUYA_GPIO_NUM_120 /* PH8 */
 #define BOARD_TP_RST_PIN             TUYA_GPIO_NUM_115 /* PH3 */
-#define BOARD_TP_INTR_PIN            TUYA_GPIO_NUM_MAX
+#define BOARD_TP_INTR_PIN            TUYA_GPIO_NUM_116 /* PH4 */
 #define BOARD_TP_WIDTH               360U
 #define BOARD_TP_HEIGHT              360U
 #endif
+
+#if defined(DESK_BUDDY_AUDIO_PLAYBACK_PCM) && \
+    (DESK_BUDDY_AUDIO_PLAYBACK_PCM == 1)
+#define BOARD_AUDIO_PLAYBACK_FORMAT    TDL_AUDIO_FRAME_FORMAT_PCM
+#define BOARD_AUDIO_PLAYBACK_FRAME_MS  20U
+#else
+#define BOARD_AUDIO_PLAYBACK_FORMAT    TDL_AUDIO_FRAME_FORMAT_MP3
+#define BOARD_AUDIO_PLAYBACK_FRAME_MS  0U
+#endif
+
+static OPERATE_RET __board_register_audio(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(AUDIO_CODEC_NAME)
+    const TDD_AUDIO_TY_UART_CFG_T audio_cfg = {
+        .uart_port = BOARD_AUDIO_UART_PORT,
+        .spk_flow_pin = BOARD_AUDIO_SPK_FLOW_PIN,
+        .spk_flow_active_level = TUYA_GPIO_LEVEL_HIGH,
+        .baudrate = BOARD_AUDIO_BAUDRATE,
+        .boot_delay_ms = 300U,
+        .default_volume = 50U,
+        .mic_gain_db = 26U,
+        .capture = {
+            .format = TDL_AUDIO_FRAME_FORMAT_PCM,
+            .sample_rate = 16000U,
+            .sample_ch_num = 1U,
+            .sample_bits = 16U,
+            .sample_tm_ms = 20U,
+            .max_payload_size = 640U,
+        },
+        .playback = {
+            .format = BOARD_AUDIO_PLAYBACK_FORMAT,
+            .sample_rate = 16000U,
+            .sample_ch_num = 1U,
+            .sample_bits = 16U,
+            .sample_tm_ms = BOARD_AUDIO_PLAYBACK_FRAME_MS,
+            .max_payload_size = 1024U,
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tkl_io_pinmux_config(BOARD_AUDIO_UART_RX_PIN,
+                                               TUYA_UART3_RX));
+    TUYA_CALL_ERR_RETURN(tkl_io_pinmux_config(BOARD_AUDIO_UART_TX_PIN,
+                                               TUYA_UART3_TX));
+    rt = tdd_audio_ty_uart_register(AUDIO_CODEC_NAME, &audio_cfg);
+    if (rt == OPRT_OK) {
+        PR_NOTICE("Tuya UART audio registered: UART3 PD0/PD1, SPK flow PA15");
+    }
+#endif
+
+    return rt;
+}
 
 static OPERATE_RET __board_register_display(void)
 {
@@ -99,14 +149,14 @@ static OPERATE_RET __board_register_display(void)
         .x_offset = 0U,
         .y_offset = 0U,
         .pixel_fmt = TUYA_PIXEL_FMT_RGB565,
-        .rotation = TUYA_DISPLAY_ROTATION_0,
+        .rotation = TUYA_DISPLAY_ROTATION_90,
         .rst_pin = BOARD_LCD_RST_PIN,
         .cs_pin = BOARD_LCD_CS_PIN,
         .port = BOARD_LCD_QSPI_PORT,
         .spi_clk = BOARD_LCD_QSPI_CLK_HZ,
         .mode = TUYA_QSPI_MODE0,
-        .data_lines = TUYA_QSPI_1WIRE,
-        .te_pin = TUYA_GPIO_NUM_MAX,
+        .data_lines = TUYA_QSPI_4WIRE,
+        .te_pin = TUYA_GPIO_NUM_79, /* PE15 */
         .te_active_level = TUYA_GPIO_LEVEL_HIGH,
         .bl = {
             .type = TUYA_DISP_BL_TP_GPIO,
@@ -185,6 +235,27 @@ static OPERATE_RET __board_register_encoder(void)
     return rt;
 }
 
+static OPERATE_RET __board_register_button(void)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1) && defined(BUTTON_NAME)
+    BUTTON_GPIO_CFG_T button_cfg = {0};
+
+    button_cfg.pin = BOARD_BUTTON_PIN;
+    button_cfg.level = TUYA_GPIO_LEVEL_HIGH;
+    button_cfg.mode = BUTTON_TIMER_SCAN_MODE;
+    button_cfg.pin_type.gpio_pull = TUYA_GPIO_PULLDOWN;
+
+    rt = tdd_gpio_button_register(BUTTON_NAME, &button_cfg);
+    if (rt == OPRT_OK) {
+        PR_NOTICE("Desk Buddy button registered as %s on PA0", BUTTON_NAME);
+    }
+#endif
+
+    return rt;
+}
+
 static OPERATE_RET __board_register_motion(void)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -207,6 +278,7 @@ static OPERATE_RET __board_register_motion(void)
     return rt;
 }
 
+#if defined(ENABLE_CAMERA) && (ENABLE_CAMERA == 1) && defined(ENABLE_DVP) && (ENABLE_DVP == 1)
 static OPERATE_RET __board_register_camera_one(char *name, TUYA_I2C_NUM_E i2c_port,
                                                TUYA_GPIO_NUM_E scl_pin,
                                                TUYA_GPIO_NUM_E sda_pin,
@@ -233,61 +305,8 @@ static OPERATE_RET __board_register_camera_one(char *name, TUYA_I2C_NUM_E i2c_po
     return tdd_camera_dvp_ov5640_register(name, &camera_cfg);
 }
 
-static void *__board_camera_frame_alloc(size_t size)
-{
-    void *ptr;
-    size_t slot;
-    bool fallback = false;
 
-    if (size == 0U || size > BOARD_CAMERA_FRAME_SLOT_SIZE) {
-        PR_ERR("camera frame request too large: request=%u max=%u",
-               (unsigned)size, (unsigned)BOARD_CAMERA_FRAME_SLOT_SIZE);
-        return NULL;
-    }
-
-    TAL_ENTER_CRITICAL();
-    if (false == s_camera_frame_shared_mode &&
-        BOARD_CAMERA_FRAME_SLOT_SIZE <= BOARD_CAMERA_FRAME_POOL_SIZE -
-                                           s_camera_frame_independent_used) {
-        ptr = &s_camera_frame_pool[s_camera_frame_independent_used];
-        s_camera_frame_independent_used += BOARD_CAMERA_FRAME_SLOT_SIZE;
-    } else {
-        fallback = (false == s_camera_frame_shared_mode);
-        s_camera_frame_shared_mode = true;
-        slot = s_camera_frame_shared_next;
-        s_camera_frame_shared_next =
-            (s_camera_frame_shared_next + 1U) % BOARD_CAMERA_FRAME_COUNT;
-        ptr = &s_camera_frame_pool[slot * BOARD_CAMERA_FRAME_SLOT_SIZE];
-    }
-    TAL_EXIT_CRITICAL();
-
-    if (fallback) {
-        PR_WARN("camera independent frame pool exhausted; use %u shared frames",
-                (unsigned)BOARD_CAMERA_FRAME_COUNT);
-    }
-
-    return ptr;
-}
-
-static void __board_camera_frame_free(void *ptr)
-{
-    /* TDL keeps frame nodes for the registered camera lifetime, so this pool
-     * is intentionally monotonic and allocations are reclaimed only by reset. */
-    (void)ptr;
-}
-
-static void __board_register_camera_frame_pool(void)
-{
-    TDL_CAMERA_FRAME_MEM_OPS_T ops = {
-        .alloc = __board_camera_frame_alloc,
-        .free = __board_camera_frame_free,
-    };
-
-    tdl_camera_set_frame_mem_ops(&ops);
-    PR_NOTICE("camera shared frame pool: %u frames x %u bytes",
-              (unsigned)BOARD_CAMERA_FRAME_COUNT,
-              (unsigned)BOARD_CAMERA_FRAME_SLOT_SIZE);
-}
+#endif
 
 static OPERATE_RET __board_register_camera(void)
 {
@@ -299,8 +318,6 @@ static OPERATE_RET __board_register_camera(void)
         .direct = TUYA_GPIO_OUTPUT,
         .level = TUYA_GPIO_LEVEL_LOW,
     };
-
-    __board_register_camera_frame_pool();
 
     /* CN3/CN4 share DVP and PWDN. Keep both sensors in reset and release only
      * the device selected by its reset callback when it is opened. */
@@ -330,6 +347,16 @@ OPERATE_RET board_register_hardware(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
+    /* CH9114 channel 1 is wired to USART0 PF4/PF5. Keep the TKL chat UART
+     * on the same route as the platform console; PA10 is camera reset here. */
+    TUYA_CALL_ERR_RETURN(tkl_io_pinmux_config(TUYA_GPIO_NUM_84, TUYA_UART0_TX));
+    TUYA_CALL_ERR_RETURN(tkl_io_pinmux_config(TUYA_GPIO_NUM_85, TUYA_UART0_RX));
+
+    rt = __board_register_audio();
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
     rt = __board_register_display();
     if (rt != OPRT_OK) {
         return rt;
@@ -341,6 +368,11 @@ OPERATE_RET board_register_hardware(void)
     }
 
     rt = __board_register_camera();
+    if (rt != OPRT_OK) {
+        return rt;
+    }
+
+    rt = __board_register_button();
     if (rt != OPRT_OK) {
         return rt;
     }

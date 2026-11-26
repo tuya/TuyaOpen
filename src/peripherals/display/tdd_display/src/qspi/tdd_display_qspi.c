@@ -30,7 +30,10 @@ typedef struct {
     const uint8_t              *init_seq;
     bool                        irq_enabled;
     bool                        te_sync;
+    uint32_t                    te_sync_count;
     uint32_t                    flush_seq;
+    uint32_t                    last_te_wait_ms;
+    uint32_t                    last_transfer_ms;
     uint16_t                    win_x1;
     uint16_t                    win_x2;
     uint16_t                    win_y1;
@@ -57,6 +60,7 @@ typedef struct {
     TDL_DISP_FRAME_BUFF_T  *display_fb;
     uint8_t                 is_task_running;
     uint8_t                 is_period_flush;
+    uint32_t                flush_count;
 } TDD_DISP_QSPI_SYNC_T;
 
 static TDD_DISP_QSPI_SYNC_T sg_disp_qspi_sync[TUYA_QSPI_NUM_MAX] = {0};
@@ -197,15 +201,19 @@ static void __disp_qspi_wait_te(DISP_QSPI_DEV_T *dev,
 
     if (!dev->cfg.te_sync_enable || !dev->te_sync || fb == NULL ||
         (dev->flush_seq++ % wait_div) != 0U) {
+        dev->last_te_wait_ms = 0U;
         return;
     }
 
-    start_ms = (uint32_t)tal_system_get_millisecond();
+    uint32_t wait_start_ms = (uint32_t)tal_system_get_millisecond();
+    start_ms = wait_start_ms;
     while (tkl_gpio_read(dev->cfg.te_pin, &level) == OPRT_OK &&
            level == dev->cfg.te_active_level) {
         if ((uint32_t)tal_system_get_millisecond() - start_ms >=
             DISP_QSPI_TE_HIGH_TIMEOUT_MS) {
             dev->te_sync = false;
+            dev->last_te_wait_ms =
+                (uint32_t)tal_system_get_millisecond() - wait_start_ms;
             PR_ERR("QSPI TE active timeout, continue unsynchronized");
             return;
         }
@@ -216,10 +224,21 @@ static void __disp_qspi_wait_te(DISP_QSPI_DEV_T *dev,
         if ((uint32_t)tal_system_get_millisecond() - start_ms >=
             DISP_QSPI_TE_LOW_TIMEOUT_MS) {
             dev->te_sync = false;
+            dev->last_te_wait_ms =
+                (uint32_t)tal_system_get_millisecond() - wait_start_ms;
             PR_ERR("QSPI TE inactive timeout, continue unsynchronized");
             return;
         }
     }
+
+    if (dev->te_sync_count == 0U) {
+        PR_NOTICE("QSPI TE synchronized on pin=%d active_level=%d wait=%ums",
+                  (int)dev->cfg.te_pin, (int)dev->cfg.te_active_level,
+                  (unsigned)((uint32_t)tal_system_get_millisecond() - wait_start_ms));
+    }
+    ++dev->te_sync_count;
+    dev->last_te_wait_ms =
+        (uint32_t)tal_system_get_millisecond() - wait_start_ms;
 }
 
 static void __disp_qspi_set_window(DISP_QSPI_DEV_T *dev,
@@ -268,6 +287,7 @@ static OPERATE_RET __disp_qspi_send_frame(DISP_QSPI_DEV_T *dev,
     OPERATE_RET rt;
 
     __disp_qspi_wait_te(dev, fb);
+    uint32_t transfer_start_ms = (uint32_t)tal_system_get_millisecond();
 
     qspi_cmd.op = TUYA_QSPI_WRITE;
     qspi_cmd.cmd[0] = pixel_cmd->cmd;
@@ -293,6 +313,8 @@ static OPERATE_RET __disp_qspi_send_frame(DISP_QSPI_DEV_T *dev,
     }
     OPERATE_RET release_rt = __disp_qspi_cs_write(&dev->cfg,
                                                   TUYA_GPIO_LEVEL_HIGH);
+    dev->last_transfer_ms =
+        (uint32_t)tal_system_get_millisecond() - transfer_start_ms;
     return rt == OPRT_OK ? release_rt : rt;
 }
 
@@ -431,10 +453,20 @@ static void __display_qspi_task(void *args)
         }
 
         if (msg.frame_buff != NULL) {
+            uint32_t flush_start_ms = (uint32_t)tal_system_get_millisecond();
             rt = __disp_qspi_display_frame(sync->device, msg.frame_buff);
+            uint32_t flush_elapsed_ms =
+                (uint32_t)tal_system_get_millisecond() - flush_start_ms;
             if (rt != OPRT_OK) {
                 PR_ERR("QSPI frame flush failed: %d", rt);
+            } else if (sync->flush_count < 5U) {
+                DISP_QSPI_DEV_T *dev = (DISP_QSPI_DEV_T *)sync->device;
+                PR_NOTICE("QSPI frame flush len=%u elapsed=%ums te_wait=%ums transfer=%ums",
+                          (unsigned)msg.frame_buff->len, (unsigned)flush_elapsed_ms,
+                          (unsigned)dev->last_te_wait_ms,
+                          (unsigned)dev->last_transfer_ms);
             }
+            ++sync->flush_count;
         }
 
         if (sync->is_period_flush) {

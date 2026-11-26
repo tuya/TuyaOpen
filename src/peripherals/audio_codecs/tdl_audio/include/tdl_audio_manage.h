@@ -42,30 +42,93 @@ typedef void *TDL_AUDIO_HANDLE_T;
 /***********************************************************
 ***********************typedef define***********************
 ***********************************************************/
-typedef struct {
-    uint16_t sample_rate;
-    uint16_t sample_ch_num;
-    uint16_t sample_bits;
-    uint16_t sample_tm_ms; 
-    uint16_t frame_size;
-}TDL_AUDIO_INFO_T;
-
 /***********************************************************
 ********************function declaration********************
 ***********************************************************/
-
+/**
+ * @brief Find a registered audio device by name.
+ *
+ * @param[in]  name   Audio device name, normally AUDIO_CODEC_NAME.
+ * @param[out] handle Receives the TDL audio handle.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_find(char *name, TDL_AUDIO_HANDLE_T *handle);
 
+/**
+ * @brief Open an audio device and start capture/playback.
+ *
+ * The microphone callback may be NULL when only playback is required.
+ *
+ * @param[in] handle Audio handle returned by tdl_audio_find().
+ * @param[in] mic_cb Microphone data callback, or NULL for playback-only use.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_open(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_MIC_CB mic_cb);
 
+/**
+ * @brief Get the audio format advertised by a device.
+ *
+ * @param[in]  handle Audio handle.
+ * @param[out] info   Receives independent capture and playback capabilities.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_get_info(TDL_AUDIO_HANDLE_T handle, TDL_AUDIO_INFO_T *info);
 
+/**
+ * @brief Send a playback buffer to an audio device.
+ *
+ * The buffer format must match info.playback.format. The call may block while
+ * the TDD driver submits or drains the buffer.
+ *
+ * @param[in] handle Audio handle.
+ * @param[in] data   Playback buffer.
+ * @param[in] len    Buffer length in bytes.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_play(TDL_AUDIO_HANDLE_T handle, uint8_t *data, uint32_t len);
 
+/**
+ * @brief Stop playback and discard pending playback data.
+ *
+ * @param[in] handle Audio handle.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_play_stop(TDL_AUDIO_HANDLE_T handle);
 
+/**
+ * @brief Set playback volume.
+ *
+ * @param[in] handle Audio handle.
+ * @param[in] volume Volume in the range 0..100.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_volume_set(TDL_AUDIO_HANDLE_T handle, uint8_t volume);
 
+/**
+ * @brief Register a callback for wake/sleep/ASR events.
+ *
+ * @param[in] handle    Audio handle.
+ * @param[in] cb        Event callback, or NULL to clear it.
+ * @param[in] user_data User pointer passed to the callback.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
+OPERATE_RET tdl_audio_event_register(TDL_AUDIO_HANDLE_T handle,
+                                     TDL_AUDIO_EVENT_CB cb, void *user_data);
+
+/**
+ * @brief Close an audio device and stop capture/playback.
+ *
+ * @param[in] handle Audio handle.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 OPERATE_RET tdl_audio_close(TDL_AUDIO_HANDLE_T handle);
 
 #ifdef __cplusplus

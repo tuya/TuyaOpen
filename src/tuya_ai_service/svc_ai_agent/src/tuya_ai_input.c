@@ -140,7 +140,7 @@ STATIC TUYA_RINGBUFF_T __ai_crt_ringbuf(CHAR_T *scode)
     }
 
     tal_mutex_lock(ai_input_ctx.mutex);
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if TUYA_RINGBUF_PSRAM_ENABLED
     rt = tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &sctx->ringbuf);
 #else
     rt = tuya_ring_buff_create(AI_INPUT_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &sctx->ringbuf);

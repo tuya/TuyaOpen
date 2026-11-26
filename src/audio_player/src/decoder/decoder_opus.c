@@ -143,9 +143,9 @@ static int decoder_opus_process(void* handle, uint8_t *in_buf, int in_len,
         }
     }
 
-    output->sample = (TKL_AUDIO_SAMPLE_E)ctx->sample_rate;
-    output->datebits = TKL_AUDIO_DATABITS_16;
-    output->channel = (ctx->channels == 1) ? TKL_AUDIO_CHANNEL_MONO : TKL_AUDIO_CHANNEL_STEREO;
+    output->sample = ctx->sample_rate;
+    output->datebits = 16U;
+    output->channel = (uint8_t)ctx->channels;
     output->samples = total_decoded_samples;
     output->used_size = total_decoded_bytes;
 

@@ -1,0 +1,96 @@
+{
+  "id": "ci3422-tuya-voice-uart-flow-20261124",
+  "board": "GD32H779I_DESK_BUDDY",
+  "file": "ci3422_tuya_voice_uart_1.0.0.bin",
+  "bytes": 1032071,
+  "sha256": "f3ad61fe716f962ec47a6395eb102f26ced27aa04c5b1b9caeb2f269fc44cfb6",
+  "image_type": "ci3422_full_firmware",
+  "source_project": "/home/share/samba/CI14LP_SDK_ASR_Offline_V1.0.28/projects/ci3422_tuya_voice_uart",
+  "compile_time": "2026-11-24 20:26:51",
+  "role": "audio_bridge",
+  "uart": {
+    "port": "UART2",
+    "tx": "PB1",
+    "rx": "PB2",
+    "baudrate": 1000000,
+    "format": "8N1"
+  },
+  "capture": {
+    "format": "pcm",
+    "sample_rate": 16000,
+    "bits": 16,
+    "channels": 1
+  },
+  "playback": {
+    "formats": [
+      "mp3",
+      "pcm"
+    ],
+    "volume_min": 0,
+    "volume_max": 100
+  },
+  "features": {
+    "asr_dnn_enabled": false,
+    "mp3_passthrough": true,
+    "pcm_output": true,
+    "volume_control": true
+  },
+  "validation": {
+    "date": "2026-11-23",
+    "tts_mp3_input_bytes": 9009,
+    "tts_decoded_frames": 46,
+    "decode_errors": 0,
+    "dropped_bytes": 0,
+    "uart_drop": 0,
+    "uart_overrun": 0,
+    "iwdg_reset": false,
+    "volume_sweep": [
+      20,
+      50,
+      80,
+      100
+    ],
+    "companion_h779_tts_sha256": "7da20002be5fe23c88acf5770ab1f4e8091066c15bde0ec2c401652d9b1b7e54",
+    "power_on_hiss_fix": {
+      "build": "passed",
+      "hardware": "passed",
+      "source_files": [
+        "src/ci3422_mp3_player.c",
+        "src/ci3422_pcm_player.c"
+      ],
+      "verified_at": "2026-11-23 15:07:46 CST"
+    },
+    "flow_control": {
+      "build": "passed_official_backpressure",
+      "hardware": "pending"
+    },
+    "noise_mitigation": {
+      "mic_input_mode": "differential",
+      "pcm_digital_gain": 8,
+      "status": "deferred"
+    },
+    "logging": {
+      "periodic_stats": "disabled",
+      "spk_ack_per_packet": "disabled"
+    }
+  },
+  "firmware_version": "1.0.0",
+  "firmware_format": "v2",
+  "notes": [
+    "未发布阶段统一使用 1.0.0。",
+    "H779 PA15 不再作为 CI3422 复位脚。",
+    "CI3422 PC1 作为 SPK 流控输出，高电平允许 H779 发送；UART 接收环形缓冲剩余低于 2 KiB 时拉低，缓冲消耗到 2 KiB 以下后重新拉高。",
+    "播放器和 PCM/MP3 写入在缓冲满时持续等待，不再超时丢包。",
+    "接收半帧超过 200 ms 自动复位解析状态。",
+    "SPK STOP 返回前等待播放器排空，避免下一段流被旧会话拒绝。",
+    "功放仅在有效 PCM 数据开始后使能，结束时静音并关闭。"
+  ],
+  "flow_control": {
+    "direction": "CI3422_PC1 -> H779_PA15",
+    "active_level": "high",
+    "meaning": "high: H779 may send SPK data; low: wait",
+    "reset_control_removed": true,
+    "ci_side": "PC1 high allows RX; 5 KiB UART RX ring rejects when free < 2 KiB and resumes when used < 2 KiB; player writes block instead of dropping",
+    "h779_side": "PA15 GPIO input; gate every SPK DATA packet, 6000 ms timeout"
+  }
+}

@@ -20,7 +20,8 @@
 #define STREAM_TEXT_SHOW_WORD_NUM    10
 #define ONE_WORD_MAX_LEN             4
 
-#define STREAM_READ_TEXT_BUF_LEN    (STREAM_TEXT_SHOW_WORD_NUM * ONE_WORD_MAX_LEN + 1)
+#define STREAM_READ_TEXT_CHUNK_LEN  (STREAM_TEXT_SHOW_WORD_NUM * ONE_WORD_MAX_LEN)
+#define STREAM_READ_TEXT_BUF_LEN    (STREAM_READ_TEXT_CHUNK_LEN + 1)
 
 /***********************************************************
 ***********************typedef define***********************
@@ -44,65 +45,11 @@ static char sg_read_text_buf[STREAM_READ_TEXT_BUF_LEN];
 ***********************function define**********************
 ***********************************************************/
 /**
- * @brief Get one UTF-8 word from stream ring buffer.
+ * @brief Get multiple UTF-8 words from the stream ring buffer.
  *
- * @param stream Pointer to the text stream structure.
- * @param result Buffer to store the word (at least 5 bytes).
- * @return Number of bytes read (0 if buffer is empty).
- */
-static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, char *result)
-{
-    uint32_t rb_used_size = 0, read_len = 0;
-    uint8_t word_len = 0;
-    char tmp = 0;
-
-    tal_mutex_lock(stream->rb_mutex);
-    rb_used_size = tuya_ring_buff_used_size_get(stream->text_ringbuff);
-    tal_mutex_unlock(stream->rb_mutex);
-    if (0 == rb_used_size) {
-        return 0;
-    }
-
-    /* Get word length */
-    do {
-        tal_mutex_lock(stream->rb_mutex);
-        read_len = tuya_ring_buff_read(stream->text_ringbuff, &tmp, 1);
-        tal_mutex_unlock(stream->rb_mutex);
-
-        if ((tmp & 0xC0) != 0x80) {
-            if ((tmp & 0xE0) == 0xC0) {
-                word_len = 2;
-            } else if ((tmp & 0xF0) == 0xE0) {
-                word_len = 3;
-            } else if ((tmp & 0xF8) == 0xF0) {
-                word_len = 4;
-            } else {
-                word_len = 1;
-            }
-            break;
-        }
-
-        tmp = 0;
-    } while (read_len);
-
-    if (0 == word_len) {
-        return 0;
-    }
-
-    /* Get word */
-    result[0] = tmp;
-
-    if (word_len - 1) {
-        tal_mutex_lock(stream->rb_mutex);
-        tuya_ring_buff_read(stream->text_ringbuff, &result[1], word_len - 1);
-        tal_mutex_unlock(stream->rb_mutex);
-    }
-
-    return word_len;
-}
-
-/**
- * @brief Get multiple UTF-8 words from stream ring buffer.
+ * Read a bounded batch into SRAM first, then parse it locally and discard only
+ * the bytes that form complete words. This keeps PSRAM access to one bulk peek
+ * per timer tick and leaves an incomplete trailing UTF-8 sequence in the ring.
  *
  * @param stream Pointer to the text stream structure.
  * @param word_num Number of words to read.
@@ -111,21 +58,53 @@ static uint8_t __get_one_word_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, cha
  */
 static uint8_t __get_words_from_stream_ringbuff(AI_TEXT_STREAM_T *stream, uint8_t word_num, char *result)
 {
-    uint8_t word_len = 0, i = 0, get_num = 0;
+    uint32_t read_len = 0;
+    uint32_t consumed = 0;
     uint32_t result_len = 0;
-    
+    uint8_t word_len = 0;
+    uint8_t get_num = 0;
 
-    for (i = 0; i < word_num; i++) {
-        word_len = __get_one_word_from_stream_ringbuff(stream, &result[result_len]);
-        if (0 == word_len) {
+    tal_mutex_lock(stream->rb_mutex);
+    read_len = tuya_ring_buff_peek(stream->text_ringbuff, result, STREAM_READ_TEXT_CHUNK_LEN);
+    while ((consumed < read_len) && (get_num < word_num)) {
+        uint8_t first = (uint8_t)result[consumed];
+
+        /* Skip a stray UTF-8 continuation byte from a damaged stream. */
+        if ((first & 0xC0) == 0x80) {
+            consumed++;
+            continue;
+        }
+
+        if ((first & 0xE0) == 0xC0) {
+            word_len = 2;
+        } else if ((first & 0xF0) == 0xE0) {
+            word_len = 3;
+        } else if ((first & 0xF8) == 0xF0) {
+            word_len = 4;
+        } else {
+            word_len = 1;
+        }
+
+        /* Keep the incomplete tail in the ring until the next batch arrives. */
+        if (word_len > (read_len - consumed)) {
             break;
         }
+
+        /* Pack accepted words in place; destination never overtakes source. */
+        for (uint8_t i = 0; i < word_len; i++) {
+            result[result_len + i] = result[consumed + i];
+        }
+        consumed += word_len;
         result_len += word_len;
         get_num++;
     }
 
-    result[result_len] = '\0';
+    if (consumed > 0) {
+        tuya_ring_buff_discard(stream->text_ringbuff, consumed);
+    }
+    tal_mutex_unlock(stream->rb_mutex);
 
+    result[result_len] = '\0';
     return get_num;
 }
 
@@ -140,7 +119,6 @@ static void __ui_stream_text_timer_cb(TIMER_ID timer_id, void *arg)
     AI_TEXT_STREAM_T *stream = (AI_TEXT_STREAM_T*)arg;
     uint8_t word_num = 0;
 
-    memset(sg_read_text_buf, 0x00, STREAM_READ_TEXT_BUF_LEN);
     word_num = __get_words_from_stream_ringbuff(stream, STREAM_TEXT_SHOW_WORD_NUM, sg_read_text_buf);
     if (0 == word_num) {
         if(false == stream->is_start) {
@@ -174,7 +152,7 @@ OPERATE_RET ai_ui_stream_text_init(AI_UI_STREAM_TEXT_DISP_CB disp_cb)
     }
 
     if (NULL == sg_text_stream.text_ringbuff) {
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if TUYA_RINGBUF_PSRAM_ENABLED
         TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(STREAM_BUFF_MAX_LEN, \
                                                    OVERFLOW_PSRAM_STOP_TYPE, \
                                                    &sg_text_stream.text_ringbuff));
@@ -263,4 +241,4 @@ void ai_ui_stream_text_reset(void)
         tuya_ring_buff_reset(sg_text_stream.text_ringbuff);
         tal_mutex_unlock(sg_text_stream.rb_mutex);
     }
-} 
+}

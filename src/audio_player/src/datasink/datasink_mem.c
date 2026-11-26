@@ -48,7 +48,7 @@ OPERATE_RET datasink_mem_start(char *value, void* *handle)
 
     memset(ctx, 0, sizeof(MEM_DATASINK_CTX_T));
     TUYA_CALL_ERR_RETURN(tal_mutex_create_init(&ctx->mutex));
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
+#if TUYA_RINGBUF_PSRAM_ENABLED
     TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_PSRAM_STOP_TYPE, &ctx->ringbuf));
 #else
     TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(AI_PLAYER_RINGBUF_SIZE, OVERFLOW_STOP_TYPE, &ctx->ringbuf));
@@ -127,7 +127,9 @@ OPERATE_RET datasink_mem_feed(void* handle, uint8_t *data, uint32_t len)
         tal_mutex_unlock(ctx->mutex);
 
         if(cnt ++ > 500) {
-            PR_ERR("player ring buf write failed %d", rt);
+            uint32_t dropped = len > (uint32_t)rt ? len - (uint32_t)rt : 0U;
+            PR_ERR("player ring buf write timeout: remaining=%u dropped=%u; "
+                   "keeping legacy OPRT_OK", (unsigned)len, (unsigned)dropped);
             break;
         }
     }

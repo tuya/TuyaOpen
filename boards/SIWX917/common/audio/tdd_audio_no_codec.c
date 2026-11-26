@@ -489,10 +489,13 @@ OPERATE_RET tdd_audio_no_codec_register(char *name, TDD_AUDIO_NO_CODEC_T cfg)
     // default play volume
     _hdl->play_volume = 80;
 
-    info.sample_rate = I2S_RX_SAMPLE_RATE,
-    info.sample_ch_num = 1,  // mono
-    info.sample_bits = 16,   // 16-bit
-    info.sample_tm_ms = I2S_READ_INTERVAL_MS;
+    info.capture.format = TDL_AUDIO_FRAME_FORMAT_PCM;
+    info.capture.sample_rate = I2S_RX_SAMPLE_RATE;
+    info.capture.sample_ch_num = 1;
+    info.capture.sample_bits = 16;
+    info.capture.sample_tm_ms = I2S_READ_INTERVAL_MS;
+    info.playback = info.capture;
+    info.playback.sample_rate = cfg.spk_sample_rate;
 
     memcpy(&_hdl->cfg, &cfg, sizeof(TDD_AUDIO_NO_CODEC_T));
 

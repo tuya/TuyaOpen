@@ -55,6 +55,7 @@ struct TDL_DISP_FRAME_BUFF_T {
     void  *free_arg;
     uint32_t len;
     uint8_t *frame;
+    void *frame_alloc; /* Internal backing allocation; do not modify. */
 };
 
 typedef struct {

@@ -101,8 +101,8 @@ static OPERATE_RET __example_save_wav_from_pcm_file(char *pcm_file)
     }
 
     // Get wav head
-    rt = app_get_wav_head(pcm_len, 1, sg_audio_info.sample_rate, \
-                          sg_audio_info.sample_bits, sg_audio_info.sample_ch_num, head);
+    rt = app_get_wav_head(pcm_len, 1, sg_audio_info.capture.sample_rate, \
+                          sg_audio_info.capture.sample_bits, sg_audio_info.capture.sample_ch_num, head);
     if (OPRT_OK != rt) {
         PR_ERR("app_get_wav_head failed, rt = %d", rt);
         return rt;
@@ -122,7 +122,7 @@ static OPERATE_RET __example_save_wav_from_pcm_file(char *pcm_file)
     tkl_fwrite(head, WAV_HEAD_LEN, wav_hdl);
 
     // Read pcm file
-    read_buf = tkl_system_psram_malloc(sg_audio_info.frame_size);
+    read_buf = tkl_system_psram_malloc(sg_audio_info.capture.frame_size);
     if (NULL == read_buf) {
         PR_ERR("tkl_system_psram_malloc failed");
         // return OPRT_COM_ERROR;
@@ -142,8 +142,8 @@ static OPERATE_RET __example_save_wav_from_pcm_file(char *pcm_file)
 
     // Write wav data
     do {
-        memset(read_buf, 0, sg_audio_info.frame_size);
-        uint32_t read_len = tkl_fread(read_buf, sg_audio_info.frame_size, pcm_hdl);
+        memset(read_buf, 0, sg_audio_info.capture.frame_size);
+        uint32_t read_len = tkl_fread(read_buf, sg_audio_info.capture.frame_size, pcm_hdl);
         if (read_len == 0) {
             break;
         }
@@ -272,12 +272,12 @@ static OPERATE_RET __example_audio_open(void)
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_open(sg_audio_hdl, __example_get_audio_frame));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &sg_audio_info));
-    if(0 == sg_audio_info.frame_size || 0 == sg_audio_info.sample_tm_ms) {
+    if(0 == sg_audio_info.capture.frame_size || 0 == sg_audio_info.capture.sample_tm_ms) {
         PR_ERR("get audio info err");
         return OPRT_INVALID_PARM;
     }
 
-    buf_len = (EXAMPLE_RECORD_DURATION_MS / sg_audio_info.sample_tm_ms) * sg_audio_info.frame_size;
+    buf_len = (EXAMPLE_RECORD_DURATION_MS / sg_audio_info.capture.sample_tm_ms) * sg_audio_info.capture.frame_size;
     TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(buf_len, \
                                                OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder_pcm_rb));
 

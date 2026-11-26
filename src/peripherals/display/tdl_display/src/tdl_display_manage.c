@@ -12,7 +12,6 @@
  */
 
 #include "tkl_gpio.h"
-#include "tkl_memory.h"
 
 #if defined(ENABLE_PWM) && (ENABLE_PWM == 1)
 #include "tkl_pwm.h"
@@ -23,14 +22,6 @@
 
 #include "tdl_display_driver.h"
 #include "tdl_display_manage.h"
-
-/***********************************************************
-************************macro define************************
-***********************************************************/
-/* 64 bytes = ESP32-P4 L1/L2 cache-line size. Frame buffers handed to 2D-DMA /
- * PPA hardware must be cache-line aligned (address and size); over-aligning to
- * 64 is harmless on platforms with smaller requirements. */
-#define TDL_DISP_DRAW_BUF_ALIGN 64
 
 /***********************************************************
 ***********************typedef define***********************
@@ -376,81 +367,6 @@ OPERATE_RET tdl_disp_dev_close(TDL_DISP_HANDLE_T disp_hdl)
     display_dev->is_open = false;
 
     return OPRT_OK;
-}
-
-/**
- * @brief Creates and initializes a frame buffer for display operations.
- *
- * This function allocates memory for a frame buffer based on the specified type and length. 
- * It also ensures proper memory alignment for efficient data processing.
- *
- * @param type Type of memory to allocate (e.g., SRAM or PSRAM).
- * @param len Length of the frame buffer data in bytes.
- *
- * @return Returns a pointer to the allocated `TDL_DISP_FRAME_BUFF_T` structure on success, 
- *         or NULL if memory allocation fails.
- */
-TDL_DISP_FRAME_BUFF_T *tdl_disp_create_frame_buff(DISP_FB_RAM_TP_E type, uint32_t len)
-{
-    TDL_DISP_FRAME_BUFF_T *fb = NULL;
-    DISP_FB_RAM_TP_E fb_type = type;
-    uint32_t size = 0, frame_len = 0;
-    uint8_t *p_frame = NULL;
-
-    frame_len = len + TDL_DISP_DRAW_BUF_ALIGN - 1;
-    size = sizeof(TDL_DISP_FRAME_BUFF_T) + frame_len;
-
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-    if (type == DISP_FB_TP_SRAM) {
-        fb = tkl_system_malloc(size);
-    } else {
-        fb = tkl_system_psram_malloc(size);
-    }
-#else
-    fb = tkl_system_malloc(size);
-    fb_type = DISP_FB_TP_SRAM;
-#endif
-
-    if (fb == NULL) {
-        return NULL;
-    }
-
-    memset(fb, 0, size);
-
-    p_frame = (uint8_t *)fb + sizeof(TDL_DISP_FRAME_BUFF_T);
-    p_frame += TDL_DISP_DRAW_BUF_ALIGN - 1;
-    p_frame = (uint8_t *)((uintptr_t)p_frame & ~(uintptr_t)(TDL_DISP_DRAW_BUF_ALIGN - 1));
-
-    fb->type = fb_type;
-    fb->frame = p_frame;
-    fb->len = len;
-
-    return fb;
-}
-
-/**
- * @brief Frees a previously allocated frame buffer.
- *
- * This function releases the memory associated with the specified frame buffer, 
- * taking into account the type of memory (SRAM or PSRAM) used for allocation.
- *
- * @param frame_buff Pointer to the frame buffer to be freed.
- *
- * @return None.
- */
-void tdl_disp_free_frame_buff(TDL_DISP_FRAME_BUFF_T *frame_buff)
-{
-    if (frame_buff) {
-        if (frame_buff->type == DISP_FB_TP_SRAM) {
-            tkl_system_free(frame_buff);
-        } else {
-#if defined(ENABLE_EXT_RAM) && (ENABLE_EXT_RAM == 1)
-            tkl_system_psram_free(frame_buff);
-#else
-            tkl_system_free(frame_buff);
-#endif
-        }
-    }
 }
 
 /**

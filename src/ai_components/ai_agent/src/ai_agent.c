@@ -221,9 +221,9 @@ OPERATE_RET ai_agent_init(void)
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(audio_hdl, &audio_info));
 
-    ai_agent_cfg.attr.audio.sample_rate = audio_info.sample_rate;
-    ai_agent_cfg.attr.audio.channels = audio_info.sample_ch_num;
-    ai_agent_cfg.attr.audio.bit_depth = audio_info.sample_bits;
+    ai_agent_cfg.attr.audio.sample_rate = audio_info.capture.sample_rate;
+    ai_agent_cfg.attr.audio.channels = audio_info.capture.sample_ch_num;
+    ai_agent_cfg.attr.audio.bit_depth = audio_info.capture.sample_bits;
 
     ai_agent_cfg.codec_enable         = TRUE;
 #endif
