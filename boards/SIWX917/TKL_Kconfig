@@ -55,6 +55,7 @@ config MP3_DECODER_STATIC_BUF
 config ENABLE_BLUETOOTH
     bool
     select ENABLE_BT_SERVICE
+    select ENABLE_NIMBLE
     default y
 
 config ENABLE_ADC
