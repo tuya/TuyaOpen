@@ -6,26 +6,25 @@ config BOARD_CHOICE
     string
     default "GD32H779I_DESK_BUDDY"
 
-config ENABLE_DESK_BUDDY_PERIPHERALS
-    bool "Enable Desk Buddy display, cameras, touch, encoder and motion sensor"
-    default y
-
-config ENABLE_DESK_BUDDY_AUDIO
-    bool "Enable Desk Buddy offline voice UART audio"
+config BOARD_CONFIG
+    bool
     default y
     select ENABLE_AUDIO_CODECS
     select ENABLE_TDD_AUDIO_TY_UART
-    select ENABLE_UART
-    help
-      Register the generic Tuya offline voice TDD driver for the board voice
-      module on UART3 PD0/PD1 with PA15 as SPK flow-control input.
-      The driver uses the Tuya offline voice protocol (0x55AA / 0x92) at 1000000 bps
-      for push-to-talk PCM capture and playback.
+    select ENABLE_DISPLAY
+    select ENABLE_CAMERA
+    select ENABLE_CAMERA_2
+    select ENABLE_BUTTON
+    select ENABLE_TP
+    select ENABLE_ENCODER
+    select ENABLE_MOTION
+    select ENABLE_MOTION_SC7A20
+    select ENABLE_LVGL_PARTIAL_FLUSH if (ENABLE_LIBLVGL)
+    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)
 
 choice DESK_BUDDY_AUDIO_PLAYBACK_FORMAT
     prompt "Desk Buddy UART playback format"
     default DESK_BUDDY_AUDIO_PLAYBACK_MP3
-    depends on ENABLE_DESK_BUDDY_AUDIO
 
 config DESK_BUDDY_AUDIO_PLAYBACK_PCM
     bool "PCM"
@@ -39,26 +38,3 @@ config DESK_BUDDY_AUDIO_PLAYBACK_MP3
       Register the device playback format as MP3. Use this for the AI cloud
       TTS passthrough path.
 endchoice
-
-config ENABLE_DESK_BUDDY_BUTTON
-    bool "Enable encoder push button as TDL button"
-    default y
-    select ENABLE_BUTTON
-    help
-      Register the rotary-encoder push switch on PA0 as the standard TDL
-      button named by BUTTON_NAME. Applications may open either this button
-      device or the encoder device according to their needs.
-
-config BOARD_CONFIG
-    bool
-    default y
-    select ENABLE_DISPLAY if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_CAMERA if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_CAMERA_2 if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_TP if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_ENCODER if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_DESK_BUDDY_BUTTON if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_MOTION if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_MOTION_SC7A20 if ENABLE_DESK_BUDDY_PERIPHERALS
-    select ENABLE_LVGL_PARTIAL_FLUSH if (ENABLE_LIBLVGL)
-    select ENABLE_LVGL_OS_FREERTOS if (LVGL_VERSION_9)

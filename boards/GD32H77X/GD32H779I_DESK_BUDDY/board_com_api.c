@@ -13,12 +13,8 @@
 #if defined(ENABLE_DISPLAY) && (ENABLE_DISPLAY == 1)
 #include "tdd_disp_st77916.h"
 #endif
-#if defined(ENABLE_DESK_BUDDY_AUDIO) && (ENABLE_DESK_BUDDY_AUDIO == 1)
 #include "tdd_audio_ty_uart.h"
-#endif
-#if defined(ENABLE_DESK_BUDDY_BUTTON) && (ENABLE_DESK_BUDDY_BUTTON == 1)
 #include "tdd_button_gpio.h"
-#endif
 
 #define BOARD_LCD_WIDTH                 360U
 #define BOARD_LCD_HEIGHT                360U
@@ -26,18 +22,20 @@
 /* Validated stable LCD QSPI clock. 75 MHz caused corrupted frames on this board. */
 #define BOARD_LCD_QSPI_CLK_HZ           46875000U
 
-#if defined(ENABLE_DESK_BUDDY_AUDIO) && (ENABLE_DESK_BUDDY_AUDIO == 1)
 /* Voice module UART2 is cross-connected to GD32 UART3:
  * voice TX -> PD0/UART3_RX, voice RX <- PD1/UART3_TX. */
 #define BOARD_AUDIO_UART_PORT          TUYA_UART_NUM_3
 #define BOARD_AUDIO_UART_RX_PIN        TUYA_GPIO_NUM_48 /* PD0 */
 #define BOARD_AUDIO_UART_TX_PIN        TUYA_GPIO_NUM_49 /* PD1 */
-#define BOARD_AUDIO_SPK_FLOW_PIN          TUYA_GPIO_NUM_15 /* PA15 */
+#define BOARD_AUDIO_SPK_FLOW_PIN       TUYA_GPIO_NUM_15 /* PA15 */
 #define BOARD_AUDIO_BAUDRATE           1000000U
-#endif
 #define BOARD_LCD_CS_PIN                TUYA_GPIO_NUM_36 /* PC4 */
 #define BOARD_LCD_RST_PIN               TUYA_GPIO_NUM_94 /* PF14 */
 #define BOARD_LCD_BL_PIN                TUYA_GPIO_NUM_118 /* PH6 */
+
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1)
+#define BOARD_BUTTON_PIN                TUYA_GPIO_NUM_0   /* PA0 */
+#endif
 
 #if defined(ENABLE_ENCODER) && (ENABLE_ENCODER == 1)
 #include "tdd_encoder_gpio.h"
@@ -45,10 +43,6 @@
 #define BOARD_ENCODER_A_PIN             TUYA_GPIO_NUM_121 /* PH9 */
 #define BOARD_ENCODER_B_PIN             TUYA_GPIO_NUM_28  /* PB12 */
 #define BOARD_ENCODER_BUTTON_PIN        TUYA_GPIO_NUM_0   /* PA0 */
-#endif
-
-#if defined(ENABLE_DESK_BUDDY_BUTTON) && (ENABLE_DESK_BUDDY_BUTTON == 1)
-#define BOARD_BUTTON_PIN                TUYA_GPIO_NUM_0   /* PA0 */
 #endif
 
 #if defined(ENABLE_MOTION) && (ENABLE_MOTION == 1)
@@ -104,8 +98,7 @@ static OPERATE_RET __board_register_audio(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(ENABLE_DESK_BUDDY_AUDIO) && (ENABLE_DESK_BUDDY_AUDIO == 1) && \
-    defined(AUDIO_CODEC_NAME)
+#if defined(AUDIO_CODEC_NAME)
     const TDD_AUDIO_TY_UART_CFG_T audio_cfg = {
         .uart_port = BOARD_AUDIO_UART_PORT,
         .spk_flow_pin = BOARD_AUDIO_SPK_FLOW_PIN,
@@ -246,8 +239,7 @@ static OPERATE_RET __board_register_button(void)
 {
     OPERATE_RET rt = OPRT_OK;
 
-#if defined(ENABLE_DESK_BUDDY_BUTTON) && (ENABLE_DESK_BUDDY_BUTTON == 1) && \
-    defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1) && defined(BUTTON_NAME)
+#if defined(ENABLE_BUTTON) && (ENABLE_BUTTON == 1) && defined(BUTTON_NAME)
     BUTTON_GPIO_CFG_T button_cfg = {0};
 
     button_cfg.pin = BOARD_BUTTON_PIN;
