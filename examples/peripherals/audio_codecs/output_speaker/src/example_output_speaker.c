@@ -75,7 +75,7 @@ static void __button_function_cb(char *name, TDL_BUTTON_TOUCH_EVENT_E event, voi
 static void __example_play_from_recorder_rb(void)
 {
     if (NULL == sg_recorder_pcm_rb || NULL == sg_audio_hdl ||\
-       0 == sg_audio_info.frame_size) {
+       0 == sg_audio_info.capture.frame_size) {
         return;
     }
 
@@ -86,14 +86,14 @@ static void __example_play_from_recorder_rb(void)
     }
 
     uint32_t out_len = 0;
-    uint8_t *frame_buf = tkl_system_psram_malloc(sg_audio_info.frame_size);
+    uint8_t *frame_buf = Malloc(sg_audio_info.capture.frame_size);
     if (NULL == frame_buf) {
-        PR_ERR("tkl_system_psram_malloc failed");
+        PR_ERR("frame buffer allocation failed");
         return;
     }
 
     do {
-        memset(frame_buf, 0, sg_audio_info.frame_size);
+        memset(frame_buf, 0, sg_audio_info.capture.frame_size);
         out_len = 0;
 
         data_len = tuya_ring_buff_used_size_get(sg_recorder_pcm_rb);
@@ -102,9 +102,9 @@ static void __example_play_from_recorder_rb(void)
             break;
         }
 
-        if (data_len >sg_audio_info.frame_size) {
-            tuya_ring_buff_read(sg_recorder_pcm_rb, frame_buf, sg_audio_info.frame_size);
-            out_len = sg_audio_info.frame_size;
+        if (data_len >sg_audio_info.capture.frame_size) {
+            tuya_ring_buff_read(sg_recorder_pcm_rb, frame_buf, sg_audio_info.capture.frame_size);
+            out_len = sg_audio_info.capture.frame_size;
         } else {
             tuya_ring_buff_read(sg_recorder_pcm_rb, frame_buf, data_len);
             out_len = data_len;
@@ -113,8 +113,10 @@ static void __example_play_from_recorder_rb(void)
         tdl_audio_play(sg_audio_hdl, frame_buf, out_len);
     } while (1);
 
+    (void)tdl_audio_play_stop(sg_audio_hdl);
+
     if (frame_buf) {
-        tkl_system_psram_free(frame_buf);
+        Free(frame_buf);
         frame_buf = NULL;
     }
 }
@@ -132,7 +134,7 @@ static void __example_get_audio_frame(TDL_AUDIO_FRAME_FORMAT_E type, TDL_AUDIO_S
             PR_WARN("recorder ring buffer overflow, free_size:%u, need_size:%u", free_size, len);
             return;
         }
-        tuya_ring_buff_write(sg_recorder_pcm_rb, data, len);
+        (void)tuya_ring_buff_write(sg_recorder_pcm_rb, data, len);
     }
 
     return;
@@ -146,12 +148,12 @@ static OPERATE_RET __example_audio_open(void)
     TUYA_CALL_ERR_RETURN(tdl_audio_find(AUDIO_CODEC_NAME, &sg_audio_hdl));
     TUYA_CALL_ERR_RETURN(tdl_audio_open(sg_audio_hdl, __example_get_audio_frame));
     TUYA_CALL_ERR_RETURN(tdl_audio_get_info(sg_audio_hdl, &sg_audio_info));
-    if(0 == sg_audio_info.frame_size || 0 == sg_audio_info.sample_tm_ms) {
+    if(0 == sg_audio_info.capture.frame_size || 0 == sg_audio_info.capture.sample_tm_ms) {
         PR_ERR("get audio info err");
         return OPRT_INVALID_PARM;
     }
 
-    buf_len = (EXAMPLE_RECORD_DURATION_MS / sg_audio_info.sample_tm_ms) * sg_audio_info.frame_size;
+    buf_len = (EXAMPLE_RECORD_DURATION_MS / sg_audio_info.capture.sample_tm_ms) * sg_audio_info.capture.frame_size;
     TUYA_CALL_ERR_RETURN(tuya_ring_buff_create(buf_len, \
                                                OVERFLOW_PSRAM_STOP_TYPE, &sg_recorder_pcm_rb));
 
