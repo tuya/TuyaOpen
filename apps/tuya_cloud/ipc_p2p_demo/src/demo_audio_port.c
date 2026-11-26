@@ -151,9 +151,9 @@ OPERATE_RET demo_audio_port_open(DEMO_AUDIO_PORT_MIC_CB cb)
 
     memset(&info, 0, sizeof(info));
     if (tdl_audio_get_info(s_handle, &info) == OPRT_OK) {
-        s_dev_rate = (info.sample_rate != 0) ? (uint32_t)info.sample_rate : DEMO_AUDIO_PORT_RATE;
-        PR_NOTICE("audio port: tdl %uHz/%ubit/%uch frame %u", (uint32_t)info.sample_rate, (uint32_t)info.sample_bits,
-                  (uint32_t)info.sample_ch_num, (uint32_t)info.frame_size);
+        s_dev_rate = (info.capture.sample_rate != 0) ? (uint32_t)info.capture.sample_rate : DEMO_AUDIO_PORT_RATE;
+        PR_NOTICE("audio port: tdl %uHz/%ubit/%uch frame %u", (uint32_t)info.capture.sample_rate, (uint32_t)info.capture.sample_bits,
+                  (uint32_t)info.capture.sample_ch_num, (uint32_t)info.capture.frame_size);
     } else {
         s_dev_rate = TKL_AUDIO_SAMPLE_16K;
         PR_NOTICE("audio port: tdl_audio_get_info failed, assuming %uHz", s_dev_rate);
