@@ -127,7 +127,9 @@ OPERATE_RET datasink_mem_feed(void* handle, uint8_t *data, uint32_t len)
         tal_mutex_unlock(ctx->mutex);
 
         if(cnt ++ > 500) {
-            PR_ERR("player ring buf write failed %d", rt);
+            uint32_t dropped = len > (uint32_t)rt ? len - (uint32_t)rt : 0U;
+            PR_ERR("player ring buf write timeout: remaining=%u dropped=%u; "
+                   "keeping legacy OPRT_OK", (unsigned)len, (unsigned)dropped);
             break;
         }
     }

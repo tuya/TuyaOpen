@@ -313,6 +313,8 @@ typedef struct {
     uint32_t spk_ack_count;
     uint32_t last_spk_ack_sequence;
     uint8_t last_spk_ack_stage;
+    uint32_t spk_flow_wait_count;
+    bool spk_flow_waiting;
     uint32_t mic_dropped;
     uint32_t mic_cb_frames;
     uint32_t mic_cb_bytes;
@@ -644,6 +646,7 @@ static OPERATE_RET __wait_spk_flow_ready(TY_UART_CTX_T *ctx)
 {
     OPERATE_RET rt;
     uint32_t start_ms;
+    uint32_t waited_ms;
 
     if (ctx->cfg.spk_flow_pin >= TUYA_GPIO_NUM_MAX) {
         return OPRT_OK;
@@ -654,10 +657,27 @@ static OPERATE_RET __wait_spk_flow_ready(TY_UART_CTX_T *ctx)
         TUYA_GPIO_LEVEL_E level = TUYA_GPIO_LEVEL_LOW;
         TUYA_CALL_ERR_RETURN(tkl_gpio_read(ctx->cfg.spk_flow_pin, &level));
         if (level == ctx->cfg.spk_flow_active_level) {
+            if (ctx->spk_flow_waiting) {
+                ctx->spk_flow_waiting = false;
+                waited_ms = (uint32_t)(tal_system_get_millisecond() - start_ms);
+                PR_DEBUG("Tuya UART audio SPK flow resumed after %lums total=%lu",
+                         (unsigned long)waited_ms,
+                         (unsigned long)ctx->spk_flow_wait_count);
+            }
             return OPRT_OK;
         }
-        if ((uint32_t)(tal_system_get_millisecond() - start_ms) >=
-            TY_UART_SPK_FLOW_TIMEOUT_MS) {
+        if (!ctx->spk_flow_waiting) {
+            ctx->spk_flow_waiting = true;
+            ctx->spk_flow_wait_count++;
+            PR_DEBUG("Tuya UART audio SPK flow wait start seq=%u total=%lu",
+                     (unsigned)ctx->spk_sequence,
+                     (unsigned long)ctx->spk_flow_wait_count);
+        }
+        waited_ms = (uint32_t)(tal_system_get_millisecond() - start_ms);
+        if (waited_ms >= TY_UART_SPK_FLOW_TIMEOUT_MS) {
+            ctx->spk_flow_waiting = false;
+            PR_ERR("Tuya UART audio SPK flow blocked for %lums",
+                   (unsigned long)waited_ms);
             return OPRT_TIMEOUT;
         }
         tal_system_sleep(1U);
@@ -797,6 +817,8 @@ static OPERATE_RET __stop_locked(TY_UART_CTX_T *ctx)
     ctx->mic_cb = NULL;
     ctx->volume = ctx->cfg.default_volume;
     ctx->spk_sequence = 0U;
+    ctx->spk_flow_wait_count = 0U;
+    ctx->spk_flow_waiting = false;
     __voice_parser_init(&ctx->parser);
     return OPRT_OK;
 }
