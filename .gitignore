@@ -105,3 +105,7 @@ boards/GD32/*/GD32VW55x_Demo_Suites_*/
 .agents/
 /.agents/skills/
 .claude/
+
+# Board bring-up notes and vendor references stay local.
+/boards/GD32H77X/docs/
+/boards/GD32H77X/*/docs/
