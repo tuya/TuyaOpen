@@ -59,6 +59,14 @@ OPERATE_RET tuya_device_meta_add_string(const char *key, const char *value);
 OPERATE_RET tuya_device_meta_add_number(const char *key, int value);
 
 /**
+ * @brief Add a boolean value to device meta (local cache)
+ * @param[in] key meta key, must not be NULL
+ * @param[in] value meta value, must be a boolean
+ * @return OPRT_OK on success, OPRT_INVALID_PARM on invalid param, OPRT_MALLOC_FAILED on alloc fail
+ */
+OPERATE_RET tuya_device_meta_add_bool(const char *key, bool value);
+
+/**
  * @brief Report device meta to cloud and clear local cache on completion
  * @return OPRT_OK on success, OPRT_INVALID_PARM if not initialized, OPRT_COM_ERROR on cloud error
  */

@@ -36,7 +36,53 @@
 #include "tuya_protocol.h"
 #include "dev_evt.h"
 
+#ifndef MQTT_PUBLISH_QUEUE_MAX
+#define MQTT_PUBLISH_QUEUE_MAX (32U)
+#endif
+
 static void on_subscribe_message_default(uint16_t msgid, const mqtt_client_message_t *msg, void *userdata);
+
+static void mqtt_publish_handle_free(mqtt_publish_handle_t *entry)
+{
+    if (entry == NULL) {
+        return;
+    }
+    if (entry->topic) {
+        tal_free(entry->topic);
+    }
+    if (entry->payload) {
+        tal_free(entry->payload);
+    }
+    tal_free(entry);
+}
+
+static void mqtt_publish_list_clear(tuya_mqtt_context_t *context, int result)
+{
+    mqtt_publish_handle_t *list = NULL;
+
+    if (context == NULL) {
+        return;
+    }
+
+    if (context->publish_mutex) {
+        tal_mutex_lock(context->publish_mutex);
+    }
+    list = context->publish_list;
+    context->publish_list = NULL;
+    context->publish_count = 0;
+    if (context->publish_mutex) {
+        tal_mutex_unlock(context->publish_mutex);
+    }
+
+    while (list) {
+        mqtt_publish_handle_t *entry = list;
+        list = entry->next;
+        if (entry->cb) {
+            entry->cb(result, entry->user_data);
+        }
+        mqtt_publish_handle_free(entry);
+    }
+}
 
 typedef struct {
     uint32_t sequence;
@@ -195,6 +241,10 @@ int tuya_mqtt_subscribe_message_callback_unregister(tuya_mqtt_context_t *context
     }
     /* UNLOCK */
 
+    if (context->is_connected == false) {
+        return OPRT_OK;
+    }
+
     uint16_t msgid = mqtt_client_unsubscribe(context->mqtt_client, topic, MQTT_QOS_1);
     if (msgid <= 0) {
         return OPRT_COM_ERROR;
@@ -313,6 +363,7 @@ static void mqtt_client_disconnected_cb(void *client, void *userdata)
     tuya_mqtt_context_t *context = (tuya_mqtt_context_t *)userdata;
     PR_INFO("mqtt client disconnected!");
     context->is_connected = false;
+    mqtt_publish_list_clear(context, OPRT_COM_ERROR);
     if (context->on_disconnect) {
         context->on_disconnect(context, context->user_data);
     }
@@ -339,22 +390,35 @@ static void mqtt_client_puback_cb(void *client, uint16_t msgid, void *userdata)
 {
     client = client;
     tuya_mqtt_context_t *context = (tuya_mqtt_context_t *)userdata;
+    mqtt_publish_handle_t *matched = NULL;
     PR_DEBUG("PUBACK ID:%d", msgid);
 
-    /* LOCK */
+    if (context->publish_mutex) {
+        tal_mutex_lock(context->publish_mutex);
+    }
     /* publish async process */
     mqtt_publish_handle_t **next_handle = &context->publish_list;
     for (; *next_handle; next_handle = &(*next_handle)->next) {
         mqtt_publish_handle_t *entry = *next_handle;
         if (msgid == entry->msgid) {
-            entry->cb(OPRT_OK, entry->user_data);
             *next_handle = entry->next;
-            tal_free(entry->payload);
-            tal_free(entry);
+            if (context->publish_count > 0) {
+                context->publish_count--;
+            }
+            matched = entry;
             break;
         }
     }
-    /* UNLOCK */
+    if (context->publish_mutex) {
+        tal_mutex_unlock(context->publish_mutex);
+    }
+
+    if (matched) {
+        if (matched->cb) {
+            matched->cb(OPRT_OK, matched->user_data);
+        }
+        mqtt_publish_handle_free(matched);
+    }
 }
 
 /**
@@ -396,9 +460,17 @@ int tuya_mqtt_init(tuya_mqtt_context_t *context, const tuya_mqtt_config_t *confi
         return rt;
     }
 
+    rt = tal_mutex_create_init(&context->publish_mutex);
+    if (OPRT_OK != rt) {
+        PR_ERR("mqtt publish mutex init error:%d", rt);
+        return rt;
+    }
+
     /* MQTT Client object new */
     context->mqtt_client = mqtt_client_new();
     if (context->mqtt_client == NULL) {
+        tal_mutex_release(context->publish_mutex);
+        context->publish_mutex = NULL;
         PR_ERR("mqtt client new fault.");
         return OPRT_MALLOC_FAILED;
     }
@@ -421,6 +493,10 @@ int tuya_mqtt_init(tuya_mqtt_context_t *context, const tuya_mqtt_config_t *confi
                                               .userdata = context};
     mqtt_status = mqtt_client_init(context->mqtt_client, &mqtt_config);
     if (mqtt_status != MQTT_STATUS_SUCCESS) {
+        mqtt_client_free(context->mqtt_client);
+        context->mqtt_client = NULL;
+        tal_mutex_release(context->publish_mutex);
+        context->publish_mutex = NULL;
         PR_ERR("MQTT init failed: Status = %d.", mqtt_status);
         return OPRT_COM_ERROR;
     }
@@ -472,6 +548,9 @@ int tuya_mqtt_start(tuya_mqtt_context_t *context)
     //! TODO: rand
     if (MQTT_STATUS_SUCCESS != mqtt_status) {
         PR_ERR("MQTT connect fail:%d", mqtt_status);
+        if (context->manual_disconnect || context->is_inited == false) {
+            return OPRT_COM_ERROR;
+        }
         /* Generate a random number and get back-off value (in milliseconds) for
          * the next connection retry. */
         uint16_t nextRetryBackOff = 0U;
@@ -480,7 +559,12 @@ int tuya_mqtt_start(tuya_mqtt_context_t *context)
             PR_WARN("Connection to the MQTT server failed. Retrying "
                     "connection after %hu ms backoff.",
                     (unsigned short)nextRetryBackOff);
-            tal_system_sleep(nextRetryBackOff + 10000);
+            uint32_t remaining = nextRetryBackOff;
+            while (remaining > 0 && !context->manual_disconnect && context->is_inited) {
+                uint32_t slice = (remaining > 200U) ? 200U : remaining;
+                tal_system_sleep(slice);
+                remaining -= slice;
+            }
         }
         return OPRT_COM_ERROR;
     }
@@ -501,14 +585,18 @@ int tuya_mqtt_stop(tuya_mqtt_context_t *context)
         return OPRT_INVALID_PARM;
     }
 
+    context->manual_disconnect = true;
+
     int ret = tuya_mqtt_subscribe_message_callback_unregister(context, context->signature.topic_in);
     PR_DEBUG("MQTT unsubscribe result:%d", ret);
 
-    mqtt_client_status_t mqtt_status;
-    mqtt_status = mqtt_client_disconnect(context->mqtt_client);
-    PR_DEBUG("MQTT disconnect result:%d", mqtt_status);
+    if (context->is_connected) {
+        mqtt_client_status_t mqtt_status;
+        mqtt_status = mqtt_client_disconnect(context->mqtt_client);
+        PR_DEBUG("MQTT disconnect result:%d", mqtt_status);
+    }
 
-    context->manual_disconnect = true;
+    mqtt_publish_list_clear(context, OPRT_COM_ERROR);
     return OPRT_OK;
 }
 
@@ -643,57 +731,77 @@ int tuya_mqtt_client_publish_common(tuya_mqtt_context_t *context, const char *to
                                     size_t payload_length, mqtt_publish_notify_cb_t cb, void *user_data, int timeout_ms,
                                     bool async)
 {
-    if (context == NULL || topic == NULL || payload == NULL || (cb == NULL && async == true)) {
+    if (context == NULL || context->is_inited == false || topic == NULL || payload == NULL ||
+        (cb == NULL && async == true)) {
         return OPRT_INVALID_PARM;
     }
 
-    if (cb == NULL) {
-        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
-        uint16_t msgid = mqtt_client_publish(context->mqtt_client, topic, payload, payload_length, MQTT_QOS_0);
-        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_AFTER, NULL);
-        if (msgid <= 0) {
-            return OPRT_COM_ERROR;
-        }
-        return OPRT_OK;
+    if (context->is_connected == false) {
+        return OPRT_COM_ERROR;
     }
 
-    mqtt_publish_handle_t *handle = tal_malloc(sizeof(mqtt_publish_handle_t));
+    mqtt_publish_handle_t *handle = tal_calloc(1, sizeof(mqtt_publish_handle_t));
     TUYA_CHECK_NULL_RETURN(handle, OPRT_MALLOC_FAILED);
-    handle->next = NULL;
-    handle->msgid = 0;
-    handle->topic = (char *)topic;
-    handle->timeout = tal_time_get_posix() + timeout_ms;
+
+    size_t topic_len = strlen(topic);
+    handle->topic = tal_malloc(topic_len + 1);
+    if (handle->topic == NULL) {
+        tal_free(handle);
+        return OPRT_MALLOC_FAILED;
+    }
+    memcpy(handle->topic, topic, topic_len + 1);
+
+    handle->qos = (cb == NULL) ? MQTT_QOS_0 : MQTT_QOS_1;
     handle->cb = cb;
     handle->user_data = user_data;
+    if (cb != NULL && timeout_ms > 0) {
+        int timeout_s = (timeout_ms + 999) / 1000;
+        handle->timeout = (int)tal_time_get_posix() + timeout_s;
+    }
     handle->payload_length = payload_length;
     if (payload_length > 0) {
         handle->payload = tal_malloc(payload_length);
         if (handle->payload == NULL) {
-            tal_free(handle);
+            mqtt_publish_handle_free(handle);
             return OPRT_MALLOC_FAILED;
         }
         memcpy(handle->payload, payload, payload_length);
-    } else {
-        handle->payload = NULL;
     }
 
-    if (async == false) {
-        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
-        handle->msgid = mqtt_client_publish(context->mqtt_client, handle->topic, handle->payload,
-                                            handle->payload_length, MQTT_QOS_1);
-        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_AFTER, NULL);
+    /* Enqueue for tuya_mqtt_loop() so coreMQTT/mbedTLS I/O stays single-threaded. */
+    if (context->publish_mutex) {
+        tal_mutex_lock(context->publish_mutex);
+    }
+    if (context->is_connected == false) {
+        if (context->publish_mutex) {
+            tal_mutex_unlock(context->publish_mutex);
+        }
+        mqtt_publish_handle_free(handle);
+        return OPRT_COM_ERROR;
+    }
+    if (context->publish_count >= MQTT_PUBLISH_QUEUE_MAX) {
+        if (context->publish_mutex) {
+            tal_mutex_unlock(context->publish_mutex);
+        }
+        PR_ERR("mqtt publish queue full (%u)", (unsigned int)context->publish_count);
+        mqtt_publish_handle_free(handle);
+        return OPRT_EXCEED_UPPER_LIMIT;
     }
 
     if (context->publish_list == NULL) {
         context->publish_list = handle;
-        return OPRT_OK;
+    } else {
+        mqtt_publish_handle_t *last = context->publish_list;
+        while (last->next != NULL) {
+            last = last->next;
+        }
+        last->next = handle;
     }
+    context->publish_count++;
 
-    mqtt_publish_handle_t *last = context->publish_list;
-    while (last->next != NULL) {
-        last = last->next;
+    if (context->publish_mutex) {
+        tal_mutex_unlock(context->publish_mutex);
     }
-    last->next = handle;
 
     return OPRT_OK;
 }
@@ -863,27 +971,97 @@ int tuya_mqtt_loop(tuya_mqtt_context_t *context)
         return rt;
     }
 
-    /* LOCK */
-    /* publish async process */
+    /* Expire timed-out QoS 1 publish entries under lock, notify outside lock */
+    mqtt_publish_handle_t *expired_list = NULL;
+    uint32_t now_s = (uint32_t)tal_time_get_posix();
+
+    if (context->publish_mutex) {
+        tal_mutex_lock(context->publish_mutex);
+    }
     mqtt_publish_handle_t **next_handle = &context->publish_list;
     while (*next_handle) {
         mqtt_publish_handle_t *entry = *next_handle;
-    
-        if (entry->timeout <= tal_time_get_posix()) {
-            entry->cb(OPRT_TIMEOUT, entry->user_data);
+
+        if (entry->cb != NULL && entry->timeout > 0 && (uint32_t)entry->timeout <= now_s) {
             *next_handle = entry->next;
-            tal_free(entry->payload);
-            tal_free(entry);
+            if (context->publish_count > 0) {
+                context->publish_count--;
+            }
+            entry->next = expired_list;
+            expired_list = entry;
             continue;
-        }
-    
-        if (entry->msgid <= 0) {
-            entry->msgid = mqtt_client_publish(context->mqtt_client,
-                entry->topic, entry->payload, entry->payload_length, 1);
         }
         next_handle = &entry->next;
     }
-    /* UNLOCK */
+    if (context->publish_mutex) {
+        tal_mutex_unlock(context->publish_mutex);
+    }
+
+    while (expired_list) {
+        mqtt_publish_handle_t *entry = expired_list;
+        expired_list = entry->next;
+        if (entry->cb) {
+            entry->cb(OPRT_TIMEOUT, entry->user_data);
+        }
+        mqtt_publish_handle_free(entry);
+    }
+
+    /* Drain pending publish entries on the MQTT loop thread */
+    while (context->is_connected) {
+        mqtt_publish_handle_t *entry = NULL;
+        bool is_qos0 = false;
+
+        if (context->publish_mutex) {
+            tal_mutex_lock(context->publish_mutex);
+        }
+        mqtt_publish_handle_t **pp = &context->publish_list;
+        while (*pp) {
+            if ((*pp)->msgid == 0) {
+                entry = *pp;
+                if (entry->qos == MQTT_QOS_0) {
+                    *pp = entry->next;
+                    entry->next = NULL;
+                    if (context->publish_count > 0) {
+                        context->publish_count--;
+                    }
+                    is_qos0 = true;
+                }
+                break;
+            }
+            pp = &(*pp)->next;
+        }
+        if (context->publish_mutex) {
+            tal_mutex_unlock(context->publish_mutex);
+        }
+
+        if (entry == NULL) {
+            break;
+        }
+
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_BEFORE, NULL);
+        uint16_t msgid = mqtt_client_publish(context->mqtt_client, entry->topic, entry->payload,
+                                             entry->payload_length, entry->qos);
+        tuya_dev_evt_notify(DEV_EVT_MQTT_PUBLISH, ACTION_AFTER, NULL);
+
+        if (is_qos0) {
+            mqtt_publish_handle_free(entry);
+            if (msgid == 0) {
+                break;
+            }
+        } else {
+            if (msgid > 0) {
+                if (context->publish_mutex) {
+                    tal_mutex_lock(context->publish_mutex);
+                }
+                entry->msgid = msgid;
+                if (context->publish_mutex) {
+                    tal_mutex_unlock(context->publish_mutex);
+                }
+            } else {
+                break;
+            }
+        }
+    }
 
     /* yield */
     mqtt_client_yield(context->mqtt_client);
@@ -906,14 +1084,21 @@ int tuya_mqtt_destory(tuya_mqtt_context_t *context)
         return OPRT_COM_ERROR;
     }
 
+    mqtt_publish_list_clear(context, OPRT_COM_ERROR);
     tuya_mqtt_protocol_unregister_all(context);
+    mqtt_client_status_t mqtt_status = MQTT_STATUS_SUCCESS;
     if (context->mqtt_client) {
-        mqtt_client_status_t mqtt_status = mqtt_client_deinit(context->mqtt_client);
+        mqtt_status = mqtt_client_deinit(context->mqtt_client);
         mqtt_client_free(context->mqtt_client);
         context->mqtt_client = NULL;
-        if (mqtt_status != MQTT_STATUS_SUCCESS) {
-            return OPRT_COM_ERROR;
-        }
+    }
+    if (context->publish_mutex) {
+        tal_mutex_release(context->publish_mutex);
+        context->publish_mutex = NULL;
+    }
+    context->is_inited = false;
+    if (mqtt_status != MQTT_STATUS_SUCCESS) {
+        return OPRT_COM_ERROR;
     }
 
     return OPRT_OK;

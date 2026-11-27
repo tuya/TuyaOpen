@@ -1061,8 +1061,16 @@ int tuya_iot_yield(tuya_iot_client_t *client)
         break;
 
     case STATE_MQTT_CONNECT_START:
+        if (client->config.network_check && !client->config.network_check()) {
+            client->status = TUYA_STATUS_UNCONNECT_ROUTER;
+            client->nextstate = STATE_NETWORK_RECONNECT;
+            break;
+        }
         if (run_state_mqtt_connect_start(client) == OPRT_OK) {
             client->nextstate = STATE_MQTT_CONNECTING;
+        } else if (client->config.network_check && !client->config.network_check()) {
+            client->status = TUYA_STATUS_UNCONNECT_ROUTER;
+            client->nextstate = STATE_NETWORK_RECONNECT;
         }
         break;
 

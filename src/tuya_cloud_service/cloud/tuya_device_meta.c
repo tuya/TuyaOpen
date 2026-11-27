@@ -255,6 +255,55 @@ __EXIT:
     return rt;
 }
 
+OPERATE_RET tuya_device_meta_add_bool(const char *key, bool value)
+{
+    OPERATE_RET rt = OPRT_OK;
+
+    if (key == NULL || s_meta.mutex == NULL) {
+        return OPRT_INVALID_PARM;
+    }
+
+    tal_mutex_lock(s_meta.mutex);
+
+    if (s_meta.json == NULL) {
+        s_meta.json = cJSON_CreateObject();
+        if (s_meta.json == NULL) {
+            rt = OPRT_MALLOC_FAILED;
+            goto __EXIT;
+        }
+        cJSON_AddObjectToObject(s_meta.json, "metas");
+        cJSON_AddNumberToObject(s_meta.json, "t", 0);
+    }
+
+    cJSON *metas = cJSON_GetObjectItem(s_meta.json, "metas");
+    if (metas == NULL) {
+        PR_ERR("metas is null");
+        rt = OPRT_INVALID_PARM;
+        goto __EXIT;
+    }
+
+    cJSON *existing = cJSON_GetObjectItem(metas, key);
+    if (existing != NULL) {
+        cJSON *new_val = cJSON_CreateBool(value);
+        if (new_val == NULL) {
+            rt = OPRT_MALLOC_FAILED;
+            goto __EXIT;
+        }
+        cJSON_ReplaceItemInObject(metas, key, new_val);
+    } else {
+        if (cJSON_AddBoolToObject(metas, key, value) == NULL) {
+            rt = OPRT_MALLOC_FAILED;
+            goto __EXIT;
+        }
+    }
+
+    PR_DEBUG("add meta bool key:%s value:%d", key, value ? 1 : 0);
+
+__EXIT:
+    tal_mutex_unlock(s_meta.mutex);
+    return rt;
+}
+
 OPERATE_RET tuya_device_meta_report(void)
 {
     OPERATE_RET rt = OPRT_OK;

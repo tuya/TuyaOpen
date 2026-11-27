@@ -87,6 +87,10 @@ typedef struct {
     uint32_t table[NETCONN_WIFI_CONN_TABLE];
     TIMER_ID timer;
     netconn_wifi_info_t wifi_conn_info; // the connected wifi info
+    bool suspend;                       //!< auto reconnect paused, the station is owned by the caller
+    uint32_t conn_start_ms;             //!< timestamp of last explicit station connect attempt
+    uint32_t conn_fail_seq;             //!< incremented on disconnect/failure after connect attempt
+    WF_STATION_STAT_E conn_fail_stat;   //!< station status captured on last connect failure
 } netconn_wifi_conn_t;
 
 /**
@@ -135,6 +139,51 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param);
  * @return OPERATE_RET
  */
 OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param);
+
+/**
+ * @brief Persist a wifi credential without touching the current connection.
+ *
+ * @param[in] ssid   wifi ap ssid
+ * @param[in] pswd   wifi passwd, NULL is treated as an open network
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_info_save(const char *ssid, const char *pswd);
+
+/**
+ * @brief Switch the station to the given ap, reconnecting even when already link up.
+ *
+ * @param[in] ssid    wifi ap ssid
+ * @param[in] pswd    wifi passwd, NULL is treated as an open network
+ * @param[in] persist also write the credential to flash
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool persist);
+
+/**
+ * @brief Pause or resume the netmgr automatic reconnect.
+ *
+ * While suspended the caller owns the station: the back-off table is not run and
+ * no reconnect is issued. Explicit @ref netconn_wifi_station_set still works, and
+ * the link status is still reported to netmgr.
+ *
+ * @param[in] suspend true to pause, false to resume
+ *
+ * @return OPERATE_RET
+ */
+OPERATE_RET netconn_wifi_station_suspend(bool suspend);
+
+/**
+ * @brief Query the failure sequence and station error status of the latest
+ *        explicit station connect attempt.
+ *
+ * @param[out] stat optional pointer receiving the captured station status
+ *
+ * @return 0 if no failure has been reported since the last attempt started,
+ *         otherwise a monotonically increasing counter for that attempt
+ */
+uint32_t netconn_wifi_station_fail_info(WF_STATION_STAT_E *stat);
 
 #ifdef __cplusplus
 }

@@ -21,8 +21,6 @@
 #include "ble_dp.h"
 #include "mix_method.h"
 #include "ble_channel.h"
-#include "ble_wifi_list.h"
-#include "ble_netcfg.h"
 #include "ble_trsmitr.h"
 #include "ble_cryption.h"
 #include "tal_bluetooth.h"
@@ -50,6 +48,9 @@
 /* Connection monitoring, illegal connections are disconnected after 30 seconds
  */
 #define BLE_CONN_MONITOR_TIME 30000
+/* Once cloud is online, wait for an active BLE link to go idle before disconnecting */
+#define BLE_MONITOR_IDLE_DISCONN_MS 3000ULL
+#define BLE_MONITOR_MAX_HOLD_MS     15000ULL
 /* ID  (id == uuid)*/
 #define BLE_ID_LEN 16
 typedef struct {
@@ -78,10 +79,15 @@ typedef struct {
     uint8_t pair_rand[6];
     bool is_paired;
     bool *is_bound;
+    bool iot_conn_stat;
+    uint64_t last_active_ms;
+    uint64_t iot_online_ms;
     //! tal ble
     TAL_BLE_ROLE_E role;
     TAL_BLE_PEER_INFO_T peer_info;
     //! adv & scan rsp
+    MUTEX_HANDLE adv_mutex;
+    bool is_advertising;
     uint8_t adv_len;
     uint8_t adv_data[BLE_ADV_DATA_LEN];
     uint8_t rsp_len;
@@ -129,27 +135,28 @@ void tuya_ble_enable_debug(bool enable)
     s_ble_debug = enable;
 }
 
-static int ble_adv_set(tuya_ble_mgr_t *ble)
+static int ble_adv_set(tuya_ble_mgr_t *ble, bool *changed)
 {
     tuya_iot_client_t *client = ble->cfg.client;
-
-    ble->adv_len = 0;
-    ble->rsp_len = 0;
+    uint8_t adv_buf[BLE_ADV_DATA_LEN] = {0};
+    uint8_t rsp_buf[BLE_SCAN_RSP_DATA_LEN] = {0};
+    uint8_t adv_len = 0;
+    uint8_t rsp_len = 0;
 
     /* adv data */
-    ble->adv_data[ble->adv_len++] = 0x02; /* length */
-    ble->adv_data[ble->adv_len++] = 0x01; /* type="Flags" */
-    ble->adv_data[ble->adv_len++] = 0x06;
+    adv_buf[adv_len++] = 0x02; /* length */
+    adv_buf[adv_len++] = 0x01; /* type="Flags" */
+    adv_buf[adv_len++] = 0x06;
     //! service data
-    ble->adv_data[ble->adv_len++] = 0x03; /* length */
-    ble->adv_data[ble->adv_len++] = 0x02; /* type="Flags" */
-    ble->adv_data[ble->adv_len++] = 0x50;
-    ble->adv_data[ble->adv_len++] = 0xFD;
+    adv_buf[adv_len++] = 0x03; /* length */
+    adv_buf[adv_len++] = 0x02; /* type="Flags" */
+    adv_buf[adv_len++] = 0x50;
+    adv_buf[adv_len++] = 0xFD;
     //! length: 3 + 2 (frame control) + id (len + type + pid)
-    ble->adv_data[ble->adv_len++] = 3 + 2 + 2 + BLE_ID_LEN;
-    ble->adv_data[ble->adv_len++] = 0x16; /* type="Flags" */
-    ble->adv_data[ble->adv_len++] = 0x50;
-    ble->adv_data[ble->adv_len++] = 0xFD;
+    adv_buf[adv_len++] = 3 + 2 + 2 + BLE_ID_LEN;
+    adv_buf[adv_len++] = 0x16; /* type="Flags" */
+    adv_buf[adv_len++] = 0x50;
+    adv_buf[adv_len++] = 0xFD;
 
     uint16_t frame_ctrl = 0;
     SETBIT(frame_ctrl, 2); // bit2, Security_V2,
@@ -169,50 +176,66 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
     }
     SETBIT(frame_ctrl, 14); // bit12-15, version, value:4
     /* rsp data */
-    ble->rsp_data[ble->rsp_len++] = 0x17; /* length, 0x17 or 0x0D */
-    ble->rsp_data[ble->rsp_len++] = 0xFF; /* type="Flags" */
-    ble->rsp_data[ble->rsp_len++] = 0xD0; /* company id */
-    ble->rsp_data[ble->rsp_len++] = 0x07;
-    ble->rsp_data[ble->rsp_len++] = TUYA_BLE_SECURE_CONNECTION_WITH_AUTH_KEY; // Encry Mode
-    ble->rsp_data[ble->rsp_len++] =
+    rsp_buf[rsp_len++] = 0x17; /* length, 0x17 or 0x0D */
+    rsp_buf[rsp_len++] = 0xFF; /* type="Flags" */
+    rsp_buf[rsp_len++] = 0xD0; /* company id */
+    rsp_buf[rsp_len++] = 0x07;
+    rsp_buf[rsp_len++] = TUYA_BLE_SECURE_CONNECTION_WITH_AUTH_KEY; // Encry Mode
+    rsp_buf[rsp_len++] =
         TUYA_BLE_DEVICE_COMMUNICATION_ABILITY >> 8; // communication way bit0-mesh bit1-wifi bit2-zigbee bit3-NB
-    ble->rsp_data[ble->rsp_len++] = TUYA_BLE_DEVICE_COMMUNICATION_ABILITY;
+    rsp_buf[rsp_len++] = TUYA_BLE_DEVICE_COMMUNICATION_ABILITY;
 
-    uint8_t *flag = (uint8_t *)&ble->rsp_data[ble->rsp_len++];
+    uint8_t *flag = &rsp_buf[rsp_len++];
     *flag = 0x00; // bond flag bit7 (8)
-    if (ble_wifi_list_is_enable()) {
-    *flag |= ADV_FLAG_WIFI_LIST;
+    if (ble_channel_combos_flag_get() & (uint8_t)(1 << 0)) {
+        *flag |= ADV_FLAG_WIFI_LIST;
     }
     if (ble->is_id_comp) {
         *flag |= ADV_FLAG_UUID_COMP;
     }
     /* adv&rsp data */
-    uint8_t *key_in = (uint8_t *)&ble->adv_data[ble->adv_len];
-    ble->adv_data[ble->adv_len++] = (frame_ctrl >> 8) & 0xff;
-    ble->adv_data[ble->adv_len++] = (uint8_t)frame_ctrl & 0xff;
-    ble->adv_data[ble->adv_len++] = 0x00;       //! id type 00-pid 01-product key
-    ble->adv_data[ble->adv_len++] = BLE_ID_LEN; //! ID len
+    uint8_t *key_in = &adv_buf[adv_len];
+    adv_buf[adv_len++] = (frame_ctrl >> 8) & 0xff;
+    adv_buf[adv_len++] = (uint8_t)frame_ctrl & 0xff;
+    adv_buf[adv_len++] = 0x00;       //! id type 00-pid 01-product key
+    adv_buf[adv_len++] = BLE_ID_LEN; //! ID len
     if (*ble->is_bound) {
         //! adv id encrypt
         *flag |= ADV_FLAG_BOND; /* flag */
-        tuya_ble_adv_id_encrypt(ble->crypto_param.sec_key, ble->id, BLE_ID_LEN, &ble->adv_data[ble->adv_len]);
-        tuya_ble_rsp_id_encrypt(key_in, BLE_ID_LEN + 4, ble->id, BLE_ID_LEN, &ble->rsp_data[ble->rsp_len]);
+        tuya_ble_adv_id_encrypt(ble->crypto_param.sec_key, ble->id, BLE_ID_LEN, &adv_buf[adv_len]);
+        tuya_ble_rsp_id_encrypt(key_in, BLE_ID_LEN + 4, ble->id, BLE_ID_LEN, &rsp_buf[rsp_len]);
     } else {
         *flag &= (~ADV_FLAG_BOND);
-        memcpy(&ble->adv_data[ble->adv_len], client->config.productkey, BLE_ID_LEN);
-        tuya_ble_rsp_id_encrypt(key_in, BLE_ID_LEN + 4, ble->id, BLE_ID_LEN, &ble->rsp_data[ble->rsp_len]);
+        memcpy(&adv_buf[adv_len], client->config.productkey, BLE_ID_LEN);
+        tuya_ble_rsp_id_encrypt(key_in, BLE_ID_LEN + 4, ble->id, BLE_ID_LEN, &rsp_buf[rsp_len]);
     }
-    ble->adv_len += MAX_LENGTH_PRODUCT_ID;
-    ble->rsp_len += BLE_ID_LEN;
+    adv_len += MAX_LENGTH_PRODUCT_ID;
+    rsp_len += BLE_ID_LEN;
     //! device name
     uint8_t device_name_len = strlen(ble->cfg.device_name);
     if (device_name_len > TUYA_BLE_NAME_LEN) {
         device_name_len = TUYA_BLE_NAME_LEN;
     }
-    ble->rsp_data[ble->rsp_len++] = device_name_len + 1;
-    ble->rsp_data[ble->rsp_len++] = 0x09; /* type */
-    memcpy(&ble->rsp_data[ble->rsp_len], ble->cfg.device_name, device_name_len);
-    ble->rsp_len += device_name_len;
+    if (rsp_len + 2 + device_name_len <= BLE_SCAN_RSP_DATA_LEN) {
+        rsp_buf[rsp_len++] = device_name_len + 1;
+        rsp_buf[rsp_len++] = 0x09; /* type */
+        memcpy(&rsp_buf[rsp_len], ble->cfg.device_name, device_name_len);
+        rsp_len += device_name_len;
+    }
+
+    bool is_changed = (ble->adv_len != adv_len || ble->rsp_len != rsp_len ||
+                       0 != memcmp(ble->adv_data, adv_buf, adv_len) ||
+                       0 != memcmp(ble->rsp_data, rsp_buf, rsp_len));
+
+    if (is_changed) {
+        memcpy(ble->adv_data, adv_buf, adv_len);
+        ble->adv_len = adv_len;
+        memcpy(ble->rsp_data, rsp_buf, rsp_len);
+        ble->rsp_len = rsp_len;
+    }
+    if (NULL != changed) {
+        *changed = is_changed;
+    }
 
     tuya_ble_raw_print("adv_data", 8, (uint8_t *)ble->adv_data, ble->adv_len);
     tuya_ble_raw_print("rsp_data", 8, (uint8_t *)ble->rsp_data, ble->rsp_len);
@@ -367,10 +390,20 @@ static int ble_packet_recv(tuya_ble_mgr_t *ble, uint8_t *buf, uint16_t len, ble_
 static void ble_adv_update(tuya_ble_mgr_t *ble)
 {
     int rt = OPRT_OK;
+    bool changed = true;
     if (NULL == ble) {
         return;
     }
-    ble_adv_set(ble);
+    if (NULL != ble->adv_mutex) {
+        tal_mutex_lock(ble->adv_mutex);
+    }
+    ble_adv_set(ble, &changed);
+    if (!ble->is_paired && ble->is_advertising && !changed) {
+        if (NULL != ble->adv_mutex) {
+            tal_mutex_unlock(ble->adv_mutex);
+        }
+        return;
+    }
     TAL_BLE_DATA_T adv_data;
     TAL_BLE_DATA_T rsp_data;
 
@@ -381,12 +414,23 @@ static void ble_adv_update(tuya_ble_mgr_t *ble)
 
     // Only update the advertising content when Bluetooth is connected
     if (ble->is_paired) {
-        TUYA_CALL_ERR_LOG(tal_ble_advertising_data_set(&adv_data, &rsp_data));
+        if (changed) {
+            TUYA_CALL_ERR_LOG(tal_ble_advertising_data_set(&adv_data, &rsp_data));
+        }
     } else {
-        tal_ble_advertising_stop();
+        if (ble->is_advertising) {
+            tal_ble_advertising_stop();
+            ble->is_advertising = false;
+        }
         TUYA_CALL_ERR_LOG(tal_ble_advertising_data_set(&adv_data, &rsp_data));
         TAL_BLE_ADV_PARAMS_T ble_adv_params = DEFAULT_ADV_PARAMS(BT_ADV_INTERVAL_MIN, BT_ADV_INTERVAL_MAX);
         TUYA_CALL_ERR_LOG(tal_ble_advertising_start(&ble_adv_params));
+        if (OPRT_OK == rt) {
+            ble->is_advertising = true;
+        }
+    }
+    if (NULL != ble->adv_mutex) {
+        tal_mutex_unlock(ble->adv_mutex);
     }
     PR_NOTICE("ble adv updated %d", rt);
 }
@@ -408,6 +452,16 @@ int tuya_ble_adv_update(void)
     return OPRT_OK;
 }
 
+/**
+ * @brief Checks whether a BLE peer is currently paired.
+ *
+ * @return true if the BLE manager is initialized and paired, false otherwise.
+ */
+bool tuya_ble_is_paired(void)
+{
+    return (NULL != s_ble_mgr && s_ble_mgr->is_paired);
+}
+
 static void ble_pair_timeout_cb(TIMER_ID timer_id, void *arg)
 {
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)arg;
@@ -419,25 +473,46 @@ static void ble_pair_timeout_cb(TIMER_ID timer_id, void *arg)
 /* gateway auto check callback*/
 static void ble_mointor_timer_cb(TIMER_ID timer_id, void *arg)
 {
-    static bool s_iot_conn_stat = false;
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)arg;
 
+    if (NULL == ble) {
+        return;
+    }
+
     if (tuya_iot_is_connected()) {
-        if (s_iot_conn_stat) {
+        if (ble->iot_conn_stat) {
             return;
         }
         if (ble->is_paired) {
+            uint64_t now = tal_system_get_millisecond();
+            if (0 == ble->iot_online_ms) {
+                ble->iot_online_ms = now;
+            }
+            if ((now - ble->last_active_ms) < BLE_MONITOR_IDLE_DISCONN_MS &&
+                (now - ble->iot_online_ms) < BLE_MONITOR_MAX_HOLD_MS) {
+                PR_DEBUG("ble monitor defer disconnect while ble active");
+                return;
+            }
             tal_ble_disconnect(ble->peer_info);
         } else {
+            if (NULL != ble->adv_mutex) {
+                tal_mutex_lock(ble->adv_mutex);
+            }
             tal_ble_advertising_stop();
+            ble->is_advertising = false;
+            if (NULL != ble->adv_mutex) {
+                tal_mutex_unlock(ble->adv_mutex);
+            }
         }
         PR_DEBUG("ble monitor check iot is connected, stop adv!");
-        s_iot_conn_stat = true;
+        ble->iot_online_ms = 0;
+        ble->iot_conn_stat = true;
     } else {
-        if (!s_iot_conn_stat) {
+        ble->iot_online_ms = 0;
+        if (!ble->iot_conn_stat) {
             return;
         }
-        s_iot_conn_stat = false;
+        ble->iot_conn_stat = false;
         PR_DEBUG("ble monitor check iot is disconnected, start adv!");
         if (ble->is_paired) {
             PR_DEBUG("ble still connected!");
@@ -627,6 +702,7 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         tal_system_sleep(20);
     } while (rt == OPRT_SVC_BT_API_TRSMITR_CONTINUE);
 
+    ble->last_active_ms = tal_system_get_millisecond();
     PR_DEBUG("ble resp finish. len:%d, rt:0x%x", outlen, rt);
 
 __exit:
@@ -827,14 +903,18 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     pbuf[payload_len++] = 1;
     // sl_value
     pbuf[payload_len++] = TUYA_SECURITY_LEVEL;
-    pbuf[payload_len++] = 1;
-    // CombosFlag Length
+    // CombosFlag (TLV: 1-byte length + optional 1-byte capability mask)
     //  bit3: 1 - Supports querying device AP name; 0 - Does not support.
-    //  bit2: 1 - Supports log collection and transmission; 0 - Does not
-    //  support. bit1: 1 - Supports reporting of various states during network
-    //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
-    //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = ble_wifi_list_is_enable() ? (uint8_t)((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3)) : 0;
+    //  bit2: 1 - Supports log collection and transmission; 0 - Does not support.
+    //  bit1: 1 - Supports reporting of various states during network configuration; 0 - Does not support.
+    //  bit0: 1 - Supports querying WiFi hotspot list; 0 - Does not support.
+    uint8_t combos_flag = ble_channel_combos_flag_get();
+    if (combos_flag) {
+        pbuf[payload_len++] = 1;
+        pbuf[payload_len++] = combos_flag;
+    } else {
+        pbuf[payload_len++] = 0;
+    }
 
     return payload_len;
 }
@@ -999,9 +1079,18 @@ static void tal_ble_event_callback(void *data)
 
     case TAL_BLE_EVT_PERIPHERAL_CONNECT: {
         if (msg->ble_event.connect.result == 0) {
+            if (NULL != ble->adv_mutex) {
+                tal_mutex_lock(ble->adv_mutex);
+            }
+            ble->is_advertising = false;
+            if (NULL != ble->adv_mutex) {
+                tal_mutex_unlock(ble->adv_mutex);
+            }
             memcpy(&ble->peer_info, &msg->ble_event.connect.peer, sizeof(TAL_BLE_PEER_INFO_T));
             ble->recv_sn = 0;
             ble->send_sn = 1;
+            ble->last_active_ms = tal_system_get_millisecond();
+            ble->iot_online_ms = 0;
             tal_sw_timer_start(ble->pair_timer, BLE_CONN_MONITOR_TIME, TAL_TIMER_ONCE);
             PR_NOTICE("Ble Connected");
         } else {
@@ -1010,10 +1099,19 @@ static void tal_ble_event_callback(void *data)
     } break;
 
     case TAL_BLE_EVT_DISCONNECT: {
+        if (NULL != ble->adv_mutex) {
+            tal_mutex_lock(ble->adv_mutex);
+        }
+        ble->is_advertising = false;
+        if (NULL != ble->adv_mutex) {
+            tal_mutex_unlock(ble->adv_mutex);
+        }
         memset(&ble->peer_info, 0x00, sizeof(TAL_BLE_PEER_INFO_T));
         memset(ble->pair_rand, 0x00, sizeof(ble->pair_rand));
         tal_sw_timer_stop(ble->pair_timer);
         ble->is_paired = false;
+        ble->iot_online_ms = 0;
+        ble_channel_reset_rx();
         if (!tuya_iot_is_connected()) {
             ble_adv_update(ble);
         }
@@ -1027,6 +1125,7 @@ static void tal_ble_event_callback(void *data)
 
         if (msg->ble_event.write_report.peer.char_handle[0] ==
             ble->peer_info.char_handle[TAL_COMMON_WRITE_CHAR_INDEX]) {
+            ble->last_active_ms = tal_system_get_millisecond();
             report = &msg->ble_event.write_report.report;
             PR_TRACE("BLE Package len %d", report->len);
             ret = ble_packet_recv(ble, report->p_data, report->len, &packet);
@@ -1096,10 +1195,12 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_SYSTEM);
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
-    ble_channel_del(BLE_CHANNLE_WIFI_LST);
-    ble_channel_del(BLE_CHANNLE_NETCFG_STAT);
-    ble_wifi_list_cache_clear();
+    ble_channel_deinit();
     tal_ble_bt_deinit(ble->role);
+    if (ble->adv_mutex) {
+        tal_mutex_release(ble->adv_mutex);
+        ble->adv_mutex = NULL;
+    }
     tal_free(ble);
     s_ble_mgr = NULL;
 
@@ -1175,14 +1276,13 @@ int tuya_ble_init(tuya_ble_cfg_t *cfg)
     ble->crypto_param.sec_key = (uint8_t *)ble->cfg.client->activate.seckey;
     ble->crypto_param.login_key = (uint8_t *)ble->cfg.client->activate.localkey;
     ble->crypto_param.pair_rand = (uint8_t *)ble->pair_rand;
+    TUYA_CALL_ERR_GOTO(tal_mutex_create_init(&ble->adv_mutex), __exit);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(ble_pair_timeout_cb, ble, &ble->pair_timer), __exit);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_create(ble_mointor_timer_cb, ble, &ble->monitor_timer), __exit);
     TUYA_CALL_ERR_GOTO(tal_sw_timer_start(ble->monitor_timer, 3000, TAL_TIMER_CYCLE), __exit);
     tuya_ble_session_add(BLE_SESSION_SYSTEM, ble_session_system_process, ble);
     tuya_ble_session_add(BLE_SESSION_CHANNEL, ble_session_channel_process, ble);
     tuya_ble_session_add(BLE_SESSION_DP, ble_session_dp_process, ble->cfg.client);
-    ble_channel_add(BLE_CHANNLE_WIFI_LST, ble_wifi_list_query, NULL);
-    ble_channel_add(BLE_CHANNLE_NETCFG_STAT, ble_netcfg_stat_query, NULL);
     ble->role = TAL_BLE_ROLE_PERIPERAL | TAL_BLE_ROLE_CENTRAL;
     TUYA_CALL_ERR_GOTO(tal_ble_bt_init(ble->role, tal_ble_event_on_worq), __exit);
     PR_NOTICE("tuya ble init success finish");
