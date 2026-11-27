@@ -7,7 +7,7 @@
  * data into subpackets, managing subpacket transmission, and reassembling
  * received subpackets.
  *
- * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2024 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -22,7 +22,7 @@
 #pragma pack(1)
 typedef struct subpacketAck {
     uint16_t flag;
-    uint8_t status;
+    uint8_t  status;
     uint16_t curSubpacketNo;
     uint16_t cursubpacketLen;
     uint32_t receivedLen;
@@ -38,16 +38,24 @@ typedef struct {
     uint32_t subpack_len;
 } ble_channel_mgr_t;
 
-static ble_channel_mgr_t s_ble_channel_mgr = {0}; // APP downlink channel transparent transmission
-static MUTEX_HANDLE s_ble_channel_mutex = NULL;
+typedef struct {
+    uint8_t *buf;
+    uint32_t total_len;
+    uint32_t received_len;
+    uint32_t expected_subpacket_no;
+} ble_channel_rx_t;
+
+static ble_channel_mgr_t s_ble_channel_mgr   = {0}; // APP downlink channel transparent transmission
+static ble_channel_rx_t  s_ble_channel_rx    = {0}; // downlink subpacket reassembly state
+static MUTEX_HANDLE      s_ble_channel_mutex = NULL;
 
 typedef struct {
     ble_channel_fn_t function;
-    void *priv_data;
+    void            *priv_data;
 } ble_channel_t;
 
 static ble_channel_t s_ble_channel[BLE_CHANNEL_MAX];
-static bool s_ble_wifi_list_cap = false;
+static bool          s_ble_wifi_list_cap = false;
 
 /**
  * @brief Adds a BLE channel.
@@ -72,7 +80,7 @@ int ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_dat
     }
 
     if (type < BLE_CHANNEL_MAX) {
-        channel[type].function = fn;
+        channel[type].function  = fn;
         channel[type].priv_data = priv_data;
 
         return OPRT_OK;
@@ -95,7 +103,7 @@ int ble_channel_del(ble_channel_type_t type)
     ble_channel_t *channel = s_ble_channel;
 
     if (type < BLE_CHANNEL_MAX) {
-        channel[type].function = NULL;
+        channel[type].function  = NULL;
         channel[type].priv_data = NULL;
         return OPRT_OK;
     }
@@ -103,8 +111,27 @@ int ble_channel_del(ble_channel_type_t type)
     return OPRT_INVALID_PARM;
 }
 
+void ble_channel_reset_rx(void)
+{
+    if (s_ble_channel_rx.buf != NULL) {
+        tal_free(s_ble_channel_rx.buf);
+    }
+    memset(&s_ble_channel_rx, 0, sizeof(s_ble_channel_rx));
+}
+
 void ble_channel_deinit(void)
 {
+    ble_channel_reset_rx();
+    if (NULL != s_ble_channel_mutex) {
+        tal_mutex_lock(s_ble_channel_mutex);
+    }
+    if (s_ble_channel_mgr.rsp_data != NULL) {
+        tal_free(s_ble_channel_mgr.rsp_data);
+    }
+    memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
+    if (NULL != s_ble_channel_mutex) {
+        tal_mutex_unlock(s_ble_channel_mutex);
+    }
     memset(s_ble_channel, 0, sizeof(s_ble_channel));
     s_ble_wifi_list_cap = false;
 }
@@ -114,7 +141,6 @@ bool ble_channel_is_registered(ble_channel_type_t type)
     if (type < BLE_CHANNEL_MAX) {
         return (NULL != s_ble_channel[type].function);
     }
-
     return false;
 }
 
@@ -132,12 +158,6 @@ uint8_t ble_channel_combos_flag_get(void)
     }
     if (ble_channel_is_registered(BLE_CHANNLE_NETCFG_STAT)) {
         flag |= (uint8_t)(1 << 1);
-    }
-    if (ble_channel_is_registered(BLE_CHANNLE_DEV_LOG)) {
-        flag |= (uint8_t)(1 << 2);
-    }
-    if (ble_channel_is_registered(BLE_CHANNLE_GET_AP_NAME)) {
-        flag |= (uint8_t)(1 << 3);
     }
 
     return flag;
@@ -167,17 +187,18 @@ static void ble_channel_process(void *data, uint32_t len)
     }
 }
 
-static uint32_t __extract_packet_len(const uint8_t *raw_data, uint32_t max_len, uint32_t *pNum)
+// raw_len keeps the varint from reading past the received bytes; returns 0 on truncation
+static uint32_t __extract_packet_len(const uint8_t *raw_data, uint32_t raw_len, uint32_t *pNum)
 {
-    uint32_t i = 0;
+    uint32_t i          = 0;
     uint32_t multiplier = 1;
-    uint8_t digit = 0;
-    uint32_t offset = 0;
-    uint32_t num = 0;
+    uint8_t  digit      = 0;
+    uint32_t offset     = 0;
+    uint32_t num        = 0;
 
     *pNum = 0;
 
-    for (i = 0; i < 4 && offset < max_len; i++) {
+    for (i = 0; i < 4 && offset < raw_len; i++) {
         digit = raw_data[offset++];
         num += (uint32_t)(digit & 0x7f) * multiplier;
         multiplier *= 0x80;
@@ -194,12 +215,12 @@ static uint32_t __extract_packet_len(const uint8_t *raw_data, uint32_t max_len, 
 static void __response_to_app_by_subpack(uint16_t type)
 {
     uint32_t subpack_sent = 0;
-    uint32_t subpack_len = s_ble_channel_mgr.subpack_len;
-    uint32_t subpack_no = 0;
-    uint16_t pkg_offset = 0;
+    uint32_t subpack_len  = s_ble_channel_mgr.subpack_len;
+    uint32_t subpack_no   = 0;
+    uint16_t pkg_offset   = 0;
     uint16_t pkg_data_len = 0;
-    uint8_t *pkg_buff = NULL;
-    uint8_t flag = 0x00;
+    uint8_t *pkg_buff     = NULL;
+    uint8_t  flag         = 0x00;
 
     if (NULL == s_ble_channel_mgr.rsp_data) {
         PR_ERR("no subpack data");
@@ -218,7 +239,7 @@ static void __response_to_app_by_subpack(uint16_t type)
     }
 
     while (subpack_sent < subpack_len) { // has subpack data not sent yet
-        pkg_offset = 0;
+        pkg_offset             = 0;
         pkg_buff[pkg_offset++] = 0x00;
         pkg_buff[pkg_offset++] = flag;
         if (flag & 0x02) {
@@ -286,14 +307,13 @@ void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len)
     if (s_ble_channel_mgr.rsp_data) {
         tal_free(s_ble_channel_mgr.rsp_data);
     }
-    memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
-    s_ble_channel_mgr.rsp_data = data;
-    s_ble_channel_mgr.subpack_data = data + 2;
-    s_ble_channel_mgr.subpack_len = len - 2;
 
-    if (len > 3) {
-        PR_DEBUG("start to send subpack cmd:%x, subcmd:%x", type, data[3]);
-    }
+    memset(&s_ble_channel_mgr, 0, sizeof(s_ble_channel_mgr));
+    s_ble_channel_mgr.rsp_data     = data;
+    s_ble_channel_mgr.subpack_data = data + 2;
+    s_ble_channel_mgr.subpack_len  = len - 2;
+
+    PR_DEBUG("start to send subpack cmd:%x, subcmd:%x", type, (len > 3) ? data[3] : 0);
     __response_to_app_by_subpack(type);
 
     tal_free(s_ble_channel_mgr.rsp_data);
@@ -350,11 +370,11 @@ OPERATE_RET ble_channel_reply(uint16_t subcmd, const uint8_t *data, uint32_t len
  * @param req The BLE packet to be processed.
  * @param user_data User data associated with the BLE packet.
  */
-#define BLE_CHANNEL_DOWNLINK_MAX_LEN 8192
-
 void ble_session_channel_process(ble_packet_t *req, void *user_data)
 {
-    if (NULL == req || NULL == req->data || req->len < 2) {
+    (void)user_data;
+
+    if (NULL == req || NULL == req->data) {
         return;
     }
 
@@ -364,7 +384,13 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
     }
 
     uint8_t *pRawData = req->data;
-    uint16_t pRawLen = req->len;
+    uint16_t pRawLen  = req->len;
+
+    // the parse below reads pRawData[1] and pRawData[2]
+    if (pRawLen < 3) { // flag(2) + sub-packet no(1)
+        PR_ERR("ble channel frame too short:%d", pRawLen);
+        return;
+    }
 
     if (FRM_DOWNLINK_TRANSPARENT_REQ == req->type || FRM_DOWNLINK_TRANSPARENT_SPEC_REQ == req->type) {
         tuya_ble_raw_print("recv_downlink_frame", 16, pRawData, pRawLen);
@@ -373,100 +399,94 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
         // bit0: 0 - not need response, 1 - need response
         // bit1: 0 - not subpacket, 1 - subpacket
         if (pRawData[1] & 0x02) { // subpacket process
-            uint32_t offset = 0;
-            uint32_t len_bytes = 0;
-            uint32_t curSubpacketNo = 0;
+            uint32_t offset          = 0;
+            uint32_t len_bytes       = 0;
+            uint32_t curSubpacketNo  = 0;
             uint32_t curSubpacketLen = 0;
-            static uint32_t totalLen = 0; // all subpackets data length
-            static uint8_t *pBuffer = NULL;
-            static uint32_t receivedLen = 0; // already received subpackets data length
-
-            if (pRawLen < 3) {
-                PR_ERR("downlink subpacket too short: %u", (unsigned int)pRawLen);
-                return;
-            }
 
             if (pRawData[2] == 0) { // first subpacket
-                offset = 3;         // skip flag and first subpacket no, total 3B
-                totalLen = 0;
-                receivedLen = 0;
+                uint32_t totalLen = 0;
+                ble_channel_reset_rx();
+                offset    = 3; // skip flag and first subpacket no, total 3B
                 len_bytes = __extract_packet_len(pRawData + offset, pRawLen - offset, &totalLen);
-                if (0 == len_bytes || offset + len_bytes + 1 > pRawLen || 0 == totalLen ||
-                    totalLen > BLE_CHANNEL_DOWNLINK_MAX_LEN) {
-                    PR_ERR("invalid first downlink subpacket, totalLen:%u, rawLen:%u", (unsigned int)totalLen,
+                if (0 == len_bytes || offset + len_bytes + 1 > pRawLen || totalLen < 2 ||
+                    totalLen > TUYA_BLE_TRANS_DATA_TOTAL_LEN_MAX) {
+                    PR_ERR("ble channel first subpacket invalid, totalLen:%u, rawLen:%u", (unsigned int)totalLen,
                            (unsigned int)pRawLen);
                     return;
                 }
                 offset += len_bytes + 1; // skip length varint + version/reserve (1B)
                 curSubpacketLen = pRawLen - offset;
                 if (curSubpacketLen > totalLen) {
-                    PR_ERR("first subpacket exceeds totalLen: %u > %u", (unsigned int)curSubpacketLen,
-                           (unsigned int)totalLen);
+                    PR_ERR("ble channel subpacket len err:%u/%u", (unsigned int)pRawLen, (unsigned int)totalLen);
                     return;
                 }
                 PR_DEBUG("first downlink subpacket, totalLen:%u", (unsigned int)totalLen);
 
-                if (pBuffer) {
-                    tal_free(pBuffer);
-                    pBuffer = NULL;
-                }
-                pBuffer = tal_malloc(totalLen);
-                if (NULL == pBuffer) {
+                // spare byte terminates the payload for cJSON_Parse
+                s_ble_channel_rx.buf = tal_malloc(totalLen + 1);
+                if (NULL == s_ble_channel_rx.buf) {
                     PR_ERR("malloc error for pBuffer");
                     return;
                 }
+                s_ble_channel_rx.buf[totalLen]         = 0;
+                s_ble_channel_rx.total_len             = totalLen;
+                s_ble_channel_rx.received_len          = 0;
+                s_ble_channel_rx.expected_subpacket_no = 1;
 
-                memcpy(pBuffer + receivedLen, pRawData + offset, curSubpacketLen);
-                receivedLen += curSubpacketLen;
-                curSubpacketNo = 0;
+                memcpy(s_ble_channel_rx.buf, pRawData + offset, curSubpacketLen);
+                s_ble_channel_rx.received_len = curSubpacketLen;
+                curSubpacketNo                = 0;
             } else { // subsequent subpackets
-                if (NULL == pBuffer) {
+                if (NULL == s_ble_channel_rx.buf) {
                     PR_ERR("subsequent downlink subpacket without buffer");
                     return;
                 }
 
-                offset = 2; // skip flag, total 2B
+                offset    = 2; // skip flag, total 2B
                 len_bytes = __extract_packet_len(pRawData + offset, pRawLen - offset, &curSubpacketNo);
                 if (0 == len_bytes || offset + len_bytes > pRawLen) {
                     PR_ERR("invalid subsequent downlink subpacket header");
+                    ble_channel_reset_rx();
                     return;
                 }
                 offset += len_bytes;
-                curSubpacketLen = pRawLen - offset;
-                if (curSubpacketLen > totalLen - receivedLen) {
-                    PR_ERR("subpacket overflow: %u + %u > %u", (unsigned int)receivedLen,
-                           (unsigned int)curSubpacketLen, (unsigned int)totalLen);
-                    tal_free(pBuffer);
-                    pBuffer = NULL;
-                    totalLen = 0;
-                    receivedLen = 0;
+                if (curSubpacketNo != s_ble_channel_rx.expected_subpacket_no) {
+                    PR_ERR("ble channel subpacket no err:%u/%u", (unsigned int)curSubpacketNo,
+                           (unsigned int)s_ble_channel_rx.expected_subpacket_no);
                     return;
                 }
-                memcpy(pBuffer + receivedLen, pRawData + offset, curSubpacketLen);
-                receivedLen += curSubpacketLen;
+                curSubpacketLen = pRawLen - offset;
+                if (s_ble_channel_rx.received_len > s_ble_channel_rx.total_len ||
+                    curSubpacketLen > (s_ble_channel_rx.total_len - s_ble_channel_rx.received_len)) {
+                    PR_ERR("ble channel subpacket overflow: %u + %u > %u", (unsigned int)s_ble_channel_rx.received_len,
+                           (unsigned int)curSubpacketLen, (unsigned int)s_ble_channel_rx.total_len);
+                    ble_channel_reset_rx();
+                    return;
+                }
+                memcpy(s_ble_channel_rx.buf + s_ble_channel_rx.received_len, pRawData + offset, curSubpacketLen);
+                s_ble_channel_rx.received_len += curSubpacketLen;
+                s_ble_channel_rx.expected_subpacket_no++;
             }
 
             PR_DEBUG("rece downlink subpacket, curSubpacketNo:%u, "
                      "curSubpacketLen:%u, receivedLen:%u, totalLen:%u",
-                     (unsigned int)curSubpacketNo, (unsigned int)curSubpacketLen, (unsigned int)receivedLen,
-                     (unsigned int)totalLen);
+                     (unsigned int)curSubpacketNo, (unsigned int)curSubpacketLen,
+                     (unsigned int)s_ble_channel_rx.received_len, (unsigned int)s_ble_channel_rx.total_len);
 
             ble_channel_ack_t *pAck = tal_malloc(sizeof(ble_channel_ack_t));
             if (pAck == NULL) {
                 PR_ERR("malloc error for pAck");
-                tal_free(pBuffer);
-                pBuffer = NULL;
-                totalLen = 0;
-                receivedLen = 0;
+                ble_channel_reset_rx();
                 return;
             }
-            pAck->flag = (pRawData[1] << 8) | pRawData[0];
-            pAck->curSubpacketNo = curSubpacketNo;
+            pAck->flag            = (pRawData[1] << 8) | pRawData[0];
+            pAck->curSubpacketNo  = curSubpacketNo;
             pAck->cursubpacketLen = curSubpacketLen;
-            pAck->receivedLen = receivedLen;
-            pAck->totalLen = totalLen;
+            pAck->receivedLen     = s_ble_channel_rx.received_len;
+            pAck->totalLen        = s_ble_channel_rx.total_len;
 
-            if (receivedLen < totalLen) {
+            if (s_ble_channel_rx.received_len < s_ble_channel_rx.total_len) {
                 pAck->status = SUBPACKET_RECV_ONE_AND_NEXT;
                 tuya_ble_send(req->type, req->sn, (uint8_t *)pAck, sizeof(ble_channel_ack_t));
                 tal_free(pAck);
@@ -475,21 +495,20 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
                 tuya_ble_send(req->type, req->sn, (uint8_t *)pAck, sizeof(ble_channel_ack_t));
                 tal_free(pAck);
 
-                tuya_ble_raw_print("recv_donwlink_cmd", 16, pBuffer, totalLen);
-                ble_channel_process(pBuffer, totalLen);
-                tal_free(pBuffer);
-                pBuffer = NULL;
-                totalLen = 0;
-                receivedLen = 0;
+                tuya_ble_raw_print("recv_donwlink_cmd", 16, s_ble_channel_rx.buf, s_ble_channel_rx.total_len);
+                ble_channel_process(s_ble_channel_rx.buf, s_ble_channel_rx.total_len);
+                ble_channel_reset_rx();
             }
         } else { // not subpacket process
+            // ble_channel_process() reads the channel type at pRawData[2..3]
+            if (pRawLen < 4) {
+                PR_ERR("ble channel frame too short:%d", pRawLen);
+                return;
+            }
             tuya_ble_raw_print("recv_downlink_cmd", 16, pRawData, pRawLen);
             ble_channel_process(pRawData + 2, pRawLen - 2);
         }
     } else if (FRM_UPLINK_TRANSPARENT_REQ == req->type || FRM_UPLINK_TRANSPARENT_SPEC_REQ == req->type) {
-        if (pRawLen < 3) {
-            return;
-        }
         tuya_ble_raw_print("recv_uplink_frame", 16, pRawData, pRawLen);
         uint8_t status = pRawData[2];
         if (NULL != s_ble_channel_mutex) {
@@ -503,7 +522,7 @@ void ble_session_channel_process(ble_packet_t *req, void *user_data)
         } else if (status == 1) { // continue subpack send
             __response_to_app_by_subpack(req->type);
         } else if (status == 2) { // restart subpack send
-            s_ble_channel_mgr.subpack_no = 0;
+            s_ble_channel_mgr.subpack_no   = 0;
             s_ble_channel_mgr.subpack_sent = 0;
             __response_to_app_by_subpack(req->type);
         } else {

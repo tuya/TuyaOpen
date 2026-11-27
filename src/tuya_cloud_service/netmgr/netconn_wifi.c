@@ -37,45 +37,48 @@ typedef enum {
 } netmgr_wifi_msg_type_t;
 
 typedef struct {
-    int type;
+    int                 type;
     netmgr_conn_wifi_t *handle;
 } netmgr_wifi_msg_t;
 
 netmgr_conn_wifi_t s_netmgr_wifi = {
     .base =
         {
-            .pri = 1,
-            .type = NETCONN_WIFI,
+            .pri    = 1,
+            .type   = NETCONN_WIFI,
             .status = NETMGR_LINK_DOWN,
 #if (defined(ENABLE_LIBLWIP) && (ENABLE_LIBLWIP == 1)) || 100 == OPERATING_SYSTEM
             .card_type = TAL_NET_TYPE_POSIX,
 #else
             .card_type = TAL_NET_TYPE_PLATFORM,
 #endif
-            .open = netconn_wifi_open,
+            .open  = netconn_wifi_open,
             .close = netconn_wifi_close,
-            .get = netconn_wifi_get,
-            .set = netconn_wifi_set,
+            .get   = netconn_wifi_get,
+            .set   = netconn_wifi_set,
         },
     .ccode = {"CN"},
     .conn =
         {
             .table_size = NETCONN_WIFI_CONN_TABLE,
-            .table = {1, 3, 5, 10, 15, 20},
+            .table      = {1, 3, 5, 10, 15, 20},
         },
 };
 
 static void __netconn_wifi_connect_process(void *msg)
 {
-    netmgr_wifi_msg_t *wifi_msg = (netmgr_wifi_msg_t *)msg;
-    netmgr_conn_wifi_t *wifi = wifi_msg->handle;
+    netmgr_wifi_msg_t  *wifi_msg = (netmgr_wifi_msg_t *)msg;
+    netmgr_conn_wifi_t *wifi     = wifi_msg->handle;
 
     switch (wifi_msg->type) {
     case NETCONN_WIFI_MSG_CONNECT:
         PR_DEBUG("wifi connnet %s", wifi->conn.wifi_conn_info.ssid);
         tal_wifi_station_disconnect();
         tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
-        wifi->conn.stat = NETCONN_WIFI_CONN_CHECK;
+        wifi->conn.conn_fail_seq  = 0;
+        wifi->conn.conn_fail_stat = WSS_IDLE;
+        wifi->conn.conn_start_ms  = (uint32_t)tal_system_get_millisecond();
+        wifi->conn.stat           = NETCONN_WIFI_CONN_CHECK;
         tal_wifi_set_work_mode(WWM_STATION);
         /* ULP: keep awake while associating; released in __netconn_wifi_event
          * (TY_LP_NETCONN also self-releases via its 3min timeout). */
@@ -86,7 +89,7 @@ static void __netconn_wifi_connect_process(void *msg)
     case NETCONN_WIFI_MSG_DISCONNECT:
         tal_sw_timer_stop(wifi->conn.timer);
         wifi->conn.count = 0;
-        wifi->conn.stat = NETCONN_WIFI_CONN_STOP;
+        wifi->conn.stat  = NETCONN_WIFI_CONN_STOP;
         tal_wifi_station_disconnect();
 
         //! wait disconnect event
@@ -110,7 +113,7 @@ OPERATE_RET __netconn_wifi_connect(void)
     if (NULL == wifi_msg) {
         return OPRT_MALLOC_FAILED;
     }
-    wifi_msg->type = NETCONN_WIFI_MSG_CONNECT;
+    wifi_msg->type   = NETCONN_WIFI_MSG_CONNECT;
     wifi_msg->handle = wifi;
     return tal_workq_schedule(WORKQ_SYSTEM, __netconn_wifi_connect_process, wifi_msg);
 }
@@ -128,7 +131,7 @@ OPERATE_RET __netconn_wifi_disconnect(void)
         return OPRT_MALLOC_FAILED;
     }
 
-    wifi_msg->type = NETCONN_WIFI_MSG_DISCONNECT;
+    wifi_msg->type   = NETCONN_WIFI_MSG_DISCONNECT;
     wifi_msg->handle = wifi;
 
     return tal_workq_schedule(WORKQ_SYSTEM, __netconn_wifi_connect_process, wifi_msg);
@@ -156,19 +159,33 @@ static netcfg_err_code_e __wifi_station_err_to_netcfg(void)
 
 static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 {
-    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+    netmgr_conn_wifi_t *wifi   = &s_netmgr_wifi;
     tuya_iot_client_t  *client = tuya_iot_client_get();
 
     tal_sw_timer_stop(wifi->conn.timer);
     if (event == WFE_CONNECTED) {
         PR_DEBUG("wifi connected in stat %d", wifi->conn.stat);
-        wifi->conn.count = 0;
-        wifi->conn.stat = NETCONN_WIFI_CONN_LINKUP;
-        wifi->base.status = NETMGR_LINK_UP;
+        wifi->conn.count          = 0;
+        wifi->conn.conn_fail_seq  = 0;
+        wifi->conn.conn_fail_stat = WSS_GOT_IP;
+        wifi->conn.stat           = NETCONN_WIFI_CONN_LINKUP;
+        wifi->base.status         = NETMGR_LINK_UP;
         if (NULL != client && !tuya_iot_activated(client)) {
             netcfg_stat_set(NETCFG_STAGE_CLOUD_ACTIVE, NETCFG_ERR_SUCC);
         }
     } else {
+        /* Ignore the async disconnect event emitted while tearing down the
+         * previous AP right at the start of a new connect attempt. */
+        if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat &&
+            (uint32_t)((uint32_t)tal_system_get_millisecond() - wifi->conn.conn_start_ms) >= 1000U) {
+            WF_STATION_STAT_E st = WSS_CONN_FAIL;
+            if (OPRT_OK == tal_wifi_station_get_status(&st)) {
+                wifi->conn.conn_fail_stat = st;
+            } else {
+                wifi->conn.conn_fail_stat = WSS_CONN_FAIL;
+            }
+            wifi->conn.conn_fail_seq++;
+        }
         //! faild or disconnect auto connect
         if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
             wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
@@ -236,9 +253,9 @@ OPERATE_RET __netconn_wifi_info_set(netconn_wifi_info_t *info)
 
 OPERATE_RET __netconn_wifi_info_get(netconn_wifi_info_t *info)
 {
-    OPERATE_RET rt = 0;
-    size_t length = 0;
-    uint8_t *netinfo = NULL;
+    OPERATE_RET rt      = 0;
+    size_t      length  = 0;
+    uint8_t    *netinfo = NULL;
 
     TUYA_CALL_ERR_RETURN(tal_kv_get("netinfo", &netinfo, &length));
 
@@ -314,9 +331,20 @@ OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool pe
 
     /* __netconn_wifi_connect() bails out while the station is link up, but a
      * switch to another ap must go through even then */
-    s_netmgr_wifi.conn.stat = NETCONN_WIFI_CONN_REDAY;
+    s_netmgr_wifi.conn.conn_fail_seq  = 0;
+    s_netmgr_wifi.conn.conn_fail_stat = WSS_IDLE;
+    s_netmgr_wifi.conn.conn_start_ms  = (uint32_t)tal_system_get_millisecond();
+    s_netmgr_wifi.conn.stat           = NETCONN_WIFI_CONN_REDAY;
 
     return __netconn_wifi_connect();
+}
+
+uint32_t netconn_wifi_station_fail_info(WF_STATION_STAT_E *stat)
+{
+    if (NULL != stat) {
+        *stat = s_netmgr_wifi.conn.conn_fail_stat;
+    }
+    return s_netmgr_wifi.conn.conn_fail_seq;
 }
 
 OPERATE_RET netconn_wifi_station_suspend(bool suspend)
@@ -384,8 +412,8 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
     int rt = OPRT_OK;
 
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
-    netmgr_wifi->netcfg.uuid = (char *)config->uuid;
-    netmgr_wifi->netcfg.pincode = (char *)config->pincode;
+    netmgr_wifi->netcfg.uuid        = (char *)config->uuid;
+    netmgr_wifi->netcfg.pincode     = (char *)config->pincode;
 
     TUYA_CALL_ERR_LOG(
         tal_event_subscribe(EVENT_LINK_ACTIVATE, "wifi", __wifi_link_activete_cb, SUBSCRIBE_TYPE_ONETIME));
@@ -419,14 +447,14 @@ static OPERATE_RET __wifi_reset_event_cb(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
 
-    tuya_iot_client_t *client = (tuya_iot_client_t *)data;
+    tuya_iot_client_t  *client      = (tuya_iot_client_t *)data;
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
     PR_DEBUG("__wifi_reset_event_cb");
     netcfg_stat_set(NETCFG_STAGE_NETCFG, NETCFG_ERR_SUCC);
     tal_sw_timer_stop(netmgr_wifi->conn.timer);
     netmgr_wifi->conn.stat = NETCONN_WIFI_CONN_STOP;
-    rt = tal_wifi_station_disconnect();
+    rt                     = tal_wifi_station_disconnect();
     if (client->is_activated) {
         tal_kv_del("netinfo");
         memset(&netmgr_wifi->conn.wifi_conn_info, 0, sizeof(netmgr_wifi->conn.wifi_conn_info));
@@ -451,7 +479,7 @@ static OPERATE_RET __wifi_reset_event_cb(void *data)
 OPERATE_RET netconn_wifi_open(void *config)
 {
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET         rt          = OPRT_OK;
 
     // init
     TUYA_CALL_ERR_RETURN(tal_wifi_init(__netconn_wifi_event));
@@ -510,8 +538,8 @@ OPERATE_RET netconn_wifi_close(void)
 OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
 {
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
-    tuya_iot_client_t *client = tuya_iot_client_get();
-    OPERATE_RET rt = OPRT_OK;
+    tuya_iot_client_t  *client      = tuya_iot_client_get();
+    OPERATE_RET         rt          = OPRT_OK;
 
     switch (cmd) {
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the
@@ -535,7 +563,7 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
         TUYA_CALL_ERR_RETURN(tal_wifi_set_country_code(netmgr_wifi->ccode));
         break;
     case NETCONN_CMD_NETCFG: {
-        netcfg_args_t *netcfg = (netcfg_args_t *)param;
+        netcfg_args_t *netcfg    = (netcfg_args_t *)param;
         netmgr_wifi->netcfg.type = netcfg->type;
         if (netmgr_wifi->netcfg.type & NETCFG_TUYA_BLE || netmgr_wifi->netcfg.type & NETCFG_TUYA_WIFI_AP) {
             tuya_iot_token_get_port_register(client, __netconn_activate_token_get);
@@ -562,7 +590,7 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
         uint32_t n = (rc->size > NETCONN_WIFI_CONN_TABLE) ? NETCONN_WIFI_CONN_TABLE : rc->size;
         memcpy(netmgr_wifi->conn.table, rc->table, n * sizeof(uint32_t));
         netmgr_wifi->conn.table_size = n;
-        netmgr_wifi->conn.count = 0;
+        netmgr_wifi->conn.count      = 0;
         PR_NOTICE("reconn table set, %d entries (last %ds)", n, netmgr_wifi->conn.table[n - 1]);
     } break;
 
@@ -587,7 +615,7 @@ OPERATE_RET netconn_wifi_set(netmgr_conn_config_type_e cmd, void *param)
 OPERATE_RET netconn_wifi_get(netmgr_conn_config_type_e cmd, void *param)
 {
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
-    OPERATE_RET rt = OPRT_OK;
+    OPERATE_RET         rt          = OPRT_OK;
 
     switch (cmd) {
     case NETCONN_CMD_PRI: // set pri will cause status change to reneg the

@@ -32,8 +32,6 @@ typedef enum {
     BLE_CHANNLE_NETCFG       = 1,
     BLE_CHANNLE_WIFI_LST     = 3,
     BLE_CHANNLE_NETCFG_STAT  = 4,
-    BLE_CHANNLE_DEV_LOG      = 5,
-    BLE_CHANNLE_GET_AP_NAME  = 6,
     BLE_CHANNLE_WIFI_PROTECT = 0x000F,
     BLE_CHANNEL_MAX          = 0x0010,
 } ble_channel_type_t;
@@ -60,11 +58,12 @@ typedef void (*ble_channel_fn_t)(void *data, uint32_t len, void *user_data);
  *
  * @return 0 on success, or a negative error code on failure.
  */
-int ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_data);
-int ble_channel_del(ble_channel_type_t type);
-void ble_channel_deinit(void);
-bool ble_channel_is_registered(ble_channel_type_t type);
-void ble_channel_wifi_list_cap_set(bool enable);
+int     ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_data);
+int     ble_channel_del(ble_channel_type_t type);
+void    ble_channel_reset_rx(void);
+void    ble_channel_deinit(void);
+bool    ble_channel_is_registered(ble_channel_type_t type);
+void    ble_channel_wifi_list_cap_set(bool enable);
 uint8_t ble_channel_combos_flag_get(void);
 
 void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len);

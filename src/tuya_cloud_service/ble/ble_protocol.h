@@ -83,12 +83,12 @@ bit3: Dual-mode supports plug&play, 1: Supported, 0: Not supported
 bit1: Shared class flag, 1: Tuya shared class device, 0: Non-shared class device
 bit0: 1: Device UUID is compressed, 0: Not compressed
 */
-#define ADV_FLAG_BOND            (1 << 7)
-#define ADV_FLAG_WIFI_LIST       (1 << 5)
-#define ADV_FLAG_PLUG_PLAY       (1 << 3)
-#define ADV_FLAG_BLE_FIRST       (1 << 4)
-#define ADV_FLAG_SHARE           (1 << 1)
-#define ADV_FLAG_UUID_COMP       (1 << 0) // DEVICE UUID is compress
+#define ADV_FLAG_BOND      (1 << 7)
+#define ADV_FLAG_WIFI_LIST (1 << 5)
+#define ADV_FLAG_PLUG_PLAY (1 << 3)
+#define ADV_FLAG_BLE_FIRST (1 << 4)
+#define ADV_FLAG_SHARE     (1 << 1)
+#define ADV_FLAG_UUID_COMP (1 << 0) // DEVICE UUID is compress
 
 /** @defgroup TUYA_BLE_SECURE_CONNECTION_TYPE tuya ble secure connection type
  * @{
@@ -117,6 +117,12 @@ function code, data length, CRC
 // Large data sub-packet size for transparent transmission command (length set
 // to the total length of the underlying sub-packet assembly - header length)
 #define TUYA_BLE_TRANS_DATA_SUBPACK_LEN (TUYA_BLE_AIR_FRAME_MAX - 64)
+// Largest reassembled transparent-channel message the device will accept
+#define TUYA_BLE_TRANS_DATA_TOTAL_LEN_MAX (TUYA_BLE_AIR_FRAME_MAX * 16)
+// largest header the encoder writes: sub-packet no(4) + frame len(4) + ver/seq(1)
+#define TUYA_BLE_SUBPACK_HEADER_MAX 9
+// smallest sub-packet size the APP may request, header plus one payload byte
+#define TUYA_BLE_SUBPACK_LEN_MIN (TUYA_BLE_SUBPACK_HEADER_MAX + 1)
 // BLE communication protocol version is set here
 // The APP parses the message based on the major and minor version numbers, thus
 // the Bluetooth version is changed to 3.7/4.4

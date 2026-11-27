@@ -66,6 +66,8 @@ typedef struct {
     uint8_t                  state;
     uint32_t                 timeout;
     uint8_t                  recover;
+    uint8_t                  retry;
+    uint32_t                 fail_seq;
     tuya_wifi_backup_trans_t trans;
     wifi_backup_ap_t         ap;
     char                     tid[WIFI_BACKUP_TID_LEN + 1];
@@ -99,7 +101,6 @@ typedef struct {
     uint32_t                  local_num;
     uint32_t                  cloud_num;
 } wifi_backup_mgr_t;
-
 
 extern wifi_backup_mgr_t g_wifi_backup_mgr;
 extern int (*g_wifi_backup_conf_attr)(tuya_wfpt_attr_t *attr);

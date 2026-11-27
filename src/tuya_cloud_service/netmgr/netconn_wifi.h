@@ -35,7 +35,7 @@ extern "C" {
  *
  */
 typedef enum {
-    TUYA_NETMGR_NETCFG_AP = 1 << 0,  // configure wifi according ble
+    TUYA_NETMGR_NETCFG_AP  = 1 << 0, // configure wifi according ble
     TUYA_NETMGR_NETCFG_BLE = 1 << 1, // configure wifi according wifi ap
 } netmgr_netcfg_mode_t;
 
@@ -82,12 +82,15 @@ typedef struct {
  */
 typedef struct {
     netconn_wifi_conn_status_e stat;
-    uint32_t count;
-    uint32_t table_size;
-    uint32_t table[NETCONN_WIFI_CONN_TABLE];
-    TIMER_ID timer;
-    netconn_wifi_info_t wifi_conn_info; // the connected wifi info
-    bool suspend;                       //!< auto reconnect paused, the station is owned by the caller
+    uint32_t                   count;
+    uint32_t                   table_size;
+    uint32_t                   table[NETCONN_WIFI_CONN_TABLE];
+    TIMER_ID                   timer;
+    netconn_wifi_info_t        wifi_conn_info; // the connected wifi info
+    bool                       suspend;        //!< auto reconnect paused, the station is owned by the caller
+    uint32_t                   conn_start_ms;  //!< timestamp of last explicit station connect attempt
+    uint32_t                   conn_fail_seq;  //!< incremented on disconnect/failure after connect attempt
+    WF_STATION_STAT_E          conn_fail_stat; //!< station status captured on last connect failure
 } netconn_wifi_conn_t;
 
 /**
@@ -99,8 +102,8 @@ typedef struct {
 
     char ccode[COUNTRY_CODE_LEN + 1];
 
-    netcfg_args_t netcfg;     // wifi netcfg configure
-    netconn_wifi_conn_t conn; // wifi connect/reconnect configure
+    netcfg_args_t       netcfg; // wifi netcfg configure
+    netconn_wifi_conn_t conn;   // wifi connect/reconnect configure
 } netmgr_conn_wifi_t;
 
 /**
@@ -170,6 +173,17 @@ OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool pe
  * @return OPERATE_RET
  */
 OPERATE_RET netconn_wifi_station_suspend(bool suspend);
+
+/**
+ * @brief Query the failure sequence and station error status of the latest
+ *        explicit station connect attempt.
+ *
+ * @param[out] stat optional pointer receiving the captured station status
+ *
+ * @return 0 if no failure has been reported since the last attempt started,
+ *         otherwise a monotonically increasing counter for that attempt
+ */
+uint32_t netconn_wifi_station_fail_info(WF_STATION_STAT_E *stat);
 
 #ifdef __cplusplus
 }
