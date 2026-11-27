@@ -21,9 +21,26 @@ if(CONFIG_ENABLE_WIFI STREQUAL "y")
     list(APPEND LIB_SRCS
         "${MODULE_PATH}/src/netconn_wifi.c"
         "${MODULE_PATH}/src/netcfg.c"
+        "${MODULE_PATH}/src/netcfg_wifi_list.c"
         "${MODULE_PATH}/src/ap_netcfg.c"
         "${MODULE_PATH}/src/ap_pbkdf2.c"
     )
+    if(CONFIG_ENABLE_BLUETOOTH STREQUAL "y")
+        list(APPEND LIB_SRCS
+            "${MODULE_PATH}/src/ble_netcfg_ext.c"
+        )
+    endif()
+    if(CONFIG_ENABLE_WIFI_BACKUP STREQUAL "y")
+        list(APPEND LIB_SRCS
+            "${MODULE_PATH}/wifi_backup/wifi_backup_fsm.c"
+            "${MODULE_PATH}/wifi_backup/wifi_backup_proto.c"
+        )
+        if(CONFIG_ENABLE_BLUETOOTH STREQUAL "y")
+            list(APPEND LIB_SRCS
+                "${MODULE_PATH}/src/ble_wifi_backup.c"
+            )
+        endif()
+    endif()
 endif()
 
 if(CONFIG_ENABLE_WIRED STREQUAL "y")
@@ -33,7 +50,10 @@ if(CONFIG_ENABLE_WIRED STREQUAL "y")
 endif()
 
 # LIB_PUBLIC_INC
-set(LIB_PUBLIC_INC ${MODULE_PATH}/include)
+set(LIB_PUBLIC_INC
+    ${MODULE_PATH}/include
+    ${MODULE_PATH}/wifi_backup
+)
 set(LIB_PRIVATE_INC)
 
 ########################################

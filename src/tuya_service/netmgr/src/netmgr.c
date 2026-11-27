@@ -50,6 +50,12 @@ extern netmgr_conn_cellular_t s_netmgr_cellular;
 
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
+#ifdef ENABLE_WIFI
+#include "ble_netcfg_ext.h"
+#ifdef ENABLE_WIFI_BACKUP
+#include "ble_wifi_backup.h"
+#endif
+#endif
 #endif
 
 typedef struct {
@@ -391,10 +397,30 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
      * would leave the controller powered (deinit becomes a NULL no-op) and pin
      * the idle floor, so the original's "don't start BLE if activated" does not
      * translate to TuyaOpen; init-then-deinit reaches the same off state. */
+    /* Register WiFi BLE capabilities before bringing up the BLE stack so the
+     * very first advertisement on CORE_BLE_STACK_INIT carries the complete
+     * capability flags without needing an extra stop/restart cycle. */
+#ifdef ENABLE_WIFI
+    if (type & NETCONN_WIFI) {
+        ble_netcfg_combos_register();
+#ifdef ENABLE_WIFI_BACKUP
+        ble_wifi_backup_register();
+#endif
+    }
+#endif
     tuya_ble_cfg_t ble_cfg = {0};
     ble_cfg.client         = tuya_iot_client_get();
     snprintf(ble_cfg.device_name, sizeof(ble_cfg.device_name), "TYBLE");
-    tuya_ble_init(&ble_cfg);
+    if (OPRT_OK != tuya_ble_init(&ble_cfg)) {
+#ifdef ENABLE_WIFI
+        if (type & NETCONN_WIFI) {
+#ifdef ENABLE_WIFI_BACKUP
+            ble_wifi_backup_unregister();
+#endif
+            ble_netcfg_combos_unregister();
+        }
+#endif
+    }
 #endif
 
     return rt;

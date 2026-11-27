@@ -1,0 +1,49 @@
+menu "configure netmgr"
+    menuconfig ENABLE_WIFI_BACKUP
+        bool "ENABLE_WIFI_BACKUP: enable wifi backup network function"
+        depends on ENABLE_WIFI
+        default n
+
+        help
+                Backup network: keep a list of known good APs besides the one in
+                use, fall back to them when the current one is lost, and let the
+                APP manage that list over the cloud or over BLE. Off by default:
+                enable it per board (boards/<platform>/OS_SERVICE_Kconfig) once
+                the board has been validated, so the code size is only paid where
+                it is used.
+
+        if (ENABLE_WIFI_BACKUP)
+            config WIFI_BACKUP_AP_NUM
+                int "WIFI_BACKUP_AP_NUM: number of backup APs kept"
+                range 1 8
+                default 3
+
+                help
+                        Maximum number of APs in the backup list, the oldest one
+                        is dropped when the list is full.
+        endif
+
+    config ENABLE_BT_WIFI_LIST
+        bool "ENABLE_BT_WIFI_LIST: enable the WiFi hotspot list query over BLE"
+        depends on ENABLE_BLUETOOTH
+        default n
+
+        help
+                Answers the app's hotspot list request on the BLE transparent
+                channel, and advertises the capability in the adv flag and
+                combos flag. It runs a blocking all-AP scan, so a board whose
+                WiFi driver cannot scan while connected (no APSTA) should turn
+                it off.
+
+    if (ENABLE_BT_WIFI_LIST)
+        config BT_WIFI_LIST_BUF_SIZE
+            int "BT_WIFI_LIST_BUF_SIZE: max JSON buffer size (bytes) for BLE WiFi list"
+            range 512 4096
+            default 1024
+
+            help
+                    Maximum JSON payload size in bytes for the BLE WiFi hotspot list
+                    response. Can also be overridden at runtime via
+                    ble_wifi_list_buf_size_set().
+    endif
+endmenu

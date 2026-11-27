@@ -28,6 +28,10 @@
 #include "tuya_ble_service.h"
 #endif
 
+#ifdef ENABLE_WIFI_BACKUP
+#include "tuya_wifi_backup.h"
+#endif
+
 typedef enum {
     NETCONN_WIFI_MSG_CONNECT,
     NETCONN_WIFI_MSG_DISCONNECT,
@@ -68,7 +72,10 @@ static void __netconn_wifi_connect_process(void *msg)
         PR_DEBUG("wifi connnet %s", wifi->conn.wifi_conn_info.ssid);
         tal_wifi_station_disconnect();
         tal_sw_timer_start(wifi->conn.timer, WIFI_CONN_TIMEOUT_MAX * 1000, TAL_TIMER_ONCE);
-        wifi->conn.stat = NETCONN_WIFI_CONN_CHECK;
+        wifi->conn.conn_fail_seq  = 0;
+        wifi->conn.conn_fail_stat = WSS_IDLE;
+        wifi->conn.conn_start_ms  = (uint32_t)tal_system_get_millisecond();
+        wifi->conn.stat           = NETCONN_WIFI_CONN_CHECK;
         tal_wifi_set_work_mode(WWM_STATION);
         /* ULP: keep awake while associating; released in __netconn_wifi_event
          * (TY_LP_NETCONN also self-releases via its 3min timeout). */
@@ -127,30 +134,74 @@ OPERATE_RET __netconn_wifi_disconnect(void)
     return tal_workq_schedule(WORKQ_SYSTEM, __netconn_wifi_connect_process, wifi_msg);
 }
 
+static netcfg_err_code_e __wifi_station_err_to_netcfg(void)
+{
+    WF_STATION_STAT_E stat = WSS_IDLE;
+
+    if (OPRT_OK == tal_wifi_station_get_status(&stat)) {
+        switch (stat) {
+        case WSS_NO_AP_FOUND:
+            return NETCFG_ERR_AP_NOT_FOUND;
+        case WSS_PASSWD_WRONG:
+            return NETCFG_ERR_PASSWD;
+        case WSS_DHCP_FAIL:
+            return NETCFG_ERR_DHCP_FAILED;
+        default:
+            break;
+        }
+    }
+
+    return NETCFG_ERR_CANT_CONN_AP;
+}
+
 static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 {
-    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+    netmgr_conn_wifi_t *wifi   = &s_netmgr_wifi;
+    tuya_iot_client_t  *client = tuya_iot_client_get();
 
     tal_sw_timer_stop(wifi->conn.timer);
     if (event == WFE_CONNECTED) {
         PR_DEBUG("wifi connected in stat %d", wifi->conn.stat);
-        wifi->conn.count  = 0;
-        wifi->conn.stat   = NETCONN_WIFI_CONN_LINKUP;
-        wifi->base.status = NETMGR_LINK_UP;
+        wifi->conn.count          = 0;
+        wifi->conn.conn_fail_seq  = 0;
+        wifi->conn.conn_fail_stat = WSS_GOT_IP;
+        wifi->conn.stat           = NETCONN_WIFI_CONN_LINKUP;
+        wifi->base.status         = NETMGR_LINK_UP;
+        if (NULL != client && !tuya_iot_activated(client)) {
+            netcfg_stat_set(NETCFG_STAGE_CLOUD_ACTIVE, NETCFG_ERR_SUCC);
+        }
     } else {
+        /* Ignore the async disconnect event emitted while tearing down the
+         * previous AP right at the start of a new connect attempt. */
+        if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat &&
+            (uint32_t)((uint32_t)tal_system_get_millisecond() - wifi->conn.conn_start_ms) >= 1000U) {
+            WF_STATION_STAT_E st = WSS_CONN_FAIL;
+            if (OPRT_OK == tal_wifi_station_get_status(&st)) {
+                wifi->conn.conn_fail_stat = st;
+            } else {
+                wifi->conn.conn_fail_stat = WSS_CONN_FAIL;
+            }
+            wifi->conn.conn_fail_seq++;
+        }
         //! faild or disconnect auto connect
-        if (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
+        if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
+            wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
+            if (false == wifi->conn.suspend) {
+                __netconn_wifi_connect();
+            }
+        } else if (false == wifi->conn.suspend &&
+                   (NETCONN_WIFI_CONN_CHECK == wifi->conn.stat || NETCONN_WIFI_CONN_WAIT == wifi->conn.stat)) {
             tal_sw_timer_start(wifi->conn.timer, wifi->conn.table[wifi->conn.count] * 1000, TAL_TIMER_ONCE);
             if (wifi->conn.count < wifi->conn.table_size - 1) {
                 wifi->conn.count++;
             }
             wifi->conn.stat = NETCONN_WIFI_CONN_WAIT;
-        } else if (NETCONN_WIFI_CONN_LINKUP == wifi->conn.stat) {
-            wifi->conn.stat = NETCONN_WIFI_CONN_REDAY;
-            __netconn_wifi_connect();
         }
 
         wifi->base.status = NETMGR_LINK_DOWN;
+        if (NULL != client && !tuya_iot_activated(client) && '\0' != wifi->conn.wifi_conn_info.ssid[0]) {
+            netcfg_stat_set(NETCFG_STAGE_CONN_AP, __wifi_station_err_to_netcfg());
+        }
     }
 
     /* ULP: STA connect attempt resolved (up or down) -> release keep-awake */
@@ -167,6 +218,11 @@ static void __netconn_wifi_event(WF_EVENT_E event, void *arg)
 static void __netconn_wifi_conn_timer(TIMER_ID timer_id, void *arg)
 {
     netmgr_conn_wifi_t *wifi = (netmgr_conn_wifi_t *)arg;
+
+    if (wifi->conn.suspend) {
+        PR_DEBUG("wifi station suspended, skip auto reconnect");
+        return;
+    }
 
     PR_DEBUG("auto conn timeout cnt %d, stat %d", wifi->conn.count, wifi->conn.stat);
     if (NETCONN_WIFI_CONN_WAIT == wifi->conn.stat) {
@@ -231,6 +287,71 @@ err_exit:
     return OPRT_CJSON_PARSE_ERR;
 }
 
+static OPERATE_RET __netconn_wifi_info_store(const char *ssid, const char *pswd, bool persist)
+{
+    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+
+    if (NULL == ssid || '\0' == ssid[0]) {
+        return OPRT_INVALID_PARM;
+    }
+
+    memset(&wifi->conn.wifi_conn_info, 0, sizeof(wifi->conn.wifi_conn_info));
+    strncpy(wifi->conn.wifi_conn_info.ssid, ssid, WIFI_SSID_LEN);
+    strncpy(wifi->conn.wifi_conn_info.pswd, (NULL == pswd) ? "" : pswd, WIFI_PASSWD_LEN);
+
+    if (persist) {
+        return __netconn_wifi_info_set(&wifi->conn.wifi_conn_info);
+    }
+
+    return OPRT_OK;
+}
+
+OPERATE_RET netconn_wifi_station_info_save(const char *ssid, const char *pswd)
+{
+    return __netconn_wifi_info_store(ssid, pswd, true);
+}
+
+OPERATE_RET netconn_wifi_station_set(const char *ssid, const char *pswd, bool persist)
+{
+    OPERATE_RET rt = __netconn_wifi_info_store(ssid, pswd, persist);
+
+    if (OPRT_OK != rt) {
+        return rt;
+    }
+
+    /* __netconn_wifi_connect() bails out while the station is link up, but a
+     * switch to another ap must go through even then */
+    s_netmgr_wifi.conn.conn_fail_seq  = 0;
+    s_netmgr_wifi.conn.conn_fail_stat = WSS_IDLE;
+    s_netmgr_wifi.conn.conn_start_ms  = (uint32_t)tal_system_get_millisecond();
+    s_netmgr_wifi.conn.stat           = NETCONN_WIFI_CONN_REDAY;
+
+    return __netconn_wifi_connect();
+}
+
+uint32_t netconn_wifi_station_fail_info(WF_STATION_STAT_E *stat)
+{
+    if (NULL != stat) {
+        *stat = s_netmgr_wifi.conn.conn_fail_stat;
+    }
+    return s_netmgr_wifi.conn.conn_fail_seq;
+}
+
+OPERATE_RET netconn_wifi_station_suspend(bool suspend)
+{
+    netmgr_conn_wifi_t *wifi = &s_netmgr_wifi;
+
+    PR_DEBUG("wifi station %s", suspend ? "suspend" : "resume");
+
+    wifi->conn.suspend = suspend;
+    if (suspend) {
+        wifi->conn.count = 0;
+        tal_sw_timer_stop(wifi->conn.timer);
+    }
+
+    return OPRT_OK;
+}
+
 static OPERATE_RET __wifi_link_activete_cb(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -267,6 +388,7 @@ OPERATE_RET __netconn_wifi_netcfg_finish(int type, netcfg_info_t *info)
     memcpy(binding.token, info->token + REGION_LEN, TOKEN_LEN);
     memcpy(binding.regist_key, info->token + REGION_LEN + TOKEN_LEN, REGIST_KEY_LEN);
 
+    netcfg_stat_set(NETCFG_STAGE_CONN_AP, NETCFG_ERR_SUCC);
     tal_event_unsubscribe(EVENT_LINK_ACTIVATE, "wifi", __wifi_link_activete_cb);
     tal_event_publish(EVENT_LINK_ACTIVATE, &binding);
     // notify netcfg finished and save
@@ -334,6 +456,13 @@ int __netconn_activate_token_get(tuya_iot_config_t *config)
     return rt;
 }
 
+static OPERATE_RET __wifi_mqtt_connected_cb(void *data)
+{
+    (void)data;
+    netcfg_stat_set(NETCFG_STAGE_CLOUD_ACTIVE, NETCFG_ERR_GW_ACTIVE_SUCCESS);
+    return OPRT_OK;
+}
+
 static OPERATE_RET __wifi_reset_event_cb(void *data)
 {
     OPERATE_RET rt = OPRT_OK;
@@ -342,6 +471,7 @@ static OPERATE_RET __wifi_reset_event_cb(void *data)
     netmgr_conn_wifi_t *netmgr_wifi = &s_netmgr_wifi;
 
     PR_DEBUG("__wifi_reset_event_cb");
+    netcfg_stat_set(NETCFG_STAGE_NETCFG, NETCFG_ERR_SUCC);
     tal_sw_timer_stop(netmgr_wifi->conn.timer);
     netmgr_wifi->conn.stat = NETCONN_WIFI_CONN_STOP;
     rt                     = tal_wifi_station_disconnect();
@@ -378,6 +508,8 @@ OPERATE_RET netconn_wifi_open(void *config)
     // create a connect timer --- it will triggered by netcfg or set ssid&pswd
     TUYA_CALL_ERR_RETURN(tal_sw_timer_create(__netconn_wifi_conn_timer, netmgr_wifi, &netmgr_wifi->conn.timer));
     TUYA_CALL_ERR_RETURN(tal_event_subscribe(EVENT_RESET, "wifi", __wifi_reset_event_cb, SUBSCRIBE_TYPE_NORMAL));
+    TUYA_CALL_ERR_RETURN(
+        tal_event_subscribe(EVENT_MQTT_CONNECTED, "wifi_stat", __wifi_mqtt_connected_cb, SUBSCRIBE_TYPE_NORMAL));
 
     tuya_iot_client_t *client = tuya_iot_client_get();
     if (client->is_activated) {
@@ -385,6 +517,12 @@ OPERATE_RET netconn_wifi_open(void *config)
         __netconn_wifi_info_get(&netmgr_wifi->conn.wifi_conn_info);
         __netconn_wifi_connect();
     }
+
+#ifdef ENABLE_WIFI_BACKUP
+    /* after the normal connect path, so the backup list only takes over when the
+     * device really has no network of its own */
+    tuya_wifi_backup_init();
+#endif
 
     return rt;
 }
