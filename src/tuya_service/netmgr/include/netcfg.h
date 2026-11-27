@@ -234,6 +234,55 @@ int netcfg_stop_other_all(int type);
 
 int netcfg_start_other_all(int type);
 
+typedef enum {
+    NETCFG_STAGE_NETCFG       = 0,
+    NETCFG_STAGE_PROXY_ACTIVE = 1,
+    NETCFG_STAGE_CONN_AP      = 2,
+    NETCFG_STAGE_CLOUD_ACTIVE = 3,
+} netcfg_stage_e;
+
+typedef enum {
+    NETCFG_ERR_SUCC              = 0,
+    NETCFG_ERR_PCK               = 1,
+    NETCFG_ERR_AP_NOT_FOUND      = 2,
+    NETCFG_ERR_PASSWD            = 3,
+    NETCFG_ERR_CANT_CONN_AP      = 4,
+    NETCFG_ERR_DHCP_FAILED       = 5,
+    NETCFG_ERR_CONN_CLOUD_FAILED = 6,
+    NETCFG_ERR_GET_URL_FAILED    = 7,
+    NETCFG_ERR_GW_ACTIVE_FAILED  = 8,
+    NETCFG_ERR_GW_ACTIVE_SUCCESS = 9,
+} netcfg_err_code_e;
+
+typedef void (*netcfg_stat_cb_t)(netcfg_stage_e stage, netcfg_err_code_e status);
+
+/**
+ * @brief Update the provisioning stage and status code.
+ *
+ * Notifies the registered listener (if any) when the stage or status changes.
+ */
+void netcfg_stat_set(netcfg_stage_e stage, netcfg_err_code_e status);
+
+/**
+ * @brief Get the current provisioning stage and status code.
+ */
+void netcfg_stat_get(netcfg_stage_e *stage, netcfg_err_code_e *status);
+
+/**
+ * @brief Format the provisioning status JSON: {"type":T,"stage":S,"status":E}.
+ *
+ * @param[out] buf  Destination buffer.
+ * @param[in]  size Size of @p buf in bytes.
+ * @param[in]  type 0 for proactive report, 1 for query response.
+ * @return Formatted length in bytes on success, or negative error code.
+ */
+int netcfg_stat_format(char *buf, size_t size, uint32_t type);
+
+/**
+ * @brief Register a callback invoked when the provisioning status changes.
+ */
+void netcfg_stat_cb_register(netcfg_stat_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

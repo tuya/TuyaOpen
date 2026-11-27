@@ -415,7 +415,7 @@ static uint16_t ble_hs_hci_max_acl_payload_sz(void)
      * data portion of HCI LE ACL Data Packets sent from the Host to the
      * Controller.
      */
-    return ble_hs_hci_buf_sz;
+    return (ble_hs_hci_buf_sz > TUYA_BLE_ACL_BUF_SIZE) ? TUYA_BLE_ACL_BUF_SIZE : ble_hs_hci_buf_sz;
 }
 
 /**

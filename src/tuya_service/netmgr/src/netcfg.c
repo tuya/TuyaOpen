@@ -22,6 +22,7 @@
  *
  */
 
+#include <stdio.h>
 #include "netcfg.h"
 #include "tal_api.h"
 #include "tuya_list.h"
@@ -430,4 +431,59 @@ int netcfg_stop_other_all(int type)
     }
 
     return OPRT_OK;
+}
+
+static netcfg_stage_e    s_netcfg_stage   = NETCFG_STAGE_NETCFG;
+static netcfg_err_code_e s_netcfg_status  = NETCFG_ERR_SUCC;
+static netcfg_stat_cb_t  s_netcfg_stat_cb = NULL;
+
+void netcfg_stat_cb_register(netcfg_stat_cb_t cb)
+{
+    s_netcfg_stat_cb = cb;
+}
+
+void netcfg_stat_set(netcfg_stage_e stage, netcfg_err_code_e status)
+{
+    bool             changed = (s_netcfg_stage != stage || s_netcfg_status != status);
+    netcfg_stat_cb_t cb      = s_netcfg_stat_cb;
+
+    s_netcfg_stage  = stage;
+    s_netcfg_status = status;
+
+    if (changed) {
+        PR_DEBUG("netcfg stat changed: stage=%u, status=%u", (unsigned int)stage, (unsigned int)status);
+        if (NULL != cb) {
+            cb(stage, status);
+        }
+    }
+}
+
+void netcfg_stat_get(netcfg_stage_e *stage, netcfg_err_code_e *status)
+{
+    if (NULL != stage) {
+        *stage = s_netcfg_stage;
+    }
+    if (NULL != status) {
+        *status = s_netcfg_status;
+    }
+}
+
+int netcfg_stat_format(char *buf, size_t size, uint32_t type)
+{
+    netcfg_stage_e    stage  = NETCFG_STAGE_NETCFG;
+    netcfg_err_code_e status = NETCFG_ERR_SUCC;
+    int               n      = 0;
+
+    if (NULL == buf || 0 == size) {
+        return OPRT_INVALID_PARM;
+    }
+
+    netcfg_stat_get(&stage, &status);
+    n = snprintf(buf, size, "{\"type\":%u,\"stage\":%u,\"status\":%u}", (unsigned int)type,
+                 (unsigned int)stage, (unsigned int)status);
+    if (n <= 0 || (size_t)n >= size) {
+        return OPRT_BUFFER_NOT_ENOUGH;
+    }
+
+    return n;
 }
