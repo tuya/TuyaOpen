@@ -13,11 +13,15 @@ get_filename_component(MODULE_NAME ${MODULE_PATH} NAME)
 # LIB_SRCS
 file(GLOB_RECURSE camera_srcs "${MODULE_PATH}/tdl_camera/src/*.c")
 
-if (CONFIG_ENABLE_DVP STREQUAL "y")   
+if (CONFIG_ENABLE_DVP STREQUAL "y")
     file(GLOB_RECURSE tdd_camera_dvp_srcs "${MODULE_PATH}/tdd_camera/src/dvp/*.c")
 endif()
 
-set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs})
+if (CONFIG_ENABLE_UVC STREQUAL "y")
+    file(GLOB_RECURSE tdd_camera_uvc_srcs "${MODULE_PATH}/tdd_camera/src/uvc/*.c")
+endif()
+
+set(LIB_SRCS ${camera_srcs} ${tdd_camera_dvp_srcs} ${tdd_camera_uvc_srcs})
 
 # LIB_PUBLIC_INC
 set(LIB_PUBLIC_INC 

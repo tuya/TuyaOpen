@@ -62,10 +62,22 @@ config ENABLE_EYES_TWO_LCD
     select ENABLE_DISPLAY_2
 
 # ---- Camera Module ----
-config TUYA_T5AI_BOARD_CAMERA
-    bool "Camera module (GC2145 DVP)"
-    default n
-    select ENABLE_CAMERA
+choice TUYA_T5AI_BOARD_CAMERA_TYPE
+    prompt "Camera module"
+    default TUYA_T5AI_BOARD_CAMERA_NONE
+
+    config TUYA_T5AI_BOARD_CAMERA_NONE
+        bool "none"
+
+    config TUYA_T5AI_BOARD_CAMERA
+        bool "GC2145 DVP camera"
+        select ENABLE_CAMERA
+
+    config TUYA_T5AI_BOARD_CAMERA_UVC
+        bool "UVC USB camera (MJPEG)"
+        select ENABLE_CAMERA
+        select ENABLE_UVC
+endchoice
 
 # ---- Printer Module ----
 config TUYA_T5AI_BOARD_PRINTER_DP48

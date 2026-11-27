@@ -7,7 +7,7 @@
  * and callback functions. It provides structures and enumerations for
  * managing camera devices and processing camera frames.
  *
- * @copyright Copyright (c) 2021-2025 Tuya Inc. All Rights Reserved.
+ * @copyright Copyright (c) 2021-2026 Tuya Inc. All Rights Reserved.
  *
  */
 
@@ -32,6 +32,7 @@ extern "C" {
 ***********************************************************/
 typedef enum  {
     TDL_CAMERA_DVP= 0,
+    TDL_CAMERA_UVC,
 }TDL_CAMERA_TYPE_E;
 
 typedef enum {

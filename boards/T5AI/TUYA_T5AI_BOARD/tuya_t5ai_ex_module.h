@@ -1,7 +1,10 @@
 /**
  * @file tuya_t5ai_ex_module.h
+ * @brief Tuya T5AI board extension module, pin configuration of the LCD, camera and printer
  * @version 0.1
  * @date 2025-07-01
+ *
+ * @copyright Copyright (c) 2025-2026 Tuya Inc. All Rights Reserved
  */
 
 #ifndef __TUYA_T5AI_EX_MODULE_H__
@@ -20,6 +23,10 @@
 
 #if defined (TUYA_T5AI_BOARD_CAMERA) && (TUYA_T5AI_BOARD_CAMERA ==1)
 #include "tdd_camera_gc2145.h"
+#endif
+
+#if defined (TUYA_T5AI_BOARD_CAMERA_UVC) && (TUYA_T5AI_BOARD_CAMERA_UVC ==1)
+#include "tdd_camera_uvc.h"
 #endif
 
 #if defined (TUYA_T5AI_BOARD_PRINTER_DP48) && (TUYA_T5AI_BOARD_PRINTER_DP48 ==1)
@@ -107,6 +114,11 @@ extern "C" {
 #define BOARD_CAMERA_POWER_PIN       TUYA_GPIO_NUM_MAX
 
 #define BOARD_CAMERA_CLK             24000000
+#endif
+
+#if defined (TUYA_T5AI_BOARD_CAMERA_UVC) && (TUYA_T5AI_BOARD_CAMERA_UVC ==1)
+#define BOARD_UVC_CAMERA_POWER_PIN        TUYA_GPIO_NUM_6
+#define BOARD_UVC_CAMERA_POWER_ACTIVE_LV TUYA_GPIO_LEVEL_HIGH
 #endif
 
 #if defined (TUYA_T5AI_BOARD_PRINTER_DP48) && (TUYA_T5AI_BOARD_PRINTER_DP48 ==1)
