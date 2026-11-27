@@ -26,6 +26,29 @@ menu "configure tuya cloud service"
                 bool "ENABLE_BT_CTRL: enable tuya Bluetooth control"
                 default y
 
+            config ENABLE_BT_WIFI_LIST
+                bool "ENABLE_BT_WIFI_LIST: enable the WiFi hotspot list query over BLE"
+                default n
+
+                ---help---
+                        Answers the app's hotspot list request on the BLE transparent
+                        channel, and advertises the capability in the adv flag and
+                        combos flag. It runs a blocking all-AP scan, so a board whose
+                        WiFi driver cannot scan while connected (no APSTA) should turn
+                        it off.
+
+            if (ENABLE_BT_WIFI_LIST)
+                config BT_WIFI_LIST_BUF_SIZE
+                    int "BT_WIFI_LIST_BUF_SIZE: max JSON buffer size (bytes) for BLE WiFi list"
+                    range 512 4096
+                    default 1024
+
+                    ---help---
+                            Maximum JSON payload size in bytes for the BLE WiFi hotspot list
+                            response. Can also be overridden at runtime via
+                            ble_wifi_list_buf_size_set().
+            endif
+
             config BT_ADV_INTERVAL_MIN
                 int "BT_ADV_INTERVAL_MIN: tuya Bluetooth min adv interval,bet:ms"
                 range 10 2000

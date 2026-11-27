@@ -72,17 +72,17 @@
     (TUYA_BLE_DEVICE_COMMUNICATION_ABILITY_BLE | TUYA_BLE_DEVICE_COMMUNICATION_ABILITY_WIFI_24G |                      \
      TUYA_BLE_DEVICE_COMMUNICATION_ABILITY_WIFI_5G)
 
-/*Flag: 1Byte
+/*Flag: 1Byte (BLE protocol v4)
 bit7: 1: Bound, 0: Not bound
-bit6: 1: V2 encryption protocol enabled, 0: Not enabled
-bit5: 1: Supports V2 encryption protocol, 0: Does not support
+bit6: 1: Supports beacon communication, 0: Does not support
+bit5: 1: Supports WiFi hotspot list query, 0: Does not support
 bit4: 1: Bluetooth preferred, 0: WiFi preferred
 bit3: Dual-mode supports plug&play, 1: Supported, 0: Not supported
 bit1: Shared class flag, 1: Tuya shared class device, 0: Non-shared class device
+bit0: 1: Device UUID is compressed, 0: Not compressed
 */
 #define ADV_FLAG_BOND            (1 << 7)
-#define ADV_FLAG_ENCRPT_V2_START (1 << 6)
-#define ADV_FLAG_ENCRPT_V2       (1 << 5)
+#define ADV_FLAG_WIFI_LIST       (1 << 5)
 #define ADV_FLAG_PLUG_PLAY       (1 << 3)
 #define ADV_FLAG_BLE_FIRST       (1 << 4)
 #define ADV_FLAG_SHARE           (1 << 1)
