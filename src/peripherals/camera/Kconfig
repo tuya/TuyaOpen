@@ -6,4 +6,9 @@ if (ENABLE_CAMERA)
     config CAMERA_NAME
         string "the name of camera"
         default "camera"
+
+    config ENABLE_UVC
+        bool "enable uvc camera"
+        depends on PLATFORM_CHOICE = "T5AI"
+        default n
 endif

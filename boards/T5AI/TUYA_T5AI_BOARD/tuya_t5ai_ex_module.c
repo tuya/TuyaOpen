@@ -1,7 +1,10 @@
 /**
  * @file tuya_t5ai_ex_module.c
+ * @brief Tuya T5AI board extension module, registers the LCD, camera and printer drivers
  * @version 0.1
  * @date 2025-07-01
+ *
+ * @copyright Copyright (c) 2025-2026 Tuya Inc. All Rights Reserved
  */
 
 #include "tal_api.h"
@@ -187,11 +190,24 @@ static OPERATE_RET __board_register_display(void)
 
 
 /* ---- Camera ---- */
-#if defined (TUYA_T5AI_BOARD_CAMERA) && (TUYA_T5AI_BOARD_CAMERA ==1)
+#if (defined(TUYA_T5AI_BOARD_CAMERA) && (TUYA_T5AI_BOARD_CAMERA == 1)) || \
+    (defined(TUYA_T5AI_BOARD_CAMERA_UVC) && (TUYA_T5AI_BOARD_CAMERA_UVC == 1))
 static OPERATE_RET __board_register_camera(void)
 {
 #if defined(CAMERA_NAME)
     OPERATE_RET rt = OPRT_OK;
+
+#if defined(TUYA_T5AI_BOARD_CAMERA_UVC) && (TUYA_T5AI_BOARD_CAMERA_UVC == 1)
+    /* UVC USB camera: the camera and its USB connector are powered through BOARD_UVC_CAMERA_POWER_PIN */
+    TDD_CAMERA_UVC_CFG_T uvc_cfg = {
+        .pwr = {
+            .pin          = BOARD_UVC_CAMERA_POWER_PIN,
+            .active_level = BOARD_UVC_CAMERA_POWER_ACTIVE_LV,
+        },
+    };
+
+    TUYA_CALL_ERR_RETURN(tdd_camera_uvc_register(CAMERA_NAME, &uvc_cfg));
+#else
     TDD_DVP_SR_USR_CFG_T camera_cfg = {
         .pwr = {
             .pin = BOARD_CAMERA_POWER_PIN,
@@ -209,6 +225,7 @@ static OPERATE_RET __board_register_camera(void)
     };
 
     TUYA_CALL_ERR_RETURN(tdd_camera_dvp_gc2145_register(CAMERA_NAME, &camera_cfg));
+#endif
 #endif
 
     return OPRT_OK;
