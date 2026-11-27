@@ -66,7 +66,8 @@ static bool     s_wifi_list_scanning = false;
 static void __handle_net_cfg(void *data, uint32_t len, void *user_data)
 {
     uint8_t result = 0;
-    uint8_t resp[5];
+    // resp[0] is never assigned below
+    uint8_t resp[5] = {0};
 
     (void)user_data;
 
@@ -229,7 +230,7 @@ static void __ble_wifi_list_task(void *data)
     if (s_wifi_list_enable) {
         json_len = netcfg_wifi_list_build((char *)(resp + BLE_CHANNEL_REPLY_HDR_LEN), buf_size, max_cnt);
     } else {
-        int n = snprintf((char *)(resp + BLE_CHANNEL_REPLY_HDR_LEN), buf_size, "{\"wifi_list\":[]}");
+        int n    = snprintf((char *)(resp + BLE_CHANNEL_REPLY_HDR_LEN), buf_size, "{\"wifi_list\":[]}");
         json_len = (n > 0 && (uint32_t)n < buf_size) ? (uint32_t)n : 0;
     }
 

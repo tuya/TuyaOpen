@@ -22,17 +22,17 @@
 ***********************************************************/
 wifi_backup_mgr_t g_wifi_backup_mgr;
 int (*g_wifi_backup_conf_attr)(tuya_wfpt_attr_t *attr) = NULL;
-static bool s_enable = true;
+static bool s_enable                                   = true;
 
 /***********************************************************
 ***********************function define**********************
 ***********************************************************/
-static void        __fsm_task(void *data);
-static void        __offline_tick(TIMER_ID timer_id, void *arg);
-static void        __offline_scan_task(void *data);
-static void        __switch_fsm_run(wifi_backup_switch_fsm_t *fsm);
-static void        __connect_fsm_run(wifi_backup_connect_fsm_t *fsm);
-static void        __state_notify(tuya_wfpt_state_t state);
+static void __fsm_task(void *data);
+static void __offline_tick(TIMER_ID timer_id, void *arg);
+static void __offline_scan_task(void *data);
+static void __switch_fsm_run(wifi_backup_switch_fsm_t *fsm);
+static void __connect_fsm_run(wifi_backup_connect_fsm_t *fsm);
+static void __state_notify(tuya_wfpt_state_t state);
 
 void wifi_backup_lock(void)
 {
@@ -83,7 +83,8 @@ bool wifi_backup_cur_ap_get(char *ssid, uint32_t ssid_size, char *passwd, uint32
  */
 static void __orig_capture(void)
 {
-    if (false == wifi_backup_cur_ap_get(g_wifi_backup_mgr.orig_ssid, sizeof(g_wifi_backup_mgr.orig_ssid), g_wifi_backup_mgr.orig_passwd, sizeof(g_wifi_backup_mgr.orig_passwd))) {
+    if (false == wifi_backup_cur_ap_get(g_wifi_backup_mgr.orig_ssid, sizeof(g_wifi_backup_mgr.orig_ssid),
+                                        g_wifi_backup_mgr.orig_passwd, sizeof(g_wifi_backup_mgr.orig_passwd))) {
         g_wifi_backup_mgr.orig_ssid[0]   = '\0';
         g_wifi_backup_mgr.orig_passwd[0] = '\0';
     }
@@ -139,7 +140,6 @@ void wifi_backup_ap_hash(wifi_backup_ap_t *ap)
     tal_sha256_free(ctx);
 }
 
-
 /***********************************************************
 *********************backup list ops************************
 ***********************************************************/
@@ -163,7 +163,8 @@ void wifi_backup_list_remove_at(uint8_t index)
     }
 
     if (index + 1 < g_wifi_backup_mgr.count) {
-        memmove(&g_wifi_backup_mgr.list[index], &g_wifi_backup_mgr.list[index + 1], (g_wifi_backup_mgr.count - index - 1) * sizeof(wifi_backup_ap_t));
+        memmove(&g_wifi_backup_mgr.list[index], &g_wifi_backup_mgr.list[index + 1],
+                (g_wifi_backup_mgr.count - index - 1) * sizeof(wifi_backup_ap_t));
     }
     g_wifi_backup_mgr.count--;
     memset(&g_wifi_backup_mgr.list[g_wifi_backup_mgr.count], 0, sizeof(wifi_backup_ap_t));
@@ -195,7 +196,8 @@ void wifi_backup_list_push(const char *ssid, const char *passwd, bool front)
     }
 
     if (front) {
-        memmove(&g_wifi_backup_mgr.list[1], &g_wifi_backup_mgr.list[0], g_wifi_backup_mgr.count * sizeof(wifi_backup_ap_t));
+        memmove(&g_wifi_backup_mgr.list[1], &g_wifi_backup_mgr.list[0],
+                g_wifi_backup_mgr.count * sizeof(wifi_backup_ap_t));
         g_wifi_backup_mgr.list[0] = ap;
     } else {
         g_wifi_backup_mgr.list[g_wifi_backup_mgr.count] = ap;
@@ -321,7 +323,6 @@ static void __kv_load(void)
     PR_DEBUG("wifi backup list restored, %d ap", g_wifi_backup_mgr.count);
 }
 
-
 /***********************************************************
 *************************state notify***********************
 ***********************************************************/
@@ -415,8 +416,10 @@ static void __switch_fsm_run(wifi_backup_switch_fsm_t *fsm)
             wifi_backup_str_copy(ssid, sizeof(ssid), fsm->ap.ssid);
             wifi_backup_str_copy(passwd, sizeof(passwd), fsm->ap.passwd);
         }
-        fsm->timeout = now + WIFI_BACKUP_SWITCH_TIMEOUT_MS;
-        fsm->state   = WIFI_BACKUP_FSM_STATE_CHECK;
+        fsm->timeout  = now + WIFI_BACKUP_SWITCH_TIMEOUT_MS;
+        fsm->retry    = 0;
+        fsm->fail_seq = 0;
+        fsm->state    = WIFI_BACKUP_FSM_STATE_CHECK;
         wifi_backup_unlock();
 
         if (recover) {
@@ -450,7 +453,37 @@ static void __switch_fsm_run(wifi_backup_switch_fsm_t *fsm)
             break;
         }
 
-        if (false == __link_up() || false == __cloud_connected()) {
+        if (false == __link_up()) {
+            if (false == fsm->recover) {
+                WF_STATION_STAT_E fail_stat = WSS_IDLE;
+                uint32_t          fail_seq  = netconn_wifi_station_fail_info(&fail_stat);
+
+                if (0 != fail_seq && fail_seq != fsm->fail_seq) {
+                    PR_DEBUG("wifi backup switch conn fail stat:%d retry:%u", fail_stat, fsm->retry);
+                    if (WSS_PASSWD_WRONG == fail_stat || fsm->retry >= 1) {
+                        PR_DEBUG("wifi backup switch fast rollback (stat:%d retry:%u)", fail_stat, fsm->retry);
+                        fsm->recover = true;
+                        fsm->state   = WIFI_BACKUP_FSM_STATE_INIT;
+                        wifi_backup_unlock();
+                        break;
+                    }
+                    char ssid[WIFI_SSID_LEN + 1];
+                    char passwd[WIFI_PASSWD_LEN + 1];
+                    fsm->retry++;
+                    fsm->fail_seq = 0;
+                    wifi_backup_str_copy(ssid, sizeof(ssid), fsm->ap.ssid);
+                    wifi_backup_str_copy(passwd, sizeof(passwd), fsm->ap.passwd);
+                    wifi_backup_unlock();
+                    PR_DEBUG("wifi backup switch retry %s (%u)", ssid, fsm->retry);
+                    netconn_wifi_station_set(ssid, passwd, false);
+                    break;
+                }
+            }
+            wifi_backup_unlock();
+            break;
+        }
+
+        if (false == __cloud_connected()) {
             wifi_backup_unlock();
             break;
         }
@@ -605,7 +638,7 @@ static void __connect_fsm_run(wifi_backup_connect_fsm_t *fsm)
 
         __switch_commit(&fsm->ap[fsm->index]);
         g_wifi_backup_mgr.status = WIFI_BACKUP_STATUS_IDLE;
-        fsm->state   = WIFI_BACKUP_FSM_STATE_DONE;
+        fsm->state               = WIFI_BACKUP_FSM_STATE_DONE;
         wifi_backup_unlock();
 
         tal_workq_stop_delayed(g_wifi_backup_mgr.fsm_work);
@@ -666,8 +699,8 @@ static void __offline_scan_task(void *data)
     char    ssids[TUYA_WIFI_BACKUP_AP_NUM][WIFI_SSID_LEN + 1];
     uint8_t ssid_cnt = 0;
     AP_IF_S found[TUYA_WIFI_BACKUP_AP_NUM];
-    uint8_t found_cnt       = 0;
-    bool    use_all_scan    = false;
+    uint8_t found_cnt    = 0;
+    bool    use_all_scan = false;
     uint8_t i;
 
     (void)data;
@@ -759,8 +792,8 @@ static void __offline_tick(TIMER_ID timer_id, void *arg)
     count = tuya_wifi_backup_count_get();
     if (0 == count) {
         if (g_wifi_backup_mgr.local_num && 0 == g_wifi_backup_mgr.local_num % WIFI_BACKUP_LOCAL_RECONNECT_TIME) {
-            PR_DEBUG("offline for %us, but %d ap in the list is the current one", (unsigned int)g_wifi_backup_mgr.local_num,
-                     g_wifi_backup_mgr.count);
+            PR_DEBUG("offline for %us, but %d ap in the list is the current one",
+                     (unsigned int)g_wifi_backup_mgr.local_num, g_wifi_backup_mgr.count);
         }
         return;
     }
@@ -839,7 +872,8 @@ uint8_t tuya_wifi_backup_count_get(void)
 
     wifi_backup_lock();
     for (i = 0; i < g_wifi_backup_mgr.count; i++) {
-        if (false == wifi_backup_is_same_ap_as_current(g_wifi_backup_mgr.list[i].ssid, g_wifi_backup_mgr.list[i].passwd)) {
+        if (false ==
+            wifi_backup_is_same_ap_as_current(g_wifi_backup_mgr.list[i].ssid, g_wifi_backup_mgr.list[i].passwd)) {
             count++;
         }
     }
@@ -976,9 +1010,8 @@ bool tuya_wifi_backup_is_enable(void)
     return s_enable;
 }
 
-
 OPERATE_RET wifi_backup_switch_start(const char *tid, const char *devid, const char *ssid, const char *passwd,
-                                  tuya_wifi_backup_trans_t trans)
+                                     tuya_wifi_backup_trans_t trans)
 {
     wifi_backup_switch_fsm_t *fsm = &g_wifi_backup_mgr.switch_fsm;
     OPERATE_RET               rt;
@@ -1017,7 +1050,6 @@ OPERATE_RET wifi_backup_switch_start(const char *tid, const char *devid, const c
     return OPRT_OK;
 }
 
-
 /***********************************************************
 ***********************life cycle***************************
 ***********************************************************/
@@ -1032,7 +1064,7 @@ static OPERATE_RET __reset_event_cb(void *data)
     wifi_backup_lock();
     if (WIFI_BACKUP_STATUS_IDLE != g_wifi_backup_mgr.status) {
         g_wifi_backup_mgr.status = WIFI_BACKUP_STATUS_IDLE;
-        was_active   = true;
+        was_active               = true;
     }
     wifi_backup_list_clear();
     g_wifi_backup_mgr.orig_ssid[0]   = '\0';
@@ -1079,7 +1111,6 @@ static OPERATE_RET __mqtt_event_cb(void *data)
 
     return OPRT_OK;
 }
-
 
 OPERATE_RET tuya_wifi_backup_init(void)
 {
