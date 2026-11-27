@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "name": "vw553_at_gateway",
+  "version": "0.5.2",
+  "role": "gd32h779-uart-at-gateway",
+  "transport": "uart",
+  "chip": "GD32VW553HMQ6",
+  "board": "LCKFB_GD32VW553",
+  "base_sdk": "GD32VW55x_RELEASE_V1.0.3g",
+  "source_repository": "platform/GD32",
+  "source_application": "platform/GD32/gd32_os/MSDK/vw553_at_gateway",
+  "image": {
+    "file": "vw553_at_gateway_uart_v0.5.2.bin",
+    "size": 1044372,
+    "sha256": "4860ad84a94b444910fb1e1429f0f630bbaa80ebfbbb36de87fb9931ed8a8b7e",
+    "flash_address": "0x08000000"
+  },
+  "pins": {
+    "at_uart": {
+      "peripheral": "UART2",
+      "tx": "PA6",
+      "rx": "PA7",
+      "baudrate": 115200
+    },
+    "log_uart": {
+      "peripheral": "UART1",
+      "tx": "PB15",
+      "rx": "PA8",
+      "baudrate": 115200
+    },
+    "reset": "RESET/NRST",
+    "boot_mode": "BOOT0"
+  },
+  "flashing": {
+    "recommended_tool": "GigaDevice GD32 Mass Production Tool",
+    "tested_version": "1.0.5g",
+    "package_sha256": "33559c67b294e7867867ba1c6063d2a64c8bc0cd0922df9bb0bbd879d0633faa",
+    "download_baudrate": 2000000,
+    "erase_mode": "page_erase",
+    "boot_mode": "hold BOOT0 high while releasing RESET"
+  },
+  "capabilities": [
+    "AT+TY553XCAP",
+    "AT+TY553XPS",
+    "AT+TY553XSERVER",
+    "TY553XBLE:CONN",
+    "TY553XBLE:DISC",
+    "Tuya BLE UUID 0x1910",
+    "Tuya BLE UUID 0x2B11",
+    "Tuya BLE UUID 0x2B10"
+  ],
+  "verification": {
+    "ble_provisioning": "passed",
+    "ap_provisioning": "passed",
+    "activation": "passed",
+    "mqtt": "passed",
+    "http": {
+      "requests": 40,
+      "http_200": 40,
+      "over_5s": 3,
+      "transport_hang": false
+    }
+  }
+}

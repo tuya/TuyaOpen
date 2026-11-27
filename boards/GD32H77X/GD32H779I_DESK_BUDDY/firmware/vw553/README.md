@@ -33,11 +33,20 @@ H779 采用 DMA/IRQ 后端，配置在
 复位是否共用取决于 R66 实装；当前板级启用 `ENABLE_GD32H77X_AT_SHARED_RESET`，
 避免通过 PH10 拉低共用 NRST。
 
-CH9114 第二路（`if02`）为 H779 控制台。TY1/TY553 的日志口和下载口已经分离：
+Linux 下可按 CH9114 USB interface 后缀定位通道，但不能把 `/dev/ttyACM*` 写死：
 
-- 2026-11-23 实测 TY1 下载口为 `/dev/ttyACM3`，完整镜像烧录成功；
-- TY1 日志口是独立接口，不能根据旧文档的 `if06` 或 `ttyACM3` 推断；
-- H779 日志和 TY1 日志都应按实时输出内容识别，不能只依赖 `ttyACM*` 编号。
+| 用途 | 识别规则 |
+| --- | --- |
+| H779 控制台 | `/dev/serial/by-id/usb-wch.cn_USB_Quad_Serial_*-if02` |
+| VW553 ROM ISP / BOOT / RESET | `/dev/serial/by-id/usb-wch.cn_USB_Quad_Serial_*-if06` |
+
+`if02` / `if06` 表示 CH9114 复合设备内部的串口接口角色，不是板卡永久身份；
+by-id 路径中的 USB 序列号在换板、换集线器或换主机后也可能变化。因此必须先枚举
+`*-if06` 得到候选，再用 ISP 握手和芯片 ID 确认目标确实是 GD32VW553。只接一台目标板
+时，可以要求 glob 结果恰好一条；同时接多台时，还必须按当前 USB 序列号或物理 USB
+端口人工指定目标设备，不能自动猜。
+2026-11-26 本次烧录时 `if06` 临时枚举为 `/dev/ttyACM4`，该值仅作为现场快照。
+本次已通过 `if06` 完成完整镜像烧录、SHA-256 校验和 AT 应用启动确认。
 
 ## 构建
 
@@ -59,13 +68,14 @@ VW553_GATEWAY_LOG_UART=UART2 \
 
 ## 烧录
 
-先在本目录执行 `sha256sum -c SHA256SUMS`。通过 TY1 下载口烧录，
+先在本目录执行 `sha256sum -c SHA256SUMS`。通过 TY1/VW553 的 `if06` 下载口烧录，
 BOOT 为高时复位进入 ROM ISP，使用完整镜像从 `0x08000000` 写入并校验。
-Linux 可使用仓库自带下载接口；以下在仓库根目录运行。当前台架已验证的下载口为
-`/dev/ttyACM3`，换机器或重新枚举后必须重新确认：
+Linux 可使用仓库自带下载接口；以下在仓库根目录运行。by-id 路径只是把“接口角色”
+与当前 `ttyACM*` 编号分开，不是永久设备 ID，也不要在文档或脚本中固定某个序列号：
 
 ```bash
 .venv/bin/python - <<'PY'
+import glob
 import logging
 import sys
 from pathlib import Path
@@ -74,9 +84,14 @@ sys.path.insert(0, str(Path('platform/GD32/tools').resolve()))
 from gd32_isp_flash import flash_firmware
 
 logging.basicConfig(level=logging.INFO)
+ports = glob.glob('/dev/serial/by-id/usb-wch.cn_USB_Quad_Serial_*-if06')
+if len(ports) != 1:
+    raise SystemExit(
+        'expected exactly one CH9114 if06 port; select the intended board by '
+        'USB serial or physical port, found: %r' % ports)
 result = flash_firmware(
     device='GD32VW553',
-    port='/dev/ttyACM3',  # 本台架已验证的 TY1 下载口
+    port=ports[0],
     baud=1000000,
     start='0x08000000',
     binfile='boards/GD32H77X/GD32H779I_DESK_BUDDY/firmware/vw553/vw553_desk_buddy_spi_v2.bin',
@@ -95,12 +110,15 @@ H779 的 QIO 镜像通过 GD32H77X 平台的 `tos.py flash` 流程烧录。
 设备授权写入 H779 KV，在 H779 控制台直接执行 `auth <UUID> <KEY> 0`，
 用 `auth-read 0` 核对，执行 `sys_reboot` 后再次确认。授权不写入 553 固件。
 
-## 当前构建状态（2026-11-24）
+## 当前验证状态（2026-11-27）
 
 - 完整镜像已由 GD32VW55x V1.0.3g 工程重新构建。
-- 固件版本：`v1.0.3g-04f35186ae4a8741`。
-- 已更新板级镜像、长度、SHA-256 和 manifest。
-- 本轮尚未执行实板烧录、联网、BLE、CIPSEND 并发和长稳回归，因此不沿用旧镜像的验证结论。
+- 固件版本：`v1.0.3g-20261127-at-tx-failure`。
+- 完整镜像 SHA-256：`97caeaccb62282113c157fafd870d12d845698d1be6ab91c9ad58d217cec8016`。
+- 已更新板级镜像、长度、SHA-256 和 manifest；包含 CIPSEND `TX_ERROR` 快速失败与主机侧失效连接回收修复。
+- 已通过 CH9114 `if06` 完成实板完整镜像烧录，芯片 ID 为 `374B4D50`。
+- 芯片端 SHA-256 校验通过，AT 应用启动已确认。
+- 联网、BLE、CIPSEND 并发和长稳回归仍需继续验证，不沿用旧镜像的完整验证结论。
 
 ## 历史验证记录（2026-11-20）
 

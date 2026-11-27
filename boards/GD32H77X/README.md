@@ -174,10 +174,16 @@ platform/GD32H77X/Kconfig
 
 | 板卡 | 芯片 | 控制台 | VW553 | 主要布局 | 默认烧录 |
 |---|---|---|---|---|---|
-| `GD32H779I_DESK_BUDDY` | `GD32H779IW` | USART0，PF4/PF5，AF4 | SPI1，待 transport 适配 | 使用 `GD32H779IW` 芯片默认布局，KV 位于 ECNVM 末尾 | DFU（CNVM+ECNVM） |
+| `GD32H779I_DESK_BUDDY` | `GD32H779IW` | USART0，PF4/PF5，AF4 | SPI1，PC3/PC2/PC1/PC0，PH10 reset | 使用 `GD32H779IW` 芯片默认布局，KV 位于 ECNVM 末尾 | DFU（CNVM+ECNVM） |
 | `GD32H779V_START` | `GD32H779VW` | USART5，PC6/PC7，AF7 | UART4，PB13/PB12，AF14，NRST PC5 | 使用 `GD32H779VW` 芯片默认布局，KV 位于 ECNVM 末尾 | SWD |
 
+`GD32H779V_START` 的 PA9 无法输出 USART0 TX。板级 `board_register_hardware()`
+将该板的 UART0 路由改为 PB6 TX、PB7 RX（AF7），外接聊天串口应使用
+JP4-33/JP5-17，不要再连接 PA9/PA10。
+
 ### GD32H779I_DESK_BUDDY bring-up
+
+板级文件与资料入口见 [Desk Buddy README](GD32H779I_DESK_BUDDY/README.md)。
 
 选择板型并构建：
 

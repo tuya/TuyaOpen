@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "name": "vw553_at_gateway_spi",
+  "version": "0.1.0",
+  "transport": "SPI",
+  "chip": "GD32VW553HMQ6",
+  "board": "LCKFB_GD32VW553",
+  "status": "hardware-smoke-validated",
+  "source_application": "platform/GD32/gd32_os/MSDK/vw553_at_gateway",
+  "build_command": "VW553_GATEWAY_TRANSPORT=SPI ./cmake_build.sh vw553_at_gateway",
+  "image": {
+    "file": "vw553_at_gateway_spi_v0.1.0.bin",
+    "flash_address": "0x08000000",
+    "size": 1046932,
+    "sha256": "5a641fe3dc23004fc32b09bcf5aea5c5024af211d32f93cc9b4088bf1229e572"
+  },
+  "spi": {
+    "mode": 0,
+    "bit_order": "MSB-first",
+    "word_bits": 8,
+    "frame_bytes": 256,
+    "header_bytes": 16,
+    "payload_bytes_max": 240,
+    "request": "VW553 PA3 input, active high",
+    "ready": "VW553 PA4 output, active high"
+  },
+  "hardware_validation": {
+    "status": "basic-at-gmr-smoke-passed",
+    "h779_board": "GD32H779V-START",
+    "vw553_board": "LCKFB_GD32VW553",
+    "gmr_version": "v1.0.3g-04f35186ae4a8741",
+    "checks": {
+      "at_ok": true,
+      "gmr_ok": true,
+      "spi_timeouts": 0,
+      "invalid_frames": 0,
+      "valid_frames": 69
+    },
+    "cold_start_first_attempt": "failed; cause undetermined",
+    "recovery_observed": "VW553 normal startup followed by H779 reset passed",
+    "not_verified": [
+      "binary payload and +IPD transfer",
+      "Socket business flows",
+      "BLE business flows",
+      "throughput",
+      "long-duration stability",
+      "cold-start stability"
+    ]
+  }
+}

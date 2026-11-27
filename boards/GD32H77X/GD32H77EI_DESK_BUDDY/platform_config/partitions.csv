@@ -1,0 +1,15 @@
+name,            device,         offset, size,  logical_addr
+boot,            internal_flash, 0K,     64K,   0x08000000
+primary,         internal_flash, 64K,    512K,  0x08010000
+staging,         internal_flash, 576K,   768K,  0x08090000
+scratch,         internal_flash, 1344K,  64K,   0x08150000
+metadata,        internal_flash, 1408K,  128K,  0x08160000
+cnvm_reserved,   internal_flash, 1536K,  512K,  0x08180000
+ecnvm_code,      internal_ecnvm, 0K,     7168K, 0x08200000
+kv,              internal_ecnvm, 7168K,  512K,  0x08900000
+tuya_uf,         internal_ecnvm, 7168K,  256K,  0x08900000
+tuya_kv_data,    internal_ecnvm, 7424K,  64K,   0x08940000
+tuya_kv_key,     internal_ecnvm, 7488K,  4K,    0x08950000
+tuya_kv_swap,    internal_ecnvm, 7492K,  16K,   0x08951000
+tuya_user0,      internal_ecnvm, 7508K,  128K,  0x08955000
+tuya_kv_protect, internal_ecnvm, 7636K,  8K,    0x08975000

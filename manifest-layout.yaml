@@ -1,0 +1,29 @@
+# Source-owned manifest discovery layout.
+# Adjust these roots and markers when this source tree uses a different layout.
+layoutVersion: 1
+sidecarFileName: manifest.yaml
+objects:
+  platform:
+    sourceRoot: platform
+    candidateMarkerFiles:
+      - platform_config.cmake
+      - Kconfig
+      - CMakeLists.txt
+    sidecar:
+      location: central
+      path: platform/manifest/{platformId}.yaml
+  board:
+    sourceRoot: boards
+    kconfigFile: Kconfig
+    sidecar:
+      location: adjacent
+  demo:
+    sourceRoots:
+      - path: apps
+        type: app
+      - path: examples
+        type: example
+    cmakeFile: CMakeLists.txt
+    rootMarker: "get_filename_component(APP_NAME"
+    sidecar:
+      location: adjacent
