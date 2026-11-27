@@ -162,13 +162,12 @@ static void on_matop_service_file_rawdata_receive(uint16_t msgid, const mqtt_cli
 
 static int matop_request_send(matop_context_t *context, const uint8_t *data, size_t datalen)
 {
-    uint16_t msgid =
-        mqtt_client_publish(context->config.mqctx->mqtt_client, context->resquest_topic, data, datalen, MQTT_QOS_0);
+    int rt = tuya_mqtt_client_publish_common(context->config.mqctx, context->resquest_topic, data, datalen, NULL, NULL,
+                                             0, false);
 
-    if (msgid <= 0) {
-        // TODO add error code
-        PR_ERR("mqtt connect err:%d", msgid);
-        return OPRT_COM_ERROR;
+    if (OPRT_OK != rt) {
+        PR_ERR("mqtt publish err:%d", rt);
+        return rt;
     }
     return OPRT_OK;
 }
@@ -293,7 +292,7 @@ int matop_serice_destory(matop_context_t *context)
         PR_ERR("topic buffer overflow");
         return OPRT_BUFFER_NOT_ENOUGH;
     }
-    tuya_mqtt_subscribe_message_callback_unregister(context->config.mqctx, topic_buffer);
+    ret = tuya_mqtt_subscribe_message_callback_unregister(context->config.mqctx, topic_buffer);
     PR_DEBUG("MQTT unsubscribe %s result:%d", topic_buffer, ret);
 
     /* remove target from list when destory */

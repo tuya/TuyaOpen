@@ -8,15 +8,25 @@
 #include "tuya_transporter.h"
 #include "tal_log.h"
 #include "tal_system.h"
+#include <stddef.h>
 #include "tal_memory.h"
 
 #define log_debug PR_DEBUG
 #define log_error PR_ERR
 
+#ifndef MQTT_YIELD_TIMEOUT_MS
+#if defined(ENABLE_WIFI_ULP) && (ENABLE_WIFI_ULP == 1)
+#define MQTT_YIELD_TIMEOUT_MS (0U)
+#else
+#define MQTT_YIELD_TIMEOUT_MS (200U)
+#endif
+#endif
+
 typedef struct {
     mqtt_client_config_t config;
     MQTTContext_t mqclient;
     tuya_transporter_t network;
+    uint32_t read_timeout_ms;
     uint8_t mqttbuffer[CORE_MQTT_BUFFER_SIZE];
 } mqtt_client_context_t;
 
@@ -100,13 +110,16 @@ static int network_write(NetworkContext_t *pNetwork, const unsigned char *pMsg, 
 
 static int network_read(NetworkContext_t *pNetwork, unsigned char *pMsg, size_t len)
 {
+    mqtt_client_context_t *context =
+        (mqtt_client_context_t *)((uint8_t *)pNetwork - offsetof(mqtt_client_context_t, network));
     tuya_transporter_t transporter = *pNetwork;
+    int timeout = (int)context->read_timeout_ms;
 
-    tuya_tls_config_t *tls_config = NULL;
-
-    tuya_transporter_ctrl(transporter, TUYA_TRANSPORTER_GET_TLS_CONFIG, &tls_config);
-
-    int timeout = tls_config ? tls_config->timeout : 5000;
+    if (timeout <= 0) {
+        tuya_tls_config_t *tls_config = NULL;
+        tuya_transporter_ctrl(transporter, TUYA_TRANSPORTER_GET_TLS_CONFIG, &tls_config);
+        timeout = tls_config ? tls_config->timeout : 5000;
+    }
 
     int result = tuya_transporter_read(transporter, (uint8_t *)pMsg, len, timeout);
 
@@ -131,6 +144,7 @@ mqtt_client_status_t mqtt_client_init(void *client, const mqtt_client_config_t *
     /* Setting data */
     TUYA_TRANSPORT_TYPE_E transport_type = (config->cacert == NULL) ? TRANSPORT_TYPE_TCP : TRANSPORT_TYPE_TLS;
     context->config = *config;
+    context->read_timeout_ms = context->config.timeout_ms;
     context->network = tuya_transporter_create(transport_type, NULL);
     if (NULL == context->network) {
         return MQTT_STATUS_NETWORK_INIT_FAILED;
@@ -280,7 +294,7 @@ uint16_t mqtt_client_unsubscribe(void *client, const char *topic, uint8_t qos)
         &(const MQTTSubscribeInfo_t){.qos = qos, .pTopicFilter = topic, .topicFilterLength = strlen(topic)}, 1, msgid);
 
     if (mqtt_status != MQTTSuccess) {
-        log_error("Failed to send SUBSCRIBE packet to broker with error = %s.", MQTT_Status_strerror(mqtt_status));
+        log_error("Failed to send UNSUBSCRIBE packet to broker with error = %s.", MQTT_Status_strerror(mqtt_status));
         return 0;
     }
 
@@ -312,8 +326,15 @@ mqtt_client_status_t mqtt_client_yield(void *client)
 {
     mqtt_client_context_t *context = (mqtt_client_context_t *)client;
     MQTTStatus_t mqtt_status;
+    uint32_t yield_timeout = context->config.timeout_ms;
 
-    mqtt_status = MQTT_ProcessLoop(&context->mqclient, context->config.timeout_ms);
+    if (MQTT_YIELD_TIMEOUT_MS > 0U && MQTT_YIELD_TIMEOUT_MS < yield_timeout) {
+        yield_timeout = MQTT_YIELD_TIMEOUT_MS;
+    }
+
+    context->read_timeout_ms = yield_timeout;
+    mqtt_status = MQTT_ProcessLoop(&context->mqclient, yield_timeout);
+    context->read_timeout_ms = context->config.timeout_ms;
     if (mqtt_status != MQTTSuccess) {
         log_error("MQTT_ProcessLoop returned with status = %s.", MQTT_Status_strerror(mqtt_status));
         mqtt_client_disconnect(context);
