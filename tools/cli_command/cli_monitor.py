@@ -170,6 +170,22 @@ def _wait_miniterm(miniterm):
         _close_miniterm(miniterm)
 
 
+def _open_serial(port: str, baudrate: int):
+    """Open a monitor port without pulsing DTR/RTS high.
+
+    Some boards wire these modem-control lines into the ROM BOOT strap. Opening
+    a normal pyserial port with the defaults can therefore reset the target into
+    DFU before the first log byte is received.
+    """
+    ser = serial.Serial(port=None, baudrate=baudrate, timeout=1,
+                        dsrdtr=False, rtscts=False)
+    ser.dtr = False
+    ser.rts = False
+    ser.port = port
+    ser.open()
+    return ser
+
+
 def _choose_port() -> str:
     from serial.tools import list_ports
     ports = [p.device for p in list_ports.comports()
@@ -235,7 +251,7 @@ def cli(port, baud, log):
         logger.info(f"Log file: {log}")
 
     try:
-        ser = serial.Serial(port, baudrate, timeout=1)
+        ser = _open_serial(port, baudrate)
     except serial.SerialException as e:
         logger.error(f"Open port failed: {e}")
         sys.exit(1)

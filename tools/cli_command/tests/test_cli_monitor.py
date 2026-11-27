@@ -119,5 +119,37 @@ class TestFriendlyMiniterm(unittest.TestCase):
         self.assertNotIn("Traceback", output)
 
 
+class _RecordingSerial:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.port = kwargs.get("port")
+        self.events = []
+        self.dtr = kwargs.get("dtr")
+        self.rts = kwargs.get("rts")
+
+    def __setattr__(self, name, value):
+        if name in ("dtr", "rts"):
+            self.events.append((name, value))
+        super().__setattr__(name, value)
+
+    def open(self):
+        self.events.append(("open", self.port))
+
+
+class TestOpenSerial(unittest.TestCase):
+    def test_control_lines_low_before_open(self):
+        import tools.cli_command.cli_monitor as m
+
+        with patch("tools.cli_command.cli_monitor.serial.Serial",
+                   _RecordingSerial):
+            ser = m._open_serial("/dev/ttyACM2", 115200)
+
+        self.assertFalse(ser.kwargs["dsrdtr"])
+        self.assertFalse(ser.kwargs["rtscts"])
+        self.assertEqual(ser.events[-3:], [
+            ("dtr", False), ("rts", False), ("open", "/dev/ttyACM2")
+        ])
+
+
 if __name__ == "__main__":
     unittest.main()
