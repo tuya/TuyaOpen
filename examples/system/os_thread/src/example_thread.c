@@ -25,6 +25,50 @@
 #include "tal_api.h"
 #include "tkl_output.h"
 
+#if defined(BOARD_ENABLE_GD32H77X) && (BOARD_ENABLE_GD32H77X == 1)
+#include "gd32h77x_task_mem.h"
+
+#define GD32H77X_DTCM_START UINT32_C(0x20000000)
+#define GD32H77X_DTCM_END   UINT32_C(0x20040000)
+
+/**
+ * @brief Verify that TAL-created task stacks use the H77X DTCM task arena.
+ *
+ * The address of a volatile local variable must lie in the current task's
+ * stack. On H77X that stack is allocated by the transparent DTCM-first task
+ * allocator, so this provides a small end-to-end check without exposing the
+ * allocator to application code.
+ */
+static bool gd32h77x_thread_memory_self_test(void)
+{
+    volatile uint32_t marker = UINT32_C(0x5A5A5A5A);
+    uintptr_t stack_address = (uintptr_t)&marker;
+    gd32h77x_task_mem_stats_t stats = {0};
+
+    gd32h77x_task_mem_get_stats(&stats);
+
+    bool in_dtcm = stack_address >= GD32H77X_DTCM_START &&
+                   stack_address < GD32H77X_DTCM_END;
+    bool has_dtcm_task_allocation = stats.dtcm_allocations > 0U;
+
+    PR_NOTICE("H77X thread memory test: stack=0x%08lx total=%u free=%u used=%u dtcm_alloc=%u axisram_fallback=%u",
+              (unsigned long)stack_address,
+              (unsigned)stats.total_bytes,
+              (unsigned)stats.free_bytes,
+              (unsigned)stats.used_bytes,
+              (unsigned)stats.dtcm_allocations,
+              (unsigned)stats.axisram_fallbacks);
+
+    if (!in_dtcm || !has_dtcm_task_allocation) {
+        PR_ERR("H77X thread memory test FAIL: stack is not in DTCM or task allocator was not used");
+        return false;
+    }
+
+    PR_NOTICE("H77X thread memory test PASS");
+    return true;
+}
+#endif
+
 /***********************************************************
 ************************macro define************************
 ***********************************************************/
@@ -56,6 +100,11 @@ static THREAD_HANDLE example_thrd_hdl = NULL;
 static void example_task(void *args)
 {
     uint8_t cnt = 0;
+
+#if defined(BOARD_ENABLE_GD32H77X) && (BOARD_ENABLE_GD32H77X == 1)
+    (void)gd32h77x_thread_memory_self_test();
+#endif
+
     PR_NOTICE("example task is run...");
     for (;;) {
         PR_NOTICE("this is example task");
