@@ -26,10 +26,13 @@
 extern "C" {
 #endif
 
+#define BLE_CHANNEL_REPLY_HDR_LEN 4
+
 typedef enum {
-    BLE_CHANNLE_NETCFG = 1,
-    BLE_CHANNLE_WIFI_LST = 3,
-    BLE_CHANNLE_NETCFG_STAT = 4,
+    BLE_CHANNLE_NETCFG       = 1,
+    BLE_CHANNLE_WIFI_LST     = 3,
+    BLE_CHANNLE_NETCFG_STAT  = 4,
+    BLE_CHANNLE_WIFI_PROTECT = 0x000F,
     BLE_CHANNEL_MAX          = 0x0010,
 } ble_channel_type_t;
 
@@ -57,8 +60,39 @@ typedef void (*ble_channel_fn_t)(void *data, uint32_t len, void *user_data);
  */
 int ble_channel_add(ble_channel_type_t type, ble_channel_fn_t fn, void *priv_data);
 int ble_channel_del(ble_channel_type_t type);
+void ble_channel_reset_rx(void);
+void ble_channel_deinit(void);
+bool ble_channel_is_registered(ble_channel_type_t type);
+void ble_channel_wifi_list_cap_set(bool enable);
+uint8_t ble_channel_combos_flag_get(void);
 
 void ble_channle_ack(uint16_t type, uint8_t *data, uint32_t len);
+
+/**
+ * @brief Send a transparent-channel reply with a newly allocated buffer.
+ *
+ * Prepends the 4-byte transparent header (flags + big-endian subcmd) and sends
+ * via FRM_UPLINK_TRANSPARENT_SPEC_REQ.
+ *
+ * @param[in] subcmd 16-bit transparent subcommand id.
+ * @param[in] data   Payload bytes (without the 4-byte header).
+ * @param[in] len    Payload length in bytes.
+ * @return OPRT_OK on success.
+ */
+OPERATE_RET ble_channel_reply(uint16_t subcmd, const uint8_t *data, uint32_t len);
+
+/**
+ * @brief Send a transparent-channel reply using a caller-allocated buffer.
+ *
+ * The caller allocates (BLE_CHANNEL_REPLY_HDR_LEN + payload_len) bytes and
+ * writes the payload starting at buf + BLE_CHANNEL_REPLY_HDR_LEN. This helper
+ * fills the 4-byte header and takes ownership of buf (frees it after send).
+ *
+ * @param[in] subcmd      16-bit transparent subcommand id.
+ * @param[in] buf         Heap buffer allocated via tal_malloc().
+ * @param[in] payload_len Payload length in bytes (excluding the 4-byte header).
+ */
+void ble_channel_reply_buf(uint16_t subcmd, uint8_t *buf, uint32_t payload_len);
 
 /**
  * @brief Processes the BLE session channel.

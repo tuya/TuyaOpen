@@ -127,7 +127,22 @@ void tuya_ble_enable_debug(bool enable);
  */
 void tuya_ble_raw_print(char *title, uint8_t width, uint8_t *buf, uint16_t size);
 
+/**
+ * @brief Updates the BLE advertisement payload.
+ *
+ * Rebuilds and refreshes the BLE advertising and scan-response data using the
+ * current manager and capability state.
+ *
+ * @return OPRT_OK on success, otherwise an error code.
+ */
 int tuya_ble_adv_update(void);
+
+/**
+ * @brief Checks whether a BLE peer is currently paired.
+ *
+ * @return true if the BLE manager is initialized and paired, false otherwise.
+ */
+bool tuya_ble_is_paired(void);
 
 #ifdef __cplusplus
 }

@@ -366,9 +366,15 @@ int tuya_ble_hs_acl_tx(struct os_mbuf *acl_pkt)
     while (acl_ll) {
         switch (acl_wait) {
         case 0:
+            if (acl_ll->om_len < TUYA_BLE_HCI_DATA_HDR_SZ) {
+                PR_ERR("acl tx hdr len err:%u", acl_ll->om_len);
+                rc = -1;
+                break;
+            }
             payload_len = get_le16(acl_ll->om_data + 2); // the payload
-            if (payload_len > TUYA_BLE_ACL_BUF_SIZE || acl_ll->om_len < TUYA_BLE_HCI_DATA_HDR_SZ) {
-                os_mbuf_free_chain(acl_ll);
+            if (payload_len > TUYA_BLE_ACL_BUF_SIZE) {
+                PR_ERR("acl tx payload len err:%u > %u", payload_len, TUYA_BLE_ACL_BUF_SIZE);
+                rc = -1;
                 break;
             }
             if ((acl_ll->om_len - TUYA_BLE_HCI_DATA_HDR_SZ) >= payload_len) {
@@ -385,7 +391,7 @@ int tuya_ble_hs_acl_tx(struct os_mbuf *acl_pkt)
             if (acl_wait_len <= acl_ll->om_len) {
                 memcpy(&acl_data[payload_len + TUYA_BLE_HCI_DATA_HDR_SZ - acl_wait_len], acl_ll->om_data, acl_wait_len);
                 rc = tkl_hci_acl_packet_send(acl_data, payload_len + TUYA_BLE_HCI_DATA_HDR_SZ);
-                memset(acl_data, 0, TUYA_BLE_ACL_BUF_SIZE);
+                memset(acl_data, 0, sizeof(acl_data));
                 acl_wait_len = 0;
                 payload_len = 0;
                 acl_wait = 0;
