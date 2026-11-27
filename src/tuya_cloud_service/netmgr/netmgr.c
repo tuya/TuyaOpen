@@ -52,6 +52,9 @@ extern netmgr_conn_cellular_t s_netmgr_cellular;
 #include "ble_mgr.h"
 #ifdef ENABLE_WIFI
 #include "ble_netcfg.h"
+#ifdef ENABLE_WIFI_BACKUP
+#include "ble_wifi_backup.h"
+#endif
 #endif
 #endif
 
@@ -366,6 +369,9 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
 #ifdef ENABLE_WIFI
         if (type & NETCONN_WIFI) {
             ble_netcfg_combos_register();
+#ifdef ENABLE_WIFI_BACKUP
+            ble_wifi_backup_register();
+#endif
             tuya_ble_adv_update();
         }
 #endif

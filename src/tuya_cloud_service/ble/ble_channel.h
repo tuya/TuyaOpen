@@ -34,7 +34,8 @@ typedef enum {
     BLE_CHANNLE_NETCFG_STAT  = 4,
     BLE_CHANNLE_DEV_LOG      = 5,
     BLE_CHANNLE_GET_AP_NAME  = 6,
-    BLE_CHANNEL_MAX,
+    BLE_CHANNLE_WIFI_PROTECT = 0x000F,
+    BLE_CHANNEL_MAX          = 0x0010,
 } ble_channel_type_t;
 
 /**
