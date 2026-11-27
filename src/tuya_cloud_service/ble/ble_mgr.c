@@ -165,6 +165,9 @@ static int ble_adv_set(tuya_ble_mgr_t *ble)
 
     uint8_t *flag = (uint8_t *)&ble->rsp_data[ble->rsp_len++];
     *flag = 0x00; // bond flag bit7 (8)
+    if (ble_channel_combos_flag_get() & (uint8_t)(1 << 0)) {
+        *flag |= ADV_FLAG_WIFI_LIST;
+    }
     if (ble->is_id_comp) {
         *flag |= ADV_FLAG_UUID_COMP;
     }
@@ -383,6 +386,16 @@ int tuya_ble_adv_update(void)
     return OPRT_OK;
 }
 
+/**
+ * @brief Checks whether a BLE peer is currently paired.
+ *
+ * @return true if the BLE manager is initialized and paired, false otherwise.
+ */
+bool tuya_ble_is_paired(void)
+{
+    return (NULL != s_ble_mgr && s_ble_mgr->is_paired);
+}
+
 static void ble_pair_timeout_cb(TIMER_ID timer_id, void *arg)
 {
     tuya_ble_mgr_t *ble = (tuya_ble_mgr_t *)arg;
@@ -593,7 +606,12 @@ static int ble_packet_resp(tuya_ble_mgr_t *ble, ble_packet_t *resp)
         ble_data.p_data = pbuf;
         ble_data.len = send_len;
 
-        TUYA_CALL_ERR_GOTO(tal_ble_server_common_send(&ble_data), __exit);
+        int send_ret = tal_ble_server_common_send(&ble_data);
+        if (OPRT_OK != send_ret) {
+            PR_ERR("bt hal send fail.%d", send_ret);
+            rt = send_ret;
+            goto __exit;
+        }
         tal_system_sleep(20);
     } while (rt == OPRT_SVC_BT_API_TRSMITR_CONTINUE);
 
@@ -629,6 +647,10 @@ __exit:
 int tuya_ble_send_packet(ble_packet_t *packet)
 {
     tuya_ble_mgr_t *ble = s_ble_mgr;
+
+    if (NULL == ble) {
+        return OPRT_OK;
+    }
 
     if (!ble->is_paired) {
         PR_NOTICE("ble not paired");
@@ -787,14 +809,18 @@ static uint8_t ble_dev_info_make(tuya_ble_mgr_t *ble, uint8_t *pbuf, uint8_t buf
     pbuf[payload_len++] = 1;
     // sl_value
     pbuf[payload_len++] = TUYA_SECURITY_LEVEL;
-    pbuf[payload_len++] = 1;
-    // CombosFlag Length
+    // CombosFlag (TLV: 1-byte length + optional 1-byte capability mask)
     //  bit3: 1 - Supports querying device AP name; 0 - Does not support.
-    //  bit2: 1 - Supports log collection and transmission; 0 - Does not
-    //  support. bit1: 1 - Supports reporting of various states during network
-    //  configuration; 0 - Does not support. bit0: 1 - Supports querying WiFi
-    //  hotspot list; 0 - Does not support.
-    pbuf[payload_len++] = 0;
+    //  bit2: 1 - Supports log collection and transmission; 0 - Does not support.
+    //  bit1: 1 - Supports reporting of various states during network configuration; 0 - Does not support.
+    //  bit0: 1 - Supports querying WiFi hotspot list; 0 - Does not support.
+    uint8_t combos_flag = ble_channel_combos_flag_get();
+    if (combos_flag) {
+        pbuf[payload_len++] = 1;
+        pbuf[payload_len++] = combos_flag;
+    } else {
+        pbuf[payload_len++] = 0;
+    }
 
     return payload_len;
 }
@@ -895,8 +921,7 @@ static TAL_BLE_EVT_PARAMS_T * ble_event_msg_copy(TAL_BLE_EVT_PARAMS_T *evt)
     memcpy(msg, evt, sizeof(TAL_BLE_EVT_PARAMS_T));
 
     if (TAL_BLE_EVT_WRITE_REQ == evt->type && evt->ble_event.write_report.report.len > 0) {
-        msg->ble_event.write_report.report.p_data =
-            tal_malloc(evt->ble_event.write_report.report.len);
+        msg->ble_event.write_report.report.p_data = tal_malloc(evt->ble_event.write_report.report.len);
         if (NULL == msg->ble_event.write_report.report.p_data) {
             tal_free(msg);
             return NULL;
@@ -1041,6 +1066,7 @@ int tuya_ble_deinit(void)
     tuya_ble_session_del(BLE_SESSION_SYSTEM);
     tuya_ble_session_del(BLE_SESSION_CHANNEL);
     tuya_ble_session_del(BLE_SESSION_DP);
+    ble_channel_deinit();
     tal_ble_bt_deinit(ble->role);
     tal_free(ble);
     s_ble_mgr = NULL;

@@ -18,6 +18,7 @@
  */
 
 #include "ap_netcfg.h"
+#include "netcfg_wifi_list.h"
 #include "cJSON.h"
 #include "tal_api.h"
 #include "tuya_protocol.h"
@@ -421,52 +422,13 @@ static int ap_send(ap_netcfg_t *ap, uint32_t frame_type, uint32_t ret_code, uint
 
 static int ap_get_wifi_list(char *wifi_list, uint16_t wifi_list_size, uint16_t max_cnt)
 {
-    int ret = OPRT_OK;
-    uint16_t offset = 0;
-    uint16_t loop = 0;
-    AP_IF_S *ap_if = NULL;
-    uint32_t ap_num = 0;
-    BOOL_T first_ap = TRUE;
-
     TUYA_CHECK_NULL_RETURN(wifi_list, OPRT_INVALID_PARM);
 
-    ret = tal_wifi_all_ap_scan(&ap_if, &ap_num);
-    if ((OPRT_OK != ret) || (ap_num == 0)) {
-        PR_DEBUG("scan ap null:%d %d", ret, ap_num);
-
-        snprintf(wifi_list + offset, wifi_list_size - offset, "{\"wifi_list\":[]}");
-        return OPRT_OK;
+    if (0 == netcfg_wifi_list_build(wifi_list, wifi_list_size, max_cnt)) {
+        return OPRT_BUFFER_NOT_ENOUGH;
     }
 
-    // Sort and get the max cnt data with the strongest signal
-    int n = snprintf(wifi_list + offset, wifi_list_size - offset, "{\"wifi_list\":[");
-    if (n < 0 || n >= wifi_list_size - offset) return OPRT_BUFFER_NOT_ENOUGH;
-    offset += n;
-    max_cnt = (max_cnt > ap_num) ? ap_num : max_cnt;
-    for (loop = 0; loop < max_cnt; loop++) {
-        if (0 == strlen((char *)ap_if[loop].ssid)) {
-            continue;
-        }
-        if (offset + 64 > wifi_list_size) {
-            break;
-        }
-        if (!first_ap) {
-            n = snprintf(wifi_list + offset, wifi_list_size - offset, ",");
-            if (n < 0 || n >= wifi_list_size - offset) break;
-            offset += n;
-        }
-        n = snprintf(wifi_list + offset, wifi_list_size - offset, "{\"ssid\":\"%s\",\"rssi\":%d,\"sec\":%u}", ap_if[loop].ssid,
-                          ap_if[loop].rssi, ap_if[loop].security);
-        if (n < 0 || n >= wifi_list_size - offset) break;
-        offset += n;
-        first_ap = FALSE;
-    }
-    n = snprintf(wifi_list + offset, wifi_list_size - offset, "]}");
-    if (n < 0 || n >= wifi_list_size - offset) return OPRT_BUFFER_NOT_ENOUGH;
-    offset += n;
-    tal_wifi_release_ap(ap_if);
-
-    return ret;
+    return OPRT_OK;
 }
 
 static int ap_ext_cmd_parse(ap_netcfg_t *ap, char *data)
@@ -527,8 +489,13 @@ static int ap_ext_cmd_parse(ap_netcfg_t *ap, char *data)
         }
     } else if (0 == strcmp(reqtype->valuestring,
                            "query_netcfg_stat")) { //  query_netcfg_stat
-        char *out = "{\"type\":1,\"stage\":2,\"status\":0}";
-        snprintf(buffer, buffer_size, "{\"reqType\":\"netcfg_stat_rpt\",\"data\":%s}", out);
+        char stat_json[64];
+        if (netcfg_stat_format(stat_json, sizeof(stat_json), 1) > 0) {
+            snprintf(buffer, buffer_size, "{\"reqType\":\"netcfg_stat_rpt\",\"data\":%s}", stat_json);
+        } else {
+            rt = OPRT_BUFFER_NOT_ENOUGH;
+            goto __exit;
+        }
     } else {
         PR_DEBUG("not support reqtype:%s", reqtype->valuestring);
         memset(buffer, 0, buffer_size);

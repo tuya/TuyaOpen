@@ -50,6 +50,9 @@ extern netmgr_conn_cellular_t s_netmgr_cellular;
 
 #ifdef ENABLE_BLUETOOTH
 #include "ble_mgr.h"
+#ifdef ENABLE_WIFI
+#include "ble_netcfg.h"
+#endif
 #endif
 
 typedef struct {
@@ -359,7 +362,14 @@ OPERATE_RET netmgr_init(netmgr_type_e type)
     tuya_ble_cfg_t ble_cfg = {0};
     ble_cfg.client = tuya_iot_client_get();
     snprintf(ble_cfg.device_name, sizeof(ble_cfg.device_name), "TYBLE");
-    tuya_ble_init(&ble_cfg);
+    if (OPRT_OK == tuya_ble_init(&ble_cfg)) {
+#ifdef ENABLE_WIFI
+        if (type & NETCONN_WIFI) {
+            ble_netcfg_combos_register();
+            tuya_ble_adv_update();
+        }
+#endif
+    }
 #endif
 
     return rt;

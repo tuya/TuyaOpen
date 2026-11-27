@@ -59,6 +59,11 @@ if(CONFIG_ENABLE_BLUETOOTH STREQUAL "y")
         "${MODULE_PATH}/ble/*.c")
     list(APPEND LIB_SRCS ${BLE_SRCS})
     list(APPEND  LIB_PUBLIC_INC ${MODULE_PATH}/ble) 
+
+    # ble_netcfg.c adapts BLE provisioning to WiFi netcfg/netmgr
+    if(NOT CONFIG_ENABLE_WIFI STREQUAL "y")
+        list(REMOVE_ITEM LIB_SRCS "${MODULE_PATH}/ble/ble_netcfg.c")
+    endif()
 endif()
 
 
