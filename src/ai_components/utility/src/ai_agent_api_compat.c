@@ -32,6 +32,7 @@
  */
 
 #include "tuya_cloud_types.h"
+#include "tuya_ai_types.h"
 #include "tal_log.h"
 
 OPERATE_RET tuya_ai_agent_set_scode(char *scode)

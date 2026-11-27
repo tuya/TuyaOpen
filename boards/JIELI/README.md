@@ -30,6 +30,38 @@ Values that would name a vendor macro stay semantic - `usb_role`, the panel -
 and the platform owns the mapping. Pin names are the SDK's own vocabulary and
 are written as the vendor headers spell them.
 
+## Flash layout
+
+The vendor downloader (`isd_config_rule.c`) reserves one TuyaOpen span and
+places the rest with `AUTO`, so the map has three regions on the 8 MiB part:
+
+| Region | Range | Size | Contents |
+| :--- | :--- | :--- | :--- |
+| Application | `0x000000`–`0x400000` | 4 MiB | `app.bin` followed by the 32 KiB VM region the downloader places after it |
+| TuyaOpen reserved | `0x400000`–`0x4D1000` | `0xD1000` | `KV_KEY` 4 KiB, `KV_DATA` 64 KiB, `UF` 512 KiB, `RCD` 192 KiB, `USER0` 64 KiB |
+| Vendor `AUTO` | `0x4D1000`–`0x800000` | ~3.2 MiB | `BTIF`, `PROFILE`, `USER`, `FIX`/`LOG` as the downloader places them |
+
+The application base is 4 MiB because the downloader rejects an image that does
+not fit below the TuyaOpen span (`ERROR: The reserved(TUYAOPEN) config address
+is less then the flash bin size`). The guided WeChat UI image is ~3.1 MiB, so
+the region leaves ~0.86 MiB of headroom on top of the VM. The span addresses
+come from `JIELI_*_START/SIZE` in
+`platform/JIELI/tuyaos/tuyaos_adapter/src/driver/tkl_flash.c`; the platform
+rewrites the reserved block in the staged `isd_config_rule.c` from those
+values, so moving a partition only needs the C file changed.
+
+`TUYAOPEN_OPT=1` makes the downloader leave the span untouched, which is what
+keeps a reflash from erasing provisioning data. Moving the span loses that data
+once: the KV the firmware reads no longer contains it (device has to be
+provisioned again).
+
+Where the size goes, measured on the guided UI image (`-Oz -flto` already):
+the 18 px CJK text font's glyph bitmap is ~0.59 MiB, a second glyph table plus
+two descriptor arrays add ~0.43 MiB, and the KWS model is ~0.13 MiB — about a
+third of the image is font and model data. `CONFIG_FONT_TEXT_SIZE_*` and
+`CONFIG_FONT_EMOJI_SIZE_32` are the knobs; the alternative is a font subset or a
+UI resource pack in its own partition.
+
 ## `audio_config.h`
 
 Boards with audio declare it there rather than in Kconfig, because the values

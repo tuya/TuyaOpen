@@ -36,6 +36,11 @@
 #define JIELI_8080_DISPLAY_HEIGHT 480
 #endif
 
+#if defined(ENABLE_TP) && (ENABLE_TP == 1)
+#include "tdd_tp_ft6336.h"
+#include "tdd_tp_gt911.h"
+#endif
+
 /* Exactly one camera module is fitted (the connectors share pins), and the
  * board Kconfig names it. Both modules hand the sensor to the TDD: the board
  * only supplies the I2C port, reset pin and clock below, and the platform
@@ -60,9 +65,67 @@
 /* AC79_DevKitBoard (AC791) K1 ADC ladder calibration. */
 #define JIELI_K1_ADC_NUM     TUYA_ADC_NUM_0
 #define JIELI_K1_ADC_CHANNEL 3U /* PB1 / AD_CH_PB01 */
-/* SDK ADKEY V6..V7 are 823..1007; the press range is (V6, V7]. */
 #define JIELI_K1_PRESSED_MIN 824U
-#define JIELI_K1_PRESSED_MAX 1007U
+#define JIELI_K1_PRESSED_MAX 950U
+
+#if defined(ENABLE_TP) && (ENABLE_TP == 1)
+#if defined(JIELI_BOARD_TP_RST_SHARED_WITH_LCD) && (JIELI_BOARD_TP_RST_SHARED_WITH_LCD == 1)
+#define JIELI_TP_RST_PIN TUYA_GPIO_NUM_MAX
+#else
+#define JIELI_TP_RST_PIN ((TUYA_GPIO_NUM_E)JIELI_BOARD_TP_RST_PIN)
+#endif
+
+#if defined(JIELI_BOARD_TP_SWAP_XY) && (JIELI_BOARD_TP_SWAP_XY == 1)
+#define JIELI_TP_SWAP_XY 1
+#else
+#define JIELI_TP_SWAP_XY 0
+#endif
+#if defined(JIELI_BOARD_TP_MIRROR_X) && (JIELI_BOARD_TP_MIRROR_X == 1)
+#define JIELI_TP_MIRROR_X 1
+#else
+#define JIELI_TP_MIRROR_X 0
+#endif
+#if defined(JIELI_BOARD_TP_MIRROR_Y) && (JIELI_BOARD_TP_MIRROR_Y == 1)
+#define JIELI_TP_MIRROR_Y 1
+#else
+#define JIELI_TP_MIRROR_Y 0
+#endif
+
+static OPERATE_RET __board_register_touch(void)
+{
+    TDD_TP_I2C_CFG_T i2c_cfg = {
+        .port    = TUYA_I2C_NUM_0,
+        .scl_pin = (TUYA_PIN_NAME_E)JIELI_BOARD_IIC0_SCL_PIN,
+        .sda_pin = (TUYA_PIN_NAME_E)JIELI_BOARD_IIC0_SDA_PIN,
+    };
+    TDD_TP_CONFIG_T tp_cfg = {
+        .x_max = JIELI_BOARD_TP_X_MAX,
+        .y_max = JIELI_BOARD_TP_Y_MAX,
+        .flags =
+            {
+                .swap_xy  = JIELI_TP_SWAP_XY,
+                .mirror_x = JIELI_TP_MIRROR_X,
+                .mirror_y = JIELI_TP_MIRROR_Y,
+            },
+    };
+
+#if defined(JIELI_BOARD_TP_GT911) && (JIELI_BOARD_TP_GT911 == 1)
+    TDD_TP_GT911_INFO_T gt911_cfg = {
+        .i2c_cfg = i2c_cfg,
+        .tp_cfg  = tp_cfg,
+    };
+    return tdd_tp_i2c_gt911_register((char *)DISPLAY_NAME, &gt911_cfg);
+#else
+    TDD_TP_FT6336_INFO_T ft6236_cfg = {
+        .rst_pin = JIELI_TP_RST_PIN,
+        .intr_pin = TUYA_GPIO_NUM_MAX,
+        .i2c_cfg  = i2c_cfg,
+        .tp_cfg   = tp_cfg,
+    };
+    return tdd_tp_i2c_ft6336_register((char *)DISPLAY_NAME, &ft6236_cfg);
+#endif
+}
+#endif /* ENABLE_TP */
 
 OPERATE_RET board_register_hardware(void)
 {
@@ -116,7 +179,7 @@ OPERATE_RET board_register_hardware(void)
              * lands mid scan-out and the picture shows a split line that
              * moves with the refresh phase. Pin number = port C * 16 + 0. */
             .te_pin  = TUYA_GPIO_NUM_32,
-            .te_mode   = TUYA_GPIO_IRQ_RISE,
+            .te_mode = TUYA_GPIO_IRQ_RISE,
             /* The TKL 8080 backend stores this but the vendor `emi` device owns
              * the bus timing, so it is informational only. */
             .clk       = 0,
@@ -127,6 +190,15 @@ OPERATE_RET board_register_hardware(void)
         ret = tdd_disp_mcu8080_ili9488_register((char *)JIELI_8080_DISPLAY_NAME, &disp_cfg);
         if (ret != OPRT_OK) {
             return ret;
+        }
+    }
+#endif
+
+#if defined(ENABLE_TP) && (ENABLE_TP == 1)
+    {
+        OPERATE_RET tp_rt = __board_register_touch();
+        if (tp_rt != OPRT_OK) {
+            PR_ERR("touch panel register failed: %d", tp_rt);
         }
     }
 #endif

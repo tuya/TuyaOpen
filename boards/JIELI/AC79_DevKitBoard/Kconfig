@@ -35,15 +35,18 @@ config JIELI_BOARD_EXTERNAL_DDR
         it with CONFIG_NO_SDRAM_ENABLE unless this says otherwise.
 
 config JIELI_BOARD_DUAL_BANK
-    bool
+    bool "Dual-bank (A/B) OTA layout"
     default n
     help
         Build the vendor dual-bank (A/B) OTA engine: stages
         CONFIG_DOUBLE_BANK_ENABLE into the vendor app config, so
-        support_dual_bank_update_en is 1. The flasher then lays out two 64 KiB
-        uboot copies, two application banks and a 32 KiB VM below 0x300000.
-        Off by default: the wl82 boundaries have not been measured on this
-        board, so read them from the flasher's FLASH INFO the first time.
+        support_dual_bank_update_en is 1. The flasher then lays out two
+        application banks below the TuyaOpen span and a 32 KiB VM just under
+        it; the span base in tkl_flash.c (0x700000) is what sizes them.
+        Measured with the guided-UI image on this board: banks of 0x37C000
+        each (0x20020..0x37C000 and 0x37C000..0x6F8000), VM at 0x6F8000.
+        Switching a device between single-bank and dual-bank layouts needs a
+        full flash: the vendor forbids upgrading across the two.
 
 config JIELI_BOARD_LOG_UART_PORT
     int
@@ -69,15 +72,73 @@ if JIELI_BOARD_HAS_SERVICE_UART
 
     config JIELI_BOARD_SERVICE_UART_TX_PIN
         string
-        default "IO_PORTA_05"
+        default "IO_PORTB_06"
 
     config JIELI_BOARD_SERVICE_UART_RX_PIN
         string
-        default "IO_PORTA_06"
+        default "IO_PORTB_07"
 endif
 
 config JIELI_BOARD_HAS_DISPLAY
     bool
+    default n
+
+choice JIELI_BOARD_TP_CONTROLLER
+    prompt "AC79 DevKitBoard touch controller"
+    default JIELI_BOARD_TP_FT6236
+
+    config JIELI_BOARD_TP_FT6236
+        bool "FT6236/FT6336 (I2C 0x38)"
+
+    config JIELI_BOARD_TP_GT911
+        bool "GT911 (I2C 0x14)"
+endchoice
+
+config JIELI_BOARD_TP_INT_PIN
+    int "Touch INT pin (flat GPIO number)"
+    range 0 127
+    default 20
+    help
+      PB4 on V1.0. V1.2 maps PB0 to TP_INT instead; confirm the board
+      revision before changing this.
+
+config JIELI_BOARD_TP_RST_PIN
+    int "Touch RESET pin (flat GPIO number)"
+    range 0 127
+    default 16
+    help
+      PB0 on V1.0. V1.2 maps PB4 to TP_RESET instead. The reset is shared
+      with the LCD unless JIELI_BOARD_TP_RST_SHARED_WITH_LCD is cleared.
+
+config JIELI_BOARD_TP_RST_SHARED_WITH_LCD
+    bool "Touch RESET is shared with the LCD reset"
+    default y
+    help
+      PB0 resets both the panel and the touch controller. The 8080 display
+      backend owns PB0, so the touch driver leaves it alone and relies on
+      the panel reset. Clear this only after verifying a dedicated touch
+      reset line.
+
+config JIELI_BOARD_TP_X_MAX
+    int "Touch X resolution"
+    range 1 4096
+    default 320
+
+config JIELI_BOARD_TP_Y_MAX
+    int "Touch Y resolution"
+    range 1 4096
+    default 480
+
+config JIELI_BOARD_TP_SWAP_XY
+    bool "Swap touch X/Y"
+    default n
+
+config JIELI_BOARD_TP_MIRROR_X
+    bool "Mirror touch X"
+    default n
+
+config JIELI_BOARD_TP_MIRROR_Y
+    bool "Mirror touch Y"
     default n
 
 # ---------------------------------------------------------------------------

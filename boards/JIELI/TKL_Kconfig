@@ -129,3 +129,8 @@ config ENABLE_PM
 config ENABLE_TIMER
     bool
     default y
+
+config ENABLE_AUDIO
+    bool "Compile the TAL audio algorithms (RNN VAD, keyword spotting)"
+    default y if BOARD_CHOICE_AC79_DEVKITBOARD
+    default n
