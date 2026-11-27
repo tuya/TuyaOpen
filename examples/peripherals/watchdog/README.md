@@ -15,7 +15,7 @@ A watchdog (`watchdog`) can be understood as a timer with counting capability. T
 ![watdog process .png](https://airtake-public-data-1254153901.cos.ap-shanghai.myqcloud.com/content-platform/hestia/16557369822cb8027f90d.png)
 
 ## Execution Results
-Since we set the watchdog feeding time to 10s, but the hardware environment for this example is `BK7231N`, which feeds the dog every 60 seconds, the chip will keep restarting.
+The example requests a 60-second watchdog timeout and refreshes the watchdog before the actual timeout expires. After the configured number of refreshes, it stops refreshing so the watchdog resets the device.
 
 ## Technical Support
 

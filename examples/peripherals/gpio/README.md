@@ -233,8 +233,6 @@ This example code demonstrates the basic usage of GPIO, including GPIO output co
 | T3 | General-purpose high-performance MCU platform, based on ARM Cortex-M series cores | Smart appliances and industrial control requiring strong processing capabilities |
 | T2 | Cost-optimized general-purpose MCU platform | Basic smart home devices, sensor nodes |
 | ESP32 | Popular IoT platform with integrated Wi-Fi and Bluetooth | Various IoT devices requiring wireless connectivity |
-| LN882H | Domestic RISC-V architecture Wi-Fi SoC | Smart home, consumer electronics |
-| BK7231X | Broadcom-integrated Wi-Fi IoT chip | Smart lighting, smart sockets, etc. |
 
 ## Precautions
 

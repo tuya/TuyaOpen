@@ -108,6 +108,14 @@ menu "configure platform <your-platform-name>"
         bool "ENABLE_MCU8080 --- support LCD mcu8080 interface"
         default n
 
+    config ENABLE_MIPI_DSI
+        bool "ENABLE_MIPI_DSI --- support LCD MIPI-DSI interface"
+        default n
+
+    config ENABLE_MIPI_CSI
+        bool "ENABLE_MIPI_CSI --- support MIPI-CSI camera interface"
+        default n
+
     config ENABLE_MEDIA
         bool "ENABLE_MEDIA --- support media"
         default n

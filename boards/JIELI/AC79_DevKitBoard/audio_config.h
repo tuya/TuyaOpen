@@ -37,4 +37,10 @@
 #define JIELI_AUDIO_PA_MUTE_LEVEL       0
 #define JIELI_AUDIO_PA_RELEASE_DELAY_MS 200
 
+/* Keep the PA muted after boot instead of releasing it. The board only plays
+ * audio when an app stream starts, and the vendor runtime's pa_auto_mute
+ * drives PB2 for playback; leaving the amp enabled at idle lets the DAC
+ * noise that the SPI camera couples in reach the speaker ("ding ding"). */
+#define JIELI_AUDIO_PA_KEEP_MUTED_AT_BOOT 1
+
 #endif /* AC79_DEVKITBOARD_AUDIO_CONFIG_H */

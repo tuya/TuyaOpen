@@ -1,3 +1,9 @@
+config ENABLE_SIWX917_OS_SERVICE
+    bool
+    default y
+    select ENABLE_LIBLWIP
+    select ENABLE_LWIP_DHCPD
+
 config MBEDTLS_CONFIG_FILE
     string
     default "tuya_tls_config.h"
@@ -5,28 +11,78 @@ config MBEDTLS_CONFIG_FILE
 config ENABLE_SEMAPHORE
     bool
     default y
- 
+
 config ENABLE_MUTEX
     bool
     default y
- 
+
 config ENABLE_QUEUE
     bool
     default y
- 
+
 config ENABLE_THREAD
     bool
     default y
- 
+
 config ENABLE_MEMORY
     bool
     default y
- 
+
 config ENABLE_SYSTEM_TIME
     bool
     default y
- 
+
 config ENABLE_INIT_HARDWARE
     bool
     default y
- 
+
+# Platform defaults for bundled liblwip and tuyaopen-core task stacks on SiWx917.
+# boards/Kconfig is sourced before src/Kconfig and tuyaopen-core/Kconfig, so
+# these defaults apply on SIWX917 while still allowing per-app overrides.
+config PBUF_LINK_ENCAPSULATION_HLEN
+    int
+    default 0 if PLATFORM_SIWX917
+
+config LWIP_NETIF_HOSTNAME
+    int
+    default 1 if PLATFORM_SIWX917
+
+config LWIP_TCPIP_CORE_LOCKING
+    int
+    default 1 if PLATFORM_SIWX917
+
+config LWIP_EAPOL_SUPPORT
+    int
+    default 0 if PLATFORM_SIWX917
+
+config LWIP_TX_PBUF_ZERO_COPY
+    int
+    default 0 if PLATFORM_SIWX917
+
+config CONFIG_TUYA_SOCK_SHIM
+    int
+    default 0 if PLATFORM_SIWX917
+
+config ETHARP_SUPPORT_STATIC_ENTRIES
+    int
+    default 1 if PLATFORM_SIWX917
+
+config LWIP_NETIF_STATUS_CALLBACK
+    int
+    default 1 if PLATFORM_SIWX917
+
+config LWIP_NETCONN_SEM_PER_THREAD
+    int
+    default 0 if PLATFORM_SIWX917
+
+config STACK_SIZE_TIMERQ
+    int
+    default 3072 if PLATFORM_SIWX917
+
+config STACK_SIZE_WORK_QUEUE
+    int
+    default 3072 if PLATFORM_SIWX917
+
+config STACK_SIZE_MSG_QUEUE
+    int
+    default 3072 if PLATFORM_SIWX917

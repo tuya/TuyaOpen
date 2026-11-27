@@ -2,10 +2,6 @@ config BOARD_ENABLE_LINUX
     bool
     default y
 
-config BOARD_ENABLE_T2
-    bool
-    default y
-
 config BOARD_ENABLE_T3
     bool
     default y
@@ -18,23 +14,11 @@ config BOARD_ENABLE_ESP32
     bool
     default y
 
-config BOARD_ENABLE_LN882H
-    bool
-    default y
-
-config BOARD_ENABLE_BK7231X
-    bool
-    default y
-
 config BOARD_ENABLE_GD32
     bool
     default y
 
 config BOARD_ENABLE_SIWX917
-    bool
-    default y
-
-config BOARD_ENABLE_L511
     bool
     default y
 
@@ -57,14 +41,6 @@ if (BOARD_ENABLE_LINUX)
         bool "LINUX"
     if (BOARD_CHOICE_LINUX)
     rsource "./LINUX/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_T2)
-    config BOARD_CHOICE_T2
-        bool "T2"
-    if (BOARD_CHOICE_T2)
-    rsource "./T2/Kconfig"
     endif
 endif
 
@@ -92,22 +68,6 @@ if (BOARD_ENABLE_ESP32)
     endif
 endif
 
-if (BOARD_ENABLE_LN882H)
-    config BOARD_CHOICE_LN882H
-        bool "LN882H"
-    if (BOARD_CHOICE_LN882H)
-    rsource "./LN882H/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_BK7231X)
-    config BOARD_CHOICE_BK7231X
-        bool "BK7231X"
-    if (BOARD_CHOICE_BK7231X)
-    rsource "./BK7231X/Kconfig"
-    endif
-endif
-
 if (BOARD_ENABLE_GD32)
     config BOARD_CHOICE_GD32
         bool "GD32"
@@ -121,31 +81,6 @@ if (BOARD_ENABLE_SIWX917)
         bool "SIWX917"
     if (BOARD_CHOICE_SIWX917)
     rsource "./SIWX917/Kconfig"
-    endif
-endif
-
-if (BOARD_ENABLE_L511)
-    config BOARD_CHOICE_L511
-        bool "L511"
-    if (BOARD_CHOICE_L511)
-    choice
-        prompt "Choice an L511 model"
-        config L511_MODEL_L511G_Y7PM
-            bool "L511G_Y7PM"
-        if (L511_MODEL_L511G_Y7PM)
-            rsource "./L511G_Y7PM/Kconfig"
-        endif
-        config L511_MODEL_L511C_Y6E
-            bool "L511C_Y6E"
-        if (L511_MODEL_L511C_Y6E)
-            rsource "./L511C_Y6E/Kconfig"
-        endif
-        config L511_MODEL_L511C_Y7PM
-            bool "L511C_Y7PM"
-        if (L511_MODEL_L511C_Y7PM)
-            rsource "./L511C_Y7PM/Kconfig"
-        endif
-    endchoice
     endif
 endif
 

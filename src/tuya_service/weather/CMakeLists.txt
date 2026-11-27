@@ -1,0 +1,7 @@
+add_library(tuya_weather STATIC tuya_weather.c)
+target_include_directories(tuya_weather PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+list(APPEND COMPONENT_LIBS tuya_weather)
+set(COMPONENT_LIBS "${COMPONENT_LIBS}" PARENT_SCOPE)
+list(APPEND COMPONENT_PUBINC ${CMAKE_CURRENT_SOURCE_DIR})
+set(COMPONENT_PUBINC "${COMPONENT_PUBINC}" PARENT_SCOPE)

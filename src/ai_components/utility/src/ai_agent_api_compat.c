@@ -34,18 +34,18 @@
 #include "tuya_cloud_types.h"
 #include "tal_log.h"
 
-OPERATE_RET tuya_ai_agent_set_scode(CHAR_T *scode)
+OPERATE_RET tuya_ai_agent_set_scode(char *scode)
 {
     (void)scode;
     return OPRT_OK;
 }
 
-VOID tuya_ai_agent_server_vad_ctrl(BOOL_T flag)
+void tuya_ai_agent_server_vad_ctrl(BOOL_T flag)
 {
     (void)flag;
 }
 
-VOID tuya_ai_agent_set_session_param(CHAR_T *value)
+void tuya_ai_agent_set_session_param(char *value)
 {
     (void)value;
 }

@@ -46,13 +46,6 @@ target_include_directories(${MODULE_NAME}
         ${LIB_PUBLIC_INC}
     )
 
-target_link_libraries(${MODULE_NAME}
-    PUBLIC
-        tal_system
-        tal_image
-        common
-    )
-
 ########################################
 # Layer Configure
 ########################################

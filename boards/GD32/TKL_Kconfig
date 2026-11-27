@@ -1,4 +1,5 @@
 config ENABLE_ADC
+	bool
 	default y
 
 config ENABLE_BLUETOOTH
@@ -6,42 +7,55 @@ config ENABLE_BLUETOOTH
 	default y
 
 config ENABLE_GPIO
+	bool
 	default y
 
 config ENABLE_HCI
+	bool
 	default n
 
 config ENABLE_I2C
+	bool
 	default y
 
 config ENABLE_PWM
+	bool
 	default y
 
 config ENABLE_QSPI
+	bool
 	default y
 
 config ENABLE_RTC
+	bool
 	default y
 
 config ENABLE_NIMBLE
+	bool
 	default n
 
 config ENABLE_SPI
+	bool
 	default y
 
 config ENABLE_TIMER
+	bool
 	default y
 
 config ENABLE_UART
+	bool
 	default y
 
 config ENABLE_WAKEUP
+	bool
 	default y
 
 config ENABLE_WATCHDOG
+	bool
 	default y
 
 config ENABLE_WIFI
+	bool
 	default y
 
 config ENABLE_PLATFORM_MBEDTLS

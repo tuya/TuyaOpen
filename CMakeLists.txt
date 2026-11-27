@@ -126,9 +126,6 @@ include("${PLATFORM_PATH}/platform_config.cmake")
 set(COMPONENT_LIBS "")
 set(COMPONENT_PUBINC "")
 list_components(COMPONENT_LIST "${TOP_SOURCE_DIR}/src")
-# image_album is not part of this build.
-list(REMOVE_ITEM COMPONENT_LIST
-    image_album)
 foreach(comp ${COMPONENT_LIST})
     # message(STATUS "comp: ${comp}")
     add_subdirectory("${TOP_SOURCE_DIR}/src/${comp}")
@@ -159,6 +156,8 @@ target_include_directories(tuyaopen-headers INTERFACE
 # not leak into the platform lwIP build through PLATFORM_PUBINC).
 if(PLATFORM_CORE_LWIP_VIEW)
     target_include_directories(tuyaopen-headers INTERFACE ${PLATFORM_CORE_LWIP_VIEW})
+elseif(TARGET liblwip)
+    target_include_directories(tuyaopen-headers INTERFACE $<TARGET_PROPERTY:liblwip,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 # Link retained components against tuyaopen-core.
 foreach(c ${COMPONENT_LIBS})
@@ -181,7 +180,7 @@ list(APPEND HEADER_DIR ${COMPONENT_PUBINC})
 deal_with_components("${COMPONENT_LIBS}" "${HEADER_DIR}")
 
 # build components_all lib
-set(COMPONENTS_ALL_LIB "tuyaos")
+set(COMPONENTS_ALL_LIB "tuyaopen")
 set(all_need)
 foreach(c ${COMPONENT_LIBS})
     list(APPEND all_need $<TARGET_OBJECTS:${c}>)
@@ -202,7 +201,7 @@ if(NOT DEFINED CONFIG_PROJECT_VERSION)
     set(CONFIG_PROJECT_VERSION "1.0.0")
 endif()
 set(EXAMPLE_LIB "tuyaapp")
-list(APPEND PLATFORM_NEED_HDIR ${COMPONENT_PUBINC})
+list(APPEND PLATFORM_NEED_HDIR ${COMPONENT_PUBINC} ${TOP_SOURCE_DIR}/tuyaopen-core/port/tuyaopen/interface)
 # Export core include paths to the platform build.
 foreach(_core_lib ${TUYAOPEN_CORE_LIBS})
     get_target_property(_core_lib_incs ${_core_lib} INTERFACE_INCLUDE_DIRECTORIES)

@@ -382,8 +382,8 @@ def check_bin_file(using_data,):
     return True
 
 
-def build_project(verbose=False, log_file=None, log_file_append=False):
-    """Perform a build; if log_file is provided, output will be redirected to that file. If log_file_append is True, append to the file."""
+def build_project(verbose=False, log_file=None, log_file_append=False, *, prepare_only=False):
+    """Prepare the configured project and optionally build it, with optional log redirection."""
 
     def _run():
         logger = get_logger()
@@ -436,6 +436,10 @@ def build_project(verbose=False, log_file=None, log_file_append=False):
             return False
         logger.info(f"Build setup for [{project_name}] success.")
 
+        if prepare_only:
+            logger.info(f"Build preparation for [{project_name}] completed.")
+            return True
+
         if not cmake_configure(using_data, verbose):
             logger.error("Cmake configure error.")
             return False
@@ -470,6 +474,9 @@ def build_project(verbose=False, log_file=None, log_file_append=False):
               type=click.Path(),
               default=None,
               help="Write build log to the specified file instead of terminal.")
-def cli(verbose, log_file):
-    ok = build_project(verbose, log_file)
+@click.option('--prepare-only',
+              is_flag=True, default=False,
+              help="Prepare dependencies and run platform build setup without compiling firmware.")
+def cli(verbose, log_file, prepare_only):
+    ok = build_project(verbose, log_file, prepare_only=prepare_only)
     sys.exit(0 if ok else 1)

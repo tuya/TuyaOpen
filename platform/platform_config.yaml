@@ -2,12 +2,12 @@ platforms:
 - name: T3
   repo: https://github.com/tuya/TuyaOpen-T3
   branch: master
-  commit: 649c3aaacc405c55cf94fc0bf56fee754e1d5c86
+  commit: 2e265abc432de65c15010f13aeda45365898e274
 
 - name: LINUX
   repo: https://github.com/tuya/TuyaOpen-ubuntu
   branch: platform_ubuntu
-  commit: 90a944c625d4e442db40056b67103c8e23fb7304
+  commit: 47acd27cbbbb0ac9718b2711eb6309d84a8be1a2
 
 - name: T5AI
   repo: https://github.com/tuya/TuyaOpen-T5AI
@@ -17,39 +17,24 @@ platforms:
 - name: ESP32
   repo: https://github.com/tuya/TuyaOpen-esp32
   branch: master
-  commit: cd4a3dae9393da9259323c7b93c2bfd09138236c
+  commit: b4e609ba8a360b42c6e877bbc8860b9745ce188f
 
 - name: GD32
   repo: https://github.com/tuya/TuyaOpen-GigaDevice
   branch: master
-  commit: 384d835ca9ac3a7bae7fdf4548c5488230b55c05
+  commit: 421c3f2d00fd16ae70575657f32c8431af44bb75
 
 - name: SIWX917
   repo: https://github.com/tuya/TuyaOpen-SiliconLabs
   branch: master
-  commit: 7d70ea68ca7da24778ef9760355a92644046ffa2
-
-- name: L511G_Y7PM
-  repo: https://github.com/tuya/TuyaOpen-LYNQ
-  branch: l511g-y7pm
-  commit: d7ccde744e87659d8dd11bcaa7b246c5b9f856cf
-
-- name: L511C_Y6E
-  repo: https://github.com/tuya/TuyaOpen-LYNQ
-  branch: l511c-y6e
-  commit: 83069e5b60baf4bedd2bf5e6fd21e81472d13428
-
-- name: L511C_Y7PM
-  repo: https://github.com/tuya/TuyaOpen-LYNQ
-  branch: l511c-y7pm
-  commit: 9293fa94fdc1cf95d61df0129be52ddfc6d2082b
+  commit: 8092b5cbdac0367abbe997b64f57f75a1f16758d
 
 - name: T9
   repo: https://github.com/tuya/TuyaOpen-T9
   branch: master
-  commit: f66311e243dc9b7eb4204f6501a8a5e668c7d3a8
+  commit: d74ea152d348eb4f23edeaf6d75ae7ffe5008e69
 
 - name: JIELI
   repo: https://github.com/tuya/TuyaOpen-JieLi
   branch: master
-  commit: c967f4b174480ff1df966eeea80bee1b0edcb0f6
+  commit: 3b67b45e32e0dad8fb09816bfd0b1ca50b2771dd
